@@ -154,6 +154,7 @@ mod tests {
             image: &img,
             root: 0x1000,
             isf: &isf,
+            sources: None,
         };
         assert_eq!(vm.translate(K + 0x1234).unwrap(), 0x9234);
         assert_eq!(discover(&img, &isf, &Job::default()).unwrap(), (0x1000, K));
@@ -163,7 +164,8 @@ mod tests {
             Memory {
                 image: &img,
                 root: 0x1000,
-                isf: &isf
+                isf: &isf,
+                sources: None
             }
             .translate(K + 0x1234)
             .unwrap(),
@@ -184,6 +186,7 @@ mod tests {
             image: &img,
             root: 0x1000,
             isf: &isf,
+            sources: None,
         };
         assert_eq!(vm.translate(0x80000123).unwrap(), 0x8123);
         assert!(vm.translate(0x1_80000123).is_err());
@@ -193,7 +196,8 @@ mod tests {
             Memory {
                 image: &img,
                 root: 0x1000,
-                isf: &isf
+                isf: &isf,
+                sources: None
             }
             .translate(0x80001234)
             .unwrap(),
@@ -209,7 +213,8 @@ mod tests {
             Memory {
                 image: &img,
                 root: 0x1020,
-                isf: &isf
+                isf: &isf,
+                sources: None
             }
             .translate(0x80000123)
             .unwrap(),

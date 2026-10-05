@@ -19,6 +19,8 @@ pub struct Options {
     pub pid: Option<u32>,
     pub hive: Option<u64>,
     pub key: String,
+    pub pagefiles: Vec<crate::windows::paging::Attachment>,
+    pub swapfile: Option<std::path::PathBuf>,
 }
 pub fn analyze(
     session: &mut Session,
@@ -71,6 +73,10 @@ pub fn analyze(
     ensure!(
         options.hive.is_none() && options.key.is_empty(),
         "hive/key 参数仅用于 windows.printkey"
+    );
+    ensure!(
+        options.pagefiles.is_empty() && options.swapfile.is_none(),
+        "分页附件仅用于 Windows 镜像"
     );
     let outcome = session.analyze_with_dump(request, dump, job)?;
     Ok(match outcome {

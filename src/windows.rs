@@ -16,12 +16,15 @@ use std::collections::{BTreeMap, HashSet};
 pub mod arch;
 pub use arch::Architecture;
 use arch::Paging;
+mod codec;
+mod compressed;
 pub mod container;
 mod dump;
 mod memory;
 mod network;
 mod network_layout;
 mod objects;
+pub mod paging;
 mod registry;
 mod wow64;
 const MAX_OBJECTS: usize = 1_000_000;
@@ -48,6 +51,7 @@ pub struct Memory<'a> {
     pub image: &'a Image,
     pub root: u64,
     pub isf: &'a Isf,
+    pub sources: Option<&'a paging::Sources>,
 }
 impl Memory<'_> {
     fn paging(&self) -> Result<Paging> {
@@ -96,17 +100,20 @@ impl Memory<'_> {
         Ok(table | (va & 4095))
     }
     pub fn read(&self, mut va: u64, mut out: &mut [u8]) -> Result<()> {
+        let _depth = paging::ReadDepth::enter()?;
         va.checked_add(out.len() as u64)
             .context("Windows 读取越界")?;
         while !out.is_empty() {
             let n = out.len().min(4096 - (va & 4095) as usize);
-            let physical = match self.translate(va) {
-                Ok(p) => p,
-                Err(original) => self
-                    .prototype(va)
-                    .with_context(|| format!("{original:#}"))?,
-            };
-            self.image.read(physical, &mut out[..n])?;
+            match self.translate(va) {
+                Ok(physical) => self.image.read(physical, &mut out[..n])?,
+                Err(original) => match self.prototype(va) {
+                    Ok(physical) => self.image.read(physical, &mut out[..n])?,
+                    Err(proto) => self
+                        .pagefile_read(va, &mut out[..n])
+                        .with_context(|| format!("{original:#}; {proto:#}"))?,
+                },
+            }
             va += n as u64;
             out = &mut out[n..];
         }
@@ -372,6 +379,7 @@ impl Windows<'_> {
             image: self.vm.image,
             root: if p.dtb != 0 { p.dtb } else { user },
             isf: self.vm.isf,
+            sources: self.vm.sources,
         })
     }
     fn issue(r: &mut Results, context: impl std::fmt::Display, error: impl std::fmt::Display) {
@@ -496,6 +504,10 @@ pub fn analyze(
         .as_ref()
         .is_some_and(|m| m.virtual_memory || image.segments.is_empty())
     {
+        ensure!(
+            options.pagefiles.is_empty() && options.swapfile.is_none(),
+            "此容器没有可验证的内核分页索引，不接受分页附件"
+        );
         return container::analyze(image, request, dump, options, job).map(Outcome::Ready);
     }
     if request.plugin.is_dump() {
@@ -536,19 +548,28 @@ pub fn analyze(
         "显式架构与符号不一致"
     );
     let (root, base) = discover(image, isf, job)?;
-    let engine = Windows {
-        vm: Memory { image, root, isf },
+    let mut sources = paging::Sources::open(options, job)?;
+    let mut engine = Windows {
+        vm: Memory {
+            image,
+            root,
+            isf,
+            sources: None,
+        },
         base,
         pdb: PdbIdentity::from_isf(isf)?,
     };
+    sources.configure_kernel(&engine)?;
+    engine.vm.sources = Some(&sources);
     let key = store::key(
         &image.digest,
         &isf.digest,
         &format!(
-            "{}:{:?}:{:?}:{}",
+            "{}:{:?}:{:?}:{}:{}",
             request.plugin.name(),
             options.pid,
             options.hive,
+            sources.cache_identity(),
             format_args!(
                 "{}:{:x}",
                 options.key,
@@ -560,6 +581,7 @@ pub fn analyze(
         && !request.plugin.is_dump()
         && let Some(r) = store::load(request.cache, &key)
     {
+        sources.validate()?;
         return Ok(Outcome::Ready(r));
     }
     let mut result = if let Some(dump) = dump {
@@ -574,6 +596,17 @@ pub fn analyze(
     {
         result.rows.retain(|row| row[index] == pid.to_string());
     }
+    sources.validate()?;
+    result.kernel_identity["paging_sources"] = sources.manifest()?;
+    let compressed = sources.compressed_evidence()?;
+    if !compressed.as_array().is_none_or(Vec::is_empty) {
+        Windows::issue(
+            &mut result,
+            "压缩 store",
+            "此恢复路径经合成测试验证，尚未完成真实镜像对照",
+        );
+    }
+    result.kernel_identity["compressed_pages"] = compressed;
     job.check()?;
     if request.use_cache && !request.plugin.is_dump() {
         store::save(request.cache, &key, &result, job)?;
@@ -690,7 +723,12 @@ pub fn discover(image: &Image, isf: &Isf, job: &Job) -> Result<(u64, u64)> {
             job,
         )?;
         for base in bases {
-            let vm = Memory { image, root, isf };
+            let vm = Memory {
+                image,
+                root,
+                isf,
+                sources: None,
+            };
             let test = (|| -> Result<()> {
                 let mut header = [0; 4096];
                 vm.read(base, &mut header)?;
@@ -734,13 +772,19 @@ pub fn discover(image: &Image, isf: &Isf, job: &Job) -> Result<(u64, u64)> {
                     image,
                     root: process.dtb,
                     isf,
+                    sources: None,
                 };
                 ensure!(system_vm.uint(base, 2)? == 0x5a4d, "System DTB 未映射内核");
                 Ok(())
             })();
             if test.is_ok() {
                 job.report(format!("Windows 内核已验证 DTB {root:#x} Base {base:#x}"));
-                let vm = Memory { image, root, isf };
+                let vm = Memory {
+                    image,
+                    root,
+                    isf,
+                    sources: None,
+                };
                 let system = vm.pointer(add(base, isf.raw_address("PsInitialSystemProcess")?)?)?;
                 let root = vm.number(system, "_EPROCESS", "Pcb.DirectoryTableBase")?
                     & geometry.root_mask();

@@ -288,7 +288,7 @@ enum Dialog {
         selected: usize,
     },
     WindowsParameters {
-        fields: [String; 4],
+        fields: [String; 6],
         field: usize,
         cursor: usize,
         selected: bool,
@@ -667,6 +667,17 @@ impl App {
                     .as_str()
                     .unwrap()
                     .into(),
+                self.analysis_options
+                    .pagefiles
+                    .iter()
+                    .map(|f| format!("{}={}", f.index, f.path.display()))
+                    .collect::<Vec<_>>()
+                    .join("; "),
+                self.analysis_options
+                    .swapfile
+                    .as_ref()
+                    .map(|p| p.display().to_string())
+                    .unwrap_or_default(),
             ],
             field: if self.plugin == Plugin::WinPrintkey {
                 0
@@ -2823,7 +2834,7 @@ impl App {
                 cursor,
                 selected,
                 ..
-            }) if *field < 4 => {
+            }) if *field < 6 => {
                 if *selected {
                     fields[*field].clear();
                     *cursor = 0;
@@ -3607,7 +3618,7 @@ impl App {
                 error,
             } => {
                 if key.code == KeyCode::Enter
-                    && (*field == 4 || key.modifiers.contains(KeyModifiers::CONTROL))
+                    && (*field == 6 || key.modifiers.contains(KeyModifiers::CONTROL))
                 {
                     let parsed = (|| -> Result<crate::analysis::Options> {
                         let hive = if fields[0].trim().is_empty() {
@@ -3634,6 +3645,19 @@ impl App {
                             pid,
                             hive,
                             key: fields[1].clone(),
+                            pagefiles: fields[4]
+                                .split([';', '\n'])
+                                .filter(|s| !s.trim().is_empty())
+                                .map(|s| {
+                                    crate::windows::paging::parse_attachment(s.trim())
+                                        .map_err(anyhow::Error::msg)
+                                })
+                                .collect::<Result<Vec<_>>>()?,
+                            swapfile: if fields[5].trim().is_empty() {
+                                None
+                            } else {
+                                Some(fields[5].trim().into())
+                            },
                         })
                     })();
                     match parsed {
@@ -3651,14 +3675,14 @@ impl App {
                 ) {
                     *field = (*field
                         + if matches!(key.code, KeyCode::BackTab | KeyCode::Up) {
-                            4
+                            6
                         } else {
                             1
                         })
-                        % 5;
-                    *cursor = if *field < 4 { fields[*field].len() } else { 0 };
+                        % 7;
+                    *cursor = if *field < 6 { fields[*field].len() } else { 0 };
                     *selected = true;
-                } else if *field < 4 {
+                } else if *field < 6 {
                     edit_input(&mut fields[*field], cursor, selected, key);
                 }
             }
@@ -4574,7 +4598,7 @@ impl App {
                 area.width.saturating_sub(6).min(90),
                 match dialog {
                     Dialog::Dump { .. } => 12,
-                    Dialog::WindowsParameters { .. } => 14,
+                    Dialog::WindowsParameters { .. } => 18,
                     Dialog::Input { .. } => 6,
                     _ => 12,
                 },
@@ -4598,9 +4622,13 @@ impl App {
                         Line::raw(escaped(&fields[2])),
                         Line::raw("架构 auto / x86 / x64 / arm64"),
                         Line::raw(escaped(&fields[3])),
+                        Line::raw("同次采集 pagefile（索引=路径；分号分隔）"),
+                        Line::raw(escaped(&fields[4])),
+                        Line::raw("同次采集 swapfile（可选路径）"),
+                        Line::raw(escaped(&fields[5])),
                         Line::raw(format!(
                             "{} 运行 · Tab 字段 · Ctrl+Enter 运行",
-                            if *field == 4 { "▶" } else { " " }
+                            if *field == 6 { "▶" } else { " " }
                         )),
                         Line::raw(error.clone()),
                     ];

@@ -25,6 +25,12 @@ struct Cli {
     os: zero_tui::analysis::Os,
     #[arg(long, global = true, value_enum, default_value = "auto")]
     arch: zero_tui::windows::Architecture,
+    /// Paging file from the same capture, with its kernel index: INDEX=PATH.
+    #[arg(long = "pagefile", global = true, value_parser = zero_tui::windows::paging::parse_attachment)]
+    pagefiles: Vec<zero_tui::windows::paging::Attachment>,
+    /// Swapfile from the same capture; requires symbols to verify its kernel index.
+    #[arg(long, global = true)]
+    swapfile: Option<PathBuf>,
     #[arg(long, global=true, value_parser=zero_tui::dump::parse_address)]
     hive: Option<u64>,
     #[arg(long, global = true, default_value = "")]
@@ -327,6 +333,8 @@ fn main() -> Result<()> {
             &zero_tui::analysis::Options {
                 os: cli.os,
                 arch: cli.arch,
+                pagefiles: cli.pagefiles.clone(),
+                swapfile: cli.swapfile.clone(),
                 pid: if plugin.is_dump() { None } else { pid },
                 hive: cli.hive,
                 key: cli.key.clone(),
@@ -370,6 +378,8 @@ fn main() -> Result<()> {
             zero_tui::analysis::Options {
                 os: cli.os,
                 arch: cli.arch,
+                pagefiles: cli.pagefiles.clone(),
+                swapfile: cli.swapfile.clone(),
                 hive: cli.hive,
                 key: cli.key,
                 pid: None,

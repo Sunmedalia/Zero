@@ -146,6 +146,7 @@ mod tests {
                 image: &img,
                 root: 0x1000,
                 isf: &isf,
+                sources: None,
             },
             base: K,
             pdb: PdbIdentity::from_isf(&isf).unwrap(),

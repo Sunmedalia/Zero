@@ -289,6 +289,7 @@ mod tests {
             image: &image,
             root: 0x1000,
             isf: &isf,
+            sources: None,
         };
         assert_eq!(endpoint(&vm, K + 0x3000, 2, 443).unwrap(), "192.0.2.1:443");
         assert_eq!(endpoint(&vm, 0, 23, 80).unwrap(), "[::]:80");

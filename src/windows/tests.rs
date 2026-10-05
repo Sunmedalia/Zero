@@ -93,6 +93,7 @@ fn process_fields_filter_and_damaged_list() {
             image: &image_good,
             root: 0x1000,
             isf: &isf,
+            sources: None,
         },
         base: K,
         pdb: PdbIdentity::from_isf(&isf).unwrap(),
@@ -121,6 +122,7 @@ fn process_fields_filter_and_damaged_list() {
             image: &damaged,
             root: 0x1000,
             isf: &isf,
+            sources: None,
         },
         base: K,
         pdb: PdbIdentity::from_isf(&isf).unwrap(),
@@ -153,6 +155,7 @@ fn transition_prototype_missing_and_linux_isolation() {
         image: &image,
         root: 0x1000,
         isf: &isf,
+        sources: None,
     };
     assert_eq!(vm.uint(K + 0x1000, 1).unwrap(), 42);
     assert_eq!(vm.uint(K + 0x2000, 1).unwrap(), 19);
@@ -178,6 +181,7 @@ fn cancellation_and_unicode_bounds() {
         image: &image,
         root: 0x1000,
         isf: &isf,
+        sources: None,
     };
     assert_eq!(vm.unicode(K + 0x3000).unwrap(), "中文");
     let job = Job::default();
@@ -210,6 +214,7 @@ fn range_dump_matches_source_and_never_commits_missing_pages() {
             image: &image,
             root: 0x1000,
             isf: &isf,
+            sources: None,
         },
         base: K,
         pdb: PdbIdentity::from_isf(&isf).unwrap(),

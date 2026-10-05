@@ -23,6 +23,8 @@ struct AnalyzeArgs {
     plugin: String,
     os: Option<zero_tui::analysis::Os>,
     arch: Option<zero_tui::windows::Architecture>,
+    pagefiles: Option<Vec<zero_tui::windows::paging::Attachment>>,
+    swapfile: Option<PathBuf>,
     pid: Option<u32>,
     hive: Option<String>,
     key: Option<String>,
@@ -43,6 +45,8 @@ struct DumpArgs {
     mode: String,
     os: Option<zero_tui::analysis::Os>,
     arch: Option<zero_tui::windows::Architecture>,
+    pagefiles: Option<Vec<zero_tui::windows::paging::Attachment>>,
+    swapfile: Option<PathBuf>,
     pid: u32,
     dump_dir: PathBuf,
     output: PathBuf,
@@ -100,8 +104,8 @@ fn tools() -> Value {
     json!({"tools": [
         {"name":"zero_plugins","description":"List native Linux and Windows memory forensics plugins and their result columns.","inputSchema":{"type":"object","properties":{},"additionalProperties":false}},
         {"name":"zero_symbols","description":"Identify image banners and exact ISF repository matches. Optional download saves verified symbols locally.","inputSchema":{"type":"object","properties":{"image":{"type":"string"},"offline":{"type":"boolean"},"download":{"type":"boolean"}},"required":["image"],"additionalProperties":false}},
-        {"name":"zero_analyze","description":"Run a native analysis plugin on a local memory image. Returns at most 200 rows and may export all rows to JSON/CSV. Use offset/limit to page the result.","inputSchema":{"type":"object","properties":{"image":{"type":"string"},"plugin":{"type":"string"},"os":{"type":"string","enum":["auto","linux","windows"]},"arch":{"type":"string","enum":["auto","x86","x64","arm64"]},"pid":{"type":"integer","minimum":0},"hive":{"type":"string"},"key":{"type":"string"},"symbols":{"type":"string"},"symbol_choice":{"type":"string"},"offline":{"type":"boolean"},"no_cache":{"type":"boolean"},"offset":{"type":"integer","minimum":0},"limit":{"type":"integer","minimum":1,"maximum":200},"output":{"type":"string"}},"required":["image","plugin"],"additionalProperties":false}},
-        {"name":"zero_dump","description":"Export one process, one PID address range, or ELF mappings to a local directory with a JSON/CSV manifest. Requires explicit PID and paths.","inputSchema":{"type":"object","properties":{"image":{"type":"string"},"symbols":{"type":"string"},"symbol_choice":{"type":"string"},"os":{"type":"string","enum":["auto","linux","windows"]},"arch":{"type":"string","enum":["auto","x86","x64","arm64"]},"mode":{"type":"string","enum":["process","range","elf","pe"]},"pid":{"type":"integer","minimum":0},"dump_dir":{"type":"string"},"output":{"type":"string"},"start":{"type":"string"},"end":{"type":"string"},"offline":{"type":"boolean"}},"required":["image","mode","pid","dump_dir","output"],"additionalProperties":false}},
+        {"name":"zero_analyze","description":"Run a native analysis plugin on a local memory image. Returns at most 200 rows and may export all rows to JSON/CSV. Use offset/limit to page the result.","inputSchema":{"type":"object","properties":{"image":{"type":"string"},"plugin":{"type":"string"},"os":{"type":"string","enum":["auto","linux","windows"]},"arch":{"type":"string","enum":["auto","x86","x64","arm64"]},"pagefiles":{"type":"array","items":{"type":"object","properties":{"index":{"type":"integer","minimum":0,"maximum":15},"path":{"type":"string"}},"required":["index","path"],"additionalProperties":false}},"swapfile":{"type":"string"},"pid":{"type":"integer","minimum":0},"hive":{"type":"string"},"key":{"type":"string"},"symbols":{"type":"string"},"symbol_choice":{"type":"string"},"offline":{"type":"boolean"},"no_cache":{"type":"boolean"},"offset":{"type":"integer","minimum":0},"limit":{"type":"integer","minimum":1,"maximum":200},"output":{"type":"string"}},"required":["image","plugin"],"additionalProperties":false}},
+        {"name":"zero_dump","description":"Export one process, one PID address range, or ELF mappings to a local directory with a JSON/CSV manifest. Requires explicit PID and paths.","inputSchema":{"type":"object","properties":{"image":{"type":"string"},"symbols":{"type":"string"},"symbol_choice":{"type":"string"},"os":{"type":"string","enum":["auto","linux","windows"]},"arch":{"type":"string","enum":["auto","x86","x64","arm64"]},"pagefiles":{"type":"array","items":{"type":"object","properties":{"index":{"type":"integer","minimum":0,"maximum":15},"path":{"type":"string"}},"required":["index","path"],"additionalProperties":false}},"swapfile":{"type":"string"},"mode":{"type":"string","enum":["process","range","elf","pe"]},"pagefiles":{"type":"array","items":{"type":"object","properties":{"index":{"type":"integer","minimum":0,"maximum":15},"path":{"type":"string"}},"required":["index","path"],"additionalProperties":false}},"swapfile":{"type":"string"},"pid":{"type":"integer","minimum":0},"dump_dir":{"type":"string"},"output":{"type":"string"},"start":{"type":"string"},"end":{"type":"string"},"offline":{"type":"boolean"}},"required":["image","mode","pid","dump_dir","output"],"additionalProperties":false}},
         {"name":"zero_cache_list","description":"Inspect regenerable local cache without deleting it.","inputSchema":{"type":"object","properties":{},"additionalProperties":false}}
     ]})
 }
@@ -172,6 +176,16 @@ fn call(name: &str, args: Value, root: &Path) -> Result<Value> {
                 &zero_tui::analysis::Options {
                     os: a.os.unwrap_or_default(),
                     arch: a.arch.unwrap_or_default(),
+                    pagefiles: a
+                        .pagefiles
+                        .unwrap_or_default()
+                        .into_iter()
+                        .map(|f| zero_tui::windows::paging::Attachment {
+                            index: f.index,
+                            path: path(root, &f.path),
+                        })
+                        .collect(),
+                    swapfile: a.swapfile.map(|p| path(root, &p)),
                     pid: a.pid,
                     hive: a
                         .hive
@@ -247,6 +261,16 @@ fn call(name: &str, args: Value, root: &Path) -> Result<Value> {
                 &zero_tui::analysis::Options {
                     os: a.os.unwrap_or_default(),
                     arch: a.arch.unwrap_or_default(),
+                    pagefiles: a
+                        .pagefiles
+                        .unwrap_or_default()
+                        .into_iter()
+                        .map(|f| zero_tui::windows::paging::Attachment {
+                            index: f.index,
+                            path: path(root, &f.path),
+                        })
+                        .collect(),
+                    swapfile: a.swapfile.map(|p| path(root, &p)),
                     ..Default::default()
                 },
                 &job(),
