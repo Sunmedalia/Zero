@@ -1,34 +1,9 @@
-# Python
-__pycache__/
-*.py[cod]
-*.pyo
-*.egg-info/
-.pytest_cache/
-.coverage
-htmlcov/
-build/
-dist/
-
-# Virtual environments
-.venv/
-venv/
-env/
-
-# Node / frontend
-node_modules/
-web/frontend/node_modules/
-web/frontend/dist/
-npm-debug.log*
-yarn-debug.log*
-pnpm-debug.log*
-
-# Runtime data
-dumps/
-symbols/
-saved_results/
-logs/
-.lexzero/
-.zero/
+# Native builds and local runtime data
+/target/
+/.zero/
+/exports/
+/images/
+/symbols/
 *.log
 *.raw
 *.mem
@@ -41,14 +16,15 @@ logs/
 *.crash
 *.hpak
 *.aff4
+/linux-sample-1.bin.gz
+/linux.zip
 
-# Local configuration
+# Independent reference-script bytecode
+__pycache__/
+*.py[cod]
+
+# Local configuration and editors
 .env
-config.local.py
-# Local upstream design reference; never packaged or committed.
-pi/
-
-# Editors
 .vscode/
 .idea/
 .DS_Store

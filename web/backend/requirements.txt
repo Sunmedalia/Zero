@@ -1,8 +1,0 @@
-fastapi>=0.100.0
-uvicorn[standard]>=0.23.0
-websockets>=11.0
-openai>=2.46,<3
-anthropic>=0.117,<1
-google-genai>=2.13,<3
-yara-x==1.19.0
-python-multipart>=0.0.9
