@@ -8,6 +8,8 @@
 
 MCP 工具包括 `zero_plugins`、`zero_symbols`、`zero_analyze`、`zero_dump` 和 `zero_cache_list`。`zero_analyze` 直接返回分页 JSON，`output` 可另存全部结果为 JSON／CSV；`zero_dump` 要求明确的 PID、目标目录和清单路径。相对路径以项目根目录为基准，`offline: true` 禁止符号网络请求。镜像不上传；在线模式仅按完整 banner 查询和下载符号。MCP 工具执行可能耗时较长，客户端工具调用超时建议至少 300 秒。
 
+工具参数按 schema 严格校验，拼写错误会返回 `isError: true`。分析还需检查 `complete` 和 `diagnostics`；部分结果可以正常返回，但不进入成功缓存。离线且未缓存远程索引时，用 `zero_analyze` 的 `banners` 插件识别内核；`zero_symbols` 需要远程索引。CLI／MCP 调用示例见 skill 的 [calls.md](.agents/skills/zero-forensics/references/calls.md)。`cargo test --locked --test native mcp_` 可复测全部五个 MCP 工具、分页边界、JSON／CSV 导出、三种转储及错误恢复，不依赖外部镜像或网络。
+
 无需客户端时可直接测试协议：
 
 ```sh
