@@ -49,7 +49,7 @@ impl Windows<'_> {
                         return Ok(None);
                     }
                     let header = 0xffff_0000_0000_0000 | (bits << 4);
-                    ensure!(kernel(header), "无效对象头地址");
+                    ensure!(self.vm.kernel(header), "无效对象头地址");
                     let body = self.field(header, "_OBJECT_HEADER", "Body")?;
                     let access = physical_number(
                         self.vm.isf,
@@ -99,7 +99,7 @@ impl Windows<'_> {
         let ty = self
             .vm
             .uint(add(self.symbol("ObTypeIndexTable")?, index * 8)?, 8)?;
-        ensure!(kernel(ty), "无效对象类型");
+        ensure!(self.vm.kernel(ty), "无效对象类型");
         self.vm.unicode(self.field(ty, "_OBJECT_TYPE", "Name")?)
     }
     fn object_name(&self, header: u64) -> Result<String> {
@@ -223,7 +223,7 @@ impl Windows<'_> {
                         self.vm.image.read(dtb, &mut page)?;
                         let links =
                             physical_number(isf, &b, "_EPROCESS", "ActiveProcessLinks.Flink")?;
-                        ensure!(kernel(links), "无效进程链表指针");
+                        ensure!(self.vm.kernel(links), "无效进程链表指针");
                         let threads = physical_number(isf, &b, "_EPROCESS", "ActiveThreads")?;
                         ensure!(threads <= 65536, "无效线程数");
                         let created = physical_number(isf, &b, "_EPROCESS", "CreateTime")?;

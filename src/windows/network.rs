@@ -89,7 +89,7 @@ impl Windows<'_> {
                         },
                         8,
                     )?;
-                    ensure!(kernel(af), "无效 InetAF");
+                    ensure!(self.vm.kernel(af), "无效 InetAF");
                     let family = self.vm.uint(add(af, 24)?, 2)?;
                     ensure!(matches!(family, 2 | 23), "无效地址族");
                     let owner = read(
@@ -246,7 +246,19 @@ pub(super) fn pe_identity(vm: &Memory<'_>, base: u64) -> Result<PdbIdentity> {
     vm.read(base, &mut header)?;
     let (_, debug) = pe_header(&header)?;
     let pe = u32::from_le_bytes(header[60..64].try_into()?) as usize;
-    let len = u32::from_le_bytes(header[pe + 24 + 112 + 52..pe + 24 + 112 + 56].try_into()?) as u64;
+    let directories = if u16::from_le_bytes(header[pe + 24..pe + 26].try_into()?) == 0x10b {
+        96
+    } else {
+        112
+    };
+    ensure!(
+        u16::from_le_bytes(header[pe + 4..pe + 6].try_into()?)
+            == Architecture::from_isf(vm.isf)?.machine(),
+        "PE/符号机器类型冲突"
+    );
+    let len = u32::from_le_bytes(
+        header[pe + 24 + directories + 52..pe + 24 + directories + 56].try_into()?,
+    ) as u64;
     ensure!(
         len <= 4096 && len.is_multiple_of(28),
         "PE debug directory 无效"

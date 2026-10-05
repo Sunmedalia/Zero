@@ -141,7 +141,7 @@ impl Windows<'_> {
             }
             let parsed = (|| -> Result<Vad> {
                 ensure!(
-                    kernel(node) && seen.insert(node) && seen.len() <= MAX_OBJECTS,
+                    self.vm.kernel(node) && seen.insert(node) && seen.len() <= MAX_OBJECTS,
                     "VAD 节点无效/循环/超限"
                 );
                 for f in ["Left", "Right"] {

@@ -15,6 +15,7 @@ pub enum Os {
 #[derive(Clone, Debug, Default)]
 pub struct Options {
     pub os: Os,
+    pub arch: crate::windows::Architecture,
     pub pid: Option<u32>,
     pub hive: Option<u64>,
     pub key: String,

@@ -16,7 +16,7 @@ use std::{
     path::Path,
 };
 
-pub const CONVERTER_VERSION: &str = "pdb-native-3";
+pub const CONVERTER_VERSION: &str = "pdb-native-4";
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub struct PdbIdentity {
     pub name: String,
@@ -237,10 +237,13 @@ pub fn convert(bytes: &[u8], identity: &PdbIdentity, job: &Job) -> Result<Vec<u8
     let mut pdb = pdb::PDB::open(std::io::Cursor::new(bytes))?;
     let info = pdb.pdb_information()?;
     let debug = pdb.debug_information()?;
-    ensure!(
-        debug.machine_type()? == pdb::MachineType::Amd64,
-        "仅支持 x64 Windows PDB"
-    );
+    let machine = debug.machine_type()?;
+    let (pointer_size, architecture, machine_type) = match machine {
+        pdb::MachineType::Amd64 => (8u64, "x64", 0x8664u64),
+        pdb::MachineType::X86 => (4, "x86", 0x14c),
+        pdb::MachineType::Arm64 => (8, "arm64", 0xaa64),
+        _ => bail!("不支持 Windows PDB 机器类型 {machine:?}"),
+    };
     let image_age = debug.age().unwrap_or(info.age);
     ensure!(
         info.guid.simple().to_string().to_ascii_uppercase() == identity.guid
@@ -264,7 +267,7 @@ pub fn convert(bytes: &[u8], identity: &PdbIdentity, job: &Job) -> Result<Vec<u8
     let mut bases = serde_json::Map::new();
     bases.insert(
         "pointer".into(),
-        json!({"size":8,"kind":"int","signed":false,"endian":"little"}),
+        json!({"size":pointer_size,"kind":"int","signed":false,"endian":"little"}),
     );
     bases.insert(
         "void".into(),
@@ -277,12 +280,15 @@ pub fn convert(bytes: &[u8], identity: &PdbIdentity, job: &Job) -> Result<Vec<u8
         use pdb::PrimitiveKind::*;
         if let Some(indirection) = p.indirection {
             ensure!(
-                indirection == pdb::Indirection::Near64,
+                matches!(
+                    indirection,
+                    pdb::Indirection::Near64 | pdb::Indirection::Near32
+                ),
                 "不支持的 PDB 指针宽度"
             );
             return Ok((
                 json!({"kind":"pointer","subtype":{"kind":"base","name":"void"}}),
-                8,
+                bases["pointer"]["size"].as_u64().context("缺少指针宽度")?,
             ));
         }
         let size = match p.kind {
@@ -339,10 +345,14 @@ pub fn convert(bytes: &[u8], identity: &PdbIdentity, job: &Job) -> Result<Vec<u8
                 c.size,
             )),
             TypeData::Pointer(p) => {
-                ensure!(p.attributes.size() == 8, "不支持非 x64 PDB 指针");
+                let width = bases["pointer"]["size"].as_u64().context("缺少指针宽度")?;
+                ensure!(
+                    p.attributes.size() as u64 == width,
+                    "PDB 指针宽度与机器类型不一致"
+                );
                 Ok((
                     json!({"kind":"pointer","subtype":ty(p.underlying_type,records,finder,bases,depth+1).map(|x|x.0).unwrap_or(json!({"kind":"base","name":"void"}))}),
-                    8,
+                    width,
                 ))
             }
             TypeData::Modifier(m) => ty(m.underlying_type, records, finder, bases, depth + 1),
@@ -514,7 +524,7 @@ pub fn convert(bytes: &[u8], identity: &PdbIdentity, job: &Job) -> Result<Vec<u8
             symbols.insert(name.to_string().into_owned(), json!({"address":rva.0}));
         }
     }
-    serde_json::to_vec(&json!({"metadata":{"format":"6.2.0","producer":{"name":"zero","version":env!("CARGO_PKG_VERSION")},"windows":{"pdb":{"database":identity.name,"GUID":identity.guid,"age":identity.age},"pe":{"machine_type":34404}},"zero":{"converter":CONVERTER_VERSION,"pdb_sha256":format!("{:x}",Sha256::digest(bytes)),"architecture":"x86_64"}},"base_types":bases,"user_types":users,"enums":enums,"symbols":symbols})).map_err(Into::into)
+    serde_json::to_vec(&json!({"metadata":{"format":"6.2.0","producer":{"name":"zero","version":env!("CARGO_PKG_VERSION")},"windows":{"pdb":{"database":identity.name,"GUID":identity.guid,"age":identity.age},"pe":{"machine_type":machine_type}},"zero":{"converter":CONVERTER_VERSION,"pdb_sha256":format!("{:x}",Sha256::digest(bytes)),"architecture":architecture}},"base_types":bases,"user_types":users,"enums":enums,"symbols":symbols})).map_err(Into::into)
 }
 
 #[cfg(test)]

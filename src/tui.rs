@@ -288,7 +288,7 @@ enum Dialog {
         selected: usize,
     },
     WindowsParameters {
-        fields: [String; 3],
+        fields: [String; 4],
         field: usize,
         cursor: usize,
         selected: bool,
@@ -661,6 +661,11 @@ impl App {
                     .pid
                     .map(|n| n.to_string())
                     .unwrap_or_default(),
+                serde_json::to_value(self.analysis_options.arch)
+                    .unwrap()
+                    .as_str()
+                    .unwrap()
+                    .into(),
             ],
             field: if self.plugin == Plugin::WinPrintkey {
                 0
@@ -2817,7 +2822,7 @@ impl App {
                 cursor,
                 selected,
                 ..
-            }) if *field < 3 => {
+            }) if *field < 4 => {
                 if *selected {
                     fields[*field].clear();
                     *cursor = 0;
@@ -3601,7 +3606,7 @@ impl App {
                 error,
             } => {
                 if key.code == KeyCode::Enter
-                    && (*field == 3 || key.modifiers.contains(KeyModifiers::CONTROL))
+                    && (*field == 4 || key.modifiers.contains(KeyModifiers::CONTROL))
                 {
                     let parsed = (|| -> Result<crate::analysis::Options> {
                         let hive = if fields[0].trim().is_empty() {
@@ -3619,6 +3624,11 @@ impl App {
                             "printkey 必须填写 hive 地址"
                         );
                         Ok(crate::analysis::Options {
+                            arch: <crate::windows::Architecture as clap::ValueEnum>::from_str(
+                                fields[3].trim(),
+                                true,
+                            )
+                            .map_err(anyhow::Error::msg)?,
                             os: crate::analysis::Os::Windows,
                             pid,
                             hive,
@@ -3640,14 +3650,14 @@ impl App {
                 ) {
                     *field = (*field
                         + if matches!(key.code, KeyCode::BackTab | KeyCode::Up) {
-                            3
+                            4
                         } else {
                             1
                         })
-                        % 4;
-                    *cursor = if *field < 3 { fields[*field].len() } else { 0 };
+                        % 5;
+                    *cursor = if *field < 4 { fields[*field].len() } else { 0 };
                     *selected = true;
-                } else if *field < 3 {
+                } else if *field < 4 {
                     edit_input(&mut fields[*field], cursor, selected, key);
                 }
             }
@@ -4563,6 +4573,7 @@ impl App {
                 area.width.saturating_sub(6).min(90),
                 match dialog {
                     Dialog::Dump { .. } => 12,
+                    Dialog::WindowsParameters { .. } => 14,
                     Dialog::Input { .. } => 6,
                     _ => 12,
                 },
@@ -4584,9 +4595,11 @@ impl App {
                         Line::raw(escaped(&fields[1])),
                         Line::raw("PID 筛选（可选）"),
                         Line::raw(escaped(&fields[2])),
+                        Line::raw("架构 auto / x86 / x64 / arm64"),
+                        Line::raw(escaped(&fields[3])),
                         Line::raw(format!(
                             "{} 运行 · Tab 字段 · Ctrl+Enter 运行",
-                            if *field == 3 { "▶" } else { " " }
+                            if *field == 4 { "▶" } else { " " }
                         )),
                         Line::raw(error.clone()),
                     ];

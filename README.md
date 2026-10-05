@@ -224,7 +224,7 @@ argv／环境区各限 1 MiB，单进程 VMA／FD 各限 100 万项，路径限 
 缓存与设置：
 
 - gzip 流式解压到 `.zero/rust/`，只有解压完成并校验后才原子提交；取消和损坏输入不产生完成标记。原镜像只读。新会话再次使用时验证解压缓存 SHA256。同一 TUI 会话中复用已验证镜像、完整 banner 和页表；源文件或符号文件元数据改变后重新准备。
-- 原生结果缓存键包含镜像 SHA256、所选 ISF SHA256、分析名称和引擎版本。只缓存完整分析结果。引擎版本为 `native-5`，旧缓存保留但不再复用。旧 CSV 从不用于原生缓存。
+- 原生结果缓存键包含镜像 SHA256、所选 ISF SHA256、分析名称和引擎版本。只缓存完整分析结果。引擎版本为 `native-6`，旧缓存保留但不再复用。旧 CSV 从不用于原生缓存。
 - 设置仅读取 `.zero/rust/settings.json`；不读取或执行旧 Python 配置。项目清单独立于可清理缓存，缓存清理保留设置、清单、原始镜像／符号和用户导出。
 
 
@@ -346,3 +346,7 @@ zero dump --os windows --image image.mem --mode range --pid 1234 --start 0x10000
 边界：不支持 Windows ARM64、32 位/WOW64 PEB 解码、crash/minidump、休眠镜像或分页文件/压缩页恢复。注册表分段大值未支持。网络结构仅接受 `src/windows/network_layouts.json` 中精确匹配的两组 tcpip.sys PDB 身份；未知身份明确报错。其他 Windows 构建需要真实镜像验证，不保证所有插件可用。
 
 参考交叉检查：准备独立 Volatility 3 v2.28 符号与 JSON 输出后，运行 `python3 tests/reference/windows.py /tmp/zero-win11- /tmp/zero-ref-win11-`（Windows 10 同理）。脚本逐字段检查共有记录，并分别报告覆盖范围；参考工具读不到的字段和缺失记录不会被当作相等的证据。
+
+## Windows 扩展阶段
+
+多架构基础提供 `--arch auto|x86|x64|arm64`，MCP 对应 `arch`，TUI 的 Windows 参数页可选择架构。指针和 PDB 机器类型必须一致；架构冲突明确报错。x86 普通／PAE、ARM64 4 KiB 页表目前经合成测试验证，真实镜像验收仍以既有 Windows 10/11 x64 为准；不应据此宣称所有架构的所有插件已完成。

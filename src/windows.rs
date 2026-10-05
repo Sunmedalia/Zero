@@ -13,6 +13,9 @@ use anyhow::{Context, Result, bail, ensure};
 use sha2::Digest;
 use std::collections::{BTreeMap, HashSet};
 
+pub mod arch;
+pub use arch::Architecture;
+use arch::Paging;
 mod dump;
 mod memory;
 mod network;
@@ -44,27 +47,48 @@ pub struct Memory<'a> {
     pub isf: &'a Isf,
 }
 impl Memory<'_> {
+    fn paging(&self) -> Result<Paging> {
+        Paging::new(self.isf)
+    }
+    fn pointer_size(&self) -> usize {
+        Architecture::from_isf(self.isf)
+            .expect("validated Windows ISF")
+            .pointer_size()
+    }
+    fn pointer(&self, address: u64) -> Result<u64> {
+        self.uint(address, self.pointer_size())
+    }
+    fn kernel(&self, address: u64) -> bool {
+        Architecture::from_isf(self.isf).is_ok_and(|a| a.kernel(address))
+    }
+    fn root_mask(&self) -> u64 {
+        self.paging().expect("validated Windows ISF").root_mask()
+    }
     pub fn translate(&self, va: u64) -> Result<u64> {
-        ensure!(
-            va >> 47 == 0 || va >> 47 == 0x1ffff,
-            "Windows 非 canonical 地址"
-        );
-        let mut table = self.root & PHYSICAL_MASK;
-        for shift in [39, 30, 21, 12] {
-            let mut entry = self.image.u64(table + ((va >> shift) & 511) * 8)?;
+        let geometry = self.paging()?;
+        ensure!(geometry.canonical(va), "Windows 非 canonical 地址");
+        let mut table = self.root & geometry.root_mask();
+        for (level, &shift) in geometry.shifts().iter().enumerate() {
+            let index = ((va >> shift) & (geometry.entries(level) as u64 - 1)) as usize;
+            let mut entry = geometry.entry(self.image, table, index)?;
             if entry & 1 == 0 {
-                if entry & (1 << 11) != 0 && entry & (1 << 10) == 0 {
+                if geometry.arch != Architecture::Arm64
+                    && entry & (1 << 11) != 0
+                    && entry & (1 << 10) == 0
+                {
                     entry |= 1;
                 } else {
                     bail!("Windows 缺页 VA {va:#x} level {shift} PTE {entry:#x}");
                 }
             }
-            if entry & 128 != 0 && shift != 12 {
-                ensure!(matches!(shift, 30 | 21), "Windows 非法大页");
+            if geometry.block(entry, shift) {
                 let mask = (1u64 << shift) - 1;
-                return Ok((entry & PHYSICAL_MASK & !mask) | (va & mask));
+                return Ok((entry & geometry.mask() & !mask) | (va & mask));
             }
-            table = entry & PHYSICAL_MASK;
+            if geometry.arch == Architecture::Arm64 {
+                ensure!(entry & 3 == 3, "无效 ARM64 table/page descriptor");
+            }
+            table = entry & geometry.mask();
         }
         Ok(table | (va & 4095))
     }
@@ -86,7 +110,12 @@ impl Memory<'_> {
         Ok(())
     }
     fn prototype(&self, va: u64) -> Result<u64> {
-        let mut table = self.root & PHYSICAL_MASK;
+        let geometry = self.paging()?;
+        ensure!(
+            geometry.arch == Architecture::X64,
+            "此架构的 prototype PTE 尚未验证"
+        );
+        let mut table = self.root & geometry.root_mask();
         for shift in [39, 30, 21, 12] {
             let entry = self.image.u64(table + ((va >> shift) & 511) * 8)?;
             if entry & 1 != 0 {
@@ -213,35 +242,41 @@ impl Windows<'_> {
             rows: vec![],
             complete: true,
             diagnostics: vec![],
-            banner: format!("Windows x64 {}", self.pdb.key()),
+            banner: format!(
+                "Windows {:?} {}",
+                Architecture::from_isf(self.vm.isf).unwrap(),
+                self.pdb.key()
+            ),
             symbol: self.vm.isf.label.clone(),
             page_table: self.vm.root,
             historical: false,
             system: "windows".into(),
-            kernel_identity: serde_json::json!({"pdb":self.pdb,"kernel_base":self.base,"time_format":"FILETIME"}),
+            kernel_identity: serde_json::json!({"pdb":self.pdb,"architecture":Architecture::from_isf(self.vm.isf).unwrap(),"container":self.vm.image.format,"kernel_base":self.base,"time_format":"FILETIME"}),
         }
     }
     fn list_partial(&self, head: u64, offset: u64, job: &Job) -> Result<(Vec<u64>, Vec<String>)> {
-        ensure!(kernel(head), "Windows 链表头非内核地址");
+        ensure!(self.vm.kernel(head), "Windows 链表头非内核地址");
         let mut nodes = Vec::new();
         let mut diagnostics = Vec::new();
         let mut all = HashSet::new();
-        for direction in [0, 8] {
+        for direction in [0, self.vm.pointer_size() as u64] {
             let mut previous = head;
-            let mut current = self.vm.uint(add(head, direction)?, 8)?;
+            let mut current = self.vm.pointer(add(head, direction)?)?;
             let mut seen = HashSet::new();
             while current != head {
                 job.check()?;
                 let read = (|| -> Result<u64> {
                     ensure!(
-                        kernel(current) && current & 7 == 0,
+                        self.vm.kernel(current) && current % self.vm.pointer_size() as u64 == 0,
                         "无效链表地址 {current:#x}"
                     );
                     ensure!(
                         seen.insert(current) && seen.len() <= MAX_OBJECTS,
                         "Windows 链表循环或超限 {current:#x}"
                     );
-                    let opposite = self.vm.uint(add(current, 8 - direction)?, 8)?;
+                    let opposite = self
+                        .vm
+                        .pointer(add(current, self.vm.pointer_size() as u64 - direction)?)?;
                     if opposite != previous {
                         diagnostics.push(format!("Windows 链表不一致 @ {current:#x} direction {direction}: expected {previous:#x}, found {opposite:#x}"));
                     }
@@ -249,7 +284,7 @@ impl Windows<'_> {
                     if all.insert(object) {
                         nodes.push(object);
                     }
-                    self.vm.uint(add(current, direction)?, 8)
+                    self.vm.pointer(add(current, direction)?)
                 })();
                 match read {
                     Ok(next) => {
@@ -262,7 +297,12 @@ impl Windows<'_> {
                     }
                 }
             }
-            if current == head && self.vm.uint(add(head, 8 - direction)?, 8)? != previous {
+            if current == head
+                && self
+                    .vm
+                    .pointer(add(head, self.vm.pointer_size() as u64 - direction)?)?
+                    != previous
+            {
                 diagnostics.push(format!(
                     "Windows 链表末尾未闭合 @ {head:#x} direction {direction}"
                 ));
@@ -283,7 +323,8 @@ impl Windows<'_> {
             pid <= u32::MAX as u64 && !name.is_empty() && !name.chars().any(char::is_control),
             "无效 EPROCESS"
         );
-        let dtb = self.number(address, "_EPROCESS", "Pcb.DirectoryTableBase")? & PHYSICAL_MASK;
+        let dtb =
+            self.number(address, "_EPROCESS", "Pcb.DirectoryTableBase")? & self.vm.root_mask();
         Ok(Process {
             address,
             physical: false,
@@ -322,7 +363,7 @@ impl Windows<'_> {
         let user = self
             .number(p.address, "_EPROCESS", "Pcb.UserDirectoryTableBase")
             .unwrap_or(0)
-            & PHYSICAL_MASK;
+            & self.vm.root_mask();
         ensure!(p.dtb != 0 || user != 0, "进程没有地址空间");
         Ok(Memory {
             image: self.vm.image,
@@ -479,6 +520,11 @@ pub fn analyze(
         }
         &symbols[0]
     };
+    let arch = Architecture::from_isf(isf)?;
+    ensure!(
+        options.arch == Architecture::Auto || options.arch == arch,
+        "显式架构与符号不一致"
+    );
     let (root, base) = discover(image, isf, job)?;
     let engine = Windows {
         vm: Memory { image, root, isf },
@@ -542,6 +588,7 @@ pub fn discover(image: &Image, isf: &Isf, job: &Job) -> Result<(u64, u64)> {
     {
         return Ok(*value);
     }
+    let geometry = Paging::new(isf)?;
     let mut headers = HashSet::new();
     let minimum = isf.raw_address("PsInitialSystemProcess")?;
     let mut roots = Vec::new();
@@ -559,14 +606,11 @@ pub fn discover(image: &Image, isf: &Isf, job: &Job) -> Result<(u64, u64)> {
                 {
                     headers.insert(pa);
                 }
-                let entries = page
-                    .chunks_exact(8)
-                    .map(|b| u64::from_le_bytes(b.try_into().unwrap()))
-                    .collect::<Vec<_>>();
-                if entries[256..]
-                    .iter()
-                    .any(|e| e & 1 != 0 && e & PHYSICAL_MASK == pa)
-                    && entries.iter().filter(|e| **e & 1 != 0).count() > 1
+                if geometry.arch == Architecture::X64
+                    && page.chunks_exact(8).skip(256).any(|b| {
+                        let e = u64::from_le_bytes(b.try_into().unwrap());
+                        e & 1 != 0 && e & PHYSICAL_MASK == pa
+                    })
                 {
                     roots.push(pa);
                 }
@@ -578,6 +622,32 @@ pub fn discover(image: &Image, isf: &Isf, job: &Job) -> Result<(u64, u64)> {
             ));
         }
     }
+
+    // A physical System EPROCESS gives a root candidate on every architecture.
+    // Candidates still require mapped PE identity, PID, DTB and list validation.
+    let name_offset = isf.offset("_EPROCESS", "ImageFileName")?;
+    for hit in image.scan(b"System\0", job)? {
+        job.check()?;
+        let Some(address) = hit.checked_sub(name_offset) else {
+            continue;
+        };
+        let read = |field: &str| -> Result<u64> {
+            let mut b = [0; 8];
+            image.read(
+                add(address, isf.offset("_EPROCESS", field)?)?,
+                &mut b[..isf.size("_EPROCESS", field)?],
+            )?;
+            Ok(u64::from_le_bytes(b))
+        };
+        if read("UniqueProcessId").is_ok_and(|pid| pid == 4)
+            && let Ok(root) = read("Pcb.DirectoryTableBase")
+            && root & geometry.root_mask() != 0
+        {
+            roots.push(root & geometry.root_mask());
+        }
+    }
+    roots.sort_unstable();
+    roots.dedup();
 
     ensure!(!headers.is_empty(), "找不到 Windows 内核 PE 头");
     job.report(format!(
@@ -593,7 +663,8 @@ pub fn discover(image: &Image, isf: &Isf, job: &Job) -> Result<(u64, u64)> {
         find_mappings(
             image,
             root,
-            39,
+            geometry,
+            0,
             0,
             &headers,
             &mut bases,
@@ -617,7 +688,7 @@ pub fn discover(image: &Image, isf: &Isf, job: &Job) -> Result<(u64, u64)> {
                 };
                 let system = engine
                     .vm
-                    .uint(engine.symbol("PsInitialSystemProcess")?, 8)?;
+                    .pointer(engine.symbol("PsInitialSystemProcess")?)?;
                 let process = engine.process(system)?;
                 ensure!(
                     process.pid == 4 && process.name == "System" && process.dtb != 0,
@@ -626,12 +697,20 @@ pub fn discover(image: &Image, isf: &Isf, job: &Job) -> Result<(u64, u64)> {
                 let head = engine.symbol("PsActiveProcessHead")?;
                 let link = engine.field(system, "_EPROCESS", "ActiveProcessLinks")?;
                 ensure!(
-                    engine.vm.uint(head, 8)? == link && engine.vm.uint(add(link, 8)?, 8)? == head,
+                    engine.vm.pointer(head)? == link
+                        && engine
+                            .vm
+                            .pointer(add(link, engine.vm.pointer_size() as u64)?)?
+                            == head,
                     "System 链表入口验证失败"
                 );
-                let next = engine.vm.uint(link, 8)?;
+                let next = engine.vm.pointer(link)?;
                 ensure!(
-                    kernel(next) && engine.vm.uint(add(next, 8)?, 8)? == link,
+                    engine.vm.kernel(next)
+                        && engine
+                            .vm
+                            .pointer(add(next, engine.vm.pointer_size() as u64)?)?
+                            == link,
                     "System 相邻链表验证失败"
                 );
                 let system_vm = Memory {
@@ -645,9 +724,9 @@ pub fn discover(image: &Image, isf: &Isf, job: &Job) -> Result<(u64, u64)> {
             if test.is_ok() {
                 job.report(format!("Windows 内核已验证 DTB {root:#x} Base {base:#x}"));
                 let vm = Memory { image, root, isf };
-                let system = vm.uint(add(base, isf.raw_address("PsInitialSystemProcess")?)?, 8)?;
-                let root =
-                    vm.number(system, "_EPROCESS", "Pcb.DirectoryTableBase")? & PHYSICAL_MASK;
+                let system = vm.pointer(add(base, isf.raw_address("PsInitialSystemProcess")?)?)?;
+                let root = vm.number(system, "_EPROCESS", "Pcb.DirectoryTableBase")?
+                    & geometry.root_mask();
                 image
                     .windows_roots
                     .lock()
@@ -667,7 +746,8 @@ pub fn discover(image: &Image, isf: &Isf, job: &Job) -> Result<(u64, u64)> {
 fn find_mappings(
     image: &Image,
     table: u64,
-    shift: u32,
+    geometry: Paging,
+    level: usize,
     prefix: u64,
     headers: &HashSet<u64>,
     out: &mut Vec<u64>,
@@ -676,41 +756,49 @@ fn find_mappings(
     job: &Job,
 ) -> Result<()> {
     job.check()?;
+    let shift = geometry.shifts()[level];
     if !seen.insert((table, shift)) {
         return Ok(());
     }
     ensure!(*budget > 0, "Windows 页表搜索超限");
     *budget -= 1;
-    let mut page = [0; 4096];
-    if image.read(table, &mut page).is_err() {
+    let mut bytes = vec![0; geometry.entries(level) * geometry.width()];
+    if image.read(table, &mut bytes).is_err() {
         return Ok(());
     }
-    for (i, b) in page.chunks_exact(8).enumerate() {
-        if shift == 39 && i < 256 {
+    for (i, chunk) in bytes.chunks_exact(geometry.width()).enumerate() {
+        if level == 0 && i < geometry.entries(level) / 2 {
             continue;
         }
-        let e = u64::from_le_bytes(b.try_into()?);
+        let mut raw = [0; 8];
+        raw[..geometry.width()].copy_from_slice(chunk);
+        let e = u64::from_le_bytes(raw);
         if e & 1 == 0 {
             continue;
         }
         let va = prefix | ((i as u64) << shift);
-        let pa = e & PHYSICAL_MASK;
-        if shift == 12 || (e & 128 != 0 && matches!(shift, 30 | 21)) {
+        let pa = e & geometry.mask();
+        if shift == 12 || geometry.block(e, shift) {
             let mask = (1u64 << shift) - 1;
             let pa = pa & !mask;
-            if shift == 12 {
-                if headers.contains(&pa) {
-                    out.push(va | 0xffff_0000_0000_0000);
-                }
-            } else {
-                for &h in headers {
-                    if h >= pa && h - pa <= mask {
-                        out.push(va | 0xffff_0000_0000_0000 | (h - pa));
-                    }
+            for &h in headers {
+                if h >= pa && h - pa <= mask {
+                    out.push(geometry.extend(va | (h - pa)));
                 }
             }
-        } else if shift > 12 {
-            find_mappings(image, pa, shift - 9, va, headers, out, seen, budget, job)?;
+        } else if level + 1 < geometry.shifts().len() {
+            find_mappings(
+                image,
+                pa,
+                geometry,
+                level + 1,
+                va,
+                headers,
+                out,
+                seen,
+                budget,
+                job,
+            )?;
         }
     }
     Ok(())
@@ -722,13 +810,16 @@ pub(crate) fn pe_header(b: &[u8]) -> Result<(u32, u32)> {
         pe >= 64 && pe + 24 + 168 <= b.len() && &b[pe..pe + 4] == b"PE\0\0",
         "PE 头越界"
     );
+    let machine = u16::from_le_bytes(b[pe + 4..pe + 6].try_into()?);
+    let magic = u16::from_le_bytes(b[pe + 24..pe + 26].try_into()?);
     ensure!(
-        u16::from_le_bytes(b[pe + 4..pe + 6].try_into()?) == 0x8664
-            && u16::from_le_bytes(b[pe + 24..pe + 26].try_into()?) == 0x20b,
-        "非 PE64 x64"
+        matches!((machine, magic), (0x14c, 0x10b) | (0x8664 | 0xaa64, 0x20b)),
+        "未知 PE 机器类型/optional header"
     );
+    let directories = if magic == 0x10b { 96 } else { 112 };
     let size = u32::from_le_bytes(b[pe + 80..pe + 84].try_into()?);
-    let debug = u32::from_le_bytes(b[pe + 24 + 112 + 48..pe + 24 + 112 + 52].try_into()?);
+    let debug =
+        u32::from_le_bytes(b[pe + 24 + directories + 48..pe + 24 + directories + 52].try_into()?);
     ensure!(
         (4096..=256 * 1024 * 1024).contains(&size),
         "PE SizeOfImage 无效"

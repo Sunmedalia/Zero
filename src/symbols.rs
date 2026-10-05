@@ -21,7 +21,9 @@ impl Isf {
     pub fn parse(bytes: &[u8], label: String) -> Result<Self> {
         let data: Value = serde_json::from_slice(bytes).context("ISF JSON 解析失败")?;
         ensure!(
-            data["base_types"]["pointer"]["size"].as_u64() == Some(8),
+            data["base_types"]["pointer"]["size"].as_u64() == Some(8)
+                || (data["metadata"]["windows"]["pdb"].is_object()
+                    && data["base_types"]["pointer"]["size"].as_u64() == Some(4)),
             "仅支持 64 位 ISF"
         );
         let banner = if data["metadata"]["windows"]["pdb"].is_object() {
@@ -29,15 +31,6 @@ impl Isf {
             ensure!(
                 p["database"].is_string() && p["GUID"].is_string() && p["age"].is_u64(),
                 "Windows ISF PDB 身份不完整"
-            );
-            ensure!(
-                data["metadata"]["windows"]["pdb"]["machine_type"]
-                    .as_u64()
-                    .is_none_or(|m| m == 0x8664)
-                    && data["metadata"]["windows"]["pe"]["machine_type"]
-                        .as_u64()
-                        .is_none_or(|m| m == 0x8664),
-                "Windows ISF 不是 x64"
             );
             format!(
                 "Windows PDB {} {} age {}\0",
@@ -71,6 +64,7 @@ impl Isf {
         };
         if windows {
             crate::windows_symbols::PdbIdentity::from_isf(&isf)?;
+            crate::windows::Architecture::from_isf(&isf)?;
         }
         Ok(isf)
     }
