@@ -9,7 +9,8 @@ This repository is a native Rust 2024 local Linux memory forensics TUI with opti
 - `src/more.rs`: pwd / pscred / threads / mountinfo / check_creds / dmesg.
 - `src/modern.rs`: maple VMAs, modern mounts/threads and structured printk.
 - `src/process_extra.rs`: ISF process state and capability masks, per-process FD summaries.
-- `src/inspect.rs`: systeminfo / elfs / bash / malfind / psxview / check_modules / check_syscall.
+- `src/inspect.rs`: systeminfo / elfs / bash / history / malfind / psxview / check_modules / check_syscall.
+- `src/dump.rs`: unified `dump --mode process|range|elf` command and targeted procdump / memdump / elfdump backends, streamed atomic exports and SHA256 manifests; never dump all processes or use result caches.
 - `src/cache.rs`: allowlisted inventories, categorized clear, shared/exclusive occupancy locks.
 - `src/prepare.rs`: exact debug ELF/config generation and explicit Kali archive preparation.
 - `src/store.rs`: atomic exports, digest/version keyed successful results, settings and historical CSV.

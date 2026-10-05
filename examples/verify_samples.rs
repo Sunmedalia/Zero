@@ -26,7 +26,7 @@ fn main() -> Result<()> {
         prepared.digest
     );
     drop(prepared);
-    for descriptor in PLUGINS {
+    for descriptor in PLUGINS.iter().filter(|d| !d.plugin.is_dump()) {
         let started = Instant::now();
         match session.analyze(
             &Request {

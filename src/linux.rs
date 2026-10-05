@@ -13,6 +13,10 @@ pub enum Plugin {
     Psstate,
     Capabilities,
     Fdsummary,
+    History,
+    Procdump,
+    Memdump,
+    Elfdump,
     Pslist,
     Pstree,
     Lsmod,
@@ -51,42 +55,42 @@ pub const PLUGINS: &[Descriptor] = &[
     Descriptor {
         plugin: Plugin::Pslist,
         name: "pslist",
-        label: "pslist  进程列表",
+        label: "pslist",
         columns: &["PID", "TGID", "PPID", "Name", "Address"],
         widths: &[5, 5, 5, 0, 18],
     },
     Descriptor {
         plugin: Plugin::Pstree,
         name: "pstree",
-        label: "pstree  进程树",
+        label: "pstree",
         columns: &["PID", "TGID", "PPID", "Name", "Address"],
         widths: &[5, 5, 5, 0, 18],
     },
     Descriptor {
         plugin: Plugin::Lsmod,
         name: "lsmod",
-        label: "lsmod   内核模块",
+        label: "lsmod",
         columns: &["Name", "Base", "Size"],
         widths: &[0, 18, 10],
     },
     Descriptor {
         plugin: Plugin::Psaux,
         name: "psaux",
-        label: "psaux   命令行",
+        label: "psaux",
         columns: &["PID", "Name", "CommandLine", "Status"],
         widths: &[5, 12, 0, 12],
     },
     Descriptor {
         plugin: Plugin::Envars,
         name: "envars",
-        label: "envars  环境变量",
+        label: "envars",
         columns: &["PID", "Name", "Key", "Value"],
         widths: &[5, 12, 16, 0],
     },
     Descriptor {
         plugin: Plugin::Maps,
         name: "maps",
-        label: "maps    内存映射",
+        label: "maps",
         columns: &[
             "PID",
             "Name",
@@ -101,14 +105,14 @@ pub const PLUGINS: &[Descriptor] = &[
     Descriptor {
         plugin: Plugin::Lsof,
         name: "lsof",
-        label: "lsof    打开文件",
+        label: "lsof",
         columns: &["PID", "Name", "FD", "Type", "Inode", "Path", "FileAddress"],
         widths: &[5, 12, 4, 8, 10, 0, 18],
     },
     Descriptor {
         plugin: Plugin::Sockstat,
         name: "sockstat",
-        label: "sockstat 网络连接",
+        label: "sockstat",
         columns: &[
             "PID",
             "Name",
@@ -126,21 +130,21 @@ pub const PLUGINS: &[Descriptor] = &[
     Descriptor {
         plugin: Plugin::Banners,
         name: "banners",
-        label: "banners 内核标识",
+        label: "banners",
         columns: &["Offset", "Banner"],
         widths: &[18, 0],
     },
     Descriptor {
         plugin: Plugin::Pwd,
         name: "pwd",
-        label: "pwd     工作目录",
+        label: "pwd",
         columns: &["PID", "Name", "Root", "CWD"],
         widths: &[5, 12, 0, 0],
     },
     Descriptor {
         plugin: Plugin::Pscred,
         name: "pscred",
-        label: "pscred  进程凭据",
+        label: "pscred",
         columns: &[
             "PID",
             "Name",
@@ -159,14 +163,14 @@ pub const PLUGINS: &[Descriptor] = &[
     Descriptor {
         plugin: Plugin::Threads,
         name: "threads",
-        label: "threads 进程线程",
+        label: "threads",
         columns: &["PID", "Name", "TID", "ThreadName", "Address"],
         widths: &[5, 12, 6, 0, 18],
     },
     Descriptor {
         plugin: Plugin::Mountinfo,
         name: "mountinfo",
-        label: "mountinfo 挂载点",
+        label: "mountinfo",
         columns: &[
             "PID",
             "Name",
@@ -183,42 +187,42 @@ pub const PLUGINS: &[Descriptor] = &[
     Descriptor {
         plugin: Plugin::CheckCreds,
         name: "check_creds",
-        label: "check_creds 共享凭据",
+        label: "check_creds",
         columns: &["CredAddress", "PIDs", "Names", "UID", "EUID"],
         widths: &[18, 0, 0, 6, 6],
     },
     Descriptor {
         plugin: Plugin::Dmesg,
         name: "dmesg",
-        label: "dmesg   内核日志",
+        label: "dmesg",
         columns: &["Index", "Message"],
         widths: &[8, 0],
     },
     Descriptor {
         plugin: Plugin::Systeminfo,
         name: "systeminfo",
-        label: "systeminfo 系统信息",
+        label: "systeminfo",
         columns: &["Key", "Value"],
         widths: &[22, 0],
     },
     Descriptor {
         plugin: Plugin::Elfs,
         name: "elfs",
-        label: "elfs ELF 映射",
+        label: "elfs",
         columns: &["PID", "Name", "Start", "End", "Type", "Entry", "Path"],
         widths: &[6, 14, 18, 18, 6, 18, 0],
     },
     Descriptor {
         plugin: Plugin::Bash,
         name: "bash",
-        label: "bash Bash 历史",
+        label: "bash",
         columns: &["PID", "Name", "Timestamp", "Command", "Address"],
         widths: &[6, 14, 12, 0, 18],
     },
     Descriptor {
         plugin: Plugin::Malfind,
         name: "malfind",
-        label: "malfind 可疑映射",
+        label: "malfind",
         columns: &[
             "PID",
             "Name",
@@ -234,7 +238,7 @@ pub const PLUGINS: &[Descriptor] = &[
     Descriptor {
         plugin: Plugin::Psxview,
         name: "psxview",
-        label: "psxview 进程交叉检查",
+        label: "psxview",
         columns: &[
             "PID",
             "Name",
@@ -249,7 +253,7 @@ pub const PLUGINS: &[Descriptor] = &[
     Descriptor {
         plugin: Plugin::CheckModules,
         name: "check_modules",
-        label: "check_modules 模块交叉检查",
+        label: "check_modules",
         columns: &[
             "Name",
             "Address",
@@ -264,21 +268,21 @@ pub const PLUGINS: &[Descriptor] = &[
     Descriptor {
         plugin: Plugin::CheckSyscall,
         name: "check_syscall",
-        label: "check_syscall 系统调用检查",
+        label: "check_syscall",
         columns: &["Table", "Index", "Target", "Symbol", "Owner", "Reason"],
         widths: &[18, 6, 18, 24, 18, 0],
     },
     Descriptor {
         plugin: Plugin::Psstate,
         name: "psstate",
-        label: "psstate 进程状态与标志",
+        label: "psstate",
         columns: &["PID", "Name", "State", "ExitState", "Flags"],
         widths: &[6, 16, 18, 18, 18],
     },
     Descriptor {
         plugin: Plugin::Capabilities,
         name: "capabilities",
-        label: "capabilities 进程能力掩码",
+        label: "capabilities",
         columns: &[
             "PID",
             "Name",
@@ -293,18 +297,49 @@ pub const PLUGINS: &[Descriptor] = &[
     Descriptor {
         plugin: Plugin::Fdsummary,
         name: "fdsummary",
-        label: "fdsummary 文件描述符统计",
+        label: "fdsummary",
         columns: &["PID", "Name", "Total", "Regular", "Sockets", "Pipes"],
         widths: &[6, 16, 8, 8, 8, 8],
+    },
+    Descriptor {
+        plugin: Plugin::History,
+        name: "history",
+        label: "history",
+        columns: &["PID", "Shell", "Timestamp", "Command", "Address"],
+        widths: &[6, 12, 14, 0, 18],
+    },
+    Descriptor {
+        plugin: Plugin::Procdump,
+        name: "procdump",
+        label: "procdump",
+        columns: &["PID", "Name", "Start", "End", "Size", "SHA256", "File"],
+        widths: &[6, 12, 18, 18, 12, 0, 0],
+    },
+    Descriptor {
+        plugin: Plugin::Memdump,
+        name: "memdump",
+        label: "memdump",
+        columns: &["PID", "Name", "Start", "End", "Size", "SHA256", "File"],
+        widths: &[6, 12, 18, 18, 12, 0, 0],
+    },
+    Descriptor {
+        plugin: Plugin::Elfdump,
+        name: "elfdump",
+        label: "elfdump",
+        columns: &["PID", "Name", "Start", "End", "Size", "SHA256", "File"],
+        widths: &[6, 12, 18, 18, 12, 0, 0],
     },
 ];
 impl Plugin {
     pub fn descriptor(self) -> &'static Descriptor {
         PLUGINS.iter().find(|d| d.plugin == self).unwrap()
     }
+    pub fn is_dump(self) -> bool {
+        matches!(self, Self::Procdump | Self::Memdump | Self::Elfdump)
+    }
     pub fn category(self) -> &'static str {
         match self {
-            Self::Banners | Self::Systeminfo | Self::Dmesg | Self::Lsmod => "系统",
+            Self::Banners | Self::Systeminfo | Self::Dmesg | Self::Lsmod => "System",
             Self::Psstate
             | Self::Capabilities
             | Self::Pslist
@@ -313,11 +348,13 @@ impl Plugin {
             | Self::Pscred
             | Self::Threads
             | Self::Envars
-            | Self::Pwd => "进程",
-            Self::Maps | Self::Elfs | Self::Bash => "内存",
-            Self::Fdsummary | Self::Lsof | Self::Mountinfo => "文件",
-            Self::Sockstat => "网络",
-            _ => "异常检查",
+            | Self::Pwd
+            | Self::History
+            | Self::Procdump => "Process",
+            Self::Maps | Self::Elfs | Self::Bash | Self::Memdump | Self::Elfdump => "Memory",
+            Self::Fdsummary | Self::Lsof | Self::Mountinfo => "Files",
+            Self::Sockstat => "Network",
+            _ => "Integrity",
         }
     }
     pub fn name(self) -> &'static str {
@@ -434,6 +471,20 @@ impl Session {
         Ok(self.image.as_ref().context("镜像未准备")?.clone())
     }
     pub fn analyze(&mut self, request: &Request<'_>, job: &Job) -> Result<Outcome> {
+        self.analyze_with_dump(request, None, job)
+    }
+    pub fn analyze_with_dump(
+        &mut self,
+        request: &Request<'_>,
+        dump: Option<&crate::dump::DumpOptions>,
+        job: &Job,
+    ) -> Result<Outcome> {
+        if request.plugin.is_dump() {
+            dump.context("Dump 插件需要 --pid、--dump-dir；memdump 还需要 --start、--end")?
+                .validate(request.plugin)?;
+        } else {
+            ensure!(dump.is_none(), "非 Dump 插件不接受转储参数");
+        }
         job.check()?;
         let image = self.prepare_image(request.image, request.cache, job)?;
         if request.plugin == Plugin::Banners {
@@ -484,7 +535,8 @@ impl Session {
             self.symbols[0].clone()
         };
         let key = store::key(&image.digest, &symbol.digest, request.plugin.name());
-        if request.use_cache
+        if !request.plugin.is_dump()
+            && request.use_cache
             && let Some(mut result) = store::load(request.cache, &key)
         {
             job.check()?;
@@ -500,16 +552,20 @@ impl Session {
             self.roots.insert(symbol.digest.clone(), root);
             root
         };
-        let result = Linux {
+        let engine = Linux {
             vm: VirtualMemory {
                 image: &image,
                 root,
             },
             isf: &symbol,
-        }
-        .run(request.plugin, job)?;
+        };
+        let result = if request.plugin.is_dump() {
+            engine.run_dump(request.plugin, dump.unwrap(), job)?
+        } else {
+            engine.run(request.plugin, job)?
+        };
         job.check()?;
-        if request.use_cache {
+        if request.use_cache && !request.plugin.is_dump() {
             store::save(request.cache, &key, &result, job)?;
         }
         Ok(Outcome::Ready(result))
@@ -767,6 +823,7 @@ impl Linux<'_> {
             Plugin::Systeminfo
                 | Plugin::Elfs
                 | Plugin::Bash
+                | Plugin::History
                 | Plugin::Malfind
                 | Plugin::Psxview
                 | Plugin::CheckModules

@@ -148,7 +148,7 @@ impl Registry {
     }
     pub fn discover_with_dirs(
         &self,
-        root: &Path,
+        _root: &Path,
         cache: &Path,
         image_dir: &Path,
         symbol_dir: &Path,
@@ -208,23 +208,11 @@ impl Registry {
                 if !ty.is_file() {
                     continue;
                 }
-                let name = entry.file_name().to_string_lossy().to_lowercase();
-                let image = [
-                    ".raw", ".bin", ".lime", ".mem", ".dump", ".bin.gz", ".raw.gz", ".lime.gz",
-                ]
-                .iter()
-                .any(|s| name.ends_with(s));
-                let symbols = (name.ends_with(".json.xz")
-                    || name.ends_with(".zip")
-                    || kind == Some(Kind::Symbols) && name.ends_with(".json"))
-                    && !name.ends_with(".source.json")
-                    && name != "banners_plain.json";
-                let detected = match kind {
-                    Some(Kind::Image) if image => Some(Kind::Image),
-                    Some(Kind::Symbols) if symbols => Some(Kind::Symbols),
-                    None if image => Some(Kind::Image),
-                    None if symbols => Some(Kind::Symbols),
-                    _ => None,
+                // Directory names are browsing defaults, not evidence types.
+                let detected = match crate::browser::file_kind(&path) {
+                    crate::browser::FileKind::Image => Some(Kind::Image),
+                    crate::browser::FileKind::Symbols => Some(Kind::Symbols),
+                    crate::browser::FileKind::Other => None,
                 };
                 if let Some(kind) = detected {
                     add(found, path, kind, origin)?;
@@ -232,7 +220,6 @@ impl Registry {
             }
             Ok(())
         }
-        scan(&mut found, root, None, "项目", 0)?;
         scan(&mut found, image_dir, Some(Kind::Image), "项目", 0)?;
         if symbol_dir.is_file() {
             add(&mut found, symbol_dir.into(), Kind::Symbols, "项目")?;
@@ -373,8 +360,13 @@ mod tests {
         let dir = tempfile::tempdir()?;
         let cache = dir.path().join(".zero/rust");
         let mut registry = Registry::default();
-        fs::write(dir.path().join("test.raw"), b"image")?;
-        fs::write(dir.path().join("linux.zip"), b"symbol")?;
+        fs::create_dir(dir.path().join("images"))?;
+        fs::write(dir.path().join("images/test.raw"), b"image")?;
+        fs::write(dir.path().join("images/linux.zip"), b"symbol")?;
+        fs::write(
+            dir.path().join("unrelated.raw"),
+            b"outside managed directories",
+        )?;
         fs::create_dir(dir.path().join("symbols"))?;
         fs::write(dir.path().join("symbols/a.source.json"), b"sidecar")?;
         assert_eq!(registry.discover(dir.path(), &cache)?.len(), 2);
@@ -384,8 +376,8 @@ mod tests {
         registry.import(&path, Kind::Image, &cache)?;
         registry.import(&path, Kind::Image, &cache)?;
         assert_eq!(registry.discover(dir.path(), &cache)?.len(), 3);
-        registry.remove(&dir.path().join("test.raw"), &cache)?;
-        assert!(dir.path().join("test.raw").exists());
+        registry.remove(&dir.path().join("images/test.raw"), &cache)?;
+        assert!(dir.path().join("images/test.raw").exists());
         let registry = Registry::load(&cache)?;
         assert_eq!(registry.discover(dir.path(), &cache)?.len(), 2);
         fs::remove_file(path)?;

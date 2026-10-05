@@ -51,6 +51,27 @@ enum Command {
         #[arg(long)]
         refresh: bool,
     },
+    /// Export evidence through one entry point; requires a target and export parameters.
+    Dump {
+        #[arg(long)]
+        image: PathBuf,
+        #[arg(long)]
+        symbols: Option<PathBuf>,
+        #[arg(long, value_enum)]
+        mode: zero_tui::dump::Mode,
+        #[arg(long)]
+        pid: u32,
+        #[arg(long)]
+        dump_dir: PathBuf,
+        #[arg(long)]
+        output: PathBuf,
+        #[arg(long, value_parser = zero_tui::dump::parse_address)]
+        start: Option<u64>,
+        #[arg(long, value_parser = zero_tui::dump::parse_address)]
+        end: Option<u64>,
+        #[arg(long)]
+        symbol_choice: Option<String>,
+    },
     Analyze {
         #[arg(long)]
         image: PathBuf,
@@ -65,6 +86,17 @@ enum Command {
         symbol_choice: Option<String>,
         #[arg(long)]
         no_cache: bool,
+        /// Target process for a dump plugin (never defaults to all processes).
+        #[arg(long)]
+        pid: Option<u32>,
+        /// Directory for binary dumps; --output remains the CSV/JSON manifest.
+        #[arg(long)]
+        dump_dir: Option<PathBuf>,
+        /// User virtual address, decimal or 0x hex; end is exclusive.
+        #[arg(long, value_parser = zero_tui::dump::parse_address)]
+        start: Option<u64>,
+        #[arg(long, value_parser = zero_tui::dump::parse_address)]
+        end: Option<u64>,
     },
 }
 #[derive(Subcommand)]
@@ -182,19 +214,86 @@ fn main() -> Result<()> {
         }
         return Ok(());
     }
-    if let Some(Command::Analyze {
+    let analysis = match cli.command {
+        Some(Command::Analyze {
+            image,
+            symbols,
+            plugin,
+            output,
+            symbol_choice,
+            no_cache,
+            pid,
+            dump_dir,
+            start,
+            end,
+        }) => Some((
+            image,
+            symbols,
+            plugin,
+            output,
+            symbol_choice,
+            no_cache,
+            pid,
+            dump_dir,
+            start,
+            end,
+        )),
+        Some(Command::Dump {
+            image,
+            symbols,
+            mode,
+            pid,
+            dump_dir,
+            output,
+            start,
+            end,
+            symbol_choice,
+        }) => Some((
+            image,
+            symbols,
+            mode.plugin(),
+            output,
+            symbol_choice,
+            true,
+            Some(pid),
+            Some(dump_dir),
+            start,
+            end,
+        )),
+        _ => None,
+    };
+    if let Some((
         image,
         symbols,
         plugin,
         output,
         symbol_choice,
         no_cache,
-    }) = cli.command
+        pid,
+        dump_dir,
+        start,
+        end,
+    )) = analysis
     {
         let job = Job::new(|s| eprintln!("{s}"));
         let symbols = symbols.unwrap_or_else(|| PathBuf::from(&settings.symbols));
         let mut session = linux::Session::default();
-        match session.analyze(
+        let dump = if plugin.is_dump() {
+            Some(zero_tui::dump::DumpOptions {
+                pid: pid.ok_or_else(|| anyhow::anyhow!("Dump 插件必须指定 --pid"))?,
+                directory: dump_dir
+                    .ok_or_else(|| anyhow::anyhow!("Dump 插件必须指定 --dump-dir"))?,
+                start,
+                end,
+            })
+        } else {
+            anyhow::ensure!(
+                pid.is_none() && dump_dir.is_none() && start.is_none() && end.is_none(),
+                "转储参数仅用于 Dump 插件"
+            );
+            None
+        };
+        match session.analyze_with_dump(
             &linux::Request {
                 image: &image,
                 symbols: &symbols,
@@ -204,6 +303,7 @@ fn main() -> Result<()> {
                 use_cache: settings.enable_cache && !no_cache,
                 network: settings.remote_symbols,
             },
+            dump.as_ref(),
             &job,
         )? {
             Outcome::Choose(labels) => bail!(
@@ -233,31 +333,8 @@ fn main() -> Result<()> {
         }
         Ok(())
     } else {
-        let registry = zero_tui::workspace::Registry::load(&cache)?;
-        let image = cli.image.or_else(|| {
-            registry
-                .selected(zero_tui::workspace::Kind::Image)
-                .filter(|p| p.is_file())
-                .map(PathBuf::from)
-        });
-        let symbols = cli.symbols.or_else(|| {
-            registry
-                .selected(zero_tui::workspace::Kind::Symbols)
-                .filter(|p| p.exists())
-                .map(PathBuf::from)
-        });
-        let default_symbols = store::expand_home(&settings.symbols);
-        zero_tui::tui::run(
-            image,
-            symbols.unwrap_or_else(|| {
-                if registry.excluded(&default_symbols) {
-                    PathBuf::new()
-                } else {
-                    default_symbols
-                }
-            }),
-            cache,
-            settings,
-        )
+        // A new TUI session only loads paths explicitly supplied for this launch.
+        // The registry retains assets and last selections as history, not startup input.
+        zero_tui::tui::run(cli.image, cli.symbols.unwrap_or_default(), cache, settings)
     }
 }

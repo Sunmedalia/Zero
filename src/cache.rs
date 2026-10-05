@@ -13,13 +13,15 @@ pub enum Scope {
     Identification,
     Images,
     Symbols,
+    Dumps,
     All,
 }
-pub const SCOPES: [Scope; 4] = [
+pub const SCOPES: [Scope; 5] = [
     Scope::Results,
     Scope::Identification,
     Scope::Images,
     Scope::Symbols,
+    Scope::Dumps,
 ];
 impl Scope {
     pub fn label(self) -> &'static str {
@@ -28,6 +30,7 @@ impl Scope {
             Self::Identification => "识别信息",
             Self::Images => "解压镜像",
             Self::Symbols => "符号／构建缓存",
+            Self::Dumps => "进程转储",
             Self::All => "全部缓存",
         }
     }
@@ -99,6 +102,8 @@ pub fn inventory(root: &Path) -> Result<Vec<Entry>> {
                     || relative == Path::new("identification")
                     || relative.starts_with("symbols/isf")
                     || relative.starts_with("symbols/build")
+                    || relative == Path::new("dumps")
+                    || relative.starts_with("dumps")
                 {
                     visit(&p, root, entries, depth + 1)?;
                 }
@@ -120,6 +125,8 @@ pub fn inventory(root: &Path) -> Result<Vec<Entry>> {
                 || relative.starts_with("symbols/isf")
             {
                 Some(Scope::Symbols)
+            } else if relative.starts_with("dumps") {
+                Some(Scope::Dumps)
             } else {
                 None
             };

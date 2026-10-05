@@ -842,3 +842,284 @@ fn catalog_manual_search_and_offline_download_without_an_image() -> Result<()> {
     );
     Ok(())
 }
+
+fn dump_fixture() -> (Image, Isf) {
+    let mut bytes = linked();
+    let mut isf = symbols();
+    isf.data["user_types"]["task_struct"]["fields"]["mm"] =
+        json!({"offset":48,"type":{"kind":"pointer"}});
+    isf.data["user_types"]["mm_struct"] = json!({"size":16,"fields":{
+        "pgd":{"offset":0,"type":{"kind":"pointer"}},
+        "mmap":{"offset":8,"type":{"kind":"pointer"}}
+    }});
+    isf.data["user_types"]["vm_area_struct"] = json!({"size":32,"fields":{
+        "vm_start":{"offset":0,"type":{"kind":"pointer"}},
+        "vm_end":{"offset":8,"type":{"kind":"pointer"}},
+        "vm_flags":{"offset":16,"type":{"kind":"pointer"}},
+        "vm_next":{"offset":24,"type":{"kind":"pointer"}}
+    }});
+    put(&mut bytes, 0x8330, 0x1700); // Only PID 1 has this address space.
+    put(&mut bytes, 0x8700, 0x2000); // Kernel VA 0x2000 -> physical PGD 0xa000.
+    put(&mut bytes, 0x8708, 0x1800);
+    put(&mut bytes, 0x8800, 0x4000);
+    put(&mut bytes, 0x8808, 0x6000);
+    put(&mut bytes, 0x8810, 1);
+    put(&mut bytes, 0xa000, 0xb003);
+    put(&mut bytes, 0xb000, 0xc003);
+    put(&mut bytes, 0xc000, 0xd003);
+    put(&mut bytes, 0xd020, 0xe003);
+    put(&mut bytes, 0xd028, 0xf003);
+    bytes[0xe000..0xe007].copy_from_slice(b"\x7fELF\x02\x01\x01");
+    bytes[0xeffc..0xf004].copy_from_slice(b"Evidence");
+    (image(&bytes), isf)
+}
+#[test]
+fn targeted_dump_matches_process_bytes_hash_and_manifest() -> Result<()> {
+    use sha2::{Digest, Sha256};
+    use zero_tui::dump::DumpOptions;
+    let (image, isf) = dump_fixture();
+    let engine = Linux {
+        vm: VirtualMemory {
+            image: &image,
+            root: 0x1000,
+        },
+        isf: &isf,
+    };
+    let dir = tempfile::tempdir()?;
+    let mut options = DumpOptions {
+        pid: 1,
+        directory: dir.path().canonicalize()?.join("nested/output"),
+        start: Some(0x4ffc),
+        end: Some(0x5004),
+    };
+    let result = engine.run_dump(Plugin::Memdump, &options, &Job::default())?;
+    assert!(result.complete, "{:?}", result.diagnostics);
+    assert_eq!(result.rows.len(), 1);
+    let row = &result.rows[0];
+    assert_eq!(
+        &row[..5],
+        ["1", "init", "0x0000000000004ffc", "0x0000000000005004", "8"]
+    );
+    assert_eq!(fs::read(&row[6])?, b"Evidence");
+    assert_eq!(row[5], format!("{:x}", Sha256::digest(b"Evidence")));
+    // Reruns create another evidence directory, leaving the previous file intact.
+    let repeat = engine.run_dump(Plugin::Memdump, &options, &Job::default())?;
+    assert_ne!(repeat.rows[0][6], row[6]);
+    assert_eq!(fs::read(&row[6])?, b"Evidence");
+    options.start = None;
+    options.end = None;
+    let process = engine.run_dump(Plugin::Procdump, &options, &Job::default())?;
+    assert!(process.complete);
+    assert_eq!(process.rows.len(), 1);
+    assert!(process.rows.iter().all(|r| r[0] == "1"));
+    assert_eq!(fs::metadata(&process.rows[0][6])?.len(), 8192);
+    let elf = engine.run_dump(Plugin::Elfdump, &options, &Job::default())?;
+    assert!(elf.complete);
+    assert_eq!(elf.rows.len(), 1);
+    assert_eq!(&fs::read(&elf.rows[0][6])?[..4], b"\x7fELF");
+    options.pid = 2;
+    assert!(
+        engine
+            .run_dump(Plugin::Procdump, &options, &Job::default())
+            .err()
+            .unwrap()
+            .to_string()
+            .contains("内核线程")
+    );
+    options.pid = 99;
+    assert!(
+        engine
+            .run_dump(Plugin::Procdump, &options, &Job::default())
+            .err()
+            .unwrap()
+            .to_string()
+            .contains("未找到 PID")
+    );
+    Ok(())
+}
+#[test]
+fn failed_dump_keeps_no_partial_binary_and_cancel_stops_writes() -> Result<()> {
+    use zero_tui::dump::DumpOptions;
+    let (image, isf) = dump_fixture();
+    let engine = Linux {
+        vm: VirtualMemory {
+            image: &image,
+            root: 0x1000,
+        },
+        isf: &isf,
+    };
+    let dir = tempfile::tempdir()?;
+    let options = DumpOptions {
+        pid: 1,
+        directory: dir.path().canonicalize()?.join("failed"),
+        start: Some(0x5ffc),
+        end: Some(0x6004),
+    };
+    let result = engine.run_dump(Plugin::Memdump, &options, &Job::default())?;
+    assert!(!result.complete);
+    assert!(result.rows.is_empty());
+    assert!(result.diagnostics[0].contains("PID 1"));
+    for sub in fs::read_dir(&options.directory)? {
+        assert_eq!(fs::read_dir(sub?.path())?.count(), 0); // Failed temporary file was removed.
+    }
+    let cancel = Job::default();
+    cancel.cancel.store(true, Ordering::Relaxed);
+    let fresh = DumpOptions {
+        directory: dir.path().join("cancelled"),
+        ..options
+    };
+    assert!(engine.run_dump(Plugin::Memdump, &fresh, &cancel).is_err());
+    assert!(!fresh.directory.exists());
+    Ok(())
+}
+#[test]
+fn cancellation_during_dump_does_not_commit_evidence() -> Result<()> {
+    use zero_tui::dump::DumpOptions;
+    let (image, isf) = dump_fixture();
+    let engine = Linux {
+        vm: VirtualMemory {
+            image: &image,
+            root: 0x1000,
+        },
+        isf: &isf,
+    };
+    let dir = tempfile::tempdir()?;
+    let options = DumpOptions {
+        pid: 1,
+        directory: dir.path().canonicalize()?.join("cancel"),
+        start: Some(0x4000),
+        end: Some(0x6000),
+    };
+    let flag = Arc::new(AtomicBool::new(false));
+    let report_flag = flag.clone();
+    let mut job = Job::new(move |message| {
+        if message.starts_with("dump ") {
+            report_flag.store(true, Ordering::Relaxed);
+        }
+    });
+    job.cancel = flag;
+    assert!(engine.run_dump(Plugin::Memdump, &options, &job).is_err());
+    for sub in fs::read_dir(options.directory)? {
+        assert_eq!(fs::read_dir(sub?.path())?.count(), 0);
+    }
+    Ok(())
+}
+
+#[test]
+fn cli_dump_requires_parameters_before_opening_image() -> Result<()> {
+    let dir = tempfile::tempdir()?;
+    let output = std::process::Command::new(env!("CARGO_BIN_EXE_zero-tui"))
+        .current_dir(dir.path())
+        .args([
+            "--offline",
+            "analyze",
+            "--image",
+            "absent.raw",
+            "--plugin",
+            "procdump",
+            "--output",
+            "manifest.json",
+        ])
+        .output()?;
+    assert!(!output.status.success());
+    assert!(String::from_utf8_lossy(&output.stderr).contains("--pid"));
+    assert!(!dir.path().join("manifest.json").exists());
+    assert!(!dir.path().join(".zero/rust/dumps").exists());
+    Ok(())
+}
+
+#[test]
+fn local_symbol_library_matches_complete_banner_and_reports_corruption() -> Result<()> {
+    use zero_tui::symbols::match_local_files;
+    let (bytes, isf) = discoverable();
+    let dir = tempfile::tempdir()?;
+    let exact = dir.path().join("exact.json");
+    let duplicate = dir.path().join("duplicate.json");
+    let wrong = dir.path().join("same-version.json");
+    let broken = dir.path().join("broken.json");
+    let json = serde_json::to_vec(&isf.data)?;
+    fs::write(&exact, &json)?;
+    fs::write(&duplicate, &json)?;
+    let mut different = isf.data.clone();
+    different["symbols"]["linux_banner"]["constant_data"] =
+        json!(STANDARD.encode(b"Linux version synthetic different-build\n\0"));
+    fs::write(&wrong, serde_json::to_vec(&different)?)?;
+    fs::write(&broken, b"invalid-json")?;
+    let report = match_local_files(
+        &[exact.clone(), duplicate, wrong, broken],
+        &image(&bytes),
+        &Job::default(),
+    )?;
+    assert_eq!(report.matched.len(), 1);
+    assert_eq!(report.matched[&exact].len(), 1);
+    assert_eq!(report.diagnostics.len(), 1);
+    assert!(report.diagnostics[0].contains("broken.json"));
+    assert!(
+        match_local_files(&[], &image(&bytes), &Job::default())?
+            .matched
+            .is_empty()
+    );
+    Ok(())
+}
+#[test]
+fn unified_dump_cli_exports_explicit_range() -> Result<()> {
+    let (img, mut isf) = dump_fixture();
+    // Use the discoverable kernel alias while preserving the separate process PGD.
+    let mut bytes = vec![0; 0x12000];
+    img.read(0, &mut bytes)?;
+    put(&mut bytes, 0x4000 + 9 * 8, 0x8003);
+    for physical in [
+        0x8200, 0x8208, 0x8300, 0x8308, 0x8318, 0x8400, 0x8408, 0x8418,
+    ] {
+        let old = u64::from_le_bytes(bytes[physical..physical + 8].try_into().unwrap());
+        put(&mut bytes, physical, old + 0x8000);
+    }
+    isf.data["symbols"]["linux_banner"]["address"] = json!(0x9100);
+    isf.data["symbols"]["init_task"]["address"] = json!(0x9200);
+    isf.data["symbols"]["init_level4_pgt"]["address"] = json!(0x2000);
+    bytes[0x8100..0x8100 + isf.banner.len()].copy_from_slice(&isf.banner);
+    let dir = tempfile::tempdir()?;
+    fs::write(dir.path().join("image.raw"), bytes)?;
+    fs::write(
+        dir.path().join("symbols.json"),
+        serde_json::to_vec(&isf.data)?,
+    )?;
+    let command = |extra: &[&str]| {
+        std::process::Command::new(env!("CARGO_BIN_EXE_zero-tui"))
+            .current_dir(dir.path())
+            .args([
+                "--offline",
+                "dump",
+                "--image",
+                "image.raw",
+                "--symbols",
+                "symbols.json",
+                "--mode",
+                "range",
+                "--pid",
+                "1",
+                "--dump-dir",
+                "evidence",
+                "--output",
+                "manifest.json",
+            ])
+            .args(extra)
+            .output()
+    };
+    let invalid = command(&[])?;
+    assert!(!invalid.status.success());
+    assert!(String::from_utf8_lossy(&invalid.stderr).contains("--start"));
+    let output = command(&["--start", "0x4ffc", "--end", "0x5004"])?;
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let result: store::Results =
+        serde_json::from_slice(&fs::read(dir.path().join("manifest.json"))?)?;
+    assert!(result.complete);
+    assert_eq!(result.rows.len(), 1);
+    let evidence = dir.path().join(&result.rows[0][6]);
+    assert_eq!(fs::read(evidence)?, b"Evidence");
+    Ok(())
+}

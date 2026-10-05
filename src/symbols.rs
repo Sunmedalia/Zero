@@ -250,6 +250,51 @@ pub fn matching(path: &Path, image: &Image, job: &Job) -> Result<Vec<Isf>> {
     Ok(matches)
 }
 
+#[derive(Default)]
+pub struct LocalMatches {
+    pub matched: std::collections::HashMap<std::path::PathBuf, Vec<String>>,
+    pub diagnostics: Vec<String>,
+}
+/// Compare full banners only; page-table validation still happens during analysis.
+pub fn match_local_files(
+    paths: &[std::path::PathBuf],
+    image: &Image,
+    job: &Job,
+) -> Result<LocalMatches> {
+    let banners = image.banners(job)?;
+    let mut report = LocalMatches::default();
+    let mut seen = std::collections::HashSet::new();
+    for path in paths {
+        job.check()?;
+        let mut entries = Vec::new();
+        if let Err(error) = collect(path, job, &mut entries) {
+            job.check()?;
+            report
+                .diagnostics
+                .push(format!("{}: {error:#}", path.display()));
+            continue;
+        }
+        for (label, bytes) in entries {
+            job.check()?;
+            match Isf::parse(&bytes, label.clone()) {
+                Ok(isf)
+                    if banners.iter().any(|(_, banner)| *banner == isf.banner)
+                        && seen.insert(isf.digest.clone()) =>
+                {
+                    report.matched.entry(path.clone()).or_default().push(label);
+                }
+                Ok(_) => (),
+                Err(error) => report.diagnostics.push(format!("{label}: {error:#}")),
+            }
+        }
+        job.report(format!(
+            "本地匹配：{} 个文件匹配 · {}",
+            report.matched.len(),
+            path.display()
+        ));
+    }
+    Ok(report)
+}
 pub const REPOSITORY: &str = "https://github.com/Abyss-W4tcher/volatility3-symbols";
 const RAW: &str = "https://raw.githubusercontent.com/Abyss-W4tcher/volatility3-symbols/master/";
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
@@ -442,7 +487,7 @@ pub fn catalog_search(
             }
         }
     }
-    Ok(found.into_values().take(2000).collect())
+    Ok(found.into_values().collect())
 }
 
 pub fn cache_filename(path: &str) -> Result<String> {

@@ -8,12 +8,14 @@ use zero_tui::{
     linux::{self, Outcome, Plugin},
 };
 fn local_sample(name: &str) -> PathBuf {
-    let path = PathBuf::from(name);
-    if path.exists() {
-        path
-    } else {
-        PathBuf::from("images").join(name)
-    }
+    [
+        PathBuf::from(name),
+        PathBuf::from("images").join(name),
+        PathBuf::from("symbols").join(name),
+    ]
+    .into_iter()
+    .find(|p| p.is_file())
+    .unwrap_or_else(|| PathBuf::from(name))
 }
 #[derive(Deserialize)]
 struct Baseline {
@@ -27,7 +29,8 @@ struct Baseline {
 fn debian_full_field_baseline() -> Result<()> {
     let baseline: Baseline = serde_json::from_str(include_str!("fixtures/debian-3.2.json"))?;
     let image = PathBuf::from(
-        std::env::var("ZERO_TEST_IMAGE").unwrap_or_else(|_| "linux-sample-1.bin.gz".into()),
+        std::env::var("ZERO_TEST_IMAGE")
+            .unwrap_or_else(|_| local_sample("linux-sample-1.bin.gz").display().to_string()),
     );
     let symbols = std::env::var("ZERO_TEST_SYMBOLS")
         .map(PathBuf::from)
@@ -102,7 +105,8 @@ fn debian_extended_full_field_baseline() -> Result<()> {
     let baseline: HashMap<String, ExtendedBaseline> =
         serde_json::from_str(include_str!("fixtures/debian-3.2-extended.json"))?;
     let image = PathBuf::from(
-        std::env::var("ZERO_TEST_IMAGE").unwrap_or_else(|_| "linux-sample-1.bin.gz".into()),
+        std::env::var("ZERO_TEST_IMAGE")
+            .unwrap_or_else(|_| local_sample("linux-sample-1.bin.gz").display().to_string()),
     );
     let symbols = std::env::var("ZERO_TEST_SYMBOLS")
         .map(PathBuf::from)
@@ -253,6 +257,10 @@ fn kali_arm64_all_plugins_full_field_baseline() -> Result<()> {
     let cache = tempfile::tempdir()?;
     for descriptor in linux::PLUGINS {
         let plugin = descriptor.plugin;
+        // Dump plugins require explicit parameters; exercised in the targeted sample test below.
+        if plugin.is_dump() {
+            continue;
+        }
         let Outcome::Ready(result) = session.analyze(
             &linux::Request {
                 image: &image,
@@ -268,7 +276,19 @@ fn kali_arm64_all_plugins_full_field_baseline() -> Result<()> {
         else {
             anyhow::bail!("ambiguous symbols");
         };
-        let expected = &baseline.plugins[plugin.name()];
+        let Some(expected) = baseline.plugins.get(plugin.name()) else {
+            ensure!(
+                result.columns
+                    == descriptor
+                        .columns
+                        .iter()
+                        .map(|c| c.to_string())
+                        .collect::<Vec<_>>(),
+                "{} schema changed",
+                plugin.name()
+            );
+            continue;
+        };
         ensure!(
             result.columns == expected.columns && result.rows.len() == expected.count,
             "{} schema/count changed",
@@ -323,6 +343,140 @@ fn kali_arm64_all_plugins_full_field_baseline() -> Result<()> {
         store::export(&path, &result, filtered.clone())?;
         let exported: store::Results = serde_json::from_slice(&std::fs::read(path)?)?;
         ensure!(exported.rows == filtered, "filtered export changed");
+    }
+    Ok(())
+}
+
+#[test]
+#[ignore = "requires local Debian and Kali samples; targeted dump artifacts use a temporary directory"]
+fn targeted_dumps_and_history_on_both_samples() -> Result<()> {
+    use sha2::{Digest, Sha256};
+    use zero_tui::dump::DumpOptions;
+    let cases =
+        [
+            (
+                PathBuf::from(std::env::var("ZERO_TEST_IMAGE").unwrap_or_else(|_| {
+                    local_sample("linux-sample-1.bin.gz").display().to_string()
+                })),
+                PathBuf::from(
+                    std::env::var("ZERO_TEST_SYMBOLS")
+                        .unwrap_or_else(|_| local_sample("linux.zip").display().to_string()),
+                ),
+            ),
+            (
+                PathBuf::from(
+                    std::env::var("ZERO_KALI_IMAGE")
+                        .unwrap_or_else(|_| local_sample("kali.raw").display().to_string()),
+                ),
+                PathBuf::from(
+                    std::env::var("ZERO_KALI_SYMBOLS")
+                        .unwrap_or_else(|_| "symbols/kali-6.8.11-arm64.json.xz".into()),
+                ),
+            ),
+        ];
+    let output = tempfile::tempdir()?;
+    let cache = PathBuf::from(".zero/rust");
+    let job = Job::default();
+    for (image, symbols) in cases {
+        let mut session = linux::Session::default();
+        let prepared = session.prepare_image(&image, &cache, &job)?;
+        let request = |plugin| linux::Request {
+            image: &image,
+            symbols: &symbols,
+            choice: None,
+            plugin,
+            cache: &cache,
+            use_cache: false,
+            network: false,
+        };
+        let Outcome::Ready(maps) = session.analyze(&request(Plugin::Maps), &job)? else {
+            anyhow::bail!("ambiguous symbols")
+        };
+        // VMA membership does not imply residency. Preserve the missing-page case,
+        // then select a resident page for byte-for-byte export checks.
+        let mut selected = None;
+        for target in maps
+            .rows
+            .iter()
+            .filter(|row| row[0] == "1" && row[4].starts_with('r'))
+        {
+            let start = u64::from_str_radix(target[2].trim_start_matches("0x"), 16)?;
+            let options = DumpOptions {
+                pid: 1,
+                directory: output.path().canonicalize()?.join(&prepared.digest),
+                start: Some(start),
+                end: Some(start + 128),
+            };
+            let Outcome::Ready(probe) =
+                session.analyze_with_dump(&request(Plugin::Memdump), Some(&options), &job)?
+            else {
+                anyhow::bail!("ambiguous symbols")
+            };
+            if !probe.rows.is_empty() {
+                selected = Some(options);
+                break;
+            }
+            ensure!(
+                !probe.complete && !probe.diagnostics.is_empty(),
+                "missing sample page falsely reported success"
+            );
+        }
+        let options =
+            selected.ok_or_else(|| anyhow::anyhow!("PID 1 has no resident VMA start in sample"))?;
+        let mut previous = None;
+        for plugin in [Plugin::Memdump, Plugin::Procdump, Plugin::Elfdump] {
+            let options = if plugin == Plugin::Elfdump {
+                DumpOptions {
+                    start: None,
+                    end: None,
+                    ..options.clone()
+                }
+            } else {
+                options.clone()
+            };
+            let Outcome::Ready(result) =
+                session.analyze_with_dump(&request(plugin), Some(&options), &job)?
+            else {
+                anyhow::bail!("ambiguous symbols")
+            };
+            ensure!(
+                !result.rows.is_empty(),
+                "{} exported no sample bytes: {:?}",
+                plugin.name(),
+                result.diagnostics
+            );
+            for row in &result.rows {
+                ensure!(row[0] == "1", "dump leaked another PID");
+                let bytes = std::fs::read(&row[6])?;
+                ensure!(
+                    bytes.len().to_string() == row[4]
+                        && format!("{:x}", Sha256::digest(&bytes)) == row[5],
+                    "dump manifest differs from binary evidence"
+                );
+                if plugin == Plugin::Elfdump {
+                    ensure!(bytes.starts_with(b"\x7fELF"), "ELF export lacks header");
+                } else {
+                    ensure!(bytes.len() == 128, "range was not respected");
+                    if let Some(previous) = &previous {
+                        ensure!(&bytes == previous, "memdump / procdump bytes differ");
+                    }
+                    previous = Some(bytes);
+                }
+            }
+        }
+        let Outcome::Ready(history) = session.analyze(&request(Plugin::History), &job)? else {
+            anyhow::bail!("ambiguous symbols")
+        };
+        let Outcome::Ready(bash) = session.analyze(&request(Plugin::Bash), &job)? else {
+            anyhow::bail!("ambiguous symbols")
+        };
+        ensure!(
+            history.rows == bash.rows
+                && history.complete == bash.complete
+                && history.diagnostics == bash.diagnostics,
+            "history alias changed verified Bash evidence"
+        );
+        ensure!(history.columns[1] == "Shell", "history schema changed");
     }
     Ok(())
 }

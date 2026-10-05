@@ -34,7 +34,7 @@ fn header(bytes: &[u8], arm: bool) -> Result<(String, u64)> {
     ))
 }
 impl Linux<'_> {
-    fn inspect_result(&self, plugin: Plugin) -> Results {
+    pub(crate) fn inspect_result(&self, plugin: Plugin) -> Results {
         Results {
             plugin: plugin.name().into(),
             columns: plugin
@@ -148,7 +148,7 @@ impl Linux<'_> {
         for row in tasks.rows {
             job.check()?;
             let task = u64::from_str_radix(&row[4][2..], 16)?;
-            if plugin == Plugin::Bash && row[3] != "bash" {
+            if matches!(plugin, Plugin::Bash | Plugin::History) && row[3] != "bash" {
                 continue;
             }
             let read = (|| -> Result<()> {
@@ -158,7 +158,7 @@ impl Linux<'_> {
                 }
                 let vm = self.process_vm(task)?.context("用户地址空间为空")?;
                 let nodes = self.vma_nodes(mm, job)?;
-                if plugin == Plugin::Bash {
+                if matches!(plugin, Plugin::Bash | Plugin::History) {
                     return self.bash_history(
                         &vm,
                         &nodes,
