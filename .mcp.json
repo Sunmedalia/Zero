@@ -2,8 +2,8 @@
   "mcpServers": {
     "zero": {
       "command": "cargo",
-      "args": ["run", "--quiet", "--release", "--locked", "--bin", "zero-mcp", "--manifest-path", "/Volumes/w/code/zero/Cargo.toml"],
-      "env": { "ZERO_ROOT": "/Volumes/w/code/zero" }
+      "args": ["run", "--quiet", "--release", "--locked", "--bin", "zero-mcp", "--manifest-path", "/Volumes/w/code/zero-agent-interfaces/Cargo.toml"],
+      "env": { "ZERO_ROOT": "/Volumes/w/code/zero-agent-interfaces" }
     }
   }
 }

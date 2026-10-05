@@ -5,7 +5,7 @@ description: Analyze local Linux RAW, LiME, or gzip memory images with Zero's na
 
 # Zero memory forensics
 
-Use the `zero` MCP server for this repository's local memory analysis. Paths may be absolute or relative to `/Volumes/w/code/zero`.
+Use the `zero` MCP server for this repository's local memory analysis. Paths may be absolute or relative to `/Volumes/w/code/zero-agent-interfaces`.
 
 For a shell workflow, the equivalent native CLI is `zero` (`zero --help` lists commands). Run it from the project root so its local cache and default directories resolve correctly.
 
