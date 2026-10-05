@@ -1,18 +1,14 @@
 //! TCP/IP object layouts are allowlisted by exact driver PDB identity, not OS version.
 use super::*;
-use serde::Deserialize;
 use std::net::{Ipv4Addr, Ipv6Addr};
 pub(super) const LAYOUTS: &str = include_str!("network_layouts.json");
-#[derive(Deserialize)]
-struct Layout {
-    endpoint_tag: String,
-    endpoint_owner: usize,
-    endpoint_time: usize,
-    udp_local: usize,
-    udp_port: usize,
-}
+use super::network_layout::{self, Layout};
 impl Windows<'_> {
-    pub(super) fn netscan(&self, job: &Job) -> Result<Results> {
+    pub(super) fn netscan(
+        &self,
+        job: &Job,
+        resources: Option<(&std::path::Path, bool)>,
+    ) -> Result<Results> {
         let mut driver = None;
         let (modules, diagnostics) = self.list_partial(
             self.symbol("PsLoadedModuleList")?,
@@ -30,31 +26,66 @@ impl Windows<'_> {
                 break;
             }
         }
-        let identity = pe_identity(&self.vm, driver.context("tcpip.sys 未加载")?)?;
-        let data: serde_json::Value = serde_json::from_str(LAYOUTS)?;
-        let layout: Layout = serde_json::from_value(data["identities"][identity.key()].clone())
-            .with_context(|| format!("没有经验证的 TCP/IP 结构布局: {}", identity.key()))?;
+        let base = driver.context("tcpip.sys 未加载")?;
+        let identity = pe_identity(&self.vm, base)?;
+        let arch = Architecture::from_isf(self.vm.isf)?;
+        let version = network_layout::file_version(&self.vm, base).ok();
+        let exact = resources.and_then(|(cache, network)| {
+            let result = windows_symbols::acquire(&identity, cache, network, job).and_then(|isf| {
+                ensure!(Architecture::from_isf(&isf)? == arch, "TCP/IP PDB 架构冲突");
+                Layout::from_isf(&isf)
+            });
+            match result {
+                Ok(layout) => Some(layout),
+                Err(e) => {
+                    job.report(format!("TCP/IP 精确符号布局不可用: {e:#}"));
+                    None
+                }
+            }
+        });
+        job.check()?;
+        let layout = if let Some(layout) = exact {
+            layout
+        } else {
+            network_layout::manifest(&identity, arch, version).with_context(|| {
+                format!("无法解码 TCP/IP {} version {version:?}", identity.key())
+            })?
+        };
         let mut r = self.result(Plugin::WinNetscan);
         r.complete = diagnostics.is_empty();
         r.diagnostics = diagnostics;
         r.kernel_identity["tcpip_pdb"] = serde_json::to_value(&identity)?;
+        r.kernel_identity["tcpip_file_version"] = serde_json::json!(version);
+        r.kernel_identity["network_layout"] = serde_json::json!({"source":layout.source,"validation":layout.validation,"pointer_size":layout.pointer_size});
+        if !matches!(
+            layout.validation.as_str(),
+            "exact-driver-symbols" | "public-raw-reference" | "public-crash-reference"
+        ) {
+            Self::issue(
+                &mut r,
+                "TCP/IP 布局",
+                "该驱动版本系列仅有合成布局验证，尚未验证此精确驱动身份",
+            );
+        }
         let isf = self.vm.isf;
+        let alignment = if layout.pointer_size == 4 { 8 } else { 16 };
         let header_size = isf.data["user_types"]["_POOL_HEADER"]["size"]
             .as_u64()
             .context("缺少 pool header")?;
         let tag_offset = isf.offset("_POOL_HEADER", "PoolTag")?;
-        ensure!(layout.endpoint_tag.len() == 4, "无效 endpoint pool tag");
-        for (tag, kind) in [
-            (layout.endpoint_tag.as_bytes(), 0),
-            (b"TcpL".as_slice(), 1),
-            (b"UdpA".as_slice(), 2),
-        ] {
+        let mut tags: Vec<(&[u8], usize)> = layout
+            .endpoint_tags
+            .iter()
+            .map(|tag| (tag.as_bytes(), 0))
+            .collect();
+        tags.extend([(b"TcpL".as_slice(), 1), (b"UdpA".as_slice(), 2)]);
+        for (tag, kind) in tags {
             for hit in self.vm.image.scan(tag, job)? {
                 job.check()?;
                 let Some(header) = hit.checked_sub(tag_offset) else {
                     continue;
                 };
-                if header & 15 != 0 {
+                if header % alignment != 0 {
                     continue;
                 }
                 let mut bytes = vec![0; header_size as usize];
@@ -62,12 +93,8 @@ impl Windows<'_> {
                     continue;
                 }
                 let block =
-                    objects::physical_number(isf, &bytes, "_POOL_HEADER", "BlockSize")? * 16;
-                let size = match kind {
-                    0 => layout.endpoint_time.max(layout.endpoint_owner) + 8,
-                    1 => 128,
-                    _ => layout.udp_local + 8,
-                };
+                    objects::physical_number(isf, &bytes, "_POOL_HEADER", "BlockSize")? * alignment;
+                let size = layout.size(kind)?;
                 if block < header_size + size as u64 || block > 4096 {
                     continue;
                 }
@@ -78,43 +105,17 @@ impl Windows<'_> {
                 }
                 let mut recognized = false;
                 let parsed = (|| -> Result<Vec<Vec<String>>> {
-                    let af = read(
-                        &b,
-                        if kind == 0 {
-                            16
-                        } else if kind == 1 {
-                            40
-                        } else {
-                            32
-                        },
-                        8,
-                    )?;
+                    let fields = layout.fields(kind);
+                    let field = |name: &str, width: usize| -> Result<u64> {
+                        read(&b, *fields.get(name).context("缺少 TCP/IP 字段")?, width)
+                    };
+                    let af = field("InetAF", layout.pointer_size)?;
                     ensure!(self.vm.kernel(af), "无效 InetAF");
-                    let family = self.vm.uint(add(af, 24)?, 2)?;
+                    let family = self.vm.uint(add(af, layout.family)?, 2)?;
                     ensure!(matches!(family, 2 | 23), "无效地址族");
-                    let owner = read(
-                        &b,
-                        if kind == 0 {
-                            layout.endpoint_owner
-                        } else if kind == 1 {
-                            48
-                        } else {
-                            40
-                        },
-                        8,
-                    )?;
+                    let owner = field("Owner", layout.pointer_size)?;
                     let process = self.process(owner)?;
-                    let time = read(
-                        &b,
-                        if kind == 0 {
-                            layout.endpoint_time
-                        } else if kind == 1 {
-                            64
-                        } else {
-                            88
-                        },
-                        8,
-                    )?;
+                    let time = field("CreateTime", 8)?;
                     let time = if time == 0
                         || (110_000_000_000_000_000..190_000_000_000_000_000).contains(&time)
                     {
@@ -122,20 +123,10 @@ impl Windows<'_> {
                     } else {
                         String::new()
                     };
-                    let port = read(
-                        &b,
-                        if kind == 0 {
-                            112
-                        } else if kind == 1 {
-                            114
-                        } else {
-                            layout.udp_port
-                        },
-                        2,
-                    )? as u16;
+                    let port = field(if kind == 0 { "LocalPort" } else { "Port" }, 2)? as u16;
                     let port = port.swap_bytes();
                     let (local, remote, state, remote_port) = if kind == 0 {
-                        let state = read(&b, 108, 4)?;
+                        let state = field("State", 4)?;
                         let label = match state {
                             0 => "CLOSED",
                             1 => "LISTENING",
@@ -152,20 +143,20 @@ impl Windows<'_> {
                             _ => bail!("无效 TCP 状态"),
                         };
                         recognized = true;
-                        let info = read(&b, 24, 8)?;
-                        let local = self.vm.uint(info, 8)?;
-                        let local = self.local_address(local, false)?;
-                        let remote = self.vm.uint(add(info, 16)?, 8)?;
-                        let remote_port = (read(&b, 114, 2)? as u16).swap_bytes();
+                        let info = field("AddrInfo", layout.pointer_size)?;
+                        let local = self.vm.pointer(add(info, layout.info_local)?)?;
+                        let local = self.local_address(local, false, &layout)?;
+                        let remote = self.vm.pointer(add(info, layout.info_remote)?)?;
+                        let remote_port = (field("RemotePort", 2)? as u16).swap_bytes();
                         (local, remote, label, remote_port)
                     } else {
                         recognized = true;
-                        let local = read(&b, if kind == 1 { 96 } else { layout.udp_local }, 8)?;
+                        let local = field("LocalAddr", layout.pointer_size)?;
                         (
                             if local == 0 {
                                 0
                             } else {
-                                self.local_address(local, kind == 2)?
+                                self.local_address(local, kind == 2, &layout)?
                             },
                             0,
                             if kind == 1 { "LISTENING" } else { "" },
@@ -213,21 +204,30 @@ impl Windows<'_> {
         r.rows.dedup();
         Ok(r)
     }
-    fn local_address(&self, address: u64, udp: bool) -> Result<u64> {
-        let pointer = self.vm.uint(add(address, if udp { 0 } else { 16 })?, 8)?;
+    fn local_address(&self, address: u64, udp: bool, layout: &Layout) -> Result<u64> {
+        let pointer = self.vm.pointer(add(
+            address,
+            if udp {
+                layout.udp_data
+            } else {
+                layout.local_data
+            },
+        )?)?;
         if pointer == 0 {
             return Ok(0);
         }
-        if udp {
+        if udp && layout.udp_direct {
             Ok(pointer)
         } else {
-            self.vm.uint(pointer, 8)
+            self.vm.pointer(pointer)
         }
     }
 }
-fn read(b: &[u8], offset: usize, size: usize) -> Result<u64> {
+pub(super) fn read(b: &[u8], offset: usize, size: usize) -> Result<u64> {
+    ensure!(size <= 8, "网络字段宽度无效");
+    let end = offset.checked_add(size).context("网络字段偏移溢出")?;
     let mut value = [0; 8];
-    value[..size].copy_from_slice(b.get(offset..offset + size).context("网络字段越界")?);
+    value[..size].copy_from_slice(b.get(offset..end).context("网络字段越界")?);
     Ok(u64::from_le_bytes(value))
 }
 fn endpoint(vm: &Memory<'_>, address: u64, family: u64, port: u16) -> Result<String> {
@@ -294,7 +294,7 @@ mod tests {
         assert_eq!(endpoint(&vm, 0, 23, 80).unwrap(), "[::]:80");
         let layouts: serde_json::Value = serde_json::from_str(LAYOUTS).unwrap();
         assert!(layouts["identities"]["tcpip.pdb/UNKNOWN1"].is_null());
-        assert_eq!(layouts["identities"].as_object().unwrap().len(), 2);
+        assert_eq!(layouts["identities"].as_object().unwrap().len(), 3);
         assert!(read(&[1], 0, 2).is_err());
     }
 }

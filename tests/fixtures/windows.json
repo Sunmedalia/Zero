@@ -40,6 +40,28 @@
         "windows.hivelist": 38
       },
       "process_list_complete": false
+    },
+    {
+      "path": "images/win-10_19041-2025_03.dmp.gz",
+      "source": "https://mirror.nju.edu.cn/gentoo/distfiles/e4/volatility3-win-10_19041-2025_03.dmp.gz",
+      "size": 693221397,
+      "source_sha256": "b377ecd13bf40c90f59a8c41ffc8bc81166462627a7800ec82a67a73520c7f9d",
+      "sha256": "ef92b50aa2ba2f830e3f816eb55ed8d15b0658fdfff0ab7af8adb68f2c8da460",
+      "prepared_size": 2094154496,
+      "build": 19041,
+      "pdb": {
+        "name": "ntkrnlmp.pdb",
+        "guid": "167FE94B5641C005AC3036212A01F8DC",
+        "age": 1
+      },
+      "tcpip_pdb": "tcpip.pdb/822833E2F09280241D136E5E1F0877841",
+      "dtb": "0x6d4000",
+      "kernel_base": "0xfffff8043601f000",
+      "rows": {
+        "windows.pslist": 120,
+        "windows.netscan": 108
+      },
+      "process_list_complete": true
     }
   ]
 }

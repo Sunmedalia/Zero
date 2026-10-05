@@ -1,23 +1,855 @@
 {
-  "version": "zero-tcpip-2",
-  "sources": [
-    "https://raw.githubusercontent.com/volatilityfoundation/volatility3/v2.28.0/volatility3/framework/symbols/windows/netscan/netscan-win10-15063-x64.json",
-    "https://raw.githubusercontent.com/volatilityfoundation/volatility3/v2.28.0/volatility3/framework/symbols/windows/netscan/netscan-win10-20348-x64.json"
-  ],
-  "identities": {
-    "tcpip.pdb/9F341EAE78CCAB4569E0A7F2B73B04D01": {
-      "endpoint_owner": 624,
-      "endpoint_time": 616,
-      "udp_local": 128,
-      "udp_port": 120,
-      "endpoint_tag": "TcpE"
+  "version": "zero-tcpip-3",
+  "profiles": {
+    "netscan-win10-10240-x86": {
+      "pointer_size": 4,
+      "endpoint_tags": [
+        "TcpE"
+      ],
+      "endpoint": {
+        "Owner": 432,
+        "CreateTime": 440,
+        "InetAF": 8,
+        "LocalPort": 60,
+        "RemotePort": 62,
+        "State": 56,
+        "AddrInfo": 12
+      },
+      "listener": {
+        "Owner": 28,
+        "CreateTime": 40,
+        "InetAF": 64,
+        "LocalAddr": 60,
+        "Port": 70
+      },
+      "udp": {
+        "Owner": 24,
+        "CreateTime": 48,
+        "InetAF": 20,
+        "LocalAddr": 56,
+        "Port": 72
+      },
+      "family": 12,
+      "local_data": 12,
+      "udp_data": 12,
+      "info_local": 0,
+      "info_remote": 12,
+      "udp_direct": false,
+      "source": "https://raw.githubusercontent.com/volatilityfoundation/volatility3/v2.28.0/volatility3/framework/symbols/windows/netscan/netscan-win10-10240-x86.json",
+      "validation": "synthetic"
     },
-    "tcpip.pdb/FD48B7E92182A80F0F8B23D975C31B461": {
-      "endpoint_owner": 752,
-      "endpoint_time": 776,
-      "udp_local": 168,
-      "udp_port": 160,
-      "endpoint_tag": "TTcb"
+    "netscan-win10-10586-x86": {
+      "pointer_size": 4,
+      "endpoint_tags": [
+        "TcpE"
+      ],
+      "endpoint": {
+        "Owner": 424,
+        "CreateTime": 432,
+        "InetAF": 0,
+        "LocalPort": 52,
+        "RemotePort": 54,
+        "State": 48,
+        "AddrInfo": 4
+      },
+      "listener": {
+        "Owner": 20,
+        "CreateTime": 32,
+        "InetAF": 16,
+        "LocalAddr": 52,
+        "Port": 62
+      },
+      "udp": {
+        "Owner": 16,
+        "CreateTime": 40,
+        "InetAF": 52,
+        "LocalAddr": 48,
+        "Port": 60
+      },
+      "family": 12,
+      "local_data": 12,
+      "udp_data": 12,
+      "info_local": 0,
+      "info_remote": 12,
+      "udp_direct": false,
+      "source": "https://raw.githubusercontent.com/volatilityfoundation/volatility3/v2.28.0/volatility3/framework/symbols/windows/netscan/netscan-win10-10586-x86.json",
+      "validation": "synthetic"
+    },
+    "netscan-win10-14393-x86": {
+      "pointer_size": 4,
+      "endpoint_tags": [
+        "TcpE"
+      ],
+      "endpoint": {
+        "Owner": 436,
+        "CreateTime": 0,
+        "InetAF": 8,
+        "LocalPort": 60,
+        "RemotePort": 62,
+        "State": 56,
+        "AddrInfo": 12
+      },
+      "listener": {
+        "Owner": 24,
+        "CreateTime": 32,
+        "InetAF": 56,
+        "LocalAddr": 52,
+        "Port": 62
+      },
+      "udp": {
+        "Owner": 24,
+        "CreateTime": 48,
+        "InetAF": 20,
+        "LocalAddr": 56,
+        "Port": 72
+      },
+      "family": 12,
+      "local_data": 12,
+      "udp_data": 12,
+      "info_local": 0,
+      "info_remote": 12,
+      "udp_direct": false,
+      "source": "https://raw.githubusercontent.com/volatilityfoundation/volatility3/v2.28.0/volatility3/framework/symbols/windows/netscan/netscan-win10-14393-x86.json",
+      "validation": "synthetic"
+    },
+    "netscan-win10-15063-x64": {
+      "pointer_size": 8,
+      "endpoint_tags": [
+        "TcpE"
+      ],
+      "endpoint": {
+        "Owner": 624,
+        "CreateTime": 616,
+        "InetAF": 16,
+        "LocalPort": 112,
+        "RemotePort": 114,
+        "State": 108,
+        "AddrInfo": 24
+      },
+      "listener": {
+        "Owner": 48,
+        "CreateTime": 64,
+        "InetAF": 40,
+        "LocalAddr": 96,
+        "Port": 114
+      },
+      "udp": {
+        "Owner": 40,
+        "CreateTime": 88,
+        "InetAF": 32,
+        "LocalAddr": 128,
+        "Port": 120
+      },
+      "family": 24,
+      "local_data": 16,
+      "udp_data": 0,
+      "info_local": 0,
+      "info_remote": 16,
+      "udp_direct": true,
+      "source": "https://raw.githubusercontent.com/volatilityfoundation/volatility3/v2.28.0/volatility3/framework/symbols/windows/netscan/netscan-win10-15063-x64.json",
+      "validation": "public-raw-reference"
+    },
+    "netscan-win10-15063-x86": {
+      "pointer_size": 4,
+      "endpoint_tags": [
+        "TcpE"
+      ],
+      "endpoint": {
+        "Owner": 460,
+        "CreateTime": 0,
+        "InetAF": 8,
+        "LocalPort": 60,
+        "RemotePort": 62,
+        "State": 56,
+        "AddrInfo": 12
+      },
+      "listener": {
+        "Owner": 24,
+        "CreateTime": 32,
+        "InetAF": 56,
+        "LocalAddr": 52,
+        "Port": 62
+      },
+      "udp": {
+        "Owner": 24,
+        "CreateTime": 48,
+        "InetAF": 20,
+        "LocalAddr": 56,
+        "Port": 72
+      },
+      "family": 12,
+      "local_data": 12,
+      "udp_data": 12,
+      "info_local": 0,
+      "info_remote": 12,
+      "udp_direct": false,
+      "source": "https://raw.githubusercontent.com/volatilityfoundation/volatility3/v2.28.0/volatility3/framework/symbols/windows/netscan/netscan-win10-15063-x86.json",
+      "validation": "synthetic"
+    },
+    "netscan-win10-16299-x64": {
+      "pointer_size": 8,
+      "endpoint_tags": [
+        "TcpE"
+      ],
+      "endpoint": {
+        "Owner": 624,
+        "CreateTime": 640,
+        "InetAF": 16,
+        "LocalPort": 112,
+        "RemotePort": 114,
+        "State": 108,
+        "AddrInfo": 24
+      },
+      "listener": {
+        "Owner": 48,
+        "CreateTime": 64,
+        "InetAF": 40,
+        "LocalAddr": 96,
+        "Port": 114
+      },
+      "udp": {
+        "Owner": 40,
+        "CreateTime": 88,
+        "InetAF": 32,
+        "LocalAddr": 128,
+        "Port": 120
+      },
+      "family": 24,
+      "local_data": 16,
+      "udp_data": 0,
+      "info_local": 0,
+      "info_remote": 16,
+      "udp_direct": true,
+      "source": "https://raw.githubusercontent.com/volatilityfoundation/volatility3/v2.28.0/volatility3/framework/symbols/windows/netscan/netscan-win10-16299-x64.json",
+      "validation": "synthetic"
+    },
+    "netscan-win10-17134-x64": {
+      "pointer_size": 8,
+      "endpoint_tags": [
+        "TcpE"
+      ],
+      "endpoint": {
+        "Owner": 632,
+        "CreateTime": 648,
+        "InetAF": 16,
+        "LocalPort": 112,
+        "RemotePort": 114,
+        "State": 108,
+        "AddrInfo": 24
+      },
+      "listener": {
+        "Owner": 48,
+        "CreateTime": 64,
+        "InetAF": 40,
+        "LocalAddr": 96,
+        "Port": 114
+      },
+      "udp": {
+        "Owner": 40,
+        "CreateTime": 88,
+        "InetAF": 32,
+        "LocalAddr": 128,
+        "Port": 120
+      },
+      "family": 24,
+      "local_data": 16,
+      "udp_data": 0,
+      "info_local": 0,
+      "info_remote": 16,
+      "udp_direct": true,
+      "source": "https://raw.githubusercontent.com/volatilityfoundation/volatility3/v2.28.0/volatility3/framework/symbols/windows/netscan/netscan-win10-17134-x64.json",
+      "validation": "synthetic"
+    },
+    "netscan-win10-17134-x86": {
+      "pointer_size": 4,
+      "endpoint_tags": [
+        "TcpE"
+      ],
+      "endpoint": {
+        "Owner": 460,
+        "CreateTime": 0,
+        "InetAF": 8,
+        "LocalPort": 60,
+        "RemotePort": 62,
+        "State": 56,
+        "AddrInfo": 12
+      },
+      "listener": {
+        "Owner": 24,
+        "CreateTime": 32,
+        "InetAF": 56,
+        "LocalAddr": 52,
+        "Port": 62
+      },
+      "udp": {
+        "Owner": 24,
+        "CreateTime": 48,
+        "InetAF": 20,
+        "LocalAddr": 56,
+        "Port": 68
+      },
+      "family": 12,
+      "local_data": 12,
+      "udp_data": 12,
+      "info_local": 0,
+      "info_remote": 12,
+      "udp_direct": false,
+      "source": "https://raw.githubusercontent.com/volatilityfoundation/volatility3/v2.28.0/volatility3/framework/symbols/windows/netscan/netscan-win10-17134-x86.json",
+      "validation": "synthetic"
+    },
+    "netscan-win10-17763-x64": {
+      "pointer_size": 8,
+      "endpoint_tags": [
+        "TcpE"
+      ],
+      "endpoint": {
+        "Owner": 712,
+        "CreateTime": 728,
+        "InetAF": 16,
+        "LocalPort": 112,
+        "RemotePort": 114,
+        "State": 108,
+        "AddrInfo": 24
+      },
+      "listener": {
+        "Owner": 48,
+        "CreateTime": 64,
+        "InetAF": 40,
+        "LocalAddr": 96,
+        "Port": 114
+      },
+      "udp": {
+        "Owner": 40,
+        "CreateTime": 88,
+        "InetAF": 32,
+        "LocalAddr": 128,
+        "Port": 120
+      },
+      "family": 24,
+      "local_data": 16,
+      "udp_data": 0,
+      "info_local": 0,
+      "info_remote": 16,
+      "udp_direct": true,
+      "source": "https://raw.githubusercontent.com/volatilityfoundation/volatility3/v2.28.0/volatility3/framework/symbols/windows/netscan/netscan-win10-17763-x64.json",
+      "validation": "synthetic"
+    },
+    "netscan-win10-18362-x64": {
+      "pointer_size": 8,
+      "endpoint_tags": [
+        "TcpE"
+      ],
+      "endpoint": {
+        "Owner": 656,
+        "CreateTime": 672,
+        "InetAF": 16,
+        "LocalPort": 112,
+        "RemotePort": 114,
+        "State": 108,
+        "AddrInfo": 24
+      },
+      "listener": {
+        "Owner": 48,
+        "CreateTime": 64,
+        "InetAF": 40,
+        "LocalAddr": 96,
+        "Port": 114
+      },
+      "udp": {
+        "Owner": 40,
+        "CreateTime": 88,
+        "InetAF": 32,
+        "LocalAddr": 128,
+        "Port": 120
+      },
+      "family": 24,
+      "local_data": 16,
+      "udp_data": 0,
+      "info_local": 0,
+      "info_remote": 16,
+      "udp_direct": true,
+      "source": "https://raw.githubusercontent.com/volatilityfoundation/volatility3/v2.28.0/volatility3/framework/symbols/windows/netscan/netscan-win10-18362-x64.json",
+      "validation": "synthetic"
+    },
+    "netscan-win10-18363-x64": {
+      "pointer_size": 8,
+      "endpoint_tags": [
+        "TcpE"
+      ],
+      "endpoint": {
+        "Owner": 656,
+        "CreateTime": 672,
+        "InetAF": 16,
+        "LocalPort": 112,
+        "RemotePort": 114,
+        "State": 108,
+        "AddrInfo": 24
+      },
+      "listener": {
+        "Owner": 48,
+        "CreateTime": 64,
+        "InetAF": 40,
+        "LocalAddr": 96,
+        "Port": 114
+      },
+      "udp": {
+        "Owner": 40,
+        "CreateTime": 88,
+        "InetAF": 32,
+        "LocalAddr": 136,
+        "Port": 128
+      },
+      "family": 24,
+      "local_data": 16,
+      "udp_data": 0,
+      "info_local": 0,
+      "info_remote": 16,
+      "udp_direct": true,
+      "source": "https://raw.githubusercontent.com/volatilityfoundation/volatility3/v2.28.0/volatility3/framework/symbols/windows/netscan/netscan-win10-18363-x64.json",
+      "validation": "synthetic"
+    },
+    "netscan-win10-19041-x64": {
+      "pointer_size": 8,
+      "endpoint_tags": [
+        "TcpE"
+      ],
+      "endpoint": {
+        "Owner": 728,
+        "CreateTime": 744,
+        "InetAF": 16,
+        "LocalPort": 112,
+        "RemotePort": 114,
+        "State": 108,
+        "AddrInfo": 24
+      },
+      "listener": {
+        "Owner": 48,
+        "CreateTime": 64,
+        "InetAF": 40,
+        "LocalAddr": 96,
+        "Port": 114
+      },
+      "udp": {
+        "Owner": 40,
+        "CreateTime": 88,
+        "InetAF": 32,
+        "LocalAddr": 168,
+        "Port": 160
+      },
+      "family": 24,
+      "local_data": 16,
+      "udp_data": 0,
+      "info_local": 0,
+      "info_remote": 16,
+      "udp_direct": true,
+      "source": "https://raw.githubusercontent.com/volatilityfoundation/volatility3/v2.28.0/volatility3/framework/symbols/windows/netscan/netscan-win10-19041-x64.json",
+      "validation": "public-crash-reference"
+    },
+    "netscan-win10-19041-x86": {
+      "pointer_size": 4,
+      "endpoint_tags": [
+        "TcpE"
+      ],
+      "endpoint": {
+        "Owner": 624,
+        "CreateTime": 616,
+        "InetAF": 16,
+        "LocalPort": 112,
+        "RemotePort": 114,
+        "State": 108,
+        "AddrInfo": 24
+      },
+      "listener": {
+        "Owner": 48,
+        "CreateTime": 64,
+        "InetAF": 40,
+        "LocalAddr": 96,
+        "Port": 114
+      },
+      "udp": {
+        "Owner": 40,
+        "CreateTime": 88,
+        "InetAF": 32,
+        "LocalAddr": 160,
+        "Port": 152
+      },
+      "family": 24,
+      "local_data": 16,
+      "udp_data": 0,
+      "info_local": 0,
+      "info_remote": 16,
+      "udp_direct": true,
+      "source": "https://raw.githubusercontent.com/volatilityfoundation/volatility3/v2.28.0/volatility3/framework/symbols/windows/netscan/netscan-win10-19041-x86.json",
+      "validation": "synthetic"
+    },
+    "netscan-win10-20348-x64": {
+      "pointer_size": 8,
+      "endpoint_tags": [
+        "TcpE",
+        "TTcb"
+      ],
+      "endpoint": {
+        "Owner": 752,
+        "CreateTime": 776,
+        "InetAF": 16,
+        "LocalPort": 112,
+        "RemotePort": 114,
+        "State": 108,
+        "AddrInfo": 24
+      },
+      "listener": {
+        "Owner": 48,
+        "CreateTime": 64,
+        "InetAF": 40,
+        "LocalAddr": 96,
+        "Port": 114
+      },
+      "udp": {
+        "Owner": 40,
+        "CreateTime": 88,
+        "InetAF": 32,
+        "LocalAddr": 168,
+        "Port": 160
+      },
+      "family": 24,
+      "local_data": 16,
+      "udp_data": 0,
+      "info_local": 0,
+      "info_remote": 16,
+      "udp_direct": true,
+      "source": "https://raw.githubusercontent.com/volatilityfoundation/volatility3/v2.28.0/volatility3/framework/symbols/windows/netscan/netscan-win10-20348-x64.json",
+      "validation": "public-raw-reference"
+    },
+    "netscan-win10-x64": {
+      "pointer_size": 8,
+      "endpoint_tags": [
+        "TcpE"
+      ],
+      "endpoint": {
+        "Owner": 600,
+        "CreateTime": 616,
+        "InetAF": 16,
+        "LocalPort": 112,
+        "RemotePort": 114,
+        "State": 108,
+        "AddrInfo": 24
+      },
+      "listener": {
+        "Owner": 48,
+        "CreateTime": 64,
+        "InetAF": 40,
+        "LocalAddr": 96,
+        "Port": 114
+      },
+      "udp": {
+        "Owner": 40,
+        "CreateTime": 88,
+        "InetAF": 32,
+        "LocalAddr": 128,
+        "Port": 120
+      },
+      "family": 24,
+      "local_data": 16,
+      "udp_data": 0,
+      "info_local": 0,
+      "info_remote": 16,
+      "udp_direct": true,
+      "source": "https://raw.githubusercontent.com/volatilityfoundation/volatility3/v2.28.0/volatility3/framework/symbols/windows/netscan/netscan-win10-x64.json",
+      "validation": "synthetic"
+    },
+    "netscan-win7-x64": {
+      "pointer_size": 8,
+      "endpoint_tags": [
+        "TcpE"
+      ],
+      "endpoint": {
+        "Owner": 568,
+        "CreateTime": 0,
+        "InetAF": 24,
+        "LocalPort": 108,
+        "RemotePort": 110,
+        "State": 104,
+        "AddrInfo": 32
+      },
+      "listener": {
+        "Owner": 40,
+        "CreateTime": 32,
+        "InetAF": 96,
+        "LocalAddr": 88,
+        "Port": 106
+      },
+      "udp": {
+        "Owner": 40,
+        "CreateTime": 88,
+        "InetAF": 32,
+        "LocalAddr": 96,
+        "Port": 128
+      },
+      "family": 20,
+      "local_data": 16,
+      "udp_data": 16,
+      "info_local": 0,
+      "info_remote": 16,
+      "udp_direct": false,
+      "source": "https://raw.githubusercontent.com/volatilityfoundation/volatility3/v2.28.0/volatility3/framework/symbols/windows/netscan/netscan-win7-x64.json",
+      "validation": "synthetic"
+    },
+    "netscan-win7-x86": {
+      "pointer_size": 4,
+      "endpoint_tags": [
+        "TcpE"
+      ],
+      "endpoint": {
+        "Owner": 372,
+        "CreateTime": 0,
+        "InetAF": 12,
+        "LocalPort": 56,
+        "RemotePort": 58,
+        "State": 52,
+        "AddrInfo": 16
+      },
+      "listener": {
+        "Owner": 24,
+        "CreateTime": 32,
+        "InetAF": 56,
+        "LocalAddr": 52,
+        "Port": 62
+      },
+      "udp": {
+        "Owner": 24,
+        "CreateTime": 48,
+        "InetAF": 20,
+        "LocalAddr": 56,
+        "Port": 72
+      },
+      "family": 12,
+      "local_data": 12,
+      "udp_data": 12,
+      "info_local": 0,
+      "info_remote": 8,
+      "udp_direct": false,
+      "source": "https://raw.githubusercontent.com/volatilityfoundation/volatility3/v2.28.0/volatility3/framework/symbols/windows/netscan/netscan-win7-x86.json",
+      "validation": "synthetic"
+    },
+    "netscan-win8-x64": {
+      "pointer_size": 8,
+      "endpoint_tags": [
+        "TcpE"
+      ],
+      "endpoint": {
+        "Owner": 592,
+        "CreateTime": 0,
+        "InetAF": 16,
+        "LocalPort": 112,
+        "RemotePort": 114,
+        "State": 108,
+        "AddrInfo": 24
+      },
+      "listener": {
+        "Owner": 40,
+        "CreateTime": 64,
+        "InetAF": 96,
+        "LocalAddr": 88,
+        "Port": 106
+      },
+      "udp": {
+        "Owner": 40,
+        "CreateTime": 88,
+        "InetAF": 32,
+        "LocalAddr": 96,
+        "Port": 128
+      },
+      "family": 24,
+      "local_data": 16,
+      "udp_data": 16,
+      "info_local": 0,
+      "info_remote": 16,
+      "udp_direct": false,
+      "source": "https://raw.githubusercontent.com/volatilityfoundation/volatility3/v2.28.0/volatility3/framework/symbols/windows/netscan/netscan-win8-x64.json",
+      "validation": "synthetic"
+    },
+    "netscan-win8-x86": {
+      "pointer_size": 4,
+      "endpoint_tags": [
+        "TcpE"
+      ],
+      "endpoint": {
+        "Owner": 372,
+        "CreateTime": 0,
+        "InetAF": 8,
+        "LocalPort": 60,
+        "RemotePort": 62,
+        "State": 56,
+        "AddrInfo": 12
+      },
+      "listener": {
+        "Owner": 24,
+        "CreateTime": 32,
+        "InetAF": 56,
+        "LocalAddr": 52,
+        "Port": 62
+      },
+      "udp": {
+        "Owner": 24,
+        "CreateTime": 48,
+        "InetAF": 20,
+        "LocalAddr": 56,
+        "Port": 72
+      },
+      "family": 12,
+      "local_data": 12,
+      "udp_data": 12,
+      "info_local": 0,
+      "info_remote": 12,
+      "udp_direct": false,
+      "source": "https://raw.githubusercontent.com/volatilityfoundation/volatility3/v2.28.0/volatility3/framework/symbols/windows/netscan/netscan-win8-x86.json",
+      "validation": "synthetic"
+    },
+    "netscan-win81-19935-x64": {
+      "pointer_size": 8,
+      "endpoint_tags": [
+        "TcpE"
+      ],
+      "endpoint": {
+        "Owner": 608,
+        "CreateTime": 624,
+        "InetAF": 16,
+        "LocalPort": 112,
+        "RemotePort": 114,
+        "State": 108,
+        "AddrInfo": 24
+      },
+      "listener": {
+        "Owner": 40,
+        "CreateTime": 64,
+        "InetAF": 96,
+        "LocalAddr": 88,
+        "Port": 106
+      },
+      "udp": {
+        "Owner": 40,
+        "CreateTime": 88,
+        "InetAF": 32,
+        "LocalAddr": 96,
+        "Port": 120
+      },
+      "family": 24,
+      "local_data": 16,
+      "udp_data": 16,
+      "info_local": 0,
+      "info_remote": 16,
+      "udp_direct": false,
+      "source": "https://raw.githubusercontent.com/volatilityfoundation/volatility3/v2.28.0/volatility3/framework/symbols/windows/netscan/netscan-win81-19935-x64.json",
+      "validation": "synthetic"
+    },
+    "netscan-win81-x64": {
+      "pointer_size": 8,
+      "endpoint_tags": [
+        "TcpE"
+      ],
+      "endpoint": {
+        "Owner": 600,
+        "CreateTime": 0,
+        "InetAF": 16,
+        "LocalPort": 112,
+        "RemotePort": 114,
+        "State": 108,
+        "AddrInfo": 24
+      },
+      "listener": {
+        "Owner": 40,
+        "CreateTime": 64,
+        "InetAF": 96,
+        "LocalAddr": 88,
+        "Port": 106
+      },
+      "udp": {
+        "Owner": 40,
+        "CreateTime": 88,
+        "InetAF": 32,
+        "LocalAddr": 96,
+        "Port": 120
+      },
+      "family": 24,
+      "local_data": 16,
+      "udp_data": 16,
+      "info_local": 0,
+      "info_remote": 16,
+      "udp_direct": false,
+      "source": "https://raw.githubusercontent.com/volatilityfoundation/volatility3/v2.28.0/volatility3/framework/symbols/windows/netscan/netscan-win81-x64.json",
+      "validation": "synthetic"
+    },
+    "netscan-win81-x86": {
+      "pointer_size": 4,
+      "endpoint_tags": [
+        "TcpE"
+      ],
+      "endpoint": {
+        "Owner": 424,
+        "CreateTime": 0,
+        "InetAF": 8,
+        "LocalPort": 60,
+        "RemotePort": 62,
+        "State": 56,
+        "AddrInfo": 12
+      },
+      "listener": {
+        "Owner": 24,
+        "CreateTime": 32,
+        "InetAF": 56,
+        "LocalAddr": 52,
+        "Port": 62
+      },
+      "udp": {
+        "Owner": 24,
+        "CreateTime": 48,
+        "InetAF": 20,
+        "LocalAddr": 56,
+        "Port": 72
+      },
+      "family": 12,
+      "local_data": 12,
+      "udp_data": 12,
+      "info_local": 0,
+      "info_remote": 12,
+      "udp_direct": false,
+      "source": "https://raw.githubusercontent.com/volatilityfoundation/volatility3/v2.28.0/volatility3/framework/symbols/windows/netscan/netscan-win81-x86.json",
+      "validation": "synthetic"
     }
+  },
+  "identities": {
+    "tcpip.pdb/9F341EAE78CCAB4569E0A7F2B73B04D01": "netscan-win10-15063-x64",
+    "tcpip.pdb/FD48B7E92182A80F0F8B23D975C31B461": "netscan-win10-20348-x64",
+    "tcpip.pdb/822833E2F09280241D136E5E1F0877841": "netscan-win10-19041-x64"
+  },
+  "versions": {
+    "x86:6.1.7600": "netscan-win7-x86",
+    "x86:6.1.7601": "netscan-win7-x86",
+    "x86:6.2.9200": "netscan-win8-x86",
+    "x86:6.3.9600": "netscan-win81-x86",
+    "x86:10.0.10240": "netscan-win10-10240-x86",
+    "x86:10.0.10586": "netscan-win10-10586-x86",
+    "x86:10.0.14393": "netscan-win10-14393-x86",
+    "x86:10.0.15063": "netscan-win10-15063-x86",
+    "x86:10.0.16299": "netscan-win10-15063-x86",
+    "x86:10.0.17134": "netscan-win10-17134-x86",
+    "x86:10.0.17763": "netscan-win10-17134-x86",
+    "x86:10.0.18362": "netscan-win10-17134-x86",
+    "x86:10.0.18363": "netscan-win10-17134-x86",
+    "x86:10.0.19041": "netscan-win10-19041-x86",
+    "x64:6.1.7600": "netscan-win7-x64",
+    "x64:6.1.7601": "netscan-win7-x64",
+    "x64:6.2.9200": "netscan-win8-x64",
+    "x64:6.3.9600": "netscan-win81-x64",
+    "x64:10.0.10240": "netscan-win10-x64",
+    "x64:10.0.10586": "netscan-win10-x64",
+    "x64:10.0.14393": "netscan-win10-x64",
+    "x64:10.0.15063": "netscan-win10-15063-x64",
+    "x64:10.0.16299": "netscan-win10-16299-x64",
+    "x64:10.0.17134": "netscan-win10-17134-x64",
+    "x64:10.0.17763": "netscan-win10-17763-x64",
+    "x64:10.0.18362": "netscan-win10-18362-x64",
+    "x64:10.0.18363": "netscan-win10-18363-x64",
+    "x64:10.0.19041": "netscan-win10-19041-x64"
   }
 }

@@ -129,3 +129,56 @@ fn native_pdb_conversion_is_deterministic_and_preserves_anonymous_layouts() {
         );
     }
 }
+
+#[test]
+#[ignore = "requires public Windows 10 bitmap crash dump and exact local PDB"]
+fn public_bitmap_crash_processes_and_networks() {
+    let image = std::env::var_os("ZERO_WINDOWS_CRASH_IMAGE")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| "images/win-10_19041-2025_03.dmp.gz".into());
+    let symbols = Path::new(".zero/rust/symbols/isf/windows");
+    let cache = Path::new(".zero/rust");
+    let job = Job::default();
+    let mut session = Session::default();
+    let prepared = session.prepare_image(&image, cache, &job).unwrap();
+    assert_eq!(
+        prepared.digest,
+        "ef92b50aa2ba2f830e3f816eb55ed8d15b0658fdfff0ab7af8adb68f2c8da460"
+    );
+    assert_eq!(prepared.format, "Windows crash");
+    for (plugin, count) in [(Plugin::WinPslist, 120), (Plugin::WinNetscan, 108)] {
+        let outcome = analysis::analyze(
+            &mut session,
+            &Request {
+                image: &image,
+                symbols,
+                choice: None,
+                plugin,
+                cache,
+                use_cache: false,
+                network: false,
+            },
+            None,
+            &Options::default(),
+            &job,
+        )
+        .unwrap();
+        let Outcome::Ready(result) = outcome else {
+            panic!("ambiguous symbols")
+        };
+        assert!(result.complete, "{:?}", result.diagnostics);
+        assert_eq!(result.rows.len(), count);
+        assert_eq!(result.page_table, 0x6d4000);
+        assert!(result.rows.iter().all(|r| r.len() == result.columns.len()));
+        if plugin == Plugin::WinNetscan {
+            assert_eq!(
+                result.kernel_identity["network_layout"]["validation"],
+                "public-crash-reference"
+            );
+            assert_eq!(
+                result.kernel_identity["tcpip_pdb"]["guid"],
+                "822833E2F09280241D136E5E1F087784"
+            );
+        }
+    }
+}

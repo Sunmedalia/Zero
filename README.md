@@ -356,3 +356,5 @@ zero dump --os windows --image image.mem --mode range --pid 1234 --start 0x10000
 进程兼容阶段增加 WOW64 32 位 PEB、命令行和 DLL 链表读取，`windows.cmdline` 与 `windows.dlllist` 新增 `View` 列（`native` / `wow64` / `minidump`）；PE32 和 PE32+ 使用统一节重建。注册表 `db` 分段大值按分段索引重建并校验计数、重复项与实际长度，当前值大小上限仍为 1 MiB。上述新增路径包含合成测试；x86／ARM64 的全插件覆盖仍需真实镜像验收。
 
 新增公开 crash dump 验证来源：https://mirror.nju.edu.cn/gentoo/distfiles/e4/volatility3-win-10_19041-2025_03.dmp.gz 。Windows 10 build 19041 的 FDMP bitmap 容器可直接以 gzip 导入，已解析出 120 个完整进程记录。
+
+网络阶段优先读取精确 tcpip.sys PDB 的类型；缺少类型时使用带来源的架构／驱动版本布局。字段宽度、对象尺寸及 pool 对齐按架构解析，未知版本不会选择最近版本。Windows 7–10 x86/x64 的声明式布局通过字段边界测试；仅版本系列匹配的结果带未验证身份诊断，不写成功缓存。ARM64 当前需要可用的精确驱动类型。公开 Windows 10 build 15063、19041 与 Windows 11 build 22000 已按精确驱动身份验证；19041 crash dump 的 108 条网络记录与独立 Volatility 3 结果一致（84 组去重连接）。

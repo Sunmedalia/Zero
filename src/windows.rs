@@ -20,6 +20,7 @@ pub mod container;
 mod dump;
 mod memory;
 mod network;
+mod network_layout;
 mod objects;
 mod registry;
 mod wow64;
@@ -408,7 +409,7 @@ impl Windows<'_> {
             return self.registry(p, options, job);
         }
         if p == Plugin::WinNetscan {
-            return self.netscan(job);
+            return self.netscan(job, None);
         }
         if matches!(p, Plugin::WinPsscan | Plugin::WinPsxview) {
             return self.scan_processes(p, options, job);
@@ -563,6 +564,8 @@ pub fn analyze(
     }
     let mut result = if let Some(dump) = dump {
         engine.run_dump(request.plugin, dump, job)?
+    } else if request.plugin == Plugin::WinNetscan {
+        engine.netscan(job, Some((request.cache, request.network)))?
     } else {
         engine.run(request.plugin, options, job)?
     };
