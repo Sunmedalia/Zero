@@ -3,7 +3,7 @@ use crate::{
     Job,
     analysis::Options,
     dump::DumpOptions,
-    image::{Image, VirtualMemory},
+    image::Image,
     linux::{Outcome, Plugin, Request},
     store::{self, Results},
     symbols::Isf,
@@ -80,11 +80,13 @@ impl Memory<'_> {
             let index = ((va >> shift) & (geometry.entries(level) as u64 - 1)) as usize;
             let mut entry = geometry.entry(self.image, table, index)?;
             if entry & 1 == 0 {
-                if geometry.arch != Architecture::Arm64
-                    && entry & (1 << 11) != 0
-                    && entry & (1 << 10) == 0
-                {
-                    entry |= 1;
+                if entry & (1 << 11) != 0 && entry & (1 << 10) == 0 {
+                    entry = self.transition_frame(entry, geometry)?
+                        | if geometry.arch == Architecture::Arm64 {
+                            3
+                        } else {
+                            1
+                        };
                 } else {
                     bail!("Windows 缺页 VA {va:#x} level {shift} PTE {entry:#x}");
                 }
@@ -101,10 +103,10 @@ impl Memory<'_> {
         Ok(table | (va & 4095))
     }
     pub fn read(&self, mut va: u64, mut out: &mut [u8]) -> Result<()> {
-        let _depth = paging::ReadDepth::enter()?;
         va.checked_add(out.len() as u64)
             .context("Windows 读取越界")?;
         while !out.is_empty() {
+            let _depth = paging::ReadDepth::enter(self.image, self.root, va)?;
             let n = out.len().min(4096 - (va & 4095) as usize);
             match self.translate(va) {
                 Ok(physical) => self.image.read(physical, &mut out[..n])?,
@@ -120,33 +122,79 @@ impl Memory<'_> {
         }
         Ok(())
     }
-    fn prototype(&self, va: u64) -> Result<u64> {
+    fn transition_frame(&self, entry: u64, geometry: Paging) -> Result<u64> {
+        if self
+            .isf
+            .field("_MMPTE_TRANSITION", "PageFrameNumber")
+            .is_ok()
+        {
+            let pfn = json_number(self.isf, entry, "_MMPTE_TRANSITION", "PageFrameNumber")?;
+            ensure!(pfn <= geometry.mask() >> 12, "transition PFN 越界");
+            Ok(pfn << 12)
+        } else {
+            ensure!(
+                geometry.arch != Architecture::Arm64,
+                "ARM64 transition PTE 缺少精确 PFN 类型"
+            );
+            Ok(entry & geometry.mask())
+        }
+    }
+    fn prototype_page(&self, entry: u64, va: u64) -> Result<u64> {
         let geometry = self.paging()?;
         ensure!(
-            geometry.arch == Architecture::X64,
-            "此架构的 prototype PTE 尚未验证"
+            entry & (1 << 10) != 0 && entry & 1 == 0,
+            "不是 prototype PTE"
         );
-        let mut table = self.root & geometry.root_mask();
-        for shift in [39, 30, 21, 12] {
-            let entry = self.image.u64(table + ((va >> shift) & 511) * 8)?;
-            if entry & 1 != 0 {
-                table = entry & PHYSICAL_MASK;
-                continue;
-            }
-            ensure!(shift == 12 && entry & (1 << 10) != 0, "非驻留 prototype 页");
+        let prototype = if geometry.arch == Architecture::X86 && !geometry.pae {
+            let low = json_number(self.isf, entry, "_MMPTE_PROTOTYPE", "ProtoAddressLow")?;
+            let high = json_number(self.isf, entry, "_MMPTE_PROTOTYPE", "ProtoAddressHigh")?;
+            ensure!(low < 256 && high < (1 << 21), "x86 prototype 地址字段越界");
+            0x80000000 | (high << 10) | (low << 2)
+        } else {
             let value = json_number(self.isf, entry, "_MMPTE_PROTOTYPE", "ProtoAddress")?;
-            let prototype = ((value << 16) as i64 >> 16) as u64; // Signed 48-bit virtual address stored in bits 16..63.
-            let physical = VirtualMemory {
-                image: self.image,
-                root: self.root,
+            if geometry.arch == Architecture::X86 {
+                ensure!(value <= u32::MAX as u64, "PAE prototype 地址越界");
+                value
+            } else {
+                ((value << 16) as i64 >> 16) as u64
             }
-            .translate(prototype)?;
-            let pte = self.image.u64(physical)?;
+        };
+        ensure!(
+            self.kernel(prototype) && prototype.is_multiple_of(geometry.width() as u64),
+            "prototype PTE 指针无效"
+        );
+        let pte = self.uint(prototype, geometry.width())?;
+        let frame = if pte & 1 != 0 {
+            if geometry.arch == Architecture::Arm64 {
+                ensure!(pte & 3 == 3, "无效 ARM64 prototype 页 descriptor");
+            }
+            pte & geometry.mask()
+        } else {
             ensure!(
-                pte & 1 != 0 || (pte & (1 << 11) != 0 && pte & (1 << 10) == 0),
+                pte & (1 << 11) != 0 && pte & (1 << 10) == 0,
                 "prototype 页面不驻留"
             );
-            return Ok((pte & PHYSICAL_MASK) | (va & 4095));
+            self.transition_frame(pte, geometry)?
+        };
+        Ok(frame | (va & 4095))
+    }
+    fn prototype(&self, va: u64) -> Result<u64> {
+        let geometry = self.paging()?;
+        ensure!(geometry.canonical(va), "Windows 非 canonical 地址");
+        let mut table = self.root & geometry.root_mask();
+        for (level, &shift) in geometry.shifts().iter().enumerate() {
+            let index = ((va >> shift) & (geometry.entries(level) as u64 - 1)) as usize;
+            let entry = geometry.entry(self.image, table, index)?;
+            if entry & 1 != 0 {
+                table = entry & geometry.mask();
+                continue;
+            }
+            if entry & (1 << 11) != 0 && entry & (1 << 10) == 0 {
+                table = self.transition_frame(entry, geometry)?;
+                continue;
+            }
+            ensure!(shift == 12, "prototype 所在页表不驻留");
+            return self.prototype_page(entry, va);
         }
         bail!("未找到 prototype PTE")
     }
@@ -455,13 +503,20 @@ impl Windows<'_> {
         }
         Ok(result)
     }
+    fn module_type(&self) -> Result<&'static str> {
+        for name in ["_KLDR_DATA_TABLE_ENTRY", "_LDR_DATA_TABLE_ENTRY"] {
+            if self.vm.isf.offset(name, "InLoadOrderLinks").is_ok() {
+                return Ok(name);
+            }
+        }
+        bail!("缺少内核模块条目类型")
+    }
     fn modules(&self, p: Plugin, job: &Job) -> Result<Results> {
         let mut r = self.result(p);
+        let module_type = self.module_type()?;
         let (modules, diagnostics) = self.list_partial(
             self.symbol("PsLoadedModuleList")?,
-            self.vm
-                .isf
-                .offset("_KLDR_DATA_TABLE_ENTRY", "InLoadOrderLinks")?,
+            self.vm.isf.offset(module_type, "InLoadOrderLinks")?,
             job,
         )?;
         r.complete = diagnostics.is_empty();
@@ -469,19 +524,13 @@ impl Windows<'_> {
         for address in modules {
             let read = (|| -> Result<Vec<String>> {
                 Ok(vec![
-                    self.vm.unicode(self.field(
-                        address,
-                        "_KLDR_DATA_TABLE_ENTRY",
-                        "BaseDllName",
-                    )?)?,
-                    hex(self.number(address, "_KLDR_DATA_TABLE_ENTRY", "DllBase")?),
-                    self.number(address, "_KLDR_DATA_TABLE_ENTRY", "SizeOfImage")?
+                    self.vm
+                        .unicode(self.field(address, module_type, "BaseDllName")?)?,
+                    hex(self.number(address, module_type, "DllBase")?),
+                    self.number(address, module_type, "SizeOfImage")?
                         .to_string(),
-                    self.vm.unicode(self.field(
-                        address,
-                        "_KLDR_DATA_TABLE_ENTRY",
-                        "FullDllName",
-                    )?)?,
+                    self.vm
+                        .unicode(self.field(address, module_type, "FullDllName")?)?,
                 ])
             })();
             match read {

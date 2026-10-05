@@ -7,21 +7,24 @@ use std::{
     path::{Path, PathBuf},
     sync::Mutex,
 };
-thread_local! { static DEPTH: std::cell::Cell<usize> = const { std::cell::Cell::new(0) }; }
-pub(super) struct ReadDepth;
+thread_local! { static ACTIVE_READS: std::cell::RefCell<HashSet<(usize,u64,u64)>> = std::cell::RefCell::new(HashSet::new()); }
+pub(super) struct ReadDepth((usize, u64, u64));
 impl ReadDepth {
-    pub(super) fn enter() -> Result<Self> {
-        DEPTH.with(|d| {
-            let depth = d.get();
-            ensure!(depth < 32, "Windows 页面恢复递归超过上限");
-            d.set(depth + 1);
-            Ok(Self)
+    pub(super) fn enter(image: &Image, root: u64, va: u64) -> Result<Self> {
+        let key = (image as *const Image as usize, root, va & !4095);
+        ACTIVE_READS.with(|reads| {
+            let mut reads = reads.borrow_mut();
+            ensure!(reads.len() < 32, "Windows 页面恢复递归超过上限");
+            ensure!(reads.insert(key), "Windows 页面恢复循环");
+            Ok(Self(key))
         })
     }
 }
 impl Drop for ReadDepth {
     fn drop(&mut self) {
-        DEPTH.with(|d| d.set(d.get() - 1));
+        ACTIVE_READS.with(|reads| {
+            reads.borrow_mut().remove(&self.0);
+        });
     }
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -283,6 +286,37 @@ impl Sources {
     }
 }
 impl Memory<'_> {
+    pub(super) fn pagefile_high(&self, entry: u64) -> Result<u64> {
+        let mut high = json_number(self.isf, entry, "_MMPTE_SOFTWARE", "PageFileHigh")?;
+        // Old layouts have no swizzle flag. Modern nonswizzled PTEs include
+        // the kernel's invalid-PTE marker in PageFileHigh, not in the file offset.
+        if self.isf.field("_MMPTE_SOFTWARE", "SwizzleBit").is_ok()
+            && json_number(self.isf, entry, "_MMPTE_SOFTWARE", "SwizzleBit")? == 0
+        {
+            let (root, base) = self
+                .sources
+                .context("缺少分页上下文")?
+                .kernel_context
+                .context("缺少分页内核上下文")?;
+            let kernel = Windows {
+                vm: Memory {
+                    image: self.image,
+                    root,
+                    isf: self.isf,
+                    sources: self.sources,
+                },
+                base,
+                pdb: PdbIdentity::from_isf(self.isf)?,
+            };
+            let state = kernel.symbol("MiState")?;
+            high &=
+                !(kernel
+                    .vm
+                    .number(state, "_MI_SYSTEM_INFORMATION", "Hardware.InvalidPteMask")?
+                    >> 32);
+        }
+        Ok(high)
+    }
     pub(super) fn pagefile_read(&self, va: u64, out: &mut [u8]) -> Result<()> {
         let geometry = self.paging()?;
         ensure!(geometry.canonical(va), "Windows 非 canonical 地址");
@@ -313,13 +347,20 @@ impl Memory<'_> {
                 if geometry.arch == Architecture::Arm64 {
                     ensure!(entry & 3 == 3, "无效 ARM64 table/page descriptor");
                 }
-                table = entry & geometry.mask();
+                table = if entry & 1 == 0 {
+                    self.transition_frame(entry, geometry)?
+                } else {
+                    entry & geometry.mask()
+                };
                 backing = None;
                 if shift == 12 {
                     self.image.read(table | (va & 4095), out)?;
                     return Ok(());
                 }
                 continue;
+            }
+            if shift == 12 && entry & (1 << 10) != 0 {
+                return self.image.read(self.prototype_page(entry, va)?, out);
             }
             ensure!(
                 json_number(self.isf, entry, "_MMPTE_SOFTWARE", "Prototype")? == 0
@@ -332,7 +373,7 @@ impl Memory<'_> {
                 "_MMPTE_SOFTWARE",
                 "PageFileLow",
             )?)?;
-            let page = json_number(self.isf, entry, "_MMPTE_SOFTWARE", "PageFileHigh")?;
+            let page = self.pagefile_high(entry)?;
             ensure!(
                 page != 0 && file < 16,
                 "无分页内容的 PTE（未提交或 demand-zero）"
@@ -364,6 +405,45 @@ impl Memory<'_> {
 mod tests {
     use super::super::tests::{K, fixture, image};
     use super::*;
+    #[test]
+    fn nonswizzled_offsets_remove_exact_invalid_pte_mask() {
+        use super::super::tests::put;
+        let (mut b, mut isf) = fixture();
+        let bit = |pos, len| serde_json::json!({"offset":0,"type":{"kind":"bitfield","bit_position":pos,"bit_length":len,"type":{"kind":"base","name":"u64"}}});
+        isf.data["user_types"]["_MMPTE_SOFTWARE"] = serde_json::json!({"size":8,"fields":{"PageFileHigh":bit(32,32),"SwizzleBit":bit(4,1)}});
+        isf.data["symbols"]["MiState"] = serde_json::json!({"address":0x4000});
+        isf.data["user_types"]["_MI_SYSTEM_INFORMATION"] = serde_json::json!({"size":8,"fields":{"Hardware":{"offset":0,"type":{"kind":"struct","name":"_MI_HARDWARE_STATE"}}}});
+        isf.data["user_types"]["_MI_HARDWARE_STATE"] = serde_json::json!({"size":8,"fields":{"InvalidPteMask":{"offset":0,"type":{"kind":"base","name":"u64"}}}});
+        put(&mut b, 0xc000, 1 << 63);
+        let img = image(&b);
+        let mut sources = Sources::open(&Options::default(), &Job::default()).unwrap();
+        sources.kernel_context = Some((0x1000, K));
+        let vm = Memory {
+            image: &img,
+            root: 0x1000,
+            isf: &isf,
+            sources: Some(&sources),
+        };
+        assert_eq!(vm.pagefile_high((1 << 63) | (9 << 32)).unwrap(), 9);
+        assert_eq!(
+            vm.pagefile_high((1 << 63) | (9 << 32) | 16).unwrap(),
+            0x80000009
+        );
+        let mut missing = Isf::parse(
+            &serde_json::to_vec(&isf.data).unwrap(),
+            "missing.json".into(),
+        )
+        .unwrap();
+        missing.data["symbols"]
+            .as_object_mut()
+            .unwrap()
+            .remove("MiState");
+        let vm = Memory {
+            isf: &missing,
+            ..vm
+        };
+        assert!(vm.pagefile_high((1 << 63) | (9 << 32)).is_err());
+    }
     #[test]
     fn explicit_pagefiles_read_software_pages_and_detect_mutation() {
         use std::io::Write;

@@ -1,4 +1,5 @@
 use super::*;
+use crate::image::VirtualMemory;
 use serde_json::json;
 use std::io::Write;
 use std::sync::atomic::Ordering;
@@ -169,6 +170,66 @@ fn transition_prototype_missing_and_linux_isolation() {
     );
     assert!(vm.uint(K + 0x30000, 1).is_err());
     assert!(vm.uint(0x800000000000, 1).is_err());
+}
+#[test]
+fn arm64_transition_prototype_and_recursive_page_rejection() {
+    let (mut b, mut isf) = fixture();
+    isf.data["metadata"]["windows"]["pdb"]["machine_type"] = json!(0xaa64);
+    isf.data["user_types"]["_MMPTE_TRANSITION"] = json!({"size":8,"fields":{"PageFrameNumber":{"offset":0,"type":{"kind":"bitfield","bit_position":12,"bit_length":36,"type":{"kind":"base","name":"u64"}}}}});
+    // Protection bit 7 in a transition PTE is not a hardware block bit.
+    put(&mut b, 0x4008, 0x9880);
+    put(&mut b, 0x4010, ((K + 0x5000) & 0xffffffffffff) << 16 | 1024);
+    put(&mut b, 0xd000, 0xe880);
+    b[0x9000] = 42;
+    b[0xe000] = 19;
+    let img = image(&b);
+    let vm = Memory {
+        image: &img,
+        root: 0x1000,
+        isf: &isf,
+        sources: None,
+    };
+    assert_eq!(vm.uint(K + 0x1000, 1).unwrap(), 42);
+    assert_eq!(vm.uint(K + 0x2000, 1).unwrap(), 19);
+    // A prototype pointer into its own unresolved virtual page must terminate.
+    put(&mut b, 0x4010, ((K + 0x2000) & 0xffffffffffff) << 16 | 1024);
+    let img = image(&b);
+    let sources = paging::Sources::open(&Options::default(), &Job::default()).unwrap();
+    let vm = Memory {
+        image: &img,
+        root: 0x1000,
+        isf: &isf,
+        sources: Some(&sources),
+    };
+    assert!(vm.uint(K + 0x2000, 1).is_err());
+    assert_eq!(vm.uint(K + 0x1000, 1).unwrap(), 42);
+}
+#[test]
+fn x86_prototype_uses_split_address_and_four_byte_target() {
+    let (mut b, mut isf) = fixture();
+    isf.data["metadata"]["windows"]["pdb"]["machine_type"] = json!(0x14c);
+    isf.data["base_types"]["pointer"]["size"] = json!(4);
+    isf.data["base_types"]["u32"] = json!({"size":4});
+    let bit = |pos, len| json!({"offset":0,"type":{"kind":"bitfield","bit_position":pos,"bit_length":len,"type":{"kind":"base","name":"u32"}}});
+    isf.data["user_types"]["_MMPTE_PROTOTYPE"] =
+        json!({"size":4,"fields":{"ProtoAddressLow":bit(1,8),"ProtoAddressHigh":bit(11,21)}});
+    let put32 = |b: &mut [u8], at: usize, n: u32| b[at..at + 4].copy_from_slice(&n.to_le_bytes());
+    b[0x1000..0x2000].fill(0);
+    b[0x3000..0x4000].fill(0);
+    put32(&mut b, 0x1800, 0x3003);
+    put32(&mut b, 0x3000 + 5 * 4, 0xd003);
+    // Prototype at 0x8000500c: high=20, low=3.
+    put32(&mut b, 0x3000 + 2 * 4, (20 << 11) | (3 << 1) | 1024);
+    put32(&mut b, 0xd00c, 0xe883);
+    b[0xe000] = 77;
+    let img = image(&b);
+    let vm = Memory {
+        image: &img,
+        root: 0x1000,
+        isf: &isf,
+        sources: None,
+    };
+    assert_eq!(vm.uint(0x80002000, 1).unwrap(), 77);
 }
 #[test]
 fn cancellation_and_unicode_bounds() {

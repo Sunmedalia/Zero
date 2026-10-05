@@ -1,5 +1,6 @@
 //! Symbol-driven SMKM store reconstruction. Unknown keys/layouts remain missing pages.
 //! Structural facts: mandiant/win10_rekall, win10_memcompression research (2019).
+//! Windows 11 SmPa indirection and size flags: ufrisk/MemProcFS vmm/mm/mm_win.c.
 use super::*;
 #[derive(Default)]
 pub(super) struct State {
@@ -43,24 +44,32 @@ impl paging::Sources {
         let build = kernel.vm.uint(kernel.symbol("NtBuildNumber")?, 4)? & 0xffff;
         let arch = Architecture::from_isf(vm.isf)?;
         ensure!(
-            matches!(arch, Architecture::X86 | Architecture::X64)
-                && (10240..=19041).contains(&build),
+            (matches!(arch, Architecture::X86 | Architecture::X64)
+                && (10240..=19041).contains(&build))
+                || (arch == Architecture::X64 && matches!(build, 22000 | 22621 | 22631 | 26100)),
             "尚未验证此架构/build 的压缩 store 页键布局"
         );
-        let mut high = json_number(vm.isf, pte, "_MMPTE_SOFTWARE", "PageFileHigh")?;
-        if build >= 17134 && json_number(vm.isf, pte, "_MMPTE_SOFTWARE", "SwizzleBit")? == 0 {
-            let state = kernel.symbol("MiState")?;
-            high &=
-                !(kernel
-                    .vm
-                    .number(state, "_MI_SYSTEM_INFORMATION", "Hardware.InvalidPteMask")?
-                    >> 32);
-        }
+        let high = vm.pagefile_high(pte)?;
         ensure!(high < 1 << 28, "压缩 store 页键越界");
         let page_key = (u32::from(index) << 28) | high as u32;
-        let globals = kernel
+        let mut globals = kernel
             .symbol("SmGlobals")
             .context("压缩 store 需要精确 SmGlobals 符号和 SMKM 类型")?;
+        // Windows 11 moves the store manager into SmPa. Only known build
+        // identities are accepted; all manager/store fields still require exact ISF types.
+        if matches!(build, 22621 | 22631 | 26100) {
+            let (slot, bias) = if build == 26100 {
+                (16, 0xc30)
+            } else {
+                (8, 0x7a8)
+            };
+            globals = kernel
+                .vm
+                .pointer(add(globals, slot)?)?
+                .checked_sub(bias)
+                .context("SmPa 地址下溢")?;
+            ensure!(kernel.vm.kernel(globals), "SmPa 地址无效");
+        }
         let mgr = kernel.field(globals, "_SM_GLOBALS", "SmkmStoreMgr")?;
         let tree = kernel
             .vm
@@ -177,21 +186,37 @@ impl paging::Sources {
             .pointer(kernel.field(store, "_SMKM_STORE", "OwnerProcess")?)?;
         let process = kernel.process(owner)?;
         let process_vm = kernel.process_memory(&process)?;
-        let length = kernel
+        let encoded_length = kernel
             .vm
             .number(record, "_ST_PAGE_RECORD", "CompressedSize")?;
+        ensure!(encoded_length <= u16::MAX as u64, "压缩页长度字段越界");
+        let length = if encoded_length == 4096 {
+            4096
+        } else {
+            encoded_length & 0xfff
+        };
+        // Zero-length store records are intentionally unsupported until their
+        // state flags can be validated; missing data never becomes a zero page.
         ensure!((1..=4096).contains(&length), "压缩页长度无效");
-        let algorithm = u16::try_from(kernel.vm.number(
-            data,
-            "_ST_DATA_MGR",
-            "CompressionAlgorithm",
-        )?)?;
+        let algorithm = if build == 26100 {
+            None
+        } else {
+            Some(u16::try_from(kernel.vm.number(
+                data,
+                "_ST_DATA_MGR",
+                "CompressionAlgorithm",
+            )?)?)
+        };
         let mut input = vec![0; length as usize];
         process_vm.read(address, &mut input)?;
         let bytes = if length == 4096 {
             input
         } else {
-            codec::decompress(algorithm, &input, 4096)?
+            if let Some(algorithm) = algorithm {
+                codec::decompress(algorithm, &input, 4096)?
+            } else {
+                codec::lz4(&input, 4096)?
+            }
         };
         let mut state = self
             .compressed
@@ -201,7 +226,7 @@ impl paging::Sources {
             state.evidence.len() < 1_000_000 || state.evidence.contains_key(&key),
             "store 来源记录超过上限"
         );
-        state.evidence.insert(key,serde_json::json!({"root":vm.root,"virtual_page":va&!4095,"page_key":page_key,"store_index":store_index,"record":record,"owner_pid":process.pid,"compressed_address":address,"compressed_size":length,"algorithm":algorithm,"validation":"symbol-driven-synthetic"}));
+        state.evidence.insert(key,serde_json::json!({"root":vm.root,"virtual_page":va&!4095,"page_key":page_key,"store_index":store_index,"record":record,"owner_pid":process.pid,"compressed_address":address,"compressed_size":length,"algorithm":algorithm.map(|a|a.to_string()).unwrap_or_else(||"LZ4".into()),"validation":"symbol-driven-synthetic"}));
         if state.pages.len() >= 256 {
             state.pages.pop_first();
         }
@@ -368,6 +393,48 @@ mod tests {
         sources.kernel_context = Some((0x1000, K));
         sources.virtual_indexes.insert(2);
         (b, isf, sources)
+    }
+    #[test]
+    fn windows11_indirect_store_and_lz4_use_known_builds_only() {
+        for build in [22000u32, 22621, 22631, 26100, 26200] {
+            let (mut b, mut isf, sources) = setup();
+            b[0x8200..0x8204].copy_from_slice(&build.to_le_bytes());
+            if build >= 22621 {
+                isf.data["symbols"]["SmGlobals"]["address"] = json!(0x14000);
+                let (slot, bias) = if build >= 26100 {
+                    (16, 0xc30)
+                } else {
+                    (8, 0x7a8)
+                };
+                put(&mut b, 0x1c000 + slot, K + 0x4000 + bias);
+            }
+            if build >= 26100 {
+                isf.data["user_types"]["_ST_DATA_MGR"]["fields"]
+                    .as_object_mut()
+                    .unwrap()
+                    .remove("CompressionAlgorithm");
+                let mut block = vec![0x1f, b'z', 1, 0];
+                block.extend(std::iter::repeat_n(255, 15));
+                block.push(246);
+                block.extend_from_slice(&[0x50, b'z', b'z', b'z', b'z', b'z']);
+                b[0x18000..0x18000 + block.len()].copy_from_slice(&block);
+                b[0x12004..0x12006].copy_from_slice(&((block.len() as u16) | 0x8000).to_le_bytes());
+            }
+            let img = image(&b);
+            let vm = Memory {
+                image: &img,
+                root: 0x1000,
+                isf: &isf,
+                sources: Some(&sources),
+            };
+            let mut out = [0; 16];
+            if build == 26200 {
+                assert!(vm.read(K + 0x3000, &mut out).is_err());
+            } else {
+                vm.read(K + 0x3000, &mut out).unwrap();
+                assert_eq!(out, [b'z'; 16]);
+            }
+        }
     }
     #[test]
     fn reconstructs_symbol_driven_store_page_and_rejects_tree_cycles() {

@@ -175,8 +175,35 @@ impl Windows<'_> {
     ) -> Result<Vec<Vad>> {
         let isf = self.vm.isf;
         let root_addr = self.field(p.address, "_EPROCESS", "VadRoot")?;
-        let root = self.number(root_addr, "_RTL_AVL_TREE", "Root")?;
-        let offset = isf.offset("_MMVAD_SHORT", "VadNode")?;
+        let root_field = isf.field("_EPROCESS", "VadRoot")?;
+        let root = if root_field["type"]["kind"] == "pointer" {
+            self.vm.pointer(root_addr)?
+        } else {
+            let ty = root_field["type"]["name"]
+                .as_str()
+                .unwrap_or("_RTL_AVL_TREE");
+            let field = if isf.field(ty, "Root").is_ok() {
+                "Root"
+            } else {
+                "BalancedRoot.RightChild"
+            };
+            self.number(root_addr, ty, field)?
+        };
+        let (offset, node_type) = if let Ok(field) = isf.field("_MMVAD_SHORT", "VadNode") {
+            (
+                isf.offset("_MMVAD_SHORT", "VadNode")?,
+                field["type"]["name"]
+                    .as_str()
+                    .context("VAD node 缺少类型")?,
+            )
+        } else {
+            (0, "_MMVAD_SHORT")
+        };
+        let children = if isf.field(node_type, "Left").is_ok() {
+            ["Left", "Right"]
+        } else {
+            ["LeftChild", "RightChild"]
+        };
         let mut stack = vec![root];
         let mut seen = HashSet::new();
         let mut out = Vec::new();
@@ -190,17 +217,13 @@ impl Windows<'_> {
                     self.vm.kernel(node) && seen.insert(node) && seen.len() <= MAX_OBJECTS,
                     "VAD 节点无效/循环/超限"
                 );
-                for f in ["Left", "Right"] {
-                    match self.number(node, "_RTL_BALANCED_NODE", f) {
+                for f in children {
+                    match self.number(node, node_type, f) {
                         Ok(child) => {
                             let valid = (|| -> Result<()> {
-                                if child != 0
-                                    && isf.field("_RTL_BALANCED_NODE", "ParentValue").is_ok()
-                                {
+                                if child != 0 && isf.field(node_type, "ParentValue").is_ok() {
                                     ensure!(
-                                        self.number(child, "_RTL_BALANCED_NODE", "ParentValue")?
-                                            & !3
-                                            == node,
+                                        self.number(child, node_type, "ParentValue")? & !3 == node,
                                         "VAD 子节点父指针不一致"
                                     );
                                 }
@@ -297,7 +320,7 @@ impl Windows<'_> {
         let file_ref = self.field(control, "_CONTROL_AREA", "FilePointer")?;
         let pointer = self.number(file_ref, "_EX_FAST_REF", "Object")?;
         // ISF Object is a pointer member, whereas Value includes low refcount bits.
-        let file = pointer & !15;
+        let file = pointer & if self.vm.pointer_size() == 4 { !7 } else { !15 };
         if file == 0 {
             return Ok(String::new());
         }
@@ -420,6 +443,38 @@ mod tests {
         assert_eq!((vads[0].start, vads[0].end), (4096, 16384));
         assert!(vads[0].private);
         assert_eq!(protection(vads[0].protection), "PAGE_EXECUTE_READWRITE");
+        let mut legacy_isf = Isf::parse(
+            &serde_json::to_vec(&isf.data).unwrap(),
+            "legacy-vad-fixture".into(),
+        )
+        .unwrap();
+        legacy_isf.data["user_types"]["_EPROCESS"]["fields"]["VadRoot"]["type"]["name"] =
+            json!("_MM_AVL_TABLE");
+        legacy_isf.data["user_types"]["_MM_AVL_TABLE"] = json!({"size":24,"fields":{"BalancedRoot":{"offset":0,"type":{"kind":"struct","name":"_MMADDRESS_NODE"}}}});
+        legacy_isf.data["user_types"]["_MMADDRESS_NODE"] =
+            json!({"size":24,"fields":{"LeftChild":pointer(0),"RightChild":pointer(8)}});
+        let fields = legacy_isf.data["user_types"]["_MMVAD_SHORT"]["fields"]
+            .as_object_mut()
+            .unwrap();
+        fields.remove("VadNode");
+        fields.insert("LeftChild".into(), pointer(0));
+        fields.insert("RightChild".into(), pointer(8));
+        let mut legacy_bytes = b.clone();
+        put(&mut legacy_bytes, 0xa080, 0);
+        put(&mut legacy_bytes, 0xa088, K + 0x3000);
+        let legacy = image(&legacy_bytes);
+        let engine = Windows {
+            vm: Memory {
+                image: &legacy,
+                root: 0x1000,
+                isf: &legacy_isf,
+                sources: None,
+            },
+            base: K,
+            pdb: PdbIdentity::from_isf(&legacy_isf).unwrap(),
+        };
+        let legacy_vads = engine.vads(&process, &Job::default()).unwrap();
+        assert_eq!((legacy_vads[0].start, legacy_vads[0].end), (4096, 16384));
         put(&mut b, 0xb000, K + 0x3000);
         let cycle = image(&b);
         let engine = Windows {

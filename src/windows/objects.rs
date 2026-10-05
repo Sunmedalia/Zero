@@ -16,13 +16,16 @@ impl Windows<'_> {
             .context("缺少句柄条目大小")?;
         ensure!(size > 0 && 4096 % size == 0, "无效句柄条目大小");
         let per = 4096 / size;
+        let pointer_size = self.vm.pointer_size() as u64;
+        let pointers_per_page = 4096 / pointer_size;
+        let index_shift = pointers_per_page.trailing_zeros();
         for first in (0..max / 4).step_by(per as usize) {
             job.check()?;
             let mut page = root;
             let slot = first / per;
             for level in (0..levels).rev() {
-                let n = (slot >> (level * 9)) & 511;
-                page = self.vm.uint(add(page, n * 8)?, 8)?;
+                let n = (slot >> (level as u32 * index_shift)) & (pointers_per_page - 1);
+                page = self.vm.pointer(add(page, n * pointer_size)?)?;
                 if page == 0 {
                     break;
                 }
@@ -39,23 +42,50 @@ impl Windows<'_> {
                 job.check()?;
                 let entry = &entries[((index % per) * size) as usize..][..size as usize];
                 let read = (|| -> Result<Option<Vec<String>>> {
-                    let bits = physical_number(
-                        self.vm.isf,
-                        entry,
-                        "_HANDLE_TABLE_ENTRY",
-                        "ObjectPointerBits",
-                    )?;
-                    if bits == 0 {
+                    let header = if self
+                        .vm
+                        .isf
+                        .field("_HANDLE_TABLE_ENTRY", "ObjectPointerBits")
+                        .is_ok()
+                    {
+                        let bits = physical_number(
+                            self.vm.isf,
+                            entry,
+                            "_HANDLE_TABLE_ENTRY",
+                            "ObjectPointerBits",
+                        )?;
+                        if bits == 0 {
+                            return Ok(None);
+                        }
+                        if pointer_size == 4 {
+                            ensure!(bits <= (u32::MAX as u64 >> 4), "32 位句柄编码指针溢出");
+                            bits.checked_shl(4).context("句柄对象指针溢出")? & u32::MAX as u64
+                        } else {
+                            ensure!(bits <= (u64::MAX >> 4), "句柄编码指针溢出");
+                            0xffff_0000_0000_0000 | (bits << 4)
+                        }
+                    } else {
+                        physical_number(self.vm.isf, entry, "_HANDLE_TABLE_ENTRY", "Object")? & !7
+                    };
+                    if header == 0 {
                         return Ok(None);
                     }
-                    let header = 0xffff_0000_0000_0000 | (bits << 4);
                     ensure!(self.vm.kernel(header), "无效对象头地址");
                     let body = self.field(header, "_OBJECT_HEADER", "Body")?;
                     let access = physical_number(
                         self.vm.isf,
                         entry,
                         "_HANDLE_TABLE_ENTRY",
-                        "GrantedAccessBits",
+                        if self
+                            .vm
+                            .isf
+                            .field("_HANDLE_TABLE_ENTRY", "GrantedAccessBits")
+                            .is_ok()
+                        {
+                            "GrantedAccessBits"
+                        } else {
+                            "GrantedAccess"
+                        },
                     )?;
                     let kind = self.object_type(header)?;
                     let name = match kind.as_str() {
@@ -94,11 +124,17 @@ impl Windows<'_> {
     }
     fn object_type(&self, header: u64) -> Result<String> {
         let encoded = self.number(header, "_OBJECT_HEADER", "TypeIndex")?;
-        let cookie = self.vm.uint(self.symbol("ObHeaderCookie")?, 1)?;
-        let index = encoded ^ cookie ^ ((header >> 8) & 255);
-        let ty = self
-            .vm
-            .uint(add(self.symbol("ObTypeIndexTable")?, index * 8)?, 8)?;
+        let index = if self.vm.isf.raw_address("ObHeaderCookie").is_ok() {
+            let cookie = self.vm.uint(self.symbol("ObHeaderCookie")?, 1)?;
+            encoded ^ cookie ^ ((header >> 8) & 255)
+        } else {
+            encoded
+        };
+        ensure!(index < 256, "对象类型索引越界");
+        let ty = self.vm.pointer(add(
+            self.symbol("ObTypeIndexTable")?,
+            index * self.vm.pointer_size() as u64,
+        )?)?;
         ensure!(self.vm.kernel(ty), "无效对象类型");
         self.vm.unicode(self.field(ty, "_OBJECT_TYPE", "Name")?)
     }
@@ -173,6 +209,7 @@ impl Windows<'_> {
             .context("缺少 _EPROCESS")?;
         ensure!(size <= 65536 && header_size <= 64, "无效进程池结构大小");
         let tag_offset = isf.offset("_POOL_HEADER", "PoolTag")?;
+        let alignment = if self.vm.pointer_size() == 4 { 8 } else { 16 };
         let mut out = Vec::new();
         let mut seen = HashSet::new();
         for tag in [b"Proc".as_slice(), b"Pro\xe3".as_slice()] {
@@ -181,19 +218,19 @@ impl Windows<'_> {
                 let Some(header) = hit.checked_sub(tag_offset) else {
                     continue;
                 };
-                if header & 15 != 0 {
+                if header % alignment != 0 {
                     continue;
                 }
                 let mut bytes = vec![0; header_size as usize];
                 if self.vm.image.read(header, &mut bytes).is_err() {
                     continue;
                 }
-                let block = physical_number(isf, &bytes, "_POOL_HEADER", "BlockSize")? * 16;
+                let block = physical_number(isf, &bytes, "_POOL_HEADER", "BlockSize")? * alignment;
                 if block < header_size + size || block > 4096 {
                     continue;
                 }
                 // Object optional headers vary: locate and validate the object body inside the allocation.
-                for delta in (header_size..=block - size).step_by(16) {
+                for delta in (header_size..=block - size).step_by(alignment as usize) {
                     let address = header + delta;
                     if !seen.insert(address) {
                         continue;
@@ -217,9 +254,9 @@ impl Windows<'_> {
                             "无效名称"
                         );
                         let dtb = physical_number(isf, &b, "_EPROCESS", "Pcb.DirectoryTableBase")?
-                            & PHYSICAL_MASK;
+                            & self.vm.root_mask();
                         ensure!(dtb != 0, "缺少 DTB");
-                        let mut page = [0; 4096];
+                        let mut page = vec![0; if self.vm.paging()?.pae { 32 } else { 4096 }];
                         self.vm.image.read(dtb, &mut page)?;
                         let links =
                             physical_number(isf, &b, "_EPROCESS", "ActiveProcessLinks.Flink")?;
@@ -265,6 +302,94 @@ pub(super) fn physical_number(isf: &Isf, bytes: &[u8], ty: &str, field: &str) ->
     let size = isf.size(ty, field)?;
     ensure!(matches!(size, 1 | 2 | 4 | 8), "无效物理字段宽度");
     let mut b = [0; 8];
-    b[..size].copy_from_slice(bytes.get(offset..offset + size).context("物理字段越界")?);
+    b[..size].copy_from_slice(
+        bytes
+            .get(offset..offset.checked_add(size).context("物理字段偏移溢出")?)
+            .context("物理字段越界")?,
+    );
     json_number(isf, u64::from_le_bytes(b), ty, field)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::super::tests::{fixture, image};
+    use super::*;
+    use serde_json::json;
+    #[test]
+    fn win7_x86_raw_handles_use_1024_pointer_fanout_without_cookie() {
+        let (mut b, mut isf) = fixture();
+        let k = 0x80000000u64;
+        isf.data["base_types"]["pointer"]["size"] = json!(4);
+        isf.data["base_types"]["u32"] = json!({"size":4});
+        isf.data["metadata"]["windows"]["pdb"]["machine_type"] = json!(0x14c);
+        let field = |offset| json!({"offset":offset,"type":{"kind":"base","name":"u32"}});
+        for (name, size, fields) in [
+            (
+                "_HANDLE_TABLE",
+                8,
+                json!({"TableCode":field(0),"NextHandleNeedingPool":field(4)}),
+            ),
+            (
+                "_HANDLE_TABLE_ENTRY",
+                8,
+                json!({"Object":field(0),"GrantedAccess":field(4)}),
+            ),
+            (
+                "_OBJECT_HEADER",
+                40,
+                json!({"TypeIndex":field(0),"InfoMask":field(4),"Body":field(32)}),
+            ),
+            (
+                "_OBJECT_TYPE",
+                16,
+                json!({"Name":{"offset":0,"type":{"kind":"struct","name":"_UNICODE_STRING"}}}),
+            ),
+        ] {
+            isf.data["user_types"][name] = json!({"size":size,"fields":fields});
+        }
+        isf.data["symbols"]["ObTypeIndexTable"] = json!({"address":0x9000});
+        let put32 = |b: &mut [u8], at: usize, n: u64| {
+            b[at..at + 4].copy_from_slice(&(n as u32).to_le_bytes())
+        };
+        b[0x1000..0x2000].fill(0);
+        b[0x3000..0x4000].fill(0);
+        put32(&mut b, 0x1000 + 512 * 4, 0x3003);
+        for i in 0..32 {
+            put32(&mut b, 0x3000 + i * 4, 0x8003 + i as u64 * 4096);
+        }
+        put32(&mut b, 0x9050, k + 0x4000);
+        put32(&mut b, 0xc000, k + 0x5002);
+        // The first 1024 leaf slots are empty. Slot 1024 follows root[1], then row[0].
+        put32(&mut b, 0xc004, (512 * 1024 + 1) * 4);
+        put32(&mut b, 0xd004, k + 0x6000);
+        put32(&mut b, 0xe000, k + 0x7000);
+        put32(&mut b, 0xf000, k + 0x8003);
+        put32(&mut b, 0xf004, 0x123);
+        put32(&mut b, 0x10000, 7);
+        put32(&mut b, 0x11000 + 7 * 4, k + 0xa000);
+        b[0x12000..0x12004].copy_from_slice(&[10, 0, 10, 0]);
+        put32(&mut b, 0x12008, k + 0xb000);
+        for (i, c) in "Event".encode_utf16().enumerate() {
+            b[0x13000 + i * 2..0x13002 + i * 2].copy_from_slice(&c.to_le_bytes());
+        }
+        let img = image(&b);
+        let engine = Windows {
+            vm: Memory {
+                image: &img,
+                root: 0x1000,
+                isf: &isf,
+                sources: None,
+            },
+            base: k,
+            pdb: PdbIdentity::from_isf(&isf).unwrap(),
+        };
+        let p = engine.process(k + 0x1000).unwrap();
+        let mut result = engine.result(Plugin::WinHandles);
+        engine.handles(&p, &mut result, &Job::default()).unwrap();
+        assert!(result.complete, "{:?}", result.diagnostics);
+        assert_eq!(result.rows.len(), 1);
+        assert_eq!(result.rows[0][2], hex(512 * 1024 * 4));
+        assert_eq!(result.rows[0][3], "Event");
+        assert_eq!(result.rows[0][5], "0x123");
+    }
 }

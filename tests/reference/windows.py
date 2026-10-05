@@ -48,6 +48,11 @@ check("vadinfo", lambda x: ((int(x[0]), address(x[2])), (address(x[3]) - 1, x[4]
 check("dlllist", lambda x: ((int(x[0]), address(x[2])), (int(x[3]), x[4])),
       lambda x: ((x["PID"], x["Base"] & MASK), (x["Size"], x["Path"])))
 
+# Names intentionally differ: Zero exposes FILE_OBJECT.FileName and concise
+# process/thread names, whereas Volatility adds device paths/PID annotations.
+check("handles", lambda x: ((int(x[0]), int(x[2], 16)), (x[3], address(x[4]), int(x[5], 16))),
+      lambda x: ((x["PID"], x["HandleValue"]), (x["Type"], x["Offset"] & MASK, x["GrantedAccess"])))
+
 
 def endpoint(addr, port, proto):
     if addr == "*":

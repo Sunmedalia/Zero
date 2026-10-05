@@ -18,6 +18,54 @@ pub(super) fn decompress(format: u16, input: &[u8], size: usize) -> Result<Vec<u
     );
     Ok(output)
 }
+/// Decode a bounded raw LZ4 block (no frame header).
+/// Format: https://github.com/lz4/lz4/blob/dev/doc/lz4_Block_format.md
+pub(super) fn lz4(input: &[u8], size: usize) -> Result<Vec<u8>> {
+    ensure!(
+        (1..=65536).contains(&size) && input.len() <= 65536,
+        "LZ4 块大小越界"
+    );
+    fn length(input: &[u8], at: &mut usize, initial: usize) -> Result<usize> {
+        let mut n = initial;
+        if initial == 15 {
+            loop {
+                let b = *input.get(*at).context("LZ4 长度截断")? as usize;
+                *at += 1;
+                n = n.checked_add(b).context("LZ4 长度溢出")?;
+                ensure!(n <= 65536, "LZ4 长度越界");
+                if b != 255 {
+                    break;
+                }
+            }
+        }
+        Ok(n)
+    }
+    let mut at = 0;
+    let mut out = Vec::with_capacity(size);
+    while at < input.len() {
+        let token = input[at];
+        at += 1;
+        let literals = length(input, &mut at, usize::from(token >> 4))?;
+        let end = at.checked_add(literals).context("LZ4 输入溢出")?;
+        ensure!(out.len() + literals <= size, "LZ4 literal 越界");
+        out.extend_from_slice(input.get(at..end).context("LZ4 literal 截断")?);
+        at = end;
+        if at == input.len() {
+            ensure!(out.len() == size, "LZ4 解压长度不匹配");
+            return Ok(out);
+        }
+        let distance = take(input, &mut at, 2)? as usize;
+        let matched = length(input, &mut at, usize::from(token & 15))? + 4;
+        ensure!(
+            distance != 0 && distance <= out.len() && out.len() + matched <= size,
+            "LZ4 匹配越界"
+        );
+        for _ in 0..matched {
+            out.push(out[out.len() - distance]);
+        }
+    }
+    anyhow::bail!("LZ4 缺少结束 literal 序列")
+}
 fn take(input: &[u8], at: &mut usize, n: usize) -> Result<u32> {
     let end = at.checked_add(n).context("XPRESS 输入溢出")?;
     let mut b = [0; 4];
@@ -81,6 +129,22 @@ fn plain(input: &[u8], size: usize) -> Result<Vec<u8>> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn lz4_overlap_extensions_and_truncation() {
+        // One literal, 4090 overlapping matched bytes, then five final literals.
+        let mut block = vec![0x1f, b'q', 1, 0];
+        block.extend(std::iter::repeat_n(255, 15));
+        block.push(246);
+        block.extend_from_slice(&[0x50, b'q', b'q', b'q', b'q', b'q']);
+        assert_eq!(lz4(&block, 4096).unwrap(), vec![b'q'; 4096]);
+        for n in 0..block.len() {
+            assert!(lz4(&block[..n], 4096).is_err());
+        }
+        let mut invalid = block.clone();
+        invalid[2] = 0;
+        assert!(lz4(&invalid, 4096).is_err());
+        assert!(lz4(&block, 4095).is_err());
+    }
     #[test]
     fn plain_literals_overlap_and_extended_lengths() {
         assert_eq!(decompress(3, &[0, 0, 0, 0, b'a', b'b'], 2).unwrap(), b"ab");

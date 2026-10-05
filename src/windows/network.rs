@@ -10,19 +10,18 @@ impl Windows<'_> {
         resources: Option<(&std::path::Path, bool)>,
     ) -> Result<Results> {
         let mut driver = None;
+        let module_type = self.module_type()?;
         let (modules, diagnostics) = self.list_partial(
             self.symbol("PsLoadedModuleList")?,
-            self.vm
-                .isf
-                .offset("_KLDR_DATA_TABLE_ENTRY", "InLoadOrderLinks")?,
+            self.vm.isf.offset(module_type, "InLoadOrderLinks")?,
             job,
         )?;
         for module in modules {
-            let name =
-                self.vm
-                    .unicode(self.field(module, "_KLDR_DATA_TABLE_ENTRY", "BaseDllName")?)?;
+            let name = self
+                .vm
+                .unicode(self.field(module, module_type, "BaseDllName")?)?;
             if name.eq_ignore_ascii_case("tcpip.sys") {
-                driver = Some(self.number(module, "_KLDR_DATA_TABLE_ENTRY", "DllBase")?);
+                driver = Some(self.number(module, module_type, "DllBase")?);
                 break;
             }
         }
