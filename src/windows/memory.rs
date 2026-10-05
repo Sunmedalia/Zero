@@ -13,43 +13,84 @@ impl Windows<'_> {
         if p.pid <= 4 {
             return Ok(());
         }
-        self.native_process(p)?;
-        let vm = self.process_memory(p)?;
-        let peb = self.number(p.address, "_EPROCESS", "Peb")?;
-        ensure!(peb != 0, "PEB 不存在");
-        let params = vm.number(peb, "_PEB", "ProcessParameters")?;
-        let command = vm.unicode(add(
-            params,
-            self.vm
-                .isf
-                .offset("_RTL_USER_PROCESS_PARAMETERS", "CommandLine")?,
-        )?)?;
-        r.rows
-            .push(vec![p.pid.to_string(), p.name.clone(), command]);
-        Ok(())
-    }
-    pub(super) fn native_process(&self, p: &Process) -> Result<()> {
-        if self.vm.isf.field("_EPROCESS", "WoW64Process").is_ok() {
-            ensure!(
-                self.number(p.address, "_EPROCESS", "WoW64Process")? == 0,
-                "WOW64 PEB/DLL/命令行未支持"
-            );
+        let native = (|| -> Result<String> {
+            let vm = self.process_memory(p)?;
+            let peb = self.number(p.address, "_EPROCESS", "Peb")?;
+            ensure!(peb != 0, "PEB 不存在");
+            let params = vm.number(peb, "_PEB", "ProcessParameters")?;
+            vm.unicode(add(
+                params,
+                self.vm
+                    .isf
+                    .offset("_RTL_USER_PROCESS_PARAMETERS", "CommandLine")?,
+            )?)
+        })();
+        match native {
+            Ok(command) => r.rows.push(vec![
+                p.pid.to_string(),
+                p.name.clone(),
+                command,
+                "native".into(),
+            ]),
+            Err(e) => Self::issue(r, format!("PID {} native command", p.pid), e),
+        }
+        match self.wow64_peb(p) {
+            Ok(Some(peb)) => match self.wow64_command(p, peb) {
+                Ok(command) => r.rows.push(vec![
+                    p.pid.to_string(),
+                    p.name.clone(),
+                    command,
+                    "wow64".into(),
+                ]),
+                Err(e) => Self::issue(r, format!("PID {} WOW64 command", p.pid), e),
+            },
+            Ok(None) => {}
+            Err(e) => Self::issue(r, format!("PID {} WOW64 PEB", p.pid), e),
         }
         Ok(())
     }
-    pub(super) fn dlls(&self, p: &Process, job: &Job) -> Result<Vec<(u64, u64, String)>> {
-        self.dlls_partial(p, job, None)
+    pub(super) fn dlls(
+        &self,
+        p: &Process,
+        job: &Job,
+        result: &mut Results,
+    ) -> Result<Vec<(u64, u64, String, String)>> {
+        self.dlls_partial(p, job, Some(result))
     }
     fn dlls_partial(
         &self,
         p: &Process,
         job: &Job,
+        result: Option<&mut Results>,
+    ) -> Result<Vec<(u64, u64, String, String)>> {
+        let mut scratch = self.result(Plugin::WinDlllist);
+        let r = result.unwrap_or(&mut scratch);
+        let mut out = match self.native_dlls_partial(p, job, Some(r)) {
+            Ok(out) => out,
+            Err(e) => {
+                Self::issue(r, format!("PID {} native DLL", p.pid), e);
+                Vec::new()
+            }
+        };
+        match self.wow64_peb(p) {
+            Ok(Some(peb)) => match self.wow64_dlls(p, peb, job, r) {
+                Ok(dlls) => out.extend(dlls),
+                Err(e) => Self::issue(r, format!("PID {} WOW64 DLL", p.pid), e),
+            },
+            Ok(None) => {}
+            Err(e) => Self::issue(r, format!("PID {} WOW64 PEB", p.pid), e),
+        }
+        Ok(out)
+    }
+    fn native_dlls_partial(
+        &self,
+        p: &Process,
+        job: &Job,
         mut result: Option<&mut Results>,
-    ) -> Result<Vec<(u64, u64, String)>> {
+    ) -> Result<Vec<(u64, u64, String, String)>> {
         if p.pid <= 4 {
             return Ok(Vec::new());
         }
-        self.native_process(p)?;
         let vm = self.process_memory(p)?;
         let peb = self.number(p.address, "_EPROCESS", "Peb")?;
         let ldr = vm.number(peb, "_PEB", "Ldr")?;
@@ -64,7 +105,7 @@ impl Windows<'_> {
             .isf
             .offset("_LDR_DATA_TABLE_ENTRY", "InLoadOrderLinks")?;
         let mut previous = head;
-        let mut node = vm.uint(head, 8)?;
+        let mut node = vm.pointer(head)?;
         let mut seen = HashSet::new();
         let mut out = Vec::new();
         while node != head {
@@ -74,7 +115,10 @@ impl Windows<'_> {
                     seen.insert(node) && seen.len() <= MAX_OBJECTS,
                     "DLL 链表循环或超限"
                 );
-                ensure!(vm.uint(add(node, 8)?, 8)? == previous, "DLL 双向链表损坏");
+                ensure!(
+                    vm.pointer(add(node, vm.pointer_size() as u64)?)? == previous,
+                    "DLL 双向链表损坏"
+                );
                 let address = node.checked_sub(offset).context("DLL 地址下溢")?;
                 out.push((
                     vm.number(address, "_LDR_DATA_TABLE_ENTRY", "DllBase")?,
@@ -83,9 +127,10 @@ impl Windows<'_> {
                         address,
                         self.vm.isf.offset("_LDR_DATA_TABLE_ENTRY", "FullDllName")?,
                     )?)?,
+                    "native".into(),
                 ));
                 previous = node;
-                node = vm.uint(node, 8)?;
+                node = vm.pointer(node)?;
                 Ok(())
             })();
             if let Err(e) = step {
@@ -98,7 +143,7 @@ impl Windows<'_> {
                 }
             }
         }
-        if vm.uint(add(head, 8)?, 8)? != previous {
+        if vm.pointer(add(head, vm.pointer_size() as u64)?)? != previous {
             match result {
                 Some(r) => Self::issue(r, format!("PID {} DLL", p.pid), "DLL 链表未闭合"),
                 None => bail!("DLL 链表未闭合"),
@@ -107,13 +152,14 @@ impl Windows<'_> {
         Ok(out)
     }
     pub(super) fn dlllist(&self, p: &Process, r: &mut Results, job: &Job) -> Result<()> {
-        for (base, size, path) in self.dlls_partial(p, job, Some(r))? {
+        for (base, size, path, view) in self.dlls_partial(p, job, Some(r))? {
             r.rows.push(vec![
                 p.pid.to_string(),
                 p.name.clone(),
                 hex(base),
                 size.to_string(),
                 path,
+                view,
             ]);
         }
         Ok(())

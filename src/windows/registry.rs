@@ -96,7 +96,7 @@ impl Windows<'_> {
             for chunk in indices[..count as usize * 4].chunks_exact(4) {
                 job.check()?;
                 let index = u32::from_le_bytes(chunk.try_into()?);
-                let read = self.value(hhive, index).map(|(name, ty, data)| {
+                let read = self.value(hhive, index, job).map(|(name, ty, data)| {
                     vec![
                         hex(hive),
                         options.key.clone(),
@@ -247,7 +247,7 @@ impl Windows<'_> {
         }
         Ok(())
     }
-    fn value(&self, hive: u64, index: u32) -> Result<(String, String, String)> {
+    fn value(&self, hive: u64, index: u32, job: &Job) -> Result<(String, String, String)> {
         let cell = self.cell(hive, index)?;
         ensure!(cell.len() >= 2 && &cell[..2] == b"vk", "非 vk cell");
         let get = |f| objects::physical_number(self.vm.isf, &cell, "_CM_KEY_VALUE", f);
@@ -268,8 +268,14 @@ impl Windows<'_> {
             Vec::new()
         } else {
             let data = self.cell(hive, get("Data")? as u32)?;
-            ensure!(length <= data.len(), "分段或截断注册表值未支持");
-            data[..length].to_vec()
+            if length <= data.len() {
+                data[..length].to_vec()
+            } else {
+                segmented_value(&data, length, |index| {
+                    job.check()?;
+                    self.cell(hive, index)
+                })?
+            }
         };
         let ty = get("Type")?;
         let (label, data) = match ty {
@@ -318,6 +324,35 @@ fn decode_name(bytes: &[u8], compressed: bool) -> Result<String> {
                 .collect::<Vec<_>>(),
         ))
     }
+}
+
+fn segmented_value(
+    header: &[u8],
+    length: usize,
+    mut cell: impl FnMut(u32) -> Result<Vec<u8>>,
+) -> Result<Vec<u8>> {
+    const SEGMENT: usize = 0x3fd8;
+    ensure!(
+        length > SEGMENT && length <= 1024 * 1024 && header.len() >= 8 && &header[..2] == b"db",
+        "注册表分段值头部无效"
+    );
+    let count = u16::from_le_bytes(header[2..4].try_into()?) as usize;
+    ensure!(count == length.div_ceil(SEGMENT), "注册表分段计数不一致");
+    let list_index = u32::from_le_bytes(header[4..8].try_into()?);
+    let list = cell(list_index)?;
+    ensure!(count * 4 <= list.len(), "注册表分段索引截断");
+    let mut seen = HashSet::from([list_index]);
+    let mut out = Vec::with_capacity(length);
+    for chunk in list[..count * 4].chunks_exact(4) {
+        let index = u32::from_le_bytes(chunk.try_into()?);
+        ensure!(seen.insert(index), "注册表分段索引重复/循环");
+        let data = cell(index)?;
+        let needed = (length - out.len()).min(SEGMENT);
+        ensure!(data.len() >= needed, "注册表分段数据截断");
+        out.extend_from_slice(&data[..needed]);
+    }
+    ensure!(out.len() == length, "注册表分段数据长度不一致");
+    Ok(out)
 }
 
 #[cfg(test)]
@@ -375,6 +410,30 @@ mod tests {
             pdb: PdbIdentity::from_isf(&isf).unwrap(),
         };
         assert!(engine.cell(K + 0x3000, 0x20).is_err());
+    }
+    #[test]
+    fn big_values_reconstruct_and_reject_repeated_segments() {
+        let header = b"db\x02\x00\x01\x00\x00\x00";
+        let read = |index| -> Result<Vec<u8>> {
+            Ok(match index {
+                1 => vec![2, 0, 0, 0, 3, 0, 0, 0],
+                2 => vec![0x11; 0x3fd8],
+                3 => vec![0x22; 17],
+                _ => bail!("bad index"),
+            })
+        };
+        let bytes = segmented_value(header, 0x3fd8 + 17, read).unwrap();
+        assert_eq!(&bytes[..0x3fd8], &vec![0x11; 0x3fd8]);
+        assert_eq!(&bytes[0x3fd8..], &[0x22; 17]);
+        assert!(segmented_value(header, 0x3fd8 + 18, read).is_err());
+        assert!(
+            segmented_value(header, 0x3fd8 + 17, |index| if index == 1 {
+                Ok(vec![2, 0, 0, 0, 2, 0, 0, 0])
+            } else {
+                read(index)
+            })
+            .is_err()
+        );
     }
     #[test]
     fn compressed_names_and_utf16() {

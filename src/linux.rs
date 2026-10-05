@@ -134,8 +134,8 @@ pub const PLUGINS: &[Descriptor] = &[
         plugin: Plugin::WinCmdline,
         name: "windows.cmdline",
         label: "windows.cmdline",
-        columns: &["PID", "Name", "CommandLine"],
-        widths: &[12, 0, 0],
+        columns: &["PID", "Name", "CommandLine", "View"],
+        widths: &[12, 0, 0, 10],
     },
     Descriptor {
         plugin: Plugin::WinModules,
@@ -148,8 +148,8 @@ pub const PLUGINS: &[Descriptor] = &[
         plugin: Plugin::WinDlllist,
         name: "windows.dlllist",
         label: "windows.dlllist",
-        columns: &["PID", "Name", "Base", "Size", "Path"],
-        widths: &[12, 0, 12, 12, 0],
+        columns: &["PID", "Name", "Base", "Size", "Path", "View"],
+        widths: &[12, 0, 12, 12, 0, 10],
     },
     Descriptor {
         plugin: Plugin::WinVadinfo,

@@ -224,7 +224,7 @@ argv／环境区各限 1 MiB，单进程 VMA／FD 各限 100 万项，路径限 
 缓存与设置：
 
 - gzip 流式解压到 `.zero/rust/`，只有解压完成并校验后才原子提交；取消和损坏输入不产生完成标记。原镜像只读。新会话再次使用时验证解压缓存 SHA256。同一 TUI 会话中复用已验证镜像、完整 banner 和页表；源文件或符号文件元数据改变后重新准备。
-- 原生结果缓存键包含镜像 SHA256、所选 ISF SHA256、分析名称和引擎版本。只缓存完整分析结果。引擎版本为 `native-6`，旧缓存保留但不再复用。旧 CSV 从不用于原生缓存。
+- 原生结果缓存键包含镜像 SHA256、所选 ISF SHA256、分析名称和引擎版本。只缓存完整分析结果。引擎版本为 `native-7`，旧缓存保留但不再复用。旧 CSV 从不用于原生缓存。
 - 设置仅读取 `.zero/rust/settings.json`；不读取或执行旧 Python 配置。项目清单独立于可清理缓存，缓存清理保留设置、清单、原始镜像／符号和用户导出。
 
 
@@ -352,3 +352,7 @@ zero dump --os windows --image image.mem --mode range --pid 1234 --start 0x10000
 多架构基础提供 `--arch auto|x86|x64|arm64`，MCP 对应 `arch`，TUI 的 Windows 参数页可选择架构。指针和 PDB 机器类型必须一致；架构冲突明确报错。x86 普通／PAE、ARM64 4 KiB 页表目前经合成测试验证，真实镜像验收仍以既有 Windows 10/11 x64 为准；不应据此宣称所有架构的所有插件已完成。
 
 容器阶段新增 PAGE/DUMP（x86）与 PAGE/DU64（x64/ARM64）的物理 run 表、SDMP/FDMP 位图，以及 MDMP 的 MemoryList/Memory64、模块、线程栈和系统元数据读取。内核小型转储当前仅开放头部信息；用户态 minidump 开放进程范围的模块、范围/进程/PE 导出，需要文件记录 PID。它不提供系统进程列表或内核模块列表。缺失地址保持缺页；未知布局不会按 RAW 读取。
+
+进程兼容阶段增加 WOW64 32 位 PEB、命令行和 DLL 链表读取，`windows.cmdline` 与 `windows.dlllist` 新增 `View` 列（`native` / `wow64` / `minidump`）；PE32 和 PE32+ 使用统一节重建。注册表 `db` 分段大值按分段索引重建并校验计数、重复项与实际长度，当前值大小上限仍为 1 MiB。上述新增路径包含合成测试；x86／ARM64 的全插件覆盖仍需真实镜像验收。
+
+新增公开 crash dump 验证来源：https://mirror.nju.edu.cn/gentoo/distfiles/e4/volatility3-win-10_19041-2025_03.dmp.gz 。Windows 10 build 19041 的 FDMP bitmap 容器可直接以 gzip 导入，已解析出 120 个完整进程记录。

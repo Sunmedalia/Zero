@@ -39,9 +39,9 @@ impl Windows<'_> {
         }
         if p == Plugin::WinPedump {
             let mut candidates: BTreeMap<u64, u64> = regions.into_iter().collect();
-            match self.dlls(&process, job) {
+            match self.dlls(&process, job, &mut r) {
                 Ok(dlls) => {
-                    for (base, size, _) in dlls {
+                    for (base, size, _, _) in dlls {
                         candidates.insert(base, add(base, size)?);
                     }
                 }

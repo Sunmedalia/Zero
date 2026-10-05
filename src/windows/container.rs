@@ -468,6 +468,7 @@ pub(super) fn analyze(
                     hex(module.base),
                     module.size.to_string(),
                     module.name.clone(),
+                    "minidump".into(),
                 ]);
             }
         }
