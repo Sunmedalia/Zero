@@ -8,6 +8,7 @@ This repository is a native Rust 2024 local Linux memory forensics TUI with opti
 - `src/extended.rs`: psaux / envars / maps / lsof / sockstat, process address spaces, FD and mount path readers.
 - `src/more.rs`: pwd / pscred / threads / mountinfo / check_creds / dmesg.
 - `src/modern.rs`: maple VMAs, modern mounts/threads and structured printk.
+- `src/volatility_extra.rs`: iomem / ioports resource trees, per-thread ptrace relationships and keyboard notifier callbacks.
 - `src/process_extra.rs`: ISF process state and capability masks, per-process FD summaries.
 - `src/inspect.rs`: systeminfo / elfs / bash / history / malfind / psxview / check_modules / check_syscall.
 - `src/dump.rs`: unified `dump --mode process|range|elf` command and targeted procdump / memdump / elfdump backends, streamed atomic exports and SHA256 manifests; never dump all processes or use result caches.

@@ -2747,5 +2747,60 @@
       "PID 3482 FD 1 路径: 路径不在进程根目录内 @ 0xffff88001e802b00",
       "PID 3482 FD 3 路径: 路径不在进程根目录内 @ 0xffff88001e802b00"
     ]
+  },
+  "iomem": {
+    "columns": [
+      "Name",
+      "Start",
+      "End",
+      "Depth",
+      "Flags",
+      "Address"
+    ],
+    "count": 116,
+    "rows_sha256": "dc3af02d1508650c4bf56946c11ef5c874f9cb857793da169eabb224d6dcda38",
+    "complete": true,
+    "diagnostics": []
+  },
+  "ioports": {
+    "columns": [
+      "Name",
+      "Start",
+      "End",
+      "Depth",
+      "Flags",
+      "Address"
+    ],
+    "count": 65,
+    "rows_sha256": "1bc79b3dde75a6641dc28cd6a40d3ca6f9812151b2c799085da644731365a008",
+    "complete": true,
+    "diagnostics": []
+  },
+  "ptrace": {
+    "columns": [
+      "Process",
+      "PID",
+      "TID",
+      "TracerTID",
+      "TraceeTID",
+      "Flags"
+    ],
+    "count": 0,
+    "rows_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+    "complete": true,
+    "diagnostics": []
+  },
+  "keyboard_notifiers": {
+    "columns": [
+      "Address",
+      "Module",
+      "Symbol",
+      "Priority",
+      "NotifierAddress"
+    ],
+    "count": 0,
+    "rows_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+    "complete": true,
+    "diagnostics": []
   }
 }

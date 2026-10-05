@@ -120,6 +120,10 @@ fn debian_extended_full_field_baseline() -> Result<()> {
     );
     let mut session = linux::Session::default();
     for plugin in [
+        Plugin::Iomem,
+        Plugin::Ioports,
+        Plugin::Ptrace,
+        Plugin::KeyboardNotifiers,
         Plugin::Psstate,
         Plugin::Capabilities,
         Plugin::Fdsummary,

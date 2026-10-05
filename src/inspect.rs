@@ -435,7 +435,7 @@ impl Linux<'_> {
         }
         Ok(())
     }
-    fn module_range(&self, module: u64) -> Result<(u64, u64)> {
+    pub(crate) fn module_range(&self, module: u64) -> Result<(u64, u64)> {
         if self.isf.field("module", "module_core").is_ok() {
             let start = self.number(module, "module", "module_core")?;
             return Ok((

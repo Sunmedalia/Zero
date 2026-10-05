@@ -82,7 +82,7 @@ zero-tui dump --image symbols/linux-sample-1.bin.gz --symbols images/linux.zip \
 
 TUI 插件列表只列分析插件，转储统一放在 `dump` 功能中，用 `D` 打开。CLI 推荐使用 `dump --mode process|range|elf`，必填 PID、转储目录与清单输出；兼容原 `analyze --plugin procdump|memdump|elfdump` 调用。
 
-`--plugin` 支持 `pslist`、`pstree`、`lsmod`、`psaux`、`envars`、`maps`、`lsof`、`sockstat`、`banners`、`pwd`、`pscred`、`threads`、`mountinfo`、`check_creds`、`dmesg`、`systeminfo`、`elfs`、`bash`、`malfind`、`psxview`、`check_modules`、`check_syscall`、`psstate`、`capabilities`、`fdsummary`、`history`、`procdump`、`memdump`、`elfdump`，共 29 个。进程字段为 PID、TGID、PPID、Name、Address，PID 0 不进入结果；模块字段为 Name、Base、Size，大小以字节计。`pstree` 导出同样的完整进程字段，PPID 表达父子关系，TUI 显示可展开树。地址是完整虚拟地址，模块 Base 是 `module_core` / `core_layout.base`，Size 是整个核心内存区域大小。
+`--plugin` 支持 `pslist`、`pstree`、`lsmod`、`psaux`、`envars`、`maps`、`lsof`、`sockstat`、`banners`、`pwd`、`pscred`、`threads`、`mountinfo`、`check_creds`、`dmesg`、`systeminfo`、`elfs`、`bash`、`malfind`、`psxview`、`check_modules`、`check_syscall`、`psstate`、`capabilities`、`fdsummary`、`history`、`procdump`、`memdump`、`elfdump`、`iomem`、`ioports`、`ptrace`、`keyboard_notifiers`，共 33 个。进程字段为 PID、TGID、PPID、Name、Address，PID 0 不进入结果；模块字段为 Name、Base、Size，大小以字节计。`pstree` 导出同样的完整进程字段，PPID 表达父子关系，TUI 显示可展开树。地址是完整虚拟地址，模块 Base 是 `module_core` / `core_layout.base`，Size 是整个核心内存区域大小。
 
 新增分析字段与范围：
 
@@ -111,9 +111,34 @@ TUI 插件列表只列分析插件，转储统一放在 `dump` 功能中，用 `
 | capabilities | PID、Name、Inheritable、Permitted、Effective、Bounding、CredAddress |
 | fdsummary | PID、Name、Total、Regular、Sockets、Pipes |
 | history | PID、Shell、Timestamp、Command、Address |
+| iomem / ioports | Name、Start、End、Depth、Flags、Address |
+| ptrace | Process、PID、TID、TracerTID、TraceeTID、Flags |
+| keyboard_notifiers | Address（回调）、Module、Symbol、Priority、NotifierAddress |
 | procdump / memdump / elfdump | PID、Name、Start、End、Size、SHA256、File |
 
 `psstate` 输出 ISF 中的进程状态、退出状态及标志原始 64 位十六进制值，不套用其他内核版本的位定义。`capabilities` 读取凭据中的四种 capability 位掩码；`fdsummary` 按进程汇总 FD，包含零 FD 进程，重复引用分别计数，其他文件类型只计入 Total。FD 读取或路径解析失败会保留诊断、标记部分结果。
+
+新增三个与 Volatility 3 对齐的 Rust 原生分析，以及一个资源树扩展：
+
+| Zero | Volatility 对应功能 | 解析范围 |
+| --- | --- | --- |
+| `iomem` | [Volatility 3 linux.iomem](https://volatility3.readthedocs.io/en/latest/volatility3.plugins.linux.iomem.html) | 从 `iomem_resource` 遍历资源树，类似 `/proc/iomem` |
+| `ioports` | 本项目扩展（复用 `iomem` 的资源树机制，无官方同名插件） | 从 `ioport_resource` 遍历 I/O 端口资源树；ARM64 可能只有少量根资源 |
+| `ptrace` | [Volatility 3 linux.ptrace](https://volatility3.readthedocs.io/en/latest/volatility3.plugins.linux.ptrace.html) | 包含非组长线程，输出 tracer 与 tracee；正常无跟踪关系为空表 |
+| `keyboard_notifiers` | [Volatility 3 linux.malware.keyboard_notifiers](https://volatility3.readthedocs.io/en/latest/volatility3.plugins.linux.malware.keyboard_notifiers.html) | 遍历键盘通知链，显示回调及已知内核／已加载模块归属 |
+
+这些是本地 ISF 驱动的实现，不执行 Volatility Python 插件。资源 Start／End 是**物理资源地址或端口号**，End 包含边界；Address 为结构的虚拟地址，Depth 从根的 0 开始，Flags 保留原始掩码。资源树限制 100 万项、1024 层，字符串限制 4096 字节；循环、缺页、倒置范围和达到上限均标记部分结果，保留可读分支。`ptrace` 的 PID 是 TGID，TID 为线程 ID，未关联一端显示 `[none]`，Flags 输出原始掩码，便于跨内核核对，不将 tracer 误用 `real_parent` 解析。`keyboard_notifiers` 的 Priority 为有符号整数；Symbol 仅根据已知内核代码范围内的 ISF 符号定位，模块内无 ISF 函数名时显示 `[unknown]`，不猜测相邻内核符号。这里只检查已加载模块链表，不进行隐藏模块扫描，回调出现本身不表示恶意。无通知回调为空表；缺少必要结构／符号会明确报告不支持。
+
+CLI 示例（TUI 按 `p` 搜索同名插件）：
+
+```sh
+zero-tui --offline analyze --image symbols/linux-sample-1.bin.gz --symbols images/linux.zip \
+  --plugin iomem --output exports/iomem.json
+zero-tui --offline analyze --image images/kali.raw --symbols symbols/kali-6.8.11-arm64.json.xz \
+  --plugin ptrace --output exports/ptrace.csv
+```
+
+本地全字段核对：Debian `iomem=116`、`ioports=65`；Kali ARM64 `iomem=50`、`ioports=2`。两个样本 `ptrace=0`、`keyboard_notifiers=0`，均为正常空表；Kali ptrace 保留原有父进程缺失提示。实际 tracer／tracee、回调归属与负优先级另有合成测试覆盖。四个结果的完整字段已由 `tests/reference/debian.py` 独立只读解析核对，并写入两套验收基线；`make acceptance` 检查行摘要、诊断、导出及缓存行为。独立复核时给该脚本传入 `--plugins iomem,ioports,ptrace,keyboard_notifiers`，其余镜像／符号／结果前缀参数同下文。
 
 `history` 从内存中的 Bash 历史结构恢复带时间戳记录，并从已验证记录邻接的指针数组恢复部分无时间戳命令；不读取磁盘历史文件。`bash` 保留旧插件名称与相同解析行为。Dump 插件必须显式指定 `--pid` 和 `--dump-dir`；`--output` 仍是 CSV／JSON 清单路径。没有参数时在读取镜像前报错，绝不默认转储全部进程。TUI 按 D 或选择统一 dump 入口打开参数表单，F2／F3／F4 切换 Process／Range／ELF 模式，Tab／Shift+Tab 切换字段，Enter 到下一项，选中“开始转储”后 Enter 或点击按钮执行，也可 Ctrl+Enter 执行；Esc 取消。默认目录是配置的导出目录下 `dumps/`，可修改。
 

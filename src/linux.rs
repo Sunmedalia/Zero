@@ -10,6 +10,11 @@ use std::{collections::HashSet, path::Path};
 
 #[derive(Clone, Copy, Debug, ValueEnum, PartialEq, Eq)]
 pub enum Plugin {
+    Iomem,
+    Ioports,
+    Ptrace,
+    #[value(name = "keyboard_notifiers", alias = "keyboard-notifiers")]
+    KeyboardNotifiers,
     Psstate,
     Capabilities,
     Fdsummary,
@@ -309,6 +314,34 @@ pub const PLUGINS: &[Descriptor] = &[
         widths: &[6, 12, 14, 0, 18],
     },
     Descriptor {
+        plugin: Plugin::Iomem,
+        name: "iomem",
+        label: "iomem",
+        columns: &["Name", "Start", "End", "Depth", "Flags", "Address"],
+        widths: &[0, 18, 18, 5, 18, 18],
+    },
+    Descriptor {
+        plugin: Plugin::Ioports,
+        name: "ioports",
+        label: "ioports",
+        columns: &["Name", "Start", "End", "Depth", "Flags", "Address"],
+        widths: &[0, 18, 18, 5, 18, 18],
+    },
+    Descriptor {
+        plugin: Plugin::Ptrace,
+        name: "ptrace",
+        label: "ptrace",
+        columns: &["Process", "PID", "TID", "TracerTID", "TraceeTID", "Flags"],
+        widths: &[0, 6, 6, 10, 10, 18],
+    },
+    Descriptor {
+        plugin: Plugin::KeyboardNotifiers,
+        name: "keyboard_notifiers",
+        label: "keyboard_notifiers",
+        columns: &["Address", "Module", "Symbol", "Priority", "NotifierAddress"],
+        widths: &[18, 16, 0, 9, 18],
+    },
+    Descriptor {
         plugin: Plugin::Procdump,
         name: "procdump",
         label: "procdump",
@@ -339,8 +372,14 @@ impl Plugin {
     }
     pub fn category(self) -> &'static str {
         match self {
-            Self::Banners | Self::Systeminfo | Self::Dmesg | Self::Lsmod => "System",
-            Self::Psstate
+            Self::Banners
+            | Self::Systeminfo
+            | Self::Dmesg
+            | Self::Lsmod
+            | Self::Iomem
+            | Self::Ioports => "System",
+            Self::Ptrace
+            | Self::Psstate
             | Self::Capabilities
             | Self::Pslist
             | Self::Pstree
@@ -808,6 +847,12 @@ impl Linux<'_> {
         )
     }
     pub fn run(&self, plugin: Plugin, job: &Job) -> Result<Results> {
+        if matches!(
+            plugin,
+            Plugin::Iomem | Plugin::Ioports | Plugin::Ptrace | Plugin::KeyboardNotifiers
+        ) {
+            return self.run_volatility_extra(plugin, job);
+        }
         if plugin == Plugin::Banners {
             return banner_result(self.vm.image, job);
         }

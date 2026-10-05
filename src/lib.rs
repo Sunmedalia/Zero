@@ -56,3 +56,5 @@ pub mod browser;
 mod process_extra;
 
 pub mod dump;
+
+mod volatility_extra;

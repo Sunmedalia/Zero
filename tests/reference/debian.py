@@ -283,6 +283,69 @@ else:
     start=(end-count)&0xffffffff;data=bytes(read(ptr+((start+i)&(size-1)),1)[0] for i in range(count));lines=data.decode(errors='replace').split('\n')
     if lines and lines[-1]=='':lines.pop()
     expected['dmesg']=[[str(i),line] for i,line in enumerate(lines)]
+# New Volatility-aligned analyses: independently traverse kernel structures.
+new_plugins = ['iomem', 'ioports', 'ptrace', 'keyboard_notifiers']
+requested = set(args.plugins.split(',')) if args.plugins else set(new_plugins)
+for plugin, symbol in [('iomem', 'iomem_resource'), ('ioports', 'ioport_resource')]:
+    if plugin not in requested: continue
+    rows = []; visited = set(); pending = [(D['symbols'][symbol]['address'], 0)]
+    while pending:
+        address, depth = pending.pop()
+        assert address not in visited and len(visited) < 1000000 and depth <= 1024
+        visited.add(address)
+        start = num(address, 'resource', 'start'); end = num(address, 'resource', 'end')
+        assert start <= end
+        rows.append([cstr(num(address, 'resource', 'name')), f'{start:#018x}', f'{end:#018x}', str(depth),
+                     f"{num(address, 'resource', 'flags'):#018x}", f'{address:#018x}'])
+        for field_name, next_depth in [('sibling', depth), ('child', depth + 1)]:
+            next_address = num(address, 'resource', field_name)
+            if next_address: pending.append((next_address, next_depth))
+    expected[plugin] = rows
+if 'ptrace' in requested:
+    rows = []
+    for task in sorted(set(int(row[4], 16) for row in expected['threads'])):
+        flags = num(task, 'task_struct', 'ptrace')
+        tracer = str(num(num(task, 'task_struct', 'parent'), 'task_struct', 'pid')) if flags else '[none]'
+        head = task + off('task_struct', 'ptraced'); entry = word(head); tracees = []; visited = set(); previous = head
+        while entry != head:
+            assert entry not in visited and word(entry + off('list_head', 'prev')) == previous
+            visited.add(entry); tracees.append(str(num(entry - off('task_struct', 'ptrace_entry'), 'task_struct', 'pid')))
+            previous = entry; entry = word(entry)
+        assert word(head + off('list_head', 'prev')) == previous
+        if flags and not tracees: tracees = ['[none]']
+        for tracee in tracees:
+            rows.append([cstr(task + off('task_struct', 'comm')), str(num(task, 'task_struct', 'tgid')),
+                         str(num(task, 'task_struct', 'pid')), tracer, tracee, f'{flags:#018x}'])
+    expected['ptrace'] = rows
+if 'keyboard_notifiers' in requested:
+    rows = []; entry = num(D['symbols']['keyboard_notifier_list']['address'], 'atomic_notifier_head', 'head')
+    ranges = [(D['symbols'].get('_stext', D['symbols'].get('_text'))['address'], D['symbols']['_etext']['address'], 'kernel')]
+    head = D['symbols']['modules']['address']; module_entry = word(head); visited = set()
+    while module_entry != head:
+        assert module_entry not in visited; visited.add(module_entry)
+        module = module_entry - off('module', 'list'); fields = D['user_types']['module']['fields']
+        if 'module_core' in fields:
+            base = num(module, 'module', 'module_core'); size = num(module, 'module', 'core_size')
+        elif 'core_layout' in fields:
+            layout = module + off('module', 'core_layout'); base = num(layout, 'module_layout', 'base'); size = num(layout, 'module_layout', 'size')
+        else:
+            index = D['enums']['mod_mem_type']['constants']['MOD_TEXT']
+            mem = module + off('module', 'mem') + index * D['user_types']['module_memory']['size']
+            base = num(mem, 'module_memory', 'base'); size = num(mem, 'module_memory', 'size')
+        ranges.append((base, base + size, cstr(module + off('module', 'name')))); module_entry = word(module_entry)
+    symbols = sorted((v['address'], name) for name, v in D['symbols'].items() if 'address' in v)
+    visited = set()
+    while entry:
+        assert entry not in visited; visited.add(entry)
+        callback = num(entry, 'notifier_block', 'notifier_call'); owner = next((name for a, b, name in ranges if a <= callback < b), '[unknown]')
+        symbol = '[unknown]'; index = bisect.bisect_right(symbols, (callback, chr(0x10ffff))) - 1
+        if owner == 'kernel' and index >= 0 and symbols[index][0] >= ranges[0][0]:
+            address, name = symbols[index]; symbol = name if address == callback else name + '+' + hex(callback - address)
+        priority_field = field('notifier_block', 'priority'); size = D['base_types'][priority_field['type']['name']]['size']
+        priority = int.from_bytes(read(entry + priority_field['offset'], size), 'little', signed=True)
+        rows.append([f'{callback:#018x}', owner, symbol, str(priority), f'{entry:#018x}'])
+        entry = num(entry, 'notifier_block', 'next')
+    expected['keyboard_notifiers'] = rows
 for plugin,rows in expected.items():
     if args.plugins and plugin not in args.plugins.split(','):continue
     actual=json.load(open(args.results_prefix+plugin+'.json'))['rows']
