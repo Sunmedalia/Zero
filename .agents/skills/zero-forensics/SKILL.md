@@ -1,6 +1,6 @@
 ---
 name: zero-forensics
-description: Analyze local Linux RAW/LiME or Windows x64 RAW memory images, including gzip with Zero's native MCP tools; identify symbols, inspect processes and kernel artifacts, and export targeted evidence.
+description: Analyze local Linux RAW/LiME or Windows RAW, crash/minidump or supported hibernation memory images, including gzip with Zero's native MCP tools; identify symbols, inspect processes and kernel artifacts, and export targeted evidence.
 ---
 
 # Zero memory forensics
@@ -16,4 +16,10 @@ For a shell workflow, the equivalent native CLI is `zero` (`zero --help` lists c
 
 The analysis engine reads images locally and does not execute symbol files. Do not upload memory images or disclose raw contents to external services. Cache inspection is available through `zero_cache_list`.
 
-Windows support targets Windows 10/11 x64 RAW/gzip. Crash/minidumps, hibernation images, WOW64 PEB decoding, and pagefile/compressed pages are unsupported. Network analysis requires an exact allowlisted tcpip.sys PDB identity. Pool scans are candidates, not proof of a hidden process. FILETIME values are decimal 100 ns ticks since 1601 UTC. Always distinguish virtual addresses from `physical:` addresses.
+Windows architecture selection is `arch: auto|x86|x64|arm64`. Exact symbols must agree with the container and pointer width. Real-image validation covers Windows 10/11 x64 RAW and a Windows 10 build 19041 bitmap crash dump; other architecture/container paths primarily have synthetic coverage. Do not describe that as full Windows 7–11 plugin coverage.
+
+WOW64 command lines and DLLs have a `View` column. User minidumps provide captured-process metadata, DLLs and targeted dumps when the PID is recorded; kernel plugins are unavailable. Small kernel dumps currently provide header metadata only. Registry segmented values are bounded to 1 MiB.
+
+Use explicit same-capture attachments only: `pagefiles: [{"index": 0, "path": "..."}]` and optional `swapfile: "..."`. Never guess an index or search adjacent files. Swapfile indexing needs exact kernel symbols. Paging results record file digests and page offsets. Compressed store recovery requires private SMKM symbols/types and a verified virtual pagefile; Windows 11/ARM64 store layouts remain unsupported. Hibernation reads saved physical pages and reports damaged/missing blocks; Fast Startup can omit user sessions. Hibernation and compressed-store recovery currently carry synthetic-validation diagnostics and partial results.
+
+Network analysis first tries exact tcpip.sys PDB types, then architecture/driver-version layouts. An unvalidated exact driver identity remains partial; an unknown layout fails explicitly. Pool scans are candidates, not proof of a hidden process. FILETIME values are decimal 100 ns ticks since 1601 UTC. Always distinguish virtual addresses from `physical:` addresses.

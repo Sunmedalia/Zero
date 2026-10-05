@@ -27,6 +27,7 @@ pub struct Image {
     pub digest: String,
     pub format: &'static str,
     pub windows_container: Option<crate::windows::container::Metadata>,
+    pub hibernation: Option<crate::windows::hiber::Hibernation>,
 }
 pub fn digest_reader(mut reader: impl Read, job: &Job) -> Result<String> {
     let mut hash = Sha256::new();
@@ -131,7 +132,7 @@ impl Image {
             && value.source_stamp == source_stamp
             && let Ok(file) = File::open(&value.prepared)
             && metadata_stamp(&file.metadata()?)? == value.prepared_stamp
-            && let Ok(preview) = Self::from_file(file, String::new())
+            && let Ok(preview) = Self::from_file_with_job(file, String::new(), job)
         {
             for (address, banner) in value.banners.into_iter().take(1024) {
                 if banner.len() > 65536 {
@@ -196,13 +197,17 @@ impl Image {
         let mut image = Self::from_file_with_job(File::open(&prepared)?, digest, job)?;
         image._cache_guard = Some(guard);
         let mut physical = Vec::new();
-        for offset in candidates {
-            if let Some(s) = image
-                .segments
-                .iter()
-                .find(|s| offset >= s.file_offset && offset < s.file_offset + s.end - s.start)
-            {
-                physical.push(s.start + offset - s.file_offset);
+        if image.hibernation.is_some() {
+            physical = image.scan(b"Linux version ", job)?;
+        } else {
+            for offset in candidates {
+                if let Some(s) = image
+                    .segments
+                    .iter()
+                    .find(|s| offset >= s.file_offset && offset < s.file_offset + s.end - s.start)
+                {
+                    physical.push(s.start + offset - s.file_offset);
+                }
             }
         }
         // File headers interrupt otherwise contiguous physical memory in LiME.
@@ -249,17 +254,20 @@ impl Image {
         ensure!(len >= 4, "镜像过短");
         let mut magic = [0; 4];
         file.read_exact_at(&mut magic, 0)?;
-        ensure!(
-            &magic != b"hibr" && &magic != b"wake",
-            "不支持 Windows 崩溃转储/休眠容器；请提供 RAW 物理内存镜像"
-        );
         let mut segments = Vec::new();
         let mut windows_container = None;
+        let mut hibernation = None;
         let format = if &magic == b"PAGE" || &magic == b"MDMP" {
             let parsed = crate::windows::container::parse(&file, job)?;
             segments = parsed.segments;
             windows_container = Some(parsed.metadata);
             parsed.format
+        } else if crate::windows::hiber::recognized(&magic) {
+            let (parsed, metadata) = crate::windows::hiber::parse(&file, job)?;
+            segments = parsed.segments();
+            windows_container = Some(metadata);
+            hibernation = Some(parsed);
+            "Windows hibernation"
         } else if u32::from_le_bytes(magic) == 0x4c694d45 {
             let mut pos = 0;
             while pos < len {
@@ -312,9 +320,13 @@ impl Image {
             digest,
             format,
             windows_container,
+            hibernation,
         })
     }
     pub fn read(&self, mut address: u64, mut out: &mut [u8]) -> Result<()> {
+        if let Some(hiber) = &self.hibernation {
+            return hiber.read(&self.file, address, out);
+        }
         address
             .checked_add(out.len() as u64)
             .context("物理地址溢出")?;
@@ -323,7 +335,13 @@ impl Image {
                 .segments
                 .iter()
                 .find(|s| address >= s.start && address < s.end)
-                .with_context(|| format!("地址越界或镜像空洞 @ {address:#x}"))?;
+                .with_context(|| {
+                    if self.windows_container.is_some() {
+                        format!("地址越界或镜像空洞 @ {address:#x}")
+                    } else {
+                        format!("物理地址越界或 LiME 空洞 @ {address:#x}")
+                    }
+                })?;
             let n = out.len().min((s.end - address) as usize);
             self.file
                 .read_exact_at(&mut out[..n], s.file_offset + address - s.start)?;

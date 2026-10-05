@@ -1,11 +1,12 @@
 # Zero development
 
-This repository is a native Rust 2024 local Linux and Windows x64 memory forensics TUI with exact ISF/PDB symbol matching.
+This repository is a native Rust 2024 local Linux and Windows memory forensics TUI with exact ISF/PDB symbol matching.
 
-- `src/image.rs`: read-only RAW / LiME address space, fused digest/banner preparation, x86_64 and ARM64 4K page translation.
+- `src/image.rs`: read-only RAW / LiME / Windows container address spaces, fused digest/banner preparation, x86_64 and ARM64 4K page translation.
 - `src/symbols.rs`: local ISF JSON / XZ / ZIP, complete banners, repository links and validated downloads.
 - `src/analysis.rs`: platform routing, OS choice and targeted PID/hive/key options.
-- `src/windows.rs` / `src/windows/`: native Windows kernel discovery, processes, VADs, handles, registry, exact driver-identity network layouts and atomic process/range/PE dumps.
+- `src/windows.rs` / `src/windows/`: native Windows kernel discovery, processes, VADs, handles, registry, symbol/architecture/driver-version network layouts and atomic process/range/PE dumps.
+- `src/windows/hiber.rs` / `paging.rs` / `compressed.rs`: bounded saved-page containers, explicit paging attachments and symbol-driven SMKM reconstruction; preserve coverage diagnostics.
 - `src/windows_symbols.rs`: exact RSDS identity, Microsoft PDB acquisition and deterministic native conversion.
 - `src/linux.rs`: candidate page table validation, shared tasks traversal, pslist / pstree / lsmod and plugin catalog.
 - `src/extended.rs`: psaux / envars / maps / lsof / sockstat, process address spaces, FD and mount path readers.

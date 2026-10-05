@@ -20,6 +20,7 @@ mod codec;
 mod compressed;
 pub mod container;
 mod dump;
+pub mod hiber;
 mod memory;
 mod network;
 mod network_layout;
@@ -547,6 +548,12 @@ pub fn analyze(
         options.arch == Architecture::Auto || options.arch == arch,
         "显式架构与符号不一致"
     );
+    if let Some(hiber) = &image.hibernation {
+        ensure!(
+            arch.pointer_size() == hiber.info.pointer_size,
+            "休眠容器与符号指针宽度不一致"
+        );
+    }
     let (root, base) = discover(image, isf, job)?;
     let mut sources = paging::Sources::open(options, job)?;
     let mut engine = Windows {
@@ -607,6 +614,19 @@ pub fn analyze(
         );
     }
     result.kernel_identity["compressed_pages"] = compressed;
+    if let Some(hiber) = image.hibernation.as_ref() {
+        result.kernel_identity["hibernation"] = serde_json::to_value(&hiber.info)?;
+        Windows::issue(
+            &mut result,
+            "休眠文件",
+            if hiber.info.hiberboot == Some(true) {
+                "Fast Startup 保存内核会话，用户会话页面可能缺失；此容器路径目前仅有合成验证"
+            } else {
+                "仅包含休眠文件保存的物理页；此容器路径目前仅有合成验证"
+            },
+        );
+        result.diagnostics.extend(hiber.info.diagnostics.clone());
+    }
     job.check()?;
     if request.use_cache && !request.plugin.is_dump() {
         store::save(request.cache, &key, &result, job)?;

@@ -262,7 +262,7 @@ fn kali_arm64_all_plugins_full_field_baseline() -> Result<()> {
     for descriptor in linux::PLUGINS {
         let plugin = descriptor.plugin;
         // Dump plugins require explicit parameters; exercised in the targeted sample test below.
-        if plugin.is_dump() {
+        if plugin.is_dump() || plugin.is_windows() {
             continue;
         }
         let Outcome::Ready(result) = session.analyze(

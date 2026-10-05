@@ -229,4 +229,44 @@ mod tests {
         isf.data["metadata"]["windows"] = serde_json::Value::Null;
         assert!(Isf::parse(&serde_json::to_vec(&isf.data).unwrap(), "linux".into()).is_err());
     }
+    #[test]
+    fn x86_bootstrap_validates_pe32_and_bidirectional_process_lists() {
+        let (mut b, mut isf) = fixture();
+        set_arch(&mut isf, Architecture::X86);
+        let k = 0x80000000u64;
+        let mut write = |at: usize, value: u32| b[at..at + 4].copy_from_slice(&value.to_le_bytes());
+        write(0x1000 + 512 * 4, 0x2003);
+        for i in 0..32 {
+            write(0x2000 + i * 4, 0x8003 + i as u32 * 4096);
+        }
+        write(0x8380, (k + 0x1000) as u32);
+        write(0x8400, (k + 0x1010) as u32);
+        write(0x8404, (k + 0x2010) as u32);
+        write(0x9010, (k + 0x2010) as u32);
+        write(0x9014, (k + 0x400) as u32);
+        write(0xa010, (k + 0x400) as u32);
+        write(0xa014, (k + 0x1010) as u32);
+        write(0x8128, 0x500);
+        write(0x812c, 28);
+        b[0x8084..0x8086].copy_from_slice(&0x14cu16.to_le_bytes());
+        b[0x8098..0x809a].copy_from_slice(&0x10bu16.to_le_bytes());
+        let img = image(&b);
+        let (root, base) = discover(&img, &isf, &Job::default()).unwrap();
+        assert_eq!((root, base), (0x1000, k));
+        let engine = Windows {
+            vm: Memory {
+                image: &img,
+                root,
+                isf: &isf,
+                sources: None,
+            },
+            base,
+            pdb: PdbIdentity::from_isf(&isf).unwrap(),
+        };
+        let r = engine
+            .run(Plugin::WinPslist, &Options::default(), &Job::default())
+            .unwrap();
+        assert!(r.complete);
+        assert_eq!(r.rows.len(), 2);
+    }
 }

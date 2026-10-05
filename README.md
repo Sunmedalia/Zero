@@ -1,6 +1,6 @@
 # Zero · Rust 原生终端取证
 
-本地 Linux x86_64／ARM64 和 Windows 10/11 x64 内存取证工具，使用 Rust 2024、Ratatui 和 Crossterm。支持 RAW、LiME 及其 gzip 镜像，读取 JSON、JSON.XZ 或 ZIP 内的 ISF，取证引擎无需 Python、Node 或 HTTP 服务；在线符号下载使用系统 `curl`。
+本地 Linux x86_64／ARM64 和 Windows 内存取证工具，使用 Rust 2024、Ratatui 和 Crossterm。支持 RAW、LiME、Windows crash/minidump 和已识别布局的休眠容器及 gzip 镜像，读取 JSON、JSON.XZ 或 ZIP 内的 ISF，取证引擎无需 Python、Node 或 HTTP 服务；在线符号下载使用系统 `curl`。
 
 ## MCP 与 Agent skill
 
@@ -325,7 +325,7 @@ make acceptance
 
 ## Windows 内存镜像分析
 
-Windows 使用独立的 x64 地址翻译与对象解析器，支持 RAW 和 gzip。RSDS 提供内核 PDB 的 GUID/age；符号从 Microsoft symbol server 精确下载，并在 Rust 中转换为 ISF。分析前验证内核 PE 身份、页表和 System 进程，避免按版本猜测结构。离线运行需要已准备的匹配 ISF；镜像始终留在本地。
+Windows 使用独立的 x86／x64／ARM64 地址翻译与对象解析器；具体容器、分页和验证范围见下方扩展阶段。RSDS 提供内核 PDB 的 GUID/age；符号从 Microsoft symbol server 精确下载，并在 Rust 中转换为 ISF。分析前验证内核 PE 身份、页表和 System 进程，避免按版本猜测结构。离线运行需要已准备的匹配 ISF；镜像始终留在本地。
 
 ```sh
 zero symbols --image images/Win11Dump/Win11Dump.mem --download
@@ -343,7 +343,7 @@ zero dump --os windows --image image.mem --mode range --pid 1234 --start 0x10000
 
 公开验收镜像：[Windows 10 build 15063](https://www.osforensics.com/downloads/WinDump.zip)、[Windows 11 build 22000](https://www.osforensics.com/downloads/Win11Dump.zip)。下载解压到 `images/` 并准备符号后运行 `make windows-acceptance`。`examples/verify_windows.rs` 可在共享分析会话中导出所有非转储插件供独立参考工具比较；Python/Volatility 只用于验证，不是运行依赖。样本包含断裂的进程链表，正常输出应保留不完整标志。
 
-边界：不支持 Windows ARM64、32 位/WOW64 PEB 解码、crash/minidump、休眠镜像或分页文件/压缩页恢复。注册表分段大值未支持。网络结构仅接受 `src/windows/network_layouts.json` 中精确匹配的两组 tcpip.sys PDB 身份；未知身份明确报错。其他 Windows 构建需要真实镜像验证，不保证所有插件可用。
+边界：真实镜像验收覆盖 Windows 10/11 x64 RAW 与 Windows 10 build 19041 bitmap crash dump。其他架构、用户 minidump、注册表分段值、外部分页和休眠新增路径主要依赖合成测试；内核小型转储目前仅提供头部元数据，不能宣称 Windows 7–11 全架构的所有插件均已验证。压缩 store 需要私有元数据，尚不支持 Windows 11／ARM64 store；未知容器、布局和缺页均明确报告。
 
 参考交叉检查：准备独立 Volatility 3 v2.28 符号与 JSON 输出后，运行 `python3 tests/reference/windows.py /tmp/zero-win11- /tmp/zero-ref-win11-`（Windows 10 同理）。脚本逐字段检查共有记录，并分别报告覆盖范围；参考工具读不到的字段和缺失记录不会被当作相等的证据。
 
@@ -362,3 +362,7 @@ zero dump --os windows --image image.mem --mode range --pid 1234 --start 0x10000
 外部分页参数为可重复的 `--pagefile INDEX=PATH` 和 `--swapfile PATH`；MCP 对应 `pagefiles: [{"index": 0, "path": "..."}]` 与 `swapfile`。只使用显式提供的同次采集附件。pagefile 索引由调用者指定，swapfile 必须通过精确内核符号唯一验证索引；不会猜测默认索引或搜索相邻文件。读取支持 software PTE 和分页页表，附件使用只读文件描述符，分析前后验证摘要及文件状态，结果记录实际读取页的文件偏移；摘要参与缓存键。
 
 压缩 store 路径要求精确 `SmGlobals`、分页文件全局符号及 SMKM 类型，以及已验证的虚拟分页索引。当前实现 Windows 10 x86/x64 的页键、两级 B-tree、chunk/record 链、owner 地址空间和原生 XPRESS 解压，并限制递归、循环、索引、输入与输出长度。公开 Microsoft PDB 往往缺少这些私有元数据，缺少时仍报告缺页。该路径目前仅有合成端到端验证，恢复时结果会标为部分；Windows 11／ARM64 压缩 store 尚未实现。XPRESS Huffman 使用固定版本的纯 Rust `xpress-huffman`，不调用 Windows API 或外部分析程序。
+
+休眠阶段新增 Windows 7 range array 和 NT6.2+ restoration set 物理页映射，支持有页索引的 full／Fast Startup 文件、普通 XPRESS 与 XPRESS Huffman 块。文件头指针宽度、恢复集合页数、解压长度和物理范围均校验，解压块缓存限 8 MiB；损坏块形成明确缺页并记录文件偏移。已知 Windows 10 头部的 `Hiberboot` 标记用于提示内核会话范围，不能从文件大小推断 full/reduced 类型。恢复后的 WAKE 或未知头部只提供能验证的信息。当前休眠路径仅经合成测试（含内核引导）验证，所有结果明确标为部分，尚无真实 hiberfil 验收。
+
+Windows 10 RAW 样本额外验证了 4 个 WOW64 进程（PID 4428、5684、5932、6492）的命令行和 210 条兼容视图 DLL；共有 DLL 记录与独立参考工具没有字段冲突。

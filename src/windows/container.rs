@@ -8,6 +8,7 @@ use std::{fs::File, os::unix::fs::FileExt};
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct Metadata {
     pub architecture: Architecture,
+    pub hibernation: Option<hiber::Info>,
     pub dtb: Option<u64>,
     pub module_list: Option<u64>,
     pub process_list: Option<u64>,
@@ -402,6 +403,13 @@ pub(super) fn analyze(
         system: "windows".into(),
         kernel_identity: serde_json::json!({"architecture":meta.architecture,"container":image.format,"scope":if meta.virtual_memory {"process"} else {"kernel metadata"},"metadata":meta,"capabilities":if meta.virtual_memory { vec!["windows.systeminfo","windows.dlllist","windows.pslist","windows.memdump","windows.procdump","windows.pedump"] } else { vec!["windows.systeminfo"] }}),
     };
+    if let Some(hiber) = &meta.hibernation {
+        result.complete = false;
+        result
+            .diagnostics
+            .push("休眠文件仅包含保存页；容器目前仅有合成验证".into());
+        result.diagnostics.extend(hiber.diagnostics.clone());
+    }
     if plugin == Plugin::WinSysteminfo {
         for (key, value) in [
             ("Container", image.format.into()),
