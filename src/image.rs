@@ -26,6 +26,7 @@ pub struct Image {
     pub segments: Vec<Segment>,
     pub digest: String,
     pub format: &'static str,
+    pub windows_container: Option<crate::windows::container::Metadata>,
 }
 pub fn digest_reader(mut reader: impl Read, job: &Job) -> Result<String> {
     let mut hash = Sha256::new();
@@ -192,7 +193,7 @@ impl Image {
             let (digest, found) = fingerprint(File::open(path)?, fs::metadata(path)?.len(), job)?;
             (path.to_path_buf(), digest, found)
         };
-        let mut image = Self::from_file(File::open(&prepared)?, digest)?;
+        let mut image = Self::from_file_with_job(File::open(&prepared)?, digest, job)?;
         image._cache_guard = Some(guard);
         let mut physical = Vec::new();
         for offset in candidates {
@@ -241,16 +242,25 @@ impl Image {
         Ok(image)
     }
     pub fn from_file(file: File, digest: String) -> Result<Self> {
+        Self::from_file_with_job(file, digest, &Job::default())
+    }
+    fn from_file_with_job(file: File, digest: String, job: &Job) -> Result<Self> {
         let len = file.metadata()?.len();
         ensure!(len >= 4, "镜像过短");
         let mut magic = [0; 4];
         file.read_exact_at(&mut magic, 0)?;
         ensure!(
-            &magic != b"PAGE" && &magic != b"MDMP" && &magic != b"hibr" && &magic != b"wake",
+            &magic != b"hibr" && &magic != b"wake",
             "不支持 Windows 崩溃转储/休眠容器；请提供 RAW 物理内存镜像"
         );
         let mut segments = Vec::new();
-        let format = if u32::from_le_bytes(magic) == 0x4c694d45 {
+        let mut windows_container = None;
+        let format = if &magic == b"PAGE" || &magic == b"MDMP" {
+            let parsed = crate::windows::container::parse(&file, job)?;
+            segments = parsed.segments;
+            windows_container = Some(parsed.metadata);
+            parsed.format
+        } else if u32::from_le_bytes(magic) == 0x4c694d45 {
             let mut pos = 0;
             while pos < len {
                 ensure!(len - pos >= 32, "LiME 头部截断 @ {pos:#x}");
@@ -301,6 +311,7 @@ impl Image {
             segments,
             digest,
             format,
+            windows_container,
         })
     }
     pub fn read(&self, mut address: u64, mut out: &mut [u8]) -> Result<()> {
@@ -312,7 +323,7 @@ impl Image {
                 .segments
                 .iter()
                 .find(|s| address >= s.start && address < s.end)
-                .with_context(|| format!("物理地址越界或 LiME 空洞 @ {address:#x}"))?;
+                .with_context(|| format!("地址越界或镜像空洞 @ {address:#x}"))?;
             let n = out.len().min((s.end - address) as usize);
             self.file
                 .read_exact_at(&mut out[..n], s.file_offset + address - s.start)?;

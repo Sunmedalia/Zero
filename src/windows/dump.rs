@@ -131,64 +131,96 @@ impl Windows<'_> {
         hash: &mut Sha256,
         job: &Job,
     ) -> Result<u64> {
-        let mut b = [0; 4096];
-        vm.read(base, &mut b)?;
-        let (image_size, _) = pe_header(&b)?;
-        let pe = u32::from_le_bytes(b[60..64].try_into()?) as usize;
-        let sections = u16::from_le_bytes(b[pe + 6..pe + 8].try_into()?) as usize;
-        let optional = u16::from_le_bytes(b[pe + 20..pe + 22].try_into()?) as usize;
-        ensure!(
-            sections <= 96 && pe + 24 + optional + sections * 40 <= 4096,
-            "PE 节表越界"
-        );
-        let headers = u32::from_le_bytes(b[pe + 84..pe + 88].try_into()?) as u64;
-        ensure!(
-            headers <= 4096 && headers >= ((pe + 24 + optional + sections * 40) as u64),
-            "PE SizeOfHeaders 无效"
-        );
-        let mut ranges = vec![(0, headers, 0)];
-        let mut size = headers;
-        for i in 0..sections {
-            let section = pe + 24 + optional + i * 40;
-            let rva = u32::from_le_bytes(b[section + 12..section + 16].try_into()?) as u64;
-            let len = u32::from_le_bytes(b[section + 16..section + 20].try_into()?) as u64;
-            let raw = u32::from_le_bytes(b[section + 20..section + 24].try_into()?) as u64;
-            if len == 0 {
-                continue;
-            }
-            ensure!(
-                rva.checked_add(len)
-                    .is_some_and(|end| end <= u64::from(image_size)),
-                "PE section VA 越界"
-            );
-            ensure!(raw >= headers, "PE section 与头重叠");
-            size = size.max(raw.checked_add(len).context("PE 大小溢出")?);
-            ranges.push((raw, len, rva));
-        }
-        ensure!(size <= crate::dump::MAX_DUMP_BYTES, "PE 转储超过限制");
-        ranges.sort_unstable();
-        ensure!(
-            ranges.windows(2).all(|r| r[0].0 + r[0].1 <= r[1].0),
-            "PE raw sections 重叠"
-        );
-        let mut position = 0;
-        let zeros = [0; 4096];
-        for (raw, len, rva) in ranges {
-            while position < raw {
-                job.check()?;
-                let n = ((raw - position) as usize).min(zeros.len());
-                file.write_all(&zeros[..n])?;
-                hash.update(&zeros[..n]);
-                position += n as u64;
-            }
-            write_region(vm, add(base, rva)?, len, file, hash, job)?;
-            position += len;
-        }
-        Ok(size)
+        reconstruct_pe(
+            &mut |address, bytes| vm.read(address, bytes),
+            base,
+            file,
+            hash,
+            job,
+        )
     }
+}
+pub(super) fn reconstruct_pe(
+    read: &mut dyn FnMut(u64, &mut [u8]) -> Result<()>,
+    base: u64,
+    file: &mut impl Write,
+    hash: &mut Sha256,
+    job: &Job,
+) -> Result<u64> {
+    let mut b = [0; 4096];
+    read(base, &mut b)?;
+    let (image_size, _) = pe_header(&b)?;
+    let pe = u32::from_le_bytes(b[60..64].try_into()?) as usize;
+    let sections = u16::from_le_bytes(b[pe + 6..pe + 8].try_into()?) as usize;
+    let optional = u16::from_le_bytes(b[pe + 20..pe + 22].try_into()?) as usize;
+    ensure!(
+        sections <= 96 && pe + 24 + optional + sections * 40 <= 4096,
+        "PE 节表越界"
+    );
+    let headers = u32::from_le_bytes(b[pe + 84..pe + 88].try_into()?) as u64;
+    ensure!(
+        headers <= 4096 && headers >= ((pe + 24 + optional + sections * 40) as u64),
+        "PE SizeOfHeaders 无效"
+    );
+    let mut ranges = vec![(0, headers, 0)];
+    let mut size = headers;
+    for i in 0..sections {
+        let section = pe + 24 + optional + i * 40;
+        let rva = u32::from_le_bytes(b[section + 12..section + 16].try_into()?) as u64;
+        let len = u32::from_le_bytes(b[section + 16..section + 20].try_into()?) as u64;
+        let raw = u32::from_le_bytes(b[section + 20..section + 24].try_into()?) as u64;
+        if len == 0 {
+            continue;
+        }
+        ensure!(
+            rva.checked_add(len)
+                .is_some_and(|end| end <= u64::from(image_size)),
+            "PE section VA 越界"
+        );
+        ensure!(raw >= headers, "PE section 与头重叠");
+        size = size.max(raw.checked_add(len).context("PE 大小溢出")?);
+        ranges.push((raw, len, rva));
+    }
+    ensure!(size <= crate::dump::MAX_DUMP_BYTES, "PE 转储超过限制");
+    ranges.sort_unstable();
+    ensure!(
+        ranges.windows(2).all(|r| r[0].0 + r[0].1 <= r[1].0),
+        "PE raw sections 重叠"
+    );
+    let mut position = 0;
+    let zeros = [0; 4096];
+    for (raw, len, rva) in ranges {
+        while position < raw {
+            job.check()?;
+            let n = ((raw - position) as usize).min(zeros.len());
+            file.write_all(&zeros[..n])?;
+            hash.update(&zeros[..n]);
+            position += n as u64;
+        }
+        write_reader(read, add(base, rva)?, len, file, hash, job)?;
+        position += len;
+    }
+    Ok(size)
 }
 fn write_region(
     vm: &Memory<'_>,
+    address: u64,
+    size: u64,
+    file: &mut impl Write,
+    hash: &mut Sha256,
+    job: &Job,
+) -> Result<()> {
+    write_reader(
+        &mut |address, bytes| vm.read(address, bytes),
+        address,
+        size,
+        file,
+        hash,
+        job,
+    )
+}
+pub(super) fn write_reader(
+    read: &mut dyn FnMut(u64, &mut [u8]) -> Result<()>,
     mut address: u64,
     mut size: u64,
     file: &mut impl Write,
@@ -199,7 +231,7 @@ fn write_region(
     while size > 0 {
         job.check()?;
         let n = (size as usize).min(b.len());
-        vm.read(address, &mut b[..n])?;
+        read(address, &mut b[..n])?;
         file.write_all(&b[..n])?;
         hash.update(&b[..n]);
         address += n as u64;

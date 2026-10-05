@@ -16,6 +16,7 @@ use std::collections::{BTreeMap, HashSet};
 pub mod arch;
 pub use arch::Architecture;
 use arch::Paging;
+pub mod container;
 mod dump;
 mod memory;
 mod network;
@@ -488,6 +489,13 @@ pub fn analyze(
     options: &Options,
     job: &Job,
 ) -> Result<Outcome> {
+    if image
+        .windows_container
+        .as_ref()
+        .is_some_and(|m| m.virtual_memory || image.segments.is_empty())
+    {
+        return container::analyze(image, request, dump, options, job).map(Outcome::Ready);
+    }
     if request.plugin.is_dump() {
         dump.context("Windows 转储需要 PID 和输出目录")?
             .validate(request.plugin)?;
@@ -591,7 +599,12 @@ pub fn discover(image: &Image, isf: &Isf, job: &Job) -> Result<(u64, u64)> {
     let geometry = Paging::new(isf)?;
     let mut headers = HashSet::new();
     let minimum = isf.raw_address("PsInitialSystemProcess")?;
-    let mut roots = Vec::new();
+    let mut roots = image
+        .windows_container
+        .as_ref()
+        .and_then(|m| m.dtb)
+        .into_iter()
+        .collect::<Vec<_>>();
     let mut block = vec![0; 4 * 1024 * 1024];
     for segment in &image.segments {
         let mut start = segment.start.next_multiple_of(4096);

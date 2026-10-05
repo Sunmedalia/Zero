@@ -885,7 +885,7 @@ pub fn banner_result(image: &Image, job: &Job) -> Result<Results> {
         })
         .collect();
     let rows: Vec<Vec<String>> = rows;
-    let rows = if rows.is_empty() {
+    let mut rows = if rows.is_empty() {
         image
             .windows_candidates(job)?
             .iter()
@@ -899,7 +899,15 @@ pub fn banner_result(image: &Image, job: &Job) -> Result<Results> {
     } else {
         rows
     };
-    let system = if rows.iter().any(|r| r[1].starts_with("Windows PDB ")) {
+    if rows.is_empty() && image.windows_container.is_some() {
+        rows.push(vec![
+            "[container]".into(),
+            format!("Windows container {}", image.format),
+        ]);
+    }
+    let system = if image.windows_container.is_some()
+        || rows.iter().any(|r| r[1].starts_with("Windows PDB "))
+    {
         "windows"
     } else {
         "linux"

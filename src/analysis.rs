@@ -29,7 +29,8 @@ pub fn analyze(
 ) -> Result<Outcome> {
     let image = session.prepare_image(request.image, request.cache, job)?;
     let linux = !image.banners(job)?.is_empty();
-    let windows = request.plugin.is_windows()
+    let windows = image.windows_container.is_some()
+        || request.plugin.is_windows()
         || options.os == Os::Windows
         || (!linux && !image.windows_candidates(job)?.is_empty());
     ensure!(

@@ -350,3 +350,5 @@ zero dump --os windows --image image.mem --mode range --pid 1234 --start 0x10000
 ## Windows 扩展阶段
 
 多架构基础提供 `--arch auto|x86|x64|arm64`，MCP 对应 `arch`，TUI 的 Windows 参数页可选择架构。指针和 PDB 机器类型必须一致；架构冲突明确报错。x86 普通／PAE、ARM64 4 KiB 页表目前经合成测试验证，真实镜像验收仍以既有 Windows 10/11 x64 为准；不应据此宣称所有架构的所有插件已完成。
+
+容器阶段新增 PAGE/DUMP（x86）与 PAGE/DU64（x64/ARM64）的物理 run 表、SDMP/FDMP 位图，以及 MDMP 的 MemoryList/Memory64、模块、线程栈和系统元数据读取。内核小型转储当前仅开放头部信息；用户态 minidump 开放进程范围的模块、范围/进程/PE 导出，需要文件记录 PID。它不提供系统进程列表或内核模块列表。缺失地址保持缺页；未知布局不会按 RAW 读取。

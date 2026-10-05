@@ -622,10 +622,11 @@ impl App {
         items
     }
     fn apply_identification(&mut self, result: &Results) {
-        let detected_windows = result
-            .rows
-            .iter()
-            .any(|r| r.get(1).is_some_and(|s| s.starts_with("Windows PDB ")));
+        let detected_windows = result.system == "windows"
+            || result
+                .rows
+                .iter()
+                .any(|r| r.get(1).is_some_and(|s| s.starts_with("Windows PDB ")));
         let windows = match self.analysis_options.os {
             crate::analysis::Os::Windows => true,
             crate::analysis::Os::Linux => false,
