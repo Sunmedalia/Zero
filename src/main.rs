@@ -8,7 +8,11 @@ use zero_tui::{
 };
 
 #[derive(Parser)]
-#[command(version, about = "Rust 原生 Linux x86_64／ARM64 内存取证与符号匹配")]
+#[command(
+    name = "zero",
+    version,
+    about = "Rust 原生 Linux x86_64／ARM64 内存取证与符号匹配"
+)]
 struct Cli {
     #[arg(long)]
     image: Option<PathBuf>,

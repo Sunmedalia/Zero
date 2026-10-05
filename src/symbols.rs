@@ -461,7 +461,7 @@ pub fn catalog_search(
 ) -> Result<Vec<RemoteMatch>> {
     let path = cache.join("symbols/banners_plain.json");
     if !path.is_file() {
-        ensure!(network, "离线模式且索引未缓存；开启在线后刷新索引");
+        ensure!(network, "离线模式且索引未缓存；按 o 开启在线后刷新索引");
         refresh_index(cache, job)?;
     }
     let index: Value = serde_json::from_slice(&fs::read(path)?)?;

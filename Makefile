@@ -7,7 +7,7 @@ install:
 	cargo install --path . --locked
 
 run tui:
-	cargo run --release -- $(ARGS)
+	cargo run --release --bin zero -- $(ARGS)
 
 test:
 	cargo test --locked

@@ -293,6 +293,14 @@ enum Dialog {
         matches: Vec<RemoteMatch>,
         selected: usize,
     },
+    AssetDetail {
+        asset: Asset,
+        scroll: usize,
+    },
+    RemoteDetail {
+        candidate: RemoteMatch,
+        scroll: usize,
+    },
     Detail {
         text: String,
         scroll: usize,
@@ -316,31 +324,39 @@ enum Dialog {
 enum Page {
     #[default]
     Analysis,
-    Images,
-    Symbols,
-    Remote,
+    Assets,
 }
 impl Page {
-    const ALL: [Self; 3] = [Self::Analysis, Self::Images, Self::Symbols];
+    const ALL: [Self; 2] = [Self::Analysis, Self::Assets];
     fn index(self) -> usize {
-        if self == Self::Remote {
-            2
-        } else {
-            Self::ALL.iter().position(|p| *p == self).unwrap()
-        }
-    }
-    fn slot(self) -> usize {
-        if self == Self::Remote {
-            2
-        } else {
-            self.index().saturating_sub(1)
-        }
+        usize::from(self == Self::Assets)
     }
     fn title(self) -> &'static str {
         match self {
             Self::Analysis => "分析",
+            Self::Assets => "镜像与符号",
+        }
+    }
+}
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+enum AssetSection {
+    Images,
+    #[default]
+    Symbols,
+    Remote,
+}
+impl AssetSection {
+    fn slot(self) -> usize {
+        match self {
+            Self::Images => 0,
+            Self::Symbols => 1,
+            Self::Remote => 2,
+        }
+    }
+    fn title(self) -> &'static str {
+        match self {
             Self::Images => "镜像",
-            Self::Symbols => "符号管理",
+            Self::Symbols => "本地符号",
             Self::Remote => "远程符号",
         }
     }
@@ -377,7 +393,10 @@ enum WorkerEvent {
 struct HitMap {
     header: Rect,
     tabs: Vec<(Rect, Page)>,
-    sources: Vec<(Rect, Page)>,
+    sources: Vec<(Rect, AssetSection)>,
+    asset_lists: Vec<(Rect, AssetSection, usize)>,
+    asset_buttons: Vec<(Rect, AssetSection, KeyCode)>,
+    asset_searches: Vec<(Rect, AssetSection)>,
     dump_fields: Vec<(Rect, usize)>,
     dump_modes: Vec<(Rect, Plugin)>,
     assets: Rect,
@@ -404,17 +423,49 @@ struct View {
     state: TableState,
     horizontal: usize,
 }
+fn asset_actions(section: AssetSection) -> Vec<(&'static str, KeyCode)> {
+    let mut actions = match section {
+        AssetSection::Images => vec![
+            ("选用镜像 Enter", KeyCode::Enter),
+            ("导入镜像 a", KeyCode::Char('a')),
+        ],
+        AssetSection::Symbols => vec![
+            ("选用符号 Enter", KeyCode::Enter),
+            ("导入符号 a", KeyCode::Char('a')),
+            ("全部／匹配 z", KeyCode::Char('z')),
+        ],
+        AssetSection::Remote => vec![
+            ("查看详情 Enter", KeyCode::Enter),
+            ("下载到 symbols w", KeyCode::Char('w')),
+            ("获取完整索引 g", KeyCode::Char('g')),
+        ],
+    };
+    actions.extend([
+        ("搜索 /", KeyCode::Char('/')),
+        ("完整详情 d", KeyCode::Char('d')),
+        ("本地匹配 m", KeyCode::Char('m')),
+        ("远程匹配 M", KeyCode::Char('M')),
+        ("识别内核 b", KeyCode::Char('b')),
+        ("刷新 r", KeyCode::Char('r')),
+        ("开始分析 x", KeyCode::Char('x')),
+        ("本地／远程 t", KeyCode::Char('t')),
+        ("在线／离线 o", KeyCode::Char('o')),
+    ]);
+    if section != AssetSection::Remote {
+        actions.push(("移出清单 Delete", KeyCode::Delete));
+    }
+    actions
+}
 const COMMANDS: &[(&str, KeyCode)] = &[
     ("获取远程符号索引", KeyCode::Char('g')),
     ("搜索远程符号", KeyCode::Char('f')),
-    ("打开镜像管理", KeyCode::F(10)),
-    ("打开符号管理", KeyCode::F(11)),
-    ("打开分析页", KeyCode::F(9)),
+    ("打开镜像与符号", KeyCode::F(3)),
+    ("打开分析页", KeyCode::F(2)),
     ("打开镜像", KeyCode::Char('i')),
     ("选择本地符号", KeyCode::Char('y')),
     ("搜索插件", KeyCode::Char('p')),
     ("Dump 导出进程／地址范围／ELF", KeyCode::Char('D')),
-    ("当前镜像 → 本地符号匹配", KeyCode::Char('u')),
+    ("当前镜像 → 本地符号匹配", KeyCode::Char('m')),
     ("当前镜像 → 远程精确匹配", KeyCode::Char('M')),
     ("识别内核候选", KeyCode::Char('b')),
     ("管理缓存 cache [c]", KeyCode::Char('c')),
@@ -451,7 +502,7 @@ fn command_matches(query: &str, page: Page, focus: usize) -> Vec<usize> {
                 && (!assets_only || page != Page::Analysis)
                 && (!result_action || focus >= 2)
                 && label.contains(query)
-                && if matches!(page, Page::Symbols | Page::Remote) {
+                && if page == Page::Assets {
                     !label.contains("生成 Kali")
                 } else {
                     !label.contains("远程符号")
@@ -462,6 +513,8 @@ fn command_matches(query: &str, page: Page, focus: usize) -> Vec<usize> {
 }
 pub struct App {
     page: Page,
+    section: AssetSection,
+    symbol_source: AssetSection,
     root: PathBuf,
     registry: Registry,
     assets: Vec<Asset>,
@@ -473,6 +526,7 @@ pub struct App {
     remote: Vec<RemoteMatch>,
     remote_catalog: bool,
     download_analyzes: bool,
+    lookup_dialog: bool,
     download_url: Option<String>,
     downloads: HashMap<String, PathBuf>,
     hidden_cache_copies: HashSet<PathBuf>,
@@ -575,6 +629,8 @@ impl App {
         });
         Self {
             page: Page::Analysis,
+            section: AssetSection::Images,
+            symbol_source: AssetSection::Symbols,
             root,
             registry,
             assets,
@@ -584,8 +640,9 @@ impl App {
             asset_states: RefCell::new(Default::default()),
             asset_details: HashMap::new(),
             remote: vec![],
-            remote_catalog: false,
+            remote_catalog: true,
             download_analyzes: false,
+            lookup_dialog: false,
             download_url: None,
             downloads: HashMap::new(),
             hidden_cache_copies: HashSet::new(),
@@ -638,6 +695,156 @@ impl App {
             self.refresh_assets();
         }
     }
+    fn switch_section(&mut self, section: AssetSection) {
+        self.page = Page::Assets;
+        self.section = section;
+        if section != AssetSection::Images {
+            self.symbol_source = section;
+        }
+        self.focus = 1;
+        self.refresh_assets();
+    }
+    fn local_work(&self) -> Work {
+        let paths = self
+            .assets
+            .iter()
+            .filter(|a| {
+                a.kind == Kind::Symbols
+                    && a.available
+                    && !a.directory
+                    && !self.hidden_cache_copies.contains(&a.path)
+            })
+            .map(|a| a.path.clone())
+            .collect();
+        Work::MatchLocal(paths, self.local_stamp())
+    }
+    fn prepare_selected_image(&mut self) {
+        if self.job.is_some() {
+            return;
+        }
+        if self.local_match_stamp.as_ref() == Some(&self.local_stamp()) {
+            self.local_only_matches = true;
+            self.status = "复用内核识别与本地符号匹配；选用符号后开始分析".into();
+        } else {
+            self.start_work(self.local_work());
+        }
+    }
+    fn available_commands(&self, query: &str) -> Vec<(&'static str, KeyCode)> {
+        if self.page == Page::Analysis {
+            command_matches(query, self.page, self.focus)
+                .into_iter()
+                .map(|i| COMMANDS[i])
+                .collect()
+        } else {
+            let mut commands = asset_actions(self.section);
+            commands.extend([
+                ("打开分析页 F2", KeyCode::F(2)),
+                ("打开镜像与符号 F3", KeyCode::F(3)),
+                ("目录设置 ,", KeyCode::Char(',')),
+                ("缓存管理 c", KeyCode::Char('c')),
+                ("任务日志 l", KeyCode::Char('l')),
+                ("帮助 F1", KeyCode::F(1)),
+                ("取消任务 Esc", KeyCode::Esc),
+            ]);
+            commands
+                .into_iter()
+                .filter(|(label, _)| label.contains(query))
+                .collect()
+        }
+    }
+    fn asset_disabled(&self, section: AssetSection, key: KeyCode) -> Option<&'static str> {
+        let busy = self.job.is_some();
+        if matches!(key, KeyCode::Char('m' | 'M' | 'b' | 'x')) && self.image.is_none() {
+            return Some("请先选用镜像");
+        }
+        if key == KeyCode::Char('x')
+            && self.plugin != Plugin::Banners
+            && self.symbols.as_os_str().is_empty()
+        {
+            return Some("请先选用本地符号");
+        }
+        if key == KeyCode::Char('a') && section == AssetSection::Remote {
+            return Some("远程符号请使用下载");
+        }
+        if key == KeyCode::Char('w')
+            && (section != AssetSection::Remote
+                || self.remote_list().get(self.asset_rows[2]).is_none())
+        {
+            return Some("请先选择远程符号");
+        }
+        if matches!(key, KeyCode::Enter | KeyCode::Delete | KeyCode::Char('d')) {
+            let empty = if section == AssetSection::Remote {
+                self.remote_list().is_empty()
+            } else {
+                self.asset_list_for(section).is_empty()
+            };
+            if empty {
+                return Some("列表为空，请导入或搜索");
+            }
+        }
+        if busy
+            && matches!(
+                key,
+                KeyCode::Char('a' | 'm' | 'M' | 'b' | 'x' | 'w' | 'g' | 'r' | 'o')
+                    | KeyCode::Delete
+            )
+        {
+            return Some("任务执行中，请等待或取消");
+        }
+        if busy && key == KeyCode::Enter && section != AssetSection::Remote {
+            return Some("任务执行中，请等待或取消");
+        }
+        None
+    }
+    fn remote_detail_text(&self, candidate: &RemoteMatch) -> String {
+        let path = self.downloads.get(&candidate.url).filter(|p| p.is_file());
+        let state = if self.download_url.as_ref() == Some(&candidate.url) && self.job.is_some() {
+            "正在下载"
+        } else if path.is_some() {
+            "已保存到本地库"
+        } else if self.remote_cached(candidate) {
+            "缓存可用，点击下载保存到本地库"
+        } else {
+            "尚未下载"
+        };
+        format!(
+            "完整 banner: {}\n\n仓库路径: {}\n\n下载链接: {}\n\n状态: {state}\n保存位置: {}\n\n{}\n{}",
+            escaped(&candidate.banner),
+            escaped(&candidate.path),
+            escaped(&candidate.url),
+            path.map(|p| escaped(&p.display().to_string()))
+                .unwrap_or_else(|| self.settings.symbols.clone()),
+            escaped(&self.status),
+            self.last_error.as_deref().map(escaped).unwrap_or_default()
+        )
+    }
+    fn open_asset_detail(&mut self) {
+        if self.section == AssetSection::Remote {
+            if let Some(candidate) = self
+                .remote_list()
+                .get(self.asset_rows[2])
+                .map(|m| (*m).clone())
+            {
+                self.dialog = Some(Dialog::RemoteDetail {
+                    candidate,
+                    scroll: 0,
+                });
+            }
+        } else if let Some(asset) = self.selected_asset() {
+            self.dialog = Some(Dialog::AssetDetail {
+                asset: asset.clone(),
+                scroll: 0,
+            });
+            if asset.kind == Kind::Symbols
+                && !asset.directory
+                && !self.asset_details.contains_key(&asset.path)
+                && self.job.is_none()
+            {
+                self.start_work(Work::InspectSymbols(asset.path));
+            }
+        }
+    }
+
     fn refresh_assets(&mut self) {
         match Registry::load(&self.cache) {
             Ok(registry) => self.registry = registry,
@@ -709,9 +916,18 @@ impl App {
             self.local_matches.clear();
             self.local_only_matches = false;
         }
-        if self.page != Page::Analysis {
-            self.asset_rows[self.page.slot()] =
-                self.asset_rows[self.page.slot()].min(self.asset_count().saturating_sub(1));
+        for section in [
+            AssetSection::Images,
+            AssetSection::Symbols,
+            AssetSection::Remote,
+        ] {
+            let count = if section == AssetSection::Remote {
+                self.remote_list().len()
+            } else {
+                self.asset_list_for(section).len()
+            };
+            self.asset_rows[section.slot()] =
+                self.asset_rows[section.slot()].min(count.saturating_sub(1));
         }
     }
     fn invalidate_source(&mut self) {
@@ -778,10 +994,11 @@ impl App {
             self.status = "等待当前任务完成；Esc 可取消后匹配符号".into();
             return;
         }
-        if self.page == Page::Images && !self.use_selected_asset() {
-            return;
-        }
-        self.switch_page(if remote { Page::Remote } else { Page::Symbols });
+        self.switch_section(if remote {
+            AssetSection::Remote
+        } else {
+            AssetSection::Symbols
+        });
         if remote {
             self.remote_catalog = false;
             self.asset_queries[2].clear();
@@ -793,7 +1010,7 @@ impl App {
             if self.image.is_some() && self.local_match_stamp.as_ref() == Some(&stamp) {
                 self.local_only_matches = true;
                 self.status = format!(
-                    "复用本地完整 banner 匹配：{} 个文件；t 远程，x 返回分析",
+                    "复用本地完整 banner 匹配：{} 个文件；t 远程，x 开始分析",
                     self.local_matches.len()
                 );
             } else {
@@ -851,18 +1068,21 @@ impl App {
             .to_string()
     }
     fn asset_list(&self) -> Vec<&Asset> {
-        let kind = if self.page == Page::Images {
+        self.asset_list_for(self.section)
+    }
+    fn asset_list_for(&self, section: AssetSection) -> Vec<&Asset> {
+        let kind = if section == AssetSection::Images {
             Kind::Image
         } else {
             Kind::Symbols
         };
-        let query = self.asset_queries[self.page.slot()].to_lowercase();
+        let query = self.asset_queries[section.slot()].to_lowercase();
         self.assets
             .iter()
             .filter(|a| {
                 a.kind == kind
                     && !self.hidden_cache_copies.contains(&a.path)
-                    && (self.page != Page::Symbols
+                    && (section != AssetSection::Symbols
                         || !self.local_only_matches
                         || self.local_matches.contains_key(&a.path))
                     && a.path.to_string_lossy().to_lowercase().contains(&query)
@@ -887,7 +1107,7 @@ impl App {
             .collect()
     }
     fn asset_count(&self) -> usize {
-        if self.page == Page::Remote {
+        if self.section == AssetSection::Remote {
             self.remote_list().len()
         } else {
             self.asset_list().len()
@@ -895,19 +1115,22 @@ impl App {
     }
     fn selected_asset(&self) -> Option<Asset> {
         self.asset_list()
-            .get(self.asset_rows[self.page.slot()])
+            .get(self.asset_rows[self.section.slot()])
             .map(|a| (*a).clone())
     }
     fn asset_text(&self) -> String {
-        if self.page == Page::Remote {
+        if self.section == AssetSection::Remote {
             return self.remote_list().get(self.asset_rows[2]).map(|m|format!("远程符号索引\n\n完整 banner: {}\n\n仓库路径: {}\n\n下载链接: {}\n\n下载前校验索引路径和 ISF。手动获取的符号会加入本地库，选用后再验证镜像。",escaped(&m.banner),escaped(&m.path),escaped(&m.url)))
-                .unwrap_or_else(||"g 获取或刷新完整符号索引。\nf 输入关键词筛选；选中条目后按 Enter 下载。\nm 按当前镜像 banner 精确匹配。".into());
+                .unwrap_or_else(||"g 获取或刷新完整符号索引。\n/ 输入关键词筛选；选中条目后按 Enter 查看详情，w 下载。\nM 按当前镜像 banner 精确匹配。".into());
         }
         let Some(asset) = self.selected_asset() else {
-            return "按 a 导入路径，或将文件放入配置的 images／symbols 目录。\n\nEnter 选用；Backspace 移出清单，原文件保留。".into();
+            return "按 a 导入路径，或将文件放入配置的 images／symbols 目录。\n\nEnter 选用；Delete 移出清单，原文件保留。".into();
         };
+        self.local_asset_text(&asset)
+    }
+    fn local_asset_text(&self, asset: &Asset) -> String {
         let mut text = format!(
-            "{}\n\n路径: {}\n格式: {}\n大小: {:.2} MiB\n来源: {}\n状态: {}\n\nEnter 选用 · Backspace 移出清单（保留文件）",
+            "{}\n\n路径: {}\n格式: {}\n大小: {:.2} MiB\n来源: {}\n状态: {}\n\nEnter 选用 · Delete 移出清单（保留文件）",
             escaped(&asset.name()),
             escaped(&asset.path.display().to_string()),
             asset.format(),
@@ -919,10 +1142,10 @@ impl App {
                 "文件缺失；重新导入路径"
             }
         );
-        if self.page == Page::Symbols {
+        if asset.kind == Kind::Symbols {
             if let Some(labels) = self.local_matches.get(&asset.path) {
                 text.push_str(&format!(
-                    "\n\n完整 banner 匹配: {} 个 ISF\n{}\nEnter 选用并返回分析；执行时验证页表。",
+                    "\n\n完整 banner 匹配: {} 个 ISF\n{}\nEnter 选用；x 开始分析并验证页表。",
                     labels.len(),
                     labels
                         .iter()
@@ -963,7 +1186,7 @@ impl App {
                     text.push_str(&format!("\n\n候选 @ {}: {}", row[0], escaped(&row[1])));
                 }
             } else {
-                text.push_str("\n\nb 识别内核候选；m 获取远程符号匹配。");
+                text.push_str("\n\nb 识别内核候选；M 获取远程符号匹配。");
             }
         }
         text
@@ -998,6 +1221,8 @@ impl App {
                 self.invalidate_symbols();
             } else {
                 self.invalidate_source();
+                self.symbols = PathBuf::new();
+                self.choice = None;
             }
         }
         if asset.kind == Kind::Image {
@@ -1014,7 +1239,10 @@ impl App {
         true
     }
     fn asset_key(&mut self, key: KeyEvent) -> bool {
-        let slot = self.page.slot();
+        if self.focus == 2 && self.hits.borrow().asset_detail.height == 0 {
+            self.focus = 1;
+        }
+        let slot = self.section.slot();
         if self.focus == 2
             && matches!(
                 key.code,
@@ -1042,10 +1270,39 @@ impl App {
             };
             return false;
         }
+        if let Some(reason) = self.asset_disabled(self.section, key.code) {
+            self.status = reason.into();
+            return false;
+        }
         match key.code {
             KeyCode::Char('q') => return true,
             KeyCode::Esc => self.cancel(),
-            KeyCode::Tab | KeyCode::BackTab => self.focus = if self.focus == 1 { 2 } else { 1 },
+            KeyCode::Tab | KeyCode::BackTab => {
+                let detail = self.hits.borrow().asset_detail.height > 0;
+                let current = if self.focus == 2 {
+                    2
+                } else if self.section == AssetSection::Images {
+                    0
+                } else {
+                    1
+                };
+                let count = if detail { 3 } else { 2 };
+                let next = (current
+                    + if key.code == KeyCode::BackTab {
+                        count - 1
+                    } else {
+                        1
+                    })
+                    % count;
+                self.focus = if next == 2 { 2 } else { 1 };
+                if next != 2 {
+                    self.section = if next == 0 {
+                        AssetSection::Images
+                    } else {
+                        self.symbol_source
+                    };
+                }
+            }
             KeyCode::Up | KeyCode::Char('k') => {
                 self.asset_rows[slot] = self.asset_rows[slot].saturating_sub(1)
             }
@@ -1061,42 +1318,29 @@ impl App {
             KeyCode::Home => self.asset_rows[slot] = 0,
             KeyCode::End => self.asset_rows[slot] = self.asset_count().saturating_sub(1),
             KeyCode::Char('/') => self.open_input(InputKind::AssetsSearch),
-            KeyCode::Char('i') | KeyCode::F(2) => self.open_files(InputKind::Image),
-            KeyCode::Char('y') | KeyCode::F(3) => self.open_files(InputKind::Symbols),
-            KeyCode::Char('a') => self.open_files(if self.page == Page::Images {
+            KeyCode::Char('a') => self.open_files(if self.section == AssetSection::Images {
                 InputKind::Image
             } else {
                 InputKind::Symbols
             }),
-            KeyCode::Enter if self.page == Page::Remote => {
+            KeyCode::Enter if self.section == AssetSection::Remote => self.open_asset_detail(),
+            KeyCode::Char('w') => {
                 if let Some(candidate) = self
                     .remote_list()
                     .get(self.asset_rows[2])
                     .map(|m| (*m).clone())
                 {
-                    self.start_work(if self.remote_catalog {
-                        Work::CatalogDownload(candidate)
-                    } else {
-                        Work::Download(candidate)
-                    });
-                } else {
-                    self.status = "没有选中的符号；f 搜索索引，m 精确匹配镜像".into();
+                    self.start_work(Work::CatalogDownload(candidate));
                 }
             }
             KeyCode::Enter => {
                 let selected = self.use_selected_asset();
-                if selected && self.page == Page::Images {
-                    self.start_work(Work::Identify);
-                } else if selected
-                    && self.page == Page::Symbols
-                    && self.local_only_matches
-                    && self.image.is_some()
-                {
-                    self.switch_page(Page::Analysis);
-                    self.status = "本地符号已选用；按 Enter 执行分析并验证页表".into();
+                if selected && self.section == AssetSection::Images {
+                    self.symbol_source = AssetSection::Symbols;
+                    self.prepare_selected_image();
                 }
             }
-            KeyCode::Backspace if self.page != Page::Remote => {
+            KeyCode::Delete if self.section != AssetSection::Remote => {
                 if self.job.is_some() {
                     self.status = "任务执行中；Esc 取消后再移出资产".into();
                 } else if let Some(asset) = self.selected_asset() {
@@ -1120,50 +1364,50 @@ impl App {
                     }
                 }
             }
-            KeyCode::Char('d') => {
-                if self.page == Page::Symbols
-                    && let Some(asset) = self.selected_asset()
-                    && !self.asset_details.contains_key(&asset.path)
-                {
-                    self.start_work(Work::InspectSymbols(asset.path));
-                } else {
-                    self.dialog = Some(Dialog::Detail {
-                        text: self.asset_text(),
-                        scroll: 0,
-                    });
-                }
-            }
-            KeyCode::Char('b') | KeyCode::F(7) => {
-                if self.page == Page::Images && !self.use_selected_asset() {
-                    return false;
-                }
+            KeyCode::Char('d') => self.open_asset_detail(),
+            KeyCode::Char('b') => {
                 self.start_work(Work::Identify);
             }
-            KeyCode::Char('u') | KeyCode::F(6) => self.symbol_target(false),
-            KeyCode::Char('m') => self.symbol_target(self.page != Page::Symbols),
-            KeyCode::Char('z') if self.page == Page::Symbols => {
+            KeyCode::Char('m') => self.symbol_target(false),
+            KeyCode::Char('M') => self.symbol_target(true),
+            KeyCode::Char('z') if self.section == AssetSection::Symbols => {
                 self.local_only_matches = !self.local_only_matches;
                 self.asset_rows[1] = 0;
             }
-            KeyCode::Char('r') | KeyCode::F(5) if self.page == Page::Remote => {
+            KeyCode::Char('r') if self.section == AssetSection::Remote => {
                 if self.remote_catalog {
-                    self.start_work(Work::Catalog(String::new(), self.settings.remote_symbols));
+                    self.start_work(Work::Catalog(
+                        self.asset_queries[2].clone(),
+                        self.settings.remote_symbols,
+                    ));
                 } else {
                     self.start_work(Work::RefreshLookup);
                 }
             }
-            KeyCode::Char('r') | KeyCode::F(5) => {
+            KeyCode::Char('r') => {
                 self.asset_details.clear();
                 self.refresh_assets();
                 self.status = "资产清单已刷新".into();
             }
-            KeyCode::Char('g') => self.start_work(Work::PrepareKali),
+            KeyCode::Char('g') => {
+                self.switch_section(AssetSection::Remote);
+                self.remote_catalog = true;
+                self.asset_queries[2].clear();
+                self.start_work(Work::Catalog(String::new(), self.settings.remote_symbols));
+            }
+            KeyCode::Char('t') => {
+                self.switch_section(if self.symbol_source == AssetSection::Symbols {
+                    AssetSection::Remote
+                } else {
+                    AssetSection::Symbols
+                });
+            }
             KeyCode::Char('x') => {
                 self.switch_page(Page::Analysis);
                 self.start();
             }
             KeyCode::Char('c') => self.open_cache(),
-            KeyCode::Char('p') | KeyCode::F(4) => {
+            KeyCode::Char('p') => {
                 self.dialog = Some(Dialog::Plugins {
                     query: String::new(),
                     selected: 0,
@@ -1193,7 +1437,7 @@ impl App {
     fn draw_tabs(&self, frame: &mut Frame, area: Rect) {
         let mut x = area.x;
         for (i, page) in Page::ALL.iter().enumerate() {
-            let label = format!(" F{} {} ", i + 9, page.title());
+            let label = format!(" F{} {} ", i + 2, page.title());
             let width = Span::raw(&label).width() as u16;
             let rect = Rect::new(
                 x,
@@ -1301,7 +1545,7 @@ impl App {
                     ("i镜像", KeyCode::Char('i')),
                     ("y符号", KeyCode::Char('y')),
                     ("b识别", KeyCode::Char('b')),
-                    ("u符号", KeyCode::Char('u')),
+                    ("m本地匹配", KeyCode::Char('m')),
                 ],
                 1 => vec![
                     ("Enter运行", KeyCode::Enter),
@@ -1329,45 +1573,16 @@ impl App {
                     ("v诊断", KeyCode::Char('v')),
                 ],
             }
-        } else if self.focus == 2 {
+        } else if self.focus == 2 && self.hits.borrow().asset_detail.height > 0 {
             vec![
                 ("↑上滚", KeyCode::Up),
                 ("↓下滚", KeyCode::Down),
                 ("PgDn翻页", KeyCode::PageDown),
-                ("d全文", KeyCode::Char('d')),
+                ("完整详情 d", KeyCode::Char('d')),
                 ("Tab列表", KeyCode::Tab),
             ]
         } else {
-            match self.page {
-                Page::Symbols => vec![
-                    ("Enter选用", KeyCode::Enter),
-                    ("/搜索", KeyCode::Char('/')),
-                    ("a导入", KeyCode::Char('a')),
-                    ("m匹配", KeyCode::Char('m')),
-                    ("z全部", KeyCode::Char('z')),
-                    ("M远程", KeyCode::Char('M')),
-                    ("t远程", KeyCode::Char('t')),
-                    ("r刷新", KeyCode::Char('r')),
-                    ("d详情", KeyCode::Char('d')),
-                ],
-                Page::Remote => vec![
-                    ("g Fetch", KeyCode::Char('g')),
-                    ("/搜索", KeyCode::Char('/')),
-                    ("Enter下载", KeyCode::Enter),
-                    ("t本地", KeyCode::Char('t')),
-                    ("m精配", KeyCode::Char('m')),
-                    ("d详情", KeyCode::Char('d')),
-                ],
-                _ => vec![
-                    ("a导入", KeyCode::Char('a')),
-                    ("Enter选用", KeyCode::Enter),
-                    ("/搜索", KeyCode::Char('/')),
-                    ("u符号", KeyCode::Char('u')),
-                    ("m远程", KeyCode::Char('m')),
-                    ("x分析", KeyCode::Char('x')),
-                    ("d详情", KeyCode::Char('d')),
-                ],
-            }
+            asset_actions(self.section)
         };
         if self.job.is_some() {
             actions.insert(0, ("Esc取消", KeyCode::Esc));
@@ -1375,249 +1590,298 @@ impl App {
         actions.push(("?更多", KeyCode::Char('?')));
         actions
     }
-    fn draw_assets(&self, frame: &mut Frame, area: Rect) {
-        let area = if matches!(self.page, Page::Symbols | Page::Remote) {
-            let regions = Layout::vertical([
-                Constraint::Length(1),
-                Constraint::Length(2),
-                Constraint::Length(3),
-                Constraint::Min(2),
-            ])
-            .split(area);
-            let mut x = regions[0].x;
-            for (label, page) in [(" 本地库 ", Page::Symbols), (" 远程索引 ", Page::Remote)]
-            {
-                let width = Span::raw(label).width() as u16;
-                let rect = Rect::new(
-                    x,
-                    regions[0].y,
-                    width.min(regions[0].right().saturating_sub(x)),
-                    1,
-                );
-                frame.render_widget(
-                    Paragraph::new(label).style(if self.page == page {
-                        Style::default()
-                            .fg(FOCUS)
-                            .bg(SELECTED_BG)
-                            .add_modifier(Modifier::BOLD)
-                    } else {
-                        Style::default().fg(ACCENT)
-                    }),
-                    rect,
-                );
-                self.hits.borrow_mut().sources.push((rect, page));
-                x += width + 1;
+    fn draw_asset_buttons(
+        &self,
+        frame: &mut Frame,
+        area: Rect,
+        section: AssetSection,
+        keys: &[KeyCode],
+    ) {
+        let mut x = area.x;
+        let mut y = area.y;
+        for (label, key) in asset_actions(section)
+            .into_iter()
+            .filter(|(_, key)| keys.contains(key))
+        {
+            let text = format!(" {label} ");
+            let width = Span::raw(&text).width() as u16;
+            if width > area.width {
+                continue;
             }
+            if x + width > area.right() {
+                x = area.x;
+                y += 1;
+            }
+            if y >= area.bottom() {
+                break;
+            }
+            let rect = Rect::new(x, y, width, 1);
+            let disabled = self.asset_disabled(section, key);
             frame.render_widget(
-                Paragraph::new(if self.page == Page::Remote {
-                    "t 切换 · g Fetch 索引 · Enter 下载"
+                Paragraph::new(text).style(if disabled.is_some() {
+                    Style::default().fg(Color::DarkGray)
                 } else {
-                    "t 切换 · a 导入 · Enter 选用"
-                })
-                .style(Style::default().fg(Color::DarkGray)),
-                Rect::new(x, regions[0].y, regions[0].right().saturating_sub(x), 1),
+                    Style::default().fg(FOCUS).bg(SELECTED_BG)
+                }),
+                rect,
             );
-            let target = self
-                .image
-                .as_ref()
-                .map(|image| {
-                    let kernel = self
-                        .results
-                        .get("banners")
-                        .and_then(|r| {
-                            banner_candidates(r)
-                                .first()
-                                .and_then(|row| row.get(1))
-                                .map(|v| v.split_whitespace().nth(2).unwrap_or("未知").to_string())
-                        })
-                        .unwrap_or_else(|| "尚未识别".into());
-                    format!(
-                        "Target: {} · Linux {kernel} · 完整 banner 匹配后仍需验证页表",
-                        image.file_name().unwrap_or_default().to_string_lossy()
-                    )
-                })
-                .unwrap_or_else(|| "Target: 未选择镜像 · i 打开镜像目录".into());
-            frame.render_widget(
-                Paragraph::new(target).style(Style::default().fg(ACCENT)),
-                Rect::new(regions[1].x, regions[1].y, regions[1].width, 1),
-            );
-            let mut x = regions[1].x;
-            for (label, key) in if self.page == Page::Symbols {
-                vec![
-                    ("m 本地匹配", KeyCode::Char('m')),
-                    ("M 远程匹配", KeyCode::Char('M')),
-                    ("x 分析", KeyCode::Char('x')),
-                ]
-            } else {
-                vec![
-                    ("u 本地匹配", KeyCode::Char('u')),
-                    ("m 远程匹配", KeyCode::Char('m')),
-                    ("x 分析", KeyCode::Char('x')),
-                ]
-            } {
-                let width = Span::raw(label).width() as u16 + 2;
-                let rect = Rect::new(
-                    x,
-                    regions[1].y + 1,
-                    width.min(regions[1].right().saturating_sub(x)),
-                    1,
-                );
-                frame.render_widget(
-                    Paragraph::new(format!(" {label} "))
-                        .style(Style::default().fg(FOCUS).bg(SELECTED_BG)),
-                    rect,
-                );
-                self.hits.borrow_mut().buttons.push((rect, key));
-                x += width + 1;
+            if disabled.is_none() {
+                self.hits
+                    .borrow_mut()
+                    .asset_buttons
+                    .push((rect, section, key));
             }
+            x += width + 1;
+        }
+    }
+    fn draw_asset_pane(&self, frame: &mut Frame, area: Rect, section: AssetSection) {
+        if area.height == 0 || area.width < 3 {
+            return;
+        }
+        let parts = Layout::vertical([
+            Constraint::Length(3),
+            Constraint::Length(if frame.area().width >= 100 { 2 } else { 1 }),
+            Constraint::Min(3),
+        ])
+        .split(area);
+        let query = &self.asset_queries[section.slot()];
+        if self.section == section {
             self.draw_search(
                 frame,
-                regions[2],
-                &self.asset_queries[self.page.slot()],
+                parts[0],
+                query,
                 InputKind::AssetsSearch,
-                if self.page == Page::Remote {
-                    "搜索远程索引 · 内核 / 发行版 / 文件名 · / 编辑"
-                } else {
-                    "搜索本地符号 · / 编辑 · Enter 确认"
-                },
+                "搜索 / · Enter 确认",
             );
-            regions[3]
         } else {
-            area
-        };
-        let panes = if area.width >= 80 {
-            Layout::horizontal([Constraint::Percentage(55), Constraint::Min(24)]).split(area)
-        } else {
-            Layout::vertical([Constraint::Percentage(50), Constraint::Min(3)]).split(area)
-        };
-        let rows = if self.page == Page::Remote {
+            frame.render_widget(
+                Paragraph::new(escaped(query))
+                    .block(Block::default().borders(Borders::ALL).title("搜索 /")),
+                parts[0],
+            );
+        }
+        self.hits
+            .borrow_mut()
+            .asset_searches
+            .push((parts[0], section));
+        self.draw_asset_buttons(
+            frame,
+            parts[1],
+            section,
+            &[
+                KeyCode::Enter,
+                KeyCode::Char('a'),
+                KeyCode::Char('w'),
+                KeyCode::Char('g'),
+                KeyCode::Char('z'),
+                KeyCode::Char('d'),
+            ],
+        );
+        let rows = if section == AssetSection::Remote {
             self.remote_list()
                 .iter()
                 .map(|m| {
                     ListItem::new(format!(
-                        "{} {} · {}",
-                        if self.remote_cached(m) {
-                            "[已缓存]"
+                        "{} {}",
+                        if self.downloads.get(&m.url).is_some_and(|p| p.is_file()) {
+                            "[已保存]"
+                        } else if self.remote_cached(m) {
+                            "[缓存]"
                         } else {
                             "[待下载]"
                         },
-                        escaped(m.path.rsplit('/').next().unwrap_or(&m.path)),
-                        escaped(&m.banner)
+                        escaped(&m.path)
                     ))
                 })
                 .collect::<Vec<_>>()
         } else {
-            self.asset_list()
+            self.asset_list_for(section)
                 .iter()
-                .map(|asset| {
-                    let active = if asset.kind == Kind::Image {
-                        self.image
-                            .as_ref()
-                            .is_some_and(|p| same_path(p, &asset.path))
+                .map(|a| {
+                    let active = if a.kind == Kind::Image {
+                        self.image.as_ref().is_some_and(|p| same_path(p, &a.path))
                     } else {
-                        same_path(&self.symbols, &asset.path)
+                        same_path(&self.symbols, &a.path)
                     };
                     ListItem::new(format!(
-                        "{} {} · #{} · {} · {:.1} MiB{}",
+                        "{} {} · #{} · {}{}",
                         if active {
-                            "●"
-                        } else if self.local_matches.contains_key(&asset.path) {
-                            "✓"
+                            "●已选用"
+                        } else if self.local_matches.contains_key(&a.path) {
+                            "✓匹配"
                         } else {
                             " "
                         },
-                        escaped(&self.display_path(&asset.path)),
-                        asset.id(),
-                        asset.format(),
-                        asset.bytes as f64 / 1048576.0,
-                        if asset.available { "" } else { " · 缺失" }
+                        escaped(&self.display_path(&a.path)),
+                        a.id(),
+                        a.format(),
+                        if a.available { "" } else { " · 缺失" }
                     ))
                 })
                 .collect::<Vec<_>>()
         };
         let count = rows.len();
-        let slot = self.page.slot();
         let mut states = self.asset_states.borrow_mut();
-        let state = &mut states[slot];
-        state.select((count > 0).then_some(self.asset_rows[slot].min(count.saturating_sub(1))));
+        let state = &mut states[section.slot()];
+        state.select(
+            (count > 0).then_some(self.asset_rows[section.slot()].min(count.saturating_sub(1))),
+        );
+        let mode = match section {
+            AssetSection::Symbols if self.local_only_matches => " · 完整 banner 匹配",
+            AssetSection::Remote if !self.remote_catalog => " · 镜像精确匹配",
+            _ => " · 全部",
+        };
         frame.render_stateful_widget(
             List::new(rows)
                 .block(
                     Block::default()
                         .borders(Borders::ALL)
-                        .title(format!(
-                            "{} · {} 项",
-                            if self.page == Page::Symbols {
-                                "本地符号 · Enter 选用"
-                            } else if self.page == Page::Remote {
-                                if self.remote_catalog {
-                                    "仓库索引 · Enter 下载"
-                                } else {
-                                    "镜像精确匹配 · Enter 下载"
-                                }
+                        .title(format!("{}{} · {} 项", section.title(), mode, count))
+                        .border_style(Style::default().fg(
+                            if self.section == section && self.focus == 1 {
+                                ACCENT
                             } else {
-                                self.page.title()
+                                Color::DarkGray
                             },
-                            count
-                        ))
-                        .border_style(Style::default().fg(if self.focus == 1 {
-                            ACCENT
-                        } else {
-                            Color::DarkGray
-                        })),
+                        )),
                 )
                 .highlight_symbol("› ")
                 .highlight_style(Style::default().bg(SELECTED_BG).fg(FOCUS)),
-            panes[0],
+            parts[2],
             state,
         );
-        self.hits.borrow_mut().assets = panes[0];
-        self.hits.borrow_mut().asset_offset = state.offset();
+        self.hits
+            .borrow_mut()
+            .asset_lists
+            .push((parts[2], section, state.offset()));
+        if self.section == section {
+            self.hits.borrow_mut().assets = parts[2];
+            self.hits.borrow_mut().asset_offset = state.offset();
+        }
         if count == 0 {
+            let text = match section {
+                AssetSection::Images => "没有镜像 · a 导入镜像",
+                AssetSection::Symbols if self.local_only_matches => {
+                    "无本地匹配 · M 远程匹配 · z 查看全部"
+                }
+                AssetSection::Symbols => "没有符号 · a 导入符号",
+                AssetSection::Remote => "没有远程条目 · g 获取索引 · / 搜索 · M 精确匹配",
+            };
             frame.render_widget(
-                Paragraph::new(if self.page == Page::Remote {
-                    if self.remote_catalog {
-                        "没有匹配的索引项\nf 或 / 修改关键词；g 获取完整索引"
-                    } else {
-                        "g 获取索引 · f 搜索 · Enter 下载\nm 精确匹配已选镜像"
-                    }
-                } else if self.page == Page::Symbols && self.local_only_matches {
-                    "本地没有完整 banner 匹配\nM 远程匹配 · z 展示全部本地文件"
-                } else {
-                    "没有匹配的资产\na 导入 · r 刷新 · / 更改筛选"
-                })
-                .style(Style::default().fg(Color::DarkGray)),
-                Rect::new(
-                    panes[0].x + 1,
-                    panes[0].y + 1,
-                    panes[0].width.saturating_sub(2),
-                    panes[0].height.saturating_sub(2),
-                ),
+                Paragraph::new(text)
+                    .wrap(Wrap { trim: false })
+                    .style(Style::default().fg(Color::DarkGray)),
+                parts[2].inner(ratatui::layout::Margin::new(1, 1)),
             );
         }
-        self.hits.borrow_mut().asset_detail = panes[1];
-        let lines = detail_lines(&self.asset_text(), panes[1].width.saturating_sub(2));
-        let maximum = lines
-            .len()
-            .saturating_sub(panes[1].height.saturating_sub(2) as usize);
+    }
+    fn draw_assets(&self, frame: &mut Frame, area: Rect) {
+        let regions = Layout::vertical([
+            Constraint::Length(2),
+            Constraint::Length(2),
+            Constraint::Length(1),
+            Constraint::Min(2),
+        ])
+        .split(area);
+        let kernel = self
+            .results
+            .get("banners")
+            .and_then(|r| {
+                banner_candidates(r)
+                    .first()
+                    .and_then(|row| row.get(1))
+                    .map(|v| v.split_whitespace().nth(2).unwrap_or("未知").to_owned())
+            })
+            .unwrap_or_else(|| "尚未识别".into());
+        let image = self
+            .image
+            .as_ref()
+            .map(|p| self.display_path(p))
+            .unwrap_or_else(|| "未选用镜像".into());
+        let symbol = if self.symbols.as_os_str().is_empty() {
+            "未选用符号".into()
+        } else {
+            self.display_path(&self.symbols)
+        };
         frame.render_widget(
-            Paragraph::new(lines.join("\n"))
-                .scroll((
-                    self.asset_scroll[slot].min(maximum).min(u16::MAX as usize) as u16,
-                    0,
-                ))
-                .block(
-                    Block::default()
-                        .borders(Borders::ALL)
-                        .title("详情 · Tab 切换 · ↑↓ 滚动 · d 完整内容")
-                        .border_style(if self.focus == 2 {
-                            Style::default().fg(ACCENT)
-                        } else {
-                            Style::default().fg(Color::DarkGray)
-                        }),
-                ),
-            panes[1],
+            Paragraph::new(format!(
+                "镜像: {image} · 内核: {kernel}\n符号: {symbol} · 本地匹配 {} 项 · 分析时验证页表",
+                self.local_matches.len()
+            ))
+            .style(Style::default().fg(ACCENT)),
+            regions[0],
         );
+        self.draw_asset_buttons(
+            frame,
+            regions[1],
+            self.section,
+            &[
+                KeyCode::Char('m'),
+                KeyCode::Char('M'),
+                KeyCode::Char('b'),
+                KeyCode::Char('x'),
+            ],
+        );
+        let mut x = regions[2].x;
+        for (label, section) in [
+            (" 镜像 ", AssetSection::Images),
+            (" 本地库 ", AssetSection::Symbols),
+            (" 远程索引 ", AssetSection::Remote),
+        ] {
+            let width = Span::raw(label).width() as u16;
+            if x + width > regions[2].right() {
+                break;
+            }
+            let rect = Rect::new(x, regions[2].y, width, regions[2].height);
+            frame.render_widget(
+                Paragraph::new(label).style(if self.section == section {
+                    Style::default().fg(FOCUS).bg(SELECTED_BG)
+                } else {
+                    Style::default().fg(ACCENT)
+                }),
+                rect,
+            );
+            self.hits.borrow_mut().sources.push((rect, section));
+            x += width + 1;
+        }
+        let mut body = regions[3];
+        if area.width >= 100 && area.height >= 24 {
+            let rows = Layout::vertical([Constraint::Min(9), Constraint::Length(8)]).split(body);
+            body = rows[0];
+            self.hits.borrow_mut().asset_detail = rows[1];
+            frame.render_widget(
+                Paragraph::new(self.asset_text())
+                    .wrap(Wrap { trim: false })
+                    .scroll((
+                        self.asset_scroll[self.section.slot()].min(u16::MAX as usize) as u16,
+                        0,
+                    ))
+                    .block(
+                        Block::default()
+                            .borders(Borders::ALL)
+                            .title("详情 · d 完整内容 · Tab 聚焦")
+                            .border_style(Style::default().fg(if self.focus == 2 {
+                                ACCENT
+                            } else {
+                                Color::DarkGray
+                            })),
+                    ),
+                rows[1],
+            );
+        }
+        if area.height < 16 {
+            self.draw_asset_pane(frame, body, self.section);
+        } else {
+            let panes = if area.width >= 100 {
+                Layout::horizontal([Constraint::Percentage(32), Constraint::Percentage(68)])
+                    .split(body)
+            } else {
+                Layout::vertical([Constraint::Percentage(50), Constraint::Percentage(50)])
+                    .split(body)
+            };
+            self.draw_asset_pane(frame, panes[0], AssetSection::Images);
+            self.draw_asset_pane(frame, panes[1], self.symbol_source);
+        }
     }
 
     fn result(&self) -> Option<&Results> {
@@ -1757,7 +2021,7 @@ impl App {
                 .unwrap_or_default(),
             InputKind::Symbols => self.symbols.display().to_string(),
             InputKind::Search => self.query.clone(),
-            InputKind::AssetsSearch => self.asset_queries[self.page.slot()].clone(),
+            InputKind::AssetsSearch => self.asset_queries[self.section.slot()].clone(),
             InputKind::Export => store::expand_home(&self.settings.export_dir)
                 .join(format!("{}.csv", self.plugin.name()))
                 .display()
@@ -1897,6 +2161,14 @@ impl App {
             .map(|(_, o)| o.clone());
         let enabled = self.settings.enable_cache;
         let network = self.settings.remote_symbols;
+        let saved_download = self
+            .downloads
+            .get(match &work {
+                Work::CatalogDownload(candidate) => candidate.url.as_str(),
+                _ => "",
+            })
+            .filter(|p| p.is_file())
+            .cloned();
         let local_library = store::expand_home(&self.settings.symbols);
         let local_library = if local_library.extension().is_some() && !local_library.is_dir() {
             self.root.join("symbols")
@@ -1904,7 +2176,13 @@ impl App {
             local_library
         };
         let session = self.session.clone();
-        self.history = None;
+        if matches!(
+            work,
+            Work::Analyze(_) | Work::Download(_) | Work::PrepareKali
+        ) {
+            self.history = None;
+        }
+        self.last_error = None;
         self.job = Some(job);
         self.receiver = Some(rx);
         self.download_url = match &work {
@@ -1913,6 +2191,7 @@ impl App {
             }
             _ => None,
         };
+        self.lookup_dialog = self.page == Page::Analysis && matches!(work, Work::Lookup);
         self.download_analyzes =
             self.page == Page::Analysis && matches!(work, Work::Download(_) | Work::PrepareKali);
         self.status = "任务启动中".into();
@@ -1933,6 +2212,22 @@ impl App {
                             .map(WorkerEvent::CatalogLinks)
                     }
                     Work::CatalogDownload(candidate) => {
+                        if let Some(path) = saved_download {
+                            anyhow::ensure!(
+                                candidate.url == symbols::repository_url(&candidate.path)?,
+                                "下载链接不属于指定符号仓库"
+                            );
+                            let valid = symbols::inspect(&path, &worker_job).is_ok_and(|isfs| {
+                                isfs.len() == 1
+                                    && String::from_utf8_lossy(&isfs[0].banner)
+                                        .trim_end_matches(['\0', '\n'])
+                                        == candidate.banner
+                            });
+                            worker_job.check()?;
+                            if valid {
+                                return Ok(WorkerEvent::CatalogDownloaded(path));
+                            }
+                        }
                         let isf =
                             symbols::download_catalog(&candidate, &cache, network, &worker_job)?;
                         worker_job.check()?;
@@ -1972,11 +2267,14 @@ impl App {
                     Work::InspectSymbols(path) => workspace::inspect_symbols(&path, &worker_job)
                         .map(|text| WorkerEvent::SymbolDetails(path, text)),
                     Work::RefreshLookup => {
-                        anyhow::ensure!(
-                            network,
-                            "离线模式不能刷新远程索引；按 o 开启在线模式后按 r"
-                        );
-                        symbols::refresh_index(&cache, &worker_job)?;
+                        if network {
+                            symbols::refresh_index(&cache, &worker_job)?;
+                        } else {
+                            anyhow::ensure!(
+                                cache.join("symbols/banners_plain.json").is_file(),
+                                "离线模式且没有索引缓存；按 o 开启在线模式后按 r"
+                            );
+                        }
                         if image.as_os_str().is_empty() {
                             return Ok(WorkerEvent::IndexRefreshed);
                         }
@@ -2077,22 +2375,23 @@ impl App {
                         format!("远程索引：{} 项；可输入多个关键词缩小范围", matches.len());
                     self.remote = matches;
                     self.remote_catalog = true;
-                    self.asset_rows[2] = 0;
+                    self.asset_rows[2] =
+                        self.asset_rows[2].min(self.remote_list().len().saturating_sub(1));
                 }
                 WorkerEvent::CatalogDownloaded(path) => {
                     self.finish_worker();
                     if let Some(url) = self.download_url.take() {
                         self.downloads.insert(url, path.clone());
                     }
+                    if let Err(e) = self.registry.register(&path, Kind::Symbols, &self.cache) {
+                        self.last_error = Some(format!("下载成功但清单保存失败: {e:#}"));
+                    }
                     self.refresh_assets();
-                    self.switch_page(Page::Symbols);
-                    self.local_only_matches = false;
-                    self.status = "符号已下载到本地库；Enter 选用，m 匹配当前镜像".into();
-                    self.focus_asset(Kind::Symbols, &path);
+                    self.status = format!("已保存到 {}；在本地库定位后可选用", path.display());
                 }
                 WorkerEvent::IndexRefreshed => {
                     self.finish_worker();
-                    self.status = "远程索引已刷新；选择镜像后按 m 精确匹配".into();
+                    self.status = "远程索引已刷新；选择镜像后按 M 精确匹配".into();
                 }
                 WorkerEvent::Identified(result) => {
                     self.finish_worker();
@@ -2122,7 +2421,7 @@ impl App {
                 WorkerEvent::Links(matches) => {
                     self.finish_worker();
                     self.status = format!(
-                        "{} 个完整 banner 匹配 · Enter 下载选用 · x 分析",
+                        "{} 个完整 banner 匹配 · Enter 查看详情 · w 下载到 symbols",
                         matches.len()
                     );
                     self.remote = matches.clone();
@@ -2130,8 +2429,8 @@ impl App {
                     self.asset_states.borrow_mut()[2] = ListState::default();
                     if matches.is_empty() {
                         self.status =
-                            "仓库没有完整 banner 匹配；u 返回本地，g 获取索引，/ 手动搜索".into();
-                    } else if self.page == Page::Analysis {
+                            "仓库没有完整 banner 匹配；t 切换本地，g 获取索引，/ 手动搜索".into();
+                    } else if self.lookup_dialog && self.page == Page::Analysis {
                         self.dialog = Some(Dialog::Links {
                             matches,
                             selected: 0,
@@ -2163,14 +2462,6 @@ impl App {
                     self.refresh_assets();
                     self.focus_asset(Kind::Symbols, &path);
                     self.status = format!("符号已选用: {}；x 进入分析", path.display());
-                    if self.page == Page::Remote
-                        && self.image.is_some()
-                        && !self.remote_catalog
-                        && !self.download_analyzes
-                    {
-                        self.switch_page(Page::Analysis);
-                        self.status = "镜像精确匹配符号已下载并选用；按 Enter 执行分析".into();
-                    }
                     if self.download_analyzes && self.pending_plugin.is_none() {
                         self.page = Page::Analysis;
                         self.start();
@@ -2258,7 +2549,10 @@ impl App {
         self.started = None;
         self.progress = None;
     }
-    fn resize(&mut self, width: u16) {
+    fn resize(&mut self, width: u16, height: u16) {
+        if self.page == Page::Assets && self.focus == 2 && (width < 100 || height < 28) {
+            self.focus = 1;
+        }
         if width < 140 && self.focus == 3 {
             self.focus = 2;
         }
@@ -2382,8 +2676,8 @@ impl App {
                     self.query = text.clone();
                     self.row = 0;
                 } else if *kind == InputKind::AssetsSearch {
-                    self.asset_queries[self.page.slot()] = text.clone();
-                    self.asset_rows[self.page.slot()] = 0;
+                    self.asset_queries[self.section.slot()] = text.clone();
+                    self.asset_rows[self.section.slot()] = 0;
                 }
             }
             Some(Dialog::Plugins { query, selected })
@@ -2395,7 +2689,24 @@ impl App {
         }
     }
     fn help(&mut self) {
-        self.dialog=Some(Dialog::Detail {scroll:0,text:"ZERO 取证工作台\n\nF9 分析 · F10 镜像 · F11 符号管理；t 本地／远程，F12 直接进入远程\nCtrl+←/→ 切换页面；Tab 切换页内区域\n资产页：a 导入 · Enter 选用 · Backspace 移出清单\nn 自定义每页行数；auto 自动填满窗口\n符号管理：点击 本地库／远程索引；/ 搜索；g Fetch 完整索引\n远程：m 按镜像匹配 · r 刷新 · Enter 下载\nx 进入分析；任务中可切换页面，Esc 取消\n\nCtrl+P 或 ? 命令面板 · c 缓存管理 · 分析页 g Kali ARM64 符号生成\nAlt+←/→ 表格横向滚动 · 宽屏 d 展开详情面板\n\np / F4  搜索插件，输入插件名称，Enter 执行\nb / F7  无需符号即可扫描内核 banner\nu / F6  跳转当前镜像的本地符号匹配；M 远程精确匹配\ny / F3  选择本地 ISF；o 切换在线／离线模式\ni / F2  打开镜像；相同镜像切换插件复用符号与页表\n\nTab / Shift+Tab  切换区域；↑↓ 或 j/k 导航\nPageUp / PageDown / Home / End  当前区域滚动\nEnter  执行插件、展开树或打开行详情\n/  筛选；s 排序；e 导出所有筛选行；d 行详情\nv / F8  全部诊断；r / F5 重跑（跳过结果缓存）\nEsc  关闭弹窗或取消任务；q / Ctrl+C  退出\n\n符号候选：Enter 下载并分析，d 查看完整 URL\n目录弹窗：显示实际文件；Tab 切换 images / symbols；Enter 自动按类型选用；← 上级；p 手动输入\n, 目录设置；h 历史 CSV／JSON；l 任务日志\n[ / ] 结果翻页；e 导出全部筛选结果\n内容上方 / 搜索框：Ctrl+u 清空；Esc 撤销；Enter 确认\nD 打开统一 Dump；F2 Process / F3 Range / F4 ELF\nDump：必须填写 PID 和转储目录；Range 还需 Start / End\n参数表单：Tab / Shift+Tab；Ctrl+Enter 运行；Esc 取消\n详情：↑↓ / PageUp / PageDown / Home / End；右键关闭\n\n共享凭据只是核查线索，不能单凭共享判定入侵。".into()});
+        let mut text = "ZERO 取证工作台\n\nF2 分析 · F3 镜像与符号 · Ctrl+←/→ 切换页面\nTab / Shift+Tab 切换区域；↑↓ 或 j/k 导航；PgUp/PgDn/Home/End 翻页\n\n镜像与符号：\n选用镜像后自动识别内核并匹配本地；选用符号后按 x 开始分析。\n远程下载只保存，完成后仍需在本地库选用。\n".to_owned();
+        for section in [
+            AssetSection::Images,
+            AssetSection::Symbols,
+            AssetSection::Remote,
+        ] {
+            text.push_str(&format!("\n{}：\n", section.title()));
+            text.push_str(
+                &asset_actions(section)
+                    .iter()
+                    .map(|(label, _)| *label)
+                    .collect::<Vec<_>>()
+                    .join(" · "),
+            );
+            text.push('\n');
+        }
+        text.push_str("\n远程详情：w 下载到 symbols · L 在本地库定位 · c 取消下载 · Esc 返回\n\n分析：i 镜像 · y 符号 · p/F4 插件 · Enter 执行 · D Dump\n/ 搜索 · s 排序 · e 导出 · d 详情 · n 行数 · [/] 翻页\nr/F5 重跑 · v/F8 诊断 · Alt+←/→ 横向滚动\n分析页 g 生成 Kali ARM64 符号\n\nCtrl+P / ? 命令面板 · , 目录设置 · c 缓存 · l 日志 · h 历史\nEsc 关闭弹窗；无弹窗时取消任务 · q / Ctrl+C 退出\n文件弹窗：Enter 选用 · ← 上级 · Tab 切换目录 · p 输入路径\nDump：F2/F3/F4 切换模式 · Tab 字段 · Ctrl+Enter 运行\n");
+        self.dialog = Some(Dialog::Detail { text, scroll: 0 });
     }
     fn diagnostics(&mut self) {
         if let Some(error) = &self.last_error {
@@ -2438,17 +2749,22 @@ impl App {
             });
             return false;
         }
+        if self.page == Page::Assets
+            && !matches!(
+                key.code,
+                KeyCode::F(1..=3) | KeyCode::Char(',' | 'h' | 'l' | '?' | 'c')
+            )
+            && !key.modifiers.contains(KeyModifiers::CONTROL)
+        {
+            return self.asset_key(key);
+        }
         match key.code {
             KeyCode::Char('M') => {
                 self.symbol_target(true);
                 return false;
             }
-            KeyCode::Char('u') | KeyCode::F(6) => {
+            KeyCode::Char('m') => {
                 self.symbol_target(false);
-                return false;
-            }
-            KeyCode::Char('m') if self.page == Page::Analysis => {
-                self.symbol_target(true);
                 return false;
             }
             KeyCode::Char('D') => {
@@ -2464,29 +2780,6 @@ impl App {
             }
             KeyCode::Char('n') => {
                 self.open_input(InputKind::PageSize);
-                return false;
-            }
-            KeyCode::Char('t') if matches!(self.page, Page::Symbols | Page::Remote) => {
-                self.switch_page(if self.page == Page::Symbols {
-                    Page::Remote
-                } else {
-                    Page::Symbols
-                });
-                return false;
-            }
-            KeyCode::Char('f') if matches!(self.page, Page::Symbols | Page::Remote) => {
-                self.switch_page(Page::Remote);
-                self.open_input(InputKind::AssetsSearch);
-                return false;
-            }
-            KeyCode::Char('g') if matches!(self.page, Page::Symbols | Page::Remote) => {
-                if self.job.is_some() {
-                    self.status = "等待当前任务完成；Esc 取消后可 Fetch 索引".into();
-                    return false;
-                }
-                self.switch_page(Page::Remote);
-                self.remote_catalog = true;
-                self.start_work(Work::Catalog(String::new(), self.settings.remote_symbols));
                 return false;
             }
             KeyCode::Char(',') => {
@@ -2524,18 +2817,11 @@ impl App {
             }
             _ => {}
         }
-        if matches!(
-            key.code,
-            KeyCode::F(9) | KeyCode::F(10) | KeyCode::F(11) | KeyCode::F(12)
-        ) {
-            let index = match key.code {
-                KeyCode::F(n) => n.saturating_sub(9) as usize,
-                _ => 0,
-            };
-            self.switch_page(if index == 3 {
-                Page::Remote
+        if matches!(key.code, KeyCode::F(2) | KeyCode::F(3)) {
+            self.switch_page(if key.code == KeyCode::F(2) {
+                Page::Analysis
             } else {
-                Page::ALL[index]
+                Page::Assets
             });
             return false;
         }
@@ -2548,7 +2834,8 @@ impl App {
             let back = matches!(key.code, KeyCode::Left | KeyCode::BackTab)
                 || key.modifiers.contains(KeyModifiers::SHIFT);
             self.switch_page(
-                Page::ALL[(self.page.index() + if back { 2 } else { 1 }) % Page::ALL.len()],
+                Page::ALL[(self.page.index() + if back { Page::ALL.len() - 1 } else { 1 })
+                    % Page::ALL.len()],
             );
             return false;
         }
@@ -2645,16 +2932,8 @@ impl App {
                     selected: 0,
                 })
             }
-            KeyCode::Char('u') | KeyCode::F(6) => {
-                self.remote_catalog = false;
-                self.asset_queries[2].clear();
-                self.switch_page(Page::Remote);
-                self.start_work(Work::Lookup);
-            }
-            KeyCode::Char('b') | KeyCode::F(7) => self.select_plugin(Plugin::Banners),
+            KeyCode::Char('b') => self.select_plugin(Plugin::Banners),
             KeyCode::Char('v') | KeyCode::F(8) => self.diagnostics(),
-            KeyCode::F(2) => self.open_files(InputKind::Image),
-            KeyCode::F(3) => self.open_files(InputKind::Symbols),
             KeyCode::Char('o') if self.job.is_none() => {
                 self.settings.remote_symbols = !self.settings.remote_symbols;
                 self.status = if self.settings.remote_symbols {
@@ -2833,7 +3112,19 @@ impl App {
             if click
                 && let Some((_, page)) = hits.sources.iter().find(|(rect, _)| rect.contains(point))
             {
-                self.switch_page(*page);
+                self.switch_section(*page);
+                return false;
+            }
+            if self.page == Page::Assets
+                && click
+                && let Some((_, section)) = hits
+                    .asset_searches
+                    .iter()
+                    .find(|(rect, _)| rect.contains(point))
+            {
+                self.section = *section;
+                self.focus = 1;
+                self.open_input(InputKind::AssetsSearch);
                 return false;
             }
             if click && hits.search.contains(point) {
@@ -2845,7 +3136,19 @@ impl App {
                 });
                 return false;
             }
-            if self.page != Page::Analysis {
+            if self.page == Page::Assets {
+                if click
+                    && let Some((_, section, key)) = hits
+                        .asset_buttons
+                        .iter()
+                        .find(|(rect, _, _)| rect.contains(point))
+                {
+                    self.section = *section;
+                    if *section != AssetSection::Images {
+                        self.symbol_source = *section;
+                    }
+                    return self.asset_key(KeyEvent::new(*key, KeyModifiers::NONE));
+                }
                 if click
                     && let Some((_, key)) =
                         hits.buttons.iter().find(|(rect, _)| rect.contains(point))
@@ -2861,21 +3164,26 @@ impl App {
                     }
                     return false;
                 }
-                if hits.assets.contains(point) {
+                if let Some((rect, section, offset)) = hits
+                    .asset_lists
+                    .iter()
+                    .find(|(rect, _, _)| rect.contains(point))
+                {
+                    self.section = *section;
                     self.focus = 1;
                     if let Some(key) = scroll {
                         for _ in 0..3 {
                             self.asset_key(KeyEvent::new(key, KeyModifiers::NONE));
                         }
-                    } else if click
-                        && point.y > hits.assets.y
-                        && point.y < hits.assets.bottom().saturating_sub(1)
+                    } else if click && point.y > rect.y && point.y < rect.bottom().saturating_sub(1)
                     {
-                        let index = hits.asset_offset + (point.y - hits.assets.y - 1) as usize;
+                        let index = offset + (point.y - rect.y - 1) as usize;
                         if index < self.asset_count() {
-                            self.asset_rows[self.page.slot()] = index;
-                            self.asset_scroll[self.page.slot()] = 0;
-                            self.focus = 1;
+                            self.asset_rows[section.slot()] = index;
+                            self.asset_scroll[section.slot()] = 0;
+                            if *section == AssetSection::Remote {
+                                self.open_asset_detail();
+                            }
                         }
                     }
                 }
@@ -2928,6 +3236,10 @@ impl App {
             {
                 let index = hits.popup_offset + (point.y - hits.popup.y - 1) as usize;
                 let count = self.result_column_count();
+                let command_count = match self.dialog.as_ref() {
+                    Some(Dialog::Commands { query, .. }) => self.available_commands(query).len(),
+                    _ => 0,
+                };
                 let selected = match self.dialog.as_mut() {
                     Some(Dialog::Files {
                         entries, selected, ..
@@ -2952,9 +3264,7 @@ impl App {
                         *confirm = false;
                         true
                     }
-                    Some(Dialog::Commands { query, selected })
-                        if index < command_matches(query, self.page, self.focus).len() =>
-                    {
+                    Some(Dialog::Commands { selected, .. }) if index < command_count => {
                         *selected = index;
                         true
                     }
@@ -3064,7 +3374,7 @@ impl App {
         };
         if key.code == KeyCode::Esc {
             self.pending_work = None;
-            if matches!(dialog, Dialog::Detail { .. })
+            if matches!(dialog, Dialog::Detail { .. } | Dialog::RemoteDetail { .. })
                 && let Some(back) = self.back_dialog.take()
             {
                 self.dialog = Some(*back);
@@ -3075,8 +3385,8 @@ impl App {
                     self.query = original;
                     self.row = 0;
                 } else if kind == InputKind::AssetsSearch {
-                    self.asset_queries[self.page.slot()] = original;
-                    self.asset_rows[self.page.slot()] = 0;
+                    self.asset_queries[self.section.slot()] = original;
+                    self.asset_rows[self.section.slot()] = 0;
                 }
             }
             return;
@@ -3287,15 +3597,12 @@ impl App {
                 }
                 KeyCode::Up => *selected = selected.saturating_sub(1),
                 KeyCode::Down => {
-                    *selected = (*selected + 1).min(
-                        command_matches(query, self.page, self.focus)
-                            .len()
-                            .saturating_sub(1),
-                    )
+                    *selected =
+                        (*selected + 1).min(self.available_commands(query).len().saturating_sub(1))
                 }
                 KeyCode::Enter => {
-                    if let Some(i) = command_matches(query, self.page, self.focus).get(*selected) {
-                        self.key(KeyEvent::new(COMMANDS[*i].1, KeyModifiers::NONE));
+                    if let Some((_, key)) = self.available_commands(query).get(*selected) {
+                        self.key(KeyEvent::new(*key, KeyModifiers::NONE));
                     }
                     return;
                 }
@@ -3342,13 +3649,8 @@ impl App {
                             matches: matches.clone(),
                             selected: *selected,
                         }));
-                        self.dialog = Some(Dialog::Detail {
-                            text: format!(
-                                "完整 banner: {}\n\nISF: {}\n\n下载链接: {}\n\nEsc 返回候选列表后，按 Enter 下载并分析",
-                                escaped(&m.banner),
-                                escaped(&m.path),
-                                escaped(&m.url)
-                            ),
+                        self.dialog = Some(Dialog::RemoteDetail {
+                            candidate: m.clone(),
                             scroll: 0,
                         });
                     }
@@ -3356,6 +3658,60 @@ impl App {
                 }
                 _ => {}
             },
+            Dialog::AssetDetail { asset, scroll } => {
+                let popup = self.hits.borrow().popup;
+                let maximum =
+                    detail_lines(&self.local_asset_text(asset), popup.width.saturating_sub(2))
+                        .len()
+                        .saturating_sub(popup.height.saturating_sub(2) as usize);
+                match key.code {
+                    KeyCode::Up => *scroll = scroll.saturating_sub(1),
+                    KeyCode::Down => *scroll = scroll.saturating_add(1).min(maximum),
+                    KeyCode::PageUp => *scroll = scroll.saturating_sub(10),
+                    KeyCode::PageDown => *scroll = scroll.saturating_add(10).min(maximum),
+                    KeyCode::Home => *scroll = 0,
+                    KeyCode::End => *scroll = maximum,
+                    _ => {}
+                }
+            }
+            Dialog::RemoteDetail { candidate, scroll } => {
+                let popup = self.hits.borrow().popup;
+                let maximum = detail_lines(
+                    &self.remote_detail_text(candidate),
+                    popup.width.saturating_sub(2),
+                )
+                .len()
+                .saturating_sub(popup.height.saturating_sub(5) as usize);
+                match key.code {
+                    KeyCode::Char('w') => {
+                        self.start_work(Work::CatalogDownload(candidate.clone()));
+                    }
+                    KeyCode::Char('L') => {
+                        if self.job.is_some() {
+                            self.status = "任务执行中，请等待或取消".into();
+                        } else if let Some(path) = self
+                            .downloads
+                            .get(&candidate.url)
+                            .filter(|p| p.is_file())
+                            .cloned()
+                        {
+                            self.local_only_matches = false;
+                            self.switch_section(AssetSection::Symbols);
+                            self.focus_asset(Kind::Symbols, &path);
+                            self.back_dialog = None;
+                            return;
+                        }
+                    }
+                    KeyCode::Char('c') => self.cancel(),
+                    KeyCode::Up => *scroll = scroll.saturating_sub(1),
+                    KeyCode::Down => *scroll = scroll.saturating_add(1).min(maximum),
+                    KeyCode::PageUp => *scroll = scroll.saturating_sub(10),
+                    KeyCode::PageDown => *scroll = scroll.saturating_add(10).min(maximum),
+                    KeyCode::Home => *scroll = 0,
+                    KeyCode::End => *scroll = maximum,
+                    _ => {}
+                }
+            }
             Dialog::Detail { text, scroll } => {
                 let popup = self.hits.borrow().popup;
                 let maximum = detail_lines(text, popup.width.saturating_sub(2))
@@ -3418,6 +3774,8 @@ impl App {
                                 self.invalidate_symbols();
                             }
                             if *kind == InputKind::Image {
+                                self.symbols = PathBuf::new();
+                                self.choice = None;
                                 self.image = Some(path.clone());
                             } else {
                                 self.symbols = path.clone();
@@ -3437,7 +3795,12 @@ impl App {
                                     self.start_work(work);
                                 }
                             } else if *kind == InputKind::Image {
-                                self.start_work(Work::Identify);
+                                if self.page == Page::Assets {
+                                    self.symbol_source = AssetSection::Symbols;
+                                    self.prepare_selected_image();
+                                } else {
+                                    self.start_work(Work::Identify);
+                                }
                             }
                         }
                         InputKind::PageSize => {
@@ -3483,14 +3846,15 @@ impl App {
                             self.row = 0;
                         }
                         InputKind::AssetsSearch => {
-                            self.asset_queries[self.page.slot()] = value.clone();
-                            if self.page == Page::Remote
-                                && (!self.remote_catalog || self.remote.is_empty())
+                            self.asset_queries[self.section.slot()] = value.clone();
+                            if self.section == AssetSection::Remote
+                                && self.remote_catalog
+                                && self.remote.is_empty()
                             {
                                 self.remote_catalog = true;
                                 self.start_work(Work::Catalog(String::new(), false));
                             }
-                            self.asset_rows[self.page.slot()] = 0;
+                            self.asset_rows[self.section.slot()] = 0;
                         }
                         InputKind::Export => {
                             if let Some(result) = self.result() {
@@ -3535,8 +3899,8 @@ impl App {
                     self.query = text.clone();
                     self.row = 0;
                 } else if *kind == InputKind::AssetsSearch {
-                    self.asset_queries[self.page.slot()] = text.clone();
-                    self.asset_rows[self.page.slot()] = 0;
+                    self.asset_queries[self.section.slot()] = text.clone();
+                    self.asset_rows[self.section.slot()] = 0;
                 }
             }
             Dialog::Sort { column } => {
@@ -3629,7 +3993,7 @@ impl App {
                         .map(|r| r.symbol.clone())
                         .unwrap_or_else(|| {
                             if self.symbols.as_os_str().is_empty() {
-                                "未选择 · F11 管理符号".into()
+                                "未选择 · F3 镜像与符号".into()
                             } else {
                                 self.display_path(&self.symbols)
                             }
@@ -3825,7 +4189,7 @@ impl App {
                 } else {
                     frame.render_widget(
                     Paragraph::new(
-                        "选择左侧分析项后按 Enter\n缺少符号时按完整 banner 自动匹配；u 查看下载链接
+                        "选择左侧分析项后按 Enter\n缺少符号时按完整 banner 自动匹配；M 查看远程匹配
 按 p 搜索插件 · ? 查看快捷键 · o 切换离线",
                     )
                     .block(block),
@@ -3849,7 +4213,7 @@ impl App {
                 } else if self.focus == 2 {
                     "详情"
                 } else {
-                    "列表"
+                    self.section.title()
                 }
             )),
             footer,
@@ -3910,7 +4274,15 @@ impl App {
                 ),
                 rect,
             );
-            self.hits.borrow_mut().buttons.push((rect, key));
+            if self.page != Page::Assets || self.asset_disabled(self.section, key).is_none() {
+                self.hits.borrow_mut().buttons.push((rect, key));
+            } else {
+                frame.render_widget(
+                    Paragraph::new(format!(" {label} "))
+                        .style(Style::default().fg(Color::DarkGray)),
+                    rect,
+                );
+            }
             x += width;
         }
         if matches!(
@@ -4201,9 +4573,9 @@ impl App {
                     let mut state = ListState::default().with_selected(Some(*selected));
                     frame.render_stateful_widget(
                         List::new(
-                            command_matches(query, self.page, self.focus)
+                            self.available_commands(query)
                                 .iter()
-                                .map(|i| COMMANDS[*i].0),
+                                .map(|(label, _)| *label),
                         )
                         .block(
                             Block::default()
@@ -4250,6 +4622,90 @@ impl App {
                         &mut state,
                     );
                     self.hits.borrow_mut().popup_offset = state.offset();
+                }
+                Dialog::AssetDetail { asset, scroll } => {
+                    let lines =
+                        detail_lines(&self.local_asset_text(asset), popup.width.saturating_sub(2));
+                    let maximum = lines
+                        .len()
+                        .saturating_sub(popup.height.saturating_sub(2) as usize);
+                    frame.render_widget(
+                        Paragraph::new(
+                            lines
+                                .into_iter()
+                                .skip((*scroll).min(maximum))
+                                .map(Line::raw)
+                                .collect::<Vec<_>>(),
+                        )
+                        .block(
+                            Block::default()
+                                .borders(Borders::ALL)
+                                .title("资产详情 · ↑↓ / PgUp PgDn · Esc 关闭"),
+                        ),
+                        popup,
+                    );
+                }
+                Dialog::RemoteDetail { candidate, scroll } => {
+                    frame.render_widget(
+                        Block::default()
+                            .borders(Borders::ALL)
+                            .border_style(Style::default().fg(ACCENT))
+                            .title("远程符号详情 · ↑↓ 滚动 · Esc 返回"),
+                        popup,
+                    );
+                    let content = Rect::new(
+                        popup.x + 1,
+                        popup.y + 1,
+                        popup.width.saturating_sub(2),
+                        popup.height.saturating_sub(5),
+                    );
+                    let text = self.remote_detail_text(candidate);
+                    let lines = detail_lines(&text, content.width);
+                    let maximum = lines.len().saturating_sub(content.height as usize);
+                    frame.render_widget(
+                        Paragraph::new(
+                            lines
+                                .into_iter()
+                                .skip((*scroll).min(maximum))
+                                .map(Line::raw)
+                                .collect::<Vec<_>>(),
+                        ),
+                        content,
+                    );
+                    let mut x = popup.x + 1;
+                    let y = popup.bottom().saturating_sub(3);
+                    for (label, key, enabled) in [
+                        ("下载到 symbols w", KeyCode::Char('w'), self.job.is_none()),
+                        (
+                            "本地库定位 L",
+                            KeyCode::Char('L'),
+                            self.job.is_none()
+                                && self
+                                    .downloads
+                                    .get(&candidate.url)
+                                    .is_some_and(|p| p.is_file()),
+                        ),
+                        ("取消下载 c", KeyCode::Char('c'), self.job.is_some()),
+                    ] {
+                        let text = format!("[{label}]");
+                        let width = Span::raw(&text).width() as u16;
+                        if x + width >= popup.right() || popup.height < 5 {
+                            continue;
+                        }
+                        let rect = Rect::new(x, y, width, 1);
+                        frame.render_widget(
+                            Paragraph::new(text).style(Style::default().fg(if enabled {
+                                FOCUS
+                            } else {
+                                Color::DarkGray
+                            })),
+                            rect,
+                        );
+                        if enabled {
+                            self.hits.borrow_mut().buttons.push((rect, key));
+                        }
+                        x += width + 1;
+                    }
                 }
                 Dialog::Detail { text, scroll } => {
                     let lines = detail_lines(text, popup.width.saturating_sub(2));
@@ -4536,8 +4992,8 @@ pub fn run(
                 let quit = match next {
                     Event::Key(key) => app.key(key),
                     Event::Mouse(mouse) => app.mouse(mouse),
-                    Event::Resize(width, _) => {
-                        app.resize(width);
+                    Event::Resize(width, height) => {
+                        app.resize(width, height);
                         false
                     }
                     Event::Paste(text) => {
@@ -4609,7 +5065,7 @@ mod tests {
         app.root = dir.path().into();
         app.settings.symbols = symbols.display().to_string();
         app.settings.image_dir = dir.path().join("images").display().to_string();
-        app.key(KeyEvent::new(KeyCode::F(10), KeyModifiers::NONE));
+        app.key(KeyEvent::new(KeyCode::F(3), KeyModifiers::NONE));
         app.key(KeyEvent::new(KeyCode::Char('a'), KeyModifiers::NONE));
         app.paste(&image.display().to_string());
         app.key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
@@ -4634,7 +5090,7 @@ mod tests {
         app.key(KeyEvent::new(KeyCode::Char('u'), KeyModifiers::CONTROL));
         app.key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
         assert!(app.asset_queries[0].is_empty());
-        app.key(KeyEvent::new(KeyCode::Backspace, KeyModifiers::NONE));
+        app.key(KeyEvent::new(KeyCode::Delete, KeyModifiers::NONE));
         assert!(image.exists());
         assert!(app.image.is_none());
         assert_eq!(app.asset_count(), 0);
@@ -4644,8 +5100,8 @@ mod tests {
                 .selected(Kind::Image)
                 .is_none()
         );
-        app.key(KeyEvent::new(KeyCode::Right, KeyModifiers::CONTROL));
-        assert_eq!(app.page, Page::Symbols);
+        app.switch_section(AssetSection::Symbols);
+        assert_eq!(app.section, AssetSection::Symbols);
         app.key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
         assert_eq!(app.symbols, symbols);
         assert_eq!(
@@ -4653,12 +5109,12 @@ mod tests {
             Some(symbols.as_path())
         );
         assert!(app.results.is_empty());
-        app.key(KeyEvent::new(KeyCode::Backspace, KeyModifiers::NONE));
+        app.key(KeyEvent::new(KeyCode::Delete, KeyModifiers::NONE));
         assert!(symbols.exists());
         assert!(app.symbols.as_os_str().is_empty());
         assert!(Registry::load(&cache).unwrap().excluded(&symbols));
 
-        app.key(KeyEvent::new(KeyCode::Left, KeyModifiers::CONTROL));
+        app.switch_section(AssetSection::Images);
         app.key(KeyEvent::new(KeyCode::Char('b'), KeyModifiers::NONE));
         assert!(app.job.is_none());
         assert!(app.dialog.is_none()); // no selected image must not silently use the old one
@@ -4666,7 +5122,7 @@ mod tests {
     #[test]
     fn remote_tabs_mouse_scrolling_full_links_events_and_cancellation() {
         let mut app = app();
-        app.switch_page(Page::Remote);
+        app.switch_section(AssetSection::Remote);
         app.remote = (0..50)
             .map(|i| RemoteMatch {
                 banner: format!("Linux version exact-{i}\tcomplete"),
@@ -4677,7 +5133,7 @@ mod tests {
                 ),
             })
             .collect();
-        let mut terminal = Terminal::new(TestBackend::new(120, 24)).unwrap();
+        let mut terminal = Terminal::new(TestBackend::new(120, 40)).unwrap();
         app.key(KeyEvent::new(KeyCode::End, KeyModifiers::NONE));
         terminal.draw(|f| app.draw(f)).unwrap();
         let hits = app.hits.borrow().clone();
@@ -4685,10 +5141,10 @@ mod tests {
         click(&mut app, hits.assets.x + 2, hits.assets.y + 1);
         assert_eq!(app.asset_rows[2], hits.asset_offset);
         assert!(app.job.is_none()); // row selection never triggers download
-        app.key(KeyEvent::new(KeyCode::Char('d'), KeyModifiers::NONE));
-        let Some(Dialog::Detail { text, .. }) = &app.dialog else {
+        let Some(Dialog::RemoteDetail { candidate, .. }) = &app.dialog else {
             panic!("detail missing")
         };
+        let text = app.remote_detail_text(candidate);
         assert!(text.contains(&app.remote[hits.asset_offset].url));
         assert!(text.contains("\\t"));
         app.key(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE));
@@ -4709,8 +5165,8 @@ mod tests {
         terminal.draw(|f| app.draw(f)).unwrap();
         let rect = app.hits.borrow().tabs[1].0;
         click(&mut app, rect.x, rect.y);
-        assert_eq!(app.page, Page::Images);
-        app.key(KeyEvent::new(KeyCode::F(9), KeyModifiers::NONE));
+        assert_eq!(app.section, AssetSection::Remote); // Switching a top-level tab preserves the region.
+        app.key(KeyEvent::new(KeyCode::F(2), KeyModifiers::NONE));
         assert_eq!(app.page, Page::Analysis);
     }
     #[test]
@@ -4720,19 +5176,24 @@ mod tests {
         std::fs::write(&symbols, b"validated worker output").unwrap();
         let symbols = symbols.canonicalize().unwrap();
         let cache = dir.path().join("cache");
-        let mut app = App::new(None, "absent".into(), cache.clone(), Settings::default());
+        let settings = Settings {
+            image_dir: dir.path().join("images").display().to_string(),
+            symbols: dir.path().join("symbols").display().to_string(),
+            ..Settings::default()
+        };
+        let mut app = App::new(None, "absent".into(), cache.clone(), settings);
         app.root = dir.path().into();
-        app.switch_page(Page::Remote);
+        app.switch_section(AssetSection::Remote);
         app.download_url = Some("https://example.test/exact.json.xz".into());
         let (tx, rx) = mpsc::channel();
         tx.send(WorkerEvent::Downloaded(symbols.clone())).unwrap();
         app.receiver = Some(rx);
         app.drain();
-        assert_eq!(app.page, Page::Remote);
+        assert_eq!(app.section, AssetSection::Remote);
         assert!(app.job.is_none());
         assert_eq!(app.symbols, symbols);
         assert_eq!(app.downloads.len(), 1);
-        app.switch_page(Page::Symbols);
+        app.switch_section(AssetSection::Symbols);
         assert!(app.asset_list().iter().any(|a| a.path == symbols));
         assert_eq!(
             Registry::load(&cache).unwrap().selected(Kind::Symbols),
@@ -4849,7 +5310,7 @@ mod tests {
     fn refresh_without_image_does_not_prompt_and_offline_error_is_actionable() {
         let mut app = app();
         app.settings.remote_symbols = false;
-        app.switch_page(Page::Remote);
+        app.switch_section(AssetSection::Remote);
         app.key(KeyEvent::new(KeyCode::Char('r'), KeyModifiers::NONE));
         assert!(app.dialog.is_none());
         for _ in 0..100 {
@@ -5326,7 +5787,7 @@ mod tests {
         });
         app.dialog_key(KeyEvent::new(KeyCode::Char('d'), KeyModifiers::NONE));
         assert!(
-            matches!(&app.dialog,Some(Dialog::Detail {text,..}) if text.contains(&candidate.url))
+            matches!(&app.dialog,Some(Dialog::RemoteDetail {candidate: shown,..}) if shown.url == candidate.url)
         );
         app.dialog_key(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE));
         assert!(matches!(app.dialog, Some(Dialog::Links { .. })));
@@ -5403,7 +5864,7 @@ mod tests {
         assert_eq!(app.horizontal, 12);
         terminal.draw(|f| app.draw(f)).unwrap();
         terminal.backend_mut().resize(80, 24);
-        app.resize(80);
+        app.resize(80, 24);
         terminal.draw(|f| app.draw(f)).unwrap();
         assert_eq!(app.focus, 2);
         assert_eq!(app.hits.borrow().inspector.width, 0);
@@ -5496,13 +5957,13 @@ mod tests {
         let mut terminal = Terminal::new(TestBackend::new(100, 32)).unwrap();
         terminal.draw(|f| app.draw(f)).unwrap();
         assert!(screen(&terminal, 100).contains("镜像: images/capture.raw"));
-        app.switch_page(Page::Symbols);
+        app.switch_section(AssetSection::Symbols);
         terminal.draw(|f| app.draw(f)).unwrap();
         let hits = app.hits.borrow().clone();
-        assert_eq!(hits.tabs.len(), 3);
+        assert_eq!(hits.tabs.len(), 2);
         assert_eq!(hits.header.height, 0);
         assert_eq!(hits.search.height, 3);
-        assert!(!screen(&terminal, 100).contains("镜像: images/capture.raw"));
+        assert!(screen(&terminal, 100).contains("镜像: images/capture.raw"));
         click(&mut app, hits.search.x + 2, hits.search.y + 1);
         app.paste("test symbol");
         terminal.draw(|f| app.draw(f)).unwrap();
@@ -5511,7 +5972,7 @@ mod tests {
         app.key(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE));
         assert!(app.asset_queries[1].is_empty());
         app.key(KeyEvent::new(KeyCode::Char('t'), KeyModifiers::NONE));
-        assert_eq!(app.page, Page::Remote);
+        assert_eq!(app.section, AssetSection::Remote);
         app.key(KeyEvent::new(KeyCode::Right, KeyModifiers::CONTROL));
         assert_eq!(app.page, Page::Analysis);
     }
@@ -5524,7 +5985,7 @@ mod tests {
         std::fs::create_dir_all(downloaded.parent().unwrap()).unwrap();
         std::fs::write(&downloaded, b"{}").unwrap();
         let selected = app.symbols.clone();
-        app.switch_page(Page::Remote);
+        app.switch_section(AssetSection::Remote);
         app.remote_catalog = true;
         app.download_url = Some("https://example.test/example.json".into());
         let (tx, rx) = mpsc::channel();
@@ -5540,8 +6001,8 @@ mod tests {
                 .iter()
                 .any(|asset| same_path(&asset.path, &downloaded))
         );
-        assert_eq!(app.page, Page::Symbols);
-        assert!(app.status.contains("Enter 选用"));
+        assert_eq!(app.section, AssetSection::Remote);
+        assert!(app.status.contains("已保存到"));
         assert!(app.job.is_none());
     }
     #[test]
@@ -5591,20 +6052,20 @@ mod tests {
         assert!(has(&app, KeyCode::Char('n')));
         assert!(has(&app, KeyCode::Char(']')));
         assert!(!has(&app, KeyCode::Enter));
-        app.switch_page(Page::Symbols);
+        app.switch_section(AssetSection::Symbols);
         assert!(has(&app, KeyCode::Char('a')));
         assert!(!has(&app, KeyCode::Char('g')));
-        let mut terminal = Terminal::new(TestBackend::new(80, 24)).unwrap();
+        let mut terminal = Terminal::new(TestBackend::new(100, 32)).unwrap();
         terminal.draw(|f| app.draw(f)).unwrap();
-        let source = app.hits.borrow().sources[1].0;
+        let source = app.hits.borrow().sources[2].0;
         click(&mut app, source.x, source.y);
-        assert_eq!(app.page, Page::Remote);
+        assert_eq!(app.section, AssetSection::Remote);
         assert!(has(&app, KeyCode::Char('g')));
         assert!(!has(&app, KeyCode::Char('a')));
         app.focus = 2;
         assert!(!has(&app, KeyCode::Enter));
         assert!(has(&app, KeyCode::PageDown));
-        assert!(command_matches("导出结果", Page::Symbols, 1).is_empty());
+        assert!(command_matches("导出结果", Page::Assets, 1).is_empty());
         assert!(command_matches("导出结果", Page::Analysis, 1).is_empty());
         assert!(!command_matches("导出结果", Page::Analysis, 2).is_empty());
         assert!(menu_items().iter().skip(2).all(|item| !item.contains(' ')));
@@ -5741,7 +6202,7 @@ mod tests {
             settings(),
         );
         app.root = dir.path().into();
-        app.switch_page(Page::Symbols);
+        app.switch_section(AssetSection::Symbols);
         assert!(app.asset_list().iter().any(|a| same_path(&a.path, &local)));
         assert!(!app.asset_list().iter().any(|a| same_path(&a.path, &cached)));
         app.focus_asset(Kind::Symbols, &local);
@@ -5755,7 +6216,7 @@ mod tests {
             settings(),
         );
         restored.root = dir.path().into();
-        restored.switch_page(Page::Symbols);
+        restored.switch_section(AssetSection::Symbols);
         assert!(
             restored
                 .asset_list()
@@ -5907,7 +6368,7 @@ mod tests {
         assert_eq!(app.plugin, previous);
     }
     #[test]
-    fn local_matches_return_to_analysis_and_reuse_image_context() {
+    fn local_matches_stay_in_manager_and_reuse_image_context() {
         let dir = tempfile::tempdir().unwrap();
         let images = dir.path().join("images");
         let symbols = dir.path().join("symbols");
@@ -5931,7 +6392,7 @@ mod tests {
             settings,
         );
         app.root = dir.path().into();
-        app.switch_page(Page::Symbols);
+        app.switch_section(AssetSection::Symbols);
         let exact = exact.canonicalize().unwrap();
         let mut banner = super::tests::app().results.remove("pslist").unwrap();
         banner.plugin = "banners".into();
@@ -5948,13 +6409,13 @@ mod tests {
         assert_eq!(app.asset_list().len(), 1);
         assert!(same_path(&app.selected_asset().unwrap().path, &exact));
         app.key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
-        assert_eq!(app.page, Page::Analysis);
+        assert_eq!(app.page, Page::Assets);
         assert!(same_path(&app.symbols, &exact));
         assert_eq!(app.choice.as_deref(), Some("exact-candidate"));
         assert_eq!(app.results["banners"], banner);
         assert!(app.job.is_none());
-        app.key(KeyEvent::new(KeyCode::Char('u'), KeyModifiers::NONE));
-        assert_eq!(app.page, Page::Symbols);
+        app.key(KeyEvent::new(KeyCode::Char('m'), KeyModifiers::NONE));
+        assert_eq!(app.section, AssetSection::Symbols);
         assert!(app.job.is_none());
         assert!(app.status.contains("复用"));
         app.key(KeyEvent::new(KeyCode::Char('z'), KeyModifiers::NONE));
@@ -5966,12 +6427,319 @@ mod tests {
     #[test]
     fn fetch_during_matching_keeps_remote_source_mode() {
         let mut app = app();
-        app.switch_page(Page::Remote);
+        app.switch_section(AssetSection::Remote);
         app.remote_catalog = false;
         app.job = Some(Job::default());
         app.key(KeyEvent::new(KeyCode::Char('g'), KeyModifiers::NONE));
         assert!(!app.remote_catalog);
-        assert!(app.status.contains("等待当前任务完成"));
+        assert!(app.status.contains("任务执行中"));
         assert!(app.dialog.is_none());
+    }
+    fn fixture_isf(banner: &str, variant: u8) -> Vec<u8> {
+        use base64::{Engine, engine::general_purpose::STANDARD};
+        serde_json::to_vec(&serde_json::json!({
+            "base_types": { "pointer": { "size": 8 } },
+            "symbols": { "linux_banner": { "address": 256,
+                "constant_data": STANDARD.encode(format!("{banner}\n\0")) } },
+            "metadata": { "variant": variant }
+        }))
+        .unwrap()
+    }
+    fn finish_test_job(app: &mut App) {
+        if let Some(worker) = app.worker.take() {
+            worker.join().unwrap();
+        }
+        app.drain();
+        assert!(app.job.is_none());
+    }
+    fn cache_fixture(app: &App, candidate: &RemoteMatch, bytes: &[u8]) -> PathBuf {
+        use std::io::Write;
+        let path = app
+            .cache
+            .join("symbols/isf")
+            .join(symbols::cache_filename(&candidate.path).unwrap());
+        let mut encoder = xz2::write::XzEncoder::new(Vec::new(), 1);
+        encoder.write_all(bytes).unwrap();
+        store::atomic_write(&path, &encoder.finish().unwrap()).unwrap();
+        path
+    }
+    #[test]
+    fn remote_detail_download_button_saves_offline_without_selecting_or_navigating() {
+        for catalog in [true, false] {
+            let dir = tempfile::tempdir().unwrap();
+            let mut app = app();
+            app.cache = dir.path().join("cache");
+            app.root = dir.path().into();
+            app.settings.symbols = dir.path().join("library").display().to_string();
+            app.settings.image_dir = dir.path().join("images").display().to_string();
+            app.settings.remote_symbols = false;
+            app.history = app.results.get("pslist").cloned();
+            app.query = "init".into();
+            let previous_symbols = app.symbols.clone();
+            let history = app.history.clone();
+            app.switch_section(AssetSection::Remote);
+            let candidate = RemoteMatch {
+                banner: "Linux version fixture".into(),
+                path: "Debian/amd64/fixture.json.xz".into(),
+                url: symbols::repository_url("Debian/amd64/fixture.json.xz").unwrap(),
+            };
+            let cached = cache_fixture(&app, &candidate, &fixture_isf(&candidate.banner, 0));
+            app.remote = vec![candidate.clone()];
+            app.remote_catalog = catalog;
+            app.asset_queries[2] = "fixture".into();
+            let mut terminal = Terminal::new(TestBackend::new(100, 32)).unwrap();
+            terminal.draw(|f| app.draw(f)).unwrap();
+            let list = app.hits.borrow().assets;
+            click(&mut app, list.x + 1, list.y + 1);
+            assert!(
+                matches!(&app.dialog, Some(Dialog::RemoteDetail { candidate: detail, .. }) if detail.url == candidate.url)
+            );
+            assert!(app.job.is_none());
+            terminal.draw(|f| app.draw(f)).unwrap();
+            let button = app
+                .hits
+                .borrow()
+                .buttons
+                .iter()
+                .find(|(_, k)| *k == KeyCode::Char('w'))
+                .unwrap()
+                .0;
+            if catalog {
+                click(&mut app, button.x, button.y);
+            } else {
+                app.key(KeyEvent::new(KeyCode::Char('w'), KeyModifiers::NONE));
+            }
+            finish_test_job(&mut app);
+            let saved = app.downloads[&candidate.url].clone();
+            assert!(saved.starts_with(dir.path().join("library").canonicalize().unwrap()));
+            assert!(saved.is_file());
+            assert!(saved.with_extension("source.json").is_file());
+            assert_eq!(app.page, Page::Assets);
+            assert_eq!(app.section, AssetSection::Remote);
+            assert_eq!(app.remote_catalog, catalog);
+            assert_eq!(app.asset_queries[2], "fixture");
+            assert_eq!(app.symbols, previous_symbols);
+            assert_eq!(app.history, history);
+            assert_eq!(app.query, "init");
+            assert!(
+                Registry::load(&app.cache)
+                    .unwrap()
+                    .selected(Kind::Symbols)
+                    .is_none()
+            );
+            assert!(matches!(app.dialog, Some(Dialog::RemoteDetail { .. })));
+            assert!(
+                app.remote_detail_text(&candidate)
+                    .contains(&saved.display().to_string())
+            );
+            // Durable copies work without the regenerable cache and do not create duplicates.
+            std::fs::remove_file(cached).unwrap();
+            app.key(KeyEvent::new(KeyCode::Char('w'), KeyModifiers::NONE));
+            finish_test_job(&mut app);
+            assert_eq!(app.downloads[&candidate.url], saved);
+            assert!(app.last_error.is_none());
+            assert_eq!(
+                app.asset_list_for(AssetSection::Symbols)
+                    .iter()
+                    .filter(|a| a.path == saved)
+                    .count(),
+                1
+            );
+            app.key(KeyEvent::new(KeyCode::Char('L'), KeyModifiers::NONE));
+            assert_eq!(app.section, AssetSection::Symbols);
+            assert!(same_path(&app.selected_asset().unwrap().path, &saved));
+            assert_eq!(app.symbols, previous_symbols);
+            assert!(app.dialog.is_none());
+        }
+    }
+    #[test]
+    fn remote_detail_failed_download_retains_candidate_and_allows_retry() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut app = app();
+        app.cache = dir.path().join("cache");
+        app.settings.symbols = dir.path().join("library").display().to_string();
+        app.settings.image_dir = dir.path().join("images").display().to_string();
+        app.settings.remote_symbols = false;
+        app.switch_section(AssetSection::Remote);
+        let path = "Debian/amd64/fixture.json.xz";
+        let candidate = RemoteMatch {
+            banner: "Linux version fixture".into(),
+            path: path.into(),
+            url: symbols::repository_url(path).unwrap(),
+        };
+        app.remote = vec![candidate.clone()];
+        app.key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
+        // No cache: failure is actionable and does not register a local file.
+        app.key(KeyEvent::new(KeyCode::Char('w'), KeyModifiers::NONE));
+        finish_test_job(&mut app);
+        assert!(app.last_error.as_deref().unwrap().contains("离线"));
+        assert!(app.downloads.is_empty());
+        assert!(matches!(app.dialog, Some(Dialog::RemoteDetail { .. })));
+        // Wrong banner must not be copied into the durable library.
+        cache_fixture(&app, &candidate, &fixture_isf("Linux version wrong", 0));
+        app.key(KeyEvent::new(KeyCode::Char('w'), KeyModifiers::NONE));
+        finish_test_job(&mut app);
+        assert!(app.last_error.as_deref().unwrap().contains("banner"));
+        assert!(app.downloads.is_empty());
+        // A corrected cache can be retried directly from the same detail.
+        cache_fixture(&app, &candidate, &fixture_isf(&candidate.banner, 0));
+        app.key(KeyEvent::new(KeyCode::Char('w'), KeyModifiers::NONE));
+        finish_test_job(&mut app);
+        assert!(app.last_error.is_none());
+        let saved = app.downloads[&candidate.url].clone();
+        std::fs::remove_file(&saved).unwrap();
+        app.key(KeyEvent::new(KeyCode::Char('w'), KeyModifiers::NONE));
+        finish_test_job(&mut app);
+        assert!(saved.is_file());
+    }
+    #[test]
+    fn manager_automatically_matches_images_and_requires_explicit_symbol_selection() {
+        let dir = tempfile::tempdir().unwrap();
+        let images = dir.path().join("images");
+        let library = dir.path().join("symbols");
+        std::fs::create_dir_all(&images).unwrap();
+        std::fs::create_dir_all(&library).unwrap();
+        let first = images.join("first.raw");
+        let second = images.join("second.raw");
+        for (path, banner) in [
+            (&first, "Linux version fixture"),
+            (&second, "Linux version other"),
+        ] {
+            let mut bytes = vec![0; 4096];
+            let banner = format!("{banner}\n\0");
+            bytes[256..256 + banner.len()].copy_from_slice(banner.as_bytes());
+            std::fs::write(path, bytes).unwrap();
+        }
+        for (name, banner, variant) in [
+            ("one.json", "Linux version fixture", 0),
+            ("two.json", "Linux version fixture", 1),
+            ("other.json", "Linux version other", 0),
+        ] {
+            std::fs::write(library.join(name), fixture_isf(banner, variant)).unwrap();
+        }
+        let settings = Settings {
+            image_dir: images.display().to_string(),
+            symbols: library.display().to_string(),
+            remote_symbols: false,
+            ..Settings::default()
+        };
+        let mut app = App::new(
+            None,
+            library.join("other.json"),
+            dir.path().join("cache"),
+            settings,
+        );
+        app.switch_section(AssetSection::Images);
+        app.focus_asset(Kind::Image, &first);
+        app.key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
+        finish_test_job(&mut app);
+        assert_eq!(app.page, Page::Assets);
+        assert!(app.symbols.as_os_str().is_empty());
+        assert_eq!(app.local_matches.len(), 2);
+        assert_eq!(app.asset_list_for(AssetSection::Symbols).len(), 2);
+        assert_eq!(app.results["banners"].rows.len(), 1);
+        assert!(
+            Registry::load(&app.cache)
+                .unwrap()
+                .selected(Kind::Symbols)
+                .is_none()
+        );
+        // A highlighted image must not replace the selected target when matching.
+        app.focus_asset(Kind::Image, &second);
+        app.key(KeyEvent::new(KeyCode::Char('m'), KeyModifiers::NONE));
+        assert!(same_path(app.image.as_ref().unwrap(), &first));
+        assert!(app.job.is_none());
+        app.key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
+        assert!(!app.symbols.as_os_str().is_empty());
+        assert_eq!(app.page, Page::Assets);
+        app.switch_section(AssetSection::Images);
+        app.focus_asset(Kind::Image, &second);
+        app.key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
+        assert!(app.symbols.as_os_str().is_empty());
+        finish_test_job(&mut app);
+        assert_eq!(app.local_matches.len(), 1);
+        assert!(app.local_matches.keys().all(|p| p.ends_with("other.json")));
+    }
+    #[test]
+    fn manager_cancel_stops_preparation_and_detail_download_without_followup_actions() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut app = app();
+        app.cache = dir.path().join("cache");
+        app.settings.image_dir = dir.path().join("images").display().to_string();
+        app.settings.symbols = dir.path().join("symbols").display().to_string();
+        app.settings.remote_symbols = false;
+        let path = "Debian/amd64/fixture.json.xz";
+        let candidate = RemoteMatch {
+            banner: "Linux version fixture".into(),
+            path: path.into(),
+            url: symbols::repository_url(path).unwrap(),
+        };
+        cache_fixture(&app, &candidate, &fixture_isf(&candidate.banner, 0));
+        app.switch_section(AssetSection::Remote);
+        app.remote = vec![candidate];
+        app.key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
+        let session = app.session.clone();
+        let guard = session.lock().unwrap();
+        app.key(KeyEvent::new(KeyCode::Char('w'), KeyModifiers::NONE));
+        app.key(KeyEvent::new(KeyCode::Char('c'), KeyModifiers::NONE));
+        drop(guard);
+        finish_test_job(&mut app);
+        assert!(app.downloads.is_empty());
+        assert!(matches!(app.dialog, Some(Dialog::RemoteDetail { .. })));
+        app.key(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE));
+        let image = dir.path().join("fixture.raw");
+        std::fs::write(&image, vec![0; 4096]).unwrap();
+        app.image = Some(image);
+        let guard = session.lock().unwrap();
+        app.prepare_selected_image();
+        app.key(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE));
+        drop(guard);
+        finish_test_job(&mut app);
+        assert!(app.local_match_stamp.is_none());
+        assert!(app.local_matches.is_empty());
+        assert!(app.dialog.is_none());
+        assert_eq!(app.page, Page::Assets);
+    }
+    #[test]
+    fn combined_manager_layout_focus_and_actions_work_at_supported_sizes() {
+        let mut app = app();
+        app.switch_section(AssetSection::Images);
+        for (w, h) in [(160, 40), (100, 32), (80, 24), (60, 18)] {
+            let mut terminal = Terminal::new(TestBackend::new(w, h)).unwrap();
+            terminal.draw(|f| app.draw(f)).unwrap();
+            let hits = app.hits.borrow().clone();
+            assert_eq!(hits.tabs.len(), 2);
+            assert_eq!(hits.asset_lists.len(), if h < 20 { 1 } else { 2 });
+            if h >= 20 {
+                assert!(hits.asset_lists.iter().all(|(r, _, _)| r.height >= 3));
+            }
+            assert_eq!(hits.asset_detail.height > 0, w >= 100 && h >= 28);
+            assert!(
+                hits.asset_buttons
+                    .iter()
+                    .all(|(rect, _, _)| rect.right() <= w && rect.bottom() <= h)
+            );
+            app.section = AssetSection::Images;
+            app.focus = 1;
+            app.key(KeyEvent::new(KeyCode::Tab, KeyModifiers::NONE));
+            assert_eq!(app.section, AssetSection::Symbols);
+            app.key(KeyEvent::new(KeyCode::BackTab, KeyModifiers::NONE));
+            assert_eq!(app.section, AssetSection::Images);
+            assert!(
+                app.asset_disabled(AssetSection::Images, KeyCode::Char('x'))
+                    .is_some()
+            );
+            assert!(
+                app.available_commands("开始分析")
+                    .iter()
+                    .any(|(_, k)| *k == KeyCode::Char('x'))
+            );
+        }
+        app.key(KeyEvent::new(KeyCode::F(9), KeyModifiers::NONE));
+        assert_eq!(app.page, Page::Assets); // Old page shortcuts have been removed.
+        app.key(KeyEvent::new(KeyCode::F(2), KeyModifiers::NONE));
+        assert_eq!(app.page, Page::Analysis);
+        app.key(KeyEvent::new(KeyCode::F(3), KeyModifiers::NONE));
+        assert_eq!(app.page, Page::Assets);
     }
 }

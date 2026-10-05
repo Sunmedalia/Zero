@@ -2,36 +2,53 @@
 
 本地 Linux x86_64／ARM64 内存取证工具，使用 Rust 2024、Ratatui 和 Crossterm。支持 RAW、LiME 及其 gzip 镜像，读取 JSON、JSON.XZ 或 ZIP 内的 ISF，取证引擎无需 Python、Node 或 HTTP 服务；在线符号下载使用系统 `curl`。
 
+## MCP 与 Agent skill
+
+项目提供原生 stdio MCP 服务 `zero-mcp`，直接调用 Rust 取证 API。项目级 [Codex 配置](.codex/config.toml)、[Claude Code 配置](.mcp.json) 和 [Zero skill](.agents/skills/zero-forensics/SKILL.md) 已就绪。先在项目目录执行 `cargo build --release --locked --bin zero-mcp`；受信任的 Codex 项目配置或 Claude Code 项目配置加载后，重新打开会话即可使用。配置中的绝对路径指向当前项目位置；移动项目后需同时更新两份配置和 skill 中的根路径。首次通过配置启动时也会自动编译，可能需要一段时间。
+
+MCP 工具包括 `zero_plugins`、`zero_symbols`、`zero_analyze`、`zero_dump` 和 `zero_cache_list`。`zero_analyze` 直接返回分页 JSON，`output` 可另存全部结果为 JSON／CSV；`zero_dump` 要求明确的 PID、目标目录和清单路径。相对路径以项目根目录为基准，`offline: true` 禁止符号网络请求。镜像不上传；在线模式仅按完整 banner 查询和下载符号。MCP 工具执行可能耗时较长，客户端工具调用超时建议至少 300 秒。
+
+无需客户端时可直接测试协议：
+
+```sh
+printf '%s\n' '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"test","version":"1"}}}' '{"jsonrpc":"2.0","id":2,"method":"tools/list"}' | ZERO_ROOT="$PWD" ./target/release/zero-mcp
+```
+
 ```sh
 cargo build --release --locked
-./target/release/zero-tui --image symbols/linux-sample-1.bin.gz --symbols images/linux.zip
+./target/release/zero --image symbols/linux-sample-1.bin.gz --symbols images/linux.zip
 # 或安装至 Cargo bin 目录
 cargo install --path . --locked
+# 安装后可直接运行 zero、zero-mcp；zero-tui 仍作为兼容命令保留
 ```
 
 不带参数启动时，镜像与符号保持未选择状态，不恢复上次分析对象，也不自动读取镜像；只有显式 `--image`／`--symbols` 或在界面中选用后才加载。符号路径可以是文件或目录；只有完整 `linux_banner` 匹配的 ISF 才能进入分析。多候选时必须手动选择。默认先匹配本地符号和下载缓存，缺少时按完整 banner 从 [Abyss-W4tcher/volatility3-symbols](https://github.com/Abyss-W4tcher/volatility3-symbols) 下载架构与完整 banner 匹配的 ISF；镜像始终在本地，只向仓库请求索引和符号文件。`--offline` 完全禁止网络请求。
 
-项目管理使用顶部三个 Tab：**分析、镜像、符号管理**。F9–F11 或 Ctrl+←/→ 切换页面，鼠标点击标签也可切换。符号管理有可点击的 **本地库／远程索引** 子标签，也可用 `t` 切换，F12 可直接打开远程视图。每个列表保留搜索和位置；80 列起清单与详情并排，更窄时上下排列。Tab 切换清单／详情，方向键或滚轮滚动，d 查看完整详情。分析页显示已选镜像、符号与内核验证状态；符号管理仅显示当前匹配目标和匹配操作；项目内路径从当前目录起显示，项目外路径保持绝对路径。
+项目管理使用顶部两个 Tab：**分析、镜像与符号**。`F2`／`F3` 或 Ctrl+←/→ 切换页面，鼠标也可点击标签。合并页集中展示镜像和符号列表，符号区可点击 **本地库／远程索引** 或按 `t` 切换来源。100 列起左右排列镜像与符号；窗口足够高时下方显示详情，更窄时上下排列；高度不足 20 行时显示当前操作区域，通过区域标签或 Tab 切换。各列表独立保存搜索和滚动位置。顶部显示明确选用的镜像、内核及符号；高亮行与“●已选用”标记分别表示浏览对象和分析对象。
 
-- **镜像**：列出配置的 `images/` 目录和已导入的镜像；a 打开目录选择器导入，Enter 选用并自动识别 banner，u 跳转本地符号匹配，m 精确匹配远程符号，x 进入分析。
-- **符号管理 · 本地**：统一管理配置目录内的 ZIP／JSON／JSON.XZ、已导入文件和下载缓存；上方搜索框用 `/` 或鼠标打开，实时筛选，Esc 撤销；a 导入文件或目录，d 查看 banner、SHA256、架构及来源。上方 Target 展示匹配对象；m 按当前镜像完整 banner 筛选本地符号，z 切换匹配结果／全部文件，M 跳转远程匹配。Enter 选用匹配项后返回分析，按 Enter 执行；仍需通过页表验证。
-- **符号管理 · 远程**：`m` 按已选镜像的完整 banner 精确匹配；`g`（Fetch）获取并展示完整仓库索引，在线时重新获取、离线时读取缓存；`/` 或 `f` 在索引中搜索，上方输入多个关键词（例如 `Debian 3.2.0-4-amd64`），实时筛选，每个词都必须匹配；Enter 确认、Esc 撤销。选择结果后点击底部“Enter下载”或按 Enter；详情展示完整 banner、仓库路径和链接。无需镜像也能搜索下载；`r` 刷新索引。校验通过的下载保存到配置的本地符号目录（当前选用 ZIP／文件时保存到 `symbols/`），下载完成自动返回本地库并定位文件，Enter 选用。手动索引下载不会自动启动分析或改变当前选用符号；本地库显示持久副本并隐藏对应的重复下载缓存，保留来源链接。手动下载校验索引 banner 与 ISF，选用分析时再验证镜像；精确匹配下载则直接选用并返回分析页，按 Enter 执行。
-- Backspace 将本地资产移出清单并保留原文件。项目资产与上次选用记录保存在 `.zero/rust/workspace.json`，重启保留清单，但不会自动选用旧镜像或符号。离线时可搜索已缓存索引和查看已下载符号；`o` 切换网络，Esc／右键取消后台任务。
+- **镜像**：列出配置的 `images/` 和已导入镜像。`a` 导入，Enter 选用后自动识别完整 banner 并匹配本地符号，停留在合并页。切换镜像会清除旧匹配和旧符号选择，不自动选用匹配候选。
+- **本地符号**：集中管理 JSON／JSON.XZ／ZIP、已导入文件和下载符号。`a` 导入，`m` 匹配当前选用镜像，`z` 切换匹配结果／全部文件，Enter 选用符号，`d` 查看 banner、SHA256、架构和来源。选用后仍留在合并页，`x` 开始分析并进入分析页；执行时验证镜像与页表，多候选需要明确选择。
+- **远程符号**：`M` 按当前选用镜像精确匹配；`g` 获取完整仓库索引，`/` 搜索，可输入多个关键词，例如 `Debian 3.2.0-4-amd64`。点击条目或按 Enter 打开详情，显示完整 banner、仓库路径、URL、下载状态和保存位置。点击 **下载到 symbols** 或按 `w` 一键保存；无镜像也可下载。索引搜索与精确匹配的下载都只保存，不自动选用、切换来源或启动分析。下载完成后在详情中点击 **本地库定位**／按 `L`，再选用符号。
+- 校验通过的下载保存到配置的符号目录，默认 `symbols/`；配置指向单个符号文件时保存到项目 `symbols/`。使用内容摘要命名并保留来源记录，本地库隐藏对应的重复缓存；缓存清理后仍可复用本地副本。详情显示进度和错误，可取消、重试。
+- `r` 刷新当前列表，保留查询和远程匹配模式；`o` 切换在线／离线。离线时仅使用缓存和已保存符号，没有缓存时提示开启网络。任务中可浏览列表、切换页面；选用、导入、匹配等冲突操作暂时禁用。
+- Tab／Shift+Tab 切换镜像、符号及可见详情区域；方向键、PgUp/PgDn、Home/End 导航，`/` 搜索当前列表，`d` 完整详情。Delete 将本地资产移出清单并保留原文件。Esc 关闭弹窗，无弹窗时取消任务；远程详情中 `c` 取消下载。Ctrl+P／`?` 打开当前区域的命令面板。
+
+旧 F9–F12 管理页面入口已移除；F2/F3 统一用于顶层页面切换。分析页使用 `i/y` 选择镜像／符号，Dump 弹窗中的 F2/F3/F4 继续切换转储模式。资产清单和选择记录保存在 `.zero/rust/workspace.json`，重启保留清单但不自动选用旧分析对象。
 
 操作流程：
 
 ```mermaid
 flowchart TD
-    A[启动 Zero] --> B[镜像页：导入或选择镜像]
-    B --> C[自动识别完整 banner]
-    C --> D[u：跳转符号管理]
+    A[启动 Zero] --> B[镜像与符号：导入或选用镜像]
+    B --> C[自动识别 banner 并匹配本地符号]
+    C --> D[同页选择符号来源]
     D --> E[本地库：完整 banner 筛选，Enter 选用]
     D --> F[M：远程精确匹配镜像]
     D --> G[远程索引：g Fetch，/ 手动搜索]
-    F --> H[查看链接并下载]
+    F --> H[详情：w 下载到 symbols，L 定位本地库]
     G --> H
     H --> E
-    E --> I[分析页：选择插件]
+    E --> I[x 开始分析，分析页选择插件]
     I --> J[验证 banner 与页表并分析]
     I --> P[D：打开统一 Dump 功能]
     P --> Q[选择 Process／Range／ELF，填写 PID 与输出参数]
@@ -49,34 +66,34 @@ flowchart TD
 目录、分页与任务状态：
 
 - 默认镜像目录 `images/`、符号目录 `symbols/`、导出目录 `exports/`，启动时创建。按 `,` 配置默认浏览目录；按 `n` 自定每页行数（1–10000），输入 `auto` 或 `0` 自动填满当前结果区域，随窗口高度调整。默认使用自动行数，旧版固定行数设置首次迁移为自动，此后保留用户选择；终端变小时实际每页行数不超过可见高度，避免翻页跳过看不到的行；配置持久化到 `.zero/rust/settings.json`。外部文件导入只登记路径，不复制或修改镜像。
-- `i`／`y`／资产页 `a` 或点击顶部路径打开配置目录的文件弹窗，列出该目录实际文件与子目录，包括 ZIP 和其他普通文件；不会汇总整个项目，也没有指定文件的特殊入口。IMG／ISF 标记辅助识别类型，选用已识别文件时按类型导入；↑↓ 选择，Enter／→ 打开目录或文件，←／Backspace 浏览上级，Tab 在镜像／符号目录间切换，`w` 返回当前类型的配置目录，Space 选用符号／配置目录，`p` 手动输入路径。选用镜像后自动读取 banner，分析页顶部显示内核候选；完整符号及页表验证仍在执行分析时完成。
-- `u`／F6 从当前镜像跳转本地符号精确匹配，`M` 跳转远程匹配；镜像页使用当前高亮镜像。匹配结果绑定镜像与符号文件元数据，未变化时复用；切换镜像后清除。选择符号保留已识别的内核 banner。
-- 远程页 `g` Fetch 全部索引；`m` 单独列出当前镜像的精确匹配。`r` 刷新当前索引／匹配视图，未加载镜像也可 Fetch。离线时只读取缓存，未缓存时明确提示 `o` 开启网络。仓库没有匹配时显示 0 个候选，不按内核版本猜测符号。
+- 分析页 `i`／`y`／合并页 `a` 或点击顶部路径打开配置目录的文件弹窗，列出该目录实际文件与子目录，包括 ZIP 和其他普通文件；不会汇总整个项目，也没有指定文件的特殊入口。IMG／ISF 标记辅助识别类型，选用已识别文件时按类型导入；↑↓ 选择，Enter／→ 打开目录或文件，←／Backspace 浏览上级，Tab 在镜像／符号目录间切换，`w` 返回当前类型的配置目录，Space 选用符号／配置目录，`p` 手动输入路径。选用镜像后自动读取 banner，分析页顶部显示内核候选；完整符号及页表验证仍在执行分析时完成。
+- 合并页 `m`／`M` 始终匹配当前选用镜像，列表里高亮另一个镜像不会改变匹配对象。完整 banner 匹配结果绑定镜像与符号文件元数据，未变化时复用，切换镜像后清除；选择符号保留已识别 banner。
+- 远程 `g` 获取完整索引，`M` 单独列出当前镜像的精确匹配，`r` 刷新当前视图。离线时读取缓存，没有完整匹配时显示 0 个候选，不按内核版本猜测符号。
 - `[`／`]` 或结果区域 PgUp／PgDn 翻页，表头显示页码；短列按内容收紧，长字段限制显示宽度后可横向滚动或查看详情。排序使用完整字段，数字／十六进制按数值排序，其他内容按字符串排序。
 - `h` 打开导出记录目录，浏览历史 CSV／JSON；它是独立功能，已从插件菜单移出。历史内容使用相同筛选、排序、详情和分页功能；`e` 导出全部筛选结果，不受当前页影响。
 - 内容表格上方固定显示搜索框，可点击或按 `/` 编辑；长查询保持光标可见，并可点击确认／撤销。
-- 底部用一行状态／进度和一行随页面与焦点变化的操作按钮展示：插件区提供运行和插件搜索，内容区提供排序、导出、行数和翻页，详情区提供滚动，本地库提供导入／选用，远程索引提供 Fetch／下载。窄窗口优先保留 `?更多`，命令面板也按当前页面和区域筛选，快捷按钮不再被截成半个；`l` 查看最近 200 条任务消息和完成／失败记录。读取总量已知时显示百分比进度条，总量未知时显示处理状态、已用时间和取消入口。
+- 底部用一行状态／进度和一行随页面与焦点变化的操作按钮展示：插件区提供运行和插件搜索，内容区提供排序、导出、行数和翻页，详情区提供滚动，本地库提供导入／选用，远程索引提供获取索引／详情／下载。窄窗口优先保留 `?更多`，命令面板也按当前页面和区域筛选，快捷按钮不再被截成半个；`l` 查看最近 200 条任务消息和完成／失败记录。读取总量已知时显示百分比进度条，总量未知时显示处理状态、已用时间和取消入口。
 - 远程下载缓存使用“可读名称＋仓库完整路径的 SHA256 后缀”，兼容旧缓存；保存到本地库的文件使用 ISF 内容 SHA256 后缀。同名镜像的清单显示不同路径标识；识别记录区分规范路径和文件元数据，分析缓存仍绑定镜像内容 SHA256、ISF SHA256 和引擎版本。不同内容的同名镜像不会共用结果，相同内核的符号可以安全共享；不使用时间或 MD5 来判断缓存有效性。
 
 批处理与导出：
 
 ```sh
-zero-tui analyze --image symbols/linux-sample-1.bin.gz --symbols images/linux.zip \
+zero analyze --image symbols/linux-sample-1.bin.gz --symbols images/linux.zip \
   --plugin pslist --output processes.json
-zero-tui analyze --image symbols/linux-sample-1.bin.gz --symbols images/linux.zip \
+zero analyze --image symbols/linux-sample-1.bin.gz --symbols images/linux.zip \
   --plugin lsmod --output modules.csv
 # Recover in-memory Bash history
-zero-tui analyze --image symbols/linux-sample-1.bin.gz --symbols images/linux.zip \
+zero analyze --image symbols/linux-sample-1.bin.gz --symbols images/linux.zip \
   --plugin history --output history.json
 # Dump only PID 1; binaries and manifest have separate output parameters
-zero-tui dump --image symbols/linux-sample-1.bin.gz --symbols images/linux.zip \
+zero dump --image symbols/linux-sample-1.bin.gz --symbols images/linux.zip \
   --mode process --pid 1 --dump-dir exports/dumps --output dump-index.csv
 # Dump an explicit user virtual address range (obtain the range with maps first)
-zero-tui dump --image symbols/linux-sample-1.bin.gz --symbols images/linux.zip \
+zero dump --image symbols/linux-sample-1.bin.gz --symbols images/linux.zip \
   --mode range --pid 1 --start 0x608000 --end 0x609000 \
   --dump-dir exports/dumps --output range.json
 # Export ELF-header-containing mappings of one process
-zero-tui dump --image symbols/linux-sample-1.bin.gz --symbols images/linux.zip \
+zero dump --image symbols/linux-sample-1.bin.gz --symbols images/linux.zip \
   --mode elf --pid 1 --dump-dir exports/dumps --output elf-index.csv
 ```
 
@@ -132,9 +149,9 @@ TUI 插件列表只列分析插件，转储统一放在 `dump` 功能中，用 `
 CLI 示例（TUI 按 `p` 搜索同名插件）：
 
 ```sh
-zero-tui --offline analyze --image symbols/linux-sample-1.bin.gz --symbols images/linux.zip \
+zero --offline analyze --image symbols/linux-sample-1.bin.gz --symbols images/linux.zip \
   --plugin iomem --output exports/iomem.json
-zero-tui --offline analyze --image images/kali.raw --symbols symbols/kali-6.8.11-arm64.json.xz \
+zero --offline analyze --image images/kali.raw --symbols symbols/kali-6.8.11-arm64.json.xz \
   --plugin ptrace --output exports/ptrace.csv
 ```
 
@@ -162,9 +179,12 @@ argv／环境区各限 1 MiB，单进程 VMA／FD 各限 100 万项，路径限 
 
 | 快捷键 | 操作 |
 | --- | --- |
-| F9–F11 / Ctrl+←→ | 切换分析、镜像、符号管理；F12 进入远程视图 |
-| t / g / f / m（符号管理） | 切换本地／远程、获取索引、搜索索引、按镜像精确匹配 |
-| Enter / “Enter下载” | 选用本地符号或下载所选远程索引项 |
+| F2 / F3 / Ctrl+←→ | 切换分析／镜像与符号页 |
+| t / g / /（合并页） | 切换本地／远程、获取完整索引、搜索当前列表 |
+| Enter（合并页） | 选用镜像或本地符号；远程条目打开详情 |
+| w / L（远程详情） | 下载到 symbols／在本地库定位 |
+| a / Delete（本地资产） | 导入／移出清单，原文件保留 |
+| x（合并页） | 使用已选用的镜像和符号开始分析 |
 | ? / Ctrl+P | 搜索当前页面可用的命令与操作 |
 | n | 输入每页行数；auto / 0 自动填满可用高度 |
 | [ / ] | 结果前一页／后一页 |
@@ -177,10 +197,10 @@ argv／环境区各限 1 MiB，单进程 VMA／FD 各限 100 万项，路径限 
 | Enter | 执行分析、展开 / 折叠进程树，或打开非树行详情 |
 | d / 底部“详情” | 打开行全部字段；↑↓、PageUp / PageDown、Home / End 滚动，Esc／右键关闭 |
 | ← / → | 折叠 / 展开当前进程 |
-| i / F2、y / F3 | 浏览镜像／符号配置目录；弹窗内 Tab 切换两目录 |
+| i / y（分析页） | 浏览镜像／符号配置目录；弹窗内 Tab 切换两目录 |
 | p / F4 | 搜索插件，支持插件名称搜索，Enter 执行 |
-| b / F7 | 无需 ISF 即可识别内核 banner |
-| u / F6、M | 当前镜像 → 本地完整 banner 匹配／远程精确匹配 |
+| b | 无需 ISF 即可识别内核 banner |
+| m / M | 当前镜像 → 本地完整 banner 匹配／远程精确匹配 |
 | D | 打开统一 Dump；窗口内 F2 Process、F3 Range、F4 ELF |
 | o | 切换在线符号匹配／离线模式 |
 | ? | 打开当前页面的命令面板；可搜索和运行操作 |
@@ -253,13 +273,13 @@ python3 tests/reference/debian.py --image .zero/rust/910f272e5eeecdbf229e648d7b1
 
 ```sh
 # 返回内核 banner、仓库路径和可直接使用的下载链接
-zero-tui symbols --image symbols/linux-sample-1.bin.gz --output symbols-match.json
+zero symbols --image symbols/linux-sample-1.bin.gz --output symbols-match.json
 # 下载精确匹配文件到私有缓存；--refresh 强制刷新索引
-zero-tui symbols --image symbols/linux-sample-1.bin.gz --download --refresh
+zero symbols --image symbols/linux-sample-1.bin.gz --download --refresh
 # 不指定 --symbols 时使用设置路径，并自动匹配下载缓存／仓库
-zero-tui analyze --image symbols/linux-sample-1.bin.gz --plugin threads --output threads.json
+zero analyze --image symbols/linux-sample-1.bin.gz --plugin threads --output threads.json
 # 已下载匹配的 ISF 后，同样可完全离线分析
-zero-tui --offline analyze --image symbols/linux-sample-1.bin.gz --plugin pscred --output credentials.json
+zero --offline analyze --image symbols/linux-sample-1.bin.gz --plugin pscred --output credentials.json
 ```
 
 索引缓存位于 `.zero/rust/symbols/banners_plain.json`，在线模式每 24 小时更新，断网时可使用有效的旧索引；`symbols --refresh` 可立即刷新。ISF 位于 `.zero/rust/symbols/isf/`，旁边的 `.source.json` 保留完整 banner、仓库路径和下载 URL。下载验证 HTTPS、索引路径、ISF 格式与完整 banner，分析前继续验证页表；损坏下载缓存可在线重取，取消／失败不会提交半个文件。下载上限和解压上限各 256 MiB，连接超时 10 秒、总请求超时 90 秒；Esc 可中断下载。无精确匹配项时保留 banner 识别功能，并提示选择本地 ISF，不按版本号猜测符号。仓库匹配与下载缓存离线分析已在本地 Debian 样本上实际验证。
@@ -268,9 +288,9 @@ zero-tui --offline analyze --image symbols/linux-sample-1.bin.gz --plugin pscred
 缓存管理：
 
 ```sh
-zero-tui cache list
-zero-tui cache clear --scope results,identification --dry-run
-zero-tui cache clear --scope results,identification --yes
+zero cache list
+zero cache clear --scope results,identification --dry-run
+zero cache clear --scope results,identification --yes
 # 可选 dumps、images、symbols 或 all；symbols 包括下载文件和本地生成符号的构建缓存
 ```
 
@@ -281,10 +301,10 @@ Banner 的摘要与前缀扫描合并为一轮流式读取，跨块与连续 LiM
 准确生成 Kali ARM64 符号：
 
 ```sh
-zero-tui symbols-generate --image images/kali.raw --kali
+zero symbols-generate --image images/kali.raw --kali
 # 输出一个 .zero/rust/symbols/isf/<摘要>.json.xz 路径；用 --symbols 指定它
 # 其他内核显式提供匹配的调试 ELF、内核 config 和 dwarf2json 可执行文件
-zero-tui symbols-generate --image sample.raw --elf vmlinux --config kernel.config --tool /path/to/dwarf2json --offline
+zero symbols-generate --image sample.raw --elf vmlinux --config kernel.config --tool /path/to/dwarf2json --offline
 ```
 
 `g`／`--kali` 首先复用 `symbols/` 或缓存中的精确 ISF（已保留的测试符号可直接离线使用）。GitHub 索引按完整 banner 精确匹配；仓库未提供该 Kali ARM64 构建时，g／`--kali` 使用 [Kali 官方归档](https://old.kali.org/kali/pool/main/l/linux/) 的 6.8.11-1kali2 ARM64 调试包和内核配置。只提取 ELF／配置，不安装 deb、不执行维护脚本。没有已保留的精确 ISF 时，首次准备需要系统 `curl`、`ar`、`tar`、`git` 和 Go；固定 dwarf2json 源码版本为 `9f14607e0d339d463ea725fbd5c08aa7b7d40f75`，在独立构建目录编译，不属于运行时动态插件。生成 ISF 记录 ELF／config／工具摘要、准确 syscall 表长度及页表配置，完整 banner 不一致即拒绝。准备完成后可完全离线；`--offline` 不获取任何缺失文件。

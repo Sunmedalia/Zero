@@ -96,6 +96,13 @@ impl Registry {
         )
     }
     pub fn import(&mut self, path: &Path, kind: Kind, cache: &Path) -> Result<PathBuf> {
+        self.add(path, kind, cache, true)
+    }
+    /// Register a saved asset without changing the current analysis selection.
+    pub fn register(&mut self, path: &Path, kind: Kind, cache: &Path) -> Result<PathBuf> {
+        self.add(path, kind, cache, false)
+    }
+    fn add(&mut self, path: &Path, kind: Kind, cache: &Path, select: bool) -> Result<PathBuf> {
         let path = path.canonicalize()?;
         let meta = fs::metadata(&path)?;
         ensure!(
@@ -104,10 +111,15 @@ impl Registry {
         );
         let _guard = registry_lock(cache)?;
         let mut next = Self::load(cache)?;
-        if kind == Kind::Image {
-            next.active_image = Some(path.clone());
-        } else {
-            next.active_symbols = Some(path.clone());
+        if select {
+            if kind == Kind::Image {
+                if next.active_image.as_ref() != Some(&path) {
+                    next.active_symbols = None;
+                }
+                next.active_image = Some(path.clone());
+            } else {
+                next.active_symbols = Some(path.clone());
+            }
         }
         next.hidden.retain(|p| p != &path);
         let list = if kind == Kind::Image {

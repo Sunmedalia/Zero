@@ -5,6 +5,14 @@ edition = "2024"
 license = "MIT"
 description = "Offline native Linux memory forensics terminal"
 
+[[bin]]
+name = "zero"
+path = "src/bin/zero.rs"
+
+[[bin]]
+name = "zero-mcp"
+path = "src/mcp.rs"
+
 [dependencies]
 anyhow = "1"
 base64 = "0.22"
