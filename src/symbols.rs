@@ -24,25 +24,58 @@ impl Isf {
             data["base_types"]["pointer"]["size"].as_u64() == Some(8),
             "仅支持 64 位 ISF"
         );
-        let encoded = data["symbols"]["linux_banner"]["constant_data"]
-            .as_str()
-            .context("ISF 缺少完整 linux_banner constant_data")?;
-        let banner = STANDARD.decode(encoded)?;
-        ensure!(
-            banner.starts_with(b"Linux version ")
-                && banner.last() == Some(&0)
-                && banner.len() <= 65536
-                && !banner[..banner.len() - 1].contains(&0),
-            "ISF banner 无效或不完整"
-        );
-        Ok(Self {
+        let banner = if data["metadata"]["windows"]["pdb"].is_object() {
+            let p = &data["metadata"]["windows"]["pdb"];
+            ensure!(
+                p["database"].is_string() && p["GUID"].is_string() && p["age"].is_u64(),
+                "Windows ISF PDB 身份不完整"
+            );
+            ensure!(
+                data["metadata"]["windows"]["pdb"]["machine_type"]
+                    .as_u64()
+                    .is_none_or(|m| m == 0x8664)
+                    && data["metadata"]["windows"]["pe"]["machine_type"]
+                        .as_u64()
+                        .is_none_or(|m| m == 0x8664),
+                "Windows ISF 不是 x64"
+            );
+            format!(
+                "Windows PDB {} {} age {}\0",
+                p["database"].as_str().unwrap(),
+                p["GUID"].as_str().unwrap(),
+                p["age"]
+            )
+            .into_bytes()
+        } else {
+            let encoded = data["symbols"]["linux_banner"]["constant_data"]
+                .as_str()
+                .context("ISF 缺少完整 linux_banner constant_data")?;
+            let banner = STANDARD.decode(encoded)?;
+            ensure!(
+                banner.starts_with(b"Linux version ")
+                    && banner.last() == Some(&0)
+                    && banner.len() <= 65536
+                    && !banner[..banner.len() - 1].contains(&0),
+                "ISF banner 无效或不完整"
+            );
+            banner
+        };
+        let windows = data["metadata"]["windows"]["pdb"].is_object();
+        let isf = Self {
             slide: std::sync::atomic::AtomicU64::new(0),
             data,
             label,
             digest: format!("{:x}", Sha256::digest(bytes)),
             banner,
             locations: Vec::new(),
-        })
+        };
+        if windows {
+            crate::windows_symbols::PdbIdentity::from_isf(&isf)?;
+        }
+        Ok(isf)
+    }
+    pub fn is_windows(&self) -> bool {
+        self.data["metadata"]["windows"]["pdb"].is_object()
     }
     pub fn address(&self, name: &str) -> Result<u64> {
         Ok(self
@@ -206,6 +239,11 @@ fn collect(path: &Path, job: &Job, out: &mut Vec<(String, Vec<u8>)>) -> Result<(
     }
     Ok(())
 }
+pub(crate) fn entries(path: &Path, job: &Job) -> Result<Vec<(String, Vec<u8>)>> {
+    let mut out = Vec::new();
+    collect(path, job, &mut out)?;
+    Ok(out)
+}
 pub fn inspect(path: &Path, job: &Job) -> Result<Vec<Isf>> {
     let mut entries = Vec::new();
     collect(path, job, &mut entries)?;
@@ -218,6 +256,15 @@ pub fn inspect(path: &Path, job: &Job) -> Result<Vec<Isf>> {
     Ok(parsed)
 }
 pub fn matching(path: &Path, image: &Image, job: &Job) -> Result<Vec<Isf>> {
+    if image.banners(job)?.is_empty() && !image.windows_candidates(job)?.is_empty() {
+        return crate::windows_symbols::resolve(
+            path,
+            image,
+            Path::new("/nonexistent-zero-cache"),
+            false,
+            job,
+        );
+    }
     job.report("读取本地 ISF");
     let mut entries = Vec::new();
     collect(path, job, &mut entries)?;
@@ -262,6 +309,15 @@ pub fn match_local_files(
     job: &Job,
 ) -> Result<LocalMatches> {
     let banners = image.banners(job)?;
+    let windows = if banners.is_empty() {
+        image
+            .windows_candidates(job)?
+            .iter()
+            .map(|c| c.pdb.clone())
+            .collect::<Vec<_>>()
+    } else {
+        Vec::new()
+    };
     let mut report = LocalMatches::default();
     let mut seen = std::collections::HashSet::new();
     for path in paths {
@@ -278,7 +334,10 @@ pub fn match_local_files(
             job.check()?;
             match Isf::parse(&bytes, label.clone()) {
                 Ok(isf)
-                    if banners.iter().any(|(_, banner)| *banner == isf.banner)
+                    if (banners.iter().any(|(_, banner)| *banner == isf.banner)
+                        || (isf.is_windows()
+                            && crate::windows_symbols::PdbIdentity::from_isf(&isf)
+                                .is_ok_and(|p| windows.contains(&p))))
                         && seen.insert(isf.digest.clone()) =>
                 {
                     report.matched.entry(path.clone()).or_default().push(label);
@@ -323,7 +382,7 @@ pub fn repository_url(path: &str) -> Result<String> {
     }
     Ok(format!("{RAW}{encoded}"))
 }
-fn fetch(url: &str, job: &Job) -> Result<Vec<u8>> {
+pub(crate) fn fetch(url: &str, job: &Job) -> Result<Vec<u8>> {
     use std::{
         process::{Command, Stdio},
         thread,
@@ -415,6 +474,19 @@ pub fn remote_matches(
     network: bool,
     job: &Job,
 ) -> Result<Vec<RemoteMatch>> {
+    if image.banners(job)?.is_empty() {
+        return image
+            .windows_candidates(job)?
+            .iter()
+            .map(|c| {
+                Ok(RemoteMatch {
+                    banner: format!("Windows PDB {}", c.pdb.key()),
+                    path: c.pdb.key(),
+                    url: c.pdb.url()?,
+                })
+            })
+            .collect();
+    }
     let banners = image.banners(job)?;
     let path = cache.join("symbols/banners_plain.json");
     let cached = fs::read(&path)
@@ -521,10 +593,44 @@ pub fn download(
     network: bool,
     job: &Job,
 ) -> Result<Isf> {
+    if m.url
+        .starts_with("https://msdl.microsoft.com/download/symbols/")
+    {
+        let candidate = image
+            .windows_candidates(job)?
+            .iter()
+            .find(|c| c.pdb.key() == m.path)
+            .context("下载项与 Windows 镜像身份不匹配")?;
+        ensure!(m.url == candidate.pdb.url()?, "Windows 符号 URL 不匹配");
+        return crate::windows_symbols::acquire(&candidate.pdb, cache, network, job);
+    }
     download_checked(m, Some(image), cache, network, job)
+}
+pub fn validate_remote(m: &RemoteMatch) -> Result<()> {
+    let expected = if m
+        .url
+        .starts_with("https://msdl.microsoft.com/download/symbols/")
+    {
+        crate::windows_symbols::PdbIdentity::from_key(&m.path)?.url()?
+    } else {
+        repository_url(&m.path)?
+    };
+    ensure!(expected == m.url, "符号来源 URL 不匹配");
+    Ok(())
 }
 pub fn download_catalog(m: &RemoteMatch, cache: &Path, network: bool, job: &Job) -> Result<Isf> {
     let _guard = crate::cache::lock(cache, false)?;
+    if m.url
+        .starts_with("https://msdl.microsoft.com/download/symbols/")
+    {
+        validate_remote(m)?;
+        return crate::windows_symbols::acquire(
+            &crate::windows_symbols::PdbIdentity::from_key(&m.path)?,
+            cache,
+            network,
+            job,
+        );
+    }
     download_checked(m, None, cache, network, job)
 }
 fn download_checked(
@@ -605,6 +711,9 @@ pub fn resolve(
     network: bool,
     job: &Job,
 ) -> Result<Vec<Isf>> {
+    if image.banners(job)?.is_empty() && !image.windows_candidates(job)?.is_empty() {
+        return crate::windows_symbols::resolve(local, image, cache, network, job);
+    }
     match matching(local, image, job) {
         Ok(matches) => return Ok(matches),
         Err(e) => {

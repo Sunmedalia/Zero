@@ -151,6 +151,8 @@ impl Linux<'_> {
                 symbol: self.isf.label.clone(),
                 page_table: self.vm.root,
                 historical: false,
+                system: "linux".into(),
+                kernel_identity: serde_json::Value::Null,
             };
             self.logs(&mut result, job)?;
             job.check()?;

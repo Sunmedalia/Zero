@@ -17,6 +17,7 @@ pub enum Mode {
     Process,
     Range,
     Elf,
+    Pe,
 }
 impl Mode {
     pub fn plugin(self) -> Plugin {
@@ -24,6 +25,7 @@ impl Mode {
             Self::Process => Plugin::Procdump,
             Self::Range => Plugin::Memdump,
             Self::Elf => Plugin::Elfdump,
+            Self::Pe => Plugin::WinPedump,
         }
     }
 }
@@ -55,19 +57,19 @@ impl DumpOptions {
                 ensure!(end - start <= MAX_DUMP_BYTES, "转储范围超过 256 MiB 上限");
             }
             (None, None) => ensure!(
-                plugin != Plugin::Memdump,
+                !matches!(plugin, Plugin::Memdump | Plugin::WinMemdump),
                 "memdump 必须指定 --start 和 --end"
             ),
             _ => anyhow::bail!("Start 和 End 必须同时填写"),
         }
         ensure!(
-            plugin != Plugin::Elfdump || self.start.is_none(),
-            "elfdump 不接受地址范围；使用 memdump 精确导出范围"
+            !matches!(plugin, Plugin::Elfdump | Plugin::WinPedump) || self.start.is_none(),
+            "PE/ELF 转储不接受地址范围；使用 memdump 精确导出范围"
         );
         Ok(())
     }
 }
-fn directory(path: &Path) -> Result<()> {
+pub(crate) fn directory(path: &Path) -> Result<()> {
     match std::fs::symlink_metadata(path) {
         Ok(m) => ensure!(
             m.is_dir() && !m.file_type().is_symlink(),

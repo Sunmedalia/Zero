@@ -1,0 +1,45 @@
+{
+  "reference": "Volatility 3 2.28.0 with independent PDB conversion",
+  "samples": [
+    {
+      "path": "images/WinDump/WinDump.mem",
+      "source": "https://www.osforensics.com/downloads/WinDump.zip",
+      "size": 5234491392,
+      "sha256": "d58f62e92b8c4ef913ac09b2c36a10482034c10b88d0c154dead3aaaa49cf875",
+      "build": 15063,
+      "pdb": {
+        "name": "ntkrnlmp.pdb",
+        "guid": "0C9CC659210046EC84231597DADFDB3B",
+        "age": 1
+      },
+      "dtb": "0x1aa000",
+      "kernel_base": "0xfffff8021ec0f000",
+      "rows": {
+        "windows.pslist": 139,
+        "windows.modules": 183,
+        "windows.hivelist": 22
+      },
+      "process_list_complete": false
+    },
+    {
+      "path": "images/Win11Dump/Win11Dump.mem",
+      "source": "https://www.osforensics.com/downloads/Win11Dump.zip",
+      "size": 3745951744,
+      "sha256": "0f00815b8f78f30a63d742c73152474b2a3c35183dbb1d92c8fc6a81fa3de9f1",
+      "build": 22000,
+      "pdb": {
+        "name": "ntkrnlmp.pdb",
+        "guid": "8E3373D6124E747F0E72EF8E02E676B3",
+        "age": 1
+      },
+      "dtb": "0x1ae000",
+      "kernel_base": "0xfffff80029800000",
+      "rows": {
+        "windows.pslist": 102,
+        "windows.modules": 156,
+        "windows.hivelist": 38
+      },
+      "process_list_complete": false
+    }
+  ]
+}

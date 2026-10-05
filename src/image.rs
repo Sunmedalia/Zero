@@ -20,6 +20,8 @@ pub struct Image {
     file: File,
     _cache_guard: Option<File>,
     pub(crate) arm64_va_bits: std::sync::atomic::AtomicU8,
+    windows: std::sync::OnceLock<Vec<crate::windows_symbols::Candidate>>,
+    pub(crate) windows_roots: std::sync::Mutex<std::collections::HashMap<String, (u64, u64)>>,
     banners: std::sync::OnceLock<Vec<(u64, Vec<u8>)>>,
     pub segments: Vec<Segment>,
     pub digest: String,
@@ -243,6 +245,10 @@ impl Image {
         ensure!(len >= 4, "镜像过短");
         let mut magic = [0; 4];
         file.read_exact_at(&mut magic, 0)?;
+        ensure!(
+            &magic != b"PAGE" && &magic != b"MDMP" && &magic != b"hibr" && &magic != b"wake",
+            "不支持 Windows 崩溃转储/休眠容器；请提供 RAW 物理内存镜像"
+        );
         let mut segments = Vec::new();
         let format = if u32::from_le_bytes(magic) == 0x4c694d45 {
             let mut pos = 0;
@@ -289,6 +295,8 @@ impl Image {
             file,
             _cache_guard: None,
             arm64_va_bits: std::sync::atomic::AtomicU8::new(0),
+            windows: std::sync::OnceLock::new(),
+            windows_roots: std::sync::Mutex::new(std::collections::HashMap::new()),
             banners: std::sync::OnceLock::new(),
             segments,
             digest,
@@ -319,6 +327,13 @@ impl Image {
         Ok(u64::from_le_bytes(b))
     }
     /// Single prefix scan shared by local and remote symbol matching.
+    pub fn windows_candidates(&self, job: &Job) -> Result<&[crate::windows_symbols::Candidate]> {
+        if self.windows.get().is_none() {
+            let found = crate::windows_symbols::identify(self, job)?;
+            let _ = self.windows.set(found);
+        }
+        Ok(self.windows.get().context("Windows 识别未完成")?)
+    }
     pub fn banners(&self, job: &Job) -> Result<Vec<(u64, Vec<u8>)>> {
         job.check()?;
         if let Some(banners) = self.banners.get() {
@@ -386,7 +401,7 @@ impl Image {
                 let keep = (needle.len() - 1).min(tail.len());
                 tail = tail[tail.len() - keep..].to_vec();
                 position += n as u64;
-                job.report(format!("扫描 banner: {position:#x}"));
+                job.report(format!("扫描候选: {position:#x}"));
             }
             previous_end = Some(s.end);
         }

@@ -283,6 +283,17 @@ pub fn inspect_symbols(path: &Path, job: &Job) -> Result<String> {
     let entries = crate::symbols::inspect(path, job)?;
     let mut details = Vec::new();
     for isf in entries {
+        if isf.is_windows() {
+            let identity = crate::windows_symbols::PdbIdentity::from_isf(&isf)?;
+            details.push(format!(
+                "来源: {}\nSHA256: {}\n系统: Windows x64\nPDB: {}\n转换器: {}",
+                isf.label,
+                isf.digest,
+                identity.key(),
+                isf.data["metadata"]["zero"]["converter"]
+            ));
+            continue;
+        }
         let architecture = isf.data["metadata"]["zero"]["architecture"]
             .as_str()
             .unwrap_or("未附配置；以完整 banner 匹配为准");

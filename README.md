@@ -1,6 +1,6 @@
 # Zero · Rust 原生终端取证
 
-本地 Linux x86_64／ARM64 内存取证工具，使用 Rust 2024、Ratatui 和 Crossterm。支持 RAW、LiME 及其 gzip 镜像，读取 JSON、JSON.XZ 或 ZIP 内的 ISF，取证引擎无需 Python、Node 或 HTTP 服务；在线符号下载使用系统 `curl`。
+本地 Linux x86_64／ARM64 和 Windows 10/11 x64 内存取证工具，使用 Rust 2024、Ratatui 和 Crossterm。支持 RAW、LiME 及其 gzip 镜像，读取 JSON、JSON.XZ 或 ZIP 内的 ISF，取证引擎无需 Python、Node 或 HTTP 服务；在线符号下载使用系统 `curl`。
 
 ## MCP 与 Agent skill
 
@@ -99,7 +99,7 @@ zero dump --image symbols/linux-sample-1.bin.gz --symbols images/linux.zip \
 
 TUI 插件列表只列分析插件，转储统一放在 `dump` 功能中，用 `D` 打开。CLI 推荐使用 `dump --mode process|range|elf`，必填 PID、转储目录与清单输出；兼容原 `analyze --plugin procdump|memdump|elfdump` 调用。
 
-`--plugin` 支持 `pslist`、`pstree`、`lsmod`、`psaux`、`envars`、`maps`、`lsof`、`sockstat`、`banners`、`pwd`、`pscred`、`threads`、`mountinfo`、`check_creds`、`dmesg`、`systeminfo`、`elfs`、`bash`、`malfind`、`psxview`、`check_modules`、`check_syscall`、`psstate`、`capabilities`、`fdsummary`、`history`、`procdump`、`memdump`、`elfdump`、`iomem`、`ioports`、`ptrace`、`keyboard_notifiers`，共 33 个。进程字段为 PID、TGID、PPID、Name、Address，PID 0 不进入结果；模块字段为 Name、Base、Size，大小以字节计。`pstree` 导出同样的完整进程字段，PPID 表达父子关系，TUI 显示可展开树。地址是完整虚拟地址，模块 Base 是 `module_core` / `core_layout.base`，Size 是整个核心内存区域大小。
+Linux 的 `--plugin` 支持 `pslist`、`pstree`、`lsmod`、`psaux`、`envars`、`maps`、`lsof`、`sockstat`、`banners`、`pwd`、`pscred`、`threads`、`mountinfo`、`check_creds`、`dmesg`、`systeminfo`、`elfs`、`bash`、`malfind`、`psxview`、`check_modules`、`check_syscall`、`psstate`、`capabilities`、`fdsummary`、`history`、`procdump`、`memdump`、`elfdump`、`iomem`、`ioports`、`ptrace`、`keyboard_notifiers`，共 33 个。进程字段为 PID、TGID、PPID、Name、Address，PID 0 不进入结果；模块字段为 Name、Base、Size，大小以字节计。`pstree` 导出同样的完整进程字段，PPID 表达父子关系，TUI 显示可展开树。地址是完整虚拟地址，模块 Base 是 `module_core` / `core_layout.base`，Size 是整个核心内存区域大小。
 
 新增分析字段与范围：
 
@@ -224,7 +224,7 @@ argv／环境区各限 1 MiB，单进程 VMA／FD 各限 100 万项，路径限 
 缓存与设置：
 
 - gzip 流式解压到 `.zero/rust/`，只有解压完成并校验后才原子提交；取消和损坏输入不产生完成标记。原镜像只读。新会话再次使用时验证解压缓存 SHA256。同一 TUI 会话中复用已验证镜像、完整 banner 和页表；源文件或符号文件元数据改变后重新准备。
-- 原生结果缓存键包含镜像 SHA256、所选 ISF SHA256、分析名称和引擎版本。只缓存完整分析结果。引擎版本为 `native-4`，旧缓存保留但不再复用。旧 CSV 从不用于原生缓存。
+- 原生结果缓存键包含镜像 SHA256、所选 ISF SHA256、分析名称和引擎版本。只缓存完整分析结果。引擎版本为 `native-5`，旧缓存保留但不再复用。旧 CSV 从不用于原生缓存。
 - 设置仅读取 `.zero/rust/settings.json`；不读取或执行旧 Python 配置。项目清单独立于可清理缓存，缓存清理保留设置、清单、原始镜像／符号和用户导出。
 
 
@@ -239,7 +239,7 @@ ZERO_TEST_IMAGE=/path/sample.bin.gz ZERO_TEST_SYMBOLS=/path/linux.zip make accep
 
 验收基线是 Debian `3.2.0-4-amd64`，包含 **133 个进程（不含 PID 0）和 79 个模块**。`tests/fixtures/debian-3.2.json` 固定全部字段、页表地址及镜像摘要；验收同时检查链表闭合、父子关系无环。进程字段已与本地 Volatility 3 参考输出逐项交叉验证，完整进程 / 模块字段另经独立只读页表解析核对。大镜像与符号包不提交仓库，普通 `cargo test` 不依赖它们。 本地库匹配逐个文件／ZIP 成员读取并保留诊断：测试 ZIP 中的 CentOS 2.6.18 成员 banner 无效或不完整，界面详情明确显示；Debian 成员仍可精确匹配和分析。
 
-目前支持 x86_64 四级页表及 4 KiB / 2 MiB / 1 GiB 页，字段偏移来自 ISF。页表候选由物理 banner 与符号地址差定位，再验证 banner、`init_task` 和双向链表。不支持五级页表；无法验证的内核重定位会给出诊断。ARM64 支持 4 KiB、39／48-bit VA 的四级／三级页表及 block 映射；ISF 需提供准确的内核配置元数据，已验收 Kali 6.8.11-arm64（48-bit）。Windows、其他现代内核和原 Volatility 插件兼容性尚未验收。
+目前支持 x86_64 四级页表及 4 KiB / 2 MiB / 1 GiB 页，字段偏移来自 ISF。页表候选由物理 banner 与符号地址差定位，再验证 banner、`init_task` 和双向链表。不支持五级页表；无法验证的内核重定位会给出诊断。ARM64 支持 4 KiB、39／48-bit VA 的四级／三级页表及 block 映射；ISF 需提供准确的内核配置元数据，已验收 Kali 6.8.11-arm64（48-bit）。Windows 验收与限制见下文；其他内核与原 Volatility 插件兼容性不保证。
 
 新增插件的全字段基线为 `tests/fixtures/debian-3.2-extended.json`：固定行数、列、全部行的 SHA256 和完整诊断，不将环境变量明文提交仓库。十五个既有插件的所有输出字段已与 `tests/reference/debian.py` 独立只读解析器逐项核对（标准库测试脚本，不执行 Python 插件或旧配置）。可对 `--no-cache` 导出到 `/tmp/zero-{插件}.json` 的结果再次交叉核对：
 
@@ -322,3 +322,27 @@ python3 tests/reference/verify_inspect.py --image images/kali.raw --symbols "$IS
 make check
 make acceptance
 ```
+
+## Windows 内存镜像分析
+
+Windows 使用独立的 x64 地址翻译与对象解析器，支持 RAW 和 gzip。RSDS 提供内核 PDB 的 GUID/age；符号从 Microsoft symbol server 精确下载，并在 Rust 中转换为 ISF。分析前验证内核 PE 身份、页表和 System 进程，避免按版本猜测结构。离线运行需要已准备的匹配 ISF；镜像始终留在本地。
+
+```sh
+zero symbols --image images/Win11Dump/Win11Dump.mem --download
+zero analyze --os windows --image image.mem --plugin windows.pslist --output exports/processes.json
+zero analyze --os windows --image image.mem --plugin windows.vadinfo --pid 1234 --output exports/vads.json
+zero analyze --os windows --hive 0xffff800000000000 --key 'Software' --image image.mem --plugin windows.printkey --output exports/registry.json
+zero dump --os windows --image image.mem --mode range --pid 1234 --start 0x100000 --end 0x101000 --dump-dir exports/range --output exports/range.json
+```
+
+`--hive` 使用 `windows.hivelist` 返回的虚拟地址。运行 `zero --help` 和子命令帮助查看参数。MCP 的 `zero_analyze` 提供 `os`、`pid`、`hive`、`key`；`zero_dump` 支持 Windows `process`、`range`、`pe`。TUI 识别 Windows 镜像后显示对应插件，`P` 编辑 PID／hive／key，Dump 页提供 PE 模式。
+
+插件包括 `windows.systeminfo`、`pslist`、`pstree`、`cmdline`、`modules`、`dlllist`、`vadinfo`、`handles`、`malfind`、`netscan`、`hivelist`、`printkey`、`psscan`、`psxview`、`procdump`、`memdump`、`pedump`（名称均带 `windows.` 前缀）。`malfind` 标记可疑的可执行内存区域，不直接判定恶意；pool 扫描和交叉视图也不直接判定隐藏进程。
+
+结果导出新增 `system` 与 `kernel_identity`，兼容旧历史 JSON。时间字段为 FILETIME 十进制 100 ns ticks（1601 UTC 起）；`physical:` 表示物理地址，其余对象地址为虚拟地址。缺页、损坏链表和不可解析字段通过 `complete: false` 与 `diagnostics` 报告，部分结果不会进入成功缓存。转储使用原子写入及 SHA256 清单，单次累计上限 256 MiB。
+
+公开验收镜像：[Windows 10 build 15063](https://www.osforensics.com/downloads/WinDump.zip)、[Windows 11 build 22000](https://www.osforensics.com/downloads/Win11Dump.zip)。下载解压到 `images/` 并准备符号后运行 `make windows-acceptance`。`examples/verify_windows.rs` 可在共享分析会话中导出所有非转储插件供独立参考工具比较；Python/Volatility 只用于验证，不是运行依赖。样本包含断裂的进程链表，正常输出应保留不完整标志。
+
+边界：不支持 Windows ARM64、32 位/WOW64 PEB 解码、crash/minidump、休眠镜像或分页文件/压缩页恢复。注册表分段大值未支持。网络结构仅接受 `src/windows/network_layouts.json` 中精确匹配的两组 tcpip.sys PDB 身份；未知身份明确报错。其他 Windows 构建需要真实镜像验证，不保证所有插件可用。
+
+参考交叉检查：准备独立 Volatility 3 v2.28 符号与 JSON 输出后，运行 `python3 tests/reference/windows.py /tmp/zero-win11- /tmp/zero-ref-win11-`（Windows 10 同理）。脚本逐字段检查共有记录，并分别报告覆盖范围；参考工具读不到的字段和缺失记录不会被当作相等的证据。

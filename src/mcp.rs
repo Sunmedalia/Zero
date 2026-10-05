@@ -21,6 +21,10 @@ const MAX_ROWS: usize = 200;
 struct AnalyzeArgs {
     image: PathBuf,
     plugin: String,
+    os: Option<zero_tui::analysis::Os>,
+    pid: Option<u32>,
+    hive: Option<String>,
+    key: Option<String>,
     symbols: Option<PathBuf>,
     symbol_choice: Option<String>,
     offline: Option<bool>,
@@ -36,6 +40,7 @@ struct DumpArgs {
     symbols: Option<PathBuf>,
     symbol_choice: Option<String>,
     mode: String,
+    os: Option<zero_tui::analysis::Os>,
     pid: u32,
     dump_dir: PathBuf,
     output: PathBuf,
@@ -84,16 +89,17 @@ fn result_page(result: store::Results, offset: usize, limit: usize) -> Value {
         "total_rows": total, "offset": offset, "next_offset": (offset + limit < total).then_some(offset + limit),
         "complete": result.complete, "diagnostics": result.diagnostics,
         "banner": result.banner, "symbol": result.symbol,
-        "page_table": result.page_table, "historical": result.historical
+        "page_table": result.page_table, "historical": result.historical,
+        "system":result.system,"kernel_identity":result.kernel_identity
     })
 }
 
 fn tools() -> Value {
     json!({"tools": [
-        {"name":"zero_plugins","description":"List native Linux memory forensics plugins and their result columns.","inputSchema":{"type":"object","properties":{},"additionalProperties":false}},
+        {"name":"zero_plugins","description":"List native Linux and Windows memory forensics plugins and their result columns.","inputSchema":{"type":"object","properties":{},"additionalProperties":false}},
         {"name":"zero_symbols","description":"Identify image banners and exact ISF repository matches. Optional download saves verified symbols locally.","inputSchema":{"type":"object","properties":{"image":{"type":"string"},"offline":{"type":"boolean"},"download":{"type":"boolean"}},"required":["image"],"additionalProperties":false}},
-        {"name":"zero_analyze","description":"Run a native analysis plugin on a local memory image. Returns at most 200 rows and may export all rows to JSON/CSV. Use offset/limit to page the result.","inputSchema":{"type":"object","properties":{"image":{"type":"string"},"plugin":{"type":"string"},"symbols":{"type":"string"},"symbol_choice":{"type":"string"},"offline":{"type":"boolean"},"no_cache":{"type":"boolean"},"offset":{"type":"integer","minimum":0},"limit":{"type":"integer","minimum":1,"maximum":200},"output":{"type":"string"}},"required":["image","plugin"],"additionalProperties":false}},
-        {"name":"zero_dump","description":"Export one process, one PID address range, or ELF mappings to a local directory with a JSON/CSV manifest. Requires explicit PID and paths.","inputSchema":{"type":"object","properties":{"image":{"type":"string"},"symbols":{"type":"string"},"symbol_choice":{"type":"string"},"mode":{"type":"string","enum":["process","range","elf"]},"pid":{"type":"integer","minimum":0},"dump_dir":{"type":"string"},"output":{"type":"string"},"start":{"type":"string"},"end":{"type":"string"},"offline":{"type":"boolean"}},"required":["image","mode","pid","dump_dir","output"],"additionalProperties":false}},
+        {"name":"zero_analyze","description":"Run a native analysis plugin on a local memory image. Returns at most 200 rows and may export all rows to JSON/CSV. Use offset/limit to page the result.","inputSchema":{"type":"object","properties":{"image":{"type":"string"},"plugin":{"type":"string"},"os":{"type":"string","enum":["auto","linux","windows"]},"pid":{"type":"integer","minimum":0},"hive":{"type":"string"},"key":{"type":"string"},"symbols":{"type":"string"},"symbol_choice":{"type":"string"},"offline":{"type":"boolean"},"no_cache":{"type":"boolean"},"offset":{"type":"integer","minimum":0},"limit":{"type":"integer","minimum":1,"maximum":200},"output":{"type":"string"}},"required":["image","plugin"],"additionalProperties":false}},
+        {"name":"zero_dump","description":"Export one process, one PID address range, or ELF mappings to a local directory with a JSON/CSV manifest. Requires explicit PID and paths.","inputSchema":{"type":"object","properties":{"image":{"type":"string"},"symbols":{"type":"string"},"symbol_choice":{"type":"string"},"os":{"type":"string","enum":["auto","linux","windows"]},"mode":{"type":"string","enum":["process","range","elf","pe"]},"pid":{"type":"integer","minimum":0},"dump_dir":{"type":"string"},"output":{"type":"string"},"start":{"type":"string"},"end":{"type":"string"},"offline":{"type":"boolean"}},"required":["image","mode","pid","dump_dir","output"],"additionalProperties":false}},
         {"name":"zero_cache_list","description":"Inspect regenerable local cache without deleting it.","inputSchema":{"type":"object","properties":{},"additionalProperties":false}}
     ]})
 }
@@ -101,7 +107,7 @@ fn tools() -> Value {
 fn call(name: &str, args: Value, root: &Path) -> Result<Value> {
     match name {
         "zero_plugins" => Ok(
-            json!({"plugins":linux::PLUGINS.iter().map(|p| json!({"name":p.name,"category":p.plugin.category(),"columns":p.columns})).collect::<Vec<_>>()}),
+            json!({"plugins":linux::PLUGINS.iter().map(|p| json!({"name":p.name,"category":p.plugin.category(),"columns":p.columns,"os":if p.plugin.is_windows(){"windows"}else{"linux"}})).collect::<Vec<_>>()}),
         ),
         "zero_cache_list" => Ok(serde_json::to_value(cache::inventory(
             &root.join(".zero/rust"),
@@ -124,10 +130,14 @@ fn call(name: &str, args: Value, root: &Path) -> Result<Value> {
             let mut downloaded = Vec::new();
             if a.download.unwrap_or(false) {
                 for item in &matches {
-                    downloaded.push(
-                        symbols::download(item, &image, &cache_dir, settings.remote_symbols, &job)?
-                            .label,
-                    );
+                    match symbols::download(item, &image, &cache_dir, settings.remote_symbols, &job)
+                    {
+                        Ok(isf) => downloaded.push(isf.label),
+                        Err(e) => {
+                            job.check()?;
+                            job.report(format!("候选下载失败: {e:#}"));
+                        }
+                    }
                 }
             }
             Ok(json!({"banners":banners.rows,"matches":matches,"downloaded":downloaded}))
@@ -145,7 +155,8 @@ fn call(name: &str, args: Value, root: &Path) -> Result<Value> {
                 .map(|p| path(root, p))
                 .unwrap_or_else(|| path(root, Path::new(&settings.symbols)));
             let mut session = linux::Session::default();
-            let outcome = session.analyze(
+            let outcome = zero_tui::analysis::analyze(
+                &mut session,
                 &linux::Request {
                     image: &path(root, &a.image),
                     symbols: &symbols,
@@ -154,6 +165,18 @@ fn call(name: &str, args: Value, root: &Path) -> Result<Value> {
                     cache: &cache_dir,
                     use_cache: settings.enable_cache && !a.no_cache.unwrap_or(false),
                     network: settings.remote_symbols,
+                },
+                None,
+                &zero_tui::analysis::Options {
+                    os: a.os.unwrap_or_default(),
+                    pid: a.pid,
+                    hive: a
+                        .hive
+                        .as_deref()
+                        .map(dump::parse_address)
+                        .transpose()
+                        .map_err(anyhow::Error::msg)?,
+                    key: a.key.unwrap_or_default(),
                 },
                 &job(),
             )?;
@@ -180,6 +203,7 @@ fn call(name: &str, args: Value, root: &Path) -> Result<Value> {
                 "process" => Plugin::Procdump,
                 "range" => Plugin::Memdump,
                 "elf" => Plugin::Elfdump,
+                "pe" => Plugin::WinPedump,
                 _ => bail!("mode 必须为 process、range 或 elf"),
             };
             let parse = |v: Option<String>| -> Result<Option<u64>> {
@@ -205,7 +229,8 @@ fn call(name: &str, args: Value, root: &Path) -> Result<Value> {
                 end,
             };
             let mut session = linux::Session::default();
-            let outcome = session.analyze_with_dump(
+            let outcome = zero_tui::analysis::analyze(
+                &mut session,
                 &linux::Request {
                     image: &path(root, &a.image),
                     symbols: &symbols,
@@ -216,6 +241,10 @@ fn call(name: &str, args: Value, root: &Path) -> Result<Value> {
                     network: settings.remote_symbols,
                 },
                 Some(&options),
+                &zero_tui::analysis::Options {
+                    os: a.os.unwrap_or_default(),
+                    ..Default::default()
+                },
                 &job(),
             )?;
             match outcome {

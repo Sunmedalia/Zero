@@ -3,7 +3,7 @@ name = "zero-tui"
 version = "0.1.0"
 edition = "2024"
 license = "MIT"
-description = "Offline native Linux memory forensics terminal"
+description = "Native Linux and Windows memory forensics terminal"
 
 [[bin]]
 name = "zero"
@@ -21,6 +21,7 @@ crossterm = "0.29"
 csv = "1"
 flate2 = "1"
 memchr = "2"
+pdb = "0.8"
 ratatui = "0.30"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"

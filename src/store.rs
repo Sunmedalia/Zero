@@ -19,6 +19,10 @@ pub struct Results {
     pub symbol: String,
     pub page_table: u64,
     pub historical: bool,
+    #[serde(default)]
+    pub system: String,
+    #[serde(default)]
+    pub kernel_identity: serde_json::Value,
 }
 impl Results {
     pub fn filtered(&self, query: &str) -> Vec<Vec<String>> {
@@ -130,6 +134,8 @@ pub fn history(path: &Path) -> Result<Results> {
         symbol: String::new(),
         page_table: 0,
         historical: true,
+        system: String::new(),
+        kernel_identity: serde_json::Value::Null,
     })
 }
 pub fn history_paths(root: &Path) -> Vec<PathBuf> {

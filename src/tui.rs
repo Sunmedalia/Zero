@@ -53,7 +53,7 @@ fn plugin_matches(query: &str) -> Vec<Plugin> {
     let query = query.to_lowercase();
     let mut plugins: Vec<_> = PLUGINS
         .iter()
-        .filter(|d| !d.plugin.is_dump() && d.name.contains(&query))
+        .filter(|d| !d.plugin.is_dump() && !d.plugin.is_windows() && d.name.contains(&query))
         .map(|d| d.plugin)
         .collect();
     if "dump".contains(&query) {
@@ -136,7 +136,9 @@ fn navigation_plugins() -> Vec<Plugin> {
         .flat_map(|category| {
             PLUGINS
                 .iter()
-                .filter(move |d| !d.plugin.is_dump() && d.plugin.category() == category)
+                .filter(move |d| {
+                    !d.plugin.is_dump() && !d.plugin.is_windows() && d.plugin.category() == category
+                })
                 .map(|d| d.plugin)
         })
         .collect()
@@ -284,6 +286,13 @@ enum Dialog {
     Commands {
         query: String,
         selected: usize,
+    },
+    WindowsParameters {
+        fields: [String; 3],
+        field: usize,
+        cursor: usize,
+        selected: bool,
+        error: String,
     },
     Plugins {
         query: String,
@@ -543,6 +552,8 @@ pub struct App {
     focus: usize,
     menu: usize,
     plugin: Plugin,
+    windows: bool,
+    analysis_options: crate::analysis::Options,
     results: HashMap<String, Results>,
     history: Option<Results>,
     query: String,
@@ -572,6 +583,96 @@ pub struct App {
     views: HashMap<String, View>,
 }
 impl App {
+    fn navigation_plugins(&self) -> Vec<Plugin> {
+        if !self.windows {
+            return navigation_plugins();
+        }
+        PLUGINS
+            .iter()
+            .filter(|d| d.plugin.is_windows() && !d.plugin.is_dump())
+            .map(|d| d.plugin)
+            .collect()
+    }
+    fn menu_items(&self) -> Vec<String> {
+        if !self.windows {
+            return menu_items();
+        }
+        let mut items = vec!["image [i]".into(), "symbols [y]".into()];
+        items.extend(
+            self.navigation_plugins()
+                .iter()
+                .map(|p| p.name().to_string()),
+        );
+        items.push("dump".into());
+        items
+    }
+    fn plugin_matches(&self, query: &str) -> Vec<Plugin> {
+        if !self.windows {
+            return plugin_matches(query);
+        }
+        let query = query.to_lowercase();
+        let mut items = self
+            .navigation_plugins()
+            .into_iter()
+            .filter(|p| p.name().contains(&query))
+            .collect::<Vec<_>>();
+        if "dump".contains(&query) {
+            items.push(Plugin::WinProcdump);
+        }
+        items
+    }
+    fn apply_identification(&mut self, result: &Results) {
+        let detected_windows = result
+            .rows
+            .iter()
+            .any(|r| r.get(1).is_some_and(|s| s.starts_with("Windows PDB ")));
+        let windows = match self.analysis_options.os {
+            crate::analysis::Os::Windows => true,
+            crate::analysis::Os::Linux => false,
+            crate::analysis::Os::Auto => detected_windows,
+        };
+        if self.windows != windows {
+            self.windows = windows;
+            self.plugin = if windows {
+                Plugin::WinPslist
+            } else {
+                Plugin::Pslist
+            };
+            self.menu = self
+                .navigation_plugins()
+                .iter()
+                .position(|p| *p == self.plugin)
+                .unwrap_or(0)
+                + 2;
+            self.analysis_options.pid = None;
+            self.analysis_options.hive = None;
+            self.analysis_options.key.clear();
+        }
+    }
+    fn windows_parameters(&mut self) {
+        self.dialog = Some(Dialog::WindowsParameters {
+            fields: [
+                self.analysis_options
+                    .hive
+                    .map(|n| format!("{n:#x}"))
+                    .unwrap_or_default(),
+                self.analysis_options.key.clone(),
+                self.analysis_options
+                    .pid
+                    .map(|n| n.to_string())
+                    .unwrap_or_default(),
+            ],
+            field: if self.plugin == Plugin::WinPrintkey {
+                0
+            } else {
+                2
+            },
+            cursor: 0,
+            selected: true,
+            error: String::new(),
+        });
+    }
+
     pub fn new(
         image: Option<PathBuf>,
         symbols: PathBuf,
@@ -659,6 +760,8 @@ impl App {
             focus: 1,
             menu: 2,
             plugin: Plugin::Pslist,
+            windows: false,
+            analysis_options: Default::default(),
             results: HashMap::new(),
             history: None,
             query: String::new(),
@@ -730,6 +833,20 @@ impl App {
         }
     }
     fn available_commands(&self, query: &str) -> Vec<(&'static str, KeyCode)> {
+        if self.page == Page::Analysis
+            && self.windows
+            && (query.is_empty()
+                || "Windows 参数"
+                    .to_lowercase()
+                    .contains(&query.to_lowercase()))
+        {
+            let mut commands = command_matches(query, self.page, self.focus)
+                .into_iter()
+                .map(|i| COMMANDS[i])
+                .collect::<Vec<_>>();
+            commands.push(("Windows 参数 [P]", KeyCode::Char('P')));
+            return commands;
+        }
         if self.page == Page::Analysis {
             command_matches(query, self.page, self.focus)
                 .into_iter()
@@ -936,6 +1053,7 @@ impl App {
         self.local_match_errors.clear();
         self.local_only_matches = false;
         self.dump_options = None;
+        self.analysis_options = Default::default();
         self.results.clear();
         self.views.clear();
         self.history = None;
@@ -1910,10 +2028,14 @@ impl App {
     }
     fn visible(&self) -> Vec<Vec<String>> {
         let rows = self.rows();
-        if self.history.is_some() || self.plugin != Plugin::Pstree {
+        if self.history.is_some() || !self.plugin.is_tree() {
             return rows;
         }
-        tree_rows(rows, &self.collapsed)
+        if self.plugin == Plugin::WinPstree {
+            tree_rows_with_columns(rows, &self.collapsed, 1, 2)
+        } else {
+            tree_rows(rows, &self.collapsed)
+        }
     }
     fn picker_filter(kind: InputKind) -> crate::browser::Filter {
         use crate::browser::Filter;
@@ -2062,6 +2184,16 @@ impl App {
         }
     }
     fn open_dump(&mut self, mode: Plugin, force: bool) {
+        let mode = if self.windows {
+            match mode {
+                Plugin::Procdump => Plugin::WinProcdump,
+                Plugin::Memdump => Plugin::WinMemdump,
+                Plugin::Elfdump => Plugin::WinPedump,
+                _ => mode,
+            }
+        } else {
+            mode
+        };
         if self.job.is_some() {
             self.status = "任务执行中；Esc 取消后设置转储参数".into();
             return;
@@ -2159,7 +2291,9 @@ impl App {
             .as_ref()
             .filter(|(p, _)| *p == plugin)
             .map(|(_, o)| o.clone());
+        let analysis_options = self.analysis_options.clone();
         let enabled = self.settings.enable_cache;
+        let windows = self.windows;
         let network = self.settings.remote_symbols;
         let saved_download = self
             .downloads
@@ -2204,6 +2338,18 @@ impl App {
                     .map_err(|_| anyhow::anyhow!("分析会话锁损坏"))?;
                 match work {
                     Work::Catalog(query, refresh) => {
+                        if windows && !image.as_os_str().is_empty() {
+                            let prepared = session.prepare_image(&image, &cache, &worker_job)?;
+                            let mut matches =
+                                symbols::remote_matches(&prepared, &cache, network, &worker_job)?;
+                            matches.retain(|m| {
+                                format!("{} {}", m.banner, m.path)
+                                    .to_lowercase()
+                                    .contains(&query.to_lowercase())
+                            });
+                            return Ok(WorkerEvent::CatalogLinks(matches));
+                        }
+
                         if refresh {
                             anyhow::ensure!(network, "离线模式不能刷新索引；按 o 开启在线");
                             symbols::refresh_index(&cache, &worker_job)?;
@@ -2213,10 +2359,7 @@ impl App {
                     }
                     Work::CatalogDownload(candidate) => {
                         if let Some(path) = saved_download {
-                            anyhow::ensure!(
-                                candidate.url == symbols::repository_url(&candidate.path)?,
-                                "下载链接不属于指定符号仓库"
-                            );
+                            symbols::validate_remote(&candidate)?;
                             let valid = symbols::inspect(&path, &worker_job).is_ok_and(|isfs| {
                                 isfs.len() == 1
                                     && String::from_utf8_lossy(&isfs[0].banner)
@@ -2238,8 +2381,9 @@ impl App {
                             .next()
                             .unwrap_or("symbol.json.xz")
                             .trim_end_matches(".json.xz");
+                        let extension = if isf.is_windows() { "json" } else { "json.xz" };
                         let target = local_library.join(format!(
-                            "{}-{}.json.xz",
+                            "{}-{}.{extension}",
                             stem.chars().take(100).collect::<String>(),
                             isf.digest
                         ));
@@ -2267,6 +2411,16 @@ impl App {
                     Work::InspectSymbols(path) => workspace::inspect_symbols(&path, &worker_job)
                         .map(|text| WorkerEvent::SymbolDetails(path, text)),
                     Work::RefreshLookup => {
+                        if windows && !image.as_os_str().is_empty() {
+                            let prepared = session.prepare_image(&image, &cache, &worker_job)?;
+                            return symbols::remote_matches(
+                                &prepared,
+                                &cache,
+                                network,
+                                &worker_job,
+                            )
+                            .map(WorkerEvent::Links);
+                        }
                         if network {
                             symbols::refresh_index(&cache, &worker_job)?;
                         } else {
@@ -2292,21 +2446,22 @@ impl App {
                         cache::clear_with_job(&cache, &scopes, &worker_job)
                             .map(WorkerEvent::Cleared)
                     }
-                    Work::Analyze(force) => session
-                        .analyze_with_dump(
-                            &linux::Request {
-                                image: &image,
-                                symbols: &symbols,
-                                choice: choice.as_deref(),
-                                plugin,
-                                cache: &cache,
-                                use_cache: enabled && !force,
-                                network,
-                            },
-                            dump.as_ref(),
-                            &worker_job,
-                        )
-                        .map(WorkerEvent::Done),
+                    Work::Analyze(force) => crate::analysis::analyze(
+                        &mut session,
+                        &linux::Request {
+                            image: &image,
+                            symbols: &symbols,
+                            choice: choice.as_deref(),
+                            plugin,
+                            cache: &cache,
+                            use_cache: enabled && !force,
+                            network,
+                        },
+                        dump.as_ref(),
+                        &analysis_options,
+                        &worker_job,
+                    )
+                    .map(WorkerEvent::Done),
                     Work::MatchLocal(paths, stamp) => {
                         let image = session.prepare_image(&image, &cache, &worker_job)?;
                         let banner = linux::banner_result(&image, &worker_job)?;
@@ -2354,6 +2509,7 @@ impl App {
             match event {
                 WorkerEvent::LocalMatched(report, stamp, banner) => {
                     self.finish_worker();
+                    self.apply_identification(&banner);
                     self.results.insert("banners".into(), banner);
                     self.local_matches = report.matched;
                     self.local_match_errors = report.diagnostics;
@@ -2396,6 +2552,7 @@ impl App {
                 WorkerEvent::Identified(result) => {
                     self.finish_worker();
                     self.status = format!("识别到 {} 个候选；尚未验证页表", result.rows.len());
+                    self.apply_identification(&result);
                     self.results.insert("banners".into(), result);
                 }
                 WorkerEvent::SymbolDetails(path, text) => {
@@ -2578,11 +2735,18 @@ impl App {
         );
         self.page = Page::Analysis;
         self.plugin = plugin;
+        if plugin != Plugin::WinPrintkey {
+            self.analysis_options.hive = None;
+            self.analysis_options.key.clear();
+        }
+        if !plugin.descriptor().columns.contains(&"PID") {
+            self.analysis_options.pid = None;
+        }
         self.last_error = None;
         self.menu = if plugin.is_dump() {
-            menu_items().len() - 1
+            self.menu_items().len() - 1
         } else {
-            navigation_plugins()
+            self.navigation_plugins()
                 .iter()
                 .position(|p| *p == plugin)
                 .unwrap()
@@ -2612,7 +2776,11 @@ impl App {
                 result.diagnostics.len()
             );
         } else {
-            self.start();
+            if plugin == Plugin::WinPrintkey {
+                self.windows_parameters();
+            } else {
+                self.start();
+            }
         }
     }
     fn open_cache(&mut self) {
@@ -2643,6 +2811,21 @@ impl App {
             self.open_input(kind);
         }
         match self.dialog.as_mut() {
+            Some(Dialog::WindowsParameters {
+                fields,
+                field,
+                cursor,
+                selected,
+                ..
+            }) if *field < 3 => {
+                if *selected {
+                    fields[*field].clear();
+                    *cursor = 0;
+                    *selected = false;
+                }
+                fields[*field].insert_str(*cursor, value);
+                *cursor += value.len();
+            }
             Some(Dialog::Dump {
                 fields,
                 field,
@@ -2932,7 +3115,8 @@ impl App {
                     selected: 0,
                 })
             }
-            KeyCode::Char('b') => self.select_plugin(Plugin::Banners),
+            KeyCode::Char('P') if self.windows => self.windows_parameters(),
+            KeyCode::Char('b') => self.start_work(Work::Identify),
             KeyCode::Char('v') | KeyCode::F(8) => self.diagnostics(),
             KeyCode::Char('o') if self.job.is_none() => {
                 self.settings.remote_symbols = !self.settings.remote_symbols;
@@ -2960,7 +3144,7 @@ impl App {
             }
             KeyCode::Down | KeyCode::Char('j') => {
                 if self.focus == 1 {
-                    self.menu = (self.menu + 1).min(menu_items().len() - 1);
+                    self.menu = (self.menu + 1).min(self.menu_items().len() - 1);
                 } else if self.focus == 2 {
                     self.row = (self.row + 1).min(self.visible().len().saturating_sub(1));
                 }
@@ -2974,7 +3158,7 @@ impl App {
             }
             KeyCode::PageDown => {
                 if self.focus == 1 {
-                    self.menu = (self.menu + 10).min(menu_items().len() - 1);
+                    self.menu = (self.menu + 10).min(self.menu_items().len() - 1);
                 } else {
                     self.row =
                         (self.row + self.page_rows()).min(self.visible().len().saturating_sub(1));
@@ -2989,12 +3173,12 @@ impl App {
             }
             KeyCode::End => {
                 if self.focus == 1 {
-                    self.menu = menu_items().len() - 1;
+                    self.menu = self.menu_items().len() - 1;
                 } else {
                     self.row = self.visible().len().saturating_sub(1);
                 }
             }
-            KeyCode::Left | KeyCode::Right if self.focus == 2 && self.plugin == Plugin::Pstree => {
+            KeyCode::Left | KeyCode::Right if self.focus == 2 && self.plugin.is_tree() => {
                 if let Some(row) = self.visible().get(self.row) {
                     if key.code == KeyCode::Left {
                         self.collapsed.insert(row[0].clone());
@@ -3013,14 +3197,14 @@ impl App {
                         0 => self.open_files(InputKind::Image),
                         1 => self.open_files(InputKind::Symbols),
 
-                        index if index == menu_items().len() - 1 => {
+                        index if index == self.menu_items().len() - 1 => {
                             self.open_dump(Plugin::Procdump, false)
                         }
                         index => {
-                            self.select_plugin(navigation_plugins()[index - 2]);
+                            self.select_plugin(self.navigation_plugins()[index - 2]);
                         }
                     }
-                } else if self.plugin == Plugin::Pstree
+                } else if self.plugin.is_tree()
                     && self.history.is_none()
                     && let Some(row) = self.visible().get(self.row)
                 {
@@ -3252,7 +3436,20 @@ impl App {
                         true
                     }
                     Some(Dialog::Plugins { query, selected })
-                        if index < plugin_matches(query).len() =>
+                        if index
+                            < (if self.windows {
+                                PLUGINS
+                                    .iter()
+                                    .filter(|d| {
+                                        d.plugin.is_windows()
+                                            && !d.plugin.is_dump()
+                                            && d.name.contains(&query.to_lowercase())
+                                    })
+                                    .count()
+                                    + usize::from("dump".contains(&query.to_lowercase()))
+                            } else {
+                                plugin_matches(query).len()
+                            }) =>
                     {
                         *selected = index;
                         true
@@ -3315,7 +3512,7 @@ impl App {
                 && point.y < hits.menu.bottom().saturating_sub(1)
             {
                 let index = hits.menu_offset + (point.y - hits.menu.y - 1) as usize;
-                if index < menu_items().len() {
+                if index < self.menu_items().len() {
                     self.menu = index;
                     self.key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
                 }
@@ -3343,11 +3540,15 @@ impl App {
                     let index = hits.row_offset + (point.y - hits.result.y - 2) as usize;
                     if index < self.visible().len() {
                         self.row = index;
-                        if self.plugin == Plugin::Pstree
+                        if self.plugin.is_tree()
                             && self.history.is_none()
                             && hits
                                 .columns
-                                .get(3)
+                                .get(if self.plugin == Plugin::WinPstree {
+                                    2
+                                } else {
+                                    3
+                                })
                                 .is_some_and(|rect| rect.x <= point.x && point.x < rect.right())
                         {
                             self.key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
@@ -3392,6 +3593,64 @@ impl App {
             return;
         }
         match &mut dialog {
+            Dialog::WindowsParameters {
+                fields,
+                field,
+                cursor,
+                selected,
+                error,
+            } => {
+                if key.code == KeyCode::Enter
+                    && (*field == 3 || key.modifiers.contains(KeyModifiers::CONTROL))
+                {
+                    let parsed = (|| -> Result<crate::analysis::Options> {
+                        let hive = if fields[0].trim().is_empty() {
+                            None
+                        } else {
+                            Some(parse_address(fields[0].trim()).map_err(anyhow::Error::msg)?)
+                        };
+                        let pid = if fields[2].trim().is_empty() {
+                            None
+                        } else {
+                            Some(fields[2].trim().parse::<u32>().context("PID 无效")?)
+                        };
+                        anyhow::ensure!(
+                            self.plugin != Plugin::WinPrintkey || hive.is_some(),
+                            "printkey 必须填写 hive 地址"
+                        );
+                        Ok(crate::analysis::Options {
+                            os: crate::analysis::Os::Windows,
+                            pid,
+                            hive,
+                            key: fields[1].clone(),
+                        })
+                    })();
+                    match parsed {
+                        Ok(options) => {
+                            self.analysis_options = options;
+                            self.results.remove(self.plugin.name());
+                            self.start_work(Work::Analyze(true));
+                            return;
+                        }
+                        Err(e) => *error = e.to_string(),
+                    }
+                } else if matches!(
+                    key.code,
+                    KeyCode::Tab | KeyCode::BackTab | KeyCode::Up | KeyCode::Down | KeyCode::Enter
+                ) {
+                    *field = (*field
+                        + if matches!(key.code, KeyCode::BackTab | KeyCode::Up) {
+                            3
+                        } else {
+                            1
+                        })
+                        % 4;
+                    *cursor = if *field < 3 { fields[*field].len() } else { 0 };
+                    *selected = true;
+                } else if *field < 3 {
+                    edit_input(&mut fields[*field], cursor, selected, key);
+                }
+            }
             Dialog::Dump {
                 mode,
                 fields,
@@ -3402,8 +3661,12 @@ impl App {
                 error,
             } => {
                 if let KeyCode::F(n @ 2..=4) = key.code {
-                    *mode = [Plugin::Procdump, Plugin::Memdump, Plugin::Elfdump][n as usize - 2];
-                    if *mode == Plugin::Elfdump {
+                    *mode = if self.windows {
+                        [Plugin::WinProcdump, Plugin::WinMemdump, Plugin::WinPedump]
+                    } else {
+                        [Plugin::Procdump, Plugin::Memdump, Plugin::Elfdump]
+                    }[n as usize - 2];
+                    if matches!(*mode, Plugin::Elfdump | Plugin::WinPedump) {
                         fields[1].clear();
                         fields[2].clear();
                     }
@@ -3437,7 +3700,7 @@ impl App {
                             self.dump_options = Some((*mode, options));
                             self.plugin = *mode;
                             self.page = Page::Analysis;
-                            self.menu = menu_items().len() - 1;
+                            self.menu = self.menu_items().len() - 1;
                             self.history = None;
                             self.query.clear();
                             self.sort = None;
@@ -3609,7 +3872,7 @@ impl App {
                 _ => {}
             },
             Dialog::Plugins { query, selected } => {
-                let count = plugin_matches(query).len();
+                let count = self.plugin_matches(query).len();
                 match key.code {
                     KeyCode::Char(c) if !key.modifiers.contains(KeyModifiers::CONTROL) => {
                         query.push(c);
@@ -3622,7 +3885,7 @@ impl App {
                     KeyCode::Up => *selected = selected.saturating_sub(1),
                     KeyCode::Down => *selected = (*selected + 1).min(count.saturating_sub(1)),
                     KeyCode::Enter => {
-                        if let Some(plugin) = plugin_matches(query).get(*selected) {
+                        if let Some(plugin) = self.plugin_matches(query).get(*selected) {
                             if plugin.is_dump() {
                                 self.open_dump(*plugin, false);
                             } else {
@@ -4308,6 +4571,34 @@ impl App {
             self.hits.borrow_mut().buttons.clear();
             frame.render_widget(Clear, popup);
             match dialog {
+                Dialog::WindowsParameters {
+                    fields,
+                    field,
+                    error,
+                    ..
+                } => {
+                    let lines = vec![
+                        Line::raw("Hive 地址（仅 printkey）"),
+                        Line::raw(escaped(&fields[0])),
+                        Line::raw("键路径（仅 printkey；空为根）"),
+                        Line::raw(escaped(&fields[1])),
+                        Line::raw("PID 筛选（可选）"),
+                        Line::raw(escaped(&fields[2])),
+                        Line::raw(format!(
+                            "{} 运行 · Tab 字段 · Ctrl+Enter 运行",
+                            if *field == 3 { "▶" } else { " " }
+                        )),
+                        Line::raw(error.clone()),
+                    ];
+                    frame.render_widget(
+                        Paragraph::new(lines).block(
+                            Block::default()
+                                .borders(Borders::ALL)
+                                .title(format!("Windows 参数 · 当前字段 {}", field + 1)),
+                        ),
+                        popup,
+                    );
+                }
                 Dialog::Dump {
                     mode,
                     fields,
@@ -4331,7 +4622,10 @@ impl App {
                         popup,
                     );
                     let hint = match mode {
-                        Plugin::Memdump => "指定 PID、Start 和 End；读取该进程的用户虚拟地址范围",
+                        Plugin::Memdump | Plugin::WinMemdump => {
+                            "指定 PID、Start 和 End；读取该进程的用户虚拟地址范围"
+                        }
+                        Plugin::WinPedump => "指定 PID；按 PE 节表重建可读 PE",
                         Plugin::Elfdump => "指定 PID；导出含 ELF 头的可读映射（不重建磁盘 ELF）",
                         _ => "指定 PID；导出可读 VMA；Start / End 可限制范围",
                     };
@@ -4341,9 +4635,33 @@ impl App {
                     );
                     let mut x = popup.x + 2;
                     for (label, plugin, n) in [
-                        ("F2 Process", Plugin::Procdump, 2),
-                        ("F3 Range", Plugin::Memdump, 3),
-                        ("F4 ELF", Plugin::Elfdump, 4),
+                        (
+                            "F2 Process",
+                            if self.windows {
+                                Plugin::WinProcdump
+                            } else {
+                                Plugin::Procdump
+                            },
+                            2,
+                        ),
+                        (
+                            "F3 Range",
+                            if self.windows {
+                                Plugin::WinMemdump
+                            } else {
+                                Plugin::Memdump
+                            },
+                            3,
+                        ),
+                        (
+                            if self.windows { "F4 PE" } else { "F4 ELF" },
+                            if self.windows {
+                                Plugin::WinPedump
+                            } else {
+                                Plugin::Elfdump
+                            },
+                            4,
+                        ),
                     ] {
                         let width = Span::raw(label).width() as u16 + 2;
                         let rect = Rect::new(
@@ -4590,7 +4908,7 @@ impl App {
                     self.hits.borrow_mut().popup_offset = state.offset();
                 }
                 Dialog::Plugins { query, selected } => {
-                    let plugins = plugin_matches(query);
+                    let plugins = self.plugin_matches(query);
                     let mut state = ListState::default()
                         .with_selected((!plugins.is_empty()).then_some(*selected));
                     frame.render_stateful_widget(
@@ -4844,7 +5162,7 @@ impl App {
     fn draw_menu(&self, frame: &mut Frame, area: Rect, style: Style) {
         let mut state = ListState::default().with_selected(Some(self.menu));
         frame.render_stateful_widget(
-            List::new(menu_items().into_iter().map(ListItem::new))
+            List::new(self.menu_items().into_iter().map(ListItem::new))
                 .block(
                     Block::default()
                         .borders(Borders::ALL)
@@ -4872,14 +5190,22 @@ fn centered(area: Rect, width: u16, height: u16) -> Rect {
     )
 }
 fn tree_rows(rows: Vec<Vec<String>>, collapsed: &HashSet<String>) -> Vec<Vec<String>> {
+    tree_rows_with_columns(rows, collapsed, 2, 3)
+}
+fn tree_rows_with_columns(
+    rows: Vec<Vec<String>>,
+    collapsed: &HashSet<String>,
+    parent: usize,
+    name: usize,
+) -> Vec<Vec<String>> {
     let ids: HashSet<_> = rows.iter().map(|r| r[0].as_str()).collect();
     let mut children: HashMap<&str, Vec<usize>> = HashMap::new();
     let mut roots = Vec::new();
     for (i, row) in rows.iter().enumerate() {
-        if row[2] == "0" || !ids.contains(row[2].as_str()) || row[0] == row[2] {
+        if row[parent] == "0" || !ids.contains(row[parent].as_str()) || row[0] == row[parent] {
             roots.push(i);
         } else {
-            children.entry(&row[2]).or_default().push(i);
+            children.entry(&row[parent]).or_default().push(i);
         }
     }
     let mut visited = HashSet::new();
@@ -4898,7 +5224,7 @@ fn tree_rows(rows: Vec<Vec<String>>, collapsed: &HashSet<String>) -> Vec<Vec<Str
             if !hidden {
                 let mut shown = row.clone();
                 let has_children = children.contains_key(row[0].as_str());
-                shown[3] = format!(
+                shown[name] = format!(
                     "{}{} {}",
                     "  ".repeat(depth.min(64)),
                     if has_children {
@@ -4910,7 +5236,7 @@ fn tree_rows(rows: Vec<Vec<String>>, collapsed: &HashSet<String>) -> Vec<Vec<Str
                     } else {
                         "·"
                     },
-                    row[3]
+                    row[name]
                 );
                 output.push(shown);
             }
@@ -4945,6 +5271,21 @@ pub fn run(
     cache: PathBuf,
     settings: Settings,
 ) -> Result<()> {
+    run_with_options(
+        image,
+        symbols,
+        cache,
+        settings,
+        crate::analysis::Options::default(),
+    )
+}
+pub fn run_with_options(
+    image: Option<PathBuf>,
+    symbols: PathBuf,
+    cache: PathBuf,
+    settings: Settings,
+    options: crate::analysis::Options,
+) -> Result<()> {
     terminal::enable_raw_mode().context("TUI 需要真实终端；批处理请使用 analyze")?;
     let _guard = TerminalGuard;
     execute!(
@@ -4964,6 +5305,11 @@ pub fn run(
     }));
     let mut terminal = Terminal::new(CrosstermBackend::new(std::io::stdout()))?;
     let mut app = App::new(image, symbols, cache, settings);
+    app.windows = options.os == crate::analysis::Os::Windows;
+    app.analysis_options = options;
+    if app.windows {
+        app.plugin = Plugin::WinPslist;
+    }
     if app.image.is_some() {
         app.start_work(Work::Identify);
     }
@@ -5018,6 +5364,29 @@ pub fn run(
 mod tests {
     use super::*;
     use ratatui::backend::TestBackend;
+    #[test]
+    fn windows_menu_and_parameters_follow_identification() {
+        let mut app = app();
+        let mut result = app.results["pslist"].clone();
+        result.rows = vec![vec![
+            "0x1000".into(),
+            "Windows PDB ntkrnlmp.pdb/GUID1".into(),
+        ]];
+        app.apply_identification(&result);
+        assert_eq!(app.plugin, Plugin::WinPslist);
+        assert!(app.navigation_plugins().iter().all(|p| p.is_windows()));
+        assert!(!app.navigation_plugins().iter().any(|p| p.is_dump()));
+        app.analysis_options.hive = Some(0xffff800000001000);
+        app.analysis_options.key = "Software".into();
+        app.plugin = Plugin::WinPrintkey;
+        app.windows_parameters();
+        let Some(Dialog::WindowsParameters { fields, field, .. }) = &app.dialog else {
+            panic!("missing Windows parameters");
+        };
+        assert_eq!(fields[0], "0xffff800000001000");
+        assert_eq!(fields[1], "Software");
+        assert_eq!(*field, 0);
+    }
     fn app() -> App {
         let dir = tempfile::tempdir().unwrap();
         let mut app = App::new(
@@ -5047,6 +5416,8 @@ mod tests {
                 symbol: String::new(),
                 page_table: 0,
                 historical: false,
+                system: "linux".into(),
+                kernel_identity: serde_json::Value::Null,
             },
         );
         app
@@ -5668,7 +6039,12 @@ mod tests {
             app.results.insert(d.plugin.name().into(), r);
         }
         let mut terminal = Terminal::new(TestBackend::new(80, 24)).unwrap();
-        for d in PLUGINS.iter().skip(3).filter(|d| !d.plugin.is_dump()) {
+        for d in PLUGINS
+            .iter()
+            .filter(|d| !d.plugin.is_windows())
+            .skip(3)
+            .filter(|d| !d.plugin.is_dump())
+        {
             app.focus = 1;
             app.menu = navigation_plugins()
                 .iter()

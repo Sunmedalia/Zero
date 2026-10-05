@@ -11,7 +11,7 @@ use zero_tui::{
 #[command(
     name = "zero",
     version,
-    about = "Rust 原生 Linux x86_64／ARM64 内存取证与符号匹配"
+    about = "Rust 原生 Linux / Windows 内存取证与符号匹配"
 )]
 struct Cli {
     #[arg(long)]
@@ -21,6 +21,12 @@ struct Cli {
     /// Use only local symbols and previously downloaded files.
     #[arg(long, global = true)]
     offline: bool,
+    #[arg(long, global = true, value_enum, default_value = "auto")]
+    os: zero_tui::analysis::Os,
+    #[arg(long, global=true, value_parser=zero_tui::dump::parse_address)]
+    hive: Option<u64>,
+    #[arg(long, global = true, default_value = "")]
+    key: String,
     #[command(subcommand)]
     command: Option<Command>,
 }
@@ -90,7 +96,7 @@ enum Command {
         symbol_choice: Option<String>,
         #[arg(long)]
         no_cache: bool,
-        /// Target process for a dump plugin (never defaults to all processes).
+        /// Filter analysis by PID or select the target process for a dump.
         #[arg(long)]
         pid: Option<u32>,
         /// Directory for binary dumps; --output remains the CSV/JSON manifest.
@@ -195,7 +201,7 @@ fn main() -> Result<()> {
         let mut session = linux::Session::default();
         let image = session.prepare_image(image, &cache, &job)?;
         let banners = linux::banner_result(&image, &job)?;
-        if *refresh {
+        if *refresh && !image.banners(&job)?.is_empty() {
             anyhow::ensure!(settings.remote_symbols, "--offline 不能刷新在线索引");
             symbols::refresh_index(&cache, &job)?;
         }
@@ -203,10 +209,17 @@ fn main() -> Result<()> {
         let mut downloaded = Vec::new();
         if *download {
             for m in &matches {
-                downloaded.push(
-                    symbols::download(m, &image, &cache, settings.remote_symbols, &job)?.label,
-                );
+                match symbols::download(m, &image, &cache, settings.remote_symbols, &job) {
+                    Ok(isf) => downloaded.push(isf.label),
+                    Err(e) => {
+                        job.check()?;
+                        eprintln!("候选下载失败 {}: {e:#}", m.path);
+                    }
+                }
             }
+        }
+        if *download {
+            anyhow::ensure!(!downloaded.is_empty(), "没有候选符号下载成功");
         }
         let bytes = serde_json::to_vec_pretty(
             &serde_json::json!({"banners":banners.rows,"matches":matches,"downloaded":downloaded}),
@@ -292,12 +305,13 @@ fn main() -> Result<()> {
             })
         } else {
             anyhow::ensure!(
-                pid.is_none() && dump_dir.is_none() && start.is_none() && end.is_none(),
+                dump_dir.is_none() && start.is_none() && end.is_none(),
                 "转储参数仅用于 Dump 插件"
             );
             None
         };
-        match session.analyze_with_dump(
+        match zero_tui::analysis::analyze(
+            &mut session,
             &linux::Request {
                 image: &image,
                 symbols: &symbols,
@@ -308,6 +322,12 @@ fn main() -> Result<()> {
                 network: settings.remote_symbols,
             },
             dump.as_ref(),
+            &zero_tui::analysis::Options {
+                os: cli.os,
+                pid: if plugin.is_dump() { None } else { pid },
+                hive: cli.hive,
+                key: cli.key.clone(),
+            },
             &job,
         )? {
             Outcome::Choose(labels) => bail!(
@@ -339,6 +359,17 @@ fn main() -> Result<()> {
     } else {
         // A new TUI session only loads paths explicitly supplied for this launch.
         // The registry retains assets and last selections as history, not startup input.
-        zero_tui::tui::run(cli.image, cli.symbols.unwrap_or_default(), cache, settings)
+        zero_tui::tui::run_with_options(
+            cli.image,
+            cli.symbols.unwrap_or_default(),
+            cache,
+            settings,
+            zero_tui::analysis::Options {
+                os: cli.os,
+                hive: cli.hive,
+                key: cli.key,
+                pid: None,
+            },
+        )
     }
 }

@@ -10,6 +10,40 @@ use std::{collections::HashSet, path::Path};
 
 #[derive(Clone, Copy, Debug, ValueEnum, PartialEq, Eq)]
 pub enum Plugin {
+    #[value(name = "windows.systeminfo")]
+    WinSysteminfo,
+    #[value(name = "windows.pslist")]
+    WinPslist,
+    #[value(name = "windows.pstree")]
+    WinPstree,
+    #[value(name = "windows.cmdline")]
+    WinCmdline,
+    #[value(name = "windows.modules")]
+    WinModules,
+    #[value(name = "windows.dlllist")]
+    WinDlllist,
+    #[value(name = "windows.vadinfo")]
+    WinVadinfo,
+    #[value(name = "windows.handles")]
+    WinHandles,
+    #[value(name = "windows.malfind")]
+    WinMalfind,
+    #[value(name = "windows.netscan")]
+    WinNetscan,
+    #[value(name = "windows.hivelist")]
+    WinHivelist,
+    #[value(name = "windows.printkey")]
+    WinPrintkey,
+    #[value(name = "windows.psscan")]
+    WinPsscan,
+    #[value(name = "windows.psxview")]
+    WinPsxview,
+    #[value(name = "windows.procdump")]
+    WinProcdump,
+    #[value(name = "windows.memdump")]
+    WinMemdump,
+    #[value(name = "windows.pedump")]
+    WinPedump,
     Iomem,
     Ioports,
     Ptrace,
@@ -57,6 +91,194 @@ pub struct Descriptor {
     pub widths: &'static [u16],
 }
 pub const PLUGINS: &[Descriptor] = &[
+    Descriptor {
+        plugin: Plugin::WinSysteminfo,
+        name: "windows.systeminfo",
+        label: "windows.systeminfo",
+        columns: &["Key", "Value"],
+        widths: &[12, 0],
+    },
+    Descriptor {
+        plugin: Plugin::WinPslist,
+        name: "windows.pslist",
+        label: "windows.pslist",
+        columns: &[
+            "PID",
+            "PPID",
+            "Name",
+            "Address",
+            "Threads",
+            "Handles",
+            "CreateTime",
+            "ExitTime",
+        ],
+        widths: &[12, 12, 0, 12, 12, 12, 12, 12],
+    },
+    Descriptor {
+        plugin: Plugin::WinPstree,
+        name: "windows.pstree",
+        label: "windows.pstree",
+        columns: &[
+            "PID",
+            "PPID",
+            "Name",
+            "Address",
+            "Threads",
+            "Handles",
+            "CreateTime",
+            "ExitTime",
+        ],
+        widths: &[12, 12, 0, 12, 12, 12, 12, 12],
+    },
+    Descriptor {
+        plugin: Plugin::WinCmdline,
+        name: "windows.cmdline",
+        label: "windows.cmdline",
+        columns: &["PID", "Name", "CommandLine"],
+        widths: &[12, 0, 0],
+    },
+    Descriptor {
+        plugin: Plugin::WinModules,
+        name: "windows.modules",
+        label: "windows.modules",
+        columns: &["Name", "Base", "Size", "Path"],
+        widths: &[0, 12, 12, 0],
+    },
+    Descriptor {
+        plugin: Plugin::WinDlllist,
+        name: "windows.dlllist",
+        label: "windows.dlllist",
+        columns: &["PID", "Name", "Base", "Size", "Path"],
+        widths: &[12, 0, 12, 12, 0],
+    },
+    Descriptor {
+        plugin: Plugin::WinVadinfo,
+        name: "windows.vadinfo",
+        label: "windows.vadinfo",
+        columns: &[
+            "PID",
+            "Name",
+            "Start",
+            "End",
+            "Protection",
+            "Private",
+            "Path",
+            "Address",
+        ],
+        widths: &[12, 0, 12, 12, 12, 12, 0, 12],
+    },
+    Descriptor {
+        plugin: Plugin::WinHandles,
+        name: "windows.handles",
+        label: "windows.handles",
+        columns: &[
+            "PID",
+            "Name",
+            "Handle",
+            "Type",
+            "Object",
+            "GrantedAccess",
+            "ObjectName",
+        ],
+        widths: &[12, 0, 12, 12, 12, 12, 0],
+    },
+    Descriptor {
+        plugin: Plugin::WinMalfind,
+        name: "windows.malfind",
+        label: "windows.malfind",
+        columns: &[
+            "PID",
+            "Name",
+            "Start",
+            "End",
+            "Protection",
+            "Reason",
+            "Preview",
+        ],
+        widths: &[12, 0, 12, 12, 12, 12, 12],
+    },
+    Descriptor {
+        plugin: Plugin::WinNetscan,
+        name: "windows.netscan",
+        label: "windows.netscan",
+        columns: &[
+            "Address",
+            "Protocol",
+            "LocalEndpoint",
+            "RemoteEndpoint",
+            "State",
+            "PID",
+            "Name",
+            "CreateTime",
+        ],
+        widths: &[12, 12, 12, 12, 12, 12, 0, 12],
+    },
+    Descriptor {
+        plugin: Plugin::WinHivelist,
+        name: "windows.hivelist",
+        label: "windows.hivelist",
+        columns: &["Address", "Path"],
+        widths: &[12, 0],
+    },
+    Descriptor {
+        plugin: Plugin::WinPrintkey,
+        name: "windows.printkey",
+        label: "windows.printkey",
+        columns: &[
+            "Hive",
+            "Key",
+            "Kind",
+            "Name",
+            "Type",
+            "Data",
+            "LastWriteTime",
+        ],
+        widths: &[12, 12, 12, 0, 12, 0, 12],
+    },
+    Descriptor {
+        plugin: Plugin::WinPsscan,
+        name: "windows.psscan",
+        label: "windows.psscan",
+        columns: &[
+            "PID",
+            "PPID",
+            "Name",
+            "Address",
+            "Threads",
+            "Handles",
+            "CreateTime",
+            "ExitTime",
+        ],
+        widths: &[12, 12, 0, 12, 12, 12, 12, 12],
+    },
+    Descriptor {
+        plugin: Plugin::WinPsxview,
+        name: "windows.psxview",
+        label: "windows.psxview",
+        columns: &["PID", "Name", "Address", "Pslist", "Psscan", "ExitTime"],
+        widths: &[12, 0, 12, 12, 12, 12],
+    },
+    Descriptor {
+        plugin: Plugin::WinProcdump,
+        name: "windows.procdump",
+        label: "windows.procdump",
+        columns: &["PID", "Name", "Start", "End", "Size", "SHA256", "File"],
+        widths: &[12, 0, 12, 12, 12, 12, 12],
+    },
+    Descriptor {
+        plugin: Plugin::WinMemdump,
+        name: "windows.memdump",
+        label: "windows.memdump",
+        columns: &["PID", "Name", "Start", "End", "Size", "SHA256", "File"],
+        widths: &[12, 0, 12, 12, 12, 12, 12],
+    },
+    Descriptor {
+        plugin: Plugin::WinPedump,
+        name: "windows.pedump",
+        label: "windows.pedump",
+        columns: &["PID", "Name", "Start", "End", "Size", "SHA256", "File"],
+        widths: &[12, 0, 12, 12, 12, 12, 12],
+    },
     Descriptor {
         plugin: Plugin::Pslist,
         name: "pslist",
@@ -368,10 +590,41 @@ impl Plugin {
         PLUGINS.iter().find(|d| d.plugin == self).unwrap()
     }
     pub fn is_dump(self) -> bool {
-        matches!(self, Self::Procdump | Self::Memdump | Self::Elfdump)
+        matches!(
+            self,
+            Self::Procdump
+                | Self::Memdump
+                | Self::Elfdump
+                | Self::WinProcdump
+                | Self::WinMemdump
+                | Self::WinPedump
+        )
+    }
+    pub fn is_windows(self) -> bool {
+        self.name().starts_with("windows.")
+    }
+    pub fn is_tree(self) -> bool {
+        matches!(self, Self::Pstree | Self::WinPstree)
     }
     pub fn category(self) -> &'static str {
         match self {
+            Self::WinSysteminfo => "System",
+            Self::WinPslist => "Process",
+            Self::WinPstree => "Process",
+            Self::WinCmdline => "Process",
+            Self::WinModules => "System",
+            Self::WinDlllist => "Process",
+            Self::WinVadinfo => "Memory",
+            Self::WinHandles => "Files",
+            Self::WinMalfind => "Integrity",
+            Self::WinNetscan => "Network",
+            Self::WinHivelist => "Files",
+            Self::WinPrintkey => "Files",
+            Self::WinPsscan => "Integrity",
+            Self::WinPsxview => "Integrity",
+            Self::WinProcdump => "Process",
+            Self::WinMemdump => "Memory",
+            Self::WinPedump => "Memory",
             Self::Banners
             | Self::Systeminfo
             | Self::Dmesg
@@ -526,6 +779,16 @@ impl Session {
         }
         job.check()?;
         let image = self.prepare_image(request.image, request.cache, job)?;
+        if request.plugin.is_windows() {
+            return crate::windows::analyze(
+                &image,
+                request,
+                dump,
+                &crate::analysis::Options::default(),
+                job,
+            );
+        }
+
         if request.plugin == Plugin::Banners {
             let key = store::key(&image.digest, "no-isf", "banners");
             if request.use_cache
@@ -621,6 +884,26 @@ pub fn banner_result(image: &Image, job: &Job) -> Result<Results> {
             ]
         })
         .collect();
+    let rows: Vec<Vec<String>> = rows;
+    let rows = if rows.is_empty() {
+        image
+            .windows_candidates(job)?
+            .iter()
+            .map(|c| {
+                vec![
+                    format!("{:#018x}", c.offset),
+                    format!("Windows PDB {}", c.pdb.key()),
+                ]
+            })
+            .collect()
+    } else {
+        rows
+    };
+    let system = if rows.iter().any(|r| r[1].starts_with("Windows PDB ")) {
+        "windows"
+    } else {
+        "linux"
+    };
     Ok(Results {
         plugin: "banners".into(),
         columns: Plugin::Banners
@@ -636,6 +919,8 @@ pub fn banner_result(image: &Image, job: &Job) -> Result<Results> {
         symbol: String::new(),
         page_table: 0,
         historical: false,
+        system: system.into(),
+        kernel_identity: serde_json::Value::Null,
     })
 }
 
@@ -918,6 +1203,8 @@ impl Linux<'_> {
             symbol: self.isf.label.clone(),
             page_table: self.vm.root,
             historical: false,
+            system: "linux".into(),
+            kernel_identity: serde_json::Value::Null,
         };
         let traversal = (|| -> Result<()> {
             let mut node = self.vm.uint(add(head, next)?, 8)?;

@@ -1,0 +1,23 @@
+{
+  "version": "zero-tcpip-2",
+  "sources": [
+    "https://raw.githubusercontent.com/volatilityfoundation/volatility3/v2.28.0/volatility3/framework/symbols/windows/netscan/netscan-win10-15063-x64.json",
+    "https://raw.githubusercontent.com/volatilityfoundation/volatility3/v2.28.0/volatility3/framework/symbols/windows/netscan/netscan-win10-20348-x64.json"
+  ],
+  "identities": {
+    "tcpip.pdb/9F341EAE78CCAB4569E0A7F2B73B04D01": {
+      "endpoint_owner": 624,
+      "endpoint_time": 616,
+      "udp_local": 128,
+      "udp_port": 120,
+      "endpoint_tag": "TcpE"
+    },
+    "tcpip.pdb/FD48B7E92182A80F0F8B23D975C31B461": {
+      "endpoint_owner": 752,
+      "endpoint_time": 776,
+      "udp_local": 168,
+      "udp_port": 160,
+      "endpoint_tag": "TTcb"
+    }
+  }
+}

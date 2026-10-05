@@ -1,4 +1,4 @@
-.PHONY: build install run tui test check acceptance clean
+.PHONY: build install run tui test check acceptance windows-acceptance clean
 
 build:
 	cargo build --release --locked
@@ -25,3 +25,7 @@ acceptance:
 
 clean:
 	cargo clean
+
+# Public Windows 10/11 RAW samples and exact local PDB-derived ISFs.
+windows-acceptance:
+	cargo test --locked --release --test windows_acceptance -- --ignored
