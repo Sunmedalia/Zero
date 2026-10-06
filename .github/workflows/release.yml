@@ -39,4 +39,3 @@ jobs:
           test "$(find . -name '*.tar.gz' | wc -l)" -eq 4
           sha256sum --check SHA256SUMS
           gh release create "$GITHUB_REF_NAME" *.tar.gz SHA256SUMS --repo "$GITHUB_REPOSITORY" --verify-tag --title "Zero $GITHUB_REF_NAME" --notes-file ../RELEASE_NOTES.md
-

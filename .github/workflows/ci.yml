@@ -54,4 +54,3 @@ jobs:
           name: release-${{ matrix.target }}
           path: dist/*
           if-no-files-found: error
-
