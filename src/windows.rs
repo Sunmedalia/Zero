@@ -19,6 +19,7 @@ use arch::Paging;
 mod codec;
 mod compressed;
 pub mod container;
+mod drivers;
 mod dump;
 pub mod hiber;
 mod memory;
@@ -26,7 +27,9 @@ mod network;
 mod network_layout;
 mod objects;
 pub mod paging;
+mod process;
 mod registry;
+mod user_artifacts;
 mod wow64;
 const MAX_OBJECTS: usize = 1_000_000;
 const PHYSICAL_MASK: u64 = 0x000f_ffff_ffff_f000;
@@ -139,7 +142,7 @@ impl Memory<'_> {
             Ok(entry & geometry.mask())
         }
     }
-    fn prototype_page(&self, entry: u64, va: u64) -> Result<u64> {
+    fn prototype_address(&self, entry: u64) -> Result<u64> {
         let geometry = self.paging()?;
         ensure!(
             entry & (1 << 10) != 0 && entry & 1 == 0,
@@ -163,6 +166,11 @@ impl Memory<'_> {
             self.kernel(prototype) && prototype.is_multiple_of(geometry.width() as u64),
             "prototype PTE 指针无效"
         );
+        Ok(prototype)
+    }
+    fn prototype_page(&self, entry: u64, va: u64) -> Result<u64> {
+        let geometry = self.paging()?;
+        let prototype = self.prototype_address(entry)?;
         let pte = self.uint(prototype, geometry.width())?;
         let frame = if pte & 1 != 0 {
             if geometry.arch == Architecture::Arm64 {
@@ -440,7 +448,10 @@ impl Windows<'_> {
         if p == Plugin::WinSysteminfo {
             result.rows = vec![
                 vec!["OS".into(), "Windows".into()],
-                vec!["Architecture".into(), "x86_64".into()],
+                vec![
+                    "Architecture".into(),
+                    format!("{:?}", Architecture::from_isf(self.vm.isf)?),
+                ],
                 vec!["PDB".into(), self.pdb.key()],
                 vec!["KernelBase".into(), hex(self.base)],
                 vec!["DTB".into(), hex(self.vm.root)],
@@ -459,11 +470,57 @@ impl Windows<'_> {
             }
             return Ok(result);
         }
+        if matches!(p, Plugin::WinDriverscan | Plugin::WinDrivercheck) {
+            return self.drivers(p, job);
+        }
+        if matches!(
+            p,
+            Plugin::WinSvcscan | Plugin::WinCmdscan | Plugin::WinConsoles
+        ) {
+            return self.user_artifacts(p, options, job);
+        }
         if p == Plugin::WinModules {
             return self.modules(p, job);
         }
-        if matches!(p, Plugin::WinHivelist | Plugin::WinPrintkey) {
+        if p == Plugin::WinHivelist {
             return self.registry(p, options, job);
+        }
+        if matches!(p, Plugin::WinPrintkey | Plugin::WinAutoruns) {
+            let (processes, diagnostics) = self.processes_partial(job)?;
+            let owners: Vec<_> = processes
+                .iter()
+                .filter(|process| {
+                    process.name == "Registry" && process.ppid == 4 && process.exited == 0
+                })
+                .collect();
+            ensure!(owners.len() <= 1, "Registry 进程归属歧义");
+            let registry_vm = owners
+                .first()
+                .map(|process| self.process_memory(process))
+                .transpose()?;
+            let registry = Windows {
+                vm: registry_vm.unwrap_or(Memory {
+                    image: self.vm.image,
+                    root: self.vm.root,
+                    isf: self.vm.isf,
+                    sources: self.vm.sources,
+                }),
+                base: self.base,
+                pdb: self.pdb.clone(),
+            };
+            let mut result = if p == Plugin::WinAutoruns {
+                registry.autoruns(options, job)?
+            } else {
+                registry.registry(p, options, job)?
+            };
+            if !diagnostics.is_empty() {
+                result.complete = false;
+                result.diagnostics.extend(diagnostics);
+            }
+            if let Some(owner) = owners.first() {
+                result.kernel_identity["registry_process"] = serde_json::json!({"pid":owner.pid,"address":owner.address,"dtb":registry.vm.root,"kernel_dtb":self.vm.root});
+            }
+            return Ok(result);
         }
         if p == Plugin::WinNetscan {
             return self.netscan(job, None);
@@ -474,6 +531,17 @@ impl Windows<'_> {
         let (processes, diagnostics) = self.processes_partial(job)?;
         result.complete = diagnostics.is_empty();
         result.diagnostics = diagnostics;
+        let thread_modules = if p == Plugin::WinThreads {
+            Some(self.modules(Plugin::WinModules, job)?)
+        } else {
+            None
+        };
+        if let Some(modules) = &thread_modules
+            && !modules.complete
+        {
+            result.complete = false;
+            result.diagnostics.extend(modules.diagnostics.clone());
+        }
         for process in processes
             .into_iter()
             .filter(|p| options.pid.is_none_or(|pid| p.pid == u64::from(pid)))
@@ -485,6 +553,13 @@ impl Windows<'_> {
                     Ok(())
                 }
                 Plugin::WinCmdline => self.cmdline(&process, &mut result),
+                Plugin::WinEnvars => self.environments(&process, &mut result, job),
+                Plugin::WinThreads => self.thread_rows(
+                    &process,
+                    &mut result,
+                    thread_modules.as_ref().expect("thread modules"),
+                    job,
+                ),
                 Plugin::WinDlllist => self.dlllist(&process, &mut result, job),
                 Plugin::WinVadinfo | Plugin::WinMalfind => {
                     self.vad_result(&process, p, &mut result, job)
@@ -549,11 +624,12 @@ pub fn analyze(
     options: &Options,
     job: &Job,
 ) -> Result<Outcome> {
-    if image
-        .windows_container
-        .as_ref()
-        .is_some_and(|m| m.virtual_memory || image.segments.is_empty())
-    {
+    if image.windows_container.as_ref().is_some_and(|m| {
+        m.virtual_memory
+            || m.kernel_virtual
+            || image.segments.is_empty()
+            || request.plugin == Plugin::WinCrashinfo
+    }) {
         ensure!(
             options.pagefiles.is_empty() && options.swapfile.is_none(),
             "此容器没有可验证的内核分页索引，不接受分页附件"
@@ -567,7 +643,9 @@ pub fn analyze(
         ensure!(dump.is_none(), "分析插件不接受转储参数");
     }
     ensure!(
-        request.plugin == Plugin::WinPrintkey || (options.hive.is_none() && options.key.is_empty()),
+        request.plugin == Plugin::WinPrintkey
+            || (request.plugin == Plugin::WinAutoruns && options.key.is_empty())
+            || (options.hive.is_none() && options.key.is_empty()),
         "hive/key 仅用于 windows.printkey"
     );
     if request.plugin == Plugin::WinPrintkey {

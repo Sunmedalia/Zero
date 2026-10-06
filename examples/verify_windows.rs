@@ -10,6 +10,16 @@ fn main() -> Result<()> {
     let args: Vec<_> = std::env::args().collect();
     let image = PathBuf::from(args.get(1).context("image")?);
     let prefix = args.get(2).context("output prefix")?;
+    let selected: Option<Vec<Plugin>> = args
+        .get(3)
+        .map(|list| {
+            list.split(',')
+                .map(|name| {
+                    <Plugin as clap::ValueEnum>::from_str(name, true).map_err(anyhow::Error::msg)
+                })
+                .collect::<Result<_>>()
+        })
+        .transpose()?;
     let job = Job::new(|s| eprintln!("{s}"));
     let cache = Path::new(".zero/rust");
     let mut session = linux::Session::default();
@@ -26,10 +36,15 @@ fn main() -> Result<()> {
         &job,
     )?;
     let mut failures = Vec::new();
-    for descriptor in linux::PLUGINS
-        .iter()
-        .filter(|d| d.plugin.is_windows() && !d.plugin.is_dump() && d.plugin != Plugin::WinPrintkey)
-    {
+    for descriptor in linux::PLUGINS.iter().filter(|d| {
+        selected
+            .as_ref()
+            .is_none_or(|plugins| plugins.contains(&d.plugin))
+            && d.plugin.is_windows()
+            && !d.plugin.is_dump()
+            && d.plugin != Plugin::WinPrintkey
+            && (d.plugin != Plugin::WinCrashinfo || image_prepared.windows_container.is_some())
+    }) {
         let request = linux::Request {
             image: &image,
             symbols: Path::new(&symbol.label),

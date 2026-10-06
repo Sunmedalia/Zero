@@ -138,7 +138,13 @@ impl Isf {
     pub fn type_size(&self, ty: &Value) -> Result<u64> {
         let name = || ty["name"].as_str().context("ISF type name 无效");
         match ty["kind"].as_str() {
-            Some("pointer") => Ok(8),
+            Some("pointer") => {
+                let width = self.data["base_types"]["pointer"]["size"]
+                    .as_u64()
+                    .unwrap_or(8);
+                ensure!(matches!(width, 4 | 8), "ISF pointer size 无效");
+                Ok(width)
+            }
             Some("array") => ty["count"]
                 .as_u64()
                 .context("ISF array count 无效")?

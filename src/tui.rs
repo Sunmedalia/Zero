@@ -46,7 +46,10 @@ fn plugin_label(plugin: Plugin) -> &'static str {
     if plugin.is_dump() {
         "dump"
     } else {
-        plugin.name()
+        plugin
+            .name()
+            .strip_prefix("windows.")
+            .unwrap_or(plugin.name())
     }
 }
 fn plugin_matches(query: &str) -> Vec<Plugin> {
@@ -148,7 +151,7 @@ fn menu_items() -> Vec<String> {
         vec!["image [i]".into(), "symbols [y]".into()],
         navigation_plugins()
             .iter()
-            .map(|p| p.name().to_string())
+            .map(|p| plugin_label(*p).to_string())
             .collect(),
         vec!["dump".into()],
     ]
@@ -277,6 +280,9 @@ enum Dialog {
     Settings {
         selected: usize,
     },
+    System {
+        selected: usize,
+    },
     Cache {
         entries: Vec<cache::Entry>,
         scopes: Vec<cache::Scope>,
@@ -402,6 +408,7 @@ enum WorkerEvent {
 struct HitMap {
     header: Rect,
     tabs: Vec<(Rect, Page)>,
+    systems: Vec<(Rect, crate::analysis::Os)>,
     sources: Vec<(Rect, AssetSection)>,
     asset_lists: Vec<(Rect, AssetSection, usize)>,
     asset_buttons: Vec<(Rect, AssetSection, KeyCode)>,
@@ -470,6 +477,7 @@ const COMMANDS: &[(&str, KeyCode)] = &[
     ("搜索远程符号", KeyCode::Char('f')),
     ("打开镜像与符号", KeyCode::F(3)),
     ("打开分析页", KeyCode::F(2)),
+    ("选择分析系统：自动 / Linux / Windows", KeyCode::F(6)),
     ("打开镜像", KeyCode::Char('i')),
     ("选择本地符号", KeyCode::Char('y')),
     ("搜索插件", KeyCode::Char('p')),
@@ -576,6 +584,7 @@ pub struct App {
     back_dialog: Option<Box<Dialog>>,
     pending_work: Option<Work>,
     pending_plugin: Option<Plugin>,
+    pending_os: Option<crate::analysis::Os>,
     pending_cache: bool,
     horizontal: usize,
     inspector: bool,
@@ -583,6 +592,76 @@ pub struct App {
     views: HashMap<String, View>,
 }
 impl App {
+    fn select_os(&mut self, os: crate::analysis::Os) {
+        if self.job.is_some() {
+            self.cancel();
+            self.pending_work = None;
+            self.pending_os = Some(os);
+            self.status = "正在取消任务并切换分析系统…".into();
+            return;
+        }
+        self.analysis_options.os = os;
+        let banner = self.results.get("banners").cloned();
+        self.windows = match os {
+            crate::analysis::Os::Windows => true,
+            crate::analysis::Os::Linux => false,
+            crate::analysis::Os::Auto => self.windows,
+        };
+        if let Some(result) = &banner {
+            self.apply_identification(result);
+        }
+        self.plugin = if self.windows {
+            Plugin::WinPslist
+        } else {
+            Plugin::Pslist
+        };
+        self.menu = self
+            .navigation_plugins()
+            .iter()
+            .position(|p| *p == self.plugin)
+            .unwrap_or(0)
+            + 2;
+        self.analysis_options.pid = None;
+        self.analysis_options.hive = None;
+        self.analysis_options.key.clear();
+        if !self.windows {
+            self.analysis_options.arch = Default::default();
+            self.analysis_options.pagefiles.clear();
+            self.analysis_options.swapfile = None;
+        }
+        self.results.clear();
+        if let Some(banner) = banner {
+            self.results.insert("banners".into(), banner);
+        }
+        self.local_matches.clear();
+        self.local_match_stamp = None;
+        self.local_match_errors.clear();
+        self.local_only_matches = false;
+        self.views.clear();
+        self.history = None;
+        self.query.clear();
+        self.sort = None;
+        self.row = 0;
+        self.horizontal = 0;
+        self.detail_scroll = 0;
+        self.collapsed.clear();
+        self.choice = None;
+        self.dump_options = None;
+        self.last_error = None;
+        self.page = Page::Analysis;
+        self.focus = 1;
+        self.status = format!(
+            "已选择 {} · i 镜像 / y 符号 / p 插件",
+            match os {
+                crate::analysis::Os::Auto => "自动识别系统",
+                crate::analysis::Os::Linux => "Linux",
+                crate::analysis::Os::Windows => "Windows",
+            }
+        );
+        if os == crate::analysis::Os::Auto && self.image.is_some() {
+            self.start_work(Work::Identify);
+        }
+    }
     fn navigation_plugins(&self) -> Vec<Plugin> {
         if !self.windows {
             return navigation_plugins();
@@ -601,7 +680,7 @@ impl App {
         items.extend(
             self.navigation_plugins()
                 .iter()
-                .map(|p| p.name().to_string()),
+                .map(|p| plugin_label(*p).to_string()),
         );
         items.push("dump".into());
         items
@@ -627,6 +706,17 @@ impl App {
                 .rows
                 .iter()
                 .any(|r| r.get(1).is_some_and(|s| s.starts_with("Windows PDB ")));
+        let detected_linux = result
+            .rows
+            .iter()
+            .any(|r| r.get(1).is_some_and(|s| s.starts_with("Linux version ")))
+            || (result.system == "linux" && !result.rows.is_empty());
+        if self.analysis_options.os == crate::analysis::Os::Auto
+            && !detected_windows
+            && !detected_linux
+        {
+            return;
+        }
         let windows = match self.analysis_options.os {
             crate::analysis::Os::Windows => true,
             crate::analysis::Os::Linux => false,
@@ -648,6 +738,34 @@ impl App {
             self.analysis_options.pid = None;
             self.analysis_options.hive = None;
             self.analysis_options.key.clear();
+            if !windows {
+                self.analysis_options.arch = Default::default();
+                self.analysis_options.pagefiles.clear();
+                self.analysis_options.swapfile = None;
+            }
+            self.query.clear();
+            self.sort = None;
+            self.row = 0;
+            self.horizontal = 0;
+            self.collapsed.clear();
+            self.history = None;
+        }
+    }
+    fn identification_status(&self, result: &Results) -> &'static str {
+        if self.analysis_options.os != crate::analysis::Os::Auto {
+            return "保留手动系统选择";
+        }
+        if result.system == "windows"
+            || result
+                .rows
+                .iter()
+                .any(|r| r.get(1).is_some_and(|s| s.starts_with("Windows PDB ")))
+        {
+            "自动识别 Windows · 已切换插件列表"
+        } else if result.system == "linux" && !result.rows.is_empty() {
+            "自动识别 Linux · 已切换插件列表"
+        } else {
+            "未识别系统 · 可手动选择 Linux / Windows"
         }
     }
     fn windows_parameters(&mut self) {
@@ -801,6 +919,7 @@ impl App {
             back_dialog: None,
             pending_work: None,
             pending_plugin: None,
+            pending_os: None,
             pending_cache: false,
             horizontal: 0,
             inspector: false,
@@ -874,6 +993,7 @@ impl App {
             commands.extend([
                 ("打开分析页 F2", KeyCode::F(2)),
                 ("打开镜像与符号 F3", KeyCode::F(3)),
+                ("选择分析系统 F6", KeyCode::F(6)),
                 ("目录设置 ,", KeyCode::Char(',')),
                 ("缓存管理 c", KeyCode::Char('c')),
                 ("任务日志 l", KeyCode::Char('l')),
@@ -1070,7 +1190,11 @@ impl App {
         self.local_match_errors.clear();
         self.local_only_matches = false;
         self.dump_options = None;
-        self.analysis_options = Default::default();
+        self.analysis_options = crate::analysis::Options {
+            os: self.analysis_options.os,
+            arch: self.analysis_options.arch,
+            ..Default::default()
+        };
         self.results.clear();
         self.views.clear();
         self.history = None;
@@ -1569,6 +1693,41 @@ impl App {
         }
         false
     }
+    fn draw_system_buttons(&self, frame: &mut Frame, area: Rect) {
+        let mut x = area.x;
+        if area.width >= 29 {
+            frame.render_widget(
+                Paragraph::new(" 系统: ").style(Style::default().fg(ACCENT)),
+                Rect::new(x, area.y, 7, area.height),
+            );
+            x += 7;
+        }
+        for (label, os) in [
+            (" Linux ", crate::analysis::Os::Linux),
+            (" Windows ", crate::analysis::Os::Windows),
+            (" 自动 ", crate::analysis::Os::Auto),
+        ] {
+            let width = Span::raw(label).width() as u16;
+            if width > area.right().saturating_sub(x) {
+                continue;
+            }
+            let rect = Rect::new(x, area.y, width, area.height);
+            let active = self.analysis_options.os == os;
+            frame.render_widget(
+                Paragraph::new(label).style(if active {
+                    Style::default()
+                        .bg(SELECTED_BG)
+                        .fg(FOCUS)
+                        .add_modifier(Modifier::BOLD)
+                } else {
+                    Style::default().bg(Color::Rgb(27, 42, 48)).fg(ACCENT)
+                }),
+                rect,
+            );
+            self.hits.borrow_mut().systems.push((rect, os));
+            x += width;
+        }
+    }
     fn draw_tabs(&self, frame: &mut Frame, area: Rect) {
         let mut x = area.x;
         for (i, page) in Page::ALL.iter().enumerate() {
@@ -1719,6 +1878,17 @@ impl App {
         } else {
             asset_actions(self.section)
         };
+        actions.insert(
+            0,
+            (
+                if self.windows {
+                    "Windows F6"
+                } else {
+                    "Linux F6"
+                },
+                KeyCode::F(6),
+            ),
+        );
         if self.job.is_some() {
             actions.insert(0, ("Esc取消", KeyCode::Esc));
         }
@@ -2507,6 +2677,7 @@ impl App {
         }));
     }
     fn cancel(&mut self) {
+        self.pending_os = None;
         self.pending_plugin = None;
         self.pending_cache = false;
         if let Some(job) = &self.job {
@@ -2527,6 +2698,7 @@ impl App {
                 WorkerEvent::LocalMatched(report, stamp, banner) => {
                     self.finish_worker();
                     self.apply_identification(&banner);
+                    let identification = self.identification_status(&banner);
                     self.results.insert("banners".into(), banner);
                     self.local_matches = report.matched;
                     self.local_match_errors = report.diagnostics;
@@ -2534,7 +2706,8 @@ impl App {
                     self.local_only_matches = true;
                     self.asset_rows[1] = 0;
                     self.status = format!(
-                        "本地完整 banner 匹配：{} 个文件 · {} 条诊断；Enter 选用，t 远程，z 全部",
+                        "{} · 本地符号匹配：{} 个文件 · {} 条诊断；Enter 选用，t 远程，z 全部",
+                        identification,
                         self.local_matches.len(),
                         self.local_match_errors.len()
                     );
@@ -2568,8 +2741,12 @@ impl App {
                 }
                 WorkerEvent::Identified(result) => {
                     self.finish_worker();
-                    self.status = format!("识别到 {} 个候选；尚未验证页表", result.rows.len());
                     self.apply_identification(&result);
+                    self.status = format!(
+                        "{} · {} 个候选；尚未验证页表",
+                        self.identification_status(&result),
+                        result.rows.len()
+                    );
                     self.results.insert("banners".into(), result);
                 }
                 WorkerEvent::SymbolDetails(path, text) => {
@@ -2651,7 +2828,7 @@ impl App {
                         self.logs.pop_front();
                     }
                     self.status = if let Some(plugin) = self.pending_plugin {
-                        format!("正在切换到 {}…", plugin.name())
+                        format!("正在切换到 {}…", plugin_label(plugin))
                     } else {
                         s
                     }
@@ -2702,6 +2879,11 @@ impl App {
                 }
             }
         }
+        if self.job.is_none()
+            && let Some(os) = self.pending_os.take()
+        {
+            self.select_os(os);
+        }
         if self.job.is_none() && self.pending_cache {
             self.pending_cache = false;
             self.open_cache();
@@ -2735,7 +2917,7 @@ impl App {
         if self.job.is_some() {
             self.cancel();
             self.pending_plugin = Some(plugin);
-            self.status = format!("正在切换到 {}…", plugin.name());
+            self.status = format!("正在切换到 {}…", plugin_label(plugin));
             return;
         }
         self.views.insert(
@@ -2787,7 +2969,7 @@ impl App {
             self.focus = 2;
             self.status = format!(
                 "{} · {} 条 · {} · {} 条诊断（v）",
-                plugin.name(),
+                plugin_label(plugin),
                 result.rows.len(),
                 if result.complete { "完整" } else { "部分" },
                 result.diagnostics.len()
@@ -2889,7 +3071,7 @@ impl App {
         }
     }
     fn help(&mut self) {
-        let mut text = "ZERO 取证工作台\n\nF2 分析 · F3 镜像与符号 · Ctrl+←/→ 切换页面\nTab / Shift+Tab 切换区域；↑↓ 或 j/k 导航；PgUp/PgDn/Home/End 翻页\n\n镜像与符号：\n选用镜像后自动识别内核并匹配本地；选用符号后按 x 开始分析。\n远程下载只保存，完成后仍需在本地库选用。\n".to_owned();
+        let mut text = "ZERO 取证工作台\n\nF2 分析 · F3 镜像与符号 · F6 自动/Linux/Windows · Ctrl+←/→ 切换页面\nTab / Shift+Tab 切换区域；↑↓ 或 j/k 导航；PgUp/PgDn/Home/End 翻页\n\n镜像与符号：\n选用镜像后自动识别内核并匹配本地；选用符号后按 x 开始分析。\n远程下载只保存，完成后仍需在本地库选用。\n".to_owned();
         for section in [
             AssetSection::Images,
             AssetSection::Symbols,
@@ -2905,7 +3087,7 @@ impl App {
             );
             text.push('\n');
         }
-        text.push_str("\n远程详情：w 下载到 symbols · L 在本地库定位 · c 取消下载 · Esc 返回\n\n分析：i 镜像 · y 符号 · p/F4 插件 · Enter 执行 · D Dump\n/ 搜索 · s 排序 · e 导出 · d 详情 · n 行数 · [/] 翻页\nr/F5 重跑 · v/F8 诊断 · Alt+←/→ 横向滚动\n分析页 g 生成 Kali ARM64 符号\n\nCtrl+P / ? 命令面板 · , 目录设置 · c 缓存 · l 日志 · h 历史\nEsc 关闭弹窗；无弹窗时取消任务 · q / Ctrl+C 退出\n文件弹窗：Enter 选用 · ← 上级 · Tab 切换目录 · p 输入路径\nDump：F2/F3/F4 切换模式 · Tab 字段 · Ctrl+Enter 运行\n");
+        text.push_str("\n远程详情：w 下载到 symbols · L 在本地库定位 · c 取消下载 · Esc 返回\n\n分析：i 镜像 · y 符号 · p/F4 插件 · P Windows 参数 · Enter 执行 · D Dump\n/ 搜索 · s 排序 · e 导出 · d 详情 · n 行数 · [/] 翻页\nr/F5 重跑 · v/F8 诊断 · Alt+←/→ 横向滚动\n分析页 g 生成 Kali ARM64 符号\n\nCtrl+P / ? 命令面板 · , 目录设置 · c 缓存 · l 日志 · h 历史\nEsc 关闭弹窗；无弹窗时取消任务 · q / Ctrl+C 退出\n文件弹窗：Enter 选用 · ← 上级 · Tab 切换目录 · p 输入路径\nDump：F2/F3/F4 切换模式 · Tab 字段 · Ctrl+Enter 运行\n");
         self.dialog = Some(Dialog::Detail { text, scroll: 0 });
     }
     fn diagnostics(&mut self) {
@@ -2952,13 +3134,23 @@ impl App {
         if self.page == Page::Assets
             && !matches!(
                 key.code,
-                KeyCode::F(1..=3) | KeyCode::Char(',' | 'h' | 'l' | '?' | 'c')
+                KeyCode::F(1..=3) | KeyCode::F(6) | KeyCode::Char(',' | 'h' | 'l' | '?' | 'c')
             )
             && !key.modifiers.contains(KeyModifiers::CONTROL)
         {
             return self.asset_key(key);
         }
         match key.code {
+            KeyCode::F(6) => {
+                self.dialog = Some(Dialog::System {
+                    selected: match self.analysis_options.os {
+                        crate::analysis::Os::Auto => 0,
+                        crate::analysis::Os::Linux => 1,
+                        crate::analysis::Os::Windows => 2,
+                    },
+                });
+                return false;
+            }
             KeyCode::Char('M') => {
                 self.symbol_target(true);
                 return false;
@@ -3296,6 +3488,16 @@ impl App {
         }
         if self.dialog.is_none() {
             if click
+                && let Some((_, os)) = hits.systems.iter().find(|(rect, _)| rect.contains(point))
+            {
+                if self.analysis_options.os != *os
+                    || (*os == crate::analysis::Os::Auto && self.image.is_some())
+                {
+                    self.select_os(*os);
+                }
+                return false;
+            }
+            if click
                 && let Some((_, page)) = hits.tabs.iter().find(|(rect, _)| rect.contains(point))
             {
                 self.switch_page(*page);
@@ -3445,6 +3647,10 @@ impl App {
                     Some(Dialog::Files {
                         entries, selected, ..
                     }) if index < entries.len() => {
+                        *selected = index;
+                        true
+                    }
+                    Some(Dialog::System { selected }) if index < 3 => {
                         *selected = index;
                         true
                     }
@@ -3610,6 +3816,21 @@ impl App {
             return;
         }
         match &mut dialog {
+            Dialog::System { selected } => match key.code {
+                KeyCode::Up | KeyCode::Char('k') => *selected = selected.saturating_sub(1),
+                KeyCode::Down | KeyCode::Char('j') => *selected = (*selected + 1).min(2),
+                KeyCode::Enter => {
+                    self.select_os(
+                        [
+                            crate::analysis::Os::Auto,
+                            crate::analysis::Os::Linux,
+                            crate::analysis::Os::Windows,
+                        ][*selected],
+                    );
+                    return;
+                }
+                _ => {}
+            },
             Dialog::WindowsParameters {
                 fields,
                 field,
@@ -4234,9 +4455,14 @@ impl App {
             Block::default().style(Style::default().bg(SURFACE)),
             frame.area(),
         );
-        let [tabs, area] =
-            Layout::vertical([Constraint::Length(1), Constraint::Min(1)]).areas(frame.area());
+        let [tabs, systems, area] = Layout::vertical([
+            Constraint::Length(1),
+            Constraint::Length(1),
+            Constraint::Min(1),
+        ])
+        .areas(frame.area());
         self.draw_tabs(frame, tabs);
+        self.draw_system_buttons(frame, systems);
         let parts = Layout::default()
             .direction(Direction::Vertical)
             .constraints([
@@ -4309,7 +4535,7 @@ impl App {
                         } else {
                             "离线"
                         },
-                        self.plugin.name()
+                        plugin_label(self.plugin)
                     ))
                     .border_style(selected(0)),
             ),
@@ -4374,7 +4600,7 @@ impl App {
                 let title = match result {
                     Some(r) => format!(
                         " {} · {} / {} 条 · {} · 第 {} / {} 页 ",
-                        r.plugin,
+                        r.plugin.strip_prefix("windows.").unwrap_or(&r.plugin),
                         self.rows().len(),
                         r.rows.len(),
                         if r.historical {
@@ -4387,7 +4613,7 @@ impl App {
                         self.row / self.page_rows() + 1,
                         self.visible().len().div_ceil(self.page_rows()).max(1)
                     ),
-                    None => format!(" {} ", self.plugin.name()),
+                    None => format!(" {} ", plugin_label(self.plugin)),
                 };
                 let block = Block::default()
                     .borders(Borders::ALL)
@@ -4597,6 +4823,7 @@ impl App {
                 area,
                 area.width.saturating_sub(6).min(90),
                 match dialog {
+                    Dialog::System { .. } => 5,
                     Dialog::Dump { .. } => 12,
                     Dialog::WindowsParameters { .. } => 18,
                     Dialog::Input { .. } => 6,
@@ -4607,6 +4834,22 @@ impl App {
             self.hits.borrow_mut().buttons.clear();
             frame.render_widget(Clear, popup);
             match dialog {
+                Dialog::System { selected } => {
+                    let mut state = ListState::default().with_selected(Some(*selected));
+                    frame.render_stateful_widget(
+                        List::new(["自动识别镜像系统", "Linux", "Windows"])
+                            .block(
+                                Block::default()
+                                    .borders(Borders::ALL)
+                                    .title("分析系统 · Enter 选择 · Esc 取消"),
+                            )
+                            .highlight_symbol("› ")
+                            .highlight_style(Style::default().fg(ACCENT)),
+                        popup,
+                        &mut state,
+                    );
+                    self.hits.borrow_mut().popup_offset = state.offset();
+                }
                 Dialog::WindowsParameters {
                     fields,
                     field,
@@ -5351,6 +5594,12 @@ pub fn run_with_options(
     app.analysis_options = options;
     if app.windows {
         app.plugin = Plugin::WinPslist;
+        app.menu = app
+            .navigation_plugins()
+            .iter()
+            .position(|p| *p == app.plugin)
+            .unwrap_or(0)
+            + 2;
     }
     if app.image.is_some() {
         app.start_work(Work::Identify);
@@ -5428,6 +5677,243 @@ mod tests {
         assert_eq!(fields[0], "0xffff800000001000");
         assert_eq!(fields[1], "Software");
         assert_eq!(*field, 0);
+    }
+    #[test]
+    fn windows_plugin_labels_omit_prefix_in_navigation_and_search() {
+        let mut app = app();
+        app.select_os(crate::analysis::Os::Windows);
+        assert!(app.menu_items().contains(&"pslist".into()));
+        assert!(
+            app.menu_items()
+                .iter()
+                .all(|label| !label.starts_with("windows."))
+        );
+        assert_eq!(app.plugin_matches("pslist"), vec![Plugin::WinPslist]);
+        assert_eq!(
+            app.plugin_matches("windows.pslist"),
+            vec![Plugin::WinPslist]
+        );
+        let mut terminal = Terminal::new(TestBackend::new(100, 32)).unwrap();
+        terminal.draw(|f| app.draw(f)).unwrap();
+        assert!(!screen(&terminal, 100).contains("windows."));
+        app.dialog = Some(Dialog::Plugins {
+            query: "pslist".into(),
+            selected: 0,
+        });
+        terminal.draw(|f| app.draw(f)).unwrap();
+        let rendered = screen(&terminal, 100);
+        assert!(rendered.contains("pslist"));
+        assert!(!rendered.contains("windows.pslist"));
+        assert_eq!(Plugin::WinPslist.name(), "windows.pslist");
+    }
+    #[test]
+    fn auto_identification_switches_windows_and_preserves_unknown_system() {
+        let mut app = app();
+        let mut banner = app.results["pslist"].clone();
+        banner.plugin = "banners".into();
+        banner.system = "windows".into();
+        banner.rows = vec![vec![
+            "[container]".into(),
+            "Windows container minidump".into(),
+        ]];
+        let (tx, rx) = mpsc::channel();
+        app.receiver = Some(rx);
+        tx.send(WorkerEvent::Identified(banner.clone())).unwrap();
+        app.drain();
+        assert!(app.windows);
+        assert_eq!(app.plugin, Plugin::WinPslist);
+        assert!(app.status.contains("自动识别 Windows"));
+        banner.system = "linux".into();
+        banner.rows.clear();
+        app.apply_identification(&banner);
+        assert!(app.windows);
+        assert!(app.identification_status(&banner).contains("未识别系统"));
+        app.analysis_options.os = crate::analysis::Os::Linux;
+        banner.system = "windows".into();
+        app.apply_identification(&banner);
+        assert!(!app.windows);
+        assert_eq!(app.identification_status(&banner), "保留手动系统选择");
+    }
+    #[test]
+    fn clicking_auto_reidentifies_loaded_image_and_switches_plugins() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut app = app();
+        app.cache = dir.path().join("cache");
+        let image = dir.path().join("linux.raw");
+        let mut bytes = vec![0; 4096];
+        let banner = b"Linux version 3.2.0-test (test@test) (gcc version 4.6.3) #1 SMP test\n\0";
+        bytes[256..256 + banner.len()].copy_from_slice(banner);
+        std::fs::write(&image, bytes).unwrap();
+        app.select_os(crate::analysis::Os::Windows);
+        app.image = Some(image);
+        app.analysis_options.swapfile = Some("swapfile.sys".into());
+        let mut terminal = Terminal::new(TestBackend::new(80, 24)).unwrap();
+        terminal.draw(|f| app.draw(f)).unwrap();
+        let auto = app
+            .hits
+            .borrow()
+            .systems
+            .iter()
+            .find(|(_, os)| *os == crate::analysis::Os::Auto)
+            .unwrap()
+            .0;
+        click(&mut app, auto.x + 1, auto.y);
+        assert!(app.job.is_some());
+        finish_test_job(&mut app);
+        assert_eq!(app.analysis_options.os, crate::analysis::Os::Auto);
+        assert!(!app.windows);
+        assert_eq!(app.plugin, Plugin::Pslist);
+        assert!(app.status.contains("自动识别 Linux"));
+        assert!(app.analysis_options.swapfile.is_none());
+        terminal.draw(|f| app.draw(f)).unwrap();
+        click(&mut app, auto.x + 1, auto.y);
+        assert!(app.job.is_some());
+        finish_test_job(&mut app);
+        assert!(app.status.contains("自动识别 Linux"));
+    }
+    #[test]
+    fn system_picker_opens_windows_without_identification_and_survives_image_change() {
+        let mut app = app();
+        let mut linux_banner = app.results["pslist"].clone();
+        app.page = Page::Assets;
+        app.key(KeyEvent::new(KeyCode::F(6), KeyModifiers::NONE));
+        assert!(matches!(app.dialog, Some(Dialog::System { selected: 0 })));
+        for _ in 0..2 {
+            app.key(KeyEvent::new(KeyCode::Down, KeyModifiers::NONE));
+        }
+        app.key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
+        assert!(app.dialog.is_none());
+        assert!(app.job.is_none());
+        assert_eq!(app.page, Page::Analysis);
+        assert_eq!(app.analysis_options.os, crate::analysis::Os::Windows);
+        assert_eq!(app.navigation_plugins()[app.menu - 2], Plugin::WinPslist);
+        assert!(app.navigation_plugins().contains(&Plugin::WinThreads));
+        assert!(app.results.is_empty());
+        app.invalidate_source();
+        assert_eq!(app.analysis_options.os, crate::analysis::Os::Windows);
+        linux_banner.plugin = "banners".into();
+        app.apply_identification(&linux_banner);
+        assert!(app.windows);
+        app.results.insert("banners".into(), linux_banner);
+        app.analysis_options.hive = Some(0x1000);
+        app.analysis_options.pid = Some(123);
+        app.analysis_options.key = "Software".into();
+        app.analysis_options.swapfile = Some("swapfile.sys".into());
+        app.select_os(crate::analysis::Os::Auto);
+        assert!(!app.windows);
+        assert_eq!(app.plugin, Plugin::Pslist);
+        assert!(app.analysis_options.pid.is_none());
+        assert!(app.analysis_options.hive.is_none());
+        assert!(app.analysis_options.key.is_empty());
+        assert!(app.analysis_options.swapfile.is_none());
+    }
+    #[test]
+    fn system_picker_footer_and_mouse_work_on_both_pages() {
+        for page in [Page::Analysis, Page::Assets] {
+            let mut app = app();
+            app.page = page;
+            let mut terminal = Terminal::new(TestBackend::new(45, 24)).unwrap();
+            terminal.draw(|f| app.draw(f)).unwrap();
+            let rect = app
+                .hits
+                .borrow()
+                .buttons
+                .iter()
+                .find(|(_, key)| *key == KeyCode::F(6))
+                .unwrap()
+                .0;
+            app.mouse(mouse_event(
+                MouseEventKind::Down(MouseButton::Left),
+                rect.x,
+                rect.y,
+            ));
+            terminal.draw(|f| app.draw(f)).unwrap();
+            assert!(screen(&terminal, 45).contains("Windows"));
+            let popup = app.hits.borrow().popup;
+            app.mouse(mouse_event(
+                MouseEventKind::Down(MouseButton::Left),
+                popup.x + 2,
+                popup.y + 3,
+            ));
+            assert!(app.windows);
+            assert!(app.dialog.is_none());
+        }
+    }
+    #[test]
+    fn direct_system_buttons_switch_plugins_and_preserve_current_view() {
+        for page in [Page::Analysis, Page::Assets] {
+            for width in [20, 45, 80, 120] {
+                let mut app = app();
+                app.page = page;
+                let mut terminal = Terminal::new(TestBackend::new(width, 24)).unwrap();
+                terminal.draw(|f| app.draw(f)).unwrap();
+                let hits = app.hits.borrow().clone();
+                assert!(screen(&terminal, width.into()).contains("Windows"));
+                let windows = hits
+                    .systems
+                    .iter()
+                    .find(|(_, os)| *os == crate::analysis::Os::Windows)
+                    .unwrap()
+                    .0;
+                click(&mut app, windows.x + 1, windows.y);
+                assert!(app.windows);
+                assert_eq!(app.plugin, Plugin::WinPslist);
+                assert!(app.dialog.is_none());
+                app.query = "preserve".into();
+                click(&mut app, windows.x + 1, windows.y);
+                assert_eq!(app.query, "preserve");
+                terminal.draw(|f| app.draw(f)).unwrap();
+                let linux = app
+                    .hits
+                    .borrow()
+                    .systems
+                    .iter()
+                    .find(|(_, os)| *os == crate::analysis::Os::Linux)
+                    .unwrap()
+                    .0;
+                click(&mut app, linux.x + 1, linux.y);
+                assert!(!app.windows);
+                assert_eq!(app.plugin, Plugin::Pslist);
+                assert_eq!(app.analysis_options.os, crate::analysis::Os::Linux);
+                if width >= 45 {
+                    terminal.draw(|f| app.draw(f)).unwrap();
+                    let auto = app
+                        .hits
+                        .borrow()
+                        .systems
+                        .iter()
+                        .find(|(_, os)| *os == crate::analysis::Os::Auto)
+                        .unwrap()
+                        .0;
+                    click(&mut app, auto.x + 1, auto.y);
+                    assert_eq!(app.analysis_options.os, crate::analysis::Os::Auto);
+                }
+            }
+        }
+    }
+    #[test]
+    fn system_switch_waits_for_worker_and_discards_old_results() {
+        let mut app = app();
+        let old = Job::default();
+        app.job = Some(old.clone());
+        app.pending_plugin = Some(Plugin::Pstree);
+        app.select_os(crate::analysis::Os::Windows);
+        assert!(old.cancel.load(Ordering::Relaxed));
+        assert!(!app.windows);
+        assert!(app.pending_plugin.is_none());
+        let (tx, rx) = mpsc::channel();
+        app.receiver = Some(rx);
+        tx.send(WorkerEvent::Failed("cancelled".into())).unwrap();
+        assert!(app.drain());
+        assert!(app.windows);
+        assert!(app.job.is_none());
+        assert!(app.results.is_empty());
+        assert!(app.last_error.is_none());
+        assert!(app.pending_os.is_none());
+        app.job = Some(Job::default());
+        app.select_os(crate::analysis::Os::Linux);
+        app.cancel();
+        assert!(app.pending_os.is_none());
     }
     fn app() -> App {
         let dir = tempfile::tempdir().unwrap();

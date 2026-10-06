@@ -52,6 +52,22 @@ fn public_windows_images() {
             (Plugin::WinPslist, expected_processes),
             (Plugin::WinModules, expected_modules),
             (Plugin::WinHivelist, expected_hives),
+            (
+                Plugin::WinAutoruns,
+                fixture["rows"]["windows.autoruns"].as_u64().unwrap() as usize,
+            ),
+            (
+                Plugin::WinThreads,
+                fixture["rows"]["windows.threads"].as_u64().unwrap() as usize,
+            ),
+            (
+                Plugin::WinEnvars,
+                fixture["rows"]["windows.envars"].as_u64().unwrap() as usize,
+            ),
+            (
+                Plugin::WinDriverscan,
+                fixture["rows"]["windows.driverscan"].as_u64().unwrap() as usize,
+            ),
         ] {
             let outcome = analysis::analyze(
                 &mut session,
@@ -75,7 +91,9 @@ fn public_windows_images() {
             assert_eq!(result.system, "windows");
             assert_eq!(result.rows.len(), expected, "{variable} {plugin:?}");
             assert_eq!(
-                result.page_table,
+                result.kernel_identity["registry_process"]["kernel_dtb"]
+                    .as_u64()
+                    .unwrap_or(result.page_table),
                 u64::from_str_radix(
                     fixture["dtb"].as_str().unwrap().trim_start_matches("0x"),
                     16
@@ -181,4 +199,60 @@ fn public_bitmap_crash_processes_and_networks() {
             );
         }
     }
+}
+
+#[test]
+#[ignore = "requires public rust-minidump x86 Windows XP crash fixture"]
+fn public_user_minidump_context_and_exception() {
+    let image = std::env::var_os("ZERO_WINDOWS_MINIDUMP_IMAGE")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| "images/rust-minidump-test.dmp".into());
+    let mut session = Session::default();
+    let cache = tempfile::tempdir().unwrap();
+    let prepared = session
+        .prepare_image(&image, cache.path(), &Job::default())
+        .unwrap();
+    assert_eq!(
+        prepared.digest,
+        "24b0ea7794b2d2523c46c9aea72c03ccbb0ab88ad76d8258d3752c7b71d233ff"
+    );
+    let Outcome::Ready(result) = analysis::analyze(
+        &mut session,
+        &Request {
+            image: &image,
+            symbols: Path::new("unused"),
+            choice: None,
+            plugin: Plugin::WinCrashinfo,
+            cache: cache.path(),
+            use_cache: false,
+            network: false,
+        },
+        None,
+        &Options::default(),
+        &Job::default(),
+    )
+    .unwrap() else {
+        panic!("unexpected symbol selection")
+    };
+    assert!(!result.complete);
+    assert!(
+        result
+            .rows
+            .contains(&vec!["Code".into(), "0xc0000005".into()])
+    );
+    assert!(result.rows.contains(&vec![
+        "ExceptionAddress".into(),
+        "0x000000000040429e".into()
+    ]));
+    assert!(result.rows.contains(&vec![
+        "Context2.Thread3060.Eip".into(),
+        "0x000000000040429e".into()
+    ]));
+    assert_eq!(
+        result.kernel_identity["metadata"]["contexts"]
+            .as_array()
+            .unwrap()
+            .len(),
+        3
+    );
 }

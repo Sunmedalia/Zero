@@ -10,6 +10,24 @@ use std::{collections::HashSet, path::Path};
 
 #[derive(Clone, Copy, Debug, ValueEnum, PartialEq, Eq)]
 pub enum Plugin {
+    #[value(name = "windows.consoles")]
+    WinConsoles,
+    #[value(name = "windows.cmdscan")]
+    WinCmdscan,
+    #[value(name = "windows.drivercheck")]
+    WinDrivercheck,
+    #[value(name = "windows.driverscan")]
+    WinDriverscan,
+    #[value(name = "windows.svcscan")]
+    WinSvcscan,
+    #[value(name = "windows.crashinfo")]
+    WinCrashinfo,
+    #[value(name = "windows.autoruns")]
+    WinAutoruns,
+    #[value(name = "windows.envars")]
+    WinEnvars,
+    #[value(name = "windows.threads")]
+    WinThreads,
     #[value(name = "windows.systeminfo")]
     WinSysteminfo,
     #[value(name = "windows.pslist")]
@@ -91,6 +109,117 @@ pub struct Descriptor {
     pub widths: &'static [u16],
 }
 pub const PLUGINS: &[Descriptor] = &[
+    Descriptor {
+        plugin: Plugin::WinConsoles,
+        name: "windows.consoles",
+        label: "windows.consoles",
+        columns: &[
+            "PID",
+            "Name",
+            "Address",
+            "Title",
+            "HistorySize",
+            "HistoryCount",
+        ],
+        widths: &[0, 0, 0, 0, 0, 0],
+    },
+    Descriptor {
+        plugin: Plugin::WinCmdscan,
+        name: "windows.cmdscan",
+        label: "windows.cmdscan",
+        columns: &["PID", "Name", "History", "Application", "Index", "Command"],
+        widths: &[0, 0, 0, 0, 0, 0],
+    },
+    Descriptor {
+        plugin: Plugin::WinDrivercheck,
+        name: "windows.drivercheck",
+        label: "windows.drivercheck",
+        columns: &[
+            "Address",
+            "DriverName",
+            "Function",
+            "Target",
+            "TargetModule",
+            "InDriverRange",
+        ],
+        widths: &[0, 0, 0, 0, 0, 0],
+    },
+    Descriptor {
+        plugin: Plugin::WinDriverscan,
+        name: "windows.driverscan",
+        label: "windows.driverscan",
+        columns: &[
+            "Address",
+            "DriverName",
+            "Start",
+            "Size",
+            "Module",
+            "DriverInit",
+        ],
+        widths: &[0, 0, 0, 0, 0, 0],
+    },
+    Descriptor {
+        plugin: Plugin::WinSvcscan,
+        name: "windows.svcscan",
+        label: "windows.svcscan",
+        columns: &[
+            "PID",
+            "Address",
+            "ServiceName",
+            "DisplayName",
+            "State",
+            "Start",
+            "Type",
+            "BinaryPath",
+        ],
+        widths: &[0, 0, 0, 0, 0, 0, 0, 0],
+    },
+    Descriptor {
+        plugin: Plugin::WinCrashinfo,
+        name: "windows.crashinfo",
+        label: "windows.crashinfo",
+        columns: &["Key", "Value"],
+        widths: &[0, 0],
+    },
+    Descriptor {
+        plugin: Plugin::WinAutoruns,
+        name: "windows.autoruns",
+        label: "windows.autoruns",
+        columns: &[
+            "Hive",
+            "Key",
+            "Kind",
+            "Name",
+            "Type",
+            "Data",
+            "LastWriteTime",
+        ],
+        widths: &[0, 0, 0, 0, 0, 0, 0],
+    },
+    Descriptor {
+        plugin: Plugin::WinEnvars,
+        name: "windows.envars",
+        label: "windows.envars",
+        columns: &["PID", "Name", "View", "Variable", "Value"],
+        widths: &[0, 0, 0, 0, 0],
+    },
+    Descriptor {
+        plugin: Plugin::WinThreads,
+        name: "windows.threads",
+        label: "windows.threads",
+        columns: &[
+            "PID",
+            "Name",
+            "TID",
+            "Address",
+            "State",
+            "StartAddress",
+            "StartModule",
+            "CreateTime",
+            "ExitTime",
+        ],
+        widths: &[0, 0, 0, 0, 0, 0, 0, 0, 0],
+    },
     Descriptor {
         plugin: Plugin::WinSysteminfo,
         name: "windows.systeminfo",
@@ -609,6 +738,15 @@ impl Plugin {
     pub fn category(self) -> &'static str {
         match self {
             Self::WinSysteminfo => "System",
+            Self::WinConsoles => "Process",
+            Self::WinCmdscan => "Process",
+            Self::WinDrivercheck => "Integrity",
+            Self::WinDriverscan => "System",
+            Self::WinSvcscan => "System",
+            Self::WinCrashinfo => "System",
+            Self::WinAutoruns => "Integrity",
+            Self::WinEnvars => "Process",
+            Self::WinThreads => "Process",
             Self::WinPslist => "Process",
             Self::WinPstree => "Process",
             Self::WinCmdline => "Process",

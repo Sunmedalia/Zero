@@ -7,6 +7,12 @@ use std::{fs::File, os::unix::fs::FileExt};
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct Metadata {
+    #[serde(default)]
+    pub kernel_virtual: bool,
+    #[serde(default)]
+    pub crash: Option<Crash>,
+    #[serde(default)]
+    pub contexts: Vec<ThreadContext>,
     pub architecture: Architecture,
     pub hibernation: Option<hiber::Info>,
     pub dtb: Option<u64>,
@@ -19,6 +25,22 @@ pub struct Metadata {
     pub modules: Vec<Module>,
     pub threads: Vec<u32>,
 }
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+pub struct Crash {
+    pub code: u32,
+    pub parameters: Vec<u64>,
+    pub exception_address: Option<u64>,
+    #[serde(default)]
+    pub exception_code: Option<u32>,
+    pub thread_id: Option<u32>,
+}
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct ThreadContext {
+    pub thread_id: Option<u32>,
+    pub file_offset: u64,
+    pub registers: BTreeMap<String, u64>,
+}
+mod context;
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Module {
     pub base: u64,
@@ -140,6 +162,13 @@ fn crash(r: &Reader<'_>, job: &Job) -> Result<Parsed> {
         process_list: Some(r.uint(if wide { 40 } else { 28 }, width)?),
         dump_type: Some(kind),
         build: Some(r.uint(12, 4)? as u32),
+        crash: Some(Crash {
+            code: r.uint(if wide { 56 } else { 40 }, 4)? as u32,
+            parameters: (0..4)
+                .map(|i| r.uint(if wide { 64 + i * 8 } else { 44 + i * 4 }, width))
+                .collect::<Result<Vec<_>>>()?,
+            ..Default::default()
+        }),
         ..Default::default()
     };
     let mut p = Parsed {
@@ -220,10 +249,153 @@ fn crash(r: &Reader<'_>, job: &Job) -> Result<Parsed> {
         }
         3 | 4 => {
             p.format = "Windows small crash";
+            if kind == 4 && r.len > header {
+                triage(r, &mut p, header, width, job)?;
+            }
         } // Metadata only; never pretend sparse pages are present.
         _ => bail!("尚未验证的 crash dump 类型 {kind}"),
     }
     finish(p)
+}
+/// TRIAGE_DUMP32/64: file offsets are absolute; saved data blocks use virtual addresses.
+fn triage(r: &Reader<'_>, p: &mut Parsed, header: u64, width: usize, job: &Job) -> Result<()> {
+    let size = r.uint(header + 4, 4)?;
+    ensure!(
+        size >= header + 104 && size <= r.len,
+        "triage SizeOfDump 无效"
+    );
+    let bounded = Reader {
+        file: r.file,
+        len: size,
+    };
+    let r = &bounded;
+    r.bytes(header, if width == 8 { 128 } else { 104 })?;
+    p.metadata.kernel_virtual = true;
+    let context = r.uint(header + 12, 4)?;
+    if context != 0 {
+        let minimum = match p.metadata.architecture {
+            Architecture::X86 => 204,
+            Architecture::X64 => 256,
+            Architecture::Arm64 => 272,
+            _ => bail!("triage CPU 未知"),
+        };
+        p.metadata.contexts.push(context::parse(
+            &r.bytes(context, minimum)?,
+            p.metadata.architecture,
+            None,
+            context,
+        )?);
+    }
+    let stack = r.uint(header + 40, 4)?;
+    let stack_size = r.uint(header + 44, 4)?;
+    let top = r.uint(header + 72, width)?;
+    if stack_size != 0 {
+        ensure!(top != 0, "triage 栈地址为空");
+        r.segment(&mut p.segments, top, stack_size, stack)?;
+    }
+    let mut tail = header + 72 + width as u64 + 8 + width as u64;
+    if width == 8 {
+        let address = r.uint(tail, 8)?;
+        let offset = r.uint(tail + 8, 4)?;
+        let size = r.uint(tail + 12, 4)?;
+        if size != 0 {
+            r.segment(&mut p.segments, address, size, offset)?;
+        }
+        tail += 16;
+    }
+    let table = r.uint(tail + 8, 4)?;
+    let count = r.uint(tail + 12, 4)?;
+    ensure!(count <= MAX_OBJECTS as u64, "triage 数据块超限");
+    let stride = width as u64 + 8;
+    r.bytes(table, count as usize * stride as usize)?;
+    for i in 0..count {
+        job.check()?;
+        let pos = table + i * stride;
+        let address = r.uint(pos, width)?;
+        let offset = r.uint(pos + width as u64, 4)?;
+        let size = r.uint(pos + width as u64 + 4, 4)?;
+        if size != 0 {
+            r.segment(&mut p.segments, address, size, offset)?;
+        }
+    }
+    let exception = r.uint(header + 16, 4)?;
+    if exception != 0 {
+        let address_offset = if width == 8 { 16 } else { 12 };
+        let record_size = if width == 8 { 152 } else { 80 };
+        r.bytes(exception, record_size)?;
+        if let Some(crash) = &mut p.metadata.crash {
+            crash.exception_code = Some(r.uint(exception, 4)? as u32);
+            crash.exception_address = Some(r.uint(exception + address_offset, width)?);
+        }
+    }
+    let drivers = r.uint(header + 48, 4)?;
+    let driver_count = r.uint(header + 52, 4)?;
+    let string_pool = r.uint(header + 56, 4)?;
+    let string_size = r.uint(header + 60, 4)?;
+    let entry_size = if width == 8 { 144 } else { 84 };
+    ensure!(
+        driver_count <= MAX_OBJECTS as u64,
+        "triage driver count 超限"
+    );
+    r.bytes(drivers, driver_count as usize * entry_size)?;
+    let pool_end = add(string_pool, string_size)?;
+    ensure!(pool_end <= r.len, "triage 字符串池越界");
+    for i in 0..driver_count {
+        job.check()?;
+        let entry = drivers + i * entry_size as u64;
+        let name_offset = r.uint(entry, 4)?;
+        ensure!(
+            name_offset >= string_pool && add(name_offset, 4)? <= pool_end,
+            "triage driver 名称不在字符串池内"
+        );
+        let chars = r.uint(name_offset, 4)?;
+        ensure!(
+            chars <= 32767 && add(name_offset, 4 + chars * 2 + 2)? <= pool_end,
+            "triage driver 名称长度越界"
+        );
+        let bytes = r.bytes(name_offset + 4, chars as usize * 2)?;
+        ensure!(
+            r.uint(name_offset + 4 + chars * 2, 2)? == 0,
+            "triage driver 名称未终止"
+        );
+        let name = String::from_utf16(
+            &bytes
+                .chunks_exact(2)
+                .map(|b| u16::from_le_bytes([b[0], b[1]]))
+                .collect::<Vec<_>>(),
+        )
+        .context("triage driver 名称 UTF-16 无效")?;
+        let base_offset = if width == 8 { 56 } else { 28 };
+        let base = r.uint(entry + base_offset, width)?;
+        let size = r.uint(entry + base_offset + 2 * width as u64, width)?;
+        ensure!(
+            size > 0 && size <= u32::MAX as u64 && base.checked_add(size).is_some(),
+            "triage driver 范围无效"
+        );
+        p.metadata.modules.push(Module {
+            base,
+            size: size as u32,
+            name,
+        });
+    }
+    // Merge overlapping ranges only when their virtual-to-file mapping agrees.
+    p.segments.sort_by_key(|s| (s.start, s.end));
+    let mut merged: Vec<Segment> = Vec::new();
+    for segment in p.segments.drain(..) {
+        if let Some(last) = merged.last_mut()
+            && segment.start < last.end
+        {
+            ensure!(
+                add(last.file_offset, segment.start - last.start)? == segment.file_offset,
+                "triage 虚拟映射冲突"
+            );
+            last.end = last.end.max(segment.end);
+        } else {
+            merged.push(segment);
+        }
+    }
+    p.segments = merged;
+    Ok(())
 }
 fn minidump(r: &Reader<'_>, job: &Job) -> Result<Parsed> {
     ensure!(r.uint(4, 4)? & 0xffff == 0xa793, "minidump 版本无效");
@@ -246,6 +418,10 @@ fn minidump(r: &Reader<'_>, job: &Job) -> Result<Parsed> {
         let kind = r.uint(pos, 4)?;
         let size = r.uint(pos + 4, 4)?;
         let offset = r.uint(pos + 8, 4)?;
+        if kind == 0 {
+            ensure!(size == 0, "UnusedStream 携带非空数据");
+            continue;
+        }
         ensure!(
             offset.checked_add(size).is_some_and(|end| end <= r.len),
             "minidump stream 截断"
@@ -264,6 +440,7 @@ fn minidump(r: &Reader<'_>, job: &Job) -> Result<Parsed> {
             _ => bail!("未知 minidump CPU"),
         };
         p.metadata.build = Some(r.uint(off + 16, 4)? as u32);
+        ensure!(r.uint(off + 20, 4)? <= 2, "此 minidump 的平台不是 Windows");
     }
     if let Some(&(off, size)) = streams.get(&15) {
         ensure!(
@@ -334,7 +511,18 @@ fn minidump(r: &Reader<'_>, job: &Job) -> Result<Parsed> {
         for i in 0..threads {
             job.check()?;
             let pos = off + 4 + i * 48;
-            p.metadata.threads.push(r.uint(pos, 4)? as u32);
+            let tid = r.uint(pos, 4)? as u32;
+            p.metadata.threads.push(tid);
+            let context_size = r.uint(pos + 40, 4)? as usize;
+            let context_offset = r.uint(pos + 44, 4)?;
+            if context_size != 0 {
+                p.metadata.contexts.push(context::parse(
+                    &r.bytes(context_offset, context_size)?,
+                    p.metadata.architecture,
+                    Some(tid),
+                    context_offset,
+                )?);
+            }
             let mut start = r.uint(pos + 24, 8)?;
             let length = r.uint(pos + 32, 4)?;
             let source = r.uint(pos + 36, 4)?;
@@ -361,6 +549,31 @@ fn minidump(r: &Reader<'_>, job: &Job) -> Result<Parsed> {
             for (base, length) in gaps {
                 r.segment(&mut p.segments, base, length, source + base - original)?;
             }
+        }
+    }
+    if let Some(&(off, size)) = streams.get(&6) {
+        ensure!(size >= 168, "minidump ExceptionStream 截断");
+        let count = r.uint(off + 32, 4)?;
+        ensure!(count <= 15, "异常参数超限");
+        let tid = r.uint(off, 4)? as u32;
+        p.metadata.crash = Some(Crash {
+            code: r.uint(off + 8, 4)? as u32,
+            parameters: (0..count)
+                .map(|i| r.uint(off + 40 + i * 8, 8))
+                .collect::<Result<Vec<_>>>()?,
+            exception_address: Some(r.uint(off + 24, 8)?),
+            exception_code: Some(r.uint(off + 8, 4)? as u32),
+            thread_id: Some(tid),
+        });
+        let length = r.uint(off + 160, 4)? as usize;
+        let offset = r.uint(off + 164, 4)?;
+        if length != 0 {
+            p.metadata.contexts.push(context::parse(
+                &r.bytes(offset, length)?,
+                p.metadata.architecture,
+                Some(tid),
+                offset,
+            )?);
         }
     }
     finish(p)
@@ -401,7 +614,7 @@ pub(super) fn analyze(
         page_table: meta.dtb.unwrap_or(0),
         historical: false,
         system: "windows".into(),
-        kernel_identity: serde_json::json!({"architecture":meta.architecture,"container":image.format,"scope":if meta.virtual_memory {"process"} else {"kernel metadata"},"metadata":meta,"capabilities":if meta.virtual_memory { vec!["windows.systeminfo","windows.dlllist","windows.pslist","windows.memdump","windows.procdump","windows.pedump"] } else { vec!["windows.systeminfo"] }}),
+        kernel_identity: serde_json::json!({"architecture":meta.architecture,"container":image.format,"scope":if meta.kernel_virtual {"kernel virtual"} else if meta.virtual_memory {"process"} else {"kernel metadata"},"metadata":meta,"address_space":if meta.kernel_virtual {"kernel_virtual"} else if meta.virtual_memory {"process_virtual"} else {"physical"},"capabilities":if meta.kernel_virtual {vec!["windows.systeminfo","windows.crashinfo","windows.modules","windows.memdump"]} else if meta.virtual_memory { vec!["windows.systeminfo","windows.crashinfo","windows.dlllist","windows.pslist","windows.memdump","windows.procdump","windows.pedump"] } else { vec!["windows.systeminfo","windows.crashinfo"] }}),
     };
     if let Some(hiber) = &meta.hibernation {
         result.complete = false;
@@ -409,6 +622,109 @@ pub(super) fn analyze(
             .diagnostics
             .push("休眠文件仅包含保存页；容器目前仅有合成验证".into());
         result.diagnostics.extend(hiber.diagnostics.clone());
+    }
+    if plugin == Plugin::WinCrashinfo {
+        if let Some(crash) = &meta.crash {
+            result
+                .rows
+                .push(vec!["Code".into(), format!("{:#x}", crash.code)]);
+            for (i, value) in crash.parameters.iter().enumerate() {
+                result
+                    .rows
+                    .push(vec![format!("Parameter{}", i + 1), hex(*value)]);
+            }
+            if let Some(code) = crash.exception_code {
+                result
+                    .rows
+                    .push(vec!["ExceptionCode".into(), format!("{code:#x}")]);
+            }
+            if let Some(address) = crash.exception_address {
+                result
+                    .rows
+                    .push(vec!["ExceptionAddress".into(), hex(address)]);
+            }
+        }
+        for (i, context) in meta.contexts.iter().enumerate() {
+            for (register, value) in &context.registers {
+                result.rows.push(vec![
+                    format!(
+                        "Context{i}.Thread{}.{}",
+                        context.thread_id.map(|n| n.to_string()).unwrap_or_default(),
+                        register
+                    ),
+                    hex(*value),
+                ]);
+            }
+        }
+        result
+            .rows
+            .push(vec!["SavedRanges".into(), image.segments.len().to_string()]);
+        Windows::issue(
+            &mut result,
+            "dump",
+            "仅解析保存的控制/整数寄存器与内存范围；未解析 FP/SIMD/debug 寄存器或展开调用栈",
+        );
+        return Ok(result);
+    }
+    if meta.kernel_virtual && plugin == Plugin::WinModules {
+        for module in &meta.modules {
+            result.rows.push(vec![
+                module
+                    .name
+                    .rsplit(['\\', '/'])
+                    .next()
+                    .unwrap_or(&module.name)
+                    .into(),
+                hex(module.base),
+                module.size.to_string(),
+                module.name.clone(),
+            ]);
+        }
+        Windows::issue(
+            &mut result,
+            "triage modules",
+            "仅列出转储保存的驱动记录，非完整内核模块清单",
+        );
+        return Ok(result);
+    }
+    if meta.kernel_virtual && plugin == Plugin::WinMemdump {
+        let opts = dump_options.context("范围转储需要参数")?;
+        opts.validate(plugin)?;
+        crate::dump::directory(&opts.directory)?;
+        let start = opts.start.context("缺少 start")?;
+        let end = opts.end.context("缺少 end")?;
+        ensure!(
+            end > start && end - start <= crate::dump::MAX_DUMP_BYTES,
+            "范围超限"
+        );
+        let mut file = tempfile::NamedTempFile::new_in(&opts.directory)?;
+        let mut hash = sha2::Sha256::new();
+        super::dump::write_reader(
+            &mut |address, bytes| image.read(address, bytes),
+            start,
+            end - start,
+            &mut file,
+            &mut hash,
+            job,
+        )?;
+        job.check()?;
+        file.as_file().sync_all()?;
+        let digest = format!("{:x}", hash.finalize());
+        let target = opts
+            .directory
+            .join(format!("kernel-range-{start:016x}-{}.bin", &digest[..16]));
+        file.persist(&target)?;
+        result.rows.push(vec![
+            opts.pid.to_string(),
+            "kernel".into(),
+            hex(start),
+            hex(end),
+            (end - start).to_string(),
+            digest,
+            target.display().to_string(),
+        ]);
+        Windows::issue(&mut result, "small crash", "仅导出保存的内核虚拟内存");
+        return Ok(result);
     }
     if plugin == Plugin::WinSysteminfo {
         for (key, value) in [
@@ -423,7 +739,9 @@ pub(super) fn analyze(
             ("CapturedRanges", image.segments.len().to_string()),
             (
                 "Scope",
-                if meta.virtual_memory {
+                if meta.kernel_virtual {
+                    "kernel virtual"
+                } else if meta.virtual_memory {
                     "process"
                 } else {
                     "kernel metadata"
@@ -437,7 +755,7 @@ pub(super) fn analyze(
     }
     ensure!(
         meta.virtual_memory,
-        "小型内核转储仅提供头部元数据；缺少插件所需内存"
+        "小型内核转储仅包含已保存内存与上下文；缺少此插件所需的完整内核"
     );
     let pid = meta.pid.context("minidump 未记录 PID，无法建立进程归属")?;
     ensure!(
@@ -594,6 +912,98 @@ mod tests {
         b[3992..3996].copy_from_slice(&1u32.to_le_bytes());
         b.extend_from_slice(raw);
         b
+    }
+    #[test]
+    fn triage_virtual_blocks_and_contexts_preserve_holes_across_architectures() {
+        for (arch, width, header, kind_offset) in [
+            (Architecture::X86, 4usize, 4096usize, 3976usize),
+            (Architecture::X64, 8, 8192, 3992),
+            (Architecture::Arm64, 8, 8192, 3992),
+        ] {
+            let mut b = vec![0; header + 1024];
+            b[..8].copy_from_slice(if width == 4 { b"PAGEDUMP" } else { b"PAGEDU64" });
+            let machine_at = if width == 4 { 32 } else { 48 };
+            b[machine_at..machine_at + 4].copy_from_slice(&(arch.machine() as u32).to_le_bytes());
+            b[kind_offset..kind_offset + 4].copy_from_slice(&4u32.to_le_bytes());
+            let size = b.len() as u32;
+            b[header + 4..header + 8].copy_from_slice(&size.to_le_bytes());
+            let tail = 72 + width + 8 + width + if width == 8 { 16 } else { 0 };
+            b[header + tail + 8..header + tail + 12]
+                .copy_from_slice(&((header + 160) as u32).to_le_bytes());
+            b[header + tail + 12..header + tail + 16].copy_from_slice(&1u32.to_le_bytes());
+            let address = if width == 4 {
+                0x81234000u64
+            } else {
+                K + 0x1234000
+            };
+            b[header + 160..header + 160 + width].copy_from_slice(&address.to_le_bytes()[..width]);
+            b[header + 160 + width..header + 164 + width]
+                .copy_from_slice(&((header + 512) as u32).to_le_bytes());
+            b[header + 164 + width..header + 168 + width].copy_from_slice(&16u32.to_le_bytes());
+            b[header + 512..header + 528].fill(0x5a);
+            b[header + 12..header + 16].copy_from_slice(&((header + 192) as u32).to_le_bytes());
+            let (flags_at, flags, pc_at) = match arch {
+                Architecture::X86 => (0, 0x10001u32, 184),
+                Architecture::X64 => (48, 0x100001, 248),
+                _ => (0, 0x400001, 264),
+            };
+            b[header + 192 + flags_at..header + 196 + flags_at]
+                .copy_from_slice(&flags.to_le_bytes());
+            b[header + 192 + pc_at..header + 192 + pc_at + width]
+                .copy_from_slice(&address.to_le_bytes()[..width]);
+            b[header + 48..header + 52].copy_from_slice(&((header + 560) as u32).to_le_bytes());
+            b[header + 52..header + 56].copy_from_slice(&1u32.to_le_bytes());
+            b[header + 56..header + 60].copy_from_slice(&((header + 900) as u32).to_le_bytes());
+            b[header + 60..header + 64].copy_from_slice(&100u32.to_le_bytes());
+            b[header + 560..header + 564].copy_from_slice(&((header + 900) as u32).to_le_bytes());
+            let base_at = header + 560 + if width == 8 { 56 } else { 28 };
+            b[base_at..base_at + width].copy_from_slice(&address.to_le_bytes()[..width]);
+            b[base_at + 2 * width..base_at + 3 * width]
+                .copy_from_slice(&4096u64.to_le_bytes()[..width]);
+            b[header + 900..header + 904].copy_from_slice(&6u32.to_le_bytes());
+            let name: Vec<u8> = "driver".encode_utf16().flat_map(u16::to_le_bytes).collect();
+            b[header + 904..header + 904 + name.len()].copy_from_slice(&name);
+            b[header + 16..header + 20].copy_from_slice(&((header + 720) as u32).to_le_bytes());
+            b[header + 720..header + 724].copy_from_slice(&0xc0000005u32.to_le_bytes());
+            let exception_at = header + 720 + if width == 8 { 16 } else { 12 };
+            b[exception_at..exception_at + width].copy_from_slice(&address.to_le_bytes()[..width]);
+            let img = image(&b);
+            let meta = img.windows_container.as_ref().unwrap();
+            assert!(meta.kernel_virtual);
+            assert!(!meta.virtual_memory);
+            assert_eq!(meta.contexts.len(), 1);
+            assert_eq!(meta.modules[0].name, "driver");
+            assert_eq!(
+                meta.crash.as_ref().unwrap().exception_address,
+                Some(address)
+            );
+            let mut saved = [0; 16];
+            img.read(address, &mut saved).unwrap();
+            assert_eq!(saved, [0x5a; 16]);
+            assert!(img.read(address + 16, &mut [0]).is_err());
+            assert!(img.read(0, &mut [0]).is_err());
+            // Overlapping saved ranges must have an identical virtual-to-file mapping.
+            let stride = width + 8;
+            b[header + tail + 12..header + tail + 16].copy_from_slice(&2u32.to_le_bytes());
+            let second = header + 160 + stride;
+            b[second..second + width].copy_from_slice(&(address + 8).to_le_bytes()[..width]);
+            b[second + width..second + width + 4]
+                .copy_from_slice(&((header + 520) as u32).to_le_bytes());
+            b[second + width + 4..second + width + 8].copy_from_slice(&8u32.to_le_bytes());
+            assert_eq!(image(&b).segments.len(), 1);
+            b[second + width..second + width + 4]
+                .copy_from_slice(&((header + 521) as u32).to_le_bytes());
+            let mut conflict = tempfile::tempfile().unwrap();
+            use std::io::Write;
+            conflict.write_all(&b).unwrap();
+            assert!(Image::from_file(conflict, "conflict-triage".into()).is_err());
+            b[second + width..second + width + 4]
+                .copy_from_slice(&((header + 520) as u32).to_le_bytes());
+            b[header + 164 + width..header + 168 + width].copy_from_slice(&0xffffu32.to_le_bytes());
+            let mut f = tempfile::tempfile().unwrap();
+            f.write_all(&b).unwrap();
+            assert!(Image::from_file(f, "bad-triage".into()).is_err());
+        }
     }
     #[test]
     fn full_crash_maps_physical_runs_and_bootstraps() {

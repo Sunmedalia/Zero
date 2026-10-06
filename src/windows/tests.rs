@@ -305,3 +305,15 @@ fn range_dump_matches_source_and_never_commits_missing_pages() {
     assert!(r.rows.is_empty());
     assert_eq!(std::fs::read_dir(dir.path()).unwrap().count(), 1);
 }
+
+#[test]
+fn pointer_field_sizes_follow_windows_machine_width_at_structure_boundary() {
+    let (_, mut isf) = fixture();
+    isf.data["base_types"]["pointer"]["size"] = json!(4);
+    isf.data["metadata"]["windows"]["pdb"]["machine_type"] = json!(0x14c);
+    isf.data["user_types"]["PAIR"] = json!({"size":8,"fields":{"left":{"offset":0,"type":{"kind":"pointer"}},"right":{"offset":4,"type":{"kind":"pointer"}}}});
+    assert_eq!(isf.size("PAIR", "right").unwrap(), 4);
+    assert_eq!(Architecture::from_isf(&isf).unwrap(), Architecture::X86);
+    isf.data["base_types"]["pointer"]["size"] = json!(8);
+    assert!(isf.size("PAIR", "right").is_err());
+}

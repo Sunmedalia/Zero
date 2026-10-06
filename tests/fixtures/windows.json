@@ -17,9 +17,45 @@
       "rows": {
         "windows.pslist": 139,
         "windows.modules": 183,
-        "windows.hivelist": 22
+        "windows.hivelist": 22,
+        "windows.threads": 1702,
+        "windows.envars": 3792,
+        "windows.driverscan": 136,
+        "windows.autoruns": 4
       },
-      "process_list_complete": false
+      "process_list_complete": false,
+      "artifact_reference": {
+        "threads": {
+          "native": 1702,
+          "reference": 1666,
+          "shared": 1637,
+          "fields": [
+            "address",
+            "start_address"
+          ],
+          "conflicts": 0
+        },
+        "envars_native": {
+          "native": 3687,
+          "reference": 3697,
+          "shared": 3679,
+          "fields": [
+            "value"
+          ],
+          "conflicts": 0
+        },
+        "driverscan": {
+          "native": 136,
+          "reference": 151,
+          "shared": 136,
+          "fields": [
+            "name",
+            "start",
+            "size"
+          ],
+          "conflicts": 0
+        }
+      }
     },
     {
       "path": "images/Win11Dump/Win11Dump.mem",
@@ -37,9 +73,26 @@
       "rows": {
         "windows.pslist": 102,
         "windows.modules": 156,
-        "windows.hivelist": 38
+        "windows.hivelist": 38,
+        "windows.threads": 1728,
+        "windows.envars": 3094,
+        "windows.driverscan": 115,
+        "windows.autoruns": 3
       },
-      "process_list_complete": false
+      "process_list_complete": false,
+      "autoruns_reference": {
+        "shared": 3,
+        "fields": [
+          "name",
+          "type",
+          "data"
+        ],
+        "conflicts": 0,
+        "keys": [
+          "Microsoft\\Windows\\CurrentVersion\\Run",
+          "Microsoft\\Windows NT\\CurrentVersion\\Winlogon"
+        ]
+      }
     },
     {
       "path": "images/win-10_19041-2025_03.dmp.gz",
@@ -63,5 +116,16 @@
       },
       "process_list_complete": true
     }
-  ]
+  ],
+  "user_minidump": {
+    "path": "images/rust-minidump-test.dmp",
+    "source": "https://github.com/rust-minidump/rust-minidump/blob/main/testdata/test.dmp",
+    "size": 11317,
+    "sha256": "24b0ea7794b2d2523c46c9aea72c03ccbb0ab88ad76d8258d3752c7b71d233ff",
+    "architecture": "x86",
+    "build": 2600,
+    "exception_code": "0xc0000005",
+    "exception_address": "0x40429e",
+    "contexts": 3
+  }
 }

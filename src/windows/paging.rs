@@ -335,16 +335,12 @@ impl Memory<'_> {
             } else {
                 geometry.entry(self.image, table, index)?
             };
-            if entry & 1 != 0
-                || (geometry.arch != Architecture::Arm64
-                    && entry & (1 << 11) != 0
-                    && entry & (1 << 10) == 0)
-            {
+            if entry & 1 != 0 || (entry & (1 << 11) != 0 && entry & (1 << 10) == 0) {
                 ensure!(
-                    !geometry.block(entry | 1, shift),
+                    entry & 1 == 0 || !geometry.block(entry, shift),
                     "大型驻留页应使用物理翻译"
                 );
-                if geometry.arch == Architecture::Arm64 {
+                if geometry.arch == Architecture::Arm64 && entry & 1 != 0 {
                     ensure!(entry & 3 == 3, "无效 ARM64 table/page descriptor");
                 }
                 table = if entry & 1 == 0 {
@@ -360,7 +356,7 @@ impl Memory<'_> {
                 continue;
             }
             if shift == 12 && entry & (1 << 10) != 0 {
-                return self.image.read(self.prototype_page(entry, va)?, out);
+                return self.prototype_read(entry, va, out);
             }
             ensure!(
                 json_number(self.isf, entry, "_MMPTE_SOFTWARE", "Prototype")? == 0
@@ -380,25 +376,75 @@ impl Memory<'_> {
             );
             let offset = page.checked_mul(4096).context("分页偏移溢出")?;
             if shift == 12 {
-                let sources = self.sources.context("未附加分页文件")?;
-                if sources.has_file(file) {
-                    return sources.read(file, add(offset, va & 4095)?, out);
-                }
-                ensure!(
-                    sources.virtual_indexes.contains(&file),
-                    "缺少显式分页附件 index {file}；该索引也未验证为虚拟压缩 store"
-                );
-                let page = sources.compressed_page(self, va, entry, file)?;
-                let start = (va & 4095) as usize;
-                out.copy_from_slice(
-                    page.get(start..start + out.len())
-                        .context("压缩页范围越界")?,
-                );
-                return Ok(());
+                return self.software_page_read(va, entry, out);
             }
             backing = Some((file, offset));
         }
         bail!("无法解析分页 PTE")
+    }
+    fn software_page_read(&self, va: u64, entry: u64, out: &mut [u8]) -> Result<()> {
+        ensure!(
+            json_number(self.isf, entry, "_MMPTE_SOFTWARE", "Prototype")? == 0
+                && json_number(self.isf, entry, "_MMPTE_SOFTWARE", "Transition")? == 0,
+            "非普通分页 PTE"
+        );
+        let file = u8::try_from(json_number(
+            self.isf,
+            entry,
+            "_MMPTE_SOFTWARE",
+            "PageFileLow",
+        )?)?;
+        let high = self.pagefile_high(entry)?;
+        ensure!(
+            high != 0 && file < 16,
+            "无分页内容的 PTE（未提交或 demand-zero）"
+        );
+        let offset = high.checked_mul(4096).context("分页偏移溢出")?;
+        let sources = self.sources.context("未附加分页文件")?;
+        if sources.has_file(file) {
+            return sources.read(file, add(offset, va & 4095)?, out);
+        }
+        ensure!(
+            sources.virtual_indexes.contains(&file),
+            "缺少显式分页附件 index {file}；该索引也未验证为虚拟压缩 store"
+        );
+        let page = sources.compressed_page(self, va, entry, file)?;
+        let start = (va & 4095) as usize;
+        out.copy_from_slice(
+            page.get(start..start + out.len())
+                .context("压缩页范围越界")?,
+        );
+        Ok(())
+    }
+    fn prototype_read(&self, mut entry: u64, va: u64, out: &mut [u8]) -> Result<()> {
+        let geometry = self.paging()?;
+        let mut seen = HashSet::new();
+        for _ in 0..32 {
+            if let Some(sources) = self.sources {
+                sources.job.check()?;
+            }
+            let address = self.prototype_address(entry)?;
+            ensure!(seen.insert(address), "prototype PTE 链循环");
+            entry = self.uint(address, geometry.width())?;
+            if entry & 1 != 0 {
+                if geometry.arch == Architecture::Arm64 && entry & 1 != 0 {
+                    ensure!(entry & 3 == 3, "无效 ARM64 prototype descriptor");
+                }
+                return self
+                    .image
+                    .read((entry & geometry.mask()) | (va & 4095), out);
+            }
+            if entry & (1 << 10) != 0 {
+                continue;
+            }
+            if entry & (1 << 11) != 0 {
+                return self
+                    .image
+                    .read(self.transition_frame(entry, geometry)? | (va & 4095), out);
+            }
+            return self.software_page_read(va, entry, out);
+        }
+        bail!("prototype PTE 链超过 32 层")
     }
 }
 #[cfg(test)]
@@ -492,5 +538,52 @@ mod tests {
             )
             .is_err()
         );
+    }
+}
+
+#[cfg(test)]
+mod prototype_recovery_tests {
+    use super::super::tests::{K, fixture, image, put};
+    use super::*;
+    use std::io::Write;
+    #[test]
+    fn prototype_target_recovers_explicit_pagefile_and_rejects_chains() {
+        let (mut b, mut isf) = fixture();
+        let bit = |pos, len| serde_json::json!({"offset":0,"type":{"kind":"bitfield","bit_position":pos,"bit_length":len,"type":{"kind":"base","name":"u64"}}});
+        isf.data["user_types"]["_MMPTE_SOFTWARE"] = serde_json::json!({"size":8,"fields":{"Prototype":bit(10,1),"Transition":bit(11,1),"PageFileLow":bit(12,4),"PageFileHigh":bit(32,32)}});
+        let prototype = ((K + 0x4000) << 16) | (1 << 10);
+        put(&mut b, 0x4018, prototype);
+        put(&mut b, 0xc000, (1 << 32) | (3 << 12));
+        let mut file = tempfile::NamedTempFile::new().unwrap();
+        file.write_all(&vec![0; 4096]).unwrap();
+        file.write_all(&vec![0x77; 4096]).unwrap();
+        let options = Options {
+            pagefiles: vec![Attachment {
+                index: 3,
+                path: file.path().into(),
+            }],
+            ..Default::default()
+        };
+        let sources = Sources::open(&options, &Job::default()).unwrap();
+        let img = image(&b);
+        let vm = Memory {
+            image: &img,
+            root: 0x1000,
+            isf: &isf,
+            sources: Some(&sources),
+        };
+        let mut out = [0; 23];
+        vm.read(K + 0x3011, &mut out).unwrap();
+        assert_eq!(out, [0x77; 23]);
+        put(&mut b, 0xc000, prototype);
+        let img = image(&b);
+        let vm = Memory {
+            image: &img,
+            root: 0x1000,
+            isf: &isf,
+            sources: Some(&sources),
+        };
+        assert!(format!("{:#}", vm.read(K + 0x3011, &mut out).unwrap_err()).contains("循环"));
+        assert!(vm.read(K + 0x3011, &mut out).is_err());
     }
 }

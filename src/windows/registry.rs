@@ -115,6 +115,139 @@ impl Windows<'_> {
         }
         Ok(r)
     }
+    pub(super) fn autoruns(&self, options: &Options, job: &Job) -> Result<Results> {
+        let mut result = self.result(Plugin::WinAutoruns);
+        let hives = self.registry(Plugin::WinHivelist, &Options::default(), job)?;
+        result.complete = hives.complete;
+        result.diagnostics = hives.diagnostics;
+        if let Some(selected) = options.hive {
+            ensure!(
+                hives.rows.iter().any(|row| u64::from_str_radix(
+                    row[0].trim_start_matches("0x"),
+                    16
+                )
+                .ok()
+                    == Some(selected)),
+                "hive 不在已验证列表中"
+            );
+        }
+        for hive in hives.rows {
+            job.check()?;
+            let address = u64::from_str_radix(hive[0].trim_start_matches("0x"), 16)?;
+            if options.hive.is_some_and(|selected| selected != address) {
+                continue;
+            }
+            let lower = hive[1].to_ascii_lowercase();
+            let mut keys = Vec::new();
+            if lower.ends_with("software") || lower.ends_with("ntuser.dat") {
+                for prefix in [
+                    "Microsoft\\Windows\\CurrentVersion",
+                    "Wow6432Node\\Microsoft\\Windows\\CurrentVersion",
+                ] {
+                    for suffix in ["Run", "RunOnce"] {
+                        keys.push(format!("{prefix}\\{suffix}"));
+                    }
+                }
+                if lower.ends_with("software") {
+                    keys.push("Microsoft\\Windows NT\\CurrentVersion\\Winlogon".into());
+                    let ifeo =
+                        "Microsoft\\Windows NT\\CurrentVersion\\Image File Execution Options";
+                    if let Some(parent) = self.optional_registry(address, ifeo, job, &mut result)? {
+                        for row in parent.rows.into_iter().filter(|row| row[2] == "SubKey") {
+                            keys.push(format!("{ifeo}\\{}", row[3]));
+                        }
+                    }
+                }
+            } else if lower.ends_with("system")
+                && let Some(select) = self.optional_registry(address, "Select", job, &mut result)?
+            {
+                let current = select
+                    .rows
+                    .iter()
+                    .find(|row| row[2] == "Value" && row[3].eq_ignore_ascii_case("Current"));
+                if let Some(current) = current {
+                    let n = current[5]
+                        .parse::<u32>()
+                        .context("Select.Current 不是 DWORD")?;
+                    ensure!((1..=999).contains(&n), "Select.Current 越界");
+                    let services = format!("ControlSet{n:03}\\Services");
+                    if let Some(parent) =
+                        self.optional_registry(address, &services, job, &mut result)?
+                    {
+                        for row in parent.rows.into_iter().filter(|row| row[2] == "SubKey") {
+                            keys.push(format!("{services}\\{}", row[3]));
+                        }
+                    }
+                } else {
+                    Self::issue(&mut result, hex(address), "SYSTEM hive 缺少 Select.Current");
+                }
+            }
+            for key in keys {
+                job.check()?;
+                if let Some(query) = self.optional_registry(address, &key, job, &mut result)? {
+                    for row in query.rows.into_iter().filter(|row| row[2] == "Value") {
+                        let name = row[3].to_ascii_lowercase();
+                        if key.ends_with("Winlogon")
+                            && !["shell", "userinit", "taskman"].contains(&name.as_str())
+                        {
+                            continue;
+                        }
+                        if key.contains("Image File Execution Options")
+                            && !["debugger", "globalflag", "verifierdlls"].contains(&name.as_str())
+                        {
+                            continue;
+                        }
+                        if key.contains("\\Services\\")
+                            && !["imagepath", "start", "type", "objectname"]
+                                .contains(&name.as_str())
+                        {
+                            continue;
+                        }
+                        result.rows.push(row);
+                    }
+                }
+            }
+        }
+        result.diagnostics.sort();
+        result.diagnostics.dedup();
+        result.kernel_identity["coverage"] = serde_json::json!(
+            "Run/RunOnce, Winlogon, IFEO, current ControlSet services; not all persistence mechanisms"
+        );
+        Ok(result)
+    }
+    fn optional_registry(
+        &self,
+        hive: u64,
+        key: &str,
+        job: &Job,
+        result: &mut Results,
+    ) -> Result<Option<Results>> {
+        let query = self.registry(
+            Plugin::WinPrintkey,
+            &Options {
+                hive: Some(hive),
+                key: key.into(),
+                ..Default::default()
+            },
+            job,
+        );
+        match query {
+            Ok(query) => {
+                if !query.complete {
+                    result.complete = false;
+                    result.diagnostics.extend(query.diagnostics.clone());
+                }
+                Ok(Some(query))
+            }
+            Err(e) => {
+                job.check()?;
+                if !e.to_string().starts_with("注册表键不存在:") {
+                    Self::issue(result, format!("hive {hive:#x} {key}"), format!("{e:#}"));
+                }
+                Ok(None)
+            }
+        }
+    }
     fn cell_address(&self, hive: u64, index: u32) -> Result<u64> {
         ensure!(index != u32::MAX, "无效 hive cell");
         let storage = (index >> 31) as u64;
@@ -128,13 +261,10 @@ impl Windows<'_> {
             "hive cell 越界"
         );
         let directory = self.number(dual, "_DUAL", "Map")?;
-        let table = self.vm.uint(
-            add(
-                self.field(directory, "_HMAP_DIRECTORY", "Directory")?,
-                (index >> 21) * 8,
-            )?,
-            8,
-        )?;
+        let table = self.vm.pointer(add(
+            self.field(directory, "_HMAP_DIRECTORY", "Directory")?,
+            (index >> 21) * self.vm.pointer_size() as u64,
+        )?)?;
         ensure!(table != 0, "hive 映射表缺失");
         let entry_size = self.vm.isf.data["user_types"]["_HMAP_ENTRY"]["size"]
             .as_u64()
@@ -143,13 +273,18 @@ impl Windows<'_> {
             self.field(table, "_HMAP_TABLE", "Table")?,
             ((index >> 12) & 511) * entry_size,
         )?;
-        let block = if self.vm.isf.field("_HMAP_ENTRY", "BlockAddress").is_ok() {
-            self.number(entry, "_HMAP_ENTRY", "BlockAddress")? & !15
-        } else {
+        let block = if self
+            .vm
+            .isf
+            .field("_HMAP_ENTRY", "PermanentBinAddress")
+            .is_ok()
+        {
             add(
                 self.number(entry, "_HMAP_ENTRY", "PermanentBinAddress")? & !15,
                 self.number(entry, "_HMAP_ENTRY", "BlockOffset")?,
             )?
+        } else {
+            self.number(entry, "_HMAP_ENTRY", "BlockAddress")? & !15
         };
         add(block, index & 4095)
     }
@@ -370,8 +505,7 @@ mod tests {
             json!({"size":32,"fields":{"Length":number(0),"Map":pointer(8)}});
         isf.data["user_types"]["_HMAP_DIRECTORY"] = json!({"size":8,"fields":{"Directory":{"offset":0,"type":{"kind":"array","count":1,"subtype":{"kind":"pointer"}}}}});
         isf.data["user_types"]["_HMAP_TABLE"] = json!({"size":8192,"fields":{"Table":{"offset":0,"type":{"kind":"array","count":512,"subtype":{"kind":"struct","name":"_HMAP_ENTRY"}}}}});
-        isf.data["user_types"]["_HMAP_ENTRY"] =
-            json!({"size":16,"fields":{"BlockOffset":number(0),"PermanentBinAddress":number(8)}});
+        isf.data["user_types"]["_HMAP_ENTRY"] = json!({"size":16,"fields":{"BlockAddress":number(0),"BlockOffset":number(0),"PermanentBinAddress":number(8)}});
         put(&mut b, 0xb000, 8192);
         put(&mut b, 0xb008, K + 0x4000);
         put(&mut b, 0xc000, K + 0x5000);
@@ -445,5 +579,82 @@ mod tests {
             "中文"
         );
         assert!(decode_name(&[1], false).is_err());
+    }
+}
+
+#[cfg(test)]
+mod ownership_tests {
+    use super::super::tests::{K, fixture, image, put};
+    use super::*;
+    use serde_json::json;
+    #[test]
+    fn user_mapped_hive_reads_only_in_validated_registry_process_space() {
+        let (mut b, mut isf) = fixture();
+        let pointer = |offset| json!({"offset":offset,"type":{"kind":"pointer"}});
+        let number = |offset| json!({"offset":offset,"type":{"kind":"base","name":"u32"}});
+        let short = |offset| json!({"offset":offset,"type":{"kind":"base","name":"u16"}});
+        isf.data["base_types"]["u32"] = json!({"size":4});
+        isf.data["symbols"]["CmpHiveListHead"] = json!({"address":0x7000});
+        isf.data["user_types"]["_CMHIVE"] = json!({"size":128,"fields":{"HiveList":{"offset":0,"type":{"kind":"struct","name":"_LIST_ENTRY"}},"FileFullPath":{"offset":16,"type":{"kind":"struct","name":"_UNICODE_STRING"}},"Hive":{"offset":32,"type":{"kind":"struct","name":"_HHIVE"}}}});
+        isf.data["user_types"]["_HHIVE"] = json!({"size":64,"fields":{"BaseBlock":pointer(0),"Storage":{"offset":8,"type":{"kind":"array","count":2,"subtype":{"kind":"struct","name":"_DUAL"}}}}});
+        isf.data["user_types"]["_DUAL"] =
+            json!({"size":24,"fields":{"Length":number(0),"Map":pointer(8)}});
+        isf.data["user_types"]["_HBASE_BLOCK"] = json!({"size":4,"fields":{"RootCell":number(0)}});
+        isf.data["user_types"]["_HMAP_DIRECTORY"] = json!({"size":8,"fields":{"Directory":{"offset":0,"type":{"kind":"array","count":1,"subtype":{"kind":"pointer"}}}}});
+        isf.data["user_types"]["_HMAP_TABLE"] = json!({"size":8192,"fields":{"Table":{"offset":0,"type":{"kind":"array","count":512,"subtype":{"kind":"struct","name":"_HMAP_ENTRY"}}}}});
+        isf.data["user_types"]["_HMAP_ENTRY"] =
+            json!({"size":16,"fields":{"BlockOffset":pointer(0),"PermanentBinAddress":pointer(8)}});
+        let array = |offset| json!({"offset":offset,"type":{"kind":"array","count":2,"subtype":{"kind":"base","name":"u32"}}});
+        isf.data["user_types"]["_CM_KEY_NODE"] = json!({"size":40,"fields":{"Flags":short(2),"NameLength":short(4),"LastWriteTime":pointer(8),"ValueList":{"offset":16,"type":{"kind":"struct","name":"_CHILD_LIST"}},"SubKeyCounts":array(24),"SubKeyLists":array(32),"Name":{"offset":40,"type":{"kind":"array","count":0}}}});
+        isf.data["user_types"]["_CHILD_LIST"] =
+            json!({"size":8,"fields":{"Count":number(0),"List":number(4)}});
+        b[0xa030..0xa040].fill(0);
+        b[0xa030..0xa038].copy_from_slice(b"Registry");
+        put(&mut b, 0xa070, 0x5000);
+        // Registry's root shares kernel mappings and additionally maps low hive memory.
+        put(&mut b, 0x5000 + 256 * 8, 0x2003);
+        put(&mut b, 0x5000, 0x2003);
+        put(&mut b, 0xf000, K + 0x3000);
+        put(&mut b, 0xf008, K + 0x3000);
+        put(&mut b, 0xb000, K + 0x7000);
+        put(&mut b, 0xb008, K + 0x7000);
+        put(&mut b, 0xb020, K + 0x4000);
+        put(&mut b, 0xb028, 8192);
+        put(&mut b, 0xb030, K + 0x5000);
+        put(&mut b, 0xc000, 0x20);
+        put(&mut b, 0xd000, K + 0x6000);
+        put(&mut b, 0xe008, 0x9000);
+        b[0x11020..0x11024].copy_from_slice(&(-48i32).to_le_bytes());
+        b[0x11024..0x11026].copy_from_slice(b"nk");
+        b[0x11026..0x11028].copy_from_slice(&0x20u16.to_le_bytes());
+        b[0x11028..0x1102a].copy_from_slice(&4u16.to_le_bytes());
+        b[0x1104c..0x11050].copy_from_slice(b"Root");
+        let img = image(&b);
+        let engine = Windows {
+            vm: Memory {
+                image: &img,
+                root: 0x1000,
+                isf: &isf,
+                sources: None,
+            },
+            base: K,
+            pdb: PdbIdentity::from_isf(&isf).unwrap(),
+        };
+        let options = Options {
+            hive: Some(K + 0x3000),
+            ..Default::default()
+        };
+        assert!(
+            engine
+                .registry(Plugin::WinPrintkey, &options, &Job::default())
+                .is_err()
+        );
+        let r = engine
+            .run(Plugin::WinPrintkey, &options, &Job::default())
+            .unwrap();
+        assert!(r.complete, "{:?}", r.diagnostics);
+        assert_eq!(r.rows[0][3], "Root");
+        assert_eq!(r.page_table, 0x5000);
+        assert_eq!(r.kernel_identity["registry_process"]["pid"], 8);
     }
 }

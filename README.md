@@ -198,6 +198,8 @@ argv／环境区各限 1 MiB，单进程 VMA／FD 各限 100 万项，路径限 
 | d / 底部“详情” | 打开行全部字段；↑↓、PageUp / PageDown、Home / End 滚动，Esc／右键关闭 |
 | ← / → | 折叠 / 展开当前进程 |
 | i / y（分析页） | 浏览镜像／符号配置目录；弹窗内 Tab 切换两目录 |
+| F6 | 选择自动 / Linux / Windows 分析系统；也可点击底部系统按钮 |
+| P | Windows 参数（PID、注册表、架构及分页附件） |
 | p / F4 | 搜索插件，支持插件名称搜索，Enter 执行 |
 | b | 无需 ISF 即可识别内核 banner |
 | m / M | 当前镜像 → 本地完整 banner 匹配／远程精确匹配 |
@@ -335,7 +337,7 @@ zero analyze --os windows --hive 0xffff800000000000 --key 'Software' --image ima
 zero dump --os windows --image image.mem --mode range --pid 1234 --start 0x100000 --end 0x101000 --dump-dir exports/range --output exports/range.json
 ```
 
-`--hive` 使用 `windows.hivelist` 返回的虚拟地址。运行 `zero --help` 和子命令帮助查看参数。MCP 的 `zero_analyze` 提供 `os`、`pid`、`hive`、`key`；`zero_dump` 支持 Windows `process`、`range`、`pe`。TUI 识别 Windows 镜像后显示对应插件，`P` 编辑 PID／hive／key，Dump 页提供 PE 模式。
+`--hive` 使用 `windows.hivelist` 返回的虚拟地址。运行 `zero --help` 和子命令帮助查看参数。MCP 的 `zero_analyze` 提供 `os`、`pid`、`hive`、`key`；`zero_dump` 支持 Windows `process`、`range`、`pe`。TUI 顶部提供可直接点击的 Linux／Windows／自动系统按钮，当前选择高亮；也可按 `F6` 或点击底部系统按钮选择。选 Windows 后立即显示对应插件，更换镜像会保留手动选择。自动模式在选用镜像后检查 Linux 内核 banner、Windows PDB 标识或转储容器格式，并切换插件列表；点击“自动”可重新识别当前镜像。未识别时提示手动选择。TUI 插件名省略 `windows.` 前缀，CLI／MCP 仍使用完整插件标识。`P` 编辑 PID／hive／key／架构／分页附件，Dump 页提供 PE 模式。
 
 插件包括 `windows.systeminfo`、`pslist`、`pstree`、`cmdline`、`modules`、`dlllist`、`vadinfo`、`handles`、`malfind`、`netscan`、`hivelist`、`printkey`、`psscan`、`psxview`、`procdump`、`memdump`、`pedump`（名称均带 `windows.` 前缀）。`malfind` 标记可疑的可执行内存区域，不直接判定恶意；pool 扫描和交叉视图也不直接判定隐藏进程。
 
@@ -343,7 +345,7 @@ zero dump --os windows --image image.mem --mode range --pid 1234 --start 0x10000
 
 公开验收镜像：[Windows 10 build 15063](https://www.osforensics.com/downloads/WinDump.zip)、[Windows 11 build 22000](https://www.osforensics.com/downloads/Win11Dump.zip)。下载解压到 `images/` 并准备符号后运行 `make windows-acceptance`。`examples/verify_windows.rs` 可在共享分析会话中导出所有非转储插件供独立参考工具比较；Python/Volatility 只用于验证，不是运行依赖。样本包含断裂的进程链表，正常输出应保留不完整标志。
 
-边界：真实镜像验收覆盖 Windows 10/11 x64 RAW 与 Windows 10 build 19041 bitmap crash dump。其他架构、用户 minidump、注册表分段值、外部分页和休眠新增路径主要依赖合成测试；内核小型转储目前仅提供头部元数据，不能宣称 Windows 7–11 全架构的所有插件均已验证。压缩 store 需要私有元数据，ARM64 store 尚不支持；未知容器、布局和缺页均明确报告。
+边界：真实镜像验收覆盖 Windows 10/11 x64 RAW 与 Windows 10 build 19041 bitmap crash dump。其他架构、用户 minidump、注册表分段值、外部分页和休眠新增路径主要依赖合成测试；内核 summary 小型转储仅提供头部元数据，triage 转储支持保存的内核虚拟范围和上下文，不能宣称 Windows 7–11 全架构的所有插件均已验证。压缩 store 需要私有元数据，ARM64 store 尚不支持；未知容器、布局和缺页均明确报告。
 
 参考交叉检查：准备独立 Volatility 3 v2.28 符号与 JSON 输出后，运行 `python3 tests/reference/windows.py /tmp/zero-win11- /tmp/zero-ref-win11-`（Windows 10 同理）。脚本逐字段检查共有记录，并分别报告覆盖范围；参考工具读不到的字段和缺失记录不会被当作相等的证据。
 
@@ -351,7 +353,7 @@ zero dump --os windows --image image.mem --mode range --pid 1234 --start 0x10000
 
 多架构基础提供 `--arch auto|x86|x64|arm64`，MCP 对应 `arch`，TUI 的 Windows 参数页可选择架构。指针和 PDB 机器类型必须一致；架构冲突明确报错。x86 普通／PAE、ARM64 4 KiB 页表目前经合成测试验证，真实镜像验收仍以既有 Windows 10/11 x64 为准；不应据此宣称所有架构的所有插件已完成。
 
-容器阶段新增 PAGE/DUMP（x86）与 PAGE/DU64（x64/ARM64）的物理 run 表、SDMP/FDMP 位图，以及 MDMP 的 MemoryList/Memory64、模块、线程栈和系统元数据读取。内核小型转储当前仅开放头部信息；用户态 minidump 开放进程范围的模块、范围/进程/PE 导出，需要文件记录 PID。它不提供系统进程列表或内核模块列表。缺失地址保持缺页；未知布局不会按 RAW 读取。
+容器阶段新增 PAGE/DUMP（x86）与 PAGE/DU64（x64/ARM64）的物理 run 表、SDMP/FDMP 位图，以及 MDMP 的 MemoryList/Memory64、模块、线程栈和系统元数据读取。内核 summary 小型转储开放头部信息；triage 转储开放故障上下文、保存的驱动记录和内核虚拟范围；用户态 minidump 开放进程范围的模块、范围/进程/PE 导出，需要文件记录 PID。它不提供系统进程列表或内核模块列表。缺失地址保持缺页；未知布局不会按 RAW 读取。
 
 进程兼容阶段增加 WOW64 32 位 PEB、命令行和 DLL 链表读取，`windows.cmdline` 与 `windows.dlllist` 新增 `View` 列（`native` / `wow64` / `minidump`）；PE32 和 PE32+ 使用统一节重建。注册表 `db` 分段大值按分段索引重建并校验计数、重复项与实际长度，当前值大小上限仍为 1 MiB。上述新增路径包含合成测试；x86／ARM64 的全插件覆盖仍需真实镜像验收。
 
@@ -370,3 +372,24 @@ Windows 10 RAW 样本额外验证了 4 个 WOW64 进程（PID 4428、5684、5932
 旧版对象兼容使用 ISF 选择 LDR 模块结构、VAD 根／子节点、原始或编码句柄指针；x86 句柄表采用 1024 指针扇出和 8 字节 pool 对齐。transition PFN 和 prototype 地址按架构解码；现代 nonswizzled 分页偏移依赖精确 `MiState.Hardware.InvalidPteMask`，缺少私有元数据时不猜测掩码。
 
 兼容改动后再次通过 3 项 Windows 与 4 项 Linux 真实镜像验收。Windows 10／11 共有句柄分别为 43,438／49,658 条，类型、对象地址和访问权限与独立参考工具无冲突；句柄名称的设备路径和 PID 注释表示不同，不计入该一致性结论。参考脚本现包含这三项句柄字段检查。
+
+
+## Windows 第二轮扩展
+
+新增 `windows.threads`、`windows.envars`、`windows.svcscan`、`windows.driverscan`、`windows.drivercheck`、`windows.autoruns`、`windows.cmdscan`、`windows.consoles` 和 `windows.crashinfo`，CLI、MCP 和 TUI 共用插件目录。线程／环境变量支持 PID 筛选；环境变量保留 native/WOW64 视图及驱动器变量。线程的 ExitTime 仅在符号中的 Terminated 标志置位时解释，异常时间保留诊断；模块归属只使用已读取的模块范围。
+
+驱动扫描校验对象类型、尺寸、地址范围以及 DRIVER_EXTENSION 回引用；`drivercheck` 显示初始化、卸载及 28 个 IRP 分派函数的模块归属，地址位于其他模块本身不表示恶意。扫描只能覆盖保存且可验证的对象，不保证恢复已释放对象。
+
+服务扫描读取 services.exe 的运行状态和二进制路径；`--pid` 在该插件中筛选服务管理宿主。当前声明布局覆盖 x64 build 15063／19041／22000；PE 版本不可读时，仅已声明的精确内核构建可采用降级布局，并明确标为部分。控制台／命令历史布局目前覆盖 conhost.exe x64 build 19041／22000，其他版本明确诊断；每个宿主扫描最多 128 MiB。布局事实来源于 [Volatility 3 v2.28 的服务与控制台符号定义](https://github.com/volatilityfoundation/volatility3/tree/v2.28.0/volatility3/framework/symbols/windows)，运行时不执行 Python。控制台输出当前为标题及历史缓冲元数据，不包含屏幕文本；现有真实 RAW 样本没有可验收的支持版本控制台记录。
+
+`autoruns` 输出 Run/RunOnce、Winlogon、IFEO 和当前 ControlSet 的服务配置原始值，支持 `--hive` 限定；不会展开环境变量或把所有值判为恶意，也不涵盖所有持久化机制。现代 hive 同时存在新旧 HMAP 字段时优先使用 PermanentBinAddress/BlockOffset；已验证的 Registry 进程映射用于读取其用户地址中的 hive 页。
+
+`crashinfo` 可直接读取容器中的故障码、异常地址和实际保存的控制／整数寄存器组（暂不解析 FP／SIMD／debug 寄存器），无需完整内核符号。PAGE triage 转储支持 x86／x64／ARM64 的虚拟数据块、原始栈范围、异常记录和保存的驱动清单，均有合成测试；调用栈不自动展开。`windows.modules` 在 triage 上只列出保存记录；范围转储使用保存的虚拟地址，沿用统一接口时 `--pid 0` 表示内核范围，实际不建立进程归属。未保存范围报缺页，不补零。summary 类型仍只开放头部。
+
+公开用户 minidump 验收样本来自 [rust-minidump testdata/test.dmp](https://github.com/rust-minidump/rust-minidump/blob/main/testdata/test.dmp)，Windows XP x86，SHA256 `24b0ea7794b2d2523c46c9aea72c03ccbb0ab88ad76d8258d3752c7b71d233ff`；保存到 `images/rust-minidump-test.dmp` 后随 `make windows-acceptance` 验证异常 `0xc0000005`、地址 `0x40429e` 和三组上下文。合法的重复 UnusedStream 被忽略，非 Windows 平台不会按 Windows minidump 分析。
+
+架构与恢复改动包括 ISF 指针宽度、注册表目录指针宽度、prototype PTE 链指向显式分页／压缩来源的读取，以及循环和深度限制。休眠现有损坏块／保存页／取消与源文件变化测试继续执行；尚未取得可核验的真实休眠样本。ARM64 压缩 store 缺少可证实的布局和端到端样本，继续明确报不支持；本轮不增加推测布局。
+
+新增插件可通过 `examples/verify_windows.rs IMAGE PREFIX PLUGINS` 单独导出（PLUGINS 为逗号分隔的完整插件名）。`tests/reference/windows_artifacts.py` 对比独立 Volatility JSON 导出中的共有线程、native 环境变量、驱动和服务字段，同时报告覆盖差异；不将缺失记录或参考工具不可读字段视为一致性证据。
+
+新增插件独立复核：Windows 10 共有线程 1,637 条（对象／起始地址）、native 环境变量 3,679 项（值）及驱动 136 个（名称／范围）均无字段冲突；Windows 11 恢复的 3 个启动项值也与独立注册表读取一致。共有记录一致不表示完整覆盖；本地样本的断链、缺页和未验证布局诊断继续保留。
