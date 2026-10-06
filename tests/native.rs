@@ -364,29 +364,32 @@ fn cli_exports_native_result() -> Result<()> {
         dir.path().join("symbols.json"),
         serde_json::to_vec(&isf.data)?,
     )?;
-    let output = std::process::Command::new(env!("CARGO_BIN_EXE_zero-tui"))
-        .current_dir(dir.path())
-        .args([
-            "analyze",
-            "--image",
-            "image.raw",
-            "--symbols",
-            "symbols.json",
-            "--plugin",
-            "pslist",
-            "--output",
-            "result.json",
-        ])
-        .output()?;
-    assert!(
-        output.status.success(),
-        "{}",
-        String::from_utf8_lossy(&output.stderr)
-    );
-    let result: store::Results =
-        serde_json::from_slice(&fs::read(dir.path().join("result.json"))?)?;
-    assert!(result.complete);
-    assert_eq!(result.rows.len(), 2);
+    for binary in [env!("CARGO_BIN_EXE_zero"), env!("CARGO_BIN_EXE_zero-tui")] {
+        let output = std::process::Command::new(binary)
+            .current_dir(dir.path())
+            .args([
+                "--offline",
+                "analyze",
+                "--image",
+                "image.raw",
+                "--symbols",
+                "symbols.json",
+                "--plugin",
+                "pslist",
+                "--output",
+                "result.json",
+            ])
+            .output()?;
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        let result: store::Results =
+            serde_json::from_slice(&fs::read(dir.path().join("result.json"))?)?;
+        assert!(result.complete);
+        assert_eq!(result.rows.len(), 2);
+    }
     Ok(())
 }
 
@@ -1061,12 +1064,11 @@ fn local_symbol_library_matches_complete_banner_and_reports_corruption() -> Resu
     );
     Ok(())
 }
-#[test]
-fn unified_dump_cli_exports_explicit_range() -> Result<()> {
+fn discoverable_dump() -> (Vec<u8>, Isf) {
     let (img, mut isf) = dump_fixture();
     // Use the discoverable kernel alias while preserving the separate process PGD.
     let mut bytes = vec![0; 0x12000];
-    img.read(0, &mut bytes)?;
+    img.read(0, &mut bytes).unwrap();
     put(&mut bytes, 0x4000 + 9 * 8, 0x8003);
     for physical in [
         0x8200, 0x8208, 0x8300, 0x8308, 0x8318, 0x8400, 0x8408, 0x8418,
@@ -1078,6 +1080,11 @@ fn unified_dump_cli_exports_explicit_range() -> Result<()> {
     isf.data["symbols"]["init_task"]["address"] = json!(0x9200);
     isf.data["symbols"]["init_level4_pgt"]["address"] = json!(0x2000);
     bytes[0x8100..0x8100 + isf.banner.len()].copy_from_slice(&isf.banner);
+    (bytes, isf)
+}
+#[test]
+fn unified_dump_cli_exports_explicit_range() -> Result<()> {
+    let (bytes, isf) = discoverable_dump();
     let dir = tempfile::tempdir()?;
     fs::write(dir.path().join("image.raw"), bytes)?;
     fs::write(
@@ -1121,5 +1128,237 @@ fn unified_dump_cli_exports_explicit_range() -> Result<()> {
     assert_eq!(result.rows.len(), 1);
     let evidence = dir.path().join(&result.rows[0][6]);
     assert_eq!(fs::read(evidence)?, b"Evidence");
+    Ok(())
+}
+
+fn mcp_exchange(root: &std::path::Path, input: &str) -> Result<Vec<serde_json::Value>> {
+    use std::process::{Command, Stdio};
+    let external = tempfile::tempdir()?;
+    let mut process = Command::new(env!("CARGO_BIN_EXE_zero-mcp"))
+        .current_dir(external.path())
+        .env("ZERO_ROOT", root)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()?;
+    process.stdin.take().unwrap().write_all(input.as_bytes())?;
+    let output = process.wait_with_output()?;
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    String::from_utf8(output.stdout)?
+        .lines()
+        .map(|line| Ok(serde_json::from_str(line)?))
+        .collect()
+}
+
+fn mcp_call(id: u64, name: &str, arguments: serde_json::Value) -> serde_json::Value {
+    json!({"jsonrpc":"2.0","id":id,"method":"tools/call","params":{"name":name,"arguments":arguments}})
+}
+
+#[test]
+fn mcp_tools_analyze_page_export_and_dump_all_modes() -> Result<()> {
+    use sha2::{Digest, Sha256};
+    let dir = tempfile::tempdir()?;
+    let (bytes, isf) = discoverable_dump();
+    fs::write(dir.path().join("image.raw"), bytes)?;
+    fs::write(
+        dir.path().join("symbols.json"),
+        serde_json::to_vec(&isf.data)?,
+    )?;
+    fs::create_dir_all(dir.path().join(".zero/rust/symbols"))?;
+    fs::write(
+        dir.path().join(".zero/rust/symbols/banners_plain.json"),
+        b"{}",
+    )?;
+    let analyze = json!({"image":"image.raw","symbols":"symbols.json","plugin":"pslist","offline":true,"limit":1,"output":"all.json"});
+    let mut second_page = analyze.clone();
+    second_page["offset"] = json!(1);
+    second_page["output"] = json!("all.csv");
+    let mut beyond_page = analyze.clone();
+    beyond_page["offset"] = json!(usize::MAX);
+    beyond_page["output"] = serde_json::Value::Null;
+    let mut requests = vec![
+        json!({"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"test","version":"1"}}}),
+        json!({"jsonrpc":"2.0","method":"notifications/initialized"}),
+        json!({"jsonrpc":"2.0","id":2,"method":"tools/list"}),
+        mcp_call(3, "zero_plugins", json!({})),
+        mcp_call(
+            4,
+            "zero_symbols",
+            json!({"image":"image.raw","offline":true}),
+        ),
+        mcp_call(5, "zero_analyze", analyze.clone()),
+        mcp_call(6, "zero_analyze", second_page),
+        mcp_call(7, "zero_analyze", beyond_page),
+        mcp_call(8, "zero_cache_list", json!({})),
+    ];
+    for (id, mode) in [(9, "range"), (10, "process"), (11, "elf")] {
+        let mut args = json!({"image":"image.raw","symbols":"symbols.json","offline":true,"mode":mode,"pid":1,"dump_dir":"evidence","output":format!("{mode}.json")});
+        if mode == "range" {
+            args["start"] = json!("0x4ffc");
+            args["end"] = json!("0x5004");
+        }
+        requests.push(mcp_call(id, "zero_dump", args));
+    }
+    let input = requests
+        .iter()
+        .map(|r| format!("{r}\n"))
+        .collect::<String>();
+    let replies = mcp_exchange(dir.path(), &input)?;
+    assert_eq!(replies.len(), requests.len() - 1);
+    for reply in &replies {
+        assert!(reply.get("error").is_none(), "{reply}");
+        assert_ne!(reply["result"]["isError"], true, "{reply}");
+    }
+    let result = |id| replies.iter().find(|r| r["id"] == id).unwrap()["result"].clone();
+    assert_eq!(result(2)["tools"].as_array().unwrap().len(), 5);
+    assert_eq!(
+        result(3)["structuredContent"]["plugins"]
+            .as_array()
+            .unwrap()
+            .len(),
+        zero_tui::linux::PLUGINS.len()
+    );
+    assert!(
+        !result(4)["structuredContent"]["banners"]
+            .as_array()
+            .unwrap()
+            .is_empty()
+    );
+    let full: store::Results = serde_json::from_slice(&fs::read(dir.path().join("all.json"))?)?;
+    assert!(full.complete);
+    assert_eq!(full.rows.len(), 2);
+    assert_eq!(
+        store::exported(&dir.path().join("all.csv"))?.rows,
+        full.rows
+    );
+    let first = result(5)["structuredContent"].clone();
+    let second = result(6)["structuredContent"].clone();
+    assert_eq!(first["total_rows"], 2);
+    assert_eq!(first["rows"], json!([full.rows[0]]));
+    assert_eq!(first["next_offset"], 1);
+    assert_eq!(second["rows"], json!([full.rows[1]]));
+    assert!(second["next_offset"].is_null());
+    let beyond = result(7)["structuredContent"].clone();
+    assert_eq!(beyond["rows"], json!([]));
+    assert!(beyond["next_offset"].is_null());
+    for (id, mode) in [(9, "range"), (10, "process"), (11, "elf")] {
+        let manifest: store::Results =
+            serde_json::from_slice(&fs::read(dir.path().join(format!("{mode}.json")))?)?;
+        assert!(manifest.complete, "{:?}", manifest.diagnostics);
+        assert_eq!(
+            result(id)["structuredContent"]["rows"],
+            json!(manifest.rows)
+        );
+        assert_eq!(manifest.rows.len(), 1);
+        let row = &manifest.rows[0];
+        let evidence = fs::read(&row[6])?;
+        assert_eq!(row[5], format!("{:x}", Sha256::digest(&evidence)));
+        if mode == "range" {
+            assert_eq!(evidence, b"Evidence");
+        } else {
+            assert_eq!(evidence.len(), 8192);
+            assert!(evidence.starts_with(b"\x7fELF"));
+        }
+    }
+    Ok(())
+}
+
+#[test]
+fn mcp_rejects_bad_arguments_and_recovers_from_invalid_json() -> Result<()> {
+    let dir = tempfile::tempdir()?;
+    let requests = [
+        mcp_call(
+            1,
+            "zero_analyze",
+            json!({"image":"missing","plugin":"pslist","limit":0}),
+        ),
+        mcp_call(
+            2,
+            "zero_analyze",
+            json!({"image":"missing","plugin":"pslist","offine":true}),
+        ),
+        mcp_call(
+            3,
+            "zero_dump",
+            json!({"image":"missing","mode":"range","pid":1,"dump_dir":"evidence","output":"manifest.json"}),
+        ),
+        mcp_call(4, "zero_plugins", json!({"unused":true})),
+        mcp_call(5, "unknown_tool", json!({})),
+        json!({"jsonrpc":"2.0","id":6,"method":"unknown_method"}),
+        json!({"jsonrpc":"2.0","id":7,"method":"ping"}),
+    ];
+    let input = format!(
+        "{{invalid\n[]\n{}",
+        requests
+            .iter()
+            .map(|r| format!("{r}\n"))
+            .collect::<String>()
+    );
+    let replies = mcp_exchange(dir.path(), &input)?;
+    assert_eq!(replies.len(), requests.len() + 2);
+    assert_eq!(replies[0]["error"]["code"], -32700);
+    assert_eq!(replies[1]["error"]["code"], -32600);
+    for reply in &replies[2..7] {
+        assert_eq!(reply["result"]["isError"], true, "{reply}");
+    }
+    assert!(
+        replies[3]["result"]["content"][0]["text"]
+            .as_str()
+            .unwrap()
+            .contains("unknown field")
+    );
+    assert_eq!(replies[7]["error"]["code"], -32601);
+    assert_eq!(replies[8]["result"], json!({}));
+    Ok(())
+}
+
+#[test]
+fn mcp_offline_identification_without_remote_index_uses_banners() -> Result<()> {
+    let dir = tempfile::tempdir()?;
+    let (bytes, _) = discoverable();
+    fs::write(dir.path().join("image.raw"), bytes)?;
+    let requests = [
+        mcp_call(
+            1,
+            "zero_symbols",
+            json!({"image":"image.raw","offline":true}),
+        ),
+        mcp_call(
+            2,
+            "zero_analyze",
+            json!({"image":"image.raw","plugin":"banners","offline":true}),
+        ),
+    ];
+    let input = requests
+        .iter()
+        .map(|r| format!("{r}\n"))
+        .collect::<String>();
+    let replies = mcp_exchange(dir.path(), &input)?;
+    assert_eq!(replies.len(), 2);
+    assert_eq!(replies[0]["result"]["isError"], true);
+    assert!(
+        replies[0]["result"]["content"][0]["text"]
+            .as_str()
+            .unwrap()
+            .contains("索引缓存")
+    );
+    let result = &replies[1]["result"];
+    assert_eq!(result["isError"], false);
+    assert_eq!(result["structuredContent"]["complete"], true);
+    assert!(
+        !result["structuredContent"]["rows"]
+            .as_array()
+            .unwrap()
+            .is_empty()
+    );
+    assert!(
+        !dir.path()
+            .join(".zero/rust/symbols/banners_plain.json")
+            .exists()
+    );
     Ok(())
 }

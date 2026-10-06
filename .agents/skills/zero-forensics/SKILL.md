@@ -5,16 +5,45 @@ description: Analyze local Linux RAW/LiME or Windows RAW, crash/minidump or supp
 
 # Zero memory forensics
 
-Use the `zero` MCP server for this repository's local memory analysis. Paths may be absolute or relative to the current project root.
+Prefer the configured `zero` MCP tools for structured results. For a shell workflow, use `zero`; if it is unavailable or predates the checkout, build with `cargo build --release --locked` and use the checkout's `target/release/zero`.
 
-For a shell workflow, the equivalent native CLI is `zero` (`zero --help` lists commands). Run it from the project root so its local cache and default directories resolve correctly.
+MCP resolves relative paths against `ZERO_ROOT` in the server configuration, or its launch directory when unset. CLI paths, settings, cache and default asset directories resolve against its current working directory. Use absolute input paths when assets live outside the checkout; obtain the actual project root from the configuration or `git rev-parse --show-toplevel`.
 
-1. Call `zero_symbols` with the image to inspect Linux kernel banners or Windows kernel PDB identities and exact symbol matches. Set `offline: true` when the user requires no network access. Windows downloads fetch exact Microsoft PDBs and convert them to ISF in Rust; Linux downloads fetch matching ISFs; memory images stay local.
-2. Call `zero_plugins` when choosing an analysis plugin. Use `zero_analyze` with the image, plugin, and optional symbols path. For Windows use `windows.*` plugin names, `os: windows` when necessary, and `pid` for targeted analysis. `windows.printkey` requires a hive address from `windows.hivelist`; `key` is a hive-relative registry path. When it returns `symbol_choices`, ask the user to select the matching label or use a label they already specified.
-3. Use `offset` and `limit` to page results; a call returns at most 200 rows. Set `output` to a `.json` or `.csv` path when the complete result should be saved. Report `complete` and any `diagnostics` with findings.
-4. Use `zero_dump` only for a user specified PID and destination. For `mode: range`, supply `start` and `end` as decimal or `0x` strings; the end is exclusive. Windows `mode: pe` reconstructs PE images; Linux supports `mode: elf`. The manifest contains SHA256 hashes. Never infer a PID or dump every process.
+## Choose an entry point
 
-The analysis engine reads images locally and does not execute symbol files. Do not upload memory images or disclose raw contents to external services. Cache inspection is available through `zero_cache_list`.
+- With an image and explicit local ISF, call `zero_analyze` directly. There is no need to query the remote symbol index first.
+- To identify a Linux kernel offline, use `zero_analyze` with `plugin: "banners"`; this needs no ISF or remote index. `zero_symbols` identifies banners **and queries the remote index**. Offline Linux calls to it require an existing index cache and do not search the local ISF directory.
+- For repository matches or verified downloads, use `zero_symbols`; match the complete Linux banner and architecture or the exact Windows kernel PDB identity. Windows downloads fetch exact Microsoft PDBs and convert them to ISF in Rust; Linux downloads fetch matching ISFs. When analysis returns `needs_symbol_choice`, use an already specified label or present the returned `symbol_choices` for explicit selection. Do not choose by version alone.
+- Use `zero_plugins` to discover plugin names and columns. Ordinary process inspections go through `zero_analyze`; Linux analysis has no PID filter; Windows plugins support `pid` for targeted analysis. Use `windows.*` plugin names and `os: windows` when necessary. `windows.printkey` requires a hive address from `windows.hivelist`; `key` is a hive-relative registry path. Select target rows by their returned PID column, then use `zero_dump` for evidence export.
+
+Set `offline: true` on **every** MCP call that supports it when network access is disallowed; it is not a session toggle. CLI uses `--offline`. Otherwise network access follows the local settings and only fetches symbol indexes and files; images stay local.
+
+## Interpret results and retrieve evidence
+
+Read `structuredContent`, or parse the JSON text in `content` when the client only exposes text. `isError: true` means the tool failed. A successful tool response may still have `complete: false`; keep its diagnostics and describe the findings as partial. CLI can export partial results before returning a nonzero exit code; inspect the JSON artifact and stderr.
+
+`zero_analyze` returns 50 rows by default and at most 200. Keep the image, symbols, plugin and choice fixed while following `next_offset`; `null` ends pagination. `total_rows` is the full count, not the number in the current page. For large results, set `output` to a `.json` or `.csv` path and inspect that full local artifact instead of repeatedly running analysis for many pages. JSON preserves completeness and diagnostics; CSV contains only the table.
+
+Derive field positions from `columns`. Include the image, plugin, selected symbol, counts, completeness, diagnostics and artifact paths with findings. An empty complete table is a valid result; suspicious rows alone do not prove compromise.
+
+## Targeted dumps
+
+Confirm the authorized target using `pslist` or `windows.pslist` and obtain relevant ranges with Linux `maps`/`elfs` or Windows memory plugins. `zero_dump` requires an explicit PID (positive for Linux; Windows kernel range dumps use 0), `dump_dir`, and a separate `.json` or `.csv` manifest `output`.
+
+A readable VMA does not guarantee its pages are resident in the captured image. If a range has missing pages, preserve the diagnostics and report the failed or partial export; do not substitute zero bytes or claim that the requested evidence was recovered.
+
+- `mode: "range"`: supply `start` and `end` as decimal or `0x` **strings**. End is exclusive; the range must be at most 256 MiB.
+- `mode: "process"`: export readable mappings of that PID; optional bounds must be supplied together.
+- `mode: "pe"`: reconstruct Windows PE images.
+- `mode: "elf"`: export mappings starting with an ELF header; omit bounds. This does not reconstruct an original on-disk executable.
+
+Use a PID established by the user's request or by analysis within the authorized scope; do not invent a target or default to all processes. Read `complete` and `diagnostics`, and verify manifest sizes and SHA256 values against the exported files. Repeated dumps create separate evidence destinations; they do not overwrite previous binaries.
+
+Use `zero_cache_list` for cache inspection. Cache clearing is CLI-only: preview with `zero cache clear --dry-run`; execute only within the user's requested scope.
+
+For tested MCP arguments and equivalent CLI commands, read [references/calls.md](references/calls.md). The analysis engine reads images locally and never executes ISF files. Do not upload memory images or send recovered contents to external services without explicit authorization.
+
+## Windows coverage and evidence
 
 Windows architecture selection is `arch: auto|x86|x64|arm64`. Exact symbols must agree with the container and pointer width. Real-image validation covers Server 2003 SP0/2008 SP1 x86, Server 2012/2012 R2 and Windows 7 SP1/10/11 x64 RAW and Windows 10 build 19041/Server 2019 build 17763/Server 2022 build 20348 bitmap crash dumps; other architecture/container paths primarily have synthetic coverage. Use src/windows/compatibility.json for per-plugin evidence; do not describe it as complete Server 2003–2025 or Windows 7–11 coverage.
 
