@@ -1,4 +1,13 @@
 use super::*;
+// Windows 8 encodes 41 address bits; later kernels may encode 44.
+// Sign-extend the exact symbol-declared width after the four alignment bits.
+fn decode_object_pointer(bits: u64, width: u64) -> Result<u64> {
+    ensure!((1..=60).contains(&width), "句柄编码指针位宽无效");
+    ensure!(bits <= (u64::MAX >> (64 - width)), "句柄编码指针溢出");
+    let shift = 64 - width - 4;
+    Ok((((bits << 4) << shift) as i64 >> shift) as u64)
+}
+
 impl Windows<'_> {
     pub(super) fn handles(&self, p: &Process, r: &mut Results, job: &Job) -> Result<()> {
         let table = self.number(p.address, "_EPROCESS", "ObjectTable")?;
@@ -61,8 +70,14 @@ impl Windows<'_> {
                             ensure!(bits <= (u32::MAX as u64 >> 4), "32 位句柄编码指针溢出");
                             bits.checked_shl(4).context("句柄对象指针溢出")? & u32::MAX as u64
                         } else {
-                            ensure!(bits <= (u64::MAX >> 4), "句柄编码指针溢出");
-                            0xffff_0000_0000_0000 | (bits << 4)
+                            let field = self
+                                .vm
+                                .isf
+                                .field("_HANDLE_TABLE_ENTRY", "ObjectPointerBits")?;
+                            let width = field["type"]["bit_length"]
+                                .as_u64()
+                                .context("句柄编码指针缺少位宽")?;
+                            decode_object_pointer(bits, width)?
                         }
                     } else {
                         physical_number(self.vm.isf, entry, "_HANDLE_TABLE_ENTRY", "Object")? & !7
@@ -122,7 +137,12 @@ impl Windows<'_> {
         }
         Ok(())
     }
-    fn object_type(&self, header: u64) -> Result<String> {
+    pub(super) fn object_type(&self, header: u64) -> Result<String> {
+        if self.vm.isf.field("_OBJECT_HEADER", "TypeIndex").is_err() {
+            let ty = self.number(header, "_OBJECT_HEADER", "Type")?;
+            ensure!(self.vm.kernel(ty), "旧版对象类型指针无效");
+            return self.vm.unicode(self.field(ty, "_OBJECT_TYPE", "Name")?);
+        }
         let encoded = self.number(header, "_OBJECT_HEADER", "TypeIndex")?;
         let index = if self.vm.isf.raw_address("ObHeaderCookie").is_ok() {
             let cookie = self.vm.uint(self.symbol("ObHeaderCookie")?, 1)?;
@@ -138,7 +158,17 @@ impl Windows<'_> {
         ensure!(self.vm.kernel(ty), "无效对象类型");
         self.vm.unicode(self.field(ty, "_OBJECT_TYPE", "Name")?)
     }
-    fn object_name(&self, header: u64) -> Result<String> {
+    pub(super) fn object_name(&self, header: u64) -> Result<String> {
+        if self.vm.isf.field("_OBJECT_HEADER", "InfoMask").is_err() {
+            let offset = self.number(header, "_OBJECT_HEADER", "NameInfoOffset")?;
+            if offset == 0 {
+                return Ok(String::new());
+            }
+            let info = header.checked_sub(offset).context("旧版对象名称地址下溢")?;
+            return self
+                .vm
+                .unicode(self.field(info, "_OBJECT_HEADER_NAME_INFO", "Name")?);
+        }
         let mask = self.number(header, "_OBJECT_HEADER", "InfoMask")?;
         if mask & 2 == 0 {
             return Ok(String::new());
@@ -312,6 +342,17 @@ pub(super) fn physical_number(isf: &Isf, bytes: &[u8], ty: &str, field: &str) ->
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn encoded_object_addresses_sign_extend_the_declared_width() {
+        for (address, width) in [(0xfffffa8000c12340, 41), (0xffffc10000a12340, 44)] {
+            let bits = (address >> 4) & ((1u64 << width) - 1);
+            assert_eq!(super::decode_object_pointer(bits, width).unwrap(), address);
+        }
+        assert!(super::decode_object_pointer(1 << 41, 41).is_err());
+        assert!(super::decode_object_pointer(1, 0).is_err());
+        assert!(super::decode_object_pointer(1, 61).is_err());
+    }
+
     use super::super::tests::{fixture, image};
     use super::*;
     use serde_json::json;

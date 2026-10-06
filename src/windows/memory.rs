@@ -221,11 +221,16 @@ impl Windows<'_> {
                     match self.number(node, node_type, f) {
                         Ok(child) => {
                             let valid = (|| -> Result<()> {
-                                if child != 0 && isf.field(node_type, "ParentValue").is_ok() {
-                                    ensure!(
-                                        self.number(child, node_type, "ParentValue")? & !3 == node,
-                                        "VAD 子节点父指针不一致"
-                                    );
+                                if child != 0 {
+                                    let parent = ["ParentValue", "u1.Parent"]
+                                        .into_iter()
+                                        .find(|field| isf.field(node_type, field).is_ok());
+                                    if let Some(parent) = parent {
+                                        ensure!(
+                                            self.number(child, node_type, parent)? & !3 == node,
+                                            "VAD 子节点父指针不一致"
+                                        );
+                                    }
                                 }
                                 Ok(())
                             })();
@@ -269,7 +274,20 @@ impl Windows<'_> {
                     String::new()
                 } else {
                     match self.vad_path(address) {
-                        Ok(path) => path,
+                        Ok(mut path) => {
+                            if let Some(end) = path.find('\0') {
+                                match result.as_deref_mut() {
+                                    Some(r) => Self::issue(
+                                        r,
+                                        format!("PID {} VAD {node:#x} file", p.pid),
+                                        "VAD 文件名含 NUL，已截断损坏尾部",
+                                    ),
+                                    None => bail!("VAD 文件名含 NUL"),
+                                }
+                                path.truncate(end);
+                            }
+                            path
+                        }
                         Err(e) => match result.as_deref_mut() {
                             Some(r) => {
                                 Self::issue(r, format!("PID {} VAD {node:#x} file", p.pid), e);
@@ -309,21 +327,31 @@ impl Windows<'_> {
         Ok(out)
     }
     fn vad_path(&self, address: u64) -> Result<String> {
-        let subsection = self.number(address, "_MMVAD", "Subsection")?;
-        if subsection == 0 {
-            return Ok(String::new());
-        }
-        let control = self.number(subsection, "_SUBSECTION", "ControlArea")?;
+        let control = if self.vm.isf.field("_MMVAD", "ControlArea").is_ok() {
+            self.number(address, "_MMVAD", "ControlArea")?
+        } else {
+            let subsection = self.number(address, "_MMVAD", "Subsection")?;
+            if subsection == 0 {
+                return Ok(String::new());
+            }
+            self.number(subsection, "_SUBSECTION", "ControlArea")?
+        };
         if control == 0 {
             return Ok(String::new());
         }
+        ensure!(self.vm.kernel(control), "无效 VAD ControlArea");
         let file_ref = self.field(control, "_CONTROL_AREA", "FilePointer")?;
-        let pointer = self.number(file_ref, "_EX_FAST_REF", "Object")?;
-        // ISF Object is a pointer member, whereas Value includes low refcount bits.
-        let file = pointer & if self.vm.pointer_size() == 4 { !7 } else { !15 };
+        let field = self.vm.isf.field("_CONTROL_AREA", "FilePointer")?;
+        let file = if field["type"]["kind"] == "pointer" {
+            self.vm.pointer(file_ref)?
+        } else {
+            self.number(file_ref, "_EX_FAST_REF", "Object")?
+                & if self.vm.pointer_size() == 4 { !7 } else { !15 }
+        };
         if file == 0 {
             return Ok(String::new());
         }
+        ensure!(self.vm.kernel(file), "无效 VAD 文件指针");
         self.vm
             .unicode(self.field(file, "_FILE_OBJECT", "FileName")?)
     }
@@ -475,6 +503,43 @@ mod tests {
         };
         let legacy_vads = engine.vads(&process, &Job::default()).unwrap();
         assert_eq!((legacy_vads[0].start, legacy_vads[0].end), (4096, 16384));
+        // NT6 AVL parent lives in a tagged union rather than ParentValue.
+        let mut parent_isf = Isf::parse(
+            &serde_json::to_vec(&isf.data).unwrap(),
+            "parent-vad-fixture".into(),
+        )
+        .unwrap();
+        parent_isf.data["user_types"]["_RTL_BALANCED_NODE"]["fields"]["u1"] =
+            json!({"offset":16,"type":{"kind":"union","name":"_VAD_PARENT"}});
+        parent_isf.data["user_types"]["_VAD_PARENT"] =
+            json!({"size":8,"fields":{"Parent":pointer(0)}});
+        let mut branch = b.clone();
+        put(&mut branch, 0xb008, K + 0x4000);
+        branch[0xc000..0xc040].fill(0);
+        put(&mut branch, 0xc010, (K + 0x3000) | 3);
+        put(&mut branch, 0xc018, 5);
+        put(&mut branch, 0xc020, 6);
+        put(&mut branch, 0xc028, 4 | 32);
+        for (parent, count) in [(K + 0x3000, 2), (K + 0x5000, 1)] {
+            put(&mut branch, 0xc010, parent | 3);
+            let img = image(&branch);
+            let engine = Windows {
+                vm: Memory {
+                    image: &img,
+                    root: 0x1000,
+                    isf: &parent_isf,
+                    sources: None,
+                },
+                base: K,
+                pdb: PdbIdentity::from_isf(&parent_isf).unwrap(),
+            };
+            let mut result = engine.result(Plugin::WinVadinfo);
+            let nodes = engine
+                .vads_partial(&process, &Job::default(), Some(&mut result))
+                .unwrap();
+            assert_eq!(nodes.len(), count);
+            assert_eq!(result.complete, count == 2);
+        }
         put(&mut b, 0xb000, K + 0x3000);
         let cycle = image(&b);
         let engine = Windows {
@@ -488,5 +553,56 @@ mod tests {
             pdb: PdbIdentity::from_isf(&isf).unwrap(),
         };
         assert!(engine.vads(&process, &Job::default()).is_err());
+    }
+}
+
+#[cfg(test)]
+mod control_area_tests {
+    use super::super::tests::{K, fixture, image, put};
+    use super::*;
+    use serde_json::json;
+    #[test]
+    fn legacy_direct_control_area_and_modern_fast_ref_paths() {
+        for modern in [false, true] {
+            let (mut b, mut isf) = fixture();
+            let ptr = |offset| json!({"offset":offset,"type":{"kind":"pointer"}});
+            isf.data["user_types"]["_MMVAD"] = json!({"size":8,"fields":{}});
+            isf.data["user_types"]["_CONTROL_AREA"] = json!({"size":8,"fields":{}});
+            isf.data["user_types"]["_FILE_OBJECT"] = json!({"size":16,"fields":{"FileName":{"offset":0,"type":{"kind":"struct","name":"_UNICODE_STRING"}}}});
+            let file = if modern {
+                isf.data["user_types"]["_MMVAD"]["fields"]["Subsection"] = ptr(0);
+                isf.data["user_types"]["_SUBSECTION"] =
+                    json!({"size":8,"fields":{"ControlArea":ptr(0)}});
+                isf.data["user_types"]["_EX_FAST_REF"] =
+                    json!({"size":8,"fields":{"Object":ptr(0)}});
+                isf.data["user_types"]["_CONTROL_AREA"]["fields"]["FilePointer"] =
+                    json!({"offset":0,"type":{"kind":"struct","name":"_EX_FAST_REF"}});
+                put(&mut b, 0xb000, K + 0x4000);
+                put(&mut b, 0xc000, K + 0x5000);
+                put(&mut b, 0xd000, K + 0x600f);
+                0xe000
+            } else {
+                isf.data["user_types"]["_MMVAD"]["fields"]["ControlArea"] = ptr(0);
+                isf.data["user_types"]["_CONTROL_AREA"]["fields"]["FilePointer"] = ptr(0);
+                put(&mut b, 0xb000, K + 0x4000);
+                put(&mut b, 0xc000, K + 0x5000);
+                0xd000
+            };
+            b[file..file + 4].copy_from_slice(&[8, 0, 8, 0]);
+            put(&mut b, file + 8, K + 0x7000);
+            b[0xf000..0xf008].copy_from_slice(&[b't', 0, b'e', 0, b's', 0, b't', 0]);
+            let img = image(&b);
+            let w = Windows {
+                vm: Memory {
+                    image: &img,
+                    root: 0x1000,
+                    isf: &isf,
+                    sources: None,
+                },
+                base: K,
+                pdb: PdbIdentity::from_isf(&isf).unwrap(),
+            };
+            assert_eq!(w.vad_path(K + 0x3000).unwrap(), "test");
+        }
     }
 }

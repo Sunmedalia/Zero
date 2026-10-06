@@ -26,6 +26,6 @@ acceptance:
 clean:
 	cargo clean
 
-# Public Windows 10/11 RAW samples and exact local PDB-derived ISFs.
+# Public Server 2003, Windows 7/10/11 RAW and crash/minidump samples; exact local ISFs.
 windows-acceptance:
 	cargo test --locked --release --test windows_acceptance -- --ignored

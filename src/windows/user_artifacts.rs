@@ -1,6 +1,14 @@
 //! Bounded user-memory scans. Layout facts: Volatility 3 v2.28 service/conhost ISFs.
 //! These are independent Rust parsers, not runtime Python plugins.
+use super::user_layout::{self, ServiceLayout};
 use super::*;
+fn layout_tag_offset(layout: &ServiceLayout) -> Result<u64> {
+    layout
+        .fields
+        .get("Tag")
+        .copied()
+        .context("服务记录缺少 Tag 偏移")
+}
 const SCAN_LIMIT: u64 = 128 * 1024 * 1024;
 fn user(vm: &Memory<'_>, address: u64) -> bool {
     address >= 0x10000 && !vm.kernel(address) && vm.paging().is_ok_and(|p| p.canonical(address))
@@ -68,10 +76,7 @@ impl Windows<'_> {
             job.check()?;
             let read = (|| -> Result<()> {
                 let vm = self.process_memory(&p)?;
-                ensure!(
-                    Architecture::from_isf(self.vm.isf)? == Architecture::X64,
-                    "该用户对象布局目前只验证 x64"
-                );
+                let arch = Architecture::from_isf(self.vm.isf)?;
                 let mut dll_result = self.result(Plugin::WinDlllist);
                 let modules = self.dlls(&p, job, &mut dll_result)?;
                 if !dll_result.complete {
@@ -90,35 +95,33 @@ impl Windows<'_> {
                 let version = match network_layout::file_version(&vm, base) {
                     Ok(version) => version,
                     Err(e) if plugin == Plugin::WinSvcscan => {
-                        let build = self.vm.uint(self.symbol("NtBuildNumber")?, 4)? & 0xffff;
-                        ensure!(
-                            matches!(build, 15063 | 19041 | 22000),
-                            "services PE 不可读，内核构建也没有声明布局"
-                        );
+                        let version = self.declared_kernel_version()?;
+                        user_layout::service(arch, version)?;
                         Self::issue(
                             &mut result,
                             format!("PID {} services identity", p.pid),
                             format!("PE 版本不可读，使用声明的内核构建布局: {e:#}"),
                         );
-                        [10, 0, build as u16, 0]
+                        version
                     }
                     Err(e) => return Err(e),
                 };
-                let build = version[2];
-                let service_tail = match build {
-                    15063 => Some((232, 32)),
-                    19041 | 22000 => Some((296, 40)),
-                    _ => None,
-                };
-                if plugin == Plugin::WinSvcscan {
-                    ensure!(service_tail.is_some(), "未知 services.exe 布局 {version:?}");
+                let service_layout = if plugin == Plugin::WinSvcscan {
+                    Some(user_layout::service(arch, version)?)
                 } else {
-                    ensure!(
-                        matches!(build, 19041 | 22000),
-                        "未知 conhost.exe 布局 {version:?}"
-                    );
-                }
-                result.kernel_identity[format!("pid{}_layout", p.pid)] = serde_json::json!({"file_version":version,"source":"Volatility 3 v2.28 declarative layout facts","validation":"synthetic"});
+                    None
+                };
+                let console_layout = if plugin != Plugin::WinSvcscan {
+                    Some(user_layout::console(arch, version)?)
+                } else {
+                    None
+                };
+                let source = service_layout
+                    .as_ref()
+                    .map(|l| l.source.as_str())
+                    .or_else(|| console_layout.as_ref().map(|l| l.source.as_str()))
+                    .unwrap();
+                result.kernel_identity[format!("pid{}_layout", p.pid)] = serde_json::json!({"file_version":version,"source":source,"validation":"synthetic"});
                 Self::issue(
                     &mut result,
                     format!("PID {} layout", p.pid),
@@ -149,15 +152,22 @@ impl Windows<'_> {
                             continue;
                         }
                         if plugin == Plugin::WinSvcscan {
-                            for hit in memchr::memmem::find_iter(&bytes, b"serH") {
+                            let layout = service_layout.as_ref().expect("service layout");
+                            let tag: &[u8] = if version[0] < 6 { b"sErv" } else { b"serH" };
+                            for hit in memchr::memmem::find_iter(&bytes, tag) {
                                 let header = address + hit as u64;
-                                let record = vm.pointer(add(header, 16)?);
+                                let record = if version[0] < 6 {
+                                    header
+                                        .checked_sub(layout_tag_offset(layout)?)
+                                        .context("service tag 下溢")
+                                } else {
+                                    vm.pointer(add(header, layout.header_record)?)
+                                };
                                 if let Ok(record) = record {
-                                    let (tail, pid_offset) = service_tail.expect("service layout");
                                     self.services_chain(
                                         &vm,
                                         record,
-                                        (tail, pid_offset),
+                                        layout,
                                         &mut seen,
                                         &mut result,
                                         job,
@@ -203,7 +213,8 @@ impl Windows<'_> {
                                         }
                                     }
                                 } else {
-                                    let size_offset = if build == 22000 { 136 } else { 144 };
+                                    let layout = console_layout.as_ref().expect("console layout");
+                                    let size_offset = 0;
                                     if at + size_offset + 6 > bytes.len() {
                                         continue;
                                     }
@@ -219,12 +230,17 @@ impl Windows<'_> {
                                     {
                                         continue;
                                     }
-                                    let title_offset = if build == 22000 { 1616 } else { 1688 };
-                                    let history_bias = if build == 22000 { 920 } else { 352 };
+                                    let Some(candidate) =
+                                        (address + at as u64).checked_sub(layout.maximum)
+                                    else {
+                                        continue;
+                                    };
+                                    if !user(&vm, candidate) {
+                                        continue;
+                                    }
                                     let read = (|| -> Result<Vec<String>> {
-                                        let slot = candidate
-                                            .checked_sub(history_bias)
-                                            .context("console history 下溢")?;
+                                        let slot =
+                                            user_layout::signed_add(candidate, layout.history)?;
                                         let head = vm.pointer(slot)?;
                                         let flink = vm.pointer(head)?;
                                         let blink = vm.pointer(add(head, 8)?)?;
@@ -242,7 +258,7 @@ impl Windows<'_> {
                                         );
                                         let title = wide_string(
                                             &vm,
-                                            vm.pointer(add(candidate, title_offset)?)?,
+                                            vm.pointer(add(candidate, layout.title)?)?,
                                         )?;
                                         ensure!(!title.is_empty(), "console 标题为空");
                                         Ok(vec![
@@ -290,12 +306,11 @@ impl Windows<'_> {
         &self,
         vm: &Memory<'_>,
         mut record: u64,
-        layout: (u64, u64),
+        layout: &ServiceLayout,
         seen: &mut HashSet<u64>,
         r: &mut Results,
         job: &Job,
     ) -> Result<()> {
-        let (tail, pid_offset) = layout;
         let mut chain = HashSet::new();
         for _ in 0..65536 {
             job.check()?;
@@ -311,20 +326,21 @@ impl Windows<'_> {
             }
             let read = (|| -> Result<(Vec<String>, u64)> {
                 ensure!(
-                    user(vm, record) && record.is_multiple_of(8),
+                    user(vm, record) && record.is_multiple_of(layout.pointer_size as u64),
                     "service record 地址无效"
                 );
-                let start = vm.uint(add(record, 36)?, 4)?;
-                let kind = vm.uint(add(record, 72)?, 4)?;
-                let state = vm.uint(add(record, 76)?, 4)?;
+                let start = vm.uint(add(record, layout.fields["Start"])?, 4)?;
+                let kind = vm.uint(add(record, layout.fields["Type"])?, 4)?;
+                let state = vm.uint(add(record, layout.fields["State"])?, 4)?;
                 ensure!(
                     start <= 4 && (1..=7).contains(&state) && kind != 0 && kind & !0x3ff == 0,
                     "service record 枚举无效"
                 );
-                let name = wide_string(vm, vm.pointer(add(record, 56)?)?)?;
+                let name =
+                    wide_string(vm, vm.pointer(add(record, layout.fields["ServiceName"])?)?)?;
                 ensure!(!name.is_empty(), "service 名称为空");
                 let display = match vm
-                    .pointer(add(record, 64)?)
+                    .pointer(add(record, layout.fields["DisplayName"])?)
                     .and_then(|pointer| wide_string(vm, pointer))
                 {
                     Ok(text) => text,
@@ -337,11 +353,18 @@ impl Windows<'_> {
                 let mut binary = String::new();
                 if state == 4 {
                     let read_binary = (|| -> Result<()> {
-                        let pointer = vm.pointer(add(record, tail)?)?;
+                        let pointer = vm.pointer(add(
+                            record,
+                            layout.fields[if kind & 0x30 != 0 {
+                                "ServiceProcess"
+                            } else {
+                                "DriverName"
+                            }],
+                        )?)?;
                         ensure!(user(vm, pointer), "运行中服务指针无效");
                         if kind & 0x30 != 0 {
-                            pid = vm.uint(add(pointer, pid_offset)?, 4)?.to_string();
-                            binary = wide_string(vm, vm.pointer(add(pointer, 24)?)?)?;
+                            pid = vm.uint(add(pointer, layout.pid)?, 4)?.to_string();
+                            binary = wide_string(vm, vm.pointer(add(pointer, layout.binary)?)?)?;
                         } else {
                             binary = wide_string(vm, pointer)?;
                         }
@@ -362,7 +385,11 @@ impl Windows<'_> {
                         format!("{kind:#x}"),
                         binary,
                     ],
-                    vm.pointer(add(record, 16)?)?,
+                    if let Some(offset) = layout.previous {
+                        vm.pointer(add(record, offset)?)?
+                    } else {
+                        0
+                    },
                 ))
             })();
             match read {
@@ -371,7 +398,12 @@ impl Windows<'_> {
                     r.rows.push(row);
                     record = previous;
                 }
-                Err(_) => return Ok(()),
+                Err(e) => {
+                    if !chain.is_empty() && chain.len() > 1 {
+                        Self::issue(r, format!("service record {record:#x}"), format!("{e:#}"));
+                    }
+                    return Ok(());
+                }
             }
         }
         Self::issue(r, "service chain", "服务链超过 65536 项");
@@ -487,7 +519,7 @@ mod tests {
             .services_chain(
                 &engine.vm,
                 0x13000,
-                (232, 32),
+                &user_layout::service(Architecture::X64, [10, 0, 15063, 0]).unwrap(),
                 &mut seen,
                 &mut r,
                 &Job::default(),
@@ -500,7 +532,7 @@ mod tests {
             .services_chain(
                 &engine.vm,
                 0x13000,
-                (296, 40),
+                &user_layout::service(Architecture::X64, [10, 0, 19041, 0]).unwrap(),
                 &mut HashSet::new(),
                 &mut r,
                 &Job::default(),
@@ -509,5 +541,100 @@ mod tests {
         assert_eq!(r.rows.len(), 1);
         assert!(r.rows[0][7].is_empty());
         assert!(!r.complete);
+    }
+}
+
+#[cfg(test)]
+mod compatibility_tests {
+    use super::super::tests::{K, fixture, image, put};
+    use super::*;
+    use serde_json::json;
+    #[test]
+    fn every_declared_service_layout_reads_names_pid_binary_and_cycles() {
+        let manifest: serde_json::Value =
+            serde_json::from_str(include_str!("user_layouts.json")).unwrap();
+        for (name, data) in manifest["services"].as_object().unwrap() {
+            let layout: ServiceLayout = serde_json::from_value(data.clone()).unwrap();
+            let (mut b, mut isf) = fixture();
+            if layout.pointer_size == 4 {
+                isf.data["base_types"]["pointer"]["size"] = json!(4);
+                isf.data["metadata"]["windows"]["pdb"]["machine_type"] = json!(0x14c);
+                b[0x1000..0x3000].fill(0);
+                b[0x1000..0x1004].copy_from_slice(&0x2003u32.to_le_bytes());
+                for i in 0..32 {
+                    b[0x2000 + i * 4..0x2000 + i * 4 + 4]
+                        .copy_from_slice(&(0x8003 + i as u32 * 4096).to_le_bytes());
+                }
+            } else {
+                put(&mut b, 0x1000, 0x2003);
+            }
+            b[0x1b000..0x1e000].fill(0);
+            let store = |b: &mut [u8], at: u64, n: u64, width: usize| {
+                b[at as usize..at as usize + width].copy_from_slice(&n.to_le_bytes()[..width]);
+            };
+            for (field, value) in [("Start", 2), ("Type", 16), ("State", 4)] {
+                store(&mut b, 0x1b000 + layout.fields[field], value, 4);
+            }
+            for (field, pointer) in [
+                ("ServiceName", 0x14000),
+                ("DisplayName", 0x14040),
+                ("ServiceProcess", 0x15000),
+            ] {
+                store(
+                    &mut b,
+                    0x1b000 + layout.fields[field],
+                    pointer,
+                    layout.pointer_size,
+                );
+            }
+            store(
+                &mut b,
+                0x1d000 + layout.binary,
+                0x14080,
+                layout.pointer_size,
+            );
+            store(&mut b, 0x1d000 + layout.pid, 123, 4);
+            if let Some(offset) = layout.previous {
+                store(&mut b, 0x1b000 + offset, 0x13000, layout.pointer_size);
+            }
+            for (at, text) in [
+                (0x1c000, "TestSvc"),
+                (0x1c040, "Test Service"),
+                (0x1c080, "C:\\svc.exe"),
+            ] {
+                let text: Vec<u8> = text
+                    .encode_utf16()
+                    .chain([0])
+                    .flat_map(u16::to_le_bytes)
+                    .collect();
+                b[at..at + text.len()].copy_from_slice(&text);
+            }
+            let img = image(&b);
+            let w = Windows {
+                vm: Memory {
+                    image: &img,
+                    root: 0x1000,
+                    isf: &isf,
+                    sources: None,
+                },
+                base: K,
+                pdb: PdbIdentity::from_isf(&isf).unwrap(),
+            };
+            let mut r = w.result(Plugin::WinSvcscan);
+            w.services_chain(
+                &w.vm,
+                0x13000,
+                &layout,
+                &mut HashSet::new(),
+                &mut r,
+                &Job::default(),
+            )
+            .unwrap();
+            assert_eq!(r.rows.len(), 1, "{name}: {:?}", r.diagnostics);
+            assert_eq!(r.rows[0][0], "123", "{name}");
+            assert_eq!(r.rows[0][2], "TestSvc");
+            assert_eq!(r.rows[0][7], "C:\\svc.exe");
+            assert_eq!(r.complete, layout.previous.is_none());
+        }
     }
 }

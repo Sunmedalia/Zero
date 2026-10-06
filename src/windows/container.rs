@@ -378,18 +378,36 @@ fn triage(r: &Reader<'_>, p: &mut Parsed, header: u64, width: usize, job: &Job) 
             name,
         });
     }
-    // Merge overlapping ranges only when their virtual-to-file mapping agrees.
+    // Captures may save identical stack bytes twice at different file offsets.
+    // Accept verified identical overlaps; reject conflicting bytes.
     p.segments.sort_by_key(|s| (s.start, s.end));
     let mut merged: Vec<Segment> = Vec::new();
-    for segment in p.segments.drain(..) {
+    for mut segment in p.segments.drain(..) {
         if let Some(last) = merged.last_mut()
             && segment.start < last.end
         {
-            ensure!(
-                add(last.file_offset, segment.start - last.start)? == segment.file_offset,
-                "triage 虚拟映射冲突"
-            );
-            last.end = last.end.max(segment.end);
+            if add(last.file_offset, segment.start - last.start)? == segment.file_offset {
+                last.end = last.end.max(segment.end);
+                continue;
+            }
+            let overlap = last.end.min(segment.end) - segment.start;
+            let previous = add(last.file_offset, segment.start - last.start)?;
+            let mut checked = 0;
+            while checked < overlap {
+                job.check()?;
+                let size = (overlap - checked).min(65536) as usize;
+                ensure!(
+                    r.bytes(add(previous, checked)?, size)?
+                        == r.bytes(add(segment.file_offset, checked)?, size)?,
+                    "triage 虚拟映射冲突"
+                );
+                checked += size as u64;
+            }
+            if segment.end > last.end {
+                segment.file_offset = add(segment.file_offset, last.end - segment.start)?;
+                segment.start = last.end;
+                merged.push(segment);
+            }
         } else {
             merged.push(segment);
         }
@@ -982,7 +1000,7 @@ mod tests {
             assert_eq!(saved, [0x5a; 16]);
             assert!(img.read(address + 16, &mut [0]).is_err());
             assert!(img.read(0, &mut [0]).is_err());
-            // Overlapping saved ranges must have an identical virtual-to-file mapping.
+            // Identical virtual mappings merge; separately stored copies require equal bytes.
             let stride = width + 8;
             b[header + tail + 12..header + tail + 16].copy_from_slice(&2u32.to_le_bytes());
             let second = header + 160 + stride;
@@ -991,6 +1009,19 @@ mod tests {
                 .copy_from_slice(&((header + 520) as u32).to_le_bytes());
             b[second + width + 4..second + width + 8].copy_from_slice(&8u32.to_le_bytes());
             assert_eq!(image(&b).segments.len(), 1);
+            // A separate copy of the same overlap is legitimate (real Server 2016 triage).
+            b[header + 920..header + 928].fill(0x5a);
+            b[second + width..second + width + 4]
+                .copy_from_slice(&((header + 920) as u32).to_le_bytes());
+            assert_eq!(image(&b).segments.len(), 1);
+            // A new tail keeps its own file offset, while matching overlapping bytes.
+            b[header + 928..header + 932].fill(0x6b);
+            b[second + width + 4..second + width + 8].copy_from_slice(&12u32.to_le_bytes());
+            let copies = image(&b);
+            let mut tail_bytes = [0; 4];
+            copies.read(address + 16, &mut tail_bytes).unwrap();
+            assert_eq!(tail_bytes, [0x6b; 4]);
+            b[second + width + 4..second + width + 8].copy_from_slice(&8u32.to_le_bytes());
             b[second + width..second + width + 4]
                 .copy_from_slice(&((header + 521) as u32).to_le_bytes());
             let mut conflict = tempfile::tempfile().unwrap();

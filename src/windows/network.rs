@@ -46,15 +46,39 @@ impl Windows<'_> {
         let layout = if let Some(layout) = exact {
             layout
         } else {
-            network_layout::manifest(&identity, arch, version).with_context(|| {
-                format!("无法解码 TCP/IP {} version {version:?}", identity.key())
-            })?
+            match network_layout::manifest(&identity, arch, version) {
+                Ok(layout) => layout,
+                Err(e) if version.is_none() => {
+                    let kernel_version = self.declared_kernel_version()?;
+                    let mut layout =
+                        network_layout::manifest(&identity, arch, Some(kernel_version))
+                            .with_context(|| {
+                                format!("驱动 PE 不可读且内核系列没有声明 TCP/IP 布局: {e:#}")
+                            })?;
+                    layout.validation = "synthetic-kernel-version-fallback".into();
+                    layout
+                }
+                Err(e) => {
+                    return Err(e).with_context(|| {
+                        format!("无法解码 TCP/IP {} version {version:?}", identity.key())
+                    });
+                }
+            }
         };
         let mut r = self.result(Plugin::WinNetscan);
         r.complete = diagnostics.is_empty();
         r.diagnostics = diagnostics;
         r.kernel_identity["tcpip_pdb"] = serde_json::to_value(&identity)?;
         r.kernel_identity["tcpip_file_version"] = serde_json::json!(version);
+        if layout.validation == "synthetic-kernel-version-fallback" {
+            Self::issue(
+                &mut r,
+                "TCP/IP identity",
+                "驱动 PE 版本不可读；仅采用显式声明的内核系列布局，未验证驱动布局兼容性",
+            );
+            r.kernel_identity["network_kernel_fallback"] =
+                serde_json::json!(self.declared_kernel_version()?);
+        }
         r.kernel_identity["network_layout"] = serde_json::json!({"source":layout.source,"validation":layout.validation,"pointer_size":layout.pointer_size});
         if !matches!(
             layout.validation.as_str(),
@@ -294,7 +318,10 @@ mod tests {
         assert_eq!(endpoint(&vm, 0, 23, 80).unwrap(), "[::]:80");
         let layouts: serde_json::Value = serde_json::from_str(LAYOUTS).unwrap();
         assert!(layouts["identities"]["tcpip.pdb/UNKNOWN1"].is_null());
-        assert_eq!(layouts["identities"].as_object().unwrap().len(), 3);
+        assert_eq!(
+            layouts["identities"]["tcpip.pdb/ABB23D00EE7E4165B6AFF66F2DF02EB22"],
+            "netscan-win7-x64"
+        );
         assert!(read(&[1], 0, 2).is_err());
     }
 }

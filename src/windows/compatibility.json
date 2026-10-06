@@ -1,0 +1,1510 @@
+{
+  "schema": 1,
+  "levels": {
+    "real": "Recorded real-image evidence for specific builds/containers only; not all builds or complete recovery",
+    "synthetic": "Parser path exercised with a synthetic fixture; not real-system validation",
+    "pending": "Requires real-system evidence or layout validation",
+    "unsupported": "Parser/model is not available for this combination"
+  },
+  "targets": [
+    {
+      "name": "Windows Server 2003",
+      "major": 5,
+      "minor": 2,
+      "builds": [
+        3790
+      ],
+      "server": true,
+      "architectures": [
+        "x86",
+        "x64"
+      ],
+      "containers": [
+        "raw",
+        "kernel-crash"
+      ],
+      "plugins": {
+        "x86": {
+          "windows.callbacks": "synthetic",
+          "windows.unloadedmodules": "real",
+          "windows.filescan": "real",
+          "windows.mutantscan": "real",
+          "windows.getsids": "real",
+          "windows.connscan": "synthetic",
+          "windows.sockscan": "synthetic",
+          "windows.consoles": "unsupported",
+          "windows.cmdscan": "unsupported",
+          "windows.drivercheck": "real",
+          "windows.driverscan": "real",
+          "windows.svcscan": "real",
+          "windows.crashinfo": "pending",
+          "windows.autoruns": "real",
+          "windows.envars": "real",
+          "windows.threads": "real",
+          "windows.systeminfo": "real",
+          "windows.pslist": "real",
+          "windows.pstree": "real",
+          "windows.cmdline": "real",
+          "windows.modules": "real",
+          "windows.dlllist": "real",
+          "windows.vadinfo": "real",
+          "windows.handles": "real",
+          "windows.malfind": "real",
+          "windows.netscan": "unsupported",
+          "windows.hivelist": "real",
+          "windows.printkey": "pending",
+          "windows.psscan": "real",
+          "windows.psxview": "real",
+          "windows.procdump": "pending",
+          "windows.memdump": "pending",
+          "windows.pedump": "pending"
+        },
+        "x64": {
+          "windows.callbacks": "synthetic",
+          "windows.unloadedmodules": "synthetic",
+          "windows.filescan": "synthetic",
+          "windows.mutantscan": "synthetic",
+          "windows.getsids": "synthetic",
+          "windows.connscan": "synthetic",
+          "windows.sockscan": "synthetic",
+          "windows.consoles": "unsupported",
+          "windows.cmdscan": "unsupported",
+          "windows.drivercheck": "pending",
+          "windows.driverscan": "pending",
+          "windows.svcscan": "synthetic",
+          "windows.crashinfo": "pending",
+          "windows.autoruns": "pending",
+          "windows.envars": "pending",
+          "windows.threads": "pending",
+          "windows.systeminfo": "pending",
+          "windows.pslist": "pending",
+          "windows.pstree": "pending",
+          "windows.cmdline": "pending",
+          "windows.modules": "pending",
+          "windows.dlllist": "pending",
+          "windows.vadinfo": "pending",
+          "windows.handles": "pending",
+          "windows.malfind": "pending",
+          "windows.netscan": "unsupported",
+          "windows.hivelist": "pending",
+          "windows.printkey": "pending",
+          "windows.psscan": "pending",
+          "windows.psxview": "pending",
+          "windows.procdump": "pending",
+          "windows.memdump": "pending",
+          "windows.pedump": "pending"
+        }
+      },
+      "evidence": [
+        {
+          "fixture": "images/boomer-win2003-2006-03-17.img",
+          "sha256": "dc7022c2183dade6c36ebf19c74af5234bff8800e2a6f95e825287da9a214adb",
+          "source": "https://cfreds-archive.nist.gov/mem/Basic_Memory_Images.html",
+          "build": 3790,
+          "architecture": "x86",
+          "container": "raw",
+          "pdb": {
+            "age": 2,
+            "guid": "4E4A894DD1A64BC3ADFEA71F18E29364",
+            "name": "ntkrnlmp.pdb"
+          },
+          "rows": {
+            "windows.autoruns": 711,
+            "windows.callbacks": 0,
+            "windows.cmdline": 21,
+            "windows.connscan": 0,
+            "windows.dlllist": 679,
+            "windows.drivercheck": 2511,
+            "windows.driverscan": 81,
+            "windows.envars": 426,
+            "windows.filescan": 1506,
+            "windows.getsids": 142,
+            "windows.handles": 4315,
+            "windows.hivelist": 13,
+            "windows.malfind": 1094,
+            "windows.modules": 97,
+            "windows.mutantscan": 116,
+            "windows.pslist": 22,
+            "windows.psscan": 28,
+            "windows.pstree": 22,
+            "windows.psxview": 28,
+            "windows.sockscan": 0,
+            "windows.svcscan": 230,
+            "windows.systeminfo": 14,
+            "windows.threads": 312,
+            "windows.unloadedmodules": 4,
+            "windows.vadinfo": 1986
+          }
+        }
+      ]
+    },
+    {
+      "name": "Windows Server 2003 R2",
+      "major": 5,
+      "minor": 2,
+      "builds": [
+        3790
+      ],
+      "server": true,
+      "architectures": [
+        "x86",
+        "x64"
+      ],
+      "containers": [
+        "raw",
+        "kernel-crash"
+      ],
+      "plugins": {
+        "x86": {
+          "windows.callbacks": "synthetic",
+          "windows.unloadedmodules": "synthetic",
+          "windows.filescan": "synthetic",
+          "windows.mutantscan": "synthetic",
+          "windows.getsids": "synthetic",
+          "windows.connscan": "synthetic",
+          "windows.sockscan": "synthetic",
+          "windows.consoles": "unsupported",
+          "windows.cmdscan": "unsupported",
+          "windows.drivercheck": "pending",
+          "windows.driverscan": "pending",
+          "windows.svcscan": "synthetic",
+          "windows.crashinfo": "pending",
+          "windows.autoruns": "pending",
+          "windows.envars": "pending",
+          "windows.threads": "pending",
+          "windows.systeminfo": "pending",
+          "windows.pslist": "pending",
+          "windows.pstree": "pending",
+          "windows.cmdline": "pending",
+          "windows.modules": "pending",
+          "windows.dlllist": "pending",
+          "windows.vadinfo": "pending",
+          "windows.handles": "pending",
+          "windows.malfind": "pending",
+          "windows.netscan": "unsupported",
+          "windows.hivelist": "pending",
+          "windows.printkey": "pending",
+          "windows.psscan": "pending",
+          "windows.psxview": "pending",
+          "windows.procdump": "pending",
+          "windows.memdump": "pending",
+          "windows.pedump": "pending"
+        },
+        "x64": {
+          "windows.callbacks": "synthetic",
+          "windows.unloadedmodules": "synthetic",
+          "windows.filescan": "synthetic",
+          "windows.mutantscan": "synthetic",
+          "windows.getsids": "synthetic",
+          "windows.connscan": "synthetic",
+          "windows.sockscan": "synthetic",
+          "windows.consoles": "unsupported",
+          "windows.cmdscan": "unsupported",
+          "windows.drivercheck": "pending",
+          "windows.driverscan": "pending",
+          "windows.svcscan": "synthetic",
+          "windows.crashinfo": "pending",
+          "windows.autoruns": "pending",
+          "windows.envars": "pending",
+          "windows.threads": "pending",
+          "windows.systeminfo": "pending",
+          "windows.pslist": "pending",
+          "windows.pstree": "pending",
+          "windows.cmdline": "pending",
+          "windows.modules": "pending",
+          "windows.dlllist": "pending",
+          "windows.vadinfo": "pending",
+          "windows.handles": "pending",
+          "windows.malfind": "pending",
+          "windows.netscan": "unsupported",
+          "windows.hivelist": "pending",
+          "windows.printkey": "pending",
+          "windows.psscan": "pending",
+          "windows.psxview": "pending",
+          "windows.procdump": "pending",
+          "windows.memdump": "pending",
+          "windows.pedump": "pending"
+        }
+      },
+      "evidence": []
+    },
+    {
+      "name": "Windows Server 2008",
+      "major": 6,
+      "minor": 0,
+      "builds": [
+        6001,
+        6002
+      ],
+      "server": true,
+      "architectures": [
+        "x86",
+        "x64"
+      ],
+      "containers": [
+        "raw",
+        "kernel-crash"
+      ],
+      "plugins": {
+        "x86": {
+          "windows.callbacks": "real",
+          "windows.unloadedmodules": "real",
+          "windows.filescan": "real",
+          "windows.mutantscan": "real",
+          "windows.getsids": "real",
+          "windows.connscan": "unsupported",
+          "windows.sockscan": "unsupported",
+          "windows.consoles": "unsupported",
+          "windows.cmdscan": "unsupported",
+          "windows.drivercheck": "pending",
+          "windows.driverscan": "pending",
+          "windows.svcscan": "real",
+          "windows.crashinfo": "pending",
+          "windows.autoruns": "pending",
+          "windows.envars": "pending",
+          "windows.threads": "real",
+          "windows.systeminfo": "real",
+          "windows.pslist": "real",
+          "windows.pstree": "pending",
+          "windows.cmdline": "pending",
+          "windows.modules": "real",
+          "windows.dlllist": "pending",
+          "windows.vadinfo": "real",
+          "windows.handles": "real",
+          "windows.malfind": "pending",
+          "windows.netscan": "real",
+          "windows.hivelist": "real",
+          "windows.printkey": "pending",
+          "windows.psscan": "pending",
+          "windows.psxview": "pending",
+          "windows.procdump": "pending",
+          "windows.memdump": "pending",
+          "windows.pedump": "pending"
+        },
+        "x64": {
+          "windows.callbacks": "synthetic",
+          "windows.unloadedmodules": "synthetic",
+          "windows.filescan": "synthetic",
+          "windows.mutantscan": "synthetic",
+          "windows.getsids": "synthetic",
+          "windows.connscan": "unsupported",
+          "windows.sockscan": "unsupported",
+          "windows.consoles": "unsupported",
+          "windows.cmdscan": "unsupported",
+          "windows.drivercheck": "pending",
+          "windows.driverscan": "pending",
+          "windows.svcscan": "synthetic",
+          "windows.crashinfo": "pending",
+          "windows.autoruns": "pending",
+          "windows.envars": "pending",
+          "windows.threads": "pending",
+          "windows.systeminfo": "pending",
+          "windows.pslist": "pending",
+          "windows.pstree": "pending",
+          "windows.cmdline": "pending",
+          "windows.modules": "pending",
+          "windows.dlllist": "pending",
+          "windows.vadinfo": "pending",
+          "windows.handles": "pending",
+          "windows.malfind": "pending",
+          "windows.netscan": "pending",
+          "windows.hivelist": "pending",
+          "windows.printkey": "pending",
+          "windows.psscan": "pending",
+          "windows.psxview": "pending",
+          "windows.procdump": "pending",
+          "windows.memdump": "pending",
+          "windows.pedump": "pending"
+        }
+      },
+      "evidence": [
+        {
+          "sha256": "d3b13f2224cab20440a4bb3c5c971662be6e61f431340f319cef7312bb6177f4",
+          "source": "https://samsclass.info/121/proj/p5-Vol.htm",
+          "build": 6001,
+          "architecture": "x86",
+          "container": "raw",
+          "pdb": {
+            "age": 2,
+            "guid": "37D328E3BAE5460F8E662756ED80951D",
+            "name": "ntkrpamp.pdb"
+          },
+          "rows": {
+            "windows.callbacks": 6,
+            "windows.filescan": 1980,
+            "windows.getsids": 516,
+            "windows.handles": 20351,
+            "windows.hivelist": 13,
+            "windows.modules": 105,
+            "windows.mutantscan": 337,
+            "windows.netscan": 102,
+            "windows.pslist": 48,
+            "windows.svcscan": 342,
+            "windows.systeminfo": 14,
+            "windows.threads": 560,
+            "windows.unloadedmodules": 5,
+            "windows.vadinfo": 5229
+          },
+          "fixture": "images/server2008/memdump.mem",
+          "complete": {
+            "windows.filescan": false,
+            "windows.handles": false,
+            "windows.hivelist": true,
+            "windows.vadinfo": false,
+            "windows.callbacks": false,
+            "windows.systeminfo": true,
+            "windows.modules": false,
+            "windows.unloadedmodules": false,
+            "windows.threads": false,
+            "windows.svcscan": false,
+            "windows.mutantscan": false,
+            "windows.getsids": true,
+            "windows.pslist": true,
+            "windows.netscan": false
+          }
+        }
+      ],
+      "notes": "Real evidence is limited to listed sample build/container; partial results and missing fields remain explicit."
+    },
+    {
+      "name": "Windows Server 2008 R2",
+      "major": 6,
+      "minor": 1,
+      "builds": [
+        7600,
+        7601
+      ],
+      "server": true,
+      "architectures": [
+        "x64"
+      ],
+      "containers": [
+        "raw",
+        "kernel-crash"
+      ],
+      "plugins": {
+        "x64": {
+          "windows.callbacks": "synthetic",
+          "windows.unloadedmodules": "synthetic",
+          "windows.filescan": "synthetic",
+          "windows.mutantscan": "synthetic",
+          "windows.getsids": "synthetic",
+          "windows.connscan": "unsupported",
+          "windows.sockscan": "unsupported",
+          "windows.consoles": "unsupported",
+          "windows.cmdscan": "unsupported",
+          "windows.drivercheck": "pending",
+          "windows.driverscan": "pending",
+          "windows.svcscan": "synthetic",
+          "windows.crashinfo": "pending",
+          "windows.autoruns": "pending",
+          "windows.envars": "pending",
+          "windows.threads": "pending",
+          "windows.systeminfo": "pending",
+          "windows.pslist": "pending",
+          "windows.pstree": "pending",
+          "windows.cmdline": "pending",
+          "windows.modules": "pending",
+          "windows.dlllist": "pending",
+          "windows.vadinfo": "pending",
+          "windows.handles": "pending",
+          "windows.malfind": "pending",
+          "windows.netscan": "pending",
+          "windows.hivelist": "pending",
+          "windows.printkey": "pending",
+          "windows.psscan": "pending",
+          "windows.psxview": "pending",
+          "windows.procdump": "pending",
+          "windows.memdump": "pending",
+          "windows.pedump": "pending"
+        }
+      },
+      "evidence": [],
+      "notes": "No retrievable, identity-verified sample in this validation pass; real kernel plugin evidence still pending."
+    },
+    {
+      "name": "Windows Server 2012",
+      "major": 6,
+      "minor": 2,
+      "builds": [
+        9200
+      ],
+      "server": true,
+      "architectures": [
+        "x64"
+      ],
+      "containers": [
+        "raw",
+        "kernel-crash"
+      ],
+      "plugins": {
+        "x64": {
+          "windows.callbacks": "real",
+          "windows.unloadedmodules": "real",
+          "windows.filescan": "real",
+          "windows.mutantscan": "real",
+          "windows.getsids": "real",
+          "windows.connscan": "unsupported",
+          "windows.sockscan": "unsupported",
+          "windows.consoles": "unsupported",
+          "windows.cmdscan": "unsupported",
+          "windows.drivercheck": "pending",
+          "windows.driverscan": "pending",
+          "windows.svcscan": "real",
+          "windows.crashinfo": "pending",
+          "windows.autoruns": "pending",
+          "windows.envars": "pending",
+          "windows.threads": "real",
+          "windows.systeminfo": "real",
+          "windows.pslist": "real",
+          "windows.pstree": "pending",
+          "windows.cmdline": "pending",
+          "windows.modules": "real",
+          "windows.dlllist": "pending",
+          "windows.vadinfo": "real",
+          "windows.handles": "real",
+          "windows.malfind": "pending",
+          "windows.netscan": "real",
+          "windows.hivelist": "real",
+          "windows.printkey": "pending",
+          "windows.psscan": "pending",
+          "windows.psxview": "pending",
+          "windows.procdump": "pending",
+          "windows.memdump": "pending",
+          "windows.pedump": "pending"
+        }
+      },
+      "evidence": [
+        {
+          "sha256": "b67593da4694d599de7af8455279262ec51c75536eec400680d9fe00c082a033",
+          "source": "https://memoryforensic.com/memory-dumps-collection-volume-1",
+          "build": 9200,
+          "architecture": "x64",
+          "container": "raw",
+          "pdb": {
+            "age": 2,
+            "guid": "724821001C1C4A03AED8C4C71C2E8D1D",
+            "name": "ntkrnlmp.pdb"
+          },
+          "rows": {
+            "windows.callbacks": 6,
+            "windows.filescan": 4550,
+            "windows.getsids": 364,
+            "windows.handles": 9589,
+            "windows.hivelist": 14,
+            "windows.modules": 124,
+            "windows.mutantscan": 149,
+            "windows.netscan": 67,
+            "windows.pslist": 35,
+            "windows.svcscan": 370,
+            "windows.systeminfo": 14,
+            "windows.threads": 449,
+            "windows.unloadedmodules": 18,
+            "windows.vadinfo": 3591
+          },
+          "fixture": "images/server2012-psexec.mem",
+          "complete": {
+            "windows.threads": false,
+            "windows.svcscan": false,
+            "windows.mutantscan": false,
+            "windows.filescan": false,
+            "windows.getsids": true,
+            "windows.hivelist": true,
+            "windows.netscan": true,
+            "windows.handles": false,
+            "windows.vadinfo": false,
+            "windows.modules": true,
+            "windows.unloadedmodules": false,
+            "windows.callbacks": false,
+            "windows.systeminfo": true,
+            "windows.pslist": true
+          }
+        }
+      ],
+      "notes": "Real evidence is limited to listed sample build/container; partial results and missing fields remain explicit."
+    },
+    {
+      "name": "Windows Server 2012 R2",
+      "major": 6,
+      "minor": 3,
+      "builds": [
+        9600
+      ],
+      "server": true,
+      "architectures": [
+        "x64"
+      ],
+      "containers": [
+        "raw",
+        "kernel-crash"
+      ],
+      "plugins": {
+        "x64": {
+          "windows.callbacks": "real",
+          "windows.unloadedmodules": "real",
+          "windows.filescan": "real",
+          "windows.mutantscan": "real",
+          "windows.getsids": "real",
+          "windows.connscan": "unsupported",
+          "windows.sockscan": "unsupported",
+          "windows.consoles": "unsupported",
+          "windows.cmdscan": "unsupported",
+          "windows.drivercheck": "pending",
+          "windows.driverscan": "pending",
+          "windows.svcscan": "real",
+          "windows.crashinfo": "pending",
+          "windows.autoruns": "pending",
+          "windows.envars": "pending",
+          "windows.threads": "real",
+          "windows.systeminfo": "real",
+          "windows.pslist": "real",
+          "windows.pstree": "pending",
+          "windows.cmdline": "pending",
+          "windows.modules": "real",
+          "windows.dlllist": "pending",
+          "windows.vadinfo": "real",
+          "windows.handles": "real",
+          "windows.malfind": "pending",
+          "windows.netscan": "real",
+          "windows.hivelist": "real",
+          "windows.printkey": "pending",
+          "windows.psscan": "pending",
+          "windows.psxview": "pending",
+          "windows.procdump": "pending",
+          "windows.memdump": "pending",
+          "windows.pedump": "pending"
+        }
+      },
+      "evidence": [
+        {
+          "sha256": "8079a7459b1739caf7d4fbf6dde5eb0ae7a9d24dbde657debf4d5202c8dc6b62",
+          "source": "https://dfirmadness.com/the-stolen-szechuan-sauce/",
+          "build": 9600,
+          "architecture": "x64",
+          "container": "raw",
+          "pdb": {
+            "age": 1,
+            "guid": "6066913DFBAD4EF6B754E136C12BECA3",
+            "name": "ntkrnlmp.pdb"
+          },
+          "rows": {
+            "windows.svcscan": 410,
+            "windows.threads": 820,
+            "windows.callbacks": 7,
+            "windows.netscan": 19683,
+            "windows.systeminfo": 14,
+            "windows.getsids": 578,
+            "windows.hivelist": 19,
+            "windows.filescan": 14519,
+            "windows.modules": 154,
+            "windows.vadinfo": 5000,
+            "windows.handles": 24808,
+            "windows.mutantscan": 236,
+            "windows.pslist": 40,
+            "windows.unloadedmodules": 4
+          },
+          "fixture": "images/server2012r2/citadeldc01.mem",
+          "complete": {
+            "windows.svcscan": false,
+            "windows.threads": false,
+            "windows.callbacks": false,
+            "windows.netscan": false,
+            "windows.systeminfo": true,
+            "windows.getsids": true,
+            "windows.hivelist": true,
+            "windows.filescan": false,
+            "windows.modules": true,
+            "windows.vadinfo": false,
+            "windows.handles": false,
+            "windows.mutantscan": false,
+            "windows.pslist": true,
+            "windows.unloadedmodules": false
+          }
+        }
+      ],
+      "notes": "Real evidence is limited to listed sample build/container; partial results and missing fields remain explicit."
+    },
+    {
+      "name": "Windows Server 2016",
+      "major": 10,
+      "minor": 0,
+      "builds": [
+        14393
+      ],
+      "server": true,
+      "architectures": [
+        "x64"
+      ],
+      "containers": [
+        "raw",
+        "kernel-crash",
+        "kernel-triage"
+      ],
+      "plugins": {
+        "x64": {
+          "windows.callbacks": "synthetic",
+          "windows.unloadedmodules": "synthetic",
+          "windows.filescan": "synthetic",
+          "windows.mutantscan": "synthetic",
+          "windows.getsids": "synthetic",
+          "windows.connscan": "unsupported",
+          "windows.sockscan": "unsupported",
+          "windows.consoles": "pending",
+          "windows.cmdscan": "pending",
+          "windows.drivercheck": "pending",
+          "windows.driverscan": "pending",
+          "windows.svcscan": "synthetic",
+          "windows.crashinfo": "real",
+          "windows.autoruns": "pending",
+          "windows.envars": "pending",
+          "windows.threads": "pending",
+          "windows.systeminfo": "pending",
+          "windows.pslist": "pending",
+          "windows.pstree": "pending",
+          "windows.cmdline": "pending",
+          "windows.modules": "real",
+          "windows.dlllist": "pending",
+          "windows.vadinfo": "pending",
+          "windows.handles": "pending",
+          "windows.malfind": "pending",
+          "windows.netscan": "pending",
+          "windows.hivelist": "pending",
+          "windows.printkey": "pending",
+          "windows.psscan": "pending",
+          "windows.psxview": "pending",
+          "windows.procdump": "pending",
+          "windows.memdump": "pending",
+          "windows.pedump": "pending"
+        }
+      },
+      "evidence": [
+        {
+          "sha256": "f224c9534705f05032eab8b315d4452dd1e6a4cc52e5ec7925cb43c093da98ae",
+          "source": "https://www.reddit.com/r/sysadmin/comments/kmmgs8",
+          "build": 14393,
+          "architecture": "x64",
+          "container": "kernel-triage",
+          "rows": {
+            "windows.crashinfo": 27,
+            "windows.modules": 162
+          },
+          "identity_validation": "Publisher reports Server 2016; header confirms build 14393 and x64, but no ProductType available. Metadata only; not kernel plugin coverage.",
+          "fixture": "images/server2016-triage.dmp",
+          "pdb": null,
+          "complete": {
+            "windows.crashinfo": false,
+            "windows.modules": false
+          }
+        }
+      ],
+      "notes": "Publisher-reported Server 2016, build 14393 x64 triage only. ProductType unavailable; only saved metadata/modules validated, no full kernel plugin claim."
+    },
+    {
+      "name": "Windows Server 2019",
+      "major": 10,
+      "minor": 0,
+      "builds": [
+        17763
+      ],
+      "server": true,
+      "architectures": [
+        "x64"
+      ],
+      "containers": [
+        "raw",
+        "kernel-crash"
+      ],
+      "plugins": {
+        "x64": {
+          "windows.callbacks": "real",
+          "windows.unloadedmodules": "real",
+          "windows.filescan": "real",
+          "windows.mutantscan": "real",
+          "windows.getsids": "real",
+          "windows.connscan": "unsupported",
+          "windows.sockscan": "unsupported",
+          "windows.consoles": "pending",
+          "windows.cmdscan": "pending",
+          "windows.drivercheck": "pending",
+          "windows.driverscan": "pending",
+          "windows.svcscan": "synthetic",
+          "windows.crashinfo": "real",
+          "windows.autoruns": "pending",
+          "windows.envars": "pending",
+          "windows.threads": "real",
+          "windows.systeminfo": "real",
+          "windows.pslist": "real",
+          "windows.pstree": "pending",
+          "windows.cmdline": "pending",
+          "windows.modules": "real",
+          "windows.dlllist": "pending",
+          "windows.vadinfo": "real",
+          "windows.handles": "real",
+          "windows.malfind": "pending",
+          "windows.netscan": "real",
+          "windows.hivelist": "real",
+          "windows.printkey": "pending",
+          "windows.psscan": "pending",
+          "windows.psxview": "pending",
+          "windows.procdump": "pending",
+          "windows.memdump": "pending",
+          "windows.pedump": "pending"
+        }
+      },
+      "evidence": [
+        {
+          "sha256": "1c354a67986a4448b95fc1814455710def009728749cb6274790f266a3957d77",
+          "source": "https://superuser.com/questions/1824128/windows-server-2019-blue-screen-hal-initialization-failed",
+          "build": 17763,
+          "architecture": "x64",
+          "container": "kernel-crash",
+          "pdb": {
+            "age": 1,
+            "guid": "69247313056076BBCB3411FD96428714",
+            "name": "ntkrnlmp.pdb"
+          },
+          "rows": {
+            "windows.callbacks": 15,
+            "windows.crashinfo": 6,
+            "windows.filescan": 23686,
+            "windows.getsids": 3045,
+            "windows.handles": 88427,
+            "windows.hivelist": 18,
+            "windows.modules": 177,
+            "windows.mutantscan": 1145,
+            "windows.netscan": 229,
+            "windows.pslist": 249,
+            "windows.svcscan": 0,
+            "windows.systeminfo": 14,
+            "windows.threads": 2254,
+            "windows.unloadedmodules": 13,
+            "windows.vadinfo": 27141
+          },
+          "fixture": "images/server2019/MEMORY.DMP",
+          "complete": {
+            "windows.getsids": true,
+            "windows.mutantscan": false,
+            "windows.crashinfo": false,
+            "windows.netscan": true,
+            "windows.threads": false,
+            "windows.svcscan": false,
+            "windows.pslist": true,
+            "windows.handles": false,
+            "windows.vadinfo": true,
+            "windows.callbacks": false,
+            "windows.modules": true,
+            "windows.filescan": false,
+            "windows.systeminfo": true,
+            "windows.hivelist": true,
+            "windows.unloadedmodules": false
+          }
+        }
+      ],
+      "notes": "Real evidence is limited to listed sample build/container; partial results and missing fields remain explicit."
+    },
+    {
+      "name": "Windows Server 2022",
+      "major": 10,
+      "minor": 0,
+      "builds": [
+        20348
+      ],
+      "server": true,
+      "architectures": [
+        "x64"
+      ],
+      "containers": [
+        "raw",
+        "kernel-crash"
+      ],
+      "plugins": {
+        "x64": {
+          "windows.callbacks": "real",
+          "windows.unloadedmodules": "real",
+          "windows.filescan": "real",
+          "windows.mutantscan": "real",
+          "windows.getsids": "real",
+          "windows.connscan": "unsupported",
+          "windows.sockscan": "unsupported",
+          "windows.consoles": "pending",
+          "windows.cmdscan": "pending",
+          "windows.drivercheck": "pending",
+          "windows.driverscan": "pending",
+          "windows.svcscan": "synthetic",
+          "windows.crashinfo": "real",
+          "windows.autoruns": "pending",
+          "windows.envars": "pending",
+          "windows.threads": "real",
+          "windows.systeminfo": "real",
+          "windows.pslist": "real",
+          "windows.pstree": "pending",
+          "windows.cmdline": "pending",
+          "windows.modules": "real",
+          "windows.dlllist": "pending",
+          "windows.vadinfo": "real",
+          "windows.handles": "real",
+          "windows.malfind": "pending",
+          "windows.netscan": "real",
+          "windows.hivelist": "real",
+          "windows.printkey": "pending",
+          "windows.psscan": "pending",
+          "windows.psxview": "pending",
+          "windows.procdump": "pending",
+          "windows.memdump": "pending",
+          "windows.pedump": "pending"
+        }
+      },
+      "evidence": [
+        {
+          "sha256": "ec42ba60e418da079983d361f9175d847a9d2fc26f0e19dda35cf00c11ddf3e0",
+          "source": "https://www.reddit.com/r/sysadmin/comments/11n4baa",
+          "build": 20348,
+          "architecture": "x64",
+          "container": "kernel-crash",
+          "pdb": {
+            "age": 1,
+            "guid": "62EE22A5A171B889C5B859E3F87F7074",
+            "name": "ntkrnlmp.pdb"
+          },
+          "rows": {
+            "windows.callbacks": 16,
+            "windows.crashinfo": 6,
+            "windows.filescan": 63705,
+            "windows.getsids": 2602,
+            "windows.handles": 75869,
+            "windows.hivelist": 20,
+            "windows.modules": 168,
+            "windows.mutantscan": 892,
+            "windows.netscan": 99,
+            "windows.pslist": 198,
+            "windows.svcscan": 0,
+            "windows.systeminfo": 14,
+            "windows.threads": 4944,
+            "windows.unloadedmodules": 17,
+            "windows.vadinfo": 27593
+          },
+          "complete": {
+            "windows.callbacks": false,
+            "windows.crashinfo": false,
+            "windows.filescan": false,
+            "windows.getsids": true,
+            "windows.handles": false,
+            "windows.hivelist": true,
+            "windows.modules": true,
+            "windows.mutantscan": false,
+            "windows.netscan": true,
+            "windows.pslist": true,
+            "windows.svcscan": false,
+            "windows.systeminfo": true,
+            "windows.threads": true,
+            "windows.unloadedmodules": false,
+            "windows.vadinfo": true
+          },
+          "fixture": "images/server2022-memory.download"
+        }
+      ],
+      "notes": "Real evidence is limited to the listed build/kernel crash. Missing user pages and partial diagnostics remain explicit."
+    },
+    {
+      "name": "Windows Server 2025",
+      "major": 10,
+      "minor": 0,
+      "builds": [
+        26100
+      ],
+      "server": true,
+      "architectures": [
+        "x64"
+      ],
+      "containers": [
+        "raw",
+        "kernel-crash"
+      ],
+      "plugins": {
+        "x64": {
+          "windows.callbacks": "synthetic",
+          "windows.unloadedmodules": "synthetic",
+          "windows.filescan": "synthetic",
+          "windows.mutantscan": "synthetic",
+          "windows.getsids": "synthetic",
+          "windows.connscan": "unsupported",
+          "windows.sockscan": "unsupported",
+          "windows.consoles": "pending",
+          "windows.cmdscan": "pending",
+          "windows.drivercheck": "pending",
+          "windows.driverscan": "pending",
+          "windows.svcscan": "synthetic",
+          "windows.crashinfo": "pending",
+          "windows.autoruns": "pending",
+          "windows.envars": "pending",
+          "windows.threads": "pending",
+          "windows.systeminfo": "pending",
+          "windows.pslist": "pending",
+          "windows.pstree": "pending",
+          "windows.cmdline": "pending",
+          "windows.modules": "pending",
+          "windows.dlllist": "pending",
+          "windows.vadinfo": "pending",
+          "windows.handles": "pending",
+          "windows.malfind": "pending",
+          "windows.netscan": "pending",
+          "windows.hivelist": "pending",
+          "windows.printkey": "pending",
+          "windows.psscan": "pending",
+          "windows.psxview": "pending",
+          "windows.procdump": "pending",
+          "windows.memdump": "pending",
+          "windows.pedump": "pending"
+        }
+      },
+      "evidence": [],
+      "notes": "No retrievable, identity-verified sample in this validation pass; real kernel plugin evidence still pending."
+    },
+    {
+      "name": "Windows 7",
+      "major": 6,
+      "minor": 1,
+      "builds": [
+        7600,
+        7601
+      ],
+      "server": false,
+      "architectures": [
+        "x86",
+        "x64"
+      ],
+      "containers": [
+        "raw",
+        "kernel-crash"
+      ],
+      "plugins": {
+        "x86": {
+          "windows.callbacks": "synthetic",
+          "windows.unloadedmodules": "synthetic",
+          "windows.filescan": "synthetic",
+          "windows.mutantscan": "synthetic",
+          "windows.getsids": "synthetic",
+          "windows.connscan": "unsupported",
+          "windows.sockscan": "unsupported",
+          "windows.consoles": "unsupported",
+          "windows.cmdscan": "unsupported",
+          "windows.drivercheck": "pending",
+          "windows.driverscan": "pending",
+          "windows.svcscan": "synthetic",
+          "windows.crashinfo": "pending",
+          "windows.autoruns": "pending",
+          "windows.envars": "pending",
+          "windows.threads": "pending",
+          "windows.systeminfo": "pending",
+          "windows.pslist": "pending",
+          "windows.pstree": "pending",
+          "windows.cmdline": "pending",
+          "windows.modules": "pending",
+          "windows.dlllist": "pending",
+          "windows.vadinfo": "pending",
+          "windows.handles": "pending",
+          "windows.malfind": "pending",
+          "windows.netscan": "pending",
+          "windows.hivelist": "pending",
+          "windows.printkey": "pending",
+          "windows.psscan": "pending",
+          "windows.psxview": "pending",
+          "windows.procdump": "pending",
+          "windows.memdump": "pending",
+          "windows.pedump": "pending"
+        },
+        "x64": {
+          "windows.callbacks": "real",
+          "windows.unloadedmodules": "real",
+          "windows.filescan": "real",
+          "windows.mutantscan": "real",
+          "windows.getsids": "real",
+          "windows.connscan": "unsupported",
+          "windows.sockscan": "unsupported",
+          "windows.consoles": "unsupported",
+          "windows.cmdscan": "unsupported",
+          "windows.drivercheck": "pending",
+          "windows.driverscan": "pending",
+          "windows.svcscan": "real",
+          "windows.crashinfo": "pending",
+          "windows.autoruns": "pending",
+          "windows.envars": "pending",
+          "windows.threads": "real",
+          "windows.systeminfo": "real",
+          "windows.pslist": "real",
+          "windows.pstree": "pending",
+          "windows.cmdline": "pending",
+          "windows.modules": "real",
+          "windows.dlllist": "pending",
+          "windows.vadinfo": "real",
+          "windows.handles": "real",
+          "windows.malfind": "pending",
+          "windows.netscan": "real",
+          "windows.hivelist": "real",
+          "windows.printkey": "pending",
+          "windows.psscan": "pending",
+          "windows.psxview": "pending",
+          "windows.procdump": "pending",
+          "windows.memdump": "pending",
+          "windows.pedump": "pending"
+        }
+      },
+      "evidence": [
+        {
+          "fixture": "images/inctf-win7/Challenge.raw",
+          "sha256": "80366d7ec64a5529c95c2f523f4281a5f11efbad33ecb19f73525470c1407b23",
+          "source": "https://blog.bi0s.in/2019/09/24/Forensics/InCTFi19-NotchItUp/",
+          "build": 7601,
+          "architecture": "x64",
+          "container": "raw",
+          "pdb": {
+            "age": 2,
+            "guid": "3844DBB920174967BE7AA4A2C20430FA",
+            "name": "ntkrnlmp.pdb"
+          },
+          "rows": {
+            "windows.callbacks": 7,
+            "windows.filescan": 3669,
+            "windows.getsids": 705,
+            "windows.handles": 13269,
+            "windows.hivelist": 12,
+            "windows.modules": 138,
+            "windows.mutantscan": 403,
+            "windows.netscan": 95,
+            "windows.pslist": 53,
+            "windows.svcscan": 393,
+            "windows.systeminfo": 14,
+            "windows.threads": 743,
+            "windows.unloadedmodules": 4,
+            "windows.vadinfo": 7265
+          },
+          "coverage_notes": {
+            "windows.vadinfo": "Tagged legacy AVL parent validation rejects an inconsistent branch. 7265 rows remain, down from 7325 before the validation; keep partial diagnostics rather than traverse the damaged branch."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Windows 8",
+      "major": 6,
+      "minor": 2,
+      "builds": [
+        9200
+      ],
+      "server": false,
+      "architectures": [
+        "x86",
+        "x64"
+      ],
+      "containers": [
+        "raw",
+        "kernel-crash"
+      ],
+      "plugins": {
+        "x86": {
+          "windows.callbacks": "synthetic",
+          "windows.unloadedmodules": "synthetic",
+          "windows.filescan": "synthetic",
+          "windows.mutantscan": "synthetic",
+          "windows.getsids": "synthetic",
+          "windows.connscan": "unsupported",
+          "windows.sockscan": "unsupported",
+          "windows.consoles": "unsupported",
+          "windows.cmdscan": "unsupported",
+          "windows.drivercheck": "pending",
+          "windows.driverscan": "pending",
+          "windows.svcscan": "synthetic",
+          "windows.crashinfo": "pending",
+          "windows.autoruns": "pending",
+          "windows.envars": "pending",
+          "windows.threads": "pending",
+          "windows.systeminfo": "pending",
+          "windows.pslist": "pending",
+          "windows.pstree": "pending",
+          "windows.cmdline": "pending",
+          "windows.modules": "pending",
+          "windows.dlllist": "pending",
+          "windows.vadinfo": "pending",
+          "windows.handles": "pending",
+          "windows.malfind": "pending",
+          "windows.netscan": "pending",
+          "windows.hivelist": "pending",
+          "windows.printkey": "pending",
+          "windows.psscan": "pending",
+          "windows.psxview": "pending",
+          "windows.procdump": "pending",
+          "windows.memdump": "pending",
+          "windows.pedump": "pending"
+        },
+        "x64": {
+          "windows.callbacks": "synthetic",
+          "windows.unloadedmodules": "synthetic",
+          "windows.filescan": "synthetic",
+          "windows.mutantscan": "synthetic",
+          "windows.getsids": "synthetic",
+          "windows.connscan": "unsupported",
+          "windows.sockscan": "unsupported",
+          "windows.consoles": "unsupported",
+          "windows.cmdscan": "unsupported",
+          "windows.drivercheck": "pending",
+          "windows.driverscan": "pending",
+          "windows.svcscan": "synthetic",
+          "windows.crashinfo": "pending",
+          "windows.autoruns": "pending",
+          "windows.envars": "pending",
+          "windows.threads": "pending",
+          "windows.systeminfo": "pending",
+          "windows.pslist": "pending",
+          "windows.pstree": "pending",
+          "windows.cmdline": "pending",
+          "windows.modules": "pending",
+          "windows.dlllist": "pending",
+          "windows.vadinfo": "pending",
+          "windows.handles": "pending",
+          "windows.malfind": "pending",
+          "windows.netscan": "pending",
+          "windows.hivelist": "pending",
+          "windows.printkey": "pending",
+          "windows.psscan": "pending",
+          "windows.psxview": "pending",
+          "windows.procdump": "pending",
+          "windows.memdump": "pending",
+          "windows.pedump": "pending"
+        }
+      },
+      "evidence": []
+    },
+    {
+      "name": "Windows 8.1",
+      "major": 6,
+      "minor": 3,
+      "builds": [
+        9600
+      ],
+      "server": false,
+      "architectures": [
+        "x86",
+        "x64"
+      ],
+      "containers": [
+        "raw",
+        "kernel-crash"
+      ],
+      "plugins": {
+        "x86": {
+          "windows.callbacks": "synthetic",
+          "windows.unloadedmodules": "synthetic",
+          "windows.filescan": "synthetic",
+          "windows.mutantscan": "synthetic",
+          "windows.getsids": "synthetic",
+          "windows.connscan": "unsupported",
+          "windows.sockscan": "unsupported",
+          "windows.consoles": "unsupported",
+          "windows.cmdscan": "unsupported",
+          "windows.drivercheck": "pending",
+          "windows.driverscan": "pending",
+          "windows.svcscan": "synthetic",
+          "windows.crashinfo": "pending",
+          "windows.autoruns": "pending",
+          "windows.envars": "pending",
+          "windows.threads": "pending",
+          "windows.systeminfo": "pending",
+          "windows.pslist": "pending",
+          "windows.pstree": "pending",
+          "windows.cmdline": "pending",
+          "windows.modules": "pending",
+          "windows.dlllist": "pending",
+          "windows.vadinfo": "pending",
+          "windows.handles": "pending",
+          "windows.malfind": "pending",
+          "windows.netscan": "pending",
+          "windows.hivelist": "pending",
+          "windows.printkey": "pending",
+          "windows.psscan": "pending",
+          "windows.psxview": "pending",
+          "windows.procdump": "pending",
+          "windows.memdump": "pending",
+          "windows.pedump": "pending"
+        },
+        "x64": {
+          "windows.callbacks": "synthetic",
+          "windows.unloadedmodules": "synthetic",
+          "windows.filescan": "synthetic",
+          "windows.mutantscan": "synthetic",
+          "windows.getsids": "synthetic",
+          "windows.connscan": "unsupported",
+          "windows.sockscan": "unsupported",
+          "windows.consoles": "unsupported",
+          "windows.cmdscan": "unsupported",
+          "windows.drivercheck": "pending",
+          "windows.driverscan": "pending",
+          "windows.svcscan": "synthetic",
+          "windows.crashinfo": "pending",
+          "windows.autoruns": "pending",
+          "windows.envars": "pending",
+          "windows.threads": "pending",
+          "windows.systeminfo": "pending",
+          "windows.pslist": "pending",
+          "windows.pstree": "pending",
+          "windows.cmdline": "pending",
+          "windows.modules": "pending",
+          "windows.dlllist": "pending",
+          "windows.vadinfo": "pending",
+          "windows.handles": "pending",
+          "windows.malfind": "pending",
+          "windows.netscan": "pending",
+          "windows.hivelist": "pending",
+          "windows.printkey": "pending",
+          "windows.psscan": "pending",
+          "windows.psxview": "pending",
+          "windows.procdump": "pending",
+          "windows.memdump": "pending",
+          "windows.pedump": "pending"
+        }
+      },
+      "evidence": []
+    },
+    {
+      "name": "Windows 10",
+      "major": 10,
+      "minor": 0,
+      "builds": [
+        10240,
+        10586,
+        14393,
+        15063,
+        16299,
+        17134,
+        17763,
+        18362,
+        18363,
+        19041,
+        19042,
+        19043,
+        19044,
+        19045
+      ],
+      "server": false,
+      "architectures": [
+        "x86",
+        "x64"
+      ],
+      "containers": [
+        "raw",
+        "kernel-crash"
+      ],
+      "plugins": {
+        "x86": {
+          "windows.callbacks": "synthetic",
+          "windows.unloadedmodules": "synthetic",
+          "windows.filescan": "synthetic",
+          "windows.mutantscan": "synthetic",
+          "windows.getsids": "synthetic",
+          "windows.connscan": "unsupported",
+          "windows.sockscan": "unsupported",
+          "windows.consoles": "unsupported",
+          "windows.cmdscan": "unsupported",
+          "windows.drivercheck": "pending",
+          "windows.driverscan": "pending",
+          "windows.svcscan": "synthetic",
+          "windows.crashinfo": "pending",
+          "windows.autoruns": "pending",
+          "windows.envars": "pending",
+          "windows.threads": "pending",
+          "windows.systeminfo": "pending",
+          "windows.pslist": "pending",
+          "windows.pstree": "pending",
+          "windows.cmdline": "pending",
+          "windows.modules": "pending",
+          "windows.dlllist": "pending",
+          "windows.vadinfo": "pending",
+          "windows.handles": "pending",
+          "windows.malfind": "pending",
+          "windows.netscan": "pending",
+          "windows.hivelist": "pending",
+          "windows.printkey": "pending",
+          "windows.psscan": "pending",
+          "windows.psxview": "pending",
+          "windows.procdump": "pending",
+          "windows.memdump": "pending",
+          "windows.pedump": "pending"
+        },
+        "x64": {
+          "windows.callbacks": "real",
+          "windows.unloadedmodules": "real",
+          "windows.filescan": "real",
+          "windows.mutantscan": "real",
+          "windows.getsids": "real",
+          "windows.connscan": "unsupported",
+          "windows.sockscan": "unsupported",
+          "windows.consoles": "pending",
+          "windows.cmdscan": "pending",
+          "windows.drivercheck": "pending",
+          "windows.driverscan": "real",
+          "windows.svcscan": "real",
+          "windows.crashinfo": "pending",
+          "windows.autoruns": "real",
+          "windows.envars": "real",
+          "windows.threads": "real",
+          "windows.systeminfo": "pending",
+          "windows.pslist": "real",
+          "windows.pstree": "pending",
+          "windows.cmdline": "pending",
+          "windows.modules": "real",
+          "windows.dlllist": "pending",
+          "windows.vadinfo": "pending",
+          "windows.handles": "pending",
+          "windows.malfind": "pending",
+          "windows.netscan": "real",
+          "windows.hivelist": "real",
+          "windows.printkey": "pending",
+          "windows.psscan": "pending",
+          "windows.psxview": "pending",
+          "windows.procdump": "pending",
+          "windows.memdump": "pending",
+          "windows.pedump": "pending"
+        }
+      },
+      "evidence": [
+        {
+          "fixture": "images/WinDump/WinDump.mem",
+          "sha256": "d58f62e92b8c4ef913ac09b2c36a10482034c10b88d0c154dead3aaaa49cf875",
+          "source": "https://www.osforensics.com/downloads/WinDump.zip",
+          "build": 15063,
+          "architecture": "x64",
+          "container": "raw",
+          "pdb": {
+            "name": "ntkrnlmp.pdb",
+            "guid": "0C9CC659210046EC84231597DADFDB3B",
+            "age": 1
+          },
+          "rows": {
+            "windows.pslist": 139,
+            "windows.modules": 183,
+            "windows.hivelist": 22,
+            "windows.threads": 1702,
+            "windows.envars": 3792,
+            "windows.driverscan": 136,
+            "windows.autoruns": 4,
+            "windows.callbacks": 14,
+            "windows.getsids": 1662,
+            "windows.unloadedmodules": 16,
+            "windows.filescan": 34225,
+            "windows.mutantscan": 765,
+            "windows.svcscan": 574
+          }
+        },
+        {
+          "fixture": "images/win-10_19041-2025_03.dmp.gz",
+          "sha256": "ef92b50aa2ba2f830e3f816eb55ed8d15b0658fdfff0ab7af8adb68f2c8da460",
+          "source": "https://mirror.nju.edu.cn/gentoo/distfiles/e4/volatility3-win-10_19041-2025_03.dmp.gz",
+          "build": 19041,
+          "architecture": "x64",
+          "container": "kernel-crash",
+          "pdb": {
+            "name": "ntkrnlmp.pdb",
+            "guid": "167FE94B5641C005AC3036212A01F8DC",
+            "age": 1
+          },
+          "rows": {
+            "windows.pslist": 120,
+            "windows.netscan": 108
+          }
+        }
+      ]
+    },
+    {
+      "name": "Windows 11",
+      "major": 10,
+      "minor": 0,
+      "builds": [
+        22000,
+        22621,
+        22631,
+        26100,
+        26200
+      ],
+      "server": false,
+      "architectures": [
+        "x64"
+      ],
+      "containers": [
+        "raw",
+        "kernel-crash"
+      ],
+      "plugins": {
+        "x64": {
+          "windows.callbacks": "real",
+          "windows.unloadedmodules": "real",
+          "windows.filescan": "real",
+          "windows.mutantscan": "real",
+          "windows.getsids": "real",
+          "windows.connscan": "unsupported",
+          "windows.sockscan": "unsupported",
+          "windows.consoles": "pending",
+          "windows.cmdscan": "pending",
+          "windows.drivercheck": "pending",
+          "windows.driverscan": "real",
+          "windows.svcscan": "real",
+          "windows.crashinfo": "pending",
+          "windows.autoruns": "real",
+          "windows.envars": "real",
+          "windows.threads": "real",
+          "windows.systeminfo": "pending",
+          "windows.pslist": "real",
+          "windows.pstree": "pending",
+          "windows.cmdline": "pending",
+          "windows.modules": "real",
+          "windows.dlllist": "pending",
+          "windows.vadinfo": "pending",
+          "windows.handles": "pending",
+          "windows.malfind": "pending",
+          "windows.netscan": "pending",
+          "windows.hivelist": "real",
+          "windows.printkey": "pending",
+          "windows.psscan": "pending",
+          "windows.psxview": "pending",
+          "windows.procdump": "pending",
+          "windows.memdump": "pending",
+          "windows.pedump": "pending"
+        }
+      },
+      "evidence": [
+        {
+          "fixture": "images/Win11Dump/Win11Dump.mem",
+          "sha256": "0f00815b8f78f30a63d742c73152474b2a3c35183dbb1d92c8fc6a81fa3de9f1",
+          "source": "https://www.osforensics.com/downloads/Win11Dump.zip",
+          "build": 22000,
+          "architecture": "x64",
+          "container": "raw",
+          "pdb": {
+            "name": "ntkrnlmp.pdb",
+            "guid": "8E3373D6124E747F0E72EF8E02E676B3",
+            "age": 1
+          },
+          "rows": {
+            "windows.pslist": 102,
+            "windows.modules": 156,
+            "windows.hivelist": 38,
+            "windows.threads": 1728,
+            "windows.envars": 3094,
+            "windows.driverscan": 115,
+            "windows.autoruns": 3,
+            "windows.callbacks": 15,
+            "windows.getsids": 1510,
+            "windows.unloadedmodules": 7,
+            "windows.filescan": 6922,
+            "windows.mutantscan": 547,
+            "windows.svcscan": 634
+          }
+        }
+      ]
+    }
+  ],
+  "notes": [
+    "Builds identify target baselines, not every cumulative update. Exact PDB identity is always required.",
+    "Server 2003 and R2 cannot be distinguished by NT version/product type alone.",
+    "ARM64, user minidumps and hibernation retain existing independently documented scope."
+  ],
+  "scope": "Levels are per plugin and architecture. Real applies only to listed evidence builds and containers. Synthetic object fixtures validate pointer widths, not every product layout; zero-row scans do not certify recovery. Unlisted builds, containers and plugin fields remain pending."
+}

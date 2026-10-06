@@ -10,6 +10,21 @@ use std::{collections::HashSet, path::Path};
 
 #[derive(Clone, Copy, Debug, ValueEnum, PartialEq, Eq)]
 pub enum Plugin {
+    #[value(name = "windows.callbacks")]
+    WinCallbacks,
+    #[value(name = "windows.unloadedmodules")]
+    WinUnloadedmodules,
+    #[value(name = "windows.filescan")]
+    WinFilescan,
+    #[value(name = "windows.mutantscan")]
+    WinMutantscan,
+    #[value(name = "windows.getsids")]
+    WinGetsids,
+    #[value(name = "windows.connscan")]
+    WinConnscan,
+    #[value(name = "windows.sockscan")]
+    WinSockscan,
+
     #[value(name = "windows.consoles")]
     WinConsoles,
     #[value(name = "windows.cmdscan")]
@@ -109,6 +124,77 @@ pub struct Descriptor {
     pub widths: &'static [u16],
 }
 pub const PLUGINS: &[Descriptor] = &[
+    Descriptor {
+        plugin: Plugin::WinCallbacks,
+        name: "windows.callbacks",
+        label: "windows.callbacks",
+        columns: &["Type", "Address", "Function", "Module", "Details"],
+        widths: &[0, 0, 0, 0, 0],
+    },
+    Descriptor {
+        plugin: Plugin::WinUnloadedmodules,
+        name: "windows.unloadedmodules",
+        label: "windows.unloadedmodules",
+        columns: &["Name", "Start", "End", "UnloadTime"],
+        widths: &[0, 0, 0, 0],
+    },
+    Descriptor {
+        plugin: Plugin::WinFilescan,
+        name: "windows.filescan",
+        label: "windows.filescan",
+        columns: &[
+            "Physical",
+            "Address",
+            "Name",
+            "DeviceObject",
+            "ReadAccess",
+            "WriteAccess",
+            "DeleteAccess",
+        ],
+        widths: &[0, 0, 0, 0, 0, 0, 0],
+    },
+    Descriptor {
+        plugin: Plugin::WinMutantscan,
+        name: "windows.mutantscan",
+        label: "windows.mutantscan",
+        columns: &["Physical", "Address", "Name", "OwnerThread", "SignalState"],
+        widths: &[0, 0, 0, 0, 0],
+    },
+    Descriptor {
+        plugin: Plugin::WinGetsids,
+        name: "windows.getsids",
+        label: "windows.getsids",
+        columns: &["PID", "Name", "SID", "Attributes", "Account"],
+        widths: &[0, 0, 0, 0, 0],
+    },
+    Descriptor {
+        plugin: Plugin::WinConnscan,
+        name: "windows.connscan",
+        label: "windows.connscan",
+        columns: &[
+            "Physical",
+            "PID",
+            "LocalAddress",
+            "LocalPort",
+            "RemoteAddress",
+            "RemotePort",
+        ],
+        widths: &[0, 0, 0, 0, 0, 0],
+    },
+    Descriptor {
+        plugin: Plugin::WinSockscan,
+        name: "windows.sockscan",
+        label: "windows.sockscan",
+        columns: &[
+            "Physical",
+            "PID",
+            "LocalAddress",
+            "LocalPort",
+            "Protocol",
+            "CreateTime",
+        ],
+        widths: &[0, 0, 0, 0, 0, 0],
+    },
     Descriptor {
         plugin: Plugin::WinConsoles,
         name: "windows.consoles",
@@ -738,6 +824,14 @@ impl Plugin {
     pub fn category(self) -> &'static str {
         match self {
             Self::WinSysteminfo => "System",
+            Self::WinCallbacks => "Integrity",
+            Self::WinUnloadedmodules => "System",
+            Self::WinFilescan => "Files",
+            Self::WinMutantscan => "System",
+            Self::WinGetsids => "Process",
+            Self::WinConnscan => "Network",
+            Self::WinSockscan => "Network",
+
             Self::WinConsoles => "Process",
             Self::WinCmdscan => "Process",
             Self::WinDrivercheck => "Integrity",

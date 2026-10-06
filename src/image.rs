@@ -333,8 +333,12 @@ impl Image {
         while !out.is_empty() {
             let s = self
                 .segments
-                .iter()
-                .find(|s| address >= s.start && address < s.end)
+                .get(
+                    self.segments
+                        .partition_point(|s| s.start <= address)
+                        .wrapping_sub(1),
+                )
+                .filter(|s| address < s.end)
                 .with_context(|| {
                     if self.windows_container.is_some() {
                         format!("地址越界或镜像空洞 @ {address:#x}")
@@ -544,6 +548,36 @@ mod arm_tests {
     use crate::extended::tests::{fixture, image};
     fn put(b: &mut [u8], p: usize, v: u64) {
         b[p..p + 8].copy_from_slice(&v.to_le_bytes());
+    }
+    #[test]
+    fn fragmented_physical_reads_preserve_boundaries_and_holes() {
+        let mut img = image(b"abcdefgh");
+        img.segments = vec![
+            Segment {
+                start: 100,
+                end: 102,
+                file_offset: 0,
+            },
+            Segment {
+                start: 102,
+                end: 104,
+                file_offset: 4,
+            },
+            Segment {
+                start: 200,
+                end: 204,
+                file_offset: 0,
+            },
+        ];
+        let mut bytes = [0; 4];
+        img.read(100, &mut bytes).unwrap();
+        assert_eq!(&bytes, b"abef");
+        img.read(200, &mut bytes).unwrap();
+        assert_eq!(&bytes, b"abcd");
+        for address in [0, 99, 104, 199, 204] {
+            assert!(img.read(address, &mut [0]).is_err());
+        }
+        assert!(img.read(103, &mut [0; 2]).is_err());
     }
     #[test]
     fn arm64_page_block_canonical_and_missing() {

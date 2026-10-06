@@ -16,7 +16,7 @@ use std::{
     path::Path,
 };
 
-pub const CONVERTER_VERSION: &str = "pdb-native-4";
+pub const CONVERTER_VERSION: &str = "pdb-native-5";
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub struct PdbIdentity {
     pub name: String,
@@ -133,6 +133,30 @@ pub fn identify(image: &Image, job: &Job) -> Result<Vec<Candidate>> {
     }
     ensure!(out.len() <= 1024, "内核 PDB 候选过多");
     Ok(out)
+}
+
+// PE32 public symbols retain C/stdcall decorations in older Microsoft PDBs.
+// Keep the original spelling as provenance and never rewrite C++ mangling.
+fn public_symbol_name(name: &str, machine: u64) -> &str {
+    if machine != 0x14c || name.starts_with('?') {
+        return name;
+    }
+    let stripped = name
+        .strip_prefix('_')
+        .or_else(|| name.strip_prefix('@'))
+        .unwrap_or(name);
+    if let Some((base, count)) = stripped.rsplit_once('@') {
+        if !base.is_empty()
+            && !base.contains('@')
+            && !base.starts_with('?')
+            && !count.is_empty()
+            && count.bytes().all(|b| b.is_ascii_digit())
+        {
+            return base;
+        }
+        return name;
+    }
+    stripped
 }
 
 pub fn resolve(
@@ -521,7 +545,19 @@ pub fn convert(bytes: &[u8], identity: &PdbIdentity, job: &Job) -> Result<Vec<u8
             _ => continue,
         };
         if let Some(rva) = offset.to_rva(&map) {
-            symbols.insert(name.to_string().into_owned(), json!({"address":rva.0}));
+            let original = name.to_string();
+            let normalized = public_symbol_name(&original, machine_type);
+            let value = if normalized == original {
+                json!({"address":rva.0})
+            } else {
+                json!({"address":rva.0,"linkage_name":original})
+            };
+            if let Some(previous) = symbols.insert(normalized.to_owned(), value) {
+                ensure!(
+                    previous["address"] == rva.0,
+                    "PDB symbol name collision: {normalized}"
+                );
+            }
         }
     }
     serde_json::to_vec(&json!({"metadata":{"format":"6.2.0","producer":{"name":"zero","version":env!("CARGO_PKG_VERSION")},"windows":{"pdb":{"database":identity.name,"GUID":identity.guid,"age":identity.age},"pe":{"machine_type":machine_type}},"zero":{"converter":CONVERTER_VERSION,"pdb_sha256":format!("{:x}",Sha256::digest(bytes)),"architecture":architecture}},"base_types":bases,"user_types":users,"enums":enums,"symbols":symbols})).map_err(Into::into)
@@ -530,6 +566,21 @@ pub fn convert(bytes: &[u8], identity: &PdbIdentity, job: &Job) -> Result<Vec<u8
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn pe32_public_names_preserve_mangling_and_strip_only_c_decorations() {
+        for (name, expected) in [
+            ("_PsInitialSystemProcess", "PsInitialSystemProcess"),
+            ("_PsInitializeProcessor@4", "PsInitializeProcessor"),
+            ("@IofCallDriver@8", "IofCallDriver"),
+            ("??_C@_01", "??_C@_01"),
+            ("_name@unknown", "_name@unknown"),
+            ("_name@", "_name@"),
+            ("__special", "_special"),
+        ] {
+            assert_eq!(public_symbol_name(name, 0x14c), expected);
+            assert_eq!(public_symbol_name(name, 0x8664), name);
+        }
+    }
     #[test]
     fn identity_keys_reject_paths_and_non_ascii_without_panicking() {
         for key in [

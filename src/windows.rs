@@ -16,20 +16,25 @@ use std::collections::{BTreeMap, HashSet};
 pub mod arch;
 pub use arch::Architecture;
 use arch::Paging;
+mod artifacts;
 mod codec;
+mod compatibility;
 mod compressed;
 pub mod container;
 mod drivers;
 mod dump;
 pub mod hiber;
+mod legacy_network;
 mod memory;
 mod network;
 mod network_layout;
 mod objects;
 pub mod paging;
+mod pool;
 mod process;
 mod registry;
 mod user_artifacts;
+mod user_layout;
 mod wow64;
 const MAX_OBJECTS: usize = 1_000_000;
 const PHYSICAL_MASK: u64 = 0x000f_ffff_ffff_f000;
@@ -318,7 +323,7 @@ impl Windows<'_> {
             page_table: self.vm.root,
             historical: false,
             system: "windows".into(),
-            kernel_identity: serde_json::json!({"pdb":self.pdb,"architecture":Architecture::from_isf(self.vm.isf).unwrap(),"container":self.vm.image.format,"kernel_base":self.base,"time_format":"FILETIME"}),
+            kernel_identity: serde_json::json!({"version":self.version_identity(),"pdb":self.pdb,"architecture":Architecture::from_isf(self.vm.isf).unwrap(),"container":self.vm.image.format,"kernel_base":self.base,"time_format":"FILETIME"}),
         }
     }
     fn list_partial(&self, head: u64, offset: u64, job: &Job) -> Result<(Vec<u64>, Vec<String>)> {
@@ -444,6 +449,7 @@ impl Windows<'_> {
         r.diagnostics.push(format!("{context}: {error}"));
     }
     pub fn run(&self, p: Plugin, options: &Options, job: &Job) -> Result<Results> {
+        job.check()?;
         let mut result = self.result(p);
         if p == Plugin::WinSysteminfo {
             result.rows = vec![
@@ -468,7 +474,21 @@ impl Windows<'_> {
                     (self.vm.uint(address, 4)? & 0xffff).to_string(),
                 ]);
             }
+            for key in ["product", "major", "minor", "product_type", "evidence"] {
+                if let Some(value) = result.kernel_identity["version"].get(key) {
+                    result.rows.push(vec![key.into(), value.to_string()]);
+                }
+            }
             return Ok(result);
+        }
+        if matches!(p, Plugin::WinCallbacks | Plugin::WinUnloadedmodules) {
+            return self.kernel_artifacts(p, job);
+        }
+        if matches!(p, Plugin::WinFilescan | Plugin::WinMutantscan) {
+            return self.pool_artifacts(p, job);
+        }
+        if matches!(p, Plugin::WinConnscan | Plugin::WinSockscan) {
+            return self.legacy_network(p, job);
         }
         if matches!(p, Plugin::WinDriverscan | Plugin::WinDrivercheck) {
             return self.drivers(p, job);
@@ -553,6 +573,7 @@ impl Windows<'_> {
                     Ok(())
                 }
                 Plugin::WinCmdline => self.cmdline(&process, &mut result),
+                Plugin::WinGetsids => self.sids(&process, &mut result, job),
                 Plugin::WinEnvars => self.environments(&process, &mut result, job),
                 Plugin::WinThreads => self.thread_rows(
                     &process,
@@ -879,6 +900,13 @@ pub fn discover(image: &Image, isf: &Isf, job: &Job) -> Result<(u64, u64)> {
             let test = (|| -> Result<()> {
                 let mut header = [0; 4096];
                 vm.read(base, &mut header)?;
+                let pe = u32::from_le_bytes(header[60..64].try_into()?) as usize;
+                pe_header(&header)?;
+                ensure!(
+                    u16::from_le_bytes(header[pe + 4..pe + 6].try_into()?)
+                        == geometry.arch.machine(),
+                    "内核 PE 与符号指针架构冲突"
+                );
                 ensure!(
                     network::pe_identity(&vm, base)? == identity,
                     "内核 PE 身份不匹配"

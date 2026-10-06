@@ -116,7 +116,16 @@ impl Windows<'_> {
                         row.push(String::new());
                         continue;
                     }
-                    match self.number(thread, "_ETHREAD", field) {
+                    let value = self.number(thread, "_ETHREAD", field).map(|value| {
+                        if field == "CreateTime"
+                            && self.vm.isf.field("_ETHREAD", "ThreadsProcess").is_ok()
+                        {
+                            value >> 3
+                        } else {
+                            value
+                        }
+                    });
+                    match value {
                         Ok(value)
                             if field.ends_with("Time")
                                 && value != 0
@@ -315,6 +324,34 @@ mod artifact_tests {
         assert!(r.complete, "{:?}", r.diagnostics);
         assert_eq!(r.rows[0][2], "9");
         assert_eq!(r.rows[0].len(), 9);
+        // NT5 ETHREAD uses low creation-time flag bits, identified by ThreadsProcess.
+        isf.data["user_types"]["_ETHREAD"]["size"] = json!(80);
+        isf.data["user_types"]["_ETHREAD"]["fields"]["ThreadsProcess"] =
+            json!({"offset":72,"type":{"kind":"pointer"}});
+        let offset = isf.offset("_ETHREAD", "CreateTime").unwrap() as usize;
+        put(&mut b, 0xb000 + offset, (130000000000000000 << 3) | 3);
+        let img = image(&b);
+        let engine = Windows {
+            vm: Memory {
+                image: &img,
+                root: 0x1000,
+                isf: &isf,
+                sources: None,
+            },
+            base: K,
+            pdb: PdbIdentity::from_isf(&isf).unwrap(),
+        };
+        let r = engine
+            .run(
+                Plugin::WinThreads,
+                &Options {
+                    pid: Some(8),
+                    ..Default::default()
+                },
+                &Job::default(),
+            )
+            .unwrap();
+        assert_eq!(r.rows[0][7], "130000000000000000");
         put(&mut b, 0xb010, 4);
         let img = image(&b);
         let engine = Windows {

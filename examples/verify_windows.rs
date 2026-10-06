@@ -24,17 +24,19 @@ fn main() -> Result<()> {
     let cache = Path::new(".zero/rust");
     let mut session = linux::Session::default();
     let image_prepared = session.prepare_image(&image, cache, &job)?;
-    let isfs = windows_symbols::resolve(Path::new("symbols"), &image_prepared, cache, true, &job)?;
+    let symbols = args.get(4).map(Path::new).unwrap_or(Path::new("symbols"));
+    let isfs = windows_symbols::resolve(symbols, &image_prepared, cache, true, &job)?;
     let symbol = isfs
         .iter()
-        .find(|s| windows_symbols::PdbIdentity::from_isf(s).is_ok_and(|i| i.name == "ntkrnlmp.pdb"))
-        .context("ntkrnlmp symbols")?;
-    let symbol = windows_symbols::acquire(
-        &windows_symbols::PdbIdentity::from_isf(symbol)?,
-        cache,
-        false,
-        &job,
-    )?;
+        .find(|s| {
+            windows_symbols::PdbIdentity::from_isf(s).is_ok_and(|i| {
+                matches!(
+                    i.name.as_str(),
+                    "ntkrnlmp.pdb" | "ntoskrnl.pdb" | "ntkrnlpa.pdb" | "ntkrpamp.pdb"
+                )
+            })
+        })
+        .context("exact kernel symbols")?;
     let mut failures = Vec::new();
     for descriptor in linux::PLUGINS.iter().filter(|d| {
         selected

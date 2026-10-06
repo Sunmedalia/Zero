@@ -17,8 +17,12 @@ impl Architecture {
         let width = isf.data["base_types"]["pointer"]["size"]
             .as_u64()
             .context("缺少指针宽度")?;
-        let pdb = isf.data["metadata"]["windows"]["pdb"]["machine_type"].as_u64();
-        let pe = isf.data["metadata"]["windows"]["pe"]["machine_type"].as_u64();
+        let pdb = isf.data["metadata"]["windows"]["pdb"]["machine_type"]
+            .as_u64()
+            .filter(|v| *v != 0);
+        let pe = isf.data["metadata"]["windows"]["pe"]["machine_type"]
+            .as_u64()
+            .filter(|v| *v != 0);
         ensure!(
             pdb.is_none() || pe.is_none() || pdb == pe,
             "PDB/PE 架构冲突"
@@ -268,5 +272,24 @@ mod tests {
             .unwrap();
         assert!(r.complete);
         assert_eq!(r.rows.len(), 2);
+    }
+}
+
+#[cfg(test)]
+mod legacy_metadata_tests {
+    use super::super::tests::fixture;
+    use super::*;
+    use serde_json::json;
+    #[test]
+    fn zero_machine_type_in_legacy_isf_is_unspecified_not_a_new_architecture() {
+        let (_, mut isf) = fixture();
+        isf.data["metadata"]["windows"]["pdb"]["machine_type"] = json!(0);
+        assert_eq!(Architecture::from_isf(&isf).unwrap(), Architecture::X64);
+        isf.data["base_types"]["pointer"]["size"] = json!(4);
+        assert_eq!(Architecture::from_isf(&isf).unwrap(), Architecture::X86);
+        isf.data["metadata"]["windows"]["pe"]["machine_type"] = json!(0x8664);
+        assert!(Architecture::from_isf(&isf).is_err());
+        isf.data["metadata"]["windows"]["pdb"]["machine_type"] = json!(123);
+        assert!(Architecture::from_isf(&isf).is_err());
     }
 }

@@ -1,0 +1,56 @@
+{
+  "source": "https://raw.githubusercontent.com/volatilityfoundation/volatility/2.6/volatility/plugins/overlays/windows/tcpip_vtypes.py",
+  "layouts": {
+    "x86-sp0": {
+      "pointer_size": 4,
+      "connection": {
+        "remote_ip": 12,
+        "local_ip": 16,
+        "remote_port": 20,
+        "local_port": 22,
+        "pid": 24
+      },
+      "socket": {
+        "local_ip": 44,
+        "local_port": 48,
+        "protocol": 50,
+        "pid": 328,
+        "time": 344
+      }
+    },
+    "x86-sp12": {
+      "pointer_size": 4,
+      "connection": {
+        "remote_ip": 12,
+        "local_ip": 16,
+        "remote_port": 20,
+        "local_port": 22,
+        "pid": 24
+      },
+      "socket": {
+        "local_ip": 48,
+        "local_port": 52,
+        "protocol": 54,
+        "pid": 332,
+        "time": 344
+      }
+    },
+    "x64": {
+      "pointer_size": 8,
+      "connection": {
+        "remote_ip": 20,
+        "local_ip": 24,
+        "remote_port": 28,
+        "local_port": 30,
+        "pid": 32
+      },
+      "socket": {
+        "local_ip": 88,
+        "local_port": 92,
+        "protocol": 94,
+        "pid": 568,
+        "time": 584
+      }
+    }
+  }
+}

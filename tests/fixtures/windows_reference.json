@@ -1,0 +1,715 @@
+{
+  "reference": "Volatility 3 2.28.0 with independent symbol conversion",
+  "comparator": "tests/reference/windows_compatibility.py",
+  "scope": "Only shared readable fields are compared. Unreadable fields and missing records are not equality evidence. Native counts may be unique keys rather than raw rows. Callbacks compare only process/thread/image-load/registry categories; unload time precision is whole seconds.",
+  "samples": [
+    {
+      "fixture": "images/boomer-win2003-2006-03-17.img",
+      "sha256": "dc7022c2183dade6c36ebf19c74af5234bff8800e2a6f95e825287da9a214adb",
+      "pool_reference_address_space": "physical",
+      "comparisons": {
+        "windows.getsids": {
+          "native": 132,
+          "reference": 132,
+          "shared": 132,
+          "compared_fields": 132,
+          "unreadable_fields": 0,
+          "conflicts": 0,
+          "complete": true
+        },
+        "windows.pslist": {
+          "native": 22,
+          "reference": 22,
+          "shared": 22,
+          "compared_fields": 88,
+          "unreadable_fields": 0,
+          "conflicts": 0,
+          "complete": true
+        }
+      }
+    },
+    {
+      "fixture": "images/inctf-win7/Challenge.raw",
+      "sha256": "80366d7ec64a5529c95c2f523f4281a5f11efbad33ecb19f73525470c1407b23",
+      "pool_reference_address_space": "physical",
+      "comparisons": {
+        "windows.pslist": {
+          "native": 53,
+          "reference": 53,
+          "shared": 53,
+          "compared_fields": 212,
+          "unreadable_fields": 0,
+          "conflicts": 0,
+          "complete": false
+        },
+        "windows.getsids": {
+          "native": 705,
+          "reference": 705,
+          "shared": 705,
+          "compared_fields": 705,
+          "unreadable_fields": 0,
+          "conflicts": 0,
+          "complete": false
+        },
+        "windows.filescan": {
+          "native": 3669,
+          "reference": 3232,
+          "shared": 3231,
+          "compared_fields": 3217,
+          "unreadable_fields": 14,
+          "conflicts": 0,
+          "complete": false
+        },
+        "windows.mutantscan": {
+          "native": 403,
+          "reference": 404,
+          "shared": 403,
+          "compared_fields": 80,
+          "unreadable_fields": 323,
+          "conflicts": 0,
+          "complete": false
+        },
+        "windows.svcscan": {
+          "native": 393,
+          "reference": 450,
+          "shared": 58,
+          "compared_fields": 157,
+          "unreadable_fields": 17,
+          "conflicts": 0,
+          "complete": false
+        },
+        "windows.netscan": {
+          "native_unique": 82,
+          "reference_unique": 82,
+          "shared": 82,
+          "unreadable_reference_rows": 2,
+          "complete": false
+        },
+        "windows.vadinfo": {
+          "native": 7265,
+          "reference": 7324,
+          "shared": 7265,
+          "compared_fields": 32232,
+          "unreadable_fields": 4093,
+          "conflicts": 0,
+          "complete": false
+        }
+      }
+    },
+    {
+      "fixture": "images/WinDump/WinDump.mem",
+      "sha256": "d58f62e92b8c4ef913ac09b2c36a10482034c10b88d0c154dead3aaaa49cf875",
+      "pool_reference_address_space": "virtual",
+      "comparisons": {
+        "windows.getsids": {
+          "native": 1662,
+          "reference": 1662,
+          "shared": 1662,
+          "compared_fields": 1662,
+          "unreadable_fields": 0,
+          "conflicts": 0,
+          "complete": false
+        },
+        "windows.unloadedmodules": {
+          "native": 16,
+          "reference": 16,
+          "shared": 16,
+          "compared_fields": 32,
+          "unreadable_fields": 0,
+          "conflicts": 0,
+          "complete": false
+        },
+        "windows.callbacks": {
+          "native": 14,
+          "reference": 81,
+          "shared": 14,
+          "compared_fields": 14,
+          "unreadable_fields": 0,
+          "conflicts": 0,
+          "complete": false
+        },
+        "windows.filescan": {
+          "native": 34225,
+          "reference": 32613,
+          "shared": 32261,
+          "compared_fields": 32172,
+          "unreadable_fields": 89,
+          "conflicts": 0,
+          "complete": false
+        },
+        "windows.mutantscan": {
+          "native": 765,
+          "reference": 788,
+          "shared": 765,
+          "compared_fields": 222,
+          "unreadable_fields": 543,
+          "conflicts": 0,
+          "complete": false
+        }
+      }
+    },
+    {
+      "fixture": "images/server2008/memdump.mem",
+      "sha256": "d3b13f2224cab20440a4bb3c5c971662be6e61f431340f319cef7312bb6177f4",
+      "pool_reference_address_space": "physical",
+      "comparisons": {
+        "windows.pslist": {
+          "native": 48,
+          "reference": 48,
+          "shared": 48,
+          "compared_fields": 192,
+          "unreadable_fields": 0,
+          "conflicts": 0,
+          "complete": true
+        },
+        "windows.getsids": {
+          "native": 516,
+          "reference": 516,
+          "shared": 516,
+          "compared_fields": 516,
+          "unreadable_fields": 0,
+          "conflicts": 0,
+          "complete": true
+        },
+        "windows.callbacks": {
+          "native": 6,
+          "reference": 51,
+          "shared": 6,
+          "compared_fields": 6,
+          "unreadable_fields": 0,
+          "conflicts": 0,
+          "complete": false
+        },
+        "windows.unloadedmodules": {
+          "native": 5,
+          "reference": 5,
+          "shared": 5,
+          "compared_fields": 10,
+          "unreadable_fields": 0,
+          "conflicts": 0,
+          "complete": false
+        },
+        "windows.filescan": {
+          "native": 1980,
+          "reference": 1698,
+          "shared": 1571,
+          "compared_fields": 1571,
+          "unreadable_fields": 0,
+          "conflicts": 0,
+          "complete": false
+        },
+        "windows.mutantscan": {
+          "native": 337,
+          "reference": 357,
+          "shared": 337,
+          "compared_fields": 68,
+          "unreadable_fields": 269,
+          "conflicts": 0,
+          "complete": false
+        },
+        "windows.svcscan": {
+          "native": 342,
+          "reference": 406,
+          "shared": 65,
+          "compared_fields": 186,
+          "unreadable_fields": 9,
+          "conflicts": 0,
+          "complete": false
+        },
+        "windows.netscan": {
+          "native_unique": 69,
+          "reference_unique": 69,
+          "shared": 69,
+          "unreadable_reference_rows": 9,
+          "missing_reference_connections": 0,
+          "complete": false
+        },
+        "windows.modules": {
+          "native": 105,
+          "reference": 149,
+          "shared": 105,
+          "compared_fields": 210,
+          "unreadable_fields": 0,
+          "conflicts": 0,
+          "complete": false
+        },
+        "windows.vadinfo": {
+          "native": 5229,
+          "reference": 5229,
+          "shared": 5229,
+          "compared_fields": 23419,
+          "unreadable_fields": 2726,
+          "conflicts": 0,
+          "complete": false
+        },
+        "windows.threads": {
+          "native": 560,
+          "reference": 560,
+          "shared": 560,
+          "compared_fields": 1120,
+          "unreadable_fields": 0,
+          "conflicts": 0,
+          "complete": false
+        },
+        "windows.handles": {
+          "native": 20351,
+          "reference": 20356,
+          "shared": 20351,
+          "compared_fields": 61053,
+          "unreadable_fields": 0,
+          "conflicts": 0,
+          "complete": false
+        }
+      },
+      "reference_adapter": "windows_server.py --pae-dtb 0x122000 --kernel-base 0x8183a000; stock Vol3 rejects the sparse valid PAE table by heuristic."
+    },
+    {
+      "fixture": "images/server2012-psexec.mem",
+      "sha256": "b67593da4694d599de7af8455279262ec51c75536eec400680d9fe00c082a033",
+      "pool_reference_address_space": "physical",
+      "comparisons": {
+        "windows.pslist": {
+          "native": 35,
+          "reference": 35,
+          "shared": 35,
+          "compared_fields": 140,
+          "unreadable_fields": 0,
+          "conflicts": 0,
+          "complete": true
+        },
+        "windows.getsids": {
+          "native": 364,
+          "reference": 364,
+          "shared": 364,
+          "compared_fields": 364,
+          "unreadable_fields": 0,
+          "conflicts": 0,
+          "complete": true
+        },
+        "windows.callbacks": {
+          "native": 6,
+          "reference": 70,
+          "shared": 6,
+          "compared_fields": 6,
+          "unreadable_fields": 0,
+          "conflicts": 0,
+          "complete": false
+        },
+        "windows.unloadedmodules": {
+          "native": 18,
+          "reference": 18,
+          "shared": 18,
+          "compared_fields": 36,
+          "unreadable_fields": 0,
+          "conflicts": 0,
+          "complete": false
+        },
+        "windows.filescan": {
+          "native": 4550,
+          "reference": 4146,
+          "shared": 4146,
+          "compared_fields": 4146,
+          "unreadable_fields": 0,
+          "conflicts": 0,
+          "complete": false
+        },
+        "windows.mutantscan": {
+          "native": 149,
+          "reference": 149,
+          "shared": 149,
+          "compared_fields": 31,
+          "unreadable_fields": 118,
+          "conflicts": 0,
+          "complete": false
+        },
+        "windows.svcscan": {
+          "native": 370,
+          "reference": 428,
+          "shared": 59,
+          "compared_fields": 164,
+          "unreadable_fields": 13,
+          "conflicts": 0,
+          "complete": false
+        },
+        "windows.netscan": {
+          "native_unique": 49,
+          "reference_unique": 49,
+          "shared": 49,
+          "unreadable_reference_rows": 0,
+          "missing_reference_connections": 0,
+          "complete": true
+        },
+        "windows.modules": {
+          "native": 124,
+          "reference": 124,
+          "shared": 124,
+          "compared_fields": 248,
+          "unreadable_fields": 0,
+          "conflicts": 0,
+          "complete": true
+        },
+        "windows.vadinfo": {
+          "native": 3591,
+          "reference": 3620,
+          "shared": 3591,
+          "compared_fields": 16013,
+          "unreadable_fields": 1942,
+          "conflicts": 0,
+          "complete": false
+        },
+        "windows.threads": {
+          "native": 449,
+          "reference": 446,
+          "shared": 441,
+          "compared_fields": 882,
+          "unreadable_fields": 0,
+          "conflicts": 0,
+          "complete": false
+        }
+      },
+      "reference_limitations": {
+        "handles": "Stock reference produced zero rows with 41-bit pointer encoding; no equality claim. Native sign extension tested separately."
+      }
+    },
+    {
+      "fixture": "images/server2019/MEMORY.DMP",
+      "sha256": "1c354a67986a4448b95fc1814455710def009728749cb6274790f266a3957d77",
+      "pool_reference_address_space": "virtual",
+      "comparisons": {
+        "windows.pslist": {
+          "native": 249,
+          "reference": 249,
+          "shared": 249,
+          "compared_fields": 996,
+          "unreadable_fields": 0,
+          "conflicts": 0,
+          "complete": true
+        },
+        "windows.getsids": {
+          "native": 3045,
+          "reference": 3045,
+          "shared": 3045,
+          "compared_fields": 3045,
+          "unreadable_fields": 0,
+          "conflicts": 0,
+          "complete": true
+        },
+        "windows.callbacks": {
+          "native": 15,
+          "reference": 74,
+          "shared": 15,
+          "compared_fields": 15,
+          "unreadable_fields": 0,
+          "conflicts": 0,
+          "complete": false
+        },
+        "windows.unloadedmodules": {
+          "native": 9,
+          "reference": 9,
+          "shared": 9,
+          "compared_fields": 18,
+          "unreadable_fields": 0,
+          "conflicts": 0,
+          "complete": false
+        },
+        "windows.filescan": {
+          "native": 23686,
+          "reference": 19775,
+          "shared": 19737,
+          "compared_fields": 19737,
+          "unreadable_fields": 0,
+          "conflicts": 0,
+          "complete": false
+        },
+        "windows.mutantscan": {
+          "native": 1145,
+          "reference": 1158,
+          "shared": 1143,
+          "compared_fields": 424,
+          "unreadable_fields": 719,
+          "conflicts": 0,
+          "complete": false
+        },
+        "windows.netscan": {
+          "native_unique": 144,
+          "reference_unique": 141,
+          "shared": 141,
+          "unreadable_reference_rows": 191,
+          "complete": true
+        },
+        "windows.modules": {
+          "native": 177,
+          "reference": 177,
+          "shared": 177,
+          "compared_fields": 354,
+          "unreadable_fields": 0,
+          "conflicts": 0,
+          "complete": true
+        },
+        "windows.handles": {
+          "native": 88427,
+          "reference": 88138,
+          "shared": 88138,
+          "compared_fields": 264414,
+          "unreadable_fields": 0,
+          "conflicts": 0,
+          "complete": false
+        },
+        "windows.threads": {
+          "native": 2254,
+          "reference": 2254,
+          "shared": 2254,
+          "compared_fields": 4508,
+          "unreadable_fields": 0,
+          "conflicts": 0,
+          "complete": false
+        }
+      },
+      "reference_adapter": "windows_server.py --bitmap-type6; stock Vol3 2.28 only enables types 1/5. Same independently parsed SDMP bitmap.",
+      "reference_limitations": {
+        "vadinfo": "Reference process did not produce JSON; not independently certified.",
+        "handles": "Shared 88138 values, type/object/access agree."
+      }
+    },
+    {
+      "fixture": "images/server2012r2/citadeldc01.mem",
+      "sha256": "8079a7459b1739caf7d4fbf6dde5eb0ae7a9d24dbde657debf4d5202c8dc6b62",
+      "pool_reference_address_space": "physical",
+      "comparisons": {
+        "windows.pslist": {
+          "native": 40,
+          "reference": 40,
+          "shared": 40,
+          "compared_fields": 160,
+          "unreadable_fields": 0,
+          "conflicts": 0,
+          "complete": true
+        },
+        "windows.getsids": {
+          "native": 578,
+          "reference": 578,
+          "shared": 578,
+          "compared_fields": 578,
+          "unreadable_fields": 0,
+          "conflicts": 0,
+          "complete": true
+        },
+        "windows.callbacks": {
+          "native": 7,
+          "reference": 82,
+          "shared": 7,
+          "compared_fields": 7,
+          "unreadable_fields": 0,
+          "conflicts": 0,
+          "complete": false
+        },
+        "windows.unloadedmodules": {
+          "native": 4,
+          "reference": 4,
+          "shared": 4,
+          "compared_fields": 8,
+          "unreadable_fields": 0,
+          "conflicts": 0,
+          "complete": false
+        },
+        "windows.filescan": {
+          "native": 14519,
+          "reference": 24324,
+          "shared": 10830,
+          "compared_fields": 10825,
+          "unreadable_fields": 5,
+          "conflicts": 0,
+          "complete": false
+        },
+        "windows.mutantscan": {
+          "native": 236,
+          "reference": 412,
+          "shared": 236,
+          "compared_fields": 74,
+          "unreadable_fields": 162,
+          "conflicts": 0,
+          "complete": false
+        },
+        "windows.svcscan": {
+          "native": 410,
+          "reference": 474,
+          "shared": 65,
+          "compared_fields": 180,
+          "unreadable_fields": 15,
+          "conflicts": 0,
+          "complete": false
+        },
+        "windows.netscan": {
+          "native_unique": 7612,
+          "reference_unique": 7614,
+          "shared": 7612,
+          "unreadable_reference_rows": 0,
+          "missing_reference_connections": 2,
+          "complete": false
+        },
+        "windows.modules": {
+          "native": 154,
+          "reference": 154,
+          "shared": 154,
+          "compared_fields": 308,
+          "unreadable_fields": 0,
+          "conflicts": 0,
+          "complete": true
+        },
+        "windows.handles": {
+          "native": 24808,
+          "reference": 24808,
+          "shared": 24808,
+          "compared_fields": 74424,
+          "unreadable_fields": 0,
+          "conflicts": 0,
+          "complete": false
+        },
+        "windows.vadinfo": {
+          "native": 5000,
+          "reference": 5103,
+          "shared": 5000,
+          "compared_fields": 22492,
+          "unreadable_fields": 2508,
+          "conflicts": 0,
+          "complete": false
+        },
+        "windows.threads": {
+          "native": 820,
+          "reference": 818,
+          "shared": 818,
+          "compared_fields": 1636,
+          "unreadable_fields": 0,
+          "conflicts": 0,
+          "complete": false
+        }
+      },
+      "known_missing_network": {
+        "count": 2,
+        "physical": "0x67f00ec0",
+        "reason": "Non-canonical LocalAddr pointer rejected; reference renders wildcard UDPv4/v6 port 1024 for dns.exe PID 1368. Missing rows are not equality evidence."
+      }
+    },
+    {
+      "fixture": "images/server2022-memory.download",
+      "sha256": "ec42ba60e418da079983d361f9175d847a9d2fc26f0e19dda35cf00c11ddf3e0",
+      "pool_reference_address_space": "virtual",
+      "comparisons": {
+        "windows.pslist": {
+          "native": 198,
+          "reference": 198,
+          "shared": 198,
+          "compared_fields": 792,
+          "unreadable_fields": 0,
+          "conflicts": 0,
+          "complete": true
+        },
+        "windows.getsids": {
+          "native": 2602,
+          "reference": 2602,
+          "shared": 2602,
+          "compared_fields": 2602,
+          "unreadable_fields": 0,
+          "conflicts": 0,
+          "complete": true
+        },
+        "windows.modules": {
+          "native": 168,
+          "reference": 168,
+          "shared": 168,
+          "compared_fields": 336,
+          "unreadable_fields": 0,
+          "conflicts": 0,
+          "complete": true
+        },
+        "windows.callbacks": {
+          "native": 16,
+          "reference": 67,
+          "shared": 16,
+          "compared_fields": 16,
+          "unreadable_fields": 0,
+          "conflicts": 0,
+          "complete": false
+        },
+        "windows.unloadedmodules": {
+          "native": 15,
+          "reference": 15,
+          "shared": 15,
+          "compared_fields": 30,
+          "unreadable_fields": 0,
+          "conflicts": 0,
+          "complete": false
+        },
+        "windows.threads": {
+          "native": 4944,
+          "reference": 4944,
+          "shared": 4944,
+          "compared_fields": 9888,
+          "unreadable_fields": 0,
+          "conflicts": 0,
+          "complete": true
+        },
+        "windows.handles": {
+          "native": 75869,
+          "reference": 75584,
+          "shared": 75583,
+          "compared_fields": 226749,
+          "unreadable_fields": 0,
+          "conflicts": 0,
+          "complete": false
+        },
+        "windows.netscan": {
+          "native_unique": 74,
+          "reference_unique": 74,
+          "shared": 74,
+          "unreadable_reference_rows": 97,
+          "missing_reference_connections": 0,
+          "complete": true
+        },
+        "windows.filescan": {
+          "native": 63705,
+          "reference": 51137,
+          "shared": 50177,
+          "compared_fields": 50177,
+          "unreadable_fields": 0,
+          "conflicts": 0,
+          "complete": false
+        },
+        "windows.mutantscan": {
+          "native": 892,
+          "reference": 907,
+          "shared": 892,
+          "compared_fields": 417,
+          "unreadable_fields": 475,
+          "conflicts": 0,
+          "complete": false
+        },
+        "windows.vadinfo": {
+          "native": 27593,
+          "reference": 27593,
+          "shared": 27593,
+          "compared_fields": 121353,
+          "unreadable_fields": 16612,
+          "conflicts": 0,
+          "complete": true
+        }
+      },
+      "reference_adapter": "windows_server.py --bitmap-type6; stock analysis plugins with independently converted exact PDB",
+      "reference_limitations": {
+        "windows.svcscan": "Kernel crash does not retain readable services.exe user pages; zero native rows are not recovery evidence."
+      }
+    }
+  ],
+  "triage_metadata": [
+    {
+      "fixture": "images/server2016-triage.dmp",
+      "sha256": "f224c9534705f05032eab8b315d4452dd1e6a4cc52e5ec7925cb43c093da98ae",
+      "reference": "tests/reference/windows_triage.py: independent direct header/CONTEXT/driver record decode",
+      "shared_modules": 162,
+      "header_fields": 5,
+      "context_fields": 2,
+      "conflicts": 0,
+      "scope": "Publisher reports Server 2016; header confirms build 14393 and x64, but no ProductType available. Metadata only; not kernel plugin coverage."
+    }
+  ]
+}

@@ -1,0 +1,24 @@
+{
+  "x86": {
+    "source": "https://raw.githubusercontent.com/volatilityfoundation/volatility3/v2.28.0/volatility3/framework/symbols/windows/callbacks-x86.json",
+    "registry": {
+      "Link": 0,
+      "Function": 28,
+      "Altitude": 32
+    },
+    "generic": {
+      "Callback": 4
+    }
+  },
+  "x64": {
+    "source": "https://raw.githubusercontent.com/volatilityfoundation/volatility3/v2.28.0/volatility3/framework/symbols/windows/callbacks-x64.json",
+    "registry": {
+      "Link": 0,
+      "Function": 40,
+      "Altitude": 48
+    },
+    "generic": {
+      "Callback": 8
+    }
+  }
+}

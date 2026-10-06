@@ -1,5 +1,5 @@
 {
-  "version": "zero-tcpip-3",
+  "version": "zero-tcpip-6",
   "profiles": {
     "netscan-win10-10240-x86": {
       "pointer_size": 4,
@@ -332,7 +332,8 @@
       "info_remote": 16,
       "udp_direct": true,
       "source": "https://raw.githubusercontent.com/volatilityfoundation/volatility3/v2.28.0/volatility3/framework/symbols/windows/netscan/netscan-win10-17763-x64.json",
-      "validation": "synthetic"
+      "validation": "public-crash-reference",
+      "evidence": "Server 2019 x64 public type-6 SDMP crash: all 141 readable reference connections recovered; 191 unreadable reference rows excluded."
     },
     "netscan-win10-18362-x64": {
       "pointer_size": 8,
@@ -518,7 +519,7 @@
       "info_remote": 16,
       "udp_direct": true,
       "source": "https://raw.githubusercontent.com/volatilityfoundation/volatility3/v2.28.0/volatility3/framework/symbols/windows/netscan/netscan-win10-20348-x64.json",
-      "validation": "public-raw-reference"
+      "validation": "synthetic"
     },
     "netscan-win10-x64": {
       "pointer_size": 8,
@@ -592,7 +593,8 @@
       "info_remote": 16,
       "udp_direct": false,
       "source": "https://raw.githubusercontent.com/volatilityfoundation/volatility3/v2.28.0/volatility3/framework/symbols/windows/netscan/netscan-win7-x64.json",
-      "validation": "synthetic"
+      "validation": "public-raw-reference",
+      "reference_evidence": "tests/fixtures/windows.json compatibility_samples Windows 7 SP1 x64; 82 unique readable connections matched independent Volatility 3"
     },
     "netscan-win7-x86": {
       "pointer_size": 4,
@@ -666,7 +668,8 @@
       "info_remote": 16,
       "udp_direct": false,
       "source": "https://raw.githubusercontent.com/volatilityfoundation/volatility3/v2.28.0/volatility3/framework/symbols/windows/netscan/netscan-win8-x64.json",
-      "validation": "synthetic"
+      "validation": "public-raw-reference",
+      "evidence": "Server 2012 x64 public RAW: 49 unique connections match independent Volatility 3."
     },
     "netscan-win8-x86": {
       "pointer_size": 4,
@@ -815,12 +818,168 @@
       "udp_direct": false,
       "source": "https://raw.githubusercontent.com/volatilityfoundation/volatility3/v2.28.0/volatility3/framework/symbols/windows/netscan/netscan-win81-x86.json",
       "validation": "synthetic"
+    },
+    "netscan-vista-x86": {
+      "pointer_size": 4,
+      "endpoint_tags": [
+        "TcpE"
+      ],
+      "endpoint": {
+        "Owner": 352,
+        "CreateTime": 0,
+        "InetAF": 12,
+        "LocalPort": 44,
+        "RemotePort": 46,
+        "State": 40,
+        "AddrInfo": 16
+      },
+      "listener": {
+        "Owner": 24,
+        "CreateTime": 32,
+        "InetAF": 56,
+        "LocalAddr": 52,
+        "Port": 62
+      },
+      "udp": {
+        "Owner": 24,
+        "CreateTime": 48,
+        "InetAF": 20,
+        "LocalAddr": 56,
+        "Port": 72
+      },
+      "family": 12,
+      "local_data": 12,
+      "udp_data": 12,
+      "info_local": 0,
+      "info_remote": 8,
+      "udp_direct": false,
+      "source": "https://raw.githubusercontent.com/volatilityfoundation/volatility3/v2.28.0/volatility3/framework/symbols/windows/netscan/netscan-vista-x86.json",
+      "validation": "public-raw-reference",
+      "evidence": "Server 2008 SP1 x86 public RAW: 69 readable unique connections match independent Volatility 3."
+    },
+    "netscan-vista-x64": {
+      "pointer_size": 8,
+      "endpoint_tags": [
+        "TcpE"
+      ],
+      "endpoint": {
+        "Owner": 520,
+        "CreateTime": 0,
+        "InetAF": 24,
+        "LocalPort": 84,
+        "RemotePort": 86,
+        "State": 80,
+        "AddrInfo": 32
+      },
+      "listener": {
+        "Owner": 40,
+        "CreateTime": 32,
+        "InetAF": 96,
+        "LocalAddr": 88,
+        "Port": 106
+      },
+      "udp": {
+        "Owner": 40,
+        "CreateTime": 88,
+        "InetAF": 32,
+        "LocalAddr": 96,
+        "Port": 128
+      },
+      "family": 20,
+      "local_data": 16,
+      "udp_data": 16,
+      "info_local": 0,
+      "info_remote": 16,
+      "udp_direct": false,
+      "source": "https://raw.githubusercontent.com/volatilityfoundation/volatility3/v2.28.0/volatility3/framework/symbols/windows/netscan/netscan-vista-x64.json",
+      "validation": "synthetic"
+    },
+    "netscan-vista-sp12-x64": {
+      "pointer_size": 8,
+      "endpoint_tags": [
+        "TcpE"
+      ],
+      "endpoint": {
+        "Owner": 528,
+        "CreateTime": 0,
+        "InetAF": 24,
+        "LocalPort": 84,
+        "RemotePort": 86,
+        "State": 80,
+        "AddrInfo": 32
+      },
+      "listener": {
+        "Owner": 40,
+        "CreateTime": 32,
+        "InetAF": 96,
+        "LocalAddr": 88,
+        "Port": 106
+      },
+      "udp": {
+        "Owner": 40,
+        "CreateTime": 88,
+        "InetAF": 32,
+        "LocalAddr": 96,
+        "Port": 128
+      },
+      "family": 20,
+      "local_data": 16,
+      "udp_data": 16,
+      "info_local": 0,
+      "info_remote": 16,
+      "udp_direct": false,
+      "source": "https://raw.githubusercontent.com/volatilityfoundation/volatility3/v2.28.0/volatility3/framework/symbols/windows/netscan/netscan-vista-sp12-x64.json",
+      "validation": "synthetic"
+    },
+    "netscan-server2022-x64": {
+      "pointer_size": 8,
+      "endpoint_tags": [
+        "TcpE",
+        "TTcb"
+      ],
+      "endpoint": {
+        "Owner": 752,
+        "CreateTime": 776,
+        "InetAF": 16,
+        "LocalPort": 112,
+        "RemotePort": 114,
+        "State": 108,
+        "AddrInfo": 24
+      },
+      "listener": {
+        "Owner": 48,
+        "CreateTime": 64,
+        "InetAF": 40,
+        "LocalAddr": 96,
+        "Port": 114
+      },
+      "udp": {
+        "Owner": 40,
+        "CreateTime": 88,
+        "InetAF": 32,
+        "LocalAddr": 168,
+        "Port": 160
+      },
+      "family": 24,
+      "local_data": 16,
+      "udp_data": 0,
+      "info_local": 0,
+      "info_remote": 16,
+      "udp_direct": true,
+      "source": "https://raw.githubusercontent.com/volatilityfoundation/volatility3/v2.28.0/volatility3/framework/symbols/windows/netscan/netscan-win10-20348-x64.json",
+      "validation": "public-crash-reference",
+      "evidence": "Server 2022 x64 build 20348 public type-6 SDMP crash: all 74 readable reference connections recovered; 97 unreadable reference rows excluded."
     }
   },
   "identities": {
     "tcpip.pdb/9F341EAE78CCAB4569E0A7F2B73B04D01": "netscan-win10-15063-x64",
     "tcpip.pdb/FD48B7E92182A80F0F8B23D975C31B461": "netscan-win10-20348-x64",
-    "tcpip.pdb/822833E2F09280241D136E5E1F0877841": "netscan-win10-19041-x64"
+    "tcpip.pdb/822833E2F09280241D136E5E1F0877841": "netscan-win10-19041-x64",
+    "tcpip.pdb/ABB23D00EE7E4165B6AFF66F2DF02EB22": "netscan-win7-x64",
+    "tcpip.pdb/7623137CF8064B0C9E0E9713A9E3A98A2": "netscan-vista-x86",
+    "tcpip.pdb/05E19CEFF8BA401CB346382C8985ABBA2": "netscan-win8-x64",
+    "tcpip.pdb/15CB8FC80F56E0200D046C0136E5E5FA1": "netscan-win10-17763-x64",
+    "tcpip.pdb/F1FB7949EB7ABA205F1C0636F3CED9731": "netscan-server2022-x64"
   },
   "versions": {
     "x86:6.1.7600": "netscan-win7-x86",
@@ -850,6 +1009,15 @@
     "x64:10.0.17763": "netscan-win10-17763-x64",
     "x64:10.0.18362": "netscan-win10-18362-x64",
     "x64:10.0.18363": "netscan-win10-18363-x64",
-    "x64:10.0.19041": "netscan-win10-19041-x64"
+    "x64:10.0.19041": "netscan-win10-19041-x64",
+    "x86:6.0.6000": "netscan-vista-x86",
+    "x64:6.0.6000": "netscan-vista-x64",
+    "x86:6.0.6001": "netscan-vista-x86",
+    "x64:6.0.6001": "netscan-vista-sp12-x64",
+    "x86:6.0.6002": "netscan-vista-x86",
+    "x64:6.0.6002": "netscan-vista-sp12-x64",
+    "x86:6.0.6003": "netscan-vista-x86",
+    "x64:6.0.6003": "netscan-vista-sp12-x64",
+    "x64:10.0.20348": "netscan-win10-20348-x64"
   }
 }

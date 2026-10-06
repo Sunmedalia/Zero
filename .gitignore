@@ -2,6 +2,7 @@
 /target/
 /.zero/
 /exports/
+/dist/
 /images/
 /symbols/
 *.log

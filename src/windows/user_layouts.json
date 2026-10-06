@@ -1,0 +1,432 @@
+{
+  "services": {
+    "services-vista-x64": {
+      "pointer_size": 8,
+      "source": "https://raw.githubusercontent.com/volatilityfoundation/volatility3/v2.28.0/volatility3/framework/symbols/windows/services/services-vista-x64.json",
+      "fields": {
+        "ServiceName": 8,
+        "DisplayName": 16,
+        "Start": 76,
+        "Type": 48,
+        "State": 52,
+        "ServiceProcess": 40,
+        "DriverName": 40,
+        "Tag": 32
+      },
+      "previous": 0,
+      "binary": 16,
+      "pid": 24,
+      "header_record": 16
+    },
+    "services-vista-x86": {
+      "pointer_size": 4,
+      "source": "https://raw.githubusercontent.com/volatilityfoundation/volatility3/v2.28.0/volatility3/framework/symbols/windows/services/services-vista-x86.json",
+      "fields": {
+        "ServiceName": 4,
+        "DisplayName": 8,
+        "Start": 60,
+        "Type": 32,
+        "State": 36,
+        "ServiceProcess": 28,
+        "DriverName": 28,
+        "Tag": 24
+      },
+      "previous": 0,
+      "binary": 8,
+      "pid": 12,
+      "header_record": 12
+    },
+    "services-win10-15063-x64": {
+      "pointer_size": 8,
+      "source": "https://raw.githubusercontent.com/volatilityfoundation/volatility3/v2.28.0/volatility3/framework/symbols/windows/services/services-win10-15063-x64.json",
+      "fields": {
+        "ServiceName": 56,
+        "DisplayName": 64,
+        "Start": 36,
+        "Type": 72,
+        "State": 76,
+        "ServiceProcess": 232,
+        "DriverName": 232,
+        "Tag": 32
+      },
+      "previous": 16,
+      "binary": 24,
+      "pid": 32,
+      "header_record": 16
+    },
+    "services-win10-15063-x86": {
+      "pointer_size": 4,
+      "source": "https://raw.githubusercontent.com/volatilityfoundation/volatility3/v2.28.0/volatility3/framework/symbols/windows/services/services-win10-15063-x86.json",
+      "fields": {
+        "ServiceName": 44,
+        "DisplayName": 48,
+        "Start": 24,
+        "Type": 52,
+        "State": 56,
+        "ServiceProcess": 156,
+        "DriverName": 156,
+        "Tag": 0
+      },
+      "previous": 12,
+      "binary": 12,
+      "pid": 16,
+      "header_record": 12
+    },
+    "services-win10-16299-x64": {
+      "pointer_size": 8,
+      "source": "https://raw.githubusercontent.com/volatilityfoundation/volatility3/v2.28.0/volatility3/framework/symbols/windows/services/services-win10-16299-x64.json",
+      "fields": {
+        "ServiceName": 56,
+        "DisplayName": 64,
+        "Start": 36,
+        "Type": 72,
+        "State": 76,
+        "ServiceProcess": 232,
+        "DriverName": 232,
+        "Tag": 32
+      },
+      "previous": 16,
+      "binary": 24,
+      "pid": 40,
+      "header_record": 16
+    },
+    "services-win10-16299-x86": {
+      "pointer_size": 4,
+      "source": "https://raw.githubusercontent.com/volatilityfoundation/volatility3/v2.28.0/volatility3/framework/symbols/windows/services/services-win10-16299-x86.json",
+      "fields": {
+        "ServiceName": 44,
+        "DisplayName": 48,
+        "Start": 24,
+        "Type": 52,
+        "State": 56,
+        "ServiceProcess": 156,
+        "DriverName": 156,
+        "Tag": 0
+      },
+      "previous": 12,
+      "binary": 12,
+      "pid": 20,
+      "header_record": 12
+    },
+    "services-win10-17763-x86": {
+      "pointer_size": 4,
+      "source": "https://raw.githubusercontent.com/volatilityfoundation/volatility3/v2.28.0/volatility3/framework/symbols/windows/services/services-win10-17763-x86.json",
+      "fields": {
+        "ServiceName": 44,
+        "DisplayName": 48,
+        "Start": 24,
+        "Type": 52,
+        "State": 56,
+        "ServiceProcess": 160,
+        "DriverName": 160,
+        "Tag": 0
+      },
+      "previous": 12,
+      "binary": 12,
+      "pid": 20,
+      "header_record": 12
+    },
+    "services-win10-18362-x64": {
+      "pointer_size": 8,
+      "source": "https://raw.githubusercontent.com/volatilityfoundation/volatility3/v2.28.0/volatility3/framework/symbols/windows/services/services-win10-18362-x64.json",
+      "fields": {
+        "ServiceName": 56,
+        "DisplayName": 64,
+        "Start": 36,
+        "Type": 72,
+        "State": 76,
+        "ServiceProcess": 240,
+        "DriverName": 240,
+        "Tag": 32
+      },
+      "previous": 16,
+      "binary": 24,
+      "pid": 40,
+      "header_record": 16
+    },
+    "services-win10-18362-x86": {
+      "pointer_size": 4,
+      "source": "https://raw.githubusercontent.com/volatilityfoundation/volatility3/v2.28.0/volatility3/framework/symbols/windows/services/services-win10-18362-x86.json",
+      "fields": {
+        "ServiceName": 44,
+        "DisplayName": 48,
+        "Start": 24,
+        "Type": 52,
+        "State": 56,
+        "ServiceProcess": 164,
+        "DriverName": 164,
+        "Tag": 0
+      },
+      "previous": 12,
+      "binary": 12,
+      "pid": 20,
+      "header_record": 12
+    },
+    "services-win10-19041-x64": {
+      "pointer_size": 8,
+      "source": "https://raw.githubusercontent.com/volatilityfoundation/volatility3/v2.28.0/volatility3/framework/symbols/windows/services/services-win10-19041-x64.json",
+      "fields": {
+        "ServiceName": 56,
+        "DisplayName": 64,
+        "Start": 36,
+        "Type": 72,
+        "State": 76,
+        "ServiceProcess": 296,
+        "DriverName": 296,
+        "Tag": 32
+      },
+      "previous": 16,
+      "binary": 24,
+      "pid": 40,
+      "header_record": 16
+    },
+    "services-win10-19041-x86": {
+      "pointer_size": 4,
+      "source": "https://raw.githubusercontent.com/volatilityfoundation/volatility3/v2.28.0/volatility3/framework/symbols/windows/services/services-win10-19041-x86.json",
+      "fields": {
+        "ServiceName": 44,
+        "DisplayName": 48,
+        "Start": 24,
+        "Type": 52,
+        "State": 56,
+        "ServiceProcess": 192,
+        "DriverName": 192,
+        "Tag": 0
+      },
+      "previous": 12,
+      "binary": 12,
+      "pid": 20,
+      "header_record": 16
+    },
+    "services-win10-25398-x64": {
+      "pointer_size": 8,
+      "source": "https://raw.githubusercontent.com/volatilityfoundation/volatility3/v2.28.0/volatility3/framework/symbols/windows/services/services-win10-25398-x64.json",
+      "fields": {
+        "ServiceName": 56,
+        "DisplayName": 64,
+        "Start": 36,
+        "Type": 80,
+        "State": 84,
+        "ServiceProcess": 336,
+        "DriverName": 296,
+        "Tag": 32
+      },
+      "previous": 16,
+      "binary": 24,
+      "pid": 40,
+      "header_record": 16
+    },
+    "services-win8-x64": {
+      "pointer_size": 8,
+      "source": "https://raw.githubusercontent.com/volatilityfoundation/volatility3/v2.28.0/volatility3/framework/symbols/windows/services/services-win8-x64.json",
+      "fields": {
+        "ServiceName": 16,
+        "DisplayName": 24,
+        "Start": 92,
+        "Type": 64,
+        "State": 68,
+        "ServiceProcess": 56,
+        "DriverName": 56,
+        "Tag": 32
+      },
+      "previous": 8,
+      "binary": 24,
+      "pid": 32,
+      "header_record": 16
+    },
+    "services-win8-x86": {
+      "pointer_size": 4,
+      "source": "https://raw.githubusercontent.com/volatilityfoundation/volatility3/v2.28.0/volatility3/framework/symbols/windows/services/services-win8-x86.json",
+      "fields": {
+        "ServiceName": 8,
+        "DisplayName": 12,
+        "Start": 68,
+        "Type": 40,
+        "State": 44,
+        "ServiceProcess": 36,
+        "DriverName": 36,
+        "Tag": 0
+      },
+      "previous": 4,
+      "binary": 12,
+      "pid": 16,
+      "header_record": 12
+    },
+    "services-xp-2003-x64": {
+      "pointer_size": 8,
+      "source": "https://raw.githubusercontent.com/volatilityfoundation/volatility3/v2.28.0/volatility3/framework/symbols/windows/services/services-xp-2003-x64.json",
+      "fields": {
+        "ServiceName": 8,
+        "DisplayName": 16,
+        "Start": 84,
+        "Type": 56,
+        "State": 60,
+        "ServiceProcess": 48,
+        "DriverName": 48,
+        "Tag": 32
+      },
+      "previous": null,
+      "binary": 16,
+      "pid": 24,
+      "header_record": 16
+    },
+    "services-xp-x86": {
+      "pointer_size": 4,
+      "source": "https://raw.githubusercontent.com/volatilityfoundation/volatility3/v2.28.0/volatility3/framework/symbols/windows/services/services-xp-x86.json",
+      "fields": {
+        "ServiceName": 8,
+        "DisplayName": 12,
+        "Start": 68,
+        "Type": 40,
+        "State": 44,
+        "ServiceProcess": 36,
+        "DriverName": 36,
+        "Tag": 24
+      },
+      "previous": null,
+      "binary": 8,
+      "pid": 12,
+      "header_record": 12
+    }
+  },
+  "service_versions": {
+    "x86:5.2.3790": "services-xp-x86",
+    "x64:5.2.3790": "services-xp-2003-x64",
+    "x86:6.0.6001": "services-vista-x86",
+    "x86:6.0.6002": "services-vista-x86",
+    "x64:6.0.6001": "services-vista-x64",
+    "x64:6.0.6002": "services-vista-x64",
+    "x64:6.1.7600": "services-vista-x64",
+    "x64:6.1.7601": "services-vista-x64",
+    "x64:6.2.9200": "services-win8-x64",
+    "x64:6.3.9600": "services-win8-x64",
+    "x64:10.0.14393": "services-win8-x64",
+    "x64:10.0.17763": "services-win10-16299-x64",
+    "x64:10.0.20348": "services-win10-19041-x64",
+    "x64:10.0.26100": "services-win10-25398-x64",
+    "x86:6.1.7600": "services-vista-x86",
+    "x86:6.1.7601": "services-vista-x86",
+    "x86:6.2.9200": "services-win8-x86",
+    "x86:6.3.9600": "services-win8-x86",
+    "x86:10.0.10240": "services-win8-x86",
+    "x86:10.0.10586": "services-win8-x86",
+    "x86:10.0.14393": "services-win8-x86",
+    "x86:10.0.15063": "services-win10-15063-x86",
+    "x86:10.0.16299": "services-win10-16299-x86",
+    "x86:10.0.17134": "services-win10-16299-x86",
+    "x86:10.0.17763": "services-win10-17763-x86",
+    "x86:10.0.18362": "services-win10-18362-x86",
+    "x86:10.0.18363": "services-win10-18362-x86",
+    "x86:10.0.19041": "services-win10-19041-x86",
+    "x86:10.0.19042": "services-win10-19041-x86",
+    "x86:10.0.19043": "services-win10-19041-x86",
+    "x86:10.0.19044": "services-win10-19041-x86",
+    "x86:10.0.19045": "services-win10-19041-x86",
+    "x64:10.0.10240": "services-win8-x64",
+    "x64:10.0.10586": "services-win8-x64",
+    "x64:10.0.15063": "services-win10-15063-x64",
+    "x64:10.0.16299": "services-win10-16299-x64",
+    "x64:10.0.17134": "services-win10-16299-x64",
+    "x64:10.0.18362": "services-win10-18362-x64",
+    "x64:10.0.18363": "services-win10-18362-x64",
+    "x64:10.0.19041": "services-win10-19041-x64",
+    "x64:10.0.19042": "services-win10-19041-x64",
+    "x64:10.0.19043": "services-win10-19041-x64",
+    "x64:10.0.19044": "services-win10-19041-x64",
+    "x64:10.0.19045": "services-win10-19041-x64",
+    "x64:10.0.22000": "services-win10-19041-x64",
+    "x64:10.0.22621": "services-win10-19041-x64",
+    "x64:10.0.22631": "services-win10-19041-x64",
+    "x64:10.0.26200": "services-win10-25398-x64"
+  },
+  "consoles": {
+    "consoles-win10-17763-3232-x64": {
+      "source": "https://raw.githubusercontent.com/volatilityfoundation/volatility3/v2.28.0/volatility3/framework/symbols/windows/consoles/consoles-win10-17763-3232-x64.json",
+      "CommandHistorySize": 144,
+      "HistoryBufferMax": 148,
+      "Title": 1672,
+      "HistoryList": -760,
+      "HistoryBufferCount": -752
+    },
+    "consoles-win10-17763-x64": {
+      "source": "https://raw.githubusercontent.com/volatilityfoundation/volatility3/v2.28.0/volatility3/framework/symbols/windows/consoles/consoles-win10-17763-x64.json",
+      "CommandHistorySize": 144,
+      "HistoryBufferMax": 148,
+      "Title": 1672,
+      "HistoryList": -760,
+      "HistoryBufferCount": -752
+    },
+    "consoles-win10-18362-x64": {
+      "source": "https://raw.githubusercontent.com/volatilityfoundation/volatility3/v2.28.0/volatility3/framework/symbols/windows/consoles/consoles-win10-18362-x64.json",
+      "CommandHistorySize": 144,
+      "HistoryBufferMax": 148,
+      "Title": 1680,
+      "HistoryList": -768,
+      "HistoryBufferCount": -760
+    },
+    "consoles-win10-19041-x64": {
+      "source": "https://raw.githubusercontent.com/volatilityfoundation/volatility3/v2.28.0/volatility3/framework/symbols/windows/consoles/consoles-win10-19041-x64.json",
+      "CommandHistorySize": 144,
+      "HistoryBufferMax": 148,
+      "Title": 1688,
+      "HistoryList": -352,
+      "HistoryBufferCount": -344
+    },
+    "consoles-win10-20348-1970-x64": {
+      "source": "https://raw.githubusercontent.com/volatilityfoundation/volatility3/v2.28.0/volatility3/framework/symbols/windows/consoles/consoles-win10-20348-1970-x64.json",
+      "CommandHistorySize": 136,
+      "HistoryBufferMax": 140,
+      "Title": 1552,
+      "HistoryList": 9320,
+      "HistoryBufferCount": 9328
+    },
+    "consoles-win10-20348-2461-x64": {
+      "source": "https://raw.githubusercontent.com/volatilityfoundation/volatility3/v2.28.0/volatility3/framework/symbols/windows/consoles/consoles-win10-20348-2461-x64.json",
+      "CommandHistorySize": 136,
+      "HistoryBufferMax": 140,
+      "Title": 1552,
+      "HistoryList": 9176,
+      "HistoryBufferCount": 9184
+    },
+    "consoles-win10-20348-x64": {
+      "source": "https://raw.githubusercontent.com/volatilityfoundation/volatility3/v2.28.0/volatility3/framework/symbols/windows/consoles/consoles-win10-20348-x64.json",
+      "CommandHistorySize": 136,
+      "HistoryBufferMax": 140,
+      "Title": 1552,
+      "HistoryList": -288,
+      "HistoryBufferCount": -280
+    },
+    "consoles-win10-22000-x64": {
+      "source": "https://raw.githubusercontent.com/volatilityfoundation/volatility3/v2.28.0/volatility3/framework/symbols/windows/consoles/consoles-win10-22000-x64.json",
+      "CommandHistorySize": 136,
+      "HistoryBufferMax": 140,
+      "Title": 1616,
+      "HistoryList": -920,
+      "HistoryBufferCount": -912
+    },
+    "consoles-win10-22621-3527-x64": {
+      "source": "https://raw.githubusercontent.com/volatilityfoundation/volatility3/v2.28.0/volatility3/framework/symbols/windows/consoles/consoles-win10-22621-3527-x64.json",
+      "CommandHistorySize": 2512,
+      "HistoryBufferMax": 2516,
+      "Title": 2912,
+      "HistoryList": 10640,
+      "HistoryBufferCount": 10648
+    },
+    "consoles-win10-22621-x64": {
+      "source": "https://raw.githubusercontent.com/volatilityfoundation/volatility3/v2.28.0/volatility3/framework/symbols/windows/consoles/consoles-win10-22621-x64.json",
+      "CommandHistorySize": 2512,
+      "HistoryBufferMax": 2516,
+      "Title": 2912,
+      "HistoryList": 10664,
+      "HistoryBufferCount": 10672
+    },
+    "consoles-win10-25398-x64": {
+      "source": "https://raw.githubusercontent.com/volatilityfoundation/volatility3/v2.28.0/volatility3/framework/symbols/windows/consoles/consoles-win10-25398-x64.json",
+      "CommandHistorySize": 2704,
+      "HistoryBufferMax": 2708,
+      "Title": 3120,
+      "HistoryList": -360,
+      "HistoryBufferCount": -352
+    }
+  }
+}
