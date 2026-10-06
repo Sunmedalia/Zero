@@ -1,4 +1,4 @@
-.PHONY: build install run tui test check acceptance windows-acceptance clean
+.PHONY: build install run tui test check acceptance windows-acceptance tui-acceptance clean
 
 build:
 	cargo build --release --locked
@@ -29,3 +29,7 @@ clean:
 # Public Server 2003, Windows 7/10/11 RAW and crash/minidump samples; exact local ISFs.
 windows-acceptance:
 	cargo test --locked --release --test windows_acceptance -- --ignored
+
+# Offline resource selection -> plugin activation through the TUI state machine.
+tui-acceptance:
+	cargo test --locked --release --lib offline_tui_resources_to_analysis_acceptance -- --ignored --nocapture
