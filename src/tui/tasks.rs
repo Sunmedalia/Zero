@@ -157,6 +157,7 @@ impl App {
             work,
             Work::Analyze(_) | Work::Download(_) | Work::PrepareKali | Work::GenerateSymbols(_)
         ) {
+            self.history_revision += 1;
             self.history = None;
         }
         self.last_error = None;
@@ -501,6 +502,7 @@ impl App {
                         self.results.insert("banners".into(), banner);
                     }
                     self.views.clear();
+                    self.history_revision += 1;
                     self.history = None;
                     self.query.clear();
                     self.sort = None;
@@ -534,7 +536,7 @@ impl App {
                     if self.preparation == Preparation::Matching {
                         self.preparation = Preparation::MissingSymbols;
                     }
-                    self.status = format!("失败：{s} · 可重试");
+                    self.status = failure_status(&s);
                     self.finish_worker();
                 }
                 WorkerEvent::Done(outcome) => {
@@ -686,4 +688,31 @@ fn save_generated_symbol(
         )?;
     }
     Ok(target.canonicalize()?)
+}
+
+fn failure_status(error: &str) -> String {
+    let action = if error.contains("HTTP 404") || error.contains("官方符号包未包含精确 ISF")
+    {
+        "需导入精确符号"
+    } else {
+        "可重试"
+    };
+    let message = error.split_whitespace().collect::<Vec<_>>().join(" ");
+    if message.contains("需导入精确符号") || message.contains("需手动选择本地 ISF") {
+        format!("失败：{message}")
+    } else {
+        format!("失败：{message} · {action}")
+    }
+}
+
+#[cfg(test)]
+mod failure_tests {
+    use super::*;
+    #[test]
+    fn missing_symbols_do_not_offer_network_retry() {
+        assert!(!failure_status("符号下载 HTTP 404：test\n").contains("可重试"));
+        assert!(failure_status("官方符号包未包含精确 ISF：test").contains("需导入精确符号"));
+        assert!(failure_status("符号下载 HTTP 503：test").contains("可重试"));
+        assert!(!failure_status("curl error\nline2").contains('\n'));
+    }
 }

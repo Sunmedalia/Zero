@@ -346,7 +346,7 @@ fn main() -> Result<()> {
                 labels.join("\n")
             ),
             Outcome::Ready(result) => {
-                store::export(&output, &result, result.rows.clone())?;
+                store::export_rows(&output, &result, result.rows.iter(), &Job::default())?;
                 eprintln!(
                     "{}: {} 条；{}；导出 {}",
                     result.plugin,

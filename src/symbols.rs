@@ -248,7 +248,7 @@ fn read_stream(mut r: impl Read, job: &Job) -> Result<Vec<u8>> {
     }
     Ok(data)
 }
-fn decode(r: impl Read, name: &str, job: &Job) -> Result<Vec<u8>> {
+pub(crate) fn decode(r: impl Read, name: &str, job: &Job) -> Result<Vec<u8>> {
     if name.ends_with(".xz") {
         read_stream(xz2::read::XzDecoder::new(r), job)
     } else {
@@ -431,7 +431,72 @@ pub fn repository_url(path: &str) -> Result<String> {
     }
     Ok(format!("{RAW}{encoded}"))
 }
+#[derive(Debug)]
+pub(crate) struct HttpError {
+    pub status: u16,
+    pub url: String,
+}
+impl std::fmt::Display for HttpError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "符号下载 HTTP {}：{}", self.status, self.url)
+    }
+}
+impl std::error::Error for HttpError {}
+pub(crate) fn is_not_found(error: &anyhow::Error) -> bool {
+    error
+        .downcast_ref::<HttpError>()
+        .is_some_and(|e| e.status == 404)
+}
+pub(crate) struct RangeResponse {
+    pub bytes: Vec<u8>,
+    pub start: u64,
+    pub total: u64,
+}
+pub(crate) fn fetch_range(
+    url: &str,
+    range: &str,
+    limit: usize,
+    job: &Job,
+) -> Result<RangeResponse> {
+    let (bytes, status, headers) = transfer(url, Some(range), limit, job)?;
+    ensure!(
+        status == 206,
+        "官方符号包服务器未返回 HTTP 206；无法按需读取 ZIP"
+    );
+    let value = headers
+        .lines()
+        .filter_map(|line| {
+            let (key, value) = line.split_once(':')?;
+            key.eq_ignore_ascii_case("content-range")
+                .then_some(value.trim())
+        })
+        .next_back()
+        .context("Range 响应缺少 Content-Range")?;
+    let (span, total) = value
+        .strip_prefix("bytes ")
+        .and_then(|v| v.split_once('/'))
+        .context("Content-Range 格式无效")?;
+    let (start, end) = span.split_once('-').context("Content-Range 范围无效")?;
+    let (start, end, total): (u64, u64, u64) = (start.parse()?, end.parse()?, total.parse()?);
+    ensure!(
+        start <= end && end < total && end - start + 1 == bytes.len() as u64,
+        "Range 响应长度或边界不一致"
+    );
+    Ok(RangeResponse {
+        bytes,
+        start,
+        total,
+    })
+}
 pub(crate) fn fetch(url: &str, job: &Job) -> Result<Vec<u8>> {
+    Ok(transfer(url, None, 256 * 1024 * 1024, job)?.0)
+}
+fn transfer(
+    url: &str,
+    range: Option<&str>,
+    limit: usize,
+    job: &Job,
+) -> Result<(Vec<u8>, u16, String)> {
     use std::{
         process::{Command, Stdio},
         thread,
@@ -439,8 +504,11 @@ pub(crate) fn fetch(url: &str, job: &Job) -> Result<Vec<u8>> {
     };
     job.check()?;
     let file = tempfile::NamedTempFile::new()?;
+    let headers = tempfile::NamedTempFile::new()?;
     let errors = tempfile::tempfile()?;
-    let mut child = Command::new("curl")
+    let status_output = tempfile::tempfile()?;
+    let mut command = Command::new("curl");
+    command
         .args([
             "--fail",
             "--silent",
@@ -455,14 +523,21 @@ pub(crate) fn fetch(url: &str, job: &Job) -> Result<Vec<u8>> {
             "--max-time",
             "90",
             "--max-filesize",
-            "268435456",
-            "--output",
         ])
+        .arg(limit.to_string())
+        .arg("--output")
         .arg(file.path())
+        .arg("--dump-header")
+        .arg(headers.path())
+        .args(["--write-out", "%{http_code}"]);
+    if let Some(range) = range {
+        command.arg("--range").arg(range);
+    }
+    let mut child = command
         .arg("--")
         .arg(url)
         .stdin(Stdio::null())
-        .stdout(Stdio::null())
+        .stdout(status_output.try_clone()?)
         .stderr(errors.try_clone()?)
         .spawn()
         .context("无法启动 curl；安装 curl 或使用本地 ISF / --offline")?;
@@ -477,13 +552,32 @@ pub(crate) fn fetch(url: &str, job: &Job) -> Result<Vec<u8>> {
         }
         thread::sleep(Duration::from_millis(50));
     };
-    let mut error = String::new();
     use std::io::{Seek, SeekFrom};
+    let mut status_output = status_output;
+    status_output.seek(SeekFrom::Start(0))?;
+    let mut code = String::new();
+    status_output.take(16).read_to_string(&mut code)?;
+    let code: u16 = code.trim().parse().unwrap_or(0);
+    if code >= 400 {
+        return Err(HttpError {
+            status: code,
+            url: url.into(),
+        }
+        .into());
+    }
+    let mut error = String::new();
     let mut errors = errors;
     errors.seek(SeekFrom::Start(0))?;
     errors.take(4096).read_to_string(&mut error)?;
-    ensure!(status.success(), "符号下载失败: {} ({error})", url);
-    read_stream(File::open(file.path())?, job)
+    ensure!(status.success(), "符号下载失败: {url} ({})", error.trim());
+    job.check()?;
+    ensure!(
+        fs::metadata(file.path())?.len() <= limit as u64,
+        "下载响应超过大小限制"
+    );
+    let bytes = read_stream(File::open(file.path())?, job)?;
+    let headers = fs::read_to_string(headers.path())?;
+    Ok((bytes, code, headers))
 }
 pub fn lookup_index(index: &Value, banners: &[(u64, Vec<u8>)]) -> Result<Vec<RemoteMatch>> {
     let index = index.as_object().context("远程 banner 索引格式无效")?;

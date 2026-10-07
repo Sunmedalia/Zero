@@ -124,7 +124,11 @@ fn navigation_plugins() -> Vec<Plugin> {
         .collect()
 }
 fn menu_items() -> Vec<String> {
-    navigation_plugins().iter().map(|p| plugin_label(*p).to_string()).chain(std::iter::once("dump".into())).collect()
+    navigation_plugins()
+        .iter()
+        .map(|p| plugin_label(*p).to_string())
+        .chain(std::iter::once("dump".into()))
+        .collect()
 }
 
 fn escaped(value: &str) -> String {
@@ -160,19 +164,9 @@ fn banner_candidates(result: &Results) -> Vec<&Vec<String>> {
         clean
     }
 }
+#[cfg(test)]
 fn compare_values(a: &str, b: &str) -> std::cmp::Ordering {
-    let number = |v: &str| {
-        v.strip_prefix("0x").map_or_else(
-            || v.parse::<u64>().ok(),
-            |v| u64::from_str_radix(v, 16).ok(),
-        )
-    };
-    match (number(a), number(b)) {
-        (Some(a), Some(b)) => a.cmp(&b),
-        (Some(_), None) => std::cmp::Ordering::Less,
-        (None, Some(_)) => std::cmp::Ordering::Greater,
-        _ => a.cmp(b),
-    }
+    crate::result_view::compare(a, b)
 }
 fn table_widths(columns: &[String], rows: &[Vec<String>]) -> Vec<u16> {
     columns
@@ -227,9 +221,11 @@ fn centered(area: Rect, width: u16, height: u16) -> Rect {
         height,
     )
 }
+#[cfg(test)]
 fn tree_rows(rows: Vec<Vec<String>>, collapsed: &HashSet<String>) -> Vec<Vec<String>> {
     tree_rows_with_columns(rows, collapsed, 2, 3)
 }
+#[cfg(test)]
 fn tree_rows_with_columns(
     rows: Vec<Vec<String>>,
     collapsed: &HashSet<String>,

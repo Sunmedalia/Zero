@@ -53,3 +53,11 @@ pub mod dump;
 pub mod analysis;
 pub mod windows;
 pub mod windows_symbols;
+
+pub mod resources;
+
+pub mod result_view;
+
+pub mod snapshots;
+
+mod windows_symbols_archive;

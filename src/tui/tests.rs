@@ -3061,3 +3061,36 @@ fn clicking_the_highlighted_asset_again_selects_it() {
     assert!(app.image.is_some());
     finish_test_job(&mut app);
 }
+
+#[test]
+fn indexed_view_reuses_rows_and_invalidates_after_result_replacement() {
+    let mut app = app();
+    let first = app.view_index();
+    assert!(std::rc::Rc::ptr_eq(&first, &app.view_index()));
+    app.row = 1;
+    assert!(std::rc::Rc::ptr_eq(&first, &app.view_index()));
+    app.query = "needle".into();
+    let query = app.view_index();
+    assert!(!std::rc::Rc::ptr_eq(&first, &query));
+    app.results.clear();
+    assert!(!std::rc::Rc::ptr_eq(&query, &app.view_index()));
+}
+
+#[test]
+fn indexed_tree_matches_legacy_cycles_and_raw_export_order() {
+    let mut result = app().result().unwrap().clone();
+    result.rows = vec![
+        vec!["1".into(), "1".into(), "2".into(), "one".into()],
+        vec!["2".into(), "2".into(), "1".into(), "two".into()],
+        vec!["3".into(), "3".into(), "0".into(), "three".into()],
+    ];
+    for collapsed in [HashSet::new(), HashSet::from(["1".into()])] {
+        let index =
+            crate::result_view::Index::build(&result, "", None, false, Some((2, 3)), &collapsed);
+        let rows: Vec<_> = (0..index.visible.len())
+            .map(|i| index.row(&result, i).unwrap())
+            .collect();
+        assert_eq!(rows, tree_rows(result.rows.clone(), &collapsed));
+        assert_eq!(index.filtered, vec![0, 1, 2]);
+    }
+}

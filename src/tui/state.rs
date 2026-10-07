@@ -104,10 +104,16 @@ enum Page {
 impl Page {
     const ALL: [Self; 2] = [Self::Assets, Self::Analysis];
     fn index(self) -> usize {
-        match self { Self::Assets => 0, Self::Analysis => 1 }
+        match self {
+            Self::Assets => 0,
+            Self::Analysis => 1,
+        }
     }
     fn title(self) -> &'static str {
-        match self { Self::Assets => "资源库", Self::Analysis => "分析" }
+        match self {
+            Self::Assets => "资源库",
+            Self::Analysis => "分析",
+        }
     }
 }
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -233,7 +239,9 @@ pub struct App {
     plugin: Plugin,
     windows: bool,
     analysis_options: crate::analysis::Options,
-    results: HashMap<String, Results>,
+    results: ResultStore,
+    view_cache: RefCell<Option<(ViewKey, std::rc::Rc<crate::result_view::Index>)>>,
+    history_revision: u64,
     history: Option<Results>,
     query: String,
     sort: Option<usize>,
@@ -274,4 +282,50 @@ pub struct App {
     enter_when_ready: bool,
     /// First `q` during a running task only arms the quit.
     quit_armed: bool,
+}
+
+#[derive(Default)]
+struct ResultStore {
+    values: HashMap<String, Results>,
+    revision: u64,
+}
+impl std::ops::Deref for ResultStore {
+    type Target = HashMap<String, Results>;
+    fn deref(&self) -> &Self::Target {
+        &self.values
+    }
+}
+impl std::ops::DerefMut for ResultStore {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        self.revision += 1;
+        &mut self.values
+    }
+}
+#[derive(PartialEq, Eq)]
+struct ViewKey {
+    revision: u64,
+    identity: usize,
+    history_revision: u64,
+    query: String,
+    sort: Option<usize>,
+    descending: bool,
+    tree: Option<(usize, usize)>,
+    collapsed: HashSet<String>,
+}
+struct IndexedRows<'a> {
+    result: Option<&'a Results>,
+    index: std::rc::Rc<crate::result_view::Index>,
+}
+impl IndexedRows<'_> {
+    fn len(&self) -> usize {
+        self.index.visible.len()
+    }
+    fn get(&self, position: usize) -> Option<Vec<String>> {
+        self.index.row(self.result?, position)
+    }
+    fn range(&self, start: usize, count: usize) -> Vec<Vec<String>> {
+        (start..start.saturating_add(count).min(self.len()))
+            .filter_map(|i| self.get(i))
+            .collect()
+    }
 }

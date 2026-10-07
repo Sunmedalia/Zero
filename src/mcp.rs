@@ -33,7 +33,6 @@ struct AnalyzeArgs {
     symbol_choice: Option<String>,
     offline: Option<bool>,
     no_cache: Option<bool>,
-    offset: Option<usize>,
     limit: Option<usize>,
     output: Option<PathBuf>,
 }
@@ -111,7 +110,8 @@ fn tools() -> Value {
     json!({"tools": [
         {"name":"zero_plugins","description":"List native Linux and Windows memory forensics plugins and their result columns.","inputSchema":{"type":"object","properties":{},"additionalProperties":false}},
         {"name":"zero_symbols","description":"Identify image banners and exact ISF repository matches. Optional download saves verified symbols locally.","inputSchema":{"type":"object","properties":{"image":{"type":"string"},"offline":{"type":"boolean"},"download":{"type":"boolean"}},"required":["image"],"additionalProperties":false}},
-        {"name":"zero_analyze","description":"Run a native analysis plugin on a local memory image. Returns at most 200 rows and may export all rows to JSON/CSV. Use offset/limit to page the result.","inputSchema":{"type":"object","properties":{"image":{"type":"string"},"plugin":{"type":"string"},"os":{"type":"string","enum":["auto","linux","windows"]},"arch":{"type":"string","enum":["auto","x86","x64","arm64"]},"pagefiles":{"type":"array","items":{"type":"object","properties":{"index":{"type":"integer","minimum":0,"maximum":15},"path":{"type":"string"}},"required":["index","path"],"additionalProperties":false}},"swapfile":{"type":"string"},"pid":{"type":"integer","minimum":0},"hive":{"type":"string"},"key":{"type":"string"},"symbols":{"type":"string"},"symbol_choice":{"type":"string"},"offline":{"type":"boolean"},"no_cache":{"type":"boolean"},"offset":{"type":"integer","minimum":0},"limit":{"type":"integer","minimum":1,"maximum":200},"output":{"type":"string"}},"required":["image","plugin"],"additionalProperties":false}},
+        {"name":"zero_analyze","description":"Run a native analysis plugin on a local memory image. Returns at most 200 rows and may export all rows to JSON/CSV. Returns result_id; use zero_results for subsequent pages.","inputSchema":{"type":"object","properties":{"image":{"type":"string"},"plugin":{"type":"string"},"os":{"type":"string","enum":["auto","linux","windows"]},"arch":{"type":"string","enum":["auto","x86","x64","arm64"]},"pagefiles":{"type":"array","items":{"type":"object","properties":{"index":{"type":"integer","minimum":0,"maximum":15},"path":{"type":"string"}},"required":["index","path"],"additionalProperties":false}},"swapfile":{"type":"string"},"pid":{"type":"integer","minimum":0},"hive":{"type":"string"},"key":{"type":"string"},"symbols":{"type":"string"},"symbol_choice":{"type":"string"},"offline":{"type":"boolean"},"no_cache":{"type":"boolean"},"limit":{"type":"integer","minimum":1,"maximum":200},"output":{"type":"string"}},"required":["image","plugin"],"additionalProperties":false}},
+        {"name":"zero_results","description":"Read or export an immutable analysis snapshot. Does not run analysis; expired IDs require a new zero_analyze call.","inputSchema":{"type":"object","properties":{"result_id":{"type":"string"},"offset":{"type":"integer","minimum":0},"limit":{"type":"integer","minimum":1,"maximum":200},"output":{"type":"string"}},"required":["result_id"],"additionalProperties":false}},
         {"name":"zero_dump","description":"Export one process, one PID address range, or ELF mappings to a local directory with a JSON/CSV manifest. Requires explicit PID and paths.","inputSchema":{"type":"object","properties":{"image":{"type":"string"},"symbols":{"type":"string"},"symbol_choice":{"type":"string"},"os":{"type":"string","enum":["auto","linux","windows"]},"arch":{"type":"string","enum":["auto","x86","x64","arm64"]},"pagefiles":{"type":"array","items":{"type":"object","properties":{"index":{"type":"integer","minimum":0,"maximum":15},"path":{"type":"string"}},"required":["index","path"],"additionalProperties":false}},"swapfile":{"type":"string"},"mode":{"type":"string","enum":["process","range","elf","pe"]},"pid":{"type":"integer","minimum":0},"dump_dir":{"type":"string"},"output":{"type":"string"},"start":{"type":"string"},"end":{"type":"string"},"offline":{"type":"boolean"}},"required":["image","mode","pid","dump_dir","output"],"additionalProperties":false}},
         {"name":"zero_cache_list","description":"Inspect regenerable local cache without deleting it.","inputSchema":{"type":"object","properties":{},"additionalProperties":false}}
     ]})
@@ -119,7 +119,14 @@ fn tools() -> Value {
 
 /// `session` lives for the whole server so repeated calls on one image reuse its
 /// digest, symbols and page-table discovery; it re-prepares when the file changes.
-fn call(name: &str, args: Value, root: &Path, session: &mut linux::Session) -> Result<Value> {
+fn call(
+    name: &str,
+    args: Value,
+    root: &Path,
+    session: &mut linux::Session,
+    snapshots: &std::sync::Mutex<zero_tui::snapshots::Snapshots>,
+    job: &Job,
+) -> Result<Value> {
     if matches!(name, "zero_plugins" | "zero_cache_list") {
         let _: EmptyArgs = serde_json::from_value(args.clone())?;
     }
@@ -140,15 +147,14 @@ fn call(name: &str, args: Value, root: &Path, session: &mut linux::Session) -> R
             }
             let a: Args = serde_json::from_value(args)?;
             let (cache_dir, settings) = settings(root, a.offline.unwrap_or(false))?;
-            let job = job();
-            let image = session.prepare_image(&path(root, &a.image), &cache_dir, &job)?;
-            let banners = linux::banner_result(&image, &job)?;
+            let image = session.prepare_image(&path(root, &a.image), &cache_dir, job)?;
+            let banners = linux::banner_result(&image, job)?;
             let matches =
-                symbols::remote_matches(&image, &cache_dir, settings.remote_symbols, &job)?;
+                symbols::remote_matches(&image, &cache_dir, settings.remote_symbols, job)?;
             let mut downloaded = Vec::new();
             if a.download.unwrap_or(false) {
                 for item in &matches {
-                    match symbols::download(item, &image, &cache_dir, settings.remote_symbols, &job)
+                    match symbols::download(item, &image, &cache_dir, settings.remote_symbols, job)
                     {
                         Ok(isf) => downloaded.push(isf.label),
                         Err(e) => {
@@ -160,7 +166,33 @@ fn call(name: &str, args: Value, root: &Path, session: &mut linux::Session) -> R
             }
             Ok(json!({"banners":banners.rows,"matches":matches,"downloaded":downloaded}))
         }
+        "zero_results" => {
+            #[derive(Deserialize)]
+            #[serde(deny_unknown_fields)]
+            struct Args {
+                result_id: String,
+                offset: Option<usize>,
+                limit: Option<usize>,
+                output: Option<PathBuf>,
+            }
+            let a: Args = serde_json::from_value(args)?;
+            let output = a.output.as_deref().map(|p| path(root, p));
+            snapshots
+                .lock()
+                .map_err(|_| anyhow::anyhow!("快照锁不可用"))?
+                .page(
+                    &a.result_id,
+                    a.offset.unwrap_or(0),
+                    a.limit.unwrap_or(50),
+                    output.as_deref(),
+                    job,
+                )
+        }
         "zero_analyze" => {
+            ensure!(
+                args.get("offset").is_none(),
+                "zero_analyze 不再接受 offset；首次分析后使用 zero_results(result_id, offset, limit) 翻页"
+            );
             let a: AnalyzeArgs = serde_json::from_value(args)?;
             let plugin = Plugin::from_str(&a.plugin, true).map_err(anyhow::Error::msg)?;
             ensure!(!plugin.is_dump(), "转储请调用 zero_dump");
@@ -206,7 +238,7 @@ fn call(name: &str, args: Value, root: &Path, session: &mut linux::Session) -> R
                         .map_err(anyhow::Error::msg)?,
                     key: a.key.unwrap_or_default(),
                 },
-                &job(),
+                job,
             )?;
             match outcome {
                 Outcome::Choose(labels) => {
@@ -215,9 +247,13 @@ fn call(name: &str, args: Value, root: &Path, session: &mut linux::Session) -> R
                 Outcome::Ready(result) => {
                     let output = a.output.as_deref().map(|p| path(root, p));
                     if let Some(output) = &output {
-                        store::export(output, &result, result.rows.clone())?;
+                        store::export_rows(output, &result, result.rows.iter(), job)?;
                     }
-                    let mut page = result_page(result, a.offset.unwrap_or(0), limit);
+                    let id = zero_tui::snapshots::Snapshots::insert_shared(snapshots, result, job)?;
+                    let mut snapshots = snapshots
+                        .lock()
+                        .map_err(|_| anyhow::anyhow!("快照锁不可用"))?;
+                    let mut page = snapshots.page(&id, 0, limit, None, job)?;
                     if let Some(output) = output {
                         page["output"] = json!(output);
                     }
@@ -283,7 +319,7 @@ fn call(name: &str, args: Value, root: &Path, session: &mut linux::Session) -> R
                     swapfile: a.swapfile.map(|p| path(root, &p)),
                     ..Default::default()
                 },
-                &job(),
+                job,
             )?;
             match outcome {
                 Outcome::Choose(labels) => {
@@ -291,7 +327,7 @@ fn call(name: &str, args: Value, root: &Path, session: &mut linux::Session) -> R
                 }
                 Outcome::Ready(result) => {
                     let output = path(root, &a.output);
-                    store::export(&output, &result, result.rows.clone())?;
+                    store::export_rows(&output, &result, result.rows.iter(), job)?;
                     let mut page = result_page(result, 0, MAX_ROWS);
                     page["output"] = json!(output);
                     Ok(page)
@@ -306,7 +342,13 @@ fn rpc_error(id: Value, code: i32, message: &str) -> Value {
     json!({"jsonrpc":"2.0","id":id,"error":{"code":code,"message":message}})
 }
 
-fn response(request: Value, root: &Path, session: &mut linux::Session) -> Option<Value> {
+fn response(
+    request: Value,
+    root: &Path,
+    session: &mut linux::Session,
+    snapshots: &std::sync::Mutex<zero_tui::snapshots::Snapshots>,
+    job: &Job,
+) -> Option<Value> {
     if !request.is_object()
         || request.get("jsonrpc").and_then(Value::as_str) != Some("2.0")
         || request.get("method").and_then(Value::as_str).is_none()
@@ -337,7 +379,7 @@ fn response(request: Value, root: &Path, session: &mut linux::Session) -> Option
                 .get("arguments")
                 .cloned()
                 .unwrap_or_else(|| json!({}));
-            let (value, error) = match call(name, args, root, session) {
+            let (value, error) = match call(name, args, root, session, snapshots, job) {
                 Ok(value) => (value, false),
                 Err(error) => (json!({"error":format!("{error:#}")}), true),
             };
@@ -353,26 +395,229 @@ fn response(request: Value, root: &Path, session: &mut linux::Session) -> Option
     })
 }
 
-fn main() -> Result<()> {
-    let root = root()?.canonicalize().context("ZERO_ROOT 不是现有目录")?;
-    let stdin = io::stdin();
-    let mut stdout = io::stdout().lock();
-    let mut session = linux::Session::default();
-    for line in stdin.lock().lines() {
-        let line = line?;
-        let reply = if line.len() > MAX_REQUEST {
-            Some(rpc_error(Value::Null, -32600, "Request exceeds 1 MiB"))
-        } else {
-            match serde_json::from_str::<Value>(&line) {
-                Ok(request) => response(request, &root, &mut session),
-                Err(_) => Some(rpc_error(Value::Null, -32700, "Parse error")),
+// Read at most MAX_REQUEST bytes, then discard the rest of an oversized line.
+fn bounded_line(reader: &mut impl BufRead) -> io::Result<Option<Result<String, &'static str>>> {
+    let mut bytes = Vec::new();
+    let mut oversized = false;
+    loop {
+        let buffer = reader.fill_buf()?;
+        if buffer.is_empty() {
+            return if bytes.is_empty() && !oversized {
+                Ok(None)
+            } else if oversized {
+                Ok(Some(Err("Request exceeds 1 MiB")))
+            } else {
+                Ok(Some(String::from_utf8(bytes).map_err(|_| "Invalid UTF-8")))
+            };
+        }
+        let end = buffer.iter().position(|&b| b == b'\n');
+        let n = end.map_or(buffer.len(), |i| i + 1);
+        let content = end.unwrap_or(n);
+        if !oversized {
+            if bytes.len().saturating_add(content) > MAX_REQUEST {
+                oversized = true;
+                bytes.clear();
+            } else {
+                bytes.extend_from_slice(&buffer[..content]);
             }
+        }
+        reader.consume(n);
+        if end.is_some() {
+            return Ok(Some(if oversized {
+                Err("Request exceeds 1 MiB")
+            } else {
+                String::from_utf8(bytes).map_err(|_| "Invalid UTF-8")
+            }));
+        }
+    }
+}
+enum Event {
+    Input(Result<String, &'static str>),
+    End,
+    InputError(io::Error),
+    Finished(Option<Value>, Box<linux::Session>),
+}
+struct Active {
+    id: Value,
+    job: Job,
+    thread: std::thread::JoinHandle<()>,
+}
+fn send_reply(stdout: &mut impl Write, reply: &Value) -> Result<()> {
+    serde_json::to_writer(&mut *stdout, reply)?;
+    stdout.write_all(b"\n")?;
+    stdout.flush()?;
+    Ok(())
+}
+fn main() -> Result<()> {
+    use std::sync::{Arc, Mutex, mpsc};
+    use std::time::Duration;
+    let root = root()?.canonicalize().context("ZERO_ROOT 不是现有目录")?;
+    let snapshots = Arc::new(Mutex::new(zero_tui::snapshots::Snapshots::new(
+        settings(&root, false)?.1.resources,
+    )?));
+    let (sender, receiver) = mpsc::sync_channel(64);
+    let input_sender = sender.clone();
+    std::thread::spawn(move || {
+        let stdin = io::stdin();
+        let mut input = stdin.lock();
+        loop {
+            let event = match bounded_line(&mut input) {
+                Ok(Some(line)) => Event::Input(line),
+                Ok(None) => {
+                    let _ = input_sender.send(Event::End);
+                    break;
+                }
+                Err(error) => {
+                    let _ = input_sender.send(Event::InputError(error));
+                    break;
+                }
+            };
+            if input_sender.send(event).is_err() {
+                break;
+            }
+        }
+    });
+    let mut stdout = io::stdout().lock();
+    let mut session = Some(linux::Session::default());
+    let mut active: Option<Active> = None;
+    let mut eof = false;
+    loop {
+        snapshots
+            .lock()
+            .map_err(|_| anyhow::anyhow!("快照锁不可用"))?
+            .expire();
+        if eof && active.is_none() {
+            break;
+        }
+        let event = match receiver.recv_timeout(Duration::from_millis(100)) {
+            Ok(event) => event,
+            Err(mpsc::RecvTimeoutError::Timeout) => continue,
+            Err(_) => break,
         };
-        if let Some(reply) = reply {
-            serde_json::to_writer(&mut stdout, &reply)?;
-            stdout.write_all(b"\n")?;
-            stdout.flush()?;
+        match event {
+            Event::End => eof = true,
+            Event::InputError(error) => {
+                if let Some(worker) = active.take() {
+                    worker
+                        .job
+                        .cancel
+                        .store(true, std::sync::atomic::Ordering::Relaxed);
+                    let _ = worker.thread.join();
+                }
+                return Err(error.into());
+            }
+            Event::Finished(reply, returned) => {
+                if let Some(worker) = active.take() {
+                    let _ = worker.thread.join();
+                }
+                session = Some(*returned);
+                if let Some(reply) = reply {
+                    send_reply(&mut stdout, &reply)?;
+                }
+            }
+            Event::Input(line) => {
+                let request = match line {
+                    Err(message) => {
+                        send_reply(&mut stdout, &rpc_error(Value::Null, -32600, message))?;
+                        continue;
+                    }
+                    Ok(line) => match serde_json::from_str::<Value>(&line) {
+                        Ok(value) => value,
+                        Err(_) => {
+                            send_reply(
+                                &mut stdout,
+                                &rpc_error(Value::Null, -32700, "Parse error"),
+                            )?;
+                            continue;
+                        }
+                    },
+                };
+                if request["jsonrpc"] == "2.0"
+                    && request["method"] == "notifications/cancelled"
+                    && request.get("id").is_none()
+                {
+                    if let Some(worker) = &active
+                        && request["params"]["requestId"] == worker.id
+                    {
+                        worker
+                            .job
+                            .cancel
+                            .store(true, std::sync::atomic::Ordering::Relaxed);
+                    }
+                    continue;
+                }
+                let expensive = request["jsonrpc"] == "2.0"
+                    && request["method"] == "tools/call"
+                    && request
+                        .get("id")
+                        .is_some_and(|id| id.is_string() || id.is_number())
+                    && matches!(
+                        request["params"]["name"].as_str(),
+                        Some("zero_analyze" | "zero_dump" | "zero_symbols")
+                    );
+                if expensive {
+                    if active.is_some() {
+                        send_reply(
+                            &mut stdout,
+                            &rpc_error(
+                                request["id"].clone(),
+                                -32000,
+                                "Analysis worker busy; retry after the active request finishes",
+                            ),
+                        )?;
+                        continue;
+                    }
+                    let mut worker_session = session.take().context("分析会话不可用")?;
+                    let worker_job = job();
+                    let job = worker_job.clone();
+                    let root = root.clone();
+                    let snapshots = snapshots.clone();
+                    let sender = sender.clone();
+                    let id = request["id"].clone();
+                    let error_id = id.clone();
+                    let thread = std::thread::spawn(move || {
+                        let reply = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                            response(request, &root, &mut worker_session, &snapshots, &job)
+                        }))
+                        .unwrap_or_else(|_| {
+                            worker_session.clear();
+                            Some(rpc_error(error_id, -32603, "Analysis worker panicked"))
+                        });
+                        let _ = sender.send(Event::Finished(reply, Box::new(worker_session)));
+                    });
+                    active = Some(Active {
+                        id,
+                        job: worker_job,
+                        thread,
+                    });
+                } else {
+                    let mut unused_session = linux::Session::default();
+                    if let Some(reply) = response(
+                        request,
+                        &root,
+                        &mut unused_session,
+                        &snapshots,
+                        &Job::default(),
+                    ) {
+                        send_reply(&mut stdout, &reply)?;
+                    }
+                }
+            }
         }
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod protocol_tests {
+    use super::*;
+    #[test]
+    fn oversized_line_is_discarded_and_next_request_survives() {
+        let mut input = vec![b'x'; MAX_REQUEST + 8000];
+        input.extend_from_slice(b"\nping\n");
+        let mut reader = io::BufReader::with_capacity(4096, input.as_slice());
+        assert!(bounded_line(&mut reader).unwrap().unwrap().is_err());
+        assert_eq!(bounded_line(&mut reader).unwrap().unwrap().unwrap(), "ping");
+        assert!(bounded_line(&mut reader).unwrap().is_none());
+    }
 }

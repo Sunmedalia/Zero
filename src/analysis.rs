@@ -64,7 +64,7 @@ pub fn analyze(
             request.plugin.is_windows(),
             "Windows 镜像请使用 windows.* 插件"
         );
-        return crate::windows::analyze(&image, request, dump, options, job);
+        return session.analyze_windows(&image, request, dump, options, job);
     }
     ensure!(
         !request.plugin.is_windows(),

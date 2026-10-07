@@ -41,10 +41,11 @@ fn main() -> Result<()> {
             &job,
         ) {
             Ok(Outcome::Ready(result)) => {
-                store::export(
+                store::export_rows(
                     &PathBuf::from(format!("{}{}.json", args[3], descriptor.name)),
                     &result,
-                    result.rows.clone(),
+                    result.rows.iter(),
+                    &job,
                 )?;
                 println!(
                     "{} {} complete={} diagnostics={} {:.3}s",

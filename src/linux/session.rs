@@ -45,6 +45,8 @@ pub struct Session {
     physical_stamp: String,
     symbol_stamp: String,
     symbols: Vec<std::sync::Arc<Isf>>,
+    windows_stamp: String,
+    windows_symbols: Vec<std::sync::Arc<Isf>>,
     roots: std::collections::HashMap<String, u64>,
 }
 impl Session {
@@ -67,12 +69,58 @@ impl Session {
                 .is_some_and(|i| i.stamp().ok().as_ref() != Some(&self.physical_stamp))
         {
             self.clear();
-            let image = Image::open(path, cache, job)?;
+            let mut image = Image::open(path, cache, job)?;
+            image.set_limits(store::settings(cache)?.resources);
             self.physical_stamp = image.stamp()?;
             self.image = Some(std::sync::Arc::new(image));
             self.image_stamp = image_stamp;
         }
         Ok(self.image.as_ref().context("镜像未准备")?.clone())
+    }
+    pub(crate) fn analyze_windows(
+        &mut self,
+        image: &Image,
+        request: &Request<'_>,
+        dump: Option<&crate::dump::DumpOptions>,
+        options: &crate::analysis::Options,
+        job: &Job,
+    ) -> Result<Outcome> {
+        // Container-only paths do not need kernel symbols or a symbol cache.
+        if image.windows_container.as_ref().is_some_and(|m| {
+            m.virtual_memory
+                || m.kernel_virtual
+                || image.segments.is_empty()
+                || request.plugin == Plugin::WinCrashinfo
+        }) {
+            return crate::windows::analyze(image, request, dump, options, job);
+        }
+        crate::windows::validate_request(request, dump, options)?;
+        let stamp = || -> Result<String> {
+            Ok(format!(
+                "{}:{}:{}:{}",
+                image.digest,
+                crate::windows_symbols::CONVERTER_VERSION,
+                source_stamp(request.symbols, job)?,
+                source_stamp(&request.cache.join("symbols/isf/windows"), job)?
+            ))
+        };
+        let current = stamp()?;
+        if self.windows_stamp != current || self.windows_symbols.is_empty() {
+            self.windows_symbols = crate::windows_symbols::resolve(
+                request.symbols,
+                image,
+                request.cache,
+                request.network,
+                job,
+            )?
+            .into_iter()
+            .map(std::sync::Arc::new)
+            .collect();
+            self.windows_stamp = stamp()?;
+        } else {
+            job.report("复用精确匹配的 Windows ISF");
+        }
+        crate::windows::analyze_resolved(image, request, dump, options, job, &self.windows_symbols)
     }
     pub fn analyze(&mut self, request: &Request<'_>, job: &Job) -> Result<Outcome> {
         self.analyze_with_dump(request, None, job)
@@ -92,7 +140,7 @@ impl Session {
         job.check()?;
         let image = self.prepare_image(request.image, request.cache, job)?;
         if request.plugin.is_windows() {
-            return crate::windows::analyze(
+            return self.analyze_windows(
                 &image,
                 request,
                 dump,

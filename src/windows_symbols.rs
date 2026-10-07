@@ -170,6 +170,7 @@ pub fn resolve(
     ensure!(!candidates.is_empty(), "镜像未发现 Windows 内核 PDB 身份");
     let identities: HashSet<_> = candidates.iter().map(|c| c.pdb.clone()).collect();
     let mut out = Vec::new();
+    let mut failures = Vec::new();
     let mut seen = HashSet::new();
     for source in [path.to_path_buf(), cache.join("symbols/isf/windows")] {
         if !source.exists() {
@@ -198,14 +199,17 @@ pub fn resolve(
                 Ok(isf) => out.push(isf),
                 Err(e) => {
                     job.check()?;
-                    job.report(format!("{}: {e:#}", identity.key()));
+                    let message = format!("{}: {e:#}", identity.key());
+                    job.report(&message);
+                    failures.push(message);
                 }
             }
         }
     }
     ensure!(
         !out.is_empty(),
-        "没有准确匹配的 Windows ISF；在线模式可原生下载转换 PDB，离线模式需先准备符号"
+        "没有准确匹配的 Windows ISF；在线可下载 PDB 或使用官方 ISF 兜底，离线需先准备符号：{}",
+        failures.join("；")
     );
     out.sort_by(|a, b| a.label.cmp(&b.label));
     Ok(out)
@@ -213,13 +217,19 @@ pub fn resolve(
 pub fn acquire(identity: &PdbIdentity, cache: &Path, network: bool, job: &Job) -> Result<Isf> {
     job.check()?;
     identity.url()?;
+    let _guard = if cache.exists() || network {
+        Some(crate::cache::lock(cache, false)?)
+    } else {
+        None
+    };
     let stem = format!("{}-{}{:X}", identity.name, identity.guid, identity.age);
     let directory = cache.join("symbols/isf/windows");
     let target = directory.join(format!("{stem}.json"));
     if target.is_file()
         && let Ok(isf) = Isf::parse(&fs::read(&target)?, target.display().to_string())
         && PdbIdentity::from_isf(&isf)? == *identity
-        && isf.data["metadata"]["zero"]["converter"] == CONVERTER_VERSION
+        && (isf.data["metadata"]["zero"]["converter"].is_null()
+            || isf.data["metadata"]["zero"]["converter"] == CONVERTER_VERSION)
     {
         return Ok(isf);
     }
@@ -231,7 +241,13 @@ pub fn acquire(identity: &PdbIdentity, cache: &Path, network: bool, job: &Job) -
     } else {
         ensure!(network, "离线模式缺少 PDB 缓存: {}", identity.key());
         job.report(format!("下载微软 PDB {}", identity.key()));
-        symbols::fetch(&identity.url()?, job)?
+        match symbols::fetch(&identity.url()?, job) {
+            Ok(bytes) => bytes,
+            Err(error) if symbols::is_not_found(&error) => {
+                return acquire_archive(identity, &target, job);
+            }
+            Err(error) => return Err(error),
+        }
     };
     job.report(format!("原生转换 PDB {}", identity.key()));
     let bytes_out = match convert(&bytes, identity, job) {
@@ -239,7 +255,13 @@ pub fn acquire(identity: &PdbIdentity, cache: &Path, network: bool, job: &Job) -
         Err(e) if had_local && network => {
             job.check()?;
             job.report(format!("PDB 缓存无效，重新下载: {e:#}"));
-            bytes = symbols::fetch(&identity.url()?, job)?;
+            bytes = match symbols::fetch(&identity.url()?, job) {
+                Ok(bytes) => bytes,
+                Err(error) if symbols::is_not_found(&error) => {
+                    return acquire_archive(identity, &target, job);
+                }
+                Err(error) => return Err(error),
+            };
             convert(&bytes, identity, job)?
         }
         Err(e) => return Err(e),
@@ -254,6 +276,44 @@ pub fn acquire(identity: &PdbIdentity, cache: &Path, network: bool, job: &Job) -
             &json!({"url":identity.url()?,"pdb":identity,"pdb_sha256":format!("{:x}",Sha256::digest(&bytes)),"isf_sha256":isf.digest,"converter":CONVERTER_VERSION}),
         )?,
     )?;
+    Ok(isf)
+}
+
+fn acquire_archive(identity: &PdbIdentity, target: &Path, job: &Job) -> Result<Isf> {
+    let (isf, bytes, member) = crate::windows_symbols_archive::acquire(identity, target, job)
+        .context("微软 PDB 不可用，官方 ISF 兜底失败")?;
+    publish_archive(identity, target, isf, &bytes, &member, job)
+}
+fn publish_archive(
+    identity: &PdbIdentity,
+    target: &Path,
+    isf: Isf,
+    bytes: &[u8],
+    member: &str,
+    job: &Job,
+) -> Result<Isf> {
+    ensure!(
+        PdbIdentity::from_isf(&isf)? == *identity,
+        "禁止缓存身份不匹配的官方 ISF"
+    );
+    job.check()?;
+    let provenance = serde_json::to_vec_pretty(&json!({
+        "url": crate::windows_symbols_archive::URL,
+        "source": "volatility-official-isf",
+        "primary_url": identity.url()?,
+        "archive_member": member,
+        "pdb": identity,
+        "isf_sha256": isf.digest
+    }))?;
+    store::atomic_stream(&target.with_extension("source.json"), job, |writer| {
+        writer.write_all(&provenance)?;
+        Ok(())
+    })?;
+    store::atomic_stream(target, job, |writer| {
+        writer.write_all(bytes)?;
+        Ok(())
+    })?;
+    job.report(format!("已取得并缓存官方精确 ISF：{}", identity.key()));
     Ok(isf)
 }
 
@@ -596,5 +656,81 @@ mod tests {
         assert_eq!(identity.age, 10);
         assert_eq!(identity.key(), key);
         assert!(convert(b"corrupt PDB", &identity, &Job::default()).is_err());
+    }
+}
+
+#[cfg(test)]
+mod fallback_tests {
+    use super::*;
+    #[test]
+    fn official_cache_reuses_offline_and_records_origin() -> Result<()> {
+        let id = PdbIdentity {
+            name: "ntkrnlmp.pdb".into(),
+            guid: "00112233445566778899AABBCCDDEEFF".into(),
+            age: 2,
+        };
+        let bytes = serde_json::to_vec(
+            &json!({"metadata":{"windows":{"pdb":{"database":id.name,"GUID":id.guid,"age":id.age}}},"base_types":{"pointer":{"size":8}},"symbols":{},"user_types":{}}),
+        )?;
+        let dir = tempfile::tempdir()?;
+        let target = dir.path().join("symbols/isf/windows/exact.json");
+        // Use the same stable destination as the acquisition API.
+        let target = target.with_file_name(format!("{}-{}{}.json", id.name, id.guid, id.age));
+        let parsed = Isf::parse(&bytes, target.display().to_string())?;
+        publish_archive(
+            &id,
+            &target,
+            parsed,
+            &bytes,
+            "windows/ntkrnlmp.pdb/exact.json",
+            &Job::default(),
+        )?;
+        let offline = acquire(&id, dir.path(), false, &Job::default())?;
+        assert_eq!(PdbIdentity::from_isf(&offline)?, id);
+        let source: Value =
+            serde_json::from_slice(&fs::read(target.with_extension("source.json"))?)?;
+        assert_eq!(source["url"], crate::windows_symbols_archive::URL);
+        assert_eq!(source["isf_sha256"], offline.digest);
+        assert!(!dir.path().join("symbols/build/pdb").exists());
+        let job = Job::default();
+        job.cancel.store(true, std::sync::atomic::Ordering::Relaxed);
+        let cancelled = dir.path().join("cancelled.json");
+        assert!(
+            publish_archive(
+                &id,
+                &cancelled,
+                Isf::parse(&bytes, "cancelled".into())?,
+                &bytes,
+                "entry",
+                &job
+            )
+            .is_err()
+        );
+        assert!(!cancelled.exists());
+        let absent = dir.path().join("absent-offline-cache");
+        assert!(acquire(&id, &absent, false, &Job::default()).is_err());
+        assert!(
+            !absent.exists(),
+            "offline lookup must not create a missing cache root"
+        );
+        Ok(())
+    }
+    #[test]
+    fn fallback_trigger_uses_http_status_not_error_text() {
+        let error = anyhow::Error::new(symbols::HttpError {
+            status: 404,
+            url: "test".into(),
+        })
+        .context("download failed");
+        assert!(symbols::is_not_found(&error));
+        assert!(!symbols::is_not_found(&anyhow::Error::new(
+            symbols::HttpError {
+                status: 503,
+                url: "test".into()
+            }
+        )));
+        assert!(!symbols::is_not_found(&anyhow::anyhow!(
+            "timeout HTTP 404 text"
+        )));
     }
 }

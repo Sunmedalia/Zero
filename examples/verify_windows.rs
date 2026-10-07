@@ -58,10 +58,11 @@ fn main() -> Result<()> {
         };
         match analysis::analyze(&mut session, &request, None, &Options::default(), &job) {
             Ok(Outcome::Ready(result)) => {
-                store::export(
+                store::export_rows(
                     Path::new(&format!("{prefix}{}.json", descriptor.name)),
                     &result,
-                    result.rows.clone(),
+                    result.rows.iter(),
+                    &job,
                 )?;
                 eprintln!(
                     "RESULT {} rows={} complete={} diagnostics={}",

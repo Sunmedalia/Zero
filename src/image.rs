@@ -17,6 +17,7 @@ pub struct Segment {
     pub file_offset: u64,
 }
 pub struct Image {
+    pub limits: crate::resources::Limits,
     file: File,
     _cache_guard: Option<File>,
     pub(crate) arm64_va_bits: std::sync::atomic::AtomicU8,
@@ -24,7 +25,7 @@ pub struct Image {
     pub(crate) windows_roots: std::sync::Mutex<std::collections::HashMap<String, (u64, u64)>>,
     banners: std::sync::OnceLock<Vec<(u64, Vec<u8>)>>,
     /// Completed physical scans keyed by needle; the image is read-only.
-    scans: std::sync::Mutex<std::collections::HashMap<Vec<u8>, std::sync::Arc<[u64]>>>,
+    scans: std::sync::Mutex<crate::resources::Lru<Vec<u8>, std::sync::Arc<[u64]>>>,
     pub segments: Vec<Segment>,
     pub digest: String,
     pub format: &'static str,
@@ -318,7 +319,10 @@ impl Image {
             windows: std::sync::OnceLock::new(),
             windows_roots: std::sync::Mutex::new(std::collections::HashMap::new()),
             banners: std::sync::OnceLock::new(),
-            scans: Default::default(),
+            limits: Default::default(),
+            scans: std::sync::Mutex::new(crate::resources::Lru::new(
+                crate::resources::Limits::default().scan_cache_bytes,
+            )),
             segments,
             digest,
             format,
@@ -409,6 +413,10 @@ impl Image {
         }
         Ok(found)
     }
+    pub fn set_limits(&mut self, limits: crate::resources::Limits) {
+        self.scans = std::sync::Mutex::new(crate::resources::Lru::new(limits.scan_cache_bytes));
+        self.limits = limits;
+    }
     pub fn stamp(&self) -> Result<String> {
         metadata_stamp(&self.file.metadata()?)
     }
@@ -445,11 +453,15 @@ impl Image {
         Ok(())
     }
     fn cached_scan(&self, needle: &[u8]) -> Option<std::sync::Arc<[u64]>> {
-        self.scans.lock().ok()?.get(needle).cloned()
+        self.scans.lock().ok()?.get(&needle.to_vec()).cloned()
     }
     fn remember_scan(&self, needle: &[u8], hits: &[u64]) {
+        let weight = hits.len().saturating_mul(8).saturating_add(needle.len());
+        if weight > self.limits.scan_cache_bytes {
+            return;
+        }
         if let Ok(mut scans) = self.scans.lock() {
-            scans.insert(needle.to_vec(), hits.into());
+            scans.insert(needle.to_vec(), hits.into(), weight);
         }
     }
     fn scan_pass(&self, needles: &[&[u8]], job: &Job) -> Result<Vec<Vec<u64>>> {
@@ -497,7 +509,7 @@ struct PageCache {
     /// `arm64_va_bits` this map was filled for. `u8::MAX` means empty.
     bits: u8,
     /// Virtual 4 KiB page → physical 4 KiB page. The image is read-only.
-    pages: std::collections::HashMap<u64, u64>,
+    pages: crate::resources::Lru<u64, u64>,
 }
 pub struct VirtualMemory<'a> {
     pub image: &'a Image,
@@ -511,12 +523,12 @@ impl<'a> VirtualMemory<'a> {
             root,
             pages: std::sync::Mutex::new(PageCache {
                 bits: u8::MAX,
-                pages: std::collections::HashMap::new(),
+                pages: crate::resources::Lru::new(image.limits.page_cache_entries),
             }),
         }
     }
     fn cached_page(&self, va: u64, bits: u8) -> Option<u64> {
-        let cache = self.pages.lock().unwrap_or_else(|e| e.into_inner());
+        let mut cache = self.pages.lock().unwrap_or_else(|e| e.into_inner());
         if cache.bits != bits {
             return None;
         }
@@ -528,7 +540,7 @@ impl<'a> VirtualMemory<'a> {
             cache.pages.clear();
             cache.bits = bits;
         }
-        cache.pages.insert(va & !4095, pa & !4095);
+        cache.pages.insert(va & !4095, pa & !4095, 1);
     }
     pub fn translate(&self, va: u64) -> Result<u64> {
         let bits = self
@@ -739,5 +751,34 @@ mod scan_tests {
         assert!(self_overlapping(b"aa") && !self_overlapping(b"File"));
         batched.prefetch_scans(&[b"aa", b"zz"], &job).unwrap();
         assert!(batched.cached_scan(b"aa").is_none());
+    }
+}
+
+#[cfg(test)]
+mod budget_tests {
+    use super::*;
+    use crate::linux::tests::{fixture, image};
+    #[test]
+    fn uncached_scan_preserves_all_hits_and_evicted_pages_translate_again() {
+        let mut input = image(b"abcdabcdabcd");
+        input.set_limits(crate::resources::Limits {
+            scan_cache_bytes: 8,
+            ..Default::default()
+        });
+        let expected = vec![0, 4, 8];
+        assert_eq!(input.scan(b"abcd", &Job::default()).unwrap(), expected);
+        assert!(input.cached_scan(b"abcd").is_none());
+        assert_eq!(input.scan(b"abcd", &Job::default()).unwrap(), expected);
+        let (bytes, _) = fixture();
+        let mut input = image(&bytes);
+        input.set_limits(crate::resources::Limits {
+            page_cache_entries: 1,
+            ..Default::default()
+        });
+        let vm = VirtualMemory::new(&input, 0x1000);
+        let first = vm.translate(0x1000).unwrap();
+        vm.translate(0x2000).unwrap();
+        assert!(vm.cached_page(0x1000, 0).is_none());
+        assert_eq!(vm.translate(0x1000).unwrap(), first);
     }
 }

@@ -48,6 +48,7 @@ impl App {
         self.local_match_errors.clear();
         self.local_only_matches = false;
         self.views.clear();
+        self.history_revision += 1;
         self.history = None;
         self.query.clear();
         self.sort = None;
@@ -171,6 +172,7 @@ impl App {
             self.row = 0;
             self.horizontal = 0;
             self.collapsed.clear();
+            self.history_revision += 1;
             self.history = None;
         }
     }
@@ -279,7 +281,9 @@ impl App {
             plugin: Plugin::Pslist,
             windows: false,
             analysis_options: Default::default(),
-            results: HashMap::new(),
+            results: ResultStore::default(),
+            view_cache: RefCell::new(None),
+            history_revision: 0,
             history: None,
             query: String::new(),
             sort: None,
@@ -563,6 +567,7 @@ impl App {
         };
         self.results.clear();
         self.views.clear();
+        self.history_revision += 1;
         self.history = None;
         self.choice = None;
         self.query.clear();
@@ -1027,34 +1032,58 @@ impl App {
             .or_else(|| self.results.get(&self.request_key()))
             .or_else(|| self.results.get(self.plugin.name()))
     }
-    pub(super) fn rows(&self) -> Vec<Vec<String>> {
-        let Some(result) = self.result() else {
-            return Vec::new();
-        };
-        let mut rows = result.filtered(&self.query);
-        if let Some(column) = self.sort {
-            rows.sort_by(|a, b| {
-                let a = a.get(column).map(String::as_str).unwrap_or("");
-                let b = b.get(column).map(String::as_str).unwrap_or("");
-                let order = compare_values(a, b);
-                if self.descending {
-                    order.reverse()
-                } else {
-                    order
-                }
-            });
-        }
-        rows
-    }
-    pub(super) fn visible(&self) -> Vec<Vec<String>> {
-        let rows = self.rows();
-        if self.history.is_some() || !self.plugin.is_tree() {
-            return rows;
-        }
-        if self.plugin == Plugin::WinPstree {
-            tree_rows_with_columns(rows, &self.collapsed, 1, 2)
+    pub(super) fn view_index(&self) -> std::rc::Rc<crate::result_view::Index> {
+        let result = self.result();
+        let tree = if self.history.is_some() || !self.plugin.is_tree() {
+            None
+        } else if self.plugin == Plugin::WinPstree {
+            Some((1, 2))
         } else {
-            tree_rows(rows, &self.collapsed)
+            Some((2, 3))
+        };
+        let key = ViewKey {
+            revision: self.results.revision,
+            identity: result.map_or(0, |r| r.rows.as_ptr() as usize),
+            history_revision: self.history_revision,
+            query: self.query.clone(),
+            sort: self.sort,
+            descending: self.descending,
+            tree,
+            collapsed: self.collapsed.clone(),
+        };
+        let mut cache = self.view_cache.borrow_mut();
+        if let Some((previous, index)) = cache.as_ref()
+            && *previous == key
+        {
+            return index.clone();
+        }
+        let index = std::rc::Rc::new(result.map_or_else(Default::default, |r| {
+            crate::result_view::Index::build(
+                r,
+                &self.query,
+                self.sort,
+                self.descending,
+                tree,
+                &self.collapsed,
+            )
+        }));
+        *cache = Some((key, index.clone()));
+        index
+    }
+    #[cfg(test)]
+    pub(super) fn rows(&self) -> Vec<Vec<String>> {
+        self.result().map_or_else(Vec::new, |r| {
+            self.view_index()
+                .filtered
+                .iter()
+                .map(|&i| r.rows[i].clone())
+                .collect()
+        })
+    }
+    pub(super) fn visible(&self) -> IndexedRows<'_> {
+        IndexedRows {
+            result: self.result(),
+            index: self.view_index(),
         }
     }
     pub(super) fn picker_filter(kind: InputKind) -> crate::browser::Filter {
@@ -1151,6 +1180,7 @@ impl App {
                 .position(|p| *p == plugin)
                 .unwrap()
         };
+        self.history_revision += 1;
         self.history = None;
         self.query.clear();
         self.sort = None;
@@ -1231,7 +1261,7 @@ impl App {
                 .columns
                 .iter()
                 .zip(row)
-                .map(|(key, value)| format!("{}: {}", escaped(key), escaped(value)))
+                .map(|(key, value)| format!("{}: {}", escaped(key), escaped(&value)))
                 .collect::<Vec<_>>()
                 .join("\n\n")
         } else {

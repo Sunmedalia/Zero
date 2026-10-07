@@ -275,3 +275,55 @@ fn pointer_field_sizes_follow_windows_machine_width_at_structure_boundary() {
     isf.invalidate_layouts();
     assert!(isf.size("PAIR", "right").is_err());
 }
+
+#[test]
+fn session_reuses_windows_symbols_and_invalidates_changes() -> Result<()> {
+    let (bytes, isf) = fixture();
+    let dir = tempfile::tempdir()?;
+    let image_path = dir.path().join("image.raw");
+    let symbols_path = dir.path().join("kernel.json");
+    std::fs::write(&image_path, &bytes)?;
+    std::fs::write(&symbols_path, serde_json::to_vec(&isf.data)?)?;
+    let messages = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+    let log = messages.clone();
+    let job = Job::new(move |s| log.lock().unwrap().push(s));
+    let mut session = crate::linux::Session::default();
+    let request = Request {
+        image: &image_path,
+        symbols: &symbols_path,
+        choice: None,
+        plugin: Plugin::WinPslist,
+        cache: dir.path(),
+        use_cache: false,
+        network: false,
+    };
+    let run = |session: &mut crate::linux::Session| -> Result<Results> {
+        match crate::analysis::analyze(session, &request, None, &Options::default(), &job)? {
+            Outcome::Ready(r) => Ok(r),
+            _ => anyhow::bail!("unexpected ambiguity"),
+        }
+    };
+    let first = run(&mut session)?;
+    messages.lock().unwrap().clear();
+    assert_eq!(run(&mut session)?, first);
+    assert!(
+        messages
+            .lock()
+            .unwrap()
+            .iter()
+            .any(|s| s.contains("复用精确匹配"))
+    );
+    messages.lock().unwrap().clear();
+    std::fs::write(&symbols_path, serde_json::to_vec_pretty(&isf.data)?)?;
+    assert_eq!(run(&mut session)?.rows, first.rows);
+    assert!(
+        !messages
+            .lock()
+            .unwrap()
+            .iter()
+            .any(|s| s.contains("复用精确匹配"))
+    );
+    std::fs::write(&symbols_path, b"invalid symbols")?;
+    assert!(run(&mut session).is_err());
+    Ok(())
+}

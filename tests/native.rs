@@ -1105,17 +1105,50 @@ fn mcp_exchange(root: &std::path::Path, input: &str) -> Result<Vec<serde_json::V
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()?;
-    process.stdin.take().unwrap().write_all(input.as_bytes())?;
+    use std::io::{BufRead, BufReader};
+    let mut stdin = process.stdin.take().unwrap();
+    let mut stdout = BufReader::new(process.stdout.take().unwrap());
+    let mut replies = Vec::new();
+    let mut last_snapshot = serde_json::Value::Null;
+    for line in input.lines() {
+        let mut request = serde_json::from_str::<serde_json::Value>(line).ok();
+        if let Some(request) = &mut request
+            && request["params"]["arguments"]["result_id"] == "$last"
+        {
+            request["params"]["arguments"]["result_id"] = last_snapshot.clone();
+        }
+        let outgoing = request
+            .as_ref()
+            .map_or_else(|| line.to_owned(), ToString::to_string);
+        writeln!(stdin, "{outgoing}")?;
+        stdin.flush()?;
+        if request.as_ref().is_some_and(|r| {
+            r.is_object()
+                && r["jsonrpc"] == "2.0"
+                && r["method"].is_string()
+                && r.get("id").is_none()
+        }) {
+            continue;
+        }
+        let mut response = String::new();
+        assert!(
+            stdout.read_line(&mut response)? > 0,
+            "MCP closed without a reply"
+        );
+        let reply: serde_json::Value = serde_json::from_str(&response)?;
+        if reply["result"]["structuredContent"]["result_id"].is_string() {
+            last_snapshot = reply["result"]["structuredContent"]["result_id"].clone();
+        }
+        replies.push(reply);
+    }
+    drop(stdin);
     let output = process.wait_with_output()?;
     assert!(
         output.status.success(),
         "{}",
         String::from_utf8_lossy(&output.stderr)
     );
-    String::from_utf8(output.stdout)?
-        .lines()
-        .map(|line| Ok(serde_json::from_str(line)?))
-        .collect()
+    Ok(replies)
 }
 
 fn mcp_call(id: u64, name: &str, arguments: serde_json::Value) -> serde_json::Value {
@@ -1138,12 +1171,8 @@ fn mcp_tools_analyze_page_export_and_dump_all_modes() -> Result<()> {
         b"{}",
     )?;
     let analyze = json!({"image":"image.raw","symbols":"symbols.json","plugin":"pslist","offline":true,"limit":1,"output":"all.json"});
-    let mut second_page = analyze.clone();
-    second_page["offset"] = json!(1);
-    second_page["output"] = json!("all.csv");
-    let mut beyond_page = analyze.clone();
-    beyond_page["offset"] = json!(usize::MAX);
-    beyond_page["output"] = serde_json::Value::Null;
+    let second_page = json!({"result_id":"$last","offset":1,"limit":1,"output":"all.csv"});
+    let beyond_page = json!({"result_id":"$last","offset":usize::MAX,"limit":1});
     let mut requests = vec![
         json!({"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"test","version":"1"}}}),
         json!({"jsonrpc":"2.0","method":"notifications/initialized"}),
@@ -1155,8 +1184,8 @@ fn mcp_tools_analyze_page_export_and_dump_all_modes() -> Result<()> {
             json!({"image":"image.raw","offline":true}),
         ),
         mcp_call(5, "zero_analyze", analyze.clone()),
-        mcp_call(6, "zero_analyze", second_page),
-        mcp_call(7, "zero_analyze", beyond_page),
+        mcp_call(6, "zero_results", second_page),
+        mcp_call(7, "zero_results", beyond_page),
         mcp_call(8, "zero_cache_list", json!({})),
     ];
     for (id, mode) in [(9, "range"), (10, "process"), (11, "elf")] {
@@ -1178,7 +1207,7 @@ fn mcp_tools_analyze_page_export_and_dump_all_modes() -> Result<()> {
         assert_ne!(reply["result"]["isError"], true, "{reply}");
     }
     let result = |id| replies.iter().find(|r| r["id"] == id).unwrap()["result"].clone();
-    assert_eq!(result(2)["tools"].as_array().unwrap().len(), 5);
+    assert_eq!(result(2)["tools"].as_array().unwrap().len(), 6);
     assert_eq!(
         result(3)["structuredContent"]["plugins"]
             .as_array()
@@ -1324,5 +1353,145 @@ fn mcp_offline_identification_without_remote_index_uses_banners() -> Result<()> 
             .join(".zero/rust/symbols/banners_plain.json")
             .exists()
     );
+    Ok(())
+}
+
+#[test]
+fn mcp_busy_ping_cancel_and_worker_recovery() -> Result<()> {
+    use std::io::{BufRead, BufReader};
+    use std::process::{Command, Stdio};
+    let dir = tempfile::tempdir()?;
+    fs::File::create(dir.path().join("large.raw"))?.set_len(8 * 1024 * 1024 * 1024)?;
+    let (bytes, _) = discoverable();
+    fs::write(dir.path().join("small.raw"), bytes)?;
+    let mut process = Command::new(env!("CARGO_BIN_EXE_zero-mcp"))
+        .env("ZERO_ROOT", dir.path())
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null())
+        .spawn()?;
+    let mut stdin = process.stdin.take().unwrap();
+    let stdout = process.stdout.take().unwrap();
+    let (sender, receiver) = std::sync::mpsc::channel();
+    let reader = std::thread::spawn(move || {
+        for line in BufReader::new(stdout).lines() {
+            if sender.send(line).is_err() {
+                break;
+            }
+        }
+    });
+    let receive = || -> Result<serde_json::Value> {
+        let line = receiver.recv_timeout(std::time::Duration::from_secs(20))??;
+        Ok(serde_json::from_str(&line)?)
+    };
+    for request in [
+        mcp_call(
+            1,
+            "zero_analyze",
+            json!({"image":"large.raw","plugin":"banners","offline":true}),
+        ),
+        mcp_call(
+            2,
+            "zero_analyze",
+            json!({"image":"small.raw","plugin":"banners","offline":true}),
+        ),
+        json!({"jsonrpc":"2.0","id":3,"method":"ping"}),
+        json!({"jsonrpc":"2.0","method":"notifications/cancelled","params":{"requestId":1}}),
+    ] {
+        writeln!(stdin, "{request}")?;
+    }
+    stdin.flush()?;
+    let replies = [receive()?, receive()?, receive()?];
+    assert_eq!(
+        replies.iter().find(|v| v["id"] == 2).unwrap()["error"]["code"],
+        -32000
+    );
+    assert_eq!(
+        replies.iter().find(|v| v["id"] == 3).unwrap()["result"],
+        json!({})
+    );
+    let cancelled = replies.iter().find(|v| v["id"] == 1).unwrap();
+    assert_eq!(cancelled["result"]["isError"], true);
+    assert!(cancelled.to_string().contains("cancelled"));
+    writeln!(
+        stdin,
+        "{}",
+        mcp_call(
+            4,
+            "zero_analyze",
+            json!({"image":"small.raw","plugin":"banners","offline":true})
+        )
+    )?;
+    stdin.flush()?;
+    let result = receive()?;
+    assert_eq!(result["result"]["isError"], false);
+    let id = result["result"]["structuredContent"]["result_id"].clone();
+    // A snapshot is immutable even if its input disappears.
+    fs::remove_file(dir.path().join("small.raw"))?;
+    writeln!(
+        stdin,
+        "{}",
+        mcp_call(
+            5,
+            "zero_results",
+            json!({"result_id":id,"offset":0,"limit":1})
+        )
+    )?;
+    stdin.flush()?;
+    assert_eq!(receive()?["result"]["isError"], false);
+    drop(stdin);
+    assert!(process.wait()?.success());
+    reader.join().unwrap();
+    Ok(())
+}
+
+#[test]
+fn mcp_partial_snapshot_keeps_diagnostics_and_rejects_legacy_offset() -> Result<()> {
+    let dir = tempfile::tempdir()?;
+    let (mut bytes, isf) = discoverable();
+    put(&mut bytes, 0x8600, 0x9600); // module list cycle; valid task list still discovers the kernel
+    fs::write(dir.path().join("image.raw"), bytes)?;
+    fs::write(
+        dir.path().join("kernel.json"),
+        serde_json::to_vec(&isf.data)?,
+    )?;
+    let requests = [
+        mcp_call(
+            1,
+            "zero_analyze",
+            json!({"image":"image.raw","symbols":"kernel.json","plugin":"lsmod","offline":true}),
+        ),
+        mcp_call(
+            2,
+            "zero_results",
+            json!({"result_id":"$last","offset":0,"limit":1}),
+        ),
+        mcp_call(
+            3,
+            "zero_analyze",
+            json!({"image":"image.raw","plugin":"banners","offset":0,"offline":true}),
+        ),
+        mcp_call(4, "zero_results", json!({"result_id":"expired-id"})),
+    ];
+    let input = requests
+        .iter()
+        .map(|r| format!("{r}\n"))
+        .collect::<String>();
+    let replies = mcp_exchange(dir.path(), &input)?;
+    let first = &replies[0]["result"]["structuredContent"];
+    let next = &replies[1]["result"]["structuredContent"];
+    assert_eq!(first["complete"], false);
+    assert_eq!(first["diagnostics"], next["diagnostics"]);
+    assert_eq!(first["rows"], next["rows"]);
+    assert!(!first["diagnostics"].as_array().unwrap().is_empty());
+    assert!(
+        zero_tui::cache::inventory(&dir.path().join(".zero/rust"))?
+            .iter()
+            .all(|e| !matches!(e.scope, zero_tui::cache::Scope::Results))
+    );
+    assert!(
+        replies[2]["result"]["isError"] == true && replies[2].to_string().contains("zero_results")
+    );
+    assert_eq!(replies[3]["result"]["isError"], true);
     Ok(())
 }

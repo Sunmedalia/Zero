@@ -178,6 +178,7 @@ impl App {
                         self.plugin = *mode;
                         self.page = Page::Analysis;
                         self.menu = self.menu_items().len() - 1;
+                        self.history_revision += 1;
                         self.history = None;
                         self.query.clear();
                         self.sort = None;
@@ -740,10 +741,15 @@ impl App {
                     }
                     InputKind::Export => {
                         if let Some(result) = self.result() {
-                            self.status = match store::export(&path, result, self.rows()) {
+                            self.status = match store::export_rows(
+                                &path,
+                                result,
+                                self.view_index().filtered.iter().map(|&i| &result.rows[i]),
+                                &Job::default(),
+                            ) {
                                 Ok(()) => format!(
                                     "已导出 {} 条: {}{}",
-                                    self.rows().len(),
+                                    self.view_index().filtered.len(),
                                     path.display(),
                                     if result.complete {
                                         ""
@@ -762,6 +768,7 @@ impl App {
                         }
                         match store::exported(&path) {
                             Ok(result) => {
+                                self.history_revision += 1;
                                 self.history = Some(result);
                                 self.page = Page::Analysis;
                                 self.query.clear();
@@ -820,6 +827,7 @@ impl App {
                         self.results.retain(|key, _| key == "banners");
                         self.result_requests.clear();
                         self.views.clear();
+                        self.history_revision += 1;
                         self.history = None;
                         self.query.clear();
                         self.sort = None;

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Render/check the README coverage summary from the engine's manifest."""
+"""Render/check the compatibility coverage summary from the engine's manifest."""
 import argparse
 import json
 from pathlib import Path
@@ -28,16 +28,16 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--check', action='store_true')
     args = parser.parse_args()
-    path = ROOT / 'README.md'
+    path = ROOT / 'docs/compatibility.md'
     text = path.read_text()
     if START not in text or END not in text:
-        raise SystemExit('README compatibility markers are missing')
+        raise SystemExit('Compatibility document markers are missing')
     begin = text.index(START)
     end = text.index(END, begin) + len(END)
     expected = render()
     if args.check:
         if text[begin:end] != expected:
-            raise SystemExit('Run python3 scripts/windows_compatibility.py to update README')
+            raise SystemExit('Run python3 scripts/windows_compatibility.py to update docs/compatibility.md')
     else:
         path.write_text(text[:begin] + expected + text[end:])
 

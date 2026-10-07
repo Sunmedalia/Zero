@@ -667,7 +667,7 @@ impl App {
                     Some(r) => format!(
                         " {} · {} / {} 条 · {} · 第 {} / {} 页 ",
                         r.plugin.strip_prefix("windows.").unwrap_or(&r.plugin),
-                        self.rows().len(),
+                        rows.index.filtered.len(),
                         r.rows.len(),
                         if r.historical {
                             "历史"
@@ -677,7 +677,7 @@ impl App {
                             "部分"
                         },
                         self.row / self.page_rows() + 1,
-                        self.visible().len().div_ceil(self.page_rows()).max(1)
+                        rows.len().div_ceil(self.page_rows()).max(1)
                     ),
                     None => format!(" {} ", plugin_label(self.plugin)),
                 };
@@ -699,7 +699,7 @@ impl App {
                             }
                         })
                         .collect::<Vec<_>>();
-                    let natural = table_widths(&columns, &rows);
+                    let natural = table_widths(&columns, &rows.range(0, 200));
                     let widths: Vec<_> = natural.iter().copied().map(Constraint::Length).collect();
                     let total = natural.iter().map(|n| *n as u32).sum::<u32>()
                         + natural.len().saturating_sub(1) as u32
@@ -712,7 +712,7 @@ impl App {
                     let render_area = Rect::new(main.x, main.y, virtual_width, main.height);
                     let page_size = self.page_rows();
                     let page_start = self.row / page_size * page_size;
-                    let rows: Vec<_> = rows.into_iter().skip(page_start).take(page_size).collect();
+                    let rows = rows.range(page_start, page_size);
                     let row_count = rows.len();
                     let viewport_block = block.clone();
                     let inner = block.inner(render_area);

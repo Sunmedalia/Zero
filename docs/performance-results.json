@@ -1,0 +1,250 @@
+{
+  "platform": "macOS-27.0-arm64-arm-64bit-Mach-O",
+  "results": [
+    {
+      "frames": 20,
+      "index_build_seconds": 0.001956791,
+      "indexed_frames_seconds": 3.7792e-05,
+      "legacy_seconds": 0.08120175,
+      "mode": "views",
+      "rows": 10000,
+      "run": 1,
+      "peak_rss_bytes": 12451840
+    },
+    {
+      "frames": 20,
+      "index_build_seconds": 0.0005335,
+      "indexed_frames_seconds": 4.8542e-05,
+      "legacy_seconds": 0.052496917,
+      "mode": "views",
+      "rows": 10000,
+      "run": 2,
+      "peak_rss_bytes": 11976704
+    },
+    {
+      "frames": 20,
+      "index_build_seconds": 0.000455584,
+      "indexed_frames_seconds": 4.9042e-05,
+      "legacy_seconds": 0.054497583,
+      "mode": "views",
+      "rows": 10000,
+      "run": 3,
+      "peak_rss_bytes": 11960320
+    },
+    {
+      "frames": 20,
+      "index_build_seconds": 0.00377525,
+      "indexed_frames_seconds": 4.2708e-05,
+      "legacy_seconds": 0.548004417,
+      "mode": "views",
+      "rows": 100000,
+      "run": 1,
+      "peak_rss_bytes": 97763328
+    },
+    {
+      "frames": 20,
+      "index_build_seconds": 0.003919458,
+      "indexed_frames_seconds": 4.2167e-05,
+      "legacy_seconds": 0.553829958,
+      "mode": "views",
+      "rows": 100000,
+      "run": 2,
+      "peak_rss_bytes": 97812480
+    },
+    {
+      "frames": 20,
+      "index_build_seconds": 0.004031125,
+      "indexed_frames_seconds": 4.1125e-05,
+      "legacy_seconds": 0.548400958,
+      "mode": "views",
+      "rows": 100000,
+      "run": 3,
+      "peak_rss_bytes": 97796096
+    },
+    {
+      "analysis_reruns": 0,
+      "complete": true,
+      "mode": "snapshots",
+      "page_seconds": 0.000619833,
+      "pages": 20,
+      "rows": 100000,
+      "snapshot_seconds": 0.029715375,
+      "run": 1,
+      "peak_rss_bytes": 62357504
+    },
+    {
+      "analysis_reruns": 0,
+      "complete": false,
+      "mode": "snapshots",
+      "page_seconds": 0.000568917,
+      "pages": 20,
+      "rows": 100000,
+      "snapshot_seconds": 0.028373708,
+      "run": 1,
+      "peak_rss_bytes": 62357504
+    },
+    {
+      "analysis_reruns": 0,
+      "complete": true,
+      "mode": "snapshots",
+      "page_seconds": 0.00060975,
+      "pages": 20,
+      "rows": 100000,
+      "snapshot_seconds": 0.028944333,
+      "run": 2,
+      "peak_rss_bytes": 62390272
+    },
+    {
+      "analysis_reruns": 0,
+      "complete": false,
+      "mode": "snapshots",
+      "page_seconds": 0.000564292,
+      "pages": 20,
+      "rows": 100000,
+      "snapshot_seconds": 0.02740925,
+      "run": 2,
+      "peak_rss_bytes": 62390272
+    },
+    {
+      "analysis_reruns": 0,
+      "complete": true,
+      "mode": "snapshots",
+      "page_seconds": 0.000602042,
+      "pages": 20,
+      "rows": 100000,
+      "snapshot_seconds": 0.032720333,
+      "run": 3,
+      "peak_rss_bytes": 62373888
+    },
+    {
+      "analysis_reruns": 0,
+      "complete": false,
+      "mode": "snapshots",
+      "page_seconds": 0.000570583,
+      "pages": 20,
+      "rows": 100000,
+      "snapshot_seconds": 0.031027334,
+      "run": 3,
+      "peak_rss_bytes": 62373888
+    },
+    {
+      "bytes": 20663954,
+      "mode": "export-legacy-json",
+      "rows": 100000,
+      "seconds": 0.044472542,
+      "run": 1,
+      "peak_rss_bytes": 114720768
+    },
+    {
+      "bytes": 20663954,
+      "mode": "export-legacy-json",
+      "rows": 100000,
+      "seconds": 0.045239292,
+      "run": 2,
+      "peak_rss_bytes": 114704384
+    },
+    {
+      "bytes": 20663954,
+      "mode": "export-legacy-json",
+      "rows": 100000,
+      "seconds": 0.048031208,
+      "run": 3,
+      "peak_rss_bytes": 114671616
+    },
+    {
+      "bytes": 18063956,
+      "mode": "export-stream-json",
+      "rows": 100000,
+      "seconds": 0.024867708,
+      "run": 1,
+      "peak_rss_bytes": 32243712
+    },
+    {
+      "bytes": 18063956,
+      "mode": "export-stream-json",
+      "rows": 100000,
+      "seconds": 0.025254042,
+      "run": 2,
+      "peak_rss_bytes": 32260096
+    },
+    {
+      "bytes": 18063956,
+      "mode": "export-stream-json",
+      "rows": 100000,
+      "seconds": 0.024797,
+      "run": 3,
+      "peak_rss_bytes": 32227328
+    },
+    {
+      "bytes": 16763704,
+      "mode": "export-legacy-csv",
+      "rows": 100000,
+      "seconds": 0.02685375,
+      "run": 1,
+      "peak_rss_bytes": 97894400
+    },
+    {
+      "bytes": 16763704,
+      "mode": "export-legacy-csv",
+      "rows": 100000,
+      "seconds": 0.027147917,
+      "run": 2,
+      "peak_rss_bytes": 97894400
+    },
+    {
+      "bytes": 16763704,
+      "mode": "export-legacy-csv",
+      "rows": 100000,
+      "seconds": 0.027671042,
+      "run": 3,
+      "peak_rss_bytes": 97910784
+    },
+    {
+      "bytes": 16763704,
+      "mode": "export-stream-csv",
+      "rows": 100000,
+      "seconds": 0.02021475,
+      "run": 1,
+      "peak_rss_bytes": 32194560
+    },
+    {
+      "bytes": 16763704,
+      "mode": "export-stream-csv",
+      "rows": 100000,
+      "seconds": 0.019755209,
+      "run": 2,
+      "peak_rss_bytes": 32194560
+    },
+    {
+      "bytes": 16763704,
+      "mode": "export-stream-csv",
+      "rows": 100000,
+      "seconds": 0.019572,
+      "run": 3,
+      "peak_rss_bytes": 32178176
+    }
+  ],
+  "date": "2026-10-07",
+  "windows_session": {
+    "sample": "Server 2019 build 17763 kernel crash (tests/fixtures/windows.json)",
+    "prepare_seconds": 2.389489417,
+    "session_seconds": [
+      0.2183585,
+      0.002688209,
+      0.002422958,
+      0.002606042,
+      0.002526625,
+      0.004411583
+    ],
+    "standalone_seconds": [
+      0.651007334,
+      0.286552167,
+      0.585633167,
+      0.432791791,
+      0.447482083,
+      0.440814
+    ],
+    "symbol_cache_hits": 5
+  },
+  "method": "Release build; three synthetic runs per case; medians; independent export processes measured with macOS /usr/bin/time -l. Windows alternates standalone and Session analysis and verifies equal results; first call excluded from warm medians."
+}

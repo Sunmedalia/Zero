@@ -12,7 +12,6 @@ MCP `zero_analyze` arguments:
   "symbols": "/evidence/kernel.json.xz",
   "plugin": "pslist",
   "offline": true,
-  "offset": 0,
   "limit": 50,
   "output": "exports/processes.json"
 }
@@ -28,13 +27,26 @@ For an ambiguous ISF, repeat with the exact returned label in MCP `symbol_choice
 
 For offline kernel identification, use the same analysis entry point with `plugin: "banners"`, omitting symbols. CLI still requires an output path.
 
+## Snapshot pagination
+
+`zero_analyze` returns `result_id`; it no longer accepts `offset`, even zero.
+Call `zero_results` using that ID and `next_offset` from the previous page:
+
+```json
+{"result_id":"COPY_RETURNED_ID","offset":50,"limit":50}
+```
+
+Pass `output` to `zero_results` to export the entire snapshot. Snapshot pages preserve partial-result diagnostics without rerunning analysis. IDs expire after 30 idle minutes by default, on eviction (8 snapshots by default), or on server restart. Rerun analysis when an ID expires. `no_cache` only bypasses successful analysis caches, not snapshot creation.
+
+While an analysis is active, another analysis/dump/symbol request returns busy (`-32000`); retry after completion. Cancel the active request with `notifications/cancelled` and `params.requestId`. Wait for its response before starting another job.
+
 ## Exact repository matches
 
 ```json
 {"image":"/evidence/memory.raw","offline":false,"download":false}
 ```
 
-Pass these arguments to `zero_symbols`. Set `download: true` only when fetching symbols is desired. An empty `matches` array means the index has no exact match; do not substitute a similar kernel.
+Pass these arguments to `zero_symbols`. Set `download: true` only when fetching symbols is desired. Microsoft PDB HTTP 404 automatically invokes the official Volatility Windows ZIP fallback using HTTPS ranges and exact ISF metadata checks; successful fallback ISFs are cached for offline reuse. Timeout/503 errors do not invoke this fallback. An empty `matches` array means the index has no exact match; do not substitute a similar kernel.
 
 ```sh
 zero symbols --image /evidence/memory.raw --output exports/symbol-matches.json

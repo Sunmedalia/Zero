@@ -62,7 +62,7 @@ pub struct Memory<'a> {
     /// Paging geometry is fixed for this ISF. Callers mutate ISF layouts only before the first translation.
     paging: std::sync::OnceLock<Paging>,
     /// Virtual 4 KiB page → physical 4 KiB page. The image is read-only.
-    pages: std::sync::Mutex<std::collections::HashMap<u64, u64>>,
+    pages: std::sync::Mutex<crate::resources::Lru<u64, u64>>,
 }
 impl<'a> Memory<'a> {
     pub(crate) fn new(
@@ -77,7 +77,9 @@ impl<'a> Memory<'a> {
             isf,
             sources,
             paging: std::sync::OnceLock::new(),
-            pages: std::sync::Mutex::new(std::collections::HashMap::new()),
+            pages: std::sync::Mutex::new(crate::resources::Lru::new(
+                image.limits.page_cache_entries,
+            )),
         }
     }
     fn paging(&self) -> Result<Paging> {
@@ -118,7 +120,7 @@ impl<'a> Memory<'a> {
         self.pages
             .lock()
             .unwrap_or_else(|error| error.into_inner())
-            .insert(page, pa & !4095);
+            .insert(page, pa & !4095, 1);
         Ok(pa)
     }
     fn translate_walk(&self, va: u64) -> Result<u64> {
@@ -706,6 +708,17 @@ pub fn analyze(
         );
         return container::analyze(image, request, dump, options, job).map(Outcome::Ready);
     }
+    validate_request(request, dump, options)?;
+    let symbols =
+        windows_symbols::resolve(request.symbols, image, request.cache, request.network, job)?;
+    let symbols: Vec<_> = symbols.into_iter().map(std::sync::Arc::new).collect();
+    analyze_resolved(image, request, dump, options, job, &symbols)
+}
+pub(crate) fn validate_request(
+    request: &Request<'_>,
+    dump: Option<&DumpOptions>,
+    options: &Options,
+) -> Result<()> {
     if request.plugin.is_dump() {
         dump.context("Windows 转储需要 PID 和输出目录")?
             .validate(request.plugin)?;
@@ -725,8 +738,16 @@ pub fn analyze(
         options.pid.is_none() || request.plugin.descriptor().columns.contains(&"PID"),
         "此插件不支持 PID 筛选"
     );
-    let symbols =
-        windows_symbols::resolve(request.symbols, image, request.cache, request.network, job)?;
+    Ok(())
+}
+pub(crate) fn analyze_resolved(
+    image: &Image,
+    request: &Request<'_>,
+    dump: Option<&DumpOptions>,
+    options: &Options,
+    job: &Job,
+    symbols: &[std::sync::Arc<Isf>],
+) -> Result<Outcome> {
     let isf = if let Some(choice) = request.choice {
         symbols
             .iter()
