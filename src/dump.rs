@@ -123,7 +123,7 @@ impl Linux<'_> {
         let vm = self
             .process_vm(address)?
             .context("目标为内核线程，没有用户地址空间")?;
-        let mut result = self.inspect_result(plugin);
+        let mut result = self.result(plugin);
         // A damaged process list does not disappear merely because the target was found.
         result.complete = tasks.complete;
         result.diagnostics = tasks.diagnostics;

@@ -3,6 +3,7 @@ use crate::{
     Job,
     image::VirtualMemory,
     linux::{Linux, Plugin},
+    report::{hex, partial},
     store::Results,
 };
 use anyhow::{Context, Result, bail, ensure};
@@ -12,15 +13,6 @@ use std::{
 };
 const REGION_LIMIT: u64 = 1024 * 1024;
 const OBJECT_LIMIT: u64 = 1_000_000;
-fn address(value: u64) -> String {
-    format!("{value:#018x}")
-}
-fn issue(result: &mut Results, context: impl AsRef<str>, error: anyhow::Error) {
-    result.complete = false;
-    result
-        .diagnostics
-        .push(format!("{}: {error:#}", context.as_ref()));
-}
 fn nul_strings(bytes: &[u8]) -> Vec<String> {
     bytes
         .split(|b| *b == 0)
@@ -62,20 +54,6 @@ fn inode_type(mode: u64) -> &'static str {
     }
 }
 impl Linux<'_> {
-    fn require(&self, fields: &[(&str, &str)]) -> Result<()> {
-        for (s, f) in fields {
-            if *s == "vfsmount" && self.modern_mount() && self.isf.field(s, f).is_err() {
-                self.isf
-                    .size("mount", f)
-                    .with_context(|| format!("不支持: 缺少 mount.{f}"))?;
-                continue;
-            }
-            self.isf
-                .size(s, f)
-                .with_context(|| format!("不支持: 缺少或无效字段 {s}.{f}"))?;
-        }
-        Ok(())
-    }
     fn preflight(&self, plugin: Plugin) -> Result<()> {
         self.require(&[
             ("task_struct", "pid"),
@@ -248,7 +226,7 @@ impl Linux<'_> {
             })();
             if let Err(e) = read {
                 job.check()?;
-                issue(&mut result, context, e);
+                partial(&mut result, context, e);
             }
             job.report(format!("{}: {} 条", plugin.name(), result.rows.len()));
         }
@@ -319,7 +297,7 @@ impl Linux<'_> {
         let mut visited = HashSet::new();
         while node != 0 {
             job.check()?;
-            ensure!(visited.insert(node), "VMA 循环 @ {}", address(node));
+            ensure!(visited.insert(node), "VMA 循环 @ {}", hex(node));
             ensure!(visited.len() as u64 <= limit, "VMA 超过 100 万项上限");
             let next = if modern {
                 nodes.next().unwrap_or(0)
@@ -343,9 +321,9 @@ impl Linux<'_> {
                         Ok(path) => path,
                         Err(e) => {
                             job.check()?;
-                            issue(
+                            partial(
                                 result,
-                                format!("PID {} VMA {} 路径", prefix[0], address(node)),
+                                format!("PID {} VMA {} 路径", prefix[0], hex(node)),
                                 e,
                             );
                             "[unresolved]".into()
@@ -355,8 +333,8 @@ impl Linux<'_> {
                 Ok([
                     prefix.clone(),
                     vec![
-                        address(start),
-                        address(end),
+                        hex(start),
+                        hex(end),
                         permissions(flags),
                         offset.to_string(),
                         path,
@@ -366,11 +344,7 @@ impl Linux<'_> {
             })();
             match row {
                 Ok(row) => result.rows.push(row),
-                Err(e) => issue(
-                    result,
-                    format!("PID {} VMA {}", prefix[0], address(node)),
-                    e,
-                ),
+                Err(e) => partial(result, format!("PID {} VMA {}", prefix[0], hex(node)), e),
             }
             node = next;
         }
@@ -441,17 +415,12 @@ impl Linux<'_> {
                             Ok(path) => path,
                             Err(e) => {
                                 job.check()?;
-                                issue(result, format!("PID {} FD {fd} 路径", prefix[0]), e);
+                                partial(result, format!("PID {} FD {fd} 路径", prefix[0]), e);
                                 "[unresolved]".into()
                             }
                         },
                     };
-                    row.extend([
-                        inode_type(mode).into(),
-                        ino.to_string(),
-                        path,
-                        address(file),
-                    ]);
+                    row.extend([inode_type(mode).into(), ino.to_string(), path, hex(file)]);
                 } else {
                     if mode & 0xf000 != 0xc000 {
                         return Ok(None);
@@ -463,7 +432,7 @@ impl Linux<'_> {
             match row {
                 Ok(Some(row)) => result.rows.push(row),
                 Ok(None) => {}
-                Err(e) => issue(result, format!("PID {} FD {fd}", prefix[0]), e),
+                Err(e) => partial(result, format!("PID {} FD {fd}", prefix[0]), e),
             }
         }
         ensure!(count <= limit, "FD 超过 100 万项上限 ({count})");
@@ -499,7 +468,7 @@ impl Linux<'_> {
             ensure!(
                 d != 0 && m != 0 && visited.insert((d, m)),
                 "路径为空或循环 @ {}",
-                address(d)
+                hex(d)
             );
             if d == self.number(m, "vfsmount", "mnt_root")? {
                 let parent = self.number(m, "vfsmount", "mnt_parent")?;
@@ -511,7 +480,7 @@ impl Linux<'_> {
                     parts.reverse();
                     return Ok(format!("/{}", parts.join("/")));
                 }
-                ensure!(parent != m, "路径不在进程根目录内 @ {}", address(d));
+                ensure!(parent != m, "路径不在进程根目录内 @ {}", hex(d));
                 d = self.number(m, "vfsmount", "mnt_mountpoint")?;
                 m = parent;
                 continue;
@@ -548,7 +517,7 @@ impl Linux<'_> {
             .context("socket 地址下溢")?;
         let socket = self.field_address(allocation, "socket_alloc", "socket")?;
         let sk = self.number(socket, "socket", "sk")?;
-        ensure!(sk != 0, "socket.sk 为空 @ {}", address(socket));
+        ensure!(sk != 0, "socket.sk 为空 @ {}", hex(socket));
         let common = self.field_address(sk, "sock", "__sk_common")?;
         let family = self.number(common, "sock_common", "skc_family")?;
         let ty = self.number(sk, "sock", "sk_type")?;
@@ -663,7 +632,7 @@ impl Linux<'_> {
                     if peer == 0 {
                         "[none]".into()
                     } else {
-                        address(self.number(peer, "sock", "sk_socket")?)
+                        hex(self.number(peer, "sock", "sk_socket")?)
                     },
                     tcp_state(self.number(common, "sock_common", "skc_state")?).into(),
                 )
@@ -682,7 +651,7 @@ impl Linux<'_> {
             local,
             remote,
             state,
-            address(socket),
+            hex(socket),
         ])
     }
 }
@@ -906,6 +875,7 @@ pub(crate) mod tests {
             digest: "fixture".into(),
             banner: b"Linux version fixture\0".to_vec(),
             locations: vec![],
+            layouts: Default::default(),
         };
         (b, isf)
     }
@@ -974,6 +944,7 @@ pub(crate) mod tests {
             .as_object_mut()
             .unwrap()
             .remove("pgd");
+        isf.invalidate_layouts();
         assert!(
             engine(&i, &isf)
                 .run(Plugin::Psaux, &job)
@@ -994,8 +965,10 @@ pub(crate) mod tests {
         assert_eq!(isf.offset("file", "f_path.dentry").unwrap(), 8);
         assert_eq!(isf.size("unix_address", "name").unwrap(), 0);
         isf.data["user_types"]["unix_address"]["fields"]["name"]["offset"] = json!(128);
+        isf.invalidate_layouts();
         assert_eq!(isf.offset("unix_address", "name").unwrap(), 128);
         isf.data["user_types"]["unix_address"]["fields"]["name"]["type"]["count"] = json!(1);
+        isf.invalidate_layouts();
         assert!(isf.offset("unix_address", "name").is_err());
     }
     #[test]

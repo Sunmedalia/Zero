@@ -3,17 +3,11 @@ use crate::{
     Job,
     image::VirtualMemory,
     linux::{Linux, Plugin},
+    report::{hex, partial},
     store::Results,
 };
 use anyhow::{Context, Result, ensure};
 use std::collections::{BTreeMap, HashSet};
-fn hex(v: u64) -> String {
-    format!("{v:#018x}")
-}
-fn partial(r: &mut Results, context: impl std::fmt::Display, e: anyhow::Error) {
-    r.complete = false;
-    r.diagnostics.push(format!("{context}: {e:#}"));
-}
 fn header(bytes: &[u8], arm: bool) -> Result<(String, u64)> {
     ensure!(bytes.len() >= 64 && &bytes[..4] == b"\x7fELF", "非 ELF 头");
     ensure!(
@@ -34,28 +28,6 @@ fn header(bytes: &[u8], arm: bool) -> Result<(String, u64)> {
     ))
 }
 impl Linux<'_> {
-    pub(crate) fn inspect_result(&self, plugin: Plugin) -> Results {
-        Results {
-            plugin: plugin.name().into(),
-            columns: plugin
-                .descriptor()
-                .columns
-                .iter()
-                .map(|s| (*s).into())
-                .collect(),
-            rows: vec![],
-            complete: true,
-            diagnostics: vec![],
-            banner: String::from_utf8_lossy(&self.isf.banner[..self.isf.banner.len() - 1])
-                .trim_end()
-                .into(),
-            symbol: self.isf.label.clone(),
-            page_table: self.vm.root,
-            historical: false,
-            system: "linux".into(),
-            kernel_identity: serde_json::Value::Null,
-        }
-    }
     pub(crate) fn process_vm(&self, task: u64) -> Result<Option<VirtualMemory<'_>>> {
         let mm = self.number(task, "task_struct", "mm")?;
         if mm == 0 {
@@ -88,7 +60,7 @@ impl Linux<'_> {
         Ok(out)
     }
     pub(crate) fn run_inspect(&self, plugin: Plugin, job: &Job) -> Result<Results> {
-        let mut r = self.inspect_result(plugin);
+        let mut r = self.result(plugin);
         if plugin == Plugin::Systeminfo {
             let arm = self
                 .vm

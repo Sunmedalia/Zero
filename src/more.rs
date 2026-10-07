@@ -2,32 +2,12 @@
 use crate::{
     Job,
     linux::{Linux, Plugin},
+    report::{hex, partial},
     store::Results,
 };
 use anyhow::{Context, Result, ensure};
 use std::collections::{BTreeMap, HashSet};
-fn hex(n: u64) -> String {
-    format!("{n:#018x}")
-}
-fn partial(r: &mut Results, context: impl AsRef<str>, e: anyhow::Error) {
-    r.complete = false;
-    r.diagnostics.push(format!("{}: {e:#}", context.as_ref()));
-}
 impl Linux<'_> {
-    fn more_require(&self, fields: &[(&str, &str)]) -> Result<()> {
-        for (s, f) in fields {
-            if *s == "vfsmount" && self.modern_mount() && self.isf.field(s, f).is_err() {
-                self.isf
-                    .size("mount", f)
-                    .with_context(|| format!("不支持: 缺少 mount.{f}"))?;
-                continue;
-            }
-            self.isf
-                .size(s, f)
-                .with_context(|| format!("不支持: 缺少或无效字段 {s}.{f}"))?;
-        }
-        Ok(())
-    }
     pub(crate) fn run_more(&self, plugin: Plugin, job: &Job) -> Result<Results> {
         let required = match plugin {
             Plugin::Pwd => vec![
@@ -101,9 +81,9 @@ impl Linux<'_> {
             }
             _ => unreachable!(),
         };
-        self.more_require(&required)?;
+        self.require(&required)?;
         if plugin != Plugin::Dmesg {
-            self.more_require(&[
+            self.require(&[
                 ("task_struct", "pid"),
                 ("task_struct", "tgid"),
                 ("task_struct", "comm"),
@@ -114,7 +94,7 @@ impl Linux<'_> {
             ])?;
         }
         if plugin == Plugin::Mountinfo {
-            self.more_require(&[
+            self.require(&[
                 ("vfsmount", "mnt_mountpoint"),
                 ("dentry", "d_parent"),
                 ("dentry", "d_name"),
@@ -128,32 +108,13 @@ impl Linux<'_> {
                 "uid", "gid", "euid", "egid", "suid", "sgid", "fsuid", "fsgid",
             ] {
                 if self.isf.field("cred", f)?["type"]["kind"] == "struct" {
-                    self.more_require(&[("cred", &format!("{f}.val"))])?;
+                    self.require(&[("cred", &format!("{f}.val"))])?;
                 }
             }
         }
 
         if plugin == Plugin::Dmesg {
-            let mut result = Results {
-                plugin: plugin.name().into(),
-                columns: plugin
-                    .descriptor()
-                    .columns
-                    .iter()
-                    .map(|s| (*s).into())
-                    .collect(),
-                rows: vec![],
-                complete: true,
-                diagnostics: vec![],
-                banner: String::from_utf8_lossy(&self.isf.banner[..self.isf.banner.len() - 1])
-                    .trim_end()
-                    .into(),
-                symbol: self.isf.label.clone(),
-                page_table: self.vm.root,
-                historical: false,
-                system: "linux".into(),
-                kernel_identity: serde_json::Value::Null,
-            };
+            let mut result = self.result(plugin);
             self.logs(&mut result, job)?;
             job.check()?;
             return Ok(result);

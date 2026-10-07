@@ -117,7 +117,9 @@ fn tools() -> Value {
     ]})
 }
 
-fn call(name: &str, args: Value, root: &Path) -> Result<Value> {
+/// `session` lives for the whole server so repeated calls on one image reuse its
+/// digest, symbols and page-table discovery; it re-prepares when the file changes.
+fn call(name: &str, args: Value, root: &Path, session: &mut linux::Session) -> Result<Value> {
     if matches!(name, "zero_plugins" | "zero_cache_list") {
         let _: EmptyArgs = serde_json::from_value(args.clone())?;
     }
@@ -139,7 +141,6 @@ fn call(name: &str, args: Value, root: &Path) -> Result<Value> {
             let a: Args = serde_json::from_value(args)?;
             let (cache_dir, settings) = settings(root, a.offline.unwrap_or(false))?;
             let job = job();
-            let mut session = linux::Session::default();
             let image = session.prepare_image(&path(root, &a.image), &cache_dir, &job)?;
             let banners = linux::banner_result(&image, &job)?;
             let matches =
@@ -171,9 +172,8 @@ fn call(name: &str, args: Value, root: &Path) -> Result<Value> {
                 .as_deref()
                 .map(|p| path(root, p))
                 .unwrap_or_else(|| path(root, Path::new(&settings.symbols)));
-            let mut session = linux::Session::default();
             let outcome = zero_tui::analysis::analyze(
-                &mut session,
+                session,
                 &linux::Request {
                     image: &path(root, &a.image),
                     symbols: &symbols,
@@ -256,9 +256,8 @@ fn call(name: &str, args: Value, root: &Path) -> Result<Value> {
                 start,
                 end,
             };
-            let mut session = linux::Session::default();
             let outcome = zero_tui::analysis::analyze(
-                &mut session,
+                session,
                 &linux::Request {
                     image: &path(root, &a.image),
                     symbols: &symbols,
@@ -307,7 +306,7 @@ fn rpc_error(id: Value, code: i32, message: &str) -> Value {
     json!({"jsonrpc":"2.0","id":id,"error":{"code":code,"message":message}})
 }
 
-fn response(request: Value, root: &Path) -> Option<Value> {
+fn response(request: Value, root: &Path, session: &mut linux::Session) -> Option<Value> {
     if !request.is_object()
         || request.get("jsonrpc").and_then(Value::as_str) != Some("2.0")
         || request.get("method").and_then(Value::as_str).is_none()
@@ -338,7 +337,7 @@ fn response(request: Value, root: &Path) -> Option<Value> {
                 .get("arguments")
                 .cloned()
                 .unwrap_or_else(|| json!({}));
-            let (value, error) = match call(name, args, root) {
+            let (value, error) = match call(name, args, root, session) {
                 Ok(value) => (value, false),
                 Err(error) => (json!({"error":format!("{error:#}")}), true),
             };
@@ -358,13 +357,14 @@ fn main() -> Result<()> {
     let root = root()?.canonicalize().context("ZERO_ROOT 不是现有目录")?;
     let stdin = io::stdin();
     let mut stdout = io::stdout().lock();
+    let mut session = linux::Session::default();
     for line in stdin.lock().lines() {
         let line = line?;
         let reply = if line.len() > MAX_REQUEST {
             Some(rpc_error(Value::Null, -32600, "Request exceeds 1 MiB"))
         } else {
             match serde_json::from_str::<Value>(&line) {
-                Ok(request) => response(request, &root),
+                Ok(request) => response(request, &root, &mut session),
                 Err(_) => Some(rpc_error(Value::Null, -32700, "Parse error")),
             }
         };

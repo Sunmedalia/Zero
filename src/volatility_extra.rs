@@ -2,6 +2,7 @@
 use crate::{
     Job,
     linux::{Linux, Plugin},
+    report::{hex, partial},
     store::Results,
 };
 use anyhow::{Context, Result, ensure};
@@ -9,28 +10,13 @@ use std::collections::{BTreeMap, HashSet};
 
 const LIMIT: usize = 1_000_000;
 const DEPTH_LIMIT: usize = 1024;
-fn hex(value: u64) -> String {
-    format!("{value:#018x}")
-}
-fn partial(result: &mut Results, context: impl std::fmt::Display, error: anyhow::Error) {
-    result.complete = false;
-    result.diagnostics.push(format!("{context}: {error:#}"));
-}
 impl Linux<'_> {
-    fn vol_require(&self, fields: &[(&str, &str)]) -> Result<()> {
-        for (structure, field) in fields {
-            self.isf
-                .size(structure, field)
-                .with_context(|| format!("不支持: 缺少或无效字段 {structure}.{field}"))?;
-        }
-        Ok(())
-    }
     pub(crate) fn run_volatility_extra(&self, plugin: Plugin, job: &Job) -> Result<Results> {
         job.check()?;
-        let mut result = self.inspect_result(plugin);
+        let mut result = self.result(plugin);
         match plugin {
             Plugin::Iomem | Plugin::Ioports => {
-                self.vol_require(&[
+                self.require(&[
                     ("resource", "name"),
                     ("resource", "start"),
                     ("resource", "end"),
@@ -120,7 +106,7 @@ impl Linux<'_> {
         Ok(())
     }
     fn ptrace(&self, result: &mut Results, job: &Job) -> Result<()> {
-        self.vol_require(&[
+        self.require(&[
             ("task_struct", "ptrace"),
             ("task_struct", "parent"),
             ("task_struct", "ptraced"),
@@ -203,7 +189,7 @@ impl Linux<'_> {
         Ok(())
     }
     fn keyboard_notifiers(&self, result: &mut Results, job: &Job) -> Result<()> {
-        self.vol_require(&[
+        self.require(&[
             ("atomic_notifier_head", "head"),
             ("notifier_block", "next"),
             ("notifier_block", "notifier_call"),
@@ -414,7 +400,7 @@ mod tests {
             );
             assert_eq!(&result.rows[2][1..3], &[hex(0x1000), hex(0x1fff)]);
         }
-        let mut result = linux.inspect_result(Plugin::Iomem);
+        let mut result = linux.result(Plugin::Iomem);
         linux
             .resources(0x12000, &mut result, &Job::default(), 2)
             .unwrap();

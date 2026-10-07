@@ -102,6 +102,7 @@ impl Windows<'_> {
             .map(|tag| (tag.as_bytes(), 0))
             .collect();
         tags.extend([(b"TcpL".as_slice(), 1), (b"UdpA".as_slice(), 2)]);
+        self.prefetch_pool_tags(job)?;
         for (tag, kind) in tags {
             for hit in self.vm.image.scan(tag, job)? {
                 job.check()?;

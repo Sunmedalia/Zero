@@ -23,6 +23,8 @@ pub struct Image {
     windows: std::sync::OnceLock<Vec<crate::windows_symbols::Candidate>>,
     pub(crate) windows_roots: std::sync::Mutex<std::collections::HashMap<String, (u64, u64)>>,
     banners: std::sync::OnceLock<Vec<(u64, Vec<u8>)>>,
+    /// Completed physical scans keyed by needle; the image is read-only.
+    scans: std::sync::Mutex<std::collections::HashMap<Vec<u8>, std::sync::Arc<[u64]>>>,
     pub segments: Vec<Segment>,
     pub digest: String,
     pub format: &'static str,
@@ -316,6 +318,7 @@ impl Image {
             windows: std::sync::OnceLock::new(),
             windows_roots: std::sync::Mutex::new(std::collections::HashMap::new()),
             banners: std::sync::OnceLock::new(),
+            scans: Default::default(),
             segments,
             digest,
             format,
@@ -409,12 +412,50 @@ impl Image {
     pub fn stamp(&self) -> Result<String> {
         metadata_stamp(&self.file.metadata()?)
     }
+    /// Sorted, unique physical offsets of `needle`. Results are memoized per image.
     pub fn scan(&self, needle: &[u8], job: &Job) -> Result<Vec<u64>> {
         ensure!(
             !needle.is_empty() && needle.len() <= 65536,
             "扫描模式长度无效"
         );
-        let mut found = Vec::new();
+        if let Some(hits) = self.cached_scan(needle) {
+            return Ok(hits.to_vec());
+        }
+        let mut found = self.scan_pass(&[needle], job)?;
+        let hits = found.pop().unwrap_or_default();
+        self.remember_scan(needle, &hits);
+        Ok(hits)
+    }
+    /// Scan for every not-yet-scanned needle in one pass over the image, so later
+    /// `scan` calls for them are served from memory. Needles that overlap
+    /// themselves are left to `scan`, whose single-needle matching they rely on.
+    pub fn prefetch_scans(&self, needles: &[&[u8]], job: &Job) -> Result<()> {
+        let pending: Vec<&[u8]> = needles
+            .iter()
+            .copied()
+            .filter(|n| !n.is_empty() && n.len() <= 65536 && !self_overlapping(n))
+            .filter(|n| self.cached_scan(n).is_none())
+            .collect();
+        if pending.len() < 2 {
+            return Ok(());
+        }
+        for (needle, hits) in pending.iter().zip(self.scan_pass(&pending, job)?) {
+            self.remember_scan(needle, &hits);
+        }
+        Ok(())
+    }
+    fn cached_scan(&self, needle: &[u8]) -> Option<std::sync::Arc<[u64]>> {
+        self.scans.lock().ok()?.get(needle).cloned()
+    }
+    fn remember_scan(&self, needle: &[u8], hits: &[u64]) {
+        if let Ok(mut scans) = self.scans.lock() {
+            scans.insert(needle.to_vec(), hits.into());
+        }
+    }
+    fn scan_pass(&self, needles: &[&[u8]], job: &Job) -> Result<Vec<Vec<u64>>> {
+        let finders: Vec<_> = needles.iter().map(memchr::memmem::Finder::new).collect();
+        let longest = needles.iter().map(|n| n.len()).max().unwrap_or(1);
+        let mut found = vec![Vec::new(); needles.len()];
         let mut tail = Vec::new();
         let mut previous_end = None;
         for s in &self.segments {
@@ -428,20 +469,29 @@ impl Image {
                 let overlap = tail.len();
                 tail.resize(overlap + n, 0);
                 self.read(position, &mut tail[overlap..])?;
-                for index in memchr::memmem::find_iter(&tail, needle) {
-                    found.push(position - overlap as u64 + index as u64);
+                for (finder, hits) in finders.iter().zip(&mut found) {
+                    for index in finder.find_iter(&tail) {
+                        hits.push(position - overlap as u64 + index as u64);
+                    }
                 }
-                let keep = (needle.len() - 1).min(tail.len());
-                tail = tail[tail.len() - keep..].to_vec();
+                let keep = (longest - 1).min(tail.len());
+                tail.drain(..tail.len() - keep);
                 position += n as u64;
                 job.report(format!("扫描候选: {position:#x}"));
             }
             previous_end = Some(s.end);
         }
-        found.sort_unstable();
-        found.dedup();
+        for hits in &mut found {
+            hits.sort_unstable();
+            hits.dedup();
+        }
         Ok(found)
     }
+}
+/// A needle with a proper border (e.g. `aa`) can match at overlapping offsets,
+/// where non-overlapping iteration depends on where a chunk starts.
+fn self_overlapping(needle: &[u8]) -> bool {
+    (1..needle.len()).any(|k| needle[..k] == needle[needle.len() - k..])
 }
 pub struct VirtualMemory<'a> {
     pub image: &'a Image,
@@ -621,5 +671,47 @@ mod arm_tests {
             .translate(0)
             .is_err()
         );
+    }
+}
+#[cfg(test)]
+mod scan_tests {
+    use super::*;
+    use crate::extended::tests::image;
+
+    #[test]
+    fn batched_prefetch_matches_independent_scans_across_chunks() {
+        let chunk = 4 * 1024 * 1024;
+        let mut bytes = vec![0u8; chunk * 2 + 4096];
+        // Straddle the first chunk boundary, sit at both ends, and repeat.
+        for (at, needle) in [
+            (chunk - 2, b"File".as_slice()),
+            (0, b"Muta"),
+            (bytes.len() - 7, b"System\0"),
+            (100, b"File"),
+            (chunk + 3, b"Proc"),
+        ] {
+            bytes[at..at + needle.len()].copy_from_slice(needle);
+        }
+        let needles: &[&[u8]] = &[b"File", b"Muta", b"Proc", b"System\0", b"none"];
+        let job = Job::default();
+        let batched = image(&bytes);
+        batched.prefetch_scans(needles, &job).unwrap();
+        for needle in needles {
+            assert!(batched.cached_scan(needle).is_some());
+            let fresh = image(&bytes);
+            assert_eq!(
+                batched.scan(needle, &job).unwrap(),
+                fresh.scan(needle, &job).unwrap(),
+                "{needle:?}"
+            );
+        }
+        assert_eq!(
+            batched.scan(b"File", &job).unwrap(),
+            vec![100, chunk as u64 - 2]
+        );
+        // Self-overlapping needles keep the single-needle path.
+        assert!(self_overlapping(b"aa") && !self_overlapping(b"File"));
+        batched.prefetch_scans(&[b"aa", b"zz"], &job).unwrap();
+        assert!(batched.cached_scan(b"aa").is_none());
     }
 }

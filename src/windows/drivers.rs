@@ -20,6 +20,7 @@ impl Windows<'_> {
         r.complete = modules.complete;
         r.diagnostics = modules.diagnostics.clone();
         let mut seen = HashSet::new();
+        self.prefetch_pool_tags(job)?;
         for tag in [b"Driv".as_slice(), b"Dri\xf6".as_slice()] {
             for hit in self.vm.image.scan(tag, job)? {
                 job.check()?;

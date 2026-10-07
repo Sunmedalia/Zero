@@ -7,16 +7,33 @@ use std::{
     fs::{self, File},
     io::Read,
     path::Path,
+    sync::RwLock,
 };
 
 pub struct Isf {
     pub slide: std::sync::atomic::AtomicU64,
+    /// Field layouts are memoized on first lookup; mutate `user_types` only before reading.
     pub data: Value,
     pub label: String,
     pub digest: String,
     pub banner: Vec<u8>,
     pub locations: Vec<u64>,
+    pub(crate) layouts: LayoutCache,
 }
+/// Resolved placement of one (possibly dotted or anonymous-member) field.
+#[derive(Clone, Copy, Debug)]
+pub struct Layout {
+    pub offset: u64,
+    pub size: u64,
+    /// `(bit_position, bit_length)` exactly as the ISF states them, for bitfields.
+    pub bits: Option<(Option<u64>, Option<u64>)>,
+}
+/// structure -> field -> layout; only successful resolutions are kept so
+/// errors keep their full context chain.
+#[derive(Default)]
+pub(crate) struct LayoutCache(
+    RwLock<std::collections::HashMap<String, std::collections::HashMap<String, Layout>>>,
+);
 impl Isf {
     pub fn parse(bytes: &[u8], label: String) -> Result<Self> {
         let data: Value = serde_json::from_slice(bytes).context("ISF JSON 解析失败")?;
@@ -61,6 +78,7 @@ impl Isf {
             digest: format!("{:x}", Sha256::digest(bytes)),
             banner,
             locations: Vec::new(),
+            layouts: LayoutCache::default(),
         };
         if windows {
             crate::windows_symbols::PdbIdentity::from_isf(&isf)?;
@@ -167,7 +185,18 @@ impl Isf {
             _ => bail!("不支持 ISF 字段类型: {ty}"),
         }
     }
-    pub fn offset(&self, structure: &str, field: &str) -> Result<u64> {
+    /// Offset, width and bitfield placement of a field, bounds-checked against
+    /// the outer structure. Resolved once per (structure, field).
+    pub fn layout(&self, structure: &str, field: &str) -> Result<Layout> {
+        if let Some(layout) = self
+            .layouts
+            .0
+            .read()
+            .ok()
+            .and_then(|cache| cache.get(structure)?.get(field).copied())
+        {
+            return Ok(layout);
+        }
         let (offset, f) = self.resolved_field(structure, field, 0)?;
         let size = self.data["user_types"][structure]["size"]
             .as_u64()
@@ -177,12 +206,32 @@ impl Isf {
             offset.checked_add(length).is_some_and(|end| end <= size),
             "ISF 字段越界 {structure}.{field}"
         );
-        Ok(offset)
+        let ty = &f["type"];
+        let layout = Layout {
+            offset,
+            size: length,
+            bits: (ty["kind"] == "bitfield")
+                .then(|| (ty["bit_position"].as_u64(), ty["bit_length"].as_u64())),
+        };
+        if let Ok(mut cache) = self.layouts.0.write() {
+            cache
+                .entry(structure.to_owned())
+                .or_default()
+                .insert(field.to_owned(), layout);
+        }
+        Ok(layout)
+    }
+    /// Forget memoized layouts after editing `data` in place.
+    pub fn invalidate_layouts(&mut self) {
+        if let Ok(cache) = self.layouts.0.get_mut() {
+            cache.clear();
+        }
+    }
+    pub fn offset(&self, structure: &str, field: &str) -> Result<u64> {
+        Ok(self.layout(structure, field)?.offset)
     }
     pub fn size(&self, structure: &str, field: &str) -> Result<usize> {
-        self.offset(structure, field)?;
-        usize::try_from(self.type_size(&self.field(structure, field)?["type"])?)
-            .context("ISF 字段过大")
+        usize::try_from(self.layout(structure, field)?.size).context("ISF 字段过大")
     }
 }
 fn read_stream(mut r: impl Read, job: &Job) -> Result<Vec<u8>> {

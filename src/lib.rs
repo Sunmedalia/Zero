@@ -1,6 +1,8 @@
 pub mod cache;
 pub mod image;
 pub mod linux;
+pub mod plugin;
+mod report;
 pub mod store;
 pub mod symbols;
 pub mod tui;

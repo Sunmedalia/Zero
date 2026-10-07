@@ -315,5 +315,6 @@ fn pointer_field_sizes_follow_windows_machine_width_at_structure_boundary() {
     assert_eq!(isf.size("PAIR", "right").unwrap(), 4);
     assert_eq!(Architecture::from_isf(&isf).unwrap(), Architecture::X86);
     isf.data["base_types"]["pointer"]["size"] = json!(8);
+    isf.invalidate_layouts();
     assert!(isf.size("PAIR", "right").is_err());
 }

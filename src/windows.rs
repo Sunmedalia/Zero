@@ -5,6 +5,7 @@ use crate::{
     dump::DumpOptions,
     image::Image,
     linux::{Outcome, Plugin, Request},
+    report::hex,
     store::{self, Results},
     symbols::Isf,
     windows_symbols::{self, PdbIdentity},
@@ -43,9 +44,6 @@ fn add(base: u64, offset: u64) -> Result<u64> {
 }
 fn kernel(pointer: u64) -> bool {
     pointer >= 0xffff_8000_0000_0000 && pointer != u64::MAX
-}
-fn hex(value: u64) -> String {
-    format!("{value:#018x}")
 }
 fn filetime(value: u64) -> String {
     if value == 0 {
@@ -221,10 +219,9 @@ impl Memory<'_> {
         Ok(u64::from_le_bytes(b))
     }
     fn number(&self, base: u64, structure: &str, field: &str) -> Result<u64> {
-        let n = self.uint(
-            add(base, self.isf.offset(structure, field)?)?,
-            self.isf.size(structure, field)?,
-        )?;
+        let layout = self.isf.layout(structure, field)?;
+        let size = usize::try_from(layout.size).context("ISF 字段过大")?;
+        let n = self.uint(add(base, layout.offset)?, size)?;
         json_number(self.isf, n, structure, field)
     }
     fn unicode(&self, address: u64) -> Result<String> {
@@ -250,10 +247,19 @@ impl Memory<'_> {
     }
 }
 fn json_number(isf: &Isf, n: u64, structure: &str, field: &str) -> Result<u64> {
-    let ty = &isf.field(structure, field)?["type"];
-    if ty["kind"] == "bitfield" {
-        let pos = ty["bit_position"].as_u64().context("缺少位域位置")?;
-        let len = ty["bit_length"].as_u64().context("缺少位域长度")?;
+    // The memoized layout answers the common case; fall back to the raw field
+    // so a field that fails outer bounds checks still decodes as before.
+    let bits = match isf.layout(structure, field) {
+        Ok(layout) => layout.bits,
+        Err(_) => {
+            let ty = &isf.field(structure, field)?["type"];
+            (ty["kind"] == "bitfield")
+                .then(|| (ty["bit_position"].as_u64(), ty["bit_length"].as_u64()))
+        }
+    };
+    if let Some((pos, len)) = bits {
+        let pos = pos.context("缺少位域位置")?;
+        let len = len.context("缺少位域长度")?;
         ensure!(len > 0 && pos + len <= 64, "无效 Windows 位域");
         Ok((n >> pos) & (u64::MAX >> (64 - len)))
     } else {

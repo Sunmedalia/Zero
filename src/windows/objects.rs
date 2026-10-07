@@ -242,6 +242,7 @@ impl Windows<'_> {
         let alignment = if self.vm.pointer_size() == 4 { 8 } else { 16 };
         let mut out = Vec::new();
         let mut seen = HashSet::new();
+        self.prefetch_pool_tags(job)?;
         for tag in [b"Proc".as_slice(), b"Pro\xe3".as_slice()] {
             for hit in self.vm.image.scan(tag, job)? {
                 job.check()?;

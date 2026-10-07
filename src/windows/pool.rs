@@ -2,7 +2,16 @@
 use super::*;
 use objects::physical_number;
 use std::collections::BTreeSet;
+/// Pool tags read by the scanning plugins; the first scan finds all of them in
+/// one pass so the remaining scans in a session reuse the hits.
+const POOL_TAGS: &[&[u8]] = &[
+    b"File", b"Fil\xe5", b"Muta", b"Mut\xe1", b"Driv", b"Dri\xf6", b"Proc", b"Pro\xe3", b"TcpL",
+    b"UdpA", b"TcpE", b"TTcb",
+];
 impl Windows<'_> {
+    pub(super) fn prefetch_pool_tags(&self, job: &Job) -> Result<()> {
+        self.vm.image.prefetch_scans(POOL_TAGS, job)
+    }
     pub(super) fn pool_blocks(
         &self,
         tags: &[&[u8]],
@@ -18,6 +27,7 @@ impl Windows<'_> {
         ensure!(offset + 4 <= size, "pool tag 越界");
         let align = if self.vm.pointer_size() == 4 { 8 } else { 16 };
         let mut blocks = BTreeSet::new();
+        self.prefetch_pool_tags(job)?;
         for tag in tags {
             for hit in self.vm.image.scan(tag, job)? {
                 job.check()?;
