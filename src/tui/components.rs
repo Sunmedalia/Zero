@@ -8,11 +8,32 @@ fn plugin_label(plugin: Plugin) -> &'static str {
             .unwrap_or(plugin.name())
     }
 }
+/// Case-insensitive, order-free token match: every space-separated term must appear.
+fn query_matches(haystack: &str, query: &str) -> bool {
+    let haystack = haystack.to_lowercase();
+    query
+        .to_lowercase()
+        .split_whitespace()
+        .all(|term| haystack.contains(term))
+}
+/// Plugins are found by name, short label, Chinese description or category.
+fn plugin_search_hit(plugin: Plugin, query: &str) -> bool {
+    let text = format!(
+        "{} {} {} {}",
+        plugin.name(),
+        plugin_label(plugin),
+        plugin_description(plugin),
+        plugin.category()
+    );
+    query_matches(&text, query)
+}
 fn plugin_matches(query: &str) -> Vec<Plugin> {
     let query = query.to_lowercase();
     let mut plugins: Vec<_> = PLUGINS
         .iter()
-        .filter(|d| !d.plugin.is_dump() && !d.plugin.is_windows() && d.name.contains(&query))
+        .filter(|d| {
+            !d.plugin.is_dump() && !d.plugin.is_windows() && plugin_search_hit(d.plugin, &query)
+        })
         .map(|d| d.plugin)
         .collect();
     if "dump".contains(&query) {

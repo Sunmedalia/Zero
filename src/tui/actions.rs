@@ -2,12 +2,12 @@ fn asset_actions(section: AssetSection) -> Vec<(&'static str, KeyCode)> {
     let mut actions = match section {
         AssetSection::Images => vec![
             ("选用镜像 Space", KeyCode::Char(' ')),
-            ("进入分析控制台 Enter", KeyCode::Enter),
+            ("选用并分析 Enter", KeyCode::Enter),
             ("导入镜像 a", KeyCode::Char('a')),
         ],
         AssetSection::Symbols => vec![
             ("选用符号 Space", KeyCode::Char(' ')),
-            ("进入分析控制台 Enter", KeyCode::Enter),
+            ("选用并分析 Enter", KeyCode::Enter),
             ("导入符号 a", KeyCode::Char('a')),
             ("全部／匹配 z", KeyCode::Char('z')),
         ],
@@ -41,8 +41,6 @@ const COMMANDS: &[(&str, KeyCode)] = &[
     ("打开资源库", KeyCode::F(2)),
     ("运行当前插件 Ctrl+R", KeyCode::F(5)),
     ("编辑适用参数 P", KeyCode::Char('P')),
-    ("获取远程符号索引", KeyCode::Char('g')),
-    ("搜索远程符号", KeyCode::Char('f')),
     ("打开分析页", KeyCode::F(3)),
     ("选择分析系统：自动 / Linux / Windows", KeyCode::F(6)),
     ("打开镜像", KeyCode::Char('i')),
@@ -85,8 +83,7 @@ fn command_matches(query: &str, page: Page, focus: Focus) -> Vec<usize> {
             (!analysis_only || page == Page::Analysis)
                 && (!assets_only || page != Page::Analysis)
                 && (!result_action || focus >= Focus::Content)
-                && label.contains(query)
-                && (page == Page::Assets || !label.contains("远程符号"))
+                && query_matches(label, query)
         })
         .map(|(i, _)| i)
         .collect()

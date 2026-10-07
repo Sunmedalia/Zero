@@ -112,12 +112,7 @@ impl App {
         else {
             return;
         };
-        frame.render_widget(
-            Block::default()
-                .borders(Borders::ALL)
-                .title("生成当前镜像符号表"),
-            area,
-        );
+        frame.render_widget(panel().title("生成当前镜像符号表"), area);
         let inner = area.inner(ratatui::layout::Margin::new(1, 1));
         let image = self
             .image

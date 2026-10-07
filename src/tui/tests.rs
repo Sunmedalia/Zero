@@ -1295,11 +1295,11 @@ fn horizontally_scrolled_headers_keep_mouse_column_identity() {
     assert_eq!(app.sort, Some(index));
     assert_eq!(
         terminal.backend().buffer()[(hits.result.x, hits.result.y)].symbol(),
-        "┌"
+        "╭"
     );
     assert_eq!(
         terminal.backend().buffer()[(hits.result.right() - 1, hits.result.y)].symbol(),
-        "┐"
+        "╮"
     );
 }
 #[test]
@@ -2840,10 +2840,6 @@ fn space_then_enter_enters_the_analysis_console_with_the_selected_object() {
     app.refresh_assets();
     app.switch_section(AssetSection::Images);
     app.focus_asset(Kind::Image, &image);
-    app.key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
-    assert_eq!(app.page, Page::Assets);
-    assert!(app.image.is_none());
-    assert!(app.job.is_none());
     app.key(KeyEvent::new(KeyCode::Char(' '), KeyModifiers::NONE));
     finish_test_job(&mut app);
     app.switch_section(AssetSection::Symbols);
@@ -2938,4 +2934,130 @@ fn file_and_symbol_dialog_enter_open_the_console_without_selecting_the_highlight
     assert_eq!(app.symbols, selected);
     assert_eq!(app.choice, choice);
     assert!(app.job.is_none());
+}
+
+#[test]
+fn enter_selects_highlighted_image_and_opens_analysis_once_matched() {
+    let (dir, mut app) = preparation_fixture();
+    let exact = dir.path().join("symbols/exact.json");
+    std::fs::write(&exact, fixture_isf(PREPARATION_BANNER, 1)).unwrap();
+    let image = app.image.take().unwrap();
+    app.refresh_assets();
+    app.switch_section(AssetSection::Images);
+    app.focus_asset(Kind::Image, &image);
+    assert!(
+        app.asset_disabled(AssetSection::Images, KeyCode::Enter)
+            .is_none()
+    );
+    app.key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
+    // The highlighted image is selected and matching starts; the page waits for it.
+    assert!(same_path(app.image.as_ref().unwrap(), &image));
+    assert!(app.job.is_some());
+    assert_eq!(app.page, Page::Assets);
+    finish_test_job(&mut app);
+    assert_eq!(app.preparation, Preparation::Ready);
+    assert_eq!(app.page, Page::Analysis);
+    assert!(same_path(&app.symbols, &exact));
+    // Enter again on the active image goes straight in.
+    app.switch_page(Page::Assets);
+    app.key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
+    assert_eq!(app.page, Page::Analysis);
+}
+#[test]
+fn enter_intent_is_dropped_on_cancel_and_when_symbols_are_missing() {
+    let (_dir, mut app) = preparation_fixture();
+    let image = app.image.take().unwrap();
+    app.refresh_assets();
+    app.switch_section(AssetSection::Images);
+    app.focus_asset(Kind::Image, &image);
+    app.key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
+    assert!(app.enter_when_ready);
+    app.key(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE));
+    assert!(!app.enter_when_ready);
+    if let Some(worker) = app.worker.take() {
+        worker.join().unwrap();
+    }
+    app.drain();
+    assert_eq!(app.page, Page::Assets);
+    // No exact symbols: Enter selects, matching settles on MissingSymbols, page stays.
+    app.image = None;
+    app.key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
+    finish_test_job(&mut app);
+    assert_eq!(app.page, Page::Assets);
+    assert!(!app.enter_when_ready);
+}
+#[test]
+fn quit_needs_confirmation_only_while_a_task_runs() {
+    let mut app = app();
+    assert!(app.key(KeyEvent::new(KeyCode::Char('q'), KeyModifiers::NONE)));
+    let (_dir, mut app) = preparation_fixture();
+    app.initialize(Default::default());
+    assert!(app.job.is_some());
+    assert!(!app.key(KeyEvent::new(KeyCode::Char('q'), KeyModifiers::NONE)));
+    assert!(app.status.contains("再按 q"));
+    app.key(KeyEvent::new(KeyCode::Down, KeyModifiers::NONE));
+    assert!(!app.key(KeyEvent::new(KeyCode::Char('q'), KeyModifiers::NONE)));
+    assert!(app.key(KeyEvent::new(KeyCode::Char('q'), KeyModifiers::NONE)));
+    assert!(app.key(KeyEvent::new(KeyCode::Char('c'), KeyModifiers::CONTROL)));
+    finish_test_job(&mut app);
+}
+#[test]
+fn escape_clears_content_filter_before_cancelling() {
+    let mut app = app();
+    app.switch_page(Page::Analysis);
+    app.query = "zsh".into();
+    app.row = 1;
+    app.key(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE));
+    assert!(app.query.is_empty());
+    assert_eq!(app.row, 0);
+}
+#[test]
+fn page_switch_replaces_stale_hints_but_keeps_errors() {
+    let mut app = app();
+    app.page = Page::Assets;
+    app.last_error = None;
+    app.switch_page(Page::Analysis);
+    assert!(app.status.starts_with("分析"), "{}", app.status);
+    app.switch_page(Page::Assets);
+    assert!(app.status.starts_with("资源库"));
+    app.status = "读取失败".into();
+    app.last_error = Some("读取失败".into());
+    app.switch_page(Page::Analysis);
+    assert_eq!(app.status, "读取失败");
+}
+#[test]
+fn palette_and_plugin_search_are_case_insensitive_and_multi_term() {
+    let mut app = app();
+    app.switch_page(Page::Analysis);
+    app.focus = Focus::Content;
+    assert!(!app.available_commands("dump").is_empty());
+    assert!(!app.available_commands("导出 结果").is_empty());
+    assert!(app.available_commands("导出 不存在").is_empty());
+    assert!(COMMANDS.iter().all(|(_, key)| *key != KeyCode::Char('f')));
+    assert!(plugin_matches("网络").contains(&Plugin::Sockstat));
+    assert!(plugin_matches("PSTREE").contains(&Plugin::Pstree));
+    app.select_os(crate::analysis::Os::Windows);
+    assert!(app.plugin_matches("网络").contains(&Plugin::WinNetscan));
+}
+#[test]
+fn clicking_the_highlighted_asset_again_selects_it() {
+    let (_dir, mut app) = preparation_fixture();
+    let image = app.image.take().unwrap();
+    app.refresh_assets();
+    app.switch_section(AssetSection::Images);
+    app.focus_asset(Kind::Image, &image);
+    let mut terminal = Terminal::new(TestBackend::new(120, 32)).unwrap();
+    terminal.draw(|f| app.draw(f)).unwrap();
+    let (rect, _, offset) = app
+        .hits
+        .borrow()
+        .asset_lists
+        .iter()
+        .find(|(_, s, _)| *s == AssetSection::Images)
+        .copied()
+        .unwrap();
+    let y = rect.y + 1 + (app.asset_rows[0] - offset) as u16;
+    click(&mut app, rect.x + 3, y);
+    assert!(app.image.is_some());
+    finish_test_job(&mut app);
 }

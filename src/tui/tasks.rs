@@ -320,6 +320,7 @@ impl App {
         }));
     }
     pub(super) fn cancel(&mut self) {
+        self.enter_when_ready = false;
         self.pending_work = None;
         self.pending_path = None;
         self.pending_execution = None;
@@ -336,7 +337,7 @@ impl App {
             .as_ref()
             .map(|r| r.try_iter().collect())
             .unwrap_or_default();
-        let changed = !events.is_empty();
+        let mut changed = !events.is_empty();
         for event in events {
             let event = match event {
                 WorkerEvent::Tagged(id, version, event) => {
@@ -606,6 +607,7 @@ impl App {
                 }
             }
         }
+        changed |= self.resolve_enter_intent();
         changed
     }
     pub(super) fn finish_worker(&mut self) {

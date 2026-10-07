@@ -5,7 +5,7 @@ impl App {
         let mut x = area.x;
         if area.width >= 29 {
             frame.render_widget(
-                Paragraph::new(" 系统: ").style(Style::default().fg(ACCENT)),
+                Paragraph::new(" 系统: ").style(Style::default().fg(MUTED)),
                 Rect::new(x, area.y, 7, area.height),
             );
             x += 7;
@@ -28,7 +28,7 @@ impl App {
                         .fg(FOCUS)
                         .add_modifier(Modifier::BOLD)
                 } else {
-                    Style::default().bg(Color::Rgb(27, 42, 48)).fg(ACCENT)
+                    Style::default().bg(RAISED).fg(ACCENT)
                 }),
                 rect,
             );
@@ -54,7 +54,7 @@ impl App {
                         .fg(FOCUS)
                         .add_modifier(Modifier::BOLD)
                 } else {
-                    Style::default().fg(ACCENT)
+                    Style::default().fg(TEXT)
                 }),
                 rect,
             );
@@ -73,6 +73,19 @@ impl App {
                     Rect::new(area.right() - width - 1, area.y, width, area.height),
                 );
             }
+        } else if area.width.saturating_sub(x.saturating_sub(area.x)) > 24 {
+            let brand = Line::from(vec![
+                Span::styled(
+                    "ZERO",
+                    Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
+                ),
+                Span::styled(" 内存取证 ", Style::default().fg(MUTED)),
+            ]);
+            let width = brand.width() as u16;
+            frame.render_widget(
+                Paragraph::new(brand),
+                Rect::new(area.right() - width - 1, area.y, width, area.height),
+            );
         }
     }
     pub(super) fn draw_search(
@@ -105,16 +118,9 @@ impl App {
         frame.render_widget(
             Paragraph::new(escaped(query))
                 .scroll((0, scroll.min(u16::MAX as usize) as u16))
-                .block(
-                    Block::default()
-                        .borders(Borders::ALL)
-                        .title(title)
-                        .border_style(Style::default().fg(if editing.is_some() {
-                            FOCUS
-                        } else {
-                            Color::DarkGray
-                        })),
-                ),
+                .block(panel().title(title).border_style(
+                    Style::default().fg(if editing.is_some() { FOCUS } else { BORDER }),
+                )),
             rect,
         );
         if controls > 0 && rect.height > 1 {
@@ -169,7 +175,7 @@ impl App {
             let disabled = self.asset_disabled(section, key);
             frame.render_widget(
                 Paragraph::new(text).style(if disabled.is_some() {
-                    Style::default().fg(Color::DarkGray)
+                    Style::default().fg(MUTED)
                 } else {
                     Style::default().fg(FOCUS).bg(SELECTED_BG)
                 }),
@@ -205,8 +211,7 @@ impl App {
             );
         } else {
             frame.render_widget(
-                Paragraph::new(escaped(query))
-                    .block(Block::default().borders(Borders::ALL).title("搜索 /")),
+                Paragraph::new(escaped(query)).block(panel().title("搜索 /")),
                 parts[0],
             );
         }
@@ -232,17 +237,17 @@ impl App {
             self.remote_list()
                 .iter()
                 .map(|m| {
-                    ListItem::new(format!(
-                        "{} {}",
-                        if self.downloads.get(&m.url).is_some_and(|p| p.is_file()) {
-                            "[已保存]"
-                        } else if self.remote_cached(m) {
-                            "[缓存]"
-                        } else {
-                            "[待下载]"
-                        },
-                        escaped(&m.path)
-                    ))
+                    let (tag, color) = if self.downloads.get(&m.url).is_some_and(|p| p.is_file()) {
+                        ("[已保存]", SUCCESS)
+                    } else if self.remote_cached(m) {
+                        ("[缓存]", ACCENT)
+                    } else {
+                        ("[待下载]", MUTED)
+                    };
+                    ListItem::new(Line::from(vec![
+                        Span::styled(tag, Style::default().fg(color)),
+                        Span::styled(format!(" {}", escaped(&m.path)), Style::default().fg(TEXT)),
+                    ]))
                 })
                 .collect::<Vec<_>>()
         } else {
@@ -254,20 +259,31 @@ impl App {
                     } else {
                         same_path(&self.symbols, &a.path)
                     };
-                    ListItem::new(format!(
-                        "{} {} · #{} · {}{}",
-                        if active {
-                            "●已选用"
-                        } else if self.local_matches.contains_key(&a.path) {
-                            "✓匹配"
-                        } else {
-                            " "
-                        },
-                        escaped(&self.display_path(&a.path)),
-                        a.id(),
-                        a.format(),
-                        if a.available { "" } else { " · 缺失" }
-                    ))
+                    let (marker, color) = if active {
+                        ("●已选用", SUCCESS)
+                    } else if self.local_matches.contains_key(&a.path) {
+                        ("✓匹配", ACCENT)
+                    } else {
+                        (" ", MUTED)
+                    };
+                    let mut spans = vec![
+                        Span::styled(
+                            marker,
+                            Style::default().fg(color).add_modifier(Modifier::BOLD),
+                        ),
+                        Span::styled(
+                            format!(" {}", escaped(&self.display_path(&a.path))),
+                            Style::default().fg(if a.available { TEXT } else { MUTED }),
+                        ),
+                        Span::styled(
+                            format!(" · #{} · {}", a.id(), a.format()),
+                            Style::default().fg(MUTED),
+                        ),
+                    ];
+                    if !a.available {
+                        spans.push(Span::styled(" · 缺失", Style::default().fg(DANGER)));
+                    }
+                    ListItem::new(Line::from(spans))
                 })
                 .collect::<Vec<_>>()
         };
@@ -285,19 +301,22 @@ impl App {
         frame.render_stateful_widget(
             List::new(rows)
                 .block(
-                    Block::default()
-                        .borders(Borders::ALL)
+                    panel()
                         .title(format!("{}{} · {} 项", section.title(), mode, count))
                         .border_style(Style::default().fg(
                             if self.section == section && self.focus == Focus::Navigation {
                                 ACCENT
                             } else {
-                                Color::DarkGray
+                                BORDER
                             },
                         )),
                 )
                 .highlight_symbol("› ")
-                .highlight_style(Style::default().bg(SELECTED_BG).fg(FOCUS)),
+                .highlight_style(
+                    Style::default()
+                        .bg(SELECTED_BG)
+                        .add_modifier(Modifier::BOLD),
+                ),
             parts[2],
             state,
         );
@@ -321,7 +340,7 @@ impl App {
             frame.render_widget(
                 Paragraph::new(text)
                     .wrap(Wrap { trim: false })
-                    .style(Style::default().fg(Color::DarkGray)),
+                    .style(Style::default().fg(MUTED)),
                 parts[2].inner(ratatui::layout::Margin::new(1, 1)),
             );
         }
@@ -362,36 +381,53 @@ impl App {
                 format!("待匹配 {path}")
             }
         };
-        let state = match self.preparation {
-            Preparation::ChooseImage => "选用镜像后自动识别与匹配",
-            Preparation::Matching => "正在识别系统并匹配本地符号",
-            Preparation::ChooseSystem => "系统不明确；F6 手动选择",
-            Preparation::MissingSymbols => "缺少精确符号；M 获取，y 导入",
-            Preparation::ChooseSymbols => "多个精确候选；Space 选用，Enter 进入控制台",
-            Preparation::Ready => "符号已选用；x 进入分析，点击插件运行",
-            Preparation::Cancelled => "匹配已取消；m 重试",
+        let (state, state_color) = match self.preparation {
+            Preparation::ChooseImage => ("选用镜像后自动识别与匹配", MUTED),
+            Preparation::Matching => ("正在识别系统并匹配本地符号", ACCENT),
+            Preparation::ChooseSystem => ("系统不明确；F6 手动选择", WARN),
+            Preparation::MissingSymbols => ("缺少精确符号；M 获取，y 导入", WARN),
+            Preparation::ChooseSymbols => ("多个精确候选；Space 选用，Enter 进入控制台", WARN),
+            Preparation::Ready => ("符号已选用；x 进入分析，点击插件运行", SUCCESS),
+            Preparation::Cancelled => ("匹配已取消；m 重试", DANGER),
         };
         let source = if self.windows {
-            "远程来源：Microsoft symbol server · 精确 PDB GUID / Age".into()
+            "Microsoft symbol server · 精确 PDB GUID / Age".into()
         } else {
-            format!("远程来源：{} · 完整 banner 精确匹配", symbols::REPOSITORY)
+            format!("{} · 完整 banner 精确匹配", symbols::REPOSITORY)
         };
-        let source = format!(
-            "{} · {source}",
-            if self.settings.remote_symbols {
-                "在线"
-            } else {
-                "离线（仅缓存）"
-            }
-        );
+        let (mode, mode_color) = if self.settings.remote_symbols {
+            ("在线", SUCCESS)
+        } else {
+            ("离线（仅缓存）", WARN)
+        };
+        let value = Style::default().fg(TEXT);
+        let separator = || Span::styled(" · ", Style::default().fg(BORDER));
+        let identified = self.results.contains_key("banners");
         frame.render_widget(
             Paragraph::new(vec![
-                Line::raw(format!("镜像: {image}")),
-                Line::raw(format!("符号: {symbol} · {state}")),
-                Line::raw(banner),
-                Line::raw(source),
-            ])
-            .style(Style::default().fg(ACCENT)),
+                Line::from_iter(field("镜像: ", escaped(&image), value)),
+                Line::from_iter(field("符号: ", escaped(&symbol), value).into_iter().chain([
+                    separator(),
+                    Span::styled(state, Style::default().fg(state_color)),
+                ])),
+                Line::from_iter(field(
+                    "内核: ",
+                    escaped(&banner),
+                    if identified {
+                        value
+                    } else {
+                        Style::default().fg(MUTED)
+                    },
+                )),
+                Line::from_iter(
+                    field("来源: ", mode.into(), Style::default().fg(mode_color))
+                        .into_iter()
+                        .chain([
+                            separator(),
+                            Span::styled(source, Style::default().fg(MUTED)),
+                        ]),
+                ),
+            ]),
             regions[0],
         );
         let mut keys = vec![
@@ -439,16 +475,13 @@ impl App {
                         self.asset_scroll[self.section.slot()].min(u16::MAX as usize) as u16,
                         0,
                     ))
-                    .block(
-                        Block::default()
-                            .borders(Borders::ALL)
-                            .title("详情 · d 完整内容 · Tab 聚焦")
-                            .border_style(Style::default().fg(if self.focus == Focus::Content {
-                                ACCENT
-                            } else {
-                                Color::DarkGray
-                            })),
-                    ),
+                    .block(panel().title("详情 · d 完整内容 · Tab 聚焦").border_style(
+                        Style::default().fg(if self.focus == Focus::Content {
+                            ACCENT
+                        } else {
+                            BORDER
+                        }),
+                    )),
                 rows[1],
             );
         }
@@ -512,7 +545,7 @@ impl App {
             if self.focus == focus {
                 Style::default().fg(ACCENT)
             } else {
-                Style::default().fg(Color::DarkGray)
+                Style::default().fg(BORDER)
             }
         };
         let image = self
@@ -520,44 +553,53 @@ impl App {
             .as_ref()
             .map(|p| self.display_path(p))
             .unwrap_or_else(|| "未加载；按 i 输入路径".into());
-        let kernel = self
+        let verified = self
             .results
             .values()
             .find(|r| !r.historical && r.page_table > 0)
-            .map(|r| format!("页表已验证 {:#x}", r.page_table))
-            .unwrap_or_else(|| {
-                if self.preparation == Preparation::Ready {
-                    "运行时验证页表"
-                } else {
-                    "尚未验证页表"
-                }
-                .into()
-            });
-        frame.render_widget(
-            Paragraph::new(format!(
-                "系统: {} · 镜像: {}\n验证: {} · 符号: {}",
-                if self.windows { "Windows" } else { "Linux" },
-                escaped(&image),
-                escaped(&kernel),
-                escaped(
-                    &self
-                        .result()
-                        .filter(|r| !r.historical && !r.symbol.is_empty())
-                        .map(|r| r.symbol.clone())
-                        .unwrap_or_else(|| {
-                            if self.symbols.as_os_str().is_empty() {
-                                "未选择 · F2 资源库".into()
-                            } else {
-                                self.display_path(&self.symbols)
-                            }
-                        })
-                )
-            ))
-            .block(
-                Block::default()
-                    .borders(Borders::NONE)
-                    .border_style(selected(Focus::Context)),
+            .map(|r| r.page_table);
+        let (kernel, kernel_style) = match verified {
+            Some(table) => (
+                format!("页表已验证 {table:#x}"),
+                Style::default().fg(SUCCESS),
             ),
+            None if self.preparation == Preparation::Ready => {
+                ("运行时验证页表".into(), Style::default().fg(TEXT))
+            }
+            None => ("尚未验证页表".into(), Style::default().fg(WARN)),
+        };
+        let symbol = self
+            .result()
+            .filter(|r| !r.historical && !r.symbol.is_empty())
+            .map(|r| r.symbol.clone());
+        let (symbol, symbol_style) = match symbol {
+            Some(symbol) => (symbol, Style::default().fg(TEXT)),
+            None if self.symbols.as_os_str().is_empty() => {
+                ("未选择 · F2 资源库".into(), Style::default().fg(WARN))
+            }
+            None => (self.display_path(&self.symbols), Style::default().fg(TEXT)),
+        };
+        let value = Style::default().fg(TEXT);
+        let separator = || Span::styled(" · ", Style::default().fg(BORDER));
+        frame.render_widget(
+            Paragraph::new(vec![
+                Line::from_iter(
+                    field(
+                        "系统: ",
+                        if self.windows { "Windows" } else { "Linux" }.into(),
+                        value.add_modifier(Modifier::BOLD),
+                    )
+                    .into_iter()
+                    .chain([separator()])
+                    .chain(field("镜像: ", escaped(&image), value)),
+                ),
+                Line::from_iter(
+                    field("验证: ", escaped(&kernel), kernel_style)
+                        .into_iter()
+                        .chain([separator()])
+                        .chain(field("符号: ", escaped(&symbol), symbol_style)),
+                ),
+            ]),
             parts[0],
         );
         if self.page == Page::Assets {
@@ -566,7 +608,7 @@ impl App {
             let mut main = if area.width >= 100 && frame.area().height >= 20 {
                 let columns = Layout::default()
                     .direction(Direction::Horizontal)
-                    .constraints([Constraint::Length(20), Constraint::Min(20)])
+                    .constraints([Constraint::Length(22), Constraint::Min(20)])
                     .split(parts[1]);
                 self.draw_menu(frame, columns[0], selected(Focus::Navigation));
                 columns[1]
@@ -592,8 +634,7 @@ impl App {
                             .collect::<Vec<_>>(),
                     )
                     .block(
-                        Block::default()
-                            .borders(Borders::ALL)
+                        panel()
                             .title("详情 · Tab 聚焦 · d 关闭")
                             .border_style(selected(Focus::Detail)),
                     ),
@@ -640,10 +681,7 @@ impl App {
                     ),
                     None => format!(" {} ", plugin_label(self.plugin)),
                 };
-                let block = Block::default()
-                    .borders(Borders::ALL)
-                    .title(title)
-                    .border_style(selected(Focus::Content));
+                let block = panel().title(title).border_style(selected(Focus::Content));
                 if let Some(result) = result {
                     let columns = result
                         .columns
@@ -689,17 +727,31 @@ impl App {
                         .split(columns_area)
                         .to_vec();
                     let table = Table::new(
-                        rows.into_iter().map(|row| {
-                            Row::new(row.iter().map(|v| escaped(v)).collect::<Vec<_>>())
+                        rows.into_iter().enumerate().map(|(i, row)| {
+                            Row::new(row.iter().map(|v| escaped(v)).collect::<Vec<_>>()).style(
+                                Style::default().fg(TEXT).bg(if i % 2 == 1 {
+                                    STRIPE
+                                } else {
+                                    SURFACE
+                                }),
+                            )
                         }),
                         widths,
                     )
                     .header(
-                        Row::new(columns)
-                            .style(Style::default().fg(ACCENT).add_modifier(Modifier::BOLD)),
+                        Row::new(columns).style(
+                            Style::default()
+                                .fg(ACCENT)
+                                .add_modifier(Modifier::BOLD | Modifier::UNDERLINED),
+                        ),
                     )
                     .block(block)
-                    .row_highlight_style(Style::default().bg(SELECTED_BG))
+                    .row_highlight_style(
+                        Style::default()
+                            .bg(SELECTED_BG)
+                            .fg(FOCUS)
+                            .add_modifier(Modifier::BOLD),
+                    )
                     .highlight_symbol("› ");
                     let mut state = self.table_state.borrow_mut();
                     state.select(
@@ -737,33 +789,45 @@ impl App {
                     self.hits.borrow_mut().row_offset = page_start + state.offset();
                 } else {
                     frame.render_widget(
-                    Paragraph::new(
-                        "浏览左侧插件或按 p 搜索\n点击或 Enter 选择插件即运行\nF2 资源库 · ? 命令面板",
-                    )
-                    .block(block),
-                    main,
-                );
+                        Paragraph::new(vec![
+                            Line::raw(""),
+                            Line::styled(
+                                "尚无结果",
+                                Style::default().fg(TEXT).add_modifier(Modifier::BOLD),
+                            ),
+                            Line::styled("浏览左侧插件或按 p 搜索", Style::default().fg(MUTED)),
+                            Line::styled("点击或 Enter 选择插件即运行", Style::default().fg(MUTED)),
+                            Line::styled("F2 资源库 · ? 命令面板", Style::default().fg(MUTED)),
+                        ])
+                        .alignment(ratatui::layout::Alignment::Center)
+                        .block(block),
+                        main,
+                    );
                 }
             }
         }
         let footer = parts[2];
         frame.render_widget(
-            Block::default().borders(Borders::TOP).title(format!(
-                " {} · {} · Tab 切换区域 ",
-                self.page.title(),
-                if self.page == Page::Analysis {
-                    match self.focus {
-                        Focus::Context => "镜像信息",
-                        Focus::Navigation => "插件",
-                        Focus::Detail => "详情",
-                        _ => "内容",
+            Block::default()
+                .borders(Borders::TOP)
+                .border_style(Style::default().fg(BORDER))
+                .title_style(Style::default().fg(MUTED))
+                .title(format!(
+                    " {} · {} · Tab 切换区域 ",
+                    self.page.title(),
+                    if self.page == Page::Analysis {
+                        match self.focus {
+                            Focus::Context => "镜像信息",
+                            Focus::Navigation => "插件",
+                            Focus::Detail => "详情",
+                            _ => "内容",
+                        }
+                    } else if self.focus == Focus::Content {
+                        "详情"
+                    } else {
+                        self.section.title()
                     }
-                } else if self.focus == Focus::Content {
-                    "详情"
-                } else {
-                    self.section.title()
-                }
-            )),
+                )),
             footer,
         );
         let status = Rect::new(
@@ -781,7 +845,8 @@ impl App {
                         started.elapsed().as_secs(),
                         escaped(&self.status)
                     ))
-                    .gauge_style(Style::default().fg(ACCENT)),
+                    .use_unicode(true)
+                    .gauge_style(Style::default().fg(ACCENT).bg(RAISED)),
                 status,
             );
         } else {
@@ -795,7 +860,17 @@ impl App {
                     )
                 })
                 .unwrap_or_else(|| escaped(&self.status));
-            frame.render_widget(Paragraph::new(message), status);
+            let color = if self.last_error.as_deref() == Some(self.status.as_str()) {
+                DANGER
+            } else if self.started.is_some() {
+                ACCENT
+            } else {
+                TEXT
+            };
+            frame.render_widget(
+                Paragraph::new(message).style(Style::default().fg(color)),
+                status,
+            );
         }
         let buttons = self.footer_actions();
         let more_width = Span::raw(" ?更多 ").width() as u16;
@@ -815,19 +890,15 @@ impl App {
             }
             let rect = Rect::new(x, footer.y + 2, width, 1);
             frame.render_widget(
-                Paragraph::new(text).style(
-                    Style::default()
-                        .fg(Color::Rgb(144, 203, 195))
-                        .bg(Color::Rgb(27, 42, 48)),
-                ),
+                Paragraph::new(text)
+                    .style(Style::default().fg(Color::Rgb(144, 203, 195)).bg(RAISED)),
                 rect,
             );
             if self.page != Page::Assets || self.asset_disabled(self.section, key).is_none() {
                 self.hits.borrow_mut().buttons.push((rect, key));
             } else {
                 frame.render_widget(
-                    Paragraph::new(format!(" {label} "))
-                        .style(Style::default().fg(Color::DarkGray)),
+                    Paragraph::new(format!(" {label} ")).style(Style::default().fg(MUTED)),
                     rect,
                 );
             }
@@ -871,13 +942,14 @@ impl App {
                     let mut state = ListState::default().with_selected(Some(*selected));
                     frame.render_stateful_widget(
                         List::new(["自动识别镜像系统", "Linux", "Windows"])
-                            .block(
-                                Block::default()
-                                    .borders(Borders::ALL)
-                                    .title("分析系统 · Enter 选择 · Esc 取消"),
-                            )
+                            .block(panel().title("分析系统 · Enter 选择 · Esc 取消"))
                             .highlight_symbol("› ")
-                            .highlight_style(Style::default().fg(ACCENT)),
+                            .highlight_style(
+                                Style::default()
+                                    .bg(SELECTED_BG)
+                                    .fg(FOCUS)
+                                    .add_modifier(Modifier::BOLD),
+                            ),
                         popup,
                         &mut state,
                     );
@@ -923,11 +995,7 @@ impl App {
                     )));
                     lines.push(Line::raw(error.clone()));
                     frame.render_widget(
-                        Paragraph::new(lines).block(
-                            Block::default()
-                                .borders(Borders::ALL)
-                                .title("适用参数 · 保存后 Ctrl+R 运行"),
-                        ),
+                        Paragraph::new(lines).block(panel().title("适用参数 · 保存后 Ctrl+R 运行")),
                         popup,
                     );
                 }
@@ -947,8 +1015,7 @@ impl App {
                         "转储目录 (必填)",
                     ];
                     frame.render_widget(
-                        Block::default()
-                            .borders(Borders::ALL)
+                        panel()
                             .border_style(Style::default().fg(ACCENT))
                             .title("DUMP · Tab 字段 · Ctrl+Enter 运行 · Esc 取消"),
                         popup,
@@ -962,7 +1029,7 @@ impl App {
                         _ => "指定 PID；导出可读 VMA；Start / End 可限制范围",
                     };
                     frame.render_widget(
-                        Paragraph::new(hint).style(Style::default().fg(Color::DarkGray)),
+                        Paragraph::new(hint).style(Style::default().fg(MUTED)),
                         Rect::new(popup.x + 2, popup.y + 1, popup.width.saturating_sub(4), 1),
                     );
                     let mut x = popup.x + 2;
@@ -1119,17 +1186,17 @@ impl App {
                         .with_selected((!entries.is_empty()).then_some(*selected));
                     frame.render_stateful_widget(
                         List::new(labels)
-                            .block(
-                                Block::default()
-                                    .borders(Borders::ALL)
-                                    .title(title)
-                                    .title_bottom(format!(
-                                        "目录: {}",
-                                        escaped(&self.display_path(root))
-                                    )),
-                            )
+                            .block(panel().title(title).title_bottom(format!(
+                                "目录: {}",
+                                escaped(&self.display_path(root))
+                            )))
                             .highlight_symbol("› ")
-                            .highlight_style(Style::default().fg(ACCENT)),
+                            .highlight_style(
+                                Style::default()
+                                    .bg(SELECTED_BG)
+                                    .fg(FOCUS)
+                                    .add_modifier(Modifier::BOLD),
+                            ),
                         popup,
                         &mut state,
                     );
@@ -1152,10 +1219,12 @@ impl App {
                     let mut state = ListState::default().with_selected(Some(*selected));
                     frame.render_stateful_widget(
                         List::new(self.settings_labels())
-                            .block(
-                                Block::default()
-                                    .borders(Borders::ALL)
-                                    .title("目录与分页设置 · Enter 修改 · Esc 关闭"),
+                            .block(panel().title("目录与分页设置 · Enter 修改 · Esc 关闭"))
+                            .highlight_style(
+                                Style::default()
+                                    .bg(SELECTED_BG)
+                                    .fg(FOCUS)
+                                    .add_modifier(Modifier::BOLD),
                             )
                             .highlight_symbol("› "),
                         popup,
@@ -1186,13 +1255,14 @@ impl App {
                     let mut state = ListState::default().with_selected(Some(*selected));
                     frame.render_stateful_widget(
                         List::new(items)
-                            .block(
-                                Block::default()
-                                    .borders(Borders::ALL)
-                                    .title("缓存管理 · Space 勾选 · Enter 预览／清理"),
-                            )
+                            .block(panel().title("缓存管理 · Space 勾选 · Enter 预览／清理"))
                             .highlight_symbol("› ")
-                            .highlight_style(Style::default().fg(ACCENT)),
+                            .highlight_style(
+                                Style::default()
+                                    .bg(SELECTED_BG)
+                                    .fg(FOCUS)
+                                    .add_modifier(Modifier::BOLD),
+                            ),
                         popup,
                         &mut state,
                     );
@@ -1239,13 +1309,18 @@ impl App {
                                 .iter()
                                 .map(|(label, _)| *label),
                         )
-                        .block(
-                            Block::default()
-                                .borders(Borders::ALL)
-                                .title(format!("命令 · {} · Enter 执行", escaped(query))),
-                        )
+                        .block(panel().title(if query.is_empty() {
+                            "命令 · 输入以筛选 · Enter 执行".to_string()
+                        } else {
+                            format!("命令 · {} · Enter 执行", escaped(query))
+                        }))
                         .highlight_symbol("› ")
-                        .highlight_style(Style::default().fg(ACCENT)),
+                        .highlight_style(
+                            Style::default()
+                                .bg(SELECTED_BG)
+                                .fg(FOCUS)
+                                .add_modifier(Modifier::BOLD),
+                        ),
                         popup,
                         &mut state,
                     );
@@ -1258,11 +1333,14 @@ impl App {
                     frame.render_stateful_widget(
                         List::new(plugins.iter().map(|p| plugin_label(*p)))
                             .block(
-                                Block::default()
-                                    .borders(Borders::ALL)
-                                    .title(format!("插件搜索: {} · Enter 选择", escaped(query))),
+                                panel().title(format!("插件搜索: {} · Enter 选择", escaped(query))),
                             )
-                            .highlight_style(Style::default().fg(ACCENT))
+                            .highlight_style(
+                                Style::default()
+                                    .bg(SELECTED_BG)
+                                    .fg(FOCUS)
+                                    .add_modifier(Modifier::BOLD),
+                            )
                             .highlight_symbol("› "),
                         popup,
                         &mut state,
@@ -1274,11 +1352,16 @@ impl App {
                     frame.render_stateful_widget(
                         List::new(matches.iter().map(|m| escaped(&m.path)))
                             .block(
-                                Block::default().borders(Borders::ALL).title(
+                                panel().title(
                                     "匹配符号 · Space 下载并选用 · Enter 进入控制台 · d 详情",
                                 ),
                             )
-                            .highlight_style(Style::default().fg(ACCENT))
+                            .highlight_style(
+                                Style::default()
+                                    .bg(SELECTED_BG)
+                                    .fg(FOCUS)
+                                    .add_modifier(Modifier::BOLD),
+                            )
                             .highlight_symbol("› "),
                         popup,
                         &mut state,
@@ -1299,15 +1382,13 @@ impl App {
                                 .map(Line::raw)
                                 .collect::<Vec<_>>(),
                         )
-                        .block(
-                            Block::default().borders(Borders::ALL).title(
-                                if asset.kind == Kind::Symbols {
-                                    "符号表分析 · ↑↓ / PgUp PgDn · Esc 返回"
-                                } else {
-                                    "镜像详情 · ↑↓ / PgUp PgDn · Esc 返回"
-                                },
-                            ),
-                        ),
+                        .block(panel().title(
+                            if asset.kind == Kind::Symbols {
+                                "符号表分析 · ↑↓ / PgUp PgDn · Esc 返回"
+                            } else {
+                                "镜像详情 · ↑↓ / PgUp PgDn · Esc 返回"
+                            },
+                        )),
                         popup,
                     );
                     if popup.width >= 28 {
@@ -1325,8 +1406,7 @@ impl App {
                 }
                 Dialog::RemoteDetail { candidate, scroll } => {
                     frame.render_widget(
-                        Block::default()
-                            .borders(Borders::ALL)
+                        panel()
                             .border_style(Style::default().fg(ACCENT))
                             .title("远程符号详情 · ↑↓ 滚动 · Esc 返回"),
                         popup,
@@ -1375,7 +1455,7 @@ impl App {
                             Paragraph::new(text).style(Style::default().fg(if enabled {
                                 FOCUS
                             } else {
-                                Color::DarkGray
+                                MUTED
                             })),
                             rect,
                         );
@@ -1398,11 +1478,7 @@ impl App {
                                 .map(Line::raw)
                                 .collect::<Vec<_>>(),
                         )
-                        .block(
-                            Block::default()
-                                .borders(Borders::ALL)
-                                .title("详情 · ↑↓ / PgUp PgDn · Esc 关闭"),
-                        ),
+                        .block(panel().title("详情 · ↑↓ / PgUp PgDn · Esc 关闭")),
                         popup,
                     );
                 }
@@ -1436,8 +1512,7 @@ impl App {
                         )))
                         .wrap(Wrap { trim: false })
                         .block(
-                            Block::default()
-                                .borders(Borders::ALL)
+                            panel()
                                 .title(title)
                                 .border_style(Style::default().fg(ACCENT)),
                         ),
@@ -1473,12 +1548,13 @@ impl App {
                     let mut state = ListState::default().with_selected(Some(*column));
                     frame.render_stateful_widget(
                         List::new(labels)
-                            .block(
-                                Block::default()
-                                    .borders(Borders::ALL)
-                                    .title("排序列 · 再选同列反转 · Esc 取消"),
+                            .block(panel().title("排序列 · 再选同列反转 · Esc 取消"))
+                            .highlight_style(
+                                Style::default()
+                                    .bg(SELECTED_BG)
+                                    .fg(FOCUS)
+                                    .add_modifier(Modifier::BOLD),
                             )
-                            .highlight_style(Style::default().fg(ACCENT))
                             .highlight_symbol("› "),
                         popup,
                         &mut state,
@@ -1495,11 +1571,16 @@ impl App {
                                 .collect::<Vec<_>>(),
                         )
                         .block(
-                            Block::default().borders(Borders::ALL).title(
+                            panel().title(
                                 "多个完整 banner 匹配 · Space 选用 · Enter 进入控制台 · d 详情",
                             ),
                         )
-                        .highlight_style(Style::default().fg(ACCENT))
+                        .highlight_style(
+                            Style::default()
+                                .bg(SELECTED_BG)
+                                .fg(FOCUS)
+                                .add_modifier(Modifier::BOLD),
+                        )
                         .highlight_symbol("› "),
                         popup,
                         &mut state,
@@ -1517,8 +1598,49 @@ impl App {
                     8.min(popup.width),
                     1,
                 );
-                frame.render_widget(Paragraph::new("[取消]"), cancel);
+                frame.render_widget(
+                    Paragraph::new("[取消]").style(Style::default().fg(MUTED)),
+                    cancel,
+                );
                 self.hits.borrow_mut().buttons.push((cancel, KeyCode::Esc));
+            }
+            Self::frame_popup(frame, popup);
+        }
+    }
+    /// Accent the popup frame and cast a one-cell shadow so modals read above content.
+    fn frame_popup(frame: &mut Frame, popup: Rect) {
+        let bounds = frame.area();
+        let buffer = frame.buffer_mut();
+        let edge = |x: u16, y: u16| {
+            x == popup.x || y == popup.y || x + 1 == popup.right() || y + 1 == popup.bottom()
+        };
+        for y in popup.top()..popup.bottom() {
+            for x in popup.left()..popup.right() {
+                if !edge(x, y) {
+                    continue;
+                }
+                let cell = &mut buffer[(x, y)];
+                if cell
+                    .symbol()
+                    .chars()
+                    .next()
+                    .is_some_and(|c| ('\u{2500}'..='\u{257f}').contains(&c))
+                {
+                    cell.set_fg(ACCENT);
+                }
+            }
+        }
+        let shadow = Color::Rgb(8, 12, 15);
+        let right = popup.right();
+        let bottom = popup.bottom();
+        if right < bounds.right() {
+            for y in popup.y + 1..bottom.min(bounds.bottom()) {
+                buffer[(right, y)].set_bg(shadow);
+            }
+        }
+        if bottom < bounds.bottom() {
+            for x in popup.x + 1..(right + 1).min(bounds.right()) {
+                buffer[(x, bottom)].set_bg(shadow);
             }
         }
     }
@@ -1531,13 +1653,14 @@ impl App {
             .collect::<Vec<_>>();
         frame.render_stateful_widget(
             List::new(items)
-                .block(
-                    Block::default()
-                        .borders(Borders::ALL)
-                        .title("插件 · p 搜索")
-                        .border_style(style),
+                .style(Style::default().fg(TEXT))
+                .block(panel().title("插件 · p 搜索").border_style(style))
+                .highlight_style(
+                    Style::default()
+                        .bg(SELECTED_BG)
+                        .fg(FOCUS)
+                        .add_modifier(Modifier::BOLD),
                 )
-                .highlight_style(Style::default().fg(ACCENT).add_modifier(Modifier::BOLD))
                 .highlight_symbol("› "),
             area,
             &mut state,

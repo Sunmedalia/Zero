@@ -33,8 +33,8 @@ use ratatui::{
     style::{Color, Modifier, Style},
     text::{Line, Span},
     widgets::{
-        Block, Borders, Clear, Gauge, List, ListItem, ListState, Paragraph, Row, StatefulWidget,
-        Table, TableState, Wrap,
+        Block, BorderType, Borders, Clear, Gauge, List, ListItem, ListState, Paragraph, Row,
+        StatefulWidget, Table, TableState, Wrap,
     },
 };
 use std::{
@@ -51,6 +51,30 @@ const ACCENT: Color = Color::Rgb(72, 201, 184);
 const FOCUS: Color = Color::Rgb(243, 178, 92);
 const SELECTED_BG: Color = Color::Rgb(31, 54, 61);
 const SURFACE: Color = Color::Rgb(17, 25, 31);
+/// Raised surface for chips, buttons and alternating table rows.
+const RAISED: Color = Color::Rgb(27, 42, 48);
+const STRIPE: Color = Color::Rgb(21, 31, 38);
+const BORDER: Color = Color::Rgb(52, 70, 78);
+const TEXT: Color = Color::Rgb(214, 222, 224);
+const MUTED: Color = Color::Rgb(112, 130, 137);
+const SUCCESS: Color = Color::Rgb(126, 211, 135);
+const WARN: Color = Color::Rgb(240, 196, 102);
+const DANGER: Color = Color::Rgb(236, 112, 99);
+
+/// Rounded, dim-bordered panel shared by every framed region and popup.
+fn panel<'a>() -> Block<'a> {
+    Block::bordered()
+        .border_type(BorderType::Rounded)
+        .border_style(Style::default().fg(BORDER))
+        .title_style(Style::default().fg(TEXT))
+}
+/// Muted label followed by a value, for key/value header lines.
+fn field<'a>(label: &'a str, value: String, style: Style) -> [Span<'a>; 2] {
+    [
+        Span::styled(label, Style::default().fg(MUTED)),
+        Span::styled(value, style),
+    ]
+}
 
 struct TerminalGuard;
 impl Drop for TerminalGuard {

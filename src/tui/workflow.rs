@@ -152,12 +152,16 @@ impl App {
             .get(self.plugin.name())
             .filter(|p| **p != parameter && !self.results.contains_key(&self.request_key()));
         let lines = vec![
-            Line::styled(
-                format!("{} · {}", plugin_label(self.plugin), description),
-                Style::default().fg(ACCENT),
-            ),
-            Line::raw(format!(
-                "适用参数：{}",
+            Line::from(vec![
+                Span::styled(
+                    plugin_label(self.plugin),
+                    Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
+                ),
+                Span::styled(" · ", Style::default().fg(BORDER)),
+                Span::styled(description, Style::default().fg(TEXT)),
+            ]),
+            Line::from_iter(field(
+                "适用参数：",
                 if self.plugin == Plugin::WinPrintkey {
                     "hive / key"
                 } else if self.plugin.descriptor().columns.contains(&"PID") {
@@ -165,12 +169,24 @@ impl App {
                 } else {
                     "无"
                 }
+                .into(),
+                Style::default().fg(TEXT),
             )),
-            Line::raw(
-                old.map(|p| format!("旧结果参数：{p}"))
-                    .unwrap_or_else(|| format!("草稿：{parameter}")),
-            ),
-            Line::styled("[运行 Ctrl+R]  [编辑参数 P]", Style::default().fg(FOCUS)),
+            Line::from_iter(match old {
+                Some(p) => field("旧结果参数：", p.clone(), Style::default().fg(WARN)),
+                None => field("草稿：", parameter.clone(), Style::default().fg(TEXT)),
+            }),
+            Line::from(vec![
+                Span::styled(
+                    "[运行 Ctrl+R]",
+                    Style::default()
+                        .fg(FOCUS)
+                        .bg(RAISED)
+                        .add_modifier(Modifier::BOLD),
+                ),
+                Span::raw("  "),
+                Span::styled("[编辑参数 P]", Style::default().fg(ACCENT).bg(RAISED)),
+            ]),
         ];
         if area.height == 1 {
             frame.render_widget(Paragraph::new("[运行 Ctrl+R] [参数 P]"), area);

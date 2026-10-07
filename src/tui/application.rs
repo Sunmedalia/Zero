@@ -117,7 +117,7 @@ impl App {
         let mut items = self
             .navigation_plugins()
             .into_iter()
-            .filter(|p| p.name().contains(&query))
+            .filter(|p| plugin_search_hit(*p, &query))
             .collect::<Vec<_>>();
         if "dump".contains(&query) {
             items.push(Plugin::WinProcdump);
@@ -286,7 +286,7 @@ impl App {
             descending: false,
             row: 0,
             collapsed: HashSet::new(),
-            status: "资源库：i 导入镜像，Space 选用；M 获取匹配符号 · ? 命令面板".into(),
+            status: "资源库：Space 选用镜像 · Enter 选用并进入分析 · i 导入 · ? 命令面板".into(),
             logs: VecDeque::new(),
             started: None,
             progress: None,
@@ -316,10 +316,23 @@ impl App {
             inspector: false,
             detail_scroll: 0,
             views: HashMap::new(),
+            enter_when_ready: false,
+            quit_armed: false,
         }
     }
     pub(super) fn switch_page(&mut self, page: Page) {
+        let changed = self.page != page;
         self.page = page;
+        // Replace the previous page's hint, but never hide a running task or an error.
+        if changed && self.job.is_none() && self.last_error.as_deref() != Some(&self.status) {
+            self.status = match page {
+                Page::Analysis if self.image.is_none() => {
+                    "分析：尚未选用镜像；F2 资源库选用".into()
+                }
+                Page::Analysis => "分析：点击或 Enter 运行插件 · / 筛选 · ? 命令面板".into(),
+                Page::Assets => "资源库：Space 选用 · Enter 选用并进入分析 · ? 命令面板".into(),
+            };
+        }
 
         self.focus = Focus::Navigation;
         if page != Page::Analysis {
@@ -369,7 +382,7 @@ impl App {
             ]);
             commands
                 .into_iter()
-                .filter(|(label, _)| label.contains(query))
+                .filter(|(label, _)| query_matches(label, query))
                 .collect()
         }
     }
@@ -382,7 +395,12 @@ impl App {
         if key == KeyCode::Char('K') && self.windows {
             return Some("Windows 请使用 M 获取精确 PDB 符号");
         }
-        if (matches!(key, KeyCode::Char('m' | 'M' | 'b' | 'x' | 'K')) || key == KeyCode::Enter)
+        // Enter on a highlighted image selects it first, so it only needs an image row.
+        let enter_selects = key == KeyCode::Enter
+            && section == AssetSection::Images
+            && !self.asset_list_for(section).is_empty();
+        if (matches!(key, KeyCode::Char('m' | 'M' | 'b' | 'x' | 'K'))
+            || (key == KeyCode::Enter && !enter_selects))
             && self.image.is_none()
         {
             return Some("请先选用镜像");
@@ -797,6 +815,67 @@ impl App {
             }
         }
         text
+    }
+    pub(super) fn asset_active(&self, asset: &Asset) -> bool {
+        if asset.kind == Kind::Image {
+            self.image
+                .as_ref()
+                .is_some_and(|p| same_path(p, &asset.path))
+        } else {
+            same_path(&self.symbols, &asset.path)
+        }
+    }
+    /// Enter in the image / local symbol lists: select the highlighted row if it is not
+    /// already in use, then open the analysis page now or as soon as matching is ready.
+    pub(super) fn select_and_enter(&mut self) {
+        let pending = self.section != AssetSection::Remote
+            && self
+                .selected_asset()
+                .is_some_and(|asset| !self.asset_active(&asset));
+        if !pending {
+            self.enter_workbench();
+            return;
+        }
+        if !self.use_selected_asset() {
+            return;
+        }
+        if self.section == AssetSection::Images {
+            self.symbol_source = AssetSection::Symbols;
+            self.prepare_selected_image();
+        }
+        if self.preparation == Preparation::Ready && self.job.is_none() && self.dialog.is_none() {
+            self.enter_workbench();
+        } else {
+            self.enter_when_ready = true;
+            self.status = "已选用；匹配完成后自动进入分析（Esc 取消）".into();
+        }
+    }
+    /// Follow through on a pending Enter once preparation settles.
+    pub(super) fn resolve_enter_intent(&mut self) -> bool {
+        if !self.enter_when_ready || self.job.is_some() {
+            return false;
+        }
+        match self.preparation {
+            Preparation::Ready if self.dialog.is_none() => {
+                self.enter_when_ready = false;
+                self.enter_workbench()
+            }
+            // Still matching, or the user is picking among exact candidates.
+            Preparation::Ready | Preparation::Matching | Preparation::ChooseSymbols => false,
+            // Missing symbols / unknown system: stay put; the status explains the next step.
+            _ => {
+                self.enter_when_ready = false;
+                false
+            }
+        }
+    }
+    pub(super) fn request_quit(&mut self) -> bool {
+        if self.job.is_none() || self.quit_armed {
+            return true;
+        }
+        self.quit_armed = true;
+        self.status = "任务执行中；再按 q 退出，Esc 取消任务".into();
+        false
     }
     pub(super) fn use_selected_asset(&mut self) -> bool {
         let Some(asset) = self.selected_asset() else {

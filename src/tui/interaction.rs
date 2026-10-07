@@ -132,7 +132,7 @@ impl App {
             return false;
         }
         match key.code {
-            KeyCode::Char('q') => return true,
+            KeyCode::Char('q') => return self.request_quit(),
             KeyCode::Esc => self.cancel(),
             KeyCode::Tab | KeyCode::BackTab => {
                 let detail = self.hits.borrow().asset_detail.height > 0;
@@ -186,9 +186,7 @@ impl App {
             } else {
                 InputKind::Symbols
             }),
-            KeyCode::Enter => {
-                self.enter_workbench();
-            }
+            KeyCode::Enter => self.select_and_enter(),
             KeyCode::Char('w') => {
                 if let Some(candidate) = self
                     .remote_list()
@@ -562,7 +560,7 @@ impl App {
         }
     }
     pub(super) fn help(&mut self) {
-        let mut text = "ZERO 取证工作台\n\nF2 资源库 · F3 分析 · F6 自动/Linux/Windows · Ctrl+←/→ 切换页面\nTab / Shift+Tab 切换区域；↑↓ 或 j/k 导航；PgUp/PgDn/Home/End 翻页\n\n镜像与符号：\n资源库 Space 选用；Enter 进入分析控制台；d 查看详情。\n选用镜像后自动识别内核并匹配本地；x 进入分析；点击或 Enter 选择插件即显示已有结果或运行。\nM 使用 GitHub 完整 banner / Windows PDB 精确查询、下载并选用；多候选手动选择。独立下载 w 只保存文件。\n".to_owned();
+        let mut text = "ZERO 取证工作台\n\nF2 资源库 · F3 分析 · F6 自动/Linux/Windows · Ctrl+←/→ 切换页面\nTab / Shift+Tab 切换区域；↑↓ 或 j/k 导航；PgUp/PgDn/Home/End 翻页\n\n镜像与符号：\n资源库 Space 选用；Enter 选用高亮项并进入分析（匹配完成后自动进入）；再次点击高亮行等同 Space；d 查看详情。\n选用镜像后自动识别内核并匹配本地；x 进入分析；点击或 Enter 选择插件即显示已有结果或运行。\nM 使用 GitHub 完整 banner / Windows PDB 精确查询、下载并选用；多候选手动选择。独立下载 w 只保存文件。\n".to_owned();
         for section in [
             AssetSection::Images,
             AssetSection::Symbols,
@@ -578,7 +576,7 @@ impl App {
             );
             text.push('\n');
         }
-        text.push_str("\n远程详情：w 下载到 symbols · L 在本地库定位 · c 取消下载 · Esc 返回\n\n分析：i 镜像 · y 符号 · p 插件 · P 适用参数 · Ctrl+R 运行 · D Dump\n/ 搜索 · s 排序 · e 导出 · d 详情 · n 行数 · [/] 翻页\nr 重跑 · F5 运行 · v/F8 诊断 · Alt+←/→ 横向滚动\n资源库 K / 分析页 g 生成当前镜像符号表\n\nCtrl+P / ? 命令面板 · , 目录设置 · c 缓存 · l 日志 · h 历史\nEsc 关闭弹窗；无弹窗时取消任务 · q / Ctrl+C 退出\n文件弹窗：Space 选用 · Enter 打开目录／进入分析控制台，d 详情 · Shift+Space 选用符号目录 · ← 上级 · Tab 切换目录 · p 输入路径\nDump：F2/F3/F4 切换模式 · Tab 字段 · Ctrl+Enter 运行\n");
+        text.push_str("\n远程详情：w 下载到 symbols · L 在本地库定位 · c 取消下载 · Esc 返回\n\n分析：i 镜像 · y 符号 · p 插件（按名称、中文说明或类别搜索） · P 适用参数 · Ctrl+R 运行 · D Dump\n/ 搜索 · s 排序 · e 导出 · d 详情 · n 行数 · [/] 翻页\nr 重跑 · F5 运行 · v/F8 诊断 · Alt+←/→ 横向滚动\n资源库 K / 分析页 g 生成当前镜像符号表\n\nCtrl+P / ? 命令面板（空格分隔多个词，不区分大小写） · , 目录设置 · c 缓存 · l 日志 · h 历史\nEsc 关闭弹窗；分析页先清除筛选，再取消任务 · q 退出（任务中需按两次）· Ctrl+C 立即退出\n文件弹窗：Space 选用 · Enter 打开目录／进入分析控制台，d 详情 · Shift+Space 选用符号目录 · ← 上级 · Tab 切换目录 · p 输入路径\nDump：F2/F3/F4 切换模式 · Tab 字段 · Ctrl+Enter 运行\n");
         self.dialog = Some(Dialog::Detail { text, scroll: 0 });
     }
     pub(super) fn diagnostics(&mut self) {
@@ -607,6 +605,9 @@ impl App {
     pub(super) fn key(&mut self, key: KeyEvent) -> bool {
         if key.kind == KeyEventKind::Release {
             return false;
+        }
+        if key.code != KeyCode::Char('q') {
+            self.quit_armed = false;
         }
         if key.modifiers.contains(KeyModifiers::CONTROL) && key.code == KeyCode::Char('c') {
             return true;
@@ -765,12 +766,17 @@ impl App {
         match key.code {
             KeyCode::Char('c') => self.open_cache(),
             KeyCode::Char('g' | 'K') => self.open_symbol_generation(),
-            KeyCode::Char('q') => return true,
+            KeyCode::Char('q') => return self.request_quit(),
             KeyCode::Esc if self.inspector => {
                 self.inspector = false;
                 if self.focus == Focus::Detail {
                     self.focus = Focus::Content;
                 }
+            }
+            KeyCode::Esc if self.job.is_none() && !self.query.is_empty() => {
+                self.query.clear();
+                self.row = 0;
+                self.status = "已清除内容筛选".into();
             }
             KeyCode::Esc => self.cancel(),
             KeyCode::Tab => {
@@ -1058,6 +1064,9 @@ impl App {
                     .iter()
                     .find(|(rect, _, _)| rect.contains(point))
                 {
+                    let already_highlighted = self.section == *section
+                        && self.focus == Focus::Navigation
+                        && *section != AssetSection::Remote;
                     self.section = *section;
                     self.focus = Focus::Navigation;
                     if let Some(key) = scroll {
@@ -1067,6 +1076,17 @@ impl App {
                     } else if click && point.y > rect.y && point.y < rect.bottom().saturating_sub(1)
                     {
                         let index = offset + (point.y - rect.y - 1) as usize;
+                        // Clicking the highlighted row again selects it (like Space).
+                        if already_highlighted
+                            && index == self.asset_rows[section.slot()]
+                            && index < self.asset_count()
+                            && self
+                                .selected_asset()
+                                .is_some_and(|asset| !self.asset_active(&asset))
+                        {
+                            return self
+                                .asset_key(KeyEvent::new(KeyCode::Char(' '), KeyModifiers::NONE));
+                        }
                         if index < self.asset_count() {
                             self.asset_rows[section.slot()] = index;
                             self.asset_scroll[section.slot()] = 0;
@@ -1149,6 +1169,10 @@ impl App {
             {
                 let index = hits.popup_offset + (point.y - hits.popup.y - 1) as usize;
                 let count = self.result_column_count();
+                let plugin_count = match self.dialog.as_ref() {
+                    Some(Dialog::Plugins { query, .. }) => self.plugin_matches(query).len(),
+                    _ => 0,
+                };
                 let command_count = match self.dialog.as_ref() {
                     Some(Dialog::Commands { query, .. }) => self.available_commands(query).len(),
                     _ => 0,
@@ -1168,22 +1192,7 @@ impl App {
                         *selected = index;
                         true
                     }
-                    Some(Dialog::Plugins { query, selected })
-                        if index
-                            < (if self.windows {
-                                PLUGINS
-                                    .iter()
-                                    .filter(|d| {
-                                        d.plugin.is_windows()
-                                            && !d.plugin.is_dump()
-                                            && d.name.contains(&query.to_lowercase())
-                                    })
-                                    .count()
-                                    + usize::from("dump".contains(&query.to_lowercase()))
-                            } else {
-                                plugin_matches(query).len()
-                            }) =>
-                    {
+                    Some(Dialog::Plugins { selected, .. }) if index < plugin_count => {
                         *selected = index;
                         true
                     }
@@ -1313,6 +1322,7 @@ impl App {
         if key.code == KeyCode::Esc {
             if matches!(dialog, Dialog::Symbols { .. }) {
                 self.symbol_retry = None;
+                self.enter_when_ready = false;
             }
             self.pending_work = None;
             if matches!(
