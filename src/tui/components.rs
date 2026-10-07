@@ -287,6 +287,10 @@ fn tree_rows_with_columns(
 fn plugin_description(plugin: Plugin) -> &'static str {
     use Plugin::*;
     match plugin {
+        WinLdrmodules => "对照 PE 映射与三条 PEB 模块链表",
+        WinHollowprocesses => "检查主程序基址及映像映射异常",
+        WinSuspiciousThreads => "检查活动线程起点所在的 VAD",
+        CheckExec => "检查 Linux 主程序代码映射与可执行文件",
         Pslist | WinPslist => "列出活动进程及其地址",
         Pstree | WinPstree => "按父进程关系浏览进程树",
         Psaux | WinCmdline => "读取进程命令行",

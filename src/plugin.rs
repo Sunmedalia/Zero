@@ -3,6 +3,14 @@ use clap::ValueEnum;
 
 #[derive(Clone, Copy, Debug, ValueEnum, PartialEq, Eq)]
 pub enum Plugin {
+    #[value(name = "windows.ldrmodules")]
+    WinLdrmodules,
+    #[value(name = "windows.hollowprocesses")]
+    WinHollowprocesses,
+    #[value(name = "windows.suspicious_threads")]
+    WinSuspiciousThreads,
+    #[value(name = "check_exec", alias = "check-exec")]
+    CheckExec,
     #[value(name = "windows.callbacks")]
     WinCallbacks,
     #[value(name = "windows.unloadedmodules")]
@@ -117,6 +125,61 @@ pub struct Descriptor {
     pub widths: &'static [u16],
 }
 pub const PLUGINS: &[Descriptor] = &[
+    Descriptor {
+        plugin: Plugin::WinLdrmodules,
+        name: "windows.ldrmodules",
+        label: "windows.ldrmodules",
+        columns: &[
+            "PID", "Name", "Base", "View", "InLoad", "InInit", "InMem", "Path", "Reason",
+        ],
+        widths: &[0; 9],
+    },
+    Descriptor {
+        plugin: Plugin::WinHollowprocesses,
+        name: "windows.hollowprocesses",
+        label: "windows.hollowprocesses",
+        columns: &[
+            "PID",
+            "Name",
+            "View",
+            "Address",
+            "Protection",
+            "Path",
+            "Reason",
+        ],
+        widths: &[0; 7],
+    },
+    Descriptor {
+        plugin: Plugin::WinSuspiciousThreads,
+        name: "windows.suspicious_threads",
+        label: "windows.suspicious_threads",
+        columns: &[
+            "PID",
+            "Name",
+            "TID",
+            "Context",
+            "Address",
+            "Protection",
+            "Path",
+            "Reason",
+        ],
+        widths: &[0; 8],
+    },
+    Descriptor {
+        plugin: Plugin::CheckExec,
+        name: "check_exec",
+        label: "check_exec",
+        columns: &[
+            "PID",
+            "Name",
+            "Start",
+            "End",
+            "Permissions",
+            "Path",
+            "Reason",
+        ],
+        widths: &[0; 7],
+    },
     Descriptor {
         plugin: Plugin::WinCallbacks,
         name: "windows.callbacks",
@@ -817,6 +880,10 @@ impl Plugin {
     pub fn category(self) -> &'static str {
         match self {
             Self::WinSysteminfo => "System",
+            Self::WinLdrmodules
+            | Self::WinHollowprocesses
+            | Self::WinSuspiciousThreads
+            | Self::CheckExec => "Integrity",
             Self::WinCallbacks => "Integrity",
             Self::WinUnloadedmodules => "System",
             Self::WinFilescan => "Files",

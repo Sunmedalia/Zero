@@ -81,7 +81,7 @@ zero dump --image images/linux-sample-1.bin.gz --symbols symbols/linux.zip \
 
 TUI 插件列表只列分析插件，转储统一放在 `dump` 功能中，用 `D` 打开。CLI 推荐使用 `dump --mode process|range|elf`，必填 PID、转储目录与清单输出；兼容原 `analyze --plugin procdump|memdump|elfdump` 调用。
 
-Linux 的 `--plugin` 支持 `pslist`、`pstree`、`lsmod`、`psaux`、`envars`、`maps`、`lsof`、`sockstat`、`banners`、`pwd`、`pscred`、`threads`、`mountinfo`、`check_creds`、`dmesg`、`systeminfo`、`elfs`、`bash`、`malfind`、`psxview`、`check_modules`、`check_syscall`、`psstate`、`capabilities`、`fdsummary`、`history`、`procdump`、`memdump`、`elfdump`、`iomem`、`ioports`、`ptrace`、`keyboard_notifiers`，共 33 个。进程字段为 PID、TGID、PPID、Name、Address，PID 0 不进入结果；模块字段为 Name、Base、Size，大小以字节计。`pstree` 导出同样的完整进程字段，PPID 表达父子关系，TUI 显示可展开树。地址是完整虚拟地址，模块 Base 是 `module_core` / `core_layout.base`，Size 是整个核心内存区域大小。
+Linux 的 `--plugin` 支持 `pslist`、`pstree`、`lsmod`、`psaux`、`envars`、`maps`、`lsof`、`sockstat`、`banners`、`pwd`、`pscred`、`threads`、`mountinfo`、`check_creds`、`dmesg`、`systeminfo`、`elfs`、`bash`、`malfind`、`psxview`、`check_modules`、`check_syscall`、`psstate`、`capabilities`、`fdsummary`、`history`、`procdump`、`memdump`、`elfdump`、`iomem`、`ioports`、`ptrace`、`keyboard_notifiers`、`check_exec`，共 34 个。进程字段为 PID、TGID、PPID、Name、Address，PID 0 不进入结果；模块字段为 Name、Base、Size，大小以字节计。`pstree` 导出同样的完整进程字段，PPID 表达父子关系，TUI 显示可展开树。地址是完整虚拟地址，模块 Base 是 `module_core` / `core_layout.base`，Size 是整个核心内存区域大小。
 
 新增分析字段与范围：
 
@@ -314,3 +314,26 @@ make acceptance
 Windows 精确 PDB 下载返回 HTTP 404 时，程序自动查询 Volatility 官方 Windows ZIP 的精确 ISF。首次需要联网；使用 HTTPS Range 读取目录和目标条目，避免整体下载约 801 MiB 的符号包。校验成功后保存来源记录并允许离线复用。可以在任务日志查看兜底过程，ISF 详情中查看官方来源。
 
 官方包也没有对应身份时，需要导入精确符号；界面不再对此类失败统一提示“可重试”。超时或服务暂时不可用仍可重试。运行中的旧版本需要退出并重新启动才能加载此改动。
+
+
+## 恶意检测线索
+
+以下新增插件在 CLI、TUI 和 MCP 中使用相同名称；均支持 PID 筛选。
+
+| 插件 | 检查逻辑 | 输出重点 |
+| --- | --- | --- |
+| `windows.ldrmodules` | 对照文件映射中具有 MZ/PE 签名的基址与 PEB 加载、初始化、内存三条链表，分别读取 native/WOW64 视图 | InLoad、InInit、InMem 为 true/false/unknown；加载或内存链表缺项标记 MissingLoaderEntry |
+| `windows.hollowprocesses` | 对照 native PEB.ImageBaseAddress 与 EPROCESS.SectionBaseAddress，检查主程序及已加载 DLL 的 VAD 属性 | 基址不一致、私有映像、非 PAGE_EXECUTE_WRITECOPY 属性，以及完整 VAD 遍历后的主程序 VAD 缺失 |
+| `windows.suspicious_threads` | 对活动线程的 StartAddress 和 Win32StartAddress 查找所属 VAD | 私有内存或非 PAGE_EXECUTE_WRITECOPY 属性；保留 TID、起点字段、地址、路径和原因 |
+| `check_exec` | 检查 Linux mm_struct.start_code/end_code 覆盖的 VMA，核对执行权限、文件 backing 与 exe_file 的 inode | 匿名主程序代码、不可执行代码、映射空隙、主程序文件不一致 |
+
+```sh
+zero --offline analyze --image /evidence/windows.raw --symbols /evidence/nt.json.xz \
+  --plugin windows.ldrmodules --pid 1234 --output exports/ldrmodules.json
+zero --offline analyze --image /evidence/linux.raw --symbols /evidence/kernel.json.xz \
+  --plugin check_exec --pid 1234 --output exports/check-exec.json
+```
+
+这些是需核查的结构异常，不是恶意判定。合法 JIT、手动映射、加载/退出状态和采集时对象变化也可能触发。主程序正常不进入初始化链表，因此单独 InInit=false 不标记隐藏。链表不完整时未见基址为 unknown；已读到的基址仍为 true。线程检查跳过系统进程、已退出进程、已终止线程、零地址和内核地址；找不到对应 VAD 时不推断注入。VAD 路径读取失败保留诊断，不单凭空路径判断匿名。WOW64 主程序基址不与 native SectionBaseAddress 比较。Linux 以 inode 交叉核对文件，避免不同 file 对象指向同一文件造成误报；不读取磁盘文件内容或宣称完整复现 Volatility 2 的 process_hollow 字节比对。
+
+实现参考 [Volatility 2 恶意检测命令说明](https://github.com/volatilityfoundation/volatility/wiki/Command-Reference-Mal) 和 Volatility 3 的 [ldrmodules](https://github.com/volatilityfoundation/volatility3/blob/develop/volatility3/framework/plugins/windows/malware/ldrmodules.py)、[hollowprocesses](https://github.com/volatilityfoundation/volatility3/blob/develop/volatility3/framework/plugins/windows/malware/hollowprocesses.py)、[suspicious_threads](https://github.com/volatilityfoundation/volatility3/blob/develop/volatility3/framework/plugins/windows/malware/suspicious_threads.py) 的交叉视图思路，使用 Zero 原生 Rust 解析，不执行 Python 插件。新增检测通过合成样本验证；`check_exec` 另以本地 Debian 3.2 镜像和精确符号完成 PID 1 的离线 CLI 验证（完整结果、0 条线索、无诊断）。真实恶意样本覆盖与检出率尚未验证。

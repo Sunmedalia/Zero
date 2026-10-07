@@ -57,7 +57,10 @@
           "windows.psxview": "real",
           "windows.procdump": "pending",
           "windows.memdump": "pending",
-          "windows.pedump": "pending"
+          "windows.pedump": "pending",
+          "windows.ldrmodules": "pending",
+          "windows.hollowprocesses": "pending",
+          "windows.suspicious_threads": "pending"
         },
         "x64": {
           "windows.callbacks": "synthetic",
@@ -92,7 +95,10 @@
           "windows.psxview": "pending",
           "windows.procdump": "pending",
           "windows.memdump": "pending",
-          "windows.pedump": "pending"
+          "windows.pedump": "pending",
+          "windows.ldrmodules": "synthetic",
+          "windows.hollowprocesses": "synthetic",
+          "windows.suspicious_threads": "synthetic"
         }
       },
       "evidence": [
@@ -188,7 +194,10 @@
           "windows.psxview": "pending",
           "windows.procdump": "pending",
           "windows.memdump": "pending",
-          "windows.pedump": "pending"
+          "windows.pedump": "pending",
+          "windows.ldrmodules": "pending",
+          "windows.hollowprocesses": "pending",
+          "windows.suspicious_threads": "pending"
         },
         "x64": {
           "windows.callbacks": "synthetic",
@@ -223,7 +232,10 @@
           "windows.psxview": "pending",
           "windows.procdump": "pending",
           "windows.memdump": "pending",
-          "windows.pedump": "pending"
+          "windows.pedump": "pending",
+          "windows.ldrmodules": "synthetic",
+          "windows.hollowprocesses": "synthetic",
+          "windows.suspicious_threads": "synthetic"
         }
       },
       "evidence": []
@@ -279,7 +291,10 @@
           "windows.psxview": "pending",
           "windows.procdump": "pending",
           "windows.memdump": "pending",
-          "windows.pedump": "pending"
+          "windows.pedump": "pending",
+          "windows.ldrmodules": "pending",
+          "windows.hollowprocesses": "pending",
+          "windows.suspicious_threads": "pending"
         },
         "x64": {
           "windows.callbacks": "synthetic",
@@ -314,7 +329,10 @@
           "windows.psxview": "pending",
           "windows.procdump": "pending",
           "windows.memdump": "pending",
-          "windows.pedump": "pending"
+          "windows.pedump": "pending",
+          "windows.ldrmodules": "synthetic",
+          "windows.hollowprocesses": "synthetic",
+          "windows.suspicious_threads": "synthetic"
         }
       },
       "evidence": [
@@ -416,7 +434,10 @@
           "windows.psxview": "pending",
           "windows.procdump": "pending",
           "windows.memdump": "pending",
-          "windows.pedump": "pending"
+          "windows.pedump": "pending",
+          "windows.ldrmodules": "synthetic",
+          "windows.hollowprocesses": "synthetic",
+          "windows.suspicious_threads": "synthetic"
         }
       },
       "evidence": [],
@@ -471,7 +492,10 @@
           "windows.psxview": "pending",
           "windows.procdump": "pending",
           "windows.memdump": "pending",
-          "windows.pedump": "pending"
+          "windows.pedump": "pending",
+          "windows.ldrmodules": "synthetic",
+          "windows.hollowprocesses": "synthetic",
+          "windows.suspicious_threads": "synthetic"
         }
       },
       "evidence": [
@@ -572,7 +596,10 @@
           "windows.psxview": "pending",
           "windows.procdump": "pending",
           "windows.memdump": "pending",
-          "windows.pedump": "pending"
+          "windows.pedump": "pending",
+          "windows.ldrmodules": "synthetic",
+          "windows.hollowprocesses": "synthetic",
+          "windows.suspicious_threads": "synthetic"
         }
       },
       "evidence": [
@@ -674,7 +701,10 @@
           "windows.psxview": "pending",
           "windows.procdump": "pending",
           "windows.memdump": "pending",
-          "windows.pedump": "pending"
+          "windows.pedump": "pending",
+          "windows.ldrmodules": "synthetic",
+          "windows.hollowprocesses": "synthetic",
+          "windows.suspicious_threads": "synthetic"
         }
       },
       "evidence": [
@@ -748,7 +778,10 @@
           "windows.psxview": "pending",
           "windows.procdump": "pending",
           "windows.memdump": "pending",
-          "windows.pedump": "pending"
+          "windows.pedump": "pending",
+          "windows.ldrmodules": "synthetic",
+          "windows.hollowprocesses": "synthetic",
+          "windows.suspicious_threads": "synthetic"
         }
       },
       "evidence": [
@@ -851,7 +884,10 @@
           "windows.psxview": "pending",
           "windows.procdump": "pending",
           "windows.memdump": "pending",
-          "windows.pedump": "pending"
+          "windows.pedump": "pending",
+          "windows.ldrmodules": "synthetic",
+          "windows.hollowprocesses": "synthetic",
+          "windows.suspicious_threads": "synthetic"
         }
       },
       "evidence": [
@@ -954,7 +990,10 @@
           "windows.psxview": "pending",
           "windows.procdump": "pending",
           "windows.memdump": "pending",
-          "windows.pedump": "pending"
+          "windows.pedump": "pending",
+          "windows.ldrmodules": "synthetic",
+          "windows.hollowprocesses": "synthetic",
+          "windows.suspicious_threads": "synthetic"
         }
       },
       "evidence": [],
@@ -1011,7 +1050,10 @@
           "windows.psxview": "pending",
           "windows.procdump": "pending",
           "windows.memdump": "pending",
-          "windows.pedump": "pending"
+          "windows.pedump": "pending",
+          "windows.ldrmodules": "pending",
+          "windows.hollowprocesses": "pending",
+          "windows.suspicious_threads": "pending"
         },
         "x64": {
           "windows.callbacks": "real",
@@ -1046,7 +1088,10 @@
           "windows.psxview": "pending",
           "windows.procdump": "pending",
           "windows.memdump": "pending",
-          "windows.pedump": "pending"
+          "windows.pedump": "pending",
+          "windows.ldrmodules": "synthetic",
+          "windows.hollowprocesses": "synthetic",
+          "windows.suspicious_threads": "synthetic"
         }
       },
       "evidence": [
@@ -1134,7 +1179,10 @@
           "windows.psxview": "pending",
           "windows.procdump": "pending",
           "windows.memdump": "pending",
-          "windows.pedump": "pending"
+          "windows.pedump": "pending",
+          "windows.ldrmodules": "pending",
+          "windows.hollowprocesses": "pending",
+          "windows.suspicious_threads": "pending"
         },
         "x64": {
           "windows.callbacks": "synthetic",
@@ -1169,7 +1217,10 @@
           "windows.psxview": "pending",
           "windows.procdump": "pending",
           "windows.memdump": "pending",
-          "windows.pedump": "pending"
+          "windows.pedump": "pending",
+          "windows.ldrmodules": "synthetic",
+          "windows.hollowprocesses": "synthetic",
+          "windows.suspicious_threads": "synthetic"
         }
       },
       "evidence": []
@@ -1224,7 +1275,10 @@
           "windows.psxview": "pending",
           "windows.procdump": "pending",
           "windows.memdump": "pending",
-          "windows.pedump": "pending"
+          "windows.pedump": "pending",
+          "windows.ldrmodules": "pending",
+          "windows.hollowprocesses": "pending",
+          "windows.suspicious_threads": "pending"
         },
         "x64": {
           "windows.callbacks": "synthetic",
@@ -1259,7 +1313,10 @@
           "windows.psxview": "pending",
           "windows.procdump": "pending",
           "windows.memdump": "pending",
-          "windows.pedump": "pending"
+          "windows.pedump": "pending",
+          "windows.ldrmodules": "synthetic",
+          "windows.hollowprocesses": "synthetic",
+          "windows.suspicious_threads": "synthetic"
         }
       },
       "evidence": []
@@ -1327,7 +1384,10 @@
           "windows.psxview": "pending",
           "windows.procdump": "pending",
           "windows.memdump": "pending",
-          "windows.pedump": "pending"
+          "windows.pedump": "pending",
+          "windows.ldrmodules": "pending",
+          "windows.hollowprocesses": "pending",
+          "windows.suspicious_threads": "pending"
         },
         "x64": {
           "windows.callbacks": "real",
@@ -1362,7 +1422,10 @@
           "windows.psxview": "pending",
           "windows.procdump": "pending",
           "windows.memdump": "pending",
-          "windows.pedump": "pending"
+          "windows.pedump": "pending",
+          "windows.ldrmodules": "synthetic",
+          "windows.hollowprocesses": "synthetic",
+          "windows.suspicious_threads": "synthetic"
         }
       },
       "evidence": [
@@ -1466,7 +1529,10 @@
           "windows.psxview": "pending",
           "windows.procdump": "pending",
           "windows.memdump": "pending",
-          "windows.pedump": "pending"
+          "windows.pedump": "pending",
+          "windows.ldrmodules": "synthetic",
+          "windows.hollowprocesses": "synthetic",
+          "windows.suspicious_threads": "synthetic"
         }
       },
       "evidence": [

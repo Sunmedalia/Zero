@@ -26,6 +26,7 @@ mod drivers;
 mod dump;
 pub mod hiber;
 mod legacy_network;
+mod malware;
 mod memory;
 mod network;
 mod network_layout;
@@ -632,6 +633,9 @@ impl Windows<'_> {
                     thread_modules.as_ref().expect("thread modules"),
                     job,
                 ),
+                Plugin::WinLdrmodules
+                | Plugin::WinHollowprocesses
+                | Plugin::WinSuspiciousThreads => self.malware(&process, p, &mut result, job),
                 Plugin::WinDlllist => self.dlllist(&process, &mut result, job),
                 Plugin::WinVadinfo | Plugin::WinMalfind => {
                     self.vad_result(&process, p, &mut result, job)

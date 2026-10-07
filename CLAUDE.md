@@ -6,6 +6,7 @@ This repository is a native Rust 2024 local Linux and Windows memory forensics T
 - `src/symbols.rs`: local ISF JSON / XZ / ZIP, complete banners, repository links and validated downloads.
 - `src/analysis.rs`: platform routing, OS choice and targeted PID/hive/key options.
 - `src/windows.rs` / `src/windows/`: native Windows kernel discovery, processes, VADs, handles, registry, symbol/architecture/driver-version network layouts and atomic process/range/PE dumps.
+- `src/windows/malware.rs`: PEB/VAD loader cross-views, hollowing leads and active thread start checks; incomplete views never prove absence.
 - `src/windows/hiber.rs` / `paging.rs` / `compressed.rs`: bounded saved-page containers, explicit paging attachments and symbol-driven SMKM reconstruction; preserve coverage diagnostics.
 - `src/windows_symbols.rs`: exact RSDS identity, Microsoft PDB acquisition and deterministic native conversion.
 - `src/plugin.rs`: plugin identities, descriptors, columns and categories for both platforms.

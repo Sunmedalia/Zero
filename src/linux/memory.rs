@@ -610,3 +610,186 @@ mod tests {
         assert_eq!(r.rows.len(), 1);
     }
 }
+
+impl Linux<'_> {
+    /// Compare the recorded main-code interval against its VMA and exe_file.
+    /// No disk bytes are read; this is a structural hollowing lead only.
+    pub(super) fn check_exec(&self, job: &Job) -> Result<Results> {
+        self.require(&[
+            ("mm_struct", "start_code"),
+            ("mm_struct", "end_code"),
+            ("mm_struct", "exe_file"),
+        ])?;
+        let (mut result, tasks) = self.tasks(Plugin::CheckExec, job)?;
+        for task in tasks {
+            job.check()?;
+            let read = (|| -> Result<()> {
+                let mm = self.number(task.address, "task_struct", "mm")?;
+                if mm == 0 {
+                    return Ok(());
+                }
+                let start = self.number(mm, "mm_struct", "start_code")?;
+                let end = self.number(mm, "mm_struct", "end_code")?;
+                ensure!(start < end, "主程序代码范围无效");
+                let exe = self.number(mm, "mm_struct", "exe_file")?;
+                let nodes = self.vma_nodes(mm, job)?;
+                let mut ranges = Vec::new();
+                for node in nodes {
+                    job.check()?;
+                    let vstart = self.number(node, "vm_area_struct", "vm_start")?;
+                    let vend = self.number(node, "vm_area_struct", "vm_end")?;
+                    ensure!(vstart < vend, "VMA 地址倒置");
+                    ranges.push((vstart, vend, node));
+                }
+                ranges.sort_by_key(|range| range.0);
+                ensure!(
+                    ranges.windows(2).all(|pair| pair[0].1 <= pair[1].0),
+                    "VMA 范围重叠"
+                );
+                let mut covered = start;
+                for (vstart, vend, node) in ranges {
+                    job.check()?;
+                    if vend <= start || vstart >= end {
+                        continue;
+                    }
+                    let flags = self.number(node, "vm_area_struct", "vm_flags")?;
+                    let file = self.number(node, "vm_area_struct", "vm_file")?;
+                    let mut reasons = Vec::new();
+                    if vstart > covered {
+                        reasons.push("MainCodeMappingGap");
+                    }
+                    covered = covered.max(vend.min(end));
+                    if flags & 4 == 0 {
+                        reasons.push("MainCodeNotExecutable");
+                    }
+                    if file == 0 {
+                        reasons.push("AnonymousMainCode");
+                    }
+                    // Distinct file objects can refer to the same inode.
+                    if exe != 0 && file != 0 && file != exe {
+                        let inode = |f| -> Result<u64> {
+                            if self.isf.field("file", "f_inode").is_ok() {
+                                self.number(f, "file", "f_inode")
+                            } else {
+                                let path = self.field_address(f, "file", "f_path")?;
+                                let dentry = self.number(path, "path", "dentry")?;
+                                self.number(dentry, "dentry", "d_inode")
+                            }
+                        };
+                        let expected = inode(exe)?;
+                        let actual = inode(file)?;
+                        ensure!(expected != 0 && actual != 0, "代码映射 inode 不存在");
+                        if expected != actual {
+                            reasons.push("MainCodeFileMismatch");
+                        }
+                    }
+                    if !reasons.is_empty() {
+                        let path = if file == 0 {
+                            "[anonymous]".into()
+                        } else {
+                            match self.file_path(task.address, file, job) {
+                                Ok(path) => path,
+                                Err(e) => {
+                                    job.check()?;
+                                    partial(&mut result, format!("PID {} code path", task.pid), e);
+                                    "[unresolved]".into()
+                                }
+                            }
+                        };
+                        result.rows.push(vec![
+                            task.pid.clone(),
+                            task.name.clone(),
+                            hex(vstart),
+                            hex(vend),
+                            permissions(flags),
+                            path,
+                            reasons.join("; "),
+                        ]);
+                    }
+                }
+                if covered < end {
+                    result.rows.push(vec![
+                        task.pid.clone(),
+                        task.name.clone(),
+                        hex(covered),
+                        hex(end),
+                        String::new(),
+                        String::new(),
+                        "MissingMainCodeMapping".into(),
+                    ]);
+                }
+                Ok(())
+            })();
+            if let Err(e) = read {
+                job.check()?;
+                partial(&mut result, format!("PID {} check_exec", task.pid), e);
+            }
+        }
+        Ok(result)
+    }
+}
+
+#[cfg(test)]
+mod check_exec_tests {
+    use super::*;
+    use crate::linux::tests::{engine, fixture, image};
+    use serde_json::json;
+    fn put(bytes: &mut [u8], at: usize, value: u64) {
+        bytes[at..at + 8].copy_from_slice(&value.to_le_bytes());
+    }
+    #[test]
+    fn main_code_anomalies_gaps_and_corrupt_vma_are_distinct() {
+        let (mut bytes, mut isf) = fixture();
+        for (name, offset) in [("start_code", 48), ("end_code", 56), ("exe_file", 64)] {
+            isf.data["user_types"]["mm_struct"]["fields"][name] =
+                json!({"offset":offset,"type":{"kind":"pointer"}});
+        }
+        isf.data["user_types"]["mm_struct"]["size"] = json!(72);
+        put(&mut bytes, 0xb030, 0x200000);
+        put(&mut bytes, 0xb038, 0x201000);
+        put(&mut bytes, 0xb028, 0xc800);
+        put(&mut bytes, 0xc808, 0x200000);
+        put(&mut bytes, 0xc810, 0x201000);
+        put(&mut bytes, 0xc818, 5);
+        let analyze = |bytes: &[u8]| {
+            let img = image(bytes);
+            engine(&img, &isf)
+                .run(Plugin::CheckExec, &Job::default())
+                .unwrap()
+        };
+        let r = analyze(&bytes);
+        assert!(r.complete, "{:?}", r.diagnostics);
+        assert_eq!(r.rows.len(), 1);
+        assert_eq!(r.rows[0][6], "AnonymousMainCode");
+        put(&mut bytes, 0xc818, 1);
+        assert!(analyze(&bytes).rows[0][6].contains("MainCodeNotExecutable"));
+        put(&mut bytes, 0xc808, 0x200800);
+        assert!(analyze(&bytes).rows[0][6].contains("MainCodeMappingGap"));
+        put(&mut bytes, 0xc800, 0xc800);
+        let r = analyze(&bytes);
+        assert!(!r.complete);
+        assert!(
+            r.rows.is_empty(),
+            "corrupt traversal must not imply a missing mapping"
+        );
+        put(&mut bytes, 0xb028, 0);
+        assert_eq!(analyze(&bytes).rows[0][6], "MissingMainCodeMapping");
+        // A distinct file object for the same inode is not a file mismatch.
+        put(&mut bytes, 0xb028, 0xc800);
+        put(&mut bytes, 0xc800, 0);
+        put(&mut bytes, 0xc808, 0x200000);
+        put(&mut bytes, 0xc818, 5);
+        put(&mut bytes, 0xb040, 0xc900);
+        put(&mut bytes, 0xc828, 0xca00);
+        let path_offset = isf.offset("file", "f_path").unwrap() as usize;
+        let dentry_offset = isf.offset("path", "dentry").unwrap() as usize;
+        let inode_offset = isf.offset("dentry", "d_inode").unwrap() as usize;
+        put(&mut bytes, 0xc900 + path_offset + dentry_offset, 0xcb00);
+        put(&mut bytes, 0xca00 + path_offset + dentry_offset, 0xcc00);
+        put(&mut bytes, 0xcb00 + inode_offset, 0xcd00);
+        put(&mut bytes, 0xcc00 + inode_offset, 0xcd00);
+        let r = analyze(&bytes);
+        assert!(r.complete, "{:?}", r.diagnostics);
+        assert!(r.rows.is_empty());
+    }
+}

@@ -131,6 +131,7 @@ impl Linux<'_> {
             Dmesg => self.dmesg(job),
             Systeminfo => self.systeminfo(),
             Psxview => self.psxview_result(job),
+            CheckExec => self.check_exec(job),
             CheckModules => {
                 let mut r = self.result(plugin);
                 self.check_modules(&mut r, job)?;
@@ -141,7 +142,8 @@ impl Linux<'_> {
                 self.check_syscall(&mut r, job)?;
                 Ok(r)
             }
-            Procdump | Memdump | Elfdump | WinCallbacks | WinUnloadedmodules | WinFilescan
+            Procdump | Memdump | Elfdump | WinLdrmodules | WinHollowprocesses
+            | WinSuspiciousThreads | WinCallbacks | WinUnloadedmodules | WinFilescan
             | WinMutantscan | WinGetsids | WinConnscan | WinSockscan | WinConsoles | WinCmdscan
             | WinDrivercheck | WinDriverscan | WinSvcscan | WinCrashinfo | WinAutoruns
             | WinEnvars | WinThreads | WinSysteminfo | WinPslist | WinPstree | WinCmdline
