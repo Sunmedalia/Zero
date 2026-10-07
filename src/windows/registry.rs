@@ -519,12 +519,7 @@ mod tests {
         b[0x11000..0x11010].fill(0x22);
         let good = image(&b);
         let engine = Windows {
-            vm: Memory {
-                image: &good,
-                root: 0x1000,
-                isf: &isf,
-                sources: None,
-            },
+            vm: Memory::new(&good, 0x1000, &isf, None),
             base: K,
             pdb: PdbIdentity::from_isf(&isf).unwrap(),
         };
@@ -536,12 +531,7 @@ mod tests {
         b[0xe020..0xe024].copy_from_slice(&8i32.to_le_bytes());
         let free = image(&b);
         let engine = Windows {
-            vm: Memory {
-                image: &free,
-                root: 0x1000,
-                isf: &isf,
-                sources: None,
-            },
+            vm: Memory::new(&free, 0x1000, &isf, None),
             base: K,
             pdb: PdbIdentity::from_isf(&isf).unwrap(),
         };
@@ -631,12 +621,7 @@ mod ownership_tests {
         b[0x1104c..0x11050].copy_from_slice(b"Root");
         let img = image(&b);
         let engine = Windows {
-            vm: Memory {
-                image: &img,
-                root: 0x1000,
-                isf: &isf,
-                sources: None,
-            },
+            vm: Memory::new(&img, 0x1000, &isf, None),
             base: K,
             pdb: PdbIdentity::from_isf(&isf).unwrap(),
         };

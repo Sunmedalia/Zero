@@ -379,7 +379,7 @@ mod tests {
             &config,
             "CONFIG_ARM64_4K_PAGES=y\nCONFIG_ARM64_VA_BITS=48\n",
         )?;
-        let (_, mut isf) = crate::extended::tests::fixture();
+        let (_, mut isf) = crate::linux::tests::fixture();
         use base64::Engine;
         isf.data["symbols"]["linux_banner"] = json!({"address":0,"constant_data":base64::engine::general_purpose::STANDARD.encode(&isf.banner)});
         let tool = dir.path().join("fixture tool");

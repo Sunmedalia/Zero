@@ -299,12 +299,7 @@ impl Memory<'_> {
                 .kernel_context
                 .context("缺少分页内核上下文")?;
             let kernel = Windows {
-                vm: Memory {
-                    image: self.image,
-                    root,
-                    isf: self.isf,
-                    sources: self.sources,
-                },
+                vm: Memory::new(self.image, root, self.isf, self.sources),
                 base,
                 pdb: PdbIdentity::from_isf(self.isf)?,
             };
@@ -464,12 +459,7 @@ mod tests {
         let img = image(&b);
         let mut sources = Sources::open(&Options::default(), &Job::default()).unwrap();
         sources.kernel_context = Some((0x1000, K));
-        let vm = Memory {
-            image: &img,
-            root: 0x1000,
-            isf: &isf,
-            sources: Some(&sources),
-        };
+        let vm = Memory::new(&img, 0x1000, &isf, Some(&sources));
         assert_eq!(vm.pagefile_high((1 << 63) | (9 << 32)).unwrap(), 9);
         assert_eq!(
             vm.pagefile_high((1 << 63) | (9 << 32) | 16).unwrap(),
@@ -484,10 +474,7 @@ mod tests {
             .as_object_mut()
             .unwrap()
             .remove("MiState");
-        let vm = Memory {
-            isf: &missing,
-            ..vm
-        };
+        let vm = Memory::new(vm.image, vm.root, &missing, vm.sources);
         assert!(vm.pagefile_high((1 << 63) | (9 << 32)).is_err());
     }
     #[test]
@@ -509,12 +496,7 @@ mod tests {
             ..Options::default()
         };
         let sources = Sources::open(&options, &Job::default()).unwrap();
-        let vm = Memory {
-            image: &image,
-            root: 0x1000,
-            isf: &isf,
-            sources: Some(&sources),
-        };
+        let vm = Memory::new(&image, 0x1000, &isf, Some(&sources));
         let mut out = [0; 16];
         vm.read(K + 0x3010, &mut out).unwrap();
         assert_eq!(out, [0x5a; 16]);
@@ -566,23 +548,13 @@ mod prototype_recovery_tests {
         };
         let sources = Sources::open(&options, &Job::default()).unwrap();
         let img = image(&b);
-        let vm = Memory {
-            image: &img,
-            root: 0x1000,
-            isf: &isf,
-            sources: Some(&sources),
-        };
+        let vm = Memory::new(&img, 0x1000, &isf, Some(&sources));
         let mut out = [0; 23];
         vm.read(K + 0x3011, &mut out).unwrap();
         assert_eq!(out, [0x77; 23]);
         put(&mut b, 0xc000, prototype);
         let img = image(&b);
-        let vm = Memory {
-            image: &img,
-            root: 0x1000,
-            isf: &isf,
-            sources: Some(&sources),
-        };
+        let vm = Memory::new(&img, 0x1000, &isf, Some(&sources));
         assert!(format!("{:#}", vm.read(K + 0x3011, &mut out).unwrap_err()).contains("循环"));
         assert!(vm.read(K + 0x3011, &mut out).is_err());
     }

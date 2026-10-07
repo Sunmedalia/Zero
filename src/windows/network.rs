@@ -309,12 +309,7 @@ mod tests {
         let (mut b, isf) = fixture();
         b[0xb000..0xb004].copy_from_slice(&[192, 0, 2, 1]);
         let image = image(&b);
-        let vm = Memory {
-            image: &image,
-            root: 0x1000,
-            isf: &isf,
-            sources: None,
-        };
+        let vm = Memory::new(&image, 0x1000, &isf, None);
         assert_eq!(endpoint(&vm, K + 0x3000, 2, 443).unwrap(), "192.0.2.1:443");
         assert_eq!(endpoint(&vm, 0, 23, 80).unwrap(), "[::]:80");
         let layouts: serde_json::Value = serde_json::from_str(LAYOUTS).unwrap();

@@ -458,24 +458,14 @@ mod tests {
         text(&mut b, 0x1b030, "cmd.exe");
         text(&mut b, 0x1c000, "whoami");
         let img = image(&b);
-        let vm = Memory {
-            image: &img,
-            root: 0x1000,
-            isf: &isf,
-            sources: None,
-        };
+        let vm = Memory::new(&img, 0x1000, &isf, None);
         assert_eq!(
             history(&vm, 0x13000, &Job::default()).unwrap(),
             ("cmd.exe".into(), vec!["whoami".into()])
         );
         put(&mut b, 0x1b020, 0x14010);
         let img = image(&b);
-        let vm = Memory {
-            image: &img,
-            root: 0x1000,
-            isf: &isf,
-            sources: None,
-        };
+        let vm = Memory::new(&img, 0x1000, &isf, None);
         assert!(history(&vm, 0x13000, &Job::default()).is_err());
     }
     #[test]
@@ -504,12 +494,7 @@ mod tests {
         }
         let img = image(&b);
         let engine = Windows {
-            vm: Memory {
-                image: &img,
-                root: 0x1000,
-                isf: &isf,
-                sources: None,
-            },
+            vm: Memory::new(&img, 0x1000, &isf, None),
             base: super::super::tests::K,
             pdb: PdbIdentity::from_isf(&isf).unwrap(),
         };
@@ -611,12 +596,7 @@ mod compatibility_tests {
             }
             let img = image(&b);
             let w = Windows {
-                vm: Memory {
-                    image: &img,
-                    root: 0x1000,
-                    isf: &isf,
-                    sources: None,
-                },
+                vm: Memory::new(&img, 0x1000, &isf, None),
                 base: K,
                 pdb: PdbIdentity::from_isf(&isf).unwrap(),
             };

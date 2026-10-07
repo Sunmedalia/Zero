@@ -1,10 +1,48 @@
-//! Linux 6.x layout readers; offsets and array lengths come from the ISF.
-use crate::{Job, linux::Linux, store::Results};
-use anyhow::{Context, Result, ensure};
-use std::collections::HashSet;
+//! Kernel object walkers: lists, maple trees, VMAs and process address spaces.
+use super::*;
 impl Linux<'_> {
     pub(crate) fn modern_mount(&self) -> bool {
         self.isf.field("mount", "mnt").is_ok()
+    }
+    pub(crate) fn list_objects(&self, head: u64, offset: u64, job: &Job) -> Result<Vec<u64>> {
+        let mut nodes = Vec::new();
+        let mut seen = HashSet::new();
+        let mut prev = head;
+        let mut n = self.number(head, "list_head", "next")?;
+        while n != head {
+            job.check()?;
+            ensure!(
+                seen.insert(n) && seen.len() <= 1_000_000,
+                "链表循环或达到上限"
+            );
+            ensure!(
+                self.number(n, "list_head", "prev")? == prev,
+                "链表反向引用错误"
+            );
+            nodes.push(n.checked_sub(offset).context("链表对象地址下溢")?);
+            prev = n;
+            n = self.number(n, "list_head", "next")?;
+        }
+        ensure!(
+            self.number(head, "list_head", "prev")? == prev,
+            "链表末尾错误"
+        );
+        Ok(nodes)
+    }
+    pub(crate) fn thread_nodes(&self, leader: u64, job: &Job) -> Result<Vec<u64>> {
+        if self.isf.field("task_struct", "thread_group").is_ok() {
+            let offset = self.isf.offset("task_struct", "thread_group")?;
+            let mut nodes = self.list_objects(add(leader, offset)?, offset, job)?;
+            nodes.insert(0, leader);
+            Ok(nodes)
+        } else {
+            let signal = self.number(leader, "task_struct", "signal")?;
+            self.list_objects(
+                self.field_address(signal, "signal_struct", "thread_head")?,
+                self.isf.offset("task_struct", "thread_node")?,
+                job,
+            )
+        }
     }
     pub(crate) fn maple_vmas(&self, mm: u64, job: &Job, limit: u64) -> Result<Vec<u64>> {
         let tree = self.field_address(mm, "mm_struct", "mm_mt")?;
@@ -104,208 +142,71 @@ impl Linux<'_> {
         }
         Ok(ordered.into_iter().map(|(_, n)| n).collect())
     }
-    pub(crate) fn thread_nodes(&self, leader: u64, job: &Job) -> Result<Vec<u64>> {
-        if self.isf.field("task_struct", "thread_group").is_ok() {
-            let offset = self.isf.offset("task_struct", "thread_group")?;
-            let mut nodes = self.list_objects(leader + offset, offset, job)?;
-            nodes.insert(0, leader);
-            Ok(nodes)
-        } else {
-            let signal = self.number(leader, "task_struct", "signal")?;
-            self.list_objects(
-                self.field_address(signal, "signal_struct", "thread_head")?,
-                self.isf.offset("task_struct", "thread_node")?,
-                job,
-            )
+    pub(crate) fn vma_nodes(&self, mm: u64, job: &Job) -> Result<Vec<u64>> {
+        if self.isf.field("mm_struct", "mmap").is_err() {
+            return self.maple_vmas(mm, job, 1_000_000);
         }
-    }
-    pub(crate) fn list_objects(&self, head: u64, offset: u64, job: &Job) -> Result<Vec<u64>> {
-        let mut nodes = Vec::new();
+        let mut out = Vec::new();
         let mut seen = HashSet::new();
-        let mut prev = head;
-        let mut n = self.number(head, "list_head", "next")?;
-        while n != head {
+        let mut n = self.number(mm, "mm_struct", "mmap")?;
+        while n != 0 {
             job.check()?;
             ensure!(
                 seen.insert(n) && seen.len() <= 1_000_000,
-                "链表循环或达到上限"
+                "VMA 循环或达到上限"
             );
-            ensure!(
-                self.number(n, "list_head", "prev")? == prev,
-                "链表反向引用错误"
-            );
-            nodes.push(n.checked_sub(offset).context("链表对象地址下溢")?);
-            prev = n;
-            n = self.number(n, "list_head", "next")?;
+            out.push(n);
+            n = self.number(n, "vm_area_struct", "vm_next")?;
         }
-        ensure!(
-            self.number(head, "list_head", "prev")? == prev,
-            "链表末尾错误"
-        );
-        Ok(nodes)
+        Ok(out)
     }
-    pub(crate) fn modern_mounts(
-        &self,
-        task: u64,
-        prefix: Vec<String>,
-        result: &mut Results,
-        job: &Job,
-    ) -> Result<()> {
-        let proxy = self.number(task, "task_struct", "nsproxy")?;
-        if proxy == 0 {
-            return Ok(());
+    pub(crate) fn process_vm(&self, task: u64) -> Result<Option<VirtualMemory<'_>>> {
+        let mm = self.number(task, "task_struct", "mm")?;
+        if mm == 0 {
+            return Ok(None);
         }
-        let ns = self.number(proxy, "nsproxy", "mnt_ns")?;
-        let mut stack = vec![self.number(ns, "mnt_namespace", "root")?];
-        let mut seen = HashSet::new();
-        let offset = self.isf.offset("mount", "mnt")?;
-        while let Some(m) = stack.pop() {
-            job.check()?;
-            ensure!(
-                m != 0 && seen.insert(m) && seen.len() <= 1_000_000,
-                "挂载树循环或上限"
-            );
-            let next = self.list_objects(
-                self.field_address(m, "mount", "mnt_mounts")?,
-                self.isf.offset("mount", "mnt_child")?,
-                job,
-            )?;
-            stack.extend(next.into_iter().rev());
-            let read = (|| -> Result<Vec<String>> {
-                let parent = self.number(m, "mount", "mnt_parent")?;
-                let dev = self.number(m, "mount", "mnt_devname")?;
-                let sb = self.number(m + offset, "vfsmount", "mnt_sb")?;
-                let ty = self.number(sb, "super_block", "s_type")?;
-                let path = self.resolve_path(
-                    self.number(m + offset, "vfsmount", "mnt_root")?,
-                    m + offset,
-                    None,
-                    job,
-                )?;
-                Ok([
-                    prefix.clone(),
-                    vec![
-                        self.number(m, "mount", "mnt_id")?.to_string(),
-                        self.number(parent, "mount", "mnt_id")?.to_string(),
-                        if dev == 0 {
-                            "[none]".into()
-                        } else {
-                            self.kernel_text(dev, 4096)?
-                        },
-                        path,
-                        self.kernel_text(self.number(ty, "file_system_type", "name")?, 128)?,
-                        format!(
-                            "{:#018x}",
-                            self.number(m + offset, "vfsmount", "mnt_flags")?
-                        ),
-                        format!("{:#018x}", m + offset),
-                    ],
-                ]
-                .concat())
-            })();
-            match read {
-                Ok(row) => result.rows.push(row),
-                Err(e) => {
-                    result.complete = false;
-                    result
-                        .diagnostics
-                        .push(format!("PID {} mount {m:#x}: {e:#}", prefix[0]));
-                }
-            }
-        }
-        ensure!(
-            seen.len() as u64 == self.number(ns, "mnt_namespace", "nr_mounts")?,
-            "挂载树数量与 namespace.mounts 不一致"
-        );
-        Ok(())
+        let pgd = self.number(mm, "mm_struct", "pgd")?;
+        let root = self.vm.translate(pgd)?;
+        ensure!(root & 4095 == 0, "用户页表未对齐");
+        Ok(Some(VirtualMemory::new(self.vm.image, root)))
     }
-    pub(crate) fn modern_logs(&self, result: &mut Results, job: &Job) -> Result<()> {
-        let prb = self.vm.uint(self.isf.address("prb")?, 8)?;
-        let desc = self.field_address(prb, "printk_ringbuffer", "desc_ring")?;
-        let data = self.field_address(prb, "printk_ringbuffer", "text_data_ring")?;
-        let count_bits = self.number(desc, "prb_desc_ring", "count_bits")?;
-        let size_bits = self.number(data, "prb_data_ring", "size_bits")?;
+    pub(super) fn user_region(&self, mm: u64, kind: &str, job: &Job) -> Result<Vec<u8>> {
+        let start = self.number(mm, "mm_struct", &format!("{kind}_start"))?;
+        let end = self.number(mm, "mm_struct", &format!("{kind}_end"))?;
+        let length = end.checked_sub(start).context("用户区域地址倒置")?;
         ensure!(
-            count_bits <= 20 && size_bits <= 24,
-            "printk ring 超过安全上限"
+            length <= REGION_LIMIT,
+            "用户区域超过 1 MiB 上限 ({length} bytes)"
         );
-        let count = 1u64 << count_bits;
-        let size = 1u64 << size_bits;
-        let descs = self.number(desc, "prb_desc_ring", "descs")?;
-        let infos = self.number(desc, "prb_desc_ring", "infos")?;
-        let bytes = self.number(data, "prb_data_ring", "data")?;
-        let tail = self.number(desc, "prb_desc_ring", "tail_id.counter")?;
-        let head = self.number(desc, "prb_desc_ring", "head_id.counter")?;
-        let mask = (1u64 << 62) - 1;
-        let length = head.wrapping_sub(tail) & mask;
-        ensure!(length < count, "printk descriptor 范围无效");
-        for n in 0..=length {
-            job.check()?;
-            let id = tail.wrapping_add(n) & mask;
-            let idx = id & (count - 1);
-            let read = (|| -> Result<Option<Vec<String>>> {
-                let d = descs
-                    + idx
-                        * self.isf.data["user_types"]["prb_desc"]["size"]
-                            .as_u64()
-                            .context("prb_desc size")?;
-                let state = self.number(d, "prb_desc", "state_var.counter")?;
-                if state & mask != id || !matches!(state >> 62, 1 | 2) {
-                    return Ok(None);
-                }
-                let info = infos
-                    + idx
-                        * self.isf.data["user_types"]["printk_info"]["size"]
-                            .as_u64()
-                            .context("printk_info size")?;
-                let len = self.number(info, "printk_info", "text_len")?;
-                let begin = self.number(d, "prb_desc", "text_blk_lpos.begin")?;
-                let next = self.number(d, "prb_desc", "text_blk_lpos.next")?;
-                if begin & 1 != 0 {
-                    ensure!(len == 0, "printk dataless 记录长度不为 0");
-                    return Ok(None);
-                }
-                ensure!(begin & 7 == 0 && next & 7 == 0, "printk block 未对齐");
-                let (pos, capacity) = if begin / size == next / size && begin < next {
-                    (begin & (size - 1), next - begin)
-                } else if begin.wrapping_add(size) / size == next / size {
-                    (0, next & (size - 1))
-                } else {
-                    anyhow::bail!("printk block wrap 无效");
-                };
-                ensure!(
-                    capacity >= 8 && len <= capacity - 8 && pos + capacity <= size,
-                    "printk 记录越界"
-                );
-                ensure!(
-                    self.vm.uint(bytes + pos, 8)? == id,
-                    "printk 文本 descriptor ID 不一致"
-                );
-                let mut text = vec![0; len as usize];
-                self.vm.read(bytes + pos + 8, &mut text)?;
-                Ok(Some(vec![
-                    self.number(info, "printk_info", "seq")?.to_string(),
-                    String::from_utf8_lossy(&text).into_owned(),
-                ]))
-            })();
-            match read {
-                Ok(Some(row)) => result.rows.push(row),
-                Ok(None) => {}
-                Err(e) => {
-                    result.complete = false;
-                    result
-                        .diagnostics
-                        .push(format!("printk descriptor {id:#x}: {e:#}"));
-                }
-            }
+        if length == 0 {
+            return Ok(Vec::new());
         }
-        Ok(())
+        let bits = self
+            .vm
+            .image
+            .arm64_va_bits
+            .load(std::sync::atomic::Ordering::Relaxed);
+        let ceiling = if bits == 0 { 1u64 << 47 } else { 1u64 << bits };
+        ensure!(
+            start < ceiling && end <= ceiling,
+            "用户区域超出用户地址空间"
+        );
+        let pgd = self.number(mm, "mm_struct", "pgd")?;
+        let root = self.vm.translate(pgd).context("mm.pgd 内核地址转换失败")?;
+        ensure!(root & 4095 == 0, "进程页表未对齐");
+        let vm = VirtualMemory::new(self.vm.image, root);
+        let mut out = vec![0; length as usize];
+        for (i, chunk) in out.chunks_mut(4096).enumerate() {
+            job.check()?;
+            vm.read(start + i as u64 * 4096, chunk)?;
+        }
+        Ok(out)
     }
 }
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::extended::tests::{engine, fixture, image};
+    use crate::linux::tests::{engine, fixture, image};
     use serde_json::json;
     fn put(b: &mut [u8], p: usize, v: u64) {
         b[p..p + 8].copy_from_slice(&v.to_le_bytes());

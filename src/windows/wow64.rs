@@ -142,12 +142,7 @@ mod tests {
         b[0x10028..0x1002c].copy_from_slice(&0x6000u32.to_le_bytes());
         let img = image(&b);
         let engine = Windows {
-            vm: Memory {
-                image: &img,
-                root: 0x1000,
-                isf: &isf,
-                sources: None,
-            },
+            vm: Memory::new(&img, 0x1000, &isf, None),
             base: K,
             pdb: PdbIdentity::from_isf(&isf).unwrap(),
         };

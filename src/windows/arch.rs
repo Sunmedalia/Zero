@@ -154,25 +154,15 @@ mod tests {
         set_arch(&mut isf, Architecture::Arm64);
         b[0x8084..0x8086].copy_from_slice(&0xaa64u16.to_le_bytes());
         let img = image(&b);
-        let vm = Memory {
-            image: &img,
-            root: 0x1000,
-            isf: &isf,
-            sources: None,
-        };
+        let vm = Memory::new(&img, 0x1000, &isf, None);
         assert_eq!(vm.translate(K + 0x1234).unwrap(), 0x9234);
         assert_eq!(discover(&img, &isf, &Job::default()).unwrap(), (0x1000, K));
         put(&mut b, 0x3000, 0x200001);
         let img = image(&b);
         assert_eq!(
-            Memory {
-                image: &img,
-                root: 0x1000,
-                isf: &isf,
-                sources: None
-            }
-            .translate(K + 0x1234)
-            .unwrap(),
+            Memory::new(&img, 0x1000, &isf, None)
+                .translate(K + 0x1234)
+                .unwrap(),
             0x201234
         );
         isf.data["metadata"]["windows"]["pe"]["machine_type"] = serde_json::json!(0x8664);
@@ -186,25 +176,15 @@ mod tests {
         b[0x1800..0x1804].copy_from_slice(&0x2003u32.to_le_bytes());
         b[0x2000..0x2004].copy_from_slice(&0x8003u32.to_le_bytes());
         let img = image(&b);
-        let vm = Memory {
-            image: &img,
-            root: 0x1000,
-            isf: &isf,
-            sources: None,
-        };
+        let vm = Memory::new(&img, 0x1000, &isf, None);
         assert_eq!(vm.translate(0x80000123).unwrap(), 0x8123);
         assert!(vm.translate(0x1_80000123).is_err());
         b[0x1800..0x1804].copy_from_slice(&0x400083u32.to_le_bytes());
         let img = image(&b);
         assert_eq!(
-            Memory {
-                image: &img,
-                root: 0x1000,
-                isf: &isf,
-                sources: None
-            }
-            .translate(0x80001234)
-            .unwrap(),
+            Memory::new(&img, 0x1000, &isf, None)
+                .translate(0x80001234)
+                .unwrap(),
             0x401234
         );
         isf.data["metadata"]["windows"]["paging"] = serde_json::json!("pae");
@@ -214,14 +194,9 @@ mod tests {
         put(&mut b, 0x3000, 0x8003);
         let img = image(&b);
         assert_eq!(
-            Memory {
-                image: &img,
-                root: 0x1020,
-                isf: &isf,
-                sources: None
-            }
-            .translate(0x80000123)
-            .unwrap(),
+            Memory::new(&img, 0x1020, &isf, None)
+                .translate(0x80000123)
+                .unwrap(),
             0x8123
         );
     }
@@ -258,12 +233,7 @@ mod tests {
         let (root, base) = discover(&img, &isf, &Job::default()).unwrap();
         assert_eq!((root, base), (0x1000, k));
         let engine = Windows {
-            vm: Memory {
-                image: &img,
-                root,
-                isf: &isf,
-                sources: None,
-            },
+            vm: Memory::new(&img, root, &isf, None),
             base,
             pdb: PdbIdentity::from_isf(&isf).unwrap(),
         };

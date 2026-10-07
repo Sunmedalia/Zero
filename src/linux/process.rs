@@ -1,14 +1,180 @@
-//! Additional native Linux analyses. Unsupported layouts fail before traversal.
-use crate::{
-    Job,
-    linux::{Linux, Plugin},
-    report::{hex, partial},
-    store::Results,
-};
-use anyhow::{Context, Result, ensure};
-use std::collections::{BTreeMap, HashSet};
+//! Per-task plugins: arguments, environment, credentials, threads, state and ptrace.
+use super::*;
 impl Linux<'_> {
-    pub(crate) fn run_more(&self, plugin: Plugin, job: &Job) -> Result<Results> {
+    pub(super) fn preflight(&self, plugin: Plugin) -> Result<()> {
+        self.require(&[
+            ("task_struct", "pid"),
+            ("task_struct", "tgid"),
+            ("task_struct", "comm"),
+            ("task_struct", "real_parent"),
+            ("task_struct", "tasks"),
+            ("list_head", "next"),
+            ("list_head", "prev"),
+        ])?;
+        self.isf
+            .address("init_task")
+            .context("不支持: 缺少 init_task 符号")?;
+        if matches!(plugin, Plugin::Psaux | Plugin::Envars | Plugin::Maps) {
+            self.require(&[("task_struct", "mm")])?;
+        }
+        match plugin {
+            Plugin::Psaux | Plugin::Envars => {
+                self.require(&[("mm_struct", "pgd")])?;
+                let fields = if plugin == Plugin::Psaux {
+                    ["arg_start", "arg_end"]
+                } else {
+                    ["env_start", "env_end"]
+                };
+                for f in fields {
+                    self.require(&[("mm_struct", f)])?;
+                }
+            }
+            Plugin::Maps => self.require(&[
+                (
+                    "mm_struct",
+                    if self.isf.field("mm_struct", "mmap").is_ok() {
+                        "mmap"
+                    } else {
+                        "mm_mt"
+                    },
+                ),
+                ("vm_area_struct", "vm_start"),
+                ("vm_area_struct", "vm_end"),
+                ("vm_area_struct", "vm_flags"),
+                ("vm_area_struct", "vm_pgoff"),
+                ("vm_area_struct", "vm_file"),
+            ])?,
+            Plugin::Lsof | Plugin::Sockstat => self.require(&[
+                ("task_struct", "files"),
+                ("files_struct", "fdt"),
+                ("fdtable", "max_fds"),
+                ("fdtable", "fd"),
+                ("file", "f_path"),
+                ("path", "dentry"),
+                ("dentry", "d_inode"),
+                ("inode", "i_mode"),
+                ("inode", "i_ino"),
+            ])?,
+            _ => {}
+        }
+        if matches!(plugin, Plugin::Maps | Plugin::Lsof) {
+            self.require(&[
+                ("task_struct", "fs"),
+                ("fs_struct", "root"),
+                ("file", "f_path"),
+                ("path", "mnt"),
+                ("path", "dentry"),
+                ("dentry", "d_parent"),
+                ("dentry", "d_name"),
+                ("qstr", "len"),
+                ("qstr", "name"),
+                ("vfsmount", "mnt_root"),
+                ("vfsmount", "mnt_parent"),
+                ("vfsmount", "mnt_mountpoint"),
+            ])?;
+        }
+        if plugin == Plugin::Sockstat {
+            self.require(&[
+                ("socket_alloc", "vfs_inode"),
+                ("socket_alloc", "socket"),
+                ("socket", "sk"),
+                ("sock", "__sk_common"),
+                ("sock", "sk_type"),
+                ("sock", "sk_protocol"),
+                ("sock", "sk_socket"),
+                ("sock_common", "skc_family"),
+                ("sock_common", "skc_state"),
+                ("sock_common", "skc_rcv_saddr"),
+                ("sock_common", "skc_daddr"),
+                ("inet_sock", "inet_sport"),
+                (
+                    if self.isf.field("inet_sock", "inet_dport").is_ok() {
+                        "inet_sock"
+                    } else {
+                        "sock_common"
+                    },
+                    if self.isf.field("inet_sock", "inet_dport").is_ok() {
+                        "inet_dport"
+                    } else {
+                        "skc_dport"
+                    },
+                ),
+                ("unix_sock", "addr"),
+                ("unix_sock", "peer"),
+                ("unix_address", "len"),
+                ("unix_address", "name"),
+                ("sockaddr_un", "sun_path"),
+            ])?;
+        }
+        Ok(())
+    }
+    /// psaux / envars / maps / lsof / sockstat: user memory and open files of every task.
+    pub(super) fn task_objects(&self, plugin: Plugin, job: &Job) -> Result<Results> {
+        self.preflight(plugin)?;
+        // Reuse the validated tasks list and identity reader of pslist.
+        let (mut result, processes) = self.tasks(plugin, job)?;
+        for process in processes {
+            job.check()?;
+            let task = process.address;
+            let context = format!("PID {} @ {}", process.pid, hex(task));
+            let read = (|| -> Result<()> {
+                let prefix = vec![process.pid.clone(), process.name.clone()];
+                match plugin {
+                    Plugin::Psaux | Plugin::Envars => {
+                        let mm = self.number(task, "task_struct", "mm")?;
+                        if mm == 0 {
+                            if plugin == Plugin::Psaux {
+                                result.rows.push(
+                                    [
+                                        prefix,
+                                        vec![format!("[{}]", process.name), "KernelThread".into()],
+                                    ]
+                                    .concat(),
+                                );
+                            }
+                            return Ok(());
+                        }
+                        let bytes = self.user_region(
+                            mm,
+                            if plugin == Plugin::Psaux {
+                                "arg"
+                            } else {
+                                "env"
+                            },
+                            job,
+                        )?;
+                        if plugin == Plugin::Psaux {
+                            result
+                                .rows
+                                .push([prefix, vec![command_line(&bytes), "OK".into()]].concat());
+                        } else {
+                            for entry in nul_strings(&bytes) {
+                                let (key, value) = entry.split_once('=').unwrap_or((&entry, ""));
+                                result.rows.push(
+                                    [prefix.clone(), vec![key.into(), value.into()]].concat(),
+                                );
+                            }
+                        }
+                    }
+                    Plugin::Maps => self.maps(task, prefix, &mut result, job)?,
+                    Plugin::Lsof | Plugin::Sockstat => {
+                        self.files(task, prefix, plugin, &mut result, job)?
+                    }
+                    _ => return Err(unrouted(plugin)),
+                }
+                Ok(())
+            })();
+            if let Err(e) = read {
+                job.check()?;
+                partial(&mut result, context, e);
+            }
+            job.report(format!("{}: {} 条", plugin.name(), result.rows.len()));
+        }
+        job.check()?;
+        Ok(result)
+    }
+    /// pwd / pscred / check_creds / threads / mountinfo: per-task context objects.
+    pub(super) fn task_context(&self, plugin: Plugin, job: &Job) -> Result<Results> {
         let required = match plugin {
             Plugin::Pwd => vec![
                 ("task_struct", "fs"),
@@ -67,32 +233,18 @@ impl Linux<'_> {
                 ("super_block", "s_type"),
                 ("file_system_type", "name"),
             ],
-            Plugin::Dmesg => {
-                for s in if self.isf.address("prb").is_ok() {
-                    vec!["prb"]
-                } else {
-                    vec!["log_buf", "log_buf_len", "logged_chars", "log_end"]
-                } {
-                    self.isf.address(s).with_context(|| {
-                        format!("不支持: 缺少 {s}（目前支持旧式 printk 环形缓冲区）")
-                    })?;
-                }
-                vec![]
-            }
-            _ => unreachable!(),
+            _ => return Err(unrouted(plugin)),
         };
         self.require(&required)?;
-        if plugin != Plugin::Dmesg {
-            self.require(&[
-                ("task_struct", "pid"),
-                ("task_struct", "tgid"),
-                ("task_struct", "comm"),
-                ("task_struct", "real_parent"),
-                ("task_struct", "tasks"),
-                ("list_head", "next"),
-                ("list_head", "prev"),
-            ])?;
-        }
+        self.require(&[
+            ("task_struct", "pid"),
+            ("task_struct", "tgid"),
+            ("task_struct", "comm"),
+            ("task_struct", "real_parent"),
+            ("task_struct", "tasks"),
+            ("list_head", "next"),
+            ("list_head", "prev"),
+        ])?;
         if plugin == Plugin::Mountinfo {
             self.require(&[
                 ("vfsmount", "mnt_mountpoint"),
@@ -113,27 +265,13 @@ impl Linux<'_> {
             }
         }
 
-        if plugin == Plugin::Dmesg {
-            let mut result = self.result(plugin);
-            self.logs(&mut result, job)?;
-            job.check()?;
-            return Ok(result);
-        }
-        let mut result = self.run(Plugin::Pslist, job)?;
-        let tasks = std::mem::take(&mut result.rows);
-        result.plugin = plugin.name().into();
-        result.columns = plugin
-            .descriptor()
-            .columns
-            .iter()
-            .map(|s| (*s).into())
-            .collect();
+        let (mut result, tasks) = self.tasks(plugin, job)?;
         let mut credentials: BTreeMap<u64, Vec<(String, String)>> = BTreeMap::new();
         let mut leaders = HashSet::new();
         for task in tasks {
             job.check()?;
-            let addr = u64::from_str_radix(&task[4][2..], 16)?;
-            let prefix = vec![task[0].clone(), task[3].clone()];
+            let addr = task.address;
+            let prefix = vec![task.pid.clone(), task.name.clone()];
             let read = (|| -> Result<()> {
                 match plugin {
                     Plugin::Pwd => {
@@ -167,7 +305,7 @@ impl Linux<'_> {
                             credentials
                                 .entry(cred)
                                 .or_default()
-                                .push((task[0].clone(), task[3].clone()));
+                                .push((task.pid.clone(), task.name.clone()));
                         } else {
                             let mut row = prefix;
                             for f in [
@@ -187,13 +325,13 @@ impl Linux<'_> {
                         }
                     }
                     Plugin::Mountinfo => self.mounts(addr, prefix, &mut result, job)?,
-                    _ => unreachable!(),
+                    _ => return Err(unrouted(plugin)),
                 }
                 Ok(())
             })();
             if let Err(e) = read {
                 job.check()?;
-                partial(&mut result, format!("PID {} @ {}", task[0], task[4]), e);
+                partial(&mut result, format!("PID {} @ {}", task.pid, hex(addr)), e);
             }
             job.report(format!("{}: {} 条", plugin.name(), result.rows.len()));
         }
@@ -225,7 +363,7 @@ impl Linux<'_> {
         job.check()?;
         Ok(result)
     }
-    fn credential(&self, cred: u64, field: &str) -> Result<u64> {
+    pub(super) fn credential(&self, cred: u64, field: &str) -> Result<u64> {
         let ty = &self.isf.field("cred", field)?["type"];
         if ty["kind"] == "struct" {
             self.number(cred, "cred", &format!("{field}.val"))
@@ -233,7 +371,7 @@ impl Linux<'_> {
             self.number(cred, "cred", field)
         }
     }
-    fn threads(
+    pub(super) fn threads(
         &self,
         leader: u64,
         prefix: Vec<String>,
@@ -300,142 +438,192 @@ impl Linux<'_> {
         }
         Ok(())
     }
-    fn mounts(
-        &self,
-        task: u64,
-        prefix: Vec<String>,
-        result: &mut Results,
-        job: &Job,
-    ) -> Result<()> {
-        if self.modern_mount() {
-            return self.modern_mounts(task, prefix, result, job);
-        }
-        let ns = self.number(task, "task_struct", "nsproxy")?;
-        if ns == 0 {
-            return Ok(());
-        }
-        let ns = self.number(ns, "nsproxy", "mnt_ns")?;
-        ensure!(ns != 0, "mnt_ns 为空");
-        let head = self.field_address(ns, "mnt_namespace", "list")?;
-        let offset = self.isf.offset("vfsmount", "mnt_list")?;
-        let mut node = self.number(head, "list_head", "next")?;
-        let mut visited = HashSet::new();
-        while node != head {
-            job.check()?;
-            ensure!(visited.insert(node), "挂载链表循环 @ {}", hex(node));
-            ensure!(visited.len() <= 1_000_000, "挂载超过 100 万项");
-            let next = self.number(node, "list_head", "next")?;
+    /// psstate / capabilities / fdsummary: one row of task state per task.
+    pub(super) fn task_state(&self, plugin: Plugin, job: &Job) -> Result<Results> {
+        let state = if self.isf.field("task_struct", "__state").is_ok() {
+            "__state"
+        } else {
+            "state"
+        };
+        let fields = match plugin {
+            Plugin::Psstate => vec![
+                ("task_struct", state),
+                ("task_struct", "exit_state"),
+                ("task_struct", "flags"),
+            ],
+            Plugin::Capabilities => vec![
+                ("task_struct", "cred"),
+                ("cred", "cap_inheritable"),
+                ("cred", "cap_permitted"),
+                ("cred", "cap_effective"),
+                ("cred", "cap_bset"),
+            ],
+            _ => vec![],
+        };
+        for (structure, field) in fields {
+            let size = self
+                .isf
+                .size(structure, field)
+                .with_context(|| format!("不支持: 缺少 {structure}.{field}"))?;
             ensure!(
-                self.number(next, "list_head", "prev")? == node,
-                "挂载 next/prev 不一致"
+                (1..=8).contains(&size),
+                "不支持: {structure}.{field} 超过 64 位"
             );
-            let m = node.checked_sub(offset).context("挂载地址下溢")?;
+        }
+        let (mut result, tasks) = self.tasks(plugin, job)?;
+        let mut counts: BTreeMap<String, [u64; 4]> = BTreeMap::new();
+        if plugin == Plugin::Fdsummary {
+            let files = self.run(Plugin::Lsof, job)?;
+            result.complete &= files.complete;
+            result.diagnostics.extend(files.diagnostics);
+            for row in files.rows {
+                job.check()?;
+                let n = counts.entry(row[0].clone()).or_default();
+                n[0] += 1;
+                match row[3].as_str() {
+                    "Regular" => n[1] += 1,
+                    "Socket" => n[2] += 1,
+                    "FIFO" => n[3] += 1,
+                    _ => {}
+                }
+            }
+        }
+        for task in tasks {
+            job.check()?;
+            let address = task.address;
             let read = (|| -> Result<Vec<String>> {
-                let id = self.number(m, "vfsmount", "mnt_id")?;
-                let parent = self.number(m, "vfsmount", "mnt_parent")?;
-                let parent_id = self.number(parent, "vfsmount", "mnt_id")?;
-                let dev = self.number(m, "vfsmount", "mnt_devname")?;
-                let device = if dev == 0 {
-                    "[none]".into()
-                } else {
-                    self.kernel_text(dev, 4096)?
-                };
-                let sb = self.number(m, "vfsmount", "mnt_sb")?;
-                let ty = self.number(sb, "super_block", "s_type")?;
-                let name = self.kernel_text(self.number(ty, "file_system_type", "name")?, 128)?;
-                let d = self.number(m, "vfsmount", "mnt_root")?;
-                let path = self.resolve_path(d, m, None, job)?;
-                Ok([
-                    prefix.clone(),
-                    vec![
-                        id.to_string(),
-                        parent_id.to_string(),
-                        device,
-                        path,
-                        name,
-                        hex(self.number(m, "vfsmount", "mnt_flags")?),
-                        hex(m),
-                    ],
-                ]
-                .concat())
+                let mut row = vec![task.pid.clone(), task.name.clone()];
+                match plugin {
+                    Plugin::Psstate => {
+                        for field in [state, "exit_state", "flags"] {
+                            row.push(format!(
+                                "{:#018x}",
+                                self.number(address, "task_struct", field)?
+                            ));
+                        }
+                    }
+                    Plugin::Capabilities => {
+                        let cred = self.number(address, "task_struct", "cred")?;
+                        ensure!(cred != 0, "空 cred 指针");
+                        for field in [
+                            "cap_inheritable",
+                            "cap_permitted",
+                            "cap_effective",
+                            "cap_bset",
+                        ] {
+                            row.push(format!("{:#018x}", self.number(cred, "cred", field)?));
+                        }
+                        row.push(format!("{cred:#018x}"));
+                    }
+                    Plugin::Fdsummary => {
+                        let n = counts.get(&task.pid).copied().unwrap_or_default();
+                        row.extend(n.iter().map(u64::to_string));
+                    }
+                    _ => return Err(unrouted(plugin)),
+                }
+                Ok(row)
             })();
             match read {
                 Ok(row) => result.rows.push(row),
-                Err(e) => partial(result, format!("PID {} mount {}", prefix[0], hex(m)), e),
+                Err(e) => {
+                    result.complete = false;
+                    result
+                        .diagnostics
+                        .push(format!("PID {} @ {address:#x}: {e:#}", task.pid));
+                }
             }
-            node = next;
         }
-        Ok(())
+        Ok(result)
     }
-    pub(crate) fn kernel_text(&self, ptr: u64, limit: usize) -> Result<String> {
-        ensure!(ptr != 0, "字符串指针为空");
-        let mut bytes = Vec::new();
-        for i in 0..limit {
-            let b = self
-                .vm
-                .uint(ptr.checked_add(i as u64).context("字符串地址溢出")?, 1)?
-                as u8;
-            if b == 0 {
-                return Ok(String::from_utf8_lossy(&bytes).into_owned());
-            }
-            bytes.push(b);
+    pub(super) fn ptrace(&self, result: &mut Results, job: &Job) -> Result<()> {
+        self.require(&[
+            ("task_struct", "ptrace"),
+            ("task_struct", "parent"),
+            ("task_struct", "ptraced"),
+            ("task_struct", "ptrace_entry"),
+            ("task_struct", "pid"),
+            ("task_struct", "tgid"),
+            ("list_head", "next"),
+            ("list_head", "prev"),
+        ])?;
+        let threads = self.run(Plugin::Threads, job)?;
+        result.complete &= threads.complete;
+        result.diagnostics.extend(threads.diagnostics);
+        let mut tasks = BTreeMap::new();
+        for row in threads.rows {
+            let address = u64::from_str_radix(&row[4][2..], 16)?;
+            tasks.insert(address, row);
         }
-        anyhow::bail!("内核字符串超过 {limit} 字节")
-    }
-    fn logs(&self, result: &mut Results, job: &Job) -> Result<()> {
-        let read = (|| -> Result<()> {
-            if self.isf.address("prb").is_ok() {
-                return self.modern_logs(result, job);
-            }
-            let ptr = self.vm.uint(self.isf.address("log_buf")?, 8)?;
-            let size = self.vm.uint(self.isf.address("log_buf_len")?, 4)?;
-            ensure!(
-                size > 0 && size <= 16 * 1024 * 1024 && size.is_power_of_two(),
-                "printk 缓冲区长度无效/超过 16 MiB"
-            );
-            // Linux 3.2 SYSLOG_ACTION_READ_ALL / kdb_syslog_data semantics.
-            // log_start tracks the consuming syslog reader, not retained history.
-            let end = self.vm.uint(self.isf.address("log_end")?, 4)? as u32;
-            let length = self
-                .vm
-                .uint(self.isf.address("logged_chars")?, 4)?
-                .min(size);
-            let start = end.wrapping_sub(length as u32);
-            let mut bytes = Vec::with_capacity(length as usize);
-            let mut pos = start as u64;
-            while bytes.len() < (length as usize) {
-                job.check()?;
-                let index = pos & (size - 1);
-                let n = (size - index).min(length - bytes.len() as u64).min(4096) as usize;
-                let old = bytes.len();
-                bytes.resize(old + n, 0);
-                self.vm.read(
-                    ptr.checked_add(index).context("日志地址溢出")?,
-                    &mut bytes[old..],
-                )?;
-                pos += n as u64;
-            }
-            for (i, line) in String::from_utf8_lossy(&bytes)
-                .split_terminator('\n')
-                .enumerate()
-            {
-                result.rows.push(vec![i.to_string(), line.into()]);
-            }
-            Ok(())
-        })();
-        if let Err(e) = read {
+        for (address, task) in tasks {
             job.check()?;
-            partial(result, "dmesg", e);
+            let context = format!("TID {} @ {}", task[2], hex(address));
+            let read = (|| -> Result<()> {
+                let flags = self.number(address, "task_struct", "ptrace")?;
+                let tracer = if flags == 0 {
+                    "[none]".into()
+                } else {
+                    let parent = self.number(address, "task_struct", "parent")?;
+                    ensure!(parent != 0, "ptrace parent 为空");
+                    self.number(parent, "task_struct", "pid")?.to_string()
+                };
+                let head = self.field_address(address, "task_struct", "ptraced")?;
+                let offset = self.isf.offset("task_struct", "ptrace_entry")?;
+                let mut tracees = Vec::new();
+                let walk = (|| -> Result<()> {
+                    let mut entry = self.number(head, "list_head", "next")?;
+                    let mut previous = head;
+                    let mut seen = HashSet::new();
+                    while entry != head {
+                        job.check()?;
+                        ensure!(entry != 0 && seen.insert(entry), "ptraced 链表空指针或循环");
+                        ensure!(seen.len() <= LIMIT, "ptraced 链表超过 {LIMIT} 项");
+                        ensure!(
+                            self.number(entry, "list_head", "prev")? == previous,
+                            "ptraced next/prev 不一致"
+                        );
+                        let tracee = entry.checked_sub(offset).context("ptrace_entry 地址下溢")?;
+                        tracees.push(self.number(tracee, "task_struct", "pid")?.to_string());
+                        previous = entry;
+                        entry = self.number(entry, "list_head", "next")?;
+                    }
+                    ensure!(
+                        self.number(head, "list_head", "prev")? == previous,
+                        "ptraced 尾指针不一致"
+                    );
+                    Ok(())
+                })();
+                if let Err(e) = walk {
+                    job.check()?;
+                    partial(result, &context, e);
+                }
+                if flags != 0 && tracees.is_empty() {
+                    tracees.push("[none]".into());
+                }
+                for tracee in tracees {
+                    result.rows.push(vec![
+                        task[3].clone(),
+                        self.number(address, "task_struct", "tgid")?.to_string(),
+                        task[2].clone(),
+                        tracer.clone(),
+                        tracee,
+                        hex(flags),
+                    ]);
+                }
+                Ok(())
+            })();
+            if let Err(e) = read {
+                job.check()?;
+                partial(result, context, e);
+            }
         }
         Ok(())
     }
 }
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::{
-        extended::tests::{engine, fixture, image, path_fixture},
+        linux::tests::{engine, fixture, image, path_fixture},
         symbols::Isf,
     };
     use serde_json::json;

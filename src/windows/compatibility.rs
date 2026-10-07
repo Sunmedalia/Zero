@@ -175,12 +175,7 @@ mod identity_tests {
             isf.data["user_types"]["_KUSER_SHARED_DATA"] = json!({"size":32,"fields":{"ProductTypeIsValid":f(0),"NtProductType":f(8),"NtMajorVersion":f(16),"NtMinorVersion":f(24)}});
             let img = image(&b);
             let w = Windows {
-                vm: Memory {
-                    image: &img,
-                    root: 0x1000,
-                    isf: &isf,
-                    sources: None,
-                },
+                vm: Memory::new(&img, 0x1000, &isf, None),
                 base: K,
                 pdb: PdbIdentity::from_isf(&isf).unwrap(),
             };
@@ -188,12 +183,7 @@ mod identity_tests {
             b[0x8000..0x8008].fill(0);
             let img = image(&b);
             let w = Windows {
-                vm: Memory {
-                    image: &img,
-                    root: 0x1000,
-                    isf: &isf,
-                    sources: None,
-                },
+                vm: Memory::new(&img, 0x1000, &isf, None),
                 base: K,
                 pdb: PdbIdentity::from_isf(&isf).unwrap(),
             };

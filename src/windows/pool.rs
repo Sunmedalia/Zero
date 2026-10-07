@@ -325,12 +325,7 @@ mod tests {
                 .copy_from_slice(&[b'M', 0, b'u', 0, b't', 0, b'a', 0, b'n', 0, b't', 0]);
             let img = image(&b);
             let w = Windows {
-                vm: Memory {
-                    image: &img,
-                    root: 0x1000,
-                    isf: &isf,
-                    sources: None,
-                },
+                vm: Memory::new(&img, 0x1000, &isf, None),
                 base: k,
                 pdb: PdbIdentity::from_isf(&isf).unwrap(),
             };
@@ -350,12 +345,7 @@ mod tests {
             b[0xc010..0xc018].copy_from_slice(&(k + 0x5100).to_le_bytes());
             let img = image(&b);
             let w = Windows {
-                vm: Memory {
-                    image: &img,
-                    root: 0x1000,
-                    isf: &isf,
-                    sources: None,
-                },
+                vm: Memory::new(&img, 0x1000, &isf, None),
                 base: k,
                 pdb: PdbIdentity::from_isf(&isf).unwrap(),
             };

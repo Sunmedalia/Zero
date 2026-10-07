@@ -32,12 +32,7 @@ impl paging::Sources {
         }
         let (root, base) = self.kernel_context.context("缺少压缩 store 内核上下文")?;
         let kernel = Windows {
-            vm: Memory {
-                image: vm.image,
-                root,
-                isf: vm.isf,
-                sources: Some(self),
-            },
+            vm: Memory::new(vm.image, root, vm.isf, Some(self)),
             base,
             pdb: PdbIdentity::from_isf(vm.isf)?,
         };
@@ -421,12 +416,7 @@ mod tests {
                 b[0x12004..0x12006].copy_from_slice(&((block.len() as u16) | 0x8000).to_le_bytes());
             }
             let img = image(&b);
-            let vm = Memory {
-                image: &img,
-                root: 0x1000,
-                isf: &isf,
-                sources: Some(&sources),
-            };
+            let vm = Memory::new(&img, 0x1000, &isf, Some(&sources));
             let mut out = [0; 16];
             if build == 26200 {
                 assert!(vm.read(K + 0x3000, &mut out).is_err());
@@ -440,12 +430,7 @@ mod tests {
     fn reconstructs_symbol_driven_store_page_and_rejects_tree_cycles() {
         let (mut b, isf, sources) = setup();
         let img = image(&b);
-        let vm = Memory {
-            image: &img,
-            root: 0x1000,
-            isf: &isf,
-            sources: Some(&sources),
-        };
+        let vm = Memory::new(&img, 0x1000, &isf, Some(&sources));
         let mut bytes = [0; 32];
         vm.read(K + 0x3010, &mut bytes).unwrap();
         assert_eq!(bytes, [b'z'; 32]);
@@ -454,12 +439,7 @@ mod tests {
         b[0xf003] = 0;
         put(&mut b, 0xf018, K + 0x7000);
         let img = image(&b);
-        let vm = Memory {
-            image: &img,
-            root: 0x1000,
-            isf: &isf,
-            sources: None,
-        };
+        let vm = Memory::new(&img, 0x1000, &isf, None);
         assert!(tree_search(&vm, K + 0x7000, 0x20000001, &Job::default()).is_err());
         assert!(tree_search(&vm, K + 0x7000, 1, &Job::default()).is_err());
     }

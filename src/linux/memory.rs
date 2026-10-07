@@ -1,14 +1,6 @@
-//! Evidence-oriented analyses. Cross-view differences are leads, not verdicts.
-use crate::{
-    Job,
-    image::VirtualMemory,
-    linux::{Linux, Plugin},
-    report::{hex, partial},
-    store::Results,
-};
-use anyhow::{Context, Result, ensure};
-use std::collections::{BTreeMap, HashSet};
-fn header(bytes: &[u8], arm: bool) -> Result<(String, u64)> {
+//! Process memory views: mappings, ELF headers, injected code and bash history.
+use super::*;
+pub(super) fn header(bytes: &[u8], arm: bool) -> Result<(String, u64)> {
     ensure!(bytes.len() >= 64 && &bytes[..4] == b"\x7fELF", "非 ELF 头");
     ensure!(
         bytes[4] == 2 && bytes[5] == 1 && bytes[6] == 1,
@@ -28,101 +20,104 @@ fn header(bytes: &[u8], arm: bool) -> Result<(String, u64)> {
     ))
 }
 impl Linux<'_> {
-    pub(crate) fn process_vm(&self, task: u64) -> Result<Option<VirtualMemory<'_>>> {
+    pub(super) fn maps(
+        &self,
+        task: u64,
+        prefix: Vec<String>,
+        result: &mut Results,
+        job: &Job,
+    ) -> Result<()> {
+        self.maps_bounded(task, prefix, result, job, OBJECT_LIMIT)
+    }
+    pub(super) fn maps_bounded(
+        &self,
+        task: u64,
+        prefix: Vec<String>,
+        result: &mut Results,
+        job: &Job,
+        limit: u64,
+    ) -> Result<()> {
         let mm = self.number(task, "task_struct", "mm")?;
         if mm == 0 {
-            return Ok(None);
+            return Ok(());
         }
-        let pgd = self.number(mm, "mm_struct", "pgd")?;
-        let root = self.vm.translate(pgd)?;
-        ensure!(root & 4095 == 0, "用户页表未对齐");
-        Ok(Some(VirtualMemory {
-            image: self.vm.image,
-            root,
-        }))
-    }
-    pub(crate) fn vma_nodes(&self, mm: u64, job: &Job) -> Result<Vec<u64>> {
-        if self.isf.field("mm_struct", "mmap").is_err() {
-            return self.maple_vmas(mm, job, 1_000_000);
-        }
-        let mut out = Vec::new();
-        let mut seen = HashSet::new();
-        let mut n = self.number(mm, "mm_struct", "mmap")?;
-        while n != 0 {
+        let modern = self.isf.field("mm_struct", "mmap").is_err();
+        let mut nodes = if modern {
+            self.maple_vmas(mm, job, limit)?.into_iter()
+        } else {
+            Vec::new().into_iter()
+        };
+        let mut node = if modern {
+            nodes.next().unwrap_or(0)
+        } else {
+            self.number(mm, "mm_struct", "mmap")?
+        };
+        let mut visited = HashSet::new();
+        while node != 0 {
             job.check()?;
-            ensure!(
-                seen.insert(n) && seen.len() <= 1_000_000,
-                "VMA 循环或达到上限"
-            );
-            out.push(n);
-            n = self.number(n, "vm_area_struct", "vm_next")?;
-        }
-        Ok(out)
-    }
-    pub(crate) fn run_inspect(&self, plugin: Plugin, job: &Job) -> Result<Results> {
-        let mut r = self.result(plugin);
-        if plugin == Plugin::Systeminfo {
-            let arm = self
-                .vm
-                .image
-                .arm64_va_bits
-                .load(std::sync::atomic::Ordering::Relaxed);
-            for (key, value) in [
-                (
-                    "Architecture",
-                    if arm == 0 {
-                        "x86_64".into()
-                    } else {
-                        "aarch64".into()
-                    },
-                ),
-                ("Kernel", r.banner.clone()),
-                ("ImageFormat", self.vm.image.format.into()),
-                ("ImageSHA256", self.vm.image.digest.clone()),
-                ("PageSize", "4096".into()),
-                (
-                    "VABits",
-                    if arm == 0 {
-                        "48".into()
-                    } else {
-                        arm.to_string()
-                    },
-                ),
-                (
-                    "KernelSlide",
-                    hex(self.isf.slide.load(std::sync::atomic::Ordering::Relaxed)),
-                ),
-                ("PageTable", hex(self.vm.root)),
-                ("SymbolSource", self.isf.label.clone()),
-                ("SymbolSHA256", self.isf.digest.clone()),
-                (
-                    "Validation",
-                    "完整 banner／init_task／双向链表／页表已验证".into(),
-                ),
-            ] {
-                r.rows.push(vec![key.into(), value]);
+            ensure!(visited.insert(node), "VMA 循环 @ {}", hex(node));
+            ensure!(visited.len() as u64 <= limit, "VMA 超过 100 万项上限");
+            let next = if modern {
+                nodes.next().unwrap_or(0)
+            } else {
+                self.number(node, "vm_area_struct", "vm_next")?
+            };
+            let row = (|| -> Result<Vec<String>> {
+                let start = self.number(node, "vm_area_struct", "vm_start")?;
+                let end = self.number(node, "vm_area_struct", "vm_end")?;
+                ensure!(start < end, "VMA 地址倒置");
+                let flags = self.number(node, "vm_area_struct", "vm_flags")?;
+                let offset = self
+                    .number(node, "vm_area_struct", "vm_pgoff")?
+                    .checked_mul(4096)
+                    .context("VMA 文件偏移溢出")?;
+                let file = self.number(node, "vm_area_struct", "vm_file")?;
+                let path = if file == 0 {
+                    "[anonymous]".into()
+                } else {
+                    match self.file_path(task, file, job) {
+                        Ok(path) => path,
+                        Err(e) => {
+                            job.check()?;
+                            partial(
+                                result,
+                                format!("PID {} VMA {} 路径", prefix[0], hex(node)),
+                                e,
+                            );
+                            "[unresolved]".into()
+                        }
+                    }
+                };
+                Ok([
+                    prefix.clone(),
+                    vec![
+                        hex(start),
+                        hex(end),
+                        permissions(flags),
+                        offset.to_string(),
+                        path,
+                    ],
+                ]
+                .concat())
+            })();
+            match row {
+                Ok(row) => result.rows.push(row),
+                Err(e) => partial(result, format!("PID {} VMA {}", prefix[0], hex(node)), e),
             }
-            return Ok(r);
+            node = next;
         }
-        if plugin == Plugin::CheckModules {
-            self.check_modules(&mut r, job)?;
-            return Ok(r);
-        }
-        if plugin == Plugin::CheckSyscall {
-            self.check_syscall(&mut r, job)?;
-            return Ok(r);
-        }
-        let tasks = self.run(Plugin::Pslist, job)?;
-        r.complete = tasks.complete;
-        r.diagnostics = tasks.diagnostics.clone();
-        if plugin == Plugin::Psxview {
-            self.psxview(&tasks.rows, &mut r, job)?;
-            return Ok(r);
-        }
-        for row in tasks.rows {
+        Ok(())
+    }
+    /// elfs / malfind / bash / history: bounded reads of each task's mapped regions.
+    pub(super) fn vma_scan(&self, plugin: Plugin, job: &Job) -> Result<Results> {
+        let mut r = self.result(plugin);
+        let (listed, tasks) = self.tasks(plugin, job)?;
+        r.complete = listed.complete;
+        r.diagnostics = listed.diagnostics;
+        for row in tasks {
             job.check()?;
-            let task = u64::from_str_radix(&row[4][2..], 16)?;
-            if matches!(plugin, Plugin::Bash | Plugin::History) && row[3] != "bash" {
+            let task = row.address;
+            if matches!(plugin, Plugin::Bash | Plugin::History) && row.name != "bash" {
                 continue;
             }
             let read = (|| -> Result<()> {
@@ -136,11 +131,7 @@ impl Linux<'_> {
                     return self.bash_history(
                         &vm,
                         &nodes,
-                        &row[..1]
-                            .iter()
-                            .cloned()
-                            .chain(std::iter::once(row[3].clone()))
-                            .collect::<Vec<_>>(),
+                        &[row.pid.clone(), row.name.clone()],
                         &mut r,
                         job,
                     );
@@ -178,14 +169,15 @@ impl Linux<'_> {
                                 Err(e) => {
                                     partial(
                                         &mut r,
-                                        format!("PID {} VMA {node:#x} 路径", row[0]),
+                                        format!("PID {} VMA {node:#x} 路径", row.pid),
                                         e,
                                     );
                                     "[unresolved]".into()
                                 }
                             }
                         };
-                        let mut values = vec![row[0].clone(), row[3].clone(), hex(start), hex(end)];
+                        let mut values =
+                            vec![row.pid.clone(), row.name.clone(), hex(start), hex(end)];
                         if plugin == Plugin::Elfs {
                             let (kind, entry) = header(
                                 &bytes,
@@ -225,21 +217,21 @@ impl Linux<'_> {
                     })();
                     if let Err(e) = read {
                         job.check()?;
-                        partial(&mut r, format!("PID {} VMA {node:#x}", row[0]), e);
+                        partial(&mut r, format!("PID {} VMA {node:#x}", row.pid), e);
                     }
                 }
                 Ok(())
             })();
             if let Err(e) = read {
                 job.check()?;
-                partial(&mut r, format!("PID {} {task:#x}", row[0]), e);
+                partial(&mut r, format!("PID {} {task:#x}", row.pid), e);
             }
             job.report(format!("{}: {} 条", plugin.name(), r.rows.len()));
         }
         job.check()?;
         Ok(r)
     }
-    fn bash_history(
+    pub(super) fn bash_history(
         &self,
         vm: &VirtualMemory<'_>,
         nodes: &[u64],
@@ -409,377 +401,6 @@ impl Linux<'_> {
         }
         Ok(())
     }
-    pub(crate) fn module_range(&self, module: u64) -> Result<(u64, u64)> {
-        if self.isf.field("module", "module_core").is_ok() {
-            let start = self.number(module, "module", "module_core")?;
-            return Ok((
-                start,
-                start
-                    .checked_add(self.number(module, "module", "core_size")?)
-                    .context("module range 溢出")?,
-            ));
-        }
-        if self.isf.field("module", "core_layout").is_ok() {
-            let layout = self.field_address(module, "module", "core_layout")?;
-            let start = self.number(layout, "module_layout", "base")?;
-            return Ok((
-                start,
-                start
-                    .checked_add(self.number(layout, "module_layout", "size")?)
-                    .context("module range 溢出")?,
-            ));
-        }
-        let count = self.isf.field("module", "mem")?["type"]["count"]
-            .as_u64()
-            .context("module.mem count 缺失")?;
-        let text = self.isf.data["enums"]["mod_mem_type"]["constants"]["MOD_TEXT"]
-            .as_u64()
-            .context("MOD_TEXT enum 缺失")?;
-        let size = self.isf.data["user_types"]["module_memory"]["size"]
-            .as_u64()
-            .context("module_memory size 缺失")?;
-        ensure!(text < count && count <= 32, "module mem enum 越界");
-        let mem = self
-            .field_address(module, "module", "mem")?
-            .checked_add(text.checked_mul(size).context("module mem 溢出")?)
-            .context("module mem 溢出")?;
-        let start = self.number(mem, "module_memory", "base")?;
-        Ok((
-            start,
-            start
-                .checked_add(self.number(mem, "module_memory", "size")?)
-                .context("module range 溢出")?,
-        ))
-    }
-    fn check_modules(&self, r: &mut Results, job: &Job) -> Result<()> {
-        let listed = self.list_objects(
-            self.isf
-                .address("modules")
-                .context("不支持: 缺少 modules")?,
-            self.isf.offset("module", "list")?,
-            job,
-        )?;
-        let kset = self.vm.uint(
-            self.isf
-                .address("module_kset")
-                .context("不支持: 缺少 module_kset")?,
-            8,
-        )?;
-        let objects = self.list_objects(
-            self.field_address(kset, "kset", "list")?,
-            self.isf.offset("kobject", "entry")?,
-            job,
-        )?;
-        let mut views: BTreeMap<u64, (bool, bool)> =
-            listed.into_iter().map(|p| (p, (true, false))).collect();
-        for kobj in objects {
-            let read = (|| -> Result<()> {
-                let name = self.kernel_text(self.number(kobj, "kobject", "name")?, 128)?;
-                let holder = kobj
-                    .checked_sub(self.isf.offset("module_kobject", "kobj")?)
-                    .context("module kobject 下溢")?;
-                let module = self.number(holder, "module_kobject", "mod")?;
-                if module == 0 {
-                    return Ok(());
-                }
-                ensure!(
-                    self.field_address(module, "module", "mkobj")? == holder,
-                    "模块 kobject 反向引用不一致"
-                );
-                ensure!(
-                    self.kernel_text(self.field_address(module, "module", "name")?, 128)? == name,
-                    "模块名称不一致"
-                );
-                views.entry(module).or_default().1 = true;
-                Ok(())
-            })();
-            if let Err(e) = read {
-                partial(r, format!("module kobject {kobj:#x}"), e);
-            }
-        }
-        for (module, (list, sysfs)) in views {
-            let read = (|| -> Result<Vec<String>> {
-                let (start, end) = self.module_range(module)?;
-                Ok(vec![
-                    self.kernel_text(self.field_address(module, "module", "name")?, 128)?,
-                    hex(module),
-                    hex(start),
-                    hex(end),
-                    list.to_string(),
-                    sysfs.to_string(),
-                    if list && sysfs {
-                        "Consistent"
-                    } else {
-                        "ViewMismatch; inspect lifecycle/unloading"
-                    }
-                    .into(),
-                ])
-            })();
-            match read {
-                Ok(row) => r.rows.push(row),
-                Err(e) => partial(r, format!("module {module:#x}"), e),
-            }
-        }
-        Ok(())
-    }
-    fn check_syscall(&self, r: &mut Results, job: &Job) -> Result<()> {
-        let table = self
-            .isf
-            .address("sys_call_table")
-            .context("不支持: 缺少 sys_call_table")?;
-        let size = self.isf.data["metadata"]["zero"]["symbol_sizes"]["sys_call_table"]
-            .as_u64()
-            .or_else(|| {
-                self.isf.data["symbols"]["sys_call_table"]["type"]["count"]
-                    .as_u64()
-                    .filter(|n| *n > 0)
-                    .and_then(|n| n.checked_mul(8))
-            })
-            .context("不支持: ISF 缺少准确的 sys_call_table 长度；请从调试 ELF 生成符号")?;
-        ensure!(
-            size > 0 && size % 8 == 0 && size / 8 <= 4096,
-            "sys_call_table 长度无效"
-        );
-        let start = self
-            .isf
-            .address("_stext")
-            .or_else(|_| self.isf.address("_text"))?;
-        let end = self.isf.address("_etext")?;
-        let modules = self.list_objects(
-            self.isf.address("modules")?,
-            self.isf.offset("module", "list")?,
-            job,
-        )?;
-        let mut ranges = vec![(start, end, "kernel".to_string())];
-        for module in modules {
-            let (start, end) = self.module_range(module)?;
-            ranges.push((
-                start,
-                end,
-                self.kernel_text(self.field_address(module, "module", "name")?, 128)?,
-            ));
-        }
-        let mut symbols = Vec::new();
-        for (name, value) in self.isf.data["symbols"]
-            .as_object()
-            .context("ISF symbols 缺失")?
-        {
-            if value["address"].as_u64().is_some() {
-                symbols.push((self.isf.address(name)?, name.as_str()));
-            }
-        }
-        symbols.sort_unstable();
-        for i in 0..size / 8 {
-            job.check()?;
-            let read = (|| -> Result<Vec<String>> {
-                let target = self.vm.uint(table + i * 8, 8)?;
-                let index = symbols.partition_point(|(a, _)| *a <= target);
-                let symbol = if index == 0 {
-                    "[unknown]".into()
-                } else {
-                    let (address, name) = symbols[index - 1];
-                    if address == target {
-                        name.into()
-                    } else {
-                        format!("{name}+{:#x}", target - address)
-                    }
-                };
-                let owner = ranges
-                    .iter()
-                    .find(|(a, b, _)| target >= *a && target < *b)
-                    .map(|(_, _, name)| name.clone())
-                    .unwrap_or_else(|| "[unknown]".into());
-                let reason = if owner == "kernel" {
-                    "KernelText"
-                } else if owner == "[unknown]" {
-                    "OutsideKnownExecutableRanges"
-                } else {
-                    "ModuleTarget; inspect hook"
-                };
-                let mut byte = [0];
-                self.vm.read(target, &mut byte)?;
-                Ok(vec![
-                    "sys_call_table".into(),
-                    i.to_string(),
-                    hex(target),
-                    symbol,
-                    owner,
-                    reason.into(),
-                ])
-            })();
-            match read {
-                Ok(row) => r.rows.push(row),
-                Err(e) => partial(r, format!("sys_call_table[{i}]"), e),
-            }
-        }
-        Ok(())
-    }
-    fn psxview(&self, tasks: &[Vec<String>], r: &mut Results, job: &Job) -> Result<()> {
-        let mut views: BTreeMap<u64, (bool, bool, bool)> = BTreeMap::new();
-        for row in tasks {
-            let task = u64::from_str_radix(&row[4][2..], 16)?;
-            views.entry(task).or_default().0 = true;
-            let leader = self.number(task, "task_struct", "group_leader")?;
-            match self.thread_nodes(leader, job) {
-                Ok(nodes) => {
-                    for n in nodes {
-                        views.entry(n).or_default().2 = true;
-                    }
-                }
-                Err(e) => partial(r, format!("thread group {leader:#x}"), e),
-            }
-        }
-        let pids = self.pid_objects(job).context("不支持或 PID 索引损坏")?;
-        let modern = self.isf.field("task_struct", "pid_links").is_ok();
-        let task_offset = if modern {
-            self.isf.offset("task_struct", "pid_links")?
-        } else {
-            self.isf.offset("task_struct", "pids")? + self.isf.offset("pid_link", "node")?
-        };
-        for pid in pids {
-            let read = (|| -> Result<()> {
-                let head = self.field_address(pid, "pid", "tasks")?;
-                let mut node = self.number(head, "hlist_head", "first")?;
-                let mut seen = HashSet::new();
-                let mut expected = head;
-                while node != 0 {
-                    job.check()?;
-                    ensure!(
-                        seen.insert(node) && seen.len() <= 1_000_000,
-                        "PID task hlist 循环或上限"
-                    );
-                    ensure!(
-                        self.number(node, "hlist_node", "pprev")? == expected,
-                        "PID task hlist pprev 不一致"
-                    );
-                    let task = node.checked_sub(task_offset).context("PID task 地址下溢")?;
-                    let nr = self.number(task, "task_struct", "pid")?;
-                    if nr != 0 {
-                        views.entry(task).or_default().1 = true;
-                    }
-                    expected = self.field_address(node, "hlist_node", "next")?;
-                    node = self.number(node, "hlist_node", "next")?;
-                }
-                Ok(())
-            })();
-            if let Err(e) = read {
-                partial(r, format!("PID object {pid:#x}"), e);
-            }
-        }
-        for (task, (tasks, pid, threads)) in views {
-            let read = (|| -> Result<Vec<String>> {
-                let nr = self.number(task, "task_struct", "pid")?;
-                let tgid = self.number(task, "task_struct", "tgid")?;
-                ensure!(nr > 0 && nr <= i32::MAX as u64, "PID 数值异常");
-                let reason = if tasks && pid && threads {
-                    "Consistent"
-                } else if nr != tgid && !tasks && pid && threads {
-                    "ThreadOnly"
-                } else {
-                    "ViewMismatch; inspect exit/lifecycle"
-                };
-                Ok(vec![
-                    nr.to_string(),
-                    self.kernel_text(self.field_address(task, "task_struct", "comm")?, 16)?,
-                    hex(task),
-                    tasks.to_string(),
-                    pid.to_string(),
-                    threads.to_string(),
-                    reason.into(),
-                ])
-            })();
-            match read {
-                Ok(row) => r.rows.push(row),
-                Err(e) => partial(r, format!("task {task:#x}"), e),
-            }
-        }
-        Ok(())
-    }
-    fn pid_objects(&self, job: &Job) -> Result<Vec<u64>> {
-        if self.isf.field("pid_namespace", "idr").is_ok() {
-            let ns = self.isf.address("init_pid_ns")?;
-            let idr = self.field_address(ns, "pid_namespace", "idr")?;
-            let xa = self.field_address(idr, "idr", "idr_rt")?;
-            let mut stack = vec![self.number(xa, "xarray", "xa_head")?];
-            let mut seen = HashSet::new();
-            let mut pids = Vec::new();
-            while let Some(entry) = stack.pop() {
-                job.check()?;
-                if entry == 0 {
-                    continue;
-                }
-                ensure!(
-                    seen.insert(entry) && seen.len() <= 1_000_000,
-                    "PID xarray 循环或上限"
-                );
-                if entry & 3 == 2 {
-                    ensure!(entry > 4096, "PID xarray 保留节点／sibling 不支持");
-                    let node = entry - 2;
-                    let slots = self.field_address(node, "xa_node", "slots")?;
-                    let count = self.isf.field("xa_node", "slots")?["type"]["count"]
-                        .as_u64()
-                        .context("xa slots count")?;
-                    ensure!(count <= 256, "PID xarray slot count 越界");
-                    for i in 0..count {
-                        stack.push(self.vm.uint(slots + i * 8, 8)?);
-                    }
-                } else {
-                    ensure!(entry & 3 == 0, "PID xarray 值节点不支持");
-                    pids.push(entry);
-                }
-            }
-            return Ok(pids);
-        }
-        let hash = self.vm.uint(self.isf.address("pid_hash")?, 8)?;
-        let shift = self.vm.uint(self.isf.address("pidhash_shift")?, 4)?;
-        ensure!(shift <= 20, "PID hash 达到上限");
-        let ns = self.isf.address("init_pid_ns")?;
-        let mut pids = Vec::new();
-        let mut seen = HashSet::new();
-        for i in 0..(1u64 << shift) {
-            job.check()?;
-            let head = hash
-                + i * self.isf.data["user_types"]["hlist_head"]["size"]
-                    .as_u64()
-                    .context("hlist size")?;
-            let mut n = self.number(head, "hlist_head", "first")?;
-            while n != 0 {
-                ensure!(
-                    seen.insert(n) && seen.len() <= 1_000_000,
-                    "PID hash 循环或上限"
-                );
-                let upid = n
-                    .checked_sub(self.isf.offset("upid", "pid_chain")?)
-                    .context("upid 地址下溢")?;
-                if self.number(upid, "upid", "ns")? == ns {
-                    pids.push(
-                        upid.checked_sub(self.isf.offset("pid", "numbers")?)
-                            .context("pid 地址下溢")?,
-                    );
-                }
-                n = self.number(n, "hlist_node", "next")?;
-            }
-        }
-        Ok(pids)
-    }
-}
-fn user_string(vm: &VirtualMemory<'_>, start: u64, limit: usize, job: &Job) -> Result<String> {
-    let mut bytes = Vec::new();
-    while bytes.len() < limit {
-        job.check()?;
-        let addr = start
-            .checked_add(bytes.len() as u64)
-            .context("用户字符串地址溢出")?;
-        let n = (4096 - (addr & 4095) as usize).min(limit - bytes.len());
-        let mut chunk = vec![0; n];
-        vm.read(addr, &mut chunk)?;
-        if let Some(end) = chunk.iter().position(|b| *b == 0) {
-            bytes.extend_from_slice(&chunk[..end]);
-            return Ok(String::from_utf8_lossy(&bytes).into_owned());
-        }
-        bytes.extend(chunk);
-    }
-    anyhow::bail!("用户字符串超过 {limit} 字节")
 }
 #[cfg(test)]
 mod tests {
@@ -804,7 +425,7 @@ mod tests {
     }
     #[test]
     fn elf_malfind_bash_empty_missing_timestamp_and_missing_pages() {
-        use crate::extended::tests::{engine, fixture, image};
+        use crate::linux::tests::{engine, fixture, image};
         let (mut b, isf) = fixture();
         put(&mut b, 0xb028, 0xc800);
         put(&mut b, 0xc808, 0x200000);
@@ -866,7 +487,7 @@ mod tests {
     }
     #[test]
     fn pid_cross_view_detects_unlinked_task_and_rejects_cycles() {
-        use crate::extended::tests::{engine, fixture, image};
+        use crate::linux::tests::{engine, fixture, image};
         use serde_json::json;
         let (mut b, mut isf) = fixture();
         for (name, offset) in [
@@ -921,7 +542,7 @@ mod tests {
     }
     #[test]
     fn syscall_and_module_views_detect_hooks_and_unlinked_modules() {
-        use crate::extended::tests::{engine, fixture, image};
+        use crate::linux::tests::{engine, fixture, image};
         use serde_json::json;
         let (mut b, mut isf) = fixture();
         isf.data["symbols"]["modules"] = json!({"address":0x15000});

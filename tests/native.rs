@@ -73,10 +73,7 @@ fn normal_pages_cross_page_and_missing() {
     b[0x8ffe..0x9000].copy_from_slice(&[1, 2]);
     b[0xa000..0xa002].copy_from_slice(&[3, 4]);
     let image = image(&b);
-    let vm = VirtualMemory {
-        image: &image,
-        root: 0x1000,
-    };
+    let vm = VirtualMemory::new(&image, 0x1000);
     assert_eq!(vm.translate(0x1234).unwrap(), 0x8234);
     let mut out = [0; 4];
     vm.read(0x1ffe, &mut out).unwrap();
@@ -96,10 +93,7 @@ fn large_pages() {
     put(&mut b, 0x2000 + 8, 0x4000_0083);
     put(&mut b, 0x3000 + 8, 0x20_0083);
     let image = image(&b);
-    let vm = VirtualMemory {
-        image: &image,
-        root: 0x1000,
-    };
+    let vm = VirtualMemory::new(&image, 0x1000);
     assert_eq!(vm.translate(0x4000_1234).unwrap(), 0x4000_1234);
     assert_eq!(vm.translate(0x20_1234).unwrap(), 0x20_1234);
 }
@@ -133,10 +127,7 @@ fn closed_lists_and_parent_fields() {
     let image = image(&linked());
     let isf = symbols();
     let linux = Linux {
-        vm: VirtualMemory {
-            image: &image,
-            root: 0x1000,
-        },
+        vm: VirtualMemory::new(&image, 0x1000),
         isf: &isf,
     };
     let r = linux.run(Plugin::Pslist, &Job::default()).unwrap();
@@ -157,10 +148,7 @@ fn corrupt_and_cyclic_lists_are_partial_uncached() {
     let image = image(&b);
     let isf = symbols();
     let r = Linux {
-        vm: VirtualMemory {
-            image: &image,
-            root: 0x1000,
-        },
+        vm: VirtualMemory::new(&image, 0x1000),
         isf: &isf,
     }
     .run(Plugin::Pslist, &Job::default())
@@ -235,10 +223,7 @@ fn cache_key_invalidation_and_filtered_export() -> Result<()> {
     let img = image(&linked());
     let isf = symbols();
     let r = Linux {
-        vm: VirtualMemory {
-            image: &img,
-            root: 0x1000,
-        },
+        vm: VirtualMemory::new(&img, 0x1000),
         isf: &isf,
     }
     .run(Plugin::Pslist, &Job::default())?;
@@ -430,10 +415,7 @@ fn malformed_addresses_return_diagnostics() -> Result<()> {
     let isf = symbols();
     let img = image(&b);
     let result = Linux {
-        vm: VirtualMemory {
-            image: &img,
-            root: 0x1000,
-        },
+        vm: VirtualMemory::new(&img, 0x1000),
         isf: &isf,
     }
     .run(Plugin::Pslist, &Job::default())?;
@@ -718,7 +700,7 @@ fn arm64_discovery_validates_nonzero_slide_and_configuration() -> Result<()> {
     assert_eq!(root, 0x1000);
     assert_eq!(isf.address("init_task")?, 0x9200 + slide);
     let results = Linux {
-        vm: VirtualMemory { image: &img, root },
+        vm: VirtualMemory::new(&img, root),
         isf: &isf,
     }
     .run(Plugin::Pslist, &Job::default())?;
@@ -767,10 +749,7 @@ fn new_state_and_capability_plugins_use_isf_and_preserve_partial_results() -> Re
     }
     let memory = image(&bytes);
     let linux = Linux {
-        vm: VirtualMemory {
-            image: &memory,
-            root: 0x1000,
-        },
+        vm: VirtualMemory::new(&memory, 0x1000),
         isf: &isf,
     };
     let states = linux.run(Plugin::Psstate, &Job::default())?;
@@ -784,10 +763,7 @@ fn new_state_and_capability_plugins_use_isf_and_preserve_partial_results() -> Re
     put(&mut bytes, 0x8400 + 64, 0);
     let memory = image(&bytes);
     let linux = Linux {
-        vm: VirtualMemory {
-            image: &memory,
-            root: 0x1000,
-        },
+        vm: VirtualMemory::new(&memory, 0x1000),
         isf: &isf,
     };
     let caps = linux.run(Plugin::Capabilities, &Job::default())?;
@@ -796,10 +772,7 @@ fn new_state_and_capability_plugins_use_isf_and_preserve_partial_results() -> Re
     assert!(caps.diagnostics.iter().any(|s| s.contains("PID 2")));
     assert!(
         Linux {
-            vm: VirtualMemory {
-                image: &memory,
-                root: 0x1000
-            },
+            vm: VirtualMemory::new(&memory, 0x1000),
             isf: &symbols()
         }
         .run(Plugin::Psstate, &Job::default())
@@ -882,10 +855,7 @@ fn targeted_dump_matches_process_bytes_hash_and_manifest() -> Result<()> {
     use zero_tui::dump::DumpOptions;
     let (image, isf) = dump_fixture();
     let engine = Linux {
-        vm: VirtualMemory {
-            image: &image,
-            root: 0x1000,
-        },
+        vm: VirtualMemory::new(&image, 0x1000),
         isf: &isf,
     };
     let dir = tempfile::tempdir()?;
@@ -945,10 +915,7 @@ fn failed_dump_keeps_no_partial_binary_and_cancel_stops_writes() -> Result<()> {
     use zero_tui::dump::DumpOptions;
     let (image, isf) = dump_fixture();
     let engine = Linux {
-        vm: VirtualMemory {
-            image: &image,
-            root: 0x1000,
-        },
+        vm: VirtualMemory::new(&image, 0x1000),
         isf: &isf,
     };
     let dir = tempfile::tempdir()?;
@@ -980,10 +947,7 @@ fn cancellation_during_dump_does_not_commit_evidence() -> Result<()> {
     use zero_tui::dump::DumpOptions;
     let (image, isf) = dump_fixture();
     let engine = Linux {
-        vm: VirtualMemory {
-            image: &image,
-            root: 0x1000,
-        },
+        vm: VirtualMemory::new(&image, 0x1000),
         isf: &isf,
     };
     let dir = tempfile::tempdir()?;

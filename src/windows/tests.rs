@@ -90,12 +90,7 @@ fn process_fields_filter_and_damaged_list() {
     let (mut b, isf) = fixture();
     let image_good = image(&b);
     let engine = Windows {
-        vm: Memory {
-            image: &image_good,
-            root: 0x1000,
-            isf: &isf,
-            sources: None,
-        },
+        vm: Memory::new(&image_good, 0x1000, &isf, None),
         base: K,
         pdb: PdbIdentity::from_isf(&isf).unwrap(),
     };
@@ -119,12 +114,7 @@ fn process_fields_filter_and_damaged_list() {
     put(&mut b, 0xa018, K + 0x400);
     let damaged = image(&b);
     let engine = Windows {
-        vm: Memory {
-            image: &damaged,
-            root: 0x1000,
-            isf: &isf,
-            sources: None,
-        },
+        vm: Memory::new(&damaged, 0x1000, &isf, None),
         base: K,
         pdb: PdbIdentity::from_isf(&isf).unwrap(),
     };
@@ -152,21 +142,13 @@ fn transition_prototype_missing_and_linux_isolation() {
     put(&mut b, 0xd000, 0xe800);
     b[0xe000] = 19;
     let image = image(&b);
-    let vm = Memory {
-        image: &image,
-        root: 0x1000,
-        isf: &isf,
-        sources: None,
-    };
+    let vm = Memory::new(&image, 0x1000, &isf, None);
     assert_eq!(vm.uint(K + 0x1000, 1).unwrap(), 42);
     assert_eq!(vm.uint(K + 0x2000, 1).unwrap(), 19);
     assert!(
-        VirtualMemory {
-            image: &image,
-            root: 0x1000
-        }
-        .translate(K + 0x1000)
-        .is_err()
+        VirtualMemory::new(&image, 0x1000)
+            .translate(K + 0x1000)
+            .is_err()
     );
     assert!(vm.uint(K + 0x30000, 1).is_err());
     assert!(vm.uint(0x800000000000, 1).is_err());
@@ -183,24 +165,14 @@ fn arm64_transition_prototype_and_recursive_page_rejection() {
     b[0x9000] = 42;
     b[0xe000] = 19;
     let img = image(&b);
-    let vm = Memory {
-        image: &img,
-        root: 0x1000,
-        isf: &isf,
-        sources: None,
-    };
+    let vm = Memory::new(&img, 0x1000, &isf, None);
     assert_eq!(vm.uint(K + 0x1000, 1).unwrap(), 42);
     assert_eq!(vm.uint(K + 0x2000, 1).unwrap(), 19);
     // A prototype pointer into its own unresolved virtual page must terminate.
     put(&mut b, 0x4010, ((K + 0x2000) & 0xffffffffffff) << 16 | 1024);
     let img = image(&b);
     let sources = paging::Sources::open(&Options::default(), &Job::default()).unwrap();
-    let vm = Memory {
-        image: &img,
-        root: 0x1000,
-        isf: &isf,
-        sources: Some(&sources),
-    };
+    let vm = Memory::new(&img, 0x1000, &isf, Some(&sources));
     assert!(vm.uint(K + 0x2000, 1).is_err());
     assert_eq!(vm.uint(K + 0x1000, 1).unwrap(), 42);
 }
@@ -223,12 +195,7 @@ fn x86_prototype_uses_split_address_and_four_byte_target() {
     put32(&mut b, 0xd00c, 0xe883);
     b[0xe000] = 77;
     let img = image(&b);
-    let vm = Memory {
-        image: &img,
-        root: 0x1000,
-        isf: &isf,
-        sources: None,
-    };
+    let vm = Memory::new(&img, 0x1000, &isf, None);
     assert_eq!(vm.uint(0x80002000, 1).unwrap(), 77);
 }
 #[test]
@@ -238,12 +205,7 @@ fn cancellation_and_unicode_bounds() {
     put(&mut b, 0xb008, K + 0x4000);
     b[0xc000..0xc004].copy_from_slice(&[0x2d, 0x4e, 0x87, 0x65]);
     let image = image(&b);
-    let vm = Memory {
-        image: &image,
-        root: 0x1000,
-        isf: &isf,
-        sources: None,
-    };
+    let vm = Memory::new(&image, 0x1000, &isf, None);
     assert_eq!(vm.unicode(K + 0x3000).unwrap(), "中文");
     let job = Job::default();
     job.cancel.store(true, Ordering::Relaxed);
@@ -271,12 +233,7 @@ fn range_dump_matches_source_and_never_commits_missing_pages() {
     let (b, isf) = fixture();
     let image = image(&b);
     let engine = Windows {
-        vm: Memory {
-            image: &image,
-            root: 0x1000,
-            isf: &isf,
-            sources: None,
-        },
+        vm: Memory::new(&image, 0x1000, &isf, None),
         base: K,
         pdb: PdbIdentity::from_isf(&isf).unwrap(),
     };

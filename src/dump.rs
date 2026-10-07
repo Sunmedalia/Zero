@@ -112,21 +112,20 @@ impl Linux<'_> {
     pub fn run_dump(&self, plugin: Plugin, options: &DumpOptions, job: &Job) -> Result<Results> {
         options.validate(plugin)?;
         job.check()?;
-        let tasks = self.run(Plugin::Pslist, job)?;
+        let (listed, tasks) = self.tasks(plugin, job)?;
         let pid = options.pid.to_string();
         let task = tasks
-            .rows
             .iter()
-            .find(|row| row[0] == pid)
+            .find(|task| task.pid == pid)
             .with_context(|| format!("未找到 PID {pid}；请使用 pslist 确认"))?;
-        let address = parse_address(&task[4]).map_err(anyhow::Error::msg)?;
+        let address = task.address;
         let vm = self
             .process_vm(address)?
             .context("目标为内核线程，没有用户地址空间")?;
         let mut result = self.result(plugin);
         // A damaged process list does not disappear merely because the target was found.
-        result.complete = tasks.complete;
-        result.diagnostics = tasks.diagnostics;
+        result.complete = listed.complete;
+        result.diagnostics = listed.diagnostics;
         let mut regions = Vec::new();
         if plugin == Plugin::Memdump {
             regions.push((options.start.unwrap(), options.end.unwrap()));
@@ -207,7 +206,7 @@ impl Linux<'_> {
                     total += size;
                     result.rows.push(vec![
                         pid.clone(),
-                        task[3].clone(),
+                        task.name.clone(),
                         format!("{start:#018x}"),
                         format!("{end:#018x}"),
                         size.to_string(),

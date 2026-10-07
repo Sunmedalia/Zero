@@ -225,12 +225,7 @@ mod artifact_tests {
         b[0xdffc..0xdffc + bytes.len()].copy_from_slice(&bytes);
         let img = image(&b);
         let engine = Windows {
-            vm: Memory {
-                image: &img,
-                root: 0x1000,
-                isf: &isf,
-                sources: None,
-            },
+            vm: Memory::new(&img, 0x1000, &isf, None),
             base: K,
             pdb: PdbIdentity::from_isf(&isf).unwrap(),
         };
@@ -258,12 +253,7 @@ mod artifact_tests {
         put(&mut b, 0x4030, 0);
         let img = image(&b);
         let engine = Windows {
-            vm: Memory {
-                image: &img,
-                root: 0x1000,
-                isf: &isf,
-                sources: None,
-            },
+            vm: Memory::new(&img, 0x1000, &isf, None),
             base: K,
             pdb: PdbIdentity::from_isf(&isf).unwrap(),
         };
@@ -302,12 +292,7 @@ mod artifact_tests {
         put(&mut b, 0xb028, K + 0x6000);
         let img = image(&b);
         let engine = Windows {
-            vm: Memory {
-                image: &img,
-                root: 0x1000,
-                isf: &isf,
-                sources: None,
-            },
+            vm: Memory::new(&img, 0x1000, &isf, None),
             base: K,
             pdb: PdbIdentity::from_isf(&isf).unwrap(),
         };
@@ -332,12 +317,7 @@ mod artifact_tests {
         put(&mut b, 0xb000 + offset, (130000000000000000 << 3) | 3);
         let img = image(&b);
         let engine = Windows {
-            vm: Memory {
-                image: &img,
-                root: 0x1000,
-                isf: &isf,
-                sources: None,
-            },
+            vm: Memory::new(&img, 0x1000, &isf, None),
             base: K,
             pdb: PdbIdentity::from_isf(&isf).unwrap(),
         };
@@ -355,12 +335,7 @@ mod artifact_tests {
         put(&mut b, 0xb010, 4);
         let img = image(&b);
         let engine = Windows {
-            vm: Memory {
-                image: &img,
-                root: 0x1000,
-                isf: &isf,
-                sources: None,
-            },
+            vm: Memory::new(&img, 0x1000, &isf, None),
             base: K,
             pdb: PdbIdentity::from_isf(&isf).unwrap(),
         };

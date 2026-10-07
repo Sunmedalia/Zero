@@ -257,12 +257,7 @@ mod tests {
         b[0xb000..0xb200].fill(0x5a);
         let image = image(&b);
         let engine = Windows {
-            vm: Memory {
-                image: &image,
-                isf: &isf,
-                root: 0x1000,
-                sources: None,
-            },
+            vm: Memory::new(&image, 0x1000, &isf, None),
             base: K,
             pdb: PdbIdentity::from_isf(&isf).unwrap(),
         };

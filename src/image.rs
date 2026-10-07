@@ -493,16 +493,56 @@ impl Image {
 fn self_overlapping(needle: &[u8]) -> bool {
     (1..needle.len()).any(|k| needle[..k] == needle[needle.len() - k..])
 }
+struct PageCache {
+    /// `arm64_va_bits` this map was filled for. `u8::MAX` means empty.
+    bits: u8,
+    /// Virtual 4 KiB page → physical 4 KiB page. The image is read-only.
+    pages: std::collections::HashMap<u64, u64>,
+}
 pub struct VirtualMemory<'a> {
     pub image: &'a Image,
     pub root: u64,
+    pages: std::sync::Mutex<PageCache>,
 }
-impl VirtualMemory<'_> {
+impl<'a> VirtualMemory<'a> {
+    pub fn new(image: &'a Image, root: u64) -> Self {
+        Self {
+            image,
+            root,
+            pages: std::sync::Mutex::new(PageCache {
+                bits: u8::MAX,
+                pages: std::collections::HashMap::new(),
+            }),
+        }
+    }
+    fn cached_page(&self, va: u64, bits: u8) -> Option<u64> {
+        let cache = self.pages.lock().unwrap_or_else(|e| e.into_inner());
+        if cache.bits != bits {
+            return None;
+        }
+        cache.pages.get(&(va & !4095)).copied()
+    }
+    fn store_page(&self, va: u64, pa: u64, bits: u8) {
+        let mut cache = self.pages.lock().unwrap_or_else(|e| e.into_inner());
+        if cache.bits != bits {
+            cache.pages.clear();
+            cache.bits = bits;
+        }
+        cache.pages.insert(va & !4095, pa & !4095);
+    }
     pub fn translate(&self, va: u64) -> Result<u64> {
         let bits = self
             .image
             .arm64_va_bits
             .load(std::sync::atomic::Ordering::Relaxed);
+        if let Some(base) = self.cached_page(va, bits) {
+            return Ok(base | (va & 4095));
+        }
+        let pa = self.translate_walk(va, bits)?;
+        self.store_page(va, pa, bits);
+        Ok(pa)
+    }
+    fn translate_walk(&self, va: u64, bits: u8) -> Result<u64> {
         if bits != 0 {
             ensure!(matches!(bits, 39 | 48), "不支持的 ARM64 VA_BITS {bits}");
             let mask = (1u64 << bits) - 1;
@@ -595,7 +635,7 @@ pub fn metadata_stamp(metadata: &std::fs::Metadata) -> Result<String> {
 #[cfg(test)]
 mod arm_tests {
     use super::*;
-    use crate::extended::tests::{fixture, image};
+    use crate::linux::tests::{fixture, image};
     fn put(b: &mut [u8], p: usize, v: u64) {
         b[p..p + 8].copy_from_slice(&v.to_le_bytes());
     }
@@ -636,16 +676,12 @@ mod arm_tests {
         let img = image(&b);
         img.arm64_va_bits
             .store(48, std::sync::atomic::Ordering::Relaxed);
-        let vm = VirtualMemory {
-            image: &img,
-            root: 0x1000,
-        };
+        let vm = VirtualMemory::new(&img, 0x1000);
         assert_eq!(vm.translate(0x12345).unwrap(), 0x12345);
-        let user = VirtualMemory {
-            image: &img,
-            root: 0x4000,
-        };
+        let user = VirtualMemory::new(&img, 0x4000);
         assert_eq!(user.translate(0x200ffe).unwrap(), 0x20ffe);
+        // Same 4 KiB page must come back from the translation cache.
+        assert_eq!(user.translate(0x200fff).unwrap(), 0x20fff);
         let mut bytes = [0; 4];
         user.read(0x200ffe, &mut bytes).unwrap();
         assert_eq!(bytes, [b'a', 0, b'b', b'=']);
@@ -653,30 +689,20 @@ mod arm_tests {
         assert!(user.translate(0xab00000000200000).is_err());
         img.arm64_va_bits
             .store(39, std::sync::atomic::Ordering::Relaxed);
-        let vm = VirtualMemory {
-            image: &img,
-            root: 0x2000,
-        };
+        let vm = VirtualMemory::new(&img, 0x2000);
         assert_eq!(vm.translate(0x12345).unwrap(), 0x12345);
         assert!(vm.translate(1 << 39).is_err());
         put(&mut b, 0x3000, 0x1001);
         let img = image(&b);
         img.arm64_va_bits
             .store(48, std::sync::atomic::Ordering::Relaxed);
-        assert!(
-            VirtualMemory {
-                image: &img,
-                root: 0x1000
-            }
-            .translate(0)
-            .is_err()
-        );
+        assert!(VirtualMemory::new(&img, 0x1000).translate(0).is_err());
     }
 }
 #[cfg(test)]
 mod scan_tests {
     use super::*;
-    use crate::extended::tests::image;
+    use crate::linux::tests::image;
 
     #[test]
     fn batched_prefetch_matches_independent_scans_across_chunks() {

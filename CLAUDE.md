@@ -8,13 +8,9 @@ This repository is a native Rust 2024 local Linux and Windows memory forensics T
 - `src/windows.rs` / `src/windows/`: native Windows kernel discovery, processes, VADs, handles, registry, symbol/architecture/driver-version network layouts and atomic process/range/PE dumps.
 - `src/windows/hiber.rs` / `paging.rs` / `compressed.rs`: bounded saved-page containers, explicit paging attachments and symbol-driven SMKM reconstruction; preserve coverage diagnostics.
 - `src/windows_symbols.rs`: exact RSDS identity, Microsoft PDB acquisition and deterministic native conversion.
-- `src/linux.rs`: candidate page table validation, shared tasks traversal, pslist / pstree / lsmod and plugin catalog.
-- `src/extended.rs`: psaux / envars / maps / lsof / sockstat, process address spaces, FD and mount path readers.
-- `src/more.rs`: pwd / pscred / threads / mountinfo / check_creds / dmesg.
-- `src/modern.rs`: maple VMAs, modern mounts/threads and structured printk.
-- `src/volatility_extra.rs`: iomem / ioports resource trees, per-thread ptrace relationships and keyboard notifier callbacks.
-- `src/process_extra.rs`: ISF process state and capability masks, per-process FD summaries.
-- `src/inspect.rs`: systeminfo / elfs / bash / history / malfind / psxview / check_modules / check_syscall.
+- `src/plugin.rs`: plugin identities, descriptors, columns and categories for both platforms.
+- `src/report.rs`: shared address formatting and partial-result diagnostics.
+- `src/linux.rs` / `src/linux/`: Linux analysis. `session.rs` (prepared image, symbols, roots), `discover.rs` (page-table validation), `engine.rs` (ISF field readers, typed tasks and the exhaustive plugin router), `walk.rs` (lists, maple trees, VMAs, address spaces), `process.rs` (psaux / envars / pwd / creds / threads / state / ptrace), `memory.rs` (maps / elfs / malfind / bash), `fs.rs` (lsof / paths / mounts), `net.rs` (sockstat), `kernel.rs` (dmesg / systeminfo / iomem / notifiers / check_modules / check_syscall / psxview), `tests.rs` (shared fixtures).
 - `src/dump.rs`: unified `dump --mode process|range|elf|pe` command and targeted procdump / memdump / elfdump backends, streamed atomic exports and SHA256 manifests; never dump all processes or use result caches.
 - `src/cache.rs`: allowlisted inventories, categorized clear, shared/exclusive occupancy locks.
 - `src/prepare.rs`: exact debug ELF/config generation and explicit Kali archive preparation.

@@ -904,6 +904,9 @@ impl App {
             }
             x += width;
         }
+        self.draw_dialog(frame, area);
+    }
+    fn draw_dialog(&self, frame: &mut Frame, area: Rect) {
         if matches!(
             self.dialog,
             Some(Dialog::Input {

@@ -1,4 +1,5 @@
 mod application;
+mod dialog_keys;
 mod generation;
 mod interaction;
 mod pages;

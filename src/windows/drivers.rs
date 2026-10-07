@@ -197,12 +197,7 @@ mod tests {
         put(&mut b, 0xb060, K + 0x6010);
         let img = image(&b);
         let engine = Windows {
-            vm: Memory {
-                image: &img,
-                root: 0x1000,
-                isf: &isf,
-                sources: None,
-            },
+            vm: Memory::new(&img, 0x1000, &isf, None),
             base: K,
             pdb: PdbIdentity::from_isf(&isf).unwrap(),
         };
@@ -219,12 +214,7 @@ mod tests {
         put(&mut b, 0xc000, K + 0x3020);
         let img = image(&b);
         let engine = Windows {
-            vm: Memory {
-                image: &img,
-                root: 0x1000,
-                isf: &isf,
-                sources: None,
-            },
+            vm: Memory::new(&img, 0x1000, &isf, None),
             base: K,
             pdb: PdbIdentity::from_isf(&isf).unwrap(),
         };

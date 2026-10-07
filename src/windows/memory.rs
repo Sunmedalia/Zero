@@ -457,12 +457,7 @@ mod tests {
         put(&mut b, 0xb028, 6 | 32);
         let good = image(&b);
         let engine = Windows {
-            vm: Memory {
-                image: &good,
-                root: 0x1000,
-                isf: &isf,
-                sources: None,
-            },
+            vm: Memory::new(&good, 0x1000, &isf, None),
             base: K,
             pdb: PdbIdentity::from_isf(&isf).unwrap(),
         };
@@ -492,12 +487,7 @@ mod tests {
         put(&mut legacy_bytes, 0xa088, K + 0x3000);
         let legacy = image(&legacy_bytes);
         let engine = Windows {
-            vm: Memory {
-                image: &legacy,
-                root: 0x1000,
-                isf: &legacy_isf,
-                sources: None,
-            },
+            vm: Memory::new(&legacy, 0x1000, &legacy_isf, None),
             base: K,
             pdb: PdbIdentity::from_isf(&legacy_isf).unwrap(),
         };
@@ -524,12 +514,7 @@ mod tests {
             put(&mut branch, 0xc010, parent | 3);
             let img = image(&branch);
             let engine = Windows {
-                vm: Memory {
-                    image: &img,
-                    root: 0x1000,
-                    isf: &parent_isf,
-                    sources: None,
-                },
+                vm: Memory::new(&img, 0x1000, &parent_isf, None),
                 base: K,
                 pdb: PdbIdentity::from_isf(&parent_isf).unwrap(),
             };
@@ -543,12 +528,7 @@ mod tests {
         put(&mut b, 0xb000, K + 0x3000);
         let cycle = image(&b);
         let engine = Windows {
-            vm: Memory {
-                image: &cycle,
-                root: 0x1000,
-                isf: &isf,
-                sources: None,
-            },
+            vm: Memory::new(&cycle, 0x1000, &isf, None),
             base: K,
             pdb: PdbIdentity::from_isf(&isf).unwrap(),
         };
@@ -593,12 +573,7 @@ mod control_area_tests {
             b[0xf000..0xf008].copy_from_slice(&[b't', 0, b'e', 0, b's', 0, b't', 0]);
             let img = image(&b);
             let w = Windows {
-                vm: Memory {
-                    image: &img,
-                    root: 0x1000,
-                    isf: &isf,
-                    sources: None,
-                },
+                vm: Memory::new(&img, 0x1000, &isf, None),
                 base: K,
                 pdb: PdbIdentity::from_isf(&isf).unwrap(),
             };

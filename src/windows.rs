@@ -59,26 +59,69 @@ pub struct Memory<'a> {
     pub root: u64,
     pub isf: &'a Isf,
     pub sources: Option<&'a paging::Sources>,
+    /// Paging geometry is fixed for this ISF. Callers mutate ISF layouts only before the first translation.
+    paging: std::sync::OnceLock<Paging>,
+    /// Virtual 4 KiB page → physical 4 KiB page. The image is read-only.
+    pages: std::sync::Mutex<std::collections::HashMap<u64, u64>>,
 }
-impl Memory<'_> {
+impl<'a> Memory<'a> {
+    pub(crate) fn new(
+        image: &'a Image,
+        root: u64,
+        isf: &'a Isf,
+        sources: Option<&'a paging::Sources>,
+    ) -> Self {
+        Self {
+            image,
+            root,
+            isf,
+            sources,
+            paging: std::sync::OnceLock::new(),
+            pages: std::sync::Mutex::new(std::collections::HashMap::new()),
+        }
+    }
     fn paging(&self) -> Result<Paging> {
-        Paging::new(self.isf)
+        if let Some(paging) = self.paging.get() {
+            return Ok(*paging);
+        }
+        let paging = Paging::new(self.isf)?;
+        Ok(*self.paging.get_or_init(|| paging))
     }
     fn pointer_size(&self) -> usize {
-        Architecture::from_isf(self.isf)
+        self.paging()
             .expect("validated Windows ISF")
+            .arch
             .pointer_size()
     }
     fn pointer(&self, address: u64) -> Result<u64> {
         self.uint(address, self.pointer_size())
     }
     fn kernel(&self, address: u64) -> bool {
-        Architecture::from_isf(self.isf).is_ok_and(|a| a.kernel(address))
+        self.paging()
+            .is_ok_and(|paging| paging.arch.kernel(address))
     }
     fn root_mask(&self) -> u64 {
         self.paging().expect("validated Windows ISF").root_mask()
     }
     pub fn translate(&self, va: u64) -> Result<u64> {
+        let page = va & !4095;
+        if let Some(base) = self
+            .pages
+            .lock()
+            .unwrap_or_else(|error| error.into_inner())
+            .get(&page)
+            .copied()
+        {
+            return Ok(base | (va & 4095));
+        }
+        let pa = self.translate_walk(va)?;
+        self.pages
+            .lock()
+            .unwrap_or_else(|error| error.into_inner())
+            .insert(page, pa & !4095);
+        Ok(pa)
+    }
+    fn translate_walk(&self, va: u64) -> Result<u64> {
         let geometry = self.paging()?;
         ensure!(geometry.canonical(va), "Windows 非 canonical 地址");
         let mut table = self.root & geometry.root_mask();
@@ -443,12 +486,12 @@ impl Windows<'_> {
             .unwrap_or(0)
             & self.vm.root_mask();
         ensure!(p.dtb != 0 || user != 0, "进程没有地址空间");
-        Ok(Memory {
-            image: self.vm.image,
-            root: if p.dtb != 0 { p.dtb } else { user },
-            isf: self.vm.isf,
-            sources: self.vm.sources,
-        })
+        Ok(Memory::new(
+            self.vm.image,
+            if p.dtb != 0 { p.dtb } else { user },
+            self.vm.isf,
+            self.vm.sources,
+        ))
     }
     fn issue(r: &mut Results, context: impl std::fmt::Display, error: impl std::fmt::Display) {
         r.complete = false;
@@ -525,12 +568,12 @@ impl Windows<'_> {
                 .map(|process| self.process_memory(process))
                 .transpose()?;
             let registry = Windows {
-                vm: registry_vm.unwrap_or(Memory {
-                    image: self.vm.image,
-                    root: self.vm.root,
-                    isf: self.vm.isf,
-                    sources: self.vm.sources,
-                }),
+                vm: registry_vm.unwrap_or(Memory::new(
+                    self.vm.image,
+                    self.vm.root,
+                    self.vm.isf,
+                    self.vm.sources,
+                )),
                 base: self.base,
                 pdb: self.pdb.clone(),
             };
@@ -711,12 +754,7 @@ pub fn analyze(
     let (root, base) = discover(image, isf, job)?;
     let mut sources = paging::Sources::open(options, job)?;
     let mut engine = Windows {
-        vm: Memory {
-            image,
-            root,
-            isf,
-            sources: None,
-        },
+        vm: Memory::new(image, root, isf, None),
         base,
         pdb: PdbIdentity::from_isf(isf)?,
     };
@@ -897,12 +935,7 @@ pub fn discover(image: &Image, isf: &Isf, job: &Job) -> Result<(u64, u64)> {
             job,
         )?;
         for base in bases {
-            let vm = Memory {
-                image,
-                root,
-                isf,
-                sources: None,
-            };
+            let vm = Memory::new(image, root, isf, None);
             let test = (|| -> Result<()> {
                 let mut header = [0; 4096];
                 vm.read(base, &mut header)?;
@@ -949,23 +982,13 @@ pub fn discover(image: &Image, isf: &Isf, job: &Job) -> Result<(u64, u64)> {
                             == link,
                     "System 相邻链表验证失败"
                 );
-                let system_vm = Memory {
-                    image,
-                    root: process.dtb,
-                    isf,
-                    sources: None,
-                };
+                let system_vm = Memory::new(image, process.dtb, isf, None);
                 ensure!(system_vm.uint(base, 2)? == 0x5a4d, "System DTB 未映射内核");
                 Ok(())
             })();
             if test.is_ok() {
                 job.report(format!("Windows 内核已验证 DTB {root:#x} Base {base:#x}"));
-                let vm = Memory {
-                    image,
-                    root,
-                    isf,
-                    sources: None,
-                };
+                let vm = Memory::new(image, root, isf, None);
                 let system = vm.pointer(add(base, isf.raw_address("PsInitialSystemProcess")?)?)?;
                 let root = vm.number(system, "_EPROCESS", "Pcb.DirectoryTableBase")?
                     & geometry.root_mask();

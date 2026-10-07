@@ -42,24 +42,13 @@ impl Job {
     }
 }
 
-mod extended;
-
-mod modern;
-mod more;
-
-mod inspect;
-
 pub mod prepare;
 
 pub mod workspace;
 
 pub mod browser;
 
-mod process_extra;
-
 pub mod dump;
-
-mod volatility_extra;
 
 pub mod analysis;
 pub mod windows;

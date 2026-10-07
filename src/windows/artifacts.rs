@@ -430,12 +430,7 @@ mod object_tests {
             put(&mut b, 0xf000 + width, k + 0x9000);
             let img = image(&b);
             let w = Windows {
-                vm: Memory {
-                    image: &img,
-                    root: 0x1000,
-                    isf: &isf,
-                    sources: None,
-                },
+                vm: Memory::new(&img, 0x1000, &isf, None),
                 base: k,
                 pdb: PdbIdentity::from_isf(&isf).unwrap(),
             };
@@ -479,12 +474,7 @@ mod object_tests {
         b[0xe000..0xe006].copy_from_slice(&[b'a', 0, b'.', 0, b's', 0]);
         let img = image(&b);
         let w = Windows {
-            vm: Memory {
-                image: &img,
-                root: 0x1000,
-                isf: &isf,
-                sources: None,
-            },
+            vm: Memory::new(&img, 0x1000, &isf, None),
             base: k,
             pdb: PdbIdentity::from_isf(&isf).unwrap(),
         };
