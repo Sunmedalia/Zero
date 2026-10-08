@@ -117,6 +117,76 @@ fn fingerprint(mut reader: impl Read, total: u64, job: &Job) -> Result<(String, 
     Ok(scan.finish())
 }
 impl Image {
+    /// Reuse persisted banners for identification and symbol matching. A cache
+    /// hit has no verified digest; analysis must still use `open`.
+    pub fn open_identified(path: &Path, cache: &Path, job: &Job) -> Result<Self> {
+        job.check()?;
+        let guard = crate::cache::lock(cache, false)?;
+        let cached = (|| -> Result<Self> {
+            let source = path.canonicalize()?;
+            let source_stamp = metadata_stamp(&fs::metadata(&source)?)?;
+            let identity = format!("{:x}", Sha256::digest(source.to_string_lossy().as_bytes()));
+            let manifest = cache
+                .join("identification")
+                .join(format!("{identity}.json"));
+            ensure!(
+                fs::metadata(&manifest)?.len() <= 1024 * 1024,
+                "识别缓存过大"
+            );
+            let value: Identification = serde_json::from_slice(&fs::read(manifest)?)?;
+            ensure!(value.source_stamp == source_stamp, "镜像识别缓存已过期");
+            let mut magic = [0; 2];
+            File::open(&source)?.read_exact(&mut magic)?;
+            if magic == [0x1f, 0x8b] {
+                ensure!(
+                    value.prepared.parent() == Some(cache.canonicalize()?.as_path())
+                        && value.prepared.extension().is_some_and(|s| s == "image")
+                        && value.prepared.file_stem().is_some_and(|s| {
+                            let name = s.to_string_lossy();
+                            name.len() == 64 && name.bytes().all(|b| b.is_ascii_hexdigit())
+                        }),
+                    "识别缓存解压路径无效"
+                );
+            } else {
+                ensure!(value.prepared == source, "识别缓存镜像路径不匹配");
+            }
+            let file = File::open(&value.prepared)?;
+            ensure!(
+                metadata_stamp(&file.metadata()?)? == value.prepared_stamp,
+                "识别缓存已过期"
+            );
+            let image = Self::from_file_with_job(file, String::new(), job)?;
+            ensure!(value.banners.len() <= 1024, "识别缓存候选过多");
+            let addresses = value.banners.iter().map(|(address, _)| *address).collect();
+            ensure!(
+                image.read_banners(addresses, job)? == value.banners,
+                "缓存 banner 与镜像不一致"
+            );
+            ensure!(
+                image.stamp()? == value.prepared_stamp
+                    && metadata_stamp(&fs::metadata(&source)?)? == source_stamp,
+                "镜像在识别过程中发生变化"
+            );
+            job.check()?;
+            let count = value.banners.len();
+            let _ = image.banners.set(value.banners);
+            job.report(format!(
+                "复用持久化 banner 识别：{count} 个候选（分析时校验完整摘要／页表）"
+            ));
+            Ok(image)
+        })();
+        match cached {
+            Ok(mut image) => {
+                image._cache_guard = Some(guard);
+                Ok(image)
+            }
+            Err(_) => {
+                job.check()?;
+                drop(guard);
+                Self::open(path, cache, job)
+            }
+        }
+    }
     pub fn open(path: &Path, cache: &Path, job: &Job) -> Result<Self> {
         let started = std::time::Instant::now();
         let source_stamp = metadata_stamp(&fs::metadata(path)?)?;

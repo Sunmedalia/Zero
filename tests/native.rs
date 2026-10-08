@@ -403,6 +403,12 @@ fn scan_crosses_chunk_and_contiguous_lime_ranges() -> Result<()> {
         fused.banners(&Job::default())?,
         vec![(0x1000, needle.to_vec())]
     );
+    let cached = Image::open_identified(&path, &dir.path().join("cache"), &Job::default())?;
+    assert!(cached.digest.is_empty());
+    assert_eq!(
+        cached.banners(&Job::default())?,
+        fused.banners(&Job::default())?
+    );
     Ok(())
 }
 #[test]
@@ -675,6 +681,288 @@ fn fused_identification_cache_is_only_a_hint_and_crosses_boundaries() -> Result<
         changed.banners(&job)?[0].1,
         data[offset..offset + banner.len()]
     );
+    Ok(())
+}
+
+#[test]
+fn persistent_banner_identification_skips_scanning_but_analysis_verifies_digest() -> Result<()> {
+    use zero_tui::linux::{Outcome, Request, Session};
+    let dir = tempfile::tempdir()?;
+    let path = dir.path().join("image.raw");
+    let symbols = dir.path().join("symbols.json");
+    let cache = dir.path().join("cache");
+    let (bytes, isf) = discoverable();
+    fs::write(&path, &bytes)?;
+    fs::write(&symbols, serde_json::to_vec(&isf.data)?)?;
+    let events = Arc::new(std::sync::Mutex::new(Vec::<String>::new()));
+    let sink = events.clone();
+    let job = Job::new(move |s| sink.lock().unwrap().push(s));
+    let request = |plugin, use_cache| Request {
+        image: &path,
+        symbols: &symbols,
+        choice: None,
+        plugin,
+        cache: &cache,
+        use_cache,
+        network: false,
+    };
+    let Outcome::Ready(first) =
+        Session::default().analyze(&request(Plugin::Banners, true), &job)?
+    else {
+        panic!("ambiguous banners")
+    };
+    events.lock().unwrap().clear();
+    // A fresh session must load the on-disk cache, rather than session memory.
+    let mut session = Session::default();
+    let Outcome::Ready(second) = zero_tui::analysis::analyze(
+        &mut session,
+        &request(Plugin::Banners, true),
+        None,
+        &Default::default(),
+        &job,
+    )?
+    else {
+        panic!("ambiguous banners")
+    };
+    assert_eq!(first.rows, second.rows);
+    assert!(
+        events
+            .lock()
+            .unwrap()
+            .iter()
+            .any(|s| s.starts_with("复用持久化 banner"))
+    );
+    assert!(
+        !events
+            .lock()
+            .unwrap()
+            .iter()
+            .any(|s| s.contains("摘要与候选扫描") || s.starts_with("计算镜像"))
+    );
+    let identified = session.identify_image(&path, &cache, &job)?;
+    assert!(identified.digest.is_empty());
+    let matches =
+        zero_tui::symbols::match_local_files(std::slice::from_ref(&symbols), &identified, &job)?;
+    assert_eq!(matches.matched.len(), 1);
+    events.lock().unwrap().clear();
+    let Outcome::Ready(result) = session.analyze(&request(Plugin::Pslist, true), &job)? else {
+        panic!("ambiguous symbols")
+    };
+    assert!(result.complete);
+    assert_eq!(result.rows.len(), 2);
+    assert!(
+        events
+            .lock()
+            .unwrap()
+            .iter()
+            .any(|s| s.starts_with("计算镜像摘要"))
+    );
+    assert!(
+        !session
+            .prepare_image(&path, &cache, &job)?
+            .digest
+            .is_empty()
+    );
+    // --no-cache also retains full preparation for the banners plugin.
+    events.lock().unwrap().clear();
+    Session::default().analyze(&request(Plugin::Banners, false), &job)?;
+    assert!(
+        events
+            .lock()
+            .unwrap()
+            .iter()
+            .any(|s| s.starts_with("计算镜像摘要"))
+    );
+    Ok(())
+}
+
+#[test]
+fn persistent_banner_cache_recovers_from_changed_source_and_corruption() -> Result<()> {
+    let dir = tempfile::tempdir()?;
+    let path = dir.path().join("image.raw");
+    let cache = dir.path().join("cache");
+    let banner = b"Linux version cache-test\n\0";
+    let mut bytes = vec![0; 8192];
+    bytes[256..256 + banner.len()].copy_from_slice(banner);
+    fs::write(&path, &bytes)?;
+    let job = Job::default();
+    let first = Image::open_identified(&path, &cache, &job)?;
+    assert!(!first.digest.is_empty());
+    let expected = first.banners(&job)?;
+    drop(first);
+    let manifest = fs::read_dir(cache.join("identification"))?
+        .next()
+        .unwrap()?
+        .path();
+    let original = fs::read(&manifest)?;
+    for malformed in [
+        b"invalid json".to_vec(),
+        {
+            let mut value: serde_json::Value = serde_json::from_slice(&original)?;
+            value["banners"] = json!([[u64::MAX, []]]);
+            serde_json::to_vec(&value)?
+        },
+        {
+            let mut value: serde_json::Value = serde_json::from_slice(&original)?;
+            value["banners"][0][1] = json!([]);
+            serde_json::to_vec(&value)?
+        },
+    ] {
+        fs::write(&manifest, malformed)?;
+        let recovered = Image::open_identified(&path, &cache, &job)?;
+        assert!(!recovered.digest.is_empty());
+        assert_eq!(recovered.banners(&job)?, expected);
+    }
+    let cached = Image::open_identified(&path, &cache, &job)?;
+    assert!(cached.digest.is_empty());
+    drop(cached);
+    // Same-size edits away from the old banner must find newly added banners.
+    bytes[1024..1024 + banner.len()].copy_from_slice(banner);
+    fs::write(&path, &bytes)?;
+    let changed = Image::open_identified(&path, &cache, &job)?;
+    assert!(!changed.digest.is_empty());
+    assert_eq!(changed.banners(&job)?.len(), 2);
+    drop(changed);
+    zero_tui::cache::clear(&cache, &[zero_tui::cache::Scope::Identification])?;
+    assert!(
+        !Image::open_identified(&path, &cache, &job)?
+            .digest
+            .is_empty()
+    );
+    job.cancel.store(true, Ordering::Relaxed);
+    assert!(Image::open_identified(&path, &cache, &job).is_err());
+    Ok(())
+}
+
+#[test]
+fn persistent_banner_cache_reuses_gzip_and_invalidates_prepared_image() -> Result<()> {
+    let dir = tempfile::tempdir()?;
+    let path = dir.path().join("image.gz");
+    let cache = dir.path().join("cache");
+    let mut encoder = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::default());
+    encoder.write_all(b"Linux version gzip-cache\n\0")?;
+    fs::write(&path, encoder.finish()?)?;
+    let job = Job::default();
+    let first = Image::open_identified(&path, &cache, &job)?;
+    let digest = first.digest.clone();
+    let expected = first.banners(&job)?;
+    drop(first);
+    let cached = Image::open_identified(&path, &cache, &job)?;
+    assert!(cached.digest.is_empty());
+    assert_eq!(cached.banners(&job)?, expected);
+    drop(cached);
+    let prepared = fs::read_dir(&cache)?
+        .map(|e| e.unwrap().path())
+        .find(|p| p.extension().is_some_and(|s| s == "image"))
+        .unwrap();
+    fs::write(&prepared, b"bad")?;
+    let recovered = Image::open_identified(&path, &cache, &job)?;
+    assert_eq!(recovered.digest, digest);
+    assert_eq!(recovered.banners(&job)?, expected);
+    drop(recovered);
+    fs::remove_file(prepared)?;
+    assert_eq!(Image::open_identified(&path, &cache, &job)?.digest, digest);
+    Ok(())
+}
+
+#[test]
+fn x86_kaslr_discovery_handles_high_physical_lime_and_relocated_symbols() -> Result<()> {
+    use zero_tui::linux;
+    let (mut bytes, mut isf) = discoverable();
+    let kernel_base = 0xffff_ffff_8100_0000u64;
+    let slide = 0x200000;
+    let physical_base = 0x1_5662_0000u64;
+    let runtime_base = kernel_base + slide;
+    // The virtual mapping is randomized independently of physical placement.
+    bytes[0x1000..0x5000].fill(0);
+    put(
+        &mut bytes,
+        0x1000 + ((runtime_base >> 39) & 511) as usize * 8,
+        physical_base + 0x2003,
+    );
+    put(
+        &mut bytes,
+        0x2000 + ((runtime_base >> 30) & 511) as usize * 8,
+        physical_base + 0x3003,
+    );
+    put(
+        &mut bytes,
+        0x3000 + ((runtime_base >> 21) & 511) as usize * 8,
+        physical_base + 0x4003,
+    );
+    put(&mut bytes, 0x4000 + 9 * 8, physical_base + 0x8003);
+    for offset in [
+        0x8200, 0x8208, 0x8300, 0x8308, 0x8318, 0x8400, 0x8408, 0x8418, 0x8500, 0x8508, 0x8600,
+        0x8608,
+    ] {
+        let value = u64::from_le_bytes(bytes[offset..offset + 8].try_into()?);
+        put(&mut bytes, offset, value + runtime_base);
+    }
+    put(&mut bytes, 0x8218, runtime_base + 0x9200);
+    for name in ["linux_banner", "init_task", "init_level4_pgt", "modules"] {
+        isf.data["symbols"][name]["address"] = json!(isf.raw_address(name)? + kernel_base);
+    }
+    // Modern kernels use init_top_pgt; duplicate aliases must not be ambiguous.
+    isf.data["symbols"]["init_top_pgt"] = isf.data["symbols"]["init_level4_pgt"].clone();
+    let dir = tempfile::tempdir()?;
+    let path = dir.path().join("avml.lime");
+    let write_lime = |data: &[u8]| -> Result<()> {
+        let mut file = fs::File::create(&path)?;
+        file.write_all(&0x4c694d45u32.to_le_bytes())?;
+        file.write_all(&1u32.to_le_bytes())?;
+        file.write_all(&physical_base.to_le_bytes())?;
+        file.write_all(&(physical_base + data.len() as u64 - 1).to_le_bytes())?;
+        file.write_all(&[0; 8])?;
+        file.write_all(data)?;
+        Ok(())
+    };
+    write_lime(&bytes)?;
+    let job = Job::default();
+    let cache = dir.path().join("cache");
+    let img = Image::open(&path, &cache, &job)?;
+    isf.locations = img
+        .banners(&job)?
+        .iter()
+        .map(|(address, _)| *address)
+        .collect();
+    let root = physical_base + 0x1000;
+    // Reproduce the old failure at PMD (level 21) before discovering KASLR.
+    let error = VirtualMemory::new(&img, root)
+        .translate(isf.raw_address("linux_banner")?)
+        .unwrap_err();
+    assert!(error.to_string().contains("level 21"), "{error:#}");
+    assert_eq!(linux::discover(&img, &isf, &job)?, root);
+    assert_eq!(isf.address("init_task")?, runtime_base + 0x9200);
+    let result = Linux {
+        vm: VirtualMemory::new(&img, root),
+        isf: &isf,
+    }
+    .run(Plugin::Pslist, &job)?;
+    assert!(result.complete, "{:?}", result.diagnostics);
+    assert_eq!(result.rows.len(), 2);
+    assert_eq!(
+        result.rows[0][4],
+        format!("{:#018x}", runtime_base + 0x9300)
+    );
+    let modules = Linux {
+        vm: VirtualMemory::new(&img, root),
+        isf: &isf,
+    }
+    .run(Plugin::Lsmod, &job)?;
+    assert!(modules.complete, "{:?}", modules.diagnostics);
+    assert_eq!(modules.rows.len(), 1);
+    assert_eq!(modules.rows[0][0], "test");
+    assert_eq!(linux::discover(&img, &isf, &job)?, root);
+    drop(img);
+    // A corrupt self-pointer must not be accepted merely because banners match.
+    put(&mut bytes, 0x8218, runtime_base + 0x9200 + 4096);
+    write_lime(&bytes)?;
+    assert!(linux::discover(&Image::open(&path, &cache, &job)?, &isf, &job).is_err());
+    assert_eq!(isf.address("init_task")?, runtime_base + 0x9200);
+    put(&mut bytes, 0x8218, runtime_base + 0x9200);
+    put(&mut bytes, 0x8308, runtime_base + 0x9500);
+    write_lime(&bytes)?;
+    assert!(linux::discover(&Image::open(&path, &cache, &job)?, &isf, &job).is_err());
     Ok(())
 }
 

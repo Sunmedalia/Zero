@@ -207,7 +207,7 @@ fn main() -> Result<()> {
     {
         let job = Job::new(|s| eprintln!("{s}"));
         let mut session = linux::Session::default();
-        let image = session.prepare_image(image, &cache, &job)?;
+        let image = session.identify_image(image, &cache, &job)?;
         let banners = linux::banner_result(&image, &job)?;
         if *refresh && !image.banners(&job)?.is_empty() {
             anyhow::ensure!(settings.remote_symbols, "--offline 不能刷新在线索引");

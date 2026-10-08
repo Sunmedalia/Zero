@@ -7,8 +7,10 @@ pub fn discover(image: &Image, isf: &Isf, job: &Job) -> Result<u64> {
     {
         return discover_arm64(image, isf, job);
     }
-    let banner = isf.address("linux_banner")?;
-    let init = isf.address("init_task")?;
+    // Physical placement and virtual KASLR are independent. Relative symbol
+    // offsets locate the static objects, but their pointers use runtime VAs.
+    let banner = isf.raw_address("linux_banner")?;
+    let init = isf.raw_address("init_task")?;
     let tasks = isf.offset("task_struct", "tasks")?;
     let next = isf.offset("list_head", "next")?;
     let prev = isf.offset("list_head", "prev")?;
@@ -17,43 +19,75 @@ pub fn discover(image: &Image, isf: &Isf, job: &Job) -> Result<u64> {
     let mut valid = HashSet::new();
     let mut errors = Vec::new();
     for physical in &isf.locations {
+        job.check()?;
+        let mut slides = vec![0];
+        // Linux initializes init_task.real_parent to &init_task. Use it only
+        // as a candidate: banner translation and the task links must validate.
+        if let Ok(parent_offset) = isf.offset("task_struct", "real_parent") {
+            let inferred = (|| -> Result<u64> {
+                let init_phys = u64::try_from(*physical as i128 + init as i128 - banner as i128)
+                    .context("init_task 物理地址溢出")?;
+                let parent = image.u64(add(init_phys, parent_offset)?)?;
+                ensure!(
+                    parent != 0 && (parent >> 47 == 0 || parent >> 47 == 0x1ffff),
+                    "init_task.real_parent 非 canonical 地址"
+                );
+                let slide = parent.wrapping_sub(init);
+                ensure!(slide & 4095 == 0, "x86_64 内核重定位未按页对齐");
+                Ok(slide)
+            })();
+            match inferred {
+                Ok(slide) if slide != 0 => slides.push(slide),
+                Ok(_) => (),
+                Err(e) => errors.push(format!("{physical:#x} 重定位候选: {e:#}")),
+            }
+        }
         for name in ["init_top_pgt", "init_level4_pgt", "swapper_pg_dir"] {
             job.check()?;
-            if let Ok(address) = isf.address(name) {
+            if let Ok(address) = isf.raw_address(name) {
                 let candidate = *physical as i128 + address as i128 - banner as i128;
                 if candidate < 0 || candidate > u64::MAX as i128 || candidate & 4095 != 0 {
                     continue;
                 }
                 let root = candidate as u64;
                 let vm = VirtualMemory::new(image, root);
-                let checked = (|| -> Result<()> {
-                    ensure!(vm.translate(banner)? == *physical, "banner 虚实地址不一致");
-                    let mut b = vec![0; isf.banner.len()];
-                    vm.read(banner, &mut b)?;
-                    ensure!(b == isf.banner, "banner 内容不一致");
-                    ensure!(
-                        vm.uint(add(init, pid)?, isf.size("task_struct", "pid")?)? == 0,
-                        "init_task PID 非 0"
-                    );
-                    ensure!(
-                        vm.string(add(init, comm)?, isf.size("task_struct", "comm")?)?
-                            .starts_with("swapper"),
-                        "init_task 名称无效"
-                    );
-                    let head = add(init, tasks)?;
-                    let n = vm.uint(add(head, next)?, 8)?;
-                    let p = vm.uint(add(head, prev)?, 8)?;
-                    ensure!(
-                        vm.uint(add(n, prev)?, 8)? == head && vm.uint(add(p, next)?, 8)? == head,
-                        "init_task 双向链表不一致"
-                    );
-                    Ok(())
-                })();
-                match checked {
-                    Ok(()) => {
-                        valid.insert(root);
+                for &slide in &slides {
+                    job.check()?;
+                    let runtime_banner = banner.wrapping_add(slide);
+                    let runtime_init = init.wrapping_add(slide);
+                    let checked = (|| -> Result<()> {
+                        ensure!(
+                            vm.translate(runtime_banner)? == *physical,
+                            "banner 虚实地址不一致"
+                        );
+                        let mut b = vec![0; isf.banner.len()];
+                        vm.read(runtime_banner, &mut b)?;
+                        ensure!(b == isf.banner, "banner 内容不一致");
+                        ensure!(
+                            vm.uint(add(runtime_init, pid)?, isf.size("task_struct", "pid")?)? == 0,
+                            "init_task PID 非 0"
+                        );
+                        ensure!(
+                            vm.string(add(runtime_init, comm)?, isf.size("task_struct", "comm")?)?
+                                .starts_with("swapper"),
+                            "init_task 名称无效"
+                        );
+                        let head = add(runtime_init, tasks)?;
+                        let n = vm.uint(add(head, next)?, 8)?;
+                        let p = vm.uint(add(head, prev)?, 8)?;
+                        ensure!(
+                            vm.uint(add(n, prev)?, 8)? == head
+                                && vm.uint(add(p, next)?, 8)? == head,
+                            "init_task 双向链表不一致"
+                        );
+                        Ok(())
+                    })();
+                    match checked {
+                        Ok(()) => {
+                            valid.insert((root, slide));
+                        }
+                        Err(e) => errors.push(format!("{root:#x} 重定位 {slide:#x}: {e:#}")),
                     }
-                    Err(e) => errors.push(format!("{root:#x}: {e:#}")),
                 }
             }
         }
@@ -63,8 +97,16 @@ pub fn discover(image: &Image, isf: &Isf, job: &Job) -> Result<u64> {
         "无法验证页表；可能是错误符号、缺页或未支持的内核重定位。{}",
         errors.join("; ")
     );
-    ensure!(valid.len() == 1, "多个有效页表候选，拒绝猜测: {valid:?}");
-    Ok(*valid.iter().next().unwrap())
+    ensure!(
+        valid.len() == 1,
+        "多个有效页表／重定位候选，拒绝猜测: {valid:?}"
+    );
+    let (root, slide) = *valid.iter().next().unwrap();
+    isf.slide.store(slide, std::sync::atomic::Ordering::Relaxed);
+    job.report(format!(
+        "x86_64 页表已验证 · DTB {root:#x} · 重定位 {slide:#x}"
+    ));
+    Ok(root)
 }
 fn discover_arm64(image: &Image, isf: &Isf, job: &Job) -> Result<u64> {
     use std::sync::atomic::Ordering;

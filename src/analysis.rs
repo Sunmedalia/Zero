@@ -29,7 +29,11 @@ pub fn analyze(
     options: &Options,
     job: &Job,
 ) -> Result<Outcome> {
-    let image = session.prepare_image(request.image, request.cache, job)?;
+    let image = if request.plugin == crate::linux::Plugin::Banners && request.use_cache {
+        session.identify_image(request.image, request.cache, job)?
+    } else {
+        session.prepare_image(request.image, request.cache, job)?
+    };
     let linux = !image.banners(job)?.is_empty();
     let windows = image.windows_container.is_some()
         || request.plugin.is_windows()

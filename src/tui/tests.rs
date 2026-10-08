@@ -2029,6 +2029,43 @@ fn preparation_fixture() -> (tempfile::TempDir, App) {
     (dir, app)
 }
 #[test]
+fn preparation_reuses_persisted_banners_after_restart() {
+    let (dir, mut app) = preparation_fixture();
+    let exact = dir.path().join("symbols/exact.json");
+    std::fs::write(&exact, fixture_isf(PREPARATION_BANNER, 1)).unwrap();
+    app.initialize(Default::default());
+    finish_test_job(&mut app);
+    assert_eq!(app.preparation, Preparation::Ready);
+    let banners = app.results["banners"].rows.clone();
+    let image = app.image.clone();
+    let cache = app.cache.clone();
+    let settings = std::mem::take(&mut app.settings);
+    drop(app);
+    let mut restarted = App::new(image, PathBuf::new(), cache, settings);
+    restarted.root = dir.path().into();
+    restarted.initialize(Default::default());
+    finish_test_job(&mut restarted);
+    assert_eq!(restarted.preparation, Preparation::Ready);
+    assert!(same_path(&restarted.symbols, &exact));
+    assert_eq!(restarted.results["banners"].rows, banners);
+    // The restarted UI matched symbols without computing the full image digest.
+    assert!(
+        restarted
+            .session
+            .lock()
+            .unwrap()
+            .identify_image(
+                restarted.image.as_ref().unwrap(),
+                &restarted.cache,
+                &Job::default()
+            )
+            .unwrap()
+            .digest
+            .is_empty()
+    );
+}
+
+#[test]
 fn preparation_startup_unique_missing_and_object_change() {
     let (dir, mut app) = preparation_fixture();
     let exact = dir.path().join("symbols/exact.json");

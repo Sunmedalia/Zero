@@ -208,7 +208,7 @@ argv／环境区各限 1 MiB，单进程 VMA／FD 各限 100 万项，路径限 
 
 缓存与设置：
 
-- gzip 流式解压到 `.zero/rust/`，只有解压完成并校验后才原子提交；取消和损坏输入不产生完成标记。原镜像只读。新会话再次使用时验证解压缓存 SHA256。同一 TUI 会话中复用已验证镜像、完整 banner 和页表；源文件或符号文件元数据改变后重新准备。
+- gzip 流式解压到 `.zero/rust/`，只有解压完成并校验后才原子提交；取消和损坏输入不产生完成标记。原镜像只读。新会话识别时可直接复用持久化 banner；正式分析前验证解压缓存 SHA256。同一 TUI 会话中复用已验证镜像、完整 banner 和页表；源文件或符号文件元数据改变后重新准备。
 - 原生结果缓存键包含镜像 SHA256、所选 ISF SHA256、分析名称和引擎版本。只缓存完整分析结果。引擎版本为 `native-7`，旧缓存保留但不再复用。旧 CSV 从不用于原生缓存。
 - 设置仅读取 `.zero/rust/settings.json`；不读取或执行旧 Python 配置。项目清单独立于可清理缓存，缓存清理保留设置、清单、原始镜像／符号和用户导出。
 
@@ -224,7 +224,7 @@ ZERO_TEST_IMAGE=/path/sample.bin.gz ZERO_TEST_SYMBOLS=/path/linux.zip make accep
 
 验收基线是 Debian `3.2.0-4-amd64`，包含 **133 个进程（不含 PID 0）和 79 个模块**。`tests/fixtures/debian-3.2.json` 固定全部字段、页表地址及镜像摘要；验收同时检查链表闭合、父子关系无环。进程字段已与本地 Volatility 3 参考输出逐项交叉验证，完整进程 / 模块字段另经独立只读页表解析核对。大镜像与符号包不提交仓库，普通 `cargo test` 不依赖它们。 本地库匹配逐个文件／ZIP 成员读取并保留诊断：测试 ZIP 中的 CentOS 2.6.18 成员 banner 无效或不完整，界面详情明确显示；Debian 成员仍可精确匹配和分析。
 
-目前支持 x86_64 四级页表及 4 KiB / 2 MiB / 1 GiB 页，字段偏移来自 ISF。页表候选由物理 banner 与符号地址差定位，再验证 banner、`init_task` 和双向链表。不支持五级页表；无法验证的内核重定位会给出诊断。ARM64 支持 4 KiB、39／48-bit VA 的四级／三级页表及 block 映射；ISF 需提供准确的内核配置元数据，已验收 Kali 6.8.11-arm64（48-bit）。Windows 验收与限制见下文；其他内核与原 Volatility 插件兼容性不保证。
+目前支持 x86_64 四级页表及 4 KiB / 2 MiB / 1 GiB 页，字段偏移来自 ISF。页表候选由物理 banner 与符号地址差定位；x86_64 KASLR 偏移候选从物理 `init_task.real_parent` 自指针推导，再使用运行时地址验证完整 banner、`init_task` 和双向链表，验证成功后用于所有符号地址。支持高物理地址的 LiME 镜像；未压缩的 AVML 输出使用该格式。x86_64 KASLR 已有合成 LiME 回归测试，未对 Debian 6.12 实际镜像完成验收。不支持五级页表；无法验证的内核重定位会给出诊断。ARM64 支持 4 KiB、39／48-bit VA 的四级／三级页表及 block 映射；ISF 需提供准确的内核配置元数据，已验收 Kali 6.8.11-arm64（48-bit）。Windows 验收与限制见下文；其他内核与原 Volatility 插件兼容性不保证。
 
 新增插件的全字段基线为 `tests/fixtures/debian-3.2-extended.json`：固定行数、列、全部行的 SHA256 和完整诊断，不将环境变量明文提交仓库。十五个既有插件的所有输出字段已与 `tests/reference/debian.py` 独立只读解析器逐项核对（标准库测试脚本，不执行 Python 插件或旧配置）。可对 `--no-cache` 导出到 `/tmp/zero-{插件}.json` 的结果再次交叉核对：
 
@@ -281,7 +281,9 @@ zero cache clear --scope results,identification --yes
 
 默认只选择分析结果和识别信息。清理前显示文件数量与字节数；TUI 用 Space 勾选、Enter 预览、再次 Enter 执行，Esc／右键撤销。占用缓存的会话持有共享锁，清理使用独占锁；其他会话正在分析时明确拒绝清理。符号链接不跟随，仅删除规定缓存目录中的文件，保留设置、项目清单和用户导出。解压镜像和符号缓存清理后需重新准备。`dumps` 仅清理旧版缓存目录中的转储片段；不会清理新 Dump 插件指定的导出目录。
 
-Banner 的摘要与前缀扫描合并为一轮流式读取，跨块与连续 LiME segment 边界仍能识别。识别缓存仅提前显示已重新读取的候选；每次新会话仍校验完整内容摘要并验证完整 banner、页表及进程链表。同一会话复用已验证地址空间，源文件／符号元数据变化时失效。五轮交替热缓存测量：Kali 2 GiB 完整准备中位数 3.740 → 3.599 秒（约 3.8%）；Debian gzip 1.177 → 1.146 秒（约 2.7%，平台与负载影响结果）。同一会话重跑 pslist 约 2–3 ms。可用 `cargo run --release --example benchmark_image -- images/kali.raw` 复测；该程序逐轮检查摘要与全部 banner 一致。
+Banner 的摘要与前缀扫描合并为一轮流式读取，跨块与连续 LiME segment 边界仍能识别。首次识别完成后，候选及物理地址原子保存到 `.zero/rust/identification/`。再次启动、选用相同镜像或执行 `banners` 时，检查源文件与解压文件元数据并重新读取缓存位置的完整 banner，直接复用识别结果，无需全镜像摘要与扫描；TUI、CLI 和 MCP 的符号匹配也使用该缓存。文件变化、缓存损坏或解压文件丢失时自动重新准备；`cache clear --scope identification --yes` 可清除识别信息，`--no-cache` 可强制重新分析。正式分析仍在每个新会话中校验完整内容摘要，分析结果缓存使用重新验证的摘要；实际解析继续验证完整 banner、页表及进程链表。同一会话复用已验证地址空间，源文件／符号元数据变化时失效。
+
+五轮交替热缓存测量：Kali 2 GiB 完整准备中位数 3.740 → 3.599 秒（约 3.8%）；Debian gzip 1.177 → 1.146 秒（约 2.7%，平台与负载影响结果）。这些测量比较摘要与扫描合并前后的完整准备，不代表持久化识别缓存的耗时。同一会话重跑 pslist 约 2–3 ms。可用 `cargo run --release --example benchmark_image -- images/kali.raw` 复测；该程序逐轮检查摘要与全部 banner 一致。
 
 准确生成 Kali ARM64 符号：
 

@@ -59,17 +59,40 @@ impl Session {
         cache: &Path,
         job: &Job,
     ) -> Result<std::sync::Arc<Image>> {
+        self.prepare(path, cache, true, job)
+    }
+    /// Identification may reuse persisted banners without hashing the image.
+    pub fn identify_image(
+        &mut self,
+        path: &Path,
+        cache: &Path,
+        job: &Job,
+    ) -> Result<std::sync::Arc<Image>> {
+        self.prepare(path, cache, false, job)
+    }
+    fn prepare(
+        &mut self,
+        path: &Path,
+        cache: &Path,
+        verify_digest: bool,
+        job: &Job,
+    ) -> Result<std::sync::Arc<Image>> {
         job.check()?;
         let image_stamp = source_stamp(path, job)?;
         if self.image.is_none()
             || self.image_stamp != image_stamp
+            || (verify_digest && self.image.as_ref().is_some_and(|i| i.digest.is_empty()))
             || self
                 .image
                 .as_ref()
                 .is_some_and(|i| i.stamp().ok().as_ref() != Some(&self.physical_stamp))
         {
             self.clear();
-            let mut image = Image::open(path, cache, job)?;
+            let mut image = if verify_digest {
+                Image::open(path, cache, job)?
+            } else {
+                Image::open_identified(path, cache, job)?
+            };
             image.set_limits(store::settings(cache)?.resources);
             self.physical_stamp = image.stamp()?;
             self.image = Some(std::sync::Arc::new(image));
@@ -138,7 +161,11 @@ impl Session {
             ensure!(dump.is_none(), "非 Dump 插件不接受转储参数");
         }
         job.check()?;
-        let image = self.prepare_image(request.image, request.cache, job)?;
+        let image = if request.plugin == Plugin::Banners && request.use_cache {
+            self.identify_image(request.image, request.cache, job)?
+        } else {
+            self.prepare_image(request.image, request.cache, job)?
+        };
         if request.plugin.is_windows() {
             return self.analyze_windows(
                 &image,
@@ -150,6 +177,9 @@ impl Session {
         }
 
         if request.plugin == Plugin::Banners {
+            if image.digest.is_empty() {
+                return Ok(Outcome::Ready(banner_result(&image, job)?));
+            }
             let key = store::key(&image.digest, "no-isf", "banners");
             if request.use_cache
                 && let Some(result) = store::load(request.cache, &key)

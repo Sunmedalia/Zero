@@ -147,7 +147,7 @@ fn call(
             }
             let a: Args = serde_json::from_value(args)?;
             let (cache_dir, settings) = settings(root, a.offline.unwrap_or(false))?;
-            let image = session.prepare_image(&path(root, &a.image), &cache_dir, job)?;
+            let image = session.identify_image(&path(root, &a.image), &cache_dir, job)?;
             let banners = linux::banner_result(&image, job)?;
             let matches =
                 symbols::remote_matches(&image, &cache_dir, settings.remote_symbols, job)?;

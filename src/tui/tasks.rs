@@ -181,7 +181,7 @@ impl App {
                 match work {
                     Work::Catalog(query, refresh) => {
                         if windows && !image.as_os_str().is_empty() {
-                            let prepared = session.prepare_image(&image, &cache, &worker_job)?;
+                            let prepared = session.identify_image(&image, &cache, &worker_job)?;
                             let mut matches =
                                 symbols::remote_matches(&prepared, &cache, network, &worker_job)?;
                             matches.retain(|m| {
@@ -220,14 +220,14 @@ impl App {
                         Ok(WorkerEvent::CatalogDownloaded(target))
                     }
                     Work::Identify => {
-                        let image = session.prepare_image(&image, &cache, &worker_job)?;
+                        let image = session.identify_image(&image, &cache, &worker_job)?;
                         linux::banner_result(&image, &worker_job).map(WorkerEvent::Identified)
                     }
                     Work::InspectSymbols(path) => workspace::inspect_symbols(&path, &worker_job)
                         .map(|text| WorkerEvent::SymbolDetails(path, text)),
                     Work::RefreshLookup => {
                         if windows && !image.as_os_str().is_empty() {
-                            let prepared = session.prepare_image(&image, &cache, &worker_job)?;
+                            let prepared = session.identify_image(&image, &cache, &worker_job)?;
                             return symbols::remote_matches(
                                 &prepared,
                                 &cache,
@@ -247,7 +247,7 @@ impl App {
                         if image.as_os_str().is_empty() {
                             return Ok(WorkerEvent::IndexRefreshed);
                         }
-                        let image = session.prepare_image(&image, &cache, &worker_job)?;
+                        let image = session.identify_image(&image, &cache, &worker_job)?;
                         symbols::remote_matches(&image, &cache, network, &worker_job)
                             .map(WorkerEvent::Links)
                     }
@@ -293,18 +293,18 @@ impl App {
                     )
                     .map(WorkerEvent::Done),
                     Work::MatchLocal(paths, stamp) => {
-                        let image = session.prepare_image(&image, &cache, &worker_job)?;
+                        let image = session.identify_image(&image, &cache, &worker_job)?;
                         let banner = linux::banner_result(&image, &worker_job)?;
                         let report = symbols::match_local_files(&paths, &image, &worker_job)?;
                         Ok(WorkerEvent::LocalMatched(report, stamp, banner))
                     }
                     Work::FetchMatched => {
-                        let image = session.prepare_image(&image, &cache, &worker_job)?;
+                        let image = session.identify_image(&image, &cache, &worker_job)?;
                         symbols::remote_matches(&image, &cache, network, &worker_job)
                             .map(WorkerEvent::Links)
                     }
                     Work::Download(candidate) => {
-                        let image = session.prepare_image(&image, &cache, &worker_job)?;
+                        let image = session.identify_image(&image, &cache, &worker_job)?;
                         let isf =
                             symbols::download(&candidate, &image, &cache, network, &worker_job)?;
                         save_remote_symbol(&candidate, &isf, &local_library, &worker_job)
