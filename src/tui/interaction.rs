@@ -804,13 +804,8 @@ impl App {
                     column: self.sort.unwrap_or(0),
                 });
             }
-            KeyCode::Char('[') => {
-                self.row = self.row.saturating_sub(self.page_rows());
-            }
-            KeyCode::Char(']') => {
-                self.row =
-                    (self.row + self.page_rows()).min(self.visible().len().saturating_sub(1));
-            }
+            KeyCode::Char('[') => self.move_result_page(false),
+            KeyCode::Char(']') => self.move_result_page(true),
             KeyCode::Char('r') => self.request_analysis(true),
             KeyCode::F(5) => self.request_analysis(false),
             KeyCode::Char('p') => {
@@ -857,15 +852,14 @@ impl App {
                 if self.focus == Focus::Navigation {
                     self.menu = self.menu.saturating_sub(10);
                 } else {
-                    self.row = self.row.saturating_sub(self.page_rows());
+                    self.move_result_page(false);
                 }
             }
             KeyCode::PageDown => {
                 if self.focus == Focus::Navigation {
                     self.menu = (self.menu + 10).min(self.menu_items().len() - 1);
                 } else {
-                    self.row =
-                        (self.row + self.page_rows()).min(self.visible().len().saturating_sub(1));
+                    self.move_result_page(true);
                 }
             }
             KeyCode::Home => {
@@ -1269,9 +1263,14 @@ impl App {
         } else if hits.result.contains(point) {
             self.focus = Focus::Content;
             if let Some(key) = scroll {
-                for _ in 0..3 {
-                    self.key(KeyEvent::new(key, KeyModifiers::NONE));
-                }
+                self.key(KeyEvent::new(key, KeyModifiers::NONE));
+                let maximum = self.visible().len().saturating_sub(self.page_rows());
+                let offset = self.table_state.borrow().offset();
+                *self.table_state.borrow_mut().offset_mut() = if key == KeyCode::Up {
+                    offset.saturating_sub(1)
+                } else {
+                    offset.saturating_add(1).min(maximum)
+                };
             } else if click {
                 if point.y == hits.result.y + 1 {
                     if let Some(column) = hits
@@ -1287,7 +1286,9 @@ impl App {
                     && point.y < hits.result.bottom().saturating_sub(1)
                 {
                     let index = hits.row_offset + (point.y - hits.result.y - 2) as usize;
-                    if index < self.visible().len() {
+                    if index < self.visible().len()
+                        && index < hits.row_offset.saturating_add(self.page_rows())
+                    {
                         self.row = index;
                         if self.plugin.is_tree()
                             && self.history.is_none()

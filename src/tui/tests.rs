@@ -761,7 +761,7 @@ fn mouse_scrolled_rows_sort_and_wheel() {
         hits.result.x + 3,
         hits.result.y + 2,
     ));
-    assert_eq!(app.row, hits.row_offset + 3);
+    assert_eq!(app.row, hits.row_offset + 1);
     let col = hits.columns[0];
     click(&mut app, col.x, hits.result.y + 1);
     assert_eq!(app.sort, Some(0));
@@ -2161,7 +2161,17 @@ fn execution_parameters_and_results_survive_browsing_and_keep_separate_views() {
     assert!(app.query.is_empty());
     let mut terminal = Terminal::new(TestBackend::new(140, 40)).unwrap();
     terminal.draw(|f| app.draw(f)).unwrap();
-    assert!(screen(&terminal, 140).contains("旧结果参数"));
+    let text = screen(&terminal, 140);
+    for label in [
+        "适用参数：",
+        "旧结果参数：",
+        "草稿：",
+        "[编辑参数 P]",
+        "[运行 Ctrl+R]",
+    ] {
+        assert!(!text.contains(label), "removed plugin controls: {label}");
+    }
+    assert_eq!(app.hits.borrow().search.y, app.hits.borrow().workbench.y);
     app.analysis_options.pid = Some(10);
     app.restore_view();
     assert_eq!(app.query, "zsh");
@@ -3093,4 +3103,81 @@ fn indexed_tree_matches_legacy_cycles_and_raw_export_order() {
         assert_eq!(rows, tree_rows(result.rows.clone(), &collapsed));
         assert_eq!(index.filtered, vec![0, 1, 2]);
     }
+}
+
+#[test]
+fn wheel_scrolls_one_row_across_page_boundaries_and_clamps_at_ends() {
+    let mut app = app();
+    let template = app.result().unwrap().rows[0].clone();
+    app.results.get_mut("pslist").unwrap().rows = (0..30)
+        .map(|i| {
+            let mut row = template.clone();
+            row[0] = i.to_string();
+            row
+        })
+        .collect();
+    app.settings.page_size = 5;
+    app.focus = Focus::Content;
+    app.row = 4;
+    let mut terminal = Terminal::new(TestBackend::new(120, 32)).unwrap();
+    terminal.draw(|f| app.draw(f)).unwrap();
+    assert_eq!(app.hits.borrow().row_offset, 0);
+    for expected in 1..=7 {
+        let h = app.hits.borrow().clone();
+        app.mouse(mouse_event(
+            MouseEventKind::ScrollDown,
+            h.result.x + 3,
+            h.result.y + 2,
+        ));
+        terminal.draw(|f| app.draw(f)).unwrap();
+        assert_eq!(app.hits.borrow().row_offset, expected);
+        assert_eq!(app.row, expected + 4);
+    }
+    let h = app.hits.borrow().clone();
+    click(&mut app, h.result.x + 3, h.result.y + 2);
+    assert_eq!(app.row, 7); // Hit testing uses the continuous window offset.
+    click(&mut app, h.result.x + 3, h.result.y + 7);
+    assert_eq!(app.row, 7); // Blank space below a custom-sized window is not a row.
+    for expected in (0..7).rev() {
+        let h = app.hits.borrow().clone();
+        app.mouse(mouse_event(
+            MouseEventKind::ScrollUp,
+            h.result.x + 3,
+            h.result.y + 2,
+        ));
+        terminal.draw(|f| app.draw(f)).unwrap();
+        assert_eq!(app.hits.borrow().row_offset, expected);
+    }
+    let h = app.hits.borrow().clone();
+    app.mouse(mouse_event(
+        MouseEventKind::ScrollUp,
+        h.result.x + 3,
+        h.result.y + 2,
+    ));
+    terminal.draw(|f| app.draw(f)).unwrap();
+    assert_eq!(app.hits.borrow().row_offset, 0);
+    assert_eq!(app.row, 0);
+    for _ in 0..40 {
+        let h = app.hits.borrow().clone();
+        app.mouse(mouse_event(
+            MouseEventKind::ScrollDown,
+            h.result.x + 3,
+            h.result.y + 2,
+        ));
+        terminal.draw(|f| app.draw(f)).unwrap();
+    }
+    assert_eq!(app.hits.borrow().row_offset, 25);
+    assert_eq!(app.row, 29);
+    // Keyboard paging still advances a page; arrow keys remain continuous.
+    app.key(KeyEvent::new(KeyCode::Home, KeyModifiers::NONE));
+    terminal.draw(|f| app.draw(f)).unwrap();
+    app.key(KeyEvent::new(KeyCode::PageDown, KeyModifiers::NONE));
+    terminal.draw(|f| app.draw(f)).unwrap();
+    assert_eq!(app.row, 5);
+    assert_eq!(app.hits.borrow().row_offset, 5);
+    app.row = 9;
+    terminal.draw(|f| app.draw(f)).unwrap();
+    app.key(KeyEvent::new(KeyCode::Down, KeyModifiers::NONE));
+    terminal.draw(|f| app.draw(f)).unwrap();
+    assert_eq!(app.hits.borrow().row_offset, 6);
 }

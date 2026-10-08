@@ -678,6 +678,23 @@ impl App {
         self.asset_scroll[slot] = 0;
         self.asset_states.borrow_mut()[slot] = ListState::default();
     }
+    pub(super) fn move_result_page(&mut self, down: bool) {
+        let size = self.page_rows();
+        self.row = if down {
+            self.row
+                .saturating_add(size)
+                .min(self.visible().len().saturating_sub(1))
+        } else {
+            self.row.saturating_sub(size)
+        };
+        let maximum = self.visible().len().saturating_sub(size);
+        let offset = self.table_state.borrow().offset();
+        *self.table_state.borrow_mut().offset_mut() = if down {
+            offset.saturating_add(size).min(maximum)
+        } else {
+            offset.saturating_sub(size)
+        };
+    }
     pub(super) fn page_rows(&self) -> usize {
         let height = self.hits.borrow().result.height;
         let available = height.saturating_sub(3).max(1) as usize;
@@ -967,44 +984,44 @@ impl App {
         let mut actions = if self.page == Page::Analysis {
             match self.focus {
                 Focus::Context => vec![
-                    ("i镜像", KeyCode::Char('i')),
-                    ("y符号", KeyCode::Char('y')),
-                    ("b识别", KeyCode::Char('b')),
-                    ("m本地匹配", KeyCode::Char('m')),
+                    ("镜像 i", KeyCode::Char('i')),
+                    ("符号 y", KeyCode::Char('y')),
+                    ("识别 b", KeyCode::Char('b')),
+                    ("本地匹配 m", KeyCode::Char('m')),
                 ],
                 Focus::Navigation => vec![
-                    ("Tab内容", KeyCode::Tab),
+                    ("内容 Tab", KeyCode::Tab),
                     ("运行 Ctrl+R", KeyCode::F(5)),
-                    ("p插件", KeyCode::Char('p')),
-                    ("D Dump", KeyCode::Char('D')),
-                    ("r重跑", KeyCode::Char('r')),
+                    ("插件 p", KeyCode::Char('p')),
+                    ("转储 D", KeyCode::Char('D')),
+                    ("重跑 r", KeyCode::Char('r')),
                 ],
                 Focus::Detail => vec![
-                    ("↑上滚", KeyCode::Up),
-                    ("↓下滚", KeyCode::Down),
-                    ("PgDn翻页", KeyCode::PageDown),
-                    ("d关闭", KeyCode::Char('d')),
-                    ("Tab内容", KeyCode::Tab),
+                    ("上滚 ↑", KeyCode::Up),
+                    ("下滚 ↓", KeyCode::Down),
+                    ("翻页 PgDn", KeyCode::PageDown),
+                    ("关闭 d", KeyCode::Char('d')),
+                    ("内容 Tab", KeyCode::Tab),
                 ],
                 _ => vec![
-                    ("/搜索", KeyCode::Char('/')),
-                    ("s排序", KeyCode::Char('s')),
-                    ("e导出", KeyCode::Char('e')),
-                    ("上页", KeyCode::Char('[')),
-                    ("下页", KeyCode::Char(']')),
-                    ("n行数", KeyCode::Char('n')),
-                    ("d详情", KeyCode::Char('d')),
-                    ("D Dump", KeyCode::Char('D')),
-                    ("v诊断", KeyCode::Char('v')),
+                    ("搜索 /", KeyCode::Char('/')),
+                    ("排序 s", KeyCode::Char('s')),
+                    ("导出 e", KeyCode::Char('e')),
+                    ("上页 [", KeyCode::Char('[')),
+                    ("下页 ]", KeyCode::Char(']')),
+                    ("详情 d", KeyCode::Char('d')),
+                    ("行数 n", KeyCode::Char('n')),
+                    ("转储 D", KeyCode::Char('D')),
+                    ("诊断 v", KeyCode::Char('v')),
                 ],
             }
         } else if self.focus == Focus::Content && self.hits.borrow().asset_detail.height > 0 {
             vec![
-                ("↑上滚", KeyCode::Up),
-                ("↓下滚", KeyCode::Down),
-                ("PgDn翻页", KeyCode::PageDown),
+                ("上滚 ↑", KeyCode::Up),
+                ("下滚 ↓", KeyCode::Down),
+                ("翻页 PgDn", KeyCode::PageDown),
                 ("完整详情 d", KeyCode::Char('d')),
-                ("Tab列表", KeyCode::Tab),
+                ("列表 Tab", KeyCode::Tab),
             ]
         } else {
             asset_actions(self.section)
@@ -1021,9 +1038,9 @@ impl App {
             ),
         );
         if self.job.is_some() {
-            actions.insert(0, ("Esc取消", KeyCode::Esc));
+            actions.insert(0, ("取消 Esc", KeyCode::Esc));
         }
-        actions.push(("?更多", KeyCode::Char('?')));
+        actions.push(("更多 ?", KeyCode::Char('?')));
         actions
     }
     pub(super) fn result(&self) -> Option<&Results> {

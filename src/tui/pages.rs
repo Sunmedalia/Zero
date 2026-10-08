@@ -644,28 +644,37 @@ impl App {
             self.hits.borrow_mut().workbench = main;
             if main.width > 0 {
                 let regions = Layout::vertical([
-                    Constraint::Length(if main.height >= 12 { 4 } else { 1 }),
-                    Constraint::Length(if main.height >= 12 { 3 } else { 0 }),
+                    Constraint::Length(if main.height >= 6 { 3 } else { 0 }),
                     Constraint::Min(2),
                 ])
                 .split(main);
-                self.draw_plugin_controls(frame, regions[0]);
                 self.draw_search(
                     frame,
-                    regions[1],
+                    regions[0],
                     &self.query,
                     InputKind::Search,
                     "内容搜索 · / 编辑 · Enter 确认 · Esc 撤销",
                 );
-                main = regions[2];
+                main = regions[1];
             }
             self.hits.borrow_mut().result = main;
             if main.width > 0 {
                 let rows = self.visible();
+                let page_size = self.page_rows();
+                let selected_row = self.row.min(rows.len().saturating_sub(1));
+                let offset = self.table_state.borrow().offset();
+                let page_start = if selected_row < offset {
+                    selected_row
+                } else if selected_row >= offset.saturating_add(page_size) {
+                    selected_row.saturating_add(1).saturating_sub(page_size)
+                } else {
+                    offset
+                }
+                .min(rows.len().saturating_sub(page_size));
                 let result = self.result();
                 let title = match result {
                     Some(r) => format!(
-                        " {} · {} / {} 条 · {} · 第 {} / {} 页 ",
+                        " {} · {} / {} 条 · {} · 显示 {}–{} 行 ",
                         r.plugin.strip_prefix("windows.").unwrap_or(&r.plugin),
                         rows.index.filtered.len(),
                         r.rows.len(),
@@ -676,8 +685,12 @@ impl App {
                         } else {
                             "部分"
                         },
-                        self.row / self.page_rows() + 1,
-                        rows.len().div_ceil(self.page_rows()).max(1)
+                        if rows.index.visible.is_empty() {
+                            0
+                        } else {
+                            page_start + 1
+                        },
+                        page_start.saturating_add(page_size).min(rows.len())
                     ),
                     None => format!(" {} ", plugin_label(self.plugin)),
                 };
@@ -710,8 +723,6 @@ impl App {
                         .min(virtual_width.saturating_sub(main.width) as usize)
                         as u16;
                     let render_area = Rect::new(main.x, main.y, virtual_width, main.height);
-                    let page_size = self.page_rows();
-                    let page_start = self.row / page_size * page_size;
                     let rows = rows.range(page_start, page_size);
                     let row_count = rows.len();
                     let viewport_block = block.clone();
@@ -729,7 +740,7 @@ impl App {
                     let table = Table::new(
                         rows.into_iter().enumerate().map(|(i, row)| {
                             Row::new(row.iter().map(|v| escaped(v)).collect::<Vec<_>>()).style(
-                                Style::default().fg(TEXT).bg(if i % 2 == 1 {
+                                Style::default().fg(TEXT).bg(if (page_start + i) % 2 == 1 {
                                     STRIPE
                                 } else {
                                     SURFACE
@@ -753,7 +764,9 @@ impl App {
                             .add_modifier(Modifier::BOLD),
                     )
                     .highlight_symbol("› ");
-                    let mut state = self.table_state.borrow_mut();
+                    // Render only the current window; saved state uses absolute
+                    // row indices so scrolling never snaps to a page boundary.
+                    let mut state = TableState::default();
                     state.select(
                         (row_count > 0).then_some(
                             self.row
@@ -786,7 +799,11 @@ impl App {
                             );
                         }
                     }
-                    self.hits.borrow_mut().row_offset = page_start + state.offset();
+                    let offset = page_start + state.offset();
+                    self.hits.borrow_mut().row_offset = offset;
+                    let mut saved = self.table_state.borrow_mut();
+                    saved.select((row_count > 0).then_some(selected_row));
+                    *saved.offset_mut() = offset;
                 } else {
                     frame.render_widget(
                         Paragraph::new(vec![
@@ -873,7 +890,7 @@ impl App {
             );
         }
         let buttons = self.footer_actions();
-        let more_width = Span::raw(" ?更多 ").width() as u16;
+        let more_width = Span::raw(" 更多 ? ").width() as u16;
         let mut x = footer.x;
         for (label, key) in buttons {
             let text = format!(" {label} ");
@@ -882,7 +899,7 @@ impl App {
             if footer.height < 3 {
                 break;
             }
-            if !more && x + width + more_width > footer.right() {
+            if !more && x + width + 1 + more_width > footer.right() {
                 continue;
             }
             if more && x + width > footer.right() {
@@ -890,8 +907,7 @@ impl App {
             }
             let rect = Rect::new(x, footer.y + 2, width, 1);
             frame.render_widget(
-                Paragraph::new(text)
-                    .style(Style::default().fg(Color::Rgb(144, 203, 195)).bg(RAISED)),
+                Paragraph::new(text).style(Style::default().fg(FOCUS).bg(RAISED)),
                 rect,
             );
             if self.page != Page::Assets || self.asset_disabled(self.section, key).is_none() {
@@ -902,7 +918,7 @@ impl App {
                     rect,
                 );
             }
-            x += width;
+            x += width + 1;
         }
         self.draw_dialog(frame, area);
     }
