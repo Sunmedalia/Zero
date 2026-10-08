@@ -117,7 +117,7 @@ impl Linux<'_> {
         for row in tasks {
             job.check()?;
             let task = row.address;
-            if matches!(plugin, Plugin::Bash | Plugin::History) && row.name != "bash" {
+            if plugin == Plugin::Bash && row.name != "bash" {
                 continue;
             }
             let read = (|| -> Result<()> {
@@ -127,7 +127,7 @@ impl Linux<'_> {
                 }
                 let vm = self.process_vm(task)?.context("用户地址空间为空")?;
                 let nodes = self.vma_nodes(mm, job)?;
-                if matches!(plugin, Plugin::Bash | Plugin::History) {
+                if plugin == Plugin::Bash {
                     return self.bash_history(
                         &vm,
                         &nodes,

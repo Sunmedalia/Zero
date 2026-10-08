@@ -351,6 +351,145 @@ fn mount_root_fd_holes_and_duplicate_references() {
     assert_eq!(r.diagnostics.len(), 2);
     assert_eq!(r.rows.len(), 2);
 }
+fn netscan_fixture() -> (Vec<u8>, Isf) {
+    let (mut b, mut isf) = fixture();
+    path_fixture(&mut b);
+    put(&mut b, 0xa038, 0xcb00);
+    put(&mut b, 0xa138, 0xcb00); // Shared socket ownership must survive deduplication.
+    put(&mut b, 0xcb00, 0xcc00);
+    put(&mut b, 0xcc00, 3);
+    put(&mut b, 0xcc08, 0xcd00);
+    put(&mut b, 0xcd00, 0xc600);
+    put(&mut b, 0xcd10, 0xc600); // Hole at FD 1, repeated socket at FD 2.
+    put(&mut b, 0xc718, 0xd010);
+    put(&mut b, 0xd010, 0xc000);
+    put(&mut b, 0xd000, 0xd100);
+    put(&mut b, 0xd100, 2);
+    put(&mut b, 0xd108, 1);
+    put(&mut b, 0xd120, 1 << 3);
+    put(&mut b, 0xd128, 6);
+    b[0xd110..0xd114].copy_from_slice(&[127, 0, 0, 1]);
+    b[0xd118..0xd11c].copy_from_slice(&[192, 0, 2, 1]);
+    b[0xd130..0xd132].copy_from_slice(&8080u16.to_be_bytes());
+    b[0xd138..0xd13a].copy_from_slice(&443u16.to_be_bytes());
+    // netscan must not depend on Unix socket or inode-number symbol coverage.
+    for ty in ["unix_sock", "unix_address", "sockaddr_un"] {
+        isf.data["user_types"].as_object_mut().unwrap().remove(ty);
+    }
+    isf.data["user_types"]["inode"]["fields"]
+        .as_object_mut()
+        .unwrap()
+        .remove("i_ino");
+    isf.data["user_types"]["sock"]["fields"]
+        .as_object_mut()
+        .unwrap()
+        .remove("sk_socket");
+    (b, isf)
+}
+#[test]
+fn netscan_deduplicates_per_owner_filters_non_internet_and_preserves_partial_results() {
+    let (mut b, isf) = netscan_fixture();
+    let job = Job::default();
+    let i = image(&b);
+    let r = engine(&i, &isf).run(Plugin::Netscan, &job).unwrap();
+    assert!(r.complete, "{:?}", r.diagnostics);
+    assert_eq!(r.rows.len(), 2);
+    assert_ne!(r.rows[0][0], r.rows[1][0]);
+    assert_eq!(
+        &r.rows[0][2..],
+        &[
+            "TCPv4",
+            "127.0.0.1:8080",
+            "192.0.2.1:443",
+            "ESTABLISHED",
+            "0x000000000000d000"
+        ]
+    );
+    assert_eq!(r.columns, Plugin::Netscan.descriptor().columns);
+    for (protocol, state, expected_protocol, expected_state) in
+        [(17, 7, "UDPv4", "UDP"), (6, 10, "TCPv4", "LISTEN")]
+    {
+        put(&mut b, 0xd128, protocol);
+        put(&mut b, 0xd108, state);
+        let i = image(&b);
+        let r = engine(&i, &isf).run(Plugin::Netscan, &job).unwrap();
+        assert!(r.complete, "{:?}", r.diagnostics);
+        assert_eq!(r.rows.len(), 2);
+        assert_eq!(r.rows[0][2], expected_protocol);
+        assert_eq!(r.rows[0][5], expected_state);
+    }
+    put(&mut b, 0xd108, 1);
+    // Distinct sockets with identical endpoints remain distinct.
+    b.copy_within(0xd000..0xd200, 0xe000);
+    put(&mut b, 0xe000, 0xe100);
+    put(&mut b, 0xc620, 0xc300);
+    put(&mut b, 0xc628, 0xc740);
+    put(&mut b, 0xc758, 0xe010);
+    put(&mut b, 0xcd08, 0xc620);
+    let i = image(&b);
+    let r = engine(&i, &isf).run(Plugin::Netscan, &job).unwrap();
+    assert!(r.complete, "{:?}", r.diagnostics);
+    assert_eq!(r.rows.len(), 4);
+    for (family, protocol) in [(1, 0), (16, 0), (2, 1)] {
+        put(&mut b, 0xe100, family);
+        put(&mut b, 0xe128, protocol);
+        // Invalid Unix data must never be decoded by netscan.
+        put(&mut b, 0xe130, 0x300000);
+        let i = image(&b);
+        let r = engine(&i, &isf).run(Plugin::Netscan, &job).unwrap();
+        assert!(r.complete, "{:?}", r.diagnostics);
+        assert_eq!(r.rows.len(), 2);
+    }
+    put(&mut b, 0xcd08, 0x300000); // Missing file page is a partial result.
+    let i = image(&b);
+    let r = engine(&i, &isf).run(Plugin::Netscan, &job).unwrap();
+    assert!(!r.complete);
+    assert_eq!(r.rows.len(), 2);
+    assert_eq!(r.diagnostics.len(), 2);
+    assert!(r.diagnostics.iter().all(|d| d.contains("FD 1")));
+}
+#[test]
+fn netscan_ipv6_udp_and_modern_endpoint_layouts() {
+    for modern in [false, true] {
+        for (protocol, expected) in [(6, "TCPv6"), (17, "UDPv6")] {
+            let (mut b, mut isf) = netscan_fixture();
+            put(&mut b, 0xd100, 10);
+            put(&mut b, 0xd128, protocol);
+            if modern {
+                let fields = isf.data["user_types"]["sock_common"]["fields"]
+                    .as_object_mut()
+                    .unwrap();
+                fields.insert("skc_v6_rcv_saddr".into(), json!({"offset": 80, "type": {"kind": "array", "count": 16, "subtype": {"kind": "base", "name": "char"}}}));
+                fields.insert("skc_v6_daddr".into(), json!({"offset": 96, "type": {"kind": "array", "count": 16, "subtype": {"kind": "base", "name": "char"}}}));
+                fields.insert(
+                    "skc_dport".into(),
+                    json!({"offset": 56, "type": {"kind": "base", "name": "u64"}}),
+                );
+                isf.data["user_types"]["inet_sock"]["fields"]
+                    .as_object_mut()
+                    .unwrap()
+                    .remove("inet_dport");
+                b[0xd150..0xd160].copy_from_slice(&Ipv6Addr::LOCALHOST.octets());
+                b[0xd160..0xd170].copy_from_slice(&Ipv6Addr::LOCALHOST.octets());
+            } else {
+                put(&mut b, 0xd140, 0xe000);
+                b[0xe000..0xe010].copy_from_slice(&Ipv6Addr::LOCALHOST.octets());
+                b[0xe010..0xe020].copy_from_slice(&Ipv6Addr::LOCALHOST.octets());
+            }
+            let i = image(&b);
+            let r = engine(&i, &isf)
+                .run(Plugin::Netscan, &Job::default())
+                .unwrap();
+            assert!(r.complete, "{:?}", r.diagnostics);
+            assert_eq!(r.rows.len(), 2);
+            assert_eq!(&r.rows[0][2..5], &[expected, "[::1]:8080", "[::1]:443"]);
+            assert_eq!(
+                r.rows[0][5],
+                if protocol == 6 { "ESTABLISHED" } else { "UDP" }
+            );
+        }
+    }
+}
 #[test]
 fn ipv4_ipv6_tcp_udp_unix_and_unsupported() {
     let (mut b, isf) = fixture();

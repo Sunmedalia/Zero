@@ -1,30 +1,28 @@
 fn asset_actions(section: AssetSection) -> Vec<(&'static str, KeyCode)> {
     let mut actions = match section {
         AssetSection::Images => vec![
-            ("选用镜像 Space", KeyCode::Char(' ')),
+            ("选用 Space", KeyCode::Char(' ')),
             ("选用并分析 Enter", KeyCode::Enter),
-            ("导入镜像 a", KeyCode::Char('a')),
+            ("导入 a", KeyCode::Char('a')),
         ],
         AssetSection::Symbols => vec![
-            ("选用符号 Space", KeyCode::Char(' ')),
+            ("选用 Space", KeyCode::Char(' ')),
             ("选用并分析 Enter", KeyCode::Enter),
-            ("导入符号 a", KeyCode::Char('a')),
+            ("导入 a", KeyCode::Char('a')),
             ("全部／匹配 z", KeyCode::Char('z')),
         ],
         AssetSection::Remote => vec![
             ("下载并选用 Space", KeyCode::Char(' ')),
             ("进入分析控制台 Enter", KeyCode::Enter),
-            ("下载到 symbols w", KeyCode::Char('w')),
-            ("获取完整索引 g", KeyCode::Char('g')),
+            ("仅下载 w", KeyCode::Char('w')),
+            ("获取索引 g", KeyCode::Char('g')),
         ],
     };
     actions.extend([
-        ("导入镜像 i", KeyCode::Char('i')),
-        ("导入符号 y", KeyCode::Char('y')),
         ("搜索 /", KeyCode::Char('/')),
-        ("完整详情 d", KeyCode::Char('d')),
+        ("详情 d", KeyCode::Char('d')),
         ("本地匹配 m", KeyCode::Char('m')),
-        ("匹配并获取符号 M", KeyCode::Char('M')),
+        ("远程匹配 M", KeyCode::Char('M')),
         ("识别内核 b", KeyCode::Char('b')),
         ("刷新 r", KeyCode::Char('r')),
         ("进入分析 x", KeyCode::Char('x')),
@@ -32,10 +30,52 @@ fn asset_actions(section: AssetSection) -> Vec<(&'static str, KeyCode)> {
         ("在线／离线 o", KeyCode::Char('o')),
         ("生成当前镜像符号表 K", KeyCode::Char('K')),
     ]);
+    if section != AssetSection::Images {
+        actions.push(("导入镜像 i", KeyCode::Char('i')));
+    }
+    if section != AssetSection::Symbols {
+        actions.push(("导入符号 y", KeyCode::Char('y')));
+    }
     if section != AssetSection::Remote {
         actions.push(("移出清单 Delete", KeyCode::Delete));
     }
     actions
+}
+fn asset_pane_keys(section: AssetSection) -> &'static [KeyCode] {
+    match section {
+        AssetSection::Images => &[KeyCode::Char('a'), KeyCode::Char(' '), KeyCode::Char('d')],
+        AssetSection::Symbols => &[
+            KeyCode::Char('a'),
+            KeyCode::Char(' '),
+            KeyCode::Char('d'),
+            KeyCode::Char('z'),
+        ],
+        AssetSection::Remote => &[
+            KeyCode::Char('g'),
+            KeyCode::Char(' '),
+            KeyCode::Char('w'),
+            KeyCode::Char('d'),
+        ],
+    }
+}
+fn asset_action_rows(section: AssetSection, keys: &[KeyCode], width: u16) -> u16 {
+    let actions = asset_actions(section);
+    let mut rows = 1;
+    let mut x = 0;
+    for key in keys {
+        if let Some((label, _)) = actions.iter().find(|(_, action)| action == key) {
+            let length = Span::raw(format!(" {label} ")).width() as u16;
+            if length > width {
+                continue;
+            }
+            if x + length > width {
+                rows += 1;
+                x = 0;
+            }
+            x += length + 1;
+        }
+    }
+    rows
 }
 const COMMANDS: &[(&str, KeyCode)] = &[
     ("打开资源库", KeyCode::F(2)),

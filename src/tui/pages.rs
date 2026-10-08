@@ -155,10 +155,11 @@ impl App {
     ) {
         let mut x = area.x;
         let mut y = area.y;
-        for (label, key) in asset_actions(section)
-            .into_iter()
-            .filter(|(_, key)| keys.contains(key))
-        {
+        let actions = asset_actions(section);
+        for key in keys.iter().copied() {
+            let Some((label, _)) = actions.iter().find(|(_, action)| *action == key) else {
+                continue;
+            };
             let text = format!(" {label} ");
             let width = Span::raw(&text).width() as u16;
             if width > area.width {
@@ -177,7 +178,11 @@ impl App {
                 Paragraph::new(text).style(if disabled.is_some() {
                     Style::default().fg(MUTED)
                 } else {
-                    Style::default().fg(FOCUS).bg(SELECTED_BG)
+                    Style::default().fg(FOCUS).bg(if key == KeyCode::Char('x') {
+                        SELECTED_BG
+                    } else {
+                        RAISED
+                    })
                 }),
                 rect,
             );
@@ -194,9 +199,12 @@ impl App {
         if area.height == 0 || area.width < 3 {
             return;
         }
+        let keys = asset_pane_keys(section);
+        let button_rows =
+            asset_action_rows(section, keys, area.width).min(if area.height >= 8 { 2 } else { 1 });
         let parts = Layout::vertical([
             Constraint::Length(3),
-            Constraint::Length(if frame.area().width >= 100 { 2 } else { 1 }),
+            Constraint::Length(button_rows),
             Constraint::Min(3),
         ])
         .split(area);
@@ -219,20 +227,7 @@ impl App {
             .borrow_mut()
             .asset_searches
             .push((parts[0], section));
-        self.draw_asset_buttons(
-            frame,
-            parts[1],
-            section,
-            &[
-                KeyCode::Char(' '),
-                KeyCode::Enter,
-                KeyCode::Char('a'),
-                KeyCode::Char('w'),
-                KeyCode::Char('g'),
-                KeyCode::Char('z'),
-                KeyCode::Char('d'),
-            ],
-        );
+        self.draw_asset_buttons(frame, parts[1], section, keys);
         let rows = if section == AssetSection::Remote {
             self.remote_list()
                 .iter()
@@ -346,9 +341,10 @@ impl App {
         }
     }
     pub(super) fn draw_assets(&self, frame: &mut Frame, area: Rect) {
+        let keys = [KeyCode::Char('x'), KeyCode::Char('M'), KeyCode::Char('m')];
         let regions = Layout::vertical([
             Constraint::Length(if area.height >= 20 { 4 } else { 2 }),
-            Constraint::Length(2),
+            Constraint::Length(asset_action_rows(self.section, &keys, area.width).min(2)),
             Constraint::Length(1),
             Constraint::Min(2),
         ])
@@ -430,16 +426,6 @@ impl App {
             ]),
             regions[0],
         );
-        let mut keys = vec![
-            KeyCode::Char('i'),
-            KeyCode::Char('y'),
-            KeyCode::Char('m'),
-            KeyCode::Char('M'),
-            KeyCode::Char('x'),
-        ];
-        if !self.windows {
-            keys.push(KeyCode::Char('K'));
-        }
         self.draw_asset_buttons(frame, regions[1], self.section, &keys);
         let mut x = regions[2].x;
         for (label, section) in [

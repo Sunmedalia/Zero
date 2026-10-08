@@ -16,7 +16,7 @@ cargo install --path . --locked
 
 顶部导航为**资源库、分析**，分别用 `F2`／`F3` 切换，也可点击标签或用 Ctrl+←/→ 切换。设置、缓存、日志和历史导出从 Ctrl+P／`?` 命令面板进入。
 
-- **资源库**：首页管理镜像、本地 JSON／JSON.XZ／ZIP 和远程符号。`i`／`y` 导入镜像／符号，`a` 导入当前类型；Space 选用，Enter 用已选镜像和符号进入分析控制台，`d` 查看详情，Delete 移出清单，均保留原文件。高亮行表示正在浏览，“●已选用”表示当前分析对象。选用镜像后自动识别系统并精确匹配本地符号；唯一候选自动选用，多个候选用 Space 选用、Enter 进入控制台，`d` 查看详情，ZIP 内候选分别列出。系统不明确时用 F6 手动选择。顶部直接显示当前对象、完整 banner、匹配状态、在线／离线模式和远程来源。`m` 重试本地匹配；`M` 查询、下载并选用远程精确符号，多候选先选择。Linux 使用 [GitHub 符号仓库](https://github.com/Abyss-W4tcher/volatility3-symbols) 的完整 banner 索引，Windows 使用 Microsoft 精确 PDB 名称、GUID 和 Age。没有候选会明确说明；该仓库没有本地 Kali 6.8.11 ARM64 构建时，可用 `K` 打开“生成当前镜像符号表”表单，自动获取该内核调试资料；其他 Linux 构建可填写匹配的调试 ELF、内核配置及 dwarf2json 路径。生成后校验完整 banner，保存至本地符号库并选用，不自动运行分析。`t` 切换本地／远程，`g` 获取完整索引，`/` 搜索，`d` 查看完整信息。远程独立下载 `w` 只保存文件；详情中的 `L` 定位本地副本。`x` 进入分析，无需符号的功能仍可单独执行。
+- **资源库**：首页管理镜像、本地 JSON／JSON.XZ／ZIP 和远程符号。顶部只放进入分析、远程匹配和本地匹配；导入、选用、详情及列表筛选放在对应列表上方；底部只放在线／离线切换、目录与“更多”。识别、生成符号、刷新、移出清单等操作可从“更多”访问，原快捷键仍可使用。`i`／`y` 导入镜像／符号，`a` 导入当前类型；Space 选用，Enter 用已选镜像和符号进入分析控制台，`d` 查看详情，Delete 移出清单，均保留原文件。高亮行表示正在浏览，“●已选用”表示当前分析对象。选用镜像后自动识别系统并精确匹配本地符号；唯一候选自动选用，多个候选用 Space 选用、Enter 进入控制台，`d` 查看详情，ZIP 内候选分别列出。系统不明确时用 F6 手动选择。顶部直接显示当前对象、完整 banner、匹配状态、在线／离线模式和远程来源。`m` 重试本地匹配；`M` 查询、下载并选用远程精确符号，多候选先选择。Linux 使用 [GitHub 符号仓库](https://github.com/Abyss-W4tcher/volatility3-symbols) 的完整 banner 索引，Windows 使用 Microsoft 精确 PDB 名称、GUID 和 Age。没有候选会明确说明；该仓库没有本地 Kali 6.8.11 ARM64 构建时，可用 `K` 打开“生成当前镜像符号表”表单，自动获取该内核调试资料；其他 Linux 构建可填写匹配的调试 ELF、内核配置及 dwarf2json 路径。生成后校验完整 banner，保存至本地符号库并选用，不自动运行分析。`t` 切换本地／远程，`g` 获取完整索引，`/` 搜索，`d` 查看完整信息。远程独立下载 `w` 只保存文件；详情中的 `L` 定位本地副本。`x` 进入分析，无需符号的功能仍可单独执行。
 - **分析**：顶部两行显示当前镜像、系统、符号及页表状态。点击插件或 Enter 确认插件立即显示已有结果；当前参数没有结果时自动运行，窄窗口同时切换到内容区域。Ctrl+R 仍可明确运行，`r` 强制重跑。`P` 编辑参数草稿，PID 仅对支持的插件显示，hive／key 用于 printkey；F7 展开 Windows 架构和分页附件高级配置。保存参数后可以点击插件或 Ctrl+R 运行。每个插件与参数组合保存结果及浏览位置。分析结果区域顶部仅保留内容搜索框，参数通过 `P` 打开表单。
 - **任务**：浏览资产、已有结果和页面不打断任务。点击尚无当前参数结果的插件或选用新对象时取消当前任务，等线程退出后执行最后一次请求，始终只有一个后台任务。结果绑定实际执行的参数快照，旧对象事件不会更新新对象。取消获取符号后不继续下载、选用或分析。失败可以修复参数、路径或在线模式后重试；部分结果和诊断可查看、导出，部分结果不进入成功缓存。
 - **Dump**：`D` 在工作台打开独立表单；Linux 提供 Process／Range／ELF，Windows 提供 Process／Range／PE。结果行包含 PID 时自动预填，仍需点击“开始转储”或 Ctrl+Enter 明确执行。
@@ -66,7 +66,7 @@ zero analyze --image images/linux-sample-1.bin.gz --symbols symbols/linux.zip \
   --plugin lsmod --output modules.csv
 # Recover in-memory Bash history
 zero analyze --image images/linux-sample-1.bin.gz --symbols symbols/linux.zip \
-  --plugin history --output history.json
+  --plugin bash --output history.json
 # Dump only PID 1; binaries and manifest have separate output parameters
 zero dump --image images/linux-sample-1.bin.gz --symbols symbols/linux.zip \
   --mode process --pid 1 --dump-dir exports/dumps --output dump-index.csv
@@ -81,7 +81,7 @@ zero dump --image images/linux-sample-1.bin.gz --symbols symbols/linux.zip \
 
 TUI 插件列表只列分析插件，转储统一放在 `dump` 功能中，用 `D` 打开。CLI 推荐使用 `dump --mode process|range|elf`，必填 PID、转储目录与清单输出；兼容原 `analyze --plugin procdump|memdump|elfdump` 调用。
 
-Linux 的 `--plugin` 支持 `pslist`、`pstree`、`lsmod`、`psaux`、`envars`、`maps`、`lsof`、`sockstat`、`banners`、`pwd`、`pscred`、`threads`、`mountinfo`、`check_creds`、`dmesg`、`systeminfo`、`elfs`、`bash`、`malfind`、`psxview`、`check_modules`、`check_syscall`、`psstate`、`capabilities`、`fdsummary`、`history`、`procdump`、`memdump`、`elfdump`、`iomem`、`ioports`、`ptrace`、`keyboard_notifiers`、`check_exec`，共 34 个。进程字段为 PID、TGID、PPID、Name、Address，PID 0 不进入结果；模块字段为 Name、Base、Size，大小以字节计。`pstree` 导出同样的完整进程字段，PPID 表达父子关系，TUI 显示可展开树。地址是完整虚拟地址，模块 Base 是 `module_core` / `core_layout.base`，Size 是整个核心内存区域大小。
+Linux 的 `--plugin` 支持 `pslist`、`pstree`、`lsmod`、`psaux`、`envars`、`maps`、`lsof`、`sockstat`、`netscan`、`banners`、`pwd`、`pscred`、`threads`、`mountinfo`、`check_creds`、`dmesg`、`systeminfo`、`elfs`、`bash`、`malfind`、`psxview`、`check_modules`、`check_syscall`、`psstate`、`capabilities`、`fdsummary`、`procdump`、`memdump`、`elfdump`、`iomem`、`ioports`、`ptrace`、`keyboard_notifiers`、`check_exec`，共 34 个。进程字段为 PID、TGID、PPID、Name、Address，PID 0 不进入结果；模块字段为 Name、Base、Size，大小以字节计。`pstree` 导出同样的完整进程字段，PPID 表达父子关系，TUI 显示可展开树。地址是完整虚拟地址，模块 Base 是 `module_core` / `core_layout.base`，Size 是整个核心内存区域大小。
 
 新增分析字段与范围：
 
@@ -91,6 +91,7 @@ Linux 的 `--plugin` 支持 `pslist`、`pstree`、`lsmod`、`psaux`、`envars`�
 | envars | PID、Name、Key、Value |
 | maps | PID、Name、Start、End、Permissions、FileOffset、Path |
 | lsof | PID、Name、FD、Type、Inode、Path、FileAddress |
+| netscan | PID、Name、Protocol、LocalEndpoint、RemoteEndpoint、State、SocketAddress |
 | sockstat | PID、Name、FD、Family、Type、Protocol、LocalEndpoint、RemoteEndpoint、State、SocketAddress |
 | banners | Offset（物理地址）、Banner；无需 ISF |
 | pwd | PID、Name、Root（全局路径）、CWD（相对进程根） |
@@ -109,7 +110,6 @@ Linux 的 `--plugin` 支持 `pslist`、`pstree`、`lsmod`、`psaux`、`envars`�
 | psstate | PID、Name、State、ExitState、Flags |
 | capabilities | PID、Name、Inheritable、Permitted、Effective、Bounding、CredAddress |
 | fdsummary | PID、Name、Total、Regular、Sockets、Pipes |
-| history | PID、Shell、Timestamp、Command、Address |
 | iomem / ioports | Name、Start、End、Depth、Flags、Address |
 | ptrace | Process、PID、TID、TracerTID、TraceeTID、Flags |
 | keyboard_notifiers | Address（回调）、Module、Symbol、Priority、NotifierAddress |
@@ -139,7 +139,7 @@ zero --offline analyze --image images/kali.raw --symbols symbols/kali-6.8.11-arm
 
 本地全字段核对：Debian `iomem=116`、`ioports=65`；Kali ARM64 `iomem=50`、`ioports=2`。两个样本 `ptrace=0`、`keyboard_notifiers=0`，均为正常空表；Kali ptrace 保留原有父进程缺失提示。实际 tracer／tracee、回调归属与负优先级另有合成测试覆盖。四个结果的完整字段已由 `tests/reference/debian.py` 独立只读解析核对，并写入两套验收基线；`make acceptance` 检查行摘要、诊断、导出及缓存行为。独立复核时给该脚本传入 `--plugins iomem,ioports,ptrace,keyboard_notifiers`，其余镜像／符号／结果前缀参数同下文。
 
-`history` 从内存中的 Bash 历史结构恢复带时间戳记录，并从已验证记录邻接的指针数组恢复部分无时间戳命令；不读取磁盘历史文件。`bash` 保留旧插件名称与相同解析行为。Dump 插件必须显式指定 `--pid` 和 `--dump-dir`；`--output` 仍是 CSV／JSON 清单路径。没有参数时在读取镜像前报错，绝不默认转储全部进程。TUI 按 D 或选择统一 dump 入口打开参数表单，F2／F3／F4 切换 Process／Range／ELF 模式，Tab／Shift+Tab 切换字段，Enter 到下一项，选中“开始转储”后 Enter 或点击按钮执行，也可 Ctrl+Enter 执行；Esc 取消。默认目录是配置的导出目录下 `dumps/`，可修改。
+`bash` 从内存中的 Bash 历史结构恢复带时间戳记录，并从已验证记录邻接的指针数组恢复部分无时间戳命令；不读取磁盘历史文件。插件列表只保留 `bash`；旧命令中的 `history` 作为兼容别名映射到同一插件，结果统一使用 bash 的名称和列。Dump 插件必须显式指定 `--pid` 和 `--dump-dir`；`--output` 仍是 CSV／JSON 清单路径。没有参数时在读取镜像前报错，绝不默认转储全部进程。TUI 按 D 或选择统一 dump 入口打开参数表单，F2／F3／F4 切换 Process／Range／ELF 模式，Tab／Shift+Tab 切换字段，Enter 到下一项，选中“开始转储”后 Enter 或点击按钮执行，也可 Ctrl+Enter 执行；Esc 取消。默认目录是配置的导出目录下 `dumps/`，可修改。
 
 - `procdump`：只导出所选 PID 的可读 VMA；可同时指定 `--start` 和 `--end` 限制范围，保留各 VMA 分段。
 - `memdump`：必须提供 `--start`、`--end`，读取该 PID 的用户虚拟地址范围；地址接受十进制／`0x` 十六进制，End 不包含在范围内。
@@ -150,6 +150,8 @@ zero --offline analyze --image images/kali.raw --symbols symbols/kali-6.8.11-arm
 `threads` 遍历线程组，包含组长；`mountinfo` 按进程的挂载命名空间列出挂载点，路径从全局／命名空间根解析，保留不同进程的关联。`check_creds` 汇总不同进程共享的 cred 指针，作为核查线索；共享本身不证明入侵。`dmesg` 支持 Linux 3.2 的旧式 printk 缓冲区，按照 `logged_chars`／`log_end` 读取保留日志（[对应内核源码](https://raw.githubusercontent.com/torvalds/linux/v3.2/kernel/printk.c)）；上限 16 MiB，Kali 6.8 的结构化 printk 从 descriptor／text data ring 读取，并校验提交状态、ID、环绕和记录长度。
 
 `psaux` 和 `envars` 将 `mm.pgd` 经内核页表转换为物理页表，再读取进程用户空间。argv 按 NUL 分隔为命令行；内核线程显示 `[名称]` / `KernelThread`，普通进程为 `OK`。环境变量每项一行，按第一个 `=` 拆分，值中的 `=` 保留。空环境和无映射／无 FD 是正常空结果。
+
+`netscan` 聚焦进程 FD 引用的 TCP／UDP IPv4／IPv6 socket，Protocol 为 TCPv4、TCPv6、UDPv4 或 UDPv6。同一进程的重复 socket 引用合并为一行，共享 socket 的不同进程分别保留；Unix、Netlink、RAW 等 socket 请使用 `sockstat`。它包含监听端口和 UDP socket，不扫描无进程 FD 引用的对象或已释放的连接。CLI 使用 `--plugin netscan`，TUI 位于 Network 分类，MCP 使用同名插件。
 
 `maps` 遍历 VMA 链表或现代 maple tree，权限为 `rwx` 加 `s`／`p`，匿名区域显示 `[anonymous]`；FileOffset 是字节偏移。`lsof` 和 `sockstat` 遍历每个进程的 FD，保留多个进程／FD 对同一对象的引用。文件路径跨挂载点解析，以进程 `fs.root` 为根；内核伪文件显示 `socket:[inode]`、`pipe:[inode]`、`anon_inode:[名称]` 或 `[tmpfs]/名称`。根目录外的已打开文件无法给出该进程内的路径，显示 `[unresolved]`，保留其余字段并报告部分结果。
 

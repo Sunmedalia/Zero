@@ -36,6 +36,7 @@ impl Linux<'_> {
         let count = self.number(table, "fdtable", "max_fds")?;
         let array = self.number(table, "fdtable", "fd")?;
         ensure!(count == 0 || array != 0, "FD 数组为空");
+        let mut seen_sockets = HashSet::new();
         for fd in 0..count.min(limit) {
             job.check()?;
             let row = (|| -> Result<Option<Vec<String>>> {
@@ -46,10 +47,12 @@ impl Linux<'_> {
                 }
                 let inode = self.inode(file)?;
                 let mode = self.number(inode, "inode", "i_mode")?;
-                let ino = self.number(inode, "inode", "i_ino")?;
                 let mut row = prefix.clone();
-                row.push(fd.to_string());
+                if plugin != Plugin::Netscan {
+                    row.push(fd.to_string());
+                }
                 if plugin == Plugin::Lsof {
+                    let ino = self.number(inode, "inode", "i_ino")?;
                     let path = match mode & 0xf000 {
                         0xc000 => format!("socket:[{ino}]"),
                         0x1000 => {
@@ -76,7 +79,22 @@ impl Linux<'_> {
                     if mode & 0xf000 != 0xc000 {
                         return Ok(None);
                     }
-                    row.extend(self.socket(inode)?);
+                    if plugin == Plugin::Netscan {
+                        let Some(socket) = self.internet_socket(inode)? else {
+                            return Ok(None);
+                        };
+                        if !seen_sockets.insert(socket[6].clone()) {
+                            return Ok(None);
+                        }
+                        row.push(format!(
+                            "{}v{}",
+                            socket[2],
+                            if socket[0] == "IPv4" { 4 } else { 6 }
+                        ));
+                        row.extend(socket[3..].iter().cloned());
+                    } else {
+                        row.extend(self.socket(inode)?);
+                    }
                 }
                 Ok(Some(row))
             })();

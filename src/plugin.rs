@@ -86,7 +86,6 @@ pub enum Plugin {
     Psstate,
     Capabilities,
     Fdsummary,
-    History,
     Procdump,
     Memdump,
     Elfdump,
@@ -98,6 +97,7 @@ pub enum Plugin {
     Maps,
     Lsof,
     Sockstat,
+    Netscan,
     Banners,
     Pwd,
     Pscred,
@@ -108,6 +108,7 @@ pub enum Plugin {
     Dmesg,
     Systeminfo,
     Elfs,
+    #[value(alias = "history")]
     Bash,
     Malfind,
     Psxview,
@@ -626,6 +627,21 @@ pub const PLUGINS: &[Descriptor] = &[
         widths: &[5, 12, 4, 6, 8, 8, 0, 0, 12, 18],
     },
     Descriptor {
+        plugin: Plugin::Netscan,
+        name: "netscan",
+        label: "netscan",
+        columns: &[
+            "PID",
+            "Name",
+            "Protocol",
+            "LocalEndpoint",
+            "RemoteEndpoint",
+            "State",
+            "SocketAddress",
+        ],
+        widths: &[5, 12, 6, 0, 0, 12, 18],
+    },
+    Descriptor {
         plugin: Plugin::Banners,
         name: "banners",
         label: "banners",
@@ -800,13 +816,6 @@ pub const PLUGINS: &[Descriptor] = &[
         widths: &[6, 16, 8, 8, 8, 8],
     },
     Descriptor {
-        plugin: Plugin::History,
-        name: "history",
-        label: "history",
-        columns: &["PID", "Shell", "Timestamp", "Command", "Address"],
-        widths: &[6, 12, 14, 0, 18],
-    },
-    Descriptor {
         plugin: Plugin::Iomem,
         name: "iomem",
         label: "iomem",
@@ -933,11 +942,10 @@ impl Plugin {
             | Self::Threads
             | Self::Envars
             | Self::Pwd
-            | Self::History
             | Self::Procdump => "Process",
             Self::Maps | Self::Elfs | Self::Bash | Self::Memdump | Self::Elfdump => "Memory",
             Self::Fdsummary | Self::Lsof | Self::Mountinfo => "Files",
-            Self::Sockstat => "Network",
+            Self::Sockstat | Self::Netscan => "Network",
             Self::KeyboardNotifiers
             | Self::CheckCreds
             | Self::Malfind
@@ -969,5 +977,24 @@ mod tests {
             );
         }
         assert_eq!(PLUGINS.len(), Plugin::value_variants().len());
+    }
+
+    #[test]
+    fn linux_netscan_and_windows_netscan_have_distinct_identities() {
+        assert_eq!(Plugin::from_str("netscan", false).unwrap(), Plugin::Netscan);
+        assert_eq!(
+            Plugin::from_str("windows.netscan", false).unwrap(),
+            Plugin::WinNetscan
+        );
+        assert!(!Plugin::Netscan.is_windows());
+        assert_eq!(Plugin::Netscan.category(), "Network");
+        assert_eq!(Plugin::Netscan.descriptor().columns.len(), 7);
+    }
+
+    #[test]
+    fn bash_history_has_one_plugin_and_legacy_commands_use_the_same_identity() {
+        assert_eq!(Plugin::from_str("history", false).unwrap(), Plugin::Bash);
+        assert_eq!(PLUGINS.iter().filter(|d| d.name == "bash").count(), 1);
+        assert!(!PLUGINS.iter().any(|d| d.name == "history"));
     }
 }

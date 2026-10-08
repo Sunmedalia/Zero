@@ -159,19 +159,30 @@ fn system_picker_footer_and_mouse_work_on_both_pages() {
         app.page = page;
         let mut terminal = Terminal::new(TestBackend::new(45, 24)).unwrap();
         terminal.draw(|f| app.draw(f)).unwrap();
-        let rect = app
-            .hits
-            .borrow()
-            .buttons
-            .iter()
-            .find(|(_, key)| *key == KeyCode::F(6))
-            .unwrap()
-            .0;
-        app.mouse(mouse_event(
-            MouseEventKind::Down(MouseButton::Left),
-            rect.x,
-            rect.y,
-        ));
+        if page == Page::Assets {
+            assert!(
+                !app.hits
+                    .borrow()
+                    .buttons
+                    .iter()
+                    .any(|(_, key)| *key == KeyCode::F(6))
+            );
+            app.key(KeyEvent::new(KeyCode::F(6), KeyModifiers::NONE));
+        } else {
+            let rect = app
+                .hits
+                .borrow()
+                .buttons
+                .iter()
+                .find(|(_, key)| *key == KeyCode::F(6))
+                .unwrap()
+                .0;
+            app.mouse(mouse_event(
+                MouseEventKind::Down(MouseButton::Left),
+                rect.x,
+                rect.y,
+            ));
+        }
         terminal.draw(|f| app.draw(f)).unwrap();
         assert!(screen(&terminal, 45).contains("Windows"));
         let popup = app.hits.borrow().popup;
@@ -1314,15 +1325,34 @@ fn contextual_footer_and_symbol_sources_follow_focus() {
     assert!(has(&app, KeyCode::Char(']')));
     assert!(!has(&app, KeyCode::Enter));
     app.switch_section(AssetSection::Symbols);
-    assert!(has(&app, KeyCode::Char('a')));
+    assert!(!has(&app, KeyCode::Char('a')));
     assert!(!has(&app, KeyCode::Char('g')));
     let mut terminal = Terminal::new(TestBackend::new(100, 32)).unwrap();
     terminal.draw(|f| app.draw(f)).unwrap();
+    assert!(
+        app.hits
+            .borrow()
+            .asset_buttons
+            .iter()
+            .any(|(_, section, key)| {
+                *section == AssetSection::Symbols && *key == KeyCode::Char('a')
+            })
+    );
     let source = app.hits.borrow().sources[2].0;
     click(&mut app, source.x, source.y);
     assert_eq!(app.section, AssetSection::Remote);
-    assert!(has(&app, KeyCode::Char('g')));
+    assert!(!has(&app, KeyCode::Char('g')));
     assert!(!has(&app, KeyCode::Char('a')));
+    terminal.draw(|f| app.draw(f)).unwrap();
+    assert!(
+        app.hits
+            .borrow()
+            .asset_buttons
+            .iter()
+            .any(|(_, section, key)| {
+                *section == AssetSection::Remote && *key == KeyCode::Char('g')
+            })
+    );
     app.focus = Focus::Content;
     assert!(!has(&app, KeyCode::Enter));
     assert!(has(&app, KeyCode::PageDown));
@@ -1961,6 +1991,96 @@ fn manager_cancel_stops_preparation_and_detail_download_without_followup_actions
     assert!(app.dialog.is_none());
     assert_eq!(app.page, Page::Assets);
 }
+#[test]
+fn resource_actions_are_unique_and_import_stays_accessible_on_small_screens() {
+    let (dir, mut app) = preparation_fixture();
+    let exact = dir.path().join("symbols/exact.json");
+    std::fs::write(&exact, fixture_isf(PREPARATION_BANNER, 1)).unwrap();
+    app.initialize(Default::default());
+    finish_test_job(&mut app);
+    assert_eq!(app.preparation, Preparation::Ready);
+    assert!(app.menu_items().contains(&"bash".into()));
+    assert!(!app.menu_items().contains(&"history".into()));
+    for section in [
+        AssetSection::Images,
+        AssetSection::Symbols,
+        AssetSection::Remote,
+    ] {
+        app.switch_section(section);
+        for (width, height) in [(160, 40), (100, 32), (80, 24), (60, 18)] {
+            let mut terminal = Terminal::new(TestBackend::new(width, height)).unwrap();
+            terminal.draw(|f| app.draw(f)).unwrap();
+            let hits = app.hits.borrow().clone();
+            let rendered = screen(&terminal, width as usize);
+            let mut seen = HashSet::new();
+            for (_, target, key) in &hits.asset_buttons {
+                assert!(
+                    seen.insert((target.slot(), *key)),
+                    "duplicate button: {target:?} {key:?}\n{rendered}"
+                );
+            }
+            for key in [KeyCode::Char('x'), KeyCode::Char('M'), KeyCode::Char('m')] {
+                assert_eq!(
+                    hits.asset_buttons
+                        .iter()
+                        .filter(|(_, _, action)| *action == key)
+                        .count(),
+                    1,
+                    "{width}x{height}\n{rendered}"
+                );
+                assert!(!hits.buttons.iter().any(|(_, action)| *action == key));
+            }
+            assert!(!hits.asset_buttons.iter().any(|(_, _, key)| matches!(
+                key,
+                KeyCode::Enter | KeyCode::Char('i' | 'y' | 'K' | 'b')
+            )));
+            assert!(
+                hits.buttons
+                    .iter()
+                    .any(|(_, key)| *key == KeyCode::Char('?'))
+            );
+            if section == AssetSection::Remote {
+                assert!(
+                    hits.asset_buttons
+                        .iter()
+                        .any(|(_, target, key)| *target == section && *key == KeyCode::Char('g'))
+                );
+            } else {
+                let import = hits
+                    .asset_buttons
+                    .iter()
+                    .find(|(_, target, key)| *target == section && *key == KeyCode::Char('a'))
+                    .unwrap()
+                    .0;
+                click(&mut app, import.x + 1, import.y);
+                let kind = if section == AssetSection::Images {
+                    InputKind::Image
+                } else {
+                    InputKind::Symbols
+                };
+                assert!(
+                    matches!(app.dialog, Some(Dialog::Files { kind: active, .. }) if active == kind)
+                );
+                app.key(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE));
+            }
+            for key in [
+                KeyCode::Char('K'),
+                KeyCode::Char('b'),
+                KeyCode::Char('r'),
+                KeyCode::Delete,
+            ] {
+                if section != AssetSection::Remote || key != KeyCode::Delete {
+                    assert!(
+                        app.available_commands("")
+                            .iter()
+                            .any(|(_, action)| *action == key)
+                    );
+                }
+            }
+        }
+    }
+}
+
 #[test]
 fn combined_manager_layout_focus_and_actions_work_at_supported_sizes() {
     let mut app = app();
@@ -2931,7 +3051,7 @@ fn console_enter_works_from_empty_filtered_lists_and_keeps_the_running_task() {
             .borrow()
             .asset_buttons
             .iter()
-            .find(|(_, _, key)| *key == KeyCode::Enter)
+            .find(|(_, _, key)| *key == KeyCode::Char('x'))
             .unwrap()
             .0;
         click(&mut app, button.x + 1, button.y);
@@ -2940,6 +3060,10 @@ fn console_enter_works_from_empty_filtered_lists_and_keeps_the_running_task() {
         assert_eq!(app.image, image);
         assert!(running.check().is_ok());
         assert!(app.job.is_some());
+        app.page = Page::Assets;
+        app.key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
+        assert_eq!(app.page, Page::Analysis);
+        assert!(running.check().is_ok());
         app.job = None;
     }
 }
@@ -3082,6 +3206,7 @@ fn palette_and_plugin_search_are_case_insensitive_and_multi_term() {
     assert!(app.available_commands("导出 不存在").is_empty());
     assert!(COMMANDS.iter().all(|(_, key)| *key != KeyCode::Char('f')));
     assert!(plugin_matches("网络").contains(&Plugin::Sockstat));
+    assert!(plugin_matches("网络").contains(&Plugin::Netscan));
     assert!(plugin_matches("PSTREE").contains(&Plugin::Pstree));
     app.select_os(crate::analysis::Os::Windows);
     assert!(app.plugin_matches("网络").contains(&Plugin::WinNetscan));

@@ -1,4 +1,4 @@
-//! Socket decoding for sockstat.
+//! Socket decoding shared by sockstat and the Internet-only netscan view.
 use super::*;
 pub(super) fn unix_name(bytes: &[u8]) -> String {
     if bytes.is_empty() {
@@ -28,6 +28,12 @@ pub(super) fn tcp_state(state: u64) -> &'static str {
 }
 impl Linux<'_> {
     pub(super) fn socket(&self, inode: u64) -> Result<Vec<String>> {
+        self.decode_socket(inode, false)?.context("socket 未解码")
+    }
+    pub(super) fn internet_socket(&self, inode: u64) -> Result<Option<Vec<String>>> {
+        self.decode_socket(inode, true)
+    }
+    fn decode_socket(&self, inode: u64, internet_only: bool) -> Result<Option<Vec<String>>> {
         let allocation = inode
             .checked_sub(self.isf.offset("socket_alloc", "vfs_inode")?)
             .context("socket 地址下溢")?;
@@ -36,8 +42,11 @@ impl Linux<'_> {
         ensure!(sk != 0, "socket.sk 为空 @ {}", hex(socket));
         let common = self.field_address(sk, "sock", "__sk_common")?;
         let family = self.number(common, "sock_common", "skc_family")?;
-        let ty = self.number(sk, "sock", "sk_type")?;
         let protocol = self.number(sk, "sock", "sk_protocol")?;
+        if internet_only && !(matches!(family, 2 | 10) && matches!(protocol, 6 | 17)) {
+            return Ok(None);
+        }
+        let ty = self.number(sk, "sock", "sk_type")?;
         let type_name = match ty {
             1 => "STREAM".into(),
             2 => "DGRAM".into(),
@@ -160,7 +169,7 @@ impl Linux<'_> {
                 "UnsupportedFamily".into(),
             ),
         };
-        Ok(vec![
+        Ok(Some(vec![
             family_name,
             type_name,
             protocol_name,
@@ -168,6 +177,6 @@ impl Linux<'_> {
             remote,
             state,
             hex(socket),
-        ])
+        ]))
     }
 }

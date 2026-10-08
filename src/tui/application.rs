@@ -1020,23 +1020,36 @@ impl App {
                 ("上滚 ↑", KeyCode::Up),
                 ("下滚 ↓", KeyCode::Down),
                 ("翻页 PgDn", KeyCode::PageDown),
-                ("完整详情 d", KeyCode::Char('d')),
                 ("列表 Tab", KeyCode::Tab),
             ]
         } else {
-            asset_actions(self.section)
+            vec![]
         };
-        actions.insert(
-            0,
-            (
-                if self.windows {
-                    "Windows F6"
-                } else {
-                    "Linux F6"
-                },
-                KeyCode::F(6),
-            ),
-        );
+        if self.page == Page::Assets {
+            actions.extend([
+                (
+                    if self.settings.remote_symbols {
+                        "切换离线 o"
+                    } else {
+                        "切换在线 o"
+                    },
+                    KeyCode::Char('o'),
+                ),
+                ("目录 ,", KeyCode::Char(',')),
+            ]);
+        } else {
+            actions.insert(
+                0,
+                (
+                    if self.windows {
+                        "Windows F6"
+                    } else {
+                        "Linux F6"
+                    },
+                    KeyCode::F(6),
+                ),
+            );
+        }
         if self.job.is_some() {
             actions.insert(0, ("取消 Esc", KeyCode::Esc));
         }

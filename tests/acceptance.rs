@@ -468,19 +468,14 @@ fn targeted_dumps_and_history_on_both_samples() -> Result<()> {
                 }
             }
         }
-        let Outcome::Ready(history) = session.analyze(&request(Plugin::History), &job)? else {
-            anyhow::bail!("ambiguous symbols")
-        };
         let Outcome::Ready(bash) = session.analyze(&request(Plugin::Bash), &job)? else {
             anyhow::bail!("ambiguous symbols")
         };
         ensure!(
-            history.rows == bash.rows
-                && history.complete == bash.complete
-                && history.diagnostics == bash.diagnostics,
-            "history alias changed verified Bash evidence"
+            bash.plugin == "bash"
+                && bash.columns == ["PID", "Name", "Timestamp", "Command", "Address"],
+            "Bash history schema changed"
         );
-        ensure!(history.columns[1] == "Shell", "history schema changed");
     }
     Ok(())
 }

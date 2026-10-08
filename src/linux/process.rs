@@ -44,7 +44,7 @@ impl Linux<'_> {
                 ("vm_area_struct", "vm_pgoff"),
                 ("vm_area_struct", "vm_file"),
             ])?,
-            Plugin::Lsof | Plugin::Sockstat => self.require(&[
+            Plugin::Lsof | Plugin::Sockstat | Plugin::Netscan => self.require(&[
                 ("task_struct", "files"),
                 ("files_struct", "fdt"),
                 ("fdtable", "max_fds"),
@@ -53,9 +53,11 @@ impl Linux<'_> {
                 ("path", "dentry"),
                 ("dentry", "d_inode"),
                 ("inode", "i_mode"),
-                ("inode", "i_ino"),
             ])?,
             _ => {}
+        }
+        if matches!(plugin, Plugin::Lsof | Plugin::Sockstat) {
+            self.require(&[("inode", "i_ino")])?;
         }
         if matches!(plugin, Plugin::Maps | Plugin::Lsof) {
             self.require(&[
@@ -73,7 +75,7 @@ impl Linux<'_> {
                 ("vfsmount", "mnt_mountpoint"),
             ])?;
         }
-        if plugin == Plugin::Sockstat {
+        if matches!(plugin, Plugin::Sockstat | Plugin::Netscan) {
             self.require(&[
                 ("socket_alloc", "vfs_inode"),
                 ("socket_alloc", "socket"),
@@ -81,7 +83,6 @@ impl Linux<'_> {
                 ("sock", "__sk_common"),
                 ("sock", "sk_type"),
                 ("sock", "sk_protocol"),
-                ("sock", "sk_socket"),
                 ("sock_common", "skc_family"),
                 ("sock_common", "skc_state"),
                 ("sock_common", "skc_rcv_saddr"),
@@ -99,6 +100,11 @@ impl Linux<'_> {
                         "skc_dport"
                     },
                 ),
+            ])?;
+        }
+        if plugin == Plugin::Sockstat {
+            self.require(&[
+                ("sock", "sk_socket"),
                 ("unix_sock", "addr"),
                 ("unix_sock", "peer"),
                 ("unix_address", "len"),
@@ -108,7 +114,7 @@ impl Linux<'_> {
         }
         Ok(())
     }
-    /// psaux / envars / maps / lsof / sockstat: user memory and open files of every task.
+    /// psaux / envars / maps / lsof / sockstat / netscan: user memory and open files of every task.
     pub(super) fn task_objects(&self, plugin: Plugin, job: &Job) -> Result<Results> {
         self.preflight(plugin)?;
         // Reuse the validated tasks list and identity reader of pslist.
@@ -157,7 +163,7 @@ impl Linux<'_> {
                         }
                     }
                     Plugin::Maps => self.maps(task, prefix, &mut result, job)?,
-                    Plugin::Lsof | Plugin::Sockstat => {
+                    Plugin::Lsof | Plugin::Sockstat | Plugin::Netscan => {
                         self.files(task, prefix, plugin, &mut result, job)?
                     }
                     _ => return Err(unrouted(plugin)),
