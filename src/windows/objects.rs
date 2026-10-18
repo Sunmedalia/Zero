@@ -8,6 +8,12 @@ fn decode_object_pointer(bits: u64, width: u64) -> Result<u64> {
     Ok((((bits << 4) << shift) as i64 >> shift) as u64)
 }
 
+/// Symbol-derived shape of a `_HANDLE_TABLE_ENTRY`, resolved once per scan.
+struct HandleEntryLayout {
+    object_pointer_bits: bool,
+    pointer_bits_width: Option<u64>,
+    access_field: &'static str,
+}
 impl Windows<'_> {
     pub(super) fn handles(&self, p: &Process, r: &mut Results, job: &Job) -> Result<()> {
         let table = self.number(p.address, "_EPROCESS", "ObjectTable")?;
@@ -28,6 +34,30 @@ impl Windows<'_> {
         let pointer_size = self.vm.pointer_size() as u64;
         let pointers_per_page = 4096 / pointer_size;
         let index_shift = pointers_per_page.trailing_zeros();
+        // These describe the symbol file, not the entry, so they are resolved
+        // once instead of once per handle. A handle table can hold tens of
+        // thousands of entries.
+        let entry_layout = HandleEntryLayout {
+            object_pointer_bits: self
+                .vm
+                .isf
+                .has_field("_HANDLE_TABLE_ENTRY", "ObjectPointerBits"),
+            pointer_bits_width: self
+                .vm
+                .isf
+                .field("_HANDLE_TABLE_ENTRY", "ObjectPointerBits")
+                .ok()
+                .and_then(|field| field["type"]["bit_length"].as_u64()),
+            access_field: if self
+                .vm
+                .isf
+                .has_field("_HANDLE_TABLE_ENTRY", "GrantedAccessBits")
+            {
+                "GrantedAccessBits"
+            } else {
+                "GrantedAccess"
+            },
+        };
         for first in (0..max / 4).step_by(per as usize) {
             job.check()?;
             let mut page = root;
@@ -51,12 +81,7 @@ impl Windows<'_> {
                 job.check()?;
                 let entry = &entries[((index % per) * size) as usize..][..size as usize];
                 let read = (|| -> Result<Option<Vec<String>>> {
-                    let header = if self
-                        .vm
-                        .isf
-                        .field("_HANDLE_TABLE_ENTRY", "ObjectPointerBits")
-                        .is_ok()
-                    {
+                    let header = if entry_layout.object_pointer_bits {
                         let bits = physical_number(
                             self.vm.isf,
                             entry,
@@ -70,12 +95,8 @@ impl Windows<'_> {
                             ensure!(bits <= (u32::MAX as u64 >> 4), "32 位句柄编码指针溢出");
                             bits.checked_shl(4).context("句柄对象指针溢出")? & u32::MAX as u64
                         } else {
-                            let field = self
-                                .vm
-                                .isf
-                                .field("_HANDLE_TABLE_ENTRY", "ObjectPointerBits")?;
-                            let width = field["type"]["bit_length"]
-                                .as_u64()
+                            let width = entry_layout
+                                .pointer_bits_width
                                 .context("句柄编码指针缺少位宽")?;
                             decode_object_pointer(bits, width)?
                         }
@@ -91,16 +112,7 @@ impl Windows<'_> {
                         self.vm.isf,
                         entry,
                         "_HANDLE_TABLE_ENTRY",
-                        if self
-                            .vm
-                            .isf
-                            .field("_HANDLE_TABLE_ENTRY", "GrantedAccessBits")
-                            .is_ok()
-                        {
-                            "GrantedAccessBits"
-                        } else {
-                            "GrantedAccess"
-                        },
+                        entry_layout.access_field,
                     )?;
                     let kind = self.object_type(header)?;
                     let name = match kind.as_str() {

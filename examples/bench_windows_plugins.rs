@@ -61,7 +61,7 @@ fn main() -> Result<()> {
         let min = times[0];
         rows.push((median, min, d.plugin.name(), count, failed));
     }
-    rows.sort_by(|a, b| b.0.cmp(&a.0).reverse());
+    rows.sort_by_key(|row| std::cmp::Reverse(row.0));
     for (median, min, name, count, failed) in rows {
         let note = if failed { " (needs symbols)" } else { "" };
         println!("{median:>10.2?} median {min:>10.2?} min  {name:<24} {count} rows{note}");

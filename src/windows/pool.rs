@@ -76,11 +76,15 @@ impl Windows<'_> {
         ensure!((8..=256).contains(&body_offset), "对象头 Body 偏移无效");
         let align = if self.vm.pointer_size() == 4 { 8 } else { 16 };
         let mut candidates = BTreeSet::new();
+        // One buffer reused across candidates: the scan probes a slot every
+        // `align` bytes over whole pool blocks, so a per-candidate allocation
+        // dominated this loop.
+        let mut bytes = vec![0; size as usize];
         for (start, length) in self.pool_blocks(tags, size + body_offset, job)? {
             for delta in (body_offset..=length - size).step_by(align as usize) {
                 job.check()?;
                 let physical = add(start, delta)?;
-                let mut bytes = vec![0; size as usize];
+                bytes.fill(0);
                 if self.vm.image.read(physical, &mut bytes).is_err() {
                     continue;
                 }
