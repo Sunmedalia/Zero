@@ -353,90 +353,15 @@ impl App {
         self.refresh_assets();
     }
     pub(super) fn available_commands(&self, query: &str) -> Vec<(&'static str, KeyCode)> {
-        if self.page == Page::Analysis
-            && self.windows
-            && (query.is_empty()
-                || "Windows 参数"
-                    .to_lowercase()
-                    .contains(&query.to_lowercase()))
-        {
-            let mut commands = command_matches(query, self.page, self.focus)
-                .into_iter()
-                .map(|i| COMMANDS[i])
-                .collect::<Vec<_>>();
-            commands.push(("Windows 参数 [P]", KeyCode::Char('P')));
-            return commands;
-        }
-        if self.page == Page::Analysis {
-            command_matches(query, self.page, self.focus)
-                .into_iter()
-                .map(|i| COMMANDS[i])
-                .collect()
-        } else {
-            let mut commands = asset_actions(self.section);
-            commands.extend([
-                ("打开分析页 F3", KeyCode::F(3)),
-                ("打开资源库 F2", KeyCode::F(2)),
-                ("选择分析系统 F6", KeyCode::F(6)),
-                ("缓存管理 c", KeyCode::Char('c')),
-                ("任务日志 l", KeyCode::Char('l')),
-                ("帮助 F1", KeyCode::F(1)),
-            ]);
-            commands
-                .into_iter()
-                .filter(|(label, _)| query_matches(label, query))
-                .collect()
-        }
-    }
-    pub(super) fn asset_disabled(
-        &self,
-        section: AssetSection,
-        key: KeyCode,
-    ) -> Option<&'static str> {
-        let busy = self.job.is_some();
-        if key == KeyCode::Char('K') && self.windows {
-            return Some("Windows 请使用 M 获取精确 PDB 符号");
-        }
-        // Enter on a highlighted image selects it first, so it only needs an image row.
-        let enter_selects = key == KeyCode::Enter
-            && section == AssetSection::Images
-            && !self.asset_list_for(section).is_empty();
-        if (matches!(key, KeyCode::Char('m' | 'M' | 'b' | 'x' | 'K'))
-            || (key == KeyCode::Enter && !enter_selects))
-            && self.image.is_none()
-        {
-            return Some("请先选用镜像");
-        }
-        if key == KeyCode::Char('a') && section == AssetSection::Remote {
-            return Some("远程符号请使用下载");
-        }
-        if key == KeyCode::Char('w')
-            && (section != AssetSection::Remote
-                || self.remote_list().get(self.asset_rows[2]).is_none())
-        {
-            return Some("请先选择远程符号");
-        }
-        if matches!(key, KeyCode::Delete | KeyCode::Char('d' | ' ')) {
-            let empty = if section == AssetSection::Remote {
-                self.remote_list().is_empty()
-            } else {
-                self.asset_list_for(section).is_empty()
-            };
-            if empty {
-                return Some("列表为空，请导入或搜索");
-            }
-        }
-        if busy
-            && matches!(
-                key,
-                KeyCode::Char('a' | 'i' | 'y' | 'm' | 'M' | 'b' | 'K' | 'w' | 'g' | 'r' | 'o')
-                    | KeyCode::Delete
-            )
-        {
-            return Some("任务执行中，请等待或取消");
-        }
-
-        None
+        command_matches(
+            query,
+            self.page,
+            self.focus,
+            (self.page == Page::Assets).then_some(self.section),
+        )
+        .into_iter()
+        .map(|i| (ACTIONS[i].label, ACTIONS[i].key))
+        .collect()
     }
     pub(super) fn remote_detail_text(&self, candidate: &RemoteMatch) -> String {
         let path = self.downloads.get(&candidate.url).filter(|p| p.is_file());
@@ -978,58 +903,20 @@ impl App {
         .into();
         true
     }
+    /// Analysis footer entries for the focused region. Region movement (`Tab`)
+    /// is not a command, so it is prepended here; a running task adds the
+    /// cancellation entry first so it is never scrolled off.
     pub(super) fn footer_actions(&self) -> Vec<(&'static str, KeyCode)> {
-        if self.page == Page::Assets {
-            return vec![];
+        if self.page != Page::Analysis {
+            return Vec::new();
         }
-        let mut actions = match self.focus {
-            Focus::Context => vec![
-                ("镜像 i", KeyCode::Char('i')),
-                ("符号 y", KeyCode::Char('y')),
-                ("识别 b", KeyCode::Char('b')),
-                ("本地匹配 m", KeyCode::Char('m')),
-            ],
-            Focus::Navigation => vec![
-                ("内容 Tab", KeyCode::Tab),
-                ("运行 Ctrl+R", KeyCode::F(5)),
-                ("插件 p", KeyCode::Char('p')),
-                ("转储 D", KeyCode::Char('D')),
-                ("重跑 r", KeyCode::Char('r')),
-            ],
-            Focus::Detail => vec![
-                ("上滚 ↑", KeyCode::Up),
-                ("下滚 ↓", KeyCode::Down),
-                ("翻页 PgDn", KeyCode::PageDown),
-                ("关闭 d", KeyCode::Char('d')),
-                ("内容 Tab", KeyCode::Tab),
-            ],
-            _ => vec![
-                ("搜索 /", KeyCode::Char('/')),
-                ("排序 s", KeyCode::Char('s')),
-                ("导出 e", KeyCode::Char('e')),
-                ("上页 [", KeyCode::Char('[')),
-                ("下页 ]", KeyCode::Char(']')),
-                ("详情 d", KeyCode::Char('d')),
-                ("行数 n", KeyCode::Char('n')),
-                ("转储 D", KeyCode::Char('D')),
-                ("诊断 v", KeyCode::Char('v')),
-            ],
-        };
-        actions.insert(
-            0,
-            (
-                if self.windows {
-                    "Windows F6"
-                } else {
-                    "Linux F6"
-                },
-                KeyCode::F(6),
-            ),
-        );
+        let mut actions = footer_actions(self.focus);
+        if self.focus == Focus::Navigation {
+            actions.insert(0, ("内容 Tab", KeyCode::Tab));
+        }
         if self.job.is_some() {
             actions.insert(0, ("取消 Esc", KeyCode::Esc));
         }
-        actions.push(("更多 ?", KeyCode::Char('?')));
         actions
     }
     pub(super) fn result(&self) -> Option<&Results> {

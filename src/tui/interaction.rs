@@ -95,6 +95,9 @@ impl App {
     pub(super) fn inspect_symbol_path(&mut self, path: PathBuf) {
         self.view_asset_path(path, Kind::Symbols);
     }
+    /// Resource-library key handling: region scrolling first, then the shared
+    /// command dispatch. Every global binding lives in [`Command::from_key`], so
+    /// this function never re-implements one.
     pub(super) fn asset_key(&mut self, key: KeyEvent) -> bool {
         if self.focus == Focus::Content && self.hits.borrow().asset_detail.height == 0 {
             self.focus = Focus::Navigation;
@@ -127,13 +130,10 @@ impl App {
             };
             return false;
         }
-        if let Some(reason) = self.asset_disabled(self.section, key.code) {
-            self.status = reason.into();
-            return false;
+        if let Some(command) = Command::from_key(Page::Assets, key.code) {
+            return self.run_command(command);
         }
         match key.code {
-            KeyCode::Char('q') => return self.request_quit(),
-            KeyCode::Esc => self.cancel(),
             KeyCode::Tab | KeyCode::BackTab => {
                 let detail = self.hits.borrow().asset_detail.height > 0;
                 let current = if self.focus == Focus::Content {
@@ -178,133 +178,107 @@ impl App {
             }
             KeyCode::Home => self.asset_rows[slot] = 0,
             KeyCode::End => self.asset_rows[slot] = self.asset_count().saturating_sub(1),
-            KeyCode::Char('/') => self.open_input(InputKind::AssetsSearch),
-            KeyCode::Char('i') => self.open_files(InputKind::Image),
-            KeyCode::Char('y') => self.open_files(InputKind::Symbols),
-            KeyCode::Char('a') => self.open_files(if self.section == AssetSection::Images {
+            _ => {}
+        }
+        false
+    }
+    /// The single entry point for every command, whatever triggered it. Returns
+    /// `true` when the application should quit.
+    ///
+    /// Availability is decided once here: a section-specific command (`g`, `w`,
+    /// `z`) that does not apply to the active section falls through to the next
+    /// page's meaning of the same key instead of being silently swallowed.
+    pub(super) fn run_command(&mut self, command: Command) -> bool {
+        if self.page == Page::Assets
+            && !command_applies(command, self.section)
+            && let Some(replacement) = Command::from_key(Page::Analysis, action_of(command).key)
+            && command_applies(replacement, self.section)
+        {
+            return self.run_command(replacement);
+        }
+        if let Some(reason) = self.command_disabled(command) {
+            self.status = reason.into();
+            return false;
+        }
+        match command {
+            Command::Quit => return self.request_quit(),
+            Command::Help => self.help(),
+            Command::Palette => {
+                self.dialog = Some(Dialog::Commands {
+                    query: String::new(),
+                    selected: 0,
+                })
+            }
+            Command::Settings => self.dialog = Some(Dialog::Settings { selected: 0 }),
+            Command::Cache => self.open_cache(),
+            Command::TaskLog => self.open_task_log(),
+            Command::History => self.open_history(),
+            Command::Diagnostics => self.diagnostics(),
+            Command::PageAssets => self.switch_page(Page::Assets),
+            Command::PageAnalysis => self.switch_page(Page::Analysis),
+            Command::SystemSelect => self.open_system_dialog(),
+            Command::ToggleOnline => self.toggle_online(),
+            Command::Cancel => self.cancel_context(),
+            Command::ImportImage => self.open_files(InputKind::Image),
+            Command::ImportSymbols => self.open_files(InputKind::Symbols),
+            Command::ImportCurrent => self.open_files(if self.section == AssetSection::Images {
                 InputKind::Image
             } else {
                 InputKind::Symbols
             }),
-            KeyCode::Enter => self.select_and_enter(),
-            KeyCode::Char('w') => {
-                if let Some(candidate) = self
-                    .remote_list()
-                    .get(self.asset_rows[2])
-                    .map(|m| (*m).clone())
-                {
-                    self.start_work(Work::CatalogDownload(candidate));
-                }
-            }
-            KeyCode::Char(' ') if self.section == AssetSection::Remote => {
-                if self.image.is_none() {
-                    self.status = "请先用 Space 选用镜像；远程 w 可独立下载".into();
-                } else if let Some(candidate) = self
-                    .remote_list()
-                    .get(self.asset_rows[2])
-                    .map(|m| (*m).clone())
-                {
-                    self.start_work(Work::Download(candidate));
-                }
-            }
-            KeyCode::Char(' ') if self.section != AssetSection::Remote => {
-                let selected = self.use_selected_asset();
-                if selected && self.section == AssetSection::Images {
-                    self.symbol_source = AssetSection::Symbols;
-                    self.prepare_selected_image();
-                }
-            }
-            KeyCode::Delete if self.section != AssetSection::Remote => {
-                if self.job.is_some() {
-                    self.status = "任务执行中；Esc 取消后再移出资产".into();
-                } else if let Some(asset) = self.selected_asset() {
-                    match self.registry.remove(&asset.path, &self.cache) {
-                        Ok(()) => {
-                            if self
-                                .image
-                                .as_ref()
-                                .is_some_and(|p| same_path(p, &asset.path))
-                            {
-                                self.invalidate_source();
-                                self.image = None;
-                            } else if same_path(&self.symbols, &asset.path) {
-                                self.invalidate_source();
-                                self.symbols = PathBuf::new();
-                            }
-                            self.refresh_assets();
-                            self.status = "已移出项目清单，原文件保留".into();
-                        }
-                        Err(e) => self.status = format!("清单保存失败: {e:#}"),
-                    }
-                }
-            }
-            KeyCode::Char('d') => self.open_asset_detail(),
-            KeyCode::Char('b') => {
-                self.start_work(Work::Identify);
-            }
-            KeyCode::Char('m') => self.symbol_target(false),
-            KeyCode::Char('M') => self.symbol_target(true),
-            KeyCode::Char('K') => self.open_symbol_generation(),
-            KeyCode::Char('z') if self.section == AssetSection::Symbols => {
-                self.local_only_matches = !self.local_only_matches;
-                self.asset_rows[1] = 0;
-            }
-            KeyCode::Char('r') if self.section == AssetSection::Remote => {
-                if self.remote_catalog {
-                    self.start_work(Work::Catalog(
-                        self.asset_queries[2].clone(),
-                        self.settings.remote_symbols,
-                    ));
-                } else {
-                    self.start_work(Work::RefreshLookup);
-                }
-            }
-            KeyCode::Char('r') => {
-                self.asset_details.clear();
-                self.refresh_assets();
-                self.status = "资产清单已刷新".into();
-            }
-            KeyCode::Char('g') => {
-                self.switch_section(AssetSection::Remote);
-                self.remote_catalog = true;
-                self.asset_queries[2].clear();
-                self.start_work(Work::Catalog(String::new(), self.settings.remote_symbols));
-            }
-            KeyCode::Char('t') => {
-                self.switch_section(if self.symbol_source == AssetSection::Symbols {
-                    AssetSection::Remote
-                } else {
-                    AssetSection::Symbols
-                });
-            }
-            KeyCode::Char('x') => {
+            Command::Select => self.select_asset(),
+            Command::SelectAndEnter => self.select_and_enter(),
+            Command::AssetDetail => self.open_asset_detail(),
+            Command::DeleteAsset => self.delete_asset(),
+            Command::RefreshAssets => self.refresh_asset_list(),
+            Command::SearchAssets => self.open_input(InputKind::AssetsSearch),
+            Command::MatchLocal => self.symbol_target(false),
+            Command::MatchRemote => self.symbol_target(true),
+            Command::Identify => self.start_work(Work::Identify),
+            Command::EnterAnalysis => {
                 self.enter_workbench();
             }
-            KeyCode::Char('c') => self.open_cache(),
-            KeyCode::Char('p') => {
+            Command::ToggleSource => self.toggle_source(),
+            Command::GenerateSymbols => self.open_symbol_generation(),
+            Command::FetchIndex => self.fetch_index(),
+            Command::Download => self.download_candidate(),
+            Command::ToggleMatchFilter => self.toggle_match_filter(),
+            Command::Run => self.request_analysis(false),
+            Command::Rerun => self.request_analysis(true),
+            Command::Plugins => {
                 self.dialog = Some(Dialog::Plugins {
                     query: String::new(),
                     selected: 0,
                 })
             }
-            KeyCode::Char('o') if self.job.is_none() => {
-                self.settings.remote_symbols = !self.settings.remote_symbols;
-                self.status = if self.settings.remote_symbols {
-                    "在线匹配已开启"
+            Command::Parameters => self.windows_parameters(),
+            Command::Dump => self.open_dump(
+                if self.plugin.is_dump() {
+                    self.plugin
                 } else {
-                    "离线模式：仅使用已缓存索引和符号"
+                    Plugin::Procdump
+                },
+                false,
+            ),
+            Command::Export => self.open_input(InputKind::Export),
+            Command::Sort => {
+                self.dialog = Some(Dialog::Sort {
+                    column: self.sort.unwrap_or(0),
+                })
+            }
+            Command::Rows => self.open_input(InputKind::PageSize),
+            Command::PrevPage => self.move_result_page(false),
+            Command::NextPage => self.move_result_page(true),
+            Command::Detail => {
+                if self.inspector_available() {
+                    self.inspector = !self.inspector;
+                    self.detail_scroll = 0;
+                } else {
+                    self.open_detail();
                 }
-                .into();
             }
-            KeyCode::Char('v') | KeyCode::F(8) => self.diagnostics(),
-            KeyCode::Char('?') => {
-                self.dialog = Some(Dialog::Commands {
-                    query: String::new(),
-                    selected: 0,
-                });
-            }
-            KeyCode::F(1) => self.help(),
-            _ => {}
+            Command::SearchContent => self.open_input(InputKind::Search),
+            Command::Enter => self.enter_focused(),
         }
         false
     }
@@ -559,8 +533,11 @@ impl App {
             _ => {}
         }
     }
+    /// Help is generated from the action table, so a new binding cannot be
+    /// added without appearing here.
     pub(super) fn help(&mut self) {
-        let mut text = "ZERO 取证工作台\n\nF2 资源库 · F3 分析 · F6 自动/Linux/Windows · Ctrl+←/→ 切换页面\nTab / Shift+Tab 切换区域；↑↓ 或 j/k 导航；PgUp/PgDn/Home/End 翻页\n\n镜像与符号：\n资源库 Space 选用；Enter 选用高亮项并进入分析（匹配完成后自动进入）；再次点击高亮行等同 Space；d 查看详情。\n选用镜像后自动识别内核并匹配本地；x 进入分析；点击或 Enter 选择插件即显示已有结果或运行。\nM 使用 GitHub 完整 banner / Windows PDB 精确查询、下载并选用；多候选手动选择。独立下载 w 只保存文件。\n".to_owned();
+        let mut text = "ZERO 取证工作台\n\nF2 资源库 · F3 分析 · F6 自动/Linux/Windows · Ctrl+←/→ 切换页面\nTab / Shift+Tab 切换区域；↑↓ 或 j/k 导航；PgUp/PgDn/Home/End 翻页\n\n镜像与符号：\n资源库 Space 选用；Enter 选用高亮项并进入分析（匹配完成后自动进入）；再次点击高亮行等同 Space；d 查看详情。\n选用镜像后自动识别内核并匹配本地；x 进入分析；点击或 Enter 选择插件即显示已有结果或运行。\nM 使用 GitHub 完整 banner / Windows PDB 精确查询、下载并选用；多候选手动选择。独立下载 w 只保存文件。\n"
+            .to_owned();
         for section in [
             AssetSection::Images,
             AssetSection::Symbols,
@@ -576,7 +553,27 @@ impl App {
             );
             text.push('\n');
         }
-        text.push_str("\n远程详情：w 下载到 symbols · L 在本地库定位 · c 取消下载 · Esc 返回\n\n分析：i 镜像 · y 符号 · p 插件（按名称、中文说明或类别搜索） · P 适用参数 · Ctrl+R 运行 · D Dump\n/ 搜索 · s 排序 · e 导出 · d 详情 · n 行数 · [/] 翻页\nr 重跑 · F5 运行 · v/F8 诊断 · Alt+←/→ 横向滚动\n资源库 K / 分析页 g 生成当前镜像符号表\n\nCtrl+P / ? 命令面板（空格分隔多个词，不区分大小写） · , 目录设置 · c 缓存 · l 日志 · h 历史\nEsc 关闭弹窗；分析页先清除筛选，再取消任务 · q 退出（任务中需按两次）· Ctrl+C 立即退出\n文件弹窗：Space 选用 · Enter 打开目录／进入分析控制台，d 详情 · Shift+Space 选用符号目录 · ← 上级 · Tab 切换目录 · p 输入路径\nDump：F2/F3/F4 切换模式 · Tab 字段 · Ctrl+Enter 运行\n");
+        text.push_str("\n分析页操作（随焦点变化）：\n");
+        for (title, focus) in [
+            ("镜像信息", Focus::Context),
+            ("插件", Focus::Navigation),
+            ("内容", Focus::Content),
+            ("详情", Focus::Detail),
+        ] {
+            let actions = footer_actions(focus);
+            if actions.is_empty() {
+                continue;
+            }
+            text.push_str(&format!(
+                "{title}：{}\n",
+                actions
+                    .iter()
+                    .map(|(label, _)| *label)
+                    .collect::<Vec<_>>()
+                    .join(" · ")
+            ));
+        }
+        text.push_str("\n远程详情：w 下载到 symbols · L 在本地库定位 · c 取消下载 · Esc 返回\n\n分析：P 适用参数 · Ctrl+R 运行 · D Dump · Alt+←/→ 横向滚动\n资源库 K / 分析页 g 生成当前镜像符号表\n\nCtrl+P / ? 命令面板（空格分隔多个词，不区分大小写，可用 cache、dump、pid 等英文词）\nEsc 关闭弹窗；分析页先清除筛选，再取消任务 · q 退出（任务中需按两次）· Ctrl+C 立即退出\n文件弹窗：Space 选用 · Enter 打开目录／进入分析控制台，d 详情 · Shift+Space 选用符号目录 · ← 上级 · Tab 切换目录 · p 输入路径\nDump：F2/F3/F4 切换模式 · Tab 字段 · Ctrl+Enter 运行\n");
         self.dialog = Some(Dialog::Detail { text, scroll: 0 });
     }
     pub(super) fn diagnostics(&mut self) {
@@ -627,88 +624,6 @@ impl App {
             self.request_analysis(false);
             return false;
         }
-        if self.page == Page::Assets
-            && !matches!(
-                key.code,
-                KeyCode::F(1..=3) | KeyCode::F(6) | KeyCode::Char(',' | 'h' | 'l' | '?' | 'c')
-            )
-            && !key.modifiers.contains(KeyModifiers::CONTROL)
-        {
-            return self.asset_key(key);
-        }
-        match key.code {
-            KeyCode::F(6) => {
-                self.dialog = Some(Dialog::System {
-                    selected: match self.analysis_options.os {
-                        crate::analysis::Os::Auto => 0,
-                        crate::analysis::Os::Linux => 1,
-                        crate::analysis::Os::Windows => 2,
-                    },
-                });
-                return false;
-            }
-            KeyCode::Char('M') => {
-                self.symbol_target(true);
-                return false;
-            }
-            KeyCode::Char('m') => {
-                self.symbol_target(false);
-                return false;
-            }
-            KeyCode::Char('D') => {
-                self.open_dump(
-                    if self.plugin.is_dump() {
-                        self.plugin
-                    } else {
-                        Plugin::Procdump
-                    },
-                    false,
-                );
-                return false;
-            }
-            KeyCode::Char('n') => {
-                self.open_input(InputKind::PageSize);
-                return false;
-            }
-            KeyCode::Char(',') => {
-                self.dialog = Some(Dialog::Settings { selected: 0 });
-                return false;
-            }
-            KeyCode::Char('h') => {
-                self.open_files(InputKind::History);
-                return false;
-            }
-            KeyCode::Char('l') => {
-                self.dialog = Some(Dialog::Detail {
-                    text: format!(
-                        "任务日志（最近 200 条）\n\n{}",
-                        self.logs
-                            .iter()
-                            .map(|s| escaped(s))
-                            .collect::<Vec<_>>()
-                            .join("\n")
-                    ),
-                    scroll: 0,
-                });
-                return false;
-            }
-            KeyCode::Char('?') => {
-                self.dialog = Some(Dialog::Commands {
-                    query: String::new(),
-                    selected: 0,
-                });
-                return false;
-            }
-            KeyCode::F(1) => {
-                self.help();
-                return false;
-            }
-            _ => {}
-        }
-        if let KeyCode::F(n @ 2..=3) = key.code {
-            self.switch_page(Page::ALL[n as usize - 2]);
-            return false;
-        }
         if key.modifiers.contains(KeyModifiers::CONTROL)
             && matches!(
                 key.code,
@@ -723,6 +638,9 @@ impl App {
             );
             return false;
         }
+        // The resource page owns region navigation and every page-scoped
+        // command; global bindings are resolved inside `asset_key` through the
+        // same `Command` table the analysis page uses.
         if self.page != Page::Analysis {
             return self.asset_key(key);
         }
@@ -763,22 +681,10 @@ impl App {
             };
             return false;
         }
+        if let Some(command) = Command::from_key(Page::Analysis, key.code) {
+            return self.run_command(command);
+        }
         match key.code {
-            KeyCode::Char('c') => self.open_cache(),
-            KeyCode::Char('g' | 'K') => self.open_symbol_generation(),
-            KeyCode::Char('q') => return self.request_quit(),
-            KeyCode::Esc if self.inspector => {
-                self.inspector = false;
-                if self.focus == Focus::Detail {
-                    self.focus = Focus::Content;
-                }
-            }
-            KeyCode::Esc if self.job.is_none() && !self.query.is_empty() => {
-                self.query.clear();
-                self.row = 0;
-                self.status = "已清除内容筛选".into();
-            }
-            KeyCode::Esc => self.cancel(),
             KeyCode::Tab => {
                 self.focus = self
                     .focus
@@ -792,48 +698,6 @@ impl App {
                 };
                 self.focus = self.focus.next(true, n == 4);
             }
-            KeyCode::Char('i') => self.open_files(InputKind::Image),
-            KeyCode::Char('y') => self.open_files(InputKind::Symbols),
-            KeyCode::Char('h') => self.open_input(InputKind::History),
-            KeyCode::Char('/') => self.open_input(InputKind::Search),
-            KeyCode::Char('e') if self.result().is_some() => {
-                self.open_input(InputKind::Export);
-            }
-            KeyCode::Char('s') if self.result().is_some() => {
-                self.dialog = Some(Dialog::Sort {
-                    column: self.sort.unwrap_or(0),
-                });
-            }
-            KeyCode::Char('[') => self.move_result_page(false),
-            KeyCode::Char(']') => self.move_result_page(true),
-            KeyCode::Char('r') => self.request_analysis(true),
-            KeyCode::F(5) => self.request_analysis(false),
-            KeyCode::Char('p') => {
-                self.dialog = Some(Dialog::Plugins {
-                    query: String::new(),
-                    selected: 0,
-                })
-            }
-            KeyCode::Char('P') => self.windows_parameters(),
-            KeyCode::Char('b') => self.start_work(Work::Identify),
-            KeyCode::Char('v') | KeyCode::F(8) => self.diagnostics(),
-            KeyCode::Char('o') if self.job.is_none() => {
-                self.settings.remote_symbols = !self.settings.remote_symbols;
-                self.status = if self.settings.remote_symbols {
-                    "在线符号匹配已开启；仅请求仓库，不上传镜像"
-                } else {
-                    "离线模式：使用本地 ISF 和已下载缓存"
-                }
-                .into();
-            }
-            KeyCode::Char('d')
-                if self.hits.borrow().inspector.width > 0
-                    || self.hits.borrow().result.right() >= 140 =>
-            {
-                self.inspector = !self.inspector;
-                self.detail_scroll = 0;
-            }
-            KeyCode::Char('d') => self.open_detail(),
             KeyCode::Up | KeyCode::Char('k') => {
                 if self.focus == Focus::Navigation {
                     self.menu = self.menu.saturating_sub(1);
@@ -887,33 +751,7 @@ impl App {
                     }
                 }
             }
-            KeyCode::Enter => {
-                if self.focus == Focus::Detail {
-                    self.open_detail();
-                } else if self.focus == Focus::Context {
-                    self.open_files(InputKind::Image);
-                } else if self.focus == Focus::Navigation {
-                    match self.menu {
-                        index if index == self.menu_items().len() - 1 => {
-                            self.open_dump(Plugin::Procdump, false)
-                        }
-                        index => {
-                            let plugin = self.navigation_plugins()[index];
-                            self.activate_plugin(plugin);
-                        }
-                    }
-                } else if self.plugin.is_tree()
-                    && self.history.is_none()
-                    && let Some(row) = self.visible().get(self.row)
-                {
-                    let pid = row[0].clone();
-                    if !self.collapsed.remove(&pid) {
-                        self.collapsed.insert(pid);
-                    }
-                } else {
-                    self.open_detail();
-                }
-            }
+            KeyCode::Enter => self.enter_focused(),
             _ => {}
         }
         false

@@ -151,15 +151,11 @@ impl App {
         frame: &mut Frame,
         area: Rect,
         section: AssetSection,
-        keys: &[KeyCode],
+        actions: &[(&'static str, KeyCode)],
     ) {
         let mut x = area.x;
         let mut y = area.y;
-        let actions = asset_actions(section);
-        for key in keys.iter().copied() {
-            let Some((label, _)) = actions.iter().find(|(_, action)| *action == key) else {
-                continue;
-            };
+        for (label, key) in actions.iter().copied() {
             let text = format!(" {label} ");
             let width = Span::raw(&text).width() as u16;
             if width > area.width {
@@ -173,7 +169,8 @@ impl App {
                 break;
             }
             let rect = Rect::new(x, y, width, 1);
-            let disabled = self.asset_disabled(section, key);
+            let disabled = Command::from_key(Page::Assets, key)
+                .and_then(|command| self.command_disabled(command));
             frame.render_widget(
                 Paragraph::new(text).style(if disabled.is_some() {
                     Style::default().fg(MUTED).bg(RAISED)
@@ -213,7 +210,7 @@ impl App {
             frame,
             buttons,
             self.section,
-            &asset_toolbar_keys(self.section, self.job.is_some()),
+            &toolbar_actions(self.section, self.job.is_some()),
         );
     }
     pub(super) fn draw_asset_pane(&self, frame: &mut Frame, area: Rect, section: AssetSection) {
@@ -533,9 +530,8 @@ impl App {
                 Constraint::Length(if self.page == Page::Analysis { 2 } else { 0 }),
                 Constraint::Min(3),
                 Constraint::Length(if self.page == Page::Assets {
-                    2 + asset_action_rows(
-                        self.section,
-                        &asset_toolbar_keys(self.section, self.job.is_some()),
+                    2 + action_rows(
+                        &toolbar_actions(self.section, self.job.is_some()),
                         frame.area().width,
                     )
                 } else {
@@ -905,36 +901,52 @@ impl App {
                 ),
             );
         }
+        // Actions that do not fit are not dropped silently: the strip ends with
+        // `更多 ?`, which opens the palette listing every remaining command.
         let buttons = self.footer_actions();
-        let more_width = Span::raw(" 更多 ? ").width() as u16;
+        let more_label = " 更多 ? ";
+        let more_width = Span::raw(more_label).width() as u16;
         let mut x = footer.x;
-        for (label, key) in buttons {
-            let text = format!(" {label} ");
-            let width = Span::raw(&text).width() as u16;
-            let more = key == KeyCode::Char('?');
-            if footer.height < 3 {
-                break;
-            }
-            if !more && x + width + 1 + more_width > footer.right() {
-                continue;
-            }
-            if more && x + width > footer.right() {
-                continue;
-            }
-            let rect = Rect::new(x, footer.y + 2, width, 1);
-            frame.render_widget(
-                Paragraph::new(text).style(Style::default().fg(FOCUS).bg(RAISED)),
-                rect,
-            );
-            if self.page != Page::Assets || self.asset_disabled(self.section, key).is_none() {
-                self.hits.borrow_mut().buttons.push((rect, key));
-            } else {
+        let mut truncated = false;
+        if footer.height >= 3 {
+            for (index, (label, key)) in buttons.iter().copied().enumerate() {
+                let command = Command::from_key(self.page, key);
+                let text = format!(" {label} ");
+                let width = Span::raw(&text).width() as u16;
+                let last = index + 1 == buttons.len();
+                if x + width + if last { 0 } else { 1 + more_width } > footer.right() {
+                    truncated = true;
+                    break;
+                }
+                let rect = Rect::new(x, footer.y + 2, width, 1);
+                let disabled = command.and_then(|command| self.command_disabled(command));
                 frame.render_widget(
-                    Paragraph::new(format!(" {label} ")).style(Style::default().fg(MUTED)),
+                    Paragraph::new(text).style(if disabled.is_some() {
+                        Style::default().fg(MUTED).bg(RAISED)
+                    } else {
+                        Style::default().fg(FOCUS).bg(RAISED)
+                    }),
                     rect,
                 );
+                if disabled.is_none() {
+                    self.hits.borrow_mut().buttons.push((rect, key));
+                }
+                x += width + 1;
             }
-            x += width + 1;
+            if truncated {
+                let width = more_width.min(footer.right().saturating_sub(x));
+                if width > 0 {
+                    let rect = Rect::new(x, footer.y + 2, width, 1);
+                    frame.render_widget(
+                        Paragraph::new(more_label).style(Style::default().fg(ACCENT).bg(RAISED)),
+                        rect,
+                    );
+                    self.hits
+                        .borrow_mut()
+                        .buttons
+                        .push((rect, KeyCode::Char('?')));
+                }
+            }
         }
         self.draw_dialog(frame, area);
     }

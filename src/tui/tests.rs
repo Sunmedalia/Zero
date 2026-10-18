@@ -169,19 +169,27 @@ fn system_picker_footer_and_mouse_work_on_both_pages() {
             );
             app.key(KeyEvent::new(KeyCode::F(6), KeyModifiers::NONE));
         } else {
-            let rect = app
+            // F6 is the last footer entry and may be truncated at 45 columns;
+            // it stays reachable through `更多 ?`.
+            let hit = app
                 .hits
                 .borrow()
                 .buttons
                 .iter()
-                .find(|(_, key)| *key == KeyCode::F(6))
-                .unwrap()
-                .0;
+                .find(|(_, key)| matches!(key, KeyCode::F(6) | KeyCode::Char('?')))
+                .copied()
+                .unwrap();
             app.mouse(mouse_event(
                 MouseEventKind::Down(MouseButton::Left),
-                rect.x,
-                rect.y,
+                hit.0.x,
+                hit.0.y,
             ));
+            if hit.1 == KeyCode::Char('?') {
+                for key in [KeyCode::Char('F'), KeyCode::Char('6')] {
+                    app.dialog_key(KeyEvent::new(key, KeyModifiers::NONE));
+                }
+                app.dialog_key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
+            }
         }
         terminal.draw(|f| app.draw(f)).unwrap();
         assert!(screen(&terminal, 45).contains("Windows"));
@@ -823,15 +831,29 @@ fn mouse_narrow_pages_and_footer_actions() {
     click(&mut app, tab.x, tab.y);
     terminal.draw(|f| app.draw(f)).unwrap();
     assert!(app.hits.borrow().result.width > 0);
-    let search = app
+    // At 45 columns the strip cannot fit every action, so it ends with
+    // `更多 ?` instead of silently dropping the ones that do not fit.
+    let more = app
         .hits
         .borrow()
         .buttons
         .iter()
-        .find(|(_, key)| *key == KeyCode::Char('/'))
-        .unwrap()
+        .find(|(_, key)| *key == KeyCode::Char('?'))
+        .expect("the truncated strip must keep a 更多 entry")
         .0;
-    click(&mut app, search.x, search.y);
+    click(&mut app, more.x, more.y);
+    assert!(matches!(app.dialog, Some(Dialog::Commands { .. })));
+    app.dialog_key(KeyEvent::new(KeyCode::Char('s'), KeyModifiers::NONE));
+    app.dialog_key(KeyEvent::new(KeyCode::Char('e'), KeyModifiers::NONE));
+    app.dialog_key(KeyEvent::new(KeyCode::Char('a'), KeyModifiers::NONE));
+    app.dialog_key(KeyEvent::new(KeyCode::Char('r'), KeyModifiers::NONE));
+    app.dialog_key(KeyEvent::new(KeyCode::Char('c'), KeyModifiers::NONE));
+    app.dialog_key(KeyEvent::new(KeyCode::Char('h'), KeyModifiers::NONE));
+    terminal.draw(|f| app.draw(f)).unwrap();
+    assert!(screen(&terminal, 45).contains("搜索内容"));
+    // "搜索内容" is the second entry after filtering; move down and run it.
+    app.dialog_key(KeyEvent::new(KeyCode::Down, KeyModifiers::NONE));
+    app.dialog_key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
     assert!(matches!(
         app.dialog,
         Some(Dialog::Input {
@@ -1356,9 +1378,9 @@ fn contextual_footer_and_symbol_sources_follow_focus() {
     app.focus = Focus::Content;
     assert!(!has(&app, KeyCode::Enter));
     assert!(app.footer_actions().is_empty());
-    assert!(command_matches("导出结果", Page::Assets, Focus::Navigation).is_empty());
-    assert!(command_matches("导出结果", Page::Analysis, Focus::Navigation).is_empty());
-    assert!(!command_matches("导出结果", Page::Analysis, Focus::Content).is_empty());
+    assert!(command_matches("导出结果", Page::Assets, Focus::Navigation, None).is_empty());
+    assert!(command_matches("导出结果", Page::Analysis, Focus::Navigation, None).is_empty());
+    assert!(!command_matches("导出结果", Page::Analysis, Focus::Content, None).is_empty());
     assert!(menu_items().iter().all(|item| !item.contains(' ')));
     for width in [30, 80, 160] {
         let mut terminal = Terminal::new(TestBackend::new(width, 24)).unwrap();
@@ -2170,10 +2192,7 @@ fn combined_manager_layout_focus_and_actions_work_at_supported_sizes() {
         assert_eq!(app.section, AssetSection::Symbols);
         app.key(KeyEvent::new(KeyCode::BackTab, KeyModifiers::NONE));
         assert_eq!(app.section, AssetSection::Images);
-        assert!(
-            app.asset_disabled(AssetSection::Images, KeyCode::Char('x'))
-                .is_some()
-        );
+        assert!(app.command_disabled(Command::EnterAnalysis).is_some());
         assert!(
             app.available_commands("进入分析")
                 .iter()
@@ -3107,7 +3126,7 @@ fn console_enter_works_from_empty_filtered_lists_and_keeps_the_running_task() {
         assert_eq!(app.asset_count(), 0);
         let running = Job::default();
         app.job = Some(running.clone());
-        assert!(app.asset_disabled(section, KeyCode::Enter).is_none());
+        assert!(app.command_disabled(Command::SelectAndEnter).is_none());
         let mut terminal = Terminal::new(TestBackend::new(100, 30)).unwrap();
         terminal.draw(|f| app.draw(f)).unwrap();
         let button = app
@@ -3180,10 +3199,7 @@ fn enter_selects_highlighted_image_and_opens_analysis_once_matched() {
     app.refresh_assets();
     app.switch_section(AssetSection::Images);
     app.focus_asset(Kind::Image, &image);
-    assert!(
-        app.asset_disabled(AssetSection::Images, KeyCode::Enter)
-            .is_none()
-    );
+    assert!(app.command_disabled(Command::SelectAndEnter).is_none());
     app.key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
     // The highlighted image is selected and matching starts; the page waits for it.
     assert!(same_path(app.image.as_ref().unwrap(), &image));
@@ -3268,7 +3284,11 @@ fn palette_and_plugin_search_are_case_insensitive_and_multi_term() {
     assert!(!app.available_commands("dump").is_empty());
     assert!(!app.available_commands("导出 结果").is_empty());
     assert!(app.available_commands("导出 不存在").is_empty());
-    assert!(COMMANDS.iter().all(|(_, key)| *key != KeyCode::Char('f')));
+    assert!(
+        ACTIONS
+            .iter()
+            .all(|action| action.key != KeyCode::Char('f'))
+    );
     assert!(plugin_matches("网络").contains(&Plugin::Sockstat));
     assert!(plugin_matches("网络").contains(&Plugin::Netscan));
     assert!(plugin_matches("PSTREE").contains(&Plugin::Pstree));
@@ -3406,4 +3426,131 @@ fn wheel_scrolls_one_row_across_page_boundaries_and_clamps_at_ends() {
     app.key(KeyEvent::new(KeyCode::Down, KeyModifiers::NONE));
     terminal.draw(|f| app.draw(f)).unwrap();
     assert_eq!(app.hits.borrow().row_offset, 6);
+}
+
+#[test]
+fn every_action_has_one_binding_and_surfaces_agree() {
+    // A command must appear once in the table, and every table entry must
+    // resolve from its own key on its own page.
+    let mut seen = HashSet::new();
+    for action in ACTIONS {
+        assert!(
+            seen.insert(action.command),
+            "duplicate command in ACTIONS: {:?}",
+            action.command
+        );
+        if action.placement == 0 {
+            continue;
+        }
+        let page = match action.scope {
+            Scope::Analysis => Page::Analysis,
+            Scope::Assets => Page::Assets,
+            Scope::Anywhere => Page::Assets,
+        };
+        assert_eq!(
+            Command::from_key(page, action.key),
+            Some(action.command),
+            "{:?} does not resolve from {:?} on {page:?}",
+            action.command,
+            action.key
+        );
+    }
+    // Keys reused across pages must resolve to the page-specific command.
+    assert_eq!(
+        Command::from_key(Page::Assets, KeyCode::Char('d')),
+        Some(Command::AssetDetail)
+    );
+    assert_eq!(
+        Command::from_key(Page::Analysis, KeyCode::Char('d')),
+        Some(Command::Detail)
+    );
+    assert_eq!(
+        Command::from_key(Page::Assets, KeyCode::Char('r')),
+        Some(Command::RefreshAssets)
+    );
+    assert_eq!(
+        Command::from_key(Page::Analysis, KeyCode::Char('r')),
+        Some(Command::Rerun)
+    );
+}
+
+#[test]
+fn palette_offers_every_toolbar_entry_in_every_section() {
+    // The palette is the documented fallback when a strip is truncated, so it
+    // must never be missing an action the toolbar offers.
+    for section in [
+        AssetSection::Images,
+        AssetSection::Symbols,
+        AssetSection::Remote,
+    ] {
+        let palette = command_matches("", Page::Assets, Focus::Navigation, Some(section));
+        let offered = palette
+            .iter()
+            .map(|i| ACTIONS[*i].command)
+            .collect::<HashSet<_>>();
+        for command in toolbar_commands(section, false) {
+            assert!(
+                offered.contains(&command),
+                "{command:?} is on the {section:?} toolbar but not in the palette"
+            );
+        }
+    }
+}
+
+#[test]
+fn online_toggle_has_one_message_on_both_pages() {
+    let mut app = app();
+    app.switch_page(Page::Assets);
+    app.key(KeyEvent::new(KeyCode::Char('o'), KeyModifiers::NONE));
+    let assets = app.status.clone();
+    assert!(!app.settings.remote_symbols);
+    app.switch_page(Page::Analysis);
+    app.key(KeyEvent::new(KeyCode::Char('o'), KeyModifiers::NONE));
+    assert!(app.settings.remote_symbols);
+    app.key(KeyEvent::new(KeyCode::Char('o'), KeyModifiers::NONE));
+    assert_eq!(app.status, assets, "both pages must report the same state");
+}
+
+#[test]
+fn section_specific_keys_fall_back_to_the_page_action() {
+    // `g` means "fetch the index" only in the remote section. Elsewhere it is
+    // the analysis page's symbol generation, not a silent no-op.
+    let mut app = app();
+    app.switch_section(AssetSection::Images);
+    app.remote_catalog = false;
+    app.key(KeyEvent::new(KeyCode::Char('g'), KeyModifiers::NONE));
+    // No image is loaded, so the analysis-page meaning refuses with a reason
+    // instead of silently starting a remote catalog fetch.
+    assert!(
+        app.status.contains("镜像"),
+        "g on the image section must explain itself: {}",
+        app.status
+    );
+    assert!(!app.remote_catalog);
+    assert!(app.job.is_none());
+}
+
+#[test]
+fn truncated_footer_keeps_a_palette_entry() {
+    let mut app = app();
+    app.switch_page(Page::Analysis);
+    app.focus = Focus::Content;
+    for width in [30, 40, 45, 60, 80] {
+        let mut terminal = Terminal::new(TestBackend::new(width, 24)).unwrap();
+        terminal.draw(|f| app.draw(f)).unwrap();
+        let buttons = app.hits.borrow().buttons.clone();
+        let last = buttons.last().expect("the strip always offers something");
+        assert!(
+            matches!(
+                last.1,
+                KeyCode::Char('?') | KeyCode::Char('d') | KeyCode::Char('/')
+            ),
+            "at {width} columns the strip ends with {last:?}"
+        );
+        if last.1 == KeyCode::Char('?') {
+            click(&mut app, last.0.x, last.0.y);
+            assert!(matches!(app.dialog, Some(Dialog::Commands { .. })));
+            app.dialog_key(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE));
+        }
+    }
 }
