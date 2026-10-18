@@ -256,29 +256,17 @@ impl App {
             .with_selected(Some(self.menu))
             .with_offset(offset);
         let plugins = self.navigation_plugins();
-        // Mark the category boundary before the highlighted plugin. The list is
-        // a flat index, so this reads as a divider rather than a real heading:
-        // it answers "what kind of plugin am I on" without renumbering.
-        let mut previous: Option<&str> = None;
+        // Rows are bare plugin names: one row per selectable item, so the
+        // clicked row, the scroll offset and `self.menu` all use the same
+        // index. Category boundaries are not marked here. A marker on the
+        // first row of each group says "something changed" without saying
+        // what, and `·` already means "label · value" everywhere else in this
+        // interface, so it read as a stray separator. The category is named
+        // in the title instead.
         let items = self
             .menu_items()
             .iter()
-            .enumerate()
-            .map(|(i, label)| {
-                // `dump` has no plugin behind it and is not a category, so it
-                // never gets a divider.
-                let category = plugins.get(i).map(|p| p.category());
-                let divider = category != previous && previous.is_some() && category.is_some();
-                if category.is_some() {
-                    previous = category;
-                }
-                let mut text = String::new();
-                if divider {
-                    text.push_str("· ");
-                }
-                text.push_str(label);
-                ListItem::new(text)
-            })
+            .map(|label| ListItem::new(*label))
             .collect::<Vec<_>>();
         // The menu column is 22 cells wide, so the title names the category
         // only; `p` is already in the footer action strip.

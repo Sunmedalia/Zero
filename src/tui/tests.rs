@@ -4066,11 +4066,45 @@ fn plugin_labels_are_not_clipped_by_the_menu_column() {
         .unwrap_or(0) as u16;
     for space in [Space::new(80, 24), Space::new(120, 40)] {
         let width = space.menu_width();
-        // Two cells of highlight marker plus the category divider prefix.
+        // Two cells of highlight marker, and two of border.
         assert!(
-            width >= longest + 2,
+            width >= longest + 4,
             "menu {width} clips a {longest}-cell label"
         );
+    }
+}
+
+#[test]
+fn menu_rows_are_exactly_the_plugin_names() {
+    // One row per selectable item keeps the drawn row, the scroll offset and
+    // `menu` on the same index. A category marker prefixed to some rows broke
+    // that reading: it consumed cells, said only that something had changed,
+    // and reused `·`, which means "label · value" everywhere else in the
+    // interface. The category is named in the title instead.
+    let mut app = app();
+    app.switch_page(Page::Analysis);
+    for (w, h) in [(80u16, 24u16), (120, 40)] {
+        let mut terminal = Terminal::new(TestBackend::new(w, h)).unwrap();
+        terminal.draw(|f| app.draw(f)).unwrap();
+        let text = screen(&terminal, w as usize);
+        for (i, label) in app.menu_items().iter().enumerate() {
+            // Rows scrolled out of view cannot be checked from the frame.
+            let hits = app.hits.borrow().clone();
+            let rows = hits.menu.height.saturating_sub(2) as usize;
+            if i < hits.menu_offset || i >= hits.menu_offset + rows {
+                continue;
+            }
+            let row = hits.menu.y as usize + 1 + (i - hits.menu_offset);
+            let line = text.lines().nth(row).unwrap_or_default();
+            // Border, then the two cells `List` reserves for `› ` on every
+            // row so the labels stay aligned whether selected or not.
+            let cell = line
+                .chars()
+                .skip(hits.menu.x as usize + 3)
+                .take(label.chars().count())
+                .collect::<String>();
+            assert_eq!(cell, *label, "{w}x{h} row {i} is not the bare label");
+        }
     }
 }
 
