@@ -27,6 +27,9 @@ impl Windows<'_> {
         ensure!(offset + 4 <= size, "pool tag 越界");
         let align = if self.vm.pointer_size() == 4 { 8 } else { 16 };
         let mut blocks = BTreeSet::new();
+        // One header buffer: this loop runs once per pool-tag hit across the
+        // whole image.
+        let mut b = vec![0; size as usize];
         self.prefetch_pool_tags(job)?;
         for tag in tags {
             for hit in self.vm.image.scan(tag, job)? {
@@ -37,7 +40,7 @@ impl Windows<'_> {
                 if !header.is_multiple_of(align) {
                     continue;
                 }
-                let mut b = vec![0; size as usize];
+                b.fill(0);
                 if self.vm.image.read(header, &mut b).is_err() {
                     continue;
                 }
@@ -105,6 +108,8 @@ impl Windows<'_> {
         let mut mapped = BTreeMap::new();
         let mut seen = HashSet::new();
         let mut budget = MAX_OBJECTS;
+        // Reused across every page-table node visited.
+        let mut scratch = Vec::new();
         reverse_objects(
             self.vm.image,
             self.vm.root,
@@ -115,6 +120,7 @@ impl Windows<'_> {
             &mut mapped,
             &mut seen,
             &mut budget,
+            &mut scratch,
             job,
         )?;
         // Header-shape decisions are per symbol file, not per object.
@@ -211,6 +217,7 @@ fn reverse_objects(
     out: &mut BTreeMap<u64, Vec<u64>>,
     seen: &mut HashSet<(u64, usize)>,
     budget: &mut usize,
+    scratch: &mut Vec<u8>,
     job: &Job,
 ) -> Result<()> {
     if wanted.is_empty() {
@@ -223,11 +230,18 @@ fn reverse_objects(
     ensure!(*budget > 0, "对象虚拟地址映射搜索超限");
     *budget -= 1;
     let shift = geometry.shifts()[level];
-    let mut bytes = vec![0; geometry.entries(level) * geometry.width()];
-    if image.read(table, &mut bytes).is_err() {
+    let need = geometry.entries(level) * geometry.width();
+    if scratch.len() < need {
+        scratch.resize(need, 0);
+    }
+    scratch[..need].fill(0);
+    if image.read(table, &mut scratch[..need]).is_err() {
         return Ok(());
     }
-    for (i, b) in bytes.chunks_exact(geometry.width()).enumerate() {
+    // Collect child tables before recursing: the scratch buffer is shared by
+    // the whole traversal, so it must not be borrowed across the call.
+    let mut children = Vec::new();
+    for (i, b) in scratch[..need].chunks_exact(geometry.width()).enumerate() {
         if level == 0 && i < geometry.entries(level) / 2 {
             continue;
         }
@@ -253,19 +267,23 @@ fn reverse_objects(
             if geometry.arch == Architecture::X64 && level == 0 && pa == table {
                 continue;
             }
-            reverse_objects(
-                image,
-                pa,
-                geometry,
-                level + 1,
-                va,
-                wanted,
-                out,
-                seen,
-                budget,
-                job,
-            )?;
+            children.push((pa, va));
         }
+    }
+    for (pa, va) in children {
+        reverse_objects(
+            image,
+            pa,
+            geometry,
+            level + 1,
+            va,
+            wanted,
+            out,
+            seen,
+            budget,
+            scratch,
+            job,
+        )?;
     }
     Ok(())
 }
