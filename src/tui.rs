@@ -6,6 +6,8 @@ mod dialog_keys;
 mod dialogs;
 mod footer;
 mod generation;
+mod layout;
+use layout::Space;
 mod interaction;
 mod pages;
 mod results;

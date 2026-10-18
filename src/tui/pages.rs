@@ -69,7 +69,8 @@ impl App {
     /// Narrow analysis layouts replace the system picker with region tabs, so
     /// the only visible control stays reachable.
     fn draw_system_row(&self, frame: &mut Frame, systems: Rect) {
-        if self.page == Page::Analysis && (frame.area().width < 100 || frame.area().height < 20) {
+        let layout = Space::new(frame.area().width, frame.area().height);
+        if self.page == Page::Analysis && !layout.system_row() {
             let mut x = systems.x;
             for (label, focus) in [(" 插件 ", Focus::Navigation), (" 内容 ", Focus::Content)] {
                 let width =

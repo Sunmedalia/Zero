@@ -1105,11 +1105,11 @@ impl App {
         // Keep focus on a region this size actually draws. The thresholds here
         // mirror the ones the layout uses, and the clamp below catches anything
         // they miss once the next frame has been measured.
-        if self.page == Page::Assets && self.focus == Focus::Content && (width < 100 || height < 28)
-        {
+        let layout = Space::new(width, height);
+        if self.page == Page::Assets && self.focus == Focus::Content && !layout.asset_detail() {
             self.focus = Focus::Navigation;
         }
-        if width < 140 && self.focus == Focus::Detail {
+        if !layout.inspector() && self.focus == Focus::Detail {
             self.focus = Focus::Content;
         }
         self.focus = self.focus.clamp(self.visible_regions());

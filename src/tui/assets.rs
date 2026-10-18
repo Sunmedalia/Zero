@@ -372,7 +372,8 @@ impl App {
         // The detail panel is reference material for the highlighted row, so it
         // only claims space when there is a row to describe and the window is
         // tall enough that it does not squeeze the lists.
-        if area.width >= 100 && frame.area().height >= 24 {
+        let layout = Space::new(frame.area().width, frame.area().height);
+        if layout.asset_detail() {
             let rows = Layout::vertical([Constraint::Min(9), Constraint::Length(6)]).split(body);
             body = rows[0];
             self.hits.borrow_mut().asset_detail = rows[1];
@@ -393,10 +394,10 @@ impl App {
                 rows[1],
             );
         }
-        if area.height < 16 {
+        if !layout.asset_two_panes() {
             self.draw_asset_pane(frame, body, self.section);
         } else {
-            let panes = if area.width >= 100 {
+            let panes = if layout.asset_panes_side_by_side() {
                 Layout::horizontal([Constraint::Percentage(32), Constraint::Percentage(68)])
                     .split(body)
             } else {

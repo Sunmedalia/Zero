@@ -2206,8 +2206,12 @@ fn combined_manager_layout_focus_and_actions_work_at_supported_sizes() {
         let mut terminal = Terminal::new(TestBackend::new(w, h)).unwrap();
         terminal.draw(|f| app.draw(f)).unwrap();
         let hits = app.hits.borrow().clone();
-        assert_eq!(hits.tabs.len(), 2);
-        assert_eq!(hits.asset_lists.len(), if h < 20 { 1 } else { 2 });
+        assert_eq!(hits.tabs.len(), 2, "{w}x{h}");
+        assert_eq!(
+            hits.asset_lists.len(),
+            if h < 20 { 1 } else { 2 },
+            "{w}x{h}"
+        );
         if h >= 20 {
             assert!(hits.asset_lists.iter().all(|(r, _, _)| r.height >= 3));
         }
@@ -3882,4 +3886,42 @@ fn resource_header_click_opens_the_named_picker() {
         assert_ne!(app.focus, Focus::Context, "no header focus region here");
         app.key(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE));
     }
+}
+
+#[test]
+fn layout_thresholds_live_in_one_place() {
+    // Every renderer and the focus cycle ask `Space`, so the same question
+    // cannot get different answers in different files. This pins the answers
+    // that the layout actually depends on.
+    let narrow = Space::new(60, 18);
+    assert!(!narrow.two_panes(), "60 cols cannot host menu + table");
+    // 18 rows leaves five per list, so the page shows one at a time.
+    assert!(!narrow.asset_two_panes(), "too short for two lists");
+    assert!(!narrow.asset_panes_side_by_side());
+    assert!(!narrow.asset_detail());
+    assert!(!narrow.inspector());
+    assert!(!narrow.system_row());
+
+    let standard = Space::new(80, 24);
+    assert!(standard.two_panes(), "80x24 is an ordinary terminal");
+    assert!(standard.asset_two_panes());
+    assert!(
+        !standard.asset_panes_side_by_side(),
+        "lists stack at 80 cols"
+    );
+    assert!(!standard.asset_detail(), "no room for the detail panel");
+    assert!(!standard.inspector());
+    // Narrow layouts replace the system picker with region tabs.
+    assert!(!standard.system_row());
+
+    let wide = Space::new(160, 40);
+    assert!(wide.two_panes());
+    assert!(wide.asset_panes_side_by_side());
+    assert!(wide.asset_detail());
+    assert!(wide.inspector());
+    assert_eq!(wide.menu_width(), Space::WIDE_MENU);
+    assert_eq!(standard.menu_width(), Space::NARROW_MENU);
+
+    // The menu never takes more than a third of a narrow terminal.
+    assert!(Space::new(64, 16).menu_width() < 64 / 3);
 }

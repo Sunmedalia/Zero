@@ -9,8 +9,9 @@ impl App {
         // plus a table. Below that the pane switch is honest, because neither
         // would be usable. Keeping both visible at 80 columns means the menu no
         // longer hides the results on ordinary terminals.
-        let menu_width = if area.width >= 100 { 22 } else { 20 };
-        let mut main = if area.width >= 64 && frame.area().height >= 16 {
+        let layout = Space::new(area.width, frame.area().height);
+        let menu_width = layout.menu_width();
+        let mut main = if layout.two_panes() {
             let columns = Layout::default()
                 .direction(Direction::Horizontal)
                 .constraints([Constraint::Length(menu_width), Constraint::Min(20)])
@@ -23,7 +24,7 @@ impl App {
         } else {
             body
         };
-        if area.width >= 140 && self.inspector {
+        if layout.inspector() && self.inspector {
             let columns =
                 Layout::horizontal([Constraint::Min(50), Constraint::Length(42)]).split(main);
             main = columns[0];
