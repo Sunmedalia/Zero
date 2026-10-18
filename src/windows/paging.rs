@@ -84,7 +84,7 @@ impl BackingFile {
             "分页附件必须是完整页组成的普通文件"
         );
         let stamp = Stamp::from(&metadata);
-        let digest = crate::image::digest_reader(file.try_clone()?, job)?;
+        let digest = crate::image::digest_file(file.try_clone()?, job)?;
         let result = Self {
             file,
             path: path.canonicalize()?,
