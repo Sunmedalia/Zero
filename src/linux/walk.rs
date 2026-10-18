@@ -1,8 +1,10 @@
 //! Kernel object walkers: lists, maple trees, VMAs and process address spaces.
 use super::*;
 impl Linux<'_> {
+    /// Kernel uses the split `mount`/`vfsmount` layout instead of the older
+    /// single `vfsmount`. Probed on every `number()` call, so memoized.
     pub(crate) fn modern_mount(&self) -> bool {
-        self.isf.field("mount", "mnt").is_ok()
+        self.isf.has_field("mount", "mnt")
     }
     pub(crate) fn list_objects(&self, head: u64, offset: u64, job: &Job) -> Result<Vec<u64>> {
         let mut nodes = Vec::new();

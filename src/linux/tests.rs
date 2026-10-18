@@ -190,6 +190,7 @@ pub(crate) fn fixture() -> (Vec<u8>, Isf) {
         banner: b"Linux version fixture\0".to_vec(),
         locations: vec![],
         layouts: Default::default(),
+        present: Default::default(),
     };
     (b, isf)
 }
@@ -627,4 +628,27 @@ fn path_depth_limit_and_name_bounds() {
             .to_string()
             .contains("长度")
     );
+}
+
+#[test]
+fn cached_field_presence_matches_resolution() {
+    // `has_field` memoizes the answer, so it must never disagree with the
+    // uncached resolution it replaces.
+    let (_bytes, isf) = fixture();
+    for (structure, field) in [
+        ("task_struct", "mm"),
+        ("task_struct", "not_a_field"),
+        ("mm_struct", "mmap"),
+        ("mount", "mnt"),
+        ("vfsmount", "mnt"),
+    ] {
+        let expected = isf.field(structure, field).is_ok();
+        for _ in 0..3 {
+            assert_eq!(
+                isf.has_field(structure, field),
+                expected,
+                "{structure}.{field}"
+            );
+        }
+    }
 }

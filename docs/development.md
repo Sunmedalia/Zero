@@ -48,7 +48,10 @@ cargo build --release --locked --examples
 ./target/release/examples/benchmark_results export-legacy-csv 100000
 ./target/release/examples/benchmark_results export-stream-csv 100000
 ./target/release/examples/benchmark_windows_session IMAGE SYMBOLS
+./target/release/examples/bench_plugins IMAGE SYMBOLS [ROUNDS]
 ```
+
+`bench_plugins` 输出每个 Linux 插件的耗期中位数，以及对象字段读取的单元成本（`vm.uint`、`vm.translate`、`isf.layout`）。用它定位分析引擎热点：例如 Debian 3.2 样本上 `maps` 约 200 ms（14,045 行）、`elfs` 约 100 ms，而单次字段读取 327 ns 中页表翻译只占 22 ns，其余是物理读取；把页内容缓存起来实测反而更慢（501 ns），因此没有保留。
 
 `views` 对比旧绘制路径的三次全量筛选／排序／复制与建立一次索引后的 20 次分页读取，并校验排序内容一致；这是数据准备基准，不包括终端实际绘制。`snapshots` 测量完整与部分结果的强制落盘及分页。Windows 基准交替执行独立解析与 Session 复用，关闭成功结果缓存，逐项校验输出一致并报告符号命中数。
 
