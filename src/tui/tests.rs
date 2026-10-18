@@ -637,7 +637,10 @@ fn imported_image_automatically_identifies_banner_and_renders_progress() {
         .iter()
         .map(|c| c.symbol())
         .collect();
-    assert!(rendered.contains("Linux version 3.2.0-test"));
+    assert!(
+        rendered.contains("Linux version 3.2.0-test"),
+        "rendered={rendered:.600}"
+    );
     app.started = Some(Instant::now());
     app.progress = Some(42);
     terminal.draw(|f| app.draw(f)).unwrap();
@@ -2523,10 +2526,12 @@ fn preparation_and_analysis_layouts_have_valid_actions_at_target_sizes() {
                     .iter()
                     .all(|(rect, _)| rect.right() <= width && rect.bottom() <= height)
             );
-            if page == Page::Analysis && height >= 20 {
-                assert_eq!(hits.menu.width > 0 && hits.result.width > 0, width >= 100);
+            // Both columns are shown once a 20-cell menu and a table can share
+            // the row; below that the pane switch takes over.
+            if page == Page::Analysis && height >= 16 {
+                assert_eq!(hits.menu.width > 0 && hits.result.width > 0, width >= 64);
             }
-            if page == Page::Analysis && width < 100 && height >= 18 {
+            if page == Page::Analysis && width < 64 && height >= 18 {
                 let region = hits
                     .regions
                     .iter()

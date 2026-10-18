@@ -5,10 +5,15 @@ use super::*;
 impl App {
     /// Draw the plugin menu, inspector and result table into `body`.
     pub(super) fn draw_workbench(&self, frame: &mut Frame, area: Rect, body: Rect) {
-        let mut main = if area.width >= 100 && frame.area().height >= 20 {
+        // Two columns as soon as both can carry their content: a 20-cell menu
+        // plus a table. Below that the pane switch is honest, because neither
+        // would be usable. Keeping both visible at 80 columns means the menu no
+        // longer hides the results on ordinary terminals.
+        let menu_width = if area.width >= 100 { 22 } else { 20 };
+        let mut main = if area.width >= 64 && frame.area().height >= 16 {
             let columns = Layout::default()
                 .direction(Direction::Horizontal)
-                .constraints([Constraint::Length(22), Constraint::Min(20)])
+                .constraints([Constraint::Length(menu_width), Constraint::Min(20)])
                 .split(body);
             self.draw_menu(frame, columns[0], self.focus_style(Focus::Navigation));
             columns[1]

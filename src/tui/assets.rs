@@ -10,15 +10,19 @@ impl App {
         section: AssetSection,
         actions: &[(&'static str, KeyCode)],
     ) {
+        let more = " 更多 ? ";
+        let more_width = Span::raw(more).width() as u16;
         let mut x = area.x;
         let mut y = area.y;
+        let mut shown = 0usize;
         for (label, key) in actions.iter().copied() {
             let text = format!(" {label} ");
             let width = Span::raw(&text).width() as u16;
             if width > area.width {
                 continue;
             }
-            if x + width > area.right() {
+            // Reserve the escape hatch on whichever row is being filled.
+            if x + width + more_width > area.right() {
                 x = area.x;
                 y += 1;
             }
@@ -48,6 +52,30 @@ impl App {
                     .push((rect, section, key));
             }
             x += width + 1;
+            shown += 1;
+        }
+        if shown < actions.len() {
+            // The reservation during placement guarantees room on the row that
+            // was being filled, unless that row ended exactly at the edge.
+            // Clamp to the last drawable row: `y` may have advanced past the
+            // area when the previous row filled exactly.
+            let my = y.min(area.bottom().saturating_sub(1));
+            let mx = if area.right().saturating_sub(x) >= more_width {
+                x
+            } else {
+                area.x
+            };
+            if my >= area.y && area.right().saturating_sub(mx) >= more_width {
+                let rect = Rect::new(mx, my, more_width, 1);
+                frame.render_widget(
+                    Paragraph::new(more).style(Style::default().fg(ACCENT).bg(RAISED)),
+                    rect,
+                );
+                self.hits
+                    .borrow_mut()
+                    .asset_buttons
+                    .push((rect, section, KeyCode::Char('?')));
+            }
         }
     }
     pub(super) fn draw_asset_toolbar(&self, frame: &mut Frame, area: Rect) {
@@ -277,30 +305,37 @@ impl App {
         // are reference material, not state, and both are available in the
         // detail panel and the palette. What changes during work — image,
         // symbol, match state, network mode — stays on screen.
+        //
+        // Each line is filled by priority and stops at a field boundary, so a
+        // narrow window drops the kernel rather than cutting the image path.
         let banner = summarise_banner(&banner);
+        let banner_style = if identified {
+            value
+        } else {
+            Style::default().fg(MUTED)
+        };
+        let image_line = fit(
+            &[("镜像: ", image, value), ("内核: ", banner, banner_style)],
+            regions[0].width,
+        );
+        // Status first: the match state and network mode are short, always
+        // actionable, and the thing the user is waiting on. The symbol path is
+        // long and predictable, so it takes what remains and is shortened.
+        let mut symbol_line = vec![
+            Span::styled(state, Style::default().fg(state_color)),
+            separator(),
+            Span::styled(mode, Style::default().fg(mode_color)),
+        ];
+        let used = Span::raw(state).width() + Span::raw(mode).width() + 6;
+        if (used as u16) < regions[0].width {
+            let fitted = fit(&[("符号: ", symbol, value)], regions[0].width - used as u16);
+            if !fitted.is_empty() {
+                symbol_line.push(separator());
+                symbol_line.extend(fitted);
+            }
+        }
         frame.render_widget(
-            Paragraph::new(vec![
-                Line::from_iter(
-                    field("镜像: ", escaped(&image), value)
-                        .into_iter()
-                        .chain([separator()])
-                        .chain(field(
-                            "内核: ",
-                            escaped(&banner),
-                            if identified {
-                                value
-                            } else {
-                                Style::default().fg(MUTED)
-                            },
-                        )),
-                ),
-                Line::from_iter(field("符号: ", escaped(&symbol), value).into_iter().chain([
-                    separator(),
-                    Span::styled(state, Style::default().fg(state_color)),
-                    separator(),
-                    Span::styled(mode, Style::default().fg(mode_color)),
-                ])),
-            ]),
+            Paragraph::new(vec![Line::from(image_line), Line::from(symbol_line)]),
             regions[0],
         );
         let mut x = regions[1].x;

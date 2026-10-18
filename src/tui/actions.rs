@@ -497,7 +497,9 @@ fn toolbar_commands(section: AssetSection, busy: bool) -> Vec<Command> {
         })
         .collect::<Vec<_>>();
     if busy {
-        commands.push(Command::Cancel);
+        // Cancellation leads when a task is running: it is the way out, so it
+        // must survive the row cap rather than being the first action dropped.
+        commands.insert(0, Command::Cancel);
     }
     commands
 }
@@ -552,7 +554,17 @@ fn footer_actions(focus: Focus) -> Vec<(&'static str, KeyCode)> {
 }
 /// Rows a wrapped action strip needs at `width`, so the layout can reserve the
 /// exact footer height before drawing.
+/// Rows the resource toolbar needs at `width`, capped so the chrome cannot grow
+/// past the content it describes.
+///
+/// An uncapped toolbar took four rows on a 60-column terminal, leaving the list
+/// eight. Three rows hold every resource action at that width; anything past
+/// the cap stays reachable through `更多 ?`, which the strip reserves room for.
+const TOOLBAR_ROWS: u16 = 3;
 fn action_rows(actions: &[(&'static str, KeyCode)], width: u16) -> u16 {
+    // Mirrors the renderer: every row keeps room for `更多 ?` so the height
+    // reserved here is the height actually needed.
+    let more = Span::raw(" 更多 ? ").width() as u16;
     let mut rows = 1;
     let mut x = 0;
     for (label, _) in actions {
@@ -560,13 +572,13 @@ fn action_rows(actions: &[(&'static str, KeyCode)], width: u16) -> u16 {
         if length > width {
             continue;
         }
-        if x + length > width {
+        if x + length + more > width {
             rows += 1;
             x = 0;
         }
         x += length + 1;
     }
-    rows
+    rows.min(TOOLBAR_ROWS)
 }
 /// Palette entries for a page, focus and — on the resource page — section.
 fn command_matches(

@@ -7,11 +7,16 @@
 use super::*;
 
 impl App {
-    /// Height the footer needs: a status line, the resource toolbar when the
-    /// assets page is showing, and the wrapped action strip.
-    fn footer_height(&self, width: u16) -> u16 {
+    /// Height the footer needs: a status line, then either the resource
+    /// toolbar or the wrapped action strip.
+    ///
+    /// The resource toolbar carries the page's actions, so it gets the toolbar
+    /// budget; it never takes more than a third of the screen, so a short
+    /// terminal keeps its list and `更多 ?` covers whatever does not fit.
+    fn footer_height(&self, width: u16, height: u16) -> u16 {
         if self.page == Page::Assets {
-            2 + action_rows(&toolbar_actions(self.section, self.job.is_some()), width)
+            let wanted = 2 + action_rows(&toolbar_actions(self.section, self.job.is_some()), width);
+            wanted.min((height / 3).max(3))
         } else {
             2
         }
@@ -35,7 +40,7 @@ impl App {
             .constraints([
                 Constraint::Length(if self.page == Page::Analysis { 1 } else { 0 }),
                 Constraint::Min(3),
-                Constraint::Length(self.footer_height(frame.area().width)),
+                Constraint::Length(self.footer_height(frame.area().width, frame.area().height)),
             ])
             .split(area);
         self.hits.borrow_mut().header = parts[0];
@@ -121,25 +126,25 @@ impl App {
         };
         let value = Style::default().fg(TEXT);
         let separator = || Span::styled(" · ", Style::default().fg(BORDER));
-        // One line: verification state first, because that is what changes and
-        // what the user acts on. Image and symbol identity stay readable but
-        // yield space when the window is narrow.
-        frame.render_widget(
-            Paragraph::new(Line::from_iter(
-                field(
-                    "",
-                    if self.windows { "Windows" } else { "Linux" }.into(),
-                    value.add_modifier(Modifier::BOLD),
-                )
-                .into_iter()
-                .chain([separator()])
-                .chain(field("验证: ", escaped(&kernel), kernel_style))
-                .chain([separator()])
-                .chain(field("符号: ", escaped(&symbol), symbol_style))
-                .chain([separator()])
-                .chain(field("镜像: ", escaped(&image), value)),
-            )),
-            area,
-        );
+        // One line, filled by priority: what changes, then what identifies the
+        // input. Narrow windows drop the tail instead of truncating it
+        // mid-word, so a field is either fully readable or not shown.
+        let platform = if self.windows { "Windows" } else { "Linux" };
+        let mut line = field("", platform.into(), value.add_modifier(Modifier::BOLD)).to_vec();
+        let mut used = Span::raw(platform).width();
+        for (label, text, style) in [
+            ("验证: ", kernel, kernel_style),
+            ("符号: ", symbol, symbol_style),
+            ("镜像: ", image, value),
+        ] {
+            let width = 3 + Span::raw(label).width() + Span::raw(&text).width();
+            if used + width > area.width as usize {
+                break;
+            }
+            used += width;
+            line.push(separator());
+            line.extend(field(label, escaped(&text), style));
+        }
+        frame.render_widget(Paragraph::new(Line::from(line)), area);
     }
 }

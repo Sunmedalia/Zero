@@ -197,6 +197,79 @@ fn escaped(value: &str) -> String {
     }
     out
 }
+/// Lay out `label: value` pairs across `width`, dropping whole trailing pairs
+/// that would not fit.
+///
+/// Narrow terminals used to truncate mid-field, which reads as corruption: the
+/// image path would end in the middle of a filename. Stopping at a field
+/// boundary keeps every visible value truthful.
+fn fit<'a>(
+    fields: &[(&'a str, String, Style)],
+    width: u16,
+) -> Vec<Span<'a>> {
+    // Share the row: the first field is the primary one and keeps its space,
+    // later fields take what is left. A long value is shortened with an
+    // ellipsis rather than pushing the fields after it off the row, because a
+    // truncated path is still useful while a missing kernel is not.
+    let total: usize = fields
+        .iter()
+        .enumerate()
+        .map(|(i, (label, text, _))| {
+            usize::from(i > 0) * 3 + Span::raw(*label).width() + Span::raw(text).width()
+        })
+        .sum();
+    let width = width as usize;
+    let mut out = Vec::new();
+    let mut used = 0usize;
+    for (index, (label, text, style)) in fields.iter().enumerate() {
+        let gap = usize::from(index > 0) * 3;
+        let label_width = Span::raw(*label).width();
+        let remaining = width.saturating_sub(used + gap + label_width);
+        if remaining == 0 {
+            break;
+        }
+        let text_width = Span::raw(text).width();
+        // When everything fits, nothing is shortened.
+        let budget = if total <= width {
+            text_width
+        } else {
+            // Leave room for the fields that follow this one.
+            let rest = fields[index + 1..]
+                .iter()
+                .map(|(l, t, _)| 3 + Span::raw(*l).width() + Span::raw(t).width())
+                .sum::<usize>();
+            remaining.saturating_sub(rest).max(8)
+        };
+        let shown = if text_width <= budget {
+            text.clone()
+        } else {
+            truncate_with_ellipsis(text, budget)
+        };
+        used += gap + label_width + Span::raw(&shown).width();
+        if index > 0 {
+            out.push(Span::styled(" · ", Style::default().fg(BORDER)));
+        }
+        out.extend(field(label, escaped(&shown), *style));
+    }
+    out
+}
+/// Shorten `text` to `budget` display cells, marking the cut with `…`.
+fn truncate_with_ellipsis(text: &str, budget: usize) -> String {
+    if budget <= 1 {
+        return "…".into();
+    }
+    let mut out = String::new();
+    for c in text.chars() {
+        let mut candidate = out.clone();
+        candidate.push(c);
+        if Span::raw(candidate.as_str()).width() > budget - 1 {
+            break;
+        }
+        out = candidate;
+    }
+    out.push('…');
+    out
+}
 /// Trim a kernel banner to its identifying head.
 ///
 /// A full Linux banner is ~150 characters of build metadata; the version and
