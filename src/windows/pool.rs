@@ -117,6 +117,8 @@ impl Windows<'_> {
             &mut budget,
             job,
         )?;
+        // Header-shape decisions are per symbol file, not per object.
+        let header_layout = self.object_header_layout();
         let mut unmatched = 0;
         for physical in candidates {
             job.check()?;
@@ -128,7 +130,7 @@ impl Windows<'_> {
             for &address in addresses {
                 let read = (|| -> Result<Option<Vec<String>>> {
                     let header = address.checked_sub(body_offset).context("对象头下溢")?;
-                    if self.object_type(header)? != kind {
+                    if self.object_type(header, &header_layout)? != kind {
                         return Ok(None);
                     }
                     matched = true;
@@ -136,7 +138,7 @@ impl Windows<'_> {
                     let readname = if p == Plugin::WinFilescan {
                         self.vm.unicode(self.field(address, ty, "FileName")?)
                     } else {
-                        self.object_name(header)
+                        self.object_name(header, &header_layout)
                     };
                     match readname {
                         Ok(n) => name = n,

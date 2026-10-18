@@ -96,6 +96,9 @@ impl Windows<'_> {
         for diagnostic in diagnostics {
             Self::issue(r, format!("PID {} threads", p.pid), diagnostic);
         }
+        // Symbol-shape decisions, resolved once instead of per thread.
+        let terminated_field = self.vm.isf.has_field("_ETHREAD", "Terminated");
+        let threads_process = self.vm.isf.has_field("_ETHREAD", "ThreadsProcess");
         for thread in threads {
             job.check()?;
             let read = (|| -> Result<Vec<String>> {
@@ -110,16 +113,14 @@ impl Windows<'_> {
                 ];
                 for field in ["Tcb.State", "StartAddress", "CreateTime", "ExitTime"] {
                     if field == "ExitTime"
-                        && self.vm.isf.has_field("_ETHREAD", "Terminated")
+                        && terminated_field
                         && self.number(thread, "_ETHREAD", "Terminated")? == 0
                     {
                         row.push(String::new());
                         continue;
                     }
                     let value = self.number(thread, "_ETHREAD", field).map(|value| {
-                        if field == "CreateTime"
-                            && self.vm.isf.has_field("_ETHREAD", "ThreadsProcess")
-                        {
+                        if field == "CreateTime" && threads_process {
                             value >> 3
                         } else {
                             value

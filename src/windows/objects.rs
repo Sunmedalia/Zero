@@ -8,6 +8,17 @@ fn decode_object_pointer(bits: u64, width: u64) -> Result<u64> {
     Ok((((bits << 4) << shift) as i64 >> shift) as u64)
 }
 
+/// Symbol-derived shape of `_OBJECT_HEADER`, resolved once per scan.
+pub(super) struct ObjectHeaderLayout {
+    type_index: bool,
+    cookie: bool,
+    info_mask: bool,
+    /// `ObTypeIndexTable` base, resolved once. The table holds at most 256
+    /// slots and is fixed for the lifetime of the image.
+    type_table: u64,
+    /// Decoded type name per index, filled on first use.
+    type_names: std::cell::RefCell<std::collections::HashMap<u64, String>>,
+}
 /// Symbol-derived shape of a `_HANDLE_TABLE_ENTRY`, resolved once per scan.
 struct HandleEntryLayout {
     object_pointer_bits: bool,
@@ -58,6 +69,9 @@ impl Windows<'_> {
                 "GrantedAccess"
             },
         };
+        // `object_type` and `object_name` run once per handle, so their
+        // symbol-shape decisions are resolved once for the whole table.
+        let header_layout = self.object_header_layout();
         for first in (0..max / 4).step_by(per as usize) {
             job.check()?;
             let mut page = root;
@@ -114,7 +128,7 @@ impl Windows<'_> {
                         "_HANDLE_TABLE_ENTRY",
                         entry_layout.access_field,
                     )?;
-                    let kind = self.object_type(header)?;
+                    let kind = self.object_type(header, &header_layout)?;
                     let name = match kind.as_str() {
                         "File" => {
                             self.vm
@@ -124,7 +138,7 @@ impl Windows<'_> {
                         "Thread" => {
                             format!("TID {}", self.number(body, "_ETHREAD", "Cid.UniqueThread")?)
                         }
-                        _ => self.object_name(header)?,
+                        _ => self.object_name(header, &header_layout)?,
                     };
                     Ok(Some(vec![
                         p.pid.to_string(),
@@ -149,29 +163,48 @@ impl Windows<'_> {
         }
         Ok(())
     }
-    pub(super) fn object_type(&self, header: u64) -> Result<String> {
-        if self.vm.isf.field("_OBJECT_HEADER", "TypeIndex").is_err() {
+    /// Resolve the object-header shape once for a scan.
+    pub(super) fn object_header_layout(&self) -> ObjectHeaderLayout {
+        ObjectHeaderLayout {
+            type_index: self.vm.isf.has_field("_OBJECT_HEADER", "TypeIndex"),
+            cookie: self.vm.isf.raw_address("ObHeaderCookie").is_ok(),
+            info_mask: self.vm.isf.has_field("_OBJECT_HEADER", "InfoMask"),
+            type_table: self.symbol("ObTypeIndexTable").unwrap_or(0),
+            type_names: Default::default(),
+        }
+    }
+    pub(super) fn object_type(&self, header: u64, layout: &ObjectHeaderLayout) -> Result<String> {
+        if !layout.type_index {
             let ty = self.number(header, "_OBJECT_HEADER", "Type")?;
             ensure!(self.vm.kernel(ty), "旧版对象类型指针无效");
             return self.vm.unicode(self.field(ty, "_OBJECT_TYPE", "Name")?);
         }
         let encoded = self.number(header, "_OBJECT_HEADER", "TypeIndex")?;
-        let index = if self.vm.isf.raw_address("ObHeaderCookie").is_ok() {
+        let index = if layout.cookie {
             let cookie = self.vm.uint(self.symbol("ObHeaderCookie")?, 1)?;
             encoded ^ cookie ^ ((header >> 8) & 255)
         } else {
             encoded
         };
         ensure!(index < 256, "对象类型索引越界");
-        let ty = self.vm.pointer(add(
-            self.symbol("ObTypeIndexTable")?,
-            index * self.vm.pointer_size() as u64,
-        )?)?;
+        if let Some(name) = layout.type_names.borrow().get(&index) {
+            return Ok(name.clone());
+        }
+        let table = if layout.type_table != 0 {
+            layout.type_table
+        } else {
+            self.symbol("ObTypeIndexTable")?
+        };
+        let ty = self
+            .vm
+            .pointer(add(table, index * self.vm.pointer_size() as u64)?)?;
         ensure!(self.vm.kernel(ty), "无效对象类型");
-        self.vm.unicode(self.field(ty, "_OBJECT_TYPE", "Name")?)
+        let name = self.vm.unicode(self.field(ty, "_OBJECT_TYPE", "Name")?)?;
+        layout.type_names.borrow_mut().insert(index, name.clone());
+        Ok(name)
     }
-    pub(super) fn object_name(&self, header: u64) -> Result<String> {
-        if self.vm.isf.field("_OBJECT_HEADER", "InfoMask").is_err() {
+    pub(super) fn object_name(&self, header: u64, layout: &ObjectHeaderLayout) -> Result<String> {
+        if !layout.info_mask {
             let offset = self.number(header, "_OBJECT_HEADER", "NameInfoOffset")?;
             if offset == 0 {
                 return Ok(String::new());
