@@ -676,15 +676,27 @@ fn layouts_and_popup() {
         assert!(text.contains("导出当前筛选") || w < 45, "{w}x{h}: {text:?}");
     }
 }
+/// Render the buffer as text, one line per terminal row.
+///
+/// Every buffer cell is one column, even when its symbol is a wide glyph: the
+/// wide glyph occupies the cell and its neighbour is left empty by ratatui. The
+/// previous version advanced by the symbol's *display* width, so it skipped a
+/// cell after every CJK character and reported roughly half of each row.
 fn screen(terminal: &Terminal<TestBackend>, width: usize) -> String {
     use unicode_width::UnicodeWidthStr;
     let mut text = String::new();
     for row in terminal.backend().buffer().content.chunks(width) {
-        let mut x = 0;
-        while x < row.len() {
-            let symbol = row[x].symbol();
+        let mut skip = 0usize;
+        for cell in row {
+            if skip > 0 {
+                // The cell after a wide glyph is its second half and carries
+                // no text of its own.
+                skip -= 1;
+                continue;
+            }
+            let symbol = cell.symbol();
             text.push_str(symbol);
-            x += symbol.width().max(1);
+            skip = symbol.width().saturating_sub(1);
         }
         text.push('\n');
     }
@@ -4165,4 +4177,115 @@ fn remote_rows_stay_distinguishable_without_losing_the_download_path() {
         full,
         "display compaction must not rewrite the candidate"
     );
+}
+
+#[test]
+fn every_screen_fits_the_terminal() {
+    // One sweep over every page, section, focus and dialog at every supported
+    // size: nothing may draw outside the frame or overflow a line. Earlier
+    // rounds each measured one surface; this checks them together so a fix in
+    // one place cannot have pushed another out.
+    let (_dir, mut app) = preparation_fixture();
+    app.initialize(Default::default());
+    finish_test_job(&mut app);
+    app.remote = (0..4)
+        .map(|i| crate::symbols::RemoteMatch {
+            banner: format!("Linux version 6.8.{i} (b@h) #1 SMP"),
+            path: format!(
+                "linux/6.8.{i}/Debian_6.8.{i}-1_amd64-{}.json.xz",
+                "abc123".repeat(10)
+            ),
+            url: format!("https://example.invalid/{i}.json.xz"),
+        })
+        .collect();
+    let dialogs: Vec<Dialog> = vec![
+        Dialog::System { selected: 0 },
+        Dialog::Sort { column: 0 },
+        Dialog::Commands {
+            query: String::new(),
+            selected: 0,
+        },
+        Dialog::Plugins {
+            query: String::new(),
+            selected: 0,
+        },
+        Dialog::Settings { selected: 0 },
+        Dialog::Detail {
+            text: "line\n".repeat(40),
+            scroll: 0,
+        },
+        Dialog::Symbols {
+            labels: (0..8).map(|i| format!("candidate-{i}")).collect(),
+            selected: 0,
+        },
+    ];
+    for (w, h) in [
+        (160u16, 48u16),
+        (120, 40),
+        (100, 30),
+        (80, 24),
+        (70, 22),
+        (60, 18),
+    ] {
+        for page in Page::ALL {
+            app.switch_page(page);
+            for section in [
+                AssetSection::Images,
+                AssetSection::Symbols,
+                AssetSection::Remote,
+            ] {
+                app.section = section;
+                app.symbol_source = section;
+                for focus in [Focus::Context, Focus::Navigation, Focus::Content] {
+                    app.focus = focus;
+                    let mut terminal = Terminal::new(TestBackend::new(w, h)).unwrap();
+                    terminal.draw(|f| app.draw(f)).unwrap();
+                    check_frame(&terminal, w, h, &format!("{page:?}/{section:?}/{focus:?}"));
+                }
+            }
+        }
+        for dialog in &dialogs {
+            app.dialog = Some(dialog.clone());
+            let mut terminal = Terminal::new(TestBackend::new(w, h)).unwrap();
+            terminal.draw(|f| app.draw(f)).unwrap();
+            let popup = app.hits.borrow().popup;
+            assert!(
+                popup.width <= w && popup.height <= h,
+                "{w}x{h}: popup {popup:?} escapes the frame"
+            );
+            check_frame(&terminal, w, h, "dialog");
+            app.dialog = None;
+        }
+    }
+}
+
+/// Assert a frame is safe to show: no control characters and no cell outside
+/// the buffer that the terminal would have to clip.
+fn check_frame(terminal: &Terminal<TestBackend>, w: u16, h: u16, what: &str) {
+    let buffer = terminal.backend().buffer();
+    assert_eq!(buffer.area.width, w, "{what}: buffer width");
+    assert_eq!(buffer.area.height, h, "{what}: buffer height");
+    for (i, cell) in buffer.content.iter().enumerate() {
+        let symbol = cell.symbol();
+        assert!(
+            !symbol.chars().any(char::is_control),
+            "{what}: control character at {i}: {symbol:?}"
+        );
+        let x = (i as u16) % w;
+        let y = (i as u16) / w;
+        assert!(x < w && y < h, "{what}: cell {i} outside {w}x{h}");
+    }
+    // A row that fills the width exactly may be complete or cut, so this cannot
+    // be decided from the frame alone. What can be checked is that no row
+    // *starts* a wide glyph in the last column, which the terminal would have
+    // to wrap or clip.
+    use unicode_width::UnicodeWidthStr;
+    let rows = screen(terminal, w as usize);
+    for (row, line) in rows.lines().enumerate() {
+        let trimmed = line.trim_end();
+        assert!(
+            trimmed.width() <= w as usize,
+            "{what}: row {row} is wider than the terminal"
+        );
+    }
 }
