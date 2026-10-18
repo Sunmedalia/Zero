@@ -1036,7 +1036,7 @@ impl App {
                     if *section != AssetSection::Images {
                         self.symbol_source = *section;
                     }
-                    return self.asset_key(KeyEvent::new(*key, KeyModifiers::NONE));
+                    return self.key(KeyEvent::new(*key, KeyModifiers::NONE));
                 }
                 if click
                     && let Some((_, key)) =

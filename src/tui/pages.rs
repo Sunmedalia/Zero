@@ -176,13 +176,14 @@ impl App {
             let disabled = self.asset_disabled(section, key);
             frame.render_widget(
                 Paragraph::new(text).style(if disabled.is_some() {
-                    Style::default().fg(MUTED)
+                    Style::default().fg(MUTED).bg(RAISED)
+                } else if key == KeyCode::Char('x') {
+                    Style::default()
+                        .fg(FOCUS)
+                        .bg(SELECTED_BG)
+                        .add_modifier(Modifier::BOLD)
                 } else {
-                    Style::default().fg(FOCUS).bg(if key == KeyCode::Char('x') {
-                        SELECTED_BG
-                    } else {
-                        RAISED
-                    })
+                    Style::default().fg(TEXT).bg(RAISED)
                 }),
                 rect,
             );
@@ -195,19 +196,31 @@ impl App {
             x += width + 1;
         }
     }
+    pub(super) fn draw_asset_toolbar(&self, frame: &mut Frame, area: Rect) {
+        let toolbar = Block::default()
+            .borders(Borders::TOP)
+            .border_style(Style::default().fg(BORDER))
+            .title(Line::from(vec![
+                Span::styled(" 操作 ", Style::default().fg(MUTED)),
+                Span::styled(
+                    format!("· {} · Tab 切换区域 ", self.section.title()),
+                    Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
+                ),
+            ]));
+        let buttons = toolbar.inner(area);
+        frame.render_widget(toolbar, area);
+        self.draw_asset_buttons(
+            frame,
+            buttons,
+            self.section,
+            &asset_toolbar_keys(self.section, self.job.is_some()),
+        );
+    }
     pub(super) fn draw_asset_pane(&self, frame: &mut Frame, area: Rect, section: AssetSection) {
         if area.height == 0 || area.width < 3 {
             return;
         }
-        let keys = asset_pane_keys(section);
-        let button_rows =
-            asset_action_rows(section, keys, area.width).min(if area.height >= 8 { 2 } else { 1 });
-        let parts = Layout::vertical([
-            Constraint::Length(3),
-            Constraint::Length(button_rows),
-            Constraint::Min(3),
-        ])
-        .split(area);
+        let parts = Layout::vertical([Constraint::Length(3), Constraint::Min(3)]).split(area);
         let query = &self.asset_queries[section.slot()];
         if self.section == section {
             self.draw_search(
@@ -227,7 +240,6 @@ impl App {
             .borrow_mut()
             .asset_searches
             .push((parts[0], section));
-        self.draw_asset_buttons(frame, parts[1], section, keys);
         let rows = if section == AssetSection::Remote {
             self.remote_list()
                 .iter()
@@ -312,15 +324,15 @@ impl App {
                         .bg(SELECTED_BG)
                         .add_modifier(Modifier::BOLD),
                 ),
-            parts[2],
+            parts[1],
             state,
         );
         self.hits
             .borrow_mut()
             .asset_lists
-            .push((parts[2], section, state.offset()));
+            .push((parts[1], section, state.offset()));
         if self.section == section {
-            self.hits.borrow_mut().assets = parts[2];
+            self.hits.borrow_mut().assets = parts[1];
             self.hits.borrow_mut().asset_offset = state.offset();
         }
         if count == 0 {
@@ -336,15 +348,13 @@ impl App {
                 Paragraph::new(text)
                     .wrap(Wrap { trim: false })
                     .style(Style::default().fg(MUTED)),
-                parts[2].inner(ratatui::layout::Margin::new(1, 1)),
+                parts[1].inner(ratatui::layout::Margin::new(1, 1)),
             );
         }
     }
     pub(super) fn draw_assets(&self, frame: &mut Frame, area: Rect) {
-        let keys = [KeyCode::Char('x'), KeyCode::Char('M'), KeyCode::Char('m')];
         let regions = Layout::vertical([
-            Constraint::Length(if area.height >= 20 { 4 } else { 2 }),
-            Constraint::Length(asset_action_rows(self.section, &keys, area.width).min(2)),
+            Constraint::Length(if frame.area().height >= 24 { 4 } else { 2 }),
             Constraint::Length(1),
             Constraint::Min(2),
         ])
@@ -426,18 +436,17 @@ impl App {
             ]),
             regions[0],
         );
-        self.draw_asset_buttons(frame, regions[1], self.section, &keys);
-        let mut x = regions[2].x;
+        let mut x = regions[1].x;
         for (label, section) in [
             (" 镜像 ", AssetSection::Images),
             (" 本地库 ", AssetSection::Symbols),
             (" 远程索引 ", AssetSection::Remote),
         ] {
             let width = Span::raw(label).width() as u16;
-            if x + width > regions[2].right() {
+            if x + width > regions[1].right() {
                 break;
             }
-            let rect = Rect::new(x, regions[2].y, width, regions[2].height);
+            let rect = Rect::new(x, regions[1].y, width, regions[1].height);
             frame.render_widget(
                 Paragraph::new(label).style(if self.section == section {
                     Style::default().fg(FOCUS).bg(SELECTED_BG)
@@ -449,8 +458,8 @@ impl App {
             self.hits.borrow_mut().sources.push((rect, section));
             x += width + 1;
         }
-        let mut body = regions[3];
-        if area.width >= 100 && area.height >= 24 {
+        let mut body = regions[2];
+        if area.width >= 100 && frame.area().height >= 28 {
             let rows = Layout::vertical([Constraint::Min(9), Constraint::Length(8)]).split(body);
             body = rows[0];
             self.hits.borrow_mut().asset_detail = rows[1];
@@ -523,7 +532,15 @@ impl App {
             .constraints([
                 Constraint::Length(if self.page == Page::Analysis { 2 } else { 0 }),
                 Constraint::Min(3),
-                Constraint::Length(3),
+                Constraint::Length(if self.page == Page::Assets {
+                    2 + asset_action_rows(
+                        self.section,
+                        &asset_toolbar_keys(self.section, self.job.is_some()),
+                        frame.area().width,
+                    )
+                } else {
+                    3
+                }),
             ])
             .split(area);
         self.hits.borrow_mut().header = parts[0];
@@ -810,34 +827,36 @@ impl App {
             }
         }
         let footer = parts[2];
-        frame.render_widget(
-            Block::default()
-                .borders(Borders::TOP)
-                .border_style(Style::default().fg(BORDER))
-                .title_style(Style::default().fg(MUTED))
-                .title(format!(
-                    " {} · {} · Tab 切换区域 ",
-                    self.page.title(),
-                    if self.page == Page::Analysis {
-                        match self.focus {
-                            Focus::Context => "镜像信息",
-                            Focus::Navigation => "插件",
-                            Focus::Detail => "详情",
-                            _ => "内容",
+        if self.page == Page::Analysis {
+            frame.render_widget(
+                Block::default()
+                    .borders(Borders::TOP)
+                    .border_style(Style::default().fg(BORDER))
+                    .title_style(Style::default().fg(MUTED))
+                    .title(format!(
+                        " {} · {} · Tab 切换区域 ",
+                        self.page.title(),
+                        if self.page == Page::Analysis {
+                            match self.focus {
+                                Focus::Context => "镜像信息",
+                                Focus::Navigation => "插件",
+                                Focus::Detail => "详情",
+                                _ => "内容",
+                            }
+                        } else if self.focus == Focus::Content {
+                            "详情"
+                        } else {
+                            self.section.title()
                         }
-                    } else if self.focus == Focus::Content {
-                        "详情"
-                    } else {
-                        self.section.title()
-                    }
-                )),
-            footer,
-        );
+                    )),
+                footer,
+            );
+        }
         let status = Rect::new(
             footer.x,
-            footer.y + 1,
+            footer.y + u16::from(self.page == Page::Analysis),
             footer.width,
-            u16::from(footer.height > 1),
+            u16::from(footer.height > 0),
         );
         if let (Some(progress), Some(started)) = (self.progress, self.started) {
             frame.render_widget(
@@ -873,6 +892,17 @@ impl App {
             frame.render_widget(
                 Paragraph::new(message).style(Style::default().fg(color)),
                 status,
+            );
+        }
+        if self.page == Page::Assets {
+            self.draw_asset_toolbar(
+                frame,
+                Rect::new(
+                    footer.x,
+                    footer.y + 1,
+                    footer.width,
+                    footer.height.saturating_sub(1),
+                ),
             );
         }
         let buttons = self.footer_actions();

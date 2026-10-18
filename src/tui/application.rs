@@ -378,11 +378,9 @@ impl App {
                 ("打开分析页 F3", KeyCode::F(3)),
                 ("打开资源库 F2", KeyCode::F(2)),
                 ("选择分析系统 F6", KeyCode::F(6)),
-                ("目录设置 ,", KeyCode::Char(',')),
                 ("缓存管理 c", KeyCode::Char('c')),
                 ("任务日志 l", KeyCode::Char('l')),
                 ("帮助 F1", KeyCode::F(1)),
-                ("取消任务 Esc", KeyCode::Esc),
             ]);
             commands
                 .into_iter()
@@ -981,75 +979,53 @@ impl App {
         true
     }
     pub(super) fn footer_actions(&self) -> Vec<(&'static str, KeyCode)> {
-        let mut actions = if self.page == Page::Analysis {
-            match self.focus {
-                Focus::Context => vec![
-                    ("镜像 i", KeyCode::Char('i')),
-                    ("符号 y", KeyCode::Char('y')),
-                    ("识别 b", KeyCode::Char('b')),
-                    ("本地匹配 m", KeyCode::Char('m')),
-                ],
-                Focus::Navigation => vec![
-                    ("内容 Tab", KeyCode::Tab),
-                    ("运行 Ctrl+R", KeyCode::F(5)),
-                    ("插件 p", KeyCode::Char('p')),
-                    ("转储 D", KeyCode::Char('D')),
-                    ("重跑 r", KeyCode::Char('r')),
-                ],
-                Focus::Detail => vec![
-                    ("上滚 ↑", KeyCode::Up),
-                    ("下滚 ↓", KeyCode::Down),
-                    ("翻页 PgDn", KeyCode::PageDown),
-                    ("关闭 d", KeyCode::Char('d')),
-                    ("内容 Tab", KeyCode::Tab),
-                ],
-                _ => vec![
-                    ("搜索 /", KeyCode::Char('/')),
-                    ("排序 s", KeyCode::Char('s')),
-                    ("导出 e", KeyCode::Char('e')),
-                    ("上页 [", KeyCode::Char('[')),
-                    ("下页 ]", KeyCode::Char(']')),
-                    ("详情 d", KeyCode::Char('d')),
-                    ("行数 n", KeyCode::Char('n')),
-                    ("转储 D", KeyCode::Char('D')),
-                    ("诊断 v", KeyCode::Char('v')),
-                ],
-            }
-        } else if self.focus == Focus::Content && self.hits.borrow().asset_detail.height > 0 {
-            vec![
+        if self.page == Page::Assets {
+            return vec![];
+        }
+        let mut actions = match self.focus {
+            Focus::Context => vec![
+                ("镜像 i", KeyCode::Char('i')),
+                ("符号 y", KeyCode::Char('y')),
+                ("识别 b", KeyCode::Char('b')),
+                ("本地匹配 m", KeyCode::Char('m')),
+            ],
+            Focus::Navigation => vec![
+                ("内容 Tab", KeyCode::Tab),
+                ("运行 Ctrl+R", KeyCode::F(5)),
+                ("插件 p", KeyCode::Char('p')),
+                ("转储 D", KeyCode::Char('D')),
+                ("重跑 r", KeyCode::Char('r')),
+            ],
+            Focus::Detail => vec![
                 ("上滚 ↑", KeyCode::Up),
                 ("下滚 ↓", KeyCode::Down),
                 ("翻页 PgDn", KeyCode::PageDown),
-                ("列表 Tab", KeyCode::Tab),
-            ]
-        } else {
-            vec![]
+                ("关闭 d", KeyCode::Char('d')),
+                ("内容 Tab", KeyCode::Tab),
+            ],
+            _ => vec![
+                ("搜索 /", KeyCode::Char('/')),
+                ("排序 s", KeyCode::Char('s')),
+                ("导出 e", KeyCode::Char('e')),
+                ("上页 [", KeyCode::Char('[')),
+                ("下页 ]", KeyCode::Char(']')),
+                ("详情 d", KeyCode::Char('d')),
+                ("行数 n", KeyCode::Char('n')),
+                ("转储 D", KeyCode::Char('D')),
+                ("诊断 v", KeyCode::Char('v')),
+            ],
         };
-        if self.page == Page::Assets {
-            actions.extend([
-                (
-                    if self.settings.remote_symbols {
-                        "切换离线 o"
-                    } else {
-                        "切换在线 o"
-                    },
-                    KeyCode::Char('o'),
-                ),
-                ("目录 ,", KeyCode::Char(',')),
-            ]);
-        } else {
-            actions.insert(
-                0,
-                (
-                    if self.windows {
-                        "Windows F6"
-                    } else {
-                        "Linux F6"
-                    },
-                    KeyCode::F(6),
-                ),
-            );
-        }
+        actions.insert(
+            0,
+            (
+                if self.windows {
+                    "Windows F6"
+                } else {
+                    "Linux F6"
+                },
+                KeyCode::F(6),
+            ),
+        );
         if self.job.is_some() {
             actions.insert(0, ("取消 Esc", KeyCode::Esc));
         }

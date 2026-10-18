@@ -3,12 +3,12 @@ fn asset_actions(section: AssetSection) -> Vec<(&'static str, KeyCode)> {
         AssetSection::Images => vec![
             ("选用 Space", KeyCode::Char(' ')),
             ("选用并分析 Enter", KeyCode::Enter),
-            ("导入 a", KeyCode::Char('a')),
+            ("导入镜像 a", KeyCode::Char('a')),
         ],
         AssetSection::Symbols => vec![
             ("选用 Space", KeyCode::Char(' ')),
             ("选用并分析 Enter", KeyCode::Enter),
-            ("导入 a", KeyCode::Char('a')),
+            ("导入符号 a", KeyCode::Char('a')),
             ("全部／匹配 z", KeyCode::Char('z')),
         ],
         AssetSection::Remote => vec![
@@ -28,6 +28,9 @@ fn asset_actions(section: AssetSection) -> Vec<(&'static str, KeyCode)> {
         ("进入分析 x", KeyCode::Char('x')),
         ("本地／远程 t", KeyCode::Char('t')),
         ("在线／离线 o", KeyCode::Char('o')),
+        ("目录 ,", KeyCode::Char(',')),
+        ("更多 ?", KeyCode::Char('?')),
+        ("取消 Esc", KeyCode::Esc),
         ("生成当前镜像符号表 K", KeyCode::Char('K')),
     ]);
     if section != AssetSection::Images {
@@ -41,8 +44,12 @@ fn asset_actions(section: AssetSection) -> Vec<(&'static str, KeyCode)> {
     }
     actions
 }
-fn asset_pane_keys(section: AssetSection) -> &'static [KeyCode] {
-    match section {
+fn asset_toolbar_keys(section: AssetSection, busy: bool) -> Vec<KeyCode> {
+    let mut keys = vec![KeyCode::Char('x')];
+    if busy {
+        keys.push(KeyCode::Esc);
+    }
+    keys.extend_from_slice(match section {
         AssetSection::Images => &[KeyCode::Char('a'), KeyCode::Char(' '), KeyCode::Char('d')],
         AssetSection::Symbols => &[
             KeyCode::Char('a'),
@@ -56,7 +63,15 @@ fn asset_pane_keys(section: AssetSection) -> &'static [KeyCode] {
             KeyCode::Char('w'),
             KeyCode::Char('d'),
         ],
-    }
+    });
+    keys.extend([
+        KeyCode::Char('m'),
+        KeyCode::Char('M'),
+        KeyCode::Char('o'),
+        KeyCode::Char(','),
+        KeyCode::Char('?'),
+    ]);
+    keys
 }
 fn asset_action_rows(section: AssetSection, keys: &[KeyCode], width: u16) -> u16 {
     let actions = asset_actions(section);

@@ -1355,7 +1355,7 @@ fn contextual_footer_and_symbol_sources_follow_focus() {
     );
     app.focus = Focus::Content;
     assert!(!has(&app, KeyCode::Enter));
-    assert!(has(&app, KeyCode::PageDown));
+    assert!(app.footer_actions().is_empty());
     assert!(command_matches("导出结果", Page::Assets, Focus::Navigation).is_empty());
     assert!(command_matches("导出结果", Page::Analysis, Focus::Navigation).is_empty());
     assert!(!command_matches("导出结果", Page::Analysis, Focus::Content).is_empty());
@@ -1366,9 +1366,9 @@ fn contextual_footer_and_symbol_sources_follow_focus() {
         assert!(
             app.hits
                 .borrow()
-                .buttons
+                .asset_buttons
                 .iter()
-                .any(|(_, key)| *key == KeyCode::Char('?'))
+                .any(|(_, _, key)| *key == KeyCode::Char('?'))
         );
     }
 }
@@ -2012,6 +2012,7 @@ fn resource_actions_are_unique_and_import_stays_accessible_on_small_screens() {
             terminal.draw(|f| app.draw(f)).unwrap();
             let hits = app.hits.borrow().clone();
             let rendered = screen(&terminal, width as usize);
+            assert!(!rendered.contains("资源库 ·"));
             let mut seen = HashSet::new();
             for (_, target, key) in &hits.asset_buttons {
                 assert!(
@@ -2035,9 +2036,34 @@ fn resource_actions_are_unique_and_import_stays_accessible_on_small_screens() {
                 KeyCode::Enter | KeyCode::Char('i' | 'y' | 'K' | 'b')
             )));
             assert!(
-                hits.buttons
+                hits.buttons.is_empty(),
+                "resource actions must stay in the toolbar"
+            );
+            assert!(
+                hits.asset_buttons
                     .iter()
-                    .any(|(_, key)| *key == KeyCode::Char('?'))
+                    .any(|(_, _, key)| *key == KeyCode::Char('?'))
+            );
+            assert_eq!(
+                hits.asset_buttons
+                    .iter()
+                    .map(|(rect, _, _)| rect.bottom())
+                    .max(),
+                Some(height)
+            );
+            let sources_y = hits.sources.first().unwrap().0.y;
+            assert!(hits.asset_buttons.iter().all(|(rect, target, _)| {
+                *target == section
+                    && hits
+                        .asset_lists
+                        .iter()
+                        .all(|(list, _, _)| rect.y >= list.bottom())
+                    && (hits.asset_detail.height == 0 || rect.y >= hits.asset_detail.bottom())
+            }));
+            assert!(
+                hits.asset_lists
+                    .iter()
+                    .all(|(rect, _, _)| rect.y > sources_y)
             );
             if section == AssetSection::Remote {
                 assert!(
@@ -2079,6 +2105,44 @@ fn resource_actions_are_unique_and_import_stays_accessible_on_small_screens() {
             }
         }
     }
+}
+
+#[test]
+fn resource_toolbar_dispatches_settings_commands_and_cancellation() {
+    let mut app = app();
+    app.switch_section(AssetSection::Images);
+    let mut terminal = Terminal::new(TestBackend::new(60, 18)).unwrap();
+    for key in [KeyCode::Char(','), KeyCode::Char('?')] {
+        terminal.draw(|f| app.draw(f)).unwrap();
+        let rect = app
+            .hits
+            .borrow()
+            .asset_buttons
+            .iter()
+            .find(|(_, _, action)| *action == key)
+            .unwrap()
+            .0;
+        click(&mut app, rect.x + 1, rect.y);
+        if key == KeyCode::Char(',') {
+            assert!(matches!(app.dialog, Some(Dialog::Settings { .. })));
+        } else {
+            assert!(matches!(app.dialog, Some(Dialog::Commands { .. })));
+        }
+        app.key(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE));
+    }
+    let job = Job::default();
+    app.job = Some(job.clone());
+    terminal.draw(|f| app.draw(f)).unwrap();
+    let rect = app
+        .hits
+        .borrow()
+        .asset_buttons
+        .iter()
+        .find(|(_, _, action)| *action == KeyCode::Esc)
+        .unwrap()
+        .0;
+    click(&mut app, rect.x + 1, rect.y);
+    assert!(job.check().is_err());
 }
 
 #[test]
