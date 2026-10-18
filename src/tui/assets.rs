@@ -170,22 +170,53 @@ impl App {
                     } else {
                         (" ", MUTED)
                     };
+                    // The path is the only field that can be arbitrarily long,
+                    // so it yields to the fixed-width metadata after it. A row
+                    // that shows a long path but hides the format and digest
+                    // answers the wrong question.
+                    // In a narrow pane the digest is the first thing to go: a
+                    // truncated digest identifies nothing, while the format
+                    // still does. The path then gets whatever is left.
+                    let narrow = area.width < 60;
+                    let metadata = if narrow {
+                        format!(" · {}", a.format())
+                    } else {
+                        format!(" · #{} · {}", a.id(), a.format())
+                    };
+                    let suffix = if a.available { "" } else { " · 缺失" };
+                    // Measure what is not the path instead of estimating it:
+                    // borders, the highlight marker, the space before the path
+                    // and the fixed fields after it.
+                    let fixed = Line::from(vec![
+                        Span::styled(marker, Style::default()),
+                        Span::raw(" "),
+                        Span::raw(metadata.clone()),
+                        Span::raw(suffix),
+                    ])
+                    .width();
+                    // `List` reserves the highlight symbol's two cells on every
+                    // row, not only the selected one, and the border takes two
+                    // more.
+                    let room = (area.width as usize).saturating_sub(fixed + 4).max(8);
+                    let path = self.display_path(&a.path);
+                    let shown = if Span::raw(&path).width() > room {
+                        truncate_path(&path, room)
+                    } else {
+                        path
+                    };
                     let mut spans = vec![
                         Span::styled(
                             marker,
                             Style::default().fg(color).add_modifier(Modifier::BOLD),
                         ),
                         Span::styled(
-                            format!(" {}", escaped(&self.display_path(&a.path))),
+                            format!(" {}", escaped(&shown)),
                             Style::default().fg(if a.available { TEXT } else { MUTED }),
                         ),
-                        Span::styled(
-                            format!(" · #{} · {}", a.id(), a.format()),
-                            Style::default().fg(MUTED),
-                        ),
+                        Span::styled(metadata, Style::default().fg(MUTED)),
                     ];
                     if !a.available {
-                        spans.push(Span::styled(" · 缺失", Style::default().fg(DANGER)));
+                        spans.push(Span::styled(suffix, Style::default().fg(DANGER)));
                     }
                     ListItem::new(Line::from(spans))
                 })

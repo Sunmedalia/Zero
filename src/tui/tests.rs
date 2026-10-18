@@ -4056,3 +4056,60 @@ fn plugin_labels_are_not_clipped_by_the_menu_column() {
         );
     }
 }
+
+#[test]
+fn long_asset_paths_keep_the_row_readable() {
+    // The path is the only field of unbounded length, so it yields to the
+    // fields after it. A long path used to fill the row and cut the format
+    // off entirely; in a narrow pane the digest is dropped as well, because a
+    // truncated digest identifies nothing while the format still does.
+    let (_dir, mut app) = preparation_fixture();
+    app.initialize(Default::default());
+    finish_test_job(&mut app);
+    for i in 0..6 {
+        app.assets.push(crate::workspace::Asset {
+            path: std::path::PathBuf::from(format!(
+                "/evidence/a-very-long-directory-name-{i}/linux-sample-capture-{i}.raw"
+            )),
+            kind: crate::workspace::Kind::Image,
+            bytes: 2_147_483_648,
+            available: true,
+            directory: false,
+            stamp: None,
+            origin: "已导入",
+        });
+    }
+    app.section = AssetSection::Images;
+    for (w, h) in [(120u16, 40u16), (80, 24), (60, 18)] {
+        let mut terminal = Terminal::new(TestBackend::new(w, h)).unwrap();
+        terminal.draw(|f| app.draw(f)).unwrap();
+        let text = screen(&terminal, w as usize);
+        // Only list rows: the header also mentions a `.raw` path.
+        let rows: Vec<&str> = text
+            .lines()
+            .filter(|l| l.contains(".raw") && (l.contains("RAW/") || l.contains("RAW")))
+            .collect();
+        // A short window simply shows fewer rows; what matters is that the
+        // ones it shows are complete.
+        assert!(
+            rows.len() >= 4,
+            "{w}x{h}: expected asset rows, got {}\n{text}",
+            rows.len()
+        );
+        // Every row keeps a complete format string.
+        assert!(
+            rows.iter().all(|r| r.contains("RAW/LiME")),
+            "{w}x{h}: a row lost its format\n{text}"
+        );
+        // And the rows remain distinguishable from one another.
+        let mut tails = std::collections::HashSet::new();
+        for row in &rows {
+            if let Some(tail) = row.split("capture-").nth(1) {
+                assert!(
+                    tails.insert(tail.chars().take(2).collect::<String>()),
+                    "{w}x{h}: indistinguishable row {row}"
+                );
+            }
+        }
+    }
+}

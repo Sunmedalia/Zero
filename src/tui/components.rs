@@ -264,6 +264,34 @@ fn fit<'a>(
     }
     out
 }
+/// Shorten a path to `budget` cells, keeping the end.
+///
+/// The tail of a path distinguishes files: six captures in the same directory
+/// all truncate to the same prefix, so a front-truncated list is unreadable.
+fn truncate_path(path: &str, budget: usize) -> String {
+    if Span::raw(path).width() <= budget {
+        return path.to_string();
+    }
+    if budget <= 2 {
+        return "…".into();
+    }
+    // Walk backwards from the end, keeping whole characters. Each step adds
+    // only the width of the character just taken.
+    let mut kept: Vec<char> = Vec::new();
+    let mut used = 1; // the leading ellipsis
+    for c in path.chars().rev() {
+        let mut probe = String::new();
+        probe.push(c);
+        let width = Span::raw(probe.as_str()).width();
+        if used + width > budget {
+            break;
+        }
+        used += width;
+        kept.push(c);
+    }
+    let tail: String = kept.iter().rev().copied().collect();
+    format!("…{tail}")
+}
 /// Shorten `text` to `budget` display cells, marking the cut with `…`.
 fn truncate_with_ellipsis(text: &str, budget: usize) -> String {
     if budget <= 1 {
