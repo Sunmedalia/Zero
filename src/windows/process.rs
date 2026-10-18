@@ -28,6 +28,8 @@ impl Windows<'_> {
             Ok(None) => {}
             Err(e) => Self::issue(r, format!("PID {} WOW64 PEB", p.pid), e),
         }
+        // Repeated by every environment entry; a process can have thousands.
+        let pid = p.pid.to_string();
         for (view, address) in views {
             let read = (|| -> Result<()> {
                 let address = address?;
@@ -54,7 +56,7 @@ impl Windows<'_> {
                                 String::from_utf16(&entry).context("环境变量 UTF-16 无效")?;
                             let (name, value) = split_environment(&text)?;
                             r.rows.push(vec![
-                                p.pid.to_string(),
+                                pid.clone(),
                                 p.name.clone(),
                                 view.into(),
                                 name.into(),

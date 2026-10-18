@@ -72,6 +72,9 @@ impl Windows<'_> {
         // `object_type` and `object_name` run once per handle, so their
         // symbol-shape decisions are resolved once for the whole table.
         let header_layout = self.object_header_layout();
+        // Constant for the whole table; the row count can reach tens of
+        // thousands, so these are built once.
+        let pid = p.pid.to_string();
         for first in (0..max / 4).step_by(per as usize) {
             job.check()?;
             let mut page = root;
@@ -141,7 +144,7 @@ impl Windows<'_> {
                         _ => self.object_name(header, &header_layout)?,
                     };
                     Ok(Some(vec![
-                        p.pid.to_string(),
+                        pid.clone(),
                         p.name.clone(),
                         hex(index * 4),
                         kind,

@@ -390,12 +390,20 @@ impl Windows<'_> {
         job: &Job,
     ) -> Result<()> {
         let vm = self.process_memory(p)?;
+        // Every row repeats the same PID and name, and protection only has 32
+        // possible spellings; build them once instead of per row.
+        let pid = p.pid.to_string();
+        let mut protections: std::collections::HashMap<u64, String> =
+            std::collections::HashMap::new();
         for v in self.vads_partial(p, job, Some(r))? {
             job.check()?;
-            let protection = protection(v.protection);
+            let protection = protections
+                .entry(v.protection)
+                .or_insert_with(|| protection(v.protection))
+                .clone();
             if plugin == Plugin::WinVadinfo {
                 r.rows.push(vec![
-                    p.pid.to_string(),
+                    pid.clone(),
                     p.name.clone(),
                     hex(v.start),
                     hex(v.end),
@@ -414,7 +422,7 @@ impl Windows<'_> {
             let mut preview = [0; 32];
             match vm.read(v.start, &mut preview) {
                 Ok(()) => r.rows.push(vec![
-                    p.pid.to_string(),
+                    pid.clone(),
                     p.name.clone(),
                     hex(v.start),
                     hex(v.end),
