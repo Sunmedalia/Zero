@@ -716,12 +716,14 @@ fn mouse_menu_header_and_modal() {
     let mut app = app();
     let mut terminal = Terminal::new(TestBackend::new(100, 30)).unwrap();
     terminal.draw(|f| app.draw(f)).unwrap();
+    // The analysis header is one line: its image field opens the image picker,
+    // and symbols stay on `y` because a single line cannot host two targets.
     let header = app.hits.borrow().header;
-    assert!(!click(&mut app, 5, header.y + 1));
+    assert!(!click(&mut app, 5, header.y));
     assert!(matches!(
         app.dialog,
         Some(Dialog::Files {
-            kind: InputKind::Symbols,
+            kind: InputKind::Image,
             ..
         })
     ));
@@ -977,9 +979,22 @@ fn new_plugin_menu_mouse_details_and_raw_export() {
         terminal.draw(|f| app.draw(f)).unwrap();
         assert!(matches!(app.dialog, Some(Dialog::Detail { .. })));
         assert!(screen(&terminal, 80).contains("\\n\\u{1b}"));
+        // `End` scrolls to the last page. When the dialog happens to fit the
+        // whole detail text the maximum is zero, so assert the reachable
+        // invariant instead of a fixed non-zero value.
         app.dialog_key(KeyEvent::new(KeyCode::End, KeyModifiers::NONE));
         terminal.draw(|f| app.draw(f)).unwrap();
-        assert!(matches!(app.dialog,Some(Dialog::Detail {scroll,..}) if scroll>0));
+        let popup = app.hits.borrow().popup;
+        let maximum = app.dialog.as_ref().map_or(0, |dialog| match dialog {
+            Dialog::Detail { text, .. } => detail_lines(text, popup.width.saturating_sub(2))
+                .len()
+                .saturating_sub(popup.height.saturating_sub(2) as usize),
+            _ => 0,
+        });
+        assert!(
+            matches!(app.dialog, Some(Dialog::Detail { scroll, .. }) if scroll == maximum),
+            "End must land on the last page (maximum {maximum})"
+        );
         app.mouse(mouse_event(MouseEventKind::Down(MouseButton::Right), 0, 0));
         assert!(app.dialog.is_none());
         terminal.draw(|f| app.draw(f)).unwrap();
@@ -1257,9 +1272,15 @@ fn unified_symbol_manager_has_inline_search_and_analysis_only_header() {
     let hits = app.hits.borrow().clone();
     assert_eq!(hits.tabs.len(), 2);
     assert_eq!(hits.header.height, 0);
-    assert_eq!(hits.search.height, 3);
+    // The search field only takes a row while it is in use, so an idle pane
+    // gives that row to the list.
+    assert_eq!(hits.search.height, 0);
+    assert!(hits.asset_searches.is_empty());
     assert!(screen(&terminal, 100).contains("镜像: images/capture.raw"));
-    click(&mut app, hits.search.x + 2, hits.search.y + 1);
+    // Opening the search gives it a row again.
+    app.open_input(InputKind::AssetsSearch);
+    terminal.draw(|f| app.draw(f)).unwrap();
+    assert_eq!(app.hits.borrow().search.height, 3);
     app.paste("test symbol");
     terminal.draw(|f| app.draw(f)).unwrap();
     assert_eq!(app.hits.borrow().popup.height, 0);
@@ -1401,10 +1422,14 @@ fn inline_content_search_has_mouse_confirmation_and_reversible_filter() {
     app.focus = Focus::Content;
     let mut terminal = Terminal::new(TestBackend::new(80, 24)).unwrap();
     terminal.draw(|f| app.draw(f)).unwrap();
+    // Idle: the field is not drawn and the table owns the rows.
+    assert_eq!(app.hits.borrow().search.height, 0);
+    app.key(KeyEvent::new(KeyCode::Char('/'), KeyModifiers::NONE));
+    terminal.draw(|f| app.draw(f)).unwrap();
     let search = app.hits.borrow().search;
     let result = app.hits.borrow().result;
+    assert_eq!(search.height, 3);
     assert_eq!(search.bottom(), result.y);
-    click(&mut app, search.x + 2, search.y + 1);
     app.paste("init");
     assert_eq!(app.rows().len(), 1);
     terminal.draw(|f| app.draw(f)).unwrap();
@@ -2412,7 +2437,10 @@ fn execution_parameters_and_results_survive_browsing_and_keep_separate_views() {
     ] {
         assert!(!text.contains(label), "removed plugin controls: {label}");
     }
-    assert_eq!(app.hits.borrow().search.y, app.hits.borrow().workbench.y);
+    // With no query the search field is hidden and the table starts at the
+    // workbench top; the header row is not reserved.
+    assert_eq!(app.hits.borrow().search.height, 0);
+    assert_eq!(app.hits.borrow().result.y, app.hits.borrow().workbench.y);
     app.analysis_options.pid = Some(10);
     app.restore_view();
     assert_eq!(app.query, "zsh");

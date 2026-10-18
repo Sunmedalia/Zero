@@ -172,6 +172,10 @@ enum WorkerEvent {
 #[derive(Clone, Default)]
 struct HitMap {
     header: Rect,
+    /// Clickable header fields: image on the first row, symbol on the second
+    /// when the header has one.
+    header_image: Rect,
+    header_symbol: Rect,
     tabs: Vec<(Rect, Page)>,
     systems: Vec<(Rect, crate::analysis::Os)>,
     regions: Vec<(Rect, Focus)>,

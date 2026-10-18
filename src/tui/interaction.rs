@@ -825,13 +825,14 @@ impl App {
                 self.switch_page(*page);
                 return false;
             }
-            if click && hits.header.contains(point) {
+            if click && hits.header_symbol.contains(point) {
                 self.focus = Focus::Context;
-                if point.y == hits.header.y {
-                    self.open_files(InputKind::Image);
-                } else if point.y == hits.header.y + 1 {
-                    self.open_files(InputKind::Symbols);
-                }
+                self.open_files(InputKind::Symbols);
+                return false;
+            }
+            if click && hits.header_image.contains(point) {
+                self.focus = Focus::Context;
+                self.open_files(InputKind::Image);
                 return false;
             }
             if click

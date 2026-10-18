@@ -42,12 +42,18 @@ impl App {
             );
         }
         self.hits.borrow_mut().workbench = main;
-        if main.width > 0 {
-            let regions = Layout::vertical([
-                Constraint::Length(if main.height >= 6 { 3 } else { 0 }),
-                Constraint::Min(2),
-            ])
-            .split(main);
+        // Same rule as the asset panes: the search field only claims a row
+        // while it is being edited or holds a query. The result table keeps the
+        // rest, and the query is still visible in its title when set.
+        let searching = matches!(
+            &self.dialog,
+            Some(Dialog::Input {
+                kind: InputKind::Search,
+                ..
+            })
+        ) || !self.query.is_empty();
+        if main.width > 0 && searching {
+            let regions = Layout::vertical([Constraint::Length(3), Constraint::Min(2)]).split(main);
             self.draw_search(
                 frame,
                 regions[0],
@@ -227,15 +233,37 @@ impl App {
     }
     pub(super) fn draw_menu(&self, frame: &mut Frame, area: Rect, style: Style) {
         let mut state = ListState::default().with_selected(Some(self.menu));
+        let plugins = self.navigation_plugins();
+        // Mark the category boundary before the highlighted plugin. The list is
+        // a flat index, so this reads as a divider rather than a real heading:
+        // it answers "what kind of plugin am I on" without renumbering.
+        let mut previous: Option<&str> = None;
         let items = self
             .menu_items()
             .iter()
-            .map(|label| ListItem::new(*label))
+            .enumerate()
+            .map(|(i, label)| {
+                let category = plugins.get(i).map(|p| p.category());
+                let divider = category != previous && previous.is_some();
+                previous = category;
+                let mut text = String::new();
+                if divider {
+                    text.push_str("· ");
+                }
+                text.push_str(label);
+                ListItem::new(text)
+            })
             .collect::<Vec<_>>();
+        // The menu column is 22 cells wide, so the title names the category
+        // only; `p` is already in the footer action strip.
+        let title = plugins
+            .get(self.menu)
+            .map(|p| format!("插件 · {}", p.category()))
+            .unwrap_or_else(|| "插件".into());
         frame.render_stateful_widget(
             List::new(items)
                 .style(Style::default().fg(TEXT))
-                .block(panel().title("插件 · p 搜索").border_style(style))
+                .block(panel().title(title).border_style(style))
                 .highlight_style(
                     Style::default()
                         .bg(SELECTED_BG)

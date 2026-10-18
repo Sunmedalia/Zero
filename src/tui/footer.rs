@@ -5,34 +5,19 @@ impl App {
     /// Draw the status line, the resource toolbar (assets page) and the action
     /// strip for the focused region.
     pub(super) fn draw_footer(&self, frame: &mut Frame, footer: Rect) {
-        if self.page == Page::Analysis {
-            frame.render_widget(
-                Block::default()
-                    .borders(Borders::TOP)
-                    .border_style(Style::default().fg(BORDER))
-                    .title_style(Style::default().fg(MUTED))
-                    .title(format!(
-                        " {} · {} · Tab 切换区域 ",
-                        self.page.title(),
-                        if self.page == Page::Analysis {
-                            match self.focus {
-                                Focus::Context => "镜像信息",
-                                Focus::Navigation => "插件",
-                                Focus::Detail => "详情",
-                                _ => "内容",
-                            }
-                        } else if self.focus == Focus::Content {
-                            "详情"
-                        } else {
-                            self.section.title()
-                        }
-                    )),
-                footer,
-            );
-        }
+        // The region name is part of the status line rather than its own row:
+        // both describe where you are, and a bordered title row cost a line
+        // that the result table needs more.
+        let region = match self.focus {
+            Focus::Context => "镜像信息",
+            Focus::Navigation if self.page == Page::Analysis => "插件",
+            Focus::Detail => "详情",
+            _ if self.page == Page::Assets => self.section.title(),
+            _ => "内容",
+        };
         let status = Rect::new(
             footer.x,
-            footer.y + u16::from(self.page == Page::Analysis),
+            footer.y,
             footer.width,
             u16::from(footer.height > 0),
         );
@@ -67,10 +52,12 @@ impl App {
             } else {
                 TEXT
             };
-            frame.render_widget(
-                Paragraph::new(message).style(Style::default().fg(color)),
-                status,
-            );
+            let mut line = vec![Span::styled(
+                format!(" {region} "),
+                Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
+            )];
+            line.push(Span::styled(message, Style::default().fg(color)));
+            frame.render_widget(Paragraph::new(Line::from(line)), status);
         }
         if self.page == Page::Assets {
             self.draw_asset_toolbar(
@@ -83,6 +70,9 @@ impl App {
                 ),
             );
         }
+        // The action strip sits under the status line. On the assets page the
+        // toolbar occupies that row, so the strip moves one row down.
+        let strip = footer.y + if self.page == Page::Assets { 2 } else { 1 };
         // Actions that do not fit are not dropped silently: the strip ends with
         // `更多 ?`, which opens the palette listing every remaining command.
         let buttons = self.footer_actions();
@@ -90,7 +80,7 @@ impl App {
         let more_width = Span::raw(more_label).width() as u16;
         let mut x = footer.x;
         let mut truncated = false;
-        if footer.height >= 3 {
+        if footer.height >= 2 {
             for (index, (label, key)) in buttons.iter().copied().enumerate() {
                 let command = Command::from_key(self.page, key);
                 let text = format!(" {label} ");
@@ -100,7 +90,7 @@ impl App {
                     truncated = true;
                     break;
                 }
-                let rect = Rect::new(x, footer.y + 2, width, 1);
+                let rect = Rect::new(x, strip, width, 1);
                 let disabled = command.and_then(|command| self.command_disabled(command));
                 frame.render_widget(
                     Paragraph::new(text).style(if disabled.is_some() {
@@ -118,7 +108,7 @@ impl App {
             if truncated {
                 let width = more_width.min(footer.right().saturating_sub(x));
                 if width > 0 {
-                    let rect = Rect::new(x, footer.y + 2, width, 1);
+                    let rect = Rect::new(x, strip, width, 1);
                     frame.render_widget(
                         Paragraph::new(more_label).style(Style::default().fg(ACCENT).bg(RAISED)),
                         rect,

@@ -70,30 +70,45 @@ impl App {
             &toolbar_actions(self.section, self.job.is_some()),
         );
     }
+    /// Whether this pane's search field should be drawn.
+    ///
+    /// The field is a low-frequency control, so it only takes a row when it is
+    /// being edited or already holds a query. The rest of the time the list
+    /// keeps the space, which is what the user is actually reading.
+    fn search_visible(&self, section: AssetSection) -> bool {
+        let editing = matches!(
+            &self.dialog,
+            Some(Dialog::Input {
+                kind: InputKind::AssetsSearch,
+                ..
+            })
+        ) && self.section == section;
+        editing || !self.asset_queries[section.slot()].is_empty()
+    }
     pub(super) fn draw_asset_pane(&self, frame: &mut Frame, area: Rect, section: AssetSection) {
         if area.height == 0 || area.width < 3 {
             return;
         }
-        let parts = Layout::vertical([Constraint::Length(3), Constraint::Min(3)]).split(area);
+        let search = self.search_visible(section);
+        let parts = if search {
+            Layout::vertical([Constraint::Length(3), Constraint::Min(3)]).split(area)
+        } else {
+            Layout::vertical([Constraint::Length(0), Constraint::Min(3)]).split(area)
+        };
         let query = &self.asset_queries[section.slot()];
-        if self.section == section {
+        if search {
             self.draw_search(
                 frame,
                 parts[0],
                 query,
                 InputKind::AssetsSearch,
-                "搜索 / · Enter 确认",
+                "搜索 / · Enter 确认 · Esc 取消",
             );
-        } else {
-            frame.render_widget(
-                Paragraph::new(escaped(query)).block(panel().title("搜索 /")),
-                parts[0],
-            );
+            self.hits
+                .borrow_mut()
+                .asset_searches
+                .push((parts[0], section));
         }
-        self.hits
-            .borrow_mut()
-            .asset_searches
-            .push((parts[0], section));
         let rows = if section == AssetSection::Remote {
             self.remote_list()
                 .iter()
@@ -208,7 +223,7 @@ impl App {
     }
     pub(super) fn draw_assets(&self, frame: &mut Frame, area: Rect) {
         let regions = Layout::vertical([
-            Constraint::Length(if frame.area().height >= 24 { 4 } else { 2 }),
+            Constraint::Length(2),
             Constraint::Length(1),
             Constraint::Min(2),
         ])
@@ -250,43 +265,41 @@ impl App {
             Preparation::Ready => ("符号已选用；x 进入分析，点击插件运行", SUCCESS),
             Preparation::Cancelled => ("匹配已取消；m 重试", DANGER),
         };
-        let source = if self.windows {
-            "Microsoft symbol server · 精确 PDB GUID / Age".into()
-        } else {
-            format!("{} · 完整 banner 精确匹配", symbols::REPOSITORY)
-        };
         let (mode, mode_color) = if self.settings.remote_symbols {
             ("在线", SUCCESS)
         } else {
-            ("离线（仅缓存）", WARN)
+            ("离线", WARN)
         };
         let value = Style::default().fg(TEXT);
         let separator = || Span::styled(" · ", Style::default().fg(BORDER));
         let identified = self.results.contains_key("banners");
+        // Two lines instead of four: the kernel banner and the repository URL
+        // are reference material, not state, and both are available in the
+        // detail panel and the palette. What changes during work — image,
+        // symbol, match state, network mode — stays on screen.
+        let banner = summarise_banner(&banner);
         frame.render_widget(
             Paragraph::new(vec![
-                Line::from_iter(field("镜像: ", escaped(&image), value)),
+                Line::from_iter(
+                    field("镜像: ", escaped(&image), value)
+                        .into_iter()
+                        .chain([separator()])
+                        .chain(field(
+                            "内核: ",
+                            escaped(&banner),
+                            if identified {
+                                value
+                            } else {
+                                Style::default().fg(MUTED)
+                            },
+                        )),
+                ),
                 Line::from_iter(field("符号: ", escaped(&symbol), value).into_iter().chain([
                     separator(),
                     Span::styled(state, Style::default().fg(state_color)),
+                    separator(),
+                    Span::styled(mode, Style::default().fg(mode_color)),
                 ])),
-                Line::from_iter(field(
-                    "内核: ",
-                    escaped(&banner),
-                    if identified {
-                        value
-                    } else {
-                        Style::default().fg(MUTED)
-                    },
-                )),
-                Line::from_iter(
-                    field("来源: ", mode.into(), Style::default().fg(mode_color))
-                        .into_iter()
-                        .chain([
-                            separator(),
-                            Span::styled(source, Style::default().fg(MUTED)),
-                        ]),
-                ),
             ]),
             regions[0],
         );
@@ -313,8 +326,11 @@ impl App {
             x += width + 1;
         }
         let mut body = regions[2];
-        if area.width >= 100 && frame.area().height >= 28 {
-            let rows = Layout::vertical([Constraint::Min(9), Constraint::Length(8)]).split(body);
+        // The detail panel is reference material for the highlighted row, so it
+        // only claims space when there is a row to describe and the window is
+        // tall enough that it does not squeeze the lists.
+        if area.width >= 100 && frame.area().height >= 24 {
+            let rows = Layout::vertical([Constraint::Min(9), Constraint::Length(6)]).split(body);
             body = rows[0];
             self.hits.borrow_mut().asset_detail = rows[1];
             frame.render_widget(

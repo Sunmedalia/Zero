@@ -197,6 +197,26 @@ fn escaped(value: &str) -> String {
     }
     out
 }
+/// Trim a kernel banner to its identifying head.
+///
+/// A full Linux banner is ~150 characters of build metadata; the version and
+/// the distribution build are what identify it, and the whole string is
+/// available in the detail panel and the identification result.
+fn summarise_banner(banner: &str) -> String {
+    let banner = banner.trim_end_matches(['\n', '\0', ' ']);
+    let mut out = String::new();
+    for (i, word) in banner.split_whitespace().enumerate() {
+        if i >= 6 {
+            out.push_str(" …");
+            break;
+        }
+        if !out.is_empty() {
+            out.push(' ');
+        }
+        out.push_str(word);
+    }
+    out
+}
 fn banner_candidates(result: &Results) -> Vec<&Vec<String>> {
     let clean = result
         .rows

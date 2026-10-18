@@ -13,7 +13,7 @@ impl App {
         if self.page == Page::Assets {
             2 + action_rows(&toolbar_actions(self.section, self.job.is_some()), width)
         } else {
-            3
+            2
         }
     }
     pub fn draw(&self, frame: &mut Frame) {
@@ -33,12 +33,25 @@ impl App {
         let parts = Layout::default()
             .direction(Direction::Vertical)
             .constraints([
-                Constraint::Length(if self.page == Page::Analysis { 2 } else { 0 }),
+                Constraint::Length(if self.page == Page::Analysis { 1 } else { 0 }),
                 Constraint::Min(3),
                 Constraint::Length(self.footer_height(frame.area().width)),
             ])
             .split(area);
         self.hits.borrow_mut().header = parts[0];
+        self.hits.borrow_mut().header_image = Rect::new(
+            parts[0].x,
+            parts[0].y,
+            parts[0].width,
+            parts[0].height.min(1),
+        );
+        self.hits.borrow_mut().header_symbol = if parts[0].height > 1 {
+            Rect::new(parts[0].x, parts[0].y + 1, parts[0].width, 1)
+        } else {
+            // A single-line header cannot separate the two fields, so the whole
+            // line opens the image picker and `y` remains the way to symbols.
+            Rect::default()
+        };
         self.draw_header(frame, parts[0]);
         if self.page == Page::Assets {
             self.draw_assets(frame, parts[1]);
@@ -108,25 +121,24 @@ impl App {
         };
         let value = Style::default().fg(TEXT);
         let separator = || Span::styled(" · ", Style::default().fg(BORDER));
+        // One line: verification state first, because that is what changes and
+        // what the user acts on. Image and symbol identity stay readable but
+        // yield space when the window is narrow.
         frame.render_widget(
-            Paragraph::new(vec![
-                Line::from_iter(
-                    field(
-                        "系统: ",
-                        if self.windows { "Windows" } else { "Linux" }.into(),
-                        value.add_modifier(Modifier::BOLD),
-                    )
-                    .into_iter()
-                    .chain([separator()])
-                    .chain(field("镜像: ", escaped(&image), value)),
-                ),
-                Line::from_iter(
-                    field("验证: ", escaped(&kernel), kernel_style)
-                        .into_iter()
-                        .chain([separator()])
-                        .chain(field("符号: ", escaped(&symbol), symbol_style)),
-                ),
-            ]),
+            Paragraph::new(Line::from_iter(
+                field(
+                    "",
+                    if self.windows { "Windows" } else { "Linux" }.into(),
+                    value.add_modifier(Modifier::BOLD),
+                )
+                .into_iter()
+                .chain([separator()])
+                .chain(field("验证: ", escaped(&kernel), kernel_style))
+                .chain([separator()])
+                .chain(field("符号: ", escaped(&symbol), symbol_style))
+                .chain([separator()])
+                .chain(field("镜像: ", escaped(&image), value)),
+            )),
             area,
         );
     }

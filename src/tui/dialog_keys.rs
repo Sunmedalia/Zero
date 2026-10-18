@@ -593,10 +593,20 @@ impl App {
             let Dialog::Detail { text, scroll } = &mut dialog else {
                 return;
             };
+            // The popup rect describes the last drawn frame. A dialog opened in
+            // this same frame has none yet, so fall back to the full area rather
+            // than treating the content as fitting on zero rows.
             let popup = self.hits.borrow().popup;
-            let maximum = detail_lines(text, popup.width.saturating_sub(2))
+            let popup = if popup.width == 0 || popup.height == 0 {
+                self.hits.borrow().workbench
+            } else {
+                popup
+            };
+            let width = if popup.width == 0 { 78 } else { popup.width };
+            let height = if popup.height == 0 { 12 } else { popup.height };
+            let maximum = detail_lines(text, width.saturating_sub(2))
                 .len()
-                .saturating_sub(popup.height.saturating_sub(2) as usize);
+                .saturating_sub(height.saturating_sub(2) as usize);
             match key.code {
                 KeyCode::Up => *scroll = scroll.saturating_sub(1),
                 KeyCode::Down => *scroll = scroll.saturating_add(1).min(maximum),
