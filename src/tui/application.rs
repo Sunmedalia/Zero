@@ -239,13 +239,13 @@ impl App {
             asset_index_cache: RefCell::new(Default::default()),
             registry,
             assets,
-            asset_revision: 0,
             asset_rows: [asset_rows[0], asset_rows[1], 0],
             asset_scroll: [0; 3],
             asset_queries: Default::default(),
             asset_states: RefCell::new(Default::default()),
             asset_details: HashMap::new(),
             remote: vec![],
+            remote_index_cache: RefCell::new(None),
             remote_catalog: true,
             download_url: None,
             downloads: HashMap::new(),
@@ -391,7 +391,6 @@ impl App {
         ) {
             Ok(assets) => {
                 let previous = std::mem::replace(&mut self.assets, assets);
-                self.asset_revision = self.asset_revision.wrapping_add(1);
                 *self.asset_index_cache.borrow_mut() = Default::default();
                 self.asset_details.retain(|p, _| {
                     self.assets.iter().any(|a| {
@@ -665,7 +664,8 @@ impl App {
             Kind::Symbols
         };
         let key = AssetIndexKey {
-            revision: self.asset_revision,
+            identity: self.assets.as_ptr() as usize,
+            len: self.assets.len(),
             query: self.asset_queries[section.slot()].to_lowercase(),
             local_only: section == AssetSection::Symbols && self.local_only_matches,
             hidden: self.hidden_cache_copies.len(),
@@ -707,14 +707,40 @@ impl App {
             || symbols::cache_filename(&candidate.path)
                 .is_ok_and(|name| self.cache.join("symbols/isf").join(name).is_file())
     }
+    /// Remote index entries matching the search box.
+    ///
+    /// The filter lowercases the banner, path and URL of every entry, and the
+    /// index can hold thousands of rows while this runs several times per
+    /// frame, so the result is cached until the list or the query changes.
     pub(super) fn remote_list(&self) -> Vec<&RemoteMatch> {
-        let query = self.asset_queries[2].to_lowercase();
-        self.remote
-            .iter()
-            .filter(|m| {
-                let text = format!("{} {} {}", m.path, m.banner, m.url).to_lowercase();
-                query.split_whitespace().all(|word| text.contains(word))
-            })
+        let key = RemoteIndexKey {
+            identity: self.remote.as_ptr() as usize,
+            len: self.remote.len(),
+            query: self.asset_queries[2].to_lowercase(),
+        };
+        let cached = {
+            let mut cache = self.remote_index_cache.borrow_mut();
+            match cache.as_ref() {
+                Some((previous, indices)) if *previous == key => indices.clone(),
+                _ => {
+                    let indices = self
+                        .remote
+                        .iter()
+                        .enumerate()
+                        .filter(|(_, m)| {
+                            let text = format!("{} {} {}", m.path, m.banner, m.url).to_lowercase();
+                            key.query.split_whitespace().all(|word| text.contains(word))
+                        })
+                        .map(|(i, _)| i)
+                        .collect::<Vec<_>>();
+                    *cache = Some((key, indices.clone()));
+                    indices
+                }
+            }
+        };
+        cached
+            .into_iter()
+            .filter_map(|i| self.remote.get(i))
             .collect()
     }
     pub(super) fn asset_count(&self) -> usize {
@@ -983,7 +1009,7 @@ impl App {
             sort: self.sort,
             descending: self.descending,
             tree,
-            collapsed: self.collapsed.clone(),
+            collapsed: collapsed_fingerprint(&self.collapsed),
         };
         let mut cache = self.view_cache.borrow_mut();
         if let Some((previous, index)) = cache.as_ref()

@@ -248,6 +248,24 @@ fn table_widths<'a>(
         })
         .collect()
 }
+/// Order-independent fingerprint of the collapsed-row set.
+///
+/// The index cache is keyed on this instead of a cloned `HashSet`, because the
+/// key is rebuilt several times per frame. A collision would only cost one
+/// extra index rebuild, never a wrong row.
+fn collapsed_fingerprint(collapsed: &HashSet<String>) -> u64 {
+    use std::hash::{Hash, Hasher};
+    let mut xor = 0u64;
+    let mut sum = 0u64;
+    for value in collapsed {
+        let mut hasher = std::collections::hash_map::DefaultHasher::new();
+        value.hash(&mut hasher);
+        let hash = hasher.finish();
+        xor ^= hash;
+        sum = sum.wrapping_add(hash);
+    }
+    xor ^ sum.rotate_left(17) ^ (collapsed.len() as u64).rotate_left(31)
+}
 fn same_path(a: &std::path::Path, b: &std::path::Path) -> bool {
     a == b
         || a.canonicalize()

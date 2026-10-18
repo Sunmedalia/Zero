@@ -200,9 +200,21 @@ struct HitMap {
 /// previous index is still valid.
 /// Cached filtered indices for one asset section.
 type AssetIndex = Option<(AssetIndexKey, Vec<usize>)>;
+/// Identity of the remote list plus the query. Derived from the buffer address
+/// and length, so replacing the vector invalidates the cache even when the new
+/// list has the same size — no write site has to remember to bump a counter.
+#[derive(Clone, PartialEq, Eq)]
+struct RemoteIndexKey {
+    identity: usize,
+    len: usize,
+    query: String,
+}
 #[derive(Clone, PartialEq, Eq)]
 struct AssetIndexKey {
-    revision: u64,
+    /// Buffer address and length of the asset vector: replacing it invalidates
+    /// the cache even when the new list has the same size.
+    identity: usize,
+    len: usize,
     query: String,
     local_only: bool,
     hidden: usize,
@@ -225,15 +237,13 @@ pub struct App {
     root: PathBuf,
     registry: Registry,
     assets: Vec<Asset>,
-    /// Bumped whenever `assets` is replaced, so cached filters can tell a new
-    /// list from an edited one even when the length is unchanged.
-    asset_revision: u64,
     asset_rows: [usize; 3],
     asset_scroll: [usize; 3],
     asset_queries: [String; 3],
     asset_states: RefCell<[ListState; 3]>,
     asset_details: HashMap<PathBuf, String>,
     remote: Vec<RemoteMatch>,
+    remote_index_cache: RefCell<Option<(RemoteIndexKey, Vec<usize>)>>,
     remote_catalog: bool,
     download_url: Option<String>,
     downloads: HashMap<String, PathBuf>,
@@ -324,6 +334,10 @@ impl std::ops::DerefMut for ResultStore {
     }
 }
 #[derive(PartialEq, Eq)]
+/// Inputs to the filtered/sorted row index.
+///
+/// The collapse set and query are fingerprinted rather than cloned: this key is
+/// rebuilt on every `visible()` call, which happens several times per frame.
 struct ViewKey {
     revision: u64,
     identity: usize,
@@ -332,7 +346,7 @@ struct ViewKey {
     sort: Option<usize>,
     descending: bool,
     tree: Option<(usize, usize)>,
-    collapsed: HashSet<String>,
+    collapsed: u64,
 }
 struct IndexedRows<'a> {
     result: Option<&'a Results>,
