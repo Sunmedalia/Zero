@@ -1,5 +1,11 @@
 use super::*;
 #[derive(Clone, Debug)]
+/// Symbol-derived layout facts for resolving a VAD's backing file.
+pub(super) struct VadLayout {
+    direct_control: bool,
+    fast_ref: bool,
+    mask: u64,
+}
 pub(super) struct Vad {
     pub address: u64,
     pub start: u64,
@@ -182,7 +188,7 @@ impl Windows<'_> {
             let ty = root_field["type"]["name"]
                 .as_str()
                 .unwrap_or("_RTL_AVL_TREE");
-            let field = if isf.field(ty, "Root").is_ok() {
+            let field = if isf.has_field(ty, "Root") {
                 "Root"
             } else {
                 "BalancedRoot.RightChild"
@@ -199,11 +205,18 @@ impl Windows<'_> {
         } else {
             (0, "_MMVAD_SHORT")
         };
-        let children = if isf.field(node_type, "Left").is_ok() {
+        let children = if isf.has_field(node_type, "Left") {
             ["Left", "Right"]
         } else {
             ["LeftChild", "RightChild"]
         };
+        // Layout probes are properties of the symbol file, not of the node, so
+        // they are resolved once instead of once per VAD.
+        let parent_field = ["ParentValue", "u1.Parent"]
+            .into_iter()
+            .find(|field| isf.has_field(node_type, field));
+        let high_vpn = isf.has_field("_MMVAD_SHORT", "StartingVpnHigh");
+        let path_layout = self.vad_layout();
         let mut stack = vec![root];
         let mut seen = HashSet::new();
         let mut out = Vec::new();
@@ -221,16 +234,13 @@ impl Windows<'_> {
                     match self.number(node, node_type, f) {
                         Ok(child) => {
                             let valid = (|| -> Result<()> {
-                                if child != 0 {
-                                    let parent = ["ParentValue", "u1.Parent"]
-                                        .into_iter()
-                                        .find(|field| isf.field(node_type, field).is_ok());
-                                    if let Some(parent) = parent {
-                                        ensure!(
-                                            self.number(child, node_type, parent)? & !3 == node,
-                                            "VAD 子节点父指针不一致"
-                                        );
-                                    }
+                                if child != 0
+                                    && let Some(parent) = parent_field
+                                {
+                                    ensure!(
+                                        self.number(child, node_type, parent)? & !3 == node,
+                                        "VAD 子节点父指针不一致"
+                                    );
                                 }
                                 Ok(())
                             })();
@@ -257,7 +267,7 @@ impl Windows<'_> {
                 let address = node.checked_sub(offset).context("VAD 地址下溢")?;
                 let mut start = self.number(address, "_MMVAD_SHORT", "StartingVpn")?;
                 let mut end = self.number(address, "_MMVAD_SHORT", "EndingVpn")?;
-                if isf.field("_MMVAD_SHORT", "StartingVpnHigh").is_ok() {
+                if high_vpn {
                     start |= self.number(address, "_MMVAD_SHORT", "StartingVpnHigh")? << 32;
                     end |= self.number(address, "_MMVAD_SHORT", "EndingVpnHigh")? << 32;
                 }
@@ -273,7 +283,7 @@ impl Windows<'_> {
                 let path = if private {
                     String::new()
                 } else {
-                    match self.vad_path(address) {
+                    match self.vad_path(address, &path_layout) {
                         Ok(mut path) => {
                             if let Some(end) = path.find('\0') {
                                 match result.as_deref_mut() {
@@ -326,8 +336,27 @@ impl Windows<'_> {
         }
         Ok(out)
     }
-    fn vad_path(&self, address: u64) -> Result<String> {
-        let control = if self.vm.isf.field("_MMVAD", "ControlArea").is_ok() {
+    /// How the VAD and control-area layouts describe their file, resolved once
+    /// per plugin run rather than once per VAD.
+    ///
+    /// These are properties of the symbol file; probing them per VAD costs a
+    /// full ISF resolution each time.
+    pub(super) fn vad_layout(&self) -> VadLayout {
+        let direct_control = self.vm.isf.has_field("_MMVAD", "ControlArea");
+        let fast_ref = self
+            .vm
+            .isf
+            .field("_CONTROL_AREA", "FilePointer")
+            .map(|field| field["type"]["kind"] != "pointer")
+            .unwrap_or(false);
+        VadLayout {
+            direct_control,
+            fast_ref,
+            mask: if self.vm.pointer_size() == 4 { !7 } else { !15 },
+        }
+    }
+    fn vad_path(&self, address: u64, layout: &VadLayout) -> Result<String> {
+        let control = if layout.direct_control {
             self.number(address, "_MMVAD", "ControlArea")?
         } else {
             let subsection = self.number(address, "_MMVAD", "Subsection")?;
@@ -341,12 +370,10 @@ impl Windows<'_> {
         }
         ensure!(self.vm.kernel(control), "无效 VAD ControlArea");
         let file_ref = self.field(control, "_CONTROL_AREA", "FilePointer")?;
-        let field = self.vm.isf.field("_CONTROL_AREA", "FilePointer")?;
-        let file = if field["type"]["kind"] == "pointer" {
-            self.vm.pointer(file_ref)?
+        let file = if layout.fast_ref {
+            self.number(file_ref, "_EX_FAST_REF", "Object")? & layout.mask
         } else {
-            self.number(file_ref, "_EX_FAST_REF", "Object")?
-                & if self.vm.pointer_size() == 4 { !7 } else { !15 }
+            self.vm.pointer(file_ref)?
         };
         if file == 0 {
             return Ok(String::new());
@@ -577,7 +604,7 @@ mod control_area_tests {
                 base: K,
                 pdb: PdbIdentity::from_isf(&isf).unwrap(),
             };
-            assert_eq!(w.vad_path(K + 0x3000).unwrap(), "test");
+            assert_eq!(w.vad_path(K + 0x3000, &w.vad_layout()).unwrap(), "test");
         }
     }
 }

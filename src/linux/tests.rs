@@ -190,7 +190,6 @@ pub(crate) fn fixture() -> (Vec<u8>, Isf) {
         banner: b"Linux version fixture\0".to_vec(),
         locations: vec![],
         layouts: Default::default(),
-        present: Default::default(),
     };
     (b, isf)
 }

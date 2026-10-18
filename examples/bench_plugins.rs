@@ -52,7 +52,7 @@ fn main() -> Result<()> {
         times.sort();
         rows.push((times[times.len() / 2], d.plugin.name(), count));
     }
-    rows.sort_by(|a, b| b.0.cmp(&a.0));
+    rows.sort_by(|a, b| b.0.cmp(&a.0).reverse());
     for (elapsed, name, count) in rows {
         println!("{elapsed:>12.2?}  {name:<20} {count} rows");
     }

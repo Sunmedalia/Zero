@@ -110,7 +110,7 @@ impl Windows<'_> {
                 ];
                 for field in ["Tcb.State", "StartAddress", "CreateTime", "ExitTime"] {
                     if field == "ExitTime"
-                        && self.vm.isf.field("_ETHREAD", "Terminated").is_ok()
+                        && self.vm.isf.has_field("_ETHREAD", "Terminated")
                         && self.number(thread, "_ETHREAD", "Terminated")? == 0
                     {
                         row.push(String::new());
@@ -118,7 +118,7 @@ impl Windows<'_> {
                     }
                     let value = self.number(thread, "_ETHREAD", field).map(|value| {
                         if field == "CreateTime"
-                            && self.vm.isf.field("_ETHREAD", "ThreadsProcess").is_ok()
+                            && self.vm.isf.has_field("_ETHREAD", "ThreadsProcess")
                         {
                             value >> 3
                         } else {
