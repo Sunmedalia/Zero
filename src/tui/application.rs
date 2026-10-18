@@ -275,7 +275,7 @@ impl App {
             descending: false,
             row: 0,
             collapsed: HashSet::new(),
-            status: "资源库：Space 选用镜像 · Enter 选用并进入分析 · i 导入 · ? 命令面板".into(),
+            status: "Space 选用镜像 · Enter 选用并进入分析 · i 导入 · ? 命令面板".into(),
             logs: VecDeque::new(),
             started: None,
             progress: None,
@@ -315,11 +315,9 @@ impl App {
         // Replace the previous page's hint, but never hide a running task or an error.
         if changed && self.job.is_none() && self.last_error.as_deref() != Some(&self.status) {
             self.status = match page {
-                Page::Analysis if self.image.is_none() => {
-                    "分析：尚未选用镜像；F2 资源库选用".into()
-                }
-                Page::Analysis => "分析：点击或 Enter 运行插件 · / 筛选 · ? 命令面板".into(),
-                Page::Assets => "资源库：Space 选用 · Enter 选用并进入分析 · ? 命令面板".into(),
+                Page::Analysis if self.image.is_none() => "尚未选用镜像；F2 资源库选用".into(),
+                Page::Analysis => "点击或 Enter 运行插件 · / 筛选 · ? 命令面板".into(),
+                Page::Assets => "Space 选用 · Enter 选用并进入分析 · ? 命令面板".into(),
             };
         }
 

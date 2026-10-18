@@ -3307,10 +3307,13 @@ fn page_switch_replaces_stale_hints_but_keeps_errors() {
     let mut app = app();
     app.page = Page::Assets;
     app.last_error = None;
+    // The hint no longer repeats the page name: the footer shows the region
+    // separately, so the message starts with the action.
     app.switch_page(Page::Analysis);
-    assert!(app.status.starts_with("分析"), "{}", app.status);
+    // Without an image the hint points at the library instead of the plugins.
+    assert!(app.status.starts_with("尚未选用镜像"), "{}", app.status);
     app.switch_page(Page::Assets);
-    assert!(app.status.starts_with("资源库"));
+    assert!(app.status.starts_with("Space 选用"), "{}", app.status);
     app.status = "读取失败".into();
     app.last_error = Some("读取失败".into());
     app.switch_page(Page::Analysis);

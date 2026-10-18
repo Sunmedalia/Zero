@@ -52,11 +52,16 @@ impl App {
             } else {
                 TEXT
             };
-            let mut line = vec![Span::styled(
-                format!(" {region} "),
-                Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
-            )];
-            line.push(Span::styled(message, Style::default().fg(color)));
+            // The region name is a label, not part of the message: a dim
+            // separator keeps them from reading as one sentence.
+            let line = vec![
+                Span::styled(
+                    format!(" {region} "),
+                    Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
+                ),
+                Span::styled("│ ", Style::default().fg(BORDER)),
+                Span::styled(message, Style::default().fg(color)),
+            ];
             frame.render_widget(Paragraph::new(Line::from(line)), status);
         }
         if self.page == Page::Assets {

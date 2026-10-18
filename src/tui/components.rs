@@ -207,10 +207,13 @@ fn fit<'a>(
     fields: &[(&'a str, String, Style)],
     width: u16,
 ) -> Vec<Span<'a>> {
-    // Share the row: the first field is the primary one and keeps its space,
-    // later fields take what is left. A long value is shortened with an
-    // ellipsis rather than pushing the fields after it off the row, because a
-    // truncated path is still useful while a missing kernel is not.
+    // Two rules, because the fields are not equally important:
+    //
+    // - A long *value* is shortened to leave room for the fields after it. A
+    //   truncated path still identifies the image; a missing kernel does not.
+    // - A field that cannot be shortened usefully is dropped whole, so the row
+    //   never ends in a fragment like `M 匹…`.
+    let width = width as usize;
     let total: usize = fields
         .iter()
         .enumerate()
@@ -218,38 +221,46 @@ fn fit<'a>(
             usize::from(i > 0) * 3 + Span::raw(*label).width() + Span::raw(text).width()
         })
         .sum();
-    let width = width as usize;
+    let shorten = total > width;
     let mut out = Vec::new();
     let mut used = 0usize;
     for (index, (label, text, style)) in fields.iter().enumerate() {
         let gap = usize::from(index > 0) * 3;
         let label_width = Span::raw(*label).width();
+        let text_width = Span::raw(text).width();
         let remaining = width.saturating_sub(used + gap + label_width);
         if remaining == 0 {
             break;
         }
-        let text_width = Span::raw(text).width();
-        // When everything fits, nothing is shortened.
-        let budget = if total <= width {
-            text_width
+        if text_width <= remaining {
+            used += gap + label_width + text_width;
+            if index > 0 {
+                out.push(Span::styled(" · ", Style::default().fg(BORDER)));
+            }
+            out.extend(field(label, escaped(text), *style));
+            continue;
+        }
+        // Too long. Share the row with the fields that follow when they are
+        // worth keeping, otherwise take what is left.
+        let rest: usize = fields[index + 1..]
+            .iter()
+            .map(|(l, t, _)| 3 + Span::raw(*l).width() + Span::raw(t).width())
+            .sum();
+        let budget = if shorten && rest > 0 && remaining > rest + 8 {
+            remaining - rest
         } else {
-            // Leave room for the fields that follow this one.
-            let rest = fields[index + 1..]
-                .iter()
-                .map(|(l, t, _)| 3 + Span::raw(*l).width() + Span::raw(t).width())
-                .sum::<usize>();
-            remaining.saturating_sub(rest).max(8)
+            remaining
         };
-        let shown = if text_width <= budget {
-            text.clone()
-        } else {
-            truncate_with_ellipsis(text, budget)
-        };
-        used += gap + label_width + Span::raw(&shown).width();
+        if budget < 8 {
+            break;
+        }
+        let shown = truncate_with_ellipsis(text, budget);
         if index > 0 {
             out.push(Span::styled(" · ", Style::default().fg(BORDER)));
         }
         out.extend(field(label, escaped(&shown), *style));
+        // Nothing after a shortened value: it already used the shared budget.
+        break;
     }
     out
 }

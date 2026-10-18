@@ -307,7 +307,6 @@ impl App {
             ("离线", WARN)
         };
         let value = Style::default().fg(TEXT);
-        let separator = || Span::styled(" · ", Style::default().fg(BORDER));
         let identified = self.results.contains_key("banners");
         // Two lines instead of four: the kernel banner and the repository URL
         // are reference material, not state, and both are available in the
@@ -326,21 +325,24 @@ impl App {
             &[("镜像: ", image, value), ("内核: ", banner, banner_style)],
             regions[0].width,
         );
-        // Status first: the match state and network mode are short, always
-        // actionable, and the thing the user is waiting on. The symbol path is
-        // long and predictable, so it takes what remains and is shortened.
-        let mut symbol_line = vec![
-            Span::styled(state, Style::default().fg(state_color)),
-            separator(),
-            Span::styled(mode, Style::default().fg(mode_color)),
-        ];
-        let used = Span::raw(state).width() + Span::raw(mode).width() + 6;
-        if (used as u16) < regions[0].width {
-            let fitted = fit(&[("符号: ", symbol, value)], regions[0].width - used as u16);
-            if !fitted.is_empty() {
-                symbol_line.push(separator());
-                symbol_line.extend(fitted);
-            }
+        // Symbol first, then the short status words. The symbol names the
+        // selected input; the status is repeated by the footer and the detail
+        // panel, so it is the field that gets dropped when space runs out.
+        // Everything is measured against one width so the line cannot overflow.
+        let mut symbol_line = fit(
+            &[
+                ("符号: ", symbol, value),
+                ("", mode.to_string(), Style::default().fg(mode_color)),
+                ("", state.to_string(), Style::default().fg(state_color)),
+            ],
+            regions[0].width,
+        );
+        if symbol_line.is_empty() {
+            // Nothing fits whole: show the state clipped rather than nothing.
+            symbol_line = vec![Span::styled(
+                truncate_with_ellipsis(state, regions[0].width as usize),
+                Style::default().fg(state_color),
+            )];
         }
         frame.render_widget(
             Paragraph::new(vec![Line::from(image_line), Line::from(symbol_line)]),
