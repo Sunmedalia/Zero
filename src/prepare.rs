@@ -366,6 +366,37 @@ mod tests {
         b[296..304].copy_from_slice(&3696u64.to_le_bytes());
         b
     }
+    /// A section entry smaller than the fields we read must be rejected, not
+    /// sliced past the end. `elf_metadata` parses a caller-supplied file, so a
+    /// malformed header must surface as an error rather than a panic.
+    #[test]
+    fn malformed_section_entry_is_rejected() {
+        let dir = tempfile::tempdir().unwrap();
+        for size in [1u16, 8, 40, 47] {
+            let mut elf = debug_elf();
+            elf[58..60].copy_from_slice(&size.to_le_bytes());
+            let path = dir.path().join(format!("bad-{size}.elf"));
+            fs::write(&path, &elf).unwrap();
+            let error = elf_metadata(&path).unwrap_err();
+            assert!(
+                error.to_string().contains("section"),
+                "size {size} should be rejected: {error}"
+            );
+        }
+    }
+    /// Symbol entry sizes and string offsets come from the file, so both must
+    /// be validated before use.
+    #[test]
+    fn out_of_range_symbol_table_is_rejected() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut elf = debug_elf();
+        // Section 2 is the symbol table; sh_link (@232) is its string table
+        // index. Point it past the section table.
+        elf[232..236].copy_from_slice(&99u32.to_le_bytes());
+        let path = dir.path().join("bad-link.elf");
+        fs::write(&path, &elf).unwrap();
+        assert!(elf_metadata(&path).is_err());
+    }
     #[test]
     fn debug_sizes_and_generation_validate_banner_and_provenance() -> Result<()> {
         let dir = tempfile::tempdir()?;

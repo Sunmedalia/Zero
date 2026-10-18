@@ -3601,3 +3601,126 @@ fn escaped_renders_controls_and_leaves_text_untouched() {
     // Mixed content keeps the readable part and escapes only the controls.
     assert_eq!(escaped("ok\r\nnext"), "ok\\r\\nnext");
 }
+
+#[test]
+fn extreme_terminal_sizes_never_panic() {
+    // Terminals can be resized to anything, including zero-height panes and
+    // one-column widths. Rendering must degrade, not panic.
+    let mut app = app();
+    for width in [1u16, 2, 3, 5, 10, 21, 22, 23, 40, 99, 100, 139, 140, 200] {
+        for height in [1u16, 2, 3, 5, 12, 19, 20, 27, 28, 40] {
+            for page in Page::ALL {
+                app.switch_page(page);
+                for focus in [
+                    Focus::Context,
+                    Focus::Navigation,
+                    Focus::Content,
+                    Focus::Detail,
+                ] {
+                    app.focus = focus;
+                    let mut terminal = Terminal::new(TestBackend::new(width, height)).unwrap();
+                    terminal.draw(|f| app.draw(f)).unwrap();
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn hostile_result_content_renders_safely() {
+    // Memory images are untrusted input: cell values reach the terminal
+    // directly, so control characters, ANSI escapes, NUL bytes and very wide
+    // or very long values must not corrupt the screen or panic the renderer.
+    let mut app = app();
+    let hostile = vec![
+        "\u{1b}[2J\u{1b}[31mred".to_string(),
+        "a\0b\0c".to_string(),
+        "line\nbreak\ttab\r".to_string(),
+        "\u{202e}reversed".to_string(),
+        "中".repeat(300),
+        "x".repeat(5000),
+        String::new(),
+        "\u{7f}del\u{8}bs".to_string(),
+    ];
+    let mut rows = Vec::new();
+    for value in &hostile {
+        rows.push(vec![
+            "1".into(),
+            value.clone(),
+            value.clone(),
+            value.clone(),
+            value.clone(),
+        ]);
+    }
+    app.results.get_mut("pslist").unwrap().rows = rows;
+    app.query.clear();
+    for (width, height) in [(80u16, 24u16), (140, 40), (30, 12)] {
+        let mut terminal = Terminal::new(TestBackend::new(width, height)).unwrap();
+        terminal.draw(|f| app.draw(f)).unwrap();
+        // Every cell must be a single printable symbol; nothing may leak a raw
+        // control character into the frame.
+        for cell in terminal.backend().buffer().content.iter() {
+            let symbol = cell.symbol();
+            assert!(
+                !symbol.chars().any(char::is_control),
+                "control character leaked into the frame: {symbol:?}"
+            );
+        }
+        // The detail view takes the same values through a different path.
+        app.open_detail();
+        terminal.draw(|f| app.draw(f)).unwrap();
+        app.dialog = None;
+    }
+}
+
+#[test]
+fn paging_never_scrolls_past_the_last_row() {
+    // Page down when the page is taller than the data, and when the data ends
+    // mid-page: the offset must stay on a page that has rows in it.
+    let mut app = app();
+    let template = app.result().unwrap().rows[0].clone();
+    let mut terminal = Terminal::new(TestBackend::new(120, 40)).unwrap();
+    for total in [0usize, 1, 2, 5, 40, 41, 100] {
+        app.results.get_mut("pslist").unwrap().rows = (0..total)
+            .map(|i| {
+                let mut r = template.clone();
+                r[0] = i.to_string();
+                r
+            })
+            .collect();
+        app.query.clear();
+        app.row = 0;
+        *app.table_state.borrow_mut().offset_mut() = 0;
+        terminal.draw(|f| app.draw(f)).unwrap();
+        // Walk to the end one page at a time.
+        for _ in 0..(total / 2 + 4) {
+            app.key(KeyEvent::new(KeyCode::Char(']'), KeyModifiers::NONE));
+            terminal.draw(|f| app.draw(f)).unwrap();
+            let offset = app.table_state.borrow().offset();
+            let page = app.page_rows();
+            assert!(
+                offset <= total.saturating_sub(page),
+                "total={total} offset={offset} page={page} scrolled past the end"
+            );
+            if total > 0 {
+                assert!(
+                    app.row < total,
+                    "total={total} row={} out of range",
+                    app.row
+                );
+                assert!(
+                    app.row >= offset,
+                    "total={total} row={} above offset={offset}",
+                    app.row
+                );
+            }
+        }
+        // And back to the start.
+        for _ in 0..(total / 2 + 4) {
+            app.key(KeyEvent::new(KeyCode::Char('['), KeyModifiers::NONE));
+            terminal.draw(|f| app.draw(f)).unwrap();
+        }
+        assert_eq!(app.row, 0);
+        assert_eq!(app.table_state.borrow().offset(), 0, "total={total}");
+    }
+}
