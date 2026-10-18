@@ -1274,7 +1274,9 @@ fn unified_symbol_manager_has_inline_search_and_analysis_only_header() {
     terminal.draw(|f| app.draw(f)).unwrap();
     let hits = app.hits.borrow().clone();
     assert_eq!(hits.tabs.len(), 2);
-    assert_eq!(hits.header.height, 0);
+    // The resource header is drawn by the page, not by `draw`, but it still
+    // registers its two rows so header clicks have targets.
+    assert_eq!(hits.header.height, 2);
     // The search field only takes a row while it is in use, so an idle pane
     // gives that row to the list.
     assert_eq!(hits.search.height, 0);
@@ -3816,4 +3818,68 @@ fn asset_filters_refresh_when_inputs_change() {
     app.assets[0].path = std::path::PathBuf::from("/tmp/symbols/renamed.json");
     app.refresh_assets();
     assert!(!added(&app).iter().any(|n| n == "alpha.json"));
+}
+
+#[test]
+fn focus_never_lands_on_a_hidden_region() {
+    // Tab order must stay inside what the frame actually draws, at every size.
+    // A focus on an invisible pane routes every key to something the user
+    // cannot see.
+    let (_dir, mut app) = preparation_fixture();
+    app.initialize(Default::default());
+    finish_test_job(&mut app);
+    for (w, h) in [
+        (140u16, 40u16),
+        (120, 40),
+        (100, 30),
+        (80, 24),
+        (64, 18),
+        (60, 18),
+    ] {
+        for page in Page::ALL {
+            app.switch_page(page);
+            app.resize(w, h);
+            let mut terminal = Terminal::new(TestBackend::new(w, h)).unwrap();
+            for step in 0..12 {
+                terminal.draw(|f| app.draw(f)).unwrap();
+                let hits = app.hits.borrow().clone();
+                let hidden = match app.focus {
+                    Focus::Detail => hits.inspector.width == 0 && hits.asset_detail.height == 0,
+                    Focus::Context => page != Page::Analysis || hits.header.height == 0,
+                    _ => false,
+                };
+                assert!(
+                    !hidden,
+                    "{w}x{h} {page:?} step {step}: focus {:?} is not drawn",
+                    app.focus
+                );
+                app.key(KeyEvent::new(KeyCode::Tab, KeyModifiers::NONE));
+            }
+        }
+    }
+}
+
+#[test]
+fn resource_header_click_opens_the_named_picker() {
+    // The resource header has one line for the image and one for the symbol.
+    // Clicking each must open the matching picker, and neither may leave focus
+    // on a header region that does not exist on this page.
+    let (_dir, mut app) = preparation_fixture();
+    app.initialize(Default::default());
+    finish_test_job(&mut app);
+    let mut terminal = Terminal::new(TestBackend::new(100, 30)).unwrap();
+    for (row, kind) in [(0u16, InputKind::Image), (1, InputKind::Symbols)] {
+        app.dialog = None;
+        app.focus = Focus::Navigation;
+        terminal.draw(|f| app.draw(f)).unwrap();
+        let header = app.hits.borrow().header;
+        assert_eq!(header.height, 2, "resource header is two lines: {header:?}");
+        click(&mut app, header.x + 3, header.y + row);
+        assert!(
+            matches!(&app.dialog, Some(Dialog::Files { kind: active, .. }) if *active == kind),
+            "row {row} did not open the expected picker"
+        );
+        assert_ne!(app.focus, Focus::Context, "no header focus region here");
+        app.key(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE));
+    }
 }

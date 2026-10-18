@@ -135,29 +135,34 @@ impl App {
         }
         match key.code {
             KeyCode::Tab | KeyCode::BackTab => {
+                // The resource page has two list panes plus an optional detail
+                // panel. Tab walks them in screen order; the highlighted section
+                // follows, so focus and highlight never disagree.
+                let back = key.code == KeyCode::BackTab;
                 let detail = self.hits.borrow().asset_detail.height > 0;
-                let current = if self.focus == Focus::Content {
-                    2
-                } else if self.section == AssetSection::Images {
-                    0
-                } else {
-                    1
-                };
-                let count = if detail { 3 } else { 2 };
-                let next = (current
-                    + if key.code == KeyCode::BackTab {
-                        count - 1
+                let on_detail = self.focus == Focus::Content;
+                let on_images = !on_detail && self.section == AssetSection::Images;
+                let (next_images, next_detail) = if on_detail {
+                    // Wrapping from the detail panel returns to the image list.
+                    (back, false)
+                } else if on_images {
+                    if back {
+                        (false, detail)
                     } else {
-                        1
-                    })
-                    % count;
-                self.focus = if next == 2 {
+                        (false, false)
+                    }
+                } else {
+                    // On the symbol list: forward reaches the detail panel when
+                    // it is drawn, otherwise it wraps to the image list.
+                    if back { (true, false) } else { (false, detail) }
+                };
+                self.focus = if next_detail {
                     Focus::Content
                 } else {
                     Focus::Navigation
                 };
-                if next != 2 {
-                    self.section = if next == 0 {
+                if !next_detail {
+                    self.section = if next_images {
                         AssetSection::Images
                     } else {
                         self.symbol_source
@@ -273,6 +278,10 @@ impl App {
                 if self.inspector_available() {
                     self.inspector = !self.inspector;
                     self.detail_scroll = 0;
+                    // Closing the pane must not leave focus on it.
+                    if !self.inspector && self.focus == Focus::Detail {
+                        self.focus = Focus::Content;
+                    }
                 } else {
                     self.open_detail();
                 }
@@ -685,19 +694,8 @@ impl App {
             return self.run_command(command);
         }
         match key.code {
-            KeyCode::Tab => {
-                self.focus = self
-                    .focus
-                    .next(false, self.hits.borrow().inspector.width > 0)
-            }
-            KeyCode::BackTab => {
-                let n = if self.hits.borrow().inspector.width > 0 {
-                    4
-                } else {
-                    3
-                };
-                self.focus = self.focus.next(true, n == 4);
-            }
+            KeyCode::Tab => self.focus = self.focus.next(false, self.visible_regions()),
+            KeyCode::BackTab => self.focus = self.focus.next(true, self.visible_regions()),
             KeyCode::Up | KeyCode::Char('k') => {
                 if self.focus == Focus::Navigation {
                     self.menu = self.menu.saturating_sub(1);
@@ -826,12 +824,18 @@ impl App {
                 return false;
             }
             if click && hits.header_symbol.contains(point) {
-                self.focus = Focus::Context;
+                // Only the analysis header is a focus target; on the resource
+                // page these rows are labels that open a picker.
+                if self.page == Page::Analysis {
+                    self.focus = Focus::Context;
+                }
                 self.open_files(InputKind::Symbols);
                 return false;
             }
             if click && hits.header_image.contains(point) {
-                self.focus = Focus::Context;
+                if self.page == Page::Analysis {
+                    self.focus = Focus::Context;
+                }
                 self.open_files(InputKind::Image);
                 return false;
             }
@@ -1148,10 +1152,12 @@ impl App {
                 }
             }
         } else if click && hits.header.contains(point) {
-            self.focus = Focus::Context;
-            if point.y == hits.header.y + 2 {
+            // The resource header's first line names the image, the second the
+            // symbol. Clicking either opens that picker; there is no focusable
+            // header region on this page, so focus stays where it was.
+            if point.y > hits.header.y {
                 self.open_files(InputKind::Symbols);
-            } else if point.y == hits.header.y + 1 {
+            } else {
                 self.open_files(InputKind::Image);
             }
         }

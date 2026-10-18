@@ -7,11 +7,58 @@ pub(super) enum Focus {
     Content,
     Detail,
 }
+/// Which regions the current layout actually draws.
+///
+/// Focus must stay inside this set: a focus on a region that is not on screen
+/// looks like the keys have stopped working, because every action is routed to
+/// a pane the user cannot see.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(super) struct Visible {
+    /// The analysis page's inspector column, or the assets page's detail panel.
+    pub(super) detail: bool,
+    /// The analysis page's header line, which is also a focus target.
+    pub(super) header: bool,
+}
 impl Focus {
-    pub(super) fn next(self, back: bool, detail: bool) -> Self {
-        let all = [Self::Context, Self::Navigation, Self::Content, Self::Detail];
-        let count = if detail { 4 } else { 3 };
-        all[(self as usize + if back { count - 1 } else { 1 }) % count]
+    pub(super) fn next(self, back: bool, visible: Visible) -> Self {
+        let regions = Self::cycle(visible);
+        if regions.len() <= 1 {
+            return regions[0];
+        }
+        let current = regions.iter().position(|f| *f == self).unwrap_or(0);
+        let step = if back {
+            (current + regions.len() - 1) % regions.len()
+        } else {
+            (current + 1) % regions.len()
+        };
+        regions[step]
+    }
+    /// The focus order for the regions on screen.
+    fn cycle(visible: Visible) -> &'static [Focus] {
+        const ALL: [Focus; 4] = [
+            Focus::Context,
+            Focus::Navigation,
+            Focus::Content,
+            Focus::Detail,
+        ];
+        const NO_DETAIL: [Focus; 3] = [Focus::Context, Focus::Navigation, Focus::Content];
+        const NO_HEADER_NO_DETAIL: [Focus; 2] = [Focus::Navigation, Focus::Content];
+        const NO_HEADER: [Focus; 3] = [Focus::Navigation, Focus::Content, Focus::Detail];
+        match (visible.header, visible.detail) {
+            (true, true) => &ALL,
+            (true, false) => &NO_DETAIL,
+            (false, true) => &NO_HEADER,
+            (false, false) => &NO_HEADER_NO_DETAIL,
+        }
+    }
+    /// Move `self` into the visible set, keeping it if already valid.
+    pub(super) fn clamp(self, visible: Visible) -> Self {
+        let regions = Self::cycle(visible);
+        if regions.contains(&self) {
+            self
+        } else {
+            regions[0]
+        }
     }
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

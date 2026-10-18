@@ -1086,7 +1086,25 @@ impl App {
             }
         }
     }
+    /// Which focusable regions the current layout draws.
+    ///
+    /// Read from the last frame's hit map, so it always describes what the user
+    /// can actually see rather than what the window size suggests.
+    pub(super) fn visible_regions(&self) -> Visible {
+        let hits = self.hits.borrow();
+        Visible {
+            // The analysis page's inspector column, or the resource page's
+            // detail panel: both are the `Focus::Detail` target.
+            detail: hits.inspector.width > 0 || hits.asset_detail.height > 0,
+            // Only the analysis header is focusable; the resource header is a
+            // pair of labels that open pickers.
+            header: self.page == Page::Analysis && hits.header.height > 0,
+        }
+    }
     pub(super) fn resize(&mut self, width: u16, height: u16) {
+        // Keep focus on a region this size actually draws. The thresholds here
+        // mirror the ones the layout uses, and the clamp below catches anything
+        // they miss once the next frame has been measured.
         if self.page == Page::Assets && self.focus == Focus::Content && (width < 100 || height < 28)
         {
             self.focus = Focus::Navigation;
@@ -1094,6 +1112,7 @@ impl App {
         if width < 140 && self.focus == Focus::Detail {
             self.focus = Focus::Content;
         }
+        self.focus = self.focus.clamp(self.visible_regions());
     }
     pub(super) fn select_plugin(&mut self, plugin: Plugin) {
         self.views.insert(

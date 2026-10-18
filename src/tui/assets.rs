@@ -256,6 +256,14 @@ impl App {
             Constraint::Min(2),
         ])
         .split(area);
+        // The resource header is drawn here rather than by `draw`, so it
+        // registers its own hit regions. Without this, header clicks had no
+        // target and the page had no focusable header at all.
+        self.hits.borrow_mut().header = regions[0];
+        self.hits.borrow_mut().header_image =
+            Rect::new(regions[0].x, regions[0].y, regions[0].width, 1);
+        self.hits.borrow_mut().header_symbol =
+            Rect::new(regions[0].x, regions[0].y + 1, regions[0].width, 1);
         let banner = self
             .results
             .get("banners")
