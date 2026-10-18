@@ -1,9 +1,14 @@
 mod application;
+mod assets;
+mod chrome;
 mod commands;
 mod dialog_keys;
+mod dialogs;
+mod footer;
 mod generation;
 mod interaction;
 mod pages;
+mod results;
 mod tasks;
 mod workflow;
 include!("tui/state.rs");
