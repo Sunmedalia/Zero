@@ -3,6 +3,92 @@
 use super::*;
 
 impl App {
+    /// Columns a dialog needs for its own content.
+    ///
+    /// Every modal used to be as wide as the screen minus six columns, so the
+    /// three-word system picker spanned the terminal and its highlight bar
+    /// stretched the full width. Width now follows the widest line the dialog
+    /// draws, up to a readable maximum.
+    fn dialog_width(&self, dialog: &Dialog, screen: Rect) -> u16 {
+        /// Frame borders plus a one-cell margin on each side.
+        const CHROME: usize = 4;
+        const MAX: u16 = 90;
+        let longest = match dialog {
+            Dialog::System { .. } => 12,
+            Dialog::Sort { .. } => self.result().map_or(0, |r| {
+                r.columns
+                    .iter()
+                    .map(|c| c.chars().count())
+                    .max()
+                    .unwrap_or(0)
+            }),
+            Dialog::Symbols { labels, .. } => {
+                labels.iter().map(|l| l.chars().count()).max().unwrap_or(0)
+            }
+            Dialog::Links { matches, .. } => matches
+                .iter()
+                .map(|m| m.path.chars().count())
+                .max()
+                .unwrap_or(0),
+            Dialog::Commands { .. } => self
+                .available_commands("")
+                .iter()
+                .map(|(l, _)| l.chars().count())
+                .max()
+                .unwrap_or(0),
+            Dialog::Plugins { .. } => self
+                .plugin_matches("")
+                .iter()
+                .map(|p| plugin_label(*p).chars().count())
+                .max()
+                .unwrap_or(0),
+            Dialog::Settings { .. } => self
+                .settings_labels()
+                .iter()
+                .map(|l| l.chars().count())
+                .max()
+                .unwrap_or(0),
+            // Text dialogs hold a path or a query, which can be long and which
+            // the user is editing: they get the room to show it.
+            Dialog::Input { text, .. } => text.chars().count().max(40),
+            // Detail text is wrapped prose; it wants width more than anything.
+            Dialog::Detail { .. } => screen.width.saturating_sub(6).min(90) as usize,
+            _ => 0,
+        };
+        // A rough cell estimate: CJK and wide glyphs take two columns.
+        let estimate = longest * 3 / 2 + CHROME + 20;
+        let max = screen.width.saturating_sub(6).min(MAX);
+        (estimate as u16).clamp(30, max.max(30)).min(max)
+    }
+    /// Rows a dialog needs for its own content, including the frame and one
+    /// hint row.
+    ///
+    /// These used to be a flat `_ => 12`, so a three-option system picker and
+    /// an eight-column sort picker both claimed twelve rows and a 60x18
+    /// terminal lost two thirds of its screen to a two-line list.
+    fn dialog_height(&self, dialog: &Dialog, screen: Rect) -> u16 {
+        /// Frame borders plus a title row.
+        const CHROME: u16 = 2;
+        let rows = match dialog {
+            Dialog::System { .. } => 3,
+            Dialog::Sort { .. } => self.result().map_or(4, |r| r.columns.len()) as u16,
+            Dialog::Symbols { labels, .. } => labels.len() as u16,
+            Dialog::Links { matches, .. } => matches.len() as u16,
+            Dialog::Commands { .. } => self.available_commands("").len() as u16,
+            Dialog::Plugins { .. } => self.plugin_matches("").len() as u16,
+            Dialog::Settings { .. } => self.settings_labels().len() as u16,
+            Dialog::Input { .. } => 4,
+            Dialog::Detail { .. } => 12,
+            Dialog::Dump { .. } => 12,
+            Dialog::WindowsParameters { .. } => 18,
+            Dialog::GenerateSymbols { .. } => 15,
+            _ => 10,
+        };
+        // Cap at three quarters of the screen so the page behind the modal
+        // stays visible enough to keep the user oriented.
+        let cap = (screen.height * 3 / 4).max(8);
+        (rows + CHROME).clamp(4, cap)
+    }
     pub(super) fn draw_dialog(&self, frame: &mut Frame, area: Rect) {
         if matches!(
             self.dialog,
@@ -22,15 +108,8 @@ impl App {
             } else {
                 centered(
                     area,
-                    area.width.saturating_sub(6).min(90),
-                    match dialog {
-                        Dialog::System { .. } => 5,
-                        Dialog::Dump { .. } => 12,
-                        Dialog::WindowsParameters { .. } => 18,
-                        Dialog::GenerateSymbols { .. } => 15,
-                        Dialog::Input { .. } => 6,
-                        _ => 12,
-                    },
+                    self.dialog_width(dialog, area),
+                    self.dialog_height(dialog, area),
                 )
             };
             self.hits.borrow_mut().popup = popup;

@@ -3928,3 +3928,75 @@ fn layout_thresholds_live_in_one_place() {
     // The menu never takes more than a third of a narrow terminal.
     assert!(Space::new(64, 16).menu_width() < 64 / 3);
 }
+
+#[test]
+fn dialogs_size_to_their_content() {
+    // Every modal used to be 12 rows and `screen - 6` columns regardless of
+    // what it held, so a three-option picker filled the terminal and a
+    // 60x18 window lost two thirds of its screen to a two-line list.
+    let mut app = app();
+    let mut terminal = Terminal::new(TestBackend::new(80, 24)).unwrap();
+    let measure = |app: &mut App, dialog: Dialog, terminal: &mut Terminal<TestBackend>| {
+        app.dialog = Some(dialog);
+        terminal.draw(|f| app.draw(f)).unwrap();
+        let popup = app.hits.borrow().popup;
+        app.dialog = None;
+        popup
+    };
+
+    let system = measure(&mut app, Dialog::System { selected: 0 }, &mut terminal);
+    assert!(
+        system.height <= 6,
+        "three options do not need {} rows",
+        system.height
+    );
+    assert!(
+        system.width < 70,
+        "a short list does not need {} columns",
+        system.width
+    );
+
+    // A sort list is as tall as the result's columns, not a fixed 12.
+    let columns = app.result().map_or(0, |r| r.columns.len()) as u16;
+    let sort = measure(&mut app, Dialog::Sort { column: 0 }, &mut terminal);
+    assert_eq!(sort.height, columns + 2);
+
+    // Text entry gets room for the path being edited.
+    let input = measure(
+        &mut app,
+        Dialog::Input {
+            kind: InputKind::Export,
+            text: "exports/evidence.json".into(),
+            original: String::new(),
+            cursor: 0,
+            selected: false,
+        },
+        &mut terminal,
+    );
+    assert!(input.width >= 40, "input needs room, got {}", input.width);
+
+    // Nothing may exceed the screen or hide the page behind it.
+    for (w, h) in [(80u16, 24u16), (60, 18), (40, 12)] {
+        let mut terminal = Terminal::new(TestBackend::new(w, h)).unwrap();
+        for dialog in [
+            Dialog::Commands {
+                query: String::new(),
+                selected: 0,
+            },
+            Dialog::Plugins {
+                query: String::new(),
+                selected: 0,
+            },
+        ] {
+            let popup = measure(&mut app, dialog, &mut terminal);
+            assert!(
+                popup.width <= w && popup.height <= h,
+                "{popup:?} in {w}x{h}"
+            );
+            assert!(
+                popup.height * 4 <= h * 3 || h < 12,
+                "{popup:?} hides the page in {w}x{h}"
+            );
+        }
+    }
+}
