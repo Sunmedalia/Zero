@@ -196,6 +196,18 @@ struct HitMap {
     columns: Vec<Rect>,
     buttons: Vec<(Rect, KeyCode)>,
 }
+/// Everything `asset_list_for` filters on. When all of it is unchanged the
+/// previous index is still valid.
+/// Cached filtered indices for one asset section.
+type AssetIndex = Option<(AssetIndexKey, Vec<usize>)>;
+#[derive(Clone, PartialEq, Eq)]
+struct AssetIndexKey {
+    revision: u64,
+    query: String,
+    local_only: bool,
+    hidden: usize,
+    matches: usize,
+}
 #[derive(Default)]
 struct View {
     query: String,
@@ -213,6 +225,9 @@ pub struct App {
     root: PathBuf,
     registry: Registry,
     assets: Vec<Asset>,
+    /// Bumped whenever `assets` is replaced, so cached filters can tell a new
+    /// list from an edited one even when the length is unchanged.
+    asset_revision: u64,
     asset_rows: [usize; 3],
     asset_scroll: [usize; 3],
     asset_queries: [String; 3],
@@ -233,6 +248,13 @@ pub struct App {
     cache: PathBuf,
     settings: Settings,
     hits: RefCell<HitMap>,
+    /// Canonical root and per-input display paths. Both are filled lazily from
+    /// `&self` and dropped when the asset list is rebuilt.
+    root_cached: std::cell::OnceCell<PathBuf>,
+    path_cache: RefCell<HashMap<PathBuf, String>>,
+    /// Filtered asset indices per section, keyed by the state that produced
+    /// them. `asset_list_for` runs several times per frame.
+    asset_index_cache: RefCell<[AssetIndex; 3]>,
     table_state: RefCell<TableState>,
     focus: Focus,
     menu: usize,

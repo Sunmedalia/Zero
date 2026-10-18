@@ -234,8 +234,12 @@ impl App {
             section: AssetSection::Images,
             symbol_source: AssetSection::Symbols,
             root,
+            root_cached: std::cell::OnceCell::new(),
+            path_cache: RefCell::new(HashMap::new()),
+            asset_index_cache: RefCell::new(Default::default()),
             registry,
             assets,
+            asset_revision: 0,
             asset_rows: [asset_rows[0], asset_rows[1], 0],
             asset_scroll: [0; 3],
             asset_queries: Default::default(),
@@ -367,6 +371,10 @@ impl App {
         )
     }
     pub(super) fn refresh_assets(&mut self) {
+        // The asset list is the only thing that can change a path's resolved
+        // form, so the display cache is rebuilt with it.
+        self.path_cache.borrow_mut().clear();
+        self.root_cached = std::cell::OnceCell::new();
         match Registry::load(&self.cache) {
             Ok(registry) => self.registry = registry,
             Err(e) => {
@@ -383,6 +391,8 @@ impl App {
         ) {
             Ok(assets) => {
                 let previous = std::mem::replace(&mut self.assets, assets);
+                self.asset_revision = self.asset_revision.wrapping_add(1);
+                *self.asset_index_cache.borrow_mut() = Default::default();
                 self.asset_details.retain(|p, _| {
                     self.assets.iter().any(|a| {
                         &a.path == p
@@ -610,34 +620,84 @@ impl App {
             self.settings.page_size.min(available)
         }
     }
+    /// Shorten a path relative to the project root.
+    ///
+    /// This runs for every visible asset row on every frame, and each
+    /// `canonicalize` is a pair of system calls, so resolved paths are cached
+    /// by input. The cache is dropped whenever the asset list is rebuilt, which
+    /// is the only time a path's resolved form can change.
     pub(super) fn display_path(&self, path: &std::path::Path) -> String {
-        let root = self.root.canonicalize().unwrap_or(self.root.clone());
-        let path = path.canonicalize().unwrap_or(path.to_path_buf());
-        path.strip_prefix(root)
-            .unwrap_or(&path)
+        if let Some(hit) = self.path_cache.borrow().get(path) {
+            return hit.clone();
+        }
+        let root = self
+            .root_cached
+            .get_or_init(|| {
+                self.root
+                    .canonicalize()
+                    .unwrap_or_else(|_| self.root.clone())
+            })
+            .clone();
+        let resolved = path.canonicalize().unwrap_or_else(|_| path.to_path_buf());
+        let shown = resolved
+            .strip_prefix(&root)
+            .unwrap_or(&resolved)
             .display()
-            .to_string()
+            .to_string();
+        self.path_cache
+            .borrow_mut()
+            .insert(path.to_path_buf(), shown.clone());
+        shown
     }
     pub(super) fn asset_list(&self) -> Vec<&Asset> {
         self.asset_list_for(self.section)
     }
+    /// Assets shown in `section`, filtered by kind, search query and the
+    /// matched-only toggle.
+    ///
+    /// This is called several times per frame, and with a few hundred assets
+    /// the path lowercasing alone is measurable, so the index is cached until
+    /// one of the filter inputs changes.
     pub(super) fn asset_list_for(&self, section: AssetSection) -> Vec<&Asset> {
         let kind = if section == AssetSection::Images {
             Kind::Image
         } else {
             Kind::Symbols
         };
-        let query = self.asset_queries[section.slot()].to_lowercase();
-        self.assets
-            .iter()
-            .filter(|a| {
-                a.kind == kind
-                    && !self.hidden_cache_copies.contains(&a.path)
-                    && (section != AssetSection::Symbols
-                        || !self.local_only_matches
-                        || self.local_matches.contains_key(&a.path))
-                    && a.path.to_string_lossy().to_lowercase().contains(&query)
-            })
+        let key = AssetIndexKey {
+            revision: self.asset_revision,
+            query: self.asset_queries[section.slot()].to_lowercase(),
+            local_only: section == AssetSection::Symbols && self.local_only_matches,
+            hidden: self.hidden_cache_copies.len(),
+            matches: self.local_matches.len(),
+        };
+        let slot = section.slot();
+        let cached = {
+            let mut cache = self.asset_index_cache.borrow_mut();
+            match cache[slot].as_ref() {
+                Some((previous, indices)) if *previous == key => Some(indices.clone()),
+                _ => {
+                    let indices = self
+                        .assets
+                        .iter()
+                        .enumerate()
+                        .filter(|(_, a)| {
+                            a.kind == kind
+                                && !self.hidden_cache_copies.contains(&a.path)
+                                && (!key.local_only || self.local_matches.contains_key(&a.path))
+                                && a.path.to_string_lossy().to_lowercase().contains(&key.query)
+                        })
+                        .map(|(i, _)| i)
+                        .collect::<Vec<_>>();
+                    cache[slot] = Some((key, indices.clone()));
+                    Some(indices)
+                }
+            }
+        };
+        cached
+            .unwrap_or_default()
+            .into_iter()
+            .filter_map(|i| self.assets.get(i))
             .collect()
     }
     pub(super) fn remote_cached(&self, candidate: &RemoteMatch) -> bool {

@@ -3724,3 +3724,63 @@ fn paging_never_scrolls_past_the_last_row() {
         assert_eq!(app.table_state.borrow().offset(), 0, "total={total}");
     }
 }
+
+#[test]
+fn asset_filters_refresh_when_inputs_change() {
+    // The list index is cached per frame, so every input that can change the
+    // visible rows must invalidate it. A stale cache would show the wrong
+    // assets, which is worse than the cost it removes.
+    let mut app = app();
+    app.section = AssetSection::Symbols;
+    app.symbol_source = AssetSection::Symbols;
+    app.local_only_matches = false;
+    for name in ["alpha.json", "beta.json", "gamma.json"] {
+        app.assets.push(crate::workspace::Asset {
+            path: std::path::PathBuf::from(format!("/tmp/symbols/{name}")),
+            kind: crate::workspace::Kind::Symbols,
+            bytes: 1024,
+            available: true,
+            directory: false,
+            stamp: None,
+            origin: "已导入",
+        });
+    }
+    let names = |app: &App| {
+        app.asset_list()
+            .iter()
+            .map(|a| a.name())
+            .collect::<Vec<_>>()
+    };
+    // The fixture already registers the symbols directory itself, so compare
+    // only the entries this test adds.
+    let added = |app: &App| {
+        names(app)
+            .into_iter()
+            .filter(|n| n.ends_with(".json"))
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(added(&app), ["alpha.json", "beta.json", "gamma.json"]);
+    // Query change is reflected immediately.
+    app.asset_queries[1] = "beta".into();
+    assert_eq!(added(&app), ["beta.json"]);
+    app.asset_queries[1].clear();
+    assert_eq!(added(&app).len(), 3);
+    // Hidden cache copies drop out.
+    app.hidden_cache_copies
+        .insert(std::path::PathBuf::from("/tmp/symbols/beta.json"));
+    assert_eq!(added(&app), ["alpha.json", "gamma.json"]);
+    app.hidden_cache_copies.clear();
+    assert_eq!(added(&app).len(), 3);
+    // The matched-only toggle drops rows with no match.
+    app.local_only_matches = true;
+    assert!(added(&app).is_empty());
+    app.local_matches
+        .insert(std::path::PathBuf::from("/tmp/symbols/gamma.json"), vec![]);
+    assert_eq!(added(&app), ["gamma.json"]);
+    app.local_only_matches = false;
+    assert_eq!(added(&app).len(), 3);
+    // Replacing the asset list with the same length still invalidates.
+    app.assets[0].path = std::path::PathBuf::from("/tmp/symbols/renamed.json");
+    app.refresh_assets();
+    assert!(!added(&app).iter().any(|n| n == "alpha.json"));
+}
