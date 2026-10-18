@@ -1,11 +1,11 @@
 //! Locate analysis-engine hot spots on a real image.
 //!
-//!   bench_plugins IMAGE SYMBOLS [ROUNDS]
+//!   bench_plugins IMAGE SYMBOLS [ROUNDS] [FILTER]
 //!
-//! Prints the median wall time of every Linux plugin, then the cost of the
-//! per-field read path that each plugin row pays for. Timings are indicative:
-//! the first plugin also absorbs symbol loading, which is why the median of
-//! several rounds is reported.
+//! Prints the median and minimum wall time of every Linux plugin matching
+//! FILTER, then the cost of the per-field read path that each plugin row pays
+//! for. Timings are indicative: the first plugin also absorbs symbol loading,
+//! which is why several rounds are taken and the minimum is reported.
 use anyhow::Result;
 use std::{path::PathBuf, time::Instant};
 use zero_tui::{
@@ -22,14 +22,16 @@ fn main() -> Result<()> {
         .nth(3)
         .and_then(|n| n.parse().ok())
         .unwrap_or(3);
+    let filter = std::env::args().nth(4).unwrap_or_default();
     let cache = PathBuf::from(".zero/rust");
     let job = Job::default();
     let mut session = linux::Session::default();
     let mut rows = Vec::new();
-    for d in PLUGINS
-        .iter()
-        .filter(|d| !d.plugin.is_windows() && !d.plugin.is_dump())
-    {
+    for d in PLUGINS.iter().filter(|d| {
+        !d.plugin.is_windows()
+            && !d.plugin.is_dump()
+            && (filter.is_empty() || d.plugin.name().contains(&filter))
+    }) {
         let request = Request {
             image: &image,
             symbols: &symbol_path,
@@ -50,11 +52,11 @@ fn main() -> Result<()> {
             }
         }
         times.sort();
-        rows.push((times[times.len() / 2], d.plugin.name(), count));
+        rows.push((times[times.len() / 2], times[0], d.plugin.name(), count));
     }
     rows.sort_by_key(|row| std::cmp::Reverse(row.0));
-    for (elapsed, name, count) in rows {
-        println!("{elapsed:>12.2?}  {name:<20} {count} rows");
+    for (median, min, name, count) in rows {
+        println!("{median:>10.2?} median {min:>10.2?} min  {name:<20} {count} rows");
     }
 
     // Cost of one object field read, the unit every plugin row is built from.

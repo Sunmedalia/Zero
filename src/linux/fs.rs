@@ -108,16 +108,28 @@ impl Linux<'_> {
         Ok(())
     }
     pub(crate) fn file_path(&self, task: u64, file: u64, job: &Job) -> Result<String> {
+        let root = self.process_root(task)?;
+        self.file_path_from(root, file, job)
+    }
+    /// Resolve `file` against an already-resolved process root.
+    pub(crate) fn file_path_from(&self, root: (u64, u64), file: u64, job: &Job) -> Result<String> {
+        let path = self.field_address(file, "file", "f_path")?;
+        let d = self.number(path, "path", "dentry")?;
+        let m = self.number(path, "path", "mnt")?;
+        self.resolve_path(d, m, Some(root), job)
+    }
+    /// The `(dentry, mount)` pair a process resolves paths against.
+    ///
+    /// Constant for the lifetime of the captured process, and callers resolve
+    /// one path per mapped file, so it is worth reading once per process.
+    pub(crate) fn process_root(&self, task: u64) -> Result<(u64, u64)> {
         let fs = self.number(task, "task_struct", "fs")?;
         ensure!(fs != 0, "进程 fs 为空");
         let root = self.field_address(fs, "fs_struct", "root")?;
         let root_d = self.number(root, "path", "dentry")?;
         let root_m = self.number(root, "path", "mnt")?;
         ensure!(root_d != 0 && root_m != 0, "进程根目录为空");
-        let path = self.field_address(file, "file", "f_path")?;
-        let d = self.number(path, "path", "dentry")?;
-        let m = self.number(path, "path", "mnt")?;
-        self.resolve_path(d, m, Some((root_d, root_m)), job)
+        Ok((root_d, root_m))
     }
     pub(crate) fn resolve_path(
         &self,

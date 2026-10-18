@@ -52,6 +52,14 @@ impl Linux<'_> {
         } else {
             self.number(mm, "mm_struct", "mmap")?
         };
+        // Rows are `prefix + 5 columns`; building them in place avoids a second
+        // Vec allocation per VMA, and permission spellings repeat.
+        let mut permissions_cache: std::collections::HashMap<u64, String> =
+            std::collections::HashMap::new();
+        // One root per process: `file_path` otherwise re-reads it per mapping.
+        // A failure is not reported here: it must surface per VMA so the
+        // diagnostic order stays what callers already depend on.
+        let root = self.process_root(task).ok();
         let mut visited = HashSet::new();
         while node != 0 {
             job.check()?;
@@ -75,7 +83,10 @@ impl Linux<'_> {
                 let path = if file == 0 {
                     "[anonymous]".into()
                 } else {
-                    match self.file_path(task, file, job) {
+                    match root.map_or_else(
+                        || self.file_path(task, file, job),
+                        |root| self.file_path_from(root, file, job),
+                    ) {
                         Ok(path) => path,
                         Err(e) => {
                             job.check()?;
@@ -88,17 +99,18 @@ impl Linux<'_> {
                         }
                     }
                 };
-                Ok([
-                    prefix.clone(),
-                    vec![
-                        hex(start),
-                        hex(end),
-                        permissions(flags),
-                        offset.to_string(),
-                        path,
-                    ],
-                ]
-                .concat())
+                let permissions = permissions_cache
+                    .entry(flags)
+                    .or_insert_with(|| permissions(flags))
+                    .clone();
+                let mut row = Vec::with_capacity(prefix.len() + 5);
+                row.extend_from_slice(&prefix);
+                row.push(hex(start));
+                row.push(hex(end));
+                row.push(permissions);
+                row.push(offset.to_string());
+                row.push(path);
+                Ok(row)
             })();
             match row {
                 Ok(row) => result.rows.push(row),
@@ -137,6 +149,10 @@ impl Linux<'_> {
                     );
                 }
                 let mut budget = 256 * 1024 * 1024u64;
+                // One root per process, and one buffer for the header probe:
+                // both would otherwise be redone for every mapped region.
+                let root = self.process_root(task).ok();
+                let mut bytes = vec![0; 64];
                 for node in nodes {
                     job.check()?;
                     let read = (|| -> Result<()> {
@@ -156,15 +172,18 @@ impl Linux<'_> {
                         let amount = if plugin == Plugin::Elfs { 64 } else { 32 };
                         ensure!(budget >= amount, "用户读取达到 256 MiB 上限");
                         budget -= amount;
-                        let mut bytes = vec![0; amount as usize];
-                        vm.read(start, &mut bytes)?;
+                        bytes[..amount as usize].fill(0);
+                        vm.read(start, &mut bytes[..amount as usize])?;
                         if plugin == Plugin::Elfs && !bytes.starts_with(b"\x7fELF") {
                             return Ok(());
                         }
                         let path = if file == 0 {
                             "[anonymous]".into()
                         } else {
-                            match self.file_path(task, file, job) {
+                            match root.map_or_else(
+                                || self.file_path(task, file, job),
+                                |root| self.file_path_from(root, file, job),
+                            ) {
                                 Ok(v) => v,
                                 Err(e) => {
                                     partial(
@@ -205,7 +224,7 @@ impl Linux<'_> {
                                 perms,
                                 path,
                                 reason.into(),
-                                bytes
+                                bytes[..amount as usize]
                                     .iter()
                                     .map(|b| format!("{b:02x}"))
                                     .collect::<Vec<_>>()
