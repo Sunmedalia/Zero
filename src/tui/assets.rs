@@ -183,7 +183,7 @@ impl App {
                     // In a narrow pane the digest is the first thing to go: a
                     // truncated digest identifies nothing, while the format
                     // still does. The path then gets whatever is left.
-                    let narrow = area.width < 60;
+                    let narrow = !Space::new(area.width, area.height).full_digest();
                     let metadata = if narrow {
                         format!(" · {}", a.format())
                     } else {

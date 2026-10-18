@@ -70,6 +70,13 @@ impl Space {
     pub(super) fn asset_panes_side_by_side(&self) -> bool {
         self.width >= Self::MIN_ASSET_DETAIL_WIDTH
     }
+    /// Width below which a list pane cannot also show a full digest: the
+    /// metadata after the path has to shrink to just the format.
+    pub(super) const MIN_FULL_DIGEST_PANE: u16 = 60;
+    /// Whether a pane this wide can keep the digest beside the path.
+    pub(super) fn full_digest(&self) -> bool {
+        self.width >= Self::MIN_FULL_DIGEST_PANE
+    }
     /// The analysis page's system picker row, which the narrow layout replaces
     /// with region tabs.
     pub(super) fn system_row(&self) -> bool {

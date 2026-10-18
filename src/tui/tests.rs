@@ -684,8 +684,13 @@ fn layouts_and_popup() {
 /// cell after every CJK character and reported roughly half of each row.
 fn screen(terminal: &Terminal<TestBackend>, width: usize) -> String {
     use unicode_width::UnicodeWidthStr;
+    // Split on the buffer's own width: a caller that passes a stale size would
+    // otherwise produce rows offset against the real frame, and every string
+    // assertion downstream would be reading the wrong cells.
+    let actual = terminal.backend().buffer().area.width as usize;
+    debug_assert_eq!(actual, width, "screen() called with a stale width");
     let mut text = String::new();
-    for row in terminal.backend().buffer().content.chunks(width) {
+    for row in terminal.backend().buffer().content.chunks(actual) {
         let mut skip = 0usize;
         for cell in row {
             if skip > 0 {
