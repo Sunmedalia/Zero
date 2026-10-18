@@ -238,7 +238,23 @@ impl App {
         }
     }
     pub(super) fn draw_menu(&self, frame: &mut Frame, area: Rect, style: Style) {
-        let mut state = ListState::default().with_selected(Some(self.menu));
+        // Carry the scroll offset across frames. A fresh `ListState` restarts at
+        // the top every frame, so moving past the visible window left the
+        // highlight off screen and the list appeared frozen.
+        // `List` only scrolls far enough to reveal the selection, and it does so
+        // inside the render, which cannot be observed from here. The offset is
+        // therefore computed: keep the selection inside a window that starts at
+        // the remembered row.
+        let visible = area.height.saturating_sub(2) as usize;
+        let mut offset = self.menu_scroll.get();
+        if self.menu < offset {
+            offset = self.menu;
+        } else if visible > 0 && self.menu >= offset + visible {
+            offset = self.menu + 1 - visible;
+        }
+        let mut state = ListState::default()
+            .with_selected(Some(self.menu))
+            .with_offset(offset);
         let plugins = self.navigation_plugins();
         // Mark the category boundary before the highlighted plugin. The list is
         // a flat index, so this reads as a divider rather than a real heading:
@@ -249,9 +265,13 @@ impl App {
             .iter()
             .enumerate()
             .map(|(i, label)| {
+                // `dump` has no plugin behind it and is not a category, so it
+                // never gets a divider.
                 let category = plugins.get(i).map(|p| p.category());
-                let divider = category != previous && previous.is_some();
-                previous = category;
+                let divider = category != previous && previous.is_some() && category.is_some();
+                if category.is_some() {
+                    previous = category;
+                }
                 let mut text = String::new();
                 if divider {
                     text.push_str("· ");
@@ -280,6 +300,9 @@ impl App {
             area,
             &mut state,
         );
+        // Remember where the list ended up: `List` scrolls the selection into
+        // view internally, and the next frame has to start from there.
+        self.menu_scroll.set(state.offset());
         let mut hits = self.hits.borrow_mut();
         hits.menu = area;
         hits.menu_offset = state.offset();

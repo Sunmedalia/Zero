@@ -263,6 +263,7 @@ impl App {
             table_state: RefCell::new(TableState::default()),
             focus: Focus::Navigation,
             menu: 0,
+            menu_scroll: std::cell::Cell::new(0),
             plugin: Plugin::Pslist,
             windows: false,
             analysis_options: Default::default(),

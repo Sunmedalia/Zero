@@ -272,6 +272,10 @@ pub struct App {
     table_state: RefCell<TableState>,
     focus: Focus,
     menu: usize,
+    /// First menu row drawn. `hits` is rebuilt every frame, so the scroll
+    /// position has to live on the app or the list snaps back to the top.
+    /// A `Cell` because the renderer holds `&self`.
+    menu_scroll: std::cell::Cell<usize>,
     plugin: Plugin,
     windows: bool,
     analysis_options: crate::analysis::Options,

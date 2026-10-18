@@ -27,9 +27,10 @@ impl Space {
     /// Below this height the panes are stacked rather than side by side: a
     /// table needs a header row and a few rows to be worth splitting.
     pub(super) const MIN_TWO_PANE_HEIGHT: u16 = 16;
-    /// Widest menu column; narrower terminals get a slimmer one.
-    pub(super) const WIDE_MENU: u16 = 22;
-    pub(super) const NARROW_MENU: u16 = 20;
+    /// Menu column widths. The longest plugin label is 18 cells and the
+    /// highlight marker takes two more, so anything narrower clips names.
+    pub(super) const WIDE_MENU: u16 = 24;
+    pub(super) const NARROW_MENU: u16 = 22;
     /// Width at which the analysis page can afford the system picker row and
     /// the inspector column beside the workbench.
     pub(super) const MIN_INSPECTOR: u16 = 140;

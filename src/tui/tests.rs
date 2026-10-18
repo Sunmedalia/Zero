@@ -3925,8 +3925,14 @@ fn layout_thresholds_live_in_one_place() {
     assert_eq!(wide.menu_width(), Space::WIDE_MENU);
     assert_eq!(standard.menu_width(), Space::NARROW_MENU);
 
-    // The menu never takes more than a third of a narrow terminal.
-    assert!(Space::new(64, 16).menu_width() < 64 / 3);
+    // The menu is sized by its longest label (18 cells plus the highlight
+    // marker), not by a fraction of the terminal: clipping a plugin name is
+    // worse than a narrow table.
+    assert!(Space::new(64, 16).menu_width() >= 20);
+    assert!(
+        Space::new(64, 16).menu_width() + 20 <= 64,
+        "a table still fits"
+    );
 }
 
 #[test]
@@ -3998,5 +4004,55 @@ fn dialogs_size_to_their_content() {
                 "{popup:?} hides the page in {w}x{h}"
             );
         }
+    }
+}
+
+#[test]
+fn plugin_menu_scrolls_the_selection_into_view() {
+    // The menu used to restart at the top every frame, so once the selection
+    // moved past the visible rows the highlight was off screen and the list
+    // looked frozen while keys did nothing visible.
+    let (_dir, mut app) = preparation_fixture();
+    app.initialize(Default::default());
+    finish_test_job(&mut app);
+    app.switch_page(Page::Analysis);
+    let mut terminal = Terminal::new(TestBackend::new(80, 24)).unwrap();
+    let last = app.menu_items().len() - 1;
+    for target in [0usize, last / 2, last] {
+        app.menu = target;
+        terminal.draw(|f| app.draw(f)).unwrap();
+        let hits = app.hits.borrow().clone();
+        let rows = hits.menu.height.saturating_sub(2) as usize;
+        let offset = hits.menu_offset;
+        assert!(
+            target >= offset && target < offset + rows,
+            "selection {target} is outside rows {offset}..{} (height {})",
+            offset + rows,
+            hits.menu.height
+        );
+        // The highlighted row must be inside the drawn area.
+        let row = hits.menu.y + 1 + (target - offset) as u16;
+        assert!(row < hits.menu.bottom() - 1, "row {row} outside menu");
+    }
+}
+
+#[test]
+fn plugin_labels_are_not_clipped_by_the_menu_column() {
+    // The column is sized from the longest label; a clipped plugin name reads
+    // as a different plugin.
+    let app = app();
+    let longest = app
+        .menu_items()
+        .iter()
+        .map(|l| l.chars().count())
+        .max()
+        .unwrap_or(0) as u16;
+    for space in [Space::new(80, 24), Space::new(120, 40)] {
+        let width = space.menu_width();
+        // Two cells of highlight marker plus the category divider prefix.
+        assert!(
+            width >= longest + 2,
+            "menu {width} clips a {longest}-cell label"
+        );
     }
 }
