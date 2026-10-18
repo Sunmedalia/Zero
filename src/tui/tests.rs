@@ -27,7 +27,7 @@ fn windows_menu_and_parameters_follow_identification() {
 fn windows_plugin_labels_omit_prefix_in_navigation_and_search() {
     let mut app = app();
     app.select_os(crate::analysis::Os::Windows);
-    assert!(app.menu_items().contains(&"pslist".into()));
+    assert!(app.menu_items().contains(&"pslist"));
     assert!(
         app.menu_items()
             .iter()
@@ -486,8 +486,9 @@ fn all_asset_pages_render_on_wide_narrow_and_tiny_terminals() {
 #[test]
 fn compact_columns_mixed_numeric_sort_and_paginated_mouse_rows() {
     let columns = vec!["PID".into(), "Name".into(), "Path".into()];
-    let rows = vec![vec!["2".into(), "sh".into(), "/very/long/path".into()]];
-    assert_eq!(table_widths(&columns, &rows), vec![3, 4, 15]);
+    let rows = [vec!["2".into(), "sh".into(), "/very/long/path".into()]];
+    let borrowed = rows.iter().map(|r| (r.as_slice(), None));
+    assert_eq!(table_widths(&columns, borrowed), vec![3, 4, 15]);
     let mut mixed = vec!["2", "10", "1a", "0x3", ""];
     mixed.sort_by(|a, b| compare_values(a, b));
     assert_eq!(mixed, vec!["2", "0x3", "10", "", "1a"]);
@@ -2021,8 +2022,8 @@ fn resource_actions_are_unique_and_import_stays_accessible_on_small_screens() {
     app.initialize(Default::default());
     finish_test_job(&mut app);
     assert_eq!(app.preparation, Preparation::Ready);
-    assert!(app.menu_items().contains(&"bash".into()));
-    assert!(!app.menu_items().contains(&"history".into()));
+    assert!(app.menu_items().contains(&"bash"));
+    assert!(!app.menu_items().contains(&"history"));
     for section in [
         AssetSection::Images,
         AssetSection::Symbols,
@@ -3553,4 +3554,50 @@ fn truncated_footer_keeps_a_palette_entry() {
             app.dialog_key(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE));
         }
     }
+}
+
+#[test]
+fn mouse_moves_are_ignored_without_touching_state() {
+    // Terminal mouse-move events arrive continuously and nothing consumes them.
+    // They must not alter focus, selection or dialogs, and must not be treated
+    // as clicks by the hit map.
+    let mut app = app();
+    let mut terminal = Terminal::new(TestBackend::new(120, 32)).unwrap();
+    terminal.draw(|f| app.draw(f)).unwrap();
+    let before = app.hits.borrow().clone();
+    let focus = app.focus;
+    let page = app.page;
+    let row = app.row;
+    let menu = app.menu;
+    for (x, y) in [(0, 0), (5, 3), (60, 20), (119, 31)] {
+        assert!(!app.mouse(mouse_event(MouseEventKind::Moved, x, y)));
+    }
+    assert_eq!(app.focus, focus);
+    assert_eq!(app.page, page);
+    assert_eq!(app.row, row);
+    assert_eq!(app.menu, menu);
+    assert!(app.dialog.is_none());
+    // The hit map is untouched, so hit testing still describes the last frame.
+    let after = app.hits.borrow();
+    assert_eq!(after.tabs, before.tabs);
+    assert_eq!(after.buttons, before.buttons);
+    assert_eq!(after.asset_buttons, before.asset_buttons);
+    assert_eq!(after.columns, before.columns);
+}
+#[test]
+fn escaped_renders_controls_and_leaves_text_untouched() {
+    // The fast path returns ordinary text unchanged; the slow path must still
+    // escape every control character so a result cannot corrupt the terminal.
+    assert_eq!(
+        escaped("plain /usr/lib/x86_64.so"),
+        "plain /usr/lib/x86_64.so"
+    );
+    assert_eq!(escaped("中文与 emoji 🔒"), "中文与 emoji 🔒");
+    assert_eq!(escaped(""), "");
+    assert_eq!(escaped("a\nb"), "a\\nb");
+    assert_eq!(escaped("a\tb"), "a\\tb");
+    assert_eq!(escaped("a\u{1b}[31mb"), "a\\u{1b}[31mb");
+    assert_eq!(escaped("a\0b"), "a\\u{0}b");
+    // Mixed content keeps the readable part and escapes only the controls.
+    assert_eq!(escaped("ok\r\nnext"), "ok\\r\\nnext");
 }

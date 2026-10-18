@@ -155,22 +155,27 @@ pub fn run_with_options(
             }
             if event::poll(Duration::from_millis(80))? {
                 let next = event::read()?;
-                dirty = !matches!(
-                    next,
-                    Event::Mouse(MouseEvent {
-                        kind: MouseEventKind::Moved,
-                        ..
-                    })
-                );
                 let quit = match next {
-                    Event::Key(key) => app.key(key),
-                    Event::Mouse(mouse) => app.mouse(mouse),
+                    Event::Key(key) => {
+                        dirty = true;
+                        app.key(key)
+                    }
+                    Event::Mouse(mouse) => {
+                        // Moves are not consumed, so they must not force a
+                        // repaint; only actions that can change the screen do.
+                        if !matches!(mouse.kind, MouseEventKind::Moved) {
+                            dirty = true;
+                        }
+                        app.mouse(mouse)
+                    }
                     Event::Resize(width, height) => {
                         app.resize(width, height);
+                        dirty = true;
                         false
                     }
                     Event::Paste(text) => {
                         app.paste(&text);
+                        dirty = true;
                         false
                     }
                     _ => false,

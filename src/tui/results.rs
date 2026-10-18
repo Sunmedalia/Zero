@@ -110,7 +110,10 @@ impl App {
                         }
                     })
                     .collect::<Vec<_>>();
-                let natural = table_widths(&columns, &rows.range(0, 200));
+                // Size and draw from borrowed cells: a 1200-row table is
+                // re-laid out every frame, so cloning rows here dominated the
+                // render.
+                let natural = table_widths(&columns, rows.sample(0, 200));
                 let widths: Vec<_> = natural.iter().copied().map(Constraint::Length).collect();
                 let total = natural.iter().map(|n| *n as u32).sum::<u32>()
                     + natural.len().saturating_sub(1) as u32
@@ -121,8 +124,7 @@ impl App {
                     .min(virtual_width.saturating_sub(main.width) as usize)
                     as u16;
                 let render_area = Rect::new(main.x, main.y, virtual_width, main.height);
-                let rows = rows.range(page_start, page_size);
-                let row_count = rows.len();
+                let row_count = rows.len().saturating_sub(page_start).min(page_size);
                 let viewport_block = block.clone();
                 let inner = block.inner(render_area);
                 let [_, columns_area] = Layout::horizontal([
@@ -136,15 +138,17 @@ impl App {
                     .split(columns_area)
                     .to_vec();
                 let table = Table::new(
-                    rows.into_iter().enumerate().map(|(i, row)| {
-                        Row::new(row.iter().map(|v| escaped(v)).collect::<Vec<_>>()).style(
-                            Style::default().fg(TEXT).bg(if (page_start + i) % 2 == 1 {
-                                STRIPE
-                            } else {
-                                SURFACE
-                            }),
-                        )
-                    }),
+                    rows.sample(page_start, page_size)
+                        .enumerate()
+                        .map(|(i, row)| {
+                            Row::new(cells_to_line(row)).style(Style::default().fg(TEXT).bg(
+                                if (page_start + i) % 2 == 1 {
+                                    STRIPE
+                                } else {
+                                    SURFACE
+                                },
+                            ))
+                        }),
                     widths,
                 )
                 .header(
@@ -225,8 +229,8 @@ impl App {
         let mut state = ListState::default().with_selected(Some(self.menu));
         let items = self
             .menu_items()
-            .into_iter()
-            .map(ListItem::new)
+            .iter()
+            .map(|label| ListItem::new(*label))
             .collect::<Vec<_>>();
         frame.render_stateful_widget(
             List::new(items)

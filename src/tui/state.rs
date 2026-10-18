@@ -316,16 +316,39 @@ struct IndexedRows<'a> {
     result: Option<&'a Results>,
     index: std::rc::Rc<crate::result_view::Index>,
 }
-impl IndexedRows<'_> {
+/// A borrowed table row plus the single cell a tree decoration replaces.
+type BorrowedRow<'a> = (&'a [String], Option<(usize, String)>);
+impl<'a> IndexedRows<'a> {
     fn len(&self) -> usize {
         self.index.visible.len()
     }
     fn get(&self, position: usize) -> Option<Vec<String>> {
         self.index.row(self.result?, position)
     }
-    fn range(&self, start: usize, count: usize) -> Vec<Vec<String>> {
-        (start..start.saturating_add(count).min(self.len()))
-            .filter_map(|i| self.get(i))
-            .collect()
+    /// Borrowed rows for rendering, so drawing a frame does not clone the
+    /// visible page out of the result set. The index is shared by reference
+    /// rather than cloned per row.
+    fn sample(
+        &'a self,
+        start: usize,
+        count: usize,
+    ) -> impl Iterator<Item = BorrowedRow<'a>> + Clone + 'a {
+        let end = start.saturating_add(count).min(self.len());
+        (start..end).filter_map(move |i| self.index.cells(self.result?, i))
     }
+}
+/// One table row, substituting the decorated cell when the row is part of a
+/// collapsed or expanded tree.
+fn cells_to_line((cells, decoration): BorrowedRow<'_>) -> Vec<Line<'static>> {
+    cells
+        .iter()
+        .enumerate()
+        .map(|(i, cell)| {
+            let text = match decoration.as_ref() {
+                Some((column, decorated)) if *column == i => decorated,
+                _ => cell,
+            };
+            Line::from(escaped(text))
+        })
+        .collect()
 }

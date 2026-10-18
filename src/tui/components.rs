@@ -102,46 +102,100 @@ fn edit_input(text: &mut String, cursor: &mut usize, selected: &mut bool, key: K
         _ => {}
     }
 }
-fn navigation_plugins() -> Vec<Plugin> {
-    let categories = [
-        "Process",
-        "System",
-        "Memory",
-        "Files",
-        "Network",
-        "Integrity",
-    ];
-    categories
-        .into_iter()
-        .flat_map(|category| {
-            PLUGINS
-                .iter()
-                .filter(move |d| {
-                    !d.plugin.is_dump() && !d.plugin.is_windows() && d.plugin.category() == category
-                })
-                .map(|d| d.plugin)
-        })
-        .collect()
+/// Plugin order in the navigation menu. This is a fixed property of the plugin
+/// registry, so it is computed once instead of rescanning every descriptor on
+/// each keystroke and frame.
+fn navigation_plugins() -> &'static [Plugin] {
+    static ORDER: std::sync::OnceLock<Vec<Plugin>> = std::sync::OnceLock::new();
+    ORDER.get_or_init(|| {
+        const CATEGORIES: [&str; 6] = [
+            "Process",
+            "System",
+            "Memory",
+            "Files",
+            "Network",
+            "Integrity",
+        ];
+        CATEGORIES
+            .into_iter()
+            .flat_map(|category| {
+                PLUGINS
+                    .iter()
+                    .filter(move |d| {
+                        !d.plugin.is_dump()
+                            && !d.plugin.is_windows()
+                            && d.plugin.category() == category
+                    })
+                    .map(|d| d.plugin)
+            })
+            .collect()
+    })
 }
-fn menu_items() -> Vec<String> {
-    navigation_plugins()
-        .iter()
-        .map(|p| plugin_label(*p).to_string())
-        .chain(std::iter::once("dump".into()))
-        .collect()
+/// Windows plugins follow the same category order as Linux so the menu layout
+/// is stable when the detected system changes.
+fn windows_navigation_plugins() -> &'static [Plugin] {
+    static ORDER: std::sync::OnceLock<Vec<Plugin>> = std::sync::OnceLock::new();
+    ORDER.get_or_init(|| {
+        const CATEGORIES: [&str; 6] = [
+            "Process",
+            "System",
+            "Memory",
+            "Files",
+            "Network",
+            "Integrity",
+        ];
+        CATEGORIES
+            .into_iter()
+            .flat_map(|category| {
+                PLUGINS
+                    .iter()
+                    .filter(move |d| {
+                        d.plugin.is_windows()
+                            && !d.plugin.is_dump()
+                            && d.plugin.category() == category
+                    })
+                    .map(|d| d.plugin)
+            })
+            .collect()
+    })
+}
+fn windows_menu_items() -> &'static [&'static str] {
+    static LABELS: std::sync::OnceLock<Vec<&'static str>> = std::sync::OnceLock::new();
+    LABELS.get_or_init(|| {
+        windows_navigation_plugins()
+            .iter()
+            .map(|p| plugin_label(*p))
+            .chain(std::iter::once("dump"))
+            .collect()
+    })
+}
+fn menu_items() -> &'static [&'static str] {
+    static LABELS: std::sync::OnceLock<Vec<&'static str>> = std::sync::OnceLock::new();
+    LABELS.get_or_init(|| {
+        navigation_plugins()
+            .iter()
+            .map(|p| plugin_label(*p))
+            .chain(std::iter::once("dump"))
+            .collect()
+    })
 }
 
+/// Render control characters as visible escapes so table cells cannot corrupt
+/// the terminal. Runs on every visible cell of every frame, so it walks the
+/// string once and only allocates when an escape is actually needed.
 fn escaped(value: &str) -> String {
-    value
-        .chars()
-        .flat_map(|c| {
-            if c.is_control() {
-                c.escape_default().collect::<Vec<_>>()
-            } else {
-                vec![c]
-            }
-        })
-        .collect()
+    if !value.chars().any(char::is_control) {
+        return value.to_owned();
+    }
+    let mut out = String::with_capacity(value.len());
+    for c in value.chars() {
+        if c.is_control() {
+            out.extend(c.escape_default());
+        } else {
+            out.push(c);
+        }
+    }
+    out
 }
 fn banner_candidates(result: &Results) -> Vec<&Vec<String>> {
     let clean = result
@@ -168,17 +222,26 @@ fn banner_candidates(result: &Results) -> Vec<&Vec<String>> {
 fn compare_values(a: &str, b: &str) -> std::cmp::Ordering {
     crate::result_view::compare(a, b)
 }
-fn table_widths(columns: &[String], rows: &[Vec<String>]) -> Vec<u16> {
+/// Column widths from the header and a bounded sample of the visible rows.
+/// Borrows the cells so sizing does not clone the table.
+fn table_widths<'a>(
+    columns: &[String],
+    rows: impl Iterator<Item = (&'a [String], Option<(usize, String)>)> + Clone,
+) -> Vec<u16> {
     columns
         .iter()
         .enumerate()
         .map(|(i, column)| {
             let header = Span::raw(column).width();
             let data = rows
-                .iter()
-                .take(200)
-                .filter_map(|r| r.get(i))
-                .map(|v| Span::raw(escaped(v)).width())
+                .clone()
+                .filter_map(|(cells, decoration)| {
+                    let value = match decoration.as_ref() {
+                        Some((column, text)) if *column == i => text.as_str(),
+                        _ => cells.get(i)?.as_str(),
+                    };
+                    Some(Span::raw(escaped(value)).width())
+                })
                 .max()
                 .unwrap_or(0);
             header.max(data.min(60)).clamp(3, 120) as u16

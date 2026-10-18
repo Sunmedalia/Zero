@@ -765,7 +765,6 @@ impl App {
         }
     }
     pub(super) fn mouse(&mut self, mouse: MouseEvent) -> bool {
-        let hits = self.hits.borrow().clone();
         let point = Position::new(mouse.column, mouse.row);
         let click = mouse.kind == MouseEventKind::Down(MouseButton::Left);
         if mouse.kind == MouseEventKind::Down(MouseButton::Right) {
@@ -776,9 +775,12 @@ impl App {
             MouseEventKind::ScrollDown => Some(KeyCode::Down),
             _ => None,
         };
+        // Mouse moves are the most frequent terminal event and nothing consumes
+        // them, so reject them before copying the hit map.
         if !click && scroll.is_none() {
             return false;
         }
+        let hits = self.hits.borrow().clone();
         if matches!(
             self.dialog,
             Some(Dialog::Input {

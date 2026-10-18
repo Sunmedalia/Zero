@@ -74,41 +74,21 @@ impl App {
             self.prepare_selected_image();
         }
     }
-    pub(super) fn navigation_plugins(&self) -> Vec<Plugin> {
-        if !self.windows {
-            return navigation_plugins();
+    /// Menu order for the active platform. Both lists are fixed at compile
+    /// time, so each is built once and shared.
+    pub(super) fn navigation_plugins(&self) -> &'static [Plugin] {
+        if self.windows {
+            windows_navigation_plugins()
+        } else {
+            navigation_plugins()
         }
-        [
-            "Process",
-            "System",
-            "Memory",
-            "Files",
-            "Network",
-            "Integrity",
-        ]
-        .into_iter()
-        .flat_map(|category| {
-            PLUGINS
-                .iter()
-                .filter(move |d| {
-                    d.plugin.is_windows() && !d.plugin.is_dump() && d.plugin.category() == category
-                })
-                .map(|d| d.plugin)
-        })
-        .collect()
     }
-    pub(super) fn menu_items(&self) -> Vec<String> {
-        if !self.windows {
-            return menu_items();
+    pub(super) fn menu_items(&self) -> &'static [&'static str] {
+        if self.windows {
+            windows_menu_items()
+        } else {
+            menu_items()
         }
-        let mut items = Vec::new();
-        items.extend(
-            self.navigation_plugins()
-                .iter()
-                .map(|p| plugin_label(*p).to_string()),
-        );
-        items.push("dump".into());
-        items
     }
     pub(super) fn plugin_matches(&self, query: &str) -> Vec<Plugin> {
         if !self.windows {
@@ -117,7 +97,8 @@ impl App {
         let query = query.to_lowercase();
         let mut items = self
             .navigation_plugins()
-            .into_iter()
+            .iter()
+            .copied()
             .filter(|p| plugin_search_hit(*p, &query))
             .collect::<Vec<_>>();
         if "dump".contains(&query) {

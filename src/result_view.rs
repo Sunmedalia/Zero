@@ -12,6 +12,9 @@ pub struct Line {
     pub row: usize,
     pub decoration: Option<(usize, usize, char)>,
 }
+/// A borrowed table row: the stored cells plus the single cell a tree
+/// decoration replaces.
+pub type Cells<'a> = (&'a [String], Option<(usize, String)>);
 impl Index {
     pub fn build(
         result: &Results,
@@ -110,6 +113,18 @@ impl Index {
             *value = format!("{}{marker} {value}", "  ".repeat(depth));
         }
         Some(row)
+    }
+    /// Borrowed cell access for rendering. A tree row carries one decorated
+    /// cell, returned separately so the caller can draw it without cloning the
+    /// whole row on every frame.
+    pub fn cells<'a>(&'a self, result: &'a Results, position: usize) -> Option<Cells<'a>> {
+        let line = self.visible.get(position)?;
+        let row = result.rows.get(line.row)?;
+        let decoration = line.decoration.and_then(|(column, depth, marker)| {
+            row.get(column)
+                .map(|value| (column, format!("{}{marker} {value}", "  ".repeat(depth))))
+        });
+        Some((row.as_slice(), decoration))
     }
 }
 pub fn compare(a: &str, b: &str) -> std::cmp::Ordering {
