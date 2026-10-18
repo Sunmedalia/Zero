@@ -148,9 +148,15 @@ impl App {
                     } else {
                         ("[待下载]", MUTED)
                     };
+                    // The repository path ends in a 64-character content hash,
+                    // which is identical for every candidate of the same
+                    // kernel; the distinguishing part is the version in the
+                    // middle. Show the head and the file name, and drop the
+                    // hash, rather than letting the tail crowd out the rest.
+                    let shown = compact_remote_path(&m.path, area.width);
                     ListItem::new(Line::from(vec![
                         Span::styled(tag, Style::default().fg(color)),
-                        Span::styled(format!(" {}", escaped(&m.path)), Style::default().fg(TEXT)),
+                        Span::styled(format!(" {}", escaped(&shown)), Style::default().fg(TEXT)),
                     ]))
                 })
                 .collect::<Vec<_>>()

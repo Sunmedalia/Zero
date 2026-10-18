@@ -4113,3 +4113,56 @@ fn long_asset_paths_keep_the_row_readable() {
         }
     }
 }
+
+#[test]
+fn remote_rows_stay_distinguishable_without_losing_the_download_path() {
+    // Repository paths end in a 64-character content hash that is identical
+    // across the candidates for one kernel, so the tail is the least
+    // informative part. It is elided for display only: the full path still
+    // reaches the downloader and the detail panel.
+    let mut app = app();
+    app.switch_page(Page::Assets);
+    app.section = AssetSection::Remote;
+    app.symbol_source = AssetSection::Remote;
+    app.remote = (0..8)
+        .map(|i| crate::symbols::RemoteMatch {
+            banner: format!("Linux version 6.8.{i}-amd64 (build@host) #1 SMP"),
+            path: format!(
+                "linux/6.8.{i}-amd64/Debian_6.8.{i}-1_amd64-{}.json.xz",
+                "abcdef0123456789".repeat(4)
+            ),
+            url: format!("https://example.invalid/6.8.{i}.json.xz"),
+        })
+        .collect();
+    let full: Vec<String> = app.remote.iter().map(|m| m.path.clone()).collect();
+    for (w, h) in [(120u16, 40u16), (80, 24), (60, 18)] {
+        let mut terminal = Terminal::new(TestBackend::new(w, h)).unwrap();
+        terminal.draw(|f| app.draw(f)).unwrap();
+        let text = screen(&terminal, w as usize);
+        let rows: Vec<&str> = text.lines().filter(|l| l.contains("待下载")).collect();
+        assert!(!rows.is_empty(), "{w}x{h}: no remote rows");
+        // Each row shows its own version, so no two rows are identical.
+        let mut seen = std::collections::HashSet::new();
+        for row in &rows {
+            assert!(
+                seen.insert(row.to_string()),
+                "{w}x{h}: duplicate remote row {row}"
+            );
+        }
+        // The rendered rows must not have been truncated to the point that the
+        // version is gone.
+        assert!(
+            rows.iter().any(|r| r.contains("6.8.")),
+            "{w}x{h}: version missing from every row\n{text}"
+        );
+    }
+    // The model still holds the untouched paths.
+    assert_eq!(
+        app.remote
+            .iter()
+            .map(|m| m.path.clone())
+            .collect::<Vec<_>>(),
+        full,
+        "display compaction must not rewrite the candidate"
+    );
+}

@@ -264,6 +264,50 @@ fn fit<'a>(
     }
     out
 }
+/// Shorten a repository path for display.
+///
+/// These paths end in a long content hash that is the same for every candidate
+/// of one kernel, so the tail is the least informative part. The directory and
+/// the file name are kept and the hash is elided in the middle.
+fn compact_remote_path(path: &str, width: u16) -> String {
+    let budget = (width as usize).saturating_sub(12).max(16);
+    if Span::raw(path).width() <= budget {
+        return path.to_string();
+    }
+    // The file name is `<distribution>_<version>-<hash>.json.xz`; the hash is
+    // 64 hex characters that are identical across candidates, so it is the part
+    // worth dropping. Cut the name before the hash and keep the extension.
+    if let Some((dir, file)) = path.rsplit_once('/') {
+        let (stem, extension) = match file.find(".json") {
+            Some(at) => (&file[..at], &file[at..]),
+            None => (file, ""),
+        };
+        // The hash follows the last '-'; everything before it identifies the
+        // build.
+        let informative = stem.rsplit_once('-').map_or(stem, |(head, tail)| {
+            if tail.len() >= 32 && tail.chars().all(|c| c.is_ascii_hexdigit()) {
+                head
+            } else {
+                stem
+            }
+        });
+        let compact = format!("{dir}/{informative}{extension}");
+        if Span::raw(&compact).width() <= budget {
+            return compact;
+        }
+        // Still too wide: shorten the directory part, which repeats across
+        // candidates, and keep the informative file name.
+        let name_room = budget.saturating_sub(2).max(8);
+        let name = format!("{informative}{extension}");
+        let name = if Span::raw(&name).width() > name_room {
+            truncate_with_ellipsis(&name, name_room)
+        } else {
+            name
+        };
+        return format!("…/{name}");
+    }
+    truncate_with_ellipsis(path, budget)
+}
 /// Shorten a path to `budget` cells, keeping the end.
 ///
 /// The tail of a path distinguishes files: six captures in the same directory
