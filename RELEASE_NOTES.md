@@ -1,16 +1,15 @@
-# Zero v0.1.3
+# Zero v0.1.4
 
-本次更新加入跨会话 banner 识别缓存复用，并修复 x86_64 KASLR 下符号匹配成功但页表验证失败的问题。
+本次更新加入 Linux `netscan`，改进资源操作与小窗口布局，并优化镜像准备、TUI 和 Linux／Windows 插件的执行开销。
 
-- 首次完成识别后，将完整 banner 与物理地址原子保存到 `.zero/rust/identification/`。再次启动或选用相同镜像时，核对源文件和解压文件元数据并读取候选位置，直接复用识别结果，省去全镜像扫描。TUI、CLI 和 MCP 的识别与符号匹配均使用该缓存。
-- 源文件变化、识别缓存损坏、gzip 解压文件损坏或丢失时自动重新准备；正式分析仍校验完整镜像摘要，分析结果缓存仍以已验证摘要为依据。
-- x86_64 页表定位从 `init_task.real_parent` 自指针推导 KASLR 偏移候选，再用运行时地址验证完整 banner、PID 0、swapper 名称和双向任务链表。验证成功后将偏移用于后续符号访问，拒绝错误或歧义候选。
-- 分析引擎缓存版本更新为 `native-15`，旧版分析结果缓存自动失效。
+- Linux 新增 `netscan`，通过进程 FD 枚举 TCP／UDP IPv4／IPv6 socket，显示端点、状态和所属进程；同一进程的重复引用合并，共享 socket 的不同进程分别保留。CLI、TUI 和 MCP 均可使用。它不扫描无进程 FD 引用的对象或已释放连接。
+- Bash 历史恢复在插件列表中统一为 `bash`，旧命令中的 `history` 保留为兼容别名。
+- 资源库操作集中到底部工具栏，随当前区域切换；搜索框按需显示。布局根据可用空间调整工具栏、详情、插件列表和对话框，修复长路径、插件名称、标题和选中行被裁切或移出视口的问题，并保持焦点与实际显示区域一致。
+- 减少 TUI 每帧分配，缓存路径、资源及远程索引筛选结果，忽略不需要重绘的鼠标移动。Windows 句柄扫描缓存对象类型名，pool 扫描与页表遍历复用缓冲区；Linux 路径扫描按进程复用根目录解析。部分镜像摘要路径并行读取与哈希。
+- 增加跨页面和终端尺寸的布局回归测试，以及恶意结果文本、分页边界、畸形 ELF 和镜像读取边界测试；WOW64 loader 列表与对应偏移在同一表中维护。
 
-本地 `make check` 通过：格式检查、Clippy、230 项自动测试和 release 构建。新增回归覆盖跨会话识别、TUI 重启、缓存损坏恢复、gzip 解压缓存失效、LiME 跨段边界，以及高于 4 GiB 的物理地址与非零 x86_64 KASLR 偏移；后者复现了未重定位虚拟地址在 `level 21` 缺页的失败，并验证修复后的进程与模块读取。
+发布工作流对 Linux／macOS 的 x86_64 和 ARM64 四个目标执行格式检查、Clippy、自动测试、release 构建、兼容文档检查和命令行冒烟测试，通过后发布安装包与 `SHA256SUMS`。需要本地镜像或符号数据的 ignored 验收测试不在此工作流中执行。
 
-x86_64 KASLR 验证使用合成 LiME 镜像，尚未对用户报告的 Debian 6.12.105 实际镜像完成验收。未压缩的 AVML LiME 输出可按 LiME 读取；AVML 的 Snappy 压缩格式不属于当前支持的 gzip 格式。五级页表仍不支持。
+每包包含 `zero`、`zero-tui`、`zero-mcp` 和 README。Windows 指分析镜像系统；本版本没有 Windows 宿主可执行文件。Linux 包在 Ubuntu 24.04 构建，需要兼容的 glibc 环境。使用 `SHA256SUMS` 核验下载文件。
 
-发布包提供 Linux／macOS 的 x86_64 和 ARM64 构建，每包包含 `zero`、`zero-tui`、`zero-mcp` 和 README。Windows 指分析镜像系统；本版本没有 Windows 宿主可执行文件。Linux 包在 Ubuntu 24.04 构建，需要兼容的 glibc 环境。使用 `SHA256SUMS` 核验下载文件。
-
-用法与兼容范围见 [使用文档](https://github.com/Sunmedalia/Zero/blob/v0.1.3/docs/usage.md) 和 [兼容文档](https://github.com/Sunmedalia/Zero/blob/v0.1.3/docs/compatibility.md)。
+用法与兼容范围见 [使用文档](https://github.com/sunmedalia/zero/blob/v0.1.4/docs/usage.md) 和 [兼容文档](https://github.com/sunmedalia/zero/blob/v0.1.4/docs/compatibility.md)。
