@@ -1339,7 +1339,6 @@ export class App {
     if (section !== 'images') {
       this.state.symbolSource = section;
     }
-    this.state.focus = 'navigation';
     await this.refreshAssets();
   }
 

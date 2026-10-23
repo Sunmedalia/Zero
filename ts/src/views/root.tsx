@@ -263,31 +263,8 @@ async function routeKey(
 
 async function assetKey(app: App, token: string): Promise<void> {
   const state = app.state;
-  if (state.focus === 'content' && state.hits.assetDetail.height === 0) {
-    state.focus = 'navigation';
-  }
+  state.focus = 'navigation';
   const slot = state.section === 'images' ? 0 : state.section === 'symbols' ? 1 : 2;
-  if (state.focus === 'content' && ['Up', 'Down', 'j', 'k', 'PageUp', 'PageDown', 'Home', 'End'].includes(token)) {
-    const maximum = Math.max(
-      app.assetText().split('\n').length - Math.max(state.hits.assetDetail.height - 2, 1),
-      0,
-    );
-    const current = state.assetScroll[slot];
-    state.assetScroll[slot] =
-      token === 'Up' || token === 'k'
-        ? Math.max(current - 1, 0)
-        : token === 'Down' || token === 'j'
-          ? Math.min(current + 1, maximum)
-          : token === 'PageUp'
-            ? Math.max(current - 10, 0)
-            : token === 'PageDown'
-              ? Math.min(current + 10, maximum)
-              : token === 'Home'
-                ? 0
-                : maximum;
-    app.emitChange();
-    return;
-  }
   const command = app.resolveKey(token);
   if (command) {
     await app.runCommand(command);
@@ -296,16 +273,10 @@ async function assetKey(app: App, token: string): Promise<void> {
   switch (token) {
     case 'Tab':
     case 'BackTab': {
-      const back = token === 'BackTab';
-      const detail = state.hits.assetDetail.height > 0;
-      const onDetail = state.focus === 'content';
-      const onImages = !onDetail && state.section === 'images';
-      const nextDetail = onDetail ? false : onImages ? back && detail : !back && detail;
-      state.focus = nextDetail ? 'content' : 'navigation';
-      if (!nextDetail) {
-        const nextImages = onDetail ? back : onImages ? !back : false;
-        state.section = nextImages ? 'images' : state.symbolSource;
-      }
+      const sections = ['images', 'symbols', 'remote'] as const;
+      const current = sections.indexOf(state.section);
+      const step = token === 'BackTab' ? 2 : 1;
+      await app.switchSection(sections[(current + step) % sections.length]!);
       app.emitChange();
       return;
     }
@@ -323,16 +294,16 @@ async function assetKey(app: App, token: string): Promise<void> {
       app.emitChange();
       return;
     case 'PageUp':
-      state.assetRows[slot] = Math.max(state.assetRows[slot] - 10, 0);
-      app.emitChange();
-      return;
-    case 'PageDown':
-      state.assetRows[slot] = Math.min(
-        state.assetRows[slot] + 10,
+    case 'PageDown': {
+      const visible = Math.max(app.layout().panes[0]?.entries.length ?? 1, 1);
+      const delta = token === 'PageUp' ? -visible : visible;
+      state.assetRows[slot] = Math.max(0, Math.min(
+        state.assetRows[slot] + delta,
         Math.max(app.assetCountFor(state.section) - 1, 0),
-      );
+      ));
       app.emitChange();
       return;
+    }
     case 'Home':
       state.assetRows[slot] = 0;
       app.emitChange();

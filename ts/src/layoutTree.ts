@@ -11,14 +11,12 @@
 import type { AppState, Dialog, HitMap } from './state.js';
 import type { Focus, Page, Section } from './actions.js';
 import {
-  assetDetail as assetDetailSpace,
-  assetPanesSideBySide,
-  assetTwoPanes,
   inspector as inspectorSpace,
   menuWidth,
   space,
   twoPanes,
 } from './layout.js';
+import { imageLines } from './assetView.js';
 import { dialogHeight, dialogWidth } from './dialogs.js';
 import { assetListFor, remoteList, result, settingsLabels, viewIndex } from './state.js';
 import { actionOf, commandMatches, footerActions, toolbarActions } from './actions.js';
@@ -74,6 +72,8 @@ export interface PaneLayout {
   offset: number;
   /** Rows the list can show. */
   visible: number;
+  /** Each entry may occupy several terminal lines (wrapped image names/paths). */
+  entries: { index: number; rect: Rect }[];
 }
 
 export interface ButtonLayout {
@@ -208,7 +208,7 @@ export function computeLayout(state: AppState, columns: number, rows: number): L
   }
 
   if (state.page === 'assets') {
-    layoutAssets(base, state, layout);
+    layoutAssets(base, state);
   } else {
     layoutAnalysis(base, state, layout);
   }
@@ -217,40 +217,17 @@ export function computeLayout(state: AppState, columns: number, rows: number): L
   return base;
 }
 
-function layoutAssets(base: Layout, state: AppState, layout: ReturnType<typeof space>): void {
+function layoutAssets(base: Layout, state: AppState): void {
   const { columns } = base;
-  let y = base.body.y;
+  const y = base.body.y;
   base.sources = rect(0, y, columns, 1);
   base.sourceHits = [
     { rect: rect(0, y, cellWidth(' 镜像 '), 1), section: 'images' },
     { rect: rect(7, y, cellWidth(' 本地库 '), 1), section: 'symbols' },
     { rect: rect(18, y, cellWidth(' 远程索引 '), 1), section: 'remote' },
   ];
-  y += 1;
-
-  const detailVisible = assetDetailSpace(layout);
-  const detailHeight = detailVisible ? 6 : 0;
-  const paneArea = rect(0, y, columns, Math.max(base.body.height - 1 - detailHeight, 1));
-  if (detailVisible) {
-    base.assetDetail = rect(0, paneArea.y + paneArea.height, columns, detailHeight);
-  }
-
-  const paneHeight = paneArea.height;
-  if (!assetTwoPanes(layout)) {
-    base.panes.push(paneFor(base, state, state.section, paneArea.x, paneArea.y, columns, paneHeight));
-  } else if (assetPanesSideBySide(layout)) {
-    const leftWidth = Math.floor(columns * 0.42);
-    base.panes.push(paneFor(base, state, 'images', 0, paneArea.y, leftWidth, paneHeight));
-    base.panes.push(
-      paneFor(base, state, state.symbolSource, leftWidth, paneArea.y, columns - leftWidth, paneHeight),
-    );
-  } else {
-    const top = Math.floor(paneHeight / 2);
-    base.panes.push(paneFor(base, state, 'images', 0, paneArea.y, columns, top));
-    base.panes.push(
-      paneFor(base, state, state.symbolSource, 0, paneArea.y + top, columns, paneHeight - top),
-    );
-  }
+  // Source tabs are pages: only the active source owns the full content area.
+  base.panes.push(paneFor(base, state, state.section, 0, y + 1, columns, base.body.height - 1));
 }
 
 /** One resource list pane, including its search field and row hit regions. */
@@ -269,10 +246,21 @@ function paneFor(
   const search = searchVisible ? rect(x, y, width, SEARCH_ROWS) : null;
   const list = rect(x, y + searchHeight, width, listHeight);
   const rowsRect = rect(list.x + 1, list.y + 1, Math.max(list.width - 2, 1), Math.max(list.height - 2, 1));
-  const count = section === 'remote' ? remoteList(state).length : assetListFor(state, section).length;
-  const selected = state.assetRows[section === 'images' ? 0 : section === 'symbols' ? 1 : 2];
+  const assets = assetListFor(state, section);
+  const count = section === 'remote' ? remoteList(state).length : assets.length;
+  const selected = Math.min(state.assetRows[section === 'images' ? 0 : section === 'symbols' ? 1 : 2], Math.max(count - 1, 0));
   const visible = Math.max(rowsRect.height, 1);
-  const offset = clampOffset(selected, count, visible);
+  const entryHeight = (index: number): number => section === 'images' && assets[index]
+    ? imageLines(assets[index]!, Math.max(rowsRect.width - 2, 1)).length
+    : 1;
+  let offset = clampOffset(selected, count, visible);
+  if (section === 'images') {
+    offset = selected;
+    let used = entryHeight(selected);
+    while (offset > 0 && used + entryHeight(offset - 1) <= visible) {
+      used += entryHeight(--offset);
+    }
+  }
   const pane: PaneLayout = {
     section,
     frame: rect(x, y, width, height),
@@ -281,17 +269,17 @@ function paneFor(
     rows: rowsRect,
     offset,
     visible,
+    entries: [],
   };
-  for (let index = 0; index < visible; index += 1) {
-    const absolute = offset + index;
-    if (absolute >= count) {
-      break;
-    }
-    base.rowHits.push({
-      rect: rect(rowsRect.x, rowsRect.y + index, rowsRect.width, 1),
-      section,
-      index: absolute,
-    });
+  let row = 0;
+  for (let absolute = offset; absolute < count && row < visible; absolute += 1) {
+    const wanted = entryHeight(absolute);
+    if (wanted > visible - row && row > 0) break;
+    const height = Math.min(wanted, visible - row);
+    const entry = { index: absolute, rect: rect(rowsRect.x, rowsRect.y + row, rowsRect.width, height) };
+    pane.entries.push(entry);
+    base.rowHits.push({ ...entry, section });
+    row += height;
   }
   return pane;
 }

@@ -5,6 +5,7 @@
  * rectangles computed by {@link computeLayout}, so what is drawn and what a click
  * hits are by construction the same coordinates.
  */
+import { imageLines } from '../assetView.js';
 import type { App } from '../app.js';
 import type { Dialog, AppState } from '../state.js';
 import {
@@ -274,18 +275,32 @@ export function paintPane(canvas: Canvas, app: App, pane: PaneLayout): void {
     return;
   }
   const selected = state.assetRows[pane.section === 'images' ? 0 : pane.section === 'symbols' ? 1 : 2];
-  for (let index = 0; index < pane.visible; index += 1) {
-    const absolute = pane.offset + index;
-    if (absolute >= count) {
-      break;
-    }
-    const y = pane.rows.y + index;
-    const isSelected = absolute === selected;
+  for (const entry of pane.entries) {
+    const isSelected = entry.index === selected;
+    const background = isSelected ? SELECTED_BG : undefined;
     if (isSelected) {
-      canvas.fill(pane.rows.x, y, pane.rows.width, 1, { background: SELECTED_BG });
+      canvas.fill(entry.rect.x, entry.rect.y, entry.rect.width, entry.rect.height, { background });
     }
-    canvas.write(pane.rows.x, y, isSelected ? '› ' : '  ', { color: FOCUS, background: isSelected ? SELECTED_BG : undefined });
-    paintPaneRow(canvas, app, pane, absolute, y, isSelected);
+    canvas.write(entry.rect.x, entry.rect.y, isSelected ? '› ' : '  ', { color: FOCUS, background });
+    if (pane.section === 'images') {
+      const asset = assetListFor(state, pane.section)[entry.index];
+      if (!asset) continue;
+      const active = state.image === asset.path;
+      const lines = imageLines(asset, Math.max(pane.rows.width - 2, 1));
+      lines.slice(0, entry.rect.height).forEach((line, index) => {
+        const text = line.kind === 'metadata'
+          ? `${line.text}${active ? ' · ● 已选用' : ''}${asset.available ? '' : ' · 文件缺失'}`
+          : line.text;
+        canvas.write(entry.rect.x + 2, entry.rect.y + index, text, {
+          color: line.kind === 'name' ? (asset.available ? TEXT : MUTED)
+            : line.kind === 'metadata' && !asset.available ? DANGER
+              : line.kind === 'metadata' && active ? SUCCESS : MUTED,
+          bold: line.kind === 'name', background,
+        }, Math.max(entry.rect.width - 2, 0));
+      });
+    } else {
+      paintPaneRow(canvas, app, pane, entry.index, entry.rect.y, isSelected);
+    }
   }
 }
 

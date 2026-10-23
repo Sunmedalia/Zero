@@ -207,12 +207,13 @@ test('list rows are individually clickable and map to absolute indices', async (
   const pane = layout.panes.find((entry) => entry.section === 'images');
   assert.ok(pane);
   const hits = layout.rowHits.filter((hit) => hit.section === 'images');
-  assert.equal(hits.length, Math.min(pane.visible, 6));
+  assert.equal(hits.length, pane.entries.length);
   for (const [position, hit] of hits.entries()) {
     assert.equal(hit.index, pane.offset + position);
     assert.ok(covers(hit.rect, hit.rect.x, hit.rect.y));
-    // A click one row lower must not hit the same row.
-    assert.equal(covers(hit.rect, hit.rect.x, hit.rect.y + 1), false);
+    // Every line of a wrapped entry belongs to it; the next entry does not.
+    assert.equal(covers(hit.rect, hit.rect.x, hit.rect.y + hit.rect.height - 1), true);
+    assert.equal(covers(hit.rect, hit.rect.x, hit.rect.y + hit.rect.height), false);
   }
 });
 
@@ -276,23 +277,21 @@ test('search fields are drawn inline and are not treated as modals', async () =>
   assert.equal(layout.popup, null);
 });
 
-test('narrow layouts stack the panes, short ones show only the active pane', async () => {
+test('resource tabs show only the active source at full width', async () => {
   const { app: instance } = await app();
   instance.switchPage('assets');
-  const wide = computeLayout(instance.state, 100, 24);
-  assert.equal(wide.panes.length, 2);
-  assert.equal(wide.panes[0]?.frame.x, 0);
-  assert.ok((wide.panes[1]?.frame.x ?? 0) > 0, 'wide layout is side by side');
-
-  const narrow = computeLayout(instance.state, 50, 24);
-  assert.equal(narrow.panes.length, 2);
-  assert.equal(narrow.panes[0]?.frame.x, 0);
-  assert.equal(narrow.panes[1]?.frame.x, 0, 'narrow layout stacks vertically');
-  assert.ok((narrow.panes[1]?.frame.y ?? 0) > (narrow.panes[0]?.frame.y ?? 0));
-
-  // Below MIN_ASSET_TWO_PANES only the active pane is drawn.
-  const short = computeLayout(instance.state, 50, 16);
-  assert.equal(short.panes.length, 1);
+  for (const section of ['images', 'symbols', 'remote'] as const) {
+    await instance.switchSection(section);
+    for (const [columns, rows] of [[80, 24], [120, 35], [160, 45]]) {
+      const layout = computeLayout(instance.state, columns!, rows!);
+      assert.equal(layout.panes.length, 1);
+      assert.equal(layout.panes[0]?.section, section);
+      assert.equal(layout.panes[0]?.frame.width, columns);
+      assert.equal(layout.panes[0]?.frame.height, layout.body.height - 1);
+      assert.equal(layout.assetDetail, null);
+      assert.ok(layout.rowHits.every((entry) => entry.section === section));
+    }
+  }
 });
 
 test('the analysis menu disappears when content has focus on a narrow screen', async () => {

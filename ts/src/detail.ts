@@ -101,6 +101,7 @@ export function helpText(): string {
     'd 查看行字段，方向键／PgUp／PgDn 滚动，d／Esc 关闭；Enter 查看结果与诊断。',
     '',
     '镜像与符号：',
+    '资源库上方标签切换镜像／本地库／远程索引，Tab／Shift+Tab 循环切换，各页保留筛选和选中位置。',
     '资源库 Space 选用；Enter 选用高亮项并进入分析（匹配完成后自动进入）；再次点击高亮行等同 Space；d 查看详情。',
     '选用镜像后自动识别内核并匹配本地；x 进入分析；点击或 Enter 选择插件即显示已有结果或运行。',
     'M 使用 GitHub 完整 banner / Windows PDB 精确查询、下载并选用；多候选手动选择。独立下载 w 只保存文件。',
