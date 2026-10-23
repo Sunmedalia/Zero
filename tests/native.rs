@@ -817,6 +817,13 @@ fn persistent_banner_cache_recovers_from_changed_source_and_corruption() -> Resu
     // Same-size edits away from the old banner must find newly added banners.
     bytes[1024..1024 + banner.len()].copy_from_slice(banner);
     fs::write(&path, &bytes)?;
+    // Kernel timestamps are coarse; a same-size rewrite within one tick keeps
+    // every stamp field, so move mtime forward as any real later edit would.
+    let stamped = fs::metadata(&path)?.modified()? + std::time::Duration::from_secs(1);
+    fs::File::options()
+        .write(true)
+        .open(&path)?
+        .set_modified(stamped)?;
     let changed = Image::open_identified(&path, &cache, &job)?;
     assert!(!changed.digest.is_empty());
     assert_eq!(changed.banners(&job)?.len(), 2);

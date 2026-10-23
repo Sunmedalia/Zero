@@ -247,7 +247,10 @@ fn only_one_task_runs_and_cancel_is_acknowledged() {
     const O_NONBLOCK: i32 = 0o4000;
     let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
     while !backend.call("task.running", json!({}))["task"].is_null() {
-        assert!(std::time::Instant::now() < deadline, "cancelled task never ended");
+        assert!(
+            std::time::Instant::now() < deadline,
+            "cancelled task never ended"
+        );
         drop(
             std::fs::OpenOptions::new()
                 .write(true)
