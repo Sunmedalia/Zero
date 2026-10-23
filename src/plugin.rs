@@ -957,6 +957,66 @@ impl Plugin {
     pub fn name(self) -> &'static str {
         self.descriptor().name
     }
+    /// One-line Chinese description used by the interface search and help.
+    pub fn description(self) -> &'static str {
+        use Plugin::*;
+        match self {
+            WinLdrmodules => "对照 PE 映射与三条 PEB 模块链表",
+            WinHollowprocesses => "检查主程序基址及映像映射异常",
+            WinSuspiciousThreads => "检查活动线程起点所在的 VAD",
+            CheckExec => "检查 Linux 主程序代码映射与可执行文件",
+            Pslist | WinPslist => "列出活动进程及其地址",
+            Pstree | WinPstree => "按父进程关系浏览进程树",
+            Psaux | WinCmdline => "读取进程命令行",
+            Envars | WinEnvars => "读取进程环境变量",
+            Lsmod | WinModules => "列出内核模块及地址范围",
+            Maps | WinVadinfo => "查看进程虚拟内存映射",
+            Lsof | WinHandles => "列出进程打开的文件或对象",
+            Sockstat | Netscan | WinNetscan => "查看网络连接及端点",
+            Banners => "识别完整内核身份，无需符号",
+            Pwd => "读取进程工作目录",
+            Pscred => "查看进程身份和凭据",
+            Threads | WinThreads => "列出进程线程",
+            Mountinfo => "查看文件系统挂载关系",
+            CheckCreds => "检查进程凭据异常",
+            Dmesg => "读取内核日志缓冲区",
+            Systeminfo | WinSysteminfo => "查看系统和内核信息",
+            Elfs => "识别进程中的 ELF 映射",
+            Bash => "恢复内存中的 Bash 历史记录",
+            Malfind | WinMalfind => "检查可疑的可执行内存映射",
+            Psxview | WinPsxview => "对比多种进程发现方式",
+            CheckModules | WinDrivercheck => "检查模块或驱动异常",
+            CheckSyscall => "检查系统调用表",
+            Iomem => "查看物理内存资源范围",
+            Ioports => "查看 I/O 端口资源",
+            Ptrace => "检查进程跟踪关系",
+            KeyboardNotifiers => "查看键盘通知回调",
+            Psstate => "查看进程状态",
+            Capabilities => "查看进程能力集合",
+            Fdsummary => "汇总进程文件描述符",
+            WinCallbacks => "查看内核回调及模块归属",
+            WinUnloadedmodules => "读取已卸载驱动记录",
+            WinFilescan => "扫描文件对象",
+            WinMutantscan => "扫描互斥对象",
+            WinGetsids => "读取进程令牌 SID",
+            WinConnscan => "扫描旧版 Windows 连接对象",
+            WinSockscan => "扫描旧版 Windows 套接字对象",
+            WinConsoles => "恢复控制台保存的记录",
+            WinCmdscan => "扫描命令历史记录",
+            WinDriverscan => "扫描驱动对象",
+            WinSvcscan => "扫描 Windows 服务",
+            WinCrashinfo => "读取转储容器故障信息，无需完整内核符号",
+            WinAutoruns => "查看注册表自启动配置",
+            WinDlllist => "列出进程加载的 DLL",
+            WinHivelist => "列出注册表 hive 地址",
+            WinPrintkey => "读取指定 hive 中的注册表键",
+            WinPsscan => "扫描进程对象",
+            Procdump | WinProcdump => "转储指定进程的可读内存",
+            Memdump | WinMemdump => "转储指定进程的地址范围",
+            Elfdump => "导出进程中含 ELF 头的映射",
+            WinPedump => "按 PE 节表重建可读文件",
+        }
+    }
 }
 
 #[cfg(test)]

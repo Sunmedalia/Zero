@@ -5,7 +5,7 @@ pub mod plugin;
 mod report;
 pub mod store;
 pub mod symbols;
-pub mod tui;
+pub mod tui_backend;
 
 use anyhow::{Result, bail};
 use std::sync::{

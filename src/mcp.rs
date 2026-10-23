@@ -75,7 +75,7 @@ fn path(root: &Path, value: &Path) -> PathBuf {
 }
 
 fn job() -> Job {
-    Job::new(|message| eprintln!("zero-mcp: {message}"))
+    Job::new(|message| eprintln!("zero mcp: {message}"))
 }
 
 fn settings(root: &Path, offline: bool) -> Result<(PathBuf, store::Settings)> {
@@ -448,7 +448,7 @@ fn send_reply(stdout: &mut impl Write, reply: &Value) -> Result<()> {
     stdout.flush()?;
     Ok(())
 }
-fn main() -> Result<()> {
+pub fn run() -> Result<()> {
     use std::sync::{Arc, Mutex, mpsc};
     use std::time::Duration;
     let root = root()?.canonicalize().context("ZERO_ROOT 不是现有目录")?;

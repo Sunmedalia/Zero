@@ -15,7 +15,7 @@
 | 100,000 行 CSV 导出 | 27.15 ms | 19.76 ms |
 | CSV 导出进程峰值 RSS | 93.36 MiB | 30.70 MiB |
 
-视图基准包含搜索、排序和分页行复制，不包含 Ratatui 绘制或终端传输。复用索引后的分页准备无需再次遍历全部行。JSON 流式格式保留相同字段和值，但行内空白更紧凑，耗时收益也包含输出字节数减少；内存指标包含进程中的原始结果集。
+视图基准包含搜索、排序和分页行复制，不包含终端绘制或传输。复用索引后的分页准备无需再次遍历全部行。JSON 流式格式保留相同字段和值，但行内空白更紧凑，耗时收益也包含输出字节数减少；内存指标包含进程中的原始结果集。
 
 快照测量强制落盘，以覆盖超过内存预算的情形：
 
@@ -47,7 +47,7 @@
 - Windows：12 项尝试中 7 项通过，包括精确 PDB 转换、Windows 10／11 RAW、Server 2012／2019／2022、用户 minidump 和 Server 2016 triage。
 - 其余 5 项（Windows 10 bitmap crash、Server 2003、Server 2008、Server 2012 R2、Windows 7）均在符号准备阶段因缺少精确 ISF 失败，未完成本轮验证；不能计为通过。未下载额外镜像或符号，也未修改验收基线。
 
-真实样本使用现有 `images/feat-windows-plugins/` 路径，通过测试已有的 `ZERO_WINDOWS*_IMAGE` 和 `ZERO_TUI_WINDOWS_IMAGE` 环境变量覆盖默认位置。
+真实样本使用现有 `images/feat-windows-plugins/` 路径，通过测试已有的 `ZERO_WINDOWS*_IMAGE` 环境变量覆盖默认位置；`make tui-acceptance` 复用同一批样本。
 
 ## 后续符号兜底验证
 

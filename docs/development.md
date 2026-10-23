@@ -12,6 +12,8 @@ make windows-acceptance
 make tui-acceptance
 ```
 
+`make check` 包含 TypeScript 界面的构建、类型检查和单元测试；界面需要 Node ≥ 22，首次运行 `make ui-install` 安装依赖。
+
 常规检查使用合成样本。后三项验收需要本地真实镜像和精确符号；不会自动下载大型镜像。样本基线见 `tests/fixtures/`，各测试顶部列出环境变量覆盖方式。Windows 的宿主支持与被分析系统兼容性是不同维度。
 
 ## 资源预算
@@ -90,4 +92,10 @@ GitHub Actions 在 Linux／macOS 的 x86_64 和 ARM64 上运行 `make check`、�
 
 `v` 前缀标签触发发布流程：四个平台检查通过后，校验标签与 Cargo 版本一致，发布归档和 `SHA256SUMS`。发布说明见 [RELEASE_NOTES.md](../RELEASE_NOTES.md)。宿主构建使用 [GitHub 官方 runner 标签](https://docs.github.com/en/actions/reference/runners/github-hosted-runners)；Windows 镜像分析兼容范围与宿主平台分别记录。
 
-TUI 状态机的本地离线验收可运行 `make tui-acceptance`；可用 `ZERO_TEST_IMAGE`／`ZERO_TEST_SYMBOLS` 和 `ZERO_TUI_WINDOWS_IMAGE`／`ZERO_TUI_WINDOWS_SYMBOLS` 覆盖样本路径。
+`make tui-acceptance` 通过真实镜像驱动 `zero tui-backend`（界面使用的同一协议），覆盖识别、精确匹配、分析和页表验证；样本路径可用 `ZERO_TEST_IMAGE`／`ZERO_TEST_SYMBOLS` 覆盖。界面本身的单元测试用内存引擎，不读取镜像：
+
+```sh
+cd ts && npm test
+```
+
+界面架构、协议和目录说明见 [TypeScript 终端界面](tui.md)。

@@ -1,4 +1,4 @@
-.PHONY: build install run tui test check acceptance windows-acceptance tui-acceptance clean
+.PHONY: build install run tui test ui-install ui-build ui-test check acceptance windows-acceptance tui-acceptance clean
 
 build:
 	cargo build --release --locked
@@ -6,16 +6,28 @@ build:
 install:
 	cargo install --path . --locked
 
-run tui:
+# The interface is TypeScript; `run` builds it first so `zero` finds dist/.
+ui-install:
+	cd ts && npm install --no-audit --no-fund
+
+ui-build:
+	cd ts && npm run build
+
+ui-test:
+	cd ts && npm test
+
+run tui: ui-build
 	cargo run --release --bin zero -- $(ARGS)
 
 test:
 	cargo test --locked
 
-check:
+check: ui-build
 	cargo fmt --check
 	cargo clippy --locked --all-targets -- -D warnings
 	cargo test --locked
+	cd ts && npm run typecheck
+	cd ts && npm test
 	cargo build --locked --release
 
 # Local Debian and Kali samples; no network during acceptance.
@@ -30,6 +42,7 @@ clean:
 windows-acceptance:
 	cargo test --locked --release --test windows_acceptance -- --ignored
 
-# Offline resource selection -> plugin activation through the TUI state machine.
-tui-acceptance:
-	cargo test --locked --release --lib offline_tui_resources_to_analysis_acceptance -- --ignored --nocapture
+# Offline resource selection -> analysis through the real engine and interface.
+# Drives `zero tui-backend` exactly as the TypeScript UI does.
+tui-acceptance: ui-build
+	cargo test --locked --release --test tui_backend -- --ignored --nocapture

@@ -1,4 +1,6 @@
-use anyhow::{Result, bail};
+mod mcp;
+
+use anyhow::{Context, Result, bail};
 use clap::{Parser, Subcommand};
 use std::path::PathBuf;
 use zero_tui::{
@@ -40,6 +42,10 @@ struct Cli {
 }
 #[derive(Subcommand)]
 enum Command {
+    /// Serve the newline-delimited JSON-RPC backend used by the TypeScript TUI.
+    TuiBackend,
+    /// Run the newline-delimited JSON-RPC MCP server over stdio.
+    Mcp,
     /// Inspect or clear regenerable cache files.
     Cache {
         #[command(subcommand)]
@@ -135,7 +141,13 @@ enum CacheAction {
     },
 }
 fn main() -> Result<()> {
-    let cli = Cli::parse();
+    let mut cli = Cli::parse();
+    if matches!(cli.command, Some(Command::Mcp)) {
+        return mcp::run();
+    }
+    if matches!(cli.command, Some(Command::TuiBackend)) {
+        return zero_tui::tui_backend::run();
+    }
     let cache = PathBuf::from(".zero/rust");
     if let Some(Command::Cache { action }) = &cli.command {
         match action {
@@ -239,7 +251,7 @@ fn main() -> Result<()> {
         }
         return Ok(());
     }
-    let analysis = match cli.command {
+    let analysis = match cli.command.take() {
         Some(Command::Analyze {
             image,
             symbols,
@@ -368,22 +380,81 @@ fn main() -> Result<()> {
         }
         Ok(())
     } else {
-        // A new TUI session only loads paths explicitly supplied for this launch.
-        // The registry retains assets and last selections as history, not startup input.
-        zero_tui::tui::run_with_options(
-            cli.image,
-            cli.symbols.unwrap_or_default(),
-            cache,
-            settings,
-            zero_tui::analysis::Options {
-                os: cli.os,
-                arch: cli.arch,
-                pagefiles: cli.pagefiles.clone(),
-                swapfile: cli.swapfile.clone(),
-                hive: cli.hive,
-                key: cli.key,
-                pid: None,
-            },
-        )
+        // The interface is the TypeScript terminal in `ts/`; it drives this
+        // native engine through `zero tui-backend`. A launch without a
+        // subcommand therefore hands over to it, forwarding the flags that only
+        // make sense for an interactive session.
+        launch_tui(cli)
     }
+}
+
+/// Locate the TypeScript interface and run it with the backend as a child.
+///
+/// Resolution order keeps the released single binary usable: `ZERO_TUI_DIR`,
+/// then `ts/` beside the current directory, then the directory containing the
+/// executable. `--no-install` matters: the interface never downloads anything.
+fn launch_tui(cli: Cli) -> Result<()> {
+    use std::process::Command;
+    let candidates = [
+        std::env::var_os("ZERO_TUI_DIR").map(PathBuf::from),
+        Some(std::env::current_dir()?.join("ts")),
+        std::env::current_exe()
+            .ok()
+            .and_then(|p| p.parent().map(|d| d.join("ts"))),
+    ];
+    let dir = candidates
+        .into_iter()
+        .flatten()
+        .find(|dir| dir.join("package.json").is_file())
+        .context("找不到 TypeScript 界面目录；设置 ZERO_TUI_DIR 或从项目根目录运行")?;
+    let entry = if dir.join("dist/main.js").is_file() {
+        dir.join("dist/main.js")
+    } else {
+        anyhow::bail!(
+            "{} 尚未构建；在 {} 运行 `npm install && npm run build`",
+            dir.join("dist/main.js").display(),
+            dir.display()
+        )
+    };
+    let mut command = Command::new("node");
+    command.arg(entry).current_dir(&dir);
+    command.env("ZERO_TUI_BACKEND", std::env::current_exe()?);
+    command.env(
+        "ZERO_ROOT",
+        std::env::var_os("ZERO_ROOT").unwrap_or(std::env::current_dir()?.into()),
+    );
+    if cli.offline {
+        command.arg("--offline");
+    }
+    if let Some(image) = cli.image {
+        command.arg("--image").arg(image);
+    }
+    if let Some(symbols) = cli.symbols {
+        command.arg("--symbols").arg(symbols);
+    }
+    command
+        .arg("--os")
+        .arg(format!("{:?}", cli.os).to_lowercase());
+    command
+        .arg("--arch")
+        .arg(format!("{:?}", cli.arch).to_lowercase());
+    for pagefile in &cli.pagefiles {
+        command
+            .arg("--pagefile")
+            .arg(format!("{}={}", pagefile.index, pagefile.path.display()));
+    }
+    if let Some(swapfile) = &cli.swapfile {
+        command.arg("--swapfile").arg(swapfile);
+    }
+    if let Some(hive) = cli.hive {
+        command.arg("--hive").arg(format!("{hive:#x}"));
+    }
+    if !cli.key.is_empty() {
+        command.arg("--key").arg(cli.key);
+    }
+    let status = command
+        .status()
+        .context("启动 TypeScript 界面失败；请确认 node 在 PATH 中")?;
+    anyhow::ensure!(status.success(), "界面退出码 {status}");
+    Ok(())
 }

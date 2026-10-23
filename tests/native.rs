@@ -349,32 +349,30 @@ fn cli_exports_native_result() -> Result<()> {
         dir.path().join("symbols.json"),
         serde_json::to_vec(&isf.data)?,
     )?;
-    for binary in [env!("CARGO_BIN_EXE_zero"), env!("CARGO_BIN_EXE_zero-tui")] {
-        let output = std::process::Command::new(binary)
-            .current_dir(dir.path())
-            .args([
-                "--offline",
-                "analyze",
-                "--image",
-                "image.raw",
-                "--symbols",
-                "symbols.json",
-                "--plugin",
-                "pslist",
-                "--output",
-                "result.json",
-            ])
-            .output()?;
-        assert!(
-            output.status.success(),
-            "{}",
-            String::from_utf8_lossy(&output.stderr)
-        );
-        let result: store::Results =
-            serde_json::from_slice(&fs::read(dir.path().join("result.json"))?)?;
-        assert!(result.complete);
-        assert_eq!(result.rows.len(), 2);
-    }
+    let output = std::process::Command::new(env!("CARGO_BIN_EXE_zero"))
+        .current_dir(dir.path())
+        .args([
+            "--offline",
+            "analyze",
+            "--image",
+            "image.raw",
+            "--symbols",
+            "symbols.json",
+            "--plugin",
+            "pslist",
+            "--output",
+            "result.json",
+        ])
+        .output()?;
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let result: store::Results =
+        serde_json::from_slice(&fs::read(dir.path().join("result.json"))?)?;
+    assert!(result.complete);
+    assert_eq!(result.rows.len(), 2);
     Ok(())
 }
 
@@ -441,7 +439,7 @@ fn obsolete_python_configuration_is_ignored() -> Result<()> {
         dir.path().join("symbols.json"),
         serde_json::to_vec(&isf.data)?,
     )?;
-    let output = std::process::Command::new(env!("CARGO_BIN_EXE_zero-tui"))
+    let output = std::process::Command::new(env!("CARGO_BIN_EXE_zero"))
         .current_dir(dir.path())
         .args([
             "analyze",
@@ -1263,7 +1261,7 @@ fn cancellation_during_dump_does_not_commit_evidence() -> Result<()> {
 #[test]
 fn cli_dump_requires_parameters_before_opening_image() -> Result<()> {
     let dir = tempfile::tempdir()?;
-    let output = std::process::Command::new(env!("CARGO_BIN_EXE_zero-tui"))
+    let output = std::process::Command::new(env!("CARGO_BIN_EXE_zero"))
         .current_dir(dir.path())
         .args([
             "--offline",
@@ -1344,7 +1342,7 @@ fn unified_dump_cli_exports_explicit_range() -> Result<()> {
         serde_json::to_vec(&isf.data)?,
     )?;
     let command = |extra: &[&str]| {
-        std::process::Command::new(env!("CARGO_BIN_EXE_zero-tui"))
+        std::process::Command::new(env!("CARGO_BIN_EXE_zero"))
             .current_dir(dir.path())
             .args([
                 "--offline",
@@ -1386,7 +1384,8 @@ fn unified_dump_cli_exports_explicit_range() -> Result<()> {
 fn mcp_exchange(root: &std::path::Path, input: &str) -> Result<Vec<serde_json::Value>> {
     use std::process::{Command, Stdio};
     let external = tempfile::tempdir()?;
-    let mut process = Command::new(env!("CARGO_BIN_EXE_zero-mcp"))
+    let mut process = Command::new(env!("CARGO_BIN_EXE_zero"))
+        .arg("mcp")
         .current_dir(external.path())
         .env("ZERO_ROOT", root)
         .stdin(Stdio::piped())
@@ -1652,7 +1651,8 @@ fn mcp_busy_ping_cancel_and_worker_recovery() -> Result<()> {
     fs::File::create(dir.path().join("large.raw"))?.set_len(8 * 1024 * 1024 * 1024)?;
     let (bytes, _) = discoverable();
     fs::write(dir.path().join("small.raw"), bytes)?;
-    let mut process = Command::new(env!("CARGO_BIN_EXE_zero-mcp"))
+    let mut process = Command::new(env!("CARGO_BIN_EXE_zero"))
+        .arg("mcp")
         .env("ZERO_ROOT", dir.path())
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())

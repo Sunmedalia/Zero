@@ -258,7 +258,7 @@ pub fn history_paths(root: &Path) -> Vec<PathBuf> {
     paths.sort();
     paths
 }
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 #[serde(default)]
 pub struct Settings {
     pub resources: crate::resources::Limits,

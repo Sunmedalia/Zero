@@ -1,23 +1,29 @@
 # Zero · Rust 原生终端取证
 
-本地 Linux x86_64／ARM64 和 Windows 内存取证工具，使用 Rust 2024、Ratatui 和 Crossterm。提供 TUI、CLI 和原生 stdio MCP，分析引擎无需 Python、Node 或 HTTP 服务。
+本地 Linux x86_64／ARM64 和 Windows 内存取证工具。分析引擎使用 Rust 2024，终端界面使用 TypeScript（Ink，自绘字符画布）并通过本地 JSON-RPC 驱动该引擎；键盘与鼠标都完整可用。提供 TUI、CLI 和原生 stdio MCP，取证分析本身无需 Python、Node 或 HTTP 服务。
+
+发布包包含 `zero` 可执行文件、README 和 `ts/` 界面源码。直接运行 `zero` 会启动 TypeScript 界面（需要 Node ≥ 22），使用子命令执行 CLI 操作，`zero mcp` 启动 MCP 服务，`zero tui-backend` 启动界面使用的本地后端。
 
 ## 快速开始
 
 ```sh
 cargo build --release --locked
+cd ts && npm install --no-audit --no-fund && npm run build && cd ..
 ./target/release/zero
+# 同一个可执行文件也提供 MCP 服务
+./target/release/zero mcp
 # 使用明确的本地镜像和精确匹配符号
 ./target/release/zero --offline analyze \
   --image /evidence/memory.raw --symbols /evidence/kernel.json.xz \
   --plugin pslist --output exports/processes.json
 ```
 
-不带参数进入资源库；导入镜像和符号后进入分析。默认镜像目录为 `images/`，符号目录为 `symbols/`，运行数据保存到 `.zero/rust/`。镜像只读，资产移除只修改项目清单。
+不带参数进入资源库；导入镜像和符号后进入分析。默认镜像目录为 `images/`，符号目录为 `symbols/`，运行数据保存到 `.zero/rust/`。镜像只读，资产移除只修改项目清单。界面目录可用 `ZERO_TUI_DIR` 指定，后端可执行文件由 `zero` 自动传递。
 
 ## 文档
 
 - [TUI、CLI、插件与转储操作](docs/usage.md)
+- [TypeScript 界面的架构与开发](docs/tui.md)
 - [MCP 接口、快照分页与取消](docs/mcp.md)
 - [Windows 兼容矩阵和真实样本验收证据](docs/compatibility.md)
 - [开发检查、资源预算、CI 与发布](docs/development.md)
@@ -38,5 +44,7 @@ MCP 分页现使用 `zero_analyze` 返回的 `result_id` 调用 `zero_results`�
 make check
 python3 scripts/windows_compatibility.py --check
 ```
+
+`make check` 会先构建 TypeScript 界面，再运行 fmt、Clippy、Rust 测试、`tsc --noEmit`、界面单元测试和 release 构建。
 
 真实镜像验收需本地样本，命令和环境变量见开发文档。

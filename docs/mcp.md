@@ -2,7 +2,7 @@
 
 [返回项目入口](../README.md) · [调用示例](../.agents/skills/zero-forensics/references/calls.md)
 
-构建 `cargo build --release --locked --bin zero-mcp`。通过项目的 `.codex/config.toml` 或 `.mcp.json` 配置 stdio 服务；移动项目后检查配置路径。相对路径以 `ZERO_ROOT` 为基准，未设置时使用启动目录。镜像始终留在本地，在线请求只用于符号。
+构建 `cargo build --release --locked --bin zero`，运行 `zero mcp` 启动 stdio 服务。发布包只提供一个 `zero` 可执行文件；原 `zero-mcp` 启动方式改为 `zero mcp`。客户端配置使用 `"command": "/path/to/zero", "args": ["mcp"]`。通过项目的 `.codex/config.toml` 或 `.mcp.json` 配置 stdio 服务；移动项目后检查配置路径。相对路径以 `ZERO_ROOT` 为基准，未设置时使用启动目录。镜像始终留在本地，在线请求只用于符号。
 
 ## 工具与快照分页
 

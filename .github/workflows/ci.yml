@@ -46,6 +46,11 @@ jobs:
           key: build-${{ matrix.target }}-${{ hashFiles('Cargo.lock', 'Cargo.toml', 'rust-toolchain.toml', '.cargo/**') }}-${{ github.sha }}
           restore-keys: |
             build-${{ matrix.target }}-${{ hashFiles('Cargo.lock', 'Cargo.toml', 'rust-toolchain.toml', '.cargo/**') }}-
+      - uses: actions/setup-node@1e60f620b9541d16bece96c5465dc8ee9832be0b # v4
+        with:
+          node-version: '22'
+      - name: Install interface dependencies
+        run: make ui-install
       - name: Check, test and build
         run: make check
       - name: Check compatibility documentation
@@ -53,7 +58,7 @@ jobs:
       - name: Smoke test and package
         run: |
           target/release/zero --help
-          target/release/zero-tui --help
+          target/release/zero mcp --help
           python3 scripts/package_release.py --target '${{ matrix.target }}' --output dist
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:

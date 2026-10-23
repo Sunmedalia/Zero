@@ -2,7 +2,7 @@
   "mcpServers": {
     "zero": {
       "command": "cargo",
-      "args": ["run", "--quiet", "--release", "--locked", "--bin", "zero-mcp", "--manifest-path", "/Volumes/w/code/zero/Cargo.toml"],
+      "args": ["run", "--quiet", "--release", "--locked", "--bin", "zero", "--manifest-path", "/Volumes/w/code/zero/Cargo.toml", "--", "mcp"],
       "env": { "ZERO_ROOT": "/Volumes/w/code/zero" }
     }
   }
