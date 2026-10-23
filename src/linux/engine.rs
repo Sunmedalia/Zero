@@ -126,7 +126,7 @@ impl Linux<'_> {
             Psaux | Envars | Maps | Lsof | Sockstat | Netscan => self.task_objects(plugin, job),
             Pwd | Pscred | CheckCreds | Threads | Mountinfo => self.task_context(plugin, job),
             Psstate | Capabilities | Fdsummary => self.task_state(plugin, job),
-            Elfs | Malfind | Bash => self.vma_scan(plugin, job),
+            Elfs | LibraryList | Malfind | Bash => self.vma_scan(plugin, job),
             Iomem | Ioports | Ptrace | KeyboardNotifiers => self.kernel_relations(plugin, job),
             Dmesg => self.dmesg(job),
             Systeminfo => self.systeminfo(),
@@ -140,6 +140,21 @@ impl Linux<'_> {
             CheckSyscall => {
                 let mut r = self.result(plugin);
                 self.check_syscall(&mut r, job)?;
+                Ok(r)
+            }
+            CheckIdt => {
+                let mut r = self.result(plugin);
+                self.check_idt(&mut r, job)?;
+                Ok(r)
+            }
+            TtyCheck => {
+                let mut r = self.result(plugin);
+                self.tty_check(&mut r, job)?;
+                Ok(r)
+            }
+            HiddenModules => {
+                let mut r = self.result(plugin);
+                self.hidden_modules(&mut r, job)?;
                 Ok(r)
             }
             Procdump | Memdump | Elfdump | WinLdrmodules | WinHollowprocesses

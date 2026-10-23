@@ -18,6 +18,7 @@ mod discover;
 mod engine;
 mod fs;
 mod kernel;
+mod malware;
 mod memory;
 mod net;
 mod process;

@@ -116,6 +116,14 @@ pub enum Plugin {
     CheckModules,
     #[value(name = "check_syscall", alias = "check-syscall")]
     CheckSyscall,
+    #[value(name = "check_idt", alias = "check-idt")]
+    CheckIdt,
+    #[value(name = "tty_check", alias = "tty-check")]
+    TtyCheck,
+    #[value(name = "hidden_modules", alias = "hidden-modules")]
+    HiddenModules,
+    #[value(name = "library_list", alias = "library-list")]
+    LibraryList,
 }
 pub struct Descriptor {
     pub plugin: Plugin,
@@ -787,6 +795,34 @@ pub const PLUGINS: &[Descriptor] = &[
         widths: &[18, 6, 18, 24, 18, 0],
     },
     Descriptor {
+        plugin: Plugin::CheckIdt,
+        name: "check_idt",
+        label: "check_idt",
+        columns: &["Index", "Address", "Symbol", "Owner", "Present", "Reason"],
+        widths: &[6, 18, 24, 18, 8, 0],
+    },
+    Descriptor {
+        plugin: Plugin::TtyCheck,
+        name: "tty_check",
+        label: "tty_check",
+        columns: &["Name", "Address", "Symbol", "Owner", "Reason"],
+        widths: &[12, 18, 24, 18, 0],
+    },
+    Descriptor {
+        plugin: Plugin::HiddenModules,
+        name: "hidden_modules",
+        label: "hidden_modules",
+        columns: &["Name", "Address", "Start", "End", "State", "Reason"],
+        widths: &[18, 18, 18, 18, 9, 0],
+    },
+    Descriptor {
+        plugin: Plugin::LibraryList,
+        name: "library_list",
+        label: "library_list",
+        columns: &["PID", "Name", "LoadAddress", "Path"],
+        widths: &[6, 14, 18, 0],
+    },
+    Descriptor {
         plugin: Plugin::Psstate,
         name: "psstate",
         label: "psstate",
@@ -943,7 +979,12 @@ impl Plugin {
             | Self::Envars
             | Self::Pwd
             | Self::Procdump => "Process",
-            Self::Maps | Self::Elfs | Self::Bash | Self::Memdump | Self::Elfdump => "Memory",
+            Self::Maps
+            | Self::Elfs
+            | Self::LibraryList
+            | Self::Bash
+            | Self::Memdump
+            | Self::Elfdump => "Memory",
             Self::Fdsummary | Self::Lsof | Self::Mountinfo => "Files",
             Self::Sockstat | Self::Netscan => "Network",
             Self::KeyboardNotifiers
@@ -951,7 +992,10 @@ impl Plugin {
             | Self::Malfind
             | Self::Psxview
             | Self::CheckModules
-            | Self::CheckSyscall => "Integrity",
+            | Self::CheckSyscall
+            | Self::CheckIdt
+            | Self::TtyCheck
+            | Self::HiddenModules => "Integrity",
         }
     }
     pub fn name(self) -> &'static str {
@@ -987,6 +1031,10 @@ impl Plugin {
             Psxview | WinPsxview => "对比多种进程发现方式",
             CheckModules | WinDrivercheck => "检查模块或驱动异常",
             CheckSyscall => "检查系统调用表",
+            CheckIdt => "检查中断描述符表处理函数归属（x86_64）",
+            TtyCheck => "检查 TTY 行规程 receive_buf 是否被挂钩",
+            HiddenModules => "从模块内存雕刻不在模块链表中的隐藏模块",
+            LibraryList => "列出进程映射的共享库",
             Iomem => "查看物理内存资源范围",
             Ioports => "查看 I/O 端口资源",
             Ptrace => "检查进程跟踪关系",

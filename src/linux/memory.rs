@@ -120,7 +120,8 @@ impl Linux<'_> {
         }
         Ok(())
     }
-    /// elfs / malfind / bash / history: bounded reads of each task's mapped regions.
+    /// elfs / library_list / malfind / bash / history: bounded reads of each
+    /// task's mapped regions.
     pub(super) fn vma_scan(&self, plugin: Plugin, job: &Job) -> Result<Results> {
         let mut r = self.result(plugin);
         let (listed, tasks) = self.tasks(plugin, job)?;
@@ -153,6 +154,24 @@ impl Linux<'_> {
                 // both would otherwise be redone for every mapped region.
                 let root = self.process_root(task).ok();
                 let mut bytes = vec![0; 64];
+                let headers = matches!(plugin, Plugin::Elfs | Plugin::LibraryList);
+                // library_list: the main program is not a library, and each
+                // library is reported once at its lowest mapping.
+                let exe = if plugin == Plugin::LibraryList {
+                    self.number(mm, "mm_struct", "exe_file")
+                        .ok()
+                        .filter(|file| *file != 0)
+                        .and_then(|file| {
+                            root.map_or_else(
+                                || self.file_path(task, file, job),
+                                |root| self.file_path_from(root, file, job),
+                            )
+                            .ok()
+                        })
+                } else {
+                    None
+                };
+                let mut libraries = HashSet::new();
                 for node in nodes {
                     job.check()?;
                     let read = (|| -> Result<()> {
@@ -161,7 +180,7 @@ impl Linux<'_> {
                         ensure!(start < end, "VMA 地址倒置");
                         let flags = self.number(node, "vm_area_struct", "vm_flags")?;
                         let file = self.number(node, "vm_area_struct", "vm_file")?;
-                        if flags & 1 == 0 {
+                        if flags & 1 == 0 || (plugin == Plugin::LibraryList && file == 0) {
                             return Ok(());
                         }
                         if plugin == Plugin::Malfind
@@ -169,12 +188,23 @@ impl Linux<'_> {
                         {
                             return Ok(());
                         }
-                        let amount = if plugin == Plugin::Elfs { 64 } else { 32 };
+                        let amount = if headers { 64 } else { 32 };
                         ensure!(budget >= amount, "用户读取达到 256 MiB 上限");
                         budget -= amount;
                         bytes[..amount as usize].fill(0);
                         vm.read(start, &mut bytes[..amount as usize])?;
-                        if plugin == Plugin::Elfs && !bytes.starts_with(b"\x7fELF") {
+                        if headers && !bytes.starts_with(b"\x7fELF") {
+                            return Ok(());
+                        }
+                        let arm = self
+                            .vm
+                            .image
+                            .arm64_va_bits
+                            .load(std::sync::atomic::Ordering::Relaxed)
+                            != 0;
+                        if plugin == Plugin::LibraryList
+                            && header(&bytes, arm).map(|(kind, _)| kind)? != "DYN"
+                        {
                             return Ok(());
                         }
                         let path = if file == 0 {
@@ -195,17 +225,23 @@ impl Linux<'_> {
                                 }
                             }
                         };
+                        if plugin == Plugin::LibraryList {
+                            if exe.as_ref() != Some(&path)
+                                && (path == "[unresolved]" || libraries.insert(path.clone()))
+                            {
+                                r.rows.push(vec![
+                                    row.pid.clone(),
+                                    row.name.clone(),
+                                    hex(start),
+                                    path,
+                                ]);
+                            }
+                            return Ok(());
+                        }
                         let mut values =
                             vec![row.pid.clone(), row.name.clone(), hex(start), hex(end)];
                         if plugin == Plugin::Elfs {
-                            let (kind, entry) = header(
-                                &bytes,
-                                self.vm
-                                    .image
-                                    .arm64_va_bits
-                                    .load(std::sync::atomic::Ordering::Relaxed)
-                                    != 0,
-                            )?;
+                            let (kind, entry) = header(&bytes, arm)?;
                             values.extend([kind, hex(entry), path]);
                         } else {
                             let perms = format!(
@@ -461,6 +497,20 @@ mod tests {
         assert!(r.complete, "{:?}", r.diagnostics);
         assert_eq!(r.rows.len(), 1);
         assert_eq!(r.rows[0][4], "DYN");
+        // library_list ignores anonymous ELF images such as this one.
+        let r = engine(&img, &isf)
+            .run(Plugin::LibraryList, &Job::default())
+            .unwrap();
+        assert!(r.complete && r.rows.is_empty(), "{:?}", r.rows);
+        let mut file_backed = b.clone();
+        put(&mut file_backed, 0xc828, 0x3f000);
+        let library = image(&file_backed);
+        let r = engine(&library, &isf)
+            .run(Plugin::LibraryList, &Job::default())
+            .unwrap();
+        assert_eq!(r.rows.len(), 1);
+        assert_eq!(r.rows[0][2..], [hex(0x200000), "[unresolved]".into()]);
+        assert!(!r.complete, "an unresolved path must stay a partial result");
         let r = engine(&img, &isf)
             .run(Plugin::Malfind, &Job::default())
             .unwrap();

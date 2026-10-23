@@ -559,24 +559,9 @@ impl Linux<'_> {
         }
         Ok(())
     }
-    pub(super) fn check_syscall(&self, r: &mut Results, job: &Job) -> Result<()> {
-        let table = self
-            .isf
-            .address("sys_call_table")
-            .context("不支持: 缺少 sys_call_table")?;
-        let size = self.isf.data["metadata"]["zero"]["symbol_sizes"]["sys_call_table"]
-            .as_u64()
-            .or_else(|| {
-                self.isf.data["symbols"]["sys_call_table"]["type"]["count"]
-                    .as_u64()
-                    .filter(|n| *n > 0)
-                    .and_then(|n| n.checked_mul(8))
-            })
-            .context("不支持: ISF 缺少准确的 sys_call_table 长度；请从调试 ELF 生成符号")?;
-        ensure!(
-            size > 0 && size % 8 == 0 && size / 8 <= 4096,
-            "sys_call_table 长度无效"
-        );
+    /// Kernel text plus every listed module's text range, and the ISF symbols,
+    /// for attributing a code pointer to its owner.
+    pub(super) fn code_map(&self, job: &Job) -> Result<CodeMap<'_>> {
         let start = self
             .isf
             .address("_stext")
@@ -588,6 +573,15 @@ impl Linux<'_> {
             job,
         )?;
         let mut ranges = vec![(start, end, "kernel".to_string())];
+        // Early boot handlers live in init text and can stay referenced by
+        // unused reserved vectors after init memory is released.
+        if let (Ok(start), Ok(end)) = (
+            self.isf.address("_sinittext"),
+            self.isf.address("_einittext"),
+        ) && start < end
+        {
+            ranges.push((start, end, "kernel.init".to_string()));
+        }
         for module in modules {
             let (start, end) = self.module_range(module)?;
             ranges.push((
@@ -606,33 +600,32 @@ impl Linux<'_> {
             }
         }
         symbols.sort_unstable();
+        Ok(CodeMap { ranges, symbols })
+    }
+    pub(super) fn check_syscall(&self, r: &mut Results, job: &Job) -> Result<()> {
+        let table = self
+            .isf
+            .address("sys_call_table")
+            .context("不支持: 缺少 sys_call_table")?;
+        let size = self.isf.data["metadata"]["zero"]["symbol_sizes"]["sys_call_table"]
+            .as_u64()
+            .or_else(|| {
+                self.isf.data["symbols"]["sys_call_table"]["type"]["count"]
+                    .as_u64()
+                    .filter(|n| *n > 0)
+                    .and_then(|n| n.checked_mul(8))
+            })
+            .context("不支持: ISF 缺少准确的 sys_call_table 长度；请从调试 ELF 生成符号")?;
+        ensure!(
+            size > 0 && size % 8 == 0 && size / 8 <= 4096,
+            "sys_call_table 长度无效"
+        );
+        let code = self.code_map(job)?;
         for i in 0..size / 8 {
             job.check()?;
             let read = (|| -> Result<Vec<String>> {
                 let target = self.vm.uint(table + i * 8, 8)?;
-                let index = symbols.partition_point(|(a, _)| *a <= target);
-                let symbol = if index == 0 {
-                    "[unknown]".into()
-                } else {
-                    let (address, name) = symbols[index - 1];
-                    if address == target {
-                        name.into()
-                    } else {
-                        format!("{name}+{:#x}", target - address)
-                    }
-                };
-                let owner = ranges
-                    .iter()
-                    .find(|(a, b, _)| target >= *a && target < *b)
-                    .map(|(_, _, name)| name.clone())
-                    .unwrap_or_else(|| "[unknown]".into());
-                let reason = if owner == "kernel" {
-                    "KernelText"
-                } else if owner == "[unknown]" {
-                    "OutsideKnownExecutableRanges"
-                } else {
-                    "ModuleTarget; inspect hook"
-                };
+                let (symbol, owner, reason) = code.describe(target);
                 let mut byte = [0];
                 self.vm.read(target, &mut byte)?;
                 Ok(vec![
@@ -798,6 +791,43 @@ impl Linux<'_> {
             }
         }
         Ok(pids)
+    }
+}
+/// Executable ranges and sorted symbols used to attribute kernel code pointers.
+pub(super) struct CodeMap<'a> {
+    pub ranges: Vec<(u64, u64, String)>,
+    pub symbols: Vec<(u64, &'a str)>,
+}
+impl CodeMap<'_> {
+    /// Nearest symbol, owning range and a verdict for one code pointer.
+    pub fn describe(&self, target: u64) -> (String, String, &'static str) {
+        let index = self.symbols.partition_point(|(a, _)| *a <= target);
+        let symbol = if index == 0 {
+            "[unknown]".into()
+        } else {
+            let (address, name) = self.symbols[index - 1];
+            if address == target {
+                name.into()
+            } else {
+                format!("{name}+{:#x}", target - address)
+            }
+        };
+        let owner = self
+            .ranges
+            .iter()
+            .find(|(a, b, _)| target >= *a && target < *b)
+            .map(|(_, _, name)| name.clone())
+            .unwrap_or_else(|| "[unknown]".into());
+        let reason = if owner == "kernel" {
+            "KernelText"
+        } else if owner == "kernel.init" {
+            "KernelInitText"
+        } else if owner == "[unknown]" {
+            "OutsideKnownExecutableRanges"
+        } else {
+            "ModuleTarget; inspect hook"
+        };
+        (symbol, owner, reason)
     }
 }
 #[cfg(test)]
