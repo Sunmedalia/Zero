@@ -211,14 +211,21 @@ fn identification_runs_as_a_task_and_reports_banners() {
     backend.finish();
 }
 
+#[cfg(target_os = "linux")]
 #[test]
 fn only_one_task_runs_and_cancel_is_acknowledged() {
     let root = sandbox();
+    // A FIFO image blocks the worker in `open` until a writer appears, so the
+    // first task is still running when the second request arrives instead of
+    // racing a sub-millisecond identification of a tiny file.
+    let fifo = root.path().join("images/blocked.raw");
+    let status = Command::new("mkfifo").arg(&fifo).status().expect("mkfifo");
+    assert!(status.success(), "mkfifo failed");
     let mut backend = Backend::start(root.path());
     backend.call("hello", json!({}));
     let started = backend.call(
         "task.start",
-        json!({"op":"identify","args":{"image":"images/sample.raw"}}),
+        json!({"op":"identify","args":{"image":"images/blocked.raw"}}),
     );
     let id = started["task"].as_str().expect("task id").to_owned();
     let busy = backend.send(
@@ -233,6 +240,22 @@ fn only_one_task_runs_and_cancel_is_acknowledged() {
     );
     let cancelled = backend.call("task.cancel", json!({"id": id}));
     assert_eq!(cancelled["cancelling"], true);
+    // The worker is either blocked opening the FIFO or already stopped by the
+    // cancellation. A non-blocking writer open succeeds only while it waits,
+    // and closing that writer releases it with EOF; retry until the slot is free.
+    use std::os::unix::fs::OpenOptionsExt;
+    const O_NONBLOCK: i32 = 0o4000;
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+    while !backend.call("task.running", json!({}))["task"].is_null() {
+        assert!(std::time::Instant::now() < deadline, "cancelled task never ended");
+        drop(
+            std::fs::OpenOptions::new()
+                .write(true)
+                .custom_flags(O_NONBLOCK)
+                .open(&fifo),
+        );
+        std::thread::sleep(std::time::Duration::from_millis(10));
+    }
     backend.finish();
 }
 
