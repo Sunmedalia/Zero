@@ -73,16 +73,16 @@ export type KeyCode = string;
 
 export const KEYS = {
   quit: 'q',
-  help: 'F1',
+  help: 'H',
   palette: '?',
   settings: ',',
   cache: 'c',
   taskLog: 'l',
   history: 'h',
   diagnostics: 'v',
-  pageAssets: 'F2',
-  pageAnalysis: 'F3',
-  systemSelect: 'F6',
+  pageAssets: '1',
+  pageAnalysis: '2',
+  systemSelect: 'S',
   toggleOnline: 'o',
   cancel: 'Esc',
   importImage: 'i',
@@ -103,7 +103,7 @@ export const KEYS = {
   fetchIndex: 'g',
   download: 'w',
   toggleMatchFilter: 'z',
-  run: 'F5',
+  run: 'R',
   rerun: 'r',
   plugins: 'p',
   parameters: 'P',
@@ -260,17 +260,17 @@ export function keywords(command: Command): string {
 export const ACTIONS: Action[] = [
   // Global actions, valid on both pages.
   action('quit', '退出 q', 'q', 'anywhere', PALETTE),
-  action('help', '帮助 F1', 'F1', 'anywhere', PALETTE),
+  action('help', '帮助 H', 'H', 'anywhere', PALETTE),
   action('palette', '命令面板 ?', '?', 'anywhere', PALETTE | TOOLBAR),
   action('settings', '目录与分页设置 ,', ',', 'anywhere', PALETTE | TOOLBAR),
   action('cache', '管理缓存 c', 'c', 'anywhere', PALETTE),
   action('taskLog', '任务日志 l', 'l', 'anywhere', PALETTE),
   action('history', '历史导出记录 h', 'h', 'anywhere', PALETTE),
   action('diagnostics', '查看诊断 v', 'v', 'anywhere', PALETTE),
-  action('pageAssets', '打开资源库 F2', 'F2', 'anywhere', PALETTE),
-  action('pageAnalysis', '打开分析页 F3', 'F3', 'anywhere', PALETTE),
+  action('pageAssets', '打开资源库 1', '1', 'anywhere', PALETTE),
+  action('pageAnalysis', '打开分析页 2', '2', 'anywhere', PALETTE),
   {
-    ...action('systemSelect', '选择分析系统 F6', 'F6', 'anywhere', PALETTE | FOOTER),
+    ...action('systemSelect', '选择分析系统 S', 'S', 'anywhere', PALETTE | FOOTER),
     footerFocus: ANY_FOCUS,
   },
   action('toggleOnline', '在线／离线 o', 'o', 'anywhere', PALETTE | TOOLBAR),
@@ -312,7 +312,7 @@ export const ACTIONS: Action[] = [
   },
   // Analysis actions.
   {
-    ...action('run', '运行插件 F5', 'F5', 'analysis', PALETTE | FOOTER),
+    ...action('run', '运行插件 R', 'R', 'analysis', PALETTE | FOOTER),
     footerFocus: NAV_FOCUS,
   },
   { ...action('rerun', '重新分析 r', 'r', 'analysis', PALETTE | FOOTER), footerFocus: NAV_FOCUS },
@@ -511,16 +511,14 @@ export function commandMatches(
  */
 export function commandForKey(page: Page, key: KeyCode): Command | null {
   switch (key) {
-    case 'F1':
+    case 'H':
       return 'help';
-    case 'F2':
+    case '1':
       return 'pageAssets';
-    case 'F3':
+    case '2':
       return 'pageAnalysis';
-    case 'F6':
+    case 'S':
       return 'systemSelect';
-    case 'F8':
-      return 'diagnostics';
     case '?':
       return 'palette';
     case ',':
@@ -585,7 +583,7 @@ export function commandForKey(page: Page, key: KeyCode): Command | null {
     }
   }
   switch (key) {
-    case 'F5':
+    case 'R':
       return 'run';
     case 'r':
       return 'rerun';

@@ -10,8 +10,8 @@ import {
 } from './harness.js';
 import { app } from './harness.js';
 import { assetListFor, remoteList, requestKey, viewIndex, visibleRow } from '../state.js';
-import { commandApplies, commandForKey, commandMatches, toolbarCommands } from '../actions.js';
-import { parseOptions } from '../dialogs.js';
+import { ACTIONS, KEYS, commandApplies, commandForKey, commandMatches, toolbarCommands } from '../actions.js';
+import { dumpModes, parseOptions } from '../dialogs.js';
 import { keyToken } from '../keys.js';
 
 /** Poll until `predicate` holds, so a test never depends on a microtask count. */
@@ -209,7 +209,9 @@ test('one key resolves to the page-specific command', () => {
   assert.equal(commandForKey('analysis', 'r'), 'rerun');
   assert.equal(commandForKey('assets', 'K'), 'generateSymbols');
   assert.equal(commandForKey('analysis', 'g'), 'generateSymbols');
-  assert.equal(commandForKey('analysis', 'F5'), 'run');
+  assert.equal(commandForKey('analysis', 'R'), 'run');
+  assert.equal(commandForKey('assets', '2'), 'pageAnalysis');
+  assert.equal(commandForKey('analysis', 'F5'), null);
 });
 
 test('section-specific commands do not apply to other sections', () => {
@@ -438,4 +440,19 @@ test('the fixture keeps asset kinds independent', () => {
   assert.equal(image.kind, 'image');
   assert.equal(symbols.kind, 'symbols');
   assert.equal(hello().plugins.length, 6);
+});
+
+test('no binding or label asks for a function key', () => {
+  const functionKey = /\bF\d/u;
+  for (const key of Object.values(KEYS)) {
+    assert.doesNotMatch(key, functionKey);
+  }
+  for (const entry of ACTIONS) {
+    assert.doesNotMatch(entry.label, functionKey);
+  }
+  for (const windows of [false, true]) {
+    for (const mode of dumpModes(windows)) {
+      assert.doesNotMatch(mode.label, functionKey);
+    }
+  }
 });

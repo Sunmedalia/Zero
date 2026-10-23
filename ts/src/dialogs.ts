@@ -397,14 +397,14 @@ export function parseOptions(
 export function dumpModes(windows: boolean): { label: string; plugin: string }[] {
   return windows
     ? [
-        { label: 'F2 Process', plugin: 'windows.procdump' },
-        { label: 'F3 Range', plugin: 'windows.memdump' },
-        { label: 'F4 PE', plugin: 'windows.pedump' },
+        { label: 'Alt+1 Process', plugin: 'windows.procdump' },
+        { label: 'Alt+2 Range', plugin: 'windows.memdump' },
+        { label: 'Alt+3 PE', plugin: 'windows.pedump' },
       ]
     : [
-        { label: 'F2 Process', plugin: 'procdump' },
-        { label: 'F3 Range', plugin: 'memdump' },
-        { label: 'F4 ELF', plugin: 'elfdump' },
+        { label: 'Alt+1 Process', plugin: 'procdump' },
+        { label: 'Alt+2 Range', plugin: 'memdump' },
+        { label: 'Alt+3 ELF', plugin: 'elfdump' },
       ];
 }
 

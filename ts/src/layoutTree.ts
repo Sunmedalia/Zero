@@ -58,6 +58,9 @@ export function inside(region: Rect, x: number, y: number): boolean {
 /** Rows a list pane spends on its search field. */
 export const SEARCH_ROWS = 3;
 
+/** Page tab labels; painting and hit-testing share them so widths agree. */
+export const TAB_LABELS = [' 1 资源库 ', ' 2 分析 '] as const;
+
 export interface PaneLayout {
   section: Section;
   /** Whole pane, including its frame and optional search field. */
@@ -178,9 +181,10 @@ export function computeLayout(state: AppState, columns: number, rows: number): L
     rowHits: [],
   };
 
+  const assetsWidth = cellWidth(TAB_LABELS[0]);
   base.tabsHits = [
-    { rect: rect(0, 0, cellWidth(' F2 资源库 '), 1), page: 'assets' },
-    { rect: rect(12, 0, cellWidth(' F3 分析 '), 1), page: 'analysis' },
+    { rect: rect(0, 0, assetsWidth, 1), page: 'assets' },
+    { rect: rect(assetsWidth + 1, 0, cellWidth(TAB_LABELS[1]), 1), page: 'analysis' },
   ];
   if (state.page === 'analysis' && !twoPanes(layout)) {
     // Narrow analysis layouts replace the system picker with region tabs, so
@@ -488,7 +492,7 @@ function layoutDialogButtons(base: Layout, state: AppState, dialog: Dialog, popu
       });
       base.buttons.push({
         rect: rect(inner.x + 20, popup.y + popup.height - 5, 14, 1),
-        key: 'F7',
+        key: 'Ctrl+t',
         action: '切换方式',
       });
       base.buttons.push({

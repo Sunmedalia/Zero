@@ -333,7 +333,7 @@ export class App {
     const identified = (this.state.results.get('banners')?.rows.length ?? 0) > 0;
     if (!identified && this.state.analysisOptions.os === 'auto') {
       this.state.preparation = 'chooseSystem';
-      this.state.status = '系统识别不明确；F6 选择 Linux／Windows 后重试';
+      this.state.status = '系统识别不明确；S 选择 Linux／Windows 后重试';
       return;
     }
     this.state.preparedStamp = this.localStamp();
@@ -1321,7 +1321,7 @@ export class App {
       this.state.status =
         page === 'analysis'
           ? this.state.image === null
-            ? '尚未选用镜像；F2 资源库选用'
+            ? '尚未选用镜像；1 资源库选用'
             : '点击或 Enter 运行插件 · / 筛选 · ? 命令面板'
           : 'Space 选用 · Enter 选用并进入分析 · ? 命令面板';
     }
@@ -2424,7 +2424,7 @@ export class App {
     if (dialog.kind !== 'generateSymbols') {
       return;
     }
-    if (token === 'F7') {
+    if (token === 'Ctrl+t') {
       if (supportsKaliSymbols(this.state)) {
         const automatic = !dialog.automatic;
         this.state.dialog = {
@@ -2505,7 +2505,7 @@ export class App {
     if (dialog.kind !== 'windowsParameters') {
       return;
     }
-    if (token === 'F7' && this.state.windows) {
+    if (token === 'Ctrl+t' && this.state.windows) {
       const advanced = !dialog.advanced;
       const field = !advanced && dialog.field >= 3 ? 6 : dialog.field;
       this.state.dialog = { ...dialog, advanced, field };
@@ -2562,10 +2562,10 @@ export class App {
     if (dialog.kind !== 'dump') {
       return;
     }
-    const modeKey = /^F([234])$/u.exec(token);
+    const modeKey = /^Alt\+([123])$/u.exec(token);
     if (modeKey) {
       const modes = dumpModes(this.state.windows);
-      const next = modes[Number(modeKey[1]) - 2];
+      const next = modes[Number(modeKey[1]) - 1];
       if (next) {
         const fields = [...dialog.fields];
         if (next.plugin.endsWith('elfdump') || next.plugin.endsWith('pedump')) {

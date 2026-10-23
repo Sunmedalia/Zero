@@ -80,7 +80,7 @@ test('layout thresholds answer each question once', () => {
 });
 
 test('action rows reserve room for the overflow chip on every row', () => {
-  assert.equal(actionRows(['退出 q', '帮助 F1'], 80, 3), 1);
+  assert.equal(actionRows(['退出 q', '帮助 H'], 80, 3), 1);
   assert.ok(actionRows(['一个很长的操作标签 x', '另一个很长的操作标签 y'], 24, 3) >= 2);
   assert.equal(actionRows(['短 a'], 20, 3), 1);
   // A label wider than the strip is skipped rather than counted as a row.

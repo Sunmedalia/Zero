@@ -1,6 +1,6 @@
 /**
  * Key normalisation: Ink gives a character plus modifier booleans; the action
- * table compares stable tokens such as `F2`, `Alt+Left`, `Ctrl+r` and `Esc`.
+ * table compares stable tokens such as `Tab`, `Alt+Left`, `Ctrl+r` and `Esc`.
  */
 import type { KeyLike } from './dialogs.js';
 

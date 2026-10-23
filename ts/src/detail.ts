@@ -93,10 +93,10 @@ export function helpText(): string {
   const lines = [
     'ZERO 取证工作台',
     '',
-    'F2 资源库 · F3 分析 · F6 自动/Linux/Windows · Ctrl+←/→ 切换页面',
+    '1 资源库 · 2 分析 · S 自动/Linux/Windows · R 运行 · ? 命令面板 · Ctrl+←/→ 切换页面',
     'Tab / Shift+Tab 切换区域；↑↓ 或 j/k 导航；PgUp/PgDn/Home/End 翻页',
     '',
-    '默认进入分析工作台；i 选择镜像，准备完成后 F5 运行插件。',
+    '默认进入分析工作台；i 选择镜像，准备完成后 R 运行插件。',
     '80×24 按区域切换；120×35 双栏；160 列且 28 行起详情使用右侧栏。',
     'd 查看行字段，方向键／PgUp／PgDn 滚动，d／Esc 关闭；Enter 查看结果与诊断。',
     '',
@@ -132,7 +132,7 @@ export function helpText(): string {
     'Ctrl+P / ? 命令面板（空格分隔多个词，不区分大小写，可用 cache、dump、pid 等英文词）',
     'Esc 关闭弹窗；分析页先清除筛选，再取消任务 · q 退出（任务中需按两次）· Ctrl+C 立即退出',
     '文件弹窗：Space 选用 · Enter 打开目录／进入分析控制台，d 详情 · Shift+Space 选用符号目录 · ← 上级 · Tab 切换目录 · p 输入路径',
-    'Dump：F2/F3/F4 切换模式 · Tab 字段 · Ctrl+Enter 运行',
+    'Dump：Alt+1/2/3 切换模式 · Tab 字段 · Ctrl+Enter 运行',
   );
   return lines.join('\n');
 }

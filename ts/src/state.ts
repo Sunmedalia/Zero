@@ -356,7 +356,7 @@ export function initialState(hello: Hello, launch: { image: string | null; symbo
     descending: false,
     row: 0,
     collapsed: new Set(),
-    status: 'i 选择镜像 · F2 管理资源 · ? 命令面板',
+    status: 'i 选择镜像 · 1 管理资源 · ? 命令面板',
     lastError: null,
     logs: [],
     startedAt: null,

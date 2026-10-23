@@ -23,7 +23,7 @@ import {
 } from '../state.js';
 import { commandMatches } from '../actions.js';
 import type { Layout, PaneLayout, Rect } from '../layoutTree.js';
-import { frameInner } from '../layoutTree.js';
+import { TAB_LABELS, frameInner } from '../layoutTree.js';
 import { Canvas, type Style } from '../canvas.js';
 import {
   ACCENT,
@@ -67,7 +67,7 @@ export function paintBackground(canvas: Canvas): void {
 export function paintTabs(canvas: Canvas, app: App, layout: Layout): void {
   const state = app.state;
   canvas.fill(layout.tabs.x, layout.tabs.y, layout.tabs.width, 1, { background: RAISED });
-  const labels = [' F2 资源库 ', ' F3 分析 '];
+  const labels = TAB_LABELS;
   layout.tabsHits.forEach((tab, index) => {
     const active = state.page === tab.page;
     canvas.write(
@@ -461,8 +461,8 @@ export function paintContent(canvas: Canvas, app: App, layout: Layout): void {
         : state.image === null
           ? '镜像 → 精确匹配符号 → 运行插件'
           : state.symbols === '' && state.plugin !== 'banners'
-            ? 'F2 资源库 · M 精确匹配'
-            : state.lastError ? 'l 查看任务日志 · r 重试' : (app.plugins().find((entry) => entry.name === state.plugin)?.description ?? 'F5 运行插件 · p 搜索插件'),
+            ? '1 资源库 · M 精确匹配'
+            : state.lastError ? 'l 查看任务日志 · r 重试' : (app.plugins().find((entry) => entry.name === state.plugin)?.description ?? 'R 运行插件 · p 搜索插件'),
     );
     return;
   }
@@ -701,13 +701,13 @@ function paintDialogBody(canvas: Canvas, app: App, dialog: Dialog, popup: Rect):
       canvas.write(box.x, box.y, truncate(hint, box.width), { color: MUTED, background: SURFACE }, box.width);
       dumpModes(state.windows).forEach((mode, index) => {
         const active = dialog.mode === mode.plugin;
-        const x = box.x + index * 12;
+        const x = box.x + index * 16;
         canvas.write(
           x,
           box.y + 1,
           ` ${mode.label} `,
           { color: active ? FOCUS : ACCENT, background: active ? SELECTED_BG : SURFACE },
-          11,
+          Math.min(15, Math.max(box.x + box.width - x, 0)),
         );
       });
       ['PID (必填)', 'Start (0x / 十进制)', 'End (不包含)', '转储目录 (必填)'].forEach(
@@ -740,7 +740,7 @@ function paintDialogBody(canvas: Canvas, app: App, dialog: Dialog, popup: Rect):
       canvas.write(
         box.x,
         box.y,
-        state.windows ? 'F7 展开／收起 Windows 高级配置' : '参数按插件保存草稿',
+        state.windows ? 'Ctrl+T 展开／收起 Windows 高级配置' : '参数按插件保存草稿',
         { color: TEXT, background: SURFACE },
         box.width,
       );
@@ -792,8 +792,8 @@ function paintDialogBody(canvas: Canvas, app: App, dialog: Dialog, popup: Rect):
     case 'generateSymbols': {
       title('生成当前镜像符号表');
       const mode = dialog.automatic
-        ? '自动获取当前内核调试资料（Kali 6.8.11-1kali2 ARM64）；F7 手动输入'
-        : '使用当前内核的调试 ELF 和配置；F7 切换自动获取（支持的构建）';
+        ? '自动获取当前内核调试资料（Kali 6.8.11-1kali2 ARM64）；Ctrl+T 手动输入'
+        : '使用当前内核的调试 ELF 和配置；Ctrl+T 切换自动获取（支持的构建）';
       const lines = [
         `当前镜像：${escaped(state.image ?? '')}`,
         '符号表用于解析内核结构；生成后校验完整 banner，保存到本地库并选用。',
