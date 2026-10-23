@@ -25,6 +25,7 @@ pub mod container;
 mod drivers;
 mod dump;
 pub mod hiber;
+mod integrity;
 mod legacy_network;
 mod malware;
 mod memory;
@@ -35,6 +36,7 @@ pub mod paging;
 mod pool;
 mod process;
 mod registry;
+mod security;
 mod user_artifacts;
 mod user_layout;
 mod wow64;
@@ -536,7 +538,10 @@ impl Windows<'_> {
         if matches!(p, Plugin::WinCallbacks | Plugin::WinUnloadedmodules) {
             return self.kernel_artifacts(p, job);
         }
-        if matches!(p, Plugin::WinFilescan | Plugin::WinMutantscan) {
+        if matches!(
+            p,
+            Plugin::WinFilescan | Plugin::WinMutantscan | Plugin::WinSymlinkscan
+        ) {
             return self.pool_artifacts(p, job);
         }
         if matches!(p, Plugin::WinConnscan | Plugin::WinSockscan) {
@@ -554,10 +559,25 @@ impl Windows<'_> {
         if p == Plugin::WinModules {
             return self.modules(p, job);
         }
+        if p == Plugin::WinSsdt {
+            return self.ssdt(job);
+        }
+        if p == Plugin::WinModscan {
+            return self.modscan(job);
+        }
+        if p == Plugin::WinBigpools {
+            return self.bigpools(job);
+        }
+        if p == Plugin::WinDevicetree {
+            return self.devicetree(job);
+        }
         if p == Plugin::WinHivelist {
             return self.registry(p, options, job);
         }
-        if matches!(p, Plugin::WinPrintkey | Plugin::WinAutoruns) {
+        if matches!(
+            p,
+            Plugin::WinPrintkey | Plugin::WinAutoruns | Plugin::WinUserassist
+        ) {
             let (processes, diagnostics) = self.processes_partial(job)?;
             let owners: Vec<_> = processes
                 .iter()
@@ -580,10 +600,10 @@ impl Windows<'_> {
                 base: self.base,
                 pdb: self.pdb.clone(),
             };
-            let mut result = if p == Plugin::WinAutoruns {
-                registry.autoruns(options, job)?
-            } else {
-                registry.registry(p, options, job)?
+            let mut result = match p {
+                Plugin::WinAutoruns => registry.autoruns(options, job)?,
+                Plugin::WinUserassist => registry.userassist(options, job)?,
+                _ => registry.registry(p, options, job)?,
             };
             if !diagnostics.is_empty() {
                 result.complete = false;
@@ -641,6 +661,8 @@ impl Windows<'_> {
                     self.vad_result(&process, p, &mut result, job)
                 }
                 Plugin::WinHandles => self.handles(&process, &mut result, job),
+                Plugin::WinPrivileges => self.privileges(&process, &mut result),
+                Plugin::WinSessions => self.session(&process, &mut result),
                 _ => bail!("不支持的 Windows 插件 {}", p.name()),
             };
             if let Err(e) = read {
@@ -731,7 +753,8 @@ pub(crate) fn validate_request(
     }
     ensure!(
         request.plugin == Plugin::WinPrintkey
-            || (request.plugin == Plugin::WinAutoruns && options.key.is_empty())
+            || (matches!(request.plugin, Plugin::WinAutoruns | Plugin::WinUserassist)
+                && options.key.is_empty())
             || (options.hive.is_none() && options.key.is_empty()),
         "hive/key 仅用于 windows.printkey"
     );

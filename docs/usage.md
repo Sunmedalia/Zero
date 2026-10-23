@@ -84,7 +84,7 @@ zero dump --image images/linux-sample-1.bin.gz --symbols symbols/linux.zip \
 
 TUI 插件列表只列分析插件，转储统一放在 `dump` 功能中，用 `D` 打开。CLI 推荐使用 `dump --mode process|range|elf`，必填 PID、转储目录与清单输出；兼容原 `analyze --plugin procdump|memdump|elfdump` 调用。
 
-Linux 的 `--plugin` 支持 `pslist`、`pstree`、`lsmod`、`psaux`、`envars`、`maps`、`lsof`、`sockstat`、`netscan`、`banners`、`pwd`、`pscred`、`threads`、`mountinfo`、`check_creds`、`dmesg`、`systeminfo`、`elfs`、`bash`、`malfind`、`psxview`、`check_modules`、`check_syscall`、`psstate`、`capabilities`、`fdsummary`、`procdump`、`memdump`、`elfdump`、`iomem`、`ioports`、`ptrace`、`keyboard_notifiers`、`check_exec`，共 34 个。进程字段为 PID、TGID、PPID、Name、Address，PID 0 不进入结果；模块字段为 Name、Base、Size，大小以字节计。`pstree` 导出同样的完整进程字段，PPID 表达父子关系，TUI 显示可展开树。地址是完整虚拟地址，模块 Base 是 `module_core` / `core_layout.base`，Size 是整个核心内存区域大小。
+Linux 的 `--plugin` 支持 `pslist`、`pstree`、`lsmod`、`psaux`、`envars`、`maps`、`lsof`、`sockstat`、`netscan`、`banners`、`pwd`、`pscred`、`threads`、`mountinfo`、`check_creds`、`dmesg`、`systeminfo`、`elfs`、`bash`、`malfind`、`psxview`、`check_modules`、`check_syscall`、`psstate`、`capabilities`、`fdsummary`、`procdump`、`memdump`、`elfdump`、`iomem`、`ioports`、`ptrace`、`keyboard_notifiers`、`check_exec`、`check_idt`、`tty_check`、`hidden_modules`、`library_list`、`pidhashtable`、`vmcoreinfo`、`ip_addr`、`ip_link`，共 42 个。进程字段为 PID、TGID、PPID、Name、Address，PID 0 不进入结果；模块字段为 Name、Base、Size，大小以字节计。`pstree` 导出同样的完整进程字段，PPID 表达父子关系，TUI 显示可展开树。地址是完整虚拟地址，模块 Base 是 `module_core` / `core_layout.base`，Size 是整个核心内存区域大小。
 
 新增分析字段与范围：
 
@@ -110,6 +110,14 @@ Linux 的 `--plugin` 支持 `pslist`、`pstree`、`lsmod`、`psaux`、`envars`�
 | psxview | PID、Name、Address、Tasks、PIDIndex、ThreadGroup、Reason |
 | check_modules | Name、Address、Start、End、ModuleList、Sysfs、Reason |
 | check_syscall | Table、Index、Target、Symbol、Owner、Reason |
+| check_idt | Index、Address、Symbol、Owner、Present、Reason |
+| tty_check | Name、Address、Symbol、Owner、Reason |
+| hidden_modules | Name、Address、Start、End、State、Reason |
+| library_list | PID、Name、LoadAddress、Path |
+| pidhashtable | Address、PID、TGID、PPID、Name |
+| vmcoreinfo | Key、Value |
+| ip_addr | Namespace、Interface、MAC、Promiscuous、Address、Prefix、Scope、State |
+| ip_link | Namespace、Interface、MAC、State、MTU、Flags |
 | psstate | PID、Name、State、ExitState、Flags |
 | capabilities | PID、Name、Inheritable、Permitted、Effective、Bounding、CredAddress |
 | fdsummary | PID、Name、Total、Regular、Sockets、Pipes |
@@ -128,6 +136,16 @@ Linux 的 `--plugin` 支持 `pslist`、`pstree`、`lsmod`、`psaux`、`envars`�
 | `ioports` | 本项目扩展（复用 `iomem` 的资源树机制，无官方同名插件） | 从 `ioport_resource` 遍历 I/O 端口资源树；ARM64 可能只有少量根资源 |
 | `ptrace` | [Volatility 3 linux.ptrace](https://volatility3.readthedocs.io/en/latest/volatility3.plugins.linux.ptrace.html) | 包含非组长线程，输出 tracer 与 tracee；正常无跟踪关系为空表 |
 | `keyboard_notifiers` | [Volatility 3 linux.malware.keyboard_notifiers](https://volatility3.readthedocs.io/en/latest/volatility3.plugins.linux.malware.keyboard_notifiers.html) | 遍历键盘通知链，显示回调及已知内核／已加载模块归属 |
+| `check_idt` | Volatility 3 linux.malware.check_idt | 解码 x86_64 `idt_table` 每个门的处理函数地址，归属内核代码、内核 init 代码或已加载模块；ARM64 明确报告不支持 |
+| `tty_check` | Volatility 3 linux.malware.tty_check | 遍历 `tty_drivers` 的已打开 TTY，检查行规程 `receive_buf` 的归属 |
+| `hidden_modules` | Volatility 3 linux.malware.hidden_modules | 在模块内存范围内按 `mkobj.mod` 自引用雕刻 `struct module`，报告不在 `modules` 链表中的模块 |
+| `pidhashtable` | Volatility 3 linux.pidhashtable | 从 PID 索引（IDR xarray 或旧版 pid_hash）列出任务，独立于 tasks 链表，按 PID 排序 |
+| `vmcoreinfo` | Volatility 3 linux.vmcoreinfo | 读取 `vmcoreinfo_data`（4.15 起为指针）中的 KEY=VALUE 记录 |
+| `ip_addr` | Volatility 3 linux.ip.Addr | 遍历 `net_namespace_list`（旧内核只有 `init_net`）中每个网卡的 IPv4 `ifa_list` 与 IPv6 `addr_list` |
+| `ip_link` | Volatility 3 linux.ip.Link | 每个网卡的 MAC、operstate、MTU 与接口标志 |
+| `library_list` | Volatility 3 linux.library_list | 列出进程文件映射中 ET_DYN 的共享库（每个路径一次，排除主程序），不读取 ld.so 的 link_map |
+
+`check_idt`、`tty_check` 与 `check_syscall` 共用同一张代码归属表：内核 `_stext.._etext`、内核 init 代码 `_sinittext.._einittext`（Reason 为 KernelInitText，常见于保留中断向量仍指向早期处理函数）以及已加载模块的代码区。`check_idt` 的表长优先取 ISF 数组长度，长度为 0 时按架构固定的 256 项读取。`hidden_modules` 的扫描范围优先取 ISF 的 `mod_tree` 边界，x86_64 退回 MODULES_VADDR..MODULES_END；ARM64 若缺少 `mod_tree` 只扫描已列出模块的地址跨度，并标记为部分结果。扫描读取上限 256 MiB、跨度上限 2 GiB；候选必须状态合法、名称可打印且代码范围有效。`library_list` 的路径解析失败显示 `[unresolved]` 并标记部分结果。Debian 3.2 样本：`check_idt=256`（244 KernelText、12 KernelInitText）、`tty_check=7`、`hidden_modules=0`，均为完整结果；`library_list` 因用户页缺页为部分结果；`pidhashtable=316`（与 psxview 一致，含线程）、`vmcoreinfo=47`、`ip_addr=4`（lo 与 eth0 的 IPv4／IPv6）、`ip_link=2`。
 
 这些是本地 ISF 驱动的实现，不执行 Volatility Python 插件。资源 Start／End 是**物理资源地址或端口号**，End 包含边界；Address 为结构的虚拟地址，Depth 从根的 0 开始，Flags 保留原始掩码。资源树限制 100 万项、1024 层，字符串限制 4096 字节；循环、缺页、倒置范围和达到上限均标记部分结果，保留可读分支。`ptrace` 的 PID 是 TGID，TID 为线程 ID，未关联一端显示 `[none]`，Flags 输出原始掩码，便于跨内核核对，不将 tracer 误用 `real_parent` 解析。`keyboard_notifiers` 的 Priority 为有符号整数；Symbol 仅根据已知内核代码范围内的 ISF 符号定位，模块内无 ISF 函数名时显示 `[unknown]`，不猜测相邻内核符号。这里只检查已加载模块链表，不进行隐藏模块扫描，回调出现本身不表示恶意。无通知回调为空表；缺少必要结构／符号会明确报告不支持。
 

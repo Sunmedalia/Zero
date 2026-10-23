@@ -601,6 +601,15 @@ mod tests {
         let hidden = r.rows.iter().find(|r| r[0] == "3").unwrap();
         assert_eq!(&hidden[3..6], &["false", "true", "false"]);
         assert!(hidden[6].starts_with("ViewMismatch"));
+        // pidhashtable sees the unlinked task through the PID index alone.
+        let r = engine(&img, &isf)
+            .run(Plugin::Pidhashtable, &Job::default())
+            .unwrap();
+        assert!(r.complete, "{:?}", r.diagnostics);
+        let pids: Vec<_> = r.rows.iter().map(|row| row[1].as_str()).collect();
+        assert_eq!(pids, ["1", "2", "3"]);
+        assert_eq!(r.rows[2][0], hex(0xa200));
+        assert_eq!(r.rows[2][4], "hidden");
         put(&mut b, 0x16000, 0x16002);
         let img = image(&b);
         assert!(

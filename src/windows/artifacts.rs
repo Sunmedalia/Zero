@@ -43,13 +43,7 @@ fn sid_string(bytes: &[u8]) -> Result<String> {
 }
 impl Windows<'_> {
     pub(super) fn sids(&self, p: &Process, r: &mut Results, job: &Job) -> Result<()> {
-        let fast = self.field(p.address, "_EPROCESS", "Token")?;
-        let token = if self.vm.isf.field("_EX_FAST_REF", "Object").is_ok() {
-            self.number(fast, "_EX_FAST_REF", "Object")?
-        } else {
-            self.vm.pointer(fast)?
-        } & !(self.vm.pointer_size() as u64 * 2 - 1);
-        ensure!(self.vm.kernel(token), "无效进程 Token 指针");
+        let token = self.token(p)?;
         let count = self.number(token, "_TOKEN", "UserAndGroupCount")?;
         ensure!((1..=65535).contains(&count), "Token SID 数量无效");
         let groups = self.number(token, "_TOKEN", "UserAndGroups")?;

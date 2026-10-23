@@ -1,6 +1,16 @@
 use super::*;
 // Windows 8 encodes 41 address bits; later kernels may encode 44.
 // Sign-extend the exact symbol-declared width after the four alignment bits.
+/// Exported kernel variables that point at well-known object types.
+const KNOWN_TYPES: &[(&str, &str)] = &[
+    ("ObpSymbolicLinkObjectType", "SymbolicLink"),
+    ("IoFileObjectType", "File"),
+    ("ExMutantObjectType", "Mutant"),
+    ("PsProcessType", "Process"),
+    ("PsThreadType", "Thread"),
+    ("IoDriverObjectType", "Driver"),
+    ("IoDeviceObjectType", "Device"),
+];
 fn decode_object_pointer(bits: u64, width: u64) -> Result<u64> {
     ensure!((1..=60).contains(&width), "句柄编码指针位宽无效");
     ensure!(bits <= (u64::MAX >> (64 - width)), "句柄编码指针溢出");
@@ -202,7 +212,20 @@ impl Windows<'_> {
             .vm
             .pointer(add(table, index * self.vm.pointer_size() as u64)?)?;
         ensure!(self.vm.kernel(ty), "无效对象类型");
-        let name = self.vm.unicode(self.field(ty, "_OBJECT_TYPE", "Name")?)?;
+        let name = match self.vm.unicode(self.field(ty, "_OBJECT_TYPE", "Name")?) {
+            Ok(name) => name,
+            // The type name buffer can be paged out; the kernel's exported
+            // type variables still identify the same _OBJECT_TYPE pointer.
+            Err(e) => KNOWN_TYPES
+                .iter()
+                .find(|(symbol, _)| {
+                    self.symbol(symbol)
+                        .and_then(|variable| self.vm.pointer(variable))
+                        .is_ok_and(|known| known == ty)
+                })
+                .map(|(_, name)| (*name).to_string())
+                .ok_or(e)?,
+        };
         layout.type_names.borrow_mut().insert(index, name.clone());
         Ok(name)
     }

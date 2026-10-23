@@ -215,7 +215,7 @@ impl Windows<'_> {
         );
         Ok(result)
     }
-    fn optional_registry(
+    pub(super) fn optional_registry(
         &self,
         hive: u64,
         key: &str,

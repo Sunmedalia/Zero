@@ -78,6 +78,22 @@ pub enum Plugin {
     WinMemdump,
     #[value(name = "windows.pedump")]
     WinPedump,
+    #[value(name = "windows.ssdt")]
+    WinSsdt,
+    #[value(name = "windows.modscan")]
+    WinModscan,
+    #[value(name = "windows.privileges")]
+    WinPrivileges,
+    #[value(name = "windows.sessions")]
+    WinSessions,
+    #[value(name = "windows.registry.userassist")]
+    WinUserassist,
+    #[value(name = "windows.bigpools")]
+    WinBigpools,
+    #[value(name = "windows.symlinkscan")]
+    WinSymlinkscan,
+    #[value(name = "windows.devicetree")]
+    WinDevicetree,
     Iomem,
     Ioports,
     Ptrace,
@@ -124,6 +140,12 @@ pub enum Plugin {
     HiddenModules,
     #[value(name = "library_list", alias = "library-list")]
     LibraryList,
+    Pidhashtable,
+    Vmcoreinfo,
+    #[value(name = "ip_addr", alias = "ip.addr")]
+    IpAddr,
+    #[value(name = "ip_link", alias = "ip.link")]
+    IpLink,
 }
 pub struct Descriptor {
     pub plugin: Plugin,
@@ -560,6 +582,77 @@ pub const PLUGINS: &[Descriptor] = &[
         widths: &[12, 0, 12, 12, 12, 12, 12],
     },
     Descriptor {
+        plugin: Plugin::WinSsdt,
+        name: "windows.ssdt",
+        label: "windows.ssdt",
+        columns: &["Index", "Address", "Module", "Symbol", "Reason"],
+        widths: &[6, 18, 16, 0, 0],
+    },
+    Descriptor {
+        plugin: Plugin::WinModscan,
+        name: "windows.modscan",
+        label: "windows.modscan",
+        columns: &["Physical", "Name", "Base", "Size", "Path", "InList"],
+        widths: &[18, 16, 18, 10, 0, 6],
+    },
+    Descriptor {
+        plugin: Plugin::WinPrivileges,
+        name: "windows.privileges",
+        label: "windows.privileges",
+        columns: &["PID", "Name", "Value", "Privilege", "Attributes"],
+        widths: &[8, 16, 6, 0, 24],
+    },
+    Descriptor {
+        plugin: Plugin::WinSessions,
+        name: "windows.sessions",
+        label: "windows.sessions",
+        columns: &["SessionID", "PID", "Name", "CreateTime", "SessionAddress"],
+        widths: &[9, 8, 0, 20, 18],
+    },
+    Descriptor {
+        plugin: Plugin::WinUserassist,
+        name: "windows.registry.userassist",
+        label: "windows.registry.userassist",
+        columns: &[
+            "Hive",
+            "GUID",
+            "Name",
+            "Count",
+            "FocusCount",
+            "FocusTime",
+            "LastUpdated",
+        ],
+        widths: &[0, 0, 0, 6, 10, 10, 20],
+    },
+    Descriptor {
+        plugin: Plugin::WinBigpools,
+        name: "windows.bigpools",
+        label: "windows.bigpools",
+        columns: &["Allocation", "Tag", "PoolType", "NumberOfBytes"],
+        widths: &[18, 6, 10, 0],
+    },
+    Descriptor {
+        plugin: Plugin::WinSymlinkscan,
+        name: "windows.symlinkscan",
+        label: "windows.symlinkscan",
+        columns: &["Physical", "Address", "Name", "Target", "CreateTime"],
+        widths: &[18, 18, 0, 0, 20],
+    },
+    Descriptor {
+        plugin: Plugin::WinDevicetree,
+        name: "windows.devicetree",
+        label: "windows.devicetree",
+        columns: &[
+            "Driver",
+            "DriverName",
+            "Level",
+            "Device",
+            "DeviceName",
+            "DeviceType",
+        ],
+        widths: &[18, 0, 6, 18, 0, 10],
+    },
+    Descriptor {
         plugin: Plugin::Pslist,
         name: "pslist",
         label: "pslist",
@@ -823,6 +916,43 @@ pub const PLUGINS: &[Descriptor] = &[
         widths: &[6, 14, 18, 0],
     },
     Descriptor {
+        plugin: Plugin::Pidhashtable,
+        name: "pidhashtable",
+        label: "pidhashtable",
+        columns: &["Address", "PID", "TGID", "PPID", "Name"],
+        widths: &[18, 6, 6, 6, 0],
+    },
+    Descriptor {
+        plugin: Plugin::Vmcoreinfo,
+        name: "vmcoreinfo",
+        label: "vmcoreinfo",
+        columns: &["Key", "Value"],
+        widths: &[32, 0],
+    },
+    Descriptor {
+        plugin: Plugin::IpAddr,
+        name: "ip_addr",
+        label: "ip_addr",
+        columns: &[
+            "Namespace",
+            "Interface",
+            "MAC",
+            "Promiscuous",
+            "Address",
+            "Prefix",
+            "Scope",
+            "State",
+        ],
+        widths: &[18, 12, 17, 6, 0, 6, 8, 10],
+    },
+    Descriptor {
+        plugin: Plugin::IpLink,
+        name: "ip_link",
+        label: "ip_link",
+        columns: &["Namespace", "Interface", "MAC", "State", "MTU", "Flags"],
+        widths: &[18, 12, 17, 10, 6, 0],
+    },
+    Descriptor {
         plugin: Plugin::Psstate,
         name: "psstate",
         label: "psstate",
@@ -962,12 +1092,19 @@ impl Plugin {
             Self::WinProcdump => "Process",
             Self::WinMemdump => "Memory",
             Self::WinPedump => "Memory",
+            Self::WinSsdt | Self::WinModscan => "Integrity",
+            Self::WinPrivileges | Self::WinSessions => "Process",
+            Self::WinUserassist => "Files",
+            Self::WinBigpools => "Memory",
+            Self::WinSymlinkscan => "Files",
+            Self::WinDevicetree => "System",
             Self::Banners
             | Self::Systeminfo
             | Self::Dmesg
             | Self::Lsmod
             | Self::Iomem
-            | Self::Ioports => "System",
+            | Self::Ioports
+            | Self::Vmcoreinfo => "System",
             Self::Ptrace
             | Self::Psstate
             | Self::Capabilities
@@ -978,6 +1115,7 @@ impl Plugin {
             | Self::Threads
             | Self::Envars
             | Self::Pwd
+            | Self::Pidhashtable
             | Self::Procdump => "Process",
             Self::Maps
             | Self::Elfs
@@ -986,7 +1124,7 @@ impl Plugin {
             | Self::Memdump
             | Self::Elfdump => "Memory",
             Self::Fdsummary | Self::Lsof | Self::Mountinfo => "Files",
-            Self::Sockstat | Self::Netscan => "Network",
+            Self::Sockstat | Self::Netscan | Self::IpAddr | Self::IpLink => "Network",
             Self::KeyboardNotifiers
             | Self::CheckCreds
             | Self::Malfind
@@ -1035,6 +1173,10 @@ impl Plugin {
             TtyCheck => "检查 TTY 行规程 receive_buf 是否被挂钩",
             HiddenModules => "从模块内存雕刻不在模块链表中的隐藏模块",
             LibraryList => "列出进程映射的共享库",
+            Pidhashtable => "从 PID 索引列出任务，独立于 tasks 链表",
+            Vmcoreinfo => "读取内核为崩溃转储准备的 vmcoreinfo",
+            IpAddr => "列出各网络命名空间中网卡的 IPv4／IPv6 地址",
+            IpLink => "列出各网络命名空间中的网卡及状态",
             Iomem => "查看物理内存资源范围",
             Ioports => "查看 I/O 端口资源",
             Ptrace => "检查进程跟踪关系",
@@ -1063,6 +1205,14 @@ impl Plugin {
             Memdump | WinMemdump => "转储指定进程的地址范围",
             Elfdump => "导出进程中含 ELF 头的映射",
             WinPedump => "按 PE 节表重建可读文件",
+            WinSsdt => "检查系统服务表项的模块与符号归属",
+            WinModscan => "扫描 MmLd 池中的内核模块条目并对照模块链表",
+            WinPrivileges => "列出进程令牌拥有的特权及启用状态",
+            WinSessions => "按登录会话归类进程",
+            WinUserassist => "解码 NTUSER 中的 UserAssist 程序执行记录",
+            WinBigpools => "列出大页池分配表中的已分配块及池标签",
+            WinSymlinkscan => "扫描符号链接对象及其目标",
+            WinDevicetree => "按驱动列出设备对象及附加设备链",
         }
     }
 }

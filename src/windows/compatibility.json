@@ -60,7 +60,15 @@
           "windows.pedump": "pending",
           "windows.ldrmodules": "pending",
           "windows.hollowprocesses": "pending",
-          "windows.suspicious_threads": "pending"
+          "windows.suspicious_threads": "pending",
+          "windows.ssdt": "pending",
+          "windows.modscan": "pending",
+          "windows.privileges": "pending",
+          "windows.sessions": "pending",
+          "windows.registry.userassist": "pending",
+          "windows.bigpools": "pending",
+          "windows.symlinkscan": "pending",
+          "windows.devicetree": "pending"
         },
         "x64": {
           "windows.callbacks": "synthetic",
@@ -98,7 +106,15 @@
           "windows.pedump": "pending",
           "windows.ldrmodules": "synthetic",
           "windows.hollowprocesses": "synthetic",
-          "windows.suspicious_threads": "synthetic"
+          "windows.suspicious_threads": "synthetic",
+          "windows.ssdt": "pending",
+          "windows.modscan": "pending",
+          "windows.privileges": "pending",
+          "windows.sessions": "pending",
+          "windows.registry.userassist": "pending",
+          "windows.bigpools": "pending",
+          "windows.symlinkscan": "pending",
+          "windows.devicetree": "pending"
         }
       },
       "evidence": [
@@ -197,7 +213,15 @@
           "windows.pedump": "pending",
           "windows.ldrmodules": "pending",
           "windows.hollowprocesses": "pending",
-          "windows.suspicious_threads": "pending"
+          "windows.suspicious_threads": "pending",
+          "windows.ssdt": "pending",
+          "windows.modscan": "pending",
+          "windows.privileges": "pending",
+          "windows.sessions": "pending",
+          "windows.registry.userassist": "pending",
+          "windows.bigpools": "pending",
+          "windows.symlinkscan": "pending",
+          "windows.devicetree": "pending"
         },
         "x64": {
           "windows.callbacks": "synthetic",
@@ -235,7 +259,15 @@
           "windows.pedump": "pending",
           "windows.ldrmodules": "synthetic",
           "windows.hollowprocesses": "synthetic",
-          "windows.suspicious_threads": "synthetic"
+          "windows.suspicious_threads": "synthetic",
+          "windows.ssdt": "pending",
+          "windows.modscan": "pending",
+          "windows.privileges": "pending",
+          "windows.sessions": "pending",
+          "windows.registry.userassist": "pending",
+          "windows.bigpools": "pending",
+          "windows.symlinkscan": "pending",
+          "windows.devicetree": "pending"
         }
       },
       "evidence": []
@@ -294,7 +326,15 @@
           "windows.pedump": "pending",
           "windows.ldrmodules": "pending",
           "windows.hollowprocesses": "pending",
-          "windows.suspicious_threads": "pending"
+          "windows.suspicious_threads": "pending",
+          "windows.ssdt": "pending",
+          "windows.modscan": "pending",
+          "windows.privileges": "pending",
+          "windows.sessions": "pending",
+          "windows.registry.userassist": "pending",
+          "windows.bigpools": "pending",
+          "windows.symlinkscan": "pending",
+          "windows.devicetree": "pending"
         },
         "x64": {
           "windows.callbacks": "synthetic",
@@ -332,7 +372,15 @@
           "windows.pedump": "pending",
           "windows.ldrmodules": "synthetic",
           "windows.hollowprocesses": "synthetic",
-          "windows.suspicious_threads": "synthetic"
+          "windows.suspicious_threads": "synthetic",
+          "windows.ssdt": "pending",
+          "windows.modscan": "pending",
+          "windows.privileges": "pending",
+          "windows.sessions": "pending",
+          "windows.registry.userassist": "pending",
+          "windows.bigpools": "pending",
+          "windows.symlinkscan": "pending",
+          "windows.devicetree": "pending"
         }
       },
       "evidence": [
@@ -437,7 +485,15 @@
           "windows.pedump": "pending",
           "windows.ldrmodules": "synthetic",
           "windows.hollowprocesses": "synthetic",
-          "windows.suspicious_threads": "synthetic"
+          "windows.suspicious_threads": "synthetic",
+          "windows.ssdt": "pending",
+          "windows.modscan": "pending",
+          "windows.privileges": "pending",
+          "windows.sessions": "pending",
+          "windows.registry.userassist": "pending",
+          "windows.bigpools": "pending",
+          "windows.symlinkscan": "pending",
+          "windows.devicetree": "pending"
         }
       },
       "evidence": [],
@@ -495,7 +551,15 @@
           "windows.pedump": "pending",
           "windows.ldrmodules": "synthetic",
           "windows.hollowprocesses": "synthetic",
-          "windows.suspicious_threads": "synthetic"
+          "windows.suspicious_threads": "synthetic",
+          "windows.ssdt": "pending",
+          "windows.modscan": "pending",
+          "windows.privileges": "pending",
+          "windows.sessions": "pending",
+          "windows.registry.userassist": "pending",
+          "windows.bigpools": "pending",
+          "windows.symlinkscan": "pending",
+          "windows.devicetree": "pending"
         }
       },
       "evidence": [
@@ -599,7 +663,15 @@
           "windows.pedump": "pending",
           "windows.ldrmodules": "synthetic",
           "windows.hollowprocesses": "synthetic",
-          "windows.suspicious_threads": "synthetic"
+          "windows.suspicious_threads": "synthetic",
+          "windows.ssdt": "pending",
+          "windows.modscan": "pending",
+          "windows.privileges": "pending",
+          "windows.sessions": "pending",
+          "windows.registry.userassist": "pending",
+          "windows.bigpools": "pending",
+          "windows.symlinkscan": "pending",
+          "windows.devicetree": "pending"
         }
       },
       "evidence": [
@@ -704,7 +776,15 @@
           "windows.pedump": "pending",
           "windows.ldrmodules": "synthetic",
           "windows.hollowprocesses": "synthetic",
-          "windows.suspicious_threads": "synthetic"
+          "windows.suspicious_threads": "synthetic",
+          "windows.ssdt": "pending",
+          "windows.modscan": "pending",
+          "windows.privileges": "pending",
+          "windows.sessions": "pending",
+          "windows.registry.userassist": "pending",
+          "windows.bigpools": "pending",
+          "windows.symlinkscan": "pending",
+          "windows.devicetree": "pending"
         }
       },
       "evidence": [
@@ -781,7 +861,15 @@
           "windows.pedump": "pending",
           "windows.ldrmodules": "synthetic",
           "windows.hollowprocesses": "synthetic",
-          "windows.suspicious_threads": "synthetic"
+          "windows.suspicious_threads": "synthetic",
+          "windows.ssdt": "pending",
+          "windows.modscan": "pending",
+          "windows.privileges": "pending",
+          "windows.sessions": "pending",
+          "windows.registry.userassist": "pending",
+          "windows.bigpools": "pending",
+          "windows.symlinkscan": "pending",
+          "windows.devicetree": "pending"
         }
       },
       "evidence": [
@@ -887,7 +975,15 @@
           "windows.pedump": "pending",
           "windows.ldrmodules": "synthetic",
           "windows.hollowprocesses": "synthetic",
-          "windows.suspicious_threads": "synthetic"
+          "windows.suspicious_threads": "synthetic",
+          "windows.ssdt": "pending",
+          "windows.modscan": "pending",
+          "windows.privileges": "pending",
+          "windows.sessions": "pending",
+          "windows.registry.userassist": "pending",
+          "windows.bigpools": "pending",
+          "windows.symlinkscan": "pending",
+          "windows.devicetree": "pending"
         }
       },
       "evidence": [
@@ -993,7 +1089,15 @@
           "windows.pedump": "pending",
           "windows.ldrmodules": "synthetic",
           "windows.hollowprocesses": "synthetic",
-          "windows.suspicious_threads": "synthetic"
+          "windows.suspicious_threads": "synthetic",
+          "windows.ssdt": "pending",
+          "windows.modscan": "pending",
+          "windows.privileges": "pending",
+          "windows.sessions": "pending",
+          "windows.registry.userassist": "pending",
+          "windows.bigpools": "pending",
+          "windows.symlinkscan": "pending",
+          "windows.devicetree": "pending"
         }
       },
       "evidence": [],
@@ -1053,7 +1157,15 @@
           "windows.pedump": "pending",
           "windows.ldrmodules": "pending",
           "windows.hollowprocesses": "pending",
-          "windows.suspicious_threads": "pending"
+          "windows.suspicious_threads": "pending",
+          "windows.ssdt": "pending",
+          "windows.modscan": "pending",
+          "windows.privileges": "pending",
+          "windows.sessions": "pending",
+          "windows.registry.userassist": "pending",
+          "windows.bigpools": "pending",
+          "windows.symlinkscan": "pending",
+          "windows.devicetree": "pending"
         },
         "x64": {
           "windows.callbacks": "real",
@@ -1091,7 +1203,15 @@
           "windows.pedump": "pending",
           "windows.ldrmodules": "synthetic",
           "windows.hollowprocesses": "synthetic",
-          "windows.suspicious_threads": "synthetic"
+          "windows.suspicious_threads": "synthetic",
+          "windows.ssdt": "pending",
+          "windows.modscan": "pending",
+          "windows.privileges": "pending",
+          "windows.sessions": "pending",
+          "windows.registry.userassist": "pending",
+          "windows.bigpools": "pending",
+          "windows.symlinkscan": "pending",
+          "windows.devicetree": "pending"
         }
       },
       "evidence": [
@@ -1182,7 +1302,15 @@
           "windows.pedump": "pending",
           "windows.ldrmodules": "pending",
           "windows.hollowprocesses": "pending",
-          "windows.suspicious_threads": "pending"
+          "windows.suspicious_threads": "pending",
+          "windows.ssdt": "pending",
+          "windows.modscan": "pending",
+          "windows.privileges": "pending",
+          "windows.sessions": "pending",
+          "windows.registry.userassist": "pending",
+          "windows.bigpools": "pending",
+          "windows.symlinkscan": "pending",
+          "windows.devicetree": "pending"
         },
         "x64": {
           "windows.callbacks": "synthetic",
@@ -1220,7 +1348,15 @@
           "windows.pedump": "pending",
           "windows.ldrmodules": "synthetic",
           "windows.hollowprocesses": "synthetic",
-          "windows.suspicious_threads": "synthetic"
+          "windows.suspicious_threads": "synthetic",
+          "windows.ssdt": "pending",
+          "windows.modscan": "pending",
+          "windows.privileges": "pending",
+          "windows.sessions": "pending",
+          "windows.registry.userassist": "pending",
+          "windows.bigpools": "pending",
+          "windows.symlinkscan": "pending",
+          "windows.devicetree": "pending"
         }
       },
       "evidence": []
@@ -1278,7 +1414,15 @@
           "windows.pedump": "pending",
           "windows.ldrmodules": "pending",
           "windows.hollowprocesses": "pending",
-          "windows.suspicious_threads": "pending"
+          "windows.suspicious_threads": "pending",
+          "windows.ssdt": "pending",
+          "windows.modscan": "pending",
+          "windows.privileges": "pending",
+          "windows.sessions": "pending",
+          "windows.registry.userassist": "pending",
+          "windows.bigpools": "pending",
+          "windows.symlinkscan": "pending",
+          "windows.devicetree": "pending"
         },
         "x64": {
           "windows.callbacks": "synthetic",
@@ -1316,7 +1460,15 @@
           "windows.pedump": "pending",
           "windows.ldrmodules": "synthetic",
           "windows.hollowprocesses": "synthetic",
-          "windows.suspicious_threads": "synthetic"
+          "windows.suspicious_threads": "synthetic",
+          "windows.ssdt": "pending",
+          "windows.modscan": "pending",
+          "windows.privileges": "pending",
+          "windows.sessions": "pending",
+          "windows.registry.userassist": "pending",
+          "windows.bigpools": "pending",
+          "windows.symlinkscan": "pending",
+          "windows.devicetree": "pending"
         }
       },
       "evidence": []
@@ -1387,7 +1539,15 @@
           "windows.pedump": "pending",
           "windows.ldrmodules": "pending",
           "windows.hollowprocesses": "pending",
-          "windows.suspicious_threads": "pending"
+          "windows.suspicious_threads": "pending",
+          "windows.ssdt": "pending",
+          "windows.modscan": "pending",
+          "windows.privileges": "pending",
+          "windows.sessions": "pending",
+          "windows.registry.userassist": "pending",
+          "windows.bigpools": "pending",
+          "windows.symlinkscan": "pending",
+          "windows.devicetree": "pending"
         },
         "x64": {
           "windows.callbacks": "real",
@@ -1425,7 +1585,15 @@
           "windows.pedump": "pending",
           "windows.ldrmodules": "synthetic",
           "windows.hollowprocesses": "synthetic",
-          "windows.suspicious_threads": "synthetic"
+          "windows.suspicious_threads": "synthetic",
+          "windows.ssdt": "real",
+          "windows.modscan": "real",
+          "windows.privileges": "real",
+          "windows.sessions": "real",
+          "windows.registry.userassist": "real",
+          "windows.bigpools": "real",
+          "windows.symlinkscan": "real",
+          "windows.devicetree": "real"
         }
       },
       "evidence": [
@@ -1454,7 +1622,15 @@
             "windows.unloadedmodules": 16,
             "windows.filescan": 34225,
             "windows.mutantscan": 765,
-            "windows.svcscan": 574
+            "windows.svcscan": 574,
+            "windows.ssdt": 456,
+            "windows.modscan": 181,
+            "windows.privileges": 1430,
+            "windows.sessions": 139,
+            "windows.registry.userassist": 66,
+            "windows.bigpools": 30323,
+            "windows.symlinkscan": 307,
+            "windows.devicetree": 357
           }
         },
         {
@@ -1532,7 +1708,15 @@
           "windows.pedump": "pending",
           "windows.ldrmodules": "synthetic",
           "windows.hollowprocesses": "synthetic",
-          "windows.suspicious_threads": "synthetic"
+          "windows.suspicious_threads": "synthetic",
+          "windows.ssdt": "real",
+          "windows.modscan": "real",
+          "windows.privileges": "real",
+          "windows.sessions": "real",
+          "windows.registry.userassist": "pending",
+          "windows.bigpools": "real",
+          "windows.symlinkscan": "real",
+          "windows.devicetree": "real"
         }
       },
       "evidence": [
@@ -1561,7 +1745,14 @@
             "windows.unloadedmodules": 7,
             "windows.filescan": 6922,
             "windows.mutantscan": 547,
-            "windows.svcscan": 634
+            "windows.svcscan": 634,
+            "windows.ssdt": 481,
+            "windows.modscan": 156,
+            "windows.privileges": 862,
+            "windows.sessions": 102,
+            "windows.bigpools": 8442,
+            "windows.devicetree": 299,
+            "windows.symlinkscan": 206
           }
         }
       ]

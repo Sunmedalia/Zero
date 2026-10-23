@@ -659,42 +659,8 @@ impl Linux<'_> {
                 Err(e) => partial(r, format!("thread group {leader:#x}"), e),
             }
         }
-        let pids = self.pid_objects(job).context("不支持或 PID 索引损坏")?;
-        let modern = self.isf.field("task_struct", "pid_links").is_ok();
-        let task_offset = if modern {
-            self.isf.offset("task_struct", "pid_links")?
-        } else {
-            self.isf.offset("task_struct", "pids")? + self.isf.offset("pid_link", "node")?
-        };
-        for pid in pids {
-            let read = (|| -> Result<()> {
-                let head = self.field_address(pid, "pid", "tasks")?;
-                let mut node = self.number(head, "hlist_head", "first")?;
-                let mut seen = HashSet::new();
-                let mut expected = head;
-                while node != 0 {
-                    job.check()?;
-                    ensure!(
-                        seen.insert(node) && seen.len() <= 1_000_000,
-                        "PID task hlist 循环或上限"
-                    );
-                    ensure!(
-                        self.number(node, "hlist_node", "pprev")? == expected,
-                        "PID task hlist pprev 不一致"
-                    );
-                    let task = node.checked_sub(task_offset).context("PID task 地址下溢")?;
-                    let nr = self.number(task, "task_struct", "pid")?;
-                    if nr != 0 {
-                        views.entry(task).or_default().1 = true;
-                    }
-                    expected = self.field_address(node, "hlist_node", "next")?;
-                    node = self.number(node, "hlist_node", "next")?;
-                }
-                Ok(())
-            })();
-            if let Err(e) = read {
-                partial(r, format!("PID object {pid:#x}"), e);
-            }
+        for task in self.pid_tasks(r, job)? {
+            views.entry(task).or_default().1 = true;
         }
         for (task, (tasks, pid, threads)) in views {
             let read = (|| -> Result<Vec<String>> {
@@ -721,6 +687,113 @@ impl Linux<'_> {
             match read {
                 Ok(row) => r.rows.push(row),
                 Err(e) => partial(r, format!("task {task:#x}"), e),
+            }
+        }
+        Ok(())
+    }
+    /// Tasks reachable from the PID index (IDR xarray or legacy pid_hash),
+    /// excluding PID 0; damaged per-PID chains are recorded on `r`.
+    pub(super) fn pid_tasks(&self, r: &mut Results, job: &Job) -> Result<Vec<u64>> {
+        let pids = self.pid_objects(job).context("不支持或 PID 索引损坏")?;
+        let modern = self.isf.field("task_struct", "pid_links").is_ok();
+        let task_offset = if modern {
+            self.isf.offset("task_struct", "pid_links")?
+        } else {
+            self.isf.offset("task_struct", "pids")? + self.isf.offset("pid_link", "node")?
+        };
+        let mut found = Vec::new();
+        for pid in pids {
+            let read = (|| -> Result<()> {
+                let head = self.field_address(pid, "pid", "tasks")?;
+                let mut node = self.number(head, "hlist_head", "first")?;
+                let mut seen = HashSet::new();
+                let mut expected = head;
+                while node != 0 {
+                    job.check()?;
+                    ensure!(
+                        seen.insert(node) && seen.len() <= 1_000_000,
+                        "PID task hlist 循环或上限"
+                    );
+                    ensure!(
+                        self.number(node, "hlist_node", "pprev")? == expected,
+                        "PID task hlist pprev 不一致"
+                    );
+                    let task = node.checked_sub(task_offset).context("PID task 地址下溢")?;
+                    if self.number(task, "task_struct", "pid")? != 0 {
+                        found.push(task);
+                    }
+                    expected = self.field_address(node, "hlist_node", "next")?;
+                    node = self.number(node, "hlist_node", "next")?;
+                }
+                Ok(())
+            })();
+            if let Err(e) = read {
+                job.check()?;
+                partial(r, format!("PID object {pid:#x}"), e);
+            }
+        }
+        Ok(found)
+    }
+    /// pidhashtable: every task indexed by PID, independent of the tasks list.
+    pub(super) fn pidhashtable(&self, r: &mut Results, job: &Job) -> Result<()> {
+        let mut tasks = self.pid_tasks(r, job)?;
+        tasks.sort_unstable();
+        tasks.dedup();
+        let mut rows = Vec::new();
+        for task in tasks {
+            job.check()?;
+            let read = (|| -> Result<(u64, Vec<String>)> {
+                let pid = self.number(task, "task_struct", "pid")?;
+                let tgid = self.number(task, "task_struct", "tgid")?;
+                ensure!(
+                    pid <= i32::MAX as u64 && tgid <= i32::MAX as u64,
+                    "PID 数值异常"
+                );
+                let parent = self.number(task, "task_struct", "real_parent")?;
+                Ok((
+                    pid,
+                    vec![
+                        hex(task),
+                        pid.to_string(),
+                        tgid.to_string(),
+                        self.number(parent, "task_struct", "pid")?.to_string(),
+                        self.kernel_text(self.field_address(task, "task_struct", "comm")?, 16)?,
+                    ],
+                ))
+            })();
+            match read {
+                Ok(row) => rows.push(row),
+                Err(e) => partial(r, format!("task {task:#x}"), e),
+            }
+        }
+        rows.sort_by_key(|(pid, _)| *pid);
+        r.rows.extend(rows.into_iter().map(|(_, row)| row));
+        Ok(())
+    }
+    /// vmcoreinfo: the KEY=VALUE note the kernel prepares for crash dumps.
+    pub(super) fn vmcoreinfo(&self, r: &mut Results) -> Result<()> {
+        let symbol = self
+            .isf
+            .address("vmcoreinfo_data")
+            .context("不支持: 缺少 vmcoreinfo_data")?;
+        // Since 4.15 the buffer is allocated and the symbol is a pointer.
+        let data = if self.isf.data["symbols"]["vmcoreinfo_data"]["type"]["kind"] == "pointer" {
+            self.vm.uint(symbol, 8)?
+        } else {
+            symbol
+        };
+        let size = self.vm.uint(
+            self.isf
+                .address("vmcoreinfo_size")
+                .context("不支持: 缺少 vmcoreinfo_size")?,
+            8,
+        )?;
+        ensure!(data != 0 && size <= 65536, "vmcoreinfo 缓冲区无效");
+        let mut bytes = vec![0; size as usize];
+        self.vm.read(data, &mut bytes)?;
+        for line in String::from_utf8_lossy(&bytes).lines() {
+            if let Some((key, value)) = line.split_once('=') {
+                r.rows.push(vec![key.into(), value.into()]);
             }
         }
         Ok(())

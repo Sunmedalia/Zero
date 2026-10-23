@@ -152,6 +152,26 @@ impl Linux<'_> {
                 self.tty_check(&mut r, job)?;
                 Ok(r)
             }
+            Pidhashtable => {
+                let mut r = self.result(plugin);
+                self.pidhashtable(&mut r, job)?;
+                Ok(r)
+            }
+            Vmcoreinfo => {
+                let mut r = self.result(plugin);
+                self.vmcoreinfo(&mut r)?;
+                Ok(r)
+            }
+            IpAddr => {
+                let mut r = self.result(plugin);
+                self.ip_addr(&mut r, job)?;
+                Ok(r)
+            }
+            IpLink => {
+                let mut r = self.result(plugin);
+                self.ip_link(&mut r, job)?;
+                Ok(r)
+            }
             HiddenModules => {
                 let mut r = self.result(plugin);
                 self.hidden_modules(&mut r, job)?;
@@ -164,7 +184,8 @@ impl Linux<'_> {
             | WinEnvars | WinThreads | WinSysteminfo | WinPslist | WinPstree | WinCmdline
             | WinModules | WinDlllist | WinVadinfo | WinHandles | WinMalfind | WinNetscan
             | WinHivelist | WinPrintkey | WinPsscan | WinPsxview | WinProcdump | WinMemdump
-            | WinPedump => Err(unrouted(plugin)),
+            | WinPedump | WinSsdt | WinModscan | WinPrivileges | WinSessions | WinUserassist
+            | WinBigpools | WinSymlinkscan | WinDevicetree => Err(unrouted(plugin)),
         }
     }
     /// pslist / pstree over `init_task.tasks`, lsmod over `modules`, with full

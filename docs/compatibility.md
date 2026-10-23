@@ -77,6 +77,14 @@ Windows 10 RAW 样本额外验证了 4 个 WOW64 进程（PID 4428、5684、5932
 
 `getsids` 读取进程令牌 SID，支持 PID 筛选，仅给已知内置 SID 标注账户名称。`callbacks` 当前读取进程／线程／镜像加载及注册表回调；没有覆盖参考工具的所有回调类别。`unloadedmodules` 读取已卸载驱动环形记录。`filescan`／`mutantscan` 校验 pool、对象结构和对象类型，只输出能够反向映射并验证的对象；分别保留物理与虚拟地址，不能宣称恢复了所有已释放对象。未知名称或损坏记录保留部分结果诊断。Server 2003 使用 NT5 `connscan`／`sockscan`；NT6+ 使用 `netscan`，不会跨代套用布局。
 
+新增 `windows.ssdt`、`windows.modscan`、`windows.privileges`、`windows.sessions` 和 `windows.registry.userassist`。`ssdt` 解码 `KiServiceTable`（x64 为右移 4 位的有符号相对偏移，x86 为绝对地址），按 `PsLoadedModuleList` 归属模块并就近命名 PDB 符号；只覆盖原生服务表，win32k 影子表需要 GUI 会话空间，未读取。`modscan` 扫描 `MmLd` 池分配并解析模块条目，要求页对齐的内核基址、有效大小和可读的 .sys/.dll/.exe 名称，InList 标出是否仍在模块链表中（已卸载或被摘除的条目为 false）。`privileges` 读取 Vista 及以后 `_TOKEN.Privileges` 的 Present／Enabled／EnabledByDefault 位图，旧版令牌布局按进程报告不支持。`sessions` 读取 `_EPROCESS.Session` 的 SessionId，无会话进程显示 `-`。`userassist` 遍历内存中的 NTUSER.DAT，对 `UserAssist\{GUID}\Count` 值名做 ROT13 解码，并解析 72 字节（Win7+）与 16 字节（XP）记录；换页出去的单元格标记为部分结果。
+
+实测：Windows 10 15063 `ssdt=456`、`modscan=181`（USBSTOR.SYS 不在链表中）、`privileges=1430`、`sessions=139`、`userassist=66`；Windows 11 22000 `ssdt=481`、`modscan=156`、`privileges=862`、`sessions=102`，其用户 hive 的 Explorer 键单元格未驻留，`userassist` 为带诊断的部分结果，矩阵保持待验证。
+
+第二批新增 `windows.bigpools`、`windows.symlinkscan` 和 `windows.devicetree`。`bigpools` 分块读取 `PoolBigPageTable`，跳过低位标记为空闲的表项，输出地址、池标签、PoolType 与字节数。`symlinkscan` 扫描 `Symb` 池并要求合理的创建时间与内核 LinkTarget 字符串，再经对象头类型确认；目标页缺失时保留对象并显示 `[unreadable]`。`devicetree` 以 driverscan 的驱动为起点，遍历 DeviceObject／NextDevice 与 AttachedDevice 链（ATT1、ATT2…为附加层级），循环或超过 64 层会报告诊断。`driverirp` 的派遣表检查已由 `windows.drivercheck` 覆盖，`vadwalk` 由 `windows.vadinfo` 覆盖。
+
+对象类型名称缓冲区被换页时，对象头类型会改用内核导出的类型变量（如 `ObpSymbolicLinkObjectType`、`IoFileObjectType`）按 `_OBJECT_TYPE` 指针确认，不按索引猜测。实测：Windows 10 15063 `bigpools=30323`、`symlinkscan=307`、`devicetree=357`；Windows 11 22000 `bigpools=8442`、`symlinkscan=206`、`devicetree=299`。
+
 矩阵按插件和架构记录四级证据。**真实**仅代表列出的样本构建与容器；**合成**验证解析路径或指针宽度，不能证明该系统的完整布局；**待验证**缺少实测证据；**不支持**没有对应解析模型。零条扫描结果不作为恢复能力的真实验证。具体插件、样本哈希、精确 PDB 与范围见 [机器可读矩阵](../src/windows/compatibility.json) 和 [验收基线](../tests/fixtures/windows.json)。Server 2003 与 R2 共用内核构建，系统身份会保留歧义；Server 2025 与 Windows 11 的 26100 使用有效的 ProductType 区分。所有版本仍要求精确符号，未知构建不会选择最近版本。
 
 <!-- windows-compatibility:start -->

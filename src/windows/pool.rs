@@ -6,7 +6,7 @@ use std::collections::BTreeSet;
 /// one pass so the remaining scans in a session reuse the hits.
 const POOL_TAGS: &[&[u8]] = &[
     b"File", b"Fil\xe5", b"Muta", b"Mut\xe1", b"Driv", b"Dri\xf6", b"Proc", b"Pro\xe3", b"TcpL",
-    b"UdpA", b"TcpE", b"TTcb",
+    b"UdpA", b"TcpE", b"TTcb", b"MmLd", b"Symb", b"Sym\xe2",
 ];
 impl Windows<'_> {
     pub(super) fn prefetch_pool_tags(&self, job: &Job) -> Result<()> {
@@ -66,10 +66,14 @@ impl Windows<'_> {
         Ok(r)
     }
     fn pool_rows(&self, p: Plugin, r: &mut Results, job: &Job) -> Result<()> {
-        let (ty, kind, tags): (_, _, &[&[u8]]) = if p == Plugin::WinFilescan {
-            ("_FILE_OBJECT", "File", &[b"File", b"Fil\xe5"])
-        } else {
-            ("_KMUTANT", "Mutant", &[b"Muta", b"Mut\xe1"])
+        let (ty, kind, tags): (_, _, &[&[u8]]) = match p {
+            Plugin::WinFilescan => ("_FILE_OBJECT", "File", &[b"File", b"Fil\xe5"]),
+            Plugin::WinSymlinkscan => (
+                "_OBJECT_SYMBOLIC_LINK",
+                "SymbolicLink",
+                &[b"Symb", b"Sym\xe2"],
+            ),
+            _ => ("_KMUTANT", "Mutant", &[b"Muta", b"Mut\xe1"]),
         };
         let size = self.vm.isf.data["user_types"][ty]["size"]
             .as_u64()
@@ -94,6 +98,8 @@ impl Windows<'_> {
                 let valid = if p == Plugin::WinFilescan {
                     physical_number(self.vm.isf, &bytes, ty, "Type").is_ok_and(|n| n == 5)
                         && physical_number(self.vm.isf, &bytes, ty, "Size").is_ok_and(|n| n == size)
+                } else if p == Plugin::WinSymlinkscan {
+                    self.symlink_shape(&bytes, ty)
                 } else {
                     physical_number(self.vm.isf, &bytes, ty, "Header.Type").is_ok_and(|n| n == 2)
                         && physical_number(self.vm.isf, &bytes, ty, "Header.Size")
@@ -172,6 +178,23 @@ impl Windows<'_> {
                         for field in ["ReadAccess", "WriteAccess", "DeleteAccess"] {
                             row.push(self.number(address, ty, field)?.to_string());
                         }
+                    } else if p == Plugin::WinSymlinkscan {
+                        // Targets are often paged out; keep the object.
+                        match self
+                            .field(address, ty, "LinkTarget")
+                            .and_then(|field| self.vm.unicode(field))
+                        {
+                            Ok(target) => row.push(target),
+                            Err(e) => {
+                                Self::issue(
+                                    r,
+                                    format!("{kind} target {address:#x}"),
+                                    format!("{e:#}"),
+                                );
+                                row.push("[unreadable]".into());
+                            }
+                        }
+                        row.push(filetime(self.number(address, ty, "CreationTime")?));
                     } else {
                         let owner = self.number(address, ty, "OwnerThread")?;
                         ensure!(owner == 0 || self.vm.kernel(owner), "无效互斥 OwnerThread");
@@ -203,6 +226,35 @@ impl Windows<'_> {
         }
         r.kernel_identity["pool_scan"] = serde_json::json!({"object_type":kind,"validation":"structure and mapped object header type","scope":"mapped live or retained pool objects; unmapped freed candidates excluded"});
         Ok(())
+    }
+}
+impl Windows<'_> {
+    /// Symbolic links carry no dispatcher header: require a plausible creation
+    /// time and a well-formed kernel LinkTarget string.
+    fn symlink_shape(&self, bytes: &[u8], ty: &str) -> bool {
+        let isf = self.vm.isf;
+        let Ok(created) = physical_number(isf, bytes, ty, "CreationTime") else {
+            return false;
+        };
+        let Ok(offset) = isf.offset(ty, "LinkTarget") else {
+            return false;
+        };
+        let Some(target) = bytes.get(offset as usize..) else {
+            return false;
+        };
+        let field = |name| physical_number(isf, target, "_UNICODE_STRING", name);
+        let (Ok(length), Ok(maximum), Ok(buffer)) =
+            (field("Length"), field("MaximumLength"), field("Buffer"))
+        else {
+            return false;
+        };
+        // 1990-01-01 .. 2100-01-01 as FILETIME.
+        (0x01b6_0000_0000_0000..0x0234_0000_0000_0000).contains(&created)
+            && length > 0
+            && length % 2 == 0
+            && length <= maximum
+            && maximum <= 4096
+            && self.vm.kernel(buffer)
     }
 }
 /// Bound repeated table aliases. BTreeSet ranges avoid candidates × pages scans.

@@ -21,6 +21,7 @@ mod kernel;
 mod malware;
 mod memory;
 mod net;
+mod netdev;
 mod process;
 mod session;
 #[cfg(test)]
