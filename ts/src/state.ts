@@ -321,7 +321,7 @@ export function initialState(hello: Hello, launch: { image: string | null; symbo
   const options = defaultOptions();
   return {
     hello,
-    page: 'assets',
+    page: 'analysis',
     section: 'images',
     symbolSource: 'symbols',
     assets: [],
@@ -341,7 +341,7 @@ export function initialState(hello: Hello, launch: { image: string | null; symbo
     image: launch.image,
     symbols: launch.symbols ?? '',
     settings: hello.settings,
-    focus: 'navigation',
+    focus: 'content',
     menu: 0,
     menuScroll: 0,
     plugin: 'pslist',
@@ -356,7 +356,7 @@ export function initialState(hello: Hello, launch: { image: string | null; symbo
     descending: false,
     row: 0,
     collapsed: new Set(),
-    status: 'Space 选用镜像 · Enter 选用并进入分析 · i 导入 · ? 命令面板',
+    status: 'i 选择镜像 · F2 管理资源 · ? 命令面板',
     lastError: null,
     logs: [],
     startedAt: null,

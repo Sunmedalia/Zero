@@ -66,13 +66,13 @@ test('numeric columns sort numerically and hex columns by value', () => {
 });
 
 test('layout thresholds answer each question once', () => {
-  assert.equal(twoPanes(space(63, 30)), false);
-  assert.equal(twoPanes(space(64, 30)), true);
-  assert.equal(twoPanes(space(120, 15)), false);
+  assert.equal(twoPanes(space(99, 30)), false);
+  assert.equal(twoPanes(space(100, 30)), true);
+  assert.equal(twoPanes(space(120, 23)), false);
   assert.equal(menuWidth(space(99, 30)), 22);
   assert.equal(menuWidth(space(100, 30)), 24);
-  assert.equal(inspector(space(139, 40)), false);
-  assert.equal(inspector(space(140, 40)), true);
+  assert.equal(inspector(space(159, 40)), false);
+  assert.equal(inspector(space(160, 40)), true);
   assert.equal(assetDetail(space(100, 28)), true);
   assert.equal(assetDetail(space(99, 40)), false);
   assert.equal(fullDigest(space(60, 20)), true);

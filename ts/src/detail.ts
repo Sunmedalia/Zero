@@ -7,10 +7,19 @@
  */
 import type { AppState } from './state.js';
 import { assetActions, footerActions } from './actions.js';
-import { pluginDescriptor, pluginMatches, selectedAsset } from './state.js';
+import { pluginDescriptor, pluginMatches, selectedAsset, result, viewIndex, visibleRow } from './state.js';
 import type { Asset, RemoteMatch, Results } from './types.js';
 import { escaped, mib } from './text.js';
 import { resultState } from './format.js';
+
+/** Escape evidence fields independently so structural line breaks stay readable. */
+export function rowDetailText(state: AppState): string {
+  const current = result(state);
+  const row = visibleRow(state, viewIndex(state), state.row);
+  return current && row
+    ? current.columns.map((column, index) => `${escaped(column)}: ${escaped(row[index] ?? '')}`).join('\n')
+    : '选择一行查看完整字段。';
+}
 
 /** Text of the asset detail panel and modal. */
 export function assetDetailText(state: AppState, asset: Asset): string {
@@ -87,6 +96,10 @@ export function helpText(): string {
     'F2 资源库 · F3 分析 · F6 自动/Linux/Windows · Ctrl+←/→ 切换页面',
     'Tab / Shift+Tab 切换区域；↑↓ 或 j/k 导航；PgUp/PgDn/Home/End 翻页',
     '',
+    '默认进入分析工作台；i 选择镜像，准备完成后 F5 运行插件。',
+    '80×24 按区域切换；120×35 双栏；160 列且 28 行起详情使用右侧栏。',
+    'd 查看行字段，方向键／PgUp／PgDn 滚动，d／Esc 关闭；Enter 查看结果与诊断。',
+    '',
     '镜像与符号：',
     '资源库 Space 选用；Enter 选用高亮项并进入分析（匹配完成后自动进入）；再次点击高亮行等同 Space；d 查看详情。',
     '选用镜像后自动识别内核并匹配本地；x 进入分析；点击或 Enter 选择插件即显示已有结果或运行。',
@@ -135,4 +148,4 @@ export function diagnosticsText(current: Results): string {
     : current.diagnostics.map(escaped).join('\n\n');
 }
 
-export { assetActions, pluginDescriptor, pluginMatches, selectedAsset, resultState };
+export { assetActions, pluginDescriptor, pluginMatches, selectedAsset, result, viewIndex, visibleRow, resultState };

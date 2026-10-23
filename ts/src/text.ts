@@ -1,22 +1,22 @@
 /**
  * Palette and shared style tokens.
  *
- * The colours match the previous Ratatui interface exactly, so screenshots,
- * muscle memory and documentation stay valid across the rewrite.
+ * Quiet slate surfaces keep evidence readable; blue marks focus and amber
+ * marks preparation or incomplete evidence. Status also always has a text label.
  */
-export const ACCENT = '#48c9b8';
-export const FOCUS = '#f3b25c';
-export const SELECTED_BG = '#1f363d';
-export const SURFACE = '#11191f';
+export const ACCENT = '#82b4e8';
+export const FOCUS = '#b8d8fa';
+export const SELECTED_BG = '#263b52';
+export const SURFACE = '#151b24';
 /** Raised surface for chips, buttons and alternating table rows. */
-export const RAISED = '#1b2a30';
-export const STRIPE = '#151f26';
-export const BORDER = '#34464e';
-export const TEXT = '#d6dee0';
-export const MUTED = '#708289';
-export const SUCCESS = '#7ed387';
-export const WARN = '#f0c466';
-export const DANGER = '#ec7063';
+export const RAISED = '#202a37';
+export const STRIPE = '#19222e';
+export const BORDER = '#364354';
+export const TEXT = '#dce3ed';
+export const MUTED = '#97a6b8';
+export const SUCCESS = '#8bc7a3';
+export const WARN = '#dfb974';
+export const DANGER = '#ed938c';
 export const SHADOW = '#080c0f';
 
 /** One cell of terminal output, measured in display columns. */

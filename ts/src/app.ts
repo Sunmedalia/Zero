@@ -15,6 +15,7 @@
  *   (the engine enforces the cache rule; the UI keeps the diagnostics visible);
  * - switching the image or symbol invalidates every result bound to the old one.
  */
+import { inspector, space } from './layout.js';
 import { computeLayout, inside, type Layout } from './layoutTree.js';
 import {
   assetActive,
@@ -92,9 +93,9 @@ import {
   type KeyLike,
 } from './dialogs.js';
 import { failureStatus, formatAddress, mib, parseAddress, progressPercent, shortPlugin } from './format.js';
-import { charWidth, truncate } from './text.js';
+import { charWidth, truncate, wrapLines } from './text.js';
 import { compareValues } from './resultView.js';
-import { assetDetailText, remoteDetailText, helpText, logText, diagnosticsText } from './detail.js';
+import { assetDetailText, remoteDetailText, helpText, logText, diagnosticsText, rowDetailText } from './detail.js';
 
 /** Result of a state transition: what the shell must do next. */
 export interface Transition {
@@ -349,13 +350,11 @@ export class App {
     } else {
       this.state.preparation = 'chooseSymbols';
       this.state.status = '多个精确匹配；请选择符号（ZIP 内候选分别列出）';
-      if (this.state.page === 'assets') {
-        this.state.dialog = {
-          kind: 'symbols',
-          labels: candidates.map((candidate) => candidate.label),
-          selected: 0,
-        };
-      }
+      this.state.dialog = {
+        kind: 'symbols',
+        labels: candidates.map((candidate) => candidate.label),
+        selected: 0,
+      };
     }
   }
 
@@ -658,6 +657,7 @@ export class App {
   /* ---------------------------------------------------------------- */
 
   selectPlugin(plugin: string): void {
+    if (!this.inspectorAvailable()) this.state.inspector = false;
     this.saveView();
     this.state.page = 'analysis';
     this.state.parameterDrafts.set(this.state.plugin, { ...this.state.analysisOptions });
@@ -920,7 +920,7 @@ export class App {
       this.emit();
       return;
     }
-    if (this.state.page === 'analysis' && !this.state.busy && this.state.query !== '') {
+    if (this.state.page === 'analysis' && this.state.query !== '') {
       this.state.query = '';
       this.state.row = 0;
       this.update({ status: '已清除内容筛选' });
@@ -1315,6 +1315,7 @@ export class App {
 
   switchPage(page: Page): void {
     const changed = this.state.page !== page;
+    if (changed) this.state.inspector = false;
     this.state.page = page;
     if (changed && !this.state.busy && this.state.lastError !== this.state.status) {
       this.state.status =
@@ -1324,7 +1325,7 @@ export class App {
             : '点击或 Enter 运行插件 · / 筛选 · ? 命令面板'
           : 'Space 选用 · Enter 选用并进入分析 · ? 命令面板';
     }
-    this.state.focus = 'navigation';
+    this.state.focus = page === 'analysis' ? 'content' : 'navigation';
     if (page !== 'analysis') {
       void this.refreshAssets();
     }
@@ -1478,7 +1479,8 @@ export class App {
 
   private async isDirectory(path: string): Promise<boolean> {
     try {
-      return (await import('node:fs/promises')).stat(path).then((stat) => stat.isDirectory());
+      const fs = await import('node:fs/promises');
+      return (await fs.stat(path)).isDirectory();
     } catch {
       return false;
     }
@@ -1486,7 +1488,8 @@ export class App {
 
   private async isFile(path: string): Promise<boolean> {
     try {
-      return (await import('node:fs/promises')).stat(path).then((stat) => stat.isFile());
+      const fs = await import('node:fs/promises');
+      return (await fs.stat(path)).isFile();
     } catch {
       return false;
     }
@@ -1889,16 +1892,10 @@ export class App {
         this.moveResultPage(true);
         break;
       case 'detail':
-        if (this.inspectorAvailable()) {
-          this.state.inspector = !this.state.inspector;
-          this.state.detailScroll = 0;
-          if (!this.state.inspector && this.state.focus === 'detail') {
-            this.state.focus = 'content';
-          }
-          this.emit();
-        } else {
-          this.openDetail();
-        }
+        this.state.inspector = !this.state.inspector;
+        this.state.detailScroll = 0;
+        this.state.focus = this.state.inspector ? 'detail' : 'content';
+        this.emit();
         break;
       case 'searchContent':
         this.openInput('search');
@@ -1931,7 +1928,7 @@ export class App {
   }
 
   inspectorAvailable(): boolean {
-    return this.state.hits.inspector.width > 0 || this.state.hits.result.x + this.state.hits.result.width >= 140;
+    return inspector(space(this.state.columns, this.state.rows));
   }
 
   moveResultPage(down: boolean): void {
@@ -2009,6 +2006,7 @@ export class App {
   async click(x: number, y: number): Promise<void> {
     const layout = this.layout();
     const state = this.state;
+    if (state.columns < 60 || state.rows < 16) return;
     if (state.dialog) {
       if (layout.popup && !inside(layout.popup, x, y)) {
         return;
@@ -2026,6 +2024,12 @@ export class App {
       }
       // A click inside the modal but not on a row or chip is a no-op: it must
       // not fall through to the page underneath.
+      return;
+    }
+
+    if (layout.inspector && inside(layout.inspector, x, y)) {
+      state.focus = 'detail';
+      this.emit();
       return;
     }
 
@@ -2061,6 +2065,7 @@ export class App {
     }
     for (const region of layout.regionHits) {
       if (inside(region.rect, x, y)) {
+        state.inspector = false;
         state.focus = region.focus;
         this.emit();
         return;
@@ -2139,8 +2144,8 @@ export class App {
         this.emit();
         return;
       }
-      if (y === layout.content.y + 1 && layout.columns_.length > 0) {
-        const index = layout.columns_.findIndex((rect) => x >= rect.x && x < rect.x + rect.width);
+      if (y === layout.content.y + 1 && state.hits.columns.length > 0) {
+        const index = state.hits.columns.findIndex((rect) => x >= rect.x && x < rect.x + rect.width);
         if (index >= 0) {
           state.descending = state.sort === index && !state.descending;
           state.sort = index;
@@ -2165,11 +2170,6 @@ export class App {
       } else {
         this.emit();
       }
-      return;
-    }
-    if (layout.inspector && inside(layout.inspector, x, y)) {
-      state.focus = 'detail';
-      this.emit();
       return;
     }
     if (inside(layout.header, x, y)) {
@@ -3362,6 +3362,9 @@ export class App {
   resize(columns: number, rows: number): void {
     this.state.columns = columns;
     this.state.rows = rows;
+    if (this.state.focus === 'detail' && !this.state.inspector) {
+      this.state.focus = 'content';
+    }
     this.emit();
   }
 
@@ -3523,7 +3526,24 @@ export class App {
   }
 
   /** Wheel scrolling: three list rows, or one detail line, per notch. */
-  async wheel(direction: -1 | 1): Promise<void> {
+  async wheel(direction: -1 | 1, x?: number, y?: number): Promise<void> {
+    if (this.state.columns < 60 || this.state.rows < 16) return;
+    if (!this.state.dialog && x !== undefined && y !== undefined) {
+      const layout = this.layout();
+      if (layout.inspector && inside(layout.inspector, x, y)) this.state.focus = 'detail';
+      else if (layout.menu && inside(layout.menu, x, y)) this.state.focus = 'navigation';
+      else if (layout.content && inside(layout.content, x, y)) this.state.focus = 'content';
+      else {
+        const pane = layout.panes.find((entry) => inside(entry.list, x, y));
+        if (!pane) return;
+        this.state.section = pane.section;
+        this.state.focus = 'navigation';
+      }
+    }
+    if (!this.state.dialog && this.state.page === 'analysis' && this.state.focus === 'detail') {
+      this.scrollDetail(direction === -1 ? 'Up' : 'Down');
+      return;
+    }
     if (this.state.dialog) {
       await this.dialogKey(direction === -1 ? 'Up' : 'Down', {});
       return;
@@ -3609,17 +3629,21 @@ export class App {
     this.emit();
   }
 
+  scrollDetail(token: string): void {
+    const text = rowDetailText(this.state);
+    const region = this.layout().inspector;
+    if (!region) return;
+    const maximum = Math.max(wrapLines(text, Math.max(region.width - 2, 1)).length - (region.height - 2), 0);
+    this.state.detailScroll = Math.min(this.scrollAmount(token, this.state.detailScroll, maximum), maximum);
+    this.emit();
+  }
+
   /** Next focusable region, honouring which panes the current layout draws. */
   nextFocus(back: boolean): Focus {
-    const detail = this.state.hits.inspector.width > 0 || this.state.hits.assetDetail.height > 0;
-    const header = this.state.page === 'analysis' && this.state.hits.header.height > 0;
-    const regions: Focus[] = header
-      ? detail
-        ? ['context', 'navigation', 'content', 'detail']
-        : ['context', 'navigation', 'content']
-      : detail
-        ? ['navigation', 'content', 'detail']
-        : ['navigation', 'content'];
+    const layout = this.layout();
+    const overlay = this.state.inspector && !this.inspectorAvailable();
+    const regions: Focus[] = overlay ? ['detail'] : ['context', 'navigation', 'content'];
+    if (!overlay && layout.inspector) regions.push('detail');
     const current = Math.max(regions.indexOf(this.state.focus), 0);
     const step = back ? (current + regions.length - 1) % regions.length : (current + 1) % regions.length;
     return regions[step] as Focus;

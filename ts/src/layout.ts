@@ -1,3 +1,5 @@
+import { width } from './text.js';
+
 /**
  * One place that decides what the current terminal can show.
  *
@@ -12,14 +14,14 @@ export interface Space {
 }
 
 /** Narrowest terminal the two-pane layouts are drawn in. */
-export const MIN_TWO_PANE = 64;
-/** Below this height the panes are stacked rather than side by side. */
-export const MIN_TWO_PANE_HEIGHT = 16;
+export const MIN_TWO_PANE = 100;
+/** Below this height analysis shows only the focused region. */
+export const MIN_TWO_PANE_HEIGHT = 24;
 /** Menu column widths; the longest plugin label is 18 cells plus two for `› `. */
 export const WIDE_MENU = 24;
 export const NARROW_MENU = 22;
 /** Width at which the analysis page can afford the inspector column. */
-export const MIN_INSPECTOR = 140;
+export const MIN_INSPECTOR = 160;
 /** Width and height at which the resource page can afford inline detail. */
 export const MIN_ASSET_DETAIL_WIDTH = 100;
 export const MIN_ASSET_DETAIL_HEIGHT = 28;
@@ -43,7 +45,7 @@ export function menuWidth(value: Space): number {
 
 /** The analysis inspector column beside the workbench. */
 export function inspector(value: Space): boolean {
-  return value.columns >= MIN_INSPECTOR;
+  return value.columns >= MIN_INSPECTOR && value.rows >= 28;
 }
 
 /** The resource page's inline detail panel. */
@@ -83,7 +85,7 @@ export function actionRows(labels: string[], columns: number, cap: number): numb
   let rows = 1;
   let x = 0;
   for (const label of labels) {
-    const length = 2 + label.length;
+    const length = 2 + width(label);
     if (length > columns) {
       continue;
     }

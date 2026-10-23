@@ -25,11 +25,11 @@ async function waitFor(predicate: () => boolean, timeoutMs = 1000): Promise<void
   }
 }
 
-test('startup enters the resource library with the image list selected', async () => {
+test('startup enters the analysis workbench without running a plugin', async () => {
   const { app: instance } = await app({
     assets: [asset(), asset({ path: '/evidence/symbols/linux.zip', kind: 'symbols', name: 'linux.zip' })],
   });
-  assert.equal(instance.state.page, 'assets');
+  assert.equal(instance.state.page, 'analysis');
   assert.equal(instance.state.section, 'images');
   assert.equal(instance.state.plugin, 'pslist');
   assert.equal(assetListFor(instance.state, 'images').length, 1);
@@ -417,7 +417,7 @@ test('export uses the filtered rows, not just the visible page', async () => {
 test('the empty-state hint depends on whether symbols are selected', async () => {
   const { app: instance } = await app();
   assert.equal(instance.state.symbols, '');
-  assert.match(instance.state.status, /Space 选用镜像/);
+  assert.match(instance.state.status, /i 选择镜像/);
   instance.state.symbols = '/evidence/linux.zip';
   assert.equal(instance.state.symbols, '/evidence/linux.zip');
 });

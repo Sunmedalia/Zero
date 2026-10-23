@@ -11,19 +11,17 @@
 import type { AppState, Dialog, HitMap } from './state.js';
 import type { Focus, Page, Section } from './actions.js';
 import {
-  actionRows,
   assetDetail as assetDetailSpace,
   assetPanesSideBySide,
   assetTwoPanes,
   inspector as inspectorSpace,
   menuWidth,
   space,
-  systemRow,
   twoPanes,
 } from './layout.js';
 import { dialogHeight, dialogWidth } from './dialogs.js';
 import { assetListFor, remoteList, result, settingsLabels, viewIndex } from './state.js';
-import { commandMatches, footerActions, toolbarActions } from './actions.js';
+import { actionOf, commandMatches, footerActions, toolbarActions } from './actions.js';
 import { menuLength as menuLengthOf, pluginMatches } from './state.js';
 import { cellWidth, wrapLines } from './text.js';
 
@@ -61,8 +59,6 @@ export function inside(region: Rect, x: number, y: number): boolean {
 
 /** Rows a list pane spends on its search field. */
 export const SEARCH_ROWS = 3;
-/** Maximum toolbar rows on the resource page. */
-const TOOLBAR_ROWS = 3;
 
 export interface PaneLayout {
   section: Section;
@@ -95,7 +91,7 @@ export interface Layout {
   tabs: Rect;
   /** System picker row, or the region switcher on a narrow analysis page. */
   systems: Rect;
-  /** Header: two rows on the resource page, one on the analysis page. */
+  /** One shared context row for the selected image and symbol readiness. */
   header: Rect;
   headerImage: Rect;
   headerSymbol: Rect;
@@ -142,11 +138,11 @@ export interface Layout {
 export function computeLayout(state: AppState, columns: number, rows: number): Layout {
   const layout = space(columns, rows);
   const tabs = rect(0, 0, columns, 1);
-  const systems = rect(0, 1, columns, 1);
-  const headerHeight = state.page === 'analysis' ? 1 : 2;
-  const header = rect(0, 2, columns, headerHeight);
-  const footerHeight = footerRows(state, columns, rows);
-  const body = rect(0, 2 + headerHeight, columns, Math.max(rows - 2 - headerHeight - footerHeight, 1));
+  const systems = rect(29, 0, Math.max(columns - 29, 0), 1);
+  const headerHeight = 1;
+  const header = rect(0, 1, columns, headerHeight);
+  const footerHeight = 2;
+  const body = rect(0, 1 + headerHeight, columns, Math.max(rows - 1 - headerHeight - footerHeight, 1));
   const status = rect(0, body.y + body.height, columns, Math.min(footerHeight, 1));
   const actions = rect(0, status.y + 1, columns, Math.max(footerHeight - 1, 0));
 
@@ -157,8 +153,8 @@ export function computeLayout(state: AppState, columns: number, rows: number): L
     tabs,
     systems,
     header,
-    headerImage: rect(header.x, header.y, header.width, 1),
-    headerSymbol: header.height > 1 ? rect(header.x, header.y + 1, header.width, 1) : rect(0, 0, 0, 0),
+    headerImage: rect(0, header.y, Math.floor(columns * 0.55), 1),
+    headerSymbol: rect(Math.floor(columns * 0.55), header.y, columns - Math.floor(columns * 0.55), 1),
     body,
     status,
     actions,
@@ -186,15 +182,15 @@ export function computeLayout(state: AppState, columns: number, rows: number): L
     { rect: rect(0, 0, cellWidth(' F2 资源库 '), 1), page: 'assets' },
     { rect: rect(12, 0, cellWidth(' F3 分析 '), 1), page: 'analysis' },
   ];
-  if (state.page === 'analysis' && !systemRow(layout)) {
+  if (state.page === 'analysis' && !twoPanes(layout)) {
     // Narrow analysis layouts replace the system picker with region tabs, so
     // the only visible control stays reachable.
     base.regionHits = [
-      { rect: rect(0, 1, 6, 1), focus: 'navigation' },
-      { rect: rect(6, 1, 6, 1), focus: 'content' },
+      { rect: rect(29, 0, 6, 1), focus: 'navigation' },
+      { rect: rect(35, 0, 6, 1), focus: 'content' },
     ];
   } else {
-    const start = columns >= 29 ? 7 : 0;
+    const start = 29;
     const labels: { os: 'linux' | 'windows' | 'auto'; text: string }[] = [
       { os: 'linux', text: ' Linux ' },
       { os: 'windows', text: ' Windows ' },
@@ -206,7 +202,7 @@ export function computeLayout(state: AppState, columns: number, rows: number): L
       if (x + cells > columns) {
         continue;
       }
-      base.systemHits.push({ rect: rect(x, 1, cells, 1), os: label.os });
+      base.systemHits.push({ rect: rect(x, systems.y, cells, 1), os: label.os });
       x += cells;
     }
   }
@@ -219,15 +215,6 @@ export function computeLayout(state: AppState, columns: number, rows: number): L
   layoutActions(base, state);
   layoutDialog(base, state);
   return base;
-}
-
-function footerRows(state: AppState, columns: number, rows: number): number {
-  if (state.page === 'analysis') {
-    return 2;
-  }
-  const labels = toolbarActions(state.section, state.busy).map((action) => action.label);
-  const wanted = 2 + actionRows(labels, columns, TOOLBAR_ROWS);
-  return Math.min(wanted, Math.max(Math.floor(rows / 3), 3));
 }
 
 function layoutAssets(base: Layout, state: AppState, layout: ReturnType<typeof space>): void {
@@ -351,9 +338,13 @@ function layoutAnalysis(base: Layout, state: AppState, layout: ReturnType<typeof
     x = menuColumns;
   }
 
+  // A narrow navigation view owns the body; do not paint a zero-width table.
+  if (!wide && state.focus === 'navigation') {
+    return;
+  }
   const mainWidth = columns - x;
   const inspectorVisible = inspectorSpace(layout) && state.inspector;
-  const inspectorColumns = inspectorVisible ? 42 : 0;
+  const inspectorColumns = inspectorVisible ? 38 : 0;
   if (inspectorVisible) {
     base.inspector = rect(columns - inspectorColumns, base.body.y, inspectorColumns, base.body.height);
   }
@@ -373,6 +364,18 @@ function layoutAnalysis(base: Layout, state: AppState, layout: ReturnType<typeof
     Math.max(contentWidth - 2, 1),
     Math.max(tableHeight - 3, 1),
   );
+  if (state.inspector && !inspectorVisible) {
+    base.inspector = rect(x, base.body.y, mainWidth, base.body.height);
+  }
+  if (!result(state) && !state.busy && tableHeight >= 10) {
+    const command = state.image === null ? 'importImage' : state.symbols === '' && state.plugin !== 'banners' ? 'matchRemote' : 'run';
+    const { key, label } = actionOf(command);
+    const cells = cellWidth(label) + 2;
+    base.buttons.push({
+      rect: rect(x + Math.max(Math.floor((contentWidth - cells) / 2), 1), tableY + Math.floor(tableHeight / 2) + 2, cells, 1),
+      key, action: label,
+    });
+  }
   const pageSize = Math.max(base.contentRows.height, 1);
   base.pageSize = pageSize;
   const total = viewIndex(state).visible.length;
@@ -405,77 +408,36 @@ function layoutActions(base: Layout, state: AppState): void {
   if (base.actions.height === 0) {
     return;
   }
-  if (state.page === 'assets') {
-    const actions = toolbarActions(state.section, state.busy);
-    const more = ' 更多 ? ';
-    const moreWidth = more.length;
-    const rows = base.actions.height;
-    let x = 0;
-    let row = 0;
-    let shown = 0;
-    for (const action of actions) {
-      const label = ` ${action.label} `;
-      const cells = cellWidth(label);
-      if (cells > base.columns) {
-        continue;
-      }
-      if (x + cells + moreWidth > base.columns) {
-        x = 0;
-        row += 1;
-      }
-      if (row >= rows) {
-        break;
-      }
-      base.buttons.push({
-        rect: rect(x, base.actions.y + row, cells, 1),
-        key: action.key,
-        action: action.label,
-      });
-      x += cells + 1;
-      shown += 1;
-    }
-    if (shown < actions.length) {
-      const moreX = base.columns - x >= moreWidth ? x : 0;
-      const moreY = base.actions.y + Math.min(row, rows - 1);
-      base.buttons.push({ rect: rect(moreX, moreY, moreWidth, 1), key: '?', action: '更多' });
-    }
-    return;
-  }
-  const actions = actionLabels(state);
+  const actions = state.page === 'assets'
+    ? toolbarActions(state.section, state.busy)
+    : actionLabels(state);
   const more = ' 更多 ? ';
+  const moreWidth = cellWidth(more);
   let x = 0;
-  let row = 0;
-  let shown = 0;
-  for (const action of actions) {
-    const label = ` ${action.label} `;
-    const cells = cellWidth(label);
-    if (cells > base.columns) {
-      continue;
+  for (const action of actions.filter((entry) => entry.key !== '?')) {
+    const cells = cellWidth(` ${action.label} `);
+    if (x + cells + 1 + moreWidth > base.columns) {
+      break;
     }
-    if (x + cells + more.length > base.columns) {
-      if (row + 1 >= base.actions.height) {
-        break;
-      }
-      x = 0;
-      row += 1;
-    }
-    base.buttons.push({
-      rect: rect(x, base.actions.y + row, cells, 1),
-      key: action.key,
-      action: action.label,
-    });
+    base.buttons.push({ rect: rect(x, base.actions.y, cells, 1), key: action.key, action: action.label });
     x += cells + 1;
-    shown += 1;
   }
-  if (shown < actions.length) {
-    const moreX = base.columns - x >= more.length ? x : 0;
-    base.buttons.push({ rect: rect(moreX, base.actions.y + row, more.length, 1), key: '?', action: '更多' });
-  }
+  base.buttons.push({
+    rect: rect(Math.max(base.columns - moreWidth, 0), base.actions.y, Math.min(moreWidth, base.columns), 1),
+    key: '?', action: '更多',
+  });
 }
 
 /** Footer action labels for the focused region, from the action table. */
 function actionLabels(state: AppState): { label: string; key: string }[] {
-  const actions = footerActions(state.focus);
+  const actions = state.focus === 'content' && !result(state)
+    ? (state.image === null
+      ? [actionOf('importImage'), actionOf('pageAssets'), actionOf('plugins')]
+      : state.preparation !== 'ready' && state.plugin !== 'banners'
+        ? [actionOf('importSymbols'), actionOf('matchLocal'), actionOf('matchRemote')]
+        : [actionOf('run'), actionOf('parameters'), actionOf('plugins')])
+      .map(({ label, key }) => ({ label, key }))
+    : footerActions(state.focus);
   if (state.focus === 'navigation') {
     actions.unshift({ label: '内容 Tab', key: 'Tab' });
   }
@@ -502,7 +464,7 @@ function layoutDialog(base: Layout, state: AppState): void {
       ? base.content
       : rect(0, base.body.y, base.columns, base.body.height);
   const popup =
-    (dialog.kind === 'dump' || (dialog.kind === 'detail' && base.columns < 140)) && workbench.width > 0
+    (dialog.kind === 'dump' || (dialog.kind === 'detail' && !inspectorSpace(space(base.columns, base.rows)))) && workbench.width > 0
       ? workbench
       : rect(
           Math.floor((base.columns - Math.min(width, base.columns)) / 2),

@@ -41,16 +41,15 @@ import {
   compactRemotePath,
   escaped,
   mib,
-  summariseBanner,
   truncate,
   truncatePath,
   width,
   wrapLines,
 } from '../text.js';
-import { fitFields, preparationBadge } from '../components.js';
+import { preparationBadge } from '../components.js';
 import { dumpModes, inputTitle, parameterFields } from '../dialogs.js';
 import { entryBadge, resultState, shortPlugin } from '../format.js';
-import { assetDetailText, remoteDetailText } from '../detail.js';
+import { assetDetailText, remoteDetailText, rowDetailText } from '../detail.js';
 import { fullDigest, space } from '../layout.js';
 
 const plain = (color?: string): Style => (color === undefined ? {} : { color });
@@ -80,7 +79,7 @@ export function paintTabs(canvas: Canvas, app: App, layout: Layout): void {
   });
   const pulse = state.busy ? ['●··', '·●·', '··●', '·●·'][Math.floor(Date.now() / 180) % 4] : null;
   const right = pulse ? `运行中 ${pulse} ` : 'ZERO · 内存取证 ';
-  if (layout.columns > width(right) + 22) {
+  if (layout.columns > width(right) + 56) {
     canvas.write(
       layout.columns - width(right),
       0,
@@ -114,9 +113,6 @@ export function paintSystems(canvas: Canvas, app: App, layout: Layout): void {
     }
     return;
   }
-  if (layout.columns >= 29) {
-    canvas.write(0, 1, ' 系统: ', plain(MUTED), 7);
-  }
   const labels: { text: string; os: 'linux' | 'windows' | 'auto' }[] = [
     { text: ' Linux ', os: 'linux' },
     { text: ' Windows ', os: 'windows' },
@@ -141,76 +137,33 @@ export function paintSystems(canvas: Canvas, app: App, layout: Layout): void {
   }
 }
 
+/** Shared context strip: each field uses the same rectangle as its click target. */
 export function paintResourceHeader(canvas: Canvas, app: App, layout: Layout): void {
-  const state = app.state;
-  const image =
-    state.image === null
-      ? '尚未选择；i 导入或 Space 选用清单中的镜像'
-      : truncatePath(state.image, Math.max(layout.columns - 12, 8));
-  const banner = summariseBanner(app.bannerLine());
-  const identified = state.results.has('banners');
-  drawFields(canvas, 0, 2, layout.columns, [
-    { label: '镜像: ', value: image, color: TEXT },
-    { label: '内核: ', value: banner, color: identified ? TEXT : MUTED },
-  ]);
-
-  const symbol =
-    state.symbols === ''
-      ? '未选用；m 本地匹配，M 匹配并获取符号'
-      : state.preparation === 'ready'
-        ? (state.choice ?? truncatePath(state.symbols, Math.max(layout.columns - 12, 8)))
-        : `待匹配 ${truncatePath(state.symbols, Math.max(layout.columns - 16, 8))}`;
-  const badge = preparationBadge(state.preparation);
-  const mode = state.settings.remote_symbols ? '在线' : '离线';
-  const badgeText = ` ${badge.label} · ${mode} `;
-  const showBadge = layout.columns >= width(badgeText) + 16;
-  const symbolWidth = layout.columns - (showBadge ? width(badgeText) + 1 : 0);
-  drawFields(canvas, 0, 3, symbolWidth, [{ label: '符号: ', value: symbol, color: TEXT }]);
-  if (showBadge) {
-    const x = layout.columns - width(badgeText);
-    canvas.fill(x, 3, width(badgeText), 1, { background: RAISED });
-    canvas.write(x, 3, ` ${badge.label}`, { color: badge.color, background: RAISED });
-    canvas.write(x + width(` ${badge.label}`), 3, ' · ', { color: BORDER, background: RAISED });
-    canvas.write(
-      x + width(` ${badge.label} · `),
-      3,
-      `${mode} `,
-      { color: state.settings.remote_symbols ? MUTED : WARN, background: RAISED },
-    );
-  }
+  paintAnalysisHeader(canvas, app, layout);
 }
 
 export function paintAnalysisHeader(canvas: Canvas, app: App, layout: Layout): void {
   const state = app.state;
-  const image = state.image ?? '未加载；按 i 输入路径';
-  const verified = [...state.results.values()].find(
-    (entry) => !entry.historical && entry.page_table > 0,
-  );
-  const kernel = verified
-    ? `页表已验证 0x${verified.page_table.toString(16)}`
-    : state.preparation === 'ready'
-      ? '运行时验证页表'
-      : '尚未验证页表';
-  const kernelColor = verified ? SUCCESS : state.preparation === 'ready' ? TEXT : WARN;
-  const active = [...state.results.values()].find(
-    (entry) => !entry.historical && entry.symbol !== '',
-  );
-  const symbol = active?.symbol ?? (state.symbols === '' ? '未选择 · F2 资源库' : state.symbols);
-  const symbolColor = active ? TEXT : state.symbols === '' ? WARN : TEXT;
-  const platform = state.windows ? 'Windows' : 'Linux';
-  let x = canvas.write(0, 2, platform, { color: TEXT, bold: true }, layout.columns);
-  for (const field of [
-    { label: '验证: ', value: kernel, color: kernelColor },
-    { label: '符号: ', value: symbol, color: symbolColor },
-    { label: '镜像: ', value: image, color: TEXT },
-  ]) {
-    const cells = 3 + width(field.label) + width(field.value);
-    if (x + cells > layout.columns) {
-      break;
-    }
-    x += canvas.write(x, 2, ' · ', { color: BORDER }, 3);
-    x += canvas.write(x, 2, field.label, { color: MUTED });
-    x += canvas.write(x, 2, escaped(field.value), { color: field.color }, layout.columns - x);
+  const image = layout.headerImage;
+  const symbol = layout.headerSymbol;
+  const system = state.analysisOptions.os === 'auto'
+    ? '自动'
+    : state.analysisOptions.os === 'windows' ? 'Windows' : 'Linux';
+  const prefix = `${state.focus === 'context' ? '›' : ' '} ${system} · 镜像 `;
+  canvas.fill(0, layout.header.y, layout.columns, 1, { background: RAISED });
+  canvas.write(image.x, image.y, prefix, { color: MUTED, background: RAISED }, image.width);
+  canvas.write(image.x + width(prefix), image.y,
+    state.image === null ? '未选择 · i 导入' : truncatePath(escaped(state.image), image.width - width(prefix) - 1),
+    { color: state.image === null ? WARN : TEXT, background: RAISED }, Math.max(image.width - width(prefix) - 1, 0));
+  const badge = preparationBadge(state.preparation);
+  const mode = state.settings.remote_symbols ? '在线' : '离线';
+  const label = `│ 符号 ${badge.label} · ${mode}`;
+  canvas.write(symbol.x, symbol.y, label,
+    { color: badge.color, background: RAISED }, symbol.width);
+  const remaining = symbol.width - width(label) - 1;
+  if (remaining > 8 && state.symbols !== '') {
+    canvas.write(symbol.x + width(label) + 1, symbol.y, truncatePath(escaped(state.symbols), remaining),
+      { color: MUTED, background: RAISED }, remaining);
   }
 }
 
@@ -236,18 +189,9 @@ export function paintFooter(canvas: Canvas, app: App, layout: Layout): void {
   x += canvas.write(x, layout.status.y, '│ ', { color: BORDER });
   canvas.write(x, layout.status.y, escaped(app.statusText()), { color }, layout.columns - x);
 
-  if (state.page === 'assets' && layout.actions.height > 0) {
-    canvas.write(0, layout.actions.y, ' 操作 ', plain(MUTED));
-    canvas.write(
-      6,
-      layout.actions.y,
-      `· ${sectionTitle(state.section)} · Tab 切换区域 `,
-      { color: ACCENT, bold: true },
-    );
-  }
   for (const button of layout.buttons) {
     const disabled = app.commandDisabledForKey(button.key);
-    const primary = button.key === 'x';
+    const primary = button.key === 'x' || button.rect.y < layout.status.y;
     const background = primary ? SELECTED_BG : RAISED;
     canvas.fill(button.rect.x, button.rect.y, button.rect.width, 1, { background });
     const label =
@@ -493,23 +437,28 @@ export function paintContent(canvas: Canvas, app: App, layout: Layout): void {
       state.busy
         ? '任务进行中'
         : state.image === null
-          ? '先选用一个镜像'
+          ? '选择镜像，开始内存分析'
           : state.symbols === '' && state.plugin !== 'banners'
             ? '尚未选择符号'
-            : '尚无结果',
+            : state.cancelled ? '任务已取消' : state.lastError ? '分析未完成' : '准备就绪 · 尚未运行',
       state.busy
         ? '完成后显示结果 · Esc 取消'
         : state.image === null
-          ? 'F2 资源库 · i 导入镜像'
+          ? '镜像 → 精确匹配符号 → 运行插件'
           : state.symbols === '' && state.plugin !== 'banners'
             ? 'F2 资源库 · M 精确匹配'
-            : 'Enter 运行插件 · p 搜索插件',
+            : state.lastError ? 'l 查看任务日志 · r 重试' : (app.plugins().find((entry) => entry.name === state.plugin)?.description ?? 'F5 运行插件 · p 搜索插件'),
     );
     return;
   }
   const widths = columnWidths(app, index);
   const virtual = widths.reduce((total, value) => total + value, 0) + Math.max(widths.length - 1, 0);
   const scroll = Math.min(state.horizontal, Math.max(virtual - box.width, 0));
+  if (virtual > box.width) {
+    const indicator = ` 横移 ${scroll}/${Math.max(virtual - box.width, 0)} · Alt+←/→ `;
+    canvas.write(box.x + Math.max(box.width - width(indicator), 0), layout.content.y + layout.content.height - 1,
+      indicator, { color: MUTED }, Math.min(width(indicator), box.width));
+  }
   layout.columns_ = columnRects(widths, box.x + 2, box.y, scroll);
   const header = headerLine(state, widths, scroll, Math.max(box.width - 2, 1));
   canvas.fill(box.x, box.y, box.width, 1, { background: RAISED });
@@ -559,17 +508,16 @@ export function paintInspector(canvas: Canvas, app: App, layout: Layout): void {
     return;
   }
   const state = app.state;
-  const current = result(state);
-  const row = visibleRow(state, viewIndex(state), state.row);
-  const text =
-    current && row
-      ? current.columns.map((column, index) => `${column}: ${row[index] ?? ''}`).join('\n')
-      : '选择一行查看完整字段。';
-  paintFrame(canvas, layout.inspector, '详情 · Tab 聚焦 · d 关闭', {
+  const text = rowDetailText(state);
+  canvas.fill(layout.inspector.x, layout.inspector.y, layout.inspector.width, layout.inspector.height, { background: SURFACE });
+  paintFrame(canvas, layout.inspector, '详情 · d / Esc 关闭', {
+    subtitle: '↑↓ 滚动 · PgUp/PgDn',
     color: state.focus === 'detail' ? ACCENT : BORDER,
   });
   const box = frameInner(layout.inspector);
-  const lines = wrapLines(text, box.width).slice(state.detailScroll, state.detailScroll + box.height);
+  const wrapped = wrapLines(text, box.width);
+  const offset = Math.min(state.detailScroll, Math.max(wrapped.length - box.height, 0));
+  const lines = wrapped.slice(offset, offset + box.height);
   lines.forEach((line, index) => {
     canvas.write(box.x, box.y + index, escaped(line), plain(TEXT), box.width);
   });
@@ -955,7 +903,7 @@ export function paintFrame(
   });
   if (title !== undefined) {
     const text = ` ${truncate(title, Math.max(region.width - 4, 1))} `;
-    canvas.write(region.x + 2, region.y, text, { color: TEXT }, region.width - 4);
+    canvas.write(region.x + 2, region.y, text, { color: options.color === BORDER ? TEXT : options.color ?? TEXT }, region.width - 4);
   }
   if (options.subtitle !== undefined) {
     const text = ` ${truncate(options.subtitle, Math.max(region.width - 4, 1))} `;
@@ -999,25 +947,6 @@ export function paintEmpty(canvas: Canvas, region: Rect, title: string, hint: st
       color: MUTED,
     });
   }
-}
-
-/** `label: value` pairs across `columns`, dropping whole trailing pairs. */
-function drawFields(
-  canvas: Canvas,
-  x: number,
-  y: number,
-  columns: number,
-  fields: { label: string; value: string; color?: string }[],
-): void {
-  const fitted = fitFields(fields, columns);
-  let cursor = x;
-  fitted.forEach((field, index) => {
-    if (index > 0) {
-      cursor += canvas.write(cursor, y, ' · ', { color: BORDER }, 3);
-    }
-    cursor += canvas.write(cursor, y, field.label, { color: MUTED });
-    cursor += canvas.write(cursor, y, escaped(field.value), { color: field.color ?? TEXT }, x + columns - cursor);
-  });
 }
 
 function emptyTitle(app: App, section: PaneLayout['section'], query: string): string {

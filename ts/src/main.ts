@@ -4,7 +4,7 @@
  *
  * The Rust engine owns evidence, symbols and caches; this process owns the
  * screen. On start it asks the engine for its identity, plugin registry and
- * settings, then renders the resource library. Launch flags forwarded by `zero`
+ * settings, then renders the analysis workbench. Launch flags forwarded by `zero`
  * (image, symbols, system, pagefiles, hive, key) become the initial selection.
  */
 import { render } from 'ink';

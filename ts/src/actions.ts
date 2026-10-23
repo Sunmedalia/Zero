@@ -276,7 +276,7 @@ export const ACTIONS: Action[] = [
   action('toggleOnline', '在线／离线 o', 'o', 'anywhere', PALETTE | TOOLBAR),
   action('cancel', '取消 Esc', 'Esc', 'anywhere', TOOLBAR),
   // Intake actions, valid on both pages.
-  { ...action('importImage', '打开镜像 i', 'i', 'anywhere', PALETTE | FOOTER), footerFocus: CONTEXT_FOCUS },
+  { ...action('importImage', '选择镜像 i', 'i', 'anywhere', PALETTE | FOOTER), footerFocus: CONTEXT_FOCUS },
   {
     ...action('importSymbols', '选择本地符号 y', 'y', 'anywhere', PALETTE | FOOTER),
     footerFocus: CONTEXT_FOCUS,
@@ -286,7 +286,7 @@ export const ACTIONS: Action[] = [
     footerFocus: CONTEXT_FOCUS,
   },
   {
-    ...action('matchRemote', '当前镜像 → 远程匹配 M', 'M', 'anywhere', PALETTE | TOOLBAR),
+    ...action('matchRemote', '精确匹配符号 M', 'M', 'anywhere', PALETTE | TOOLBAR),
     footerFocus: CONTEXT_FOCUS,
   },
   {
@@ -312,7 +312,7 @@ export const ACTIONS: Action[] = [
   },
   // Analysis actions.
   {
-    ...action('run', '运行当前插件 Ctrl+R', 'F5', 'analysis', PALETTE | FOOTER),
+    ...action('run', '运行插件 F5', 'F5', 'analysis', PALETTE | FOOTER),
     footerFocus: NAV_FOCUS,
   },
   { ...action('rerun', '重新分析 r', 'r', 'analysis', PALETTE | FOOTER), footerFocus: NAV_FOCUS },
@@ -350,7 +350,7 @@ export const ACTIONS: Action[] = [
   {
     ...action('detail', '详情 d', 'd', 'analysis', PALETTE | FOOTER),
     paletteFocus: CONTENT_FOCUS | DETAIL_FOCUS,
-    footerFocus: CONTENT_FOCUS,
+    footerFocus: CONTENT_FOCUS | DETAIL_FOCUS,
   },
   {
     ...action('searchContent', '搜索内容 /', '/', 'analysis', PALETTE | FOOTER),

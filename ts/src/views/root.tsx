@@ -68,7 +68,7 @@ export function Root({
     enableMouse();
     const detach = listenMouse(stdin, (event) => {
       if (event.kind === 'wheel') {
-        void app.wheel(event.button === 64 ? -1 : 1);
+        void app.wheel(event.button === 64 ? -1 : 1, event.x, event.y);
         return;
       }
       if (event.kind === 'press' && event.button === 0) {
@@ -81,10 +81,20 @@ export function Root({
     };
   }, [app, stdin]);
 
+  const { canvas } = renderFrame(app, columns, rows);
+  return <Frame lines={canvas.lines()} />;
+}
+
+/** Compose the same deterministic frame for Ink and render-level regression tests. */
+export function renderFrame(app: App, columns: number, rows: number) {
   const layout = computeLayout(app.state, columns, rows);
-  app.setHits(hitMap(layout, app.state));
   const canvas = new Canvas(columns, rows);
   paint.paintBackground(canvas);
+  if (columns < 60 || rows < 16) {
+    paint.paintEmpty(canvas, { x: 0, y: 0, width: columns, height: rows },
+      '终端过小 · 至少 60×16', '调整窗口大小 · q / Ctrl+C 退出');
+    return { canvas, layout };
+  }
   paint.paintTabs(canvas, app, layout);
   paint.paintSystems(canvas, app, layout);
   if (app.state.page === 'analysis') {
@@ -99,10 +109,11 @@ export function Root({
   paint.paintAssetDetail(canvas, app, layout);
   paint.paintMenu(canvas, app, layout);
   paint.paintContent(canvas, app, layout);
-  paint.paintInspector(canvas, app, layout);
   paint.paintFooter(canvas, app, layout);
+  paint.paintInspector(canvas, app, layout);
   paint.paintDialog(canvas, app, layout);
-  return <Frame lines={canvas.lines()} />;
+  app.setHits(hitMap(layout, app.state));
+  return { canvas, layout };
 }
 
 /**
@@ -216,6 +227,10 @@ async function routeKey(
   }
   const token = keyToken(input, key);
   if (!token) {
+    return;
+  }
+  if (app.state.columns < 60 || app.state.rows < 16) {
+    if (token === 'q') await app.quitNow();
     return;
   }
   if (app.state.dialog) {
@@ -333,6 +348,10 @@ async function assetKey(app: App, token: string): Promise<void> {
 
 async function analysisKey(app: App, token: string): Promise<void> {
   const state = app.state;
+  if (state.focus === 'detail' && ['Up', 'Down', 'j', 'k', 'PageUp', 'PageDown', 'Home', 'End'].includes(token)) {
+    app.scrollDetail(token === 'j' ? 'Down' : token === 'k' ? 'Up' : token);
+    return;
+  }
   const command = app.resolveKey(token);
   if (command) {
     await app.runCommand(command);

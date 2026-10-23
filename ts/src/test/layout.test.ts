@@ -149,9 +149,9 @@ test('layout regions never overlap the chrome', async () => {
   const { app: instance } = await app();
   const layout = computeLayout(instance.state, 100, 30);
   assert.equal(layout.tabs.y, 0);
-  assert.equal(layout.systems.y, 1);
-  assert.equal(layout.header.y, 2);
-  assert.equal(layout.body.y, 4);
+  assert.equal(layout.systems.y, 0);
+  assert.equal(layout.header.y, 1);
+  assert.equal(layout.body.y, 2);
   assert.equal(layout.status.y, layout.body.y + layout.body.height);
   assert.ok(layout.actions.y >= layout.status.y);
   assert.equal(layout.actions.y + layout.actions.height, 30);
@@ -170,6 +170,7 @@ test('a click on a tab hits exactly one tab', async () => {
 
 test('system chips are placed by display width, not string length', async () => {
   const { app: instance } = await app();
+  instance.switchPage('assets');
   const layout = computeLayout(instance.state, 80, 24);
   const auto = layout.systemHits.find((hit) => hit.os === 'auto');
   assert.ok(auto, 'auto chip must fit at 80 columns');
@@ -201,6 +202,7 @@ test('list rows are individually clickable and map to absolute indices', async (
       source_url: null,
     })),
   });
+  instance.switchPage('assets');
   const layout = computeLayout(instance.state, 100, 30);
   const pane = layout.panes.find((entry) => entry.section === 'images');
   assert.ok(pane);
@@ -276,6 +278,7 @@ test('search fields are drawn inline and are not treated as modals', async () =>
 
 test('narrow layouts stack the panes, short ones show only the active pane', async () => {
   const { app: instance } = await app();
+  instance.switchPage('assets');
   const wide = computeLayout(instance.state, 100, 24);
   assert.equal(wide.panes.length, 2);
   assert.equal(wide.panes[0]?.frame.x, 0);
