@@ -77,7 +77,10 @@
           "windows.etwpatch": "pending",
           "windows.registry.scheduled_tasks": "pending",
           "windows.registry.amcache": "pending",
-          "windows.registry.certificates": "pending"
+          "windows.registry.certificates": "pending",
+          "windows.processghosting": "pending",
+          "windows.joblinks": "pending",
+          "windows.timeliner": "pending"
         },
         "x64": {
           "windows.callbacks": "synthetic",
@@ -132,7 +135,10 @@
           "windows.etwpatch": "pending",
           "windows.registry.scheduled_tasks": "pending",
           "windows.registry.amcache": "pending",
-          "windows.registry.certificates": "pending"
+          "windows.registry.certificates": "pending",
+          "windows.processghosting": "pending",
+          "windows.joblinks": "pending",
+          "windows.timeliner": "pending"
         }
       },
       "evidence": [
@@ -248,7 +254,10 @@
           "windows.etwpatch": "pending",
           "windows.registry.scheduled_tasks": "pending",
           "windows.registry.amcache": "pending",
-          "windows.registry.certificates": "pending"
+          "windows.registry.certificates": "pending",
+          "windows.processghosting": "pending",
+          "windows.joblinks": "pending",
+          "windows.timeliner": "pending"
         },
         "x64": {
           "windows.callbacks": "synthetic",
@@ -303,7 +312,10 @@
           "windows.etwpatch": "pending",
           "windows.registry.scheduled_tasks": "pending",
           "windows.registry.amcache": "pending",
-          "windows.registry.certificates": "pending"
+          "windows.registry.certificates": "pending",
+          "windows.processghosting": "pending",
+          "windows.joblinks": "pending",
+          "windows.timeliner": "pending"
         }
       },
       "evidence": []
@@ -379,7 +391,10 @@
           "windows.etwpatch": "pending",
           "windows.registry.scheduled_tasks": "pending",
           "windows.registry.amcache": "pending",
-          "windows.registry.certificates": "pending"
+          "windows.registry.certificates": "pending",
+          "windows.processghosting": "pending",
+          "windows.joblinks": "pending",
+          "windows.timeliner": "pending"
         },
         "x64": {
           "windows.callbacks": "synthetic",
@@ -434,7 +449,10 @@
           "windows.etwpatch": "pending",
           "windows.registry.scheduled_tasks": "pending",
           "windows.registry.amcache": "pending",
-          "windows.registry.certificates": "pending"
+          "windows.registry.certificates": "pending",
+          "windows.processghosting": "pending",
+          "windows.joblinks": "pending",
+          "windows.timeliner": "pending"
         }
       },
       "evidence": [
@@ -556,7 +574,10 @@
           "windows.etwpatch": "pending",
           "windows.registry.scheduled_tasks": "pending",
           "windows.registry.amcache": "pending",
-          "windows.registry.certificates": "pending"
+          "windows.registry.certificates": "pending",
+          "windows.processghosting": "pending",
+          "windows.joblinks": "pending",
+          "windows.timeliner": "pending"
         }
       },
       "evidence": [],
@@ -631,7 +652,10 @@
           "windows.etwpatch": "pending",
           "windows.registry.scheduled_tasks": "pending",
           "windows.registry.amcache": "pending",
-          "windows.registry.certificates": "pending"
+          "windows.registry.certificates": "pending",
+          "windows.processghosting": "pending",
+          "windows.joblinks": "pending",
+          "windows.timeliner": "pending"
         }
       },
       "evidence": [
@@ -752,7 +776,10 @@
           "windows.etwpatch": "pending",
           "windows.registry.scheduled_tasks": "pending",
           "windows.registry.amcache": "pending",
-          "windows.registry.certificates": "pending"
+          "windows.registry.certificates": "pending",
+          "windows.processghosting": "pending",
+          "windows.joblinks": "pending",
+          "windows.timeliner": "pending"
         }
       },
       "evidence": [
@@ -874,7 +901,10 @@
           "windows.etwpatch": "pending",
           "windows.registry.scheduled_tasks": "pending",
           "windows.registry.amcache": "pending",
-          "windows.registry.certificates": "pending"
+          "windows.registry.certificates": "pending",
+          "windows.processghosting": "pending",
+          "windows.joblinks": "pending",
+          "windows.timeliner": "pending"
         }
       },
       "evidence": [
@@ -968,7 +998,10 @@
           "windows.etwpatch": "pending",
           "windows.registry.scheduled_tasks": "pending",
           "windows.registry.amcache": "pending",
-          "windows.registry.certificates": "pending"
+          "windows.registry.certificates": "pending",
+          "windows.processghosting": "pending",
+          "windows.joblinks": "pending",
+          "windows.timeliner": "pending"
         }
       },
       "evidence": [
@@ -1091,7 +1124,10 @@
           "windows.etwpatch": "pending",
           "windows.registry.scheduled_tasks": "pending",
           "windows.registry.amcache": "pending",
-          "windows.registry.certificates": "pending"
+          "windows.registry.certificates": "pending",
+          "windows.processghosting": "pending",
+          "windows.joblinks": "pending",
+          "windows.timeliner": "pending"
         }
       },
       "evidence": [
@@ -1214,7 +1250,10 @@
           "windows.etwpatch": "pending",
           "windows.registry.scheduled_tasks": "pending",
           "windows.registry.amcache": "pending",
-          "windows.registry.certificates": "pending"
+          "windows.registry.certificates": "pending",
+          "windows.processghosting": "pending",
+          "windows.joblinks": "pending",
+          "windows.timeliner": "pending"
         }
       },
       "evidence": [],
@@ -1291,7 +1330,10 @@
           "windows.etwpatch": "pending",
           "windows.registry.scheduled_tasks": "pending",
           "windows.registry.amcache": "pending",
-          "windows.registry.certificates": "pending"
+          "windows.registry.certificates": "pending",
+          "windows.processghosting": "pending",
+          "windows.joblinks": "pending",
+          "windows.timeliner": "pending"
         },
         "x64": {
           "windows.callbacks": "real",
@@ -1346,7 +1388,10 @@
           "windows.etwpatch": "pending",
           "windows.registry.scheduled_tasks": "pending",
           "windows.registry.amcache": "pending",
-          "windows.registry.certificates": "pending"
+          "windows.registry.certificates": "pending",
+          "windows.processghosting": "pending",
+          "windows.joblinks": "pending",
+          "windows.timeliner": "pending"
         }
       },
       "evidence": [
@@ -1454,7 +1499,10 @@
           "windows.etwpatch": "pending",
           "windows.registry.scheduled_tasks": "pending",
           "windows.registry.amcache": "pending",
-          "windows.registry.certificates": "pending"
+          "windows.registry.certificates": "pending",
+          "windows.processghosting": "pending",
+          "windows.joblinks": "pending",
+          "windows.timeliner": "pending"
         },
         "x64": {
           "windows.callbacks": "synthetic",
@@ -1509,7 +1557,10 @@
           "windows.etwpatch": "pending",
           "windows.registry.scheduled_tasks": "pending",
           "windows.registry.amcache": "pending",
-          "windows.registry.certificates": "pending"
+          "windows.registry.certificates": "pending",
+          "windows.processghosting": "pending",
+          "windows.joblinks": "pending",
+          "windows.timeliner": "pending"
         }
       },
       "evidence": []
@@ -1584,7 +1635,10 @@
           "windows.etwpatch": "pending",
           "windows.registry.scheduled_tasks": "pending",
           "windows.registry.amcache": "pending",
-          "windows.registry.certificates": "pending"
+          "windows.registry.certificates": "pending",
+          "windows.processghosting": "pending",
+          "windows.joblinks": "pending",
+          "windows.timeliner": "pending"
         },
         "x64": {
           "windows.callbacks": "synthetic",
@@ -1639,7 +1693,10 @@
           "windows.etwpatch": "pending",
           "windows.registry.scheduled_tasks": "pending",
           "windows.registry.amcache": "pending",
-          "windows.registry.certificates": "pending"
+          "windows.registry.certificates": "pending",
+          "windows.processghosting": "pending",
+          "windows.joblinks": "pending",
+          "windows.timeliner": "pending"
         }
       },
       "evidence": []
@@ -1727,7 +1784,10 @@
           "windows.etwpatch": "pending",
           "windows.registry.scheduled_tasks": "pending",
           "windows.registry.amcache": "pending",
-          "windows.registry.certificates": "pending"
+          "windows.registry.certificates": "pending",
+          "windows.processghosting": "pending",
+          "windows.joblinks": "pending",
+          "windows.timeliner": "pending"
         },
         "x64": {
           "windows.callbacks": "real",
@@ -1782,7 +1842,10 @@
           "windows.etwpatch": "real",
           "windows.registry.scheduled_tasks": "real",
           "windows.registry.amcache": "real",
-          "windows.registry.certificates": "real"
+          "windows.registry.certificates": "real",
+          "windows.processghosting": "pending",
+          "windows.joblinks": "real",
+          "windows.timeliner": "real"
         }
       },
       "evidence": [
@@ -1826,7 +1889,9 @@
             "windows.etwpatch": 243,
             "windows.registry.scheduled_tasks": 173,
             "windows.registry.amcache": 149,
-            "windows.registry.certificates": 30
+            "windows.registry.certificates": 30,
+            "windows.joblinks": 79,
+            "windows.timeliner": 711326
           }
         },
         {
@@ -1921,7 +1986,10 @@
           "windows.etwpatch": "real",
           "windows.registry.scheduled_tasks": "real",
           "windows.registry.amcache": "real",
-          "windows.registry.certificates": "real"
+          "windows.registry.certificates": "real",
+          "windows.processghosting": "real",
+          "windows.joblinks": "real",
+          "windows.timeliner": "real"
         }
       },
       "evidence": [
@@ -1964,7 +2032,10 @@
             "windows.etwpatch": 183,
             "windows.registry.scheduled_tasks": 201,
             "windows.registry.amcache": 205,
-            "windows.registry.certificates": 29
+            "windows.registry.certificates": 29,
+            "windows.processghosting": 1,
+            "windows.joblinks": 37,
+            "windows.timeliner": 46235
           }
         }
       ]

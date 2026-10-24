@@ -93,6 +93,10 @@ Windows 10 RAW 样本额外验证了 4 个 WOW64 进程（PID 4428、5684、5932
 
 实测：Windows 10 15063 `etwpatch=243`（全部 Normal）、`scheduled_tasks=173`、`amcache=149`、`certificates=30`；Windows 11 22000 `etwpatch=183`、`scheduled_tasks=201`、`amcache=205`、`certificates=29`。两个样本 `orphan_kernel_threads=0`，零行不作为真实验证，矩阵保持待验证。
 
+第五批新增 `windows.processghosting`、`windows.joblinks` 和 `windows.timeliner`。`processghosting` 读取 `_EPROCESS.ImageFilePointer`，先经对象头确认它确实是 File 对象（过期指针落在复用的池上会被拒绝并记录诊断），再报告 DeletePending 或 Data/Image 节对象都为空的映像。`joblinks` 输出每个进程所属 `_EJOB` 的会话、活动与累计进程数。`timeliner` 汇总 pslist、netscan、symlinkscan、userassist、scheduled_tasks、amcache 与 mftscan 的时间戳，统一换算为 UTC 并按 FILETIME 排序；只保留 1990-01-01 至 2100-01-01 的时间，以排除雕刻记录中的垃圾值，任一来源不完整时整体标记为部分结果。
+
+实测：Windows 10 15063 `joblinks=79`、`timeliner=711326`（最后一条 2018-06-21，与采集时间一致）、`processghosting=0`；Windows 11 22000 `processghosting=1`（SearchProtocolHost 无节对象）、`joblinks=37`、`timeliner=46235`（最后一条 2022-07-19）。
+
 矩阵按插件和架构记录四级证据。**真实**仅代表列出的样本构建与容器；**合成**验证解析路径或指针宽度，不能证明该系统的完整布局；**待验证**缺少实测证据；**不支持**没有对应解析模型。零条扫描结果不作为恢复能力的真实验证。具体插件、样本哈希、精确 PDB 与范围见 [机器可读矩阵](../src/windows/compatibility.json) 和 [验收基线](../tests/fixtures/windows.json)。Server 2003 与 R2 共用内核构建，系统身份会保留歧义；Server 2025 与 Windows 11 的 26100 使用有效的 ProductType 区分。所有版本仍要求精确符号，未知构建不会选择最近版本。
 
 <!-- windows-compatibility:start -->

@@ -37,9 +37,11 @@ pub mod paging;
 mod pe_info;
 mod pool;
 mod process;
+mod process_checks;
 mod registry;
 mod registry_artifacts;
 mod security;
+mod timeline;
 mod user_artifacts;
 mod user_layout;
 mod wow64;
@@ -568,6 +570,9 @@ impl Windows<'_> {
         if p == Plugin::WinModscan {
             return self.modscan(job);
         }
+        if p == Plugin::WinTimeliner {
+            return self.timeliner(job);
+        }
         if p == Plugin::WinOrphanThreads {
             let threads = self.run(
                 Plugin::WinThreads,
@@ -707,6 +712,8 @@ impl Windows<'_> {
                 Plugin::WinIat => self.iat(&process, &mut result, job),
                 Plugin::WinVerinfo => self.verinfo(&process, &mut result, job),
                 Plugin::WinEtwpatch => self.etwpatch(&process, &mut result, job),
+                Plugin::WinProcessghosting => self.processghosting(&process, &mut result),
+                Plugin::WinJoblinks => self.joblink(&process, &mut result),
                 _ => bail!("不支持的 Windows 插件 {}", p.name()),
             };
             if let Err(e) = read {

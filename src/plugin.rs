@@ -112,6 +112,12 @@ pub enum Plugin {
     WinAmcache,
     #[value(name = "windows.registry.certificates")]
     WinCertificates,
+    #[value(name = "windows.processghosting")]
+    WinProcessghosting,
+    #[value(name = "windows.joblinks")]
+    WinJoblinks,
+    #[value(name = "windows.timeliner")]
+    WinTimeliner,
     Iomem,
     Ioports,
     Ptrace,
@@ -790,6 +796,36 @@ pub const PLUGINS: &[Descriptor] = &[
         widths: &[0, 10, 40, 0, 0, 0, 15, 15],
     },
     Descriptor {
+        plugin: Plugin::WinProcessghosting,
+        name: "windows.processghosting",
+        label: "windows.processghosting",
+        columns: &[
+            "PID",
+            "Name",
+            "FileObject",
+            "DeletePending",
+            "DataSection",
+            "ImageSection",
+            "Path",
+            "Reason",
+        ],
+        widths: &[8, 16, 18, 8, 18, 18, 0, 0],
+    },
+    Descriptor {
+        plugin: Plugin::WinJoblinks,
+        name: "windows.joblinks",
+        label: "windows.joblinks",
+        columns: &["Job", "SessionID", "Active", "Total", "PID", "Name"],
+        widths: &[18, 9, 6, 6, 8, 0],
+    },
+    Descriptor {
+        plugin: Plugin::WinTimeliner,
+        name: "windows.timeliner",
+        label: "windows.timeliner",
+        columns: &["Time", "FILETIME", "Plugin", "Event", "Description"],
+        widths: &[23, 18, 24, 24, 0],
+    },
+    Descriptor {
         plugin: Plugin::Pslist,
         name: "pslist",
         label: "pslist",
@@ -1331,6 +1367,9 @@ impl Plugin {
             Self::WinMftscan => "Files",
             Self::WinOrphanThreads | Self::WinEtwpatch => "Integrity",
             Self::WinScheduledTasks | Self::WinAmcache | Self::WinCertificates => "Files",
+            Self::WinProcessghosting => "Integrity",
+            Self::WinJoblinks => "Process",
+            Self::WinTimeliner => "System",
             Self::Banners
             | Self::Systeminfo
             | Self::Dmesg
@@ -1473,6 +1512,9 @@ impl Plugin {
             WinScheduledTasks => "解码注册表 TaskCache 中的计划任务及命令",
             WinAmcache => "读取 Amcache.hve 的程序文件清单",
             WinCertificates => "列出注册表证书存储中的证书",
+            WinProcessghosting => "检查进程映像文件是否删除挂起或未关联节对象",
+            WinJoblinks => "列出进程所属的作业对象及计数",
+            WinTimeliner => "汇总多个插件的时间戳为统一时间线",
         }
     }
 }
