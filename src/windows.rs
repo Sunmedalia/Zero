@@ -598,6 +598,9 @@ impl Windows<'_> {
             }
             return Ok(result);
         }
+        if p == Plugin::WinVirtmap {
+            return self.virtmap();
+        }
         if p == Plugin::WinStatistics {
             return self.statistics(job);
         }

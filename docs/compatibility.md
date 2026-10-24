@@ -105,6 +105,8 @@ Windows 10 RAW 样本额外验证了 4 个 WOW64 进程（PID 4428、5684、5932
 
 新增 `windows.registry.shimcache`：读取 SYSTEM hive 当前 ControlSet 的 `Control\Session Manager\AppCompatCache`，解析 Windows 8 及以后的 `00ts`／`10ts` 条目与 Windows 7 x64 的 `0xBADC0FEE` 格式，按缓存顺序输出路径与最后修改时间。两个本地样本的 SYSTEM hive 单元格均未驻留，只得到带诊断的部分结果，矩阵保持待验证；两种格式由合成值覆盖。GUI 系列（desktops、windowstations、deskscan、editbox）依赖 win32k 符号，当前符号流程只获取内核 PDB，暂不提供。
 
+新增 `windows.virtmap`：解引用 `MiVisibleState`（公开符号没有类型，按指针变量处理），读取 `SystemVaRegions` 的 BaseAddress／NumberOfBytes。数组按 `_MI_ASSIGNED_REGION_TYPES` 编号，且各构建顺序不同（Windows 10 15063 首项为 NonPagedPool，Windows 11 22000 首项为 PfnDatabase），因此区域名称取自该枚举，缺少时才退回 `_MI_SYSTEM_VA_TYPE`；非内核起始地址按区域报告诊断。实测 Windows 10 13 个区域、Windows 11 14 个区域，NonPagedPool 含 EPROCESS 与驱动对象地址，PagedPool 含注册表 hive 地址，SystemImages 含内核基址。
+
 矩阵按插件和架构记录四级证据。**真实**仅代表列出的样本构建与容器；**合成**验证解析路径或指针宽度，不能证明该系统的完整布局；**待验证**缺少实测证据；**不支持**没有对应解析模型。零条扫描结果不作为恢复能力的真实验证。具体插件、样本哈希、精确 PDB 与范围见 [机器可读矩阵](../src/windows/compatibility.json) 和 [验收基线](../tests/fixtures/windows.json)。Server 2003 与 R2 共用内核构建，系统身份会保留歧义；Server 2025 与 Windows 11 的 26100 使用有效的 ProductType 区分。所有版本仍要求精确符号，未知构建不会选择最近版本。
 
 <!-- windows-compatibility:start -->

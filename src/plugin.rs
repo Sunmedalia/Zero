@@ -126,6 +126,8 @@ pub enum Plugin {
     WinStatistics,
     #[value(name = "windows.registry.shimcache")]
     WinShimcache,
+    #[value(name = "windows.virtmap")]
+    WinVirtmap,
     Iomem,
     Ioports,
     Ptrace,
@@ -873,6 +875,13 @@ pub const PLUGINS: &[Descriptor] = &[
         widths: &[6, 0, 20],
     },
     Descriptor {
+        plugin: Plugin::WinVirtmap,
+        name: "windows.virtmap",
+        label: "windows.virtmap",
+        columns: &["Region", "Start", "End", "Size"],
+        widths: &[0, 18, 18, 16],
+    },
+    Descriptor {
         plugin: Plugin::Pslist,
         name: "pslist",
         label: "pslist",
@@ -1421,6 +1430,7 @@ impl Plugin {
             Self::WinTimers => "Integrity",
             Self::WinStatistics => "Memory",
             Self::WinShimcache => "Files",
+            Self::WinVirtmap => "Memory",
             Self::Banners
             | Self::Systeminfo
             | Self::Dmesg
@@ -1570,6 +1580,7 @@ impl Plugin {
             WinTimers => "列出各处理器的内核定时器及 DPC 例程归属",
             WinStatistics => "统计内核地址空间的有效、换出与空页表项",
             WinShimcache => "解码 SYSTEM hive 中的 AppCompatCache 执行痕迹",
+            WinVirtmap => "列出内核虚拟地址空间按用途划分的区域",
         }
     }
 }

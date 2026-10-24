@@ -587,6 +587,79 @@ impl Windows<'_> {
     }
 }
 
+impl Windows<'_> {
+    /// windows.virtmap: kernel virtual address regions by system VA type.
+    pub(super) fn virtmap(&self) -> Result<Results> {
+        let mut r = self.result(Plugin::WinVirtmap);
+        let isf = self.vm.isf;
+        let symbol = self
+            .symbol("MiVisibleState")
+            .context("不支持: 缺少 MiVisibleState（Windows 10 之前的布局）")?;
+        // Public symbols carry no type; MiVisibleState is a pointer variable
+        // unless the ISF explicitly types it as the structure itself.
+        let state = if isf.data["symbols"]["MiVisibleState"]["type"]["kind"] == "struct" {
+            symbol
+        } else {
+            self.vm.pointer(symbol)?
+        };
+        ensure!(self.vm.kernel(state), "MiVisibleState 无效");
+        let count = isf.field("_MI_VISIBLE_STATE", "SystemVaRegions")?["type"]["count"]
+            .as_u64()
+            .context("SystemVaRegions 长度缺失")?;
+        ensure!(count <= 64, "SystemVaRegions 长度无效");
+        let size = isf.data["user_types"]["_MI_SYSTEM_VA_ASSIGNMENT"]["size"]
+            .as_u64()
+            .context("缺少 _MI_SYSTEM_VA_ASSIGNMENT 大小")?;
+        let regions = self.field(state, "_MI_VISIBLE_STATE", "SystemVaRegions")?;
+        // SystemVaRegions is indexed by _MI_ASSIGNED_REGION_TYPES, whose
+        // order differs between builds; older layouts reuse the VA type.
+        let names_enum = if isf.data["enums"]["_MI_ASSIGNED_REGION_TYPES"].is_object() {
+            "_MI_ASSIGNED_REGION_TYPES"
+        } else {
+            "_MI_SYSTEM_VA_TYPE"
+        };
+        let names: BTreeMap<u64, String> = isf.data["enums"][names_enum]["constants"]
+            .as_object()
+            .map(|constants| {
+                constants
+                    .iter()
+                    .filter_map(|(name, value)| Some((value.as_u64()?, name.clone())))
+                    .collect()
+            })
+            .unwrap_or_default();
+        for index in 0..count {
+            let entry = add(regions, index * size)?;
+            let read = (|| -> Result<Option<Vec<String>>> {
+                let base = self.number(entry, "_MI_SYSTEM_VA_ASSIGNMENT", "BaseAddress")?;
+                let length = self.number(entry, "_MI_SYSTEM_VA_ASSIGNMENT", "NumberOfBytes")?;
+                if base == 0 || length == 0 {
+                    return Ok(None);
+                }
+                ensure!(self.vm.kernel(base), "区域起始地址不是内核地址 {base:#x}");
+                Ok(Some(vec![
+                    names
+                        .get(&index)
+                        .cloned()
+                        .unwrap_or_else(|| format!("Type{index}")),
+                    hex(base),
+                    hex(base.checked_add(length).context("区域结束地址溢出")?),
+                    length.to_string(),
+                ]))
+            })();
+            match read {
+                Ok(Some(row)) => r.rows.push(row),
+                Ok(None) => {}
+                Err(e) => Self::issue(
+                    &mut r,
+                    format!("SystemVaRegions[{index}]"),
+                    format!("{e:#}"),
+                ),
+            }
+        }
+        Ok(r)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::super::tests::{K, fixture, image, put};
@@ -778,6 +851,34 @@ mod tests {
         assert_eq!(get("ValidPages4K"), 32);
         assert_eq!(get("EmptyPTEs"), 512 - 32);
         assert_eq!(get("ValidLargePages"), 0);
+    }
+    #[test]
+    fn virtmap_names_regions_by_va_type() {
+        let (mut b, mut isf) = prepare();
+        isf.data["symbols"]["MiVisibleState"] = json!({"address":0x6000,"type":{"kind":"pointer"}});
+        isf.data["user_types"]["_MI_VISIBLE_STATE"] = json!({"size":64,"fields":{
+            "SystemVaRegions":{"offset":16,"type":{"kind":"array","count":3,"subtype":{"kind":"struct","name":"_MI_SYSTEM_VA_ASSIGNMENT"}}},
+        }});
+        isf.data["user_types"]["_MI_SYSTEM_VA_ASSIGNMENT"] = json!({"size":16,"fields":{"BaseAddress":field(0,"pointer"),"NumberOfBytes":field(8,"u64")}});
+        isf.data["enums"]["_MI_SYSTEM_VA_TYPE"] = json!({"size":4,"base":"int","constants":{"MiVaUnused":0,"MiVaSessionSpace":1,"MiVaProcessSpace":2}});
+        // The assigned-region enum, when present, names the slots instead.
+        isf.data["enums"]["_MI_ASSIGNED_REGION_TYPES"] = json!({"size":4,"base":"int","constants":{"AssignedRegionNonPagedPool":0,"AssignedRegionPagedPool":1,"AssignedRegionSystemCache":2}});
+        put(&mut b, 0xe000, K + 0x6100);
+        put(&mut b, 0xe100 + 16 + 16, 0xffff_f680_0000_0000);
+        put(&mut b, 0xe100 + 16 + 24, 0x80_0000_0000);
+        let img = image(&b);
+        let r = engine(&img, &isf).virtmap().unwrap();
+        assert!(r.complete, "{:?}", r.diagnostics);
+        assert_eq!(
+            r.rows,
+            [[
+                "AssignedRegionPagedPool".into(),
+                hex(0xffff_f680_0000_0000),
+                hex(0xffff_f700_0000_0000),
+                0x80_0000_0000u64.to_string()
+            ]
+            .to_vec()]
+        );
     }
     #[test]
     fn modscan_carves_unlisted_loader_entries_and_marks_listed_ones() {

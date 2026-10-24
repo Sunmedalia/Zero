@@ -13,7 +13,7 @@ use std::sync::{
     atomic::{AtomicBool, Ordering},
 };
 
-pub const ENGINE_VERSION: &str = concat!(env!("CARGO_PKG_VERSION"), "-native-25");
+pub const ENGINE_VERSION: &str = concat!(env!("CARGO_PKG_VERSION"), "-native-26");
 #[derive(Clone)]
 pub struct Job {
     pub cancel: Arc<AtomicBool>,
