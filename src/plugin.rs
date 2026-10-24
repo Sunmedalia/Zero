@@ -118,6 +118,8 @@ pub enum Plugin {
     WinJoblinks,
     #[value(name = "windows.timeliner")]
     WinTimeliner,
+    #[value(name = "windows.mbrscan")]
+    WinMbrscan,
     Iomem,
     Ioports,
     Ptrace,
@@ -826,6 +828,22 @@ pub const PLUGINS: &[Descriptor] = &[
         widths: &[23, 18, 24, 24, 0],
     },
     Descriptor {
+        plugin: Plugin::WinMbrscan,
+        name: "windows.mbrscan",
+        label: "windows.mbrscan",
+        columns: &[
+            "Physical",
+            "DiskSignature",
+            "Partition",
+            "Bootable",
+            "Type",
+            "StartLBA",
+            "Sectors",
+            "BootCodeSHA256",
+        ],
+        widths: &[18, 10, 4, 6, 6, 12, 12, 0],
+    },
+    Descriptor {
         plugin: Plugin::Pslist,
         name: "pslist",
         label: "pslist",
@@ -1370,6 +1388,7 @@ impl Plugin {
             Self::WinProcessghosting => "Integrity",
             Self::WinJoblinks => "Process",
             Self::WinTimeliner => "System",
+            Self::WinMbrscan => "Files",
             Self::Banners
             | Self::Systeminfo
             | Self::Dmesg
@@ -1515,6 +1534,7 @@ impl Plugin {
             WinProcessghosting => "检查进程映像文件是否删除挂起或未关联节对象",
             WinJoblinks => "列出进程所属的作业对象及计数",
             WinTimeliner => "汇总多个插件的时间戳为统一时间线",
+            WinMbrscan => "扫描内存中的主引导记录及分区表",
         }
     }
 }

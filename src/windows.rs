@@ -598,6 +598,9 @@ impl Windows<'_> {
             }
             return Ok(result);
         }
+        if p == Plugin::WinMbrscan {
+            return self.mbrscan(job);
+        }
         if p == Plugin::WinMftscan {
             return self.mftscan(job);
         }

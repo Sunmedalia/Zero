@@ -97,6 +97,8 @@ Windows 10 RAW 样本额外验证了 4 个 WOW64 进程（PID 4428、5684、5932
 
 实测：Windows 10 15063 `joblinks=79`、`timeliner=711326`（最后一条 2018-06-21，与采集时间一致）、`processghosting=0`；Windows 11 22000 `processghosting=1`（SearchProtocolHost 无节对象）、`joblinks=37`、`timeliner=46235`（最后一条 2022-07-19）。
 
+新增 `windows.mbrscan`：在物理内存中查找 512 字节对齐、以 `55 AA` 结尾的扇区，要求四个分区项状态字节均为 0x00／0x80 且至少定义一个分区，输出磁盘签名、各分区的可引导标志、类型、起始 LBA、扇区数及引导代码（前 440 字节）的 SHA256。实测 Windows 10 15063 找到 1 个 FAT32（0x0C）可引导分区记录，与 USBSTOR.SYS 痕迹一致；Windows 11 22000 为 0（矩阵保持待验证）。系统调用存根类检测（direct／indirect／unhooked_system_calls）不在本项目实现范围内。
+
 矩阵按插件和架构记录四级证据。**真实**仅代表列出的样本构建与容器；**合成**验证解析路径或指针宽度，不能证明该系统的完整布局；**待验证**缺少实测证据；**不支持**没有对应解析模型。零条扫描结果不作为恢复能力的真实验证。具体插件、样本哈希、精确 PDB 与范围见 [机器可读矩阵](../src/windows/compatibility.json) 和 [验收基线](../tests/fixtures/windows.json)。Server 2003 与 R2 共用内核构建，系统身份会保留歧义；Server 2025 与 Windows 11 的 26100 使用有效的 ProductType 区分。所有版本仍要求精确符号，未知构建不会选择最近版本。
 
 <!-- windows-compatibility:start -->

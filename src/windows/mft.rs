@@ -159,6 +159,82 @@ impl Windows<'_> {
     }
 }
 
+/// One MBR partition entry: (bootable, type, start LBA, sector count).
+pub(super) type Partition = (bool, u8, u32, u32);
+
+/// Validate a 512-byte sector as an MBR and return its disk signature and
+/// non-empty partitions. A sector qualifies only when every entry has a
+/// valid status byte and at least one partition is defined.
+pub(super) fn parse_mbr(sector: &[u8]) -> Option<(u32, Vec<Partition>)> {
+    if sector.len() < SECTOR || sector[510..512] != [0x55, 0xaa] {
+        return None;
+    }
+    let mut partitions = Vec::new();
+    for entry in sector[446..510].chunks_exact(16) {
+        if !matches!(entry[0], 0x00 | 0x80) {
+            return None;
+        }
+        let kind = entry[4];
+        let start = u32::from_le_bytes(entry[8..12].try_into().unwrap());
+        let count = u32::from_le_bytes(entry[12..16].try_into().unwrap());
+        if kind == 0 {
+            if count != 0 {
+                return None;
+            }
+            continue;
+        }
+        if count == 0 || start == 0 {
+            return None;
+        }
+        partitions.push((entry[0] == 0x80, kind, start, count));
+    }
+    if partitions.is_empty() {
+        return None;
+    }
+    Some((
+        u32::from_le_bytes(sector[440..444].try_into().unwrap()),
+        partitions,
+    ))
+}
+
+impl Windows<'_> {
+    /// windows.mbrscan: master boot records cached in physical memory.
+    pub(super) fn mbrscan(&self, job: &Job) -> Result<Results> {
+        use sha2::Digest;
+        let mut r = self.result(Plugin::WinMbrscan);
+        let mut sector = [0u8; SECTOR];
+        for hit in self.vm.image.scan(&[0x55, 0xaa], job)? {
+            job.check()?;
+            let Some(start) = hit.checked_sub(510) else {
+                continue;
+            };
+            if !start.is_multiple_of(SECTOR as u64)
+                || self.vm.image.read(start, &mut sector).is_err()
+            {
+                continue;
+            }
+            let Some((signature, partitions)) = parse_mbr(&sector) else {
+                continue;
+            };
+            let boot = format!("{:x}", sha2::Sha256::digest(&sector[..440]));
+            for (index, (bootable, kind, first, count)) in partitions.into_iter().enumerate() {
+                r.rows.push(vec![
+                    format!("physical:{start:#x}"),
+                    format!("{signature:08x}"),
+                    index.to_string(),
+                    bootable.to_string(),
+                    format!("{kind:#04x}"),
+                    first.to_string(),
+                    count.to_string(),
+                    boot.clone(),
+                ]);
+            }
+            ensure!(r.rows.len() <= RECORD_LIMIT, "MBR 记录超过上限");
+        }
+        Ok(r)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -204,6 +280,30 @@ mod tests {
         let end = at + length;
         b[end..end + 4].copy_from_slice(&0xffff_ffffu32.to_le_bytes());
         b
+    }
+
+    #[test]
+    fn mbr_sectors_need_valid_status_bytes_and_a_partition() {
+        let mut sector = [0u8; SECTOR];
+        sector[440..444].copy_from_slice(&0x1234_abcdu32.to_le_bytes());
+        sector[446] = 0x80;
+        sector[450] = 0x07;
+        sector[454..458].copy_from_slice(&2048u32.to_le_bytes());
+        sector[458..462].copy_from_slice(&1_000_000u32.to_le_bytes());
+        sector[510..512].copy_from_slice(&[0x55, 0xaa]);
+        assert_eq!(
+            parse_mbr(&sector),
+            Some((0x1234_abcd, vec![(true, 0x07, 2048, 1_000_000)]))
+        );
+        let mut bad_status = sector;
+        bad_status[462] = 0x13;
+        assert!(parse_mbr(&bad_status).is_none());
+        let mut empty = [0u8; SECTOR];
+        empty[510..512].copy_from_slice(&[0x55, 0xaa]);
+        assert!(parse_mbr(&empty).is_none());
+        let mut unsigned = sector;
+        unsigned[511] = 0;
+        assert!(parse_mbr(&unsigned).is_none());
     }
 
     #[test]
