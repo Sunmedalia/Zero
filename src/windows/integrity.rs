@@ -357,6 +357,134 @@ impl Windows<'_> {
     }
 }
 
+/// Per-list ceiling for the timer walk.
+const TIMER_LIMIT: usize = 65536;
+
+/// KiDecodeTimerDpc (Windows 8+ x64):
+/// `wait_always ^ bswap(timer ^ rotl(wait_never ^ encoded, wait_never as u8))`.
+pub(super) fn decode_timer_dpc(encoded: u64, timer: u64, wait_never: u64, wait_always: u64) -> u64 {
+    let rotated = (wait_never ^ encoded).rotate_left((wait_never & 0xff) as u32);
+    wait_always ^ (timer ^ rotated).swap_bytes()
+}
+
+impl Windows<'_> {
+    /// windows.timers: kernel timers of every processor and their DPC routines.
+    pub(super) fn timers(&self, job: &Job) -> Result<Results> {
+        let mut r = self.result(Plugin::WinTimers);
+        let isf = self.vm.isf;
+        let processors = self.vm.uint(
+            self.symbol("KeNumberProcessors")
+                .context("不支持: 缺少 KeNumberProcessors")?,
+            4,
+        )?;
+        ensure!((1..=2048).contains(&processors), "处理器数量无效");
+        let blocks = self
+            .symbol("KiProcessorBlock")
+            .context("不支持: 缺少 KiProcessorBlock")?;
+        let encoded = self.vm.pointer_size() == 8 && self.symbol("KiWaitNever").is_ok();
+        let (never, always) = if encoded {
+            (
+                self.vm.uint(self.symbol("KiWaitNever")?, 8)?,
+                self.vm.uint(self.symbol("KiWaitAlways")?, 8)?,
+            )
+        } else {
+            (0, 0)
+        };
+        let modules = self.modules(Plugin::WinModules, job)?;
+        if !modules.complete {
+            r.complete = false;
+            r.diagnostics.extend(modules.diagnostics.clone());
+        }
+        let table =
+            isf.offset("_KPRCB", "TimerTable")? + isf.offset("_KTIMER_TABLE", "TimerEntries")?;
+        // Windows 11 nests two 256-entry tables; flatten any nesting.
+        let mut ty = &isf.field("_KTIMER_TABLE", "TimerEntries")?["type"];
+        let mut count = 1u64;
+        while ty["kind"] == "array" {
+            count *= ty["count"].as_u64().context("TimerEntries 维度缺失")?;
+            ty = &ty["subtype"];
+        }
+        ensure!(count <= 4096, "TimerEntries 数量无效");
+        let entry_size = isf.data["user_types"]["_KTIMER_TABLE_ENTRY"]["size"]
+            .as_u64()
+            .context("缺少 _KTIMER_TABLE_ENTRY 大小")?;
+        let list = isf.offset("_KTIMER_TABLE_ENTRY", "Entry")?;
+        let link = isf.offset("_KTIMER", "TimerListEntry")?;
+        for cpu in 0..processors {
+            job.check()?;
+            let prcb = self
+                .vm
+                .pointer(add(blocks, cpu * self.vm.pointer_size() as u64)?)?;
+            if !self.vm.kernel(prcb) {
+                Self::issue(&mut r, format!("CPU {cpu}"), "KPRCB 指针无效");
+                continue;
+            }
+            for index in 0..count {
+                let head = add(add(prcb, table)?, index * entry_size + list)?;
+                let (timers, diagnostics) = match self.list_partial(head, link, job) {
+                    Ok(walk) => walk,
+                    Err(e) => {
+                        Self::issue(
+                            &mut r,
+                            format!("CPU {cpu} timer list {index}"),
+                            format!("{e:#}"),
+                        );
+                        continue;
+                    }
+                };
+                for diagnostic in diagnostics.into_iter().take(1) {
+                    Self::issue(&mut r, format!("CPU {cpu} timer list {index}"), diagnostic);
+                }
+                for timer in timers.into_iter().take(TIMER_LIMIT) {
+                    let read = (|| -> Result<Vec<String>> {
+                        let raw = self.number(timer, "_KTIMER", "Dpc")?;
+                        let dpc = if raw == 0 {
+                            0
+                        } else if encoded {
+                            let decoded = decode_timer_dpc(raw, timer, never, always);
+                            if self.vm.kernel(decoded) {
+                                decoded
+                            } else {
+                                raw
+                            }
+                        } else {
+                            raw
+                        };
+                        let routine = if dpc != 0 && self.vm.kernel(dpc) {
+                            self.number(dpc, "_KDPC", "DeferredRoutine")?
+                        } else {
+                            0
+                        };
+                        let owner = module_at(&modules, routine);
+                        Ok(vec![
+                            cpu.to_string(),
+                            hex(timer),
+                            self.number(timer, "_KTIMER", "DueTime")?.to_string(),
+                            self.number(timer, "_KTIMER", "Period")?.to_string(),
+                            hex(dpc),
+                            hex(routine),
+                            if routine == 0 {
+                                String::new()
+                            } else if owner.is_empty() {
+                                "[unknown]".into()
+                            } else {
+                                owner
+                            },
+                        ])
+                    })();
+                    match read {
+                        Ok(row) => r.rows.push(row),
+                        Err(e) => {
+                            Self::issue(&mut r, format!("timer {timer:#x}"), format!("{e:#}"))
+                        }
+                    }
+                }
+            }
+        }
+        Ok(r)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::super::tests::{K, fixture, image, put};
@@ -520,6 +648,19 @@ mod tests {
             .unwrap_err();
         assert!(format!("{e:#}").contains("循环"));
         assert_eq!(r.rows.len(), 3);
+    }
+    #[test]
+    fn timer_dpc_decoding_inverts_the_kernel_encoding() {
+        let (never, always, timer, dpc) = (
+            0x1234_5678_9abc_de0fu64,
+            0x0fed_cba9_8765_4321u64,
+            K + 0x3000,
+            K + 0x4000,
+        );
+        // KiEncodeTimerDpc is the inverse of the decode rule.
+        let encoded =
+            ((dpc ^ always).swap_bytes() ^ timer).rotate_right((never & 0xff) as u32) ^ never;
+        assert_eq!(decode_timer_dpc(encoded, timer, never, always), dpc);
     }
     #[test]
     fn modscan_carves_unlisted_loader_entries_and_marks_listed_ones() {

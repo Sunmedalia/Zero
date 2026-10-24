@@ -120,6 +120,8 @@ pub enum Plugin {
     WinTimeliner,
     #[value(name = "windows.mbrscan")]
     WinMbrscan,
+    #[value(name = "windows.timers")]
+    WinTimers,
     Iomem,
     Ioports,
     Ptrace,
@@ -844,6 +846,15 @@ pub const PLUGINS: &[Descriptor] = &[
         widths: &[18, 10, 4, 6, 6, 12, 12, 0],
     },
     Descriptor {
+        plugin: Plugin::WinTimers,
+        name: "windows.timers",
+        label: "windows.timers",
+        columns: &[
+            "CPU", "Timer", "DueTime", "Period", "DPC", "Routine", "Module",
+        ],
+        widths: &[4, 18, 20, 8, 18, 18, 0],
+    },
+    Descriptor {
         plugin: Plugin::Pslist,
         name: "pslist",
         label: "pslist",
@@ -1389,6 +1400,7 @@ impl Plugin {
             Self::WinJoblinks => "Process",
             Self::WinTimeliner => "System",
             Self::WinMbrscan => "Files",
+            Self::WinTimers => "Integrity",
             Self::Banners
             | Self::Systeminfo
             | Self::Dmesg
@@ -1535,6 +1547,7 @@ impl Plugin {
             WinJoblinks => "列出进程所属的作业对象及计数",
             WinTimeliner => "汇总多个插件的时间戳为统一时间线",
             WinMbrscan => "扫描内存中的主引导记录及分区表",
+            WinTimers => "列出各处理器的内核定时器及 DPC 例程归属",
         }
     }
 }

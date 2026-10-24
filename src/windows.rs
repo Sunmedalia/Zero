@@ -598,6 +598,9 @@ impl Windows<'_> {
             }
             return Ok(result);
         }
+        if p == Plugin::WinTimers {
+            return self.timers(job);
+        }
         if p == Plugin::WinMbrscan {
             return self.mbrscan(job);
         }

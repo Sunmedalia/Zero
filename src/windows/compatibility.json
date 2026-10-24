@@ -81,7 +81,8 @@
           "windows.processghosting": "pending",
           "windows.joblinks": "pending",
           "windows.timeliner": "pending",
-          "windows.mbrscan": "pending"
+          "windows.mbrscan": "pending",
+          "windows.timers": "pending"
         },
         "x64": {
           "windows.callbacks": "synthetic",
@@ -140,7 +141,8 @@
           "windows.processghosting": "pending",
           "windows.joblinks": "pending",
           "windows.timeliner": "pending",
-          "windows.mbrscan": "pending"
+          "windows.mbrscan": "pending",
+          "windows.timers": "pending"
         }
       },
       "evidence": [
@@ -260,7 +262,8 @@
           "windows.processghosting": "pending",
           "windows.joblinks": "pending",
           "windows.timeliner": "pending",
-          "windows.mbrscan": "pending"
+          "windows.mbrscan": "pending",
+          "windows.timers": "pending"
         },
         "x64": {
           "windows.callbacks": "synthetic",
@@ -319,7 +322,8 @@
           "windows.processghosting": "pending",
           "windows.joblinks": "pending",
           "windows.timeliner": "pending",
-          "windows.mbrscan": "pending"
+          "windows.mbrscan": "pending",
+          "windows.timers": "pending"
         }
       },
       "evidence": []
@@ -399,7 +403,8 @@
           "windows.processghosting": "pending",
           "windows.joblinks": "pending",
           "windows.timeliner": "pending",
-          "windows.mbrscan": "pending"
+          "windows.mbrscan": "pending",
+          "windows.timers": "pending"
         },
         "x64": {
           "windows.callbacks": "synthetic",
@@ -458,7 +463,8 @@
           "windows.processghosting": "pending",
           "windows.joblinks": "pending",
           "windows.timeliner": "pending",
-          "windows.mbrscan": "pending"
+          "windows.mbrscan": "pending",
+          "windows.timers": "pending"
         }
       },
       "evidence": [
@@ -584,7 +590,8 @@
           "windows.processghosting": "pending",
           "windows.joblinks": "pending",
           "windows.timeliner": "pending",
-          "windows.mbrscan": "pending"
+          "windows.mbrscan": "pending",
+          "windows.timers": "pending"
         }
       },
       "evidence": [],
@@ -663,7 +670,8 @@
           "windows.processghosting": "pending",
           "windows.joblinks": "pending",
           "windows.timeliner": "pending",
-          "windows.mbrscan": "pending"
+          "windows.mbrscan": "pending",
+          "windows.timers": "pending"
         }
       },
       "evidence": [
@@ -788,7 +796,8 @@
           "windows.processghosting": "pending",
           "windows.joblinks": "pending",
           "windows.timeliner": "pending",
-          "windows.mbrscan": "pending"
+          "windows.mbrscan": "pending",
+          "windows.timers": "pending"
         }
       },
       "evidence": [
@@ -914,7 +923,8 @@
           "windows.processghosting": "pending",
           "windows.joblinks": "pending",
           "windows.timeliner": "pending",
-          "windows.mbrscan": "pending"
+          "windows.mbrscan": "pending",
+          "windows.timers": "pending"
         }
       },
       "evidence": [
@@ -1012,7 +1022,8 @@
           "windows.processghosting": "pending",
           "windows.joblinks": "pending",
           "windows.timeliner": "pending",
-          "windows.mbrscan": "pending"
+          "windows.mbrscan": "pending",
+          "windows.timers": "pending"
         }
       },
       "evidence": [
@@ -1139,7 +1150,8 @@
           "windows.processghosting": "pending",
           "windows.joblinks": "pending",
           "windows.timeliner": "pending",
-          "windows.mbrscan": "pending"
+          "windows.mbrscan": "pending",
+          "windows.timers": "pending"
         }
       },
       "evidence": [
@@ -1266,7 +1278,8 @@
           "windows.processghosting": "pending",
           "windows.joblinks": "pending",
           "windows.timeliner": "pending",
-          "windows.mbrscan": "pending"
+          "windows.mbrscan": "pending",
+          "windows.timers": "pending"
         }
       },
       "evidence": [],
@@ -1347,7 +1360,8 @@
           "windows.processghosting": "pending",
           "windows.joblinks": "pending",
           "windows.timeliner": "pending",
-          "windows.mbrscan": "pending"
+          "windows.mbrscan": "pending",
+          "windows.timers": "pending"
         },
         "x64": {
           "windows.callbacks": "real",
@@ -1406,7 +1420,8 @@
           "windows.processghosting": "pending",
           "windows.joblinks": "pending",
           "windows.timeliner": "pending",
-          "windows.mbrscan": "pending"
+          "windows.mbrscan": "pending",
+          "windows.timers": "pending"
         }
       },
       "evidence": [
@@ -1518,7 +1533,8 @@
           "windows.processghosting": "pending",
           "windows.joblinks": "pending",
           "windows.timeliner": "pending",
-          "windows.mbrscan": "pending"
+          "windows.mbrscan": "pending",
+          "windows.timers": "pending"
         },
         "x64": {
           "windows.callbacks": "synthetic",
@@ -1577,7 +1593,8 @@
           "windows.processghosting": "pending",
           "windows.joblinks": "pending",
           "windows.timeliner": "pending",
-          "windows.mbrscan": "pending"
+          "windows.mbrscan": "pending",
+          "windows.timers": "pending"
         }
       },
       "evidence": []
@@ -1656,7 +1673,8 @@
           "windows.processghosting": "pending",
           "windows.joblinks": "pending",
           "windows.timeliner": "pending",
-          "windows.mbrscan": "pending"
+          "windows.mbrscan": "pending",
+          "windows.timers": "pending"
         },
         "x64": {
           "windows.callbacks": "synthetic",
@@ -1715,7 +1733,8 @@
           "windows.processghosting": "pending",
           "windows.joblinks": "pending",
           "windows.timeliner": "pending",
-          "windows.mbrscan": "pending"
+          "windows.mbrscan": "pending",
+          "windows.timers": "pending"
         }
       },
       "evidence": []
@@ -1807,7 +1826,8 @@
           "windows.processghosting": "pending",
           "windows.joblinks": "pending",
           "windows.timeliner": "pending",
-          "windows.mbrscan": "pending"
+          "windows.mbrscan": "pending",
+          "windows.timers": "pending"
         },
         "x64": {
           "windows.callbacks": "real",
@@ -1866,7 +1886,8 @@
           "windows.processghosting": "pending",
           "windows.joblinks": "real",
           "windows.timeliner": "real",
-          "windows.mbrscan": "real"
+          "windows.mbrscan": "real",
+          "windows.timers": "real"
         }
       },
       "evidence": [
@@ -1913,7 +1934,8 @@
             "windows.registry.certificates": 30,
             "windows.joblinks": 79,
             "windows.timeliner": 711326,
-            "windows.mbrscan": 1
+            "windows.mbrscan": 1,
+            "windows.timers": 456
           }
         },
         {
@@ -2012,7 +2034,8 @@
           "windows.processghosting": "real",
           "windows.joblinks": "real",
           "windows.timeliner": "real",
-          "windows.mbrscan": "pending"
+          "windows.mbrscan": "pending",
+          "windows.timers": "real"
         }
       },
       "evidence": [
@@ -2058,7 +2081,8 @@
             "windows.registry.certificates": 29,
             "windows.processghosting": 1,
             "windows.joblinks": 37,
-            "windows.timeliner": 46235
+            "windows.timeliner": 46235,
+            "windows.timers": 575
           }
         }
       ]
