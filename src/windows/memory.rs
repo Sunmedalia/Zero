@@ -63,7 +63,7 @@ impl Windows<'_> {
     ) -> Result<Vec<(u64, u64, String, String)>> {
         self.dlls_partial(p, job, Some(result))
     }
-    fn dlls_partial(
+    pub(super) fn dlls_partial(
         &self,
         p: &Process,
         job: &Job,

@@ -222,7 +222,8 @@ impl Linux<'_> {
             | WinModules | WinDlllist | WinVadinfo | WinHandles | WinMalfind | WinNetscan
             | WinHivelist | WinPrintkey | WinPsscan | WinPsxview | WinProcdump | WinMemdump
             | WinPedump | WinSsdt | WinModscan | WinPrivileges | WinSessions | WinUserassist
-            | WinBigpools | WinSymlinkscan | WinDevicetree => Err(unrouted(plugin)),
+            | WinBigpools | WinSymlinkscan | WinDevicetree | WinGetservicesids | WinIat
+            | WinVerinfo | WinMftscan => Err(unrouted(plugin)),
         }
     }
     /// pslist / pstree over `init_task.tasks`, lsmod over `modules`, with full

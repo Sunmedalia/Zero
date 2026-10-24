@@ -85,6 +85,10 @@ Windows 10 RAW 样本额外验证了 4 个 WOW64 进程（PID 4428、5684、5932
 
 对象类型名称缓冲区被换页时，对象头类型会改用内核导出的类型变量（如 `ObpSymbolicLinkObjectType`、`IoFileObjectType`）按 `_OBJECT_TYPE` 指针确认，不按索引猜测。实测：Windows 10 15063 `bigpools=30323`、`symlinkscan=307`、`devicetree=357`；Windows 11 22000 `bigpools=8442`、`symlinkscan=206`、`devicetree=299`。
 
+第三批新增 `windows.getservicesids`、`windows.iat`、`windows.verinfo` 和 `windows.mftscan`。`getservicesids` 读取 SYSTEM hive 的 `Select.Current` 与当前 ControlSet 的服务子键，按 Windows 规则（大写服务名的 UTF-16LE SHA-1）计算 `S-1-5-80-…` 服务 SID；两个本地样本的 SYSTEM hive 单元格均未驻留，只得到带诊断的部分结果，矩阵保持待验证，算法由 FIPS 向量与 TrustedInstaller 的已知 SID 验证。`iat` 解析每个进程主映像（PE32／PE32+）的导入目录，输出库、函数名或序号及 IAT 中的绑定地址。`verinfo` 读取进程 DLL 与内核模块 `RT_VERSION` 资源中的 `VS_FIXEDFILEINFO`，内核模块以 PID 0 报告；资源页缺失按模块记录诊断。`mftscan` 在物理内存中雕刻 1 KiB 对齐的 `FILE` 记录，同时接受磁盘形式（按 USA 修复）与缓存形式（修复已应用），输出常驻 `$FILE_NAME`（优先 Win32 命名空间）以及 `$STANDARD_INFORMATION`／`$FILE_NAME` 两组创建与修改时间，便于发现时间戳篡改；同一记录的多个内存副本会分别列出。
+
+实测：Windows 10 15063 `iat=17524`、`verinfo=4813`、`mftscan=367513`；Windows 11 22000 `iat=15334`、`verinfo=3936`、`mftscan=24422`。
+
 矩阵按插件和架构记录四级证据。**真实**仅代表列出的样本构建与容器；**合成**验证解析路径或指针宽度，不能证明该系统的完整布局；**待验证**缺少实测证据；**不支持**没有对应解析模型。零条扫描结果不作为恢复能力的真实验证。具体插件、样本哈希、精确 PDB 与范围见 [机器可读矩阵](../src/windows/compatibility.json) 和 [验收基线](../tests/fixtures/windows.json)。Server 2003 与 R2 共用内核构建，系统身份会保留歧义；Server 2025 与 Windows 11 的 26100 使用有效的 ProductType 区分。所有版本仍要求精确符号，未知构建不会选择最近版本。
 
 <!-- windows-compatibility:start -->

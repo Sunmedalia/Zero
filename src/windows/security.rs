@@ -74,6 +74,74 @@ pub(super) fn userassist_record(bytes: &[u8]) -> Option<[String; 4]> {
     }
 }
 
+/// SHA-1 (FIPS 180-4); only used to derive service SIDs, never for trust.
+pub(super) fn sha1(data: &[u8]) -> [u8; 20] {
+    let mut h: [u32; 5] = [
+        0x6745_2301,
+        0xefcd_ab89,
+        0x98ba_dcfe,
+        0x1032_5476,
+        0xc3d2_e1f0,
+    ];
+    let mut message = data.to_vec();
+    message.push(0x80);
+    while message.len() % 64 != 56 {
+        message.push(0);
+    }
+    message.extend_from_slice(&((data.len() as u64) * 8).to_be_bytes());
+    for block in message.chunks_exact(64) {
+        let mut w = [0u32; 80];
+        for (i, word) in block.chunks_exact(4).enumerate() {
+            w[i] = u32::from_be_bytes(word.try_into().unwrap());
+        }
+        for i in 16..80 {
+            w[i] = (w[i - 3] ^ w[i - 8] ^ w[i - 14] ^ w[i - 16]).rotate_left(1);
+        }
+        let [mut a, mut b, mut c, mut d, mut e] = h;
+        for (i, word) in w.iter().enumerate() {
+            let (f, k) = match i {
+                0..=19 => ((b & c) | (!b & d), 0x5a82_7999),
+                20..=39 => (b ^ c ^ d, 0x6ed9_eba1),
+                40..=59 => ((b & c) | (b & d) | (c & d), 0x8f1b_bcdc),
+                _ => (b ^ c ^ d, 0xca62_c1d6),
+            };
+            let t = a
+                .rotate_left(5)
+                .wrapping_add(f)
+                .wrapping_add(e)
+                .wrapping_add(k)
+                .wrapping_add(*word);
+            e = d;
+            d = c;
+            c = b.rotate_left(30);
+            b = a;
+            a = t;
+        }
+        for (state, value) in h.iter_mut().zip([a, b, c, d, e]) {
+            *state = state.wrapping_add(value);
+        }
+    }
+    let mut out = [0; 20];
+    for (chunk, word) in out.chunks_exact_mut(4).zip(h) {
+        chunk.copy_from_slice(&word.to_be_bytes());
+    }
+    out
+}
+/// The virtual-account SID Windows derives from a service name.
+pub(super) fn service_sid(name: &str) -> String {
+    let bytes: Vec<u8> = name
+        .to_uppercase()
+        .encode_utf16()
+        .flat_map(u16::to_le_bytes)
+        .collect();
+    let digest = sha1(&bytes);
+    let parts: Vec<String> = digest
+        .chunks_exact(4)
+        .map(|c| u32::from_le_bytes(c.try_into().unwrap()).to_string())
+        .collect();
+    format!("S-1-5-80-{}", parts.join("-"))
+}
+
 impl Windows<'_> {
     /// The primary token of a process, with the fast-reference bits removed.
     pub(super) fn token(&self, p: &Process) -> Result<u64> {
@@ -144,6 +212,43 @@ impl Windows<'_> {
         ]);
         Ok(())
     }
+    /// windows.getservicesids: service SIDs for the current ControlSet.
+    pub(super) fn service_sids(&self, job: &Job) -> Result<Results> {
+        let mut r = self.result(Plugin::WinGetservicesids);
+        let hives = self.registry(Plugin::WinHivelist, &Options::default(), job)?;
+        r.complete = hives.complete;
+        r.diagnostics = hives.diagnostics;
+        for hive in hives.rows {
+            job.check()?;
+            if !hive[1].to_ascii_lowercase().ends_with("system") {
+                continue;
+            }
+            let address = u64::from_str_radix(hive[0].trim_start_matches("0x"), 16)?;
+            let Some(select) = self.optional_registry(address, "Select", job, &mut r)? else {
+                continue;
+            };
+            let Some(current) = select
+                .rows
+                .iter()
+                .find(|row| row[2] == "Value" && row[3].eq_ignore_ascii_case("Current"))
+            else {
+                Self::issue(&mut r, hex(address), "SYSTEM hive 缺少 Select.Current");
+                continue;
+            };
+            let n = current[5]
+                .parse::<u32>()
+                .context("Select.Current 不是 DWORD")?;
+            ensure!((1..=999).contains(&n), "Select.Current 越界");
+            let key = format!("ControlSet{n:03}\\Services");
+            if let Some(services) = self.optional_registry(address, &key, job, &mut r)? {
+                for service in services.rows.iter().filter(|row| row[2] == "SubKey") {
+                    r.rows
+                        .push(vec![service_sid(&service[3]), service[3].clone()]);
+                }
+            }
+        }
+        Ok(r)
+    }
     /// windows.registry.userassist: decoded Count values of every NTUSER hive.
     pub(super) fn userassist(&self, options: &Options, job: &Job) -> Result<Results> {
         let mut r = self.result(Plugin::WinUserassist);
@@ -201,6 +306,24 @@ impl Windows<'_> {
 mod tests {
     use super::*;
 
+    #[test]
+    fn sha1_matches_fips_vectors_and_service_sids_match_windows() {
+        let hex = |d: [u8; 20]| d.iter().map(|b| format!("{b:02x}")).collect::<String>();
+        assert_eq!(
+            hex(sha1(b"abc")),
+            "a9993e364706816aba3e25717850c26c9cd0d89d"
+        );
+        assert_eq!(hex(sha1(b"")), "da39a3ee5e6b4b0d3255bfef95601890afd80709");
+        assert_eq!(
+            hex(sha1(&[b'a'; 1000])),
+            "291e9a6c66994949b57ba5e650361e98fc36b1ba"
+        );
+        // `sc showsid TrustedInstaller` on any Windows host.
+        assert_eq!(
+            service_sid("TrustedInstaller"),
+            "S-1-5-80-956008885-3418522649-1831038044-1853292631-2271478464"
+        );
+    }
     #[test]
     fn rot13_round_trips_and_keeps_non_letters() {
         assert_eq!(

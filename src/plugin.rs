@@ -94,6 +94,14 @@ pub enum Plugin {
     WinSymlinkscan,
     #[value(name = "windows.devicetree")]
     WinDevicetree,
+    #[value(name = "windows.getservicesids")]
+    WinGetservicesids,
+    #[value(name = "windows.iat")]
+    WinIat,
+    #[value(name = "windows.verinfo")]
+    WinVerinfo,
+    #[value(name = "windows.mftscan")]
+    WinMftscan,
     Iomem,
     Ioports,
     Ptrace,
@@ -664,6 +672,53 @@ pub const PLUGINS: &[Descriptor] = &[
         widths: &[18, 0, 6, 18, 0, 10],
     },
     Descriptor {
+        plugin: Plugin::WinGetservicesids,
+        name: "windows.getservicesids",
+        label: "windows.getservicesids",
+        columns: &["SID", "Service"],
+        widths: &[0, 0],
+    },
+    Descriptor {
+        plugin: Plugin::WinIat,
+        name: "windows.iat",
+        label: "windows.iat",
+        columns: &["PID", "Name", "Library", "Function", "Bound"],
+        widths: &[8, 16, 16, 0, 18],
+    },
+    Descriptor {
+        plugin: Plugin::WinVerinfo,
+        name: "windows.verinfo",
+        label: "windows.verinfo",
+        columns: &[
+            "PID",
+            "Name",
+            "Base",
+            "Path",
+            "FileVersion",
+            "ProductVersion",
+        ],
+        widths: &[8, 16, 18, 0, 16, 16],
+    },
+    Descriptor {
+        plugin: Plugin::WinMftscan,
+        name: "windows.mftscan",
+        label: "windows.mftscan",
+        columns: &[
+            "Physical",
+            "Record",
+            "Type",
+            "InUse",
+            "Name",
+            "Parent",
+            "SICreated",
+            "SIModified",
+            "FNCreated",
+            "FNModified",
+            "Size",
+        ],
+        widths: &[18, 8, 9, 5, 0, 8, 18, 18, 18, 18, 10],
+    },
+    Descriptor {
         plugin: Plugin::Pslist,
         name: "pslist",
         label: "pslist",
@@ -1200,6 +1255,9 @@ impl Plugin {
             Self::WinBigpools => "Memory",
             Self::WinSymlinkscan => "Files",
             Self::WinDevicetree => "System",
+            Self::WinGetservicesids => "System",
+            Self::WinIat | Self::WinVerinfo => "Process",
+            Self::WinMftscan => "Files",
             Self::Banners
             | Self::Systeminfo
             | Self::Dmesg
@@ -1333,6 +1391,10 @@ impl Plugin {
             WinBigpools => "列出大页池分配表中的已分配块及池标签",
             WinSymlinkscan => "扫描符号链接对象及其目标",
             WinDevicetree => "按驱动列出设备对象及附加设备链",
+            WinGetservicesids => "按当前 ControlSet 服务名计算服务 SID",
+            WinIat => "列出进程主映像的导入表及绑定地址",
+            WinVerinfo => "读取进程 DLL 与内核模块的版本资源",
+            WinMftscan => "从物理内存雕刻 NTFS MFT 记录及两组时间戳",
         }
     }
 }

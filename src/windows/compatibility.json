@@ -68,7 +68,11 @@
           "windows.registry.userassist": "pending",
           "windows.bigpools": "pending",
           "windows.symlinkscan": "pending",
-          "windows.devicetree": "pending"
+          "windows.devicetree": "pending",
+          "windows.getservicesids": "pending",
+          "windows.iat": "pending",
+          "windows.verinfo": "pending",
+          "windows.mftscan": "pending"
         },
         "x64": {
           "windows.callbacks": "synthetic",
@@ -114,7 +118,11 @@
           "windows.registry.userassist": "pending",
           "windows.bigpools": "pending",
           "windows.symlinkscan": "pending",
-          "windows.devicetree": "pending"
+          "windows.devicetree": "pending",
+          "windows.getservicesids": "pending",
+          "windows.iat": "pending",
+          "windows.verinfo": "pending",
+          "windows.mftscan": "pending"
         }
       },
       "evidence": [
@@ -221,7 +229,11 @@
           "windows.registry.userassist": "pending",
           "windows.bigpools": "pending",
           "windows.symlinkscan": "pending",
-          "windows.devicetree": "pending"
+          "windows.devicetree": "pending",
+          "windows.getservicesids": "pending",
+          "windows.iat": "pending",
+          "windows.verinfo": "pending",
+          "windows.mftscan": "pending"
         },
         "x64": {
           "windows.callbacks": "synthetic",
@@ -267,7 +279,11 @@
           "windows.registry.userassist": "pending",
           "windows.bigpools": "pending",
           "windows.symlinkscan": "pending",
-          "windows.devicetree": "pending"
+          "windows.devicetree": "pending",
+          "windows.getservicesids": "pending",
+          "windows.iat": "pending",
+          "windows.verinfo": "pending",
+          "windows.mftscan": "pending"
         }
       },
       "evidence": []
@@ -334,7 +350,11 @@
           "windows.registry.userassist": "pending",
           "windows.bigpools": "pending",
           "windows.symlinkscan": "pending",
-          "windows.devicetree": "pending"
+          "windows.devicetree": "pending",
+          "windows.getservicesids": "pending",
+          "windows.iat": "pending",
+          "windows.verinfo": "pending",
+          "windows.mftscan": "pending"
         },
         "x64": {
           "windows.callbacks": "synthetic",
@@ -380,7 +400,11 @@
           "windows.registry.userassist": "pending",
           "windows.bigpools": "pending",
           "windows.symlinkscan": "pending",
-          "windows.devicetree": "pending"
+          "windows.devicetree": "pending",
+          "windows.getservicesids": "pending",
+          "windows.iat": "pending",
+          "windows.verinfo": "pending",
+          "windows.mftscan": "pending"
         }
       },
       "evidence": [
@@ -493,7 +517,11 @@
           "windows.registry.userassist": "pending",
           "windows.bigpools": "pending",
           "windows.symlinkscan": "pending",
-          "windows.devicetree": "pending"
+          "windows.devicetree": "pending",
+          "windows.getservicesids": "pending",
+          "windows.iat": "pending",
+          "windows.verinfo": "pending",
+          "windows.mftscan": "pending"
         }
       },
       "evidence": [],
@@ -559,7 +587,11 @@
           "windows.registry.userassist": "pending",
           "windows.bigpools": "pending",
           "windows.symlinkscan": "pending",
-          "windows.devicetree": "pending"
+          "windows.devicetree": "pending",
+          "windows.getservicesids": "pending",
+          "windows.iat": "pending",
+          "windows.verinfo": "pending",
+          "windows.mftscan": "pending"
         }
       },
       "evidence": [
@@ -671,7 +703,11 @@
           "windows.registry.userassist": "pending",
           "windows.bigpools": "pending",
           "windows.symlinkscan": "pending",
-          "windows.devicetree": "pending"
+          "windows.devicetree": "pending",
+          "windows.getservicesids": "pending",
+          "windows.iat": "pending",
+          "windows.verinfo": "pending",
+          "windows.mftscan": "pending"
         }
       },
       "evidence": [
@@ -784,7 +820,11 @@
           "windows.registry.userassist": "pending",
           "windows.bigpools": "pending",
           "windows.symlinkscan": "pending",
-          "windows.devicetree": "pending"
+          "windows.devicetree": "pending",
+          "windows.getservicesids": "pending",
+          "windows.iat": "pending",
+          "windows.verinfo": "pending",
+          "windows.mftscan": "pending"
         }
       },
       "evidence": [
@@ -869,7 +909,11 @@
           "windows.registry.userassist": "pending",
           "windows.bigpools": "pending",
           "windows.symlinkscan": "pending",
-          "windows.devicetree": "pending"
+          "windows.devicetree": "pending",
+          "windows.getservicesids": "pending",
+          "windows.iat": "pending",
+          "windows.verinfo": "pending",
+          "windows.mftscan": "pending"
         }
       },
       "evidence": [
@@ -983,7 +1027,11 @@
           "windows.registry.userassist": "pending",
           "windows.bigpools": "pending",
           "windows.symlinkscan": "pending",
-          "windows.devicetree": "pending"
+          "windows.devicetree": "pending",
+          "windows.getservicesids": "pending",
+          "windows.iat": "pending",
+          "windows.verinfo": "pending",
+          "windows.mftscan": "pending"
         }
       },
       "evidence": [
@@ -1097,7 +1145,11 @@
           "windows.registry.userassist": "pending",
           "windows.bigpools": "pending",
           "windows.symlinkscan": "pending",
-          "windows.devicetree": "pending"
+          "windows.devicetree": "pending",
+          "windows.getservicesids": "pending",
+          "windows.iat": "pending",
+          "windows.verinfo": "pending",
+          "windows.mftscan": "pending"
         }
       },
       "evidence": [],
@@ -1165,7 +1217,11 @@
           "windows.registry.userassist": "pending",
           "windows.bigpools": "pending",
           "windows.symlinkscan": "pending",
-          "windows.devicetree": "pending"
+          "windows.devicetree": "pending",
+          "windows.getservicesids": "pending",
+          "windows.iat": "pending",
+          "windows.verinfo": "pending",
+          "windows.mftscan": "pending"
         },
         "x64": {
           "windows.callbacks": "real",
@@ -1211,7 +1267,11 @@
           "windows.registry.userassist": "pending",
           "windows.bigpools": "pending",
           "windows.symlinkscan": "pending",
-          "windows.devicetree": "pending"
+          "windows.devicetree": "pending",
+          "windows.getservicesids": "pending",
+          "windows.iat": "pending",
+          "windows.verinfo": "pending",
+          "windows.mftscan": "pending"
         }
       },
       "evidence": [
@@ -1310,7 +1370,11 @@
           "windows.registry.userassist": "pending",
           "windows.bigpools": "pending",
           "windows.symlinkscan": "pending",
-          "windows.devicetree": "pending"
+          "windows.devicetree": "pending",
+          "windows.getservicesids": "pending",
+          "windows.iat": "pending",
+          "windows.verinfo": "pending",
+          "windows.mftscan": "pending"
         },
         "x64": {
           "windows.callbacks": "synthetic",
@@ -1356,7 +1420,11 @@
           "windows.registry.userassist": "pending",
           "windows.bigpools": "pending",
           "windows.symlinkscan": "pending",
-          "windows.devicetree": "pending"
+          "windows.devicetree": "pending",
+          "windows.getservicesids": "pending",
+          "windows.iat": "pending",
+          "windows.verinfo": "pending",
+          "windows.mftscan": "pending"
         }
       },
       "evidence": []
@@ -1422,7 +1490,11 @@
           "windows.registry.userassist": "pending",
           "windows.bigpools": "pending",
           "windows.symlinkscan": "pending",
-          "windows.devicetree": "pending"
+          "windows.devicetree": "pending",
+          "windows.getservicesids": "pending",
+          "windows.iat": "pending",
+          "windows.verinfo": "pending",
+          "windows.mftscan": "pending"
         },
         "x64": {
           "windows.callbacks": "synthetic",
@@ -1468,7 +1540,11 @@
           "windows.registry.userassist": "pending",
           "windows.bigpools": "pending",
           "windows.symlinkscan": "pending",
-          "windows.devicetree": "pending"
+          "windows.devicetree": "pending",
+          "windows.getservicesids": "pending",
+          "windows.iat": "pending",
+          "windows.verinfo": "pending",
+          "windows.mftscan": "pending"
         }
       },
       "evidence": []
@@ -1547,7 +1623,11 @@
           "windows.registry.userassist": "pending",
           "windows.bigpools": "pending",
           "windows.symlinkscan": "pending",
-          "windows.devicetree": "pending"
+          "windows.devicetree": "pending",
+          "windows.getservicesids": "pending",
+          "windows.iat": "pending",
+          "windows.verinfo": "pending",
+          "windows.mftscan": "pending"
         },
         "x64": {
           "windows.callbacks": "real",
@@ -1593,7 +1673,11 @@
           "windows.registry.userassist": "real",
           "windows.bigpools": "real",
           "windows.symlinkscan": "real",
-          "windows.devicetree": "real"
+          "windows.devicetree": "real",
+          "windows.getservicesids": "pending",
+          "windows.iat": "real",
+          "windows.verinfo": "real",
+          "windows.mftscan": "real"
         }
       },
       "evidence": [
@@ -1630,7 +1714,10 @@
             "windows.registry.userassist": 66,
             "windows.bigpools": 30323,
             "windows.symlinkscan": 307,
-            "windows.devicetree": 357
+            "windows.devicetree": 357,
+            "windows.iat": 17524,
+            "windows.verinfo": 4813,
+            "windows.mftscan": 367513
           }
         },
         {
@@ -1716,7 +1803,11 @@
           "windows.registry.userassist": "pending",
           "windows.bigpools": "real",
           "windows.symlinkscan": "real",
-          "windows.devicetree": "real"
+          "windows.devicetree": "real",
+          "windows.getservicesids": "pending",
+          "windows.iat": "real",
+          "windows.verinfo": "real",
+          "windows.mftscan": "real"
         }
       },
       "evidence": [
@@ -1752,7 +1843,10 @@
             "windows.sessions": 102,
             "windows.bigpools": 8442,
             "windows.devicetree": 299,
-            "windows.symlinkscan": 206
+            "windows.symlinkscan": 206,
+            "windows.iat": 15334,
+            "windows.verinfo": 3936,
+            "windows.mftscan": 24422
           }
         }
       ]

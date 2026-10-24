@@ -29,10 +29,12 @@ mod integrity;
 mod legacy_network;
 mod malware;
 mod memory;
+mod mft;
 mod network;
 mod network_layout;
 mod objects;
 pub mod paging;
+mod pe_info;
 mod pool;
 mod process;
 mod registry;
@@ -565,6 +567,9 @@ impl Windows<'_> {
         if p == Plugin::WinModscan {
             return self.modscan(job);
         }
+        if p == Plugin::WinMftscan {
+            return self.mftscan(job);
+        }
         if p == Plugin::WinBigpools {
             return self.bigpools(job);
         }
@@ -576,7 +581,10 @@ impl Windows<'_> {
         }
         if matches!(
             p,
-            Plugin::WinPrintkey | Plugin::WinAutoruns | Plugin::WinUserassist
+            Plugin::WinPrintkey
+                | Plugin::WinAutoruns
+                | Plugin::WinUserassist
+                | Plugin::WinGetservicesids
         ) {
             let (processes, diagnostics) = self.processes_partial(job)?;
             let owners: Vec<_> = processes
@@ -603,6 +611,7 @@ impl Windows<'_> {
             let mut result = match p {
                 Plugin::WinAutoruns => registry.autoruns(options, job)?,
                 Plugin::WinUserassist => registry.userassist(options, job)?,
+                Plugin::WinGetservicesids => registry.service_sids(job)?,
                 _ => registry.registry(p, options, job)?,
             };
             if !diagnostics.is_empty() {
@@ -663,6 +672,8 @@ impl Windows<'_> {
                 Plugin::WinHandles => self.handles(&process, &mut result, job),
                 Plugin::WinPrivileges => self.privileges(&process, &mut result),
                 Plugin::WinSessions => self.session(&process, &mut result),
+                Plugin::WinIat => self.iat(&process, &mut result, job),
+                Plugin::WinVerinfo => self.verinfo(&process, &mut result, job),
                 _ => bail!("不支持的 Windows 插件 {}", p.name()),
             };
             if let Err(e) = read {
@@ -673,6 +684,9 @@ impl Windows<'_> {
                     format!("{e:#}"),
                 );
             }
+        }
+        if p == Plugin::WinVerinfo && options.pid.is_none() {
+            self.module_versions(&mut result, job)?;
         }
         Ok(result)
     }
