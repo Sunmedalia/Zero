@@ -1958,7 +1958,7 @@
           "windows.iat": "real",
           "windows.verinfo": "real",
           "windows.mftscan": "real",
-          "windows.orphan_kernel_threads": "pending",
+          "windows.orphan_kernel_threads": "real",
           "windows.etwpatch": "real",
           "windows.registry.scheduled_tasks": "real",
           "windows.registry.amcache": "real",
@@ -2038,7 +2038,8 @@
           },
           "rows": {
             "windows.pslist": 120,
-            "windows.netscan": 108
+            "windows.netscan": 108,
+            "windows.orphan_kernel_threads": 2
           }
         }
       ]
