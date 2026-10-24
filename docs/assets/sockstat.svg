@@ -1,0 +1,467 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1104" height="670" viewBox="0 0 1104 670" role="img" aria-label="zero — sockstat · process sockets">
+<title>zero — sockstat · process sockets</title>
+<rect width="1104" height="670" rx="10" fill="#202a37"/>
+<rect width="1104" height="30" rx="10" fill="#000" fill-opacity="0.28"/>
+<rect y="20" width="1104" height="10" fill="#000" fill-opacity="0.28"/>
+<circle cx="20" cy="15" r="6" fill="#ff5f57"/>
+<circle cx="40" cy="15" r="6" fill="#febc2e"/>
+<circle cx="60" cy="15" r="6" fill="#28c840"/>
+<text x="552" y="19" text-anchor="middle" font-family="ui-monospace, 'SFMono-Regular', 'JetBrains Mono', Menlo, Consolas, 'Noto Sans Mono CJK SC', 'Sarasa Mono SC', monospace" font-size="12" fill="#9aa5b4">zero — sockstat · process sockets</text>
+<g font-family="ui-monospace, 'SFMono-Regular', 'JetBrains Mono', Menlo, Consolas, 'Noto Sans Mono CJK SC', 'Sarasa Mono SC', monospace" font-size="14" xml:space="preserve">
+<text x="14.0" y="57.5" fill="#dce3ed" textLength="84.0" lengthAdjust="spacingAndGlyphs"> 1 资源库 </text>
+<rect x="106.4" y="44" width="67.2" height="18" fill="#263b52"/>
+<text x="106.4" y="57.5" fill="#b8d8fa" font-weight="700" textLength="67.2" lengthAdjust="spacingAndGlyphs"> 2 分析 </text>
+<text x="182.0" y="57.5" fill="#dce3ed" textLength="67.2" lengthAdjust="spacingAndGlyphs"> 3 缓存 </text>
+<text x="257.6" y="57.5" fill="#97a6b8" textLength="67.2" lengthAdjust="spacingAndGlyphs"> pslist </text>
+<text x="324.8" y="57.5" fill="#364354" textLength="8.4" lengthAdjust="spacingAndGlyphs">×</text>
+<text x="341.6" y="57.5" fill="#97a6b8" textLength="58.8" lengthAdjust="spacingAndGlyphs"> lsmod </text>
+<text x="400.4" y="57.5" fill="#364354" textLength="8.4" lengthAdjust="spacingAndGlyphs">×</text>
+<rect x="417.2" y="44" width="84.0" height="18" fill="#151b24"/>
+<text x="417.2" y="57.5" fill="#b8d8fa" font-weight="700" textLength="84.0" lengthAdjust="spacingAndGlyphs"> sockstat </text>
+<rect x="501.2" y="44" width="8.4" height="18" fill="#151b24"/>
+<text x="501.2" y="57.5" fill="#dce3ed" textLength="8.4" lengthAdjust="spacingAndGlyphs">×</text>
+<text x="518.0" y="57.5" fill="#97a6b8" textLength="67.2" lengthAdjust="spacingAndGlyphs"> pstree </text>
+<text x="585.2" y="57.5" fill="#364354" textLength="8.4" lengthAdjust="spacingAndGlyphs">×</text>
+<text x="904.4" y="57.5" fill="#82b4e8" textLength="134.4" lengthAdjust="spacingAndGlyphs"> Linux  Windows </text>
+<rect x="1038.8" y="44" width="50.4" height="18" fill="#263b52"/>
+<text x="1038.8" y="57.5" fill="#b8d8fa" font-weight="700" textLength="50.4" lengthAdjust="spacingAndGlyphs"> 自动 </text>
+<text x="14.0" y="75.5" fill="#97a6b8" textLength="117.6" lengthAdjust="spacingAndGlyphs">  自动 · 镜像 </text>
+<text x="131.6" y="75.5" fill="#dce3ed" textLength="235.2" lengthAdjust="spacingAndGlyphs">images/linux-sample-1.bin.gz</text>
+<text x="602.0" y="75.5" fill="#8bc7a3" textLength="168.0" lengthAdjust="spacingAndGlyphs">│ 符号 已就绪 · 离线</text>
+<text x="778.4" y="75.5" fill="#97a6b8" textLength="268.8" lengthAdjust="spacingAndGlyphs">/tmp/zero-demo/symbols/linux.zip</text>
+<rect x="14.0" y="80" width="16.8" height="18" fill="#151b24"/>
+<text x="14.0" y="93.5" fill="#364354" textLength="16.8" lengthAdjust="spacingAndGlyphs">╭─</text>
+<rect x="30.8" y="80" width="134.4" height="18" fill="#151b24"/>
+<text x="30.8" y="93.5" fill="#dce3ed" textLength="134.4" lengthAdjust="spacingAndGlyphs"> 插件 · Network </text>
+<rect x="165.2" y="80" width="50.4" height="18" fill="#151b24"/>
+<text x="165.2" y="93.5" fill="#364354" textLength="50.4" lengthAdjust="spacingAndGlyphs">─────╮</text>
+<rect x="215.6" y="80" width="873.6" height="18" fill="#151b24"/>
+<text x="215.6" y="93.5" fill="#82b4e8" textLength="873.6" lengthAdjust="spacingAndGlyphs">╭─  sockstat · 完整  ──────────────────────────────────────────────────────────────────────────────────╮</text>
+<rect x="14.0" y="98" width="8.4" height="18" fill="#151b24"/>
+<text x="14.0" y="111.5" fill="#364354" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="22.4" y="98" width="67.2" height="18" fill="#151b24"/>
+<text x="22.4" y="111.5" fill="#dce3ed" textLength="67.2" lengthAdjust="spacingAndGlyphs">  pstree</text>
+<rect x="89.6" y="98" width="117.6" height="18" fill="#151b24"/>
+<rect x="207.2" y="98" width="8.4" height="18" fill="#151b24"/>
+<text x="207.2" y="111.5" fill="#97a6b8" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="215.6" y="98" width="8.4" height="18" fill="#151b24"/>
+<text x="215.6" y="111.5" fill="#82b4e8" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<text x="224.0" y="111.5" fill="#82b4e8" font-weight="700" textLength="856.8" lengthAdjust="spacingAndGlyphs">  PID  Name            FD  Family Type      Protocol LocalEndpoint                           RemoteEnd</text>
+<rect x="1080.8" y="98" width="8.4" height="18" fill="#151b24"/>
+<text x="1080.8" y="111.5" fill="#82b4e8" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="14.0" y="116" width="8.4" height="18" fill="#151b24"/>
+<text x="14.0" y="129.5" fill="#364354" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="22.4" y="116" width="58.8" height="18" fill="#151b24"/>
+<text x="22.4" y="129.5" fill="#dce3ed" textLength="58.8" lengthAdjust="spacingAndGlyphs">  psaux</text>
+<rect x="81.2" y="116" width="126.0" height="18" fill="#151b24"/>
+<rect x="207.2" y="116" width="8.4" height="18" fill="#151b24"/>
+<text x="207.2" y="129.5" fill="#82b4e8" font-weight="700" textLength="8.4" lengthAdjust="spacingAndGlyphs">┃</text>
+<rect x="215.6" y="116" width="8.4" height="18" fill="#151b24"/>
+<text x="215.6" y="129.5" fill="#82b4e8" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="224.0" y="116" width="16.8" height="18" fill="#263b52"/>
+<text x="224.0" y="129.5" fill="#b8d8fa" textLength="16.8" lengthAdjust="spacingAndGlyphs">› </text>
+<rect x="240.8" y="116" width="840.0" height="18" fill="#263b52"/>
+<text x="240.8" y="129.5" fill="#b8d8fa" font-weight="700" textLength="840.0" lengthAdjust="spacingAndGlyphs">322  udevd           3   Unix   SEQPACKET 0        /run/udev/control                       [none]   </text>
+<rect x="1080.8" y="116" width="8.4" height="18" fill="#151b24"/>
+<text x="1080.8" y="129.5" fill="#82b4e8" font-weight="700" textLength="8.4" lengthAdjust="spacingAndGlyphs">┃</text>
+<rect x="14.0" y="134" width="8.4" height="18" fill="#151b24"/>
+<text x="14.0" y="147.5" fill="#364354" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="22.4" y="134" width="67.2" height="18" fill="#151b24"/>
+<text x="22.4" y="147.5" fill="#dce3ed" textLength="67.2" lengthAdjust="spacingAndGlyphs">  envars</text>
+<rect x="89.6" y="134" width="117.6" height="18" fill="#151b24"/>
+<rect x="207.2" y="134" width="8.4" height="18" fill="#151b24"/>
+<text x="207.2" y="147.5" fill="#82b4e8" font-weight="700" textLength="8.4" lengthAdjust="spacingAndGlyphs">┃</text>
+<rect x="215.6" y="134" width="8.4" height="18" fill="#151b24"/>
+<text x="215.6" y="147.5" fill="#82b4e8" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="224.0" y="134" width="16.8" height="18" fill="#19222e"/>
+<rect x="240.8" y="134" width="840.0" height="18" fill="#19222e"/>
+<text x="240.8" y="147.5" fill="#dce3ed" textLength="840.0" lengthAdjust="spacingAndGlyphs">322  udevd           4   16     RAW       15                                                        </text>
+<rect x="1080.8" y="134" width="8.4" height="18" fill="#151b24"/>
+<text x="1080.8" y="147.5" fill="#82b4e8" font-weight="700" textLength="8.4" lengthAdjust="spacingAndGlyphs">┃</text>
+<rect x="14.0" y="152" width="8.4" height="18" fill="#151b24"/>
+<text x="14.0" y="165.5" fill="#364354" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="22.4" y="152" width="42.0" height="18" fill="#151b24"/>
+<text x="22.4" y="165.5" fill="#dce3ed" textLength="42.0" lengthAdjust="spacingAndGlyphs">  pwd</text>
+<rect x="64.4" y="152" width="142.8" height="18" fill="#151b24"/>
+<rect x="207.2" y="152" width="8.4" height="18" fill="#151b24"/>
+<text x="207.2" y="165.5" fill="#82b4e8" font-weight="700" textLength="8.4" lengthAdjust="spacingAndGlyphs">┃</text>
+<rect x="215.6" y="152" width="8.4" height="18" fill="#151b24"/>
+<text x="215.6" y="165.5" fill="#82b4e8" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="224.0" y="152" width="16.8" height="18" fill="#151b24"/>
+<rect x="240.8" y="152" width="840.0" height="18" fill="#151b24"/>
+<text x="240.8" y="165.5" fill="#dce3ed" textLength="840.0" lengthAdjust="spacingAndGlyphs">322  udevd           8   Unix   DGRAM     0        [unnamed]                               0xffff880</text>
+<rect x="1080.8" y="152" width="8.4" height="18" fill="#151b24"/>
+<text x="1080.8" y="165.5" fill="#97a6b8" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="14.0" y="170" width="8.4" height="18" fill="#151b24"/>
+<text x="14.0" y="183.5" fill="#364354" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="22.4" y="170" width="67.2" height="18" fill="#151b24"/>
+<text x="22.4" y="183.5" fill="#dce3ed" textLength="67.2" lengthAdjust="spacingAndGlyphs">  pscred</text>
+<rect x="89.6" y="170" width="117.6" height="18" fill="#151b24"/>
+<rect x="207.2" y="170" width="8.4" height="18" fill="#151b24"/>
+<text x="207.2" y="183.5" fill="#82b4e8" font-weight="700" textLength="8.4" lengthAdjust="spacingAndGlyphs">┃</text>
+<rect x="215.6" y="170" width="8.4" height="18" fill="#151b24"/>
+<text x="215.6" y="183.5" fill="#82b4e8" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="224.0" y="170" width="16.8" height="18" fill="#19222e"/>
+<rect x="240.8" y="170" width="840.0" height="18" fill="#19222e"/>
+<text x="240.8" y="183.5" fill="#dce3ed" textLength="840.0" lengthAdjust="spacingAndGlyphs">322  udevd           9   Unix   DGRAM     0        [unnamed]                               0xffff880</text>
+<rect x="1080.8" y="170" width="8.4" height="18" fill="#151b24"/>
+<text x="1080.8" y="183.5" fill="#97a6b8" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="14.0" y="188" width="8.4" height="18" fill="#151b24"/>
+<text x="14.0" y="201.5" fill="#364354" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="22.4" y="188" width="75.6" height="18" fill="#151b24"/>
+<text x="22.4" y="201.5" fill="#dce3ed" textLength="75.6" lengthAdjust="spacingAndGlyphs">  threads</text>
+<rect x="98.0" y="188" width="109.2" height="18" fill="#151b24"/>
+<rect x="207.2" y="188" width="8.4" height="18" fill="#151b24"/>
+<text x="207.2" y="201.5" fill="#82b4e8" font-weight="700" textLength="8.4" lengthAdjust="spacingAndGlyphs">┃</text>
+<rect x="215.6" y="188" width="8.4" height="18" fill="#151b24"/>
+<text x="215.6" y="201.5" fill="#82b4e8" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="224.0" y="188" width="16.8" height="18" fill="#151b24"/>
+<rect x="240.8" y="188" width="840.0" height="18" fill="#151b24"/>
+<text x="240.8" y="201.5" fill="#dce3ed" textLength="840.0" lengthAdjust="spacingAndGlyphs">468  udevd           9   Unix   DGRAM     0        [unnamed]                               0xffff880</text>
+<rect x="1080.8" y="188" width="8.4" height="18" fill="#151b24"/>
+<text x="1080.8" y="201.5" fill="#97a6b8" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="14.0" y="206" width="8.4" height="18" fill="#151b24"/>
+<text x="14.0" y="219.5" fill="#364354" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="22.4" y="206" width="117.6" height="18" fill="#151b24"/>
+<text x="22.4" y="219.5" fill="#dce3ed" textLength="117.6" lengthAdjust="spacingAndGlyphs">  pidhashtable</text>
+<rect x="140.0" y="206" width="67.2" height="18" fill="#151b24"/>
+<rect x="207.2" y="206" width="8.4" height="18" fill="#151b24"/>
+<text x="207.2" y="219.5" fill="#82b4e8" font-weight="700" textLength="8.4" lengthAdjust="spacingAndGlyphs">┃</text>
+<rect x="215.6" y="206" width="8.4" height="18" fill="#151b24"/>
+<text x="215.6" y="219.5" fill="#82b4e8" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="224.0" y="206" width="16.8" height="18" fill="#19222e"/>
+<rect x="240.8" y="206" width="840.0" height="18" fill="#19222e"/>
+<text x="240.8" y="219.5" fill="#dce3ed" textLength="840.0" lengthAdjust="spacingAndGlyphs">468  udevd           11  16     RAW       15                                                        </text>
+<rect x="1080.8" y="206" width="8.4" height="18" fill="#151b24"/>
+<text x="1080.8" y="219.5" fill="#97a6b8" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="14.0" y="224" width="8.4" height="18" fill="#151b24"/>
+<text x="14.0" y="237.5" fill="#364354" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="22.4" y="224" width="75.6" height="18" fill="#151b24"/>
+<text x="22.4" y="237.5" fill="#dce3ed" textLength="75.6" lengthAdjust="spacingAndGlyphs">  psstate</text>
+<rect x="98.0" y="224" width="109.2" height="18" fill="#151b24"/>
+<rect x="207.2" y="224" width="8.4" height="18" fill="#151b24"/>
+<text x="207.2" y="237.5" fill="#82b4e8" font-weight="700" textLength="8.4" lengthAdjust="spacingAndGlyphs">┃</text>
+<rect x="215.6" y="224" width="8.4" height="18" fill="#151b24"/>
+<text x="215.6" y="237.5" fill="#82b4e8" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="224.0" y="224" width="16.8" height="18" fill="#151b24"/>
+<rect x="240.8" y="224" width="840.0" height="18" fill="#151b24"/>
+<text x="240.8" y="237.5" fill="#dce3ed" textLength="840.0" lengthAdjust="spacingAndGlyphs">469  udevd           9   Unix   DGRAM     0        [unnamed]                               0xffff880</text>
+<rect x="1080.8" y="224" width="8.4" height="18" fill="#151b24"/>
+<text x="1080.8" y="237.5" fill="#97a6b8" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="14.0" y="242" width="8.4" height="18" fill="#151b24"/>
+<text x="14.0" y="255.5" fill="#364354" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="22.4" y="242" width="117.6" height="18" fill="#151b24"/>
+<text x="22.4" y="255.5" fill="#dce3ed" textLength="117.6" lengthAdjust="spacingAndGlyphs">  capabilities</text>
+<rect x="140.0" y="242" width="67.2" height="18" fill="#151b24"/>
+<rect x="207.2" y="242" width="8.4" height="18" fill="#151b24"/>
+<text x="207.2" y="255.5" fill="#82b4e8" font-weight="700" textLength="8.4" lengthAdjust="spacingAndGlyphs">┃</text>
+<rect x="215.6" y="242" width="8.4" height="18" fill="#151b24"/>
+<text x="215.6" y="255.5" fill="#82b4e8" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="224.0" y="242" width="16.8" height="18" fill="#19222e"/>
+<rect x="240.8" y="242" width="840.0" height="18" fill="#19222e"/>
+<text x="240.8" y="255.5" fill="#dce3ed" textLength="840.0" lengthAdjust="spacingAndGlyphs">469  udevd           11  16     RAW       15                                                        </text>
+<rect x="1080.8" y="242" width="8.4" height="18" fill="#151b24"/>
+<text x="1080.8" y="255.5" fill="#97a6b8" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="14.0" y="260" width="8.4" height="18" fill="#151b24"/>
+<text x="14.0" y="273.5" fill="#364354" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="22.4" y="260" width="67.2" height="18" fill="#151b24"/>
+<text x="22.4" y="273.5" fill="#dce3ed" textLength="67.2" lengthAdjust="spacingAndGlyphs">  ptrace</text>
+<rect x="89.6" y="260" width="117.6" height="18" fill="#151b24"/>
+<rect x="207.2" y="260" width="8.4" height="18" fill="#151b24"/>
+<text x="207.2" y="273.5" fill="#82b4e8" font-weight="700" textLength="8.4" lengthAdjust="spacingAndGlyphs">┃</text>
+<rect x="215.6" y="260" width="8.4" height="18" fill="#151b24"/>
+<text x="215.6" y="273.5" fill="#82b4e8" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="224.0" y="260" width="16.8" height="18" fill="#151b24"/>
+<rect x="240.8" y="260" width="840.0" height="18" fill="#151b24"/>
+<text x="240.8" y="273.5" fill="#dce3ed" textLength="840.0" lengthAdjust="spacingAndGlyphs">1752 rpcbind         4   IPv6   DGRAM     UDP      [::]:0                                  [::]:0   </text>
+<rect x="1080.8" y="260" width="8.4" height="18" fill="#151b24"/>
+<text x="1080.8" y="273.5" fill="#97a6b8" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="14.0" y="278" width="8.4" height="18" fill="#151b24"/>
+<text x="14.0" y="291.5" fill="#364354" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="22.4" y="278" width="58.8" height="18" fill="#151b24"/>
+<text x="22.4" y="291.5" fill="#dce3ed" textLength="58.8" lengthAdjust="spacingAndGlyphs">  lsmod</text>
+<rect x="81.2" y="278" width="126.0" height="18" fill="#151b24"/>
+<rect x="207.2" y="278" width="8.4" height="18" fill="#151b24"/>
+<text x="207.2" y="291.5" fill="#82b4e8" font-weight="700" textLength="8.4" lengthAdjust="spacingAndGlyphs">┃</text>
+<rect x="215.6" y="278" width="8.4" height="18" fill="#151b24"/>
+<text x="215.6" y="291.5" fill="#82b4e8" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="224.0" y="278" width="16.8" height="18" fill="#19222e"/>
+<rect x="240.8" y="278" width="840.0" height="18" fill="#19222e"/>
+<text x="240.8" y="291.5" fill="#dce3ed" textLength="840.0" lengthAdjust="spacingAndGlyphs">1752 rpcbind         5   Unix   STREAM    0        /var/run/rpcbind.sock                   [none]   </text>
+<rect x="1080.8" y="278" width="8.4" height="18" fill="#151b24"/>
+<text x="1080.8" y="291.5" fill="#97a6b8" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="14.0" y="296" width="8.4" height="18" fill="#151b24"/>
+<text x="14.0" y="309.5" fill="#364354" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="22.4" y="296" width="75.6" height="18" fill="#151b24"/>
+<text x="22.4" y="309.5" fill="#dce3ed" textLength="75.6" lengthAdjust="spacingAndGlyphs">  banners</text>
+<rect x="98.0" y="296" width="109.2" height="18" fill="#151b24"/>
+<rect x="207.2" y="296" width="8.4" height="18" fill="#151b24"/>
+<text x="207.2" y="309.5" fill="#82b4e8" font-weight="700" textLength="8.4" lengthAdjust="spacingAndGlyphs">┃</text>
+<rect x="215.6" y="296" width="8.4" height="18" fill="#151b24"/>
+<text x="215.6" y="309.5" fill="#82b4e8" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="224.0" y="296" width="16.8" height="18" fill="#151b24"/>
+<rect x="240.8" y="296" width="840.0" height="18" fill="#151b24"/>
+<text x="240.8" y="309.5" fill="#dce3ed" textLength="840.0" lengthAdjust="spacingAndGlyphs">1752 rpcbind         6   IPv4   DGRAM     UDP      0.0.0.0:111                             0.0.0.0:0</text>
+<rect x="1080.8" y="296" width="8.4" height="18" fill="#151b24"/>
+<text x="1080.8" y="309.5" fill="#97a6b8" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="14.0" y="314" width="8.4" height="18" fill="#151b24"/>
+<text x="14.0" y="327.5" fill="#364354" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="22.4" y="314" width="58.8" height="18" fill="#151b24"/>
+<text x="22.4" y="327.5" fill="#dce3ed" textLength="58.8" lengthAdjust="spacingAndGlyphs">  dmesg</text>
+<rect x="81.2" y="314" width="126.0" height="18" fill="#151b24"/>
+<rect x="207.2" y="314" width="8.4" height="18" fill="#151b24"/>
+<text x="207.2" y="327.5" fill="#82b4e8" font-weight="700" textLength="8.4" lengthAdjust="spacingAndGlyphs">┃</text>
+<rect x="215.6" y="314" width="8.4" height="18" fill="#151b24"/>
+<text x="215.6" y="327.5" fill="#82b4e8" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="224.0" y="314" width="16.8" height="18" fill="#19222e"/>
+<rect x="240.8" y="314" width="840.0" height="18" fill="#19222e"/>
+<text x="240.8" y="327.5" fill="#dce3ed" textLength="840.0" lengthAdjust="spacingAndGlyphs">1752 rpcbind         7   IPv4   DGRAM     UDP      0.0.0.0:655                             0.0.0.0:0</text>
+<rect x="1080.8" y="314" width="8.4" height="18" fill="#151b24"/>
+<text x="1080.8" y="327.5" fill="#97a6b8" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="14.0" y="332" width="8.4" height="18" fill="#151b24"/>
+<text x="14.0" y="345.5" fill="#364354" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="22.4" y="332" width="100.8" height="18" fill="#151b24"/>
+<text x="22.4" y="345.5" fill="#dce3ed" textLength="100.8" lengthAdjust="spacingAndGlyphs">  systeminfo</text>
+<rect x="123.2" y="332" width="84.0" height="18" fill="#151b24"/>
+<rect x="207.2" y="332" width="8.4" height="18" fill="#151b24"/>
+<text x="207.2" y="345.5" fill="#82b4e8" font-weight="700" textLength="8.4" lengthAdjust="spacingAndGlyphs">┃</text>
+<rect x="215.6" y="332" width="8.4" height="18" fill="#151b24"/>
+<text x="215.6" y="345.5" fill="#82b4e8" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="224.0" y="332" width="16.8" height="18" fill="#151b24"/>
+<rect x="240.8" y="332" width="840.0" height="18" fill="#151b24"/>
+<text x="240.8" y="345.5" fill="#dce3ed" textLength="840.0" lengthAdjust="spacingAndGlyphs">1752 rpcbind         8   IPv4   STREAM    TCP      0.0.0.0:111                             0.0.0.0:0</text>
+<rect x="1080.8" y="332" width="8.4" height="18" fill="#151b24"/>
+<text x="1080.8" y="345.5" fill="#97a6b8" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="14.0" y="350" width="8.4" height="18" fill="#151b24"/>
+<text x="14.0" y="363.5" fill="#364354" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="22.4" y="350" width="100.8" height="18" fill="#151b24"/>
+<text x="22.4" y="363.5" fill="#dce3ed" textLength="100.8" lengthAdjust="spacingAndGlyphs">  vmcoreinfo</text>
+<rect x="123.2" y="350" width="84.0" height="18" fill="#151b24"/>
+<rect x="207.2" y="350" width="8.4" height="18" fill="#151b24"/>
+<text x="207.2" y="363.5" fill="#82b4e8" font-weight="700" textLength="8.4" lengthAdjust="spacingAndGlyphs">┃</text>
+<rect x="215.6" y="350" width="8.4" height="18" fill="#151b24"/>
+<text x="215.6" y="363.5" fill="#82b4e8" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="224.0" y="350" width="16.8" height="18" fill="#19222e"/>
+<rect x="240.8" y="350" width="840.0" height="18" fill="#19222e"/>
+<text x="240.8" y="363.5" fill="#dce3ed" textLength="840.0" lengthAdjust="spacingAndGlyphs">1752 rpcbind         9   IPv6   DGRAM     UDP      [::]:111                                [::]:0   </text>
+<rect x="1080.8" y="350" width="8.4" height="18" fill="#151b24"/>
+<text x="1080.8" y="363.5" fill="#97a6b8" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="14.0" y="368" width="8.4" height="18" fill="#151b24"/>
+<text x="14.0" y="381.5" fill="#364354" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="22.4" y="368" width="84.0" height="18" fill="#151b24"/>
+<text x="22.4" y="381.5" fill="#dce3ed" textLength="84.0" lengthAdjust="spacingAndGlyphs">  boottime</text>
+<rect x="106.4" y="368" width="100.8" height="18" fill="#151b24"/>
+<rect x="207.2" y="368" width="8.4" height="18" fill="#151b24"/>
+<text x="207.2" y="381.5" fill="#82b4e8" font-weight="700" textLength="8.4" lengthAdjust="spacingAndGlyphs">┃</text>
+<rect x="215.6" y="368" width="8.4" height="18" fill="#151b24"/>
+<text x="215.6" y="381.5" fill="#82b4e8" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="224.0" y="368" width="16.8" height="18" fill="#151b24"/>
+<rect x="240.8" y="368" width="840.0" height="18" fill="#151b24"/>
+<text x="240.8" y="381.5" fill="#dce3ed" textLength="840.0" lengthAdjust="spacingAndGlyphs">1752 rpcbind         10  IPv6   DGRAM     UDP      [::]:655                                [::]:0   </text>
+<rect x="1080.8" y="368" width="8.4" height="18" fill="#151b24"/>
+<text x="1080.8" y="381.5" fill="#97a6b8" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="14.0" y="386" width="8.4" height="18" fill="#151b24"/>
+<text x="14.0" y="399.5" fill="#364354" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="22.4" y="386" width="58.8" height="18" fill="#151b24"/>
+<text x="22.4" y="399.5" fill="#dce3ed" textLength="58.8" lengthAdjust="spacingAndGlyphs">  iomem</text>
+<rect x="81.2" y="386" width="126.0" height="18" fill="#151b24"/>
+<rect x="207.2" y="386" width="8.4" height="18" fill="#151b24"/>
+<text x="207.2" y="399.5" fill="#82b4e8" font-weight="700" textLength="8.4" lengthAdjust="spacingAndGlyphs">┃</text>
+<rect x="215.6" y="386" width="8.4" height="18" fill="#151b24"/>
+<text x="215.6" y="399.5" fill="#82b4e8" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="224.0" y="386" width="16.8" height="18" fill="#19222e"/>
+<rect x="240.8" y="386" width="840.0" height="18" fill="#19222e"/>
+<text x="240.8" y="399.5" fill="#dce3ed" textLength="840.0" lengthAdjust="spacingAndGlyphs">1752 rpcbind         11  IPv6   STREAM    TCP      [::]:111                                [::]:0   </text>
+<rect x="1080.8" y="386" width="8.4" height="18" fill="#151b24"/>
+<text x="1080.8" y="399.5" fill="#97a6b8" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="14.0" y="404" width="8.4" height="18" fill="#151b24"/>
+<text x="14.0" y="417.5" fill="#364354" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="22.4" y="404" width="75.6" height="18" fill="#151b24"/>
+<text x="22.4" y="417.5" fill="#dce3ed" textLength="75.6" lengthAdjust="spacingAndGlyphs">  ioports</text>
+<rect x="98.0" y="404" width="109.2" height="18" fill="#151b24"/>
+<rect x="207.2" y="404" width="8.4" height="18" fill="#151b24"/>
+<text x="207.2" y="417.5" fill="#97a6b8" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="215.6" y="404" width="8.4" height="18" fill="#151b24"/>
+<text x="215.6" y="417.5" fill="#82b4e8" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="224.0" y="404" width="16.8" height="18" fill="#151b24"/>
+<rect x="240.8" y="404" width="840.0" height="18" fill="#151b24"/>
+<text x="240.8" y="417.5" fill="#dce3ed" textLength="840.0" lengthAdjust="spacingAndGlyphs">1784 rpc.statd       4   IPv4   DGRAM     UDP      127.0.0.1:688                           0.0.0.0:0</text>
+<rect x="1080.8" y="404" width="8.4" height="18" fill="#151b24"/>
+<text x="1080.8" y="417.5" fill="#97a6b8" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="14.0" y="422" width="8.4" height="18" fill="#151b24"/>
+<text x="14.0" y="435.5" fill="#364354" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="22.4" y="422" width="109.2" height="18" fill="#151b24"/>
+<text x="22.4" y="435.5" fill="#dce3ed" textLength="109.2" lengthAdjust="spacingAndGlyphs">  vmayarascan</text>
+<rect x="131.6" y="422" width="75.6" height="18" fill="#151b24"/>
+<rect x="207.2" y="422" width="8.4" height="18" fill="#151b24"/>
+<text x="207.2" y="435.5" fill="#97a6b8" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="215.6" y="422" width="8.4" height="18" fill="#151b24"/>
+<text x="215.6" y="435.5" fill="#82b4e8" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="224.0" y="422" width="16.8" height="18" fill="#19222e"/>
+<rect x="240.8" y="422" width="840.0" height="18" fill="#19222e"/>
+<text x="240.8" y="435.5" fill="#dce3ed" textLength="840.0" lengthAdjust="spacingAndGlyphs">1784 rpc.statd       7   IPv4   DGRAM     UDP      0.0.0.0:52896                           0.0.0.0:0</text>
+<rect x="1080.8" y="422" width="8.4" height="18" fill="#151b24"/>
+<text x="1080.8" y="435.5" fill="#97a6b8" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="14.0" y="440" width="8.4" height="18" fill="#151b24"/>
+<text x="14.0" y="453.5" fill="#364354" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="22.4" y="440" width="50.4" height="18" fill="#151b24"/>
+<text x="22.4" y="453.5" fill="#dce3ed" textLength="50.4" lengthAdjust="spacingAndGlyphs">  maps</text>
+<rect x="72.8" y="440" width="134.4" height="18" fill="#151b24"/>
+<rect x="207.2" y="440" width="8.4" height="18" fill="#151b24"/>
+<text x="207.2" y="453.5" fill="#97a6b8" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="215.6" y="440" width="8.4" height="18" fill="#151b24"/>
+<text x="215.6" y="453.5" fill="#82b4e8" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="224.0" y="440" width="16.8" height="18" fill="#151b24"/>
+<rect x="240.8" y="440" width="840.0" height="18" fill="#151b24"/>
+<text x="240.8" y="453.5" fill="#dce3ed" textLength="840.0" lengthAdjust="spacingAndGlyphs">1784 rpc.statd       8   IPv4   STREAM    TCP      0.0.0.0:47918                           0.0.0.0:0</text>
+<rect x="1080.8" y="440" width="8.4" height="18" fill="#151b24"/>
+<text x="1080.8" y="453.5" fill="#97a6b8" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="14.0" y="458" width="8.4" height="18" fill="#151b24"/>
+<text x="14.0" y="471.5" fill="#364354" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="22.4" y="458" width="50.4" height="18" fill="#151b24"/>
+<text x="22.4" y="471.5" fill="#dce3ed" textLength="50.4" lengthAdjust="spacingAndGlyphs">  elfs</text>
+<rect x="72.8" y="458" width="134.4" height="18" fill="#151b24"/>
+<rect x="207.2" y="458" width="8.4" height="18" fill="#151b24"/>
+<text x="207.2" y="471.5" fill="#97a6b8" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="215.6" y="458" width="8.4" height="18" fill="#151b24"/>
+<text x="215.6" y="471.5" fill="#82b4e8" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="224.0" y="458" width="16.8" height="18" fill="#19222e"/>
+<rect x="240.8" y="458" width="840.0" height="18" fill="#19222e"/>
+<text x="240.8" y="471.5" fill="#dce3ed" textLength="840.0" lengthAdjust="spacingAndGlyphs">1784 rpc.statd       9   IPv6   DGRAM     UDP      [::]:33465                              [::]:0   </text>
+<rect x="1080.8" y="458" width="8.4" height="18" fill="#151b24"/>
+<text x="1080.8" y="471.5" fill="#97a6b8" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="14.0" y="476" width="8.4" height="18" fill="#151b24"/>
+<text x="14.0" y="489.5" fill="#364354" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="22.4" y="476" width="50.4" height="18" fill="#151b24"/>
+<text x="22.4" y="489.5" fill="#dce3ed" textLength="50.4" lengthAdjust="spacingAndGlyphs">  bash</text>
+<rect x="72.8" y="476" width="134.4" height="18" fill="#151b24"/>
+<rect x="207.2" y="476" width="8.4" height="18" fill="#151b24"/>
+<text x="207.2" y="489.5" fill="#97a6b8" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="215.6" y="476" width="8.4" height="18" fill="#151b24"/>
+<text x="215.6" y="489.5" fill="#82b4e8" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="224.0" y="476" width="16.8" height="18" fill="#151b24"/>
+<rect x="240.8" y="476" width="840.0" height="18" fill="#151b24"/>
+<text x="240.8" y="489.5" fill="#dce3ed" textLength="840.0" lengthAdjust="spacingAndGlyphs">1784 rpc.statd       10  IPv6   STREAM    TCP      [::]:52762                              [::]:0   </text>
+<rect x="1080.8" y="476" width="8.4" height="18" fill="#151b24"/>
+<text x="1080.8" y="489.5" fill="#97a6b8" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="14.0" y="494" width="8.4" height="18" fill="#151b24"/>
+<text x="14.0" y="507.5" fill="#364354" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="22.4" y="494" width="117.6" height="18" fill="#151b24"/>
+<text x="22.4" y="507.5" fill="#dce3ed" textLength="117.6" lengthAdjust="spacingAndGlyphs">  library_list</text>
+<rect x="140.0" y="494" width="67.2" height="18" fill="#151b24"/>
+<rect x="207.2" y="494" width="8.4" height="18" fill="#151b24"/>
+<text x="207.2" y="507.5" fill="#97a6b8" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="215.6" y="494" width="8.4" height="18" fill="#151b24"/>
+<text x="215.6" y="507.5" fill="#82b4e8" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="224.0" y="494" width="16.8" height="18" fill="#19222e"/>
+<rect x="240.8" y="494" width="840.0" height="18" fill="#19222e"/>
+<text x="240.8" y="507.5" fill="#dce3ed" textLength="840.0" lengthAdjust="spacingAndGlyphs">1798 rpc.idmapd      5   Unix   STREAM    0        [unnamed]                               0xffff880</text>
+<rect x="1080.8" y="494" width="8.4" height="18" fill="#151b24"/>
+<text x="1080.8" y="507.5" fill="#97a6b8" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="14.0" y="512" width="8.4" height="18" fill="#151b24"/>
+<text x="14.0" y="525.5" fill="#364354" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="22.4" y="512" width="50.4" height="18" fill="#151b24"/>
+<text x="22.4" y="525.5" fill="#dce3ed" textLength="50.4" lengthAdjust="spacingAndGlyphs">  lsof</text>
+<rect x="72.8" y="512" width="134.4" height="18" fill="#151b24"/>
+<rect x="207.2" y="512" width="8.4" height="18" fill="#151b24"/>
+<text x="207.2" y="525.5" fill="#97a6b8" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="215.6" y="512" width="8.4" height="18" fill="#151b24"/>
+<text x="215.6" y="525.5" fill="#82b4e8" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="224.0" y="512" width="16.8" height="18" fill="#151b24"/>
+<rect x="240.8" y="512" width="840.0" height="18" fill="#151b24"/>
+<text x="240.8" y="525.5" fill="#dce3ed" textLength="840.0" lengthAdjust="spacingAndGlyphs">1798 rpc.idmapd      6   Unix   STREAM    0        [unnamed]                               0xffff880</text>
+<rect x="1080.8" y="512" width="8.4" height="18" fill="#151b24"/>
+<text x="1080.8" y="525.5" fill="#97a6b8" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="14.0" y="530" width="8.4" height="18" fill="#151b24"/>
+<text x="14.0" y="543.5" fill="#364354" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="22.4" y="530" width="92.4" height="18" fill="#151b24"/>
+<text x="22.4" y="543.5" fill="#dce3ed" textLength="92.4" lengthAdjust="spacingAndGlyphs">  mountinfo</text>
+<rect x="114.8" y="530" width="92.4" height="18" fill="#151b24"/>
+<rect x="207.2" y="530" width="8.4" height="18" fill="#151b24"/>
+<text x="207.2" y="543.5" fill="#97a6b8" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="215.6" y="530" width="8.4" height="18" fill="#151b24"/>
+<text x="215.6" y="543.5" fill="#82b4e8" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="224.0" y="530" width="16.8" height="18" fill="#19222e"/>
+<rect x="240.8" y="530" width="840.0" height="18" fill="#19222e"/>
+<text x="240.8" y="543.5" fill="#dce3ed" textLength="840.0" lengthAdjust="spacingAndGlyphs">2057 rsyslogd        0   Unix   DGRAM     0        /dev/log                                [none]   </text>
+<rect x="1080.8" y="530" width="8.4" height="18" fill="#151b24"/>
+<text x="1080.8" y="543.5" fill="#97a6b8" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="14.0" y="548" width="8.4" height="18" fill="#151b24"/>
+<text x="14.0" y="561.5" fill="#364354" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="22.4" y="548" width="92.4" height="18" fill="#151b24"/>
+<text x="22.4" y="561.5" fill="#dce3ed" textLength="92.4" lengthAdjust="spacingAndGlyphs">  pagecache</text>
+<rect x="114.8" y="548" width="92.4" height="18" fill="#151b24"/>
+<rect x="207.2" y="548" width="8.4" height="18" fill="#151b24"/>
+<text x="207.2" y="561.5" fill="#97a6b8" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="215.6" y="548" width="8.4" height="18" fill="#151b24"/>
+<text x="215.6" y="561.5" fill="#82b4e8" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="224.0" y="548" width="16.8" height="18" fill="#151b24"/>
+<rect x="240.8" y="548" width="840.0" height="18" fill="#151b24"/>
+<text x="240.8" y="561.5" fill="#dce3ed" textLength="840.0" lengthAdjust="spacingAndGlyphs">2157 acpid           3   Unix   DGRAM     0        [unnamed]                               0xffff880</text>
+<rect x="1080.8" y="548" width="8.4" height="18" fill="#151b24"/>
+<text x="1080.8" y="561.5" fill="#97a6b8" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="14.0" y="566" width="8.4" height="18" fill="#151b24"/>
+<text x="14.0" y="579.5" fill="#364354" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="22.4" y="566" width="92.4" height="18" fill="#151b24"/>
+<text x="22.4" y="579.5" fill="#dce3ed" textLength="92.4" lengthAdjust="spacingAndGlyphs">  fdsummary</text>
+<rect x="114.8" y="566" width="92.4" height="18" fill="#151b24"/>
+<rect x="207.2" y="566" width="8.4" height="18" fill="#151b24"/>
+<text x="207.2" y="579.5" fill="#97a6b8" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="215.6" y="566" width="8.4" height="18" fill="#151b24"/>
+<text x="215.6" y="579.5" fill="#82b4e8" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="224.0" y="566" width="16.8" height="18" fill="#19222e"/>
+<rect x="240.8" y="566" width="840.0" height="18" fill="#19222e"/>
+<text x="240.8" y="579.5" fill="#dce3ed" textLength="840.0" lengthAdjust="spacingAndGlyphs">2157 acpid           7   16     RAW       16                                                        </text>
+<rect x="1080.8" y="566" width="8.4" height="18" fill="#151b24"/>
+<text x="1080.8" y="579.5" fill="#97a6b8" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="14.0" y="584" width="8.4" height="18" fill="#151b24"/>
+<text x="14.0" y="597.5" fill="#364354" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="22.4" y="584" width="84.0" height="18" fill="#263b52"/>
+<text x="22.4" y="597.5" fill="#b8d8fa" font-weight="700" textLength="84.0" lengthAdjust="spacingAndGlyphs">› sockstat</text>
+<rect x="106.4" y="584" width="100.8" height="18" fill="#263b52"/>
+<rect x="207.2" y="584" width="8.4" height="18" fill="#151b24"/>
+<text x="207.2" y="597.5" fill="#97a6b8" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="215.6" y="584" width="8.4" height="18" fill="#151b24"/>
+<text x="215.6" y="597.5" fill="#82b4e8" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="224.0" y="584" width="16.8" height="18" fill="#151b24"/>
+<rect x="240.8" y="584" width="840.0" height="18" fill="#151b24"/>
+<text x="240.8" y="597.5" fill="#dce3ed" textLength="840.0" lengthAdjust="spacingAndGlyphs">2157 acpid           8   Unix   STREAM    0        /var/run/acpid.socket                   [none]   </text>
+<rect x="1080.8" y="584" width="8.4" height="18" fill="#151b24"/>
+<text x="1080.8" y="597.5" fill="#97a6b8" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="14.0" y="602" width="201.6" height="18" fill="#151b24"/>
+<text x="14.0" y="615.5" fill="#364354" textLength="201.6" lengthAdjust="spacingAndGlyphs">╰──────────────────────╯</text>
+<rect x="215.6" y="602" width="16.8" height="18" fill="#151b24"/>
+<text x="215.6" y="615.5" fill="#82b4e8" textLength="16.8" lengthAdjust="spacingAndGlyphs">╰─</text>
+<rect x="232.4" y="602" width="260.4" height="18" fill="#151b24"/>
+<text x="232.4" y="615.5" fill="#97a6b8" textLength="260.4" lengthAdjust="spacingAndGlyphs">  455 / 455 条 · 显示 1–27 行  </text>
+<rect x="492.8" y="602" width="411.6" height="18" fill="#151b24"/>
+<text x="492.8" y="615.5" fill="#82b4e8" textLength="411.6" lengthAdjust="spacingAndGlyphs">─────────────────────────────────────────────────</text>
+<rect x="904.4" y="602" width="176.4" height="18" fill="#151b24"/>
+<text x="904.4" y="615.5" fill="#97a6b8" textLength="176.4" lengthAdjust="spacingAndGlyphs"> 横移 0/44 · Alt+←/→ </text>
+<rect x="1080.8" y="602" width="8.4" height="18" fill="#151b24"/>
+<text x="1080.8" y="615.5" fill="#82b4e8" textLength="8.4" lengthAdjust="spacingAndGlyphs">╯</text>
+<rect x="14.0" y="620" width="50.4" height="18" fill="#151b24"/>
+<text x="14.0" y="633.5" fill="#82b4e8" font-weight="700" textLength="50.4" lengthAdjust="spacingAndGlyphs"> 内容 </text>
+<rect x="64.4" y="620" width="16.8" height="18" fill="#151b24"/>
+<text x="64.4" y="633.5" fill="#364354" textLength="16.8" lengthAdjust="spacingAndGlyphs">│ </text>
+<rect x="81.2" y="620" width="336.0" height="18" fill="#151b24"/>
+<text x="81.2" y="633.5" fill="#dce3ed" textLength="336.0" lengthAdjust="spacingAndGlyphs">sockstat · 455 条 · 完整 · 0 条诊断（v）</text>
+<rect x="417.2" y="620" width="672.0" height="18" fill="#151b24"/>
+<text x="14.0" y="651.5" fill="#b8d8fa" textLength="100.8" lengthAdjust="spacingAndGlyphs"> 搜索内容 / </text>
+<rect x="114.8" y="638" width="8.4" height="18" fill="#151b24"/>
+<text x="123.2" y="651.5" fill="#b8d8fa" textLength="67.2" lengthAdjust="spacingAndGlyphs"> 详情 d </text>
+<rect x="190.4" y="638" width="8.4" height="18" fill="#151b24"/>
+<text x="198.8" y="651.5" fill="#b8d8fa" textLength="67.2" lengthAdjust="spacingAndGlyphs"> 排序 s </text>
+<rect x="266.0" y="638" width="8.4" height="18" fill="#151b24"/>
+<text x="274.4" y="651.5" fill="#b8d8fa" textLength="100.8" lengthAdjust="spacingAndGlyphs"> 导出结果 e </text>
+<rect x="375.2" y="638" width="8.4" height="18" fill="#151b24"/>
+<text x="383.6" y="651.5" fill="#b8d8fa" textLength="100.8" lengthAdjust="spacingAndGlyphs"> 每页行数 n </text>
+<rect x="484.4" y="638" width="8.4" height="18" fill="#151b24"/>
+<text x="492.8" y="651.5" fill="#b8d8fa" textLength="84.0" lengthAdjust="spacingAndGlyphs"> 前一页 [ </text>
+<rect x="576.8" y="638" width="8.4" height="18" fill="#151b24"/>
+<text x="585.2" y="651.5" fill="#b8d8fa" textLength="84.0" lengthAdjust="spacingAndGlyphs"> 后一页 ] </text>
+<rect x="669.2" y="638" width="8.4" height="18" fill="#151b24"/>
+<text x="677.6" y="651.5" fill="#b8d8fa" textLength="252.0" lengthAdjust="spacingAndGlyphs"> Dump 导出进程／地址范围／ELF </text>
+<rect x="929.6" y="638" width="92.4" height="18" fill="#151b24"/>
+<text x="1022.0" y="651.5" fill="#b8d8fa" textLength="67.2" lengthAdjust="spacingAndGlyphs"> 更多 ? </text>
+</g></svg>

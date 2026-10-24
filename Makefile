@@ -1,4 +1,4 @@
-.PHONY: build install run tui test ui-install ui-build ui-test check acceptance windows-acceptance tui-acceptance clean
+.PHONY: build install run tui test ui-install ui-build ui-test check acceptance windows-acceptance tui-acceptance screenshots clean
 
 build:
 	cargo build --release --locked
@@ -46,3 +46,9 @@ windows-acceptance:
 # Drives `zero tui-backend` exactly as the TypeScript UI does.
 tui-acceptance: ui-build
 	cargo test --locked --release --test tui_backend -- --ignored --nocapture
+
+# README screenshots from the real engine and renderer; local sample, offline.
+IMAGE ?= images/linux-sample-1.bin.gz
+SYMBOLS ?= symbols/linux.zip
+screenshots: build ui-build
+	node scripts/screenshots.mjs $(IMAGE) $(SYMBOLS) docs/assets

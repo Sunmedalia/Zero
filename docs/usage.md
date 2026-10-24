@@ -1,35 +1,81 @@
-# TUI 与 CLI 操作
+# 使用指南
 
-[返回项目入口](../README.md) · [MCP](mcp.md) · [性能与开发](development.md)
+[← 项目首页](../README.md) · [终端界面架构](tui.md) · [MCP](mcp.md) · [兼容矩阵](compatibility.md) · [开发与发布](development.md)
 
-命令均从项目根目录运行。
+本页覆盖 TUI、CLI 和全部 Linux 插件的字段与边界。命令均从项目根目录运行。
+
+- [1. 安装与启动](#1-安装与启动)
+- [2. 界面总览](#2-界面总览)
+- [3. 准备镜像与符号](#3-准备镜像与符号)
+- [4. 分析、结果与导出](#4-分析结果与导出)
+- [5. 快捷键与鼠标](#5-快捷键与鼠标)
+- [6. 命令行](#6-命令行)
+- [7. Linux 插件参考](#7-linux-插件参考)
+- [8. Windows 要点](#8-windows-要点)
+- [9. 设置、缓存与运行数据](#9-设置缓存与运行数据)
+- [10. 验收基线](#10-验收基线)
+
+---
+
+## 1. 安装与启动
 
 ```sh
 cargo build --release --locked
 (cd ts && npm install --no-audit --no-fund && npm run build)
 ./target/release/zero --image images/linux-sample-1.bin.gz --symbols symbols/linux.zip
-# 或安装至 Cargo bin 目录
+# 或安装到 Cargo bin 目录；之后 zero 打开 TUI，zero analyze 执行分析，zero mcp 启动 MCP
 cargo install --path . --locked
-# 安装后运行 zero 打开 TUI，zero analyze 执行分析，zero mcp 启动 MCP
 ```
 
-不带参数启动进入**分析工作台**，保留资产清单，不恢复或读取上次镜像。显式 `--image` 会自动识别并匹配本地符号。镜像始终只读；`--offline` 完全禁止网络请求。
+不带参数启动进入**分析工作台**：保留资产清单，但不恢复上次的镜像。显式 `--image` 会自动识别系统并匹配本地符号。镜像始终只读；`--offline` 完全禁止网络请求。首次进入按 `i` 或点击“选择镜像”开始准备；准备完成不会自动运行分析。
 
-首次进入时按 `i` 或点击“选择镜像”开始准备；未运行插件前显示准备引导或插件说明。准备完成不会自动运行分析。
+## 2. 界面总览
 
-顶部导航为**资源库、分析**，分别用 `F2`／`F3` 切换，也可点击标签或用 Ctrl+←/→ 切换。设置、缓存、日志和历史导出从 Ctrl+P／`?` 命令面板进入。
+![分析页](assets/analysis.svg)
 
-- **资源库**：辅助管理镜像、本地 JSON／JSON.XZ／ZIP 和远程符号。操作按钮统一放在页面最下方的工具栏，标明当前操作的镜像、本地符号或远程索引，并随所选区域切换导入、选用、下载和筛选操作；进入分析、匹配、在线／离线切换、目录与“更多”也集中在这里。工具栏固定一行，未显示的操作通过“更多 ?”访问。公共上下文行显示镜像、系统、符号准备状态与在线／离线模式，完整路径、来源 URL 与完整 banner 通过资源详情查看。上方“镜像／本地库／远程索引”标签切换独立页面，各页列表占满可用宽度和高度；Tab／Shift+Tab 循环切换，筛选条件和选中位置分别保留。镜像以完整文件名为标题，大小与格式单独显示，目录路径另行自动换行，不在列表中显示长摘要。搜索框只在编辑中或已有查询时显示，空闲时让位给列表；`d` 打开完整详情。识别、生成符号、刷新、移出清单等操作可从“更多”访问，原快捷键仍可使用。`i`／`y` 导入镜像／符号，`a` 导入当前类型；Space 选用，Enter 用已选镜像和符号进入分析控制台，`d` 查看详情，Delete 移出清单，均保留原文件。高亮行表示正在浏览，“●已选用”表示当前分析对象。选用镜像后自动识别系统并精确匹配本地符号；唯一候选自动选用，多个候选用 Space 选用、Enter 进入控制台，`d` 查看详情，ZIP 内候选分别列出。系统不明确时用 F6 手动选择。详情中可查看完整 banner 和远程来源。`m` 重试本地匹配；`M` 查询、下载并选用远程精确符号，多候选先选择。Linux 使用 [GitHub 符号仓库](https://github.com/Abyss-W4tcher/volatility3-symbols) 的完整 banner 索引，Windows 使用 Microsoft 精确 PDB 名称、GUID 和 Age。没有候选会明确说明；该仓库没有本地 Kali 6.8.11 ARM64 构建时，可用 `K` 打开“生成当前镜像符号表”表单，自动获取该内核调试资料；其他 Linux 构建可填写匹配的调试 ELF、内核配置及 dwarf2json 路径。生成后校验完整 banner，保存至本地符号库并选用，不自动运行分析。`t` 切换本地／远程，`g` 获取完整索引，`/` 搜索，`d` 查看完整信息。远程独立下载 `w` 只保存文件；详情中的 `L` 定位本地副本。`x` 进入分析，无需符号的功能仍可单独执行。
-- **分析**：公共上下文行显示系统、镜像与符号准备状态，页表与完整诊断可通过结果详情查看。内容搜索框与资源库一样按需显示，空闲时结果表直接占满工作台。左侧插件菜单每行显示一个插件，标题显示当前插件类别。结果表标题显示插件与完整／部分／历史状态，底边显示筛选数量和可见行范围；`Alt+←/→` 横向滚动列。无搜索匹配、正常空结果和不完整分析分别显示说明。点击插件或 Enter 确认插件立即显示已有结果；当前参数没有结果时自动运行，窄窗口同时切换到内容区域。Ctrl+R 仍可明确运行，`r` 强制重跑。`P` 编辑参数草稿，PID 仅对支持的插件显示，hive／key 用于 printkey；F7 展开 Windows 架构和分页附件高级配置。保存参数后可以点击插件或 Ctrl+R 运行。每个插件与参数组合保存结果及浏览位置。分析结果区域顶部仅保留内容搜索框，参数通过 `P` 打开表单。
-- **任务**：浏览资产、已有结果和页面不打断任务。点击尚无当前参数结果的插件或选用新对象时取消当前任务，等线程退出后执行最后一次请求，始终只有一个后台任务。结果绑定实际执行的参数快照，旧对象事件不会更新新对象。取消获取符号后不继续下载、选用或分析。失败可以修复参数、路径或在线模式后重试；部分结果和诊断可查看、导出，部分结果不进入成功缓存。
-- **Dump**：`D` 在工作台打开独立表单；Linux 提供 Process／Range／ELF，Windows 提供 Process／Range／PE。结果行包含 PID 时自动预填，仍需点击“开始转储”或 Ctrl+Enter 明确执行。
-- **窗口与详情**：宽度至少 100 列且高度至少 24 行时，24 列插件菜单与结果并排；其他尺寸使用区域标签或 Tab 切换。`d` 打开完整字段详情，常规尺寸覆盖结果区，宽度至少 160 列且高度至少 28 行时使用 38 列右侧栏。详情支持方向键、PgUp/PgDn、Home/End 和滚轮，`d`／Esc 关闭后保留选中行。低于 60×16 时显示尺寸提示，可按 q／Ctrl+C 退出。默认关闭详情，底部保留状态与当前区域操作，完整操作可从命令面板找到。
+### 页面与标签
 
-操作流程：
+第一行左侧是三个页面：**资源库**、**分析**、**缓存**，用 `1`／`2`／`3` 切换，也可点击或用 Ctrl+←/→ 循环。
+
+右侧是**打开的页面标签**，与浏览器标签相同：
+
+- 选择插件或得到结果时打开标签，同一插件只占一个；每次打开导出记录都新开一个，标题前缀“记录·”。
+- 点击切换，点击 `×` 或鼠标中键关闭；Ctrl+PgUp／Ctrl+PgDn 切换，Ctrl+W 关闭当前标签。
+- 标签多时标题先缩短；再放不下时只显示当前标签附近一段，两端的 `‹n`／`n›` 表示隐藏数量，点击跳过去。
+- 关闭标签会丢弃其内存结果，再次打开读取成功缓存或重新运行；关闭当前标签切到右侧相邻标签，没有则切到左侧。运行中的标签需先按 Esc 取消。更换镜像或符号后插件标签随结果清除，导出记录标签保留。
+
+系统选择（Linux／Windows／自动）位于第一行最右端；第二行显示系统、镜像、符号准备状态与在线／离线模式。
+
+### 布局
+
+| 终端尺寸 | 布局 |
+| --- | --- |
+| 低于 60×16 | 只显示尺寸提示，可按 q／Ctrl+C 退出 |
+| 80×24 起 | 插件与结果按焦点切换，第一行右端显示“插件／内容”区域标签 |
+| 100×24 起 | 24 列插件菜单与结果并排 |
+| 160×28 起 | `d` 详情改为 38 列右侧栏（较小尺寸覆盖结果区） |
+
+内容超出时，结果表、资源列表、插件菜单、详情和缓存列表的右边框显示滚动条：点击轨道跳转，按住滑块拖动。底部固定两行：状态行，以及当前区域的操作按钮；放不下的操作收进“更多 ?”。
+
+### 主题
+
+`,` 打开设置，在“界面主题”一行按 Enter 或 ←→ 切换，立即生效并保存。可选：
+
+| id | 名称 | 适合 |
+| --- | --- | --- |
+| `slate` | 石板（默认） | 深色终端 |
+| `light` | 纸白 | 浅色终端、投影、截图 |
+| `solarized` | Solarized | 熟悉 Solarized 配色的用户 |
+| `phosphor` | 荧光绿 | 复古终端风格 |
+| `contrast` | 高对比 | 低视力或强光环境 |
+
+<p align="center"><img src="assets/theme-light.svg" alt="纸白主题" width="720"></p>
+
+## 3. 准备镜像与符号
 
 ```mermaid
 flowchart TD
-    A[资源库：选用镜像] --> B[自动识别系统和精确匹配本地符号]
+    A[资源库：选用镜像] --> B[自动识别系统，精确匹配本地符号]
     B --> C{精确候选}
     C -->|唯一| D[自动选用]
     C -->|多个| E[手动选择，包括 ZIP 内候选]
@@ -44,49 +90,239 @@ flowchart TD
     K --> L[明确执行，生成二进制与 SHA256 清单]
 ```
 
-资产清单和选择记录保存在 `.zero/rust/workspace.json`，持久化格式保持兼容。校验通过的资源库下载保存到配置的符号目录，使用内容摘要命名并保留来源记录；本地库隐藏对应重复缓存，缓存清理后可复用本地副本。
+![资源库](assets/assets.svg)
 
-仓库现已只保留 Rust 源码、文档、验收脚本与测试镜像／符号表；旧 Python／Web 项目、环境、凭据、规则、会话、历史结果、日志与迁移备份已按要求移除。Rust 运行数据会重新创建于 `.zero/rust/`，导出默认放入 `exports/`。测试符号为 `symbols/linux.zip` 与 `symbols/kali-6.8.11-arm64.json.xz`；原始镜像保持只读。
+### 资源库
 
-目录、分页与任务状态：
+资源库管理镜像、本地符号（JSON／JSON.XZ／ZIP）和远程符号索引。上方“镜像／本地库／远程索引”标签各占一页（Tab／Shift+Tab 循环），筛选条件与选中位置分别保留。
 
-- 默认镜像目录 `images/`、符号目录 `symbols/`、导出目录 `exports/`，启动时创建。按 `,` 配置默认浏览目录；按 `n` 自定每页行数（1–10000），输入 `auto` 或 `0` 自动填满当前结果区域，随窗口高度调整。默认使用自动行数，旧版固定行数设置首次迁移为自动，此后保留用户选择；终端变小时实际每页行数不超过可见高度，避免翻页跳过看不到的行；配置持久化到 `.zero/rust/settings.json`。外部文件导入只登记路径，不复制或修改镜像。
-- 分析页 `i`／`y`／资源库 `a` 或点击顶部路径打开配置目录的文件弹窗，列出该目录实际文件与子目录，包括 ZIP 和其他普通文件；不会汇总整个项目，也没有指定文件的特殊入口。IMG／ISF 标记辅助识别类型，选用已识别文件时按类型导入；↑↓ 选择，Enter／→ 打开目录；文件条目 Enter 用已选对象进入分析控制台，`d` 查看文件详情，Space 选用文件，←／Backspace 浏览上级，Tab 在镜像／符号目录间切换，`w` 返回当前类型的配置目录，Space 选用镜像／符号／配置目录，Shift+Space 选用当前符号目录，`p` 手动输入路径。选用镜像后自动读取 banner 并匹配本地符号，资源库显示内核候选和精确符号匹配状态，页表在明确运行分析时验证。
-- 资源库 `m`／`M` 始终匹配当前选用镜像，列表里高亮另一个镜像不会改变匹配对象。完整 banner 匹配结果绑定镜像与符号文件元数据，未变化时复用，切换镜像后清除；选择符号保留已识别 banner。
-- 远程 `g` 获取完整索引，`M` 获取并选用当前镜像的精确匹配，多候选先选择，`r` 刷新当前视图。离线时读取缓存，没有完整匹配时显示 0 个候选，不按内核版本猜测符号。
-- `[`／`]` 或结果区域 PgUp／PgDn 翻页，表头显示当前可见行范围；短列按内容收紧，长字段限制显示宽度后可横向滚动或查看详情。排序使用完整字段，数字／十六进制按数值排序，其他内容按字符串排序。
-- `h` 打开导出记录目录，浏览历史 CSV／JSON；它是独立功能，已从插件菜单移出。历史内容使用相同筛选、排序、详情和分页功能；`e` 导出全部筛选结果，不受当前页影响。
-- 内容表格上方按需显示搜索框，按 `/` 编辑；长查询保持光标可见，并可点击确认／撤销。
-- 底部按钮统一使用“操作名 快捷键”格式，例如“搜索 /”“运行插件 F5”“前一页 [”，按钮间留一个空格。键盘分发、可用性判断、命令面板、资源库工具栏和分析页底部全部来自 `ts/src/actions.ts` 的同一张动作表：每个动作有唯一的标识、标签和按键，各界面只按放置位置挑选条目，因此不会出现“命令面板里有、工具栏里没有”或同一个键在两处实现出不同提示的情况。分析页底部随焦点变化：插件区提供运行、插件搜索和重跑，内容区提供搜索、详情、排序、导出、行数和翻页，详情区提供滚动，镜像信息区提供导入与识别，资源库镜像区提供导入／选用。窄窗口放不下时不会静默丢弃按钮，而是以 `更多 ?` 结尾，命令面板按当前页面、区域和资源区筛选，并可用 `cache`、`dump`、`pid` 等英文词检索；`l` 查看最近 200 条任务消息和完成／失败记录。读取总量已知时显示百分比进度条，总量未知时显示处理状态、已用时间和取消入口。
-- 远程下载缓存使用“可读名称＋仓库完整路径的 SHA256 后缀”，兼容旧缓存；保存到本地库的文件使用 ISF 内容 SHA256 后缀。同名镜像的清单显示不同路径标识；识别记录区分规范路径和文件元数据，分析缓存仍绑定镜像内容 SHA256、ISF SHA256 和引擎版本。不同内容的同名镜像不会共用结果，相同内核的符号可以安全共享；不使用时间或 MD5 来判断缓存有效性。
+- 高亮行表示正在浏览，“●已选用”表示当前分析对象。`i`／`y` 导入镜像／符号，`a` 导入当前类型；Space 选用，Enter 选用并进入分析，`d` 查看详情，Delete 移出清单。导入只登记路径，移出只修改项目清单，原文件始终保留。
+- 选用镜像后自动识别系统并精确匹配本地符号：唯一候选自动选用；多个候选（包括 ZIP 内各成员）由用户选择。系统不明确时按 `S` 手动选择。
+- `m` 重试本地匹配，`M` 查询、下载并选用远程精确符号，多候选先选择。两者始终作用于**当前选用**的镜像，列表里高亮另一个镜像不会改变匹配对象。
+- 匹配结果绑定镜像与符号文件元数据，未变化时复用，切换镜像后清除。
+- 搜索框只在编辑或已有查询时出现；`/` 搜索当前列表。
 
-批处理与导出：
+匹配规则：Linux 按完整 banner 匹配 [Abyss-W4tcher/volatility3-symbols](https://github.com/Abyss-W4tcher/volatility3-symbols) 的索引；Windows 按 Microsoft PDB 名称、GUID 和 Age 精确匹配。没有候选会明确说明，**从不按相近版本猜测**。
+
+### 远程索引
+
+- `g` 获取完整索引，`/` 在引擎中检索整个索引：每次返回前 500 项并显示匹配总数；内核版本以搜索词开头的优先，其次整词匹配，再按版本从新到旧。
+- 索引条目可以是仓库路径，也可以是该仓库 Releases 资产的完整 URL（当前上游格式），都规范化为仓库相对路径；其他来源的 URL 一律拒绝。只列出原生引擎能转换的 Linux x86_64／ARM64 条目。
+- 解析后的索引按文件版本保留在内存中；状态行显示条目数与更新时间。
+- `w` 只下载不选用，详情中的 `L` 定位本地副本，`t` 切换本地／远程，`r` 刷新。离线时读取缓存索引，没有完整匹配时显示 0 个候选。
+
+### 生成符号
+
+仓库没有对应构建时，`K` 打开“生成当前镜像符号表”：
+
+- Kali 6.8.11-1kali2 ARM64 自动从 [Kali 官方归档](https://old.kali.org/kali/pool/main/l/linux/) 获取调试包与内核配置，只提取 ELF／config，不安装 deb、不执行维护脚本。
+- 其他 Linux 构建填写匹配的调试 ELF、内核配置与 dwarf2json 路径。
+- 生成后校验完整 banner，保存到本地符号库并选用，不自动运行分析。详见 [6.3](#63-符号识别下载与生成)。
+
+### 文件选择器
+
+分析页 `i`／`y`、资源库 `a` 或点击第二行的路径，会打开配置目录的文件弹窗，列出该目录的实际文件与子目录：
+
+| 按键 | 作用 |
+| --- | --- |
+| ↑↓ | 选择 |
+| Enter／→ | 打开目录；文件条目用已选对象进入分析 |
+| ←／Backspace | 上级目录 |
+| Space／Shift+Space | 选用文件或当前目录／选用当前符号目录 |
+| Tab | 在镜像与符号目录间切换 |
+| `w` | 返回当前类型的配置目录 |
+| `p` | 手动输入路径 |
+| `d` | 文件详情 |
+
+## 4. 分析、结果与导出
+
+### 运行插件
+
+- 左侧菜单每行一个插件，标题显示当前类别。点击插件或 Enter：已有结果立即显示，没有当前参数的结果则自动运行。
+- Ctrl+R 明确运行当前插件与参数草稿，`r` 跳过结果缓存强制重跑。
+- `P` 编辑适用参数：PID 只对支持的插件出现，hive／key 用于 printkey，搜索模式用于模式搜索插件；Windows 下 Ctrl+T 展开架构与分页附件高级配置。
+- 每个插件与参数组合各自保存结果，以及筛选、排序、选中行和横向位置。
+
+### 任务
+
+- 同一时刻只有一个后台任务。浏览资产、已有结果或切换页面不打断任务。
+- 点击尚无结果的插件或选用新对象，会取消当前任务，等线程退出后只执行最后一次请求。结果绑定实际执行的参数快照，旧任务的事件不会更新新对象。
+- 进度已知时显示百分比，未知时显示阶段、已用时间与取消入口；`l` 查看最近 200 条任务消息。
+- 失败可修复参数、路径或在线模式后重试。部分结果和诊断可以查看、导出，但不进入成功缓存。
+
+### 浏览结果
+
+- 结果标题显示插件与完整／部分／历史状态，底边显示筛选数量与可见行范围。
+- `/` 实时筛选（Esc 撤销），`s` 选择排序列（再选同列反转），数字与十六进制按数值排序。
+- `[`／`]` 或 PgUp／PgDn 翻页；`n` 设置每页行数（1–10000，`auto`／`0` 自动填满）。终端变小时实际行数不超过可见高度，翻页不会跳过看不到的行。
+- 短列按内容收紧，长字段限宽；Alt+←/→ 横向滚动，`d` 查看完整字段。
+- `pstree` 显示可展开的进程树，←／→ 折叠／展开。
+- 无搜索匹配、正常空结果和不完整分析分别有说明；`v` 查看全部诊断。
+
+### 导出与历史
+
+- `e` 导出全部筛选结果（不受当前页影响，包括折叠树内的匹配行）为 CSV 或 JSON。导出路径可在弹窗中修改，同名文件原子替换。
+- `h` 浏览导出目录中的历史 CSV／JSON，使用相同的筛选、排序、详情和分页。
+- 每次成功导出都会在缓存中留下**导出记录**（含导出文件的本地副本），可在缓存页重新打开，见 [9.3](#93-导出记录)。
+
+### Dump
+
+`D` 打开转储表单：Linux 提供 Process／Range／ELF，Windows 提供 Process／Range／PE，用 Alt+1／2／3 切换模式，Tab／Shift+Tab 切换字段。结果行含 PID 时自动预填，仍需点击“开始转储”或 Ctrl+Enter 明确执行；Esc 取消。默认目录为导出目录下的 `dumps/`。详见 [7.4](#74-dump)。
+
+## 5. 快捷键与鼠标
+
+所有按键、标签、命令面板、工具栏与底部按钮来自同一张动作表（`ts/src/actions.ts`），因此不会出现“面板里有、工具栏里没有”的情况。`?`／Ctrl+P 打开命令面板，可按空格分隔多个词搜索，支持 `cache`、`dump`、`pid` 等英文词。
+
+### 全局
+
+| 按键 | 操作 |
+| --- | --- |
+| `1` `2` `3`／Ctrl+←→ | 资源库／分析／缓存 |
+| Ctrl+PgUp／Ctrl+PgDn／Ctrl+W | 切换／关闭顶部页面标签 |
+| `?`／Ctrl+P | 命令面板 |
+| `H` | 帮助与完整快捷键 |
+| `,` | 设置：目录、分页、在线模式、界面主题 |
+| `S` | 选择分析系统（自动／Linux／Windows） |
+| `o` | 在线／离线 |
+| `i`／`y` | 选择镜像／本地符号 |
+| `m`／`M` | 当前镜像本地匹配／远程精确匹配 |
+| `b` | 无需 ISF 识别内核 banner |
+| `c`／`3` | 缓存页 |
+| `l`／`h`／`v` | 任务日志／历史导出／诊断 |
+| Esc | 关闭弹窗；分析页先清除筛选，再取消任务 |
+| `q`／Ctrl+C | 退出（任务运行中 `q` 需按两次）／立即退出 |
+
+### 资源库
+
+| 按键 | 操作 |
+| --- | --- |
+| Tab／Shift+Tab | 镜像／本地库／远程索引 |
+| Space／Enter | 选用／选用并进入分析 |
+| `a`／Delete | 导入当前资产／移出清单（原文件保留） |
+| `d`／`/`／`r` | 详情／搜索／刷新 |
+| `t`／`g`／`w`／`z` | 本地↔远程／获取索引／仅下载／全部↔匹配 |
+| `K` | 生成当前镜像符号表 |
+| `x` | 进入分析 |
+
+### 分析
+
+| 按键 | 操作 |
+| --- | --- |
+| Tab／Shift+Tab | 切换区域（镜像信息、插件、结果、详情） |
+| ↑↓／`j` `k`、PgUp／PgDn、Home／End | 导航 |
+| Enter | 插件区运行当前插件，结果区展开树或打开详情 |
+| `p`／`R`／Ctrl+R／`r` | 搜索插件／运行／运行草稿／强制重跑 |
+| `P`（Windows 表单内 Ctrl+T） | 参数（高级配置） |
+| `/`／`s`／`n`／`[` `]` | 筛选／排序／每页行数／翻页 |
+| `d` | 字段详情；↑↓、PgUp／PgDn、Home／End 滚动，`d`／Esc 关闭 |
+| ←／→ | 折叠／展开进程树 |
+| Alt+←／Alt+→ | 横向滚动 |
+| `e`／`D` | 导出／Dump |
+
+### 缓存页
+
+| 按键 | 操作 |
+| --- | --- |
+| ←→／Tab | 在范围列表与文件列表间切换 |
+| Space／`x` | 勾选范围／清理已勾选（再按一次确认） |
+| Delete | 删除当前条目（再按一次确认） |
+| Enter／`r` | 重新打开导出记录／刷新 |
+
+### 输入框
+
+Ctrl+U 清空、Ctrl+A 全选、←→／Home／End 移动光标、Delete 删除；支持 Unicode 与终端粘贴。输入框默认选中原路径，直接输入即可替换。
+
+### 鼠标
+
+终端需支持 SGR 鼠标上报（xterm、iTerm2、Windows Terminal、tmux 均可）；不支持时一切仍可用键盘完成。
+
+- **点击**：页面与页面标签、系统选择、资源列表条目、第二行的镜像／符号路径、插件、结果行、表头（排序，再点反转）、进程名称（展开／折叠）、工具栏按钮、对话框的每一行与按钮。点击模态外部不会穿透到页面。
+- **中键**：关闭页面标签。
+- **滚轮**：结果区每格移动 1 行，不按页边界跳动；列表、菜单、详情和缓存列表同样可滚动。
+- **滚动条**：点击轨道跳转，按住滑块拖动；拖动时指针离开轨道也不中断。
+- **右键**：取消弹窗或当前任务。
+
+## 6. 命令行
+
+### 6.1 分析与导出
 
 ```sh
 zero analyze --image images/linux-sample-1.bin.gz --symbols symbols/linux.zip \
   --plugin pslist --output processes.json
 zero analyze --image images/linux-sample-1.bin.gz --symbols symbols/linux.zip \
   --plugin lsmod --output modules.csv
-# Recover in-memory Bash history
+# 内存中的 Bash 历史
 zero analyze --image images/linux-sample-1.bin.gz --symbols symbols/linux.zip \
   --plugin bash --output history.json
-# Dump only PID 1; binaries and manifest have separate output parameters
+zero --offline analyze --image images/linux-sample-1.bin.gz --symbols symbols/linux.zip \
+  --plugin iomem --output exports/iomem.json
+```
+
+- 多个符号匹配时 CLI 列出候选标签，用 `--symbol-choice '完整候选标签'` 选择。
+- `--no-cache` 强制重新分析。
+- 只有完整结果返回成功；部分结果仍会导出，但返回非零状态并输出诊断，且不写入成功缓存。
+- JSON 保留完整性、诊断、banner、符号来源与页表地址；CSV 只保存表格字段，诊断在终端显示。
+- `enable_cache` 开启时，`--output` 的每次导出都会写一条导出记录；保存失败只提示“导出记录未保存”，不影响导出本身。
+
+### 6.2 Dump
+
+```sh
+# 只转储 PID 1；二进制目录与清单分别指定
 zero dump --image images/linux-sample-1.bin.gz --symbols symbols/linux.zip \
   --mode process --pid 1 --dump-dir exports/dumps --output dump-index.csv
-# Dump an explicit user virtual address range (obtain the range with maps first)
+# 指定用户虚拟地址范围（先用 maps 获取范围）
 zero dump --image images/linux-sample-1.bin.gz --symbols symbols/linux.zip \
   --mode range --pid 1 --start 0x608000 --end 0x609000 \
   --dump-dir exports/dumps --output range.json
-# Export ELF-header-containing mappings of one process
+# 导出含 ELF 头的映射
 zero dump --image images/linux-sample-1.bin.gz --symbols symbols/linux.zip \
   --mode elf --pid 1 --dump-dir exports/dumps --output elf-index.csv
 ```
 
-TUI 插件列表只列分析插件，转储统一放在 `dump` 功能中，用 `D` 打开。CLI 推荐使用 `dump --mode process|range|elf`，必填 PID、转储目录与清单输出；兼容原 `analyze --plugin procdump|memdump|elfdump` 调用。
+推荐使用 `dump --mode process|range|elf`；原 `analyze --plugin procdump|memdump|elfdump` 调用保持兼容。
 
-Linux 的 `--plugin` 支持 `pslist`、`pstree`、`lsmod`、`psaux`、`envars`、`maps`、`lsof`、`sockstat`、`netscan`、`banners`、`pwd`、`pscred`、`threads`、`mountinfo`、`check_creds`、`dmesg`、`systeminfo`、`elfs`、`bash`、`malfind`、`psxview`、`check_modules`、`check_syscall`、`psstate`、`capabilities`、`fdsummary`、`procdump`、`memdump`、`elfdump`、`iomem`、`ioports`、`ptrace`、`keyboard_notifiers`、`check_exec`、`check_idt`、`tty_check`、`hidden_modules`、`library_list`、`pidhashtable`、`vmcoreinfo`、`ip_addr`、`ip_link`、`check_afinfo`、`kthreads`、`netfilter`、`tracepoints`、`ftrace`、`ebpf`、`boottime`、`pagecache`、`perf_events`、`vmayarascan`，共 52 个。进程字段为 PID、TGID、PPID、Name、Address，PID 0 不进入结果；模块字段为 Name、Base、Size，大小以字节计。`pstree` 导出同样的完整进程字段，PPID 表达父子关系，TUI 显示可展开树。地址是完整虚拟地址，模块 Base 是 `module_core` / `core_layout.base`，Size 是整个核心内存区域大小。
+### 6.3 符号识别、下载与生成
 
-新增分析字段与范围：
+```sh
+# 返回内核 banner、仓库路径和下载链接
+zero symbols --image images/linux-sample-1.bin.gz --output symbols-match.json
+# 下载精确匹配到私有缓存；--refresh 强制刷新索引
+zero symbols --image images/linux-sample-1.bin.gz --download --refresh
+# 不指定 --symbols 时使用设置路径，并自动匹配下载缓存／仓库
+zero analyze --image images/linux-sample-1.bin.gz --plugin threads --output threads.json
+# 已下载匹配的 ISF 后可完全离线分析
+zero --offline analyze --image images/linux-sample-1.bin.gz --plugin pscred --output credentials.json
+
+# 生成 Kali ARM64 符号；输出 .zero/rust/symbols/isf/<摘要>.json.xz
+zero symbols-generate --image images/kali.raw --kali
+# 其他内核显式提供调试 ELF、内核 config 与 dwarf2json
+zero symbols-generate --image sample.raw --elf vmlinux --config kernel.config --tool /path/to/dwarf2json --offline
+```
+
+- 索引缓存 `.zero/rust/symbols/banners_plain.json`：在线模式每 24 小时更新，断网时使用有效的旧索引。
+- ISF 存放在 `.zero/rust/symbols/isf/`，旁边的 `.source.json` 记录完整 banner、仓库路径与下载 URL。
+- 下载校验 HTTPS、索引路径、ISF 格式与完整 banner，分析前继续验证页表。下载与解压上限各 256 MiB，连接超时 10 秒，总超时 90 秒，Esc 可中断；取消或失败不提交半个文件。
+- 远程下载缓存命名为“可读名称 + 仓库路径 SHA256 后缀”；保存到本地库的文件使用 ISF 内容 SHA256 后缀。
+- `--kali` 先复用 `symbols/` 或缓存中的精确 ISF。没有时，首次准备需要系统 `curl`、`ar`、`tar`、`git` 与 Go；dwarf2json 固定在 `9f14607e0d339d463ea725fbd5c08aa7b7d40f75`，在独立构建目录编译，不作为运行时插件。生成的 ISF 记录 ELF／config／工具摘要、准确 syscall 表长度与页表配置，banner 不一致即拒绝。`--offline` 不获取任何缺失文件。
+
+### 6.4 缓存
+
+```sh
+zero cache list
+zero cache clear --scope results,identification --dry-run
+zero cache clear --scope results,identification --yes
+# 范围：results、exports、identification、images、symbols、dumps 或 all
+```
+
+## 7. Linux 插件参考
+
+共 52 个插件：`pslist`、`pstree`、`lsmod`、`psaux`、`envars`、`maps`、`lsof`、`sockstat`、`netscan`、`banners`、`pwd`、`pscred`、`threads`、`mountinfo`、`check_creds`、`dmesg`、`systeminfo`、`elfs`、`bash`、`malfind`、`psxview`、`check_modules`、`check_syscall`、`psstate`、`capabilities`、`fdsummary`、`procdump`、`memdump`、`elfdump`、`iomem`、`ioports`、`ptrace`、`keyboard_notifiers`、`check_exec`、`check_idt`、`tty_check`、`hidden_modules`、`library_list`、`pidhashtable`、`vmcoreinfo`、`ip_addr`、`ip_link`、`check_afinfo`、`kthreads`、`netfilter`、`tracepoints`、`ftrace`、`ebpf`、`boottime`、`pagecache`、`perf_events`、`vmayarascan`。
+
+TUI 插件菜单只列分析插件，转储统一在 `D` 中。这些都是本地 ISF 驱动的 Rust 实现，不执行 Volatility Python 插件。
+
+### 7.1 字段
+
+进程（`pslist`／`pstree`）字段为 PID、TGID、PPID、Name、Address，PID 0 不进入结果；`pstree` 用 PPID 表达父子关系。模块（`lsmod`）字段为 Name、Base（`module_core`／`core_layout.base`）、Size（整个核心内存区域，字节）。地址均为完整虚拟地址。
 
 | 插件 | 字段 |
 | --- | --- |
@@ -111,6 +347,7 @@ Linux 的 `--plugin` 支持 `pslist`、`pstree`、`lsmod`、`psaux`、`envars`�
 | check_modules | Name、Address、Start、End、ModuleList、Sysfs、Reason |
 | check_syscall | Table、Index、Target、Symbol、Owner、Reason |
 | check_idt | Index、Address、Symbol、Owner、Present、Reason |
+| check_exec | 匿名主程序代码、不可执行代码、映射空隙与主程序文件不一致的线索 |
 | tty_check | Name、Address、Symbol、Owner、Reason |
 | hidden_modules | Name、Address、Start、End、State、Reason |
 | library_list | PID、Name、LoadAddress、Path |
@@ -131,246 +368,100 @@ Linux 的 `--plugin` 支持 `pslist`、`pstree`、`lsmod`、`psaux`、`envars`�
 | psstate | PID、Name、State、ExitState、Flags |
 | capabilities | PID、Name、Inheritable、Permitted、Effective、Bounding、CredAddress |
 | fdsummary | PID、Name、Total、Regular、Sockets、Pipes |
-| iomem / ioports | Name、Start、End、Depth、Flags、Address |
+| iomem／ioports | Name、Start、End、Depth、Flags、Address |
 | ptrace | Process、PID、TID、TracerTID、TraceeTID、Flags |
 | keyboard_notifiers | Address（回调）、Module、Symbol、Priority、NotifierAddress |
-| procdump / memdump / elfdump | PID、Name、Start、End、Size、SHA256、File |
+| procdump／memdump／elfdump | PID、Name、Start、End、Size、SHA256、File |
 
-`psstate` 输出 ISF 中的进程状态、退出状态及标志原始 64 位十六进制值，不套用其他内核版本的位定义。`capabilities` 读取凭据中的四种 capability 位掩码；`fdsummary` 按进程汇总 FD，包含零 FD 进程，重复引用分别计数，其他文件类型只计入 Total。FD 读取或路径解析失败会保留诊断、标记部分结果。
+### 7.2 与 Volatility 3 的对应
 
-新增三个与 Volatility 3 对齐的 Rust 原生分析，以及一个资源树扩展：
-
-| Zero | Volatility 对应功能 | 解析范围 |
+| Zero | Volatility 3 | 解析范围 |
 | --- | --- | --- |
-| `iomem` | [Volatility 3 linux.iomem](https://volatility3.readthedocs.io/en/latest/volatility3.plugins.linux.iomem.html) | 从 `iomem_resource` 遍历资源树，类似 `/proc/iomem` |
-| `ioports` | 本项目扩展（复用 `iomem` 的资源树机制，无官方同名插件） | 从 `ioport_resource` 遍历 I/O 端口资源树；ARM64 可能只有少量根资源 |
-| `ptrace` | [Volatility 3 linux.ptrace](https://volatility3.readthedocs.io/en/latest/volatility3.plugins.linux.ptrace.html) | 包含非组长线程，输出 tracer 与 tracee；正常无跟踪关系为空表 |
-| `keyboard_notifiers` | [Volatility 3 linux.malware.keyboard_notifiers](https://volatility3.readthedocs.io/en/latest/volatility3.plugins.linux.malware.keyboard_notifiers.html) | 遍历键盘通知链，显示回调及已知内核／已加载模块归属 |
-| `check_idt` | Volatility 3 linux.malware.check_idt | 解码 x86_64 `idt_table` 每个门的处理函数地址，归属内核代码、内核 init 代码或已加载模块；ARM64 明确报告不支持 |
-| `tty_check` | Volatility 3 linux.malware.tty_check | 遍历 `tty_drivers` 的已打开 TTY，检查行规程 `receive_buf` 的归属 |
-| `hidden_modules` | Volatility 3 linux.malware.hidden_modules | 在模块内存范围内按 `mkobj.mod` 自引用雕刻 `struct module`，报告不在 `modules` 链表中的模块 |
-| `pidhashtable` | Volatility 3 linux.pidhashtable | 从 PID 索引（IDR xarray 或旧版 pid_hash）列出任务，独立于 tasks 链表，按 PID 排序 |
-| `vmcoreinfo` | Volatility 3 linux.vmcoreinfo | 读取 `vmcoreinfo_data`（4.15 起为指针）中的 KEY=VALUE 记录 |
-| `ip_addr` | Volatility 3 linux.ip.Addr | 遍历 `net_namespace_list`（旧内核只有 `init_net`）中每个网卡的 IPv4 `ifa_list` 与 IPv6 `addr_list` |
-| `ip_link` | Volatility 3 linux.ip.Link | 每个网卡的 MAC、operstate、MTU 与接口标志 |
-| `check_afinfo` | Volatility 3 linux.malware.check_afinfo | 检查 `tcp/udp/udplite` 各 `*_seq_afinfo` 的 `seq_fops`（llseek/read/write/open/release）与 `seq_ops.show`；4.18 起内核已无该结构，明确报告不支持 |
-| `kthreads` | Volatility 3 linux.kthreads | 列出 PF_KTHREAD 任务；布局含 `kthread.threadfn` 时经 `worker_private`／`set_child_tid` 归属线程函数，旧内核标为 ThreadFnNotInLayout |
-| `netfilter` | Volatility 3 linux.malware.netfilter | 旧内核遍历全局 `nf_hooks[协议][hook]` 链表；4.13 起遍历各命名空间 `netns_nf` 的 `nf_hook_entries`，优先级取自尾随的 `nf_hook_ops` |
-| `tracepoints` | Volatility 3 linux.tracing.tracepoints | 遍历内建 `__tracepoints_ptrs`，列出已挂接的探针；模块自带的 tracepoint 未覆盖 |
-| `ftrace` | Volatility 3 linux.tracing.ftrace | 遍历 `ftrace_ops_list` 至 `ftrace_list_end` 的回调 |
-| `perf_events` | Volatility 3 linux.tracing.perf_events | 遍历每个进程的 `perf_event_list`，输出事件类型、config 与溢出处理函数归属 |
-| `vmayarascan` | Volatility 3 linux.vmayarascan（不执行 YARA 规则） | 在每个进程的可读 VMA 中搜索 `--pattern` 指定的字节模式 |
-| `ebpf` | Volatility 3 linux.ebpf | 遍历 `prog_idr`，输出程序 ID、名称、类型与 JIT 入口 |
-| `boottime` | Volatility 3 linux.boottime | 3.x 用 `-(wall_to_monotonic + total_sleep_time)`，3.17 起用 `tk_core.timekeeper` 的 `offs_real - offs_boot` |
-| `pagecache` | Volatility 3 linux.pagecache.Files | 遍历 `super_blocks` 与各自的 `s_inodes`，输出缓存页数和相对文件系统根的路径；不导出文件内容 |
-| `library_list` | Volatility 3 linux.library_list | 列出进程文件映射中 ET_DYN 的共享库（每个路径一次，排除主程序），不读取 ld.so 的 link_map |
+| `iomem` | [linux.iomem](https://volatility3.readthedocs.io/en/latest/volatility3.plugins.linux.iomem.html) | 从 `iomem_resource` 遍历资源树，类似 `/proc/iomem` |
+| `ioports` | 本项目扩展 | 从 `ioport_resource` 遍历 I/O 端口资源树；ARM64 可能只有少量根资源 |
+| `ptrace` | [linux.ptrace](https://volatility3.readthedocs.io/en/latest/volatility3.plugins.linux.ptrace.html) | 包含非组长线程，输出 tracer 与 tracee；无跟踪关系为空表 |
+| `keyboard_notifiers` | [linux.malware.keyboard_notifiers](https://volatility3.readthedocs.io/en/latest/volatility3.plugins.linux.malware.keyboard_notifiers.html) | 遍历键盘通知链，显示回调及内核／模块归属 |
+| `check_idt` | linux.malware.check_idt | 解码 x86_64 `idt_table` 每个门的处理函数归属；ARM64 明确报告不支持 |
+| `tty_check` | linux.malware.tty_check | 遍历 `tty_drivers` 的已打开 TTY，检查行规程 `receive_buf` 归属 |
+| `hidden_modules` | linux.malware.hidden_modules | 在模块内存范围内按 `mkobj.mod` 自引用雕刻 `struct module`，报告不在 `modules` 链表中的模块 |
+| `pidhashtable` | linux.pidhashtable | 从 PID 索引（IDR xarray 或旧版 pid_hash）列出任务，独立于 tasks 链表 |
+| `vmcoreinfo` | linux.vmcoreinfo | 读取 `vmcoreinfo_data`（4.15 起为指针）中的 KEY=VALUE |
+| `ip_addr` | linux.ip.Addr | 遍历 `net_namespace_list`（旧内核只有 `init_net`）中每个网卡的 IPv4／IPv6 地址 |
+| `ip_link` | linux.ip.Link | 每个网卡的 MAC、operstate、MTU 与接口标志 |
+| `check_afinfo` | linux.malware.check_afinfo | 检查 `tcp/udp/udplite` 的 `seq_fops` 与 `seq_ops.show`；4.18 起无该结构，明确报告不支持 |
+| `kthreads` | linux.kthreads | 列出 PF_KTHREAD 任务；布局含 `kthread.threadfn` 时归属线程函数，否则标为 ThreadFnNotInLayout |
+| `netfilter` | linux.malware.netfilter | 旧内核遍历全局 `nf_hooks`；4.13 起遍历各命名空间的 `nf_hook_entries` |
+| `tracepoints` | linux.tracing.tracepoints | 遍历内建 `__tracepoints_ptrs` 的已挂接探针；模块自带 tracepoint 未覆盖 |
+| `ftrace` | linux.tracing.ftrace | 遍历 `ftrace_ops_list` 至 `ftrace_list_end` |
+| `perf_events` | linux.tracing.perf_events | 遍历每个进程的 `perf_event_list` |
+| `vmayarascan` | linux.vmayarascan（不执行 YARA） | 在可读 VMA 中搜索 `--pattern` 字节模式，见 [8.3](#83-内存模式搜索) |
+| `ebpf` | linux.ebpf | 遍历 `prog_idr`，输出程序 ID、名称、类型与 JIT 入口 |
+| `boottime` | linux.boottime | 3.x 用 `-(wall_to_monotonic + total_sleep_time)`，3.17 起用 `tk_core.timekeeper` 的 `offs_real - offs_boot` |
+| `pagecache` | linux.pagecache.Files | 遍历 `super_blocks` 与 `s_inodes`，输出缓存页数和路径；不导出文件内容 |
+| `library_list` | linux.library_list | 列出文件映射中 ET_DYN 共享库（每个路径一次），不读取 ld.so 的 link_map |
 
-`check_idt`、`tty_check` 与 `check_syscall` 共用同一张代码归属表：内核 `_stext.._etext`、内核 init 代码 `_sinittext.._einittext`（Reason 为 KernelInitText，常见于保留中断向量仍指向早期处理函数）以及已加载模块的代码区。`check_idt` 的表长优先取 ISF 数组长度，长度为 0 时按架构固定的 256 项读取。`hidden_modules` 的扫描范围优先取 ISF 的 `mod_tree` 边界，x86_64 退回 MODULES_VADDR..MODULES_END；ARM64 若缺少 `mod_tree` 只扫描已列出模块的地址跨度，并标记为部分结果。扫描读取上限 256 MiB、跨度上限 2 GiB；候选必须状态合法、名称可打印且代码范围有效。`library_list` 的路径解析失败显示 `[unresolved]` 并标记部分结果。Debian 3.2 样本：`check_idt=256`（244 KernelText、12 KernelInitText）、`tty_check=7`、`hidden_modules=0`，均为完整结果；`library_list` 因用户页缺页为部分结果；`pidhashtable=316`（与 psxview 一致，含线程）、`vmcoreinfo=47`、`ip_addr=4`（lo 与 eth0 的 IPv4／IPv6）、`ip_link=2`；`check_afinfo=30`（均为 KernelText）、`kthreads=39`（3.2 无 threadfn）、`netfilter=0`（未加载 netfilter 模块）、`tracepoints=0`（202 个 tracepoint 均未挂探针）、`boottime` 为 2014-06-24 10:22:33 UTC、`pagecache=21586`、`perf_events=0`（无进程持有 perf 事件），均为完整结果；`ftrace`、`ebpf` 在 3.2 上明确报告不支持。
+### 7.3 解析细节
 
-这些是本地 ISF 驱动的实现，不执行 Volatility Python 插件。资源 Start／End 是**物理资源地址或端口号**，End 包含边界；Address 为结构的虚拟地址，Depth 从根的 0 开始，Flags 保留原始掩码。资源树限制 100 万项、1024 层，字符串限制 4096 字节；循环、缺页、倒置范围和达到上限均标记部分结果，保留可读分支。`ptrace` 的 PID 是 TGID，TID 为线程 ID，未关联一端显示 `[none]`，Flags 输出原始掩码，便于跨内核核对，不将 tracer 误用 `real_parent` 解析。`keyboard_notifiers` 的 Priority 为有符号整数；Symbol 仅根据已知内核代码范围内的 ISF 符号定位，模块内无 ISF 函数名时显示 `[unknown]`，不猜测相邻内核符号。这里只检查已加载模块链表，不进行隐藏模块扫描，回调出现本身不表示恶意。无通知回调为空表；缺少必要结构／符号会明确报告不支持。
+**进程与内存**
 
-CLI 示例（TUI 按 `p` 搜索同名插件）：
+- `psaux`／`envars` 将 `mm.pgd` 经内核页表转换后读取进程用户空间。argv 按 NUL 分隔；内核线程显示 `[名称]`／`KernelThread`。环境变量按第一个 `=` 拆分。argv 与环境区各限 1 MiB。
+- `threads` 遍历线程组（含组长）；`psstate` 输出 ISF 中状态、退出状态与标志的原始 64 位值，不套用其他内核的位定义；`capabilities` 读取凭据中的四种 capability 掩码。
+- `check_creds` 汇总多个进程共享的 cred 指针，只是核查线索。
+- `maps` 遍历 VMA 链表或 maple tree，权限为 `rwx` 加 `s`／`p`，匿名区域显示 `[anonymous]`。单进程 VMA／FD 各限 100 万项。
+- `elfs` 检查每个可读 VMA 起始处的 ELF64 EXEC／DYN 头，Entry 为原始 e_entry；`malfind` 列出可执行且可写或匿名的映射及前 32 字节。
+- `bash` 限 comm=bash 的进程，用 timestamp 锚定 HIST_ENTRY，再恢复相邻指针数组中无时间戳的命令；不读取磁盘历史文件。每进程扫描限 256 MiB，字符串限 64 KiB，邻接数组限 4096 项。旧命令名 `history` 是兼容别名。
+- `psxview` 对照 tasks、PID hash／IDR 与线程组，非组长线程正常显示 ThreadOnly；`check_modules` 对照模块链表与 module_kset；`check_syscall` 使用 ISF／调试 ELF 的准确表长度，不猜测。
 
-```sh
-zero --offline analyze --image images/linux-sample-1.bin.gz --symbols symbols/linux.zip \
-  --plugin iomem --output exports/iomem.json
-zero --offline analyze --image images/kali.raw --symbols symbols/kali-6.8.11-arm64.json.xz \
-  --plugin ptrace --output exports/ptrace.csv
-```
+**文件与网络**
 
-本地全字段核对：Debian `iomem=116`、`ioports=65`；Kali ARM64 `iomem=50`、`ioports=2`。两个样本 `ptrace=0`、`keyboard_notifiers=0`，均为正常空表；Kali ptrace 保留原有父进程缺失提示。实际 tracer／tracee、回调归属与负优先级另有合成测试覆盖。四个结果的完整字段已由 `tests/reference/debian.py` 独立只读解析核对，并写入两套验收基线；`make acceptance` 检查行摘要、诊断、导出及缓存行为。独立复核时给该脚本传入 `--plugins iomem,ioports,ptrace,keyboard_notifiers`，其余镜像／符号／结果前缀参数同下文。
+- `lsof`／`sockstat` 遍历每个进程的 FD，保留多个进程／FD 对同一对象的引用。路径以进程 `fs.root` 为根跨挂载点解析；伪文件显示 `socket:[inode]`、`pipe:[inode]`、`anon_inode:[名称]` 或 `[tmpfs]/名称`。根目录外的已打开文件显示 `[unresolved]` 并标记部分结果。路径限 1024 层。
+- `fdsummary` 按进程汇总 FD（含零 FD 进程），重复引用分别计数。
+- `mountinfo` 按进程的挂载命名空间列出挂载点，保留进程关联。
+- `netscan` 聚焦进程 FD 引用的 TCP／UDP IPv4／IPv6 socket（含监听与 UDP），同一进程的重复引用合并；Unix、Netlink、RAW 等请用 `sockstat`。
+- IPv6 endpoint 为 `[地址]:端口`，端口按网络字节序解析；Unix 抽象名称以 `@` 开头，未绑定为 `[unnamed]`，无对端为 `[none]`。其他 family 只输出基本信息并标注 `UnsupportedFamily`。不扫描隐藏或未被进程引用的 socket。
 
-`bash` 从内存中的 Bash 历史结构恢复带时间戳记录，并从已验证记录邻接的指针数组恢复部分无时间戳命令；不读取磁盘历史文件。插件列表只保留 `bash`；旧命令中的 `history` 作为兼容别名映射到同一插件，结果统一使用 bash 的名称和列。Dump 插件必须显式指定 `--pid` 和 `--dump-dir`；`--output` 仍是 CSV／JSON 清单路径。没有参数时在读取镜像前报错，绝不默认转储全部进程。TUI 按 D 或选择统一 dump 入口打开参数表单，F2／F3／F4 切换 Process／Range／ELF 模式，Tab／Shift+Tab 切换字段，Enter 到下一项，选中“开始转储”后 Enter 或点击按钮执行，也可 Ctrl+Enter 执行；Esc 取消。默认目录是配置的导出目录下 `dumps/`，可修改。
+**内核**
 
-- `procdump`：只导出所选 PID 的可读 VMA；可同时指定 `--start` 和 `--end` 限制范围，保留各 VMA 分段。
-- `memdump`：必须提供 `--start`、`--end`，读取该 PID 的用户虚拟地址范围；地址接受十进制／`0x` 十六进制，End 不包含在范围内。
-- `elfdump`：导出所选 PID 中起始处有有效 ELF 标识的可读 VMA，保留内存中的原始字节。仅提取含 ELF 头的映射，不重建磁盘 ELF 或拼接其他段；不接受地址范围。
+- `dmesg` 支持 Linux 3.2 的旧式 printk 缓冲区（按 `logged_chars`／`log_end` 读取，[内核源码](https://raw.githubusercontent.com/torvalds/linux/v3.2/kernel/printk.c)）与 6.x 的结构化 printk ring，校验提交状态、ID、环绕与记录长度；上限 16 MiB。
+- `check_idt`、`tty_check` 与 `check_syscall` 共用代码归属表：内核 `_stext.._etext`、init 代码 `_sinittext.._einittext`（Reason 为 KernelInitText）与已加载模块代码区。
+- `hidden_modules` 优先用 ISF 的 `mod_tree` 边界，x86_64 退回 MODULES_VADDR..MODULES_END；ARM64 缺少 `mod_tree` 时只扫描已列出模块的跨度并标记部分结果。扫描读取上限 256 MiB、跨度上限 2 GiB。
+- 资源树（`iomem`／`ioports`）的 Start／End 是**物理资源地址或端口号**，End 包含边界；限制 100 万项、1024 层。`ptrace` 的 PID 是 TGID，未关联一端显示 `[none]`。`keyboard_notifiers` 的 Symbol 只按已知内核代码范围内的 ISF 符号定位，否则显示 `[unknown]`。
 
-每次转储最多 256 MiB。输出目录带插件、镜像 SHA256、PID 和运行时间标识，重复执行保留上次证据；清单含完整文件路径、虚拟地址和文件 SHA256。文件原子提交，缺页／取消不留下半截二进制，也不补零伪造缺失字节；失败有 PID／地址诊断。Dump 全部跳过分析结果缓存，转储目录中的证据文件由用户管理。
+**通用边界**
 
-`threads` 遍历线程组，包含组长；`mountinfo` 按进程的挂载命名空间列出挂载点，路径从全局／命名空间根解析，保留不同进程的关联。`check_creds` 汇总不同进程共享的 cred 指针，作为核查线索；共享本身不证明入侵。`dmesg` 支持 Linux 3.2 的旧式 printk 缓冲区，按照 `logged_chars`／`log_end` 读取保留日志（[对应内核源码](https://raw.githubusercontent.com/torvalds/linux/v3.2/kernel/printk.c)）；上限 16 MiB，Kali 6.8 的结构化 printk 从 descriptor／text data ring 读取，并校验提交状态、ID、环绕和记录长度。
+读取失败、循环或达到上限都会带 PID／FD／地址诊断并继续读取其他对象，结果标记为部分。ISF 支持嵌套结构、枚举、位域与柔性数组，字段偏移不做猜测。界面转义控制字符，导出保留原始字符串；非 UTF-8 字节转为 Unicode 替换字符。
 
-`psaux` 和 `envars` 将 `mm.pgd` 经内核页表转换为物理页表，再读取进程用户空间。argv 按 NUL 分隔为命令行；内核线程显示 `[名称]` / `KernelThread`，普通进程为 `OK`。环境变量每项一行，按第一个 `=` 拆分，值中的 `=` 保留。空环境和无映射／无 FD 是正常空结果。
+### 7.4 Dump
 
-`netscan` 聚焦进程 FD 引用的 TCP／UDP IPv4／IPv6 socket，Protocol 为 TCPv4、TCPv6、UDPv4 或 UDPv6。同一进程的重复 socket 引用合并为一行，共享 socket 的不同进程分别保留；Unix、Netlink、RAW 等 socket 请使用 `sockstat`。它包含监听端口和 UDP socket，不扫描无进程 FD 引用的对象或已释放的连接。CLI 使用 `--plugin netscan`，TUI 位于 Network 分类，MCP 使用同名插件。
+- `procdump`：只导出所选 PID 的可读 VMA；可同时指定 `--start`／`--end` 限制范围。
+- `memdump`：必须提供 `--start`、`--end`，地址接受十进制或 `0x` 十六进制，End 不包含在内。
+- `elfdump`：导出起始处有有效 ELF 标识的可读 VMA，保留原始字节，不重建磁盘 ELF。
 
-`maps` 遍历 VMA 链表或现代 maple tree，权限为 `rwx` 加 `s`／`p`，匿名区域显示 `[anonymous]`；FileOffset 是字节偏移。`lsof` 和 `sockstat` 遍历每个进程的 FD，保留多个进程／FD 对同一对象的引用。文件路径跨挂载点解析，以进程 `fs.root` 为根；内核伪文件显示 `socket:[inode]`、`pipe:[inode]`、`anon_inode:[名称]` 或 `[tmpfs]/名称`。根目录外的已打开文件无法给出该进程内的路径，显示 `[unresolved]`，保留其余字段并报告部分结果。
+必须显式指定 `--pid` 与 `--dump-dir`，缺少时在读取镜像前报错，**绝不默认转储全部进程**。每次最多 256 MiB；输出目录带插件、镜像 SHA256、PID 与运行时间，重复执行不覆盖上次证据。清单含文件路径、虚拟地址与文件 SHA256。文件原子提交，缺页／取消不留下半截文件，也不补零伪造缺失字节。Dump 不使用结果缓存，证据文件由用户管理。
 
-网络解析已在 Debian 3.2 x86_64 和 Kali 6.8.11 ARM64 验证，覆盖 IPv4／IPv6 TCP、UDP 和 Unix socket，IPv6 endpoint 为 `[地址]:端口`，端口按网络字节序解析。Unix 抽象名称以 `@` 开头，未绑定为 `[unnamed]`，无对端为 `[none]`，对端为 `sock.sk_socket` 虚拟地址。SocketAddress 为本地 `struct socket` 地址。其他 family 只输出基本信息并标注 `UnsupportedFamily`。不扫描隐藏对象或未被进程 FD 引用的全局 socket；其他内核缺少必需 ISF 字段时明确报不支持。
+### 7.5 页表与架构
 
-argv／环境区各限 1 MiB，单进程 VMA／FD 各限 100 万项，路径限 1024 层。读取失败、循环或达到上限均有 PID、FD 或地址诊断，继续读取其他对象；部分结果不会写入成功缓存。ISF 支持嵌套结构、枚举、位域和柔性数组，字段偏移不作猜测。界面转义控制字符，导出保留原始字符串；非 UTF-8 字节转为 Unicode 替换字符。
+- x86_64：四级页表，4 KiB／2 MiB／1 GiB 页，字段偏移来自 ISF。页表候选由物理 banner 与符号地址差定位；KASLR 偏移从物理 `init_task.real_parent` 自指针推导，再验证完整 banner、`init_task` 与双向链表。支持高物理地址的 LiME（未压缩的 AVML 输出使用该格式）。不支持五级页表。KASLR 有合成回归测试，尚未对 Debian 6.12 实际镜像验收。
+- ARM64：4 KiB 页，39／48-bit VA 的四级／三级页表与 block 映射；ISF 需提供准确的内核配置元数据，已验收 Kali 6.8.11-arm64（48-bit）。
 
-多个符号匹配时，CLI 会列出候选标签，用 `--symbol-choice '完整候选标签'` 选择。`--no-cache` 强制重新分析。CLI 仅对完整结果返回成功；部分结果仍导出，但返回非零状态并输出诊断，且不会写入成功缓存。JSON 保留完整性、诊断、banner、符号来源和页表地址；CSV 仅保存表格字段，完整性诊断在终端显示。
+## 8. Windows 要点
 
-| 快捷键 | 操作 |
-| --- | --- |
-| F2 / F3 / Ctrl+←→ | 切换资源库／分析 |
-| t / g / /（资源库） | 切换本地／远程、获取完整索引、搜索当前列表 |
-| Space / Enter（资源库） | 选用镜像／符号；用已选对象进入分析控制台（详情用 d） |
-| w / L（远程详情） | 下载到 symbols／在本地库定位 |
-| a / Delete（本地资产） | 导入／移出清单，原文件保留 |
-| x（资源库） | 进入分析；点击插件即可运行 |
-| ? / Ctrl+P | 搜索当前页面可用的命令与操作 |
-| n | 输入每页行数；auto / 0 自动填满可用高度 |
-| [ / ] | 结果前一页／后一页 |
-| , / l | 目录与分页设置／任务日志 |
-| Tab / Shift+Tab | 切换页内区域；分析页为顶部、导航、结果及详情面板 |
-| c | 缓存管理，按分类勾选、预览并清理 |
-| g / K | 资源库获取完整索引／生成当前镜像符号表 |
-| Alt+← / Alt+→ | 横向滚动表格 |
-| ↑ / ↓ 或 j / k、PageUp / PageDown、Home / End | 在当前列表／结果区域导航 |
-| Enter | 执行当前焦点操作；插件区当前插件运行，结果区展开树或查看详情 |
-| Ctrl+R | 明确运行当前插件及参数草稿 |
-| d / 底部“详情” | 打开行全部字段；↑↓、PageUp / PageDown、Home / End 滚动，Esc／右键关闭 |
-| ← / → | 折叠 / 展开当前进程 |
-| i / y（分析页） | 浏览镜像／符号配置目录；弹窗内 Tab 切换两目录 |
-| F6 | 选择自动 / Linux / Windows 分析系统；也可点击底部系统按钮 |
-| P / F7（参数表单） | 编辑适用参数／展开 Windows 高级配置，保存后等待运行 |
-| p | 搜索并选择插件，立即显示结果或运行 |
-| b | 无需 ISF 即可识别内核 banner |
-| m / M | 当前镜像 → 本地完整 banner 匹配／远程精确匹配 |
-| D | 打开统一 Dump；窗口内 F2 Process、F3 Range、F4 ELF |
-| o | 切换在线符号匹配／离线模式 |
-| ? | 打开当前页面的命令面板；可搜索和运行操作 |
-| F1 | 帮助与完整快捷键 |
-| v / F8 | 查看全部诊断与最近的失败原因 |
-| / | 全文搜索（实时筛选，Esc 撤销） |
-| s | 选择排序列，再选同列反转顺序 |
-| e | 导出当前全部筛选结果到 CSV / JSON（包含折叠树内的匹配行） |
-| h | 打开导出记录目录，查看历史 CSV／JSON |
-| r / F5 | 重新执行当前分析，跳过结果缓存 |
-| Esc | 关闭弹窗或取消后台任务 |
-| q / Ctrl+C | 退出并取消任务 |
-| Ctrl+u、Ctrl+a、←→、Home / End、Delete | 清空、全选、移动光标与删除；支持 Unicode 和终端粘贴 |
+Windows 插件与样本验收见 [兼容矩阵](compatibility.md)。
 
-支持鼠标：点击镜像／符号路径打开输入框，点击左侧分析项执行或切换，点击结果行选择，点击进程名称展开／折叠，点击表头排序（再次点击反转）。结果区域滚轮每次上下移动 1 行，连续滚动不会按页边界跳动；列表滚轮保留原有导航方式；弹窗内可点击候选项或确认／取消按钮，右键取消弹窗或当前任务。底部按钮可直接点击。分析执行中选择新插件，会自动取消旧任务并切换；Esc 可取消整个切换。符号链接详情关闭后返回候选列表。
+### 8.1 微软符号 404
 
-左侧仅显示 `pslist` 等插件名称，不显示分类前缀；每个插件保留自己的筛选、排序、选中行及滚动位置。160 列且 28 行起，d 打开右侧可滚动字段详情；较窄窗口覆盖结果区，Enter 可查看完整结果与页表信息。分析页顶部显示符号准备状态，准备就绪不表示页表已验证。100 列且 24 行起并排显示插件与结果；其他尺寸随 Tab 切换区域。输入框默认选中原路径，直接输入或粘贴新路径即可替换；从插件选择进入镜像输入后，确认路径会继续执行。界面只在输入、窗口变化或分析进度变化时重绘。后台线程通过事件通道报告摘要、解压、符号扫描和对象遍历进度，取消会在这些阶段检查。正常退出、错误和界面 panic 会恢复终端；分析线程 panic 被捕获并显示为失败。
+精确 PDB 下载返回 HTTP 404 时，程序自动查询 Volatility 官方 Windows 符号 ZIP 中的精确 ISF：用 HTTPS Range 读取目录与目标条目，不整体下载约 801 MiB 的包。校验成功后保存来源记录，之后可离线复用；任务日志可看到兜底过程。官方包也没有对应身份时需要导入精确符号；超时或服务暂不可用可以重试。
 
-运行设置在 `.zero/rust/settings.json`，支持 `layout_version`、`image_dir`、`page_size`（0 为自动）、`export_dir`、`symbols`、`history_dir`、`enable_cache`、`remote_symbols`（默认 true，旧设置文件自动兼容）。`o` 只改变当前 TUI 会话的模式。`~/` 会展开为当前用户目录。导出路径可在弹窗中修改，已有同名导出文件会被原子替换。
+### 8.2 恶意检测线索
 
-缓存与设置：
-
-- gzip 流式解压到 `.zero/rust/`，只有解压完成并校验后才原子提交；取消和损坏输入不产生完成标记。原镜像只读。新会话识别时可直接复用持久化 banner；正式分析前验证解压缓存 SHA256。同一 TUI 会话中复用已验证镜像、完整 banner 和页表；源文件或符号文件元数据改变后重新准备。
-- 原生结果缓存键包含镜像 SHA256、所选 ISF SHA256、分析名称和引擎版本。只缓存完整分析结果。引擎版本为 `native-7`，旧缓存保留但不再复用。旧 CSV 从不用于原生缓存。
-- 设置仅读取 `.zero/rust/settings.json`；不读取或执行旧 Python 配置。项目清单独立于可清理缓存，缓存清理保留设置、清单、原始镜像／符号和用户导出。
-
-
-验证：
-
-```sh
-make check           # fmt、Clippy、合成数据 / UI 测试、release 构建
-make acceptance      # Debian 3.2 + Kali 6.8.11 ARM64，强制重新分析固定字段基线
-# 自定义样本路径（必须仍是同一官方基线样本）
-ZERO_TEST_IMAGE=/path/sample.bin.gz ZERO_TEST_SYMBOLS=/path/linux.zip make acceptance
-```
-
-验收基线是 Debian `3.2.0-4-amd64`，包含 **133 个进程（不含 PID 0）和 79 个模块**。`tests/fixtures/debian-3.2.json` 固定全部字段、页表地址及镜像摘要；验收同时检查链表闭合、父子关系无环。进程字段已与本地 Volatility 3 参考输出逐项交叉验证，完整进程 / 模块字段另经独立只读页表解析核对。大镜像与符号包不提交仓库，普通 `cargo test` 不依赖它们。 本地库匹配逐个文件／ZIP 成员读取并保留诊断：测试 ZIP 中的 CentOS 2.6.18 成员 banner 无效或不完整，界面详情明确显示；Debian 成员仍可精确匹配和分析。
-
-目前支持 x86_64 四级页表及 4 KiB / 2 MiB / 1 GiB 页，字段偏移来自 ISF。页表候选由物理 banner 与符号地址差定位；x86_64 KASLR 偏移候选从物理 `init_task.real_parent` 自指针推导，再使用运行时地址验证完整 banner、`init_task` 和双向链表，验证成功后用于所有符号地址。支持高物理地址的 LiME 镜像；未压缩的 AVML 输出使用该格式。x86_64 KASLR 已有合成 LiME 回归测试，未对 Debian 6.12 实际镜像完成验收。不支持五级页表；无法验证的内核重定位会给出诊断。ARM64 支持 4 KiB、39／48-bit VA 的四级／三级页表及 block 映射；ISF 需提供准确的内核配置元数据，已验收 Kali 6.8.11-arm64（48-bit）。Windows 验收与限制见下文；其他内核与原 Volatility 插件兼容性不保证。
-
-新增插件的全字段基线为 `tests/fixtures/debian-3.2-extended.json`：固定行数、列、全部行的 SHA256 和完整诊断，不将环境变量明文提交仓库。十五个既有插件的所有输出字段已与 `tests/reference/debian.py` 独立只读解析器逐项核对（标准库测试脚本，不执行 Python 插件或旧配置）。可对 `--no-cache` 导出到 `/tmp/zero-{插件}.json` 的结果再次交叉核对：
-
-```sh
-python3 tests/reference/debian.py --image .zero/rust/910f272e5eeecdbf229e648d7b136a6722a11a5000f3995647364339417dfddd.image --symbols symbols/linux.zip
-```
-
-本地样本验收结果：
-
-| 插件 | 行数 | 完整性／诊断 |
-| --- | ---: | --- |
-| psaux | 131 | PID 1、2344 的 argv 用户页缺失，部分结果 |
-| envars | 1411 | PID 1、2344 的环境用户页缺失，部分结果 |
-| maps | 14045 | PID 2388、2974、3482 共 135 个映射路径位于进程根目录外，其余字段保留，部分结果 |
-| lsof | 1293 | 上述三个进程共 10 个 FD 路径位于进程根目录外，其余字段保留，部分结果 |
-| sockstat | 455 | 完整；含 Unix、IPv4／IPv6 TCP／UDP 和其他 family 的基本记录 |
-| banners | 1 | 完整；物理地址为 0x1400070 |
-| pwd | 133 | 完整 |
-| pscred | 133 | 完整 |
-| threads | 316 | 完整 |
-| mountinfo | 1454 | 完整；保留进程／命名空间关联 |
-| check_creds | 0 | 完整；本样本没有跨进程共享 cred 指针 |
-| dmesg | 1445 | 完整；包含 syslog 已读取的保留历史 |
-| psstate | 133 | 完整；全部原始状态／标志字段 |
-| capabilities | 133 | 完整；四种 capability 掩码及 cred 地址 |
-| fdsummary | 133 | 1293 个 FD；继承 lsof 的 10 条路径诊断，部分结果 |
-
-这些已知缺页与根目录外引用由验收明确断言，不能靠忽略诊断变成“完整”。普通测试还覆盖独立页表与跨页区域、空值、内核线程、限制／缺页、VMA 循环、跨挂载根路径、FD 空槽／重复引用、网络字节序、Unix 名称、ISF 类型，以及新增菜单鼠标操作、滚动后行定位、详情、筛选导出和取消。
-
-符号识别与下载：
-
-```sh
-# 返回内核 banner、仓库路径和可直接使用的下载链接
-zero symbols --image images/linux-sample-1.bin.gz --output symbols-match.json
-# 下载精确匹配文件到私有缓存；--refresh 强制刷新索引
-zero symbols --image images/linux-sample-1.bin.gz --download --refresh
-# 不指定 --symbols 时使用设置路径，并自动匹配下载缓存／仓库
-zero analyze --image images/linux-sample-1.bin.gz --plugin threads --output threads.json
-# 已下载匹配的 ISF 后，同样可完全离线分析
-zero --offline analyze --image images/linux-sample-1.bin.gz --plugin pscred --output credentials.json
-```
-
-索引缓存位于 `.zero/rust/symbols/banners_plain.json`，在线模式每 24 小时更新，断网时可使用有效的旧索引；`symbols --refresh` 可立即刷新。ISF 位于 `.zero/rust/symbols/isf/`，旁边的 `.source.json` 保留完整 banner、仓库路径和下载 URL。下载验证 HTTPS、索引路径、ISF 格式与完整 banner，分析前继续验证页表；损坏下载缓存可在线重取，取消／失败不会提交半个文件。下载上限和解压上限各 256 MiB，连接超时 10 秒、总请求超时 90 秒；Esc 可中断下载。无精确匹配项时保留 banner 识别功能，并提示选择本地 ISF，不按版本号猜测符号。仓库匹配与下载缓存离线分析已在本地 Debian 样本上实际验证。
-
-
-缓存管理：
-
-```sh
-zero cache list
-zero cache clear --scope results,identification --dry-run
-zero cache clear --scope results,identification --yes
-# 可选 dumps、images、symbols 或 all；symbols 包括下载文件和本地生成符号的构建缓存
-```
-
-默认只选择分析结果和识别信息。清理前显示文件数量与字节数；TUI 用 Space 勾选、Enter 预览、再次 Enter 执行，Esc／右键撤销。占用缓存的会话持有共享锁，清理使用独占锁；其他会话正在分析时明确拒绝清理。符号链接不跟随，仅删除规定缓存目录中的文件，保留设置、项目清单和用户导出。解压镜像和符号缓存清理后需重新准备。`dumps` 仅清理旧版缓存目录中的转储片段；不会清理新 Dump 插件指定的导出目录。
-
-Banner 的摘要与前缀扫描合并为一轮流式读取，跨块与连续 LiME segment 边界仍能识别。首次识别完成后，候选及物理地址原子保存到 `.zero/rust/identification/`。再次启动、选用相同镜像或执行 `banners` 时，检查源文件与解压文件元数据并重新读取缓存位置的完整 banner，直接复用识别结果，无需全镜像摘要与扫描；TUI、CLI 和 MCP 的符号匹配也使用该缓存。文件变化、缓存损坏或解压文件丢失时自动重新准备；`cache clear --scope identification --yes` 可清除识别信息，`--no-cache` 可强制重新分析。正式分析仍在每个新会话中校验完整内容摘要，分析结果缓存使用重新验证的摘要；实际解析继续验证完整 banner、页表及进程链表。同一会话复用已验证地址空间，源文件／符号元数据变化时失效。
-
-五轮交替热缓存测量：Kali 2 GiB 完整准备中位数 3.740 → 3.599 秒（约 3.8%）；Debian gzip 1.177 → 1.146 秒（约 2.7%，平台与负载影响结果）。这些测量比较摘要与扫描合并前后的完整准备，不代表持久化识别缓存的耗时。同一会话重跑 pslist 约 2–3 ms。可用 `cargo run --release --example benchmark_image -- images/kali.raw` 复测；该程序逐轮检查摘要与全部 banner 一致。
-
-准确生成 Kali ARM64 符号：
-
-```sh
-zero symbols-generate --image images/kali.raw --kali
-# 输出一个 .zero/rust/symbols/isf/<摘要>.json.xz 路径；用 --symbols 指定它
-# 其他内核显式提供匹配的调试 ELF、内核 config 和 dwarf2json 可执行文件
-zero symbols-generate --image sample.raw --elf vmlinux --config kernel.config --tool /path/to/dwarf2json --offline
-```
-
-`g`／`--kali` 首先复用 `symbols/` 或缓存中的精确 ISF（已保留的测试符号可直接离线使用）。GitHub 索引按完整 banner 精确匹配；仓库未提供该 Kali ARM64 构建时，g／`--kali` 使用 [Kali 官方归档](https://old.kali.org/kali/pool/main/l/linux/) 的 6.8.11-1kali2 ARM64 调试包和内核配置。只提取 ELF／配置，不安装 deb、不执行维护脚本。没有已保留的精确 ISF 时，首次准备需要系统 `curl`、`ar`、`tar`、`git` 和 Go；固定 dwarf2json 源码版本为 `9f14607e0d339d463ea725fbd5c08aa7b7d40f75`，在独立构建目录编译，不属于运行时动态插件。生成 ISF 记录 ELF／config／工具摘要、准确 syscall 表长度及页表配置，完整 banner 不一致即拒绝。准备完成后可完全离线；`--offline` 不获取任何缺失文件。
-
-七个新增分析的范围：`elfs` 检查每个可读 VMA 起始处的 ELF64 EXEC／DYN 头，Entry 为原始 e_entry（DYN 通常为相对值）；`malfind` 列出可读、可执行且可写或匿名的映射及前 32 字节，只表示核查线索。`bash` 限 comm=bash 的进程，通过 timestamp 锚定 HIST_ENTRY，再恢复相邻历史指针数组的无时间戳记录；不扫描磁盘历史，不承诺无 timestamp 锚点的孤立记录。用户扫描限每进程 256 MiB，历史字符串限 64 KiB，邻接数组限 4096 项。`psxview` 对照 tasks、PID hash／IDR xarray 和线程组；非组长线程正常显示 ThreadOnly。`check_modules` 对照模块链表与 module_kset，Start／End 为旧内核 core 区域或现代 MOD_TEXT 区域；`check_syscall` 使用 ISF／调试 ELF 的准确表长度，对照已知内核与模块范围，不猜测缺失长度。异常提示需结合退出、卸载生命周期及其他证据判断；不进行 slab／隐藏对象扫描。
-
-Kali 全字段回归基线位于 `tests/fixtures/kali-6.8.11-arm64.json`，包括 169 个组长进程、411 个线程、110 个模块、689 条 FD socket 和 462 项 syscall。maps=19529、lsof=1646、elfs=3629、malfind=92 为部分结果：路径不在进程根目录内、用户缺页，以及采集工具 PID 32043 的 maple 节点已删除均有固定诊断。bash=0（没有 Bash 进程），check_creds=0 为正常空结果。Debian 新增 elfs=2419、bash=27、malfind=84 为缺页导致的部分结果；psxview=316、check_modules=79、check_syscall=312 为完整结果。基线只提交行摘要和诊断，不提交环境变量或历史命令明文。
-
-`tests/reference/verify_inspect.py` 是独立、只读的标准库验收解析器，可对 `examples/verify_samples.rs` 的导出逐字段交叉核对；Bash 对已恢复记录逐条核对内存结构，完整性边界由合成测试覆盖。原引擎不调用此脚本：
-
-```sh
-cargo run --release --example verify_samples -- images/kali.raw "$ISF" /tmp/kali-
-python3 tests/reference/verify_inspect.py --image images/kali.raw --symbols "$ISF" --results-prefix /tmp/kali- --modern
-# 验收位置可通过 ZERO_TEST_IMAGE、ZERO_TEST_SYMBOLS、ZERO_KALI_IMAGE、ZERO_KALI_SYMBOLS 覆盖
-make check
-make acceptance
-```
-
-
-## 微软符号 404 的处理
-
-Windows 精确 PDB 下载返回 HTTP 404 时，程序自动查询 Volatility 官方 Windows ZIP 的精确 ISF。首次需要联网；使用 HTTPS Range 读取目录和目标条目，避免整体下载约 801 MiB 的符号包。校验成功后保存来源记录并允许离线复用。可以在任务日志查看兜底过程，ISF 详情中查看官方来源。
-
-官方包也没有对应身份时，需要导入精确符号；界面不再对此类失败统一提示“可重试”。超时或服务暂时不可用仍可重试。运行中的旧版本需要退出并重新启动才能加载此改动。
-
-
-## 恶意检测线索
-
-以下新增插件在 CLI、TUI 和 MCP 中使用相同名称；均支持 PID 筛选。
+以下插件在 CLI、TUI 与 MCP 中同名，均支持 PID 筛选。
 
 | 插件 | 检查逻辑 | 输出重点 |
 | --- | --- | --- |
-| `windows.ldrmodules` | 对照文件映射中具有 MZ/PE 签名的基址与 PEB 加载、初始化、内存三条链表，分别读取 native/WOW64 视图 | InLoad、InInit、InMem 为 true/false/unknown；加载或内存链表缺项标记 MissingLoaderEntry |
-| `windows.hollowprocesses` | 对照 native PEB.ImageBaseAddress 与 EPROCESS.SectionBaseAddress，检查主程序及已加载 DLL 的 VAD 属性 | 基址不一致、私有映像、非 PAGE_EXECUTE_WRITECOPY 属性，以及完整 VAD 遍历后的主程序 VAD 缺失 |
-| `windows.suspicious_threads` | 对活动线程的 StartAddress 和 Win32StartAddress 查找所属 VAD | 私有内存或非 PAGE_EXECUTE_WRITECOPY 属性；保留 TID、起点字段、地址、路径和原因 |
-| `check_exec` | 检查 Linux mm_struct.start_code/end_code 覆盖的 VMA，核对执行权限、文件 backing 与 exe_file 的 inode | 匿名主程序代码、不可执行代码、映射空隙、主程序文件不一致 |
+| `windows.ldrmodules` | 对照映射中带 MZ/PE 签名的基址与 PEB 加载、初始化、内存三条链表（native／WOW64） | InLoad、InInit、InMem 为 true／false／unknown；缺项标记 MissingLoaderEntry |
+| `windows.hollowprocesses` | 对照 PEB.ImageBaseAddress 与 EPROCESS.SectionBaseAddress，检查主程序与 DLL 的 VAD 属性 | 基址不一致、私有映像、非 PAGE_EXECUTE_WRITECOPY、主程序 VAD 缺失 |
+| `windows.suspicious_threads` | 查找活动线程 StartAddress／Win32StartAddress 所属 VAD | 私有内存或非 PAGE_EXECUTE_WRITECOPY；保留 TID、地址、路径与原因 |
+| `check_exec`（Linux） | 检查 `mm_struct.start_code/end_code` 覆盖的 VMA，核对执行权限、文件 backing 与 exe_file 的 inode | 匿名主程序代码、不可执行代码、映射空隙、主程序文件不一致 |
 
 ```sh
 zero --offline analyze --image /evidence/windows.raw --symbols /evidence/nt.json.xz \
@@ -379,25 +470,140 @@ zero --offline analyze --image /evidence/linux.raw --symbols /evidence/kernel.js
   --plugin check_exec --pid 1234 --output exports/check-exec.json
 ```
 
-这些是需核查的结构异常，不是恶意判定。合法 JIT、手动映射、加载/退出状态和采集时对象变化也可能触发。主程序正常不进入初始化链表，因此单独 InInit=false 不标记隐藏。链表不完整时未见基址为 unknown；已读到的基址仍为 true。线程检查跳过系统进程、已退出进程、已终止线程、零地址和内核地址；找不到对应 VAD 时不推断注入。VAD 路径读取失败保留诊断，不单凭空路径判断匿名。WOW64 主程序基址不与 native SectionBaseAddress 比较。Linux 以 inode 交叉核对文件，避免不同 file 对象指向同一文件造成误报；不读取磁盘文件内容或宣称完整复现 Volatility 2 的 process_hollow 字节比对。
+这些是需要核查的结构异常，**不是恶意判定**：合法 JIT、手动映射、加载／退出状态与采集时的对象变化都可能触发。主程序本就不在初始化链表中，单独 InInit=false 不标记隐藏；链表不完整时未见基址为 unknown。线程检查跳过系统进程、已退出进程、已终止线程、零地址与内核地址。WOW64 主程序基址不与 native SectionBaseAddress 比较。Linux 以 inode 交叉核对文件，不读取磁盘文件内容。
 
-实现参考 [Volatility 2 恶意检测命令说明](https://github.com/volatilityfoundation/volatility/wiki/Command-Reference-Mal) 和 Volatility 3 的 [ldrmodules](https://github.com/volatilityfoundation/volatility3/blob/develop/volatility3/framework/plugins/windows/malware/ldrmodules.py)、[hollowprocesses](https://github.com/volatilityfoundation/volatility3/blob/develop/volatility3/framework/plugins/windows/malware/hollowprocesses.py)、[suspicious_threads](https://github.com/volatilityfoundation/volatility3/blob/develop/volatility3/framework/plugins/windows/malware/suspicious_threads.py) 的交叉视图思路，使用 Zero 原生 Rust 解析，不执行 Python 插件。新增检测通过合成样本验证；`check_exec` 另以本地 Debian 3.2 镜像和精确符号完成 PID 1 的离线 CLI 验证（完整结果、0 条线索、无诊断）。真实恶意样本覆盖与检出率尚未验证。
+实现参考 [Volatility 2 恶意检测命令](https://github.com/volatilityfoundation/volatility/wiki/Command-Reference-Mal) 与 Volatility 3 的 [ldrmodules](https://github.com/volatilityfoundation/volatility3/blob/develop/volatility3/framework/plugins/windows/malware/ldrmodules.py)、[hollowprocesses](https://github.com/volatilityfoundation/volatility3/blob/develop/volatility3/framework/plugins/windows/malware/hollowprocesses.py)、[suspicious_threads](https://github.com/volatilityfoundation/volatility3/blob/develop/volatility3/framework/plugins/windows/malware/suspicious_threads.py) 的交叉视图思路。新增检测由合成样本验证；`check_exec` 另以 Debian 3.2 样本完成 PID 1 的离线验证（完整结果、0 条线索）。真实恶意样本的检出率尚未验证。
 
-## 内存模式搜索
+### 8.3 内存模式搜索
 
-`vmayarascan`（Linux）与 `windows.vadyarascan`（Windows）在进程内存中搜索 `--pattern` 指定的字节模式，对应 Volatility 3 的 vmayarascan／vadyarascan，但 Zero 不编译或执行 YARA 规则，模式只作为数据匹配：
+`vmayarascan`（Linux）与 `windows.vadyarascan`（Windows）在进程内存中搜索 `--pattern` 指定的字节模式。Zero 不编译或执行 YARA 规则，模式只作为数据匹配：
 
-- `文本` 或 `text:文本`：按 UTF-8 字节搜索；
-- `wide:文本`：按 UTF-16LE 搜索；
-- `hex:4d5a??00`：十六进制字节，`??` 匹配任意单字节，空白会被忽略。
+| 写法 | 含义 |
+| --- | --- |
+| `文本` 或 `text:文本` | UTF-8 字节 |
+| `wide:文本` | UTF-16LE |
+| `hex:4d5a??00` | 十六进制，`??` 匹配任意单字节，空白忽略 |
 
-模式长度为 1–256 字节，且至少包含连续 2 个确定字节。`--pattern` 只能用于这两个插件，二者也必须提供它；TUI 在参数对话框（P）中提供“搜索模式”字段，MCP 的 `zero_analyze` 接受 `pattern` 参数。
+模式长度 1–256 字节，至少含连续 2 个确定字节。`--pattern` 只能用于这两个插件，且二者必须提供；TUI 在参数表单（`P`）的“搜索模式”字段输入，MCP 的 `zero_analyze` 接受 `pattern`。
 
-```bash
+```sh
 zero analyze --image images/linux-sample-1.bin.gz --symbols symbols/linux.zip \
   --plugin vmayarascan --pattern /bin/bash --output exports/bash-strings.csv
 zero analyze --image images/WinDump/WinDump.mem --plugin windows.vadyarascan \
   --pid 7688 --pattern hex:4d5a9000 --output exports/explorer-mz.csv
 ```
 
-扫描按页读取并跨相邻页拼接，不可读页会中断拼接；每个进程最多读取 256 MiB 驻留数据，结果最多 100,000 条，超过 1 GiB 的单个区域（如 CFG 位图保留区）跳过。任何不可读页或跳过的区域都会作为诊断报告并标记部分结果，因此“没有命中”只在完整结果中成立。结果的 Context 列给出命中处起 32 字节的十六进制与可打印文本；缓存键包含模式本身。实测 Debian 3.2 搜索 `/bin/bash` 得到 157 处命中；Windows 10 15063 的 explorer.exe（PID 7688）搜索 `hex:4d5a9000` 得到 261 个 PE 头。
+扫描按页读取并跨相邻页拼接，不可读页中断拼接。每进程最多读取 256 MiB 驻留数据，结果最多 100,000 条，超过 1 GiB 的单个区域（如 CFG 位图保留区）跳过。任何不可读页或跳过区域都会作为诊断报告并标记部分结果，因此“没有命中”只在完整结果中成立。Context 列给出命中处起 32 字节的十六进制与可打印文本。实测 Debian 3.2 搜索 `/bin/bash` 得到 157 处命中；Windows 10 15063 的 explorer.exe（PID 7688）搜索 `hex:4d5a9000` 得到 261 个 PE 头。
+
+## 9. 设置、缓存与运行数据
+
+### 9.1 设置
+
+`.zero/rust/settings.json`，省略的字段使用默认值：
+
+| 字段 | 默认 | 说明 |
+| --- | --- | --- |
+| `image_dir`／`symbols`／`export_dir`／`history_dir` | `images`／`symbols`／`exports`／`exports` | 文件选择器与导出的默认目录，启动时创建；`~/` 展开为用户目录 |
+| `page_size` | `0` | 每页行数，0 为自动填满（旧版固定行数首次迁移为自动） |
+| `enable_cache` | `true` | 成功结果缓存与导出记录 |
+| `remote_symbols` | `true` | 在线符号匹配；`o` 切换后立即保存，并对之后的所有任务生效 |
+| `theme` | `slate` | 界面主题：`slate`、`light`、`solarized`、`phosphor`、`contrast`；未知值回退默认 |
+| `resources` | — | 页表、扫描与快照预算，见 [开发文档](development.md#资源预算) |
+
+只读取这一个设置文件，不读取或执行旧 Python 配置。资产清单与选择记录保存在 `.zero/rust/workspace.json`。
+
+### 9.2 缓存页
+
+![缓存页](assets/cache.svg)
+
+`3` 或 `c` 打开。左侧是缓存范围及各自的文件数与大小，右侧是所选范围的文件（最新在前），下方是所选条目的详情。
+
+| 范围 | 内容 |
+| --- | --- |
+| 分析结果 | 成功分析的结果，键包含镜像 SHA256、ISF SHA256、插件与引擎版本 |
+| 导出记录 | 每次导出的元数据与本地副本 |
+| 识别信息 | banner 候选与物理地址，避免重新摘要与扫描 |
+| 解压镜像 | gzip 镜像的解压副本与校验 |
+| 符号／构建缓存 | 索引、下载的 ISF、本地生成符号的构建目录 |
+| 进程转储 | 旧版缓存目录中的转储片段（新 Dump 输出到用户指定目录，不在此列） |
+
+清理与删除都需要再按一次确认，移动选择即撤销。默认勾选分析结果与识别信息。会话持有共享锁，清理使用独占锁，其他会话正在分析时明确拒绝。只删除缓存清单内的文件，不跟随符号链接；设置、项目清单、原始镜像／符号与用户导出始终保留。清理解压镜像或符号缓存后需要重新准备。
+
+### 9.3 导出记录
+
+`enable_cache` 为 true 时，TUI 的 `e` 与 CLI 的 `--output` 每次成功导出都会写入 `.zero/rust/exports/`：
+
+- 一条记录：导出位置、插件、行数、完整性、诊断数、banner 与符号；
+- 一份导出文件的本地副本：写入前后各计算一次 SHA256，重新打开时再校验。
+
+同一路径的相同内容只记录一次。重新打开的记录标记为历史结果，不进入成功缓存；导出文件被移动或删除后仍可打开。清理“导出记录”只删除记录与副本，不删除导出文件。
+
+### 9.4 准备与复用
+
+- gzip 镜像流式解压到 `.zero/rust/`，解压完成并校验后才原子提交；取消与损坏输入不产生完成标记。
+- banner 摘要与前缀扫描合并为一轮流式读取，跨块与连续 LiME segment 边界仍能识别。识别结果原子保存到 `.zero/rust/identification/`，再次选用相同镜像时检查文件元数据并重读缓存位置的完整 banner，无需全镜像摘要。
+- 正式分析仍在每个新会话中校验完整内容摘要；同一会话复用已验证的镜像、banner 与页表，源文件或符号元数据变化后重新准备。
+- 结果缓存键包含镜像 SHA256、ISF SHA256、插件与引擎版本（当前 `native-27`）；只缓存完整结果，旧版本缓存保留但不再复用。不同内容的同名镜像不会共用结果，不用时间或 MD5 判断有效性。
+
+五轮交替热缓存测量：Kali 2 GiB 完整准备中位数 3.740 → 3.599 秒；Debian gzip 1.177 → 1.146 秒。同一会话重跑 pslist 约 2–3 ms。可用 `cargo run --release --example benchmark_image -- images/kali.raw` 复测。
+
+## 10. 验收基线
+
+```sh
+make check           # fmt、Clippy、合成数据／界面测试、release 构建
+make acceptance      # Debian 3.2 + Kali 6.8.11 ARM64，强制重新分析并比对固定基线
+ZERO_TEST_IMAGE=/path/sample.bin.gz ZERO_TEST_SYMBOLS=/path/linux.zip make acceptance
+```
+
+测试符号为 `symbols/linux.zip` 与 `symbols/kali-6.8.11-arm64.json.xz`；大镜像与符号包不提交仓库，普通 `cargo test` 不依赖它们。
+
+### Debian 3.2.0-4-amd64
+
+基线包含 **133 个进程（不含 PID 0）与 79 个模块**。`tests/fixtures/debian-3.2.json` 固定全部字段、页表地址与镜像摘要，验收同时检查链表闭合与父子关系无环。进程字段与 Volatility 3 参考输出逐项交叉验证，完整字段另经独立只读页表解析核对。测试 ZIP 中 CentOS 2.6.18 成员的 banner 无效，界面详情会明确显示；Debian 成员可精确匹配和分析。
+
+| 插件 | 行数 | 完整性／诊断 |
+| --- | ---: | --- |
+| psaux | 131 | PID 1、2344 的 argv 用户页缺失，部分结果 |
+| envars | 1411 | PID 1、2344 的环境用户页缺失，部分结果 |
+| maps | 14045 | PID 2388、2974、3482 共 135 个映射路径位于进程根目录外，部分结果 |
+| lsof | 1293 | 上述三个进程共 10 个 FD 路径位于根目录外，部分结果 |
+| sockstat | 455 | 完整；含 Unix、IPv4／IPv6 TCP／UDP 与其他 family |
+| banners | 1 | 完整；物理地址 0x1400070 |
+| pwd／pscred／psstate／capabilities | 133 | 完整 |
+| threads | 316 | 完整 |
+| mountinfo | 1454 | 完整 |
+| check_creds | 0 | 完整；无跨进程共享 cred |
+| dmesg | 1445 | 完整 |
+| fdsummary | 133 | 继承 lsof 的 10 条路径诊断，部分结果 |
+| elfs／bash／malfind | 2419／27／84 | 缺页导致的部分结果 |
+| psxview／check_modules／check_syscall | 316／79／312 | 完整 |
+| check_idt | 256 | 完整；244 KernelText、12 KernelInitText |
+| tty_check／hidden_modules | 7／0 | 完整 |
+| pidhashtable／vmcoreinfo | 316／47 | 完整 |
+| ip_addr／ip_link | 4／2 | 完整；lo 与 eth0 |
+| check_afinfo／kthreads | 30／39 | 完整；3.2 无 threadfn |
+| netfilter／tracepoints／perf_events | 0／0／0 | 完整；未加载模块、202 个 tracepoint 均未挂探针 |
+| boottime | — | 完整；2014-06-24 10:22:33 UTC |
+| pagecache | 21586 | 完整 |
+| iomem／ioports | 116／65 | 完整 |
+| library_list | — | 用户页缺页，部分结果 |
+| ftrace／ebpf | — | 3.2 上明确报告不支持 |
+
+新增插件的全字段基线为 `tests/fixtures/debian-3.2-extended.json`：固定行数、列、全部行的 SHA256 与完整诊断，不提交环境变量明文。既有插件的输出字段经 `tests/reference/debian.py` 独立只读解析器逐项核对：
+
+```sh
+python3 tests/reference/debian.py --image .zero/rust/910f272e5eeecdbf229e648d7b136a6722a11a5000f3995647364339417dfddd.image --symbols symbols/linux.zip
+```
+
+### Kali 6.8.11 ARM64
+
+`tests/fixtures/kali-6.8.11-arm64.json` 包括 169 个组长进程、411 个线程、110 个模块、689 条 FD socket 与 462 项 syscall。maps=19529、lsof=1646、elfs=3629、malfind=92 为部分结果（路径在进程根目录外、用户缺页，以及采集工具 PID 32043 的 maple 节点已删除），均有固定诊断。bash=0（没有 Bash 进程）与 check_creds=0 是正常空结果。iomem=50、ioports=2；两个样本的 ptrace、keyboard_notifiers 均为 0。基线只提交行摘要与诊断。
+
+`tests/reference/verify_inspect.py` 是独立只读的标准库解析器，可逐字段核对 `examples/verify_samples.rs` 的导出：
+
+```sh
+cargo run --release --example verify_samples -- images/kali.raw "$ISF" /tmp/kali-
+python3 tests/reference/verify_inspect.py --image images/kali.raw --symbols "$ISF" --results-prefix /tmp/kali- --modern
+```
+
+这些已知缺页与根目录外引用都由验收明确断言，不能靠忽略诊断变成“完整”。普通测试还覆盖独立页表与跨页区域、空值、内核线程、限制／缺页、VMA 循环、跨挂载根路径、FD 空槽／重复引用、网络字节序、Unix 名称与 ISF 类型。

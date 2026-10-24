@@ -1,0 +1,490 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1104" height="670" viewBox="0 0 1104 670" role="img" aria-label="zero — lsmod · 纸白 theme">
+<title>zero — lsmod · 纸白 theme</title>
+<rect width="1104" height="670" rx="10" fill="#e6e9ee"/>
+<rect width="1104" height="30" rx="10" fill="#000" fill-opacity="0.28"/>
+<rect y="20" width="1104" height="10" fill="#000" fill-opacity="0.28"/>
+<circle cx="20" cy="15" r="6" fill="#ff5f57"/>
+<circle cx="40" cy="15" r="6" fill="#febc2e"/>
+<circle cx="60" cy="15" r="6" fill="#28c840"/>
+<text x="552" y="19" text-anchor="middle" font-family="ui-monospace, 'SFMono-Regular', 'JetBrains Mono', Menlo, Consolas, 'Noto Sans Mono CJK SC', 'Sarasa Mono SC', monospace" font-size="12" fill="#9aa5b4">zero — lsmod · 纸白 theme</text>
+<g font-family="ui-monospace, 'SFMono-Regular', 'JetBrains Mono', Menlo, Consolas, 'Noto Sans Mono CJK SC', 'Sarasa Mono SC', monospace" font-size="14" xml:space="preserve">
+<text x="14.0" y="57.5" fill="#1c2430" textLength="84.0" lengthAdjust="spacingAndGlyphs"> 1 资源库 </text>
+<rect x="106.4" y="44" width="67.2" height="18" fill="#cfe0f3"/>
+<text x="106.4" y="57.5" fill="#0b3d6e" font-weight="700" textLength="67.2" lengthAdjust="spacingAndGlyphs"> 2 分析 </text>
+<text x="182.0" y="57.5" fill="#1c2430" textLength="67.2" lengthAdjust="spacingAndGlyphs"> 3 缓存 </text>
+<text x="257.6" y="57.5" fill="#5b6676" textLength="67.2" lengthAdjust="spacingAndGlyphs"> pslist </text>
+<text x="324.8" y="57.5" fill="#b4bcc8" textLength="8.4" lengthAdjust="spacingAndGlyphs">×</text>
+<rect x="341.6" y="44" width="58.8" height="18" fill="#f7f8fa"/>
+<text x="341.6" y="57.5" fill="#0b3d6e" font-weight="700" textLength="58.8" lengthAdjust="spacingAndGlyphs"> lsmod </text>
+<rect x="400.4" y="44" width="8.4" height="18" fill="#f7f8fa"/>
+<text x="400.4" y="57.5" fill="#1c2430" textLength="8.4" lengthAdjust="spacingAndGlyphs">×</text>
+<text x="417.2" y="57.5" fill="#5b6676" textLength="84.0" lengthAdjust="spacingAndGlyphs"> sockstat </text>
+<text x="501.2" y="57.5" fill="#b4bcc8" textLength="8.4" lengthAdjust="spacingAndGlyphs">×</text>
+<text x="518.0" y="57.5" fill="#5b6676" textLength="67.2" lengthAdjust="spacingAndGlyphs"> pstree </text>
+<text x="585.2" y="57.5" fill="#b4bcc8" textLength="8.4" lengthAdjust="spacingAndGlyphs">×</text>
+<text x="904.4" y="57.5" fill="#1f5f9e" textLength="134.4" lengthAdjust="spacingAndGlyphs"> Linux  Windows </text>
+<rect x="1038.8" y="44" width="50.4" height="18" fill="#cfe0f3"/>
+<text x="1038.8" y="57.5" fill="#0b3d6e" font-weight="700" textLength="50.4" lengthAdjust="spacingAndGlyphs"> 自动 </text>
+<text x="14.0" y="75.5" fill="#5b6676" textLength="117.6" lengthAdjust="spacingAndGlyphs">  自动 · 镜像 </text>
+<text x="131.6" y="75.5" fill="#1c2430" textLength="235.2" lengthAdjust="spacingAndGlyphs">images/linux-sample-1.bin.gz</text>
+<text x="602.0" y="75.5" fill="#1d7a46" textLength="168.0" lengthAdjust="spacingAndGlyphs">│ 符号 已就绪 · 离线</text>
+<text x="778.4" y="75.5" fill="#5b6676" textLength="268.8" lengthAdjust="spacingAndGlyphs">/tmp/zero-demo/symbols/linux.zip</text>
+<rect x="14.0" y="80" width="16.8" height="18" fill="#f7f8fa"/>
+<text x="14.0" y="93.5" fill="#b4bcc8" textLength="16.8" lengthAdjust="spacingAndGlyphs">╭─</text>
+<rect x="30.8" y="80" width="126.0" height="18" fill="#f7f8fa"/>
+<text x="30.8" y="93.5" fill="#1c2430" textLength="126.0" lengthAdjust="spacingAndGlyphs"> 插件 · System </text>
+<rect x="156.8" y="80" width="58.8" height="18" fill="#f7f8fa"/>
+<text x="156.8" y="93.5" fill="#b4bcc8" textLength="58.8" lengthAdjust="spacingAndGlyphs">──────╮</text>
+<rect x="215.6" y="80" width="873.6" height="18" fill="#f7f8fa"/>
+<text x="215.6" y="93.5" fill="#1f5f9e" textLength="873.6" lengthAdjust="spacingAndGlyphs">╭─  lsmod · 完整  ─────────────────────────────────────────────────────────────────────────────────────╮</text>
+<rect x="14.0" y="98" width="8.4" height="18" fill="#f7f8fa"/>
+<text x="14.0" y="111.5" fill="#b4bcc8" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="22.4" y="98" width="67.2" height="18" fill="#f7f8fa"/>
+<text x="22.4" y="111.5" fill="#1c2430" textLength="67.2" lengthAdjust="spacingAndGlyphs">  pslist</text>
+<rect x="89.6" y="98" width="117.6" height="18" fill="#f7f8fa"/>
+<rect x="207.2" y="98" width="8.4" height="18" fill="#f7f8fa"/>
+<text x="207.2" y="111.5" fill="#1f5f9e" font-weight="700" textLength="8.4" lengthAdjust="spacingAndGlyphs">┃</text>
+<rect x="215.6" y="98" width="8.4" height="18" fill="#f7f8fa"/>
+<text x="215.6" y="111.5" fill="#1f5f9e" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<text x="224.0" y="111.5" fill="#1f5f9e" font-weight="700" textLength="394.8" lengthAdjust="spacingAndGlyphs">  Name                Base               Size  </text>
+<rect x="1080.8" y="98" width="8.4" height="18" fill="#f7f8fa"/>
+<text x="1080.8" y="111.5" fill="#1f5f9e" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="14.0" y="116" width="8.4" height="18" fill="#f7f8fa"/>
+<text x="14.0" y="129.5" fill="#b4bcc8" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="22.4" y="116" width="67.2" height="18" fill="#f7f8fa"/>
+<text x="22.4" y="129.5" fill="#1c2430" textLength="67.2" lengthAdjust="spacingAndGlyphs">  pstree</text>
+<rect x="89.6" y="116" width="117.6" height="18" fill="#f7f8fa"/>
+<rect x="207.2" y="116" width="8.4" height="18" fill="#f7f8fa"/>
+<text x="207.2" y="129.5" fill="#1f5f9e" font-weight="700" textLength="8.4" lengthAdjust="spacingAndGlyphs">┃</text>
+<rect x="215.6" y="116" width="8.4" height="18" fill="#f7f8fa"/>
+<text x="215.6" y="129.5" fill="#1f5f9e" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="224.0" y="116" width="16.8" height="18" fill="#cfe0f3"/>
+<text x="224.0" y="129.5" fill="#0b3d6e" textLength="16.8" lengthAdjust="spacingAndGlyphs">› </text>
+<rect x="240.8" y="116" width="378.0" height="18" fill="#cfe0f3"/>
+<text x="240.8" y="129.5" fill="#0b3d6e" font-weight="700" textLength="378.0" lengthAdjust="spacingAndGlyphs">rfcomm              0xffffffffa0420000 33700 </text>
+<rect x="618.8" y="116" width="462.0" height="18" fill="#cfe0f3"/>
+<rect x="1080.8" y="116" width="8.4" height="18" fill="#f7f8fa"/>
+<text x="1080.8" y="129.5" fill="#1f5f9e" font-weight="700" textLength="8.4" lengthAdjust="spacingAndGlyphs">┃</text>
+<rect x="14.0" y="134" width="8.4" height="18" fill="#f7f8fa"/>
+<text x="14.0" y="147.5" fill="#b4bcc8" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="22.4" y="134" width="58.8" height="18" fill="#f7f8fa"/>
+<text x="22.4" y="147.5" fill="#1c2430" textLength="58.8" lengthAdjust="spacingAndGlyphs">  psaux</text>
+<rect x="81.2" y="134" width="126.0" height="18" fill="#f7f8fa"/>
+<rect x="207.2" y="134" width="8.4" height="18" fill="#f7f8fa"/>
+<text x="207.2" y="147.5" fill="#1f5f9e" font-weight="700" textLength="8.4" lengthAdjust="spacingAndGlyphs">┃</text>
+<rect x="215.6" y="134" width="8.4" height="18" fill="#f7f8fa"/>
+<text x="215.6" y="147.5" fill="#1f5f9e" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="224.0" y="134" width="16.8" height="18" fill="#eef0f3"/>
+<rect x="240.8" y="134" width="378.0" height="18" fill="#eef0f3"/>
+<text x="240.8" y="147.5" fill="#1c2430" textLength="378.0" lengthAdjust="spacingAndGlyphs">bnep                0xffffffffa03aa000 17567 </text>
+<rect x="618.8" y="134" width="462.0" height="18" fill="#eef0f3"/>
+<rect x="1080.8" y="134" width="8.4" height="18" fill="#f7f8fa"/>
+<text x="1080.8" y="147.5" fill="#1f5f9e" font-weight="700" textLength="8.4" lengthAdjust="spacingAndGlyphs">┃</text>
+<rect x="14.0" y="152" width="8.4" height="18" fill="#f7f8fa"/>
+<text x="14.0" y="165.5" fill="#b4bcc8" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="22.4" y="152" width="67.2" height="18" fill="#f7f8fa"/>
+<text x="22.4" y="165.5" fill="#1c2430" textLength="67.2" lengthAdjust="spacingAndGlyphs">  envars</text>
+<rect x="89.6" y="152" width="117.6" height="18" fill="#f7f8fa"/>
+<rect x="207.2" y="152" width="8.4" height="18" fill="#f7f8fa"/>
+<text x="207.2" y="165.5" fill="#1f5f9e" font-weight="700" textLength="8.4" lengthAdjust="spacingAndGlyphs">┃</text>
+<rect x="215.6" y="152" width="8.4" height="18" fill="#f7f8fa"/>
+<text x="215.6" y="165.5" fill="#1f5f9e" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="224.0" y="152" width="16.8" height="18" fill="#f7f8fa"/>
+<rect x="240.8" y="152" width="378.0" height="18" fill="#f7f8fa"/>
+<text x="240.8" y="165.5" fill="#1c2430" textLength="378.0" lengthAdjust="spacingAndGlyphs">binfmt_misc         0xffffffffa0321000 12957 </text>
+<rect x="618.8" y="152" width="462.0" height="18" fill="#f7f8fa"/>
+<rect x="1080.8" y="152" width="8.4" height="18" fill="#f7f8fa"/>
+<text x="1080.8" y="165.5" fill="#1f5f9e" font-weight="700" textLength="8.4" lengthAdjust="spacingAndGlyphs">┃</text>
+<rect x="14.0" y="170" width="8.4" height="18" fill="#f7f8fa"/>
+<text x="14.0" y="183.5" fill="#b4bcc8" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="22.4" y="170" width="42.0" height="18" fill="#f7f8fa"/>
+<text x="22.4" y="183.5" fill="#1c2430" textLength="42.0" lengthAdjust="spacingAndGlyphs">  pwd</text>
+<rect x="64.4" y="170" width="142.8" height="18" fill="#f7f8fa"/>
+<rect x="207.2" y="170" width="8.4" height="18" fill="#f7f8fa"/>
+<text x="207.2" y="183.5" fill="#1f5f9e" font-weight="700" textLength="8.4" lengthAdjust="spacingAndGlyphs">┃</text>
+<rect x="215.6" y="170" width="8.4" height="18" fill="#f7f8fa"/>
+<text x="215.6" y="183.5" fill="#1f5f9e" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="224.0" y="170" width="16.8" height="18" fill="#eef0f3"/>
+<rect x="240.8" y="170" width="378.0" height="18" fill="#eef0f3"/>
+<text x="240.8" y="183.5" fill="#1c2430" textLength="378.0" lengthAdjust="spacingAndGlyphs">nfsd                0xffffffffa043a000 216170</text>
+<rect x="618.8" y="170" width="462.0" height="18" fill="#eef0f3"/>
+<rect x="1080.8" y="170" width="8.4" height="18" fill="#f7f8fa"/>
+<text x="1080.8" y="183.5" fill="#1f5f9e" font-weight="700" textLength="8.4" lengthAdjust="spacingAndGlyphs">┃</text>
+<rect x="14.0" y="188" width="8.4" height="18" fill="#f7f8fa"/>
+<text x="14.0" y="201.5" fill="#b4bcc8" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="22.4" y="188" width="67.2" height="18" fill="#f7f8fa"/>
+<text x="22.4" y="201.5" fill="#1c2430" textLength="67.2" lengthAdjust="spacingAndGlyphs">  pscred</text>
+<rect x="89.6" y="188" width="117.6" height="18" fill="#f7f8fa"/>
+<rect x="207.2" y="188" width="8.4" height="18" fill="#f7f8fa"/>
+<text x="207.2" y="201.5" fill="#1f5f9e" font-weight="700" textLength="8.4" lengthAdjust="spacingAndGlyphs">┃</text>
+<rect x="215.6" y="188" width="8.4" height="18" fill="#f7f8fa"/>
+<text x="215.6" y="201.5" fill="#1f5f9e" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="224.0" y="188" width="16.8" height="18" fill="#f7f8fa"/>
+<rect x="240.8" y="188" width="378.0" height="18" fill="#f7f8fa"/>
+<text x="240.8" y="201.5" fill="#1c2430" textLength="378.0" lengthAdjust="spacingAndGlyphs">nfs                 0xffffffffa03d3000 308353</text>
+<rect x="618.8" y="188" width="462.0" height="18" fill="#f7f8fa"/>
+<rect x="1080.8" y="188" width="8.4" height="18" fill="#f7f8fa"/>
+<text x="1080.8" y="201.5" fill="#1f5f9e" font-weight="700" textLength="8.4" lengthAdjust="spacingAndGlyphs">┃</text>
+<rect x="14.0" y="206" width="8.4" height="18" fill="#f7f8fa"/>
+<text x="14.0" y="219.5" fill="#b4bcc8" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="22.4" y="206" width="75.6" height="18" fill="#f7f8fa"/>
+<text x="22.4" y="219.5" fill="#1c2430" textLength="75.6" lengthAdjust="spacingAndGlyphs">  threads</text>
+<rect x="98.0" y="206" width="109.2" height="18" fill="#f7f8fa"/>
+<rect x="207.2" y="206" width="8.4" height="18" fill="#f7f8fa"/>
+<text x="207.2" y="219.5" fill="#1f5f9e" font-weight="700" textLength="8.4" lengthAdjust="spacingAndGlyphs">┃</text>
+<rect x="215.6" y="206" width="8.4" height="18" fill="#f7f8fa"/>
+<text x="215.6" y="219.5" fill="#1f5f9e" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="224.0" y="206" width="16.8" height="18" fill="#eef0f3"/>
+<rect x="240.8" y="206" width="378.0" height="18" fill="#eef0f3"/>
+<text x="240.8" y="219.5" fill="#1c2430" textLength="378.0" lengthAdjust="spacingAndGlyphs">nfs_acl             0xffffffffa02c7000 12511 </text>
+<rect x="618.8" y="206" width="462.0" height="18" fill="#eef0f3"/>
+<rect x="1080.8" y="206" width="8.4" height="18" fill="#f7f8fa"/>
+<text x="1080.8" y="219.5" fill="#1f5f9e" font-weight="700" textLength="8.4" lengthAdjust="spacingAndGlyphs">┃</text>
+<rect x="14.0" y="224" width="8.4" height="18" fill="#f7f8fa"/>
+<text x="14.0" y="237.5" fill="#b4bcc8" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="22.4" y="224" width="117.6" height="18" fill="#f7f8fa"/>
+<text x="22.4" y="237.5" fill="#1c2430" textLength="117.6" lengthAdjust="spacingAndGlyphs">  pidhashtable</text>
+<rect x="140.0" y="224" width="67.2" height="18" fill="#f7f8fa"/>
+<rect x="207.2" y="224" width="8.4" height="18" fill="#f7f8fa"/>
+<text x="207.2" y="237.5" fill="#1f5f9e" font-weight="700" textLength="8.4" lengthAdjust="spacingAndGlyphs">┃</text>
+<rect x="215.6" y="224" width="8.4" height="18" fill="#f7f8fa"/>
+<text x="215.6" y="237.5" fill="#1f5f9e" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="224.0" y="224" width="16.8" height="18" fill="#f7f8fa"/>
+<rect x="240.8" y="224" width="378.0" height="18" fill="#f7f8fa"/>
+<text x="240.8" y="237.5" fill="#1c2430" textLength="378.0" lengthAdjust="spacingAndGlyphs">auth_rpcgss         0xffffffffa03c8000 37143 </text>
+<rect x="618.8" y="224" width="462.0" height="18" fill="#f7f8fa"/>
+<rect x="1080.8" y="224" width="8.4" height="18" fill="#f7f8fa"/>
+<text x="1080.8" y="237.5" fill="#1f5f9e" font-weight="700" textLength="8.4" lengthAdjust="spacingAndGlyphs">┃</text>
+<rect x="14.0" y="242" width="8.4" height="18" fill="#f7f8fa"/>
+<text x="14.0" y="255.5" fill="#b4bcc8" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="22.4" y="242" width="75.6" height="18" fill="#f7f8fa"/>
+<text x="22.4" y="255.5" fill="#1c2430" textLength="75.6" lengthAdjust="spacingAndGlyphs">  psstate</text>
+<rect x="98.0" y="242" width="109.2" height="18" fill="#f7f8fa"/>
+<rect x="207.2" y="242" width="8.4" height="18" fill="#f7f8fa"/>
+<text x="207.2" y="255.5" fill="#1f5f9e" font-weight="700" textLength="8.4" lengthAdjust="spacingAndGlyphs">┃</text>
+<rect x="215.6" y="242" width="8.4" height="18" fill="#f7f8fa"/>
+<text x="215.6" y="255.5" fill="#1f5f9e" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="224.0" y="242" width="16.8" height="18" fill="#eef0f3"/>
+<rect x="240.8" y="242" width="378.0" height="18" fill="#eef0f3"/>
+<text x="240.8" y="255.5" fill="#1c2430" textLength="378.0" lengthAdjust="spacingAndGlyphs">fscache             0xffffffffa03a0000 36739 </text>
+<rect x="618.8" y="242" width="462.0" height="18" fill="#eef0f3"/>
+<rect x="1080.8" y="242" width="8.4" height="18" fill="#f7f8fa"/>
+<text x="1080.8" y="255.5" fill="#1f5f9e" font-weight="700" textLength="8.4" lengthAdjust="spacingAndGlyphs">┃</text>
+<rect x="14.0" y="260" width="8.4" height="18" fill="#f7f8fa"/>
+<text x="14.0" y="273.5" fill="#b4bcc8" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="22.4" y="260" width="117.6" height="18" fill="#f7f8fa"/>
+<text x="22.4" y="273.5" fill="#1c2430" textLength="117.6" lengthAdjust="spacingAndGlyphs">  capabilities</text>
+<rect x="140.0" y="260" width="67.2" height="18" fill="#f7f8fa"/>
+<rect x="207.2" y="260" width="8.4" height="18" fill="#f7f8fa"/>
+<text x="207.2" y="273.5" fill="#1f5f9e" font-weight="700" textLength="8.4" lengthAdjust="spacingAndGlyphs">┃</text>
+<rect x="215.6" y="260" width="8.4" height="18" fill="#f7f8fa"/>
+<text x="215.6" y="273.5" fill="#1f5f9e" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="224.0" y="260" width="16.8" height="18" fill="#f7f8fa"/>
+<rect x="240.8" y="260" width="378.0" height="18" fill="#f7f8fa"/>
+<text x="240.8" y="273.5" fill="#1c2430" textLength="378.0" lengthAdjust="spacingAndGlyphs">lockd               0xffffffffa03b6000 67306 </text>
+<rect x="618.8" y="260" width="462.0" height="18" fill="#f7f8fa"/>
+<rect x="1080.8" y="260" width="8.4" height="18" fill="#f7f8fa"/>
+<text x="1080.8" y="273.5" fill="#1f5f9e" font-weight="700" textLength="8.4" lengthAdjust="spacingAndGlyphs">┃</text>
+<rect x="14.0" y="278" width="8.4" height="18" fill="#f7f8fa"/>
+<text x="14.0" y="291.5" fill="#b4bcc8" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="22.4" y="278" width="67.2" height="18" fill="#f7f8fa"/>
+<text x="22.4" y="291.5" fill="#1c2430" textLength="67.2" lengthAdjust="spacingAndGlyphs">  ptrace</text>
+<rect x="89.6" y="278" width="117.6" height="18" fill="#f7f8fa"/>
+<rect x="207.2" y="278" width="8.4" height="18" fill="#f7f8fa"/>
+<text x="207.2" y="291.5" fill="#1f5f9e" font-weight="700" textLength="8.4" lengthAdjust="spacingAndGlyphs">┃</text>
+<rect x="215.6" y="278" width="8.4" height="18" fill="#f7f8fa"/>
+<text x="215.6" y="291.5" fill="#1f5f9e" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="224.0" y="278" width="16.8" height="18" fill="#eef0f3"/>
+<rect x="240.8" y="278" width="378.0" height="18" fill="#eef0f3"/>
+<text x="240.8" y="291.5" fill="#1c2430" textLength="378.0" lengthAdjust="spacingAndGlyphs">sunrpc              0xffffffffa0374000 173730</text>
+<rect x="618.8" y="278" width="462.0" height="18" fill="#eef0f3"/>
+<rect x="1080.8" y="278" width="8.4" height="18" fill="#f7f8fa"/>
+<text x="1080.8" y="291.5" fill="#5b6676" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="14.0" y="296" width="8.4" height="18" fill="#f7f8fa"/>
+<text x="14.0" y="309.5" fill="#b4bcc8" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="22.4" y="296" width="58.8" height="18" fill="#cfe0f3"/>
+<text x="22.4" y="309.5" fill="#0b3d6e" font-weight="700" textLength="58.8" lengthAdjust="spacingAndGlyphs">› lsmod</text>
+<rect x="81.2" y="296" width="126.0" height="18" fill="#cfe0f3"/>
+<rect x="207.2" y="296" width="8.4" height="18" fill="#f7f8fa"/>
+<text x="207.2" y="309.5" fill="#1f5f9e" font-weight="700" textLength="8.4" lengthAdjust="spacingAndGlyphs">┃</text>
+<rect x="215.6" y="296" width="8.4" height="18" fill="#f7f8fa"/>
+<text x="215.6" y="309.5" fill="#1f5f9e" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="224.0" y="296" width="16.8" height="18" fill="#f7f8fa"/>
+<rect x="240.8" y="296" width="378.0" height="18" fill="#f7f8fa"/>
+<text x="240.8" y="309.5" fill="#1c2430" textLength="378.0" lengthAdjust="spacingAndGlyphs">loop                0xffffffffa034b000 22641 </text>
+<rect x="618.8" y="296" width="462.0" height="18" fill="#f7f8fa"/>
+<rect x="1080.8" y="296" width="8.4" height="18" fill="#f7f8fa"/>
+<text x="1080.8" y="309.5" fill="#5b6676" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="14.0" y="314" width="8.4" height="18" fill="#f7f8fa"/>
+<text x="14.0" y="327.5" fill="#b4bcc8" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="22.4" y="314" width="75.6" height="18" fill="#f7f8fa"/>
+<text x="22.4" y="327.5" fill="#1c2430" textLength="75.6" lengthAdjust="spacingAndGlyphs">  banners</text>
+<rect x="98.0" y="314" width="109.2" height="18" fill="#f7f8fa"/>
+<rect x="207.2" y="314" width="8.4" height="18" fill="#f7f8fa"/>
+<text x="207.2" y="327.5" fill="#1f5f9e" font-weight="700" textLength="8.4" lengthAdjust="spacingAndGlyphs">┃</text>
+<rect x="215.6" y="314" width="8.4" height="18" fill="#f7f8fa"/>
+<text x="215.6" y="327.5" fill="#1f5f9e" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="224.0" y="314" width="16.8" height="18" fill="#eef0f3"/>
+<rect x="240.8" y="314" width="378.0" height="18" fill="#eef0f3"/>
+<text x="240.8" y="327.5" fill="#1c2430" textLength="378.0" lengthAdjust="spacingAndGlyphs">btusb               0xffffffffa0345000 17502 </text>
+<rect x="618.8" y="314" width="462.0" height="18" fill="#eef0f3"/>
+<rect x="1080.8" y="314" width="8.4" height="18" fill="#f7f8fa"/>
+<text x="1080.8" y="327.5" fill="#5b6676" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="14.0" y="332" width="8.4" height="18" fill="#f7f8fa"/>
+<text x="14.0" y="345.5" fill="#b4bcc8" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="22.4" y="332" width="58.8" height="18" fill="#f7f8fa"/>
+<text x="22.4" y="345.5" fill="#1c2430" textLength="58.8" lengthAdjust="spacingAndGlyphs">  dmesg</text>
+<rect x="81.2" y="332" width="126.0" height="18" fill="#f7f8fa"/>
+<rect x="207.2" y="332" width="8.4" height="18" fill="#f7f8fa"/>
+<text x="207.2" y="345.5" fill="#1f5f9e" font-weight="700" textLength="8.4" lengthAdjust="spacingAndGlyphs">┃</text>
+<rect x="215.6" y="332" width="8.4" height="18" fill="#f7f8fa"/>
+<text x="215.6" y="345.5" fill="#1f5f9e" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="224.0" y="332" width="16.8" height="18" fill="#f7f8fa"/>
+<rect x="240.8" y="332" width="378.0" height="18" fill="#f7f8fa"/>
+<text x="240.8" y="345.5" fill="#1c2430" textLength="378.0" lengthAdjust="spacingAndGlyphs">bluetooth           0xffffffffa0355000 119455</text>
+<rect x="618.8" y="332" width="462.0" height="18" fill="#f7f8fa"/>
+<rect x="1080.8" y="332" width="8.4" height="18" fill="#f7f8fa"/>
+<text x="1080.8" y="345.5" fill="#5b6676" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="14.0" y="350" width="8.4" height="18" fill="#f7f8fa"/>
+<text x="14.0" y="363.5" fill="#b4bcc8" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="22.4" y="350" width="100.8" height="18" fill="#f7f8fa"/>
+<text x="22.4" y="363.5" fill="#1c2430" textLength="100.8" lengthAdjust="spacingAndGlyphs">  systeminfo</text>
+<rect x="123.2" y="350" width="84.0" height="18" fill="#f7f8fa"/>
+<rect x="207.2" y="350" width="8.4" height="18" fill="#f7f8fa"/>
+<text x="207.2" y="363.5" fill="#1f5f9e" font-weight="700" textLength="8.4" lengthAdjust="spacingAndGlyphs">┃</text>
+<rect x="215.6" y="350" width="8.4" height="18" fill="#f7f8fa"/>
+<text x="215.6" y="363.5" fill="#1f5f9e" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="224.0" y="350" width="16.8" height="18" fill="#eef0f3"/>
+<rect x="240.8" y="350" width="378.0" height="18" fill="#eef0f3"/>
+<text x="240.8" y="363.5" fill="#1c2430" textLength="378.0" lengthAdjust="spacingAndGlyphs">rfkill              0xffffffffa033f000 19012 </text>
+<rect x="618.8" y="350" width="462.0" height="18" fill="#eef0f3"/>
+<rect x="1080.8" y="350" width="8.4" height="18" fill="#f7f8fa"/>
+<text x="1080.8" y="363.5" fill="#5b6676" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="14.0" y="368" width="8.4" height="18" fill="#f7f8fa"/>
+<text x="14.0" y="381.5" fill="#b4bcc8" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="22.4" y="368" width="100.8" height="18" fill="#f7f8fa"/>
+<text x="22.4" y="381.5" fill="#1c2430" textLength="100.8" lengthAdjust="spacingAndGlyphs">  vmcoreinfo</text>
+<rect x="123.2" y="368" width="84.0" height="18" fill="#f7f8fa"/>
+<rect x="207.2" y="368" width="8.4" height="18" fill="#f7f8fa"/>
+<text x="207.2" y="381.5" fill="#1f5f9e" font-weight="700" textLength="8.4" lengthAdjust="spacingAndGlyphs">┃</text>
+<rect x="215.6" y="368" width="8.4" height="18" fill="#f7f8fa"/>
+<text x="215.6" y="381.5" fill="#1f5f9e" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="224.0" y="368" width="16.8" height="18" fill="#f7f8fa"/>
+<rect x="240.8" y="368" width="378.0" height="18" fill="#f7f8fa"/>
+<text x="240.8" y="381.5" fill="#1c2430" textLength="378.0" lengthAdjust="spacingAndGlyphs">coretemp            0xffffffffa0335000 12898 </text>
+<rect x="618.8" y="368" width="462.0" height="18" fill="#f7f8fa"/>
+<rect x="1080.8" y="368" width="8.4" height="18" fill="#f7f8fa"/>
+<text x="1080.8" y="381.5" fill="#5b6676" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="14.0" y="386" width="8.4" height="18" fill="#f7f8fa"/>
+<text x="14.0" y="399.5" fill="#b4bcc8" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="22.4" y="386" width="84.0" height="18" fill="#f7f8fa"/>
+<text x="22.4" y="399.5" fill="#1c2430" textLength="84.0" lengthAdjust="spacingAndGlyphs">  boottime</text>
+<rect x="106.4" y="386" width="100.8" height="18" fill="#f7f8fa"/>
+<rect x="207.2" y="386" width="8.4" height="18" fill="#f7f8fa"/>
+<text x="207.2" y="399.5" fill="#5b6676" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="215.6" y="386" width="8.4" height="18" fill="#f7f8fa"/>
+<text x="215.6" y="399.5" fill="#1f5f9e" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="224.0" y="386" width="16.8" height="18" fill="#eef0f3"/>
+<rect x="240.8" y="386" width="378.0" height="18" fill="#eef0f3"/>
+<text x="240.8" y="399.5" fill="#1c2430" textLength="378.0" lengthAdjust="spacingAndGlyphs">crc32c_intel        0xffffffffa024d000 12747 </text>
+<rect x="618.8" y="386" width="462.0" height="18" fill="#eef0f3"/>
+<rect x="1080.8" y="386" width="8.4" height="18" fill="#f7f8fa"/>
+<text x="1080.8" y="399.5" fill="#5b6676" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="14.0" y="404" width="8.4" height="18" fill="#f7f8fa"/>
+<text x="14.0" y="417.5" fill="#b4bcc8" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="22.4" y="404" width="58.8" height="18" fill="#f7f8fa"/>
+<text x="22.4" y="417.5" fill="#1c2430" textLength="58.8" lengthAdjust="spacingAndGlyphs">  iomem</text>
+<rect x="81.2" y="404" width="126.0" height="18" fill="#f7f8fa"/>
+<rect x="207.2" y="404" width="8.4" height="18" fill="#f7f8fa"/>
+<text x="207.2" y="417.5" fill="#5b6676" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="215.6" y="404" width="8.4" height="18" fill="#f7f8fa"/>
+<text x="215.6" y="417.5" fill="#1f5f9e" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="224.0" y="404" width="16.8" height="18" fill="#f7f8fa"/>
+<rect x="240.8" y="404" width="378.0" height="18" fill="#f7f8fa"/>
+<text x="240.8" y="417.5" fill="#1c2430" textLength="378.0" lengthAdjust="spacingAndGlyphs">ghash_clmulni_intel 0xffffffffa033a000 13130 </text>
+<rect x="618.8" y="404" width="462.0" height="18" fill="#f7f8fa"/>
+<rect x="1080.8" y="404" width="8.4" height="18" fill="#f7f8fa"/>
+<text x="1080.8" y="417.5" fill="#5b6676" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="14.0" y="422" width="8.4" height="18" fill="#f7f8fa"/>
+<text x="14.0" y="435.5" fill="#b4bcc8" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="22.4" y="422" width="75.6" height="18" fill="#f7f8fa"/>
+<text x="22.4" y="435.5" fill="#1c2430" textLength="75.6" lengthAdjust="spacingAndGlyphs">  ioports</text>
+<rect x="98.0" y="422" width="109.2" height="18" fill="#f7f8fa"/>
+<rect x="207.2" y="422" width="8.4" height="18" fill="#f7f8fa"/>
+<text x="207.2" y="435.5" fill="#5b6676" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="215.6" y="422" width="8.4" height="18" fill="#f7f8fa"/>
+<text x="215.6" y="435.5" fill="#1f5f9e" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="224.0" y="422" width="16.8" height="18" fill="#eef0f3"/>
+<rect x="240.8" y="422" width="378.0" height="18" fill="#eef0f3"/>
+<text x="240.8" y="435.5" fill="#1c2430" textLength="378.0" lengthAdjust="spacingAndGlyphs">aesni_intel         0xffffffffa0327000 50667 </text>
+<rect x="618.8" y="422" width="462.0" height="18" fill="#eef0f3"/>
+<rect x="1080.8" y="422" width="8.4" height="18" fill="#f7f8fa"/>
+<text x="1080.8" y="435.5" fill="#5b6676" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="14.0" y="440" width="8.4" height="18" fill="#f7f8fa"/>
+<text x="14.0" y="453.5" fill="#b4bcc8" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="22.4" y="440" width="109.2" height="18" fill="#f7f8fa"/>
+<text x="22.4" y="453.5" fill="#1c2430" textLength="109.2" lengthAdjust="spacingAndGlyphs">  vmayarascan</text>
+<rect x="131.6" y="440" width="75.6" height="18" fill="#f7f8fa"/>
+<rect x="207.2" y="440" width="8.4" height="18" fill="#f7f8fa"/>
+<text x="207.2" y="453.5" fill="#5b6676" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="215.6" y="440" width="8.4" height="18" fill="#f7f8fa"/>
+<text x="215.6" y="453.5" fill="#1f5f9e" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="224.0" y="440" width="16.8" height="18" fill="#f7f8fa"/>
+<rect x="240.8" y="440" width="378.0" height="18" fill="#f7f8fa"/>
+<text x="240.8" y="453.5" fill="#1c2430" textLength="378.0" lengthAdjust="spacingAndGlyphs">aes_x86_64          0xffffffffa0314000 16843 </text>
+<rect x="618.8" y="440" width="462.0" height="18" fill="#f7f8fa"/>
+<rect x="1080.8" y="440" width="8.4" height="18" fill="#f7f8fa"/>
+<text x="1080.8" y="453.5" fill="#5b6676" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="14.0" y="458" width="8.4" height="18" fill="#f7f8fa"/>
+<text x="14.0" y="471.5" fill="#b4bcc8" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="22.4" y="458" width="50.4" height="18" fill="#f7f8fa"/>
+<text x="22.4" y="471.5" fill="#1c2430" textLength="50.4" lengthAdjust="spacingAndGlyphs">  maps</text>
+<rect x="72.8" y="458" width="134.4" height="18" fill="#f7f8fa"/>
+<rect x="207.2" y="458" width="8.4" height="18" fill="#f7f8fa"/>
+<text x="207.2" y="471.5" fill="#5b6676" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="215.6" y="458" width="8.4" height="18" fill="#f7f8fa"/>
+<text x="215.6" y="471.5" fill="#1f5f9e" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="224.0" y="458" width="16.8" height="18" fill="#eef0f3"/>
+<rect x="240.8" y="458" width="378.0" height="18" fill="#eef0f3"/>
+<text x="240.8" y="471.5" fill="#1c2430" textLength="378.0" lengthAdjust="spacingAndGlyphs">parport_pc          0xffffffffa031a000 22364 </text>
+<rect x="618.8" y="458" width="462.0" height="18" fill="#eef0f3"/>
+<rect x="1080.8" y="458" width="8.4" height="18" fill="#f7f8fa"/>
+<text x="1080.8" y="471.5" fill="#5b6676" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="14.0" y="476" width="8.4" height="18" fill="#f7f8fa"/>
+<text x="14.0" y="489.5" fill="#b4bcc8" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="22.4" y="476" width="50.4" height="18" fill="#f7f8fa"/>
+<text x="22.4" y="489.5" fill="#1c2430" textLength="50.4" lengthAdjust="spacingAndGlyphs">  elfs</text>
+<rect x="72.8" y="476" width="134.4" height="18" fill="#f7f8fa"/>
+<rect x="207.2" y="476" width="8.4" height="18" fill="#f7f8fa"/>
+<text x="207.2" y="489.5" fill="#5b6676" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="215.6" y="476" width="8.4" height="18" fill="#f7f8fa"/>
+<text x="215.6" y="489.5" fill="#1f5f9e" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="224.0" y="476" width="16.8" height="18" fill="#f7f8fa"/>
+<rect x="240.8" y="476" width="378.0" height="18" fill="#f7f8fa"/>
+<text x="240.8" y="489.5" fill="#1c2430" textLength="378.0" lengthAdjust="spacingAndGlyphs">parport             0xffffffffa02f7000 31858 </text>
+<rect x="618.8" y="476" width="462.0" height="18" fill="#f7f8fa"/>
+<rect x="1080.8" y="476" width="8.4" height="18" fill="#f7f8fa"/>
+<text x="1080.8" y="489.5" fill="#5b6676" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="14.0" y="494" width="8.4" height="18" fill="#f7f8fa"/>
+<text x="14.0" y="507.5" fill="#b4bcc8" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="22.4" y="494" width="50.4" height="18" fill="#f7f8fa"/>
+<text x="22.4" y="507.5" fill="#1c2430" textLength="50.4" lengthAdjust="spacingAndGlyphs">  bash</text>
+<rect x="72.8" y="494" width="134.4" height="18" fill="#f7f8fa"/>
+<rect x="207.2" y="494" width="8.4" height="18" fill="#f7f8fa"/>
+<text x="207.2" y="507.5" fill="#5b6676" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="215.6" y="494" width="8.4" height="18" fill="#f7f8fa"/>
+<text x="215.6" y="507.5" fill="#1f5f9e" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="224.0" y="494" width="16.8" height="18" fill="#eef0f3"/>
+<rect x="240.8" y="494" width="378.0" height="18" fill="#eef0f3"/>
+<text x="240.8" y="507.5" fill="#1c2430" textLength="378.0" lengthAdjust="spacingAndGlyphs">aes_generic         0xffffffffa030a000 33026 </text>
+<rect x="618.8" y="494" width="462.0" height="18" fill="#eef0f3"/>
+<rect x="1080.8" y="494" width="8.4" height="18" fill="#f7f8fa"/>
+<text x="1080.8" y="507.5" fill="#5b6676" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="14.0" y="512" width="8.4" height="18" fill="#f7f8fa"/>
+<text x="14.0" y="525.5" fill="#b4bcc8" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="22.4" y="512" width="117.6" height="18" fill="#f7f8fa"/>
+<text x="22.4" y="525.5" fill="#1c2430" textLength="117.6" lengthAdjust="spacingAndGlyphs">  library_list</text>
+<rect x="140.0" y="512" width="67.2" height="18" fill="#f7f8fa"/>
+<rect x="207.2" y="512" width="8.4" height="18" fill="#f7f8fa"/>
+<text x="207.2" y="525.5" fill="#5b6676" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="215.6" y="512" width="8.4" height="18" fill="#f7f8fa"/>
+<text x="215.6" y="525.5" fill="#1f5f9e" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="224.0" y="512" width="16.8" height="18" fill="#f7f8fa"/>
+<rect x="240.8" y="512" width="378.0" height="18" fill="#f7f8fa"/>
+<text x="240.8" y="525.5" fill="#1c2430" textLength="378.0" lengthAdjust="spacingAndGlyphs">cryptd              0xffffffffa0301000 14517 </text>
+<rect x="618.8" y="512" width="462.0" height="18" fill="#f7f8fa"/>
+<rect x="1080.8" y="512" width="8.4" height="18" fill="#f7f8fa"/>
+<text x="1080.8" y="525.5" fill="#5b6676" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="14.0" y="530" width="8.4" height="18" fill="#f7f8fa"/>
+<text x="14.0" y="543.5" fill="#b4bcc8" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="22.4" y="530" width="50.4" height="18" fill="#f7f8fa"/>
+<text x="22.4" y="543.5" fill="#1c2430" textLength="50.4" lengthAdjust="spacingAndGlyphs">  lsof</text>
+<rect x="72.8" y="530" width="134.4" height="18" fill="#f7f8fa"/>
+<rect x="207.2" y="530" width="8.4" height="18" fill="#f7f8fa"/>
+<text x="207.2" y="543.5" fill="#5b6676" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="215.6" y="530" width="8.4" height="18" fill="#f7f8fa"/>
+<text x="215.6" y="543.5" fill="#1f5f9e" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="224.0" y="530" width="16.8" height="18" fill="#eef0f3"/>
+<rect x="240.8" y="530" width="378.0" height="18" fill="#eef0f3"/>
+<text x="240.8" y="543.5" fill="#1c2430" textLength="378.0" lengthAdjust="spacingAndGlyphs">psmouse             0xffffffffa02e5000 69265 </text>
+<rect x="618.8" y="530" width="462.0" height="18" fill="#eef0f3"/>
+<rect x="1080.8" y="530" width="8.4" height="18" fill="#f7f8fa"/>
+<text x="1080.8" y="543.5" fill="#5b6676" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="14.0" y="548" width="8.4" height="18" fill="#f7f8fa"/>
+<text x="14.0" y="561.5" fill="#b4bcc8" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="22.4" y="548" width="92.4" height="18" fill="#f7f8fa"/>
+<text x="22.4" y="561.5" fill="#1c2430" textLength="92.4" lengthAdjust="spacingAndGlyphs">  mountinfo</text>
+<rect x="114.8" y="548" width="92.4" height="18" fill="#f7f8fa"/>
+<rect x="207.2" y="548" width="8.4" height="18" fill="#f7f8fa"/>
+<text x="207.2" y="561.5" fill="#5b6676" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="215.6" y="548" width="8.4" height="18" fill="#f7f8fa"/>
+<text x="215.6" y="561.5" fill="#1f5f9e" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="224.0" y="548" width="16.8" height="18" fill="#f7f8fa"/>
+<rect x="240.8" y="548" width="378.0" height="18" fill="#f7f8fa"/>
+<text x="240.8" y="561.5" fill="#1c2430" textLength="378.0" lengthAdjust="spacingAndGlyphs">vmw_balloon         0xffffffffa02e0000 12606 </text>
+<rect x="618.8" y="548" width="462.0" height="18" fill="#f7f8fa"/>
+<rect x="1080.8" y="548" width="8.4" height="18" fill="#f7f8fa"/>
+<text x="1080.8" y="561.5" fill="#5b6676" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="14.0" y="566" width="8.4" height="18" fill="#f7f8fa"/>
+<text x="14.0" y="579.5" fill="#b4bcc8" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="22.4" y="566" width="92.4" height="18" fill="#f7f8fa"/>
+<text x="22.4" y="579.5" fill="#1c2430" textLength="92.4" lengthAdjust="spacingAndGlyphs">  pagecache</text>
+<rect x="114.8" y="566" width="92.4" height="18" fill="#f7f8fa"/>
+<rect x="207.2" y="566" width="8.4" height="18" fill="#f7f8fa"/>
+<text x="207.2" y="579.5" fill="#5b6676" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="215.6" y="566" width="8.4" height="18" fill="#f7f8fa"/>
+<text x="215.6" y="579.5" fill="#1f5f9e" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="224.0" y="566" width="16.8" height="18" fill="#eef0f3"/>
+<rect x="240.8" y="566" width="378.0" height="18" fill="#eef0f3"/>
+<text x="240.8" y="579.5" fill="#1c2430" textLength="378.0" lengthAdjust="spacingAndGlyphs">pcspkr              0xffffffffa02db000 12579 </text>
+<rect x="618.8" y="566" width="462.0" height="18" fill="#eef0f3"/>
+<rect x="1080.8" y="566" width="8.4" height="18" fill="#f7f8fa"/>
+<text x="1080.8" y="579.5" fill="#5b6676" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="14.0" y="584" width="8.4" height="18" fill="#f7f8fa"/>
+<text x="14.0" y="597.5" fill="#b4bcc8" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="22.4" y="584" width="92.4" height="18" fill="#f7f8fa"/>
+<text x="22.4" y="597.5" fill="#1c2430" textLength="92.4" lengthAdjust="spacingAndGlyphs">  fdsummary</text>
+<rect x="114.8" y="584" width="92.4" height="18" fill="#f7f8fa"/>
+<rect x="207.2" y="584" width="8.4" height="18" fill="#f7f8fa"/>
+<text x="207.2" y="597.5" fill="#5b6676" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="215.6" y="584" width="8.4" height="18" fill="#f7f8fa"/>
+<text x="215.6" y="597.5" fill="#1f5f9e" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="224.0" y="584" width="16.8" height="18" fill="#f7f8fa"/>
+<rect x="240.8" y="584" width="378.0" height="18" fill="#f7f8fa"/>
+<text x="240.8" y="597.5" fill="#1c2430" textLength="378.0" lengthAdjust="spacingAndGlyphs">serio_raw           0xffffffffa02d6000 12931 </text>
+<rect x="618.8" y="584" width="462.0" height="18" fill="#f7f8fa"/>
+<rect x="1080.8" y="584" width="8.4" height="18" fill="#f7f8fa"/>
+<text x="1080.8" y="597.5" fill="#5b6676" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
+<rect x="14.0" y="602" width="201.6" height="18" fill="#f7f8fa"/>
+<text x="14.0" y="615.5" fill="#b4bcc8" textLength="201.6" lengthAdjust="spacingAndGlyphs">╰──────────────────────╯</text>
+<rect x="215.6" y="602" width="16.8" height="18" fill="#f7f8fa"/>
+<text x="215.6" y="615.5" fill="#1f5f9e" textLength="16.8" lengthAdjust="spacingAndGlyphs">╰─</text>
+<rect x="232.4" y="602" width="243.6" height="18" fill="#f7f8fa"/>
+<text x="232.4" y="615.5" fill="#5b6676" textLength="243.6" lengthAdjust="spacingAndGlyphs">  79 / 79 条 · 显示 1–27 行  </text>
+<rect x="476.0" y="602" width="613.2" height="18" fill="#f7f8fa"/>
+<text x="476.0" y="615.5" fill="#1f5f9e" textLength="613.2" lengthAdjust="spacingAndGlyphs">────────────────────────────────────────────────────────────────────────╯</text>
+<rect x="14.0" y="620" width="50.4" height="18" fill="#f7f8fa"/>
+<text x="14.0" y="633.5" fill="#1f5f9e" font-weight="700" textLength="50.4" lengthAdjust="spacingAndGlyphs"> 内容 </text>
+<rect x="64.4" y="620" width="16.8" height="18" fill="#f7f8fa"/>
+<text x="64.4" y="633.5" fill="#b4bcc8" textLength="16.8" lengthAdjust="spacingAndGlyphs">│ </text>
+<rect x="81.2" y="620" width="302.4" height="18" fill="#f7f8fa"/>
+<text x="81.2" y="633.5" fill="#1c2430" textLength="302.4" lengthAdjust="spacingAndGlyphs">lsmod · 79 条 · 完整 · 0 条诊断（v）</text>
+<rect x="383.6" y="620" width="705.6" height="18" fill="#f7f8fa"/>
+<text x="14.0" y="651.5" fill="#0b3d6e" textLength="100.8" lengthAdjust="spacingAndGlyphs"> 搜索内容 / </text>
+<rect x="114.8" y="638" width="8.4" height="18" fill="#f7f8fa"/>
+<text x="123.2" y="651.5" fill="#0b3d6e" textLength="67.2" lengthAdjust="spacingAndGlyphs"> 详情 d </text>
+<rect x="190.4" y="638" width="8.4" height="18" fill="#f7f8fa"/>
+<text x="198.8" y="651.5" fill="#0b3d6e" textLength="67.2" lengthAdjust="spacingAndGlyphs"> 排序 s </text>
+<rect x="266.0" y="638" width="8.4" height="18" fill="#f7f8fa"/>
+<text x="274.4" y="651.5" fill="#0b3d6e" textLength="100.8" lengthAdjust="spacingAndGlyphs"> 导出结果 e </text>
+<rect x="375.2" y="638" width="8.4" height="18" fill="#f7f8fa"/>
+<text x="383.6" y="651.5" fill="#0b3d6e" textLength="100.8" lengthAdjust="spacingAndGlyphs"> 每页行数 n </text>
+<rect x="484.4" y="638" width="8.4" height="18" fill="#f7f8fa"/>
+<text x="492.8" y="651.5" fill="#0b3d6e" textLength="84.0" lengthAdjust="spacingAndGlyphs"> 前一页 [ </text>
+<rect x="576.8" y="638" width="8.4" height="18" fill="#f7f8fa"/>
+<text x="585.2" y="651.5" fill="#0b3d6e" textLength="84.0" lengthAdjust="spacingAndGlyphs"> 后一页 ] </text>
+<rect x="669.2" y="638" width="8.4" height="18" fill="#f7f8fa"/>
+<text x="677.6" y="651.5" fill="#0b3d6e" textLength="252.0" lengthAdjust="spacingAndGlyphs"> Dump 导出进程／地址范围／ELF </text>
+<rect x="929.6" y="638" width="92.4" height="18" fill="#f7f8fa"/>
+<text x="1022.0" y="651.5" fill="#0b3d6e" textLength="67.2" lengthAdjust="spacingAndGlyphs"> 更多 ? </text>
+</g></svg>

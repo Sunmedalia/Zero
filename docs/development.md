@@ -1,6 +1,6 @@
 # 开发、资源预算与性能验证
 
-[返回项目入口](../README.md)
+[← 项目首页](../README.md) · [使用指南](usage.md) · [终端界面架构](tui.md)
 
 ## 检查与验收
 
@@ -88,9 +88,18 @@ cargo build --release --locked --examples
 
 ## CI 与发布
 
-GitHub Actions 在 Linux／macOS 的 x86_64 和 ARM64 上运行 `make check`、兼容表同步检查与 CLI 启动检查，并生成包含三个可执行文件的归档。CI 不下载真实镜像或符号；真实镜像验收在本地运行。
+GitHub Actions 在 Linux／macOS 的 x86_64 和 ARM64 上运行 `make check`、兼容表同步检查与 CLI 启动检查，并为每个目标生成归档：`zero` 可执行文件、README、`docs/tui.md`，以及界面的 `ts/dist`、`ts/src`、`package.json` 与 `package-lock.json`（不含 `node_modules`，解压后在 `ts/` 运行 `npm ci --omit=dev`）。CI 不下载真实镜像或符号；真实镜像验收在本地运行。
 
-`v` 前缀标签触发发布流程：四个平台检查通过后，校验标签与 Cargo 版本一致，发布归档和 `SHA256SUMS`。发布说明见 [RELEASE_NOTES.md](../RELEASE_NOTES.md)。宿主构建使用 [GitHub 官方 runner 标签](https://docs.github.com/en/actions/reference/runners/github-hosted-runners)；Windows 镜像分析兼容范围与宿主平台分别记录。
+`v` 前缀标签触发发布流程：四个平台检查通过后，校验标签与 Cargo 版本一致，以 [RELEASE_NOTES.md](../RELEASE_NOTES.md) 为说明发布归档和 `SHA256SUMS`。发布新版本：
+
+```sh
+# 1. 同步 Cargo.toml、ts/package.json 的版本号，并重写 RELEASE_NOTES.md
+# 2. 本地通过 make check（可选 make tui-acceptance）
+git tag -a vX.Y.Z -m "Zero vX.Y.Z"
+git push origin main vX.Y.Z
+```
+
+宿主构建使用 [GitHub 官方 runner 标签](https://docs.github.com/en/actions/reference/runners/github-hosted-runners)；Windows 镜像分析兼容范围与宿主平台分别记录。
 
 `make tui-acceptance` 通过真实镜像驱动 `zero tui-backend`（界面使用的同一协议），覆盖识别、精确匹配、分析和页表验证；样本路径可用 `ZERO_TEST_IMAGE`／`ZERO_TEST_SYMBOLS` 覆盖。界面本身的单元测试用内存引擎，不读取镜像：
 
@@ -99,3 +108,12 @@ cd ts && npm test
 ```
 
 界面架构、协议和目录说明见 [TypeScript 终端界面](tui.md)。
+
+## README 截图
+
+`docs/assets/*.svg` 由真实引擎生成：`scripts/screenshots.mjs` 把本地公开样本复制到临时项目，经与终端相同的 `RpcEngine`、`App` 和 `renderFrame` 运行插件，再把画布转为 SVG，所以截图不含本机路径，也不会与界面实际效果脱节。界面改动后重新生成：
+
+```sh
+make build ui-build
+make screenshots   # 默认 images/linux-sample-1.bin.gz 与 symbols/linux.zip，可用 IMAGE= SYMBOLS= 覆盖
+```
