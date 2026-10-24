@@ -101,6 +101,8 @@ Windows 10 RAW 样本额外验证了 4 个 WOW64 进程（PID 4428、5684、5932
 
 新增 `windows.timers`：按 `KeNumberProcessors` 遍历 `KiProcessorBlock` 中每个 KPRCB 的 `TimerTable.TimerEntries`（Windows 11 为两张 256 项表，统一展开），输出定时器、DueTime、Period、解码后的 DPC 及 DeferredRoutine 的模块归属。Windows 8 以后的 x64 按 `KiWaitAlways ^ bswap(Timer ^ rotl(KiWaitNever ^ Dpc, KiWaitNever 低 8 位))` 解码，解码结果不是内核指针时退回原值（旧版未编码）。实测 Windows 10 15063 `timers=456`、Windows 11 22000 `timers=575`，带 DPC 的例程绝大多数落在 ntoskrnl、tcpip、ndis 等已加载模块中；Windows 11 有 1 个例程不在任何已加载模块内，标为 `[unknown]`，需结合其他证据判断（可能为动态代码或已卸载驱动）。
 
+新增 `windows.statistics`：遍历已验证内核页表的内核半区（ARM64 为整个内核根表），统计有效 4K 页、大页、transition 页、其他软件 PTE（换出、按需清零、原型）、空 PTE 以及不可读或未驻留的页表；跳过顶层自映射项，并按（层级, 页表物理地址）去重，被多个父项共享的页表只计一次并单独报告共享次数。实测 Windows 10 15063 有效 4K 页 151,967、大页 49；Windows 11 22000 有效 4K 页 117,580、大页 76。
+
 矩阵按插件和架构记录四级证据。**真实**仅代表列出的样本构建与容器；**合成**验证解析路径或指针宽度，不能证明该系统的完整布局；**待验证**缺少实测证据；**不支持**没有对应解析模型。零条扫描结果不作为恢复能力的真实验证。具体插件、样本哈希、精确 PDB 与范围见 [机器可读矩阵](../src/windows/compatibility.json) 和 [验收基线](../tests/fixtures/windows.json)。Server 2003 与 R2 共用内核构建，系统身份会保留歧义；Server 2025 与 Windows 11 的 26100 使用有效的 ProductType 区分。所有版本仍要求精确符号，未知构建不会选择最近版本。
 
 <!-- windows-compatibility:start -->

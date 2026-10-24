@@ -598,6 +598,9 @@ impl Windows<'_> {
             }
             return Ok(result);
         }
+        if p == Plugin::WinStatistics {
+            return self.statistics(job);
+        }
         if p == Plugin::WinTimers {
             return self.timers(job);
         }

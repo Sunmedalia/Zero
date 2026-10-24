@@ -122,6 +122,8 @@ pub enum Plugin {
     WinMbrscan,
     #[value(name = "windows.timers")]
     WinTimers,
+    #[value(name = "windows.statistics")]
+    WinStatistics,
     Iomem,
     Ioports,
     Ptrace,
@@ -855,6 +857,13 @@ pub const PLUGINS: &[Descriptor] = &[
         widths: &[4, 18, 20, 8, 18, 18, 0],
     },
     Descriptor {
+        plugin: Plugin::WinStatistics,
+        name: "windows.statistics",
+        label: "windows.statistics",
+        columns: &["Key", "Value"],
+        widths: &[30, 0],
+    },
+    Descriptor {
         plugin: Plugin::Pslist,
         name: "pslist",
         label: "pslist",
@@ -1401,6 +1410,7 @@ impl Plugin {
             Self::WinTimeliner => "System",
             Self::WinMbrscan => "Files",
             Self::WinTimers => "Integrity",
+            Self::WinStatistics => "Memory",
             Self::Banners
             | Self::Systeminfo
             | Self::Dmesg
@@ -1548,6 +1558,7 @@ impl Plugin {
             WinTimeliner => "汇总多个插件的时间戳为统一时间线",
             WinMbrscan => "扫描内存中的主引导记录及分区表",
             WinTimers => "列出各处理器的内核定时器及 DPC 例程归属",
+            WinStatistics => "统计内核地址空间的有效、换出与空页表项",
         }
     }
 }

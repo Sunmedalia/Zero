@@ -485,6 +485,108 @@ impl Windows<'_> {
     }
 }
 
+/// Page counts of one address space, by leaf PTE state.
+#[derive(Debug, Default, PartialEq)]
+pub(super) struct PageStatistics {
+    pub valid: u64,
+    pub large: u64,
+    pub transition: u64,
+    pub software: u64,
+    pub empty: u64,
+    pub missing_tables: u64,
+    pub shared_tables: u64,
+}
+
+impl Windows<'_> {
+    /// windows.statistics: leaf page states of the kernel address space.
+    pub(super) fn statistics(&self, job: &Job) -> Result<Results> {
+        let mut r = self.result(Plugin::WinStatistics);
+        let geometry = self.vm.paging()?;
+        let mut stats = PageStatistics::default();
+        let top = geometry.entries(0);
+        // The kernel owns the upper half of the root table except on ARM64,
+        // whose kernel root covers kernel space alone.
+        let first = if geometry.arch == Architecture::Arm64 {
+            0
+        } else {
+            top / 2
+        };
+        let mut stack = vec![(0usize, self.vm.root & geometry.root_mask(), first, top)];
+        // Tables can be referenced from several parents; count each once.
+        let mut visited = HashSet::new();
+        while let Some((level, table, from, to)) = stack.pop() {
+            job.check()?;
+            if !visited.insert((level, table)) {
+                stats.shared_tables += 1;
+                continue;
+            }
+            ensure!(visited.len() <= MAX_OBJECTS, "页表数量超过上限");
+            let shift = geometry.shifts()[level];
+            let leaf = level + 1 == geometry.shifts().len();
+            for index in from..to {
+                let entry = match geometry.entry(self.vm.image, table, index) {
+                    Ok(entry) => entry,
+                    Err(_) => {
+                        stats.missing_tables += 1;
+                        break;
+                    }
+                };
+                if entry & 1 == 0 {
+                    if entry == 0 {
+                        if leaf {
+                            stats.empty += 1;
+                        }
+                    } else if leaf {
+                        if entry & (1 << 11) != 0 && entry & (1 << 10) == 0 {
+                            stats.transition += 1;
+                        } else {
+                            stats.software += 1;
+                        }
+                    } else {
+                        stats.missing_tables += 1;
+                    }
+                    continue;
+                }
+                if level == 0 && entry & geometry.mask() == table {
+                    // The page-table self-map: walking it would recount tables.
+                    continue;
+                }
+                if leaf {
+                    stats.valid += 1;
+                } else if geometry.block(entry, shift) {
+                    stats.large += 1;
+                } else {
+                    stack.push((
+                        level + 1,
+                        entry & geometry.mask(),
+                        0,
+                        geometry.entries(level + 1),
+                    ));
+                }
+            }
+        }
+        r.rows = vec![
+            vec!["ValidPages4K".into(), stats.valid.to_string()],
+            vec!["ValidLargePages".into(), stats.large.to_string()],
+            vec!["TransitionPages".into(), stats.transition.to_string()],
+            vec!["SoftwarePTEs".into(), stats.software.to_string()],
+            vec!["EmptyPTEs".into(), stats.empty.to_string()],
+            vec![
+                "UnreadableOrNonPresentTables".into(),
+                stats.missing_tables.to_string(),
+            ],
+            vec![
+                "SharedTableReferences".into(),
+                stats.shared_tables.to_string(),
+            ],
+        ];
+        r.kernel_identity["coverage"] = serde_json::json!(
+            "kernel half of the validated kernel page tables; software PTEs include paged-out, demand-zero and prototype entries"
+        );
+        Ok(r)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::super::tests::{K, fixture, image, put};
@@ -661,6 +763,21 @@ mod tests {
         let encoded =
             ((dpc ^ always).swap_bytes() ^ timer).rotate_right((never & 0xff) as u32) ^ never;
         assert_eq!(decode_timer_dpc(encoded, timer, never, always), dpc);
+    }
+    #[test]
+    fn statistics_count_kernel_leaf_states() {
+        let (b, isf) = prepare();
+        let img = image(&b);
+        let r = engine(&img, &isf).statistics(&Job::default()).unwrap();
+        let get = |key: &str| {
+            r.rows.iter().find(|row| row[0] == key).unwrap()[1]
+                .parse::<u64>()
+                .unwrap()
+        };
+        // The fixture maps 32 kernel pages through one page table.
+        assert_eq!(get("ValidPages4K"), 32);
+        assert_eq!(get("EmptyPTEs"), 512 - 32);
+        assert_eq!(get("ValidLargePages"), 0);
     }
     #[test]
     fn modscan_carves_unlisted_loader_entries_and_marks_listed_ones() {
