@@ -36,7 +36,10 @@ def main():
     archive = args.output / f'{name}.tar.gz'
     with tarfile.open(archive, 'w:gz') as package:
         for source in files:
-            package.add(source, arcname=f'{name}/{source.name}', recursive=False)
+            # Interface manifests belong beside ts/dist so `cd ts && npm ci` works.
+            relative = source.relative_to(root)
+            arcname = relative if relative.parts[0] == 'ts' else Path(source.name)
+            package.add(source, arcname=f'{name}/{arcname}', recursive=False)
         package.add(root / 'ts/dist', arcname=f'{name}/ts/dist')
         package.add(root / 'ts/src', arcname=f'{name}/ts/src')
         package.add(root / 'docs/tui.md', arcname=f'{name}/docs/tui.md')
