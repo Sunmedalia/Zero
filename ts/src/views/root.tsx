@@ -73,6 +73,12 @@ export function Root({
       }
       if (event.kind === 'press' && event.button === 0) {
         void app.click(event.x, event.y);
+      } else if (event.kind === 'press' && event.button === 1) {
+        void app.middleClick(event.x, event.y);
+      } else if (event.kind === 'drag' && event.button === 0) {
+        app.drag(event.x, event.y);
+      } else if (event.kind === 'release') {
+        app.release();
       }
     });
     return () => {
@@ -109,8 +115,10 @@ export function renderFrame(app: App, columns: number, rows: number) {
   paint.paintAssetDetail(canvas, app, layout);
   paint.paintMenu(canvas, app, layout);
   paint.paintContent(canvas, app, layout);
+  paint.paintCache(canvas, app, layout);
   paint.paintFooter(canvas, app, layout);
   paint.paintInspector(canvas, app, layout);
+  paint.paintScrollbars(canvas, layout);
   paint.paintDialog(canvas, app, layout);
   app.setHits(hitMap(layout, app.state));
   return { canvas, layout };
@@ -246,8 +254,19 @@ async function routeKey(
     await app.requestAnalysis(false);
     return;
   }
+  // Browser-style page tabs: Ctrl+PgUp / Ctrl+PgDn switch, Ctrl+W closes.
+  if (key.ctrl && (key.pageUp || key.pageDown)) {
+    await app.cycleTab(key.pageUp ? -1 : 1);
+    return;
+  }
+  if (key.ctrl && input === 'w') {
+    await app.closeActiveTab();
+    return;
+  }
   if (key.ctrl && (key.leftArrow || key.rightArrow || key.tab)) {
-    app.switchPage(app.state.page === 'assets' ? 'analysis' : 'assets');
+    const pages = ['assets', 'analysis', 'cache'] as const;
+    const step = key.leftArrow ? pages.length - 1 : 1;
+    app.switchPage(pages[(pages.indexOf(app.state.page) + step) % pages.length]!);
     return;
   }
   if (key.meta && (key.leftArrow || key.rightArrow)) {
@@ -258,7 +277,22 @@ async function routeKey(
     await assetKey(app, token);
     return;
   }
+  if (app.state.page === 'cache') {
+    await cacheKey(app, token);
+    return;
+  }
   await analysisKey(app, token);
+}
+
+async function cacheKey(app: App, token: string): Promise<void> {
+  app.state.focus = 'navigation';
+  if (app.cacheNavigate(token)) {
+    return;
+  }
+  const command = app.resolveKey(token);
+  if (command) {
+    await app.runCommand(command);
+  }
 }
 
 async function assetKey(app: App, token: string): Promise<void> {

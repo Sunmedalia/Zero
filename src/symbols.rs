@@ -424,6 +424,8 @@ pub struct RemoteMatch {
     pub path: String,
     pub url: String,
 }
+/// Repository-relative prefix of release assets; the index now lists them as full URLs.
+const RELEASES: &str = "releases/download/";
 pub fn repository_url(path: &str) -> Result<String> {
     ensure!(
         path.ends_with(".json.xz")
@@ -431,7 +433,8 @@ pub fn repository_url(path: &str) -> Result<String> {
             && path
                 .split('/')
                 .all(|p| !p.is_empty() && p != "." && p != "..")
-            && !path.contains(['\\', '\0', ':']),
+            && !path.contains(['\\', '\0', ':'])
+            && (!path.starts_with(RELEASES) || path.split('/').count() == 4),
         "仓库 ISF 路径无效"
     );
     let mut encoded = String::new();
@@ -442,7 +445,61 @@ pub fn repository_url(path: &str) -> Result<String> {
             encoded.push_str(&format!("%{b:02X}"));
         }
     }
-    Ok(format!("{RAW}{encoded}"))
+    Ok(if path.starts_with(RELEASES) {
+        format!("{REPOSITORY}/{encoded}")
+    } else {
+        format!("{RAW}{encoded}")
+    })
+}
+/// Normalize one index entry (a repository path or a percent-encoded release
+/// asset URL of the specified repository) to the repository-relative path used
+/// as its identity.
+pub fn index_path(entry: &str) -> Result<String> {
+    let path = match entry
+        .strip_prefix(REPOSITORY)
+        .and_then(|p| p.strip_prefix('/'))
+        .filter(|p| p.starts_with(RELEASES))
+    {
+        Some(release) => percent_decode(release)?,
+        None => entry.to_owned(),
+    };
+    repository_url(&path)?;
+    Ok(path)
+}
+fn percent_decode(value: &str) -> Result<String> {
+    let mut bytes = Vec::with_capacity(value.len());
+    let mut input = value.bytes();
+    while let Some(b) = input.next() {
+        if b == b'%' {
+            let hex = [input.next(), input.next()];
+            let digit = |d: Option<u8>| (d? as char).to_digit(16);
+            let (Some(high), Some(low)) = (digit(hex[0]), digit(hex[1])) else {
+                bail!("仓库 ISF 路径编码无效");
+            };
+            bytes.push((high * 16 + low) as u8);
+        } else {
+            bytes.push(b);
+        }
+    }
+    Ok(String::from_utf8(bytes)?)
+}
+fn has_token(path: &str, token: &str) -> bool {
+    let separator = |c: Option<char>| c.is_none_or(|c| "/_-.".contains(c));
+    path.match_indices(token).any(|(at, _)| {
+        separator(path[..at].chars().next_back())
+            && separator(path[at + token.len()..].chars().next())
+    })
+}
+/// Architecture named by an ISF path: `Some(true)` ARM64, `Some(false)` x86_64,
+/// `None` for an architecture the native engine cannot translate or no marker.
+fn path_arm64(path: &str) -> Option<bool> {
+    if ["arm64", "aarch64"].iter().any(|t| has_token(path, t)) {
+        Some(true)
+    } else if ["amd64", "x86_64"].iter().any(|t| has_token(path, t)) {
+        Some(false)
+    } else {
+        None
+    }
 }
 #[derive(Debug)]
 pub(crate) struct HttpError {
@@ -600,23 +657,18 @@ pub fn lookup_index(index: &Value, banners: &[(u64, Vec<u8>)]) -> Result<Vec<Rem
             .trim_end_matches(['\0', '\n'])
             .to_string();
         if let Some(paths) = index.get(&banner).and_then(Value::as_array) {
+            let arm = banner.contains("aarch64") || banner.contains("-arm64");
             for path in paths {
-                let path = path.as_str().context("索引路径无效")?;
-                let url = repository_url(path)?;
-                let arm = banner.contains("aarch64") || banner.contains("-arm64");
-                if !(if arm {
-                    path.contains("/arm64/") || path.contains("/aarch64/")
-                } else {
-                    path.contains("/amd64/") || path.contains("/x86_64/")
-                }) {
+                let path = index_path(path.as_str().context("索引路径无效")?)?;
+                if path_arm64(&path) != Some(arm) {
                     continue;
                 }
                 found.insert(
-                    path.to_string(),
+                    path.clone(),
                     RemoteMatch {
                         banner: banner.clone(),
-                        path: path.into(),
-                        url,
+                        url: repository_url(&path)?,
+                        path,
                     },
                 );
             }
@@ -681,43 +733,188 @@ pub fn remote_matches(
     };
     lookup_index(&index, &banners)
 }
+/// Linux entries of the cached index, parsed once per index file version.
+struct ParsedIndex {
+    path: std::path::PathBuf,
+    stamp: (std::time::SystemTime, u64),
+    banners: usize,
+    entries: Vec<(RemoteMatch, String)>,
+}
+static PARSED_INDEX: std::sync::Mutex<Option<std::sync::Arc<ParsedIndex>>> =
+    std::sync::Mutex::new(None);
+fn parsed_index(path: &Path, job: &Job) -> Result<std::sync::Arc<ParsedIndex>> {
+    let meta = fs::metadata(path)?;
+    let stamp = (meta.modified()?, meta.len());
+    let mut slot = PARSED_INDEX
+        .lock()
+        .map_err(|_| anyhow::anyhow!("远程索引缓存锁损坏"))?;
+    if let Some(parsed) = slot.as_ref()
+        && parsed.path == path
+        && parsed.stamp == stamp
+    {
+        return Ok(parsed.clone());
+    }
+    job.report("解析远程符号索引");
+    let index: Value = serde_json::from_slice(&fs::read(path)?)?;
+    let index = index.as_object().context("远程索引格式无效")?;
+    let mut entries = Vec::new();
+    for (banner, paths) in index {
+        job.check()?;
+        if !banner.starts_with("Linux version ") {
+            continue;
+        }
+        for entry in paths.as_array().context("远程索引路径列表无效")? {
+            // Skip entries outside the repository and kernels the native
+            // engine cannot translate (only x86_64 and ARM64).
+            let Some(path) = entry.as_str().and_then(|e| index_path(e).ok()) else {
+                continue;
+            };
+            if path_arm64(&path).is_none() {
+                continue;
+            }
+            let text = format!("{banner} {path}").to_lowercase();
+            entries.push((
+                RemoteMatch {
+                    banner: banner.clone(),
+                    url: repository_url(&path)?,
+                    path,
+                },
+                text,
+            ));
+        }
+    }
+    entries.sort_by(|a, b| {
+        natural_cmp(&b.0.path, &a.0.path).then_with(|| a.0.banner.cmp(&b.0.banner))
+    });
+    entries.dedup_by(|a, b| a.0.path == b.0.path && a.0.banner == b.0.banner);
+    let parsed = std::sync::Arc::new(ParsedIndex {
+        path: path.to_owned(),
+        stamp,
+        banners: index.len(),
+        entries,
+    });
+    *slot = Some(parsed.clone());
+    Ok(parsed)
+}
+fn at_word_start(text: &str, word: &str) -> bool {
+    text.match_indices(word).any(|(at, _)| {
+        text[..at]
+            .chars()
+            .next_back()
+            .is_none_or(|c| !c.is_alphanumeric())
+    })
+}
+/// Compare with digit runs as numbers so `5.15.0-91` sorts after `5.15.0-9`.
+fn natural_cmp(a: &str, b: &str) -> std::cmp::Ordering {
+    let (mut a, mut b) = (a.as_bytes(), b.as_bytes());
+    loop {
+        match (a.first(), b.first()) {
+            (None, None) => return std::cmp::Ordering::Equal,
+            (None, _) => return std::cmp::Ordering::Less,
+            (_, None) => return std::cmp::Ordering::Greater,
+            (Some(x), Some(y)) if x.is_ascii_digit() && y.is_ascii_digit() => {
+                let run = |s: &[u8]| s.iter().take_while(|c| c.is_ascii_digit()).count();
+                let (ra, rb) = (run(a), run(b));
+                let trim = |s: &[u8]| {
+                    let zeros = s.iter().take_while(|c| **c == b'0').count();
+                    s[zeros..].to_vec()
+                };
+                let (na, nb) = (trim(&a[..ra]), trim(&b[..rb]));
+                let order = na.len().cmp(&nb.len()).then_with(|| na.cmp(&nb));
+                if order.is_ne() {
+                    return order;
+                }
+                (a, b) = (&a[ra..], &b[rb..]);
+            }
+            (Some(x), Some(y)) => {
+                if x != y {
+                    return x.cmp(y);
+                }
+                (a, b) = (&a[1..], &b[1..]);
+            }
+        }
+    }
+}
+#[derive(Clone, Debug, serde::Serialize)]
+pub struct IndexInfo {
+    /// Banners of every system in the index file.
+    pub banners: usize,
+    /// Searchable Linux x86_64 / ARM64 entries.
+    pub entries: usize,
+    pub bytes: u64,
+    pub age_seconds: Option<u64>,
+}
+pub struct CatalogPage {
+    pub matches: Vec<RemoteMatch>,
+    /// Number of entries matching the query before `limit`.
+    pub total: usize,
+    pub index: IndexInfo,
+}
+/// Search the cached index. Every word must occur in the banner or path; a word
+/// that starts the kernel release ranks first, then newest paths first.
+pub fn catalog(
+    cache: &Path,
+    query: &str,
+    limit: usize,
+    network: bool,
+    job: &Job,
+) -> Result<CatalogPage> {
+    let path = cache.join("symbols/banners_plain.json");
+    if !path.is_file() {
+        ensure!(network, "离线模式且索引未缓存；按 o 开启在线后刷新索引");
+        refresh_index(cache, job)?;
+    }
+    let parsed = parsed_index(&path, job)?;
+    let words: Vec<_> = query.split_whitespace().map(str::to_lowercase).collect();
+    let release = |banner: &str| {
+        banner
+            .split_whitespace()
+            .nth(2)
+            .unwrap_or_default()
+            .to_lowercase()
+    };
+    let mut ranked = Vec::new();
+    for (index, (candidate, text)) in parsed.entries.iter().enumerate() {
+        if index % 4096 == 0 {
+            job.check()?;
+        }
+        if words.iter().all(|w| text.contains(w.as_str())) {
+            let release = release(&candidate.banner);
+            let exact = words.iter().any(|w| release.starts_with(w.as_str()));
+            // `3.2.0-4` should not rank `13.2.0-4` as highly as a whole word.
+            let partial = words.iter().filter(|w| !at_word_start(text, w)).count();
+            ranked.push((!exact, partial, index));
+        }
+    }
+    ranked.sort_unstable();
+    let meta = fs::metadata(&path)?;
+    Ok(CatalogPage {
+        total: ranked.len(),
+        matches: ranked
+            .iter()
+            .take(limit)
+            .map(|(_, _, index)| parsed.entries[*index].0.clone())
+            .collect(),
+        index: IndexInfo {
+            banners: parsed.banners,
+            entries: parsed.entries.len(),
+            bytes: meta.len(),
+            age_seconds: meta
+                .modified()
+                .ok()
+                .and_then(|t| t.elapsed().ok())
+                .map(|d| d.as_secs()),
+        },
+    })
+}
 pub fn catalog_search(
     cache: &Path,
     query: &str,
     network: bool,
     job: &Job,
 ) -> Result<Vec<RemoteMatch>> {
-    let path = cache.join("symbols/banners_plain.json");
-    if !path.is_file() {
-        ensure!(network, "离线模式且索引未缓存；按 o 开启在线后刷新索引");
-        refresh_index(cache, job)?;
-    }
-    let index: Value = serde_json::from_slice(&fs::read(path)?)?;
-    let words: Vec<_> = query.split_whitespace().map(str::to_lowercase).collect();
-    let mut found = std::collections::BTreeMap::new();
-    for (banner, paths) in index.as_object().context("远程索引格式无效")? {
-        job.check()?;
-        if !banner.starts_with("Linux version ") {
-            continue;
-        }
-        for path in paths.as_array().context("远程索引路径列表无效")? {
-            let path = path.as_str().context("远程索引路径无效")?;
-            let text = format!("{banner} {path}").to_lowercase();
-            if words.iter().all(|w| text.contains(w)) {
-                found.insert(
-                    (path.to_owned(), banner.clone()),
-                    RemoteMatch {
-                        banner: banner.clone(),
-                        path: path.into(),
-                        url: repository_url(path)?,
-                    },
-                );
-            }
-        }
-    }
-    Ok(found.into_values().collect())
+    Ok(catalog(cache, query, usize::MAX, network, job)?.matches)
 }
-
 pub fn cache_filename(path: &str) -> Result<String> {
     repository_url(path)?;
     let stem = path

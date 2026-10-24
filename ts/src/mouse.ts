@@ -9,6 +9,8 @@
  * Only the SGR encoding (`CSI < b ; x ; y M|m`) is used, because it is the only
  * one that reports columns beyond 223 and unambiguous release events. The
  * terminal is put into that mode explicitly; X10 encoding is never enabled.
+ * Button-event tracking (1002) adds motion reports while a button is held,
+ * which is what lets a scrollbar thumb be dragged; bare hover is never reported.
  */
 /** The subset of `stdin` the listener needs. */
 export interface MouseSource {
@@ -18,7 +20,8 @@ export interface MouseSource {
 
 /** A decoded mouse event in zero-based terminal cells. */
 export interface MouseEvent {
-  kind: 'press' | 'release' | 'wheel';
+  /** `drag` is motion with a button held (button-event tracking). */
+  kind: 'press' | 'release' | 'wheel' | 'drag';
   /** 0 = left, 1 = middle, 2 = right, 3 = release (legacy), 64/65 = wheel. */
   button: number;
   x: number;
@@ -28,8 +31,8 @@ export interface MouseEvent {
   ctrl: boolean;
 }
 
-const ENABLE = '\u001b[?1000h\u001b[?1006h';
-const DISABLE = '\u001b[?1006l\u001b[?1000l';
+const ENABLE = '\u001b[?1000h\u001b[?1002h\u001b[?1006h';
+const DISABLE = '\u001b[?1006l\u001b[?1002l\u001b[?1000l';
 /** Anything longer than this cannot be a mouse report; drop it. */
 const MAX_PENDING = 64;
 
@@ -82,6 +85,19 @@ export function decodeMouse(text: string): { events: MouseEvent[]; rest: string 
         alt: (button & 0b0000_1000) !== 0,
         ctrl: (button & 0b0001_0000) !== 0,
       });
+    } else if (button & 0b0010_0000) {
+      // Motion. Without a held button (base 3) it is hover, which is ignored.
+      if (base !== 3) {
+        events.push({
+          kind: 'drag',
+          button: base,
+          x,
+          y,
+          shift: (button & 0b0000_0100) !== 0,
+          alt: (button & 0b0000_1000) !== 0,
+          ctrl: (button & 0b0001_0000) !== 0,
+        });
+      }
     } else if (base === 3) {
       // SGR reports releases with the same button bits as the press, so this
       // branch is only reached by terminals that still send the legacy code.

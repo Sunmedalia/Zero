@@ -9,7 +9,7 @@
 export type Os = 'auto' | 'linux' | 'windows';
 export type Arch = 'auto' | 'x86' | 'x64' | 'arm64';
 export type AssetKind = 'image' | 'symbols';
-export type ScopeId = 'results' | 'identification' | 'images' | 'symbols' | 'dumps' | 'all';
+export type ScopeId = 'results' | 'exports' | 'identification' | 'images' | 'symbols' | 'dumps' | 'all';
 
 export interface PluginDescriptor {
   name: string;
@@ -32,6 +32,7 @@ export interface Settings {
   history_dir: string;
   enable_cache: boolean;
   remote_symbols: boolean;
+  theme: string;
   resources: {
     page_cache_entries: number;
     scan_cache_bytes: number;
@@ -132,6 +133,36 @@ export interface CacheEntry {
   path: string;
   scope: Exclude<ScopeId, 'all'>;
   bytes: number;
+  /** Modification time, seconds since the Unix epoch. */
+  modified: number | null;
+}
+
+/** One recorded export; the engine keeps a verified copy beside it. */
+export interface ExportRecord {
+  key: string;
+  recorded: number;
+  destination: string;
+  format: 'csv' | 'json';
+  plugin: string;
+  rows: number;
+  bytes: number;
+  sha256: string;
+  complete: boolean;
+  diagnostics: number;
+  banner: string;
+  symbol: string;
+}
+
+export interface CacheInventory {
+  entries: CacheEntry[];
+  records: ExportRecord[];
+}
+
+export interface ExportReply {
+  path: string;
+  rows: number;
+  record: ExportRecord | null;
+  record_error: string | null;
 }
 
 export interface ClearReport {
@@ -145,9 +176,21 @@ export interface AnalyzeReply {
   result?: Results;
 }
 
+export interface RemoteIndex {
+  /** Banners of every system in the index file. */
+  banners: number;
+  /** Searchable Linux x86_64 / ARM64 entries. */
+  entries: number;
+  bytes: number;
+  age_seconds: number | null;
+}
+
 export interface RemoteReply {
   matches: RemoteMatch[];
   catalog: boolean;
+  /** Matches before the catalog page limit. */
+  total?: number;
+  index?: RemoteIndex | null;
 }
 
 export interface MatchLocalReply {
@@ -166,6 +209,8 @@ export type TaskOp =
   | 'generate'
   | 'inspectSymbols'
   | 'cacheClear'
+  | 'cacheRemove'
+  | 'record'
   | 'export'
   | 'history';
 

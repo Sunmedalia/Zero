@@ -16,11 +16,15 @@
  * - switching the image or symbol invalidates every result bound to the old one.
  */
 import { inspector, space } from './layout.js';
-import { computeLayout, inside, type Layout } from './layoutTree.js';
+import { computeLayout, inside, scrollbarDragIndex, scrollbarIndex, type Layout, type ScrollTarget } from './layoutTree.js';
 import {
+  activeTab,
   assetActive,
   assetListFor,
   bannerCandidates,
+  cacheItems,
+  cacheScopes,
+  cacheSelection,
   commandDisabled,
   defaultOptions,
   initialState,
@@ -37,6 +41,7 @@ import {
   samePath,
   sectionSlot,
   selectedAsset,
+  selectedCacheItem,
   selectedRemote,
   settingsLabels,
   supportsKaliSymbols,
@@ -48,6 +53,7 @@ import {
   type ExecutionSnapshot,
   type HitMap,
   type InputKind,
+  type PageTab,
   type PendingWork,
 } from './state.js';
 import {
@@ -58,6 +64,7 @@ import {
   commandMatches,
   footerActions,
   toolbarActions,
+  type CachePane,
   type Command,
   type Focus,
   type Page,
@@ -93,8 +100,13 @@ import {
   pickerFilter,
   type KeyLike,
 } from './dialogs.js';
-import { failureStatus, formatAddress, mib, parseAddress, progressPercent, shortPlugin } from './format.js';
-import { charWidth, truncate, wrapLines } from './text.js';
+import { failureStatus, formatAddress, formatAge, mib, parseAddress, progressPercent, shortPlugin } from './format.js';
+
+/** Remote catalog rows fetched per search; the engine reports the full count. */
+const CATALOG_LIMIT = 500;
+/** Row of the theme entry in the settings dialog. */
+const SETTINGS_THEME = 5;
+import { THEMES, applyTheme, charWidth, themeOf, truncate, wrapLines } from './text.js';
 import { compareValues } from './resultView.js';
 import { assetDetailText, remoteDetailText, helpText, logText, diagnosticsText, rowDetailText } from './detail.js';
 
@@ -139,7 +151,11 @@ export class App {
       ...initialState(hello, { image: launch.image, symbols: launch.symbols }),
       settings: hello.settings,
     };
+    applyTheme(hello.settings.theme);
   }
+
+  /** The scrollbar a held left button is dragging, and where it took the thumb. */
+  private dragging: { target: ScrollTarget; grab: number } | null = null;
 
   private quitHandlers = new Set<() => void>();
 
@@ -629,12 +645,15 @@ export class App {
       swapfile: null,
     };
     this.state.results.clear();
+    // Opened plugin pages belonged to the previous source; exports stay open.
+    this.state.openTabs = this.state.openTabs.filter((tab) => tab.kind === 'history');
     this.state.views.clear();
     this.state.historyRevision += 1;
     this.state.history = null;
     this.state.choice = null;
     this.resetView();
     this.state.remote = [];
+    this.state.remoteTotal = 0;
     this.state.assetRows[2] = 0;
     this.state.assetQueries[2] = '';
   }
@@ -685,6 +704,9 @@ export class App {
         };
     this.state.plugin = plugin;
     const descriptor = pluginDescriptor(this.state, plugin);
+    if (!descriptor?.dump) {
+      this.addPluginTab(plugin);
+    }
     if (plugin !== 'windows.printkey') {
       this.state.analysisOptions.hive = null;
       this.state.analysisOptions.key = '';
@@ -1166,6 +1188,7 @@ export class App {
       this.state.results.set(execution.key, analyzed);
     }
     this.state.results.set(analyzed.plugin, analyzed);
+    this.addPluginTab(analyzed.plugin);
     this.state.resultsRevision += 1;
     if (viewing) {
       this.state.row = Math.max(0, Math.min(this.state.row, viewIndex(this.state).visible.length - 1));
@@ -1193,18 +1216,31 @@ export class App {
             catalog: options.catalog,
             query: options.query ?? '',
             refresh: options.refresh === true,
+            ...(options.catalog ? { limit: CATALOG_LIMIT } : {}),
           },
           progress,
         ),
       (reply: RemoteReply) => {
         this.state.remote = reply.matches;
         this.state.remoteCatalog = reply.catalog;
+        this.state.remoteTotal = reply.total ?? reply.matches.length;
+        if (reply.index) {
+          this.state.remoteIndex = reply.index;
+        }
         this.state.assetRows[2] = Math.min(
           this.state.assetRows[2],
           Math.max(remoteList(this.state).length - 1, 0),
         );
         if (reply.catalog) {
-          this.state.status = `远程索引：${reply.matches.length} 项；可输入多个关键词缩小范围`;
+          const total = this.state.remoteTotal;
+          const shown = total > reply.matches.length ? `显示前 ${reply.matches.length} / ${total} 项` : `${total} 项`;
+          const index = reply.index
+            ? ` · 索引 ${reply.index.entries} 条 Linux x86_64/ARM64 · 更新于 ${formatAge(reply.index.age_seconds)}`
+            : '';
+          const query = options.query ? `「${options.query}」` : '';
+          this.state.status = total === 0 && query !== ''
+            ? `远程索引没有匹配${query}的条目；/ 换用内核版本号，如 5.15.0-91${index}`
+            : `远程索引${query}：${shown}${index}；/ 按内核版本、发行版搜索`;
           return;
         }
         this.state.status = `${reply.matches.length} 个完整 banner 匹配 · Enter 进入控制台 · d 详情 · w 下载到 symbols`;
@@ -1277,6 +1313,7 @@ export class App {
     this.state.results.clear();
     this.state.views.clear();
     void this.refreshAssets();
+    void this.loadCache();
     this.state.status = `已清理 ${report.removed} 个文件 · 释放 ${mib(report.bytes)} MiB · ${report.failures.length} 项失败`;
     if (report.failures.length > 0) {
       this.state.lastError = report.failures.join('\n');
@@ -1338,11 +1375,16 @@ export class App {
           ? this.state.image === null
             ? '尚未选用镜像；1 资源库选用'
             : '点击或 Enter 运行插件 · / 筛选 · ? 命令面板'
-          : 'Space 选用 · Enter 选用并进入分析 · ? 命令面板';
+          : page === 'cache'
+            ? 'Space 勾选范围 · x 清理 · Delete 删除条目 · Enter 打开导出记录 · ←→ 切换列表'
+            : 'Space 选用 · Enter 选用并进入分析 · ? 命令面板';
     }
     this.state.focus = page === 'analysis' ? 'content' : 'navigation';
-    if (page !== 'analysis') {
+    if (page === 'assets') {
       void this.refreshAssets();
+    } else if (page === 'cache') {
+      this.state.cache = { ...this.state.cache, confirm: null };
+      void this.loadCache();
     }
     this.emit();
   }
@@ -1463,6 +1505,7 @@ export class App {
   async persistSettings(settings: Settings): Promise<void> {
     try {
       this.state.settings = await this.engine.saveSettings(settings);
+      applyTheme(this.state.settings.theme);
     } catch (error) {
       this.fail(`设置保存失败: ${(error as Error).message}`);
     }
@@ -1628,20 +1671,127 @@ export class App {
     this.emit();
   }
 
-  async openCache(): Promise<void> {
+  /** Reload the cache inventory shown on the cache page. */
+  async loadCache(): Promise<void> {
     try {
-      const { entries } = await this.engine.cacheInventory();
-      this.state.dialog = {
-        kind: 'cache',
-        entries,
-        scopes: ['results', 'identification'],
-        selected: 0,
-        confirm: false,
-      };
+      const { entries, records } = await this.engine.cacheInventory();
+      this.state.cache = { ...this.state.cache, entries, records, loaded: true, confirm: null };
+      this.state.cache.entry = Math.min(this.state.cache.entry, Math.max(cacheItems(this.state).length - 1, 0));
       this.emit();
     } catch (error) {
       this.fail(`缓存清单失败: ${(error as Error).message}`);
     }
+  }
+
+  /** Move within the cache page. Returns false for keys it does not own. */
+  cacheNavigate(token: string): boolean {
+    const cache = this.state.cache;
+    const pageRows = Math.max(this.layout().cacheEntries?.height ?? 3, 3) - 2;
+    switch (token) {
+      case 'Tab':
+      case 'BackTab':
+      case 'Left':
+      case 'Right': {
+        const pane = token === 'Left' ? 'scopes'
+          : token === 'Right' ? 'entries'
+            : cache.pane === 'scopes' ? 'entries' : 'scopes';
+        this.state.cache = { ...cache, pane, confirm: null };
+        this.emit();
+        return true;
+      }
+      case 'Up':
+      case 'k':
+      case 'Down':
+      case 'j':
+      case 'PageUp':
+      case 'PageDown':
+      case 'Home':
+      case 'End': {
+        const count = cache.pane === 'scopes' ? cacheScopes(this.state).length : cacheItems(this.state).length;
+        const current = cache.pane === 'scopes' ? cache.scope : cache.entry;
+        const delta = token === 'Up' || token === 'k' ? -1
+          : token === 'Down' || token === 'j' ? 1
+            : token === 'PageUp' ? -pageRows
+              : token === 'PageDown' ? pageRows
+                : token === 'Home' ? -current : count;
+        this.setCacheRow(cache.pane, current + delta);
+        return true;
+      }
+      default:
+        return false;
+    }
+  }
+
+  /** Highlight a row of either cache list; changing scope restarts the entry list. */
+  setCacheRow(pane: CachePane, index: number): void {
+    const cache = this.state.cache;
+    const count = pane === 'scopes' ? cacheScopes(this.state).length : cacheItems(this.state).length;
+    const row = Math.max(0, Math.min(index, Math.max(count - 1, 0)));
+    this.state.cache = pane === 'scopes'
+      ? { ...cache, pane, scope: row, entry: row === cache.scope ? cache.entry : 0, confirm: null }
+      : { ...cache, pane, entry: row, confirm: null };
+    this.emit();
+  }
+
+  private toggleCacheScope(): void {
+    const scope = cacheScopes(this.state)[this.state.cache.scope]?.id;
+    if (!scope) {
+      return;
+    }
+    const scopes = this.state.cache.scopes.includes(scope)
+      ? this.state.cache.scopes.filter((value) => value !== scope)
+      : [...this.state.cache.scopes, scope];
+    this.state.cache = { ...this.state.cache, scopes, confirm: null };
+    const totals = cacheSelection(this.state);
+    this.update({ status: `已勾选 ${scopes.length} 个范围 · ${totals.files} 个文件 / ${mib(totals.bytes)} MiB · x 清理` });
+  }
+
+  private async clearCacheScopes(): Promise<void> {
+    if (this.state.cache.confirm !== 'clear') {
+      const totals = cacheSelection(this.state);
+      this.state.cache = { ...this.state.cache, confirm: 'clear' };
+      this.update({
+        status: `再按 x 确认清理 ${totals.files} 个文件 / ${mib(totals.bytes)} MiB · 不触碰原镜像、导出文件、设置和资源清单`,
+      });
+      return;
+    }
+    this.state.cache = { ...this.state.cache, confirm: null };
+    await this.runWork({ kind: 'clear', scopes: this.state.cache.scopes });
+  }
+
+  private async removeCacheItem(): Promise<void> {
+    const item = selectedCacheItem(this.state);
+    if (!item) {
+      return;
+    }
+    if (this.state.cache.confirm !== 'remove') {
+      this.state.cache = { ...this.state.cache, confirm: 'remove' };
+      this.update({
+        status: `再按 Delete 确认删除 ${item.record ? `导出记录 ${shortPlugin(item.record.plugin)}（含本地副本，不删除导出文件）` : item.name} · ${mib(item.bytes)} MiB`,
+      });
+      return;
+    }
+    this.state.cache = { ...this.state.cache, confirm: null };
+    await this.runTask(
+      '删除缓存条目',
+      (progress) => this.engine.cacheRemove([item.path], progress),
+      (report) => this.applyCleared(report),
+    );
+  }
+
+  private async openCacheRecord(): Promise<void> {
+    const record = selectedCacheItem(this.state)?.record;
+    if (!record) {
+      return;
+    }
+    await this.runTask(
+      '打开导出记录',
+      (progress) => this.engine.record(record.key, progress),
+      ({ result: loaded }) => {
+        this.showHistory(loaded);
+        this.state.status = `导出记录：${shortPlugin(record.plugin)} · ${record.rows} 条 · 历史内容，未重新验证镜像`;
+      },
+    );
   }
 
   openSymbolGeneration(): void {
@@ -1794,7 +1944,23 @@ export class App {
         this.emit();
         break;
       case 'cache':
-        await this.openCache();
+        this.switchPage('cache');
+        break;
+      case 'cacheToggle':
+        this.toggleCacheScope();
+        break;
+      case 'cacheClear':
+        await this.clearCacheScopes();
+        break;
+      case 'cacheRemove':
+        await this.removeCacheItem();
+        break;
+      case 'cacheOpen':
+        await this.openCacheRecord();
+        break;
+      case 'cacheRefresh':
+        await this.loadCache();
+        this.update({ status: `缓存清单已刷新 · ${this.state.cache.entries.length} 个文件` });
         break;
       case 'taskLog':
         this.openTaskLog();
@@ -2045,9 +2211,33 @@ export class App {
       return;
     }
 
+    const bar = layout.scrollbars.find((entry) => inside(entry.track, x, y));
+    if (bar) {
+      const thumb = y >= bar.thumb.y && y < bar.thumb.y + bar.thumb.height;
+      // Grabbing the thumb keeps it under the pointer; a track click jumps
+      // there first and then drags from the thumb's middle.
+      this.dragging = { target: bar.target, grab: thumb ? y - bar.thumb.y : Math.floor(bar.thumb.height / 2) };
+      if (!thumb) {
+        this.scrollTo(bar.target, scrollbarIndex(bar, y));
+      }
+      return;
+    }
+
     if (layout.inspector && inside(layout.inspector, x, y)) {
       state.focus = 'detail';
       this.emit();
+      return;
+    }
+
+    const cacheHit = layout.cacheHits.find((hit) => inside(hit.rect, x, y));
+    if (cacheHit) {
+      const current = cacheHit.pane === 'scopes' ? state.cache.scope : state.cache.entry;
+      const again = state.cache.pane === cacheHit.pane && current === cacheHit.index;
+      this.setCacheRow(cacheHit.pane, cacheHit.index);
+      if (again) {
+        // A second click acts on the row: tick the scope, or open the record.
+        await this.runCommand(cacheHit.pane === 'scopes' ? 'cacheToggle' : 'cacheOpen');
+      }
       return;
     }
 
@@ -2072,6 +2262,16 @@ export class App {
     for (const tab of layout.tabsHits) {
       if (inside(tab.rect, x, y)) {
         this.switchPage(tab.page);
+        return;
+      }
+    }
+    for (const tab of layout.pageTabs) {
+      if (inside(tab.rect, x, y)) {
+        if (tab.close && inside(tab.close, x, y)) {
+          await this.closeTab(tab.index);
+        } else {
+          await this.activateTab(tab.index);
+        }
         return;
       }
     }
@@ -2199,6 +2399,177 @@ export class App {
     }
   }
 
+  /** Middle click closes the page tab under the pointer, as in a browser. */
+  async middleClick(x: number, y: number): Promise<void> {
+    if (this.state.dialog || this.state.columns < 60 || this.state.rows < 16) return;
+    const tab = this.layout().pageTabs.find((entry) => entry.kind === 'tab' && inside(entry.rect, x, y));
+    if (tab) {
+      await this.closeTab(tab.index);
+    }
+  }
+
+  /** Pointer motion with the left button held: move a grabbed scrollbar thumb. */
+  drag(_x: number, y: number): void {
+    const dragging = this.dragging;
+    if (!dragging || this.state.dialog) {
+      return;
+    }
+    const bar = this.layout().scrollbars.find((entry) => entry.target === dragging.target);
+    if (!bar) {
+      this.dragging = null;
+      return;
+    }
+    this.scrollTo(bar.target, scrollbarDragIndex(bar, y, dragging.grab));
+  }
+
+  release(): void {
+    this.dragging = null;
+  }
+
+  /** Whether a scrollbar thumb is being dragged. */
+  isDragging(): boolean {
+    return this.dragging !== null;
+  }
+
+  /* ---------------------------------------------------------------- */
+  /* Opened page tabs                                                  */
+  /* ---------------------------------------------------------------- */
+
+  private addPluginTab(plugin: string): void {
+    if (!this.state.openTabs.some((tab) => tab.kind === 'plugin' && tab.plugin === plugin)) {
+      this.state.openTabs.push({ kind: 'plugin', plugin });
+    }
+  }
+
+  /** Show a loaded historical export in a tab of its own. */
+  private showHistory(loaded: Results): void {
+    this.saveView();
+    this.state.historyRevision += 1;
+    this.state.history = loaded;
+    this.state.tabSerial += 1;
+    this.state.openTabs.push({ kind: 'history', id: this.state.tabSerial, label: shortPlugin(loaded.plugin), result: loaded });
+    this.state.page = 'analysis';
+    this.state.inspector = false;
+    this.resetView();
+    this.state.focus = 'content';
+  }
+
+  async activateTab(index: number): Promise<void> {
+    const tab = this.state.openTabs[index];
+    if (!tab) {
+      return;
+    }
+    if (tab.kind === 'history') {
+      if (this.state.history !== tab.result) {
+        if (this.state.history === null) this.saveView();
+        this.state.historyRevision += 1;
+        this.state.history = tab.result;
+        this.resetView();
+      }
+      this.state.page = 'analysis';
+      this.state.inspector = false;
+      this.state.focus = 'content';
+      this.state.status = `导出记录：${tab.label} · ${tab.result.rows.length} 条 · 历史内容，未重新验证镜像`;
+      this.emit();
+      return;
+    }
+    if (this.state.history === null && this.state.plugin === tab.plugin) {
+      if (this.state.page !== 'analysis') {
+        this.state.page = 'analysis';
+        this.state.inspector = false;
+      }
+      this.state.focus = 'content';
+      this.emit();
+      return;
+    }
+    await this.activatePlugin(tab.plugin);
+  }
+
+  /**
+   * Close a page tab. Its in-memory result is discarded (reopening reads the
+   * success cache or runs again); the kernel banner list is identification
+   * state and stays. Closing the shown tab moves to its right neighbour, or
+   * the left one when it was last, like a browser.
+   */
+  async closeTab(index: number): Promise<void> {
+    const state = this.state;
+    const tab = state.openTabs[index];
+    if (!tab) {
+      return;
+    }
+    if (tab.kind === 'plugin' && state.busy && state.activeRequest?.plugin === tab.plugin) {
+      this.update({ status: `${shortPlugin(tab.plugin)} 正在运行；先按 Esc 取消再关闭` });
+      return;
+    }
+    const shown = activeTab(state) === index || (state.page !== 'analysis' && this.tabShown(tab));
+    state.openTabs.splice(index, 1);
+    if (tab.kind === 'plugin' && tab.plugin !== 'banners') {
+      for (const key of [...state.results.keys()]) {
+        if (key === tab.plugin || key.startsWith(`${tab.plugin}:`)) {
+          state.results.delete(key);
+        }
+      }
+      state.resultRequests.delete(tab.plugin);
+    }
+    if (!shown) {
+      this.emit();
+      return;
+    }
+    const next = Math.min(index, state.openTabs.length - 1);
+    if (next >= 0 && state.page === 'analysis') {
+      await this.activateTab(next);
+      return;
+    }
+    if (tab.kind === 'history') {
+      state.historyRevision += 1;
+      state.history = null;
+      this.resetView();
+      this.restoreView();
+    }
+    if (state.page === 'analysis') {
+      state.focus = 'navigation';
+      state.status = '已关闭全部页面；在插件列表选择插件打开新页面';
+    }
+    this.emit();
+  }
+
+  /** Whether `tab` is the page the analysis view would show. */
+  private tabShown(tab: PageTab): boolean {
+    return this.state.history
+      ? tab.kind === 'history' && tab.result === this.state.history
+      : tab.kind === 'plugin' && tab.plugin === this.state.plugin;
+  }
+
+  /** Ctrl+PgUp / Ctrl+PgDn: the neighbouring page tab, wrapping around. */
+  async cycleTab(step: -1 | 1): Promise<void> {
+    const count = this.state.openTabs.length;
+    if (count === 0) {
+      this.update({ status: '还没有打开的页面；在插件列表选择插件' });
+      return;
+    }
+    const current = activeTab(this.state);
+    const next = current < 0 ? (step > 0 ? 0 : count - 1) : (current + step + count) % count;
+    await this.activateTab(next);
+  }
+
+  /** Ctrl+W: close the page tab the analysis view is showing. */
+  async closeActiveTab(): Promise<void> {
+    const current = activeTab(this.state);
+    if (current < 0) {
+      this.update({ status: '分析页没有可关闭的页面' });
+      return;
+    }
+    await this.closeTab(current);
+  }
+
+  private async cycleTheme(step: -1 | 1): Promise<void> {
+    const current = THEMES.findIndex((theme) => theme.id === themeOf(this.state.settings.theme).id);
+    const next = THEMES[(current + step + THEMES.length) % THEMES.length]!;
+    await this.persistSettings({ ...this.state.settings, theme: next.id });
+    this.state.status = `界面主题：${themeOf(this.state.settings.theme).label}`;
+    this.emit();
+  }
+
   /** Layout of the last frame, recomputed from the current terminal size. */
   layout(): Layout {
     return computeLayout(this.state, this.state.columns, this.state.rows);
@@ -2227,7 +2598,7 @@ export class App {
         }
         return;
       case 'settings':
-        if (index < 5) {
+        if (index < settingsLabels(this.state).length) {
           this.state.dialog = { ...dialog, selected: index };
           await this.dialogKey('Enter', {});
         }
@@ -2240,12 +2611,6 @@ export class App {
         }
         return;
       }
-      case 'cache':
-        if (index < this.hello.scopes.length) {
-          this.state.dialog = { ...dialog, selected: index, confirm: false };
-          await this.dialogKey(' ', {});
-        }
-        return;
       case 'commands': {
         const matches = commandMatches(dialog.query, this.state.page, this.state.focus, this.state.page === 'assets' ? this.state.section : null);
         if (index < matches.length) {
@@ -2327,9 +2692,6 @@ export class App {
         return;
       case 'settings':
         await this.settingsKey(dialog, token);
-        return;
-      case 'cache':
-        await this.cacheKey(dialog, token);
         return;
       case 'commands':
         await this.commandsKey(dialog, token, input);
@@ -2787,10 +3149,20 @@ export class App {
         this.emit();
         return;
       case 'Down':
-        this.state.dialog = { ...dialog, selected: Math.min(dialog.selected + 1, 4) };
+        this.state.dialog = { ...dialog, selected: Math.min(dialog.selected + 1, settingsLabels(this.state).length - 1) };
         this.emit();
         return;
+      case 'Left':
+      case 'Right':
+        if (dialog.selected === SETTINGS_THEME) {
+          await this.cycleTheme(token === 'Left' ? -1 : 1);
+        }
+        return;
       case 'Enter':
+        if (dialog.selected === SETTINGS_THEME) {
+          await this.cycleTheme(1);
+          return;
+        }
         this.state.dialog = null;
         switch (dialog.selected) {
           case 0:
@@ -2819,53 +3191,6 @@ export class App {
       default:
         return;
     }
-  }
-
-  private async cacheKey(dialog: Dialog, token: string): Promise<void> {
-    if (dialog.kind !== 'cache') {
-      return;
-    }
-    switch (token) {
-      case 'Up':
-        this.state.dialog = { ...dialog, selected: Math.max(dialog.selected - 1, 0), confirm: false };
-        this.emit();
-        return;
-      case 'Down':
-        this.state.dialog = {
-          ...dialog,
-          selected: Math.min(dialog.selected + 1, this.hello.scopes.length - 1),
-          confirm: false,
-        };
-        this.emit();
-        return;
-      case ' ':
-      case 'Enter': {
-        if (token === ' ' && dialog.confirm) {
-          break;
-        }
-        const scope = this.hello.scopes[dialog.selected]?.id;
-        if (!scope) {
-          return;
-        }
-        const scopes = dialog.scopes.includes(scope)
-          ? dialog.scopes.filter((value) => value !== scope)
-          : [...dialog.scopes, scope];
-        this.state.dialog = { ...dialog, scopes, confirm: false };
-        this.emit();
-        return;
-      }
-      default:
-        break;
-    }
-    if (token === 'Enter' && dialog.confirm) {
-      if (dialog.scopes.length === 0) {
-        return;
-      }
-      this.state.dialog = null;
-      await this.runWork({ kind: 'clear', scopes: dialog.scopes });
-      return;
-    }
-    this.emit();
   }
 
   private async commandsKey(dialog: Dialog, token: string, input: string): Promise<void> {
@@ -3179,10 +3504,10 @@ export class App {
           if (
             this.state.section === 'remote' &&
             this.state.remoteCatalog &&
-            this.state.remote.length === 0 &&
             !this.state.busy
           ) {
-            await this.runWork({ kind: 'catalog', query: '', refresh: false });
+            // The catalog is paged, so search the whole index in the engine.
+            await this.runWork({ kind: 'catalog', query: value.trim(), refresh: false });
           }
           this.emit();
           return;
@@ -3197,8 +3522,16 @@ export class App {
           await this.runTask(
             '导出结果',
             (progress) => this.engine.export({ path, result: current, rows }, progress),
-            ({ path: written, rows: count }) => {
-              this.state.status = `已导出 ${count} 条: ${written}${current.complete ? '' : ' (部分/历史结果)'}`;
+            ({ path: written, rows: count, record, record_error: recordError }) => {
+              const recorded = record
+                ? ' · 已记录到缓存（3 缓存页可重新打开）'
+                : recordError
+                  ? ` · 未记录到缓存: ${recordError}`
+                  : '';
+              this.state.status = `已导出 ${count} 条: ${written}${current.complete ? '' : ' (部分/历史结果)'}${recorded}`;
+              if (this.state.cache.loaded) {
+                void this.loadCache();
+              }
             },
           );
           return;
@@ -3213,11 +3546,7 @@ export class App {
             '加载导出记录',
             (progress) => this.engine.history(path, progress),
             ({ result: loaded }) => {
-              this.state.historyRevision += 1;
-              this.state.history = loaded;
-              this.state.page = 'analysis';
-              this.resetView();
-              this.state.focus = 'content';
+              this.showHistory(loaded);
               this.state.status = '导出记录：历史内容，未重新验证镜像';
             },
           );
@@ -3538,6 +3867,37 @@ export class App {
     return compareValues(left, right);
   }
 
+  /** Bring a scrollbar target to `index`: a selected row, or a detail line offset. */
+  scrollTo(target: ScrollTarget, index: number): void {
+    const state = this.state;
+    switch (target) {
+      case 'content':
+        state.focus = 'content';
+        state.row = index;
+        break;
+      case 'menu':
+        state.focus = 'navigation';
+        state.menu = index;
+        break;
+      case 'pane':
+        state.focus = 'navigation';
+        state.assetRows[sectionSlot(state.section)] = index;
+        state.assetScroll[sectionSlot(state.section)] = 0;
+        break;
+      case 'inspector':
+        state.focus = 'detail';
+        state.detailScroll = index;
+        break;
+      case 'cacheScopes':
+        this.setCacheRow('scopes', index);
+        return;
+      case 'cacheEntries':
+        this.setCacheRow('entries', index);
+        return;
+    }
+    this.emit();
+  }
+
   /** Draw one frame's hit map, then let the renderer commit it. */
   commitHits(hits: HitMap): void {
     this.state.hits = hits;
@@ -3546,6 +3906,20 @@ export class App {
   /** Wheel scrolling: three list rows, or one detail line, per notch. */
   async wheel(direction: -1 | 1, x?: number, y?: number): Promise<void> {
     if (this.state.columns < 60 || this.state.rows < 16) return;
+    if (!this.state.dialog && this.state.page === 'cache') {
+      const layout = this.layout();
+      const pane: CachePane | null =
+        x === undefined || y === undefined
+          ? this.state.cache.pane
+          : layout.cacheScopes && inside(layout.cacheScopes, x, y)
+            ? 'scopes'
+            : layout.cacheEntries && inside(layout.cacheEntries, x, y) ? 'entries' : null;
+      if (pane) {
+        const current = pane === 'scopes' ? this.state.cache.scope : this.state.cache.entry;
+        this.setCacheRow(pane, current + direction * 3);
+      }
+      return;
+    }
     if (!this.state.dialog && x !== undefined && y !== undefined) {
       const layout = this.layout();
       if (layout.inspector && inside(layout.inspector, x, y)) this.state.focus = 'detail';

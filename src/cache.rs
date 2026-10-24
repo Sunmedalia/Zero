@@ -14,10 +14,12 @@ pub enum Scope {
     Images,
     Symbols,
     Dumps,
+    Exports,
     All,
 }
-pub const SCOPES: [Scope; 5] = [
+pub const SCOPES: [Scope; 6] = [
     Scope::Results,
+    Scope::Exports,
     Scope::Identification,
     Scope::Images,
     Scope::Symbols,
@@ -31,6 +33,7 @@ impl Scope {
             Self::Images => "解压镜像",
             Self::Symbols => "符号／构建缓存",
             Self::Dumps => "进程转储",
+            Self::Exports => "导出记录",
             Self::All => "全部缓存",
         }
     }
@@ -40,6 +43,8 @@ pub struct Entry {
     pub path: PathBuf,
     pub scope: Scope,
     pub bytes: u64,
+    /// Modification time in seconds since the Unix epoch.
+    pub modified: Option<u64>,
 }
 #[derive(Default, Serialize)]
 pub struct Report {
@@ -77,6 +82,13 @@ fn digest_name(name: &str, suffix: &str) -> bool {
     name.strip_suffix(suffix)
         .is_some_and(|s| s.len() == 64 && s.bytes().all(|b| b.is_ascii_hexdigit()))
 }
+/// Digest stem of an export record file: its metadata or its exported copy.
+fn record_stem(name: &str) -> Option<&str> {
+    [".export.json", ".csv", ".json"]
+        .iter()
+        .find(|suffix| digest_name(name, suffix))
+        .map(|suffix| &name[..name.len() - suffix.len()])
+}
 pub fn inventory(root: &Path) -> Result<Vec<Entry>> {
     let mut entries = Vec::new();
     if !root.exists() {
@@ -104,6 +116,7 @@ pub fn inventory(root: &Path) -> Result<Vec<Entry>> {
                     || relative.starts_with("symbols/build")
                     || relative == Path::new("dumps")
                     || relative.starts_with("dumps")
+                    || relative == Path::new("exports")
                 {
                     visit(&p, root, entries, depth + 1)?;
                 }
@@ -127,6 +140,10 @@ pub fn inventory(root: &Path) -> Result<Vec<Entry>> {
                 Some(Scope::Symbols)
             } else if relative.starts_with("dumps") {
                 Some(Scope::Dumps)
+            } else if relative.parent() == Some(Path::new("exports"))
+                && record_stem(&name).is_some()
+            {
+                Some(Scope::Exports)
             } else {
                 None
             };
@@ -135,6 +152,11 @@ pub fn inventory(root: &Path) -> Result<Vec<Entry>> {
                     path: p,
                     scope,
                     bytes: meta.len(),
+                    modified: meta
+                        .modified()
+                        .ok()
+                        .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+                        .map(|d| d.as_secs()),
                 });
             }
         }
@@ -164,6 +186,51 @@ pub fn clear_with_job(root: &Path, scopes: &[Scope], job: &crate::Job) -> Result
             report.failures.push(e.to_string());
             break;
         }
+        match fs::remove_file(&entry.path) {
+            Ok(()) => {
+                report.removed += 1;
+                report.bytes += entry.bytes;
+            }
+            Err(e) => report
+                .failures
+                .push(format!("{}: {e}", entry.path.display())),
+        }
+    }
+    Ok(report)
+}
+
+/// Remove individual inventory entries. Paths outside the allowlisted
+/// inventory are refused; an export record is always removed with its copy.
+pub fn remove(root: &Path, paths: &[PathBuf], job: &crate::Job) -> Result<Report> {
+    job.check()?;
+    let _guard = lock(root, true)?;
+    let entries = inventory(root)?;
+    let mut chosen = Vec::new();
+    for path in paths {
+        let entry = entries
+            .iter()
+            .find(|e| &e.path == path)
+            .with_context(|| format!("不是可清理的缓存文件: {}", path.display()))?;
+        let stem = (entry.scope == Scope::Exports)
+            .then(|| {
+                entry
+                    .path
+                    .file_name()
+                    .and_then(|n| record_stem(n.to_str()?))
+            })
+            .flatten();
+        chosen.extend(entries.iter().filter(|e| {
+            &e.path == path
+                || stem.is_some_and(|stem| {
+                    e.scope == Scope::Exports
+                        && e.path.file_name().and_then(|n| record_stem(n.to_str()?)) == Some(stem)
+                })
+        }));
+    }
+    chosen.sort_by(|a, b| a.path.cmp(&b.path));
+    chosen.dedup_by(|a, b| a.path == b.path);
+    let mut report = Report::default();
+    for entry in chosen {
         match fs::remove_file(&entry.path) {
             Ok(()) => {
                 report.removed += 1;
@@ -213,6 +280,60 @@ mod tests {
         assert!(root.join("settings.json").exists());
         assert!(root.join("workspace.json").exists());
         assert!(outside.path().join("keep").exists());
+        Ok(())
+    }
+    #[test]
+    fn export_records_reopen_verify_and_remove_together() -> Result<()> {
+        let dir = tempfile::tempdir()?;
+        let root = dir.path().join("cache");
+        let job = crate::Job::default();
+        let result = crate::store::Results {
+            plugin: "pslist".into(),
+            columns: vec!["PID".into()],
+            rows: vec![vec!["1".into()], vec!["2".into()]],
+            complete: false,
+            diagnostics: vec!["partial".into()],
+            banner: String::new(),
+            symbol: String::new(),
+            page_table: 0,
+            historical: false,
+            system: "linux".into(),
+            kernel_identity: serde_json::Value::Null,
+        };
+        let output = dir.path().join("out.csv");
+        crate::store::export_rows(&output, &result, result.rows.iter(), &job)?;
+        let record = crate::store::record_export(&root, &output, &result, 2, &job)?;
+        assert_eq!(
+            crate::store::record_export(&root, &output, &result, 2, &job)?.key,
+            record.key,
+            "the same export is recorded once"
+        );
+        let entries = inventory(&root)?;
+        assert_eq!(entries.len(), 2);
+        assert!(
+            entries
+                .iter()
+                .all(|e| e.scope == Scope::Exports && e.modified.is_some())
+        );
+        let reopened = crate::store::open_record(&root, &record.key, &job)?;
+        assert_eq!(
+            (reopened.plugin.as_str(), reopened.rows.len()),
+            ("pslist", 2)
+        );
+        assert!(reopened.historical && !reopened.complete);
+        // A moved or deleted export stays reopenable from its verified copy.
+        fs::remove_file(&output)?;
+        assert!(crate::store::open_record(&root, &record.key, &job).is_ok());
+        fs::write(
+            root.join(format!("exports/{}.csv", record.key)),
+            b"PID\n9\n",
+        )?;
+        assert!(crate::store::open_record(&root, &record.key, &job).is_err());
+        assert!(remove(&root, &[dir.path().join("out.csv")], &job).is_err());
+        let metadata = root.join(format!("exports/{}.export.json", record.key));
+        assert_eq!(remove(&root, &[metadata], &job)?.removed, 2);
+        assert!(inventory(&root)?.is_empty());
+        assert!(crate::store::export_records(&root).is_empty());
         Ok(())
     }
 }

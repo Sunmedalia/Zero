@@ -60,11 +60,18 @@ export type Command =
   | 'nextPage'
   | 'detail'
   | 'searchContent'
-  | 'enter';
+  | 'enter'
+  // Cache page
+  | 'cacheToggle'
+  | 'cacheClear'
+  | 'cacheRemove'
+  | 'cacheOpen'
+  | 'cacheRefresh';
 
 /** Which page an action belongs to. */
-export type Scope = 'anywhere' | 'assets' | 'analysis';
-export type Page = 'assets' | 'analysis';
+export type Scope = 'anywhere' | 'assets' | 'analysis' | 'cache';
+export type Page = 'assets' | 'analysis' | 'cache';
+export type CachePane = 'scopes' | 'entries';
 export type Section = 'images' | 'symbols' | 'remote';
 export type Focus = 'context' | 'navigation' | 'content' | 'detail';
 
@@ -116,6 +123,11 @@ export const KEYS = {
   detail: 'd',
   searchContent: '/',
   enter: 'Enter',
+  cacheToggle: ' ',
+  cacheClear: 'x',
+  cacheRemove: 'Delete',
+  cacheOpen: 'Enter',
+  cacheRefresh: 'r',
 } as const satisfies Record<Command, KeyCode>;
 
 const PALETTE = 1;
@@ -173,9 +185,9 @@ export function keywords(command: Command): string {
     case 'palette':
       return 'command palette';
     case 'settings':
-      return 'settings directory page size';
+      return 'settings directory page size theme color';
     case 'cache':
-      return 'cache clear';
+      return 'cache clear page';
     case 'taskLog':
       return 'log task';
     case 'history':
@@ -254,6 +266,16 @@ export function keywords(command: Command): string {
       return 'search content filter';
     case 'enter':
       return 'enter open';
+    case 'cacheToggle':
+      return 'cache scope select';
+    case 'cacheClear':
+      return 'cache clear purge';
+    case 'cacheRemove':
+      return 'cache delete remove entry';
+    case 'cacheOpen':
+      return 'cache export record open reopen';
+    case 'cacheRefresh':
+      return 'cache refresh inventory';
   }
 }
 
@@ -262,8 +284,8 @@ export const ACTIONS: Action[] = [
   action('quit', '退出 q', 'q', 'anywhere', PALETTE),
   action('help', '帮助 H', 'H', 'anywhere', PALETTE),
   action('palette', '命令面板 ?', '?', 'anywhere', PALETTE | TOOLBAR),
-  action('settings', '目录与分页设置 ,', ',', 'anywhere', PALETTE | TOOLBAR),
-  action('cache', '管理缓存 c', 'c', 'anywhere', PALETTE),
+  action('settings', '设置与主题 ,', ',', 'anywhere', PALETTE | TOOLBAR),
+  action('cache', '缓存管理页 c / 3', 'c', 'anywhere', PALETTE),
   action('taskLog', '任务日志 l', 'l', 'anywhere', PALETTE),
   action('history', '历史导出记录 h', 'h', 'anywhere', PALETTE),
   action('diagnostics', '查看诊断 v', 'v', 'anywhere', PALETTE),
@@ -358,7 +380,24 @@ export const ACTIONS: Action[] = [
   },
   // Enter is key-only: its meaning depends on the focused region.
   action('enter', '打开 Enter', 'Enter', 'analysis', 0),
+  // Cache page actions.
+  action('cacheToggle', '勾选范围 Space', ' ', 'cache', PALETTE | TOOLBAR),
+  action('cacheClear', '清理已勾选 x', 'x', 'cache', PALETTE | TOOLBAR),
+  action('cacheRemove', '删除条目 Delete', 'Delete', 'cache', PALETTE | TOOLBAR),
+  action('cacheOpen', '打开导出记录 Enter', 'Enter', 'cache', PALETTE | TOOLBAR),
+  action('cacheRefresh', '刷新 r', 'r', 'cache', PALETTE | TOOLBAR),
 ];
+
+/** Cache page toolbar, in presentation order. */
+const CACHE_TOOLBAR: Command[] = ['cacheToggle', 'cacheClear', 'cacheRemove', 'cacheOpen', 'cacheRefresh', 'palette'];
+
+export function cacheToolbarActions(busy: boolean): { label: string; key: KeyCode }[] {
+  const commands = busy ? (['cancel', ...CACHE_TOOLBAR] as Command[]) : CACHE_TOOLBAR;
+  return commands.map((command) => {
+    const entry = actionOf(command);
+    return { label: entry.label, key: entry.key };
+  });
+}
 
 /** Toolbar order is presentation, not identity. */
 const TOOLBAR_ORDER: Command[] = [
@@ -457,7 +496,7 @@ export function toolbarActions(
 /** Every action reachable on the resource page, for the help text. */
 export function assetActions(section: Section): { label: string; key: KeyCode }[] {
   return ACTIONS.filter(
-    (entry) => entry.scope !== 'analysis' && (entry.sections & sectionBit(section)) !== 0,
+    (entry) => (entry.scope === 'anywhere' || entry.scope === 'assets') && (entry.sections & sectionBit(section)) !== 0,
   ).map((entry) => ({ label: entry.label, key: entry.key }));
 }
 
@@ -492,8 +531,7 @@ export function commandMatches(
   return ACTIONS.filter((entry) => {
     const inScope =
       entry.scope === 'anywhere' ||
-      (entry.scope === 'assets' && page === 'assets') ||
-      (entry.scope === 'analysis' && page === 'analysis');
+      entry.scope === page;
     return (
       (entry.placement & PALETTE) !== 0 &&
       inScope &&
@@ -524,6 +562,7 @@ export function commandForKey(page: Page, key: KeyCode): Command | null {
     case ',':
       return 'settings';
     case 'c':
+    case '3':
       return 'cache';
     case 'l':
       return 'taskLog';
@@ -578,6 +617,22 @@ export function commandForKey(page: Page, key: KeyCode): Command | null {
         return 'download';
       case 'z':
         return 'toggleMatchFilter';
+      default:
+        return null;
+    }
+  }
+  if (page === 'cache') {
+    switch (key) {
+      case ' ':
+        return 'cacheToggle';
+      case 'x':
+        return 'cacheClear';
+      case 'Delete':
+        return 'cacheRemove';
+      case 'Enter':
+        return 'cacheOpen';
+      case 'r':
+        return 'cacheRefresh';
       default:
         return null;
     }

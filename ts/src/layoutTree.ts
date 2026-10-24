@@ -9,7 +9,7 @@
  * without the page underneath leaking through.
  */
 import type { AppState, Dialog, HitMap } from './state.js';
-import type { Focus, Page, Section } from './actions.js';
+import type { CachePane, Focus, Page, Section } from './actions.js';
 import {
   inspector as inspectorSpace,
   menuWidth,
@@ -18,10 +18,11 @@ import {
 } from './layout.js';
 import { imageLines } from './assetView.js';
 import { dialogHeight, dialogWidth } from './dialogs.js';
-import { assetListFor, remoteList, result, settingsLabels, viewIndex } from './state.js';
-import { actionOf, commandMatches, footerActions, toolbarActions } from './actions.js';
+import { activeTab, assetListFor, cacheItems, cacheScopes, remoteList, result, settingsLabels, tabLabel, viewIndex } from './state.js';
+import { actionOf, cacheToolbarActions, commandMatches, footerActions, toolbarActions } from './actions.js';
+import { rowDetailText } from './detail.js';
 import { menuLength as menuLengthOf, pluginMatches } from './state.js';
-import { cellWidth, wrapLines } from './text.js';
+import { cellWidth, truncate, wrapLines } from './text.js';
 
 export interface Rect {
   x: number;
@@ -59,7 +60,81 @@ export function inside(region: Rect, x: number, y: number): boolean {
 export const SEARCH_ROWS = 3;
 
 /** Page tab labels; painting and hit-testing share them so widths agree. */
-export const TAB_LABELS = [' 1 资源库 ', ' 2 分析 '] as const;
+export const TAB_LABELS = [' 1 资源库 ', ' 2 分析 ', ' 3 缓存 '] as const;
+const TAB_PAGES: Page[] = ['assets', 'analysis', 'cache'];
+
+/** What a scrollbar scrolls; clicks on its track jump there. */
+export type ScrollTarget = 'content' | 'menu' | 'pane' | 'inspector' | 'cacheScopes' | 'cacheEntries';
+
+export interface Scrollbar {
+  target: ScrollTarget;
+  /** One column on the region's right border, alongside the rows it scrolls. */
+  track: Rect;
+  total: number;
+  offset: number;
+  visible: number;
+  thumb: { y: number; height: number };
+}
+
+/** A scrollbar for a region, or null when everything already fits. */
+export function scrollbar(
+  target: ScrollTarget,
+  track: Rect,
+  total: number,
+  offset: number,
+  visible: number,
+): Scrollbar | null {
+  if (total <= visible || track.height < 2 || visible <= 0) {
+    return null;
+  }
+  const height = Math.max(1, Math.min(track.height, Math.round((track.height * visible) / total)));
+  const travel = track.height - height;
+  const start = Math.max(0, Math.min(offset, total - visible));
+  const y = track.y + Math.round((travel * start) / (total - visible));
+  return { target, track, total, offset: start, visible, thumb: { y, height } };
+}
+
+/**
+ * The row (or line offset) that puts the thumb's top at `y - grab`, where
+ * `grab` is how far below the thumb's top the pointer took hold of it.
+ *
+ * Lists derive their scroll offset from the selected row, and any offset past
+ * the first page is produced by exactly one selection: the row at the bottom
+ * of the view. Selecting that row makes the view follow the pointer exactly.
+ */
+export function scrollbarDragIndex(bar: Scrollbar, y: number, grab: number): number {
+  const travel = bar.track.height - bar.thumb.height;
+  const top = Math.max(0, Math.min(y - grab - bar.track.y, travel));
+  const offset = travel === 0 ? 0 : Math.round((top * (bar.total - bar.visible)) / travel);
+  if (bar.target === 'inspector') {
+    return offset;
+  }
+  return offset === 0 ? 0 : Math.min(offset + bar.visible - 1, bar.total - 1);
+}
+
+/** The first row (or line) a click at `y` on the track should bring into view. */
+export function scrollbarIndex(bar: Scrollbar, y: number): number {
+  const fraction = Math.max(0, Math.min((y - bar.track.y) / Math.max(bar.track.height - 1, 1), 1));
+  // Rows are selected, so any row may be the target; line offsets stop at the last page.
+  const last = bar.target === 'inspector' ? bar.total - bar.visible : bar.total - 1;
+  return Math.round(fraction * last);
+}
+
+/** One opened page in the tab strip, or an overflow chip for hidden pages. */
+export interface PageTabHit {
+  rect: Rect;
+  /** The `×` close target inside the tab; overflow chips have none. */
+  close: Rect | null;
+  /** Index into `state.openTabs` the tab (or chip) activates. */
+  index: number;
+  /** Text to draw, already fitted to the rect. */
+  label: string;
+  kind: 'tab' | 'before' | 'after';
+}
+
+/** Widest and narrowest tab title in cells, like a browser shrinking its tabs. */
+const TAB_TITLE_MAX = 18;
+const TAB_TITLE_MIN = 6;
 
 export interface PaneLayout {
   section: Section;
@@ -119,6 +194,14 @@ export interface Layout {
   contentRows: Rect | null;
   /** Analysis page: right-hand inspector. */
   inspector: Rect | null;
+  /** Cache page: scope list, entry list and the selected entry's detail. */
+  cacheScopes: Rect | null;
+  cacheEntries: Rect | null;
+  cacheDetail: Rect | null;
+  cacheOffsets: { scopes: number; entries: number };
+  cacheHits: { rect: Rect; pane: CachePane; index: number }[];
+  /** Vertical scrollbars, drawn over the right border of scrolling regions. */
+  scrollbars: Scrollbar[];
   /** Analysis page: first visible row and page size. */
   pageStart: number;
   pageSize: number;
@@ -130,6 +213,10 @@ export interface Layout {
   buttons: ButtonLayout[];
   /** Clickable tabs, systems, sources and regions. */
   tabsHits: { rect: Rect; page: Page }[];
+  /** Opened result pages between the page tabs and the system picker. */
+  pageTabs: PageTabHit[];
+  /** Columns the tab strip may use, so the chrome can fill the rest. */
+  pageTabsArea: Rect;
   systemHits: { rect: Rect; os: 'auto' | 'linux' | 'windows' }[];
   sourceHits: { rect: Rect; section: Section }[];
   regionHits: { rect: Rect; focus: Focus }[];
@@ -141,7 +228,12 @@ export interface Layout {
 export function computeLayout(state: AppState, columns: number, rows: number): Layout {
   const layout = space(columns, rows);
   const tabs = rect(0, 0, columns, 1);
-  const systems = rect(29, 0, Math.max(columns - 29, 0), 1);
+  // The system picker (or the narrow region switcher) sits at the right end
+  // of the first row, leaving the middle to the opened-page tabs.
+  const narrow = state.page === 'analysis' && !twoPanes(layout);
+  const pickerWidth = narrow ? 12 : cellWidth(' Linux ') + cellWidth(' Windows ') + cellWidth(' 自动 ');
+  const pickerX = Math.max(columns - pickerWidth, 0);
+  const systems = rect(pickerX, 0, columns - pickerX, 1);
   const headerHeight = 1;
   const header = rect(0, 1, columns, headerHeight);
   const footerHeight = 2;
@@ -169,32 +261,43 @@ export function computeLayout(state: AppState, columns: number, rows: number): L
     content: null,
     contentRows: null,
     inspector: null,
+    cacheScopes: null,
+    cacheEntries: null,
+    cacheDetail: null,
+    cacheOffsets: { scopes: 0, entries: 0 },
+    cacheHits: [],
+    scrollbars: [],
     pageStart: 0,
     pageSize: 0,
     columns_: [],
     popup: null,
     buttons: [],
     tabsHits: [],
+    pageTabs: [],
+    pageTabsArea: rect(0, 0, 0, 0),
     systemHits: [],
     sourceHits: [],
     regionHits: [],
     rowHits: [],
   };
 
-  const assetsWidth = cellWidth(TAB_LABELS[0]);
-  base.tabsHits = [
-    { rect: rect(0, 0, assetsWidth, 1), page: 'assets' },
-    { rect: rect(assetsWidth + 1, 0, cellWidth(TAB_LABELS[1]), 1), page: 'analysis' },
-  ];
-  if (state.page === 'analysis' && !twoPanes(layout)) {
+  let tabX = 0;
+  base.tabsHits = TAB_LABELS.map((label, index) => {
+    const hit = { rect: rect(tabX, 0, cellWidth(label), 1), page: TAB_PAGES[index] as Page };
+    tabX += cellWidth(label) + 1;
+    return hit;
+  });
+  base.pageTabsArea = rect(tabX, 0, Math.max(pickerX - 1 - tabX, 0), 1);
+  layoutPageTabs(base, state);
+  if (narrow) {
     // Narrow analysis layouts replace the system picker with region tabs, so
     // the only visible control stays reachable.
     base.regionHits = [
-      { rect: rect(29, 0, 6, 1), focus: 'navigation' },
-      { rect: rect(35, 0, 6, 1), focus: 'content' },
+      { rect: rect(pickerX, 0, 6, 1), focus: 'navigation' },
+      { rect: rect(pickerX + 6, 0, 6, 1), focus: 'content' },
     ];
   } else {
-    const start = 29;
+    const start = pickerX;
     const labels: { os: 'linux' | 'windows' | 'auto'; text: string }[] = [
       { os: 'linux', text: ' Linux ' },
       { os: 'windows', text: ' Windows ' },
@@ -213,12 +316,78 @@ export function computeLayout(state: AppState, columns: number, rows: number): L
 
   if (state.page === 'assets') {
     layoutAssets(base, state);
+  } else if (state.page === 'cache') {
+    layoutCache(base, state);
   } else {
     layoutAnalysis(base, state, layout);
   }
+  layoutScrollbars(base, state);
   layoutActions(base, state);
   layoutDialog(base, state);
   return base;
+}
+
+/**
+ * Opened pages as browser-style tabs: titles shrink to share the strip, and
+ * when even the narrowest titles do not fit, a window around the active tab
+ * is shown with `‹n` / `n›` chips that step to the hidden neighbours.
+ */
+function layoutPageTabs(base: Layout, state: AppState): void {
+  const area = base.pageTabsArea;
+  const tabs = state.openTabs;
+  if (tabs.length === 0 || area.width < TAB_TITLE_MIN + 4) {
+    return;
+  }
+  const titles = tabs.map(tabLabel);
+  // A tab is " title ×" plus a one-cell gap: title + 4 cells.
+  const span = (index: number, budget: number) => Math.min(cellWidth(titles[index]!), budget) + 4;
+  const total = (budget: number, from = 0, to = tabs.length) => {
+    let cells = 0;
+    for (let index = from; index < to; index += 1) cells += span(index, budget);
+    return cells;
+  };
+  // The widest common title budget that fits every tab.
+  let budget = TAB_TITLE_MAX;
+  while (budget > TAB_TITLE_MIN && total(budget) > area.width + 1) {
+    budget -= 1;
+  }
+  let first = 0;
+  let last = tabs.length;
+  const chip = 5;
+  if (total(budget) > area.width + 1) {
+    // Grow a window around the active tab, leaving room for both chips.
+    const room = area.width + 1 - 2 * chip;
+    const active = Math.max(activeTab(state), 0);
+    first = active;
+    last = active + 1;
+    let used = span(active, budget);
+    for (;;) {
+      const right = last < tabs.length && used + span(last, budget) <= room;
+      if (right) used += span(last++, budget);
+      const left = first > 0 && used + span(first - 1, budget) <= room;
+      if (left) used += span(--first, budget);
+      if (!right && !left) break;
+    }
+  }
+  let x = area.x;
+  if (first > 0) {
+    base.pageTabs.push({ rect: rect(x, 0, chip - 1, 1), close: null, index: first - 1, label: truncate(` ‹${first}`, chip - 1), kind: 'before' });
+    x += chip;
+  }
+  for (let index = first; index < last; index += 1) {
+    const name = truncate(titles[index]!, budget);
+    const cells = cellWidth(name) + 3;
+    if (x + cells > area.x + area.width) {
+      last = index;
+      break;
+    }
+    base.pageTabs.push({ rect: rect(x, 0, cells, 1), close: rect(x + cells - 1, 0, 1, 1), index, label: ` ${name} `, kind: 'tab' });
+    x += cells + 1;
+  }
+  const hidden = tabs.length - last;
+  if (hidden > 0 && x + chip - 1 <= area.x + area.width) {
+    base.pageTabs.push({ rect: rect(x, 0, chip - 1, 1), close: null, index: last, label: truncate(` ${hidden}›`, chip - 1), kind: 'after' });
+  }
 }
 
 function layoutAssets(base: Layout, state: AppState): void {
@@ -304,6 +473,65 @@ function clampOffset(selected: number, count: number, visible: number): number {
     return 0;
   }
   return Math.min(selected - visible + 1, count - visible);
+}
+
+/** Detail rows under the cache entry list, when the body has room for them. */
+const CACHE_DETAIL_ROWS = 7;
+
+function layoutCache(base: Layout, state: AppState): void {
+  const { columns, body } = base;
+  const left = Math.max(Math.min(Math.floor(columns * 0.32), 40), 28);
+  base.cacheScopes = rect(0, body.y, left, body.height);
+  const detail = body.height >= 16 ? CACHE_DETAIL_ROWS : 0;
+  base.cacheEntries = rect(left, body.y, columns - left, body.height - detail);
+  base.cacheDetail = detail > 0 ? rect(left, body.y + body.height - detail, columns - left, detail) : null;
+  const lists: [CachePane, Rect, number, number][] = [
+    ['scopes', base.cacheScopes, cacheScopes(state).length, state.cache.scope],
+    ['entries', base.cacheEntries, cacheItems(state).length, state.cache.entry],
+  ];
+  for (const [pane, frame, count, selected] of lists) {
+    const rows = frameInner(frame);
+    const offset = clampOffset(selected, count, rows.height);
+    base.cacheOffsets[pane] = offset;
+    for (let index = 0; index < rows.height && offset + index < count; index += 1) {
+      base.cacheHits.push({ rect: rect(rows.x, rows.y + index, rows.width, 1), pane, index: offset + index });
+    }
+  }
+}
+
+/** Scrollbars for every scrolling region of the current page. */
+function layoutScrollbars(base: Layout, state: AppState): void {
+  const push = (bar: Scrollbar | null) => {
+    if (bar) base.scrollbars.push(bar);
+  };
+  const border = (frame: Rect, rows: Rect): Rect => rect(frame.x + frame.width - 1, rows.y, 1, rows.height);
+  for (const pane of base.panes) {
+    const count = pane.section === 'remote' ? remoteList(state).length : assetListFor(state, pane.section).length;
+    push(scrollbar('pane', border(pane.list, pane.rows), count, pane.offset, Math.max(pane.entries.length, 1)));
+  }
+  if (base.menu) {
+    const rows = frameInner(base.menu);
+    const count = menuLength(state);
+    push(scrollbar('menu', border(base.menu, rows), count, clampOffset(state.menu, count, rows.height), rows.height));
+  }
+  if (base.content && base.contentRows && result(state)) {
+    const track = border(base.content, base.contentRows);
+    // A narrow inspector covers the table; its own scrollbar takes the border.
+    if (!base.inspector || !inside(base.inspector, track.x, track.y)) {
+      push(scrollbar('content', track, viewIndex(state).visible.length, base.pageStart, base.pageSize));
+    }
+  }
+  if (base.inspector) {
+    const rows = frameInner(base.inspector);
+    const lines = wrapLines(rowDetailText(state), rows.width).length;
+    push(scrollbar('inspector', border(base.inspector, rows), lines, Math.min(state.detailScroll, Math.max(lines - rows.height, 0)), rows.height));
+  }
+  if (base.cacheScopes && base.cacheEntries) {
+    const scopes = frameInner(base.cacheScopes);
+    push(scrollbar('cacheScopes', border(base.cacheScopes, scopes), cacheScopes(state).length, base.cacheOffsets.scopes, scopes.height));
+    const entries = frameInner(base.cacheEntries);
+    push(scrollbar('cacheEntries', border(base.cacheEntries, entries), cacheItems(state).length, base.cacheOffsets.entries, entries.height));
+  }
 }
 
 function layoutAnalysis(base: Layout, state: AppState, layout: ReturnType<typeof space>): void {
@@ -402,7 +630,9 @@ function layoutActions(base: Layout, state: AppState): void {
   }
   const actions = state.page === 'assets'
     ? toolbarActions(state.section, state.busy)
-    : actionLabels(state);
+    : state.page === 'cache'
+      ? cacheToolbarActions(state.busy)
+      : actionLabels(state);
   const more = ' 更多 ? ';
   const moreWidth = cellWidth(more);
   let x = 0;
@@ -505,13 +735,6 @@ function layoutDialogButtons(base: Layout, state: AppState, dialog: Dialog, popu
       base.buttons.push({ rect: rect(popup.x + 1, popup.y + popup.height - 3, 6, 1), key: 'Enter', action: '确认' });
       base.buttons.push({ rect: rect(popup.x + 8, popup.y + popup.height - 3, 6, 1), key: 'Esc', action: '取消' });
       return;
-    case 'cache':
-      base.buttons.push({
-        rect: rect(inner.x, popup.y + popup.height - 3, 12, 1),
-        key: 'Enter',
-        action: dialog.confirm ? '确认清理' : '预览清理',
-      });
-      break;
     default:
       break;
   }
@@ -575,9 +798,6 @@ function layoutDialogRows(base: Layout, state: AppState, dialog: Dialog, popup: 
       return;
     case 'files':
       add(dialog.entries.length, dialog.selected, '打开条目');
-      return;
-    case 'cache':
-      add(state.hello?.scopes.length ?? 0, dialog.selected, '切换缓存范围');
       return;
     default:
       return;

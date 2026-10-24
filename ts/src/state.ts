@@ -13,10 +13,12 @@ import type {
   AssetKind,
   CacheEntry,
   DumpSpec,
+  ExportRecord,
   Hello,
   Options,
   Os,
   PluginDescriptor,
+  RemoteIndex,
   RemoteMatch,
   Results,
   ScopeId,
@@ -28,12 +30,15 @@ import {
   commandMatches,
   footerActions,
   queryMatches,
+  type CachePane,
   type Command,
   type Focus,
   type Page,
   type Section,
 } from './actions.js';
 import { compareValues } from './resultView.js';
+import { shortPlugin } from './format.js';
+import { themeOf } from './text.js';
 
 export type InputKind =
   | 'image'
@@ -76,13 +81,6 @@ export type Dialog =
     }
   | { kind: 'settings'; selected: number }
   | { kind: 'system'; selected: number }
-  | {
-      kind: 'cache';
-      entries: CacheEntry[];
-      scopes: ScopeId[];
-      selected: number;
-      confirm: boolean;
-    }
   | { kind: 'commands'; query: string; selected: number }
   | ({ kind: 'windowsParameters'; advanced: boolean } & FieldDialog)
   | { kind: 'plugins'; query: string; selected: number }
@@ -241,6 +239,10 @@ export interface AppState {
   assetDetails: Map<string, string>;
   remote: RemoteMatch[];
   remoteCatalog: boolean;
+  /** Catalog matches before the page limit; equals `remote.length` for exact matches. */
+  remoteTotal: number;
+  remoteIndex: RemoteIndex | null;
+  cache: CacheView;
   downloads: Map<string, string>;
   hiddenCacheCopies: Set<string>;
   localMatches: Map<string, string[]>;
@@ -258,6 +260,10 @@ export interface AppState {
   windows: boolean;
   analysisOptions: Options;
   results: Map<string, Results>;
+  /** Opened result pages, shown as browser-style tabs in the first row. */
+  openTabs: PageTab[];
+  /** Serial for history tabs, which have no plugin name to dedupe on. */
+  tabSerial: number;
   resultsRevision: number;
   history: Results | null;
   historyRevision: number;
@@ -301,6 +307,86 @@ export interface AppState {
   rows: number;
 }
 
+/** Cache page: the engine inventory plus the user's selection on it. */
+export interface CacheView {
+  entries: CacheEntry[];
+  records: ExportRecord[];
+  /** Scopes ticked for clearing. */
+  scopes: ScopeId[];
+  /** Highlighted scope, an index into `hello.scopes`. */
+  scope: number;
+  /** Highlighted row of the entry list. */
+  entry: number;
+  pane: CachePane;
+  /** A destructive action armed by its first key press. */
+  confirm: 'clear' | 'remove' | null;
+  loaded: boolean;
+}
+
+/** One row of the cache entry list: a file, or an export record with its copy. */
+export interface CacheItem {
+  path: string;
+  name: string;
+  bytes: number;
+  modified: number | null;
+  record: ExportRecord | null;
+}
+
+export function cacheScopes(state: AppState): { id: Exclude<ScopeId, 'all'>; label: string }[] {
+  return (state.hello?.scopes ?? []).filter(
+    (scope): scope is { id: Exclude<ScopeId, 'all'>; label: string } => scope.id !== 'all',
+  );
+}
+
+function recordKey(path: string): string | null {
+  return /([0-9a-f]{64})\.(?:export\.json|csv|json)$/u.exec(path)?.[1] ?? null;
+}
+
+/** Entries of the highlighted scope, newest first. Records group their files. */
+export function cacheItems(state: AppState): CacheItem[] {
+  const scope = cacheScopes(state)[state.cache.scope]?.id;
+  const root = state.hello?.cache ?? '';
+  const files = state.cache.entries.filter((entry) => entry.scope === scope);
+  const relative = (path: string) =>
+    root !== '' && path.startsWith(root) ? path.slice(root.length).replace(/^[\\/]+/u, '') : path;
+  const items: CacheItem[] = [];
+  const grouped = new Set<string>();
+  if (scope === 'exports') {
+    for (const record of state.cache.records) {
+      const own = files.filter((entry) => recordKey(entry.path) === record.key);
+      const metadata = own.find((entry) => entry.path.endsWith('.export.json'));
+      if (!metadata) {
+        continue;
+      }
+      own.forEach((entry) => grouped.add(entry.path));
+      items.push({
+        path: metadata.path,
+        name: relative(metadata.path),
+        bytes: own.reduce((total, entry) => total + entry.bytes, 0),
+        modified: record.recorded,
+        record,
+      });
+    }
+  }
+  for (const entry of files) {
+    if (!grouped.has(entry.path)) {
+      items.push({ path: entry.path, name: relative(entry.path), bytes: entry.bytes, modified: entry.modified, record: null });
+    }
+  }
+  return items.sort((a, b) => (b.modified ?? 0) - (a.modified ?? 0) || a.name.localeCompare(b.name));
+}
+
+export function selectedCacheItem(state: AppState): CacheItem | null {
+  return cacheItems(state)[state.cache.entry] ?? null;
+}
+
+/** Files and bytes the ticked scopes would clear. */
+export function cacheSelection(state: AppState): { files: number; bytes: number } {
+  const scopes = state.cache.scopes;
+  const selected = state.cache.entries.filter((entry) => scopes.includes(entry.scope) || scopes.includes('all'));
+  return { files: selected.length, bytes: selected.reduce((total, entry) => total + entry.bytes, 0) };
+}
+
 export function defaultOptions(): Options {
   return {
     os: 'auto',
@@ -332,6 +418,18 @@ export function initialState(hello: Hello, launch: { image: string | null; symbo
     assetDetails: new Map(),
     remote: [],
     remoteCatalog: true,
+    remoteTotal: 0,
+    remoteIndex: null,
+    cache: {
+      entries: [],
+      records: [],
+      scopes: ['results', 'identification'],
+      scope: 0,
+      entry: 0,
+      pane: 'scopes',
+      confirm: null,
+      loaded: false,
+    },
     downloads: new Map(),
     hiddenCacheCopies: new Set(),
     localMatches: new Map(),
@@ -349,6 +447,8 @@ export function initialState(hello: Hello, launch: { image: string | null; symbo
     windows: false,
     analysisOptions: options,
     results: new Map(),
+    openTabs: [],
+    tabSerial: 0,
     resultsRevision: 0,
     history: null,
     historyRevision: 0,
@@ -530,6 +630,25 @@ export function requestKey(state: AppState): string {
 export function parameterSummary(state: AppState): string {
   const options = state.analysisOptions;
   return `PID=${options.pid ?? '全部'} · hive=${options.hive === null ? '' : `0x${BigInt(options.hive).toString(16)}`} · key=${options.key} · arch=${options.arch} · pagefile=${JSON.stringify(options.pagefiles)} · swapfile=${options.swapfile ?? ''}${options.pattern === null ? '' : ` · pattern=${options.pattern}`}`;
+}
+
+/** An opened page: a plugin's live result, or a loaded historical export. */
+export type PageTab =
+  | { kind: 'plugin'; plugin: string }
+  | { kind: 'history'; id: number; label: string; result: Results };
+
+/** Index of the tab the analysis page is showing, or -1 on another page. */
+export function activeTab(state: AppState): number {
+  if (state.page !== 'analysis') {
+    return -1;
+  }
+  return state.openTabs.findIndex((tab) =>
+    state.history ? tab.kind === 'history' && tab.result === state.history : tab.kind === 'plugin' && tab.plugin === state.plugin,
+  );
+}
+
+export function tabLabel(tab: PageTab): string {
+  return tab.kind === 'plugin' ? shortPlugin(tab.plugin) : `记录·${tab.label}`;
 }
 
 export function result(state: AppState): Results | null {
@@ -739,6 +858,21 @@ export function commandDisabled(state: AppState, command: Command): string | nul
         return '尚无结果；先运行插件';
       }
       break;
+    case 'cacheClear':
+      if (cacheSelection(state).files === 0) {
+        return '勾选的范围没有缓存文件；Space 勾选其他范围';
+      }
+      break;
+    case 'cacheRemove':
+      if (selectedCacheItem(state) === null) {
+        return '当前范围没有可删除的条目';
+      }
+      break;
+    case 'cacheOpen':
+      if (selectedCacheItem(state)?.record == null) {
+        return '只有导出记录可以打开；在左侧选择「导出记录」';
+      }
+      break;
     default:
       break;
   }
@@ -757,6 +891,10 @@ export function commandDisabled(state: AppState, command: Command): string | nul
       'toggleOnline',
       'importImage',
       'importSymbols',
+      'cacheClear',
+      'cacheRemove',
+      'cacheOpen',
+      'cacheRefresh',
     ].includes(command)
   ) {
     return '任务执行中，请等待或取消';
@@ -795,6 +933,7 @@ export function settingsLabels(state: AppState): string[] {
     `导出目录: ${settings.export_dir}`,
     `每页行数: ${settings.page_size === 0 ? '自动填满' : String(settings.page_size)}（Enter 输入）`,
     `远程模式: ${settings.remote_symbols ? '在线' : '离线'}（Enter 切换）`,
+    `界面主题: ${themeOf(settings.theme).label}（Enter / ←→ 切换）`,
   ];
 }
 

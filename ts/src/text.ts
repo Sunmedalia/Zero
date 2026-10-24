@@ -1,23 +1,124 @@
 /**
  * Palette and shared style tokens.
  *
- * Quiet slate surfaces keep evidence readable; blue marks focus and amber
+ * Quiet surfaces keep evidence readable; the accent marks focus and amber
  * marks preparation or incomplete evidence. Status also always has a text label.
+ *
+ * The tokens are live bindings: `applyTheme` reassigns them, and every painter
+ * reads them at draw time, so a theme switch takes effect on the next frame.
  */
-export const ACCENT = '#82b4e8';
-export const FOCUS = '#b8d8fa';
-export const SELECTED_BG = '#263b52';
-export const SURFACE = '#151b24';
+export interface Palette {
+  accent: string;
+  focus: string;
+  selected: string;
+  surface: string;
+  /** Raised surface for chips, buttons and alternating table rows. */
+  raised: string;
+  stripe: string;
+  border: string;
+  text: string;
+  muted: string;
+  success: string;
+  warn: string;
+  danger: string;
+  shadow: string;
+}
+
+export interface Theme {
+  id: string;
+  label: string;
+  palette: Palette;
+}
+
+/** Selectable themes; the first is the default and the fallback for unknown ids. */
+export const THEMES: readonly Theme[] = [
+  {
+    id: 'slate',
+    label: '石板（深色）',
+    palette: {
+      accent: '#82b4e8', focus: '#b8d8fa', selected: '#263b52', surface: '#151b24',
+      raised: '#202a37', stripe: '#19222e', border: '#364354', text: '#dce3ed',
+      muted: '#97a6b8', success: '#8bc7a3', warn: '#dfb974', danger: '#ed938c', shadow: '#080c0f',
+    },
+  },
+  {
+    id: 'light',
+    label: '纸白（浅色）',
+    palette: {
+      accent: '#1f5f9e', focus: '#0b3d6e', selected: '#cfe0f3', surface: '#f7f8fa',
+      raised: '#e6e9ee', stripe: '#eef0f3', border: '#b4bcc8', text: '#1c2430',
+      muted: '#5b6676', success: '#1d7a46', warn: '#8a5a00', danger: '#b3261e', shadow: '#c3c8d0',
+    },
+  },
+  {
+    id: 'solarized',
+    label: 'Solarized（深色）',
+    palette: {
+      accent: '#268bd2', focus: '#93d4ff', selected: '#0d3d4d', surface: '#002b36',
+      raised: '#073642', stripe: '#04313c', border: '#2a525c', text: '#d5dcd7',
+      muted: '#93a1a1', success: '#9fbf3b', warn: '#d9a62e', danger: '#ef6b62', shadow: '#001b22',
+    },
+  },
+  {
+    id: 'phosphor',
+    label: '荧光绿（终端）',
+    palette: {
+      accent: '#5fd787', focus: '#afffcf', selected: '#16402a', surface: '#0b120d',
+      raised: '#132019', stripe: '#0f1912', border: '#2b4a35', text: '#c9f2d5',
+      muted: '#7fa98c', success: '#87e7a8', warn: '#e5c76b', danger: '#ff8c7a', shadow: '#030604',
+    },
+  },
+  {
+    id: 'contrast',
+    label: '高对比',
+    palette: {
+      accent: '#5cc8ff', focus: '#ffffff', selected: '#003a75', surface: '#000000',
+      raised: '#1a1a1a', stripe: '#0d0d0d', border: '#8c8c8c', text: '#ffffff',
+      muted: '#c8c8c8', success: '#5df58a', warn: '#ffd75f', danger: '#ff6b6b', shadow: '#000000',
+    },
+  },
+];
+
+export function themeOf(id: string): Theme {
+  return THEMES.find((theme) => theme.id === id) ?? THEMES[0]!;
+}
+
+export let ACCENT = '';
+export let FOCUS = '';
+export let SELECTED_BG = '';
+export let SURFACE = '';
 /** Raised surface for chips, buttons and alternating table rows. */
-export const RAISED = '#202a37';
-export const STRIPE = '#19222e';
-export const BORDER = '#364354';
-export const TEXT = '#dce3ed';
-export const MUTED = '#97a6b8';
-export const SUCCESS = '#8bc7a3';
-export const WARN = '#dfb974';
-export const DANGER = '#ed938c';
-export const SHADOW = '#080c0f';
+export let RAISED = '';
+export let STRIPE = '';
+export let BORDER = '';
+export let TEXT = '';
+export let MUTED = '';
+export let SUCCESS = '';
+export let WARN = '';
+export let DANGER = '';
+export let SHADOW = '';
+
+/** Make `id` the active palette; unknown ids fall back to the default theme. */
+export function applyTheme(id: string): Theme {
+  const theme = themeOf(id);
+  const palette = theme.palette;
+  ACCENT = palette.accent;
+  FOCUS = palette.focus;
+  SELECTED_BG = palette.selected;
+  SURFACE = palette.surface;
+  RAISED = palette.raised;
+  STRIPE = palette.stripe;
+  BORDER = palette.border;
+  TEXT = palette.text;
+  MUTED = palette.muted;
+  SUCCESS = palette.success;
+  WARN = palette.warn;
+  DANGER = palette.danger;
+  SHADOW = palette.shadow;
+  return theme;
+}
+
+applyTheme(THEMES[0]!.id);
 
 /** One cell of terminal output, measured in display columns. */
 export interface Run {
@@ -165,7 +266,9 @@ export function truncatePath(path: string, budget: number): string {
  * of one kernel, so the tail is the least informative part. The directory and
  * the file name are kept and the hash is elided in the middle.
  */
-export function compactRemotePath(path: string, columns: number): string {
+export function compactRemotePath(full: string, columns: number): string {
+  // Release assets share one prefix; the release tag and file name carry the identity.
+  const path = full.startsWith('releases/download/') ? full.slice('releases/download/'.length) : full;
   const budget = Math.max(columns - 12, 16);
   if (width(path) <= budget) {
     return path;

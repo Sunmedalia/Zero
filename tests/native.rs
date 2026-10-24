@@ -1075,6 +1075,55 @@ fn new_state_and_capability_plugins_use_isf_and_preserve_partial_results() -> Re
 }
 
 #[test]
+fn release_asset_index_entries_normalize_rank_and_filter_architecture() -> Result<()> {
+    use zero_tui::symbols;
+    let release = "https://github.com/Abyss-W4tcher/volatility3-symbols/releases/download/isf-Debian-amd64-3.2.0/Debian_3.2.0-4-amd64_3.2.57-3%2Bdeb7u2_amd64.json.xz";
+    let path = symbols::index_path(release)?;
+    assert_eq!(
+        path,
+        "releases/download/isf-Debian-amd64-3.2.0/Debian_3.2.0-4-amd64_3.2.57-3+deb7u2_amd64.json.xz"
+    );
+    assert_eq!(
+        symbols::repository_url(&path)?,
+        release,
+        "no double encoding"
+    );
+    for rejected in [
+        "https://elsewhere.example/releases/download/t/a.json.xz",
+        "https://github.com/Abyss-W4tcher/volatility3-symbols/releases/download/t/..%2Fa.json.xz",
+        "https://github.com/Abyss-W4tcher/volatility3-symbols/releases/download/t/x%2Fa.json.xz",
+        "https://github.com/Abyss-W4tcher/volatility3-symbols/releases/download/t/bad%zz.json.xz",
+    ] {
+        assert!(symbols::index_path(rejected).is_err(), "{rejected}");
+    }
+    let dir = tempfile::tempdir()?;
+    let base = "https://github.com/Abyss-W4tcher/volatility3-symbols/releases/download";
+    store::atomic_write(
+        &dir.path().join("symbols/banners_plain.json"),
+        &serde_json::to_vec(&json!({
+            "Linux version 3.2.0-4-amd64 (Debian 3.2.57-3)": [release],
+            "Linux version 6.5.0-kali3-amd64 (Debian 13.2.0-4)": [format!("{base}/isf-KaliLinux-amd64-6.5.0/KaliLinux_6.5.0-kali3-amd64_6.5.6_amd64.json.xz")],
+            "Linux version 4.4.0-21-generic (Ubuntu)": [format!("{base}/isf-Ubuntu-i386-4.4.0/Ubuntu_4.4.0-21-generic_4.4.0-21.37_i386.json.xz")],
+            "Linux version 9.0.0 (other)": ["https://elsewhere.example/a.json.xz"],
+            "Darwin Kernel Version 10.3.0": [format!("{base}/isf-macOS-10.6/macOS_KDK_10.6.3_x86_64.json.xz")],
+        }))?,
+    )?;
+    let page = symbols::catalog(dir.path(), "debian 3.2.0-4", 1, false, &Job::default())?;
+    assert_eq!(
+        (page.total, page.index.entries, page.index.banners),
+        (2, 2, 5)
+    );
+    assert_eq!(page.matches[0].path, path, "whole-word release ranks first");
+    assert!(
+        symbols::catalog(dir.path(), "i386", 10, false, &Job::default())?
+            .matches
+            .is_empty(),
+        "kernels the native engine cannot translate are not offered"
+    );
+    Ok(())
+}
+
+#[test]
 fn catalog_manual_search_and_offline_download_without_an_image() -> Result<()> {
     let dir = tempfile::tempdir()?;
     let isf = symbols();

@@ -40,6 +40,39 @@ export function mib(bytes: number): string {
   return (bytes / 1048576).toFixed(1);
 }
 
+/** Human-sized byte count for listings where files range from bytes to GiB. */
+export function formatBytes(bytes: number): string {
+  const units = ['B', 'KiB', 'MiB', 'GiB', 'TiB'];
+  let value = bytes;
+  let unit = 0;
+  while (value >= 1024 && unit < units.length - 1) {
+    value /= 1024;
+    unit += 1;
+  }
+  return unit === 0 ? `${bytes} B` : `${value.toFixed(1)} ${units[unit]}`;
+}
+
+/** Local `YYYY-MM-DD HH:MM` for a Unix timestamp in seconds; `—` when unknown. */
+export function formatTime(seconds: number | null): string {
+  if (seconds === null || !Number.isFinite(seconds)) {
+    return '—';
+  }
+  const date = new Date(seconds * 1000);
+  const two = (value: number) => String(value).padStart(2, '0');
+  return `${date.getFullYear()}-${two(date.getMonth() + 1)}-${two(date.getDate())} ${two(date.getHours())}:${two(date.getMinutes())}`;
+}
+
+/** Index age in words, for the remote catalog status. */
+export function formatAge(seconds: number | null | undefined): string {
+  if (seconds === null || seconds === undefined) {
+    return '未知';
+  }
+  if (seconds < 60) return '刚刚';
+  if (seconds < 3600) return `${Math.floor(seconds / 60)} 分钟前`;
+  if (seconds < 86400) return `${Math.floor(seconds / 3600)} 小时前`;
+  return `${Math.floor(seconds / 86400)} 天前`;
+}
+
 /** Elapsed seconds since `startedAt`, or `null` when no task is running. */
 export function elapsedSeconds(startedAt: number | null): number | null {
   return startedAt === null ? null : Math.floor((Date.now() - startedAt) / 1000);

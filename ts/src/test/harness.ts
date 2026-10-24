@@ -13,7 +13,10 @@ import type {
   Asset,
   BrowseResult,
   CacheEntry,
+  CacheInventory,
   ClearReport,
+  ExportRecord,
+  ExportReply,
   Hello,
   MatchLocalReply,
   RemoteMatch,
@@ -83,6 +86,7 @@ export function hello(settings: Partial<Settings> = {}): Hello {
       history_dir: 'exports',
       enable_cache: true,
       remote_symbols: false,
+      theme: 'slate',
       resources: {
         page_cache_entries: 65536,
         scan_cache_bytes: 67108864,
@@ -162,6 +166,7 @@ export function hello(settings: Partial<Settings> = {}): Hello {
     ],
     scopes: [
       { id: 'results', label: '分析结果' },
+      { id: 'exports', label: '导出记录' },
       { id: 'identification', label: '识别信息' },
       { id: 'images', label: '解压镜像' },
       { id: 'symbols', label: '符号／构建缓存' },
@@ -197,6 +202,13 @@ export class MemoryEngine implements Engine {
     diagnostics: [],
   };
   remoteReply: RemoteReply = { matches: [], catalog: false };
+  remoteCalls: { query?: string; catalog?: boolean; limit?: number }[] = [];
+  cacheEntries: CacheEntry[] = [];
+  cacheRecords: ExportRecord[] = [];
+  removedPaths: string[] = [];
+  clearedScopes: string[][] = [];
+  openedRecords: string[] = [];
+  exportRecord: ExportRecord | null = null;
   analyzeReply: { choose?: string[]; result?: Results } = { result: results() };
   analyzeCalls: AnalyzeArgs[] = [];
   cancelled = false;
@@ -226,8 +238,8 @@ export class MemoryEngine implements Engine {
     return Promise.resolve({ root, entries: [] });
   }
 
-  cacheInventory(): Promise<{ entries: CacheEntry[] }> {
-    return Promise.resolve({ entries: [] });
+  cacheInventory(): Promise<CacheInventory> {
+    return Promise.resolve({ entries: this.cacheEntries, records: this.cacheRecords });
   }
 
   saveSettings(settings: Settings): Promise<Settings> {
@@ -260,7 +272,8 @@ export class MemoryEngine implements Engine {
     return Promise.resolve(this.matchReply);
   }
 
-  remote(): Promise<RemoteReply> {
+  remote(args: { query?: string; catalog?: boolean; limit?: number }): Promise<RemoteReply> {
+    this.remoteCalls.push(args);
     return Promise.resolve(this.remoteReply);
   }
 
@@ -276,15 +289,26 @@ export class MemoryEngine implements Engine {
     return Promise.resolve({ text: '符号详情' });
   }
 
-  cacheClear(_scopes: string[], progress: TaskProgress): Promise<ClearReport> {
+  cacheClear(scopes: string[], progress: TaskProgress): Promise<ClearReport> {
     void progress;
+    this.clearedScopes.push(scopes);
     return Promise.resolve(this.clearReport);
   }
 
-  export(args: { path: string; rows?: string[][] }): Promise<{ path: string; rows: number }> {
+  cacheRemove(paths: string[]): Promise<ClearReport> {
+    this.removedPaths.push(...paths);
+    return Promise.resolve(this.clearReport);
+  }
+
+  record(key: string): Promise<{ result: Results }> {
+    this.openedRecords.push(key);
+    return Promise.resolve({ result: this.historyResult });
+  }
+
+  export(args: { path: string; rows?: string[][] }): Promise<ExportReply> {
     const rows = args.rows?.length ?? 0;
     this.exported = { path: args.path, rows };
-    return Promise.resolve({ path: args.path, rows });
+    return Promise.resolve({ path: args.path, rows, record: this.exportRecord, record_error: null });
   }
 
   history(): Promise<{ result: Results }> {

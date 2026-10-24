@@ -258,6 +258,156 @@ pub fn history_paths(root: &Path) -> Vec<PathBuf> {
     paths.sort();
     paths
 }
+/// One successful export, recorded under `<cache>/exports/` with a verified
+/// copy of the exported bytes so it can be reopened after the file moves.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ExportRecord {
+    pub key: String,
+    pub recorded: u64,
+    pub destination: PathBuf,
+    pub format: String,
+    pub plugin: String,
+    pub rows: usize,
+    pub bytes: u64,
+    pub sha256: String,
+    pub complete: bool,
+    pub diagnostics: usize,
+    pub banner: String,
+    pub symbol: String,
+}
+const RECORD_LIMIT: u64 = 256 * 1024 * 1024;
+fn record_dir(cache: &Path) -> PathBuf {
+    cache.join("exports")
+}
+fn record_copy(cache: &Path, key: &str, format: &str) -> PathBuf {
+    record_dir(cache).join(format!("{key}.{format}"))
+}
+/// Record a finished export. The copy is streamed from the published file and
+/// hashed on the way, so the record always describes exactly what was written.
+pub fn record_export(
+    cache: &Path,
+    destination: &Path,
+    result: &Results,
+    rows: usize,
+    job: &Job,
+) -> Result<ExportRecord> {
+    let format = destination
+        .extension()
+        .and_then(|s| s.to_str())
+        .filter(|e| matches!(*e, "csv" | "json"))
+        .context("导出扩展名必须为 .csv 或 .json")?
+        .to_owned();
+    let bytes = fs::metadata(destination)?.len();
+    ensure!(bytes <= RECORD_LIMIT, "导出超过 256 MiB，未记录本地副本");
+    let destination = fs::canonicalize(destination)?;
+    let _guard = crate::cache::lock(cache, false)?;
+    let digest = |job: &Job| -> Result<String> {
+        let mut hasher = Sha256::new();
+        let mut source = fs::File::open(&destination)?;
+        let mut buffer = vec![0; 1 << 16];
+        loop {
+            job.check()?;
+            let n = std::io::Read::read(&mut source, &mut buffer)?;
+            if n == 0 {
+                break;
+            }
+            hasher.update(&buffer[..n]);
+        }
+        Ok(format!("{:x}", hasher.finalize()))
+    };
+    let sha256 = digest(job)?;
+    let key = format!(
+        "{:x}",
+        Sha256::digest(format!("{}\0{sha256}", destination.display()).as_bytes())
+    );
+    let copy = record_copy(cache, &key, &format);
+    atomic_stream(&copy, job, |writer| {
+        std::io::copy(&mut fs::File::open(&destination)?, writer)?;
+        Ok(())
+    })?;
+    if digest(job)? != sha256 {
+        let _ = fs::remove_file(&copy);
+        anyhow::bail!("导出文件在记录期间被修改；未记录");
+    }
+    let record = ExportRecord {
+        key: key.clone(),
+        recorded: std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map_or(0, |d| d.as_secs()),
+        destination,
+        format,
+        plugin: result.plugin.clone(),
+        rows,
+        bytes,
+        sha256,
+        complete: result.complete,
+        diagnostics: result.diagnostics.len(),
+        banner: result.banner.clone(),
+        symbol: result.symbol.clone(),
+    };
+    atomic_write(
+        &record_dir(cache).join(format!("{key}.export.json")),
+        &serde_json::to_vec_pretty(&record)?,
+    )?;
+    Ok(record)
+}
+/// Every readable record, newest first. Records without their copy are skipped.
+pub fn export_records(cache: &Path) -> Vec<ExportRecord> {
+    let mut records: Vec<ExportRecord> = fs::read_dir(record_dir(cache))
+        .into_iter()
+        .flatten()
+        .flatten()
+        .filter(|e| e.file_name().to_string_lossy().ends_with(".export.json"))
+        .filter(|e| {
+            e.metadata()
+                .is_ok_and(|m| m.is_file() && m.len() <= 1 << 20)
+        })
+        .filter_map(|e| serde_json::from_slice(&fs::read(e.path()).ok()?).ok())
+        .filter(|r: &ExportRecord| {
+            r.key.len() == 64
+                && r.key.bytes().all(|b| b.is_ascii_hexdigit())
+                && matches!(r.format.as_str(), "csv" | "json")
+                && record_copy(cache, &r.key, &r.format).is_file()
+        })
+        .collect();
+    records.sort_by(|a, b| b.recorded.cmp(&a.recorded).then_with(|| a.key.cmp(&b.key)));
+    records
+}
+/// Reopen a record from its local copy after checking the recorded digest.
+pub fn open_record(cache: &Path, key: &str, job: &Job) -> Result<Results> {
+    let record = export_records(cache)
+        .into_iter()
+        .find(|r| r.key == key)
+        .context("导出记录不存在或副本已清理")?;
+    let copy = record_copy(cache, &record.key, &record.format);
+    job.check()?;
+    let digest = {
+        let mut hasher = Sha256::new();
+        std::io::copy(&mut fs::File::open(&copy)?, &mut hasher)?;
+        format!("{:x}", hasher.finalize())
+    };
+    ensure!(
+        digest == record.sha256,
+        "导出记录副本 SHA256 不一致；请清理该记录"
+    );
+    job.check()?;
+    let mut result = exported(&copy)?;
+    if record.format == "csv" {
+        result.plugin = record.plugin.clone();
+        result.banner = record.banner.clone();
+        result.symbol = record.symbol.clone();
+        result.diagnostics.clear();
+    }
+    result.historical = true;
+    result.complete = record.complete;
+    result.diagnostics.push(format!(
+        "导出记录：{} → {}；本地副本 SHA256 已校验；历史数据未经原生引擎重新验证",
+        record.plugin,
+        record.destination.display()
+    ));
+    Ok(result)
+}
+
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(default)]
 pub struct Settings {
@@ -271,6 +421,8 @@ pub struct Settings {
     pub enable_cache: bool,
     #[serde(default = "remote_default")]
     pub remote_symbols: bool,
+    /// Interface colour theme id; the interface falls back to its default for unknown ids.
+    pub theme: String,
 }
 impl Default for Settings {
     fn default() -> Self {
@@ -284,6 +436,7 @@ impl Default for Settings {
             history_dir: "exports".into(),
             enable_cache: true,
             remote_symbols: true,
+            theme: "slate".into(),
         }
     }
 }
@@ -292,10 +445,20 @@ pub fn save_settings(cache: &Path, settings: &Settings) -> Result<()> {
         settings.page_size <= 10000,
         "每页行数应为 0（自动）或 1–10000"
     );
+    ensure!(
+        valid_theme(&settings.theme),
+        "主题名应为 1–32 个小写字母、数字或连字符"
+    );
     atomic_write(
         &cache.join("settings.json"),
         &serde_json::to_vec_pretty(settings)?,
     )
+}
+fn valid_theme(theme: &str) -> bool {
+    (1..=32).contains(&theme.len())
+        && theme
+            .bytes()
+            .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'-')
 }
 pub fn settings(cache: &Path) -> Result<Settings> {
     let path = cache.join("settings.json");
@@ -304,6 +467,9 @@ pub fn settings(cache: &Path) -> Result<Settings> {
             serde_json::from_slice(&fs::read(path)?).context("Rust settings.json 无效")?;
         let legacy_layout = value.get("layout_version").is_none();
         let mut settings: Settings = serde_json::from_value(value)?;
+        if !valid_theme(&settings.theme) {
+            settings.theme = Settings::default().theme;
+        }
         if legacy_layout {
             settings.page_size = 0;
             save_settings(cache, &settings)?;

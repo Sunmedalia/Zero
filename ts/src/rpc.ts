@@ -11,8 +11,9 @@ import type {
   Asset,
   AssetKind,
   BrowseResult,
-  CacheEntry,
+  CacheInventory,
   ClearReport,
+  ExportReply,
   Hello,
   MatchLocalReply,
   RemoteMatch,
@@ -241,7 +242,7 @@ export class RpcEngine implements Engine {
     return this.call('browse', { path, filter });
   }
 
-  cacheInventory(): Promise<{ entries: CacheEntry[] }> {
+  cacheInventory(): Promise<CacheInventory> {
     return this.call('cache.inventory');
   }
 
@@ -274,7 +275,7 @@ export class RpcEngine implements Engine {
   }
 
   remote(
-    args: { image?: string | null; query?: string; refresh?: boolean; catalog?: boolean },
+    args: { image?: string | null; query?: string; refresh?: boolean; catalog?: boolean; limit?: number },
     progress: TaskProgress,
   ): Promise<RemoteReply> {
     return this.task('remote', { ...args }, progress);
@@ -303,10 +304,18 @@ export class RpcEngine implements Engine {
     return this.task('cacheClear', { scopes }, progress);
   }
 
+  cacheRemove(paths: string[], progress: TaskProgress): Promise<ClearReport> {
+    return this.task('cacheRemove', { paths }, progress);
+  }
+
+  record(key: string, progress: TaskProgress): Promise<{ result: Results }> {
+    return this.task('record', { key }, progress);
+  }
+
   export(
     args: { path: string; result: Results; rows?: string[][] },
     progress: TaskProgress,
-  ): Promise<{ path: string; rows: number }> {
+  ): Promise<ExportReply> {
     return this.task('export', { ...args }, progress);
   }
 

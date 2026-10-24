@@ -160,7 +160,7 @@ fn handshake_reports_plugins_settings_and_scopes() {
                 .is_some_and(|d| !d.is_empty()))
     );
     assert_eq!(hello["settings"]["page_size"], 0);
-    assert_eq!(hello["scopes"].as_array().expect("scopes").len(), 5);
+    assert_eq!(hello["scopes"].as_array().expect("scopes").len(), 6);
     backend.finish();
 }
 
@@ -286,9 +286,20 @@ fn settings_round_trip_and_reject_an_oversized_page() {
     let mut backend = Backend::start(root.path());
     let hello = backend.call("hello", json!({}));
     let mut settings = hello["settings"].clone();
+    assert_eq!(settings["theme"], "slate");
     settings["page_size"] = json!(25);
+    settings["theme"] = json!("solarized");
     let saved = backend.call("settings.save", settings.clone());
     assert_eq!(saved["page_size"], 25);
+    assert_eq!(saved["theme"], "solarized");
+    assert_eq!(
+        backend.call("settings.get", json!({}))["theme"],
+        "solarized"
+    );
+    let mut hostile = settings.clone();
+    hostile["theme"] = json!("../../etc");
+    let rejected = backend.send("settings.save", hostile);
+    assert!(rejected["error"]["message"].is_string(), "{rejected}");
     settings["page_size"] = json!(10001);
     let rejected = backend.send("settings.save", settings);
     assert!(
@@ -311,6 +322,74 @@ fn cache_inventory_is_scoped_and_clear_preview_matches_it() {
         .task("cacheClear", json!({"scopes":["results"]}))
         .expect("clear");
     assert!(cleared["removed"].as_u64().is_some());
+    backend.finish();
+}
+
+#[test]
+fn exports_are_recorded_listed_reopened_and_removed_with_their_copy() {
+    let root = sandbox();
+    let mut backend = Backend::start(root.path());
+    let result = json!({
+        "plugin": "pslist", "columns": ["PID", "Name"], "rows": [["1", "init"], ["2", "kthreadd"]],
+        "complete": true, "diagnostics": [], "banner": "", "symbol": "", "page_table": 0,
+        "historical": false, "system": "linux", "kernel_identity": null,
+    });
+    let exported = backend
+        .task(
+            "export",
+            json!({"path": "exports/pslist.json", "result": result}),
+        )
+        .expect("export");
+    let key = exported["record"]["key"]
+        .as_str()
+        .expect("recorded")
+        .to_owned();
+    assert_eq!(exported["record"]["rows"], 2);
+    assert!(exported["record_error"].is_null());
+    let inventory = backend.call("cache.inventory", json!({}));
+    let records = inventory["records"].as_array().expect("records");
+    assert_eq!(records.len(), 1);
+    let files: Vec<_> = inventory["entries"]
+        .as_array()
+        .expect("entries")
+        .iter()
+        .filter(|e| e["scope"] == "exports")
+        .collect();
+    assert_eq!(files.len(), 2, "metadata and copy");
+    assert!(files.iter().all(|e| e["modified"].as_u64().is_some()));
+    // The record survives the export file being moved away.
+    std::fs::remove_file(root.path().join("exports/pslist.json")).expect("move export");
+    let reopened = backend.task("record", json!({"key": key})).expect("reopen");
+    assert_eq!(
+        reopened["result"]["rows"].as_array().expect("rows").len(),
+        2
+    );
+    assert_eq!(reopened["result"]["historical"], true);
+    assert!(
+        backend
+            .task(
+                "cacheRemove",
+                json!({"paths": [root.path().join("images/sample.raw")]})
+            )
+            .is_err(),
+        "paths outside the cache inventory are refused"
+    );
+    let metadata = files
+        .iter()
+        .find(|e| {
+            e["path"]
+                .as_str()
+                .is_some_and(|p| p.ends_with(".export.json"))
+        })
+        .expect("metadata")["path"]
+        .clone();
+    let removed = backend
+        .task("cacheRemove", json!({"paths": [metadata]}))
+        .expect("remove");
+    assert_eq!(removed["removed"], 2);
+    assert!(root.path().join("images/sample.raw").exists());
+    let inventory = backend.call("cache.inventory", json!({}));
+    assert!(inventory["records"].as_array().expect("records").is_empty());
     backend.finish();
 }
 

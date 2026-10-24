@@ -97,13 +97,17 @@ export class Canvas {
         break;
       }
       first.text = character;
-      first.style = { ...style };
+      // Text without its own background keeps the surface painted beneath it,
+      // so a light theme never shows the terminal's default background.
+      first.style = style.background === undefined && first.style.background !== undefined
+        ? { ...style, background: first.style.background }
+        : { ...style };
       first.continuation = false;
       if (cells === 2) {
         const second = this.at(cursor + 1, y);
         if (second) {
           second.text = '';
-          second.style = { ...style };
+          second.style = { ...first.style };
           second.continuation = true;
         }
       }

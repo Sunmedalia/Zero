@@ -146,7 +146,7 @@ pub fn run() -> Result<()> {
     };
     std::fs::create_dir_all(&context.cache)?;
     let settings = store::settings(&context.cache)?;
-    let context = BackendContext {
+    let mut context = BackendContext {
         settings,
         ..context
     };
@@ -297,7 +297,15 @@ pub fn run() -> Result<()> {
                         "result":{"task":task.as_ref().map(|t| t.id.clone())},
                     }),
                     _ => match dispatch(&context, &session, &instance, &method, &params) {
-                        Ok(value) => json!({"jsonrpc":"2.0","id":id,"result":value}),
+                        Ok(value) => {
+                            // Later tasks clone the context, so a saved
+                            // setting (the offline toggle above all) must
+                            // replace the startup snapshot right away.
+                            if method == "settings.save" {
+                                context.settings = settings_from_json(&value)?;
+                            }
+                            json!({"jsonrpc":"2.0","id":id,"result":value})
+                        }
                         Err(error) => rpc_error(id, -32000, &format!("{error:#}")),
                     },
                 };
@@ -487,9 +495,13 @@ fn run_task(
                 refresh: bool,
                 #[serde(default)]
                 catalog: bool,
+                #[serde(default)]
+                limit: Option<usize>,
             }
             let args: Args = serde_json::from_value(payload)?;
             let network = context.settings.remote_symbols;
+            let mut total = None;
+            let mut index = None;
             let matches = if let Some(image) = &args.image {
                 let image = session
                     .lock()
@@ -501,7 +513,16 @@ fn run_task(
                     ensure!(network, "离线模式不能刷新索引；按 o 开启在线");
                     symbols::refresh_index(&context.cache, job)?;
                 }
-                symbols::catalog_search(&context.cache, &args.query, network, job)?
+                let page = symbols::catalog(
+                    &context.cache,
+                    &args.query,
+                    args.limit.unwrap_or(500).clamp(1, 5000),
+                    network,
+                    job,
+                )?;
+                total = Some(page.total);
+                index = Some(page.index);
+                page.matches
             } else {
                 if network {
                     symbols::refresh_index(&context.cache, job)?;
@@ -516,6 +537,8 @@ fn run_task(
             Ok(json!({
                 "matches": matches.iter().map(remote_json).collect::<Vec<_>>(),
                 "catalog": args.catalog,
+                "total": total.unwrap_or(matches.len()),
+                "index": index,
             }))
         }
         "download" => {
@@ -620,6 +643,31 @@ fn run_task(
                 "failures": report.failures,
             }))
         }
+        "cacheRemove" => {
+            #[derive(Deserialize)]
+            #[serde(deny_unknown_fields)]
+            struct Args {
+                paths: Vec<PathBuf>,
+            }
+            let args: Args = serde_json::from_value(payload)?;
+            let report = cache::remove(&context.cache, &args.paths, job)?;
+            Ok(json!({
+                "removed": report.removed,
+                "bytes": report.bytes,
+                "failures": report.failures,
+            }))
+        }
+        "record" => {
+            #[derive(Deserialize)]
+            #[serde(deny_unknown_fields)]
+            struct Args {
+                key: String,
+            }
+            let args: Args = serde_json::from_value(payload)?;
+            Ok(json!({
+                "result": results_json(&store::open_record(&context.cache, &args.key, job)?),
+            }))
+        }
         "export" => {
             #[derive(Deserialize)]
             #[serde(deny_unknown_fields)]
@@ -637,7 +685,24 @@ fn run_task(
                 Some(rows) => store::export_rows(&path, &result, rows.iter(), job)?,
                 None => store::export_rows(&path, &result, result.rows.iter(), job)?,
             }
-            Ok(json!({"path": path, "rows": count}))
+            // The export itself is published; a failed record only loses the local copy.
+            let (record, record_error) = if context.settings.enable_cache {
+                match store::record_export(&context.cache, &path, &result, count, job) {
+                    Ok(record) => (Some(record), None),
+                    Err(error) => {
+                        job.check()?;
+                        (None, Some(format!("{error:#}")))
+                    }
+                }
+            } else {
+                (None, None)
+            };
+            Ok(json!({
+                "path": path,
+                "rows": count,
+                "record": record,
+                "record_error": record_error,
+            }))
         }
         "history" => {
             #[derive(Deserialize)]
@@ -894,7 +959,9 @@ fn dispatch(
                 "path": e.path,
                 "scope": scope_id(e.scope),
                 "bytes": e.bytes,
+                "modified": e.modified,
             })).collect::<Vec<_>>(),
+            "records": store::export_records(&context.cache),
         })),
         "settings.get" => Ok(settings_json(&context.settings)),
         "settings.save" => {
@@ -973,6 +1040,7 @@ fn settings_json(settings: &Settings) -> Value {
         "history_dir": settings.history_dir,
         "enable_cache": settings.enable_cache,
         "remote_symbols": settings.remote_symbols,
+        "theme": settings.theme,
         "resources": settings.resources,
     })
 }
@@ -1163,6 +1231,7 @@ fn scope_id(scope: cache::Scope) -> &'static str {
         cache::Scope::Images => "images",
         cache::Scope::Symbols => "symbols",
         cache::Scope::Dumps => "dumps",
+        cache::Scope::Exports => "exports",
         cache::Scope::All => "all",
     }
 }
@@ -1174,6 +1243,7 @@ fn scope_from_id(value: &str) -> Result<cache::Scope> {
         "images" => cache::Scope::Images,
         "symbols" => cache::Scope::Symbols,
         "dumps" => cache::Scope::Dumps,
+        "exports" => cache::Scope::Exports,
         "all" => cache::Scope::All,
         other => anyhow::bail!("无效缓存范围 {other}"),
     })

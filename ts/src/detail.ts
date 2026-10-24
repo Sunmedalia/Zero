@@ -6,7 +6,7 @@
  * assembled from the same selectors the panes use rather than duplicated.
  */
 import type { AppState } from './state.js';
-import { assetActions, footerActions } from './actions.js';
+import { ACTIONS, assetActions, footerActions } from './actions.js';
 import { pluginDescriptor, pluginMatches, selectedAsset, result, viewIndex, visibleRow } from './state.js';
 import type { Asset, RemoteMatch, Results } from './types.js';
 import { escaped, mib } from './text.js';
@@ -93,7 +93,7 @@ export function helpText(): string {
   const lines = [
     'ZERO 取证工作台',
     '',
-    '1 资源库 · 2 分析 · S 自动/Linux/Windows · R 运行 · ? 命令面板 · Ctrl+←/→ 切换页面',
+    '1 资源库 · 2 分析 · 3 缓存 · S 自动/Linux/Windows · R 运行 · ? 命令面板 · Ctrl+←/→ 切换页面',
     'Tab / Shift+Tab 切换区域；↑↓ 或 j/k 导航；PgUp/PgDn/Home/End 翻页',
     '',
     '默认进入分析工作台；i 选择镜像，准备完成后 R 运行插件。',
@@ -124,9 +124,15 @@ export function helpText(): string {
   }
   lines.push(
     '',
+    '缓存页（3 / c）：左侧缓存范围，右侧该范围的文件；←→ / Tab 切换列表，鼠标可点击或拖动滚动条。',
+    '每次导出（e）都会在「导出记录」保留元数据与已校验副本，原导出文件被移动后仍可 Enter 重新打开。',
+    ACTIONS.filter((action) => action.scope === 'cache').map((action) => action.label).join(' · '),
+    '',
     '远程详情：w 下载到 symbols · L 在本地库定位 · c 取消下载 · Esc 返回',
     '',
     '分析：P 适用参数 · Ctrl+R 运行 · D Dump · Alt+←/→ 横向滚动',
+    '页面标签：打开的插件结果与导出记录显示在顶部 · 点击切换 · × 或鼠标中键关闭 · Ctrl+PgUp/PgDn 切换 · Ctrl+W 关闭',
+    '主题：, 打开设置，在“界面主题”行按 Enter 或 ←→ 切换，立即生效并保存',
     '资源库 K / 分析页 g 生成当前镜像符号表',
     '',
     'Ctrl+P / ? 命令面板（空格分隔多个词，不区分大小写，可用 cache、dump、pid 等英文词）',

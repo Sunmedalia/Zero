@@ -10,8 +10,9 @@ import type {
   Asset,
   AssetKind,
   BrowseResult,
-  CacheEntry,
+  CacheInventory,
   ClearReport,
+  ExportReply,
   MatchLocalReply,
   RemoteMatch,
   RemoteReply,
@@ -57,7 +58,7 @@ export interface Engine {
   register(kind: AssetKind, path: string): Promise<{ path: string }>;
   remove(path: string): Promise<{ removed: string }>;
   browse(path: string, filter: string): Promise<BrowseResult>;
-  cacheInventory(): Promise<{ entries: CacheEntry[] }>;
+  cacheInventory(): Promise<CacheInventory>;
   saveSettings(settings: Settings): Promise<Settings>;
   historyList(): Promise<{ paths: string[] }>;
   symbolsCached(paths: string[]): Promise<{ cached: boolean[] }>;
@@ -66,7 +67,7 @@ export interface Engine {
   identify(image: string, progress: TaskProgress): Promise<{ banner: Results }>;
   matchLocal(image: string, paths: string[], progress: TaskProgress): Promise<MatchLocalReply>;
   remote(
-    args: { image?: string | null; query?: string; refresh?: boolean; catalog?: boolean },
+    args: { image?: string | null; query?: string; refresh?: boolean; catalog?: boolean; limit?: number },
     progress: TaskProgress,
   ): Promise<RemoteReply>;
   download(
@@ -80,10 +81,14 @@ export interface Engine {
   ): Promise<{ path: string }>;
   inspectSymbols(path: string, progress: TaskProgress): Promise<{ text: string }>;
   cacheClear(scopes: string[], progress: TaskProgress): Promise<ClearReport>;
+  /** Remove individual inventory entries; an export record goes with its copy. */
+  cacheRemove(paths: string[], progress: TaskProgress): Promise<ClearReport>;
+  /** Reopen a recorded export from its verified local copy. */
+  record(key: string, progress: TaskProgress): Promise<{ result: Results }>;
   export(
     args: { path: string; result: Results; rows?: string[][] },
     progress: TaskProgress,
-  ): Promise<{ path: string; rows: number }>;
+  ): Promise<ExportReply>;
   history(path: string, progress: TaskProgress): Promise<{ result: Results }>;
   cancel(): Promise<void>;
   close(): Promise<void>;

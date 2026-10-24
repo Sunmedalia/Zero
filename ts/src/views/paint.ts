@@ -9,7 +9,12 @@ import { imageLines } from '../assetView.js';
 import type { App } from '../app.js';
 import type { Dialog, AppState } from '../state.js';
 import {
+  activeTab,
   assetListFor,
+  cacheItems,
+  cacheScopes,
+  cacheSelection,
+  selectedCacheItem,
   menuItems,
   navigationPlugins,
   pluginMatches,
@@ -23,6 +28,7 @@ import {
 } from '../state.js';
 import { commandMatches } from '../actions.js';
 import type { Layout, PaneLayout, Rect } from '../layoutTree.js';
+import type { CacheItem } from '../state.js';
 import { TAB_LABELS, frameInner } from '../layoutTree.js';
 import { Canvas, type Style } from '../canvas.js';
 import {
@@ -41,7 +47,6 @@ import {
   charWidth,
   compactRemotePath,
   escaped,
-  mib,
   truncate,
   truncatePath,
   width,
@@ -49,7 +54,7 @@ import {
 } from '../text.js';
 import { preparationBadge } from '../components.js';
 import { dumpModes, inputTitle, parameterFields } from '../dialogs.js';
-import { entryBadge, resultState, shortPlugin } from '../format.js';
+import { entryBadge, formatBytes, formatTime, resultState, shortPlugin } from '../format.js';
 import { assetDetailText, remoteDetailText, rowDetailText } from '../detail.js';
 import { fullDigest, space } from '../layout.js';
 
@@ -78,16 +83,29 @@ export function paintTabs(canvas: Canvas, app: App, layout: Layout): void {
       tab.rect.width,
     );
   });
+  // Opened pages: the shown one joins the body surface below it, like a
+  // browser tab; the others stay on the strip.
+  const shown = activeTab(state);
+  let end = layout.pageTabsArea.x;
+  for (const tab of layout.pageTabs) {
+    end = tab.rect.x + tab.rect.width;
+    if (tab.kind !== 'tab') {
+      canvas.write(tab.rect.x, tab.rect.y, tab.label, { color: ACCENT, background: RAISED }, tab.rect.width);
+      continue;
+    }
+    const active = tab.index === shown;
+    const background = active ? SURFACE : RAISED;
+    const history = state.openTabs[tab.index]?.kind === 'history';
+    canvas.write(tab.rect.x, tab.rect.y, tab.label,
+      { color: active ? FOCUS : history ? WARN : MUTED, background, bold: active }, tab.rect.width - 1);
+    canvas.write(tab.rect.x + tab.rect.width - 1, tab.rect.y, '×',
+      { color: active ? TEXT : BORDER, background }, 1);
+  }
   const pulse = state.busy ? ['●··', '·●·', '··●', '·●·'][Math.floor(Date.now() / 180) % 4] : null;
-  const right = pulse ? `运行中 ${pulse} ` : 'ZERO · 内存取证 ';
-  if (layout.columns > width(right) + 56) {
-    canvas.write(
-      layout.columns - width(right),
-      0,
-      right,
-      { color: pulse ? ACCENT : MUTED, background: RAISED },
-      width(right),
-    );
+  const right = pulse ? `运行中 ${pulse} ` : layout.pageTabs.length === 0 ? 'ZERO · 内存取证 ' : '';
+  const x = layout.systems.x - width(right) - 1;
+  if (right !== '' && x > end + 1) {
+    canvas.write(x, 0, right, { color: pulse ? ACCENT : MUTED, background: RAISED }, width(right));
   }
 }
 
@@ -177,7 +195,9 @@ export function paintFooter(canvas: Canvas, app: App, layout: Layout): void {
         ? '详情'
         : state.page === 'assets'
           ? sectionTitle(state.section)
-          : state.focus === 'navigation'
+          : state.page === 'cache'
+            ? '缓存'
+            : state.focus === 'navigation'
             ? '插件'
             : '内容';
   const isError = state.lastError !== null && state.lastError === state.status;
@@ -267,7 +287,11 @@ export function paintPane(canvas: Canvas, app: App, pane: PaneLayout): void {
       : pane.section === 'remote' && !state.remoteCatalog
         ? ' · 镜像精确匹配'
         : ' · 全部';
-  paintFrame(canvas, pane.list, `${sectionTitle(pane.section)}${mode} · ${count} 项`, {
+  const total =
+    pane.section === 'remote' && state.remoteCatalog && state.remoteTotal > state.remote.length && count === state.remote.length
+      ? `显示 ${count} / ${state.remoteTotal} 项 · / 搜索缩小范围`
+      : `${count} 项`;
+  paintFrame(canvas, pane.list, `${sectionTitle(pane.section)}${mode} · ${total}`, {
     color: focused ? ACCENT : BORDER,
   });
   if (count === 0) {
@@ -539,6 +563,133 @@ export function paintInspector(canvas: Canvas, app: App, layout: Layout): void {
 }
 
 /* ------------------------------------------------------------------ */
+/* Cache page                                                           */
+/* ------------------------------------------------------------------ */
+
+const SCOPE_NOTES: Record<string, string> = {
+  results: '完整分析结果；同一镜像、符号与插件再次运行时直接复用。部分结果从不写入。',
+  exports: '每次导出的元数据与已校验的本地副本；清理不会删除导出位置的文件。',
+  identification: '镜像 banner 与内核候选的识别缓存。',
+  images: '压缩镜像解压后的副本及其 SHA256。',
+  symbols: '远程符号索引、已下载 ISF 与符号构建工具。',
+  dumps: '缓存目录中的转储文件。',
+};
+
+export function paintCache(canvas: Canvas, app: App, layout: Layout): void {
+  if (!layout.cacheScopes || !layout.cacheEntries) {
+    return;
+  }
+  const state = app.state;
+  const cache = state.cache;
+  const scopes = cacheScopes(state);
+  const selection = cacheSelection(state);
+  const armed = cache.confirm === 'clear';
+  paintFrame(canvas, layout.cacheScopes, '缓存范围 · Space 勾选', {
+    color: cache.pane === 'scopes' ? ACCENT : BORDER,
+    subtitle: armed
+      ? `再按 x 清理 ${selection.files} 个文件`
+      : `已勾选 ${selection.files} 个 / ${formatBytes(selection.bytes)}`,
+  });
+  for (const hit of layout.cacheHits.filter((entry) => entry.pane === 'scopes')) {
+    const scope = scopes[hit.index];
+    if (!scope) continue;
+    const files = cache.entries.filter((entry) => entry.scope === scope.id);
+    const bytes = files.reduce((total, entry) => total + entry.bytes, 0);
+    const active = hit.index === cache.scope;
+    const background = active ? SELECTED_BG : undefined;
+    if (active) canvas.fill(hit.rect.x, hit.rect.y, hit.rect.width, 1, { background });
+    const checked = cache.scopes.includes(scope.id) || cache.scopes.includes('all');
+    const left = `${active ? '›' : ' '} [${checked ? 'x' : ' '}] ${scope.label}`;
+    const right = cache.loaded ? `${files.length} · ${formatBytes(bytes)} ` : '… ';
+    canvas.write(hit.rect.x, hit.rect.y, left, {
+      color: checked ? (armed ? DANGER : FOCUS) : TEXT, background, bold: active,
+    }, hit.rect.width);
+    if (width(left) + width(right) < hit.rect.width) {
+      canvas.write(hit.rect.x + hit.rect.width - width(right), hit.rect.y, right, { color: MUTED, background }, width(right));
+    }
+  }
+
+  const items = cacheItems(state);
+  const scope = scopes[cache.scope];
+  const total = items.reduce((sum, item) => sum + item.bytes, 0);
+  paintFrame(canvas, layout.cacheEntries, `${scope?.label ?? '缓存'} · ${items.length} 项 · ${formatBytes(total)}`, {
+    color: cache.pane === 'entries' ? ACCENT : BORDER,
+    subtitle: cache.confirm === 'remove'
+      ? '再按 Delete 确认删除'
+      : scope?.id === 'exports' ? 'Enter 打开记录 · Delete 删除' : 'Delete 删除条目',
+  });
+  const entryBox = frameInner(layout.cacheEntries);
+  if (items.length === 0) {
+    paintEmpty(
+      canvas,
+      entryBox,
+      cache.loaded ? '该范围没有缓存文件' : '正在读取缓存清单',
+      scope?.id === 'exports' ? '导出结果（分析页 e）后会自动记录到这里' : 'r 刷新清单',
+    );
+  }
+  for (const hit of layout.cacheHits.filter((entry) => entry.pane === 'entries')) {
+    const item = items[hit.index];
+    if (!item) continue;
+    const active = hit.index === cache.entry;
+    const background = active ? SELECTED_BG : hit.index % 2 === 1 ? STRIPE : undefined;
+    if (background) canvas.fill(hit.rect.x, hit.rect.y, hit.rect.width, 1, { background });
+    let x = hit.rect.x;
+    const room = hit.rect.width;
+    x += canvas.write(x, hit.rect.y, `${active ? '› ' : '  '}${formatTime(item.modified)}  `, {
+      color: active ? FOCUS : MUTED, background,
+    }, room);
+    const size = `${formatBytes(item.bytes).padStart(10)}  `;
+    x += canvas.write(x, hit.rect.y, size, { color: MUTED, background }, hit.rect.x + room - x);
+    canvas.write(x, hit.rect.y, escaped(cacheLabel(item, hit.rect.x + room - x)), {
+      color: active ? FOCUS : TEXT, background, bold: active,
+    }, hit.rect.x + room - x);
+  }
+
+  if (layout.cacheDetail) {
+    paintFrame(canvas, layout.cacheDetail, '详情');
+    const box = frameInner(layout.cacheDetail);
+    const item = selectedCacheItem(state);
+    const lines = item ? cacheDetailLines(item) : [SCOPE_NOTES[scope?.id ?? ''] ?? ''];
+    wrapLines(lines.join('\n'), box.width).slice(0, box.height).forEach((line, index) => {
+      canvas.write(box.x, box.y + index, escaped(line), { color: index === 0 && item ? TEXT : MUTED }, box.width);
+    });
+  }
+}
+
+function cacheLabel(item: CacheItem, room: number): string {
+  const record = item.record;
+  if (!record) {
+    return truncatePath(item.name, room);
+  }
+  const head = `${shortPlugin(record.plugin)} · ${record.rows} 条 · ${record.format.toUpperCase()}${record.complete ? '' : ' · 部分'} → `;
+  return `${head}${truncatePath(record.destination, Math.max(room - width(head), 8))}`;
+}
+
+function cacheDetailLines(item: CacheItem): string[] {
+  const record = item.record;
+  if (!record) {
+    return [`路径: ${item.name}`, `大小: ${formatBytes(item.bytes)} · 修改于 ${formatTime(item.modified)}`];
+  }
+  return [
+    `${shortPlugin(record.plugin)} · ${record.rows} 条 · ${record.complete ? '完整' : '部分'}${record.diagnostics > 0 ? ` · ${record.diagnostics} 条诊断` : ''} · 导出于 ${formatTime(record.recorded)}`,
+    `导出位置: ${record.destination}`,
+    `本地副本: ${record.format.toUpperCase()} · ${formatBytes(record.bytes)} · SHA256 ${record.sha256}`,
+    record.symbol !== '' ? `符号: ${record.symbol}` : '',
+    record.banner !== '' ? `Banner: ${record.banner}` : '',
+  ].filter((line) => line !== '');
+}
+
+/** Scrollbars over the right border of each scrolling region. */
+export function paintScrollbars(canvas: Canvas, layout: Layout): void {
+  for (const bar of layout.scrollbars) {
+    for (let y = bar.track.y; y < bar.track.y + bar.track.height; y += 1) {
+      const thumb = y >= bar.thumb.y && y < bar.thumb.y + bar.thumb.height;
+      canvas.write(bar.track.x, y, thumb ? '┃' : '│', { color: thumb ? ACCENT : MUTED, bold: thumb }, 1);
+    }
+  }
+}
+
+/* ------------------------------------------------------------------ */
 /* Modals                                                               */
 /* ------------------------------------------------------------------ */
 
@@ -598,8 +749,7 @@ function paintDialogBody(canvas: Canvas, app: App, dialog: Dialog, popup: Rect):
     case 'links':
     case 'symbols':
     case 'sort':
-    case 'files':
-    case 'cache': {
+    case 'files': {
       const items =
         dialog.kind === 'system'
           ? ['自动识别镜像系统', 'Linux', 'Windows']
@@ -620,9 +770,7 @@ function paintDialogBody(canvas: Canvas, app: App, dialog: Dialog, popup: Rect):
                     ? dialog.labels.map(escaped)
                     : dialog.kind === 'sort'
                       ? (result(state)?.columns ?? [])
-                      : dialog.kind === 'files'
-                        ? dialog.entries.map((entry) => `${entryBadge(entry)} ${escaped(entry.name)}`)
-                        : cacheItems(app, dialog);
+                      : dialog.entries.map((entry) => `${entryBadge(entry)} ${escaped(entry.name)}`);
       const selected =
         dialog.kind === 'sort'
           ? dialog.column
@@ -637,7 +785,7 @@ function paintDialogBody(canvas: Canvas, app: App, dialog: Dialog, popup: Rect):
         dialog.kind === 'system'
           ? '分析系统 · Enter 选择 · Esc 取消'
           : dialog.kind === 'settings'
-            ? '目录与分页设置 · Enter 修改 · Esc 关闭'
+            ? '设置 · Enter 修改 · ←→ 切换主题 · Esc 关闭'
             : dialog.kind === 'plugins'
               ? `插件搜索: ${escaped(dialog.query)} · Enter 选择`
               : dialog.kind === 'commands'
@@ -650,9 +798,7 @@ function paintDialogBody(canvas: Canvas, app: App, dialog: Dialog, popup: Rect):
                     ? '多个完整 banner 匹配 · Space 选用 · Enter 进入控制台 · d 详情'
                     : dialog.kind === 'sort'
                       ? '排序列 · 再选同列反转 · Esc 取消'
-                      : dialog.kind === 'files'
-                        ? `${app.filesTitle(dialog.input)} · Space 选用 · Enter 打开 · d 详情 · ← 上级 · p 路径`
-                        : '缓存管理 · Space 勾选 · Enter 预览／清理',
+                      : `${app.filesTitle(dialog.input)} · Space 选用 · Enter 打开 · d 详情 · ← 上级 · p 路径`,
       );
       items.slice(offset, offset + box.height).forEach((item, index) => {
         const absolute = offset + index;
@@ -669,15 +815,6 @@ function paintDialogBody(canvas: Canvas, app: App, dialog: Dialog, popup: Rect):
           box.width,
         );
       });
-      if (dialog.kind === 'cache') {
-        canvas.write(
-          box.x,
-          popup.y + popup.height - 3,
-          truncate(cacheSummary(app, dialog), box.width),
-          { color: MUTED, background: SURFACE },
-          box.width,
-        );
-      }
       if (dialog.kind === 'files') {
         canvas.write(
           box.x,
@@ -886,19 +1023,6 @@ function paintDialogBody(canvas: Canvas, app: App, dialog: Dialog, popup: Rect):
       return;
     }
   }
-}
-
-function cacheItems(app: App, dialog: Extract<Dialog, { kind: 'cache' }>): string[] {
-  return app.scopes().map((scope) => {
-    const files = dialog.entries.filter((entry) => entry.scope === scope.id);
-    const bytes = files.reduce((total, entry) => total + entry.bytes, 0);
-    return `[${dialog.scopes.includes(scope.id) ? 'x' : ' '}] ${scope.label} · ${files.length} 个文件 · ${mib(bytes)} MiB`;
-  });
-}
-
-function cacheSummary(app: App, dialog: Extract<Dialog, { kind: 'cache' }>): string {
-  const totals = app.cacheTotals(dialog.entries, dialog.scopes);
-  return `${dialog.confirm ? '再次 Enter 清理：' : '已选：'}${totals.files} 个文件 / ${mib(totals.bytes)} MiB · 保留原镜像、导出、配置和迁移备份`;
 }
 
 /* ------------------------------------------------------------------ */

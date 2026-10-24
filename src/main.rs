@@ -364,6 +364,17 @@ fn main() -> Result<()> {
             ),
             Outcome::Ready(result) => {
                 store::export_rows(&output, &result, result.rows.iter(), &Job::default())?;
+                if settings.enable_cache
+                    && let Err(e) = store::record_export(
+                        &cache,
+                        &output,
+                        &result,
+                        result.rows.len(),
+                        &Job::default(),
+                    )
+                {
+                    eprintln!("导出记录未保存: {e:#}");
+                }
                 eprintln!(
                     "{}: {} 条；{}；导出 {}",
                     result.plugin,

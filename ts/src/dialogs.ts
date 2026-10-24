@@ -95,7 +95,7 @@ export function dialogHeight(state: AppState, dialog: Dialog, rows: number): num
       wanted = 12;
       break;
     case 'settings':
-      wanted = 5;
+      wanted = 6;
       break;
     case 'input':
       wanted = 4;
