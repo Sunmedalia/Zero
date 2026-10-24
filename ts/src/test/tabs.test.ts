@@ -13,12 +13,13 @@ function text(frame: ReturnType<typeof renderFrame>): string {
 }
 
 /** Open `plugin` as a page with a ready result, so activating it never runs. */
-function open(instance: App, plugin: string, rows = 3): void {
+async function open(instance: App, plugin: string, rows = 3): Promise<void> {
   instance.selectPlugin(plugin);
   instance.state.results.set(
     requestKey(instance.state),
     results({ plugin, rows: Array.from({ length: rows }, (_, index) => [String(index), `${plugin}${index}`]) }),
   );
+  await instance.activatePlugin(plugin);
 }
 
 test('motion with a held button decodes as a drag; bare hover is ignored', () => {
@@ -48,7 +49,7 @@ test('dragging the thumb maps its top to the offset the view must show', () => {
 test('the result scrollbar thumb can be dragged and released', async () => {
   const { app: instance } = await app();
   instance.resize(120, 35);
-  open(instance, 'pslist', 300);
+  await open(instance, 'pslist', 300);
   let frame = renderFrame(instance, 120, 35);
   const bar = frame.layout.scrollbars.find((entry) => entry.target === 'content')!;
   await instance.click(bar.track.x, bar.thumb.y);
@@ -72,22 +73,24 @@ test('the result scrollbar thumb can be dragged and released', async () => {
 test('opened plugins and exports appear as browser-style tabs', async () => {
   const { app: instance, engine } = await app();
   instance.resize(140, 35);
-  open(instance, 'pslist');
-  open(instance, 'lsmod');
-  open(instance, 'pslist');
+  await open(instance, 'pslist');
+  await open(instance, 'lsmod');
+  await open(instance, 'pslist');
   assert.deepEqual(instance.state.openTabs.map((tab) => tab.kind === 'plugin' && tab.plugin), ['pslist', 'lsmod'], 'reopening reuses the tab');
   assert.equal(activeTab(instance.state), 0);
   let frame = renderFrame(instance, 140, 35);
-  const first = text(frame).split('\n')[0]!;
-  assert.match(first, / pslist × +lsmod × /u);
-  assert.match(first, / Linux  Windows  自动 $/u, 'the system picker moves to the right end');
+  const row = frame.layout.content!.y;
+  const first = text(frame).split('\n')[row]!;
+  assert.match(first, /╭─ pslist · 完整 ×─ lsmod ×─/u, 'tabs replace the table title; the shown one keeps its state');
+  assert.doesNotMatch(text(frame).split('\n')[0]!, /pslist/u, 'the page row keeps only the pages and the system picker');
+  assert.ok(frame.layout.pageTabs.every((tab) => tab.rect.y === row));
   const lsmod = frame.layout.pageTabs.find((tab) => tab.index === 1)!;
-  await instance.click(lsmod.rect.x + 1, 0);
+  await instance.click(lsmod.rect.x + 1, row);
   assert.equal(instance.state.plugin, 'lsmod');
   assert.equal(activeTab(instance.state), 1);
 
   // Reopen an export record from the cache page: it gets a tab of its own.
-  engine.historyResult = results({ plugin: 'netstat', rows: [['9', 'old']] });
+  engine.historyResult = results({ plugin: 'netstat', rows: [['9', 'old']], historical: true });
   engine.cacheEntries = [{ path: `/evidence/.zero/rust/exports/${'a'.repeat(64)}.export.json`, scope: 'exports', bytes: 1, modified: 1 }];
   engine.cacheRecords = [{
     key: 'a'.repeat(64), recorded: 1, destination: '/evidence/exports/netstat.csv', format: 'csv', plugin: 'netstat',
@@ -102,7 +105,7 @@ test('opened plugins and exports appear as browser-style tabs', async () => {
   assert.equal(instance.state.openTabs.length, 3);
   assert.equal(activeTab(instance.state), 2);
   frame = renderFrame(instance, 140, 35);
-  assert.match(text(frame).split('\n')[0]!, /记录·netstat ×/u);
+  assert.match(text(frame).split('\n')[row]!, /记录·netstat · 历史 ×/u);
 
   // Ctrl+PgUp walks left and leaves the export.
   await handleKey(instance, '', { ctrl: true, pageUp: true });
@@ -115,9 +118,9 @@ test('opened plugins and exports appear as browser-style tabs', async () => {
 test('closing a tab discards its rows and shows the neighbour', async () => {
   const { app: instance } = await app();
   instance.resize(140, 35);
-  open(instance, 'pslist');
-  open(instance, 'lsmod');
-  open(instance, 'netstat');
+  await open(instance, 'pslist');
+  await open(instance, 'lsmod');
+  await open(instance, 'netstat');
   await instance.activateTab(1);
   await handleKey(instance, 'w', { ctrl: true });
   assert.deepEqual(instance.state.openTabs.map((tab) => tab.kind === 'plugin' && tab.plugin), ['pslist', 'netstat']);
@@ -126,10 +129,10 @@ test('closing a tab discards its rows and shows the neighbour', async () => {
   // The × target closes; middle click closes too.
   let frame = renderFrame(instance, 140, 35);
   const netstat = frame.layout.pageTabs.find((tab) => tab.index === 1)!;
-  await instance.click(netstat.close!.x, 0);
+  await instance.click(netstat.close!.x, netstat.close!.y);
   assert.equal(instance.state.plugin, 'pslist', 'the last tab hands over to its left neighbour');
   frame = renderFrame(instance, 140, 35);
-  await instance.middleClick(frame.layout.pageTabs[0]!.rect.x + 2, 0);
+  await instance.middleClick(frame.layout.pageTabs[0]!.rect.x + 2, frame.layout.pageTabs[0]!.rect.y);
   assert.equal(instance.state.openTabs.length, 0);
   assert.equal(instance.state.focus, 'navigation');
   assert.match(instance.state.status, /已关闭全部页面/u);
@@ -139,7 +142,7 @@ test('many tabs shrink, then scroll around the active one with overflow chips', 
   const { app: instance } = await app();
   instance.resize(80, 24);
   for (const plugin of ['pslist', 'pstree', 'lsmod', 'lsof', 'netstat', 'bash', 'dmesg', 'mount', 'elfs']) {
-    open(instance, plugin);
+    await open(instance, plugin);
   }
   const frame = renderFrame(instance, 80, 24);
   const tabs = frame.layout.pageTabs;
@@ -150,7 +153,7 @@ test('many tabs shrink, then scroll around the active one with overflow chips', 
     assert.ok(tab.rect.x >= area.x && tab.rect.x + tab.rect.width <= area.x + area.width, 'inside the strip');
   }
   const before = tabs.find((tab) => tab.kind === 'before')!;
-  await instance.click(before.rect.x, 0);
+  await instance.click(before.rect.x, before.rect.y);
   assert.equal(activeTab(instance.state), before.index);
 });
 
@@ -175,4 +178,50 @@ test('themes switch from the settings dialog, persist and repaint', async () => 
   assert.equal(engine.settings.theme, THEMES[THEMES.length - 1]!.id, 'wraps around');
   // Unknown ids from an older or edited settings file fall back to the default.
   assert.equal(applyTheme('missing').id, THEMES[0]!.id);
+});
+
+test('the default plugin chosen on entering analysis opens no tab', async () => {
+  const { app: instance } = await app({ launch: { image: '/evidence/memory.raw', symbols: '/evidence/kernel.json' } });
+  instance.switchPage('assets');
+  await instance.runCommand('enterAnalysis');
+  assert.equal(instance.state.page, 'analysis');
+  assert.deepEqual(instance.state.openTabs, [], 'selected but never opened');
+});
+
+test('a tab that never loaded is reused instead of piling up', async () => {
+  const { app: instance, engine } = await app();
+  instance.resize(140, 35);
+  await open(instance, 'pslist');
+  // lsmod is opened but its analysis fails, so its tab never shows anything.
+  engine.analyzeReply = {};
+  await instance.activatePlugin('lsmod');
+  assert.deepEqual(instance.state.openTabs.map((tab) => tab.kind === 'plugin' && tab.plugin), ['pslist', 'lsmod']);
+  // Opening pstree now takes over the empty lsmod tab rather than adding one.
+  await instance.activatePlugin('pstree');
+  assert.deepEqual(instance.state.openTabs.map((tab) => tab.kind === 'plugin' && tab.plugin), ['pslist', 'pstree']);
+  // A loaded tab is never replaced.
+  await open(instance, 'pstree');
+  await open(instance, 'lsmod');
+  assert.deepEqual(instance.state.openTabs.map((tab) => tab.kind === 'plugin' && tab.plugin), ['pslist', 'pstree', 'lsmod']);
+});
+
+test('reopening the same export record reuses its tab', async () => {
+  const { app: instance, engine } = await app();
+  instance.resize(140, 35);
+  await open(instance, 'pslist');
+  engine.historyResult = results({ plugin: 'netstat', rows: [['9', 'old']], historical: true });
+  engine.cacheEntries = [{ path: `/evidence/.zero/rust/exports/${'a'.repeat(64)}.export.json`, scope: 'exports', bytes: 1, modified: 1 }];
+  engine.cacheRecords = [{
+    key: 'a'.repeat(64), recorded: 1, destination: '/evidence/exports/netstat.csv', format: 'csv', plugin: 'netstat',
+    rows: 1, bytes: 1, sha256: 'd'.repeat(64), complete: true, diagnostics: 0, banner: '', symbol: '',
+  }];
+  for (let round = 0; round < 2; round += 1) {
+    await handleKey(instance, '3', {});
+    await new Promise((resolve) => setImmediate(resolve));
+    instance.state.cache = { ...instance.state.cache, scope: 1, entry: 0, pane: 'entries' };
+    await handleKey(instance, '', { return: true });
+  }
+  assert.equal(engine.openedRecords.length, 2);
+  assert.deepEqual(instance.state.openTabs.map((tab) => tab.kind), ['plugin', 'history'], 'one tab for the record');
+  assert.equal(activeTab(instance.state), 1);
 });

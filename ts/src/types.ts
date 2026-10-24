@@ -68,6 +68,11 @@ export interface Asset {
   stamp: string | null;
   /** Repository URL recorded beside a downloaded or generated symbol. */
   source_url: string | null;
+  /**
+   * Images only: the system and kernel banners / PDB identities an earlier
+   * identification bound to this file, while its metadata is unchanged.
+   */
+  identity?: { system: 'linux' | 'windows'; kernels: string[] } | null;
 }
 
 export interface RemoteMatch {
@@ -174,6 +179,10 @@ export interface ClearReport {
 export interface AnalyzeReply {
   choose?: string[];
   result?: Results;
+  /** `cache` when the engine read the successful-result cache instead of analysing. */
+  source?: 'cache' | 'fresh';
+  /** The request included verifying a newly opened image's content digest. */
+  prepared?: boolean;
 }
 
 export interface RemoteIndex {

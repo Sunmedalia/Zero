@@ -143,6 +143,8 @@ export interface PendingWork {
   candidate?: RemoteMatch;
   query?: string;
   refresh?: boolean;
+  /** Catalog: read only the index saved on disk, never download. */
+  localOnly?: boolean;
   fields?: { elf?: string; config?: string; tool?: string };
   scopes?: ScopeId[];
   path?: string;
@@ -227,6 +229,15 @@ export function contains(region: HitRegion, x: number, y: number): boolean {
   );
 }
 
+/** Where a result came from: a fresh engine analysis or the successful-result cache. */
+export interface ResultOrigin {
+  source: 'fresh' | 'cache';
+  /** Wall time of the request, including any image preparation it needed. */
+  seconds: number;
+  /** Whether that time includes verifying the image's content digest. */
+  prepared: boolean;
+}
+
 export interface AppState {
   hello: Hello | null;
   page: Page;
@@ -242,6 +253,8 @@ export interface AppState {
   /** Catalog matches before the page limit; equals `remote.length` for exact matches. */
   remoteTotal: number;
   remoteIndex: RemoteIndex | null;
+  /** The saved remote index was looked for in this session. */
+  remoteLoaded: boolean;
   cache: CacheView;
   downloads: Map<string, string>;
   hiddenCacheCopies: Set<string>;
@@ -260,10 +273,10 @@ export interface AppState {
   windows: boolean;
   analysisOptions: Options;
   results: Map<string, Results>;
+  /** How each displayed result was obtained, keyed by the result object itself. */
+  origins: WeakMap<Results, ResultOrigin>;
   /** Opened result pages, shown as browser-style tabs in the first row. */
   openTabs: PageTab[];
-  /** Serial for history tabs, which have no plugin name to dedupe on. */
-  tabSerial: number;
   resultsRevision: number;
   history: Results | null;
   historyRevision: number;
@@ -408,7 +421,8 @@ export function initialState(hello: Hello, launch: { image: string | null; symbo
   const options = defaultOptions();
   return {
     hello,
-    page: 'analysis',
+    // Without an image on the command line the work starts by choosing one.
+    page: launch.image ? 'analysis' : 'assets',
     section: 'images',
     symbolSource: 'symbols',
     assets: [],
@@ -420,6 +434,7 @@ export function initialState(hello: Hello, launch: { image: string | null; symbo
     remoteCatalog: true,
     remoteTotal: 0,
     remoteIndex: null,
+    remoteLoaded: false,
     cache: {
       entries: [],
       records: [],
@@ -440,15 +455,15 @@ export function initialState(hello: Hello, launch: { image: string | null; symbo
     image: launch.image,
     symbols: launch.symbols ?? '',
     settings: hello.settings,
-    focus: 'content',
+    focus: launch.image ? 'content' : 'navigation',
     menu: 0,
     menuScroll: 0,
     plugin: 'pslist',
     windows: false,
     analysisOptions: options,
     results: new Map(),
+    origins: new WeakMap(),
     openTabs: [],
-    tabSerial: 0,
     resultsRevision: 0,
     history: null,
     historyRevision: 0,
@@ -457,7 +472,7 @@ export function initialState(hello: Hello, launch: { image: string | null; symbo
     descending: false,
     row: 0,
     collapsed: new Set(),
-    status: 'i 选择镜像 · 1 管理资源 · ? 命令面板',
+    status: launch.image ? 'i 选择镜像 · 1 管理资源 · ? 命令面板' : '选择镜像：Space 选用 · Enter 选用并进入分析 · a 导入路径 · ? 命令面板',
     lastError: null,
     logs: [],
     startedAt: null,
@@ -635,9 +650,36 @@ export function parameterSummary(state: AppState): string {
 /** An opened page: a plugin's live result, or a loaded historical export. */
 export type PageTab =
   | { kind: 'plugin'; plugin: string }
-  | { kind: 'history'; id: number; label: string; result: Results };
+  /** `source` is the export record key or file path; reopening it reuses the tab. */
+  | { kind: 'history'; source: string; label: string; result: Results };
 
 /** Index of the tab the analysis page is showing, or -1 on another page. */
+/** The system the identification banners show, or `null` before / without one. */
+export function detectedSystem(banner: Results | undefined): 'linux' | 'windows' | null {
+  if (!banner) {
+    return null;
+  }
+  if (banner.system === 'windows' || banner.rows.some((row) => (row[1] ?? '').startsWith('Windows PDB '))) {
+    return 'windows';
+  }
+  if (
+    banner.rows.some((row) => (row[1] ?? '').startsWith('Linux version ')) ||
+    (banner.system === 'linux' && banner.rows.length > 0)
+  ) {
+    return 'linux';
+  }
+  return null;
+}
+
+/** The system whose plugins are shown: the manual choice, else the detected one. */
+export function shownSystem(state: AppState): 'linux' | 'windows' | null {
+  const os = state.analysisOptions.os;
+  if (os !== 'auto') {
+    return os;
+  }
+  return detectedSystem(state.results.get('banners')) === null ? null : state.windows ? 'windows' : 'linux';
+}
+
 export function activeTab(state: AppState): number {
   if (state.page !== 'analysis') {
     return -1;
@@ -970,6 +1012,8 @@ export function bannerCandidates(current: Results): string[][] {
 export interface AnalyzeResult {
   choose?: string[];
   result?: Results;
+  source?: 'cache' | 'fresh';
+  prepared?: boolean;
 }
 
 export function applyAnalyzeReply(reply: AnalyzeReply): AnalyzeResult {

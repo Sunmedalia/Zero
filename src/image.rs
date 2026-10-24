@@ -24,7 +24,15 @@ pub struct Image {
     pub(crate) arm64_va_bits: std::sync::atomic::AtomicU8,
     windows: std::sync::OnceLock<Vec<crate::windows_symbols::Candidate>>,
     pub(crate) windows_roots: std::sync::Mutex<std::collections::HashMap<String, (u64, u64)>>,
+    /// Kernel roots validated in an earlier session, keyed by ISF digest.
+    /// Discovery must validate a hint again before trusting it.
+    pub(crate) persisted_roots: std::collections::HashMap<String, (u64, u64)>,
+    /// Identification manifest this image was opened against and the content
+    /// digest that manifest describes; Windows preparation is remembered there.
+    identification: Option<(std::path::PathBuf, String)>,
     banners: std::sync::OnceLock<Vec<(u64, Vec<u8>)>>,
+    /// Physical RSDS offsets collected by the digest pass, equal to `scan(b"RSDS")`.
+    rsds: std::sync::OnceLock<Vec<u64>>,
     /// Completed physical scans keyed by needle; the image is read-only.
     scans: std::sync::Mutex<crate::resources::Lru<Vec<u8>, std::sync::Arc<[u64]>>>,
     pub segments: Vec<Segment>,
@@ -107,46 +115,73 @@ struct Identification {
     prepared: std::path::PathBuf,
     prepared_stamp: String,
     banners: Vec<(u64, Vec<u8>)>,
+    /// Content SHA256 the Windows fields below were derived from. They are
+    /// only reused after `open` recomputes the same digest.
+    #[serde(default)]
+    digest: String,
+    /// Kernel RSDS records (physical offset, PDB identity).
+    #[serde(default)]
+    windows: Option<Vec<(u64, crate::windows_symbols::PdbIdentity)>>,
+    /// Validated kernel roots: (ISF digest, DTB, kernel base). Hints only;
+    /// discovery re-runs the full kernel validation before using one.
+    #[serde(default)]
+    windows_roots: Vec<(String, u64, u64)>,
 }
+/// Needles collected by the digest pass: Linux banners and Windows RSDS
+/// debug records, so identification needs no second pass over the file.
+const FINGERPRINT_NEEDLES: [&[u8]; 2] = [b"Linux version ", b"RSDS"];
+const FINGERPRINT_TAIL: usize = 13;
 #[derive(Default)]
 struct Fingerprint {
     hash: Sha256,
     tail: Vec<u8>,
     offset: u64,
-    found: Vec<u64>,
+    /// File offsets of each needle in `FINGERPRINT_NEEDLES`.
+    found: [Vec<u64>; 2],
+}
+/// File offsets found by the digest pass.
+struct Found {
+    banners: Vec<u64>,
+    rsds: Vec<u64>,
 }
 impl Fingerprint {
     fn push(&mut self, bytes: &[u8], job: &Job) {
         self.hash.update(bytes);
-        let needle = b"Linux version ";
-        // Match the boundary first without allocating: a banner straddling two
-        // chunks is only possible when the retained tail plus this chunk's head
-        // contains the needle.
-        let overlap = self.tail.len();
-        if overlap > 0 && bytes.len() >= needle.len() {
-            let head = &bytes[..needle.len() - 1];
-            let mut boundary = [0u8; 32];
-            boundary[..overlap].copy_from_slice(&self.tail);
-            boundary[overlap..overlap + head.len()].copy_from_slice(head);
-            let boundary = &boundary[..overlap + head.len()];
-            for i in memchr::memmem::find_iter(boundary, needle)
-                .filter(|i| *i < overlap && *i + needle.len() > overlap)
-            {
-                let position = self.offset - overlap as u64 + i as u64;
-                self.found.push(position);
-                job.report(format!(
-                    "发现 banner 候选 @ 文件偏移 {position:#x}（尚未验证）"
-                ));
+        for (index, needle) in FINGERPRINT_NEEDLES.iter().enumerate() {
+            // Match the boundary first without allocating: a hit straddling two
+            // chunks is only possible when the retained tail plus this chunk's
+            // head contains the needle.
+            let overlap = self.tail.len().min(needle.len() - 1);
+            let tail = &self.tail[self.tail.len() - overlap..];
+            if overlap > 0 && bytes.len() >= needle.len() {
+                let head = &bytes[..needle.len() - 1];
+                let mut boundary = [0u8; 32];
+                boundary[..overlap].copy_from_slice(tail);
+                boundary[overlap..overlap + head.len()].copy_from_slice(head);
+                let boundary = &boundary[..overlap + head.len()];
+                for i in memchr::memmem::find_iter(boundary, needle)
+                    .filter(|i| *i < overlap && *i + needle.len() > overlap)
+                {
+                    let position = self.offset - overlap as u64 + i as u64;
+                    self.found[index].push(position);
+                    if index == 0 {
+                        job.report(format!(
+                            "发现 banner 候选 @ 文件偏移 {position:#x}（尚未验证）"
+                        ));
+                    }
+                }
+            }
+            for i in memchr::memmem::find_iter(bytes, needle) {
+                let position = self.offset + i as u64;
+                self.found[index].push(position);
+                if index == 0 {
+                    job.report(format!(
+                        "发现 banner 候选 @ 文件偏移 {position:#x}（尚未验证）"
+                    ));
+                }
             }
         }
-        for i in memchr::memmem::find_iter(bytes, needle) {
-            let position = self.offset + i as u64;
-            self.found.push(position);
-            job.report(format!(
-                "发现 banner 候选 @ 文件偏移 {position:#x}（尚未验证）"
-            ));
-        }
-        let width = needle.len() - 1;
+        let width = FINGERPRINT_TAIL;
         if bytes.len() >= width {
             self.tail.clear();
             self.tail.extend_from_slice(&bytes[bytes.len() - width..]);
@@ -159,11 +194,15 @@ impl Fingerprint {
         }
         self.offset += bytes.len() as u64;
     }
-    fn finish(self) -> (String, Vec<u64>) {
-        (format!("{:x}", self.hash.finalize()), self.found)
+    fn finish(self) -> (String, Found) {
+        let [banners, rsds] = self.found;
+        (
+            format!("{:x}", self.hash.finalize()),
+            Found { banners, rsds },
+        )
     }
 }
-fn fingerprint(mut reader: impl Read, total: u64, job: &Job) -> Result<(String, Vec<u64>)> {
+fn fingerprint(mut reader: impl Read, total: u64, job: &Job) -> Result<(String, Found)> {
     let mut scan = Fingerprint::default();
     let mut buf = vec![0; DIGEST_CHUNK];
     let mut reported = 0u64;
@@ -188,6 +227,88 @@ fn fingerprint(mut reader: impl Read, total: u64, job: &Job) -> Result<(String, 
     }
     Ok(scan.finish())
 }
+/// What an earlier identification bound to an image file: the system and its
+/// kernel banners or PDB identities. Display only — it is returned while the
+/// file's metadata stamp is unchanged, and analysis still verifies content.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+pub struct BoundIdentity {
+    pub system: &'static str,
+    pub kernels: Vec<String>,
+}
+pub fn bound_identity(path: &Path, cache: &Path) -> Option<BoundIdentity> {
+    let source = path.canonicalize().ok()?;
+    let identity = format!("{:x}", Sha256::digest(source.to_string_lossy().as_bytes()));
+    let manifest = cache
+        .join("identification")
+        .join(format!("{identity}.json"));
+    if fs::metadata(&manifest).ok()?.len() > 1024 * 1024 {
+        return None;
+    }
+    let value: Identification = serde_json::from_slice(&fs::read(manifest).ok()?).ok()?;
+    if value.source_stamp != metadata_stamp(&fs::metadata(&source).ok()?).ok()? {
+        return None;
+    }
+    let linux: Vec<String> = value
+        .banners
+        .iter()
+        .map(|(_, banner)| {
+            String::from_utf8_lossy(banner)
+                .trim_end_matches(['\0', '\n'])
+                .to_owned()
+        })
+        .collect();
+    if !linux.is_empty() {
+        return Some(BoundIdentity {
+            system: "linux",
+            kernels: linux,
+        });
+    }
+    let mut windows: Vec<String> = value
+        .windows?
+        .iter()
+        .map(|(_, pdb)| format!("Windows PDB {}", pdb.key()))
+        .collect();
+    windows.sort();
+    windows.dedup();
+    (!windows.is_empty()).then_some(BoundIdentity {
+        system: "windows",
+        kernels: windows,
+    })
+}
+/// Physical offsets of `needle` from file offsets found by the digest pass,
+/// exactly as `Image::scan` reports them: a hit counts only when it lies inside
+/// one segment, and hits spanning physically contiguous segments are read back.
+fn physical_hits(image: &Image, file_hits: &[u64], needle: &[u8]) -> Result<Vec<u64>> {
+    let length = needle.len() as u64;
+    let mut by_file: Vec<&Segment> = image.segments.iter().collect();
+    by_file.sort_unstable_by_key(|s| s.file_offset);
+    let mut physical = Vec::new();
+    for &offset in file_hits {
+        if let Some(s) = by_file.get(
+            by_file
+                .partition_point(|s| s.file_offset <= offset)
+                .wrapping_sub(1),
+        ) && offset + length <= s.file_offset + (s.end - s.start)
+        {
+            physical.push(s.start + offset - s.file_offset);
+        }
+    }
+    for pair in image.segments.windows(2) {
+        if pair[0].end == pair[1].start {
+            let start = pair[0].end.saturating_sub(length - 1).max(pair[0].start);
+            let mut bytes = vec![0; (pair[1].end.min(pair[1].start + length - 1) - start) as usize];
+            image.read(start, &mut bytes)?;
+            physical.extend(
+                memchr::memmem::find_iter(&bytes, needle)
+                    .map(|n| start + n as u64)
+                    .filter(|hit| *hit < pair[0].end && hit + length > pair[0].end),
+            );
+        }
+    }
+    physical.sort_unstable();
+    physical.dedup();
+    Ok(physical)
+}
 impl Image {
     /// Reuse persisted banners for identification and symbol matching. A cache
     /// hit has no verified digest; analysis must still use `open`.
@@ -205,7 +326,7 @@ impl Image {
                 fs::metadata(&manifest)?.len() <= 1024 * 1024,
                 "识别缓存过大"
             );
-            let value: Identification = serde_json::from_slice(&fs::read(manifest)?)?;
+            let value: Identification = serde_json::from_slice(&fs::read(&manifest)?)?;
             ensure!(value.source_stamp == source_stamp, "镜像识别缓存已过期");
             let mut magic = [0; 2];
             File::open(&source)?.read_exact(&mut magic)?;
@@ -227,7 +348,7 @@ impl Image {
                 metadata_stamp(&file.metadata()?)? == value.prepared_stamp,
                 "识别缓存已过期"
             );
-            let image = Self::from_file_with_job(file, String::new(), job)?;
+            let mut image = Self::from_file_with_job(file, String::new(), job)?;
             ensure!(value.banners.len() <= 1024, "识别缓存候选过多");
             let addresses = value.banners.iter().map(|(address, _)| *address).collect();
             ensure!(
@@ -245,6 +366,22 @@ impl Image {
             job.report(format!(
                 "复用持久化 banner 识别：{count} 个候选（分析时校验完整摘要／页表）"
             ));
+            // Windows kernel signatures follow the same rule as banners: the
+            // file metadata must be unchanged and every record must re-read to
+            // the same PDB identity. Analysis still verifies the digest.
+            if let Some(records) = value.windows.filter(|records| image.verify_rsds(records)) {
+                job.report(format!(
+                    "复用持久化 Windows 内核签名：{} 个（签名已重新读取；分析时校验完整摘要）",
+                    records.len()
+                ));
+                let _ = image.windows.set(
+                    records
+                        .into_iter()
+                        .map(|(offset, pdb)| crate::windows_symbols::Candidate { offset, pdb })
+                        .collect(),
+                );
+            }
+            image.identification = Some((manifest, value.digest));
             Ok(image)
         })();
         match cached {
@@ -270,6 +407,7 @@ impl Image {
             .join("identification")
             .join(format!("{identity}.json"));
         let guard = crate::cache::lock(cache, false)?;
+        let mut previous = None;
         if let Ok(metadata) = fs::metadata(&identification)
             && metadata.len() <= 1024 * 1024
             && let Ok(bytes) = fs::read(&identification)
@@ -279,7 +417,8 @@ impl Image {
             && metadata_stamp(&file.metadata()?)? == value.prepared_stamp
             && let Ok(preview) = Self::from_file_with_job(file, String::new(), job)
         {
-            for (address, banner) in value.banners.into_iter().take(1024) {
+            for (address, banner) in value.banners.iter().take(1024) {
+                let (address, banner) = (*address, banner.clone());
                 if banner.len() > 65536 {
                     continue;
                 }
@@ -291,6 +430,7 @@ impl Image {
                     ));
                 }
             }
+            previous = Some(value);
         }
         job.report("计算镜像摘要与识别候选");
         let mut magic = [0; 2];
@@ -345,7 +485,10 @@ impl Image {
         if image.hibernation.is_some() {
             physical = image.scan(b"Linux version ", job)?;
         } else {
-            for offset in candidates {
+            let _ = image
+                .rsds
+                .set(physical_hits(&image, &candidates.rsds, b"RSDS")?);
+            for offset in candidates.banners {
                 if let Some(s) = image
                     .segments
                     .iter()
@@ -375,6 +518,34 @@ impl Image {
             "镜像在读取过程中发生变化，请重新打开"
         );
         job.check()?;
+        // Windows preparation from an earlier session is reused only for the
+        // same verified content, and only after its RSDS records still parse.
+        let (windows, windows_roots) = match previous {
+            Some(value) if !value.digest.is_empty() && value.digest == image.digest => {
+                let windows = value.windows.filter(|records| image.verify_rsds(records));
+                (windows, value.windows_roots)
+            }
+            _ => (None, Vec::new()),
+        };
+        if let Some(records) = &windows {
+            let _ = image.windows.set(
+                records
+                    .iter()
+                    .map(|(offset, pdb)| crate::windows_symbols::Candidate {
+                        offset: *offset,
+                        pdb: pdb.clone(),
+                    })
+                    .collect(),
+            );
+            job.report(format!(
+                "复用持久化 Windows 内核签名：{} 个（内容摘要一致，签名已重新读取）",
+                records.len()
+            ));
+        }
+        image.persisted_roots = windows_roots
+            .iter()
+            .map(|(isf, root, base)| (isf.clone(), (*root, *base)))
+            .collect();
         crate::store::atomic_write(
             &identification,
             &serde_json::to_vec(&Identification {
@@ -382,8 +553,12 @@ impl Image {
                 prepared: prepared.canonicalize()?,
                 prepared_stamp: image.stamp()?,
                 banners: found.clone(),
+                digest: image.digest.clone(),
+                windows,
+                windows_roots,
             })?,
         )?;
+        image.identification = Some((identification, image.digest.clone()));
         let _ = image.banners.set(found);
         job.report(format!(
             "镜像摘要与候选扫描完成: {count} 个候选 · {:.3}s（待符号／页表验证）",
@@ -460,7 +635,10 @@ impl Image {
             arm64_va_bits: std::sync::atomic::AtomicU8::new(0),
             windows: std::sync::OnceLock::new(),
             windows_roots: std::sync::Mutex::new(std::collections::HashMap::new()),
+            persisted_roots: std::collections::HashMap::new(),
+            identification: None,
             banners: std::sync::OnceLock::new(),
+            rsds: std::sync::OnceLock::new(),
             limits: Default::default(),
             scans: std::sync::Mutex::new(crate::resources::Lru::new(
                 crate::resources::Limits::default().scan_cache_bytes,
@@ -508,13 +686,58 @@ impl Image {
         self.read(address, &mut b)?;
         Ok(u64::from_le_bytes(b))
     }
+    /// Physical offsets of RSDS records: from the digest pass when it ran in
+    /// this session, otherwise one scan of the image.
+    pub fn rsds_offsets(&self, job: &Job) -> Result<Vec<u64>> {
+        match self.rsds.get() {
+            Some(hits) => Ok(hits.clone()),
+            None => self.scan(b"RSDS", job),
+        }
+    }
     /// Single prefix scan shared by local and remote symbol matching.
     pub fn windows_candidates(&self, job: &Job) -> Result<&[crate::windows_symbols::Candidate]> {
         if self.windows.get().is_none() {
             let found = crate::windows_symbols::identify(self, job)?;
+            let records = found.iter().map(|c| (c.offset, c.pdb.clone())).collect();
             let _ = self.windows.set(found);
+            self.remember(|value| value.windows = Some(records));
         }
         Ok(self.windows.get().context("Windows 识别未完成")?)
+    }
+    /// Every remembered RSDS record still parses to the same PDB identity.
+    fn verify_rsds(&self, records: &[(u64, crate::windows_symbols::PdbIdentity)]) -> bool {
+        records.len() <= 1024
+            && records.iter().all(|(offset, pdb)| {
+                let mut bytes = [0; 512];
+                self.read(*offset, &mut bytes).is_ok()
+                    && crate::windows_symbols::PdbIdentity::from_rsds(&bytes)
+                        .ok()
+                        .as_ref()
+                        == Some(pdb)
+            })
+    }
+    /// Record a kernel root that passed full validation for `isf_digest`.
+    pub(crate) fn remember_windows_root(&self, isf_digest: &str, root: u64, base: u64) {
+        let isf_digest = isf_digest.to_owned();
+        self.remember(move |value| {
+            value.windows_roots.retain(|(isf, ..)| *isf != isf_digest);
+            value.windows_roots.push((isf_digest, root, base));
+            value.windows_roots.truncate(64);
+        });
+    }
+    /// Best-effort update of this image's identification manifest. It only
+    /// applies while the manifest still describes the same verified content.
+    fn remember(&self, update: impl FnOnce(&mut Identification)) {
+        let Some((path, digest)) = &self.identification else {
+            return;
+        };
+        let _ = (|| -> Result<()> {
+            ensure!(fs::metadata(path)?.len() <= 1024 * 1024, "识别缓存过大");
+            let mut value: Identification = serde_json::from_slice(&fs::read(path)?)?;
+            ensure!(value.digest == *digest, "识别缓存已对应其他内容");
+            update(&mut value);
+            crate::store::atomic_write(path, &serde_json::to_vec(&value)?)
+        })();
     }
     pub fn banners(&self, job: &Job) -> Result<Vec<(u64, Vec<u8>)>> {
         job.check()?;
@@ -822,6 +1045,51 @@ mod arm_tests {
             assert!(img.read(address, &mut [0]).is_err());
         }
         assert!(img.read(103, &mut [0; 2]).is_err());
+    }
+    #[test]
+    fn digest_pass_rsds_hits_equal_a_physical_scan() {
+        // file  0..16 → phys 0x1000   file 32..48 → phys 0x1010 (contiguous)
+        // file 16..32 → phys 0x3000   file 48..64 → phys 0x5000
+        let mut bytes = vec![b'.'; 64];
+        bytes[4..8].copy_from_slice(b"RSDS"); // inside the first segment
+        bytes[14..16].copy_from_slice(b"RS"); // completed physically by...
+        bytes[32..34].copy_from_slice(b"DS"); // ...the contiguous segment
+        bytes[46..50].copy_from_slice(b"RSDS"); // adjacent in the file only
+        bytes[52..56].copy_from_slice(b"RSDS"); // inside the last segment
+        let mut img = image(&bytes);
+        img.segments = vec![
+            Segment {
+                start: 0x1000,
+                end: 0x1010,
+                file_offset: 0,
+            },
+            Segment {
+                start: 0x1010,
+                end: 0x1020,
+                file_offset: 32,
+            },
+            Segment {
+                start: 0x3000,
+                end: 0x3010,
+                file_offset: 16,
+            },
+            Segment {
+                start: 0x5000,
+                end: 0x5010,
+                file_offset: 48,
+            },
+        ];
+        let job = Job::default();
+        // Uneven pushes so records straddle the digest pass's chunks.
+        let mut scan = Fingerprint::default();
+        for chunk in bytes.chunks(5) {
+            scan.push(chunk, &job);
+        }
+        let (_, found) = scan.finish();
+        assert_eq!(found.rsds, vec![4, 46, 52]);
+        let scanned = img.scan(b"RSDS", &job).unwrap();
+        assert_eq!(scanned, vec![0x1004, 0x100e, 0x5004]);
+        assert_eq!(physical_hits(&img, &found.rsds, b"RSDS").unwrap(), scanned);
     }
     #[test]
     fn arm64_page_block_canonical_and_missing() {

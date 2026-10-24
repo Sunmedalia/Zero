@@ -19,6 +19,8 @@ pub const ENGINE_VERSION: &str = concat!(env!("CARGO_PKG_VERSION"), "-native-27"
 pub struct Job {
     pub cancel: Arc<AtomicBool>,
     progress: Arc<dyn Fn(String) + Send + Sync>,
+    cached: Arc<AtomicBool>,
+    prepared: Arc<AtomicBool>,
 }
 impl Default for Job {
     fn default() -> Self {
@@ -30,6 +32,8 @@ impl Job {
         Self {
             cancel: Arc::new(AtomicBool::new(false)),
             progress: Arc::new(progress),
+            cached: Arc::new(AtomicBool::new(false)),
+            prepared: Arc::new(AtomicBool::new(false)),
         }
     }
     pub fn check(&self) -> Result<()> {
@@ -40,6 +44,20 @@ impl Job {
     }
     pub fn report(&self, message: impl Into<String>) {
         (self.progress)(message.into());
+    }
+    /// Record that the result was read from the successful-result cache.
+    pub fn mark_cached(&self) {
+        self.cached.store(true, Ordering::Relaxed);
+    }
+    pub fn served_from_cache(&self) -> bool {
+        self.cached.load(Ordering::Relaxed)
+    }
+    /// Record that this job verified a newly opened image's full content digest.
+    pub fn mark_prepared(&self) {
+        self.prepared.store(true, Ordering::Relaxed);
+    }
+    pub fn prepared_image(&self) -> bool {
+        self.prepared.load(Ordering::Relaxed)
     }
 }
 

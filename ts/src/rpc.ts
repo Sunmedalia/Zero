@@ -275,7 +275,14 @@ export class RpcEngine implements Engine {
   }
 
   remote(
-    args: { image?: string | null; query?: string; refresh?: boolean; catalog?: boolean; limit?: number },
+    args: {
+      image?: string | null;
+      query?: string;
+      refresh?: boolean;
+      catalog?: boolean;
+      limit?: number;
+      local_only?: boolean;
+    },
     progress: TaskProgress,
   ): Promise<RemoteReply> {
     return this.task('remote', { ...args }, progress);

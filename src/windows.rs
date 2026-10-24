@@ -908,6 +908,8 @@ pub(crate) fn analyze_resolved(
         && let Some(r) = store::load(request.cache, &key)
     {
         sources.validate()?;
+        job.mark_cached();
+        job.report("读取成功缓存");
         return Ok(Outcome::Ready(r));
     }
     let mut result = if let Some(dump) = dump {
@@ -973,6 +975,24 @@ pub fn discover(image: &Image, isf: &Isf, job: &Job) -> Result<(u64, u64)> {
         return Ok(*value);
     }
     let geometry = Paging::new(isf)?;
+    // A root found in an earlier session for the same verified content and
+    // ISF skips the whole-image scans, but only after the same validation.
+    if let Some(&(root, base)) = image.persisted_roots.get(&isf.digest) {
+        match validate_kernel(image, isf, geometry, &identity, root, base) {
+            Ok(()) => {
+                job.report(format!(
+                    "复用持久化 Windows 内核定位 DTB {root:#x} Base {base:#x}（PDB 身份、System 进程与链表已重新验证）"
+                ));
+                image
+                    .windows_roots
+                    .lock()
+                    .map_err(|_| anyhow::anyhow!("Windows 准备缓存锁损坏"))?
+                    .insert(isf.digest.clone(), (root, base));
+                return Ok((root, base));
+            }
+            Err(e) => job.report(format!("持久化 Windows 内核定位失效，重新扫描: {e:#}")),
+        }
+    }
     let mut headers = HashSet::new();
     let minimum = isf.raw_address("PsInitialSystemProcess")?;
     let mut roots = image
@@ -1062,57 +1082,7 @@ pub fn discover(image: &Image, isf: &Isf, job: &Job) -> Result<(u64, u64)> {
             job,
         )?;
         for base in bases {
-            let vm = Memory::new(image, root, isf, None);
-            let test = (|| -> Result<()> {
-                let mut header = [0; 4096];
-                vm.read(base, &mut header)?;
-                let pe = u32::from_le_bytes(header[60..64].try_into()?) as usize;
-                pe_header(&header)?;
-                ensure!(
-                    u16::from_le_bytes(header[pe + 4..pe + 6].try_into()?)
-                        == geometry.arch.machine(),
-                    "内核 PE 与符号指针架构冲突"
-                );
-                ensure!(
-                    network::pe_identity(&vm, base)? == identity,
-                    "内核 PE 身份不匹配"
-                );
-                let engine = Windows {
-                    vm,
-                    base,
-                    pdb: identity.clone(),
-                };
-                let system = engine
-                    .vm
-                    .pointer(engine.symbol("PsInitialSystemProcess")?)?;
-                let process = engine.process(system)?;
-                ensure!(
-                    process.pid == 4 && process.name == "System" && process.dtb != 0,
-                    "System 进程验证失败"
-                );
-                let head = engine.symbol("PsActiveProcessHead")?;
-                let link = engine.field(system, "_EPROCESS", "ActiveProcessLinks")?;
-                ensure!(
-                    engine.vm.pointer(head)? == link
-                        && engine
-                            .vm
-                            .pointer(add(link, engine.vm.pointer_size() as u64)?)?
-                            == head,
-                    "System 链表入口验证失败"
-                );
-                let next = engine.vm.pointer(link)?;
-                ensure!(
-                    engine.vm.kernel(next)
-                        && engine
-                            .vm
-                            .pointer(add(next, engine.vm.pointer_size() as u64)?)?
-                            == link,
-                    "System 相邻链表验证失败"
-                );
-                let system_vm = Memory::new(image, process.dtb, isf, None);
-                ensure!(system_vm.uint(base, 2)? == 0x5a4d, "System DTB 未映射内核");
-                Ok(())
-            })();
+            let test = validate_kernel(image, isf, geometry, &identity, root, base);
             if test.is_ok() {
                 job.report(format!("Windows 内核已验证 DTB {root:#x} Base {base:#x}"));
                 let vm = Memory::new(image, root, isf, None);
@@ -1124,6 +1094,7 @@ pub fn discover(image: &Image, isf: &Isf, job: &Job) -> Result<(u64, u64)> {
                     .lock()
                     .map_err(|_| anyhow::anyhow!("Windows 准备缓存锁损坏"))?
                     .insert(isf.digest.clone(), (root, base));
+                image.remember_windows_root(&isf.digest, root, base);
                 return Ok((root, base));
             } else if let Err(e) = test {
                 job.report(format!(
@@ -1133,6 +1104,67 @@ pub fn discover(image: &Image, isf: &Isf, job: &Job) -> Result<(u64, u64)> {
         }
     }
     bail!("无法验证 Windows 内核/DTB/PDB/进程链表")
+}
+
+/// Full kernel validation for one (DTB, base) pair: mapped PE header and
+/// architecture, exact PDB identity, the System process and both neighbours
+/// of its process-list entry, and the System DTB mapping the kernel.
+fn validate_kernel(
+    image: &Image,
+    isf: &Isf,
+    geometry: Paging,
+    identity: &PdbIdentity,
+    root: u64,
+    base: u64,
+) -> Result<()> {
+    let vm = Memory::new(image, root, isf, None);
+    let mut header = [0; 4096];
+    vm.read(base, &mut header)?;
+    let pe = u32::from_le_bytes(header[60..64].try_into()?) as usize;
+    pe_header(&header)?;
+    ensure!(
+        u16::from_le_bytes(header[pe + 4..pe + 6].try_into()?) == geometry.arch.machine(),
+        "内核 PE 与符号指针架构冲突"
+    );
+    ensure!(
+        network::pe_identity(&vm, base)? == *identity,
+        "内核 PE 身份不匹配"
+    );
+    let engine = Windows {
+        vm,
+        base,
+        pdb: identity.clone(),
+    };
+    let system = engine
+        .vm
+        .pointer(engine.symbol("PsInitialSystemProcess")?)?;
+    let process = engine.process(system)?;
+    ensure!(
+        process.pid == 4 && process.name == "System" && process.dtb != 0,
+        "System 进程验证失败"
+    );
+    let head = engine.symbol("PsActiveProcessHead")?;
+    let link = engine.field(system, "_EPROCESS", "ActiveProcessLinks")?;
+    ensure!(
+        engine.vm.pointer(head)? == link
+            && engine
+                .vm
+                .pointer(add(link, engine.vm.pointer_size() as u64)?)?
+                == head,
+        "System 链表入口验证失败"
+    );
+    let next = engine.vm.pointer(link)?;
+    ensure!(
+        engine.vm.kernel(next)
+            && engine
+                .vm
+                .pointer(add(next, engine.vm.pointer_size() as u64)?)?
+                == link,
+        "System 相邻链表验证失败"
+    );
+    let system_vm = Memory::new(image, process.dtb, isf, None);
+    ensure!(system_vm.uint(base, 2)? == 0x5a4d, "System DTB 未映射内核");
+    Ok(())
 }
 #[allow(clippy::too_many_arguments)]
 fn find_mappings(

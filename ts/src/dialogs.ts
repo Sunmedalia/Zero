@@ -61,6 +61,7 @@ export function dialogWidth(state: AppState, dialog: Dialog, columns: number): n
       longest = Math.max([...dialog.text].length, 40);
       break;
     case 'detail':
+    case 'remoteDetail':
       longest = Math.min(Math.max(columns - 6, 30), 90);
       break;
     default:
@@ -102,6 +103,10 @@ export function dialogHeight(state: AppState, dialog: Dialog, rows: number): num
       break;
     case 'detail':
       wanted = 12;
+      break;
+    case 'remoteDetail':
+      // Fields, banner, file and link, then a gap and the download chips.
+      wanted = 18;
       break;
     case 'dump':
       wanted = 12;

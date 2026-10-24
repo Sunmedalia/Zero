@@ -110,7 +110,12 @@ try {
   }
   mkdirSync(output, { recursive: true });
   const shots = [];
+  // The engine reports absolute paths inside the temporary project; show them
+  // relative to it, as they read from the case directory.
+  const relative = (path) => (path.startsWith(`${root}/`) ? path.slice(root.length + 1) : path);
   const shot = (name, title) => {
+    app.state.symbols = relative(app.state.symbols);
+    app.state.assets = app.state.assets.map((asset) => ({ ...asset, path: relative(asset.path) }));
     const { canvas } = renderFrame(app, COLUMNS, ROWS);
     writeFileSync(join(output, name), svg(canvas, title));
     if (process.env.ZERO_SHOTS_TEXT) {

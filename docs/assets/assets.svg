@@ -12,21 +12,14 @@
 <text x="14.0" y="57.5" fill="#b8d8fa" font-weight="700" textLength="84.0" lengthAdjust="spacingAndGlyphs"> 1 资源库 </text>
 <text x="106.4" y="57.5" fill="#dce3ed" textLength="67.2" lengthAdjust="spacingAndGlyphs"> 2 分析 </text>
 <text x="182.0" y="57.5" fill="#dce3ed" textLength="67.2" lengthAdjust="spacingAndGlyphs"> 3 缓存 </text>
-<text x="257.6" y="57.5" fill="#97a6b8" textLength="67.2" lengthAdjust="spacingAndGlyphs"> pslist </text>
-<text x="324.8" y="57.5" fill="#364354" textLength="8.4" lengthAdjust="spacingAndGlyphs">×</text>
-<text x="341.6" y="57.5" fill="#97a6b8" textLength="58.8" lengthAdjust="spacingAndGlyphs"> lsmod </text>
-<text x="400.4" y="57.5" fill="#364354" textLength="8.4" lengthAdjust="spacingAndGlyphs">×</text>
-<text x="417.2" y="57.5" fill="#97a6b8" textLength="84.0" lengthAdjust="spacingAndGlyphs"> sockstat </text>
-<text x="501.2" y="57.5" fill="#364354" textLength="8.4" lengthAdjust="spacingAndGlyphs">×</text>
-<text x="518.0" y="57.5" fill="#97a6b8" textLength="67.2" lengthAdjust="spacingAndGlyphs"> pstree </text>
-<text x="585.2" y="57.5" fill="#364354" textLength="8.4" lengthAdjust="spacingAndGlyphs">×</text>
-<text x="904.4" y="57.5" fill="#82b4e8" textLength="134.4" lengthAdjust="spacingAndGlyphs"> Linux  Windows </text>
-<rect x="1038.8" y="44" width="50.4" height="18" fill="#263b52"/>
-<text x="1038.8" y="57.5" fill="#b8d8fa" font-weight="700" textLength="50.4" lengthAdjust="spacingAndGlyphs"> 自动 </text>
-<text x="14.0" y="75.5" fill="#97a6b8" textLength="117.6" lengthAdjust="spacingAndGlyphs">  自动 · 镜像 </text>
-<text x="131.6" y="75.5" fill="#dce3ed" textLength="235.2" lengthAdjust="spacingAndGlyphs">images/linux-sample-1.bin.gz</text>
+<rect x="257.6" y="44" width="58.8" height="18" fill="#263b52"/>
+<text x="257.6" y="57.5" fill="#b8d8fa" font-weight="700" textLength="58.8" lengthAdjust="spacingAndGlyphs"> Linux </text>
+<text x="316.4" y="57.5" fill="#82b4e8" textLength="75.6" lengthAdjust="spacingAndGlyphs"> Windows </text>
+<text x="954.8" y="57.5" fill="#97a6b8" textLength="134.4" lengthAdjust="spacingAndGlyphs">ZERO · 内存取证 </text>
+<text x="14.0" y="75.5" fill="#97a6b8" textLength="226.8" lengthAdjust="spacingAndGlyphs">  Linux（自动识别） · 镜像 </text>
+<text x="240.8" y="75.5" fill="#dce3ed" textLength="235.2" lengthAdjust="spacingAndGlyphs">images/linux-sample-1.bin.gz</text>
 <text x="602.0" y="75.5" fill="#8bc7a3" textLength="168.0" lengthAdjust="spacingAndGlyphs">│ 符号 已就绪 · 离线</text>
-<text x="778.4" y="75.5" fill="#97a6b8" textLength="268.8" lengthAdjust="spacingAndGlyphs">/tmp/zero-demo/symbols/linux.zip</text>
+<text x="778.4" y="75.5" fill="#97a6b8" textLength="142.8" lengthAdjust="spacingAndGlyphs">symbols/linux.zip</text>
 <rect x="14.0" y="80" width="50.4" height="18" fill="#263b52"/>
 <text x="14.0" y="93.5" fill="#b8d8fa" font-weight="700" textLength="50.4" lengthAdjust="spacingAndGlyphs"> 镜像 </text>
 <rect x="64.4" y="80" width="8.4" height="18" fill="#151b24"/>
@@ -50,27 +43,30 @@
 <rect x="14.0" y="134" width="8.4" height="18" fill="#151b24"/>
 <text x="14.0" y="147.5" fill="#82b4e8" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
 <rect x="22.4" y="134" width="16.8" height="18" fill="#263b52"/>
-<rect x="39.2" y="134" width="134.4" height="18" fill="#263b52"/>
-<text x="39.2" y="147.5" fill="#97a6b8" textLength="134.4" lengthAdjust="spacingAndGlyphs">gzip · 137.3 MiB</text>
-<rect x="173.6" y="134" width="907.2" height="18" fill="#263b52"/>
+<rect x="39.2" y="134" width="226.8" height="18" fill="#263b52"/>
+<text x="39.2" y="147.5" fill="#8bc7a3" textLength="226.8" lengthAdjust="spacingAndGlyphs">gzip · 137.3 MiB · ● 已选用</text>
+<rect x="266.0" y="134" width="814.8" height="18" fill="#263b52"/>
 <rect x="1080.8" y="134" width="8.4" height="18" fill="#151b24"/>
 <text x="1080.8" y="147.5" fill="#82b4e8" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
 <rect x="14.0" y="152" width="8.4" height="18" fill="#151b24"/>
 <text x="14.0" y="165.5" fill="#82b4e8" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
 <rect x="22.4" y="152" width="16.8" height="18" fill="#263b52"/>
 <rect x="39.2" y="152" width="218.4" height="18" fill="#263b52"/>
-<text x="39.2" y="165.5" fill="#97a6b8" textLength="218.4" lengthAdjust="spacingAndGlyphs">目录 /tmp/zero-demo/images</text>
+<text x="39.2" y="165.5" fill="#82b4e8" textLength="218.4" lengthAdjust="spacingAndGlyphs">已识别 Linux 3.2.0-4-amd64</text>
 <rect x="257.6" y="152" width="823.2" height="18" fill="#263b52"/>
 <rect x="1080.8" y="152" width="8.4" height="18" fill="#151b24"/>
 <text x="1080.8" y="165.5" fill="#82b4e8" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
 <rect x="14.0" y="170" width="8.4" height="18" fill="#151b24"/>
 <text x="14.0" y="183.5" fill="#82b4e8" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
-<rect x="22.4" y="170" width="1058.4" height="18" fill="#263b52"/>
+<rect x="22.4" y="170" width="16.8" height="18" fill="#263b52"/>
+<rect x="39.2" y="170" width="92.4" height="18" fill="#263b52"/>
+<text x="39.2" y="183.5" fill="#97a6b8" textLength="92.4" lengthAdjust="spacingAndGlyphs">目录 images</text>
+<rect x="131.6" y="170" width="949.2" height="18" fill="#263b52"/>
 <rect x="1080.8" y="170" width="8.4" height="18" fill="#151b24"/>
 <text x="1080.8" y="183.5" fill="#82b4e8" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
 <rect x="14.0" y="188" width="8.4" height="18" fill="#151b24"/>
 <text x="14.0" y="201.5" fill="#82b4e8" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
-<rect x="22.4" y="188" width="1058.4" height="18" fill="#151b24"/>
+<rect x="22.4" y="188" width="1058.4" height="18" fill="#263b52"/>
 <rect x="1080.8" y="188" width="8.4" height="18" fill="#151b24"/>
 <text x="1080.8" y="201.5" fill="#82b4e8" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
 <rect x="14.0" y="206" width="8.4" height="18" fill="#151b24"/>

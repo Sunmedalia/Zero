@@ -89,6 +89,7 @@ impl Session {
         {
             self.clear();
             let mut image = if verify_digest {
+                job.mark_prepared();
                 Image::open(path, cache, job)?
             } else {
                 Image::open_identified(path, cache, job)?
@@ -194,6 +195,7 @@ impl Session {
             if request.use_cache
                 && let Some(result) = store::load(request.cache, &key)
             {
+                job.mark_cached();
                 return Ok(Outcome::Ready(result));
             }
             let result = banner_result(&image, job)?;
@@ -247,6 +249,7 @@ impl Session {
         {
             job.check()?;
             result.symbol = symbol.label.clone();
+            job.mark_cached();
             job.report("读取成功缓存");
             return Ok(Outcome::Ready(result));
         }

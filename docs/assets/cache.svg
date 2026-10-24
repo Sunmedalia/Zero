@@ -12,21 +12,14 @@
 <text x="106.4" y="57.5" fill="#dce3ed" textLength="67.2" lengthAdjust="spacingAndGlyphs"> 2 分析 </text>
 <rect x="182.0" y="44" width="67.2" height="18" fill="#263b52"/>
 <text x="182.0" y="57.5" fill="#b8d8fa" font-weight="700" textLength="67.2" lengthAdjust="spacingAndGlyphs"> 3 缓存 </text>
-<text x="257.6" y="57.5" fill="#97a6b8" textLength="67.2" lengthAdjust="spacingAndGlyphs"> pslist </text>
-<text x="324.8" y="57.5" fill="#364354" textLength="8.4" lengthAdjust="spacingAndGlyphs">×</text>
-<text x="341.6" y="57.5" fill="#97a6b8" textLength="58.8" lengthAdjust="spacingAndGlyphs"> lsmod </text>
-<text x="400.4" y="57.5" fill="#364354" textLength="8.4" lengthAdjust="spacingAndGlyphs">×</text>
-<text x="417.2" y="57.5" fill="#97a6b8" textLength="84.0" lengthAdjust="spacingAndGlyphs"> sockstat </text>
-<text x="501.2" y="57.5" fill="#364354" textLength="8.4" lengthAdjust="spacingAndGlyphs">×</text>
-<text x="518.0" y="57.5" fill="#97a6b8" textLength="67.2" lengthAdjust="spacingAndGlyphs"> pstree </text>
-<text x="585.2" y="57.5" fill="#364354" textLength="8.4" lengthAdjust="spacingAndGlyphs">×</text>
-<text x="904.4" y="57.5" fill="#82b4e8" textLength="134.4" lengthAdjust="spacingAndGlyphs"> Linux  Windows </text>
-<rect x="1038.8" y="44" width="50.4" height="18" fill="#263b52"/>
-<text x="1038.8" y="57.5" fill="#b8d8fa" font-weight="700" textLength="50.4" lengthAdjust="spacingAndGlyphs"> 自动 </text>
-<text x="14.0" y="75.5" fill="#97a6b8" textLength="117.6" lengthAdjust="spacingAndGlyphs">  自动 · 镜像 </text>
-<text x="131.6" y="75.5" fill="#dce3ed" textLength="235.2" lengthAdjust="spacingAndGlyphs">images/linux-sample-1.bin.gz</text>
+<rect x="257.6" y="44" width="58.8" height="18" fill="#263b52"/>
+<text x="257.6" y="57.5" fill="#b8d8fa" font-weight="700" textLength="58.8" lengthAdjust="spacingAndGlyphs"> Linux </text>
+<text x="316.4" y="57.5" fill="#82b4e8" textLength="75.6" lengthAdjust="spacingAndGlyphs"> Windows </text>
+<text x="954.8" y="57.5" fill="#97a6b8" textLength="134.4" lengthAdjust="spacingAndGlyphs">ZERO · 内存取证 </text>
+<text x="14.0" y="75.5" fill="#97a6b8" textLength="226.8" lengthAdjust="spacingAndGlyphs">  Linux（自动识别） · 镜像 </text>
+<text x="240.8" y="75.5" fill="#dce3ed" textLength="235.2" lengthAdjust="spacingAndGlyphs">images/linux-sample-1.bin.gz</text>
 <text x="602.0" y="75.5" fill="#8bc7a3" textLength="168.0" lengthAdjust="spacingAndGlyphs">│ 符号 已就绪 · 离线</text>
-<text x="778.4" y="75.5" fill="#97a6b8" textLength="268.8" lengthAdjust="spacingAndGlyphs">/tmp/zero-demo/symbols/linux.zip</text>
+<text x="778.4" y="75.5" fill="#97a6b8" textLength="142.8" lengthAdjust="spacingAndGlyphs">symbols/linux.zip</text>
 <rect x="14.0" y="80" width="336.0" height="18" fill="#151b24"/>
 <text x="14.0" y="93.5" fill="#82b4e8" textLength="336.0" lengthAdjust="spacingAndGlyphs">╭─ 缓存范围 · Space 勾选 ──────────────╮</text>
 <rect x="350.0" y="80" width="16.8" height="18" fill="#151b24"/>
@@ -47,11 +40,11 @@
 <rect x="350.0" y="98" width="8.4" height="18" fill="#151b24"/>
 <text x="350.0" y="111.5" fill="#364354" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
 <rect x="358.4" y="98" width="168.0" height="18" fill="#263b52"/>
-<text x="358.4" y="111.5" fill="#b8d8fa" textLength="168.0" lengthAdjust="spacingAndGlyphs">› 2026-10-24 10:53  </text>
+<text x="358.4" y="111.5" fill="#b8d8fa" textLength="168.0" lengthAdjust="spacingAndGlyphs">› 2026-10-24 16:47  </text>
 <rect x="526.4" y="98" width="100.8" height="18" fill="#263b52"/>
 <text x="526.4" y="111.5" fill="#97a6b8" textLength="100.8" lengthAdjust="spacingAndGlyphs">   7.4 KiB  </text>
 <rect x="627.2" y="98" width="453.6" height="18" fill="#263b52"/>
-<text x="627.2" y="111.5" fill="#b8d8fa" font-weight="700" textLength="453.6" lengthAdjust="spacingAndGlyphs">…6d82a2b6116e86d899426e794e4b20896aa337697.result.json</text>
+<text x="627.2" y="111.5" fill="#b8d8fa" font-weight="700" textLength="453.6" lengthAdjust="spacingAndGlyphs">…4328621c230a6dc1dc19190f448042f88bb4f9764.result.json</text>
 <rect x="1080.8" y="98" width="8.4" height="18" fill="#151b24"/>
 <text x="1080.8" y="111.5" fill="#364354" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
 <rect x="14.0" y="116" width="8.4" height="18" fill="#151b24"/>
@@ -66,9 +59,9 @@
 <rect x="350.0" y="116" width="8.4" height="18" fill="#151b24"/>
 <text x="350.0" y="129.5" fill="#364354" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
 <rect x="358.4" y="116" width="268.8" height="18" fill="#19222e"/>
-<text x="358.4" y="129.5" fill="#97a6b8" textLength="268.8" lengthAdjust="spacingAndGlyphs">  2026-10-24 10:53     7.4 KiB  </text>
+<text x="358.4" y="129.5" fill="#97a6b8" textLength="268.8" lengthAdjust="spacingAndGlyphs">  2026-10-24 16:47     7.4 KiB  </text>
 <rect x="627.2" y="116" width="453.6" height="18" fill="#19222e"/>
-<text x="627.2" y="129.5" fill="#dce3ed" textLength="453.6" lengthAdjust="spacingAndGlyphs">…4d24f3ec03af17ecc251b8687ddffa2f3457f86b1.result.json</text>
+<text x="627.2" y="129.5" fill="#dce3ed" textLength="453.6" lengthAdjust="spacingAndGlyphs">…b21e2bf17d9d0d697e0402e670ef532abb7ad4d5f.result.json</text>
 <rect x="1080.8" y="116" width="8.4" height="18" fill="#151b24"/>
 <text x="1080.8" y="129.5" fill="#364354" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
 <rect x="14.0" y="134" width="8.4" height="18" fill="#151b24"/>
@@ -77,15 +70,15 @@
 <text x="22.4" y="147.5" fill="#b8d8fa" textLength="117.6" lengthAdjust="spacingAndGlyphs">  [x] 识别信息</text>
 <rect x="140.0" y="134" width="117.6" height="18" fill="#151b24"/>
 <rect x="257.6" y="134" width="84.0" height="18" fill="#151b24"/>
-<text x="257.6" y="147.5" fill="#97a6b8" textLength="84.0" lengthAdjust="spacingAndGlyphs">1 · 738 B </text>
+<text x="257.6" y="147.5" fill="#97a6b8" textLength="84.0" lengthAdjust="spacingAndGlyphs">1 · 848 B </text>
 <rect x="341.6" y="134" width="8.4" height="18" fill="#151b24"/>
 <text x="341.6" y="147.5" fill="#82b4e8" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
 <rect x="350.0" y="134" width="8.4" height="18" fill="#151b24"/>
 <text x="350.0" y="147.5" fill="#364354" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
 <rect x="358.4" y="134" width="268.8" height="18" fill="#151b24"/>
-<text x="358.4" y="147.5" fill="#97a6b8" textLength="268.8" lengthAdjust="spacingAndGlyphs">  2026-10-24 10:53    51.5 KiB  </text>
+<text x="358.4" y="147.5" fill="#97a6b8" textLength="268.8" lengthAdjust="spacingAndGlyphs">  2026-10-24 16:47    51.5 KiB  </text>
 <rect x="627.2" y="134" width="453.6" height="18" fill="#151b24"/>
-<text x="627.2" y="147.5" fill="#dce3ed" textLength="453.6" lengthAdjust="spacingAndGlyphs">…52491e29c63b866cd7dbde61c8c96508058dd28e1.result.json</text>
+<text x="627.2" y="147.5" fill="#dce3ed" textLength="453.6" lengthAdjust="spacingAndGlyphs">…c8eb0a91c0baf92038a5b1ec6a18db684c141ef29.result.json</text>
 <rect x="1080.8" y="134" width="8.4" height="18" fill="#151b24"/>
 <text x="1080.8" y="147.5" fill="#364354" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
 <rect x="14.0" y="152" width="8.4" height="18" fill="#151b24"/>
@@ -100,9 +93,9 @@
 <rect x="350.0" y="152" width="8.4" height="18" fill="#151b24"/>
 <text x="350.0" y="165.5" fill="#364354" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
 <rect x="358.4" y="152" width="268.8" height="18" fill="#19222e"/>
-<text x="358.4" y="165.5" fill="#97a6b8" textLength="268.8" lengthAdjust="spacingAndGlyphs">  2026-10-24 10:53     3.8 KiB  </text>
+<text x="358.4" y="165.5" fill="#97a6b8" textLength="268.8" lengthAdjust="spacingAndGlyphs">  2026-10-24 16:47     3.8 KiB  </text>
 <rect x="627.2" y="152" width="453.6" height="18" fill="#19222e"/>
-<text x="627.2" y="165.5" fill="#dce3ed" textLength="453.6" lengthAdjust="spacingAndGlyphs">…c947f4d948ac47d77aa816b71f4462b7a519a57c3.result.json</text>
+<text x="627.2" y="165.5" fill="#dce3ed" textLength="453.6" lengthAdjust="spacingAndGlyphs">…a0a0112b01502698b8c761b6e6fe5374b88bd7dcf.result.json</text>
 <rect x="1080.8" y="152" width="8.4" height="18" fill="#151b24"/>
 <text x="1080.8" y="165.5" fill="#364354" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
 <rect x="14.0" y="170" width="8.4" height="18" fill="#151b24"/>
@@ -313,7 +306,7 @@
 <rect x="350.0" y="512" width="8.4" height="18" fill="#151b24"/>
 <text x="350.0" y="525.5" fill="#364354" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
 <rect x="358.4" y="512" width="688.8" height="18" fill="#151b24"/>
-<text x="358.4" y="525.5" fill="#dce3ed" textLength="688.8" lengthAdjust="spacingAndGlyphs">路径: 839912745880d16512ce34f6d82a2b6116e86d899426e794e4b20896aa337697.result.json</text>
+<text x="358.4" y="525.5" fill="#dce3ed" textLength="688.8" lengthAdjust="spacingAndGlyphs">路径: 77357ea0051b30cd5fb812a4328621c230a6dc1dc19190f448042f88bb4f9764.result.json</text>
 <rect x="1047.2" y="512" width="33.6" height="18" fill="#151b24"/>
 <rect x="1080.8" y="512" width="8.4" height="18" fill="#151b24"/>
 <text x="1080.8" y="525.5" fill="#364354" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
@@ -325,7 +318,7 @@
 <rect x="350.0" y="530" width="8.4" height="18" fill="#151b24"/>
 <text x="350.0" y="543.5" fill="#364354" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
 <rect x="358.4" y="530" width="327.6" height="18" fill="#151b24"/>
-<text x="358.4" y="543.5" fill="#97a6b8" textLength="327.6" lengthAdjust="spacingAndGlyphs">大小: 7.4 KiB · 修改于 2026-10-24 10:53</text>
+<text x="358.4" y="543.5" fill="#97a6b8" textLength="327.6" lengthAdjust="spacingAndGlyphs">大小: 7.4 KiB · 修改于 2026-10-24 16:47</text>
 <rect x="686.0" y="530" width="394.8" height="18" fill="#151b24"/>
 <rect x="1080.8" y="530" width="8.4" height="18" fill="#151b24"/>
 <text x="1080.8" y="543.5" fill="#364354" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
@@ -362,7 +355,7 @@
 <rect x="14.0" y="602" width="16.8" height="18" fill="#151b24"/>
 <text x="14.0" y="615.5" fill="#82b4e8" textLength="16.8" lengthAdjust="spacingAndGlyphs">╰─</text>
 <rect x="30.8" y="602" width="201.6" height="18" fill="#151b24"/>
-<text x="30.8" y="615.5" fill="#97a6b8" textLength="201.6" lengthAdjust="spacingAndGlyphs"> 已勾选 5 个 / 70.8 KiB </text>
+<text x="30.8" y="615.5" fill="#97a6b8" textLength="201.6" lengthAdjust="spacingAndGlyphs"> 已勾选 5 个 / 70.9 KiB </text>
 <rect x="232.4" y="602" width="117.6" height="18" fill="#151b24"/>
 <text x="232.4" y="615.5" fill="#82b4e8" textLength="117.6" lengthAdjust="spacingAndGlyphs">─────────────╯</text>
 <rect x="350.0" y="602" width="739.2" height="18" fill="#151b24"/>

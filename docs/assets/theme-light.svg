@@ -12,31 +12,40 @@
 <rect x="106.4" y="44" width="67.2" height="18" fill="#cfe0f3"/>
 <text x="106.4" y="57.5" fill="#0b3d6e" font-weight="700" textLength="67.2" lengthAdjust="spacingAndGlyphs"> 2 分析 </text>
 <text x="182.0" y="57.5" fill="#1c2430" textLength="67.2" lengthAdjust="spacingAndGlyphs"> 3 缓存 </text>
-<text x="257.6" y="57.5" fill="#5b6676" textLength="67.2" lengthAdjust="spacingAndGlyphs"> pslist </text>
-<text x="324.8" y="57.5" fill="#b4bcc8" textLength="8.4" lengthAdjust="spacingAndGlyphs">×</text>
-<rect x="341.6" y="44" width="58.8" height="18" fill="#f7f8fa"/>
-<text x="341.6" y="57.5" fill="#0b3d6e" font-weight="700" textLength="58.8" lengthAdjust="spacingAndGlyphs"> lsmod </text>
-<rect x="400.4" y="44" width="8.4" height="18" fill="#f7f8fa"/>
-<text x="400.4" y="57.5" fill="#1c2430" textLength="8.4" lengthAdjust="spacingAndGlyphs">×</text>
-<text x="417.2" y="57.5" fill="#5b6676" textLength="84.0" lengthAdjust="spacingAndGlyphs"> sockstat </text>
-<text x="501.2" y="57.5" fill="#b4bcc8" textLength="8.4" lengthAdjust="spacingAndGlyphs">×</text>
-<text x="518.0" y="57.5" fill="#5b6676" textLength="67.2" lengthAdjust="spacingAndGlyphs"> pstree </text>
-<text x="585.2" y="57.5" fill="#b4bcc8" textLength="8.4" lengthAdjust="spacingAndGlyphs">×</text>
-<text x="904.4" y="57.5" fill="#1f5f9e" textLength="134.4" lengthAdjust="spacingAndGlyphs"> Linux  Windows </text>
-<rect x="1038.8" y="44" width="50.4" height="18" fill="#cfe0f3"/>
-<text x="1038.8" y="57.5" fill="#0b3d6e" font-weight="700" textLength="50.4" lengthAdjust="spacingAndGlyphs"> 自动 </text>
-<text x="14.0" y="75.5" fill="#5b6676" textLength="117.6" lengthAdjust="spacingAndGlyphs">  自动 · 镜像 </text>
-<text x="131.6" y="75.5" fill="#1c2430" textLength="235.2" lengthAdjust="spacingAndGlyphs">images/linux-sample-1.bin.gz</text>
+<rect x="257.6" y="44" width="58.8" height="18" fill="#cfe0f3"/>
+<text x="257.6" y="57.5" fill="#0b3d6e" font-weight="700" textLength="58.8" lengthAdjust="spacingAndGlyphs"> Linux </text>
+<text x="316.4" y="57.5" fill="#1f5f9e" textLength="75.6" lengthAdjust="spacingAndGlyphs"> Windows </text>
+<text x="954.8" y="57.5" fill="#5b6676" textLength="134.4" lengthAdjust="spacingAndGlyphs">ZERO · 内存取证 </text>
+<text x="14.0" y="75.5" fill="#5b6676" textLength="226.8" lengthAdjust="spacingAndGlyphs">  Linux（自动识别） · 镜像 </text>
+<text x="240.8" y="75.5" fill="#1c2430" textLength="235.2" lengthAdjust="spacingAndGlyphs">images/linux-sample-1.bin.gz</text>
 <text x="602.0" y="75.5" fill="#1d7a46" textLength="168.0" lengthAdjust="spacingAndGlyphs">│ 符号 已就绪 · 离线</text>
-<text x="778.4" y="75.5" fill="#5b6676" textLength="268.8" lengthAdjust="spacingAndGlyphs">/tmp/zero-demo/symbols/linux.zip</text>
+<text x="778.4" y="75.5" fill="#5b6676" textLength="142.8" lengthAdjust="spacingAndGlyphs">symbols/linux.zip</text>
 <rect x="14.0" y="80" width="16.8" height="18" fill="#f7f8fa"/>
 <text x="14.0" y="93.5" fill="#b4bcc8" textLength="16.8" lengthAdjust="spacingAndGlyphs">╭─</text>
 <rect x="30.8" y="80" width="126.0" height="18" fill="#f7f8fa"/>
 <text x="30.8" y="93.5" fill="#1c2430" textLength="126.0" lengthAdjust="spacingAndGlyphs"> 插件 · System </text>
 <rect x="156.8" y="80" width="58.8" height="18" fill="#f7f8fa"/>
 <text x="156.8" y="93.5" fill="#b4bcc8" textLength="58.8" lengthAdjust="spacingAndGlyphs">──────╮</text>
-<rect x="215.6" y="80" width="873.6" height="18" fill="#f7f8fa"/>
-<text x="215.6" y="93.5" fill="#1f5f9e" textLength="873.6" lengthAdjust="spacingAndGlyphs">╭─  lsmod · 完整  ─────────────────────────────────────────────────────────────────────────────────────╮</text>
+<rect x="215.6" y="80" width="16.8" height="18" fill="#f7f8fa"/>
+<text x="215.6" y="93.5" fill="#1f5f9e" textLength="16.8" lengthAdjust="spacingAndGlyphs">╭─</text>
+<text x="232.4" y="93.5" fill="#5b6676" textLength="67.2" lengthAdjust="spacingAndGlyphs"> pslist </text>
+<text x="299.6" y="93.5" fill="#b4bcc8" textLength="8.4" lengthAdjust="spacingAndGlyphs">×</text>
+<rect x="308.0" y="80" width="8.4" height="18" fill="#f7f8fa"/>
+<text x="308.0" y="93.5" fill="#1f5f9e" textLength="8.4" lengthAdjust="spacingAndGlyphs">─</text>
+<rect x="316.4" y="80" width="117.6" height="18" fill="#cfe0f3"/>
+<text x="316.4" y="93.5" fill="#0b3d6e" font-weight="700" textLength="117.6" lengthAdjust="spacingAndGlyphs"> lsmod · 完整 </text>
+<rect x="434.0" y="80" width="8.4" height="18" fill="#cfe0f3"/>
+<text x="434.0" y="93.5" fill="#1c2430" textLength="8.4" lengthAdjust="spacingAndGlyphs">×</text>
+<rect x="442.4" y="80" width="8.4" height="18" fill="#f7f8fa"/>
+<text x="442.4" y="93.5" fill="#1f5f9e" textLength="8.4" lengthAdjust="spacingAndGlyphs">─</text>
+<text x="450.8" y="93.5" fill="#5b6676" textLength="84.0" lengthAdjust="spacingAndGlyphs"> sockstat </text>
+<text x="534.8" y="93.5" fill="#b4bcc8" textLength="8.4" lengthAdjust="spacingAndGlyphs">×</text>
+<rect x="543.2" y="80" width="8.4" height="18" fill="#f7f8fa"/>
+<text x="543.2" y="93.5" fill="#1f5f9e" textLength="8.4" lengthAdjust="spacingAndGlyphs">─</text>
+<text x="551.6" y="93.5" fill="#5b6676" textLength="67.2" lengthAdjust="spacingAndGlyphs"> pstree </text>
+<text x="618.8" y="93.5" fill="#b4bcc8" textLength="8.4" lengthAdjust="spacingAndGlyphs">×</text>
+<rect x="627.2" y="80" width="462.0" height="18" fill="#f7f8fa"/>
+<text x="627.2" y="93.5" fill="#1f5f9e" textLength="462.0" lengthAdjust="spacingAndGlyphs">──────────────────────────────────────────────────────╮</text>
 <rect x="14.0" y="98" width="8.4" height="18" fill="#f7f8fa"/>
 <text x="14.0" y="111.5" fill="#b4bcc8" textLength="8.4" lengthAdjust="spacingAndGlyphs">│</text>
 <rect x="22.4" y="98" width="67.2" height="18" fill="#f7f8fa"/>
@@ -459,17 +468,20 @@
 <text x="14.0" y="615.5" fill="#b4bcc8" textLength="201.6" lengthAdjust="spacingAndGlyphs">╰──────────────────────╯</text>
 <rect x="215.6" y="602" width="16.8" height="18" fill="#f7f8fa"/>
 <text x="215.6" y="615.5" fill="#1f5f9e" textLength="16.8" lengthAdjust="spacingAndGlyphs">╰─</text>
-<rect x="232.4" y="602" width="243.6" height="18" fill="#f7f8fa"/>
-<text x="232.4" y="615.5" fill="#5b6676" textLength="243.6" lengthAdjust="spacingAndGlyphs">  79 / 79 条 · 显示 1–27 行  </text>
-<rect x="476.0" y="602" width="613.2" height="18" fill="#f7f8fa"/>
-<text x="476.0" y="615.5" fill="#1f5f9e" textLength="613.2" lengthAdjust="spacingAndGlyphs">────────────────────────────────────────────────────────────────────────╯</text>
+<rect x="232.4" y="602" width="403.2" height="18" fill="#f7f8fa"/>
+<text x="232.4" y="615.5" fill="#5b6676" textLength="403.2" lengthAdjust="spacingAndGlyphs">  79 / 79 条 · 显示 1–27 行 · 重新分析 · 0.0 s  </text>
+<rect x="635.6" y="602" width="453.6" height="18" fill="#f7f8fa"/>
+<text x="635.6" y="615.5" fill="#1f5f9e" textLength="453.6" lengthAdjust="spacingAndGlyphs">─────────────────────────────────────────────────────╯</text>
 <rect x="14.0" y="620" width="50.4" height="18" fill="#f7f8fa"/>
 <text x="14.0" y="633.5" fill="#1f5f9e" font-weight="700" textLength="50.4" lengthAdjust="spacingAndGlyphs"> 内容 </text>
 <rect x="64.4" y="620" width="16.8" height="18" fill="#f7f8fa"/>
 <text x="64.4" y="633.5" fill="#b4bcc8" textLength="16.8" lengthAdjust="spacingAndGlyphs">│ </text>
-<rect x="81.2" y="620" width="302.4" height="18" fill="#f7f8fa"/>
-<text x="81.2" y="633.5" fill="#1c2430" textLength="302.4" lengthAdjust="spacingAndGlyphs">lsmod · 79 条 · 完整 · 0 条诊断（v）</text>
-<rect x="383.6" y="620" width="705.6" height="18" fill="#f7f8fa"/>
+<rect x="81.2" y="620" width="84.0" height="18" fill="#1f5f9e"/>
+<text x="81.2" y="633.5" fill="#f7f8fa" font-weight="700" textLength="84.0" lengthAdjust="spacingAndGlyphs"> 重新分析 </text>
+<rect x="165.2" y="620" width="8.4" height="18" fill="#f7f8fa"/>
+<rect x="173.6" y="620" width="529.2" height="18" fill="#f7f8fa"/>
+<text x="173.6" y="633.5" fill="#1c2430" textLength="529.2" lengthAdjust="spacingAndGlyphs">lsmod · 79 条 · 本次会话已加载，未重新运行（r 重新分析） · 完整</text>
+<rect x="702.8" y="620" width="386.4" height="18" fill="#f7f8fa"/>
 <text x="14.0" y="651.5" fill="#0b3d6e" textLength="100.8" lengthAdjust="spacingAndGlyphs"> 搜索内容 / </text>
 <rect x="114.8" y="638" width="8.4" height="18" fill="#f7f8fa"/>
 <text x="123.2" y="651.5" fill="#0b3d6e" textLength="67.2" lengthAdjust="spacingAndGlyphs"> 详情 d </text>

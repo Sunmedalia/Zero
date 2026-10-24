@@ -9,8 +9,9 @@ impl Windows<'_> {
         }
         let vm = self.process_memory(p)?;
         let native = (|| -> Result<u64> {
-            let peb = self.number(p.address, "_EPROCESS", "Peb")?;
-            ensure!(peb != 0, "PEB 不存在");
+            let Some(peb) = self.peb(p)? else {
+                return Ok(0);
+            };
             let params = vm.number(peb, "_PEB", "ProcessParameters")?;
             ensure!(params != 0, "ProcessParameters 不存在");
             vm.number(params, "_RTL_USER_PROCESS_PARAMETERS", "Environment")

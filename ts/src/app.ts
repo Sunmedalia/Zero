@@ -55,7 +55,10 @@ import {
   type InputKind,
   type PageTab,
   type PendingWork,
+  detectedSystem,
+  shownSystem,
 } from './state.js';
+import type { ResultOrigin } from './state.js';
 import {
   actionOf,
   assetActions,
@@ -100,7 +103,17 @@ import {
   pickerFilter,
   type KeyLike,
 } from './dialogs.js';
-import { failureStatus, formatAddress, formatAge, mib, parseAddress, progressPercent, shortPlugin } from './format.js';
+import {
+  diagnosticStatus,
+  failureStatus,
+  formatAddress,
+  formatAge,
+  mib,
+  originLabel,
+  parseAddress,
+  progressPercent,
+  shortPlugin,
+} from './format.js';
 
 /** Remote catalog rows fetched per search; the engine reports the full count. */
 const CATALOG_LIMIT = 500;
@@ -321,7 +334,7 @@ export class App {
       'matchLocal',
       (progress) =>
         this.engine.matchLocal(this.state.image as string, paths, progress),
-      (reply) => {
+      async (reply) => {
         this.applyIdentification(reply.banner);
         this.state.results.set('banners', reply.banner);
         // One file can contain several ISFs, so labels are grouped per path
@@ -346,6 +359,8 @@ export class App {
           this.state.lastError = reply.diagnostics.join('\n');
         }
         this.applyLocalPreparation();
+        // The identification is now bound to the image; show it in the list.
+        await this.refreshAssets();
       },
     );
   }
@@ -401,27 +416,20 @@ export class App {
     if (this.state.analysisOptions.os !== 'auto') {
       return '保留手动系统选择';
     }
-    const windows =
-      banner.system === 'windows' || banner.rows.some((row) => (row[1] ?? '').startsWith('Windows PDB '));
-    const linux =
-      banner.rows.some((row) => (row[1] ?? '').startsWith('Linux version ')) ||
-      (banner.system === 'linux' && banner.rows.length > 0);
-    if (windows) {
-      return '自动识别 Windows · 已切换插件列表';
+    const detected = detectedSystem(banner);
+    if (detected === 'windows') {
+      return '自动识别 Windows · 已切换到 Windows 插件';
     }
-    if (linux) {
-      return '自动识别 Linux · 已切换插件列表';
+    if (detected === 'linux') {
+      return '自动识别 Linux · 已切换到 Linux 插件';
     }
     return '未识别系统 · 可手动选择 Linux / Windows';
   }
 
   applyIdentification(banner: Results): void {
-    const detectedWindows =
-      banner.system === 'windows' || banner.rows.some((row) => (row[1] ?? '').startsWith('Windows PDB '));
-    const detectedLinux =
-      banner.rows.some((row) => (row[1] ?? '').startsWith('Linux version ')) ||
-      (banner.system === 'linux' && banner.rows.length > 0);
-    if (this.state.analysisOptions.os === 'auto' && !detectedWindows && !detectedLinux) {
+    const detected = detectedSystem(banner);
+    const detectedWindows = detected === 'windows';
+    if (this.state.analysisOptions.os === 'auto' && detected === null) {
       return;
     }
     const windows =
@@ -704,9 +712,6 @@ export class App {
         };
     this.state.plugin = plugin;
     const descriptor = pluginDescriptor(this.state, plugin);
-    if (!descriptor?.dump) {
-      this.addPluginTab(plugin);
-    }
     if (plugin !== 'windows.printkey') {
       this.state.analysisOptions.hive = null;
       this.state.analysisOptions.key = '';
@@ -726,7 +731,9 @@ export class App {
     const cached = this.state.results.get(plugin);
     this.state.focus = 'content';
     this.state.status = cached
-      ? `${pluginLabel(descriptor, plugin)} · ${cached.rows.length} 条 · ${cached.complete ? '完整' : '部分'} · ${cached.diagnostics.length} 条诊断（v）`
+      ? `${pluginLabel(descriptor, plugin)} · ${cached.rows.length} 条 · 本次会话已加载，未重新运行（r 重新分析） · ${
+          cached.complete ? '完整' : '部分'
+        }${diagnosticStatus(cached.diagnostics)}`
       : '已选择插件；检查参数后按 Ctrl+R 运行';
     if (descriptor?.dump) {
       this.openDump(plugin, false);
@@ -736,6 +743,9 @@ export class App {
 
   async activatePlugin(plugin: string): Promise<void> {
     this.selectPlugin(plugin);
+    if (!pluginDescriptor(this.state, plugin)?.dump) {
+      this.addPluginTab(plugin);
+    }
     this.state.focus = 'content';
     if (pluginDescriptor(this.state, plugin)?.dump) {
       return;
@@ -816,12 +826,14 @@ export class App {
     this.emit();
     let cancelled = false;
     try {
+      // Progress still queued for the next tick is older than the reply, so it
+      // is flushed first; otherwise it would overwrite the result's status.
       const value = await start((event) => {
         if (event.message !== undefined) {
           this.queuedProgress.push(event.message);
           this.scheduleTick();
         }
-      });
+      }).finally(() => this.flushProgress());
       if (this.state.cancelled) {
         cancelled = true;
       } else {
@@ -1033,6 +1045,7 @@ export class App {
       this.state.historyRevision += 1;
       this.state.history = null;
       const dump = this.state.dumpOptions?.plugin === this.state.plugin ? this.state.dumpOptions : null;
+      const started = Date.now();
       await this.runTask(
         pluginLabel(pluginDescriptor(this.state, this.state.plugin), this.state.plugin),
         (progress) =>
@@ -1052,7 +1065,7 @@ export class App {
             },
             progress,
           ),
-        (reply: AnalyzeReply) => this.applyAnalysisReply(reply),
+        (reply: AnalyzeReply) => this.applyAnalysisReply(reply, (Date.now() - started) / 1000),
       );
       return;
     }
@@ -1076,10 +1089,11 @@ export class App {
         return;
       case 'catalog':
         await this.fetchRemote({
-          image: this.state.windows ? this.state.image : null,
+          image: this.state.windows && work.localOnly !== true ? this.state.image : null,
           catalog: true,
           query: work.query ?? '',
           refresh: work.refresh === true,
+          localOnly: work.localOnly === true,
         });
         return;
       case 'download':
@@ -1161,7 +1175,7 @@ export class App {
     this.state.dumpOptions = viewing.dump;
   }
 
-  private applyAnalysisReply(reply: AnalyzeReply): void {
+  private applyAnalysisReply(reply: AnalyzeReply, seconds: number): void {
     if (reply.choose) {
       this.state.symbolRetry = this.state.activeRequest?.snapshot ?? null;
       this.state.status = '多个匹配 ISF，必须选择';
@@ -1173,11 +1187,15 @@ export class App {
       return;
     }
     this.state.lastError = null;
-    this.state.status = `${analyzed.plugin} · ${analyzed.rows.length} 条 · ${
-      analyzed.complete ? '完整' : '部分结果 / 未缓存'
-    }${
-      analyzed.diagnostics.length > 0 ? ` · ${analyzed.diagnostics.length} 条诊断（v 查看）` : ''
-    }`;
+    const origin: ResultOrigin = {
+      source: reply.source === 'cache' ? 'cache' : 'fresh',
+      seconds,
+      prepared: reply.prepared === true,
+    };
+    this.state.origins.set(analyzed, origin);
+    this.state.status = `${analyzed.plugin} · ${analyzed.rows.length} 条 · ${originLabel(origin)} · ${
+      analyzed.complete ? '完整' : '部分（未写入缓存）'
+    }${diagnosticStatus(analyzed.diagnostics)}`;
     const execution = this.state.activeRequest;
     const viewing =
       this.state.history === null &&
@@ -1202,6 +1220,7 @@ export class App {
     query?: string;
     refresh?: boolean;
     matched?: boolean;
+    localOnly?: boolean;
   }): Promise<void> {
     if (options.catalog) {
       this.state.remoteCatalog = true;
@@ -1217,6 +1236,7 @@ export class App {
             query: options.query ?? '',
             refresh: options.refresh === true,
             ...(options.catalog ? { limit: CATALOG_LIMIT } : {}),
+            ...(options.localOnly ? { local_only: true } : {}),
           },
           progress,
         ),
@@ -1227,6 +1247,13 @@ export class App {
         if (reply.index) {
           this.state.remoteIndex = reply.index;
         }
+        if (reply.catalog) {
+          this.state.remoteLoaded = true;
+        }
+        if (options.localOnly && !reply.index) {
+          this.state.status = '尚未获取远程索引；g 获取（需在线，获取后保存在本地，下次直接使用）';
+          return;
+        }
         this.state.assetRows[2] = Math.min(
           this.state.assetRows[2],
           Math.max(remoteList(this.state).length - 1, 0),
@@ -1235,7 +1262,7 @@ export class App {
           const total = this.state.remoteTotal;
           const shown = total > reply.matches.length ? `显示前 ${reply.matches.length} / ${total} 项` : `${total} 项`;
           const index = reply.index
-            ? ` · 索引 ${reply.index.entries} 条 Linux x86_64/ARM64 · 更新于 ${formatAge(reply.index.age_seconds)}`
+            ? ` · 本地已保存索引 ${reply.index.entries} 条 Linux x86_64/ARM64 · 更新于 ${formatAge(reply.index.age_seconds)}（r 重新获取）`
             : '';
           const query = options.query ? `「${options.query}」` : '';
           this.state.status = total === 0 && query !== ''
@@ -1397,6 +1424,11 @@ export class App {
       this.state.symbolSource = section;
     }
     await this.refreshAssets();
+    if (section === 'remote' && !this.state.remoteLoaded && !this.state.busy && this.state.remote.length === 0) {
+      // Show the index saved by an earlier session without any network access.
+      this.state.remoteLoaded = true;
+      await this.runWork({ kind: 'catalog', query: this.state.assetQueries[2], refresh: false, localOnly: true });
+    }
   }
 
   toggleSource(): void {
@@ -1410,11 +1442,9 @@ export class App {
     await this.switchSection('remote');
     this.state.remoteCatalog = true;
     this.state.assetQueries[2] = '';
-    await this.runWork({
-      kind: 'catalog',
-      query: '',
-      refresh: this.state.settings.remote_symbols,
-    });
+    // The saved index is reused; the engine downloads only when none is saved.
+    // `r` re-downloads explicitly.
+    await this.runWork({ kind: 'catalog', query: '', refresh: false });
   }
 
   async downloadCandidate(): Promise<void> {
@@ -1788,7 +1818,7 @@ export class App {
       '打开导出记录',
       (progress) => this.engine.record(record.key, progress),
       ({ result: loaded }) => {
-        this.showHistory(loaded);
+        this.showHistory(loaded, `record:${record.key}`);
         this.state.status = `导出记录：${shortPlugin(record.plugin)} · ${record.rows} 条 · 历史内容，未重新验证镜像`;
       },
     );
@@ -2277,7 +2307,11 @@ export class App {
     }
     for (const system of layout.systemHits) {
       if (inside(system.rect, x, y)) {
-        await this.selectOs(system.os);
+        // The chip of the system already shown (chosen or detected) is a no-op;
+        // re-selecting it would only discard the session's results.
+        if (shownSystem(state) !== system.os) {
+          await this.selectOs(system.os);
+        }
         return;
       }
     }
@@ -2435,19 +2469,50 @@ export class App {
   /* Opened page tabs                                                  */
   /* ---------------------------------------------------------------- */
 
+  /**
+   * Open `plugin` in a tab. An open plugin keeps its one tab. Otherwise a tab
+   * that never showed anything (selected, then superseded or cancelled before
+   * a result) is reused in place, so passing through plugins while a long
+   * analysis runs does not leave a trail of empty tabs.
+   */
   private addPluginTab(plugin: string): void {
-    if (!this.state.openTabs.some((tab) => tab.kind === 'plugin' && tab.plugin === plugin)) {
-      this.state.openTabs.push({ kind: 'plugin', plugin });
+    const tabs = this.state.openTabs;
+    if (tabs.some((tab) => tab.kind === 'plugin' && tab.plugin === plugin)) {
+      return;
+    }
+    const empty = tabs.findIndex((tab) => tab.kind === 'plugin' && !this.tabLoaded(tab.plugin));
+    if (empty >= 0) {
+      tabs[empty] = { kind: 'plugin', plugin };
+    } else {
+      tabs.push({ kind: 'plugin', plugin });
     }
   }
 
-  /** Show a loaded historical export in a tab of its own. */
-  private showHistory(loaded: Results): void {
+  /** Whether a plugin tab has a result to show or an analysis in flight. */
+  private tabLoaded(plugin: string): boolean {
+    if (this.state.busy && this.state.activeRequest?.plugin === plugin) {
+      return true;
+    }
+    for (const key of this.state.results.keys()) {
+      if (key === plugin || key.startsWith(`${plugin}:`)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /** Show a loaded historical export; the same record or file reuses its tab. */
+  private showHistory(loaded: Results, source: string): void {
     this.saveView();
     this.state.historyRevision += 1;
     this.state.history = loaded;
-    this.state.tabSerial += 1;
-    this.state.openTabs.push({ kind: 'history', id: this.state.tabSerial, label: shortPlugin(loaded.plugin), result: loaded });
+    const tab = { kind: 'history' as const, source, label: shortPlugin(loaded.plugin), result: loaded };
+    const existing = this.state.openTabs.findIndex((entry) => entry.kind === 'history' && entry.source === source);
+    if (existing >= 0) {
+      this.state.openTabs[existing] = tab;
+    } else {
+      this.state.openTabs.push(tab);
+    }
     this.state.page = 'analysis';
     this.state.inspector = false;
     this.resetView();
@@ -3546,7 +3611,7 @@ export class App {
             '加载导出记录',
             (progress) => this.engine.history(path, progress),
             ({ result: loaded }) => {
-              this.showHistory(loaded);
+              this.showHistory(loaded, `file:${path}`);
               this.state.status = '导出记录：历史内容，未重新验证镜像';
             },
           );

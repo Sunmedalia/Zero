@@ -11,6 +11,7 @@ import type { Dialog, AppState } from '../state.js';
 import {
   activeTab,
   assetListFor,
+  shownSystem,
   cacheItems,
   cacheScopes,
   cacheSelection,
@@ -54,7 +55,7 @@ import {
 } from '../text.js';
 import { preparationBadge } from '../components.js';
 import { dumpModes, inputTitle, parameterFields } from '../dialogs.js';
-import { entryBadge, formatBytes, formatTime, resultState, shortPlugin } from '../format.js';
+import { entryBadge, formatBytes, formatTime, originLabel, resultState, shortPlugin } from '../format.js';
 import { assetDetailText, remoteDetailText, rowDetailText } from '../detail.js';
 import { fullDigest, space } from '../layout.js';
 
@@ -83,29 +84,16 @@ export function paintTabs(canvas: Canvas, app: App, layout: Layout): void {
       tab.rect.width,
     );
   });
-  // Opened pages: the shown one joins the body surface below it, like a
-  // browser tab; the others stay on the strip.
-  const shown = activeTab(state);
-  let end = layout.pageTabsArea.x;
-  for (const tab of layout.pageTabs) {
-    end = tab.rect.x + tab.rect.width;
-    if (tab.kind !== 'tab') {
-      canvas.write(tab.rect.x, tab.rect.y, tab.label, { color: ACCENT, background: RAISED }, tab.rect.width);
-      continue;
-    }
-    const active = tab.index === shown;
-    const background = active ? SURFACE : RAISED;
-    const history = state.openTabs[tab.index]?.kind === 'history';
-    canvas.write(tab.rect.x, tab.rect.y, tab.label,
-      { color: active ? FOCUS : history ? WARN : MUTED, background, bold: active }, tab.rect.width - 1);
-    canvas.write(tab.rect.x + tab.rect.width - 1, tab.rect.y, '×',
-      { color: active ? TEXT : BORDER, background }, 1);
-  }
   const pulse = state.busy ? ['●··', '·●·', '··●', '·●·'][Math.floor(Date.now() / 180) % 4] : null;
-  const right = pulse ? `运行中 ${pulse} ` : layout.pageTabs.length === 0 ? 'ZERO · 内存取证 ' : '';
-  const x = layout.systems.x - width(right) - 1;
-  if (right !== '' && x > end + 1) {
-    canvas.write(x, 0, right, { color: pulse ? ACCENT : MUTED, background: RAISED }, width(right));
+  const right = pulse ? `运行中 ${pulse} ` : 'ZERO · 内存取证 ';
+  if (layout.columns > width(right) + 56) {
+    canvas.write(
+      layout.columns - width(right),
+      0,
+      right,
+      { color: pulse ? ACCENT : MUTED, background: RAISED },
+      width(right),
+    );
   }
 }
 
@@ -135,14 +123,14 @@ export function paintSystems(canvas: Canvas, app: App, layout: Layout): void {
   const labels: { text: string; os: 'linux' | 'windows' | 'auto' }[] = [
     { text: ' Linux ', os: 'linux' },
     { text: ' Windows ', os: 'windows' },
-    { text: ' 自动 ', os: 'auto' },
   ];
+  const system = shownSystem(state);
   for (const hit of layout.systemHits) {
     const label = labels.find((entry) => entry.os === hit.os);
     if (!label) {
       continue;
     }
-    const active = state.analysisOptions.os === hit.os;
+    const active = system === hit.os;
     canvas.fill(hit.rect.x, hit.rect.y, hit.rect.width, 1, {
       background: active ? SELECTED_BG : RAISED,
     });
@@ -165,9 +153,9 @@ export function paintAnalysisHeader(canvas: Canvas, app: App, layout: Layout): v
   const state = app.state;
   const image = layout.headerImage;
   const symbol = layout.headerSymbol;
-  const system = state.analysisOptions.os === 'auto'
-    ? '自动'
-    : state.analysisOptions.os === 'windows' ? 'Windows' : 'Linux';
+  const shown = shownSystem(state);
+  const name = shown === 'windows' ? 'Windows' : shown === 'linux' ? 'Linux' : '系统未识别';
+  const system = state.analysisOptions.os === 'auto' && shown !== null ? `${name}（自动识别）` : name;
   const prefix = `${state.focus === 'context' ? '›' : ' '} ${system} · 镜像 `;
   canvas.fill(0, layout.header.y, layout.columns, 1, { background: RAISED });
   canvas.write(image.x, image.y, prefix, { color: MUTED, background: RAISED }, image.width);
@@ -208,6 +196,19 @@ export function paintFooter(canvas: Canvas, app: App, layout: Layout): void {
     bold: true,
   });
   x += canvas.write(x, layout.status.y, '│ ', { color: BORDER });
+  // How the shown result was obtained stays visible while other messages
+  // replace the status text.
+  const shown = state.page === 'analysis' && !state.busy ? result(state) : null;
+  const origin = shown && !shown.historical ? state.origins.get(shown) : undefined;
+  if (origin) {
+    const cached = origin.source === 'cache';
+    x += canvas.write(x, layout.status.y, cached ? ' 缓存读取 ' : ' 重新分析 ', {
+      color: SURFACE,
+      background: cached ? SUCCESS : ACCENT,
+      bold: true,
+    });
+    x += canvas.write(x, layout.status.y, ' ', {});
+  }
   canvas.write(x, layout.status.y, escaped(app.statusText()), { color }, layout.columns - x);
 
   for (const button of layout.buttons) {
@@ -318,7 +319,8 @@ export function paintPane(canvas: Canvas, app: App, pane: PaneLayout): void {
         canvas.write(entry.rect.x + 2, entry.rect.y + index, text, {
           color: line.kind === 'name' ? (asset.available ? TEXT : MUTED)
             : line.kind === 'metadata' && !asset.available ? DANGER
-              : line.kind === 'metadata' && active ? SUCCESS : MUTED,
+              : line.kind === 'metadata' && active ? SUCCESS
+                : line.kind === 'identity' ? ACCENT : MUTED,
           bold: line.kind === 'name', background,
         }, Math.max(entry.rect.width - 2, 0));
       });
@@ -441,6 +443,25 @@ export function paintMenu(canvas: Canvas, app: App, layout: Layout): void {
   });
 }
 
+/** Opened pages as tabs on the table's top border; the shown one is highlighted. */
+function paintPageTabs(canvas: Canvas, app: App, layout: Layout): void {
+  const state = app.state;
+  const shown = activeTab(state);
+  for (const tab of layout.pageTabs) {
+    if (tab.kind !== 'tab') {
+      canvas.write(tab.rect.x, tab.rect.y, tab.label, { color: ACCENT }, tab.rect.width);
+      continue;
+    }
+    const active = tab.index === shown;
+    const background = active ? SELECTED_BG : RAISED;
+    const history = state.openTabs[tab.index]?.kind === 'history';
+    canvas.write(tab.rect.x, tab.rect.y, tab.label,
+      { color: active ? FOCUS : history ? WARN : MUTED, background, bold: active }, tab.rect.width - 1);
+    canvas.write(tab.rect.x + tab.rect.width - 1, tab.rect.y, '×',
+      { color: active ? TEXT : BORDER, background }, 1);
+  }
+}
+
 export function paintContent(canvas: Canvas, app: App, layout: Layout): void {
   if (!layout.content) {
     return;
@@ -458,17 +479,21 @@ export function paintContent(canvas: Canvas, app: App, layout: Layout): void {
     ? ` ${shortPlugin(current.plugin)} · ${resultState(current)} `
     : ` ${app.shortPlugin()} `;
   const box = frameInner(layout.content);
+  const origin = current ? state.origins.get(current) : undefined;
   const summary = current
     ? box.width >= 40
       ? ` ${index.filtered.length} / ${current.rows.length} 条 · 显示 ${
           index.visible.length === 0 ? 0 : layout.pageStart + 1
-        }–${Math.min(layout.pageStart + layout.pageSize, index.visible.length)} 行 `
+        }–${Math.min(layout.pageStart + layout.pageSize, index.visible.length)} 行${
+          origin && box.width >= 72 ? ` · ${originLabel(origin)}` : ''
+        } `
       : ` ${index.filtered.length} / ${current.rows.length} 条 `
     : undefined;
-  paintFrame(canvas, layout.content, title, {
+  paintFrame(canvas, layout.content, layout.pageTabs.length > 0 ? undefined : title, {
     color: state.focus === 'content' ? ACCENT : BORDER,
     subtitle: summary,
   });
+  paintPageTabs(canvas, app, layout);
   if (!current) {
     paintEmpty(
       canvas,
@@ -1016,7 +1041,9 @@ function paintDialogBody(canvas: Canvas, app: App, dialog: Dialog, popup: Rect):
             ? '远程符号详情 · ↑↓ 滚动 · Esc 返回'
             : '详情 · ↑↓ / PgUp PgDn · Esc 关闭',
       );
-      const lines = wrapLines(text, box.width).slice(dialog.scroll, dialog.scroll + box.height);
+      // The remote detail keeps its last two rows for the download chips.
+      const rows = dialog.kind === 'remoteDetail' ? Math.max(box.height - 2, 1) : box.height;
+      const lines = wrapLines(text, box.width).slice(dialog.scroll, dialog.scroll + rows);
       lines.forEach((line, index) => {
         canvas.write(box.x, box.y + index, escaped(line), { color: TEXT, background: SURFACE }, box.width);
       });

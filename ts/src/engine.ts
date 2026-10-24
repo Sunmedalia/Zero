@@ -67,7 +67,14 @@ export interface Engine {
   identify(image: string, progress: TaskProgress): Promise<{ banner: Results }>;
   matchLocal(image: string, paths: string[], progress: TaskProgress): Promise<MatchLocalReply>;
   remote(
-    args: { image?: string | null; query?: string; refresh?: boolean; catalog?: boolean; limit?: number },
+    args: {
+      image?: string | null;
+      query?: string;
+      refresh?: boolean;
+      catalog?: boolean;
+      limit?: number;
+      local_only?: boolean;
+    },
     progress: TaskProgress,
   ): Promise<RemoteReply>;
   download(

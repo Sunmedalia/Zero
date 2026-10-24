@@ -118,6 +118,9 @@ impl Windows<'_> {
     }
     /// windows.iat: the import table of each process's main image.
     pub(super) fn iat(&self, p: &Process, r: &mut Results, job: &Job) -> Result<()> {
+        if p.pid <= 4 || self.peb(p)?.is_none() {
+            return Ok(());
+        }
         let vm = self.process_memory(p)?;
         let (base, ..) = self
             .dlls_partial(p, job, None)?

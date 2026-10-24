@@ -23,6 +23,7 @@ import { actionOf, cacheToolbarActions, commandMatches, footerActions, toolbarAc
 import { rowDetailText } from './detail.js';
 import { menuLength as menuLengthOf, pluginMatches } from './state.js';
 import { cellWidth, truncate, wrapLines } from './text.js';
+import { resultState } from './format.js';
 
 export interface Rect {
   x: number;
@@ -213,9 +214,9 @@ export interface Layout {
   buttons: ButtonLayout[];
   /** Clickable tabs, systems, sources and regions. */
   tabsHits: { rect: Rect; page: Page }[];
-  /** Opened result pages between the page tabs and the system picker. */
+  /** Opened result pages, drawn on the result table's top border. */
   pageTabs: PageTabHit[];
-  /** Columns the tab strip may use, so the chrome can fill the rest. */
+  /** Border columns the tab strip may use. */
   pageTabsArea: Rect;
   systemHits: { rect: Rect; os: 'auto' | 'linux' | 'windows' }[];
   sourceHits: { rect: Rect; section: Section }[];
@@ -228,12 +229,7 @@ export interface Layout {
 export function computeLayout(state: AppState, columns: number, rows: number): Layout {
   const layout = space(columns, rows);
   const tabs = rect(0, 0, columns, 1);
-  // The system picker (or the narrow region switcher) sits at the right end
-  // of the first row, leaving the middle to the opened-page tabs.
-  const narrow = state.page === 'analysis' && !twoPanes(layout);
-  const pickerWidth = narrow ? 12 : cellWidth(' Linux ') + cellWidth(' Windows ') + cellWidth(' 自动 ');
-  const pickerX = Math.max(columns - pickerWidth, 0);
-  const systems = rect(pickerX, 0, columns - pickerX, 1);
+  const systems = rect(29, 0, Math.max(columns - 29, 0), 1);
   const headerHeight = 1;
   const header = rect(0, 1, columns, headerHeight);
   const footerHeight = 2;
@@ -287,21 +283,20 @@ export function computeLayout(state: AppState, columns: number, rows: number): L
     tabX += cellWidth(label) + 1;
     return hit;
   });
-  base.pageTabsArea = rect(tabX, 0, Math.max(pickerX - 1 - tabX, 0), 1);
-  layoutPageTabs(base, state);
-  if (narrow) {
+  if (state.page === 'analysis' && !twoPanes(layout)) {
     // Narrow analysis layouts replace the system picker with region tabs, so
     // the only visible control stays reachable.
     base.regionHits = [
-      { rect: rect(pickerX, 0, 6, 1), focus: 'navigation' },
-      { rect: rect(pickerX + 6, 0, 6, 1), focus: 'content' },
+      { rect: rect(29, 0, 6, 1), focus: 'navigation' },
+      { rect: rect(35, 0, 6, 1), focus: 'content' },
     ];
   } else {
-    const start = pickerX;
-    const labels: { os: 'linux' | 'windows' | 'auto'; text: string }[] = [
+    const start = 29;
+    // Automatic detection has no chip of its own: the detected system's chip
+    // is shown active, and `S` can return to automatic detection.
+    const labels: { os: 'linux' | 'windows'; text: string }[] = [
       { os: 'linux', text: ' Linux ' },
       { os: 'windows', text: ' Windows ' },
-      { os: 'auto', text: ' 自动 ' },
     ];
     let x = start;
     for (const label of labels) {
@@ -320,6 +315,7 @@ export function computeLayout(state: AppState, columns: number, rows: number): L
     layoutCache(base, state);
   } else {
     layoutAnalysis(base, state, layout);
+    layoutPageTabs(base, state);
   }
   layoutScrollbars(base, state);
   layoutActions(base, state);
@@ -333,14 +329,25 @@ export function computeLayout(state: AppState, columns: number, rows: number): L
  * is shown with `‹n` / `n›` chips that step to the hidden neighbours.
  */
 function layoutPageTabs(base: Layout, state: AppState): void {
+  if (!base.content) {
+    return;
+  }
+  // The strip replaces the table title on its top border, after "╭─".
+  base.pageTabsArea = rect(base.content.x + 2, base.content.y, Math.max(base.content.width - 4, 0), 1);
   const area = base.pageTabsArea;
   const tabs = state.openTabs;
   if (tabs.length === 0 || area.width < TAB_TITLE_MIN + 4) {
     return;
   }
-  const titles = tabs.map(tabLabel);
+  // The shown tab also carries the result state the title used to show.
+  const shown = activeTab(state);
+  const current = result(state);
+  const titles = tabs.map((tab, index) =>
+    index === shown && current ? `${tabLabel(tab)} · ${resultState(current)}` : tabLabel(tab));
+  const widest = (index: number, budget: number) =>
+    index === shown ? Math.max(budget, Math.min(cellWidth(titles[index]!), TAB_TITLE_MAX + 8)) : budget;
   // A tab is " title ×" plus a one-cell gap: title + 4 cells.
-  const span = (index: number, budget: number) => Math.min(cellWidth(titles[index]!), budget) + 4;
+  const span = (index: number, budget: number) => Math.min(cellWidth(titles[index]!), widest(index, budget)) + 4;
   const total = (budget: number, from = 0, to = tabs.length) => {
     let cells = 0;
     for (let index = from; index < to; index += 1) cells += span(index, budget);
@@ -371,22 +378,22 @@ function layoutPageTabs(base: Layout, state: AppState): void {
   }
   let x = area.x;
   if (first > 0) {
-    base.pageTabs.push({ rect: rect(x, 0, chip - 1, 1), close: null, index: first - 1, label: truncate(` ‹${first}`, chip - 1), kind: 'before' });
+    base.pageTabs.push({ rect: rect(x, area.y, chip - 1, 1), close: null, index: first - 1, label: truncate(` ‹${first}`, chip - 1), kind: 'before' });
     x += chip;
   }
   for (let index = first; index < last; index += 1) {
-    const name = truncate(titles[index]!, budget);
+    const name = truncate(titles[index]!, widest(index, budget));
     const cells = cellWidth(name) + 3;
     if (x + cells > area.x + area.width) {
       last = index;
       break;
     }
-    base.pageTabs.push({ rect: rect(x, 0, cells, 1), close: rect(x + cells - 1, 0, 1, 1), index, label: ` ${name} `, kind: 'tab' });
+    base.pageTabs.push({ rect: rect(x, area.y, cells, 1), close: rect(x + cells - 1, area.y, 1, 1), index, label: ` ${name} `, kind: 'tab' });
     x += cells + 1;
   }
   const hidden = tabs.length - last;
   if (hidden > 0 && x + chip - 1 <= area.x + area.width) {
-    base.pageTabs.push({ rect: rect(x, 0, chip - 1, 1), close: null, index: last, label: truncate(` ${hidden}›`, chip - 1), kind: 'after' });
+    base.pageTabs.push({ rect: rect(x, area.y, chip - 1, 1), close: null, index: last, label: truncate(` ${hidden}›`, chip - 1), kind: 'after' });
   }
 }
 
@@ -735,6 +742,26 @@ function layoutDialogButtons(base: Layout, state: AppState, dialog: Dialog, popu
       base.buttons.push({ rect: rect(popup.x + 1, popup.y + popup.height - 3, 6, 1), key: 'Enter', action: '确认' });
       base.buttons.push({ rect: rect(popup.x + 8, popup.y + popup.height - 3, 6, 1), key: 'Esc', action: '取消' });
       return;
+    case 'remoteDetail': {
+      // Download actions as chips on the bottom border, Esc at the right.
+      const chips = [
+        state.image === null ? null : { key: ' ', action: '下载并选用 Space' },
+        { key: 'w', action: '仅下载 w' },
+        state.downloads.has(dialog.candidate.url) ? { key: 'L', action: '本地库查看 L' } : null,
+      ].filter((chip) => chip !== null);
+      let x = inner.x + 1;
+      const y = popup.y + popup.height - 2;
+      const right = popup.x + popup.width - 10;
+      for (const chip of chips) {
+        const cells = cellWidth(chip.action) + 2;
+        if (x + cells > right) {
+          break;
+        }
+        base.buttons.push({ rect: rect(x, y, cells, 1), key: chip.key, action: chip.action });
+        x += cells + 1;
+      }
+      break;
+    }
     default:
       break;
   }

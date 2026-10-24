@@ -9,8 +9,8 @@ import type { AppState } from './state.js';
 import { ACTIONS, assetActions, footerActions } from './actions.js';
 import { pluginDescriptor, pluginMatches, selectedAsset, result, viewIndex, visibleRow } from './state.js';
 import type { Asset, RemoteMatch, Results } from './types.js';
-import { escaped, mib } from './text.js';
-import { resultState } from './format.js';
+import { escaped, mib, width } from './text.js';
+import { DIAGNOSTIC_KINDS, diagnosticCounts, diagnosticKind, resultState } from './format.js';
 
 /** Escape evidence fields independently so structural line breaks stay readable. */
 export function rowDetailText(state: AppState): string {
@@ -34,6 +34,16 @@ export function assetDetailText(state: AppState, asset: Asset): string {
     '',
     'Space 选用 · Enter 进入分析控制台 · d 详情 · Delete 移出清单（保留文件）',
   ];
+  if (asset.kind === 'image') {
+    const identity = asset.identity;
+    lines.push(
+      '',
+      identity
+        ? `已识别 ${identity.system === 'linux' ? 'Linux' : 'Windows'} 内核（与此镜像绑定；文件变化后需重新识别，分析时仍校验完整摘要）:`
+        : '尚未识别：首次选用时扫描内核 banner／PDB 签名，结果与此镜像绑定，再次选用无需重新扫描。',
+      ...(identity?.kernels.map(escaped) ?? []),
+    );
+  }
   if (asset.kind === 'symbols') {
     const labels = state.localMatches.get(asset.path);
     if (labels) {
@@ -65,6 +75,28 @@ export function assetDetailText(state: AppState, asset: Asset): string {
 }
 
 /** Text of the remote candidate detail modal. */
+/**
+ * Fields a reader looks for in a remote entry, read from its banner and file
+ * name (`Ubuntu_5.4.0-1098-kvm_5.4.0-1098.104_amd64.json.xz`). Only Linux
+ * banners have this shape; anything else yields no fields.
+ */
+export function remoteFields(candidate: RemoteMatch): [string, string][] {
+  if (!candidate.banner.startsWith('Linux version ')) {
+    return [];
+  }
+  const file = candidate.path.split('/').at(-1) ?? candidate.path;
+  const parts = file.replace(/\.json(\.xz)?$/u, '').split('_');
+  const compiler = /\(((?:gcc|clang)[^()]*(?:\([^()]*\))?[^()]*)\)/u.exec(candidate.banner)?.[1];
+  const build = /#\d+\S*.*$/u.exec(candidate.banner)?.[0];
+  const fields: [string, string][] = [];
+  if (parts.length >= 3) fields.push(['发行版', parts[0] as string]);
+  fields.push(['内核版本', candidate.banner.split(/\s+/u)[2] ?? '']);
+  if (parts.length >= 3) fields.push(['架构', parts.at(-1) as string]);
+  if (compiler) fields.push(['编译器', compiler.trim()]);
+  if (build) fields.push(['构建', build.trim()]);
+  return fields;
+}
+
 export function remoteDetailText(state: AppState, candidate: RemoteMatch): string {
   const saved = state.downloads.get(candidate.url);
   const status =
@@ -73,18 +105,28 @@ export function remoteDetailText(state: AppState, candidate: RemoteMatch): strin
       : saved
         ? '已保存到本地库'
         : '尚未下载';
+  const fields: [string, string][] = [
+    ...remoteFields(candidate),
+    ['状态', status],
+    ['保存位置', saved ?? state.settings.symbols],
+  ];
+  const label = Math.max(...fields.map(([name]) => width(name)));
+  const actions = [
+    state.image === null ? null : 'Space 下载并选用（按当前镜像校验 banner）',
+    'w 仅下载到本地库',
+    saved ? 'L 在本地库中查看' : null,
+  ].filter((entry) => entry !== null);
   return [
-    `完整 banner: ${escaped(candidate.banner)}`,
+    ...fields.map(([name, value]) => `${name}${' '.repeat(label - width(name))}  ${escaped(value)}`),
     '',
-    `仓库路径: ${escaped(candidate.path)}`,
+    '完整 banner',
+    escaped(candidate.banner),
     '',
-    `下载链接: ${escaped(candidate.url)}`,
+    `文件  ${escaped(candidate.path.split('/').at(-1) ?? candidate.path)}`,
+    `链接  ${escaped(candidate.url)}`,
     '',
-    `状态: ${status}`,
-    `保存位置: ${saved ? escaped(saved) : state.settings.symbols}`,
-    '',
-    escaped(state.status),
-    state.lastError ? escaped(state.lastError) : '',
+    `操作：${actions.join(' · ')}`,
+    ...(state.lastError ? ['', escaped(state.lastError)] : []),
   ].join('\n');
 }
 
@@ -93,10 +135,10 @@ export function helpText(): string {
   const lines = [
     'ZERO 取证工作台',
     '',
-    '1 资源库 · 2 分析 · 3 缓存 · S 自动/Linux/Windows · R 运行 · ? 命令面板 · Ctrl+←/→ 切换页面',
+    '1 资源库 · 2 分析 · 3 缓存 · S 自动识别/Linux/Windows · R 运行 · ? 命令面板 · Ctrl+←/→ 切换页面',
     'Tab / Shift+Tab 切换区域；↑↓ 或 j/k 导航；PgUp/PgDn/Home/End 翻页',
     '',
-    '默认进入分析工作台；i 选择镜像，准备完成后 R 运行插件。',
+    '启动时进入资源库；Space 选用镜像，Enter 进入分析，准备完成后 R 运行插件。',
     '80×24 按区域切换；120×35 双栏；160 列且 28 行起详情使用右侧栏。',
     'd 查看行字段，方向键／PgUp／PgDn 滚动，d／Esc 关闭；Enter 查看结果与诊断。',
     '',
@@ -150,9 +192,27 @@ export function logText(logs: string[]): string {
 
 /** Diagnostics modal body for the active result. */
 export function diagnosticsText(current: Results): string {
-  return current.diagnostics.length === 0
-    ? '没有诊断；结果完整。'
-    : current.diagnostics.map(escaped).join('\n\n');
+  if (current.diagnostics.length === 0) {
+    return '没有诊断；结果完整。';
+  }
+  const lines = [
+    `${current.diagnostics.length} 条诊断。表中每一行都来自已读取并通过校验的对象；诊断列出无法读取或前后矛盾、因此没有列出的部分，所以结果标为“部分”，也不写入成功缓存。`,
+    '',
+  ];
+  for (const kind of diagnosticCounts(current.diagnostics)) {
+    const known = DIAGNOSTIC_KINDS.find((entry) => entry.id === kind.id);
+    lines.push(`· ${kind.label} ${kind.count}${known ? `：${known.explanation}` : ''}`);
+  }
+  // Grouped in the same order as the summary, original order within a group.
+  for (const kind of diagnosticCounts(current.diagnostics)) {
+    lines.push('', `── ${kind.label} ${kind.count} ──`);
+    for (const diagnostic of current.diagnostics) {
+      if (diagnosticKind(diagnostic) === kind.id) {
+        lines.push('', escaped(diagnostic));
+      }
+    }
+  }
+  return lines.join('\n');
 }
 
 export { assetActions, pluginDescriptor, pluginMatches, selectedAsset, result, viewIndex, visibleRow, resultState };

@@ -97,6 +97,84 @@ export function resultState(result: { historical: boolean; complete: boolean }):
   return result.complete ? '完整' : '部分';
 }
 
+/** Request wall time: tenths below a minute, `1m19s` above. */
+export function formatDuration(seconds: number): string {
+  if (seconds < 60) {
+    return `${seconds < 10 ? seconds.toFixed(1) : Math.round(seconds)} s`;
+  }
+  const whole = Math.round(seconds);
+  return `${Math.floor(whole / 60)}m${String(whole % 60).padStart(2, '0')}s`;
+}
+
+/** How a result was obtained, for the result frame and status line. */
+export function originLabel(origin: { source: 'fresh' | 'cache'; seconds: number; prepared: boolean }): string {
+  const time = `${formatDuration(origin.seconds)}${origin.prepared ? '（含镜像校验）' : ''}`;
+  return origin.source === 'cache' ? `读取缓存 · ${time}` : `重新分析 · ${time}`;
+}
+
+/**
+ * Diagnostic families, in the order they are shown. Each diagnostic is counted
+ * once, under the first family whose pattern it matches.
+ */
+export const DIAGNOSTIC_KINDS = [
+  {
+    id: 'page',
+    label: '页面不在镜像中',
+    pattern: /缺页|不驻留|PEB 不存在|越界|空洞/u,
+    explanation: '对象所在的页在采集时已换出到 pagefile、未提交或不在镜像范围内；附加 pagefile／swapfile 后可读到更多。',
+  },
+  {
+    id: 'layout',
+    label: '布局未验收',
+    pattern: /布局|验收|尚未验证/u,
+    explanation: '这些结构的布局来自声明来源，尚未与此精确符号身份的真实样本对照；结果可用，但需要核查。',
+  },
+  {
+    id: 'limit',
+    label: '达到上限',
+    pattern: /上限|超限/u,
+    explanation: '读取到的计数超过安全上限，按无效数据处理并停止该对象。',
+  },
+  {
+    id: 'inconsistent',
+    label: '对象前后矛盾',
+    pattern: /不一致|无效链表|无效 EPROCESS|无效对象|未闭合|循环|NUL|无效 UNICODE_STRING|签名无效|非 canonical|未分配|无效/u,
+    explanation: '链表指针、父指针或对象头与相邻对象矛盾。运行中采集的镜像常见：采集过程中进程、线程或对象正在创建或释放。',
+  },
+] as const;
+
+export type DiagnosticKind = (typeof DIAGNOSTIC_KINDS)[number]['id'] | 'other';
+
+export function diagnosticKind(diagnostic: string): DiagnosticKind {
+  return DIAGNOSTIC_KINDS.find((kind) => kind.pattern.test(diagnostic))?.id ?? 'other';
+}
+
+/** Diagnostic counts per family, in display order, omitting empty families. */
+export function diagnosticCounts(diagnostics: string[]): { id: DiagnosticKind; label: string; count: number }[] {
+  const counts = new Map<DiagnosticKind, number>();
+  for (const diagnostic of diagnostics) {
+    const kind = diagnosticKind(diagnostic);
+    counts.set(kind, (counts.get(kind) ?? 0) + 1);
+  }
+  return [...DIAGNOSTIC_KINDS.map((kind) => ({ id: kind.id as DiagnosticKind, label: kind.label })), { id: 'other' as const, label: '其他' }]
+    .map((kind) => ({ ...kind, count: counts.get(kind.id) ?? 0 }))
+    .filter((kind) => kind.count > 0);
+}
+
+/** `对象前后矛盾 3 · 页面不在镜像中 1` */
+export function diagnosticSummary(diagnostics: string[]): string {
+  return diagnosticCounts(diagnostics)
+    .map((kind) => `${kind.label} ${kind.count}`)
+    .join(' · ');
+}
+
+/** ` · 4 条诊断：对象前后矛盾 4（v 查看）`, or nothing without diagnostics. */
+export function diagnosticStatus(diagnostics: string[]): string {
+  return diagnostics.length > 0
+    ? ` · ${diagnostics.length} 条诊断：${diagnosticSummary(diagnostics)}（v 查看）`
+    : '';
+}
+
 /** Display name of a plugin in a result title. */
 export function shortPlugin(name: string): string {
   return name.startsWith('windows.') ? name.slice('windows.'.length) : name;

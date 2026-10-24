@@ -497,11 +497,21 @@ fn run_task(
                 catalog: bool,
                 #[serde(default)]
                 limit: Option<usize>,
+                /// Only read an index already saved on disk: never download,
+                /// and report "no index" instead of failing.
+                #[serde(default)]
+                local_only: bool,
             }
             let args: Args = serde_json::from_value(payload)?;
             let network = context.settings.remote_symbols;
             let mut total = None;
             let mut index = None;
+            if args.catalog
+                && args.local_only
+                && !context.cache.join("symbols/banners_plain.json").is_file()
+            {
+                return Ok(json!({"matches": [], "catalog": true, "total": 0, "index": null}));
+            }
             let matches = if let Some(image) = &args.image {
                 let image = session
                     .lock()
@@ -769,7 +779,11 @@ fn analyze(
     )?;
     Ok(match outcome {
         Outcome::Choose(labels) => json!({"choose": labels}),
-        Outcome::Ready(result) => json!({"result": results_json(&result)}),
+        Outcome::Ready(result) => json!({
+            "result": results_json(&result),
+            "source": if job.served_from_cache() { "cache" } else { "fresh" },
+            "prepared": job.prepared_image(),
+        }),
     })
 }
 
@@ -875,7 +889,12 @@ fn dispatch(
                 &context.image_dir(),
                 &context.symbol_dir(),
             )?;
-            Ok(Value::Array(assets.iter().map(asset_json).collect()))
+            Ok(Value::Array(
+                assets
+                    .iter()
+                    .map(|asset| asset_json(asset, &context.cache))
+                    .collect(),
+            ))
         }
         "registry.select" => {
             #[derive(Deserialize)]
@@ -1049,7 +1068,7 @@ fn settings_from_json(value: &Value) -> Result<Settings> {
     serde_json::from_value(value.clone()).context("设置 JSON 无效")
 }
 
-fn asset_json(asset: &Asset) -> Value {
+fn asset_json(asset: &Asset, cache: &Path) -> Value {
     json!({
         "id": asset.id(),
         "path": asset.path,
@@ -1062,6 +1081,9 @@ fn asset_json(asset: &Asset) -> Value {
         "origin": asset.origin,
         "stamp": asset.stamp,
         "source_url": source_url(&asset.path),
+        "identity": (asset.kind == Kind::Image && !asset.directory)
+            .then(|| crate::image::bound_identity(&asset.path, cache))
+            .flatten(),
     })
 }
 

@@ -172,12 +172,8 @@ test('system chips are placed by display width, not string length', async () => 
   const { app: instance } = await app();
   instance.switchPage('assets');
   const layout = computeLayout(instance.state, 80, 24);
-  const auto = layout.systemHits.find((hit) => hit.os === 'auto');
-  assert.ok(auto, 'auto chip must fit at 80 columns');
-  // " 自动 " is two wide characters (four cells) plus two spaces: six cells,
-  // while `String.length` would report four.
-  assert.equal(auto.rect.width, 6);
-  assert.equal(' 自动 '.length, 4);
+  // Automatic detection has no chip; only the two systems are offered.
+  assert.deepEqual(layout.systemHits.map((hit) => [hit.os, hit.rect.width]), [['linux', 7], ['windows', 9]]);
   // Every chip starts where the previous one ended.
   for (let index = 1; index < layout.systemHits.length; index += 1) {
     const previous = layout.systemHits[index - 1] as { rect: Rect };

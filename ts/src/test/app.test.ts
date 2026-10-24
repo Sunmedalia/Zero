@@ -25,11 +25,15 @@ async function waitFor(predicate: () => boolean, timeoutMs = 1000): Promise<void
   }
 }
 
-test('startup enters the analysis workbench without running a plugin', async () => {
-  const { app: instance } = await app({
+test('first start opens the resource library without running a plugin', async () => {
+  const { app: instance, engine } = await app({
     assets: [asset(), asset({ path: '/evidence/symbols/linux.zip', kind: 'symbols', name: 'linux.zip' })],
+    page: null,
   });
-  assert.equal(instance.state.page, 'analysis');
+  assert.equal(instance.state.page, 'assets');
+  assert.equal(instance.state.focus, 'navigation');
+  assert.match(instance.state.status, /选择镜像：Space 选用/u);
+  assert.equal(engine.analyzeCalls.length, 0);
   assert.equal(instance.state.section, 'images');
   assert.equal(instance.state.plugin, 'pslist');
   assert.equal(assetListFor(instance.state, 'images').length, 1);
@@ -47,7 +51,10 @@ test('launch flags select the image and prepare it', async () => {
     engine,
     launch: { image: '/evidence/memory.raw', symbols: '/evidence/symbols/linux.zip' },
     assets: [asset(), asset({ path: '/evidence/symbols/linux.zip', kind: 'symbols', name: 'linux.zip' })],
+    page: null,
   });
+  // An image on the command line goes straight to the analysis console.
+  assert.equal(instance.state.page, 'analysis');
   assert.equal(instance.state.image, '/evidence/memory.raw');
   assert.equal(instance.state.preparation, 'ready');
   assert.equal(instance.state.choice, 'Debian 3.2');
@@ -419,7 +426,7 @@ test('export uses the filtered rows, not just the visible page', async () => {
 test('the empty-state hint depends on whether symbols are selected', async () => {
   const { app: instance } = await app();
   assert.equal(instance.state.symbols, '');
-  assert.match(instance.state.status, /i 选择镜像/);
+  assert.match(instance.state.status, /选择镜像/);
   instance.state.symbols = '/evidence/linux.zip';
   assert.equal(instance.state.symbols, '/evidence/linux.zip');
 });

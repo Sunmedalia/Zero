@@ -86,6 +86,30 @@ fn bootstrap_validates_kernel_and_system() {
     assert!(discover(&image, &bad, &Job::default()).is_err());
 }
 #[test]
+fn a_process_without_a_peb_has_no_user_view_and_is_not_partial() {
+    // The fixture child (PID 8) has EPROCESS.Peb == 0, like Registry or
+    // MemCompression: a definite read, so no rows and no diagnostic.
+    let (b, isf) = fixture();
+    let image = image(&b);
+    let engine = Windows {
+        vm: Memory::new(&image, 0x1000, &isf, None),
+        base: K,
+        pdb: PdbIdentity::from_isf(&isf).unwrap(),
+    };
+    for plugin in [
+        Plugin::WinCmdline,
+        Plugin::WinEnvars,
+        Plugin::WinDlllist,
+        Plugin::WinIat,
+    ] {
+        let r = engine
+            .run(plugin, &Options::default(), &Job::default())
+            .unwrap();
+        assert!(r.complete, "{}: {:?}", plugin.name(), r.diagnostics);
+        assert!(r.rows.is_empty(), "{}", plugin.name());
+    }
+}
+#[test]
 fn process_fields_filter_and_damaged_list() {
     let (mut b, isf) = fixture();
     let image_good = image(&b);
@@ -326,4 +350,123 @@ fn session_reuses_windows_symbols_and_invalidates_changes() -> Result<()> {
     std::fs::write(&symbols_path, b"invalid symbols")?;
     assert!(run(&mut session).is_err());
     Ok(())
+}
+#[test]
+fn kernel_roots_persist_only_for_the_same_content_and_are_revalidated() {
+    let (b, isf) = fixture();
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("memory.raw");
+    let cache = dir.path().join("cache");
+    std::fs::write(&path, &b).unwrap();
+    let job = Job::default();
+    let first = Image::open(&path, &cache, &job).unwrap();
+    assert!(first.persisted_roots.is_empty());
+    assert_eq!(discover(&first, &isf, &job).unwrap(), (0x1000, K));
+    drop(first);
+
+    // The next session reuses the validated root for the same content.
+    let reopened = Image::open(&path, &cache, &job).unwrap();
+    assert_eq!(
+        reopened.persisted_roots.get(&isf.digest),
+        Some(&(0x1000, K))
+    );
+    assert_eq!(discover(&reopened, &isf, &job).unwrap(), (0x1000, K));
+    drop(reopened);
+
+    // A tampered hint fails validation and falls back to the full scan.
+    let manifest = std::fs::read_dir(cache.join("identification"))
+        .unwrap()
+        .next()
+        .unwrap()
+        .unwrap()
+        .path();
+    let mut value: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(&manifest).unwrap()).unwrap();
+    value["windows_roots"] = json!([[isf.digest, 0x5000, K + 0x1000]]);
+    std::fs::write(&manifest, serde_json::to_vec(&value).unwrap()).unwrap();
+    let tampered = Image::open(&path, &cache, &job).unwrap();
+    assert_eq!(
+        tampered.persisted_roots.get(&isf.digest),
+        Some(&(0x5000, K + 0x1000))
+    );
+    assert_eq!(discover(&tampered, &isf, &job).unwrap(), (0x1000, K));
+    drop(tampered);
+
+    // Different content (same size, new mtime) drops every Windows hint.
+    let mut changed = b.clone();
+    changed[0x3f000] = 0x41;
+    std::thread::sleep(std::time::Duration::from_millis(20));
+    std::fs::write(&path, &changed).unwrap();
+    let other = Image::open(&path, &cache, &job).unwrap();
+    assert!(other.persisted_roots.is_empty());
+    assert_eq!(discover(&other, &isf, &job).unwrap(), (0x1000, K));
+}
+#[test]
+fn identification_binds_windows_signatures_to_the_file_and_reuses_them() {
+    let (b, _) = fixture();
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("memory.raw");
+    let cache = dir.path().join("cache");
+    std::fs::write(&path, &b).unwrap();
+    assert_eq!(crate::image::bound_identity(&path, &cache), None);
+    let job = Job::default();
+    let first = Image::open(&path, &cache, &job).unwrap();
+    let keys = |image: &Image| {
+        image
+            .windows_candidates(&Job::default())
+            .unwrap()
+            .iter()
+            .map(|c| (c.offset, c.pdb.key()))
+            .collect::<Vec<_>>()
+    };
+    let found = keys(&first);
+    assert_eq!(found.len(), 1);
+    drop(first);
+    let bound = crate::image::bound_identity(&path, &cache).unwrap();
+    assert_eq!(bound.system, "windows");
+    assert_eq!(bound.kernels, vec![format!("Windows PDB {}", found[0].1)]);
+
+    let messages = std::sync::Arc::new(std::sync::Mutex::new(Vec::<String>::new()));
+    let log = messages.clone();
+    let recording = Job::new(move |message| log.lock().unwrap().push(message));
+    let reused = |messages: &std::sync::Mutex<Vec<String>>| {
+        messages
+            .lock()
+            .unwrap()
+            .iter()
+            .any(|m| m.starts_with("复用持久化 Windows 内核签名"))
+    };
+    // Identification in a new session reuses the bound records, re-read once.
+    let identified = Image::open_identified(&path, &cache, &recording).unwrap();
+    assert!(reused(&messages));
+    assert!(
+        identified.digest.is_empty(),
+        "identification never claims a digest"
+    );
+    assert_eq!(keys(&identified), found);
+    drop(identified);
+
+    // A record that no longer re-reads to the same identity is not trusted.
+    let manifest = std::fs::read_dir(cache.join("identification"))
+        .unwrap()
+        .next()
+        .unwrap()
+        .unwrap()
+        .path();
+    let mut value: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(&manifest).unwrap()).unwrap();
+    value["windows"][0][0] = json!(0x8000);
+    std::fs::write(&manifest, serde_json::to_vec(&value).unwrap()).unwrap();
+    messages.lock().unwrap().clear();
+    let rescanned = Image::open_identified(&path, &cache, &recording).unwrap();
+    assert!(!reused(&messages));
+    assert_eq!(keys(&rescanned), found);
+    drop(rescanned);
+
+    // Changing the file unbinds the identity until it is identified again.
+    std::thread::sleep(std::time::Duration::from_millis(20));
+    let mut changed = b.clone();
+    changed[0x3f000] = 0x41;
+    std::fs::write(&path, &changed).unwrap();
+    assert_eq!(crate::image::bound_identity(&path, &cache), None);
 }

@@ -15,14 +15,24 @@ pub(super) struct Vad {
     pub path: String,
 }
 impl Windows<'_> {
+    /// The native PEB, or `None` when `EPROCESS.Peb` was read and is zero.
+    ///
+    /// Minimal processes (Registry, MemCompression, Secure System) never have a
+    /// user-mode PEB, and a process in teardown has released it; that is a read
+    /// fact about the process, not a missing page, so it is not a diagnostic.
+    pub(super) fn peb(&self, p: &Process) -> Result<Option<u64>> {
+        let peb = self.number(p.address, "_EPROCESS", "Peb")?;
+        Ok((peb != 0).then_some(peb))
+    }
     pub(super) fn cmdline(&self, p: &Process, r: &mut Results) -> Result<()> {
         if p.pid <= 4 {
             return Ok(());
         }
-        let native = (|| -> Result<String> {
+        let native = (|| -> Result<Option<String>> {
             let vm = self.process_memory(p)?;
-            let peb = self.number(p.address, "_EPROCESS", "Peb")?;
-            ensure!(peb != 0, "PEB 不存在");
+            let Some(peb) = self.peb(p)? else {
+                return Ok(None);
+            };
             let params = vm.number(peb, "_PEB", "ProcessParameters")?;
             vm.unicode(add(
                 params,
@@ -30,14 +40,16 @@ impl Windows<'_> {
                     .isf
                     .offset("_RTL_USER_PROCESS_PARAMETERS", "CommandLine")?,
             )?)
+            .map(Some)
         })();
         match native {
-            Ok(command) => r.rows.push(vec![
+            Ok(Some(command)) => r.rows.push(vec![
                 p.pid.to_string(),
                 p.name.clone(),
                 command,
                 "native".into(),
             ]),
+            Ok(None) => {}
             Err(e) => Self::issue(r, format!("PID {} native command", p.pid), e),
         }
         match self.wow64_peb(p) {
@@ -98,7 +110,9 @@ impl Windows<'_> {
             return Ok(Vec::new());
         }
         let vm = self.process_memory(p)?;
-        let peb = self.number(p.address, "_EPROCESS", "Peb")?;
+        let Some(peb) = self.peb(p)? else {
+            return Ok(Vec::new());
+        };
         let ldr = vm.number(peb, "_PEB", "Ldr")?;
         let head = add(
             ldr,

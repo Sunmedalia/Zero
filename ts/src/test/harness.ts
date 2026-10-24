@@ -3,6 +3,7 @@
  * can be driven without a terminal or a child process.
  */
 import { App, type LaunchOptions } from '../app.js';
+import type { AppState } from '../state.js';
 import type {
   AnalyzeArgs,
   DumpArgs,
@@ -16,6 +17,7 @@ import type {
   CacheInventory,
   ClearReport,
   ExportRecord,
+  AnalyzeReply,
   ExportReply,
   Hello,
   MatchLocalReply,
@@ -202,14 +204,14 @@ export class MemoryEngine implements Engine {
     diagnostics: [],
   };
   remoteReply: RemoteReply = { matches: [], catalog: false };
-  remoteCalls: { query?: string; catalog?: boolean; limit?: number }[] = [];
+  remoteCalls: { query?: string; catalog?: boolean; limit?: number; refresh?: boolean; local_only?: boolean }[] = [];
   cacheEntries: CacheEntry[] = [];
   cacheRecords: ExportRecord[] = [];
   removedPaths: string[] = [];
   clearedScopes: string[][] = [];
   openedRecords: string[] = [];
   exportRecord: ExportRecord | null = null;
-  analyzeReply: { choose?: string[]; result?: Results } = { result: results() };
+  analyzeReply: AnalyzeReply = { result: results() };
   analyzeCalls: AnalyzeArgs[] = [];
   cancelled = false;
   closed = false;
@@ -255,8 +257,14 @@ export class MemoryEngine implements Engine {
     return Promise.resolve({ cached: paths.map(() => false) });
   }
 
-  analyze(args: AnalyzeArgs): Promise<{ choose?: string[]; result?: Results }> {
+  /** Progress messages `analyze` reports just before it replies. */
+  analyzeProgress: string[] = [];
+
+  analyze(args: AnalyzeArgs, progress: TaskProgress): Promise<AnalyzeReply> {
     this.analyzeCalls.push(args);
+    for (const message of this.analyzeProgress) {
+      progress({ message });
+    }
     return Promise.resolve(this.analyzeReply);
   }
 
@@ -272,7 +280,7 @@ export class MemoryEngine implements Engine {
     return Promise.resolve(this.matchReply);
   }
 
-  remote(args: { query?: string; catalog?: boolean; limit?: number }): Promise<RemoteReply> {
+  remote(args: { query?: string; catalog?: boolean; limit?: number; refresh?: boolean; local_only?: boolean }): Promise<RemoteReply> {
     this.remoteCalls.push(args);
     return Promise.resolve(this.remoteReply);
   }
@@ -331,11 +339,22 @@ export async function app(options: {
   launch?: Partial<LaunchOptions>;
   settings?: Partial<Settings>;
   engine?: MemoryEngine;
+  /**
+   * Page to show once started. Most tests exercise the analysis console, so it
+   * is the default; `null` keeps the page startup chose (resource library
+   * without a launch image).
+   */
+  page?: AppState['page'] | null;
 } = {}): Promise<{ app: App; engine: MemoryEngine }> {
   const engine = options.engine ?? new MemoryEngine();
   engine.assetsList = options.assets ?? [asset()];
   const instance = new App(engine, hello(options.settings), launch(options.launch));
   await instance.initialize();
+  const page = options.page === undefined ? 'analysis' : options.page;
+  if (page !== null && instance.state.page !== page) {
+    instance.state.page = page;
+    instance.state.focus = page === 'analysis' ? 'content' : 'navigation';
+  }
   return { app: instance, engine };
 }
 

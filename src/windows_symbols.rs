@@ -118,7 +118,7 @@ pub struct Candidate {
 }
 pub fn identify(image: &Image, job: &Job) -> Result<Vec<Candidate>> {
     let mut out = Vec::new();
-    for offset in image.scan(b"RSDS", job)? {
+    for offset in image.rsds_offsets(job)? {
         job.check()?;
         let mut b = [0; 512];
         if image.read(offset, &mut b).is_ok()

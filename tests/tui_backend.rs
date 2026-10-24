@@ -211,6 +211,39 @@ fn identification_runs_as_a_task_and_reports_banners() {
     backend.finish();
 }
 
+#[test]
+fn analysis_says_whether_it_ran_or_read_the_successful_cache() {
+    let root = sandbox();
+    let mut backend = Backend::start(root.path());
+    backend.call("hello", json!({}));
+    let analyze = |backend: &mut Backend, no_cache: bool| {
+        backend
+            .task(
+                "analyze",
+                json!({"image": "images/sample.raw", "plugin": "banners", "no_cache": no_cache}),
+            )
+            .expect("analyze")
+    };
+    // A forced run in a new session verifies the image's full content digest.
+    let forced = analyze(&mut backend, true);
+    assert_eq!(forced["source"], "fresh");
+    assert_eq!(forced["prepared"], true);
+    let first = analyze(&mut backend, false);
+    assert_eq!(first["source"], "fresh");
+    assert_eq!(
+        first["prepared"], false,
+        "the session reuses the verified image"
+    );
+    assert_eq!(first["result"]["complete"], true);
+    let second = analyze(&mut backend, false);
+    assert_eq!(second["source"], "cache");
+    assert_eq!(second["prepared"], false);
+    assert_eq!(second["result"], first["result"]);
+    // A forced rerun never reports the cache, even though an entry exists.
+    assert_eq!(analyze(&mut backend, true)["source"], "fresh");
+    backend.finish();
+}
+
 #[cfg(target_os = "linux")]
 #[test]
 fn only_one_task_runs_and_cancel_is_acknowledged() {
@@ -461,6 +494,42 @@ fn offline_acceptance_identifies_matches_and_analyzes() {
         "tui-backend acceptance: {} rows · page table {:#x}",
         result["rows"].as_array().expect("rows").len(),
         result["page_table"].as_u64().expect("page table")
+    );
+    backend.finish();
+}
+
+#[test]
+fn saved_index_lookup_never_downloads_and_images_carry_their_bound_identity() {
+    let root = sandbox();
+    let mut backend = Backend::start(root.path());
+    backend.call("hello", json!({}));
+    // No index on disk: a local-only catalog reports none instead of failing,
+    // even offline (the default sandbox settings).
+    let catalog = backend
+        .task("remote", json!({"catalog": true, "local_only": true}))
+        .expect("local-only catalog");
+    assert_eq!(catalog["matches"], json!([]));
+    assert_eq!(catalog["index"], Value::Null);
+
+    let image = |backend: &mut Backend| {
+        backend
+            .call("assets", json!({}))
+            .as_array()
+            .expect("assets")
+            .iter()
+            .find(|asset| asset["kind"] == "image")
+            .cloned()
+            .expect("image asset")
+    };
+    assert_eq!(image(&mut backend)["identity"], Value::Null);
+    backend
+        .task("identify", json!({"image": "images/sample.raw"}))
+        .expect("identify");
+    let identity = &image(&mut backend)["identity"];
+    assert_eq!(identity["system"], "linux");
+    assert_eq!(
+        identity["kernels"],
+        json!(["Linux version synthetic (gcc version 1) #1 SMP"])
     );
     backend.finish();
 }
