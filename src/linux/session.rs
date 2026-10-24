@@ -154,6 +154,16 @@ impl Session {
         dump: Option<&crate::dump::DumpOptions>,
         job: &Job,
     ) -> Result<Outcome> {
+        self.analyze_with_pattern(request, dump, None, job)
+    }
+    /// As `analyze_with_dump`, with the byte pattern the scan plugins need.
+    pub fn analyze_with_pattern(
+        &mut self,
+        request: &Request<'_>,
+        dump: Option<&crate::dump::DumpOptions>,
+        pattern: Option<&crate::pattern::Pattern>,
+        job: &Job,
+    ) -> Result<Outcome> {
         if request.plugin.is_dump() {
             dump.context("Dump 插件需要 --pid、--dump-dir；memdump 还需要 --start、--end")?
                 .validate(request.plugin)?;
@@ -226,7 +236,11 @@ impl Session {
             }
             self.symbols[0].clone()
         };
-        let key = store::key(&image.digest, &symbol.digest, request.plugin.name());
+        let identity = match pattern {
+            Some(pattern) => format!("{}:{}", request.plugin.name(), pattern.source()),
+            None => request.plugin.name().to_string(),
+        };
+        let key = store::key(&image.digest, &symbol.digest, &identity);
         if !request.plugin.is_dump()
             && request.use_cache
             && let Some(mut result) = store::load(request.cache, &key)
@@ -250,6 +264,8 @@ impl Session {
         };
         let result = if request.plugin.is_dump() {
             engine.run_dump(request.plugin, dump.context("Dump 插件需要转储参数")?, job)?
+        } else if request.plugin.is_pattern_scan() {
+            engine.vma_pattern_scan(pattern.context("此插件需要 --pattern")?, job)?
         } else {
             engine.run(request.plugin, job)?
         };

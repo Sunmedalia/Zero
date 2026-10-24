@@ -456,3 +456,21 @@ test('no binding or label asks for a function key', () => {
     }
   }
 });
+
+test('scan plugins require a pattern and other plugins never send one', async () => {
+  const { app: instance } = await app();
+  instance.state.hello = {
+    ...instance.state.hello!,
+    plugins: [
+      ...instance.state.hello!.plugins,
+      { name: 'vmayarascan', label: 'vmayarascan', category: 'Memory', columns: ['PID', 'Name', 'Address', 'Start', 'Permissions', 'Path', 'Context'], widths: [6, 14, 18, 18, 5, 0, 0], description: 'scan' } as never,
+    ],
+  };
+  instance.state.plugin = 'vmayarascan';
+  const fields = ['', '', '', 'auto', '', '', '', ''];
+  assert.equal(parseOptions(instance.state, fields).error, '扫描插件需要填写搜索模式');
+  fields[7] = 'hex:4d5a??00';
+  assert.equal(parseOptions(instance.state, fields).options?.pattern, 'hex:4d5a??00');
+  instance.state.plugin = 'pslist';
+  assert.equal(parseOptions(instance.state, fields).options?.pattern, null);
+});

@@ -24,6 +24,7 @@ interface Cli {
   swapfile: string | null;
   hive: string | null;
   key: string;
+  pattern: string | null;
 }
 
 function parse(argv: string[]): Cli {
@@ -37,6 +38,7 @@ function parse(argv: string[]): Cli {
     swapfile: null,
     hive: null,
     key: '',
+    pattern: null,
   };
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index] as string;
@@ -99,6 +101,9 @@ function parse(argv: string[]): Cli {
       case '--key':
         cli.key = value();
         break;
+      case '--pattern':
+        cli.pattern = value();
+        break;
       default:
         throw new Error(`未知参数 ${arg}`);
     }
@@ -133,6 +138,7 @@ async function main(): Promise<void> {
     swapfile: cli.swapfile,
     hive: cli.hive,
     key: cli.key,
+    pattern: cli.pattern,
   };
   const app = new App(engine, hello, launch);
   const instance = render(React.createElement(Root, { app }), {

@@ -178,6 +178,7 @@ impl Linux<'_> {
                 Ok(r)
             }
             Kthreads => self.kthreads(job),
+            Vmayarascan => bail!("vmayarascan 需要 --pattern"),
             Netfilter => {
                 let mut r = self.result(plugin);
                 self.netfilter(&mut r, job)?;
@@ -225,9 +226,8 @@ impl Linux<'_> {
             | WinBigpools | WinSymlinkscan | WinDevicetree | WinGetservicesids | WinIat
             | WinVerinfo | WinMftscan | WinOrphanThreads | WinEtwpatch | WinScheduledTasks
             | WinAmcache | WinCertificates | WinProcessghosting | WinJoblinks | WinTimeliner
-            | WinMbrscan | WinTimers | WinStatistics | WinShimcache | WinVirtmap => {
-                Err(unrouted(plugin))
-            }
+            | WinMbrscan | WinTimers | WinStatistics | WinShimcache | WinVirtmap
+            | WinVadyarascan => Err(unrouted(plugin)),
         }
     }
     /// pslist / pstree over `init_task.tasks`, lsmod over `modules`, with full

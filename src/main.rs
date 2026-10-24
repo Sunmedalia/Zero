@@ -37,6 +37,10 @@ struct Cli {
     hive: Option<u64>,
     #[arg(long, global = true, default_value = "")]
     key: String,
+    /// Byte pattern for vmayarascan / windows.vadyarascan: text, wide:TEXT
+    /// (UTF-16LE) or hex:4d5a??00 with ?? wildcards.
+    #[arg(long, global = true)]
+    pattern: Option<String>,
     #[command(subcommand)]
     command: Option<Command>,
 }
@@ -350,6 +354,7 @@ fn main() -> Result<()> {
                 pid: if plugin.is_dump() { None } else { pid },
                 hive: cli.hive,
                 key: cli.key.clone(),
+                pattern: cli.pattern.clone(),
             },
             &job,
         )? {
@@ -451,6 +456,9 @@ fn launch_tui(cli: Cli) -> Result<()> {
     }
     if !cli.key.is_empty() {
         command.arg("--key").arg(cli.key);
+    }
+    if let Some(pattern) = cli.pattern {
+        command.arg("--pattern").arg(pattern);
     }
     let status = command
         .status()

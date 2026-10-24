@@ -170,6 +170,64 @@ impl Windows<'_> {
         }
         Ok(())
     }
+    /// windows.vadyarascan: every VAD of one process searched for `pattern`.
+    pub(super) fn vad_pattern_scan(
+        &self,
+        p: &Process,
+        pattern: &crate::pattern::Pattern,
+        r: &mut Results,
+        job: &Job,
+    ) -> Result<()> {
+        let vm = self.process_memory(p)?;
+        let mut budget = 256 * 1024 * 1024u64;
+        let mut unreadable = 0u64;
+        // Keep the readable part of a damaged VAD tree, as vadinfo does.
+        for v in self.vads_partial(p, job, Some(r))? {
+            job.check()?;
+            let remaining = 100_000usize.saturating_sub(r.rows.len());
+            ensure!(remaining > 0, "命中数达到 100000 上限");
+            if v.end.saturating_sub(v.start) > crate::pattern::REGION_LIMIT {
+                Self::issue(
+                    r,
+                    format!("PID {} VAD {:#x}", p.pid, v.start),
+                    "区域超过 1 GiB，未扫描",
+                );
+                continue;
+            }
+            let scan = crate::pattern::scan_region(
+                pattern,
+                v.start,
+                v.end,
+                &mut budget,
+                remaining,
+                |at, out| {
+                    job.check()?;
+                    vm.read(at, out)
+                },
+            )?;
+            unreadable += scan.unreadable;
+            for (address, bytes) in scan.hits {
+                r.rows.push(vec![
+                    p.pid.to_string(),
+                    p.name.clone(),
+                    hex(address),
+                    hex(v.start),
+                    protection(v.protection),
+                    v.path.clone(),
+                    crate::pattern::context(&bytes),
+                ]);
+            }
+        }
+        // Unscanned pages mean an absent match proves nothing.
+        if unreadable > 0 {
+            Self::issue(
+                r,
+                format!("PID {}", p.pid),
+                format!("{unreadable} 个页不可读，未扫描"),
+            );
+        }
+        Ok(())
+    }
     pub(super) fn vads(&self, p: &Process, job: &Job) -> Result<Vec<Vad>> {
         self.vads_partial(p, job, None)
     }

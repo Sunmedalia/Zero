@@ -101,6 +101,8 @@ export interface Options {
    */
   hive: string | null;
   key: string;
+  /** Byte pattern for the memory scans; see `--pattern`. */
+  pattern: string | null;
   pagefiles: { index: number; path: string }[];
   swapfile: string | null;
 }

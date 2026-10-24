@@ -728,6 +728,15 @@ impl Windows<'_> {
                 Plugin::WinEtwpatch => self.etwpatch(&process, &mut result, job),
                 Plugin::WinProcessghosting => self.processghosting(&process, &mut result),
                 Plugin::WinJoblinks => self.joblink(&process, &mut result),
+                Plugin::WinVadyarascan => {
+                    let pattern = crate::pattern::Pattern::parse(
+                        options
+                            .pattern
+                            .as_deref()
+                            .context("windows.vadyarascan 需要 --pattern")?,
+                    )?;
+                    self.vad_pattern_scan(&process, &pattern, &mut result, job)
+                }
                 _ => bail!("不支持的 Windows 插件 {}", p.name()),
             };
             if let Err(e) = read {
@@ -829,6 +838,7 @@ pub(crate) fn validate_request(
     if request.plugin == Plugin::WinPrintkey {
         ensure!(options.hive.is_some(), "windows.printkey 需要 --hive 地址");
     }
+    crate::analysis::validate_pattern(request.plugin, options)?;
     ensure!(
         options.pid.is_none() || request.plugin.descriptor().columns.contains(&"PID"),
         "此插件不支持 PID 筛选"
@@ -886,8 +896,9 @@ pub(crate) fn analyze_resolved(
             options.hive,
             sources.cache_identity(),
             format_args!(
-                "{}:{:x}",
+                "{}:{}:{:x}",
                 options.key,
+                options.pattern.as_deref().unwrap_or_default(),
                 sha2::Sha256::digest(network::LAYOUTS.as_bytes())
             )
         ),

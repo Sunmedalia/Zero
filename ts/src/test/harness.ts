@@ -183,6 +183,7 @@ export function launch(overrides: Partial<LaunchOptions> = {}): LaunchOptions {
     swapfile: null,
     hive: null,
     key: '',
+    pattern: null,
     ...overrides,
   };
 }

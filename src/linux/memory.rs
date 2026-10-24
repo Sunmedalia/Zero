@@ -286,6 +286,92 @@ impl Linux<'_> {
         job.check()?;
         Ok(r)
     }
+    /// vmayarascan: every readable VMA of each task, searched for `pattern`.
+    pub(crate) fn vma_pattern_scan(
+        &self,
+        pattern: &crate::pattern::Pattern,
+        job: &Job,
+    ) -> Result<Results> {
+        let (mut r, tasks) = self.tasks(Plugin::Vmayarascan, job)?;
+        let mut remaining = 100_000usize;
+        for task in tasks {
+            job.check()?;
+            let read = (|| -> Result<()> {
+                let mm = self.number(task.address, "task_struct", "mm")?;
+                if mm == 0 {
+                    return Ok(());
+                }
+                let vm = self.process_vm(task.address)?.context("用户地址空间为空")?;
+                let root = self.process_root(task.address).ok();
+                let mut budget = 256 * 1024 * 1024u64;
+                let mut unreadable = 0u64;
+                for node in self.vma_nodes(mm, job)? {
+                    job.check()?;
+                    let start = self.number(node, "vm_area_struct", "vm_start")?;
+                    let end = self.number(node, "vm_area_struct", "vm_end")?;
+                    let flags = self.number(node, "vm_area_struct", "vm_flags")?;
+                    if flags & 1 == 0 || start >= end {
+                        continue;
+                    }
+                    if end - start > crate::pattern::REGION_LIMIT {
+                        partial(
+                            &mut r,
+                            format!("PID {} VMA {start:#x}", task.pid),
+                            anyhow::anyhow!("区域超过 1 GiB，未扫描"),
+                        );
+                        continue;
+                    }
+                    let scan = crate::pattern::scan_region(
+                        pattern,
+                        start,
+                        end,
+                        &mut budget,
+                        remaining,
+                        |at, out| {
+                            job.check()?;
+                            vm.read(at, out)
+                        },
+                    )?;
+                    unreadable += scan.unreadable;
+                    if scan.hits.is_empty() {
+                        continue;
+                    }
+                    let file = self.number(node, "vm_area_struct", "vm_file")?;
+                    let path = if file == 0 {
+                        "[anonymous]".into()
+                    } else {
+                        root.map_or_else(
+                            || self.file_path(task.address, file, job),
+                            |root| self.file_path_from(root, file, job),
+                        )
+                        .unwrap_or_else(|_| "[unresolved]".into())
+                    };
+                    for (address, bytes) in scan.hits {
+                        remaining -= 1;
+                        r.rows.push(vec![
+                            task.pid.clone(),
+                            task.name.clone(),
+                            hex(address),
+                            hex(start),
+                            permissions(flags),
+                            path.clone(),
+                            crate::pattern::context(&bytes),
+                        ]);
+                    }
+                    ensure!(remaining > 0, "命中数达到 100000 上限");
+                }
+                // Unscanned pages mean an absent match proves nothing.
+                ensure!(unreadable == 0, "{unreadable} 个页不可读，未扫描");
+                Ok(())
+            })();
+            if let Err(e) = read {
+                job.check()?;
+                partial(&mut r, format!("PID {} {:#x}", task.pid, task.address), e);
+            }
+        }
+        r.kernel_identity["pattern"] = serde_json::json!(pattern.source());
+        Ok(r)
+    }
     pub(super) fn bash_history(
         &self,
         vm: &VirtualMemory<'_>,

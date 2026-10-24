@@ -751,6 +751,8 @@ function paintDialogBody(canvas: Canvas, app: App, dialog: Dialog, popup: Rect):
         '架构 auto / x86 / x64 / arm64',
         'pagefile（索引=路径；分号分隔）',
         'swapfile（可选路径）',
+        '',
+        '搜索模式（文本 / wide:文本 / hex:4d5a??00）',
       ];
       let row = box.y + 1;
       for (const field of parameterFields(state, dialog.advanced)) {

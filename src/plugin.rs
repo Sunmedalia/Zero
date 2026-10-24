@@ -128,6 +128,8 @@ pub enum Plugin {
     WinShimcache,
     #[value(name = "windows.virtmap")]
     WinVirtmap,
+    #[value(name = "windows.vadyarascan")]
+    WinVadyarascan,
     Iomem,
     Ioports,
     Ptrace,
@@ -191,6 +193,7 @@ pub enum Plugin {
     Pagecache,
     #[value(name = "perf_events", alias = "perf-events")]
     PerfEvents,
+    Vmayarascan,
 }
 pub struct Descriptor {
     pub plugin: Plugin,
@@ -882,6 +885,36 @@ pub const PLUGINS: &[Descriptor] = &[
         widths: &[0, 18, 18, 16],
     },
     Descriptor {
+        plugin: Plugin::WinVadyarascan,
+        name: "windows.vadyarascan",
+        label: "windows.vadyarascan",
+        columns: &[
+            "PID",
+            "Name",
+            "Address",
+            "Start",
+            "Protection",
+            "Path",
+            "Context",
+        ],
+        widths: &[8, 16, 18, 18, 0, 0, 0],
+    },
+    Descriptor {
+        plugin: Plugin::Vmayarascan,
+        name: "vmayarascan",
+        label: "vmayarascan",
+        columns: &[
+            "PID",
+            "Name",
+            "Address",
+            "Start",
+            "Permissions",
+            "Path",
+            "Context",
+        ],
+        widths: &[6, 14, 18, 18, 5, 0, 0],
+    },
+    Descriptor {
         plugin: Plugin::Pslist,
         name: "pslist",
         label: "pslist",
@@ -1369,6 +1402,10 @@ impl Plugin {
     pub fn is_windows(self) -> bool {
         self.name().starts_with("windows.")
     }
+    /// Plugins that scan memory for a user-supplied byte pattern.
+    pub fn is_pattern_scan(self) -> bool {
+        matches!(self, Self::Vmayarascan | Self::WinVadyarascan)
+    }
     pub fn is_tree(self) -> bool {
         matches!(self, Self::Pstree | Self::WinPstree)
     }
@@ -1431,6 +1468,7 @@ impl Plugin {
             Self::WinStatistics => "Memory",
             Self::WinShimcache => "Files",
             Self::WinVirtmap => "Memory",
+            Self::WinVadyarascan | Self::Vmayarascan => "Memory",
             Self::Banners
             | Self::Systeminfo
             | Self::Dmesg
@@ -1581,6 +1619,8 @@ impl Plugin {
             WinStatistics => "统计内核地址空间的有效、换出与空页表项",
             WinShimcache => "解码 SYSTEM hive 中的 AppCompatCache 执行痕迹",
             WinVirtmap => "列出内核虚拟地址空间按用途划分的区域",
+            WinVadyarascan => "在进程 VAD 中搜索指定的文本或十六进制字节模式",
+            Vmayarascan => "在进程 VMA 中搜索指定的文本或十六进制字节模式",
         }
     }
 }

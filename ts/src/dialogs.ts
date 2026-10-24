@@ -314,11 +314,19 @@ export function filesTitle(input: InputKind): string {
 /* Parameters dialog                                                    */
 /* ------------------------------------------------------------------ */
 
+/** Plugins that search memory for the `pattern` parameter. */
+export function isPatternScan(plugin: string | null): boolean {
+  return plugin === 'windows.vadyarascan' || plugin === 'vmayarascan';
+}
+
 export function parameterFields(state: AppState, advanced: boolean): number[] {
   const fields: number[] = [];
   const descriptor = state.hello?.plugins.find((plugin) => plugin.name === state.plugin);
   if (state.plugin === 'windows.printkey') {
     fields.push(0, 1);
+  }
+  if (isPatternScan(state.plugin)) {
+    fields.push(7);
   }
   if (descriptor?.columns.includes('PID')) {
     fields.push(2);
@@ -359,6 +367,13 @@ export function parseOptions(
     }
     pid = parsed;
   }
+  let pattern: string | null = null;
+  if (isPatternScan(state.plugin)) {
+    pattern = (fields[7] ?? '').trim();
+    if (pattern === '') {
+      return { error: '扫描插件需要填写搜索模式' };
+    }
+  }
   const arch = (fields[3] ?? 'auto').trim();
   if (!['auto', 'x86', 'x64', 'arm64'].includes(arch)) {
     return { error: `无效架构 ${arch}；使用 auto / x86 / x64 / arm64` };
@@ -387,6 +402,7 @@ export function parseOptions(
       pid,
       hive,
       key: printkey ? (fields[1] ?? '') : '',
+      pattern,
       pagefiles,
       swapfile: (fields[5] ?? '').trim() === '' ? null : (fields[5] ?? '').trim(),
     },

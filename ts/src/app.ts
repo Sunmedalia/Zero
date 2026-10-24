@@ -86,6 +86,7 @@ import {
   filesTitle,
   inputText,
   inputTitle,
+  isPatternScan,
   parameterFields,
   parseOptions,
   pasteInto,
@@ -115,6 +116,7 @@ export interface LaunchOptions {
   /** Decimal address string; see `Options.hive`. */
   hive: string | null;
   key: string;
+  pattern?: string | null;
 }
 
 type Listener = () => void;
@@ -168,7 +170,12 @@ export class App {
 
   async initialize(): Promise<void> {
     await this.refreshAssets();
-    if (this.launch.os !== 'auto' || this.launch.hive !== null || this.launch.key !== '') {
+    if (
+      this.launch.os !== 'auto' ||
+      this.launch.hive !== null ||
+      this.launch.key !== '' ||
+      (this.launch.pattern ?? null) !== null
+    ) {
       this.state.analysisOptions = {
         ...this.state.analysisOptions,
         os: this.launch.os,
@@ -177,6 +184,7 @@ export class App {
         swapfile: this.launch.swapfile,
         hive: this.launch.hive,
         key: this.launch.key,
+        pattern: this.launch.pattern ?? null,
       };
       this.state.windows = this.launch.os === 'windows';
     }
@@ -420,6 +428,7 @@ export class App {
       pid: null,
       hive: null,
       key: '',
+      pattern: null,
       ...(windows ? {} : { arch: 'auto' as const, pagefiles: [], swapfile: null }),
     };
     this.resetView();
@@ -457,6 +466,7 @@ export class App {
       pid: null,
       hive: null,
       key: '',
+      pattern: null,
       ...(this.state.windows ? {} : { arch: 'auto' as const, pagefiles: [], swapfile: null }),
     };
     this.state.results.clear();
@@ -614,6 +624,7 @@ export class App {
       pid: null,
       hive: null,
       key: '',
+      pattern: null,
       pagefiles: [],
       swapfile: null,
     };
@@ -1009,7 +1020,11 @@ export class App {
               symbols: this.state.symbols === '' ? this.state.settings.symbols : this.state.symbols,
               plugin: this.state.plugin,
               symbol_choice: this.state.choice,
-              options: this.state.analysisOptions,
+              // Only the scan plugins accept a pattern; a stale one from an
+              // earlier scan must not reach other plugins.
+              options: isPatternScan(this.state.plugin)
+                ? this.state.analysisOptions
+                : { ...this.state.analysisOptions, pattern: null },
               dump: dump ? { ...dump.options, plugin: dump.plugin } : null,
               no_cache: work.force === true,
             },
@@ -1551,11 +1566,15 @@ export class App {
       options.arch,
       options.pagefiles.map((file) => `${file.index}=${file.path}`).join('; '),
       options.swapfile ?? '',
+      '',
+      options.pattern ?? '',
     ];
     const field =
       this.state.plugin === 'windows.printkey'
         ? 0
-        : descriptor?.columns.includes('PID')
+        : isPatternScan(this.state.plugin)
+          ? 7
+          : descriptor?.columns.includes('PID')
           ? 2
           : 6;
     this.state.dialog = {
@@ -2534,13 +2553,13 @@ export class App {
       this.state.dialog = {
         ...dialog,
         field,
-        cursor: field < 6 ? (dialog.fields[field] ?? '').length : 0,
+        cursor: field !== 6 ? (dialog.fields[field] ?? '').length : 0,
         selected: true,
       };
       this.emit();
       return;
     }
-    if (dialog.field < 6) {
+    if (dialog.field !== 6) {
       const editor = editInput(
         { text: dialog.fields[dialog.field] ?? '', cursor: dialog.cursor, selected: dialog.selected },
         token,

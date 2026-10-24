@@ -308,6 +308,7 @@ export function defaultOptions(): Options {
     pid: null,
     hive: null,
     key: '',
+    pattern: null,
     pagefiles: [],
     swapfile: null,
   };
@@ -528,7 +529,7 @@ export function requestKey(state: AppState): string {
 
 export function parameterSummary(state: AppState): string {
   const options = state.analysisOptions;
-  return `PID=${options.pid ?? '全部'} · hive=${options.hive === null ? '' : `0x${BigInt(options.hive).toString(16)}`} · key=${options.key} · arch=${options.arch} · pagefile=${JSON.stringify(options.pagefiles)} · swapfile=${options.swapfile ?? ''}`;
+  return `PID=${options.pid ?? '全部'} · hive=${options.hive === null ? '' : `0x${BigInt(options.hive).toString(16)}`} · key=${options.key} · arch=${options.arch} · pagefile=${JSON.stringify(options.pagefiles)} · swapfile=${options.swapfile ?? ''}${options.pattern === null ? '' : ` · pattern=${options.pattern}`}`;
 }
 
 export function result(state: AppState): Results | null {

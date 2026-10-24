@@ -84,7 +84,7 @@ zero dump --image images/linux-sample-1.bin.gz --symbols symbols/linux.zip \
 
 TUI 插件列表只列分析插件，转储统一放在 `dump` 功能中，用 `D` 打开。CLI 推荐使用 `dump --mode process|range|elf`，必填 PID、转储目录与清单输出；兼容原 `analyze --plugin procdump|memdump|elfdump` 调用。
 
-Linux 的 `--plugin` 支持 `pslist`、`pstree`、`lsmod`、`psaux`、`envars`、`maps`、`lsof`、`sockstat`、`netscan`、`banners`、`pwd`、`pscred`、`threads`、`mountinfo`、`check_creds`、`dmesg`、`systeminfo`、`elfs`、`bash`、`malfind`、`psxview`、`check_modules`、`check_syscall`、`psstate`、`capabilities`、`fdsummary`、`procdump`、`memdump`、`elfdump`、`iomem`、`ioports`、`ptrace`、`keyboard_notifiers`、`check_exec`、`check_idt`、`tty_check`、`hidden_modules`、`library_list`、`pidhashtable`、`vmcoreinfo`、`ip_addr`、`ip_link`、`check_afinfo`、`kthreads`、`netfilter`、`tracepoints`、`ftrace`、`ebpf`、`boottime`、`pagecache`、`perf_events`，共 51 个。进程字段为 PID、TGID、PPID、Name、Address，PID 0 不进入结果；模块字段为 Name、Base、Size，大小以字节计。`pstree` 导出同样的完整进程字段，PPID 表达父子关系，TUI 显示可展开树。地址是完整虚拟地址，模块 Base 是 `module_core` / `core_layout.base`，Size 是整个核心内存区域大小。
+Linux 的 `--plugin` 支持 `pslist`、`pstree`、`lsmod`、`psaux`、`envars`、`maps`、`lsof`、`sockstat`、`netscan`、`banners`、`pwd`、`pscred`、`threads`、`mountinfo`、`check_creds`、`dmesg`、`systeminfo`、`elfs`、`bash`、`malfind`、`psxview`、`check_modules`、`check_syscall`、`psstate`、`capabilities`、`fdsummary`、`procdump`、`memdump`、`elfdump`、`iomem`、`ioports`、`ptrace`、`keyboard_notifiers`、`check_exec`、`check_idt`、`tty_check`、`hidden_modules`、`library_list`、`pidhashtable`、`vmcoreinfo`、`ip_addr`、`ip_link`、`check_afinfo`、`kthreads`、`netfilter`、`tracepoints`、`ftrace`、`ebpf`、`boottime`、`pagecache`、`perf_events`、`vmayarascan`，共 52 个。进程字段为 PID、TGID、PPID、Name、Address，PID 0 不进入结果；模块字段为 Name、Base、Size，大小以字节计。`pstree` 导出同样的完整进程字段，PPID 表达父子关系，TUI 显示可展开树。地址是完整虚拟地址，模块 Base 是 `module_core` / `core_layout.base`，Size 是整个核心内存区域大小。
 
 新增分析字段与范围：
 
@@ -125,6 +125,7 @@ Linux 的 `--plugin` 支持 `pslist`、`pstree`、`lsmod`、`psaux`、`envars`�
 | ftrace | Ops、Handler、Symbol、Owner、Reason |
 | ebpf | ID、Name、Type、Address、Function |
 | perf_events | PID、Name、Event、Type、Config、Handler、Symbol、Owner、Reason |
+| vmayarascan | PID、Name、Address、Start、Permissions、Path、Context |
 | boottime | Key、Value（Unix 秒、UTC、纳秒） |
 | pagecache | SuperBlock、Device、FileSystem、Inode、InodeAddress、Mode、Size、CachedPages、Path |
 | psstate | PID、Name、State、ExitState、Flags |
@@ -158,6 +159,7 @@ Linux 的 `--plugin` 支持 `pslist`、`pstree`、`lsmod`、`psaux`、`envars`�
 | `tracepoints` | Volatility 3 linux.tracing.tracepoints | 遍历内建 `__tracepoints_ptrs`，列出已挂接的探针；模块自带的 tracepoint 未覆盖 |
 | `ftrace` | Volatility 3 linux.tracing.ftrace | 遍历 `ftrace_ops_list` 至 `ftrace_list_end` 的回调 |
 | `perf_events` | Volatility 3 linux.tracing.perf_events | 遍历每个进程的 `perf_event_list`，输出事件类型、config 与溢出处理函数归属 |
+| `vmayarascan` | Volatility 3 linux.vmayarascan（不执行 YARA 规则） | 在每个进程的可读 VMA 中搜索 `--pattern` 指定的字节模式 |
 | `ebpf` | Volatility 3 linux.ebpf | 遍历 `prog_idr`，输出程序 ID、名称、类型与 JIT 入口 |
 | `boottime` | Volatility 3 linux.boottime | 3.x 用 `-(wall_to_monotonic + total_sleep_time)`，3.17 起用 `tk_core.timekeeper` 的 `offs_real - offs_boot` |
 | `pagecache` | Volatility 3 linux.pagecache.Files | 遍历 `super_blocks` 与各自的 `s_inodes`，输出缓存页数和相对文件系统根的路径；不导出文件内容 |
@@ -380,3 +382,22 @@ zero --offline analyze --image /evidence/linux.raw --symbols /evidence/kernel.js
 这些是需核查的结构异常，不是恶意判定。合法 JIT、手动映射、加载/退出状态和采集时对象变化也可能触发。主程序正常不进入初始化链表，因此单独 InInit=false 不标记隐藏。链表不完整时未见基址为 unknown；已读到的基址仍为 true。线程检查跳过系统进程、已退出进程、已终止线程、零地址和内核地址；找不到对应 VAD 时不推断注入。VAD 路径读取失败保留诊断，不单凭空路径判断匿名。WOW64 主程序基址不与 native SectionBaseAddress 比较。Linux 以 inode 交叉核对文件，避免不同 file 对象指向同一文件造成误报；不读取磁盘文件内容或宣称完整复现 Volatility 2 的 process_hollow 字节比对。
 
 实现参考 [Volatility 2 恶意检测命令说明](https://github.com/volatilityfoundation/volatility/wiki/Command-Reference-Mal) 和 Volatility 3 的 [ldrmodules](https://github.com/volatilityfoundation/volatility3/blob/develop/volatility3/framework/plugins/windows/malware/ldrmodules.py)、[hollowprocesses](https://github.com/volatilityfoundation/volatility3/blob/develop/volatility3/framework/plugins/windows/malware/hollowprocesses.py)、[suspicious_threads](https://github.com/volatilityfoundation/volatility3/blob/develop/volatility3/framework/plugins/windows/malware/suspicious_threads.py) 的交叉视图思路，使用 Zero 原生 Rust 解析，不执行 Python 插件。新增检测通过合成样本验证；`check_exec` 另以本地 Debian 3.2 镜像和精确符号完成 PID 1 的离线 CLI 验证（完整结果、0 条线索、无诊断）。真实恶意样本覆盖与检出率尚未验证。
+
+## 内存模式搜索
+
+`vmayarascan`（Linux）与 `windows.vadyarascan`（Windows）在进程内存中搜索 `--pattern` 指定的字节模式，对应 Volatility 3 的 vmayarascan／vadyarascan，但 Zero 不编译或执行 YARA 规则，模式只作为数据匹配：
+
+- `文本` 或 `text:文本`：按 UTF-8 字节搜索；
+- `wide:文本`：按 UTF-16LE 搜索；
+- `hex:4d5a??00`：十六进制字节，`??` 匹配任意单字节，空白会被忽略。
+
+模式长度为 1–256 字节，且至少包含连续 2 个确定字节。`--pattern` 只能用于这两个插件，二者也必须提供它；TUI 在参数对话框（P）中提供“搜索模式”字段，MCP 的 `zero_analyze` 接受 `pattern` 参数。
+
+```bash
+zero analyze --image images/linux-sample-1.bin.gz --symbols symbols/linux.zip \
+  --plugin vmayarascan --pattern /bin/bash --output exports/bash-strings.csv
+zero analyze --image images/WinDump/WinDump.mem --plugin windows.vadyarascan \
+  --pid 7688 --pattern hex:4d5a9000 --output exports/explorer-mz.csv
+```
+
+扫描按页读取并跨相邻页拼接，不可读页会中断拼接；每个进程最多读取 256 MiB 驻留数据，结果最多 100,000 条，超过 1 GiB 的单个区域（如 CFG 位图保留区）跳过。任何不可读页或跳过的区域都会作为诊断报告并标记部分结果，因此“没有命中”只在完整结果中成立。结果的 Context 列给出命中处起 32 字节的十六进制与可打印文本；缓存键包含模式本身。实测 Debian 3.2 搜索 `/bin/bash` 得到 157 处命中；Windows 10 15063 的 explorer.exe（PID 7688）搜索 `hex:4d5a9000` 得到 261 个 PE 头。

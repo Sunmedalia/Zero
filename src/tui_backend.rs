@@ -1088,6 +1088,11 @@ fn options_from_json(value: &Value) -> Result<Options> {
             .and_then(Value::as_str)
             .unwrap_or_default()
             .to_owned(),
+        pattern: value
+            .get("pattern")
+            .and_then(Value::as_str)
+            .filter(|p| !p.is_empty())
+            .map(str::to_owned),
         pagefiles: pagefiles
             .into_iter()
             .map(|f| Attachment {

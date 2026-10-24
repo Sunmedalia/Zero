@@ -1,7 +1,7 @@
 //! Platform-neutral requests. Existing Linux APIs remain compatibility entry points.
 pub use crate::linux::{Descriptor, Outcome, Plugin, Request, Session};
 use crate::{Job, dump::DumpOptions};
-use anyhow::{Result, ensure};
+use anyhow::{Context, Result, ensure};
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, clap::ValueEnum, Serialize, Deserialize)]
@@ -19,8 +19,23 @@ pub struct Options {
     pub pid: Option<u32>,
     pub hive: Option<u64>,
     pub key: String,
+    /// Byte pattern for vmayarascan / windows.vadyarascan.
+    pub pattern: Option<String>,
     pub pagefiles: Vec<crate::windows::paging::Attachment>,
     pub swapfile: Option<std::path::PathBuf>,
+}
+/// Scan plugins need a pattern and no other plugin accepts one.
+pub fn validate_pattern(plugin: crate::linux::Plugin, options: &Options) -> Result<()> {
+    if plugin.is_pattern_scan() {
+        let text = options.pattern.as_deref().context("此插件需要 --pattern")?;
+        crate::pattern::Pattern::parse(text)?;
+    } else {
+        ensure!(
+            options.pattern.is_none(),
+            "--pattern 仅用于 vmayarascan / windows.vadyarascan"
+        );
+    }
+    Ok(())
 }
 pub fn analyze(
     session: &mut Session,
@@ -29,6 +44,7 @@ pub fn analyze(
     options: &Options,
     job: &Job,
 ) -> Result<Outcome> {
+    validate_pattern(request.plugin, options)?;
     let image = if request.plugin == crate::linux::Plugin::Banners && request.use_cache {
         session.identify_image(request.image, request.cache, job)?
     } else {
@@ -78,11 +94,16 @@ pub fn analyze(
         options.hive.is_none() && options.key.is_empty(),
         "hive/key 参数仅用于 windows.printkey"
     );
+    let pattern = options
+        .pattern
+        .as_deref()
+        .map(crate::pattern::Pattern::parse)
+        .transpose()?;
     ensure!(
         options.pagefiles.is_empty() && options.swapfile.is_none(),
         "分页附件仅用于 Windows 镜像"
     );
-    let outcome = session.analyze_with_dump(request, dump, job)?;
+    let outcome = session.analyze_with_pattern(request, dump, pattern.as_ref(), job)?;
     Ok(match outcome {
         Outcome::Ready(mut r) => {
             if let Some(pid) = options.pid {
