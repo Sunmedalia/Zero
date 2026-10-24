@@ -107,6 +107,121 @@ impl Linux<'_> {
         ensure!(count <= limit, "FD 超过 100 万项上限 ({count})");
         Ok(())
     }
+    /// The first dentry alias of an inode: `i_dentry` is a list_head on
+    /// older kernels and an hlist_head since 3.18.
+    fn inode_dentry(&self, inode: u64) -> Result<Option<u64>> {
+        let head = self.field_address(inode, "inode", "i_dentry")?;
+        let first = if self.isf.field("hlist_head", "first").is_ok()
+            && self.isf.field("inode", "i_dentry")?["type"]["name"] == "hlist_head"
+        {
+            self.number(head, "hlist_head", "first")?
+        } else {
+            let next = self.number(head, "list_head", "next")?;
+            if next == head { 0 } else { next }
+        };
+        if first == 0 {
+            return Ok(None);
+        }
+        let alias = if self.isf.field("dentry", "d_alias").is_ok() {
+            self.isf.offset("dentry", "d_alias")?
+        } else {
+            self.isf.offset("dentry", "d_u")?
+        };
+        Ok(Some(first.checked_sub(alias).context("dentry 地址下溢")?))
+    }
+    /// Path of a dentry relative to its filesystem root.
+    fn dentry_path(&self, mut dentry: u64) -> Result<String> {
+        let mut parts = Vec::new();
+        for _ in 0..DEPTH_LIMIT {
+            let parent = self.number(dentry, "dentry", "d_parent")?;
+            if parent == dentry || parent == 0 {
+                parts.reverse();
+                return Ok(format!("/{}", parts.join("/")));
+            }
+            let name = self.field_address(dentry, "dentry", "d_name")?;
+            parts.push(self.kernel_text(self.number(name, "qstr", "name")?, 256)?);
+            dentry = parent;
+        }
+        bail!("dentry 深度超过 {DEPTH_LIMIT}")
+    }
+    /// pagecache: inodes of every superblock with their cached page counts.
+    pub(super) fn pagecache(&self, r: &mut Results, job: &Job) -> Result<()> {
+        self.require(&[
+            ("super_block", "s_list"),
+            ("super_block", "s_inodes"),
+            ("super_block", "s_id"),
+            ("inode", "i_sb_list"),
+            ("inode", "i_ino"),
+            ("inode", "i_mapping"),
+            ("address_space", "nrpages"),
+        ])?;
+        let blocks = self.list_objects(
+            self.isf
+                .address("super_blocks")
+                .context("不支持: 缺少 super_blocks")?,
+            self.isf.offset("super_block", "s_list")?,
+            job,
+        )?;
+        let mut total = 0usize;
+        for block in blocks {
+            job.check()?;
+            let read = (|| -> Result<()> {
+                let device = self.string(block, "super_block", "s_id")?;
+                let kind = self
+                    .number(block, "super_block", "s_type")
+                    .and_then(|ty| {
+                        self.kernel_text(self.number(ty, "file_system_type", "name")?, 64)
+                    })
+                    .unwrap_or_default();
+                let inodes = self.list_objects(
+                    self.field_address(block, "super_block", "s_inodes")?,
+                    self.isf.offset("inode", "i_sb_list")?,
+                    job,
+                )?;
+                for inode in inodes {
+                    job.check()?;
+                    total += 1;
+                    ensure!(total <= LIMIT, "inode 超过 {LIMIT} 项上限");
+                    let row = (|| -> Result<Vec<String>> {
+                        let mapping = self.number(inode, "inode", "i_mapping")?;
+                        let pages = if mapping == 0 {
+                            0
+                        } else {
+                            self.number(mapping, "address_space", "nrpages")?
+                        };
+                        let path = match self.inode_dentry(inode) {
+                            Ok(Some(dentry)) => self
+                                .dentry_path(dentry)
+                                .unwrap_or_else(|_| "[unresolved]".into()),
+                            _ => String::new(),
+                        };
+                        Ok(vec![
+                            hex(block),
+                            device.clone(),
+                            kind.clone(),
+                            self.number(inode, "inode", "i_ino")?.to_string(),
+                            hex(inode),
+                            format!("{:o}", self.number(inode, "inode", "i_mode")?),
+                            self.number(inode, "inode", "i_size")?.to_string(),
+                            pages.to_string(),
+                            path,
+                        ])
+                    })();
+                    match row {
+                        Ok(row) => r.rows.push(row),
+                        Err(e) => partial(r, format!("inode {inode:#x}"), e),
+                    }
+                }
+                Ok(())
+            })();
+            if let Err(e) = read {
+                job.check()?;
+                partial(r, format!("super_block {block:#x}"), e);
+            }
+            job.report(format!("pagecache: {} 条", r.rows.len()));
+        }
+        Ok(())
+    }
     pub(crate) fn file_path(&self, task: u64, file: u64, job: &Job) -> Result<String> {
         let root = self.process_root(task)?;
         self.file_path_from(root, file, job)

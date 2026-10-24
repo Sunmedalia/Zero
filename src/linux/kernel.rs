@@ -798,40 +798,85 @@ impl Linux<'_> {
         }
         Ok(())
     }
+    /// Pointer entries of an xarray (also the radix tree behind an IDR).
+    pub(super) fn xarray_entries(&self, xa: u64, job: &Job) -> Result<Vec<u64>> {
+        let mut stack = vec![self.number(xa, "xarray", "xa_head")?];
+        let mut seen = HashSet::new();
+        let mut entries = Vec::new();
+        while let Some(entry) = stack.pop() {
+            job.check()?;
+            if entry == 0 {
+                continue;
+            }
+            ensure!(
+                seen.insert(entry) && seen.len() <= 1_000_000,
+                "xarray 循环或上限"
+            );
+            if entry & 3 == 2 {
+                ensure!(entry > 4096, "xarray 保留节点／sibling 不支持");
+                let node = entry - 2;
+                let slots = self.field_address(node, "xa_node", "slots")?;
+                let count = self.isf.field("xa_node", "slots")?["type"]["count"]
+                    .as_u64()
+                    .context("xa slots count")?;
+                ensure!(count <= 256, "xarray slot count 越界");
+                for i in 0..count {
+                    stack.push(self.vm.uint(slots + i * 8, 8)?);
+                }
+            } else {
+                ensure!(entry & 3 == 0, "xarray 值节点不支持");
+                entries.push(entry);
+            }
+        }
+        Ok(entries)
+    }
+    /// boottime: wall-clock boot time from the timekeeping offsets.
+    pub(super) fn boottime(&self, r: &mut Results) -> Result<()> {
+        // 3.x: boot = -(wall_to_monotonic + total_sleep_time).
+        let seconds_nanos = if let (Ok(wtm), Ok(sleep)) = (
+            self.isf.address("wall_to_monotonic"),
+            self.isf.address("total_sleep_time"),
+        ) {
+            let read = |base| -> Result<i128> {
+                let seconds = self.number(base, "timespec", "tv_sec")? as i64 as i128;
+                let nanos = self.number(base, "timespec", "tv_nsec")? as i64 as i128;
+                Ok(seconds * 1_000_000_000 + nanos)
+            };
+            -(read(wtm)? + read(sleep)?)
+        } else {
+            // Since 3.17: boot = offs_real - offs_boot (both ktime_t nanoseconds).
+            let core = self
+                .isf
+                .address("tk_core")
+                .context("不支持: 缺少 wall_to_monotonic 与 tk_core")?;
+            let keeper = self.field_address(core, "tk_core", "timekeeper")?;
+            let real = self.number(keeper, "timekeeper", "offs_real")? as i64 as i128;
+            let boot = self.number(keeper, "timekeeper", "offs_boot")? as i64 as i128;
+            real - boot
+        };
+        let seconds = seconds_nanos.div_euclid(1_000_000_000);
+        ensure!(
+            (0..=4_102_444_800).contains(&seconds),
+            "启动时间超出 1970-2100 范围: {seconds}"
+        );
+        r.rows
+            .push(vec!["BootTimeUnix".into(), seconds.to_string()]);
+        r.rows.push(vec![
+            "BootTimeUTC".into(),
+            crate::report::utc(seconds as i64),
+        ]);
+        r.rows.push(vec![
+            "BootTimeNanos".into(),
+            seconds_nanos.rem_euclid(1_000_000_000).to_string(),
+        ]);
+        Ok(())
+    }
     pub(super) fn pid_objects(&self, job: &Job) -> Result<Vec<u64>> {
         if self.isf.field("pid_namespace", "idr").is_ok() {
             let ns = self.isf.address("init_pid_ns")?;
             let idr = self.field_address(ns, "pid_namespace", "idr")?;
             let xa = self.field_address(idr, "idr", "idr_rt")?;
-            let mut stack = vec![self.number(xa, "xarray", "xa_head")?];
-            let mut seen = HashSet::new();
-            let mut pids = Vec::new();
-            while let Some(entry) = stack.pop() {
-                job.check()?;
-                if entry == 0 {
-                    continue;
-                }
-                ensure!(
-                    seen.insert(entry) && seen.len() <= 1_000_000,
-                    "PID xarray 循环或上限"
-                );
-                if entry & 3 == 2 {
-                    ensure!(entry > 4096, "PID xarray 保留节点／sibling 不支持");
-                    let node = entry - 2;
-                    let slots = self.field_address(node, "xa_node", "slots")?;
-                    let count = self.isf.field("xa_node", "slots")?["type"]["count"]
-                        .as_u64()
-                        .context("xa slots count")?;
-                    ensure!(count <= 256, "PID xarray slot count 越界");
-                    for i in 0..count {
-                        stack.push(self.vm.uint(slots + i * 8, 8)?);
-                    }
-                } else {
-                    ensure!(entry & 3 == 0, "PID xarray 值节点不支持");
-                    pids.push(entry);
-                }
-            }
-            return Ok(pids);
+            return self.xarray_entries(xa, job).context("PID xarray");
         }
         let hash = self.vm.uint(self.isf.address("pid_hash")?, 8)?;
         let shift = self.vm.uint(self.isf.address("pidhash_shift")?, 4)?;

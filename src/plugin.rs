@@ -146,6 +146,15 @@ pub enum Plugin {
     IpAddr,
     #[value(name = "ip_link", alias = "ip.link")]
     IpLink,
+    #[value(name = "check_afinfo", alias = "check-afinfo")]
+    CheckAfinfo,
+    Kthreads,
+    Netfilter,
+    Tracepoints,
+    Ftrace,
+    Ebpf,
+    Boottime,
+    Pagecache,
 }
 pub struct Descriptor {
     pub plugin: Plugin,
@@ -953,6 +962,88 @@ pub const PLUGINS: &[Descriptor] = &[
         widths: &[18, 12, 17, 10, 6, 0],
     },
     Descriptor {
+        plugin: Plugin::CheckAfinfo,
+        name: "check_afinfo",
+        label: "check_afinfo",
+        columns: &[
+            "Structure",
+            "Member",
+            "Address",
+            "Symbol",
+            "Owner",
+            "Reason",
+        ],
+        widths: &[20, 18, 18, 0, 16, 0],
+    },
+    Descriptor {
+        plugin: Plugin::Kthreads,
+        name: "kthreads",
+        label: "kthreads",
+        columns: &["PID", "Name", "ThreadFunction", "Symbol", "Owner", "Reason"],
+        widths: &[6, 16, 18, 0, 16, 0],
+    },
+    Descriptor {
+        plugin: Plugin::Netfilter,
+        name: "netfilter",
+        label: "netfilter",
+        columns: &[
+            "Namespace",
+            "Protocol",
+            "Hook",
+            "Priority",
+            "Handler",
+            "Symbol",
+            "Owner",
+            "Reason",
+        ],
+        widths: &[18, 8, 12, 8, 18, 0, 16, 0],
+    },
+    Descriptor {
+        plugin: Plugin::Tracepoints,
+        name: "tracepoints",
+        label: "tracepoints",
+        columns: &["Tracepoint", "Handler", "Symbol", "Owner", "Reason"],
+        widths: &[0, 18, 0, 16, 0],
+    },
+    Descriptor {
+        plugin: Plugin::Ftrace,
+        name: "ftrace",
+        label: "ftrace",
+        columns: &["Ops", "Handler", "Symbol", "Owner", "Reason"],
+        widths: &[18, 18, 0, 16, 0],
+    },
+    Descriptor {
+        plugin: Plugin::Ebpf,
+        name: "ebpf",
+        label: "ebpf",
+        columns: &["ID", "Name", "Type", "Address", "Function"],
+        widths: &[6, 16, 0, 18, 18],
+    },
+    Descriptor {
+        plugin: Plugin::Boottime,
+        name: "boottime",
+        label: "boottime",
+        columns: &["Key", "Value"],
+        widths: &[16, 0],
+    },
+    Descriptor {
+        plugin: Plugin::Pagecache,
+        name: "pagecache",
+        label: "pagecache",
+        columns: &[
+            "SuperBlock",
+            "Device",
+            "FileSystem",
+            "Inode",
+            "InodeAddress",
+            "Mode",
+            "Size",
+            "CachedPages",
+            "Path",
+        ],
+        widths: &[18, 10, 10, 10, 18, 8, 12, 8, 0],
+    },
+    Descriptor {
         plugin: Plugin::Psstate,
         name: "psstate",
         label: "psstate",
@@ -1133,7 +1224,15 @@ impl Plugin {
             | Self::CheckSyscall
             | Self::CheckIdt
             | Self::TtyCheck
-            | Self::HiddenModules => "Integrity",
+            | Self::HiddenModules
+            | Self::CheckAfinfo
+            | Self::Kthreads
+            | Self::Netfilter
+            | Self::Tracepoints
+            | Self::Ftrace
+            | Self::Ebpf => "Integrity",
+            Self::Boottime => "System",
+            Self::Pagecache => "Files",
         }
     }
     pub fn name(self) -> &'static str {
@@ -1177,6 +1276,14 @@ impl Plugin {
             Vmcoreinfo => "读取内核为崩溃转储准备的 vmcoreinfo",
             IpAddr => "列出各网络命名空间中网卡的 IPv4／IPv6 地址",
             IpLink => "列出各网络命名空间中的网卡及状态",
+            CheckAfinfo => "检查网络协议 /proc 处理函数是否被挂钩",
+            Kthreads => "列出内核线程及其线程函数归属",
+            Netfilter => "列出 netfilter 钩子及处理函数归属",
+            Tracepoints => "列出挂在内核 tracepoint 上的探针",
+            Ftrace => "列出已注册的 ftrace 回调",
+            Ebpf => "列出已加载的 eBPF 程序",
+            Boottime => "根据时间保持偏移计算系统启动时间",
+            Pagecache => "列出页缓存中各文件系统的 inode 及缓存页数",
             Iomem => "查看物理内存资源范围",
             Ioports => "查看 I/O 端口资源",
             Ptrace => "检查进程跟踪关系",

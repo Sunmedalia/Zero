@@ -172,6 +172,42 @@ impl Linux<'_> {
                 self.ip_link(&mut r, job)?;
                 Ok(r)
             }
+            CheckAfinfo => {
+                let mut r = self.result(plugin);
+                self.check_afinfo(&mut r, job)?;
+                Ok(r)
+            }
+            Kthreads => self.kthreads(job),
+            Netfilter => {
+                let mut r = self.result(plugin);
+                self.netfilter(&mut r, job)?;
+                Ok(r)
+            }
+            Tracepoints => {
+                let mut r = self.result(plugin);
+                self.tracepoints(&mut r, job)?;
+                Ok(r)
+            }
+            Ftrace => {
+                let mut r = self.result(plugin);
+                self.ftrace(&mut r, job)?;
+                Ok(r)
+            }
+            Ebpf => {
+                let mut r = self.result(plugin);
+                self.ebpf(&mut r, job)?;
+                Ok(r)
+            }
+            Boottime => {
+                let mut r = self.result(plugin);
+                self.boottime(&mut r)?;
+                Ok(r)
+            }
+            Pagecache => {
+                let mut r = self.result(plugin);
+                self.pagecache(&mut r, job)?;
+                Ok(r)
+            }
             HiddenModules => {
                 let mut r = self.result(plugin);
                 self.hidden_modules(&mut r, job)?;

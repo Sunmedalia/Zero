@@ -17,6 +17,7 @@ use std::{
 mod discover;
 mod engine;
 mod fs;
+mod hooks;
 mod kernel;
 mod malware;
 mod memory;
