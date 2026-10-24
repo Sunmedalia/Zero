@@ -89,6 +89,10 @@ Windows 10 RAW 样本额外验证了 4 个 WOW64 进程（PID 4428、5684、5932
 
 实测：Windows 10 15063 `iat=17524`、`verinfo=4813`、`mftscan=367513`；Windows 11 22000 `iat=15334`、`verinfo=3936`、`mftscan=24422`。
 
+第四批新增 `windows.orphan_kernel_threads`、`windows.etwpatch`、`windows.registry.scheduled_tasks`、`windows.registry.amcache` 和 `windows.registry.certificates`。`orphan_kernel_threads` 复用 System 进程的线程视图，列出起始地址为内核地址却不属于任何已加载模块的线程。`etwpatch` 按导出表定位每个进程 ntdll 的 `EtwEventWrite` 与 `NtTraceEvent`，按首字节识别 `ret`、`xor eax,eax; ret`、`mov eax,imm; ret` 与 `jmp` 钩子，其余为 Normal。`scheduled_tasks` 读取 SOFTWARE 的 TaskCache\Tasks，解码 Actions 中的执行动作（命令、参数、工作目录）及 DynamicInfo 的创建与最近运行时间。`amcache` 读取 Amcache.hve 的 `Root\InventoryApplicationFile`，SHA1 去掉 `0000` 前缀。`certificates` 遍历 SOFTWARE 与 NTUSER 的 SystemCertificates 常见存储，从 Blob 属性中取 DER 证书和友好名称，并解析主体、颁发者 CN 与有效期；只列出，不导出证书。
+
+实测：Windows 10 15063 `etwpatch=243`（全部 Normal）、`scheduled_tasks=173`、`amcache=149`、`certificates=30`；Windows 11 22000 `etwpatch=183`、`scheduled_tasks=201`、`amcache=205`、`certificates=29`。两个样本 `orphan_kernel_threads=0`，零行不作为真实验证，矩阵保持待验证。
+
 矩阵按插件和架构记录四级证据。**真实**仅代表列出的样本构建与容器；**合成**验证解析路径或指针宽度，不能证明该系统的完整布局；**待验证**缺少实测证据；**不支持**没有对应解析模型。零条扫描结果不作为恢复能力的真实验证。具体插件、样本哈希、精确 PDB 与范围见 [机器可读矩阵](../src/windows/compatibility.json) 和 [验收基线](../tests/fixtures/windows.json)。Server 2003 与 R2 共用内核构建，系统身份会保留歧义；Server 2025 与 Windows 11 的 26100 使用有效的 ProductType 区分。所有版本仍要求精确符号，未知构建不会选择最近版本。
 
 <!-- windows-compatibility:start -->

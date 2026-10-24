@@ -12,7 +12,8 @@ const RT_VERSION: u32 = 16;
 pub(super) struct Header {
     pub wide: bool,
     pub size: u32,
-    /// (RVA, size) of the import and resource data directories.
+    /// (RVA, size) of the export, import and resource data directories.
+    pub exports: (u32, u32),
     pub imports: (u32, u32),
     pub resources: (u32, u32),
 }
@@ -54,6 +55,7 @@ pub(super) fn parse_header(bytes: &[u8]) -> Result<Header> {
     Ok(Header {
         wide,
         size: u32_at(56)?,
+        exports: directory(0)?,
         imports: directory(1)?,
         resources: directory(2)?,
     })
@@ -69,6 +71,20 @@ pub(super) fn fixed_version(bytes: &[u8]) -> Option<(String, String)> {
         |ms: u32, ls: u32| format!("{}.{}.{}.{}", ms >> 16, ms & 0xffff, ls >> 16, ls & 0xffff);
     Some((format(word(8), word(12)), format(word(16), word(20))))
 }
+
+/// Classify the first bytes of an ETW entry point.
+pub(super) fn etw_patch(bytes: &[u8]) -> &'static str {
+    match bytes {
+        [0xc3, ..] => "Patched: ret",
+        [0xc2, _, _, ..] => "Patched: ret imm16",
+        [0x33, 0xc0, 0xc3, ..] | [0x31, 0xc0, 0xc3, ..] => "Patched: xor eax,eax; ret",
+        [0x48, 0x33, 0xc0, 0xc3, ..] | [0x48, 0x31, 0xc0, 0xc3, ..] => "Patched: xor rax,rax; ret",
+        [0xb8, _, _, _, _, 0xc3, ..] => "Patched: mov eax,imm; ret",
+        [0xe9, ..] | [0xff, 0x25, ..] => "Hooked: jmp",
+        _ => "Normal",
+    }
+}
+const ETW_FUNCTIONS: &[&str] = &["EtwEventWrite", "NtTraceEvent"];
 
 impl Windows<'_> {
     fn read_image(&self, vm: &Memory<'_>, base: u64, rva: u32, out: &mut [u8]) -> Result<()> {
@@ -173,6 +189,86 @@ impl Windows<'_> {
                         break;
                     }
                 }
+            }
+        }
+        Ok(())
+    }
+    /// RVA of an exported name, walking the export name table.
+    fn export_rva(
+        &self,
+        vm: &Memory<'_>,
+        base: u64,
+        header: &Header,
+        wanted: &str,
+    ) -> Result<Option<u32>> {
+        let (directory, size) = header.exports;
+        if directory == 0 || size == 0 {
+            return Ok(None);
+        }
+        let mut table = [0u8; 40];
+        self.read_image(vm, base, directory, &mut table)?;
+        let word = |at: usize| u32::from_le_bytes(table[at..at + 4].try_into().unwrap());
+        let (names, functions, name_table, ordinals) = (word(24), word(28), word(32), word(36));
+        ensure!(names as usize <= IMPORT_LIMIT, "导出名称数量超限");
+        let mut pointers = vec![0u8; names as usize * 4];
+        self.read_image(vm, base, name_table, &mut pointers)?;
+        for (index, pointer) in pointers.chunks_exact(4).enumerate() {
+            let rva = u32::from_le_bytes(pointer.try_into()?);
+            if self
+                .ascii_at(vm, base, rva)
+                .is_ok_and(|name| name == wanted)
+            {
+                let mut ordinal = [0u8; 2];
+                self.read_image(vm, base, ordinals + index as u32 * 2, &mut ordinal)?;
+                let mut function = [0u8; 4];
+                self.read_image(
+                    vm,
+                    base,
+                    functions + u32::from(u16::from_le_bytes(ordinal)) * 4,
+                    &mut function,
+                )?;
+                return Ok(Some(u32::from_le_bytes(function)));
+            }
+        }
+        Ok(None)
+    }
+    /// windows.etwpatch: first bytes of ntdll's ETW entry points per process.
+    pub(super) fn etwpatch(&self, p: &Process, r: &mut Results, job: &Job) -> Result<()> {
+        let vm = self.process_memory(p)?;
+        let dlls = self.dlls_partial(p, job, None)?;
+        let Some((base, _, path, _)) = dlls
+            .into_iter()
+            .find(|(_, _, path, _)| path.to_ascii_lowercase().ends_with("\\ntdll.dll"))
+        else {
+            return Ok(());
+        };
+        let header = self.image_header(&vm, base)?;
+        for &function in ETW_FUNCTIONS {
+            job.check()?;
+            let read = (|| -> Result<Option<Vec<String>>> {
+                let Some(rva) = self.export_rva(&vm, base, &header, function)? else {
+                    return Ok(None);
+                };
+                let mut bytes = [0u8; 8];
+                self.read_image(&vm, base, rva, &mut bytes)?;
+                Ok(Some(vec![
+                    p.pid.to_string(),
+                    p.name.clone(),
+                    path.clone(),
+                    function.into(),
+                    hex(add(base, u64::from(rva))?),
+                    bytes
+                        .iter()
+                        .map(|b| format!("{b:02x}"))
+                        .collect::<Vec<_>>()
+                        .join(" "),
+                    etw_patch(&bytes).into(),
+                ]))
+            })();
+            match read {
+                Ok(Some(row)) => r.rows.push(row),
+                Ok(None) => {}
+                Err(e) => Self::issue(r, format!("PID {} {function}", p.pid), format!("{e:#}")),
             }
         }
         Ok(())
@@ -301,6 +397,7 @@ mod tests {
                 Header {
                     wide,
                     size: 0x5000,
+                    exports: (0, 0),
                     imports: (0x2000, 40),
                     resources: (0x3000, 0x100)
                 }
@@ -310,6 +407,18 @@ mod tests {
         broken[0x98] = 0;
         assert!(parse_header(&broken).is_err());
         assert!(parse_header(b"ZZ").is_err());
+    }
+
+    #[test]
+    fn etw_entry_points_classify_common_patches() {
+        assert_eq!(etw_patch(&[0x4c, 0x8b, 0xdc, 0x48]), "Normal");
+        assert_eq!(etw_patch(&[0xc3, 0, 0]), "Patched: ret");
+        assert_eq!(etw_patch(&[0xc2, 0x14, 0x00]), "Patched: ret imm16");
+        assert_eq!(
+            etw_patch(&[0x48, 0x33, 0xc0, 0xc3]),
+            "Patched: xor rax,rax; ret"
+        );
+        assert_eq!(etw_patch(&[0xe9, 1, 2, 3, 4]), "Hooked: jmp");
     }
 
     #[test]

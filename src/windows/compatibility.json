@@ -72,7 +72,12 @@
           "windows.getservicesids": "pending",
           "windows.iat": "pending",
           "windows.verinfo": "pending",
-          "windows.mftscan": "pending"
+          "windows.mftscan": "pending",
+          "windows.orphan_kernel_threads": "pending",
+          "windows.etwpatch": "pending",
+          "windows.registry.scheduled_tasks": "pending",
+          "windows.registry.amcache": "pending",
+          "windows.registry.certificates": "pending"
         },
         "x64": {
           "windows.callbacks": "synthetic",
@@ -122,7 +127,12 @@
           "windows.getservicesids": "pending",
           "windows.iat": "pending",
           "windows.verinfo": "pending",
-          "windows.mftscan": "pending"
+          "windows.mftscan": "pending",
+          "windows.orphan_kernel_threads": "pending",
+          "windows.etwpatch": "pending",
+          "windows.registry.scheduled_tasks": "pending",
+          "windows.registry.amcache": "pending",
+          "windows.registry.certificates": "pending"
         }
       },
       "evidence": [
@@ -233,7 +243,12 @@
           "windows.getservicesids": "pending",
           "windows.iat": "pending",
           "windows.verinfo": "pending",
-          "windows.mftscan": "pending"
+          "windows.mftscan": "pending",
+          "windows.orphan_kernel_threads": "pending",
+          "windows.etwpatch": "pending",
+          "windows.registry.scheduled_tasks": "pending",
+          "windows.registry.amcache": "pending",
+          "windows.registry.certificates": "pending"
         },
         "x64": {
           "windows.callbacks": "synthetic",
@@ -283,7 +298,12 @@
           "windows.getservicesids": "pending",
           "windows.iat": "pending",
           "windows.verinfo": "pending",
-          "windows.mftscan": "pending"
+          "windows.mftscan": "pending",
+          "windows.orphan_kernel_threads": "pending",
+          "windows.etwpatch": "pending",
+          "windows.registry.scheduled_tasks": "pending",
+          "windows.registry.amcache": "pending",
+          "windows.registry.certificates": "pending"
         }
       },
       "evidence": []
@@ -354,7 +374,12 @@
           "windows.getservicesids": "pending",
           "windows.iat": "pending",
           "windows.verinfo": "pending",
-          "windows.mftscan": "pending"
+          "windows.mftscan": "pending",
+          "windows.orphan_kernel_threads": "pending",
+          "windows.etwpatch": "pending",
+          "windows.registry.scheduled_tasks": "pending",
+          "windows.registry.amcache": "pending",
+          "windows.registry.certificates": "pending"
         },
         "x64": {
           "windows.callbacks": "synthetic",
@@ -404,7 +429,12 @@
           "windows.getservicesids": "pending",
           "windows.iat": "pending",
           "windows.verinfo": "pending",
-          "windows.mftscan": "pending"
+          "windows.mftscan": "pending",
+          "windows.orphan_kernel_threads": "pending",
+          "windows.etwpatch": "pending",
+          "windows.registry.scheduled_tasks": "pending",
+          "windows.registry.amcache": "pending",
+          "windows.registry.certificates": "pending"
         }
       },
       "evidence": [
@@ -521,7 +551,12 @@
           "windows.getservicesids": "pending",
           "windows.iat": "pending",
           "windows.verinfo": "pending",
-          "windows.mftscan": "pending"
+          "windows.mftscan": "pending",
+          "windows.orphan_kernel_threads": "pending",
+          "windows.etwpatch": "pending",
+          "windows.registry.scheduled_tasks": "pending",
+          "windows.registry.amcache": "pending",
+          "windows.registry.certificates": "pending"
         }
       },
       "evidence": [],
@@ -591,7 +626,12 @@
           "windows.getservicesids": "pending",
           "windows.iat": "pending",
           "windows.verinfo": "pending",
-          "windows.mftscan": "pending"
+          "windows.mftscan": "pending",
+          "windows.orphan_kernel_threads": "pending",
+          "windows.etwpatch": "pending",
+          "windows.registry.scheduled_tasks": "pending",
+          "windows.registry.amcache": "pending",
+          "windows.registry.certificates": "pending"
         }
       },
       "evidence": [
@@ -707,7 +747,12 @@
           "windows.getservicesids": "pending",
           "windows.iat": "pending",
           "windows.verinfo": "pending",
-          "windows.mftscan": "pending"
+          "windows.mftscan": "pending",
+          "windows.orphan_kernel_threads": "pending",
+          "windows.etwpatch": "pending",
+          "windows.registry.scheduled_tasks": "pending",
+          "windows.registry.amcache": "pending",
+          "windows.registry.certificates": "pending"
         }
       },
       "evidence": [
@@ -824,7 +869,12 @@
           "windows.getservicesids": "pending",
           "windows.iat": "pending",
           "windows.verinfo": "pending",
-          "windows.mftscan": "pending"
+          "windows.mftscan": "pending",
+          "windows.orphan_kernel_threads": "pending",
+          "windows.etwpatch": "pending",
+          "windows.registry.scheduled_tasks": "pending",
+          "windows.registry.amcache": "pending",
+          "windows.registry.certificates": "pending"
         }
       },
       "evidence": [
@@ -913,7 +963,12 @@
           "windows.getservicesids": "pending",
           "windows.iat": "pending",
           "windows.verinfo": "pending",
-          "windows.mftscan": "pending"
+          "windows.mftscan": "pending",
+          "windows.orphan_kernel_threads": "pending",
+          "windows.etwpatch": "pending",
+          "windows.registry.scheduled_tasks": "pending",
+          "windows.registry.amcache": "pending",
+          "windows.registry.certificates": "pending"
         }
       },
       "evidence": [
@@ -1031,7 +1086,12 @@
           "windows.getservicesids": "pending",
           "windows.iat": "pending",
           "windows.verinfo": "pending",
-          "windows.mftscan": "pending"
+          "windows.mftscan": "pending",
+          "windows.orphan_kernel_threads": "pending",
+          "windows.etwpatch": "pending",
+          "windows.registry.scheduled_tasks": "pending",
+          "windows.registry.amcache": "pending",
+          "windows.registry.certificates": "pending"
         }
       },
       "evidence": [
@@ -1149,7 +1209,12 @@
           "windows.getservicesids": "pending",
           "windows.iat": "pending",
           "windows.verinfo": "pending",
-          "windows.mftscan": "pending"
+          "windows.mftscan": "pending",
+          "windows.orphan_kernel_threads": "pending",
+          "windows.etwpatch": "pending",
+          "windows.registry.scheduled_tasks": "pending",
+          "windows.registry.amcache": "pending",
+          "windows.registry.certificates": "pending"
         }
       },
       "evidence": [],
@@ -1221,7 +1286,12 @@
           "windows.getservicesids": "pending",
           "windows.iat": "pending",
           "windows.verinfo": "pending",
-          "windows.mftscan": "pending"
+          "windows.mftscan": "pending",
+          "windows.orphan_kernel_threads": "pending",
+          "windows.etwpatch": "pending",
+          "windows.registry.scheduled_tasks": "pending",
+          "windows.registry.amcache": "pending",
+          "windows.registry.certificates": "pending"
         },
         "x64": {
           "windows.callbacks": "real",
@@ -1271,7 +1341,12 @@
           "windows.getservicesids": "pending",
           "windows.iat": "pending",
           "windows.verinfo": "pending",
-          "windows.mftscan": "pending"
+          "windows.mftscan": "pending",
+          "windows.orphan_kernel_threads": "pending",
+          "windows.etwpatch": "pending",
+          "windows.registry.scheduled_tasks": "pending",
+          "windows.registry.amcache": "pending",
+          "windows.registry.certificates": "pending"
         }
       },
       "evidence": [
@@ -1374,7 +1449,12 @@
           "windows.getservicesids": "pending",
           "windows.iat": "pending",
           "windows.verinfo": "pending",
-          "windows.mftscan": "pending"
+          "windows.mftscan": "pending",
+          "windows.orphan_kernel_threads": "pending",
+          "windows.etwpatch": "pending",
+          "windows.registry.scheduled_tasks": "pending",
+          "windows.registry.amcache": "pending",
+          "windows.registry.certificates": "pending"
         },
         "x64": {
           "windows.callbacks": "synthetic",
@@ -1424,7 +1504,12 @@
           "windows.getservicesids": "pending",
           "windows.iat": "pending",
           "windows.verinfo": "pending",
-          "windows.mftscan": "pending"
+          "windows.mftscan": "pending",
+          "windows.orphan_kernel_threads": "pending",
+          "windows.etwpatch": "pending",
+          "windows.registry.scheduled_tasks": "pending",
+          "windows.registry.amcache": "pending",
+          "windows.registry.certificates": "pending"
         }
       },
       "evidence": []
@@ -1494,7 +1579,12 @@
           "windows.getservicesids": "pending",
           "windows.iat": "pending",
           "windows.verinfo": "pending",
-          "windows.mftscan": "pending"
+          "windows.mftscan": "pending",
+          "windows.orphan_kernel_threads": "pending",
+          "windows.etwpatch": "pending",
+          "windows.registry.scheduled_tasks": "pending",
+          "windows.registry.amcache": "pending",
+          "windows.registry.certificates": "pending"
         },
         "x64": {
           "windows.callbacks": "synthetic",
@@ -1544,7 +1634,12 @@
           "windows.getservicesids": "pending",
           "windows.iat": "pending",
           "windows.verinfo": "pending",
-          "windows.mftscan": "pending"
+          "windows.mftscan": "pending",
+          "windows.orphan_kernel_threads": "pending",
+          "windows.etwpatch": "pending",
+          "windows.registry.scheduled_tasks": "pending",
+          "windows.registry.amcache": "pending",
+          "windows.registry.certificates": "pending"
         }
       },
       "evidence": []
@@ -1627,7 +1722,12 @@
           "windows.getservicesids": "pending",
           "windows.iat": "pending",
           "windows.verinfo": "pending",
-          "windows.mftscan": "pending"
+          "windows.mftscan": "pending",
+          "windows.orphan_kernel_threads": "pending",
+          "windows.etwpatch": "pending",
+          "windows.registry.scheduled_tasks": "pending",
+          "windows.registry.amcache": "pending",
+          "windows.registry.certificates": "pending"
         },
         "x64": {
           "windows.callbacks": "real",
@@ -1677,7 +1777,12 @@
           "windows.getservicesids": "pending",
           "windows.iat": "real",
           "windows.verinfo": "real",
-          "windows.mftscan": "real"
+          "windows.mftscan": "real",
+          "windows.orphan_kernel_threads": "pending",
+          "windows.etwpatch": "real",
+          "windows.registry.scheduled_tasks": "real",
+          "windows.registry.amcache": "real",
+          "windows.registry.certificates": "real"
         }
       },
       "evidence": [
@@ -1717,7 +1822,11 @@
             "windows.devicetree": 357,
             "windows.iat": 17524,
             "windows.verinfo": 4813,
-            "windows.mftscan": 367513
+            "windows.mftscan": 367513,
+            "windows.etwpatch": 243,
+            "windows.registry.scheduled_tasks": 173,
+            "windows.registry.amcache": 149,
+            "windows.registry.certificates": 30
           }
         },
         {
@@ -1807,7 +1916,12 @@
           "windows.getservicesids": "pending",
           "windows.iat": "real",
           "windows.verinfo": "real",
-          "windows.mftscan": "real"
+          "windows.mftscan": "real",
+          "windows.orphan_kernel_threads": "pending",
+          "windows.etwpatch": "real",
+          "windows.registry.scheduled_tasks": "real",
+          "windows.registry.amcache": "real",
+          "windows.registry.certificates": "real"
         }
       },
       "evidence": [
@@ -1846,7 +1960,11 @@
             "windows.symlinkscan": 206,
             "windows.iat": 15334,
             "windows.verinfo": 3936,
-            "windows.mftscan": 24422
+            "windows.mftscan": 24422,
+            "windows.etwpatch": 183,
+            "windows.registry.scheduled_tasks": 201,
+            "windows.registry.amcache": 205,
+            "windows.registry.certificates": 29
           }
         }
       ]

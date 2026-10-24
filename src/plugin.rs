@@ -102,6 +102,16 @@ pub enum Plugin {
     WinVerinfo,
     #[value(name = "windows.mftscan")]
     WinMftscan,
+    #[value(name = "windows.orphan_kernel_threads")]
+    WinOrphanThreads,
+    #[value(name = "windows.etwpatch")]
+    WinEtwpatch,
+    #[value(name = "windows.registry.scheduled_tasks")]
+    WinScheduledTasks,
+    #[value(name = "windows.registry.amcache")]
+    WinAmcache,
+    #[value(name = "windows.registry.certificates")]
+    WinCertificates,
     Iomem,
     Ioports,
     Ptrace,
@@ -719,6 +729,67 @@ pub const PLUGINS: &[Descriptor] = &[
         widths: &[18, 8, 9, 5, 0, 8, 18, 18, 18, 18, 10],
     },
     Descriptor {
+        plugin: Plugin::WinOrphanThreads,
+        name: "windows.orphan_kernel_threads",
+        label: "windows.orphan_kernel_threads",
+        columns: &["PID", "TID", "Address", "StartAddress", "CreateTime"],
+        widths: &[6, 8, 18, 18, 20],
+    },
+    Descriptor {
+        plugin: Plugin::WinEtwpatch,
+        name: "windows.etwpatch",
+        label: "windows.etwpatch",
+        columns: &[
+            "PID", "Name", "Module", "Function", "Address", "Bytes", "Reason",
+        ],
+        widths: &[8, 16, 0, 14, 18, 24, 0],
+    },
+    Descriptor {
+        plugin: Plugin::WinScheduledTasks,
+        name: "windows.registry.scheduled_tasks",
+        label: "windows.registry.scheduled_tasks",
+        columns: &[
+            "Path",
+            "TaskId",
+            "Command",
+            "Arguments",
+            "WorkingDirectory",
+            "Created",
+            "LastRun",
+        ],
+        widths: &[0, 0, 0, 0, 0, 20, 20],
+    },
+    Descriptor {
+        plugin: Plugin::WinAmcache,
+        name: "windows.registry.amcache",
+        label: "windows.registry.amcache",
+        columns: &[
+            "Path",
+            "SHA1",
+            "Publisher",
+            "Version",
+            "LinkDate",
+            "LastWriteTime",
+        ],
+        widths: &[0, 40, 0, 16, 20, 20],
+    },
+    Descriptor {
+        plugin: Plugin::WinCertificates,
+        name: "windows.registry.certificates",
+        label: "windows.registry.certificates",
+        columns: &[
+            "Hive",
+            "Store",
+            "Thumbprint",
+            "FriendlyName",
+            "Subject",
+            "Issuer",
+            "NotBefore",
+            "NotAfter",
+        ],
+        widths: &[0, 10, 40, 0, 0, 0, 15, 15],
+    },
+    Descriptor {
         plugin: Plugin::Pslist,
         name: "pslist",
         label: "pslist",
@@ -1258,6 +1329,8 @@ impl Plugin {
             Self::WinGetservicesids => "System",
             Self::WinIat | Self::WinVerinfo => "Process",
             Self::WinMftscan => "Files",
+            Self::WinOrphanThreads | Self::WinEtwpatch => "Integrity",
+            Self::WinScheduledTasks | Self::WinAmcache | Self::WinCertificates => "Files",
             Self::Banners
             | Self::Systeminfo
             | Self::Dmesg
@@ -1395,6 +1468,11 @@ impl Plugin {
             WinIat => "列出进程主映像的导入表及绑定地址",
             WinVerinfo => "读取进程 DLL 与内核模块的版本资源",
             WinMftscan => "从物理内存雕刻 NTFS MFT 记录及两组时间戳",
+            WinOrphanThreads => "列出起始地址不在任何内核模块中的系统线程",
+            WinEtwpatch => "检查各进程 ntdll ETW 入口是否被打补丁",
+            WinScheduledTasks => "解码注册表 TaskCache 中的计划任务及命令",
+            WinAmcache => "读取 Amcache.hve 的程序文件清单",
+            WinCertificates => "列出注册表证书存储中的证书",
         }
     }
 }

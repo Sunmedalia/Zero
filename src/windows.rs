@@ -38,6 +38,7 @@ mod pe_info;
 mod pool;
 mod process;
 mod registry;
+mod registry_artifacts;
 mod security;
 mod user_artifacts;
 mod user_layout;
@@ -567,6 +568,31 @@ impl Windows<'_> {
         if p == Plugin::WinModscan {
             return self.modscan(job);
         }
+        if p == Plugin::WinOrphanThreads {
+            let threads = self.run(
+                Plugin::WinThreads,
+                &Options {
+                    pid: Some(4),
+                    ..Default::default()
+                },
+                job,
+            )?;
+            result.complete = threads.complete;
+            result.diagnostics = threads.diagnostics;
+            for row in threads.rows {
+                let start = u64::from_str_radix(row[5].trim_start_matches("0x"), 16).unwrap_or(0);
+                if self.vm.kernel(start) && row[6].is_empty() {
+                    result.rows.push(vec![
+                        row[0].clone(),
+                        row[2].clone(),
+                        row[3].clone(),
+                        row[5].clone(),
+                        row[7].clone(),
+                    ]);
+                }
+            }
+            return Ok(result);
+        }
         if p == Plugin::WinMftscan {
             return self.mftscan(job);
         }
@@ -585,6 +611,9 @@ impl Windows<'_> {
                 | Plugin::WinAutoruns
                 | Plugin::WinUserassist
                 | Plugin::WinGetservicesids
+                | Plugin::WinScheduledTasks
+                | Plugin::WinAmcache
+                | Plugin::WinCertificates
         ) {
             let (processes, diagnostics) = self.processes_partial(job)?;
             let owners: Vec<_> = processes
@@ -612,6 +641,9 @@ impl Windows<'_> {
                 Plugin::WinAutoruns => registry.autoruns(options, job)?,
                 Plugin::WinUserassist => registry.userassist(options, job)?,
                 Plugin::WinGetservicesids => registry.service_sids(job)?,
+                Plugin::WinScheduledTasks => registry.scheduled_tasks(job)?,
+                Plugin::WinAmcache => registry.amcache(job)?,
+                Plugin::WinCertificates => registry.certificates(job)?,
                 _ => registry.registry(p, options, job)?,
             };
             if !diagnostics.is_empty() {
@@ -674,6 +706,7 @@ impl Windows<'_> {
                 Plugin::WinSessions => self.session(&process, &mut result),
                 Plugin::WinIat => self.iat(&process, &mut result, job),
                 Plugin::WinVerinfo => self.verinfo(&process, &mut result, job),
+                Plugin::WinEtwpatch => self.etwpatch(&process, &mut result, job),
                 _ => bail!("不支持的 Windows 插件 {}", p.name()),
             };
             if let Err(e) = read {
