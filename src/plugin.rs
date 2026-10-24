@@ -124,6 +124,8 @@ pub enum Plugin {
     WinTimers,
     #[value(name = "windows.statistics")]
     WinStatistics,
+    #[value(name = "windows.registry.shimcache")]
+    WinShimcache,
     Iomem,
     Ioports,
     Ptrace,
@@ -864,6 +866,13 @@ pub const PLUGINS: &[Descriptor] = &[
         widths: &[30, 0],
     },
     Descriptor {
+        plugin: Plugin::WinShimcache,
+        name: "windows.registry.shimcache",
+        label: "windows.registry.shimcache",
+        columns: &["Order", "Path", "LastModified"],
+        widths: &[6, 0, 20],
+    },
+    Descriptor {
         plugin: Plugin::Pslist,
         name: "pslist",
         label: "pslist",
@@ -1411,6 +1420,7 @@ impl Plugin {
             Self::WinMbrscan => "Files",
             Self::WinTimers => "Integrity",
             Self::WinStatistics => "Memory",
+            Self::WinShimcache => "Files",
             Self::Banners
             | Self::Systeminfo
             | Self::Dmesg
@@ -1559,6 +1569,7 @@ impl Plugin {
             WinMbrscan => "扫描内存中的主引导记录及分区表",
             WinTimers => "列出各处理器的内核定时器及 DPC 例程归属",
             WinStatistics => "统计内核地址空间的有效、换出与空页表项",
+            WinShimcache => "解码 SYSTEM hive 中的 AppCompatCache 执行痕迹",
         }
     }
 }

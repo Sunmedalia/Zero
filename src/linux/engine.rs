@@ -225,7 +225,7 @@ impl Linux<'_> {
             | WinBigpools | WinSymlinkscan | WinDevicetree | WinGetservicesids | WinIat
             | WinVerinfo | WinMftscan | WinOrphanThreads | WinEtwpatch | WinScheduledTasks
             | WinAmcache | WinCertificates | WinProcessghosting | WinJoblinks | WinTimeliner
-            | WinMbrscan | WinTimers | WinStatistics => Err(unrouted(plugin)),
+            | WinMbrscan | WinTimers | WinStatistics | WinShimcache => Err(unrouted(plugin)),
         }
     }
     /// pslist / pstree over `init_task.tasks`, lsmod over `modules`, with full

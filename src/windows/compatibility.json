@@ -83,7 +83,8 @@
           "windows.timeliner": "pending",
           "windows.mbrscan": "pending",
           "windows.timers": "pending",
-          "windows.statistics": "pending"
+          "windows.statistics": "pending",
+          "windows.registry.shimcache": "pending"
         },
         "x64": {
           "windows.callbacks": "synthetic",
@@ -144,7 +145,8 @@
           "windows.timeliner": "pending",
           "windows.mbrscan": "pending",
           "windows.timers": "pending",
-          "windows.statistics": "pending"
+          "windows.statistics": "pending",
+          "windows.registry.shimcache": "pending"
         }
       },
       "evidence": [
@@ -266,7 +268,8 @@
           "windows.timeliner": "pending",
           "windows.mbrscan": "pending",
           "windows.timers": "pending",
-          "windows.statistics": "pending"
+          "windows.statistics": "pending",
+          "windows.registry.shimcache": "pending"
         },
         "x64": {
           "windows.callbacks": "synthetic",
@@ -327,7 +330,8 @@
           "windows.timeliner": "pending",
           "windows.mbrscan": "pending",
           "windows.timers": "pending",
-          "windows.statistics": "pending"
+          "windows.statistics": "pending",
+          "windows.registry.shimcache": "pending"
         }
       },
       "evidence": []
@@ -409,7 +413,8 @@
           "windows.timeliner": "pending",
           "windows.mbrscan": "pending",
           "windows.timers": "pending",
-          "windows.statistics": "pending"
+          "windows.statistics": "pending",
+          "windows.registry.shimcache": "pending"
         },
         "x64": {
           "windows.callbacks": "synthetic",
@@ -470,7 +475,8 @@
           "windows.timeliner": "pending",
           "windows.mbrscan": "pending",
           "windows.timers": "pending",
-          "windows.statistics": "pending"
+          "windows.statistics": "pending",
+          "windows.registry.shimcache": "pending"
         }
       },
       "evidence": [
@@ -598,7 +604,8 @@
           "windows.timeliner": "pending",
           "windows.mbrscan": "pending",
           "windows.timers": "pending",
-          "windows.statistics": "pending"
+          "windows.statistics": "pending",
+          "windows.registry.shimcache": "pending"
         }
       },
       "evidence": [],
@@ -679,7 +686,8 @@
           "windows.timeliner": "pending",
           "windows.mbrscan": "pending",
           "windows.timers": "pending",
-          "windows.statistics": "pending"
+          "windows.statistics": "pending",
+          "windows.registry.shimcache": "pending"
         }
       },
       "evidence": [
@@ -806,7 +814,8 @@
           "windows.timeliner": "pending",
           "windows.mbrscan": "pending",
           "windows.timers": "pending",
-          "windows.statistics": "pending"
+          "windows.statistics": "pending",
+          "windows.registry.shimcache": "pending"
         }
       },
       "evidence": [
@@ -934,7 +943,8 @@
           "windows.timeliner": "pending",
           "windows.mbrscan": "pending",
           "windows.timers": "pending",
-          "windows.statistics": "pending"
+          "windows.statistics": "pending",
+          "windows.registry.shimcache": "pending"
         }
       },
       "evidence": [
@@ -1034,7 +1044,8 @@
           "windows.timeliner": "pending",
           "windows.mbrscan": "pending",
           "windows.timers": "pending",
-          "windows.statistics": "pending"
+          "windows.statistics": "pending",
+          "windows.registry.shimcache": "pending"
         }
       },
       "evidence": [
@@ -1163,7 +1174,8 @@
           "windows.timeliner": "pending",
           "windows.mbrscan": "pending",
           "windows.timers": "pending",
-          "windows.statistics": "pending"
+          "windows.statistics": "pending",
+          "windows.registry.shimcache": "pending"
         }
       },
       "evidence": [
@@ -1292,7 +1304,8 @@
           "windows.timeliner": "pending",
           "windows.mbrscan": "pending",
           "windows.timers": "pending",
-          "windows.statistics": "pending"
+          "windows.statistics": "pending",
+          "windows.registry.shimcache": "pending"
         }
       },
       "evidence": [],
@@ -1375,7 +1388,8 @@
           "windows.timeliner": "pending",
           "windows.mbrscan": "pending",
           "windows.timers": "pending",
-          "windows.statistics": "pending"
+          "windows.statistics": "pending",
+          "windows.registry.shimcache": "pending"
         },
         "x64": {
           "windows.callbacks": "real",
@@ -1436,7 +1450,8 @@
           "windows.timeliner": "pending",
           "windows.mbrscan": "pending",
           "windows.timers": "pending",
-          "windows.statistics": "pending"
+          "windows.statistics": "pending",
+          "windows.registry.shimcache": "pending"
         }
       },
       "evidence": [
@@ -1550,7 +1565,8 @@
           "windows.timeliner": "pending",
           "windows.mbrscan": "pending",
           "windows.timers": "pending",
-          "windows.statistics": "pending"
+          "windows.statistics": "pending",
+          "windows.registry.shimcache": "pending"
         },
         "x64": {
           "windows.callbacks": "synthetic",
@@ -1611,7 +1627,8 @@
           "windows.timeliner": "pending",
           "windows.mbrscan": "pending",
           "windows.timers": "pending",
-          "windows.statistics": "pending"
+          "windows.statistics": "pending",
+          "windows.registry.shimcache": "pending"
         }
       },
       "evidence": []
@@ -1692,7 +1709,8 @@
           "windows.timeliner": "pending",
           "windows.mbrscan": "pending",
           "windows.timers": "pending",
-          "windows.statistics": "pending"
+          "windows.statistics": "pending",
+          "windows.registry.shimcache": "pending"
         },
         "x64": {
           "windows.callbacks": "synthetic",
@@ -1753,7 +1771,8 @@
           "windows.timeliner": "pending",
           "windows.mbrscan": "pending",
           "windows.timers": "pending",
-          "windows.statistics": "pending"
+          "windows.statistics": "pending",
+          "windows.registry.shimcache": "pending"
         }
       },
       "evidence": []
@@ -1847,7 +1866,8 @@
           "windows.timeliner": "pending",
           "windows.mbrscan": "pending",
           "windows.timers": "pending",
-          "windows.statistics": "pending"
+          "windows.statistics": "pending",
+          "windows.registry.shimcache": "pending"
         },
         "x64": {
           "windows.callbacks": "real",
@@ -1908,7 +1928,8 @@
           "windows.timeliner": "real",
           "windows.mbrscan": "real",
           "windows.timers": "real",
-          "windows.statistics": "real"
+          "windows.statistics": "real",
+          "windows.registry.shimcache": "pending"
         }
       },
       "evidence": [
@@ -2058,7 +2079,8 @@
           "windows.timeliner": "real",
           "windows.mbrscan": "pending",
           "windows.timers": "real",
-          "windows.statistics": "real"
+          "windows.statistics": "real",
+          "windows.registry.shimcache": "pending"
         }
       },
       "evidence": [

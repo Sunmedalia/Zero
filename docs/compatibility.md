@@ -103,6 +103,8 @@ Windows 10 RAW 样本额外验证了 4 个 WOW64 进程（PID 4428、5684、5932
 
 新增 `windows.statistics`：遍历已验证内核页表的内核半区（ARM64 为整个内核根表），统计有效 4K 页、大页、transition 页、其他软件 PTE（换出、按需清零、原型）、空 PTE 以及不可读或未驻留的页表；跳过顶层自映射项，并按（层级, 页表物理地址）去重，被多个父项共享的页表只计一次并单独报告共享次数。实测 Windows 10 15063 有效 4K 页 151,967、大页 49；Windows 11 22000 有效 4K 页 117,580、大页 76。
 
+新增 `windows.registry.shimcache`：读取 SYSTEM hive 当前 ControlSet 的 `Control\Session Manager\AppCompatCache`，解析 Windows 8 及以后的 `00ts`／`10ts` 条目与 Windows 7 x64 的 `0xBADC0FEE` 格式，按缓存顺序输出路径与最后修改时间。两个本地样本的 SYSTEM hive 单元格均未驻留，只得到带诊断的部分结果，矩阵保持待验证；两种格式由合成值覆盖。GUI 系列（desktops、windowstations、deskscan、editbox）依赖 win32k 符号，当前符号流程只获取内核 PDB，暂不提供。
+
 矩阵按插件和架构记录四级证据。**真实**仅代表列出的样本构建与容器；**合成**验证解析路径或指针宽度，不能证明该系统的完整布局；**待验证**缺少实测证据；**不支持**没有对应解析模型。零条扫描结果不作为恢复能力的真实验证。具体插件、样本哈希、精确 PDB 与范围见 [机器可读矩阵](../src/windows/compatibility.json) 和 [验收基线](../tests/fixtures/windows.json)。Server 2003 与 R2 共用内核构建，系统身份会保留歧义；Server 2025 与 Windows 11 的 26100 使用有效的 ProductType 区分。所有版本仍要求精确符号，未知构建不会选择最近版本。
 
 <!-- windows-compatibility:start -->

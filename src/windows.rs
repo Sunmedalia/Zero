@@ -628,6 +628,7 @@ impl Windows<'_> {
                 | Plugin::WinScheduledTasks
                 | Plugin::WinAmcache
                 | Plugin::WinCertificates
+                | Plugin::WinShimcache
         ) {
             let (processes, diagnostics) = self.processes_partial(job)?;
             let owners: Vec<_> = processes
@@ -658,6 +659,7 @@ impl Windows<'_> {
                 Plugin::WinScheduledTasks => registry.scheduled_tasks(job)?,
                 Plugin::WinAmcache => registry.amcache(job)?,
                 Plugin::WinCertificates => registry.certificates(job)?,
+                Plugin::WinShimcache => registry.shimcache(job)?,
                 _ => registry.registry(p, options, job)?,
             };
             if !diagnostics.is_empty() {

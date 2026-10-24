@@ -162,6 +162,65 @@ pub(super) fn certificate_summary(certificate: &[u8]) -> Option<[String; 4]> {
     ])
 }
 
+/// Entries of an AppCompatCache value: (path, last-modified FILETIME).
+/// Windows 8+ entries carry a `00ts`/`10ts` signature; Windows 7 x64 uses a
+/// 0xbadc0fee header with fixed 48-byte records pointing into the value.
+pub(super) fn shimcache_entries(bytes: &[u8]) -> Vec<(String, u64)> {
+    let u16_at = |at: usize| {
+        bytes
+            .get(at..at + 2)
+            .map(|b| u16::from_le_bytes([b[0], b[1]]))
+    };
+    let u32_at = |at: usize| {
+        bytes
+            .get(at..at + 4)
+            .map(|b| u32::from_le_bytes(b.try_into().unwrap()))
+    };
+    let u64_at = |at: usize| {
+        bytes
+            .get(at..at + 8)
+            .map(|b| u64::from_le_bytes(b.try_into().unwrap()))
+    };
+    let mut out = Vec::new();
+    if u32_at(0) == Some(0xbadc_0fee) {
+        let count = u32_at(4).unwrap_or(0).min(4096) as usize;
+        for i in 0..count {
+            let at = 128 + i * 48;
+            let (Some(length), Some(offset), Some(time)) =
+                (u16_at(at), u64_at(at + 8), u64_at(at + 16))
+            else {
+                break;
+            };
+            let Some(path) = bytes.get(offset as usize..offset as usize + usize::from(length))
+            else {
+                break;
+            };
+            out.push((utf16(path), time));
+        }
+        return out;
+    }
+    // Windows 8+: entries start after a variable header; find the first.
+    let Some(mut at) = memchr::memmem::find_iter(bytes, b"0ts")
+        .map(|i| i.saturating_sub(1))
+        .find(|i| matches!(bytes.get(*i..*i + 4), Some(b"10ts") | Some(b"00ts")))
+    else {
+        return out;
+    };
+    while matches!(bytes.get(at..at + 4), Some(b"10ts") | Some(b"00ts")) && out.len() < 4096 {
+        let (Some(entry), Some(length)) = (u32_at(at + 8), u16_at(at + 12)) else {
+            break;
+        };
+        let start = at + 14;
+        let Some(path) = bytes.get(start..start + usize::from(length)) else {
+            break;
+        };
+        let time = u64_at(start + usize::from(length)).unwrap_or(0);
+        out.push((utf16(path), time));
+        at += 12 + entry as usize;
+    }
+    out
+}
+
 impl Windows<'_> {
     fn hives_matching(
         &self,
@@ -241,6 +300,37 @@ impl Windows<'_> {
                         last.clone(),
                     ]);
                 }
+            }
+        }
+        Ok(r)
+    }
+    /// windows.registry.shimcache: AppCompatCache of the current ControlSet.
+    pub(super) fn shimcache(&self, job: &Job) -> Result<Results> {
+        let mut r = self.result(Plugin::WinShimcache);
+        for (hive, _) in self.hives_matching(&["system"], job, &mut r)? {
+            let Some(select) = self.optional_registry(hive, "Select", job, &mut r)? else {
+                continue;
+            };
+            let Some(current) = Self::values(&select).get("current").map(|v| v.1.clone()) else {
+                Self::issue(&mut r, hex(hive), "SYSTEM hive 缺少 Select.Current");
+                continue;
+            };
+            let n = current
+                .parse::<u32>()
+                .context("Select.Current 不是 DWORD")?;
+            ensure!((1..=999).contains(&n), "Select.Current 越界");
+            let key = format!("ControlSet{n:03}\\Control\\Session Manager\\AppCompatCache");
+            let Some(cache) = self.optional_registry(hive, &key, job, &mut r)? else {
+                continue;
+            };
+            let Some(bytes) = Self::values(&cache)
+                .get("appcompatcache")
+                .and_then(|v| unhex(&v.1))
+            else {
+                continue;
+            };
+            for (index, (path, time)) in shimcache_entries(&bytes).into_iter().enumerate() {
+                r.rows.push(vec![index.to_string(), path, filetime(time)]);
             }
         }
         Ok(r)
@@ -363,6 +453,44 @@ mod tests {
         dynamic[12..20].copy_from_slice(&22u64.to_le_bytes());
         assert_eq!(task_times(&dynamic), Some((11, 22)));
         assert_eq!(task_times(&[0; 8]), None);
+    }
+
+    #[test]
+    fn shimcache_decodes_windows10_and_windows7_layouts() {
+        let path = |text: &str| {
+            text.encode_utf16()
+                .flat_map(u16::to_le_bytes)
+                .collect::<Vec<u8>>()
+        };
+        let mut modern = vec![0u8; 0x34];
+        modern[0] = 0x34;
+        for (name, time) in [("C:\\a.exe", 7u64), ("C:\\b.exe", 9)] {
+            let p = path(name);
+            let data = 4u32;
+            let entry = 2 + p.len() as u32 + 8 + 4 + data;
+            modern.extend(b"10ts");
+            modern.extend([0; 4]);
+            modern.extend(entry.to_le_bytes());
+            modern.extend((p.len() as u16).to_le_bytes());
+            modern.extend(&p);
+            modern.extend(time.to_le_bytes());
+            modern.extend(data.to_le_bytes());
+            modern.extend([0; 4]);
+        }
+        assert_eq!(
+            shimcache_entries(&modern),
+            [("C:\\a.exe".into(), 7), ("C:\\b.exe".into(), 9)]
+        );
+        let mut legacy = vec![0u8; 128 + 48];
+        legacy[..4].copy_from_slice(&0xbadc_0feeu32.to_le_bytes());
+        legacy[4..8].copy_from_slice(&1u32.to_le_bytes());
+        let p = path("C:\\c.exe");
+        legacy[128..130].copy_from_slice(&(p.len() as u16).to_le_bytes());
+        legacy[136..144].copy_from_slice(&(176u64).to_le_bytes());
+        legacy[144..152].copy_from_slice(&5u64.to_le_bytes());
+        legacy.extend(&p);
+        assert_eq!(shimcache_entries(&legacy), [("C:\\c.exe".into(), 5)]);
+        assert!(shimcache_entries(&[0; 16]).is_empty());
     }
 
     #[test]
