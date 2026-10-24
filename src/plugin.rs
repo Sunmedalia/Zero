@@ -155,6 +155,8 @@ pub enum Plugin {
     Ebpf,
     Boottime,
     Pagecache,
+    #[value(name = "perf_events", alias = "perf-events")]
+    PerfEvents,
 }
 pub struct Descriptor {
     pub plugin: Plugin,
@@ -1013,6 +1015,15 @@ pub const PLUGINS: &[Descriptor] = &[
         widths: &[18, 18, 0, 16, 0],
     },
     Descriptor {
+        plugin: Plugin::PerfEvents,
+        name: "perf_events",
+        label: "perf_events",
+        columns: &[
+            "PID", "Name", "Event", "Type", "Config", "Handler", "Symbol", "Owner", "Reason",
+        ],
+        widths: &[6, 14, 18, 6, 10, 18, 0, 16, 0],
+    },
+    Descriptor {
         plugin: Plugin::Ebpf,
         name: "ebpf",
         label: "ebpf",
@@ -1230,6 +1241,7 @@ impl Plugin {
             | Self::Netfilter
             | Self::Tracepoints
             | Self::Ftrace
+            | Self::PerfEvents
             | Self::Ebpf => "Integrity",
             Self::Boottime => "System",
             Self::Pagecache => "Files",
@@ -1282,6 +1294,7 @@ impl Plugin {
             Tracepoints => "列出挂在内核 tracepoint 上的探针",
             Ftrace => "列出已注册的 ftrace 回调",
             Ebpf => "列出已加载的 eBPF 程序",
+            PerfEvents => "列出进程持有的 perf 事件及溢出处理函数",
             Boottime => "根据时间保持偏移计算系统启动时间",
             Pagecache => "列出页缓存中各文件系统的 inode 及缓存页数",
             Iomem => "查看物理内存资源范围",

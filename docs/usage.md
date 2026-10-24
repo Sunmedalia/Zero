@@ -84,7 +84,7 @@ zero dump --image images/linux-sample-1.bin.gz --symbols symbols/linux.zip \
 
 TUI 插件列表只列分析插件，转储统一放在 `dump` 功能中，用 `D` 打开。CLI 推荐使用 `dump --mode process|range|elf`，必填 PID、转储目录与清单输出；兼容原 `analyze --plugin procdump|memdump|elfdump` 调用。
 
-Linux 的 `--plugin` 支持 `pslist`、`pstree`、`lsmod`、`psaux`、`envars`、`maps`、`lsof`、`sockstat`、`netscan`、`banners`、`pwd`、`pscred`、`threads`、`mountinfo`、`check_creds`、`dmesg`、`systeminfo`、`elfs`、`bash`、`malfind`、`psxview`、`check_modules`、`check_syscall`、`psstate`、`capabilities`、`fdsummary`、`procdump`、`memdump`、`elfdump`、`iomem`、`ioports`、`ptrace`、`keyboard_notifiers`、`check_exec`、`check_idt`、`tty_check`、`hidden_modules`、`library_list`、`pidhashtable`、`vmcoreinfo`、`ip_addr`、`ip_link`、`check_afinfo`、`kthreads`、`netfilter`、`tracepoints`、`ftrace`、`ebpf`、`boottime`、`pagecache`，共 50 个。进程字段为 PID、TGID、PPID、Name、Address，PID 0 不进入结果；模块字段为 Name、Base、Size，大小以字节计。`pstree` 导出同样的完整进程字段，PPID 表达父子关系，TUI 显示可展开树。地址是完整虚拟地址，模块 Base 是 `module_core` / `core_layout.base`，Size 是整个核心内存区域大小。
+Linux 的 `--plugin` 支持 `pslist`、`pstree`、`lsmod`、`psaux`、`envars`、`maps`、`lsof`、`sockstat`、`netscan`、`banners`、`pwd`、`pscred`、`threads`、`mountinfo`、`check_creds`、`dmesg`、`systeminfo`、`elfs`、`bash`、`malfind`、`psxview`、`check_modules`、`check_syscall`、`psstate`、`capabilities`、`fdsummary`、`procdump`、`memdump`、`elfdump`、`iomem`、`ioports`、`ptrace`、`keyboard_notifiers`、`check_exec`、`check_idt`、`tty_check`、`hidden_modules`、`library_list`、`pidhashtable`、`vmcoreinfo`、`ip_addr`、`ip_link`、`check_afinfo`、`kthreads`、`netfilter`、`tracepoints`、`ftrace`、`ebpf`、`boottime`、`pagecache`、`perf_events`，共 51 个。进程字段为 PID、TGID、PPID、Name、Address，PID 0 不进入结果；模块字段为 Name、Base、Size，大小以字节计。`pstree` 导出同样的完整进程字段，PPID 表达父子关系，TUI 显示可展开树。地址是完整虚拟地址，模块 Base 是 `module_core` / `core_layout.base`，Size 是整个核心内存区域大小。
 
 新增分析字段与范围：
 
@@ -124,6 +124,7 @@ Linux 的 `--plugin` 支持 `pslist`、`pstree`、`lsmod`、`psaux`、`envars`�
 | tracepoints | Tracepoint、Handler、Symbol、Owner、Reason |
 | ftrace | Ops、Handler、Symbol、Owner、Reason |
 | ebpf | ID、Name、Type、Address、Function |
+| perf_events | PID、Name、Event、Type、Config、Handler、Symbol、Owner、Reason |
 | boottime | Key、Value（Unix 秒、UTC、纳秒） |
 | pagecache | SuperBlock、Device、FileSystem、Inode、InodeAddress、Mode、Size、CachedPages、Path |
 | psstate | PID、Name、State、ExitState、Flags |
@@ -156,12 +157,13 @@ Linux 的 `--plugin` 支持 `pslist`、`pstree`、`lsmod`、`psaux`、`envars`�
 | `netfilter` | Volatility 3 linux.malware.netfilter | 旧内核遍历全局 `nf_hooks[协议][hook]` 链表；4.13 起遍历各命名空间 `netns_nf` 的 `nf_hook_entries`，优先级取自尾随的 `nf_hook_ops` |
 | `tracepoints` | Volatility 3 linux.tracing.tracepoints | 遍历内建 `__tracepoints_ptrs`，列出已挂接的探针；模块自带的 tracepoint 未覆盖 |
 | `ftrace` | Volatility 3 linux.tracing.ftrace | 遍历 `ftrace_ops_list` 至 `ftrace_list_end` 的回调 |
+| `perf_events` | Volatility 3 linux.tracing.perf_events | 遍历每个进程的 `perf_event_list`，输出事件类型、config 与溢出处理函数归属 |
 | `ebpf` | Volatility 3 linux.ebpf | 遍历 `prog_idr`，输出程序 ID、名称、类型与 JIT 入口 |
 | `boottime` | Volatility 3 linux.boottime | 3.x 用 `-(wall_to_monotonic + total_sleep_time)`，3.17 起用 `tk_core.timekeeper` 的 `offs_real - offs_boot` |
 | `pagecache` | Volatility 3 linux.pagecache.Files | 遍历 `super_blocks` 与各自的 `s_inodes`，输出缓存页数和相对文件系统根的路径；不导出文件内容 |
 | `library_list` | Volatility 3 linux.library_list | 列出进程文件映射中 ET_DYN 的共享库（每个路径一次，排除主程序），不读取 ld.so 的 link_map |
 
-`check_idt`、`tty_check` 与 `check_syscall` 共用同一张代码归属表：内核 `_stext.._etext`、内核 init 代码 `_sinittext.._einittext`（Reason 为 KernelInitText，常见于保留中断向量仍指向早期处理函数）以及已加载模块的代码区。`check_idt` 的表长优先取 ISF 数组长度，长度为 0 时按架构固定的 256 项读取。`hidden_modules` 的扫描范围优先取 ISF 的 `mod_tree` 边界，x86_64 退回 MODULES_VADDR..MODULES_END；ARM64 若缺少 `mod_tree` 只扫描已列出模块的地址跨度，并标记为部分结果。扫描读取上限 256 MiB、跨度上限 2 GiB；候选必须状态合法、名称可打印且代码范围有效。`library_list` 的路径解析失败显示 `[unresolved]` 并标记部分结果。Debian 3.2 样本：`check_idt=256`（244 KernelText、12 KernelInitText）、`tty_check=7`、`hidden_modules=0`，均为完整结果；`library_list` 因用户页缺页为部分结果；`pidhashtable=316`（与 psxview 一致，含线程）、`vmcoreinfo=47`、`ip_addr=4`（lo 与 eth0 的 IPv4／IPv6）、`ip_link=2`；`check_afinfo=30`（均为 KernelText）、`kthreads=39`（3.2 无 threadfn）、`netfilter=0`（未加载 netfilter 模块）、`tracepoints=0`（202 个 tracepoint 均未挂探针）、`boottime` 为 2014-06-24 10:22:33 UTC、`pagecache=21586`，均为完整结果；`ftrace`、`ebpf` 在 3.2 上明确报告不支持。
+`check_idt`、`tty_check` 与 `check_syscall` 共用同一张代码归属表：内核 `_stext.._etext`、内核 init 代码 `_sinittext.._einittext`（Reason 为 KernelInitText，常见于保留中断向量仍指向早期处理函数）以及已加载模块的代码区。`check_idt` 的表长优先取 ISF 数组长度，长度为 0 时按架构固定的 256 项读取。`hidden_modules` 的扫描范围优先取 ISF 的 `mod_tree` 边界，x86_64 退回 MODULES_VADDR..MODULES_END；ARM64 若缺少 `mod_tree` 只扫描已列出模块的地址跨度，并标记为部分结果。扫描读取上限 256 MiB、跨度上限 2 GiB；候选必须状态合法、名称可打印且代码范围有效。`library_list` 的路径解析失败显示 `[unresolved]` 并标记部分结果。Debian 3.2 样本：`check_idt=256`（244 KernelText、12 KernelInitText）、`tty_check=7`、`hidden_modules=0`，均为完整结果；`library_list` 因用户页缺页为部分结果；`pidhashtable=316`（与 psxview 一致，含线程）、`vmcoreinfo=47`、`ip_addr=4`（lo 与 eth0 的 IPv4／IPv6）、`ip_link=2`；`check_afinfo=30`（均为 KernelText）、`kthreads=39`（3.2 无 threadfn）、`netfilter=0`（未加载 netfilter 模块）、`tracepoints=0`（202 个 tracepoint 均未挂探针）、`boottime` 为 2014-06-24 10:22:33 UTC、`pagecache=21586`、`perf_events=0`（无进程持有 perf 事件），均为完整结果；`ftrace`、`ebpf` 在 3.2 上明确报告不支持。
 
 这些是本地 ISF 驱动的实现，不执行 Volatility Python 插件。资源 Start／End 是**物理资源地址或端口号**，End 包含边界；Address 为结构的虚拟地址，Depth 从根的 0 开始，Flags 保留原始掩码。资源树限制 100 万项、1024 层，字符串限制 4096 字节；循环、缺页、倒置范围和达到上限均标记部分结果，保留可读分支。`ptrace` 的 PID 是 TGID，TID 为线程 ID，未关联一端显示 `[none]`，Flags 输出原始掩码，便于跨内核核对，不将 tracer 误用 `real_parent` 解析。`keyboard_notifiers` 的 Priority 为有符号整数；Symbol 仅根据已知内核代码范围内的 ISF 符号定位，模块内无 ISF 函数名时显示 `[unknown]`，不猜测相邻内核符号。这里只检查已加载模块链表，不进行隐藏模块扫描，回调出现本身不表示恶意。无通知回调为空表；缺少必要结构／符号会明确报告不支持。
 

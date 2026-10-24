@@ -249,6 +249,56 @@ impl Linux<'_> {
         }
         Ok(())
     }
+    /// perf_events: events each process owns and their overflow handlers.
+    pub(super) fn perf_events(&self, job: &Job) -> Result<Results> {
+        self.require(&[
+            ("task_struct", "perf_event_list"),
+            ("perf_event", "owner_entry"),
+            ("perf_event", "attr"),
+            ("perf_event_attr", "type"),
+            ("perf_event_attr", "config"),
+        ])?;
+        let (mut r, tasks) = self.tasks(Plugin::PerfEvents, job)?;
+        let code = self.code_map(job)?;
+        let offset = self.isf.offset("perf_event", "owner_entry")?;
+        let handler_field = self.isf.field("perf_event", "overflow_handler").is_ok();
+        for task in tasks {
+            job.check()?;
+            let read = (|| -> Result<()> {
+                let head = self.field_address(task.address, "task_struct", "perf_event_list")?;
+                for event in self.list_objects(head, offset, job)? {
+                    let attr = self.field_address(event, "perf_event", "attr")?;
+                    let handler = if handler_field {
+                        self.number(event, "perf_event", "overflow_handler")?
+                    } else {
+                        0
+                    };
+                    let (symbol, owner, reason) = if handler == 0 {
+                        ("-".into(), "-".into(), "NoOverflowHandler")
+                    } else {
+                        code.describe(handler)
+                    };
+                    r.rows.push(vec![
+                        task.pid.clone(),
+                        task.name.clone(),
+                        hex(event),
+                        self.number(attr, "perf_event_attr", "type")?.to_string(),
+                        format!("{:#x}", self.number(attr, "perf_event_attr", "config")?),
+                        hex(handler),
+                        symbol,
+                        owner,
+                        reason.into(),
+                    ]);
+                }
+                Ok(())
+            })();
+            if let Err(e) = read {
+                job.check()?;
+                partial(&mut r, format!("PID {} perf_event_list", task.pid), e);
+            }
+        }
+        Ok(r)
+    }
     /// ebpf: programs indexed by `prog_idr`.
     pub(super) fn ebpf(&self, r: &mut Results, job: &Job) -> Result<()> {
         let idr = self
@@ -316,6 +366,39 @@ mod tests {
         (bytes, isf)
     }
 
+    #[test]
+    fn perf_events_list_owned_events_and_attribute_handlers() {
+        let (mut b, mut isf) = kernel();
+        let task = &mut isf.data["user_types"]["task_struct"];
+        task["size"] = json!(176);
+        task["fields"]["perf_event_list"] =
+            json!({"offset":160,"type":{"kind":"struct","name":"list_head"}});
+        isf.data["user_types"]["perf_event"] = json!({"size":64,"fields":{
+            "owner_entry":{"offset":0,"type":{"kind":"struct","name":"list_head"}},
+            "attr":{"offset":16,"type":{"kind":"struct","name":"perf_event_attr"}},
+            "overflow_handler":u64_field(40),
+        }});
+        isf.data["user_types"]["perf_event_attr"] =
+            json!({"size":16,"fields":{"type":u64_field(0),"config":u64_field(8)}});
+        // init (0xa000) owns one event with a hooked handler; kth owns none.
+        for (head, first) in [(0xa0a0usize, 0x36000u64), (0xa1a0, 0xa1a0)] {
+            put(&mut b, head, first);
+            put(&mut b, head + 8, first);
+        }
+        put(&mut b, 0x36000, 0xa0a0);
+        put(&mut b, 0x36008, 0xa0a0);
+        put(&mut b, 0x36010, 4);
+        put(&mut b, 0x36018, 0x3c);
+        put(&mut b, 0x36028, 0x1f000);
+        let im = image(&b);
+        let r = engine(&im, &isf)
+            .run(Plugin::PerfEvents, &Job::default())
+            .unwrap();
+        assert!(r.complete, "{:?}", r.diagnostics);
+        assert_eq!(r.rows.len(), 1);
+        assert_eq!(&r.rows[0][..5], ["1", "init", &hex(0x36000), "4", "0x3c"]);
+        assert_eq!(r.rows[0][8], "OutsideKnownExecutableRanges");
+    }
     #[test]
     fn hook_names_follow_netfilter_numbering() {
         assert_eq!(nf_protocol(2), "IPV4");

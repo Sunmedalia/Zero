@@ -193,6 +193,7 @@ impl Linux<'_> {
                 self.ftrace(&mut r, job)?;
                 Ok(r)
             }
+            PerfEvents => self.perf_events(job),
             Ebpf => {
                 let mut r = self.result(plugin);
                 self.ebpf(&mut r, job)?;
