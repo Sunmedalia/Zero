@@ -66,7 +66,7 @@ pub(super) fn parse_record(mut bytes: [u8; RECORD]) -> Result<Record> {
     // Win32 (1) and Win32+DOS (3) names beat POSIX (0) beat DOS-only (2).
     let mut rank = -1;
     let mut at = usize::from(u16_at(&bytes, 20));
-    ensure!(at >= 48 && at < RECORD, "首属性偏移无效");
+    ensure!((48..RECORD).contains(&at), "首属性偏移无效");
     while at + 16 <= RECORD {
         let kind = u32_at(&bytes, at);
         if kind == 0xffff_ffff {
@@ -124,32 +124,29 @@ impl Windows<'_> {
             if self.vm.image.read(hit, &mut bytes).is_err() {
                 continue;
             }
-            match parse_record(bytes) {
-                Ok(record) => {
-                    ensure!(
-                        r.rows.len() < RECORD_LIMIT,
-                        "MFT 记录超过 {RECORD_LIMIT} 条上限"
-                    );
-                    r.rows.push(vec![
-                        format!("physical:{hit:#x}"),
-                        record.number.to_string(),
-                        if record.directory {
-                            "Directory"
-                        } else {
-                            "File"
-                        }
-                        .into(),
-                        record.in_use.to_string(),
-                        record.name,
-                        record.parent.to_string(),
-                        filetime(record.si.0),
-                        filetime(record.si.1),
-                        filetime(record.fn_times.0),
-                        filetime(record.fn_times.1),
-                        record.size.to_string(),
-                    ]);
-                }
-                Err(_) => {}
+            if let Ok(record) = parse_record(bytes) {
+                ensure!(
+                    r.rows.len() < RECORD_LIMIT,
+                    "MFT 记录超过 {RECORD_LIMIT} 条上限"
+                );
+                r.rows.push(vec![
+                    format!("physical:{hit:#x}"),
+                    record.number.to_string(),
+                    if record.directory {
+                        "Directory"
+                    } else {
+                        "File"
+                    }
+                    .into(),
+                    record.in_use.to_string(),
+                    record.name,
+                    record.parent.to_string(),
+                    filetime(record.si.0),
+                    filetime(record.si.1),
+                    filetime(record.fn_times.0),
+                    filetime(record.fn_times.1),
+                    record.size.to_string(),
+                ]);
             }
             if r.rows.len().is_multiple_of(4096) {
                 job.report(format!("mftscan: {} 条", r.rows.len()));
