@@ -423,13 +423,16 @@ export function parseOptions(
   };
 }
 
-/** Dump mode chips: Linux gets ELF, Windows gets PE. */
+/** Dump mode chips: Linux gets ELF, Windows gets PE plus VAD/DLL/Module. */
 export function dumpModes(windows: boolean): { label: string; plugin: string }[] {
   return windows
     ? [
         { label: 'Alt+1 Process', plugin: 'windows.procdump' },
         { label: 'Alt+2 Range', plugin: 'windows.memdump' },
         { label: 'Alt+3 PE', plugin: 'windows.pedump' },
+        { label: 'Alt+4 VAD', plugin: 'windows.vaddump' },
+        { label: 'Alt+5 DLL', plugin: 'windows.dlldump' },
+        { label: 'Alt+6 Module', plugin: 'windows.moddump' },
       ]
     : [
         { label: 'Alt+1 Process', plugin: 'procdump' },

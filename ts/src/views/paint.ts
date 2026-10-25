@@ -960,7 +960,13 @@ function paintDialogBody(canvas: Canvas, app: App, dialog: Dialog, popup: Rect):
           ? '指定 PID；按 PE 节表重建可读 PE'
           : dialog.mode.endsWith('elfdump')
             ? '指定 PID；导出含 ELF 头的可读映射（不重建磁盘 ELF）'
-            : '指定 PID；导出可读 VMA；Start / End 可限制范围';
+            : dialog.mode.endsWith('vaddump')
+              ? '指定 PID；逐 VAD 导出原始内存；Start / End 可限制范围'
+              : dialog.mode.endsWith('dlldump')
+                ? '指定 PID；按模块列表重建 DLL；Start 可选精确基址'
+                : dialog.mode.endsWith('moddump')
+                  ? '转储全部内核模块（无需 PID）；Start 可选精确基址'
+                  : '指定 PID；导出可读 VMA；Start / End 可限制范围';
       canvas.write(box.x, box.y, truncate(hint, box.width), { color: MUTED, background: SURFACE }, box.width);
       dumpModes(state.windows).forEach((mode, index) => {
         const active = dialog.mode === mode.plugin;
@@ -973,7 +979,12 @@ function paintDialogBody(canvas: Canvas, app: App, dialog: Dialog, popup: Rect):
           Math.min(15, Math.max(box.x + box.width - x, 0)),
         );
       });
-      ['PID (必填)', 'Start (0x / 十进制)', 'End (不包含)', '转储目录 (必填)'].forEach(
+      [
+        dialog.mode.endsWith('moddump') ? 'PID (moddump 可留空)' : 'PID (必填)',
+        'Start (0x / 十进制)',
+        'End (不包含)',
+        '转储目录 (必填)',
+      ].forEach(
         (label, index) => {
           const active = dialog.field === index;
           const y = box.y + 2 + index;

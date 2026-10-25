@@ -11,11 +11,15 @@ name = "zero"
 path = "src/main.rs"
 
 [dependencies]
+aes = "0.8"
 anyhow = "1"
 base64 = "0.22"
 clap = { version = "4", features = ["derive"] }
 csv = "1"
+des = "0.8"
 flate2 = "1"
+hmac = "0.12"
+md-5 = "0.10"
 memchr = "2"
 pdb = "0.8"
 serde = { version = "1", features = ["derive"] }

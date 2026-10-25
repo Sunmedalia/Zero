@@ -87,7 +87,8 @@ enum Command {
         symbols: Option<PathBuf>,
         #[arg(long, value_enum)]
         mode: zero_tui::dump::Mode,
-        #[arg(long)]
+        /// Target process; the module mode dumps kernel modules and takes no PID.
+        #[arg(long, default_value_t = 0)]
         pid: u32,
         #[arg(long)]
         dump_dir: PathBuf,

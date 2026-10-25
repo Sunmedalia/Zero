@@ -300,9 +300,17 @@ zero dump --image images/linux-sample-1.bin.gz --symbols symbols/linux.zip \
 # 导出含 ELF 头的映射
 zero dump --image images/linux-sample-1.bin.gz --symbols symbols/linux.zip \
   --mode elf --pid 1 --dump-dir exports/dumps --output elf-index.csv
+# Windows：逐 VAD 导出进程内存
+zero dump --image images/WinDump/WinDump.mem --symbols symbols/nt.json.xz \
+  --mode vad --pid 7688 --dump-dir exports/vad
+# Windows：重建导出进程 DLL 与内核模块（moddump 不需要 --pid）
+zero dump --image images/WinDump/WinDump.mem --symbols symbols/nt.json.xz \
+  --mode dll --pid 7688 --dump-dir exports/dll
+zero dump --image images/WinDump/WinDump.mem --symbols symbols/nt.json.xz \
+  --mode module --dump-dir exports/modules
 ```
 
-推荐使用 `dump --mode process|range|elf`；原 `analyze --plugin procdump|memdump|elfdump` 调用保持兼容。
+推荐使用 `dump --mode`；Linux 为 `process|range|elf`，Windows 为 `process|range|pe|vad|dll|module`。原 `analyze --plugin procdump|memdump|elfdump` 调用保持兼容。
 
 ### 6.3 符号识别、下载与生成
 
@@ -517,6 +525,41 @@ zero analyze --image images/WinDump/WinDump.mem --plugin windows.vadyarascan \
 ```
 
 扫描按页读取并跨相邻页拼接，不可读页中断拼接。每进程最多读取 256 MiB 驻留数据，结果最多 100,000 条，超过 1 GiB 的单个区域（如 CFG 位图保留区）跳过。任何不可读页或跳过区域都会作为诊断报告并标记部分结果，因此“没有命中”只在完整结果中成立。Context 列给出命中处起 32 字节的十六进制与可打印文本。实测 Debian 3.2 搜索 `/bin/bash` 得到 157 处命中；Windows 10 15063 的 explorer.exe（PID 7688）搜索 `hex:4d5a9000` 得到 261 个 PE 头。
+
+### 8.4 凭证提取（hashdump／lsadump／cachedump）
+
+三个插件对齐 Volatility 3 的同名命令，算法逐行对照 vol3 源码实现（bootkey 四 class 置换、SAM F 值 hbootkey、V 值 `+0xCC` 布局、LSA key、DCC 缓存），全部原生 Rust，不调用任何外部工具：
+
+| 插件 | 输入 hive | 输出 |
+| --- | --- | --- |
+| `windows.hashdump` | SAM + SYSTEM | User、RID、LM、NT（可直接进 John / hashcat 3000／1000 格式） |
+| `windows.lsadump` | SECURITY + SYSTEM | Name、Text、Hex、Size（LSA Secrets，含机器账户、DPAPI、NL$KM 等） |
+| `windows.cachedump` | SECURITY + SYSTEM | User、Domain、DomainName、Iterations、DCC（`$DCC2$10240#用户#哈希`，hashcat 2100；XP 为 `$DCC$` mscash v1） |
+
+```sh
+zero --offline analyze --image images/WinDump/WinDump.mem --symbols symbols/nt.json.xz \
+  --plugin windows.hashdump --output exports/hashdump.json
+```
+
+行为要点：
+
+- SAM／SECURITY hive 优先在 Registry 进程地址空间解析，缺失时回退内核映射；两种视图都读不到的 hive 会降级为零行并给出诊断，不输出猜测值。
+- 同时支持 Vista+（F 值 revision 3：AES-128-CBC；LSA：PolEKList AES-256 逐块；缓存：AES-128-CBC 链式）与 XP／2003（revision 2：RC4+MD5；LSA：PolSecretEncryptionKey；缓存：RC4+HMAC-MD5）两套算法。样本布局超出已知 revision 时报诊断而不是猜哈希。
+- 空密码输出公认常量（LM `aad3b435b51404eeaad3b435b51404ee`、NT `31d6cfe0d16ad965ba83311e42d07d64`）。
+- 这是普通分析插件：完整结果可缓存；对域控／加入域的样本 cachedump 才有条目，独立工作站通常为空表。
+
+### 8.5 Windows 转储（vaddump／dlldump／moddump）
+
+| 模式 | 目标 | 每个输出的文件 | 关键列 |
+| --- | --- | --- | --- |
+| `--mode vad` | 所选进程的**全部** VAD（不做可读过滤，语义对齐 vol3 vaddump 而非 procdump；读不出的段逐段诊断并跳过） | `windows-vad-pid<PID>-<start>-<end>-<摘要>.bin` | Start、End、Size、Protection、Private、Path、SHA256、File |
+| `--mode dll` | 进程模块列表中的全部 DLL | `windows-dll-pid<PID>-<模块名>-<基址>-<摘要>.pe` | Module、Base、Size、View、SHA256、File |
+| `--mode module` | `PsLoadedModuleList` 全部内核模块（**无需 PID**） | `windows-mod-<模块名>-<基址>-<摘要>.pe` | Module、Base、Size、Path、SHA256、File |
+
+- DLL／内核模块按 PE 节表重建（`reconstruct_pe`），与 `pedump` 同一套逻辑：节间空洞补零、缺页报错，绝不伪造缺失字节；模块基址处无 MZ 头时跳过并记录诊断。
+- `--mode dll|module` 的 `--start` 是可选的**精确基址选择器**（只转储该基址的模块），不接受 `--end`；`--mode vad` 的 `--start`／`--end` 是可选的相交过滤。
+- 单次转储总量上限 256 MiB；文件名中的模块名净化为 `[A-Za-z0-9._-]`（其余替换 `_`，截 64 字符）。
+- minidump 容器样本（`user_minidump`）不提供 VAD 树与内核模块列表，这三个模式会明确拒绝而不是输出空结果。
 
 ## 9. 设置、缓存与运行数据
 

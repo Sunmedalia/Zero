@@ -816,17 +816,24 @@ pub(super) fn analyze(
                 ]);
             }
         }
+        Plugin::WinVaddump | Plugin::WinModdump => {
+            bail!(
+                "此 minidump 未提供 {} 所需的 VAD/内核模块数据",
+                plugin.name()
+            )
+        }
         plugin if plugin.is_dump() => {
             let opts = dump_options.context("转储需要参数")?;
             opts.validate(plugin)?;
             ensure!(opts.pid == pid, "PID 与 minidump 不一致");
             crate::dump::directory(&opts.directory)?;
+            let pe_dump = matches!(plugin, Plugin::WinPedump | Plugin::WinDlldump);
             let regions: Vec<_> = match plugin {
                 Plugin::WinMemdump => vec![(
                     opts.start.context("缺少 start")?,
                     opts.end.context("缺少 end")?,
                 )],
-                Plugin::WinPedump => meta
+                Plugin::WinPedump | Plugin::WinDlldump => meta
                     .modules
                     .iter()
                     .map(|m| (m.base, m.base + m.size as u64))
@@ -847,7 +854,7 @@ pub(super) fn analyze(
                 let written = (|| -> Result<Vec<String>> {
                     let mut file = tempfile::NamedTempFile::new_in(&opts.directory)?;
                     let mut hash = sha2::Sha256::new();
-                    let size = if plugin == Plugin::WinPedump {
+                    let size = if pe_dump {
                         super::dump::reconstruct_pe(
                             &mut |address, bytes| image.read(address, bytes),
                             start,
@@ -880,11 +887,7 @@ pub(super) fn analyze(
                     let target = opts.directory.join(format!(
                         "minidump-pid{pid}-{start:016x}-{}.{}",
                         &digest[..16],
-                        if plugin == Plugin::WinPedump {
-                            "exe"
-                        } else {
-                            "bin"
-                        }
+                        if pe_dump { "exe" } else { "bin" }
                     ));
                     file.persist(&target)?;
                     total += size;

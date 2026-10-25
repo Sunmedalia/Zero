@@ -466,6 +466,63 @@ test('no binding or label asks for a function key', () => {
   }
 });
 
+test('windows offers six dump modes and validates each', async () => {
+  const modes = dumpModes(true);
+  assert.equal(modes.length, 6);
+  assert.deepEqual(
+    modes.map((mode) => mode.plugin),
+    [
+      'windows.procdump',
+      'windows.memdump',
+      'windows.pedump',
+      'windows.vaddump',
+      'windows.dlldump',
+      'windows.moddump',
+    ],
+  );
+  const { app: instance } = await app();
+  instance.state.windows = true;
+  const openWith = (plugin: string, fields: string[]): void => {
+    instance.openDump(plugin, false);
+    const dialog = instance.state.dialog;
+    if (dialog?.kind === 'dump') {
+      instance.state.dialog = { ...dialog, fields };
+    }
+  };
+  // moddump：PID 留空合法，end 被拒绝。
+  openWith('windows.moddump', ['', '', '', '/tmp/d']);
+  await instance.dialogKey('Enter', { ctrl: true });
+  assert.equal(instance.state.dumpOptions?.plugin, 'windows.moddump');
+  assert.equal(instance.state.dumpOptions?.options.pid, 0);
+  openWith('windows.moddump', ['', '0x1000', '0x2000', '/tmp/d']);
+  await instance.dialogKey('Enter', { ctrl: true });
+  assert.match(dumpError(instance.state.dialog), /不接受 End/u);
+  // dlldump：Start 是可选基址选择器，但 PID 必填。
+  openWith('windows.dlldump', ['', '', '', '/tmp/d']);
+  await instance.dialogKey('Enter', { ctrl: true });
+  assert.match(dumpError(instance.state.dialog), /有效 PID/u);
+  openWith('windows.dlldump', ['8', '0xfffff80004000000', '', '/tmp/d']);
+  await instance.dialogKey('Enter', { ctrl: true });
+  assert.equal(instance.state.dumpOptions?.plugin, 'windows.dlldump');
+  // Alt+4..6 切换新模式并清掉范围字段。
+  instance.openDump('windows.procdump', false);
+  const dialog = instance.state.dialog;
+  if (dialog?.kind === 'dump') {
+    instance.state.dialog = { ...dialog, fields: ['8', '0x1000', '0x2000', '/tmp/d'] };
+  }
+  await instance.dialogKey('Alt+5', {});
+  const switched = instance.state.dialog;
+  assert.ok(switched?.kind === 'dump');
+  if (switched?.kind === 'dump') {
+    assert.equal(switched.mode, 'windows.dlldump');
+    assert.deepEqual(switched.fields, ['8', '', '', '/tmp/d']);
+  }
+});
+
+function dumpError(dialog: { kind: string; error?: string } | null): string {
+  return dialog !== null && dialog.kind === 'dump' ? ((dialog as { error?: string }).error ?? '') : '';
+}
+
 test('scan plugins require a pattern and other plugins never send one', async () => {
   const { app: instance } = await app();
   instance.state.hello = {

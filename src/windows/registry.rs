@@ -33,21 +33,7 @@ impl Windows<'_> {
         let hive = options.hive.context("注册表键查询需要 hive 地址")?;
         ensure!(hives.contains(&hive), "hive 不在已验证列表中");
         let hhive = self.field(hive, "_CMHIVE", "Hive")?;
-        let base = self.number(hhive, "_HHIVE", "BaseBlock")?;
-        let mut cell = self.number(base, "_HBASE_BLOCK", "RootCell")? as u32;
-        for part in options.key.split(['\\', '/']).filter(|s| !s.is_empty()) {
-            job.check()?;
-            let node = self.cell(hhive, cell)?;
-            let mut found = None;
-            for index in self.subkeys(hhive, &node, job)? {
-                let n = self.cell(hhive, index)?;
-                if self.key_name(&n)?.eq_ignore_ascii_case(part) {
-                    ensure!(found.is_none(), "注册表键名称歧义");
-                    found = Some(index);
-                }
-            }
-            cell = found.with_context(|| format!("注册表键不存在: {part}"))?;
-        }
+        let cell = self.registry_index(hhive, &options.key, job)?;
         let node = self.cell(hhive, cell)?;
         ensure!(&node[..2] == b"nk", "非注册表键节点");
         let name = self.key_name(&node)?;
@@ -288,7 +274,7 @@ impl Windows<'_> {
         };
         add(block, index & 4095)
     }
-    fn cell(&self, hive: u64, index: u32) -> Result<Vec<u8>> {
+    pub(super) fn cell(&self, hive: u64, index: u32) -> Result<Vec<u8>> {
         let address = self.cell_address(hive, index)?;
         let length = self.vm.uint(address, 4)? as u32 as i32;
         ensure!(length < 0, "hive cell 未分配");
@@ -311,7 +297,7 @@ impl Windows<'_> {
         }
         Ok(out)
     }
-    fn key_name(&self, node: &[u8]) -> Result<String> {
+    pub(super) fn key_name(&self, node: &[u8]) -> Result<String> {
         ensure!(node.len() >= 2 && &node[..2] == b"nk", "无效 nk cell");
         let flags = objects::physical_number(self.vm.isf, node, "_CM_KEY_NODE", "Flags")?;
         let len =
@@ -322,7 +308,7 @@ impl Windows<'_> {
             flags & 0x20 != 0,
         )
     }
-    fn subkeys(&self, hive: u64, node: &[u8], job: &Job) -> Result<Vec<u32>> {
+    pub(super) fn subkeys(&self, hive: u64, node: &[u8], job: &Job) -> Result<Vec<u32>> {
         let counts = self.vm.isf.offset("_CM_KEY_NODE", "SubKeyCounts")? as usize;
         let lists = self.vm.isf.offset("_CM_KEY_NODE", "SubKeyLists")? as usize;
         let mut out = Vec::new();
@@ -382,7 +368,14 @@ impl Windows<'_> {
         }
         Ok(())
     }
-    fn value(&self, hive: u64, index: u32, job: &Job) -> Result<(String, String, String)> {
+    /// 读取 `vk` 值单元的原始字节（名称、类型、数据），供需要二进制数据的
+    /// 凭证分析使用；`value` 是它的格式化视图。
+    pub(super) fn value_bytes(
+        &self,
+        hive: u64,
+        index: u32,
+        job: &Job,
+    ) -> Result<(String, u32, Vec<u8>)> {
         let cell = self.cell(hive, index)?;
         ensure!(cell.len() >= 2 && &cell[..2] == b"vk", "非 vk cell");
         let get = |f| objects::physical_number(self.vm.isf, &cell, "_CM_KEY_VALUE", f);
@@ -412,7 +405,120 @@ impl Windows<'_> {
                 })?
             }
         };
-        let ty = get("Type")?;
+        let ty = get("Type")? as u32;
+        Ok((name, ty, bytes))
+    }
+    /// 读取 `nk` 键单元的 class 数据（SAM bootkey 片段存放位置）。
+    pub(super) fn key_class(&self, hive: u64, key_index: u32) -> Result<Vec<u8>> {
+        let node = self.cell(hive, key_index)?;
+        ensure!(node.len() >= 2 && &node[..2] == b"nk", "非 nk cell");
+        let length =
+            objects::physical_number(self.vm.isf, &node, "_CM_KEY_NODE", "ClassLength")? as usize;
+        if length == 0 {
+            return Ok(Vec::new());
+        }
+        ensure!(length <= 4096, "注册表键 class 超长");
+        let class = objects::physical_number(self.vm.isf, &node, "_CM_KEY_NODE", "Class")? as u32;
+        ensure!(class != 0, "注册表键 class 缺失");
+        let data = self.cell(hive, class)?;
+        ensure!(length <= data.len(), "注册表键 class 截断");
+        Ok(data[..length].to_vec())
+    }
+    /// 在父键下按名称（大小写不敏感）查找子键 cell index。
+    pub(super) fn subkey_named(
+        &self,
+        hive: u64,
+        parent: u32,
+        name: &str,
+        job: &Job,
+    ) -> Result<u32> {
+        let node = self.cell(hive, parent)?;
+        for index in self.subkeys(hive, &node, job)? {
+            let n = self.cell(hive, index)?;
+            if self.key_name(&n)?.eq_ignore_ascii_case(name) {
+                return Ok(index);
+            }
+        }
+        bail!("子键不存在: {name}")
+    }
+    /// 键的 ValueList 索引（cell index 序列）。
+    fn value_indices(&self, hive: u64, key: u32) -> Result<Vec<u32>> {
+        let node = self.cell(hive, key)?;
+        let list_offset = self.vm.isf.offset("_CM_KEY_NODE", "ValueList")? as usize;
+        let list = node.get(list_offset..).context("注册表 ValueList 截断")?;
+        let count = objects::physical_number(self.vm.isf, list, "_CHILD_LIST", "Count")? as usize;
+        ensure!(count <= MAX_OBJECTS, "注册表值超限");
+        if count == 0 {
+            return Ok(Vec::new());
+        }
+        let index = objects::physical_number(self.vm.isf, list, "_CHILD_LIST", "List")? as u32;
+        let indices = self.cell(hive, index)?;
+        ensure!(count * 4 <= indices.len(), "注册表值列表截断");
+        Ok(indices[..count * 4]
+            .chunks_exact(4)
+            .map(|c| u32::from_le_bytes(c.try_into().expect("4-byte chunk")))
+            .collect())
+    }
+    /// 键的具名值原始数据（大小写不敏感）。
+    pub(super) fn key_value_bytes(
+        &self,
+        hive: u64,
+        key: u32,
+        name: &str,
+        job: &Job,
+    ) -> Result<Option<Vec<u8>>> {
+        for index in self.value_indices(hive, key)? {
+            job.check()?;
+            let (value_name, _, bytes) = self.value_bytes(hive, index, job)?;
+            if value_name.eq_ignore_ascii_case(name) {
+                return Ok(Some(bytes));
+            }
+        }
+        Ok(None)
+    }
+    /// 键的第一个（默认）值原始数据。
+    pub(super) fn key_first_value(&self, hive: u64, key: u32, job: &Job) -> Result<Vec<u8>> {
+        let indices = self.value_indices(hive, key)?;
+        let index = indices.first().context("注册表键没有值")?;
+        self.value_bytes(hive, *index, job)
+            .map(|(_, _, bytes)| bytes)
+    }
+    /// 键的全部值（名称、原始数据）。
+    pub(super) fn key_values(
+        &self,
+        hive: u64,
+        key: u32,
+        job: &Job,
+    ) -> Result<Vec<(String, Vec<u8>)>> {
+        let mut out = Vec::new();
+        for index in self.value_indices(hive, key)? {
+            job.check()?;
+            let (name, _, bytes) = self.value_bytes(hive, index, job)?;
+            out.push((name, bytes));
+        }
+        Ok(out)
+    }
+    /// 从 hive 根开始按 `a\b\c` 路径解析键并返回其 cell index。
+    pub(super) fn registry_index(&self, hive: u64, key: &str, job: &Job) -> Result<u32> {
+        let base = self.number(hive, "_HHIVE", "BaseBlock")?;
+        let mut cell = self.number(base, "_HBASE_BLOCK", "RootCell")? as u32;
+        for part in key.split(['\\', '/']).filter(|s| !s.is_empty()) {
+            job.check()?;
+            let node = self.cell(hive, cell)?;
+            let mut found = None;
+            for index in self.subkeys(hive, &node, job)? {
+                let n = self.cell(hive, index)?;
+                if self.key_name(&n)?.eq_ignore_ascii_case(part) {
+                    ensure!(found.is_none(), "注册表键名称歧义");
+                    found = Some(index);
+                }
+            }
+            cell = found.with_context(|| format!("注册表键不存在: {part}"))?;
+        }
+        Ok(cell)
+    }
+    fn value(&self, hive: u64, index: u32, job: &Job) -> Result<(String, String, String)> {
+        let (name, ty, bytes) = self.value_bytes(hive, index, job)?;
         let (label, data) = match ty {
             1 | 2 | 7 => (
                 match ty {
@@ -569,6 +675,105 @@ mod tests {
             "中文"
         );
         assert!(decode_name(&[1], false).is_err());
+    }
+    #[test]
+    fn key_class_value_bytes_and_index_walk_raw_cells() {
+        let (mut b, mut isf) = fixture();
+        let pointer = |offset| json!({"offset":offset,"type":{"kind":"pointer"}});
+        let number = |offset| json!({"offset":offset,"type":{"kind":"base","name":"u32"}});
+        let short = |offset| json!({"offset":offset,"type":{"kind":"base","name":"u16"}});
+        isf.data["base_types"]["u32"] = json!({"size":4});
+        isf.data["user_types"]["_HHIVE"] = json!({"size":64,"fields":{"BaseBlock":pointer(0),"Storage":{"offset":8,"type":{"kind":"array","count":2,"subtype":{"kind":"struct","name":"_DUAL"}}}}});
+        isf.data["user_types"]["_DUAL"] =
+            json!({"size":24,"fields":{"Length":number(0),"Map":pointer(8)}});
+        isf.data["user_types"]["_HBASE_BLOCK"] = json!({"size":4,"fields":{"RootCell":number(0)}});
+        isf.data["user_types"]["_HMAP_DIRECTORY"] = json!({"size":8,"fields":{"Directory":{"offset":0,"type":{"kind":"array","count":1,"subtype":{"kind":"pointer"}}}}});
+        isf.data["user_types"]["_HMAP_TABLE"] = json!({"size":8192,"fields":{"Table":{"offset":0,"type":{"kind":"array","count":512,"subtype":{"kind":"struct","name":"_HMAP_ENTRY"}}}}});
+        isf.data["user_types"]["_HMAP_ENTRY"] =
+            json!({"size":16,"fields":{"BlockOffset":pointer(0),"PermanentBinAddress":pointer(8)}});
+        let array = |offset| json!({"offset":offset,"type":{"kind":"array","count":2,"subtype":{"kind":"base","name":"u32"}}});
+        isf.data["user_types"]["_CM_KEY_NODE"] = json!({"size":48,"fields":{"Flags":short(2),"NameLength":short(4),"LastWriteTime":pointer(8),"ValueList":{"offset":16,"type":{"kind":"struct","name":"_CHILD_LIST"}},"SubKeyCounts":array(24),"SubKeyLists":array(32),"Class":number(36),"ClassLength":short(40),"Name":{"offset":44,"type":{"kind":"array","count":0}}}});
+        isf.data["user_types"]["_CHILD_LIST"] =
+            json!({"size":8,"fields":{"Count":number(0),"List":number(4)}});
+        isf.data["user_types"]["_CM_KEY_VALUE"] = json!({"size":32,"fields":{"NameLength":short(2),"Flags":short(4),"Type":number(8),"DataLength":number(12),"Data":number(16),"Name":{"offset":24,"type":{"kind":"array","count":2}}}});
+        // Registry-process view (DTB 0x5000) maps kernel K-area and hive user memory.
+        put(&mut b, 0x5000, 0x2003);
+        put(&mut b, 0x5000 + 256 * 8, 0x2003);
+        put(&mut b, 0xb020, K + 0x4000);
+        put(&mut b, 0xb028, 8192);
+        put(&mut b, 0xb030, K + 0x5000);
+        put(&mut b, 0xc000, 0x20);
+        put(&mut b, 0xd000, K + 0x6000);
+        put(&mut b, 0xe008, 0x9000);
+        // Root nk: subkey Lsa via lf list, one value, class data 16 bytes.
+        b[0x11020..0x11024].copy_from_slice(&(-60i32).to_le_bytes());
+        let mut nk = [0u8; 56];
+        nk[..2].copy_from_slice(b"nk");
+        nk[2..4].copy_from_slice(&0x20u16.to_le_bytes());
+        nk[4..6].copy_from_slice(&4u16.to_le_bytes());
+        nk[16..20].copy_from_slice(&1u32.to_le_bytes());
+        nk[20..24].copy_from_slice(&0x80u32.to_le_bytes());
+        nk[24..28].copy_from_slice(&1u32.to_le_bytes());
+        nk[32..36].copy_from_slice(&0x100u32.to_le_bytes());
+        nk[36..40].copy_from_slice(&0xe0u32.to_le_bytes());
+        nk[40..42].copy_from_slice(&16u16.to_le_bytes());
+        nk[44..48].copy_from_slice(b"Root");
+        b[0x11024..0x11024 + 56].copy_from_slice(&nk);
+        // Value index cell -> vk cell with REG_BINARY data.
+        b[0x11080..0x11084].copy_from_slice(&(-8i32).to_le_bytes());
+        b[0x11084..0x11088].copy_from_slice(&0x90u32.to_le_bytes());
+        b[0x11090..0x11094].copy_from_slice(&(-36i32).to_le_bytes());
+        let mut vk = [0u8; 32];
+        vk[..2].copy_from_slice(b"vk");
+        vk[2..4].copy_from_slice(&2u16.to_le_bytes());
+        vk[8..12].copy_from_slice(&3u32.to_le_bytes());
+        vk[12..16].copy_from_slice(&8u32.to_le_bytes());
+        vk[16..20].copy_from_slice(&0xc0u32.to_le_bytes());
+        vk[24..26].copy_from_slice(b"F\0");
+        b[0x11094..0x11094 + 32].copy_from_slice(&vk);
+        b[0x110c0..0x110c4].copy_from_slice(&(-12i32).to_le_bytes());
+        b[0x110c4..0x110cc].copy_from_slice(&[0xde, 0xad, 0xbe, 0xef, 1, 2, 3, 4]);
+        // Class cell: UTF-16 "0123abcd" as the SAM bootkey fragments store it.
+        b[0x110e0..0x110e4].copy_from_slice(&(-20i32).to_le_bytes());
+        for (i, ch) in "0123abcd".encode_utf16().enumerate() {
+            b[0x110e4 + i * 2..0x110e4 + i * 2 + 2].copy_from_slice(&ch.to_le_bytes());
+        }
+        // lf subkey list (8-byte entries) pointing at the Lsa nk cell.
+        b[0x11100..0x11104].copy_from_slice(&(-16i32).to_le_bytes());
+        b[0x11104..0x11106].copy_from_slice(b"lf");
+        b[0x11106..0x11108].copy_from_slice(&1u16.to_le_bytes());
+        b[0x11108..0x1110c].copy_from_slice(&0x120u32.to_le_bytes());
+        b[0x1110c..0x11110].copy_from_slice(&0u32.to_le_bytes());
+        b[0x11120..0x11124].copy_from_slice(&(-52i32).to_le_bytes());
+        let mut child = [0u8; 48];
+        child[..2].copy_from_slice(b"nk");
+        child[2..4].copy_from_slice(&0x20u16.to_le_bytes());
+        child[4..6].copy_from_slice(&3u16.to_le_bytes());
+        child[44..47].copy_from_slice(b"Lsa");
+        b[0x11124..0x11124 + 48].copy_from_slice(&child);
+        let img = image(&b);
+        let engine = Windows {
+            vm: Memory::new(&img, 0x5000, &isf, None),
+            base: K,
+            pdb: PdbIdentity::from_isf(&isf).unwrap(),
+        };
+        let job = Job::default();
+        let class = engine.key_class(K + 0x3020, 0x20).unwrap();
+        let expected: Vec<u8> = "0123abcd"
+            .encode_utf16()
+            .flat_map(|c| c.to_le_bytes())
+            .collect();
+        assert_eq!(class, expected);
+        let (name, ty, bytes) = engine.value_bytes(K + 0x3020, 0x90, &job).unwrap();
+        assert_eq!(
+            (name.as_str(), ty, bytes),
+            ("F", 3, vec![0xde, 0xad, 0xbe, 0xef, 1, 2, 3, 4])
+        );
+        assert_eq!(
+            engine.registry_index(K + 0x3020, "Lsa", &job).unwrap(),
+            0x120
+        );
+        assert!(engine.registry_index(K + 0x3020, "SAM", &job).is_err());
     }
 }
 

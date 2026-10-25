@@ -836,6 +836,9 @@ fn dump(
         "range" => Plugin::Memdump,
         "elf" => Plugin::Elfdump,
         "pe" => Plugin::WinPedump,
+        "vad" => Plugin::WinVaddump,
+        "dll" => Plugin::WinDlldump,
+        "module" => Plugin::WinModdump,
         other => anyhow::bail!("无效 dump 模式 {other}"),
     };
     let address = |value: Option<String>| -> Result<Option<u64>> {

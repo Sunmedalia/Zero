@@ -22,6 +22,8 @@ mod codec;
 mod compatibility;
 mod compressed;
 pub mod container;
+mod creds;
+mod crypto;
 mod drivers;
 mod dump;
 pub mod hiber;
@@ -338,6 +340,14 @@ pub struct Process {
     pub created: u64,
     pub exited: u64,
 }
+/// One entry of `PsLoadedModuleList`, shared by `modules` and moddump.
+#[derive(Clone, Debug)]
+pub(super) struct KernelModule {
+    pub name: String,
+    pub base: u64,
+    pub size: u64,
+    pub path: String,
+}
 impl Process {
     fn row(&self) -> Vec<String> {
         vec![
@@ -632,6 +642,9 @@ impl Windows<'_> {
                 | Plugin::WinAmcache
                 | Plugin::WinCertificates
                 | Plugin::WinShimcache
+                | Plugin::WinHashdump
+                | Plugin::WinLsadump
+                | Plugin::WinCachedump
         ) {
             let (processes, diagnostics) = self.processes_partial(job)?;
             let owners: Vec<_> = processes
@@ -655,15 +668,36 @@ impl Windows<'_> {
                 base: self.base,
                 pdb: self.pdb.clone(),
             };
-            let mut result = match p {
-                Plugin::WinAutoruns => registry.autoruns(options, job)?,
-                Plugin::WinUserassist => registry.userassist(options, job)?,
-                Plugin::WinGetservicesids => registry.service_sids(job)?,
-                Plugin::WinScheduledTasks => registry.scheduled_tasks(job)?,
-                Plugin::WinAmcache => registry.amcache(job)?,
-                Plugin::WinCertificates => registry.certificates(job)?,
-                Plugin::WinShimcache => registry.shimcache(job)?,
-                _ => registry.registry(p, options, job)?,
+            let run = |engine: &Windows<'_>| -> Result<Results> {
+                match p {
+                    Plugin::WinAutoruns => engine.autoruns(options, job),
+                    Plugin::WinUserassist => engine.userassist(options, job),
+                    Plugin::WinGetservicesids => engine.service_sids(job),
+                    Plugin::WinScheduledTasks => engine.scheduled_tasks(job),
+                    Plugin::WinAmcache => engine.amcache(job),
+                    Plugin::WinCertificates => engine.certificates(job),
+                    Plugin::WinShimcache => engine.shimcache(job),
+                    Plugin::WinHashdump => engine.hashdump(job),
+                    Plugin::WinLsadump => engine.lsadump(job),
+                    Plugin::WinCachedump => engine.cachedump(job),
+                    _ => engine.registry(p, options, job),
+                }
+            };
+            let mut result = if owners.is_empty() {
+                run(&registry)?
+            } else {
+                // Registry 进程视图失败（如 crash dump 未保存其页表）时回退内核视图。
+                match run(&registry) {
+                    Ok(result) => result,
+                    Err(rehosted) => {
+                        let mut result = run(self)?;
+                        result.complete = false;
+                        result.diagnostics.push(format!(
+                            "Registry 进程视图失败，已回退内核视图: {rehosted:#}"
+                        ));
+                        result
+                    }
+                }
             };
             if !diagnostics.is_empty() {
                 result.complete = false;
@@ -763,32 +797,48 @@ impl Windows<'_> {
     }
     fn modules(&self, p: Plugin, job: &Job) -> Result<Results> {
         let mut r = self.result(p);
+        for module in self.modules_partial(job, &mut r)? {
+            r.rows.push(vec![
+                module.name,
+                hex(module.base),
+                module.size.to_string(),
+                module.path,
+            ]);
+        }
+        Ok(r)
+    }
+    /// PsLoadedModuleList 遍历，供 modules 与 moddump 共用。
+    fn modules_partial(&self, job: &Job, r: &mut Results) -> Result<Vec<KernelModule>> {
         let module_type = self.module_type()?;
         let (modules, diagnostics) = self.list_partial(
             self.symbol("PsLoadedModuleList")?,
             self.vm.isf.offset(module_type, "InLoadOrderLinks")?,
             job,
         )?;
-        r.complete = diagnostics.is_empty();
-        r.diagnostics = diagnostics;
+        if !diagnostics.is_empty() {
+            r.complete = false;
+            r.diagnostics.extend(diagnostics);
+        }
+        let mut out = Vec::new();
         for address in modules {
-            let read = (|| -> Result<Vec<String>> {
-                Ok(vec![
-                    self.vm
+            let read = (|| -> Result<KernelModule> {
+                Ok(KernelModule {
+                    name: self
+                        .vm
                         .unicode(self.field(address, module_type, "BaseDllName")?)?,
-                    hex(self.number(address, module_type, "DllBase")?),
-                    self.number(address, module_type, "SizeOfImage")?
-                        .to_string(),
-                    self.vm
+                    base: self.number(address, module_type, "DllBase")?,
+                    size: self.number(address, module_type, "SizeOfImage")?,
+                    path: self
+                        .vm
                         .unicode(self.field(address, module_type, "FullDllName")?)?,
-                ])
+                })
             })();
             match read {
-                Ok(row) => r.rows.push(row),
-                Err(e) => Self::issue(&mut r, hex(address), e),
+                Ok(module) => out.push(module),
+                Err(e) => Self::issue(r, hex(address), e),
             }
         }
-        Ok(r)
+        Ok(out)
     }
 }
 

@@ -78,6 +78,18 @@ pub enum Plugin {
     WinMemdump,
     #[value(name = "windows.pedump")]
     WinPedump,
+    #[value(name = "windows.vaddump")]
+    WinVaddump,
+    #[value(name = "windows.dlldump")]
+    WinDlldump,
+    #[value(name = "windows.moddump")]
+    WinModdump,
+    #[value(name = "windows.hashdump")]
+    WinHashdump,
+    #[value(name = "windows.lsadump")]
+    WinLsadump,
+    #[value(name = "windows.cachedump")]
+    WinCachedump,
     #[value(name = "windows.ssdt")]
     WinSsdt,
     #[value(name = "windows.modscan")]
@@ -628,6 +640,61 @@ pub const PLUGINS: &[Descriptor] = &[
         label: "windows.pedump",
         columns: &["PID", "Name", "Start", "End", "Size", "SHA256", "File"],
         widths: &[12, 0, 12, 12, 12, 12, 12],
+    },
+    Descriptor {
+        plugin: Plugin::WinVaddump,
+        name: "windows.vaddump",
+        label: "windows.vaddump",
+        columns: &[
+            "PID",
+            "Name",
+            "Start",
+            "End",
+            "Size",
+            "Protection",
+            "Private",
+            "Path",
+            "SHA256",
+            "File",
+        ],
+        widths: &[12, 0, 12, 12, 10, 16, 8, 0, 12, 0],
+    },
+    Descriptor {
+        plugin: Plugin::WinDlldump,
+        name: "windows.dlldump",
+        label: "windows.dlldump",
+        columns: &[
+            "PID", "Name", "Module", "Base", "Size", "View", "SHA256", "File",
+        ],
+        widths: &[12, 0, 0, 12, 10, 8, 12, 0],
+    },
+    Descriptor {
+        plugin: Plugin::WinModdump,
+        name: "windows.moddump",
+        label: "windows.moddump",
+        columns: &["Module", "Base", "Size", "Path", "SHA256", "File"],
+        widths: &[0, 12, 10, 0, 12, 0],
+    },
+    Descriptor {
+        plugin: Plugin::WinHashdump,
+        name: "windows.hashdump",
+        label: "windows.hashdump",
+        columns: &["User", "RID", "LM", "NT"],
+        widths: &[0, 8, 34, 34],
+    },
+    Descriptor {
+        plugin: Plugin::WinLsadump,
+        name: "windows.lsadump",
+        label: "windows.lsadump",
+        columns: &["Name", "Text", "Hex", "Size"],
+        widths: &[20, 0, 0, 8],
+    },
+    Descriptor {
+        plugin: Plugin::WinCachedump,
+        name: "windows.cachedump",
+        label: "windows.cachedump",
+        columns: &["User", "Domain", "DomainName", "Iterations", "DCC"],
+        widths: &[0, 12, 16, 10, 0],
     },
     Descriptor {
         plugin: Plugin::WinSsdt,
@@ -1397,6 +1464,9 @@ impl Plugin {
                 | Self::WinProcdump
                 | Self::WinMemdump
                 | Self::WinPedump
+                | Self::WinVaddump
+                | Self::WinDlldump
+                | Self::WinModdump
         )
     }
     pub fn is_windows(self) -> bool {
@@ -1449,6 +1519,12 @@ impl Plugin {
             Self::WinProcdump => "Process",
             Self::WinMemdump => "Memory",
             Self::WinPedump => "Memory",
+            Self::WinVaddump => "Memory",
+            Self::WinDlldump => "Memory",
+            Self::WinModdump => "Memory",
+            Self::WinHashdump => "Files",
+            Self::WinLsadump => "Files",
+            Self::WinCachedump => "Files",
             Self::WinSsdt | Self::WinModscan => "Integrity",
             Self::WinPrivileges | Self::WinSessions => "Process",
             Self::WinUserassist => "Files",
@@ -1594,6 +1670,12 @@ impl Plugin {
             Memdump | WinMemdump => "转储指定进程的地址范围",
             Elfdump => "导出进程中含 ELF 头的映射",
             WinPedump => "按 PE 节表重建可读文件",
+            WinVaddump => "按 VAD 逐段转储进程内存并保留 VAD 元数据",
+            WinDlldump => "按基址选择并重建导出进程 DLL 的 PE 文件",
+            WinModdump => "重建并导出内核模块的 PE 文件",
+            WinHashdump => "解密 SAM hive 中的用户 NTLM/LM 哈希",
+            WinLsadump => "解密 SECURITY hive 中的 LSA 机密",
+            WinCachedump => "解密 SECURITY hive 中的域缓存凭据（DCC）",
             WinSsdt => "检查系统服务表项的模块与符号归属",
             WinModscan => "扫描 MmLd 池中的内核模块条目并对照模块链表",
             WinPrivileges => "列出进程令牌拥有的特权及启用状态",

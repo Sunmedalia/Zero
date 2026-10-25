@@ -18,6 +18,9 @@ pub enum Mode {
     Range,
     Elf,
     Pe,
+    Vad,
+    Dll,
+    Module,
 }
 impl Mode {
     pub fn plugin(self) -> Plugin {
@@ -26,6 +29,9 @@ impl Mode {
             Self::Range => Plugin::Memdump,
             Self::Elf => Plugin::Elfdump,
             Self::Pe => Plugin::WinPedump,
+            Self::Vad => Plugin::WinVaddump,
+            Self::Dll => Plugin::WinDlldump,
+            Self::Module => Plugin::WinModdump,
         }
     }
 }
@@ -49,22 +55,36 @@ pub fn parse_address(text: &str) -> Result<u64, String> {
 impl DumpOptions {
     pub fn validate(&self, plugin: Plugin) -> Result<()> {
         ensure!(plugin.is_dump(), "非 Dump 插件");
-        ensure!(self.pid > 0, "必须指定非零 PID");
+        // moddump targets kernel modules and has no owning process.
+        ensure!(
+            self.pid > 0 || plugin == Plugin::WinModdump,
+            "必须指定非零 PID"
+        );
         ensure!(!self.directory.as_os_str().is_empty(), "必须指定转储目录");
         match (self.start, self.end) {
             (Some(start), Some(end)) => {
                 ensure!(start < end, "Start 必须小于 End（End 不包含在范围内）");
-                ensure!(end - start <= MAX_DUMP_BYTES, "转储范围超过 256 MiB 上限");
+                // vaddump 的 start/end 是逐 VAD 的相交过滤器，不受单段上限约束。
+                ensure!(
+                    plugin == Plugin::WinVaddump || end - start <= MAX_DUMP_BYTES,
+                    "转储范围超过 256 MiB 上限"
+                );
             }
             (None, None) => ensure!(
                 !matches!(plugin, Plugin::Memdump | Plugin::WinMemdump),
                 "memdump 必须指定 --start 和 --end"
             ),
+            // dll/module 转储把 --start 当作可选的精确基址选择器。
+            (Some(_), None) if matches!(plugin, Plugin::WinDlldump | Plugin::WinModdump) => {}
             _ => anyhow::bail!("Start 和 End 必须同时填写"),
         }
         ensure!(
             !matches!(plugin, Plugin::Elfdump | Plugin::WinPedump) || self.start.is_none(),
             "PE/ELF 转储不接受地址范围；使用 memdump 精确导出范围"
+        );
+        ensure!(
+            !matches!(plugin, Plugin::WinDlldump | Plugin::WinModdump) || self.end.is_none(),
+            "dll/module 转储不接受 End；--start 是可选的基址选择器"
         );
         Ok(())
     }
@@ -252,6 +272,20 @@ mod tests {
         assert_eq!(parse_address("0X2000"), Ok(8192));
         assert_eq!(parse_address("8192"), Ok(8192));
         assert!(parse_address("all").is_err());
+        // moddump runs without a pid; start alone selects a base.
+        opts.pid = 0;
+        opts.end = None;
+        assert!(opts.validate(Plugin::WinModdump).is_ok());
+        opts.start = Some(0xfffff80004000000);
+        assert!(opts.validate(Plugin::WinModdump).is_ok());
+        opts.end = Some(0xfffff80005000000);
+        assert!(opts.validate(Plugin::WinModdump).is_err());
+        assert!(opts.validate(Plugin::WinDlldump).is_err());
+        opts.pid = 12;
+        opts.end = None;
+        assert!(opts.validate(Plugin::WinDlldump).is_ok());
+        opts.pid = 0;
+        assert!(opts.validate(Plugin::WinDlldump).is_err());
     }
     #[test]
     fn parameters_fail_before_image_access() {

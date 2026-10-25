@@ -270,7 +270,10 @@ fn call(
                 "range" => Plugin::Memdump,
                 "elf" => Plugin::Elfdump,
                 "pe" => Plugin::WinPedump,
-                _ => bail!("mode 必须为 process、range 或 elf"),
+                "vad" => Plugin::WinVaddump,
+                "dll" => Plugin::WinDlldump,
+                "module" => Plugin::WinModdump,
+                _ => bail!("mode 必须为 process、range、elf、pe、vad、dll 或 module"),
             };
             let parse = |v: Option<String>| -> Result<Option<u64>> {
                 v.map(|s| dump::parse_address(&s).map_err(anyhow::Error::msg))

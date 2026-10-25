@@ -3146,13 +3146,18 @@ export class App {
     if (dialog.kind !== 'dump') {
       return;
     }
-    const modeKey = /^Alt\+([123])$/u.exec(token);
+    const modeKey = /^Alt\+([1-6])$/u.exec(token);
     if (modeKey) {
       const modes = dumpModes(this.state.windows);
       const next = modes[Number(modeKey[1]) - 1];
       if (next) {
         const fields = [...dialog.fields];
-        if (next.plugin.endsWith('elfdump') || next.plugin.endsWith('pedump')) {
+        if (
+          next.plugin.endsWith('elfdump') ||
+          next.plugin.endsWith('pedump') ||
+          next.plugin.endsWith('dlldump') ||
+          next.plugin.endsWith('moddump')
+        ) {
           fields[1] = '';
           fields[2] = '';
         }
@@ -3163,15 +3168,23 @@ export class App {
     }
     if (token === 'Enter' && (dialog.field === 4 || key.ctrl)) {
       try {
-        const pid = Number((dialog.fields[0] ?? '').trim());
-        if (!Number.isInteger(pid) || pid <= 0) {
-          throw new Error('请输入有效 PID');
+        const plugin = dialog.mode;
+        const noPid = plugin.endsWith('moddump');
+        const pidText = (dialog.fields[0] ?? '').trim();
+        const pid = pidText === '' && noPid ? 0 : Number(pidText);
+        if (!Number.isInteger(pid) || pid < 0 || (pid === 0 && !noPid)) {
+          throw new Error(noPid ? '请输入有效 PID（moddump 可留空转储全部模块）' : '请输入有效 PID');
         }
         const address = (text: string): string | null =>
           text.trim() === '' ? null : parseAddress(text);
         const start = address(dialog.fields[1] ?? '');
         const end = address(dialog.fields[2] ?? '');
-        if ((start === null) !== (end === null)) {
+        // dll/module 的 Start 是可选的精确基址选择器，不接受 End。
+        const baseSelector = plugin.endsWith('dlldump') || plugin.endsWith('moddump');
+        if (baseSelector && end !== null) {
+          throw new Error('dll/module 转储不接受 End；Start 是可选的基址选择器');
+        }
+        if (!baseSelector && (start === null) !== (end === null)) {
           throw new Error('Start 和 End 必须同时填写');
         }
         if (start !== null && end !== null) {
@@ -3180,11 +3193,11 @@ export class App {
           if (startValue >= endValue) {
             throw new Error('Start 必须小于 End（End 不包含在范围内）');
           }
-          if (endValue - startValue > 256n * 1024n * 1024n) {
+          // vaddump 的范围是逐 VAD 的相交过滤器，不受单段上限约束。
+          if (!plugin.endsWith('vaddump') && endValue - startValue > 256n * 1024n * 1024n) {
             throw new Error('转储范围超过 256 MiB 上限');
           }
         }
-        const plugin = dialog.mode;
         if (plugin.endsWith('memdump') && (start === null || end === null)) {
           throw new Error('memdump 必须指定 --start 和 --end');
         }

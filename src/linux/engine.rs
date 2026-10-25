@@ -227,7 +227,8 @@ impl Linux<'_> {
             | WinVerinfo | WinMftscan | WinOrphanThreads | WinEtwpatch | WinScheduledTasks
             | WinAmcache | WinCertificates | WinProcessghosting | WinJoblinks | WinTimeliner
             | WinMbrscan | WinTimers | WinStatistics | WinShimcache | WinVirtmap
-            | WinVadyarascan => Err(unrouted(plugin)),
+            | WinVadyarascan | WinVaddump | WinDlldump | WinModdump | WinHashdump | WinLsadump
+            | WinCachedump => Err(unrouted(plugin)),
         }
     }
     /// pslist / pstree over `init_task.tasks`, lsmod over `modules`, with full

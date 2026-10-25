@@ -222,7 +222,7 @@ pub(super) fn shimcache_entries(bytes: &[u8]) -> Vec<(String, u64)> {
 }
 
 impl Windows<'_> {
-    fn hives_matching(
+    pub(super) fn hives_matching(
         &self,
         suffix: &[&str],
         job: &Job,
@@ -245,7 +245,7 @@ impl Windows<'_> {
         }
         Ok(out)
     }
-    fn values(rows: &Results) -> BTreeMap<String, (String, String)> {
+    pub(super) fn values(rows: &Results) -> BTreeMap<String, (String, String)> {
         rows.rows
             .iter()
             .filter(|row| row[2] == "Value")
@@ -304,22 +304,34 @@ impl Windows<'_> {
         }
         Ok(r)
     }
+    /// 解析 SYSTEM hive 的 Select.Current，返回 `ControlSet00N` 段。
+    pub(super) fn current_control_set(
+        &self,
+        hive: u64,
+        job: &Job,
+        r: &mut Results,
+    ) -> Result<Option<String>> {
+        let Some(select) = self.optional_registry(hive, "Select", job, r)? else {
+            return Ok(None);
+        };
+        let Some(current) = Self::values(&select).get("current").map(|v| v.1.clone()) else {
+            Self::issue(r, hex(hive), "SYSTEM hive 缺少 Select.Current");
+            return Ok(None);
+        };
+        let n = current
+            .parse::<u32>()
+            .context("Select.Current 不是 DWORD")?;
+        ensure!((1..=999).contains(&n), "Select.Current 越界");
+        Ok(Some(format!("ControlSet{n:03}")))
+    }
     /// windows.registry.shimcache: AppCompatCache of the current ControlSet.
     pub(super) fn shimcache(&self, job: &Job) -> Result<Results> {
         let mut r = self.result(Plugin::WinShimcache);
         for (hive, _) in self.hives_matching(&["system"], job, &mut r)? {
-            let Some(select) = self.optional_registry(hive, "Select", job, &mut r)? else {
+            let Some(cs) = self.current_control_set(hive, job, &mut r)? else {
                 continue;
             };
-            let Some(current) = Self::values(&select).get("current").map(|v| v.1.clone()) else {
-                Self::issue(&mut r, hex(hive), "SYSTEM hive 缺少 Select.Current");
-                continue;
-            };
-            let n = current
-                .parse::<u32>()
-                .context("Select.Current 不是 DWORD")?;
-            ensure!((1..=999).contains(&n), "Select.Current 越界");
-            let key = format!("ControlSet{n:03}\\Control\\Session Manager\\AppCompatCache");
+            let key = format!("{cs}\\Control\\Session Manager\\AppCompatCache");
             let Some(cache) = self.optional_registry(hive, &key, job, &mut r)? else {
                 continue;
             };

@@ -86,7 +86,13 @@
           "windows.statistics": "pending",
           "windows.registry.shimcache": "pending",
           "windows.virtmap": "pending",
-          "windows.vadyarascan": "pending"
+          "windows.vadyarascan": "pending",
+          "windows.vaddump": "synthetic",
+          "windows.dlldump": "synthetic",
+          "windows.moddump": "synthetic",
+          "windows.hashdump": "synthetic",
+          "windows.lsadump": "synthetic",
+          "windows.cachedump": "synthetic"
         },
         "x64": {
           "windows.callbacks": "synthetic",
@@ -150,7 +156,13 @@
           "windows.statistics": "pending",
           "windows.registry.shimcache": "pending",
           "windows.virtmap": "pending",
-          "windows.vadyarascan": "pending"
+          "windows.vadyarascan": "pending",
+          "windows.vaddump": "synthetic",
+          "windows.dlldump": "synthetic",
+          "windows.moddump": "synthetic",
+          "windows.hashdump": "synthetic",
+          "windows.lsadump": "synthetic",
+          "windows.cachedump": "synthetic"
         }
       },
       "evidence": [
@@ -275,7 +287,13 @@
           "windows.statistics": "pending",
           "windows.registry.shimcache": "pending",
           "windows.virtmap": "pending",
-          "windows.vadyarascan": "pending"
+          "windows.vadyarascan": "pending",
+          "windows.vaddump": "synthetic",
+          "windows.dlldump": "synthetic",
+          "windows.moddump": "synthetic",
+          "windows.hashdump": "synthetic",
+          "windows.lsadump": "synthetic",
+          "windows.cachedump": "synthetic"
         },
         "x64": {
           "windows.callbacks": "synthetic",
@@ -339,7 +357,13 @@
           "windows.statistics": "pending",
           "windows.registry.shimcache": "pending",
           "windows.virtmap": "pending",
-          "windows.vadyarascan": "pending"
+          "windows.vadyarascan": "pending",
+          "windows.vaddump": "synthetic",
+          "windows.dlldump": "synthetic",
+          "windows.moddump": "synthetic",
+          "windows.hashdump": "synthetic",
+          "windows.lsadump": "synthetic",
+          "windows.cachedump": "synthetic"
         }
       },
       "evidence": []
@@ -424,7 +448,13 @@
           "windows.statistics": "pending",
           "windows.registry.shimcache": "pending",
           "windows.virtmap": "pending",
-          "windows.vadyarascan": "pending"
+          "windows.vadyarascan": "pending",
+          "windows.vaddump": "synthetic",
+          "windows.dlldump": "synthetic",
+          "windows.moddump": "synthetic",
+          "windows.hashdump": "synthetic",
+          "windows.lsadump": "synthetic",
+          "windows.cachedump": "synthetic"
         },
         "x64": {
           "windows.callbacks": "synthetic",
@@ -488,7 +518,13 @@
           "windows.statistics": "pending",
           "windows.registry.shimcache": "pending",
           "windows.virtmap": "pending",
-          "windows.vadyarascan": "pending"
+          "windows.vadyarascan": "pending",
+          "windows.vaddump": "synthetic",
+          "windows.dlldump": "synthetic",
+          "windows.moddump": "synthetic",
+          "windows.hashdump": "synthetic",
+          "windows.lsadump": "synthetic",
+          "windows.cachedump": "synthetic"
         }
       },
       "evidence": [
@@ -619,7 +655,13 @@
           "windows.statistics": "pending",
           "windows.registry.shimcache": "pending",
           "windows.virtmap": "pending",
-          "windows.vadyarascan": "pending"
+          "windows.vadyarascan": "pending",
+          "windows.vaddump": "synthetic",
+          "windows.dlldump": "synthetic",
+          "windows.moddump": "synthetic",
+          "windows.hashdump": "synthetic",
+          "windows.lsadump": "synthetic",
+          "windows.cachedump": "synthetic"
         }
       },
       "evidence": [],
@@ -703,7 +745,13 @@
           "windows.statistics": "pending",
           "windows.registry.shimcache": "pending",
           "windows.virtmap": "pending",
-          "windows.vadyarascan": "pending"
+          "windows.vadyarascan": "pending",
+          "windows.vaddump": "synthetic",
+          "windows.dlldump": "synthetic",
+          "windows.moddump": "synthetic",
+          "windows.hashdump": "synthetic",
+          "windows.lsadump": "synthetic",
+          "windows.cachedump": "synthetic"
         }
       },
       "evidence": [
@@ -833,7 +881,13 @@
           "windows.statistics": "pending",
           "windows.registry.shimcache": "pending",
           "windows.virtmap": "pending",
-          "windows.vadyarascan": "pending"
+          "windows.vadyarascan": "pending",
+          "windows.vaddump": "synthetic",
+          "windows.dlldump": "synthetic",
+          "windows.moddump": "synthetic",
+          "windows.hashdump": "synthetic",
+          "windows.lsadump": "synthetic",
+          "windows.cachedump": "synthetic"
         }
       },
       "evidence": [
@@ -964,7 +1018,13 @@
           "windows.statistics": "pending",
           "windows.registry.shimcache": "pending",
           "windows.virtmap": "pending",
-          "windows.vadyarascan": "pending"
+          "windows.vadyarascan": "pending",
+          "windows.vaddump": "synthetic",
+          "windows.dlldump": "synthetic",
+          "windows.moddump": "synthetic",
+          "windows.hashdump": "synthetic",
+          "windows.lsadump": "synthetic",
+          "windows.cachedump": "synthetic"
         }
       },
       "evidence": [
@@ -1067,7 +1127,13 @@
           "windows.statistics": "pending",
           "windows.registry.shimcache": "pending",
           "windows.virtmap": "pending",
-          "windows.vadyarascan": "pending"
+          "windows.vadyarascan": "pending",
+          "windows.vaddump": "synthetic",
+          "windows.dlldump": "synthetic",
+          "windows.moddump": "synthetic",
+          "windows.hashdump": "synthetic",
+          "windows.lsadump": "synthetic",
+          "windows.cachedump": "synthetic"
         }
       },
       "evidence": [
@@ -1199,7 +1265,13 @@
           "windows.statistics": "pending",
           "windows.registry.shimcache": "pending",
           "windows.virtmap": "pending",
-          "windows.vadyarascan": "pending"
+          "windows.vadyarascan": "pending",
+          "windows.vaddump": "synthetic",
+          "windows.dlldump": "synthetic",
+          "windows.moddump": "synthetic",
+          "windows.hashdump": "synthetic",
+          "windows.lsadump": "synthetic",
+          "windows.cachedump": "synthetic"
         }
       },
       "evidence": [
@@ -1331,7 +1403,13 @@
           "windows.statistics": "pending",
           "windows.registry.shimcache": "pending",
           "windows.virtmap": "pending",
-          "windows.vadyarascan": "pending"
+          "windows.vadyarascan": "pending",
+          "windows.vaddump": "synthetic",
+          "windows.dlldump": "synthetic",
+          "windows.moddump": "synthetic",
+          "windows.hashdump": "synthetic",
+          "windows.lsadump": "synthetic",
+          "windows.cachedump": "synthetic"
         }
       },
       "evidence": [],
@@ -1417,7 +1495,13 @@
           "windows.statistics": "pending",
           "windows.registry.shimcache": "pending",
           "windows.virtmap": "pending",
-          "windows.vadyarascan": "pending"
+          "windows.vadyarascan": "pending",
+          "windows.vaddump": "synthetic",
+          "windows.dlldump": "synthetic",
+          "windows.moddump": "synthetic",
+          "windows.hashdump": "synthetic",
+          "windows.lsadump": "synthetic",
+          "windows.cachedump": "synthetic"
         },
         "x64": {
           "windows.callbacks": "real",
@@ -1481,7 +1565,13 @@
           "windows.statistics": "pending",
           "windows.registry.shimcache": "pending",
           "windows.virtmap": "pending",
-          "windows.vadyarascan": "pending"
+          "windows.vadyarascan": "pending",
+          "windows.vaddump": "synthetic",
+          "windows.dlldump": "synthetic",
+          "windows.moddump": "synthetic",
+          "windows.hashdump": "synthetic",
+          "windows.lsadump": "synthetic",
+          "windows.cachedump": "synthetic"
         }
       },
       "evidence": [
@@ -1598,7 +1688,13 @@
           "windows.statistics": "pending",
           "windows.registry.shimcache": "pending",
           "windows.virtmap": "pending",
-          "windows.vadyarascan": "pending"
+          "windows.vadyarascan": "pending",
+          "windows.vaddump": "synthetic",
+          "windows.dlldump": "synthetic",
+          "windows.moddump": "synthetic",
+          "windows.hashdump": "synthetic",
+          "windows.lsadump": "synthetic",
+          "windows.cachedump": "synthetic"
         },
         "x64": {
           "windows.callbacks": "synthetic",
@@ -1662,7 +1758,13 @@
           "windows.statistics": "pending",
           "windows.registry.shimcache": "pending",
           "windows.virtmap": "pending",
-          "windows.vadyarascan": "pending"
+          "windows.vadyarascan": "pending",
+          "windows.vaddump": "synthetic",
+          "windows.dlldump": "synthetic",
+          "windows.moddump": "synthetic",
+          "windows.hashdump": "synthetic",
+          "windows.lsadump": "synthetic",
+          "windows.cachedump": "synthetic"
         }
       },
       "evidence": []
@@ -1746,7 +1848,13 @@
           "windows.statistics": "pending",
           "windows.registry.shimcache": "pending",
           "windows.virtmap": "pending",
-          "windows.vadyarascan": "pending"
+          "windows.vadyarascan": "pending",
+          "windows.vaddump": "synthetic",
+          "windows.dlldump": "synthetic",
+          "windows.moddump": "synthetic",
+          "windows.hashdump": "synthetic",
+          "windows.lsadump": "synthetic",
+          "windows.cachedump": "synthetic"
         },
         "x64": {
           "windows.callbacks": "synthetic",
@@ -1810,7 +1918,13 @@
           "windows.statistics": "pending",
           "windows.registry.shimcache": "pending",
           "windows.virtmap": "pending",
-          "windows.vadyarascan": "pending"
+          "windows.vadyarascan": "pending",
+          "windows.vaddump": "synthetic",
+          "windows.dlldump": "synthetic",
+          "windows.moddump": "synthetic",
+          "windows.hashdump": "synthetic",
+          "windows.lsadump": "synthetic",
+          "windows.cachedump": "synthetic"
         }
       },
       "evidence": []
@@ -1907,7 +2021,13 @@
           "windows.statistics": "pending",
           "windows.registry.shimcache": "pending",
           "windows.virtmap": "pending",
-          "windows.vadyarascan": "pending"
+          "windows.vadyarascan": "pending",
+          "windows.vaddump": "synthetic",
+          "windows.dlldump": "synthetic",
+          "windows.moddump": "synthetic",
+          "windows.hashdump": "synthetic",
+          "windows.lsadump": "synthetic",
+          "windows.cachedump": "synthetic"
         },
         "x64": {
           "windows.callbacks": "real",
@@ -1971,7 +2091,13 @@
           "windows.statistics": "real",
           "windows.registry.shimcache": "pending",
           "windows.virtmap": "real",
-          "windows.vadyarascan": "pending"
+          "windows.vadyarascan": "pending",
+          "windows.vaddump": "synthetic",
+          "windows.dlldump": "synthetic",
+          "windows.moddump": "synthetic",
+          "windows.hashdump": "synthetic",
+          "windows.lsadump": "synthetic",
+          "windows.cachedump": "synthetic"
         }
       },
       "evidence": [
@@ -2126,7 +2252,13 @@
           "windows.statistics": "real",
           "windows.registry.shimcache": "pending",
           "windows.virtmap": "real",
-          "windows.vadyarascan": "pending"
+          "windows.vadyarascan": "pending",
+          "windows.vaddump": "synthetic",
+          "windows.dlldump": "synthetic",
+          "windows.moddump": "synthetic",
+          "windows.hashdump": "synthetic",
+          "windows.lsadump": "synthetic",
+          "windows.cachedump": "synthetic"
         }
       },
       "evidence": [

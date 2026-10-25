@@ -224,22 +224,10 @@ impl Windows<'_> {
                 continue;
             }
             let address = u64::from_str_radix(hive[0].trim_start_matches("0x"), 16)?;
-            let Some(select) = self.optional_registry(address, "Select", job, &mut r)? else {
+            let Some(cs) = self.current_control_set(address, job, &mut r)? else {
                 continue;
             };
-            let Some(current) = select
-                .rows
-                .iter()
-                .find(|row| row[2] == "Value" && row[3].eq_ignore_ascii_case("Current"))
-            else {
-                Self::issue(&mut r, hex(address), "SYSTEM hive 缺少 Select.Current");
-                continue;
-            };
-            let n = current[5]
-                .parse::<u32>()
-                .context("Select.Current 不是 DWORD")?;
-            ensure!((1..=999).contains(&n), "Select.Current 越界");
-            let key = format!("ControlSet{n:03}\\Services");
+            let key = format!("{cs}\\Services");
             if let Some(services) = self.optional_registry(address, &key, job, &mut r)? {
                 for service in services.rows.iter().filter(|row| row[2] == "SubKey") {
                     r.rows
