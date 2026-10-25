@@ -1,7 +1,7 @@
 {
   "name": "zero-tui-ts",
   "private": true,
-  "version": "0.1.6",
+  "version": "0.1.7",
   "type": "module",
   "description": "TypeScript terminal interface for the native Zero memory forensics engine",
   "engines": {
