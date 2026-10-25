@@ -466,9 +466,9 @@ test('no binding or label asks for a function key', () => {
   }
 });
 
-test('windows offers six dump modes and validates each', async () => {
+test('windows offers seven dump modes and validates each', async () => {
   const modes = dumpModes(true);
-  assert.equal(modes.length, 6);
+  assert.equal(modes.length, 7);
   assert.deepEqual(
     modes.map((mode) => mode.plugin),
     [
@@ -478,6 +478,7 @@ test('windows offers six dump modes and validates each', async () => {
       'windows.vaddump',
       'windows.dlldump',
       'windows.moddump',
+      'windows.dumpfiles',
     ],
   );
   const { app: instance } = await app();
@@ -504,6 +505,13 @@ test('windows offers six dump modes and validates each', async () => {
   openWith('windows.dlldump', ['8', '0xfffff80004000000', '', '/tmp/d']);
   await instance.dialogKey('Enter', { ctrl: true });
   assert.equal(instance.state.dumpOptions?.plugin, 'windows.dlldump');
+  // dumpfiles：按进程提取，不接受地址范围。
+  openWith('windows.dumpfiles', ['8', '0x1000', '0x2000', '/tmp/d']);
+  await instance.dialogKey('Enter', { ctrl: true });
+  assert.match(dumpError(instance.state.dialog), /dumpfiles 不接受地址范围/u);
+  openWith('windows.dumpfiles', ['8', '', '', '/tmp/d']);
+  await instance.dialogKey('Enter', { ctrl: true });
+  assert.equal(instance.state.dumpOptions?.plugin, 'windows.dumpfiles');
   // Alt+4..6 切换新模式并清掉范围字段。
   instance.openDump('windows.procdump', false);
   const dialog = instance.state.dialog;

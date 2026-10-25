@@ -44,7 +44,7 @@ export interface DumpArgs {
   image: string;
   symbols: string | null;
   symbol_choice: string | null;
-  mode: 'process' | 'range' | 'elf' | 'pe' | 'vad' | 'dll' | 'module';
+  mode: 'process' | 'range' | 'elf' | 'pe' | 'vad' | 'dll' | 'module' | 'files';
   pid: number;
   directory: string;
   start: string | null;

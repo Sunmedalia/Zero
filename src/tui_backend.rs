@@ -839,6 +839,7 @@ fn dump(
         "vad" => Plugin::WinVaddump,
         "dll" => Plugin::WinDlldump,
         "module" => Plugin::WinModdump,
+        "files" => Plugin::WinDumpfiles,
         other => anyhow::bail!("无效 dump 模式 {other}"),
     };
     let address = |value: Option<String>| -> Result<Option<u64>> {

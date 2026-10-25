@@ -26,6 +26,7 @@ mod creds;
 mod crypto;
 mod drivers;
 mod dump;
+mod files;
 pub mod hiber;
 mod integrity;
 mod legacy_network;
@@ -555,7 +556,10 @@ impl Windows<'_> {
         }
         if matches!(
             p,
-            Plugin::WinFilescan | Plugin::WinMutantscan | Plugin::WinSymlinkscan
+            Plugin::WinFilescan
+                | Plugin::WinMutantscan
+                | Plugin::WinSymlinkscan
+                | Plugin::WinThrdscan
         ) {
             return self.pool_artifacts(p, job);
         }

@@ -2,7 +2,7 @@ use super::*;
 #[derive(Clone, Debug)]
 /// Symbol-derived layout facts for resolving a VAD's backing file.
 pub(super) struct VadLayout {
-    direct_control: bool,
+    pub(super) direct_control: bool,
     fast_ref: bool,
     mask: u64,
 }

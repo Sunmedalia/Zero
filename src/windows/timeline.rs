@@ -4,9 +4,12 @@ use super::*;
 /// FILETIME ticks between 1601-01-01 and the Unix epoch.
 const EPOCH_TICKS: u64 = 116_444_736_000_000_000;
 
+/// Ticks at end of year 9999; pool 残留的高位垃圾值超出后无法是真实时间。
+const MAX_TICKS: u64 = EPOCH_TICKS + 8399 * 366 * 86_400 * 10_000_000;
+
 /// `YYYY-MM-DD HH:MM:SS UTC` for a FILETIME, or empty when out of range.
 pub(super) fn filetime_utc(ticks: u64) -> String {
-    if ticks < EPOCH_TICKS {
+    if !(EPOCH_TICKS..=MAX_TICKS).contains(&ticks) {
         return String::new();
     }
     crate::report::utc(((ticks - EPOCH_TICKS) / 10_000_000) as i64)

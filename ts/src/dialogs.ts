@@ -433,6 +433,7 @@ export function dumpModes(windows: boolean): { label: string; plugin: string }[]
         { label: 'Alt+4 VAD', plugin: 'windows.vaddump' },
         { label: 'Alt+5 DLL', plugin: 'windows.dlldump' },
         { label: 'Alt+6 Module', plugin: 'windows.moddump' },
+        { label: 'Alt+7 Files', plugin: 'windows.dumpfiles' },
       ]
     : [
         { label: 'Alt+1 Process', plugin: 'procdump' },

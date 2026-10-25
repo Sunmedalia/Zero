@@ -73,6 +73,7 @@ impl Windows<'_> {
                 "SymbolicLink",
                 &[b"Symb", b"Sym\xe2"],
             ),
+            Plugin::WinThrdscan => ("_ETHREAD", "Thread", &[b"Thre", b"Thr\xe5"]),
             _ => ("_KMUTANT", "Mutant", &[b"Muta", b"Mut\xe1"]),
         };
         let size = self.vm.isf.data["user_types"][ty]["size"]
@@ -100,6 +101,27 @@ impl Windows<'_> {
                         && physical_number(self.vm.isf, &bytes, ty, "Size").is_ok_and(|n| n == size)
                 } else if p == Plugin::WinSymlinkscan {
                     self.symlink_shape(&bytes, ty)
+                } else if p == Plugin::WinThrdscan {
+                    // vol3 thrdscan 的候选校验：CID 可整除 4 且在 PID 上限内，
+                    // 链表指针落在内核地址空间。
+                    (|| -> bool {
+                        let number = |field| physical_number(self.vm.isf, &bytes, ty, field).ok();
+                        let (Some(pid), Some(tid)) =
+                            (number("Cid.UniqueProcess"), number("Cid.UniqueThread"))
+                        else {
+                            return false;
+                        };
+                        pid != 0
+                            && tid != 0
+                            && pid <= 0x4_0000
+                            && tid <= 0x4_0000
+                            && pid % 4 == 0
+                            && tid % 4 == 0
+                            && number("ThreadListEntry.Flink")
+                                .is_some_and(|link| self.vm.kernel(link))
+                            && number("StartAddress")
+                                .is_some_and(|start| start == 0 || self.vm.kernel(start))
+                    })()
                 } else {
                     physical_number(self.vm.isf, &bytes, ty, "Header.Type").is_ok_and(|n| n == 2)
                         && physical_number(self.vm.isf, &bytes, ty, "Header.Size")
@@ -146,6 +168,25 @@ impl Windows<'_> {
                         return Ok(None);
                     }
                     matched = true;
+                    if p == Plugin::WinThrdscan {
+                        // vol3 语义：老结构（含 ThreadsProcess）的 CreateTime
+                        // 低 3 位被复用，显示前移回；超范围值显示为空。
+                        let shift = self.vm.isf.has_field("_ETHREAD", "ThreadsProcess");
+                        let created = self
+                            .number(address, ty, "CreateTime")
+                            .map(|value| if shift { value >> 3 } else { value });
+                        let exited = self.number(address, ty, "ExitTime");
+                        return Ok(Some(vec![
+                            format!("physical:{physical:#x}"),
+                            hex(address),
+                            self.number(address, ty, "Cid.UniqueProcess")?.to_string(),
+                            self.number(address, ty, "Cid.UniqueThread")?.to_string(),
+                            hex(self.number(address, ty, "StartAddress")?),
+                            hex(self.number(address, ty, "Win32StartAddress")?),
+                            created.map(timeline::filetime_utc).unwrap_or_default(),
+                            exited.map(timeline::filetime_utc).unwrap_or_default(),
+                        ]));
+                    }
                     let mut name = String::new();
                     let readname = if p == Plugin::WinFilescan {
                         self.vm.unicode(self.field(address, ty, "FileName")?)
@@ -444,5 +485,77 @@ mod tests {
                 assert!(w.run(plugin, &Options::default(), &job).is_err());
             }
         }
+    }
+    /// thrdscan 报告合法线程的 8 列；CID 不可整除 4 的候选被过滤。
+    #[test]
+    fn thrdscan_reports_threads_and_filters_invalid_cids() {
+        let (mut b, mut isf) = fixture();
+        let field =
+            |offset: u64, ty: &str| json!({"offset":offset,"type":{"kind":"base","name":ty}});
+        let ptr = |offset: u64| json!({"offset":offset,"type":{"kind":"pointer"}});
+        for (n, size) in [("u32", 4), ("u8", 1)] {
+            isf.data["base_types"][n] = json!({"size":size});
+        }
+        isf.data["user_types"]["_POOL_HEADER"] =
+            json!({"size":16,"fields":{"BlockSize":field(0,"u16"),"PoolTag":field(4,"u32")}});
+        isf.data["user_types"]["_QUAD"] = json!({"size":8,"fields":{}});
+        isf.data["user_types"]["_OBJECT_HEADER"] = json!({"size":24,"fields":{"Type":field(0,"pointer"),"NameInfoOffset":field(8,"u8"),"Body":{"offset":16,"type":{"kind":"struct","name":"_QUAD"}}}});
+        isf.data["user_types"]["_OBJECT_TYPE"] = json!({"size":16,"fields":{"Name":{"offset":0,"type":{"kind":"struct","name":"_UNICODE_STRING"}}}});
+        isf.data["user_types"]["_LIST_ENTRY"] =
+            json!({"size":16,"fields":{"Flink":ptr(0),"Blink":ptr(8)}});
+        isf.data["user_types"]["_CLIENT_ID"] =
+            json!({"size":16,"fields":{"UniqueProcess":ptr(0),"UniqueThread":ptr(8)}});
+        isf.data["user_types"]["_ETHREAD"] = json!({
+            "size":64,
+            "fields":{
+                "Cid":{"offset":0,"type":{"kind":"struct","name":"_CLIENT_ID"}},
+                "ThreadListEntry":{"offset":16,"type":{"kind":"struct","name":"_LIST_ENTRY"}},
+                "StartAddress":ptr(32),
+                "Win32StartAddress":ptr(40),
+                "CreateTime":field(48,"u64"),
+                "ExitTime":field(56,"u64")
+            }
+        });
+        // "Thread" 对象类型：k+0x5200 → 0xd200 的 UNICODE_STRING → k+0x6200 → 0xe200。
+        b[0xd200..0xd204].copy_from_slice(&[12, 0, 12, 0]);
+        put(&mut b, 0xd208, K + 0x6200);
+        for (i, c) in "Thread".chars().enumerate() {
+            b[0xe200 + i * 2] = c as u8;
+        }
+        let mut thread = |block: usize, tid: u64| {
+            b[block..block + 2].copy_from_slice(&96u16.to_le_bytes());
+            b[block + 4..block + 8].copy_from_slice(b"Thre");
+            put(&mut b, block + 0x10, K + 0x5200);
+            put(&mut b, block + 0x20, 4);
+            put(&mut b, block + 0x28, tid);
+            put(&mut b, block + 0x30, K + 0x100);
+            put(&mut b, block + 0x40, K + 0x1000);
+        };
+        thread(0xc200, 8);
+        thread(0xc300, 5);
+        let img = image(&b);
+        let w = Windows {
+            vm: Memory::new(&img, 0x1000, &isf, None),
+            base: K,
+            pdb: PdbIdentity::from_isf(&isf).unwrap(),
+        };
+        let r = w
+            .pool_artifacts(Plugin::WinThrdscan, &Job::default())
+            .unwrap();
+        assert_eq!(r.rows.len(), 1, "{:#?}", r.diagnostics);
+        assert!(r.complete);
+        assert_eq!(
+            r.rows[0],
+            vec![
+                "physical:0xc220".to_string(),
+                hex(K + 0x4220),
+                "4".to_string(),
+                "8".to_string(),
+                hex(K + 0x1000),
+                hex(0),
+                String::new(),
+                String::new(),
+            ]
+        );
     }
 }

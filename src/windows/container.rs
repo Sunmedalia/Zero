@@ -816,11 +816,8 @@ pub(super) fn analyze(
                 ]);
             }
         }
-        Plugin::WinVaddump | Plugin::WinModdump => {
-            bail!(
-                "此 minidump 未提供 {} 所需的 VAD/内核模块数据",
-                plugin.name()
-            )
+        Plugin::WinVaddump | Plugin::WinModdump | Plugin::WinDumpfiles | Plugin::WinThrdscan => {
+            bail!("此 minidump 未提供 {} 所需的内核数据", plugin.name())
         }
         plugin if plugin.is_dump() => {
             let opts = dump_options.context("转储需要参数")?;

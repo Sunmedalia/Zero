@@ -14,9 +14,9 @@ zero analyze --os windows --hive 0xffff800000000000 --key 'Software' --image ima
 zero dump --os windows --image image.mem --mode range --pid 1234 --start 0x100000 --end 0x101000 --dump-dir exports/range --output exports/range.json
 ```
 
-`--hive` 使用 `windows.hivelist` 返回的虚拟地址。运行 `zero --help` 和子命令帮助查看参数。MCP 的 `zero_analyze` 提供 `os`、`pid`、`hive`、`key`；`zero_dump` 支持 Windows `process`、`range`、`pe`、`vad`、`dll`、`module`。TUI 顶部提供可直接点击的 Linux／Windows／自动系统按钮，当前选择高亮；也可按 `F6` 或点击底部系统按钮选择。选 Windows 后立即显示对应插件，更换镜像会保留手动选择。自动模式在选用镜像后检查 Linux 内核 banner、Windows PDB 标识或转储容器格式，并切换插件列表；点击“自动”可重新识别当前镜像。未识别时提示手动选择。TUI 插件名省略 `windows.` 前缀，CLI／MCP 仍使用完整插件标识。`P` 编辑适用参数，F7 展开 Windows 高级配置；保存后等待 Ctrl+R，Dump 提供 PE／VAD／DLL／Module 模式（Alt+3–6）。
+`--hive` 使用 `windows.hivelist` 返回的虚拟地址。运行 `zero --help` 和子命令帮助查看参数。MCP 的 `zero_analyze` 提供 `os`、`pid`、`hive`、`key`；`zero_dump` 支持 Windows `process`、`range`、`pe`、`vad`、`dll`、`module`、`files`。TUI 顶部提供可直接点击的 Linux／Windows／自动系统按钮，当前选择高亮；也可按 `F6` 或点击底部系统按钮选择。选 Windows 后立即显示对应插件，更换镜像会保留手动选择。自动模式在选用镜像后检查 Linux 内核 banner、Windows PDB 标识或转储容器格式，并切换插件列表；点击“自动”可重新识别当前镜像。未识别时提示手动选择。TUI 插件名省略 `windows.` 前缀，CLI／MCP 仍使用完整插件标识。`P` 编辑适用参数，F7 展开 Windows 高级配置；保存后等待 Ctrl+R，Dump 提供 PE／VAD／DLL／Module／Files 模式（Alt+3–7）。
 
-插件包括 `windows.systeminfo`、`pslist`、`pstree`、`cmdline`、`modules`、`dlllist`、`vadinfo`、`handles`、`malfind`、`netscan`、`hivelist`、`printkey`、`psscan`、`psxview`、`procdump`、`memdump`、`pedump`、`vaddump`、`dlldump`、`moddump`，以及凭证提取 `hashdump`、`lsadump`、`cachedump`（名称均带 `windows.` 前缀；算法对齐 Volatility 3，见 [操作指南](usage.md#84-凭证提取hashdumplsadumpcachedump)）。`malfind` 标记可疑的可执行内存区域，不直接判定恶意；pool 扫描和交叉视图也不直接判定隐藏进程。
+插件包括 `windows.systeminfo`、`pslist`、`pstree`、`cmdline`、`modules`、`dlllist`、`vadinfo`、`handles`、`malfind`、`netscan`、`hivelist`、`printkey`、`psscan`、`psxview`、`procdump`、`memdump`、`pedump`、`vaddump`、`dlldump`、`moddump`、`thrdscan`、`dumpfiles`，以及凭证提取 `hashdump`、`lsadump`、`cachedump`（名称均带 `windows.` 前缀；算法对齐 Volatility 3，见 [操作指南](usage.md#84-凭证提取hashdumplsadumpcachedump)）。`malfind` 标记可疑的可执行内存区域，不直接判定恶意；pool 扫描和交叉视图也不直接判定隐藏进程。
 
 结果导出新增 `system` 与 `kernel_identity`，兼容旧历史 JSON。时间字段为 FILETIME 十进制 100 ns ticks（1601 UTC 起）；`physical:` 表示物理地址，其余对象地址为虚拟地址。缺页、损坏链表和不可解析字段通过 `complete: false` 与 `diagnostics` 报告，部分结果不会进入成功缓存。转储使用原子写入及 SHA256 清单，单次累计上限 256 MiB。
 
@@ -106,6 +106,8 @@ Windows 10 RAW 样本额外验证了 4 个 WOW64 进程（PID 4428、5684、5932
 新增 `windows.registry.shimcache`：读取 SYSTEM hive 当前 ControlSet 的 `Control\Session Manager\AppCompatCache`，解析 Windows 8 及以后的 `00ts`／`10ts` 条目与 Windows 7 x64 的 `0xBADC0FEE` 格式，按缓存顺序输出路径与最后修改时间。两个本地样本的 SYSTEM hive 单元格均未驻留，只得到带诊断的部分结果，矩阵保持待验证；两种格式由合成值覆盖。GUI 系列（desktops、windowstations、deskscan、editbox）依赖 win32k 符号，当前符号流程只获取内核 PDB，暂不提供。
 
 新增 `windows.virtmap`：解引用 `MiVisibleState`（公开符号没有类型，按指针变量处理），读取 `SystemVaRegions` 的 BaseAddress／NumberOfBytes。数组按 `_MI_ASSIGNED_REGION_TYPES` 编号，且各构建顺序不同（Windows 10 15063 首项为 NonPagedPool，Windows 11 22000 首项为 PfnDatabase），因此区域名称取自该枚举，缺少时才退回 `_MI_SYSTEM_VA_TYPE`；非内核起始地址按区域报告诊断。实测 Windows 10 13 个区域、Windows 11 14 个区域，NonPagedPool 含 EPROCESS 与驱动对象地址，PagedPool 含注册表 hive 地址，SystemImages 含内核基址。
+
+新增 `windows.thrdscan` 与 `windows.dumpfiles`：`thrdscan` 扫描 `Thre` 池标签恢复线程对象（含已退出或脱离链表的线程），候选校验与时间语义对齐 vol3（老结构 CreateTime 右移 3 位、超范围时间为空），实测 Server 2012 psexec 样本 149 个线程。`dumpfiles`（`dump --mode files`）从进程句柄表 File 对象与文件映射 VAD 两来源提取驻留缓存内容（DataSection／ImageSection 两类 ControlArea，PTE 遍历含 transition 页的 vol3 #475 掩码修正），磁盘文件才提取、稀疏空洞补零入哈希；实测同样本 explorer.exe 提取 18 个文件，`.mui` 头部为合法 MZ、SHA256 与清单一致。
 
 矩阵按插件和架构记录四级证据。**真实**仅代表列出的样本构建与容器；**合成**验证解析路径或指针宽度，不能证明该系统的完整布局；**待验证**缺少实测证据；**不支持**没有对应解析模型。零条扫描结果不作为恢复能力的真实验证。具体插件、样本哈希、精确 PDB 与范围见 [机器可读矩阵](../src/windows/compatibility.json) 和 [验收基线](../tests/fixtures/windows.json)。Server 2003 与 R2 共用内核构建，系统身份会保留歧义；Server 2025 与 Windows 11 的 26100 使用有效的 ProductType 区分。所有版本仍要求精确符号，未知构建不会选择最近版本。
 

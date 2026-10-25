@@ -29,18 +29,12 @@ pub(super) struct ObjectHeaderLayout {
     /// Decoded type name per index, filled on first use.
     type_names: std::cell::RefCell<std::collections::HashMap<u64, String>>,
 }
-/// Symbol-derived shape of a `_HANDLE_TABLE_ENTRY`, resolved once per scan.
-struct HandleEntryLayout {
-    object_pointer_bits: bool,
-    pointer_bits_width: Option<u64>,
-    access_field: &'static str,
-}
+/// (句柄, 对象头地址, 授权访问) 三元组与遍历诊断。
+type HandleTriples = (Vec<(u64, u64, u64)>, Vec<String>);
 impl Windows<'_> {
-    pub(super) fn handles(&self, p: &Process, r: &mut Results, job: &Job) -> Result<()> {
-        let table = self.number(p.address, "_EPROCESS", "ObjectTable")?;
-        if table == 0 {
-            return Ok(());
-        }
+    /// 句柄表条目解码为 (句柄, 对象头地址, 授权访问)；页级失败记入诊断。
+    /// handles 与 dumpfiles 共用同一张表的遍历与指针解码。
+    pub(super) fn handle_entries(&self, table: u64, job: &Job) -> Result<HandleTriples> {
         let code = self.number(table, "_HANDLE_TABLE", "TableCode")?;
         let levels = code & 7;
         ensure!(levels <= 2, "不支持的句柄表层级");
@@ -55,36 +49,27 @@ impl Windows<'_> {
         let pointer_size = self.vm.pointer_size() as u64;
         let pointers_per_page = 4096 / pointer_size;
         let index_shift = pointers_per_page.trailing_zeros();
-        // These describe the symbol file, not the entry, so they are resolved
-        // once instead of once per handle. A handle table can hold tens of
-        // thousands of entries.
-        let entry_layout = HandleEntryLayout {
-            object_pointer_bits: self
-                .vm
-                .isf
-                .has_field("_HANDLE_TABLE_ENTRY", "ObjectPointerBits"),
-            pointer_bits_width: self
-                .vm
-                .isf
-                .field("_HANDLE_TABLE_ENTRY", "ObjectPointerBits")
-                .ok()
-                .and_then(|field| field["type"]["bit_length"].as_u64()),
-            access_field: if self
-                .vm
-                .isf
-                .has_field("_HANDLE_TABLE_ENTRY", "GrantedAccessBits")
-            {
-                "GrantedAccessBits"
-            } else {
-                "GrantedAccess"
-            },
+        let object_pointer_bits = self
+            .vm
+            .isf
+            .has_field("_HANDLE_TABLE_ENTRY", "ObjectPointerBits");
+        let pointer_bits_width = self
+            .vm
+            .isf
+            .field("_HANDLE_TABLE_ENTRY", "ObjectPointerBits")
+            .ok()
+            .and_then(|field| field["type"]["bit_length"].as_u64());
+        let access_field = if self
+            .vm
+            .isf
+            .has_field("_HANDLE_TABLE_ENTRY", "GrantedAccessBits")
+        {
+            "GrantedAccessBits"
+        } else {
+            "GrantedAccess"
         };
-        // `object_type` and `object_name` run once per handle, so their
-        // symbol-shape decisions are resolved once for the whole table.
-        let header_layout = self.object_header_layout();
-        // Constant for the whole table; the row count can reach tens of
-        // thousands, so these are built once.
-        let pid = p.pid.to_string();
+        let mut out = Vec::new();
+        let mut diagnostics = Vec::new();
         for first in (0..max / 4).step_by(per as usize) {
             job.check()?;
             let mut page = root;
@@ -101,14 +86,14 @@ impl Windows<'_> {
             }
             let mut entries = [0; 4096];
             if let Err(e) = self.vm.read(page, &mut entries) {
-                Self::issue(r, format!("PID {} handle table page {page:#x}", p.pid), e);
+                diagnostics.push(format!("句柄表页 {page:#x}: {e:#}"));
                 continue;
             }
             for index in first..(first + per).min(max / 4) {
                 job.check()?;
                 let entry = &entries[((index % per) * size) as usize..][..size as usize];
-                let read = (|| -> Result<Option<Vec<String>>> {
-                    let header = if entry_layout.object_pointer_bits {
+                let read = (|| -> Result<Option<(u64, u64, u64)>> {
+                    let header = if object_pointer_bits {
                         let bits = physical_number(
                             self.vm.isf,
                             entry,
@@ -122,9 +107,7 @@ impl Windows<'_> {
                             ensure!(bits <= (u32::MAX as u64 >> 4), "32 位句柄编码指针溢出");
                             bits.checked_shl(4).context("句柄对象指针溢出")? & u32::MAX as u64
                         } else {
-                            let width = entry_layout
-                                .pointer_bits_width
-                                .context("句柄编码指针缺少位宽")?;
+                            let width = pointer_bits_width.context("句柄编码指针缺少位宽")?;
                             decode_object_pointer(bits, width)?
                         }
                     } else {
@@ -134,44 +117,84 @@ impl Windows<'_> {
                         return Ok(None);
                     }
                     ensure!(self.vm.kernel(header), "无效对象头地址");
-                    let body = self.field(header, "_OBJECT_HEADER", "Body")?;
-                    let access = physical_number(
-                        self.vm.isf,
-                        entry,
-                        "_HANDLE_TABLE_ENTRY",
-                        entry_layout.access_field,
-                    )?;
-                    let kind = self.object_type(header, &header_layout)?;
-                    let name = match kind.as_str() {
-                        "File" => {
-                            self.vm
-                                .unicode(self.field(body, "_FILE_OBJECT", "FileName")?)?
-                        }
-                        "Process" => self.process(body)?.name,
-                        "Thread" => {
-                            format!("TID {}", self.number(body, "_ETHREAD", "Cid.UniqueThread")?)
-                        }
-                        _ => self.object_name(header, &header_layout)?,
-                    };
-                    Ok(Some(vec![
-                        pid.clone(),
-                        p.name.clone(),
-                        hex(index * 4),
-                        kind,
-                        hex(body),
-                        format!("{access:#x}"),
-                        name,
-                    ]))
+                    let access =
+                        physical_number(self.vm.isf, entry, "_HANDLE_TABLE_ENTRY", access_field)?;
+                    Ok(Some((index * 4, header, access)))
                 })();
                 match read {
-                    Ok(Some(row)) => r.rows.push(row),
+                    Ok(Some(entry)) => out.push(entry),
                     Ok(None) => {}
-                    Err(e) => Self::issue(
-                        r,
-                        format!("PID {} handle {:#x}", p.pid, index * 4),
-                        format!("{e:#}"),
-                    ),
+                    Err(e) => diagnostics.push(format!("句柄 {:#x}: {e:#}", index * 4)),
                 }
+            }
+        }
+        Ok((out, diagnostics))
+    }
+    /// 句柄表中类型为 File 的对象体地址（FILE_OBJECT），供 dumpfiles 复用。
+    pub(super) fn handle_files(&self, table: u64, job: &Job) -> Result<Vec<u64>> {
+        let (entries, _) = self.handle_entries(table, job)?;
+        let header_layout = self.object_header_layout();
+        let mut out = Vec::new();
+        for (_, header, _) in entries {
+            job.check()?;
+            if self
+                .object_type(header, &header_layout)
+                .is_ok_and(|kind| kind == "File")
+                && let Ok(body) = self.field(header, "_OBJECT_HEADER", "Body")
+            {
+                out.push(body);
+            }
+        }
+        Ok(out)
+    }
+    pub(super) fn handles(&self, p: &Process, r: &mut Results, job: &Job) -> Result<()> {
+        let table = self.number(p.address, "_EPROCESS", "ObjectTable")?;
+        if table == 0 {
+            return Ok(());
+        }
+        let (entries, diagnostics) = self.handle_entries(table, job)?;
+        for diagnostic in diagnostics {
+            Self::issue(r, format!("PID {} handles", p.pid), diagnostic);
+        }
+        // `object_type` and `object_name` run once per handle, so their
+        // symbol-shape decisions are resolved once for the whole table.
+        let header_layout = self.object_header_layout();
+        // Constant for the whole table; the row count can reach tens of
+        // thousands, so these are built once.
+        let pid = p.pid.to_string();
+        for (handle, header, access) in entries {
+            job.check()?;
+            let read = (|| -> Result<Option<Vec<String>>> {
+                let body = self.field(header, "_OBJECT_HEADER", "Body")?;
+                let kind = self.object_type(header, &header_layout)?;
+                let name = match kind.as_str() {
+                    "File" => self
+                        .vm
+                        .unicode(self.field(body, "_FILE_OBJECT", "FileName")?)?,
+                    "Process" => self.process(body)?.name,
+                    "Thread" => {
+                        format!("TID {}", self.number(body, "_ETHREAD", "Cid.UniqueThread")?)
+                    }
+                    _ => self.object_name(header, &header_layout)?,
+                };
+                Ok(Some(vec![
+                    pid.clone(),
+                    p.name.clone(),
+                    hex(handle),
+                    kind,
+                    hex(body),
+                    format!("{access:#x}"),
+                    name,
+                ]))
+            })();
+            match read {
+                Ok(Some(row)) => r.rows.push(row),
+                Ok(None) => {}
+                Err(e) => Self::issue(
+                    r,
+                    format!("PID {} handle {:#x}", p.pid, handle),
+                    format!("{e:#}"),
+                ),
             }
         }
         Ok(())

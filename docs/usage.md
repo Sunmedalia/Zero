@@ -308,9 +308,12 @@ zero dump --image images/WinDump/WinDump.mem --symbols symbols/nt.json.xz \
   --mode dll --pid 7688 --dump-dir exports/dll
 zero dump --image images/WinDump/WinDump.mem --symbols symbols/nt.json.xz \
   --mode module --dump-dir exports/modules
+# Windows：提取进程打开与映射文件的驻留缓存内容
+zero dump --image images/WinDump/WinDump.mem --symbols symbols/nt.json.xz \
+  --mode files --pid 7688 --dump-dir exports/files
 ```
 
-推荐使用 `dump --mode`；Linux 为 `process|range|elf`，Windows 为 `process|range|pe|vad|dll|module`。原 `analyze --plugin procdump|memdump|elfdump` 调用保持兼容。
+推荐使用 `dump --mode`；Linux 为 `process|range|elf`，Windows 为 `process|range|pe|vad|dll|module|files`。原 `analyze --plugin procdump|memdump|elfdump` 调用保持兼容。
 
 ### 6.3 符号识别、下载与生成
 
@@ -548,18 +551,24 @@ zero --offline analyze --image images/WinDump/WinDump.mem --symbols symbols/nt.j
 - 空密码输出公认常量（LM `aad3b435b51404eeaad3b435b51404ee`、NT `31d6cfe0d16ad965ba83311e42d07d64`）。
 - 这是普通分析插件：完整结果可缓存；对域控／加入域的样本 cachedump 才有条目，独立工作站通常为空表。
 
-### 8.5 Windows 转储（vaddump／dlldump／moddump）
+### 8.5 Windows 转储（vaddump／dlldump／moddump／dumpfiles）
 
 | 模式 | 目标 | 每个输出的文件 | 关键列 |
 | --- | --- | --- | --- |
 | `--mode vad` | 所选进程的**全部** VAD（不做可读过滤，语义对齐 vol3 vaddump 而非 procdump；读不出的段逐段诊断并跳过） | `windows-vad-pid<PID>-<start>-<end>-<摘要>.bin` | Start、End、Size、Protection、Private、Path、SHA256、File |
 | `--mode dll` | 进程模块列表中的全部 DLL | `windows-dll-pid<PID>-<模块名>-<基址>-<摘要>.pe` | Module、Base、Size、View、SHA256、File |
 | `--mode module` | `PsLoadedModuleList` 全部内核模块（**无需 PID**） | `windows-mod-<模块名>-<基址>-<摘要>.pe` | Module、Base、Size、Path、SHA256、File |
+| `--mode files` | 进程句柄表 File 对象与文件映射 VAD 的**驻留缓存内容**（DataSection `.dat`／ImageSection `.img`；与 vol3 dumpfiles 同源的 ControlArea／Subsection／PTE 路径，SharedCacheMap 视图不提取） | `windows-file-pid<PID>-<FileObject>-<摘要>-<文件名>.dat|.img` | PID、Cache、FileObject、FileName、Size、Pages、SHA256、File |
 
 - DLL／内核模块按 PE 节表重建（`reconstruct_pe`），与 `pedump` 同一套逻辑：节间空洞补零、缺页报错，绝不伪造缺失字节；模块基址处无 MZ 头时跳过并记录诊断。
 - `--mode dll|module` 的 `--start` 是可选的**精确基址选择器**（只转储该基址的模块），不接受 `--end`；`--mode vad` 的 `--start`／`--end` 是可选的相交过滤。
 - 单次转储总量上限 256 MiB；文件名中的模块名净化为 `[A-Za-z0-9._-]`（其余替换 `_`，截 64 字符）。
-- minidump 容器样本（`user_minidump`）不提供 VAD 树与内核模块列表，这三个模式会明确拒绝而不是输出空结果。
+- `--mode files` 按文件偏移稀疏写出：缺失页留洞、洞补零计入哈希（与 vol3 一致）；Segment 回指／尺寸校验失败的文件对象逐个诊断并跳过，管道与网络设备对象（非磁盘）不提取。同一 FILE_OBJECT 的句柄与 VAD 两个来源只导出一次。该模式不接受 `--start`／`--end` 地址范围。
+- minidump 容器样本（`user_minidump`）不提供 VAD 树、内核模块列表与文件缓存结构，这四个模式会明确拒绝而不是输出空结果。
+
+### 8.6 线程池扫描（thrdscan）
+
+`zero analyze --plugin windows.thrdscan` 扫描 `Thre`／`Thrå` 池标签恢复 `_ETHREAD` 对象，含已退出或脱离线程链表的线程；候选要求 CID 两项非零、可整除 4 且在 PID 上限内，链表与起始地址落在内核地址空间。输出 Physical、Address、PID、TID、StartAddress、Win32StartAddress、CreateTime、ExitTime；老结构（含 `ThreadsProcess` 字段）的 CreateTime 按 vol3 语义右移 3 位，超出合理范围的时间值为空。实测 Server 2012 psexec 样本恢复 149 个线程。
 
 ## 9. 设置、缓存与运行数据
 

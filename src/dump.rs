@@ -21,6 +21,7 @@ pub enum Mode {
     Vad,
     Dll,
     Module,
+    Files,
 }
 impl Mode {
     pub fn plugin(self) -> Plugin {
@@ -32,6 +33,7 @@ impl Mode {
             Self::Vad => Plugin::WinVaddump,
             Self::Dll => Plugin::WinDlldump,
             Self::Module => Plugin::WinModdump,
+            Self::Files => Plugin::WinDumpfiles,
         }
     }
 }
@@ -85,6 +87,10 @@ impl DumpOptions {
         ensure!(
             !matches!(plugin, Plugin::WinDlldump | Plugin::WinModdump) || self.end.is_none(),
             "dll/module 转储不接受 End；--start 是可选的基址选择器"
+        );
+        ensure!(
+            !matches!(plugin, Plugin::WinDumpfiles) || (self.start.is_none() && self.end.is_none()),
+            "dumpfiles 不接受地址范围；按进程句柄与 VAD 提取全部驻留文件"
         );
         Ok(())
     }

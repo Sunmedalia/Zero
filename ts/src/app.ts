@@ -3146,7 +3146,7 @@ export class App {
     if (dialog.kind !== 'dump') {
       return;
     }
-    const modeKey = /^Alt\+([1-6])$/u.exec(token);
+    const modeKey = /^Alt\+([1-7])$/u.exec(token);
     if (modeKey) {
       const modes = dumpModes(this.state.windows);
       const next = modes[Number(modeKey[1]) - 1];
@@ -3156,7 +3156,8 @@ export class App {
           next.plugin.endsWith('elfdump') ||
           next.plugin.endsWith('pedump') ||
           next.plugin.endsWith('dlldump') ||
-          next.plugin.endsWith('moddump')
+          next.plugin.endsWith('moddump') ||
+          next.plugin.endsWith('dumpfiles')
         ) {
           fields[1] = '';
           fields[2] = '';
@@ -3203,6 +3204,9 @@ export class App {
         }
         if ((plugin.endsWith('elfdump') || plugin.endsWith('pedump')) && start !== null) {
           throw new Error('PE/ELF 转储不接受地址范围；使用 memdump 精确导出范围');
+        }
+        if (plugin.endsWith('dumpfiles') && (start !== null || end !== null)) {
+          throw new Error('dumpfiles 不接受地址范围；按进程句柄与 VAD 提取全部驻留文件');
         }
         const directory = expandHome((dialog.fields[3] ?? '').trim());
         if (directory === '') {

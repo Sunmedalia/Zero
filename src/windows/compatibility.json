@@ -92,7 +92,9 @@
           "windows.moddump": "synthetic",
           "windows.hashdump": "synthetic",
           "windows.lsadump": "synthetic",
-          "windows.cachedump": "synthetic"
+          "windows.cachedump": "synthetic",
+          "windows.dumpfiles": "synthetic",
+          "windows.thrdscan": "synthetic"
         },
         "x64": {
           "windows.callbacks": "synthetic",
@@ -162,7 +164,9 @@
           "windows.moddump": "synthetic",
           "windows.hashdump": "synthetic",
           "windows.lsadump": "synthetic",
-          "windows.cachedump": "synthetic"
+          "windows.cachedump": "synthetic",
+          "windows.dumpfiles": "synthetic",
+          "windows.thrdscan": "synthetic"
         }
       },
       "evidence": [
@@ -293,7 +297,9 @@
           "windows.moddump": "synthetic",
           "windows.hashdump": "synthetic",
           "windows.lsadump": "synthetic",
-          "windows.cachedump": "synthetic"
+          "windows.cachedump": "synthetic",
+          "windows.dumpfiles": "synthetic",
+          "windows.thrdscan": "synthetic"
         },
         "x64": {
           "windows.callbacks": "synthetic",
@@ -363,7 +369,9 @@
           "windows.moddump": "synthetic",
           "windows.hashdump": "synthetic",
           "windows.lsadump": "synthetic",
-          "windows.cachedump": "synthetic"
+          "windows.cachedump": "synthetic",
+          "windows.dumpfiles": "synthetic",
+          "windows.thrdscan": "synthetic"
         }
       },
       "evidence": []
@@ -454,7 +462,9 @@
           "windows.moddump": "synthetic",
           "windows.hashdump": "synthetic",
           "windows.lsadump": "synthetic",
-          "windows.cachedump": "synthetic"
+          "windows.cachedump": "synthetic",
+          "windows.dumpfiles": "synthetic",
+          "windows.thrdscan": "synthetic"
         },
         "x64": {
           "windows.callbacks": "synthetic",
@@ -524,7 +534,9 @@
           "windows.moddump": "synthetic",
           "windows.hashdump": "synthetic",
           "windows.lsadump": "synthetic",
-          "windows.cachedump": "synthetic"
+          "windows.cachedump": "synthetic",
+          "windows.dumpfiles": "synthetic",
+          "windows.thrdscan": "synthetic"
         }
       },
       "evidence": [
@@ -661,7 +673,9 @@
           "windows.moddump": "synthetic",
           "windows.hashdump": "synthetic",
           "windows.lsadump": "synthetic",
-          "windows.cachedump": "synthetic"
+          "windows.cachedump": "synthetic",
+          "windows.dumpfiles": "synthetic",
+          "windows.thrdscan": "synthetic"
         }
       },
       "evidence": [],
@@ -751,7 +765,9 @@
           "windows.moddump": "synthetic",
           "windows.hashdump": "synthetic",
           "windows.lsadump": "synthetic",
-          "windows.cachedump": "synthetic"
+          "windows.cachedump": "synthetic",
+          "windows.dumpfiles": "synthetic",
+          "windows.thrdscan": "synthetic"
         }
       },
       "evidence": [
@@ -887,7 +903,9 @@
           "windows.moddump": "synthetic",
           "windows.hashdump": "synthetic",
           "windows.lsadump": "synthetic",
-          "windows.cachedump": "synthetic"
+          "windows.cachedump": "synthetic",
+          "windows.dumpfiles": "synthetic",
+          "windows.thrdscan": "synthetic"
         }
       },
       "evidence": [
@@ -1024,7 +1042,9 @@
           "windows.moddump": "synthetic",
           "windows.hashdump": "synthetic",
           "windows.lsadump": "synthetic",
-          "windows.cachedump": "synthetic"
+          "windows.cachedump": "synthetic",
+          "windows.dumpfiles": "synthetic",
+          "windows.thrdscan": "synthetic"
         }
       },
       "evidence": [
@@ -1133,7 +1153,9 @@
           "windows.moddump": "synthetic",
           "windows.hashdump": "synthetic",
           "windows.lsadump": "synthetic",
-          "windows.cachedump": "synthetic"
+          "windows.cachedump": "synthetic",
+          "windows.dumpfiles": "synthetic",
+          "windows.thrdscan": "synthetic"
         }
       },
       "evidence": [
@@ -1271,7 +1293,9 @@
           "windows.moddump": "synthetic",
           "windows.hashdump": "synthetic",
           "windows.lsadump": "synthetic",
-          "windows.cachedump": "synthetic"
+          "windows.cachedump": "synthetic",
+          "windows.dumpfiles": "synthetic",
+          "windows.thrdscan": "synthetic"
         }
       },
       "evidence": [
@@ -1409,7 +1433,9 @@
           "windows.moddump": "synthetic",
           "windows.hashdump": "synthetic",
           "windows.lsadump": "synthetic",
-          "windows.cachedump": "synthetic"
+          "windows.cachedump": "synthetic",
+          "windows.dumpfiles": "synthetic",
+          "windows.thrdscan": "synthetic"
         }
       },
       "evidence": [],
@@ -1501,7 +1527,9 @@
           "windows.moddump": "synthetic",
           "windows.hashdump": "synthetic",
           "windows.lsadump": "synthetic",
-          "windows.cachedump": "synthetic"
+          "windows.cachedump": "synthetic",
+          "windows.dumpfiles": "synthetic",
+          "windows.thrdscan": "synthetic"
         },
         "x64": {
           "windows.callbacks": "real",
@@ -1571,7 +1599,9 @@
           "windows.moddump": "synthetic",
           "windows.hashdump": "synthetic",
           "windows.lsadump": "synthetic",
-          "windows.cachedump": "synthetic"
+          "windows.cachedump": "synthetic",
+          "windows.dumpfiles": "synthetic",
+          "windows.thrdscan": "synthetic"
         }
       },
       "evidence": [
@@ -1694,7 +1724,9 @@
           "windows.moddump": "synthetic",
           "windows.hashdump": "synthetic",
           "windows.lsadump": "synthetic",
-          "windows.cachedump": "synthetic"
+          "windows.cachedump": "synthetic",
+          "windows.dumpfiles": "synthetic",
+          "windows.thrdscan": "synthetic"
         },
         "x64": {
           "windows.callbacks": "synthetic",
@@ -1764,7 +1796,9 @@
           "windows.moddump": "synthetic",
           "windows.hashdump": "synthetic",
           "windows.lsadump": "synthetic",
-          "windows.cachedump": "synthetic"
+          "windows.cachedump": "synthetic",
+          "windows.dumpfiles": "synthetic",
+          "windows.thrdscan": "synthetic"
         }
       },
       "evidence": []
@@ -1854,7 +1888,9 @@
           "windows.moddump": "synthetic",
           "windows.hashdump": "synthetic",
           "windows.lsadump": "synthetic",
-          "windows.cachedump": "synthetic"
+          "windows.cachedump": "synthetic",
+          "windows.dumpfiles": "synthetic",
+          "windows.thrdscan": "synthetic"
         },
         "x64": {
           "windows.callbacks": "synthetic",
@@ -1924,7 +1960,9 @@
           "windows.moddump": "synthetic",
           "windows.hashdump": "synthetic",
           "windows.lsadump": "synthetic",
-          "windows.cachedump": "synthetic"
+          "windows.cachedump": "synthetic",
+          "windows.dumpfiles": "synthetic",
+          "windows.thrdscan": "synthetic"
         }
       },
       "evidence": []
@@ -2027,7 +2065,9 @@
           "windows.moddump": "synthetic",
           "windows.hashdump": "synthetic",
           "windows.lsadump": "synthetic",
-          "windows.cachedump": "synthetic"
+          "windows.cachedump": "synthetic",
+          "windows.dumpfiles": "synthetic",
+          "windows.thrdscan": "synthetic"
         },
         "x64": {
           "windows.callbacks": "real",
@@ -2097,7 +2137,9 @@
           "windows.moddump": "synthetic",
           "windows.hashdump": "synthetic",
           "windows.lsadump": "synthetic",
-          "windows.cachedump": "synthetic"
+          "windows.cachedump": "synthetic",
+          "windows.dumpfiles": "synthetic",
+          "windows.thrdscan": "synthetic"
         }
       },
       "evidence": [
@@ -2258,7 +2300,9 @@
           "windows.moddump": "synthetic",
           "windows.hashdump": "synthetic",
           "windows.lsadump": "synthetic",
-          "windows.cachedump": "synthetic"
+          "windows.cachedump": "synthetic",
+          "windows.dumpfiles": "synthetic",
+          "windows.thrdscan": "synthetic"
         }
       },
       "evidence": [

@@ -20,6 +20,7 @@ impl Windows<'_> {
         match p {
             Plugin::WinVaddump => return self.run_vaddump(&process, &vm, options, r, job),
             Plugin::WinDlldump => return self.run_dlldump(&process, &vm, options, r, job),
+            Plugin::WinDumpfiles => return self.run_dumpfiles(&process, options, r, job),
             _ => {}
         }
         let mut regions = if p == Plugin::WinMemdump {
@@ -133,7 +134,7 @@ impl Windows<'_> {
         Ok(r)
     }
     /// 落盘已写入并哈希的临时文件；同名已存在时要求内容一致。
-    fn persist_dump(
+    pub(super) fn persist_dump(
         tmp: tempfile::NamedTempFile,
         directory: &std::path::Path,
         name: &str,
@@ -149,7 +150,7 @@ impl Windows<'_> {
         }
         Ok(target.display().to_string())
     }
-    fn account(total: &mut u64, size: u64) -> Result<()> {
+    pub(super) fn account(total: &mut u64, size: u64) -> Result<()> {
         ensure!(
             total
                 .checked_add(size)
@@ -455,7 +456,7 @@ fn write_region(
     )
 }
 /// 路径 basename 净化为文件名组件（保留 ASCII 字母数字与 . _ -，截 64 字符）。
-fn sanitized_component(path: &str) -> String {
+pub(super) fn sanitized_component(path: &str) -> String {
     let base = path.rsplit(['\\', '/']).next().unwrap_or(path);
     let mut out: String = base
         .chars()

@@ -966,7 +966,9 @@ function paintDialogBody(canvas: Canvas, app: App, dialog: Dialog, popup: Rect):
                 ? '指定 PID；按模块列表重建 DLL；Start 可选精确基址'
                 : dialog.mode.endsWith('moddump')
                   ? '转储全部内核模块（无需 PID）；Start 可选精确基址'
-                  : '指定 PID；导出可读 VMA；Start / End 可限制范围';
+                  : dialog.mode.endsWith('dumpfiles')
+                    ? '指定 PID；提取该进程句柄与 VAD 涉及的驻留文件'
+                    : '指定 PID；导出可读 VMA；Start / End 可限制范围';
       canvas.write(box.x, box.y, truncate(hint, box.width), { color: MUTED, background: SURFACE }, box.width);
       dumpModes(state.windows).forEach((mode, index) => {
         const active = dialog.mode === mode.plugin;

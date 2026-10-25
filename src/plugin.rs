@@ -90,6 +90,10 @@ pub enum Plugin {
     WinLsadump,
     #[value(name = "windows.cachedump")]
     WinCachedump,
+    #[value(name = "windows.dumpfiles")]
+    WinDumpfiles,
+    #[value(name = "windows.thrdscan")]
+    WinThrdscan,
     #[value(name = "windows.ssdt")]
     WinSsdt,
     #[value(name = "windows.modscan")]
@@ -674,6 +678,38 @@ pub const PLUGINS: &[Descriptor] = &[
         label: "windows.moddump",
         columns: &["Module", "Base", "Size", "Path", "SHA256", "File"],
         widths: &[0, 12, 10, 0, 12, 0],
+    },
+    Descriptor {
+        plugin: Plugin::WinDumpfiles,
+        name: "windows.dumpfiles",
+        label: "windows.dumpfiles",
+        columns: &[
+            "PID",
+            "Cache",
+            "FileObject",
+            "FileName",
+            "Size",
+            "Pages",
+            "SHA256",
+            "File",
+        ],
+        widths: &[12, 14, 12, 0, 10, 8, 12, 0],
+    },
+    Descriptor {
+        plugin: Plugin::WinThrdscan,
+        name: "windows.thrdscan",
+        label: "windows.thrdscan",
+        columns: &[
+            "Physical",
+            "Address",
+            "PID",
+            "TID",
+            "StartAddress",
+            "Win32StartAddress",
+            "CreateTime",
+            "ExitTime",
+        ],
+        widths: &[0, 0, 8, 8, 12, 12, 0, 0],
     },
     Descriptor {
         plugin: Plugin::WinHashdump,
@@ -1467,6 +1503,7 @@ impl Plugin {
                 | Self::WinVaddump
                 | Self::WinDlldump
                 | Self::WinModdump
+                | Self::WinDumpfiles
         )
     }
     pub fn is_windows(self) -> bool {
@@ -1520,8 +1557,10 @@ impl Plugin {
             Self::WinMemdump => "Memory",
             Self::WinPedump => "Memory",
             Self::WinVaddump => "Memory",
+            Self::WinThrdscan => "Integrity",
             Self::WinDlldump => "Memory",
             Self::WinModdump => "Memory",
+            Self::WinDumpfiles => "Files",
             Self::WinHashdump => "Files",
             Self::WinLsadump => "Files",
             Self::WinCachedump => "Files",
@@ -1673,6 +1712,8 @@ impl Plugin {
             WinVaddump => "按 VAD 逐段转储进程内存并保留 VAD 元数据",
             WinDlldump => "按基址选择并重建导出进程 DLL 的 PE 文件",
             WinModdump => "重建并导出内核模块的 PE 文件",
+            WinDumpfiles => "从文件缓存（句柄与 VAD）提取驻留文件内容",
+            WinThrdscan => "扫描线程对象（含已退出或脱离链表的线程）",
             WinHashdump => "解密 SAM hive 中的用户 NTLM/LM 哈希",
             WinLsadump => "解密 SECURITY hive 中的 LSA 机密",
             WinCachedump => "解密 SECURITY hive 中的域缓存凭据（DCC）",
