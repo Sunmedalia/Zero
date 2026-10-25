@@ -29,7 +29,7 @@ import {
 } from '../state.js';
 import { commandMatches } from '../actions.js';
 import type { Layout, PaneLayout, Rect } from '../layoutTree.js';
-import type { CacheItem } from '../state.js';
+import type { CacheGroup, CacheItem } from '../state.js';
 import { TAB_LABELS, frameInner } from '../layoutTree.js';
 import { Canvas, type Style } from '../canvas.js';
 import {
@@ -55,7 +55,7 @@ import {
 } from '../text.js';
 import { preparationBadge } from '../components.js';
 import { dumpModes, inputTitle, parameterFields } from '../dialogs.js';
-import { entryBadge, formatBytes, formatTime, originLabel, resultState, shortPlugin } from '../format.js';
+import { entryBadge, formatBytes, formatDuration, formatTime, originLabel, resultState, shortPlugin } from '../format.js';
 import { assetDetailText, remoteDetailText, rowDetailText } from '../detail.js';
 import { fullDigest, space } from '../layout.js';
 
@@ -84,7 +84,8 @@ export function paintTabs(canvas: Canvas, app: App, layout: Layout): void {
       tab.rect.width,
     );
   });
-  const pulse = state.busy ? ['●··', '·●·', '··●', '·●·'][Math.floor(Date.now() / 180) % 4] : null;
+  // On the analysis page the running indicator sits in the middle of the result area.
+  const pulse = state.page === 'analysis' ? null : busyPulse(state);
   const right = pulse ? `运行中 ${pulse} ` : 'ZERO · 内存取证 ';
   if (layout.columns > width(right) + 56) {
     canvas.write(
@@ -95,6 +96,26 @@ export function paintTabs(canvas: Canvas, app: App, layout: Layout): void {
       width(right),
     );
   }
+}
+
+/** The animated running dots, or null when no task runs. */
+function busyPulse(state: App['state']): string | null {
+  return state.busy ? (['●··', '·●·', '··●', '·●·'][Math.floor(Date.now() / 180) % 4] ?? null) : null;
+}
+
+/** A centred running badge over the result area while a task runs. */
+function paintBusyBadge(canvas: Canvas, app: App, box: Rect): void {
+  const pulse = busyPulse(app.state);
+  if (pulse === null || box.width < 12 || box.height < 1) {
+    return;
+  }
+  const started = app.state.startedAt;
+  const elapsed = started === null ? '' : ` · ${formatDuration((Date.now() - started) / 1000)}`;
+  const progress = app.state.progress === null ? '' : ` · ${app.state.progress}%`;
+  const text = truncate(` 运行中 ${pulse}${progress}${elapsed} · Esc 取消 `, box.width);
+  const x = box.x + Math.floor((box.width - width(text)) / 2);
+  const y = box.y + Math.floor(box.height / 2);
+  canvas.write(x, y, text, { color: SURFACE, background: ACCENT, bold: true }, width(text));
 }
 
 export function paintSystems(canvas: Canvas, app: App, layout: Layout): void {
@@ -264,6 +285,19 @@ export function paintSources(canvas: Canvas, app: App, layout: Layout): void {
       { color: active ? FOCUS : ACCENT, background: active ? SELECTED_BG : SURFACE, bold: active },
       hit.rect.width,
     );
+  }
+  if (layout.remoteViewHits.length > 0) {
+    const first = layout.remoteViewHits[0] as { rect: Rect };
+    canvas.write(first.rect.x - 2, first.rect.y, '│', { color: BORDER, background: SURFACE });
+  }
+  for (const view of layout.remoteViewHits) {
+    const active = state.remoteCatalog === view.catalog;
+    canvas.fill(view.rect.x, view.rect.y, view.rect.width, 1, { background: active ? RAISED : SURFACE });
+    canvas.write(view.rect.x, view.rect.y, view.label, {
+      color: active ? FOCUS : MUTED,
+      background: active ? RAISED : SURFACE,
+      bold: active,
+    }, view.rect.width);
   }
 }
 
@@ -463,6 +497,14 @@ function paintPageTabs(canvas: Canvas, app: App, layout: Layout): void {
 }
 
 export function paintContent(canvas: Canvas, app: App, layout: Layout): void {
+  paintContentBody(canvas, app, layout);
+  // A shown result stays readable; the running badge sits over its middle.
+  if (layout.content && app.state.busy && app.state.page === 'analysis' && result(app.state)) {
+    paintBusyBadge(canvas, app, frameInner(layout.content));
+  }
+}
+
+function paintContentBody(canvas: Canvas, app: App, layout: Layout): void {
   if (!layout.content) {
     return;
   }
@@ -499,7 +541,7 @@ export function paintContent(canvas: Canvas, app: App, layout: Layout): void {
       canvas,
       box,
       state.busy
-        ? '任务进行中'
+        ? `运行中 ${busyPulse(state) ?? ''}`
         : state.image === null
           ? '选择镜像，开始内存分析'
           : state.symbols === '' && state.plugin !== 'banners'
@@ -636,12 +678,19 @@ export function paintCache(canvas: Canvas, app: App, layout: Layout): void {
 
   const items = cacheItems(state);
   const scope = scopes[cache.scope];
-  const total = items.reduce((sum, item) => sum + item.bytes, 0);
-  paintFrame(canvas, layout.cacheEntries, `${scope?.label ?? '缓存'} · ${items.length} 项 · ${formatBytes(total)}`, {
+  // Group headings carry their members' bytes, so only files are summed.
+  const files = items.filter((item) => !item.group);
+  const groups = items.length - files.length;
+  const total = files.reduce((sum, item) => sum + item.bytes, 0)
+    + items.filter((item) => item.group?.collapsed).reduce((sum, item) => sum + item.bytes, 0);
+  const count = files.length + items.reduce((sum, item) => sum + (item.group?.collapsed ? item.group.count : 0), 0);
+  const heading = groups > 0 ? `${count} 项 · ${groups} 个镜像` : `${items.length} 项`;
+  paintFrame(canvas, layout.cacheEntries, `${scope?.label ?? '缓存'} · ${heading} · ${formatBytes(total)}`, {
     color: cache.pane === 'entries' ? ACCENT : BORDER,
     subtitle: cache.confirm === 'remove'
       ? '再按 Delete 确认删除'
-      : scope?.id === 'exports' ? 'Enter 打开记录 · Delete 删除' : 'Delete 删除条目',
+      : scope?.id === 'exports' ? 'Enter 打开记录 · Delete 删除'
+        : scope?.id === 'results' ? '按镜像分组 · Enter 折叠 · Delete 删除' : 'Delete 删除条目',
   });
   const entryBox = frameInner(layout.cacheEntries);
   if (items.length === 0) {
@@ -656,6 +705,10 @@ export function paintCache(canvas: Canvas, app: App, layout: Layout): void {
     const item = items[hit.index];
     if (!item) continue;
     const active = hit.index === cache.entry;
+    if (item.group) {
+      paintCacheGroup(canvas, item.group, item.bytes, hit.rect, active);
+      continue;
+    }
     const background = active ? SELECTED_BG : hit.index % 2 === 1 ? STRIPE : undefined;
     if (background) canvas.fill(hit.rect.x, hit.rect.y, hit.rect.width, 1, { background });
     let x = hit.rect.x;
@@ -681,8 +734,40 @@ export function paintCache(canvas: Canvas, app: App, layout: Layout): void {
   }
 }
 
+const GROUP_NOTES: Record<CacheGroup['known'], string> = {
+  current: ' · 当前镜像',
+  listed: '',
+  changed: ' · 文件已变化，结果属于旧内容',
+  recorded: ' · 不在资源库',
+  unrecorded: '',
+};
+
+/** Heading row of one image's results: fold marker, name, count and size. */
+function paintCacheGroup(canvas: Canvas, group: CacheGroup, bytes: number, rect: Rect, active: boolean): void {
+  const background = active ? SELECTED_BG : undefined;
+  if (background) canvas.fill(rect.x, rect.y, rect.width, 1, { background });
+  const right = ` ${group.count} 项 · ${formatBytes(bytes)} `;
+  const left = `${active ? '›' : ' '}${group.collapsed ? '▸' : '▾'} `;
+  let x = rect.x + canvas.write(rect.x, rect.y, left, { color: active ? FOCUS : MUTED, background, bold: true }, rect.width);
+  const room = Math.max(rect.x + rect.width - x - width(right), 0);
+  x += canvas.write(x, rect.y, escaped(truncate(group.label, room)), {
+    color: group.known === 'unrecorded' ? MUTED : active ? FOCUS : ACCENT, background, bold: true,
+  }, room);
+  const note = GROUP_NOTES[group.known];
+  canvas.write(x, rect.y, note, {
+    color: group.known === 'changed' ? DANGER : MUTED, background,
+  }, Math.max(rect.x + rect.width - x - width(right), 0));
+  if (width(right) < rect.width) {
+    canvas.write(rect.x + rect.width - width(right), rect.y, right, { color: MUTED, background }, width(right));
+  }
+}
+
 function cacheLabel(item: CacheItem, room: number): string {
   const record = item.record;
+  const result = item.result;
+  if (!record && result && result.plugin !== '') {
+    return `${shortPlugin(result.plugin)} · ${result.rows} 条 · ${result.complete ? '完整' : `部分 · ${result.diagnostics} 条诊断`}`;
+  }
   if (!record) {
     return truncatePath(item.name, room);
   }
@@ -692,6 +777,22 @@ function cacheLabel(item: CacheItem, room: number): string {
 
 function cacheDetailLines(item: CacheItem): string[] {
   const record = item.record;
+  const group = item.group;
+  if (group) {
+    return [
+      `${group.label}${GROUP_NOTES[group.known]} · ${group.count} 个分析结果 · ${formatBytes(item.bytes)}`,
+      group.key === '' ? '这些结果写入时尚未记录所属镜像；重新分析后会归入对应镜像。' : `镜像 SHA256: ${group.key}`,
+      'Enter 折叠／展开 · Delete 删除该镜像的全部结果（不触碰镜像文件）',
+    ];
+  }
+  const result = item.result;
+  if (!record && result && result.plugin !== '') {
+    return [
+      `${shortPlugin(result.plugin)} · ${result.rows} 条 · ${result.complete ? '完整（成功缓存）' : `部分（部分结果缓存）· ${result.diagnostics} 条诊断`}`,
+      result.source !== '' ? `分析自: ${result.source}` : '',
+      `文件: ${item.name} · ${formatBytes(item.bytes)} · 写入于 ${formatTime(item.modified)}`,
+    ].filter((line) => line !== '');
+  }
   if (!record) {
     return [`路径: ${item.name}`, `大小: ${formatBytes(item.bytes)} · 修改于 ${formatTime(item.modified)}`];
   }
@@ -1028,7 +1129,7 @@ function paintDialogBody(canvas: Canvas, app: App, dialog: Dialog, popup: Rect):
     case 'detail': {
       const text =
         dialog.kind === 'assetDetail'
-          ? assetDetailText(state, dialog.asset)
+          ? assetDetailText(state, dialog.asset, dialog.readOnly)
           : dialog.kind === 'remoteDetail'
             ? remoteDetailText(state, dialog.candidate)
             : dialog.text;
@@ -1042,7 +1143,9 @@ function paintDialogBody(canvas: Canvas, app: App, dialog: Dialog, popup: Rect):
             : '详情 · ↑↓ / PgUp PgDn · Esc 关闭',
       );
       // The remote detail keeps its last two rows for the download chips.
-      const rows = dialog.kind === 'remoteDetail' ? Math.max(box.height - 2, 1) : box.height;
+      // The image detail keeps its last row for the close chip, so text never runs under it.
+      const rows = dialog.kind === 'remoteDetail' ? Math.max(box.height - 2, 1)
+        : dialog.kind === 'assetDetail' ? Math.max(box.height - 1, 1) : box.height;
       const lines = wrapLines(text, box.width).slice(dialog.scroll, dialog.scroll + rows);
       lines.forEach((line, index) => {
         canvas.write(box.x, box.y + index, escaped(line), { color: TEXT, background: SURFACE }, box.width);

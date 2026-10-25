@@ -12,6 +12,7 @@ import type {
   Asset,
   AssetKind,
   CacheEntry,
+  CacheSummary,
   DumpSpec,
   ExportRecord,
   Hello,
@@ -50,7 +51,8 @@ export type InputKind =
   | 'imageDirectory'
   | 'symbolsDirectory'
   | 'exportDirectory'
-  | 'pageSize';
+  | 'pageSize'
+  | 'symbolRepository';
 
 export type Preparation =
   | 'chooseImage'
@@ -85,7 +87,8 @@ export type Dialog =
   | ({ kind: 'windowsParameters'; advanced: boolean } & FieldDialog)
   | { kind: 'plugins'; query: string; selected: number }
   | { kind: 'links'; matches: RemoteMatch[]; selected: number }
-  | { kind: 'assetDetail'; asset: Asset; scroll: number }
+  /** `readOnly`: opened from the analysis header, so it only shows the file and closes. */
+  | { kind: 'assetDetail'; asset: Asset; scroll: number; readOnly?: boolean }
   | { kind: 'remoteDetail'; candidate: RemoteMatch; scroll: number }
   | { kind: 'detail'; text: string; scroll: number }
   | {
@@ -123,12 +126,22 @@ export interface Execution {
   snapshot: ExecutionSnapshot;
 }
 
+/** A SHA256 verification of an image for this backend session. */
+export interface Verified {
+  stamp: string;
+  digest: string;
+  seconds: number;
+  /** False when the session had verified it before or settings reused a recorded digest. */
+  computed: boolean;
+}
+
 export interface PendingWork {
   kind:
     | 'clear'
     | 'prepareKali'
     | 'generateSymbols'
     | 'identify'
+    | 'verify'
     | 'inspectSymbols'
     | 'refreshLookup'
     | 'analyze'
@@ -249,7 +262,10 @@ export interface AppState {
   assetQueries: [string, string, string];
   assetDetails: Map<string, string>;
   remote: RemoteMatch[];
+  /** Which remote view is shown: the whole index (`true`) or the image's matches. */
   remoteCatalog: boolean;
+  /** Exact matches for the selected image, kept apart from the index list; null until looked up. */
+  remoteMatches: RemoteMatch[] | null;
   /** Catalog matches before the page limit; equals `remote.length` for exact matches. */
   remoteTotal: number;
   remoteIndex: RemoteIndex | null;
@@ -260,6 +276,8 @@ export interface AppState {
   hiddenCacheCopies: Set<string>;
   localMatches: Map<string, string[]>;
   localMatchStamp: string | null;
+  /** Images whose content this backend session verified, by path, with the file stamp then. */
+  verified: Map<string, Verified>;
   preparedStamp: string | null;
   localMatchErrors: string[];
   localOnlyMatches: boolean;
@@ -331,6 +349,8 @@ export interface CacheView {
   /** Highlighted row of the entry list. */
   entry: number;
   pane: CachePane;
+  /** Image groups of the result list folded by the user, by group key. */
+  collapsed: string[];
   /** A destructive action armed by its first key press. */
   confirm: 'clear' | 'remove' | null;
   loaded: boolean;
@@ -343,6 +363,77 @@ export interface CacheItem {
   bytes: number;
   modified: number | null;
   record: ExportRecord | null;
+  /** Analysis results: the cached result's header. */
+  result?: CacheSummary | null;
+  /** A heading row over one image's results; deleting it removes them all. */
+  group?: CacheGroup;
+}
+
+export interface CacheGroup {
+  /** The image's SHA256, or '' for results from before it was recorded. */
+  key: string;
+  label: string;
+  /** Where the label came from: a listed image, a recorded path, or nothing. */
+  known: 'current' | 'listed' | 'changed' | 'recorded' | 'unrecorded';
+  count: number;
+  paths: string[];
+  collapsed: boolean;
+}
+
+/** Name an image group from the listed images, then from the recorded path. */
+function cacheGroupLabel(state: AppState, key: string, sources: string[]): Pick<CacheGroup, 'label' | 'known'> {
+  if (key === '') {
+    return { label: '未记录镜像（旧版缓存）', known: 'unrecorded' };
+  }
+  const listed = state.assets.find((asset) => asset.kind === 'image' && asset.digest === key);
+  const verified = [...state.verified.entries()].find(([, value]) => value.digest === key)?.[0];
+  const path = verified ?? listed?.path;
+  if (path !== undefined) {
+    const name = state.assets.find((asset) => asset.path === path)?.name ?? basename(path);
+    return { label: name, known: path === state.image ? 'current' : 'listed' };
+  }
+  const source = sources.find((value) => value !== '');
+  if (source !== undefined) {
+    // A listed image at the recorded path with another digest has been rewritten.
+    const listedAt = state.assets.find((asset) => asset.kind === 'image' && asset.path === source);
+    const name = listedAt?.name ?? basename(source);
+    return { label: name, known: listedAt === undefined ? 'recorded' : listedAt.digest ? 'changed' : 'listed' };
+  }
+  return { label: `SHA256 ${key.slice(0, 16)}…`, known: 'recorded' };
+}
+
+function basename(path: string): string {
+  return path.split(/[\\/]/u).filter((part) => part !== '').at(-1) ?? path;
+}
+
+/** Results grouped under one heading per image, newest image first. */
+function resultItems(state: AppState, files: CacheItem[]): CacheItem[] {
+  const groups = new Map<string, CacheItem[]>();
+  for (const item of files) {
+    const key = item.result?.image ?? '';
+    groups.set(key, [...(groups.get(key) ?? []), item]);
+  }
+  const newest = (items: CacheItem[]) => Math.max(...items.map((item) => item.modified ?? 0));
+  const items: CacheItem[] = [];
+  for (const [key, members] of [...groups.entries()].sort(
+    (a, b) => (a[0] === '' ? 1 : 0) - (b[0] === '' ? 1 : 0) || newest(b[1]) - newest(a[1]),
+  )) {
+    members.sort((a, b) => (b.modified ?? 0) - (a.modified ?? 0) || a.name.localeCompare(b.name));
+    const collapsed = state.cache.collapsed.includes(key);
+    const named = cacheGroupLabel(state, key, members.map((item) => item.result?.source ?? ''));
+    items.push({
+      path: `group:${key}`,
+      name: named.label,
+      bytes: members.reduce((total, item) => total + item.bytes, 0),
+      modified: newest(members),
+      record: null,
+      group: { key, ...named, count: members.length, paths: members.map((item) => item.path), collapsed },
+    });
+    if (!collapsed) {
+      items.push(...members);
+    }
+  }
+  return items;
 }
 
 export function cacheScopes(state: AppState): { id: Exclude<ScopeId, 'all'>; label: string }[] {
@@ -383,8 +474,18 @@ export function cacheItems(state: AppState): CacheItem[] {
   }
   for (const entry of files) {
     if (!grouped.has(entry.path)) {
-      items.push({ path: entry.path, name: relative(entry.path), bytes: entry.bytes, modified: entry.modified, record: null });
+      items.push({
+        path: entry.path,
+        name: relative(entry.path),
+        bytes: entry.bytes,
+        modified: entry.modified,
+        record: null,
+        result: entry.result ?? null,
+      });
     }
+  }
+  if (scope === 'results') {
+    return resultItems(state, items);
   }
   return items.sort((a, b) => (b.modified ?? 0) - (a.modified ?? 0) || a.name.localeCompare(b.name));
 }
@@ -432,6 +533,7 @@ export function initialState(hello: Hello, launch: { image: string | null; symbo
     assetDetails: new Map(),
     remote: [],
     remoteCatalog: true,
+    remoteMatches: null,
     remoteTotal: 0,
     remoteIndex: null,
     remoteLoaded: false,
@@ -442,6 +544,7 @@ export function initialState(hello: Hello, launch: { image: string | null; symbo
       scope: 0,
       entry: 0,
       pane: 'scopes',
+      collapsed: [],
       confirm: null,
       loaded: false,
     },
@@ -449,6 +552,7 @@ export function initialState(hello: Hello, launch: { image: string | null; symbo
     hiddenCacheCopies: new Set(),
     localMatches: new Map(),
     localMatchStamp: null,
+    verified: new Map(),
     preparedStamp: null,
     localMatchErrors: [],
     localOnlyMatches: false,
@@ -609,7 +713,8 @@ export function assetList(state: AppState): Asset[] {
 export function remoteList(state: AppState): RemoteMatch[] {
   const query = state.assetQueries[2].toLowerCase();
   const words = query.split(/\s+/u).filter(Boolean);
-  return state.remote.filter((candidate) => {
+  const shown = state.remoteCatalog ? state.remote : (state.remoteMatches ?? []);
+  return shown.filter((candidate) => {
     const text = `${candidate.path} ${candidate.banner} ${candidate.url}`.toLowerCase();
     return words.every((word) => text.includes(word));
   });
@@ -911,8 +1016,8 @@ export function commandDisabled(state: AppState, command: Command): string | nul
       }
       break;
     case 'cacheOpen':
-      if (selectedCacheItem(state)?.record == null) {
-        return '只有导出记录可以打开；在左侧选择「导出记录」';
+      if (selectedCacheItem(state)?.record == null && !selectedCacheItem(state)?.group) {
+        return '只有导出记录可以打开、镜像分组可以折叠；在左侧选择「导出记录」或「分析结果」';
       }
       break;
     default:
@@ -926,6 +1031,7 @@ export function commandDisabled(state: AppState, command: Command): string | nul
       'matchLocal',
       'matchRemote',
       'identify',
+      'verifyImage',
       'importCurrent',
       'fetchIndex',
       'download',
@@ -976,6 +1082,10 @@ export function settingsLabels(state: AppState): string[] {
     `每页行数: ${settings.page_size === 0 ? '自动填满' : String(settings.page_size)}（Enter 输入）`,
     `远程模式: ${settings.remote_symbols ? '在线' : '离线'}（Enter 切换）`,
     `界面主题: ${themeOf(settings.theme).label}（Enter / ←→ 切换）`,
+    `远程符号仓库: ${settings.symbol_repository}（Enter 编辑）`,
+    `镜像摘要: ${
+      settings.reuse_recorded_digest ? '文件未变时复用上次摘要' : '每个新会话完整校验'
+    }（Enter 切换）`,
   ];
 }
 

@@ -220,6 +220,8 @@ export interface Layout {
   pageTabsArea: Rect;
   systemHits: { rect: Rect; os: 'auto' | 'linux' | 'windows' }[];
   sourceHits: { rect: Rect; section: Section }[];
+  /** Remote section only: whole index / the image's exact matches. */
+  remoteViewHits: { rect: Rect; catalog: boolean; label: string }[];
   regionHits: { rect: Rect; focus: Focus }[];
   /** List row click regions, with the absolute row index. */
   rowHits: { rect: Rect; section: Section | null; index: number }[];
@@ -273,6 +275,7 @@ export function computeLayout(state: AppState, columns: number, rows: number): L
     pageTabsArea: rect(0, 0, 0, 0),
     systemHits: [],
     sourceHits: [],
+    remoteViewHits: [],
     regionHits: [],
     rowHits: [],
   };
@@ -406,6 +409,20 @@ function layoutAssets(base: Layout, state: AppState): void {
     { rect: rect(7, y, cellWidth(' 本地库 '), 1), section: 'symbols' },
     { rect: rect(18, y, cellWidth(' 远程索引 '), 1), section: 'remote' },
   ];
+  if (state.section === 'remote') {
+    let x = 32;
+    for (const view of [
+      { catalog: true, label: ` 全部索引 ${state.remoteTotal} ` },
+      { catalog: false, label: ` 镜像匹配 ${state.remoteMatches === null ? '—' : state.remoteMatches.length} ` },
+    ]) {
+      const cells = cellWidth(view.label);
+      if (x + cells > columns) {
+        break;
+      }
+      base.remoteViewHits.push({ rect: rect(x, y, cells, 1), ...view });
+      x += cells + 1;
+    }
+  }
   // Source tabs are pages: only the active source owns the full content area.
   base.panes.push(paneFor(base, state, state.section, 0, y + 1, columns, base.body.height - 1));
 }

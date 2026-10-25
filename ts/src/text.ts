@@ -79,7 +79,30 @@ export const THEMES: readonly Theme[] = [
   },
 ];
 
+/** Theme id that follows the terminal's own background. */
+export const AUTO_THEME = 'auto';
+
+/** Background the terminal reported at startup; `null` when it did not say. */
+let terminalBackground: 'dark' | 'light' | null = null;
+
+export function setTerminalBackground(background: 'dark' | 'light' | null): void {
+  terminalBackground = background;
+}
+
+/** Every choice in the settings cycle: `auto` first, then the fixed themes. */
+export const THEME_CHOICES: readonly string[] = [AUTO_THEME, ...THEMES.map((theme) => theme.id)];
+
+/**
+ * The theme for a settings id. `auto` resolves to the light theme on a light
+ * terminal and to the default dark theme otherwise, keeping the `auto` id.
+ */
 export function themeOf(id: string): Theme {
+  if (id === AUTO_THEME) {
+    const resolved = terminalBackground === 'light' ? THEMES[1]! : THEMES[0]!;
+    const detected =
+      terminalBackground === null ? '未检测到终端背景，使用深色' : `终端${terminalBackground === 'light' ? '浅色' : '深色'}`;
+    return { id: AUTO_THEME, label: `自动（${detected} → ${resolved.label}）`, palette: resolved.palette };
+  }
   return THEMES.find((theme) => theme.id === id) ?? THEMES[0]!;
 }
 

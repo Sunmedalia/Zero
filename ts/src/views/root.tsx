@@ -6,6 +6,7 @@
  * modal, then page handlers — and mouse reports come from the raw stdin stream
  * because Ink's parser discards them.
  */
+import { TERMINAL_REPLY } from '../terminalTheme.js';
 import React, { useEffect, useRef, useState } from 'react';
 import { Box, Text, useInput, usePaste, useStdin, useWindowSize } from 'ink';
 import type { App } from '../app.js';
@@ -54,7 +55,30 @@ export function Root({
     app.resize(columns, rows);
   }, [app, columns, rows]);
 
+  // A terminal reply that arrives after startup (a slow OSC 11 / DA1 answer)
+  // must not be read as typed keys. The raw listener sees each chunk before
+  // Ink turns it into key events, so the flag covers exactly that chunk.
+  const reply = useRef(false);
+  useEffect(() => {
+    const onData = (chunk: string | Buffer) => {
+      const text = typeof chunk === 'string' ? chunk : chunk.toString('latin1');
+      if (TERMINAL_REPLY.test(text)) {
+        reply.current = true;
+        setImmediate(() => {
+          reply.current = false;
+        });
+      }
+    };
+    stdin.on('data', onData);
+    return () => {
+      stdin.off('data', onData);
+    };
+  }, [stdin]);
+
   useInput((input, key) => {
+    if (reply.current) {
+      return;
+    }
     void handleKey(app, input, key);
   });
 

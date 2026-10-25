@@ -149,8 +149,31 @@ fn process_fields_filter_and_damaged_list() {
     assert_eq!(r.rows.len(), 2);
     assert!(!r.diagnostics.is_empty());
     let cache = tempfile::tempdir().unwrap();
-    store::save(cache.path(), "partial", &r, &Job::default()).unwrap();
+    store::save(
+        cache.path(),
+        "partial",
+        &store::Owner::default(),
+        &r,
+        &Job::default(),
+    )
+    .unwrap();
     assert!(store::load(cache.path(), "partial").is_none());
+    assert!(store::load_partial(cache.path(), "partial").is_none());
+    // Partial results go to their own cache, never the successful one.
+    store::save_any(
+        cache.path(),
+        "partial",
+        &store::Owner::default(),
+        &r,
+        &Job::default(),
+    )
+    .unwrap();
+    assert!(store::load(cache.path(), "partial").is_none());
+    assert_eq!(
+        store::load_partial(cache.path(), "partial").as_ref(),
+        Some(&r)
+    );
+    assert!(!cache.path().join("partial.result.json").exists());
 }
 #[test]
 fn transition_prototype_missing_and_linux_isolation() {
@@ -307,6 +330,12 @@ fn session_reuses_windows_symbols_and_invalidates_changes() -> Result<()> {
     let image_path = dir.path().join("image.raw");
     let symbols_path = dir.path().join("kernel.json");
     std::fs::write(&image_path, &bytes)?;
+    // A just-written image is prepared again on each request until it has
+    // settled (see `image::settled`); evidence on disk is long settled.
+    std::fs::File::options()
+        .write(true)
+        .open(&image_path)?
+        .set_modified(std::time::SystemTime::now() - std::time::Duration::from_secs(60))?;
     std::fs::write(&symbols_path, serde_json::to_vec(&isf.data)?)?;
     let messages = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
     let log = messages.clone();
@@ -469,4 +498,71 @@ fn identification_binds_windows_signatures_to_the_file_and_reuses_them() {
     changed[0x3f000] = 0x41;
     std::fs::write(&path, &changed).unwrap();
     assert_eq!(crate::image::bound_identity(&path, &cache), None);
+}
+#[test]
+fn a_recorded_digest_is_reused_only_when_settings_opt_in() {
+    let (b, _) = fixture();
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("memory.raw");
+    let cache = dir.path().join("cache");
+    let backdate = |path: &std::path::Path| {
+        std::fs::File::options()
+            .write(true)
+            .open(path)
+            .unwrap()
+            .set_modified(std::time::SystemTime::now() - std::time::Duration::from_secs(60))
+            .unwrap();
+    };
+    std::fs::write(&path, &b).unwrap();
+    backdate(&path);
+    let open = || {
+        let job = Job::default();
+        let image = Image::open(&path, &cache, &job).unwrap();
+        (image.digest.clone(), job.prepared_image())
+    };
+    let (digest, prepared) = open();
+    assert!(prepared && digest.len() == 64);
+    // Default settings: every session reads the whole image again.
+    assert_eq!(open(), (digest.clone(), true));
+
+    let mut settings = store::settings(&cache).unwrap();
+    assert!(
+        !settings.reuse_recorded_digest,
+        "full verification is the default"
+    );
+    settings.reuse_recorded_digest = true;
+    store::save_settings(&cache, &settings).unwrap();
+    assert_eq!(
+        open(),
+        (digest.clone(), false),
+        "settled, unchanged file reuses"
+    );
+
+    // Changed content changes the metadata stamp: the digest is computed again.
+    let mut changed = b.clone();
+    changed[0x3f000] ^= 0x41;
+    std::fs::write(&path, &changed).unwrap();
+    let (fresh, prepared) = open();
+    assert!(prepared);
+    assert_ne!(fresh, digest);
+    // Recorded while the file had not settled: not reusable even when unchanged.
+    assert_eq!(open(), (fresh.clone(), true));
+    backdate(&path);
+    let (settled, prepared) = open();
+    assert!(prepared && settled == fresh);
+    assert_eq!(open(), (fresh, false));
+}
+#[test]
+fn one_pdb_identity_found_at_several_offsets_is_one_match() {
+    let (mut b, _) = fixture();
+    // A second copy of the kernel's RSDS record, as kernel images often leave.
+    let record = b[0x8600..0x8625].to_vec();
+    b[0x30000..0x30025].copy_from_slice(&record);
+    let image = image(&b);
+    let job = Job::default();
+    assert_eq!(image.windows_candidates(&job).unwrap().len(), 2);
+    let dir = tempfile::tempdir().unwrap();
+    let matches = crate::symbols::remote_matches(&image, dir.path(), false, &job).unwrap();
+    assert_eq!(matches.len(), 1, "{matches:?}");
+    assert!(matches[0].banner.starts_with("Windows PDB ntkrnlmp.pdb/"));
 }

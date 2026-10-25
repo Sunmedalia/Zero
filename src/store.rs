@@ -116,37 +116,168 @@ struct CacheEntry {
     key: String,
     result: Results,
 }
+/// The image a cached result belongs to: its content digest and the path it
+/// was analysed from. Recorded so the cache page can group results by image.
+#[derive(Clone, Debug, Default)]
+pub struct Owner {
+    pub digest: String,
+    pub source: PathBuf,
+}
+impl Owner {
+    pub fn new(digest: &str, source: &Path) -> Self {
+        Self {
+            digest: digest.to_owned(),
+            source: source.to_path_buf(),
+        }
+    }
+}
+/// The header of a cached result, written before the rows so it can be read
+/// without parsing them. Entries written before it was recorded read as empty.
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Summary {
+    #[serde(default)]
+    pub image: String,
+    #[serde(default)]
+    pub source: PathBuf,
+    #[serde(default)]
+    pub plugin: String,
+    #[serde(default)]
+    pub complete: bool,
+    #[serde(default)]
+    pub rows: usize,
+    #[serde(default)]
+    pub diagnostics: usize,
+}
+/// Read the header of a result cache file from its first bytes only.
+pub fn summary(path: &Path) -> Option<Summary> {
+    use std::io::Read;
+    let mut head = Vec::new();
+    fs::File::open(path)
+        .ok()?
+        .take(64 * 1024)
+        .read_to_end(&mut head)
+        .ok()?;
+    // `,"` never occurs inside a JSON string (its quote would be escaped), so
+    // the first `,"result":` ends the header fields written before it.
+    let end = memchr::memmem::find(&head, br#","result":"#)?;
+    let mut header = head[..end].to_vec();
+    header.push(b'}');
+    #[derive(Deserialize)]
+    struct Head {
+        version: String,
+        #[serde(flatten)]
+        summary: Summary,
+    }
+    let head: Head = serde_json::from_slice(&header).ok()?;
+    (head.version == ENGINE_VERSION).then_some(head.summary)
+}
+/// Progress line for a cache hit, naming which cache answered.
+pub fn cache_message(result: &Results) -> &'static str {
+    if result.complete {
+        "读取成功缓存"
+    } else {
+        "读取部分结果缓存（诊断一并保存）"
+    }
+}
+/// A complete result from the successful-result cache.
 pub fn load(cache: &Path, key: &str) -> Option<Results> {
+    read_entry(cache, key, "result.json").filter(|r| r.complete)
+}
+/// A partial result, with its diagnostics, from the separate partial cache.
+/// It never satisfies a lookup for a complete result.
+pub fn load_partial(cache: &Path, key: &str) -> Option<Results> {
+    read_entry(cache, key, "partial.json").filter(|r| !r.complete)
+}
+fn read_entry(cache: &Path, key: &str, suffix: &str) -> Option<Results> {
     let entry: CacheEntry = serde_json::from_reader(std::io::BufReader::new(
-        fs::File::open(cache.join(format!("{key}.result.json"))).ok()?,
+        fs::File::open(cache.join(format!("{key}.{suffix}"))).ok()?,
     ))
     .ok()?;
-    (entry.version == ENGINE_VERSION
-        && entry.key == key
-        && entry.result.complete
-        && !entry.result.historical)
+    (entry.version == ENGINE_VERSION && entry.key == key && !entry.result.historical)
         .then_some(entry.result)
 }
-pub fn save(cache: &Path, key: &str, result: &Results, job: &Job) -> Result<()> {
+/// Name the image on an entry written before entries recorded it, so the cache
+/// page can group it. The key already binds the entry to that digest; the
+/// result is rewritten unchanged.
+pub fn adopt(cache: &Path, key: &str, owner: &Owner, result: &Results, job: &Job) {
+    let suffix = if result.complete {
+        "result.json"
+    } else {
+        "partial.json"
+    };
+    let path = cache.join(format!("{key}.{suffix}"));
+    if !owner.digest.is_empty() && summary(&path).is_some_and(|s| s.image.is_empty()) {
+        let _ = write_entry(&path, key, owner, result, job);
+    }
+}
+/// Persist a fresh result: complete ones in the successful-result cache,
+/// partial ones (diagnostics included) in the separate partial cache.
+pub fn save_any(cache: &Path, key: &str, owner: &Owner, result: &Results, job: &Job) -> Result<()> {
+    save(cache, key, owner, result, job)?;
+    save_partial(cache, key, owner, result, job)
+}
+pub fn save_partial(
+    cache: &Path,
+    key: &str,
+    owner: &Owner,
+    result: &Results,
+    job: &Job,
+) -> Result<()> {
+    job.check()?;
+    if !result.complete && !result.historical {
+        write_entry(
+            &cache.join(format!("{key}.partial.json")),
+            key,
+            owner,
+            result,
+            job,
+        )?;
+    }
+    Ok(())
+}
+fn write_entry(path: &Path, key: &str, owner: &Owner, result: &Results, job: &Job) -> Result<()> {
+    // Header fields come before `result`; `summary` reads only them.
+    #[derive(Serialize)]
+    struct Entry<'a> {
+        version: &'a str,
+        key: &'a str,
+        image: &'a str,
+        source: &'a Path,
+        plugin: &'a str,
+        complete: bool,
+        rows: usize,
+        diagnostics: usize,
+        result: &'a Results,
+    }
+    atomic_stream(path, job, |writer| {
+        serde_json::to_writer(
+            writer,
+            &Entry {
+                version: ENGINE_VERSION,
+                key,
+                image: &owner.digest,
+                source: &owner.source,
+                plugin: &result.plugin,
+                complete: result.complete,
+                rows: result.rows.len(),
+                diagnostics: result.diagnostics.len(),
+                result,
+            },
+        )?;
+        Ok(())
+    })
+}
+/// Successful-result cache: complete results only.
+pub fn save(cache: &Path, key: &str, owner: &Owner, result: &Results, job: &Job) -> Result<()> {
     job.check()?;
     if result.complete && !result.historical {
-        #[derive(Serialize)]
-        struct Entry<'a> {
-            version: &'a str,
-            key: &'a str,
-            result: &'a Results,
-        }
-        atomic_stream(&cache.join(format!("{key}.result.json")), job, |writer| {
-            serde_json::to_writer(
-                writer,
-                &Entry {
-                    version: ENGINE_VERSION,
-                    key,
-                    result,
-                },
-            )?;
-            Ok(())
-        })?;
+        write_entry(
+            &cache.join(format!("{key}.result.json")),
+            key,
+            owner,
+            result,
+            job,
+        )?;
     }
     Ok(())
 }
@@ -423,6 +554,12 @@ pub struct Settings {
     pub remote_symbols: bool,
     /// Interface colour theme id; the interface falls back to its default for unknown ids.
     pub theme: String,
+    /// GitHub repository for the remote symbol index and ISF downloads.
+    pub symbol_repository: String,
+    /// Reuse the content digest recorded by an earlier session while the
+    /// file's metadata stamp and content sample are unchanged. Off by default:
+    /// every new session then reads the whole image to verify its digest.
+    pub reuse_recorded_digest: bool,
 }
 impl Default for Settings {
     fn default() -> Self {
@@ -436,7 +573,9 @@ impl Default for Settings {
             history_dir: "exports".into(),
             enable_cache: true,
             remote_symbols: true,
-            theme: "slate".into(),
+            theme: "auto".into(),
+            symbol_repository: crate::symbols::REPOSITORY.into(),
+            reuse_recorded_digest: false,
         }
     }
 }
@@ -449,6 +588,7 @@ pub fn save_settings(cache: &Path, settings: &Settings) -> Result<()> {
         valid_theme(&settings.theme),
         "主题名应为 1–32 个小写字母、数字或连字符"
     );
+    crate::symbols::Repository::parse(&settings.symbol_repository)?;
     atomic_write(
         &cache.join("settings.json"),
         &serde_json::to_vec_pretty(settings)?,
@@ -460,6 +600,14 @@ fn valid_theme(theme: &str) -> bool {
             .bytes()
             .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'-')
 }
+/// Settings without side effects: defaults when the file is missing, and no
+/// migration or creation (for readers such as image preparation).
+pub fn read_settings(cache: &Path) -> Settings {
+    fs::read(cache.join("settings.json"))
+        .ok()
+        .and_then(|bytes| serde_json::from_slice(&bytes).ok())
+        .unwrap_or_default()
+}
 pub fn settings(cache: &Path) -> Result<Settings> {
     let path = cache.join("settings.json");
     if path.exists() {
@@ -469,6 +617,9 @@ pub fn settings(cache: &Path) -> Result<Settings> {
         let mut settings: Settings = serde_json::from_value(value)?;
         if !valid_theme(&settings.theme) {
             settings.theme = Settings::default().theme;
+        }
+        if crate::symbols::Repository::parse(&settings.symbol_repository).is_err() {
+            settings.symbol_repository = Settings::default().symbol_repository;
         }
         if legacy_layout {
             settings.page_size = 0;

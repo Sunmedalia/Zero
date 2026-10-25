@@ -416,8 +416,122 @@ pub fn match_local_files(
     }
     Ok(report)
 }
+/// Default symbol repository; settings may name another GitHub repository.
 pub const REPOSITORY: &str = "https://github.com/Abyss-W4tcher/volatility3-symbols";
-const RAW: &str = "https://raw.githubusercontent.com/Abyss-W4tcher/volatility3-symbols/master/";
+/// A GitHub symbol repository laid out like the default one: an index at
+/// `banners/banners_plain.json` on a branch, ISFs as files or release assets.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Repository {
+    /// `https://github.com/<owner>/<repo>`, without a trailing slash.
+    pub web: String,
+    /// `https://raw.githubusercontent.com/<owner>/<repo>/<branch>/`.
+    raw: String,
+    branch: String,
+}
+impl Repository {
+    /// Accept `https://github.com/<owner>/<repo>` with an optional
+    /// `/tree/<branch>` (default `master`); nothing else is a repository.
+    pub fn parse(url: &str) -> Result<Self> {
+        let rest = url
+            .trim()
+            .trim_end_matches('/')
+            .strip_prefix("https://github.com/")
+            .context("符号仓库必须是 https://github.com/<所有者>/<仓库> 形式")?;
+        let mut parts = rest.splitn(3, '/');
+        let (owner, repo) = (parts.next().unwrap_or(""), parts.next().unwrap_or(""));
+        let repo = repo.strip_suffix(".git").unwrap_or(repo);
+        let branch = match parts.next() {
+            None => "master",
+            Some(tail) => tail
+                .strip_prefix("tree/")
+                .context("仓库地址只能附加 /tree/<分支>")?,
+        };
+        let name = |s: &str| {
+            !s.is_empty()
+                && s.len() <= 100
+                && s != "."
+                && s != ".."
+                && s.bytes()
+                    .all(|b| b.is_ascii_alphanumeric() || b"-_.".contains(&b))
+        };
+        ensure!(name(owner) && name(repo), "符号仓库的所有者或仓库名无效");
+        ensure!(
+            !branch.is_empty() && branch.len() <= 100 && branch.split('/').all(name),
+            "符号仓库分支名无效"
+        );
+        Ok(Self {
+            web: format!("https://github.com/{owner}/{repo}"),
+            raw: format!("https://raw.githubusercontent.com/{owner}/{repo}/{branch}/"),
+            branch: branch.to_owned(),
+        })
+    }
+    pub fn default_repository() -> Self {
+        Self::parse(REPOSITORY).expect("default repository")
+    }
+    /// The repository named in this cache's settings.
+    pub fn configured(cache: &Path) -> Result<Self> {
+        Self::parse(&crate::store::settings(cache)?.symbol_repository)
+    }
+    pub fn is_default(&self) -> bool {
+        *self == Self::default_repository()
+    }
+    /// Where this repository's index is saved. The default keeps its historic
+    /// name; any other repository gets its own file, so indexes never mix.
+    pub fn index_file(&self, cache: &Path) -> std::path::PathBuf {
+        if self.is_default() {
+            cache.join("symbols/banners_plain.json")
+        } else {
+            let id = format!(
+                "{:x}",
+                Sha256::digest(format!("{}\0{}", self.web, self.branch))
+            );
+            cache.join(format!("symbols/banners_plain-{}.json", &id[..16]))
+        }
+    }
+    fn index_url(&self) -> String {
+        format!("{}banners/banners_plain.json", self.raw)
+    }
+    /// Download URL of a repository-relative ISF path.
+    pub fn url(&self, path: &str) -> Result<String> {
+        ensure!(
+            path.ends_with(".json.xz")
+                && !path.starts_with('/')
+                && path
+                    .split('/')
+                    .all(|p| !p.is_empty() && p != "." && p != "..")
+                && !path.contains(['\\', '\0', ':'])
+                && (!path.starts_with(RELEASES) || path.split('/').count() == 4),
+            "仓库 ISF 路径无效"
+        );
+        let mut encoded = String::new();
+        for b in path.bytes() {
+            if b.is_ascii_alphanumeric() || b"/-._~".contains(&b) {
+                encoded.push(b as char);
+            } else {
+                encoded.push_str(&format!("%{b:02X}"));
+            }
+        }
+        Ok(if path.starts_with(RELEASES) {
+            format!("{}/{encoded}", self.web)
+        } else {
+            format!("{}{encoded}", self.raw)
+        })
+    }
+    /// Normalize one index entry (a repository path or a percent-encoded
+    /// release asset URL of this repository) to its repository-relative path.
+    pub fn index_path(&self, entry: &str) -> Result<String> {
+        let path = match entry
+            .strip_prefix(self.web.as_str())
+            .and_then(|p| p.strip_prefix('/'))
+            .filter(|p| p.starts_with(RELEASES))
+        {
+            Some(release) => percent_decode(release)?,
+            None => entry.to_owned(),
+        };
+        self.url(&path)?;
+        Ok(path)
+    }
+}
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct RemoteMatch {
     pub banner: String,
@@ -426,45 +540,13 @@ pub struct RemoteMatch {
 }
 /// Repository-relative prefix of release assets; the index now lists them as full URLs.
 const RELEASES: &str = "releases/download/";
+/// Download URL of an ISF path in the default repository.
 pub fn repository_url(path: &str) -> Result<String> {
-    ensure!(
-        path.ends_with(".json.xz")
-            && !path.starts_with('/')
-            && path
-                .split('/')
-                .all(|p| !p.is_empty() && p != "." && p != "..")
-            && !path.contains(['\\', '\0', ':'])
-            && (!path.starts_with(RELEASES) || path.split('/').count() == 4),
-        "仓库 ISF 路径无效"
-    );
-    let mut encoded = String::new();
-    for b in path.bytes() {
-        if b.is_ascii_alphanumeric() || b"/-._~".contains(&b) {
-            encoded.push(b as char);
-        } else {
-            encoded.push_str(&format!("%{b:02X}"));
-        }
-    }
-    Ok(if path.starts_with(RELEASES) {
-        format!("{REPOSITORY}/{encoded}")
-    } else {
-        format!("{RAW}{encoded}")
-    })
+    Repository::default_repository().url(path)
 }
-/// Normalize one index entry (a repository path or a percent-encoded release
-/// asset URL of the specified repository) to the repository-relative path used
-/// as its identity.
+/// Normalize an index entry of the default repository.
 pub fn index_path(entry: &str) -> Result<String> {
-    let path = match entry
-        .strip_prefix(REPOSITORY)
-        .and_then(|p| p.strip_prefix('/'))
-        .filter(|p| p.starts_with(RELEASES))
-    {
-        Some(release) => percent_decode(release)?,
-        None => entry.to_owned(),
-    };
-    repository_url(&path)?;
-    Ok(path)
+    Repository::default_repository().index_path(entry)
 }
 fn percent_decode(value: &str) -> Result<String> {
     let mut bytes = Vec::with_capacity(value.len());
@@ -650,6 +732,13 @@ fn transfer(
     Ok((bytes, code, headers))
 }
 pub fn lookup_index(index: &Value, banners: &[(u64, Vec<u8>)]) -> Result<Vec<RemoteMatch>> {
+    lookup_index_in(&Repository::default_repository(), index, banners)
+}
+pub fn lookup_index_in(
+    repository: &Repository,
+    index: &Value,
+    banners: &[(u64, Vec<u8>)],
+) -> Result<Vec<RemoteMatch>> {
     let index = index.as_object().context("远程 banner 索引格式无效")?;
     let mut found = std::collections::BTreeMap::new();
     for (_, bytes) in banners {
@@ -659,7 +748,7 @@ pub fn lookup_index(index: &Value, banners: &[(u64, Vec<u8>)]) -> Result<Vec<Rem
         if let Some(paths) = index.get(&banner).and_then(Value::as_array) {
             let arm = banner.contains("aarch64") || banner.contains("-arm64");
             for path in paths {
-                let path = index_path(path.as_str().context("索引路径无效")?)?;
+                let path = repository.index_path(path.as_str().context("索引路径无效")?)?;
                 if path_arm64(&path) != Some(arm) {
                     continue;
                 }
@@ -667,7 +756,7 @@ pub fn lookup_index(index: &Value, banners: &[(u64, Vec<u8>)]) -> Result<Vec<Rem
                     path.clone(),
                     RemoteMatch {
                         banner: banner.clone(),
-                        url: repository_url(&path)?,
+                        url: repository.url(&path)?,
                         path,
                     },
                 );
@@ -683,9 +772,13 @@ pub fn remote_matches(
     job: &Job,
 ) -> Result<Vec<RemoteMatch>> {
     if image.banners(job)?.is_empty() {
+        // One PDB identity is often found at several offsets (kernel copies in
+        // memory); it is still one symbol to fetch, listed once in offset order.
+        let mut seen = std::collections::HashSet::new();
         return image
             .windows_candidates(job)?
             .iter()
+            .filter(|c| seen.insert(c.pdb.key()))
             .map(|c| {
                 Ok(RemoteMatch {
                     banner: format!("Windows PDB {}", c.pdb.key()),
@@ -696,7 +789,8 @@ pub fn remote_matches(
             .collect();
     }
     let banners = image.banners(job)?;
-    let path = cache.join("symbols/banners_plain.json");
+    let repository = Repository::configured(cache)?;
+    let path = repository.index_file(cache);
     let cached = fs::read(&path)
         .ok()
         .and_then(|bytes| serde_json::from_slice::<Value>(&bytes).ok())
@@ -713,7 +807,7 @@ pub fn remote_matches(
     } else {
         ensure!(network, "离线模式且没有有效的远程 banner 索引缓存");
         job.report("获取 GitHub 完整 banner 索引（仅下载索引，不上传镜像）");
-        match fetch(&format!("{RAW}banners/banners_plain.json"), job) {
+        match fetch(&repository.index_url(), job) {
             Ok(bytes) => {
                 let index: Value = serde_json::from_slice(&bytes)?;
                 ensure!(index.is_object(), "banner 索引格式无效");
@@ -731,7 +825,7 @@ pub fn remote_matches(
             }
         }
     };
-    lookup_index(&index, &banners)
+    lookup_index_in(&repository, &index, &banners)
 }
 /// Linux entries of the cached index, parsed once per index file version.
 struct ParsedIndex {
@@ -742,7 +836,11 @@ struct ParsedIndex {
 }
 static PARSED_INDEX: std::sync::Mutex<Option<std::sync::Arc<ParsedIndex>>> =
     std::sync::Mutex::new(None);
-fn parsed_index(path: &Path, job: &Job) -> Result<std::sync::Arc<ParsedIndex>> {
+fn parsed_index(
+    repository: &Repository,
+    path: &Path,
+    job: &Job,
+) -> Result<std::sync::Arc<ParsedIndex>> {
     let meta = fs::metadata(path)?;
     let stamp = (meta.modified()?, meta.len());
     let mut slot = PARSED_INDEX
@@ -766,7 +864,7 @@ fn parsed_index(path: &Path, job: &Job) -> Result<std::sync::Arc<ParsedIndex>> {
         for entry in paths.as_array().context("远程索引路径列表无效")? {
             // Skip entries outside the repository and kernels the native
             // engine cannot translate (only x86_64 and ARM64).
-            let Some(path) = entry.as_str().and_then(|e| index_path(e).ok()) else {
+            let Some(path) = entry.as_str().and_then(|e| repository.index_path(e).ok()) else {
                 continue;
             };
             if path_arm64(&path).is_none() {
@@ -776,7 +874,7 @@ fn parsed_index(path: &Path, job: &Job) -> Result<std::sync::Arc<ParsedIndex>> {
             entries.push((
                 RemoteMatch {
                     banner: banner.clone(),
-                    url: repository_url(&path)?,
+                    url: repository.url(&path)?,
                     path,
                 },
                 text,
@@ -859,12 +957,13 @@ pub fn catalog(
     network: bool,
     job: &Job,
 ) -> Result<CatalogPage> {
-    let path = cache.join("symbols/banners_plain.json");
+    let repository = Repository::configured(cache)?;
+    let path = repository.index_file(cache);
     if !path.is_file() {
         ensure!(network, "离线模式且索引未缓存；按 o 开启在线后刷新索引");
         refresh_index(cache, job)?;
     }
-    let parsed = parsed_index(&path, job)?;
+    let parsed = parsed_index(&repository, &path, job)?;
     let words: Vec<_> = query.split_whitespace().map(str::to_lowercase).collect();
     let release = |banner: &str| {
         banner
@@ -959,14 +1058,14 @@ pub fn download(
     }
     download_checked(m, Some(image), cache, network, job)
 }
-pub fn validate_remote(m: &RemoteMatch) -> Result<()> {
+pub fn validate_remote(repository: &Repository, m: &RemoteMatch) -> Result<()> {
     let expected = if m
         .url
         .starts_with("https://msdl.microsoft.com/download/symbols/")
     {
         crate::windows_symbols::PdbIdentity::from_key(&m.path)?.url()?
     } else {
-        repository_url(&m.path)?
+        repository.url(&m.path)?
     };
     ensure!(expected == m.url, "符号来源 URL 不匹配");
     Ok(())
@@ -976,7 +1075,7 @@ pub fn download_catalog(m: &RemoteMatch, cache: &Path, network: bool, job: &Job)
     if m.url
         .starts_with("https://msdl.microsoft.com/download/symbols/")
     {
-        validate_remote(m)?;
+        validate_remote(&Repository::configured(cache)?, m)?;
         return crate::windows_symbols::acquire(
             &crate::windows_symbols::PdbIdentity::from_key(&m.path)?,
             cache,
@@ -994,8 +1093,8 @@ fn download_checked(
     job: &Job,
 ) -> Result<Isf> {
     ensure!(
-        m.url == repository_url(&m.path)?,
-        "下载链接不属于指定符号仓库"
+        m.url == Repository::configured(cache)?.url(&m.path)?,
+        "下载链接不属于设置中的符号仓库"
     );
     let key = format!("{:x}", Sha256::digest(m.path.as_bytes()));
     let legacy = cache.join("symbols/isf").join(format!("{key}.json.xz"));
@@ -1084,7 +1183,8 @@ pub fn resolve(
     let matches = remote_matches(image, cache, network, job)?;
     ensure!(
         !matches.is_empty(),
-        "仓库没有匹配的完整 banner；请用 y 指定本地 ISF（Kali 6.8.11 ARM64 可用 g 准备）。{REPOSITORY}"
+        "仓库没有匹配的完整 banner；请用 y 指定本地 ISF（Kali 6.8.11 ARM64 可用 g 准备）。{}",
+        Repository::configured(cache)?.web
     );
     matches
         .iter()
@@ -1094,10 +1194,11 @@ pub fn resolve(
 
 pub fn refresh_index(cache: &Path, job: &Job) -> Result<()> {
     let _guard = crate::cache::lock(cache, false)?;
-    job.report("刷新 GitHub 符号索引");
-    let bytes = fetch(&format!("{RAW}banners/banners_plain.json"), job)?;
+    let repository = Repository::configured(cache)?;
+    job.report(format!("刷新符号索引 {}", repository.web));
+    let bytes = fetch(&repository.index_url(), job)?;
     let index: Value = serde_json::from_slice(&bytes)?;
     ensure!(index.is_object(), "banner 索引格式无效");
     job.check()?;
-    crate::store::atomic_write(&cache.join("symbols/banners_plain.json"), &bytes)
+    crate::store::atomic_write(&repository.index_file(cache), &bytes)
 }

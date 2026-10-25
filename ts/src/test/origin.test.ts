@@ -77,7 +77,7 @@ test('partial results name what kind of diagnostics they carry', async () => {
     source: 'fresh',
   };
   await instance.activatePlugin('pslist');
-  assert.match(instance.state.status, /部分（未写入缓存） · 3 条诊断：对象前后矛盾 3（v 查看）/u);
+  assert.match(instance.state.status, /部分 · 3 条诊断：对象前后矛盾 3（v 查看）/u);
 });
 
 test('diagnostics fall into one family each and the modal groups them', () => {

@@ -18,6 +18,7 @@ import type {
   RemoteReply,
   Results,
   Settings,
+  VerifyReply,
 } from './types.js';
 
 export interface TaskEvent {
@@ -66,6 +67,8 @@ export interface Engine {
   dump(args: DumpArgs, progress: TaskProgress): Promise<{ choose?: string[]; result?: Results }>;
   identify(image: string, progress: TaskProgress): Promise<{ banner: Results }>;
   matchLocal(image: string, paths: string[], progress: TaskProgress): Promise<MatchLocalReply>;
+  /** Verify the image content (SHA256) once for this session; analysis reuses it. */
+  verify(image: string, progress: TaskProgress): Promise<VerifyReply>;
   remote(
     args: {
       image?: string | null;

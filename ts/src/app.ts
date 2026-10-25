@@ -55,6 +55,7 @@ import {
   type InputKind,
   type PageTab,
   type PendingWork,
+  type Verified,
   detectedSystem,
   shownSystem,
 } from './state.js';
@@ -108,6 +109,7 @@ import {
   failureStatus,
   formatAddress,
   formatAge,
+  formatDuration,
   mib,
   originLabel,
   parseAddress,
@@ -118,8 +120,11 @@ import {
 /** Remote catalog rows fetched per search; the engine reports the full count. */
 const CATALOG_LIMIT = 500;
 /** Row of the theme entry in the settings dialog. */
+const SETTINGS_REMOTE = 4;
 const SETTINGS_THEME = 5;
-import { THEMES, applyTheme, charWidth, themeOf, truncate, wrapLines } from './text.js';
+const SETTINGS_REPOSITORY = 6;
+const SETTINGS_DIGEST = 7;
+import { THEME_CHOICES, applyTheme, charWidth, themeOf, truncate, wrapLines } from './text.js';
 import { compareValues } from './resultView.js';
 import { assetDetailText, remoteDetailText, helpText, logText, diagnosticsText, rowDetailText } from './detail.js';
 
@@ -314,6 +319,11 @@ export class App {
       return;
     }
     this.update({ preparation: 'matching' });
+    // The content check is a step of its own, done once per session when the
+    // image is chosen, so the first plugin does not pay for it.
+    if (!(await this.verifyImage(this.state.image))) {
+      return;
+    }
     const stamp = this.localStamp();
     if (this.state.localMatchStamp === stamp) {
       this.applyLocalPreparation();
@@ -397,9 +407,46 @@ export class App {
     }
   }
 
+  /** Metadata stamp of a listed image file, so a changed file is verified again. */
+  private imageStamp(path: string): string {
+    return this.state.assets.find((asset) => asset.kind === 'image' && asset.path === path)?.stamp ?? '';
+  }
+
+  /** The image's SHA256 as verified in this session, while the file is unchanged. */
+  verification(path: string | null): Verified | null {
+    const verified = path === null ? undefined : this.state.verified.get(path);
+    return verified !== undefined && path !== null && verified.stamp === this.imageStamp(path) ? verified : null;
+  }
+
+  /**
+   * Verify the image's content once for this backend session. The digest
+   * keys result caches and checks reuse of earlier preparation; analysis then
+   * reuses the verified image. Returns false when cancelled or failed.
+   */
+  async verifyImage(path: string): Promise<boolean> {
+    if (this.verification(path) !== null) {
+      return true;
+    }
+    const stamp = this.imageStamp(path);
+    let verified = false;
+    await this.runTask(
+      '校验镜像 SHA256',
+      (progress) => this.engine.verify(path, progress),
+      (reply) => {
+        // The backend session keeps one prepared image, so only the latest
+        // verification still saves the first plugin its pass.
+        this.state.verified = new Map([[path, { stamp, ...reply }]]);
+        verified = true;
+        this.state.status = verifiedStatus({ stamp, ...reply });
+      },
+    );
+    return verified;
+  }
+
   localStamp(): string {
     const image = this.state.image;
-    const stamp = image === null ? '' : image;
+    // The image's own stamp is part of it: a rewritten file is prepared again.
+    const stamp = image === null ? '' : `${image}@${this.imageStamp(image)}`;
     const symbols = this.state.assets
       .filter(
         (asset) =>
@@ -661,6 +708,8 @@ export class App {
     this.state.choice = null;
     this.resetView();
     this.state.remote = [];
+    this.state.remoteMatches = null;
+    this.state.remoteLoaded = false;
     this.state.remoteTotal = 0;
     this.state.assetRows[2] = 0;
     this.state.assetQueries[2] = '';
@@ -1070,6 +1119,16 @@ export class App {
       return;
     }
     switch (work.kind) {
+      case 'verify': {
+        const image = this.state.image as string;
+        const known = this.verification(image);
+        if (known !== null) {
+          this.update({ status: `${verifiedStatus(known)}（本次会话已校验）` });
+          return;
+        }
+        await this.verifyImage(image);
+        return;
+      }
       case 'identify':
         await this.runTask(
           '识别内核',
@@ -1194,7 +1253,7 @@ export class App {
     };
     this.state.origins.set(analyzed, origin);
     this.state.status = `${analyzed.plugin} · ${analyzed.rows.length} 条 · ${originLabel(origin)} · ${
-      analyzed.complete ? '完整' : '部分（未写入缓存）'
+      analyzed.complete ? '完整' : '部分'
     }${diagnosticStatus(analyzed.diagnostics)}`;
     const execution = this.state.activeRequest;
     const viewing =
@@ -1222,7 +1281,7 @@ export class App {
     matched?: boolean;
     localOnly?: boolean;
   }): Promise<void> {
-    if (options.catalog) {
+    if (options.catalog && !options.localOnly) {
       this.state.remoteCatalog = true;
     }
     this.state.preparationLookup = options.matched === true;
@@ -1241,14 +1300,25 @@ export class App {
           progress,
         ),
       (reply: RemoteReply) => {
-        this.state.remote = reply.matches;
-        this.state.remoteCatalog = reply.catalog;
-        this.state.remoteTotal = reply.total ?? reply.matches.length;
+        // The index and the image's matches are separate lists, so a lookup
+        // never hides the index (and the reverse).
+        if (reply.catalog) {
+          this.state.remote = reply.matches;
+          this.state.remoteTotal = reply.total ?? reply.matches.length;
+        } else {
+          this.state.remoteMatches = reply.matches;
+        }
+        if (!options.localOnly) {
+          this.state.remoteCatalog = reply.catalog;
+        }
         if (reply.index) {
           this.state.remoteIndex = reply.index;
         }
         if (reply.catalog) {
           this.state.remoteLoaded = true;
+        }
+        if (options.localOnly && !this.state.remoteCatalog) {
+          return;
         }
         if (options.localOnly && !reply.index) {
           this.state.status = '尚未获取远程索引；g 获取（需在线，获取后保存在本地，下次直接使用）';
@@ -1403,7 +1473,7 @@ export class App {
             ? '尚未选用镜像；1 资源库选用'
             : '点击或 Enter 运行插件 · / 筛选 · ? 命令面板'
           : page === 'cache'
-            ? 'Space 勾选范围 · x 清理 · Delete 删除条目 · Enter 打开导出记录 · ←→ 切换列表'
+            ? 'Space 勾选范围 · x 清理 · Delete 删除条目 · Enter 打开记录／折叠镜像 · ←→ 切换列表'
             : 'Space 选用 · Enter 选用并进入分析 · ? 命令面板';
     }
     this.state.focus = page === 'analysis' ? 'content' : 'navigation';
@@ -1457,7 +1527,41 @@ export class App {
     }
   }
 
+  /** Show the whole remote index or the selected image's exact matches. */
+  async showRemoteView(catalog: boolean): Promise<void> {
+    this.state.page = 'assets';
+    this.state.section = 'remote';
+    this.state.symbolSource = 'remote';
+    this.state.remoteCatalog = catalog;
+    this.state.assetRows[2] = 0;
+    this.state.assetScroll[2] = 0;
+    if (this.state.busy) {
+      this.emit();
+      return;
+    }
+    if (catalog) {
+      if (!this.state.remoteLoaded && this.state.remote.length === 0) {
+        this.state.remoteLoaded = true;
+        await this.runWork({ kind: 'catalog', query: this.state.assetQueries[2], refresh: false, localOnly: true });
+        return;
+      }
+      this.state.status = `全部索引 · ${this.state.remoteTotal} 项；/ 搜索，z 切换到镜像匹配`;
+    } else if (this.state.image === null) {
+      this.state.status = '镜像匹配需要先选用镜像；z 返回全部索引';
+    } else if (this.state.remoteMatches === null) {
+      await this.runWork({ kind: 'refreshLookup' });
+      return;
+    } else {
+      this.state.status = `镜像匹配 · ${this.state.remoteMatches.length} 项；z 切换到全部索引`;
+    }
+    this.emit();
+  }
+
   toggleMatchFilter(): void {
+    if (this.state.section === 'remote') {
+      void this.showRemoteView(!this.state.remoteCatalog);
+      return;
+    }
     if (this.state.section !== 'symbols') {
       return;
     }
@@ -1796,20 +1900,32 @@ export class App {
     }
     if (this.state.cache.confirm !== 'remove') {
       this.state.cache = { ...this.state.cache, confirm: 'remove' };
-      this.update({
-        status: `再按 Delete 确认删除 ${item.record ? `导出记录 ${shortPlugin(item.record.plugin)}（含本地副本，不删除导出文件）` : item.name} · ${mib(item.bytes)} MiB`,
-      });
+      const what = item.group
+        ? `${item.group.label} 的全部 ${item.group.count} 个分析结果（不触碰镜像文件）`
+        : item.record ? `导出记录 ${shortPlugin(item.record.plugin)}（含本地副本，不删除导出文件）` : item.name;
+      this.update({ status: `再按 Delete 确认删除 ${what} · ${mib(item.bytes)} MiB` });
       return;
     }
     this.state.cache = { ...this.state.cache, confirm: null };
+    const paths = item.group?.paths ?? [item.path];
     await this.runTask(
       '删除缓存条目',
-      (progress) => this.engine.cacheRemove([item.path], progress),
+      (progress) => this.engine.cacheRemove(paths, progress),
       (report) => this.applyCleared(report),
     );
   }
 
   private async openCacheRecord(): Promise<void> {
+    const group = selectedCacheItem(this.state)?.group;
+    if (group) {
+      // Enter folds or unfolds one image's results.
+      const collapsed = group.collapsed
+        ? this.state.cache.collapsed.filter((key) => key !== group.key)
+        : [...this.state.cache.collapsed, group.key];
+      this.state.cache = { ...this.state.cache, collapsed, confirm: null };
+      this.update({ status: `${group.label} · ${group.count} 个结果已${group.collapsed ? '展开' : '折叠'}` });
+      return;
+    }
     const record = selectedCacheItem(this.state)?.record;
     if (!record) {
       return;
@@ -1903,7 +2019,20 @@ export class App {
     }
   }
 
-  async viewAssetPath(path: string, kind: AssetKind): Promise<void> {
+  /**
+   * Clicking the chosen image or symbol name shows its detail. Only when none
+   * is chosen yet does it open the file picker, the one useful thing to do.
+   */
+  async showChosen(kind: AssetKind): Promise<void> {
+    const path = kind === 'image' ? this.state.image : this.state.symbols === '' ? null : this.state.symbols;
+    if (path === null) {
+      await this.openFiles(kind === 'image' ? 'image' : 'symbols');
+      return;
+    }
+    await this.viewAssetPath(path, kind, true);
+  }
+
+  async viewAssetPath(path: string, kind: AssetKind, readOnly = false): Promise<void> {
     const asset =
       this.state.assets.find((candidate) => samePath(candidate.path, path)) ??
       ({
@@ -1919,7 +2048,7 @@ export class App {
         stamp: null,
         source_url: null,
       } satisfies Asset);
-    this.state.dialog = { kind: 'assetDetail', asset, scroll: 0 };
+    this.state.dialog = { kind: 'assetDetail', asset, scroll: 0, readOnly };
     this.emit();
     if (kind === 'symbols' && !this.state.assetDetails.has(path) && !this.state.busy) {
       await this.runWork({ kind: 'inspectSymbols', path });
@@ -2051,6 +2180,9 @@ export class App {
         break;
       case 'identify':
         await this.runWork({ kind: 'identify' });
+        break;
+      case 'verifyImage':
+        await this.runWork({ kind: 'verify' });
         break;
       case 'enterAnalysis':
         this.enterWorkbench();
@@ -2324,16 +2456,22 @@ export class App {
       }
     }
     if (inside(layout.headerSymbol, x, y)) {
-      await this.openFiles('symbols');
+      await this.showChosen('symbols');
       return;
     }
     if (inside(layout.headerImage, x, y)) {
-      await this.openFiles('image');
+      await this.showChosen('image');
       return;
     }
     for (const source of layout.sourceHits) {
       if (inside(source.rect, x, y)) {
         await this.switchSection(source.section);
+        return;
+      }
+    }
+    for (const view of layout.remoteViewHits) {
+      if (inside(view.rect, x, y)) {
+        await this.showRemoteView(view.catalog);
         return;
       }
     }
@@ -2628,9 +2766,9 @@ export class App {
   }
 
   private async cycleTheme(step: -1 | 1): Promise<void> {
-    const current = THEMES.findIndex((theme) => theme.id === themeOf(this.state.settings.theme).id);
-    const next = THEMES[(current + step + THEMES.length) % THEMES.length]!;
-    await this.persistSettings({ ...this.state.settings, theme: next.id });
+    const current = THEME_CHOICES.indexOf(themeOf(this.state.settings.theme).id);
+    const next = THEME_CHOICES[(current + step + THEME_CHOICES.length) % THEME_CHOICES.length]!;
+    await this.persistSettings({ ...this.state.settings, theme: next });
     this.state.status = `界面主题：${themeOf(this.state.settings.theme).label}`;
     this.emit();
   }
@@ -3242,6 +3380,20 @@ export class App {
           case 3:
             this.openInput('pageSize');
             return;
+          case SETTINGS_REPOSITORY:
+            this.openInput('symbolRepository');
+            return;
+          case SETTINGS_DIGEST: {
+            const reuse = !this.state.settings.reuse_recorded_digest;
+            await this.persistSettings({ ...this.state.settings, reuse_recorded_digest: reuse });
+            this.state.dialog = dialog;
+            this.state.status = reuse
+              ? '镜像摘要：文件元数据与内容抽样未变时复用上次摘要（新会话的第一个插件不再完整读取镜像）'
+              : '镜像摘要：每个新会话完整校验（新会话的第一个插件会读取整个镜像）';
+            this.emit();
+            return;
+          }
+          case SETTINGS_REMOTE:
           default: {
             const settings = {
               ...this.state.settings,
@@ -3386,6 +3538,13 @@ export class App {
     if (dialog.kind !== 'assetDetail') {
       return;
     }
+    // Shown from the analysis header: choosing or entering again would reset
+    // the results behind it, so Enter and Space only close it.
+    if (dialog.readOnly && (token === 'Enter' || token === ' ')) {
+      this.state.dialog = null;
+      this.emit();
+      return;
+    }
     if (token === 'Enter') {
       this.state.dialog = null;
       this.enterWorkbench();
@@ -3404,8 +3563,9 @@ export class App {
       return;
     }
     const maximum = Math.max(
-      this.wrapCount(assetDetailText(this.state, dialog.asset), this.state.hits.popup.width - 2) -
-        Math.max(this.state.hits.popup.height - 2, 1),
+      this.wrapCount(assetDetailText(this.state, dialog.asset, dialog.readOnly), this.state.hits.popup.width - 2) -
+        // The bottom row is kept for the close chip.
+        Math.max(this.state.hits.popup.height - 3, 1),
       0,
     );
     this.state.dialog = { ...dialog, scroll: this.scrollAmount(token, dialog.scroll, maximum) };
@@ -3518,6 +3678,29 @@ export class App {
           if (this.state.image) {
             await this.prepareSelectedImage();
           }
+          return;
+        }
+        case 'symbolRepository': {
+          const previous = this.state.settings.symbol_repository;
+          await this.persistSettings({ ...this.state.settings, symbol_repository: value.trim() });
+          if (this.state.settings.symbol_repository === previous) {
+            // Rejected by the engine (the failure is already in the status) or unchanged.
+            if (value.trim() === previous) {
+              this.state.dialog = null;
+            }
+            this.emit();
+            return;
+          }
+          this.state.dialog = null;
+          // The index and matches came from the previous repository.
+          this.hello.repository = this.state.settings.symbol_repository;
+          this.state.remote = [];
+          this.state.remoteMatches = null;
+          this.state.remoteIndex = null;
+          this.state.remoteTotal = 0;
+          this.state.remoteLoaded = false;
+          this.state.assetRows[2] = 0;
+          this.update({ status: `远程符号仓库：${this.state.settings.symbol_repository}；打开“远程索引”读取或按 g 获取它的索引` });
           return;
         }
         case 'pageSize': {
@@ -4136,3 +4319,9 @@ export function dirname(path: string): string {
 }
 
 export { actionOf, assetActions, footerActions, toolbarActions, commandDisabled, pluginMatches, navigationPlugins, menuItems };
+
+/** Status line for a verified image. */
+export function verifiedStatus(verified: Verified): string {
+  const how = verified.computed ? `完整读取 ${formatDuration(verified.seconds)}` : '沿用已校验的摘要';
+  return `镜像已校验 SHA256 ${verified.digest.slice(0, 16)}… · ${how}；本次会话的分析直接使用`;
+}

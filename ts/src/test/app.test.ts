@@ -225,7 +225,9 @@ test('section-specific commands do not apply to other sections', () => {
   assert.equal(commandApplies('download', 'images'), false);
   assert.equal(commandApplies('download', 'remote'), true);
   assert.equal(commandApplies('toggleMatchFilter', 'symbols'), true);
-  assert.equal(commandApplies('toggleMatchFilter', 'remote'), false);
+  // In the remote section `z` switches between the whole index and the image's matches.
+  assert.equal(commandApplies('toggleMatchFilter', 'remote'), true);
+  assert.equal(commandApplies('toggleMatchFilter', 'images'), false);
 });
 
 test('the palette filters by page, focus and query', () => {

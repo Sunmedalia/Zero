@@ -33,6 +33,13 @@ export interface Settings {
   enable_cache: boolean;
   remote_symbols: boolean;
   theme: string;
+  /** GitHub repository of the remote symbol index and ISF downloads. */
+  symbol_repository: string;
+  /**
+   * Reuse the image digest an earlier session recorded while the file's
+   * metadata and content sample are unchanged; off means a full pass per session.
+   */
+  reuse_recorded_digest: boolean;
   resources: {
     page_cache_entries: number;
     scan_cache_bytes: number;
@@ -73,6 +80,16 @@ export interface Asset {
    * identification bound to this file, while its metadata is unchanged.
    */
   identity?: { system: 'linux' | 'windows'; kernels: string[] } | null;
+  /** Images only: the SHA256 the last full verification recorded, while the file is unchanged. */
+  digest?: string | null;
+}
+
+/** The image's content verified for this backend session. */
+export interface VerifyReply {
+  digest: string;
+  /** False when this session had already verified it, or settings reused a recorded digest. */
+  computed: boolean;
+  seconds: number;
 }
 
 export interface RemoteMatch {
@@ -140,6 +157,20 @@ export interface CacheEntry {
   bytes: number;
   /** Modification time, seconds since the Unix epoch. */
   modified: number | null;
+  /** Analysis results only: the header naming the image and plugin. */
+  result?: CacheSummary | null;
+}
+
+/** Header of a cached analysis result. Empty fields mean an entry from before it was recorded. */
+export interface CacheSummary {
+  /** SHA256 of the image content the result was computed from. */
+  image: string;
+  /** Path the image was analysed from. */
+  source: string;
+  plugin: string;
+  complete: boolean;
+  rows: number;
+  diagnostics: number;
 }
 
 /** One recorded export; the engine keeps a verified copy beside it. */

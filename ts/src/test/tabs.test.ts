@@ -175,6 +175,8 @@ test('themes switch from the settings dialog, persist and repaint', async () => 
   assert.equal(frame.canvas.lines()[30]![2]!.style.background, THEMES[1]!.palette.surface);
   await handleKey(instance, '', { leftArrow: true });
   await handleKey(instance, '', { leftArrow: true });
+  assert.equal(engine.settings.theme, 'auto', 'auto comes first in the cycle');
+  await handleKey(instance, '', { leftArrow: true });
   assert.equal(engine.settings.theme, THEMES[THEMES.length - 1]!.id, 'wraps around');
   // Unknown ids from an older or edited settings file fall back to the default.
   assert.equal(applyTheme('missing').id, THEMES[0]!.id);

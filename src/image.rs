@@ -126,6 +126,52 @@ struct Identification {
     /// discovery re-runs the full kernel validation before using one.
     #[serde(default)]
     windows_roots: Vec<(String, u64, u64)>,
+    /// Whether `digest` may stand in for a new full pass: the source had not
+    /// been modified for `SETTLED` when it was recorded, so any later write
+    /// lands on a later timestamp tick and changes `source_stamp`.
+    #[serde(default)]
+    digest_reusable: bool,
+    /// `content_sample` of the prepared file, checked before reusing `digest`.
+    #[serde(default)]
+    sample: String,
+}
+/// How long a source must have been unmodified before its digest may be reused.
+/// Filesystem timestamps come from a coarse clock (ext4: a few ms), so two
+/// writes inside one tick look identical; a settled file cannot hit that.
+const SETTLED: std::time::Duration = std::time::Duration::from_secs(2);
+/// Whether `path` has gone unmodified for `SETTLED`, so a later write must show
+/// up as a different metadata stamp.
+pub fn settled(path: &Path) -> bool {
+    fs::metadata(path)
+        .and_then(|m| m.modified())
+        .ok()
+        .and_then(|t| t.elapsed().ok())
+        .is_some_and(|age| age >= SETTLED)
+}
+/// SHA256 over the size and 16 evenly spaced 64 KiB blocks: about 1 MiB of
+/// reads that must match before a recorded digest is reused.
+fn content_sample(file: &File) -> Result<String> {
+    use std::os::unix::fs::FileExt;
+    const BLOCK: u64 = 64 * 1024;
+    let len = file.metadata()?.len();
+    let mut hash = Sha256::new();
+    hash.update(len.to_le_bytes());
+    let mut buf = vec![0; BLOCK as usize];
+    for index in 0..16u64 {
+        let offset = len.saturating_sub(BLOCK) * index / 15;
+        let n = BLOCK.min(len - offset) as usize;
+        file.read_exact_at(&mut buf[..n], offset)?;
+        hash.update(offset.to_le_bytes());
+        hash.update(&buf[..n]);
+    }
+    Ok(format!("{:x}", hash.finalize()))
+}
+/// What an identification manifest offers beyond banners and signatures.
+struct Reuse {
+    /// Remembered Windows kernel roots (ISF digest, DTB, base); hints only.
+    roots: Vec<(String, u64, u64)>,
+    /// The recorded content digest, when it may replace a full pass.
+    digest: Option<String>,
 }
 /// Needles collected by the digest pass: Linux banners and Windows RSDS
 /// debug records, so identification needs no second pass over the file.
@@ -218,7 +264,7 @@ fn fingerprint(mut reader: impl Read, total: u64, job: &Job) -> Result<(String, 
         if scan.offset - reported >= 64 * 1024 * 1024 {
             reported = scan.offset;
             job.report(format!(
-                "摘要与候选扫描: {} / {} MiB · {}%",
+                "校验镜像 SHA256: {} / {} MiB · {}%",
                 scan.offset / 1048576,
                 total / 1048576,
                 scan.offset.saturating_mul(100) / total.max(1)
@@ -235,7 +281,8 @@ pub struct BoundIdentity {
     pub system: &'static str,
     pub kernels: Vec<String>,
 }
-pub fn bound_identity(path: &Path, cache: &Path) -> Option<BoundIdentity> {
+/// The identification manifest of an image while its metadata is unchanged.
+fn current_manifest(path: &Path, cache: &Path) -> Option<Identification> {
     let source = path.canonicalize().ok()?;
     let identity = format!("{:x}", Sha256::digest(source.to_string_lossy().as_bytes()));
     let manifest = cache
@@ -245,9 +292,17 @@ pub fn bound_identity(path: &Path, cache: &Path) -> Option<BoundIdentity> {
         return None;
     }
     let value: Identification = serde_json::from_slice(&fs::read(manifest).ok()?).ok()?;
-    if value.source_stamp != metadata_stamp(&fs::metadata(&source).ok()?).ok()? {
-        return None;
-    }
+    (value.source_stamp == metadata_stamp(&fs::metadata(&source).ok()?).ok()?).then_some(value)
+}
+/// The SHA256 the last full verification recorded for an image, while the
+/// file's metadata is unchanged. Display only: it is not a fresh check.
+pub fn recorded_digest(path: &Path, cache: &Path) -> Option<String> {
+    current_manifest(path, cache)
+        .map(|value| value.digest)
+        .filter(|digest| digest.len() == 64)
+}
+pub fn bound_identity(path: &Path, cache: &Path) -> Option<BoundIdentity> {
+    let value = current_manifest(path, cache)?;
     let linux: Vec<String> = value
         .banners
         .iter()
@@ -310,82 +365,98 @@ fn physical_hits(image: &Image, file_hits: &[u64], needle: &[u8]) -> Result<Vec<
     Ok(physical)
 }
 impl Image {
+    /// Reopen an image from its identification manifest without reading the
+    /// whole file: the file's metadata stamp (device, inode, size, mtime and
+    /// ctime) must be unchanged and every remembered banner and RSDS record is
+    /// read back. The digest stays empty; `identification` carries the digest
+    /// the manifest recorded. Returns the remembered Windows kernel roots.
+    fn from_manifest(path: &Path, cache: &Path, job: &Job) -> Result<(Self, Reuse)> {
+        job.check()?;
+        let source = path.canonicalize()?;
+        let source_stamp = metadata_stamp(&fs::metadata(&source)?)?;
+        let identity = format!("{:x}", Sha256::digest(source.to_string_lossy().as_bytes()));
+        let manifest = cache
+            .join("identification")
+            .join(format!("{identity}.json"));
+        ensure!(
+            fs::metadata(&manifest)?.len() <= 1024 * 1024,
+            "识别缓存过大"
+        );
+        let value: Identification = serde_json::from_slice(&fs::read(&manifest)?)?;
+        ensure!(value.source_stamp == source_stamp, "镜像识别缓存已过期");
+        let mut magic = [0; 2];
+        File::open(&source)?.read_exact(&mut magic)?;
+        if magic == [0x1f, 0x8b] {
+            ensure!(
+                value.prepared.parent() == Some(cache.canonicalize()?.as_path())
+                    && value.prepared.extension().is_some_and(|s| s == "image")
+                    && value.prepared.file_stem().is_some_and(|s| {
+                        let name = s.to_string_lossy();
+                        name.len() == 64 && name.bytes().all(|b| b.is_ascii_hexdigit())
+                    }),
+                "识别缓存解压路径无效"
+            );
+        } else {
+            ensure!(value.prepared == source, "识别缓存镜像路径不匹配");
+        }
+        let file = File::open(&value.prepared)?;
+        ensure!(
+            metadata_stamp(&file.metadata()?)? == value.prepared_stamp,
+            "识别缓存已过期"
+        );
+        let mut image = Self::from_file_with_job(file, String::new(), job)?;
+        ensure!(value.banners.len() <= 1024, "识别缓存候选过多");
+        let addresses = value.banners.iter().map(|(address, _)| *address).collect();
+        ensure!(
+            image.read_banners(addresses, job)? == value.banners,
+            "缓存 banner 与镜像不一致"
+        );
+        ensure!(
+            image.stamp()? == value.prepared_stamp
+                && metadata_stamp(&fs::metadata(&source)?)? == source_stamp,
+            "镜像在识别过程中发生变化"
+        );
+        job.check()?;
+        let count = value.banners.len();
+        let _ = image.banners.set(value.banners);
+        job.report(format!(
+            "复用持久化 banner 识别：{count} 个候选（banner 已重新读取）"
+        ));
+        // Windows kernel signatures follow the same rule as banners: the
+        // file metadata must be unchanged and every record must re-read to
+        // the same PDB identity. Analysis still verifies the digest.
+        if let Some(records) = value.windows.filter(|records| image.verify_rsds(records)) {
+            job.report(format!(
+                "复用持久化 Windows 内核签名：{} 个（签名已重新读取）",
+                records.len()
+            ));
+            let _ = image.windows.set(
+                records
+                    .into_iter()
+                    .map(|(offset, pdb)| crate::windows_symbols::Candidate { offset, pdb })
+                    .collect(),
+            );
+        }
+        let digest = (value.digest_reusable
+            && value.digest.len() == 64
+            && content_sample(&image.file)? == value.sample)
+            .then(|| value.digest.clone());
+        image.identification = Some((manifest, value.digest));
+        Ok((
+            image,
+            Reuse {
+                roots: value.windows_roots,
+                digest,
+            },
+        ))
+    }
     /// Reuse persisted banners for identification and symbol matching. A cache
-    /// hit has no verified digest; analysis must still use `open`.
+    /// hit has no verified digest of its own.
     pub fn open_identified(path: &Path, cache: &Path, job: &Job) -> Result<Self> {
         job.check()?;
         let guard = crate::cache::lock(cache, false)?;
-        let cached = (|| -> Result<Self> {
-            let source = path.canonicalize()?;
-            let source_stamp = metadata_stamp(&fs::metadata(&source)?)?;
-            let identity = format!("{:x}", Sha256::digest(source.to_string_lossy().as_bytes()));
-            let manifest = cache
-                .join("identification")
-                .join(format!("{identity}.json"));
-            ensure!(
-                fs::metadata(&manifest)?.len() <= 1024 * 1024,
-                "识别缓存过大"
-            );
-            let value: Identification = serde_json::from_slice(&fs::read(&manifest)?)?;
-            ensure!(value.source_stamp == source_stamp, "镜像识别缓存已过期");
-            let mut magic = [0; 2];
-            File::open(&source)?.read_exact(&mut magic)?;
-            if magic == [0x1f, 0x8b] {
-                ensure!(
-                    value.prepared.parent() == Some(cache.canonicalize()?.as_path())
-                        && value.prepared.extension().is_some_and(|s| s == "image")
-                        && value.prepared.file_stem().is_some_and(|s| {
-                            let name = s.to_string_lossy();
-                            name.len() == 64 && name.bytes().all(|b| b.is_ascii_hexdigit())
-                        }),
-                    "识别缓存解压路径无效"
-                );
-            } else {
-                ensure!(value.prepared == source, "识别缓存镜像路径不匹配");
-            }
-            let file = File::open(&value.prepared)?;
-            ensure!(
-                metadata_stamp(&file.metadata()?)? == value.prepared_stamp,
-                "识别缓存已过期"
-            );
-            let mut image = Self::from_file_with_job(file, String::new(), job)?;
-            ensure!(value.banners.len() <= 1024, "识别缓存候选过多");
-            let addresses = value.banners.iter().map(|(address, _)| *address).collect();
-            ensure!(
-                image.read_banners(addresses, job)? == value.banners,
-                "缓存 banner 与镜像不一致"
-            );
-            ensure!(
-                image.stamp()? == value.prepared_stamp
-                    && metadata_stamp(&fs::metadata(&source)?)? == source_stamp,
-                "镜像在识别过程中发生变化"
-            );
-            job.check()?;
-            let count = value.banners.len();
-            let _ = image.banners.set(value.banners);
-            job.report(format!(
-                "复用持久化 banner 识别：{count} 个候选（分析时校验完整摘要／页表）"
-            ));
-            // Windows kernel signatures follow the same rule as banners: the
-            // file metadata must be unchanged and every record must re-read to
-            // the same PDB identity. Analysis still verifies the digest.
-            if let Some(records) = value.windows.filter(|records| image.verify_rsds(records)) {
-                job.report(format!(
-                    "复用持久化 Windows 内核签名：{} 个（签名已重新读取；分析时校验完整摘要）",
-                    records.len()
-                ));
-                let _ = image.windows.set(
-                    records
-                        .into_iter()
-                        .map(|(offset, pdb)| crate::windows_symbols::Candidate { offset, pdb })
-                        .collect(),
-                );
-            }
-            image.identification = Some((manifest, value.digest));
-            Ok(image)
-        })();
-        match cached {
-            Ok(mut image) => {
+        match Self::from_manifest(path, cache, job) {
+            Ok((mut image, _)) => {
                 image._cache_guard = Some(guard);
                 Ok(image)
             }
@@ -396,8 +467,32 @@ impl Image {
             }
         }
     }
+    /// Open an image for analysis with a content digest. Only when settings opt
+    /// in is the digest an earlier session computed reused, and then only while
+    /// the file's metadata stamp and content sample are unchanged.
     pub fn open(path: &Path, cache: &Path, job: &Job) -> Result<Self> {
         let started = std::time::Instant::now();
+        if crate::store::read_settings(cache).reuse_recorded_digest {
+            let guard = crate::cache::lock(cache, false)?;
+            if let Ok((mut image, reuse)) = Self::from_manifest(path, cache, job)
+                && let Some(digest) = reuse.digest
+            {
+                image.digest = digest;
+                image.persisted_roots = reuse
+                    .roots
+                    .into_iter()
+                    .map(|(isf, root, base)| (isf, (root, base)))
+                    .collect();
+                image._cache_guard = Some(guard);
+                job.report(format!(
+                    "复用已记录的内容摘要 {}…（文件元数据与内容抽样一致）· {:.3}s",
+                    &image.digest[..12],
+                    started.elapsed().as_secs_f64()
+                ));
+                return Ok(image);
+            }
+            drop(guard);
+        }
         let source_stamp = metadata_stamp(&fs::metadata(path)?)?;
         let identity = format!(
             "{:x}",
@@ -432,7 +527,8 @@ impl Image {
             }
             previous = Some(value);
         }
-        job.report("计算镜像摘要与识别候选");
+        job.report("校验镜像 SHA256（同一遍读取识别内核签名）");
+        job.mark_prepared();
         let mut magic = [0; 2];
         File::open(path)
             .with_context(|| format!("无法打开镜像 {}", path.display()))?
@@ -556,12 +652,15 @@ impl Image {
                 digest: image.digest.clone(),
                 windows,
                 windows_roots,
+                digest_reusable: settled(path),
+                sample: content_sample(&image.file)?,
             })?,
         )?;
         image.identification = Some((identification, image.digest.clone()));
         let _ = image.banners.set(found);
         job.report(format!(
-            "镜像摘要与候选扫描完成: {count} 个候选 · {:.3}s（待符号／页表验证）",
+            "镜像校验完成：SHA256 {}… · {count} 个内核候选 · {:.3}s（待符号／页表验证）",
+            &image.digest[..12.min(image.digest.len())],
             started.elapsed().as_secs_f64()
         ));
         Ok(image)

@@ -125,7 +125,9 @@ pub fn inventory(root: &Path) -> Result<Vec<Entry>> {
             if !meta.is_file() {
                 continue;
             }
-            let scope = if path == root && digest_name(&name, ".result.json") {
+            let scope = if path == root
+                && (digest_name(&name, ".result.json") || digest_name(&name, ".partial.json"))
+            {
                 Some(Scope::Results)
             } else if path == root
                 && (digest_name(&name, ".image") || digest_name(&name, ".sha256"))
@@ -134,6 +136,13 @@ pub fn inventory(root: &Path) -> Result<Vec<Entry>> {
             } else if relative.starts_with("identification") {
                 Some(Scope::Identification)
             } else if relative == Path::new("symbols/banners_plain.json")
+                || (relative.parent() == Some(Path::new("symbols"))
+                    && name
+                        .strip_prefix("banners_plain-")
+                        .and_then(|rest| rest.strip_suffix(".json"))
+                        .is_some_and(|id| {
+                            id.len() == 16 && id.bytes().all(|b| b.is_ascii_hexdigit())
+                        }))
                 || relative.starts_with("symbols/build")
                 || relative.starts_with("symbols/isf")
             {

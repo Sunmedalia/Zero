@@ -192,7 +192,7 @@ fn debian_extended_full_field_baseline() -> Result<()> {
             plugin.name()
         );
         let key = store::key(&original.image_sha256, "sample", plugin.name());
-        store::save(cache.path(), &key, &result, &job)?;
+        store::save(cache.path(), &key, &store::Owner::default(), &result, &job)?;
         ensure!(
             store::load(cache.path(), &key).is_some() == result.complete,
             "partial result cached"
@@ -337,7 +337,7 @@ fn kali_arm64_all_plugins_full_field_baseline() -> Result<()> {
             );
         }
         let key = store::key(&baseline.image_sha256, symbol_hash, plugin.name());
-        store::save(cache.path(), &key, &result, &job)?;
+        store::save(cache.path(), &key, &store::Owner::default(), &result, &job)?;
         ensure!(
             store::load(cache.path(), &key).is_some() == result.complete,
             "partial cached"

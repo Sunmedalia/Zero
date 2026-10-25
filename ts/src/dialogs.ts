@@ -62,6 +62,7 @@ export function dialogWidth(state: AppState, dialog: Dialog, columns: number): n
       break;
     case 'detail':
     case 'remoteDetail':
+    case 'assetDetail':
       longest = Math.min(Math.max(columns - 6, 30), 90);
       break;
     default:
@@ -96,7 +97,7 @@ export function dialogHeight(state: AppState, dialog: Dialog, rows: number): num
       wanted = 12;
       break;
     case 'settings':
-      wanted = 6;
+      wanted = 8;
       break;
     case 'input':
       wanted = 4;
@@ -107,6 +108,10 @@ export function dialogHeight(state: AppState, dialog: Dialog, rows: number): num
     case 'remoteDetail':
       // Fields, banner, file and link, then a gap and the download chips.
       wanted = 18;
+      break;
+    case 'assetDetail':
+      // File fields, SHA256 and the identified kernels, then the close chip.
+      wanted = 20;
       break;
     case 'dump':
       wanted = 12;
@@ -254,6 +259,8 @@ export function inputText(state: AppState, input: InputKind): string {
       return `${state.settings.export_dir}/${state.plugin}.csv`;
     case 'pageSize':
       return state.settings.page_size === 0 ? 'auto' : String(state.settings.page_size);
+    case 'symbolRepository':
+      return state.settings.symbol_repository;
     case 'imageDirectory':
       return state.settings.image_dir;
     case 'symbolsDirectory':
@@ -299,6 +306,8 @@ export function inputTitle(input: InputKind): string {
       return '导出存放目录';
     case 'pageSize':
       return '每页行数 · auto 自动填满 / 0 / 1–10000';
+    case 'symbolRepository':
+      return '远程符号仓库 · https://github.com/<所有者>/<仓库>[/tree/<分支>]';
   }
 }
 

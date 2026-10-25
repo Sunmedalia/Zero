@@ -22,7 +22,7 @@ export function rowDetailText(state: AppState): string {
 }
 
 /** Text of the asset detail panel and modal. */
-export function assetDetailText(state: AppState, asset: Asset): string {
+export function assetDetailText(state: AppState, asset: Asset, readOnly = false): string {
   const lines = [
     `${escaped(asset.name)}`,
     '',
@@ -32,14 +32,21 @@ export function assetDetailText(state: AppState, asset: Asset): string {
     `来源: ${asset.origin}`,
     `状态: ${asset.available ? '可用' : '文件缺失；重新导入路径'}`,
     '',
-    'Space 选用 · Enter 进入分析控制台 · d 详情 · Delete 移出清单（保留文件）',
+    readOnly ? '当前分析对象 · Esc／Enter 关闭' : 'Space 选用 · Enter 进入分析控制台 · d 详情 · Delete 移出清单（保留文件）',
   ];
   if (asset.kind === 'image') {
     const identity = asset.identity;
+    const verified = state.verified.get(asset.path);
     lines.push(
       '',
+      verified !== undefined && verified.stamp === (asset.stamp ?? '')
+        ? `SHA256: ${verified.digest}（本次会话已校验）`
+        : asset.digest
+          ? `SHA256: ${asset.digest}（上次校验的记录，文件未变；选用时重新校验）`
+          : 'SHA256: 尚未校验（选用时校验）',
+      '',
       identity
-        ? `已识别 ${identity.system === 'linux' ? 'Linux' : 'Windows'} 内核（与此镜像绑定；文件变化后需重新识别，分析时仍校验完整摘要）:`
+        ? `已识别 ${identity.system === 'linux' ? 'Linux' : 'Windows'} 内核（与此镜像绑定；文件变化后需重新识别）:`
         : '尚未识别：首次选用时扫描内核 banner／PDB 签名，结果与此镜像绑定，再次选用无需重新扫描。',
       ...(identity?.kernels.map(escaped) ?? []),
     );
@@ -196,7 +203,7 @@ export function diagnosticsText(current: Results): string {
     return '没有诊断；结果完整。';
   }
   const lines = [
-    `${current.diagnostics.length} 条诊断。表中每一行都来自已读取并通过校验的对象；诊断列出无法读取或前后矛盾、因此没有列出的部分，所以结果标为“部分”，也不写入成功缓存。`,
+    `${current.diagnostics.length} 条诊断。表中每一行都来自已读取并通过校验的对象；诊断列出无法读取或前后矛盾、因此没有列出的部分，所以结果标为“部分”。部分结果连同诊断单独保存在部分结果缓存中，下次直接读取，但不会当作完整结果写入成功缓存。`,
     '',
   ];
   for (const kind of diagnosticCounts(current.diagnostics)) {

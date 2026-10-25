@@ -156,8 +156,76 @@ fn corrupt_and_cyclic_lists_are_partial_uncached() {
     assert!(!r.complete);
     assert!(r.diagnostics[0].contains("链表"));
     let cache = tempfile::tempdir().unwrap();
-    store::save(cache.path(), "test", &r, &Job::default()).unwrap();
+    store::save(
+        cache.path(),
+        "test",
+        &store::Owner::default(),
+        &r,
+        &Job::default(),
+    )
+    .unwrap();
     assert!(store::load(cache.path(), "test").is_none());
+}
+#[test]
+fn cached_results_name_their_image_in_a_header_read_without_the_rows() {
+    let cache = tempfile::tempdir().unwrap();
+    let digest = "ab".repeat(32);
+    let mut result = store::Results {
+        plugin: "linux.pslist".into(),
+        columns: vec!["PID".into()],
+        // A row that looks like a header field cannot end the header early.
+        rows: vec![vec![r#","result":{}"#.into()], vec!["2".into()]],
+        complete: false,
+        diagnostics: vec!["链表 @ 0x1000".into()],
+        banner: String::new(),
+        symbol: String::new(),
+        page_table: 0,
+        historical: false,
+        system: "linux".into(),
+        kernel_identity: serde_json::Value::Null,
+    };
+    let owner = store::Owner::new(
+        &digest,
+        std::path::Path::new("/evidence/a \"quoted\" ,\"result\": name.raw"),
+    );
+    store::save_any(cache.path(), "k", &owner, &result, &Job::default()).unwrap();
+    let summary = store::summary(&cache.path().join("k.partial.json")).unwrap();
+    assert_eq!(summary.image, digest);
+    assert_eq!(summary.source, owner.source);
+    assert_eq!(
+        (
+            summary.plugin.as_str(),
+            summary.complete,
+            summary.rows,
+            summary.diagnostics
+        ),
+        ("linux.pslist", false, 2, 1)
+    );
+    assert_eq!(store::load_partial(cache.path(), "k").unwrap(), result);
+    result.complete = true;
+    store::save_any(cache.path(), "k", &owner, &result, &Job::default()).unwrap();
+    assert!(
+        store::summary(&cache.path().join("k.result.json"))
+            .unwrap()
+            .complete
+    );
+    // An entry written before the header was recorded reads with no image.
+    // Its fields came in this order: version, key, result.
+    let old = cache.path().join("old.result.json");
+    fs::write(
+        &old,
+        format!(
+            r#"{{"version":{},"key":"old","result":{}}}"#,
+            serde_json::to_string(zero_tui::ENGINE_VERSION).unwrap(),
+            serde_json::to_string(&result).unwrap()
+        ),
+    )
+    .unwrap();
+    assert_eq!(store::summary(&old).unwrap(), store::Summary::default());
+    // A cache hit names its image on such an entry, leaving the result as it was.
+    store::adopt(cache.path(), "old", &owner, &result, &Job::default());
+    assert_eq!(store::summary(&old).unwrap().image, digest);
+    assert_eq!(store::load(cache.path(), "old").unwrap(), result);
 }
 #[test]
 fn full_banner_match_and_mismatch() -> Result<()> {
@@ -229,7 +297,13 @@ fn cache_key_invalidation_and_filtered_export() -> Result<()> {
     .run(Plugin::Pslist, &Job::default())?;
     let dir = tempfile::tempdir()?;
     let key = store::key("a", "s", "pslist");
-    store::save(dir.path(), &key, &r, &Job::default())?;
+    store::save(
+        dir.path(),
+        &key,
+        &store::Owner::default(),
+        &r,
+        &Job::default(),
+    )?;
     assert_eq!(store::load(dir.path(), &key), Some(r.clone()));
     let path = dir.path().join("filtered.csv");
     store::export(&path, &r, r.filtered("CHILD"))?;
@@ -536,6 +610,12 @@ fn session_reuses_preparation_and_invalidates_changes() -> Result<()> {
     let path = dir.path().join("image.raw");
     let symbols = dir.path().join("symbols.json");
     fs::write(&path, &b)?;
+    // Evidence on disk has long settled; a just-written image is prepared
+    // again on each request until it has (see `image::settled`).
+    fs::File::options()
+        .write(true)
+        .open(&path)?
+        .set_modified(std::time::SystemTime::now() - std::time::Duration::from_secs(60))?;
     fs::write(&symbols, serde_json::to_vec(&isf.data)?)?;
     let progress = Arc::new(std::sync::Mutex::new(Vec::<String>::new()));
     let sink = progress.clone();
@@ -565,7 +645,7 @@ fn session_reuses_preparation_and_invalidates_changes() -> Result<()> {
             .lock()
             .unwrap()
             .iter()
-            .any(|s| s.starts_with("计算镜像") || s.starts_with("扫描 banner"))
+            .any(|s| s.starts_with("校验镜像 SHA256") || s.starts_with("扫描 banner"))
     );
     b[0x8320] = b'Z';
     fs::write(&path, &b)?;
@@ -579,7 +659,7 @@ fn session_reuses_preparation_and_invalidates_changes() -> Result<()> {
             .lock()
             .unwrap()
             .iter()
-            .any(|s| s.starts_with("计算镜像"))
+            .any(|s| s.starts_with("校验镜像 SHA256"))
     );
     isf.data["metadata"] = json!({"changed":true});
     fs::write(&symbols, serde_json::to_vec(&isf.data)?)?;
@@ -651,7 +731,7 @@ fn fused_identification_cache_is_only_a_hint_and_crosses_boundaries() -> Result<
             .lock()
             .unwrap()
             .iter()
-            .any(|s| s.starts_with("计算镜像摘要"))
+            .any(|s| s.starts_with("校验镜像 SHA256"))
     );
     // Same length and a forged matching metadata stamp cannot bypass the hash.
     data[offset + 14] = b'X';
@@ -735,7 +815,7 @@ fn persistent_banner_identification_skips_scanning_but_analysis_verifies_digest(
             .lock()
             .unwrap()
             .iter()
-            .any(|s| s.contains("摘要与候选扫描") || s.starts_with("计算镜像"))
+            .any(|s| s.starts_with("校验镜像 SHA256"))
     );
     let identified = session.identify_image(&path, &cache, &job)?;
     assert!(identified.digest.is_empty());
@@ -753,7 +833,7 @@ fn persistent_banner_identification_skips_scanning_but_analysis_verifies_digest(
             .lock()
             .unwrap()
             .iter()
-            .any(|s| s.starts_with("计算镜像摘要"))
+            .any(|s| s.starts_with("校验镜像 SHA256"))
     );
     assert!(
         !session
@@ -769,7 +849,7 @@ fn persistent_banner_identification_skips_scanning_but_analysis_verifies_digest(
             .lock()
             .unwrap()
             .iter()
-            .any(|s| s.starts_with("计算镜像摘要"))
+            .any(|s| s.starts_with("校验镜像 SHA256"))
     );
     Ok(())
 }
@@ -1828,14 +1908,122 @@ fn mcp_partial_snapshot_keeps_diagnostics_and_rejects_legacy_offset() -> Result<
     assert_eq!(first["diagnostics"], next["diagnostics"]);
     assert_eq!(first["rows"], next["rows"]);
     assert!(!first["diagnostics"].as_array().unwrap().is_empty());
-    assert!(
-        zero_tui::cache::inventory(&dir.path().join(".zero/rust"))?
-            .iter()
-            .all(|e| !matches!(e.scope, zero_tui::cache::Scope::Results))
-    );
+    // The partial result is kept in the partial cache only, never as a success.
+    let results: Vec<_> = zero_tui::cache::inventory(&dir.path().join(".zero/rust"))?
+        .into_iter()
+        .filter(|e| matches!(e.scope, zero_tui::cache::Scope::Results))
+        .map(|e| e.path.file_name().unwrap().to_string_lossy().into_owned())
+        .collect();
+    assert_eq!(results.len(), 1, "{results:?}");
+    assert!(results[0].ends_with(".partial.json"), "{results:?}");
     assert!(
         replies[2]["result"]["isError"] == true && replies[2].to_string().contains("zero_results")
     );
     assert_eq!(replies[3]["result"]["isError"], true);
+    Ok(())
+}
+
+#[test]
+fn a_configured_symbol_repository_has_its_own_urls_index_and_download_check() -> Result<()> {
+    use zero_tui::symbols::{self, Repository};
+    // Only GitHub repositories, with an optional branch.
+    let custom = Repository::parse("https://github.com/me/my-symbols/tree/main/")?;
+    assert_eq!(custom.web, "https://github.com/me/my-symbols");
+    assert_eq!(
+        custom.url("Debian/amd64/a.json.xz")?,
+        "https://raw.githubusercontent.com/me/my-symbols/main/Debian/amd64/a.json.xz"
+    );
+    assert_eq!(
+        custom.url("releases/download/t/a.json.xz")?,
+        "https://github.com/me/my-symbols/releases/download/t/a.json.xz"
+    );
+    assert_eq!(
+        Repository::parse("https://github.com/me/my-symbols.git")?.url("a/b.json.xz")?,
+        "https://raw.githubusercontent.com/me/my-symbols/master/a/b.json.xz"
+    );
+    for rejected in [
+        "http://github.com/me/r",
+        "https://gitlab.com/me/r",
+        "https://github.com/me",
+        "https://github.com/me/r/blob/main",
+        "https://github.com/../r",
+        "https://github.com/me/r/tree/a/../b",
+        "https://github.com/me/r?x=1",
+    ] {
+        assert!(Repository::parse(rejected).is_err(), "{rejected}");
+    }
+    // Release assets are normalized only for the repository that owns them.
+    let theirs =
+        "https://github.com/Abyss-W4tcher/volatility3-symbols/releases/download/t/a.json.xz";
+    assert!(custom.index_path(theirs).is_err());
+    assert_eq!(
+        custom.index_path("https://github.com/me/my-symbols/releases/download/t/a.json.xz")?,
+        "releases/download/t/a.json.xz"
+    );
+
+    // Each repository keeps its own saved index; the default keeps the old name.
+    let dir = tempfile::tempdir()?;
+    let default = Repository::default_repository();
+    assert_eq!(
+        default.index_file(dir.path()),
+        dir.path().join("symbols/banners_plain.json")
+    );
+    assert_ne!(
+        custom.index_file(dir.path()),
+        default.index_file(dir.path())
+    );
+
+    let mut settings = store::settings(dir.path())?;
+    assert_eq!(settings.symbol_repository, symbols::REPOSITORY);
+    settings.symbol_repository = "https://example.com/me/r".into();
+    assert!(store::save_settings(dir.path(), &settings).is_err());
+    settings.symbol_repository = "https://github.com/me/my-symbols/tree/main".into();
+    store::save_settings(dir.path(), &settings)?;
+    assert_eq!(Repository::configured(dir.path())?, custom);
+
+    // The catalog reads the configured repository's index, never the default one.
+    store::atomic_write(
+        &default.index_file(dir.path()),
+        &serde_json::to_vec(
+            &json!({"Linux version 1.0.0 (default)": ["Debian/amd64/default.json.xz"]}),
+        )?,
+    )?;
+    assert!(
+        symbols::catalog(dir.path(), "", 10, false, &Job::default()).is_err(),
+        "offline without its own index"
+    );
+    store::atomic_write(
+        &custom.index_file(dir.path()),
+        &serde_json::to_vec(&json!({"Linux version 2.0.0 (mine)": ["Debian/amd64/mine.json.xz"]}))?,
+    )?;
+    let page = symbols::catalog(dir.path(), "", 10, false, &Job::default())?;
+    assert_eq!(page.matches.len(), 1);
+    assert_eq!(
+        page.matches[0].url,
+        "https://raw.githubusercontent.com/me/my-symbols/main/Debian/amd64/mine.json.xz"
+    );
+    // A download link from another repository is refused before any request.
+    let foreign = symbols::RemoteMatch {
+        banner: "Linux version 1.0.0 (default)".into(),
+        path: "Debian/amd64/default.json.xz".into(),
+        url: symbols::repository_url("Debian/amd64/default.json.xz")?,
+    };
+    let refused = symbols::download_catalog(&foreign, dir.path(), false, &Job::default())
+        .err()
+        .map(|e| e.to_string())
+        .unwrap_or_default();
+    assert!(refused.contains("不属于设置中的符号仓库"), "{refused}");
+    // Both index files are listed (and cleared) with the symbol cache.
+    let inventory = zero_tui::cache::inventory(dir.path())?;
+    for file in [
+        default.index_file(dir.path()),
+        custom.index_file(dir.path()),
+    ] {
+        assert!(
+            inventory
+                .iter()
+                .any(|e| e.path == file && e.scope == zero_tui::cache::Scope::Symbols)
+        );
+    }
     Ok(())
 }

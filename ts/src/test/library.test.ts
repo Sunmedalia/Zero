@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { app, asset } from './harness.js';
-import { renderFrame } from '../views/root.js';
+import { handleKey, renderFrame } from '../views/root.js';
+import { remoteList, settingsLabels } from '../state.js';
 import { identityLabel, imageLines } from '../assetView.js';
 import { assetDetailText, remoteDetailText, remoteFields } from '../detail.js';
 import type { RemoteMatch, RemoteReply } from '../types.js';
@@ -100,4 +101,84 @@ test('the image detail says whether identification is bound to the file', async 
   assert.match(assetDetailText(instance.state, asset()), /尚未识别：首次选用时扫描/u);
   const bound = asset({ identity: { system: 'windows', kernels: ['Windows PDB ntkrnlmp.pdb/AAAA1'] } });
   assert.match(assetDetailText(instance.state, bound), /已识别 Windows 内核（与此镜像绑定.*\nWindows PDB ntkrnlmp\.pdb\/AAAA1/u);
+});
+
+const MATCHED: RemoteMatch = {
+  banner: 'Linux version 3.2.0-4-amd64 (debian-kernel@lists.debian.org) (gcc version 4.6.3) #1 SMP Debian 3.2.57-3+deb7u2',
+  path: 'Debian/amd64/3.2.0/4/Debian_3.2.0-4-amd64_3.2.57-3+deb7u2_amd64.json.xz',
+  url: 'https://raw.githubusercontent.com/Abyss-W4tcher/volatility3-symbols/master/Debian/amd64/3.2.0/4/Debian_3.2.0-4-amd64_3.2.57-3%2Bdeb7u2_amd64.json.xz',
+};
+
+test('an exact lookup for the image no longer hides the whole index', async () => {
+  const { app: instance, engine } = await app({ page: 'assets', launch: { image: '/evidence/memory.raw' } });
+  instance.resize(120, 32);
+  engine.remoteReply = SAVED;
+  engine.lookupReply = { matches: [MATCHED], catalog: false };
+  await instance.switchSection('remote');
+  assert.deepEqual(remoteList(instance.state), [UBUNTU]);
+  // The lookup that used to replace the list now fills its own view.
+  await instance.runWork({ kind: 'refreshLookup' });
+  assert.equal(instance.state.remoteCatalog, false);
+  assert.deepEqual(remoteList(instance.state), [MATCHED]);
+  let frame = renderFrame(instance, 120, 32);
+  assert.match(text(frame).split('\n')[2] ?? '', /远程索引 +│ +全部索引 1 +镜像匹配 1/u);
+  // The index is still there: click its view, or press z.
+  const all = frame.layout.remoteViewHits.find((view) => view.catalog)!;
+  await instance.click(all.rect.x, all.rect.y);
+  assert.deepEqual(remoteList(instance.state), [UBUNTU]);
+  await handleKey(instance, 'z', {});
+  assert.deepEqual(remoteList(instance.state), [MATCHED]);
+  frame = renderFrame(instance, 120, 32);
+  assert.ok(frame.layout.remoteViewHits.some((view) => !view.catalog && view.label.includes('镜像匹配 1')));
+  // Looking up again leaves the index list untouched.
+  assert.deepEqual(instance.state.remote, [UBUNTU]);
+});
+
+test('the matches view asks for an image first and looks up only once', async () => {
+  const { app: instance, engine } = await app({ page: 'assets' });
+  engine.remoteReply = SAVED;
+  await instance.switchSection('remote');
+  await instance.showRemoteView(false);
+  assert.match(instance.state.status, /镜像匹配需要先选用镜像/u);
+  assert.deepEqual(remoteList(instance.state), []);
+});
+
+test('the symbol repository and digest reuse are edited from settings', async () => {
+  const { app: instance, engine } = await app({ page: 'assets' });
+  instance.resize(120, 35);
+  await handleKey(instance, ',', {});
+  const rows = settingsLabels(instance.state);
+  assert.match(rows[6] ?? '', /^远程符号仓库: https:\/\/github\.com\/Abyss-W4tcher\/volatility3-symbols/u);
+  assert.match(rows[7] ?? '', /^镜像摘要: 每个新会话完整校验/u);
+  for (let index = 0; index < 7; index += 1) {
+    await handleKey(instance, '', { downArrow: true });
+  }
+  await handleKey(instance, '', { return: true });
+  assert.equal(engine.settings.reuse_recorded_digest, true);
+  assert.equal(instance.state.dialog?.kind, 'settings', 'the dialog stays open');
+  assert.match(settingsLabels(instance.state)[7] ?? '', /文件未变时复用上次摘要/u);
+  await handleKey(instance, '', { upArrow: true });
+  await handleKey(instance, '', { return: true });
+  assert.equal(instance.state.dialog?.kind, 'input');
+  // Read through a function: assertions narrow `instance.state.dialog` otherwise.
+  const dialogKind = () => instance.state.dialog?.kind;
+  const typeInto = (value: string) => {
+    const dialog = instance.state.dialog;
+    assert.ok(dialog?.kind === 'input');
+    instance.state.dialog = { ...dialog, text: value };
+  };
+  // An unaccepted address keeps the dialog and the old repository.
+  typeInto('https://gitlab.com/me/r');
+  await handleKey(instance, '', { return: true });
+  assert.equal(engine.settings.symbol_repository, 'https://github.com/Abyss-W4tcher/volatility3-symbols');
+  assert.equal(dialogKind(), 'input');
+  // A new repository drops the index and matches of the previous one.
+  instance.state.remote = [UBUNTU];
+  typeInto('https://github.com/me/my-symbols');
+  await handleKey(instance, '', { return: true });
+  assert.equal(engine.settings.symbol_repository, 'https://github.com/me/my-symbols');
+  assert.equal(instance.state.dialog, null);
+  assert.deepEqual(instance.state.remote, []);
+  assert.equal(instance.state.remoteLoaded, false);
+  assert.match(instance.state.status, /远程符号仓库：https:\/\/github\.com\/me\/my-symbols/u);
 });

@@ -33,6 +33,7 @@ export type Command =
   | 'matchLocal'
   | 'matchRemote'
   | 'identify'
+  | 'verifyImage'
   // Resource library
   | 'importCurrent'
   | 'select'
@@ -97,6 +98,7 @@ export const KEYS = {
   matchLocal: 'm',
   matchRemote: 'M',
   identify: 'b',
+  verifyImage: 'V',
   importCurrent: 'a',
   select: ' ',
   selectAndEnter: 'Enter',
@@ -214,6 +216,8 @@ export function keywords(command: Command): string {
       return 'match remote pdb download';
     case 'identify':
       return 'identify banner kernel';
+    case 'verifyImage':
+      return 'verify image sha256 digest hash checksum';
     case 'importCurrent':
       return 'import asset';
     case 'select':
@@ -315,6 +319,7 @@ export const ACTIONS: Action[] = [
     ...action('identify', '识别内核候选 b', 'b', 'anywhere', PALETTE | FOOTER),
     footerFocus: CONTEXT_FOCUS,
   },
+  action('verifyImage', '校验镜像 SHA256 V', 'V', 'anywhere', PALETTE),
   // Resource library actions.
   action('importCurrent', '导入当前资产 a', 'a', 'assets', PALETTE | TOOLBAR),
   action('select', '选用 Space', ' ', 'assets', PALETTE | TOOLBAR),
@@ -330,7 +335,7 @@ export const ACTIONS: Action[] = [
   { ...action('download', '仅下载 w', 'w', 'assets', PALETTE | TOOLBAR), sections: REMOTE },
   {
     ...action('toggleMatchFilter', '全部／匹配 z', 'z', 'assets', PALETTE | TOOLBAR),
-    sections: SYMBOLS,
+    sections: SYMBOLS | REMOTE,
   },
   // Analysis actions.
   {
@@ -384,7 +389,7 @@ export const ACTIONS: Action[] = [
   action('cacheToggle', '勾选范围 Space', ' ', 'cache', PALETTE | TOOLBAR),
   action('cacheClear', '清理已勾选 x', 'x', 'cache', PALETTE | TOOLBAR),
   action('cacheRemove', '删除条目 Delete', 'Delete', 'cache', PALETTE | TOOLBAR),
-  action('cacheOpen', '打开导出记录 Enter', 'Enter', 'cache', PALETTE | TOOLBAR),
+  action('cacheOpen', '打开记录／折叠 Enter', 'Enter', 'cache', PALETTE | TOOLBAR),
   action('cacheRefresh', '刷新 r', 'r', 'cache', PALETTE | TOOLBAR),
 ];
 
@@ -586,6 +591,8 @@ export function commandForKey(page: Page, key: KeyCode): Command | null {
       return 'matchRemote';
     case 'b':
       return 'identify';
+    case 'V':
+      return 'verifyImage';
     default:
       break;
   }

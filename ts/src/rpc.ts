@@ -20,6 +20,7 @@ import type {
   RemoteReply,
   Results,
   Settings,
+  VerifyReply,
 } from './types.js';
 import type { AnalyzeArgs, DumpArgs, Engine, TaskEvent, TaskProgress } from './engine.js';
 
@@ -272,6 +273,10 @@ export class RpcEngine implements Engine {
 
   matchLocal(image: string, paths: string[], progress: TaskProgress): Promise<MatchLocalReply> {
     return this.task('matchLocal', { image, paths }, progress);
+  }
+
+  verify(image: string, progress: TaskProgress): Promise<VerifyReply> {
+    return this.task('verify', { image }, progress);
   }
 
   remote(

@@ -25,6 +25,7 @@ import type {
   RemoteReply,
   Results,
   Settings,
+  VerifyReply,
 } from '../types.js';
 
 export const BANNER = 'Linux version 3.2.0-4-amd64 (debian-kernel@lists.debian.org) (gcc version 4.6.3) #1 SMP Debian 3.2.57-3+deb7u2';
@@ -89,6 +90,8 @@ export function hello(settings: Partial<Settings> = {}): Hello {
       enable_cache: true,
       remote_symbols: false,
       theme: 'slate',
+      symbol_repository: 'https://github.com/Abyss-W4tcher/volatility3-symbols',
+      reuse_recorded_digest: false,
       resources: {
         page_cache_entries: 65536,
         scan_cache_bytes: 67108864,
@@ -198,12 +201,16 @@ export function launch(overrides: Partial<LaunchOptions> = {}): LaunchOptions {
 export class MemoryEngine implements Engine {
   busy = false;
   assetsList: Asset[] = [];
+  verifyCalls: string[] = [];
+  verifyReply: VerifyReply = { digest: 'ab'.repeat(32), computed: true, seconds: 21.5 };
   matchReply: MatchLocalReply = {
     banner: bannerResults(),
     matched: [],
     diagnostics: [],
   };
   remoteReply: RemoteReply = { matches: [], catalog: false };
+  /** Reply to an exact lookup for the image; `null` answers with `remoteReply`. */
+  lookupReply: RemoteReply | null = null;
   remoteCalls: { query?: string; catalog?: boolean; limit?: number; refresh?: boolean; local_only?: boolean }[] = [];
   cacheEntries: CacheEntry[] = [];
   cacheRecords: ExportRecord[] = [];
@@ -245,6 +252,10 @@ export class MemoryEngine implements Engine {
   }
 
   saveSettings(settings: Settings): Promise<Settings> {
+    // Mirror the engine: only GitHub repositories are accepted.
+    if (!settings.symbol_repository.startsWith('https://github.com/')) {
+      return Promise.reject(new Error('符号仓库必须是 https://github.com/<所有者>/<仓库> 形式'));
+    }
     this.settings = settings;
     return Promise.resolve(settings);
   }
@@ -280,9 +291,15 @@ export class MemoryEngine implements Engine {
     return Promise.resolve(this.matchReply);
   }
 
+  verify(image: string, progress: TaskProgress): Promise<VerifyReply> {
+    this.verifyCalls.push(image);
+    progress({ message: '校验镜像 SHA256: 0 / 4096 MiB · 0%' });
+    return Promise.resolve(this.verifyReply);
+  }
+
   remote(args: { query?: string; catalog?: boolean; limit?: number; refresh?: boolean; local_only?: boolean }): Promise<RemoteReply> {
     this.remoteCalls.push(args);
-    return Promise.resolve(this.remoteReply);
+    return Promise.resolve(args.catalog || this.lookupReply === null ? this.remoteReply : this.lookupReply);
   }
 
   download(): Promise<{ path: string }> {

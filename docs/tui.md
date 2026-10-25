@@ -44,11 +44,13 @@ zero                       # Rust 可执行文件
 | 类别 | 方法 |
 | --- | --- |
 | 同步查询 | `hello`、`assets`、`browse`、`cache.inventory`、`settings.get`、`settings.save`、`history.list`、`symbols.cached`、`registry.select`、`registry.register`、`registry.remove`、`registry.selected`、`session.reset`、`ping` |
-| 任务 | `analyze`、`dump`、`identify`、`matchLocal`、`remote`、`download`、`generate`、`inspectSymbols`、`cacheClear`、`cacheRemove`、`record`、`export`、`history` |
+| 任务 | `verify`、`analyze`、`dump`、`identify`、`matchLocal`、`remote`、`download`、`generate`、`inspectSymbols`、`cacheClear`、`cacheRemove`、`record`、`export`、`history` |
 
-`cache.inventory` 返回 `entries`（含 `modified`）和 `records`（导出记录，最新在前）。`cacheRemove` 只接受清单中的路径，删除导出记录时连同副本一起删除。`record` 按记录键从已校验副本重新打开导出。`export` 的回复包含 `record`，记录失败时为 `record_error`，导出本身仍然成功。目录模式的 `remote` 接受 `limit`（默认 500），回复包含 `total` 和 `index`（`banners`、`entries`、`bytes`、`age_seconds`）。
+`verify` 为本次会话校验镜像内容（SHA256），回复 `digest`、`computed`（false 表示本会话已校验过，或设置允许复用上次记录）与 `seconds`；它把校验过的镜像留在会话中，之后的 `analyze` 直接使用。界面在选用镜像时先调用它，再做 `matchLocal`，所以插件请求不再承担整镜像读取。`assets` 中镜像条目的 `digest` 是上次完整校验记录的摘要（文件元数据未变时），只用于显示。
 
-`analyze` 与 `dump` 接受与 CLI 相同的 `options`（`os`、`arch`、`pid`、`hive`、`key`、`pagefiles`、`swapfile`）。内核地址超出 JSON 安全整数范围，`hive`、`start`、`end` 以十进制字符串传输，后端也接受整数。部分结果保留 `complete: false` 和全部诊断，不写入成功缓存。`analyze` 的回复带 `source`：`fresh` 表示本次运行了分析，`cache` 表示读取了成功结果缓存（`no_cache: true` 时始终是 `fresh`）；`prepared: true` 表示这次请求包含新打开镜像的内容摘要校验；界面据此在结果底边显示来源和请求用时。
+`cache.inventory` 返回 `entries`（含 `modified`；分析结果另带 `result`：所属镜像 SHA256 `image`、分析路径 `source`、`plugin`、`complete`、`rows`、`diagnostics`，旧版条目为空值）和 `records`（导出记录，最新在前）。结果文件把这些字段写在行数据之前，清单只读文件开头 64 KiB；界面按 `image` 把结果分组，并用资产的 `digest` 找到镜像名称。`cacheRemove` 只接受清单中的路径，删除导出记录时连同副本一起删除。`record` 按记录键从已校验副本重新打开导出。`export` 的回复包含 `record`，记录失败时为 `record_error`，导出本身仍然成功。目录模式的 `remote` 接受 `limit`（默认 500），回复包含 `total` 和 `index`（`banners`、`entries`、`bytes`、`age_seconds`）。
+
+`analyze` 与 `dump` 接受与 CLI 相同的 `options`（`os`、`arch`、`pid`、`hive`、`key`、`pagefiles`、`swapfile`）。内核地址超出 JSON 安全整数范围，`hive`、`start`、`end` 以十进制字符串传输，后端也接受整数。部分结果保留 `complete: false` 和全部诊断，保存在单独的部分结果缓存（`<键>.partial.json`），不写入成功缓存。`analyze` 的回复带 `source`：`fresh` 表示本次运行了分析，`cache` 表示读取了成功结果缓存或部分结果缓存（`no_cache: true` 时始终是 `fresh`）；`prepared: true` 表示这次请求包含新打开镜像的内容摘要校验（镜像已经 `verify` 过时为 false）；界面据此在结果底边显示来源和请求用时。
 
 ## 目录布局
 
@@ -126,7 +128,7 @@ npm run typecheck # tsc --noEmit
 - 顶部三个页面标签、系统选择（Linux／Windows；自动识别时高亮识别出的系统）
 - 结果表标题行上的已打开页面标签（点击切换，`×` 或中键关闭，`‹n`／`n›` 跳到被隐藏的相邻标签）
 - 资源库来源标签、当前页面的列表条目（包括换行区域）、搜索框
-- 页头的镜像／符号行（打开对应选择器）
+- 页头的镜像／符号名称（打开其详情；尚未选用时打开对应选择器）
 - 底部工具栏的每个按钮
 - 分析页的插件菜单每一行、结果表每一行、表头（点击排序）、搜索框
 - 对话框的每一行与每个按钮；点击模态外部不穿透到页面
@@ -139,7 +141,7 @@ npm run typecheck # tsc --noEmit
 
 打开的插件结果和导出记录以浏览器式标签画在结果表的上边框，取代原来的标题（`state.openTabs`，矩形为 `layout.pageTabs`）；当前标签高亮并带完整／部分／历史状态，标签之间露出边框线。用户打开插件（`activatePlugin`）或得到结果时加入标签，静默的默认选择不开标签；同一插件只占一个标签，导出记录按来源（记录键或文件路径）去重。从未显示过内容的插件标签会被下一个打开的插件原位复用。标题先按共同宽度收缩（18 到 6 列），仍放不下时只显示活动标签周围的一段，两端显示隐藏数量。关闭标签会丢弃其内存结果（再次打开读取成功缓存或重新运行），内核 banner 列表作为识别状态保留；关闭当前标签时切到右侧相邻标签，没有右侧时切到左侧。正在运行的插件标签需先取消。更换镜像或符号来源后，旧插件标签随结果一起清除，导出记录标签保留。键盘：Ctrl+PgUp／Ctrl+PgDn 切换，Ctrl+W 关闭。
 
-主题定义在 `text.ts` 的 `THEMES`（石板、纸白、Solarized、荧光绿、高对比），颜色常量是 ES 模块的实时绑定，`applyTheme` 重新赋值后下一帧生效。画布写入未指定背景的文字时沿用下方已绘制的背景，所以浅色主题不会露出终端默认背景。主题 id 保存在设置的 `theme` 字段；未知 id 回退到默认主题。
+主题定义在 `text.ts` 的 `THEMES`（石板、纸白、Solarized、荧光绿、高对比），颜色常量是 ES 模块的实时绑定，`applyTheme` 重新赋值后下一帧生效。画布写入未指定背景的文字时沿用下方已绘制的背景，所以浅色主题不会露出终端默认背景。主题 id 保存在设置的 `theme` 字段；未知 id 回退到默认主题。`auto` 不是独立配色：`main.ts` 在 Ink 接管 stdin 之前发送 OSC 11 查询（随后发 DA1 查询，收到 DA1 回复即结束，最长等 1 秒；迟到的回复由 `root.tsx` 识别并丢弃，不会当作按键），没有回复时读 `COLORFGBG`，`themeOf('auto')` 据此解析为纸白或石板（`terminalTheme.ts`）。
 
 ## 已知边界
 

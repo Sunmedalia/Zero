@@ -460,6 +460,26 @@ fn run_task(
                 .identify_image(&context.expand(&args.image), &context.cache, job)?;
             Ok(json!({"banner": results_json(&linux::banner_result(&image, job)?)}))
         }
+        // Verify the image's content (SHA256) once for this session. Analysis
+        // reuses the verified image, so the first plugin does not pay for it.
+        "verify" => {
+            #[derive(Deserialize)]
+            #[serde(deny_unknown_fields)]
+            struct Args {
+                image: PathBuf,
+            }
+            let args: Args = serde_json::from_value(payload)?;
+            let started = std::time::Instant::now();
+            let image = session
+                .lock()
+                .map_err(|_| anyhow::anyhow!("分析会话锁损坏"))?
+                .prepare_image(&context.expand(&args.image), &context.cache, job)?;
+            Ok(json!({
+                "digest": image.digest,
+                "computed": job.prepared_image(),
+                "seconds": started.elapsed().as_secs_f64(),
+            }))
+        }
         "matchLocal" => {
             #[derive(Deserialize)]
             #[serde(deny_unknown_fields)]
@@ -506,10 +526,9 @@ fn run_task(
             let network = context.settings.remote_symbols;
             let mut total = None;
             let mut index = None;
-            if args.catalog
-                && args.local_only
-                && !context.cache.join("symbols/banners_plain.json").is_file()
-            {
+            let index_file =
+                symbols::Repository::configured(&context.cache)?.index_file(&context.cache);
+            if args.catalog && args.local_only && !index_file.is_file() {
                 return Ok(json!({"matches": [], "catalog": true, "total": 0, "index": null}));
             }
             let matches = if let Some(image) = &args.image {
@@ -538,7 +557,7 @@ fn run_task(
                     symbols::refresh_index(&context.cache, job)?;
                 } else {
                     ensure!(
-                        context.cache.join("symbols/banners_plain.json").is_file(),
+                        index_file.is_file(),
                         "离线模式且没有索引缓存；按 o 开启在线模式后按 r"
                     );
                 }
@@ -878,7 +897,9 @@ fn dispatch(
                 .iter()
                 .map(|s| json!({"id": scope_id(*s), "label": s.label()}))
                 .collect::<Vec<_>>(),
-            "repository": symbols::REPOSITORY,
+            "repository": symbols::Repository::parse(&context.settings.symbol_repository)
+                .map(|r| r.web)
+                .unwrap_or_else(|_| symbols::REPOSITORY.into()),
             "platform": if cfg!(target_os = "windows") { "windows" } else { "unix" },
         })),
         "assets" => {
@@ -979,6 +1000,9 @@ fn dispatch(
                 "scope": scope_id(e.scope),
                 "bytes": e.bytes,
                 "modified": e.modified,
+                "result": (e.scope == cache::Scope::Results)
+                    .then(|| store::summary(&e.path))
+                    .flatten(),
             })).collect::<Vec<_>>(),
             "records": store::export_records(&context.cache),
         })),
@@ -1060,6 +1084,8 @@ fn settings_json(settings: &Settings) -> Value {
         "enable_cache": settings.enable_cache,
         "remote_symbols": settings.remote_symbols,
         "theme": settings.theme,
+        "symbol_repository": settings.symbol_repository,
+        "reuse_recorded_digest": settings.reuse_recorded_digest,
         "resources": settings.resources,
     })
 }
@@ -1083,6 +1109,9 @@ fn asset_json(asset: &Asset, cache: &Path) -> Value {
         "source_url": source_url(&asset.path),
         "identity": (asset.kind == Kind::Image && !asset.directory)
             .then(|| crate::image::bound_identity(&asset.path, cache))
+            .flatten(),
+        "digest": (asset.kind == Kind::Image && !asset.directory)
+            .then(|| crate::image::recorded_digest(&asset.path, cache))
             .flatten(),
     })
 }

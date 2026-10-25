@@ -33,7 +33,7 @@ pub fn file_kind(path: &Path) -> FileKind {
         .iter()
         .any(|s| name.ends_with(s))
         && !name.ends_with(".source.json")
-        && name != "banners_plain.json"
+        && !name.starts_with("banners_plain")
     {
         FileKind::Symbols
     } else if [
@@ -68,7 +68,7 @@ pub fn entries(root: &Path, filter: Filter) -> Result<Vec<Entry>> {
                             .iter()
                             .any(|s| name.ends_with(s))
                             && !name.ends_with(".source.json")
-                            && name != "banners_plain.json"
+                            && !name.starts_with("banners_plain")
                     }
                     Filter::Exports => {
                         (name.ends_with(".csv") || name.ends_with(".json"))

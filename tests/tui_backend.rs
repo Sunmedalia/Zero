@@ -133,6 +133,15 @@ fn sandbox() -> tempfile::TempDir {
         b"Linux version synthetic (gcc version 1) #1 SMP\n\0",
     )
     .expect("image");
+    // Real evidence has long settled; a just-written image would be prepared
+    // again on every request (see `image::settled`).
+    std::fs::File::options()
+        .write(true)
+        .open(dir.path().join("images/sample.raw"))
+        .and_then(|file| {
+            file.set_modified(std::time::SystemTime::now() - std::time::Duration::from_secs(60))
+        })
+        .expect("backdate image");
     dir
 }
 
@@ -244,6 +253,63 @@ fn analysis_says_whether_it_ran_or_read_the_successful_cache() {
     backend.finish();
 }
 
+#[test]
+fn verifying_the_image_first_spares_the_first_plugin_and_groups_its_results() {
+    let root = sandbox();
+    let mut backend = Backend::start(root.path());
+    backend.call("hello", json!({}));
+    let verified = backend
+        .task("verify", json!({"image": "images/sample.raw"}))
+        .expect("verify");
+    assert_eq!(verified["computed"], true);
+    let digest = verified["digest"].as_str().expect("digest").to_owned();
+    assert_eq!(digest.len(), 64);
+    // Asking again in the same session reuses the verification.
+    let again = backend
+        .task("verify", json!({"image": "images/sample.raw"}))
+        .expect("verify again");
+    assert_eq!(again["computed"], false);
+    assert_eq!(again["digest"], digest.as_str());
+    let analyzed = backend
+        .task(
+            "analyze",
+            json!({"image": "images/sample.raw", "plugin": "banners"}),
+        )
+        .expect("analyze");
+    assert_eq!(analyzed["source"], "fresh");
+    assert_eq!(
+        analyzed["prepared"], false,
+        "the first plugin reuses the verified image"
+    );
+    // The listed image and its cached result both name the same digest.
+    let assets = backend.call("assets", json!({}));
+    let image = assets
+        .as_array()
+        .expect("assets")
+        .iter()
+        .find(|asset| asset["name"] == "sample.raw")
+        .expect("listed image");
+    assert_eq!(image["digest"], digest.as_str());
+    let inventory = backend.call("cache.inventory", json!({}));
+    let results: Vec<_> = inventory["entries"]
+        .as_array()
+        .expect("entries")
+        .iter()
+        .filter(|entry| entry["scope"] == "results")
+        .collect();
+    assert_eq!(results.len(), 1);
+    let summary = &results[0]["result"];
+    assert_eq!(summary["image"], digest.as_str());
+    assert_eq!(summary["plugin"], "banners");
+    assert_eq!(summary["complete"], true);
+    assert!(
+        summary["source"]
+            .as_str()
+            .is_some_and(|source| source.ends_with("images/sample.raw"))
+    );
+    backend.finish();
+}
+
 #[cfg(target_os = "linux")]
 #[test]
 fn only_one_task_runs_and_cancel_is_acknowledged() {
@@ -319,7 +385,7 @@ fn settings_round_trip_and_reject_an_oversized_page() {
     let mut backend = Backend::start(root.path());
     let hello = backend.call("hello", json!({}));
     let mut settings = hello["settings"].clone();
-    assert_eq!(settings["theme"], "slate");
+    assert_eq!(settings["theme"], "auto");
     settings["page_size"] = json!(25);
     settings["theme"] = json!("solarized");
     let saved = backend.call("settings.save", settings.clone());

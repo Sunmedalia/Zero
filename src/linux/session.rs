@@ -48,6 +48,10 @@ pub struct Session {
     windows_stamp: String,
     windows_symbols: Vec<std::sync::Arc<Isf>>,
     roots: std::collections::HashMap<String, u64>,
+    /// The image had settled when it was prepared. A file written moments
+    /// before can be rewritten within the same timestamp tick, so its stamp
+    /// alone cannot prove it unchanged and it is prepared again.
+    settled: bool,
 }
 impl Session {
     pub fn clear(&mut self) {
@@ -80,6 +84,7 @@ impl Session {
         job.check()?;
         let image_stamp = source_stamp(path, job)?;
         if self.image.is_none()
+            || !self.settled
             || self.image_stamp != image_stamp
             || (verify_digest && self.image.as_ref().is_some_and(|i| i.digest.is_empty()))
             || self
@@ -88,8 +93,8 @@ impl Session {
                 .is_some_and(|i| i.stamp().ok().as_ref() != Some(&self.physical_stamp))
         {
             self.clear();
+            let settled = crate::image::settled(path);
             let mut image = if verify_digest {
-                job.mark_prepared();
                 Image::open(path, cache, job)?
             } else {
                 Image::open_identified(path, cache, job)?
@@ -98,6 +103,7 @@ impl Session {
             self.physical_stamp = image.stamp()?;
             self.image = Some(std::sync::Arc::new(image));
             self.image_stamp = image_stamp;
+            self.settled = settled;
         }
         Ok(self.image.as_ref().context("镜像未准备")?.clone())
     }
@@ -196,11 +202,19 @@ impl Session {
                 && let Some(result) = store::load(request.cache, &key)
             {
                 job.mark_cached();
+                let owner = store::Owner::new(&image.digest, request.image);
+                store::adopt(request.cache, &key, &owner, &result, job);
                 return Ok(Outcome::Ready(result));
             }
             let result = banner_result(&image, job)?;
             if request.use_cache {
-                store::save(request.cache, &key, &result, job)?;
+                store::save(
+                    request.cache,
+                    &key,
+                    &store::Owner::new(&image.digest, request.image),
+                    &result,
+                    job,
+                )?;
             }
             return Ok(Outcome::Ready(result));
         }
@@ -246,11 +260,14 @@ impl Session {
         if !request.plugin.is_dump()
             && request.use_cache
             && let Some(mut result) = store::load(request.cache, &key)
+                .or_else(|| store::load_partial(request.cache, &key))
         {
             job.check()?;
+            let owner = store::Owner::new(&image.digest, request.image);
+            store::adopt(request.cache, &key, &owner, &result, job);
             result.symbol = symbol.label.clone();
             job.mark_cached();
-            job.report("读取成功缓存");
+            job.report(crate::store::cache_message(&result));
             return Ok(Outcome::Ready(result));
         }
         let root = if let Some(root) = self.roots.get(&symbol.digest) {
@@ -274,7 +291,13 @@ impl Session {
         };
         job.check()?;
         if request.use_cache && !request.plugin.is_dump() {
-            store::save(request.cache, &key, &result, job)?;
+            store::save_any(
+                request.cache,
+                &key,
+                &store::Owner::new(&image.digest, request.image),
+                &result,
+                job,
+            )?;
         }
         Ok(Outcome::Ready(result))
     }

@@ -905,11 +905,14 @@ pub(crate) fn analyze_resolved(
     );
     if request.use_cache
         && !request.plugin.is_dump()
-        && let Some(r) = store::load(request.cache, &key)
+        && let Some(r) =
+            store::load(request.cache, &key).or_else(|| store::load_partial(request.cache, &key))
     {
         sources.validate()?;
         job.mark_cached();
-        job.report("读取成功缓存");
+        let owner = store::Owner::new(&image.digest, request.image);
+        store::adopt(request.cache, &key, &owner, &r, job);
+        job.report(store::cache_message(&r));
         return Ok(Outcome::Ready(r));
     }
     let mut result = if let Some(dump) = dump {
@@ -950,7 +953,13 @@ pub(crate) fn analyze_resolved(
     }
     job.check()?;
     if request.use_cache && !request.plugin.is_dump() {
-        store::save(request.cache, &key, &result, job)?;
+        store::save_any(
+            request.cache,
+            &key,
+            &store::Owner::new(&image.digest, request.image),
+            &result,
+            job,
+        )?;
     }
     Ok(Outcome::Ready(result))
 }

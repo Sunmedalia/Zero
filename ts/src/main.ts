@@ -13,6 +13,8 @@ import { RpcEngine } from './rpc.js';
 import { App, type LaunchOptions } from './app.js';
 import { Root } from './views/root.js';
 import type { Hello, Os } from './types.js';
+import { backgroundFromEnv, queryBackground } from './terminalTheme.js';
+import { setTerminalBackground } from './text.js';
 
 interface Cli {
   image: string | null;
@@ -140,6 +142,11 @@ async function main(): Promise<void> {
     key: cli.key,
     pattern: cli.pattern,
   };
+  // Asked before Ink owns stdin, so the reply cannot reach the key handlers.
+  setTerminalBackground(
+    (await queryBackground(process.stdin, process.stdout).catch(() => null)) ??
+      backgroundFromEnv(process.env.COLORFGBG),
+  );
   const app = new App(engine, hello, launch);
   const instance = render(React.createElement(Root, { app }), {
     alternateScreen: true,
