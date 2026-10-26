@@ -244,6 +244,8 @@ impl App {
             Command::Rerun => self.request_analysis(true),
             Command::TogglePlugins => self.toggle_plugins(),
             Command::Plugins => {
+                self.plugins_collapsed = false;
+                self.focus = Focus::Navigation;
                 self.dialog = Some(Dialog::Plugins {
                     query: String::new(),
                     selected: 0,
@@ -278,7 +280,13 @@ impl App {
                     };
                 }
             }
-            Command::SearchContent => self.open_input(InputKind::Search),
+            Command::SearchContent => {
+                if self.focus == Focus::Navigation && !self.plugins_collapsed {
+                    self.run_command(Command::Plugins);
+                } else {
+                    self.open_input(InputKind::Search);
+                }
+            }
             Command::Enter => self.enter_focused(),
         }
         false
@@ -1175,7 +1183,18 @@ impl App {
                 && point.y > hits.popup.y
                 && point.y < hits.popup.bottom().saturating_sub(1)
             {
-                let index = hits.popup_offset + (point.y - hits.popup.y - 1) as usize;
+                let list = if matches!(self.dialog, Some(Dialog::Plugins { .. })) {
+                    hits.popup_list
+                } else {
+                    hits.popup
+                };
+                if !list.contains(point)
+                    || point.y <= list.y
+                    || point.y >= list.bottom().saturating_sub(1)
+                {
+                    return false;
+                }
+                let index = hits.popup_offset + (point.y - list.y - 1) as usize;
                 let count = self.result_column_count();
                 let plugin_count = match self.dialog.as_ref() {
                     Some(Dialog::Plugins { query, .. }) => self.plugin_matches(query).len(),

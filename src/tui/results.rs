@@ -367,6 +367,20 @@ impl App {
                 rect,
             );
         }
+        if self.hits.borrow().menu.width == 0 {
+            self.draw_plugin_toggle(frame, main, " >> ");
+        }
+    }
+    fn draw_plugin_toggle(&self, frame: &mut Frame, area: Rect, label: &str) {
+        if area.width < 6 || area.height == 0 {
+            return;
+        }
+        let rect = Rect::new(area.right() - 5, area.bottom() - 1, 4, 1);
+        frame.render_widget(
+            Paragraph::new(label).style(Style::default().fg(color_accent()).bg(color_surface())),
+            rect,
+        );
+        self.hits.borrow_mut().plugin_toggle = rect;
     }
     pub(super) fn draw_menu(&self, frame: &mut Frame, area: Rect, style: Style) {
         // Carry the scroll offset across frames. A fresh `ListState` restarts at
@@ -434,5 +448,6 @@ impl App {
             self.menu_scroll.get(),
             ScrollTarget::Menu,
         );
+        self.draw_plugin_toggle(frame, area, " << ");
     }
 }

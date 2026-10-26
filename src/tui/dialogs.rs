@@ -103,18 +103,21 @@ impl App {
             return;
         }
         if let Some(dialog) = &self.dialog {
-            let popup = if (matches!(dialog, Dialog::Dump { .. })
-                || (matches!(dialog, Dialog::Detail { .. }) && frame.area().width < 160))
-                && self.hits.borrow().workbench.width > 0
-            {
-                self.hits.borrow().workbench
-            } else {
-                centered(
-                    area,
-                    self.dialog_width(dialog, area),
-                    self.dialog_height(dialog, area),
-                )
-            };
+            let popup =
+                if matches!(dialog, Dialog::Plugins { .. }) && self.hits.borrow().menu.width > 0 {
+                    self.hits.borrow().menu
+                } else if (matches!(dialog, Dialog::Dump { .. })
+                    || (matches!(dialog, Dialog::Detail { .. }) && frame.area().width < 160))
+                    && self.hits.borrow().workbench.width > 0
+                {
+                    self.hits.borrow().workbench
+                } else {
+                    centered(
+                        area,
+                        self.dialog_width(dialog, area),
+                        self.dialog_height(dialog, area),
+                    )
+                };
             self.hits.borrow_mut().popup = popup;
             self.hits.borrow_mut().buttons.clear();
             self.hits.borrow_mut().scrollbars.clear();
@@ -492,14 +495,34 @@ impl App {
                     self.hits.borrow_mut().popup_offset = state.offset();
                 }
                 Dialog::Plugins { query, selected } => {
+                    let [search, list] =
+                        Layout::vertical([Constraint::Length(3), Constraint::Min(3)]).areas(popup);
                     let plugins = self.plugin_matches(query);
+                    let query = escaped(query);
+                    let query_width = Span::raw(&query).width();
+                    let visible = search.width.saturating_sub(2).max(1) as usize;
+                    let scroll = query_width.saturating_sub(visible.saturating_sub(1));
+                    frame.render_widget(
+                        Paragraph::new(query)
+                            .scroll((0, scroll.min(u16::MAX as usize) as u16))
+                            .block(
+                                panel()
+                                    .title("搜索插件 / · Esc 返回")
+                                    .border_style(Style::default().fg(color_focus())),
+                            ),
+                        search,
+                    );
+                    if search.width > 2 && search.height > 1 {
+                        frame.set_cursor_position((
+                            search.x + 1 + query_width.saturating_sub(scroll) as u16,
+                            search.y + 1,
+                        ));
+                    }
                     let mut state = ListState::default()
                         .with_selected((!plugins.is_empty()).then_some(*selected));
                     frame.render_stateful_widget(
                         List::new(plugins.iter().map(|p| plugin_label(*p)))
-                            .block(
-                                panel().title(format!("插件搜索: {} · Enter 选择", escaped(query))),
-                            )
+                            .block(panel().title("插件 · Enter 选择"))
                             .highlight_style(
                                 Style::default()
                                     .bg(color_selected_bg())
@@ -507,10 +530,12 @@ impl App {
                                     .add_modifier(Modifier::BOLD),
                             )
                             .highlight_symbol("› "),
-                        popup,
+                        list,
                         &mut state,
                     );
-                    self.hits.borrow_mut().popup_offset = state.offset();
+                    let mut hits = self.hits.borrow_mut();
+                    hits.popup_offset = state.offset();
+                    hits.popup_list = list;
                 }
                 Dialog::Links { matches, selected } => {
                     let mut state = ListState::default().with_selected(Some(*selected));

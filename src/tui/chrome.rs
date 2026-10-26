@@ -96,19 +96,6 @@ impl App {
                 frame,
                 Rect::new(x, area.y, 17.min(area.right().saturating_sub(x)), 1),
             );
-            x += 17;
-            let label = if self.plugins_collapsed {
-                "[展开插件 B]"
-            } else {
-                "[收起插件 B]"
-            };
-            let width = (Span::raw(label).width() as u16).min(area.right().saturating_sub(x));
-            let rect = Rect::new(x, area.y, width, 1);
-            frame.render_widget(
-                Paragraph::new(label).style(Style::default().fg(color_accent())),
-                rect,
-            );
-            self.hits.borrow_mut().plugin_toggle = rect;
         } else if area.width.saturating_sub(x.saturating_sub(area.x)) > 24 {
             let brand = Line::from(vec![
                 Span::styled(

@@ -594,10 +594,10 @@ pub(super) const ACTIONS: &[Action] = &[
         )
     },
     Action {
-        footer_focus: CONTENT_FOCUS,
+        footer_focus: CONTENT_FOCUS | NAV_FOCUS,
         ..action(
             Command::SearchContent,
-            "搜索内容 /",
+            "搜索当前区域 /",
             KeyCode::Char('/'),
             Scope::Analysis,
             PALETTE | FOOTER,
@@ -715,7 +715,7 @@ fn footer_actions(focus: Focus) -> Vec<(&'static str, KeyCode)> {
         .filter_map(|command| {
             let action = action_of(*command);
             (action.placement & FOOTER != 0 && action.footer_focus & focus_bit(focus) != 0)
-                .then_some((action.label, action.key))
+                .then_some((if *command == Command::SearchContent { if focus == Focus::Navigation { "搜索插件 /" } else { "搜索内容 /" } } else { action.label }, action.key))
         })
         .collect()
 }

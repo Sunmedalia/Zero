@@ -217,6 +217,7 @@ struct HitMap {
     menu_offset: usize,
     row_offset: usize,
     popup_offset: usize,
+    popup_list: Rect,
     columns: Vec<Rect>,
     buttons: Vec<(Rect, KeyCode)>,
 }

@@ -824,8 +824,8 @@ fn mouse_narrow_pages_and_footer_actions() {
     app.dialog_key(KeyEvent::new(KeyCode::Char('c'), KeyModifiers::NONE));
     app.dialog_key(KeyEvent::new(KeyCode::Char('h'), KeyModifiers::NONE));
     terminal.draw(|f| app.draw(f)).unwrap();
-    assert!(screen(&terminal, 60).contains("搜索内容"));
-    // "搜索内容" is the second entry after filtering; move down and run it.
+    assert!(screen(&terminal, 60).contains("搜索当前区域"));
+    // "搜索当前区域" is the second entry after filtering; move down and run it.
     app.dialog_key(KeyEvent::new(KeyCode::Down, KeyModifiers::NONE));
     app.dialog_key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
     assert!(matches!(
@@ -2512,6 +2512,9 @@ fn preparation_and_analysis_layouts_have_valid_actions_at_target_sizes() {
                 let toggle = hits.plugin_toggle;
                 click(&mut app, toggle.x, toggle.y);
                 terminal.draw(|f| app.draw(f)).unwrap();
+                let toggle = app.hits.borrow().plugin_toggle;
+                click(&mut app, toggle.x, toggle.y);
+                terminal.draw(|f| app.draw(f)).unwrap();
                 assert!(app.hits.borrow().result.width > 0);
             }
         }
@@ -3963,13 +3966,14 @@ fn dialogs_size_to_their_content() {
                 selected: 0,
             },
         ] {
+            let plugin_search = matches!(dialog, Dialog::Plugins { .. });
             let popup = measure(&mut app, dialog, &mut terminal);
             assert!(
                 popup.width <= w && popup.height <= h,
                 "{popup:?} in {w}x{h}"
             );
             assert!(
-                popup.height * 4 <= h * 3 || h < 12,
+                plugin_search || popup.height * 4 <= h * 3 || h < 12,
                 "{popup:?} hides the page in {w}x{h}"
             );
         }

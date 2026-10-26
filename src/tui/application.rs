@@ -1316,7 +1316,7 @@ impl App {
     /// Read from the last frame's hit map, so it always describes what the user
     /// can actually see rather than what the window size suggests.
     pub(super) fn toggle_plugins(&mut self) {
-        self.plugins_collapsed = !self.plugins_collapsed;
+        self.plugins_collapsed = !(self.plugins_collapsed || self.hits.borrow().menu.width == 0);
         self.focus = if self.plugins_collapsed {
             Focus::Content
         } else {
