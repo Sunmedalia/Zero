@@ -2027,3 +2027,39 @@ fn a_configured_symbol_repository_has_its_own_urls_index_and_download_check() ->
     }
     Ok(())
 }
+
+#[test]
+fn rejected_kernel_root_reports_both_backlinks_without_weakening_validation() -> Result<()> {
+    for (physical, broken, expected) in [
+        (0x8308, 0x9500, "next.prev=0x9500, prev.next=0x9200"),
+        (0x8400, 0x9600, "next.prev=0x9200, prev.next=0x9600"),
+    ] {
+        let (mut bytes, isf) = discoverable();
+        put(&mut bytes, physical, broken);
+        let error = zero_tui::linux::discover(&image(&bytes), &isf, &Job::default()).unwrap_err();
+        let message = format!("{error:#}");
+        for detail in [
+            "完整 banner / PID 0 / swapper 已通过",
+            "init_task=0x9200, tasks_offset=0x0, head=0x9200",
+            "next=0x9300, prev=0x9400",
+            expected,
+        ] {
+            assert!(message.contains(detail), "missing {detail}: {message}");
+        }
+        assert_eq!(isf.slide.load(Ordering::Relaxed), 0);
+    }
+    Ok(())
+}
+#[test]
+fn missing_backlink_page_is_reported_with_the_other_backlink_and_root_is_rejected() -> Result<()> {
+    let (mut bytes, isf) = discoverable();
+    put(&mut bytes, 0x8208, 0x3000);
+    let error = zero_tui::linux::discover(&image(&bytes), &isf, &Job::default()).unwrap_err();
+    let message = format!("{error:#}");
+    assert!(
+        message.contains("next.prev=0x9200, prev.next=读取失败("),
+        "{message}"
+    );
+    assert!(message.contains("缺页 VA 0x3000"), "{message}");
+    Ok(())
+}

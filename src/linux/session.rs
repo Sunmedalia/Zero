@@ -236,7 +236,7 @@ impl Session {
             self.symbol_stamp = symbols_stamp()?;
             self.roots.clear();
         } else {
-            job.report("复用已验证镜像和符号；无需重新计算摘要／扫描");
+            job.report("复用镜像摘要和符号匹配；无需重新扫描");
         }
         let symbol = if let Some(choice) = request.choice {
             self.symbols

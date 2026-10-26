@@ -480,6 +480,8 @@ TUI 插件菜单只列分析插件，转储统一在 `D` 中。这些都是本�
 - x86_64：四级页表，4 KiB／2 MiB／1 GiB 页，字段偏移来自 ISF。页表候选由物理 banner 与符号地址差定位；KASLR 偏移从物理 `init_task.real_parent` 自指针推导，再验证完整 banner、`init_task` 与双向链表。支持高物理地址的 LiME（未压缩的 AVML 输出使用该格式）。不支持五级页表。KASLR 有合成回归测试，尚未对 Debian 6.12 实际镜像验收。
 - ARM64：4 KiB 页，39／48-bit VA 的四级／三级页表与 block 映射；ISF 需提供准确的内核配置元数据，已验收 Kali 6.8.11-arm64（48-bit）。
 
+x86_64 页表候选若通过完整 banner、PID 0 与 swapper 校验，但进程链表校验失败，错误会列出 `init_task`、`tasks_offset`、`head`、`next`、`prev`、`next.prev` 和 `prev.next`；回指页面无法读取时同时保留读取错误。此类信息用于区分字段偏移、缺页及采集一致性问题，不代表候选已通过验证。镜像摘要与符号匹配的复用提示也不表示页表已验证。
+
 ## 8. Windows 要点
 
 Windows 插件与样本验收见 [兼容矩阵](compatibility.md)。

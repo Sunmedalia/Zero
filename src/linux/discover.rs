@@ -30,7 +30,7 @@ pub fn discover(image: &Image, isf: &Isf, job: &Job) -> Result<u64> {
                 let parent = image.u64(add(init_phys, parent_offset)?)?;
                 ensure!(
                     parent != 0 && (parent >> 47 == 0 || parent >> 47 == 0x1ffff),
-                    "init_task.real_parent 非 canonical 地址"
+                    "init_task.real_parent 非 canonical 地址: init_phys={init_phys:#x}, real_parent_offset={parent_offset:#x}, value={parent:#x}"
                 );
                 let slide = parent.wrapping_sub(init);
                 ensure!(slide & 4095 == 0, "x86_64 内核重定位未按页对齐");
@@ -73,12 +73,27 @@ pub fn discover(image: &Image, isf: &Isf, job: &Job) -> Result<u64> {
                             "init_task 名称无效"
                         );
                         let head = add(runtime_init, tasks)?;
-                        let n = vm.uint(add(head, next)?, 8)?;
-                        let p = vm.uint(add(head, prev)?, 8)?;
+                        let n = vm.uint(add(head, next)?, 8).with_context(|| {
+                            format!("init_task.tasks.next 读取失败: init_task={runtime_init:#x}, head={head:#x}, next_offset={next:#x}")
+                        })?;
+                        let p = vm.uint(add(head, prev)?, 8).with_context(|| {
+                            format!("init_task.tasks.prev 读取失败: init_task={runtime_init:#x}, head={head:#x}, prev_offset={prev:#x}")
+                        })?;
+                        // Read both back-links even when the first is wrong: live
+                        // captures may disagree in only one direction. Preserve
+                        // read failures as evidence and continue to reject the root.
+                        let n_prev = add(n, prev).and_then(|address| vm.uint(address, 8));
+                        let p_next = add(p, next).and_then(|address| vm.uint(address, 8));
+                        let describe = |value: &Result<u64>| match value {
+                            Ok(value) => format!("{value:#x}"),
+                            Err(error) => format!("读取失败({error:#})"),
+                        };
                         ensure!(
-                            vm.uint(add(n, prev)?, 8)? == head
-                                && vm.uint(add(p, next)?, 8)? == head,
-                            "init_task 双向链表不一致"
+                            n_prev.as_ref().is_ok_and(|value| *value == head)
+                                && p_next.as_ref().is_ok_and(|value| *value == head),
+                            "init_task 双向链表不一致（完整 banner / PID 0 / swapper 已通过；init_task={runtime_init:#x}, tasks_offset={tasks:#x}, head={head:#x}, next={n:#x}, prev={p:#x}, next_offset={next:#x}, prev_offset={prev:#x}, next.prev={}, prev.next={}）",
+                            describe(&n_prev),
+                            describe(&p_next)
                         );
                         Ok(())
                     })();
