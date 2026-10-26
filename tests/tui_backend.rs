@@ -1,10 +1,7 @@
-//! End-to-end checks of the `tui-backend` protocol that the TypeScript interface
-//! speaks: handshake, asset discovery, identification, analysis, cancellation
-//! and one-task-at-a-time enforcement.
-//!
-//! These run the released binary over stdio, so they cover the same path the UI
-//! uses. The offline acceptance test at the bottom needs local samples and is
-//! marked `#[ignore]`, matching the previous `make tui-acceptance` contract.
+//! End-to-end checks of the compatible `tui-backend` JSON-RPC adapter:
+//! handshake, discovery, identification, analysis, cancellation and single-task
+//! enforcement. The native TUI shares its engine service in process; the ignored
+//! test at the bottom preserves real-image protocol acceptance.
 use serde_json::{Value, json};
 use std::{
     io::{BufRead, BufReader, Write},

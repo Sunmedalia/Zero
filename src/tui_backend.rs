@@ -1,11 +1,7 @@
-//! Newline-delimited JSON-RPC backend for the TypeScript terminal interface.
+//! Compatible newline-delimited JSON-RPC adapter for the native engine.
 //!
-//! The interface itself — layout, focus, dialogs, key handling — lives in `ts/`.
-//! This module keeps every operation that touches evidence, the symbol
-//! repository, the cache and the prepared image, so the native engine remains
-//! the only code that reads memory. It is a strict superset of what the removed
-//! Ratatui interface did, with the same session reuse, cancellation, atomic
-//! export and "partial results never enter the success cache" rules.
+//! The in-process Ratatui interface shares typed operations from
+//! `engine_service`; external clients can continue using this stdio adapter.
 //!
 //! Protocol, one JSON object per line in each direction:
 //!
@@ -27,7 +23,7 @@ use crate::{
     dump::{DumpOptions, parse_address},
     linux::{self, Outcome, Plugin, Session},
     store::{self, Results, Settings},
-    symbols::{self, Isf, RemoteMatch},
+    symbols::{self, RemoteMatch},
     windows::{Architecture, paging::Attachment},
     workspace::{self, Asset, Kind, Registry},
 };
@@ -49,55 +45,9 @@ use std::{
 
 const MAX_REQUEST: usize = 4 * 1024 * 1024;
 
-/// Everything a worker needs, captured before the thread starts so the UI keeps
-/// responding while evidence is read.
-#[derive(Clone)]
-struct BackendContext {
-    root: PathBuf,
-    cache: PathBuf,
-    settings: Settings,
-}
-
-impl BackendContext {
-    fn expand(&self, path: &Path) -> PathBuf {
-        if path.is_absolute() {
-            path.to_path_buf()
-        } else {
-            self.root.join(path)
-        }
-    }
-    /// A configured directory, resolved against the project root.
-    ///
-    /// Settings store `images`, `symbols` and `exports` relative to the project;
-    /// the interface process has a different working directory, so resolving
-    /// them here (not with the process cwd) keeps both views of the project
-    /// identical.
-    fn directory(&self, value: &str) -> PathBuf {
-        self.expand(&store::expand_home(value))
-    }
-    fn image_dir(&self) -> PathBuf {
-        self.directory(&self.settings.image_dir)
-    }
-    fn symbol_dir(&self) -> PathBuf {
-        self.directory(&self.settings.symbols)
-    }
-    fn history_dir(&self) -> PathBuf {
-        self.directory(&self.settings.history_dir)
-    }
-    fn symbol_source(&self, given: Option<PathBuf>) -> PathBuf {
-        given
-            .map(|p| self.expand(&p))
-            .unwrap_or_else(|| self.symbol_dir())
-    }
-    fn library(&self) -> PathBuf {
-        let library = self.symbol_dir();
-        if library.extension().is_some() && !library.is_dir() {
-            self.root.join("symbols")
-        } else {
-            library
-        }
-    }
-}
+use crate::engine_service::{
+    EngineContext as BackendContext, save_generated_symbol, save_remote_symbol,
+};
 
 #[derive(Clone)]
 struct TaskHandle {
@@ -454,11 +404,14 @@ fn run_task(
                 image: PathBuf,
             }
             let args: Args = serde_json::from_value(payload)?;
-            let image = session
-                .lock()
-                .map_err(|_| anyhow::anyhow!("分析会话锁损坏"))?
-                .identify_image(&context.expand(&args.image), &context.cache, job)?;
-            Ok(json!({"banner": results_json(&linux::banner_result(&image, job)?)}))
+            let banner = context.identify(
+                &mut *session
+                    .lock()
+                    .map_err(|_| anyhow::anyhow!("分析会话锁损坏"))?,
+                &args.image,
+                job,
+            )?;
+            Ok(json!({"banner": results_json(&banner)}))
         }
         // Verify the image's content (SHA256) once for this session. Analysis
         // reuses the verified image, so the first plugin does not pay for it.
@@ -469,16 +422,16 @@ fn run_task(
                 image: PathBuf,
             }
             let args: Args = serde_json::from_value(payload)?;
-            let started = std::time::Instant::now();
-            let image = session
-                .lock()
-                .map_err(|_| anyhow::anyhow!("分析会话锁损坏"))?
-                .prepare_image(&context.expand(&args.image), &context.cache, job)?;
-            Ok(json!({
-                "digest": image.digest,
-                "computed": job.prepared_image(),
-                "seconds": started.elapsed().as_secs_f64(),
-            }))
+            let verified = context.verify(
+                &mut *session
+                    .lock()
+                    .map_err(|_| anyhow::anyhow!("分析会话锁损坏"))?,
+                &args.image,
+                job,
+            )?;
+            Ok(
+                json!({"digest": verified.digest, "computed": verified.computed, "seconds": verified.seconds}),
+            )
         }
         "matchLocal" => {
             #[derive(Deserialize)]
@@ -488,12 +441,14 @@ fn run_task(
                 paths: Vec<PathBuf>,
             }
             let args: Args = serde_json::from_value(payload)?;
-            let image = session
-                .lock()
-                .map_err(|_| anyhow::anyhow!("分析会话锁损坏"))?
-                .identify_image(&context.expand(&args.image), &context.cache, job)?;
-            let banner = linux::banner_result(&image, job)?;
-            let report = symbols::match_local_files(&args.paths, &image, job)?;
+            let (report, banner) = context.match_local(
+                &mut *session
+                    .lock()
+                    .map_err(|_| anyhow::anyhow!("分析会话锁损坏"))?,
+                &args.image,
+                &args.paths,
+                job,
+            )?;
             Ok(json!({
                 "banner": results_json(&banner),
                 "matched": report.matched.iter().map(|(path, labels)| json!({
@@ -777,21 +732,15 @@ fn analyze(
     let dump = dump_from_json(&args.dump)?;
     let image = context.expand(&args.image);
     let symbols = context.symbol_source(args.symbols);
-    let request = linux::Request {
-        image: &image,
-        symbols: &symbols,
-        choice: args.symbol_choice.as_deref(),
+    let outcome = context.analyze(
+        &mut *session
+            .lock()
+            .map_err(|_| anyhow::anyhow!("分析会话锁损坏"))?,
+        &image,
+        &symbols,
+        args.symbol_choice.as_deref(),
         plugin,
-        cache: &context.cache,
-        use_cache: context.settings.enable_cache && !args.no_cache,
-        network: context.settings.remote_symbols,
-    };
-    let mut guard = session
-        .lock()
-        .map_err(|_| anyhow::anyhow!("分析会话锁损坏"))?;
-    let outcome = crate::analysis::analyze(
-        &mut guard,
-        &request,
+        args.no_cache,
         dump.as_ref().map(|(_, d)| d),
         &options,
         job,
@@ -998,18 +947,13 @@ fn dispatch(
                 })).collect::<Vec<_>>(),
             }))
         }
-        "cache.inventory" => Ok(json!({
-            "entries": cache::inventory(&context.cache)?.iter().map(|e| json!({
-                "path": e.path,
-                "scope": scope_id(e.scope),
-                "bytes": e.bytes,
-                "modified": e.modified,
-                "result": (e.scope == cache::Scope::Results)
-                    .then(|| store::summary(&e.path))
-                    .flatten(),
-            })).collect::<Vec<_>>(),
-            "records": store::export_records(&context.cache),
-        })),
+        "cache.inventory" => {
+            let inventory = context.inventory(&Job::default())?;
+            Ok(json!({"entries": inventory.entries.iter().map(|e| json!({
+                "path": e.path, "scope": scope_id(e.scope), "bytes": e.bytes, "modified": e.modified,
+                "result": inventory.summaries.get(&e.path),
+            })).collect::<Vec<_>>(), "records": inventory.records}))
+        }
         "settings.get" => Ok(settings_json(&context.settings)),
         "settings.save" => {
             let settings = settings_from_json(params)?;
@@ -1302,69 +1246,6 @@ fn scope_from_id(value: &str) -> Result<cache::Scope> {
         "all" => cache::Scope::All,
         other => anyhow::bail!("无效缓存范围 {other}"),
     })
-}
-
-fn save_remote_symbol(
-    candidate: &RemoteMatch,
-    isf: &Isf,
-    library: &Path,
-    job: &Job,
-) -> Result<PathBuf> {
-    job.check()?;
-    std::fs::create_dir_all(library)?;
-    let stem = candidate
-        .path
-        .rsplit('/')
-        .next()
-        .unwrap_or("symbol.json.xz")
-        .trim_end_matches(".json.xz");
-    let extension = if isf.is_windows() { "json" } else { "json.xz" };
-    let target = library.join(format!(
-        "{}-{}.{extension}",
-        stem.chars().take(100).collect::<String>(),
-        isf.digest
-    ));
-    let bytes = std::fs::read(&isf.label)?;
-    if target.exists() {
-        ensure!(
-            std::fs::read(&target)? == bytes,
-            "同名本地符号内容不同，拒绝覆盖: {}",
-            target.display()
-        );
-    } else {
-        store::atomic_write(&target, &bytes)?;
-    }
-    job.check()?;
-    store::atomic_write(
-        &target.with_extension("source.json"),
-        &serde_json::to_vec_pretty(candidate)?,
-    )?;
-    Ok(target.canonicalize()?)
-}
-
-fn save_generated_symbol(path: &Path, library: &Path, job: &Job) -> Result<PathBuf> {
-    job.check()?;
-    std::fs::create_dir_all(library)?;
-    let name = path.file_name().context("生成符号路径无效")?;
-    let target = library.join(name);
-    let bytes = std::fs::read(path)?;
-    if target.exists() {
-        ensure!(
-            std::fs::read(&target)? == bytes,
-            "同名符号内容不同，拒绝覆盖"
-        );
-    } else {
-        store::atomic_write(&target, &bytes)?;
-    }
-    job.check()?;
-    let source = path.with_extension("source.json");
-    if source.is_file() {
-        store::atomic_write(
-            &target.with_extension("source.json"),
-            &std::fs::read(source)?,
-        )?;
-    }
-    Ok(target.canonicalize()?)
 }
 
 #[cfg(test)]

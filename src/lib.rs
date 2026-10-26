@@ -6,6 +6,7 @@ pub mod plugin;
 mod report;
 pub mod store;
 pub mod symbols;
+pub mod tui;
 pub mod tui_backend;
 
 use anyhow::{Result, bail};
@@ -80,3 +81,5 @@ pub mod result_view;
 pub mod snapshots;
 
 mod windows_symbols_archive;
+
+mod engine_service;

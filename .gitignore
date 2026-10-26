@@ -3,9 +3,6 @@
 /.zero/
 /exports/
 /dist/
-# TypeScript interface build output and dependencies
-/ts/dist/
-/ts/node_modules/
 /images/
 /symbols/
 *.log

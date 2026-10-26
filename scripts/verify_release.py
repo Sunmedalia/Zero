@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
-"""Verify extracted release contents and launch the real TUI without system Node/npm."""
+"""Verify the native release contents and exercise the TUI through a PTY."""
 import argparse
 import errno
 import fcntl
 import hashlib
-import json
 import os
 import pty
 import re
@@ -43,38 +42,21 @@ def unpack(archive, destination):
             raise ValueError('release archive must have exactly one root directory')
         package.extractall(destination, filter='data')
     release = (destination / roots.pop()).resolve()
-    allowed = {'zero', 'README.md', 'docs', 'ts', 'runtime'}
+    allowed = {'zero', 'README.md', 'docs'}
     if not {path.name for path in release.iterdir()} <= allowed:
         raise ValueError('release contains unexpected top-level files')
-    for path in release.rglob('*'):
-        if path.is_symlink():
-            if path.readlink().is_absolute() or not path.resolve(strict=True).is_relative_to(release):
-                raise ValueError(f'release symlink escapes its root: {path}')
-    for relative in ('zero', 'runtime/node', 'runtime/LICENSE', 'ts/dist/main.js',
-                     'ts/package.json', 'ts/package-lock.json', 'README.md', 'docs/tui.md'):
+    for relative in ('zero', 'README.md', 'docs/tui.md'):
         if not (release / relative).is_file():
             raise ValueError(f'missing release file: {relative}')
-    if not os.access(release / 'zero', os.X_OK) or not os.access(release / 'runtime/node', os.X_OK):
-        raise ValueError('zero and runtime/node must be executable')
-    if 'Node.js' not in (release / 'runtime/LICENSE').read_text():
-        raise ValueError('missing Node distribution license text')
-    lock = json.loads((release / 'ts/package-lock.json').read_text())
-    for name, metadata in lock['packages'].items():
-        if not name:
-            continue
-        installed = release / 'ts' / name
-        if metadata.get('dev') and installed.exists():
-            raise ValueError(f'development dependency in release: {name}')
-        if not metadata.get('dev') and not metadata.get('devOptional') and not metadata.get('optional'):
-            manifest = installed / 'package.json'
-            if not manifest.is_file() or json.loads(manifest.read_text())['version'] != metadata['version']:
-                raise ValueError(f'missing or mismatched production dependency: {name}')
+    if not os.access(release / 'zero', os.X_OK):
+        raise ValueError('zero must be executable')
     return release
 
 
 def smoke_tui(command, cwd, env, timeout):
     master, slave = pty.openpty()
     fcntl.ioctl(slave, termios.TIOCSWINSZ, struct.pack('HHHH', 40, 140, 0, 0))
+    original_attrs = termios.tcgetattr(slave)
     output = bytearray()
     process = None
     ready = False
@@ -98,10 +80,10 @@ def smoke_tui(command, cwd, env, timeout):
                     break
                 output.extend(chunk)
                 plain = ANSI.sub(b'', bytes(output))
-                # These are rendered after the real Rust backend hello succeeds.
-                if not ready and b'ZERO' in plain and '选择镜像'.encode() in plain:
+                # These labels identify the native resource-library frame.
+                if not ready and '资源库'.encode() in plain and '镜像'.encode() in plain:
                     ready = True
-                    # React can paint before passive input effects subscribe.
+                    # Let the first native frame finish before sending input.
                     quit_at = time.monotonic() + 0.5
             if quit_at is not None and time.monotonic() >= quit_at:
                 os.write(master, b'q')
@@ -114,6 +96,12 @@ def smoke_tui(command, cwd, env, timeout):
                 process.wait(timeout=1)
             except subprocess.TimeoutExpired:
                 raise ValueError(f'TUI {"quit" if ready else "startup"} timed out') from None
+        restored_attrs = termios.tcgetattr(master)
+        mask = termios.ECHO | termios.ICANON | termios.ISIG
+        if (restored_attrs[3] & mask) != (original_attrs[3] & mask):
+            raise ValueError('terminal flags were not restored')
+        if b'\x1b[?1049l' not in output or b'\x1b[?25h' not in output:
+            raise ValueError('alternate screen or cursor was not restored')
         if not ready or process.returncode != 0:
             raise ValueError(f'TUI readiness={ready}, exit={process.returncode}')
     except (OSError, ValueError) as error:
@@ -149,10 +137,6 @@ def verify(archive, timeout):
                'XDG_DATA_HOME': str(home / 'data')}
         if shutil.which('node', path=env['PATH']) or shutil.which('npm', path=env['PATH']):
             raise ValueError('smoke PATH unexpectedly contains Node/npm')
-        version = subprocess.check_output([str(release / 'runtime/node'), '--version'],
-                                          env=env, cwd=temporary, text=True, timeout=timeout).strip()
-        if int(version.removeprefix('v').split('.')[0]) < 22:
-            raise ValueError(f'unsupported bundled Node: {version}')
         help_text = subprocess.check_output(['./zero', '--help'], cwd=release,
                                             env=env, text=True, timeout=timeout)
         if 'zero' not in help_text.lower():
@@ -163,8 +147,7 @@ def verify(archive, timeout):
         work = temporary / 'unrelated-workdir'
         work.mkdir()
         smoke_tui(str(release / 'zero'), work, env, timeout)
-        print(f'{archive.name}: production dependencies, LICENSE, {version}, '
-              'TUI ready + q exit (release and unrelated cwd; no system Node/npm)')
+        print(f'{archive.name}: native TUI ready + q exit (release and unrelated cwd; empty PATH)')
 
 
 def main():

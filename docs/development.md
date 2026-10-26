@@ -12,7 +12,7 @@ make windows-acceptance
 make tui-acceptance
 ```
 
-`make check` 包含 TypeScript 界面的构建、类型检查和单元测试；界面需要 Node ≥ 22，首次运行 `make ui-install` 安装依赖。
+`make check` 包含 Rust 格式检查、Clippy、引擎与原生界面测试以及 release 构建；`make ui-test` 可单独运行界面测试。
 
 常规检查使用合成样本。后三项验收需要本地真实镜像和精确符号；不会自动下载大型镜像。样本基线见 `tests/fixtures/`，各测试顶部列出环境变量覆盖方式。Windows 的宿主支持与被分析系统兼容性是不同维度。
 
@@ -88,12 +88,12 @@ cargo build --release --locked --examples
 
 ## CI 与发布
 
-GitHub Actions 在 Linux／macOS 的 x86_64 和 ARM64 上运行 `make check` 与 CLI 启动检查，并为每个目标生成归档：`zero` 可执行文件、README、`docs/tui.md`、对应平台的 `runtime/node` 与许可证，以及界面的 `ts/dist`、`ts/src`、`package.json`、`package-lock.json` 和生产依赖 `ts/node_modules`。发布包解压后可直接运行，无需系统 Node 或 npm。打包后在隔离系统 Node 的环境中验证界面启动及退出。CI 不下载真实镜像或符号；真实镜像验收在本地运行。
+GitHub Actions 在 Linux／macOS 的 x86_64 和 ARM64 上运行 `make check` 与 CLI 启动检查，并为每个目标生成归档：原生 `zero` 可执行文件、README 和 `docs/tui.md`。无需 Node、npm 或外部界面目录。打包后在空 PATH 和不同工作目录中通过 PTY 验证界面启动及退出。CI 不下载真实镜像或符号；真实镜像验收在本地运行。
 
 `v` 前缀标签触发发布流程：四个平台检查通过后，校验标签与 Cargo 版本一致，以 [RELEASE_NOTES.md](../RELEASE_NOTES.md) 为说明发布归档和 `SHA256SUMS`。发布新版本：
 
 ```sh
-# 1. 同步 Cargo.toml／Cargo.lock、ts/package.json／package-lock.json 的版本号，并重写 RELEASE_NOTES.md
+# 1. 同步 Cargo.toml／Cargo.lock 的版本号，并重写 RELEASE_NOTES.md
 # 2. 本地通过 make check（可选 make tui-acceptance）
 git tag -a vX.Y.Z -m "Zero vX.Y.Z"
 git push origin main vX.Y.Z
@@ -101,19 +101,19 @@ git push origin main vX.Y.Z
 
 宿主构建使用 [GitHub 官方 runner 标签](https://docs.github.com/en/actions/reference/runners/github-hosted-runners)；Windows 镜像分析兼容范围与宿主平台分别记录。
 
-`make tui-acceptance` 通过真实镜像驱动 `zero tui-backend`（界面使用的同一协议），覆盖识别、精确匹配、分析和页表验证；样本路径可用 `ZERO_TEST_IMAGE`／`ZERO_TEST_SYMBOLS` 覆盖。界面本身的单元测试用内存引擎，不读取镜像：
+`make tui-acceptance` 通过真实镜像驱动 `zero tui-backend`（保留兼容协议），并测试 Rust 原生界面共享服务，覆盖识别、精确匹配、分析和页表验证；样本路径可用 `ZERO_TEST_IMAGE`／`ZERO_TEST_SYMBOLS` 覆盖。界面本身的单元测试用内存引擎，不读取镜像：
 
 ```sh
-cd ts && npm test
+cargo test --locked --lib tui::
 ```
 
-界面架构、协议和目录说明见 [TypeScript 终端界面](tui.md)。
+界面架构、协议和目录说明见 [Rust 原生终端界面](tui.md)。
 
 ## README 截图
 
-`docs/assets/*.svg` 由真实引擎生成：`scripts/screenshots.mjs` 把本地公开样本复制到临时项目，经与终端相同的 `RpcEngine`、`App` 和 `renderFrame` 运行插件，再把画布转为 SVG，所以截图不含本机路径，也不会与界面实际效果脱节。界面改动后重新生成：
+`docs/assets/*.svg` 由真实引擎生成：`cargo run --release --example screenshots` 把本地公开样本复制到临时项目，经与终端相同的 Rust `App` 和共享引擎服务运行插件，再把 Ratatui Buffer 转为 SVG，所以截图不含本机路径，也不会与界面实际效果脱节。界面改动后重新生成：
 
 ```sh
-make build ui-build
-make screenshots   # 默认 images/linux-sample-1.bin.gz 与 symbols/linux.zip，可用 IMAGE= SYMBOLS= 覆盖
+make build
+make screenshots   # 默认 images/linux-sample-1.bin 与 symbols/linux.zip，可用 IMAGE= SYMBOLS= 覆盖
 ```

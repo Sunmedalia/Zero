@@ -7,7 +7,7 @@
 [![CI](https://github.com/sunmedalia/zero/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/sunmedalia/zero/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/sunmedalia/zero?sort=semver&color=82b4e8)](https://github.com/sunmedalia/zero/releases/latest)
 ![Rust 2024](https://img.shields.io/badge/Rust-2024-dea584?logo=rust)
-![Bundled Node](https://img.shields.io/badge/Node-bundled-8bc7a3?logo=nodedotjs&logoColor=white)
+![Native Rust TUI](https://img.shields.io/badge/TUI-native_Rust-8bc7a3?logo=rust&logoColor=white)
 ![Linux | macOS](https://img.shields.io/badge/host-Linux%20%7C%20macOS-97a6b8)
 
 [使用指南](docs/usage.md) · [兼容矩阵](docs/compatibility.md) · [MCP](docs/mcp.md) · [界面架构](docs/tui.md) · [开发与发布](docs/development.md)
@@ -16,7 +16,7 @@
 
 </div>
 
-Zero 是本地内存取证工具：读取 Linux（x86_64／ARM64）与 Windows 内存镜像，用与内核**完全一致**的符号恢复进程、模块、文件、网络与内核完整性信息。分析引擎全部用 Rust 实现，终端界面用 TypeScript（Ink）自绘字符画布，键盘与鼠标都完整可用；同一个可执行文件还提供 CLI 和 stdio MCP 服务。分析本身不需要 Python、Volatility 或任何 HTTP 服务。
+Zero 是本地内存取证工具：读取 Linux（x86_64／ARM64）与 Windows 内存镜像，用与内核**完全一致**的符号恢复进程、模块、文件、网络与内核完整性信息。分析引擎和终端界面全部用 Rust 实现，界面采用 Ratatui + Crossterm，键盘与鼠标都完整可用；同一个可执行文件还提供 CLI 和 stdio MCP 服务。分析本身不需要 Python、Volatility 或任何 HTTP 服务。
 
 ## 特点
 
@@ -46,7 +46,7 @@ Zero 是本地内存取证工具：读取 Linux（x86_64／ARM64）与 Windows �
 
 ## 安装
 
-**发布包**（Linux／macOS，x86_64 与 ARM64）：从 [Releases](https://github.com/sunmedalia/zero/releases/latest) 下载对应归档并用 `SHA256SUMS` 校验。自 v0.1.9 起，包内包含对应平台的 Node 运行时和全部界面运行依赖，解压即可运行，无需安装 Node、npm 或在线安装依赖。请保留完整目录结构。
+**发布包**（Linux／macOS，x86_64 与 ARM64）：从 [Releases](https://github.com/sunmedalia/zero/releases/latest) 下载对应归档并用 `SHA256SUMS` 校验。原生版本解压即可运行，无需 Node、npm 或外部界面文件。
 
 ```sh
 sha256sum --check --ignore-missing SHA256SUMS   # macOS: shasum -a 256 -c --ignore-missing SHA256SUMS
@@ -58,7 +58,6 @@ tar xzf zero-*.tar.gz && cd zero-*/
 
 ```sh
 cargo build --release --locked
-(cd ts && npm install --no-audit --no-fund && npm run build)
 ./target/release/zero
 ```
 
@@ -105,7 +104,7 @@ zero mcp
 | [使用指南](docs/usage.md) | 界面、快捷键、CLI、全部 Linux 插件的字段与边界、缓存与设置、验收基线 |
 | [兼容矩阵](docs/compatibility.md) | Windows 插件与真实样本的验收证据 |
 | [MCP](docs/mcp.md) | 工具接口、`result_id` 快照分页与取消 |
-| [界面架构](docs/tui.md) | JSON-RPC 协议、布局树、画布、鼠标、页面标签与主题 |
+| [界面架构](docs/tui.md) | 原生引擎服务、布局、鼠标、页面标签、主题及兼容 JSON-RPC 协议 |
 | [开发与发布](docs/development.md) | 检查、资源预算、性能基准、CI、发布与截图 |
 | [性能测量](docs/performance.md) | 可复现的基准记录 |
 | [Agent skill](.agents/skills/zero-forensics/SKILL.md) | 供 AI 代理调用的说明与[示例](.agents/skills/zero-forensics/references/calls.md) |
@@ -113,7 +112,6 @@ zero mcp
 ## 开发
 
 ```sh
-make ui-install   # 首次安装界面依赖
 make check        # 界面构建、fmt、Clippy、Rust 测试、tsc、界面测试、release 构建
 make tui-acceptance acceptance windows-acceptance   # 需要本地真实样本
 ```

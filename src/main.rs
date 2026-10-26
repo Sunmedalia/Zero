@@ -1,6 +1,6 @@
 mod mcp;
 
-use anyhow::{Context, Result, bail};
+use anyhow::{Result, bail};
 use clap::{Parser, Subcommand};
 use std::path::PathBuf;
 use zero_tui::{
@@ -46,7 +46,7 @@ struct Cli {
 }
 #[derive(Subcommand)]
 enum Command {
-    /// Serve the newline-delimited JSON-RPC backend used by the TypeScript TUI.
+    /// Serve the compatible newline-delimited JSON-RPC engine backend.
     TuiBackend,
     /// Run the newline-delimited JSON-RPC MCP server over stdio.
     Mcp,
@@ -397,128 +397,52 @@ fn main() -> Result<()> {
         }
         Ok(())
     } else {
-        // The interface is the TypeScript terminal in `ts/`; it drives this
-        // native engine through `zero tui-backend`. A launch without a
-        // subcommand therefore hands over to it, forwarding the flags that only
-        // make sense for an interactive session.
+        // The native interface shares the Rust engine and prepared session.
         launch_tui(cli)
     }
 }
 
-/// Resolve the release's own interface before a development checkout in cwd.
-fn tui_directory(executable: &std::path::Path, cwd: &std::path::Path) -> Result<PathBuf> {
-    let candidates = [
-        std::env::var_os("ZERO_TUI_DIR").map(PathBuf::from),
-        executable.parent().map(|dir| dir.join("ts")),
-        Some(cwd.join("ts")),
-    ];
-    candidates
-        .into_iter()
-        .flatten()
-        .find(|dir| dir.join("package.json").is_file())
-        .context("找不到 TypeScript 界面目录；设置 ZERO_TUI_DIR 或从项目根目录运行")?
-        .canonicalize()
-        .context("解析 TypeScript 界面路径失败")
-}
-
-fn tui_runtime(executable: &std::path::Path, interface: &std::path::Path) -> PathBuf {
-    let name = if cfg!(windows) { "node.exe" } else { "node" };
-    [executable.parent(), interface.parent()]
-        .into_iter()
-        .flatten()
-        .map(|dir| dir.join("runtime").join(name))
-        .find(|path| path.is_file())
-        .unwrap_or_else(|| PathBuf::from(name))
-}
-
-/// Releases carry Node and production dependencies; source checkouts may use PATH.
 fn launch_tui(cli: Cli) -> Result<()> {
-    use std::process::Command;
-    let executable = std::env::current_exe()?;
-    let cwd = std::env::current_dir()?;
-    let dir = tui_directory(&executable, &cwd)?;
-    let entry = if dir.join("dist/main.js").is_file() {
-        dir.join("dist/main.js")
-    } else {
-        anyhow::bail!(
-            "{} 尚未构建；在 {} 运行 `npm install && npm run build`",
-            dir.join("dist/main.js").display(),
-            dir.display()
-        )
-    };
-    let runtime = tui_runtime(&executable, &dir);
-    let mut command = Command::new(&runtime);
-    command.arg(entry).current_dir(&dir);
-    command.env("ZERO_TUI_BACKEND", &executable);
-    command.env(
-        "ZERO_ROOT",
-        std::env::var_os("ZERO_ROOT").unwrap_or(std::env::current_dir()?.into()),
-    );
+    let root = std::env::var_os("ZERO_ROOT")
+        .map(PathBuf::from)
+        .unwrap_or(std::env::current_dir()?);
+    let root = root.canonicalize()?;
+    let cache = root.join(".zero/rust");
+    let mut settings = store::settings(&cache)?;
     if cli.offline {
-        command.arg("--offline");
+        settings.remote_symbols = false;
     }
-    if let Some(image) = cli.image {
-        command.arg("--image").arg(image);
-    }
-    if let Some(symbols) = cli.symbols {
-        command.arg("--symbols").arg(symbols);
-    }
-    command
-        .arg("--os")
-        .arg(format!("{:?}", cli.os).to_lowercase());
-    command
-        .arg("--arch")
-        .arg(format!("{:?}", cli.arch).to_lowercase());
-    for pagefile in &cli.pagefiles {
-        command
-            .arg("--pagefile")
-            .arg(format!("{}={}", pagefile.index, pagefile.path.display()));
-    }
-    if let Some(swapfile) = &cli.swapfile {
-        command.arg("--swapfile").arg(swapfile);
-    }
-    if let Some(hive) = cli.hive {
-        command.arg("--hive").arg(format!("{hive:#x}"));
-    }
-    if !cli.key.is_empty() {
-        command.arg("--key").arg(cli.key);
-    }
-    if let Some(pattern) = cli.pattern {
-        command.arg("--pattern").arg(pattern);
-    }
-    let status = command.status().with_context(|| {
-        format!(
-            "启动 TypeScript 界面失败（{}）；发布包请完整解压并保留 runtime/ 与 ts/，源码运行需 Node ≥ 22",
-            runtime.display()
-        )
-    })?;
-    anyhow::ensure!(status.success(), "界面退出码 {status}");
-    Ok(())
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn bundled_runtime_precedes_system_node() {
-        let root = tempfile::tempdir().unwrap();
-        let release = root.path().join("release");
-        let source = root.path().join("source");
-        for dir in [&release, &source] {
-            std::fs::create_dir_all(dir.join("runtime")).unwrap();
-        }
-        let name = if cfg!(windows) { "node.exe" } else { "node" };
-        let bundled = release.join("runtime").join(name);
-        let source_runtime = source.join("runtime").join(name);
-        std::fs::write(&bundled, []).unwrap();
-        std::fs::write(&source_runtime, []).unwrap();
-        let executable = release.join("zero");
-        let interface = source.join("ts");
-        assert_eq!(tui_runtime(&executable, &interface), bundled);
-        std::fs::remove_file(&bundled).unwrap();
-        assert_eq!(tui_runtime(&executable, &interface), source_runtime);
-        std::fs::remove_file(&source_runtime).unwrap();
-        assert_eq!(tui_runtime(&executable, &interface), PathBuf::from(name));
-    }
+    zero_tui::tui::run_with_options(
+        cli.image
+            .map(|p| if p.is_absolute() { p } else { root.join(p) }),
+        {
+            let p = cli
+                .symbols
+                .unwrap_or_else(|| store::expand_home(&settings.symbols));
+            if p.is_absolute() { p } else { root.join(p) }
+        },
+        cache,
+        settings,
+        zero_tui::analysis::Options {
+            os: cli.os,
+            arch: cli.arch,
+            pid: None,
+            pagefiles: cli
+                .pagefiles
+                .into_iter()
+                .map(|mut p| {
+                    if p.path.is_relative() {
+                        p.path = root.join(p.path);
+                    }
+                    p
+                })
+                .collect(),
+            swapfile: cli
+                .swapfile
+                .map(|p| if p.is_absolute() { p } else { root.join(p) }),
+            hive: cli.hive,
+            key: cli.key,
+            pattern: cli.pattern,
+        },
+    )
 }

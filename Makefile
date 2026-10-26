@@ -6,28 +6,26 @@ build:
 install:
 	cargo install --path . --locked
 
-# The interface is TypeScript; `run` builds it first so `zero` finds dist/.
+# Compatibility aliases for the native interface.
 ui-install:
-	cd ts && npm install --no-audit --no-fund
+	cargo fetch --locked
 
 ui-build:
-	cd ts && npm run build
+	cargo build --locked --bin zero
 
 ui-test:
-	cd ts && npm test
+	cargo test --locked --lib tui::
 
-run tui: ui-build
+run tui:
 	cargo run --release --bin zero -- $(ARGS)
 
 test:
 	cargo test --locked
 
-check: ui-build
+check:
 	cargo fmt --check
 	cargo clippy --locked --all-targets -- -D warnings
 	cargo test --locked
-	cd ts && npm run typecheck
-	cd ts && npm test
 	cargo build --locked --release
 	python3 scripts/windows_compatibility.py --check
 
@@ -44,12 +42,13 @@ windows-acceptance:
 	cargo test --locked --release --test windows_acceptance -- --ignored
 
 # Offline resource selection -> analysis through the real engine and interface.
-# Drives `zero tui-backend` exactly as the TypeScript UI does.
-tui-acceptance: ui-build
+# Covers the compatible JSON-RPC adapter and the native UI service.
+tui-acceptance:
 	cargo test --locked --release --test tui_backend -- --ignored --nocapture
+	cargo test --locked --release --lib tui::native_acceptance -- --ignored --nocapture
 
 # README screenshots from the real engine and renderer; local sample, offline.
-IMAGE ?= images/linux-sample-1.bin.gz
+IMAGE ?= images/linux-sample-1.bin
 SYMBOLS ?= symbols/linux.zip
-screenshots: build ui-build
-	node scripts/screenshots.mjs $(IMAGE) $(SYMBOLS) docs/assets
+screenshots:
+	cargo run --locked --release --example screenshots -- $(IMAGE) $(SYMBOLS) docs/assets
