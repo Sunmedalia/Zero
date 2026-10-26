@@ -29,6 +29,7 @@ check: ui-build
 	cd ts && npm run typecheck
 	cd ts && npm test
 	cargo build --locked --release
+	python3 scripts/windows_compatibility.py --check
 
 # Local Debian and Kali samples; no network during acceptance.
 # Override with ZERO_TEST_IMAGE / ZERO_TEST_SYMBOLS / ZERO_KALI_IMAGE / ZERO_KALI_SYMBOLS.

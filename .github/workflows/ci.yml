@@ -53,8 +53,6 @@ jobs:
         run: make ui-install
       - name: Check, test and build
         run: make check
-      - name: Check compatibility documentation
-        run: python3 scripts/windows_compatibility.py --check
       - name: Smoke test and package
         run: |
           target/release/zero --help
