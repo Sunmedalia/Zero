@@ -6,12 +6,12 @@
 
 - **`windows.hashdump`**：读取内存中的 SAM，输出 `User,RID,LM,NT,LastWrite`。bootkey 由 `JD`／`Skew1`／`GBG`／`Data` 四个子键的 class 数据拼接后按固定置换表打散；F 值在 Vista+ 用 AES-128-CBC、XP／2003 用 RC4+MD5 解出 hbootkey；V 值按 CredDump 血统的偏移解码用户名与 LM／NT 哈希，空密码输出公认常量。
 - **`windows.lsadump`**：从 SECURITY hive 的 `Policy\Secrets` 逐条解密。Win7 及以后走 `PolEKList`（AES-256 逐块），XP 走 `PolSecretEncryptionKey`（RC4）。
-- **`windows.cachedump`**：取 `NL$KM` 解密域缓存槽位，输出 hashcat 2100 可用的 `$DCC2$` 格式。独立工作站通常为空表，域控样本才有条目。
+- **`windows.cachedump`**：取 `NL$KM` 解密域缓存槽位，输出 hashcat 2100 可用的 `$DCC2$` 格式。是否有条目取决于样本中是否保存了域用户的缓存登录记录；空表本身不能证明未发生域登录。
 - 三个插件优先在 Registry 进程地址空间解析 hive，缺失时回退内核映射；两种视图都读不到的 hive 降级为零行并给出诊断，不输出猜测值。样本布局超出已知 revision 时同样报诊断而不是猜哈希。
 
 ## 内存与文件转储
 
-新增 `dump --mode vad|dll|module|files`（TUI 中 Alt+3–7）：
+新增 `dump --mode vad|dll|module|files`（TUI 中依次为 Alt+4–7）：
 
 - **`vad`**：逐 VAD 导出进程内存，语义对齐 vol3 vaddump（不做可读过滤，读不出的段逐段诊断并跳过）。
 - **`dll`**：按 PE 节表重建进程 DLL，与 `pedump` 同一套逻辑，节间空洞补零、缺页报错，绝不伪造缺失字节。
@@ -32,7 +32,7 @@
 
 ## 实测
 
-在 Server 2012 psexec 公开样本上：hashdump 输出完整用户行、lsadump 解出含明文 DefaultPassword 的条目、vaddump 79 段哈希与清单一致、dlldump 重建 4 个合法 PE32+、thrdscan 恢复 149 个线程、dumpfiles 对 explorer.exe 提取 18 个文件（`.mui` 头部为合法 MZ，SHA256 与清单相符）。
+Server 2012 R2 DC01 样本验证了凭证提取、79 段 VAD 导出和 4 个 DLL 重建。Server 2012 psexec 样本的 thrdscan 恢复 149 个线程，dumpfiles 对 explorer.exe 提取 18 个文件（部分 `.mui` 输出具有 MZ 文件头，已复核文件的 SHA256 与清单相符）；文件缓存读取仍有诊断，因此该次 dumpfiles 结果标记为不完整。这些冒烟结果不代表已与 Volatility 逐字段比对，也不代表所有 Windows 构建均已验证。
 
 ## 安装
 
