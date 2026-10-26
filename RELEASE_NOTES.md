@@ -1,24 +1,38 @@
-# Zero v0.1.7
+# Zero v0.1.8
 
-本次更新把镜像校验从第一个插件中拆出来，结果缓存按镜像分组，部分结果也写入本地；远程索引分为两个视图并支持自定义仓库，新增跟随终端背景的自动主题。
+本次更新把 Windows 取证能力补齐到 Volatility 3 的对应插件：凭证提取（hashdump／lsadump／cachedump）、内存与文件转储（vaddump／dlldump／moddump／dumpfiles）以及线程池扫描（thrdscan）。所有新插件均为原生 Rust 实现，不执行任何外部脚本或符号文件。
 
-## 镜像校验与缓存
+## 凭证提取
 
-- **镜像校验成为独立步骤**：选用镜像时先完整读取一遍计算 SHA256（状态行显示进度，Esc 可取消），再识别系统并匹配符号。新会话的第一个插件不再等待摘要扫描：3.6 GB 的 Win11 样本校验约 26 秒，随后第一个插件约 2.6 秒。`V`（命令面板“校验镜像 SHA256”）可对当前镜像单独执行，`d` 详情显示完整 SHA256 与校验状态。
-- **部分结果写入本地**：部分结果连同全部诊断保存为单独的 `<键>.partial.json`，下次直接读取并仍标为“部分”，不会进入成功缓存。
-- **缓存页按镜像分组**：结果文件开头记录镜像 SHA256、分析路径、插件、行数与诊断数，缓存页只读文件头即可分组。分组依据是内容摘要而不是文件名；同一路径的文件被改写后，旧结果单独成组并标“文件已变化”。标题行上 Enter 折叠／展开，Delete 删除该镜像的全部结果（不触碰镜像文件）。旧版本写入的结果归入“未记录镜像”，下次读取时补记镜像。
-- **可选的摘要复用**（默认关闭）：设置“镜像摘要：文件未变时复用上次摘要”打开后，文件元数据与 16 处内容抽样都与上次记录一致时，新会话不必完整读取镜像。
+- **`windows.hashdump`**：读取内存中的 SAM，输出 `User,RID,LM,NT,LastWrite`。bootkey 由 `JD`／`Skew1`／`GBG`／`Data` 四个子键的 class 数据拼接后按固定置换表打散；F 值在 Vista+ 用 AES-128-CBC、XP／2003 用 RC4+MD5 解出 hbootkey；V 值按 CredDump 血统的偏移解码用户名与 LM／NT 哈希，空密码输出公认常量。
+- **`windows.lsadump`**：从 SECURITY hive 的 `Policy\Secrets` 逐条解密。Win7 及以后走 `PolEKList`（AES-256 逐块），XP 走 `PolSecretEncryptionKey`（RC4）。
+- **`windows.cachedump`**：取 `NL$KM` 解密域缓存槽位，输出 hashcat 2100 可用的 `$DCC2$` 格式。独立工作站通常为空表，域控样本才有条目。
+- 三个插件优先在 Registry 进程地址空间解析 hive，缺失时回退内核映射；两种视图都读不到的 hive 降级为零行并给出诊断，不输出猜测值。样本布局超出已知 revision 时同样报诊断而不是猜哈希。
 
-## 远程符号
+## 内存与文件转储
 
-- 远程页分为**全部索引**和**镜像匹配**两个视图，分开保存；用镜像精确匹配之后仍可浏览、搜索整个索引。点击视图标签或按 `z` 切换。
-- 远程仓库可在 `,` 设置中改为任意结构相同的 GitHub 仓库（`symbol_repository`），每个仓库的索引分开保存，下载链接必须属于当前仓库。
+新增 `dump --mode vad|dll|module|files`（TUI 中 Alt+3–7）：
 
-## 界面
+- **`vad`**：逐 VAD 导出进程内存，语义对齐 vol3 vaddump（不做可读过滤，读不出的段逐段诊断并跳过）。
+- **`dll`**：按 PE 节表重建进程 DLL，与 `pedump` 同一套逻辑，节间空洞补零、缺页报错，绝不伪造缺失字节。
+- **`module`**：重建 `PsLoadedModuleList` 中的内核模块，无需 PID。
+- **`files`**：从进程句柄表的 File 对象与文件映射 VAD 两个来源提取驻留缓存内容，走 DataSection／ImageSection 两类 ControlArea → Subsection → PTE 链（含 transition 页的 vol3 #475 掩码修正）。只提取磁盘文件，管道与网络设备被过滤；稀疏空洞补零并计入 SHA256；同一 FILE_OBJECT 的句柄与 VAD 来源只导出一次。SharedCacheMap／VACB 视图不提取。
 
-- 新增默认主题 `auto`：启动时向终端查询背景色（OSC 11），浅色背景用纸白、深色用石板；终端不回答时读 `COLORFGBG`。
-- 分析页点击第二行的镜像或符号名称打开只读详情（路径、大小、SHA256、识别出的内核），不再重新导入；弹窗内的按键与点击不会影响后面的结果。
-- 分析运行时，“运行中 · 进度 · 用时 · Esc 取消”标记显示在结果区中央。
+`vad`／`dll`／`module` 单次转储上限 256 MiB，`files` 按进程累计计费；文件名中的模块名净化为 `[A-Za-z0-9._-]`。minidump 容器不提供这些结构时会明确拒绝，而不是输出空结果。
+
+## 线程池扫描
+
+- **`windows.thrdscan`**：扫描 `Thre` 池标签恢复 `_ETHREAD` 对象，包含已退出或已脱离线程链表的线程。候选要求 CID 两项非零、可整除 4 且在上限内，链表与起始地址落在内核地址空间；CreateTime 按 vol3 语义处理（含 `ThreadsProcess` 字段的老结构右移 3 位）。
+
+## 其它
+
+- `handles` 与 `dumpfiles` 共用同一份句柄表遍历与指针解码实现。
+- 时间显示统一加了 9999 年上限，池残留的垃圾时间值渲染为空而不是巨大的整数。
+- 兼容矩阵的生成检查并入 `make check`，矩阵与 `compatibility.json` 的漂移在本地即可发现。
+
+## 实测
+
+在 Server 2012 psexec 公开样本上：hashdump 输出完整用户行、lsadump 解出含明文 DefaultPassword 的条目、vaddump 79 段哈希与清单一致、dlldump 重建 4 个合法 PE32+、thrdscan 恢复 149 个线程、dumpfiles 对 explorer.exe 提取 18 个文件（`.mui` 头部为合法 MZ，SHA256 与清单相符）。
 
 ## 安装
 
@@ -26,4 +40,4 @@
 
 发布工作流在 Linux／macOS 的 x86_64 与 ARM64 四个目标上执行格式检查、Clippy、自动测试、release 构建、兼容文档检查和命令行冒烟测试，全部通过后才发布。需要本地真实镜像或符号的验收测试不在工作流中执行。
 
-用法与兼容范围见[使用指南](https://github.com/sunmedalia/zero/blob/v0.1.7/docs/usage.md)和[兼容矩阵](https://github.com/sunmedalia/zero/blob/v0.1.7/docs/compatibility.md)。
+用法与兼容范围见[使用指南](https://github.com/sunmedalia/zero/blob/v0.1.8/docs/usage.md)和[兼容矩阵](https://github.com/sunmedalia/zero/blob/v0.1.8/docs/compatibility.md)。
