@@ -707,18 +707,10 @@ fn mouse_menu_header_and_modal() {
         })
     ));
     terminal.draw(|f| app.draw(f)).unwrap();
-    let hits = app.hits.borrow().clone();
-    // Modal clicks must not activate the underlying menu.
+    // Outside clicks dismiss without activating the page tab underneath.
     click(&mut app, 0, 0);
-    assert!(app.dialog.is_some());
-    let cancel = hits
-        .buttons
-        .iter()
-        .find(|(_, key)| *key == KeyCode::Esc)
-        .unwrap()
-        .0;
-    click(&mut app, cancel.x, cancel.y);
     assert!(app.dialog.is_none());
+    assert_eq!(app.page, Page::Analysis);
     terminal.draw(|f| app.draw(f)).unwrap();
     let menu = app.hits.borrow().menu;
     click(&mut app, 5, menu.y + 2);
@@ -1216,7 +1208,7 @@ fn automatic_rows_fill_viewport_and_custom_rows_persist() {
         app.page_rows(),
         usize::from(app.hits.borrow().result.height - 3)
     );
-    assert!(app.page_rows() < 17);
+    assert!(app.page_rows() <= 17);
     assert_eq!(app.settings.page_size, 17); // Desired size is preserved for a larger screen.
     app.key(KeyEvent::new(KeyCode::Char('n'), KeyModifiers::NONE));
     app.paste("auto");
@@ -2517,13 +2509,8 @@ fn preparation_and_analysis_layouts_have_valid_actions_at_target_sizes() {
                 );
             }
             if page == Page::Analysis && (60..100).contains(&width) && height >= 18 {
-                let region = hits
-                    .regions
-                    .iter()
-                    .find(|(_, focus)| *focus == Focus::Content)
-                    .unwrap()
-                    .0;
-                click(&mut app, region.x, region.y);
+                let toggle = hits.plugin_toggle;
+                click(&mut app, toggle.x, toggle.y);
                 terminal.draw(|f| app.draw(f)).unwrap();
                 assert!(app.hits.borrow().result.width > 0);
             }
@@ -4287,3 +4274,6 @@ mod migration;
 
 #[path = "parity_tests.rs"]
 mod parity;
+
+#[path = "review_tests.rs"]
+mod review;

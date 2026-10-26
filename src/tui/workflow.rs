@@ -130,7 +130,11 @@ impl App {
         } else {
             Plugin::Pslist
         });
-        self.focus = Focus::Navigation;
+        self.focus = if self.plugins_collapsed {
+            Focus::Content
+        } else {
+            Focus::Navigation
+        };
         self.status = "已进入分析控制台；点击插件立即分析，运行时验证页表".into();
         true
     }

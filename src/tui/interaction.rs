@@ -242,6 +242,7 @@ impl App {
             Command::ToggleMatchFilter => self.toggle_match_filter(),
             Command::Run => self.request_analysis(false),
             Command::Rerun => self.request_analysis(true),
+            Command::TogglePlugins => self.toggle_plugins(),
             Command::Plugins => {
                 self.dialog = Some(Dialog::Plugins {
                     query: String::new(),
@@ -697,8 +698,8 @@ impl App {
             return self.run_command(command);
         }
         match key.code {
-            KeyCode::Tab => self.focus = self.focus.next(false, self.visible_regions()),
-            KeyCode::BackTab => self.focus = self.focus.next(true, self.visible_regions()),
+            KeyCode::Tab => self.next_focus(false),
+            KeyCode::BackTab => self.next_focus(true),
             KeyCode::Up | KeyCode::Char('k') => {
                 if self.focus == Focus::Navigation {
                     self.menu = self.menu.saturating_sub(1);
@@ -773,6 +774,25 @@ impl App {
         {
             return false;
         }
+        if mouse.kind == MouseEventKind::Down(MouseButton::Left)
+            && self.dialog.is_some()
+            && !matches!(
+                self.dialog,
+                Some(Dialog::Input {
+                    kind: InputKind::Search | InputKind::AssetsSearch,
+                    ..
+                })
+            )
+            && !self
+                .hits
+                .borrow()
+                .popup
+                .contains(Position::new(mouse.column, mouse.row))
+        {
+            self.back_dialog = None;
+            self.dialog_key(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE));
+            return false;
+        }
         if self.scrollbar_mouse(mouse) {
             return false;
         }
@@ -828,6 +848,10 @@ impl App {
             return false;
         }
         if self.dialog.is_none() {
+            if click && hits.plugin_toggle.contains(point) {
+                self.toggle_plugins();
+                return false;
+            }
             if click
                 && let Some((_, focus)) = hits.regions.iter().find(|(rect, _)| rect.contains(point))
             {
@@ -854,7 +878,7 @@ impl App {
                     .iter()
                     .find(|(r, _)| r.contains(point))
             {
-                self.switch_result_tab(*index);
+                self.tab_offset.set(*index);
                 return false;
             }
             if click

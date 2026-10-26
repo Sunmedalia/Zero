@@ -11,7 +11,9 @@ impl App {
         // longer hides the results on ordinary terminals.
         let layout = Space::new(area.width, frame.area().height);
         let menu_width = layout.menu_width();
-        let mut main = if layout.two_panes() {
+        let mut main = if self.plugins_collapsed {
+            body
+        } else if layout.two_panes() {
             let columns = Layout::default()
                 .direction(Direction::Horizontal)
                 .constraints([Constraint::Length(menu_width), Constraint::Min(20)])

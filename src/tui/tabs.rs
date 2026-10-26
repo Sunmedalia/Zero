@@ -109,7 +109,11 @@ impl App {
             self.history = None;
             self.history_source = None;
             self.history_revision += 1;
-            self.focus = Focus::Navigation;
+            self.focus = if self.plugins_collapsed {
+                Focus::Content
+            } else {
+                Focus::Navigation
+            };
             self.status = "已关闭全部页面 · 选择插件后 R 运行".into();
         } else if current == index {
             self.switch_result_tab(index.min(self.open_tabs.len() - 1));
@@ -136,22 +140,47 @@ impl App {
         );
         let active = self.active_tab.unwrap_or(0);
         let count = self.open_tabs.len();
-        let width = ((area.width.saturating_sub(4) as usize) / count).clamp(6, 24) as u16;
-        let capacity = (area.width.saturating_sub(4) / width).max(1) as usize;
-        let start = active.saturating_sub(capacity - 1);
-        let mut x = area.x;
-        if start > 0 {
-            let rect = Rect::new(x, area.y, 2, 1);
-            frame.render_widget(
-                Paragraph::new("‹ ").style(Style::default().fg(color_accent())),
-                rect,
-            );
-            self.hits
-                .borrow_mut()
-                .result_tab_steps
-                .push((rect, start - 1));
-            x += 2;
+        let overflow = count.saturating_mul(24) > area.width as usize;
+        let available = area.width.saturating_sub(if overflow { 6 } else { 0 });
+        let width = 24.min(available).max(1);
+        let capacity = (available / width).max(1) as usize;
+        let maximum = count.saturating_sub(capacity);
+        let mut start = self.tab_offset.get().min(maximum);
+        let layout = (self.active_tab, area.width);
+        if self.tab_layout.get() != Some(layout) {
+            if active < start {
+                start = active;
+            }
+            if active >= start + capacity {
+                start = active + 1 - capacity;
+            }
+            self.tab_layout.set(Some(layout));
         }
+        self.tab_offset.set(start);
+        if overflow {
+            for (column, label, offset) in [
+                (area.right() - 6, " < ", start.checked_sub(1)),
+                (
+                    area.right() - 3,
+                    " > ",
+                    (start < maximum).then_some(start + 1),
+                ),
+            ] {
+                let rect = Rect::new(column, area.y, 3, 1);
+                frame.render_widget(
+                    Paragraph::new(label).style(Style::default().fg(if offset.is_some() {
+                        color_accent()
+                    } else {
+                        color_muted()
+                    })),
+                    rect,
+                );
+                if let Some(offset) = offset {
+                    self.hits.borrow_mut().result_tab_steps.push((rect, offset));
+                }
+            }
+        }
+        let mut x = area.x;
         for (index, tab) in self.open_tabs.iter().enumerate().skip(start).take(capacity) {
             let name = match tab {
                 OpenTab::Plugin(p) => {
@@ -210,17 +239,6 @@ impl App {
                 .result_tabs
                 .push((rect, close, index));
             x += rect.width;
-        }
-        if start + capacity < count && x < area.right() {
-            let rect = Rect::new(x, area.y, 1, 1);
-            frame.render_widget(
-                Paragraph::new("›").style(Style::default().fg(color_accent())),
-                rect,
-            );
-            self.hits
-                .borrow_mut()
-                .result_tab_steps
-                .push((rect, start + capacity));
         }
     }
 }

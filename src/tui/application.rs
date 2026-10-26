@@ -89,7 +89,11 @@ impl App {
         self.dump_options = None;
         self.last_error = None;
         self.object_version += 1;
-        self.focus = Focus::Navigation;
+        self.focus = if self.page == Page::Analysis && self.plugins_collapsed {
+            Focus::Content
+        } else {
+            Focus::Navigation
+        };
         self.status = format!(
             "已选择 {} · i 镜像 / y 符号 / p 插件",
             match os {
@@ -274,6 +278,9 @@ impl App {
             open_tabs: Vec::new(),
             drag: None,
             active_tab: None,
+            tab_offset: std::cell::Cell::new(0),
+            tab_layout: std::cell::Cell::new(None),
+            plugins_collapsed: false,
             page: Page::Assets,
             section: AssetSection::Images,
             symbol_source: AssetSection::Symbols,
@@ -1308,6 +1315,20 @@ impl App {
     ///
     /// Read from the last frame's hit map, so it always describes what the user
     /// can actually see rather than what the window size suggests.
+    pub(super) fn toggle_plugins(&mut self) {
+        self.plugins_collapsed = !self.plugins_collapsed;
+        self.focus = if self.plugins_collapsed {
+            Focus::Content
+        } else {
+            Focus::Navigation
+        };
+    }
+    pub(super) fn next_focus(&mut self, back: bool) {
+        self.focus = self.focus.next(back, self.visible_regions());
+        if self.plugins_collapsed && self.focus == Focus::Navigation {
+            self.focus = self.focus.next(back, self.visible_regions());
+        }
+    }
     pub(super) fn visible_regions(&self) -> Visible {
         let hits = self.hits.borrow();
         Visible {
@@ -1331,6 +1352,10 @@ impl App {
             self.focus = Focus::Content;
         }
         self.focus = self.focus.clamp(self.visible_regions());
+        if self.page == Page::Analysis && self.plugins_collapsed && self.focus == Focus::Navigation
+        {
+            self.focus = Focus::Content;
+        }
     }
     pub(super) fn select_plugin(&mut self, plugin: Plugin) {
         self.save_view();

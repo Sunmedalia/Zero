@@ -61,17 +61,21 @@ impl App {
         ])
         .areas(frame.area());
         self.draw_tabs(frame, tabs);
-        self.draw_system_row(frame, systems);
+        if self.page == Page::Analysis {
+            self.register_header_hits(systems);
+            self.draw_header(frame, systems);
+        } else {
+            self.draw_system_row(frame, systems);
+        }
         let parts = Layout::default()
             .direction(Direction::Vertical)
             .constraints([
-                Constraint::Length(if self.page == Page::Analysis { 1 } else { 0 }),
+                Constraint::Length(0),
                 Constraint::Min(3),
                 Constraint::Length(self.footer_height(frame.area().width, frame.area().height)),
             ])
             .split(area);
-        self.register_header_hits(parts[0]);
-        self.draw_header(frame, parts[0]);
+
         if self.page == Page::Assets {
             self.draw_assets(frame, parts[1]);
         } else if self.page == Page::Cache {

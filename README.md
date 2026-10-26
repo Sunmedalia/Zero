@@ -46,7 +46,7 @@ Zero 是本地内存取证工具：读取 Linux（x86_64／ARM64）与 Windows �
 
 ## 安装
 
-**发布包**（Linux／macOS，x86_64 与 ARM64）：从 [Releases](https://github.com/sunmedalia/zero/releases/latest) 下载对应归档并用 `SHA256SUMS` 校验。原生版本解压即可运行，无需 Node、npm 或外部界面文件。
+**发布包**（Linux x86_64／ARM64、macOS ARM64）：从 [Releases](https://github.com/sunmedalia/zero/releases/latest) 下载对应归档并用 `SHA256SUMS` 校验。原生版本解压即可运行，无需 Node、npm 或外部界面文件。
 
 ```sh
 sha256sum --check --ignore-missing SHA256SUMS   # macOS: shasum -a 256 -c --ignore-missing SHA256SUMS
@@ -116,4 +116,4 @@ make check        # 界面构建、fmt、Clippy、Rust 测试、tsc、界面测�
 make tui-acceptance acceptance windows-acceptance   # 需要本地真实样本
 ```
 
-CI 在 Linux 与 macOS 的 x86_64／ARM64 上运行 `make check`；推送 `v*` 标签后自动构建并发布四个平台的归档。详见[开发与发布](docs/development.md)。
+CI 在 Linux x86_64／ARM64、macOS ARM64 上运行 `make check`；推送 `v*` 标签后自动构建并发布这三个目标的归档，后续不再发布 macOS Intel 版本。详见[开发与发布](docs/development.md)。

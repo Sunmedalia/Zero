@@ -91,7 +91,25 @@ impl App {
             self.hits.borrow_mut().tabs.push((rect, *page));
             x = x.saturating_add(width + 1);
         }
-        if area.width.saturating_sub(x.saturating_sub(area.x)) > 24 {
+        if self.page == Page::Analysis {
+            self.draw_system_buttons(
+                frame,
+                Rect::new(x, area.y, 17.min(area.right().saturating_sub(x)), 1),
+            );
+            x += 17;
+            let label = if self.plugins_collapsed {
+                "[展开插件 B]"
+            } else {
+                "[收起插件 B]"
+            };
+            let width = (Span::raw(label).width() as u16).min(area.right().saturating_sub(x));
+            let rect = Rect::new(x, area.y, width, 1);
+            frame.render_widget(
+                Paragraph::new(label).style(Style::default().fg(color_accent())),
+                rect,
+            );
+            self.hits.borrow_mut().plugin_toggle = rect;
+        } else if area.width.saturating_sub(x.saturating_sub(area.x)) > 24 {
             let brand = Line::from(vec![
                 Span::styled(
                     "ZERO",
@@ -260,9 +278,8 @@ impl App {
         // One line, filled by priority: what changes, then what identifies the
         // input. Narrow windows drop the tail instead of truncating it
         // mid-word, so a field is either fully readable or not shown.
-        let platform = if self.windows { "Windows" } else { "Linux" };
-        let mut line = field("", platform.into(), value.add_modifier(Modifier::BOLD)).to_vec();
-        let mut used = Span::raw(platform).width();
+        let mut line = Vec::new();
+        let mut used = 0;
         for (label, text, style) in [
             (
                 "镜像: ",
@@ -276,14 +293,15 @@ impl App {
             ),
             ("验证: ", kernel, kernel_style),
         ] {
-            let width = 3 + Span::raw(label).width() + Span::raw(&text).width();
+            let gap = if line.is_empty() { 0 } else { 3 };
+            let width = gap + Span::raw(label).width() + Span::raw(&text).width();
             if used + width > area.width as usize {
                 break;
             }
             let rect = Rect::new(
-                area.x + used as u16 + 3,
+                area.x + used as u16 + gap as u16,
                 area.y,
-                width.saturating_sub(3) as u16,
+                width.saturating_sub(gap) as u16,
                 area.height,
             );
             if label == "符号: " {
@@ -293,7 +311,9 @@ impl App {
                 self.hits.borrow_mut().header_image = rect;
             }
             used += width;
-            line.push(separator());
+            if gap > 0 {
+                line.push(separator());
+            }
             line.extend(field(label, escaped(&text), style));
         }
         frame.render_widget(Paragraph::new(Line::from(line)), area);

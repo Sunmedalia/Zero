@@ -53,6 +53,7 @@ pub(super) enum Command {
     Run,
     Rerun,
     Plugins,
+    TogglePlugins,
     Parameters,
     Dump,
     Export,
@@ -164,6 +165,7 @@ fn keywords(command: Command) -> &'static str {
         Command::Run => "run plugin",
         Command::Rerun => "rerun force",
         Command::Plugins => "plugins search",
+        Command::TogglePlugins => "plugins collapse expand sidebar",
         Command::Parameters => "parameters options pid hive key arch pagefile",
         Command::Dump => "dump procdump memdump elfdump pedump",
         Command::Export => "export csv json",
@@ -501,6 +503,13 @@ pub(super) const ACTIONS: &[Action] = &[
             PALETTE | FOOTER,
         )
     },
+    action(
+        Command::TogglePlugins,
+        "收起／展开插件 B",
+        KeyCode::Char('B'),
+        Scope::Analysis,
+        PALETTE,
+    ),
     action(
         Command::Parameters,
         "编辑适用参数 P",
