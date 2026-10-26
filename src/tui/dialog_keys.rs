@@ -402,6 +402,10 @@ impl App {
                                 !self.settings.reuse_recorded_digest;
                             self.persist_settings();
                         }
+                        9 => {
+                            self.settings.github_access = self.settings.github_access.next();
+                            self.persist_settings();
+                        }
                         8 => {
                             self.settings.enable_cache = !self.settings.enable_cache;
                             self.persist_settings();

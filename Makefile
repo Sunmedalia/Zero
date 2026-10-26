@@ -42,9 +42,8 @@ windows-acceptance:
 	cargo test --locked --release --test windows_acceptance -- --ignored
 
 # Offline resource selection -> analysis through the real engine and interface.
-# Covers the compatible JSON-RPC adapter and the native UI service.
+# Covers the native UI service.
 tui-acceptance:
-	cargo test --locked --release --test tui_backend -- --ignored --nocapture
 	cargo test --locked --release --lib tui::native_acceptance -- --ignored --nocapture
 
 # README screenshots from the real engine and renderer; local sample, offline.

@@ -586,6 +586,7 @@ zero --offline analyze --image images/WinDump/WinDump.mem --symbols symbols/nt.j
 | `remote_symbols` | `true` | 在线符号匹配；`o` 切换后立即保存，并对之后的所有任务生效 |
 | `theme` | `auto` | 界面主题：`auto`（跟随终端背景）、`slate`、`light`、`solarized`、`phosphor`、`contrast`；未知值回退默认 |
 | `symbol_repository` | `https://github.com/Abyss-W4tcher/volatility3-symbols` | 远程符号仓库，只接受 `https://github.com/<所有者>/<仓库>`，可附加 `/tree/<分支>`（默认 `master`）。仓库需与默认仓库结构相同：`banners/banners_plain.json` 索引，ISF 为仓库文件或该仓库的 Releases 资产。每个仓库的索引分开保存，下载链接必须属于当前设置的仓库 |
+| `github_access` | `auto` | GitHub 索引／符号下载线路：`auto` 直连失败后尝试 gh-proxy.com，`direct` 仅直连，`gh-proxy` 直接使用代理；可在设置页“GitHub 下载”切换，离线模式仍禁止联网 |
 | `reuse_recorded_digest` | `false` | 关闭时每个新会话选用镜像时完整读取镜像校验内容摘要。打开后，镜像文件元数据（设备、inode、大小、修改／变更时间）与 16 处共约 1 MiB 的内容抽样都与上次记录一致时，复用上次的摘要；记录时文件刚被修改（不足 2 秒）的不复用 |
 | `resources` | — | 页表、扫描与快照预算，见 [开发文档](development.md#资源预算) |
 

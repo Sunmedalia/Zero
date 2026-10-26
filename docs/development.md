@@ -101,7 +101,7 @@ git push origin main vX.Y.Z
 
 宿主构建使用 [GitHub 官方 runner 标签](https://docs.github.com/en/actions/reference/runners/github-hosted-runners)；Windows 镜像分析兼容范围与宿主平台分别记录。
 
-`make tui-acceptance` 通过真实镜像驱动 `zero tui-backend`（保留兼容协议），并测试 Rust 原生界面共享服务，覆盖识别、精确匹配、分析和页表验证；样本路径可用 `ZERO_TEST_IMAGE`／`ZERO_TEST_SYMBOLS` 覆盖。界面本身的单元测试用内存引擎，不读取镜像：
+`make tui-acceptance` 通过真实镜像测试 Rust 原生界面与引擎服务，覆盖识别、精确匹配、分析和页表验证；样本路径可用 `ZERO_TEST_IMAGE`／`ZERO_TEST_SYMBOLS` 覆盖。界面本身的单元测试用内存引擎，不读取镜像：
 
 ```sh
 cargo test --locked --lib tui::

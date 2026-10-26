@@ -104,7 +104,7 @@ zero mcp
 | [使用指南](docs/usage.md) | 界面、快捷键、CLI、全部 Linux 插件的字段与边界、缓存与设置、验收基线 |
 | [兼容矩阵](docs/compatibility.md) | Windows 插件与真实样本的验收证据 |
 | [MCP](docs/mcp.md) | 工具接口、`result_id` 快照分页与取消 |
-| [界面架构](docs/tui.md) | 原生引擎服务、布局、鼠标、页面标签、主题及兼容 JSON-RPC 协议 |
+| [界面架构](docs/tui.md) | 原生线程通信、布局、鼠标、页面标签、主题及 GitHub 下载代理 |
 | [开发与发布](docs/development.md) | 检查、资源预算、性能基准、CI、发布与截图 |
 | [性能测量](docs/performance.md) | 可复现的基准记录 |
 | [Agent skill](.agents/skills/zero-forensics/SKILL.md) | 供 AI 代理调用的说明与[示例](.agents/skills/zero-forensics/references/calls.md) |

@@ -221,3 +221,33 @@ fn hidden_plugin_pane_has_a_bottom_right_expand_button_and_no_top_toggle() {
     assert_eq!(app.focus, Focus::Content);
     assert!(screen(&frame, 80).contains(" >> "));
 }
+
+#[test]
+fn github_download_route_can_be_selected_with_settings_keyboard_and_mouse_and_is_saved() {
+    let mut app = app();
+    app.dialog = Some(Dialog::Settings { selected: 9 });
+    assert_eq!(app.settings.github_access, symbols::GithubAccess::Auto);
+    app.dialog_key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
+    assert_eq!(app.settings.github_access, symbols::GithubAccess::Direct);
+    assert_eq!(
+        store::read_settings(&app.cache).github_access,
+        symbols::GithubAccess::Direct
+    );
+    let _frame = render(&app, 120, 35);
+    let hits = app.hits.borrow().clone();
+    let y = hits.popup.y + 1 + (9 - hits.popup_offset) as u16;
+    click(&mut app, hits.popup.x + 2, y);
+    assert_eq!(app.settings.github_access, symbols::GithubAccess::GhProxy);
+    assert_eq!(
+        store::read_settings(&app.cache).github_access,
+        symbols::GithubAccess::GhProxy
+    );
+    app.dialog_key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
+    assert_eq!(app.settings.github_access, symbols::GithubAccess::Auto);
+    let legacy: store::Settings = serde_json::from_str("{}").unwrap();
+    assert_eq!(legacy.github_access, symbols::GithubAccess::Auto);
+    assert_eq!(
+        serde_json::to_value(symbols::GithubAccess::GhProxy).unwrap(),
+        "gh-proxy"
+    );
+}

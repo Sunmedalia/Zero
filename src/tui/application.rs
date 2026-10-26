@@ -1300,6 +1300,10 @@ impl App {
                 }
             ),
             format!("结果缓存: {}", self.settings.enable_cache),
+            format!(
+                "GitHub 下载: {}（Enter 切换）",
+                self.settings.github_access.label()
+            ),
         ]
     }
     pub(super) fn persist_settings(&mut self) {

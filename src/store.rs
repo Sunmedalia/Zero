@@ -556,6 +556,8 @@ pub struct Settings {
     pub theme: String,
     /// GitHub repository for the remote symbol index and ISF downloads.
     pub symbol_repository: String,
+    /// Route public GitHub symbol downloads directly or through gh-proxy.com.
+    pub github_access: crate::symbols::GithubAccess,
     /// Reuse the content digest recorded by an earlier session while the
     /// file's metadata stamp and content sample are unchanged. Off by default:
     /// every new session then reads the whole image to verify its digest.
@@ -575,6 +577,7 @@ impl Default for Settings {
             remote_symbols: true,
             theme: "auto".into(),
             symbol_repository: crate::symbols::REPOSITORY.into(),
+            github_access: Default::default(),
             reuse_recorded_digest: false,
         }
     }

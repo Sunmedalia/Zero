@@ -10,11 +10,10 @@ TUI 使用 Ratatui + Crossterm，与分析引擎一起编译进 `zero`。构建�
 zero
 ├─ 无子命令       Rust TUI → 后台线程 → 共享引擎服务
 ├─ analyze|dump|… CLI → Rust 分析引擎
-├─ mcp           stdio MCP
-└─ tui-backend   保留兼容的 JSON-RPC over stdio
+└─ mcp           stdio MCP
 ```
 
-`src/tui.rs` 管理终端生命周期与事件循环；`src/tui/` 按应用状态、动作、布局、页面、对话框、任务、标签、滚动条和主题拆分。`src/engine_service.rs` 共享项目路径、镜像校验、识别、匹配、分析、缓存清单和符号保存逻辑；`src/tui_backend.rs` 保留协议适配。原生界面使用 Rust 类型传递请求与结果，不启动子进程或编码 JSON-RPC。
+`src/tui.rs` 管理终端生命周期与事件循环；`src/tui/` 按应用状态、动作、布局、页面、对话框、任务、标签、滚动条和主题拆分。`src/engine_service.rs` 提供项目路径、镜像校验、识别、匹配、分析、缓存清单和符号保存逻辑。原生界面使用 Rust 类型传递请求与结果，不启动子进程或编码 JSON-RPC。
 
 项目根目录使用 `ZERO_ROOT`，未设置时使用当前目录。设置中的相对路径、输入路径和 CLI 初始选择均按项目根目录解析。`--offline`、`--image`、`--symbols`、`--os`、`--arch`、`--pagefile`、`--swapfile`、`--hive`、`--key`、`--pattern` 保持支持。旧设置、项目清单、缓存、部分结果与导出记录继续使用，无需迁移。`ZERO_TUI_DIR`、`ZERO_TUI_BACKEND` 不再用于原生界面。
 
@@ -62,37 +61,14 @@ make screenshots     # Rust 示例使用真实引擎与同一个 Buffer 输出 S
 
 常规测试使用内存结果和合成样本，覆盖状态机、任务竞态、布局、鼠标命中、宽字符、主题和终端尺寸。真实样本路径可通过 `ZERO_TEST_IMAGE`／`ZERO_TEST_SYMBOLS` 覆盖。发布包只包含原生可执行文件和文档，PTY 验证在空 PATH 及不同工作目录中运行。
 
-## 协议
+## GitHub 下载线路
 
-每行一个 JSON 对象。请求带 `id`，响应回带同一个 `id`：
+设置页的“GitHub 下载”提供三种模式，并保存为 `.zero/rust/settings.json` 的 `github_access`：
 
-```json
-{"jsonrpc":"2.0","id":1,"method":"hello","params":{}}
-{"jsonrpc":"2.0","id":1,"result":{"instance":"…","plugins":[…],"settings":{…}}}
-```
+- `auto`（默认）：先直连 GitHub，直连传输最多等待 20 秒；连接或传输失败时尝试 gh-proxy.com。
+- `direct`：只直连 GitHub。
+- `gh-proxy`：直接使用 `https://gh-proxy.com/<原始 HTTPS 地址>`，适用于无法访问 GitHub 的网络。
 
-长操作走任务协议，启动立即返回任务号，完成和失败以通知推送：
+代理地址拼接方式见 [GH-Proxy 使用指南](https://gh-proxy.com/docs/github-accelerator)。此设置用于 GitHub 的远程 banner 索引、Raw ISF 和 Release 符号文件。仓库地址、索引条目和缓存来源仍保存原始 GitHub URL，下载后继续校验完整 banner／身份。Microsoft 符号服务器与官方 Windows ZIP 保持原下载地址；离线模式禁止新的下载。HTTP 404 和用户取消不会触发代理重试。
 
-```json
-{"jsonrpc":"2.0","id":2,"method":"task.start","params":{"op":"analyze","args":{…}}}
-{"jsonrpc":"2.0","id":2,"result":{"task":"t1"}}
-{"jsonrpc":"2.0","method":"task.progress","params":{"id":"t1","message":"验证内核页表和完整 banner"}}
-{"jsonrpc":"2.0","method":"task.done","params":{"id":"t1","result":{"result":{…}}}}
-```
-
-同一时刻只允许一个任务，第二个 `task.start` 返回 `-32001`。`task.cancel` 设置引擎已有的协作取消标志；被取消的任务不会继续下载、选用或分析。任务结束时后端会自行释放任务槽，因此客户端即使收到结果后立即退出也不会挂住。
-
-回复行和完成通知可能落在同一个管道读取块里。缓存命中的任务是毫秒级的，`task.start` 的 Promise 回调可能晚于 `task.done` 执行；客户端必须在启动阶段就接受带任务号的通知，否则完成事件会被当成未知任务丢弃，界面会永久停在“执行中”。兼容客户端仍须处理此顺序；Rust 原生 TUI 不经过管道，任务标识在启动 worker 前分配。
-
-方法分两类：
-
-| 类别 | 方法 |
-| --- | --- |
-| 同步查询 | `hello`、`assets`、`browse`、`cache.inventory`、`settings.get`、`settings.save`、`history.list`、`symbols.cached`、`registry.select`、`registry.register`、`registry.remove`、`registry.selected`、`session.reset`、`ping` |
-| 任务 | `verify`、`analyze`、`dump`、`identify`、`matchLocal`、`remote`、`download`、`generate`、`inspectSymbols`、`cacheClear`、`cacheRemove`、`record`、`export`、`history` |
-
-`verify` 为本次会话校验镜像内容（SHA256），回复 `digest`、`computed`（false 表示本会话已校验过，或设置允许复用上次记录）与 `seconds`；它把校验过的镜像留在会话中，之后的 `analyze` 直接使用。界面在选用镜像时先调用它，再做 `matchLocal`，所以插件请求不再承担整镜像读取。`assets` 中镜像条目的 `digest` 是上次完整校验记录的摘要（文件元数据未变时），只用于显示。
-
-`cache.inventory` 返回 `entries`（含 `modified`；分析结果另带 `result`：所属镜像 SHA256 `image`、分析路径 `source`、`plugin`、`complete`、`rows`、`diagnostics`，旧版条目为空值）和 `records`（导出记录，最新在前）。结果文件把这些字段写在行数据之前，清单只读文件开头 64 KiB；界面按 `image` 把结果分组，并用资产的 `digest` 找到镜像名称。`cacheRemove` 只接受清单中的路径，删除导出记录时连同副本一起删除。`record` 按记录键从已校验副本重新打开导出。`export` 的回复包含 `record`，记录失败时为 `record_error`，导出本身仍然成功。目录模式的 `remote` 接受 `limit`（默认 500），回复包含 `total` 和 `index`（`banners`、`entries`、`bytes`、`age_seconds`）。
-
-`analyze` 与 `dump` 接受与 CLI 相同的 `options`（`os`、`arch`、`pid`、`hive`、`key`、`pagefiles`、`swapfile`）。内核地址超出 JSON 安全整数范围，`hive`、`start`、`end` 以十进制字符串传输，后端也接受整数。部分结果保留 `complete: false` 和全部诊断，保存在单独的部分结果缓存（`<键>.partial.json`），不写入成功缓存。`analyze` 的回复带 `source`：`fresh` 表示本次运行了分析，`cache` 表示读取了成功结果缓存或部分结果缓存（`no_cache: true` 时始终是 `fresh`）；`prepared: true` 表示这次请求包含新打开镜像的内容摘要校验（镜像已经 `verify` 过时为 false）；界面据此在结果底边显示来源和请求用时。
+TUI 仅通过 Rust 类型和线程通道调用引擎，迁移期间的 `tui-backend` 子命令已移除。对外 MCP 接口详见 [MCP 说明](mcp.md)。

@@ -1,4 +1,4 @@
-//! Shared native operations for the terminal and the JSON-RPC adapter.
+//! Native operations called directly by the terminal workers.
 use crate::{
     Job,
     linux::{self, Outcome, Plugin, Session},
@@ -22,37 +22,6 @@ impl EngineContext {
             path.to_path_buf()
         } else {
             self.root.join(path)
-        }
-    }
-    /// A configured directory, resolved against the project root.
-    ///
-    /// Settings store `images`, `symbols` and `exports` relative to the project;
-    /// the interface process has a different working directory, so resolving
-    /// them here (not with the process cwd) keeps both views of the project
-    /// identical.
-    pub(crate) fn directory(&self, value: &str) -> PathBuf {
-        self.expand(&store::expand_home(value))
-    }
-    pub(crate) fn image_dir(&self) -> PathBuf {
-        self.directory(&self.settings.image_dir)
-    }
-    pub(crate) fn symbol_dir(&self) -> PathBuf {
-        self.directory(&self.settings.symbols)
-    }
-    pub(crate) fn history_dir(&self) -> PathBuf {
-        self.directory(&self.settings.history_dir)
-    }
-    pub(crate) fn symbol_source(&self, given: Option<PathBuf>) -> PathBuf {
-        given
-            .map(|p| self.expand(&p))
-            .unwrap_or_else(|| self.symbol_dir())
-    }
-    pub(crate) fn library(&self) -> PathBuf {
-        let library = self.symbol_dir();
-        if library.extension().is_some() && !library.is_dir() {
-            self.root.join("symbols")
-        } else {
-            library
         }
     }
 }

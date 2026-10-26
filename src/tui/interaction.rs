@@ -1204,6 +1204,7 @@ impl App {
                     Some(Dialog::Commands { query, .. }) => self.available_commands(query).len(),
                     _ => 0,
                 };
+                let settings_count = self.settings_labels().len();
                 let selected = match self.dialog.as_mut() {
                     Some(Dialog::Files {
                         entries, selected, ..
@@ -1215,7 +1216,7 @@ impl App {
                         *selected = index;
                         true
                     }
-                    Some(Dialog::Settings { selected }) if index < 9 => {
+                    Some(Dialog::Settings { selected }) if index < settings_count => {
                         *selected = index;
                         true
                     }

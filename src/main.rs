@@ -46,8 +46,6 @@ struct Cli {
 }
 #[derive(Subcommand)]
 enum Command {
-    /// Serve the compatible newline-delimited JSON-RPC engine backend.
-    TuiBackend,
     /// Run the newline-delimited JSON-RPC MCP server over stdio.
     Mcp,
     /// Inspect or clear regenerable cache files.
@@ -149,9 +147,6 @@ fn main() -> Result<()> {
     let mut cli = Cli::parse();
     if matches!(cli.command, Some(Command::Mcp)) {
         return mcp::run();
-    }
-    if matches!(cli.command, Some(Command::TuiBackend)) {
-        return zero_tui::tui_backend::run();
     }
     let cache = PathBuf::from(".zero/rust");
     if let Some(Command::Cache { action }) = &cli.command {
@@ -445,4 +440,18 @@ fn launch_tui(cli: Cli) -> Result<()> {
             pattern: cli.pattern,
         },
     )
+}
+
+#[cfg(test)]
+mod cli_tests {
+    use super::*;
+    #[test]
+    fn legacy_tui_backend_is_removed_and_native_ui_and_mcp_remain_available() {
+        assert!(Cli::try_parse_from(["zero", "tui-backend"]).is_err());
+        assert!(Cli::try_parse_from(["zero"]).unwrap().command.is_none());
+        assert!(matches!(
+            Cli::try_parse_from(["zero", "mcp"]).unwrap().command,
+            Some(Command::Mcp)
+        ));
+    }
 }

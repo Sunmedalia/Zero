@@ -10,6 +10,10 @@ use std::{
     sync::RwLock,
 };
 
+mod network;
+pub use network::GithubAccess;
+use network::fetch_github;
+
 pub struct Isf {
     pub slide: std::sync::atomic::AtomicU64,
     /// Field layouts are memoized on first lookup; mutate `user_types` only before reading.
@@ -649,6 +653,15 @@ fn transfer(
     limit: usize,
     job: &Job,
 ) -> Result<(Vec<u8>, u16, String)> {
+    transfer_with_timeout(url, range, limit, 90, job)
+}
+fn transfer_with_timeout(
+    url: &str,
+    range: Option<&str>,
+    limit: usize,
+    timeout: u64,
+    job: &Job,
+) -> Result<(Vec<u8>, u16, String)> {
     use std::{
         process::{Command, Stdio},
         thread,
@@ -673,9 +686,9 @@ fn transfer(
             "--connect-timeout",
             "10",
             "--max-time",
-            "90",
-            "--max-filesize",
         ])
+        .arg(timeout.to_string())
+        .arg("--max-filesize")
         .arg(limit.to_string())
         .arg("--output")
         .arg(file.path())
@@ -807,7 +820,7 @@ pub fn remote_matches(
     } else {
         ensure!(network, "离线模式且没有有效的远程 banner 索引缓存");
         job.report("获取 GitHub 完整 banner 索引（仅下载索引，不上传镜像）");
-        match fetch(&repository.index_url(), job) {
+        match fetch_github(&repository.index_url(), cache, job) {
             Ok(bytes) => {
                 let index: Value = serde_json::from_slice(&bytes)?;
                 ensure!(index.is_object(), "banner 索引格式无效");
@@ -1111,7 +1124,7 @@ fn download_checked(
     } else {
         ensure!(network, "离线模式且所需 ISF 尚未下载: {}", m.url);
         job.report(format!("下载匹配 ISF: {}", m.url));
-        fetch(&m.url, job)?
+        fetch_github(&m.url, cache, job)?
     };
     let validate = |bytes: &[u8]| -> Result<Isf> {
         let decoded = decode(bytes, "isf.json.xz", job)?;
@@ -1139,7 +1152,7 @@ fn download_checked(
         Err(error) if existing.is_some() && network => {
             job.check()?;
             job.report(format!("下载缓存校验失败，重新获取: {error}"));
-            bytes = fetch(&m.url, job)?;
+            bytes = fetch_github(&m.url, cache, job)?;
             replace = true;
             validate(&bytes)?
         }
@@ -1196,7 +1209,7 @@ pub fn refresh_index(cache: &Path, job: &Job) -> Result<()> {
     let _guard = crate::cache::lock(cache, false)?;
     let repository = Repository::configured(cache)?;
     job.report(format!("刷新符号索引 {}", repository.web));
-    let bytes = fetch(&repository.index_url(), job)?;
+    let bytes = fetch_github(&repository.index_url(), cache, job)?;
     let index: Value = serde_json::from_slice(&bytes)?;
     ensure!(index.is_object(), "banner 索引格式无效");
     job.check()?;
