@@ -48,16 +48,19 @@ jobs:
             build-${{ matrix.target }}-${{ hashFiles('Cargo.lock', 'Cargo.toml', 'rust-toolchain.toml', '.cargo/**') }}-
       - uses: actions/setup-node@1e60f620b9541d16bece96c5465dc8ee9832be0b # v4
         with:
-          node-version: '22'
+          node-version: '22.22.0'
       - name: Install interface dependencies
         run: make ui-install
       - name: Check, test and build
         run: make check
-      - name: Smoke test and package
+      - name: Package native runtime and production dependencies
         run: |
-          target/release/zero --help
-          target/release/zero mcp --help
-          python3 scripts/package_release.py --target '${{ matrix.target }}' --output dist
+          python3 -I scripts/package_release.py \
+            --target '${{ matrix.target }}' --output dist \
+            --node "$(node -p 'process.execPath')" \
+            --npm "$(command -v npm)"
+      - name: Verify extracted release without system Node or npm
+        run: python3 -I scripts/verify_release.py dist/*.tar.gz
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: release-${{ matrix.target }}

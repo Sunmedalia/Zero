@@ -7,7 +7,7 @@
 [![CI](https://github.com/sunmedalia/zero/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/sunmedalia/zero/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/sunmedalia/zero?sort=semver&color=82b4e8)](https://github.com/sunmedalia/zero/releases/latest)
 ![Rust 2024](https://img.shields.io/badge/Rust-2024-dea584?logo=rust)
-![Node ≥ 22](https://img.shields.io/badge/Node-%E2%89%A5%2022-8bc7a3?logo=nodedotjs&logoColor=white)
+![Bundled Node](https://img.shields.io/badge/Node-bundled-8bc7a3?logo=nodedotjs&logoColor=white)
 ![Linux | macOS](https://img.shields.io/badge/host-Linux%20%7C%20macOS-97a6b8)
 
 [使用指南](docs/usage.md) · [兼容矩阵](docs/compatibility.md) · [MCP](docs/mcp.md) · [界面架构](docs/tui.md) · [开发与发布](docs/development.md)
@@ -46,12 +46,11 @@ Zero 是本地内存取证工具：读取 Linux（x86_64／ARM64）与 Windows �
 
 ## 安装
 
-**发布包**（Linux／macOS，x86_64 与 ARM64）：从 [Releases](https://github.com/sunmedalia/zero/releases/latest) 下载对应归档并用 `SHA256SUMS` 校验。界面需要 Node ≥ 22。
+**发布包**（Linux／macOS，x86_64 与 ARM64）：从 [Releases](https://github.com/sunmedalia/zero/releases/latest) 下载对应归档并用 `SHA256SUMS` 校验。自 v0.1.9 起，包内包含对应平台的 Node 运行时和全部界面运行依赖，解压即可运行，无需安装 Node、npm 或在线安装依赖。请保留完整目录结构。
 
 ```sh
 sha256sum --check --ignore-missing SHA256SUMS   # macOS: shasum -a 256 -c --ignore-missing SHA256SUMS
 tar xzf zero-*.tar.gz && cd zero-*/
-(cd ts && npm ci --omit=dev --no-audit --no-fund)
 ./zero
 ```
 

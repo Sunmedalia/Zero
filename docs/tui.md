@@ -15,7 +15,7 @@ zero                       # Rust 可执行文件
                             # 通过 ZERO_TUI_BACKEND 把自己的路径交给界面
 ```
 
-`zero` 按 `ZERO_TUI_DIR`、当前目录下的 `ts/`、可执行文件旁的 `ts/` 顺序查找界面目录；找不到或尚未构建时会给出明确提示。`--offline`、`--image`、`--symbols`、`--os`、`--arch`、`--pagefile`、`--swapfile`、`--hive`、`--key` 会转交给界面作为初始选择。
+`zero` 按 `ZERO_TUI_DIR`、可执行文件旁的 `ts/`、当前目录下的 `ts/` 顺序查找界面目录；优先使用可执行文件旁的 `runtime/node`，然后查界面目录所属包的 `runtime/node`，源码开发时才回退到系统 Node。找不到界面或尚未构建时会给出明确提示。`--offline`、`--image`、`--symbols`、`--os`、`--arch`、`--pagefile`、`--swapfile`、`--hive`、`--key` 会转交给界面作为初始选择。
 
 ## 协议
 
@@ -146,4 +146,4 @@ npm run typecheck # tsc --noEmit
 ## 已知边界
 
 - 需要支持 SGR 鼠标上报的终端（xterm、iTerm2、Windows Terminal、tmux 均可）。不支持的终端仍可完全用键盘操作。
-- 界面需要 Node ≥ 22；分析引擎本身不需要 Node，CLI 和 MCP 也不经过界面。
+- v0.1.9 起的发布包自带 Node 运行时及界面依赖，无需系统安装 Node 或 npm；源码开发仍需 Node ≥ 22。分析引擎、CLI 和 MCP 不经过界面。

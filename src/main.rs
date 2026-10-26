@@ -405,25 +405,38 @@ fn main() -> Result<()> {
     }
 }
 
-/// Locate the TypeScript interface and run it with the backend as a child.
-///
-/// Resolution order keeps the released single binary usable: `ZERO_TUI_DIR`,
-/// then `ts/` beside the current directory, then the directory containing the
-/// executable. `--no-install` matters: the interface never downloads anything.
-fn launch_tui(cli: Cli) -> Result<()> {
-    use std::process::Command;
+/// Resolve the release's own interface before a development checkout in cwd.
+fn tui_directory(executable: &std::path::Path, cwd: &std::path::Path) -> Result<PathBuf> {
     let candidates = [
         std::env::var_os("ZERO_TUI_DIR").map(PathBuf::from),
-        Some(std::env::current_dir()?.join("ts")),
-        std::env::current_exe()
-            .ok()
-            .and_then(|p| p.parent().map(|d| d.join("ts"))),
+        executable.parent().map(|dir| dir.join("ts")),
+        Some(cwd.join("ts")),
     ];
-    let dir = candidates
+    candidates
         .into_iter()
         .flatten()
         .find(|dir| dir.join("package.json").is_file())
-        .context("找不到 TypeScript 界面目录；设置 ZERO_TUI_DIR 或从项目根目录运行")?;
+        .context("找不到 TypeScript 界面目录；设置 ZERO_TUI_DIR 或从项目根目录运行")?
+        .canonicalize()
+        .context("解析 TypeScript 界面路径失败")
+}
+
+fn tui_runtime(executable: &std::path::Path, interface: &std::path::Path) -> PathBuf {
+    let name = if cfg!(windows) { "node.exe" } else { "node" };
+    [executable.parent(), interface.parent()]
+        .into_iter()
+        .flatten()
+        .map(|dir| dir.join("runtime").join(name))
+        .find(|path| path.is_file())
+        .unwrap_or_else(|| PathBuf::from(name))
+}
+
+/// Releases carry Node and production dependencies; source checkouts may use PATH.
+fn launch_tui(cli: Cli) -> Result<()> {
+    use std::process::Command;
+    let executable = std::env::current_exe()?;
+    let cwd = std::env::current_dir()?;
+    let dir = tui_directory(&executable, &cwd)?;
     let entry = if dir.join("dist/main.js").is_file() {
         dir.join("dist/main.js")
     } else {
@@ -433,9 +446,10 @@ fn launch_tui(cli: Cli) -> Result<()> {
             dir.display()
         )
     };
-    let mut command = Command::new("node");
+    let runtime = tui_runtime(&executable, &dir);
+    let mut command = Command::new(&runtime);
     command.arg(entry).current_dir(&dir);
-    command.env("ZERO_TUI_BACKEND", std::env::current_exe()?);
+    command.env("ZERO_TUI_BACKEND", &executable);
     command.env(
         "ZERO_ROOT",
         std::env::var_os("ZERO_ROOT").unwrap_or(std::env::current_dir()?.into()),
@@ -472,9 +486,39 @@ fn launch_tui(cli: Cli) -> Result<()> {
     if let Some(pattern) = cli.pattern {
         command.arg("--pattern").arg(pattern);
     }
-    let status = command
-        .status()
-        .context("启动 TypeScript 界面失败；请确认 node 在 PATH 中")?;
+    let status = command.status().with_context(|| {
+        format!(
+            "启动 TypeScript 界面失败（{}）；发布包请完整解压并保留 runtime/ 与 ts/，源码运行需 Node ≥ 22",
+            runtime.display()
+        )
+    })?;
     anyhow::ensure!(status.success(), "界面退出码 {status}");
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn bundled_runtime_precedes_system_node() {
+        let root = tempfile::tempdir().unwrap();
+        let release = root.path().join("release");
+        let source = root.path().join("source");
+        for dir in [&release, &source] {
+            std::fs::create_dir_all(dir.join("runtime")).unwrap();
+        }
+        let name = if cfg!(windows) { "node.exe" } else { "node" };
+        let bundled = release.join("runtime").join(name);
+        let source_runtime = source.join("runtime").join(name);
+        std::fs::write(&bundled, []).unwrap();
+        std::fs::write(&source_runtime, []).unwrap();
+        let executable = release.join("zero");
+        let interface = source.join("ts");
+        assert_eq!(tui_runtime(&executable, &interface), bundled);
+        std::fs::remove_file(&bundled).unwrap();
+        assert_eq!(tui_runtime(&executable, &interface), source_runtime);
+        std::fs::remove_file(&source_runtime).unwrap();
+        assert_eq!(tui_runtime(&executable, &interface), PathBuf::from(name));
+    }
 }

@@ -88,12 +88,12 @@ cargo build --release --locked --examples
 
 ## CI 与发布
 
-GitHub Actions 在 Linux／macOS 的 x86_64 和 ARM64 上运行 `make check`、兼容表同步检查与 CLI 启动检查，并为每个目标生成归档：`zero` 可执行文件、README、`docs/tui.md`，以及界面的 `ts/dist`、`ts/src`、`package.json` 与 `package-lock.json`（不含 `node_modules`，解压后在 `ts/` 运行 `npm ci --omit=dev`）。CI 不下载真实镜像或符号；真实镜像验收在本地运行。
+GitHub Actions 在 Linux／macOS 的 x86_64 和 ARM64 上运行 `make check` 与 CLI 启动检查，并为每个目标生成归档：`zero` 可执行文件、README、`docs/tui.md`、对应平台的 `runtime/node` 与许可证，以及界面的 `ts/dist`、`ts/src`、`package.json`、`package-lock.json` 和生产依赖 `ts/node_modules`。发布包解压后可直接运行，无需系统 Node 或 npm。打包后在隔离系统 Node 的环境中验证界面启动及退出。CI 不下载真实镜像或符号；真实镜像验收在本地运行。
 
 `v` 前缀标签触发发布流程：四个平台检查通过后，校验标签与 Cargo 版本一致，以 [RELEASE_NOTES.md](../RELEASE_NOTES.md) 为说明发布归档和 `SHA256SUMS`。发布新版本：
 
 ```sh
-# 1. 同步 Cargo.toml、ts/package.json 的版本号，并重写 RELEASE_NOTES.md
+# 1. 同步 Cargo.toml／Cargo.lock、ts/package.json／package-lock.json 的版本号，并重写 RELEASE_NOTES.md
 # 2. 本地通过 make check（可选 make tui-acceptance）
 git tag -a vX.Y.Z -m "Zero vX.Y.Z"
 git push origin main vX.Y.Z
