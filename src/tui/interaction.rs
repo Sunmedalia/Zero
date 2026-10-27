@@ -210,6 +210,7 @@ impl App {
             Command::TaskLog => self.open_task_log(),
             Command::History => self.open_history(),
             Command::Diagnostics => self.diagnostics(),
+            Command::KernelDiagnostics => self.open_kernel_diagnostics(),
             Command::PageAssets => self.switch_page(Page::Assets),
             Command::PageAnalysis => self.switch_page(Page::Analysis),
             Command::SystemSelect => self.open_system_dialog(),
@@ -361,6 +362,15 @@ impl App {
             InputKind::Symbols => self.symbols.display().to_string(),
             InputKind::Search => self.query.clone(),
             InputKind::AssetsSearch => self.asset_queries[self.section.slot()].clone(),
+            InputKind::DiagnosticExport => self
+                .directory(&self.settings.export_dir)
+                .join("diagnostics")
+                .join(format!(
+                    "kernel-diagnostic-{}.json",
+                    self.kernel_report.as_ref().map_or(0, |r| r.created_unix_ms)
+                ))
+                .display()
+                .to_string(),
             InputKind::Export => self
                 .directory(&self.settings.export_dir)
                 .join(format!("{}.csv", self.plugin.name()))
@@ -1350,6 +1360,19 @@ impl App {
             return;
         };
         if key.code == KeyCode::Esc {
+            if matches!(dialog, Dialog::KernelDiagnostics { .. }) && self.diagnosis_running {
+                self.cancel();
+            }
+            if matches!(
+                dialog,
+                Dialog::Input {
+                    kind: InputKind::DiagnosticExport,
+                    ..
+                }
+            ) {
+                self.dialog = Some(Dialog::KernelDiagnostics { scroll: 0 });
+                return;
+            }
             if matches!(dialog, Dialog::Symbols { .. }) {
                 self.symbol_retry = None;
                 self.enter_when_ready = false;
@@ -1389,6 +1412,7 @@ impl App {
             Dialog::AssetDetail { .. } => self.asset_detail_key(dialog, key),
             Dialog::RemoteDetail { .. } => self.remote_detail_key(dialog, key),
             Dialog::Detail { .. } => self.detail_key(dialog, key),
+            Dialog::KernelDiagnostics { .. } => self.kernel_diagnostics_key(dialog, key),
             Dialog::Input { .. } => self.input_key(dialog, key),
             Dialog::Sort { .. } => self.sort_key(dialog, key),
             Dialog::Symbols { .. } => self.symbols_key(dialog, key),

@@ -1,5 +1,6 @@
 mod application;
 mod cache_page;
+mod kernel_diagnostics;
 mod scrollbars;
 mod status;
 mod tabs;
@@ -262,6 +263,20 @@ fn native_acceptance() {
     app.start_work(Work::Record(app.cache_page.records[0].key.clone()));
     settle(&mut app);
     assert!(app.result().unwrap().historical);
+    let rows_before = app.result().unwrap().rows.clone();
+    let tabs_before = app.open_tabs.len();
+    app.run_command(Command::KernelDiagnostics);
+    settle(&mut app);
+    let report = app.kernel_report.clone().expect("kernel diagnostic report");
+    assert!(report.passed() >= 1, "{}", report.text());
+    assert_eq!(app.result().unwrap().rows, rows_before);
+    assert_eq!(app.open_tabs.len(), tabs_before);
+    let report_path = project.path().join("diagnostics/kernel.json");
+    app.start_work(Work::ExportDiagnostic(report_path.clone(), report));
+    settle(&mut app);
+    let exported: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(report_path).unwrap()).unwrap();
+    assert_eq!(exported["candidates"][0]["passed"], true);
     let mut terminal = Terminal::new(ratatui::backend::TestBackend::new(120, 35)).unwrap();
     terminal.draw(|f| app.draw(f)).unwrap();
 }

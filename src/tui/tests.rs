@@ -4281,3 +4281,6 @@ mod parity;
 
 #[path = "review_tests.rs"]
 mod review;
+
+#[path = "diagnostic_tests.rs"]
+mod diagnostic;

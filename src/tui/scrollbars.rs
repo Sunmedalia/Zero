@@ -87,7 +87,8 @@ impl App {
             ScrollTarget::Detail => self.detail_scroll = index,
             ScrollTarget::Popup => {
                 if let Some(
-                    Dialog::Detail { scroll, .. }
+                    Dialog::KernelDiagnostics { scroll }
+                    | Dialog::Detail { scroll, .. }
                     | Dialog::AssetDetail { scroll, .. }
                     | Dialog::RemoteDetail { scroll, .. },
                 ) = self.dialog.as_mut()

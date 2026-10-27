@@ -18,6 +18,7 @@ pub(super) enum Command {
     TaskLog,
     History,
     Diagnostics,
+    KernelDiagnostics,
     PageAssets,
     PageAnalysis,
     SystemSelect,
@@ -138,6 +139,7 @@ fn keywords(command: Command) -> &'static str {
         Command::TaskLog => "log task",
         Command::History => "history export",
         Command::Diagnostics => "diagnostics partial",
+        Command::KernelDiagnostics => "kernel diagnose diagnostic dtb page table banner symbols report",
         Command::PageAssets => "assets library resource",
         Command::PageAnalysis => "analysis console",
         Command::SystemSelect => "os system linux windows auto",
@@ -265,6 +267,9 @@ pub(super) const ACTIONS: &[Action] = &[
         Scope::Anywhere,
         PALETTE,
     ),
+    Action { footer_focus: ANY_FOCUS, ..action(
+        Command::KernelDiagnostics, "内核诊断 J", KeyCode::Char('J'), Scope::Anywhere, PALETTE | TOOLBAR | FOOTER,
+    ) },
     action(
         Command::Diagnostics,
         "查看诊断 v",
@@ -625,6 +630,7 @@ const TOOLBAR_ORDER: &[Command] = &[
     Command::Download,
     Command::MatchLocal,
     Command::MatchRemote,
+    Command::KernelDiagnostics,
     Command::ToggleOnline,
     Command::Settings,
     Command::Palette,
@@ -692,6 +698,7 @@ fn asset_actions(section: AssetSection) -> Vec<(&'static str, KeyCode)> {
 /// Footer order is presentation: the actions used most often lead, so a narrow
 /// terminal truncates the rare ones instead of the frequent ones.
 const FOOTER_ORDER: &[Command] = &[
+    Command::KernelDiagnostics,
     Command::Run,
     Command::SearchContent,
     Command::Detail,

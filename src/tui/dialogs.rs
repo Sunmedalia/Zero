@@ -55,7 +55,9 @@ impl App {
             // the user is editing: they get the room to show it.
             Dialog::Input { text, .. } => text.chars().count().max(40),
             // Detail text is wrapped prose; it wants width more than anything.
-            Dialog::Detail { .. } => screen.width.saturating_sub(6).min(90) as usize,
+            Dialog::KernelDiagnostics { .. } | Dialog::Detail { .. } => {
+                screen.width.saturating_sub(6).min(90) as usize
+            }
             _ => 0,
         };
         // A rough cell estimate: CJK and wide glyphs take two columns.
@@ -81,6 +83,7 @@ impl App {
             Dialog::Plugins { .. } => self.plugin_matches("").len() as u16,
             Dialog::Settings { .. } => self.settings_labels().len() as u16,
             Dialog::Input { .. } => 4,
+            Dialog::KernelDiagnostics { .. } => screen.height,
             Dialog::Detail { .. } => 12,
             Dialog::Dump { .. } => 12,
             Dialog::WindowsParameters { .. } => 18,
@@ -123,6 +126,9 @@ impl App {
             self.hits.borrow_mut().scrollbars.clear();
             frame.render_widget(Clear, popup);
             match dialog {
+                Dialog::KernelDiagnostics { scroll } => {
+                    self.draw_kernel_diagnostics(frame, popup, *scroll)
+                }
                 Dialog::GenerateSymbols { .. } => self.draw_generation(frame, popup, dialog),
                 Dialog::System { selected } => {
                     let mut state = ListState::default().with_selected(Some(*selected));
@@ -709,6 +715,7 @@ impl App {
                         InputKind::Symbols => "符号路径 · JSON / JSON.XZ / ZIP / 目录",
                         InputKind::Search => "全文搜索",
                         InputKind::AssetsSearch => "资产筛选 · Enter 确认 / Esc 撤销",
+                        InputKind::DiagnosticExport => "导出内核诊断 · .json / .txt",
                         InputKind::Export => "导出当前筛选 · .csv / .json",
                         InputKind::History => "导出记录 · CSV / JSON 路径",
                         InputKind::ImageDirectory => "镜像存放目录",
@@ -815,7 +822,16 @@ impl App {
                     1,
                 );
                 frame.render_widget(
-                    Paragraph::new("[取消]").style(Style::default().fg(color_muted())),
+                    Paragraph::new(
+                        if matches!(dialog, Dialog::KernelDiagnostics { .. })
+                            && !self.diagnosis_running
+                        {
+                            "[关闭]"
+                        } else {
+                            "[取消]"
+                        },
+                    )
+                    .style(Style::default().fg(color_muted())),
                     cancel,
                 );
                 self.hits.borrow_mut().buttons.push((cancel, KeyCode::Esc));
@@ -823,6 +839,9 @@ impl App {
             Self::frame_popup(frame, popup);
             let detail = match dialog {
                 Dialog::Detail { text, scroll } => Some((text.clone(), *scroll)),
+                Dialog::KernelDiagnostics { scroll } => {
+                    Some((self.kernel_diagnostic_text(), *scroll))
+                }
                 Dialog::AssetDetail {
                     asset,
                     scroll,

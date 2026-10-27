@@ -5,6 +5,7 @@ enum InputKind {
     Search,
     AssetsSearch,
     Export,
+    DiagnosticExport,
     History,
     ImageDirectory,
     SymbolsDirectory,
@@ -72,6 +73,7 @@ enum Dialog {
         candidate: RemoteMatch,
         scroll: usize,
     },
+    KernelDiagnostics { scroll: usize },
     Detail {
         text: String,
         scroll: usize,
@@ -140,6 +142,8 @@ impl AssetSection {
 }
 #[derive(Clone)]
 enum Work {
+    KernelDiagnostic,
+    ExportDiagnostic(PathBuf, Arc<crate::kernel_diagnostics::Report>),
     SavedCatalog(String),
     Inventory,
     RemoveCache(Vec<PathBuf>),
@@ -161,6 +165,8 @@ enum Work {
     CatalogDownload(RemoteMatch),
 }
 enum WorkerEvent {
+    KernelDiagnosed(crate::kernel_diagnostics::Report),
+    DiagnosticExported(PathBuf),
     SavedCatalog(Option<symbols::CatalogPage>),
     Inventory(crate::engine_service::Inventory),
     Opened(PathBuf, Results),
@@ -263,6 +269,8 @@ pub struct App {
     tab_offset: std::cell::Cell<usize>,
     tab_layout: std::cell::Cell<Option<(Option<usize>, u16)>>,
     plugins_collapsed: bool,
+    kernel_report: Option<Arc<crate::kernel_diagnostics::Report>>,
+    diagnosis_running: bool,
     cache_page: cache_page::CachePage,
     page: Page,
     section: AssetSection,

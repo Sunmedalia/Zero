@@ -103,6 +103,7 @@ impl App {
                     | Work::Record(_)
                     | Work::History(_)
                     | Work::Export(..)
+                    | Work::ExportDiagnostic(..)
                     | Work::Clear(_)
                     | Work::InspectSymbols(_)
                     | Work::RefreshLookup
@@ -182,7 +183,9 @@ impl App {
             self.history_revision += 1;
             self.history = None;
         }
+        let prior_error = self.last_error.clone();
         self.last_error = None;
+        self.diagnosis_running = matches!(work, Work::KernelDiagnostic);
         self.job = Some(job);
         self.receiver = Some(rx);
         self.download_url = match &work {
@@ -201,6 +204,23 @@ impl App {
                     .lock()
                     .map_err(|_| anyhow::anyhow!("分析会话锁损坏"))?;
                 match work {
+                    Work::KernelDiagnostic => crate::kernel_diagnostics::run(
+                        &mut session,
+                        crate::kernel_diagnostics::Request {
+                            image: &context.expand(&image),
+                            symbols: &context.expand(&symbols),
+                            cache: &cache,
+                            choice: choice.as_deref(),
+                            os: analysis_options.os,
+                            previous_error: prior_error,
+                        },
+                        &worker_job,
+                    )
+                    .map(WorkerEvent::KernelDiagnosed),
+                    Work::ExportDiagnostic(path, report) => {
+                        report.export(&path, &worker_job)?;
+                        Ok(WorkerEvent::DiagnosticExported(path))
+                    }
                     Work::SavedCatalog(query) => {
                         let repo = symbols::Repository::configured(&cache)?;
                         if !repo.index_file(&cache).is_file() {
@@ -645,6 +665,15 @@ impl App {
                     }
                     self.status = s;
                 }
+                WorkerEvent::KernelDiagnosed(report) => {
+                    self.finish_worker();
+                    self.status = format!("内核诊断完成 · {} · J 查看／e 导出", report.summary());
+                    self.kernel_report = Some(Arc::new(report));
+                }
+                WorkerEvent::DiagnosticExported(path) => {
+                    self.finish_worker();
+                    self.status = format!("诊断报告已导出: {}", path.display());
+                }
                 WorkerEvent::Failed(s) => {
                     self.pending_work = None;
                     self.pending_execution = None;
@@ -782,6 +811,7 @@ impl App {
         }
         self.receiver = None;
         self.job = None;
+        self.diagnosis_running = false;
         self.started = None;
         self.progress = None;
     }

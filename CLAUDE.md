@@ -18,6 +18,7 @@ This repository is a native Rust 2024 local Linux and Windows memory forensics T
 - `src/store.rs`: atomic exports, digest/version keyed successful results, settings and historical CSV.
 - `src/workspace.rs`: discovered/imported assets, persisted selections, non-destructive removal and symbol inspection.
 - `src/tui.rs` / `src/tui/`: native Ratatui/Crossterm terminal interface, application state, typed worker events, shared actions, rendering/hit rectangles, dialogs, result tabs, scrollbars and themes. `tests.rs` and `migration_tests.rs` exercise state and TestBackend rendering without a terminal; `screenshots.rs` produces SVG figures through the same Buffer and real engine.
+- `src/kernel_diagnostics.rs`: offline native kernel validation reports with image/identity/segment metadata, per-symbol evidence, cancellable execution and protected JSON/TXT export. TUI exposes this through J and its own report popup without replacing plugin results.
 - `src/engine_service.rs`: shared native project context, session operations (verify, identify, match, analyze), inventory and symbol saving. Native workers call this directly through typed Rust requests and channels.
 
 

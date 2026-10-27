@@ -190,6 +190,19 @@ pub fn run(image: &Path, symbols: &Path, output: &Path) -> Result<()> {
     app.settings.theme = "light".into();
     shot(&app, output, "theme-light.svg", "zero — lsmod · 纸白 theme")?;
     app.settings.theme = "slate".into();
+    app.run_command(Command::KernelDiagnostics);
+    settle(&mut app)?;
+    anyhow::ensure!(
+        app.kernel_report.as_ref().is_some_and(|r| r.passed() > 0),
+        "内核诊断未通过"
+    );
+    shot(
+        &app,
+        output,
+        "kernel-diagnostics.svg",
+        "zero — kernel diagnostic report",
+    )?;
+    app.dialog = None;
     app.switch_page(Page::Assets);
     app.section = AssetSection::Images;
     shot(&app, output, "assets.svg", "zero — resource library")?;

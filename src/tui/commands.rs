@@ -237,12 +237,16 @@ impl App {
         }
         let busy = self.job.is_some();
         match command {
+            Command::KernelDiagnostics if self.job.is_some() && self.kernel_report.is_none() => {
+                Some("任务执行中，请等待或取消")
+            }
             Command::GenerateSymbols if self.windows => Some("Windows 请使用 M 获取精确 PDB 符号"),
             Command::EnterAnalysis
             | Command::MatchLocal
             | Command::MatchRemote
             | Command::Identify
             | Command::VerifyImage
+            | Command::KernelDiagnostics
                 if self.image.is_none() =>
             {
                 Some("请先选用镜像")

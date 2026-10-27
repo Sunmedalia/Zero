@@ -2063,3 +2063,127 @@ fn missing_backlink_page_is_reported_with_the_other_backlink_and_root_is_rejecte
     assert!(message.contains("缺页 VA 0x3000"), "{message}");
     Ok(())
 }
+
+#[test]
+fn kernel_diagnostic_report_preserves_failed_evidence_and_exports_without_overwriting_sources()
+-> Result<()> {
+    use zero_tui::{
+        analysis::Os,
+        kernel_diagnostics::{self, Request},
+        linux::Session,
+    };
+    let dir = tempfile::tempdir()?;
+    let image_path = dir.path().join("capture.lime");
+    let symbol_path = dir.path().join("exact.json");
+    let cache = dir.path().join("cache");
+    let (mut bytes, isf) = discoverable();
+    put(&mut bytes, 0x8308, 0x9500);
+    let mut lime = Vec::new();
+    lime.extend_from_slice(&0x4c694d45u32.to_le_bytes());
+    lime.extend_from_slice(&1u32.to_le_bytes());
+    lime.extend_from_slice(&0u64.to_le_bytes());
+    lime.extend_from_slice(&(bytes.len() as u64 - 1).to_le_bytes());
+    lime.extend_from_slice(&[0; 8]);
+    lime.extend_from_slice(&bytes);
+    fs::write(&image_path, &lime)?;
+    fs::write(&symbol_path, serde_json::to_vec(&isf.data)?)?;
+    let report = kernel_diagnostics::run(
+        &mut Session::default(),
+        Request {
+            image: &image_path,
+            symbols: &symbol_path,
+            cache: &cache,
+            choice: None,
+            os: Os::Auto,
+            previous_error: Some("old error\x1b[31m".into()),
+        },
+        &Job::default(),
+    )?;
+    assert!(report.failure.is_none(), "{:?}", report.failure);
+    assert_eq!(report.image_format.as_deref(), Some("LiME"));
+    assert_eq!(report.image_sha256.as_ref().unwrap().len(), 64);
+    assert_eq!(report.passed(), 0);
+    assert_eq!(report.candidates.len(), 1);
+    assert!(
+        report.candidates[0]
+            .evidence
+            .contains("next.prev=0x9500, prev.next=0x9200")
+    );
+    assert!(report.text().contains("内核身份"));
+    assert!(!report.text().contains('\x1b'));
+    assert!(report.export(&image_path, &Job::default()).is_err());
+    assert!(report.export(&symbol_path, &Job::default()).is_err());
+    assert_eq!(fs::read(&image_path)?, lime);
+    let json_path = dir.path().join("report.json");
+    report.export(&json_path, &Job::default())?;
+    let exported: serde_json::Value = serde_json::from_slice(&fs::read(json_path)?)?;
+    assert_eq!(exported["candidates"][0]["passed"], false);
+    let text_path = dir.path().join("report.txt");
+    report.export(&text_path, &Job::default())?;
+    assert_eq!(fs::read_to_string(text_path)?, report.text());
+    assert!(
+        report
+            .export(&dir.path().join("report.csv"), &Job::default())
+            .is_err()
+    );
+    Ok(())
+}
+#[test]
+fn kernel_diagnostic_can_pass_and_reports_missing_sources_and_cancellation_separately() -> Result<()>
+{
+    use zero_tui::{
+        analysis::Os,
+        kernel_diagnostics::{self, Request},
+        linux::Session,
+    };
+    let dir = tempfile::tempdir()?;
+    let image_path = dir.path().join("capture.raw");
+    let symbol_path = dir.path().join("exact.json");
+    let cache = dir.path().join("cache");
+    let (bytes, isf) = discoverable();
+    fs::write(&image_path, &bytes)?;
+    fs::write(&symbol_path, serde_json::to_vec(&isf.data)?)?;
+    let run = |session: &mut Session, job: &Job| {
+        kernel_diagnostics::run(
+            session,
+            Request {
+                image: &image_path,
+                symbols: &symbol_path,
+                cache: &cache,
+                choice: None,
+                os: Os::Auto,
+                previous_error: None,
+            },
+            job,
+        )
+    };
+    let report = run(&mut Session::default(), &Job::default())?;
+    assert_eq!(report.passed(), 1, "{:?}", report.failure);
+    assert_eq!(report.candidates[0].page_table, Some(0x1000));
+    assert!(report.candidates[0].evidence.contains("通过"));
+    let mut serialized = report.clone();
+    serialized.candidates[0].relocation_or_kernel_base = Some(0xffff_f800_0000_0123);
+    let value = serde_json::to_value(serialized)?;
+    assert_eq!(value["candidates"][0]["page_table"], "0x1000");
+    assert_eq!(
+        value["candidates"][0]["relocation_or_kernel_base"],
+        "0xfffff80000000123"
+    );
+    let job = Job::default();
+    job.cancel.store(true, Ordering::Relaxed);
+    assert!(run(&mut Session::default(), &job).is_err());
+    let output = dir.path().join("cancelled.json");
+    assert!(report.export(&output, &job).is_err());
+    assert!(!output.exists());
+    fs::remove_file(&image_path)?;
+    let report = run(&mut Session::default(), &Job::default())?;
+    assert!(
+        report
+            .failure
+            .as_deref()
+            .unwrap()
+            .contains("镜像读取／校验失败")
+    );
+    assert!(report.candidates.is_empty());
+    Ok(())
+}

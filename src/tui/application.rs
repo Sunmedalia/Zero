@@ -35,6 +35,7 @@ impl App {
             self.status = "正在取消任务并切换分析系统…".into();
             return;
         }
+        self.kernel_report = None;
         self.parameter_drafts.clear();
         self.prepared_stamp = None;
         self.verified = None;
@@ -281,6 +282,8 @@ impl App {
             tab_offset: std::cell::Cell::new(0),
             tab_layout: std::cell::Cell::new(None),
             plugins_collapsed: false,
+            kernel_report: None,
+            diagnosis_running: false,
             page: Page::Assets,
             section: AssetSection::Images,
             symbol_source: AssetSection::Symbols,
@@ -618,6 +621,7 @@ impl App {
         }
     }
     pub(super) fn invalidate_source(&mut self) {
+        self.kernel_report = None;
         self.object_version += 1;
         self.prepared_stamp = None;
         self.verified = None;

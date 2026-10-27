@@ -805,6 +805,14 @@ impl App {
                         }
                         self.asset_rows[self.section.slot()] = 0;
                     }
+                    InputKind::DiagnosticExport => {
+                        if self.job.is_none()
+                            && let Some(report) = self.kernel_report.clone()
+                        {
+                            self.start_work(Work::ExportDiagnostic(path, report));
+                        }
+                        self.dialog = Some(Dialog::KernelDiagnostics { scroll: 0 });
+                    }
                     InputKind::Export => {
                         if let Some(result) = self.result().cloned() {
                             let rows = self

@@ -1,5 +1,6 @@
 pub mod cache;
 pub mod image;
+pub mod kernel_diagnostics;
 pub mod linux;
 pub mod pattern;
 pub mod plugin;
