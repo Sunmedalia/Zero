@@ -1,5 +1,5 @@
 //! Large local sample is intentionally excluded from Git. Run `make acceptance`.
-use anyhow::{Result, ensure};
+use anyhow::{Context, Result, ensure};
 use serde::Deserialize;
 use std::{collections::HashMap, path::PathBuf};
 use zero_tui::{
@@ -265,7 +265,11 @@ fn kali_arm64_all_plugins_full_field_baseline() -> Result<()> {
         if plugin.is_dump() || plugin.is_windows() {
             continue;
         }
-        let Outcome::Ready(result) = session.analyze(
+        let scan_pattern = plugin
+            .is_pattern_scan()
+            .then(|| zero_tui::pattern::Pattern::parse("hex:7f454c46"))
+            .transpose()?;
+        let analyzed = session.analyze_with_pattern(
             &linux::Request {
                 image: &image,
                 symbols: &symbols,
@@ -275,8 +279,18 @@ fn kali_arm64_all_plugins_full_field_baseline() -> Result<()> {
                 use_cache: false,
                 network: false,
             },
+            None,
+            scan_pattern.as_ref(),
             &job,
-        )?
+        );
+        if plugin == Plugin::CheckIdt {
+            ensure!(
+                analyzed.is_err_and(|e| e.to_string().contains("ARM64 没有 IDT")),
+                "ARM64 must reject the x86-only IDT plugin"
+            );
+            continue;
+        }
+        let Outcome::Ready(result) = analyzed.with_context(|| format!("Kali {}", plugin.name()))?
         else {
             anyhow::bail!("ambiguous symbols");
         };

@@ -195,6 +195,9 @@ impl App {
         if self.windows && advanced {
             fields.extend([3, 4, 5]);
         }
+        if self.plugin == Plugin::LinuxPslist {
+            fields.extend([8, 9]);
+        }
         fields.push(6);
         fields
     }

@@ -18,7 +18,26 @@ pub fn discover(image: &Image, isf: &Isf, job: &Job) -> Result<u64> {
     let comm = isf.offset("task_struct", "comm")?;
     let mut valid = std::collections::HashMap::new();
     let mut errors = Vec::new();
-    for physical in &isf.locations {
+    let mut placements = isf.locations.clone();
+    let mut index = 0;
+    let mut scanned_swapper = false;
+    loop {
+        if index == placements.len() {
+            if !valid.is_empty() || scanned_swapper {
+                break;
+            }
+            scanned_swapper = true;
+            for physical in swapper_banner_candidates(image, isf, job)? {
+                if !placements.contains(&physical) {
+                    placements.push(physical);
+                }
+            }
+            if index == placements.len() {
+                break;
+            }
+        }
+        let physical = &placements[index];
+        index += 1;
         job.check()?;
         let mut slides = vec![0];
         // Linux initializes init_task.real_parent to &init_task. Use it only
@@ -40,6 +59,29 @@ pub fn discover(image: &Image, isf: &Isf, job: &Job) -> Result<u64> {
                 Ok(slide) if slide != 0 => slides.push(slide),
                 Ok(_) => (),
                 Err(e) => errors.push(format!("{physical:#x} 重定位候选: {e:#}")),
+            }
+        }
+        // init_files provides an independent runtime pointer when real_parent
+        // or task links were captured during an update.
+        if let (Ok(offset), Ok(files)) = (
+            isf.offset("task_struct", "files"),
+            isf.raw_address("init_files"),
+        ) {
+            let inferred = (|| -> Result<u64> {
+                let init_phys = u64::try_from(*physical as i128 + init as i128 - banner as i128)?;
+                let pointer = image.u64(add(init_phys, offset)?)?;
+                ensure!(
+                    pointer != 0 && (pointer >> 47 == 0 || pointer >> 47 == 0x1ffff),
+                    "init_task.files 指针无效"
+                );
+                let slide = pointer.wrapping_sub(files);
+                ensure!(slide & 4095 == 0, "init_files 重定位未按页对齐");
+                Ok(slide)
+            })();
+            if let Ok(slide) = inferred
+                && !slides.contains(&slide)
+            {
+                slides.push(slide);
             }
         }
         for name in ["init_top_pgt", "init_level4_pgt", "swapper_pg_dir"] {
@@ -68,28 +110,41 @@ pub fn discover(image: &Image, isf: &Isf, job: &Job) -> Result<u64> {
                             "init_task PID 非 0"
                         );
                         ensure!(
-                            vm.string(add(runtime_init, comm)?, isf.size("task_struct", "comm")?)?
-                                .starts_with("swapper"),
+                            matches!(
+                                vm.string(
+                                    add(runtime_init, comm)?,
+                                    isf.size("task_struct", "comm")?
+                                )?
+                                .as_str(),
+                                "swapper" | "swapper/0"
+                            ),
                             "init_task 名称无效"
                         );
                         let head = add(runtime_init, tasks)?;
                         let n = vm.uint(add(head, next)?, 8).with_context(|| {
                             format!("init_task.tasks.next 读取失败: init_task={runtime_init:#x}, head={head:#x}, next_offset={next:#x}")
-                        })?;
+                        });
                         let p = vm.uint(add(head, prev)?, 8).with_context(|| {
                             format!("init_task.tasks.prev 读取失败: init_task={runtime_init:#x}, head={head:#x}, prev_offset={prev:#x}")
-                        })?;
-                        // Read both back-links even when the first is wrong.
-                        // Preserve read failures; only a fully validated forward
-                        // cycle can recover the narrowly scoped stale-tail case.
-                        let n_prev = add(n, prev).and_then(|address| vm.uint(address, 8));
-                        let p_next = add(p, next).and_then(|address| vm.uint(address, 8));
+                        });
+                        let n_prev = n
+                            .as_ref()
+                            .map_err(|e| anyhow::anyhow!("{e:#}"))
+                            .and_then(|n| add(*n, prev))
+                            .and_then(|a| vm.uint(a, 8));
+                        let p_next = p
+                            .as_ref()
+                            .map_err(|e| anyhow::anyhow!("{e:#}"))
+                            .and_then(|p| add(*p, next))
+                            .and_then(|a| vm.uint(a, 8));
                         let describe = |value: &Result<u64>| match value {
                             Ok(value) => format!("{value:#x}"),
                             Err(error) => format!("读取失败({error:#})"),
                         };
                         let evidence = format!(
-                            "init_task 双向链表不一致（完整 banner / PID 0 / swapper 已通过；init_task={runtime_init:#x}, tasks_offset={tasks:#x}, head={head:#x}, next={n:#x}, prev={p:#x}, next_offset={next:#x}, prev_offset={prev:#x}, next.prev={}, prev.next={}）",
+                            "init_task 双向链表不一致（完整 banner / PID 0 / swapper 已通过；init_task={runtime_init:#x}, tasks_offset={tasks:#x}, head={head:#x}, next={}, prev={}, next_offset={next:#x}, prev_offset={prev:#x}, next.prev={}, prev.next={}）",
+                            describe(&n),
+                            describe(&p),
                             describe(&n_prev),
                             describe(&p_next)
                         );
@@ -98,12 +153,40 @@ pub fn discover(image: &Image, isf: &Isf, job: &Job) -> Result<u64> {
                         {
                             return Ok(vec![]);
                         }
+                        // Validate an independent static pointer through this
+                        // address space. Task-list coherence is a plugin concern.
+                        let files_proof = (|| -> Result<u64> {
+                            let files = isf.raw_address("init_files")?.wrapping_add(slide);
+                            ensure!(
+                                vm.uint(
+                                    add(runtime_init, isf.offset("task_struct", "files")?)?,
+                                    8
+                                )? == files,
+                                "init_files 运行时指针不匹配"
+                            );
+                            let expected = u64::try_from(
+                                *physical as i128 + isf.raw_address("init_files")? as i128
+                                    - banner as i128,
+                            )?;
+                            ensure!(
+                                vm.translate(files)? == expected,
+                                "init_files 虚实地址不一致"
+                            );
+                            let _ = vm.uint(files, 1)?;
+                            Ok(files)
+                        })();
+                        if let Ok(files) = files_proof {
+                            return Ok(vec![format!(
+                                "内核校验部分恢复：{evidence}；独立 init_files 指针及虚实地址已验证 @ {files:#x}；任务链按方向逐对象恢复，结果保留异常"
+                            )]);
+                        }
                         ensure!(
                             n_prev.as_ref().is_ok_and(|value| *value == head) && p_next.is_ok(),
                             "{evidence}"
                         );
-                        let count = validate_forward_tasks(&vm, isf, head, p, job)
-                            .with_context(|| evidence.clone())?;
+                        let count =
+                            validate_forward_tasks(&vm, isf, head, *p.as_ref().unwrap(), job)
+                                .with_context(|| evidence.clone())?;
                         Ok(vec![format!(
                             "内核校验部分恢复：{evidence}；正向 {count} 个任务的 PID/TGID、名称及相邻回指均通过并闭环；表头 prev 指向链内非尾节点。可能为采集时状态不一致或链表异常，不能认定结果完整"
                         )])
@@ -135,10 +218,61 @@ pub fn discover(image: &Image, isf: &Isf, job: &Job) -> Result<u64> {
         if isf.validation_diagnostics.read().unwrap().is_empty() {
             ""
         } else {
-            " · 任务链表头不一致，部分恢复"
+            " · 任务链异常，部分恢复"
         }
     ));
     Ok(root)
+}
+
+/// Recover kernel placement from idle-task objects rather than trusting a
+/// banner hit's relative placement alone. Exact banner bytes still must match.
+fn swapper_banner_candidates(image: &Image, isf: &Isf, job: &Job) -> Result<Vec<u64>> {
+    let (Ok(comm), Ok(pid), Ok(files), Ok(_)) = (
+        isf.offset("task_struct", "comm"),
+        isf.offset("task_struct", "pid"),
+        isf.offset("task_struct", "files"),
+        isf.raw_address("init_files"),
+    ) else {
+        return Ok(vec![]);
+    };
+    let mut found = Vec::new();
+    job.report("扫描 swapper 与独立 init_files 内核定位证据");
+    for hit in image.scan(b"swapper", job)? {
+        job.check()?;
+        let check = (|| -> Result<u64> {
+            let init = hit.checked_sub(comm).context("swapper 地址下溢")?;
+            ensure!(
+                image.u64(add(init, pid)?)? & 0xffff_ffff == 0,
+                "swapper PID 非 0"
+            );
+            let mut name = [0; 10];
+            image.read(hit, &mut name)?;
+            ensure!(
+                name.starts_with(b"swapper\0") || name.starts_with(b"swapper/0\0"),
+                "非 idle task 名称"
+            );
+            let pointer = image.u64(add(init, files)?)?;
+            ensure!(
+                pointer != 0 && (pointer >> 47 == 0 || pointer >> 47 == 0x1ffff),
+                "init_files 非 canonical"
+            );
+            let banner = u64::try_from(
+                init as i128 + isf.raw_address("linux_banner")? as i128
+                    - isf.raw_address("init_task")? as i128,
+            )?;
+            let mut bytes = vec![0; isf.banner.len()];
+            image.read(banner, &mut bytes)?;
+            ensure!(bytes == isf.banner, "swapper 对应的完整 banner 不匹配");
+            Ok(banner)
+        })();
+        if let Ok(banner) = check
+            && !found.contains(&banner)
+        {
+            found.push(banner);
+            ensure!(found.len() <= 4096, "swapper 定位候选超过上限");
+        }
+    }
+    Ok(found)
 }
 
 /// Recover only a stale head.prev: every task and every interior backlink must

@@ -27,6 +27,8 @@ struct AnalyzeArgs {
     pagefiles: Option<Vec<zero_tui::windows::paging::Attachment>>,
     swapfile: Option<PathBuf>,
     pid: Option<u32>,
+    include_threads: Option<bool>,
+    decorate_comm: Option<bool>,
     hive: Option<String>,
     key: Option<String>,
     pattern: Option<String>,
@@ -111,7 +113,7 @@ fn tools() -> Value {
     json!({"tools": [
         {"name":"zero_plugins","description":"List native Linux and Windows memory forensics plugins and their result columns.","inputSchema":{"type":"object","properties":{},"additionalProperties":false}},
         {"name":"zero_symbols","description":"Identify image banners and exact ISF repository matches. Optional download saves verified symbols locally.","inputSchema":{"type":"object","properties":{"image":{"type":"string"},"offline":{"type":"boolean"},"download":{"type":"boolean"}},"required":["image"],"additionalProperties":false}},
-        {"name":"zero_analyze","description":"Run a native analysis plugin on a local memory image. Returns at most 200 rows and may export all rows to JSON/CSV. Returns result_id; use zero_results for subsequent pages.","inputSchema":{"type":"object","properties":{"image":{"type":"string"},"plugin":{"type":"string"},"os":{"type":"string","enum":["auto","linux","windows"]},"arch":{"type":"string","enum":["auto","x86","x64","arm64"]},"pagefiles":{"type":"array","items":{"type":"object","properties":{"index":{"type":"integer","minimum":0,"maximum":15},"path":{"type":"string"}},"required":["index","path"],"additionalProperties":false}},"swapfile":{"type":"string"},"pid":{"type":"integer","minimum":0},"hive":{"type":"string"},"key":{"type":"string"},"pattern":{"type":"string","description":"vmayarascan / windows.vadyarascan: text, wide:TEXT or hex:4d5a??00"},"symbols":{"type":"string"},"symbol_choice":{"type":"string"},"offline":{"type":"boolean"},"no_cache":{"type":"boolean"},"limit":{"type":"integer","minimum":1,"maximum":200},"output":{"type":"string"}},"required":["image","plugin"],"additionalProperties":false}},
+        {"name":"zero_analyze","description":"Run a native analysis plugin on a local memory image. Returns at most 200 rows and may export all rows to JSON/CSV. Returns result_id; use zero_results for subsequent pages.","inputSchema":{"type":"object","properties":{"image":{"type":"string"},"plugin":{"type":"string"},"os":{"type":"string","enum":["auto","linux","windows"]},"arch":{"type":"string","enum":["auto","x86","x64","arm64"]},"pagefiles":{"type":"array","items":{"type":"object","properties":{"index":{"type":"integer","minimum":0,"maximum":15},"path":{"type":"string"}},"required":["index","path"],"additionalProperties":false}},"swapfile":{"type":"string"},"pid":{"type":"integer","minimum":0},"include_threads":{"type":"boolean"},"decorate_comm":{"type":"boolean"},"hive":{"type":"string"},"key":{"type":"string"},"pattern":{"type":"string","description":"vmayarascan / windows.vadyarascan: text, wide:TEXT or hex:4d5a??00"},"symbols":{"type":"string"},"symbol_choice":{"type":"string"},"offline":{"type":"boolean"},"no_cache":{"type":"boolean"},"limit":{"type":"integer","minimum":1,"maximum":200},"output":{"type":"string"}},"required":["image","plugin"],"additionalProperties":false}},
         {"name":"zero_results","description":"Read or export an immutable analysis snapshot. Does not run analysis; expired IDs require a new zero_analyze call.","inputSchema":{"type":"object","properties":{"result_id":{"type":"string"},"offset":{"type":"integer","minimum":0},"limit":{"type":"integer","minimum":1,"maximum":200},"output":{"type":"string"}},"required":["result_id"],"additionalProperties":false}},
         {"name":"zero_dump","description":"Export one process, one PID address range, or ELF mappings to a local directory with a JSON/CSV manifest. Requires explicit PID and paths.","inputSchema":{"type":"object","properties":{"image":{"type":"string"},"symbols":{"type":"string"},"symbol_choice":{"type":"string"},"os":{"type":"string","enum":["auto","linux","windows"]},"arch":{"type":"string","enum":["auto","x86","x64","arm64"]},"pagefiles":{"type":"array","items":{"type":"object","properties":{"index":{"type":"integer","minimum":0,"maximum":15},"path":{"type":"string"}},"required":["index","path"],"additionalProperties":false}},"swapfile":{"type":"string"},"mode":{"type":"string","enum":["process","range","elf","pe"]},"pid":{"type":"integer","minimum":0},"dump_dir":{"type":"string"},"output":{"type":"string"},"start":{"type":"string"},"end":{"type":"string"},"offline":{"type":"boolean"}},"required":["image","mode","pid","dump_dir","output"],"additionalProperties":false}},
         {"name":"zero_cache_list","description":"Inspect regenerable local cache without deleting it.","inputSchema":{"type":"object","properties":{},"additionalProperties":false}}
@@ -231,6 +233,8 @@ fn call(
                         .collect(),
                     swapfile: a.swapfile.map(|p| path(root, &p)),
                     pid: a.pid,
+                    include_threads: a.include_threads.unwrap_or(false),
+                    decorate_comm: a.decorate_comm.unwrap_or(false),
                     hive: a
                         .hive
                         .as_deref()

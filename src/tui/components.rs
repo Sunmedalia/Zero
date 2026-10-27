@@ -5,6 +5,7 @@ fn plugin_label(plugin: Plugin) -> &'static str {
         plugin
             .name()
             .strip_prefix("windows.")
+            .or_else(|| plugin.name().strip_prefix("linux."))
             .unwrap_or(plugin.name())
     }
 }

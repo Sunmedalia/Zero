@@ -92,7 +92,13 @@ impl Linux<'_> {
             page_table: self.vm.root,
             historical: false,
             system: "linux".into(),
-            kernel_identity: serde_json::Value::Null,
+            kernel_identity: if self.isf.validation_diagnostics.read().unwrap().is_empty() {
+                serde_json::Value::Null
+            } else {
+                serde_json::json!({"system": "linux", "validation": {
+                    "partial": true, "diagnostics": self.isf.validation_diagnostics.read().unwrap().clone()
+                }})
+            },
         }
     }
     /// Fail before traversal when the ISF lacks a field the plugin reads.
@@ -123,6 +129,7 @@ impl Linux<'_> {
         use Plugin::*;
         match plugin {
             Pslist | Pstree | Lsmod => self.kernel_list(plugin, job),
+            LinuxPslist => self.process_details(job),
             Banners => banner_result(self.vm.image, job),
             Psaux | Envars | Maps | Lsof | Sockstat | Netscan => self.task_objects(plugin, job),
             Pwd | Pscred | CheckCreds | Threads | Mountinfo => self.task_context(plugin, job),
@@ -232,18 +239,15 @@ impl Linux<'_> {
             | WinCachedump | WinDumpfiles | WinThrdscan => Err(unrouted(plugin)),
         }
     }
-    /// pslist / pstree over `init_task.tasks`, lsmod over `modules`, with full
-    /// next/prev consistency checks.
+    /// Processes use directional object recovery; module traversal remains
+    /// independently strict until its own recovery evidence is implemented.
     fn kernel_list(&self, plugin: Plugin, job: &Job) -> Result<Results> {
-        let process = plugin != Plugin::Lsmod;
-        let structure = if process { "task_struct" } else { "module" };
-        let member = if process { "tasks" } else { "list" };
-        let offset = self.isf.offset(structure, member)?;
-        let head = if process {
-            self.field_address(self.isf.address("init_task")?, structure, member)?
-        } else {
-            self.isf.address("modules")?
-        };
+        if plugin != Plugin::Lsmod {
+            return self.process_list(plugin, job);
+        }
+        let structure = "module";
+        let offset = self.isf.offset(structure, "list")?;
+        let head = self.isf.address("modules")?;
         let next = self.isf.offset("list_head", "next")?;
         let prev = self.isf.offset("list_head", "prev")?;
         let mut result = self.result(plugin);
@@ -251,7 +255,6 @@ impl Linux<'_> {
             let mut node = self.vm.uint(add(head, next)?, 8)?;
             let mut previous = head;
             let mut visited = HashSet::new();
-            let mut pids = HashSet::new();
             while node != head {
                 job.check()?;
                 ensure!(visited.insert(node), "链表循环未回到表头 @ {node:#x}");
@@ -261,37 +264,13 @@ impl Linux<'_> {
                     "链表 prev 不一致 @ {node:#x}"
                 );
                 let successor = self.vm.uint(add(node, next)?, 8)?;
-                // Check head.prev after emitting the independently validated
-                // tail row; a stale head still makes the whole result partial.
                 ensure!(
-                    (process && successor == head)
-                        || self.vm.uint(add(successor, prev)?, 8)? == node,
+                    self.vm.uint(add(successor, prev)?, 8)? == node,
                     "链表 next/prev 不一致 @ {node:#x}"
                 );
                 let object = node.checked_sub(offset).context("对象地址下溢")?;
                 let row = (|| -> Result<Vec<String>> {
-                    Ok(if process {
-                        let pid = self.number(object, structure, "pid")?;
-                        let tgid = self.number(object, structure, "tgid")?;
-                        ensure!(
-                            pid > 0
-                                && pid <= i32::MAX as u64
-                                && tgid > 0
-                                && tgid <= i32::MAX as u64,
-                            "非法 PID/TGID @ {object:#x}"
-                        );
-                        ensure!(pids.insert(pid), "重复 PID {pid}");
-                        let parent = self.number(object, structure, "real_parent")?;
-                        let ppid = self.number(parent, structure, "pid")?;
-                        ensure!(ppid <= i32::MAX as u64, "非法 PPID @ {object:#x}");
-                        vec![
-                            pid.to_string(),
-                            tgid.to_string(),
-                            ppid.to_string(),
-                            self.string(object, structure, "comm")?,
-                            format!("{object:#018x}"),
-                        ]
-                    } else {
+                    Ok({
                         let (base, size) = if self.isf.field("module", "module_core").is_ok() {
                             (
                                 self.number(object, structure, "module_core")?,
@@ -369,21 +348,6 @@ impl Linux<'_> {
             job.check()?;
             result.complete = false;
             result.diagnostics.push(format!("部分结果: {error:#}"));
-        }
-        if process && result.complete {
-            let pids: HashSet<_> = result.rows.iter().map(|r| r[0].as_str()).collect();
-            let orphans: Vec<_> = result
-                .rows
-                .iter()
-                .filter(|r| r[2] != "0" && !pids.contains(r[2].as_str()))
-                .map(|r| r[0].clone())
-                .collect();
-            if !orphans.is_empty() {
-                result.diagnostics.push(format!(
-                    "父进程不在 tasks 链表（可能为线程或已退出）: {}",
-                    orphans.join(",")
-                ));
-            }
         }
         Ok(result)
     }

@@ -164,6 +164,8 @@ impl App {
                         "swapfile（可选路径）",
                         "",
                         "搜索模式 text / wide:TEXT / hex:4d5a??00",
+                        "包含用户线程 true / false",
+                        "线程名称标记 true / false",
                     ];
                     let mut lines = vec![Line::raw(if self.windows {
                         "Ctrl+T 展开／收起 Windows 高级配置"

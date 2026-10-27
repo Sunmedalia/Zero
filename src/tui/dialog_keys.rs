@@ -71,6 +71,16 @@ impl App {
                         )
                         .map_err(anyhow::Error::msg)?,
                         os: self.analysis_options.os,
+                        include_threads: self.plugin == Plugin::LinuxPslist
+                            && fields[8]
+                                .trim()
+                                .parse::<bool>()
+                                .context("包含线程应为 true/false")?,
+                        decorate_comm: self.plugin == Plugin::LinuxPslist
+                            && fields[9]
+                                .trim()
+                                .parse::<bool>()
+                                .context("名称标记应为 true/false")?,
                         pattern: if matches!(
                             self.plugin,
                             Plugin::Vmayarascan | Plugin::WinVadyarascan

@@ -185,7 +185,7 @@ impl Linux<'_> {
                 if r.complete {
                     "完整 banner／init_task／双向链表／页表已验证".into()
                 } else {
-                    "页表／完整 banner／任务正向闭环已验证；表头尾指针不一致，部分结果".into()
+                    "页表／完整 banner／独立内核对象证据已验证；任务链异常，部分结果".into()
                 },
             ),
         ] {
@@ -853,7 +853,12 @@ impl Linux<'_> {
                 .isf
                 .address("tk_core")
                 .context("不支持: 缺少 wall_to_monotonic 与 tk_core")?;
-            let keeper = self.field_address(core, "tk_core", "timekeeper")?;
+            // Modern DWARF may name tk_core's anonymous structure by a
+            // generated identifier. Resolve its actual type from this ISF.
+            let core_type = self.isf.data["symbols"]["tk_core"]["type"]["name"]
+                .as_str()
+                .unwrap_or("tk_core");
+            let keeper = self.field_address(core, core_type, "timekeeper")?;
             let real = self.number(keeper, "timekeeper", "offs_real")? as i64 as i128;
             let boot = self.number(keeper, "timekeeper", "offs_boot")? as i64 as i128;
             real - boot

@@ -28,6 +28,8 @@ check:
 	cargo test --locked
 	cargo build --locked --release
 	python3 scripts/windows_compatibility.py --check
+	python3 -m unittest discover -s tests/reference/parity -p 'test_*.py'
+	python3 tests/reference/parity/audit.py > /dev/null
 
 # Local Debian and Kali samples; no network during acceptance.
 # Override with ZERO_TEST_IMAGE / ZERO_TEST_SYMBOLS / ZERO_KALI_IMAGE / ZERO_KALI_SYMBOLS.

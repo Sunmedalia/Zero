@@ -32,6 +32,8 @@ impl App {
                     .unwrap_or_default(),
                 String::new(),
                 self.analysis_options.pattern.clone().unwrap_or_default(),
+                self.analysis_options.include_threads.to_string(),
+                self.analysis_options.decorate_comm.to_string(),
             ],
             field: if self.plugin == Plugin::WinPrintkey {
                 0

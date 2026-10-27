@@ -10,7 +10,7 @@
 ![Native Rust TUI](https://img.shields.io/badge/TUI-native_Rust-8bc7a3?logo=rust&logoColor=white)
 ![Linux | macOS](https://img.shields.io/badge/host-Linux%20%7C%20macOS-97a6b8)
 
-[使用指南](docs/usage.md) · [兼容矩阵](docs/compatibility.md) · [MCP](docs/mcp.md) · [界面架构](docs/tui.md) · [开发与发布](docs/development.md)
+[使用指南](docs/usage.md) · [兼容矩阵](docs/compatibility.md) · [Volatility 对齐进度](docs/volatility-parity.md) · [MCP](docs/mcp.md) · [界面架构](docs/tui.md) · [开发与发布](docs/development.md)
 
 <img src="docs/assets/analysis.svg" alt="Zero 分析页：Debian 3.2 样本的 pstree 进程树" width="100%">
 
@@ -25,7 +25,7 @@ Zero 是本地内存取证工具：读取 Linux（x86_64／ARM64）与 Windows �
 | 🎯 **只用精确符号** | Linux 按完整内核 banner 匹配 ISF，Windows 按 PDB GUID／Age 匹配；找不到就明确说没有，从不套用“相近版本” |
 | 🧾 **不把部分当完整** | 缺页、布局未验证、对象损坏都会保留部分结果并附带诊断；部分结果连同诊断单独缓存、绝不当作完整结果，“没有命中”只在完整结果中成立 |
 | 🔒 **证据只读** | 镜像始终只读，资产移除只改项目清单；在线模式只查询／下载符号，`--offline` 禁止一切网络请求，从不上传镜像 |
-| 🧩 **114 个原生插件** | Linux 52 个、Windows 62 个：进程、内存映射、文件、socket、注册表、恶意检测线索、内核钩子、模式搜索与定向转储 |
+| 🧩 **115 个原生插件** | Linux 53 个、Windows 62 个：进程、内存映射、文件、socket、注册表、恶意检测线索、内核钩子、模式搜索与定向转储 |
 | 🖥️ **好用的终端** | 浏览器式页面标签、可拖动滚动条、命令面板、进程树、五套主题与跟随终端背景的自动主题；80×24 到超宽屏都有对应布局 |
 | 🤖 **三种入口** | TUI、脚本化 CLI（CSV／JSON 导出）与原生 MCP（结果快照分页、可取消） |
 
@@ -92,7 +92,7 @@ zero mcp
 | 镜像格式 | RAW、LiME（含未压缩的 AVML 输出）、Windows crash dump／minidump、已识别布局的休眠文件、gzip 压缩镜像 |
 | 符号格式 | ISF 的 JSON、JSON.XZ 与 ZIP 成员 |
 | Linux | x86_64 四级页表（含 KASLR）与 ARM64 4 KiB 页（39／48-bit VA）；已验收 Debian 3.2 与 Kali 6.8.11 ARM64 |
-| Windows | 按精确 PDB 获取并本地转换符号，微软 404 时从 Volatility 官方符号包按需取精确 ISF；样本与插件覆盖见[兼容矩阵](docs/compatibility.md) |
+| Windows | 按精确 PDB 获取并本地转换符号，微软 404 时从 Volatility 官方符号包按需取精确 ISF；样本与插件覆盖见[兼容矩阵](docs/compatibility.md) · [Volatility 对齐进度](docs/volatility-parity.md) |
 | 符号来源 | 本地文件、[Abyss-W4tcher/volatility3-symbols](https://github.com/Abyss-W4tcher/volatility3-symbols)、Microsoft 符号服务器；Kali ARM64 可从官方调试包生成 |
 
 休眠文件与压缩 store 的部分路径只有合成验证，具体范围以兼容矩阵为准。恶意检测插件给出的是需要核查的结构线索，不是恶意判定。
@@ -103,6 +103,7 @@ zero mcp
 | --- | --- |
 | [使用指南](docs/usage.md) | 界面、快捷键、CLI、全部 Linux 插件的字段与边界、缓存与设置、验收基线 |
 | [兼容矩阵](docs/compatibility.md) | Windows 插件与真实样本的验收证据 |
+| [Volatility 对齐进度](docs/volatility-parity.md) | 固定版本清单、真实差分用例与未完成项 |
 | [MCP](docs/mcp.md) | 工具接口、`result_id` 快照分页与取消 |
 | [界面架构](docs/tui.md) | 原生线程通信、布局、鼠标、页面标签、主题及 GitHub 下载代理 |
 | [开发与发布](docs/development.md) | 检查、资源预算、性能基准、CI、发布与截图 |

@@ -3,6 +3,8 @@ use clap::ValueEnum;
 
 #[derive(Clone, Copy, Debug, ValueEnum, PartialEq, Eq)]
 pub enum Plugin {
+    #[value(name = "linux.pslist.PsList", alias = "linux.pslist")]
+    LinuxPslist,
     #[value(name = "windows.ldrmodules")]
     WinLdrmodules,
     #[value(name = "windows.hollowprocesses")]
@@ -1486,6 +1488,25 @@ pub const PLUGINS: &[Descriptor] = &[
         columns: &["PID", "Name", "Start", "End", "Size", "SHA256", "File"],
         widths: &[6, 12, 18, 18, 12, 0, 0],
     },
+    Descriptor {
+        plugin: Plugin::LinuxPslist,
+        name: "linux.pslist.PsList",
+        label: "pslist·完整",
+        columns: &[
+            "PID",
+            "TGID",
+            "PPID",
+            "Name",
+            "Address",
+            "UID",
+            "GID",
+            "EUID",
+            "EGID",
+            "CreationTime",
+            "FileOutput",
+        ],
+        widths: &[5, 5, 5, 16, 18, 6, 6, 6, 6, 32, 12],
+    },
 ];
 impl Plugin {
     pub fn descriptor(self) -> &'static Descriptor {
@@ -1595,6 +1616,7 @@ impl Plugin {
             | Self::Psstate
             | Self::Capabilities
             | Self::Pslist
+            | Self::LinuxPslist
             | Self::Pstree
             | Self::Psaux
             | Self::Pscred
@@ -1642,7 +1664,7 @@ impl Plugin {
             WinHollowprocesses => "检查主程序基址及映像映射异常",
             WinSuspiciousThreads => "检查活动线程起点所在的 VAD",
             CheckExec => "检查 Linux 主程序代码映射与可执行文件",
-            Pslist | WinPslist => "列出活动进程及其地址",
+            Pslist | LinuxPslist | WinPslist => "列出活动进程及其地址",
             Pstree | WinPstree => "按父进程关系浏览进程树",
             Psaux | WinCmdline => "读取进程命令行",
             Envars | WinEnvars => "读取进程环境变量",

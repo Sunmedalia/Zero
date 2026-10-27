@@ -1,0 +1,65 @@
+{
+  "version": 1,
+  "keys": [
+    "pid",
+    "tid"
+  ],
+  "fields": {
+    "pid": {
+      "zero": "TGID",
+      "reference": "PID",
+      "type": "integer"
+    },
+    "tid": {
+      "zero": "PID",
+      "reference": "TID",
+      "type": "integer"
+    },
+    "ppid": {
+      "zero": "PPID",
+      "reference": "PPID",
+      "type": "integer"
+    },
+    "name": {
+      "zero": "Name",
+      "reference": "COMM",
+      "type": "text"
+    },
+    "address": {
+      "zero": "Address",
+      "reference": "OFFSET (V)",
+      "zero_type": "address",
+      "reference_type": "address48"
+    },
+    "uid": {
+      "zero": "UID",
+      "reference": "UID",
+      "type": "integer"
+    },
+    "gid": {
+      "zero": "GID",
+      "reference": "GID",
+      "type": "integer"
+    },
+    "euid": {
+      "zero": "EUID",
+      "reference": "EUID",
+      "type": "integer"
+    },
+    "egid": {
+      "zero": "EGID",
+      "reference": "EGID",
+      "type": "integer"
+    },
+    "creation_time": {
+      "zero": "CreationTime",
+      "reference": "CREATION TIME",
+      "type": "timestamp"
+    },
+    "file_output": {
+      "zero": "FileOutput",
+      "reference": "File output",
+      "type": "text"
+    }
+  }
+}

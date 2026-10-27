@@ -20,6 +20,10 @@
 
 快照固定本次执行的结果，即使源文件后来变化也不重新分析。新分析返回新 ID。默认最多 8 个快照，闲置 30 分钟过期，服务重启后全部 ID 失效；失效时重新分析。部分结果保留 `complete: false` 和全部诊断，快照不属于成功结果缓存。`no_cache: true` 跳过成功缓存，仍可生成分页快照。
 
+`linux.pslist.PsList`（别名 `linux.pslist`）提供完整进程字段，支持 `pid`、
+`include_threads`、`decorate_comm`。后两项为布尔值，其他插件不能启用这两项。
+CLI 对应 `--threads`、`--decorate-comm`，详见 [对齐进度](volatility-parity.md)。
+
 ## 任务与错误
 
 同时只执行一个分析、符号查询／下载或转储任务。繁忙时新的此类请求返回 JSON-RPC `-32000`，任务结束后重试；ping 和已有快照读取仍可用。发送 `notifications/cancelled`，其 `params.requestId` 指向正在执行的请求，可取消该任务；等待原请求结束后再提交新任务。

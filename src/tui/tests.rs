@@ -4284,3 +4284,30 @@ mod review;
 
 #[path = "diagnostic_tests.rs"]
 mod diagnostic;
+
+#[test]
+fn official_pslist_options_save_reject_invalid_boolean_and_separate_request_keys() {
+    let mut app = app();
+    app.select_plugin(Plugin::LinuxPslist);
+    app.windows_parameters();
+    assert_eq!(app.parameter_fields(false), vec![2, 8, 9, 6]);
+    let before = app.request_key();
+    if let Some(Dialog::WindowsParameters { fields, .. }) = &mut app.dialog {
+        fields[8] = "true".into();
+        fields[9] = "invalid".into();
+    } else {
+        panic!("parameter dialog missing");
+    }
+    app.dialog_key(KeyEvent::new(KeyCode::Enter, KeyModifiers::CONTROL));
+    assert!(app.dialog.is_some());
+    assert!(!app.analysis_options.include_threads);
+    if let Some(Dialog::WindowsParameters { fields, .. }) = &mut app.dialog {
+        fields[9] = "true".into();
+    }
+    app.dialog_key(KeyEvent::new(KeyCode::Enter, KeyModifiers::CONTROL));
+    assert!(app.dialog.is_none());
+    assert!(app.analysis_options.include_threads);
+    assert!(app.analysis_options.decorate_comm);
+    assert_ne!(before, app.request_key());
+    assert!(app.job.is_none());
+}

@@ -171,6 +171,22 @@ impl Session {
         pattern: Option<&crate::pattern::Pattern>,
         job: &Job,
     ) -> Result<Outcome> {
+        self.analyze_linux_options(
+            request,
+            dump,
+            pattern,
+            &crate::analysis::Options::default(),
+            job,
+        )
+    }
+    pub(crate) fn analyze_linux_options(
+        &mut self,
+        request: &Request<'_>,
+        dump: Option<&crate::dump::DumpOptions>,
+        pattern: Option<&crate::pattern::Pattern>,
+        options: &crate::analysis::Options,
+        job: &Job,
+    ) -> Result<Outcome> {
         if request.plugin.is_dump() {
             dump.context("Dump 插件需要 --pid、--dump-dir；memdump 还需要 --start、--end")?
                 .validate(request.plugin)?;
@@ -254,6 +270,12 @@ impl Session {
         };
         let identity = match pattern {
             Some(pattern) => format!("{}:{}", request.plugin.name(), pattern.source()),
+            None if request.plugin == Plugin::LinuxPslist => format!(
+                "{}:threads={}:decorate={}",
+                request.plugin.name(),
+                options.include_threads,
+                options.decorate_comm
+            ),
             None => request.plugin.name().to_string(),
         };
         let key = store::key(&image.digest, &symbol.digest, &identity);
@@ -286,6 +308,8 @@ impl Session {
             engine.run_dump(request.plugin, dump.context("Dump 插件需要转储参数")?, job)?
         } else if request.plugin.is_pattern_scan() {
             engine.vma_pattern_scan(pattern.context("此插件需要 --pattern")?, job)?
+        } else if request.plugin == Plugin::LinuxPslist {
+            engine.process_details_with_options(options, job)?
         } else {
             engine.run(request.plugin, job)?
         };

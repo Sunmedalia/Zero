@@ -1,0 +1,187 @@
+[
+  {
+    "reference_plugin": "linux.pslist.PsList",
+    "zero_plugin": "linux.pslist.PsList",
+    "image_sha256": "8ce57b7c7b423173ce970fe8f51e7016c04ef1b4a5f73d5c5f1001d5c18780bc",
+    "mapping_sha256": "231a92aae94c4f021f94498643422f26e8c95c9a4e3f3ffde1ec4c7117448882",
+    "native_output_sha256": "d351bb6d804d1f42e79734b88ae30be15051ebd64552ef459ad18286ba564a7d",
+    "comparison": {
+      "schema_version": 1,
+      "mapping_version": 1,
+      "zero_records": 133,
+      "reference_records": 133,
+      "missing": [],
+      "extra": [],
+      "duplicates": [],
+      "conflicts": [],
+      "unverifiable": [],
+      "all_columns_mapped": true,
+      "positive_evidence": true,
+      "zero_complete": true,
+      "zero_diagnostics": [],
+      "passed": true
+    },
+    "passed": true,
+    "zero_args": [],
+    "reference_args": [],
+    "case_id": "debian-3.2/default",
+    "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+    "sample_source": "https://github.com/volatilityfoundation/volatility3-test-data/releases/download/v0.0.1/linux-sample-1.bin.gz",
+    "reference_output_sha256": "a843aaf4d6f6f2b9d9180b02205ac014583576ae444d0954b43b6718862a75ad",
+    "symbol_sha256": "c3b0b875a2d0498fffc0df1259ff49b850cea28355ffddf02e2f90d34a89fbe1",
+    "zero_executable_sha256": "c856b60f1db4027ab979419213524877ba8e6283d2c1693b81de4161c910b44b",
+    "engine_version": "0.2.1-native-29"
+  },
+  {
+    "reference_plugin": "linux.pslist.PsList",
+    "zero_plugin": "linux.pslist.PsList",
+    "image_sha256": "8ce57b7c7b423173ce970fe8f51e7016c04ef1b4a5f73d5c5f1001d5c18780bc",
+    "mapping_sha256": "231a92aae94c4f021f94498643422f26e8c95c9a4e3f3ffde1ec4c7117448882",
+    "native_output_sha256": "8c7223101dddbe0878334976ddbb3df0338bbe92cecf379a88f85d2deefc8f22",
+    "comparison": {
+      "schema_version": 1,
+      "mapping_version": 1,
+      "zero_records": 316,
+      "reference_records": 316,
+      "missing": [],
+      "extra": [],
+      "duplicates": [],
+      "conflicts": [],
+      "unverifiable": [],
+      "all_columns_mapped": true,
+      "positive_evidence": true,
+      "zero_complete": true,
+      "zero_diagnostics": [],
+      "passed": true
+    },
+    "passed": true,
+    "zero_args": [
+      "--threads"
+    ],
+    "reference_args": [
+      "--threads"
+    ],
+    "case_id": "debian-3.2/threads",
+    "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+    "sample_source": "https://github.com/volatilityfoundation/volatility3-test-data/releases/download/v0.0.1/linux-sample-1.bin.gz",
+    "reference_output_sha256": "d107a6659963a5ba22832e7d02e85ed38b399405f994c6e91a07f0126168bf36",
+    "symbol_sha256": "c3b0b875a2d0498fffc0df1259ff49b850cea28355ffddf02e2f90d34a89fbe1",
+    "zero_executable_sha256": "c856b60f1db4027ab979419213524877ba8e6283d2c1693b81de4161c910b44b",
+    "engine_version": "0.2.1-native-29"
+  },
+  {
+    "reference_plugin": "linux.pslist.PsList",
+    "zero_plugin": "linux.pslist.PsList",
+    "image_sha256": "8ce57b7c7b423173ce970fe8f51e7016c04ef1b4a5f73d5c5f1001d5c18780bc",
+    "mapping_sha256": "231a92aae94c4f021f94498643422f26e8c95c9a4e3f3ffde1ec4c7117448882",
+    "native_output_sha256": "ac603e7acad81cf4bc89945b693edffcdaffe635dcd50c76dc4e1f846933fc1b",
+    "comparison": {
+      "schema_version": 1,
+      "mapping_version": 1,
+      "zero_records": 133,
+      "reference_records": 133,
+      "missing": [],
+      "extra": [],
+      "duplicates": [],
+      "conflicts": [],
+      "unverifiable": [],
+      "all_columns_mapped": true,
+      "positive_evidence": true,
+      "zero_complete": true,
+      "zero_diagnostics": [],
+      "passed": true
+    },
+    "passed": true,
+    "zero_args": [
+      "--decorate-comm"
+    ],
+    "reference_args": [
+      "--decorate-comm"
+    ],
+    "case_id": "debian-3.2/decorate",
+    "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+    "sample_source": "https://github.com/volatilityfoundation/volatility3-test-data/releases/download/v0.0.1/linux-sample-1.bin.gz",
+    "reference_output_sha256": "51a192ddaa1b3ee8ec83a8a3958037831d6d5d9154fafd34619a8f90223e13d3",
+    "symbol_sha256": "c3b0b875a2d0498fffc0df1259ff49b850cea28355ffddf02e2f90d34a89fbe1",
+    "zero_executable_sha256": "c856b60f1db4027ab979419213524877ba8e6283d2c1693b81de4161c910b44b",
+    "engine_version": "0.2.1-native-29"
+  },
+  {
+    "reference_plugin": "linux.pslist.PsList",
+    "zero_plugin": "linux.pslist.PsList",
+    "image_sha256": "8ce57b7c7b423173ce970fe8f51e7016c04ef1b4a5f73d5c5f1001d5c18780bc",
+    "mapping_sha256": "231a92aae94c4f021f94498643422f26e8c95c9a4e3f3ffde1ec4c7117448882",
+    "native_output_sha256": "298d6d0137867a760c4e6e26b3165067c153380dcd5643eef3f2131ee5402667",
+    "comparison": {
+      "schema_version": 1,
+      "mapping_version": 1,
+      "zero_records": 316,
+      "reference_records": 316,
+      "missing": [],
+      "extra": [],
+      "duplicates": [],
+      "conflicts": [],
+      "unverifiable": [],
+      "all_columns_mapped": true,
+      "positive_evidence": true,
+      "zero_complete": true,
+      "zero_diagnostics": [],
+      "passed": true
+    },
+    "passed": true,
+    "zero_args": [
+      "--threads",
+      "--decorate-comm"
+    ],
+    "reference_args": [
+      "--threads",
+      "--decorate-comm"
+    ],
+    "case_id": "debian-3.2/threads-decorate",
+    "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+    "sample_source": "https://github.com/volatilityfoundation/volatility3-test-data/releases/download/v0.0.1/linux-sample-1.bin.gz",
+    "reference_output_sha256": "5149f26dcd95d63c7b2111afef13ca316d12c2b637c005c2476b87391e0485d7",
+    "symbol_sha256": "c3b0b875a2d0498fffc0df1259ff49b850cea28355ffddf02e2f90d34a89fbe1",
+    "zero_executable_sha256": "c856b60f1db4027ab979419213524877ba8e6283d2c1693b81de4161c910b44b",
+    "engine_version": "0.2.1-native-29"
+  },
+  {
+    "reference_plugin": "linux.pslist.PsList",
+    "zero_plugin": "linux.pslist.PsList",
+    "image_sha256": "8ce57b7c7b423173ce970fe8f51e7016c04ef1b4a5f73d5c5f1001d5c18780bc",
+    "mapping_sha256": "231a92aae94c4f021f94498643422f26e8c95c9a4e3f3ffde1ec4c7117448882",
+    "native_output_sha256": "6b2af0dfe2fd9b2807a313a3955aaa8860ea54f0b604183d6c56ffba4c1cb8ff",
+    "comparison": {
+      "schema_version": 1,
+      "mapping_version": 1,
+      "zero_records": 1,
+      "reference_records": 1,
+      "missing": [],
+      "extra": [],
+      "duplicates": [],
+      "conflicts": [],
+      "unverifiable": [],
+      "all_columns_mapped": true,
+      "positive_evidence": true,
+      "zero_complete": true,
+      "zero_diagnostics": [],
+      "passed": true
+    },
+    "passed": true,
+    "zero_args": [
+      "--pid",
+      "1"
+    ],
+    "reference_args": [
+      "--pid",
+      "1"
+    ],
+    "case_id": "debian-3.2/pid-1",
+    "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+    "sample_source": "https://github.com/volatilityfoundation/volatility3-test-data/releases/download/v0.0.1/linux-sample-1.bin.gz",
+    "reference_output_sha256": "0504c8b4a21d968f126c44150a4081bed529511a719c0ca7f230654fa2ce233b",
+    "symbol_sha256": "c3b0b875a2d0498fffc0df1259ff49b850cea28355ffddf02e2f90d34a89fbe1",
+    "zero_executable_sha256": "c856b60f1db4027ab979419213524877ba8e6283d2c1693b81de4161c910b44b",
+    "engine_version": "0.2.1-native-29"
+  }
+]

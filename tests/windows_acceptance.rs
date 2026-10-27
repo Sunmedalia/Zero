@@ -178,7 +178,9 @@ fn public_bitmap_crash_processes_and_networks() {
     let image = std::env::var_os("ZERO_WINDOWS_CRASH_IMAGE")
         .map(PathBuf::from)
         .unwrap_or_else(|| "images/win-10_19041-2025_03.dmp.gz".into());
-    let symbols = Path::new(".zero/rust/symbols/isf/windows");
+    let symbols = std::env::var_os("ZERO_WINDOWS_SYMBOLS")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| ".zero/rust/symbols/isf/windows".into());
     let cache = Path::new(".zero/rust");
     let job = Job::default();
     let mut session = Session::default();
@@ -193,7 +195,7 @@ fn public_bitmap_crash_processes_and_networks() {
             &mut session,
             &Request {
                 image: &image,
-                symbols,
+                symbols: &symbols,
                 choice: None,
                 plugin,
                 cache,

@@ -17,6 +17,8 @@ pub struct Options {
     pub os: Os,
     pub arch: crate::windows::Architecture,
     pub pid: Option<u32>,
+    pub include_threads: bool,
+    pub decorate_comm: bool,
     pub hive: Option<u64>,
     pub key: String,
     /// Byte pattern for vmayarascan / windows.vadyarascan.
@@ -45,6 +47,11 @@ pub fn analyze(
     job: &Job,
 ) -> Result<Outcome> {
     validate_pattern(request.plugin, options)?;
+    ensure!(
+        !(options.include_threads || options.decorate_comm)
+            || request.plugin == Plugin::LinuxPslist,
+        "threads/decorate_comm 当前仅支持 linux.pslist.PsList"
+    );
     let image = if request.plugin == crate::linux::Plugin::Banners && request.use_cache {
         session.identify_image(request.image, request.cache, job)?
     } else {
@@ -103,7 +110,7 @@ pub fn analyze(
         options.pagefiles.is_empty() && options.swapfile.is_none(),
         "分页附件仅用于 Windows 镜像"
     );
-    let outcome = session.analyze_with_pattern(request, dump, pattern.as_ref(), job)?;
+    let outcome = session.analyze_linux_options(request, dump, pattern.as_ref(), options, job)?;
     Ok(match outcome {
         Outcome::Ready(mut r) => {
             if let Some(pid) = options.pid {

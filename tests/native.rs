@@ -498,7 +498,24 @@ fn malformed_addresses_return_diagnostics() -> Result<()> {
     }
     .run(Plugin::Pslist, &Job::default())?;
     assert!(!result.complete);
-    assert!(result.diagnostics[0].contains("溢出"));
+    assert!(
+        result
+            .diagnostics
+            .iter()
+            .any(|d| d.contains("链表指针无效"))
+    );
+    assert_eq!(
+        result.rows.len(),
+        2,
+        "reverse traversal recovers valid tasks"
+    );
+    assert!(
+        result.kernel_identity["task_recovery"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|e| e["kind"] == "invalid_link")
+    );
     Ok(())
 }
 #[test]
@@ -2358,4 +2375,136 @@ fn stale_head_recovery_rejects_internal_corruption_invalid_tasks_and_unclosed_cy
             "offset {offset:#x}"
         );
     }
+}
+
+#[test]
+fn independent_init_files_proof_separates_kernel_validation_from_broken_task_links() -> Result<()> {
+    let (mut bytes, mut isf) = discoverable();
+    isf.data["symbols"]["init_files"] = json!({"address": 0x9700});
+    isf.data["user_types"]["task_struct"]["fields"]["files"] = json!({
+        "offset":48, "type":{"kind":"pointer"}
+    });
+    put(&mut bytes, 0x8230, 0x9700);
+    put(&mut bytes, 0x8200, 0x3000); // Unreadable forward entry, valid reverse view.
+    let img = image(&bytes);
+    assert_eq!(
+        zero_tui::linux::discover(&img, &isf, &Job::default())?,
+        0x1000
+    );
+    let engine = Linux {
+        vm: VirtualMemory::new(&img, 0x1000),
+        isf: &isf,
+    };
+    let tasks = engine.run(Plugin::Pslist, &Job::default())?;
+    assert!(!tasks.complete);
+    assert_eq!(
+        tasks.rows.iter().map(|r| r[0].as_str()).collect::<Vec<_>>(),
+        ["2", "1"]
+    );
+    assert!(
+        tasks
+            .diagnostics
+            .iter()
+            .any(|d| d.contains("独立 init_files"))
+    );
+    let modules = engine.run(Plugin::Lsmod, &Job::default())?;
+    assert_eq!(modules.rows.len(), 1);
+    assert!(!modules.complete);
+    // A bad independent pointer cannot unlock a broken task list.
+    put(&mut bytes, 0x8230, 0x9801);
+    assert!(zero_tui::linux::discover(&image(&bytes), &isf, &Job::default()).is_err());
+    Ok(())
+}
+
+#[test]
+fn directional_task_recovery_keeps_valid_objects_and_reports_conflicts_without_inventing_links()
+-> Result<()> {
+    let (mut bytes, isf) = discoverable();
+    put(&mut bytes, 0x8300, 0x9300); // PID 1's forward link loops at itself.
+    let img = image(&bytes);
+    let engine = Linux {
+        vm: VirtualMemory::new(&img, 0x1000),
+        isf: &isf,
+    };
+    let result = engine.run(Plugin::Pslist, &Job::default())?;
+    assert_eq!(result.rows.len(), 2, "PID 2 remains reachable in reverse");
+    assert!(!result.complete);
+    assert!(
+        result.kernel_identity["task_recovery"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|e| e["direction"] == "next" && e["kind"] == "invalid_link")
+    );
+    put(&mut bytes, 0x8410, 0x1_0000_0001); // PID collision at a different object.
+    let img = image(&bytes);
+    let result = Linux {
+        vm: VirtualMemory::new(&img, 0x1000),
+        isf: &isf,
+    }
+    .run(Plugin::Pslist, &Job::default())?;
+    assert_eq!(result.rows.len(), 1);
+    assert!(result.diagnostics.iter().any(|d| d.contains("重复 PID")));
+    let job = Job::default();
+    job.cancel.store(true, Ordering::Relaxed);
+    assert!(engine.run(Plugin::Pslist, &job).is_err());
+    Ok(())
+}
+
+#[test]
+fn official_pslist_missing_supplementary_fields_preserves_tasks_as_partial() {
+    let bytes = linked();
+    let memory = image(&bytes);
+    let isf = symbols();
+    let linux = Linux {
+        isf: &isf,
+        vm: VirtualMemory::new(&memory, 0x1000),
+    };
+    let result = linux.run(Plugin::LinuxPslist, &Job::default()).unwrap();
+    assert_eq!(result.rows.len(), 2);
+    assert_eq!(result.columns.len(), 11);
+    assert_eq!(result.rows[0][0], "1");
+    assert_eq!(&result.rows[0][5..9], &["", "", "", ""]);
+    assert_eq!(result.rows[0][10], "Disabled");
+    assert!(!result.complete);
+    assert!(
+        result
+            .diagnostics
+            .iter()
+            .any(|d| d.contains("creation time"))
+    );
+    assert_eq!(
+        <Plugin as clap::ValueEnum>::from_str("linux.pslist", false).unwrap(),
+        Plugin::LinuxPslist
+    );
+    assert_eq!(
+        <Plugin as clap::ValueEnum>::from_str("linux.pslist.PsList", false).unwrap(),
+        Plugin::LinuxPslist
+    );
+}
+
+#[test]
+fn modern_boottime_uses_exact_anonymous_symbol_type() {
+    let mut bytes = linked();
+    let mut data = symbols().data.clone();
+    data["base_types"]["long"] = json!({"size":8,"signed":false});
+    data["symbols"]["tk_core"] =
+        json!({"address":0x1700,"type":{"kind":"struct","name":"unnamed_exact_core"}});
+    data["user_types"]["unnamed_exact_core"] = json!({"size":24,"fields":{
+        "timekeeper":{"offset":8,"type":{"kind":"struct","name":"timekeeper"}}}});
+    data["user_types"]["timekeeper"] = json!({"size":16,"fields":{
+        "offs_real":{"offset":0,"type":{"kind":"base","name":"long"}},
+        "offs_boot":{"offset":8,"type":{"kind":"base","name":"long"}}}});
+    put(&mut bytes, 0x8708, 1_700_000_123_456_789_000);
+    put(&mut bytes, 0x8710, 123_000_000_000);
+    let isf = Isf::parse(&serde_json::to_vec(&data).unwrap(), "anonymous.json".into()).unwrap();
+    let memory = image(&bytes);
+    let linux = Linux {
+        isf: &isf,
+        vm: VirtualMemory::new(&memory, 0x1000),
+    };
+    let result = linux.run(Plugin::Boottime, &Job::default()).unwrap();
+    assert!(result.complete);
+    assert_eq!(result.rows[0], ["BootTimeUnix", "1700000000"]);
+    assert_eq!(result.rows[2], ["BootTimeNanos", "456789000"]);
 }

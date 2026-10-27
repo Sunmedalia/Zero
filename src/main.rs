@@ -41,6 +41,12 @@ struct Cli {
     /// (UTF-16LE) or hex:4d5a??00 with ?? wildcards.
     #[arg(long, global = true)]
     pattern: Option<String>,
+    /// Include user threads in linux.pslist.PsList.
+    #[arg(long = "threads", global = true)]
+    include_threads: bool,
+    /// Decorate user/kernel thread names in linux.pslist.PsList.
+    #[arg(long, global = true)]
+    decorate_comm: bool,
     #[command(subcommand)]
     command: Option<Command>,
 }
@@ -351,6 +357,8 @@ fn main() -> Result<()> {
                 hive: cli.hive,
                 key: cli.key.clone(),
                 pattern: cli.pattern.clone(),
+                include_threads: cli.include_threads,
+                decorate_comm: cli.decorate_comm,
             },
             &job,
         )? {
@@ -438,6 +446,8 @@ fn launch_tui(cli: Cli) -> Result<()> {
             hive: cli.hive,
             key: cli.key,
             pattern: cli.pattern,
+            include_threads: cli.include_threads,
+            decorate_comm: cli.decorate_comm,
         },
     )
 }
