@@ -71,6 +71,53 @@ pub struct Request<'a> {
     pub os: Os,
     pub previous_error: Option<String>,
 }
+
+// A scan hit may be source code or a cached document, not linux_banner.
+// This is a report filter only; discovery still checks the original bytes.
+fn linux_banner_text(bytes: &[u8]) -> Option<&str> {
+    let text = std::str::from_utf8(bytes)
+        .ok()?
+        .trim_end_matches(['\0', '\n']);
+    if text.len() > 1024
+        || text
+            .chars()
+            .any(|c| c.is_control() || matches!(c, '\'' | '"' | '`' | '{' | '}' | ';'))
+    {
+        return None;
+    }
+    let rest = text.strip_prefix("Linux version ")?;
+    let (release, build) = rest.split_once(' ')?;
+    let mut version = release.split('.');
+    for _ in 0..2 {
+        let part = version.next()?;
+        if part.is_empty() || !part.bytes().all(|c| c.is_ascii_digit()) {
+            return None;
+        }
+    }
+    if !release
+        .bytes()
+        .all(|c| c.is_ascii_alphanumeric() || b".-_+".contains(&c))
+    {
+        return None;
+    }
+    if !build.starts_with('(')
+        || !build.split_whitespace().any(|word| {
+            word.strip_prefix('#')
+                .is_some_and(|s| s.starts_with(|c: char| c.is_ascii_digit()))
+        })
+    {
+        return None;
+    }
+    let mut depth = 0usize;
+    for c in build.chars() {
+        match c {
+            '(' => depth += 1,
+            ')' => depth = depth.checked_sub(1)?,
+            _ => (),
+        }
+    }
+    (depth == 0).then_some(text)
+}
 impl Report {
     pub fn passed(&self) -> usize {
         self.candidates.iter().filter(|c| c.passed).count()
@@ -88,7 +135,7 @@ impl Report {
     }
     pub fn text(&self) -> String {
         let mut out = format!(
-            "内核诊断报告 · {}\n{}\n\n镜像: {}\n符号来源: {}\n系统: {}\n格式: {}\nSHA256: {}\n耗时: {:.1} s\n\n准备阶段\n{}\n\n内核身份\n{}\n\n物理区段（结束地址不包含在内）\n",
+            "内核诊断报告 · {}\n{}\n\n镜像: {}\n符号来源: {}\n系统: {}\n格式: {}\nSHA256: {}\n耗时: {:.1} s\n\n准备阶段\n{}\n\n内核身份候选（需结合页表校验）\n{}\n\n物理区段（结束地址不包含在内）\n",
             self.engine_version,
             self.summary(),
             self.image.display(),
@@ -225,19 +272,25 @@ pub fn run(session: &mut Session, request: Request<'_>, job: &Job) -> Result<Rep
         } else {
             banners
                 .iter()
-                .map(|(at, b)| {
-                    format!(
-                        "{at:#x}: {}",
-                        String::from_utf8_lossy(b).trim_end_matches(['\0', '\n'])
-                    )
-                })
+                .filter_map(|(at, b)| linux_banner_text(b).map(|text| format!("{at:#x}: {text}")))
                 .collect()
         };
         ensure!(
-            !report.identities.is_empty(),
+            if windows {
+                !report.identities.is_empty()
+            } else {
+                !banners.is_empty()
+            },
             "系统识别失败：镜像中没有所选系统的内核身份"
         );
-        report.stages.push("通过 · 内核身份识别".into());
+        if windows {
+            report.stages.push("通过 · 内核身份识别".into());
+        } else {
+            report.stages.push(format!(
+                "banner 扫描 · 保留 {} 个格式完整候选，过滤 {} 个噪声命中（不影响符号匹配及页表校验）",
+                report.identities.len(), banners.len() - report.identities.len()
+            ));
+        }
         job.report("内核诊断：匹配本地精确符号（离线）");
         let mut candidates = if windows {
             crate::windows_symbols::resolve(request.symbols, &image, request.cache, false, job)
@@ -289,4 +342,32 @@ pub fn run(session: &mut Session, request: Request<'_>, job: &Job) -> Result<Rep
     }
     report.elapsed_seconds = started.elapsed().as_secs_f64();
     Ok(report)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::linux_banner_text;
+
+    #[test]
+    fn report_filters_source_code_and_partial_hits_but_keeps_complete_banners() {
+        let banner = "Linux version 6.12.105+deb13-amd64 (debian-kernel@lists.debian.org) (x86_64-linux-gnu-gcc-14 (Debian 14.2.0-19) 14.2.0, GNU ld (GNU Binutils for Debian) 2.44) #1 SMP PREEMPT_DYNAMIC Debian 6.12.105-1 (2026-08-24)";
+        assert_eq!(
+            linux_banner_text(format!("{banner}\n\0").as_bytes()),
+            Some(banner)
+        );
+        for noise in [
+            format!("{banner}',\n  path: 'releases/download/test.json.xz';"),
+            format!("{banner}4)"),
+            banner.replace("#1", "#"),
+            "Linux version ".into(),
+            "Linux version ')) { return []; }".into(),
+            "Linux version 5.15.0-${index}-generic`".into(),
+            "Linux version 3.2 Debian', path: 'Debian/test.json.xz'".into(),
+            "Linux version 6.8.11-arm646.8.11-1kali2symbol_sizes".into(),
+            format!("{banner}\nconst SAVED = 1"),
+            format!("{banner}{}", "x".repeat(1024)),
+        ] {
+            assert_eq!(linux_banner_text(noise.as_bytes()), None, "{noise}");
+        }
+    }
 }

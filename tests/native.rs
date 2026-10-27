@@ -2077,6 +2077,11 @@ fn kernel_diagnostic_report_preserves_failed_evidence_and_exports_without_overwr
     let symbol_path = dir.path().join("exact.json");
     let cache = dir.path().join("cache");
     let (mut bytes, isf) = discoverable();
+    let clean =
+        b"Linux version 6.12.105+deb13-amd64 (test@test) (gcc version 14.2.0) #1 SMP Debian\n\0";
+    bytes[0xa000..0xa000 + clean.len()].copy_from_slice(clean);
+    let noise = b"Linux version 5.4.0-test (test@test) (gcc version 9) #1 SMP',\nconst SAVED = { jsonrpc: '2.0' };\0";
+    bytes[0xb000..0xb000 + noise.len()].copy_from_slice(noise);
     put(&mut bytes, 0x8308, 0x9500);
     let mut lime = Vec::new();
     lime.extend_from_slice(&0x4c694d45u32.to_le_bytes());
@@ -2100,6 +2105,15 @@ fn kernel_diagnostic_report_preserves_failed_evidence_and_exports_without_overwr
         &Job::default(),
     )?;
     assert!(report.failure.is_none(), "{:?}", report.failure);
+    assert_eq!(report.identities.len(), 1);
+    assert!(report.identities[0].contains("6.12.105+deb13-amd64"));
+    assert!(!report.text().contains("const SAVED"));
+    assert!(
+        report
+            .stages
+            .iter()
+            .any(|stage| stage.contains("过滤 2 个噪声"))
+    );
     assert_eq!(report.image_format.as_deref(), Some("LiME"));
     assert_eq!(report.image_sha256.as_ref().unwrap().len(), 64);
     assert_eq!(report.passed(), 0);
