@@ -38,6 +38,7 @@ pub struct Candidate {
     pub symbol: String,
     pub sha256: String,
     pub passed: bool,
+    pub partial: bool,
     #[serde(serialize_with = "optional_hex_address")]
     pub page_table: Option<u64>,
     #[serde(serialize_with = "optional_hex_address")]
@@ -127,9 +128,14 @@ impl Report {
             "诊断未完成；查看失败阶段".into()
         } else {
             format!(
-                "{} / {} 个符号候选通过内核校验",
+                "{} / {} 个符号候选通过内核校验{}",
                 self.passed(),
-                self.candidates.len()
+                self.candidates.len(),
+                if self.candidates.iter().any(|c| c.partial) {
+                    "（含部分恢复，查看警告）"
+                } else {
+                    ""
+                }
             )
         }
     }
@@ -157,7 +163,13 @@ impl Report {
             out.push_str(&format!(
                 "\n符号候选 {} · {}\n{}\nSHA256: {}\n",
                 i + 1,
-                if c.passed { "通过" } else { "未通过" },
+                if c.partial {
+                    "部分恢复"
+                } else if c.passed {
+                    "通过"
+                } else {
+                    "未通过"
+                },
                 c.symbol,
                 c.sha256
             ));
@@ -319,6 +331,7 @@ pub fn run(session: &mut Session, request: Request<'_>, job: &Job) -> Result<Rep
                 symbol: isf.label.clone(),
                 sha256: isf.digest.clone(),
                 passed: false,
+                partial: false,
                 page_table: None,
                 relocation_or_kernel_base: None,
                 evidence: String::new(),
@@ -329,6 +342,13 @@ pub fn run(session: &mut Session, request: Request<'_>, job: &Job) -> Result<Rep
                     candidate.page_table = Some(root);
                     candidate.relocation_or_kernel_base = Some(value);
                     candidate.evidence = "通过引擎的完整内核页表校验".into();
+                    if !windows {
+                        let diagnostics = isf.validation_diagnostics.read().unwrap();
+                        if !diagnostics.is_empty() {
+                            candidate.partial = true;
+                            candidate.evidence = diagnostics.join("\n");
+                        }
+                    }
                 }
                 Err(error) => candidate.evidence = format!("{error:#}"),
             }

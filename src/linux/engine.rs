@@ -71,8 +71,9 @@ impl Linux<'_> {
             Ok(value)
         }
     }
-    /// Empty, complete result carrying this kernel's identity.
+    /// Empty result carrying this kernel's identity and validation warnings.
     pub(crate) fn result(&self, plugin: Plugin) -> Results {
+        let diagnostics = self.isf.validation_diagnostics.read().unwrap().clone();
         Results {
             plugin: plugin.name().into(),
             columns: plugin
@@ -82,8 +83,8 @@ impl Linux<'_> {
                 .map(|s| (*s).into())
                 .collect(),
             rows: vec![],
-            complete: true,
-            diagnostics: vec![],
+            complete: diagnostics.is_empty(),
+            diagnostics,
             banner: String::from_utf8_lossy(&self.isf.banner[..self.isf.banner.len() - 1])
                 .trim_end()
                 .into(),
@@ -260,8 +261,11 @@ impl Linux<'_> {
                     "链表 prev 不一致 @ {node:#x}"
                 );
                 let successor = self.vm.uint(add(node, next)?, 8)?;
+                // Check head.prev after emitting the independently validated
+                // tail row; a stale head still makes the whole result partial.
                 ensure!(
-                    self.vm.uint(add(successor, prev)?, 8)? == node,
+                    (process && successor == head)
+                        || self.vm.uint(add(successor, prev)?, 8)? == node,
                     "链表 next/prev 不一致 @ {node:#x}"
                 );
                 let object = node.checked_sub(offset).context("对象地址下溢")?;

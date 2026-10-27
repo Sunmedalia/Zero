@@ -184,6 +184,7 @@ pub(crate) fn fixture() -> (Vec<u8>, Isf) {
     b[0x25000..0x25008].copy_from_slice(b"b=c\0d\0\0\0");
     let isf = Isf {
         slide: std::sync::atomic::AtomicU64::new(0),
+        validation_diagnostics: Default::default(),
         data,
         label: "fixture".into(),
         digest: "fixture".into(),

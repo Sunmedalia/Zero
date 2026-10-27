@@ -16,6 +16,7 @@ use network::fetch_github;
 
 pub struct Isf {
     pub slide: std::sync::atomic::AtomicU64,
+    pub(crate) validation_diagnostics: RwLock<Vec<String>>,
     /// Field layouts are memoized on first lookup; mutate `user_types` only before reading.
     pub data: Value,
     pub label: String,
@@ -77,6 +78,7 @@ impl Isf {
         let windows = data["metadata"]["windows"]["pdb"].is_object();
         let isf = Self {
             slide: std::sync::atomic::AtomicU64::new(0),
+            validation_diagnostics: RwLock::default(),
             data,
             label,
             digest: format!("{:x}", Sha256::digest(bytes)),

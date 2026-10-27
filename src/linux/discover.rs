@@ -16,7 +16,7 @@ pub fn discover(image: &Image, isf: &Isf, job: &Job) -> Result<u64> {
     let prev = isf.offset("list_head", "prev")?;
     let pid = isf.offset("task_struct", "pid")?;
     let comm = isf.offset("task_struct", "comm")?;
-    let mut valid = HashSet::new();
+    let mut valid = std::collections::HashMap::new();
     let mut errors = Vec::new();
     for physical in &isf.locations {
         job.check()?;
@@ -55,7 +55,7 @@ pub fn discover(image: &Image, isf: &Isf, job: &Job) -> Result<u64> {
                     job.check()?;
                     let runtime_banner = banner.wrapping_add(slide);
                     let runtime_init = init.wrapping_add(slide);
-                    let checked = (|| -> Result<()> {
+                    let checked = (|| -> Result<Vec<String>> {
                         ensure!(
                             vm.translate(runtime_banner)? == *physical,
                             "banner 虚实地址不一致"
@@ -79,27 +79,38 @@ pub fn discover(image: &Image, isf: &Isf, job: &Job) -> Result<u64> {
                         let p = vm.uint(add(head, prev)?, 8).with_context(|| {
                             format!("init_task.tasks.prev 读取失败: init_task={runtime_init:#x}, head={head:#x}, prev_offset={prev:#x}")
                         })?;
-                        // Read both back-links even when the first is wrong: live
-                        // captures may disagree in only one direction. Preserve
-                        // read failures as evidence and continue to reject the root.
+                        // Read both back-links even when the first is wrong.
+                        // Preserve read failures; only a fully validated forward
+                        // cycle can recover the narrowly scoped stale-tail case.
                         let n_prev = add(n, prev).and_then(|address| vm.uint(address, 8));
                         let p_next = add(p, next).and_then(|address| vm.uint(address, 8));
                         let describe = |value: &Result<u64>| match value {
                             Ok(value) => format!("{value:#x}"),
                             Err(error) => format!("读取失败({error:#})"),
                         };
-                        ensure!(
-                            n_prev.as_ref().is_ok_and(|value| *value == head)
-                                && p_next.as_ref().is_ok_and(|value| *value == head),
+                        let evidence = format!(
                             "init_task 双向链表不一致（完整 banner / PID 0 / swapper 已通过；init_task={runtime_init:#x}, tasks_offset={tasks:#x}, head={head:#x}, next={n:#x}, prev={p:#x}, next_offset={next:#x}, prev_offset={prev:#x}, next.prev={}, prev.next={}）",
                             describe(&n_prev),
                             describe(&p_next)
                         );
-                        Ok(())
+                        if n_prev.as_ref().is_ok_and(|value| *value == head)
+                            && p_next.as_ref().is_ok_and(|value| *value == head)
+                        {
+                            return Ok(vec![]);
+                        }
+                        ensure!(
+                            n_prev.as_ref().is_ok_and(|value| *value == head) && p_next.is_ok(),
+                            "{evidence}"
+                        );
+                        let count = validate_forward_tasks(&vm, isf, head, p, job)
+                            .with_context(|| evidence.clone())?;
+                        Ok(vec![format!(
+                            "内核校验部分恢复：{evidence}；正向 {count} 个任务的 PID/TGID、名称及相邻回指均通过并闭环；表头 prev 指向链内非尾节点。可能为采集时状态不一致或链表异常，不能认定结果完整"
+                        )])
                     })();
                     match checked {
-                        Ok(()) => {
-                            valid.insert((root, slide));
+                        Ok(diagnostics) => {
+                            valid.insert((root, slide), diagnostics);
                         }
                         Err(e) => errors.push(format!("{root:#x} 重定位 {slide:#x}: {e:#}")),
                     }
@@ -116,12 +127,85 @@ pub fn discover(image: &Image, isf: &Isf, job: &Job) -> Result<u64> {
         valid.len() == 1,
         "多个有效页表／重定位候选，拒绝猜测: {valid:?}"
     );
-    let (root, slide) = *valid.iter().next().unwrap();
+    let ((root, slide), diagnostics) = valid.into_iter().next().unwrap();
     isf.slide.store(slide, std::sync::atomic::Ordering::Relaxed);
+    *isf.validation_diagnostics.write().unwrap() = diagnostics;
     job.report(format!(
-        "x86_64 页表已验证 · DTB {root:#x} · 重定位 {slide:#x}"
+        "x86_64 页表已验证 · DTB {root:#x} · 重定位 {slide:#x}{}",
+        if isf.validation_diagnostics.read().unwrap().is_empty() {
+            ""
+        } else {
+            " · 任务链表头不一致，部分恢复"
+        }
     ));
     Ok(root)
+}
+
+/// Recover only a stale head.prev: every task and every interior backlink must
+/// validate, the forward list must close, and the recorded prev must be in it.
+/// Never bridge a missing page, infer a link, or accept an interior mismatch.
+fn validate_forward_tasks(
+    vm: &VirtualMemory<'_>,
+    isf: &Isf,
+    head: u64,
+    recorded_tail: u64,
+    job: &Job,
+) -> Result<usize> {
+    let tasks = isf.offset("task_struct", "tasks")?;
+    let next = isf.offset("list_head", "next")?;
+    let prev = isf.offset("list_head", "prev")?;
+    let mut node = vm.uint(add(head, next)?, 8)?;
+    let mut previous = head;
+    let mut seen = HashSet::new();
+    let mut pids = HashSet::new();
+    let comm_size = isf.size("task_struct", "comm")?;
+    ensure!((1..=256).contains(&comm_size), "任务名称长度无效");
+    while node != head {
+        job.check()?;
+        ensure!(node != 0 && node & 7 == 0, "任务链指针无效 @ {node:#x}");
+        ensure!(
+            seen.insert(node) && seen.len() <= 65536,
+            "任务链循环或超过恢复上限"
+        );
+        ensure!(
+            vm.uint(add(node, prev)?, 8)? == previous,
+            "任务链内部回指不一致 @ {node:#x}"
+        );
+        let task = node.checked_sub(tasks).context("任务对象地址下溢")?;
+        let mut identity = Vec::new();
+        for field in ["pid", "tgid"] {
+            let value = vm.uint(
+                add(task, isf.offset("task_struct", field)?)?,
+                isf.size("task_struct", field)?,
+            )?;
+            ensure!(
+                (1..=i32::MAX as u64).contains(&value),
+                "任务 {field} 无效 @ {task:#x}"
+            );
+            identity.push(value);
+        }
+        ensure!(
+            identity[0] == identity[1] && pids.insert(identity[0]),
+            "任务 PID/TGID 不一致或重复 @ {task:#x}"
+        );
+        let mut name = vec![0; comm_size];
+        vm.read(add(task, isf.offset("task_struct", "comm")?)?, &mut name)?;
+        let end = name
+            .iter()
+            .position(|b| *b == 0)
+            .context("任务名称未终止")?;
+        ensure!(
+            end > 0 && !name[..end].iter().any(|b| b.is_ascii_control()),
+            "任务名称无效 @ {task:#x}"
+        );
+        previous = node;
+        node = vm.uint(add(node, next)?, 8)?;
+    }
+    ensure!(
+        seen.len() >= 2 && seen.contains(&recorded_tail) && previous != recorded_tail,
+        "表头 prev 不是链内旧尾节点"
+    );
+    Ok(seen.len())
 }
 fn discover_arm64(image: &Image, isf: &Isf, job: &Job) -> Result<u64> {
     use std::sync::atomic::Ordering;

@@ -182,7 +182,11 @@ impl Linux<'_> {
             ("SymbolSHA256", self.isf.digest.clone()),
             (
                 "Validation",
-                "完整 banner／init_task／双向链表／页表已验证".into(),
+                if r.complete {
+                    "完整 banner／init_task／双向链表／页表已验证".into()
+                } else {
+                    "页表／完整 banner／任务正向闭环已验证；表头尾指针不一致，部分结果".into()
+                },
             ),
         ] {
             r.rows.push(vec![key.into(), value]);

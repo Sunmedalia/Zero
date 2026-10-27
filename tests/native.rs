@@ -1039,6 +1039,31 @@ fn x86_kaslr_discovery_handles_high_physical_lime_and_relocated_symbols() -> Res
     assert_eq!(modules.rows[0][0], "test");
     assert_eq!(linux::discover(&img, &isf, &job)?, root);
     drop(img);
+    put(&mut bytes, 0x8208, runtime_base + 0x9300);
+    write_lime(&bytes)?;
+    let recovered = Image::open(&path, &cache, &job)?;
+    assert_eq!(linux::discover(&recovered, &isf, &job)?, root);
+    let partial = Linux {
+        vm: VirtualMemory::new(&recovered, root),
+        isf: &isf,
+    }
+    .run(Plugin::Pslist, &job)?;
+    assert_eq!(partial.rows.len(), 2);
+    assert!(!partial.complete);
+    drop(recovered);
+    put(&mut bytes, 0x8208, runtime_base + 0x9400);
+    write_lime(&bytes)?;
+    let restored = Image::open(&path, &cache, &job)?;
+    assert_eq!(linux::discover(&restored, &isf, &job)?, root);
+    assert!(
+        Linux {
+            vm: VirtualMemory::new(&restored, root),
+            isf: &isf
+        }
+        .run(Plugin::Pslist, &job)?
+        .complete
+    );
+    drop(restored);
     // A corrupt self-pointer must not be accepted merely because banners match.
     put(&mut bytes, 0x8218, runtime_base + 0x9200 + 4096);
     write_lime(&bytes)?;
@@ -2200,4 +2225,137 @@ fn kernel_diagnostic_can_pass_and_reports_missing_sources_and_cancellation_separ
     );
     assert!(report.candidates.is_empty());
     Ok(())
+}
+
+#[test]
+fn stale_task_head_recovers_only_a_fully_validated_forward_cycle_and_marks_all_results_partial()
+-> Result<()> {
+    use zero_tui::linux::{Outcome, Request, Session};
+    let (mut bytes, isf) = discoverable();
+    // head.prev still names PID 1; forward links already include PID 2 as tail.
+    put(&mut bytes, 0x8208, 0x9300);
+    let img = image(&bytes);
+    let root = zero_tui::linux::discover(&img, &isf, &Job::default())?;
+    let engine = Linux {
+        vm: VirtualMemory::new(&img, root),
+        isf: &isf,
+    };
+    let listed = engine.run(Plugin::Pslist, &Job::default())?;
+    assert_eq!(
+        listed
+            .rows
+            .iter()
+            .map(|r| r[0].as_str())
+            .collect::<Vec<_>>(),
+        ["1", "2"]
+    );
+    assert!(!listed.complete);
+    assert!(
+        listed
+            .diagnostics
+            .iter()
+            .any(|d| d.contains("表头 prev 指向链内非尾节点"))
+    );
+    let info = engine.run(Plugin::Systeminfo, &Job::default())?;
+    assert!(!info.complete);
+    assert!(
+        info.rows
+            .iter()
+            .any(|r| r[0] == "Validation" && r[1].contains("部分结果"))
+    );
+    let modules = engine.run(Plugin::Lsmod, &Job::default())?;
+    assert_eq!(modules.rows.len(), 1);
+    assert!(!modules.complete);
+
+    let dir = tempfile::tempdir()?;
+    let path = dir.path().join("capture.lime");
+    let symbols = dir.path().join("exact.json");
+    let cache = dir.path().join("cache");
+    let mut lime = Vec::new();
+    lime.extend_from_slice(&0x4c694d45u32.to_le_bytes());
+    lime.extend_from_slice(&1u32.to_le_bytes());
+    lime.extend_from_slice(&0u64.to_le_bytes());
+    lime.extend_from_slice(&(bytes.len() as u64 - 1).to_le_bytes());
+    lime.extend_from_slice(&[0; 8]);
+    lime.extend_from_slice(&bytes);
+    fs::write(&path, lime)?;
+    fs::write(&symbols, serde_json::to_vec(&isf.data)?)?;
+    let mut session = Session::default();
+    let digest = session
+        .prepare_image(&path, &cache, &Job::default())?
+        .digest
+        .clone();
+    let symbol_digest = Isf::parse(&fs::read(&symbols)?, "exact.json".into())?.digest;
+    for (index, plugin) in [Plugin::Pslist, Plugin::Lsmod, Plugin::Pslist]
+        .into_iter()
+        .enumerate()
+    {
+        let job = Job::default();
+        let Outcome::Ready(result) = session.analyze(
+            &Request {
+                image: &path,
+                symbols: &symbols,
+                choice: None,
+                plugin,
+                cache: &cache,
+                use_cache: true,
+                network: false,
+            },
+            &job,
+        )?
+        else {
+            panic!("unexpected symbol choice")
+        };
+        assert!(!result.complete);
+        assert!(
+            result
+                .diagnostics
+                .iter()
+                .any(|d| d.contains("内核校验部分恢复"))
+        );
+        assert_eq!(job.served_from_cache(), index == 2);
+        let key = store::key(&digest, &symbol_digest, plugin.name());
+        assert!(store::load_partial(&cache, &key).is_some());
+        // The full-result cache must never contain this recovered analysis.
+        assert!(store::load(&cache, &key).is_none());
+    }
+    let report = zero_tui::kernel_diagnostics::run(
+        &mut session,
+        zero_tui::kernel_diagnostics::Request {
+            image: &path,
+            symbols: &symbols,
+            cache: &cache,
+            choice: None,
+            os: zero_tui::analysis::Os::Linux,
+            previous_error: None,
+        },
+        &Job::default(),
+    )?;
+    assert_eq!(report.passed(), 1);
+    assert!(report.candidates[0].partial);
+    assert!(report.summary().contains("部分恢复"));
+    assert!(report.candidates[0].evidence.contains("内核校验部分恢复"));
+    assert_eq!(report.candidates[0].page_table, Some(root));
+    Ok(())
+}
+
+#[test]
+fn stale_head_recovery_rejects_internal_corruption_invalid_tasks_and_unclosed_cycles() {
+    for (offset, value) in [
+        (0x8408, 0x9200),        // Interior prev no longer names the preceding task.
+        (0x8400, 0x9300),        // A cycle that never returns to init_task.
+        (0x8400, 0x3000),        // Missing successor page.
+        (0x8208, 0x9500),        // Recorded tail is not in the tasks list.
+        (0x8410, 0),             // Invalid PID/TGID.
+        (0x8410, 0x1_0000_0001), // Duplicate PID/TGID.
+        (0x8420, 0),             // Empty task name.
+    ] {
+        let (mut bytes, isf) = discoverable();
+        put(&mut bytes, 0x8208, 0x9300);
+        put(&mut bytes, offset, value);
+        assert!(
+            zero_tui::linux::discover(&image(&bytes), &isf, &Job::default()).is_err(),
+            "offset {offset:#x}"
+        );
+    }
 }
