@@ -4418,3 +4418,34 @@ fn regex_parameters_preserve_spaces_pid_lists_context_and_cache_identity() {
         panic!("parameter dialog missing");
     }
 }
+
+#[test]
+fn callstack_parameters_save_pid_list_unresolved_and_keep_cache_keys_separate() {
+    let mut app = app();
+    app.select_plugin(Plugin::PsCallStack);
+    app.windows_parameters();
+    assert_eq!(app.parameter_fields(false), vec![2, 16, 6]);
+    let before = app.request_key();
+    if let Some(Dialog::WindowsParameters { fields, .. }) = &mut app.dialog {
+        fields[2] = "1, 2".into();
+        fields[16] = "invalid".into();
+    }
+    app.dialog_key(KeyEvent::new(KeyCode::Enter, KeyModifiers::CONTROL));
+    assert!(app.dialog.is_some());
+    assert!(!app.analysis_options.unresolved);
+    if let Some(Dialog::WindowsParameters { fields, .. }) = &mut app.dialog {
+        fields[16] = "true".into();
+    }
+    app.dialog_key(KeyEvent::new(KeyCode::Enter, KeyModifiers::CONTROL));
+    assert!(app.dialog.is_none());
+    assert!(app.analysis_options.unresolved);
+    assert_eq!(app.analysis_options.pids, [1, 2]);
+    assert_ne!(before, app.request_key());
+    app.windows_parameters();
+    if let Some(Dialog::WindowsParameters { fields, .. }) = &app.dialog {
+        assert_eq!(fields[2], "1,2");
+        assert_eq!(fields[16], "true");
+    } else {
+        panic!("no parameter dialog");
+    }
+}

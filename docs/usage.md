@@ -352,7 +352,7 @@ zero cache clear --scope results,identification --yes
 
 ## 7. Linux 插件参考
 
-共 60 个插件（含 `linux.pslist.PsList` 完整字段入口，详见 [Volatility 对齐进度](volatility-parity.md)）：`pslist`、`pstree`、`lsmod`、`psaux`、`envars`、`maps`、`lsof`、`sockstat`、`netscan`、`banners`、`pwd`、`pscred`、`threads`、`mountinfo`、`check_creds`、`dmesg`、`systeminfo`、`elfs`、`bash`、`malfind`、`psxview`、`check_modules`、`check_syscall`、`psstate`、`capabilities`、`fdsummary`、`procdump`、`memdump`、`elfdump`、`iomem`、`ioports`、`ptrace`、`keyboard_notifiers`、`check_exec`、`check_idt`、`tty_check`、`hidden_modules`、`library_list`、`pidhashtable`、`vmcoreinfo`、`ip_addr`、`ip_link`、`check_afinfo`、`kthreads`、`netfilter`、`tracepoints`、`ftrace`、`ebpf`、`boottime`、`pagecache`、`perf_events`、`vmayarascan`、`linux.malware.process_spoofing.ProcessSpoofing`、`linux.malware.modxview.Modxview`、`linux.module_extract.ModuleExtract`、`linux.kallsyms.Kallsyms`、`linux.psscan.PsScan`、`linux.sockscan.Sockscan`、`linux.vmaregexscan.VmaRegExScan`。
+共 61 个插件（含 `linux.pslist.PsList` 完整字段入口，详见 [Volatility 对齐进度](volatility-parity.md)）：`pslist`、`pstree`、`lsmod`、`psaux`、`envars`、`maps`、`lsof`、`sockstat`、`netscan`、`banners`、`pwd`、`pscred`、`threads`、`mountinfo`、`check_creds`、`dmesg`、`systeminfo`、`elfs`、`bash`、`malfind`、`psxview`、`check_modules`、`check_syscall`、`psstate`、`capabilities`、`fdsummary`、`procdump`、`memdump`、`elfdump`、`iomem`、`ioports`、`ptrace`、`keyboard_notifiers`、`check_exec`、`check_idt`、`tty_check`、`hidden_modules`、`library_list`、`pidhashtable`、`vmcoreinfo`、`ip_addr`、`ip_link`、`check_afinfo`、`kthreads`、`netfilter`、`tracepoints`、`ftrace`、`ebpf`、`boottime`、`pagecache`、`perf_events`、`vmayarascan`、`linux.malware.process_spoofing.ProcessSpoofing`、`linux.malware.modxview.Modxview`、`linux.module_extract.ModuleExtract`、`linux.kallsyms.Kallsyms`、`linux.psscan.PsScan`、`linux.sockscan.Sockscan`、`linux.vmaregexscan.VmaRegExScan`、`linux.pscallstack.PsCallStack`。
 
 TUI 插件菜单只列分析插件，转储统一在 `D` 中。这些都是本地 ISF 驱动的 Rust 实现，不执行 Volatility Python 插件。
 
@@ -372,6 +372,7 @@ TUI 插件菜单只列分析插件，转储统一在 `D` 中。这些都是本�
 | pwd | PID、Name、Root（全局路径）、CWD（相对进程根） |
 | pscred | PID、Name、UID、GID、EUID、EGID、SUID、SGID、FSUID、FSGID、CredAddress |
 | linux.malware.process_spoofing.ProcessSpoofing | PID、PPID、Exe_Path、Cmdline_Basename、Comm、Cmdline_Spoofed、Comm_Spoofed、Exe_Deleted |
+| linux.pscallstack.PsCallStack | TID、Comm、Position、Address、Value、Name、Type、Module |
 | linux.vmaregexscan.VmaRegExScan | PID、Process、Offset、Text、Hex |
 | linux.sockscan.Sockscan | Sock Offset（物理地址）、Family、Type、Proto、Source Addr、Source Port、Destination Addr、Destination Port、State、Filter |
 | linux.psscan.PsScan | OFFSET (P)（物理地址）、PID（TGID）、TID、PPID、COMM、EXIT_STATE |
@@ -814,7 +815,7 @@ zero --offline analyze --image images/linux-sample-1.bin --symbols /path/to/exac
 ```
 
 `linux.vmaregexscan` 为别名；`--pid` 可选择一个进程，`--pids` 可逗号分隔或重复指定列表，
-二者取并集。当前列表参数限本插件；在扫描前按任务 TGID 筛选。TUI 参数面板接受逗号或
+二者取并集。当前列表参数供本插件与 PsCallStack 使用；在扫描前按任务 TGID 筛选。TUI 参数面板接受逗号或
 空格分隔的 PID，保留正则开头和结尾的空格；MCP `zero_analyze` 接受 pattern/pids/maxsize。
 模式和 PID 列表、上下文长度均参与缓存身份。
 
@@ -835,3 +836,35 @@ DOTALL 的锚定正则重新匹配；能匹配则显示匹配字节，否则显�
 maxsize 参数但输出仍固定为 128 字节；Zero 实际应用参数。这一已知差异单独记录，不计作
 全量对齐通过。构建通过 `make` 静态链接随依赖提供的 PCRE2；手动 Cargo 构建若需要相同
 链接方式，设置 `PCRE2_SYS_STATIC=1`。许可说明随本地打包产物放在 docs/licenses。
+
+
+保存的内核栈值与符号查询：
+
+```sh
+zero --offline analyze --image images/linux-sample-1.bin --symbols /path/to/exact.json.xz \
+  --plugin linux.pscallstack.PsCallStack --pids 2,3874 --unresolved --output callstack.json
+```
+
+别名为 `linux.pscallstack`。`--pid` / `--pids` 对主任务 PID 先筛选，再枚举其线程，二者取并集。
+输出 TID 是线程标识；TUI 提供 PID 列表及 unresolved 开关，MCP 使用相同参数。
+参数参与缓存身份，不会把隐藏未解析值的结果复用于包含未解析值的请求。
+
+该插件按固定 Volatility 参考算法，从保存的 SP 起，以 8 字节步长扫描至 stack + 16 KiB。
+零值不输出，Position 仍包含零值所在位置。它报告候选栈值，不是帧指针、ORC 或 DWARF 展开，
+不能将每一行当成已确认的调用/返回关系。16 KiB 是参考窗口假设，未从内核配置证明实际
+THREAD_SIZE；结果完整性只针对捕获的固定窗口。当前仅支持 64 位小端内核。
+
+使用运行时 core / module / BPF / ftrace 符号，按该顺序查询；相同起点的 core 别名使用首项，
+重叠 ELF 符号保留原表顺序。核心查询限定于 text/inittext，模块查询受可用分配范围约束。
+索引使用有界区间扫描构建，后续查询不对重叠符号做无界回扫。没有符号的值默认省略，
+`--unresolved` 保留并将 Name/Type/Module 显示为 N/A；零值仍省略。
+
+x86 Value 按参考保留低 48 位并为原生地址显示补齐符号位，未保留被屏蔽的原始高位；
+Address 显示完整虚拟地址。ARM64 保存的 SP 可从 thread.cpu_context.sp 读取，不做 PAC 剥离。
+用户任务优先读取任务地址空间；若该空间无法读取 SP 而已验证内核映射可读，则使用内核
+映射并明确标记部分结果。首个缺页停止该任务的栈读取，保留前缀及其他任务。
+
+每次最多尝试读取 64 MiB 栈字、输出 100 万行或 128 MiB 文本，覆盖记录最多 65536 个任务。
+无效 SP、缺页、符号源受损及资源上限均保留诊断，不能据此证明缺失调用。覆盖与来源记录
+位于 `kernel_identity.pscallstack`。固定参考在模块地址边界计算上的已知差异见
+[Volatility 对齐进度](volatility-parity.md)，默认比较未被标记为对齐通过。

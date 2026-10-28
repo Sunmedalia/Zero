@@ -3,6 +3,8 @@ use clap::ValueEnum;
 
 #[derive(Clone, Copy, Debug, ValueEnum, PartialEq, Eq)]
 pub enum Plugin {
+    #[value(name = "linux.pscallstack.PsCallStack", alias = "linux.pscallstack")]
+    PsCallStack,
     #[value(name = "linux.vmaregexscan.VmaRegExScan", alias = "linux.vmaregexscan")]
     VmaRegExScan,
     #[value(name = "linux.sockscan.Sockscan", alias = "linux.sockscan")]
@@ -1612,8 +1614,20 @@ pub const PLUGINS: &[Descriptor] = &[
         columns: &["PID", "Process", "Offset", "Text", "Hex"],
         widths: &[8, 18, 18, 40, 0],
     },
+    Descriptor {
+        plugin: Plugin::PsCallStack,
+        name: "linux.pscallstack.PsCallStack",
+        label: "pscallstack",
+        columns: &[
+            "TID", "Comm", "Position", "Address", "Value", "Name", "Type", "Module",
+        ],
+        widths: &[8, 18, 10, 18, 18, 32, 6, 16],
+    },
 ];
 impl Plugin {
+    pub fn accepts_pid_list(self) -> bool {
+        matches!(self, Self::VmaRegExScan | Self::PsCallStack)
+    }
     pub fn descriptor(self) -> &'static Descriptor {
         PLUGINS.iter().find(|d| d.plugin == self).unwrap()
     }
@@ -1719,7 +1733,8 @@ impl Plugin {
             | Self::Iomem
             | Self::Ioports
             | Self::Vmcoreinfo => "System",
-            Self::LinuxPsscan
+            Self::PsCallStack
+            | Self::LinuxPsscan
             | Self::Ptrace
             | Self::Psstate
             | Self::Capabilities
@@ -1777,6 +1792,7 @@ impl Plugin {
             WinHollowprocesses => "检查主程序基址及映像映射异常",
             WinSuspiciousThreads => "检查活动线程起点所在的 VAD",
             LinuxSockscan => "从 file-ops 与 sock destructor 指针独立扫描物理套接字",
+            PsCallStack => "逐字扫描保存的内核栈，并查询运行时符号；不等同帧展开",
             LinuxPsscan => "独立扫描物理内存中的调度类指针，发现链表之外的任务",
             Kallsyms => "枚举核心、模块、ftrace 与 BPF 的运行时符号",
             ModuleExtract => "从指定 struct module 地址重建并导出模块 ELF",

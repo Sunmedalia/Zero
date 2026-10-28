@@ -692,7 +692,7 @@ impl Linux<'_> {
 }
 
 #[cfg(test)]
-mod tests {
+pub(super) mod tests {
     use super::*;
     use serde_json::json;
     fn put(bytes: &mut [u8], at: usize, value: u64) {
@@ -707,7 +707,7 @@ mod tests {
     fn list(offset: u64) -> serde_json::Value {
         json!({"offset":offset,"type":{"kind":"struct","name":"list_head"}})
     }
-    fn fixture() -> (Vec<u8>, Isf) {
+    pub(in crate::linux) fn fixture() -> (Vec<u8>, Isf) {
         let (mut bytes, mut isf) = super::super::tests::fixture();
         for (name, address) in [
             ("kallsyms_num_syms", 0x30000),

@@ -136,3 +136,16 @@ reported rather than silently skipped; this does not certify complete coverage.
 The separate `vmaregexscan-maxsize.example.json` records the pinned reference's
 unused maxsize option: Zero applies the parameter, so that case remains divergent
 and must not be counted as passed. Raw matched bytes remain in ignored artifacts.
+
+PsCallStack uses `pscallstack.example.json`. Unfiltered PID 1, unresolved PID 1 and
+all-task cases retain known differences in the pinned reference's module symbol
+lookup. Its module-boundary expression parses as value & (mask + size), instead
+of (value & mask) + size. Native looks up captured positive-size ELF intervals;
+this does not turn stack candidates into proven return addresses. The raw default
+cases remain failed. Kthreadd (with/without unresolved), a seven-task thread group,
+and PID union cases compare all eight fields without record selection. The
+separate core-row case explicitly selects Module=kernel and reports excluded
+counts, preserving all original artifacts. This scoped case alone certifies no
+whole-plugin behavior. The combined config returns nonzero for known differences.
+`address48` restores the reference's masked address/Value display for x86 cases;
+optional Name/Type/Module absence is declared explicitly, never filled with false.

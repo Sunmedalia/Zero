@@ -2486,8 +2486,10 @@
         "Type",
         "Module"
       ],
-      "zero_candidates": [],
-      "status": "missing",
+      "zero_candidates": [
+        "linux.pscallstack.PsCallStack"
+      ],
+      "status": "mapped_unverified",
       "evidence": []
     },
     {

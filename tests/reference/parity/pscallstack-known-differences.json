@@ -1,0 +1,78 @@
+{
+  "schema_version": 1,
+  "reference_version": "v2.28.2",
+  "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+  "engine_version": "0.2.1-native-37",
+  "zero_executable_sha256": "8e01e01ad81ef2a98ec3a3c9807b1b487d72d2b289c17ade8e6e33901233372f",
+  "scope": "Unmodified full default and unresolved outputs; differences remain failures. No recovered stack values or names stored.",
+  "cases": [
+    {
+      "case_id": "debian-3.2/pscallstack-pid1",
+      "reference_plugin": "linux.pscallstack.PsCallStack",
+      "image_sha256": "8ce57b7c7b423173ce970fe8f51e7016c04ef1b4a5f73d5c5f1001d5c18780bc",
+      "mapping_sha256": "dfc2b318f92cec1250e5d7f7f326117d3bd237052384878e56a6910f61d5a699",
+      "native_output_sha256": "9a038304a813cee2cdd4cda40b8dbda13e1c8b169f43be55d6ac6c3fa7c07add",
+      "zero_args": [
+        "--pid",
+        "1"
+      ],
+      "reference_args": [
+        "--pid",
+        "1"
+      ],
+      "reference_output_sha256": "a9a6ff6aead1d29bfe8d152ec9ab2efe7561b54588b9130535cdc825f5060262",
+      "passed": false,
+      "zero_records": 38,
+      "reference_records": 37,
+      "missing_count": 0,
+      "extra_count": 1,
+      "conflict_count": 0,
+      "unverifiable_field_count": 0,
+      "duplicate_count": 0
+    },
+    {
+      "case_id": "debian-3.2/pscallstack-unresolved",
+      "reference_plugin": "linux.pscallstack.PsCallStack",
+      "image_sha256": "8ce57b7c7b423173ce970fe8f51e7016c04ef1b4a5f73d5c5f1001d5c18780bc",
+      "mapping_sha256": "dfc2b318f92cec1250e5d7f7f326117d3bd237052384878e56a6910f61d5a699",
+      "native_output_sha256": "8d3cd16db0d6b9a33799a3f8367314bd3b8865c12a303feefff3499df80f013a",
+      "zero_args": [
+        "--pid",
+        "1",
+        "--unresolved"
+      ],
+      "reference_args": [
+        "--pid",
+        "1",
+        "--unresolved"
+      ],
+      "reference_output_sha256": "b2d0abeaba157a2add51515e672bc52581e7fc92c73b79e7d0406449e3828532",
+      "passed": false,
+      "zero_records": 383,
+      "reference_records": 383,
+      "missing_count": 0,
+      "extra_count": 0,
+      "conflict_count": 0,
+      "unverifiable_field_count": 3,
+      "duplicate_count": 0
+    },
+    {
+      "case_id": "debian-3.2/pscallstack-all-tasks",
+      "reference_plugin": "linux.pscallstack.PsCallStack",
+      "image_sha256": "8ce57b7c7b423173ce970fe8f51e7016c04ef1b4a5f73d5c5f1001d5c18780bc",
+      "mapping_sha256": "dfc2b318f92cec1250e5d7f7f326117d3bd237052384878e56a6910f61d5a699",
+      "native_output_sha256": "8089fb7c44f09217bd43d2d1526aab14419a5ca8464a0999265d8f5de56e7d99",
+      "zero_args": [],
+      "reference_args": [],
+      "reference_output_sha256": "5c01d006d2b6930ddfa5acb36bdd20d4afa71d52820698f4d46dbc8164a2f980",
+      "passed": false,
+      "zero_records": 8462,
+      "reference_records": 8120,
+      "missing_count": 0,
+      "extra_count": 342,
+      "conflict_count": 0,
+      "unverifiable_field_count": 0,
+      "duplicate_count": 0
+    }
+  ]
+}

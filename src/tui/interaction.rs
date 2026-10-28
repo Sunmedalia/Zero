@@ -10,7 +10,7 @@ impl App {
                     .map(|n| format!("{n:#x}"))
                     .unwrap_or_default(),
                 self.analysis_options.key.clone(),
-                if self.plugin == Plugin::VmaRegExScan {
+                if self.plugin.accepts_pid_list() {
                     self.analysis_options
                         .pids
                         .iter()
@@ -51,6 +51,7 @@ impl App {
                 self.analysis_options.kallsyms.ftrace.to_string(),
                 self.analysis_options.kallsyms.bpf.to_string(),
                 self.analysis_options.maxsize.unwrap_or(128).to_string(),
+                self.analysis_options.unresolved.to_string(),
             ]),
             field: if self.plugin == Plugin::WinPrintkey {
                 0
@@ -59,7 +60,9 @@ impl App {
                 Plugin::Vmayarascan | Plugin::WinVadyarascan | Plugin::VmaRegExScan
             ) {
                 7
-            } else if self.plugin.descriptor().columns.contains(&"PID") {
+            } else if self.plugin.accepts_pid_list()
+                || self.plugin.descriptor().columns.contains(&"PID")
+            {
                 2
             } else {
                 6

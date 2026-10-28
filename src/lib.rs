@@ -8,7 +8,9 @@ mod physical;
 pub mod plugin;
 pub mod regex_scan;
 mod report;
+mod stack_scan;
 pub mod store;
+mod symbol_index;
 pub mod symbols;
 pub mod tui;
 
@@ -18,7 +20,7 @@ use std::sync::{
     atomic::{AtomicBool, Ordering},
 };
 
-pub const ENGINE_VERSION: &str = concat!(env!("CARGO_PKG_VERSION"), "-native-36");
+pub const ENGINE_VERSION: &str = concat!(env!("CARGO_PKG_VERSION"), "-native-37");
 #[derive(Clone)]
 pub struct Job {
     pub cancel: Arc<AtomicBool>,

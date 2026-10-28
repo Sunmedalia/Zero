@@ -41,9 +41,12 @@ struct Cli {
     /// (UTF-16LE) or hex:4d5a??00 with ?? wildcards; byte regex for VmaRegExScan.
     #[arg(long, global = true)]
     pattern: Option<String>,
-    /// PID list for VmaRegExScan (comma-separated or repeated).
+    /// PID list for VmaRegExScan / PsCallStack (comma-separated or repeated).
     #[arg(long, global = true, value_delimiter = ',')]
     pids: Vec<u32>,
+    /// Include unresolved nonzero saved stack words in PsCallStack.
+    #[arg(long, global = true)]
+    unresolved: bool,
     /// Display context bytes for VmaRegExScan (default 128, maximum 4096).
     #[arg(long, global = true)]
     maxsize: Option<usize>,
@@ -381,6 +384,7 @@ fn main() -> Result<()> {
                 pattern: cli.pattern.clone(),
                 pids: cli.pids.clone(),
                 maxsize: cli.maxsize,
+                unresolved: cli.unresolved,
                 include_threads: cli.include_threads,
                 decorate_comm: cli.decorate_comm,
                 plain_taints: cli.plain_taints,
@@ -479,6 +483,7 @@ fn launch_tui(cli: Cli) -> Result<()> {
             pattern: cli.pattern,
             pids: cli.pids,
             maxsize: cli.maxsize,
+            unresolved: cli.unresolved,
             include_threads: cli.include_threads,
             decorate_comm: cli.decorate_comm,
             plain_taints: cli.plain_taints,

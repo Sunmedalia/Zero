@@ -1,0 +1,65 @@
+{
+  "version": 1,
+  "allow_partial": true,
+  "keys": [
+    "TID",
+    "Position"
+  ],
+  "fields": {
+    "TID": {
+      "zero": "TID",
+      "reference": "TID",
+      "type": "integer"
+    },
+    "Comm": {
+      "zero": "Comm",
+      "reference": "Comm",
+      "type": "text"
+    },
+    "Position": {
+      "zero": "Position",
+      "reference": "Position",
+      "type": "integer"
+    },
+    "Address": {
+      "zero": "Address",
+      "reference": "Address",
+      "type": "address",
+      "reference_type": "address48"
+    },
+    "Value": {
+      "zero": "Value",
+      "reference": "Value",
+      "type": "address",
+      "reference_type": "address48"
+    },
+    "Name": {
+      "zero": "Name",
+      "reference": "Name",
+      "type": "text",
+      "zero_type": "na_text",
+      "allow_absent": true
+    },
+    "Type": {
+      "zero": "Type",
+      "reference": "Type",
+      "type": "text",
+      "zero_type": "na_text",
+      "allow_absent": true
+    },
+    "Module": {
+      "zero": "Module",
+      "reference": "Module",
+      "type": "text",
+      "zero_type": "na_text",
+      "allow_absent": true
+    }
+  },
+  "record_selection": {
+    "field": "Module",
+    "include": [
+      "kernel"
+    ],
+    "scope": "Core-symbol rows only; full default output remains separately compared without selection"
+  }
+}

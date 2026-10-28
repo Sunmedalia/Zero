@@ -14,6 +14,7 @@ use std::{
     path::Path,
 };
 
+mod callstack;
 mod discover;
 mod engine;
 mod fs;

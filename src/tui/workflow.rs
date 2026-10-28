@@ -192,7 +192,7 @@ impl App {
         ) {
             fields.push(7);
         }
-        if self.plugin.descriptor().columns.contains(&"PID") {
+        if self.plugin.accepts_pid_list() || self.plugin.descriptor().columns.contains(&"PID") {
             fields.push(2);
         }
         if self.windows && advanced {
@@ -209,6 +209,9 @@ impl App {
         }
         if self.plugin == Plugin::VmaRegExScan {
             fields.push(15);
+        }
+        if self.plugin == Plugin::PsCallStack {
+            fields.push(16);
         }
         fields.push(6);
         fields

@@ -1388,7 +1388,7 @@ impl App {
             self.analysis_options.hive = None;
             self.analysis_options.key.clear();
         }
-        if !plugin.descriptor().columns.contains(&"PID") {
+        if !plugin.accepts_pid_list() && !plugin.descriptor().columns.contains(&"PID") {
             self.analysis_options.pid = None;
         }
         self.last_error = None;

@@ -1,0 +1,139 @@
+{
+  "samples": [
+    {
+      "id": "debian-3.2",
+      "image": "images/linux-sample-1.bin",
+      "image_sha256": "8ce57b7c7b423173ce970fe8f51e7016c04ef1b4a5f73d5c5f1001d5c18780bc",
+      "zero_symbols": "symbols/Debian_3.2.0-4-amd64_3.2.57-3+deb7u2_amd64-795bb1b381f4311e7165a8e3ad813c625e6a87e85b0450709b342d01c3be9843.json.xz",
+      "reference_symbols": "target/reference/symbols",
+      "symbol_files": [
+        {
+          "path": "symbols/Debian_3.2.0-4-amd64_3.2.57-3+deb7u2_amd64-795bb1b381f4311e7165a8e3ad813c625e6a87e85b0450709b342d01c3be9843.json.xz",
+          "sha256": "c3b0b875a2d0498fffc0df1259ff49b850cea28355ffddf02e2f90d34a89fbe1"
+        },
+        {
+          "path": "target/reference/symbols/linux/Debian_3.2.0-4-amd64_3.2.57-3+deb7u2_amd64-795bb1b381f4311e7165a8e3ad813c625e6a87e85b0450709b342d01c3be9843.json.xz",
+          "sha256": "c3b0b875a2d0498fffc0df1259ff49b850cea28355ffddf02e2f90d34a89fbe1"
+        }
+      ],
+      "source": "https://github.com/volatilityfoundation/volatility3-test-data/releases/download/v0.0.1/linux-sample-1.bin.gz"
+    }
+  ],
+  "cases": [
+    {
+      "sample": "debian-3.2",
+      "reference_plugin": "linux.pscallstack.PsCallStack",
+      "zero_plugin": "linux.pscallstack.PsCallStack",
+      "mapping": "tests/reference/parity/mappings/linux-pscallstack.json",
+      "zero_args": [
+        "--pid",
+        "1"
+      ],
+      "reference_args": [
+        "--pid",
+        "1"
+      ],
+      "id": "debian-3.2/pscallstack-pid1"
+    },
+    {
+      "sample": "debian-3.2",
+      "reference_plugin": "linux.pscallstack.PsCallStack",
+      "zero_plugin": "linux.pscallstack.PsCallStack",
+      "mapping": "tests/reference/parity/mappings/linux-pscallstack.json",
+      "zero_args": [
+        "--pid",
+        "1",
+        "--unresolved"
+      ],
+      "reference_args": [
+        "--pid",
+        "1",
+        "--unresolved"
+      ],
+      "id": "debian-3.2/pscallstack-unresolved"
+    },
+    {
+      "sample": "debian-3.2",
+      "reference_plugin": "linux.pscallstack.PsCallStack",
+      "zero_plugin": "linux.pscallstack.PsCallStack",
+      "mapping": "tests/reference/parity/mappings/linux-pscallstack.json",
+      "zero_args": [],
+      "reference_args": [],
+      "id": "debian-3.2/pscallstack-all-tasks"
+    },
+    {
+      "sample": "debian-3.2",
+      "reference_plugin": "linux.pscallstack.PsCallStack",
+      "zero_plugin": "linux.pscallstack.PsCallStack",
+      "mapping": "tests/reference/parity/mappings/linux-pscallstack.json",
+      "zero_args": [
+        "--pid",
+        "2"
+      ],
+      "reference_args": [
+        "--pid",
+        "2"
+      ],
+      "id": "debian-3.2/pscallstack-kthreadd"
+    },
+    {
+      "sample": "debian-3.2",
+      "reference_plugin": "linux.pscallstack.PsCallStack",
+      "zero_plugin": "linux.pscallstack.PsCallStack",
+      "mapping": "tests/reference/parity/mappings/linux-pscallstack.json",
+      "zero_args": [
+        "--pid",
+        "2",
+        "--unresolved"
+      ],
+      "reference_args": [
+        "--pid",
+        "2",
+        "--unresolved"
+      ],
+      "id": "debian-3.2/pscallstack-kthreadd-unresolved"
+    },
+    {
+      "sample": "debian-3.2",
+      "reference_plugin": "linux.pscallstack.PsCallStack",
+      "zero_plugin": "linux.pscallstack.PsCallStack",
+      "mapping": "tests/reference/parity/mappings/linux-pscallstack.json",
+      "zero_args": [
+        "--pid",
+        "3874"
+      ],
+      "reference_args": [
+        "--pid",
+        "3874"
+      ],
+      "id": "debian-3.2/pscallstack-thread-group"
+    },
+    {
+      "sample": "debian-3.2",
+      "reference_plugin": "linux.pscallstack.PsCallStack",
+      "zero_plugin": "linux.pscallstack.PsCallStack",
+      "mapping": "tests/reference/parity/mappings/linux-pscallstack.json",
+      "zero_args": [
+        "--pid",
+        "2",
+        "--pids",
+        "3874"
+      ],
+      "reference_args": [
+        "--pid",
+        "2",
+        "3874"
+      ],
+      "id": "debian-3.2/pscallstack-pid-union"
+    },
+    {
+      "sample": "debian-3.2",
+      "reference_plugin": "linux.pscallstack.PsCallStack",
+      "zero_plugin": "linux.pscallstack.PsCallStack",
+      "mapping": "tests/reference/parity/mappings/linux-pscallstack-core.json",
+      "zero_args": [],
+      "reference_args": [],
+      "id": "debian-3.2/pscallstack-core-rows"
+    }
+  ]
+}

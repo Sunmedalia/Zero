@@ -53,7 +53,7 @@ impl App {
                     } else {
                         Some(parse_address(fields[0].trim()).map_err(anyhow::Error::msg)?)
                     };
-                    let pids = if self.plugin == Plugin::VmaRegExScan {
+                    let pids = if self.plugin.accepts_pid_list() {
                         fields[2]
                             .split([',', ' '])
                             .filter(|s| !s.is_empty())
@@ -62,7 +62,7 @@ impl App {
                     } else {
                         Vec::new()
                     };
-                    let pid = if self.plugin == Plugin::VmaRegExScan
+                    let pid = if self.plugin.accepts_pid_list()
                         || !self.plugin.descriptor().columns.contains(&"PID")
                         || fields[2].trim().is_empty()
                     {
@@ -70,10 +70,10 @@ impl App {
                     } else {
                         Some(fields[2].trim().parse::<u32>().context("PID 无效")?)
                     };
+                    anyhow::ensure!(pids.len() <= 4096, "PID 列表超过 4096 项");
                     if self.plugin == Plugin::VmaRegExScan {
                         let size = fields[15].trim().parse::<usize>().context("maxsize 无效")?;
                         anyhow::ensure!((1..=4096).contains(&size), "maxsize 必须为 1..4096");
-                        anyhow::ensure!(pids.len() <= 4096, "PID 列表超过 4096 项");
                     }
                     anyhow::ensure!(
                         self.plugin != Plugin::WinPrintkey || hive.is_some(),
@@ -118,6 +118,11 @@ impl App {
                             Default::default()
                         },
                         pids,
+                        unresolved: self.plugin == Plugin::PsCallStack
+                            && fields[16]
+                                .trim()
+                                .parse::<bool>()
+                                .context("unresolved 应为 true/false")?,
                         maxsize: if self.plugin == Plugin::VmaRegExScan {
                             Some(fields[15].trim().parse::<usize>().context("maxsize 无效")?)
                         } else {

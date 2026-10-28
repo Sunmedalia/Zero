@@ -218,18 +218,30 @@ impl Linux<'_> {
 }
 
 impl Linux<'_> {
-    /// The official entry point exposes supplementary fields without changing
-    /// the established five-column pslist API and its cached history records.
-    pub(super) fn process_details(&self, job: &Job) -> Result<Results> {
-        self.process_details_with_options(&crate::analysis::Options::default(), job)
-    }
-    pub(super) fn process_details_with_options(
+    /// Shared task identities and thread enumeration, without credentials/time
+    /// reads that unrelated consumers do not need.
+    pub(super) fn task_list_with_threads(
         &self,
-        options: &crate::analysis::Options,
+        include_threads: bool,
+        job: &Job,
+    ) -> Result<Results> {
+        self.selected_task_list_with_threads(include_threads, &Default::default(), job)
+    }
+    /// Apply PID selection to leaders before enumerating their entire groups,
+    /// matching the reference even when a recovered thread's TGID is stale.
+    pub(super) fn selected_task_list_with_threads(
+        &self,
+        include_threads: bool,
+        pids: &std::collections::BTreeSet<u32>,
         job: &Job,
     ) -> Result<Results> {
         let mut result = self.process_list(Plugin::Pslist, job)?;
-        if options.include_threads {
+        if !pids.is_empty() {
+            result
+                .rows
+                .retain(|r| r[0].parse::<u32>().is_ok_and(|pid| pids.contains(&pid)));
+        }
+        if include_threads {
             let leaders = std::mem::take(&mut result.rows);
             let mut seen: HashSet<_> = leaders.iter().map(|r| r[4].clone()).collect();
             let mut tids: HashSet<_> = leaders.iter().map(|r| r[0].clone()).collect();
@@ -303,6 +315,17 @@ impl Linux<'_> {
                 }
             }
         }
+        Ok(result)
+    }
+    pub(super) fn process_details(&self, job: &Job) -> Result<Results> {
+        self.process_details_with_options(&crate::analysis::Options::default(), job)
+    }
+    pub(super) fn process_details_with_options(
+        &self,
+        options: &crate::analysis::Options,
+        job: &Job,
+    ) -> Result<Results> {
+        let mut result = self.task_list_with_threads(options.include_threads, job)?;
         result.plugin = Plugin::LinuxPslist.name().into();
         result.columns = Plugin::LinuxPslist
             .descriptor()

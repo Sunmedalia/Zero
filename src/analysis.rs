@@ -38,6 +38,7 @@ pub struct Options {
     pub pid: Option<u32>,
     pub pids: Vec<u32>,
     pub maxsize: Option<usize>,
+    pub unresolved: bool,
     pub include_threads: bool,
     pub decorate_comm: bool,
     pub plain_taints: bool,
@@ -79,9 +80,16 @@ pub fn analyze(
     validate_pattern(request.plugin, options)?;
     ensure!(options.pids.len() <= 4096, "PID 列表超过 4096 项");
     ensure!(
-        (options.pids.is_empty() && options.maxsize.is_none())
-            || request.plugin == Plugin::VmaRegExScan,
-        "pids/maxsize 当前仅用于 linux.vmaregexscan.VmaRegExScan"
+        options.pids.is_empty() || request.plugin.accepts_pid_list(),
+        "pids 当前仅用于 VmaRegExScan / PsCallStack"
+    );
+    ensure!(
+        options.maxsize.is_none() || request.plugin == Plugin::VmaRegExScan,
+        "maxsize 仅用于 VmaRegExScan"
+    );
+    ensure!(
+        !options.unresolved || request.plugin == Plugin::PsCallStack,
+        "unresolved 仅用于 PsCallStack"
     );
     if let Some(size) = options.maxsize {
         ensure!((1..=4096).contains(&size), "maxsize 必须为 1..4096");
@@ -169,7 +177,7 @@ pub fn analyze(
     Ok(match outcome {
         Outcome::Ready(mut r) => {
             if let Some(pid) = options.pid
-                && request.plugin != Plugin::VmaRegExScan
+                && !request.plugin.accepts_pid_list()
             {
                 let col = r
                     .columns

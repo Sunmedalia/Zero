@@ -270,6 +270,13 @@ impl Session {
         };
         let identity = match pattern {
             Some(pattern) => format!("{}:{}", request.plugin.name(), pattern.source()),
+            None if request.plugin == Plugin::PsCallStack => format!(
+                "{}:pid={:?}:pids={:?}:unresolved={}",
+                request.plugin.name(),
+                options.pid,
+                options.pids,
+                options.unresolved
+            ),
             None if request.plugin == Plugin::VmaRegExScan => format!(
                 "{}:pattern={:?}:pids={:?}:pid={:?}:maxsize={}",
                 request.plugin.name(),
@@ -322,6 +329,8 @@ impl Session {
         };
         let result = if request.plugin.is_dump() {
             engine.run_dump(request.plugin, dump.context("Dump 插件需要转储参数")?, job)?
+        } else if request.plugin == Plugin::PsCallStack {
+            engine.ps_callstack(options, job)?
         } else if request.plugin == Plugin::VmaRegExScan {
             engine.vma_regex_scan(options, job)?
         } else if request.plugin.is_pattern_scan() {
