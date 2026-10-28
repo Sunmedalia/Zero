@@ -1,0 +1,40 @@
+{
+  "version": 1,
+  "keys": [
+    "address"
+  ],
+  "fields": {
+    "name": {
+      "zero": "Name",
+      "reference": "Name",
+      "type": "text"
+    },
+    "address": {
+      "zero": "Address",
+      "reference": "Address",
+      "zero_type": "address",
+      "reference_type": "address48"
+    },
+    "procfs": {
+      "zero": "In procfs",
+      "reference": "In procfs",
+      "type": "boolean"
+    },
+    "sysfs": {
+      "zero": "In sysfs",
+      "reference": "In sysfs",
+      "type": "boolean"
+    },
+    "scan": {
+      "zero": "In scan",
+      "reference": "In scan",
+      "type": "boolean"
+    },
+    "taints": {
+      "zero": "Taints",
+      "reference": "Taints",
+      "zero_type": "text",
+      "reference_type": "empty_text"
+    }
+  }
+}

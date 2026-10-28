@@ -37,3 +37,8 @@
 首批实现：ProcessSpoofing 已接入原生引擎和公共插件描述，新增身份源比较及边界测试；
 默认与单 PID 的公开样本差分通过，保留两处真实缺页诊断。下一批推进共享模块视图与
 Modxview；多 PID 列表仍作为公共参数基础缺口保留，不因本批单 PID 通过而关闭。
+
+第二批实现：共享 module_kset/list/carving 与分配范围基础已抽取到 modules.rs；
+Modxview 实现三个独立视图和 taint 两种输出，默认及 plain-taints 的公开 Debian 样本
+差分通过。真实隐藏/tainted 模块和现代内核的边界差分仍需补齐。接下来推进共享模块
+ELF/section 读取基础及 ModuleExtract，不跳过前述未验收边界。

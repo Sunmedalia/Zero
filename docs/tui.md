@@ -84,3 +84,5 @@ make screenshots     # Rust 示例使用真实引擎与同一个 Buffer 输出 S
 代理地址拼接方式见 [GH-Proxy 使用指南](https://gh-proxy.com/docs/github-accelerator)。此设置用于 GitHub 的远程 banner 索引、Raw ISF 和 Release 符号文件。仓库地址、索引条目和缓存来源仍保存原始 GitHub URL，下载后继续校验完整 banner／身份。Microsoft 符号服务器与官方 Windows ZIP 保持原下载地址；离线模式禁止新的下载。HTTP 404 和用户取消不会触发代理重试。
 
 TUI 仅通过 Rust 类型和线程通道调用引擎，迁移期间的 `tui-backend` 子命令已移除。对外 MCP 接口详见 [MCP 说明](mcp.md)。
+
+`linux.malware.modxview.Modxview` 的参数窗口提供“模块 taint 简写”布尔项；该参数按插件保存草稿，并区分结果与缓存。

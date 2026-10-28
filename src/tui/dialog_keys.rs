@@ -81,6 +81,11 @@ impl App {
                                 .trim()
                                 .parse::<bool>()
                                 .context("名称标记应为 true/false")?,
+                        plain_taints: self.plugin == Plugin::Modxview
+                            && fields[10]
+                                .trim()
+                                .parse::<bool>()
+                                .context("模块 taint 简写应为 true/false")?,
                         pattern: if matches!(
                             self.plugin,
                             Plugin::Vmayarascan | Plugin::WinVadyarascan

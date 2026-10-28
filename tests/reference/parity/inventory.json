@@ -1620,8 +1620,10 @@
         "In scan",
         "Taints"
       ],
-      "zero_candidates": [],
-      "status": "missing",
+      "zero_candidates": [
+        "linux.malware.modxview.Modxview"
+      ],
+      "status": "mapped_unverified",
       "evidence": []
     },
     {
@@ -1876,7 +1878,9 @@
       "replacement": "linux.malware.modxview.Modxview",
       "declared_requirements": [],
       "declared_columns": [],
-      "zero_candidates": [],
+      "zero_candidates": [
+        "linux.malware.modxview.Modxview"
+      ],
       "status": "alias",
       "evidence": []
     },

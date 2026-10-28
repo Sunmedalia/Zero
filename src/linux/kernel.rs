@@ -493,50 +493,12 @@ impl Linux<'_> {
         ))
     }
     pub(super) fn check_modules(&self, r: &mut Results, job: &Job) -> Result<()> {
-        let listed = self.list_objects(
-            self.isf
-                .address("modules")
-                .context("不支持: 缺少 modules")?,
-            self.isf.offset("module", "list")?,
-            job,
-        )?;
-        let kset = self.vm.uint(
-            self.isf
-                .address("module_kset")
-                .context("不支持: 缺少 module_kset")?,
-            8,
-        )?;
-        let objects = self.list_objects(
-            self.field_address(kset, "kset", "list")?,
-            self.isf.offset("kobject", "entry")?,
-            job,
-        )?;
+        let listed = self.listed_modules(job)?;
+        let sysfs = self.sysfs_modules(r, job)?;
         let mut views: BTreeMap<u64, (bool, bool)> =
             listed.into_iter().map(|p| (p, (true, false))).collect();
-        for kobj in objects {
-            let read = (|| -> Result<()> {
-                let name = self.kernel_text(self.number(kobj, "kobject", "name")?, 128)?;
-                let holder = kobj
-                    .checked_sub(self.isf.offset("module_kobject", "kobj")?)
-                    .context("module kobject 下溢")?;
-                let module = self.number(holder, "module_kobject", "mod")?;
-                if module == 0 {
-                    return Ok(());
-                }
-                ensure!(
-                    self.field_address(module, "module", "mkobj")? == holder,
-                    "模块 kobject 反向引用不一致"
-                );
-                ensure!(
-                    self.kernel_text(self.field_address(module, "module", "name")?, 128)? == name,
-                    "模块名称不一致"
-                );
-                views.entry(module).or_default().1 = true;
-                Ok(())
-            })();
-            if let Err(e) = read {
-                partial(r, format!("module kobject {kobj:#x}"), e);
-            }
+        for module in sysfs {
+            views.entry(module).or_default().1 = true;
         }
         for (module, (list, sysfs)) in views {
             let read = (|| -> Result<Vec<String>> {

@@ -81,3 +81,10 @@ Its mapping explicitly allows partial native output: the sample has missing argv
 pages, rendered as `N/A` by the reference. Zero preserves the matching values and
 also reports the missing pages. This case parity does not certify the plugin's
 multi-PID interface or its behavior on other kernels and attack samples.
+
+Modxview cases use `modxview.example.json`: both default and `--plain-taints`
+compare all six fields over 79 Debian modules. `Taints` alone declares reference
+`empty_text` normalization: the reference null here means no taint characters,
+which Zero renders as empty text. Ordinary text nulls remain unverifiable.
+These cases require complete native output. Synthetic coverage of hidden modules
+and damaged views is not real-sample proof of those behaviors.

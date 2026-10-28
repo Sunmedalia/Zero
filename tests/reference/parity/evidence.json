@@ -263,5 +263,77 @@
     "symbol_sha256": "c3b0b875a2d0498fffc0df1259ff49b850cea28355ffddf02e2f90d34a89fbe1",
     "zero_executable_sha256": "c254bea84a87bff1cac4034604e46490f4ff823997f38ec9b5c0ab13351defa5",
     "engine_version": "0.2.1-native-30"
+  },
+  {
+    "sample": "debian-3.2",
+    "sample_source": "https://github.com/volatilityfoundation/volatility3-test-data/releases/download/v0.0.1/linux-sample-1.bin.gz",
+    "case_id": "debian-3.2/modxview-default",
+    "zero_args": [],
+    "reference_args": [],
+    "image_sha256": "8ce57b7c7b423173ce970fe8f51e7016c04ef1b4a5f73d5c5f1001d5c18780bc",
+    "reference_plugin": "linux.malware.modxview.Modxview",
+    "zero_plugin": "linux.malware.modxview.Modxview",
+    "passed": true,
+    "mapping_sha256": "d8df9e481fd3904d16e6744859d0f3c741c548c784fd5ca4412699b7b0691622",
+    "comparison": {
+      "schema_version": 1,
+      "mapping_version": 1,
+      "zero_records": 79,
+      "reference_records": 79,
+      "missing": [],
+      "extra": [],
+      "duplicates": [],
+      "conflicts": [],
+      "unverifiable": [],
+      "all_columns_mapped": true,
+      "positive_evidence": true,
+      "zero_complete": true,
+      "zero_diagnostics": [],
+      "passed": true
+    },
+    "native_output_sha256": "f2f10f45b5cda618cc6f6f60a4c54fe8b7dedf37b42f001ca0071ed7a3392fb5",
+    "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+    "reference_output_sha256": "91278a4247b05dd74d050b7b19d9853ef2761bf0e9cd44c24335bacf587202b7",
+    "symbol_sha256": "c3b0b875a2d0498fffc0df1259ff49b850cea28355ffddf02e2f90d34a89fbe1",
+    "zero_executable_sha256": "16b4e6212c27422d5480ace21e707caf51f7dc843f241882d94d3548cbe8f6dc",
+    "engine_version": "0.2.1-native-31"
+  },
+  {
+    "sample": "debian-3.2",
+    "sample_source": "https://github.com/volatilityfoundation/volatility3-test-data/releases/download/v0.0.1/linux-sample-1.bin.gz",
+    "case_id": "debian-3.2/modxview-plain-taints",
+    "zero_args": [
+      "--plain-taints"
+    ],
+    "reference_args": [
+      "--plain-taints"
+    ],
+    "image_sha256": "8ce57b7c7b423173ce970fe8f51e7016c04ef1b4a5f73d5c5f1001d5c18780bc",
+    "reference_plugin": "linux.malware.modxview.Modxview",
+    "zero_plugin": "linux.malware.modxview.Modxview",
+    "passed": true,
+    "mapping_sha256": "d8df9e481fd3904d16e6744859d0f3c741c548c784fd5ca4412699b7b0691622",
+    "comparison": {
+      "schema_version": 1,
+      "mapping_version": 1,
+      "zero_records": 79,
+      "reference_records": 79,
+      "missing": [],
+      "extra": [],
+      "duplicates": [],
+      "conflicts": [],
+      "unverifiable": [],
+      "all_columns_mapped": true,
+      "positive_evidence": true,
+      "zero_complete": true,
+      "zero_diagnostics": [],
+      "passed": true
+    },
+    "native_output_sha256": "f2f10f45b5cda618cc6f6f60a4c54fe8b7dedf37b42f001ca0071ed7a3392fb5",
+    "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+    "reference_output_sha256": "91278a4247b05dd74d050b7b19d9853ef2761bf0e9cd44c24335bacf587202b7",
+    "symbol_sha256": "c3b0b875a2d0498fffc0df1259ff49b850cea28355ffddf02e2f90d34a89fbe1",
+    "zero_executable_sha256": "16b4e6212c27422d5480ace21e707caf51f7dc843f241882d94d3548cbe8f6dc",
+    "engine_version": "0.2.1-native-31"
   }
 ]

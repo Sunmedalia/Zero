@@ -19,6 +19,7 @@ pub struct Options {
     pub pid: Option<u32>,
     pub include_threads: bool,
     pub decorate_comm: bool,
+    pub plain_taints: bool,
     pub hive: Option<u64>,
     pub key: String,
     /// Byte pattern for vmayarascan / windows.vadyarascan.
@@ -51,6 +52,10 @@ pub fn analyze(
         !(options.include_threads || options.decorate_comm)
             || request.plugin == Plugin::LinuxPslist,
         "threads/decorate_comm 当前仅支持 linux.pslist.PsList"
+    );
+    ensure!(
+        !options.plain_taints || request.plugin == Plugin::Modxview,
+        "plain_taints 仅支持 linux.malware.modxview.Modxview"
     );
     let image = if request.plugin == crate::linux::Plugin::Banners && request.use_cache {
         session.identify_image(request.image, request.cache, job)?

@@ -4311,3 +4311,26 @@ fn official_pslist_options_save_reject_invalid_boolean_and_separate_request_keys
     assert_ne!(before, app.request_key());
     assert!(app.job.is_none());
 }
+
+#[test]
+fn module_plain_taints_parameter_validates_and_separates_results() {
+    let mut app = app();
+    app.select_plugin(Plugin::Modxview);
+    app.windows_parameters();
+    assert_eq!(app.parameter_fields(false), vec![10, 6]);
+    let before = app.request_key();
+    if let Some(Dialog::WindowsParameters { fields, .. }) = &mut app.dialog {
+        fields[10] = "invalid".into();
+    }
+    app.dialog_key(KeyEvent::new(KeyCode::Enter, KeyModifiers::CONTROL));
+    assert!(app.dialog.is_some());
+    assert!(!app.analysis_options.plain_taints);
+    if let Some(Dialog::WindowsParameters { fields, .. }) = &mut app.dialog {
+        fields[10] = "true".into();
+    }
+    app.dialog_key(KeyEvent::new(KeyCode::Enter, KeyModifiers::CONTROL));
+    assert!(app.dialog.is_none());
+    assert!(app.analysis_options.plain_taints);
+    assert_ne!(before, app.request_key());
+    assert!(app.job.is_none());
+}

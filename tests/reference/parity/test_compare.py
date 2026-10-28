@@ -87,5 +87,14 @@ class CompareTests(unittest.TestCase):
             self.check()
 
 
+class OptionalTextTests(unittest.TestCase):
+    def test_empty_text_requires_explicit_mapping(self):
+        self.assertIsNone(normalize(None, 'text'))
+        self.assertEqual(normalize(None, 'empty_text'), '')
+        self.assertEqual(normalize('PROPRIETARY_MODULE', 'empty_text'), 'PROPRIETARY_MODULE')
+        with self.assertRaises(ValueError):
+            normalize(0, 'empty_text')
+
+
 if __name__ == '__main__':
     unittest.main()

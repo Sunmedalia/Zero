@@ -22,6 +22,7 @@
 
 `linux.pslist.PsList`（别名 `linux.pslist`）提供完整进程字段，支持 `pid`、
 `include_threads`、`decorate_comm`。后两项为布尔值，其他插件不能启用这两项。
+模块跨视图 `linux.malware.modxview.Modxview` 支持布尔参数 `plain_taints`（CLI `--plain-taints`），其他插件不能启用此项。
 CLI 对应 `--threads`、`--decorate-comm`，详见 [对齐进度](volatility-parity.md)。
 
 ## 任务与错误

@@ -8,6 +8,15 @@ from pathlib import Path
 
 
 def normalize(value, kind):
+    # Some optional text fields mean an empty value (e.g. no module taints),
+    # not a failed read. Use this only in a reviewed per-field mapping; native
+    # partial results are still rejected unless separately allowed.
+    if kind == 'empty_text':
+        if value is None:
+            return ''
+        if not isinstance(value, str):
+            raise ValueError(f'invalid optional text: {value!r}')
+        return value
     if value is None or (value == '' and kind != 'text'):
         return None
     if kind in ('integer', 'address', 'address48'):

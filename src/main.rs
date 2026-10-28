@@ -47,6 +47,9 @@ struct Cli {
     /// Decorate user/kernel thread names in linux.pslist.PsList.
     #[arg(long, global = true)]
     decorate_comm: bool,
+    /// Render module taints as compact characters in linux.malware.modxview.Modxview.
+    #[arg(long, global = true)]
+    plain_taints: bool,
     #[command(subcommand)]
     command: Option<Command>,
 }
@@ -359,6 +362,7 @@ fn main() -> Result<()> {
                 pattern: cli.pattern.clone(),
                 include_threads: cli.include_threads,
                 decorate_comm: cli.decorate_comm,
+                plain_taints: cli.plain_taints,
             },
             &job,
         )? {
@@ -448,6 +452,7 @@ fn launch_tui(cli: Cli) -> Result<()> {
             pattern: cli.pattern,
             include_threads: cli.include_threads,
             decorate_comm: cli.decorate_comm,
+            plain_taints: cli.plain_taints,
         },
     )
 }

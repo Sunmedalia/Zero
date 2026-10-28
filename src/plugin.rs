@@ -3,6 +3,8 @@ use clap::ValueEnum;
 
 #[derive(Clone, Copy, Debug, ValueEnum, PartialEq, Eq)]
 pub enum Plugin {
+    #[value(name = "linux.malware.modxview.Modxview", alias = "linux.modxview")]
+    Modxview,
     #[value(
         name = "linux.malware.process_spoofing.ProcessSpoofing",
         alias = "linux.process_spoofing"
@@ -1528,6 +1530,20 @@ pub const PLUGINS: &[Descriptor] = &[
         ],
         widths: &[6, 6, 0, 20, 16, 16, 16, 12],
     },
+    Descriptor {
+        plugin: Plugin::Modxview,
+        name: "linux.malware.modxview.Modxview",
+        label: "modxview",
+        columns: &[
+            "Name",
+            "Address",
+            "In procfs",
+            "In sysfs",
+            "In scan",
+            "Taints",
+        ],
+        widths: &[20, 18, 10, 10, 10, 0],
+    },
 ];
 impl Plugin {
     pub fn descriptor(self) -> &'static Descriptor {
@@ -1654,7 +1670,8 @@ impl Plugin {
             | Self::Elfdump => "Memory",
             Self::Fdsummary | Self::Lsof | Self::Mountinfo => "Files",
             Self::Sockstat | Self::Netscan | Self::IpAddr | Self::IpLink => "Network",
-            Self::ProcessSpoofing
+            Self::Modxview
+            | Self::ProcessSpoofing
             | Self::KeyboardNotifiers
             | Self::CheckCreds
             | Self::Malfind
@@ -1685,6 +1702,7 @@ impl Plugin {
             WinLdrmodules => "对照 PE 映射与三条 PEB 模块链表",
             WinHollowprocesses => "检查主程序基址及映像映射异常",
             WinSuspiciousThreads => "检查活动线程起点所在的 VAD",
+            Modxview => "对照模块链表、sysfs 与独立内存扫描，并解析 taint 标记",
             ProcessSpoofing => "比较可执行路径、argv[0] 与进程名称，识别身份伪装线索",
             CheckExec => "检查 Linux 主程序代码映射与可执行文件",
             Pslist | LinuxPslist | WinPslist => "列出活动进程及其地址",

@@ -198,6 +198,9 @@ impl App {
         if self.plugin == Plugin::LinuxPslist {
             fields.extend([8, 9]);
         }
+        if self.plugin == Plugin::Modxview {
+            fields.push(10);
+        }
         fields.push(6);
         fields
     }
