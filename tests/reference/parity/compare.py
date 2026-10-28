@@ -11,6 +11,12 @@ def normalize(value, kind):
     # Some optional text fields mean an empty value (e.g. no module taints),
     # not a failed read. Use this only in a reviewed per-field mapping; native
     # partial results are still rejected unless separately allowed.
+    if kind == 'na_text':
+        if value == 'N/A' or value is None:
+            return None
+        if not isinstance(value, str):
+            raise ValueError(f'invalid optional text: {value!r}')
+        return value
     if kind == 'empty_text':
         if value is None:
             return ''
@@ -67,10 +73,16 @@ def compare(native, reference, mapping):
     for spec in fields.values():
         if spec['zero'] not in columns:
             raise ValueError(f"missing native column {spec['zero']}")
+    selection = mapping.get('record_selection')
+    selected = {}
+    if selection:
+        if selection.get('field') not in fields or not selection.get('include') or not selection.get('scope'):
+            raise ValueError('record selection needs a mapped field, include values and explicit scope')
     sides = []
     for side, rows in [('zero', [dict(zip(columns, r, strict=True)) for r in native['rows']]),
                        ('reference', list(reference_rows(reference)))]:
         indexed = defaultdict(list)
+        excluded = 0
         for row in rows:
             normalized = {}
             for name, spec in fields.items():
@@ -79,11 +91,15 @@ def compare(native, reference, mapping):
                     raise ValueError(f'missing {side} field {source}')
                 kind = spec.get(side + '_type', spec.get('type', 'text'))
                 normalized[name] = normalize(row[source], kind)
+            if selection and normalized[selection['field']] not in selection['include']:
+                excluded += 1
+                continue
             key = tuple(normalized[name] for name in keys)
             if None in key:
                 raise ValueError('unavailable record identity')
             indexed[key].append(normalized)
         sides.append(indexed)
+        selected[side + '_excluded'] = excluded
     ns, rs = sides
     missing = [list(k) for k in sorted(rs.keys() - ns.keys(), key=repr)]
     extra = [list(k) for k in sorted(ns.keys() - rs.keys(), key=repr)]
@@ -108,6 +124,7 @@ def compare(native, reference, mapping):
     all_columns = all_columns and ref_columns <= {spec['reference'] for spec in fields.values()}
     return {
         'schema_version': 1, 'mapping_version': mapping['version'],
+        **({'record_selection': {**selection, **selected}} if selection else {}),
         'zero_records': sum(map(len, ns.values())), 'reference_records': sum(map(len, rs.values())),
         'missing': missing, 'extra': extra, 'duplicates': duplicates,
         'conflicts': conflicts, 'unverifiable': unavailable, 'matched_absent': dict(matched_absent),

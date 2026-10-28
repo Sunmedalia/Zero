@@ -57,12 +57,15 @@ def audit(manifest, evidence, contracts=None):
         if contract['source_sha256'] != source:
             raise ValueError('contract source has changed')
         if all((plugin, case) in passed_cases for case in required):
-            verified.add(plugin)
+            # Scoped rows cannot alone establish a whole-plugin contract.
+            if any(not passed_cases[(plugin, case)]['comparison'].get('record_selection') for case in required):
+                verified.add(plugin)
     return {'reference_version': VERSION, 'reference_commit': COMMIT,
             'plugin_entries': len(names), 'canonical_plugins': len(canonical),
             'aliases': len(names) - len(canonical),
             'platforms': dict(Counter(p['platform'] for p in manifest['plugins'] if not p['replacement'])),
-            'passed_cases': len(passed_cases), 'verified_plugins': len(verified), 'outstanding': sorted(canonical - verified),
+            'passed_cases': len(passed_cases),
+            'passed_scoped_cases': sum(bool(e['comparison'].get('record_selection')) for e in passed_cases.values()), 'verified_plugins': len(verified), 'outstanding': sorted(canonical - verified),
             'complete': canonical == verified}
 
 

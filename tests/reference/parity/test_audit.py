@@ -23,6 +23,14 @@ class AuditTests(unittest.TestCase):
         self.assertFalse(result['complete'])
         self.assertFalse(audit(self.manifest, [self.case], self.contract)['complete'])
 
+    def test_scoped_rows_alone_cannot_certify_a_plugin(self):
+        self.case['comparison']['record_selection'] = {'field': 'family', 'include': ['AF_INET'], 'scope': 'IPv4 only'}
+        self.contract['linux.pslist.PsList']['required_cases'] = ['default']
+        result = audit(self.manifest, [self.case], self.contract)
+        self.assertEqual(result['passed_scoped_cases'], 1)
+        self.assertEqual(result['verified_plugins'], 0)
+        self.assertFalse(result['complete'])
+
     def test_every_reviewed_case_is_required(self):
         thread = dict(self.case, case_id='threads')
         self.assertTrue(audit(self.manifest, [self.case, thread], self.contract)['complete'])

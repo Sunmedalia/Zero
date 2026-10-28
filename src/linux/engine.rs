@@ -129,6 +129,7 @@ impl Linux<'_> {
         use Plugin::*;
         match plugin {
             Pslist | Pstree | Lsmod => self.kernel_list(plugin, job),
+            LinuxSockscan => self.sockscan(job),
             LinuxPsscan => self.psscan(job),
             Kallsyms => self.kallsyms(Default::default(), job),
             Modxview => self.modxview(false, job),

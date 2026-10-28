@@ -688,5 +688,54 @@
     "symbol_sha256": "c3b0b875a2d0498fffc0df1259ff49b850cea28355ffddf02e2f90d34a89fbe1",
     "zero_executable_sha256": "1b8b13bb6f7ae08a04b9f5b22ed57d82292d92bc5545f07ce3bd9f41a311e9d5",
     "engine_version": "0.2.1-native-34"
+  },
+  {
+    "reference_plugin": "linux.sockscan.Sockscan",
+    "zero_plugin": "linux.sockscan.Sockscan",
+    "image_sha256": "8ce57b7c7b423173ce970fe8f51e7016c04ef1b4a5f73d5c5f1001d5c18780bc",
+    "mapping_sha256": "d956e8f310f20b44b738600af9fcc806b7e2d213371d98b12937b376a2b7313c",
+    "native_output_sha256": "94875c2b3350fd12d8f5993ba89d23d2bb991799e9e7294d191978663b4a2739",
+    "comparison": {
+      "schema_version": 1,
+      "mapping_version": 1,
+      "record_selection": {
+        "field": "Family",
+        "include": [
+          "AF_INET",
+          "AF_NETLINK"
+        ],
+        "scope": "IPv4 and Netlink only; default full output remains separately compared without selection",
+        "zero_excluded": 418,
+        "reference_excluded": 345
+      },
+      "zero_records": 59,
+      "reference_records": 59,
+      "missing": [],
+      "extra": [],
+      "duplicates": [],
+      "conflicts": [],
+      "unverifiable": [],
+      "matched_absent": {
+        "Filter": 27
+      },
+      "all_columns_mapped": true,
+      "positive_evidence": true,
+      "zero_complete": false,
+      "zero_diagnostics": [
+        "file.f_op: 442 个候选无法完成读取；0 处字段不可读；首处 0x3001ae0: 非四级页表 canonical 地址 0x6000600000031",
+        "sock.sk_destruct: 17 个候选无法完成读取；0 处字段不可读；首处 0x1b781268: 非四级页表 canonical 地址 0x1a700000003000d"
+      ],
+      "passed": true
+    },
+    "passed": true,
+    "zero_args": [],
+    "reference_args": [],
+    "case_id": "debian-3.2/sockscan-ipv4-netlink",
+    "sample_source": "https://github.com/volatilityfoundation/volatility3-test-data/releases/download/v0.0.1/linux-sample-1.bin.gz",
+    "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+    "reference_output_sha256": "928075975ddaaebd793d1a71b1db71433d525b2eeee03e5f7d13a3feb87e394e",
+    "symbol_sha256": "c3b0b875a2d0498fffc0df1259ff49b850cea28355ffddf02e2f90d34a89fbe1",
+    "zero_executable_sha256": "30adeecad30c122b33f6725097b1fa12329d140eba66f6b8d07aaf285f2d5e0f",
+    "engine_version": "0.2.1-native-35"
   }
 ]

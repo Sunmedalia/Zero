@@ -2,6 +2,14 @@
 use super::*;
 use crate::physical::{self, Decision, Object};
 impl Linux<'_> {
+    pub(super) fn scan_symbol_address(&self, name: &str) -> Result<u64> {
+        let mut address = self.isf.address(name)?;
+        if !self.arm64() && address < 1 << 48 && address & (1 << 47) != 0 {
+            address |= 0xffff_0000_0000_0000;
+        }
+        Ok(address)
+    }
+
     pub(super) fn psscan(&self, job: &Job) -> Result<Results> {
         ensure!(
             self.isf.data["base_types"]["pointer"]["size"]
@@ -26,11 +34,7 @@ impl Linux<'_> {
             .keys()
             .filter(|name| name.contains("_sched_class"))
         {
-            let mut address = self.isf.address(name)?;
-            if !self.arm64() && address < 1 << 48 && address & (1 << 47) != 0 {
-                address |= 0xffff_0000_0000_0000;
-            }
-            needles.push(address);
+            needles.push(self.scan_symbol_address(name)?);
         }
         let mut result = self.result(Plugin::LinuxPsscan);
         let mut seen = HashSet::new();

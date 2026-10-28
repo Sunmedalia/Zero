@@ -3,6 +3,8 @@ use clap::ValueEnum;
 
 #[derive(Clone, Copy, Debug, ValueEnum, PartialEq, Eq)]
 pub enum Plugin {
+    #[value(name = "linux.sockscan.Sockscan", alias = "linux.sockscan")]
+    LinuxSockscan,
     #[value(name = "linux.psscan.PsScan", alias = "linux.psscan")]
     LinuxPsscan,
     #[value(name = "linux.kallsyms.Kallsyms", alias = "linux.kallsyms")]
@@ -1583,6 +1585,24 @@ pub const PLUGINS: &[Descriptor] = &[
         columns: &["OFFSET (P)", "PID", "TID", "PPID", "COMM", "EXIT_STATE"],
         widths: &[18, 8, 8, 8, 18, 0],
     },
+    Descriptor {
+        plugin: Plugin::LinuxSockscan,
+        name: "linux.sockscan.Sockscan",
+        label: "sockscan",
+        columns: &[
+            "Sock Offset",
+            "Family",
+            "Type",
+            "Proto",
+            "Source Addr",
+            "Source Port",
+            "Destination Addr",
+            "Destination Port",
+            "State",
+            "Filter",
+        ],
+        widths: &[18, 12, 10, 12, 20, 12, 20, 12, 14, 0],
+    },
 ];
 impl Plugin {
     pub fn descriptor(self) -> &'static Descriptor {
@@ -1711,7 +1731,9 @@ impl Plugin {
             | Self::Memdump
             | Self::Elfdump => "Memory",
             Self::Fdsummary | Self::Lsof | Self::Mountinfo => "Files",
-            Self::Sockstat | Self::Netscan | Self::IpAddr | Self::IpLink => "Network",
+            Self::LinuxSockscan | Self::Sockstat | Self::Netscan | Self::IpAddr | Self::IpLink => {
+                "Network"
+            }
             Self::ModuleExtract
             | Self::Modxview
             | Self::ProcessSpoofing
@@ -1745,6 +1767,7 @@ impl Plugin {
             WinLdrmodules => "对照 PE 映射与三条 PEB 模块链表",
             WinHollowprocesses => "检查主程序基址及映像映射异常",
             WinSuspiciousThreads => "检查活动线程起点所在的 VAD",
+            LinuxSockscan => "从 file-ops 与 sock destructor 指针独立扫描物理套接字",
             LinuxPsscan => "独立扫描物理内存中的调度类指针，发现链表之外的任务",
             Kallsyms => "枚举核心、模块、ftrace 与 BPF 的运行时符号",
             ModuleExtract => "从指定 struct module 地址重建并导出模块 ELF",

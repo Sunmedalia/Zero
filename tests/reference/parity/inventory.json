@@ -2859,8 +2859,10 @@
         "State",
         "Filter"
       ],
-      "zero_candidates": [],
-      "status": "missing",
+      "zero_candidates": [
+        "linux.sockscan.Sockscan"
+      ],
+      "status": "mapped_unverified",
       "evidence": []
     },
     {

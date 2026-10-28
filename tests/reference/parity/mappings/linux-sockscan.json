@@ -1,0 +1,73 @@
+{
+  "version": 1,
+  "keys": [
+    "Sock Offset"
+  ],
+  "fields": {
+    "Sock Offset": {
+      "zero": "Sock Offset",
+      "reference": "Sock Offset",
+      "type": "address"
+    },
+    "Family": {
+      "zero": "Family",
+      "reference": "Family",
+      "type": "text"
+    },
+    "Type": {
+      "zero": "Type",
+      "reference": "Type",
+      "type": "text"
+    },
+    "Proto": {
+      "zero": "Proto",
+      "reference": "Proto",
+      "type": "text",
+      "zero_type": "na_text",
+      "allow_absent": true
+    },
+    "Source Addr": {
+      "zero": "Source Addr",
+      "reference": "Source Addr",
+      "type": "text",
+      "zero_type": "na_text",
+      "allow_absent": true
+    },
+    "Source Port": {
+      "zero": "Source Port",
+      "reference": "Source Port",
+      "type": "text",
+      "zero_type": "na_text",
+      "allow_absent": true
+    },
+    "Destination Addr": {
+      "zero": "Destination Addr",
+      "reference": "Destination Addr",
+      "type": "text",
+      "zero_type": "na_text",
+      "allow_absent": true
+    },
+    "Destination Port": {
+      "zero": "Destination Port",
+      "reference": "Destination Port",
+      "type": "text",
+      "zero_type": "na_text",
+      "allow_absent": true
+    },
+    "State": {
+      "zero": "State",
+      "reference": "State",
+      "type": "text",
+      "zero_type": "na_text",
+      "allow_absent": true
+    },
+    "Filter": {
+      "zero": "Filter",
+      "reference": "Filter",
+      "type": "text",
+      "zero_type": "na_text",
+      "allow_absent": true
+    }
+  },
+  "allow_partial": true
+}

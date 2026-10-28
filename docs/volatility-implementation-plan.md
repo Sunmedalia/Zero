@@ -59,3 +59,11 @@ kallsyms 共用的模块符号读取与核心符号解码，不把本批能力�
 四种退出状态、父对象不可读及连续 LiME 区段。真实默认参数差分和验收记录见对齐进度。
 下一批继续复用该基础实现独立 Sockscan 的 file-ops 与 destructor 两个来源，不能以现有
 基于文件描述符的 sockstat/netscan 代替物理扫描。其余 Linux/Windows 缺口保持原范围。
+
+套接字批：先实现区分物理嵌入字段与虚拟指针目标的公共套接字字段读取，再接入
+`linux.sockscan.Sockscan` 的 file-ops / destructor 两个扫描来源。覆盖八个家族及
+socket/reuseport 过滤器，按解析后的物理地址去重。默认参考比较保留重复行和 IPv6 读取层
+差异，不改变原始产物来制造一致。验收工具新增显式记录排除数量的局部行选择，仅证明
+声明范围内的全字段；只有局部行证据不能完成整个插件的验收。
+后续推进共享 VMA 正则基础与 VmaRegExScan，再继续调用栈、framebuffer 与 Windows 缺口。
+此前各批的架构、内核、损坏样本及完整参数验收缺口继续保留。

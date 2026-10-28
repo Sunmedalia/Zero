@@ -352,7 +352,7 @@ zero cache clear --scope results,identification --yes
 
 ## 7. Linux 插件参考
 
-共 58 个插件（含 `linux.pslist.PsList` 完整字段入口，详见 [Volatility 对齐进度](volatility-parity.md)）：`pslist`、`pstree`、`lsmod`、`psaux`、`envars`、`maps`、`lsof`、`sockstat`、`netscan`、`banners`、`pwd`、`pscred`、`threads`、`mountinfo`、`check_creds`、`dmesg`、`systeminfo`、`elfs`、`bash`、`malfind`、`psxview`、`check_modules`、`check_syscall`、`psstate`、`capabilities`、`fdsummary`、`procdump`、`memdump`、`elfdump`、`iomem`、`ioports`、`ptrace`、`keyboard_notifiers`、`check_exec`、`check_idt`、`tty_check`、`hidden_modules`、`library_list`、`pidhashtable`、`vmcoreinfo`、`ip_addr`、`ip_link`、`check_afinfo`、`kthreads`、`netfilter`、`tracepoints`、`ftrace`、`ebpf`、`boottime`、`pagecache`、`perf_events`、`vmayarascan`、`linux.malware.process_spoofing.ProcessSpoofing`、`linux.malware.modxview.Modxview`、`linux.module_extract.ModuleExtract`、`linux.kallsyms.Kallsyms`、`linux.psscan.PsScan`。
+共 59 个插件（含 `linux.pslist.PsList` 完整字段入口，详见 [Volatility 对齐进度](volatility-parity.md)）：`pslist`、`pstree`、`lsmod`、`psaux`、`envars`、`maps`、`lsof`、`sockstat`、`netscan`、`banners`、`pwd`、`pscred`、`threads`、`mountinfo`、`check_creds`、`dmesg`、`systeminfo`、`elfs`、`bash`、`malfind`、`psxview`、`check_modules`、`check_syscall`、`psstate`、`capabilities`、`fdsummary`、`procdump`、`memdump`、`elfdump`、`iomem`、`ioports`、`ptrace`、`keyboard_notifiers`、`check_exec`、`check_idt`、`tty_check`、`hidden_modules`、`library_list`、`pidhashtable`、`vmcoreinfo`、`ip_addr`、`ip_link`、`check_afinfo`、`kthreads`、`netfilter`、`tracepoints`、`ftrace`、`ebpf`、`boottime`、`pagecache`、`perf_events`、`vmayarascan`、`linux.malware.process_spoofing.ProcessSpoofing`、`linux.malware.modxview.Modxview`、`linux.module_extract.ModuleExtract`、`linux.kallsyms.Kallsyms`、`linux.psscan.PsScan`、`linux.sockscan.Sockscan`。
 
 TUI 插件菜单只列分析插件，转储统一在 `D` 中。这些都是本地 ISF 驱动的 Rust 实现，不执行 Volatility Python 插件。
 
@@ -372,6 +372,7 @@ TUI 插件菜单只列分析插件，转储统一在 `D` 中。这些都是本�
 | pwd | PID、Name、Root（全局路径）、CWD（相对进程根） |
 | pscred | PID、Name、UID、GID、EUID、EGID、SUID、SGID、FSUID、FSGID、CredAddress |
 | linux.malware.process_spoofing.ProcessSpoofing | PID、PPID、Exe_Path、Cmdline_Basename、Comm、Cmdline_Spoofed、Comm_Spoofed、Exe_Deleted |
+| linux.sockscan.Sockscan | Sock Offset（物理地址）、Family、Type、Proto、Source Addr、Source Port、Destination Addr、Destination Port、State、Filter |
 | linux.psscan.PsScan | OFFSET (P)（物理地址）、PID（TGID）、TID、PPID、COMM、EXIT_STATE |
 | linux.kallsyms.Kallsyms | Addr、Type、Size、Exported、SubSystem、ModuleName、SymbolName、Description |
 | linux.module_extract.ModuleExtract | Base（struct module 地址）、File Size、File output；SHA256 和补零范围在元数据中 |
@@ -777,3 +778,27 @@ zero --offline analyze --image images/linux-sample-1.bin --symbols /path/to/exac
 扫描最多处理 100 万次命中，输出文本最多 128 MiB；父对象缓存最多 65536 项、读取最多
 64 MiB。缺页、不可读候选或达到上限均保留诊断并标为部分结果。不可读父对象按参考规则
 显示 PPID 0，同时明确提示这不证明没有父进程。
+
+
+物理套接字扫描：
+
+```sh
+zero --offline analyze --image images/linux-sample-1.bin --symbols /path/to/exact.json.xz \
+  --plugin linux.sockscan.Sockscan --output sockscan.json
+```
+
+`linux.sockscan` 是同一入口的别名。该插件扫描捕获的物理区段，使用 file-ops 与
+sock destructor 两个独立来源，不依赖进程文件描述符列表。file-ops 命中按
+file → dentry → inode → socket_alloc → socket.sk 追踪，指针目标在内核虚拟层读取，
+最后转换成物理 sock 地址。两个来源按解析后的物理地址去重。
+
+解码 Unix、IPv4/IPv6、Netlink、Packet、Vsock、XDP、Bluetooth，并读取 socket/reuseport
+的 cBPF/eBPF 过滤器信息。IPv6 指针目标通过虚拟层读取，空字段显示 N/A；Unix 空字符串
+和 N/A 不混同。Packet 设备名按 init_task 所在网络命名空间解析。缺少某个家族类型时
+保留可读的通用字段；字段不可读、来源不可用、候选读取失败或资源上限均标记部分结果。
+IPv6 端点不可读时仍保留其余已读字段，并记录字段诊断。
+
+当前仅支持 64 位内核；共享扫描上限为 100 万次命中、128 MiB 输出文本。扫描覆盖与来源
+计数位于 `kernel_identity.physical_socket_scan`。扫描对象可能是活动、已关闭或残留对象，
+更多命中不单独证明隐藏连接。与固定参考的默认差异及局部验收范围见
+[Volatility 对齐进度](volatility-parity.md)。

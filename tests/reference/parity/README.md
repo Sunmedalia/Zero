@@ -111,3 +111,19 @@ addresses use ordinary address normalization without virtual sign extension.
 The native scan reports captured-segment coverage and candidate/parent read errors;
 parent fallback to PPID 0 does not silently certify absence. This default Debian
 case does not certify 32-bit support, all kernel versions or damaged captures.
+
+Sockscan cases use `sockscan.example.json`. The unfiltered default case deliberately
+retains the pinned reference's duplicate Unix row and physical/virtual IPv6 read
+issues; it currently fails full comparison. Its failure is not converted to a pass.
+The separate IPv4/Netlink mapping declares `record_selection` on Family, includes
+only AF_INET/AF_NETLINK, and reports excluded row counts for both original outputs.
+All ten fields and unique physical addresses within that scope must match. Raw
+outputs remain unchanged. The scoped mapping permits explicit native partial
+candidate-read diagnostics. This proves only those families on this capture.
+
+`na_text` is a per-field opt-in normalization of the native N/A marker to absence;
+empty text stays empty. `allow_absent` is still separately required for two absent
+values to match. Default text comparisons keep the literal N/A. One-sided absence
+still fails. Scoped cases are counted separately by the audit, and scoped evidence
+alone cannot satisfy a whole-plugin contract. Running the combined Sockscan config
+returns nonzero while the default case remains divergent; inspect both case records.

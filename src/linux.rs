@@ -29,6 +29,8 @@ mod netdev;
 mod process;
 mod scan;
 mod session;
+mod socket_fields;
+mod sockscan;
 mod spoofing;
 mod taskwalk;
 #[cfg(test)]

@@ -42,6 +42,22 @@ class CompareTests(unittest.TestCase):
         self.assertFalse(self.check()['passed'])
         self.assertEqual(self.check()['duplicates'][0]['count'], 2)
 
+    def test_scoped_comparison_records_excluded_counts_and_preserves_strict_default(self):
+        self.reference.append({'Pid': 2, 'Offset': 0})
+        self.native['rows'].append(['2', '1'])
+        self.assertFalse(self.check()['passed'])
+        self.mapping['record_selection'] = {'field': 'pid', 'include': [1], 'scope': 'PID 1 only'}
+        result = self.check()
+        self.assertTrue(result['passed'])
+        self.assertEqual(result['record_selection']['zero_excluded'], 1)
+        self.assertEqual(result['record_selection']['reference_excluded'], 1)
+        self.assertEqual(result['zero_records'], 1)
+        self.native['rows'][0][1] = '0'
+        self.assertFalse(self.check()['passed'])
+        del self.mapping['record_selection']['scope']
+        with self.assertRaises(ValueError):
+            self.check()
+
     def test_null_cannot_prove_equality(self):
         self.reference[0]['Offset'] = None
         self.assertFalse(self.check()['passed'])
@@ -101,6 +117,15 @@ class CompareTests(unittest.TestCase):
 
 
 class OptionalTextTests(unittest.TestCase):
+    def test_na_marker_requires_explicit_mapping_and_preserves_empty_text(self):
+        self.assertEqual(normalize('N/A', 'text'), 'N/A')
+        self.assertIsNone(normalize('N/A', 'na_text'))
+        self.assertIsNone(normalize(None, 'na_text'))
+        self.assertEqual(normalize('', 'na_text'), '')
+        self.assertEqual(normalize('0', 'na_text'), '0')
+        with self.assertRaises(ValueError):
+            normalize(0, 'na_text')
+
     def test_empty_text_requires_explicit_mapping(self):
         self.assertIsNone(normalize(None, 'text'))
         self.assertEqual(normalize(None, 'empty_text'), '')
