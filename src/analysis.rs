@@ -108,11 +108,10 @@ pub fn analyze(
         !options.kallsyms.any() || request.plugin == Plugin::Kallsyms,
         "core/modules/ftrace/bpf 参数仅支持 linux.kallsyms.Kallsyms"
     );
-    if request.plugin.is_dump() {
-        dump.context("Dump 插件需要转储参数")?
-            .validate(request.plugin)?;
+    if let Some(dump) = dump {
+        dump.validate(request.plugin)?;
     } else {
-        ensure!(dump.is_none(), "非 Dump 插件不接受转储参数");
+        ensure!(!request.plugin.is_dump(), "Dump 插件需要转储参数");
     }
     let image = if request.plugin == crate::linux::Plugin::Banners && request.use_cache {
         session.identify_image(request.image, request.cache, job)?

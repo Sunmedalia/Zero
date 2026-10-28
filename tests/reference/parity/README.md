@@ -149,3 +149,30 @@ counts, preserving all original artifacts. This scoped case alone certifies no
 whole-plugin behavior. The combined config returns nonzero for known differences.
 `address48` restores the reference's masked address/Value display for x86 cases;
 optional Name/Type/Module absence is declared explicitly, never filled with false.
+
+### Fbdev
+
+`fbdev.example.json` preserves both attempted real samples, including failures:
+Debian has zero registered framebuffers (no positive evidence); the local original
+Kali ARM64 image produces a native framebuffer/PNG, but the pinned reference only
+supports Intel Linux layers and fails after stacking it as LinuxIntel. The combined
+configuration intentionally exits nonzero. `fbdev-known-limitations.json` stores
+hashes/counts/reasons, never recovered framebuffer pixels. No Fbdev real-image case
+is added to passed evidence yet. The Kali source is a local original fixture, not
+a publicly downloadable sample; both symbol paths must contain the exact declared bytes.
+
+A separate generated-data conversion-function check uses Python 3.13, Pillow 10.4.0
+(within the pinned framework's declared dependency range), and pefile 2024.8.26 in a
+test-only environment. It does not run on recovered desktop pixels:
+
+```sh
+ZERO_REFERENCE_PYTHON=target/reference/venv-fbdev-py313/bin/python \
+  cargo test --lib native_pixels_and_raw_match_reference -- --ignored --nocapture
+```
+
+It compares every decoded RGBA byte (not PNG compression bytes) for contiguous
+RGB565, RGBA8, 64-bit channels, and every RAW byte for FOURCC. The padded RGB565
+case explicitly asserts a difference: Zero respects line_length; the reference
+consumes pixels consecutively across row padding. `fbdev-pixel-evidence.json` keeps
+those synthetic hashes and the known divergence, separately from whole-plugin
+real-image evidence. Runtime Zero has no Python/Pillow dependency.

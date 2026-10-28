@@ -4449,3 +4449,50 @@ fn callstack_parameters_save_pid_list_unresolved_and_keep_cache_keys_separate() 
         panic!("no parameter dialog");
     }
 }
+
+#[test]
+fn framebuffer_dump_is_optional_has_no_pid_and_validates_selector_without_running() {
+    let mut app = app();
+    app.select_plugin(Plugin::Fbdev);
+    assert!(!app.plugin.is_dump());
+    assert!(app.navigation_plugins().contains(&Plugin::Fbdev));
+    assert_eq!(plugin_label(Plugin::Fbdev), "fbdev");
+    let list_key = app.request_key();
+    app.open_dump(Plugin::Procdump, false);
+    app.dialog_key(KeyEvent::new(KeyCode::Char('5'), KeyModifiers::ALT));
+    assert!(
+        matches!(&app.dialog, Some(Dialog::Dump {mode:Plugin::Fbdev,field:3,fields,..}) if fields[0].is_empty() && fields[1].is_empty() && fields[2].is_empty())
+    );
+    if let Some(Dialog::Dump { fields, .. }) = &mut app.dialog {
+        fields[0] = "1".into();
+    }
+    app.dialog_key(KeyEvent::new(KeyCode::Enter, KeyModifiers::CONTROL));
+    assert!(matches!(&app.dialog, Some(Dialog::Dump {error,..}) if error.contains("不接受 PID")));
+    if let Some(Dialog::Dump { fields, .. }) = &mut app.dialog {
+        fields[0].clear();
+        fields[2] = "0x2000".into();
+    }
+    app.dialog_key(KeyEvent::new(KeyCode::Enter, KeyModifiers::CONTROL));
+    assert!(matches!(&app.dialog, Some(Dialog::Dump {error,..}) if error.contains("不接受 End")));
+    assert!(app.job.is_none());
+    app.dump_options = Some((
+        Plugin::Fbdev,
+        DumpOptions {
+            pid: 0,
+            directory: "exports".into(),
+            start: Some(0x1000),
+            end: None,
+        },
+    ));
+    assert_ne!(list_key, app.request_key());
+    app.dialog = None;
+    app.request_analysis(false);
+    assert!(matches!(
+        &app.dialog,
+        Some(Dialog::Dump {
+            mode: Plugin::Fbdev,
+            ..
+        })
+    ));
+    assert!(app.job.is_none());
+}

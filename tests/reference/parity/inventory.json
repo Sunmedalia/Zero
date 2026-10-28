@@ -495,8 +495,10 @@
         "State",
         "Filename"
       ],
-      "zero_candidates": [],
-      "status": "missing",
+      "zero_candidates": [
+        "linux.graphics.fbdev.Fbdev"
+      ],
+      "status": "mapped_unverified",
       "evidence": []
     },
     {

@@ -333,3 +333,45 @@ Kali ARM64 的原生 PID 1 实际验证读取 `thread.cpu_context.sp`，得到 1
 `make check` 通过（474 项 Rust、19 项 Python 测试），Debian/Kali 四项实际样本验收通过。
 累计 29 项正向差分，其中 2 项为显式局部范围，涉及 9 个 Linux 插件；完整插件验收数
 仍为 0。入口缺失清单为 Linux 1（Fbdev）/ Windows 30，完整目标不变。
+
+## Framebuffer Fbdev（native-38）
+
+共享 packed-pixel / PNG 基础先独立提交，再接入 `linux.graphics.fbdev.Fbdev`（别名
+`linux.fbdev`）。默认八字段与参考一致：Address、Device、ID、Size、Virtual resolution、
+BPP、State、Filename。读取 num_registered_fb 和前 N 个 registered_fb 槽位（最多 32），
+按 ISF 解码 fb_info、内嵌 fix/var 和 device.kobj.name。注册符号不可用、负计数、空槽、
+重复对象、设备名缺页均显式诊断；设备名不可读保留对象，注册计数为零才是完整空表。
+
+显式导出可用 `analyze --dump-dir`、`dump --mode framebuffer`、MCP zero_dump 的
+framebuffer 模式、TUI D / Alt+5。Start 可选一个已注册 fb_info，PID/End 拒绝；没有选择器
+时导出所有注册设备。新增共享流式证据写入器，累计 SHA256 和字节数、检查上限与取消，
+最终不覆盖发布；模块 ELF 原有输出复用该写入器。PNG/RAW 缺页不补零，失败不发布文件，
+同名文件报诊断而不替换。可选导出同时绕过结果缓存读写，真实样本测试先缓存列表，再导出，
+最后确认列表缓存仍为 Disabled，不能用缓存命中代替一次导出。
+
+PNG 使用小端 packed bitfields，RGBA/msb_right、无 alpha 不透明；按固定参考保留未缩放
+颜色值并在 255 饱和，未实现 palette 转换。支持 8..64 位字节对齐像素，16 Mi 像素、
+单缓冲与文件 256 MiB 上限，逐行读取、64 KiB IDAT 分块。grayscale >1 的 FOURCC 按原始
+字节导出 RAW。零尺寸、错误位域或超限格式导出失败并标记部分，不输出伪造的黑色图像。
+
+公开 Debian 样本的注册数量为 0，列表与导出两项都没有正向对象证据，不计为通过。
+本地原始 Kali ARM64 样本读取到 1 个 1024×768、32bpp、stride=4096 的设备，原生完整
+读取 3145728 字节像素并导出 16591 字节 PNG，SHA256
+`2ef200e46715c3eb8e953007ca2d357229cd2a25f5b2a80b647c447d7a607bfe`。
+该样本不公开分发，结果图像不进入仓库。固定参考的 LINUX_ARCHS 仅声明 Intel32/Intel64；
+实际保存配置将此 ARM64 镜像建成 LinuxIntel，符号 mask 为 32 位，随后页表缺页，在输出
+对象前退出。因此 Kali 两项真实样本差分不能成立，没有修改参考层或将它们计为通过。
+摘要哈希与失败原因保存在 `fbdev-known-limitations.json`。
+
+独立的、生成数据上的参考函数比较覆盖 RGB565、RGBA8、64 位通道（含 alpha、位翻转与
+饱和）和 FOURCC RAW，共 7 项字节/完整 RGBA 像素一致。有行 padding 的第 8 项为显式
+已知差异：参考按连续像素消耗缓冲，Zero 按 line_length 跳过 padding，保留正确的第二行。
+这些只验证转换函数，不是实际镜像的完整插件验收，不计入原有 29 项差分证据。
+运行方式与固定 Python/Pillow 测试依赖见差分目录说明。PNG 编码压缩字节不要求与 Pillow
+完全相同，比较解码后的全部像素；RAW 比较完整字节。
+
+`make check` 通过（481 项 Rust、19 项 Python 测试），另上述参考函数比较单测通过，
+Debian/Kali 四项实际验收通过。原生插件现为 124 个（Linux 62 / Windows 62）。固定参考
+Linux 49 个正式插件均已有对应入口；入口缺失清单仍有 Windows 30 个，已有入口仍需完整
+参数、架构、损坏场景和真实非空样本验收。累计正向实际镜像差分仍为 29 项（2 项限定行
+范围），涉及 9 个 Linux 插件，完整插件验收数仍为 0，完整目标保持不变。

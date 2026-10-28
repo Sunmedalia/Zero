@@ -411,6 +411,52 @@ fn targeted_dumps_and_history_on_both_samples() -> Result<()> {
             use_cache: false,
             network: false,
         };
+        // A listing plugin's optional export must bypass both cache reads and writes.
+        let fb_cache = tempfile::tempdir()?;
+        let fb_request = linux::Request {
+            cache: fb_cache.path(),
+            use_cache: true,
+            ..request(Plugin::Fbdev)
+        };
+        let Outcome::Ready(_) = session.analyze(&fb_request, &Job::default())? else {
+            anyhow::bail!("ambiguous framebuffer symbols")
+        };
+        let cached_job = Job::default();
+        let Outcome::Ready(list) = session.analyze(&fb_request, &cached_job)? else {
+            anyhow::bail!("ambiguous framebuffer symbols")
+        };
+        ensure!(
+            cached_job.served_from_cache(),
+            "framebuffer list cache not exercised"
+        );
+        let fb_output = tempfile::tempdir()?;
+        let fb_options = DumpOptions {
+            pid: 0,
+            directory: fb_output.path().into(),
+            start: None,
+            end: None,
+        };
+        let export_job = Job::default();
+        let Outcome::Ready(export) =
+            session.analyze_with_dump(&fb_request, Some(&fb_options), &export_job)?
+        else {
+            anyhow::bail!("ambiguous framebuffer symbols")
+        };
+        ensure!(
+            !export_job.served_from_cache()
+                && export.kernel_identity["fbdev"]["dump_requested"] == true,
+            "optional framebuffer export served a cached list"
+        );
+        let cached_job = Job::default();
+        let Outcome::Ready(after) = session.analyze(&fb_request, &cached_job)? else {
+            anyhow::bail!("ambiguous framebuffer symbols")
+        };
+        ensure!(
+            cached_job.served_from_cache()
+                && after.rows == list.rows
+                && after.kernel_identity["fbdev"]["dump_requested"] == false,
+            "framebuffer export replaced the listing cache"
+        );
         let Outcome::Ready(maps) = session.analyze(&request(Plugin::Maps), &job)? else {
             anyhow::bail!("ambiguous symbols")
         };

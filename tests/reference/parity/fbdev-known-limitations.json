@@ -1,0 +1,91 @@
+{
+  "schema_version": 1,
+  "engine_version": "0.2.1-native-38",
+  "reference_version": "v2.28.2",
+  "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+  "zero_executable_sha256": "ab5a50eae0e76d252c79a9eb25d30409e8fb91f4557e004f19a6c6ac11858c5c",
+  "cases": [
+    {
+      "case_id": "debian-3.2/fbdev-default",
+      "image_sha256": "8ce57b7c7b423173ce970fe8f51e7016c04ef1b4a5f73d5c5f1001d5c18780bc",
+      "reference_plugin": "linux.graphics.fbdev.Fbdev",
+      "native_output_sha256": "240dcdd3eb37f0d0c67f1a4d60b108db3283be4894f2e8dba876066eb8b4c7e0",
+      "zero_args": [],
+      "reference_args": [],
+      "reference_output_sha256": "a3cbe01dad52836a7ac8efc91954cf64867f4dee8a6f046c4bb0838d11f48589",
+      "reference_exit_code": 0,
+      "passed": false,
+      "zero_records": 0,
+      "reference_records": 0,
+      "positive_evidence": false,
+      "reason": "empty framebuffer registry: no positive object evidence",
+      "zero_complete": true
+    },
+    {
+      "case_id": "debian-3.2/fbdev-dump",
+      "image_sha256": "8ce57b7c7b423173ce970fe8f51e7016c04ef1b4a5f73d5c5f1001d5c18780bc",
+      "reference_plugin": "linux.graphics.fbdev.Fbdev",
+      "native_output_sha256": "48efd7e5ae1b4c047ee946c8ce430069292e837d49e7ff71f2db72c536d399dd",
+      "zero_args": [],
+      "reference_args": [
+        "--dump"
+      ],
+      "reference_output_sha256": "a3cbe01dad52836a7ac8efc91954cf64867f4dee8a6f046c4bb0838d11f48589",
+      "reference_exit_code": 0,
+      "passed": false,
+      "zero_records": 0,
+      "reference_records": 0,
+      "positive_evidence": false,
+      "reason": "empty framebuffer registry: no positive object evidence",
+      "zero_complete": true
+    },
+    {
+      "case_id": "kali-6.8-arm64/fbdev-default",
+      "image_sha256": "cf04d76ab9177d7ee355cc96020d29ae194c065c692304ff25e594ab510c639d",
+      "reference_plugin": "linux.graphics.fbdev.Fbdev",
+      "zero_args": [],
+      "reference_args": [],
+      "reference_output_sha256": "6a3cf5192354f71615ac51034b3e97c20eda99643fcaf5bbe6d41ad59bd12167",
+      "reference_exit_code": 1,
+      "passed": false,
+      "zero_records": 1,
+      "reference_records": null,
+      "positive_evidence": false,
+      "reason": "Pinned reference declares only Intel Linux architectures; Kali ARM64 was stacked as LinuxIntel and failed before producing rows",
+      "zero_complete": true,
+      "native_output_sha256": "32b67e5422ebabcf6f42489d7bbf7f258709880b9981e86d803b9db5e649ea86"
+    },
+    {
+      "case_id": "kali-6.8-arm64/fbdev-dump",
+      "image_sha256": "cf04d76ab9177d7ee355cc96020d29ae194c065c692304ff25e594ab510c639d",
+      "reference_plugin": "linux.graphics.fbdev.Fbdev",
+      "zero_args": [],
+      "reference_args": [
+        "--dump"
+      ],
+      "reference_output_sha256": "6a3cf5192354f71615ac51034b3e97c20eda99643fcaf5bbe6d41ad59bd12167",
+      "reference_exit_code": 1,
+      "passed": false,
+      "zero_records": 1,
+      "reference_records": null,
+      "positive_evidence": false,
+      "reason": "Pinned reference declares only Intel Linux architectures; Kali ARM64 was stacked as LinuxIntel and failed before producing rows",
+      "zero_complete": true,
+      "native_output_sha256": "7c463924f63c2f02081832837e5bfb0e86b70f7a3714131c64c3233968af575e"
+    }
+  ],
+  "native_artifact_validation": {
+    "sample": "kali-6.8-arm64",
+    "image_sha256": "cf04d76ab9177d7ee355cc96020d29ae194c065c692304ff25e594ab510c639d",
+    "symbol_sha256": "234d998fc6ec0d2640b680bcef9d42f30eaac8c8fd10428d8d36b6484f985ff5",
+    "width": 1024,
+    "height": 768,
+    "mode": "RGBA",
+    "source_bytes": 3145728,
+    "png_bytes": 16591,
+    "png_sha256": "2ef200e46715c3eb8e953007ca2d357229cd2a25f5b2a80b647c447d7a607bfe",
+    "decoded_rgba_bytes": 3145728,
+    "decoded_rgba_sha256": "5e92aaaa54622f5adaf1af07af2f5f92b1ae24d51696be8ea1daa9ee69881652",
+    "whole_plugin_reference_passed": false
+  }
+}

@@ -1,7 +1,7 @@
 fn plugin_label(plugin: Plugin) -> &'static str {
     if plugin.is_dump() {
         "dump"
-    } else if matches!(plugin, Plugin::ProcessSpoofing | Plugin::Modxview | Plugin::Kallsyms | Plugin::LinuxPsscan | Plugin::LinuxSockscan | Plugin::VmaRegExScan | Plugin::PsCallStack) {
+    } else if matches!(plugin, Plugin::ProcessSpoofing | Plugin::Modxview | Plugin::Kallsyms | Plugin::LinuxPsscan | Plugin::LinuxSockscan | Plugin::VmaRegExScan | Plugin::PsCallStack | Plugin::Fbdev) {
         plugin.descriptor().label
     } else {
         plugin
@@ -540,7 +540,7 @@ fn dump_modes(windows: bool) -> &'static [Plugin] {
             Plugin::WinDumpfiles,
         ]
     } else {
-        &[Plugin::Procdump, Plugin::Memdump, Plugin::Elfdump, Plugin::ModuleExtract]
+        &[Plugin::Procdump, Plugin::Memdump, Plugin::Elfdump, Plugin::ModuleExtract, Plugin::Fbdev]
     }
 }
 

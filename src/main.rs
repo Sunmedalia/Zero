@@ -342,9 +342,12 @@ fn main() -> Result<()> {
         let job = Job::new(|s| eprintln!("{s}"));
         let symbols = symbols.unwrap_or_else(|| PathBuf::from(&settings.symbols));
         let mut session = linux::Session::default();
-        let dump = if plugin.is_dump() {
+        let dump = if plugin.is_dump() || (plugin == Plugin::Fbdev && dump_dir.is_some()) {
             Some(zero_tui::dump::DumpOptions {
-                pid: if matches!(plugin, Plugin::ModuleExtract | Plugin::WinModdump) {
+                pid: if matches!(
+                    plugin,
+                    Plugin::ModuleExtract | Plugin::WinModdump | Plugin::Fbdev
+                ) {
                     pid.unwrap_or(0)
                 } else {
                     pid.ok_or_else(|| anyhow::anyhow!("Dump 插件必须指定 --pid"))?
@@ -378,7 +381,7 @@ fn main() -> Result<()> {
                 arch: cli.arch,
                 pagefiles: cli.pagefiles.clone(),
                 swapfile: cli.swapfile.clone(),
-                pid: if plugin.is_dump() { None } else { pid },
+                pid: if dump.is_some() { None } else { pid },
                 hive: cli.hive,
                 key: cli.key.clone(),
                 pattern: cli.pattern.clone(),

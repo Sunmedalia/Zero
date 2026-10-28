@@ -352,7 +352,7 @@ zero cache clear --scope results,identification --yes
 
 ## 7. Linux 插件参考
 
-共 61 个插件（含 `linux.pslist.PsList` 完整字段入口，详见 [Volatility 对齐进度](volatility-parity.md)）：`pslist`、`pstree`、`lsmod`、`psaux`、`envars`、`maps`、`lsof`、`sockstat`、`netscan`、`banners`、`pwd`、`pscred`、`threads`、`mountinfo`、`check_creds`、`dmesg`、`systeminfo`、`elfs`、`bash`、`malfind`、`psxview`、`check_modules`、`check_syscall`、`psstate`、`capabilities`、`fdsummary`、`procdump`、`memdump`、`elfdump`、`iomem`、`ioports`、`ptrace`、`keyboard_notifiers`、`check_exec`、`check_idt`、`tty_check`、`hidden_modules`、`library_list`、`pidhashtable`、`vmcoreinfo`、`ip_addr`、`ip_link`、`check_afinfo`、`kthreads`、`netfilter`、`tracepoints`、`ftrace`、`ebpf`、`boottime`、`pagecache`、`perf_events`、`vmayarascan`、`linux.malware.process_spoofing.ProcessSpoofing`、`linux.malware.modxview.Modxview`、`linux.module_extract.ModuleExtract`、`linux.kallsyms.Kallsyms`、`linux.psscan.PsScan`、`linux.sockscan.Sockscan`、`linux.vmaregexscan.VmaRegExScan`、`linux.pscallstack.PsCallStack`。
+共 62 个插件（含 `linux.pslist.PsList` 完整字段入口，详见 [Volatility 对齐进度](volatility-parity.md)）：`pslist`、`pstree`、`lsmod`、`psaux`、`envars`、`maps`、`lsof`、`sockstat`、`netscan`、`banners`、`pwd`、`pscred`、`threads`、`mountinfo`、`check_creds`、`dmesg`、`systeminfo`、`elfs`、`bash`、`malfind`、`psxview`、`check_modules`、`check_syscall`、`psstate`、`capabilities`、`fdsummary`、`procdump`、`memdump`、`elfdump`、`iomem`、`ioports`、`ptrace`、`keyboard_notifiers`、`check_exec`、`check_idt`、`tty_check`、`hidden_modules`、`library_list`、`pidhashtable`、`vmcoreinfo`、`ip_addr`、`ip_link`、`check_afinfo`、`kthreads`、`netfilter`、`tracepoints`、`ftrace`、`ebpf`、`boottime`、`pagecache`、`perf_events`、`vmayarascan`、`linux.malware.process_spoofing.ProcessSpoofing`、`linux.malware.modxview.Modxview`、`linux.module_extract.ModuleExtract`、`linux.kallsyms.Kallsyms`、`linux.psscan.PsScan`、`linux.sockscan.Sockscan`、`linux.vmaregexscan.VmaRegExScan`、`linux.pscallstack.PsCallStack`、`linux.graphics.fbdev.Fbdev`。
 
 TUI 插件菜单只列分析插件，转储统一在 `D` 中。这些都是本地 ISF 驱动的 Rust 实现，不执行 Volatility Python 插件。
 
@@ -372,6 +372,7 @@ TUI 插件菜单只列分析插件，转储统一在 `D` 中。这些都是本�
 | pwd | PID、Name、Root（全局路径）、CWD（相对进程根） |
 | pscred | PID、Name、UID、GID、EUID、EGID、SUID、SGID、FSUID、FSGID、CredAddress |
 | linux.malware.process_spoofing.ProcessSpoofing | PID、PPID、Exe_Path、Cmdline_Basename、Comm、Cmdline_Spoofed、Comm_Spoofed、Exe_Deleted |
+| linux.graphics.fbdev.Fbdev | Address、Device、ID、Size、Virtual resolution、BPP、State、Filename |
 | linux.pscallstack.PsCallStack | TID、Comm、Position、Address、Value、Name、Type、Module |
 | linux.vmaregexscan.VmaRegExScan | PID、Process、Offset、Text、Hex |
 | linux.sockscan.Sockscan | Sock Offset（物理地址）、Family、Type、Proto、Source Addr、Source Port、Destination Addr、Destination Port、State、Filter |
@@ -868,3 +869,30 @@ Address 显示完整虚拟地址。ARM64 保存的 SP 可从 thread.cpu_context.
 无效 SP、缺页、符号源受损及资源上限均保留诊断，不能据此证明缺失调用。覆盖与来源记录
 位于 `kernel_identity.pscallstack`。固定参考在模块地址边界计算上的已知差异见
 [Volatility 对齐进度](volatility-parity.md)，默认比较未被标记为对齐通过。
+
+
+### Framebuffer 列举与导出
+
+`linux.graphics.fbdev.Fbdev`（别名 `linux.fbdev`）默认只列举 fbdev 注册设备，Filename 为
+Disabled。大小使用虚拟高度 × line_length，保留虚拟分辨率和 RUNNING/SUSPENDED 状态。
+缺少注册符号、损坏槽位、不可读对象或设备名会报告诊断；注册数量确为零才是完整空表。
+当前枚举与固定参考一致，检查前 num_registered_fb 个槽位，上限 32。
+
+```sh
+zero --offline analyze --image images/kali.raw --symbols symbols/kali-6.8.11-arm64.json.xz \
+  --plugin linux.graphics.fbdev.Fbdev --output exports/fbdev.json
+zero --offline dump --image images/kali.raw --symbols symbols/kali-6.8.11-arm64.json.xz \
+  --mode framebuffer --dump-dir exports/framebuffers --output exports/fbdev-dump.json
+```
+
+也可在 analyze 中加 `--dump-dir` 启用导出。Start 可选择一个已注册的 fb_info 地址（见结果
+元数据），留空导出全部注册设备；不接受 PID 或 End。MCP 使用 `zero_dump(mode="framebuffer")`，
+TUI 在 fbdev 结果按 D 或在 Dump 窗口按 Alt+5，填写输出目录。结果导出元数据记录文件 SHA256、
+大小、来源读取量和颜色位域。导出绕过分析缓存，重复文件名报诊断，不覆盖既有证据文件。
+
+grayscale 为 0/1 时，按小端 packed-pixel RGBA 位域生成 PNG；支持 8..64 位字节对齐像素，
+msb_right 会翻转通道位序，无 alpha 时为不透明。按固定参考保留未缩放通道整数，超过 255
+饱和，不将 RGB565 自动放大到完整 8 位亮度。这里不做调色板解释。grayscale >1 的 FOURCC
+保留原始 RAW 字节。PNG 转换尊重行 stride，因此有行 padding 时可能与固定参考的连续
+像素读取不同；不通过忽略 padding 来制造一致。单缓冲/文件上限 256 MiB，PNG 上限 16 Mi
+像素，逐行处理并可取消；缺页不会补成黑色，未完成的文件不会发布。

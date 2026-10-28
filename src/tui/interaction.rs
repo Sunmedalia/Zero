@@ -279,7 +279,7 @@ impl App {
             }
             Command::Parameters => self.windows_parameters(),
             Command::Dump => self.open_dump(
-                if self.plugin.is_dump() {
+                if self.plugin.accepts_dump() {
                     self.plugin
                 } else {
                     Plugin::Procdump
@@ -469,7 +469,13 @@ impl App {
                         .to_string()
                 }),
         ];
-        let field = if mode == Plugin::ModuleExtract { 1 } else { 0 };
+        let field = if mode == Plugin::Fbdev {
+            3
+        } else if mode == Plugin::ModuleExtract {
+            1
+        } else {
+            0
+        };
         let cursor = fields[field].len();
         self.dialog = Some(Dialog::Dump {
             mode,

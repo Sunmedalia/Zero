@@ -227,7 +227,8 @@ impl App {
                     *mode = *plugin;
                     if matches!(
                         plugin,
-                        Plugin::ModuleExtract
+                        Plugin::Fbdev
+                            | Plugin::ModuleExtract
                             | Plugin::Elfdump
                             | Plugin::WinPedump
                             | Plugin::WinDlldump
@@ -237,9 +238,9 @@ impl App {
                         fields[1].clear();
                         fields[2].clear();
                     }
-                    if *mode == Plugin::ModuleExtract {
+                    if matches!(*mode, Plugin::ModuleExtract | Plugin::Fbdev) {
                         fields[0].clear();
-                        *field = 1;
+                        *field = if *mode == Plugin::Fbdev { 3 } else { 1 };
                     }
                     error.clear();
                 }
@@ -264,8 +265,10 @@ impl App {
                 && (*field == 4 || key.modifiers.contains(KeyModifiers::CONTROL))
             {
                 let parsed = (|| -> Result<DumpOptions> {
-                    let pid = if matches!(*mode, Plugin::WinModdump | Plugin::ModuleExtract)
-                        && fields[0].trim().is_empty()
+                    let pid = if matches!(
+                        *mode,
+                        Plugin::WinModdump | Plugin::ModuleExtract | Plugin::Fbdev
+                    ) && fields[0].trim().is_empty()
                     {
                         0
                     } else {
@@ -291,8 +294,22 @@ impl App {
                     Ok(options) => {
                         self.dump_options = Some((*mode, options));
                         self.plugin = *mode;
+                        if *mode == Plugin::Fbdev {
+                            self.analysis_options = crate::analysis::Options {
+                                os: self.analysis_options.os,
+                                arch: self.analysis_options.arch,
+                                ..Default::default()
+                            };
+                        }
                         self.page = Page::Analysis;
-                        self.menu = self.menu_items().len() - 1;
+                        self.menu = if *mode == Plugin::Fbdev {
+                            self.navigation_plugins()
+                                .iter()
+                                .position(|p| *p == Plugin::Fbdev)
+                                .unwrap_or(0)
+                        } else {
+                            self.menu_items().len() - 1
+                        };
                         self.history_revision += 1;
                         self.history = None;
                         self.query.clear();

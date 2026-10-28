@@ -3,6 +3,8 @@ use clap::ValueEnum;
 
 #[derive(Clone, Copy, Debug, ValueEnum, PartialEq, Eq)]
 pub enum Plugin {
+    #[value(name = "linux.graphics.fbdev.Fbdev", alias = "linux.fbdev")]
+    Fbdev,
     #[value(name = "linux.pscallstack.PsCallStack", alias = "linux.pscallstack")]
     PsCallStack,
     #[value(name = "linux.vmaregexscan.VmaRegExScan", alias = "linux.vmaregexscan")]
@@ -1623,8 +1625,28 @@ pub const PLUGINS: &[Descriptor] = &[
         ],
         widths: &[8, 18, 10, 18, 18, 32, 6, 16],
     },
+    Descriptor {
+        plugin: Plugin::Fbdev,
+        name: "linux.graphics.fbdev.Fbdev",
+        label: "fbdev",
+        columns: &[
+            "Address",
+            "Device",
+            "ID",
+            "Size",
+            "Virtual resolution",
+            "BPP",
+            "State",
+            "Filename",
+        ],
+        widths: &[18, 20, 16, 12, 20, 6, 12, 32],
+    },
 ];
 impl Plugin {
+    /// Some listing plugins also support explicitly requested artifact exports.
+    pub fn accepts_dump(self) -> bool {
+        self.is_dump() || self == Self::Fbdev
+    }
     pub fn accepts_pid_list(self) -> bool {
         matches!(self, Self::VmaRegExScan | Self::PsCallStack)
     }
@@ -1777,7 +1799,7 @@ impl Plugin {
             | Self::Ftrace
             | Self::PerfEvents
             | Self::Ebpf => "Integrity",
-            Self::Boottime => "System",
+            Self::Boottime | Self::Fbdev => "System",
             Self::Pagecache => "Files",
         }
     }
@@ -1788,6 +1810,7 @@ impl Plugin {
     pub fn description(self) -> &'static str {
         use Plugin::*;
         match self {
+            Fbdev => "列举 fbdev framebuffer；可显式导出 PNG 或原始像素",
             WinLdrmodules => "对照 PE 映射与三条 PEB 模块链表",
             WinHollowprocesses => "检查主程序基址及映像映射异常",
             WinSuspiciousThreads => "检查活动线程起点所在的 VAD",

@@ -22,6 +22,7 @@ pub enum Mode {
     Dll,
     Module,
     KernelModule,
+    Framebuffer,
     Files,
 }
 impl Mode {
@@ -34,6 +35,7 @@ impl Mode {
             Self::Vad => Plugin::WinVaddump,
             Self::Dll => Plugin::WinDlldump,
             Self::KernelModule => Plugin::ModuleExtract,
+            Self::Framebuffer => Plugin::Fbdev,
             Self::Module => Plugin::WinModdump,
             Self::Files => Plugin::WinDumpfiles,
         }
@@ -58,7 +60,16 @@ pub fn parse_address(text: &str) -> Result<u64, String> {
 }
 impl DumpOptions {
     pub fn validate(&self, plugin: Plugin) -> Result<()> {
-        ensure!(plugin.is_dump(), "非 Dump 插件");
+        ensure!(plugin.accepts_dump(), "非 Dump 插件");
+        if plugin == Plugin::Fbdev {
+            ensure!(self.pid == 0, "Fbdev 不接受 PID");
+            ensure!(
+                self.end.is_none(),
+                "Fbdev 不接受 End；Start 可选择 fb_info 地址"
+            );
+            ensure!(!self.directory.as_os_str().is_empty(), "必须指定转储目录");
+            return Ok(());
+        }
         if plugin == Plugin::ModuleExtract {
             ensure!(
                 self.pid == 0,
@@ -152,6 +163,9 @@ impl Linux<'_> {
     pub fn run_dump(&self, plugin: Plugin, options: &DumpOptions, job: &Job) -> Result<Results> {
         options.validate(plugin)?;
         job.check()?;
+        if plugin == Plugin::Fbdev {
+            return self.fbdev(Some(options), job);
+        }
         if plugin == Plugin::ModuleExtract {
             return self.extract_module(options, job);
         }
@@ -276,18 +290,60 @@ pub(crate) fn write_artifact(target: &Path, bytes: &[u8], job: &Job) -> Result<S
         bytes.len() as u64 <= MAX_DUMP_BYTES,
         "转储文件超过 256 MiB 上限"
     );
+    let (_, digest) = write_stream_artifact(target, job, |out| {
+        for chunk in bytes.chunks(64 * 1024) {
+            out.write_all(chunk)?;
+        }
+        Ok(())
+    })?;
+    Ok(digest)
+}
+/// Stream a bounded artifact to an unpublished file and publish without replacement.
+/// Source read errors, cancellation and collisions leave existing evidence intact.
+pub(crate) fn write_stream_artifact(
+    target: &Path,
+    job: &Job,
+    produce: impl FnOnce(&mut dyn Write) -> Result<()>,
+) -> Result<(u64, String)> {
+    job.check()?;
     let mut temp = tempfile::NamedTempFile::new_in(target.parent().context("输出文件缺少目录")?)?;
-    let mut hash = Sha256::new();
-    for chunk in bytes.chunks(64 * 1024) {
-        job.check()?;
-        temp.write_all(chunk)?;
-        hash.update(chunk);
+    struct Writer<'a> {
+        file: &'a mut std::fs::File,
+        hash: Sha256,
+        count: u64,
+        job: &'a Job,
     }
+    impl Write for Writer<'_> {
+        fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
+            self.job.check().map_err(std::io::Error::other)?;
+            if bytes.len() as u64 > MAX_DUMP_BYTES - self.count {
+                return Err(std::io::Error::other("转储文件超过 256 MiB 上限"));
+            }
+            let n = self.file.write(&bytes[..bytes.len().min(65536)])?;
+            self.hash.update(&bytes[..n]);
+            self.count += n as u64;
+            Ok(n)
+        }
+        fn flush(&mut self) -> std::io::Result<()> {
+            self.file.flush()
+        }
+    }
+    let mut writer = Writer {
+        file: temp.as_file_mut(),
+        hash: Sha256::new(),
+        count: 0,
+        job,
+    };
+    produce(&mut writer)?;
+    writer.flush()?;
+    let count = writer.count;
+    let digest = format!("{:x}", writer.hash.finalize());
     job.check()?;
     temp.as_file().sync_all()?;
+    job.check()?;
     temp.persist_noclobber(target)
         .map_err(|error| error.error)?;
-    Ok(format!("{:x}", hash.finalize()))
+    Ok((count, digest))
 }
 
 #[cfg(test)]

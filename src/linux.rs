@@ -17,6 +17,7 @@ use std::{
 mod callstack;
 mod discover;
 mod engine;
+mod fbdev;
 mod fs;
 mod hooks;
 mod kallsyms;

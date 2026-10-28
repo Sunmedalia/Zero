@@ -130,6 +130,7 @@ impl Linux<'_> {
         match plugin {
             Pslist | Pstree | Lsmod => self.kernel_list(plugin, job),
             VmaRegExScan => anyhow::bail!("此插件需要 --pattern 字节正则及扫描参数"),
+            Fbdev => self.fbdev(None, job),
             PsCallStack => self.ps_callstack(&Default::default(), job),
             LinuxSockscan => self.sockscan(job),
             LinuxPsscan => self.psscan(job),

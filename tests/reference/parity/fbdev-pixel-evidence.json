@@ -1,0 +1,79 @@
+{
+  "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+  "scope": "synthetic conversion functions only",
+  "cases": [
+    {
+      "id": "rgb565",
+      "format": "PNG",
+      "equal": true,
+      "expected_equal": true,
+      "compared_bytes": 16,
+      "native_sha256": "1c76ec7c165e5902e3f0442956c7f940f906e3c084564098547bf0b244cea924",
+      "reference_sha256": "1c76ec7c165e5902e3f0442956c7f940f906e3c084564098547bf0b244cea924"
+    },
+    {
+      "id": "rgb565/fourcc",
+      "format": "RAW",
+      "equal": true,
+      "expected_equal": true,
+      "compared_bytes": 16,
+      "native_sha256": "4ea05d0d239a313f3baf06f43223b621f67c265436141e679d5a2f2ea43ef049",
+      "reference_sha256": "4ea05d0d239a313f3baf06f43223b621f67c265436141e679d5a2f2ea43ef049"
+    },
+    {
+      "id": "padded-rgb565",
+      "format": "PNG",
+      "equal": false,
+      "expected_equal": false,
+      "compared_bytes": 16,
+      "native_sha256": "1c76ec7c165e5902e3f0442956c7f940f906e3c084564098547bf0b244cea924",
+      "reference_sha256": "1c78a187c7c73f13bed857d1293df91802191ef4813652b925635d5e8291dc28"
+    },
+    {
+      "id": "padded-rgb565/fourcc",
+      "format": "RAW",
+      "equal": true,
+      "expected_equal": true,
+      "compared_bytes": 16,
+      "native_sha256": "4ea05d0d239a313f3baf06f43223b621f67c265436141e679d5a2f2ea43ef049",
+      "reference_sha256": "4ea05d0d239a313f3baf06f43223b621f67c265436141e679d5a2f2ea43ef049"
+    },
+    {
+      "id": "rgba8",
+      "format": "PNG",
+      "equal": true,
+      "expected_equal": true,
+      "compared_bytes": 16,
+      "native_sha256": "c3a3a9c67e357494ef4813c99c2392901e151f0f1330fc8a9fb7e1db99aa976b",
+      "reference_sha256": "c3a3a9c67e357494ef4813c99c2392901e151f0f1330fc8a9fb7e1db99aa976b"
+    },
+    {
+      "id": "rgba8/fourcc",
+      "format": "RAW",
+      "equal": true,
+      "expected_equal": true,
+      "compared_bytes": 16,
+      "native_sha256": "4ea05d0d239a313f3baf06f43223b621f67c265436141e679d5a2f2ea43ef049",
+      "reference_sha256": "4ea05d0d239a313f3baf06f43223b621f67c265436141e679d5a2f2ea43ef049"
+    },
+    {
+      "id": "wide64",
+      "format": "PNG",
+      "equal": true,
+      "expected_equal": true,
+      "compared_bytes": 16,
+      "native_sha256": "5ac6a5945f16500911219129984ba8b387a06f24fe383ce4e81a73294065461b",
+      "reference_sha256": "5ac6a5945f16500911219129984ba8b387a06f24fe383ce4e81a73294065461b"
+    },
+    {
+      "id": "wide64/fourcc",
+      "format": "RAW",
+      "equal": true,
+      "expected_equal": true,
+      "compared_bytes": 16,
+      "native_sha256": "4ea05d0d239a313f3baf06f43223b621f67c265436141e679d5a2f2ea43ef049",
+      "reference_sha256": "4ea05d0d239a313f3baf06f43223b621f67c265436141e679d5a2f2ea43ef049"
+    }
+  ],
+  "counted_as_real_image_plugin_parity": false
+}

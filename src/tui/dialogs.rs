@@ -275,14 +275,18 @@ impl App {
                     ..
                 } => {
                     let labels = [
-                        if *mode == Plugin::ModuleExtract {
+                        if *mode == Plugin::Fbdev {
+                            "PID（framebuffer 不填写）"
+                        } else if *mode == Plugin::ModuleExtract {
                             "PID（模块提取不填写）"
                         } else if *mode == Plugin::WinModdump {
                             "PID（模块模式可留空）"
                         } else {
                             "PID (必填)"
                         },
-                        if *mode == Plugin::ModuleExtract {
+                        if *mode == Plugin::Fbdev {
+                            "Start（可选 fb_info 地址）"
+                        } else if *mode == Plugin::ModuleExtract {
                             "Base / Start（struct module 地址）"
                         } else {
                             "Start (0x / 十进制)"
@@ -297,6 +301,9 @@ impl App {
                         popup,
                     );
                     let hint = match mode {
+                        Plugin::Fbdev => {
+                            "导出注册 framebuffer；Start 留空选全部；PNG 位域转换，FOURCC 保留 RAW"
+                        }
                         Plugin::Memdump | Plugin::WinMemdump => {
                             "指定 PID、Start 和 End；读取该进程的用户虚拟地址范围"
                         }

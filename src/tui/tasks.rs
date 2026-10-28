@@ -66,7 +66,13 @@ impl App {
                 return;
             }
         }
-        if self.plugin.is_dump() {
+        if self.plugin.is_dump()
+            || (self.plugin == Plugin::Fbdev
+                && self
+                    .dump_options
+                    .as_ref()
+                    .is_some_and(|(p, _)| *p == Plugin::Fbdev))
+        {
             self.open_dump(self.plugin, force);
         } else {
             self.start_work(Work::Analyze(force));

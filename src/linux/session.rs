@@ -187,11 +187,13 @@ impl Session {
         options: &crate::analysis::Options,
         job: &Job,
     ) -> Result<Outcome> {
-        if request.plugin.is_dump() {
-            dump.context("Dump 插件需要 --pid、--dump-dir；memdump 还需要 --start、--end")?
-                .validate(request.plugin)?;
+        if let Some(dump) = dump {
+            dump.validate(request.plugin)?;
         } else {
-            ensure!(dump.is_none(), "非 Dump 插件不接受转储参数");
+            ensure!(
+                !request.plugin.is_dump(),
+                "Dump 插件需要 --pid、--dump-dir；memdump 还需要 --start、--end"
+            );
         }
         job.check()?;
         let image = if request.plugin == Plugin::Banners && request.use_cache {
@@ -302,7 +304,8 @@ impl Session {
             None => request.plugin.name().to_string(),
         };
         let key = store::key(&image.digest, &symbol.digest, &identity);
-        if !request.plugin.is_dump()
+        if dump.is_none()
+            && !request.plugin.is_dump()
             && request.use_cache
             && let Some(mut result) = store::load(request.cache, &key)
                 .or_else(|| store::load_partial(request.cache, &key))
@@ -327,7 +330,7 @@ impl Session {
             vm: VirtualMemory::new(&image, root),
             isf: &symbol,
         };
-        let result = if request.plugin.is_dump() {
+        let result = if dump.is_some() || request.plugin.is_dump() {
             engine.run_dump(request.plugin, dump.context("Dump 插件需要转储参数")?, job)?
         } else if request.plugin == Plugin::PsCallStack {
             engine.ps_callstack(options, job)?
@@ -345,7 +348,7 @@ impl Session {
             engine.run(request.plugin, job)?
         };
         job.check()?;
-        if request.use_cache && !request.plugin.is_dump() {
+        if request.use_cache && dump.is_none() && !request.plugin.is_dump() {
             store::save_any(
                 request.cache,
                 &key,

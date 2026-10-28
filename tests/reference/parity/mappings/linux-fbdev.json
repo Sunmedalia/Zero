@@ -1,0 +1,56 @@
+{
+  "version": 1,
+  "allow_partial": true,
+  "keys": [
+    "Address"
+  ],
+  "fields": {
+    "Address": {
+      "zero": "Address",
+      "reference": "Address",
+      "type": "address",
+      "reference_type": "address48"
+    },
+    "Device": {
+      "zero": "Device",
+      "reference": "Device",
+      "type": "text",
+      "zero_type": "na_text",
+      "allow_absent": true
+    },
+    "ID": {
+      "zero": "ID",
+      "reference": "ID",
+      "type": "text",
+      "zero_type": "na_text",
+      "allow_absent": true
+    },
+    "Size": {
+      "zero": "Size",
+      "reference": "Size",
+      "type": "integer"
+    },
+    "Virtual resolution": {
+      "zero": "Virtual resolution",
+      "reference": "Virtual resolution",
+      "type": "text"
+    },
+    "BPP": {
+      "zero": "BPP",
+      "reference": "BPP",
+      "type": "integer"
+    },
+    "State": {
+      "zero": "State",
+      "reference": "State",
+      "type": "text"
+    },
+    "Filename": {
+      "zero": "Filename",
+      "reference": "Filename",
+      "type": "text",
+      "zero_type": "na_text",
+      "allow_absent": true
+    }
+  }
+}
