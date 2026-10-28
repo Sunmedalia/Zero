@@ -606,6 +606,13 @@ impl Linux<'_> {
     }
 }
 
+impl Linux<'_> {
+    pub(super) fn module_extraction_bounds(&self) -> Result<(Vec<(u64, u64)>, bool)> {
+        let regions = self.module_regions(&[])?;
+        Ok((regions.ranges, regions.allocator_bounds))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

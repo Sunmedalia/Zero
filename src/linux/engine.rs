@@ -225,7 +225,7 @@ impl Linux<'_> {
                 self.hidden_modules(&mut r, job)?;
                 Ok(r)
             }
-            Procdump | Memdump | Elfdump | WinLdrmodules | WinHollowprocesses
+            ModuleExtract | Procdump | Memdump | Elfdump | WinLdrmodules | WinHollowprocesses
             | WinSuspiciousThreads | WinCallbacks | WinUnloadedmodules | WinFilescan
             | WinMutantscan | WinGetsids | WinConnscan | WinSockscan | WinConsoles | WinCmdscan
             | WinDrivercheck | WinDriverscan | WinSvcscan | WinCrashinfo | WinAutoruns

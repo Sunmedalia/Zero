@@ -101,7 +101,7 @@ enum Command {
         dump_dir: PathBuf,
         #[arg(long)]
         output: PathBuf,
-        #[arg(long, value_parser = zero_tui::dump::parse_address)]
+        #[arg(long, alias = "base", value_parser = zero_tui::dump::parse_address)]
         start: Option<u64>,
         #[arg(long, value_parser = zero_tui::dump::parse_address)]
         end: Option<u64>,
@@ -129,7 +129,7 @@ enum Command {
         #[arg(long)]
         dump_dir: Option<PathBuf>,
         /// User virtual address, decimal or 0x hex; end is exclusive.
-        #[arg(long, value_parser = zero_tui::dump::parse_address)]
+        #[arg(long, alias = "base", value_parser = zero_tui::dump::parse_address)]
         start: Option<u64>,
         #[arg(long, value_parser = zero_tui::dump::parse_address)]
         end: Option<u64>,
@@ -326,7 +326,11 @@ fn main() -> Result<()> {
         let mut session = linux::Session::default();
         let dump = if plugin.is_dump() {
             Some(zero_tui::dump::DumpOptions {
-                pid: pid.ok_or_else(|| anyhow::anyhow!("Dump 插件必须指定 --pid"))?,
+                pid: if matches!(plugin, Plugin::ModuleExtract | Plugin::WinModdump) {
+                    pid.unwrap_or(0)
+                } else {
+                    pid.ok_or_else(|| anyhow::anyhow!("Dump 插件必须指定 --pid"))?
+                },
                 directory: dump_dir
                     .ok_or_else(|| anyhow::anyhow!("Dump 插件必须指定 --dump-dir"))?,
                 start,

@@ -91,7 +91,7 @@ def inventory(checkout):
     entries = []
     import re
     zero = re.findall(r'\bname: "([^"]+)"', (ROOT / 'src/plugin.rs').read_text())
-    overrides = {'linux.malware.modxview.Modxview': 'linux.malware.modxview.Modxview', 'linux.malware.process_spoofing.ProcessSpoofing': 'linux.malware.process_spoofing.ProcessSpoofing', 'linux.pslist.PsList': 'linux.pslist.PsList', 'linux.ip.Addr': 'ip_addr', 'linux.ip.Link': 'ip_link', 'linux.proc.Maps': 'maps', 'linux.kmsg.Kmsg': 'dmesg',
+    overrides = {'linux.module_extract.ModuleExtract': 'linux.module_extract.ModuleExtract', 'linux.malware.modxview.Modxview': 'linux.malware.modxview.Modxview', 'linux.malware.process_spoofing.ProcessSpoofing': 'linux.malware.process_spoofing.ProcessSpoofing', 'linux.pslist.PsList': 'linux.pslist.PsList', 'linux.ip.Addr': 'ip_addr', 'linux.ip.Link': 'ip_link', 'linux.proc.Maps': 'maps', 'linux.kmsg.Kmsg': 'dmesg',
                  'linux.kthreads.Kthreads': 'kthreads', 'windows.info.Info': 'windows.systeminfo',
                  'windows.registry.hashdump.Hashdump': 'windows.hashdump',
                  'windows.registry.lsadump.Lsadump': 'windows.lsadump',

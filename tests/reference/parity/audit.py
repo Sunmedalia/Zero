@@ -33,6 +33,12 @@ def audit(manifest, evidence, contracts=None):
                 raise ValueError('claimed parity lacks a positive full-field comparison')
             if not item.get('sample_source') or len(item.get('image_sha256', '')) != 64:
                 raise ValueError('claimed parity lacks reproducible sample identity')
+            if item['reference_plugin'] == 'linux.module_extract.ModuleExtract':
+                artifacts = item.get('artifacts', [])
+                if not artifacts or any(not a.get('passed') or a.get('zero_sha256') != a.get('reference_sha256')
+                                        or len(a.get('zero_sha256', '')) != 64 or a.get('zero_bytes', 0) <= 0
+                                        or a.get('zero_bytes') != a.get('reference_bytes') for a in artifacts):
+                    raise ValueError('module extraction parity lacks matching file evidence')
             identity = (item['reference_plugin'], item['case_id'])
             if identity in passed_cases:
                 raise ValueError('duplicate case evidence')

@@ -1,0 +1,24 @@
+{
+  "version": 1,
+  "allow_partial": true,
+  "keys": [
+    "base"
+  ],
+  "fields": {
+    "base": {
+      "zero": "Base",
+      "reference": "Base",
+      "type": "address"
+    },
+    "size": {
+      "zero": "File Size",
+      "reference": "File Size",
+      "type": "integer"
+    },
+    "file": {
+      "zero": "File output",
+      "reference": "File output",
+      "type": "text"
+    }
+  }
+}

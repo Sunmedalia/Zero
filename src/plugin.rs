@@ -3,6 +3,11 @@ use clap::ValueEnum;
 
 #[derive(Clone, Copy, Debug, ValueEnum, PartialEq, Eq)]
 pub enum Plugin {
+    #[value(
+        name = "linux.module_extract.ModuleExtract",
+        alias = "linux.module_extract"
+    )]
+    ModuleExtract,
     #[value(name = "linux.malware.modxview.Modxview", alias = "linux.modxview")]
     Modxview,
     #[value(
@@ -1544,6 +1549,13 @@ pub const PLUGINS: &[Descriptor] = &[
         ],
         widths: &[20, 18, 10, 10, 10, 0],
     },
+    Descriptor {
+        plugin: Plugin::ModuleExtract,
+        name: "linux.module_extract.ModuleExtract",
+        label: "module_extract",
+        columns: &["Base", "File Size", "File output"],
+        widths: &[18, 12, 0],
+    },
 ];
 impl Plugin {
     pub fn descriptor(self) -> &'static Descriptor {
@@ -1552,7 +1564,8 @@ impl Plugin {
     pub fn is_dump(self) -> bool {
         matches!(
             self,
-            Self::Procdump
+            Self::ModuleExtract
+                | Self::Procdump
                 | Self::Memdump
                 | Self::Elfdump
                 | Self::WinProcdump
@@ -1670,7 +1683,8 @@ impl Plugin {
             | Self::Elfdump => "Memory",
             Self::Fdsummary | Self::Lsof | Self::Mountinfo => "Files",
             Self::Sockstat | Self::Netscan | Self::IpAddr | Self::IpLink => "Network",
-            Self::Modxview
+            Self::ModuleExtract
+            | Self::Modxview
             | Self::ProcessSpoofing
             | Self::KeyboardNotifiers
             | Self::CheckCreds
@@ -1702,6 +1716,7 @@ impl Plugin {
             WinLdrmodules => "对照 PE 映射与三条 PEB 模块链表",
             WinHollowprocesses => "检查主程序基址及映像映射异常",
             WinSuspiciousThreads => "检查活动线程起点所在的 VAD",
+            ModuleExtract => "从指定 struct module 地址重建并导出模块 ELF",
             Modxview => "对照模块链表、sysfs 与独立内存扫描，并解析 taint 标记",
             ProcessSpoofing => "比较可执行路径、argv[0] 与进程名称，识别身份伪装线索",
             CheckExec => "检查 Linux 主程序代码映射与可执行文件",

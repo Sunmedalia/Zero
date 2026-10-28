@@ -335,5 +335,161 @@
     "symbol_sha256": "c3b0b875a2d0498fffc0df1259ff49b850cea28355ffddf02e2f90d34a89fbe1",
     "zero_executable_sha256": "16b4e6212c27422d5480ace21e707caf51f7dc843f241882d94d3548cbe8f6dc",
     "engine_version": "0.2.1-native-31"
+  },
+  {
+    "sample": "debian-3.2",
+    "sample_source": "https://github.com/volatilityfoundation/volatility3-test-data/releases/download/v0.0.1/linux-sample-1.bin.gz",
+    "case_id": "debian-3.2/module-extract-scsi-mod",
+    "zero_args": [
+      "--base",
+      "0xffffffffa00230f0"
+    ],
+    "reference_args": [
+      "--base",
+      "0xffffffffa00230f0"
+    ],
+    "image_sha256": "8ce57b7c7b423173ce970fe8f51e7016c04ef1b4a5f73d5c5f1001d5c18780bc",
+    "reference_plugin": "linux.module_extract.ModuleExtract",
+    "zero_plugin": "linux.module_extract.ModuleExtract",
+    "passed": true,
+    "mapping_sha256": "81175a9a1f2e4dbd2112cb4578c03daf6e9586fa9bc8e1267c32804b0dd80f69",
+    "comparison": {
+      "schema_version": 1,
+      "mapping_version": 1,
+      "zero_records": 1,
+      "reference_records": 1,
+      "missing": [],
+      "extra": [],
+      "duplicates": [],
+      "conflicts": [],
+      "unverifiable": [],
+      "all_columns_mapped": true,
+      "positive_evidence": true,
+      "zero_complete": false,
+      "zero_diagnostics": [
+        "模块 ELF 补零: 2 个缺失范围已按参考重建格式补零；范围详见 module_extract 元数据"
+      ],
+      "passed": true
+    },
+    "artifacts": [
+      {
+        "name": "kernel_module.scsi_mod.0xffffffffa00230f0.elf",
+        "zero_sha256": "959101c55ecb845a83a81957ea22601239fa9be804e3e9bc71e94d8de3843d4d",
+        "reference_sha256": "959101c55ecb845a83a81957ea22601239fa9be804e3e9bc71e94d8de3843d4d",
+        "zero_bytes": 198956,
+        "reference_bytes": 198956,
+        "passed": true
+      }
+    ],
+    "native_output_sha256": "547624adecbc626f87f49682e11c4374f76452217975a09b743cbec1dc1272f8",
+    "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+    "reference_output_sha256": "741b511845f516e4776a4b9565aff9e57ddb30ffa4a1dbed3312d66a298788be",
+    "symbol_sha256": "c3b0b875a2d0498fffc0df1259ff49b850cea28355ffddf02e2f90d34a89fbe1",
+    "zero_executable_sha256": "ef249fae9c8add354a1b74bb43dd5d065102e7e21da3549a7892ffbd3db2a0d8",
+    "engine_version": "0.2.1-native-32"
+  },
+  {
+    "sample": "debian-3.2",
+    "sample_source": "https://github.com/volatilityfoundation/volatility3-test-data/releases/download/v0.0.1/linux-sample-1.bin.gz",
+    "case_id": "debian-3.2/module-extract-ata-generic",
+    "zero_args": [
+      "--base",
+      "0xffffffffa003a5a0"
+    ],
+    "reference_args": [
+      "--base",
+      "0xffffffffa003a5a0"
+    ],
+    "image_sha256": "8ce57b7c7b423173ce970fe8f51e7016c04ef1b4a5f73d5c5f1001d5c18780bc",
+    "reference_plugin": "linux.module_extract.ModuleExtract",
+    "zero_plugin": "linux.module_extract.ModuleExtract",
+    "passed": true,
+    "mapping_sha256": "81175a9a1f2e4dbd2112cb4578c03daf6e9586fa9bc8e1267c32804b0dd80f69",
+    "comparison": {
+      "schema_version": 1,
+      "mapping_version": 1,
+      "zero_records": 1,
+      "reference_records": 1,
+      "missing": [],
+      "extra": [],
+      "duplicates": [],
+      "conflicts": [],
+      "unverifiable": [],
+      "all_columns_mapped": true,
+      "positive_evidence": true,
+      "zero_complete": false,
+      "zero_diagnostics": [
+        "模块 ELF 补零: 4 个缺失范围已按参考重建格式补零；范围详见 module_extract 元数据"
+      ],
+      "passed": true
+    },
+    "artifacts": [
+      {
+        "name": "kernel_module.ata_generic.0xffffffffa003a5a0.elf",
+        "zero_sha256": "f9138b2bba58b475753efd581fbc6653742e67e57c4ef3a72c8f08583cea9150",
+        "reference_sha256": "f9138b2bba58b475753efd581fbc6653742e67e57c4ef3a72c8f08583cea9150",
+        "zero_bytes": 223686,
+        "reference_bytes": 223686,
+        "passed": true
+      }
+    ],
+    "native_output_sha256": "90711a0b5eed735b7dd281b8ca1914606fd6fc574b15164a790812a2c69e2885",
+    "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+    "reference_output_sha256": "86a254ebb09f25779b39f1517c608777a64808bf16d8966971442406b2439de7",
+    "symbol_sha256": "c3b0b875a2d0498fffc0df1259ff49b850cea28355ffddf02e2f90d34a89fbe1",
+    "zero_executable_sha256": "ef249fae9c8add354a1b74bb43dd5d065102e7e21da3549a7892ffbd3db2a0d8",
+    "engine_version": "0.2.1-native-32"
+  },
+  {
+    "sample": "debian-3.2",
+    "sample_source": "https://github.com/volatilityfoundation/volatility3-test-data/releases/download/v0.0.1/linux-sample-1.bin.gz",
+    "case_id": "debian-3.2/module-extract-scsi-mod-masked-base",
+    "zero_args": [
+      "--base",
+      "0xffffa00230f0"
+    ],
+    "reference_args": [
+      "--base",
+      "0xffffa00230f0"
+    ],
+    "image_sha256": "8ce57b7c7b423173ce970fe8f51e7016c04ef1b4a5f73d5c5f1001d5c18780bc",
+    "reference_plugin": "linux.module_extract.ModuleExtract",
+    "zero_plugin": "linux.module_extract.ModuleExtract",
+    "passed": true,
+    "mapping_sha256": "81175a9a1f2e4dbd2112cb4578c03daf6e9586fa9bc8e1267c32804b0dd80f69",
+    "comparison": {
+      "schema_version": 1,
+      "mapping_version": 1,
+      "zero_records": 1,
+      "reference_records": 1,
+      "missing": [],
+      "extra": [],
+      "duplicates": [],
+      "conflicts": [],
+      "unverifiable": [],
+      "all_columns_mapped": true,
+      "positive_evidence": true,
+      "zero_complete": false,
+      "zero_diagnostics": [
+        "模块 ELF 补零: 2 个缺失范围已按参考重建格式补零；范围详见 module_extract 元数据"
+      ],
+      "passed": true
+    },
+    "artifacts": [
+      {
+        "name": "kernel_module.scsi_mod.0xffffa00230f0.elf",
+        "zero_sha256": "959101c55ecb845a83a81957ea22601239fa9be804e3e9bc71e94d8de3843d4d",
+        "reference_sha256": "959101c55ecb845a83a81957ea22601239fa9be804e3e9bc71e94d8de3843d4d",
+        "zero_bytes": 198956,
+        "reference_bytes": 198956,
+        "passed": true
+      }
+    ],
+    "native_output_sha256": "3f999fe0965dbe2c04c7936667b1ef7384fed46aecbf39e2144f3ab2ccb413ed",
+    "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+    "reference_output_sha256": "fe48fde8044fa7216f940e4ff7007fde297fbb51b42af879f5845ece4d98f0a4",
+    "symbol_sha256": "c3b0b875a2d0498fffc0df1259ff49b850cea28355ffddf02e2f90d34a89fbe1",
+    "zero_executable_sha256": "ef249fae9c8add354a1b74bb43dd5d065102e7e21da3549a7892ffbd3db2a0d8",
+    "engine_version": "0.2.1-native-32"
   }
 ]

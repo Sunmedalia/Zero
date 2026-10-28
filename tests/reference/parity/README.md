@@ -88,3 +88,13 @@ compare all six fields over 79 Debian modules. `Taints` alone declares reference
 which Zero renders as empty text. Ordinary text nulls remain unverifiable.
 These cases require complete native output. Synthetic coverage of hidden modules
 and damaged views is not real-sample proof of those behaviors.
+
+ModuleExtract cases use `module-extract.example.json`. With `artifact_dump: true`,
+the runner creates fresh `zero-files` / `reference-files` directories, compares
+all output files by relative filename, nonzero length and SHA256, and records
+those hashes along with the full-field comparison. Reusing an existing case's
+binary directories is refused. The audit requires matching binary evidence for
+ModuleExtract; matching filenames and reported lengths alone cannot pass.
+The mapping allows partial native output because the public sample requires
+explicitly recorded zero padding to reproduce the reference reconstruction.
+Original samples remain read-only, and no recovered binaries enter this repository.

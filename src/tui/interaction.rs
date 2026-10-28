@@ -447,11 +447,12 @@ impl App {
                         .to_string()
                 }),
         ];
-        let cursor = fields[0].len();
+        let field = if mode == Plugin::ModuleExtract { 1 } else { 0 };
+        let cursor = fields[field].len();
         self.dialog = Some(Dialog::Dump {
             mode,
             fields,
-            field: 0,
+            field,
             cursor,
             selected: true,
             force,

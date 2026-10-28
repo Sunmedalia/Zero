@@ -177,7 +177,8 @@ impl App {
                     *mode = *plugin;
                     if matches!(
                         plugin,
-                        Plugin::Elfdump
+                        Plugin::ModuleExtract
+                            | Plugin::Elfdump
                             | Plugin::WinPedump
                             | Plugin::WinDlldump
                             | Plugin::WinModdump
@@ -185,6 +186,10 @@ impl App {
                     ) {
                         fields[1].clear();
                         fields[2].clear();
+                    }
+                    if *mode == Plugin::ModuleExtract {
+                        fields[0].clear();
+                        *field = 1;
                     }
                     error.clear();
                 }
@@ -209,7 +214,9 @@ impl App {
                 && (*field == 4 || key.modifiers.contains(KeyModifiers::CONTROL))
             {
                 let parsed = (|| -> Result<DumpOptions> {
-                    let pid = if *mode == Plugin::WinModdump && fields[0].trim().is_empty() {
+                    let pid = if matches!(*mode, Plugin::WinModdump | Plugin::ModuleExtract)
+                        && fields[0].trim().is_empty()
+                    {
                         0
                     } else {
                         fields[0].trim().parse::<u32>().context("请输入有效 PID")?

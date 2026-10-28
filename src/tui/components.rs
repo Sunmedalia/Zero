@@ -540,7 +540,7 @@ fn dump_modes(windows: bool) -> &'static [Plugin] {
             Plugin::WinDumpfiles,
         ]
     } else {
-        &[Plugin::Procdump, Plugin::Memdump, Plugin::Elfdump]
+        &[Plugin::Procdump, Plugin::Memdump, Plugin::Elfdump, Plugin::ModuleExtract]
     }
 }
 

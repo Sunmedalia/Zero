@@ -21,6 +21,7 @@ mod hooks;
 mod kernel;
 mod malware;
 mod memory;
+mod module_elf;
 mod modules;
 mod net;
 mod netdev;

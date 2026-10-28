@@ -4334,3 +4334,27 @@ fn module_plain_taints_parameter_validates_and_separates_results() {
     assert_ne!(before, app.request_key());
     assert!(app.job.is_none());
 }
+
+#[test]
+fn linux_module_extract_dump_mode_requires_base_and_no_pid() {
+    let mut app = app();
+    app.open_dump(Plugin::Procdump, false);
+    app.dialog_key(KeyEvent::new(KeyCode::Char('4'), KeyModifiers::ALT));
+    assert!(
+        matches!(&app.dialog, Some(Dialog::Dump { mode: Plugin::ModuleExtract, field: 1, fields, .. }) if fields[0].is_empty() && fields[1].is_empty())
+    );
+    app.dialog_key(KeyEvent::new(KeyCode::Enter, KeyModifiers::CONTROL));
+    assert!(matches!(&app.dialog, Some(Dialog::Dump { error, .. }) if error.contains("--base")));
+    if let Some(Dialog::Dump { fields, .. }) = &mut app.dialog {
+        fields[1] = "0xffffffffa00230f0".into();
+    }
+    // Saving an invalid PID must not start a worker.
+    if let Some(Dialog::Dump { fields, .. }) = &mut app.dialog {
+        fields[0] = "1".into();
+    }
+    app.dialog_key(KeyEvent::new(KeyCode::Enter, KeyModifiers::CONTROL));
+    assert!(
+        matches!(&app.dialog, Some(Dialog::Dump { error, .. }) if error.contains("不接受 PID"))
+    );
+    assert!(app.job.is_none());
+}

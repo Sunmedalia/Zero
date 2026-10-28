@@ -42,3 +42,8 @@ Modxview；多 PID 列表仍作为公共参数基础缺口保留，不因本批�
 Modxview 实现三个独立视图和 taint 两种输出，默认及 plain-taints 的公开 Debian 样本
 差分通过。真实隐藏/tainted 模块和现代内核的边界差分仍需补齐。接下来推进共享模块
 ELF/section 读取基础及 ModuleExtract，不跳过前述未验收边界。
+
+第三批实现：共享模块符号/section 读取及原子重建文件发布基础已落地；ModuleExtract
+的 x86_64 入口接入 CLI/TUI/MCP。两个公开 Debian 模块的全字段与 ELF 文件内容比较通过，
+缺页补零范围显式保留。32 位重建、现代内核真实样本及边界差分仍在缺口中；下一步继续
+kallsyms 共用的模块符号读取与核心符号解码，不把本批能力视为完整插件验收。

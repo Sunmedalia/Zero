@@ -191,7 +191,7 @@ flowchart TD
 
 ### Dump
 
-`D` 打开转储表单：Linux 提供 Process／Range／ELF，Windows 提供 Process／Range／PE，用 Alt+1／2／3 切换模式，Tab／Shift+Tab 切换字段。结果行含 PID 时自动预填，仍需点击“开始转储”或 Ctrl+Enter 明确执行；Esc 取消。默认目录为导出目录下的 `dumps/`。详见 [7.4](#74-dump)。
+`D` 打开转储表单：Linux 提供 Process／Range／ELF／模块 ELF，Windows 提供 Process／Range／PE 等模式，用 Alt+数字 切换模式，Tab／Shift+Tab 切换字段。结果行含 PID 时自动预填，仍需点击“开始转储”或 Ctrl+Enter 明确执行；Esc 取消。默认目录为导出目录下的 `dumps/`。详见 [7.4](#74-dump)。
 
 ## 5. 快捷键与鼠标
 
@@ -315,7 +315,7 @@ zero dump --image images/WinDump/WinDump.mem --symbols symbols/nt.json.xz \
   --mode files --pid 7688 --dump-dir exports/files
 ```
 
-推荐使用 `dump --mode`；Linux 为 `process|range|elf`，Windows 为 `process|range|pe|vad|dll|module|files`。原 `analyze --plugin procdump|memdump|elfdump` 调用保持兼容。
+推荐使用 `dump --mode`；Linux 为 `process|range|elf|kernel-module`，Windows 为 `process|range|pe|vad|dll|module|files`。原 `analyze --plugin procdump|memdump|elfdump` 调用保持兼容。
 
 ### 6.3 符号识别、下载与生成
 
@@ -352,7 +352,7 @@ zero cache clear --scope results,identification --yes
 
 ## 7. Linux 插件参考
 
-共 55 个插件（含 `linux.pslist.PsList` 完整字段入口，详见 [Volatility 对齐进度](volatility-parity.md)）：`pslist`、`pstree`、`lsmod`、`psaux`、`envars`、`maps`、`lsof`、`sockstat`、`netscan`、`banners`、`pwd`、`pscred`、`threads`、`mountinfo`、`check_creds`、`dmesg`、`systeminfo`、`elfs`、`bash`、`malfind`、`psxview`、`check_modules`、`check_syscall`、`psstate`、`capabilities`、`fdsummary`、`procdump`、`memdump`、`elfdump`、`iomem`、`ioports`、`ptrace`、`keyboard_notifiers`、`check_exec`、`check_idt`、`tty_check`、`hidden_modules`、`library_list`、`pidhashtable`、`vmcoreinfo`、`ip_addr`、`ip_link`、`check_afinfo`、`kthreads`、`netfilter`、`tracepoints`、`ftrace`、`ebpf`、`boottime`、`pagecache`、`perf_events`、`vmayarascan`、`linux.malware.process_spoofing.ProcessSpoofing`、`linux.malware.modxview.Modxview`。
+共 56 个插件（含 `linux.pslist.PsList` 完整字段入口，详见 [Volatility 对齐进度](volatility-parity.md)）：`pslist`、`pstree`、`lsmod`、`psaux`、`envars`、`maps`、`lsof`、`sockstat`、`netscan`、`banners`、`pwd`、`pscred`、`threads`、`mountinfo`、`check_creds`、`dmesg`、`systeminfo`、`elfs`、`bash`、`malfind`、`psxview`、`check_modules`、`check_syscall`、`psstate`、`capabilities`、`fdsummary`、`procdump`、`memdump`、`elfdump`、`iomem`、`ioports`、`ptrace`、`keyboard_notifiers`、`check_exec`、`check_idt`、`tty_check`、`hidden_modules`、`library_list`、`pidhashtable`、`vmcoreinfo`、`ip_addr`、`ip_link`、`check_afinfo`、`kthreads`、`netfilter`、`tracepoints`、`ftrace`、`ebpf`、`boottime`、`pagecache`、`perf_events`、`vmayarascan`、`linux.malware.process_spoofing.ProcessSpoofing`、`linux.malware.modxview.Modxview`、`linux.module_extract.ModuleExtract`。
 
 TUI 插件菜单只列分析插件，转储统一在 `D` 中。这些都是本地 ISF 驱动的 Rust 实现，不执行 Volatility Python 插件。
 
@@ -372,6 +372,7 @@ TUI 插件菜单只列分析插件，转储统一在 `D` 中。这些都是本�
 | pwd | PID、Name、Root（全局路径）、CWD（相对进程根） |
 | pscred | PID、Name、UID、GID、EUID、EGID、SUID、SGID、FSUID、FSGID、CredAddress |
 | linux.malware.process_spoofing.ProcessSpoofing | PID、PPID、Exe_Path、Cmdline_Basename、Comm、Cmdline_Spoofed、Comm_Spoofed、Exe_Deleted |
+| linux.module_extract.ModuleExtract | Base（struct module 地址）、File Size、File output；SHA256 和补零范围在元数据中 |
 | linux.malware.modxview.Modxview | Name、Address、In procfs、In sysfs、In scan、Taints |
 | threads | PID、Name、TID、ThreadName、Address |
 | mountinfo | PID、Name、MountID、ParentID、Device、MountPoint、FileSystem、Flags、Address |
@@ -726,3 +727,18 @@ zero --offline analyze --image images/linux-sample-1.bin --symbols /path/to/exac
 
 省略 `--plain-taints` 时输出描述性 taint 名称。完整差分验收边界见
 [Volatility 对齐进度](volatility-parity.md)。
+
+
+Linux 模块 ELF 重建（当前支持 x86_64）：
+
+```sh
+zero --offline analyze --image images/linux-sample-1.bin --symbols /path/to/exact.json.xz \
+  --plugin linux.module_extract.ModuleExtract --base 0xffffffffa00230f0 \
+  --dump-dir exports/module-elf --output module-elf.json
+# 等价入口：dump --mode kernel-module --base ADDRESS，无需 PID。
+```
+
+Base 是 `struct module` 地址，可从 Modxview 的 Address 列获取；不是 lsmod 的模块代码起点。
+输出基于驻留节与符号表重建，与固定 Volatility 参考格式一致；节尺寸与索引属于重建启发式，
+不等同原始磁盘 .ko。缺页按该格式补零，结果标为部分，并在 `kernel_identity.module_extract`
+记录内存地址、文件偏移、长度及文件 SHA256。符号表不可读则不发布文件，不覆盖已有文件。

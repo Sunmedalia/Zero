@@ -20,6 +20,21 @@ def digest(path):
         return hashlib.file_digest(stream, 'sha256').hexdigest()
 
 
+def compare_artifacts(native, reference):
+    left = {str(p.relative_to(native)): p for p in native.rglob('*') if p.is_file()}
+    right = {str(p.relative_to(reference)): p for p in reference.rglob('*') if p.is_file()}
+    records = []
+    for name in sorted(left.keys() | right.keys()):
+        n, r = left.get(name), right.get(name)
+        record = {'name': name, 'zero_sha256': digest(n) if n else None,
+                  'reference_sha256': digest(r) if r else None,
+                  'zero_bytes': n.stat().st_size if n else None,
+                  'reference_bytes': r.stat().st_size if r else None}
+        record['passed'] = bool(n and r and record['zero_bytes'] > 0 and record['zero_sha256'] == record['reference_sha256'])
+        records.append(record)
+    return records
+
+
 def execute(command, output, log, timeout):
     started = time.monotonic()
     with output.open('wb') as stdout, log.open('wb') as stderr:
@@ -55,14 +70,24 @@ def run(config, output, zero, checkout, python, timeout):
         destination.mkdir(exist_ok=True)
         native_output = destination / 'zero.json'
         reference_output = destination / 'reference.json'
+        artifacts = case.get('artifact_dump', False)
+        zero_files, ref_files = destination / 'zero-files', destination / 'reference-files'
+        if artifacts:
+            # Every run gets fresh evidence paths; never reuse prior binary dumps.
+            zero_files.mkdir()
+            ref_files.mkdir()
         zero_cmd = [str(zero), '--offline', 'analyze', '--image', str(Path(sample['image']).resolve()),
                     '--symbols', str(Path(sample['zero_symbols']).resolve()), '--plugin', case['zero_plugin'],
                     '--no-cache', '--output', str(native_output.resolve()), *case.get('zero_args', [])]
+        if artifacts:
+            zero_cmd += ['--dump-dir', str(zero_files)]
         # Zero exports JSON itself; console output is kept separately.
         native = execute(zero_cmd, destination / 'zero.stdout', destination / 'zero.stderr', timeout)
         ref_cmd = [str(python), str(checkout / 'vol.py'), '--offline', '--cache-path', str(cache),
                    '-s', str(Path(sample['reference_symbols']).resolve()), '-f', str(Path(sample['image']).resolve()),
                    '-r', 'json', case['reference_plugin'], *case.get('reference_args', [])]
+        if artifacts:
+            ref_cmd[2:2] = ['-o', str(ref_files)]
         reference = execute(ref_cmd, reference_output, destination / 'reference.stderr', timeout)
         record = {'sample': sample['id'], 'sample_source': sample.get('source'),
                   'case_id': case.get('id', str(index)),
@@ -82,6 +107,9 @@ def run(config, output, zero, checkout, python, timeout):
                 raise ValueError('native engine failed without an explicitly accepted partial result')
             record['comparison'] = compare(n, json.loads(reference_output.read_text()), mapping)
             record['passed'] = record['comparison']['passed']
+            if artifacts:
+                record['artifacts'] = compare_artifacts(zero_files, ref_files)
+                record['passed'] = record['passed'] and bool(record['artifacts']) and all(item['passed'] for item in record['artifacts'])
             record['native_output_sha256'] = digest(native_output)
         except (OSError, ValueError, KeyError) as error:
             record['error'] = str(error)

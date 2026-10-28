@@ -2508,3 +2508,82 @@ fn modern_boottime_uses_exact_anonymous_symbol_type() {
     assert_eq!(result.rows[0], ["BootTimeUnix", "1700000000"]);
     assert_eq!(result.rows[2], ["BootTimeNanos", "456789000"]);
 }
+
+#[test]
+fn kernel_module_cli_and_mcp_validate_selectors_before_image_access() -> Result<()> {
+    let dir = tempfile::tempdir()?;
+    let cli = std::process::Command::new(env!("CARGO_BIN_EXE_zero"))
+        .current_dir(dir.path())
+        .args([
+            "--offline",
+            "analyze",
+            "--image",
+            "absent.raw",
+            "--plugin",
+            "linux.module_extract.ModuleExtract",
+            "--dump-dir",
+            "evidence",
+            "--output",
+            "manifest.json",
+        ])
+        .output()?;
+    assert!(!cli.status.success());
+    assert!(String::from_utf8_lossy(&cli.stderr).contains("--base"));
+    let requests = [
+        json!({"jsonrpc":"2.0","id":1,"method":"tools/list"}),
+        mcp_call(
+            2,
+            "zero_dump",
+            json!({"image":"absent.raw","mode":"kernel-module","dump_dir":"evidence","output":"manifest.json","offline":true}),
+        ),
+        mcp_call(
+            3,
+            "zero_dump",
+            json!({"image":"absent.raw","mode":"kernel-module","pid":1,"start":"0xffffffffa00230f0","dump_dir":"evidence","output":"manifest.json","offline":true}),
+        ),
+        mcp_call(
+            4,
+            "zero_dump",
+            json!({"image":"absent.raw","mode":"process","dump_dir":"evidence","output":"manifest.json","offline":true}),
+        ),
+    ];
+    let input = requests
+        .iter()
+        .map(|r| format!("{r}\n"))
+        .collect::<String>();
+    let replies = mcp_exchange(dir.path(), &input)?;
+    let tool = replies[0]["result"]["tools"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|t| t["name"] == "zero_dump")
+        .unwrap();
+    assert!(
+        tool["inputSchema"]["properties"]["mode"]["enum"]
+            .as_array()
+            .unwrap()
+            .contains(&json!("kernel-module"))
+    );
+    assert!(
+        !tool["inputSchema"]["required"]
+            .as_array()
+            .unwrap()
+            .contains(&json!("pid"))
+    );
+    for (reply, expected) in replies[1..]
+        .iter()
+        .zip(["--base", "不接受 PID", "必须指定非零 PID"])
+    {
+        assert_eq!(reply["result"]["isError"], true, "{reply}");
+        assert!(
+            reply["result"]["content"][0]["text"]
+                .as_str()
+                .unwrap()
+                .contains(expected),
+            "{reply}"
+        );
+    }
+    assert!(!dir.path().join("manifest.json").exists());
+    assert!(!dir.path().join("evidence").exists());
+    Ok(())
+}

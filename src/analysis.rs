@@ -57,6 +57,12 @@ pub fn analyze(
         !options.plain_taints || request.plugin == Plugin::Modxview,
         "plain_taints 仅支持 linux.malware.modxview.Modxview"
     );
+    if request.plugin.is_dump() {
+        dump.context("Dump 插件需要转储参数")?
+            .validate(request.plugin)?;
+    } else {
+        ensure!(dump.is_none(), "非 Dump 插件不接受转储参数");
+    }
     let image = if request.plugin == crate::linux::Plugin::Banners && request.use_cache {
         session.identify_image(request.image, request.cache, job)?
     } else {

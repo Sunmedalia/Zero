@@ -263,12 +263,18 @@ impl App {
                     ..
                 } => {
                     let labels = [
-                        if *mode == Plugin::WinModdump {
+                        if *mode == Plugin::ModuleExtract {
+                            "PID（模块提取不填写）"
+                        } else if *mode == Plugin::WinModdump {
                             "PID（模块模式可留空）"
                         } else {
                             "PID (必填)"
                         },
-                        "Start (0x / 十进制)",
+                        if *mode == Plugin::ModuleExtract {
+                            "Base / Start（struct module 地址）"
+                        } else {
+                            "Start (0x / 十进制)"
+                        },
                         "End (不包含)",
                         "转储目录 (必填)",
                     ];
@@ -281,6 +287,9 @@ impl App {
                     let hint = match mode {
                         Plugin::Memdump | Plugin::WinMemdump => {
                             "指定 PID、Start 和 End；读取该进程的用户虚拟地址范围"
+                        }
+                        Plugin::ModuleExtract => {
+                            "填写 struct module 地址；重建模块 ELF，缺页补零范围写入诊断和元数据"
                         }
                         Plugin::WinPedump => "指定 PID；按 PE 节表重建可读 PE",
                         Plugin::Elfdump => "指定 PID；导出含 ELF 头的可读映射（不重建磁盘 ELF）",

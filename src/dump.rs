@@ -21,6 +21,7 @@ pub enum Mode {
     Vad,
     Dll,
     Module,
+    KernelModule,
     Files,
 }
 impl Mode {
@@ -32,6 +33,7 @@ impl Mode {
             Self::Pe => Plugin::WinPedump,
             Self::Vad => Plugin::WinVaddump,
             Self::Dll => Plugin::WinDlldump,
+            Self::KernelModule => Plugin::ModuleExtract,
             Self::Module => Plugin::WinModdump,
             Self::Files => Plugin::WinDumpfiles,
         }
@@ -57,6 +59,18 @@ pub fn parse_address(text: &str) -> Result<u64, String> {
 impl DumpOptions {
     pub fn validate(&self, plugin: Plugin) -> Result<()> {
         ensure!(plugin.is_dump(), "非 Dump 插件");
+        if plugin == Plugin::ModuleExtract {
+            ensure!(
+                self.pid == 0,
+                "ModuleExtract 不接受 PID；按 struct module 地址提取"
+            );
+            ensure!(
+                self.start.is_some() && self.end.is_none(),
+                "ModuleExtract 需要 --base / --start，且不接受 End"
+            );
+            ensure!(!self.directory.as_os_str().is_empty(), "必须指定转储目录");
+            return Ok(());
+        }
         // moddump targets kernel modules and has no owning process.
         ensure!(
             self.pid > 0 || plugin == Plugin::WinModdump,
@@ -138,6 +152,9 @@ impl Linux<'_> {
     pub fn run_dump(&self, plugin: Plugin, options: &DumpOptions, job: &Job) -> Result<Results> {
         options.validate(plugin)?;
         job.check()?;
+        if plugin == Plugin::ModuleExtract {
+            return self.extract_module(options, job);
+        }
         let (listed, tasks) = self.tasks(plugin, job)?;
         let pid = options.pid.to_string();
         let task = tasks
@@ -252,6 +269,27 @@ impl Linux<'_> {
         Ok(result)
     }
 }
+/// Atomically publish reconstructed evidence without replacing an existing file.
+/// Producers retain responsibility for recording any inferred or padded bytes.
+pub(crate) fn write_artifact(target: &Path, bytes: &[u8], job: &Job) -> Result<String> {
+    ensure!(
+        bytes.len() as u64 <= MAX_DUMP_BYTES,
+        "转储文件超过 256 MiB 上限"
+    );
+    let mut temp = tempfile::NamedTempFile::new_in(target.parent().context("输出文件缺少目录")?)?;
+    let mut hash = Sha256::new();
+    for chunk in bytes.chunks(64 * 1024) {
+        job.check()?;
+        temp.write_all(chunk)?;
+        hash.update(chunk);
+    }
+    job.check()?;
+    temp.as_file().sync_all()?;
+    temp.persist_noclobber(target)
+        .map_err(|error| error.error)?;
+    Ok(format!("{:x}", hash.finalize()))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

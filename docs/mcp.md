@@ -33,7 +33,7 @@ CLI 对应 `--threads`、`--decorate-comm`，详见 [对齐进度](volatility-pa
 
 `offline: true` 禁止该调用的符号网络请求。离线且没有远程索引时，用 `zero_analyze` 的 `banners` 插件识别内核，`zero_symbols` 仍需要索引。`zero_results` 只读取本服务快照，不访问镜像或网络。
 
-`zero_dump` 要求显式 PID、目录和清单路径，最多返回 200 条清单行；完整清单见 output，不使用分析快照分页。
+`zero_dump` 要求显式目录和清单路径；进程模式还要求 PID，`module` 模式可省略 PID，`kernel-module` 模式使用 start 指定 struct module 地址且不接受 PID，最多返回 200 条清单行；完整清单见 output，不使用分析快照分页。
 
 ```sh
 cargo test --locked --test native mcp_
@@ -44,3 +44,5 @@ cargo test --locked --test native mcp_
 在线下载精确 PDB 时，微软返回 HTTP 404 会自动转向 [Volatility 官方 Windows 符号包](https://downloads.volatilityfoundation.org/volatility3/symbols/windows.zip)。程序用 HTTPS Range 读取 ZIP 目录和精确条目，不下载整个包；按 PDB 名称、GUID 和 Age 找到候选后，再校验 ISF 内部身份和架构。未知或多个候选明确报错，禁止使用邻近构建。
 
 取得的 ISF 和来源清单保存到 `.zero/rust/symbols/isf/windows/`，后续可以离线复用。`offline: true` 不访问微软或官方 ZIP。超时、503、损坏 PDB 与转换失败不会自动触发官方包下载；已有 PDB 缓存失效后重新下载若返回 404，则会使用同一兜底路径。官方包也无精确匹配时，错误会保留身份及原因，TUI 提示导入精确符号。
+
+`zero_dump` 的 `mode: "kernel-module"` 对应 Linux ModuleExtract，输出重建 ELF；补零范围、文件 SHA256 与完整路径保留在结果元数据中。

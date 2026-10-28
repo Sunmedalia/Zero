@@ -86,3 +86,5 @@ make screenshots     # Rust 示例使用真实引擎与同一个 Buffer 输出 S
 TUI 仅通过 Rust 类型和线程通道调用引擎，迁移期间的 `tui-backend` 子命令已移除。对外 MCP 接口详见 [MCP 说明](mcp.md)。
 
 `linux.malware.modxview.Modxview` 的参数窗口提供“模块 taint 简写”布尔项；该参数按插件保存草稿，并区分结果与缓存。
+
+Linux 的 D 转储窗口新增 Alt+4「module_extract」：Base / Start 填写 struct module 地址，PID 留空，End 留空。文件写入需点击开始转储或 Ctrl+Enter 执行。

@@ -1862,8 +1862,10 @@
         "File Size",
         "File output"
       ],
-      "zero_candidates": [],
-      "status": "missing",
+      "zero_candidates": [
+        "linux.module_extract.ModuleExtract"
+      ],
+      "status": "mapped_unverified",
       "evidence": []
     },
     {
