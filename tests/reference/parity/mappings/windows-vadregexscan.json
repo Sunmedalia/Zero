@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "allow_partial": true,
+  "keys": [
+    "PID",
+    "Offset"
+  ],
+  "fields": {
+    "PID": {
+      "zero": "PID",
+      "reference": "PID",
+      "type": "integer"
+    },
+    "Process": {
+      "zero": "Process",
+      "reference": "Process",
+      "type": "text"
+    },
+    "Offset": {
+      "zero": "Offset",
+      "reference": "Offset",
+      "type": "address"
+    },
+    "Text": {
+      "zero": "Text",
+      "reference": "Text",
+      "type": "text"
+    },
+    "Hex": {
+      "zero": "Hex",
+      "reference": "Hex",
+      "type": "text"
+    }
+  }
+}

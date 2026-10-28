@@ -243,8 +243,10 @@ impl Linux<'_> {
             | WinVerinfo | WinMftscan | WinOrphanThreads | WinEtwpatch | WinScheduledTasks
             | WinAmcache | WinCertificates | WinProcessghosting | WinJoblinks | WinTimeliner
             | WinMbrscan | WinTimers | WinStatistics | WinShimcache | WinVirtmap
-            | WinVadyarascan | WinVaddump | WinDlldump | WinModdump | WinHashdump | WinLsadump
-            | WinCachedump | WinDumpfiles | WinThrdscan => Err(unrouted(plugin)),
+            | WinVadRegExScan | WinVadyarascan | WinVaddump | WinDlldump | WinModdump
+            | WinHashdump | WinLsadump | WinCachedump | WinDumpfiles | WinThrdscan => {
+                Err(unrouted(plugin))
+            }
         }
     }
     /// Processes use directional object recovery; module traversal remains

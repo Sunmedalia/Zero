@@ -176,3 +176,28 @@ case explicitly asserts a difference: Zero respects line_length; the reference
 consumes pixels consecutively across row padding. `fbdev-pixel-evidence.json` keeps
 those synthetic hashes and the known divergence, separately from whole-plugin
 real-image evidence. Runtime Zero has no Python/Pillow dependency.
+
+### Windows VadRegExScan
+
+`vadregexscan.example.json` compares all five columns on the public OSForensics
+Windows 10 15063 image, including standalone PID controls for the multi-PID cases.
+The exact PDB identity is 0C9CC659210046EC84231597DADFDB3B1. Both engines use the same
+native PDB-derived ISF; these tests do not independently validate type conversion.
+Before running, copy that exact cached ISF to the declared reference symbol path
+without changing its bytes (both hashes are pinned in the configuration).
+
+PID 468 has 27 matching positive rows. The other eight cases remain failed: every
+extra native row is matched to native prototype-page recovery evidence, with no
+missing reference rows or common-field conflicts. No rows are removed to make a
+case pass. The combined configuration deliberately exits nonzero. Page recovery
+can make native output larger than reference output; it does not establish a
+hidden-memory finding. Partial coverage/tree warnings remain explicit.
+
+`vadregexscan-maxsize.example.json` separately preserves the reference's unused
+maxsize parameter. With maxsize=4, common-record Text/Hex differ; this is not marked
+passed. `vadregexscan-known-differences.json` records counts, origin validation,
+coverage and output hashes, never recovered match contents. The scanner can skip
+only proven zero-page-table spans, with every skipped byte retained in unavailable
+coverage. Nonzero software PTEs and missing page-table pages still use recovery or
+the bounded page-by-page fallback. The compatibility matrix records synthetic x64
+coverage; the one real positive PID case is not generalized to all Windows builds.

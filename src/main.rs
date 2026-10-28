@@ -41,13 +41,13 @@ struct Cli {
     /// (UTF-16LE) or hex:4d5a??00 with ?? wildcards; byte regex for VmaRegExScan.
     #[arg(long, global = true)]
     pattern: Option<String>,
-    /// PID list for VmaRegExScan / PsCallStack (comma-separated or repeated).
+    /// PID list for VmaRegExScan / VadRegExScan / PsCallStack (comma-separated or repeated).
     #[arg(long, global = true, value_delimiter = ',')]
     pids: Vec<u32>,
     /// Include unresolved nonzero saved stack words in PsCallStack.
     #[arg(long, global = true)]
     unresolved: bool,
-    /// Display context bytes for VmaRegExScan (default 128, maximum 4096).
+    /// Display context bytes for VmaRegExScan / VadRegExScan (default 128, maximum 4096).
     #[arg(long, global = true)]
     maxsize: Option<usize>,
     /// Include user threads in linux.pslist.PsList.

@@ -189,7 +189,7 @@ impl App {
                             format!(
                                 "{} {}",
                                 if *field == index { "›" } else { " " },
-                                if self.plugin == Plugin::VmaRegExScan && index == 7 {
+                                if self.plugin.is_regex_scan() && index == 7 {
                                     "字节正则（保留空格）"
                                 } else if self.plugin.accepts_pid_list() && index == 2 {
                                     "PID 列表（逗号或空格分隔；可选）"

@@ -896,3 +896,35 @@ msb_right 会翻转通道位序，无 alpha 时为不透明。按固定参考保
 保留原始 RAW 字节。PNG 转换尊重行 stride，因此有行 padding 时可能与固定参考的连续
 像素读取不同；不通过忽略 padding 来制造一致。单缓冲/文件上限 256 MiB，PNG 上限 16 Mi
 像素，逐行处理并可取消；缺页不会补成黑色，未完成的文件不会发布。
+
+
+### Windows VAD 字节正则扫描
+
+`windows.vadregexscan.VadRegExScan`（别名 `windows.vadregexscan`）与 Linux VmaRegExScan
+共用 PCRE2 字节扫描和显示处理，输出 PID、Process、Offset、Text、Hex 全部五字段。
+
+```sh
+zero --offline analyze --image images/feat-windows-plugins/WinDump/WinDump.mem \
+  --plugin windows.vadregexscan.VadRegExScan --pids 844,7688 --pattern 'MZ' \
+  --output exports/vadregex.json
+```
+
+`--pid` 与 `--pids` 在扫描前取并集，`--maxsize` 为 1..4096，默认 128；这些参数和模式均参与
+Windows 缓存身份。TUI 参数面板与 MCP zero_analyze 使用相同参数，正则中的空格保留。
+搜索默认 DOTALL，显示时另做无默认 DOTALL 的锚定重匹配；Text 为 UTF-8 替换解码，Hex
+保留完整显示字节。固定参考声明 maxsize 却固定读取 128 字节，非默认参数差异单独报告。
+PCRE2 与 Python re 的完整语法仍有边界，不能把个别用例一致当作全部语法兼容。
+
+扫描只依赖带有效 VAD tag 的范围和进程内存映射，不要求同时读出文件名或保护字段；父指针
+不一致会报告诊断，并继续验证子节点。遍历有地址、tag、循环、数量和深度校验；相邻范围
+合并，不同物理页但虚拟连续可以跨页匹配。页面读取复用 Windows prototype、transition、
+分页附件及压缩页恢复。仅对已读到零页表项的范围做稀疏跳转，避免大型保留 VAD 耗尽逐页
+尝试预算；跳过的范围仍计入未读覆盖，既不补零搜索，也不证明没有内容。
+
+资源上限与 Linux 正则扫描相同：每进程驻留读取 256 MiB、100 万次页面尝试，16 MiB
+分块和 4 KiB 重叠，总输出 10 万行 / 128 MiB。命中上限、缺页或损坏对象保留已验证前缀
+并标记部分，覆盖元数据位于 kernel_identity.vad_regex_scan，部分结果不进入成功缓存。
+
+Windows 正则结果还在 recovered_start_page_hits 中记录命中起始页的恢复来源；这不是整个
+跨页匹配的逐字节来源清单。参考扫描层未读取 prototype 页时，Zero 可以多出恢复命中，
+默认逐字段差分保留为未通过，不据此宣称隐藏内存或恶意行为。

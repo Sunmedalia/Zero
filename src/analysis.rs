@@ -52,7 +52,7 @@ pub struct Options {
 }
 /// Scan plugins need a pattern and no other plugin accepts one.
 pub fn validate_pattern(plugin: crate::linux::Plugin, options: &Options) -> Result<()> {
-    if plugin == Plugin::VmaRegExScan {
+    if plugin.is_regex_scan() {
         let text = options
             .pattern
             .as_deref()
@@ -81,11 +81,11 @@ pub fn analyze(
     ensure!(options.pids.len() <= 4096, "PID 列表超过 4096 项");
     ensure!(
         options.pids.is_empty() || request.plugin.accepts_pid_list(),
-        "pids 当前仅用于 VmaRegExScan / PsCallStack"
+        "pids 当前仅用于 VmaRegExScan / VadRegExScan / PsCallStack"
     );
     ensure!(
-        options.maxsize.is_none() || request.plugin == Plugin::VmaRegExScan,
-        "maxsize 仅用于 VmaRegExScan"
+        options.maxsize.is_none() || request.plugin.is_regex_scan(),
+        "maxsize 仅用于 VmaRegExScan / VadRegExScan"
     );
     ensure!(
         !options.unresolved || request.plugin == Plugin::PsCallStack,
@@ -165,7 +165,7 @@ pub fn analyze(
     let pattern = options
         .pattern
         .as_deref()
-        .filter(|_| request.plugin != Plugin::VmaRegExScan)
+        .filter(|_| !request.plugin.is_regex_scan())
         .map(crate::pattern::Pattern::parse)
         .transpose()?;
     ensure!(

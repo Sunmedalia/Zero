@@ -14,6 +14,12 @@ pub(super) struct Vad {
     pub private: bool,
     pub path: String,
 }
+struct VadTree<'a> {
+    root: u64,
+    offset: u64,
+    node_type: &'a str,
+    children: [&'static str; 2],
+}
 impl Windows<'_> {
     /// The native PEB, or `None` when `EPROCESS.Peb` was read and is zero.
     ///
@@ -242,15 +248,7 @@ impl Windows<'_> {
         }
         Ok(())
     }
-    pub(super) fn vads(&self, p: &Process, job: &Job) -> Result<Vec<Vad>> {
-        self.vads_partial(p, job, None)
-    }
-    pub(super) fn vads_partial(
-        &self,
-        p: &Process,
-        job: &Job,
-        mut result: Option<&mut Results>,
-    ) -> Result<Vec<Vad>> {
+    fn vad_tree(&self, p: &Process) -> Result<VadTree<'_>> {
         let isf = self.vm.isf;
         let root_addr = self.field(p.address, "_EPROCESS", "VadRoot")?;
         let root_field = isf.field("_EPROCESS", "VadRoot")?;
@@ -282,6 +280,124 @@ impl Windows<'_> {
         } else {
             ["LeftChild", "RightChild"]
         };
+        Ok(VadTree {
+            root,
+            offset,
+            node_type,
+            children,
+        })
+    }
+    /// Minimal VAD coverage for scanners: a readable range does not require a
+    /// readable filename/protection field. Tags and bounded child traversal match
+    /// the pinned reference; parent inconsistencies are evidence, not a reason to
+    /// discard an independently tagged child with readable bounds.
+    pub(super) fn vad_scan_ranges(
+        &self,
+        p: &Process,
+        r: &mut Results,
+        job: &Job,
+    ) -> Result<Vec<(u64, u64)>> {
+        let tree = self.vad_tree(p)?;
+        let parent = ["ParentValue", "u1.Parent"]
+            .into_iter()
+            .find(|f| self.vm.isf.has_field(tree.node_type, f));
+        let high = self.vm.isf.has_field("_MMVAD_SHORT", "StartingVpnHigh");
+        let mut stack = vec![(tree.root, 0usize)];
+        let mut seen = HashSet::new();
+        let mut ranges = Vec::new();
+        while let Some((node, depth)) = stack.pop() {
+            job.check()?;
+            if node == 0 {
+                continue;
+            }
+            let read = (|| -> Result<()> {
+                ensure!(
+                    self.vm.kernel(node)
+                        && seen.insert(node)
+                        && seen.len() <= MAX_OBJECTS
+                        && depth <= 100,
+                    "VAD 节点地址/循环/深度/数量无效"
+                );
+                let address = node.checked_sub(tree.offset).context("VAD 地址下溢")?;
+                let mut tag = [0; 4];
+                let tag_address = address
+                    .checked_sub(if self.vm.pointer_size() == 8 { 12 } else { 4 })
+                    .context("VAD tag 地址下溢")?;
+                let tag_read = self.vm.read(tag_address, &mut tag);
+                let recognized = tag_read.is_ok()
+                    && tag.starts_with(b"Vad")
+                    && std::str::from_utf8(&tag).is_ok();
+                ensure!(recognized || depth == 0, "VAD pool tag 无法验证");
+                // Push right before left so traversal follows the reference's left-first order.
+                for field in tree.children.into_iter().rev() {
+                    match self.number(node, tree.node_type, field) {
+                        Ok(child) if child != 0 => {
+                            if let Some(parent) = parent {
+                                match self.number(child, tree.node_type, parent) {
+                                    Ok(value) if value & !3 == node => (),
+                                    value => Self::issue(
+                                        r,
+                                        format!("PID {} VAD {node:#x} {field}", p.pid),
+                                        format!(
+                                            "父指针不可读或不一致；继续验证带 tag 的子节点: {value:?}"
+                                        ),
+                                    ),
+                                }
+                            }
+                            stack.push((child, depth + 1));
+                        }
+                        Ok(_) => (),
+                        Err(error) => {
+                            Self::issue(r, format!("PID {} VAD {node:#x} {field}", p.pid), error)
+                        }
+                    }
+                }
+                if recognized {
+                    let mut start = self.number(address, "_MMVAD_SHORT", "StartingVpn")?;
+                    let mut end = self.number(address, "_MMVAD_SHORT", "EndingVpn")?;
+                    if high {
+                        start |= self.number(address, "_MMVAD_SHORT", "StartingVpnHigh")? << 32;
+                        end |= self.number(address, "_MMVAD_SHORT", "EndingVpnHigh")? << 32;
+                    }
+                    let start = start.checked_mul(4096).context("VAD 地址溢出")?;
+                    let end = end
+                        .checked_add(1)
+                        .and_then(|n| n.checked_mul(4096))
+                        .context("VAD 地址溢出")?;
+                    ensure!(start < end && end <= 0x0000_8000_0000_0000, "VAD 范围无效");
+                    ranges.push((start, end));
+                } else {
+                    Self::issue(
+                        r,
+                        format!("PID {} VAD root {node:#x}", p.pid),
+                        "根节点无有效 tag，仅遍历其子节点",
+                    );
+                }
+                Ok(())
+            })();
+            if let Err(error) = read {
+                job.check()?;
+                Self::issue(r, format!("PID {} VAD {node:#x}", p.pid), error);
+            }
+            if seen.len() >= MAX_OBJECTS {
+                break;
+            }
+        }
+        Ok(ranges)
+    }
+    pub(super) fn vads(&self, p: &Process, job: &Job) -> Result<Vec<Vad>> {
+        self.vads_partial(p, job, None)
+    }
+    pub(super) fn vads_partial(
+        &self,
+        p: &Process,
+        job: &Job,
+        mut result: Option<&mut Results>,
+    ) -> Result<Vec<Vad>> {
+        let isf = self.vm.isf;
+        let tree = self.vad_tree(p)?;
+        let (root, offset, node_type, children) =
+            (tree.root, tree.offset, tree.node_type, tree.children);
         // Layout probes are properties of the symbol file, not of the node, so
         // they are resolved once instead of once per VAD.
         let parent_field = ["ParentValue", "u1.Parent"]

@@ -37,12 +37,15 @@ impl App {
     pub(super) fn request_analysis(&mut self, force: bool) {
         if matches!(
             self.plugin,
-            Plugin::Vmayarascan | Plugin::WinVadyarascan | Plugin::VmaRegExScan
+            Plugin::Vmayarascan
+                | Plugin::WinVadyarascan
+                | Plugin::VmaRegExScan
+                | Plugin::WinVadRegExScan
         ) && self
             .analysis_options
             .pattern
             .as_ref()
-            .is_none_or(|p| self.plugin != Plugin::VmaRegExScan && p.trim().is_empty())
+            .is_none_or(|p| !self.plugin.is_regex_scan() && p.trim().is_empty())
         {
             self.windows_parameters();
             return;

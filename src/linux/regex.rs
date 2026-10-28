@@ -52,23 +52,16 @@ impl Linux<'_> {
                             output_limit = true;
                             return Ok(false);
                         }
-                        let (bytes, missing) =
-                            regex_scan::context(at, maxsize, job, |address, bytes| {
-                                vm.read(address, bytes)
-                            })?;
-                        context_missing += missing;
-                        // The fixed reference rescans with re.match (without the
-                        // scan engine's implicit DOTALL) to determine display bytes.
-                        let matched = display.anchored(&bytes, job)?;
-                        let bytes = matched
-                            .as_ref()
-                            .map_or(bytes.as_slice(), |range| &bytes[range.clone()]);
-                        let text = String::from_utf8_lossy(bytes).into_owned();
-                        let encoded = bytes
-                            .iter()
-                            .map(|b| format!("{b:02x}"))
-                            .collect::<Vec<_>>()
-                            .join(" ");
+                        let shown = regex_scan::display_match(
+                            &display,
+                            at,
+                            maxsize,
+                            job,
+                            |address, bytes| vm.read(address, bytes),
+                        )?;
+                        context_missing += shown.unreadable_bytes;
+                        let text = shown.text;
+                        let encoded = shown.hex;
                         let size = text.len() + encoded.len() + task.name.len() + 64;
                         if output_bytes + size > 128 * 1024 * 1024 {
                             output_limit = true;

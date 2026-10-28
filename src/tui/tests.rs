@@ -4496,3 +4496,31 @@ fn framebuffer_dump_is_optional_has_no_pid_and_validates_selector_without_runnin
     ));
     assert!(app.job.is_none());
 }
+
+#[test]
+fn windows_vad_regex_parameters_preserve_spaces_pid_union_and_context_identity() {
+    let mut app = app();
+    app.windows = true;
+    app.select_plugin(Plugin::WinVadRegExScan);
+    app.windows_parameters();
+    assert!(app.parameter_fields(false).contains(&15));
+    let before = app.request_key();
+    if let Some(Dialog::WindowsParameters { fields, .. }) = &mut app.dialog {
+        fields[2] = "4,8".into();
+        fields[7] = " AB ".into();
+        fields[15] = "4".into();
+    }
+    app.dialog_key(KeyEvent::new(KeyCode::Enter, KeyModifiers::CONTROL));
+    assert!(app.dialog.is_none());
+    assert_eq!(app.analysis_options.pids, [4, 8]);
+    assert_eq!(app.analysis_options.pattern.as_deref(), Some(" AB "));
+    assert_eq!(app.analysis_options.maxsize, Some(4));
+    assert_ne!(before, app.request_key());
+    app.windows_parameters();
+    if let Some(Dialog::WindowsParameters { fields, .. }) = &mut app.dialog {
+        fields[7] = "(".into();
+    }
+    app.dialog_key(KeyEvent::new(KeyCode::Enter, KeyModifiers::CONTROL));
+    assert!(app.dialog.is_some());
+    assert_eq!(app.analysis_options.pattern.as_deref(), Some(" AB "));
+}

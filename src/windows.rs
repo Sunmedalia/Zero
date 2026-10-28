@@ -41,6 +41,7 @@ mod pe_info;
 mod pool;
 mod process;
 mod process_checks;
+mod regex;
 mod registry;
 mod registry_artifacts;
 mod security;
@@ -163,6 +164,43 @@ impl<'a> Memory<'a> {
             table = entry & geometry.mask();
         }
         Ok(table | (va & 4095))
+    }
+    /// Conservative skip hint for a zero page-table entry in this read-only image.
+    /// Nonzero software/prototype/pagefile PTEs, missing tables and captured-page
+    /// holes produce no hint and still pass through the normal recovery reader.
+    pub(super) fn absent_end(&self, va: u64, limit: u64) -> Option<u64> {
+        let geometry = self.paging().ok()?;
+        if !geometry.canonical(va) {
+            return None;
+        }
+        let mut table = self.root & geometry.root_mask();
+        for (level, &shift) in geometry.shifts().iter().enumerate() {
+            let index = ((va >> shift) & (geometry.entries(level) as u64 - 1)) as usize;
+            let mut entry = geometry.entry(self.image, table, index).ok()?;
+            if entry == 0 {
+                return Some((va | ((1u64 << shift) - 1)).checked_add(1)?.min(limit));
+            }
+            if entry & 1 == 0 {
+                if entry & (1 << 11) != 0 && entry & (1 << 10) == 0 {
+                    entry = self.transition_frame(entry, geometry).ok()?
+                        | if geometry.arch == Architecture::Arm64 {
+                            3
+                        } else {
+                            1
+                        };
+                } else {
+                    return None;
+                }
+            }
+            if geometry.block(entry, shift) {
+                return None;
+            }
+            if geometry.arch == Architecture::Arm64 && entry & 3 != 3 {
+                return None;
+            }
+            table = entry & geometry.mask();
+        }
+        None
     }
     pub fn read(&self, mut va: u64, mut out: &mut [u8]) -> Result<()> {
         va.checked_add(out.len() as u64)
@@ -520,6 +558,9 @@ impl Windows<'_> {
     }
     pub fn run(&self, p: Plugin, options: &Options, job: &Job) -> Result<Results> {
         job.check()?;
+        if p == Plugin::WinVadRegExScan {
+            return self.vad_regex_scan(options, job);
+        }
         let mut result = self.result(p);
         if p == Plugin::WinSysteminfo {
             result.rows = vec![
@@ -944,7 +985,7 @@ pub(crate) fn analyze_resolved(
         &image.digest,
         &isf.digest,
         &format!(
-            "{}:{:?}:{:?}:{}:{}",
+            "{}:{:?}:{:?}:{}:{}:pids={:?}:maxsize={:?}",
             request.plugin.name(),
             options.pid,
             options.hive,
@@ -954,7 +995,9 @@ pub(crate) fn analyze_resolved(
                 options.key,
                 options.pattern.as_deref().unwrap_or_default(),
                 sha2::Sha256::digest(network::LAYOUTS.as_bytes())
-            )
+            ),
+            options.pids,
+            options.maxsize
         ),
     );
     if request.use_cache
@@ -977,6 +1020,7 @@ pub(crate) fn analyze_resolved(
         engine.run(request.plugin, options, job)?
     };
     if let Some(pid) = options.pid
+        && !request.plugin.accepts_pid_list()
         && let Some(index) = result.columns.iter().position(|c| c == "PID")
     {
         result.rows.retain(|row| row[index] == pid.to_string());

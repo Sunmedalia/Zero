@@ -188,7 +188,10 @@ impl App {
         }
         if matches!(
             self.plugin,
-            Plugin::Vmayarascan | Plugin::WinVadyarascan | Plugin::VmaRegExScan
+            Plugin::Vmayarascan
+                | Plugin::WinVadyarascan
+                | Plugin::VmaRegExScan
+                | Plugin::WinVadRegExScan
         ) {
             fields.push(7);
         }
@@ -207,7 +210,7 @@ impl App {
         if self.plugin == Plugin::Kallsyms {
             fields.extend(11..15);
         }
-        if self.plugin == Plugin::VmaRegExScan {
+        if self.plugin.is_regex_scan() {
             fields.push(15);
         }
         if self.plugin == Plugin::PsCallStack {

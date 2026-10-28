@@ -3,6 +3,11 @@ use clap::ValueEnum;
 
 #[derive(Clone, Copy, Debug, ValueEnum, PartialEq, Eq)]
 pub enum Plugin {
+    #[value(
+        name = "windows.vadregexscan.VadRegExScan",
+        alias = "windows.vadregexscan"
+    )]
+    WinVadRegExScan,
     #[value(name = "linux.graphics.fbdev.Fbdev", alias = "linux.fbdev")]
     Fbdev,
     #[value(name = "linux.pscallstack.PsCallStack", alias = "linux.pscallstack")]
@@ -1641,14 +1646,24 @@ pub const PLUGINS: &[Descriptor] = &[
         ],
         widths: &[18, 20, 16, 12, 20, 6, 12, 32],
     },
+    Descriptor {
+        plugin: Plugin::WinVadRegExScan,
+        name: "windows.vadregexscan.VadRegExScan",
+        label: "vadregexscan",
+        columns: &["PID", "Process", "Offset", "Text", "Hex"],
+        widths: &[8, 20, 18, 40, 48],
+    },
 ];
 impl Plugin {
     /// Some listing plugins also support explicitly requested artifact exports.
     pub fn accepts_dump(self) -> bool {
         self.is_dump() || self == Self::Fbdev
     }
+    pub fn is_regex_scan(self) -> bool {
+        matches!(self, Self::VmaRegExScan | Self::WinVadRegExScan)
+    }
     pub fn accepts_pid_list(self) -> bool {
-        matches!(self, Self::VmaRegExScan | Self::PsCallStack)
+        self.is_regex_scan() || self == Self::PsCallStack
     }
     pub fn descriptor(self) -> &'static Descriptor {
         PLUGINS.iter().find(|d| d.plugin == self).unwrap()
@@ -1746,7 +1761,10 @@ impl Plugin {
             Self::WinStatistics => "Memory",
             Self::WinShimcache => "Files",
             Self::WinVirtmap => "Memory",
-            Self::WinVadyarascan | Self::VmaRegExScan | Self::Vmayarascan => "Memory",
+            Self::WinVadRegExScan
+            | Self::WinVadyarascan
+            | Self::VmaRegExScan
+            | Self::Vmayarascan => "Memory",
             Self::Kallsyms
             | Self::Banners
             | Self::Systeminfo
@@ -1922,6 +1940,7 @@ impl Plugin {
             WinStatistics => "统计内核地址空间的有效、换出与空页表项",
             WinShimcache => "解码 SYSTEM hive 中的 AppCompatCache 执行痕迹",
             WinVirtmap => "列出内核虚拟地址空间按用途划分的区域",
+            WinVadRegExScan => "按字节正则扫描 Windows 全部 VAD，保留缺页覆盖诊断",
             WinVadyarascan => "在进程 VAD 中搜索指定的文本或十六进制字节模式",
             VmaRegExScan => "按字节正则扫描进程全部虚拟内存区域",
             Vmayarascan => "在进程 VMA 中搜索指定的文本或十六进制字节模式",

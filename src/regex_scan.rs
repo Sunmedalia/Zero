@@ -3,11 +3,41 @@
 use crate::{Job, byte_regex::ByteRegex};
 use anyhow::{Context, Result, ensure};
 use serde::Serialize;
+/// Display bytes use an independent non-DOTALL anchored re-match, like the reference.
+/// Missing bytes are padded only here, never in a searchable subject.
+pub struct DisplayMatch {
+    pub text: String,
+    pub hex: String,
+    pub unreadable_bytes: u64,
+}
+pub fn display_match(
+    regex: &ByteRegex,
+    address: u64,
+    size: usize,
+    job: &Job,
+    read: impl FnMut(u64, &mut [u8]) -> Result<()>,
+) -> Result<DisplayMatch> {
+    let (bytes, unreadable_bytes) = context(address, size, job, read)?;
+    let matched = regex.anchored(&bytes, job)?;
+    let bytes = matched
+        .as_ref()
+        .map_or(bytes.as_slice(), |range| &bytes[range.clone()]);
+    Ok(DisplayMatch {
+        text: String::from_utf8_lossy(bytes).into_owned(),
+        hex: bytes
+            .iter()
+            .map(|b| format!("{b:02x}"))
+            .collect::<Vec<_>>()
+            .join(" "),
+        unreadable_bytes,
+    })
+}
 const CHUNK: usize = 16 * 1024 * 1024;
 const OVERLAP: usize = 4096;
 const PAGE: u64 = 4096;
 #[derive(Default, Serialize, Debug)]
 pub struct Coverage {
+    pub proven_unmapped_bytes: u64,
     pub requested_bytes: u64,
     pub read_bytes: u64,
     pub scanned_bytes: u64,
@@ -61,8 +91,22 @@ pub fn scan(
     regions: &[(u64, u64)],
     budget: &mut Budget,
     job: &Job,
+    read: impl FnMut(u64, &mut [u8]) -> Result<()>,
+    visit: impl FnMut(u64) -> Result<bool>,
+) -> Result<Coverage> {
+    scan_sparse(regex, regions, budget, job, read, visit, |_, _| None)
+}
+/// A failed read may supply a proven absent interval. Hints never join subjects
+/// across holes and are clipped to this selected range; all skipped bytes remain
+/// in unavailable coverage. No hint means the ordinary page-by-page fallback.
+pub fn scan_sparse(
+    regex: &ByteRegex,
+    regions: &[(u64, u64)],
+    budget: &mut Budget,
+    job: &Job,
     mut read: impl FnMut(u64, &mut [u8]) -> Result<()>,
     mut visit: impl FnMut(u64) -> Result<bool>,
+    mut absent_end: impl FnMut(u64, u64) -> Option<u64>,
 ) -> Result<Coverage> {
     let regions = ranges(regions)?;
     let mut report = Coverage::default();
@@ -144,11 +188,17 @@ pub fn scan(
                         return Ok(report);
                     }
                     buffer.clear();
-                    report.unreadable_bytes += count as u64;
+                    let next = absent_end(cursor, end)
+                        .filter(|&next| next >= cursor + count as u64 && next <= end);
+                    let unavailable = next.map_or(count as u64, |next| next - cursor);
+                    if next.is_some() {
+                        report.proven_unmapped_bytes += unavailable;
+                    }
+                    report.unreadable_bytes += unavailable;
                     report
                         .first_read_error
                         .get_or_insert_with(|| format!("{cursor:#x}: {error:#}"));
-                    cursor += count as u64;
+                    cursor += unavailable;
                     base = cursor;
                     continue;
                 }

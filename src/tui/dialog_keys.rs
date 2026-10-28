@@ -71,7 +71,7 @@ impl App {
                         Some(fields[2].trim().parse::<u32>().context("PID 无效")?)
                     };
                     anyhow::ensure!(pids.len() <= 4096, "PID 列表超过 4096 项");
-                    if self.plugin == Plugin::VmaRegExScan {
+                    if self.plugin.is_regex_scan() {
                         let size = fields[15].trim().parse::<usize>().context("maxsize 无效")?;
                         anyhow::ensure!((1..=4096).contains(&size), "maxsize 必须为 1..4096");
                     }
@@ -123,25 +123,28 @@ impl App {
                                 .trim()
                                 .parse::<bool>()
                                 .context("unresolved 应为 true/false")?,
-                        maxsize: if self.plugin == Plugin::VmaRegExScan {
+                        maxsize: if self.plugin.is_regex_scan() {
                             Some(fields[15].trim().parse::<usize>().context("maxsize 无效")?)
                         } else {
                             None
                         },
                         pattern: if matches!(
                             self.plugin,
-                            Plugin::Vmayarascan | Plugin::WinVadyarascan | Plugin::VmaRegExScan
+                            Plugin::Vmayarascan
+                                | Plugin::WinVadyarascan
+                                | Plugin::VmaRegExScan
+                                | Plugin::WinVadRegExScan
                         ) {
                             anyhow::ensure!(
-                                self.plugin == Plugin::VmaRegExScan || !fields[7].trim().is_empty(),
+                                self.plugin.is_regex_scan() || !fields[7].trim().is_empty(),
                                 "扫描插件需要填写搜索模式"
                             );
-                            if self.plugin == Plugin::VmaRegExScan {
+                            if self.plugin.is_regex_scan() {
                                 crate::byte_regex::ByteRegex::compile(&fields[7], true)?;
                             } else {
                                 crate::pattern::Pattern::parse(fields[7].trim())?;
                             }
-                            Some(if self.plugin == Plugin::VmaRegExScan {
+                            Some(if self.plugin.is_regex_scan() {
                                 fields[7].clone()
                             } else {
                                 fields[7].trim().into()

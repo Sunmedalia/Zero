@@ -1,0 +1,493 @@
+{
+  "schema_version": 1,
+  "engine_version": "0.2.1-native-39",
+  "reference_version": "v2.28.2",
+  "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+  "zero_executable_sha256": "647054d71e3d48b206a5ab934bb299311dc55642c665f6cdc22683e261d7eb73",
+  "symbol_provenance": "Both extractors use the same exact native PDB-derived ISF; this is not independent type-layout validation.",
+  "cases": [
+    {
+      "case_id": "windows-10-15063/vadregex-mz",
+      "reference_plugin": "windows.vadregexscan.VadRegExScan",
+      "image_sha256": "d58f62e92b8c4ef913ac09b2c36a10482034c10b88d0c154dead3aaaa49cf875",
+      "mapping_sha256": "8027af0b0d2fee906720de26419fde6ee58a6befc69548d9efc040a629c0e4a3",
+      "native_output_sha256": "f867c91e31d787e2b9da71cf57fc298db550c79ba30fcc04f4ff8e0271fe3fcb",
+      "zero_args": [
+        "--pid",
+        "7688",
+        "--pattern",
+        "MZ"
+      ],
+      "reference_args": [
+        "--pid",
+        "7688",
+        "--pattern",
+        "MZ"
+      ],
+      "reference_output_sha256": "95ff5d9f0ba362512b8949f30860786c8091fabfe98033fc63dfd7f1ddc6510d",
+      "passed": false,
+      "zero_records": 709,
+      "reference_records": 701,
+      "zero_complete": false,
+      "zero_diagnostic_count": 50,
+      "comparison_counts": {
+        "missing": 0,
+        "extra": 8,
+        "conflicts": 0,
+        "unverifiable": 0,
+        "duplicates": 0
+      },
+      "conflicting_fields": {},
+      "extra_page_origins": {
+        "prototype": 8
+      },
+      "every_extra_has_matching_origin_evidence": true,
+      "coverage": [
+        {
+          "pid": 7688,
+          "requested_bytes": 2199629770752,
+          "read_bytes": 113393664,
+          "scanned_bytes": 113393664,
+          "unreadable_bytes": 2199516377088,
+          "proven_unmapped_bytes": 2199482527744,
+          "page_attempts": 112843,
+          "stop_reason": null
+        }
+      ]
+    },
+    {
+      "case_id": "windows-10-15063/vadregex-lookbehind",
+      "reference_plugin": "windows.vadregexscan.VadRegExScan",
+      "image_sha256": "d58f62e92b8c4ef913ac09b2c36a10482034c10b88d0c154dead3aaaa49cf875",
+      "mapping_sha256": "8027af0b0d2fee906720de26419fde6ee58a6befc69548d9efc040a629c0e4a3",
+      "native_output_sha256": "2af916c5c6237a159f51e8e7457dfff74bf2ea815cefc83e9f3f3c05a5fbc1a7",
+      "zero_args": [
+        "--pid",
+        "7688",
+        "--pattern",
+        "(?<=M)Z"
+      ],
+      "reference_args": [
+        "--pid",
+        "7688",
+        "--pattern",
+        "(?<=M)Z"
+      ],
+      "reference_output_sha256": "b3ef9d5c861935bb25deda7b26c4126548552fa201c678d6f4c604f6cd4b167f",
+      "passed": false,
+      "zero_records": 709,
+      "reference_records": 701,
+      "zero_complete": false,
+      "zero_diagnostic_count": 50,
+      "comparison_counts": {
+        "missing": 0,
+        "extra": 8,
+        "conflicts": 0,
+        "unverifiable": 0,
+        "duplicates": 0
+      },
+      "conflicting_fields": {},
+      "extra_page_origins": {
+        "prototype": 8
+      },
+      "every_extra_has_matching_origin_evidence": true,
+      "coverage": [
+        {
+          "pid": 7688,
+          "requested_bytes": 2199629770752,
+          "read_bytes": 113393664,
+          "scanned_bytes": 113393664,
+          "unreadable_bytes": 2199516377088,
+          "proven_unmapped_bytes": 2199482527744,
+          "page_attempts": 112843,
+          "stop_reason": null
+        }
+      ]
+    },
+    {
+      "case_id": "windows-10-15063/vadregex-backreference",
+      "reference_plugin": "windows.vadregexscan.VadRegExScan",
+      "image_sha256": "d58f62e92b8c4ef913ac09b2c36a10482034c10b88d0c154dead3aaaa49cf875",
+      "mapping_sha256": "8027af0b0d2fee906720de26419fde6ee58a6befc69548d9efc040a629c0e4a3",
+      "native_output_sha256": "f867c91e31d787e2b9da71cf57fc298db550c79ba30fcc04f4ff8e0271fe3fcb",
+      "zero_args": [
+        "--pid",
+        "7688",
+        "--pattern",
+        "(?P<p>MZ)(?P=p)?"
+      ],
+      "reference_args": [
+        "--pid",
+        "7688",
+        "--pattern",
+        "(?P<p>MZ)(?P=p)?"
+      ],
+      "reference_output_sha256": "95ff5d9f0ba362512b8949f30860786c8091fabfe98033fc63dfd7f1ddc6510d",
+      "passed": false,
+      "zero_records": 709,
+      "reference_records": 701,
+      "zero_complete": false,
+      "zero_diagnostic_count": 50,
+      "comparison_counts": {
+        "missing": 0,
+        "extra": 8,
+        "conflicts": 0,
+        "unverifiable": 0,
+        "duplicates": 0
+      },
+      "conflicting_fields": {},
+      "extra_page_origins": {
+        "prototype": 8
+      },
+      "every_extra_has_matching_origin_evidence": true,
+      "coverage": [
+        {
+          "pid": 7688,
+          "requested_bytes": 2199629770752,
+          "read_bytes": 113393664,
+          "scanned_bytes": 113393664,
+          "unreadable_bytes": 2199516377088,
+          "proven_unmapped_bytes": 2199482527744,
+          "page_attempts": 112843,
+          "stop_reason": null
+        }
+      ]
+    },
+    {
+      "case_id": "windows-10-15063/vadregex-multi-pid",
+      "reference_plugin": "windows.vadregexscan.VadRegExScan",
+      "image_sha256": "d58f62e92b8c4ef913ac09b2c36a10482034c10b88d0c154dead3aaaa49cf875",
+      "mapping_sha256": "8027af0b0d2fee906720de26419fde6ee58a6befc69548d9efc040a629c0e4a3",
+      "native_output_sha256": "5e7c3ecf40e1bd15a18095dccb4164201519df608810bfd6f491cff3daf925eb",
+      "zero_args": [
+        "--pids",
+        "844,7688",
+        "--pattern",
+        "MZ"
+      ],
+      "reference_args": [
+        "--pid",
+        "844",
+        "7688",
+        "--pattern",
+        "MZ"
+      ],
+      "reference_output_sha256": "530c99ea29d533afac71764f1191f120ce804a42e62663254fc59db8f1ef8ef7",
+      "passed": false,
+      "zero_records": 736,
+      "reference_records": 727,
+      "zero_complete": false,
+      "zero_diagnostic_count": 51,
+      "comparison_counts": {
+        "missing": 0,
+        "extra": 9,
+        "conflicts": 0,
+        "unverifiable": 0,
+        "duplicates": 0
+      },
+      "conflicting_fields": {},
+      "extra_page_origins": {
+        "prototype": 9
+      },
+      "every_extra_has_matching_origin_evidence": true,
+      "coverage": [
+        {
+          "pid": 844,
+          "requested_bytes": 2199047540736,
+          "read_bytes": 3567616,
+          "scanned_bytes": 3567616,
+          "unreadable_bytes": 2199043973120,
+          "proven_unmapped_bytes": 2199043231744,
+          "page_attempts": 8445,
+          "stop_reason": null
+        },
+        {
+          "pid": 7688,
+          "requested_bytes": 2199629770752,
+          "read_bytes": 113393664,
+          "scanned_bytes": 113393664,
+          "unreadable_bytes": 2199516377088,
+          "proven_unmapped_bytes": 2199482527744,
+          "page_attempts": 112843,
+          "stop_reason": null
+        }
+      ]
+    },
+    {
+      "case_id": "windows-10-15063/vadregex-pid-union",
+      "reference_plugin": "windows.vadregexscan.VadRegExScan",
+      "image_sha256": "d58f62e92b8c4ef913ac09b2c36a10482034c10b88d0c154dead3aaaa49cf875",
+      "mapping_sha256": "8027af0b0d2fee906720de26419fde6ee58a6befc69548d9efc040a629c0e4a3",
+      "native_output_sha256": "5e7c3ecf40e1bd15a18095dccb4164201519df608810bfd6f491cff3daf925eb",
+      "zero_args": [
+        "--pid",
+        "844",
+        "--pids",
+        "7688",
+        "--pattern",
+        "MZ"
+      ],
+      "reference_args": [
+        "--pid",
+        "844",
+        "7688",
+        "--pattern",
+        "MZ"
+      ],
+      "reference_output_sha256": "530c99ea29d533afac71764f1191f120ce804a42e62663254fc59db8f1ef8ef7",
+      "passed": false,
+      "zero_records": 736,
+      "reference_records": 727,
+      "zero_complete": false,
+      "zero_diagnostic_count": 51,
+      "comparison_counts": {
+        "missing": 0,
+        "extra": 9,
+        "conflicts": 0,
+        "unverifiable": 0,
+        "duplicates": 0
+      },
+      "conflicting_fields": {},
+      "extra_page_origins": {
+        "prototype": 9
+      },
+      "every_extra_has_matching_origin_evidence": true,
+      "coverage": [
+        {
+          "pid": 844,
+          "requested_bytes": 2199047540736,
+          "read_bytes": 3567616,
+          "scanned_bytes": 3567616,
+          "unreadable_bytes": 2199043973120,
+          "proven_unmapped_bytes": 2199043231744,
+          "page_attempts": 8445,
+          "stop_reason": null
+        },
+        {
+          "pid": 7688,
+          "requested_bytes": 2199629770752,
+          "read_bytes": 113393664,
+          "scanned_bytes": 113393664,
+          "unreadable_bytes": 2199516377088,
+          "proven_unmapped_bytes": 2199482527744,
+          "page_attempts": 112843,
+          "stop_reason": null
+        }
+      ]
+    },
+    {
+      "case_id": "windows-10-15063/vadregex-smss",
+      "reference_plugin": "windows.vadregexscan.VadRegExScan",
+      "image_sha256": "d58f62e92b8c4ef913ac09b2c36a10482034c10b88d0c154dead3aaaa49cf875",
+      "mapping_sha256": "8027af0b0d2fee906720de26419fde6ee58a6befc69548d9efc040a629c0e4a3",
+      "native_output_sha256": "a9fb0e569ac6f0e5603346da5b09770cc0eb57d3a9e6d31afc4fc24f0f27e3e6",
+      "zero_args": [
+        "--pid",
+        "356",
+        "--pattern",
+        "MZ"
+      ],
+      "reference_args": [
+        "--pid",
+        "356",
+        "--pattern",
+        "MZ"
+      ],
+      "reference_output_sha256": "5b68e3a7fdd5f6a469332a227099d148a116e2c84ec521545153d1f021fa5763",
+      "passed": false,
+      "zero_records": 4,
+      "reference_records": 3,
+      "zero_complete": false,
+      "zero_diagnostic_count": 9,
+      "comparison_counts": {
+        "missing": 0,
+        "extra": 1,
+        "conflicts": 0,
+        "unverifiable": 0,
+        "duplicates": 0
+      },
+      "conflicting_fields": {},
+      "extra_page_origins": {
+        "prototype": 1
+      },
+      "every_extra_has_matching_origin_evidence": true,
+      "coverage": [
+        {
+          "pid": 356,
+          "requested_bytes": 2199030435840,
+          "read_bytes": 1142784,
+          "scanned_bytes": 1142784,
+          "unreadable_bytes": 2199029293056,
+          "proven_unmapped_bytes": 2199027224576,
+          "page_attempts": 6353,
+          "stop_reason": null
+        }
+      ]
+    },
+    {
+      "case_id": "windows-10-15063/vadregex-system-process-pids",
+      "reference_plugin": "windows.vadregexscan.VadRegExScan",
+      "image_sha256": "d58f62e92b8c4ef913ac09b2c36a10482034c10b88d0c154dead3aaaa49cf875",
+      "mapping_sha256": "8027af0b0d2fee906720de26419fde6ee58a6befc69548d9efc040a629c0e4a3",
+      "native_output_sha256": "49e0bf4e4075f08d797d6664557b6d37caf85d0f9b6bd9f85112b42926cd4ee6",
+      "zero_args": [
+        "--pids",
+        "356,468",
+        "--pattern",
+        "MZ"
+      ],
+      "reference_args": [
+        "--pid",
+        "356",
+        "468",
+        "--pattern",
+        "MZ"
+      ],
+      "reference_output_sha256": "bb1f588a39fe13f1ec7b104611d5c0341ba03c084bd50ff4d9db75040875ed16",
+      "passed": false,
+      "zero_records": 31,
+      "reference_records": 30,
+      "zero_complete": false,
+      "zero_diagnostic_count": 12,
+      "comparison_counts": {
+        "missing": 0,
+        "extra": 1,
+        "conflicts": 0,
+        "unverifiable": 0,
+        "duplicates": 0
+      },
+      "conflicting_fields": {},
+      "extra_page_origins": {
+        "prototype": 1
+      },
+      "every_extra_has_matching_origin_evidence": true,
+      "coverage": [
+        {
+          "pid": 356,
+          "requested_bytes": 2199030435840,
+          "read_bytes": 1142784,
+          "scanned_bytes": 1142784,
+          "unreadable_bytes": 2199029293056,
+          "proven_unmapped_bytes": 2199027224576,
+          "page_attempts": 6353,
+          "stop_reason": null
+        },
+        {
+          "pid": 468,
+          "requested_bytes": 2199083278336,
+          "read_bytes": 5279744,
+          "scanned_bytes": 5279744,
+          "unreadable_bytes": 2199077998592,
+          "proven_unmapped_bytes": 2199076716544,
+          "page_attempts": 12415,
+          "stop_reason": null
+        }
+      ]
+    },
+    {
+      "case_id": "windows-10-15063/vadregex-pid-844",
+      "reference_plugin": "windows.vadregexscan.VadRegExScan",
+      "image_sha256": "d58f62e92b8c4ef913ac09b2c36a10482034c10b88d0c154dead3aaaa49cf875",
+      "mapping_sha256": "8027af0b0d2fee906720de26419fde6ee58a6befc69548d9efc040a629c0e4a3",
+      "native_output_sha256": "90e489ea802643e1c1cc4a4b54807d8d72efd67759d28e5b9df236105ec1faf9",
+      "zero_args": [
+        "--pid",
+        "844",
+        "--pattern",
+        "MZ"
+      ],
+      "reference_args": [
+        "--pid",
+        "844",
+        "--pattern",
+        "MZ"
+      ],
+      "reference_output_sha256": "06d26dd8a46471ab41d75d83444b914f4bb3eb70858ea9fb3c1e80c43cf1ce33",
+      "passed": false,
+      "zero_records": 27,
+      "reference_records": 26,
+      "zero_complete": false,
+      "zero_diagnostic_count": 9,
+      "comparison_counts": {
+        "missing": 0,
+        "extra": 1,
+        "conflicts": 0,
+        "unverifiable": 0,
+        "duplicates": 0
+      },
+      "conflicting_fields": {},
+      "extra_page_origins": {
+        "prototype": 1
+      },
+      "every_extra_has_matching_origin_evidence": true,
+      "coverage": [
+        {
+          "pid": 844,
+          "requested_bytes": 2199047540736,
+          "read_bytes": 3567616,
+          "scanned_bytes": 3567616,
+          "unreadable_bytes": 2199043973120,
+          "proven_unmapped_bytes": 2199043231744,
+          "page_attempts": 8445,
+          "stop_reason": null
+        }
+      ]
+    },
+    {
+      "case_id": "windows-10-15063/vadregex-maxsize",
+      "reference_plugin": "windows.vadregexscan.VadRegExScan",
+      "image_sha256": "d58f62e92b8c4ef913ac09b2c36a10482034c10b88d0c154dead3aaaa49cf875",
+      "mapping_sha256": "8027af0b0d2fee906720de26419fde6ee58a6befc69548d9efc040a629c0e4a3",
+      "native_output_sha256": "5bf784df277b079f8fb04cd2714190d04e04235a925c9935fee10b46f0a1fb28",
+      "zero_args": [
+        "--pid",
+        "7688",
+        "--pattern",
+        "MZ.{6}",
+        "--maxsize",
+        "4"
+      ],
+      "reference_args": [
+        "--pid",
+        "7688",
+        "--pattern",
+        "MZ.{6}",
+        "--maxsize",
+        "4"
+      ],
+      "reference_output_sha256": "5d665c63a3ff3f395f0d97a4b880fa9de34c0f97fbc0a1ca3cebf6681ed1cebd",
+      "passed": false,
+      "zero_records": 709,
+      "reference_records": 701,
+      "zero_complete": false,
+      "zero_diagnostic_count": 50,
+      "comparison_counts": {
+        "missing": 0,
+        "extra": 8,
+        "conflicts": 1402,
+        "unverifiable": 0,
+        "duplicates": 0
+      },
+      "conflicting_fields": {
+        "Text": 701,
+        "Hex": 701
+      },
+      "extra_page_origins": {
+        "prototype": 8
+      },
+      "every_extra_has_matching_origin_evidence": true,
+      "coverage": [
+        {
+          "pid": 7688,
+          "requested_bytes": 2199629770752,
+          "read_bytes": 113393664,
+          "scanned_bytes": 113393664,
+          "unreadable_bytes": 2199516377088,
+          "proven_unmapped_bytes": 2199482527744,
+          "page_attempts": 112843,
+          "stop_reason": null
+        }
+      ]
+    }
+  ]
+}

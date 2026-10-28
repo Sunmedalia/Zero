@@ -57,7 +57,10 @@ impl App {
                 0
             } else if matches!(
                 self.plugin,
-                Plugin::Vmayarascan | Plugin::WinVadyarascan | Plugin::VmaRegExScan
+                Plugin::Vmayarascan
+                    | Plugin::WinVadyarascan
+                    | Plugin::VmaRegExScan
+                    | Plugin::WinVadRegExScan
             ) {
                 7
             } else if self.plugin.accepts_pid_list()

@@ -1,0 +1,200 @@
+{
+  "samples": [
+    {
+      "id": "windows-10-15063",
+      "image": "images/feat-windows-plugins/WinDump/WinDump.mem",
+      "image_sha256": "d58f62e92b8c4ef913ac09b2c36a10482034c10b88d0c154dead3aaaa49cf875",
+      "zero_symbols": ".zero/rust/symbols/isf/windows/ntkrnlmp.pdb-0C9CC659210046EC84231597DADFDB3B1.json",
+      "reference_symbols": "target/reference/windows-regex-symbols",
+      "symbol_files": [
+        {
+          "path": ".zero/rust/symbols/isf/windows/ntkrnlmp.pdb-0C9CC659210046EC84231597DADFDB3B1.json",
+          "sha256": "9f13351c91d46e1b21abbe0787b4f841a5410ddd3f7a5655486cb4028a44e400"
+        },
+        {
+          "path": "target/reference/windows-regex-symbols/windows/ntkrnlmp.pdb/0C9CC659210046EC84231597DADFDB3B1.json",
+          "sha256": "9f13351c91d46e1b21abbe0787b4f841a5410ddd3f7a5655486cb4028a44e400"
+        }
+      ],
+      "source": "https://www.osforensics.com/downloads/WinDump.zip"
+    }
+  ],
+  "cases": [
+    {
+      "sample": "windows-10-15063",
+      "id": "windows-10-15063/vadregex-mz",
+      "reference_plugin": "windows.vadregexscan.VadRegExScan",
+      "zero_plugin": "windows.vadregexscan.VadRegExScan",
+      "mapping": "tests/reference/parity/mappings/windows-vadregexscan.json",
+      "zero_args": [
+        "--pid",
+        "7688",
+        "--pattern",
+        "MZ"
+      ],
+      "reference_args": [
+        "--pid",
+        "7688",
+        "--pattern",
+        "MZ"
+      ]
+    },
+    {
+      "sample": "windows-10-15063",
+      "id": "windows-10-15063/vadregex-lookbehind",
+      "reference_plugin": "windows.vadregexscan.VadRegExScan",
+      "zero_plugin": "windows.vadregexscan.VadRegExScan",
+      "mapping": "tests/reference/parity/mappings/windows-vadregexscan.json",
+      "zero_args": [
+        "--pid",
+        "7688",
+        "--pattern",
+        "(?<=M)Z"
+      ],
+      "reference_args": [
+        "--pid",
+        "7688",
+        "--pattern",
+        "(?<=M)Z"
+      ]
+    },
+    {
+      "sample": "windows-10-15063",
+      "id": "windows-10-15063/vadregex-backreference",
+      "reference_plugin": "windows.vadregexscan.VadRegExScan",
+      "zero_plugin": "windows.vadregexscan.VadRegExScan",
+      "mapping": "tests/reference/parity/mappings/windows-vadregexscan.json",
+      "zero_args": [
+        "--pid",
+        "7688",
+        "--pattern",
+        "(?P<p>MZ)(?P=p)?"
+      ],
+      "reference_args": [
+        "--pid",
+        "7688",
+        "--pattern",
+        "(?P<p>MZ)(?P=p)?"
+      ]
+    },
+    {
+      "sample": "windows-10-15063",
+      "id": "windows-10-15063/vadregex-multi-pid",
+      "reference_plugin": "windows.vadregexscan.VadRegExScan",
+      "zero_plugin": "windows.vadregexscan.VadRegExScan",
+      "mapping": "tests/reference/parity/mappings/windows-vadregexscan.json",
+      "zero_args": [
+        "--pids",
+        "844,7688",
+        "--pattern",
+        "MZ"
+      ],
+      "reference_args": [
+        "--pid",
+        "844",
+        "7688",
+        "--pattern",
+        "MZ"
+      ]
+    },
+    {
+      "sample": "windows-10-15063",
+      "id": "windows-10-15063/vadregex-pid-union",
+      "reference_plugin": "windows.vadregexscan.VadRegExScan",
+      "zero_plugin": "windows.vadregexscan.VadRegExScan",
+      "mapping": "tests/reference/parity/mappings/windows-vadregexscan.json",
+      "zero_args": [
+        "--pid",
+        "844",
+        "--pids",
+        "7688",
+        "--pattern",
+        "MZ"
+      ],
+      "reference_args": [
+        "--pid",
+        "844",
+        "7688",
+        "--pattern",
+        "MZ"
+      ]
+    },
+    {
+      "sample": "windows-10-15063",
+      "id": "windows-10-15063/vadregex-smss",
+      "reference_plugin": "windows.vadregexscan.VadRegExScan",
+      "zero_plugin": "windows.vadregexscan.VadRegExScan",
+      "mapping": "tests/reference/parity/mappings/windows-vadregexscan.json",
+      "zero_args": [
+        "--pid",
+        "356",
+        "--pattern",
+        "MZ"
+      ],
+      "reference_args": [
+        "--pid",
+        "356",
+        "--pattern",
+        "MZ"
+      ]
+    },
+    {
+      "sample": "windows-10-15063",
+      "id": "windows-10-15063/vadregex-system-process-pids",
+      "reference_plugin": "windows.vadregexscan.VadRegExScan",
+      "zero_plugin": "windows.vadregexscan.VadRegExScan",
+      "mapping": "tests/reference/parity/mappings/windows-vadregexscan.json",
+      "zero_args": [
+        "--pids",
+        "356,468",
+        "--pattern",
+        "MZ"
+      ],
+      "reference_args": [
+        "--pid",
+        "356",
+        "468",
+        "--pattern",
+        "MZ"
+      ]
+    },
+    {
+      "sample": "windows-10-15063",
+      "id": "windows-10-15063/vadregex-pid-844",
+      "reference_plugin": "windows.vadregexscan.VadRegExScan",
+      "zero_plugin": "windows.vadregexscan.VadRegExScan",
+      "mapping": "tests/reference/parity/mappings/windows-vadregexscan.json",
+      "zero_args": [
+        "--pid",
+        "844",
+        "--pattern",
+        "MZ"
+      ],
+      "reference_args": [
+        "--pid",
+        "844",
+        "--pattern",
+        "MZ"
+      ]
+    },
+    {
+      "sample": "windows-10-15063",
+      "id": "windows-10-15063/vadregex-pid-468",
+      "reference_plugin": "windows.vadregexscan.VadRegExScan",
+      "zero_plugin": "windows.vadregexscan.VadRegExScan",
+      "mapping": "tests/reference/parity/mappings/windows-vadregexscan.json",
+      "zero_args": [
+        "--pid",
+        "468",
+        "--pattern",
+        "MZ"
+      ],
+      "reference_args": [
+        "--pid",
+        "468",
+        "--pattern",
+        "MZ"
+      ]
+    }
+  ]
+}

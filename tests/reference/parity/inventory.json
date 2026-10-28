@@ -8989,8 +8989,10 @@
         "Text",
         "Hex"
       ],
-      "zero_candidates": [],
-      "status": "missing",
+      "zero_candidates": [
+        "windows.vadregexscan.VadRegExScan"
+      ],
+      "status": "mapped_unverified",
       "evidence": []
     },
     {

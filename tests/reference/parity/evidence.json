@@ -706,7 +706,7 @@
     "zero_plugin": "linux.vmaregexscan.VmaRegExScan",
     "image_sha256": "8ce57b7c7b423173ce970fe8f51e7016c04ef1b4a5f73d5c5f1001d5c18780bc",
     "mapping_sha256": "8027af0b0d2fee906720de26419fde6ee58a6befc69548d9efc040a629c0e4a3",
-    "native_output_sha256": "b23c28b425d2389c21595a99c1e2085fa00a92854301313e11a8812a3b451482",
+    "native_output_sha256": "cfd1852b80506f868e9e4b8ea224bcf22eb2e380ce0bef6a90eef99ba1c98e20",
     "comparison": {
       "schema_version": 1,
       "mapping_version": 1,
@@ -744,15 +744,15 @@
     "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
     "reference_output_sha256": "73aa3e70e3925c95632552bbe3c31344a3dcc73bbb867d4862c4b4b5df1c764f",
     "symbol_sha256": "c3b0b875a2d0498fffc0df1259ff49b850cea28355ffddf02e2f90d34a89fbe1",
-    "zero_executable_sha256": "7e26fc01f3433c32da8fb9bd1423a32bbbc7269007914271cc659a0a32944e52",
-    "engine_version": "0.2.1-native-36"
+    "zero_executable_sha256": "647054d71e3d48b206a5ab934bb299311dc55642c665f6cdc22683e261d7eb73",
+    "engine_version": "0.2.1-native-39"
   },
   {
     "reference_plugin": "linux.vmaregexscan.VmaRegExScan",
     "zero_plugin": "linux.vmaregexscan.VmaRegExScan",
     "image_sha256": "8ce57b7c7b423173ce970fe8f51e7016c04ef1b4a5f73d5c5f1001d5c18780bc",
     "mapping_sha256": "8027af0b0d2fee906720de26419fde6ee58a6befc69548d9efc040a629c0e4a3",
-    "native_output_sha256": "749fb0d0db70b35a428ddb8026c9f257c36306cfaad3d2fbe582d02fb4e3e790",
+    "native_output_sha256": "9d1010a7aaf10eac0eb40b0f13d7f42ae2402da03e3e8472967104ce102b4237",
     "comparison": {
       "schema_version": 1,
       "mapping_version": 1,
@@ -790,15 +790,15 @@
     "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
     "reference_output_sha256": "884588e7878bc4893667aec0c38affff0af5c891513054aa27ffe659595ac579",
     "symbol_sha256": "c3b0b875a2d0498fffc0df1259ff49b850cea28355ffddf02e2f90d34a89fbe1",
-    "zero_executable_sha256": "7e26fc01f3433c32da8fb9bd1423a32bbbc7269007914271cc659a0a32944e52",
-    "engine_version": "0.2.1-native-36"
+    "zero_executable_sha256": "647054d71e3d48b206a5ab934bb299311dc55642c665f6cdc22683e261d7eb73",
+    "engine_version": "0.2.1-native-39"
   },
   {
     "reference_plugin": "linux.vmaregexscan.VmaRegExScan",
     "zero_plugin": "linux.vmaregexscan.VmaRegExScan",
     "image_sha256": "8ce57b7c7b423173ce970fe8f51e7016c04ef1b4a5f73d5c5f1001d5c18780bc",
     "mapping_sha256": "8027af0b0d2fee906720de26419fde6ee58a6befc69548d9efc040a629c0e4a3",
-    "native_output_sha256": "b23c28b425d2389c21595a99c1e2085fa00a92854301313e11a8812a3b451482",
+    "native_output_sha256": "cfd1852b80506f868e9e4b8ea224bcf22eb2e380ce0bef6a90eef99ba1c98e20",
     "comparison": {
       "schema_version": 1,
       "mapping_version": 1,
@@ -836,15 +836,15 @@
     "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
     "reference_output_sha256": "73aa3e70e3925c95632552bbe3c31344a3dcc73bbb867d4862c4b4b5df1c764f",
     "symbol_sha256": "c3b0b875a2d0498fffc0df1259ff49b850cea28355ffddf02e2f90d34a89fbe1",
-    "zero_executable_sha256": "7e26fc01f3433c32da8fb9bd1423a32bbbc7269007914271cc659a0a32944e52",
-    "engine_version": "0.2.1-native-36"
+    "zero_executable_sha256": "647054d71e3d48b206a5ab934bb299311dc55642c665f6cdc22683e261d7eb73",
+    "engine_version": "0.2.1-native-39"
   },
   {
     "reference_plugin": "linux.vmaregexscan.VmaRegExScan",
     "zero_plugin": "linux.vmaregexscan.VmaRegExScan",
     "image_sha256": "8ce57b7c7b423173ce970fe8f51e7016c04ef1b4a5f73d5c5f1001d5c18780bc",
     "mapping_sha256": "8027af0b0d2fee906720de26419fde6ee58a6befc69548d9efc040a629c0e4a3",
-    "native_output_sha256": "47d52e8d1750ae3f688a56fd72a70381698792ae19145996d2fdfcf1110e4e9c",
+    "native_output_sha256": "07da34e1b2abe1f32f2e5d80562400a1041acca5486ee0bd7bea57431bfde04c",
     "comparison": {
       "schema_version": 1,
       "mapping_version": 1,
@@ -884,15 +884,15 @@
     "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
     "reference_output_sha256": "e3f489066d930b0fb8d46e0eb50246ba406cc4f3fabbd72c192564b0209c0bbb",
     "symbol_sha256": "c3b0b875a2d0498fffc0df1259ff49b850cea28355ffddf02e2f90d34a89fbe1",
-    "zero_executable_sha256": "7e26fc01f3433c32da8fb9bd1423a32bbbc7269007914271cc659a0a32944e52",
-    "engine_version": "0.2.1-native-36"
+    "zero_executable_sha256": "647054d71e3d48b206a5ab934bb299311dc55642c665f6cdc22683e261d7eb73",
+    "engine_version": "0.2.1-native-39"
   },
   {
     "reference_plugin": "linux.vmaregexscan.VmaRegExScan",
     "zero_plugin": "linux.vmaregexscan.VmaRegExScan",
     "image_sha256": "8ce57b7c7b423173ce970fe8f51e7016c04ef1b4a5f73d5c5f1001d5c18780bc",
     "mapping_sha256": "8027af0b0d2fee906720de26419fde6ee58a6befc69548d9efc040a629c0e4a3",
-    "native_output_sha256": "9a622efb94367bb02b5b7f85fa2294240b301f6f63278438892a76eca7aa4f09",
+    "native_output_sha256": "f1e3cb7207ef6cc5f41401680b1eaf70de5e90db4921bff8ad22cfe99e126d31",
     "comparison": {
       "schema_version": 1,
       "mapping_version": 1,
@@ -1019,15 +1019,15 @@
     "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
     "reference_output_sha256": "95d636748d723e7a7532268e20737c557eefbbe00e21faf6558c3027dee80367",
     "symbol_sha256": "c3b0b875a2d0498fffc0df1259ff49b850cea28355ffddf02e2f90d34a89fbe1",
-    "zero_executable_sha256": "7e26fc01f3433c32da8fb9bd1423a32bbbc7269007914271cc659a0a32944e52",
-    "engine_version": "0.2.1-native-36"
+    "zero_executable_sha256": "647054d71e3d48b206a5ab934bb299311dc55642c665f6cdc22683e261d7eb73",
+    "engine_version": "0.2.1-native-39"
   },
   {
     "reference_plugin": "linux.vmaregexscan.VmaRegExScan",
     "zero_plugin": "linux.vmaregexscan.VmaRegExScan",
     "image_sha256": "8ce57b7c7b423173ce970fe8f51e7016c04ef1b4a5f73d5c5f1001d5c18780bc",
     "mapping_sha256": "8027af0b0d2fee906720de26419fde6ee58a6befc69548d9efc040a629c0e4a3",
-    "native_output_sha256": "47d52e8d1750ae3f688a56fd72a70381698792ae19145996d2fdfcf1110e4e9c",
+    "native_output_sha256": "07da34e1b2abe1f32f2e5d80562400a1041acca5486ee0bd7bea57431bfde04c",
     "comparison": {
       "schema_version": 1,
       "mapping_version": 1,
@@ -1069,8 +1069,8 @@
     "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
     "reference_output_sha256": "e3f489066d930b0fb8d46e0eb50246ba406cc4f3fabbd72c192564b0209c0bbb",
     "symbol_sha256": "c3b0b875a2d0498fffc0df1259ff49b850cea28355ffddf02e2f90d34a89fbe1",
-    "zero_executable_sha256": "7e26fc01f3433c32da8fb9bd1423a32bbbc7269007914271cc659a0a32944e52",
-    "engine_version": "0.2.1-native-36"
+    "zero_executable_sha256": "647054d71e3d48b206a5ab934bb299311dc55642c665f6cdc22683e261d7eb73",
+    "engine_version": "0.2.1-native-39"
   },
   {
     "reference_plugin": "linux.pscallstack.PsCallStack",
@@ -1321,5 +1321,62 @@
     "symbol_sha256": "c3b0b875a2d0498fffc0df1259ff49b850cea28355ffddf02e2f90d34a89fbe1",
     "zero_executable_sha256": "8e01e01ad81ef2a98ec3a3c9807b1b487d72d2b289c17ade8e6e33901233372f",
     "engine_version": "0.2.1-native-37"
+  },
+  {
+    "reference_plugin": "windows.vadregexscan.VadRegExScan",
+    "zero_plugin": "windows.vadregexscan.VadRegExScan",
+    "image_sha256": "d58f62e92b8c4ef913ac09b2c36a10482034c10b88d0c154dead3aaaa49cf875",
+    "mapping_sha256": "8027af0b0d2fee906720de26419fde6ee58a6befc69548d9efc040a629c0e4a3",
+    "native_output_sha256": "bc5e64c85b1336d8504cf7cb9afbafa3e9ef3f27e00b36af385879c9cdd46e00",
+    "comparison": {
+      "schema_version": 1,
+      "mapping_version": 1,
+      "zero_records": 27,
+      "reference_records": 27,
+      "missing": [],
+      "extra": [],
+      "duplicates": [],
+      "conflicts": [],
+      "unverifiable": [],
+      "matched_absent": {},
+      "all_columns_mapped": true,
+      "positive_evidence": true,
+      "zero_complete": false,
+      "zero_diagnostics": [
+        "Windows 链表不一致 @ 0xffffd98df8f9c8e8 direction 0: expected 0xffffd98df8be88e8, found 0xffffd98df7cbe668",
+        "Windows 链表不一致 @ 0xffffd98df8831368 direction 0: expected 0xffffd98df41a88e8, found 0xffffd98df9d4e8e8",
+        "Windows 链表不一致 @ 0xffffd98df3ab88e8 direction 0: expected 0xffffd98df63618e8, found 0xffffd98df480e368",
+        "Windows 链表不一致 @ 0xffffd98df7cbe668 direction 0: expected 0xffffd98df503a368, found 0xffffd98df8be88e8",
+        "链表 @ 0xfffff8021ef5c120 direction 0: Windows 链表循环或超限 0xffffd98df8f9c8e8",
+        "Windows 链表不一致 @ 0xffffd98df9d4e8e8 direction 8: expected 0xfffff8021ef5c120, found 0xffffd98df8831368",
+        "Windows 链表不一致 @ 0xffffd98df41a88e8 direction 8: expected 0xffffd98df9d4e8e8, found 0xffffd98df8831368",
+        "Windows 链表不一致 @ 0xffffd98df8be88e8 direction 8: expected 0xffffd98df7cbe668, found 0xffffd98df8f9c8e8",
+        "PID 468 VAD 0xffffd98df6af13d0 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802478683760)",
+        "PID 468 VAD 0xffffd98df70ef6b0 Left: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802437165920)",
+        "PID 468 正则扫描: 扫描 5279744 / 2199083278336 字节；缺页 2199077998592 字节；上下文补零 0 字节；扫描结束"
+      ],
+      "passed": true
+    },
+    "passed": true,
+    "zero_args": [
+      "--pid",
+      "468",
+      "--pattern",
+      "MZ"
+    ],
+    "reference_args": [
+      "--pid",
+      "468",
+      "--pattern",
+      "MZ"
+    ],
+    "case_id": "windows-10-15063/vadregex-pid-468",
+    "sample_source": "https://www.osforensics.com/downloads/WinDump.zip",
+    "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+    "reference_output_sha256": "e6dc1f5bf2ba73fd2973123ea42caad24b1bd35aba177177aad7cdc2d336c21e",
+    "symbol_sha256": "9f13351c91d46e1b21abbe0787b4f841a5410ddd3f7a5655486cb4028a44e400",
+    "zero_executable_sha256": "647054d71e3d48b206a5ab934bb299311dc55642c665f6cdc22683e261d7eb73",
+    "engine_version": "0.2.1-native-39",
+    "symbol_provenance": "Both extractors use the same exact native PDB-derived ISF; this is not independent type-layout validation."
   }
 ]
