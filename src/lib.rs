@@ -1,5 +1,6 @@
 pub mod byte_regex;
 pub mod cache;
+pub mod framebuffer;
 pub mod image;
 pub mod kernel_diagnostics;
 pub mod linux;
