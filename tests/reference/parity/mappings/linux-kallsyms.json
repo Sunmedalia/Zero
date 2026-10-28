@@ -1,0 +1,57 @@
+{
+  "version": 1,
+  "keys": [
+    "source",
+    "module",
+    "name",
+    "address"
+  ],
+  "fields": {
+    "address": {
+      "zero": "Addr",
+      "reference": "Addr",
+      "zero_type": "address",
+      "reference_type": "address48"
+    },
+    "kind": {
+      "zero": "Type",
+      "reference": "Type",
+      "zero_type": "text",
+      "reference_type": "empty_text"
+    },
+    "size": {
+      "zero": "Size",
+      "reference": "Size",
+      "type": "integer",
+      "allow_absent": true
+    },
+    "exported": {
+      "zero": "Exported",
+      "reference": "Exported",
+      "type": "boolean",
+      "allow_absent": true
+    },
+    "source": {
+      "zero": "SubSystem",
+      "reference": "SubSystem",
+      "type": "text"
+    },
+    "module": {
+      "zero": "ModuleName",
+      "reference": "ModuleName",
+      "type": "text"
+    },
+    "name": {
+      "zero": "SymbolName",
+      "reference": "SymbolName",
+      "type": "text",
+      "reference_type": "empty_text"
+    },
+    "description": {
+      "zero": "Description",
+      "reference": "Description",
+      "zero_type": "text",
+      "reference_type": "empty_text"
+    }
+  }
+}

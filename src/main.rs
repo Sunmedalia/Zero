@@ -50,6 +50,15 @@ struct Cli {
     /// Render module taints as compact characters in linux.malware.modxview.Modxview.
     #[arg(long, global = true)]
     plain_taints: bool,
+    /// Select sources for linux.kallsyms.Kallsyms (none selects all).
+    #[arg(long, global = true)]
+    core: bool,
+    #[arg(long, global = true)]
+    modules: bool,
+    #[arg(long, global = true)]
+    ftrace: bool,
+    #[arg(long, global = true)]
+    bpf: bool,
     #[command(subcommand)]
     command: Option<Command>,
 }
@@ -367,6 +376,12 @@ fn main() -> Result<()> {
                 include_threads: cli.include_threads,
                 decorate_comm: cli.decorate_comm,
                 plain_taints: cli.plain_taints,
+                kallsyms: zero_tui::analysis::KallsymsOptions {
+                    core: cli.core,
+                    modules: cli.modules,
+                    ftrace: cli.ftrace,
+                    bpf: cli.bpf,
+                },
             },
             &job,
         )? {
@@ -457,6 +472,12 @@ fn launch_tui(cli: Cli) -> Result<()> {
             include_threads: cli.include_threads,
             decorate_comm: cli.decorate_comm,
             plain_taints: cli.plain_taints,
+            kallsyms: zero_tui::analysis::KallsymsOptions {
+                core: cli.core,
+                modules: cli.modules,
+                ftrace: cli.ftrace,
+                bpf: cli.bpf,
+            },
         },
     )
 }

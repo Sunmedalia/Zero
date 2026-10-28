@@ -12,6 +12,25 @@ pub enum Os {
     Linux,
     Windows,
 }
+#[derive(Clone, Copy, Debug, Default)]
+pub struct KallsymsOptions {
+    pub core: bool,
+    pub modules: bool,
+    pub ftrace: bool,
+    pub bpf: bool,
+}
+impl KallsymsOptions {
+    pub fn any(self) -> bool {
+        self.core || self.modules || self.ftrace || self.bpf
+    }
+    pub fn selected(self) -> [bool; 4] {
+        if self.any() {
+            [self.core, self.modules, self.ftrace, self.bpf]
+        } else {
+            [true; 4]
+        }
+    }
+}
 #[derive(Clone, Debug, Default)]
 pub struct Options {
     pub os: Os,
@@ -20,6 +39,7 @@ pub struct Options {
     pub include_threads: bool,
     pub decorate_comm: bool,
     pub plain_taints: bool,
+    pub kallsyms: KallsymsOptions,
     pub hive: Option<u64>,
     pub key: String,
     /// Byte pattern for vmayarascan / windows.vadyarascan.
@@ -56,6 +76,10 @@ pub fn analyze(
     ensure!(
         !options.plain_taints || request.plugin == Plugin::Modxview,
         "plain_taints 仅支持 linux.malware.modxview.Modxview"
+    );
+    ensure!(
+        !options.kallsyms.any() || request.plugin == Plugin::Kallsyms,
+        "core/modules/ftrace/bpf 参数仅支持 linux.kallsyms.Kallsyms"
     );
     if request.plugin.is_dump() {
         dump.context("Dump 插件需要转储参数")?

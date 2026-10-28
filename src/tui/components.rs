@@ -1,7 +1,7 @@
 fn plugin_label(plugin: Plugin) -> &'static str {
     if plugin.is_dump() {
         "dump"
-    } else if matches!(plugin, Plugin::ProcessSpoofing | Plugin::Modxview) {
+    } else if matches!(plugin, Plugin::ProcessSpoofing | Plugin::Modxview | Plugin::Kallsyms) {
         plugin.descriptor().label
     } else {
         plugin

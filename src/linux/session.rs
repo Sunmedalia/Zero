@@ -281,6 +281,9 @@ impl Session {
                 request.plugin.name(),
                 options.plain_taints
             ),
+            None if request.plugin == Plugin::Kallsyms => {
+                format!("{}:{:?}", request.plugin.name(), options.kallsyms)
+            }
             None => request.plugin.name().to_string(),
         };
         let key = store::key(&image.digest, &symbol.digest, &identity);
@@ -313,6 +316,8 @@ impl Session {
             engine.run_dump(request.plugin, dump.context("Dump 插件需要转储参数")?, job)?
         } else if request.plugin.is_pattern_scan() {
             engine.vma_pattern_scan(pattern.context("此插件需要 --pattern")?, job)?
+        } else if request.plugin == Plugin::Kallsyms {
+            engine.kallsyms(options.kallsyms, job)?
         } else if request.plugin == Plugin::Modxview {
             engine.modxview(options.plain_taints, job)?
         } else if request.plugin == Plugin::LinuxPslist {

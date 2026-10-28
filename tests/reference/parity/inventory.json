@@ -714,8 +714,10 @@
         "SymbolName",
         "Description"
       ],
-      "zero_candidates": [],
-      "status": "missing",
+      "zero_candidates": [
+        "linux.kallsyms.Kallsyms"
+      ],
+      "status": "mapped_unverified",
       "evidence": []
     },
     {

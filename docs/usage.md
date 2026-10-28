@@ -352,7 +352,7 @@ zero cache clear --scope results,identification --yes
 
 ## 7. Linux 插件参考
 
-共 56 个插件（含 `linux.pslist.PsList` 完整字段入口，详见 [Volatility 对齐进度](volatility-parity.md)）：`pslist`、`pstree`、`lsmod`、`psaux`、`envars`、`maps`、`lsof`、`sockstat`、`netscan`、`banners`、`pwd`、`pscred`、`threads`、`mountinfo`、`check_creds`、`dmesg`、`systeminfo`、`elfs`、`bash`、`malfind`、`psxview`、`check_modules`、`check_syscall`、`psstate`、`capabilities`、`fdsummary`、`procdump`、`memdump`、`elfdump`、`iomem`、`ioports`、`ptrace`、`keyboard_notifiers`、`check_exec`、`check_idt`、`tty_check`、`hidden_modules`、`library_list`、`pidhashtable`、`vmcoreinfo`、`ip_addr`、`ip_link`、`check_afinfo`、`kthreads`、`netfilter`、`tracepoints`、`ftrace`、`ebpf`、`boottime`、`pagecache`、`perf_events`、`vmayarascan`、`linux.malware.process_spoofing.ProcessSpoofing`、`linux.malware.modxview.Modxview`、`linux.module_extract.ModuleExtract`。
+共 57 个插件（含 `linux.pslist.PsList` 完整字段入口，详见 [Volatility 对齐进度](volatility-parity.md)）：`pslist`、`pstree`、`lsmod`、`psaux`、`envars`、`maps`、`lsof`、`sockstat`、`netscan`、`banners`、`pwd`、`pscred`、`threads`、`mountinfo`、`check_creds`、`dmesg`、`systeminfo`、`elfs`、`bash`、`malfind`、`psxview`、`check_modules`、`check_syscall`、`psstate`、`capabilities`、`fdsummary`、`procdump`、`memdump`、`elfdump`、`iomem`、`ioports`、`ptrace`、`keyboard_notifiers`、`check_exec`、`check_idt`、`tty_check`、`hidden_modules`、`library_list`、`pidhashtable`、`vmcoreinfo`、`ip_addr`、`ip_link`、`check_afinfo`、`kthreads`、`netfilter`、`tracepoints`、`ftrace`、`ebpf`、`boottime`、`pagecache`、`perf_events`、`vmayarascan`、`linux.malware.process_spoofing.ProcessSpoofing`、`linux.malware.modxview.Modxview`、`linux.module_extract.ModuleExtract`、`linux.kallsyms.Kallsyms`。
 
 TUI 插件菜单只列分析插件，转储统一在 `D` 中。这些都是本地 ISF 驱动的 Rust 实现，不执行 Volatility Python 插件。
 
@@ -372,6 +372,7 @@ TUI 插件菜单只列分析插件，转储统一在 `D` 中。这些都是本�
 | pwd | PID、Name、Root（全局路径）、CWD（相对进程根） |
 | pscred | PID、Name、UID、GID、EUID、EGID、SUID、SGID、FSUID、FSGID、CredAddress |
 | linux.malware.process_spoofing.ProcessSpoofing | PID、PPID、Exe_Path、Cmdline_Basename、Comm、Cmdline_Spoofed、Comm_Spoofed、Exe_Deleted |
+| linux.kallsyms.Kallsyms | Addr、Type、Size、Exported、SubSystem、ModuleName、SymbolName、Description |
 | linux.module_extract.ModuleExtract | Base（struct module 地址）、File Size、File output；SHA256 和补零范围在元数据中 |
 | linux.malware.modxview.Modxview | Name、Address、In procfs、In sysfs、In scan、Taints |
 | threads | PID、Name、TID、ThreadName、Address |
@@ -742,3 +743,17 @@ Base 是 `struct module` 地址，可从 Modxview 的 Address 列获取；不是
 输出基于驻留节与符号表重建，与固定 Volatility 参考格式一致；节尺寸与索引属于重建启发式，
 不等同原始磁盘 .ko。缺页按该格式补零，结果标为部分，并在 `kernel_identity.module_extract`
 记录内存地址、文件偏移、长度及文件 SHA256。符号表不可读则不发布文件，不覆盖已有文件。
+
+
+运行时符号枚举：
+
+```sh
+zero --offline analyze --image images/linux-sample-1.bin --symbols /path/to/exact.json.xz \
+  --plugin linux.kallsyms.Kallsyms --core --modules --output kallsyms.json
+```
+
+不指定来源时枚举 core、modules、ftrace、bpf；也可任意组合 `--core`、`--modules`、
+`--ftrace`、`--bpf`。来源无法读取时保留其他来源并标记部分；导出状态无法确认时留空，
+不会填成 false。名称流损坏时可用独立 markers 跳至下一块，同时记录跳过的索引范围。
+相对地址配置由独立 ISF 地址确认。当前读取 64 位内核，相关验收边界见
+[Volatility 对齐进度](volatility-parity.md)。

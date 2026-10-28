@@ -86,6 +86,19 @@ class CompareTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.check()
 
+    def test_declared_optional_absence_requires_both_sides_to_be_absent(self):
+        self.native['columns'].append('Size')
+        self.native['rows'][0].append('')
+        self.reference[0]['Size'] = None
+        self.mapping['fields']['size'] = {'zero': 'Size', 'reference': 'Size', 'type': 'integer'}
+        self.assertFalse(self.check()['passed'])
+        self.mapping['fields']['size']['allow_absent'] = True
+        result = self.check()
+        self.assertTrue(result['passed'])
+        self.assertEqual(result['matched_absent'], {'size': 1})
+        self.reference[0]['Size'] = 12
+        self.assertFalse(self.check()['passed'])
+
 
 class OptionalTextTests(unittest.TestCase):
     def test_empty_text_requires_explicit_mapping(self):

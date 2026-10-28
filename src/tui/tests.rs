@@ -4358,3 +4358,30 @@ fn linux_module_extract_dump_mode_requires_base_and_no_pid() {
     );
     assert!(app.job.is_none());
 }
+
+#[test]
+fn kallsyms_sources_validate_and_keep_results_separate() {
+    let mut app = app();
+    app.select_plugin(Plugin::Kallsyms);
+    app.windows_parameters();
+    assert_eq!(app.parameter_fields(false), vec![11, 12, 13, 14, 6]);
+    let before = app.request_key();
+    if let Some(Dialog::WindowsParameters { fields, .. }) = &mut app.dialog {
+        fields[11] = "true".into();
+        fields[12] = "invalid".into();
+    }
+    app.dialog_key(KeyEvent::new(KeyCode::Enter, KeyModifiers::CONTROL));
+    assert!(app.dialog.is_some());
+    assert!(!app.analysis_options.kallsyms.any());
+    if let Some(Dialog::WindowsParameters { fields, .. }) = &mut app.dialog {
+        fields[12] = "true".into();
+    }
+    app.dialog_key(KeyEvent::new(KeyCode::Enter, KeyModifiers::CONTROL));
+    assert!(app.dialog.is_none());
+    assert_eq!(
+        app.analysis_options.kallsyms.selected(),
+        [true, true, false, false]
+    );
+    assert_ne!(before, app.request_key());
+    assert!(app.job.is_none());
+}

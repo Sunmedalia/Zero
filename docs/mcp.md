@@ -46,3 +46,5 @@ cargo test --locked --test native mcp_
 取得的 ISF 和来源清单保存到 `.zero/rust/symbols/isf/windows/`，后续可以离线复用。`offline: true` 不访问微软或官方 ZIP。超时、503、损坏 PDB 与转换失败不会自动触发官方包下载；已有 PDB 缓存失效后重新下载若返回 404，则会使用同一兜底路径。官方包也无精确匹配时，错误会保留身份及原因，TUI 提示导入精确符号。
 
 `zero_dump` 的 `mode: "kernel-module"` 对应 Linux ModuleExtract，输出重建 ELF；补零范围、文件 SHA256 与完整路径保留在结果元数据中。
+
+`zero_analyze` 的 `linux.kallsyms.Kallsyms` 支持 `core`、`modules`、`ftrace`、`bpf` 四个布尔参数；全部省略或 false 时选择全部来源，其他插件不能启用这些参数。

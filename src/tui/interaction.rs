@@ -4,7 +4,7 @@ impl App {
     pub(super) fn windows_parameters(&mut self) {
         self.dialog = Some(Dialog::WindowsParameters {
             advanced: false,
-            fields: [
+            fields: Box::new([
                 self.analysis_options
                     .hive
                     .map(|n| format!("{n:#x}"))
@@ -35,7 +35,11 @@ impl App {
                 self.analysis_options.include_threads.to_string(),
                 self.analysis_options.decorate_comm.to_string(),
                 self.analysis_options.plain_taints.to_string(),
-            ],
+                self.analysis_options.kallsyms.core.to_string(),
+                self.analysis_options.kallsyms.modules.to_string(),
+                self.analysis_options.kallsyms.ftrace.to_string(),
+                self.analysis_options.kallsyms.bpf.to_string(),
+            ]),
             field: if self.plugin == Plugin::WinPrintkey {
                 0
             } else if matches!(self.plugin, Plugin::Vmayarascan | Plugin::WinVadyarascan) {

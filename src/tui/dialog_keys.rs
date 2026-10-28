@@ -86,6 +86,22 @@ impl App {
                                 .trim()
                                 .parse::<bool>()
                                 .context("模块 taint 简写应为 true/false")?,
+                        kallsyms: if self.plugin == Plugin::Kallsyms {
+                            let flags = fields[11..15]
+                                .iter()
+                                .map(|s| {
+                                    s.trim().parse::<bool>().context("符号来源应为 true/false")
+                                })
+                                .collect::<Result<Vec<_>>>()?;
+                            crate::analysis::KallsymsOptions {
+                                core: flags[0],
+                                modules: flags[1],
+                                ftrace: flags[2],
+                                bpf: flags[3],
+                            }
+                        } else {
+                            Default::default()
+                        },
                         pattern: if matches!(
                             self.plugin,
                             Plugin::Vmayarascan | Plugin::WinVadyarascan

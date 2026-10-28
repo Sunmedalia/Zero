@@ -201,6 +201,9 @@ impl App {
         if self.plugin == Plugin::Modxview {
             fields.push(10);
         }
+        if self.plugin == Plugin::Kallsyms {
+            fields.extend(11..15);
+        }
         fields.push(6);
         fields
     }

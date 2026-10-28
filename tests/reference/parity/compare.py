@@ -90,13 +90,15 @@ def compare(native, reference, mapping):
     duplicates = [{'side': side, 'key': list(k), 'count': len(v)}
                   for side, values in [('zero', ns), ('reference', rs)]
                   for k, v in values.items() if len(v) != 1]
-    conflicts, unavailable = [], []
+    conflicts, unavailable, matched_absent = [], [], defaultdict(int)
     for key in sorted(ns.keys() & rs.keys(), key=repr):
         if len(ns[key]) != 1 or len(rs[key]) != 1:
             continue
         n, r = ns[key][0], rs[key][0]
         for field in fields:
-            if n[field] is None or r[field] is None:
+            if n[field] is None and r[field] is None and fields[field].get('allow_absent', False):
+                matched_absent[field] += 1
+            elif n[field] is None or r[field] is None:
                 unavailable.append({'key': list(key), 'field': field, 'zero': n[field], 'reference': r[field]})
             elif n[field] != r[field]:
                 conflicts.append({'key': list(key), 'field': field, 'zero': n[field], 'reference': r[field]})
@@ -108,7 +110,7 @@ def compare(native, reference, mapping):
         'schema_version': 1, 'mapping_version': mapping['version'],
         'zero_records': sum(map(len, ns.values())), 'reference_records': sum(map(len, rs.values())),
         'missing': missing, 'extra': extra, 'duplicates': duplicates,
-        'conflicts': conflicts, 'unverifiable': unavailable,
+        'conflicts': conflicts, 'unverifiable': unavailable, 'matched_absent': dict(matched_absent),
         'all_columns_mapped': all_columns, 'positive_evidence': nonempty,
         'zero_complete': native['complete'], 'zero_diagnostics': native['diagnostics'],
         'passed': not (missing or extra or duplicates or conflicts or unavailable)

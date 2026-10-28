@@ -167,6 +167,10 @@ impl App {
                         "包含用户线程 true / false",
                         "线程名称标记 true / false",
                         "模块 taint 简写 true / false",
+                        "核心符号 true / false",
+                        "模块符号 true / false",
+                        "ftrace 符号 true / false",
+                        "BPF 符号 true / false",
                     ];
                     let mut lines = vec![Line::raw(if self.windows {
                         "Ctrl+T 展开／收起 Windows 高级配置"

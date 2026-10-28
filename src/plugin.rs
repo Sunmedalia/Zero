@@ -3,6 +3,8 @@ use clap::ValueEnum;
 
 #[derive(Clone, Copy, Debug, ValueEnum, PartialEq, Eq)]
 pub enum Plugin {
+    #[value(name = "linux.kallsyms.Kallsyms", alias = "linux.kallsyms")]
+    Kallsyms,
     #[value(
         name = "linux.module_extract.ModuleExtract",
         alias = "linux.module_extract"
@@ -1556,6 +1558,22 @@ pub const PLUGINS: &[Descriptor] = &[
         columns: &["Base", "File Size", "File output"],
         widths: &[18, 12, 0],
     },
+    Descriptor {
+        plugin: Plugin::Kallsyms,
+        name: "linux.kallsyms.Kallsyms",
+        label: "kallsyms",
+        columns: &[
+            "Addr",
+            "Type",
+            "Size",
+            "Exported",
+            "SubSystem",
+            "ModuleName",
+            "SymbolName",
+            "Description",
+        ],
+        widths: &[18, 5, 12, 10, 8, 20, 0, 0],
+    },
 ];
 impl Plugin {
     pub fn descriptor(self) -> &'static Descriptor {
@@ -1655,7 +1673,8 @@ impl Plugin {
             Self::WinShimcache => "Files",
             Self::WinVirtmap => "Memory",
             Self::WinVadyarascan | Self::Vmayarascan => "Memory",
-            Self::Banners
+            Self::Kallsyms
+            | Self::Banners
             | Self::Systeminfo
             | Self::Dmesg
             | Self::Lsmod
@@ -1716,6 +1735,7 @@ impl Plugin {
             WinLdrmodules => "对照 PE 映射与三条 PEB 模块链表",
             WinHollowprocesses => "检查主程序基址及映像映射异常",
             WinSuspiciousThreads => "检查活动线程起点所在的 VAD",
+            Kallsyms => "枚举核心、模块、ftrace 与 BPF 的运行时符号",
             ModuleExtract => "从指定 struct module 地址重建并导出模块 ELF",
             Modxview => "对照模块链表、sysfs 与独立内存扫描，并解析 taint 标记",
             ProcessSpoofing => "比较可执行路径、argv[0] 与进程名称，识别身份伪装线索",

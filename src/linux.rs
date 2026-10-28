@@ -18,6 +18,7 @@ mod discover;
 mod engine;
 mod fs;
 mod hooks;
+mod kallsyms;
 mod kernel;
 mod malware;
 mod memory;

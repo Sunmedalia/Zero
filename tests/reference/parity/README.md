@@ -98,3 +98,9 @@ ModuleExtract; matching filenames and reported lengths alone cannot pass.
 The mapping allows partial native output because the public sample requires
 explicitly recorded zero padding to reproduce the reference reconstruction.
 Original samples remain read-only, and no recovered binaries enter this repository.
+
+Kallsyms cases use `kallsyms.example.json` and compare all eight fields for default,
+core, modules and core+modules. `allow_absent` is declared only for Size/Exported:
+both absent values are counted under `matched_absent`; one-sided absence still
+fails. Counts contain no recovered symbol names. The cases require complete
+native output and do not establish positive ftrace/BPF behavior on this sample.
