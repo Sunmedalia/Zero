@@ -25,6 +25,7 @@ mod net;
 mod netdev;
 mod process;
 mod session;
+mod spoofing;
 mod taskwalk;
 #[cfg(test)]
 pub(crate) mod tests;

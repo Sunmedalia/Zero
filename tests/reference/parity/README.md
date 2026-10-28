@@ -75,3 +75,9 @@ required case. This file is currently empty: `PsList --dump`, multiple PID
 selection and broader kernel/platform cases remain unfinished, so five passing
 PsList cases do not count as complete plugin parity. Aliases do not inflate the
 canonical count. `make check` validates the offline tooling, not full parity.
+
+ProcessSpoofing cases use `spoofing.example.json` and the same public Debian sample.
+Its mapping explicitly allows partial native output: the sample has missing argv
+pages, rendered as `N/A` by the reference. Zero preserves the matching values and
+also reports the missing pages. This case parity does not certify the plugin's
+multi-PID interface or its behavior on other kernels and attack samples.

@@ -1,0 +1,49 @@
+{
+  "version": 1,
+  "allow_partial": true,
+  "keys": [
+    "PID"
+  ],
+  "fields": {
+    "PID": {
+      "zero": "PID",
+      "reference": "PID",
+      "type": "integer"
+    },
+    "PPID": {
+      "zero": "PPID",
+      "reference": "PPID",
+      "type": "integer"
+    },
+    "Exe_Path": {
+      "zero": "Exe_Path",
+      "reference": "Exe_Path",
+      "type": "text"
+    },
+    "Cmdline_Basename": {
+      "zero": "Cmdline_Basename",
+      "reference": "Cmdline_Basename",
+      "type": "text"
+    },
+    "Comm": {
+      "zero": "Comm",
+      "reference": "Comm",
+      "type": "text"
+    },
+    "Cmdline_Spoofed": {
+      "zero": "Cmdline_Spoofed",
+      "reference": "Cmdline_Spoofed",
+      "type": "boolean"
+    },
+    "Comm_Spoofed": {
+      "zero": "Comm_Spoofed",
+      "reference": "Comm_Spoofed",
+      "type": "boolean"
+    },
+    "Exe_Deleted": {
+      "zero": "Exe_Deleted",
+      "reference": "Exe_Deleted",
+      "type": "boolean"
+    }
+  }
+}

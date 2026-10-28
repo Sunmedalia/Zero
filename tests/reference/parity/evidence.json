@@ -183,5 +183,85 @@
     "symbol_sha256": "c3b0b875a2d0498fffc0df1259ff49b850cea28355ffddf02e2f90d34a89fbe1",
     "zero_executable_sha256": "c856b60f1db4027ab979419213524877ba8e6283d2c1693b81de4161c910b44b",
     "engine_version": "0.2.1-native-29"
+  },
+  {
+    "sample": "debian-3.2",
+    "sample_source": "https://github.com/volatilityfoundation/volatility3-test-data/releases/download/v0.0.1/linux-sample-1.bin.gz",
+    "case_id": "debian-3.2/spoofing-default",
+    "zero_args": [],
+    "reference_args": [],
+    "image_sha256": "8ce57b7c7b423173ce970fe8f51e7016c04ef1b4a5f73d5c5f1001d5c18780bc",
+    "reference_plugin": "linux.malware.process_spoofing.ProcessSpoofing",
+    "zero_plugin": "linux.malware.process_spoofing.ProcessSpoofing",
+    "passed": true,
+    "mapping_sha256": "4fd71d2941bf705649f7e0531de6df88f84701467e1d9e265601366aee616ada",
+    "comparison": {
+      "schema_version": 1,
+      "mapping_version": 1,
+      "zero_records": 133,
+      "reference_records": 133,
+      "missing": [],
+      "extra": [],
+      "duplicates": [],
+      "conflicts": [],
+      "unverifiable": [],
+      "all_columns_mapped": true,
+      "positive_evidence": true,
+      "zero_complete": false,
+      "zero_diagnostics": [
+        "PID 1 argv[0]: 缺页 VA 0x7fff14d8df62, level 12",
+        "PID 2344 argv[0]: 缺页 VA 0x7fff59d6eedd, level 12"
+      ],
+      "passed": true
+    },
+    "native_output_sha256": "250c799e837ca770da75084bac69603a620ed1442d395fcfb2dfdd40c8cf91c3",
+    "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+    "reference_output_sha256": "28f277ed25e638b01e1dda24f26f47a50728c5d1870087c5747e3cf18dd41cec",
+    "symbol_sha256": "c3b0b875a2d0498fffc0df1259ff49b850cea28355ffddf02e2f90d34a89fbe1",
+    "zero_executable_sha256": "c254bea84a87bff1cac4034604e46490f4ff823997f38ec9b5c0ab13351defa5",
+    "engine_version": "0.2.1-native-30"
+  },
+  {
+    "sample": "debian-3.2",
+    "sample_source": "https://github.com/volatilityfoundation/volatility3-test-data/releases/download/v0.0.1/linux-sample-1.bin.gz",
+    "case_id": "debian-3.2/spoofing-pid-1",
+    "zero_args": [
+      "--pid",
+      "1"
+    ],
+    "reference_args": [
+      "--pid",
+      "1"
+    ],
+    "image_sha256": "8ce57b7c7b423173ce970fe8f51e7016c04ef1b4a5f73d5c5f1001d5c18780bc",
+    "reference_plugin": "linux.malware.process_spoofing.ProcessSpoofing",
+    "zero_plugin": "linux.malware.process_spoofing.ProcessSpoofing",
+    "passed": true,
+    "mapping_sha256": "4fd71d2941bf705649f7e0531de6df88f84701467e1d9e265601366aee616ada",
+    "comparison": {
+      "schema_version": 1,
+      "mapping_version": 1,
+      "zero_records": 1,
+      "reference_records": 1,
+      "missing": [],
+      "extra": [],
+      "duplicates": [],
+      "conflicts": [],
+      "unverifiable": [],
+      "all_columns_mapped": true,
+      "positive_evidence": true,
+      "zero_complete": false,
+      "zero_diagnostics": [
+        "PID 1 argv[0]: 缺页 VA 0x7fff14d8df62, level 12",
+        "PID 2344 argv[0]: 缺页 VA 0x7fff59d6eedd, level 12"
+      ],
+      "passed": true
+    },
+    "native_output_sha256": "c6087191c938563ee29a6f18076ed16b8e8f9002eef3de6e4c271f260afa973b",
+    "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+    "reference_output_sha256": "1cf2fb6a07d309eaa0fecbc3cc1e71c3bba0890fa7abb87022609384dc8060c6",
+    "symbol_sha256": "c3b0b875a2d0498fffc0df1259ff49b850cea28355ffddf02e2f90d34a89fbe1",
+    "zero_executable_sha256": "c254bea84a87bff1cac4034604e46490f4ff823997f38ec9b5c0ab13351defa5",
+    "engine_version": "0.2.1-native-30"
   }
 ]

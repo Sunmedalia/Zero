@@ -129,6 +129,7 @@ impl Linux<'_> {
         use Plugin::*;
         match plugin {
             Pslist | Pstree | Lsmod => self.kernel_list(plugin, job),
+            ProcessSpoofing => self.process_spoofing(job),
             LinuxPslist => self.process_details(job),
             Banners => banner_result(self.vm.image, job),
             Psaux | Envars | Maps | Lsof | Sockstat | Netscan => self.task_objects(plugin, job),

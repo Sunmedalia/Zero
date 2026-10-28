@@ -1743,8 +1743,10 @@
         "Comm_Spoofed",
         "Exe_Deleted"
       ],
-      "zero_candidates": [],
-      "status": "missing",
+      "zero_candidates": [
+        "linux.malware.process_spoofing.ProcessSpoofing"
+      ],
+      "status": "mapped_unverified",
       "evidence": []
     },
     {

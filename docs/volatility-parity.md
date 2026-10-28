@@ -70,3 +70,18 @@ Kali 的扫描用例显式提供 ELF 模式，x86 专用 IDT 插件在 ARM64 上
 Windows 本地可用样本的 11 项回归通过（含精确符号准备后复跑的 Windows 10 bitmap
 crash），Server 2012 R2 缺少解压后的样本，未运行。上述是 Zero 自身的回归，不能替代
 针对固定 Volatility v2.28.2 的全插件差分验收。发布包通过空 PATH 启动检查。
+
+## 后续批次：ProcessSpoofing（native-30）
+
+[实施计划](volatility-implementation-plan.md)已先行写入仓库。新增正式入口
+`linux.malware.process_spoofing.ProcessSpoofing`（别名 `linux.process_spoofing`），
+CLI/TUI/MCP 通过公共插件描述使用；比较 exe_file 路径、argv[0] basename 与 comm。
+包含 15 字符名称截断、已删除文件标记和进程进入 chroot 后仍引用根目录外可执行文件的情况。
+
+固定参考版本的公开 Debian 3.2 差分：默认 133 行、`--pid 1` 1 行，全部 8 字段一致。
+样本中 PID 1 和 2344 的 argv 页面缺失，参考输出 N/A；Zero 也输出 N/A，并额外保留
+缺页诊断和部分结果标记。映射显式允许部分结果比较，未将它当作完整成功缓存。
+合成测试另外验证真实身份不一致、空来源、删除标记、未以 NUL 结尾的有界参数和取消。
+
+该插件仍未完成多 PID 参数、更多真实内核和伪装攻击样本的验收，因此不计为完整插件
+对齐。当前累计 7 项正向全字段用例通过，完整插件验收数仍为 0。
