@@ -1,0 +1,87 @@
+{
+  "samples": [
+    {
+      "id": "windows-10-15063",
+      "image": "images/feat-windows-plugins/WinDump/WinDump.mem",
+      "image_sha256": "d58f62e92b8c4ef913ac09b2c36a10482034c10b88d0c154dead3aaaa49cf875",
+      "zero_symbols": ".zero/rust/symbols/isf/windows/ntkrnlmp.pdb-0C9CC659210046EC84231597DADFDB3B1.json",
+      "reference_symbols": "target/reference/kpcrs-symbols",
+      "symbol_files": [
+        {
+          "path": ".zero/rust/symbols/isf/windows/ntkrnlmp.pdb-0C9CC659210046EC84231597DADFDB3B1.json",
+          "sha256": "df5f8c1be14a69430a5dc9202641295574ce4d14e0732b1d5eee5c02935db38d"
+        },
+        {
+          "path": "target/reference/kpcrs-symbols/windows/ntkrnlmp.pdb/0C9CC659210046EC84231597DADFDB3B1.json",
+          "sha256": "df5f8c1be14a69430a5dc9202641295574ce4d14e0732b1d5eee5c02935db38d"
+        }
+      ],
+      "source": "https://www.osforensics.com/downloads/WinDump.zip"
+    },
+    {
+      "id": "server-2008-6001-x86",
+      "image": "images/feat-windows-plugins/server2008/memdump.mem",
+      "image_sha256": "d3b13f2224cab20440a4bb3c5c971662be6e61f431340f319cef7312bb6177f4",
+      "zero_symbols": ".zero/rust/symbols/isf/windows/ntkrpamp.pdb-37D328E3BAE5460F8E662756ED80951D2.json",
+      "reference_symbols": "target/reference/kpcrs-symbols",
+      "symbol_files": [
+        {
+          "path": ".zero/rust/symbols/isf/windows/ntkrpamp.pdb-37D328E3BAE5460F8E662756ED80951D2.json",
+          "sha256": "5ac8d87b92596ec67a36b4e84a93b0c7bc750fecebbfcfdd2dca1be13210be25"
+        },
+        {
+          "path": "target/reference/kpcrs-symbols/windows/ntkrpamp.pdb/37D328E3BAE5460F8E662756ED80951D2.json",
+          "sha256": "5ac8d87b92596ec67a36b4e84a93b0c7bc750fecebbfcfdd2dca1be13210be25"
+        }
+      ],
+      "source": "https://samsclass.info/121/proj/p5-Vol.htm"
+    },
+    {
+      "id": "windows-11",
+      "image": "images/feat-windows-plugins/Win11Dump/Win11Dump.mem",
+      "image_sha256": "0f00815b8f78f30a63d742c73152474b2a3c35183dbb1d92c8fc6a81fa3de9f1",
+      "zero_symbols": ".zero/rust/symbols/isf/windows/ntkrnlmp.pdb-8E3373D6124E747F0E72EF8E02E676B31.json",
+      "reference_symbols": "target/reference/kpcrs-symbols",
+      "symbol_files": [
+        {
+          "path": ".zero/rust/symbols/isf/windows/ntkrnlmp.pdb-8E3373D6124E747F0E72EF8E02E676B31.json",
+          "sha256": "ceaf239331d5aac33e1352bbb317e871917e8c90de4d1d0b234e48f5e375b757"
+        },
+        {
+          "path": "target/reference/kpcrs-symbols/windows/ntkrnlmp.pdb/8E3373D6124E747F0E72EF8E02E676B31.json",
+          "sha256": "ceaf239331d5aac33e1352bbb317e871917e8c90de4d1d0b234e48f5e375b757"
+        }
+      ],
+      "source": "https://www.osforensics.com/downloads/Win11Dump.zip"
+    }
+  ],
+  "cases": [
+    {
+      "sample": "windows-10-15063",
+      "id": "windows-10-15063/kpcrs-default",
+      "reference_plugin": "windows.kpcrs.KPCRs",
+      "zero_plugin": "windows.kpcrs.KPCRs",
+      "mapping": "tests/reference/parity/mappings/windows-kpcrs.json",
+      "zero_args": [],
+      "reference_args": []
+    },
+    {
+      "sample": "server-2008-6001-x86",
+      "id": "server-2008-6001-x86/kpcrs-default",
+      "reference_plugin": "windows.kpcrs.KPCRs",
+      "zero_plugin": "windows.kpcrs.KPCRs",
+      "mapping": "tests/reference/parity/mappings/windows-kpcrs.json",
+      "zero_args": [],
+      "reference_args": []
+    },
+    {
+      "sample": "windows-11",
+      "id": "windows-11/kpcrs-default",
+      "reference_plugin": "windows.kpcrs.KPCRs",
+      "zero_plugin": "windows.kpcrs.KPCRs",
+      "mapping": "tests/reference/parity/mappings/windows-kpcrs.json",
+      "zero_args": [],
+      "reference_args": []
+    }
+  ]
+}

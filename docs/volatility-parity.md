@@ -488,3 +488,29 @@ Data 记录类型，同地址 Public/Data 合并顺序无关；地址冲突拒�
 解决处理器计数路径。三项合成测试及两份真实 PDB 确定性转换验证通过。
 make check 通过（497 项 Rust、19 项 Python），Debian/Kali 四项与本地可用 Windows
 十一项实际回归通过。本批没有新增插件，缺失入口仍为 Windows 28 个。
+
+Windows KPCRs（native42）：新增 `windows.kpcrs.KPCRs`（别名 `windows.kpcrs`），输出 Offset、
+PRCB Offset。共享有界处理器根枚举供 KPCRs / Timers 使用：优先按精确符号读取共享数据
+ActiveProcessorCount，支持超过八位的组计数；其次使用可用全局类型，旧系统按八位兼容
+变量读取。只有兼容计数且可能存在处理器组时标记部分覆盖；拒绝零、超过 2048 的计数、
+类型冲突、重复或不可读根。各 CPU 独立诊断，取消直接终止，不将部分结果写入成功缓存。
+KPCR 从符号声明的内嵌 Prcb/PrcbData 投影，并验证 Self/SelfPcr 及 CurrentPrcb/Prcb 回指，
+不将指针字段偏移当作结构偏移。ARM64 明确不支持 KPCRs，其他未测版本仍标为待验证。
+
+原生 PDB 转换器升级 pdb-native-7，补齐 Windows ABI 的 int / unsigned int 标准 ISF 类型名；
+不会为没有类型的全局变量补猜测类型。真实 Win10 / Win11 确定性转换测试验证这些标量。
+固定参考两端使用同一份精确 PDB 转换 ISF，逐字段比较 Win10 15063 x64、Win11 22000 x64，
+均为 4 / 4 条、两字段全一致，无遗漏、额外或冲突。仅对参考内核指针显示做声明的 48 位
+归一化；比较配置和类型文件摘要见 kpcrs.example.json，不独立证明 PDB 转换布局正确。
+
+Server 2008 6001 x86 原生输出 1 条且自指针/回指均验证通过。固定参考读取 unsigned int
+得到 3405774849，而八位值为 1；Prcb 指针成员偏移 32，内嵌 PrcbData 偏移 288，SelfPcr
+偏移 28。独立开发探针仅读取计数和符号布局，保存在 parity/probes，参考原插件未修改。
+参考 KPCRs 在该样本页错误退出，本例不登记为全字段通过。摘要与限制见
+kpcrs-known-differences.json。Timers 的共享枚举读出 4 个处理器，但 Win10 定时器/DPC
+解析仍为部分结果（456 条、181 项诊断）；本批不宣称修复或对齐该解析。
+
+make check 通过（501 项 Rust、19 项 Python）；Debian/Kali 四项、可用 Windows 十一项
+实际回归通过。Win10/11 与 Server 2008 的 KPCRs 计数加入实际回归和兼容矩阵。入口现为
+127 个（Linux 62 / Windows 65），固定参考缺失入口为 Windows 27 个。正向全字段用例累计
+39 项，含 2 项限定行范围，覆盖 9 个 Linux / 3 个 Windows 插件；完整插件合同验收仍为 0。

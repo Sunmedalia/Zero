@@ -53,6 +53,10 @@ fn public_windows_images() {
             (Plugin::WinModules, expected_modules),
             (Plugin::WinHivelist, expected_hives),
             (
+                Plugin::WinKpcrs,
+                fixture["rows"]["windows.kpcrs.KPCRs"].as_u64().unwrap() as usize,
+            ),
+            (
                 Plugin::WinVadWalk,
                 fixture["rows"]["windows.vadwalk.VadWalk"].as_u64().unwrap() as usize,
             ),
@@ -167,6 +171,12 @@ fn native_pdb_conversion_is_deterministic_and_preserves_anonymous_layouts() {
         assert_eq!(first, second);
         let isf = Isf::parse(&first, "converted fixture".into()).unwrap();
         assert_eq!(isf.data["user_types"]["_KPRCB"]["size"], prcb_size);
+        assert_eq!(
+            isf.data["base_types"]["unsigned int"],
+            serde_json::json!({"size":4,"kind":"int","signed":false,"endian":"little"})
+        );
+        assert_eq!(isf.data["base_types"]["int"]["size"], 4);
+        assert_eq!(isf.data["base_types"]["int"]["signed"], true);
         // These public PDBs export addresses only for both globals. Conversion
         // must not fabricate a type to make processor enumeration appear typed.
         assert!(isf.symbol_size("KeNumberProcessors").is_err());

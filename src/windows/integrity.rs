@@ -372,15 +372,7 @@ impl Windows<'_> {
     pub(super) fn timers(&self, job: &Job) -> Result<Results> {
         let mut r = self.result(Plugin::WinTimers);
         let isf = self.vm.isf;
-        let processors = self.vm.uint(
-            self.symbol("KeNumberProcessors")
-                .context("不支持: 缺少 KeNumberProcessors")?,
-            4,
-        )?;
-        ensure!((1..=2048).contains(&processors), "处理器数量无效");
-        let blocks = self
-            .symbol("KiProcessorBlock")
-            .context("不支持: 缺少 KiProcessorBlock")?;
+        let processors = self.processor_roots(&mut r, job)?;
         let encoded = self.vm.pointer_size() == 8 && self.symbol("KiWaitNever").is_ok();
         let (never, always) = if encoded {
             (
@@ -410,15 +402,8 @@ impl Windows<'_> {
             .context("缺少 _KTIMER_TABLE_ENTRY 大小")?;
         let list = isf.offset("_KTIMER_TABLE_ENTRY", "Entry")?;
         let link = isf.offset("_KTIMER", "TimerListEntry")?;
-        for cpu in 0..processors {
+        for (cpu, prcb) in processors {
             job.check()?;
-            let prcb = self
-                .vm
-                .pointer(add(blocks, cpu * self.vm.pointer_size() as u64)?)?;
-            if !self.vm.kernel(prcb) {
-                Self::issue(&mut r, format!("CPU {cpu}"), "KPRCB 指针无效");
-                continue;
-            }
             for index in 0..count {
                 let head = add(add(prcb, table)?, index * entry_size + list)?;
                 let (timers, diagnostics) = match self.list_partial(head, link, job) {

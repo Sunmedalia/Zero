@@ -41,6 +41,7 @@ mod pe_info;
 mod pool;
 mod process;
 mod process_checks;
+mod processors;
 mod regex;
 mod registry;
 mod registry_artifacts;
@@ -560,6 +561,9 @@ impl Windows<'_> {
     }
     pub fn run(&self, p: Plugin, options: &Options, job: &Job) -> Result<Results> {
         job.check()?;
+        if p == Plugin::WinKpcrs {
+            return self.kpcrs(job);
+        }
         if p == Plugin::WinVadWalk {
             return self.vad_walk(options, job);
         }

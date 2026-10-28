@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "allow_partial": true,
+  "keys": [
+    "Offset"
+  ],
+  "fields": {
+    "Offset": {
+      "zero": "Offset",
+      "reference": "Offset",
+      "type": "address",
+      "reference_type": "address48"
+    },
+    "PRCB Offset": {
+      "zero": "PRCB Offset",
+      "reference": "PRCB Offset",
+      "type": "address",
+      "reference_type": "address48"
+    }
+  }
+}

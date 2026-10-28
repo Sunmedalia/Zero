@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "engine_version": "0.2.1-native-42",
+  "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+  "zero_executable_sha256": "617a9582ff9775d557fc3d2e5adf0504f9fac7cc7c8afa6dedf997c77d092669",
+  "kpcrs_server2008_x86": {
+    "image_sha256": "d3b13f2224cab20440a4bb3c5c971662be6e61f431340f319cef7312bb6177f4",
+    "native_output_sha256": "86f3d2bad6489220b5b185d63850b1bbfd63f7eb18c5d40428303f143c9324d7",
+    "reference_output_sha256": "6a3cf5192354f71615ac51034b3e97c20eda99643fcaf5bbe6d41ad59bd12167",
+    "reference_stderr_sha256": "0802fc950fe943b5feb34102474f3a7cf9d5f4493173cb45413bcaae3e38b612",
+    "reference_exit_code": 1,
+    "native_rows": 1,
+    "native_complete": true,
+    "reference_comparison_passed": false,
+    "probe_source_sha256": "a0ddbc79abf55ea442974cf1d8e589c459cd936bc28497b327addf07bac59a06",
+    "probe_output_sha256": "8b661449d140966efe723f1932d62b85e1bb41affde34db4e294987598a8d701",
+    "byte_processor_count": 1,
+    "reference_uint_processor_count": 3405774849,
+    "pointer_prcb_member_offset": 32,
+    "embedded_prcb_data_offset": 288,
+    "self_pcr_offset": 28,
+    "limitation": "Pinned reference reads the byte compatibility count as unsigned int and subtracts a pointer-member offset instead of the embedded PRCB offset. Reference fails with a page fault; not positive full-field evidence."
+  },
+  "timers_win10": {
+    "image_sha256": "d58f62e92b8c4ef913ac09b2c36a10482034c10b88d0c154dead3aaaa49cf875",
+    "native_output_sha256": "de3733bfbcd756aa08ac40cfc48c73fbdc2af909069f464447105ba5d8aa1948",
+    "rows": 456,
+    "complete": false,
+    "diagnostic_count": 181,
+    "processor_count": 4,
+    "limitation": "Shared processor enumeration succeeds; timer-list/DPC decoding remains partial. No timer parity claim."
+  }
+}

@@ -224,3 +224,16 @@ passes 27 positive rows; PID 7688 still fails with eight native prototype-backed
 extras and no missing reference rows/common-field conflicts. Counts and output
 hashes are saved in `vadwalk-regex-regression.json`. Source samples, symbols,
 recovered rows and binary evidence are never committed.
+
+`kpcrs.example.json` compares both fields on Win10 15063 x64 and Win11 22000 x64
+with the same exact native PDB-derived ISF on both sides. Each has four matching
+records. The native converter includes the Windows ABI `unsigned int` primitive
+name required by the reference plugin; no global-variable type is fabricated.
+Server 2008 6001 x86 is deliberately retained as a failing reference case:
+the pinned plugin reads the legacy byte count as four bytes and uses the pointer
+`Prcb` offset instead of embedded `PrcbData`. `probes/processor_probe.py` is a
+development-only Volatility diagnostic plugin (load with `-p` pointing at the
+`probes` directory and run `processor_probe.ProcessorProbe`). It records only the
+count and symbol-layout evidence; it does not patch the reference plugin.
+`kpcrs-known-differences.json` stores counts/hashes and also records the remaining
+partial timer/DPC analysis. Neither failure is added as passing parity evidence.

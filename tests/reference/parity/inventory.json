@@ -5033,8 +5033,10 @@
         "Offset",
         "PRCB Offset"
       ],
-      "zero_candidates": [],
-      "status": "missing",
+      "zero_candidates": [
+        "windows.kpcrs.KPCRs"
+      ],
+      "status": "mapped_unverified",
       "evidence": []
     },
     {
