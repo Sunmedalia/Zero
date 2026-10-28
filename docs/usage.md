@@ -928,3 +928,25 @@ PCRE2 与 Python re 的完整语法仍有边界，不能把个别用例一致当
 Windows 正则结果还在 recovered_start_page_hits 中记录命中起始页的恢复来源；这不是整个
 跨页匹配的逐字节来源清单。参考扫描层未读取 prototype 页时，Zero 可以多出恢复命中，
 默认逐字段差分保留为未通过，不据此宣称隐藏内存或恶意行为。
+
+
+### Windows VAD 链接遍历
+
+`windows.vadwalk.VadWalk`（别名 `windows.vadwalk`）输出 PID、Process、Offset、Parent、Left、
+Right、Start、End、Tag 全部九字段。End 是包含的最后一个字节；内部共享范围仍使用不包含
+末端的形式，避免与扫描/导出范围混淆。父指针平衡位按布局清除，x86 直接 Parent 保留原值。
+
+```sh
+zero --offline analyze --image images/feat-windows-plugins/WinDump/WinDump.mem \
+  --plugin windows.vadwalk.VadWalk --pids 468,7688 --output exports/vadwalk.json
+```
+
+不指定 PID 时遍历全部活动进程的 VAD；`--pid` 与 `--pids` 取并集。MCP zero_analyze 与 TUI
+参数面板使用同一入口；此插件不接受搜索模式。遍历验证地址、pool tag、范围、循环、深度
+和数量；父链不一致会报告诊断，并继续验证可读子节点。不可读的链接显示 N/A，不伪装为零。
+无有效 tag 的根只访问子节点，其他无有效 tag 的节点不作为 VAD 输出。
+
+每进程最多 100 万节点、深度 100；全结果最多 100 万行 / 128 MiB 文本、65536 项进程覆盖
+报告。触及上限、未读字段或损坏链路保留已读取前缀并标记部分。覆盖、PID 选择与 End 语义
+记录在 kernel_identity.vad_walk；与扫描器共享带 tag 的遍历，不要求同时读出文件名或保护
+字段。真实全字段验证范围见 [Volatility 对齐进度](volatility-parity.md)。

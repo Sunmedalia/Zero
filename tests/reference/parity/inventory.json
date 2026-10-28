@@ -9059,8 +9059,10 @@
         "End",
         "Tag"
       ],
-      "zero_candidates": [],
-      "status": "missing",
+      "zero_candidates": [
+        "windows.vadwalk.VadWalk"
+      ],
+      "status": "mapped_unverified",
       "evidence": []
     },
     {

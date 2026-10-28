@@ -113,3 +113,10 @@ Windows VAD 正则批：先共享上下文补零统计、非 DOTALL 锚定重匹
 字段不可读而丢弃范围；父链异常保留诊断并继续验证带 tag 的子节点。命中起始页若经恢复，
 记录 prototype 或 software/compressed 来源。真实 prototype 扩展差异与 maxsize 参考差异
 分别保存，不删除恢复命中来制造默认一致。后续继续 Windows 剩余入口和完整矩阵验收。
+
+Windows VadWalk 批：先将带 tag 的最小 VAD 遍历抽为共享访问器，输出对象地址、父子指针、
+范围、tag 与覆盖统计，再由范围扫描器收集 start/end、由 VadWalk 输出九字段。保留根 tag
+例外、循环/深度/对象限制、父链异常与未读字段；End 显示为包含末字节。覆盖现代 ParentValue
+去平衡位、旧版直接 Parent、32 位四字节 pool tag、高 VPN 和 PID 列表并集。CLI/MCP/TUI
+共用插件描述和 PID 参数，真实默认/单 PID/多 PID 全字段比较后再登记证据；共享访问器变更
+必须复跑 Windows VAD 正则和旧插件实际回归，不能仅靠新的 VadWalk 表证明行为未退化。

@@ -48,6 +48,8 @@ mod security;
 mod timeline;
 mod user_artifacts;
 mod user_layout;
+#[cfg(test)]
+mod vadwalk_tests;
 mod wow64;
 const MAX_OBJECTS: usize = 1_000_000;
 const PHYSICAL_MASK: u64 = 0x000f_ffff_ffff_f000;
@@ -558,6 +560,9 @@ impl Windows<'_> {
     }
     pub fn run(&self, p: Plugin, options: &Options, job: &Job) -> Result<Results> {
         job.check()?;
+        if p == Plugin::WinVadWalk {
+            return self.vad_walk(options, job);
+        }
         if p == Plugin::WinVadRegExScan {
             return self.vad_regex_scan(options, job);
         }

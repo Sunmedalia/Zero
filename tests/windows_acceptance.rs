@@ -53,6 +53,10 @@ fn public_windows_images() {
             (Plugin::WinModules, expected_modules),
             (Plugin::WinHivelist, expected_hives),
             (
+                Plugin::WinVadWalk,
+                fixture["rows"]["windows.vadwalk.VadWalk"].as_u64().unwrap() as usize,
+            ),
+            (
                 Plugin::WinCallbacks,
                 fixture["rows"]["windows.callbacks"].as_u64().unwrap() as usize,
             ),

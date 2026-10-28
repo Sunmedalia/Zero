@@ -95,7 +95,8 @@
           "windows.cachedump": "synthetic",
           "windows.dumpfiles": "synthetic",
           "windows.thrdscan": "synthetic",
-          "windows.vadregexscan.VadRegExScan": "pending"
+          "windows.vadregexscan.VadRegExScan": "pending",
+          "windows.vadwalk.VadWalk": "synthetic"
         },
         "x64": {
           "windows.callbacks": "synthetic",
@@ -168,7 +169,8 @@
           "windows.cachedump": "synthetic",
           "windows.dumpfiles": "synthetic",
           "windows.thrdscan": "synthetic",
-          "windows.vadregexscan.VadRegExScan": "synthetic"
+          "windows.vadregexscan.VadRegExScan": "synthetic",
+          "windows.vadwalk.VadWalk": "synthetic"
         }
       },
       "evidence": [
@@ -302,7 +304,8 @@
           "windows.cachedump": "synthetic",
           "windows.dumpfiles": "synthetic",
           "windows.thrdscan": "synthetic",
-          "windows.vadregexscan.VadRegExScan": "pending"
+          "windows.vadregexscan.VadRegExScan": "pending",
+          "windows.vadwalk.VadWalk": "synthetic"
         },
         "x64": {
           "windows.callbacks": "synthetic",
@@ -375,7 +378,8 @@
           "windows.cachedump": "synthetic",
           "windows.dumpfiles": "synthetic",
           "windows.thrdscan": "synthetic",
-          "windows.vadregexscan.VadRegExScan": "synthetic"
+          "windows.vadregexscan.VadRegExScan": "synthetic",
+          "windows.vadwalk.VadWalk": "synthetic"
         }
       },
       "evidence": []
@@ -469,7 +473,8 @@
           "windows.cachedump": "synthetic",
           "windows.dumpfiles": "synthetic",
           "windows.thrdscan": "synthetic",
-          "windows.vadregexscan.VadRegExScan": "pending"
+          "windows.vadregexscan.VadRegExScan": "pending",
+          "windows.vadwalk.VadWalk": "real"
         },
         "x64": {
           "windows.callbacks": "synthetic",
@@ -542,7 +547,8 @@
           "windows.cachedump": "synthetic",
           "windows.dumpfiles": "synthetic",
           "windows.thrdscan": "synthetic",
-          "windows.vadregexscan.VadRegExScan": "synthetic"
+          "windows.vadregexscan.VadRegExScan": "synthetic",
+          "windows.vadwalk.VadWalk": "synthetic"
         }
       },
       "evidence": [
@@ -571,7 +577,8 @@
             "windows.systeminfo": 14,
             "windows.threads": 560,
             "windows.unloadedmodules": 5,
-            "windows.vadinfo": 5229
+            "windows.vadinfo": 5229,
+            "windows.vadwalk.VadWalk": 5229
           },
           "fixture": "images/server2008/memdump.mem",
           "complete": {
@@ -682,7 +689,8 @@
           "windows.cachedump": "synthetic",
           "windows.dumpfiles": "synthetic",
           "windows.thrdscan": "synthetic",
-          "windows.vadregexscan.VadRegExScan": "synthetic"
+          "windows.vadregexscan.VadRegExScan": "synthetic",
+          "windows.vadwalk.VadWalk": "synthetic"
         }
       },
       "evidence": [],
@@ -775,7 +783,8 @@
           "windows.cachedump": "synthetic",
           "windows.dumpfiles": "synthetic",
           "windows.thrdscan": "synthetic",
-          "windows.vadregexscan.VadRegExScan": "synthetic"
+          "windows.vadregexscan.VadRegExScan": "synthetic",
+          "windows.vadwalk.VadWalk": "synthetic"
         }
       },
       "evidence": [
@@ -914,7 +923,8 @@
           "windows.cachedump": "synthetic",
           "windows.dumpfiles": "synthetic",
           "windows.thrdscan": "synthetic",
-          "windows.vadregexscan.VadRegExScan": "synthetic"
+          "windows.vadregexscan.VadRegExScan": "synthetic",
+          "windows.vadwalk.VadWalk": "synthetic"
         }
       },
       "evidence": [
@@ -1054,7 +1064,8 @@
           "windows.cachedump": "synthetic",
           "windows.dumpfiles": "synthetic",
           "windows.thrdscan": "synthetic",
-          "windows.vadregexscan.VadRegExScan": "synthetic"
+          "windows.vadregexscan.VadRegExScan": "synthetic",
+          "windows.vadwalk.VadWalk": "synthetic"
         }
       },
       "evidence": [
@@ -1166,7 +1177,8 @@
           "windows.cachedump": "synthetic",
           "windows.dumpfiles": "synthetic",
           "windows.thrdscan": "synthetic",
-          "windows.vadregexscan.VadRegExScan": "synthetic"
+          "windows.vadregexscan.VadRegExScan": "synthetic",
+          "windows.vadwalk.VadWalk": "synthetic"
         }
       },
       "evidence": [
@@ -1307,7 +1319,8 @@
           "windows.cachedump": "synthetic",
           "windows.dumpfiles": "synthetic",
           "windows.thrdscan": "synthetic",
-          "windows.vadregexscan.VadRegExScan": "synthetic"
+          "windows.vadregexscan.VadRegExScan": "synthetic",
+          "windows.vadwalk.VadWalk": "synthetic"
         }
       },
       "evidence": [
@@ -1448,7 +1461,8 @@
           "windows.cachedump": "synthetic",
           "windows.dumpfiles": "synthetic",
           "windows.thrdscan": "synthetic",
-          "windows.vadregexscan.VadRegExScan": "synthetic"
+          "windows.vadregexscan.VadRegExScan": "synthetic",
+          "windows.vadwalk.VadWalk": "synthetic"
         }
       },
       "evidence": [],
@@ -1543,7 +1557,8 @@
           "windows.cachedump": "synthetic",
           "windows.dumpfiles": "synthetic",
           "windows.thrdscan": "synthetic",
-          "windows.vadregexscan.VadRegExScan": "pending"
+          "windows.vadregexscan.VadRegExScan": "pending",
+          "windows.vadwalk.VadWalk": "synthetic"
         },
         "x64": {
           "windows.callbacks": "real",
@@ -1616,7 +1631,8 @@
           "windows.cachedump": "synthetic",
           "windows.dumpfiles": "synthetic",
           "windows.thrdscan": "synthetic",
-          "windows.vadregexscan.VadRegExScan": "synthetic"
+          "windows.vadregexscan.VadRegExScan": "synthetic",
+          "windows.vadwalk.VadWalk": "synthetic"
         }
       },
       "evidence": [
@@ -1742,7 +1758,8 @@
           "windows.cachedump": "synthetic",
           "windows.dumpfiles": "synthetic",
           "windows.thrdscan": "synthetic",
-          "windows.vadregexscan.VadRegExScan": "pending"
+          "windows.vadregexscan.VadRegExScan": "pending",
+          "windows.vadwalk.VadWalk": "synthetic"
         },
         "x64": {
           "windows.callbacks": "synthetic",
@@ -1815,7 +1832,8 @@
           "windows.cachedump": "synthetic",
           "windows.dumpfiles": "synthetic",
           "windows.thrdscan": "synthetic",
-          "windows.vadregexscan.VadRegExScan": "synthetic"
+          "windows.vadregexscan.VadRegExScan": "synthetic",
+          "windows.vadwalk.VadWalk": "synthetic"
         }
       },
       "evidence": []
@@ -1908,7 +1926,8 @@
           "windows.cachedump": "synthetic",
           "windows.dumpfiles": "synthetic",
           "windows.thrdscan": "synthetic",
-          "windows.vadregexscan.VadRegExScan": "pending"
+          "windows.vadregexscan.VadRegExScan": "pending",
+          "windows.vadwalk.VadWalk": "synthetic"
         },
         "x64": {
           "windows.callbacks": "synthetic",
@@ -1981,7 +2000,8 @@
           "windows.cachedump": "synthetic",
           "windows.dumpfiles": "synthetic",
           "windows.thrdscan": "synthetic",
-          "windows.vadregexscan.VadRegExScan": "synthetic"
+          "windows.vadregexscan.VadRegExScan": "synthetic",
+          "windows.vadwalk.VadWalk": "synthetic"
         }
       },
       "evidence": []
@@ -2087,7 +2107,8 @@
           "windows.cachedump": "synthetic",
           "windows.dumpfiles": "synthetic",
           "windows.thrdscan": "synthetic",
-          "windows.vadregexscan.VadRegExScan": "pending"
+          "windows.vadregexscan.VadRegExScan": "pending",
+          "windows.vadwalk.VadWalk": "synthetic"
         },
         "x64": {
           "windows.callbacks": "real",
@@ -2160,7 +2181,8 @@
           "windows.cachedump": "synthetic",
           "windows.dumpfiles": "synthetic",
           "windows.thrdscan": "synthetic",
-          "windows.vadregexscan.VadRegExScan": "synthetic"
+          "windows.vadregexscan.VadRegExScan": "synthetic",
+          "windows.vadwalk.VadWalk": "real"
         }
       },
       "evidence": [
@@ -2210,7 +2232,8 @@
             "windows.mbrscan": 1,
             "windows.timers": 456,
             "windows.statistics": 7,
-            "windows.virtmap": 13
+            "windows.virtmap": 13,
+            "windows.vadwalk.VadWalk": 16165
           }
         },
         {
@@ -2324,7 +2347,8 @@
           "windows.cachedump": "synthetic",
           "windows.dumpfiles": "synthetic",
           "windows.thrdscan": "synthetic",
-          "windows.vadregexscan.VadRegExScan": "synthetic"
+          "windows.vadregexscan.VadRegExScan": "synthetic",
+          "windows.vadwalk.VadWalk": "real"
         }
       },
       "evidence": [
@@ -2373,7 +2397,8 @@
             "windows.timeliner": 46235,
             "windows.timers": 575,
             "windows.statistics": 7,
-            "windows.virtmap": 14
+            "windows.virtmap": 14,
+            "windows.vadwalk.VadWalk": 17405
           }
         }
       ]

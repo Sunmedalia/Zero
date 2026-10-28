@@ -139,11 +139,11 @@ impl Windows<'_> {
 }
 
 #[cfg(test)]
-mod tests {
+pub(super) mod tests {
     use super::super::tests::{K, fixture, image, put};
     use super::*;
     use serde_json::json;
-    fn prepared() -> (Vec<u8>, Isf) {
+    pub(in crate::windows) fn prepared() -> (Vec<u8>, Isf) {
         let (mut b, mut isf) = fixture();
         let pointer = |offset| json!({"offset":offset,"type":{"kind":"pointer"}});
         let number = |offset| json!({"offset":offset,"type":{"kind":"base","name":"u64"}});

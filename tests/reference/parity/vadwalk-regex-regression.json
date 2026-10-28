@@ -1,0 +1,37 @@
+{
+  "case_id": "windows-10-15063/vadregex-mz",
+  "reference_plugin": "windows.vadregexscan.VadRegExScan",
+  "image_sha256": "d58f62e92b8c4ef913ac09b2c36a10482034c10b88d0c154dead3aaaa49cf875",
+  "mapping_sha256": "8027af0b0d2fee906720de26419fde6ee58a6befc69548d9efc040a629c0e4a3",
+  "native_output_sha256": "f867c91e31d787e2b9da71cf57fc298db550c79ba30fcc04f4ff8e0271fe3fcb",
+  "zero_args": [
+    "--pid",
+    "7688",
+    "--pattern",
+    "MZ"
+  ],
+  "reference_args": [
+    "--pid",
+    "7688",
+    "--pattern",
+    "MZ"
+  ],
+  "reference_output_sha256": "95ff5d9f0ba362512b8949f30860786c8091fabfe98033fc63dfd7f1ddc6510d",
+  "zero_executable_sha256": "07139e0854056831b8ac6d84771c34803945e96e6fcb9536f64cda585baac34e",
+  "engine_version": "0.2.1-native-40",
+  "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+  "passed": false,
+  "zero_records": 709,
+  "reference_records": 701,
+  "comparison_counts": {
+    "missing": 0,
+    "extra": 8,
+    "conflicts": 0,
+    "unverifiable": 0,
+    "duplicates": 0
+  },
+  "extra_page_origins": {
+    "prototype": 8
+  },
+  "every_extra_has_matching_origin_evidence": true
+}

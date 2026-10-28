@@ -201,3 +201,26 @@ only proven zero-page-table spans, with every skipped byte retained in unavailab
 coverage. Nonzero software PTEs and missing page-table pages still use recovery or
 the bounded page-by-page fallback. The compatibility matrix records synthetic x64
 coverage; the one real positive PID case is not generalized to all Windows builds.
+
+### Windows VadWalk
+
+`vadwalk.example.json` compares all nine columns, with no record selection, on
+Windows 10 15063 x64, Windows 11 22000 x64 and Server 2008 6001 x86. It includes
+all-process runs on each sample plus Windows 10 single-PID, PID-list and union
+controls. The seven cases have matching positive row counts: 16165, 596, 159,
+755, 755, 5229 and 17405. Server 2008 is complete; Windows 10/11 retain explicit
+partial diagnostics. Matching rows do not prove complete capture or absence of
+objects outside reachable, tagged VAD trees.
+
+All symbol files are exact native PDB-derived ISFs shared by the two extractors;
+their hashes are pinned and must be copied unchanged to the declared reference
+symbol directories. This is not independent layout/conversion validation. Parent,
+Left, Right and Offset explicitly normalize reference masked 48-bit addresses;
+Start and inclusive End are compared strictly. Unavailable native links are not
+normalized to zero or accepted as a positive match.
+
+The shared walker regression retains the prior Windows regex outcome: PID 468
+passes 27 positive rows; PID 7688 still fails with eight native prototype-backed
+extras and no missing reference rows/common-field conflicts. Counts and output
+hashes are saved in `vadwalk-regex-regression.json`. Source samples, symbols,
+recovered rows and binary evidence are never committed.

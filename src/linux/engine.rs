@@ -242,7 +242,7 @@ impl Linux<'_> {
             | WinBigpools | WinSymlinkscan | WinDevicetree | WinGetservicesids | WinIat
             | WinVerinfo | WinMftscan | WinOrphanThreads | WinEtwpatch | WinScheduledTasks
             | WinAmcache | WinCertificates | WinProcessghosting | WinJoblinks | WinTimeliner
-            | WinMbrscan | WinTimers | WinStatistics | WinShimcache | WinVirtmap
+            | WinMbrscan | WinTimers | WinStatistics | WinShimcache | WinVirtmap | WinVadWalk
             | WinVadRegExScan | WinVadyarascan | WinVaddump | WinDlldump | WinModdump
             | WinHashdump | WinLsadump | WinCachedump | WinDumpfiles | WinThrdscan => {
                 Err(unrouted(plugin))

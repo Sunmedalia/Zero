@@ -1,0 +1,59 @@
+{
+  "version": 1,
+  "allow_partial": true,
+  "keys": [
+    "PID",
+    "Offset"
+  ],
+  "fields": {
+    "PID": {
+      "zero": "PID",
+      "reference": "PID",
+      "type": "integer"
+    },
+    "Process": {
+      "zero": "Process",
+      "reference": "Process",
+      "type": "text"
+    },
+    "Offset": {
+      "zero": "Offset",
+      "reference": "Offset",
+      "type": "address",
+      "reference_type": "address48"
+    },
+    "Parent": {
+      "zero": "Parent",
+      "reference": "Parent",
+      "type": "address",
+      "reference_type": "address48"
+    },
+    "Left": {
+      "zero": "Left",
+      "reference": "Left",
+      "type": "address",
+      "reference_type": "address48"
+    },
+    "Right": {
+      "zero": "Right",
+      "reference": "Right",
+      "type": "address",
+      "reference_type": "address48"
+    },
+    "Start": {
+      "zero": "Start",
+      "reference": "Start",
+      "type": "address"
+    },
+    "End": {
+      "zero": "End",
+      "reference": "End",
+      "type": "address"
+    },
+    "Tag": {
+      "zero": "Tag",
+      "reference": "Tag",
+      "type": "text"
+    }
+  }
+}

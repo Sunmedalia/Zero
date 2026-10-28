@@ -27,7 +27,8 @@
         "windows.unloadedmodules": 16,
         "windows.filescan": 34225,
         "windows.mutantscan": 765,
-        "windows.svcscan": 574
+        "windows.svcscan": 574,
+        "windows.vadwalk.VadWalk": 16165
       },
       "process_list_complete": false,
       "artifact_reference": {
@@ -89,7 +90,8 @@
         "windows.unloadedmodules": 7,
         "windows.filescan": 6922,
         "windows.mutantscan": 547,
-        "windows.svcscan": 634
+        "windows.svcscan": 634,
+        "windows.vadwalk.VadWalk": 17405
       },
       "process_list_complete": false,
       "autoruns_reference": {
@@ -251,7 +253,8 @@
         "windows.systeminfo": 14,
         "windows.threads": 560,
         "windows.unloadedmodules": 5,
-        "windows.vadinfo": 5229
+        "windows.vadinfo": 5229,
+        "windows.vadwalk.VadWalk": 5229
       },
       "symbol_source": "Microsoft exact PDB; independent Volatility conversion for comparisons",
       "complete": {

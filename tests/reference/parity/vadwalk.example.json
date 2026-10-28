@@ -1,0 +1,151 @@
+{
+  "samples": [
+    {
+      "id": "windows-10-15063",
+      "image": "images/feat-windows-plugins/WinDump/WinDump.mem",
+      "image_sha256": "d58f62e92b8c4ef913ac09b2c36a10482034c10b88d0c154dead3aaaa49cf875",
+      "zero_symbols": ".zero/rust/symbols/isf/windows/ntkrnlmp.pdb-0C9CC659210046EC84231597DADFDB3B1.json",
+      "reference_symbols": "target/reference/windows-regex-symbols",
+      "symbol_files": [
+        {
+          "path": ".zero/rust/symbols/isf/windows/ntkrnlmp.pdb-0C9CC659210046EC84231597DADFDB3B1.json",
+          "sha256": "9f13351c91d46e1b21abbe0787b4f841a5410ddd3f7a5655486cb4028a44e400"
+        },
+        {
+          "path": "target/reference/windows-regex-symbols/windows/ntkrnlmp.pdb/0C9CC659210046EC84231597DADFDB3B1.json",
+          "sha256": "9f13351c91d46e1b21abbe0787b4f841a5410ddd3f7a5655486cb4028a44e400"
+        }
+      ],
+      "source": "https://www.osforensics.com/downloads/WinDump.zip"
+    },
+    {
+      "id": "server-2008-6001-x86",
+      "image": "images/feat-windows-plugins/server2008/memdump.mem",
+      "image_sha256": "d3b13f2224cab20440a4bb3c5c971662be6e61f431340f319cef7312bb6177f4",
+      "zero_symbols": ".zero/rust/symbols/isf/windows/ntkrpamp.pdb-37D328E3BAE5460F8E662756ED80951D2.json",
+      "reference_symbols": "target/reference/vadwalk-symbols",
+      "symbol_files": [
+        {
+          "path": ".zero/rust/symbols/isf/windows/ntkrpamp.pdb-37D328E3BAE5460F8E662756ED80951D2.json",
+          "sha256": "1bfd9d1d423cec0cc75b62e5c60d63fa4d1b88ac67a75ac5992f474ba2bb26c8"
+        },
+        {
+          "path": "target/reference/vadwalk-symbols/windows/ntkrpamp.pdb/37D328E3BAE5460F8E662756ED80951D2.json",
+          "sha256": "1bfd9d1d423cec0cc75b62e5c60d63fa4d1b88ac67a75ac5992f474ba2bb26c8"
+        }
+      ],
+      "source": "https://samsclass.info/121/proj/p5-Vol.htm"
+    },
+    {
+      "id": "windows-11",
+      "image": "images/feat-windows-plugins/Win11Dump/Win11Dump.mem",
+      "image_sha256": "0f00815b8f78f30a63d742c73152474b2a3c35183dbb1d92c8fc6a81fa3de9f1",
+      "zero_symbols": ".zero/rust/symbols/isf/windows/ntkrnlmp.pdb-8E3373D6124E747F0E72EF8E02E676B31.json",
+      "reference_symbols": "target/reference/vadwalk-symbols",
+      "symbol_files": [
+        {
+          "path": ".zero/rust/symbols/isf/windows/ntkrnlmp.pdb-8E3373D6124E747F0E72EF8E02E676B31.json",
+          "sha256": "6eb86eeecf9856bb1e7ba32af9fdfa5036daa6f0a82992400bde5070c7b55207"
+        },
+        {
+          "path": "target/reference/vadwalk-symbols/windows/ntkrnlmp.pdb/8E3373D6124E747F0E72EF8E02E676B31.json",
+          "sha256": "6eb86eeecf9856bb1e7ba32af9fdfa5036daa6f0a82992400bde5070c7b55207"
+        }
+      ],
+      "source": "https://www.osforensics.com/downloads/Win11Dump.zip"
+    }
+  ],
+  "cases": [
+    {
+      "sample": "windows-10-15063",
+      "id": "windows-10-15063/vadwalk-all",
+      "reference_plugin": "windows.vadwalk.VadWalk",
+      "zero_plugin": "windows.vadwalk.VadWalk",
+      "mapping": "tests/reference/parity/mappings/windows-vadwalk.json",
+      "zero_args": [],
+      "reference_args": []
+    },
+    {
+      "sample": "windows-10-15063",
+      "id": "windows-10-15063/vadwalk-pid-7688",
+      "reference_plugin": "windows.vadwalk.VadWalk",
+      "zero_plugin": "windows.vadwalk.VadWalk",
+      "mapping": "tests/reference/parity/mappings/windows-vadwalk.json",
+      "zero_args": [
+        "--pid",
+        "7688"
+      ],
+      "reference_args": [
+        "--pid",
+        "7688"
+      ]
+    },
+    {
+      "sample": "windows-10-15063",
+      "id": "windows-10-15063/vadwalk-pid-468",
+      "reference_plugin": "windows.vadwalk.VadWalk",
+      "zero_plugin": "windows.vadwalk.VadWalk",
+      "mapping": "tests/reference/parity/mappings/windows-vadwalk.json",
+      "zero_args": [
+        "--pid",
+        "468"
+      ],
+      "reference_args": [
+        "--pid",
+        "468"
+      ]
+    },
+    {
+      "sample": "windows-10-15063",
+      "id": "windows-10-15063/vadwalk-pids",
+      "reference_plugin": "windows.vadwalk.VadWalk",
+      "zero_plugin": "windows.vadwalk.VadWalk",
+      "mapping": "tests/reference/parity/mappings/windows-vadwalk.json",
+      "zero_args": [
+        "--pids",
+        "468,7688"
+      ],
+      "reference_args": [
+        "--pid",
+        "468",
+        "7688"
+      ]
+    },
+    {
+      "sample": "windows-10-15063",
+      "id": "windows-10-15063/vadwalk-pid-union",
+      "reference_plugin": "windows.vadwalk.VadWalk",
+      "zero_plugin": "windows.vadwalk.VadWalk",
+      "mapping": "tests/reference/parity/mappings/windows-vadwalk.json",
+      "zero_args": [
+        "--pid",
+        "468",
+        "--pids",
+        "7688"
+      ],
+      "reference_args": [
+        "--pid",
+        "468",
+        "7688"
+      ]
+    },
+    {
+      "sample": "server-2008-6001-x86",
+      "id": "server-2008-6001-x86/vadwalk-all",
+      "reference_plugin": "windows.vadwalk.VadWalk",
+      "zero_plugin": "windows.vadwalk.VadWalk",
+      "mapping": "tests/reference/parity/mappings/windows-vadwalk.json",
+      "zero_args": [],
+      "reference_args": []
+    },
+    {
+      "sample": "windows-11",
+      "id": "windows-11/vadwalk-all",
+      "reference_plugin": "windows.vadwalk.VadWalk",
+      "zero_plugin": "windows.vadwalk.VadWalk",
+      "mapping": "tests/reference/parity/mappings/windows-vadwalk.json",
+      "zero_args": [],
+      "reference_args": []
+    }
+  ]
+}

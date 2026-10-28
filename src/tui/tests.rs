@@ -4524,3 +4524,23 @@ fn windows_vad_regex_parameters_preserve_spaces_pid_union_and_context_identity()
     assert!(app.dialog.is_some());
     assert_eq!(app.analysis_options.pattern.as_deref(), Some(" AB "));
 }
+
+#[test]
+fn vadwalk_pid_list_is_available_without_regex_controls() {
+    let mut app = app();
+    app.windows = true;
+    app.select_plugin(Plugin::WinVadWalk);
+    app.windows_parameters();
+    assert_eq!(plugin_label(Plugin::WinVadWalk), "vadwalk");
+    assert_eq!(app.parameter_fields(false), vec![2, 6]);
+    let before = app.request_key();
+    if let Some(Dialog::WindowsParameters { fields, .. }) = &mut app.dialog {
+        fields[2] = "468,7688".into();
+    }
+    app.dialog_key(KeyEvent::new(KeyCode::Enter, KeyModifiers::CONTROL));
+    assert!(app.dialog.is_none());
+    assert_eq!(app.analysis_options.pids, [468, 7688]);
+    assert!(app.analysis_options.pattern.is_none());
+    assert!(app.analysis_options.maxsize.is_none());
+    assert_ne!(before, app.request_key());
+}

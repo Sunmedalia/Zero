@@ -14,6 +14,21 @@ pub(super) struct Vad {
     pub private: bool,
     pub path: String,
 }
+pub(super) struct VadNode {
+    pub address: u64,
+    pub parent: Option<u64>,
+    pub left: Option<u64>,
+    pub right: Option<u64>,
+    pub start: u64,
+    pub end: u64, // exclusive internally; VadWalk renders the inclusive last byte
+    pub tag: String,
+}
+#[derive(Default, serde::Serialize)]
+pub(super) struct VadWalkCoverage {
+    pub visited: usize,
+    pub yielded: usize,
+    pub stopped: bool,
+}
 struct VadTree<'a> {
     root: u64,
     offset: u64,
@@ -287,30 +302,30 @@ impl Windows<'_> {
             children,
         })
     }
-    /// Minimal VAD coverage for scanners: a readable range does not require a
-    /// readable filename/protection field. Tags and bounded child traversal match
-    /// the pinned reference; parent inconsistencies are evidence, not a reason to
-    /// discard an independently tagged child with readable bounds.
-    pub(super) fn vad_scan_ranges(
+    /// The shared tag/range walk used by scanners and link inspection. Unrelated
+    /// file/protection fields never prevent a readable VAD from being visited.
+    pub(super) fn walk_tagged_vads(
         &self,
         p: &Process,
         r: &mut Results,
         job: &Job,
-    ) -> Result<Vec<(u64, u64)>> {
+        mut visit: impl FnMut(VadNode, &mut Results) -> Result<bool>,
+    ) -> Result<VadWalkCoverage> {
         let tree = self.vad_tree(p)?;
-        let parent = ["ParentValue", "u1.Parent"]
+        let parent = [("ParentValue", !3), ("u1.Parent", !3), ("Parent", u64::MAX)]
             .into_iter()
-            .find(|f| self.vm.isf.has_field(tree.node_type, f));
+            .find(|(f, _)| self.vm.isf.has_field(tree.node_type, f));
         let high = self.vm.isf.has_field("_MMVAD_SHORT", "StartingVpnHigh");
         let mut stack = vec![(tree.root, 0usize)];
         let mut seen = HashSet::new();
-        let mut ranges = Vec::new();
+        let mut coverage = VadWalkCoverage::default();
         while let Some((node, depth)) = stack.pop() {
             job.check()?;
             if node == 0 {
                 continue;
             }
-            let read = (|| -> Result<()> {
+            coverage.visited += 1;
+            let read = (|| -> Result<Option<VadNode>> {
                 ensure!(
                     self.vm.kernel(node)
                         && seen.insert(node)
@@ -328,13 +343,19 @@ impl Windows<'_> {
                     && tag.starts_with(b"Vad")
                     && std::str::from_utf8(&tag).is_ok();
                 ensure!(recognized || depth == 0, "VAD pool tag 无法验证");
-                // Push right before left so traversal follows the reference's left-first order.
-                for field in tree.children.into_iter().rev() {
+                let mut links = [None, None];
+                // Right first on the stack gives the reference's left-first traversal.
+                for index in [1, 0] {
+                    let field = tree.children[index];
                     match self.number(node, tree.node_type, field) {
-                        Ok(child) if child != 0 => {
-                            if let Some(parent) = parent {
+                        Ok(child) => {
+                            links[index] = Some(child);
+                            if child == 0 {
+                                continue;
+                            }
+                            if let Some((parent, mask)) = parent {
                                 match self.number(child, tree.node_type, parent) {
-                                    Ok(value) if value & !3 == node => (),
+                                    Ok(value) if value & mask == node => (),
                                     value => Self::issue(
                                         r,
                                         format!("PID {} VAD {node:#x} {field}", p.pid),
@@ -346,44 +367,153 @@ impl Windows<'_> {
                             }
                             stack.push((child, depth + 1));
                         }
-                        Ok(_) => (),
                         Err(error) => {
                             Self::issue(r, format!("PID {} VAD {node:#x} {field}", p.pid), error)
                         }
                     }
                 }
-                if recognized {
-                    let mut start = self.number(address, "_MMVAD_SHORT", "StartingVpn")?;
-                    let mut end = self.number(address, "_MMVAD_SHORT", "EndingVpn")?;
-                    if high {
-                        start |= self.number(address, "_MMVAD_SHORT", "StartingVpnHigh")? << 32;
-                        end |= self.number(address, "_MMVAD_SHORT", "EndingVpnHigh")? << 32;
-                    }
-                    let start = start.checked_mul(4096).context("VAD 地址溢出")?;
-                    let end = end
-                        .checked_add(1)
-                        .and_then(|n| n.checked_mul(4096))
-                        .context("VAD 地址溢出")?;
-                    ensure!(start < end && end <= 0x0000_8000_0000_0000, "VAD 范围无效");
-                    ranges.push((start, end));
-                } else {
+                if !recognized {
                     Self::issue(
                         r,
                         format!("PID {} VAD root {node:#x}", p.pid),
                         "根节点无有效 tag，仅遍历其子节点",
                     );
+                    return Ok(None);
                 }
-                Ok(())
+                let mut start = self.number(address, "_MMVAD_SHORT", "StartingVpn")?;
+                let mut end = self.number(address, "_MMVAD_SHORT", "EndingVpn")?;
+                if high {
+                    start |= self.number(address, "_MMVAD_SHORT", "StartingVpnHigh")? << 32;
+                    end |= self.number(address, "_MMVAD_SHORT", "EndingVpnHigh")? << 32;
+                }
+                let start = start.checked_mul(4096).context("VAD 地址溢出")?;
+                let end = end
+                    .checked_add(1)
+                    .and_then(|n| n.checked_mul(4096))
+                    .context("VAD 地址溢出")?;
+                ensure!(start < end && end <= 0x0000_8000_0000_0000, "VAD 范围无效");
+                let parent = parent.and_then(|(field, mask)| {
+                    self.number(node, tree.node_type, field)
+                        .ok()
+                        .map(|n| n & mask)
+                });
+                Ok(Some(VadNode {
+                    address,
+                    parent,
+                    left: links[0],
+                    right: links[1],
+                    start,
+                    end,
+                    tag: String::from_utf8_lossy(&tag).into_owned(),
+                }))
             })();
-            if let Err(error) = read {
-                job.check()?;
-                Self::issue(r, format!("PID {} VAD {node:#x}", p.pid), error);
+            match read {
+                Ok(Some(node)) => {
+                    coverage.yielded += 1;
+                    if !visit(node, r)? {
+                        coverage.stopped = true;
+                        break;
+                    }
+                }
+                Ok(None) => (),
+                Err(error) => {
+                    job.check()?;
+                    Self::issue(r, format!("PID {} VAD {node:#x}", p.pid), error);
+                }
             }
             if seen.len() >= MAX_OBJECTS {
+                Self::issue(r, format!("PID {} VAD", p.pid), "节点数量达到上限");
+                coverage.stopped = true;
                 break;
             }
         }
+        Ok(coverage)
+    }
+    pub(super) fn vad_scan_ranges(
+        &self,
+        p: &Process,
+        r: &mut Results,
+        job: &Job,
+    ) -> Result<Vec<(u64, u64)>> {
+        let mut ranges = Vec::new();
+        self.walk_tagged_vads(p, r, job, |node, _| {
+            ranges.push((node.start, node.end));
+            Ok(true)
+        })?;
         Ok(ranges)
+    }
+    pub(super) fn vad_walk(&self, options: &Options, job: &Job) -> Result<Results> {
+        ensure!(options.pids.len() <= 4096, "PID 列表超过 4096 项");
+        let pids: std::collections::BTreeSet<u64> = options
+            .pids
+            .iter()
+            .copied()
+            .chain(options.pid)
+            .map(u64::from)
+            .collect();
+        let mut result = self.result(Plugin::WinVadWalk);
+        let (processes, diagnostics) = self.processes_partial(job)?;
+        result.complete &= diagnostics.is_empty();
+        result.diagnostics.extend(diagnostics);
+        let mut text_bytes = 0usize;
+        let mut stopped = false;
+        let mut reports = Vec::new();
+        for process in processes
+            .into_iter()
+            .filter(|p| pids.is_empty() || pids.contains(&p.pid))
+        {
+            job.check()?;
+            let mut missing_parents = 0;
+            let read = self.walk_tagged_vads(&process, &mut result, job, |node, r| {
+                let pointer = |value: Option<u64>| value.map(hex).unwrap_or_else(|| "N/A".into());
+                if node.parent.is_none() {
+                    missing_parents += 1;
+                }
+                let row = vec![
+                    process.pid.to_string(),
+                    process.name.clone(),
+                    hex(node.address),
+                    pointer(node.parent),
+                    pointer(node.left),
+                    pointer(node.right),
+                    hex(node.start),
+                    hex(node.end - 1),
+                    node.tag,
+                ];
+                let size = row.iter().map(String::len).sum::<usize>();
+                if r.rows.len() >= MAX_OBJECTS || text_bytes + size > 128 * 1024 * 1024 {
+                    stopped = true;
+                    return Ok(false);
+                }
+                text_bytes += size;
+                r.rows.push(row);
+                Ok(true)
+            });
+            match read {
+                Ok(coverage)=>reports.push(serde_json::json!({"pid":process.pid,"coverage":coverage,"unavailable_parent_fields":missing_parents})),
+                Err(error)=>{job.check()?;Self::issue(&mut result,format!("PID {} VAD",process.pid),error);}
+            }
+            if missing_parents > 0 {
+                Self::issue(
+                    &mut result,
+                    format!("PID {} VAD", process.pid),
+                    format!("{missing_parents} 个父字段不可读或布局缺失；保留范围与其他链接"),
+                );
+            }
+            if reports.len() >= 65536 {
+                stopped = true;
+            }
+            if stopped {
+                Self::issue(
+                    &mut result,
+                    "VAD 输出",
+                    "行数/文本/覆盖记录达到上限，保留已读取前缀",
+                );
+                break;
+            }
+        }
+        result.kernel_identity["vad_walk"] = serde_json::json!({"pids":pids,"end_is_inclusive":true,"tag_validation":true,"max_depth":100,"max_nodes_per_process":MAX_OBJECTS,"max_output_rows":MAX_OBJECTS,"max_text_bytes":128*1024*1024,"stopped":stopped,"processes":reports});
+        Ok(result)
     }
     pub(super) fn vads(&self, p: &Process, job: &Job) -> Result<Vec<Vad>> {
         self.vads_partial(p, job, None)
