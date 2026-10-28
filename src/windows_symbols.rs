@@ -16,7 +16,7 @@ use std::{
     path::Path,
 };
 
-pub const CONVERTER_VERSION: &str = "pdb-native-5";
+pub const CONVERTER_VERSION: &str = "pdb-native-6";
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub struct PdbIdentity {
     pub name: String,
@@ -599,33 +599,189 @@ pub fn convert(bytes: &[u8], identity: &PdbIdentity, job: &Job) -> Result<Vec<u8
     let mut symbols = BTreeMap::new();
     while let Some(s) = iter.next()? {
         job.check()?;
-        let (name, offset) = match s.parse()? {
-            pdb::SymbolData::Public(s) => (s.name, s.offset),
-            pdb::SymbolData::Data(s) => (s.name, s.offset),
+        let (name, offset, type_index) = match s.parse()? {
+            pdb::SymbolData::Public(s) => (s.name, s.offset, None),
+            pdb::SymbolData::Data(s) => (s.name, s.offset, Some(s.type_index)),
             _ => continue,
         };
         if let Some(rva) = offset.to_rva(&map) {
             let original = name.to_string();
             let normalized = public_symbol_name(&original, machine_type);
-            let value = if normalized == original {
-                json!({"address":rva.0})
-            } else {
-                json!({"address":rva.0,"linkage_name":original})
-            };
-            if let Some(previous) = symbols.insert(normalized.to_owned(), value) {
-                ensure!(
-                    previous["address"] == rva.0,
-                    "PDB symbol name collision: {normalized}"
-                );
-            }
+            let data_type = type_index.and_then(|index| {
+                ty(index, &records, &finder, &mut bases, 0)
+                    .ok()
+                    .filter(|(_, size)| *size > 0)
+                    .map(|(descriptor, _)| descriptor)
+            });
+            merge_global_symbol(
+                &mut symbols,
+                normalized,
+                &original,
+                rva.0,
+                type_index.is_some(),
+                data_type,
+            )?;
         }
     }
-    serde_json::to_vec(&json!({"metadata":{"format":"6.2.0","producer":{"name":"zero","version":env!("CARGO_PKG_VERSION")},"windows":{"pdb":{"database":identity.name,"GUID":identity.guid,"age":identity.age},"pe":{"machine_type":machine_type}},"zero":{"converter":CONVERTER_VERSION,"pdb_sha256":format!("{:x}",Sha256::digest(bytes)),"architecture":architecture}},"base_types":bases,"user_types":users,"enums":enums,"symbols":symbols})).map_err(Into::into)
+    let typed_symbols = symbols.values().filter(|s| s.get("type").is_some()).count();
+    let conflicting_symbol_types = symbols
+        .values()
+        .filter(|s| s["type_conflict"] == true)
+        .count();
+    let unresolved_symbol_types = symbols
+        .values()
+        .filter(|s| s["data_type_unresolved"] == true)
+        .count();
+    serde_json::to_vec(&json!({"metadata":{"format":"6.2.0","producer":{"name":"zero","version":env!("CARGO_PKG_VERSION")},"windows":{"pdb":{"database":identity.name,"GUID":identity.guid,"age":identity.age},"pe":{"machine_type":machine_type}},"zero":{"converter":CONVERTER_VERSION,"pdb_sha256":format!("{:x}",Sha256::digest(bytes)),"architecture":architecture,"typed_symbols":typed_symbols,"conflicting_symbol_types":conflicting_symbol_types,"unresolved_symbol_types":unresolved_symbol_types}},"base_types":bases,"user_types":users,"enums":enums,"symbols":symbols})).map_err(Into::into)
+}
+
+/// Public and Data records may name the same RVA. Keep type evidence independent
+/// of record order; conflicting types remain explicit instead of choosing one.
+fn merge_global_symbol(
+    symbols: &mut BTreeMap<String, Value>,
+    name: &str,
+    original: &str,
+    address: u32,
+    data_record: bool,
+    data_type: Option<Value>,
+) -> Result<()> {
+    let value = symbols
+        .entry(name.to_owned())
+        .or_insert_with(|| json!({"address":address}));
+    ensure!(
+        value["address"] == address,
+        "PDB symbol name collision: {name}"
+    );
+    let object = value.as_object_mut().context("PDB symbol record 无效")?;
+    if name != original {
+        let previous = object.get("linkage_name").and_then(Value::as_str);
+        if previous.is_none_or(|previous| original < previous) {
+            object.insert("linkage_name".into(), json!(original));
+        }
+    }
+    if data_record && data_type.is_none() {
+        object.insert("data_type_unresolved".into(), json!(true));
+    }
+    if let Some(descriptor) = data_type
+        && object.get("type_conflict") != Some(&Value::Bool(true))
+    {
+        if object
+            .get("type")
+            .is_some_and(|previous| *previous != descriptor)
+        {
+            object.remove("type");
+            object.insert("type_conflict".into(), json!(true));
+        } else {
+            object.insert("type".into(), descriptor);
+        }
+    }
+    Ok(())
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn global_data_types_merge_independently_of_public_record_order() -> Result<()> {
+        let descriptor = json!({"kind":"base","name":"UChar"});
+        let mut first = BTreeMap::new();
+        merge_global_symbol(
+            &mut first,
+            "KeNumberProcessors",
+            "_KeNumberProcessors",
+            123,
+            false,
+            None,
+        )?;
+        merge_global_symbol(
+            &mut first,
+            "KeNumberProcessors",
+            "_KeNumberProcessors",
+            123,
+            true,
+            Some(descriptor.clone()),
+        )?;
+        let mut second = BTreeMap::new();
+        merge_global_symbol(
+            &mut second,
+            "KeNumberProcessors",
+            "_KeNumberProcessors",
+            123,
+            true,
+            Some(descriptor.clone()),
+        )?;
+        merge_global_symbol(
+            &mut second,
+            "KeNumberProcessors",
+            "_KeNumberProcessors",
+            123,
+            false,
+            None,
+        )?;
+        assert_eq!(first, second);
+        assert_eq!(first["KeNumberProcessors"]["type"], descriptor);
+        assert_eq!(
+            first["KeNumberProcessors"]["linkage_name"],
+            "_KeNumberProcessors"
+        );
+        assert!(
+            merge_global_symbol(
+                &mut first,
+                "KeNumberProcessors",
+                "KeNumberProcessors",
+                124,
+                false,
+                None
+            )
+            .is_err()
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn conflicting_or_unresolved_global_types_are_explicit() -> Result<()> {
+        let mut symbols = BTreeMap::new();
+        let byte = json!({"kind":"base","name":"UChar"});
+        let int = json!({"kind":"base","name":"ULong"});
+        for descriptor in [byte.clone(), int, byte] {
+            merge_global_symbol(&mut symbols, "count", "count", 8, true, Some(descriptor))?;
+        }
+        assert_eq!(symbols["count"]["type_conflict"], true);
+        assert!(symbols["count"].get("type").is_none());
+        merge_global_symbol(&mut symbols, "unknown", "unknown", 16, true, None)?;
+        assert_eq!(symbols["unknown"]["data_type_unresolved"], true);
+        assert!(symbols["unknown"].get("type").is_none());
+        Ok(())
+    }
+
+    #[test]
+    fn global_symbol_size_uses_isf_type_and_rejects_missing_or_conflicting_evidence() -> Result<()>
+    {
+        let mut isf = Isf::parse(
+            &serde_json::to_vec(&json!({
+                "metadata":{"windows":{"pdb":{"database":"nt.pdb","GUID":"00112233445566778899AABBCCDDEEFF","age":1}}},
+                "base_types":{"pointer":{"size":4},"u8":{"size":1},"u32":{"size":4}},
+                "symbols":{
+                    "byte":{"address":8,"type":{"kind":"base","name":"u8"}},
+                    "array":{"address":16,"type":{"kind":"array","count":2,"subtype":{"kind":"pointer"}}},
+                    "unknown":{"address":32},
+                    "conflict":{"address":40,"type_conflict":true,"type":{"kind":"base","name":"u32"}}
+                }
+            }))?,
+            "synthetic typed globals".into(),
+        )?;
+        assert_eq!(isf.symbol_size("byte")?, 1);
+        assert_eq!(isf.symbol_size("array")?, 8);
+        for name in ["unknown", "conflict", "absent"] {
+            assert!(isf.symbol_size(name).is_err());
+        }
+        isf.data["symbols"]["byte"]["type"] = json!({"kind":"base","name":"absent"});
+        assert!(isf.symbol_size("byte").is_err());
+        isf.data["symbols"]["array"]["type"]["count"] = json!(u64::MAX);
+        assert!(isf.symbol_size("array").is_err());
+        Ok(())
+    }
+
     #[test]
     fn pe32_public_names_preserve_mangling_and_strip_only_c_decorations() {
         for (name, expected) in [

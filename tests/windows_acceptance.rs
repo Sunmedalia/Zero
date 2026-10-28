@@ -167,6 +167,21 @@ fn native_pdb_conversion_is_deterministic_and_preserves_anonymous_layouts() {
         assert_eq!(first, second);
         let isf = Isf::parse(&first, "converted fixture".into()).unwrap();
         assert_eq!(isf.data["user_types"]["_KPRCB"]["size"], prcb_size);
+        // These public PDBs export addresses only for both globals. Conversion
+        // must not fabricate a type to make processor enumeration appear typed.
+        assert!(isf.symbol_size("KeNumberProcessors").is_err());
+        assert!(isf.symbol_size("KiProcessorBlock").is_err());
+        assert_eq!(
+            isf.data["metadata"]["zero"]["converter"],
+            windows_symbols::CONVERTER_VERSION
+        );
+        let typed = isf.data["symbols"]
+            .as_object()
+            .unwrap()
+            .values()
+            .filter(|s| s.get("type").is_some())
+            .count();
+        assert_eq!(isf.data["metadata"]["zero"]["typed_symbols"], typed);
         assert_eq!(isf.size("_MMVAD_SHORT", "u").unwrap(), 4);
         assert_eq!(isf.size("_MMVAD_SHORT", "u1").unwrap(), 4);
         assert_ne!(

@@ -105,6 +105,19 @@ impl Isf {
             .as_u64()
             .with_context(|| format!("ISF 缺少符号 {name}"))
     }
+    /// Size of a typed global, without inferring its type from its name/address.
+    pub fn symbol_size(&self, name: &str) -> Result<u64> {
+        self.raw_address(name)?;
+        let symbol = &self.data["symbols"][name];
+        ensure!(symbol["type_conflict"] != true, "ISF 符号类型冲突: {name}");
+        let size = self.type_size(
+            symbol
+                .get("type")
+                .with_context(|| format!("ISF 缺少符号类型 {name}"))?,
+        )?;
+        ensure!(size > 0, "ISF 符号类型为空: {name}");
+        Ok(size)
+    }
     fn resolved_field<'a>(
         &'a self,
         structure: &str,

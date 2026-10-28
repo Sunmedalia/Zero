@@ -479,3 +479,12 @@ Windows 实际回归通过。Windows 回归现在包含三份样本的新 VadWal
 原生入口现为 126 个（Linux 62 / Windows 64），固定参考缺失入口为 Windows 28 个。
 正向实际镜像差分累计 37 项，含 2 项限定行范围，涉及 9 个 Linux 和 2 个 Windows 插件；
 完整插件验收数仍为 0。完整 Linux/Windows 对齐目标保持不变。
+
+Windows 全局符号类型公共基础（native41）：PDB 转换器升级为 pdb-native-6，保留可解析
+Data 记录类型，同地址 Public/Data 合并顺序无关；地址冲突拒绝，类型冲突显式记录并禁止
+读取变量大小。ISF 提供 symbol_size，不根据符号名称猜测宽度。旧派生缓存由精确 PDB
+重建，不修改原始 PDB。实际 Win10/Win11 公共 PDB 中 KeNumberProcessors 和 KiProcessorBlock
+仅有地址，没有可用 Data 类型；测试明确要求这些变量不能伪造类型，此基础本身尚未
+解决处理器计数路径。三项合成测试及两份真实 PDB 确定性转换验证通过。
+make check 通过（497 项 Rust、19 项 Python），Debian/Kali 四项与本地可用 Windows
+十一项实际回归通过。本批没有新增插件，缺失入口仍为 Windows 28 个。

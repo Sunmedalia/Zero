@@ -120,3 +120,10 @@ Windows VadWalk 批：先将带 tag 的最小 VAD 遍历抽为共享访问器，
 去平衡位、旧版直接 Parent、32 位四字节 pool tag、高 VPN 和 PID 列表并集。CLI/MCP/TUI
 共用插件描述和 PID 参数，真实默认/单 PID/多 PID 全字段比较后再登记证据；共享访问器变更
 必须复跑 Windows VAD 正则和旧插件实际回归，不能仅靠新的 VadWalk 表证明行为未退化。
+
+Windows 处理器批：先保留原生 PDB Data 全局符号的类型，合并同地址 Public/Data 记录，
+保证顺序无关；地址冲突拒绝，类型冲突显式保留且不能猜测宽度。转换器版本递增，旧的
+派生 ISF 从精确 PDB 重新生成，原始 PDB/镜像不改动。先以真实 x86/x64 PDB 验证变量宽度，
+再抽取有界处理器/PRCB 枚举供 timers 和 KPCRs 共用。KPCR 投影区分内嵌 Prcb/PrcbData
+与指针成员，验证自指针和 PRCB 回指；不照搬参考中固定四字节计数或旧 x86 偏移假设。
+记录缺页、类型不足、循环/上限和取消。按真实版本逐字段比较，参考本身的差异单独报告。
