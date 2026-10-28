@@ -1,3 +1,4 @@
+pub mod byte_regex;
 pub mod cache;
 pub mod image;
 pub mod kernel_diagnostics;
@@ -5,6 +6,7 @@ pub mod linux;
 pub mod pattern;
 mod physical;
 pub mod plugin;
+pub mod regex_scan;
 mod report;
 pub mod store;
 pub mod symbols;
@@ -16,7 +18,7 @@ use std::sync::{
     atomic::{AtomicBool, Ordering},
 };
 
-pub const ENGINE_VERSION: &str = concat!(env!("CARGO_PKG_VERSION"), "-native-35");
+pub const ENGINE_VERSION: &str = concat!(env!("CARGO_PKG_VERSION"), "-native-36");
 #[derive(Clone)]
 pub struct Job {
     pub cancel: Arc<AtomicBool>,

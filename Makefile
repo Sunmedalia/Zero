@@ -1,3 +1,5 @@
+export PCRE2_SYS_STATIC := 1
+
 .PHONY: build install run tui test ui-install ui-build ui-test check acceptance windows-acceptance tui-acceptance screenshots clean
 
 build:

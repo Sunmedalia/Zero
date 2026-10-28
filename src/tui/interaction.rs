@@ -10,10 +10,21 @@ impl App {
                     .map(|n| format!("{n:#x}"))
                     .unwrap_or_default(),
                 self.analysis_options.key.clone(),
-                self.analysis_options
-                    .pid
-                    .map(|n| n.to_string())
-                    .unwrap_or_default(),
+                if self.plugin == Plugin::VmaRegExScan {
+                    self.analysis_options
+                        .pids
+                        .iter()
+                        .copied()
+                        .chain(self.analysis_options.pid)
+                        .map(|n| n.to_string())
+                        .collect::<Vec<_>>()
+                        .join(",")
+                } else {
+                    self.analysis_options
+                        .pid
+                        .map(|n| n.to_string())
+                        .unwrap_or_default()
+                },
                 serde_json::to_value(self.analysis_options.arch)
                     .unwrap()
                     .as_str()
@@ -39,10 +50,14 @@ impl App {
                 self.analysis_options.kallsyms.modules.to_string(),
                 self.analysis_options.kallsyms.ftrace.to_string(),
                 self.analysis_options.kallsyms.bpf.to_string(),
+                self.analysis_options.maxsize.unwrap_or(128).to_string(),
             ]),
             field: if self.plugin == Plugin::WinPrintkey {
                 0
-            } else if matches!(self.plugin, Plugin::Vmayarascan | Plugin::WinVadyarascan) {
+            } else if matches!(
+                self.plugin,
+                Plugin::Vmayarascan | Plugin::WinVadyarascan | Plugin::VmaRegExScan
+            ) {
                 7
             } else if self.plugin.descriptor().columns.contains(&"PID") {
                 2

@@ -186,7 +186,10 @@ impl App {
         if self.plugin == Plugin::WinPrintkey {
             fields.extend([0, 1]);
         }
-        if matches!(self.plugin, Plugin::Vmayarascan | Plugin::WinVadyarascan) {
+        if matches!(
+            self.plugin,
+            Plugin::Vmayarascan | Plugin::WinVadyarascan | Plugin::VmaRegExScan
+        ) {
             fields.push(7);
         }
         if self.plugin.descriptor().columns.contains(&"PID") {
@@ -203,6 +206,9 @@ impl App {
         }
         if self.plugin == Plugin::Kallsyms {
             fields.extend(11..15);
+        }
+        if self.plugin == Plugin::VmaRegExScan {
+            fields.push(15);
         }
         fields.push(6);
         fields

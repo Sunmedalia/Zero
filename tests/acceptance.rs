@@ -269,20 +269,24 @@ fn kali_arm64_all_plugins_full_field_baseline() -> Result<()> {
             .is_pattern_scan()
             .then(|| zero_tui::pattern::Pattern::parse("hex:7f454c46"))
             .transpose()?;
-        let analyzed = session.analyze_with_pattern(
-            &linux::Request {
-                image: &image,
-                symbols: &symbols,
-                choice: None,
-                plugin,
-                cache: &prepared,
-                use_cache: false,
-                network: false,
-            },
-            None,
-            scan_pattern.as_ref(),
-            &job,
-        );
+        let regex_options = zero_tui::analysis::Options {
+            pattern: Some(r"\x7fELF".into()),
+            ..Default::default()
+        };
+        let request = linux::Request {
+            image: &image,
+            symbols: &symbols,
+            choice: None,
+            plugin,
+            cache: &prepared,
+            use_cache: false,
+            network: false,
+        };
+        let analyzed = if plugin == Plugin::VmaRegExScan {
+            zero_tui::analysis::analyze(&mut session, &request, None, &regex_options, &job)
+        } else {
+            session.analyze_with_pattern(&request, None, scan_pattern.as_ref(), &job)
+        };
         if plugin == Plugin::CheckIdt {
             ensure!(
                 analyzed.is_err_and(|e| e.to_string().contains("ARM64 没有 IDT")),

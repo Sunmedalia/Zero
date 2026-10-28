@@ -38,9 +38,15 @@ struct Cli {
     #[arg(long, global = true, default_value = "")]
     key: String,
     /// Byte pattern for vmayarascan / windows.vadyarascan: text, wide:TEXT
-    /// (UTF-16LE) or hex:4d5a??00 with ?? wildcards.
+    /// (UTF-16LE) or hex:4d5a??00 with ?? wildcards; byte regex for VmaRegExScan.
     #[arg(long, global = true)]
     pattern: Option<String>,
+    /// PID list for VmaRegExScan (comma-separated or repeated).
+    #[arg(long, global = true, value_delimiter = ',')]
+    pids: Vec<u32>,
+    /// Display context bytes for VmaRegExScan (default 128, maximum 4096).
+    #[arg(long, global = true)]
+    maxsize: Option<usize>,
     /// Include user threads in linux.pslist.PsList.
     #[arg(long = "threads", global = true)]
     include_threads: bool,
@@ -373,6 +379,8 @@ fn main() -> Result<()> {
                 hive: cli.hive,
                 key: cli.key.clone(),
                 pattern: cli.pattern.clone(),
+                pids: cli.pids.clone(),
+                maxsize: cli.maxsize,
                 include_threads: cli.include_threads,
                 decorate_comm: cli.decorate_comm,
                 plain_taints: cli.plain_taints,
@@ -469,6 +477,8 @@ fn launch_tui(cli: Cli) -> Result<()> {
             hive: cli.hive,
             key: cli.key,
             pattern: cli.pattern,
+            pids: cli.pids,
+            maxsize: cli.maxsize,
             include_threads: cli.include_threads,
             decorate_comm: cli.decorate_comm,
             plain_taints: cli.plain_taints,

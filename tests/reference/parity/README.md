@@ -127,3 +127,12 @@ values to match. Default text comparisons keep the literal N/A. One-sided absenc
 still fails. Scoped cases are counted separately by the audit, and scoped evidence
 alone cannot satisfy a whole-plugin contract. Running the combined Sockscan config
 returns nonzero while the default case remains divergent; inspect both case records.
+
+VmaRegExScan cases use `vmaregexscan.example.json`: literal, lookbehind, named
+backreference, multi-PID, all-process and single/list PID union searches compare all five fields. Both
+text and the full spaced-hex byte output must match. Keys include PID and virtual
+Offset. The mapping permits native partial output because absent user pages are
+reported rather than silently skipped; this does not certify complete coverage.
+The separate `vmaregexscan-maxsize.example.json` records the pinned reference's
+unused maxsize option: Zero applies the parameter, so that case remains divergent
+and must not be counted as passed. Raw matched bytes remain in ignored artifacts.

@@ -35,12 +35,14 @@ impl App {
         self.request_analysis(false);
     }
     pub(super) fn request_analysis(&mut self, force: bool) {
-        if matches!(self.plugin, Plugin::Vmayarascan | Plugin::WinVadyarascan)
-            && self
-                .analysis_options
-                .pattern
-                .as_ref()
-                .is_none_or(|p| p.trim().is_empty())
+        if matches!(
+            self.plugin,
+            Plugin::Vmayarascan | Plugin::WinVadyarascan | Plugin::VmaRegExScan
+        ) && self
+            .analysis_options
+            .pattern
+            .as_ref()
+            .is_none_or(|p| self.plugin != Plugin::VmaRegExScan && p.trim().is_empty())
         {
             self.windows_parameters();
             return;

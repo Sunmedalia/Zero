@@ -270,6 +270,14 @@ impl Session {
         };
         let identity = match pattern {
             Some(pattern) => format!("{}:{}", request.plugin.name(), pattern.source()),
+            None if request.plugin == Plugin::VmaRegExScan => format!(
+                "{}:pattern={:?}:pids={:?}:pid={:?}:maxsize={}",
+                request.plugin.name(),
+                options.pattern,
+                options.pids,
+                options.pid,
+                options.maxsize.unwrap_or(128)
+            ),
             None if request.plugin == Plugin::LinuxPslist => format!(
                 "{}:threads={}:decorate={}",
                 request.plugin.name(),
@@ -314,6 +322,8 @@ impl Session {
         };
         let result = if request.plugin.is_dump() {
             engine.run_dump(request.plugin, dump.context("Dump 插件需要转储参数")?, job)?
+        } else if request.plugin == Plugin::VmaRegExScan {
+            engine.vma_regex_scan(options, job)?
         } else if request.plugin.is_pattern_scan() {
             engine.vma_pattern_scan(pattern.context("此插件需要 --pattern")?, job)?
         } else if request.plugin == Plugin::Kallsyms {

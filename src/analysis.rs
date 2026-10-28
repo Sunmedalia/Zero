@@ -36,6 +36,8 @@ pub struct Options {
     pub os: Os,
     pub arch: crate::windows::Architecture,
     pub pid: Option<u32>,
+    pub pids: Vec<u32>,
+    pub maxsize: Option<usize>,
     pub include_threads: bool,
     pub decorate_comm: bool,
     pub plain_taints: bool,
@@ -49,13 +51,20 @@ pub struct Options {
 }
 /// Scan plugins need a pattern and no other plugin accepts one.
 pub fn validate_pattern(plugin: crate::linux::Plugin, options: &Options) -> Result<()> {
-    if plugin.is_pattern_scan() {
+    if plugin == Plugin::VmaRegExScan {
+        let text = options
+            .pattern
+            .as_deref()
+            .context("此插件需要 --pattern 字节正则")?;
+        crate::byte_regex::ByteRegex::compile(text, true)?;
+        crate::byte_regex::ByteRegex::compile(text, false)?;
+    } else if plugin.is_pattern_scan() {
         let text = options.pattern.as_deref().context("此插件需要 --pattern")?;
         crate::pattern::Pattern::parse(text)?;
     } else {
         ensure!(
             options.pattern.is_none(),
-            "--pattern 仅用于 vmayarascan / windows.vadyarascan"
+            "--pattern 仅用于字节模式或正则扫描插件"
         );
     }
     Ok(())
@@ -68,6 +77,16 @@ pub fn analyze(
     job: &Job,
 ) -> Result<Outcome> {
     validate_pattern(request.plugin, options)?;
+    ensure!(options.pids.len() <= 4096, "PID 列表超过 4096 项");
+    ensure!(
+        (options.pids.is_empty() && options.maxsize.is_none())
+            || request.plugin == Plugin::VmaRegExScan,
+        "pids/maxsize 当前仅用于 linux.vmaregexscan.VmaRegExScan"
+    );
+    if let Some(size) = options.maxsize {
+        ensure!((1..=4096).contains(&size), "maxsize 必须为 1..4096");
+    }
+
     ensure!(
         !(options.include_threads || options.decorate_comm)
             || request.plugin == Plugin::LinuxPslist,
@@ -139,6 +158,7 @@ pub fn analyze(
     let pattern = options
         .pattern
         .as_deref()
+        .filter(|_| request.plugin != Plugin::VmaRegExScan)
         .map(crate::pattern::Pattern::parse)
         .transpose()?;
     ensure!(
@@ -148,7 +168,9 @@ pub fn analyze(
     let outcome = session.analyze_linux_options(request, dump, pattern.as_ref(), options, job)?;
     Ok(match outcome {
         Outcome::Ready(mut r) => {
-            if let Some(pid) = options.pid {
+            if let Some(pid) = options.pid
+                && request.plugin != Plugin::VmaRegExScan
+            {
                 let col = r
                     .columns
                     .iter()

@@ -3,6 +3,8 @@ use clap::ValueEnum;
 
 #[derive(Clone, Copy, Debug, ValueEnum, PartialEq, Eq)]
 pub enum Plugin {
+    #[value(name = "linux.vmaregexscan.VmaRegExScan", alias = "linux.vmaregexscan")]
+    VmaRegExScan,
     #[value(name = "linux.sockscan.Sockscan", alias = "linux.sockscan")]
     LinuxSockscan,
     #[value(name = "linux.psscan.PsScan", alias = "linux.psscan")]
@@ -1603,6 +1605,13 @@ pub const PLUGINS: &[Descriptor] = &[
         ],
         widths: &[18, 12, 10, 12, 20, 12, 20, 12, 14, 0],
     },
+    Descriptor {
+        plugin: Plugin::VmaRegExScan,
+        name: "linux.vmaregexscan.VmaRegExScan",
+        label: "vmaregexscan",
+        columns: &["PID", "Process", "Offset", "Text", "Hex"],
+        widths: &[8, 18, 18, 40, 0],
+    },
 ];
 impl Plugin {
     pub fn descriptor(self) -> &'static Descriptor {
@@ -1701,7 +1710,7 @@ impl Plugin {
             Self::WinStatistics => "Memory",
             Self::WinShimcache => "Files",
             Self::WinVirtmap => "Memory",
-            Self::WinVadyarascan | Self::Vmayarascan => "Memory",
+            Self::WinVadyarascan | Self::VmaRegExScan | Self::Vmayarascan => "Memory",
             Self::Kallsyms
             | Self::Banners
             | Self::Systeminfo
@@ -1875,6 +1884,7 @@ impl Plugin {
             WinShimcache => "解码 SYSTEM hive 中的 AppCompatCache 执行痕迹",
             WinVirtmap => "列出内核虚拟地址空间按用途划分的区域",
             WinVadyarascan => "在进程 VAD 中搜索指定的文本或十六进制字节模式",
+            VmaRegExScan => "按字节正则扫描进程全部虚拟内存区域",
             Vmayarascan => "在进程 VMA 中搜索指定的文本或十六进制字节模式",
         }
     }

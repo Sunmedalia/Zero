@@ -171,6 +171,7 @@ impl App {
                         "模块符号 true / false",
                         "ftrace 符号 true / false",
                         "BPF 符号 true / false",
+                        "正则上下文字节数 1..4096",
                     ];
                     let mut lines = vec![Line::raw(if self.windows {
                         "Ctrl+T 展开／收起 Windows 高级配置"
@@ -187,7 +188,13 @@ impl App {
                             format!(
                                 "{} {}",
                                 if *field == index { "›" } else { " " },
-                                labels[index]
+                                if self.plugin == Plugin::VmaRegExScan && index == 7 {
+                                    "字节正则（保留空格）"
+                                } else if self.plugin == Plugin::VmaRegExScan && index == 2 {
+                                    "PID 列表（逗号或空格分隔；可选）"
+                                } else {
+                                    labels[index]
+                                }
                             ),
                             Style::default().fg(color_accent()),
                         ));

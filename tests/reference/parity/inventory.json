@@ -3244,8 +3244,10 @@
         "Text",
         "Hex"
       ],
-      "zero_candidates": [],
-      "status": "missing",
+      "zero_candidates": [
+        "linux.vmaregexscan.VmaRegExScan"
+      ],
+      "status": "mapped_unverified",
       "evidence": []
     },
     {

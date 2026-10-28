@@ -50,7 +50,7 @@ enum Dialog {
     },
     WindowsParameters {
         advanced: bool,
-        fields: Box<[String; 15]>,
+        fields: Box<[String; 16]>,
         field: usize,
         cursor: usize,
         selected: bool,

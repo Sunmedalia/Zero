@@ -4385,3 +4385,36 @@ fn kallsyms_sources_validate_and_keep_results_separate() {
     assert_ne!(before, app.request_key());
     assert!(app.job.is_none());
 }
+
+#[test]
+fn regex_parameters_preserve_spaces_pid_lists_context_and_cache_identity() {
+    let mut app = app();
+    app.select_plugin(Plugin::VmaRegExScan);
+    app.windows_parameters();
+    assert_eq!(app.parameter_fields(false), vec![7, 2, 15, 6]);
+    let before = app.request_key();
+    if let Some(Dialog::WindowsParameters { fields, .. }) = &mut app.dialog {
+        fields[7] = " AB ".into();
+        fields[2] = "1, 2".into();
+        fields[15] = "0".into();
+    }
+    app.dialog_key(KeyEvent::new(KeyCode::Enter, KeyModifiers::CONTROL));
+    assert!(app.dialog.is_some());
+    assert!(app.analysis_options.pattern.is_none());
+    if let Some(Dialog::WindowsParameters { fields, .. }) = &mut app.dialog {
+        fields[15] = "64".into();
+    }
+    app.dialog_key(KeyEvent::new(KeyCode::Enter, KeyModifiers::CONTROL));
+    assert!(app.dialog.is_none());
+    assert_eq!(app.analysis_options.pattern.as_deref(), Some(" AB "));
+    assert_eq!(app.analysis_options.pids, [1, 2]);
+    assert_eq!(app.analysis_options.maxsize, Some(64));
+    assert_ne!(before, app.request_key());
+    app.windows_parameters();
+    if let Some(Dialog::WindowsParameters { fields, .. }) = &app.dialog {
+        assert_eq!(fields[2], "1,2");
+        assert_eq!(fields[15], "64");
+    } else {
+        panic!("parameter dialog missing");
+    }
+}

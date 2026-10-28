@@ -23,6 +23,7 @@ def main():
     name = f'zero-{version}-{host}'
     files = [('target/release/zero', 'zero'), ('README.md', 'README.md'),
              ('docs/tui.md', 'docs/tui.md')]
+    files += [(str(p.relative_to(root)), str(p.relative_to(root))) for p in sorted((root / 'docs/licenses').glob('*.txt'))]
     for source, _ in files:
         if not (root / source).is_file():
             parser.error(f'missing release file: {source}')

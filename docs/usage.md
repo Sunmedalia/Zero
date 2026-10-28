@@ -352,7 +352,7 @@ zero cache clear --scope results,identification --yes
 
 ## 7. Linux 插件参考
 
-共 59 个插件（含 `linux.pslist.PsList` 完整字段入口，详见 [Volatility 对齐进度](volatility-parity.md)）：`pslist`、`pstree`、`lsmod`、`psaux`、`envars`、`maps`、`lsof`、`sockstat`、`netscan`、`banners`、`pwd`、`pscred`、`threads`、`mountinfo`、`check_creds`、`dmesg`、`systeminfo`、`elfs`、`bash`、`malfind`、`psxview`、`check_modules`、`check_syscall`、`psstate`、`capabilities`、`fdsummary`、`procdump`、`memdump`、`elfdump`、`iomem`、`ioports`、`ptrace`、`keyboard_notifiers`、`check_exec`、`check_idt`、`tty_check`、`hidden_modules`、`library_list`、`pidhashtable`、`vmcoreinfo`、`ip_addr`、`ip_link`、`check_afinfo`、`kthreads`、`netfilter`、`tracepoints`、`ftrace`、`ebpf`、`boottime`、`pagecache`、`perf_events`、`vmayarascan`、`linux.malware.process_spoofing.ProcessSpoofing`、`linux.malware.modxview.Modxview`、`linux.module_extract.ModuleExtract`、`linux.kallsyms.Kallsyms`、`linux.psscan.PsScan`、`linux.sockscan.Sockscan`。
+共 60 个插件（含 `linux.pslist.PsList` 完整字段入口，详见 [Volatility 对齐进度](volatility-parity.md)）：`pslist`、`pstree`、`lsmod`、`psaux`、`envars`、`maps`、`lsof`、`sockstat`、`netscan`、`banners`、`pwd`、`pscred`、`threads`、`mountinfo`、`check_creds`、`dmesg`、`systeminfo`、`elfs`、`bash`、`malfind`、`psxview`、`check_modules`、`check_syscall`、`psstate`、`capabilities`、`fdsummary`、`procdump`、`memdump`、`elfdump`、`iomem`、`ioports`、`ptrace`、`keyboard_notifiers`、`check_exec`、`check_idt`、`tty_check`、`hidden_modules`、`library_list`、`pidhashtable`、`vmcoreinfo`、`ip_addr`、`ip_link`、`check_afinfo`、`kthreads`、`netfilter`、`tracepoints`、`ftrace`、`ebpf`、`boottime`、`pagecache`、`perf_events`、`vmayarascan`、`linux.malware.process_spoofing.ProcessSpoofing`、`linux.malware.modxview.Modxview`、`linux.module_extract.ModuleExtract`、`linux.kallsyms.Kallsyms`、`linux.psscan.PsScan`、`linux.sockscan.Sockscan`、`linux.vmaregexscan.VmaRegExScan`。
 
 TUI 插件菜单只列分析插件，转储统一在 `D` 中。这些都是本地 ISF 驱动的 Rust 实现，不执行 Volatility Python 插件。
 
@@ -372,6 +372,7 @@ TUI 插件菜单只列分析插件，转储统一在 `D` 中。这些都是本�
 | pwd | PID、Name、Root（全局路径）、CWD（相对进程根） |
 | pscred | PID、Name、UID、GID、EUID、EGID、SUID、SGID、FSUID、FSGID、CredAddress |
 | linux.malware.process_spoofing.ProcessSpoofing | PID、PPID、Exe_Path、Cmdline_Basename、Comm、Cmdline_Spoofed、Comm_Spoofed、Exe_Deleted |
+| linux.vmaregexscan.VmaRegExScan | PID、Process、Offset、Text、Hex |
 | linux.sockscan.Sockscan | Sock Offset（物理地址）、Family、Type、Proto、Source Addr、Source Port、Destination Addr、Destination Port、State、Filter |
 | linux.psscan.PsScan | OFFSET (P)（物理地址）、PID（TGID）、TID、PPID、COMM、EXIT_STATE |
 | linux.kallsyms.Kallsyms | Addr、Type、Size、Exported、SubSystem、ModuleName、SymbolName、Description |
@@ -802,3 +803,35 @@ IPv6 端点不可读时仍保留其余已读字段，并记录字段诊断。
 计数位于 `kernel_identity.physical_socket_scan`。扫描对象可能是活动、已关闭或残留对象，
 更多命中不单独证明隐藏连接。与固定参考的默认差异及局部验收范围见
 [Volatility 对齐进度](volatility-parity.md)。
+
+
+VMA 字节正则扫描：
+
+```sh
+zero --offline analyze --image images/linux-sample-1.bin --symbols /path/to/exact.json.xz \
+  --plugin linux.vmaregexscan.VmaRegExScan --pattern '(?<=/bin/)sh' \
+  --pids 1,2344 --maxsize 128 --output regex.json
+```
+
+`linux.vmaregexscan` 为别名；`--pid` 可选择一个进程，`--pids` 可逗号分隔或重复指定列表，
+二者取并集。当前列表参数限本插件；在扫描前按任务 TGID 筛选。TUI 参数面板接受逗号或
+空格分隔的 PID，保留正则开头和结尾的空格；MCP `zero_analyze` 接受 pattern/pids/maxsize。
+模式和 PID 列表、上下文长度均参与缓存身份。
+
+PCRE2 在本地对原始字节匹配，无 Python 运行时。支持分组、前后查找、命名组与反向引用；
+搜索默认 DOTALL。参照固定 Volatility，显示时从命中位置读取上下文，使用未默认启用
+DOTALL 的锚定正则重新匹配；能匹配则显示匹配字节，否则显示全部上下文。默认上下文为
+128 字节，`--maxsize` 接受 1..4096。Text 按 UTF-8 替换解码，Hex 保留原始字节的空格分隔
+十六进制。空正则和零宽匹配受相同结果上限约束。
+
+扫描所有 VMA 并合并相邻范围，不因缺少 VM_READ 标志跳过。16 MiB 分块、4 KiB 重叠，
+与参考的有限跨块模型一致；缺页切断匹配，绝不补零搜索。输出上下文按参考允许补零，但
+不可读字节单独记录并标记部分结果。每进程最多读取 256 MiB 驻留数据、尝试 100 万次页面
+读取；全局最多 10 万行、128 MiB 输出文本。每次正则执行最多 10 万步回溯计数、1000 深度、
+8 MiB 匹配堆，每个分块主体累计最多 1000 万次自动 callout 工作计数。匹配中也检查取消；触及上限保留已经产生的行和诊断。模式最多 4096 字节。
+
+当前 PCRE2 字节语义不等同完整 Python re 语义；禁用 UTF/UCP/JIT，拒绝 PCRE 专用控制动词，
+并将 Python 严格结尾锚点 \Z 转为 PCRE2 \z。罕见语法和更多内核仍待验证。固定参考声明了
+maxsize 参数但输出仍固定为 128 字节；Zero 实际应用参数。这一已知差异单独记录，不计作
+全量对齐通过。构建通过 `make` 静态链接随依赖提供的 PCRE2；手动 Cargo 构建若需要相同
+链接方式，设置 `PCRE2_SYS_STATIC=1`。许可说明随本地打包产物放在 docs/licenses。
