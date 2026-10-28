@@ -27,6 +27,7 @@ mod modules;
 mod net;
 mod netdev;
 mod process;
+mod scan;
 mod session;
 mod spoofing;
 mod taskwalk;

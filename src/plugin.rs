@@ -3,6 +3,8 @@ use clap::ValueEnum;
 
 #[derive(Clone, Copy, Debug, ValueEnum, PartialEq, Eq)]
 pub enum Plugin {
+    #[value(name = "linux.psscan.PsScan", alias = "linux.psscan")]
+    LinuxPsscan,
     #[value(name = "linux.kallsyms.Kallsyms", alias = "linux.kallsyms")]
     Kallsyms,
     #[value(
@@ -1574,6 +1576,13 @@ pub const PLUGINS: &[Descriptor] = &[
         ],
         widths: &[18, 5, 12, 10, 8, 20, 0, 0],
     },
+    Descriptor {
+        plugin: Plugin::LinuxPsscan,
+        name: "linux.psscan.PsScan",
+        label: "psscan",
+        columns: &["OFFSET (P)", "PID", "TID", "PPID", "COMM", "EXIT_STATE"],
+        widths: &[18, 8, 8, 8, 18, 0],
+    },
 ];
 impl Plugin {
     pub fn descriptor(self) -> &'static Descriptor {
@@ -1681,7 +1690,8 @@ impl Plugin {
             | Self::Iomem
             | Self::Ioports
             | Self::Vmcoreinfo => "System",
-            Self::Ptrace
+            Self::LinuxPsscan
+            | Self::Ptrace
             | Self::Psstate
             | Self::Capabilities
             | Self::Pslist
@@ -1735,6 +1745,7 @@ impl Plugin {
             WinLdrmodules => "对照 PE 映射与三条 PEB 模块链表",
             WinHollowprocesses => "检查主程序基址及映像映射异常",
             WinSuspiciousThreads => "检查活动线程起点所在的 VAD",
+            LinuxPsscan => "独立扫描物理内存中的调度类指针，发现链表之外的任务",
             Kallsyms => "枚举核心、模块、ftrace 与 BPF 的运行时符号",
             ModuleExtract => "从指定 struct module 地址重建并导出模块 ELF",
             Modxview => "对照模块链表、sysfs 与独立内存扫描，并解析 taint 标记",

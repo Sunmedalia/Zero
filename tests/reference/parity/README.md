@@ -104,3 +104,10 @@ core, modules and core+modules. `allow_absent` is declared only for Size/Exporte
 both absent values are counted under `matched_absent`; one-sided absence still
 fails. Counts contain no recovered symbol names. The cases require complete
 native output and do not establish positive ftrace/BPF behavior on this sample.
+
+PsScan cases use `psscan.example.json` and compare all six fields, keyed by physical
+object address (not PID). The case requires complete native output. Physical
+addresses use ordinary address normalization without virtual sign extension.
+The native scan reports captured-segment coverage and candidate/parent read errors;
+parent fallback to PPID 0 does not silently certify absence. This default Debian
+case does not certify 32-bit support, all kernel versions or damaged captures.

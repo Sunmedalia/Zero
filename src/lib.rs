@@ -3,6 +3,7 @@ pub mod image;
 pub mod kernel_diagnostics;
 pub mod linux;
 pub mod pattern;
+mod physical;
 pub mod plugin;
 mod report;
 pub mod store;
@@ -15,7 +16,7 @@ use std::sync::{
     atomic::{AtomicBool, Ordering},
 };
 
-pub const ENGINE_VERSION: &str = concat!(env!("CARGO_PKG_VERSION"), "-native-33");
+pub const ENGINE_VERSION: &str = concat!(env!("CARGO_PKG_VERSION"), "-native-34");
 #[derive(Clone)]
 pub struct Job {
     pub cancel: Arc<AtomicBool>,

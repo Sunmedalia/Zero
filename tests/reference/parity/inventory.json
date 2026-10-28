@@ -2636,8 +2636,10 @@
         "COMM",
         "EXIT_STATE"
       ],
-      "zero_candidates": [],
-      "status": "missing",
+      "zero_candidates": [
+        "linux.psscan.PsScan"
+      ],
+      "status": "mapped_unverified",
       "evidence": []
     },
     {

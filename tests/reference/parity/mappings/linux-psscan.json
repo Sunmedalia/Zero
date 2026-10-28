@@ -1,0 +1,38 @@
+{
+  "version": 1,
+  "keys": [
+    "physical_offset"
+  ],
+  "fields": {
+    "physical_offset": {
+      "zero": "OFFSET (P)",
+      "reference": "OFFSET (P)",
+      "type": "address"
+    },
+    "pid": {
+      "zero": "PID",
+      "reference": "PID",
+      "type": "integer"
+    },
+    "tid": {
+      "zero": "TID",
+      "reference": "TID",
+      "type": "integer"
+    },
+    "ppid": {
+      "zero": "PPID",
+      "reference": "PPID",
+      "type": "integer"
+    },
+    "comm": {
+      "zero": "COMM",
+      "reference": "COMM",
+      "type": "text"
+    },
+    "exit_state": {
+      "zero": "EXIT_STATE",
+      "reference": "EXIT_STATE",
+      "type": "text"
+    }
+  }
+}
