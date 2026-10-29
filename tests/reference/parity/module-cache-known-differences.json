@@ -1,0 +1,256 @@
+{
+  "schema_version": 1,
+  "engine_version": "0.2.1-native-45",
+  "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+  "zero_executable_sha256": "1ae480636cbb355d98cbdd907f9272d3093a8efcb47d3a74e41e9b2bd4f2e251",
+  "exact_driver_sources": [
+    {
+      "converter": "pdb-native-8",
+      "isf_sha256": "c2256a8b6b81b91c2e0370ea291572c5bd0be699b6678f96292c0210e3b2901b",
+      "pdb": {
+        "age": 1,
+        "guid": "8443AA648B71EE252D2008EB6EBBC031",
+        "name": "mup.pdb"
+      },
+      "pdb_sha256": "ae9e1ed2aa67129ff95579650f63fda37590e1873acae205f52b921308f6bd69",
+      "url": "https://msdl.microsoft.com/download/symbols/mup.pdb/8443AA648B71EE252D2008EB6EBBC0311/mup.pdb"
+    },
+    {
+      "converter": "pdb-native-8",
+      "isf_sha256": "b5259d953da59ce50e10abce6ffae44707a2e97a22acc51b0b0a8ea9c8c01c6f",
+      "pdb": {
+        "age": 2,
+        "guid": "2383AD05D3F9414EB69278AB890373CA",
+        "name": "mup.pdb"
+      },
+      "pdb_sha256": "07eaee048dad9cd92e1a49033f3af15ae6f66b904acfd9b68e8263a02f9a8854",
+      "url": "https://msdl.microsoft.com/download/symbols/mup.pdb/2383AD05D3F9414EB69278AB890373CA2/mup.pdb"
+    }
+  ],
+  "cache_phases": [
+    {
+      "sample": "windows-10-15063",
+      "phase": 0,
+      "phase_input": "exact ISF",
+      "image_sha256": "d58f62e92b8c4ef913ac09b2c36a10482034c10b88d0c154dead3aaaa49cf875",
+      "artifact_sha256": "158b4cc87e2acd62f27958b327150fa1e852a3a718b01aed3b9f8696a9838a34",
+      "served_from_cache": false,
+      "total_rows": 4255,
+      "driver_rows": 28,
+      "named_driver_rows": 28,
+      "complete": false,
+      "pdb_identity": "mup.pdb/8443AA648B71EE252D2008EB6EBBC0311",
+      "resolved": true,
+      "isf_sha256": "c2256a8b6b81b91c2e0370ea291572c5bd0be699b6678f96292c0210e3b2901b"
+    },
+    {
+      "sample": "windows-10-15063",
+      "phase": 1,
+      "phase_input": "unchanged resources",
+      "image_sha256": "d58f62e92b8c4ef913ac09b2c36a10482034c10b88d0c154dead3aaaa49cf875",
+      "artifact_sha256": "d2106b74696dccff11dba04bcac9521811e174793ea9fe8b3a461e7b40627212",
+      "served_from_cache": true,
+      "total_rows": 4255,
+      "driver_rows": 28,
+      "named_driver_rows": 28,
+      "complete": false,
+      "pdb_identity": "mup.pdb/8443AA648B71EE252D2008EB6EBBC0311",
+      "resolved": true,
+      "isf_sha256": "c2256a8b6b81b91c2e0370ea291572c5bd0be699b6678f96292c0210e3b2901b"
+    },
+    {
+      "sample": "windows-10-15063",
+      "phase": 2,
+      "phase_input": "ISF deleted",
+      "image_sha256": "d58f62e92b8c4ef913ac09b2c36a10482034c10b88d0c154dead3aaaa49cf875",
+      "artifact_sha256": "d1cb8ff0bfa0d9894113b6f698df34befb7e3b3b76a40f8b8d5ce5855f3fb4c4",
+      "served_from_cache": false,
+      "total_rows": 4255,
+      "driver_rows": 28,
+      "named_driver_rows": 0,
+      "complete": false,
+      "pdb_identity": "mup.pdb/8443AA648B71EE252D2008EB6EBBC0311",
+      "resolved": false,
+      "isf_sha256": null
+    },
+    {
+      "sample": "windows-10-15063",
+      "phase": 3,
+      "phase_input": "unchanged missing resources",
+      "image_sha256": "d58f62e92b8c4ef913ac09b2c36a10482034c10b88d0c154dead3aaaa49cf875",
+      "artifact_sha256": "27402cb5c2714459fc5a846c8325fdd579265a6f9792215905cf494c91356438",
+      "served_from_cache": true,
+      "total_rows": 4255,
+      "driver_rows": 28,
+      "named_driver_rows": 0,
+      "complete": false,
+      "pdb_identity": "mup.pdb/8443AA648B71EE252D2008EB6EBBC0311",
+      "resolved": false,
+      "isf_sha256": null
+    },
+    {
+      "sample": "windows-10-15063",
+      "phase": 4,
+      "phase_input": "original PDB only; offline native conversion",
+      "image_sha256": "d58f62e92b8c4ef913ac09b2c36a10482034c10b88d0c154dead3aaaa49cf875",
+      "artifact_sha256": "2ccdb456d886d7fc6856b40f03bbf981432d19556f70fd804e0f8a1279c0fe4d",
+      "served_from_cache": false,
+      "total_rows": 4255,
+      "driver_rows": 28,
+      "named_driver_rows": 28,
+      "complete": false,
+      "pdb_identity": "mup.pdb/8443AA648B71EE252D2008EB6EBBC0311",
+      "resolved": true,
+      "isf_sha256": "c2256a8b6b81b91c2e0370ea291572c5bd0be699b6678f96292c0210e3b2901b"
+    },
+    {
+      "sample": "server-2008-6001-x86",
+      "phase": 0,
+      "phase_input": "exact ISF",
+      "image_sha256": "d3b13f2224cab20440a4bb3c5c971662be6e61f431340f319cef7312bb6177f4",
+      "artifact_sha256": "112835ffdf8f28c50332a60eca0a3563c29082357263df578e62742887737b8f",
+      "served_from_cache": false,
+      "total_rows": 3724,
+      "driver_rows": 28,
+      "named_driver_rows": 28,
+      "complete": false,
+      "pdb_identity": "mup.pdb/2383AD05D3F9414EB69278AB890373CA2",
+      "resolved": true,
+      "isf_sha256": "b5259d953da59ce50e10abce6ffae44707a2e97a22acc51b0b0a8ea9c8c01c6f"
+    },
+    {
+      "sample": "server-2008-6001-x86",
+      "phase": 1,
+      "phase_input": "unchanged resources",
+      "image_sha256": "d3b13f2224cab20440a4bb3c5c971662be6e61f431340f319cef7312bb6177f4",
+      "artifact_sha256": "b2e625516228c9c5e33578ea3889cbeddbaf0a611b092a35d293c426920ecbf8",
+      "served_from_cache": true,
+      "total_rows": 3724,
+      "driver_rows": 28,
+      "named_driver_rows": 28,
+      "complete": false,
+      "pdb_identity": "mup.pdb/2383AD05D3F9414EB69278AB890373CA2",
+      "resolved": true,
+      "isf_sha256": "b5259d953da59ce50e10abce6ffae44707a2e97a22acc51b0b0a8ea9c8c01c6f"
+    },
+    {
+      "sample": "server-2008-6001-x86",
+      "phase": 2,
+      "phase_input": "ISF deleted",
+      "image_sha256": "d3b13f2224cab20440a4bb3c5c971662be6e61f431340f319cef7312bb6177f4",
+      "artifact_sha256": "616e12dcec75d8cb0722ce654487dc63e6f04aeabb4914870c6a4378a0a152c6",
+      "served_from_cache": false,
+      "total_rows": 3724,
+      "driver_rows": 28,
+      "named_driver_rows": 0,
+      "complete": false,
+      "pdb_identity": "mup.pdb/2383AD05D3F9414EB69278AB890373CA2",
+      "resolved": false,
+      "isf_sha256": null
+    },
+    {
+      "sample": "server-2008-6001-x86",
+      "phase": 3,
+      "phase_input": "unchanged missing resources",
+      "image_sha256": "d3b13f2224cab20440a4bb3c5c971662be6e61f431340f319cef7312bb6177f4",
+      "artifact_sha256": "c7b4372978ac89253645bfdb493fcfa8d8895a0a43a1c5027ac7e1c2b89ca19d",
+      "served_from_cache": true,
+      "total_rows": 3724,
+      "driver_rows": 28,
+      "named_driver_rows": 0,
+      "complete": false,
+      "pdb_identity": "mup.pdb/2383AD05D3F9414EB69278AB890373CA2",
+      "resolved": false,
+      "isf_sha256": null
+    },
+    {
+      "sample": "server-2008-6001-x86",
+      "phase": 4,
+      "phase_input": "original PDB only; offline native conversion",
+      "image_sha256": "d3b13f2224cab20440a4bb3c5c971662be6e61f431340f319cef7312bb6177f4",
+      "artifact_sha256": "f6b9067132b206c6d117c9be7e6da5a98af7ef1e0b0d0371b603f54fd248c4a2",
+      "served_from_cache": false,
+      "total_rows": 3724,
+      "driver_rows": 28,
+      "named_driver_rows": 28,
+      "complete": false,
+      "pdb_identity": "mup.pdb/2383AD05D3F9414EB69278AB890373CA2",
+      "resolved": true,
+      "isf_sha256": "b5259d953da59ce50e10abce6ffae44707a2e97a22acc51b0b0a8ea9c8c01c6f"
+    }
+  ],
+  "differential_cases": [
+    {
+      "case_id": "windows-10-15063/driverirp-default",
+      "image_sha256": "d58f62e92b8c4ef913ac09b2c36a10482034c10b88d0c154dead3aaaa49cf875",
+      "mapping_sha256": "8d73db80f6d45cab916c1caebbbec373c4910254fe0f152a76dba796e9091ad4",
+      "native_output_sha256": "5e82d2536876ddf7434003da758ad569837e19e2941a131e27aeec0522fdd766",
+      "reference_output_sha256": "6225df5641c30cda633f00c291dc5e7ab9b6df9733fd0521953537b33e09aefa",
+      "native_records": 4255,
+      "reference_records": 4255,
+      "complete": false,
+      "passed": false
+    },
+    {
+      "case_id": "server-2008-6001-x86/driverirp-default",
+      "image_sha256": "d3b13f2224cab20440a4bb3c5c971662be6e61f431340f319cef7312bb6177f4",
+      "mapping_sha256": "8d73db80f6d45cab916c1caebbbec373c4910254fe0f152a76dba796e9091ad4",
+      "native_output_sha256": "e841229eb462ce9bc1e448a12b46c4947b5a26abfb05a3538170ae7756187a1f",
+      "reference_output_sha256": "f0b4d195a68390eb56126a71e7d591fabba60355b606191914d8f6ed319f4518",
+      "native_records": 3724,
+      "reference_records": 3724,
+      "complete": false,
+      "passed": false
+    },
+    {
+      "case_id": "windows-11/driverirp-default",
+      "image_sha256": "0f00815b8f78f30a63d742c73152474b2a3c35183dbb1d92c8fc6a81fa3de9f1",
+      "mapping_sha256": "8d73db80f6d45cab916c1caebbbec373c4910254fe0f152a76dba796e9091ad4",
+      "native_output_sha256": "e92d3f1939c38b23160e39826d7619e0812561fcc716cf3d0a80a01be70ed3ae",
+      "reference_output_sha256": "2288235babbeff4ed44ba04e79c36999d6dc7d92e40a7916af07a017730a03b4",
+      "native_records": 3444,
+      "reference_records": 3453,
+      "complete": false,
+      "passed": false
+    },
+    {
+      "case_id": "windows-10-15063/driverirp-kernel-module",
+      "image_sha256": "d58f62e92b8c4ef913ac09b2c36a10482034c10b88d0c154dead3aaaa49cf875",
+      "mapping_sha256": "0a43abf7cfe0eca340d13102fcd71747c4906a0b46aeb59eb1ae46a4ce8ccc6e",
+      "native_output_sha256": "5e82d2536876ddf7434003da758ad569837e19e2941a131e27aeec0522fdd766",
+      "reference_output_sha256": "6225df5641c30cda633f00c291dc5e7ab9b6df9733fd0521953537b33e09aefa",
+      "native_records": 2066,
+      "reference_records": 2066,
+      "complete": false,
+      "passed": true
+    },
+    {
+      "case_id": "server-2008-6001-x86/driverirp-kernel-module",
+      "image_sha256": "d3b13f2224cab20440a4bb3c5c971662be6e61f431340f319cef7312bb6177f4",
+      "mapping_sha256": "0a43abf7cfe0eca340d13102fcd71747c4906a0b46aeb59eb1ae46a4ce8ccc6e",
+      "native_output_sha256": "e841229eb462ce9bc1e448a12b46c4947b5a26abfb05a3538170ae7756187a1f",
+      "reference_output_sha256": "f0b4d195a68390eb56126a71e7d591fabba60355b606191914d8f6ed319f4518",
+      "native_records": 1723,
+      "reference_records": 1723,
+      "complete": false,
+      "passed": true
+    },
+    {
+      "case_id": "windows-11/driverirp-kernel-module",
+      "image_sha256": "0f00815b8f78f30a63d742c73152474b2a3c35183dbb1d92c8fc6a81fa3de9f1",
+      "mapping_sha256": "0a43abf7cfe0eca340d13102fcd71747c4906a0b46aeb59eb1ae46a4ce8ccc6e",
+      "native_output_sha256": "e92d3f1939c38b23160e39826d7619e0812561fcc716cf3d0a80a01be70ed3ae",
+      "reference_output_sha256": "2288235babbeff4ed44ba04e79c36999d6dc7d92e40a7916af07a017730a03b4",
+      "native_records": 1656,
+      "reference_records": 1656,
+      "complete": false,
+      "passed": true
+    }
+  ],
+  "limitations": [
+    "Exact handler lookup is checked against native-converted exact-driver ISFs; this is not independent validation of all PDB records or types.",
+    "Full default six-field DriverIrp comparisons still fail; kernel-scoped reruns do not add positive cases.",
+    "Missing other driver symbols remain explicit partial results.",
+    "Original user image c8f6a7f79a5a83d238b1ff16c2a51277d56b6e16580f7db5706b38bcfd5a5c66 is unavailable and untested."
+  ]
+}

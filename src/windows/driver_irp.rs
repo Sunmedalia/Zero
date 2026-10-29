@@ -357,7 +357,7 @@ impl Windows<'_> {
                 }
             }
         }
-        r.kernel_identity["dispatch_symbols"] = modules.evidence();
+        r.kernel_identity["dispatch_symbols"] = modules.evidence(resources);
         Ok(())
     }
 }

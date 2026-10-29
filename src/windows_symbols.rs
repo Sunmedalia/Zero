@@ -214,17 +214,83 @@ pub fn resolve(
     out.sort_by(|a, b| a.label.cmp(&b.label));
     Ok(out)
 }
+/// Exact local resource bytes, including negative dependencies. These describe
+/// acquisition inputs rather than trusting file timestamps or source sidecars.
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub(crate) struct CacheState {
+    pub isf: Option<String>,
+    pub pdb: Option<String>,
+    isf_stamp: Option<String>,
+    pdb_stamp: Option<String>,
+}
+fn cache_paths(
+    identity: &PdbIdentity,
+    cache: &Path,
+) -> Result<(std::path::PathBuf, std::path::PathBuf)> {
+    identity.url()?;
+    let stem = format!("{}-{}{:X}", identity.name, identity.guid, identity.age);
+    Ok((
+        cache
+            .join("symbols/isf/windows")
+            .join(format!("{stem}.json")),
+        cache.join("symbols/build/pdb").join(format!("{stem}.pdb")),
+    ))
+}
+pub(crate) fn cache_state(identity: &PdbIdentity, cache: &Path, job: &Job) -> Result<CacheState> {
+    fn hash(path: &Path, job: &Job) -> Result<Option<(String, String)>> {
+        use std::io::Read;
+        job.check()?;
+        let mut file = match fs::File::open(path) {
+            Ok(file) => file,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+            Err(error) => return Err(error.into()),
+        };
+        let metadata = file.metadata()?;
+        ensure!(
+            metadata.is_file() && metadata.len() <= 1024 * 1024 * 1024,
+            "模块符号缓存文件无效或超过 1 GiB"
+        );
+        let stamp = crate::image::metadata_stamp(&metadata)?;
+        let mut hasher = Sha256::new();
+        let mut bytes = [0; 65536];
+        let mut total = 0u64;
+        loop {
+            job.check()?;
+            let read = file.read(&mut bytes)?;
+            if read == 0 {
+                break;
+            }
+            total += read as u64;
+            ensure!(total <= metadata.len(), "模块符号缓存读取时变大");
+            hasher.update(&bytes[..read]);
+        }
+        ensure!(
+            total == metadata.len()
+                && crate::image::metadata_stamp(&file.metadata()?)? == stamp
+                && crate::image::metadata_stamp(&fs::metadata(path)?)? == stamp,
+            "模块符号缓存读取时变化"
+        );
+        Ok(Some((format!("{:x}", hasher.finalize()), stamp)))
+    }
+    let (isf, pdb) = cache_paths(identity, cache)?;
+    let isf = hash(&isf, job)?;
+    let pdb = hash(&pdb, job)?;
+    Ok(CacheState {
+        isf: isf.as_ref().map(|(digest, _)| digest.clone()),
+        pdb: pdb.as_ref().map(|(digest, _)| digest.clone()),
+        isf_stamp: isf.map(|(_, stamp)| stamp),
+        pdb_stamp: pdb.map(|(_, stamp)| stamp),
+    })
+}
+
 pub fn acquire(identity: &PdbIdentity, cache: &Path, network: bool, job: &Job) -> Result<Isf> {
     job.check()?;
-    identity.url()?;
+    let (target, pdb_path) = cache_paths(identity, cache)?;
     let _guard = if cache.exists() || network {
         Some(crate::cache::lock(cache, false)?)
     } else {
         None
     };
-    let stem = format!("{}-{}{:X}", identity.name, identity.guid, identity.age);
-    let directory = cache.join("symbols/isf/windows");
-    let target = directory.join(format!("{stem}.json"));
     if target.is_file()
         && let Ok(isf) = Isf::parse(&fs::read(&target)?, target.display().to_string())
         && PdbIdentity::from_isf(&isf)? == *identity
@@ -233,7 +299,6 @@ pub fn acquire(identity: &PdbIdentity, cache: &Path, network: bool, job: &Job) -
     {
         return Ok(isf);
     }
-    let pdb_path = cache.join("symbols/build/pdb").join(format!("{stem}.pdb"));
     let local = fs::read(&pdb_path).ok();
     let had_local = local.is_some();
     let mut bytes = if let Some(bytes) = local {
@@ -832,6 +897,38 @@ mod tests {
         assert_eq!(identity.age, 10);
         assert_eq!(identity.key(), key);
         assert!(convert(b"corrupt PDB", &identity, &Job::default()).is_err());
+    }
+}
+
+#[cfg(test)]
+mod resource_tests {
+    use super::*;
+    #[test]
+    fn exact_resource_states_track_absence_bytes_replacement_and_cancellation() -> Result<()> {
+        let temp = tempfile::tempdir()?;
+        let cache = temp.path().join("not-created");
+        let identity = PdbIdentity::from_key("test.pdb/00112233445566778899AABBCCDDEEFF1")?;
+        let job = Job::default();
+        let missing = cache_state(&identity, &cache, &job)?;
+        assert_eq!(missing.isf, None);
+        assert_eq!(missing.pdb, None);
+        assert!(!cache.exists(), "state reads must not create directories");
+        let (isf, pdb) = cache_paths(&identity, &cache)?;
+        store::atomic_write(&isf, b"same length A")?;
+        let first = cache_state(&identity, &cache, &job)?;
+        store::atomic_write(&isf, b"same length B")?;
+        let second = cache_state(&identity, &cache, &job)?;
+        assert_ne!(first.isf, second.isf);
+        assert_ne!(missing, second);
+        store::atomic_write(&pdb, b"PDB resource")?;
+        let with_pdb = cache_state(&identity, &cache, &job)?;
+        assert_ne!(second, with_pdb);
+        std::fs::remove_file(&pdb)?;
+        assert_ne!(with_pdb, cache_state(&identity, &cache, &job)?);
+        let job = Job::default();
+        job.cancel.store(true, std::sync::atomic::Ordering::Relaxed);
+        assert!(cache_state(&identity, &cache, &job).is_err());
+        Ok(())
     }
 }
 

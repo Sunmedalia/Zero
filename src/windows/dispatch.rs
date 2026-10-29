@@ -10,6 +10,8 @@ pub(super) struct DispatchModules {
     evidence: Vec<serde_json::Value>,
     symbol_bytes: usize,
     symbol_count: usize,
+    dependencies: BTreeMap<String, windows_symbols::CacheState>,
+    stable: bool,
 }
 impl DispatchModules {
     pub(super) fn new(
@@ -66,6 +68,8 @@ impl DispatchModules {
             evidence: Vec::new(),
             symbol_bytes: 0,
             symbol_count: 0,
+            dependencies: BTreeMap::new(),
+            stable: true,
         })
     }
     /// Resolve only modules containing a used dispatch address. Failures are
@@ -93,6 +97,7 @@ impl DispatchModules {
             }
             let mut evidence =
                 serde_json::json!({"base":hex(module.base),"module":module.name,"resolved":false});
+            let mut dependency = None;
             let result = (|| -> Result<BTreeMap<u64, Vec<String>>> {
                 let (cache, network) = resources.context("缺少外部模块符号资源上下文")?;
                 let mut header = [0; 4096];
@@ -103,6 +108,10 @@ impl DispatchModules {
                 );
                 let identity = network::pe_identity(vm, module.base)?;
                 evidence["pdb"] = serde_json::json!(identity.key());
+                dependency = Some((
+                    identity.clone(),
+                    windows_symbols::cache_state(&identity, cache, job).ok(),
+                ));
                 let isf = windows_symbols::acquire(&identity, cache, network, job)?;
                 ensure!(
                     PdbIdentity::from_isf(&isf)? == identity,
@@ -135,6 +144,24 @@ impl DispatchModules {
                 }
                 Ok(symbols)
             })();
+            if let Some((identity, before)) = dependency {
+                let after = resources.and_then(|(cache, _)| {
+                    windows_symbols::cache_state(&identity, cache, job).ok()
+                });
+                job.check()?;
+                if let Some(after) = after {
+                    if result.is_ok() {
+                        self.stable &= after.isf.as_deref() == evidence["isf_sha256"].as_str();
+                    } else {
+                        self.stable &= before.as_ref() == Some(&after);
+                    }
+                    if let Some(old) = self.dependencies.insert(identity.key(), after.clone()) {
+                        self.stable &= old == after;
+                    }
+                } else {
+                    self.stable = false;
+                }
+            }
             match result {
                 Ok(symbols) => {
                     evidence["resolved"] = serde_json::json!(true);
@@ -150,9 +177,14 @@ impl DispatchModules {
         }
         Ok(())
     }
-    pub(super) fn evidence(&self) -> serde_json::Value {
+    pub(super) fn evidence(
+        &self,
+        resources: Option<(&std::path::Path, bool)>,
+    ) -> serde_json::Value {
         serde_json::json!({"scope":"exact per-module PDB; no cross-module fallback", "modules":self.evidence,
-            "match":"exact address; all aliases; half-open module ranges"})
+            "match":"exact address; all aliases; half-open module ranges",
+            "cache_dependencies": CacheDependencies {version:1,converter:windows_symbols::CONVERTER_VERSION.into(),
+                network:resources.map(|(_, network)| network), stable:self.stable, entries:self.dependencies.clone()}})
     }
     pub(super) fn at(&self, target: u64) -> Vec<(String, String)> {
         let mut out = Vec::new();
@@ -183,6 +215,91 @@ impl DispatchModules {
         }
         out
     }
+}
+
+#[derive(serde::Serialize, serde::Deserialize)]
+struct CacheDependencies {
+    version: u32,
+    converter: String,
+    network: Option<bool>,
+    stable: bool,
+    entries: BTreeMap<String, windows_symbols::CacheState>,
+}
+/// Validate content and absence dependencies without acquiring or downloading.
+/// Online acquisition failures must be retried rather than becoming sticky.
+pub(super) fn dependencies_match(
+    result: &Results,
+    cache: &std::path::Path,
+    network: bool,
+    job: &Job,
+) -> Result<bool> {
+    job.check()?;
+    let evidence = &result.kernel_identity["dispatch_symbols"];
+    let Ok(deps) =
+        serde_json::from_value::<CacheDependencies>(evidence["cache_dependencies"].clone())
+    else {
+        return Ok(false);
+    };
+    if deps.version != 1
+        || deps.converter != windows_symbols::CONVERTER_VERSION
+        || deps.network != Some(network)
+        || !deps.stable
+        || deps.entries.len() > 4096
+    {
+        return Ok(false);
+    }
+    let Some(modules) = evidence["modules"].as_array() else {
+        return Ok(false);
+    };
+    if network && modules.iter().any(|module| module["resolved"] != true) {
+        return Ok(false);
+    }
+    let identities: HashSet<_> = modules
+        .iter()
+        .filter_map(|module| module["pdb"].as_str())
+        .collect();
+    if identities.len() != deps.entries.len()
+        || deps
+            .entries
+            .keys()
+            .any(|key| !identities.contains(key.as_str()))
+    {
+        return Ok(false);
+    }
+    for (key, expected) in deps.entries {
+        let Ok(identity) = PdbIdentity::from_key(&key) else {
+            return Ok(false);
+        };
+        match windows_symbols::cache_state(&identity, cache, job) {
+            Ok(actual) if actual == expected => {}
+            _ => {
+                job.check()?;
+                return Ok(false);
+            }
+        }
+    }
+    Ok(true)
+}
+
+pub(super) fn load_cached(
+    cache: &std::path::Path,
+    key: &str,
+    network: bool,
+    job: &Job,
+) -> Result<Option<Results>> {
+    for partial in [false, true] {
+        let candidate = if partial {
+            store::load_partial(cache, key)
+        } else {
+            store::load(cache, key)
+        };
+        if let Some(candidate) = candidate
+            && dependencies_match(&candidate, cache, network, job)?
+        {
+            return Ok(Some(candidate));
+        }
+    }
+    Ok(None)
 }
 
 #[cfg(test)]
@@ -265,7 +382,10 @@ mod tests {
             vec![("testdrv1".into(), String::new())]
         );
         assert_eq!(modules.at(K + 0x8000), vec![(String::new(), String::new())]);
-        assert_eq!(modules.evidence()["modules"][0]["resolved"], true);
+        assert_eq!(
+            modules.evidence(Some((cache.path(), false)))["modules"][0]["resolved"],
+            true
+        );
         assert!(result.diagnostics.is_empty());
         // An already loaded table is stable within this analysis, even if the
         // regenerable cache disappears. The next analysis resolves it afresh.
@@ -279,7 +399,13 @@ mod tests {
                 &Job::default(),
             )
             .unwrap();
-        assert_eq!(modules.evidence()["modules"].as_array().unwrap().len(), 1);
+        assert_eq!(
+            modules.evidence(Some((cache.path(), false)))["modules"]
+                .as_array()
+                .unwrap()
+                .len(),
+            1
+        );
     }
     #[test]
     fn offline_missing_symbols_and_wrong_machine_remain_partial_once() {
@@ -409,5 +535,107 @@ mod tests {
         assert!(!r.complete);
         assert!(r.diagnostics[0].contains("符号数量超限"));
         assert!(modules.external.is_empty());
+    }
+    fn result_for(modules: &DispatchModules, cache: &std::path::Path, network: bool) -> Results {
+        Results {
+            plugin: "windows.driverirp.DriverIrp".into(),
+            columns: vec![],
+            rows: vec![],
+            complete: true,
+            diagnostics: vec![],
+            banner: String::new(),
+            symbol: String::new(),
+            page_table: 0,
+            historical: false,
+            system: "windows".into(),
+            kernel_identity: json!({"dispatch_symbols":modules.evidence(Some((cache,network)))}),
+        }
+    }
+    #[test]
+    fn cached_dispatch_requires_exact_resources_and_policy_and_keeps_partial_separate() {
+        let (bytes, isf, cache) = external_fixture();
+        let image = image(&bytes);
+        let vm = Memory::new(&image, 0x1000, &isf, None);
+        let job = Job::default();
+        let mut modules = index(&isf);
+        let mut r = result_for(&modules, cache.path(), false);
+        modules
+            .resolve_at(K + 0x800, &vm, Some((cache.path(), false)), &mut r, &job)
+            .unwrap();
+        let r = result_for(&modules, cache.path(), false);
+        assert!(dependencies_match(&r, cache.path(), false, &job).unwrap());
+        assert!(!dependencies_match(&r, cache.path(), true, &job).unwrap());
+        let file = std::fs::read_dir(cache.path().join("symbols/isf/windows"))
+            .unwrap()
+            .next()
+            .unwrap()
+            .unwrap()
+            .path();
+        let original = std::fs::read(&file).unwrap();
+        let modified = String::from_utf8(original.clone())
+            .unwrap()
+            .replace("DriverDispatch", "DriverNewNameX");
+        assert_eq!(
+            modified.len(),
+            original.len(),
+            "same-size replacement regression"
+        );
+        store::atomic_write(&file, modified.as_bytes()).unwrap();
+        assert!(!dependencies_match(&r, cache.path(), false, &job).unwrap());
+        std::fs::remove_file(&file).unwrap();
+        assert!(!dependencies_match(&r, cache.path(), false, &job).unwrap());
+        let mut missing = index(&isf);
+        let mut partial = result_for(&missing, cache.path(), false);
+        missing
+            .resolve_at(
+                K + 0x800,
+                &vm,
+                Some((cache.path(), false)),
+                &mut partial,
+                &job,
+            )
+            .unwrap();
+        assert!(!partial.complete);
+        partial.kernel_identity["dispatch_symbols"] = missing.evidence(Some((cache.path(), false)));
+        assert!(dependencies_match(&partial, cache.path(), false, &job).unwrap());
+        store::save_any(
+            cache.path(),
+            "partial",
+            &store::Owner::default(),
+            &partial,
+            &job,
+        )
+        .unwrap();
+        assert!(store::load(cache.path(), "partial").is_none());
+        assert!(store::load_partial(cache.path(), "partial").is_some());
+        // A stale successful entry must not hide a current partial entry.
+        store::save_any(cache.path(), "partial", &store::Owner::default(), &r, &job).unwrap();
+        let reused = load_cached(cache.path(), "partial", false, &job)
+            .unwrap()
+            .unwrap();
+        assert!(!reused.complete);
+        assert_eq!(reused, partial);
+        let mut online = partial.clone();
+        online.kernel_identity["dispatch_symbols"]["cache_dependencies"]["network"] = json!(true);
+        assert!(
+            !dependencies_match(&online, cache.path(), true, &job).unwrap(),
+            "online failures must retry"
+        );
+        store::atomic_write(&file, &original).unwrap();
+        assert!(
+            !dependencies_match(&partial, cache.path(), false, &job).unwrap(),
+            "new exact ISF invalidates missing dependency"
+        );
+        let mut unstable = r.clone();
+        unstable.kernel_identity["dispatch_symbols"]["cache_dependencies"]["stable"] = json!(false);
+        assert!(!dependencies_match(&unstable, cache.path(), false, &job).unwrap());
+        let mut old = r;
+        old.kernel_identity["dispatch_symbols"]["cache_dependencies"] = json!(null);
+        assert!(!dependencies_match(&old, cache.path(), false, &job).unwrap());
+        let cancelled = Job::default();
+        cancelled
+            .cancel
+            .store(true, std::sync::atomic::Ordering::Relaxed);
+        assert!(dependencies_match(&partial, cache.path(), false, &cancelled).is_err());
     }
 }

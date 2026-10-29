@@ -280,3 +280,21 @@ fail. These reruns do not increase the positive-case count. Missing external
 PDBs now generate partial diagnostics; DriverIrp result caching is disabled until
 its keys include external symbol dependencies. The original native43 evidence
 and mapping scope descriptions remain historical records of that earlier run.
+
+Native45 restores dependency-validated DriverIrp result caching. The exact local
+ISF/PDB presence, streaming SHA256, metadata stamps, converter version and network
+policy are checked before reuse and storage. Unresolved online acquisitions retry;
+offline negative dependencies may use only the separate partial cache. Resource
+changes invalidate both positive and negative entries. No download occurs while
+validating cache dependencies.
+
+`module-cache-known-differences.json` records both x64 Win10 and x86 Server 2008
+five-phase actual-image runs. Prepare both exact original PDBs and ISFs listed
+in that evidence, then run `cargo test --locked --release --test
+windows_acceptance exact_driver_symbols -- --ignored`. The final phase restores
+only the original PDB and verifies offline conversion, pinned ISF hash, symbol
+lookup and negative-cache invalidation. Optional `ZERO_DRIVER_SYMBOL_EVIDENCE_DIR`
+saves raw phase artifacts under an ignored directory. These tests do not download.
+The handler-address oracle is the native-converted exact ISF, not independent
+validation of every PDB record. Full default differential failures are preserved;
+scoped reruns do not increase the 42 positive-case count or full-contract count.

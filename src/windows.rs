@@ -1028,12 +1028,16 @@ pub(crate) fn analyze_resolved(
             options.maxsize
         ),
     );
-    if request.use_cache
-        && request.plugin != Plugin::WinDriverIrp
-        && !request.plugin.is_dump()
-        && let Some(r) =
+    let cached = if request.use_cache && !request.plugin.is_dump() {
+        if request.plugin == Plugin::WinDriverIrp {
+            dispatch::load_cached(request.cache, &key, request.network, job)?
+        } else {
             store::load(request.cache, &key).or_else(|| store::load_partial(request.cache, &key))
-    {
+        }
+    } else {
+        None
+    };
+    if let Some(r) = cached {
         sources.validate()?;
         job.mark_cached();
         let owner = store::Owner::new(&image.digest, request.image);
@@ -1081,8 +1085,11 @@ pub(crate) fn analyze_resolved(
         result.diagnostics.extend(hiber.info.diagnostics.clone());
     }
     job.check()?;
-    // External module symbol dependencies are not yet included in result keys.
-    if request.use_cache && request.plugin != Plugin::WinDriverIrp && !request.plugin.is_dump() {
+    if request.use_cache
+        && !request.plugin.is_dump()
+        && (request.plugin != Plugin::WinDriverIrp
+            || dispatch::dependencies_match(&result, request.cache, request.network, job)?)
+    {
         store::save_any(
             request.cache,
             &key,

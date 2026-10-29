@@ -520,81 +520,159 @@ fn public_server2016_triage_metadata() {
 #[test]
 #[ignore = "requires public Win10 15063 image and exact cached mup.pdb/8443AA648B71EE252D2008EB6EBBC0311"]
 fn public_win10_exact_driver_symbols() {
+    exact_driver_symbols_and_cache(
+        "ZERO_WINDOWS10_IMAGE",
+        "images/feat-windows-plugins/WinDump/WinDump.mem",
+        "d58f62e92b8c4ef913ac09b2c36a10482034c10b88d0c154dead3aaaa49cf875",
+        "ntkrnlmp.pdb-0C9CC659210046EC84231597DADFDB3B1.json",
+        "mup.pdb/8443AA648B71EE252D2008EB6EBBC0311",
+        "c2256a8b6b81b91c2e0370ea291572c5bd0be699b6678f96292c0210e3b2901b",
+        28,
+    );
+}
+#[test]
+#[ignore = "requires public Server 2008 6001 x86 image and exact cached mup.pdb/2383AD05D3F9414EB69278AB890373CA2"]
+fn public_server2008_exact_driver_symbols() {
+    exact_driver_symbols_and_cache(
+        "ZERO_WINDOWS2008_IMAGE",
+        "images/feat-windows-plugins/server2008/memdump.mem",
+        "d3b13f2224cab20440a4bb3c5c971662be6e61f431340f319cef7312bb6177f4",
+        "ntkrpamp.pdb-37D328E3BAE5460F8E662756ED80951D2.json",
+        "mup.pdb/2383AD05D3F9414EB69278AB890373CA2",
+        "b5259d953da59ce50e10abce6ffae44707a2e97a22acc51b0b0a8ea9c8c01c6f",
+        28,
+    );
+}
+fn exact_driver_symbols_and_cache(
+    variable: &str,
+    default: &str,
+    digest: &str,
+    kernel_file: &str,
+    driver_key: &str,
+    driver_digest: &str,
+    expected: usize,
+) {
     use zero_tui::{symbols::Isf, windows_symbols::PdbIdentity};
-    let image = PathBuf::from(
-        std::env::var("ZERO_WINDOWS10_IMAGE")
-            .unwrap_or_else(|_| "images/feat-windows-plugins/WinDump/WinDump.mem".into()),
-    );
-    let kernel = Path::new(
-        ".zero/rust/symbols/isf/windows/ntkrnlmp.pdb-0C9CC659210046EC84231597DADFDB3B1.json",
-    );
-    let driver_path =
-        Path::new(".zero/rust/symbols/isf/windows/mup.pdb-8443AA648B71EE252D2008EB6EBBC0311.json");
-    let driver = Isf::parse(
-        &std::fs::read(driver_path).unwrap(),
-        driver_path.display().to_string(),
-    )
-    .unwrap();
+    let image = PathBuf::from(std::env::var(variable).unwrap_or_else(|_| default.into()));
+    let kernel = Path::new(".zero/rust/symbols/isf/windows").join(kernel_file);
+    let identity = PdbIdentity::from_key(driver_key).unwrap();
+    let driver_file = format!("{}-{}{:X}.json", identity.name, identity.guid, identity.age);
+    let driver_path = Path::new(".zero/rust/symbols/isf/windows").join(&driver_file);
+    let driver_bytes = std::fs::read(&driver_path).unwrap();
+    let driver = Isf::parse(&driver_bytes, driver_path.display().to_string()).unwrap();
+    assert_eq!(PdbIdentity::from_isf(&driver).unwrap(), identity);
     assert_eq!(
-        PdbIdentity::from_isf(&driver).unwrap().key(),
-        "mup.pdb/8443AA648B71EE252D2008EB6EBBC0311"
+        driver.digest, driver_digest,
+        "pinned native8 driver ISF bytes"
     );
+    use sha2::Digest;
+    let pdb_file = format!("{}-{}{:X}.pdb", identity.name, identity.guid, identity.age);
+    let pdb_bytes =
+        std::fs::read(Path::new(".zero/rust/symbols/build/pdb").join(&pdb_file)).unwrap();
+    assert_eq!(
+        driver.data["metadata"]["zero"]["pdb_sha256"],
+        format!("{:x}", sha2::Sha256::digest(&pdb_bytes)),
+        "exact original PDB bytes"
+    );
+    let cache = tempfile::tempdir().unwrap();
+    let local_driver = cache.path().join("symbols/isf/windows").join(&driver_file);
+    zero_tui::store::atomic_write(&local_driver, &driver_bytes).unwrap();
     let mut session = Session::default();
-    let job = Job::default();
     assert_eq!(
         session
-            .prepare_image(&image, Path::new(".zero/rust"), &job)
+            .prepare_image(&image, cache.path(), &Job::default())
             .unwrap()
             .digest,
-        "d58f62e92b8c4ef913ac09b2c36a10482034c10b88d0c154dead3aaaa49cf875"
+        digest
     );
-    let Outcome::Ready(result) = analysis::analyze(
-        &mut session,
-        &Request {
-            image: &image,
-            symbols: kernel,
-            choice: None,
-            plugin: Plugin::WinDriverIrp,
-            cache: Path::new(".zero/rust"),
-            use_cache: true,
-            network: false,
-        },
-        None,
-        &Options::default(),
-        &job,
-    )
-    .unwrap() else {
-        panic!("ambiguous kernel")
-    };
-    assert!(
-        !job.served_from_cache(),
-        "external symbols must not reuse result cache without dependency keys"
-    );
-    let module = result.kernel_identity["dispatch_symbols"]["modules"]
-        .as_array()
-        .unwrap()
-        .iter()
-        .find(|m| m["pdb"] == "mup.pdb/8443AA648B71EE252D2008EB6EBBC0311")
+    let mut original = None;
+    // Cold, positive cache, deletion, negative cache, then offline PDB conversion.
+    for (phase, cached, named) in [
+        (0, false, true),
+        (1, true, true),
+        (2, false, false),
+        (3, true, false),
+        (4, false, true),
+    ] {
+        if phase == 2 {
+            std::fs::remove_file(&local_driver).unwrap();
+        }
+        if phase == 4 {
+            zero_tui::store::atomic_write(
+                &cache.path().join("symbols/build/pdb").join(&pdb_file),
+                &pdb_bytes,
+            )
+            .unwrap();
+        }
+        let job = Job::default();
+        let Outcome::Ready(result) = analysis::analyze(
+            &mut session,
+            &Request {
+                image: &image,
+                symbols: &kernel,
+                choice: None,
+                plugin: Plugin::WinDriverIrp,
+                cache: cache.path(),
+                use_cache: true,
+                network: false,
+            },
+            None,
+            &Options::default(),
+            &job,
+        )
+        .unwrap() else {
+            panic!("ambiguous kernel")
+        };
+        assert_eq!(job.served_from_cache(), cached, "phase {phase}");
+        let module = result.kernel_identity["dispatch_symbols"]["modules"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|module| module["pdb"] == driver_key)
+            .unwrap();
+        assert_eq!(module["resolved"], named, "phase {phase}");
+        if named {
+            assert_eq!(module["isf_sha256"], driver_digest);
+        }
+        let base = u64::from_str_radix(
+            module["base"].as_str().unwrap().trim_start_matches("0x"),
+            16,
+        )
         .unwrap();
-    assert_eq!(module["resolved"], true);
-    assert_eq!(module["isf_sha256"], driver.digest);
-    let base = u64::from_str_radix(
-        module["base"].as_str().unwrap().trim_start_matches("0x"),
-        16,
-    )
-    .unwrap();
-    let rows: Vec<_> = result.rows.iter().filter(|row| row[4] == "mup").collect();
-    assert_eq!(rows.len(), 28);
-    for row in rows {
-        let address = u64::from_str_radix(row[3].trim_start_matches("0x"), 16).unwrap();
-        assert!(!row[5].is_empty());
-        assert_eq!(
-            driver.data["symbols"][&row[5]]["address"].as_u64(),
-            address.checked_sub(base)
+        let module_name = module["module"].as_str().unwrap();
+        let rows: Vec<_> = result
+            .rows
+            .iter()
+            .filter(|row| row[4] == module_name)
+            .collect();
+        assert_eq!(rows.len(), expected, "phase {phase}");
+        for row in rows {
+            if named {
+                let address = u64::from_str_radix(row[3].trim_start_matches("0x"), 16).unwrap();
+                assert!(!row[5].is_empty());
+                assert_eq!(
+                    driver.data["symbols"][&row[5]]["address"].as_u64(),
+                    address.checked_sub(base)
+                );
+            } else {
+                assert!(row[5].is_empty());
+            }
+        }
+        assert!(
+            !result.complete,
+            "other missing symbols/pages must remain partial"
         );
+        if let Some(directory) = std::env::var_os("ZERO_DRIVER_SYMBOL_EVIDENCE_DIR") {
+            let path = PathBuf::from(directory).join(format!("{variable}-{phase}.json"));
+            let evidence = serde_json::json!({"phase":phase,"served_from_cache":job.served_from_cache(),"image_sha256":digest,"result":result});
+            zero_tui::store::atomic_write(&path, &serde_json::to_vec_pretty(&evidence).unwrap())
+                .unwrap();
+        }
+        if phase == 0 {
+            original = Some(result.rows.clone());
+        }
+        if phase == 1 || phase == 4 {
+            assert_eq!(original.as_ref().unwrap(), &result.rows);
+        }
     }
-    assert!(
-        !result.complete,
-        "other missing symbols/pages must remain partial"
-    );
 }
