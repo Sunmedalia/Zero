@@ -3,6 +3,8 @@ use clap::ValueEnum;
 
 #[derive(Clone, Copy, Debug, ValueEnum, PartialEq, Eq)]
 pub enum Plugin {
+    #[value(name = "windows.svclist.SvcList", alias = "windows.svclist")]
+    WinSvcList,
     #[value(
         name = "windows.registry.getcellroutine.GetCellRoutine",
         alias = "windows.getcellroutine"
@@ -277,6 +279,25 @@ pub struct Descriptor {
     pub widths: &'static [u16],
 }
 pub const PLUGINS: &[Descriptor] = &[
+    Descriptor {
+        plugin: Plugin::WinSvcList,
+        name: "windows.svclist.SvcList",
+        label: "svclist",
+        columns: &[
+            "Offset",
+            "Order",
+            "PID",
+            "Start",
+            "State",
+            "Type",
+            "Name",
+            "Display",
+            "Binary",
+            "Binary (Registry)",
+            "Dll",
+        ],
+        widths: &[18, 8, 8, 22, 22, 36, 28, 40, 40, 40, 40],
+    },
     Descriptor {
         plugin: Plugin::WinGetCellRoutine,
         name: "windows.registry.getcellroutine.GetCellRoutine",
@@ -1820,7 +1841,7 @@ impl Plugin {
             Self::WinCmdscan => "Process",
             Self::WinDrivercheck => "Integrity",
             Self::WinDriverscan => "System",
-            Self::WinSvcscan => "System",
+            Self::WinSvcscan | Self::WinSvcList => "System",
             Self::WinCrashinfo => "System",
             Self::WinAutoruns => "Integrity",
             Self::WinEnvars => "Process",
@@ -2010,6 +2031,7 @@ impl Plugin {
             WinConsoles => "恢复控制台保存的记录",
             WinCmdscan => "扫描命令历史记录",
             WinDriverscan => "扫描驱动对象",
+            WinSvcList => "在 services.exe 映像 VAD 中定位 Sc27 并枚举服务链表（Win10 15063+ x64）",
             WinSvcscan => "扫描 Windows 服务",
             WinCrashinfo => "读取转储容器故障信息，无需完整内核符号",
             WinAutoruns => "查看注册表自启动配置",

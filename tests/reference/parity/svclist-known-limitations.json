@@ -1,0 +1,171 @@
+{
+  "schema_version": 1,
+  "engine_version": "0.2.1-native-50",
+  "reference_version": "v2.28.2",
+  "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+  "zero_executable_sha256": "967ea24cefff4dbc58d67514715a8705491b0868aa98cf63010eeb6d1eab76d7",
+  "cases": [
+    {
+      "case_id": "windows-10-15063/svclist-default",
+      "image_sha256": "d58f62e92b8c4ef913ac09b2c36a10482034c10b88d0c154dead3aaaa49cf875",
+      "symbol_sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4",
+      "native_output_sha256": "dbf7a426e935e2681036abafc31c9ede44ce31a0d5891f0dfc283da431080d23",
+      "reference_output_sha256": "f6d197a131aeb295f40895372b47371608a25d927f61206b34b12232419b6d33",
+      "mapping_sha256": "2080094623eed645670afb9d85b0634efaf9d316ee5e2ca2cf490847bb1a1b87",
+      "native_records": 575,
+      "reference_records": 575,
+      "passed": true,
+      "complete": false,
+      "diagnostic_count": 30,
+      "matched_absent": {
+        "PID": 481,
+        "Dll": 397,
+        "Binary": 351,
+        "Binary (Registry)": 11
+      },
+      "coverage": {
+        "kernel_version": [
+          10,
+          0,
+          15063,
+          0
+        ],
+        "layout": "https://raw.githubusercontent.com/volatilityfoundation/volatility3/v2.28.0/volatility3/framework/symbols/windows/services/services-win10-15063-x64.json",
+        "limits": {
+          "chain_records": 65536,
+          "scan_bytes_per_process": 134217728
+        },
+        "meaning": "listed service records; empty output does not prove absence of hidden services",
+        "offset_semantics": "pinned Volatility output: first row is record VA, subsequent rows are previous record PrevEntry field VA; diagnostics use actual record VA",
+        "processes": 1,
+        "registry_entries": 625,
+        "scope": "Sc27 in first services.exe image VAD; enumerate each header's backward chain"
+      }
+    },
+    {
+      "case_id": "windows-11/svclist-default",
+      "image_sha256": "0f00815b8f78f30a63d742c73152474b2a3c35183dbb1d92c8fc6a81fa3de9f1",
+      "symbol_sha256": "6a234099b69b393eb7d652408835205bd12f0b947d0d6b6275e2ffce8ca9c133",
+      "native_output_sha256": "da0079be4379a0942da571560a62394a023d37528d836385b437b336ba7efff6",
+      "reference_output_sha256": "3cf39b735e627a8bdc5ce67dac3d7112d0a2a875245fe6638dbce2216534d840",
+      "mapping_sha256": "2080094623eed645670afb9d85b0634efaf9d316ee5e2ca2cf490847bb1a1b87",
+      "native_records": 636,
+      "reference_records": 636,
+      "passed": true,
+      "complete": false,
+      "diagnostic_count": 22,
+      "matched_absent": {
+        "Dll": 435,
+        "PID": 552,
+        "Binary": 438,
+        "Binary (Registry)": 12
+      },
+      "coverage": {
+        "kernel_version": [
+          10,
+          0,
+          22000,
+          0
+        ],
+        "layout": "https://raw.githubusercontent.com/volatilityfoundation/volatility3/v2.28.0/volatility3/framework/symbols/windows/services/services-win10-19041-x64.json",
+        "limits": {
+          "chain_records": 65536,
+          "scan_bytes_per_process": 134217728
+        },
+        "meaning": "listed service records; empty output does not prove absence of hidden services",
+        "offset_semantics": "pinned Volatility output: first row is record VA, subsequent rows are previous record PrevEntry field VA; diagnostics use actual record VA",
+        "processes": 1,
+        "registry_entries": 682,
+        "scope": "Sc27 in first services.exe image VAD; enumerate each header's backward chain"
+      }
+    }
+  ],
+  "development_runs": [
+    {
+      "stage": "initial",
+      "summary_sha256": "9d0b92bff05b21336fa3f0ed28eb7d6de38503e60730137e99b364f9ef9eede8",
+      "cases": [
+        {
+          "case_id": "windows-10-15063/svclist-default",
+          "passed": false,
+          "missing": 574,
+          "extra": 574,
+          "conflicts": 0,
+          "unverifiable": 1
+        },
+        {
+          "case_id": "windows-11/svclist-default",
+          "passed": false,
+          "missing": 635,
+          "extra": 635,
+          "conflicts": 0,
+          "unverifiable": 1
+        }
+      ]
+    },
+    {
+      "stage": "second",
+      "summary_sha256": "2a9604bbfd2ba220ca42bceffe08337b6268eebf06244ff118dafb01aa83867f",
+      "cases": [
+        {
+          "case_id": "windows-10-15063/svclist-default",
+          "passed": false,
+          "missing": 0,
+          "extra": 0,
+          "conflicts": 0,
+          "unverifiable": 742
+        },
+        {
+          "case_id": "windows-11/svclist-default",
+          "passed": false,
+          "missing": 0,
+          "extra": 0,
+          "conflicts": 0,
+          "unverifiable": 825
+        }
+      ]
+    },
+    {
+      "stage": "third",
+      "summary_sha256": "ffe6841c8092a160186a033b8cd6c6c25e1c7fde2294070c1684bfccf2d77659",
+      "cases": [
+        {
+          "case_id": "windows-10-15063/svclist-default",
+          "passed": false,
+          "missing": 0,
+          "extra": 0,
+          "conflicts": 0,
+          "unverifiable": 14
+        },
+        {
+          "case_id": "windows-11/svclist-default",
+          "passed": false,
+          "missing": 0,
+          "extra": 0,
+          "conflicts": 0,
+          "unverifiable": 15
+        }
+      ]
+    }
+  ],
+  "evidence_policy": "Two default positive full-field cases with explicit partial allowance; matched absence is not recovered content. No complete plugin contract is claimed.",
+  "known_limitations": [
+    "Only explicitly mapped Win10 15063+ x64 builds; no x86/ARM64 or older-build implementation.",
+    "No PID option, matching the reference requirements.",
+    "Offset follows pinned renderer pointer-object storage semantics after the first row; actual record addresses remain in diagnostics.",
+    "Parameters, ImagePath and ServiceDll use pinned exact-case checks, even when Windows registry names would otherwise be case-insensitive.",
+    "Registry corrupt siblings and missing regf base blocks retain partial diagnostics; damaged index lists or duplicate target names cannot establish a complete registry view.",
+    "Hive pool-scan fallback when both hive-list directions fail remains unimplemented.",
+    "Services are anchored in the first services.exe image VAD; there is no equivalence claim for every services.exe variant or manipulated VAD.",
+    "No actual malicious hidden-service or intentionally cyclic service-list image validated.",
+    "Bounds are 128 MiB executable VAD scan and 65536 records per chain. Cycles/missing pages are partial, never clean absence.",
+    "Registry process view errors may leave missing registry fields; fallback to the kernel view is only available when process-memory initialization fails."
+  ],
+  "synthetic_tests": [
+    "eleven fields, Order zero/bounds, running process/driver/stopped records",
+    "aligned headers, range scope, duplicate chains, pointer-storage Offset semantics",
+    "cycles, independent field faults, missing pages and cancellation",
+    "UTF-16 byte order, embedded/trailing NUL, malformed data",
+    "unsupported builds/PID, corrupt sibling recovery and exact-name service values"
+  ]
+}

@@ -59,6 +59,7 @@ pub(super) fn service(arch: Architecture, version: [u16; 4]) -> Result<ServiceLa
         "服务布局架构冲突"
     );
     for field in [
+        "Order",
         "ServiceName",
         "DisplayName",
         "Start",

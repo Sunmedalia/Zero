@@ -341,3 +341,28 @@ not a malware verdict, and missing PEB input does not prove a clean process.
 Six new unit tests cover independent flags, capacity inconsistencies, replacement
 UTF-16/NUL decoding, null pointers, missing fields, PID unions and cancellation.
 See `pebmasquerade-known-differences.json` for hashes, coverage and negative evidence.
+
+Native50 adds `windows.svclist.SvcList` (alias `windows.svclist`) for explicitly
+mapped Win10 15063+ x64 builds. `svclist.example.json` compares every record and
+all eleven columns on Win10 15063 and Win11 22000. Counts are 575 / 636. Both
+remain partial with explicit process-list, VAD, registry-sibling and missing-page
+diagnostics; equality of visible output does not establish complete recovery.
+
+The pinned renderer reports the first record VA, then each preceding record's
+`PrevEntry` pointer-storage VA in its Offset column. Native preserves that output
+contract explicitly; diagnostics still identify actual dereferenced record VAs.
+Registry path components use case-insensitive lookup, while `Parameters`,
+`ImagePath` and `ServiceDll` use the reference service plugin's exact-name checks.
+Unreadable unrelated siblings are diagnosed and skipped rather than hiding a
+readable target. A missing/invalid regf base block permits validation of the first
+HBIN cell at 0x20, with partial diagnostics. Cell allocation/signature, bounds and
+ambiguity checks remain enforced. Optional unavailable fields on both sides are
+recorded as matched absence; one-sided absence still fails.
+
+Nine service tests and an extended registry fixture cover all eleven fields,
+running processes/drivers/stopped records, Order zero/bounds, type flags, pointer
+storage offsets, duplicate/aligned/range-limited headers, cycles, missing pages,
+independent field faults, strict registry decoding, cancellation, unsupported
+builds/PID filters, corrupt siblings and case-sensitive service lookups.
+`svclist-known-limitations.json` retains final hashes and failed development-run
+counts. Two default positive cases do not establish a complete plugin contract.

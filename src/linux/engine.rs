@@ -242,7 +242,7 @@ impl Linux<'_> {
             | WinBigpools | WinSymlinkscan | WinDevicetree | WinGetservicesids | WinIat
             | WinVerinfo | WinMftscan | WinOrphanThreads | WinEtwpatch | WinScheduledTasks
             | WinAmcache | WinCertificates | WinProcessghosting | WinJoblinks | WinTimeliner
-            | WinGetCellRoutine | WinPebMasquerade | WinHiveScan | WinDriverModule
+            | WinSvcList | WinGetCellRoutine | WinPebMasquerade | WinHiveScan | WinDriverModule
             | WinDriverIrp | WinKpcrs | WinMbrscan | WinTimers | WinStatistics | WinShimcache
             | WinVirtmap | WinVadWalk | WinVadRegExScan | WinVadyarascan | WinVaddump
             | WinDlldump | WinModdump | WinHashdump | WinLsadump | WinCachedump | WinDumpfiles

@@ -117,6 +117,15 @@ class CompareTests(unittest.TestCase):
 
 
 class OptionalTextTests(unittest.TestCase):
+    def test_optional_integer_preserves_zero_and_rejects_text_and_boolean(self):
+        self.assertIsNone(normalize("N/A", "na_integer"))
+        self.assertIsNone(normalize(None, "na_integer"))
+        self.assertEqual(normalize("0", "na_integer"), 0)
+        self.assertEqual(normalize(1234, "na_integer"), 1234)
+        for value in (True, "unknown"):
+            with self.assertRaises(ValueError):
+                normalize(value, "na_integer")
+
     def test_na_marker_requires_explicit_mapping_and_preserves_empty_text(self):
         self.assertEqual(normalize('N/A', 'text'), 'N/A')
         self.assertIsNone(normalize('N/A', 'na_text'))

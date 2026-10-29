@@ -52,6 +52,7 @@ mod regex;
 mod registry;
 mod registry_artifacts;
 mod security;
+mod service_list;
 mod timeline;
 mod user_artifacts;
 mod user_layout;
@@ -567,6 +568,9 @@ impl Windows<'_> {
     }
     pub fn run(&self, p: Plugin, options: &Options, job: &Job) -> Result<Results> {
         job.check()?;
+        if p == Plugin::WinSvcList {
+            return self.service_list(options, job);
+        }
         if p == Plugin::WinGetCellRoutine {
             return self.get_cell_routine(job);
         }

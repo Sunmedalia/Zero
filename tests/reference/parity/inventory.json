@@ -8405,8 +8405,10 @@
         }
       ],
       "declared_columns": [],
-      "zero_candidates": [],
-      "status": "missing",
+      "zero_candidates": [
+        "windows.svclist.SvcList"
+      ],
+      "status": "mapped_unverified",
       "evidence": []
     },
     {

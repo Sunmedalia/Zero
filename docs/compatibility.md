@@ -97,7 +97,7 @@ Windows 10 RAW 样本额外验证了 4 个 WOW64 进程（PID 4428、5684、5932
 
 实测：Windows 10 15063 `joblinks=79`、`timeliner=711326`（最后一条 2018-06-21，与采集时间一致）、`processghosting=0`；Windows 11 22000 `processghosting=1`（SearchProtocolHost 无节对象）、`joblinks=37`、`timeliner=46235`（最后一条 2022-07-19）。
 
-新增 `windows.mbrscan`：在物理内存中查找 512 字节对齐、以 `55 AA` 结尾的扇区，要求四个分区项状态字节均为 0x00／0x80 且至少定义一个分区，输出磁盘签名、各分区的可引导标志、类型、起始 LBA、扇区数及引导代码（前 440 字节）的 SHA256。实测 Windows 10 15063 找到 1 个 FAT32（0x0C）可引导分区记录，与 USBSTOR.SYS 痕迹一致；Windows 11 22000 为 0（矩阵保持待验证）。系统调用存根类检测（direct／indirect／unhooked_system_calls）不在本项目实现范围内。
+新增 `windows.mbrscan`：在物理内存中查找 512 字节对齐、以 `55 AA` 结尾的扇区，要求四个分区项状态字节均为 0x00／0x80 且至少定义一个分区，输出磁盘签名、各分区的可引导标志、类型、起始 LBA、扇区数及引导代码（前 440 字节）的 SHA256。实测 Windows 10 15063 找到 1 个 FAT32（0x0C）可引导分区记录，与 USBSTOR.SYS 痕迹一致；Windows 11 22000 为 0（矩阵保持待验证）。系统调用存根类检测（direct／indirect／unhooked_system_calls）尚未完成，仍在 Volatility 对齐待办中。
 
 新增 `windows.timers`：按 `KeNumberProcessors` 遍历 `KiProcessorBlock` 中每个 KPRCB 的 `TimerTable.TimerEntries`（Windows 11 为两张 256 项表，统一展开），输出定时器、DueTime、Period、解码后的 DPC 及 DeferredRoutine 的模块归属。Windows 8 以后的 x64 按 `KiWaitAlways ^ bswap(Timer ^ rotl(KiWaitNever ^ Dpc, KiWaitNever 低 8 位))` 解码，解码结果不是内核指针时退回原值（旧版未编码）。实测 Windows 10 15063 `timers=456`、Windows 11 22000 `timers=575`，带 DPC 的例程绝大多数落在 ntoskrnl、tcpip、ndis 等已加载模块中；Windows 11 有 1 个例程不在任何已加载模块内，标为 `[unknown]`，需结合其他证据判断（可能为动态代码或已卸载驱动）。
 
@@ -114,21 +114,21 @@ Windows 10 RAW 样本额外验证了 4 个 WOW64 进程（PID 4428、5684、5932
 <!-- windows-compatibility:start -->
 | 系统 | 构建 | 架构：真实 / 合成 / 待验证 / 不支持插件数 | 真实样本范围 |
 | --- | --- | --- | --- |
-| Windows Server 2003 | 3790 | x86: 22 / 12 / 41 / 3; x64: 0 / 21 / 54 / 3 | 3790 x86 raw |
-| Windows Server 2003 R2 | 3790 | x86: 0 / 17 / 58 / 3; x64: 0 / 21 / 54 / 3 | 待采集 |
-| Windows Server 2008 | 6001, 6002 | x86: 20 / 8 / 46 / 4; x64: 0 / 20 / 54 / 4 | 6001 x86 raw |
-| Windows Server 2008 R2 | 7600, 7601 | x64: 0 / 19 / 55 / 4 | 待采集 |
-| Windows Server 2012 | 9200 | x64: 14 / 13 / 47 / 4 | 9200 x64 raw |
-| Windows Server 2012 R2 | 9600 | x64: 14 / 13 / 47 / 4 | 9600 x64 raw |
-| Windows Server 2016 | 14393 | x64: 2 / 19 / 55 / 2 | 14393 x64 kernel-triage |
-| Windows Server 2019 | 17763 | x64: 14 / 14 / 48 / 2 | 17763 x64 kernel-crash |
-| Windows Server 2022 | 20348 | x64: 14 / 14 / 48 / 2 | 20348 x64 kernel-crash |
-| Windows Server 2025 | 26100 | x64: 0 / 19 / 57 / 2 | 待采集 |
-| Windows 7 | 7600, 7601 | x86: 0 / 15 / 59 / 4; x64: 16 / 13 / 45 / 4 | 7601 x64 raw |
-| Windows 8 | 9200 | x86: 0 / 15 / 59 / 4; x64: 0 / 19 / 55 / 4 | 待采集 |
-| Windows 8.1 | 9600 | x86: 0 / 15 / 59 / 4; x64: 0 / 19 / 55 / 4 | 待采集 |
-| Windows 10 | 10240, 10586, 14393, 15063, 16299, 17134, 17763, 18362, 18363, 19041, 19042, 19043, 19044, 19045 | x86: 0 / 17 / 57 / 4; x64: 42 / 12 / 22 / 2 | 15063 x64 raw, 19041 x64 kernel-crash |
-| Windows 11 | 22000, 22621, 22631, 26100, 26200 | x64: 39 / 12 / 25 / 2 | 22000 x64 raw |
+| Windows Server 2003 | 3790 | x86: 22 / 12 / 41 / 4; x64: 0 / 21 / 54 / 4 | 3790 x86 raw |
+| Windows Server 2003 R2 | 3790 | x86: 0 / 17 / 58 / 4; x64: 0 / 21 / 54 / 4 | 待采集 |
+| Windows Server 2008 | 6001, 6002 | x86: 20 / 8 / 46 / 5; x64: 0 / 20 / 54 / 5 | 6001 x86 raw |
+| Windows Server 2008 R2 | 7600, 7601 | x64: 0 / 19 / 55 / 5 | 待采集 |
+| Windows Server 2012 | 9200 | x64: 14 / 13 / 47 / 5 | 9200 x64 raw |
+| Windows Server 2012 R2 | 9600 | x64: 14 / 13 / 47 / 5 | 9600 x64 raw |
+| Windows Server 2016 | 14393 | x64: 2 / 19 / 55 / 3 | 14393 x64 kernel-triage |
+| Windows Server 2019 | 17763 | x64: 14 / 14 / 49 / 2 | 17763 x64 kernel-crash |
+| Windows Server 2022 | 20348 | x64: 14 / 14 / 49 / 2 | 20348 x64 kernel-crash |
+| Windows Server 2025 | 26100 | x64: 0 / 19 / 58 / 2 | 待采集 |
+| Windows 7 | 7600, 7601 | x86: 0 / 15 / 59 / 5; x64: 16 / 13 / 45 / 5 | 7601 x64 raw |
+| Windows 8 | 9200 | x86: 0 / 15 / 59 / 5; x64: 0 / 19 / 55 / 5 | 待采集 |
+| Windows 8.1 | 9600 | x86: 0 / 15 / 59 / 5; x64: 0 / 19 / 55 / 5 | 待采集 |
+| Windows 10 | 10240, 10586, 14393, 15063, 16299, 17134, 17763, 18362, 18363, 19041, 19042, 19043, 19044, 19045 | x86: 0 / 17 / 57 / 5; x64: 43 / 12 / 22 / 2 | 15063 x64 raw, 19041 x64 kernel-crash |
+| Windows 11 | 22000, 22621, 22631, 26100, 26200 | x64: 40 / 12 / 25 / 2 | 22000 x64 raw |
 <!-- windows-compatibility:end -->
 
 表格由 `python3 scripts/windows_compatibility.py` 生成；`--check` 检查同步状态。构建列表表示识别目标，不能解释为每个构建和插件都已通过真实验收。RAW 和内核 crash 是本轮优先范围，休眠／用户 minidump 沿用既有受限支持；ARM64 沿用既有范围，不计入本轮 x86／x64 矩阵。
@@ -155,3 +155,5 @@ Server 2022 的分散位图页段暴露出物理读取的线性查找开销；�
 
 Server 2022 的独立复核已覆盖 198 个进程、2,602 组 SID、168 个模块、4,944 个线程、75,583 条共有句柄、50,177 条共有文件名称、892 个共有互斥对象、27,593 条 VAD 及全部 74 组可读参考网络连接。VAD 中 16,612 个不可读字段、互斥对象中 475 个不可读名称、97 条不可读参考网络记录不计为一致证据；实测 TCP/IP PDB 身份已单独加入允许列表，其他驱动身份保留原验证等级。
 
+
+`windows.svclist.SvcList`（别名 `windows.svclist`）独立输出服务链表的 11 列。Win10 15063 x64 / Win11 22000 x64 真实镜像分别恢复 575 / 636 条，全字段与固定 Volatility v2.28.2 对照一致；两份结果均保留缺页、链表或注册表损坏诊断。Offset 遵循该版本参考输出规则：首条是记录 VA，后续为前条 PrevEntry 指针的存放 VA；诊断仍使用实际记录 VA。仅接受明确声明的 15063+ x64 构建，其他版本、ARM64、x86 不支持；不接受 PID 筛选。默认用例一致不代表完整插件能力验收。

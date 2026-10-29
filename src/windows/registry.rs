@@ -277,7 +277,10 @@ impl Windows<'_> {
     pub(super) fn cell(&self, hive: u64, index: u32) -> Result<Vec<u8>> {
         let address = self.cell_address(hive, index)?;
         let length = self.vm.uint(address, 4)? as u32 as i32;
-        ensure!(length < 0, "hive cell 未分配");
+        ensure!(
+            length < 0,
+            "hive cell 未分配 index={index:#x} address={address:#x} length={length}"
+        );
         let length = length.unsigned_abs() as usize;
         ensure!((8..=1024 * 1024).contains(&length), "hive cell 大小无效");
         let mut out = vec![0; length - 4];
@@ -442,7 +445,7 @@ impl Windows<'_> {
         bail!("子键不存在: {name}")
     }
     /// 键的 ValueList 索引（cell index 序列）。
-    fn value_indices(&self, hive: u64, key: u32) -> Result<Vec<u32>> {
+    pub(super) fn value_indices(&self, hive: u64, key: u32) -> Result<Vec<u32>> {
         let node = self.cell(hive, key)?;
         let list_offset = self.vm.isf.offset("_CM_KEY_NODE", "ValueList")? as usize;
         let list = node.get(list_offset..).context("注册表 ValueList 截断")?;
@@ -774,6 +777,46 @@ mod tests {
             0x120
         );
         assert!(engine.registry_index(K + 0x3020, "SAM", &job).is_err());
+        // A corrupt sibling must not hide an independently readable target.
+        b[0x1103c..0x11040].copy_from_slice(&2u32.to_le_bytes());
+        b[0x11100..0x11104].copy_from_slice(&(-24i32).to_le_bytes());
+        b[0x11106..0x11108].copy_from_slice(&2u16.to_le_bytes());
+        b[0x11108..0x1110c].copy_from_slice(&0x200u32.to_le_bytes());
+        b[0x11110..0x11114].copy_from_slice(&0x120u32.to_le_bytes());
+        let img = image(&b);
+        let engine = Windows {
+            vm: Memory::new(&img, 0x5000, &isf, None),
+            base: K,
+            pdb: PdbIdentity::from_isf(&isf).unwrap(),
+        };
+        let mut r = engine.result(Plugin::WinSvcList);
+        assert_eq!(
+            engine
+                .service_registry_index(K + 0x3020, 0x20, "Lsa", &job, &mut r, false)
+                .unwrap(),
+            0x120
+        );
+        assert!(!r.complete);
+        assert!(r.diagnostics.iter().any(|d| d.contains("sibling 0x200")));
+        assert!(
+            engine
+                .service_registry_index(K + 0x3020, 0x20, "lsa", &job, &mut r, true)
+                .is_err()
+        );
+        assert_eq!(
+            engine
+                .service_registry_index(K + 0x3020, 0x20, "lsa", &job, &mut r, false)
+                .unwrap(),
+            0x120
+        );
+        assert_eq!(
+            engine.service_registry_value(K + 0x3020, 0x20, "f", &job, &mut r),
+            "N/A"
+        );
+        assert_ne!(
+            engine.service_registry_value(K + 0x3020, 0x20, "F", &job, &mut r),
+            "N/A"
+        );
     }
 }
 

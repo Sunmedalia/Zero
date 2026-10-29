@@ -65,6 +65,10 @@ fn public_windows_images() {
             ),
             (Plugin::WinHivelist, expected_hives),
             (
+                Plugin::WinSvcList,
+                fixture["rows"]["windows.svclist.SvcList"].as_u64().unwrap() as usize,
+            ),
+            (
                 Plugin::WinGetCellRoutine,
                 fixture["rows"]["windows.registry.getcellroutine.GetCellRoutine"]
                     .as_u64()
@@ -154,6 +158,19 @@ fn public_windows_images() {
             assert_eq!(result.rows.len(), expected, "{variable} {plugin:?}");
             if let Some(complete) = fixture["complete"][plugin.name()].as_bool() {
                 assert_eq!(result.complete, complete, "{variable} {plugin:?} coverage");
+            }
+            if plugin == Plugin::WinSvcList {
+                assert_eq!(result.columns.len(), 11);
+                assert!(
+                    result.kernel_identity["services_list"]["registry_entries"]
+                        .as_u64()
+                        .unwrap()
+                        > 500
+                );
+                assert!(result.rows.iter().any(|row| row[9] != "N/A"));
+                assert!(result.rows.iter().any(|row| row[10] != "N/A"));
+                assert!(!result.complete);
+                assert!(!result.diagnostics.is_empty());
             }
             if plugin == Plugin::WinGetCellRoutine {
                 let coverage = &result.kernel_identity["getcellroutine"];
