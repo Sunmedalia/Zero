@@ -97,7 +97,8 @@
           "windows.thrdscan": "synthetic",
           "windows.vadregexscan.VadRegExScan": "pending",
           "windows.vadwalk.VadWalk": "synthetic",
-          "windows.kpcrs.KPCRs": "pending"
+          "windows.kpcrs.KPCRs": "pending",
+          "windows.driverirp.DriverIrp": "pending"
         },
         "x64": {
           "windows.callbacks": "synthetic",
@@ -172,7 +173,8 @@
           "windows.thrdscan": "synthetic",
           "windows.vadregexscan.VadRegExScan": "synthetic",
           "windows.vadwalk.VadWalk": "synthetic",
-          "windows.kpcrs.KPCRs": "pending"
+          "windows.kpcrs.KPCRs": "pending",
+          "windows.driverirp.DriverIrp": "pending"
         }
       },
       "evidence": [
@@ -308,7 +310,8 @@
           "windows.thrdscan": "synthetic",
           "windows.vadregexscan.VadRegExScan": "pending",
           "windows.vadwalk.VadWalk": "synthetic",
-          "windows.kpcrs.KPCRs": "pending"
+          "windows.kpcrs.KPCRs": "pending",
+          "windows.driverirp.DriverIrp": "pending"
         },
         "x64": {
           "windows.callbacks": "synthetic",
@@ -383,7 +386,8 @@
           "windows.thrdscan": "synthetic",
           "windows.vadregexscan.VadRegExScan": "synthetic",
           "windows.vadwalk.VadWalk": "synthetic",
-          "windows.kpcrs.KPCRs": "pending"
+          "windows.kpcrs.KPCRs": "pending",
+          "windows.driverirp.DriverIrp": "pending"
         }
       },
       "evidence": []
@@ -479,7 +483,8 @@
           "windows.thrdscan": "synthetic",
           "windows.vadregexscan.VadRegExScan": "pending",
           "windows.vadwalk.VadWalk": "real",
-          "windows.kpcrs.KPCRs": "real"
+          "windows.kpcrs.KPCRs": "real",
+          "windows.driverirp.DriverIrp": "real"
         },
         "x64": {
           "windows.callbacks": "synthetic",
@@ -554,7 +559,8 @@
           "windows.thrdscan": "synthetic",
           "windows.vadregexscan.VadRegExScan": "synthetic",
           "windows.vadwalk.VadWalk": "synthetic",
-          "windows.kpcrs.KPCRs": "pending"
+          "windows.kpcrs.KPCRs": "pending",
+          "windows.driverirp.DriverIrp": "synthetic"
         }
       },
       "evidence": [
@@ -575,7 +581,7 @@
             "windows.getsids": 516,
             "windows.handles": 20351,
             "windows.hivelist": 13,
-            "windows.modules": 105,
+            "windows.modules": 149,
             "windows.mutantscan": 337,
             "windows.netscan": 102,
             "windows.pslist": 48,
@@ -585,7 +591,8 @@
             "windows.unloadedmodules": 5,
             "windows.vadinfo": 5229,
             "windows.vadwalk.VadWalk": 5229,
-            "windows.kpcrs.KPCRs": 1
+            "windows.kpcrs.KPCRs": 1,
+            "windows.driverirp.DriverIrp": 3724
           },
           "fixture": "images/server2008/memdump.mem",
           "complete": {
@@ -602,7 +609,8 @@
             "windows.mutantscan": false,
             "windows.getsids": true,
             "windows.pslist": true,
-            "windows.netscan": false
+            "windows.netscan": false,
+            "windows.driverirp.DriverIrp": false
           }
         }
       ],
@@ -698,7 +706,8 @@
           "windows.thrdscan": "synthetic",
           "windows.vadregexscan.VadRegExScan": "synthetic",
           "windows.vadwalk.VadWalk": "synthetic",
-          "windows.kpcrs.KPCRs": "pending"
+          "windows.kpcrs.KPCRs": "pending",
+          "windows.driverirp.DriverIrp": "pending"
         }
       },
       "evidence": [],
@@ -793,7 +802,8 @@
           "windows.thrdscan": "synthetic",
           "windows.vadregexscan.VadRegExScan": "synthetic",
           "windows.vadwalk.VadWalk": "synthetic",
-          "windows.kpcrs.KPCRs": "pending"
+          "windows.kpcrs.KPCRs": "pending",
+          "windows.driverirp.DriverIrp": "pending"
         }
       },
       "evidence": [
@@ -934,7 +944,8 @@
           "windows.thrdscan": "synthetic",
           "windows.vadregexscan.VadRegExScan": "synthetic",
           "windows.vadwalk.VadWalk": "synthetic",
-          "windows.kpcrs.KPCRs": "pending"
+          "windows.kpcrs.KPCRs": "pending",
+          "windows.driverirp.DriverIrp": "pending"
         }
       },
       "evidence": [
@@ -1076,7 +1087,8 @@
           "windows.thrdscan": "synthetic",
           "windows.vadregexscan.VadRegExScan": "synthetic",
           "windows.vadwalk.VadWalk": "synthetic",
-          "windows.kpcrs.KPCRs": "pending"
+          "windows.kpcrs.KPCRs": "pending",
+          "windows.driverirp.DriverIrp": "pending"
         }
       },
       "evidence": [
@@ -1190,7 +1202,8 @@
           "windows.thrdscan": "synthetic",
           "windows.vadregexscan.VadRegExScan": "synthetic",
           "windows.vadwalk.VadWalk": "synthetic",
-          "windows.kpcrs.KPCRs": "pending"
+          "windows.kpcrs.KPCRs": "pending",
+          "windows.driverirp.DriverIrp": "pending"
         }
       },
       "evidence": [
@@ -1333,7 +1346,8 @@
           "windows.thrdscan": "synthetic",
           "windows.vadregexscan.VadRegExScan": "synthetic",
           "windows.vadwalk.VadWalk": "synthetic",
-          "windows.kpcrs.KPCRs": "pending"
+          "windows.kpcrs.KPCRs": "pending",
+          "windows.driverirp.DriverIrp": "pending"
         }
       },
       "evidence": [
@@ -1476,7 +1490,8 @@
           "windows.thrdscan": "synthetic",
           "windows.vadregexscan.VadRegExScan": "synthetic",
           "windows.vadwalk.VadWalk": "synthetic",
-          "windows.kpcrs.KPCRs": "pending"
+          "windows.kpcrs.KPCRs": "pending",
+          "windows.driverirp.DriverIrp": "pending"
         }
       },
       "evidence": [],
@@ -1573,7 +1588,8 @@
           "windows.thrdscan": "synthetic",
           "windows.vadregexscan.VadRegExScan": "pending",
           "windows.vadwalk.VadWalk": "synthetic",
-          "windows.kpcrs.KPCRs": "pending"
+          "windows.kpcrs.KPCRs": "pending",
+          "windows.driverirp.DriverIrp": "pending"
         },
         "x64": {
           "windows.callbacks": "real",
@@ -1648,7 +1664,8 @@
           "windows.thrdscan": "synthetic",
           "windows.vadregexscan.VadRegExScan": "synthetic",
           "windows.vadwalk.VadWalk": "synthetic",
-          "windows.kpcrs.KPCRs": "pending"
+          "windows.kpcrs.KPCRs": "pending",
+          "windows.driverirp.DriverIrp": "pending"
         }
       },
       "evidence": [
@@ -1776,7 +1793,8 @@
           "windows.thrdscan": "synthetic",
           "windows.vadregexscan.VadRegExScan": "pending",
           "windows.vadwalk.VadWalk": "synthetic",
-          "windows.kpcrs.KPCRs": "pending"
+          "windows.kpcrs.KPCRs": "pending",
+          "windows.driverirp.DriverIrp": "pending"
         },
         "x64": {
           "windows.callbacks": "synthetic",
@@ -1851,7 +1869,8 @@
           "windows.thrdscan": "synthetic",
           "windows.vadregexscan.VadRegExScan": "synthetic",
           "windows.vadwalk.VadWalk": "synthetic",
-          "windows.kpcrs.KPCRs": "pending"
+          "windows.kpcrs.KPCRs": "pending",
+          "windows.driverirp.DriverIrp": "pending"
         }
       },
       "evidence": []
@@ -1946,7 +1965,8 @@
           "windows.thrdscan": "synthetic",
           "windows.vadregexscan.VadRegExScan": "pending",
           "windows.vadwalk.VadWalk": "synthetic",
-          "windows.kpcrs.KPCRs": "pending"
+          "windows.kpcrs.KPCRs": "pending",
+          "windows.driverirp.DriverIrp": "pending"
         },
         "x64": {
           "windows.callbacks": "synthetic",
@@ -2021,7 +2041,8 @@
           "windows.thrdscan": "synthetic",
           "windows.vadregexscan.VadRegExScan": "synthetic",
           "windows.vadwalk.VadWalk": "synthetic",
-          "windows.kpcrs.KPCRs": "pending"
+          "windows.kpcrs.KPCRs": "pending",
+          "windows.driverirp.DriverIrp": "pending"
         }
       },
       "evidence": []
@@ -2129,7 +2150,8 @@
           "windows.thrdscan": "synthetic",
           "windows.vadregexscan.VadRegExScan": "pending",
           "windows.vadwalk.VadWalk": "synthetic",
-          "windows.kpcrs.KPCRs": "pending"
+          "windows.kpcrs.KPCRs": "pending",
+          "windows.driverirp.DriverIrp": "synthetic"
         },
         "x64": {
           "windows.callbacks": "real",
@@ -2204,7 +2226,8 @@
           "windows.thrdscan": "synthetic",
           "windows.vadregexscan.VadRegExScan": "synthetic",
           "windows.vadwalk.VadWalk": "real",
-          "windows.kpcrs.KPCRs": "real"
+          "windows.kpcrs.KPCRs": "real",
+          "windows.driverirp.DriverIrp": "real"
         }
       },
       "evidence": [
@@ -2222,7 +2245,7 @@
           },
           "rows": {
             "windows.pslist": 139,
-            "windows.modules": 183,
+            "windows.modules": 191,
             "windows.hivelist": 22,
             "windows.threads": 1702,
             "windows.envars": 3792,
@@ -2256,7 +2279,11 @@
             "windows.statistics": 7,
             "windows.virtmap": 13,
             "windows.vadwalk.VadWalk": 16165,
-            "windows.kpcrs.KPCRs": 4
+            "windows.kpcrs.KPCRs": 4,
+            "windows.driverirp.DriverIrp": 4255
+          },
+          "complete": {
+            "windows.driverirp.DriverIrp": false
           }
         },
         {
@@ -2372,7 +2399,8 @@
           "windows.thrdscan": "synthetic",
           "windows.vadregexscan.VadRegExScan": "synthetic",
           "windows.vadwalk.VadWalk": "real",
-          "windows.kpcrs.KPCRs": "real"
+          "windows.kpcrs.KPCRs": "real",
+          "windows.driverirp.DriverIrp": "real"
         }
       },
       "evidence": [
@@ -2423,7 +2451,11 @@
             "windows.statistics": 7,
             "windows.virtmap": 14,
             "windows.vadwalk.VadWalk": 17405,
-            "windows.kpcrs.KPCRs": 4
+            "windows.kpcrs.KPCRs": 4,
+            "windows.driverirp.DriverIrp": 3444
+          },
+          "complete": {
+            "windows.driverirp.DriverIrp": false
           }
         }
       ]
@@ -2432,7 +2464,8 @@
   "notes": [
     "Builds identify target baselines, not every cumulative update. Exact PDB identity is always required.",
     "Server 2003 and R2 cannot be distinguished by NT version/product type alone.",
-    "ARM64, user minidumps and hibernation retain existing independently documented scope."
+    "ARM64, user minidumps and hibernation retain existing independently documented scope.",
+    "DriverIrp real rows are native partial-output acceptance only. Kernel-module scoped six-field cases pass on Win10/11 and Server 2008 x86; full default comparisons remain failing on external Symbol attribution. See tests/reference/parity/driverirp-known-differences.json. Shared module reading now preserves readable ranges when names or paths are missing; counts rise without improving completeness."
   ],
   "scope": "Levels are per plugin and architecture. Real applies only to listed evidence builds and containers. Synthetic object fixtures validate pointer widths, not every product layout; zero-row scans do not certify recovery. Unlisted builds, containers and plugin fields remain pending."
 }

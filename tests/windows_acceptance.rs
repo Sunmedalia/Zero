@@ -16,7 +16,7 @@ fn public_windows_images() {
             "ZERO_WINDOWS10_IMAGE",
             "images/WinDump/WinDump.mem",
             139,
-            183,
+            191,
             22,
         ),
         (
@@ -51,6 +51,12 @@ fn public_windows_images() {
         for (plugin, expected) in [
             (Plugin::WinPslist, expected_processes),
             (Plugin::WinModules, expected_modules),
+            (
+                Plugin::WinDriverIrp,
+                fixture["rows"]["windows.driverirp.DriverIrp"]
+                    .as_u64()
+                    .unwrap() as usize,
+            ),
             (Plugin::WinHivelist, expected_hives),
             (
                 Plugin::WinKpcrs,
@@ -175,6 +181,21 @@ fn native_pdb_conversion_is_deterministic_and_preserves_anonymous_layouts() {
             isf.data["base_types"]["unsigned int"],
             serde_json::json!({"size":4,"kind":"int","signed":false,"endian":"little"})
         );
+        for (name, size, signed) in [
+            ("char", 1, true),
+            ("unsigned char", 1, false),
+            ("short", 2, true),
+            ("unsigned short", 2, false),
+            ("long", 4, true),
+            ("unsigned long", 4, false),
+            ("long long", 8, true),
+            ("unsigned long long", 8, false),
+        ] {
+            assert_eq!(
+                isf.data["base_types"][name],
+                serde_json::json!({"size":size,"kind":"int","signed":signed,"endian":"little"})
+            );
+        }
         assert_eq!(isf.data["base_types"]["int"]["size"], 4);
         assert_eq!(isf.data["base_types"]["int"]["signed"], true);
         // These public PDBs export addresses only for both globals. Conversion

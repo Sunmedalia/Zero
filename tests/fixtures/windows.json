@@ -16,7 +16,7 @@
       "kernel_base": "0xfffff8021ec0f000",
       "rows": {
         "windows.pslist": 139,
-        "windows.modules": 183,
+        "windows.modules": 191,
         "windows.hivelist": 22,
         "windows.threads": 1702,
         "windows.envars": 3792,
@@ -29,7 +29,8 @@
         "windows.mutantscan": 765,
         "windows.svcscan": 574,
         "windows.vadwalk.VadWalk": 16165,
-        "windows.kpcrs.KPCRs": 4
+        "windows.kpcrs.KPCRs": 4,
+        "windows.driverirp.DriverIrp": 4255
       },
       "process_list_complete": false,
       "artifact_reference": {
@@ -93,7 +94,8 @@
         "windows.mutantscan": 547,
         "windows.svcscan": 634,
         "windows.vadwalk.VadWalk": 17405,
-        "windows.kpcrs.KPCRs": 4
+        "windows.kpcrs.KPCRs": 4,
+        "windows.driverirp.DriverIrp": 3444
       },
       "process_list_complete": false,
       "autoruns_reference": {
@@ -247,7 +249,7 @@
         "windows.getsids": 516,
         "windows.handles": 20351,
         "windows.hivelist": 13,
-        "windows.modules": 105,
+        "windows.modules": 149,
         "windows.mutantscan": 337,
         "windows.netscan": 102,
         "windows.pslist": 48,
@@ -257,7 +259,8 @@
         "windows.unloadedmodules": 5,
         "windows.vadinfo": 5229,
         "windows.vadwalk.VadWalk": 5229,
-        "windows.kpcrs.KPCRs": 1
+        "windows.kpcrs.KPCRs": 1,
+        "windows.driverirp.DriverIrp": 3724
       },
       "symbol_source": "Microsoft exact PDB; independent Volatility conversion for comparisons",
       "complete": {
@@ -274,7 +277,8 @@
         "windows.mutantscan": false,
         "windows.getsids": true,
         "windows.pslist": true,
-        "windows.netscan": false
+        "windows.netscan": false,
+        "windows.driverirp.DriverIrp": false
       }
     },
     {

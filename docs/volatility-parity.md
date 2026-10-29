@@ -514,3 +514,21 @@ make check 通过（501 项 Rust、19 项 Python）；Debian/Kali 四项、可�
 实际回归通过。Win10/11 与 Server 2008 的 KPCRs 计数加入实际回归和兼容矩阵。入口现为
 127 个（Linux 62 / Windows 65），固定参考缺失入口为 Windows 27 个。正向全字段用例累计
 39 项，含 2 项限定行范围，覆盖 9 个 Linux / 3 个 Windows 插件；完整插件合同验收仍为 0。
+
+## Windows DriverIrp 与共享池映射
+
+native43 新增 `windows.driverirp.DriverIrp`（别名 `windows.driverirp`），读取 28 个标准
+IRP 入口并输出 Offset、Driver Name、IRP、Address、Module、Symbol。旧版物理池对象不再
+依赖本体的存活虚拟映射；保护标签与普通标签分别计算旧版结构尾部。新版扫描保留共享
+页表下的虚拟别名，以有界相对映射缓存避免重复展开。模块名称/路径缺失时保留可读地址
+范围，并保持 partial；handler 单个缺页不再使可读入口整体丢失。
+
+三份实际镜像的默认输出为 Win10 4255、Server 2008 x86 3724、Win11 3444 行。前五字段
+唯一投影与参考一致；完整六字段默认比较仍失败，不能视为完整对齐。参考把内核 ISF
+用于外部模块，产生 250/96/158 个外部符号行（Win11 另有 9 行别名），Zero 目前保留
+外部 Symbol 缺失。内核模块范围的六字段用例分别有 2066/1723/1656 行通过；范围限制
+写入映射，完整失败证据见 [差异记录](../tests/reference/parity/driverirp-known-differences.json)。
+
+累计正式入口对应 109/135，仍缺 26 个 Windows 插件；42 项正向差分用例中有 5 项明确
+限定记录范围。完整插件合同通过数仍为 0。下一步需补外部驱动精确 PDB/模块符号解析，
+并继续完成其余插件、参数及跨版本验收。

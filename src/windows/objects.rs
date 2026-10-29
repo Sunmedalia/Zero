@@ -209,6 +209,76 @@ impl Windows<'_> {
             type_names: Default::default(),
         }
     }
+    /// Read a scalar in a physically carved object; embedded pointers still
+    /// refer to the native kernel address space.
+    pub(super) fn physical_field(&self, address: u64, ty: &str, field: &str) -> Result<u64> {
+        let layout = self.vm.isf.layout(ty, field)?;
+        ensure!(matches!(layout.size, 1 | 2 | 4 | 8), "物理字段宽度无效");
+        let mut bytes = [0u8; 8];
+        self.vm.image.read(
+            add(address, layout.offset)?,
+            &mut bytes[..layout.size as usize],
+        )?;
+        json_number(self.vm.isf, u64::from_le_bytes(bytes), ty, field)
+    }
+    pub(super) fn physical_object_type(&self, header: u64) -> Result<String> {
+        let ty = if self.vm.isf.has_field("_OBJECT_HEADER", "TypeIndex") {
+            // Pre-Win10 physical scanning predates address-dependent cookies.
+            ensure!(
+                self.symbol("ObHeaderCookie").is_err(),
+                "带 cookie 的对象头需要虚拟地址"
+            );
+            let index = self.physical_field(header, "_OBJECT_HEADER", "TypeIndex")?;
+            ensure!(index < 256, "对象类型索引越界");
+            self.vm.pointer(add(
+                self.symbol("ObTypeIndexTable")?,
+                index * self.vm.pointer_size() as u64,
+            )?)?
+        } else {
+            self.physical_field(header, "_OBJECT_HEADER", "Type")?
+        };
+        ensure!(self.vm.kernel(ty), "物理对象类型指针无效");
+        self.vm.unicode(self.field(ty, "_OBJECT_TYPE", "Name")?)
+    }
+    pub(super) fn physical_object_name(&self, header: u64) -> Result<String> {
+        let offset = if self.vm.isf.has_field("_OBJECT_HEADER", "InfoMask") {
+            let mask = self.physical_field(header, "_OBJECT_HEADER", "InfoMask")?;
+            if mask & 2 == 0 {
+                return Ok(String::new());
+            }
+            self.vm
+                .uint(add(self.symbol("ObpInfoMaskToOffset")?, mask & 3)?, 1)?
+        } else {
+            self.physical_field(header, "_OBJECT_HEADER", "NameInfoOffset")?
+        };
+        if offset == 0 {
+            return Ok(String::new());
+        }
+        let info = header.checked_sub(offset).context("物理对象名称头下溢")?;
+        let descriptor = add(
+            info,
+            self.vm.isf.offset("_OBJECT_HEADER_NAME_INFO", "Name")?,
+        )?;
+        let length = self.physical_field(descriptor, "_UNICODE_STRING", "Length")?;
+        let maximum = self.physical_field(descriptor, "_UNICODE_STRING", "MaximumLength")?;
+        ensure!(
+            length % 2 == 0 && length <= maximum && length <= 65534,
+            "无效物理 UNICODE_STRING 长度"
+        );
+        let mut bytes = vec![0u8; length as usize];
+        if length > 0 {
+            self.vm.read(
+                self.physical_field(descriptor, "_UNICODE_STRING", "Buffer")?,
+                &mut bytes,
+            )?;
+        }
+        Ok(String::from_utf16_lossy(
+            &bytes
+                .chunks_exact(2)
+                .map(|word| u16::from_le_bytes([word[0], word[1]]))
+                .collect::<Vec<_>>(),
+        ))
+    }
     pub(super) fn object_type(&self, header: u64, layout: &ObjectHeaderLayout) -> Result<String> {
         if !layout.type_index {
             let ty = self.number(header, "_OBJECT_HEADER", "Type")?;

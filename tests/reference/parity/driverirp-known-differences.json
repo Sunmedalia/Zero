@@ -1,0 +1,120 @@
+{
+  "schema_version": 1,
+  "engine_version": "0.2.1-native-43",
+  "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+  "zero_executable_sha256": "94a6b2adb084f3d3d3ea77eecbc9066150897465e3e80941c8a5da66c3ef0e31",
+  "source_sha256": {
+    "plugins/windows/driverirp.py": "de9d4d773b8d0055f19858c259ea863b639788add7706b459022ad20824f59cb",
+    "plugins/windows/driverscan.py": "e7ac4083870765e9c83039bab8fcab5aecbe526ead58ab1f20b25065908b0175",
+    "plugins/windows/ssdt.py": "326164e85ef393bff72584168c44f5acd5ddefac2dd5bc02cc62f02b0cfa8cdb",
+    "symbols/windows/extensions/pool.py": "cd9846ecdae31e8e5e15f03e9c49fdfb80365c2d62f5ea050203cc9bd0dac4b8",
+    "plugins/windows/poolscanner.py": "85b7001117f4f9626698ae47f5f921ad4c9643625cb43a7a2a527b5c9469310e"
+  },
+  "cases": [
+    {
+      "case_id": "windows-10-15063/driverirp-default",
+      "image_sha256": "d58f62e92b8c4ef913ac09b2c36a10482034c10b88d0c154dead3aaaa49cf875",
+      "symbol_sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4",
+      "native_output_sha256": "80e969c460627f89efc2f034b468702e9dfba6b74ac5ad78dd61db6ba4ce3125",
+      "reference_output_sha256": "6225df5641c30cda633f00c291dc5e7ab9b6df9733fd0521953537b33e09aefa",
+      "mapping_sha256": "8d73db80f6d45cab916c1caebbbec373c4910254fe0f152a76dba796e9091ad4",
+      "native_rows": 4255,
+      "reference_rows": 4255,
+      "native_complete": false,
+      "native_diagnostic_count": 22,
+      "full_six_field_comparison_passed": false,
+      "five_field_unique_projection": {
+        "fields": [
+          "Offset",
+          "Driver Name",
+          "IRP",
+          "Address",
+          "Module"
+        ],
+        "native_records": 4255,
+        "reference_records": 4255,
+        "missing": 0,
+        "extra": 0,
+        "passed": true,
+        "note": "Projection collapses repeated reference aliases; not a substitute for full row/multiplicity comparison."
+      },
+      "reference_external_symbol_rows": 250,
+      "reference_external_names_present_in_kernel_isf": 250,
+      "native_external_symbol_rows": 0,
+      "kernel_module_six_field_case_id": "windows-10-15063/driverirp-kernel-module"
+    },
+    {
+      "case_id": "server-2008-6001-x86/driverirp-default",
+      "image_sha256": "d3b13f2224cab20440a4bb3c5c971662be6e61f431340f319cef7312bb6177f4",
+      "symbol_sha256": "5d73f3a7158ba8b72394f2606ea5b4f03393976d5054a11cc51d51afb88a5544",
+      "native_output_sha256": "07bee21f51ce53c51ee119dc018c4e13d2da05be585aea3ca76b39343505b0a4",
+      "reference_output_sha256": "f0b4d195a68390eb56126a71e7d591fabba60355b606191914d8f6ed319f4518",
+      "mapping_sha256": "8d73db80f6d45cab916c1caebbbec373c4910254fe0f152a76dba796e9091ad4",
+      "native_rows": 3724,
+      "reference_rows": 3724,
+      "native_complete": false,
+      "native_diagnostic_count": 44,
+      "full_six_field_comparison_passed": false,
+      "five_field_unique_projection": {
+        "fields": [
+          "Offset",
+          "Driver Name",
+          "IRP",
+          "Address",
+          "Module"
+        ],
+        "native_records": 3724,
+        "reference_records": 3724,
+        "missing": 0,
+        "extra": 0,
+        "passed": true,
+        "note": "Projection collapses repeated reference aliases; not a substitute for full row/multiplicity comparison."
+      },
+      "reference_external_symbol_rows": 96,
+      "reference_external_names_present_in_kernel_isf": 96,
+      "native_external_symbol_rows": 0,
+      "kernel_module_six_field_case_id": "server-2008-6001-x86/driverirp-kernel-module"
+    },
+    {
+      "case_id": "windows-11/driverirp-default",
+      "image_sha256": "0f00815b8f78f30a63d742c73152474b2a3c35183dbb1d92c8fc6a81fa3de9f1",
+      "symbol_sha256": "6a234099b69b393eb7d652408835205bd12f0b947d0d6b6275e2ffce8ca9c133",
+      "native_output_sha256": "1d124993d7c7ae395ec7e508a288ffab7b5a1b6a9c894d089979d983a55418b1",
+      "reference_output_sha256": "2288235babbeff4ed44ba04e79c36999d6dc7d92e40a7916af07a017730a03b4",
+      "mapping_sha256": "8d73db80f6d45cab916c1caebbbec373c4910254fe0f152a76dba796e9091ad4",
+      "native_rows": 3444,
+      "reference_rows": 3453,
+      "native_complete": false,
+      "native_diagnostic_count": 1,
+      "full_six_field_comparison_passed": false,
+      "five_field_unique_projection": {
+        "fields": [
+          "Offset",
+          "Driver Name",
+          "IRP",
+          "Address",
+          "Module"
+        ],
+        "native_records": 3444,
+        "reference_records": 3444,
+        "missing": 0,
+        "extra": 0,
+        "passed": true,
+        "note": "Projection collapses repeated reference aliases; not a substitute for full row/multiplicity comparison."
+      },
+      "reference_external_symbol_rows": 158,
+      "reference_external_names_present_in_kernel_isf": 158,
+      "native_external_symbol_rows": 0,
+      "kernel_module_six_field_case_id": "windows-11/driverirp-kernel-module"
+    }
+  ],
+  "limitations": [
+    "Full DriverIrp parity is not claimed. Only the explicitly scoped kernel-module cases pass all six fields.",
+    "Exact external driver PDB acquisition and per-module symbol resolution remain unimplemented. Zero leaves external Symbol empty rather than borrowing unrelated kernel symbols.",
+    "Captured-page and module/name failures remain partial diagnostics; no successful result cache writes.",
+    "Shared page-table projection is bounded by unique table/level nodes and total relative candidate mappings; software-recovered mapping branches are not included.",
+    "Only the declared x86/x64 samples and synthetic layouts are tested; ARM64 is unsupported.",
+    "Native module intervals are half-open; the reference includes the end address. Malformed padding is rejected by the native scanner."
+  ],
+  "reference_reuse": "Pinned source, image and exact ISF bytes/arguments unchanged; retained reference outputs hash-verified while re-running native after compatibility metadata update."
+}

@@ -4281,8 +4281,10 @@
         "Module",
         "Symbol"
       ],
-      "zero_candidates": [],
-      "status": "missing",
+      "zero_candidates": [
+        "windows.driverirp.DriverIrp"
+      ],
+      "status": "mapped_unverified",
       "evidence": []
     },
     {

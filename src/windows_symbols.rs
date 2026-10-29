@@ -16,7 +16,7 @@ use std::{
     path::Path,
 };
 
-pub const CONVERTER_VERSION: &str = "pdb-native-7";
+pub const CONVERTER_VERSION: &str = "pdb-native-8";
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub struct PdbIdentity {
     pub name: String,
@@ -360,10 +360,21 @@ pub fn convert(bytes: &[u8], identity: &PdbIdentity, job: &Job) -> Result<Vec<u8
     // Windows uses 32-bit C int on every supported PE machine, including
     // LLP64. Keep standard ISF names for consumers that instantiate a scalar
     // directly rather than following a CodeView-named field descriptor.
-    for (name, signed) in [("int", true), ("unsigned int", false)] {
+    for (name, size, signed) in [
+        ("char", 1, true),
+        ("unsigned char", 1, false),
+        ("short", 2, true),
+        ("unsigned short", 2, false),
+        ("int", 4, true),
+        ("unsigned int", 4, false),
+        ("long", 4, true),
+        ("unsigned long", 4, false),
+        ("long long", 8, true),
+        ("unsigned long long", 8, false),
+    ] {
         bases.insert(
             name.into(),
-            json!({"size":4,"kind":"int","signed":signed,"endian":"little"}),
+            json!({"size":size,"kind":"int","signed":signed,"endian":"little"}),
         );
     }
     fn primitive(

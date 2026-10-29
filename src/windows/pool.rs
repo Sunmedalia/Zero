@@ -56,6 +56,33 @@ impl Windows<'_> {
         }
         Ok(blocks.into_iter().collect())
     }
+    /// Resolve physical pool objects once through the kernel page tables.
+    pub(super) fn mapped_pool_candidates(
+        &self,
+        candidates: &BTreeSet<u64>,
+        job: &Job,
+    ) -> Result<BTreeMap<u64, Vec<u64>>> {
+        let mut mapped: BTreeMap<u64, Vec<u64>> = BTreeMap::new();
+        let geometry = self.vm.paging()?;
+        let mut search = PoolMappings {
+            image: self.vm.image,
+            geometry,
+            wanted: candidates,
+            memo: Default::default(),
+            budget: MAX_OBJECTS,
+            entries: 0,
+            scratch: Vec::new(),
+            job,
+        };
+        for &(physical, relative) in search.walk(self.vm.root, 0)?.iter() {
+            job.check()?;
+            let address = geometry.extend(relative);
+            if geometry.arch.kernel(address) {
+                mapped.entry(physical).or_default().push(address);
+            }
+        }
+        Ok(mapped)
+    }
     pub(super) fn pool_artifacts(&self, p: Plugin, job: &Job) -> Result<Results> {
         let mut r = self.result(p);
         let read = self.pool_rows(p, &mut r, job);
@@ -133,24 +160,7 @@ impl Windows<'_> {
                 }
             }
         }
-        let mut mapped = BTreeMap::new();
-        let mut seen = HashSet::new();
-        let mut budget = MAX_OBJECTS;
-        // Reused across every page-table node visited.
-        let mut scratch = Vec::new();
-        reverse_objects(
-            self.vm.image,
-            self.vm.root,
-            self.vm.paging()?,
-            0,
-            0,
-            &candidates,
-            &mut mapped,
-            &mut seen,
-            &mut budget,
-            &mut scratch,
-            job,
-        )?;
+        let mapped = self.mapped_pool_candidates(&candidates, job)?;
         // Header-shape decisions are per symbol file, not per object.
         let header_layout = self.object_header_layout();
         let mut unmatched = 0;
@@ -298,87 +308,81 @@ impl Windows<'_> {
             && self.vm.kernel(buffer)
     }
 }
-/// Bound repeated table aliases. BTreeSet ranges avoid candidates × pages scans.
-#[allow(clippy::too_many_arguments)]
-fn reverse_objects(
-    image: &Image,
-    table: u64,
+/// Memoize relative candidate mappings, then project them at every virtual
+/// prefix. Merely remembering visited tables loses aliases; walking every
+/// prefix from scratch can exhaust the table budget on shared subtrees.
+type RelativePoolMappings = std::sync::Arc<Vec<(u64, u64)>>;
+struct PoolMappings<'a> {
+    image: &'a Image,
     geometry: Paging,
-    level: usize,
-    prefix: u64,
-    wanted: &BTreeSet<u64>,
-    out: &mut BTreeMap<u64, Vec<u64>>,
-    seen: &mut HashSet<(u64, usize)>,
-    budget: &mut usize,
-    scratch: &mut Vec<u8>,
-    job: &Job,
-) -> Result<()> {
-    if wanted.is_empty() {
-        return Ok(());
-    }
-    job.check()?;
-    if !seen.insert((table, level)) {
-        return Ok(());
-    }
-    ensure!(*budget > 0, "对象虚拟地址映射搜索超限");
-    *budget -= 1;
-    let shift = geometry.shifts()[level];
-    let need = geometry.entries(level) * geometry.width();
-    if scratch.len() < need {
-        scratch.resize(need, 0);
-    }
-    scratch[..need].fill(0);
-    if image.read(table, &mut scratch[..need]).is_err() {
-        return Ok(());
-    }
-    // Collect child tables before recursing: the scratch buffer is shared by
-    // the whole traversal, so it must not be borrowed across the call.
-    let mut children = Vec::new();
-    for (i, b) in scratch[..need].chunks_exact(geometry.width()).enumerate() {
-        if level == 0 && i < geometry.entries(level) / 2 {
-            continue;
+    wanted: &'a BTreeSet<u64>,
+    memo: std::collections::HashMap<(u64, usize), RelativePoolMappings>,
+    budget: usize,
+    entries: usize,
+    scratch: Vec<u8>,
+    job: &'a Job,
+}
+impl PoolMappings<'_> {
+    fn walk(&mut self, table: u64, level: usize) -> Result<RelativePoolMappings> {
+        self.job.check()?;
+        if self.wanted.is_empty() {
+            return Ok(Default::default());
         }
-        let mut raw = [0; 8];
-        raw[..b.len()].copy_from_slice(b);
-        let entry = u64::from_le_bytes(raw);
-        if entry & 1 == 0 {
-            continue;
+        if let Some(result) = self.memo.get(&(table, level)) {
+            return Ok(result.clone());
         }
-        let va = prefix | ((i as u64) << shift);
-        let pa = entry & geometry.mask();
-        if shift == 12 || geometry.block(entry, shift) {
-            let mask = (1u64 << shift) - 1;
-            let base = pa & !mask;
-            for &physical in wanted.range(base..=base + mask) {
-                let address = geometry.extend(va | (physical - base));
-                if geometry.arch.kernel(address) {
-                    out.entry(physical).or_default().push(address);
-                }
-            }
-        } else if level + 1 < geometry.shifts().len() {
-            // Self-referencing page-table branches do not map pool objects.
-            if geometry.arch == Architecture::X64 && level == 0 && pa == table {
+        ensure!(self.budget > 0, "对象虚拟地址映射搜索超限");
+        self.budget -= 1;
+        let shift = self.geometry.shifts()[level];
+        let need = self.geometry.entries(level) * self.geometry.width();
+        self.scratch.resize(need, 0);
+        self.scratch.fill(0);
+        if self.image.read(table, &mut self.scratch).is_err() {
+            let empty = RelativePoolMappings::default();
+            self.memo.insert((table, level), empty.clone());
+            return Ok(empty);
+        }
+        let mut found = Vec::new();
+        let mut children = Vec::new();
+        for (index, bytes) in self.scratch.chunks_exact(self.geometry.width()).enumerate() {
+            if level == 0 && index < self.geometry.entries(level) / 2 {
                 continue;
             }
-            children.push((pa, va));
+            let mut raw = [0u8; 8];
+            raw[..bytes.len()].copy_from_slice(bytes);
+            let entry = u64::from_le_bytes(raw);
+            if entry & 1 == 0 {
+                continue;
+            }
+            let prefix = (index as u64) << shift;
+            let pa = entry & self.geometry.mask();
+            if shift == 12 || self.geometry.block(entry, shift) {
+                let mask = (1u64 << shift) - 1;
+                let base = pa & !mask;
+                for &physical in self.wanted.range(base..=base + mask) {
+                    ensure!(self.entries < MAX_OBJECTS * 8, "对象虚拟别名数量超限");
+                    self.entries += 1;
+                    found.push((physical, prefix | (physical - base)));
+                }
+            } else if level + 1 < self.geometry.shifts().len() {
+                if self.geometry.arch == Architecture::X64 && level == 0 && pa == table {
+                    continue;
+                }
+                children.push((pa, prefix));
+            }
         }
+        for (child, prefix) in children {
+            for &(physical, relative) in self.walk(child, level + 1)?.iter() {
+                self.job.check()?;
+                ensure!(self.entries < MAX_OBJECTS * 8, "对象虚拟别名数量超限");
+                self.entries += 1;
+                found.push((physical, prefix | relative));
+            }
+        }
+        let result = std::sync::Arc::new(found);
+        self.memo.insert((table, level), result.clone());
+        Ok(result)
     }
-    for (pa, va) in children {
-        reverse_objects(
-            image,
-            pa,
-            geometry,
-            level + 1,
-            va,
-            wanted,
-            out,
-            seen,
-            budget,
-            scratch,
-            job,
-        )?;
-    }
-    Ok(())
 }
 
 #[cfg(test)]

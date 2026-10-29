@@ -3,6 +3,8 @@ use clap::ValueEnum;
 
 #[derive(Clone, Copy, Debug, ValueEnum, PartialEq, Eq)]
 pub enum Plugin {
+    #[value(name = "windows.driverirp.DriverIrp", alias = "windows.driverirp")]
+    WinDriverIrp,
     #[value(name = "windows.kpcrs.KPCRs", alias = "windows.kpcrs")]
     WinKpcrs,
     #[value(name = "windows.vadwalk.VadWalk", alias = "windows.vadwalk")]
@@ -1658,6 +1660,20 @@ pub const PLUGINS: &[Descriptor] = &[
         widths: &[8, 20, 18, 40, 48],
     },
     Descriptor {
+        plugin: Plugin::WinDriverIrp,
+        name: "windows.driverirp.DriverIrp",
+        label: "driverirp",
+        columns: &[
+            "Offset",
+            "Driver Name",
+            "IRP",
+            "Address",
+            "Module",
+            "Symbol",
+        ],
+        widths: &[18, 24, 32, 18, 20, 36],
+    },
+    Descriptor {
         plugin: Plugin::WinKpcrs,
         name: "windows.kpcrs.KPCRs",
         label: "kpcrs",
@@ -1779,6 +1795,7 @@ impl Plugin {
             Self::WinMbrscan => "Files",
             Self::WinTimers => "Integrity",
             Self::WinKpcrs => "System",
+            Self::WinDriverIrp => "Integrity",
             Self::WinStatistics => "Memory",
             Self::WinShimcache => "Files",
             Self::WinVirtmap => "Memory",
@@ -1962,6 +1979,7 @@ impl Plugin {
             WinStatistics => "统计内核地址空间的有效、换出与空页表项",
             WinShimcache => "解码 SYSTEM hive 中的 AppCompatCache 执行痕迹",
             WinVirtmap => "列出内核虚拟地址空间按用途划分的区域",
+            WinDriverIrp => "扫描驱动的 28 个 IRP 派发入口及模块、精确符号归属",
             WinKpcrs => "枚举处理器 KPCR 与 PRCB，验证自指针和回指针",
             WinVadWalk => "遍历 VAD 父子链接、虚拟范围与 pool tag，保留链路异常诊断",
             WinVadRegExScan => "按字节正则扫描 Windows 全部 VAD，保留缺页覆盖诊断",

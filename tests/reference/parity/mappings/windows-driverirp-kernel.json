@@ -1,0 +1,51 @@
+{
+  "version": 1,
+  "allow_partial": true,
+  "keys": [
+    "Offset",
+    "IRP",
+    "Module",
+    "Symbol"
+  ],
+  "fields": {
+    "Offset": {
+      "zero": "Offset",
+      "reference": "Offset",
+      "type": "address",
+      "reference_type": "address48"
+    },
+    "Driver Name": {
+      "zero": "Driver Name",
+      "reference": "Driver Name",
+      "type": "empty_text"
+    },
+    "IRP": {
+      "zero": "IRP",
+      "reference": "IRP",
+      "type": "empty_text"
+    },
+    "Address": {
+      "zero": "Address",
+      "reference": "Address",
+      "type": "address",
+      "reference_type": "address48"
+    },
+    "Module": {
+      "zero": "Module",
+      "reference": "Module",
+      "type": "empty_text"
+    },
+    "Symbol": {
+      "zero": "Symbol",
+      "reference": "Symbol",
+      "type": "empty_text"
+    }
+  },
+  "record_selection": {
+    "field": "Module",
+    "include": [
+      "ntoskrnl"
+    ],
+    "scope": "Kernel-module IRP handlers only; all six columns. External module PDBs are unavailable; default full-output comparisons remain failing and are recorded separately."
+  }
+}

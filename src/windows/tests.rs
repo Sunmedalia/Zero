@@ -566,3 +566,40 @@ fn one_pdb_identity_found_at_several_offsets_is_one_match() {
     assert_eq!(matches.len(), 1, "{matches:?}");
     assert!(matches[0].banner.starts_with("Windows PDB ntkrnlmp.pdb/"));
 }
+
+#[test]
+fn module_range_survives_missing_path_text() {
+    let (mut bytes, mut isf) = fixture();
+    isf.data["user_types"]["_KLDR_DATA_TABLE_ENTRY"] = json!({"size":64,"fields":{
+        "InLoadOrderLinks":{"offset":0,"type":{"kind":"struct","name":"_LIST_ENTRY"}},
+        "BaseDllName":{"offset":16,"type":{"kind":"struct","name":"_UNICODE_STRING"}},
+        "FullDllName":{"offset":32,"type":{"kind":"struct","name":"_UNICODE_STRING"}},
+        "DllBase":{"offset":48,"type":{"kind":"pointer"}},
+        "SizeOfImage":{"offset":56,"type":{"kind":"base","name":"u64"}}
+    }});
+    put(&mut bytes, 0x8700, K + 0x800);
+    put(&mut bytes, 0x8708, K + 0x800);
+    put(&mut bytes, 0x8800, K + 0x700);
+    put(&mut bytes, 0x8808, K + 0x700);
+    // Base name is resident; a malformed full path must not erase DllBase/size.
+    put(&mut bytes, 0x8810, 4 | (4 << 16));
+    put(&mut bytes, 0x8818, K + 0x900);
+    bytes[0x8900..0x8904].copy_from_slice(&[b'n', 0, b't', 0]);
+    put(&mut bytes, 0x8820, 4 | (2 << 16));
+    put(&mut bytes, 0x8830, K);
+    put(&mut bytes, 0x8838, 0x8000);
+    let img = image(&bytes);
+    let w = Windows {
+        vm: Memory::new(&img, 0x1000, &isf, None),
+        base: K,
+        pdb: PdbIdentity::from_isf(&isf).unwrap(),
+    };
+    let mut result = w.result(Plugin::WinModules);
+    let modules = w.modules_partial(&Job::default(), &mut result).unwrap();
+    assert_eq!(modules.len(), 1);
+    assert_eq!((modules[0].base, modules[0].size), (K, 0x8000));
+    assert_eq!(modules[0].name, "nt");
+    assert!(modules[0].path.is_empty());
+    assert!(!result.complete);
+    assert_eq!(result.diagnostics.len(), 1);
+}

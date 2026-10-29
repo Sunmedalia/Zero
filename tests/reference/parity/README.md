@@ -237,3 +237,34 @@ development-only Volatility diagnostic plugin (load with `-p` pointing at the
 count and symbol-layout evidence; it does not patch the reference plugin.
 `kpcrs-known-differences.json` stores counts/hashes and also records the remaining
 partial timer/DPC analysis. Neither failure is added as passing parity evidence.
+
+### Windows DriverIrp
+
+`driverirp.example.json` includes three unfiltered default comparisons and three
+explicit `record_selection` cases for the `ntoskrnl` module. The latter compare
+all six columns: 2066 rows on Win10 15063 x64, 1723 on Server 2008 6001 x86 and
+1656 on Win11 22000 x64. Both engines use the same exact native PDB-derived ISF
+(pdb-native-8); this does not independently validate conversion. The converter
+now declares the standard Windows C ABI char/short/int/long/long-long names,
+including LLP64 four-byte long. Global variable types remain source-derived.
+
+The full configuration deliberately remains failing. Default native row counts
+are 4255 / 3724 / 3444; reference counts are 4255 / 3724 / 3453. Unique projections
+of Offset, Driver Name, IRP, Address and Module agree on all three samples. The
+reference applies the kernel ISF to external modules and emits 250 / 96 / 158
+external symbol rows; native external symbols remain unavailable. Nine additional
+reference Win11 rows are extra aliases for the same handlers. Projection equality
+and matching totals do not replace six-field/multiplicity verification. The full
+failures, source/output hashes and limits are saved in
+`driverirp-known-differences.json`; only the explicitly scoped successful cases
+enter `evidence.json`. Full plugin contracts remain unverified.
+
+The shared physical reader preserves pre-Win10 pool bodies even without a virtual
+body mapping. Protected Dri-f6 tags alone add DRIVER_EXTENSION in legacy bottom-up
+carving. Modern scans retain virtual aliases, with memoized relative subtree
+mappings instead of skipping a previously seen table or expanding aliases without
+bounds. Name/path faults retain readable module ranges with partial diagnostics.
+Modules counts therefore rise from 183 to 191 on Win10 and 105 to 149 on Server
+2008. Readable handler slots survive later missing pages. Module intervals are
+half-open and malformed optional padding is rejected. ARM64 is unsupported and
+exact external driver PDB resolution remains outstanding.

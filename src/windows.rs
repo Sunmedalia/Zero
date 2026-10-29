@@ -24,6 +24,8 @@ mod compressed;
 pub mod container;
 mod creds;
 mod crypto;
+mod dispatch;
+mod driver_irp;
 mod drivers;
 mod dump;
 mod files;
@@ -561,6 +563,9 @@ impl Windows<'_> {
     }
     pub fn run(&self, p: Plugin, options: &Options, job: &Job) -> Result<Results> {
         job.check()?;
+        if p == Plugin::WinDriverIrp {
+            return self.driver_irp(job);
+        }
         if p == Plugin::WinKpcrs {
             return self.kpcrs(job);
         }
@@ -877,14 +882,28 @@ impl Windows<'_> {
         for address in modules {
             let read = (|| -> Result<KernelModule> {
                 Ok(KernelModule {
-                    name: self
-                        .vm
-                        .unicode(self.field(address, module_type, "BaseDllName")?)?,
                     base: self.number(address, module_type, "DllBase")?,
                     size: self.number(address, module_type, "SizeOfImage")?,
-                    path: self
+                    name: match self
                         .vm
-                        .unicode(self.field(address, module_type, "FullDllName")?)?,
+                        .unicode(self.field(address, module_type, "BaseDllName")?)
+                    {
+                        Ok(name) => name,
+                        Err(e) => {
+                            Self::issue(r, format!("module {address:#x} BaseDllName"), e);
+                            String::new()
+                        }
+                    },
+                    path: match self
+                        .vm
+                        .unicode(self.field(address, module_type, "FullDllName")?)
+                    {
+                        Ok(path) => path,
+                        Err(e) => {
+                            Self::issue(r, format!("module {address:#x} FullDllName"), e);
+                            String::new()
+                        }
+                    },
                 })
             })();
             match read {
