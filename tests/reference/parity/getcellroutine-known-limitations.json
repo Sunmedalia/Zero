@@ -1,0 +1,123 @@
+{
+  "schema_version": 1,
+  "engine_version": "0.2.1-native-49",
+  "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+  "zero_executable_sha256": "6d61a01a6646ae8d86afe80182e971d669649479c77e0bf485c62d5c5aa2fa2a",
+  "source_sha256": {
+    "plugins/windows/registry/getcellroutine.py": "7ffba7f04b87377accdcf4ec61847138ee8569b40ccbc0faaaf4050f1143cc3e",
+    "plugins/windows/registry/hivelist.py": "7ac59abb9ba5485c257b833f9f3b23725872484e7ede81465028372d5bb20ee8",
+    "plugins/windows/ssdt.py": "326164e85ef393bff72584168c44f5acd5ddefac2dd5bc02cc62f02b0cfa8cdb",
+    "contexts/__init__.py": "ba73acc0390554f26ae932f84595af92d89a4e02184ab22309e9ba05b4e2eeb9",
+    "layers/registry.py": "faa15b5006b9359e85773358503de745f6f164019c318eb973ace88d41be6784",
+    "symbols/windows/extensions/registry.py": "0ea8faa0fbd77659c45409423c6678f4163cd5006f0f295c54e8798631e85911"
+  },
+  "cases": [
+    {
+      "case_id": "windows-10-15063/getcellroutine-default",
+      "image_sha256": "d58f62e92b8c4ef913ac09b2c36a10482034c10b88d0c154dead3aaaa49cf875",
+      "symbol_sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4",
+      "native_output_sha256": "12aed2a435d206ed021022be5aa2be8bc1bc55818d72e609e89e1759d3065bdb",
+      "reference_output_sha256": "a3cbe01dad52836a7ac8efc91954cf64867f4dee8a6f046c4bb0838d11f48589",
+      "mapping_sha256": "ffd108abef095863eefec998ed537422d4f0839cbf16c2c571f3286dfe044554",
+      "negative_invocation_matched": true,
+      "positive_evidence": false,
+      "native_records": 0,
+      "reference_records": 0,
+      "complete": false,
+      "diagnostic_count": 21,
+      "coverage": {
+        "checked_hives": 21,
+        "kernel_only_handlers": 21,
+        "listed_hives": 22,
+        "loaded_module_entries": 191,
+        "rejected_or_unreadable_hives": 1,
+        "report_rows": 0
+      }
+    },
+    {
+      "case_id": "server-2008-6001-x86/getcellroutine-default",
+      "image_sha256": "d3b13f2224cab20440a4bb3c5c971662be6e61f431340f319cef7312bb6177f4",
+      "symbol_sha256": "5d73f3a7158ba8b72394f2606ea5b4f03393976d5054a11cc51d51afb88a5544",
+      "native_output_sha256": "8aba25e3db729f8f3c9f81ffbcec01ad55f45ebb4af491b7553557e622d30dee",
+      "reference_output_sha256": "a3cbe01dad52836a7ac8efc91954cf64867f4dee8a6f046c4bb0838d11f48589",
+      "mapping_sha256": "ffd108abef095863eefec998ed537422d4f0839cbf16c2c571f3286dfe044554",
+      "negative_invocation_matched": true,
+      "positive_evidence": false,
+      "native_records": 0,
+      "reference_records": 0,
+      "complete": true,
+      "diagnostic_count": 0,
+      "coverage": {
+        "checked_hives": 13,
+        "kernel_only_handlers": 13,
+        "listed_hives": 13,
+        "loaded_module_entries": 149,
+        "rejected_or_unreadable_hives": 0,
+        "report_rows": 0
+      }
+    },
+    {
+      "case_id": "windows-11/getcellroutine-default",
+      "image_sha256": "0f00815b8f78f30a63d742c73152474b2a3c35183dbb1d92c8fc6a81fa3de9f1",
+      "symbol_sha256": "6a234099b69b393eb7d652408835205bd12f0b947d0d6b6275e2ffce8ca9c133",
+      "native_output_sha256": "c8dc23a0051eac7a61c3d6f547668c0ff18922505dcea8a8547742087c0efdeb",
+      "reference_output_sha256": "a3cbe01dad52836a7ac8efc91954cf64867f4dee8a6f046c4bb0838d11f48589",
+      "mapping_sha256": "ffd108abef095863eefec998ed537422d4f0839cbf16c2c571f3286dfe044554",
+      "negative_invocation_matched": true,
+      "positive_evidence": false,
+      "native_records": 0,
+      "reference_records": 0,
+      "complete": false,
+      "diagnostic_count": 1,
+      "coverage": {
+        "checked_hives": 38,
+        "kernel_only_handlers": 38,
+        "listed_hives": 38,
+        "loaded_module_entries": 156,
+        "rejected_or_unreadable_hives": 0,
+        "report_rows": 0
+      }
+    },
+    {
+      "case_id": "windows-7-7601-x64/getcellroutine-default",
+      "image_sha256": "80366d7ec64a5529c95c2f523f4281a5f11efbad33ecb19f73525470c1407b23",
+      "symbol_sha256": "6d5f85f7b953330b9762a57e5a25266547e7391ad4f6655170a9f48876fb6b8c",
+      "native_output_sha256": "579002c38b04cd95c9e85159fac77ab604cdfcbcef4f95828f60574120d6738e",
+      "reference_output_sha256": "a3cbe01dad52836a7ac8efc91954cf64867f4dee8a6f046c4bb0838d11f48589",
+      "mapping_sha256": "ffd108abef095863eefec998ed537422d4f0839cbf16c2c571f3286dfe044554",
+      "negative_invocation_matched": true,
+      "positive_evidence": false,
+      "native_records": 0,
+      "reference_records": 0,
+      "complete": true,
+      "diagnostic_count": 0,
+      "coverage": {
+        "checked_hives": 12,
+        "kernel_only_handlers": 12,
+        "listed_hives": 12,
+        "loaded_module_entries": 138,
+        "rejected_or_unreadable_hives": 0,
+        "report_rows": 0
+      }
+    }
+  ],
+  "evidence_policy": "All four calls are negative: empty tables agree, but these cases do not enter evidence.json as positive recovery and do not establish a complete plugin contract. Compatibility cells remain pending.",
+  "known_limitations": [
+    "No real image with a GetCellRoutine hook has been validated.",
+    "Native uses the existing bidirectional hive list recovery with explicit diagnostics; reference pool-scan fallback when both list directions fail remains unimplemented.",
+    "Reference generated module-name collision suffixes and real overlapping module owners have not been differentially tested.",
+    "Module-owner point ranges include the end address, matching the pinned reference; this is distinct from the half-open ranges used by other native plugins.",
+    "Win10 and Win11 remain partial; readable kernel-owned handlers do not prove that all hives or modules were recovered.",
+    "Only x86/x64; ARM64 is explicitly unsupported."
+  ],
+  "synthetic_tests": [
+    "embedded HHIVE addresses and driver/unknown handlers",
+    "missing pages preserve readable hives and diagnostics",
+    "missing exact layouts and cancellation",
+    "hive names and optional FullDllName behavior",
+    "invalid HHIVE signatures are rejected with diagnostics",
+    "kernel identity whitelist and ARM64 rejection",
+    "four-byte x86 pointer reads",
+    "overlapping/inclusive module intervals and arithmetic overflow"
+  ]
+}

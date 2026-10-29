@@ -650,3 +650,31 @@ Win7 7601 x64 为 53 / 53，均无缺失、额外或可读字段冲突。Win11 2
 Windows 13 项通过，Server 2012 R2 仍无样本。入口对应提升至 112/135，尚缺 23 个
 Windows 正式插件；独立正向用例 55 项（5 项限定范围，另含本批 3 项显式 PID 调用），
 覆盖 9 个 Linux / 6 个 Windows 插件。完整插件合同仍为 0；原用户镜像仍未取得。
+
+Windows GetCellRoutine（native49）：新增
+`windows.registry.getcellroutine.GetCellRoutine`（短别名 `windows.getcellroutine`），
+检查列表中 hive 的 HHIVE.GetCellRoutine 是否落在已加载内核模块范围内，输出
+Hive Offset、Hive Name、GetCellRoutine Module、GetCellRoutine Handler 四列。
+Hive Offset 是嵌入的 HHIVE 地址；名称缺失使用参考 RegistryHive 的 `[NONAME]`。
+使用精确符号验证 HHIVE.Signature，损坏对象不作为 hook 输出，但保留 partial 诊断。
+模块归属保留重叠范围，并按固定参考的 SizedModule 点查询语义包含模块末端；内核名
+按参考的四个无扩展名身份比较，未知归属为 N/A，不猜测符号所属模块。ARM64 明确拒绝。
+
+共用模块读取器允许归属查询跳过未使用的 FullDllName；普通 modules/moddump 等调用
+仍读取路径，原有缺页诊断保持。结果额外记录 listed_hives、checked_hives、
+rejected_or_unreadable_hives、kernel_only_handlers 和 report_rows，区分实际检查后
+没有异常与没有读到对象。非内核/未知指针只是一条排查线索，不直接证明发生 hook。
+
+四份实际镜像（Win10 15063 x64、Server 2008 6001 x86、Win11 22000 x64、Win7 7601
+x64）与固定参考均输出零行异常。Win10、Win11 保持 partial；Server 2008、Win7
+本次读取无诊断。这四项只记阴性调用一致，不计入正向差分通过数。没有真实的
+GetCellRoutine hook 样本；参考 HiveList 在双向链表均损坏后的池扫描恢复路线仍待对齐，
+不宣称完整插件合同通过。配置见
+[GetCellRoutine 差分配置](../tests/reference/parity/getcellroutine.example.json)，实际检查
+数量、哈希与边界见 [验收记录](../tests/reference/parity/getcellroutine-known-limitations.json)。
+
+本批新增 8 项合成测试，覆盖 x86/x64、真实 HHIVE 偏移、内核/驱动/未知指针、
+名称、签名、缺页、模块重叠/边界、可选路径、取消及 ARM64 拒绝。make check 通过
+543 Rust / 19 Python；实际回归 Linux 4 项、Windows 13 项通过，Server 2012 R2
+仍缺样本。入口对应为 113/135，尚缺 22 个 Windows 正式插件；独立正向差分仍为
+55 项，完整插件合同仍为 0。原用户镜像仍未取得，未宣称其页表故障已解决。

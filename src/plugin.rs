@@ -4,6 +4,11 @@ use clap::ValueEnum;
 #[derive(Clone, Copy, Debug, ValueEnum, PartialEq, Eq)]
 pub enum Plugin {
     #[value(
+        name = "windows.registry.getcellroutine.GetCellRoutine",
+        alias = "windows.getcellroutine"
+    )]
+    WinGetCellRoutine,
+    #[value(
         name = "windows.malware.pebmasquerade.PebMasquerade",
         alias = "windows.pebmasquerade"
     )]
@@ -272,6 +277,18 @@ pub struct Descriptor {
     pub widths: &'static [u16],
 }
 pub const PLUGINS: &[Descriptor] = &[
+    Descriptor {
+        plugin: Plugin::WinGetCellRoutine,
+        name: "windows.registry.getcellroutine.GetCellRoutine",
+        label: "getcellroutine",
+        columns: &[
+            "Hive Offset",
+            "Hive Name",
+            "GetCellRoutine Module",
+            "GetCellRoutine Handler",
+        ],
+        widths: &[18, 40, 24, 18],
+    },
     Descriptor {
         plugin: Plugin::WinPebMasquerade,
         name: "windows.malware.pebmasquerade.PebMasquerade",
@@ -1817,7 +1834,7 @@ impl Plugin {
             Self::WinHandles => "Files",
             Self::WinMalfind => "Integrity",
             Self::WinNetscan => "Network",
-            Self::WinHivelist | Self::WinHiveScan => "Files",
+            Self::WinHivelist | Self::WinHiveScan | Self::WinGetCellRoutine => "Files",
             Self::WinPrintkey => "Files",
             Self::WinPsscan => "Integrity",
             Self::WinPsxview => "Integrity",
@@ -1922,6 +1939,9 @@ impl Plugin {
         use Plugin::*;
         match self {
             Fbdev => "列举 fbdev framebuffer；可显式导出 PNG 或原始像素",
+            WinGetCellRoutine => {
+                "检查注册表 hive 的 GetCellRoutine 是否指向内核外；无法归属和缺页保留诊断"
+            }
             WinPebMasquerade => "对照 EPROCESS、审计和 PEB 路径，检查映像路径及命令行长度异常",
             WinLdrmodules => "对照 PE 映射与三条 PEB 模块链表",
             WinHollowprocesses => "检查主程序基址及映像映射异常",

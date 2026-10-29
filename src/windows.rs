@@ -30,6 +30,7 @@ mod driver_module;
 mod drivers;
 mod dump;
 mod files;
+mod get_cell_routine;
 pub mod hiber;
 mod hive_scan;
 mod integrity;
@@ -566,6 +567,9 @@ impl Windows<'_> {
     }
     pub fn run(&self, p: Plugin, options: &Options, job: &Job) -> Result<Results> {
         job.check()?;
+        if p == Plugin::WinGetCellRoutine {
+            return self.get_cell_routine(job);
+        }
         if p == Plugin::WinPebMasquerade {
             return self.peb_masquerade(options, job);
         }
@@ -880,6 +884,11 @@ impl Windows<'_> {
     }
     /// PsLoadedModuleList 遍历，供 modules 与 moddump 共用。
     fn modules_partial(&self, job: &Job, r: &mut Results) -> Result<Vec<KernelModule>> {
+        self.module_entries(job, r, true)
+    }
+    /// Ownership lookups need BaseDllName and ranges; do not read optional
+    /// FullDllName pages unless the caller actually displays the path.
+    fn module_entries(&self, job: &Job, r: &mut Results, paths: bool) -> Result<Vec<KernelModule>> {
         let module_type = self.module_type()?;
         let (modules, diagnostics) = self.list_partial(
             self.symbol("PsLoadedModuleList")?,
@@ -906,15 +915,19 @@ impl Windows<'_> {
                             String::new()
                         }
                     },
-                    path: match self
-                        .vm
-                        .unicode(self.field(address, module_type, "FullDllName")?)
-                    {
-                        Ok(path) => path,
-                        Err(e) => {
-                            Self::issue(r, format!("module {address:#x} FullDllName"), e);
-                            String::new()
+                    path: if paths {
+                        match self
+                            .vm
+                            .unicode(self.field(address, module_type, "FullDllName")?)
+                        {
+                            Ok(path) => path,
+                            Err(e) => {
+                                Self::issue(r, format!("module {address:#x} FullDllName"), e);
+                                String::new()
+                            }
                         }
+                    } else {
+                        String::new()
                     },
                 })
             })();

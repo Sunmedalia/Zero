@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "allow_empty": true,
+  "allow_partial": true,
+  "keys": [
+    "Hive Offset",
+    "GetCellRoutine Handler"
+  ],
+  "fields": {
+    "Hive Offset": {
+      "zero": "Hive Offset",
+      "reference": "Hive Offset",
+      "type": "address",
+      "reference_type": "address48"
+    },
+    "Hive Name": {
+      "zero": "Hive Name",
+      "reference": "Hive Name",
+      "type": "text"
+    },
+    "GetCellRoutine Module": {
+      "zero": "GetCellRoutine Module",
+      "reference": "GetCellRoutine Module",
+      "type": "na_text",
+      "allow_absent": true
+    },
+    "GetCellRoutine Handler": {
+      "zero": "GetCellRoutine Handler",
+      "reference": "GetCellRoutine Handler",
+      "type": "address",
+      "reference_type": "address48"
+    }
+  },
+  "notes": "Inspect all hives and owners, including overlapping module intervals. Both empty tables prove only a negative invocation, never positive hook recovery. Both unavailable module names are counted as matched absence; one-sided absence fails."
+}

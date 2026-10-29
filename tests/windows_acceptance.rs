@@ -65,6 +65,12 @@ fn public_windows_images() {
             ),
             (Plugin::WinHivelist, expected_hives),
             (
+                Plugin::WinGetCellRoutine,
+                fixture["rows"]["windows.registry.getcellroutine.GetCellRoutine"]
+                    .as_u64()
+                    .unwrap() as usize,
+            ),
+            (
                 Plugin::WinPebMasquerade,
                 fixture["rows"]["windows.malware.pebmasquerade.PebMasquerade"]
                     .as_u64()
@@ -148,6 +154,12 @@ fn public_windows_images() {
             assert_eq!(result.rows.len(), expected, "{variable} {plugin:?}");
             if let Some(complete) = fixture["complete"][plugin.name()].as_bool() {
                 assert_eq!(result.complete, complete, "{variable} {plugin:?} coverage");
+            }
+            if plugin == Plugin::WinGetCellRoutine {
+                let coverage = &result.kernel_identity["getcellroutine"];
+                assert!(coverage["checked_hives"].as_u64().unwrap() > 0);
+                assert_eq!(coverage["checked_hives"], coverage["kernel_only_handlers"]);
+                assert_eq!(coverage["report_rows"], 0);
             }
             if plugin == Plugin::WinHiveScan {
                 assert_eq!(result.columns, ["Offset"]);

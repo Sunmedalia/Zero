@@ -7552,8 +7552,10 @@
         "GetCellRoutine Module",
         "GetCellRoutine Handler"
       ],
-      "zero_candidates": [],
-      "status": "missing",
+      "zero_candidates": [
+        "windows.registry.getcellroutine.GetCellRoutine"
+      ],
+      "status": "mapped_unverified",
       "evidence": []
     },
     {

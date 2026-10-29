@@ -101,7 +101,8 @@
           "windows.driverirp.DriverIrp": "pending",
           "windows.malware.drivermodule.DriverModule": "pending",
           "windows.registry.hivescan.HiveScan": "pending",
-          "windows.malware.pebmasquerade.PebMasquerade": "pending"
+          "windows.malware.pebmasquerade.PebMasquerade": "pending",
+          "windows.registry.getcellroutine.GetCellRoutine": "pending"
         },
         "x64": {
           "windows.callbacks": "synthetic",
@@ -180,7 +181,8 @@
           "windows.driverirp.DriverIrp": "pending",
           "windows.malware.drivermodule.DriverModule": "pending",
           "windows.registry.hivescan.HiveScan": "pending",
-          "windows.malware.pebmasquerade.PebMasquerade": "pending"
+          "windows.malware.pebmasquerade.PebMasquerade": "pending",
+          "windows.registry.getcellroutine.GetCellRoutine": "pending"
         }
       },
       "evidence": [
@@ -320,7 +322,8 @@
           "windows.driverirp.DriverIrp": "pending",
           "windows.malware.drivermodule.DriverModule": "pending",
           "windows.registry.hivescan.HiveScan": "pending",
-          "windows.malware.pebmasquerade.PebMasquerade": "pending"
+          "windows.malware.pebmasquerade.PebMasquerade": "pending",
+          "windows.registry.getcellroutine.GetCellRoutine": "pending"
         },
         "x64": {
           "windows.callbacks": "synthetic",
@@ -399,7 +402,8 @@
           "windows.driverirp.DriverIrp": "pending",
           "windows.malware.drivermodule.DriverModule": "pending",
           "windows.registry.hivescan.HiveScan": "pending",
-          "windows.malware.pebmasquerade.PebMasquerade": "pending"
+          "windows.malware.pebmasquerade.PebMasquerade": "pending",
+          "windows.registry.getcellroutine.GetCellRoutine": "pending"
         }
       },
       "evidence": []
@@ -499,7 +503,8 @@
           "windows.driverirp.DriverIrp": "real",
           "windows.malware.drivermodule.DriverModule": "real",
           "windows.registry.hivescan.HiveScan": "real",
-          "windows.malware.pebmasquerade.PebMasquerade": "real"
+          "windows.malware.pebmasquerade.PebMasquerade": "real",
+          "windows.registry.getcellroutine.GetCellRoutine": "pending"
         },
         "x64": {
           "windows.callbacks": "synthetic",
@@ -578,7 +583,8 @@
           "windows.driverirp.DriverIrp": "synthetic",
           "windows.malware.drivermodule.DriverModule": "pending",
           "windows.registry.hivescan.HiveScan": "pending",
-          "windows.malware.pebmasquerade.PebMasquerade": "pending"
+          "windows.malware.pebmasquerade.PebMasquerade": "pending",
+          "windows.registry.getcellroutine.GetCellRoutine": "pending"
         }
       },
       "evidence": [
@@ -734,7 +740,8 @@
           "windows.driverirp.DriverIrp": "pending",
           "windows.malware.drivermodule.DriverModule": "pending",
           "windows.registry.hivescan.HiveScan": "pending",
-          "windows.malware.pebmasquerade.PebMasquerade": "pending"
+          "windows.malware.pebmasquerade.PebMasquerade": "pending",
+          "windows.registry.getcellroutine.GetCellRoutine": "pending"
         }
       },
       "evidence": [],
@@ -833,7 +840,8 @@
           "windows.driverirp.DriverIrp": "pending",
           "windows.malware.drivermodule.DriverModule": "pending",
           "windows.registry.hivescan.HiveScan": "pending",
-          "windows.malware.pebmasquerade.PebMasquerade": "pending"
+          "windows.malware.pebmasquerade.PebMasquerade": "pending",
+          "windows.registry.getcellroutine.GetCellRoutine": "pending"
         }
       },
       "evidence": [
@@ -978,7 +986,8 @@
           "windows.driverirp.DriverIrp": "pending",
           "windows.malware.drivermodule.DriverModule": "pending",
           "windows.registry.hivescan.HiveScan": "pending",
-          "windows.malware.pebmasquerade.PebMasquerade": "pending"
+          "windows.malware.pebmasquerade.PebMasquerade": "pending",
+          "windows.registry.getcellroutine.GetCellRoutine": "pending"
         }
       },
       "evidence": [
@@ -1124,7 +1133,8 @@
           "windows.driverirp.DriverIrp": "pending",
           "windows.malware.drivermodule.DriverModule": "pending",
           "windows.registry.hivescan.HiveScan": "pending",
-          "windows.malware.pebmasquerade.PebMasquerade": "pending"
+          "windows.malware.pebmasquerade.PebMasquerade": "pending",
+          "windows.registry.getcellroutine.GetCellRoutine": "pending"
         }
       },
       "evidence": [
@@ -1242,7 +1252,8 @@
           "windows.driverirp.DriverIrp": "pending",
           "windows.malware.drivermodule.DriverModule": "pending",
           "windows.registry.hivescan.HiveScan": "pending",
-          "windows.malware.pebmasquerade.PebMasquerade": "pending"
+          "windows.malware.pebmasquerade.PebMasquerade": "pending",
+          "windows.registry.getcellroutine.GetCellRoutine": "pending"
         }
       },
       "evidence": [
@@ -1389,7 +1400,8 @@
           "windows.driverirp.DriverIrp": "pending",
           "windows.malware.drivermodule.DriverModule": "pending",
           "windows.registry.hivescan.HiveScan": "pending",
-          "windows.malware.pebmasquerade.PebMasquerade": "pending"
+          "windows.malware.pebmasquerade.PebMasquerade": "pending",
+          "windows.registry.getcellroutine.GetCellRoutine": "pending"
         }
       },
       "evidence": [
@@ -1536,7 +1548,8 @@
           "windows.driverirp.DriverIrp": "pending",
           "windows.malware.drivermodule.DriverModule": "pending",
           "windows.registry.hivescan.HiveScan": "pending",
-          "windows.malware.pebmasquerade.PebMasquerade": "pending"
+          "windows.malware.pebmasquerade.PebMasquerade": "pending",
+          "windows.registry.getcellroutine.GetCellRoutine": "pending"
         }
       },
       "evidence": [],
@@ -1637,7 +1650,8 @@
           "windows.driverirp.DriverIrp": "pending",
           "windows.malware.drivermodule.DriverModule": "pending",
           "windows.registry.hivescan.HiveScan": "pending",
-          "windows.malware.pebmasquerade.PebMasquerade": "pending"
+          "windows.malware.pebmasquerade.PebMasquerade": "pending",
+          "windows.registry.getcellroutine.GetCellRoutine": "pending"
         },
         "x64": {
           "windows.callbacks": "real",
@@ -1716,7 +1730,8 @@
           "windows.driverirp.DriverIrp": "pending",
           "windows.malware.drivermodule.DriverModule": "pending",
           "windows.registry.hivescan.HiveScan": "real",
-          "windows.malware.pebmasquerade.PebMasquerade": "real"
+          "windows.malware.pebmasquerade.PebMasquerade": "real",
+          "windows.registry.getcellroutine.GetCellRoutine": "pending"
         }
       },
       "evidence": [
@@ -1854,7 +1869,8 @@
           "windows.driverirp.DriverIrp": "pending",
           "windows.malware.drivermodule.DriverModule": "pending",
           "windows.registry.hivescan.HiveScan": "pending",
-          "windows.malware.pebmasquerade.PebMasquerade": "pending"
+          "windows.malware.pebmasquerade.PebMasquerade": "pending",
+          "windows.registry.getcellroutine.GetCellRoutine": "pending"
         },
         "x64": {
           "windows.callbacks": "synthetic",
@@ -1933,7 +1949,8 @@
           "windows.driverirp.DriverIrp": "pending",
           "windows.malware.drivermodule.DriverModule": "pending",
           "windows.registry.hivescan.HiveScan": "pending",
-          "windows.malware.pebmasquerade.PebMasquerade": "pending"
+          "windows.malware.pebmasquerade.PebMasquerade": "pending",
+          "windows.registry.getcellroutine.GetCellRoutine": "pending"
         }
       },
       "evidence": []
@@ -2032,7 +2049,8 @@
           "windows.driverirp.DriverIrp": "pending",
           "windows.malware.drivermodule.DriverModule": "pending",
           "windows.registry.hivescan.HiveScan": "pending",
-          "windows.malware.pebmasquerade.PebMasquerade": "pending"
+          "windows.malware.pebmasquerade.PebMasquerade": "pending",
+          "windows.registry.getcellroutine.GetCellRoutine": "pending"
         },
         "x64": {
           "windows.callbacks": "synthetic",
@@ -2111,7 +2129,8 @@
           "windows.driverirp.DriverIrp": "pending",
           "windows.malware.drivermodule.DriverModule": "pending",
           "windows.registry.hivescan.HiveScan": "pending",
-          "windows.malware.pebmasquerade.PebMasquerade": "pending"
+          "windows.malware.pebmasquerade.PebMasquerade": "pending",
+          "windows.registry.getcellroutine.GetCellRoutine": "pending"
         }
       },
       "evidence": []
@@ -2223,7 +2242,8 @@
           "windows.driverirp.DriverIrp": "synthetic",
           "windows.malware.drivermodule.DriverModule": "synthetic",
           "windows.registry.hivescan.HiveScan": "pending",
-          "windows.malware.pebmasquerade.PebMasquerade": "pending"
+          "windows.malware.pebmasquerade.PebMasquerade": "pending",
+          "windows.registry.getcellroutine.GetCellRoutine": "pending"
         },
         "x64": {
           "windows.callbacks": "real",
@@ -2302,7 +2322,8 @@
           "windows.driverirp.DriverIrp": "real",
           "windows.malware.drivermodule.DriverModule": "real",
           "windows.registry.hivescan.HiveScan": "real",
-          "windows.malware.pebmasquerade.PebMasquerade": "real"
+          "windows.malware.pebmasquerade.PebMasquerade": "real",
+          "windows.registry.getcellroutine.GetCellRoutine": "pending"
         }
       },
       "evidence": [
@@ -2484,7 +2505,8 @@
           "windows.driverirp.DriverIrp": "real",
           "windows.malware.drivermodule.DriverModule": "real",
           "windows.registry.hivescan.HiveScan": "real",
-          "windows.malware.pebmasquerade.PebMasquerade": "real"
+          "windows.malware.pebmasquerade.PebMasquerade": "real",
+          "windows.registry.getcellroutine.GetCellRoutine": "pending"
         }
       },
       "evidence": [

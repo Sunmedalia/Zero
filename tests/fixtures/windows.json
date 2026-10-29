@@ -33,7 +33,8 @@
         "windows.driverirp.DriverIrp": 4255,
         "windows.malware.drivermodule.DriverModule": 3,
         "windows.registry.hivescan.HiveScan": 22,
-        "windows.malware.pebmasquerade.PebMasquerade": 139
+        "windows.malware.pebmasquerade.PebMasquerade": 139,
+        "windows.registry.getcellroutine.GetCellRoutine": 0
       },
       "process_list_complete": false,
       "artifact_reference": {
@@ -70,7 +71,8 @@
       },
       "complete": {
         "windows.registry.hivescan.HiveScan": true,
-        "windows.malware.pebmasquerade.PebMasquerade": false
+        "windows.malware.pebmasquerade.PebMasquerade": false,
+        "windows.registry.getcellroutine.GetCellRoutine": false
       }
     },
     {
@@ -105,7 +107,8 @@
         "windows.driverirp.DriverIrp": 3444,
         "windows.malware.drivermodule.DriverModule": 1,
         "windows.registry.hivescan.HiveScan": 38,
-        "windows.malware.pebmasquerade.PebMasquerade": 102
+        "windows.malware.pebmasquerade.PebMasquerade": 102,
+        "windows.registry.getcellroutine.GetCellRoutine": 0
       },
       "process_list_complete": false,
       "autoruns_reference": {
@@ -123,7 +126,8 @@
       },
       "complete": {
         "windows.registry.hivescan.HiveScan": true,
-        "windows.malware.pebmasquerade.PebMasquerade": false
+        "windows.malware.pebmasquerade.PebMasquerade": false,
+        "windows.registry.getcellroutine.GetCellRoutine": false
       }
     },
     {
