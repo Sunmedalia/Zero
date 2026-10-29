@@ -371,6 +371,21 @@ impl Windows<'_> {
         }
         Ok(())
     }
+    /// Read only value metadata: a missing unrelated data page must not
+    /// prevent locating a different named value in the same key.
+    pub(super) fn value_name(&self, hive: u64, index: u32) -> Result<String> {
+        self.value_cell_name(&self.cell(hive, index)?)
+    }
+    fn value_cell_name(&self, cell: &[u8]) -> Result<String> {
+        ensure!(cell.len() >= 2 && &cell[..2] == b"vk", "非 vk cell");
+        let get = |f| objects::physical_number(self.vm.isf, cell, "_CM_KEY_VALUE", f);
+        let len = get("NameLength")? as usize;
+        let offset = self.vm.isf.offset("_CM_KEY_VALUE", "Name")? as usize;
+        decode_name(
+            cell.get(offset..offset + len).context("值名截断")?,
+            get("Flags")? & 1 != 0,
+        )
+    }
     /// 读取 `vk` 值单元的原始字节（名称、类型、数据），供需要二进制数据的
     /// 凭证分析使用；`value` 是它的格式化视图。
     pub(super) fn value_bytes(
@@ -380,14 +395,8 @@ impl Windows<'_> {
         job: &Job,
     ) -> Result<(String, u32, Vec<u8>)> {
         let cell = self.cell(hive, index)?;
-        ensure!(cell.len() >= 2 && &cell[..2] == b"vk", "非 vk cell");
+        let name = self.value_cell_name(&cell)?;
         let get = |f| objects::physical_number(self.vm.isf, &cell, "_CM_KEY_VALUE", f);
-        let len = get("NameLength")? as usize;
-        let offset = self.vm.isf.offset("_CM_KEY_VALUE", "Name")? as usize;
-        let name = decode_name(
-            cell.get(offset..offset + len).context("值名截断")?,
-            get("Flags")? & 1 != 0,
-        )?;
         let length = get("DataLength")? as u32;
         let inline = length & 0x8000_0000 != 0;
         let length = (length & 0x7fff_ffff) as usize;
@@ -817,6 +826,53 @@ mod tests {
             engine.service_registry_value(K + 0x3020, 0x20, "F", &job, &mut r),
             "N/A"
         );
+        // First value has readable metadata but an invalid data cell. Name
+        // selection must skip its data and still find the second value.
+        b[0x11034..0x11038].copy_from_slice(&2u32.to_le_bytes());
+        b[0x11080..0x11084].copy_from_slice(&(-12i32).to_le_bytes());
+        b[0x11084..0x11088].copy_from_slice(&0x200u32.to_le_bytes());
+        b[0x11088..0x1108c].copy_from_slice(&0x90u32.to_le_bytes());
+        b[0x11200..0x11204].copy_from_slice(&(-36i32).to_le_bytes());
+        let mut unreadable = vk;
+        unreadable[24..26].copy_from_slice(b"X\0");
+        unreadable[16..20].copy_from_slice(&0x10000u32.to_le_bytes());
+        b[0x11204..0x11224].copy_from_slice(&unreadable);
+        let img = image(&b);
+        let engine = Windows {
+            vm: Memory::new(&img, 0x5000, &isf, None),
+            base: K,
+            pdb: PdbIdentity::from_isf(&isf).unwrap(),
+        };
+        assert_eq!(engine.value_name(K + 0x3020, 0x200).unwrap(), "X");
+        assert!(engine.value_bytes(K + 0x3020, 0x200, &job).is_err());
+        let mut r = engine.result(Plugin::WinSvcScanV4);
+        assert_ne!(
+            engine.service_registry_value(K + 0x3020, 0x20, "F", &job, &mut r),
+            "N/A"
+        );
+        assert!(r.complete);
+        assert!(r.diagnostics.is_empty());
+        assert_eq!(
+            engine.service_registry_value(K + 0x3020, 0x20, "X", &job, &mut r),
+            "N/A"
+        );
+        assert!(!r.complete);
+        // An invalid sibling node is skipped with diagnostics, just like the
+        // reference get_values iterator; the matching later value survives.
+        b[0x11200..0x11204].copy_from_slice(&36i32.to_le_bytes());
+        let img = image(&b);
+        let engine = Windows {
+            vm: Memory::new(&img, 0x5000, &isf, None),
+            base: K,
+            pdb: PdbIdentity::from_isf(&isf).unwrap(),
+        };
+        let mut r = engine.result(Plugin::WinSvcScanV4);
+        assert_ne!(
+            engine.service_registry_value(K + 0x3020, 0x20, "F", &job, &mut r),
+            "N/A"
+        );
+        assert!(!r.complete);
+        assert!(r.diagnostics.iter().any(|d| d.contains("value 0x200 name")));
     }
 }
 

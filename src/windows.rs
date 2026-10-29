@@ -568,6 +568,12 @@ impl Windows<'_> {
     }
     pub fn run(&self, p: Plugin, options: &Options, job: &Job) -> Result<Results> {
         job.check()?;
+        if p == Plugin::WinSvcScanV4 {
+            return self.service_scan(options, job);
+        }
+        if p == Plugin::WinSvcDiff {
+            return self.service_diff(options, job);
+        }
         if p == Plugin::WinSvcList {
             return self.service_list(options, job);
         }

@@ -1,0 +1,587 @@
+{
+  "schema_version": 1,
+  "engine_version": "0.2.1-native-51",
+  "zero_executable_sha256": "2add9a9b107f26e4f61ac96e575087c1376edf250b926cc7525d4bfb5d70658d",
+  "reference_version": "v2.28.2",
+  "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+  "svcscan": [
+    {
+      "case_id": "windows-10-15063/svcscan-default",
+      "image_sha256": "d58f62e92b8c4ef913ac09b2c36a10482034c10b88d0c154dead3aaaa49cf875",
+      "native_output_sha256": "654454842a459585d2369761fd23acd7a3d08c92f92e1b14d90adb8ab1ea48ac",
+      "reference_output_sha256": "0d0f9e32212fefa18c2e3e488789393a1780d71d0e8289403d5cea54da83a29a",
+      "mapping_sha256": "4fdda4f7be070d27689c27880e2a814fb0c0cf35908cee7db059d084026b1f77",
+      "passed": true,
+      "error": null,
+      "native_records": 1247,
+      "reference_records": 1247,
+      "complete": false,
+      "diagnostic_count": 268,
+      "matched_absent": {
+        "PID": 1055,
+        "Dll": 851,
+        "Binary": 780,
+        "Binary (Registry)": 23
+      },
+      "duplicate_groups": {
+        "zero": 484,
+        "reference": 484
+      },
+      "multiplicity_conflicts": 0,
+      "zero_exit": 1,
+      "reference_exit": 0,
+      "coverage": {
+        "services_scan": {
+          "kernel_version": [
+            10,
+            0,
+            15063,
+            0
+          ],
+          "layout": "https://raw.githubusercontent.com/volatilityfoundation/volatility3/v2.28.0/volatility3/framework/symbols/windows/services/services-win10-15063-x64.json",
+          "limits": {
+            "chain_records": 65536,
+            "scan_bytes_per_process": 134217728
+          },
+          "meaning": "scanned service records; partial views cannot prove absence",
+          "processes": 1,
+          "registry_entries": 625,
+          "scope": "serH headers in all services.exe VADs; NT5 sErv records"
+        }
+      }
+    },
+    {
+      "case_id": "server-2008-6001-x86/svcscan-default",
+      "image_sha256": "d3b13f2224cab20440a4bb3c5c971662be6e61f431340f319cef7312bb6177f4",
+      "native_output_sha256": "94a9fbf4b8259464962bd710399257f09a7fc86e46a4d46fabac66bb45582b61",
+      "reference_output_sha256": "9813d4abe1e635dcc47755d5b96802ee8fec068baa825563348c01ba7e855cd0",
+      "mapping_sha256": "4fdda4f7be070d27689c27880e2a814fb0c0cf35908cee7db059d084026b1f77",
+      "passed": true,
+      "error": null,
+      "native_records": 728,
+      "reference_records": 728,
+      "complete": false,
+      "diagnostic_count": 188,
+      "matched_absent": {
+        "PID": 608,
+        "Dll": 579,
+        "Binary": 449,
+        "Binary (Registry)": 56
+      },
+      "duplicate_groups": {
+        "zero": 293,
+        "reference": 293
+      },
+      "multiplicity_conflicts": 0,
+      "zero_exit": 1,
+      "reference_exit": 0,
+      "coverage": {
+        "services_scan": {
+          "kernel_version": [
+            6,
+            0,
+            6001,
+            0
+          ],
+          "layout": "https://raw.githubusercontent.com/volatilityfoundation/volatility3/v2.28.0/volatility3/framework/symbols/windows/services/services-vista-x86.json",
+          "limits": {
+            "chain_records": 65536,
+            "scan_bytes_per_process": 134217728
+          },
+          "meaning": "scanned service records; partial views cannot prove absence",
+          "processes": 1,
+          "registry_entries": 372,
+          "scope": "serH headers in all services.exe VADs; NT5 sErv records"
+        }
+      }
+    },
+    {
+      "case_id": "windows-11/svcscan-default",
+      "image_sha256": "0f00815b8f78f30a63d742c73152474b2a3c35183dbb1d92c8fc6a81fa3de9f1",
+      "native_output_sha256": "1c0d3276383ba08053e09132043bdfd7c260af8f285f7954710f21f665694574",
+      "reference_output_sha256": "d1047049afec6dc764877fe60304550e33f6fc89f08ea219da60c77fa0568f1c",
+      "mapping_sha256": "4fdda4f7be070d27689c27880e2a814fb0c0cf35908cee7db059d084026b1f77",
+      "passed": true,
+      "error": null,
+      "native_records": 1462,
+      "reference_records": 1462,
+      "complete": false,
+      "diagnostic_count": 59,
+      "matched_absent": {
+        "Dll": 982,
+        "PID": 1295,
+        "Binary": 1046,
+        "Binary (Registry)": 25
+      },
+      "duplicate_groups": {
+        "zero": 553,
+        "reference": 553
+      },
+      "multiplicity_conflicts": 0,
+      "zero_exit": 1,
+      "reference_exit": 0,
+      "coverage": {
+        "services_scan": {
+          "kernel_version": [
+            10,
+            0,
+            22000,
+            0
+          ],
+          "layout": "https://raw.githubusercontent.com/volatilityfoundation/volatility3/v2.28.0/volatility3/framework/symbols/windows/services/services-win10-19041-x64.json",
+          "limits": {
+            "chain_records": 65536,
+            "scan_bytes_per_process": 134217728
+          },
+          "meaning": "scanned service records; partial views cannot prove absence",
+          "processes": 1,
+          "registry_entries": 682,
+          "scope": "serH headers in all services.exe VADs; NT5 sErv records"
+        }
+      }
+    },
+    {
+      "case_id": "windows-7-7601-x64/svcscan-default",
+      "image_sha256": "80366d7ec64a5529c95c2f523f4281a5f11efbad33ecb19f73525470c1407b23",
+      "native_output_sha256": "2914c56508fe0e1911d61f582bd4cb38c5d31e5f6ee93831ee27630bbb2c75ce",
+      "reference_output_sha256": "056085bb03e55246c470c98e7690c2636ec4e86f1d6beead9cb88251c94ed98f",
+      "mapping_sha256": "4fdda4f7be070d27689c27880e2a814fb0c0cf35908cee7db059d084026b1f77",
+      "passed": true,
+      "error": null,
+      "native_records": 863,
+      "reference_records": 863,
+      "complete": false,
+      "diagnostic_count": 139,
+      "matched_absent": {
+        "PID": 764,
+        "Binary": 607,
+        "Dll": 637,
+        "Binary (Registry)": 27
+      },
+      "duplicate_groups": {
+        "zero": 347,
+        "reference": 347
+      },
+      "multiplicity_conflicts": 0,
+      "zero_exit": 1,
+      "reference_exit": 0,
+      "coverage": {
+        "services_scan": {
+          "kernel_version": [
+            6,
+            1,
+            7601,
+            0
+          ],
+          "layout": "https://raw.githubusercontent.com/volatilityfoundation/volatility3/v2.28.0/volatility3/framework/symbols/windows/services/services-vista-x64.json",
+          "limits": {
+            "chain_records": 65536,
+            "scan_bytes_per_process": 134217728
+          },
+          "meaning": "scanned service records; partial views cannot prove absence",
+          "processes": 1,
+          "registry_entries": 437,
+          "scope": "serH headers in all services.exe VADs; NT5 sErv records"
+        }
+      }
+    }
+  ],
+  "svcdiff_negative_only": [
+    {
+      "case_id": "windows-10-15063/svcdiff-default",
+      "image_sha256": "d58f62e92b8c4ef913ac09b2c36a10482034c10b88d0c154dead3aaaa49cf875",
+      "native_output_sha256": "53cac0c8aa1999382216e6b256426f48e35163c6231d974c10bf4e9ccae97ba0",
+      "reference_output_sha256": "a3cbe01dad52836a7ac8efc91954cf64867f4dee8a6f046c4bb0838d11f48589",
+      "mapping_sha256": "36775190adf021f1fcbf409889038b225036f5e237ff36a6c50170828bf0f46b",
+      "passed": true,
+      "error": null,
+      "native_records": 0,
+      "reference_records": 0,
+      "complete": false,
+      "diagnostic_count": 298,
+      "matched_absent": {},
+      "duplicate_groups": {},
+      "multiplicity_conflicts": 0,
+      "zero_exit": 1,
+      "reference_exit": 0,
+      "coverage": {
+        "services_diff": {
+          "comparison": "case-sensitive service name; last scanned record per name",
+          "list_complete": false,
+          "list_coverage": {
+            "kernel_version": [
+              10,
+              0,
+              15063,
+              0
+            ],
+            "layout": "https://raw.githubusercontent.com/volatilityfoundation/volatility3/v2.28.0/volatility3/framework/symbols/windows/services/services-win10-15063-x64.json",
+            "limits": {
+              "chain_records": 65536,
+              "scan_bytes_per_process": 134217728
+            },
+            "meaning": "listed service records; empty output does not prove absence of hidden services",
+            "offset_semantics": "pinned Volatility output: first row is record VA, subsequent rows are previous record PrevEntry field VA; diagnostics use actual record VA",
+            "processes": 1,
+            "registry_entries": 625,
+            "scope": "Sc27 in first services.exe image VAD; enumerate each header's backward chain"
+          },
+          "list_names": 575,
+          "list_records": 575,
+          "meaning": "scan-only service names are leads; incomplete views cannot prove hiding or absence",
+          "scan_complete": false,
+          "scan_coverage": {
+            "kernel_version": [
+              10,
+              0,
+              15063,
+              0
+            ],
+            "layout": "https://raw.githubusercontent.com/volatilityfoundation/volatility3/v2.28.0/volatility3/framework/symbols/windows/services/services-win10-15063-x64.json",
+            "limits": {
+              "chain_records": 65536,
+              "scan_bytes_per_process": 134217728
+            },
+            "meaning": "scanned service records; partial views cannot prove absence",
+            "processes": 1,
+            "registry_entries": 625,
+            "scope": "serH headers in all services.exe VADs; NT5 sErv records"
+          },
+          "scan_names": 574,
+          "scan_records": 1247
+        }
+      }
+    },
+    {
+      "case_id": "windows-11/svcdiff-default",
+      "image_sha256": "0f00815b8f78f30a63d742c73152474b2a3c35183dbb1d92c8fc6a81fa3de9f1",
+      "native_output_sha256": "45e8742c983eabd1167e6aa19e9910dbe79abc6fb0a8bbe99ff1874c435d72e1",
+      "reference_output_sha256": "a3cbe01dad52836a7ac8efc91954cf64867f4dee8a6f046c4bb0838d11f48589",
+      "mapping_sha256": "36775190adf021f1fcbf409889038b225036f5e237ff36a6c50170828bf0f46b",
+      "passed": true,
+      "error": null,
+      "native_records": 0,
+      "reference_records": 0,
+      "complete": false,
+      "diagnostic_count": 81,
+      "matched_absent": {},
+      "duplicate_groups": {},
+      "multiplicity_conflicts": 0,
+      "zero_exit": 1,
+      "reference_exit": 0,
+      "coverage": {
+        "services_diff": {
+          "comparison": "case-sensitive service name; last scanned record per name",
+          "list_complete": false,
+          "list_coverage": {
+            "kernel_version": [
+              10,
+              0,
+              22000,
+              0
+            ],
+            "layout": "https://raw.githubusercontent.com/volatilityfoundation/volatility3/v2.28.0/volatility3/framework/symbols/windows/services/services-win10-19041-x64.json",
+            "limits": {
+              "chain_records": 65536,
+              "scan_bytes_per_process": 134217728
+            },
+            "meaning": "listed service records; empty output does not prove absence of hidden services",
+            "offset_semantics": "pinned Volatility output: first row is record VA, subsequent rows are previous record PrevEntry field VA; diagnostics use actual record VA",
+            "processes": 1,
+            "registry_entries": 682,
+            "scope": "Sc27 in first services.exe image VAD; enumerate each header's backward chain"
+          },
+          "list_names": 636,
+          "list_records": 636,
+          "meaning": "scan-only service names are leads; incomplete views cannot prove hiding or absence",
+          "scan_complete": false,
+          "scan_coverage": {
+            "kernel_version": [
+              10,
+              0,
+              22000,
+              0
+            ],
+            "layout": "https://raw.githubusercontent.com/volatilityfoundation/volatility3/v2.28.0/volatility3/framework/symbols/windows/services/services-win10-19041-x64.json",
+            "limits": {
+              "chain_records": 65536,
+              "scan_bytes_per_process": 134217728
+            },
+            "meaning": "scanned service records; partial views cannot prove absence",
+            "processes": 1,
+            "registry_entries": 682,
+            "scope": "serH headers in all services.exe VADs; NT5 sErv records"
+          },
+          "scan_names": 634,
+          "scan_records": 1462
+        }
+      }
+    }
+  ],
+  "svclist_regression": [
+    {
+      "case_id": "windows-10-15063/svclist-default",
+      "image_sha256": "d58f62e92b8c4ef913ac09b2c36a10482034c10b88d0c154dead3aaaa49cf875",
+      "native_output_sha256": "9123b448f558d8c0b9fd8be68f33c310f3bda384fa1d9f04ecb023905242810f",
+      "reference_output_sha256": "f6d197a131aeb295f40895372b47371608a25d927f61206b34b12232419b6d33",
+      "mapping_sha256": "2080094623eed645670afb9d85b0634efaf9d316ee5e2ca2cf490847bb1a1b87",
+      "passed": true,
+      "error": null,
+      "native_records": 575,
+      "reference_records": 575,
+      "complete": false,
+      "diagnostic_count": 30,
+      "matched_absent": {
+        "PID": 481,
+        "Dll": 397,
+        "Binary": 351,
+        "Binary (Registry)": 11
+      },
+      "duplicate_groups": {},
+      "multiplicity_conflicts": 0,
+      "zero_exit": 1,
+      "reference_exit": 0,
+      "coverage": {
+        "services_list": {
+          "kernel_version": [
+            10,
+            0,
+            15063,
+            0
+          ],
+          "layout": "https://raw.githubusercontent.com/volatilityfoundation/volatility3/v2.28.0/volatility3/framework/symbols/windows/services/services-win10-15063-x64.json",
+          "limits": {
+            "chain_records": 65536,
+            "scan_bytes_per_process": 134217728
+          },
+          "meaning": "listed service records; empty output does not prove absence of hidden services",
+          "offset_semantics": "pinned Volatility output: first row is record VA, subsequent rows are previous record PrevEntry field VA; diagnostics use actual record VA",
+          "processes": 1,
+          "registry_entries": 625,
+          "scope": "Sc27 in first services.exe image VAD; enumerate each header's backward chain"
+        }
+      }
+    },
+    {
+      "case_id": "windows-11/svclist-default",
+      "image_sha256": "0f00815b8f78f30a63d742c73152474b2a3c35183dbb1d92c8fc6a81fa3de9f1",
+      "native_output_sha256": "5c95b6525a0404b7808291264af75a1537b1ce8130f1c5cea5b6743942a95442",
+      "reference_output_sha256": "3cf39b735e627a8bdc5ce67dac3d7112d0a2a875245fe6638dbce2216534d840",
+      "mapping_sha256": "2080094623eed645670afb9d85b0634efaf9d316ee5e2ca2cf490847bb1a1b87",
+      "passed": true,
+      "error": null,
+      "native_records": 636,
+      "reference_records": 636,
+      "complete": false,
+      "diagnostic_count": 22,
+      "matched_absent": {
+        "Dll": 435,
+        "PID": 552,
+        "Binary": 438,
+        "Binary (Registry)": 12
+      },
+      "duplicate_groups": {},
+      "multiplicity_conflicts": 0,
+      "zero_exit": 1,
+      "reference_exit": 0,
+      "coverage": {
+        "services_list": {
+          "kernel_version": [
+            10,
+            0,
+            22000,
+            0
+          ],
+          "layout": "https://raw.githubusercontent.com/volatilityfoundation/volatility3/v2.28.0/volatility3/framework/symbols/windows/services/services-win10-19041-x64.json",
+          "limits": {
+            "chain_records": 65536,
+            "scan_bytes_per_process": 134217728
+          },
+          "meaning": "listed service records; empty output does not prove absence of hidden services",
+          "offset_semantics": "pinned Volatility output: first row is record VA, subsequent rows are previous record PrevEntry field VA; diagnostics use actual record VA",
+          "processes": 1,
+          "registry_entries": 682,
+          "scope": "Sc27 in first services.exe image VAD; enumerate each header's backward chain"
+        }
+      }
+    }
+  ],
+  "nt5_native_only": [
+    {
+      "case_id": "server-2003-3790-x86/svcscan-default",
+      "image_sha256": "dc7022c2183dade6c36ebf19c74af5234bff8800e2a6f95e825287da9a214adb",
+      "native_output_sha256": "124ce40ec8d83d87813b48a2171f02d8e945c89dca2673582c67eb206ed33643",
+      "reference_output_sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
+      "mapping_sha256": null,
+      "passed": false,
+      "error": "reference engine failed; not comparable",
+      "native_records": 230,
+      "reference_records": null,
+      "complete": false,
+      "diagnostic_count": 103,
+      "matched_absent": {},
+      "duplicate_groups": {},
+      "multiplicity_conflicts": 0,
+      "zero_exit": 1,
+      "reference_exit": 1,
+      "coverage": {
+        "services_scan": {
+          "kernel_version": [
+            5,
+            2,
+            3790,
+            0
+          ],
+          "layout": "https://raw.githubusercontent.com/volatilityfoundation/volatility3/v2.28.0/volatility3/framework/symbols/windows/services/services-xp-x86.json",
+          "limits": {
+            "chain_records": 65536,
+            "scan_bytes_per_process": 134217728
+          },
+          "meaning": "scanned service records; partial views cannot prove absence",
+          "processes": 1,
+          "registry_entries": 0,
+          "scope": "serH headers in all services.exe VADs; NT5 sErv records"
+        }
+      }
+    }
+  ],
+  "development_runs": [
+    {
+      "run": "svcscan-native51-initial",
+      "summary_sha256": "b7dd7172255c311fc1a7049fb1268eadad9348f03a702749866419c2596f3d6f",
+      "cases": [
+        {
+          "case_id": "windows-10-15063/svcscan-default",
+          "passed": false,
+          "native_records": 677,
+          "reference_records": 1247,
+          "duplicate_groups": 484,
+          "conflicts": 0,
+          "unverifiable": 0,
+          "error": null
+        },
+        {
+          "case_id": "server-2008-6001-x86/svcscan-default",
+          "passed": false,
+          "native_records": 406,
+          "reference_records": 728,
+          "duplicate_groups": 358,
+          "conflicts": 0,
+          "unverifiable": 1,
+          "error": null
+        },
+        {
+          "case_id": "windows-11/svcscan-default",
+          "passed": false,
+          "native_records": 728,
+          "reference_records": 1462,
+          "duplicate_groups": 553,
+          "conflicts": 0,
+          "unverifiable": 0,
+          "error": null
+        },
+        {
+          "case_id": "windows-7-7601-x64/svcscan-default",
+          "passed": false,
+          "native_records": 450,
+          "reference_records": 863,
+          "duplicate_groups": 405,
+          "conflicts": 0,
+          "unverifiable": 0,
+          "error": null
+        }
+      ]
+    },
+    {
+      "run": "svcscan-native51-second",
+      "summary_sha256": "481584645557300532b539ed3edcd5f09437398faba420deded3e61a9f11446f",
+      "cases": [
+        {
+          "case_id": "windows-10-15063/svcscan-default",
+          "passed": true,
+          "native_records": 1247,
+          "reference_records": 1247,
+          "duplicate_groups": 968,
+          "conflicts": 0,
+          "unverifiable": 0,
+          "error": null
+        },
+        {
+          "case_id": "server-2008-6001-x86/svcscan-default",
+          "passed": false,
+          "native_records": 728,
+          "reference_records": 728,
+          "duplicate_groups": 586,
+          "conflicts": 0,
+          "unverifiable": 11,
+          "error": null
+        },
+        {
+          "case_id": "windows-11/svcscan-default",
+          "passed": true,
+          "native_records": 1462,
+          "reference_records": 1462,
+          "duplicate_groups": 1106,
+          "conflicts": 0,
+          "unverifiable": 0,
+          "error": null
+        },
+        {
+          "case_id": "windows-7-7601-x64/svcscan-default",
+          "passed": true,
+          "native_records": 863,
+          "reference_records": 863,
+          "duplicate_groups": 694,
+          "conflicts": 0,
+          "unverifiable": 0,
+          "error": null
+        },
+        {
+          "case_id": "server-2003-3790-x86/svcscan-default",
+          "passed": false,
+          "native_records": null,
+          "reference_records": null,
+          "duplicate_groups": 0,
+          "conflicts": 0,
+          "unverifiable": 0,
+          "error": "reference engine failed; not comparable"
+        }
+      ]
+    },
+    {
+      "run": "svcscan-native51-registry-fix",
+      "summary_sha256": "06945a64180c0968d20cbeaff20ae0a186ee1268e4e493963272249374efae81",
+      "cases": [
+        {
+          "case_id": "server-2008-6001-x86/svcscan-default",
+          "passed": false,
+          "native_records": 728,
+          "reference_records": 728,
+          "duplicate_groups": 586,
+          "conflicts": 0,
+          "unverifiable": 11,
+          "error": null
+        }
+      ]
+    }
+  ],
+  "evidence_policy": "Four positive full-field SvcScan multiset cases. Empty SvcDiff cases do not enter positive evidence. SvcList reruns do not double-count existing cases. No full plugin contract claimed.",
+  "known_limitations": [
+    "Only explicitly mapped Intel x86/x64 service layouts; no ARM64 support. SvcList/SvcDiff require Win10 15063+ x64.",
+    "Standard SvcScan has eleven fields; legacy windows.svcscan remains a separate eight-column contract.",
+    "No PID option, matching pinned reference. Scan scope is all services.exe VADs, capped at 128 MiB per process and 65536 records per chain.",
+    "Missing pages, cycles, invalid registry siblings and invalid records retain partial diagnostics and cannot enter successful caches.",
+    "For serH tuples, fresh runtime absent values prevent reference deduplication; shared precomputed registry absences can compare equal. Full multiset verification preserves exact multiplicity.",
+    "NT5 direct sErv scan has synthetic boundary tests and Server2003 x86 native regression, but pinned reference rejects this build. NT5 differential parity remains unverified.",
+    "SvcDiff matches service names case-sensitively and keeps the last scan occurrence. Two actual empty cases are negative agreement only, not hidden-service detection proof.",
+    "No real malicious hidden-service or intentionally cyclic-list image validated. Hive pool fallback and other SvcList limitations remain; see svclist-known-limitations.json.",
+    "Coverage applies only to the exact recorded builds and images, not every build in a compatibility target."
+  ],
+  "synthetic_tests": [
+    "modern header alignment, full-tuple deduplication and fresh/shared absent-value semantics",
+    "NT5 direct tags crossing pages, missing-page carry reset",
+    "name-based differences, exact case, last occurrence per name",
+    "unrelated unreadable data and invalid registry value nodes do not hide later target; partial diagnostics retained",
+    "multiset comparison rejects differing counts, field values and one-sided absence; default duplicate rejection unchanged"
+  ]
+}

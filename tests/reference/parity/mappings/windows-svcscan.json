@@ -1,0 +1,73 @@
+{
+  "version": 1,
+  "allow_partial": true,
+  "keys": [
+    "Offset"
+  ],
+  "fields": {
+    "Offset": {
+      "zero": "Offset",
+      "reference": "Offset",
+      "type": "address",
+      "reference_type": "address48"
+    },
+    "Order": {
+      "zero": "Order",
+      "reference": "Order",
+      "type": "integer"
+    },
+    "PID": {
+      "zero": "PID",
+      "reference": "PID",
+      "type": "na_integer",
+      "allow_absent": true
+    },
+    "Start": {
+      "zero": "Start",
+      "reference": "Start",
+      "type": "text"
+    },
+    "State": {
+      "zero": "State",
+      "reference": "State",
+      "type": "text"
+    },
+    "Type": {
+      "zero": "Type",
+      "reference": "Type",
+      "type": "text"
+    },
+    "Name": {
+      "zero": "Name",
+      "reference": "Name",
+      "type": "na_text",
+      "allow_absent": true
+    },
+    "Display": {
+      "zero": "Display",
+      "reference": "Display",
+      "type": "na_text",
+      "allow_absent": true
+    },
+    "Binary": {
+      "zero": "Binary",
+      "reference": "Binary",
+      "type": "na_text",
+      "allow_absent": true
+    },
+    "Binary (Registry)": {
+      "zero": "Binary (Registry)",
+      "reference": "Binary (Registry)",
+      "type": "na_text",
+      "allow_absent": true
+    },
+    "Dll": {
+      "zero": "Dll",
+      "reference": "Dll",
+      "type": "na_text",
+      "allow_absent": true
+    }
+  },
+  "notes": "Compare all eleven columns and all default scanned services, including pointer-storage Offset values. Optional absent fields are counted explicitly; no one-sided absence is hidden. Repeated offsets are legitimate: compare the full multiset and exact multiplicity, including reference fresh absent-value tuple semantics.",
+  "duplicate_keys": "multiset"
+}

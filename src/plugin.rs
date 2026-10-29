@@ -3,6 +3,10 @@ use clap::ValueEnum;
 
 #[derive(Clone, Copy, Debug, ValueEnum, PartialEq, Eq)]
 pub enum Plugin {
+    #[value(name = "windows.svcscan.SvcScan")]
+    WinSvcScanV4,
+    #[value(name = "windows.malware.svcdiff.SvcDiff", alias = "windows.svcdiff")]
+    WinSvcDiff,
     #[value(name = "windows.svclist.SvcList", alias = "windows.svclist")]
     WinSvcList,
     #[value(
@@ -279,6 +283,44 @@ pub struct Descriptor {
     pub widths: &'static [u16],
 }
 pub const PLUGINS: &[Descriptor] = &[
+    Descriptor {
+        plugin: Plugin::WinSvcScanV4,
+        name: "windows.svcscan.SvcScan",
+        label: "svcscan (11 columns)",
+        columns: &[
+            "Offset",
+            "Order",
+            "PID",
+            "Start",
+            "State",
+            "Type",
+            "Name",
+            "Display",
+            "Binary",
+            "Binary (Registry)",
+            "Dll",
+        ],
+        widths: &[18, 8, 8, 22, 22, 36, 28, 40, 40, 40, 40],
+    },
+    Descriptor {
+        plugin: Plugin::WinSvcDiff,
+        name: "windows.malware.svcdiff.SvcDiff",
+        label: "svcdiff",
+        columns: &[
+            "Offset",
+            "Order",
+            "PID",
+            "Start",
+            "State",
+            "Type",
+            "Name",
+            "Display",
+            "Binary",
+            "Binary (Registry)",
+            "Dll",
+        ],
+        widths: &[18, 8, 8, 22, 22, 36, 28, 40, 40, 40, 40],
+    },
     Descriptor {
         plugin: Plugin::WinSvcList,
         name: "windows.svclist.SvcList",
@@ -1823,6 +1865,7 @@ impl Plugin {
     }
     pub fn category(self) -> &'static str {
         match self {
+            Self::WinSvcDiff => "Integrity",
             Self::WinSysteminfo => "System",
             Self::WinPebMasquerade
             | Self::WinLdrmodules
@@ -1841,7 +1884,7 @@ impl Plugin {
             Self::WinCmdscan => "Process",
             Self::WinDrivercheck => "Integrity",
             Self::WinDriverscan => "System",
-            Self::WinSvcscan | Self::WinSvcList => "System",
+            Self::WinSvcscan | Self::WinSvcList | Self::WinSvcScanV4 => "System",
             Self::WinCrashinfo => "System",
             Self::WinAutoruns => "Integrity",
             Self::WinEnvars => "Process",
@@ -2031,6 +2074,8 @@ impl Plugin {
             WinConsoles => "恢复控制台保存的记录",
             WinCmdscan => "扫描命令历史记录",
             WinDriverscan => "扫描驱动对象",
+            WinSvcScanV4 => "扫描 services.exe 全部 VAD 并输出 11 列服务记录（固定参考契约）",
+            WinSvcDiff => "比较服务扫描与链表中的名称差异；缺页视图不能证明隐藏服务",
             WinSvcList => "在 services.exe 映像 VAD 中定位 Sc27 并枚举服务链表（Win10 15063+ x64）",
             WinSvcscan => "扫描 Windows 服务",
             WinCrashinfo => "读取转储容器故障信息，无需完整内核符号",

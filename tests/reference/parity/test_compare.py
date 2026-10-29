@@ -42,6 +42,32 @@ class CompareTests(unittest.TestCase):
         self.assertFalse(self.check()['passed'])
         self.assertEqual(self.check()['duplicates'][0]['count'], 2)
 
+    def test_multiset_requires_exact_multiplicity_and_all_fields(self):
+        self.mapping['duplicate_keys'] = 'multiset'
+        self.native['rows'] *= 2
+        self.assertFalse(self.check()['passed'])
+        self.reference += copy.deepcopy(self.reference)
+        self.assertTrue(self.check()['passed'])
+        self.reference[1]['Offset'] += 1
+        self.assertFalse(self.check()['passed'])
+        self.native['rows'].reverse()
+        self.assertFalse(self.check()['passed'])
+        self.native['rows'][0] = ['1', hex(self.reference[1]['Offset'])]
+        self.assertTrue(self.check()['passed'])
+
+    def test_multiset_absence_is_explicit_and_one_sided_absence_fails(self):
+        self.mapping['duplicate_keys'] = 'multiset'
+        self.mapping['fields']['address']['allow_absent'] = True
+        self.native['rows'] = [['1', ''], ['1', '']]
+        self.reference = [{'Pid': 1, 'Offset': None}] * 2
+        self.assertEqual(self.check()['matched_absent'], {'address': 2})
+        self.assertTrue(self.check()['passed'])
+        self.reference[1] = {'Pid': 1, 'Offset': 123}
+        self.assertFalse(self.check()['passed'])
+        self.mapping['duplicate_keys'] = 'ignore'
+        with self.assertRaises(ValueError):
+            self.check()
+
     def test_scoped_comparison_records_excluded_counts_and_preserves_strict_default(self):
         self.reference.append({'Pid': 2, 'Offset': 0})
         self.native['rows'].append(['2', '1'])

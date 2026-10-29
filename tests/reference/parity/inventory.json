@@ -5937,8 +5937,10 @@
         }
       ],
       "declared_columns": [],
-      "zero_candidates": [],
-      "status": "missing",
+      "zero_candidates": [
+        "windows.malware.svcdiff.SvcDiff"
+      ],
+      "status": "mapped_unverified",
       "evidence": []
     },
     {
@@ -8344,7 +8346,9 @@
       "replacement": "windows.malware.svcdiff.SvcDiff",
       "declared_requirements": [],
       "declared_columns": [],
-      "zero_candidates": [],
+      "zero_candidates": [
+        "windows.malware.svcdiff.SvcDiff"
+      ],
       "status": "alias",
       "evidence": []
     },
@@ -8481,7 +8485,7 @@
         "Dll"
       ],
       "zero_candidates": [
-        "windows.svcscan"
+        "windows.svcscan.SvcScan"
       ],
       "status": "mapped_unverified",
       "evidence": []

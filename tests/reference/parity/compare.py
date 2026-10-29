@@ -77,6 +77,9 @@ def compare(native, reference, mapping):
     for spec in fields.values():
         if spec['zero'] not in columns:
             raise ValueError(f"missing native column {spec['zero']}")
+    multiplicity = mapping.get('duplicate_keys', 'reject')
+    if multiplicity not in ('reject', 'multiset'):
+        raise ValueError('duplicate_keys must be reject or multiset')
     selection = mapping.get('record_selection')
     selected = {}
     if selection:
@@ -111,17 +114,24 @@ def compare(native, reference, mapping):
                   for side, values in [('zero', ns), ('reference', rs)]
                   for k, v in values.items() if len(v) != 1]
     conflicts, unavailable, matched_absent = [], [], defaultdict(int)
+    multiplicity_conflicts = []
     for key in sorted(ns.keys() & rs.keys(), key=repr):
-        if len(ns[key]) != 1 or len(rs[key]) != 1:
+        if multiplicity == 'reject' and (len(ns[key]) != 1 or len(rs[key]) != 1):
             continue
-        n, r = ns[key][0], rs[key][0]
-        for field in fields:
-            if n[field] is None and r[field] is None and fields[field].get('allow_absent', False):
-                matched_absent[field] += 1
-            elif n[field] is None or r[field] is None:
-                unavailable.append({'key': list(key), 'field': field, 'zero': n[field], 'reference': r[field]})
-            elif n[field] != r[field]:
-                conflicts.append({'key': list(key), 'field': field, 'zero': n[field], 'reference': r[field]})
+        if len(ns[key]) != len(rs[key]):
+            multiplicity_conflicts.append({'key': list(key), 'zero': len(ns[key]),
+                                           'reference': len(rs[key])})
+        # Compare every occurrence, including absent fields; never collapse
+        # duplicate rows. Sorting makes record order irrelevant, as elsewhere.
+        order = lambda row: repr(tuple(row[field] for field in fields))
+        for n, r in zip(sorted(ns[key], key=order), sorted(rs[key], key=order)):
+            for field in fields:
+                if n[field] is None and r[field] is None and fields[field].get('allow_absent', False):
+                    matched_absent[field] += 1
+                elif n[field] is None or r[field] is None:
+                    unavailable.append({'key': list(key), 'field': field, 'zero': n[field], 'reference': r[field]})
+                elif n[field] != r[field]:
+                    conflicts.append({'key': list(key), 'field': field, 'zero': n[field], 'reference': r[field]})
     nonempty = bool(ns) and bool(rs)
     all_columns = set(columns) == {spec['zero'] for spec in fields.values()}
     ref_columns = {k for row in reference_rows(reference) for k in row}
@@ -131,10 +141,13 @@ def compare(native, reference, mapping):
         **({'record_selection': {**selection, **selected}} if selection else {}),
         'zero_records': sum(map(len, ns.values())), 'reference_records': sum(map(len, rs.values())),
         'missing': missing, 'extra': extra, 'duplicates': duplicates,
+        **({'duplicate_keys': multiplicity, 'multiplicity_conflicts': multiplicity_conflicts}
+           if multiplicity == 'multiset' else {}),
         'conflicts': conflicts, 'unverifiable': unavailable, 'matched_absent': dict(matched_absent),
         'all_columns_mapped': all_columns, 'positive_evidence': nonempty,
         'zero_complete': native['complete'], 'zero_diagnostics': native['diagnostics'],
-        'passed': not (missing or extra or duplicates or conflicts or unavailable)
+        'passed': not (missing or extra or (duplicates if multiplicity == 'reject' else multiplicity_conflicts)
+                       or conflicts or unavailable)
                   and all_columns and (nonempty or mapping.get('allow_empty', False))
                   and (native['complete'] or mapping.get('allow_partial', False)),
     }

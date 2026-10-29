@@ -103,7 +103,9 @@
           "windows.registry.hivescan.HiveScan": "pending",
           "windows.malware.pebmasquerade.PebMasquerade": "pending",
           "windows.registry.getcellroutine.GetCellRoutine": "pending",
-          "windows.svclist.SvcList": "unsupported"
+          "windows.svclist.SvcList": "unsupported",
+          "windows.svcscan.SvcScan": "real",
+          "windows.malware.svcdiff.SvcDiff": "unsupported"
         },
         "x64": {
           "windows.callbacks": "synthetic",
@@ -184,7 +186,9 @@
           "windows.registry.hivescan.HiveScan": "pending",
           "windows.malware.pebmasquerade.PebMasquerade": "pending",
           "windows.registry.getcellroutine.GetCellRoutine": "pending",
-          "windows.svclist.SvcList": "unsupported"
+          "windows.svclist.SvcList": "unsupported",
+          "windows.svcscan.SvcScan": "pending",
+          "windows.malware.svcdiff.SvcDiff": "unsupported"
         }
       },
       "evidence": [
@@ -225,7 +229,8 @@
             "windows.systeminfo": 14,
             "windows.threads": 312,
             "windows.unloadedmodules": 4,
-            "windows.vadinfo": 1986
+            "windows.vadinfo": 1986,
+            "windows.svcscan.SvcScan": 230
           }
         }
       ]
@@ -326,7 +331,9 @@
           "windows.registry.hivescan.HiveScan": "pending",
           "windows.malware.pebmasquerade.PebMasquerade": "pending",
           "windows.registry.getcellroutine.GetCellRoutine": "pending",
-          "windows.svclist.SvcList": "unsupported"
+          "windows.svclist.SvcList": "unsupported",
+          "windows.svcscan.SvcScan": "pending",
+          "windows.malware.svcdiff.SvcDiff": "unsupported"
         },
         "x64": {
           "windows.callbacks": "synthetic",
@@ -407,7 +414,9 @@
           "windows.registry.hivescan.HiveScan": "pending",
           "windows.malware.pebmasquerade.PebMasquerade": "pending",
           "windows.registry.getcellroutine.GetCellRoutine": "pending",
-          "windows.svclist.SvcList": "unsupported"
+          "windows.svclist.SvcList": "unsupported",
+          "windows.svcscan.SvcScan": "pending",
+          "windows.malware.svcdiff.SvcDiff": "unsupported"
         }
       },
       "evidence": []
@@ -509,7 +518,9 @@
           "windows.registry.hivescan.HiveScan": "real",
           "windows.malware.pebmasquerade.PebMasquerade": "real",
           "windows.registry.getcellroutine.GetCellRoutine": "pending",
-          "windows.svclist.SvcList": "unsupported"
+          "windows.svclist.SvcList": "unsupported",
+          "windows.svcscan.SvcScan": "real",
+          "windows.malware.svcdiff.SvcDiff": "unsupported"
         },
         "x64": {
           "windows.callbacks": "synthetic",
@@ -590,7 +601,9 @@
           "windows.registry.hivescan.HiveScan": "pending",
           "windows.malware.pebmasquerade.PebMasquerade": "pending",
           "windows.registry.getcellroutine.GetCellRoutine": "pending",
-          "windows.svclist.SvcList": "unsupported"
+          "windows.svclist.SvcList": "unsupported",
+          "windows.svcscan.SvcScan": "pending",
+          "windows.malware.svcdiff.SvcDiff": "unsupported"
         }
       },
       "evidence": [
@@ -625,7 +638,8 @@
             "windows.driverirp.DriverIrp": 3724,
             "windows.malware.drivermodule.DriverModule": 2,
             "windows.registry.hivescan.HiveScan": 17,
-            "windows.malware.pebmasquerade.PebMasquerade": 48
+            "windows.malware.pebmasquerade.PebMasquerade": 48,
+            "windows.svcscan.SvcScan": 728
           },
           "fixture": "images/server2008/memdump.mem",
           "complete": {
@@ -748,7 +762,9 @@
           "windows.registry.hivescan.HiveScan": "pending",
           "windows.malware.pebmasquerade.PebMasquerade": "pending",
           "windows.registry.getcellroutine.GetCellRoutine": "pending",
-          "windows.svclist.SvcList": "unsupported"
+          "windows.svclist.SvcList": "unsupported",
+          "windows.svcscan.SvcScan": "pending",
+          "windows.malware.svcdiff.SvcDiff": "unsupported"
         }
       },
       "evidence": [],
@@ -849,7 +865,9 @@
           "windows.registry.hivescan.HiveScan": "pending",
           "windows.malware.pebmasquerade.PebMasquerade": "pending",
           "windows.registry.getcellroutine.GetCellRoutine": "pending",
-          "windows.svclist.SvcList": "unsupported"
+          "windows.svclist.SvcList": "unsupported",
+          "windows.svcscan.SvcScan": "pending",
+          "windows.malware.svcdiff.SvcDiff": "unsupported"
         }
       },
       "evidence": [
@@ -996,7 +1014,9 @@
           "windows.registry.hivescan.HiveScan": "pending",
           "windows.malware.pebmasquerade.PebMasquerade": "pending",
           "windows.registry.getcellroutine.GetCellRoutine": "pending",
-          "windows.svclist.SvcList": "unsupported"
+          "windows.svclist.SvcList": "unsupported",
+          "windows.svcscan.SvcScan": "pending",
+          "windows.malware.svcdiff.SvcDiff": "unsupported"
         }
       },
       "evidence": [
@@ -1144,7 +1164,9 @@
           "windows.registry.hivescan.HiveScan": "pending",
           "windows.malware.pebmasquerade.PebMasquerade": "pending",
           "windows.registry.getcellroutine.GetCellRoutine": "pending",
-          "windows.svclist.SvcList": "unsupported"
+          "windows.svclist.SvcList": "unsupported",
+          "windows.svcscan.SvcScan": "pending",
+          "windows.malware.svcdiff.SvcDiff": "unsupported"
         }
       },
       "evidence": [
@@ -1264,7 +1286,9 @@
           "windows.registry.hivescan.HiveScan": "pending",
           "windows.malware.pebmasquerade.PebMasquerade": "pending",
           "windows.registry.getcellroutine.GetCellRoutine": "pending",
-          "windows.svclist.SvcList": "pending"
+          "windows.svclist.SvcList": "pending",
+          "windows.svcscan.SvcScan": "pending",
+          "windows.malware.svcdiff.SvcDiff": "pending"
         }
       },
       "evidence": [
@@ -1413,7 +1437,9 @@
           "windows.registry.hivescan.HiveScan": "pending",
           "windows.malware.pebmasquerade.PebMasquerade": "pending",
           "windows.registry.getcellroutine.GetCellRoutine": "pending",
-          "windows.svclist.SvcList": "pending"
+          "windows.svclist.SvcList": "pending",
+          "windows.svcscan.SvcScan": "pending",
+          "windows.malware.svcdiff.SvcDiff": "pending"
         }
       },
       "evidence": [
@@ -1562,7 +1588,9 @@
           "windows.registry.hivescan.HiveScan": "pending",
           "windows.malware.pebmasquerade.PebMasquerade": "pending",
           "windows.registry.getcellroutine.GetCellRoutine": "pending",
-          "windows.svclist.SvcList": "pending"
+          "windows.svclist.SvcList": "pending",
+          "windows.svcscan.SvcScan": "pending",
+          "windows.malware.svcdiff.SvcDiff": "pending"
         }
       },
       "evidence": [],
@@ -1665,7 +1693,9 @@
           "windows.registry.hivescan.HiveScan": "pending",
           "windows.malware.pebmasquerade.PebMasquerade": "pending",
           "windows.registry.getcellroutine.GetCellRoutine": "pending",
-          "windows.svclist.SvcList": "unsupported"
+          "windows.svclist.SvcList": "unsupported",
+          "windows.svcscan.SvcScan": "pending",
+          "windows.malware.svcdiff.SvcDiff": "unsupported"
         },
         "x64": {
           "windows.callbacks": "real",
@@ -1746,7 +1776,9 @@
           "windows.registry.hivescan.HiveScan": "real",
           "windows.malware.pebmasquerade.PebMasquerade": "real",
           "windows.registry.getcellroutine.GetCellRoutine": "pending",
-          "windows.svclist.SvcList": "unsupported"
+          "windows.svclist.SvcList": "unsupported",
+          "windows.svcscan.SvcScan": "real",
+          "windows.malware.svcdiff.SvcDiff": "unsupported"
         }
       },
       "evidence": [
@@ -1778,7 +1810,8 @@
             "windows.unloadedmodules": 4,
             "windows.vadinfo": 7265,
             "windows.registry.hivescan.HiveScan": 16,
-            "windows.malware.pebmasquerade.PebMasquerade": 53
+            "windows.malware.pebmasquerade.PebMasquerade": 53,
+            "windows.svcscan.SvcScan": 863
           },
           "coverage_notes": {
             "windows.vadinfo": "Tagged legacy AVL parent validation rejects an inconsistent branch. 7265 rows remain, down from 7325 before the validation; keep partial diagnostics rather than traverse the damaged branch."
@@ -1886,7 +1919,9 @@
           "windows.registry.hivescan.HiveScan": "pending",
           "windows.malware.pebmasquerade.PebMasquerade": "pending",
           "windows.registry.getcellroutine.GetCellRoutine": "pending",
-          "windows.svclist.SvcList": "unsupported"
+          "windows.svclist.SvcList": "unsupported",
+          "windows.svcscan.SvcScan": "pending",
+          "windows.malware.svcdiff.SvcDiff": "unsupported"
         },
         "x64": {
           "windows.callbacks": "synthetic",
@@ -1967,7 +2002,9 @@
           "windows.registry.hivescan.HiveScan": "pending",
           "windows.malware.pebmasquerade.PebMasquerade": "pending",
           "windows.registry.getcellroutine.GetCellRoutine": "pending",
-          "windows.svclist.SvcList": "unsupported"
+          "windows.svclist.SvcList": "unsupported",
+          "windows.svcscan.SvcScan": "pending",
+          "windows.malware.svcdiff.SvcDiff": "unsupported"
         }
       },
       "evidence": []
@@ -2068,7 +2105,9 @@
           "windows.registry.hivescan.HiveScan": "pending",
           "windows.malware.pebmasquerade.PebMasquerade": "pending",
           "windows.registry.getcellroutine.GetCellRoutine": "pending",
-          "windows.svclist.SvcList": "unsupported"
+          "windows.svclist.SvcList": "unsupported",
+          "windows.svcscan.SvcScan": "pending",
+          "windows.malware.svcdiff.SvcDiff": "unsupported"
         },
         "x64": {
           "windows.callbacks": "synthetic",
@@ -2149,7 +2188,9 @@
           "windows.registry.hivescan.HiveScan": "pending",
           "windows.malware.pebmasquerade.PebMasquerade": "pending",
           "windows.registry.getcellroutine.GetCellRoutine": "pending",
-          "windows.svclist.SvcList": "unsupported"
+          "windows.svclist.SvcList": "unsupported",
+          "windows.svcscan.SvcScan": "pending",
+          "windows.malware.svcdiff.SvcDiff": "unsupported"
         }
       },
       "evidence": []
@@ -2263,7 +2304,9 @@
           "windows.registry.hivescan.HiveScan": "pending",
           "windows.malware.pebmasquerade.PebMasquerade": "pending",
           "windows.registry.getcellroutine.GetCellRoutine": "pending",
-          "windows.svclist.SvcList": "unsupported"
+          "windows.svclist.SvcList": "unsupported",
+          "windows.svcscan.SvcScan": "pending",
+          "windows.malware.svcdiff.SvcDiff": "unsupported"
         },
         "x64": {
           "windows.callbacks": "real",
@@ -2344,7 +2387,9 @@
           "windows.registry.hivescan.HiveScan": "real",
           "windows.malware.pebmasquerade.PebMasquerade": "real",
           "windows.registry.getcellroutine.GetCellRoutine": "pending",
-          "windows.svclist.SvcList": "real"
+          "windows.svclist.SvcList": "real",
+          "windows.svcscan.SvcScan": "real",
+          "windows.malware.svcdiff.SvcDiff": "pending"
         }
       },
       "evidence": [
@@ -2401,7 +2446,8 @@
             "windows.malware.drivermodule.DriverModule": 3,
             "windows.registry.hivescan.HiveScan": 22,
             "windows.malware.pebmasquerade.PebMasquerade": 139,
-            "windows.svclist.SvcList": 575
+            "windows.svclist.SvcList": 575,
+            "windows.svcscan.SvcScan": 1247
           },
           "complete": {
             "windows.driverirp.DriverIrp": false,
@@ -2530,7 +2576,9 @@
           "windows.registry.hivescan.HiveScan": "real",
           "windows.malware.pebmasquerade.PebMasquerade": "real",
           "windows.registry.getcellroutine.GetCellRoutine": "pending",
-          "windows.svclist.SvcList": "real"
+          "windows.svclist.SvcList": "real",
+          "windows.svcscan.SvcScan": "real",
+          "windows.malware.svcdiff.SvcDiff": "pending"
         }
       },
       "evidence": [
@@ -2586,7 +2634,8 @@
             "windows.malware.drivermodule.DriverModule": 1,
             "windows.registry.hivescan.HiveScan": 38,
             "windows.malware.pebmasquerade.PebMasquerade": 102,
-            "windows.svclist.SvcList": 636
+            "windows.svclist.SvcList": 636,
+            "windows.svcscan.SvcScan": 1462
           },
           "complete": {
             "windows.driverirp.DriverIrp": false,
@@ -2603,7 +2652,8 @@
     "Builds identify target baselines, not every cumulative update. Exact PDB identity is always required.",
     "Server 2003 and R2 cannot be distinguished by NT version/product type alone.",
     "ARM64, user minidumps and hibernation retain existing independently documented scope.",
-    "DriverIrp real rows are native partial-output acceptance only. Kernel-module scoped six-field cases pass on Win10/11 and Server 2008 x86; full default comparisons remain failing on external Symbol attribution. See tests/reference/parity/driverirp-known-differences.json. Shared module reading now preserves readable ranges when names or paths are missing; counts rise without improving completeness."
+    "DriverIrp real rows are native partial-output acceptance only. Kernel-module scoped six-field cases pass on Win10/11 and Server 2008 x86; full default comparisons remain failing on external Symbol attribution. See tests/reference/parity/driverirp-known-differences.json. Shared module reading now preserves readable ranges when names or paths are missing; counts rise without improving completeness.",
+    "Native51 standard SvcScan has full-field multiset differential evidence on Win10 15063 x64, Win11 22000 x64, Win7 7601 x64 and Server2008 6001 x86 only. Server2003 3790 x86 has native 230-row acceptance; pinned Volatility rejects this version, so there is no differential parity claim. SvcDiff Win10/11 empty-result agreement is negative evidence, with partial diagnostics; no actual hidden-service sample is validated."
   ],
   "scope": "Levels are per plugin and architecture. Real applies only to listed evidence builds and containers. Synthetic object fixtures validate pointer widths, not every product layout; zero-row scans do not certify recovery. Unlisted builds, containers and plugin fields remain pending."
 }

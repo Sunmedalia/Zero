@@ -366,3 +366,35 @@ independent field faults, strict registry decoding, cancellation, unsupported
 builds/PID filters, corrupt siblings and case-sensitive service lookups.
 `svclist-known-limitations.json` retains final hashes and failed development-run
 counts. Two default positive cases do not establish a complete plugin contract.
+
+
+Native51 adds the separate canonical `windows.svcscan.SvcScan` eleven-column
+entry and `windows.malware.svcdiff.SvcDiff` (`windows.svcdiff`). The existing
+`windows.svcscan` eight-column output remains a separate legacy contract.
+`svcscan.example.json` compares all VADs in services.exe on Win10 15063 x64,
+Win11 22000 x64, Win7 7601 x64 and Server2008 6001 x86. The expected full
+record counts are 1247, 1462, 863 and 728, respectively. Registry value
+lookup reads names before data, skips invalid sibling value nodes with partial
+diagnostics, and preserves exact-case ImagePath/Parameters/ServiceDll checks.
+
+The reference tuple deduplication depends on absent-value object identity:
+PID/name/display/binary absences are fresh on each visit; registry absences are
+shared when the name exists in the prebuilt map. Thus visually identical rows
+can legitimately recur. The `duplicate_keys: "multiset"` mapping explicitly
+compares every occurrence of all eleven normalized fields and exact counts per
+Offset; differing multiplicity, fields or one-sided absence still fail. The
+default comparator continues to reject duplicates. No scope filtering is used.
+
+`svcdiff.example.json` compares the two modern samples by case-sensitive service
+name, retaining the last scanned row per name. Both produce zero differences;
+this is negative evidence only, kept outside positive `evidence.json`. Partial
+scan/list diagnostics and coverage remain attached; an empty result does not
+prove absence of hidden services. Real positive hidden-service validation and
+whole-plugin contracts remain outstanding.
+
+`svcscan-nt5.example.json` preserves the Server2003 3790 x86 attempt. Native
+returns 230 records using direct sErv tags; pinned Volatility rejects this build
+with NotImplementedError, so that run must fail differential acceptance. It is
+kept separate from the four comparable cases and remains native-only evidence.
+`service-scan-known-limitations.json` records final and development-run metadata,
+the two SvcList reruns, and the explicitly unsupported reference case.

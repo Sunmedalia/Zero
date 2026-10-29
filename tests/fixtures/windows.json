@@ -35,7 +35,9 @@
         "windows.registry.hivescan.HiveScan": 22,
         "windows.malware.pebmasquerade.PebMasquerade": 139,
         "windows.registry.getcellroutine.GetCellRoutine": 0,
-        "windows.svclist.SvcList": 575
+        "windows.svclist.SvcList": 575,
+        "windows.svcscan.SvcScan": 1247,
+        "windows.malware.svcdiff.SvcDiff": 0
       },
       "process_list_complete": false,
       "artifact_reference": {
@@ -74,7 +76,9 @@
         "windows.registry.hivescan.HiveScan": true,
         "windows.malware.pebmasquerade.PebMasquerade": false,
         "windows.registry.getcellroutine.GetCellRoutine": false,
-        "windows.svclist.SvcList": false
+        "windows.svclist.SvcList": false,
+        "windows.svcscan.SvcScan": false,
+        "windows.malware.svcdiff.SvcDiff": false
       }
     },
     {
@@ -111,7 +115,9 @@
         "windows.registry.hivescan.HiveScan": 38,
         "windows.malware.pebmasquerade.PebMasquerade": 102,
         "windows.registry.getcellroutine.GetCellRoutine": 0,
-        "windows.svclist.SvcList": 636
+        "windows.svclist.SvcList": 636,
+        "windows.svcscan.SvcScan": 1462,
+        "windows.malware.svcdiff.SvcDiff": 0
       },
       "process_list_complete": false,
       "autoruns_reference": {
@@ -131,7 +137,9 @@
         "windows.registry.hivescan.HiveScan": true,
         "windows.malware.pebmasquerade.PebMasquerade": false,
         "windows.registry.getcellroutine.GetCellRoutine": false,
-        "windows.svclist.SvcList": false
+        "windows.svclist.SvcList": false,
+        "windows.svcscan.SvcScan": false,
+        "windows.malware.svcdiff.SvcDiff": false
       }
     },
     {
@@ -209,7 +217,8 @@
         "windows.systeminfo": 14,
         "windows.threads": 312,
         "windows.unloadedmodules": 4,
-        "windows.vadinfo": 1986
+        "windows.vadinfo": 1986,
+        "windows.svcscan.SvcScan": 230
       },
       "symbol_source": "https://downloads.volatilityfoundation.org/volatility3/symbols/windows.zip"
     },
@@ -244,7 +253,8 @@
         "windows.unloadedmodules": 4,
         "windows.vadinfo": 7265,
         "windows.registry.hivescan.HiveScan": 16,
-        "windows.malware.pebmasquerade.PebMasquerade": 53
+        "windows.malware.pebmasquerade.PebMasquerade": 53,
+        "windows.svcscan.SvcScan": 863
       },
       "symbol_source": "Microsoft exact PDB; independent Volatility conversion for comparisons",
       "coverage_notes": {
@@ -291,7 +301,8 @@
         "windows.driverirp.DriverIrp": 3724,
         "windows.malware.drivermodule.DriverModule": 2,
         "windows.registry.hivescan.HiveScan": 17,
-        "windows.malware.pebmasquerade.PebMasquerade": 48
+        "windows.malware.pebmasquerade.PebMasquerade": 48,
+        "windows.svcscan.SvcScan": 728
       },
       "symbol_source": "Microsoft exact PDB; independent Volatility conversion for comparisons",
       "complete": {

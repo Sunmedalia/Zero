@@ -65,6 +65,16 @@ fn public_windows_images() {
             ),
             (Plugin::WinHivelist, expected_hives),
             (
+                Plugin::WinSvcScanV4,
+                fixture["rows"]["windows.svcscan.SvcScan"].as_u64().unwrap() as usize,
+            ),
+            (
+                Plugin::WinSvcDiff,
+                fixture["rows"]["windows.malware.svcdiff.SvcDiff"]
+                    .as_u64()
+                    .unwrap() as usize,
+            ),
+            (
                 Plugin::WinSvcList,
                 fixture["rows"]["windows.svclist.SvcList"].as_u64().unwrap() as usize,
             ),
@@ -169,6 +179,26 @@ fn public_windows_images() {
                 );
                 assert!(result.rows.iter().any(|row| row[9] != "N/A"));
                 assert!(result.rows.iter().any(|row| row[10] != "N/A"));
+                assert!(!result.complete);
+                assert!(!result.diagnostics.is_empty());
+            }
+            if plugin == Plugin::WinSvcScanV4 {
+                assert_eq!(result.columns.len(), 11);
+                assert!(
+                    result.kernel_identity["services_scan"]["processes"]
+                        .as_u64()
+                        .unwrap()
+                        > 0
+                );
+                assert!(!result.complete);
+                assert!(!result.diagnostics.is_empty());
+            }
+            if plugin == Plugin::WinSvcDiff {
+                assert_eq!(result.columns.len(), 11);
+                assert!(result.rows.is_empty());
+                let coverage = &result.kernel_identity["services_diff"];
+                assert!(coverage["scan_records"].as_u64().unwrap() > 0);
+                assert!(coverage["list_records"].as_u64().unwrap() > 0);
                 assert!(!result.complete);
                 assert!(!result.diagnostics.is_empty());
             }
