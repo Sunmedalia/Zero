@@ -6,6 +6,17 @@ use zero_tui::{
     linux::{Outcome, Plugin, Request, Session},
 };
 
+// Row baselines explicitly record filters; scoped counts must never be run
+// as an unfiltered default invocation.
+fn fixture_options(fixture: &serde_json::Value, plugin: Plugin) -> Options {
+    Options {
+        pid: fixture["row_options"][plugin.name()]["pid"]
+            .as_u64()
+            .map(|pid| u32::try_from(pid).unwrap()),
+        ..Options::default()
+    }
+}
+
 #[test]
 #[ignore = "requires multi-gigabyte public Windows samples and prepared exact symbols"]
 fn public_windows_images() {
@@ -50,6 +61,10 @@ fn public_windows_images() {
         );
         for (plugin, expected) in [
             (Plugin::WinPslist, expected_processes),
+            (
+                Plugin::WinMemmap,
+                fixture["rows"]["windows.memmap.Memmap"].as_u64().unwrap() as usize,
+            ),
             (Plugin::WinModules, expected_modules),
             (
                 Plugin::WinDriverModule,
@@ -157,7 +172,7 @@ fn public_windows_images() {
                     network: false,
                 },
                 None,
-                &Options::default(),
+                &fixture_options(fixture, plugin),
                 &Job::default(),
             )
             .unwrap();
@@ -472,7 +487,7 @@ fn compatibility_sample(index: usize, variable: &str) {
                 network: false,
             },
             None,
-            &Options::default(),
+            &fixture_options(fixture, plugin),
             &Job::default(),
         )
         .unwrap() else {

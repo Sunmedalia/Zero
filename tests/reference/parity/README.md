@@ -398,3 +398,33 @@ with NotImplementedError, so that run must fail differential acceptance. It is
 kept separate from the four comparable cases and remains native-only evidence.
 `service-scan-known-limitations.json` records final and development-run metadata,
 the two SvcList reruns, and the explicitly unsupported reference case.
+
+Native52 adds canonical `windows.memmap.Memmap` (`windows.memmap`) with all five
+reference columns. It walks Intel page tables independently of VADs, retaining
+present and transition entries, x86/PAE/x64 geometry, large-page PAT handling,
+raw lower-48-bit x64 virtual addresses, the reference 45-bit x64 PFN projection,
+and the final-byte exclusion caused by the reference maximum-address range.
+Only ranges contiguous in both virtual and backing-file addresses are merged;
+physical and explicit pagefile layers never merge with one another. Unreadable
+or uniform tables, unavailable captured spans and resource bounds retain partial
+diagnostics. No global visited-table set discards legitimate aliases.
+
+`memmap.example.json` compares PID 4 on Win10 15063 x64 (131493 rows), Win11
+22000 x64 (63692), Win7 7601 x64 (34991), and Server2008 6001 x86 PAE (15297).
+Every row and all five fields match. `memmap-dump.example.json` also compares
+fresh targeted `pid.4.dmp` files on Server2008 and Win7: 119320576 and 223760384
+bytes, respectively, with exact SHA256 agreement. Dump cases require binary
+artifact proof in the audit, in addition to field equality. These six positive
+cases raise the total to 67 (5 record-scoped cases), not full-plugin certification.
+
+Exports require a single nonzero PID and enforce the repository's 256 MiB
+limit; the reference's unrestricted all-process export is not implemented.
+Listing defaults to all active processes, with a one-million-row total bound;
+per-process traversal also bounds table reads and interval counts. Exports
+bypass both result-cache reads and writes, record SHA256 and size, and commit
+atomically. Fixture `row_options` explicitly records the PID used for row
+baselines. Real default/all-process, non-PAE x86 and attached-pagefile parity
+remain outstanding; the latter two have synthetic tests. ARM64 is unsupported.
+See `memmap-known-limitations.json` for final executable/output hashes, binary
+artifact evidence, coverage diagnostics and development findings. No recovered
+memory bytes are committed.

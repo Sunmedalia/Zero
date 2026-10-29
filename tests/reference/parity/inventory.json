@@ -6123,8 +6123,10 @@
         "Offset in File",
         "File output"
       ],
-      "zero_candidates": [],
-      "status": "missing",
+      "zero_candidates": [
+        "windows.memmap.Memmap"
+      ],
+      "status": "mapped_unverified",
       "evidence": []
     },
     {

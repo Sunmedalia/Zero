@@ -3,6 +3,8 @@ use clap::ValueEnum;
 
 #[derive(Clone, Copy, Debug, ValueEnum, PartialEq, Eq)]
 pub enum Plugin {
+    #[value(name = "windows.memmap.Memmap", alias = "windows.memmap")]
+    WinMemmap,
     #[value(name = "windows.svcscan.SvcScan")]
     WinSvcScanV4,
     #[value(name = "windows.malware.svcdiff.SvcDiff", alias = "windows.svcdiff")]
@@ -283,6 +285,19 @@ pub struct Descriptor {
     pub widths: &'static [u16],
 }
 pub const PLUGINS: &[Descriptor] = &[
+    Descriptor {
+        plugin: Plugin::WinMemmap,
+        name: "windows.memmap.Memmap",
+        label: "memmap",
+        columns: &[
+            "Virtual",
+            "Physical",
+            "Size",
+            "Offset in File",
+            "File output",
+        ],
+        widths: &[18, 18, 18, 18, 24],
+    },
     Descriptor {
         plugin: Plugin::WinSvcScanV4,
         name: "windows.svcscan.SvcScan",
@@ -1822,7 +1837,7 @@ pub const PLUGINS: &[Descriptor] = &[
 impl Plugin {
     /// Some listing plugins also support explicitly requested artifact exports.
     pub fn accepts_dump(self) -> bool {
-        self.is_dump() || self == Self::Fbdev
+        self.is_dump() || matches!(self, Self::Fbdev | Self::WinMemmap)
     }
     pub fn is_regex_scan(self) -> bool {
         matches!(self, Self::VmaRegExScan | Self::WinVadRegExScan)
@@ -1865,6 +1880,7 @@ impl Plugin {
     }
     pub fn category(self) -> &'static str {
         match self {
+            Self::WinMemmap => "Memory",
             Self::WinSvcDiff => "Integrity",
             Self::WinSysteminfo => "System",
             Self::WinPebMasquerade
@@ -2075,6 +2091,7 @@ impl Plugin {
             WinCmdscan => "扫描命令历史记录",
             WinDriverscan => "扫描驱动对象",
             WinSvcScanV4 => "扫描 services.exe 全部 VAD 并输出 11 列服务记录（固定参考契约）",
+            WinMemmap => "枚举 Intel 进程页表映射，可按 PID 定向导出（256 MiB 上限）",
             WinSvcDiff => "比较服务扫描与链表中的名称差异；缺页视图不能证明隐藏服务",
             WinSvcList => "在 services.exe 映像 VAD 中定位 Sc27 并枚举服务链表（Win10 15063+ x64）",
             WinSvcscan => "扫描 Windows 服务",

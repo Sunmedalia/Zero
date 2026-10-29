@@ -60,6 +60,27 @@ class AuditTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             audit(self.manifest, [self.case])
 
+    def test_memmap_dump_requires_nonempty_matching_binary_evidence(self):
+        name = 'windows.memmap.Memmap'
+        self.manifest['plugins'][0]['reference'] = name
+        self.manifest['plugins'][0]['platform'] = 'windows'
+        self.case['reference_plugin'] = name
+        # A list case does not need an exported file.
+        self.assertEqual(audit(self.manifest, [self.case])['passed_cases'], 1)
+        self.case['reference_args'] = ['--pid', '4', '--dump']
+        with self.assertRaises(ValueError):
+            audit(self.manifest, [self.case])
+        artifact = {'name': 'pid.4.dmp', 'passed': True,
+                    'zero_sha256': 'a' * 64, 'reference_sha256': 'a' * 64,
+                    'zero_bytes': 4096, 'reference_bytes': 4096}
+        self.case['artifacts'] = [artifact]
+        self.assertEqual(audit(self.manifest, [self.case])['passed_cases'], 1)
+        for field, invalid in [('zero_bytes', 0), ('reference_bytes', 8192),
+                               ('reference_sha256', 'b' * 64), ('passed', False)]:
+            self.case['artifacts'] = [{**artifact, field: invalid}]
+            with self.assertRaises(ValueError):
+                audit(self.manifest, [self.case])
+
 
 if __name__ == '__main__':
     unittest.main()

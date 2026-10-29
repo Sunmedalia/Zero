@@ -5,6 +5,9 @@ use std::io::Write;
 impl Windows<'_> {
     pub(super) fn run_dump(&self, p: Plugin, options: &DumpOptions, job: &Job) -> Result<Results> {
         options.validate(p)?;
+        if p == Plugin::WinMemmap {
+            return self.memmap(&Options::default(), Some(options), job);
+        }
         if p == Plugin::WinModdump {
             return self.run_moddump(options, job);
         }

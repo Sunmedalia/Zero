@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "allow_partial": true,
+  "keys": [
+    "Virtual"
+  ],
+  "fields": {
+    "Virtual": {
+      "zero": "Virtual",
+      "reference": "Virtual",
+      "type": "integer"
+    },
+    "Physical": {
+      "zero": "Physical",
+      "reference": "Physical",
+      "type": "integer"
+    },
+    "Size": {
+      "zero": "Size",
+      "reference": "Size",
+      "type": "integer"
+    },
+    "Offset in File": {
+      "zero": "Offset in File",
+      "reference": "Offset in File",
+      "type": "integer"
+    },
+    "File output": {
+      "zero": "File output",
+      "reference": "File output",
+      "type": "text"
+    }
+  },
+  "notes": "Compare all five fields for the selected PID, including raw 48-bit virtual addresses, mapped lengths and accumulated file offsets. Missing physical spans remain diagnostic."
+}

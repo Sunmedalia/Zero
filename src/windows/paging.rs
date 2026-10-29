@@ -239,6 +239,14 @@ impl Sources {
             .insert(matches[0], self.swap.take().context("swapfile 未打开")?);
         Ok(())
     }
+    pub(super) fn mapping_valid(&self, index: u8, offset: u64, size: u64) -> bool {
+        self.files.get(&index).is_some_and(|f| {
+            f.validate().is_ok()
+                && offset
+                    .checked_add(size)
+                    .is_some_and(|end| end <= f.stamp.length)
+        })
+    }
     pub(super) fn read(&self, index: u8, offset: u64, out: &mut [u8]) -> Result<()> {
         self.job.check()?;
         let file = self

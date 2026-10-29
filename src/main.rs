@@ -342,7 +342,7 @@ fn main() -> Result<()> {
         let job = Job::new(|s| eprintln!("{s}"));
         let symbols = symbols.unwrap_or_else(|| PathBuf::from(&settings.symbols));
         let mut session = linux::Session::default();
-        let dump = if plugin.is_dump() || (plugin == Plugin::Fbdev && dump_dir.is_some()) {
+        let dump = if plugin.is_dump() || (plugin.accepts_dump() && dump_dir.is_some()) {
             Some(zero_tui::dump::DumpOptions {
                 pid: if matches!(
                     plugin,

@@ -1,0 +1,76 @@
+{
+  "samples": [
+    {
+      "id": "server-2008-6001-x86",
+      "image": "images/feat-windows-plugins/server2008/memdump.mem",
+      "image_sha256": "d3b13f2224cab20440a4bb3c5c971662be6e61f431340f319cef7312bb6177f4",
+      "zero_symbols": ".zero/rust/symbols/isf/windows/ntkrpamp.pdb-37D328E3BAE5460F8E662756ED80951D2.json",
+      "reference_symbols": "target/reference/kpcrs-symbols",
+      "symbol_files": [
+        {
+          "path": ".zero/rust/symbols/isf/windows/ntkrpamp.pdb-37D328E3BAE5460F8E662756ED80951D2.json",
+          "sha256": "5d73f3a7158ba8b72394f2606ea5b4f03393976d5054a11cc51d51afb88a5544"
+        },
+        {
+          "path": "target/reference/kpcrs-symbols/windows/ntkrpamp.pdb/37D328E3BAE5460F8E662756ED80951D2.json",
+          "sha256": "5d73f3a7158ba8b72394f2606ea5b4f03393976d5054a11cc51d51afb88a5544"
+        }
+      ],
+      "source": "https://samsclass.info/121/proj/p5-Vol.htm"
+    },
+    {
+      "id": "windows-7-7601-x64",
+      "image": "images/feat-windows-plugins/inctf-win7/Challenge.raw",
+      "image_sha256": "80366d7ec64a5529c95c2f523f4281a5f11efbad33ecb19f73525470c1407b23",
+      "zero_symbols": ".zero/rust/symbols/isf/windows/ntkrnlmp.pdb-3844DBB920174967BE7AA4A2C20430FA2.json",
+      "reference_symbols": "target/reference/kpcrs-symbols",
+      "symbol_files": [
+        {
+          "path": ".zero/rust/symbols/isf/windows/ntkrnlmp.pdb-3844DBB920174967BE7AA4A2C20430FA2.json",
+          "sha256": "6d5f85f7b953330b9762a57e5a25266547e7391ad4f6655170a9f48876fb6b8c"
+        },
+        {
+          "path": "target/reference/kpcrs-symbols/windows/ntkrnlmp.pdb/3844DBB920174967BE7AA4A2C20430FA2.json",
+          "sha256": "6d5f85f7b953330b9762a57e5a25266547e7391ad4f6655170a9f48876fb6b8c"
+        }
+      ],
+      "source": "https://blog.bi0s.in/2019/09/24/Forensics/InCTFi19-NotchItUp/"
+    }
+  ],
+  "cases": [
+    {
+      "sample": "server-2008-6001-x86",
+      "id": "server-2008-6001-x86/memmap-pid4-dump",
+      "reference_plugin": "windows.memmap.Memmap",
+      "zero_plugin": "windows.memmap.Memmap",
+      "mapping": "tests/reference/parity/mappings/windows-memmap.json",
+      "zero_args": [
+        "--pid",
+        "4"
+      ],
+      "reference_args": [
+        "--pid",
+        "4",
+        "--dump"
+      ],
+      "artifact_dump": true
+    },
+    {
+      "sample": "windows-7-7601-x64",
+      "id": "windows-7-7601-x64/memmap-pid4-dump",
+      "reference_plugin": "windows.memmap.Memmap",
+      "zero_plugin": "windows.memmap.Memmap",
+      "mapping": "tests/reference/parity/mappings/windows-memmap.json",
+      "zero_args": [
+        "--pid",
+        "4"
+      ],
+      "reference_args": [
+        "--pid",
+        "4",
+        "--dump"
+      ],
+      "artifact_dump": true
+    }
+  ]
+}

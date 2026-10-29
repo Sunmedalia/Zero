@@ -1,0 +1,139 @@
+{
+  "schema_version": 1,
+  "engine_version": "0.2.1-native-52",
+  "reference_version": "v2.28.2",
+  "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+  "zero_executable_sha256": "bb4cddc3a7309dcaf26ee3274d5dca3e9ed70c90dd4f3dd0ae0a49f38ee059e2",
+  "scope": "Intel x86 non-PAE/PAE and x64 native page-table enumeration; four real PID 4 listings and two real targeted binary exports. No whole-plugin parity claim.",
+  "cases": [
+    {
+      "case_id": "windows-10-15063/memmap-pid4",
+      "passed": true,
+      "image_sha256": "d58f62e92b8c4ef913ac09b2c36a10482034c10b88d0c154dead3aaaa49cf875",
+      "rows": 131493,
+      "complete": false,
+      "diagnostics": [
+        "Windows 链表不一致 @ 0xffffd98df8f9c8e8 direction 0: expected 0xffffd98df8be88e8, found 0xffffd98df7cbe668",
+        "Windows 链表不一致 @ 0xffffd98df8831368 direction 0: expected 0xffffd98df41a88e8, found 0xffffd98df9d4e8e8",
+        "Windows 链表不一致 @ 0xffffd98df3ab88e8 direction 0: expected 0xffffd98df63618e8, found 0xffffd98df480e368",
+        "Windows 链表不一致 @ 0xffffd98df7cbe668 direction 0: expected 0xffffd98df503a368, found 0xffffd98df8be88e8",
+        "链表 @ 0xfffff8021ef5c120 direction 0: Windows 链表循环或超限 0xffffd98df8f9c8e8",
+        "Windows 链表不一致 @ 0xffffd98df9d4e8e8 direction 8: expected 0xfffff8021ef5c120, found 0xffffd98df8831368",
+        "Windows 链表不一致 @ 0xffffd98df41a88e8 direction 8: expected 0xffffd98df9d4e8e8, found 0xffffd98df8831368",
+        "Windows 链表不一致 @ 0xffffd98df8be88e8 direction 8: expected 0xffffd98df7cbe668, found 0xffffd98df8f9c8e8",
+        "PID 4: Memmap 省略 8063 处不可读／无效映射；首处：未采集映射 Pagefile(2) 0x105c0000+0x1000"
+      ],
+      "native_output_sha256": "ba39bdb082ac041f7fd5f5faf0ff02b496ffd6122a29c0920f8e652f1e5625d3",
+      "reference_output_sha256": "9cc883e8f85fba257b2f4b125b0a829a9f7878d0aab7d74ef1bca0345a89f1d7",
+      "artifacts": []
+    },
+    {
+      "case_id": "server-2008-6001-x86/memmap-pid4",
+      "passed": true,
+      "image_sha256": "d3b13f2224cab20440a4bb3c5c971662be6e61f431340f319cef7312bb6177f4",
+      "rows": 15297,
+      "complete": false,
+      "diagnostics": [
+        "PID 4: Memmap 省略 3148 处不可读／无效映射；首处：未采集映射 Pagefile(0) 0x6a85000+0x1000"
+      ],
+      "native_output_sha256": "14b2474fba35cf38d64d49a8766c128ff5ff6ed3e84e6573da069373814c9e67",
+      "reference_output_sha256": "7402102a8cb1d6312ab28bf103269b4873ae9fe24d032796197ababad4b892fd",
+      "artifacts": []
+    },
+    {
+      "case_id": "windows-11/memmap-pid4",
+      "passed": true,
+      "image_sha256": "0f00815b8f78f30a63d742c73152474b2a3c35183dbb1d92c8fc6a81fa3de9f1",
+      "rows": 63692,
+      "complete": false,
+      "diagnostics": [
+        "Windows 链表不一致 @ 0xffffde8ced813508 direction 0: expected 0xffffde8ced890548, found 0x737265646165682d",
+        "链表 @ 0xfffff8002a41bea0 direction 0: 无效链表地址 0x65736f7078652d6c",
+        "Windows 链表不一致 @ 0xffffde8ced890548 direction 8: expected 0xfffff8002a41bea0, found 0xffffde8ced813508",
+        "EPROCESS 0xffffde8ced8130c0: 无效 EPROCESS",
+        "PID 4: Memmap 省略 23231 处不可读／无效映射；首处：未采集映射 Physical 0xfee00000+0x1000"
+      ],
+      "native_output_sha256": "39559857918c50cda314f65589b7ced4930373e92a69c7a22b31322fc8793aa0",
+      "reference_output_sha256": "383564e0e4ecb8aa8aecff18e5475aeab2fe297c942687a6c06ab1edf99907c1",
+      "artifacts": []
+    },
+    {
+      "case_id": "windows-7-7601-x64/memmap-pid4",
+      "passed": true,
+      "image_sha256": "80366d7ec64a5529c95c2f523f4281a5f11efbad33ecb19f73525470c1407b23",
+      "rows": 34991,
+      "complete": false,
+      "diagnostics": [
+        "Windows 链表末尾未闭合 @ 0xfffff80002830b90 direction 0",
+        "Windows 链表不一致 @ 0xfffffa80014c11e8 direction 8: expected 0xfffff80002830b90, found 0xfffffa80014aa1e8",
+        "PID 4: Memmap 省略 7570 处不可读／无效映射；首处：未采集映射 Physical 0xf0400000+0x1000"
+      ],
+      "native_output_sha256": "17b49119182ee48668278ccba1681f5563b6ea8d82b4b791da4f9f5eaa4de6fe",
+      "reference_output_sha256": "d9a61a81013accc3af6b5a6332fd40f3db4f419c4bdbb155f52223bb2128eba3",
+      "artifacts": []
+    },
+    {
+      "case_id": "server-2008-6001-x86/memmap-pid4-dump",
+      "passed": true,
+      "image_sha256": "d3b13f2224cab20440a4bb3c5c971662be6e61f431340f319cef7312bb6177f4",
+      "rows": 15297,
+      "complete": false,
+      "diagnostics": [
+        "PID 4: Memmap 省略 3148 处不可读／无效映射；首处：未采集映射 Pagefile(0) 0x6a85000+0x1000"
+      ],
+      "native_output_sha256": "d9812eb8cfea7df55655786e7000d8d75ecfaf0199623eb2c9e67a561e9f3cbb",
+      "reference_output_sha256": "bc130ae29f1932e321219b6ba6513a04adee7bb1c2b6b93851aa7f529c956b67",
+      "artifacts": [
+        {
+          "name": "pid.4.dmp",
+          "zero_sha256": "68f1c9d1452094a40430aae019261f286f1091dce409257c9769905df168fc6b",
+          "reference_sha256": "68f1c9d1452094a40430aae019261f286f1091dce409257c9769905df168fc6b",
+          "zero_bytes": 119320576,
+          "reference_bytes": 119320576,
+          "passed": true
+        }
+      ]
+    },
+    {
+      "case_id": "windows-7-7601-x64/memmap-pid4-dump",
+      "passed": true,
+      "image_sha256": "80366d7ec64a5529c95c2f523f4281a5f11efbad33ecb19f73525470c1407b23",
+      "rows": 34991,
+      "complete": false,
+      "diagnostics": [
+        "Windows 链表末尾未闭合 @ 0xfffff80002830b90 direction 0",
+        "Windows 链表不一致 @ 0xfffffa80014c11e8 direction 8: expected 0xfffff80002830b90, found 0xfffffa80014aa1e8",
+        "PID 4: Memmap 省略 7570 处不可读／无效映射；首处：未采集映射 Physical 0xf0400000+0x1000"
+      ],
+      "native_output_sha256": "d64aeb90c833728fae46d45732eec2a82eb7025832d9e757cb2fea8ff0aa6b5d",
+      "reference_output_sha256": "30f67a17c2e8257ca40c2f2b62d272a4d3df4b3d026ebe3dc8c0099e92f69b35",
+      "artifacts": [
+        {
+          "name": "pid.4.dmp",
+          "zero_sha256": "e82f6cd8054037f572a3c4d2c0c2ae70dea5337f122a2f247444c84a4b9b60c6",
+          "reference_sha256": "e82f6cd8054037f572a3c4d2c0c2ae70dea5337f122a2f247444c84a4b9b60c6",
+          "zero_bytes": 223760384,
+          "reference_bytes": 223760384,
+          "passed": true
+        }
+      ]
+    }
+  ],
+  "known_limits": [
+    "ARM64 is explicitly unsupported by this canonical Intel plugin.",
+    "Default listing enumerates all active processes; real differential evidence currently covers PID 4 only. Synthetic tests cover all/selected/absent PID behavior.",
+    "Non-PAE x86 geometry, attached pagefiles and highest-address behavior have synthetic coverage; real listing cases cover Server2008 PAE and three x64 samples. Explicit attachment provenance is retained.",
+    "The pinned maximum-address invocation excludes the final virtual byte. x64 rows retain raw lower 48-bit virtual addresses.",
+    "Windows x64 uses the pinned 45-bit PFN mask for transition mappings. This projection does not change the general virtual-memory translator.",
+    "Zero keeps diagnostics for unavailable physical spans, unreadable/uniform tables, absent explicit paging attachments and resource limits. These cases remain partial.",
+    "Per-process traversal stops at 262144 tables or 1000000 merged intervals; combined output also stops at 1000000 intervals with partial diagnostics. Cancellation propagates.",
+    "Exports require one explicit nonzero PID, reject address-range arguments, and enforce a 256 MiB limit. Reference all-process and larger exports are deliberately not enabled under the repository targeted-export policy.",
+    "Exports bypass result-cache reads and writes and use atomic files with SHA256/byte-count metadata. Raw recovered bytes remain ignored under target/.",
+    "The original reported Debian LiME image is unavailable; this Windows work does not establish a fix for its init_task/page-table validation failure."
+  ],
+  "development_findings": [
+    "The first real run was rejected by public PID validation because the Memmap contract has no PID output column; explicit Memmap PID validation was added before final differential runs.",
+    "The initial regression baseline accidentally ran PID 4 row counts without their filter. Baselines now declare row_options and acceptance passes those exact options; final Windows regression passed all 13 available cases.",
+    "A synthetic test initially attempted to clone Isf; it now reparses its fixture data. Final build, Clippy and tests passed."
+  ]
+}

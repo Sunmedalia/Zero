@@ -61,6 +61,17 @@ pub fn parse_address(text: &str) -> Result<u64, String> {
 impl DumpOptions {
     pub fn validate(&self, plugin: Plugin) -> Result<()> {
         ensure!(plugin.accepts_dump(), "非 Dump 插件");
+        if plugin == Plugin::WinMemmap {
+            ensure!(
+                self.pid > 0 && !self.directory.as_os_str().is_empty(),
+                "Memmap 导出必须指定非零 PID 和目录"
+            );
+            ensure!(
+                self.start.is_none() && self.end.is_none(),
+                "Memmap 导出不接受地址范围"
+            );
+            return Ok(());
+        }
         if plugin == Plugin::Fbdev {
             ensure!(self.pid == 0, "Fbdev 不接受 PID");
             ensure!(

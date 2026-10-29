@@ -36,6 +36,7 @@ mod hive_scan;
 mod integrity;
 mod legacy_network;
 mod malware;
+mod memmap;
 mod memory;
 mod mft;
 mod network;
@@ -568,6 +569,9 @@ impl Windows<'_> {
     }
     pub fn run(&self, p: Plugin, options: &Options, job: &Job) -> Result<Results> {
         job.check()?;
+        if p == Plugin::WinMemmap {
+            return self.memmap(options, None, job);
+        }
         if p == Plugin::WinSvcScanV4 {
             return self.service_scan(options, job);
         }
@@ -983,6 +987,8 @@ pub(crate) fn validate_request(
     if request.plugin.is_dump() {
         dump.context("Windows 转储需要 PID 和输出目录")?
             .validate(request.plugin)?;
+    } else if request.plugin.accepts_dump() && dump.is_some() {
+        dump.unwrap().validate(request.plugin)?;
     } else {
         ensure!(dump.is_none(), "分析插件不接受转储参数");
     }
@@ -998,7 +1004,9 @@ pub(crate) fn validate_request(
     }
     crate::analysis::validate_pattern(request.plugin, options)?;
     ensure!(
-        options.pid.is_none() || request.plugin.descriptor().columns.contains(&"PID"),
+        options.pid.is_none()
+            || request.plugin == Plugin::WinMemmap
+            || request.plugin.descriptor().columns.contains(&"PID"),
         "此插件不支持 PID 筛选"
     );
     Ok(())
@@ -1063,7 +1071,7 @@ pub(crate) fn analyze_resolved(
             options.maxsize
         ),
     );
-    let cached = if request.use_cache && !request.plugin.is_dump() {
+    let cached = if request.use_cache && dump.is_none() && !request.plugin.is_dump() {
         if request.plugin == Plugin::WinDriverIrp {
             dispatch::load_cached(request.cache, &key, request.network, job)?
         } else {
@@ -1121,6 +1129,7 @@ pub(crate) fn analyze_resolved(
     }
     job.check()?;
     if request.use_cache
+        && dump.is_none()
         && !request.plugin.is_dump()
         && (request.plugin != Plugin::WinDriverIrp
             || dispatch::dependencies_match(&result, request.cache, request.network, job)?)
