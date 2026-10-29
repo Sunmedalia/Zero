@@ -5555,8 +5555,10 @@
         "PEB_ImageFilePath_Spoofed",
         "PEB_CommandLine_Spoofed"
       ],
-      "zero_candidates": [],
-      "status": "missing",
+      "zero_candidates": [
+        "windows.malware.pebmasquerade.PebMasquerade"
+      ],
+      "status": "mapped_unverified",
       "evidence": []
     },
     {

@@ -32,7 +32,8 @@
         "windows.kpcrs.KPCRs": 4,
         "windows.driverirp.DriverIrp": 4255,
         "windows.malware.drivermodule.DriverModule": 3,
-        "windows.registry.hivescan.HiveScan": 22
+        "windows.registry.hivescan.HiveScan": 22,
+        "windows.malware.pebmasquerade.PebMasquerade": 139
       },
       "process_list_complete": false,
       "artifact_reference": {
@@ -68,7 +69,8 @@
         }
       },
       "complete": {
-        "windows.registry.hivescan.HiveScan": true
+        "windows.registry.hivescan.HiveScan": true,
+        "windows.malware.pebmasquerade.PebMasquerade": false
       }
     },
     {
@@ -102,7 +104,8 @@
         "windows.kpcrs.KPCRs": 4,
         "windows.driverirp.DriverIrp": 3444,
         "windows.malware.drivermodule.DriverModule": 1,
-        "windows.registry.hivescan.HiveScan": 38
+        "windows.registry.hivescan.HiveScan": 38,
+        "windows.malware.pebmasquerade.PebMasquerade": 102
       },
       "process_list_complete": false,
       "autoruns_reference": {
@@ -119,7 +122,8 @@
         ]
       },
       "complete": {
-        "windows.registry.hivescan.HiveScan": true
+        "windows.registry.hivescan.HiveScan": true,
+        "windows.malware.pebmasquerade.PebMasquerade": false
       }
     },
     {
@@ -231,14 +235,16 @@
         "windows.threads": 743,
         "windows.unloadedmodules": 4,
         "windows.vadinfo": 7265,
-        "windows.registry.hivescan.HiveScan": 16
+        "windows.registry.hivescan.HiveScan": 16,
+        "windows.malware.pebmasquerade.PebMasquerade": 53
       },
       "symbol_source": "Microsoft exact PDB; independent Volatility conversion for comparisons",
       "coverage_notes": {
         "windows.vadinfo": "Tagged legacy AVL parent validation rejects an inconsistent branch. 7265 rows remain, down from 7325 before the validation; keep partial diagnostics rather than traverse the damaged branch."
       },
       "complete": {
-        "windows.registry.hivescan.HiveScan": true
+        "windows.registry.hivescan.HiveScan": true,
+        "windows.malware.pebmasquerade.PebMasquerade": false
       }
     },
     {
@@ -276,7 +282,8 @@
         "windows.kpcrs.KPCRs": 1,
         "windows.driverirp.DriverIrp": 3724,
         "windows.malware.drivermodule.DriverModule": 2,
-        "windows.registry.hivescan.HiveScan": 17
+        "windows.registry.hivescan.HiveScan": 17,
+        "windows.malware.pebmasquerade.PebMasquerade": 48
       },
       "symbol_source": "Microsoft exact PDB; independent Volatility conversion for comparisons",
       "complete": {
@@ -296,7 +303,8 @@
         "windows.netscan": false,
         "windows.driverirp.DriverIrp": false,
         "windows.malware.drivermodule.DriverModule": false,
-        "windows.registry.hivescan.HiveScan": true
+        "windows.registry.hivescan.HiveScan": true,
+        "windows.malware.pebmasquerade.PebMasquerade": false
       }
     },
     {

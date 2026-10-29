@@ -1,0 +1,42 @@
+{
+  "version": 1,
+  "allow_partial": true,
+  "keys": [
+    "PID"
+  ],
+  "fields": {
+    "PID": {
+      "zero": "PID",
+      "reference": "PID",
+      "type": "integer"
+    },
+    "EPROCESS_ImageFileName": {
+      "zero": "EPROCESS_ImageFileName",
+      "reference": "EPROCESS_ImageFileName",
+      "type": "text"
+    },
+    "EPROCESS_SeAudit_ImageFileName": {
+      "zero": "EPROCESS_SeAudit_ImageFileName",
+      "reference": "EPROCESS_SeAudit_ImageFileName",
+      "type": "na_text",
+      "allow_absent": true
+    },
+    "PEB_ImageFilePath": {
+      "zero": "PEB_ImageFilePath",
+      "reference": "PEB_ImageFilePath",
+      "type": "na_text",
+      "allow_absent": true
+    },
+    "PEB_ImageFilePath_Spoofed": {
+      "zero": "PEB_ImageFilePath_Spoofed",
+      "reference": "PEB_CommandLine_Spoofed",
+      "type": "boolean"
+    },
+    "PEB_CommandLine_Spoofed": {
+      "zero": "PEB_CommandLine_Spoofed",
+      "reference": "PEB_ImageFilePath_Spoofed",
+      "type": "boolean"
+    }
+  },
+  "notes": "Pinned PebMasquerade generator emits CommandLine flag in ImageFilePath column and vice versa. Explicitly map by descriptor meaning, retaining every record and field. Native flags have correct semantic column labels. Optional audit and PEB paths may be unavailable on both sides; count matched absence explicitly without calling those fields recovered. One-sided absence still fails."
+}

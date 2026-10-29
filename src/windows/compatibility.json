@@ -100,7 +100,8 @@
           "windows.kpcrs.KPCRs": "pending",
           "windows.driverirp.DriverIrp": "pending",
           "windows.malware.drivermodule.DriverModule": "pending",
-          "windows.registry.hivescan.HiveScan": "pending"
+          "windows.registry.hivescan.HiveScan": "pending",
+          "windows.malware.pebmasquerade.PebMasquerade": "pending"
         },
         "x64": {
           "windows.callbacks": "synthetic",
@@ -178,7 +179,8 @@
           "windows.kpcrs.KPCRs": "pending",
           "windows.driverirp.DriverIrp": "pending",
           "windows.malware.drivermodule.DriverModule": "pending",
-          "windows.registry.hivescan.HiveScan": "pending"
+          "windows.registry.hivescan.HiveScan": "pending",
+          "windows.malware.pebmasquerade.PebMasquerade": "pending"
         }
       },
       "evidence": [
@@ -317,7 +319,8 @@
           "windows.kpcrs.KPCRs": "pending",
           "windows.driverirp.DriverIrp": "pending",
           "windows.malware.drivermodule.DriverModule": "pending",
-          "windows.registry.hivescan.HiveScan": "pending"
+          "windows.registry.hivescan.HiveScan": "pending",
+          "windows.malware.pebmasquerade.PebMasquerade": "pending"
         },
         "x64": {
           "windows.callbacks": "synthetic",
@@ -395,7 +398,8 @@
           "windows.kpcrs.KPCRs": "pending",
           "windows.driverirp.DriverIrp": "pending",
           "windows.malware.drivermodule.DriverModule": "pending",
-          "windows.registry.hivescan.HiveScan": "pending"
+          "windows.registry.hivescan.HiveScan": "pending",
+          "windows.malware.pebmasquerade.PebMasquerade": "pending"
         }
       },
       "evidence": []
@@ -494,7 +498,8 @@
           "windows.kpcrs.KPCRs": "real",
           "windows.driverirp.DriverIrp": "real",
           "windows.malware.drivermodule.DriverModule": "real",
-          "windows.registry.hivescan.HiveScan": "real"
+          "windows.registry.hivescan.HiveScan": "real",
+          "windows.malware.pebmasquerade.PebMasquerade": "real"
         },
         "x64": {
           "windows.callbacks": "synthetic",
@@ -572,7 +577,8 @@
           "windows.kpcrs.KPCRs": "pending",
           "windows.driverirp.DriverIrp": "synthetic",
           "windows.malware.drivermodule.DriverModule": "pending",
-          "windows.registry.hivescan.HiveScan": "pending"
+          "windows.registry.hivescan.HiveScan": "pending",
+          "windows.malware.pebmasquerade.PebMasquerade": "pending"
         }
       },
       "evidence": [
@@ -606,7 +612,8 @@
             "windows.kpcrs.KPCRs": 1,
             "windows.driverirp.DriverIrp": 3724,
             "windows.malware.drivermodule.DriverModule": 2,
-            "windows.registry.hivescan.HiveScan": 17
+            "windows.registry.hivescan.HiveScan": 17,
+            "windows.malware.pebmasquerade.PebMasquerade": 48
           },
           "fixture": "images/server2008/memdump.mem",
           "complete": {
@@ -626,7 +633,8 @@
             "windows.netscan": false,
             "windows.driverirp.DriverIrp": false,
             "windows.malware.drivermodule.DriverModule": false,
-            "windows.registry.hivescan.HiveScan": true
+            "windows.registry.hivescan.HiveScan": true,
+            "windows.malware.pebmasquerade.PebMasquerade": false
           }
         }
       ],
@@ -725,7 +733,8 @@
           "windows.kpcrs.KPCRs": "pending",
           "windows.driverirp.DriverIrp": "pending",
           "windows.malware.drivermodule.DriverModule": "pending",
-          "windows.registry.hivescan.HiveScan": "pending"
+          "windows.registry.hivescan.HiveScan": "pending",
+          "windows.malware.pebmasquerade.PebMasquerade": "pending"
         }
       },
       "evidence": [],
@@ -823,7 +832,8 @@
           "windows.kpcrs.KPCRs": "pending",
           "windows.driverirp.DriverIrp": "pending",
           "windows.malware.drivermodule.DriverModule": "pending",
-          "windows.registry.hivescan.HiveScan": "pending"
+          "windows.registry.hivescan.HiveScan": "pending",
+          "windows.malware.pebmasquerade.PebMasquerade": "pending"
         }
       },
       "evidence": [
@@ -967,7 +977,8 @@
           "windows.kpcrs.KPCRs": "pending",
           "windows.driverirp.DriverIrp": "pending",
           "windows.malware.drivermodule.DriverModule": "pending",
-          "windows.registry.hivescan.HiveScan": "pending"
+          "windows.registry.hivescan.HiveScan": "pending",
+          "windows.malware.pebmasquerade.PebMasquerade": "pending"
         }
       },
       "evidence": [
@@ -1112,7 +1123,8 @@
           "windows.kpcrs.KPCRs": "pending",
           "windows.driverirp.DriverIrp": "pending",
           "windows.malware.drivermodule.DriverModule": "pending",
-          "windows.registry.hivescan.HiveScan": "pending"
+          "windows.registry.hivescan.HiveScan": "pending",
+          "windows.malware.pebmasquerade.PebMasquerade": "pending"
         }
       },
       "evidence": [
@@ -1229,7 +1241,8 @@
           "windows.kpcrs.KPCRs": "pending",
           "windows.driverirp.DriverIrp": "pending",
           "windows.malware.drivermodule.DriverModule": "pending",
-          "windows.registry.hivescan.HiveScan": "pending"
+          "windows.registry.hivescan.HiveScan": "pending",
+          "windows.malware.pebmasquerade.PebMasquerade": "pending"
         }
       },
       "evidence": [
@@ -1375,7 +1388,8 @@
           "windows.kpcrs.KPCRs": "pending",
           "windows.driverirp.DriverIrp": "pending",
           "windows.malware.drivermodule.DriverModule": "pending",
-          "windows.registry.hivescan.HiveScan": "pending"
+          "windows.registry.hivescan.HiveScan": "pending",
+          "windows.malware.pebmasquerade.PebMasquerade": "pending"
         }
       },
       "evidence": [
@@ -1521,7 +1535,8 @@
           "windows.kpcrs.KPCRs": "pending",
           "windows.driverirp.DriverIrp": "pending",
           "windows.malware.drivermodule.DriverModule": "pending",
-          "windows.registry.hivescan.HiveScan": "pending"
+          "windows.registry.hivescan.HiveScan": "pending",
+          "windows.malware.pebmasquerade.PebMasquerade": "pending"
         }
       },
       "evidence": [],
@@ -1621,7 +1636,8 @@
           "windows.kpcrs.KPCRs": "pending",
           "windows.driverirp.DriverIrp": "pending",
           "windows.malware.drivermodule.DriverModule": "pending",
-          "windows.registry.hivescan.HiveScan": "pending"
+          "windows.registry.hivescan.HiveScan": "pending",
+          "windows.malware.pebmasquerade.PebMasquerade": "pending"
         },
         "x64": {
           "windows.callbacks": "real",
@@ -1699,7 +1715,8 @@
           "windows.kpcrs.KPCRs": "pending",
           "windows.driverirp.DriverIrp": "pending",
           "windows.malware.drivermodule.DriverModule": "pending",
-          "windows.registry.hivescan.HiveScan": "real"
+          "windows.registry.hivescan.HiveScan": "real",
+          "windows.malware.pebmasquerade.PebMasquerade": "real"
         }
       },
       "evidence": [
@@ -1730,13 +1747,15 @@
             "windows.threads": 743,
             "windows.unloadedmodules": 4,
             "windows.vadinfo": 7265,
-            "windows.registry.hivescan.HiveScan": 16
+            "windows.registry.hivescan.HiveScan": 16,
+            "windows.malware.pebmasquerade.PebMasquerade": 53
           },
           "coverage_notes": {
             "windows.vadinfo": "Tagged legacy AVL parent validation rejects an inconsistent branch. 7265 rows remain, down from 7325 before the validation; keep partial diagnostics rather than traverse the damaged branch."
           },
           "complete": {
-            "windows.registry.hivescan.HiveScan": true
+            "windows.registry.hivescan.HiveScan": true,
+            "windows.malware.pebmasquerade.PebMasquerade": false
           }
         }
       ]
@@ -1834,7 +1853,8 @@
           "windows.kpcrs.KPCRs": "pending",
           "windows.driverirp.DriverIrp": "pending",
           "windows.malware.drivermodule.DriverModule": "pending",
-          "windows.registry.hivescan.HiveScan": "pending"
+          "windows.registry.hivescan.HiveScan": "pending",
+          "windows.malware.pebmasquerade.PebMasquerade": "pending"
         },
         "x64": {
           "windows.callbacks": "synthetic",
@@ -1912,7 +1932,8 @@
           "windows.kpcrs.KPCRs": "pending",
           "windows.driverirp.DriverIrp": "pending",
           "windows.malware.drivermodule.DriverModule": "pending",
-          "windows.registry.hivescan.HiveScan": "pending"
+          "windows.registry.hivescan.HiveScan": "pending",
+          "windows.malware.pebmasquerade.PebMasquerade": "pending"
         }
       },
       "evidence": []
@@ -2010,7 +2031,8 @@
           "windows.kpcrs.KPCRs": "pending",
           "windows.driverirp.DriverIrp": "pending",
           "windows.malware.drivermodule.DriverModule": "pending",
-          "windows.registry.hivescan.HiveScan": "pending"
+          "windows.registry.hivescan.HiveScan": "pending",
+          "windows.malware.pebmasquerade.PebMasquerade": "pending"
         },
         "x64": {
           "windows.callbacks": "synthetic",
@@ -2088,7 +2110,8 @@
           "windows.kpcrs.KPCRs": "pending",
           "windows.driverirp.DriverIrp": "pending",
           "windows.malware.drivermodule.DriverModule": "pending",
-          "windows.registry.hivescan.HiveScan": "pending"
+          "windows.registry.hivescan.HiveScan": "pending",
+          "windows.malware.pebmasquerade.PebMasquerade": "pending"
         }
       },
       "evidence": []
@@ -2199,7 +2222,8 @@
           "windows.kpcrs.KPCRs": "pending",
           "windows.driverirp.DriverIrp": "synthetic",
           "windows.malware.drivermodule.DriverModule": "synthetic",
-          "windows.registry.hivescan.HiveScan": "pending"
+          "windows.registry.hivescan.HiveScan": "pending",
+          "windows.malware.pebmasquerade.PebMasquerade": "pending"
         },
         "x64": {
           "windows.callbacks": "real",
@@ -2277,7 +2301,8 @@
           "windows.kpcrs.KPCRs": "real",
           "windows.driverirp.DriverIrp": "real",
           "windows.malware.drivermodule.DriverModule": "real",
-          "windows.registry.hivescan.HiveScan": "real"
+          "windows.registry.hivescan.HiveScan": "real",
+          "windows.malware.pebmasquerade.PebMasquerade": "real"
         }
       },
       "evidence": [
@@ -2332,12 +2357,14 @@
             "windows.kpcrs.KPCRs": 4,
             "windows.driverirp.DriverIrp": 4255,
             "windows.malware.drivermodule.DriverModule": 3,
-            "windows.registry.hivescan.HiveScan": 22
+            "windows.registry.hivescan.HiveScan": 22,
+            "windows.malware.pebmasquerade.PebMasquerade": 139
           },
           "complete": {
             "windows.driverirp.DriverIrp": false,
             "windows.malware.drivermodule.DriverModule": false,
-            "windows.registry.hivescan.HiveScan": true
+            "windows.registry.hivescan.HiveScan": true,
+            "windows.malware.pebmasquerade.PebMasquerade": false
           }
         },
         {
@@ -2456,7 +2483,8 @@
           "windows.kpcrs.KPCRs": "real",
           "windows.driverirp.DriverIrp": "real",
           "windows.malware.drivermodule.DriverModule": "real",
-          "windows.registry.hivescan.HiveScan": "real"
+          "windows.registry.hivescan.HiveScan": "real",
+          "windows.malware.pebmasquerade.PebMasquerade": "real"
         }
       },
       "evidence": [
@@ -2510,12 +2538,14 @@
             "windows.kpcrs.KPCRs": 4,
             "windows.driverirp.DriverIrp": 3444,
             "windows.malware.drivermodule.DriverModule": 1,
-            "windows.registry.hivescan.HiveScan": 38
+            "windows.registry.hivescan.HiveScan": 38,
+            "windows.malware.pebmasquerade.PebMasquerade": 102
           },
           "complete": {
             "windows.driverirp.DriverIrp": false,
             "windows.malware.drivermodule.DriverModule": false,
-            "windows.registry.hivescan.HiveScan": true
+            "windows.registry.hivescan.HiveScan": true,
+            "windows.malware.pebmasquerade.PebMasquerade": false
           }
         }
       ]

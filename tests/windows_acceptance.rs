@@ -65,6 +65,12 @@ fn public_windows_images() {
             ),
             (Plugin::WinHivelist, expected_hives),
             (
+                Plugin::WinPebMasquerade,
+                fixture["rows"]["windows.malware.pebmasquerade.PebMasquerade"]
+                    .as_u64()
+                    .unwrap() as usize,
+            ),
+            (
                 Plugin::WinHiveScan,
                 fixture["rows"]["windows.registry.hivescan.HiveScan"]
                     .as_u64()

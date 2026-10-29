@@ -81,7 +81,7 @@ pub fn analyze(
     ensure!(options.pids.len() <= 4096, "PID 列表超过 4096 项");
     ensure!(
         options.pids.is_empty() || request.plugin.accepts_pid_list(),
-        "pids 当前仅用于 VmaRegExScan / VadRegExScan / VadWalk / PsCallStack"
+        "此插件不支持 PID 列表"
     );
     ensure!(
         options.maxsize.is_none() || request.plugin.is_regex_scan(),

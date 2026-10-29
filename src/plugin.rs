@@ -4,6 +4,11 @@ use clap::ValueEnum;
 #[derive(Clone, Copy, Debug, ValueEnum, PartialEq, Eq)]
 pub enum Plugin {
     #[value(
+        name = "windows.malware.pebmasquerade.PebMasquerade",
+        alias = "windows.pebmasquerade"
+    )]
+    WinPebMasquerade,
+    #[value(
         name = "windows.registry.hivescan.HiveScan",
         alias = "windows.hivescan"
     )]
@@ -267,6 +272,20 @@ pub struct Descriptor {
     pub widths: &'static [u16],
 }
 pub const PLUGINS: &[Descriptor] = &[
+    Descriptor {
+        plugin: Plugin::WinPebMasquerade,
+        name: "windows.malware.pebmasquerade.PebMasquerade",
+        label: "pebmasquerade",
+        columns: &[
+            "PID",
+            "EPROCESS_ImageFileName",
+            "EPROCESS_SeAudit_ImageFileName",
+            "PEB_ImageFilePath",
+            "PEB_ImageFilePath_Spoofed",
+            "PEB_CommandLine_Spoofed",
+        ],
+        widths: &[8, 18, 30, 30, 12, 12],
+    },
     Descriptor {
         plugin: Plugin::WinLdrmodules,
         name: "windows.ldrmodules",
@@ -1729,7 +1748,11 @@ impl Plugin {
         matches!(self, Self::VmaRegExScan | Self::WinVadRegExScan)
     }
     pub fn accepts_pid_list(self) -> bool {
-        self.is_regex_scan() || matches!(self, Self::PsCallStack | Self::WinVadWalk)
+        self.is_regex_scan()
+            || matches!(
+                self,
+                Self::PsCallStack | Self::WinVadWalk | Self::WinPebMasquerade
+            )
     }
     pub fn descriptor(self) -> &'static Descriptor {
         PLUGINS.iter().find(|d| d.plugin == self).unwrap()
@@ -1763,7 +1786,8 @@ impl Plugin {
     pub fn category(self) -> &'static str {
         match self {
             Self::WinSysteminfo => "System",
-            Self::WinLdrmodules
+            Self::WinPebMasquerade
+            | Self::WinLdrmodules
             | Self::WinHollowprocesses
             | Self::WinSuspiciousThreads
             | Self::CheckExec => "Integrity",
@@ -1898,6 +1922,7 @@ impl Plugin {
         use Plugin::*;
         match self {
             Fbdev => "列举 fbdev framebuffer；可显式导出 PNG 或原始像素",
+            WinPebMasquerade => "对照 EPROCESS、审计和 PEB 路径，检查映像路径及命令行长度异常",
             WinLdrmodules => "对照 PE 映射与三条 PEB 模块链表",
             WinHollowprocesses => "检查主程序基址及映像映射异常",
             WinSuspiciousThreads => "检查活动线程起点所在的 VAD",

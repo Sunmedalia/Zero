@@ -324,3 +324,20 @@ BigPools iterator reads the count as ULONG and retries entries around missing
 pages. Native46/native47 Win10 and Win11 BigPools rows match exactly (30323 / 8442).
 See `hivescan-known-limitations.json` for hashes and bounded evidence. These four
 positive cases raise the count to 49 (5 scoped), not whole-plugin certification.
+
+Native48 adds `windows.malware.pebmasquerade.PebMasquerade` (alias
+`windows.pebmasquerade`), including PID union/deduplication and six output fields.
+`pebmasquerade.example.json` retains four default cases and three explicit Win10
+PID invocations. Win10 / Server2008 x86 / Win7 default cases match 139 / 48 / 53
+records. Win11 remains a failed default comparison: 102 native versus 103 reference
+records, with one invalid reference PID above u32 from the damaged process list.
+It is never silently filtered or accepted. Native keeps the invalid-object diagnostic.
+The pinned generator swaps ImagePathName/CommandLine flags relative to its column
+labels; the reviewed mapping explicitly swaps the reference fields, while native
+labels name the descriptor actually checked. Optional paths absent on both sides
+are counted as matched_absent, not recovered data; one-sided absence still fails.
+All real results remain partial. The scalar-based UTF-16 length test is a heuristic,
+not a malware verdict, and missing PEB input does not prove a clean process.
+Six new unit tests cover independent flags, capacity inconsistencies, replacement
+UTF-16/NUL decoding, null pointers, missing fields, PID unions and cancellation.
+See `pebmasquerade-known-differences.json` for hashes, coverage and negative evidence.

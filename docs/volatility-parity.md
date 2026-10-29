@@ -621,3 +621,32 @@ HiveScan 四份完整字段差分：Win10 15063 x64 为 22 / 22，Server 2008 60
 Windows 13 项通过（Server 2012 R2 样本仍缺失，未计入）。入口对应提升至 111/135，
 尚缺 24 个 Windows 正式插件；正向差分 49 项，其中 5 项限定范围，覆盖 9 个 Linux /
 5 个 Windows 插件。完整插件合同仍为 0；原用户镜像尚未取得，未验收其故障是否解决。
+
+Windows PebMasquerade（native48）：新增
+`windows.malware.pebmasquerade.PebMasquerade`（短别名 `windows.pebmasquerade`），输出
+PID、EPROCESS 短名、审计路径、原生 PEB 映像路径及路径/命令行长度异常标志六列。
+包括仍在活动链表中的已退出进程；WOW64 进程也使用原生 EPROCESS.Peb，保持参考视图。
+`--pid` 和 `--pids` 取并集并去重，TUI 使用既有 PID 列表控件，最多 4096 个列表项。
+
+长度检查独立于字符串提取，不以 Length <= MaximumLength 为读取先决条件，因此可读的
+异常容量字段仍能产生线索。UTF-16 使用替换解码和 NUL 终止，按 Unicode scalar 数与
+Length/2、MaximumLength/2-1 比较；空字符串不检查。两条描述符分别检查，读取失败
+保留其他字段与 partial 诊断。true 只表示描述符长度异常，false 只表示未建立异常，
+均不是恶意/无恶意结论；空 PEB 或空审计指针也不是路径恢复证据。ARM64 明确不支持。
+
+固定参考的生成器将 CommandLine 标志写入 ImageFilePath 列，反之亦然；Zero 保持列名
+与实际描述符相符，差分映射显式交换参考两列，不改变字段内容或筛掉行。审计和 PEB
+路径两侧均缺失时只计 matched_absent，不声称恢复；单侧缺失仍失败。
+
+实际默认六字段差分：Win10 15063 x64 为 139 / 139，Server 2008 6001 x86 为 48 / 48，
+Win7 7601 x64 为 53 / 53，均无缺失、额外或可读字段冲突。Win11 22000 x64 为
+102 / 103：参考多输出一个 PID 超过 32 位、来自损坏链表的无效 EPROCESS，Zero 保留
+无效对象诊断而不输出伪进程。这份默认差分仍记录为失败，不排除行来制造通过。
+另有 Win10 PID 4、PID 468 及二者 PID 并集三项调用通过。全部实际结果保持 partial。
+配置见 [PebMasquerade 差分配置](../tests/reference/parity/pebmasquerade.example.json)，
+详情见 [已知差异](../tests/reference/parity/pebmasquerade-known-differences.json)。
+
+本批新增 6 项合成测试，make check 通过 535 Rust / 19 Python；实际回归 Linux 4 项、
+Windows 13 项通过，Server 2012 R2 仍无样本。入口对应提升至 112/135，尚缺 23 个
+Windows 正式插件；独立正向用例 55 项（5 项限定范围，另含本批 3 项显式 PID 调用），
+覆盖 9 个 Linux / 6 个 Windows 插件。完整插件合同仍为 0；原用户镜像仍未取得。

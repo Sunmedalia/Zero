@@ -1,0 +1,181 @@
+{
+  "schema_version": 1,
+  "engine_version": "0.2.1-native-48",
+  "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+  "zero_executable_sha256": "b929fe880e2c55018976df302c38661edd5281204d80664ef42a39d53ee6d25d",
+  "source_sha256": {
+    "plugins/windows/malware/pebmasquerade.py": "172e508e33255d29b0e538d6681e96fc4e8535c4de9ee416fa5a8d4c5241b9b0",
+    "plugins/windows/pslist.py": "84b789194eb6ce74b59253273850246fb419764b13a6938bd7c07305f8b5b893",
+    "symbols/windows/extensions/__init__.py": "0dcec42856599feaa0f530948ea381c2c35e452233a3b5b683af95badb8da357"
+  },
+  "mapping_review": "Pinned generator emits cmdline flag under the image-path column and image-path flag under the cmdline column. Native labels follow the descriptor actually read; the mapping explicitly exchanges reference columns, preserving both flags.",
+  "cases": [
+    {
+      "case_id": "windows-10-15063/pebmasquerade-default",
+      "image_sha256": "d58f62e92b8c4ef913ac09b2c36a10482034c10b88d0c154dead3aaaa49cf875",
+      "symbol_sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4",
+      "native_output_sha256": "a60bd39908c379c130585c71ee1271be3609490568c077e6adc533c82649e303",
+      "reference_output_sha256": "6cd1ab6d4d683e0cc87c7b0ffb902247f97af1e36612d2ab7eeb09b93b867781",
+      "mapping_sha256": "128086cdf1a2aa1c5e388b205d2b7689ec0f3090a9d3ad2ce0f4a1fc82e4af56",
+      "passed": true,
+      "native_records": 139,
+      "reference_records": 139,
+      "complete": false,
+      "diagnostic_count": 25,
+      "matched_absent": {
+        "PEB_ImageFilePath": 15,
+        "EPROCESS_SeAudit_ImageFileName": 1
+      },
+      "unverifiable_count": 0,
+      "missing_reference_records": 0,
+      "extra_native_records": 0,
+      "field_conflicts": 0,
+      "image_path_length_flags": 0,
+      "command_line_length_flags": 1
+    },
+    {
+      "case_id": "server-2008-6001-x86/pebmasquerade-default",
+      "image_sha256": "d3b13f2224cab20440a4bb3c5c971662be6e61f431340f319cef7312bb6177f4",
+      "symbol_sha256": "5d73f3a7158ba8b72394f2606ea5b4f03393976d5054a11cc51d51afb88a5544",
+      "native_output_sha256": "a6788ee98cfb79253caeddac32a075d951921025d7a864ec9a9ef1fc3e7d18de",
+      "reference_output_sha256": "6d5899027ec3ecd4c51df6a062fd7d2a2dac0bcab85b8517138c740702a29f2b",
+      "mapping_sha256": "128086cdf1a2aa1c5e388b205d2b7689ec0f3090a9d3ad2ce0f4a1fc82e4af56",
+      "passed": true,
+      "native_records": 48,
+      "reference_records": 48,
+      "complete": false,
+      "diagnostic_count": 16,
+      "matched_absent": {
+        "PEB_ImageFilePath": 13,
+        "EPROCESS_SeAudit_ImageFileName": 1
+      },
+      "unverifiable_count": 0,
+      "missing_reference_records": 0,
+      "extra_native_records": 0,
+      "field_conflicts": 0,
+      "image_path_length_flags": 0,
+      "command_line_length_flags": 2
+    },
+    {
+      "case_id": "windows-11/pebmasquerade-default",
+      "image_sha256": "0f00815b8f78f30a63d742c73152474b2a3c35183dbb1d92c8fc6a81fa3de9f1",
+      "symbol_sha256": "6a234099b69b393eb7d652408835205bd12f0b947d0d6b6275e2ffce8ca9c133",
+      "native_output_sha256": "c3bb9bfd2ea72e22d9c22fcf47ff4ece8c28537c4dd63c8f99bf09b9456e6e7b",
+      "reference_output_sha256": "3324b21a3414cfcf9a854e6bd6d541128d94accd30fc2041327630870ab711c7",
+      "mapping_sha256": "128086cdf1a2aa1c5e388b205d2b7689ec0f3090a9d3ad2ce0f4a1fc82e4af56",
+      "passed": false,
+      "native_records": 102,
+      "reference_records": 103,
+      "complete": false,
+      "diagnostic_count": 11,
+      "matched_absent": {
+        "PEB_ImageFilePath": 9,
+        "EPROCESS_SeAudit_ImageFileName": 1
+      },
+      "unverifiable_count": 0,
+      "missing_reference_records": 1,
+      "extra_native_records": 0,
+      "field_conflicts": 0,
+      "image_path_length_flags": 0,
+      "command_line_length_flags": 1
+    },
+    {
+      "case_id": "windows-7-7601-x64/pebmasquerade-default",
+      "image_sha256": "80366d7ec64a5529c95c2f523f4281a5f11efbad33ecb19f73525470c1407b23",
+      "symbol_sha256": "6d5f85f7b953330b9762a57e5a25266547e7391ad4f6655170a9f48876fb6b8c",
+      "native_output_sha256": "9884834af0c33dba17dba4952e8f5a3834b5d449e0351a5385a44ed469ac56cb",
+      "reference_output_sha256": "9d126cd55e28526df51e707a57c38a7ccdff4f315650b97431078e20407f6eeb",
+      "mapping_sha256": "128086cdf1a2aa1c5e388b205d2b7689ec0f3090a9d3ad2ce0f4a1fc82e4af56",
+      "passed": true,
+      "native_records": 53,
+      "reference_records": 53,
+      "complete": false,
+      "diagnostic_count": 6,
+      "matched_absent": {
+        "PEB_ImageFilePath": 5,
+        "EPROCESS_SeAudit_ImageFileName": 1
+      },
+      "unverifiable_count": 0,
+      "missing_reference_records": 0,
+      "extra_native_records": 0,
+      "field_conflicts": 0,
+      "image_path_length_flags": 1,
+      "command_line_length_flags": 4
+    },
+    {
+      "case_id": "windows-10-15063/pebmasquerade-pid-4",
+      "image_sha256": "d58f62e92b8c4ef913ac09b2c36a10482034c10b88d0c154dead3aaaa49cf875",
+      "symbol_sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4",
+      "native_output_sha256": "0bafed3e271fd857bf3fcaec83319aeec071ab6d00151b14b455d422f45c3254",
+      "reference_output_sha256": "5d71ec946029df3445496e9f8650ca6f2bd0d1e64b6affcacf5a7f601030d529",
+      "mapping_sha256": "128086cdf1a2aa1c5e388b205d2b7689ec0f3090a9d3ad2ce0f4a1fc82e4af56",
+      "passed": true,
+      "native_records": 1,
+      "reference_records": 1,
+      "complete": false,
+      "diagnostic_count": 8,
+      "matched_absent": {
+        "EPROCESS_SeAudit_ImageFileName": 1,
+        "PEB_ImageFilePath": 1
+      },
+      "unverifiable_count": 0,
+      "missing_reference_records": 0,
+      "extra_native_records": 0,
+      "field_conflicts": 0,
+      "image_path_length_flags": 0,
+      "command_line_length_flags": 0
+    },
+    {
+      "case_id": "windows-10-15063/pebmasquerade-pid-468",
+      "image_sha256": "d58f62e92b8c4ef913ac09b2c36a10482034c10b88d0c154dead3aaaa49cf875",
+      "symbol_sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4",
+      "native_output_sha256": "4d55c603c0e8189709d9d24a6f3d26b383cd42a868aad0ead2c047fc6bf2c773",
+      "reference_output_sha256": "8b18f8cc7c1d2e99b6fdd35093d9f34d0e19d0a7a253bf8b115fecf53c154b0b",
+      "mapping_sha256": "128086cdf1a2aa1c5e388b205d2b7689ec0f3090a9d3ad2ce0f4a1fc82e4af56",
+      "passed": true,
+      "native_records": 1,
+      "reference_records": 1,
+      "complete": false,
+      "diagnostic_count": 8,
+      "matched_absent": {},
+      "unverifiable_count": 0,
+      "missing_reference_records": 0,
+      "extra_native_records": 0,
+      "field_conflicts": 0,
+      "image_path_length_flags": 0,
+      "command_line_length_flags": 0
+    },
+    {
+      "case_id": "windows-10-15063/pebmasquerade-pid-union",
+      "image_sha256": "d58f62e92b8c4ef913ac09b2c36a10482034c10b88d0c154dead3aaaa49cf875",
+      "symbol_sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4",
+      "native_output_sha256": "99957e591ef538e867ac3d00924bd9d12de94783125e886bd46b80cd15e55fa9",
+      "reference_output_sha256": "70f50f0f35297e0ff72fa47ae6e6f56723fc5a70e6543b1dac6a32efb719a3d8",
+      "mapping_sha256": "128086cdf1a2aa1c5e388b205d2b7689ec0f3090a9d3ad2ce0f4a1fc82e4af56",
+      "passed": true,
+      "native_records": 2,
+      "reference_records": 2,
+      "complete": false,
+      "diagnostic_count": 8,
+      "matched_absent": {
+        "EPROCESS_SeAudit_ImageFileName": 1,
+        "PEB_ImageFilePath": 1
+      },
+      "unverifiable_count": 0,
+      "missing_reference_records": 0,
+      "extra_native_records": 0,
+      "field_conflicts": 0,
+      "image_path_length_flags": 0,
+      "command_line_length_flags": 0
+    }
+  ],
+  "limitations": [
+    "Win11 default differential remains failed (102 native vs 103 reference). One reference PID exceeds u32 in a damaged process chain. Native rejects it; no reference filtering or false passing status.",
+    "Both-sided absent optional audit/PEB paths are counted as matched_absent, never recovered data. One-sided absence still fails. All native real-image results are partial.",
+    "True is only a Unicode descriptor length mismatch (including spare MaximumLength capacity and surrogate code-point/unit differences), not proof of malicious masquerading. False does not prove clean inputs when descriptors are absent or unreadable.",
+    "Native EPROCESS.Peb is used for WOW64 processes as in the reference; no separate WOW64 PEB view is substituted.",
+    "PID list supports up to 4096 items, unions --pid/--pids and deduplicates. Real cases cover single PID, null-PEB kernel PID and union selection.",
+    "Only x86/x64 are supported. Additional Windows builds, confirmed masquerading attacks and broader damaged-input cases still require validation.",
+    "Original user image c8f6a7f79a5a83d238b1ff16c2a51277d56b6e16580f7db5706b38bcfd5a5c66 remains unavailable and untested."
+  ]
+}

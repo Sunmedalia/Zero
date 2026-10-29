@@ -42,6 +42,7 @@ mod network_layout;
 mod objects;
 pub mod paging;
 mod pe_info;
+mod peb_masquerade;
 mod pool;
 mod process;
 mod process_checks;
@@ -565,6 +566,9 @@ impl Windows<'_> {
     }
     pub fn run(&self, p: Plugin, options: &Options, job: &Job) -> Result<Results> {
         job.check()?;
+        if p == Plugin::WinPebMasquerade {
+            return self.peb_masquerade(options, job);
+        }
         if p == Plugin::WinDriverModule {
             return self.driver_module(job);
         }
