@@ -594,3 +594,30 @@ Win11 22000 x64 为 1 / 1，均无缺失、额外记录、重复或字段冲突�
 110/135，尚缺 25 个 Windows 正式插件；正向差分用例 45 项，其中 5 项限定范围，
 覆盖 9 个 Linux / 4 个 Windows 插件。完整插件合同仍为 0，更多隐藏驱动攻击样本、
 更广构建和损坏场景仍需补齐。
+
+Windows HiveScan（native47）：新增 `windows.registry.hivescan.HiveScan`
+（短别名 `windows.hivescan`），输出 Offset 一列。Windows 8.1+ x64 按 CM10 标签
+枚举已分配大页池表项；较旧系统扫描 CM10 小池头，保留 paged/free 且总块大小至少
+800 字节的候选。Win10 x86 按内核虚拟映射保留别名；较旧系统输出物理地址。
+
+按固定参考的实际语义，不额外要求小池头地址对齐，也不验证 CMHIVE 签名或活动链表。
+Win7 样本中有 4 个来自普通 CM10 文本的候选，参考也输出这些记录；候选字段不证明
+其为真实或活动 hive。结果元数据明确说明 allocation candidates。未映射候选、
+缺页及数量/布局边界均保留失败或 partial 诊断；ARM64 明确不支持。
+
+大页池共用读取器改为按 4 字节 ULONG 读取表项数；遇到缺页的批次逐项重读，保留
+缺页两侧的可读记录。正 Key、Va 低位为零是已分配项条件，Va 为零本身不额外排除。
+BigPools 两份实际镜像回归与 native46 逐行一致，Win10 为 30323 条、Win11 为 8442 条。
+这不代表 BigPools 的全部字段、参数或参考静态布局回退已经对齐。
+
+HiveScan 四份完整字段差分：Win10 15063 x64 为 22 / 22，Server 2008 6001 x86 为
+17 / 17，Win11 22000 x64 为 38 / 38，Win7 7601 x64 为 16 / 16，均无缺失、额外、
+重复或字段冲突。四份均无读取诊断；complete 只表示本次分配候选扫描没有发现读取
+故障，不证明没有隐藏 hive 或每个候选均为真实 hive。配置见
+[HiveScan 差分配置](../tests/reference/parity/hivescan.example.json)，边界和版本回归见
+[HiveScan 验收记录](../tests/reference/parity/hivescan-known-limitations.json)。
+
+本批新增 6 项合成测试，make check 通过 529 Rust / 19 Python；实际回归 Linux 4 项、
+Windows 13 项通过（Server 2012 R2 样本仍缺失，未计入）。入口对应提升至 111/135，
+尚缺 24 个 Windows 正式插件；正向差分 49 项，其中 5 项限定范围，覆盖 9 个 Linux /
+5 个 Windows 插件。完整插件合同仍为 0；原用户镜像尚未取得，未验收其故障是否解决。

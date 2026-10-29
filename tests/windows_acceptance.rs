@@ -65,6 +65,12 @@ fn public_windows_images() {
             ),
             (Plugin::WinHivelist, expected_hives),
             (
+                Plugin::WinHiveScan,
+                fixture["rows"]["windows.registry.hivescan.HiveScan"]
+                    .as_u64()
+                    .unwrap() as usize,
+            ),
+            (
                 Plugin::WinKpcrs,
                 fixture["rows"]["windows.kpcrs.KPCRs"].as_u64().unwrap() as usize,
             ),
@@ -134,6 +140,18 @@ fn public_windows_images() {
             };
             assert_eq!(result.system, "windows");
             assert_eq!(result.rows.len(), expected, "{variable} {plugin:?}");
+            if let Some(complete) = fixture["complete"][plugin.name()].as_bool() {
+                assert_eq!(result.complete, complete, "{variable} {plugin:?} coverage");
+            }
+            if plugin == Plugin::WinHiveScan {
+                assert_eq!(result.columns, ["Offset"]);
+                assert!(
+                    result.kernel_identity["hive_scan"]["validation"]
+                        .as_str()
+                        .unwrap()
+                        .contains("allocation candidates")
+                );
+            }
             assert_eq!(
                 result.kernel_identity["registry_process"]["kernel_dtb"]
                     .as_u64()

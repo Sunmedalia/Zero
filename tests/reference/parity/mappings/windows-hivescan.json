@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "keys": [
+    "Offset"
+  ],
+  "fields": {
+    "Offset": {
+      "zero": "Offset",
+      "reference": "Offset",
+      "type": "address",
+      "reference_type": "address48"
+    }
+  }
+}

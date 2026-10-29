@@ -6,7 +6,7 @@ use std::collections::BTreeSet;
 /// one pass so the remaining scans in a session reuse the hits.
 const POOL_TAGS: &[&[u8]] = &[
     b"File", b"Fil\xe5", b"Muta", b"Mut\xe1", b"Driv", b"Dri\xf6", b"Proc", b"Pro\xe3", b"TcpL",
-    b"UdpA", b"TcpE", b"TTcb", b"MmLd", b"Symb", b"Sym\xe2",
+    b"UdpA", b"TcpE", b"TTcb", b"MmLd", b"Symb", b"Sym\xe2", b"CM10",
 ];
 impl Windows<'_> {
     pub(super) fn prefetch_pool_tags(&self, job: &Job) -> Result<()> {

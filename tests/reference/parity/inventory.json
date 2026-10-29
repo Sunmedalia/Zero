@@ -7702,8 +7702,10 @@
       "declared_columns": [
         "Offset"
       ],
-      "zero_candidates": [],
-      "status": "missing",
+      "zero_candidates": [
+        "windows.registry.hivescan.HiveScan"
+      ],
+      "status": "mapped_unverified",
       "evidence": []
     },
     {

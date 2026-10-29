@@ -31,6 +31,7 @@ mod drivers;
 mod dump;
 mod files;
 pub mod hiber;
+mod hive_scan;
 mod integrity;
 mod legacy_network;
 mod malware;
@@ -691,6 +692,9 @@ impl Windows<'_> {
         }
         if p == Plugin::WinDevicetree {
             return self.devicetree(job);
+        }
+        if p == Plugin::WinHiveScan {
+            return self.hive_scan(job);
         }
         if p == Plugin::WinHivelist {
             return self.registry(p, options, job);

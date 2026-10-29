@@ -309,3 +309,18 @@ module/name/range data remains diagnostic, and ARM64 is rejected. The six
 synthetic tests plus actual differential cases are still insufficient to establish
 a whole-plugin contract, including malicious hidden-driver and damaged-input
 coverage. No recovered row values are stored in committed evidence.
+
+Native47 adds `windows.registry.hivescan.HiveScan` (alias `windows.hivescan`).
+`hivescan.example.json` checks its single Offset column on Win10 x64, Server 2008
+x86, Win11 x64 and Win7 x64: 22 / 17 / 38 / 16 candidates, respectively. Modern
+x64 uses allocated CM10 big-pool entries; older builds use paged/free small-pool
+headers with total size >= 800. Win10 x86 retains verified virtual aliases.
+The reference imposes neither header-address alignment nor CMHIVE signature
+validation: four Win7 candidates are incidental CM10 text. These are candidate
+positions, not proof of live hives. No extra filtering hides reference records.
+Missing mappings/pages and invalid layouts remain diagnostic; ARM64 and the
+reference's static big-pool layout fallback remain unsupported here. The shared
+BigPools iterator reads the count as ULONG and retries entries around missing
+pages. Native46/native47 Win10 and Win11 BigPools rows match exactly (30323 / 8442).
+See `hivescan-known-limitations.json` for hashes and bounded evidence. These four
+positive cases raise the count to 49 (5 scoped), not whole-plugin certification.

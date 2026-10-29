@@ -4,6 +4,11 @@ use clap::ValueEnum;
 #[derive(Clone, Copy, Debug, ValueEnum, PartialEq, Eq)]
 pub enum Plugin {
     #[value(
+        name = "windows.registry.hivescan.HiveScan",
+        alias = "windows.hivescan"
+    )]
+    WinHiveScan,
+    #[value(
         name = "windows.malware.drivermodule.DriverModule",
         alias = "windows.drivermodule"
     )]
@@ -620,6 +625,13 @@ pub const PLUGINS: &[Descriptor] = &[
             "CreateTime",
         ],
         widths: &[12, 12, 12, 12, 12, 12, 0, 12],
+    },
+    Descriptor {
+        plugin: Plugin::WinHiveScan,
+        name: "windows.registry.hivescan.HiveScan",
+        label: "hivescan",
+        columns: &["Offset"],
+        widths: &[18],
     },
     Descriptor {
         plugin: Plugin::WinHivelist,
@@ -1781,7 +1793,7 @@ impl Plugin {
             Self::WinHandles => "Files",
             Self::WinMalfind => "Integrity",
             Self::WinNetscan => "Network",
-            Self::WinHivelist => "Files",
+            Self::WinHivelist | Self::WinHiveScan => "Files",
             Self::WinPrintkey => "Files",
             Self::WinPsscan => "Integrity",
             Self::WinPsxview => "Integrity",
@@ -1957,6 +1969,7 @@ impl Plugin {
             WinCrashinfo => "读取转储容器故障信息，无需完整内核符号",
             WinAutoruns => "查看注册表自启动配置",
             WinDlllist => "列出进程加载的 DLL",
+            WinHiveScan => "按构建版本扫描 CM10 小池或大页池中的注册表 hive 候选",
             WinHivelist => "列出注册表 hive 地址",
             WinPrintkey => "读取指定 hive 中的注册表键",
             WinPsscan => "扫描进程对象",

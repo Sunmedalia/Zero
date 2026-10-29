@@ -195,33 +195,30 @@ const DEVICE_LIMIT: usize = 4096;
 const ATTACH_LIMIT: usize = 64;
 
 impl Windows<'_> {
-    /// windows.bigpools: allocated entries of PoolBigPageTable.
-    pub(super) fn bigpools(&self, job: &Job) -> Result<Results> {
-        let mut r = self.result(Plugin::WinBigpools);
+    /// Enumerate allocated big-pool entries. Count is Windows ULONG (4 bytes),
+    /// independent of pointer width. Failed chunk reads retry individual entries
+    /// so one absent page cannot hide readable allocations elsewhere in a run.
+    pub(super) fn walk_big_pool_entries(
+        &self,
+        r: &mut Results,
+        job: &Job,
+        mut visit: impl FnMut(u64, u32, &[u8], &mut Results) -> Result<()>,
+    ) -> Result<()> {
         let ty = "_POOL_TRACKER_BIG_PAGES";
-        let table = self.vm.pointer(
-            self.symbol("PoolBigPageTable")
-                .context("不支持: 缺少 PoolBigPageTable")?,
-        )?;
-        let count = self.vm.pointer(
-            self.symbol("PoolBigPageTableSize")
-                .context("不支持: 缺少 PoolBigPageTableSize")?,
-        )?;
-        ensure!(
-            self.vm.kernel(table) && count > 0 && count <= BIG_PAGE_LIMIT,
-            "PoolBigPageTable 无效"
-        );
+        let table = self.vm.pointer(self.symbol("PoolBigPageTable")?)?;
+        let count = self.vm.uint(self.symbol("PoolBigPageTableSize")?, 4)?;
+        ensure!(count <= BIG_PAGE_LIMIT, "PoolBigPageTableSize 超限");
+        if count == 0 {
+            return Ok(());
+        }
+        ensure!(self.vm.kernel(table), "PoolBigPageTable 指针无效");
         let size = self.vm.isf.data["user_types"][ty]["size"]
             .as_u64()
-            .context("不支持: 缺少 _POOL_TRACKER_BIG_PAGES")?;
+            .context("缺少 _POOL_TRACKER_BIG_PAGES")?;
         ensure!((8..=64).contains(&size), "大页池表项大小无效");
-        let bytes_field = if self.vm.isf.field(ty, "NumberOfBytes").is_ok() {
-            "NumberOfBytes"
-        } else {
-            "Size"
-        };
-        let pool_type = self.vm.isf.field(ty, "PoolType").is_ok();
-        // Read the table a page-run at a time; it can hold a million entries.
+        table
+            .checked_add(count.checked_mul(size).context("大页池表长度溢出")?)
+            .context("大页池表范围溢出")?;
         let per_chunk = (64 * 1024 / size).max(1);
         let mut index = 0;
         while index < count {
@@ -229,50 +226,79 @@ impl Windows<'_> {
             let n = per_chunk.min(count - index);
             let mut chunk = vec![0; (n * size) as usize];
             let start = add(table, index * size)?;
-            if let Err(e) = self.vm.read(start, &mut chunk) {
-                Self::issue(
-                    &mut r,
-                    format!("PoolBigPageTable[{index}..{}]", index + n),
-                    format!("{e:#}"),
-                );
-                index += n;
-                continue;
-            }
-            for entry in chunk.chunks_exact(size as usize) {
-                let isf = self.vm.isf;
-                let va = objects::physical_number(isf, entry, ty, "Va")?;
-                // The low bit marks a free entry.
-                if va == 0 || va & 1 != 0 {
+            let whole = self.vm.read(start, &mut chunk).is_ok();
+            let mut missing = 0usize;
+            let mut first_error = String::new();
+            for (delta, entry) in chunk.chunks_exact_mut(size as usize).enumerate() {
+                job.check()?;
+                if !whole && let Err(error) = self.vm.read(add(start, delta as u64 * size)?, entry)
+                {
+                    missing += 1;
+                    if first_error.is_empty() {
+                        first_error = format!("{error:#}");
+                    }
                     continue;
                 }
-                let key = objects::physical_number(isf, entry, ty, "Key")? as u32;
-                let tag: String = key
-                    .to_le_bytes()
-                    .iter()
-                    .map(|b| {
-                        let b = b & 0x7f;
-                        if b.is_ascii_graphic() || b == b' ' {
-                            b as char
-                        } else {
-                            '.'
-                        }
-                    })
-                    .collect();
-                r.rows.push(vec![
-                    hex(va),
-                    tag,
-                    if pool_type {
-                        format!(
-                            "{:#x}",
-                            objects::physical_number(isf, entry, ty, "PoolType")?
-                        )
-                    } else {
-                        String::new()
-                    },
-                    objects::physical_number(isf, entry, ty, bytes_field)?.to_string(),
-                ]);
+                let key = objects::physical_number(self.vm.isf, entry, ty, "Key")? as u32;
+                let va = objects::physical_number(self.vm.isf, entry, ty, "Va")?;
+                if key == 0 || va & 1 != 0 {
+                    continue;
+                }
+                visit(va, key, entry, r)?;
+            }
+            if missing > 0 {
+                Self::issue(
+                    r,
+                    format!("PoolBigPageTable[{index}..{}]", index + n),
+                    format!("{missing} 个表项不可读；保留其余可读项；{first_error}"),
+                );
             }
             index += n;
+        }
+        Ok(())
+    }
+    /// windows.bigpools: allocated entries of PoolBigPageTable.
+    pub(super) fn bigpools(&self, job: &Job) -> Result<Results> {
+        let mut r = self.result(Plugin::WinBigpools);
+        let ty = "_POOL_TRACKER_BIG_PAGES";
+        let bytes_field = if self.vm.isf.has_field(ty, "NumberOfBytes") {
+            "NumberOfBytes"
+        } else {
+            "Size"
+        };
+        let pool_type = self.vm.isf.has_field(ty, "PoolType");
+        let read = self.walk_big_pool_entries(&mut r, job, |va, key, entry, r| {
+            ensure!(r.rows.len() < MAX_OBJECTS, "大页池输出数量超限");
+            let tag: String = key
+                .to_le_bytes()
+                .iter()
+                .map(|b| {
+                    let b = b & 0x7f;
+                    if b.is_ascii_graphic() || b == b' ' {
+                        b as char
+                    } else {
+                        '.'
+                    }
+                })
+                .collect();
+            r.rows.push(vec![
+                hex(va),
+                tag,
+                if pool_type {
+                    format!(
+                        "{:#x}",
+                        objects::physical_number(self.vm.isf, entry, ty, "PoolType")?
+                    )
+                } else {
+                    String::new()
+                },
+                objects::physical_number(self.vm.isf, entry, ty, bytes_field)?.to_string(),
+            ]);
+            Ok(())
+        });
+        if let Err(error) = read {
+            job.check()?;
+            Self::issue(&mut r, "BigPools", format!("{error:#}"));
         }
         Ok(r)
     }
@@ -741,7 +767,7 @@ mod tests {
         for (index, va, tag, bytes) in [
             (0usize, K + 0x20000, b"Ntfx", 0x2000u64),
             (1, K + 0x30001, b"Free", 0x1000), // low bit: free
-            (2, 0, b"None", 0),
+            (2, 0, b"\0\0\0\0", 0),
         ] {
             let at = 0xe100 + index * 24;
             put(&mut b, at, va);
