@@ -47,7 +47,7 @@ const OPTIONAL_HEADERS: [&str; 9] = [
 
 impl Windows<'_> {
     /// Pool bodies are retained independently of DriverStart/extension state.
-    fn dispatch_drivers(&self, r: &mut Results, job: &Job) -> Result<Vec<(u64, u64)>> {
+    pub(super) fn dispatch_drivers(&self, r: &mut Results, job: &Job) -> Result<Vec<(u64, u64)>> {
         let isf = self.vm.isf;
         let build = self.build_number()?;
         let modern = build >= 9200;
@@ -363,12 +363,16 @@ impl Windows<'_> {
 }
 
 #[cfg(test)]
-mod tests {
+pub(super) mod tests {
     use super::super::tests::{K, fixture, image, put};
     use super::*;
     use serde_json::json;
 
-    fn driver_fixture(x86: bool, modern: bool, protected: bool) -> (Vec<u8>, Isf, u64, u64) {
+    pub(in crate::windows) fn driver_fixture(
+        x86: bool,
+        modern: bool,
+        protected: bool,
+    ) -> (Vec<u8>, Isf, u64, u64) {
         let (mut bytes, mut isf) = fixture();
         let base = if x86 { 0x80000000 } else { K };
         let width = if x86 { 4 } else { 8 };

@@ -98,7 +98,8 @@
           "windows.vadregexscan.VadRegExScan": "pending",
           "windows.vadwalk.VadWalk": "synthetic",
           "windows.kpcrs.KPCRs": "pending",
-          "windows.driverirp.DriverIrp": "pending"
+          "windows.driverirp.DriverIrp": "pending",
+          "windows.malware.drivermodule.DriverModule": "pending"
         },
         "x64": {
           "windows.callbacks": "synthetic",
@@ -174,7 +175,8 @@
           "windows.vadregexscan.VadRegExScan": "synthetic",
           "windows.vadwalk.VadWalk": "synthetic",
           "windows.kpcrs.KPCRs": "pending",
-          "windows.driverirp.DriverIrp": "pending"
+          "windows.driverirp.DriverIrp": "pending",
+          "windows.malware.drivermodule.DriverModule": "pending"
         }
       },
       "evidence": [
@@ -311,7 +313,8 @@
           "windows.vadregexscan.VadRegExScan": "pending",
           "windows.vadwalk.VadWalk": "synthetic",
           "windows.kpcrs.KPCRs": "pending",
-          "windows.driverirp.DriverIrp": "pending"
+          "windows.driverirp.DriverIrp": "pending",
+          "windows.malware.drivermodule.DriverModule": "pending"
         },
         "x64": {
           "windows.callbacks": "synthetic",
@@ -387,7 +390,8 @@
           "windows.vadregexscan.VadRegExScan": "synthetic",
           "windows.vadwalk.VadWalk": "synthetic",
           "windows.kpcrs.KPCRs": "pending",
-          "windows.driverirp.DriverIrp": "pending"
+          "windows.driverirp.DriverIrp": "pending",
+          "windows.malware.drivermodule.DriverModule": "pending"
         }
       },
       "evidence": []
@@ -484,7 +488,8 @@
           "windows.vadregexscan.VadRegExScan": "pending",
           "windows.vadwalk.VadWalk": "real",
           "windows.kpcrs.KPCRs": "real",
-          "windows.driverirp.DriverIrp": "real"
+          "windows.driverirp.DriverIrp": "real",
+          "windows.malware.drivermodule.DriverModule": "real"
         },
         "x64": {
           "windows.callbacks": "synthetic",
@@ -560,7 +565,8 @@
           "windows.vadregexscan.VadRegExScan": "synthetic",
           "windows.vadwalk.VadWalk": "synthetic",
           "windows.kpcrs.KPCRs": "pending",
-          "windows.driverirp.DriverIrp": "synthetic"
+          "windows.driverirp.DriverIrp": "synthetic",
+          "windows.malware.drivermodule.DriverModule": "pending"
         }
       },
       "evidence": [
@@ -592,7 +598,8 @@
             "windows.vadinfo": 5229,
             "windows.vadwalk.VadWalk": 5229,
             "windows.kpcrs.KPCRs": 1,
-            "windows.driverirp.DriverIrp": 3724
+            "windows.driverirp.DriverIrp": 3724,
+            "windows.malware.drivermodule.DriverModule": 2
           },
           "fixture": "images/server2008/memdump.mem",
           "complete": {
@@ -610,7 +617,8 @@
             "windows.getsids": true,
             "windows.pslist": true,
             "windows.netscan": false,
-            "windows.driverirp.DriverIrp": false
+            "windows.driverirp.DriverIrp": false,
+            "windows.malware.drivermodule.DriverModule": false
           }
         }
       ],
@@ -707,7 +715,8 @@
           "windows.vadregexscan.VadRegExScan": "synthetic",
           "windows.vadwalk.VadWalk": "synthetic",
           "windows.kpcrs.KPCRs": "pending",
-          "windows.driverirp.DriverIrp": "pending"
+          "windows.driverirp.DriverIrp": "pending",
+          "windows.malware.drivermodule.DriverModule": "pending"
         }
       },
       "evidence": [],
@@ -803,7 +812,8 @@
           "windows.vadregexscan.VadRegExScan": "synthetic",
           "windows.vadwalk.VadWalk": "synthetic",
           "windows.kpcrs.KPCRs": "pending",
-          "windows.driverirp.DriverIrp": "pending"
+          "windows.driverirp.DriverIrp": "pending",
+          "windows.malware.drivermodule.DriverModule": "pending"
         }
       },
       "evidence": [
@@ -945,7 +955,8 @@
           "windows.vadregexscan.VadRegExScan": "synthetic",
           "windows.vadwalk.VadWalk": "synthetic",
           "windows.kpcrs.KPCRs": "pending",
-          "windows.driverirp.DriverIrp": "pending"
+          "windows.driverirp.DriverIrp": "pending",
+          "windows.malware.drivermodule.DriverModule": "pending"
         }
       },
       "evidence": [
@@ -1088,7 +1099,8 @@
           "windows.vadregexscan.VadRegExScan": "synthetic",
           "windows.vadwalk.VadWalk": "synthetic",
           "windows.kpcrs.KPCRs": "pending",
-          "windows.driverirp.DriverIrp": "pending"
+          "windows.driverirp.DriverIrp": "pending",
+          "windows.malware.drivermodule.DriverModule": "pending"
         }
       },
       "evidence": [
@@ -1203,7 +1215,8 @@
           "windows.vadregexscan.VadRegExScan": "synthetic",
           "windows.vadwalk.VadWalk": "synthetic",
           "windows.kpcrs.KPCRs": "pending",
-          "windows.driverirp.DriverIrp": "pending"
+          "windows.driverirp.DriverIrp": "pending",
+          "windows.malware.drivermodule.DriverModule": "pending"
         }
       },
       "evidence": [
@@ -1347,7 +1360,8 @@
           "windows.vadregexscan.VadRegExScan": "synthetic",
           "windows.vadwalk.VadWalk": "synthetic",
           "windows.kpcrs.KPCRs": "pending",
-          "windows.driverirp.DriverIrp": "pending"
+          "windows.driverirp.DriverIrp": "pending",
+          "windows.malware.drivermodule.DriverModule": "pending"
         }
       },
       "evidence": [
@@ -1491,7 +1505,8 @@
           "windows.vadregexscan.VadRegExScan": "synthetic",
           "windows.vadwalk.VadWalk": "synthetic",
           "windows.kpcrs.KPCRs": "pending",
-          "windows.driverirp.DriverIrp": "pending"
+          "windows.driverirp.DriverIrp": "pending",
+          "windows.malware.drivermodule.DriverModule": "pending"
         }
       },
       "evidence": [],
@@ -1589,7 +1604,8 @@
           "windows.vadregexscan.VadRegExScan": "pending",
           "windows.vadwalk.VadWalk": "synthetic",
           "windows.kpcrs.KPCRs": "pending",
-          "windows.driverirp.DriverIrp": "pending"
+          "windows.driverirp.DriverIrp": "pending",
+          "windows.malware.drivermodule.DriverModule": "pending"
         },
         "x64": {
           "windows.callbacks": "real",
@@ -1665,7 +1681,8 @@
           "windows.vadregexscan.VadRegExScan": "synthetic",
           "windows.vadwalk.VadWalk": "synthetic",
           "windows.kpcrs.KPCRs": "pending",
-          "windows.driverirp.DriverIrp": "pending"
+          "windows.driverirp.DriverIrp": "pending",
+          "windows.malware.drivermodule.DriverModule": "pending"
         }
       },
       "evidence": [
@@ -1794,7 +1811,8 @@
           "windows.vadregexscan.VadRegExScan": "pending",
           "windows.vadwalk.VadWalk": "synthetic",
           "windows.kpcrs.KPCRs": "pending",
-          "windows.driverirp.DriverIrp": "pending"
+          "windows.driverirp.DriverIrp": "pending",
+          "windows.malware.drivermodule.DriverModule": "pending"
         },
         "x64": {
           "windows.callbacks": "synthetic",
@@ -1870,7 +1888,8 @@
           "windows.vadregexscan.VadRegExScan": "synthetic",
           "windows.vadwalk.VadWalk": "synthetic",
           "windows.kpcrs.KPCRs": "pending",
-          "windows.driverirp.DriverIrp": "pending"
+          "windows.driverirp.DriverIrp": "pending",
+          "windows.malware.drivermodule.DriverModule": "pending"
         }
       },
       "evidence": []
@@ -1966,7 +1985,8 @@
           "windows.vadregexscan.VadRegExScan": "pending",
           "windows.vadwalk.VadWalk": "synthetic",
           "windows.kpcrs.KPCRs": "pending",
-          "windows.driverirp.DriverIrp": "pending"
+          "windows.driverirp.DriverIrp": "pending",
+          "windows.malware.drivermodule.DriverModule": "pending"
         },
         "x64": {
           "windows.callbacks": "synthetic",
@@ -2042,7 +2062,8 @@
           "windows.vadregexscan.VadRegExScan": "synthetic",
           "windows.vadwalk.VadWalk": "synthetic",
           "windows.kpcrs.KPCRs": "pending",
-          "windows.driverirp.DriverIrp": "pending"
+          "windows.driverirp.DriverIrp": "pending",
+          "windows.malware.drivermodule.DriverModule": "pending"
         }
       },
       "evidence": []
@@ -2151,7 +2172,8 @@
           "windows.vadregexscan.VadRegExScan": "pending",
           "windows.vadwalk.VadWalk": "synthetic",
           "windows.kpcrs.KPCRs": "pending",
-          "windows.driverirp.DriverIrp": "synthetic"
+          "windows.driverirp.DriverIrp": "synthetic",
+          "windows.malware.drivermodule.DriverModule": "synthetic"
         },
         "x64": {
           "windows.callbacks": "real",
@@ -2227,7 +2249,8 @@
           "windows.vadregexscan.VadRegExScan": "synthetic",
           "windows.vadwalk.VadWalk": "real",
           "windows.kpcrs.KPCRs": "real",
-          "windows.driverirp.DriverIrp": "real"
+          "windows.driverirp.DriverIrp": "real",
+          "windows.malware.drivermodule.DriverModule": "real"
         }
       },
       "evidence": [
@@ -2280,10 +2303,12 @@
             "windows.virtmap": 13,
             "windows.vadwalk.VadWalk": 16165,
             "windows.kpcrs.KPCRs": 4,
-            "windows.driverirp.DriverIrp": 4255
+            "windows.driverirp.DriverIrp": 4255,
+            "windows.malware.drivermodule.DriverModule": 3
           },
           "complete": {
-            "windows.driverirp.DriverIrp": false
+            "windows.driverirp.DriverIrp": false,
+            "windows.malware.drivermodule.DriverModule": false
           }
         },
         {
@@ -2400,7 +2425,8 @@
           "windows.vadregexscan.VadRegExScan": "synthetic",
           "windows.vadwalk.VadWalk": "real",
           "windows.kpcrs.KPCRs": "real",
-          "windows.driverirp.DriverIrp": "real"
+          "windows.driverirp.DriverIrp": "real",
+          "windows.malware.drivermodule.DriverModule": "real"
         }
       },
       "evidence": [
@@ -2452,10 +2478,12 @@
             "windows.virtmap": 14,
             "windows.vadwalk.VadWalk": 17405,
             "windows.kpcrs.KPCRs": 4,
-            "windows.driverirp.DriverIrp": 3444
+            "windows.driverirp.DriverIrp": 3444,
+            "windows.malware.drivermodule.DriverModule": 1
           },
           "complete": {
-            "windows.driverirp.DriverIrp": false
+            "windows.driverirp.DriverIrp": false,
+            "windows.malware.drivermodule.DriverModule": false
           }
         }
       ]

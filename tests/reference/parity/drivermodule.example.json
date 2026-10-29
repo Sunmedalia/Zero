@@ -1,0 +1,87 @@
+{
+  "samples": [
+    {
+      "id": "windows-10-15063",
+      "image": "images/feat-windows-plugins/WinDump/WinDump.mem",
+      "image_sha256": "d58f62e92b8c4ef913ac09b2c36a10482034c10b88d0c154dead3aaaa49cf875",
+      "zero_symbols": ".zero/rust/symbols/isf/windows/ntkrnlmp.pdb-0C9CC659210046EC84231597DADFDB3B1.json",
+      "reference_symbols": "target/reference/kpcrs-symbols",
+      "symbol_files": [
+        {
+          "path": ".zero/rust/symbols/isf/windows/ntkrnlmp.pdb-0C9CC659210046EC84231597DADFDB3B1.json",
+          "sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4"
+        },
+        {
+          "path": "target/reference/kpcrs-symbols/windows/ntkrnlmp.pdb/0C9CC659210046EC84231597DADFDB3B1.json",
+          "sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4"
+        }
+      ],
+      "source": "https://www.osforensics.com/downloads/WinDump.zip"
+    },
+    {
+      "id": "server-2008-6001-x86",
+      "image": "images/feat-windows-plugins/server2008/memdump.mem",
+      "image_sha256": "d3b13f2224cab20440a4bb3c5c971662be6e61f431340f319cef7312bb6177f4",
+      "zero_symbols": ".zero/rust/symbols/isf/windows/ntkrpamp.pdb-37D328E3BAE5460F8E662756ED80951D2.json",
+      "reference_symbols": "target/reference/kpcrs-symbols",
+      "symbol_files": [
+        {
+          "path": ".zero/rust/symbols/isf/windows/ntkrpamp.pdb-37D328E3BAE5460F8E662756ED80951D2.json",
+          "sha256": "5d73f3a7158ba8b72394f2606ea5b4f03393976d5054a11cc51d51afb88a5544"
+        },
+        {
+          "path": "target/reference/kpcrs-symbols/windows/ntkrpamp.pdb/37D328E3BAE5460F8E662756ED80951D2.json",
+          "sha256": "5d73f3a7158ba8b72394f2606ea5b4f03393976d5054a11cc51d51afb88a5544"
+        }
+      ],
+      "source": "https://samsclass.info/121/proj/p5-Vol.htm"
+    },
+    {
+      "id": "windows-11",
+      "image": "images/feat-windows-plugins/Win11Dump/Win11Dump.mem",
+      "image_sha256": "0f00815b8f78f30a63d742c73152474b2a3c35183dbb1d92c8fc6a81fa3de9f1",
+      "zero_symbols": ".zero/rust/symbols/isf/windows/ntkrnlmp.pdb-8E3373D6124E747F0E72EF8E02E676B31.json",
+      "reference_symbols": "target/reference/kpcrs-symbols",
+      "symbol_files": [
+        {
+          "path": ".zero/rust/symbols/isf/windows/ntkrnlmp.pdb-8E3373D6124E747F0E72EF8E02E676B31.json",
+          "sha256": "6a234099b69b393eb7d652408835205bd12f0b947d0d6b6275e2ffce8ca9c133"
+        },
+        {
+          "path": "target/reference/kpcrs-symbols/windows/ntkrnlmp.pdb/8E3373D6124E747F0E72EF8E02E676B31.json",
+          "sha256": "6a234099b69b393eb7d652408835205bd12f0b947d0d6b6275e2ffce8ca9c133"
+        }
+      ],
+      "source": "https://www.osforensics.com/downloads/Win11Dump.zip"
+    }
+  ],
+  "cases": [
+    {
+      "sample": "windows-10-15063",
+      "id": "windows-10-15063/drivermodule-default",
+      "reference_plugin": "windows.malware.drivermodule.DriverModule",
+      "zero_plugin": "windows.malware.drivermodule.DriverModule",
+      "mapping": "tests/reference/parity/mappings/windows-drivermodule.json",
+      "zero_args": [],
+      "reference_args": []
+    },
+    {
+      "sample": "server-2008-6001-x86",
+      "id": "server-2008-6001-x86/drivermodule-default",
+      "reference_plugin": "windows.malware.drivermodule.DriverModule",
+      "zero_plugin": "windows.malware.drivermodule.DriverModule",
+      "mapping": "tests/reference/parity/mappings/windows-drivermodule.json",
+      "zero_args": [],
+      "reference_args": []
+    },
+    {
+      "sample": "windows-11",
+      "id": "windows-11/drivermodule-default",
+      "reference_plugin": "windows.malware.drivermodule.DriverModule",
+      "zero_plugin": "windows.malware.drivermodule.DriverModule",
+      "mapping": "tests/reference/parity/mappings/windows-drivermodule.json",
+      "zero_args": [],
+      "reference_args": []
+    }
+  ]
+}

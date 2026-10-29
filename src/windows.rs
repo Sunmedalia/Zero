@@ -26,6 +26,7 @@ mod creds;
 mod crypto;
 mod dispatch;
 mod driver_irp;
+mod driver_module;
 mod drivers;
 mod dump;
 mod files;
@@ -563,6 +564,9 @@ impl Windows<'_> {
     }
     pub fn run(&self, p: Plugin, options: &Options, job: &Job) -> Result<Results> {
         job.check()?;
+        if p == Plugin::WinDriverModule {
+            return self.driver_module(job);
+        }
         if p == Plugin::WinDriverIrp {
             return self.driver_irp(job);
         }

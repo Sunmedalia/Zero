@@ -4299,7 +4299,9 @@
       "replacement": "windows.malware.drivermodule.DriverModule",
       "declared_requirements": [],
       "declared_columns": [],
-      "zero_candidates": [],
+      "zero_candidates": [
+        "windows.malware.drivermodule.DriverModule"
+      ],
       "status": "alias",
       "evidence": []
     },
@@ -5225,8 +5227,10 @@
         "Service Key",
         "Alternative Name"
       ],
-      "zero_candidates": [],
-      "status": "missing",
+      "zero_candidates": [
+        "windows.malware.drivermodule.DriverModule"
+      ],
+      "status": "mapped_unverified",
       "evidence": []
     },
     {

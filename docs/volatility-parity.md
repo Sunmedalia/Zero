@@ -572,3 +572,25 @@ make check 通过 517 Rust / 19 Python；实际回归 Linux 4 项、Windows 13 �
 加强后的两个离线 PDB 专项再次通过。六字段差分仍为默认三个失败、内核范围三个通过，
 不增加独立正向用例。入口仍为 109/135，缺 26 个 Windows 插件，正向用例 42 项
 （5 项限定范围），完整插件合同仍为 0。原用户镜像尚未取得，未验收其故障是否解决。
+
+Windows DriverModule（native46）：新增 `windows.malware.drivermodule.DriverModule`
+（短别名 `windows.drivermodule`），输出 Offset、Known Exception、Driver Name、Service
+Key、Alternative Name 五列。按 Windows 构建选择物理或虚拟池对象，保留零 DriverStart，
+以已加载模块范围交叉核验入口。对象名、服务键和备用名独立读取；完全没有名称的候选
+不输出，读取失败仍留诊断。六个已知例外按对象名精确、区分大小写匹配。
+
+模块区间采用半开范围，溢出范围不参与归属；参考的包含末端行为不用于制造边界误报。
+模块名称不可读时不把该模块作为可证明的归属，并保留模块覆盖诊断。
+`MmSystemRangeStart` 无法读取时使用参考定义的架构默认边界，并额外标记 partial；
+缺少符号或无效边界不伪造完整结果。ARM64 明确不支持。
+
+固定参考的五字段差分：Win10 15063 x64 为 3 / 3，Server 2008 6001 x86 为 2 / 2，
+Win11 22000 x64 为 1 / 1，均无缺失、额外记录、重复或字段冲突。三个结果均为 partial；
+映射明确允许部分输出，不把可见记录一致解释为完整恢复或根除隐藏驱动。
+配置见 [DriverModule 差分配置](../tests/reference/parity/drivermodule.example.json)，
+证据见 [差分证据](../tests/reference/parity/evidence.json)。
+
+本批新增 6 项合成测试，make check 通过 523 Rust / 19 Python。入口对应提升至
+110/135，尚缺 25 个 Windows 正式插件；正向差分用例 45 项，其中 5 项限定范围，
+覆盖 9 个 Linux / 4 个 Windows 插件。完整插件合同仍为 0，更多隐藏驱动攻击样本、
+更广构建和损坏场景仍需补齐。

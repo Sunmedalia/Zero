@@ -30,7 +30,8 @@
         "windows.svcscan": 574,
         "windows.vadwalk.VadWalk": 16165,
         "windows.kpcrs.KPCRs": 4,
-        "windows.driverirp.DriverIrp": 4255
+        "windows.driverirp.DriverIrp": 4255,
+        "windows.malware.drivermodule.DriverModule": 3
       },
       "process_list_complete": false,
       "artifact_reference": {
@@ -95,7 +96,8 @@
         "windows.svcscan": 634,
         "windows.vadwalk.VadWalk": 17405,
         "windows.kpcrs.KPCRs": 4,
-        "windows.driverirp.DriverIrp": 3444
+        "windows.driverirp.DriverIrp": 3444,
+        "windows.malware.drivermodule.DriverModule": 1
       },
       "process_list_complete": false,
       "autoruns_reference": {
@@ -260,7 +262,8 @@
         "windows.vadinfo": 5229,
         "windows.vadwalk.VadWalk": 5229,
         "windows.kpcrs.KPCRs": 1,
-        "windows.driverirp.DriverIrp": 3724
+        "windows.driverirp.DriverIrp": 3724,
+        "windows.malware.drivermodule.DriverModule": 2
       },
       "symbol_source": "Microsoft exact PDB; independent Volatility conversion for comparisons",
       "complete": {
@@ -278,7 +281,8 @@
         "windows.getsids": true,
         "windows.pslist": true,
         "windows.netscan": false,
-        "windows.driverirp.DriverIrp": false
+        "windows.driverirp.DriverIrp": false,
+        "windows.malware.drivermodule.DriverModule": false
       }
     },
     {

@@ -3,6 +3,11 @@ use clap::ValueEnum;
 
 #[derive(Clone, Copy, Debug, ValueEnum, PartialEq, Eq)]
 pub enum Plugin {
+    #[value(
+        name = "windows.malware.drivermodule.DriverModule",
+        alias = "windows.drivermodule"
+    )]
+    WinDriverModule,
     #[value(name = "windows.driverirp.DriverIrp", alias = "windows.driverirp")]
     WinDriverIrp,
     #[value(name = "windows.kpcrs.KPCRs", alias = "windows.kpcrs")]
@@ -1660,6 +1665,19 @@ pub const PLUGINS: &[Descriptor] = &[
         widths: &[8, 20, 18, 40, 48],
     },
     Descriptor {
+        plugin: Plugin::WinDriverModule,
+        name: "windows.malware.drivermodule.DriverModule",
+        label: "drivermodule",
+        columns: &[
+            "Offset",
+            "Known Exception",
+            "Driver Name",
+            "Service Key",
+            "Alternative Name",
+        ],
+        widths: &[18, 16, 28, 32, 36],
+    },
+    Descriptor {
         plugin: Plugin::WinDriverIrp,
         name: "windows.driverirp.DriverIrp",
         label: "driverirp",
@@ -1795,7 +1813,7 @@ impl Plugin {
             Self::WinMbrscan => "Files",
             Self::WinTimers => "Integrity",
             Self::WinKpcrs => "System",
-            Self::WinDriverIrp => "Integrity",
+            Self::WinDriverIrp | Self::WinDriverModule => "Integrity",
             Self::WinStatistics => "Memory",
             Self::WinShimcache => "Files",
             Self::WinVirtmap => "Memory",
@@ -1979,6 +1997,7 @@ impl Plugin {
             WinStatistics => "统计内核地址空间的有效、换出与空页表项",
             WinShimcache => "解码 SYSTEM hive 中的 AppCompatCache 执行痕迹",
             WinVirtmap => "列出内核虚拟地址空间按用途划分的区域",
+            WinDriverModule => "交叉核验驱动入口与已加载模块，列出未归属驱动及已知例外",
             WinDriverIrp => "扫描驱动的 28 个 IRP 派发入口及模块、精确符号归属",
             WinKpcrs => "枚举处理器 KPCR 与 PRCB，验证自指针和回指针",
             WinVadWalk => "遍历 VAD 父子链接、虚拟范围与 pool tag，保留链路异常诊断",

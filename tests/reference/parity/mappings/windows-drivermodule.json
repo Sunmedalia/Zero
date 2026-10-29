@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "allow_partial": true,
+  "keys": [
+    "Offset"
+  ],
+  "fields": {
+    "Offset": {
+      "zero": "Offset",
+      "reference": "Offset",
+      "type": "address",
+      "reference_type": "address48"
+    },
+    "Known Exception": {
+      "zero": "Known Exception",
+      "reference": "Known Exception",
+      "type": "boolean"
+    },
+    "Driver Name": {
+      "zero": "Driver Name",
+      "reference": "Driver Name",
+      "type": "empty_text"
+    },
+    "Service Key": {
+      "zero": "Service Key",
+      "reference": "Service Key",
+      "type": "empty_text"
+    },
+    "Alternative Name": {
+      "zero": "Alternative Name",
+      "reference": "Alternative Name",
+      "type": "empty_text"
+    }
+  }
+}

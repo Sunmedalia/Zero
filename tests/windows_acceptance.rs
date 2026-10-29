@@ -52,6 +52,12 @@ fn public_windows_images() {
             (Plugin::WinPslist, expected_processes),
             (Plugin::WinModules, expected_modules),
             (
+                Plugin::WinDriverModule,
+                fixture["rows"]["windows.malware.drivermodule.DriverModule"]
+                    .as_u64()
+                    .unwrap() as usize,
+            ),
+            (
                 Plugin::WinDriverIrp,
                 fixture["rows"]["windows.driverirp.DriverIrp"]
                     .as_u64()
@@ -144,6 +150,26 @@ fn public_windows_images() {
                     .iter()
                     .all(|row| row.len() == result.columns.len())
             );
+            if plugin == Plugin::WinDriverModule {
+                assert_eq!(
+                    result.columns,
+                    [
+                        "Offset",
+                        "Known Exception",
+                        "Driver Name",
+                        "Service Key",
+                        "Alternative Name"
+                    ]
+                );
+                assert!(!result.complete);
+                assert!(
+                    result
+                        .rows
+                        .iter()
+                        .all(|row| matches!(row[1].as_str(), "true" | "false")
+                            && row[2..].iter().any(|value| !value.is_empty()))
+                );
+            }
             if plugin == Plugin::WinPslist {
                 assert!(!result.complete);
                 assert!(!result.diagnostics.is_empty());

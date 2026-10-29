@@ -298,3 +298,14 @@ saves raw phase artifacts under an ignored directory. These tests do not downloa
 The handler-address oracle is the native-converted exact ISF, not independent
 validation of every PDB record. Full default differential failures are preserved;
 scoped reruns do not increase the 42 positive-case count or full-contract count.
+
+Native46 adds `windows.malware.drivermodule.DriverModule`.
+`drivermodule.example.json` checks all five columns on Win10 x64, Server 2008 x86
+and Win11 x64. Visible record counts are 3 / 2 / 1; partial output is explicitly
+allowed and does not establish complete recovery. Native driver starts use
+half-open module intervals and reject overflow. Reference inclusive-end behavior
+is intentionally not reproduced; synthetic tests exercise this boundary. Missing
+module/name/range data remains diagnostic, and ARM64 is rejected. The six
+synthetic tests plus actual differential cases are still insufficient to establish
+a whole-plugin contract, including malicious hidden-driver and damaged-input
+coverage. No recovered row values are stored in committed evidence.

@@ -259,6 +259,9 @@ impl Windows<'_> {
             info,
             self.vm.isf.offset("_OBJECT_HEADER_NAME_INFO", "Name")?,
         )?;
+        self.physical_unicode(descriptor)
+    }
+    pub(super) fn physical_unicode(&self, descriptor: u64) -> Result<String> {
         let length = self.physical_field(descriptor, "_UNICODE_STRING", "Length")?;
         let maximum = self.physical_field(descriptor, "_UNICODE_STRING", "MaximumLength")?;
         ensure!(
