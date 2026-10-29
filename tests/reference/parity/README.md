@@ -475,3 +475,34 @@ remain explicitly record-scoped). There are 117/135 candidate correspondences,
 18 missing canonical entries, and zero complete plugin contracts. Final native
 executable SHA256 is
 `cab7ad951d29f5f44a44f12589865ddf5b191b9ba207155e79f6f0d844110316`.
+
+### Amcache standard records (native54)
+
+`amcache.example.json` compares the canonical eleven-column
+`windows.registry.amcache.Amcache` output. The legacy six-column entry stays
+separate. The mapping compares every record and its multiplicity, including
+all absent fields, without selecting recovered rows. Drivers, legacy programs
+and volume-nested files, and modern application/file inventory are parsed in
+native Rust. Program grouping retains dictionary insertion/last-value semantics;
+the native flat table does not reproduce TreeGrid indentation.
+
+Pinned v2.28.2's string date helper requires both integer and string types and
+therefore never returns a date. Modern InstallDate/LinkDate remain absent in
+this standard output. This is a documented reference limitation, not evidence
+of recovered times. The legacy entry retains raw LinkDate text.
+
+`amcache-negative.example.json` records absent-hive observations separately.
+The comparator intentionally refuses zero-row comparisons as positive parity;
+its failed positive-evidence gate on these cases is expected, not a recovery
+claim. Full contracts, Timeliner integration, pool-scan fallback, other builds
+and arbitrary non-ASCII key names remain outstanding.
+
+Final native54 positive cases match all eleven columns and every record:
+Windows 10 15063 x64 1,230 records and Windows 11 22000 x64 665 records.
+Both retain partial diagnostics. Verification passed 571 Rust / 25 Python tests,
+Linux real regressions 4/4 and available Windows regressions 13/13 (Server2012R2
+still lacks its local sample). The two cases bring positive evidence to 80 cases
+across 21 plugins, including five explicitly scoped cases. Canonical candidate
+correspondences are 118/135, with 17 missing entries and zero complete contracts.
+Executable SHA256:
+`cda77c2a0a51ea0a7d1c72cf1b8d895b36758aeb5af4242aab999e26a6a39453`.

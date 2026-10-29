@@ -17,6 +17,7 @@ use std::collections::{BTreeMap, HashSet};
 pub mod arch;
 pub use arch::Architecture;
 use arch::Paging;
+mod amcache;
 mod artifacts;
 mod codec;
 mod compatibility;
@@ -731,6 +732,7 @@ impl Windows<'_> {
                 | Plugin::WinGetservicesids
                 | Plugin::WinScheduledTasks
                 | Plugin::WinAmcache
+                | Plugin::WinAmcacheV4
                 | Plugin::WinCertificates
                 | Plugin::WinShimcache
                 | Plugin::WinHashdump
@@ -767,6 +769,7 @@ impl Windows<'_> {
                     Plugin::WinGetservicesids => engine.service_sids(job),
                     Plugin::WinScheduledTasks => engine.scheduled_tasks(job),
                     Plugin::WinAmcache => engine.amcache(job),
+                    Plugin::WinAmcacheV4 => engine.amcache_canonical(job),
                     Plugin::WinCertificates => engine.certificates(job),
                     Plugin::WinShimcache => engine.shimcache(job),
                     Plugin::WinHashdump => engine.hashdump(job),

@@ -29047,5 +29047,203 @@
         "passed": true
       }
     ]
+  },
+  {
+    "reference_plugin": "windows.registry.amcache.Amcache",
+    "zero_plugin": "windows.registry.amcache.Amcache",
+    "image_sha256": "d58f62e92b8c4ef913ac09b2c36a10482034c10b88d0c154dead3aaaa49cf875",
+    "mapping_sha256": "b2216f94334cb49aba36ae705ecafe598e217ac5ebb6653b272126844cf3e5b9",
+    "native_output_sha256": "7e85cace26c8faf6207ad24954aab2835f9f3f70236205c71a7b3c90f425b76e",
+    "comparison": {
+      "schema_version": 1,
+      "mapping_version": 1,
+      "zero_records": 1230,
+      "reference_records": 1230,
+      "missing": [],
+      "extra": [],
+      "duplicates": [
+        {
+          "side": "zero",
+          "key": [
+            "Driver"
+          ],
+          "count": 333
+        },
+        {
+          "side": "zero",
+          "key": [
+            "Program"
+          ],
+          "count": 156
+        },
+        {
+          "side": "zero",
+          "key": [
+            "File"
+          ],
+          "count": 741
+        },
+        {
+          "side": "reference",
+          "key": [
+            "Driver"
+          ],
+          "count": 333
+        },
+        {
+          "side": "reference",
+          "key": [
+            "Program"
+          ],
+          "count": 156
+        },
+        {
+          "side": "reference",
+          "key": [
+            "File"
+          ],
+          "count": 741
+        }
+      ],
+      "duplicate_keys": "multiset",
+      "multiplicity_conflicts": [],
+      "conflicts": [],
+      "unverifiable": [],
+      "matched_absent": {
+        "LastModifyTime2": 638,
+        "InstallTime": 1180,
+        "ProductVersion": 925,
+        "Company": 584,
+        "LastModifyTime": 584,
+        "CompileTime": 889,
+        "Service": 897,
+        "ProductName": 584,
+        "SHA1": 156,
+        "Path": 42
+      },
+      "all_columns_mapped": true,
+      "positive_evidence": true,
+      "zero_complete": false,
+      "zero_diagnostics": [
+        "Windows 链表末尾未闭合 @ 0xfffff8021f3bed48 direction 0",
+        "Windows 链表不一致 @ 0xffff8b854be0daa8 direction 8: expected 0xfffff8021f3bed48, found 0x0",
+        "链表 @ 0xfffff8021f3bed48 direction 8: 无效链表地址 0x1",
+        "0xffff8b854be0d000 FileFullPath: 无效 UNICODE_STRING 长度",
+        "0xffff8b854be0d000 HiveRootPath: Windows 缺页 VA 0x2058cc40fd0 level 39 PTE 0x0; prototype 所在页表不驻留",
+        "Windows 链表不一致 @ 0xffffd98df8f9c8e8 direction 0: expected 0xffffd98df8be88e8, found 0xffffd98df7cbe668",
+        "Windows 链表不一致 @ 0xffffd98df8831368 direction 0: expected 0xffffd98df41a88e8, found 0xffffd98df9d4e8e8",
+        "Windows 链表不一致 @ 0xffffd98df3ab88e8 direction 0: expected 0xffffd98df63618e8, found 0xffffd98df480e368",
+        "Windows 链表不一致 @ 0xffffd98df7cbe668 direction 0: expected 0xffffd98df503a368, found 0xffffd98df8be88e8",
+        "链表 @ 0xfffff8021ef5c120 direction 0: Windows 链表循环或超限 0xffffd98df8f9c8e8",
+        "Windows 链表不一致 @ 0xffffd98df9d4e8e8 direction 8: expected 0xfffff8021ef5c120, found 0xffffd98df8831368",
+        "Windows 链表不一致 @ 0xffffd98df41a88e8 direction 8: expected 0xffffd98df9d4e8e8, found 0xffffd98df8831368",
+        "Windows 链表不一致 @ 0xffffd98df8be88e8 direction 8: expected 0xffffd98df7cbe668, found 0xffffd98df8f9c8e8"
+      ],
+      "passed": true
+    },
+    "passed": true,
+    "zero_args": [],
+    "reference_args": [],
+    "case_id": "windows-10-15063/amcache-default",
+    "sample_source": "https://www.osforensics.com/downloads/WinDump.zip",
+    "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+    "reference_output_sha256": "b4b30939cfcc98a6b75043c07c62f3cf5b7252371ef83b86e6da714662a38058",
+    "symbol_sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4",
+    "zero_executable_sha256": "cda77c2a0a51ea0a7d1c72cf1b8d895b36758aeb5af4242aab999e26a6a39453",
+    "engine_version": "0.2.1-native-54"
+  },
+  {
+    "reference_plugin": "windows.registry.amcache.Amcache",
+    "zero_plugin": "windows.registry.amcache.Amcache",
+    "image_sha256": "0f00815b8f78f30a63d742c73152474b2a3c35183dbb1d92c8fc6a81fa3de9f1",
+    "mapping_sha256": "b2216f94334cb49aba36ae705ecafe598e217ac5ebb6653b272126844cf3e5b9",
+    "native_output_sha256": "3ff6030e26edf405cc28881db80416d504698b1a227e6c9c04bf422633574347",
+    "comparison": {
+      "schema_version": 1,
+      "mapping_version": 1,
+      "zero_records": 665,
+      "reference_records": 665,
+      "missing": [],
+      "extra": [],
+      "duplicates": [
+        {
+          "side": "zero",
+          "key": [
+            "Driver"
+          ],
+          "count": 361
+        },
+        {
+          "side": "zero",
+          "key": [
+            "Program"
+          ],
+          "count": 99
+        },
+        {
+          "side": "zero",
+          "key": [
+            "File"
+          ],
+          "count": 205
+        },
+        {
+          "side": "reference",
+          "key": [
+            "Driver"
+          ],
+          "count": 361
+        },
+        {
+          "side": "reference",
+          "key": [
+            "Program"
+          ],
+          "count": 99
+        },
+        {
+          "side": "reference",
+          "key": [
+            "File"
+          ],
+          "count": 205
+        }
+      ],
+      "duplicate_keys": "multiset",
+      "multiplicity_conflicts": [],
+      "conflicts": [],
+      "unverifiable": [],
+      "matched_absent": {
+        "LastModifyTime2": 665,
+        "InstallTime": 665,
+        "ProductVersion": 383,
+        "CompileTime": 304,
+        "Service": 304,
+        "Company": 28,
+        "ProductName": 30,
+        "SHA1": 99
+      },
+      "all_columns_mapped": true,
+      "positive_evidence": true,
+      "zero_complete": false,
+      "zero_diagnostics": [
+        "0xffffaa8bc46fb000 FileUserName: Windows 缺页 VA 0xffffaa8bc4759e20 level 12 PTE 0x1801f00000084; 不是 prototype PTE",
+        "Windows 链表不一致 @ 0xffffde8ced813508 direction 0: expected 0xffffde8ced890548, found 0x737265646165682d",
+        "链表 @ 0xfffff8002a41bea0 direction 0: 无效链表地址 0x65736f7078652d6c",
+        "Windows 链表不一致 @ 0xffffde8ced890548 direction 8: expected 0xfffff8002a41bea0, found 0xffffde8ced813508",
+        "EPROCESS 0xffffde8ced8130c0: 无效 EPROCESS"
+      ],
+      "passed": true
+    },
+    "passed": true,
+    "zero_args": [],
+    "reference_args": [],
+    "case_id": "windows-11/amcache-default",
+    "sample_source": "https://www.osforensics.com/downloads/Win11Dump.zip",
+    "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+    "reference_output_sha256": "aa383c62a1b9278e1e466f58a10bbb0eec28f7d5e50e70b84d6008a59bb8c7a7",
+    "symbol_sha256": "6a234099b69b393eb7d652408835205bd12f0b947d0d6b6275e2ffce8ca9c133",
+    "zero_executable_sha256": "cda77c2a0a51ea0a7d1c72cf1b8d895b36758aeb5af4242aab999e26a6a39453",
+    "engine_version": "0.2.1-native-54"
   }
 ]

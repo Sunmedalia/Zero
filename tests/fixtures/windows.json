@@ -39,7 +39,8 @@
         "windows.svcscan.SvcScan": 1247,
         "windows.malware.svcdiff.SvcDiff": 0,
         "windows.memmap.Memmap": 131493,
-        "windows.registry.userassist.UserAssist": 83
+        "windows.registry.userassist.UserAssist": 83,
+        "windows.registry.amcache.Amcache": 1230
       },
       "process_list_complete": false,
       "artifact_reference": {
@@ -81,7 +82,8 @@
         "windows.svclist.SvcList": false,
         "windows.svcscan.SvcScan": false,
         "windows.malware.svcdiff.SvcDiff": false,
-        "windows.registry.userassist.UserAssist": false
+        "windows.registry.userassist.UserAssist": false,
+        "windows.registry.amcache.Amcache": false
       },
       "row_options": {
         "windows.memmap.Memmap": {
@@ -127,7 +129,8 @@
         "windows.svcscan.SvcScan": 1462,
         "windows.malware.svcdiff.SvcDiff": 0,
         "windows.memmap.Memmap": 63692,
-        "windows.registry.userassist.UserAssist": 58
+        "windows.registry.userassist.UserAssist": 58,
+        "windows.registry.amcache.Amcache": 665
       },
       "process_list_complete": false,
       "autoruns_reference": {
@@ -150,7 +153,8 @@
         "windows.svclist.SvcList": false,
         "windows.svcscan.SvcScan": false,
         "windows.malware.svcdiff.SvcDiff": false,
-        "windows.registry.userassist.UserAssist": false
+        "windows.registry.userassist.UserAssist": false,
+        "windows.registry.amcache.Amcache": false
       },
       "row_options": {
         "windows.memmap.Memmap": {

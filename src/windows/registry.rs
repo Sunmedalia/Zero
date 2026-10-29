@@ -1012,6 +1012,110 @@ mod ownership_tests {
         assert_eq!(r.kernel_identity["registry_process"]["pid"], 8);
     }
     #[test]
+    fn canonical_amcache_real_cell_walk_missing_data_and_cancellation() {
+        let (mut b, mut isf) = user_hive_fixture();
+        isf.data["user_types"]["_CM_KEY_VALUE"] = json!({"size":24,"fields":{"NameLength":{"offset":2,"type":{"kind":"base","name":"u16"}},"Flags":{"offset":4,"type":{"kind":"base","name":"u16"}},"Type":{"offset":8,"type":{"kind":"base","name":"u32"}},"DataLength":{"offset":12,"type":{"kind":"base","name":"u32"}},"Data":{"offset":16,"type":{"kind":"base","name":"u32"}},"Name":{"offset":24,"type":{"kind":"array","count":0}}}});
+        // Root -> Root -> InventoryApplicationFile -> file, with an inline
+        // UTF16 path and an unreadable unrelated value that must not be read.
+        let node = |b: &mut [u8], index: usize, name: &str, children: Option<u32>| {
+            let at = 0x11000 + index;
+            b[at..at + 4].copy_from_slice(&(-128i32).to_le_bytes());
+            let n = &mut b[at + 4..at + 128];
+            n.fill(0);
+            n[..2].copy_from_slice(b"nk");
+            n[2..4].copy_from_slice(&0x20u16.to_le_bytes());
+            n[4..6].copy_from_slice(&(name.len() as u16).to_le_bytes());
+            n[40..40 + name.len()].copy_from_slice(name.as_bytes());
+            if let Some(list) = children {
+                n[24..28].copy_from_slice(&1u32.to_le_bytes());
+                n[32..36].copy_from_slice(&list.to_le_bytes());
+            }
+        };
+        let list = |b: &mut [u8], index: usize, child: u32| {
+            let at = 0x11000 + index;
+            b[at..at + 4].copy_from_slice(&(-16i32).to_le_bytes());
+            b[at + 4..at + 8].copy_from_slice(b"li\x01\x00");
+            b[at + 8..at + 12].copy_from_slice(&child.to_le_bytes());
+        };
+        node(&mut b, 0x20, "Amcache", Some(0x100));
+        list(&mut b, 0x100, 0x120);
+        node(&mut b, 0x120, "Root", Some(0x200));
+        list(&mut b, 0x200, 0x220);
+        node(&mut b, 0x220, "InventoryApplicationFile", Some(0x300));
+        list(&mut b, 0x300, 0x320);
+        node(&mut b, 0x320, "file", None);
+        b[0x11334..0x11338].copy_from_slice(&2u32.to_le_bytes());
+        b[0x11338..0x1133c].copy_from_slice(&0x400u32.to_le_bytes());
+        b[0x11400..0x11404].copy_from_slice(&(-16i32).to_le_bytes());
+        b[0x11404..0x11408].copy_from_slice(&0x420u32.to_le_bytes());
+        b[0x11408..0x1140c].copy_from_slice(&0x480u32.to_le_bytes());
+        let value = |b: &mut [u8], index: usize, name: &str, data: u32, length: u32| {
+            let at = 0x11000 + index;
+            b[at..at + 4].copy_from_slice(&(-96i32).to_le_bytes());
+            let v = &mut b[at + 4..at + 96];
+            v.fill(0);
+            v[..2].copy_from_slice(b"vk");
+            v[2..4].copy_from_slice(&(name.len() as u16 * 2).to_le_bytes());
+            v[12..16].copy_from_slice(&length.to_le_bytes());
+            v[8..12].copy_from_slice(&1u32.to_le_bytes());
+            v[16..20].copy_from_slice(&data.to_le_bytes());
+            let bytes: Vec<_> = name.encode_utf16().flat_map(u16::to_le_bytes).collect();
+            v[24..24 + bytes.len()].copy_from_slice(&bytes);
+        };
+        value(&mut b, 0x420, "LowerCaseLongPath", 0x00420041, 0x80000004);
+        value(&mut b, 0x480, "Unrelated", 0x10000, 8);
+        let run = |b: &[u8], job: &Job, old: bool| {
+            let img = image(b);
+            let engine = Windows {
+                vm: Memory::new(&img, 0x5000, &isf, None),
+                base: K,
+                pdb: PdbIdentity::from_isf(&isf).unwrap(),
+            };
+            let mut result = engine.result(Plugin::WinAmcacheV4);
+            let records = engine.amcache_records(
+                K + 0x3020,
+                if old {
+                    r"Root\File"
+                } else {
+                    r"Root\InventoryApplicationFile"
+                },
+                if old {
+                    super::super::amcache::Layout::File
+                } else {
+                    super::super::amcache::Layout::ApplicationFile
+                },
+                job,
+                &mut result,
+            )?;
+            Ok::<_, anyhow::Error>((records, result))
+        };
+        let (rows, result) = run(&b, &Job::default(), false).unwrap();
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].1[1], "AB");
+        assert!(result.complete, "{:?}", result.diagnostics);
+        // A wanted value with missing bytes remains an absent field and partial.
+        value(&mut b, 0x480, "Publisher", 0x10000, 8);
+        let (rows, result) = run(&b, &Job::default(), false).unwrap();
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].1[2], "N/A");
+        assert!(!result.complete);
+        // Win8 File entries are nested below volume keys, not direct children.
+        node(&mut b, 0x220, "File", Some(0x300));
+        node(&mut b, 0x320, "volume", Some(0x500));
+        list(&mut b, 0x500, 0x520);
+        node(&mut b, 0x520, "oldfile", None);
+        b[0x11534..0x11538].copy_from_slice(&1u32.to_le_bytes());
+        b[0x11538..0x1153c].copy_from_slice(&0x400u32.to_le_bytes());
+        value(&mut b, 0x420, "15", 0x00440043, 0x80000004);
+        let (rows, result) = run(&b, &Job::default(), true).unwrap();
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].1[1], "CD");
+        assert!(result.complete);
+        let job = Job::default();
+        job.cancel.store(true, std::sync::atomic::Ordering::Relaxed);
+        assert!(run(&b, &job, false).is_err());
+    }
+    #[test]
     fn canonical_userassist_key_subkey_value_missing_data_and_validated_root_fallback() {
         let (mut b, isf) = user_hive_fixture();
         // The root owns one direct child and a short binary value.

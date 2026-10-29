@@ -1,0 +1,77 @@
+{
+  "version": 1,
+  "allow_partial": true,
+  "keys": [
+    "EntryType"
+  ],
+  "duplicate_keys": "multiset",
+  "fields": {
+    "EntryType": {
+      "zero": "EntryType",
+      "reference": "EntryType",
+      "type": "na_text",
+      "allow_absent": true
+    },
+    "Path": {
+      "zero": "Path",
+      "reference": "Path",
+      "type": "na_text",
+      "allow_absent": true
+    },
+    "Company": {
+      "zero": "Company",
+      "reference": "Company",
+      "type": "na_text",
+      "allow_absent": true
+    },
+    "LastModifyTime": {
+      "zero": "LastModifyTime",
+      "reference": "LastModifyTime",
+      "type": "na_timestamp",
+      "allow_absent": true
+    },
+    "LastModifyTime2": {
+      "zero": "LastModifyTime2",
+      "reference": "LastModifyTime2",
+      "type": "na_timestamp",
+      "allow_absent": true
+    },
+    "InstallTime": {
+      "zero": "InstallTime",
+      "reference": "InstallTime",
+      "type": "na_timestamp",
+      "allow_absent": true
+    },
+    "CompileTime": {
+      "zero": "CompileTime",
+      "reference": "CompileTime",
+      "type": "na_timestamp",
+      "allow_absent": true
+    },
+    "SHA1": {
+      "zero": "SHA1",
+      "reference": "SHA1",
+      "type": "na_text",
+      "allow_absent": true
+    },
+    "Service": {
+      "zero": "Service",
+      "reference": "Service",
+      "type": "na_text",
+      "allow_absent": true
+    },
+    "ProductName": {
+      "zero": "ProductName",
+      "reference": "ProductName",
+      "type": "na_text",
+      "allow_absent": true
+    },
+    "ProductVersion": {
+      "zero": "ProductVersion",
+      "reference": "ProductVersion",
+      "type": "na_text",
+      "allow_absent": true
+    }
+  },
+  "notes": "Compare all eleven fields and every recovered record with exact multiplicity. Absent values are explicit. Pinned v2.28.2 rejects string InstallDate/LinkDate; those fields remain absent. Tree indentation is not represented by the native flat table."
+}

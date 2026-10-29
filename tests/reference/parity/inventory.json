@@ -3383,7 +3383,9 @@
       "replacement": "windows.registry.amcache.Amcache",
       "declared_requirements": [],
       "declared_columns": [],
-      "zero_candidates": [],
+      "zero_candidates": [
+        "windows.registry.amcache.Amcache"
+      ],
       "status": "alias",
       "evidence": []
     },
@@ -7434,8 +7436,10 @@
         "ProductName",
         "ProductVersion"
       ],
-      "zero_candidates": [],
-      "status": "missing",
+      "zero_candidates": [
+        "windows.registry.amcache.Amcache"
+      ],
+      "status": "mapped_unverified",
       "evidence": []
     },
     {

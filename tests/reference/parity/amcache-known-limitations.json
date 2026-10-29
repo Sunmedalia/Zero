@@ -1,0 +1,105 @@
+{
+  "schema_version": 1,
+  "engine_version": "0.2.1-native-54",
+  "reference_version": "v2.28.2",
+  "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+  "zero_executable_sha256": "cda77c2a0a51ea0a7d1c72cf1b8d895b36758aeb5af4242aab999e26a6a39453",
+  "scope": "Two default Intel x64 real-image cases, all eleven fields and every record multiplicity. No complete plugin contract.",
+  "cases": [
+    {
+      "case_id": "windows-10-15063/amcache-default",
+      "passed": true,
+      "image_sha256": "d58f62e92b8c4ef913ac09b2c36a10482034c10b88d0c154dead3aaaa49cf875",
+      "rows": 1230,
+      "complete": false,
+      "diagnostics": [
+        "Windows 链表末尾未闭合 @ 0xfffff8021f3bed48 direction 0",
+        "Windows 链表不一致 @ 0xffff8b854be0daa8 direction 8: expected 0xfffff8021f3bed48, found 0x0",
+        "链表 @ 0xfffff8021f3bed48 direction 8: 无效链表地址 0x1",
+        "0xffff8b854be0d000 FileFullPath: 无效 UNICODE_STRING 长度",
+        "0xffff8b854be0d000 HiveRootPath: Windows 缺页 VA 0x2058cc40fd0 level 39 PTE 0x0; prototype 所在页表不驻留",
+        "Windows 链表不一致 @ 0xffffd98df8f9c8e8 direction 0: expected 0xffffd98df8be88e8, found 0xffffd98df7cbe668",
+        "Windows 链表不一致 @ 0xffffd98df8831368 direction 0: expected 0xffffd98df41a88e8, found 0xffffd98df9d4e8e8",
+        "Windows 链表不一致 @ 0xffffd98df3ab88e8 direction 0: expected 0xffffd98df63618e8, found 0xffffd98df480e368",
+        "Windows 链表不一致 @ 0xffffd98df7cbe668 direction 0: expected 0xffffd98df503a368, found 0xffffd98df8be88e8",
+        "链表 @ 0xfffff8021ef5c120 direction 0: Windows 链表循环或超限 0xffffd98df8f9c8e8",
+        "Windows 链表不一致 @ 0xffffd98df9d4e8e8 direction 8: expected 0xfffff8021ef5c120, found 0xffffd98df8831368",
+        "Windows 链表不一致 @ 0xffffd98df41a88e8 direction 8: expected 0xffffd98df9d4e8e8, found 0xffffd98df8831368",
+        "Windows 链表不一致 @ 0xffffd98df8be88e8 direction 8: expected 0xffffd98df7cbe668, found 0xffffd98df8f9c8e8"
+      ],
+      "native_output_sha256": "7e85cace26c8faf6207ad24954aab2835f9f3f70236205c71a7b3c90f425b76e",
+      "reference_output_sha256": "b4b30939cfcc98a6b75043c07c62f3cf5b7252371ef83b86e6da714662a38058"
+    },
+    {
+      "case_id": "windows-11/amcache-default",
+      "passed": true,
+      "image_sha256": "0f00815b8f78f30a63d742c73152474b2a3c35183dbb1d92c8fc6a81fa3de9f1",
+      "rows": 665,
+      "complete": false,
+      "diagnostics": [
+        "0xffffaa8bc46fb000 FileUserName: Windows 缺页 VA 0xffffaa8bc4759e20 level 12 PTE 0x1801f00000084; 不是 prototype PTE",
+        "Windows 链表不一致 @ 0xffffde8ced813508 direction 0: expected 0xffffde8ced890548, found 0x737265646165682d",
+        "链表 @ 0xfffff8002a41bea0 direction 0: 无效链表地址 0x65736f7078652d6c",
+        "Windows 链表不一致 @ 0xffffde8ced890548 direction 8: expected 0xfffff8002a41bea0, found 0xffffde8ced813508",
+        "EPROCESS 0xffffde8ced8130c0: 无效 EPROCESS"
+      ],
+      "native_output_sha256": "3ff6030e26edf405cc28881db80416d504698b1a227e6c9c04bf422633574347",
+      "reference_output_sha256": "aa383c62a1b9278e1e466f58a10bbb0eec28f7d5e50e70b84d6008a59bb8c7a7"
+    }
+  ],
+  "negative_observations": [
+    {
+      "case_id": "server-2008-6001-x86/amcache-default",
+      "image_sha256": "d3b13f2224cab20440a4bb3c5c971662be6e61f431340f319cef7312bb6177f4",
+      "zero_records": 0,
+      "reference_records": 0,
+      "positive_evidence": false,
+      "complete": true,
+      "diagnostics": [],
+      "native_output_sha256": "81f138c07643c0ed966ccbfbbb26276e7de13734af1407e97a0d57e08520e863",
+      "reference_output_sha256": "a3cbe01dad52836a7ac8efc91954cf64867f4dee8a6f046c4bb0838d11f48589"
+    },
+    {
+      "case_id": "windows-7-7601-x64/amcache-default",
+      "image_sha256": "80366d7ec64a5529c95c2f523f4281a5f11efbad33ecb19f73525470c1407b23",
+      "zero_records": 0,
+      "reference_records": 0,
+      "positive_evidence": false,
+      "complete": false,
+      "diagnostics": [
+        "Windows 链表末尾未闭合 @ 0xfffff80002830b90 direction 0",
+        "Windows 链表不一致 @ 0xfffffa80014c11e8 direction 8: expected 0xfffff80002830b90, found 0xfffffa80014aa1e8"
+      ],
+      "native_output_sha256": "af9202953d0895024d73bc655f996b53760c1bd9ac1926c74ff822880f6cd166",
+      "reference_output_sha256": "a3cbe01dad52836a7ac8efc91954cf64867f4dee8a6f046c4bb0838d11f48589"
+    },
+    {
+      "case_id": "server-2003-3790-x86/amcache-default",
+      "image_sha256": "dc7022c2183dade6c36ebf19c74af5234bff8800e2a6f95e825287da9a214adb",
+      "zero_records": 0,
+      "reference_records": 0,
+      "positive_evidence": false,
+      "complete": true,
+      "diagnostics": [],
+      "native_output_sha256": "b133ff18007f0cbcd5c7214a0fe97d83399579595fa7354b1b20d145b307df71",
+      "reference_output_sha256": "a3cbe01dad52836a7ac8efc91954cf64867f4dee8a6f046c4bb0838d11f48589"
+    }
+  ],
+  "limitations": [
+    "Pinned v2.28.2 string datetime helper requires both integer and string types and always returns absent; modern InstallDate and LinkDate are not recovered by this standard entry. Legacy six-column entry preserves raw LinkDate.",
+    "Native output is a flat eleven-column table; TreeGrid parent/child indentation is not represented. Program ID association orders programs ahead of matching file groups.",
+    "Discovery uses the first matching loaded hive and shared verified Registry process space; pool-scan fallback for damaged loaded hive lists remains outstanding.",
+    "Default real cases cover Windows 10 build 15063 and Windows 11 build 22000 x64 only. Win8 volume-nested file walking and numeric/string boundaries also have synthetic coverage, not an independent Win8 real-image acceptance.",
+    "ARM64 is explicitly unsupported; x86 is not established by positive real-image cases. Other builds, arbitrary non-ASCII registry names and malformed-cell behavior need broader comparisons.",
+    "Missing data remains absent with diagnostics; native does not zero-pad lost evidence. Source type metadata and value names are exact, case-sensitive matches.",
+    "Timeliner integration and complete parameter/failure contracts remain unverified. Empty absent-hive observations do not count as positive recovery evidence.",
+    "Resource limits preserve explicit partial diagnostics. A section that fails before returning its record list cannot supply records from that failed section."
+  ],
+  "verification": {
+    "rust_tests_passed": 571,
+    "python_tests_passed": 25,
+    "linux_real_regressions_passed": 4,
+    "windows_real_regressions_passed": 13,
+    "windows_excluded": "Server2012R2 sample unavailable"
+  }
+}

@@ -707,3 +707,34 @@ Win11 22000 x64 58 条、Win7 7601 x64 60 条、Server2003 3790 x86 11 条。
 候选入口对应为 117/135，尚缺 18 个标准 Windows 插件；完整插件合同仍为 0。
 本批最终可执行文件 SHA256 为
 `cab7ad951d29f5f44a44f12589865ddf5b191b9ba207155e79f6f0d844110316`。
+
+Windows Amcache（native54）：新增标准十一列入口
+`windows.registry.amcache.Amcache`，保留旧六列入口。原生读取驱动、程序、文件三类记录，
+覆盖 `Root\InventoryDriverBinary`、`Root\Programs`、双层 `Root\File`、
+`Root\InventoryApplication`、`Root\InventoryApplicationFile`。值名精确匹配，
+UTF-16 替换解码只移除尾部 NUL；DWORD/QWORD/大端 DWORD 按实际类型处理。
+旧布局文件时间为整秒 FILETIME，Unix 时间独立校验范围。SHA1 移除前导零遵循固定参考。
+程序按 ID 归组，重复 ID 保留最后值及最初插入顺序；原生表为平面输出，尚无参考树缩进。
+
+默认使用已加载 hive 中首个名称包含 amcache 的对象，经过共享 Registry 进程地址空间
+路由。无关值的数据页不读取；目标值缺页保留 N/A 和诊断。键、子键、输出均有上限，
+输出上限保留已恢复记录及 partial，取消继续向上传播。合成测试覆盖现代/旧版键遍历、
+缺失数据、未知字段、标量类型边界、非法时间和取消操作。
+
+固定 v2.28.2 参考的 `_get_datetime_str_value` 先要求整数、再要求字符串，故现代
+InstallDate/LinkDate 始终输出缺值。此标准入口明确保留该行为，不能将缺值作为时间恢复
+证据；旧六列入口仍可查看原始 LinkDate 文本。Timeliner、更多架构/构建、hive pool-scan
+回退、任意非 ASCII 键名及更多损坏输入仍未建立完整插件合同。
+
+最终固定构建的十一字段全记录差分：Win10 15063 x64 为 1,230 / 1,230 条，
+Win11 22000 x64 为 665 / 665 条，均无缺失、额外或字段冲突；两份均保留 partial
+诊断。配置见 [Amcache 用例](../tests/reference/parity/amcache.example.json)，
+字段映射见 [十一字段映射](../tests/reference/parity/mappings/windows-amcache.json)。
+Server2008、Win7、Server2003 的空输出另外登记，不作为正向恢复证据。
+
+本批 `make check` 通过 571 Rust / 25 Python 测试；真实镜像回归 Linux 4/4、Windows
+13/13 通过，Server2012R2 仍无本地样本。新增两项正向用例后累计为 80 项，覆盖
+21 个插件，其中 5 项仍明确限定记录范围。候选入口对应为 118/135，尚缺 17 个标准
+Windows 插件；完整插件合同仍为 0。最终 native54 可执行文件 SHA256 为
+`cda77c2a0a51ea0a7d1c72cf1b8d895b36758aeb5af4242aab999e26a6a39453`。
+原用户 Debian 镜像仍未取得，其页表故障尚未实样验收。

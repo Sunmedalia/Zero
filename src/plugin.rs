@@ -3,6 +3,8 @@ use clap::ValueEnum;
 
 #[derive(Clone, Copy, Debug, ValueEnum, PartialEq, Eq)]
 pub enum Plugin {
+    #[value(name = "windows.registry.amcache.Amcache")]
+    WinAmcacheV4,
     #[value(name = "windows.registry.userassist.UserAssist")]
     WinUserAssistV4,
     #[value(name = "windows.memmap.Memmap", alias = "windows.memmap")]
@@ -287,6 +289,25 @@ pub struct Descriptor {
     pub widths: &'static [u16],
 }
 pub const PLUGINS: &[Descriptor] = &[
+    Descriptor {
+        plugin: Plugin::WinAmcacheV4,
+        name: "windows.registry.amcache.Amcache",
+        label: "amcache (11 columns)",
+        columns: &[
+            "EntryType",
+            "Path",
+            "Company",
+            "LastModifyTime",
+            "LastModifyTime2",
+            "InstallTime",
+            "CompileTime",
+            "SHA1",
+            "Service",
+            "ProductName",
+            "ProductVersion",
+        ],
+        widths: &[8, 45, 25, 25, 25, 25, 25, 40, 25, 30, 20],
+    },
     Descriptor {
         plugin: Plugin::WinUserAssistV4,
         name: "windows.registry.userassist.UserAssist",
@@ -1961,7 +1982,10 @@ impl Plugin {
             Self::WinIat | Self::WinVerinfo => "Process",
             Self::WinMftscan => "Files",
             Self::WinOrphanThreads | Self::WinEtwpatch => "Integrity",
-            Self::WinScheduledTasks | Self::WinAmcache | Self::WinCertificates => "Files",
+            Self::WinAmcacheV4
+            | Self::WinScheduledTasks
+            | Self::WinAmcache
+            | Self::WinCertificates => "Files",
             Self::WinProcessghosting => "Integrity",
             Self::WinJoblinks => "Process",
             Self::WinTimeliner => "System",
@@ -2152,6 +2176,7 @@ impl Plugin {
             WinOrphanThreads => "列出起始地址不在任何内核模块中的系统线程",
             WinEtwpatch => "检查各进程 ntdll ETW 入口是否被打补丁",
             WinScheduledTasks => "解码注册表 TaskCache 中的计划任务及命令",
+            WinAmcacheV4 => "读取 Amcache 驱动、程序与文件的 11 列标准输出",
             WinAmcache => "读取 Amcache.hve 的程序文件清单",
             WinCertificates => "列出注册表证书存储中的证书",
             WinProcessghosting => "检查进程映像文件是否删除挂起或未关联节对象",

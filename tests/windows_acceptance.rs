@@ -62,6 +62,12 @@ fn public_windows_images() {
         for (plugin, expected) in [
             (Plugin::WinPslist, expected_processes),
             (
+                Plugin::WinAmcacheV4,
+                fixture["rows"]["windows.registry.amcache.Amcache"]
+                    .as_u64()
+                    .unwrap() as usize,
+            ),
+            (
                 Plugin::WinMemmap,
                 fixture["rows"]["windows.memmap.Memmap"].as_u64().unwrap() as usize,
             ),
@@ -183,6 +189,14 @@ fn public_windows_images() {
             assert_eq!(result.rows.len(), expected, "{variable} {plugin:?}");
             if let Some(complete) = fixture["complete"][plugin.name()].as_bool() {
                 assert_eq!(result.complete, complete, "{variable} {plugin:?} coverage");
+            }
+            if plugin == Plugin::WinAmcacheV4 {
+                assert_eq!(result.columns.len(), 11);
+                for kind in ["Driver", "Program", "File"] {
+                    assert!(result.rows.iter().any(|row| row[0] == kind));
+                }
+                assert!(!result.complete);
+                assert!(!result.diagnostics.is_empty());
             }
             if plugin == Plugin::WinSvcList {
                 assert_eq!(result.columns.len(), 11);
