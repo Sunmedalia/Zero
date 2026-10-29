@@ -251,6 +251,13 @@ impl Windows<'_> {
         Ok(out)
     }
     pub(super) fn driver_irp(&self, job: &Job) -> Result<Results> {
+        self.driver_irp_with_symbols(job, None)
+    }
+    pub(super) fn driver_irp_with_symbols(
+        &self,
+        job: &Job,
+        resources: Option<(&std::path::Path, bool)>,
+    ) -> Result<Results> {
         ensure!(
             matches!(
                 Architecture::from_isf(self.vm.isf)?,
@@ -259,15 +266,20 @@ impl Windows<'_> {
             "DriverIrp 仅支持 x86/x64"
         );
         let mut r = self.result(Plugin::WinDriverIrp);
-        if let Err(e) = self.driver_irp_rows(&mut r, job) {
+        if let Err(e) = self.driver_irp_rows(&mut r, job, resources) {
             job.check()?;
             Self::issue(&mut r, "DriverIrp", format!("{e:#}"));
         }
         Ok(r)
     }
-    fn driver_irp_rows(&self, r: &mut Results, job: &Job) -> Result<()> {
+    fn driver_irp_rows(
+        &self,
+        r: &mut Results,
+        job: &Job,
+        resources: Option<(&std::path::Path, bool)>,
+    ) -> Result<()> {
         let modules = self.modules_partial(job, r)?;
-        let modules = DispatchModules::new(modules, self.vm.isf, self.base, job)?;
+        let mut modules = DispatchModules::new(modules, self.vm.isf, self.base, job)?;
         let field = self.vm.isf.field("_DRIVER_OBJECT", "MajorFunction")?;
         ensure!(
             field["type"]["kind"] == "array"
@@ -320,6 +332,7 @@ impl Windows<'_> {
                 };
                 match target {
                     Ok(target) if self.vm.kernel(target) => {
+                        modules.resolve_at(target, &self.vm, resources, r, job)?;
                         for (module, symbol) in modules.at(target) {
                             ensure!(r.rows.len() < 100_000, "IRP 结果数量超限");
                             let row = vec![
@@ -344,7 +357,7 @@ impl Windows<'_> {
                 }
             }
         }
-        r.kernel_identity["dispatch_symbols"] = serde_json::json!({"scope":"exact kernel PDB only; external module symbols unavailable","match":"exact address; all aliases; half-open module ranges"});
+        r.kernel_identity["dispatch_symbols"] = modules.evidence();
         Ok(())
     }
 }

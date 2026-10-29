@@ -268,3 +268,15 @@ Modules counts therefore rise from 183 to 191 on Win10 and 105 to 149 on Server
 2008. Readable handler slots survive later missing pages. Module intervals are
 half-open and malformed optional padding is rejected. ARM64 is unsupported and
 exact external driver PDB resolution remains outstanding.
+
+Native44 external-module symbols are recorded separately in
+`module-symbols-known-differences.json`. The Win10 exact MUP PDB acquisition,
+native conversion and subsequent offline lookup produce 28 named external IRP
+rows; `public_win10_exact_driver_symbols` checks every address against that
+exact converted ISF. Prepare the exact PDB/ISF stated in the evidence before
+running this opt-in test. It performs no downloads. The three existing
+kernel-scoped DriverIrp cases were rerun, and all full default comparisons still
+fail. These reruns do not increase the positive-case count. Missing external
+PDBs now generate partial diagnostics; DriverIrp result caching is disabled until
+its keys include external symbol dependencies. The original native43 evidence
+and mapping scope descriptions remain historical records of that earlier run.

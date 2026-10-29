@@ -268,7 +268,7 @@ fn endpoint(vm: &Memory<'_>, address: u64, family: u64, port: u16) -> Result<Str
 pub(super) fn pe_identity(vm: &Memory<'_>, base: u64) -> Result<PdbIdentity> {
     let mut header = [0; 4096];
     vm.read(base, &mut header)?;
-    let (_, debug) = pe_header(&header)?;
+    let (size, debug) = pe_header(&header)?;
     let pe = u32::from_le_bytes(header[60..64].try_into()?) as usize;
     let directories = if u16::from_le_bytes(header[pe + 24..pe + 26].try_into()?) == 0x10b {
         96
@@ -283,27 +283,105 @@ pub(super) fn pe_identity(vm: &Memory<'_>, base: u64) -> Result<PdbIdentity> {
     let len = u32::from_le_bytes(
         header[pe + 24 + directories + 52..pe + 24 + directories + 56].try_into()?,
     ) as u64;
+    let in_image = |rva: u64, length: u64| {
+        rva != 0
+            && length != 0
+            && rva
+                .checked_add(length)
+                .is_some_and(|end| end <= u64::from(size))
+    };
     ensure!(
-        len <= 4096 && len.is_multiple_of(28),
-        "PE debug directory 无效"
+        len <= 4096 && len.is_multiple_of(28) && in_image(u64::from(debug), len),
+        "PE debug directory 无效或越界"
     );
+    let mut identity = None;
     for offset in (0..len).step_by(28) {
         let mut record = [0; 28];
         vm.read(add(base, u64::from(debug) + offset)?, &mut record)?;
         if u32::from_le_bytes(record[12..16].try_into()?) == 2 {
-            let mut cv = [0; 512];
+            let length = u32::from_le_bytes(record[16..20].try_into()?) as u64;
             let rva = u32::from_le_bytes(record[20..24].try_into()?) as u64;
+            ensure!(
+                (25..=4096).contains(&length) && in_image(rva, length),
+                "PE CodeView 长度无效或越界"
+            );
+            let mut cv = vec![0; length as usize];
             vm.read(add(base, rva)?, &mut cv)?;
-            return PdbIdentity::from_rsds(&cv);
+            // Older NB10 records cannot establish an exact RSDS identity.
+            if !cv.starts_with(b"RSDS") {
+                continue;
+            }
+            let found = PdbIdentity::from_rsds(&cv)?;
+            ensure!(
+                identity.as_ref().is_none_or(|old| *old == found),
+                "PE 存在冲突的 RSDS 身份"
+            );
+            identity = Some(found);
         }
     }
-    bail!("PE 缺少 CodeView")
+    identity.context("PE 缺少 RSDS CodeView")
 }
 
 #[cfg(test)]
 mod tests {
     use super::super::tests::{K, fixture, image};
     use super::*;
+    fn set_u32(bytes: &mut [u8], at: usize, value: u32) {
+        bytes[at..at + 4].copy_from_slice(&value.to_le_bytes());
+    }
+    fn identity(bytes: &[u8], isf: &Isf) -> Result<PdbIdentity> {
+        let image = image(bytes);
+        pe_identity(&Memory::new(&image, 0x1000, isf, None), K)
+    }
+    #[test]
+    fn codeview_uses_declared_size_at_a_page_boundary() {
+        let (mut bytes, isf) = fixture();
+        let cv = bytes[0x8600..0x8625].to_vec();
+        bytes[0x8fdb..0x9000].copy_from_slice(&cv);
+        set_u32(&mut bytes, 0x8514, 0xfdb);
+        // Remove the next page: a fixed 512-byte read used to fail here.
+        bytes[0x4008..0x4010].fill(0);
+        assert_eq!(
+            identity(&bytes, &isf).unwrap(),
+            PdbIdentity::from_isf(&isf).unwrap()
+        );
+        set_u32(&mut bytes, 0x8510, 36);
+        assert!(
+            identity(&bytes, &isf).is_err(),
+            "NUL outside SizeOfData must not terminate the name"
+        );
+    }
+    #[test]
+    fn codeview_rejects_out_of_module_ranges_and_unterminated_names() {
+        let (bytes, isf) = fixture();
+        for (at, value) in [
+            (0x8138, 0x8000),
+            (0x813c, 29),
+            (0x8514, 0x7ff0),
+            (0x8510, 4097),
+            (0x8510, 0),
+        ] {
+            let mut bad = bytes.clone();
+            set_u32(&mut bad, at, value);
+            assert!(identity(&bad, &isf).is_err(), "{at:#x}={value}");
+        }
+        let mut bad = bytes;
+        bad[0x8624] = b'x';
+        assert!(identity(&bad, &isf).is_err());
+    }
+    #[test]
+    fn codeview_accepts_repeated_identity_but_rejects_conflicts() {
+        let (mut bytes, isf) = fixture();
+        set_u32(&mut bytes, 0x813c, 56);
+        let record = bytes[0x8500..0x851c].to_vec();
+        bytes[0x851c..0x8538].copy_from_slice(&record);
+        assert!(identity(&bytes, &isf).is_ok());
+        let cv = bytes[0x8600..0x8625].to_vec();
+        bytes[0x8680..0x86a5].copy_from_slice(&cv);
+        bytes[0x8694] = 2; // same GUID, different PDB age
+        set_u32(&mut bytes, 0x8530, 0x680);
+        assert!(format!("{:#}", identity(&bytes, &isf).unwrap_err()).contains("冲突"));
+    }
     #[test]
     fn endpoints_use_network_bytes_and_exact_identity_layouts() {
         let (mut b, isf) = fixture();

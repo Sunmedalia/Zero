@@ -39,6 +39,7 @@ pub(super) fn fixture() -> (Vec<u8>, Isf) {
     b[0x8138..0x813c].copy_from_slice(&0x500u32.to_le_bytes());
     b[0x813c..0x8140].copy_from_slice(&28u32.to_le_bytes());
     b[0x850c..0x8510].copy_from_slice(&2u32.to_le_bytes());
+    b[0x8510..0x8514].copy_from_slice(&37u32.to_le_bytes());
     b[0x8514..0x8518].copy_from_slice(&0x600u32.to_le_bytes());
     b[0x8600..0x8604].copy_from_slice(b"RSDS");
     b[0x8604..0x8614].copy_from_slice(&[

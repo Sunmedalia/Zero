@@ -1029,6 +1029,7 @@ pub(crate) fn analyze_resolved(
         ),
     );
     if request.use_cache
+        && request.plugin != Plugin::WinDriverIrp
         && !request.plugin.is_dump()
         && let Some(r) =
             store::load(request.cache, &key).or_else(|| store::load_partial(request.cache, &key))
@@ -1042,6 +1043,8 @@ pub(crate) fn analyze_resolved(
     }
     let mut result = if let Some(dump) = dump {
         engine.run_dump(request.plugin, dump, job)?
+    } else if request.plugin == Plugin::WinDriverIrp {
+        engine.driver_irp_with_symbols(job, Some((request.cache, request.network)))?
     } else if request.plugin == Plugin::WinNetscan {
         engine.netscan(job, Some((request.cache, request.network)))?
     } else {
@@ -1078,7 +1081,8 @@ pub(crate) fn analyze_resolved(
         result.diagnostics.extend(hiber.info.diagnostics.clone());
     }
     job.check()?;
-    if request.use_cache && !request.plugin.is_dump() {
+    // External module symbol dependencies are not yet included in result keys.
+    if request.use_cache && request.plugin != Plugin::WinDriverIrp && !request.plugin.is_dump() {
         store::save_any(
             request.cache,
             &key,

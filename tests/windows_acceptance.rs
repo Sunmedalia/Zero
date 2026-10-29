@@ -516,3 +516,85 @@ fn public_server2016_triage_metadata() {
         }
     }
 }
+
+#[test]
+#[ignore = "requires public Win10 15063 image and exact cached mup.pdb/8443AA648B71EE252D2008EB6EBBC0311"]
+fn public_win10_exact_driver_symbols() {
+    use zero_tui::{symbols::Isf, windows_symbols::PdbIdentity};
+    let image = PathBuf::from(
+        std::env::var("ZERO_WINDOWS10_IMAGE")
+            .unwrap_or_else(|_| "images/feat-windows-plugins/WinDump/WinDump.mem".into()),
+    );
+    let kernel = Path::new(
+        ".zero/rust/symbols/isf/windows/ntkrnlmp.pdb-0C9CC659210046EC84231597DADFDB3B1.json",
+    );
+    let driver_path =
+        Path::new(".zero/rust/symbols/isf/windows/mup.pdb-8443AA648B71EE252D2008EB6EBBC0311.json");
+    let driver = Isf::parse(
+        &std::fs::read(driver_path).unwrap(),
+        driver_path.display().to_string(),
+    )
+    .unwrap();
+    assert_eq!(
+        PdbIdentity::from_isf(&driver).unwrap().key(),
+        "mup.pdb/8443AA648B71EE252D2008EB6EBBC0311"
+    );
+    let mut session = Session::default();
+    let job = Job::default();
+    assert_eq!(
+        session
+            .prepare_image(&image, Path::new(".zero/rust"), &job)
+            .unwrap()
+            .digest,
+        "d58f62e92b8c4ef913ac09b2c36a10482034c10b88d0c154dead3aaaa49cf875"
+    );
+    let Outcome::Ready(result) = analysis::analyze(
+        &mut session,
+        &Request {
+            image: &image,
+            symbols: kernel,
+            choice: None,
+            plugin: Plugin::WinDriverIrp,
+            cache: Path::new(".zero/rust"),
+            use_cache: true,
+            network: false,
+        },
+        None,
+        &Options::default(),
+        &job,
+    )
+    .unwrap() else {
+        panic!("ambiguous kernel")
+    };
+    assert!(
+        !job.served_from_cache(),
+        "external symbols must not reuse result cache without dependency keys"
+    );
+    let module = result.kernel_identity["dispatch_symbols"]["modules"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|m| m["pdb"] == "mup.pdb/8443AA648B71EE252D2008EB6EBBC0311")
+        .unwrap();
+    assert_eq!(module["resolved"], true);
+    assert_eq!(module["isf_sha256"], driver.digest);
+    let base = u64::from_str_radix(
+        module["base"].as_str().unwrap().trim_start_matches("0x"),
+        16,
+    )
+    .unwrap();
+    let rows: Vec<_> = result.rows.iter().filter(|row| row[4] == "mup").collect();
+    assert_eq!(rows.len(), 28);
+    for row in rows {
+        let address = u64::from_str_radix(row[3].trim_start_matches("0x"), 16).unwrap();
+        assert!(!row[5].is_empty());
+        assert_eq!(
+            driver.data["symbols"][&row[5]]["address"].as_u64(),
+            address.checked_sub(base)
+        );
+    }
+    assert!(
+        !result.complete,
+        "other missing symbols/pages must remain partial"
+    );
+}
