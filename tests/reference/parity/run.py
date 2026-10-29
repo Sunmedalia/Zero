@@ -47,6 +47,7 @@ def execute(command, output, log, timeout):
 
 
 def run(config, output, zero, checkout, python, timeout):
+    zero_sha256 = digest(zero)
     if subprocess.check_output(['git', '-C', str(checkout), 'rev-parse', 'HEAD'], text=True).strip() != COMMIT:
         raise ValueError('reference checkout must match pinned commit')
     if subprocess.check_output(['git', '-C', str(checkout), 'status', '--porcelain', '--untracked-files=no'], text=True).strip():
@@ -83,12 +84,16 @@ def run(config, output, zero, checkout, python, timeout):
             zero_cmd += ['--dump-dir', str(zero_files)]
         # Zero exports JSON itself; console output is kept separately.
         native = execute(zero_cmd, destination / 'zero.stdout', destination / 'zero.stderr', timeout)
+        if digest(zero) != zero_sha256:
+            raise ValueError('Zero executable changed during differential run; discard this batch')
         ref_cmd = [str(python), str(checkout / 'vol.py'), '--offline', '--cache-path', str(cache),
                    '-s', str(Path(sample['reference_symbols']).resolve()), '-f', str(Path(sample['image']).resolve()),
                    '-r', 'json', case['reference_plugin'], *case.get('reference_args', [])]
         if artifacts:
             ref_cmd[2:2] = ['-o', str(ref_files)]
         reference = execute(ref_cmd, reference_output, destination / 'reference.stderr', timeout)
+        if digest(zero) != zero_sha256:
+            raise ValueError('Zero executable changed during differential run; discard this batch')
         record = {'sample': sample['id'], 'sample_source': sample.get('source'),
                   'case_id': case.get('id', str(index)),
                   'zero_args': case.get('zero_args', []), 'reference_args': case.get('reference_args', []), 'image_sha256': sample['image_sha256'],
@@ -116,7 +121,7 @@ def run(config, output, zero, checkout, python, timeout):
         (destination / 'comparison.json').write_text(json.dumps(record, ensure_ascii=False, indent=2) + '\n')
         records.append(record)
     report = {'schema_version': 1, 'reference_version': VERSION, 'reference_commit': COMMIT,
-              'zero_executable_sha256': digest(zero), 'cases': records, 'passed': bool(records) and all(r['passed'] for r in records)}
+              'zero_executable_sha256': zero_sha256, 'cases': records, 'passed': bool(records) and all(r['passed'] for r in records)}
     (output / 'summary.json').write_text(json.dumps(report, ensure_ascii=False, indent=2) + '\n')
     return report
 

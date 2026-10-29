@@ -312,7 +312,7 @@ impl Windows<'_> {
                     }
                 };
                 let root = self
-                    .service_registry_index(
+                    .registry_index_partial(
                         hive,
                         root,
                         "CurrentControlSet\\Services",
@@ -322,7 +322,7 @@ impl Windows<'_> {
                     )
                     .or_else(|_| {
                         job.check()?;
-                        self.service_registry_index(
+                        self.registry_index_partial(
                             hive,
                             root,
                             "ControlSet001\\Services",
@@ -339,7 +339,7 @@ impl Windows<'_> {
                         let node = self.cell(hive, child)?;
                         let name = self.key_name(&node)?;
                         let path = self.service_registry_value(hive, child, "ImagePath", job, r);
-                        let dll = match self.service_registry_index(
+                        let dll = match self.registry_index_partial(
                             hive,
                             child,
                             "Parameters",
@@ -392,45 +392,6 @@ impl Windows<'_> {
             "未取得 SYSTEM 服务配置；保留内存记录，注册表字段为 N/A",
         );
         Ok(BinaryMap::new())
-    }
-    pub(super) fn service_registry_index(
-        &self,
-        hive: u64,
-        mut cell: u32,
-        key: &str,
-        job: &Job,
-        r: &mut Results,
-        case_sensitive: bool,
-    ) -> Result<u32> {
-        for part in key.split('\\').filter(|s| !s.is_empty()) {
-            job.check()?;
-            let node = self.cell(hive, cell)?;
-            let mut found = None;
-            for index in self.subkeys(hive, &node, job)? {
-                job.check()?;
-                let name = self.cell(hive, index).and_then(|n| self.key_name(&n));
-                match name {
-                    Ok(name)
-                        if if case_sensitive {
-                            name == part
-                        } else {
-                            name.eq_ignore_ascii_case(part)
-                        } =>
-                    {
-                        ensure!(found.is_none(), "注册表键名称歧义");
-                        found = Some(index);
-                    }
-                    Ok(_) => {}
-                    Err(e) => Self::issue(
-                        r,
-                        format!("service registry sibling {index:#x}"),
-                        format!("{e:#}"),
-                    ),
-                }
-            }
-            cell = found.with_context(|| format!("注册表键不存在: {part}"))?;
-        }
-        Ok(cell)
     }
     pub(super) fn service_registry_value(
         &self,

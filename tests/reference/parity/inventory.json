@@ -7963,8 +7963,10 @@
         "Last Updated",
         "Raw Data"
       ],
-      "zero_candidates": [],
-      "status": "missing",
+      "zero_candidates": [
+        "windows.registry.userassist.UserAssist"
+      ],
+      "status": "mapped_unverified",
       "evidence": []
     },
     {

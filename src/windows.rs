@@ -57,6 +57,7 @@ mod service_list;
 mod timeline;
 mod user_artifacts;
 mod user_layout;
+mod userassist;
 #[cfg(test)]
 mod vadwalk_tests;
 mod wow64;
@@ -726,6 +727,7 @@ impl Windows<'_> {
             Plugin::WinPrintkey
                 | Plugin::WinAutoruns
                 | Plugin::WinUserassist
+                | Plugin::WinUserAssistV4
                 | Plugin::WinGetservicesids
                 | Plugin::WinScheduledTasks
                 | Plugin::WinAmcache
@@ -761,6 +763,7 @@ impl Windows<'_> {
                 match p {
                     Plugin::WinAutoruns => engine.autoruns(options, job),
                     Plugin::WinUserassist => engine.userassist(options, job),
+                    Plugin::WinUserAssistV4 => engine.userassist_canonical(options, job),
                     Plugin::WinGetservicesids => engine.service_sids(job),
                     Plugin::WinScheduledTasks => engine.scheduled_tasks(job),
                     Plugin::WinAmcache => engine.amcache(job),
@@ -994,8 +997,10 @@ pub(crate) fn validate_request(
     }
     ensure!(
         request.plugin == Plugin::WinPrintkey
-            || (matches!(request.plugin, Plugin::WinAutoruns | Plugin::WinUserassist)
-                && options.key.is_empty())
+            || (matches!(
+                request.plugin,
+                Plugin::WinAutoruns | Plugin::WinUserassist | Plugin::WinUserAssistV4
+            ) && options.key.is_empty())
             || (options.hive.is_none() && options.key.is_empty()),
         "hive/key 仅用于 windows.printkey"
     );

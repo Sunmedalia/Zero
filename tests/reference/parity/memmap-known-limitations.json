@@ -4,7 +4,7 @@
   "reference_version": "v2.28.2",
   "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
   "zero_executable_sha256": "bb4cddc3a7309dcaf26ee3274d5dca3e9ed70c90dd4f3dd0ae0a49f38ee059e2",
-  "scope": "Intel x86 non-PAE/PAE and x64 native page-table enumeration; four real PID 4 listings and two real targeted binary exports. No whole-plugin parity claim.",
+  "scope": "Intel x86 non-PAE/PAE and x64 native page-table enumeration; four real PID 4 listings and two real targeted binary exports. No whole-plugin parity claim. native53 additionally verifies NT5 x86 non-PAE PID 4 listing and binary export; existing native52 case hashes remain historical.",
   "cases": [
     {
       "case_id": "windows-10-15063/memmap-pid4",
@@ -117,12 +117,51 @@
           "passed": true
         }
       ]
+    },
+    {
+      "case_id": "server-2003-3790-x86/memmap-pid4",
+      "passed": true,
+      "image_sha256": "dc7022c2183dade6c36ebf19c74af5234bff8800e2a6f95e825287da9a214adb",
+      "engine_version": "0.2.1-native-53",
+      "zero_executable_sha256": "cab7ad951d29f5f44a44f12589865ddf5b191b9ba207155e79f6f0d844110316",
+      "rows": 8044,
+      "complete": false,
+      "diagnostics": [
+        "PID 4: Memmap 省略 1439 处不可读／无效映射；首处：未采集映射 Physical 0xf0000000+0x1000"
+      ],
+      "native_output_sha256": "1ddaeead276940b86153b1650df6a321e7022e0178fa6e881ac44fe426b14734",
+      "reference_output_sha256": "32218aefe147c522d606383f597cc7ddfe691c8fa29a022d9c9f75eae49a5d62",
+      "artifacts": []
+    },
+    {
+      "case_id": "server-2003-3790-x86/memmap-pid4-dump",
+      "passed": true,
+      "image_sha256": "dc7022c2183dade6c36ebf19c74af5234bff8800e2a6f95e825287da9a214adb",
+      "engine_version": "0.2.1-native-53",
+      "zero_executable_sha256": "cab7ad951d29f5f44a44f12589865ddf5b191b9ba207155e79f6f0d844110316",
+      "rows": 8044,
+      "complete": false,
+      "diagnostics": [
+        "PID 4: Memmap 省略 1439 处不可读／无效映射；首处：未采集映射 Physical 0xf0000000+0x1000"
+      ],
+      "native_output_sha256": "f0db787ec6203d58e8162becb89755cc90fd6ec026a3ef309dd4a9a340a37640",
+      "reference_output_sha256": "add7637d47c7873446e1a6e077329e0be8a824e657fc3c5af3cb611a5a55e74c",
+      "artifacts": [
+        {
+          "name": "pid.4.dmp",
+          "zero_sha256": "3ec790561ace3d27295742907301ab7d8b68d5aa2b5d6ae2744d5dca99c4e79a",
+          "reference_sha256": "3ec790561ace3d27295742907301ab7d8b68d5aa2b5d6ae2744d5dca99c4e79a",
+          "zero_bytes": 138715136,
+          "reference_bytes": 138715136,
+          "passed": true
+        }
+      ]
     }
   ],
   "known_limits": [
     "ARM64 is explicitly unsupported by this canonical Intel plugin.",
     "Default listing enumerates all active processes; real differential evidence currently covers PID 4 only. Synthetic tests cover all/selected/absent PID behavior.",
-    "Non-PAE x86 geometry, attached pagefiles and highest-address behavior have synthetic coverage; real listing cases cover Server2008 PAE and three x64 samples. Explicit attachment provenance is retained.",
+    "Attached pagefiles and highest-address behavior have synthetic coverage; real listing cases cover Server2003 non-PAE, Server2008 PAE and three x64 samples. Explicit attachment provenance is retained.",
     "The pinned maximum-address invocation excludes the final virtual byte. x64 rows retain raw lower 48-bit virtual addresses.",
     "Windows x64 uses the pinned 45-bit PFN mask for transition mappings. This projection does not change the general virtual-memory translator.",
     "Zero keeps diagnostics for unavailable physical spans, unreadable/uniform tables, absent explicit paging attachments and resource limits. These cases remain partial.",

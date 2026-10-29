@@ -106,7 +106,8 @@
           "windows.svclist.SvcList": "unsupported",
           "windows.svcscan.SvcScan": "real",
           "windows.malware.svcdiff.SvcDiff": "unsupported",
-          "windows.memmap.Memmap": "pending"
+          "windows.memmap.Memmap": "real",
+          "windows.registry.userassist.UserAssist": "real"
         },
         "x64": {
           "windows.callbacks": "synthetic",
@@ -190,7 +191,8 @@
           "windows.svclist.SvcList": "unsupported",
           "windows.svcscan.SvcScan": "pending",
           "windows.malware.svcdiff.SvcDiff": "unsupported",
-          "windows.memmap.Memmap": "pending"
+          "windows.memmap.Memmap": "pending",
+          "windows.registry.userassist.UserAssist": "pending"
         }
       },
       "evidence": [
@@ -232,7 +234,18 @@
             "windows.threads": 312,
             "windows.unloadedmodules": 4,
             "windows.vadinfo": 1986,
-            "windows.svcscan.SvcScan": 230
+            "windows.svcscan.SvcScan": 230,
+            "windows.registry.userassist.UserAssist": 11,
+            "windows.memmap.Memmap": 8044
+          },
+          "complete": {
+            "windows.registry.userassist.UserAssist": true,
+            "windows.memmap.Memmap": false
+          },
+          "row_options": {
+            "windows.memmap.Memmap": {
+              "pid": 4
+            }
           }
         }
       ]
@@ -336,7 +349,8 @@
           "windows.svclist.SvcList": "unsupported",
           "windows.svcscan.SvcScan": "pending",
           "windows.malware.svcdiff.SvcDiff": "unsupported",
-          "windows.memmap.Memmap": "pending"
+          "windows.memmap.Memmap": "pending",
+          "windows.registry.userassist.UserAssist": "pending"
         },
         "x64": {
           "windows.callbacks": "synthetic",
@@ -420,7 +434,8 @@
           "windows.svclist.SvcList": "unsupported",
           "windows.svcscan.SvcScan": "pending",
           "windows.malware.svcdiff.SvcDiff": "unsupported",
-          "windows.memmap.Memmap": "pending"
+          "windows.memmap.Memmap": "pending",
+          "windows.registry.userassist.UserAssist": "pending"
         }
       },
       "evidence": []
@@ -525,7 +540,8 @@
           "windows.svclist.SvcList": "unsupported",
           "windows.svcscan.SvcScan": "real",
           "windows.malware.svcdiff.SvcDiff": "unsupported",
-          "windows.memmap.Memmap": "real"
+          "windows.memmap.Memmap": "real",
+          "windows.registry.userassist.UserAssist": "real"
         },
         "x64": {
           "windows.callbacks": "synthetic",
@@ -609,7 +625,8 @@
           "windows.svclist.SvcList": "unsupported",
           "windows.svcscan.SvcScan": "pending",
           "windows.malware.svcdiff.SvcDiff": "unsupported",
-          "windows.memmap.Memmap": "pending"
+          "windows.memmap.Memmap": "pending",
+          "windows.registry.userassist.UserAssist": "pending"
         }
       },
       "evidence": [
@@ -646,7 +663,8 @@
             "windows.registry.hivescan.HiveScan": 17,
             "windows.malware.pebmasquerade.PebMasquerade": 48,
             "windows.svcscan.SvcScan": 728,
-            "windows.memmap.Memmap": 15297
+            "windows.memmap.Memmap": 15297,
+            "windows.registry.userassist.UserAssist": 51
           },
           "fixture": "images/server2008/memdump.mem",
           "complete": {
@@ -667,7 +685,8 @@
             "windows.driverirp.DriverIrp": false,
             "windows.malware.drivermodule.DriverModule": false,
             "windows.registry.hivescan.HiveScan": true,
-            "windows.malware.pebmasquerade.PebMasquerade": false
+            "windows.malware.pebmasquerade.PebMasquerade": false,
+            "windows.registry.userassist.UserAssist": false
           },
           "row_options": {
             "windows.memmap.Memmap": {
@@ -777,7 +796,8 @@
           "windows.svclist.SvcList": "unsupported",
           "windows.svcscan.SvcScan": "pending",
           "windows.malware.svcdiff.SvcDiff": "unsupported",
-          "windows.memmap.Memmap": "pending"
+          "windows.memmap.Memmap": "pending",
+          "windows.registry.userassist.UserAssist": "pending"
         }
       },
       "evidence": [],
@@ -881,7 +901,8 @@
           "windows.svclist.SvcList": "unsupported",
           "windows.svcscan.SvcScan": "pending",
           "windows.malware.svcdiff.SvcDiff": "unsupported",
-          "windows.memmap.Memmap": "pending"
+          "windows.memmap.Memmap": "pending",
+          "windows.registry.userassist.UserAssist": "pending"
         }
       },
       "evidence": [
@@ -1031,7 +1052,8 @@
           "windows.svclist.SvcList": "unsupported",
           "windows.svcscan.SvcScan": "pending",
           "windows.malware.svcdiff.SvcDiff": "unsupported",
-          "windows.memmap.Memmap": "pending"
+          "windows.memmap.Memmap": "pending",
+          "windows.registry.userassist.UserAssist": "pending"
         }
       },
       "evidence": [
@@ -1182,7 +1204,8 @@
           "windows.svclist.SvcList": "unsupported",
           "windows.svcscan.SvcScan": "pending",
           "windows.malware.svcdiff.SvcDiff": "unsupported",
-          "windows.memmap.Memmap": "pending"
+          "windows.memmap.Memmap": "pending",
+          "windows.registry.userassist.UserAssist": "pending"
         }
       },
       "evidence": [
@@ -1305,7 +1328,8 @@
           "windows.svclist.SvcList": "pending",
           "windows.svcscan.SvcScan": "pending",
           "windows.malware.svcdiff.SvcDiff": "pending",
-          "windows.memmap.Memmap": "pending"
+          "windows.memmap.Memmap": "pending",
+          "windows.registry.userassist.UserAssist": "pending"
         }
       },
       "evidence": [
@@ -1457,7 +1481,8 @@
           "windows.svclist.SvcList": "pending",
           "windows.svcscan.SvcScan": "pending",
           "windows.malware.svcdiff.SvcDiff": "pending",
-          "windows.memmap.Memmap": "pending"
+          "windows.memmap.Memmap": "pending",
+          "windows.registry.userassist.UserAssist": "pending"
         }
       },
       "evidence": [
@@ -1609,7 +1634,8 @@
           "windows.svclist.SvcList": "pending",
           "windows.svcscan.SvcScan": "pending",
           "windows.malware.svcdiff.SvcDiff": "pending",
-          "windows.memmap.Memmap": "pending"
+          "windows.memmap.Memmap": "pending",
+          "windows.registry.userassist.UserAssist": "pending"
         }
       },
       "evidence": [],
@@ -1715,7 +1741,8 @@
           "windows.svclist.SvcList": "unsupported",
           "windows.svcscan.SvcScan": "pending",
           "windows.malware.svcdiff.SvcDiff": "unsupported",
-          "windows.memmap.Memmap": "pending"
+          "windows.memmap.Memmap": "pending",
+          "windows.registry.userassist.UserAssist": "pending"
         },
         "x64": {
           "windows.callbacks": "real",
@@ -1799,7 +1826,8 @@
           "windows.svclist.SvcList": "unsupported",
           "windows.svcscan.SvcScan": "real",
           "windows.malware.svcdiff.SvcDiff": "unsupported",
-          "windows.memmap.Memmap": "real"
+          "windows.memmap.Memmap": "real",
+          "windows.registry.userassist.UserAssist": "real"
         }
       },
       "evidence": [
@@ -1833,14 +1861,16 @@
             "windows.registry.hivescan.HiveScan": 16,
             "windows.malware.pebmasquerade.PebMasquerade": 53,
             "windows.svcscan.SvcScan": 863,
-            "windows.memmap.Memmap": 34991
+            "windows.memmap.Memmap": 34991,
+            "windows.registry.userassist.UserAssist": 60
           },
           "coverage_notes": {
             "windows.vadinfo": "Tagged legacy AVL parent validation rejects an inconsistent branch. 7265 rows remain, down from 7325 before the validation; keep partial diagnostics rather than traverse the damaged branch."
           },
           "complete": {
             "windows.registry.hivescan.HiveScan": true,
-            "windows.malware.pebmasquerade.PebMasquerade": false
+            "windows.malware.pebmasquerade.PebMasquerade": false,
+            "windows.registry.userassist.UserAssist": false
           },
           "row_options": {
             "windows.memmap.Memmap": {
@@ -1949,7 +1979,8 @@
           "windows.svclist.SvcList": "unsupported",
           "windows.svcscan.SvcScan": "pending",
           "windows.malware.svcdiff.SvcDiff": "unsupported",
-          "windows.memmap.Memmap": "pending"
+          "windows.memmap.Memmap": "pending",
+          "windows.registry.userassist.UserAssist": "pending"
         },
         "x64": {
           "windows.callbacks": "synthetic",
@@ -2033,7 +2064,8 @@
           "windows.svclist.SvcList": "unsupported",
           "windows.svcscan.SvcScan": "pending",
           "windows.malware.svcdiff.SvcDiff": "unsupported",
-          "windows.memmap.Memmap": "pending"
+          "windows.memmap.Memmap": "pending",
+          "windows.registry.userassist.UserAssist": "pending"
         }
       },
       "evidence": []
@@ -2137,7 +2169,8 @@
           "windows.svclist.SvcList": "unsupported",
           "windows.svcscan.SvcScan": "pending",
           "windows.malware.svcdiff.SvcDiff": "unsupported",
-          "windows.memmap.Memmap": "pending"
+          "windows.memmap.Memmap": "pending",
+          "windows.registry.userassist.UserAssist": "pending"
         },
         "x64": {
           "windows.callbacks": "synthetic",
@@ -2221,7 +2254,8 @@
           "windows.svclist.SvcList": "unsupported",
           "windows.svcscan.SvcScan": "pending",
           "windows.malware.svcdiff.SvcDiff": "unsupported",
-          "windows.memmap.Memmap": "pending"
+          "windows.memmap.Memmap": "pending",
+          "windows.registry.userassist.UserAssist": "pending"
         }
       },
       "evidence": []
@@ -2338,7 +2372,8 @@
           "windows.svclist.SvcList": "unsupported",
           "windows.svcscan.SvcScan": "pending",
           "windows.malware.svcdiff.SvcDiff": "unsupported",
-          "windows.memmap.Memmap": "pending"
+          "windows.memmap.Memmap": "pending",
+          "windows.registry.userassist.UserAssist": "pending"
         },
         "x64": {
           "windows.callbacks": "real",
@@ -2422,7 +2457,8 @@
           "windows.svclist.SvcList": "real",
           "windows.svcscan.SvcScan": "real",
           "windows.malware.svcdiff.SvcDiff": "pending",
-          "windows.memmap.Memmap": "real"
+          "windows.memmap.Memmap": "real",
+          "windows.registry.userassist.UserAssist": "real"
         }
       },
       "evidence": [
@@ -2481,14 +2517,16 @@
             "windows.malware.pebmasquerade.PebMasquerade": 139,
             "windows.svclist.SvcList": 575,
             "windows.svcscan.SvcScan": 1247,
-            "windows.memmap.Memmap": 131493
+            "windows.memmap.Memmap": 131493,
+            "windows.registry.userassist.UserAssist": 83
           },
           "complete": {
             "windows.driverirp.DriverIrp": false,
             "windows.malware.drivermodule.DriverModule": false,
             "windows.registry.hivescan.HiveScan": true,
             "windows.malware.pebmasquerade.PebMasquerade": false,
-            "windows.svclist.SvcList": false
+            "windows.svclist.SvcList": false,
+            "windows.registry.userassist.UserAssist": false
           },
           "row_options": {
             "windows.memmap.Memmap": {
@@ -2618,7 +2656,8 @@
           "windows.svclist.SvcList": "real",
           "windows.svcscan.SvcScan": "real",
           "windows.malware.svcdiff.SvcDiff": "pending",
-          "windows.memmap.Memmap": "real"
+          "windows.memmap.Memmap": "real",
+          "windows.registry.userassist.UserAssist": "real"
         }
       },
       "evidence": [
@@ -2676,14 +2715,16 @@
             "windows.malware.pebmasquerade.PebMasquerade": 102,
             "windows.svclist.SvcList": 636,
             "windows.svcscan.SvcScan": 1462,
-            "windows.memmap.Memmap": 63692
+            "windows.memmap.Memmap": 63692,
+            "windows.registry.userassist.UserAssist": 58
           },
           "complete": {
             "windows.driverirp.DriverIrp": false,
             "windows.malware.drivermodule.DriverModule": false,
             "windows.registry.hivescan.HiveScan": true,
             "windows.malware.pebmasquerade.PebMasquerade": false,
-            "windows.svclist.SvcList": false
+            "windows.svclist.SvcList": false,
+            "windows.registry.userassist.UserAssist": false
           },
           "row_options": {
             "windows.memmap.Memmap": {

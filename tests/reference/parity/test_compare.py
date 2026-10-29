@@ -24,6 +24,15 @@ class CompareTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             normalize('2024-01-01T00:00:00', 'timestamp')
 
+    def test_optional_timestamp_is_explicit_and_still_strict(self):
+        self.assertIsNone(normalize('N/A', 'na_timestamp'))
+        self.assertIsNone(normalize(None, 'na_timestamp'))
+        self.assertEqual(normalize('2026-10-29T08:00:00+08:00', 'na_timestamp'),
+                         normalize('2026-10-29T00:00:00Z', 'timestamp'))
+        for value in ('n/a', '2026-10-29T00:00:00', 'invalid'):
+            with self.assertRaises(ValueError):
+                normalize(value, 'na_timestamp')
+
     def test_full_fields_agree(self):
         self.assertTrue(self.check()['passed'])
 

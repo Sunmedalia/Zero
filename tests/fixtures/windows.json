@@ -38,7 +38,8 @@
         "windows.svclist.SvcList": 575,
         "windows.svcscan.SvcScan": 1247,
         "windows.malware.svcdiff.SvcDiff": 0,
-        "windows.memmap.Memmap": 131493
+        "windows.memmap.Memmap": 131493,
+        "windows.registry.userassist.UserAssist": 83
       },
       "process_list_complete": false,
       "artifact_reference": {
@@ -79,7 +80,8 @@
         "windows.registry.getcellroutine.GetCellRoutine": false,
         "windows.svclist.SvcList": false,
         "windows.svcscan.SvcScan": false,
-        "windows.malware.svcdiff.SvcDiff": false
+        "windows.malware.svcdiff.SvcDiff": false,
+        "windows.registry.userassist.UserAssist": false
       },
       "row_options": {
         "windows.memmap.Memmap": {
@@ -124,7 +126,8 @@
         "windows.svclist.SvcList": 636,
         "windows.svcscan.SvcScan": 1462,
         "windows.malware.svcdiff.SvcDiff": 0,
-        "windows.memmap.Memmap": 63692
+        "windows.memmap.Memmap": 63692,
+        "windows.registry.userassist.UserAssist": 58
       },
       "process_list_complete": false,
       "autoruns_reference": {
@@ -146,7 +149,8 @@
         "windows.registry.getcellroutine.GetCellRoutine": false,
         "windows.svclist.SvcList": false,
         "windows.svcscan.SvcScan": false,
-        "windows.malware.svcdiff.SvcDiff": false
+        "windows.malware.svcdiff.SvcDiff": false,
+        "windows.registry.userassist.UserAssist": false
       },
       "row_options": {
         "windows.memmap.Memmap": {

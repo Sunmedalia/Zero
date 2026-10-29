@@ -1,0 +1,85 @@
+{
+  "version": 1,
+  "allow_partial": true,
+  "keys": [
+    "Hive Offset",
+    "Path",
+    "Type"
+  ],
+  "fields": {
+    "Hive Offset": {
+      "zero": "Hive Offset",
+      "reference": "Hive Offset",
+      "type": "address",
+      "reference_type": "address48"
+    },
+    "Hive Name": {
+      "zero": "Hive Name",
+      "reference": "Hive Name",
+      "type": "na_text",
+      "allow_absent": true
+    },
+    "Path": {
+      "zero": "Path",
+      "reference": "Path",
+      "type": "na_text",
+      "allow_absent": true
+    },
+    "Last Write Time": {
+      "zero": "Last Write Time",
+      "reference": "Last Write Time",
+      "type": "na_timestamp",
+      "allow_absent": true
+    },
+    "Type": {
+      "zero": "Type",
+      "reference": "Type",
+      "type": "na_text",
+      "allow_absent": true
+    },
+    "Name": {
+      "zero": "Name",
+      "reference": "Name",
+      "type": "na_text",
+      "allow_absent": true
+    },
+    "ID": {
+      "zero": "ID",
+      "reference": "ID",
+      "type": "na_integer",
+      "allow_absent": true
+    },
+    "Count": {
+      "zero": "Count",
+      "reference": "Count",
+      "type": "na_integer",
+      "allow_absent": true
+    },
+    "Focus Count": {
+      "zero": "Focus Count",
+      "reference": "Focus Count",
+      "type": "na_integer",
+      "allow_absent": true
+    },
+    "Time Focused": {
+      "zero": "Time Focused",
+      "reference": "Time Focused",
+      "type": "na_text",
+      "allow_absent": true
+    },
+    "Last Updated": {
+      "zero": "Last Updated",
+      "reference": "Last Updated",
+      "type": "na_timestamp",
+      "allow_absent": true
+    },
+    "Raw Data": {
+      "zero": "Raw Data",
+      "reference": "Raw Data",
+      "type": "na_text",
+      "allow_absent": true
+    }
+  },
+  "notes": "Compare all twelve fields, all parent keys, child keys and values. Explicit absent values agree only when absent on both sides. Raw data is exact space-separated bytes, including short and unknown-layout values. Names are absent on parent Key rows; group by hive/path/type and compare every full record and its multiplicity, including every value name.",
+  "duplicate_keys": "multiset"
+}

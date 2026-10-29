@@ -1,0 +1,56 @@
+{
+  "samples": [
+    {
+      "id": "server-2003-3790-x86",
+      "image": "images/feat-windows-plugins/boomer-win2003-2006-03-17.img",
+      "image_sha256": "dc7022c2183dade6c36ebf19c74af5234bff8800e2a6f95e825287da9a214adb",
+      "zero_symbols": ".zero/rust/symbols/isf/windows/ntkrnlmp.pdb-4E4A894DD1A64BC3ADFEA71F18E293642.json",
+      "reference_symbols": "target/reference/kpcrs-symbols",
+      "symbol_files": [
+        {
+          "path": ".zero/rust/symbols/isf/windows/ntkrnlmp.pdb-4E4A894DD1A64BC3ADFEA71F18E293642.json",
+          "sha256": "e71b53897ef6119ca9e51967ffe2399edd422ef54279f3d93659d61d16ec1f67"
+        },
+        {
+          "path": "target/reference/kpcrs-symbols/windows/ntkrnlmp.pdb/4E4A894DD1A64BC3ADFEA71F18E293642.json",
+          "sha256": "e71b53897ef6119ca9e51967ffe2399edd422ef54279f3d93659d61d16ec1f67"
+        }
+      ],
+      "source": "https://cfreds-archive.nist.gov/mem/Basic_Memory_Images.html"
+    }
+  ],
+  "cases": [
+    {
+      "sample": "server-2003-3790-x86",
+      "id": "server-2003-3790-x86/memmap-pid4",
+      "reference_plugin": "windows.memmap.Memmap",
+      "zero_plugin": "windows.memmap.Memmap",
+      "mapping": "tests/reference/parity/mappings/windows-memmap.json",
+      "zero_args": [
+        "--pid",
+        "4"
+      ],
+      "reference_args": [
+        "--pid",
+        "4"
+      ]
+    },
+    {
+      "sample": "server-2003-3790-x86",
+      "id": "server-2003-3790-x86/memmap-pid4-dump",
+      "reference_plugin": "windows.memmap.Memmap",
+      "zero_plugin": "windows.memmap.Memmap",
+      "mapping": "tests/reference/parity/mappings/windows-memmap.json",
+      "zero_args": [
+        "--pid",
+        "4"
+      ],
+      "reference_args": [
+        "--pid",
+        "4",
+        "--dump"
+      ],
+      "artifact_dump": true
+    }
+  ]
+}

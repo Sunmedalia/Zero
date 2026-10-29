@@ -428,3 +428,50 @@ remain outstanding; the latter two have synthetic tests. ARM64 is unsupported.
 See `memmap-known-limitations.json` for final executable/output hashes, binary
 artifact evidence, coverage diagnostics and development findings. No recovered
 memory bytes are committed.
+
+## Canonical UserAssist and NT5 Memmap (native53)
+
+`userassist.example.json` compares all twelve columns from
+`windows.registry.userassist.UserAssist`, including parent keys, direct subkeys,
+value names and exact raw bytes. The legacy seven-column entry remains separate.
+The mapping groups records by hive/path/type and compares the complete multiset:
+parent Key rows have no Name, so Name cannot be a mandatory identity field.
+Missing names or fields are accepted only when explicitly absent on both sides;
+no rows are selected out of these cases.
+
+Five default cases cover Win10 15063 x64 (83 rows), Server2008 6001 x86 (51),
+Win11 22000 x64 (58), Win7 7601 x64 (60), and Server2003 3790 x86 (11).
+Four explicit `--hive`/reference `--offset` cases cover the first four images.
+Modern record layout follows the exact ISF's CookiePad field. XP counts below
+five are preserved; larger counts subtract five. Short values remain raw-only.
+FILETIME output truncates to whole seconds; focus duration includes 500 ms.
+The known-folder display table retains its upstream data attribution and license.
+
+Registry reads use the validated Registry process address space when available.
+When BaseBlock is absent or lacks a valid regf signature, the conventional root
+at cell 0x20 is usable only after independently reading and validating its nk
+cell. Unreadable siblings do not hide a readable named path: their diagnostics
+remain in partial results. Invalid value-cell references are diagnosed and
+excluded before interpreting a value; unreadable data in a valid value stays
+absent, never zero-filled. Explicit hive selection verifies HHIVE.Signature and
+does not require the address to remain in the loaded-hive list.
+
+`memmap-nt5.example.json` adds Server2003 x86 non-PAE PID 4 listing and dump
+comparisons: 8,044 mappings and 138,715,136 exported bytes, with matching SHA256
+`3ec790561ace3d27295742907301ab7d8b68d5aa2b5d6ae2744d5dca99c4e79a`.
+These are bounded real-image cases; neither plugin has a complete contract.
+UserAssist boundaries and reproducible hashes are recorded in
+`userassist-known-limitations.json`.
+
+The runner pins the native executable hash before starting and rejects a batch
+if it changes during native or reference execution. Do not rebuild the executable
+while recording evidence; a mixed-build batch must be rerun in full.
+
+Final native53 verification: `make check` passed 568 Rust and 25 Python tests;
+Linux real regressions passed 4/4 and available Windows regressions 13/13.
+Server2012R2 remains excluded because the original sample is unavailable locally.
+The eleven new positive cases raise the total to 78 across 20 plugins (five cases
+remain explicitly record-scoped). There are 117/135 candidate correspondences,
+18 missing canonical entries, and zero complete plugin contracts. Final native
+executable SHA256 is
+`cab7ad951d29f5f44a44f12589865ddf5b191b9ba207155e79f6f0d844110316`.

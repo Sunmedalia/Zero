@@ -11,6 +11,10 @@ def normalize(value, kind):
     # Some optional text fields mean an empty value (e.g. no module taints),
     # not a failed read. Use this only in a reviewed per-field mapping; native
     # partial results are still rejected unless separately allowed.
+    if kind == 'na_timestamp':
+        if value == 'N/A' or value is None:
+            return None
+        return normalize(value, 'timestamp')
     if kind == 'na_integer':
         if value == 'N/A' or value is None:
             return None

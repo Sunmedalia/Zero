@@ -3,6 +3,8 @@ use clap::ValueEnum;
 
 #[derive(Clone, Copy, Debug, ValueEnum, PartialEq, Eq)]
 pub enum Plugin {
+    #[value(name = "windows.registry.userassist.UserAssist")]
+    WinUserAssistV4,
     #[value(name = "windows.memmap.Memmap", alias = "windows.memmap")]
     WinMemmap,
     #[value(name = "windows.svcscan.SvcScan")]
@@ -285,6 +287,26 @@ pub struct Descriptor {
     pub widths: &'static [u16],
 }
 pub const PLUGINS: &[Descriptor] = &[
+    Descriptor {
+        plugin: Plugin::WinUserAssistV4,
+        name: "windows.registry.userassist.UserAssist",
+        label: "userassist (12 columns)",
+        columns: &[
+            "Hive Offset",
+            "Hive Name",
+            "Path",
+            "Last Write Time",
+            "Type",
+            "Name",
+            "ID",
+            "Count",
+            "Focus Count",
+            "Time Focused",
+            "Last Updated",
+            "Raw Data",
+        ],
+        widths: &[18, 32, 45, 25, 8, 45, 8, 8, 8, 22, 25, 48],
+    },
     Descriptor {
         plugin: Plugin::WinMemmap,
         name: "windows.memmap.Memmap",
@@ -1931,7 +1953,7 @@ impl Plugin {
             Self::WinCachedump => "Files",
             Self::WinSsdt | Self::WinModscan => "Integrity",
             Self::WinPrivileges | Self::WinSessions => "Process",
-            Self::WinUserassist => "Files",
+            Self::WinUserAssistV4 | Self::WinUserassist => "Files",
             Self::WinBigpools => "Memory",
             Self::WinSymlinkscan => "Files",
             Self::WinDevicetree => "System",
@@ -2118,6 +2140,7 @@ impl Plugin {
             WinModscan => "扫描 MmLd 池中的内核模块条目并对照模块链表",
             WinPrivileges => "列出进程令牌拥有的特权及启用状态",
             WinSessions => "按登录会话归类进程",
+            WinUserAssistV4 => "列出 UserAssist 键、子键与值的 12 列标准输出，保留原始字节",
             WinUserassist => "解码 NTUSER 中的 UserAssist 程序执行记录",
             WinBigpools => "列出大页池分配表中的已分配块及池标签",
             WinSymlinkscan => "扫描符号链接对象及其目标",

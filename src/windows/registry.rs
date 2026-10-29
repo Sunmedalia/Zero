@@ -510,10 +510,71 @@ impl Windows<'_> {
         }
         Ok(out)
     }
+    /// Resolve a named path while preserving diagnostics for unreadable siblings.
+    pub(super) fn registry_index_partial(
+        &self,
+        hive: u64,
+        mut cell: u32,
+        key: &str,
+        job: &Job,
+        r: &mut Results,
+        case_sensitive: bool,
+    ) -> Result<u32> {
+        for part in key.split('\\').filter(|s| !s.is_empty()) {
+            job.check()?;
+            let node = self.cell(hive, cell)?;
+            let mut found = None;
+            for index in self.subkeys(hive, &node, job)? {
+                job.check()?;
+                let name = self.cell(hive, index).and_then(|n| self.key_name(&n));
+                match name {
+                    Ok(name)
+                        if if case_sensitive {
+                            name == part
+                        } else {
+                            name.eq_ignore_ascii_case(part)
+                        } =>
+                    {
+                        ensure!(found.is_none(), "注册表键名称歧义");
+                        found = Some(index);
+                    }
+                    Ok(_) => {}
+                    Err(e) => {
+                        Self::issue(r, format!("registry sibling {index:#x}"), format!("{e:#}"))
+                    }
+                }
+            }
+            cell = found.with_context(|| format!("注册表键不存在: {part}"))?;
+        }
+        Ok(cell)
+    }
+    /// Base blocks may be paged out while their hive bins remain resident.
+    /// Match the registry layer's conventional root only after validating an nk cell.
+    pub(super) fn registry_root(&self, hive: u64) -> Result<u32> {
+        let recorded = (|| -> Result<u32> {
+            let base = self.number(hive, "_HHIVE", "BaseBlock")?;
+            ensure!(base != 0, "hive BaseBlock 为空");
+            if self.vm.isf.field("_HBASE_BLOCK", "Signature").is_ok() {
+                ensure!(
+                    self.number(base, "_HBASE_BLOCK", "Signature")? == 0x6667_6572,
+                    "hive base block Signature 非 regf"
+                );
+            }
+            Ok(self.number(base, "_HBASE_BLOCK", "RootCell")? as u32)
+        })();
+        match recorded {
+            Ok(root) => Ok(root),
+            Err(original) => {
+                self.cell(hive, 0x20)
+                    .and_then(|node| self.key_name(&node))
+                    .with_context(|| format!("hive 根回退校验失败（BaseBlock: {original:#}）"))?;
+                Ok(0x20)
+            }
+        }
+    }
     /// 从 hive 根开始按 `a\b\c` 路径解析键并返回其 cell index。
     pub(super) fn registry_index(&self, hive: u64, key: &str, job: &Job) -> Result<u32> {
-        let base = self.number(hive, "_HHIVE", "BaseBlock")?;
-        let mut cell = self.number(base, "_HBASE_BLOCK", "RootCell")? as u32;
+        let mut cell = self.registry_root(hive)?;
         for part in key.split(['\\', '/']).filter(|s| !s.is_empty()) {
             job.check()?;
             let node = self.cell(hive, cell)?;
@@ -801,7 +862,7 @@ mod tests {
         let mut r = engine.result(Plugin::WinSvcList);
         assert_eq!(
             engine
-                .service_registry_index(K + 0x3020, 0x20, "Lsa", &job, &mut r, false)
+                .registry_index_partial(K + 0x3020, 0x20, "Lsa", &job, &mut r, false)
                 .unwrap(),
             0x120
         );
@@ -809,12 +870,12 @@ mod tests {
         assert!(r.diagnostics.iter().any(|d| d.contains("sibling 0x200")));
         assert!(
             engine
-                .service_registry_index(K + 0x3020, 0x20, "lsa", &job, &mut r, true)
+                .registry_index_partial(K + 0x3020, 0x20, "lsa", &job, &mut r, true)
                 .is_err()
         );
         assert_eq!(
             engine
-                .service_registry_index(K + 0x3020, 0x20, "lsa", &job, &mut r, false)
+                .registry_index_partial(K + 0x3020, 0x20, "lsa", &job, &mut r, false)
                 .unwrap(),
             0x120
         );
@@ -881,8 +942,7 @@ mod ownership_tests {
     use super::super::tests::{K, fixture, image, put};
     use super::*;
     use serde_json::json;
-    #[test]
-    fn user_mapped_hive_reads_only_in_validated_registry_process_space() {
+    fn user_hive_fixture() -> (Vec<u8>, Isf) {
         let (mut b, mut isf) = fixture();
         let pointer = |offset| json!({"offset":offset,"type":{"kind":"pointer"}});
         let number = |offset| json!({"offset":offset,"type":{"kind":"base","name":"u32"}});
@@ -923,6 +983,11 @@ mod ownership_tests {
         b[0x11026..0x11028].copy_from_slice(&0x20u16.to_le_bytes());
         b[0x11028..0x1102a].copy_from_slice(&4u16.to_le_bytes());
         b[0x1104c..0x11050].copy_from_slice(b"Root");
+        (b, isf)
+    }
+    #[test]
+    fn user_mapped_hive_reads_only_in_validated_registry_process_space() {
+        let (b, isf) = user_hive_fixture();
         let img = image(&b);
         let engine = Windows {
             vm: Memory::new(&img, 0x1000, &isf, None),
@@ -945,5 +1010,175 @@ mod ownership_tests {
         assert_eq!(r.rows[0][3], "Root");
         assert_eq!(r.page_table, 0x5000);
         assert_eq!(r.kernel_identity["registry_process"]["pid"], 8);
+    }
+    #[test]
+    fn canonical_userassist_key_subkey_value_missing_data_and_validated_root_fallback() {
+        let (mut b, isf) = user_hive_fixture();
+        // The root owns one direct child and a short binary value.
+        b[0x11034..0x11038].copy_from_slice(&1u32.to_le_bytes());
+        b[0x11038..0x1103c].copy_from_slice(&0x300u32.to_le_bytes());
+        b[0x1103c..0x11040].copy_from_slice(&1u32.to_le_bytes());
+        b[0x11044..0x11048].copy_from_slice(&0x100u32.to_le_bytes());
+        b[0x11100..0x11104].copy_from_slice(&(-16i32).to_le_bytes());
+        b[0x11104..0x11108].copy_from_slice(b"li\x01\x00");
+        b[0x11108..0x1110c].copy_from_slice(&0x120u32.to_le_bytes());
+        b[0x11120..0x11124].copy_from_slice(&(-52i32).to_le_bytes());
+        let child = &mut b[0x11124..0x11154];
+        child.fill(0);
+        child[..2].copy_from_slice(b"nk");
+        child[2..4].copy_from_slice(&0x20u16.to_le_bytes());
+        child[4..6].copy_from_slice(&5u16.to_le_bytes());
+        child[40..45].copy_from_slice(b"Child");
+        b[0x11300..0x11304].copy_from_slice(&(-8i32).to_le_bytes());
+        b[0x11304..0x11308].copy_from_slice(&0x320u32.to_le_bytes());
+        b[0x11320..0x11324].copy_from_slice(&(-36i32).to_le_bytes());
+        let v = &mut b[0x11324..0x11344];
+        v.fill(0);
+        v[..2].copy_from_slice(b"vk");
+        v[2..4].copy_from_slice(&4u16.to_le_bytes());
+        v[4..6].copy_from_slice(&1u16.to_le_bytes());
+        v[8..12].copy_from_slice(&3u32.to_le_bytes());
+        v[12..16].copy_from_slice(&0x8000_0004u32.to_le_bytes());
+        v[16..20].copy_from_slice(&[1, 2, 3, 4]);
+        v[24..28].copy_from_slice(b"abgr");
+        let mut isf = isf;
+        isf.data["user_types"]["_CM_KEY_VALUE"] = json!({"size":32,"fields":{"NameLength":{"offset":2,"type":{"kind":"base","name":"u16"}},"Flags":{"offset":4,"type":{"kind":"base","name":"u16"}},"Type":{"offset":8,"type":{"kind":"base","name":"u32"}},"DataLength":{"offset":12,"type":{"kind":"base","name":"u32"}},"Data":{"offset":16,"type":{"kind":"base","name":"u32"}},"Name":{"offset":24,"type":{"kind":"array","count":0}}}});
+        isf.data["user_types"]["_CM_KEY_NODE"]["fields"]["Parent"] =
+            json!({"offset":36,"type":{"kind":"base","name":"u32"}});
+        b[0x11148..0x1114c].copy_from_slice(&0x20u32.to_le_bytes());
+        let run = |b: &[u8]| {
+            let img = image(b);
+            let engine = Windows {
+                vm: Memory::new(&img, 0x5000, &isf, None),
+                base: K,
+                pdb: PdbIdentity::from_isf(&isf).unwrap(),
+            };
+            let mut r = engine.result(Plugin::WinUserAssistV4);
+            engine
+                .userassist_count(
+                    K + 0x3000,
+                    r"C:\Users\Test\NTUSER.DAT",
+                    0x20,
+                    Some(true),
+                    &mut r,
+                    &Job::default(),
+                )
+                .unwrap();
+            r
+        };
+        let r = run(&b);
+        assert!(r.complete, "{:?}", r.diagnostics);
+        assert_eq!(r.rows.len(), 3);
+        assert_eq!(&r.rows[0][2..6], &["NTUSER.DAT", "N/A", "Key", "N/A"]);
+        assert_eq!(&r.rows[1][4..6], &["Subkey", "Child"]);
+        assert_eq!(&r.rows[2][4..6], &["Value", "note"]);
+        assert_eq!(r.rows[2][11], "01 02 03 04");
+        let img = image(&b);
+        let engine = Windows {
+            vm: Memory::new(&img, 0x5000, &isf, None),
+            base: K,
+            pdb: PdbIdentity::from_isf(&isf).unwrap(),
+        };
+        let mut nested = engine.result(Plugin::WinUserAssistV4);
+        engine
+            .userassist_count(
+                K + 0x3000,
+                "NTUSER.DAT",
+                0x120,
+                None,
+                &mut nested,
+                &Job::default(),
+            )
+            .unwrap();
+        assert_eq!(nested.rows[0][2], r"NTUSER.DAT\Child");
+        let mut cyclic = b.clone();
+        cyclic[0x11148..0x1114c].copy_from_slice(&0x120u32.to_le_bytes());
+        let img = image(&cyclic);
+        let engine = Windows {
+            vm: Memory::new(&img, 0x5000, &isf, None),
+            base: K,
+            pdb: PdbIdentity::from_isf(&isf).unwrap(),
+        };
+        let mut invalid = engine.result(Plugin::WinUserAssistV4);
+        assert!(
+            engine
+                .userassist_count(
+                    K + 0x3000,
+                    "NTUSER.DAT",
+                    0x120,
+                    None,
+                    &mut invalid,
+                    &Job::default()
+                )
+                .is_err()
+        );
+        assert!(invalid.rows.is_empty());
+        // BaseBlock is absent, but the conventional root is independently readable.
+        put(&mut b, 0xb020, 0);
+        assert_eq!(run(&b).rows, r.rows);
+        // Missing value data stays absent and carries a diagnostic.
+        b[0x11330..0x11334].copy_from_slice(&8u32.to_le_bytes());
+        b[0x11334..0x11338].copy_from_slice(&0x1f00u32.to_le_bytes());
+        let partial = run(&b);
+        assert!(!partial.complete);
+        assert_eq!(partial.rows[2][11], "N/A");
+        assert!(
+            partial
+                .diagnostics
+                .iter()
+                .any(|d| d.contains("value 0x320"))
+        );
+        // Explicit hive selection works without membership in the hive list;
+        // the shared dispatcher still chooses the Registry process address space.
+        isf.data["user_types"]["_HHIVE"]["fields"]["Signature"] =
+            json!({"offset":56,"type":{"kind":"base","name":"u32"}});
+        b[0xb058..0xb05c].copy_from_slice(&0xbee0_bee0u32.to_le_bytes());
+        put(&mut b, 0xf000, K + 0x7000);
+        put(&mut b, 0xf008, K + 0x7000);
+        let img = image(&b);
+        let engine = Windows {
+            vm: Memory::new(&img, 0x1000, &isf, None),
+            base: K,
+            pdb: PdbIdentity::from_isf(&isf).unwrap(),
+        };
+        let options = Options {
+            hive: Some(K + 0x3000),
+            ..Default::default()
+        };
+        let selected = engine
+            .run(Plugin::WinUserAssistV4, &options, &Job::default())
+            .unwrap();
+        assert!(selected.rows.is_empty()); // This synthetic hive has no UserAssist path.
+        assert!(selected.complete, "{:?}", selected.diagnostics);
+        assert_eq!(selected.page_table, 0x5000);
+        assert_eq!(selected.kernel_identity["registry_process"]["pid"], 8);
+        b[0xb058..0xb05c].fill(0);
+        let img = image(&b);
+        let engine = Windows {
+            vm: Memory::new(&img, 0x5000, &isf, None),
+            base: K,
+            pdb: PdbIdentity::from_isf(&isf).unwrap(),
+        };
+        assert!(
+            engine
+                .userassist_canonical(&options, &Job::default())
+                .is_err()
+        );
+        // The fallback must reject an invalid nk signature.
+        b[0x11024..0x11026].copy_from_slice(b"xx");
+        let img = image(&b);
+        let engine = Windows {
+            vm: Memory::new(&img, 0x5000, &isf, None),
+            base: K,
+            pdb: PdbIdentity::from_isf(&isf).unwrap(),
+        };
+        assert!(engine.registry_root(K + 0x3020).is_err());
+        let job = Job::default();
+        job.cancel.store(true, std::sync::atomic::Ordering::Relaxed);
+        assert!(
+            engine
+                .run(Plugin::WinUserAssistV4, &Options::default(), &job)
+                .is_err()
+        );
     }
 }
