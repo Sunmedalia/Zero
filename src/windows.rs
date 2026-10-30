@@ -175,7 +175,13 @@ impl<'a> Memory<'a> {
             }
             if geometry.block(entry, shift) {
                 let mask = (1u64 << shift) - 1;
-                return Ok((entry & geometry.mask() & !mask) | (va & mask));
+                // Large-page bit 12 is PAT, not part of the physical address.
+                let physical = if geometry.arch == Architecture::Arm64 {
+                    entry & geometry.mask()
+                } else {
+                    entry & geometry.mask() & !(1 << 12)
+                };
+                return Ok((physical & !mask) | (va & mask));
             }
             if geometry.arch == Architecture::Arm64 {
                 ensure!(entry & 3 == 3, "无效 ARM64 table/page descriptor");
@@ -591,6 +597,9 @@ impl Windows<'_> {
         }
         if p == Plugin::WinDeskScan {
             return self.deskscan(job);
+        }
+        if p == Plugin::WinWindows {
+            return self.windows(job);
         }
         if p == Plugin::WinSuspendedThreads {
             return self.suspended_threads(None, job);

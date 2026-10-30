@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "plugin": "windows.windows.Windows",
+  "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+  "observations": [
+    {
+      "sample": "windows-10-15063",
+      "rows": 3059,
+      "reference_rows": 3063,
+      "missing_address": "0x853101c00a40",
+      "reason": "3059 rows match every field. The reference has four extra rows for one window pointer. Its process image name is unreadable and its PID is the truncated value 2743092250712. Zero does not emit a row without a readable process name."
+    },
+    {
+      "sample": "windows-7-7601-x64",
+      "rows": 0,
+      "reason": "Both engines return no windows. This is a negative observation, not proof that every Windows 7 image is empty."
+    }
+  ]
+}

@@ -1039,3 +1039,10 @@ zero analyze --offline --image memory.raw --symbols ntkrnlmp.json \
   --plugin windows.poolscanner.PoolScanner --output poolscanner.json
 ```
 
+
+`windows.windows.Windows` 枚举每个桌面的窗口。输出 Offset、Station、Session、Desktop、Window、Procedure、Process、PID。窗口地址是参考实现报告的指针字段地址。过程地址为零时输出 `N/A`，名称缺失时留空。x86 与未映射构建明确不支持。Win10 15063 的 3059 行已与参考全字段一致；参考另有 4 行没有可读进程名。Win7 7601 为双侧空结果。这还不是完整 GUI 插件验收。
+
+```bash
+zero analyze --offline --image memory.raw --symbols ntkrnlmp.json \
+  --plugin windows.windows.Windows --output windows.json
+```

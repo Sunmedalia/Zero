@@ -9340,8 +9340,10 @@
         "Process",
         "PID"
       ],
-      "zero_candidates": [],
-      "status": "missing",
+      "zero_candidates": [
+        "windows.windows.Windows"
+      ],
+      "status": "mapped_unverified",
       "evidence": []
     },
     {

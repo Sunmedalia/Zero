@@ -9,16 +9,23 @@ const DESKTOP_LIST: u64 = 16;
 struct GuiLayout {
     #[allow(dead_code)]
     desktop_next: u64,
-    #[allow(dead_code)]
     desktop_parent: u64,
+    desktop_info: u64,
     desktop_threads: u64,
     thread_link: u64,
     thread_process: u64,
+    window_top: u64,
+    window_next: u64,
+    window_child: u64,
+    window_procedure: u64,
+    window_subprocedure: Option<u64>,
+    window_name: u64,
+    window_direct_name: Option<u64>,
 }
 
 fn gui_layout(table: &str) -> GuiLayout {
-    // Offsets follow the reference GUI JSON: tagDESKTOP.rpdeskNext,
-    // rpwinstaParent, PtiList, then tagTHREADINFO.PtiLink and ppi.
+    // Offsets follow the reference GUI JSON for desktops, threads, and tagWND.
+    let desktop_info = 8;
     let (desktop_next, desktop_parent, desktop_threads, thread_link, thread_process) = match table {
         "gui-win7sp0-x64" | "gui-win7sp1-x64" => (24, 32, 168, 608, 344),
         "gui-win8-x64" => (16, 24, 160, 640, 368),
@@ -28,12 +35,38 @@ fn gui_layout(table: &str) -> GuiLayout {
         "gui-win10-17134-x64" => (32, 40, 168, 728, 416),
         _ => (32, 40, 168, 736, 416),
     };
+    let (
+        window_top,
+        window_next,
+        window_child,
+        window_procedure,
+        window_subprocedure,
+        window_name,
+        window_direct_name,
+    ) = match table {
+        "gui-win7sp0-x64" | "gui-win7sp1-x64" | "gui-win8-x64" | "gui-win10-10586-x64" => {
+            (16, 72, 96, 144, None, 216, None)
+        }
+        "gui-win10-15063-x64" | "gui-win10-16299-x64" => (16, 88, 112, 160, None, 232, None),
+        "gui-win10-17134-x64" | "gui-win10-17763-x64" => {
+            (24, 64, 88, 160, Some(40), 232, Some(168))
+        }
+        _ => (24, 88, 112, 160, Some(40), 232, Some(184)),
+    };
     GuiLayout {
         desktop_next,
         desktop_parent,
+        desktop_info,
         desktop_threads,
         thread_link,
         thread_process,
+        window_top,
+        window_next,
+        window_child,
+        window_procedure,
+        window_subprocedure,
+        window_name,
+        window_direct_name,
     }
 }
 
@@ -150,15 +183,25 @@ impl Windows<'_> {
         Ok(result)
     }
 
+    pub(super) fn windows(&self, job: &Job) -> Result<Results> {
+        self.desktop_rows(job, Plugin::WinWindows, false, true)
+    }
+
     pub(super) fn desktops(&self, job: &Job) -> Result<Results> {
-        self.desktop_rows(job, Plugin::WinDesktops, false)
+        self.desktop_rows(job, Plugin::WinDesktops, false, false)
     }
 
     pub(super) fn deskscan(&self, job: &Job) -> Result<Results> {
-        self.desktop_rows(job, Plugin::WinDeskScan, true)
+        self.desktop_rows(job, Plugin::WinDeskScan, true, false)
     }
 
-    fn desktop_rows(&self, job: &Job, plugin: Plugin, scan: bool) -> Result<Results> {
+    fn desktop_rows(
+        &self,
+        job: &Job,
+        plugin: Plugin,
+        scan: bool,
+        windows: bool,
+    ) -> Result<Results> {
         ensure!(
             Architecture::from_isf(self.vm.isf)? == Architecture::X64,
             "桌面插件仅支持 x64"
@@ -269,6 +312,20 @@ impl Windows<'_> {
             let Some(desktop_name) = self.desktop_name(processes, dtb, desktop) else {
                 continue;
             };
+            if windows {
+                rows += self.desktop_windows(DesktopWindows {
+                    job,
+                    result: &mut result,
+                    processes,
+                    preferred_dtb: dtb,
+                    desktop,
+                    station_name: &station_name,
+                    session_id,
+                    desktop_name: &desktop_name,
+                    layout: &layout,
+                })?;
+                continue;
+            }
             let head = add(desktop, layout.desktop_threads)?;
             let Some((mut link, list_dtb)) = self.session_kernel_pointer(processes, dtb, head)
             else {
@@ -461,6 +518,364 @@ impl Windows<'_> {
             }
         }
         None
+    }
+
+    fn desktop_windows(&self, request: DesktopWindows<'_>) -> Result<usize> {
+        let DesktopWindows {
+            job,
+            result,
+            processes,
+            preferred_dtb,
+            desktop,
+            station_name,
+            session_id,
+            desktop_name,
+            layout,
+        } = request;
+        let Some((info, info_dtb)) = self.session_kernel_pointer(
+            processes,
+            preferred_dtb,
+            add(desktop, layout.desktop_info)?,
+        ) else {
+            return Ok(0);
+        };
+        let Some((top, top_dtb)) =
+            self.session_kernel_pointer(processes, info_dtb, add(info, layout.window_top)?)
+        else {
+            return Ok(0);
+        };
+        if top == 0 {
+            return Ok(0);
+        }
+        let mut rows = 0usize;
+        let mut seen = HashSet::new();
+        // The reference yields the pointer field first and only dereferences `spwndNext`.
+        self.walk_window_field(WindowWalk {
+            job,
+            result,
+            processes,
+            dtb: top_dtb,
+            field: add(info, layout.window_top)?,
+            window: top,
+            station_name,
+            session_id,
+            desktop_name,
+            layout,
+            seen: &mut seen,
+            rows: &mut rows,
+        })?;
+        Ok(rows)
+    }
+
+    fn walk_window_field(&self, walk: WindowWalk<'_>) -> Result<()> {
+        let WindowWalk {
+            job,
+            result,
+            processes,
+            dtb,
+            field,
+            mut window,
+            station_name,
+            session_id,
+            desktop_name,
+            layout,
+            seen,
+            rows,
+        } = walk;
+        let mut siblings = Vec::new();
+        let mut reported = field;
+        let mut followed = HashSet::new();
+        while window != 0 && kernel(window) && seen.len() < 10000 {
+            job.check()?;
+            if !followed.insert(window) {
+                break;
+            }
+            if seen.insert(reported) {
+                siblings.push((reported, window));
+                if let Some((name, procedure, process_name, pid)) =
+                    self.window_record(processes, dtb, window, layout)
+                {
+                    ensure!(result.rows.len() < MAX_OBJECTS, "窗口结果数量超限");
+                    result.rows.push(vec![
+                        format!("{:#018x}", reported & 0x0000_ffff_ffff_ffff),
+                        station_name.to_string(),
+                        session_id.to_string(),
+                        desktop_name.to_string(),
+                        name,
+                        procedure,
+                        process_name,
+                        pid.to_string(),
+                    ]);
+                    *rows += 1;
+                }
+            }
+            let Some(memory) = self.process_memory_dtb(dtb) else {
+                break;
+            };
+            let next = self
+                .raw_pointer(&memory, add(window, layout.window_next)?)
+                .filter(|next| kernel(*next))
+                .unwrap_or(0);
+            if next == 0 {
+                break;
+            }
+            reported = next;
+            window = next;
+        }
+        for sibling in siblings {
+            let (_reported, mut child) = sibling;
+            let mut seen_children = HashSet::new();
+            while seen.len() + seen_children.len() < 10000 {
+                let Some(memory) = self.process_memory_dtb(dtb) else {
+                    break;
+                };
+                let child_field = add(child, layout.window_child)?;
+                let Some(next) = self
+                    .raw_pointer(&memory, add(child, layout.window_child)?)
+                    .filter(|value| *value != 0 && kernel(*value))
+                else {
+                    break;
+                };
+                if !seen_children.insert(child_field) {
+                    break;
+                }
+                self.walk_window_field(WindowWalk {
+                    job,
+                    result,
+                    processes,
+                    dtb,
+                    field: child_field,
+                    window: next,
+                    station_name,
+                    session_id,
+                    desktop_name,
+                    layout,
+                    seen,
+                    rows,
+                })?;
+                child = next;
+            }
+        }
+        Ok(())
+    }
+
+    fn window_record(
+        &self,
+        processes: &[Process],
+        dtb: u64,
+        window: u64,
+        layout: &GuiLayout,
+    ) -> Option<(String, String, String, u64)> {
+        let memory = self.process_memory_dtb(dtb)?;
+        let thread = self.raw_pointer(&memory, add(window, 16).ok()?)?;
+        if !kernel(thread) {
+            return None;
+        }
+        let (process_name, pid) =
+            self.window_process(processes, dtb, thread, layout.thread_process)?;
+        let session = self.window_session(processes, dtb, window)?;
+        if session >= 256 {
+            return None;
+        }
+        let procedure = self.window_procedure(&memory, window, layout)?;
+        let name = self
+            .window_name(processes, dtb, window, layout)
+            .unwrap_or_default();
+        Some((name, procedure, process_name, pid))
+    }
+
+    fn window_session(&self, processes: &[Process], dtb: u64, window: u64) -> Option<u32> {
+        let memory = self.process_memory_dtb(dtb)?;
+        let desktop = self.raw_pointer(&memory, add(window, 24).ok()?)?;
+        if !kernel(desktop) {
+            return None;
+        }
+        let parent = self
+            .session_kernel_pointer(processes, dtb, add(desktop, 40).ok()?)
+            .map(|(value, _)| value)
+            .or_else(|| self.raw_pointer(&memory, add(desktop, 40).ok()?))?;
+        if !kernel(parent) {
+            return None;
+        }
+        let bytes_memory = self.process_memory_dtb(dtb)?;
+        let mut bytes = [0u8; 4];
+        bytes_memory.read(parent, &mut bytes).ok()?;
+        Some(u32::from_le_bytes(bytes))
+    }
+
+    fn window_procedure(
+        &self,
+        memory: &Memory<'_>,
+        window: u64,
+        layout: &GuiLayout,
+    ) -> Option<String> {
+        let value = if let Some(sub) = layout.window_subprocedure {
+            let pointer = self.raw_pointer(memory, add(window, sub).ok()?)?;
+            if !kernel(pointer) {
+                return None;
+            }
+            self.raw_pointer(memory, add(pointer, layout.window_procedure).ok()?)?
+        } else {
+            self.raw_pointer(memory, add(window, layout.window_procedure).ok()?)?
+        };
+        if value != 0 && value <= 0x1000 {
+            return None;
+        }
+        Some(format!("{value:#x}"))
+    }
+
+    /// Same process link as the desktop walk, but a short image-name read still counts.
+    /// The reference keeps a string when the first bytes are present and the PID read succeeds.
+    fn window_process(
+        &self,
+        processes: &[Process],
+        preferred_dtb: u64,
+        thread: u64,
+        process_offset: u64,
+    ) -> Option<(String, u64)> {
+        if let Some(found) =
+            self.desktop_thread_in_session(processes, preferred_dtb, thread, process_offset)
+        {
+            return Some(found);
+        }
+        let mut ordered = Vec::new();
+        if preferred_dtb != 0 {
+            ordered.push(preferred_dtb);
+        }
+        for process in processes {
+            if let Some(dtb) = self.address_space(process)
+                && dtb != preferred_dtb
+            {
+                ordered.push(dtb);
+            }
+        }
+        for dtb in ordered {
+            let Some(memory) = self.process_memory_dtb(dtb) else {
+                continue;
+            };
+            let Some(process) = self.thread_process(&memory, thread, process_offset) else {
+                continue;
+            };
+            if let Some(found) = self.partial_process_identity(&memory, process) {
+                return Some(found);
+            }
+            if let Some(found) = self.partial_process_identity(&self.vm, process) {
+                return Some(found);
+            }
+        }
+        None
+    }
+
+    fn partial_process_identity(&self, memory: &Memory<'_>, process: u64) -> Option<(String, u64)> {
+        let name_at = add(
+            process,
+            self.vm.isf.offset("_EPROCESS", "ImageFileName").ok()?,
+        )
+        .ok()?;
+        let length = self.vm.isf.size("_EPROCESS", "ImageFileName").ok()?;
+        if length == 0 || length > 64 {
+            return None;
+        }
+        let mut bytes = vec![0u8; length];
+        let mut got = 0usize;
+        while got < length {
+            if memory
+                .read(name_at + got as u64, &mut bytes[got..got + 1])
+                .is_err()
+            {
+                break;
+            }
+            got += 1;
+        }
+        if got == 0 {
+            return None;
+        }
+        let end = bytes[..got]
+            .iter()
+            .position(|byte| *byte == 0)
+            .unwrap_or(got);
+        let name = String::from_utf8_lossy(&bytes[..end]).into_owned();
+        if name.chars().any(char::is_control) {
+            return None;
+        }
+        let pid = memory
+            .uint(
+                add(
+                    process,
+                    self.vm.isf.offset("_EPROCESS", "UniqueProcessId").ok()?,
+                )
+                .ok()?,
+                self.vm.pointer_size(),
+            )
+            .ok()?;
+        Some((name, pid))
+    }
+
+    fn window_name(
+        &self,
+        processes: &[Process],
+        dtb: u64,
+        window: u64,
+        layout: &GuiLayout,
+    ) -> Option<String> {
+        let memory = self.process_memory_dtb(dtb)?;
+        if let Some(direct) = layout.window_direct_name {
+            let pointer = self.raw_pointer(&memory, add(window, direct).ok()?)?;
+            if let Some(name) = self.utf16_capped(processes, dtb, pointer, 256) {
+                return Some(name);
+            }
+        }
+        let length = memory.uint(add(window, layout.window_name).ok()?, 4).ok()?;
+        if length == 0 || length > 1024 {
+            return None;
+        }
+        let buffer = self.raw_pointer(&memory, add(window, layout.window_name + 8).ok()?)?;
+        self.utf16_exact(processes, dtb, buffer, length as usize)
+    }
+
+    fn utf16_exact(
+        &self,
+        processes: &[Process],
+        preferred: u64,
+        address: u64,
+        bytes: usize,
+    ) -> Option<String> {
+        if bytes == 0 || bytes > 2048 || !bytes.is_multiple_of(2) {
+            return None;
+        }
+        let mut ordered = vec![preferred];
+        for process in processes {
+            if let Some(dtb) = self.address_space(process)
+                && dtb != preferred
+            {
+                ordered.push(dtb);
+            }
+        }
+        for dtb in ordered {
+            let memory = self.process_memory_dtb(dtb)?;
+            let mut data = vec![0u8; bytes];
+            if memory.read(address, &mut data).is_err() {
+                continue;
+            }
+            let units = data
+                .chunks_exact(2)
+                .map(|c| u16::from_le_bytes([c[0], c[1]]))
+                .collect::<Vec<_>>();
+            return Some(String::from_utf16_lossy(&units));
+        }
+        None
+    }
+
+    fn utf16_capped(
+        &self,
+        processes: &[Process],
+        preferred: u64,
+        address: u64,
+        chars: usize,
+    ) -> Option<String> {
+        let text = self.utf16_exact(processes, preferred, address, chars * 2)?;
+        let end = text.find('\0').unwrap_or(text.len());
+        Some(text[..end].to_string())
     }
 
     fn address_space(&self, process: &Process) -> Option<u64> {
@@ -880,6 +1295,33 @@ impl Windows<'_> {
                 .collect::<Vec<_>>(),
         ))
     }
+}
+
+struct DesktopWindows<'a> {
+    job: &'a Job,
+    result: &'a mut Results,
+    processes: &'a [Process],
+    preferred_dtb: u64,
+    desktop: u64,
+    station_name: &'a str,
+    session_id: u32,
+    desktop_name: &'a str,
+    layout: &'a GuiLayout,
+}
+
+struct WindowWalk<'a> {
+    job: &'a Job,
+    result: &'a mut Results,
+    processes: &'a [Process],
+    dtb: u64,
+    field: u64,
+    window: u64,
+    station_name: &'a str,
+    session_id: u32,
+    desktop_name: &'a str,
+    layout: &'a GuiLayout,
+    seen: &'a mut HashSet<u64>,
+    rows: &'a mut usize,
 }
 
 #[cfg(test)]

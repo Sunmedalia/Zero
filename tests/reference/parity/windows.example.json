@@ -1,0 +1,56 @@
+{
+  "samples": [
+    {
+      "id": "windows-10-15063",
+      "image": "images/feat-windows-plugins/WinDump/WinDump.mem",
+      "image_sha256": "d58f62e92b8c4ef913ac09b2c36a10482034c10b88d0c154dead3aaaa49cf875",
+      "zero_symbols": ".zero/rust/symbols/isf/windows/ntkrnlmp.pdb-0C9CC659210046EC84231597DADFDB3B1.json",
+      "reference_symbols": "target/reference/kpcrs-symbols",
+      "symbol_files": [
+        {
+          "path": ".zero/rust/symbols/isf/windows/ntkrnlmp.pdb-0C9CC659210046EC84231597DADFDB3B1.json",
+          "sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4"
+        },
+        {
+          "path": "target/reference/kpcrs-symbols/windows/ntkrnlmp.pdb/0C9CC659210046EC84231597DADFDB3B1.json",
+          "sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4"
+        }
+      ],
+      "source": "https://www.osforensics.com/downloads/WinDump.zip"
+    },
+    {
+      "id": "windows-7-7601-x64",
+      "image": "images/feat-windows-plugins/inctf-win7/Challenge.raw",
+      "image_sha256": "80366d7ec64a5529c95c2f523f4281a5f11efbad33ecb19f73525470c1407b23",
+      "zero_symbols": ".zero/rust/symbols/isf/windows/ntkrnlmp.pdb-3844DBB920174967BE7AA4A2C20430FA2.json",
+      "reference_symbols": "target/reference/kpcrs-symbols",
+      "symbol_files": [
+        {
+          "path": ".zero/rust/symbols/isf/windows/ntkrnlmp.pdb-3844DBB920174967BE7AA4A2C20430FA2.json",
+          "sha256": "6d5f85f7b953330b9762a57e5a25266547e7391ad4f6655170a9f48876fb6b8c"
+        },
+        {
+          "path": "target/reference/kpcrs-symbols/windows/ntkrnlmp.pdb/3844DBB920174967BE7AA4A2C20430FA2.json",
+          "sha256": "6d5f85f7b953330b9762a57e5a25266547e7391ad4f6655170a9f48876fb6b8c"
+        }
+      ],
+      "source": "https://blog.bi0s.in/2019/09/24/Forensics/InCTFi19-NotchItUp/"
+    }
+  ],
+  "cases": [
+    {
+      "sample": "windows-10-15063",
+      "id": "windows-10-15063/windows-default",
+      "reference_plugin": "windows.windows.Windows",
+      "zero_plugin": "windows.windows.Windows",
+      "mapping": "tests/reference/parity/mappings/windows-windows.json"
+    },
+    {
+      "sample": "windows-7-7601-x64",
+      "id": "windows-7-7601-x64/windows-default",
+      "reference_plugin": "windows.windows.Windows",
+      "zero_plugin": "windows.windows.Windows",
+      "mapping": "tests/reference/parity/mappings/windows-windows.json"
+    }
+  ]
+}
