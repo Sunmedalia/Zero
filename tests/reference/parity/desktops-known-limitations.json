@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "plugin": "windows.desktops.Desktops",
+  "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+  "observations": [
+    {
+      "sample": "windows-10-15063",
+      "rows": 28,
+      "desktops": 6,
+      "reason": "All 28 reference rows match, including one truncated process record with an empty name and PID 2347405609048. That row is reference smear, not a recovered process."
+    },
+    {
+      "sample": "windows-7-7601-x64",
+      "rows": 0,
+      "reason": "Both engines return no desktops. This is a negative observation, not proof that every Windows 7 image is empty."
+    }
+  ]
+}

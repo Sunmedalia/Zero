@@ -15,6 +15,8 @@ pub enum Plugin {
         alias = "windows.windowstations"
     )]
     WinWindowStations,
+    #[value(name = "windows.desktops.Desktops", alias = "windows.desktops")]
+    WinDesktops,
     #[value(name = "windows.pe_symbols.PESymbols")]
     WinPESymbols,
     #[value(name = "windows.suspended_threads.SuspendedThreads")]
@@ -318,6 +320,20 @@ pub const PLUGINS: &[Descriptor] = &[
         label: "windowstations",
         columns: &["Offset", "Name", "SessionId"],
         widths: &[18, 24, 0],
+    },
+    Descriptor {
+        plugin: Plugin::WinDesktops,
+        name: "windows.desktops.Desktops",
+        label: "desktops",
+        columns: &[
+            "Offset",
+            "Window Station",
+            "Session",
+            "Desktop",
+            "Process",
+            "PID",
+        ],
+        widths: &[18, 24, 8, 32, 16, 0],
     },
     Descriptor {
         plugin: Plugin::WinDebugRegisters,
@@ -2046,7 +2062,7 @@ impl Plugin {
             Self::WinPESymbols | Self::WinIat | Self::WinVerinfo => "Process",
             Self::WinMftscan => "Files",
             Self::WinPoolScanner => "Memory",
-            Self::WinWindowStations => "GUI",
+            Self::WinWindowStations | Self::WinDesktops => "GUI",
             Self::WinDebugRegisters
             | Self::WinSuspendedThreads
             | Self::WinOrphanThreads
@@ -2247,6 +2263,7 @@ impl Plugin {
             WinScheduledTasks => "解码注册表 TaskCache 中的计划任务及命令",
             WinPoolScanner => "按内核版本扫描内置池标签并校验对象结构",
             WinWindowStations => "扫描窗口站池并在对应会话地址空间中读取名称",
+            WinDesktops => "枚举每个窗口站的桌面及其线程所属进程",
             WinDebugRegisters => "读取活动线程硬件调试寄存器及精确文件和符号归属",
             WinSuspendedThreads => "列出仍挂起的活动线程及起始地址文件和符号",
             WinPESymbols => "通过精确 PDB 和 PE 导出表查询内核或进程模块符号",

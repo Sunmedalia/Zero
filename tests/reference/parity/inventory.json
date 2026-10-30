@@ -4016,8 +4016,10 @@
         "Process",
         "PID"
       ],
-      "zero_candidates": [],
-      "status": "missing",
+      "zero_candidates": [
+        "windows.desktops.Desktops"
+      ],
+      "status": "mapped_unverified",
       "evidence": []
     },
     {

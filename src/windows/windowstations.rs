@@ -5,6 +5,37 @@ use std::collections::{HashMap, HashSet};
 const STATION_SIZE: u64 = 152;
 const SESSION_ID: u64 = 0;
 const NEXT_STATION: u64 = 8;
+const DESKTOP_LIST: u64 = 16;
+struct GuiLayout {
+    #[allow(dead_code)]
+    desktop_next: u64,
+    #[allow(dead_code)]
+    desktop_parent: u64,
+    desktop_threads: u64,
+    thread_link: u64,
+    thread_process: u64,
+}
+
+fn gui_layout(table: &str) -> GuiLayout {
+    // Offsets follow the reference GUI JSON: tagDESKTOP.rpdeskNext,
+    // rpwinstaParent, PtiList, then tagTHREADINFO.PtiLink and ppi.
+    let (desktop_next, desktop_parent, desktop_threads, thread_link, thread_process) = match table {
+        "gui-win7sp0-x64" | "gui-win7sp1-x64" => (24, 32, 168, 608, 344),
+        "gui-win8-x64" => (16, 24, 160, 640, 368),
+        "gui-win10-10586-x64" => (16, 24, 160, 656, 376),
+        "gui-win10-15063-x64" => (32, 40, 168, 656, 376),
+        "gui-win10-16299-x64" => (32, 40, 168, 712, 400),
+        "gui-win10-17134-x64" => (32, 40, 168, 728, 416),
+        _ => (32, 40, 168, 736, 416),
+    };
+    GuiLayout {
+        desktop_next,
+        desktop_parent,
+        desktop_threads,
+        thread_link,
+        thread_process,
+    }
+}
 
 fn gui_table(major: u16, minor: u16, build: u16) -> Option<&'static str> {
     // Newest match first, matching WindowStations._win_version_file_map.
@@ -113,6 +144,380 @@ impl Windows<'_> {
         Ok(result)
     }
 
+    pub(super) fn desktops(&self, job: &Job) -> Result<Results> {
+        ensure!(
+            Architecture::from_isf(self.vm.isf)? == Architecture::X64,
+            "Desktops 仅支持 x64"
+        );
+        let Some(table) = self.gui_symbol_table() else {
+            bail!("此 Windows 版本没有桌面符号表");
+        };
+        let layout = gui_layout(table);
+        let mut result = self.result(Plugin::WinDesktops);
+        let (virtual_scan, bodies, notes) = self.scan_gui_pool(b"Wind", STATION_SIZE, 0x90, job)?;
+        for note in notes {
+            Self::issue(&mut result, "WindowStations", note);
+        }
+        let sessions = match self.session_memberships(job) {
+            Ok(sessions) => sessions,
+            Err(error) => {
+                Self::issue(&mut result, "会话层", format!("{error:#}"));
+                result.kernel_identity["desktops"] = serde_json::json!({
+                    "table": table,
+                    "rows": 0,
+                });
+                return Ok(result);
+            }
+        };
+        let mut stations = Vec::new();
+        let mut seen_stations = HashSet::new();
+        for body in bodies {
+            job.check()?;
+            let Some(session_id) = self.gui_u32(body, virtual_scan) else {
+                continue;
+            };
+            if session_id >= 256 {
+                continue;
+            }
+            let Some(processes) = sessions.get(&u64::from(session_id)) else {
+                continue;
+            };
+            let Some(process) = processes.first() else {
+                continue;
+            };
+            let memory = match self.process_memory(process) {
+                Ok(memory) => memory,
+                Err(error) => {
+                    Self::issue(
+                        &mut result,
+                        format!("会话 {session_id}"),
+                        format!("{error:#}"),
+                    );
+                    continue;
+                }
+            };
+            let Some(station_dtb) = self.address_space(process) else {
+                continue;
+            };
+            let mut probe = [0u8; 4];
+            if memory.read(add(body, SESSION_ID)?, &mut probe).is_err() {
+                continue;
+            }
+            if u32::from_le_bytes(probe) != session_id {
+                continue;
+            }
+            for station in self.station_chain(&memory, body) {
+                if !seen_stations.insert(station) {
+                    continue;
+                }
+                let Some((name, confirmed)) = self.station_info(&memory, station) else {
+                    continue;
+                };
+                if confirmed != session_id {
+                    continue;
+                }
+                stations.push((station, name, session_id, station_dtb));
+            }
+        }
+        let mut rows = 0usize;
+        let named_stations = stations.len();
+        for (station, station_name, session_id, station_dtb) in stations {
+            job.check()?;
+            let Some(processes) = sessions.get(&u64::from(session_id)) else {
+                continue;
+            };
+            let Some((desktop, dtb)) =
+                self.session_kernel_pointer(processes, station_dtb, add(station, DESKTOP_LIST)?)
+            else {
+                continue;
+            };
+            let Some(desktop_name) = self.desktop_name(processes, dtb, desktop) else {
+                continue;
+            };
+            let head = add(desktop, layout.desktop_threads)?;
+            let Some((mut link, list_dtb)) = self.session_kernel_pointer(processes, dtb, head)
+            else {
+                continue;
+            };
+            let mut links = HashSet::from([head]);
+            while link != head && self.vm.kernel(link) && links.insert(link) && links.len() <= 4096
+            {
+                job.check()?;
+                let thread = link.saturating_sub(layout.thread_link);
+                if let Some((process_name, pid)) = self.desktop_thread_in_session(
+                    processes,
+                    list_dtb,
+                    thread,
+                    layout.thread_process,
+                ) {
+                    ensure!(rows < MAX_OBJECTS, "桌面结果数量超限");
+                    result.rows.push(vec![
+                        format!("{:#018x}", desktop & 0x0000_ffff_ffff_ffff),
+                        station_name.clone(),
+                        session_id.to_string(),
+                        desktop_name.clone(),
+                        process_name,
+                        pid.to_string(),
+                    ]);
+                    rows += 1;
+                } else if let Some(pid) =
+                    self.unreadable_process_id(processes, list_dtb, thread, layout.thread_process)
+                {
+                    ensure!(rows < MAX_OBJECTS, "桌面结果数量超限");
+                    result.rows.push(vec![
+                        format!("{:#018x}", desktop & 0x0000_ffff_ffff_ffff),
+                        station_name.clone(),
+                        session_id.to_string(),
+                        desktop_name.clone(),
+                        String::new(),
+                        pid.to_string(),
+                    ]);
+                    rows += 1;
+                }
+                let Some(list_memory) = self.process_memory_dtb(list_dtb) else {
+                    break;
+                };
+                link = list_memory.uint(link, self.vm.pointer_size()).unwrap_or(0);
+            }
+        }
+        result.kernel_identity["desktops"] = serde_json::json!({
+            "source": "window station rpdeskList and tagTHREADINFO.PtiLink",
+            "table": table,
+            "stations": named_stations,
+            "rows": rows,
+        });
+        Ok(result)
+    }
+
+    fn address_space(&self, process: &Process) -> Option<u64> {
+        let user = self
+            .number(process.address, "_EPROCESS", "Pcb.UserDirectoryTableBase")
+            .unwrap_or(0)
+            & self.vm.root_mask();
+        let dtb = if process.dtb != 0 { process.dtb } else { user };
+        (dtb != 0).then_some(dtb)
+    }
+
+    fn process_memory_dtb(&self, dtb: u64) -> Option<Memory<'_>> {
+        if dtb == 0 {
+            return None;
+        }
+        Some(Memory::new(
+            self.vm.image,
+            dtb,
+            self.vm.isf,
+            self.vm.sources,
+        ))
+    }
+
+    /// Reads a kernel pointer, preferring the session process that owns the station.
+    /// A mapped zero from that process is not accepted ahead of another process.
+    fn session_kernel_pointer(
+        &self,
+        processes: &[Process],
+        preferred_dtb: u64,
+        address: u64,
+    ) -> Option<(u64, u64)> {
+        let mut ordered = Vec::with_capacity(processes.len());
+        if preferred_dtb != 0 {
+            ordered.push(preferred_dtb);
+        }
+        for process in processes {
+            if let Some(dtb) = self.address_space(process)
+                && dtb != preferred_dtb
+            {
+                ordered.push(dtb);
+            }
+        }
+        for dtb in &ordered {
+            let Some(memory) = self.process_memory_dtb(*dtb) else {
+                continue;
+            };
+            let Ok(value) = memory.uint(address, self.vm.pointer_size()) else {
+                continue;
+            };
+            if self.vm.kernel(value) {
+                return Some((value, *dtb));
+            }
+        }
+        None
+    }
+
+    fn desktop_name(
+        &self,
+        processes: &[Process],
+        preferred_dtb: u64,
+        desktop: u64,
+    ) -> Option<String> {
+        let mut ordered = Vec::new();
+        if preferred_dtb != 0 {
+            ordered.push(preferred_dtb);
+        }
+        for process in processes {
+            if let Some(dtb) = self.address_space(process)
+                && dtb != preferred_dtb
+            {
+                ordered.push(dtb);
+            }
+        }
+        for dtb in &ordered {
+            let Some(memory) = self.process_memory_dtb(*dtb) else {
+                continue;
+            };
+            let Some(name) = self.session_object_name(&memory, desktop) else {
+                continue;
+            };
+            if !name.is_empty()
+                && name.chars().count() <= 128
+                && !name.chars().any(char::is_control)
+            {
+                return Some(name);
+            }
+        }
+        None
+    }
+
+    fn process_identity(&self, memory: &Memory<'_>, process: u64) -> Option<(String, u64)> {
+        let name_at = add(
+            process,
+            self.vm.isf.offset("_EPROCESS", "ImageFileName").ok()?,
+        )
+        .ok()?;
+        let length = self.vm.isf.size("_EPROCESS", "ImageFileName").ok()?;
+        if length == 0 || length > 64 {
+            return None;
+        }
+        let mut bytes = vec![0u8; length];
+        memory.read(name_at, &mut bytes).ok()?;
+        let end = bytes
+            .iter()
+            .position(|byte| *byte == 0)
+            .unwrap_or(bytes.len());
+        let name = String::from_utf8_lossy(&bytes[..end]).into_owned();
+        if name.chars().any(char::is_control) {
+            return None;
+        }
+        let pid = memory
+            .uint(
+                add(
+                    process,
+                    self.vm.isf.offset("_EPROCESS", "UniqueProcessId").ok()?,
+                )
+                .ok()?,
+                self.vm.pointer_size(),
+            )
+            .ok()?;
+        Some((name, pid))
+    }
+
+    fn desktop_thread_in_session(
+        &self,
+        processes: &[Process],
+        preferred_dtb: u64,
+        thread: u64,
+        process_offset: u64,
+    ) -> Option<(String, u64)> {
+        let mut ordered = Vec::new();
+        if preferred_dtb != 0 {
+            ordered.push(preferred_dtb);
+        }
+        for process in processes {
+            if let Some(dtb) = self.address_space(process)
+                && dtb != preferred_dtb
+            {
+                ordered.push(dtb);
+            }
+        }
+        for dtb in &ordered {
+            let Some(memory) = self.process_memory_dtb(*dtb) else {
+                continue;
+            };
+            let Some(process) = self.thread_process(&memory, thread, process_offset) else {
+                continue;
+            };
+            if let Some(found) = self.process_identity(&self.vm, process) {
+                return Some(found);
+            }
+            for space in &ordered {
+                let Some(space_memory) = self.process_memory_dtb(*space) else {
+                    continue;
+                };
+                if let Some(found) = self.process_identity(&space_memory, process) {
+                    return Some(found);
+                }
+            }
+        }
+        None
+    }
+
+    fn unreadable_process_id(
+        &self,
+        processes: &[Process],
+        preferred_dtb: u64,
+        thread: u64,
+        process_offset: u64,
+    ) -> Option<u64> {
+        let mut ordered = Vec::new();
+        if preferred_dtb != 0 {
+            ordered.push(preferred_dtb);
+        }
+        for process in processes {
+            if let Some(dtb) = self.address_space(process)
+                && dtb != preferred_dtb
+            {
+                ordered.push(dtb);
+            }
+        }
+        for dtb in ordered {
+            let memory = self.process_memory_dtb(dtb)?;
+            let process = self.thread_process(&memory, thread, process_offset)?;
+            let pid = self.raw_pointer(
+                &memory,
+                add(
+                    process,
+                    self.vm.isf.offset("_EPROCESS", "UniqueProcessId").ok()?,
+                )
+                .ok()?,
+            )?;
+            if pid != 0 {
+                return Some(pid);
+            }
+        }
+        None
+    }
+
+    fn raw_pointer(&self, memory: &Memory<'_>, address: u64) -> Option<u64> {
+        let width = self.vm.pointer_size();
+        let mut bytes = vec![0u8; width];
+        let mut done = 0usize;
+        while done < width {
+            let page_left = 4096 - ((address as usize + done) & 4095);
+            let take = (width - done).min(page_left);
+            if memory
+                .read(address + done as u64, &mut bytes[done..done + take])
+                .is_err()
+            {
+                break;
+            }
+            done += take;
+        }
+        if done == 0 {
+            return None;
+        }
+        let mut wide = [0u8; 8];
+        wide[..done].copy_from_slice(&bytes[..done]);
+        Some(u64::from_le_bytes(wide))
+    }
+
+    fn thread_process(&self, memory: &Memory<'_>, thread: u64, process_offset: u64) -> Option<u64> {
+        let process_info = self.raw_pointer(memory, add(thread, process_offset).ok()?)?;
+        if !kernel(process_info) {
+            return None;
+        }
+        // The reference follows ppi.Process even when the pointer is truncated.
+        self.raw_pointer(memory, process_info)
+    }
+
     fn gui_symbol_table(&self) -> Option<&'static str> {
         let identity = self.version_identity();
         let value = |name| {
@@ -143,6 +548,17 @@ impl Windows<'_> {
             .iter()
             .find(|(minimum, _)| build >= *minimum)
             .map(|(_, table)| *table)
+    }
+
+    fn session_memberships(&self, job: &Job) -> Result<HashMap<u64, Vec<Process>>> {
+        let (processes, _) = self.processes_partial(job)?;
+        let mut sessions: HashMap<u64, Vec<Process>> = HashMap::new();
+        for process in processes {
+            if let Some(session_id) = self.process_session_id(&process) {
+                sessions.entry(session_id).or_default().push(process);
+            }
+        }
+        Ok(sessions)
     }
 
     fn session_layers(&self, job: &Job) -> Result<HashMap<u64, Process>> {
@@ -306,6 +722,12 @@ mod tests {
         assert_eq!(gui_table(6, 1, 7601), Some("gui-win7sp1-x64"));
         assert_eq!(gui_table(6, 1, 7600), Some("gui-win7sp0-x64"));
         assert_eq!(gui_table(5, 2, 3790), None);
+        let layout = gui_layout("gui-win10-15063-x64");
+        assert_eq!(layout.desktop_threads, 168);
+        assert_eq!(layout.thread_link, 656);
+        assert_eq!(layout.thread_process, 376);
+        assert_eq!(gui_layout("gui-win10-17134-x64").thread_link, 728);
+        assert_eq!(gui_layout("gui-win10-17763-x64").thread_link, 736);
     }
 
     #[test]

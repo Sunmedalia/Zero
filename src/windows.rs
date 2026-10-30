@@ -586,6 +586,9 @@ impl Windows<'_> {
         if p == Plugin::WinWindowStations {
             return self.window_stations(job);
         }
+        if p == Plugin::WinDesktops {
+            return self.desktops(job);
+        }
         if p == Plugin::WinSuspendedThreads {
             return self.suspended_threads(None, job);
         }

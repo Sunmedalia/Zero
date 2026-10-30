@@ -1,0 +1,46 @@
+{
+  "version": 1,
+  "keys": [
+    "Offset",
+    "Window Station",
+    "Session",
+    "Desktop",
+    "Process",
+    "PID"
+  ],
+  "duplicate_keys": "multiset",
+  "allow_partial": true,
+  "fields": {
+    "Offset": {
+      "zero": "Offset",
+      "reference": "Offset",
+      "type": "address",
+      "reference_type": "address48"
+    },
+    "Window Station": {
+      "zero": "Window Station",
+      "reference": "Window Station",
+      "type": "text"
+    },
+    "Session": {
+      "zero": "Session",
+      "reference": "Session",
+      "type": "integer"
+    },
+    "Desktop": {
+      "zero": "Desktop",
+      "reference": "Desktop",
+      "type": "text"
+    },
+    "Process": {
+      "zero": "Process",
+      "reference": "Process",
+      "type": "text"
+    },
+    "PID": {
+      "zero": "PID",
+      "reference": "PID",
+      "type": "integer"
+    }
+  }
+}
