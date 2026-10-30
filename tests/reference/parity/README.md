@@ -680,3 +680,8 @@ Pointer 解码的四种原始层读取情形。来源向量隔离字段格式化
 ModuleCollection 地址查询，验证默认 DriverIrp 将所有模块绑定同一个内核 ISF，
 精确 RVA／全部别名／inclusive 末端及数字后缀命名。合成 SymbolSpace 只隔离
 精确查找，向量不验证外部 PDB 获取或驱动池扫描。
+
+`driver_target_vectors.py` 的八个实际固定 DriverIrp 生成器用例验证 handler
+指针掩码、Modules.get_kernel_space_start 的真实值／缺页默认及包含边界，
+同时保留数组单项读取失败后继续。驱动池／名称和模块符号由测试桩隔离；原生
+另有真实页表下跨页数组读取回归，不将这些向量计入真实正向差分数量。

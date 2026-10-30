@@ -293,3 +293,7 @@ padding 使用参考的 signed 减法和原始条件。Win10 站观察由 10 条
 - native79：默认 DriverIrp 使用固定 SSDT 模块集合的共享内核 ISF 符号域，保留
   inclusive 模块末端与全部别名；独立 PDB 解析代码保留。完整默认与三个 kernel
   范围用例联合差分，不能以旧五字段投影代表六字段通过。
+
+- native80：DriverIrp handler 按 native layer 的 Pointer 域和实际
+  MmSystemRangeStart 门槛过滤，标量缺页使用固定默认；八个实际参考生成器
+  向量加三套完整默认／三套范围回归，名称和专用池扫描故障合同继续验收。

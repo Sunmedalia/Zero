@@ -46,6 +46,35 @@ const OPTIONAL_HEADERS: [&str; 9] = [
 ];
 
 impl Windows<'_> {
+    fn driver_address_mask(&self) -> u64 {
+        if self.vm.pointer_size() == 4 {
+            0xffff_ffff
+        } else {
+            0xffff_ffff_ffff
+        }
+    }
+    fn driver_kernel_start(&self) -> Result<u64> {
+        let at = self.symbol("MmSystemRangeStart")?;
+        let default = if self.vm.pointer_size() == 4 {
+            0x8000_0000
+        } else {
+            0xffff_8000_0000_0000
+        };
+        Ok(
+            self.vm.uint(at, self.vm.pointer_size()).unwrap_or(default)
+                & self.driver_address_mask(),
+        )
+    }
+    fn driver_target(&self, raw: u64, kernel_start: u64) -> Option<u64> {
+        let masked = raw & self.driver_address_mask();
+        (masked >= kernel_start).then(|| {
+            if self.vm.pointer_size() == 8 && masked & (1 << 47) != 0 {
+                masked | 0xffff_0000_0000_0000
+            } else {
+                masked
+            }
+        })
+    }
     /// Pool bodies are retained independently of DriverStart/extension state.
     pub(super) fn dispatch_drivers(&self, r: &mut Results, job: &Job) -> Result<Vec<(u64, u64)>> {
         let isf = self.vm.isf;
@@ -280,6 +309,7 @@ impl Windows<'_> {
     ) -> Result<()> {
         let modules = self.modules_partial(job, r)?;
         let mut modules = DispatchModules::reference(modules, self.vm.isf, self.base, job)?;
+        let kernel_start = self.driver_kernel_start()?;
         let field = self.vm.isf.field("_DRIVER_OBJECT", "MajorFunction")?;
         ensure!(
             field["type"]["kind"] == "array"
@@ -331,7 +361,8 @@ impl Windows<'_> {
                     self.vm.pointer(slot)
                 };
                 match target {
-                    Ok(target) if self.vm.kernel(target) => {
+                    Ok(raw) if self.driver_target(raw, kernel_start).is_some() => {
+                        let target = self.driver_target(raw, kernel_start).unwrap();
                         modules.resolve_at(target, &self.vm, resources, r, job)?;
                         for (module, symbol) in modules.at(target) {
                             ensure!(r.rows.len() < 100_000, "IRP 结果数量超限");
@@ -358,6 +389,7 @@ impl Windows<'_> {
             }
         }
         r.kernel_identity["dispatch_symbols"] = modules.evidence(resources);
+        r.kernel_identity["driver_kernel_space_start"] = serde_json::json!(hex(kernel_start));
         Ok(())
     }
 }
@@ -367,6 +399,50 @@ pub(super) mod tests {
     use super::super::tests::{K, fixture, image, put};
     use super::*;
     use serde_json::json;
+    #[test]
+    fn kernel_range_pointer_mask_and_boundary_gate_match_actual_reference_vectors() {
+        let vectors: serde_json::Value = serde_json::from_str(include_str!(
+            "../../tests/reference/parity/fixtures/driver-targets.json"
+        ))
+        .unwrap();
+        for case in vectors["cases"].as_array().unwrap() {
+            let x86 = case["width"] == 4;
+            let (mut bytes, mut isf, base, _) = driver_fixture(x86, false, false);
+            if let Some(start) = case["start"].as_u64() {
+                put(&mut bytes, 0x8280, start);
+            } else {
+                isf.data["symbols"]["MmSystemRangeStart"] = json!({"address":0x30000});
+            }
+            let snapshot = image(&bytes);
+            let windows = Windows {
+                vm: Memory::new(&snapshot, 0x1000, &isf, None),
+                base,
+                pdb: PdbIdentity::from_isf(&isf).unwrap(),
+            };
+            let start = windows.driver_kernel_start().unwrap();
+            assert_eq!(
+                start,
+                case["expected_start"].as_u64().unwrap(),
+                "{}",
+                case["id"]
+            );
+            let values = case["raw_values"].as_array().unwrap();
+            let mut found = Vec::new();
+            for (index, value) in values.iter().enumerate() {
+                if let Some(target) = windows.driver_target(value.as_u64().unwrap(), start) {
+                    found.push(
+                        json!({"irp":IRPS[index],"target":target&windows.driver_address_mask()}),
+                    );
+                }
+            }
+            if let Some(target) =
+                windows.driver_target(values.last().unwrap().as_u64().unwrap(), start)
+            {
+                found.push(json!({"irp":IRPS[values.len()+1],"target":target&windows.driver_address_mask()}));
+            }
+            assert_eq!(json!(found), case["expected"], "{}", case["id"]);
+        }
+    }
 
     pub(in crate::windows) fn driver_fixture(
         x86: bool,
@@ -393,6 +469,8 @@ pub(super) mod tests {
             isf.data["user_types"]["_UNICODE_STRING"]["fields"]["Buffer"]["offset"] = json!(4);
         }
         put(&mut bytes, 0x8200, if modern { 15063 } else { 6001 });
+        isf.data["symbols"]["MmSystemRangeStart"] = json!({"address":0x280});
+        put(&mut bytes, 0x8280, base);
         isf.data["user_types"]["_POOL_HEADER"] = json!({"size":16,"fields":{"BlockSize":scalar(0,"u16"),"PoolType":scalar(2,"u16"),"PoolTag":scalar(4,"u32")}});
         isf.data["user_types"]["_OBJECT_HEADER"] = json!({"size":56,"fields":{"PointerCount":scalar(0,"pointer"),"Type":scalar(8,"pointer"),"NameInfoOffset":scalar(16,"u8"),"InfoMask":scalar(17,"u8"),"Body":{"offset":48,"type":{"kind":"struct","name":"_QUAD"}}}});
         isf.data["user_types"]["_QUAD"] = json!({"size":8,"fields":{}});

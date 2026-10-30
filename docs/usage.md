@@ -1185,3 +1185,7 @@ IRP、Address、Module、Symbol。默认符号归属遵循固定参考的 SSDT �
 模块末端。这里的外部模块符号名是该参考查询产生的归属，不保证来自该驱动自己的
 PDB。默认路径不请求外部 PDB；需要独立模块精确符号时使用 `windows.pe_symbols.PESymbols`。
 驱动名称／处理函数单页不可读时仍可能输出部分结果并保留诊断。
+
+DriverIrp 对 MajorFunction 指针先按地址层掩码截断，再与镜像内的
+`MmSystemRangeStart` 比较，边界相等时保留。该标量缺页时使用参考默认门槛；
+处理函数数组的单项读取失败会记录诊断并继续后续项。

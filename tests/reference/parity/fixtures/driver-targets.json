@@ -1,0 +1,276 @@
+{
+  "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+  "driverirp_sha256": "de9d4d773b8d0055f19858c259ea863b639788add7706b459022ad20824f59cb",
+  "modules_sha256": "cfa030da9457eb9c66d826c329ce4dc359f27760445053f37a43fc681b3817df",
+  "scope": "Actual kernel-space start, actual Pointer unmarshalling and actual DriverIrp generator. Synthetic driver/array/module collection isolates scalar gate, pointer domain, endpoint inclusion and continuation after one missing handler; not full pool/name/symbol behavior.",
+  "cases": [
+    {
+      "id": "4-default",
+      "width": 4,
+      "start": 2147483648,
+      "raw_values": [
+        0,
+        2147483647,
+        2147483648,
+        2147549184,
+        4294967295
+      ],
+      "expected_start": 2147483648,
+      "expected": [
+        {
+          "irp": "IRP_MJ_CLOSE",
+          "target": 2147483648
+        },
+        {
+          "irp": "IRP_MJ_READ",
+          "target": 2147549184
+        },
+        {
+          "irp": "IRP_MJ_WRITE",
+          "target": 4294967295
+        },
+        {
+          "irp": "IRP_MJ_SET_INFORMATION",
+          "target": 4294967295
+        }
+      ]
+    },
+    {
+      "id": "4-missing-start",
+      "width": 4,
+      "start": null,
+      "raw_values": [
+        0,
+        2147483647,
+        2147483648,
+        2147549184,
+        4294967295
+      ],
+      "expected_start": 2147483648,
+      "expected": [
+        {
+          "irp": "IRP_MJ_CLOSE",
+          "target": 2147483648
+        },
+        {
+          "irp": "IRP_MJ_READ",
+          "target": 2147549184
+        },
+        {
+          "irp": "IRP_MJ_WRITE",
+          "target": 4294967295
+        },
+        {
+          "irp": "IRP_MJ_SET_INFORMATION",
+          "target": 4294967295
+        }
+      ]
+    },
+    {
+      "id": "4-raised-start",
+      "width": 4,
+      "start": 2147549184,
+      "raw_values": [
+        0,
+        2147483647,
+        2147483648,
+        2147549184,
+        4294967295
+      ],
+      "expected_start": 2147549184,
+      "expected": [
+        {
+          "irp": "IRP_MJ_READ",
+          "target": 2147549184
+        },
+        {
+          "irp": "IRP_MJ_WRITE",
+          "target": 4294967295
+        },
+        {
+          "irp": "IRP_MJ_SET_INFORMATION",
+          "target": 4294967295
+        }
+      ]
+    },
+    {
+      "id": "4-zero-start",
+      "width": 4,
+      "start": 0,
+      "raw_values": [
+        0,
+        2147483647,
+        2147483648,
+        2147549184,
+        4294967295
+      ],
+      "expected_start": 0,
+      "expected": [
+        {
+          "irp": "IRP_MJ_CREATE",
+          "target": 0
+        },
+        {
+          "irp": "IRP_MJ_CREATE_NAMED_PIPE",
+          "target": 2147483647
+        },
+        {
+          "irp": "IRP_MJ_CLOSE",
+          "target": 2147483648
+        },
+        {
+          "irp": "IRP_MJ_READ",
+          "target": 2147549184
+        },
+        {
+          "irp": "IRP_MJ_WRITE",
+          "target": 4294967295
+        },
+        {
+          "irp": "IRP_MJ_SET_INFORMATION",
+          "target": 4294967295
+        }
+      ]
+    },
+    {
+      "id": "8-default",
+      "width": 8,
+      "start": 18446603336221196288,
+      "raw_values": [
+        0,
+        18446603336221196287,
+        18446603336221196288,
+        18446603336221261824,
+        18446744073709551615,
+        1311814128960012288,
+        1311673391471661056
+      ],
+      "expected_start": 140737488355328,
+      "expected": [
+        {
+          "irp": "IRP_MJ_CLOSE",
+          "target": 140737488355328
+        },
+        {
+          "irp": "IRP_MJ_READ",
+          "target": 140737488420864
+        },
+        {
+          "irp": "IRP_MJ_WRITE",
+          "target": 281474976710655
+        },
+        {
+          "irp": "IRP_MJ_QUERY_INFORMATION",
+          "target": 140737488355328
+        }
+      ]
+    },
+    {
+      "id": "8-missing-start",
+      "width": 8,
+      "start": null,
+      "raw_values": [
+        0,
+        18446603336221196287,
+        18446603336221196288,
+        18446603336221261824,
+        18446744073709551615,
+        1311814128960012288,
+        1311673391471661056
+      ],
+      "expected_start": 140737488355328,
+      "expected": [
+        {
+          "irp": "IRP_MJ_CLOSE",
+          "target": 140737488355328
+        },
+        {
+          "irp": "IRP_MJ_READ",
+          "target": 140737488420864
+        },
+        {
+          "irp": "IRP_MJ_WRITE",
+          "target": 281474976710655
+        },
+        {
+          "irp": "IRP_MJ_QUERY_INFORMATION",
+          "target": 140737488355328
+        }
+      ]
+    },
+    {
+      "id": "8-raised-start",
+      "width": 8,
+      "start": 18446603336221261824,
+      "raw_values": [
+        0,
+        18446603336221196287,
+        18446603336221196288,
+        18446603336221261824,
+        18446744073709551615,
+        1311814128960012288,
+        1311673391471661056
+      ],
+      "expected_start": 140737488420864,
+      "expected": [
+        {
+          "irp": "IRP_MJ_READ",
+          "target": 140737488420864
+        },
+        {
+          "irp": "IRP_MJ_WRITE",
+          "target": 281474976710655
+        }
+      ]
+    },
+    {
+      "id": "8-zero-start",
+      "width": 8,
+      "start": 0,
+      "raw_values": [
+        0,
+        18446603336221196287,
+        18446603336221196288,
+        18446603336221261824,
+        18446744073709551615,
+        1311814128960012288,
+        1311673391471661056
+      ],
+      "expected_start": 0,
+      "expected": [
+        {
+          "irp": "IRP_MJ_CREATE",
+          "target": 0
+        },
+        {
+          "irp": "IRP_MJ_CREATE_NAMED_PIPE",
+          "target": 140737488355327
+        },
+        {
+          "irp": "IRP_MJ_CLOSE",
+          "target": 140737488355328
+        },
+        {
+          "irp": "IRP_MJ_READ",
+          "target": 140737488420864
+        },
+        {
+          "irp": "IRP_MJ_WRITE",
+          "target": 281474976710655
+        },
+        {
+          "irp": "IRP_MJ_QUERY_INFORMATION",
+          "target": 140737488355328
+        },
+        {
+          "irp": "IRP_MJ_SET_INFORMATION",
+          "target": 4096
+        },
+        {
+          "irp": "IRP_MJ_SET_EA",
+          "target": 4096
+        }
+      ]
+    }
+  ]
+}
