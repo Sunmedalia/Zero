@@ -589,6 +589,9 @@ impl Windows<'_> {
         if p == Plugin::WinDesktops {
             return self.desktops(job);
         }
+        if p == Plugin::WinDeskScan {
+            return self.deskscan(job);
+        }
         if p == Plugin::WinSuspendedThreads {
             return self.suspended_threads(None, job);
         }

@@ -3972,8 +3972,10 @@
         }
       ],
       "declared_columns": [],
-      "zero_candidates": [],
-      "status": "missing",
+      "zero_candidates": [
+        "windows.deskscan.DeskScan"
+      ],
+      "status": "mapped_unverified",
       "evidence": []
     },
     {

@@ -248,7 +248,7 @@ impl Linux<'_> {
             | WinDriverIrp | WinKpcrs | WinMbrscan | WinTimers | WinStatistics | WinShimcache
             | WinVirtmap | WinVadWalk | WinVadRegExScan | WinVadyarascan | WinVaddump
             | WinDlldump | WinModdump | WinHashdump | WinLsadump | WinCachedump | WinDumpfiles
-            | WinThrdscan | WinPoolScanner | WinWindowStations | WinDesktops => {
+            | WinThrdscan | WinPoolScanner | WinWindowStations | WinDesktops | WinDeskScan => {
                 Err(unrouted(plugin))
             }
         }

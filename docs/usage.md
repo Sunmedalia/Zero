@@ -1015,6 +1015,14 @@ PDB/PE 命名导出。不根据最近导出名推断符号。未映射地址仍�
 
 `windows.desktops.Desktops` 从这些窗口站的 `rpdeskList` 读取桌面，再按 `PtiLink` 列出线程所属进程。输出 Offset、Window Station、Session、Desktop、Process、PID。x86 与未映射构建明确不支持。Win10 15063 的 28 行已与参考全字段一致；Win7 7601 为双侧空结果。这还不是完整 GUI 插件验收。
 
+`windows.deskscan.DeskScan` 直接扫描 `Desk` 池。它要求桌面和父窗口站都有名称，再列出线程所属进程，列与 Desktops 相同。Win10 15063 的 28 行包含链表未覆盖的 `Winlogon` 桌面；Win7 7601 为双侧空结果。
+
+```bash
+zero analyze --offline --image memory.raw --symbols ntkrnlmp.json \
+  --plugin windows.deskscan.DeskScan --output deskscan.json
+```
+
+
 ```bash
 zero analyze --offline --image memory.raw --symbols ntkrnlmp.json \
   --plugin windows.desktops.Desktops --output desktops.json

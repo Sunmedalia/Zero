@@ -103,7 +103,7 @@ Windows 10 RAW 样本额外验证了 4 个 WOW64 进程（PID 4428、5684、5932
 
 新增 `windows.statistics`：遍历已验证内核页表的内核半区（ARM64 为整个内核根表），统计有效 4K 页、大页、transition 页、其他软件 PTE（换出、按需清零、原型）、空 PTE 以及不可读或未驻留的页表；跳过顶层自映射项，并按（层级, 页表物理地址）去重，被多个父项共享的页表只计一次并单独报告共享次数。实测 Windows 10 15063 有效 4K 页 151,967、大页 49；Windows 11 22000 有效 4K 页 117,580、大页 76。
 
-新增 `windows.registry.shimcache`：读取 SYSTEM hive 当前 ControlSet 的 `Control\Session Manager\AppCompatCache`，解析 Windows 8 及以后的 `00ts`／`10ts` 条目与 Windows 7 x64 的 `0xBADC0FEE` 格式，按缓存顺序输出路径与最后修改时间。两个本地样本的 SYSTEM hive 单元格均未驻留，只得到带诊断的部分结果，矩阵保持待验证；两种格式由合成值覆盖。窗口站和桌面使用随版本选择的 GUI 结构偏移，只需要内核 PDB；deskscan、editbox 仍未提供。
+新增 `windows.registry.shimcache`：读取 SYSTEM hive 当前 ControlSet 的 `Control\Session Manager\AppCompatCache`，解析 Windows 8 及以后的 `00ts`／`10ts` 条目与 Windows 7 x64 的 `0xBADC0FEE` 格式，按缓存顺序输出路径与最后修改时间。两个本地样本的 SYSTEM hive 单元格均未驻留，只得到带诊断的部分结果，矩阵保持待验证；两种格式由合成值覆盖。窗口站、桌面和桌面池扫描使用随版本选择的 GUI 结构偏移，只需要内核 PDB；editbox 仍未提供。
 
 新增 `windows.virtmap`：解引用 `MiVisibleState`（公开符号没有类型，按指针变量处理），读取 `SystemVaRegions` 的 BaseAddress／NumberOfBytes。数组按 `_MI_ASSIGNED_REGION_TYPES` 编号，且各构建顺序不同（Windows 10 15063 首项为 NonPagedPool，Windows 11 22000 首项为 PfnDatabase），因此区域名称取自该枚举，缺少时才退回 `_MI_SYSTEM_VA_TYPE`；非内核起始地址按区域报告诊断。实测 Windows 10 13 个区域、Windows 11 14 个区域，NonPagedPool 含 EPROCESS 与驱动对象地址，PagedPool 含注册表 hive 地址，SystemImages 含内核基址。
 

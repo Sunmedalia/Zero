@@ -113,6 +113,7 @@
           "windows.suspended_threads.SuspendedThreads": "pending",
           "windows.poolscanner.PoolScanner": "pending",
           "windows.windowstations.WindowStations": "pending",
+          "windows.deskscan.DeskScan": "pending",
           "windows.desktops.Desktops": "pending",
           "windows.debugregisters.DebugRegisters": "pending"
         },
@@ -205,6 +206,7 @@
           "windows.suspended_threads.SuspendedThreads": "pending",
           "windows.poolscanner.PoolScanner": "pending",
           "windows.windowstations.WindowStations": "pending",
+          "windows.deskscan.DeskScan": "pending",
           "windows.desktops.Desktops": "pending",
           "windows.debugregisters.DebugRegisters": "pending"
         }
@@ -381,6 +383,7 @@
           "windows.suspended_threads.SuspendedThreads": "pending",
           "windows.poolscanner.PoolScanner": "pending",
           "windows.windowstations.WindowStations": "pending",
+          "windows.deskscan.DeskScan": "pending",
           "windows.desktops.Desktops": "pending",
           "windows.debugregisters.DebugRegisters": "pending"
         },
@@ -473,6 +476,7 @@
           "windows.suspended_threads.SuspendedThreads": "pending",
           "windows.poolscanner.PoolScanner": "pending",
           "windows.windowstations.WindowStations": "pending",
+          "windows.deskscan.DeskScan": "pending",
           "windows.desktops.Desktops": "pending",
           "windows.debugregisters.DebugRegisters": "pending"
         }
@@ -586,6 +590,7 @@
           "windows.suspended_threads.SuspendedThreads": "pending",
           "windows.poolscanner.PoolScanner": "pending",
           "windows.windowstations.WindowStations": "pending",
+          "windows.deskscan.DeskScan": "pending",
           "windows.desktops.Desktops": "pending",
           "windows.debugregisters.DebugRegisters": "real"
         },
@@ -678,6 +683,7 @@
           "windows.suspended_threads.SuspendedThreads": "pending",
           "windows.poolscanner.PoolScanner": "pending",
           "windows.windowstations.WindowStations": "pending",
+          "windows.deskscan.DeskScan": "pending",
           "windows.desktops.Desktops": "pending",
           "windows.debugregisters.DebugRegisters": "pending"
         }
@@ -872,6 +878,7 @@
           "windows.suspended_threads.SuspendedThreads": "pending",
           "windows.poolscanner.PoolScanner": "pending",
           "windows.windowstations.WindowStations": "pending",
+          "windows.deskscan.DeskScan": "pending",
           "windows.desktops.Desktops": "pending",
           "windows.debugregisters.DebugRegisters": "pending"
         }
@@ -984,6 +991,7 @@
           "windows.suspended_threads.SuspendedThreads": "pending",
           "windows.poolscanner.PoolScanner": "pending",
           "windows.windowstations.WindowStations": "pending",
+          "windows.deskscan.DeskScan": "pending",
           "windows.desktops.Desktops": "pending",
           "windows.debugregisters.DebugRegisters": "pending"
         }
@@ -1142,6 +1150,7 @@
           "windows.suspended_threads.SuspendedThreads": "pending",
           "windows.poolscanner.PoolScanner": "pending",
           "windows.windowstations.WindowStations": "pending",
+          "windows.deskscan.DeskScan": "pending",
           "windows.desktops.Desktops": "pending",
           "windows.debugregisters.DebugRegisters": "pending"
         }
@@ -1301,6 +1310,7 @@
           "windows.suspended_threads.SuspendedThreads": "pending",
           "windows.poolscanner.PoolScanner": "pending",
           "windows.windowstations.WindowStations": "pending",
+          "windows.deskscan.DeskScan": "pending",
           "windows.desktops.Desktops": "pending",
           "windows.debugregisters.DebugRegisters": "pending"
         }
@@ -1432,6 +1442,7 @@
           "windows.suspended_threads.SuspendedThreads": "pending",
           "windows.poolscanner.PoolScanner": "pending",
           "windows.windowstations.WindowStations": "pending",
+          "windows.deskscan.DeskScan": "pending",
           "windows.desktops.Desktops": "pending",
           "windows.debugregisters.DebugRegisters": "pending"
         }
@@ -1592,6 +1603,7 @@
           "windows.suspended_threads.SuspendedThreads": "pending",
           "windows.poolscanner.PoolScanner": "pending",
           "windows.windowstations.WindowStations": "pending",
+          "windows.deskscan.DeskScan": "pending",
           "windows.desktops.Desktops": "pending",
           "windows.debugregisters.DebugRegisters": "pending"
         }
@@ -1752,6 +1764,7 @@
           "windows.suspended_threads.SuspendedThreads": "pending",
           "windows.poolscanner.PoolScanner": "pending",
           "windows.windowstations.WindowStations": "pending",
+          "windows.deskscan.DeskScan": "pending",
           "windows.desktops.Desktops": "pending",
           "windows.debugregisters.DebugRegisters": "pending"
         }
@@ -1866,6 +1879,7 @@
           "windows.suspended_threads.SuspendedThreads": "pending",
           "windows.poolscanner.PoolScanner": "pending",
           "windows.windowstations.WindowStations": "pending",
+          "windows.deskscan.DeskScan": "pending",
           "windows.desktops.Desktops": "pending",
           "windows.debugregisters.DebugRegisters": "pending"
         },
@@ -1958,6 +1972,7 @@
           "windows.suspended_threads.SuspendedThreads": "pending",
           "windows.poolscanner.PoolScanner": "pending",
           "windows.windowstations.WindowStations": "pending",
+          "windows.deskscan.DeskScan": "pending",
           "windows.desktops.Desktops": "pending",
           "windows.debugregisters.DebugRegisters": "pending"
         }
@@ -2129,6 +2144,7 @@
           "windows.suspended_threads.SuspendedThreads": "pending",
           "windows.poolscanner.PoolScanner": "pending",
           "windows.windowstations.WindowStations": "pending",
+          "windows.deskscan.DeskScan": "pending",
           "windows.desktops.Desktops": "pending",
           "windows.debugregisters.DebugRegisters": "pending"
         },
@@ -2221,6 +2237,7 @@
           "windows.suspended_threads.SuspendedThreads": "pending",
           "windows.poolscanner.PoolScanner": "pending",
           "windows.windowstations.WindowStations": "pending",
+          "windows.deskscan.DeskScan": "pending",
           "windows.desktops.Desktops": "pending",
           "windows.debugregisters.DebugRegisters": "pending"
         }
@@ -2333,6 +2350,7 @@
           "windows.suspended_threads.SuspendedThreads": "pending",
           "windows.poolscanner.PoolScanner": "pending",
           "windows.windowstations.WindowStations": "pending",
+          "windows.deskscan.DeskScan": "pending",
           "windows.desktops.Desktops": "pending",
           "windows.debugregisters.DebugRegisters": "pending"
         },
@@ -2425,6 +2443,7 @@
           "windows.suspended_threads.SuspendedThreads": "pending",
           "windows.poolscanner.PoolScanner": "pending",
           "windows.windowstations.WindowStations": "pending",
+          "windows.deskscan.DeskScan": "pending",
           "windows.desktops.Desktops": "pending",
           "windows.debugregisters.DebugRegisters": "pending"
         }
@@ -2550,6 +2569,7 @@
           "windows.suspended_threads.SuspendedThreads": "pending",
           "windows.poolscanner.PoolScanner": "pending",
           "windows.windowstations.WindowStations": "pending",
+          "windows.deskscan.DeskScan": "pending",
           "windows.desktops.Desktops": "pending",
           "windows.debugregisters.DebugRegisters": "pending"
         },
@@ -2642,6 +2662,7 @@
           "windows.suspended_threads.SuspendedThreads": "pending",
           "windows.poolscanner.PoolScanner": "pending",
           "windows.windowstations.WindowStations": "pending",
+          "windows.deskscan.DeskScan": "pending",
           "windows.desktops.Desktops": "pending",
           "windows.debugregisters.DebugRegisters": "pending"
         }
@@ -2861,6 +2882,7 @@
           "windows.suspended_threads.SuspendedThreads": "pending",
           "windows.poolscanner.PoolScanner": "pending",
           "windows.windowstations.WindowStations": "pending",
+          "windows.deskscan.DeskScan": "pending",
           "windows.desktops.Desktops": "pending",
           "windows.debugregisters.DebugRegisters": "pending"
         }

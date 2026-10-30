@@ -61,6 +61,12 @@ fn gui_table(major: u16, minor: u16, build: u16) -> Option<&'static str> {
     }
 }
 
+struct ScanInput {
+    virtual_scan: bool,
+    bodies: Vec<u64>,
+    table: &'static str,
+}
+
 impl Windows<'_> {
     pub(super) fn window_stations(&self, job: &Job) -> Result<Results> {
         ensure!(
@@ -145,18 +151,34 @@ impl Windows<'_> {
     }
 
     pub(super) fn desktops(&self, job: &Job) -> Result<Results> {
+        self.desktop_rows(job, Plugin::WinDesktops, false)
+    }
+
+    pub(super) fn deskscan(&self, job: &Job) -> Result<Results> {
+        self.desktop_rows(job, Plugin::WinDeskScan, true)
+    }
+
+    fn desktop_rows(&self, job: &Job, plugin: Plugin, scan: bool) -> Result<Results> {
         ensure!(
             Architecture::from_isf(self.vm.isf)? == Architecture::X64,
-            "Desktops 仅支持 x64"
+            "桌面插件仅支持 x64"
         );
         let Some(table) = self.gui_symbol_table() else {
             bail!("此 Windows 版本没有桌面符号表");
         };
         let layout = gui_layout(table);
-        let mut result = self.result(Plugin::WinDesktops);
-        let (virtual_scan, bodies, notes) = self.scan_gui_pool(b"Wind", STATION_SIZE, 0x90, job)?;
+        let mut result = self.result(plugin);
+        let (virtual_scan, bodies, notes) = if scan {
+            self.scan_gui_pool(b"Desk", 224, 0, job)?
+        } else {
+            self.scan_gui_pool(b"Wind", STATION_SIZE, 0x90, job)?
+        };
         for note in notes {
-            Self::issue(&mut result, "WindowStations", note);
+            Self::issue(
+                &mut result,
+                if scan { "DeskScan" } else { "WindowStations" },
+                note,
+            );
         }
         let sessions = match self.session_memberships(job) {
             Ok(sessions) => sessions,
@@ -169,6 +191,19 @@ impl Windows<'_> {
                 return Ok(result);
             }
         };
+        if scan {
+            return self.scanned_desktops(
+                job,
+                &mut result,
+                &sessions,
+                &layout,
+                ScanInput {
+                    virtual_scan,
+                    bodies,
+                    table,
+                },
+            );
+        }
         let mut stations = Vec::new();
         let mut seen_stations = HashSet::new();
         for body in bodies {
@@ -287,6 +322,145 @@ impl Windows<'_> {
             "rows": rows,
         });
         Ok(result)
+    }
+
+    fn scanned_desktops(
+        &self,
+        job: &Job,
+        result: &mut Results,
+        sessions: &HashMap<u64, Vec<Process>>,
+        layout: &GuiLayout,
+        input: ScanInput,
+    ) -> Result<Results> {
+        let ScanInput {
+            virtual_scan,
+            bodies,
+            table,
+        } = input;
+        let mut rows = 0usize;
+        let mut seen = HashSet::new();
+        let candidates = bodies.len();
+        for body in bodies {
+            job.check()?;
+            let Some(parent) =
+                self.session_pointer_any(sessions, add(body, layout.desktop_parent)?, virtual_scan)
+            else {
+                continue;
+            };
+            let Some(session_id) = self.gui_u32(parent, virtual_scan) else {
+                continue;
+            };
+            if session_id >= 256 {
+                continue;
+            }
+            let Some(processes) = sessions.get(&u64::from(session_id)) else {
+                continue;
+            };
+            let Some((station_name, confirmed, station_dtb)) =
+                self.named_station(processes, parent, session_id)
+            else {
+                continue;
+            };
+            if confirmed != session_id {
+                continue;
+            }
+            let Some(desktop_name) = self.desktop_name(processes, station_dtb, body) else {
+                continue;
+            };
+            if !seen.insert(body) {
+                continue;
+            }
+            let head = add(body, layout.desktop_threads)?;
+            let Some((mut link, list_dtb)) =
+                self.session_kernel_pointer(processes, station_dtb, head)
+            else {
+                continue;
+            };
+            let mut links = HashSet::from([head]);
+            while link != head && kernel(link) && links.insert(link) && links.len() <= 4096 {
+                job.check()?;
+                let thread = link.saturating_sub(layout.thread_link);
+                if let Some((process_name, pid)) = self.desktop_thread_in_session(
+                    processes,
+                    list_dtb,
+                    thread,
+                    layout.thread_process,
+                ) {
+                    ensure!(rows < MAX_OBJECTS, "桌面结果数量超限");
+                    result.rows.push(vec![
+                        format!("{:#018x}", body & 0x0000_ffff_ffff_ffff),
+                        station_name.clone(),
+                        session_id.to_string(),
+                        desktop_name.clone(),
+                        process_name,
+                        pid.to_string(),
+                    ]);
+                    rows += 1;
+                } else if let Some(pid) =
+                    self.unreadable_process_id(processes, list_dtb, thread, layout.thread_process)
+                {
+                    ensure!(rows < MAX_OBJECTS, "桌面结果数量超限");
+                    result.rows.push(vec![
+                        format!("{:#018x}", body & 0x0000_ffff_ffff_ffff),
+                        station_name.clone(),
+                        session_id.to_string(),
+                        desktop_name.clone(),
+                        String::new(),
+                        pid.to_string(),
+                    ]);
+                    rows += 1;
+                }
+                let Some(list_memory) = self.process_memory_dtb(list_dtb) else {
+                    break;
+                };
+                link = list_memory.uint(link, self.vm.pointer_size()).unwrap_or(0);
+            }
+        }
+        result.kernel_identity["deskscan"] = serde_json::json!({
+            "source": "Desk pool tag, parent window station, and desktop thread list",
+            "table": table,
+            "candidates": candidates,
+            "desktops": seen.len(),
+            "rows": rows,
+        });
+        Ok(std::mem::replace(result, self.result(Plugin::WinDeskScan)))
+    }
+
+    fn session_pointer_any(
+        &self,
+        sessions: &HashMap<u64, Vec<Process>>,
+        address: u64,
+        virtual_scan: bool,
+    ) -> Option<u64> {
+        if virtual_scan
+            && let Ok(value) = self.vm.uint(address, self.vm.pointer_size())
+            && kernel(value)
+        {
+            return Some(value);
+        }
+        for processes in sessions.values() {
+            if let Some((value, _)) = self.session_kernel_pointer(processes, 0, address) {
+                return Some(value);
+            }
+        }
+        None
+    }
+
+    fn named_station(
+        &self,
+        processes: &[Process],
+        station: u64,
+        session_id: u32,
+    ) -> Option<(String, u32, u64)> {
+        for process in processes {
+            let dtb = self.address_space(process)?;
+            let memory = self.process_memory_dtb(dtb)?;
+            let (name, confirmed) = self.station_info(&memory, station)?;
+            if confirmed == session_id {
+                return Some((name, confirmed, dtb));
+            }
+        }
+        None
     }
 
     fn address_space(&self, process: &Process) -> Option<u64> {

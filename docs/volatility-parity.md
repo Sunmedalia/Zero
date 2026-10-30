@@ -841,3 +841,7 @@ Server 2003 x86 为 2154/2154，仅一条文件名因孤立代理项的 UTF-16 �
 ## native60：桌面
 
 `windows.desktops.Desktops` 复用窗口站扫描，只接受 x64，并按同一套 GUI 符号表读取 `rpdeskList`。桌面名称在会话地址空间解析，线程链表按 `tagTHREADINFO.PtiLink` 前进。进程先从内核层读取 `ImageFileName` 和 `UniqueProcessId`；内核页缺失时退回发现该指针的会话地址空间。指针按页截断时仍按参考的 `ppi.Process` 取值，进程名读不出则保留空名称和截断 PID。地址按参考 JSON 渲染为 48 位。Win10 15063 的 28 行全字段一致，其中一行是参考自身的截断进程记录。Win7 7601 两侧均为 0。完整插件合同仍为 0，候选入口对应提升至 **124/135**，尚缺 11 个。
+
+## native61：桌面池扫描
+
+`windows.deskscan.DeskScan` 扫描 `Desk` 池标签，而不是只跟随窗口站的 `rpdeskList`。每个候选都要有桌面名、父窗口站名和会话号，线程仍按 `PtiLink` 解析。Win10 15063 的 28 行全字段一致，比窗口站链表多出 `Winlogon` 桌面，并保留同一条截断进程记录。Win7 7601 两侧均为 0。完整插件合同仍为 0，候选入口对应提升至 **125/135**，尚缺 10 个。
