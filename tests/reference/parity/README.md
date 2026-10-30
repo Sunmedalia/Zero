@@ -670,3 +670,8 @@ Pointer 解码的四种原始层读取情形。来源向量隔离字段格式化
 宿主 AF_INET6 并隔离家族门槛与真实物理 BufferDataLayer。Linux 镜像家族 10
 与宿主 socket 常量不总相同，不能把 macOS 的缺失结果误判为所有平台的规则。
 完整默认映射 v2 比较全部十列／重复数／成对缺失，无记录筛选；范围映射另保留。
+
+`callstack_vectors.py` 执行固定 Kallsyms 全局门槛、module ELF 边界、首模块
+查询及 get_task_callstack 栈循环。15 个模块查询、7 个栈字向量使用合成字段／
+字节层，分别验证地址域／Python 优先级／重叠归属和未对齐尾字／首错停止／
+无效 SP。真实八个 PsCallStack 用例与合成向量分开统计；core 范围不代替全表。

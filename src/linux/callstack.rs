@@ -17,7 +17,120 @@ fn display_address(value: u64, arm64: bool) -> u64 {
         }
     }
 }
+
+fn reference_module_elf_bounds(symbols: &[(u64, u64)], mask: u64) -> Option<(u64, u64)> {
+    let mut ordered = symbols.to_vec();
+    ordered.sort_by_key(|entry| entry.0);
+    let minimum = ordered.get(1)?.0 & mask;
+    let last = ordered.last()?;
+    // Keep Python's + before &: this is not (st_value & mask) + st_size.
+    let maximum = (u128::from(last.0) & (u128::from(mask) + u128::from(last.1))) as u64;
+    Some((minimum, maximum))
+}
+
+#[derive(serde::Serialize)]
+struct ModuleLookupBounds {
+    global_inclusive: (u64, u64),
+    module_bounds: Vec<(String, u64, u64)>,
+    owned_ranges: BTreeMap<String, Vec<(u64, u64)>>,
+}
+
+fn module_owned_ranges(
+    regions: &[(String, u64, u64)],
+    global: (u64, u64),
+    job: &Job,
+) -> Result<BTreeMap<String, Vec<(u64, u64)>>> {
+    let mut entries = Vec::new();
+    for (ordinal, (name, low, high)) in regions.iter().enumerate() {
+        let start = (*low).max(global.0);
+        let end = (*high).min(global.1.saturating_add(1));
+        if global.0 <= global.1 && start < end {
+            entries.push(Entry {
+                start,
+                end,
+                priority: 0,
+                ordinal,
+                name: name.clone(),
+                kind: String::new(),
+                module: name.clone(),
+            });
+        }
+    }
+    let index = SymbolIndex::build(entries, job)?;
+    let mut owned: BTreeMap<String, Vec<(u64, u64)>> = BTreeMap::new();
+    for (low, high, module) in index.selected_ranges() {
+        owned
+            .entry(module.name.clone())
+            .or_default()
+            .push((low, high));
+    }
+    Ok(owned)
+}
+
 impl Linux<'_> {
+    fn stack_global_module_bounds(&self) -> Result<(u64, u64)> {
+        let (low, high) =
+            if let Some(tree) = self.isf.address("mod_tree").ok().filter(|tree| *tree != 0) {
+                (
+                    self.number(tree, "mod_tree_root", "addr_min")?,
+                    self.number(tree, "mod_tree_root", "addr_max")?,
+                )
+            } else {
+                // KASConfig records symbol locations, not the stored pointer values.
+                let low = self.isf.address("module_addr_min")?;
+                let high = self.isf.address("module_addr_max")?;
+                ensure!(low != 0 && high != 0, "缺少非零模块符号查询边界");
+                (low, high)
+            };
+        Ok((
+            display_address(low, self.arm64()),
+            display_address(high, self.arm64()),
+        ))
+    }
+    fn stack_module_lookup_bounds(&self, job: &Job) -> Result<ModuleLookupBounds> {
+        let global_inclusive = self.stack_global_module_bounds()?;
+        let mut module_bounds = Vec::new();
+        let mut names = HashSet::new();
+        let mut budget = 1_000_000u64;
+        for module in self.listed_modules(job)? {
+            job.check()?;
+            let name = self.string(module, "module", "name")?;
+            ensure!(
+                names.insert(name.clone()),
+                "模块名重复，无法唯一绑定符号查询范围"
+            );
+            let symbols = self.module_symbols(module)?;
+            ensure!(symbols.count <= budget, "模块边界读取超过 100 万项上限");
+            budget -= symbols.count;
+            let mut values = Vec::with_capacity(symbols.count as usize);
+            for index in 0..symbols.count {
+                job.check()?;
+                let symbol = add(symbols.table, index * 24)?;
+                values.push((
+                    self.number(symbol, "Elf64_Sym", "st_value")?,
+                    self.number(symbol, "Elf64_Sym", "st_size")?,
+                ));
+            }
+            let mask = if self.arm64() {
+                u64::MAX
+            } else {
+                0xffff_ffff_ffff
+            };
+            let (low, high) = reference_module_elf_bounds(&values, mask)
+                .context("模块 ELF 边界至少需要两个符号")?;
+            module_bounds.push((
+                name,
+                display_address(low, self.arm64()),
+                display_address(high, self.arm64()),
+            ));
+        }
+        let owned_ranges = module_owned_ranges(&module_bounds, global_inclusive, job)?;
+        Ok(ModuleLookupBounds {
+            global_inclusive,
+            module_bounds,
+            owned_ranges,
+        })
+    }
     fn stack_symbol_index(&self, job: &Job) -> Result<(SymbolIndex, Results)> {
         let mut result = self.kallsyms(Default::default(), job)?;
         let mut core_ranges = Vec::new();
@@ -37,11 +150,11 @@ impl Linux<'_> {
             .iter()
             .any(|r| r.get(4).is_some_and(|s| s == "module"));
         let module_bounds = if has_modules {
-            match self.module_extraction_bounds() {
+            match self.stack_module_lookup_bounds(job) {
                 Ok(bounds) => Some(bounds),
                 Err(error) => {
                     job.check()?;
-                    partial(&mut result, "模块符号分配范围", error);
+                    partial(&mut result, "模块符号查询范围", error);
                     None
                 }
             }
@@ -85,7 +198,10 @@ impl Linux<'_> {
             let bounds = if priority == 0 {
                 Some(core_ranges.as_slice())
             } else if priority == 1 {
-                module_bounds.as_ref().map(|(ranges, _)| ranges.as_slice())
+                module_bounds
+                    .as_ref()
+                    .and_then(|bounds| bounds.owned_ranges.get(&module))
+                    .map(Vec::as_slice)
             } else {
                 None
             };
@@ -95,6 +211,8 @@ impl Linux<'_> {
                     .map(|&(low, high)| (start.max(low), end.min(high)))
                     .filter(|(low, high)| low < high)
                     .collect::<Vec<_>>()
+            } else if priority == 1 {
+                Vec::new()
             } else {
                 vec![(start, end)]
             };
@@ -120,7 +238,7 @@ impl Linux<'_> {
         if !result.kernel_identity.is_object() {
             result.kernel_identity = serde_json::json!({});
         }
-        result.kernel_identity["lookup_bounds"] = serde_json::json!({"core_text_ranges":core_ranges,"module_allocator":module_bounds,"invalid_symbol_ranges":invalid_ranges});
+        result.kernel_identity["lookup_bounds"] = serde_json::json!({"core_text_ranges":core_ranges,"module_lookup":module_bounds,"invalid_symbol_ranges":invalid_ranges});
         Ok((SymbolIndex::build(entries, job)?, result))
     }
     pub(super) fn ps_callstack(&self, options: &Options, job: &Job) -> Result<Results> {
@@ -166,7 +284,6 @@ impl Linux<'_> {
         let mut read_bytes = 0u64;
         let mut output_bytes = 0usize;
         let mut output_stopped = false;
-        let mut fallback_count = 0u64;
         let sp_field = if self.isf.field("task_struct", "thread.sp").is_ok() {
             "thread.sp"
         } else {
@@ -191,26 +308,18 @@ impl Linux<'_> {
                 };
                 let base =
                     display_address(self.number(address, "task_struct", "stack")?, self.arm64());
-                let sp =
-                    display_address(self.number(address, "task_struct", sp_field)?, self.arm64());
+                let mut sp = self.number(address, "task_struct", sp_field)?;
+                if !self.arm64()
+                    && self.isf.field("task_struct", sp_field)?["type"]["kind"] == "pointer"
+                {
+                    sp &= 0xffff_ffff_ffff;
+                }
                 let top = base.checked_add(stack_size).context("栈顶溢出")?;
                 ensure!(
                     base <= sp && sp < top,
                     "保存的 SP {sp:#x} 不在栈 {base:#x}..{top:#x}"
                 );
-                let mut fallback = false;
-                if let Some(vm) = process.as_ref() {
-                    let mut probe = [0; 8];
-                    if vm.read(sp, &mut probe).is_err() && self.vm.read(sp, &mut probe).is_ok() {
-                        fallback = true;
-                        fallback_count += 1;
-                    }
-                }
-                let vm = if fallback {
-                    &self.vm
-                } else {
-                    process.as_ref().unwrap_or(&self.vm)
-                };
+                let vm = process.as_ref().unwrap_or(&self.vm);
                 let mut resolved = 0u64;
                 let mut unresolved = 0u64;
                 let coverage = stack_scan::words(
@@ -266,7 +375,7 @@ impl Linux<'_> {
                     first_error.get_or_insert_with(|| coverage.first_unreadable.clone().unwrap());
                 }
                 Ok(Some(
-                    serde_json::json!({"tid":task[0],"tgid":tgid,"base":hex(base),"sp":hex(sp),"scan_bytes":stack_size,"layer":if fallback {"kernel fallback"} else if kernel_thread {"kernel"} else {"task"},"coverage":coverage,"resolved_words":resolved,"unresolved_words":unresolved}),
+                    serde_json::json!({"tid":task[0],"tgid":tgid,"base":hex(base),"sp":hex(sp),"scan_bytes":stack_size,"layer":if kernel_thread {"kernel"} else {"task"},"coverage":coverage,"resolved_words":resolved,"unresolved_words":unresolved}),
                 ))
             })();
             match read {
@@ -298,15 +407,6 @@ impl Linux<'_> {
                 ),
             );
         }
-        if fallback_count > 0 {
-            partial(
-                &mut result,
-                "内核栈映射",
-                anyhow::anyhow!(
-                    "{fallback_count} 个任务地址空间不可读保存的内核栈，但已验证的内核页表可读；使用内核映射并记录来源"
-                ),
-            );
-        }
         if output_stopped || read_budget == 0 {
             partial(
                 &mut result,
@@ -317,7 +417,7 @@ impl Linux<'_> {
         if !result.kernel_identity.is_object() {
             result.kernel_identity = serde_json::json!({});
         }
-        result.kernel_identity["pscallstack"] = serde_json::json!({"model":"saved SP linear nonzero word scan; not frame unwinding","stack_bytes":stack_size,"stack_size_source":"fixed reference page_size(4096) << 2; kernel configuration not inferred","sp_field":sp_field,"pointer_width":width,"pids":pids,"include_unresolved":options.unresolved,"complete_scope":"captured fixed window; actual THREAD_SIZE not proven","x86_value_mask":"48-bit reference address mask, sign extended for native display","symbol_index_entries":index.len(),"symbol_sources":symbols.kernel_identity,"source_priority":["core","module","bpf","ftrace"],"attempted_tasks":attempts,"failed_tasks":failed,"kernel_mapping_fallbacks":fallback_count,"word_read_bytes":read_bytes,"word_read_attempt_bytes":64*1024*1024-read_budget,"reports":reports,"output_stopped":output_stopped});
+        result.kernel_identity["pscallstack"] = serde_json::json!({"model":"saved SP linear nonzero word scan; not frame unwinding","stack_bytes":stack_size,"stack_size_source":"fixed reference page_size(4096) << 2; kernel configuration not inferred","sp_field":sp_field,"pointer_width":width,"pids":pids,"include_unresolved":options.unresolved,"complete_scope":"word starts inside captured fixed window; actual THREAD_SIZE not proven","x86_value_mask":"48-bit reference address mask, sign extended for native display","symbol_index_entries":index.len(),"symbol_sources":symbols.kernel_identity,"source_priority":["core","module","bpf","ftrace"],"attempted_tasks":attempts,"failed_tasks":failed,"kernel_mapping_fallbacks":0,"word_read_bytes":read_bytes,"word_read_attempt_bytes":64*1024*1024-read_budget,"reports":reports,"output_stopped":output_stopped});
         Ok(result)
     }
 }
@@ -327,11 +427,121 @@ mod tests {
     use super::super::tests::{engine, image};
     use super::*;
     use serde_json::json;
+    #[test]
+    fn fixed_module_global_gates_use_symbol_locations_or_tree_values() {
+        let vectors: serde_json::Value = serde_json::from_str(include_str!(
+            "../../tests/reference/parity/fixtures/callstack-module-gates.json"
+        ))
+        .unwrap();
+        for case in vectors["global_bounds"].as_array().unwrap() {
+            let (mut bytes, mut isf) = fixture();
+            let low = case["minimum"].as_u64().unwrap();
+            let high = case["maximum"].as_u64().unwrap();
+            if case["tree"].as_bool().unwrap() {
+                isf.data["symbols"]["mod_tree"] = json!({"address":0x300c0});
+                isf.data["user_types"]["mod_tree_root"] = json!({"size":16,"fields":{"addr_min":{"offset":0,"type":{"kind":"base","name":"u64"}},"addr_max":{"offset":8,"type":{"kind":"base","name":"u64"}}}});
+                put(&mut bytes, 0x300c0, low);
+                put(&mut bytes, 0x300c8, high);
+            } else {
+                isf.data["symbols"]["module_addr_min"] = json!({"address":low});
+                isf.data["symbols"]["module_addr_max"] = json!({"address":high});
+            }
+            let snapshot = image(&bytes);
+            let (a, b) = engine(&snapshot, &isf)
+                .stack_global_module_bounds()
+                .unwrap();
+            assert_eq!(
+                serde_json::json!([a & 0xffff_ffff_ffff, b & 0xffff_ffff_ffff]),
+                case["expected_bounds"],
+                "{}",
+                case["id"]
+            );
+        }
+    }
+    #[test]
+    fn fixed_module_elf_boundary_expression_preserves_sorting_and_python_precedence() {
+        let vectors: serde_json::Value = serde_json::from_str(include_str!(
+            "../../tests/reference/parity/fixtures/callstack-module-gates.json"
+        ))
+        .unwrap();
+        for case in vectors["module_bounds"].as_array().unwrap() {
+            let entries: Vec<_> = case["entries"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|e| (e[0].as_u64().unwrap(), e[1].as_u64().unwrap()))
+                .collect();
+            assert_eq!(
+                serde_json::json!(reference_module_elf_bounds(&entries, 0xffff_ffff_ffff)),
+                case["expected_bounds"],
+                "{}",
+                case["id"]
+            );
+        }
+    }
+    #[test]
+    fn first_module_ownership_does_not_fall_through_a_symbol_hole_to_the_next_module() {
+        let vectors: serde_json::Value = serde_json::from_str(include_str!(
+            "../../tests/reference/parity/fixtures/callstack-module-gates.json"
+        ))
+        .unwrap();
+        for case in vectors["routing"].as_array().unwrap() {
+            let regions: Vec<_> = case["regions"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|r| {
+                    (
+                        r[0].as_str().unwrap().to_owned(),
+                        r[1].as_u64().unwrap(),
+                        r[2].as_u64().unwrap(),
+                    )
+                })
+                .collect();
+            let owned = module_owned_ranges(&regions, (0x1000, 0x4000), &Job::default()).unwrap();
+            let mut entries = Vec::new();
+            for region in case["regions"].as_array().unwrap() {
+                let module = region[0].as_str().unwrap();
+                for (ordinal, symbol) in region[3].as_array().unwrap().iter().enumerate() {
+                    let start = symbol[0].as_u64().unwrap();
+                    let end = start + symbol[1].as_u64().unwrap();
+                    for &(low, high) in owned.get(module).map(Vec::as_slice).unwrap_or_default() {
+                        let low = start.max(low);
+                        let high = end.min(high);
+                        if low < high {
+                            entries.push(Entry {
+                                start: low,
+                                end: high,
+                                priority: 0,
+                                ordinal,
+                                name: symbol[2].as_str().unwrap().into(),
+                                kind: "t".into(),
+                                module: module.into(),
+                            });
+                        }
+                    }
+                }
+            }
+            let index = SymbolIndex::build(entries, &Job::default()).unwrap();
+            assert_eq!(
+                serde_json::json!(
+                    index
+                        .lookup(case["query"].as_u64().unwrap())
+                        .map(|e| &e.name)
+                ),
+                case["expected"],
+                "{}",
+                case["id"]
+            );
+        }
+    }
     fn put(bytes: &mut [u8], at: usize, value: u64) {
         bytes[at..at + 8].copy_from_slice(&value.to_le_bytes());
     }
     fn fixture() -> (Vec<u8>, Isf) {
         let (mut bytes, mut isf) = super::super::kallsyms::tests::fixture();
+        isf.data["symbols"]["module_addr_min"] = json!({"address":0x30080});
+        isf.data["symbols"]["module_addr_max"] = json!({"address":0x30088});
         isf.data["user_types"]["thread_struct"] =
             json!({"size":8,"fields":{"sp":{"offset":0,"type":{"kind":"base","name":"u64"}}}});
         for (field, offset, ty) in [
@@ -460,5 +670,46 @@ mod tests {
                 .ps_callstack(&Options::default(), &job)
                 .is_err()
         );
+    }
+    #[test]
+    fn task_stack_fault_does_not_fall_back_to_kernel_and_integer_sp_is_not_repaired() {
+        for bad_integer_sp in [false, true] {
+            let (mut bytes, isf) = fixture();
+            if bad_integer_sp {
+                put(&mut bytes, 0xa050, 0x1234000000020000);
+            } else {
+                put(&mut bytes, 0xa058, 0); // user task, its mm maps no saved stack
+            }
+            let snapshot = image(&bytes);
+            let linux = engine(&snapshot, &isf);
+            assert!(linux.vm.read(0x20000, &mut [0; 8]).is_ok());
+            if !bad_integer_sp {
+                assert!(
+                    linux
+                        .process_vm(0xa000)
+                        .unwrap()
+                        .unwrap()
+                        .read(0x20000, &mut [0; 8])
+                        .is_err()
+                );
+            }
+            let result = linux
+                .ps_callstack(
+                    &Options {
+                        pid: Some(1),
+                        unresolved: true,
+                        ..Default::default()
+                    },
+                    &Job::default(),
+                )
+                .unwrap();
+            assert!(result.rows.is_empty());
+            assert!(!result.complete);
+            assert_eq!(result.kernel_identity["pscallstack"]["failed_tasks"], 1);
+            assert_eq!(
+                result.kernel_identity["pscallstack"]["kernel_mapping_fallbacks"],
+                0
+            );
+        }
     }
 }

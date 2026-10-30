@@ -33,7 +33,9 @@ pub(crate) fn words(
     ensure!(base <= sp && sp < top, "保存的 SP 不在栈扫描范围内");
     let mut at = sp;
     let mut out = Coverage::default();
-    while at.checked_add(width as u64).is_some_and(|end| end <= top) {
+    // The reference tests the word's starting address against the stack top;
+    // an unaligned final word can extend beyond that top if its bytes exist.
+    while at < top {
         job.check()?;
         let mut bytes = [0; 8];
         if let Err(e) = read(at, &mut bytes[..width]) {
@@ -55,6 +57,9 @@ pub(crate) fn words(
                 break;
             }
         }
+        if top - at <= width as u64 {
+            break;
+        }
         at += width as u64;
     }
     job.check()?;
@@ -63,6 +68,56 @@ pub(crate) fn words(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn fixed_task_stack_vectors_cover_unaligned_tail_and_first_fault() {
+        let vectors: serde_json::Value = serde_json::from_str(include_str!(
+            "../tests/reference/parity/fixtures/callstack-module-gates.json"
+        ))
+        .unwrap();
+        for case in vectors["stack"].as_array().unwrap() {
+            let data: Vec<_> = case["data_hex"]
+                .as_str()
+                .unwrap()
+                .as_bytes()
+                .chunks_exact(2)
+                .map(|b| u8::from_str_radix(std::str::from_utf8(b).unwrap(), 16).unwrap())
+                .collect();
+            let base = case["base"].as_u64().unwrap();
+            let mut found = Vec::new();
+            let report = words(
+                base,
+                case["sp"].as_u64().unwrap(),
+                case["size"].as_u64().unwrap(),
+                case["width"].as_u64().unwrap() as usize,
+                &Job::default(),
+                |at, out| {
+                    ensure!(
+                        !case["faults"]
+                            .as_array()
+                            .unwrap()
+                            .iter()
+                            .any(|p| p.as_u64() == Some(at)),
+                        "synthetic missing word"
+                    );
+                    let start = (at - base) as usize;
+                    ensure!(start + out.len() <= data.len(), "synthetic bounds");
+                    out.copy_from_slice(&data[start..start + out.len()]);
+                    Ok(())
+                },
+                |word| {
+                    found.push(serde_json::json!({"position":word.position,"address":word.address,"value":word.value}));
+                    Ok(true)
+                },
+            );
+            assert_eq!(
+                report.is_err(),
+                case["expected_error"].as_bool().unwrap(),
+                "{}",
+                case["id"]
+            );
+            assert_eq!(serde_json::json!(found), case["expected"], "{}", case["id"]);
+        }
+    }
     #[test]
     fn positions_include_zero_words_and_holes_preserve_prefix() {
         let mut hits = Vec::new();

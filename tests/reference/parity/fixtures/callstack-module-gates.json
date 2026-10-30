@@ -1,0 +1,447 @@
+{
+  "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+  "source_sha256": "d3ef43c536dd87ad50ef7e0ef8c71d96232d77e266229ddb0f88ce4132837c00",
+  "module_source_sha256": "5e43dbf482df74ec78c810ece3584323205eeac20d44fede5381f9a12b78e249",
+  "stack_source_sha256": "49e404e9164c0c763d63ff2f02b8bdb1d2a68904cbdd996f03c42fd4ae09ee90",
+  "scope": "Actual global module boundaries, module ELF boundary expression, first-module lookup and get_task_callstack loop with synthetic fields/tables/layers. No recovered names or stack words. Does not validate modern latch-tree routing, task address-space creation or the complete field-fault matrix.",
+  "global_bounds": [
+    {
+      "id": "symbol-locations",
+      "tree": false,
+      "minimum": 18446744071585258216,
+      "maximum": 18446744071586897736,
+      "expected_bounds": [
+        281472852417256,
+        281472854056776
+      ]
+    },
+    {
+      "id": "tree-values",
+      "tree": true,
+      "minimum": 18446744072098938880,
+      "maximum": 18446744072099004416,
+      "expected_bounds": [
+        281473366097920,
+        281473366163456
+      ]
+    },
+    {
+      "id": "inverted",
+      "tree": false,
+      "minimum": 8192,
+      "maximum": 4096,
+      "expected_bounds": [
+        8192,
+        4096
+      ]
+    }
+  ],
+  "module_bounds": [
+    {
+      "id": "last-zero",
+      "entries": [
+        [
+          0,
+          0
+        ],
+        [
+          4096,
+          16
+        ],
+        [
+          8192,
+          0
+        ]
+      ],
+      "expected_bounds": [
+        4096,
+        8192
+      ]
+    },
+    {
+      "id": "last-sized",
+      "entries": [
+        [
+          0,
+          0
+        ],
+        [
+          4096,
+          16
+        ],
+        [
+          8192,
+          32
+        ]
+      ],
+      "expected_bounds": [
+        4096,
+        0
+      ]
+    },
+    {
+      "id": "unsorted",
+      "entries": [
+        [
+          8192,
+          0
+        ],
+        [
+          0,
+          0
+        ],
+        [
+          4096,
+          16
+        ]
+      ],
+      "expected_bounds": [
+        4096,
+        8192
+      ]
+    },
+    {
+      "id": "one-symbol",
+      "entries": [
+        [
+          0,
+          0
+        ],
+        [
+          4096,
+          0
+        ]
+      ],
+      "expected_bounds": [
+        4096,
+        4096
+      ]
+    },
+    {
+      "id": "alias-last-sized",
+      "entries": [
+        [
+          0,
+          0
+        ],
+        [
+          4096,
+          16
+        ],
+        [
+          8192,
+          0
+        ],
+        [
+          8192,
+          32
+        ]
+      ],
+      "expected_bounds": [
+        4096,
+        0
+      ]
+    },
+    {
+      "id": "alias-last-zero",
+      "entries": [
+        [
+          0,
+          0
+        ],
+        [
+          4096,
+          16
+        ],
+        [
+          8192,
+          32
+        ],
+        [
+          8192,
+          0
+        ]
+      ],
+      "expected_bounds": [
+        4096,
+        8192
+      ]
+    },
+    {
+      "id": "wide-size",
+      "entries": [
+        [
+          0,
+          0
+        ],
+        [
+          4096,
+          16
+        ],
+        [
+          17592186049076,
+          18446744073709551615
+        ]
+      ],
+      "expected_bounds": [
+        4096,
+        17592186049076
+      ]
+    }
+  ],
+  "routing": [
+    {
+      "id": "first-module-hole",
+      "query": 4104,
+      "regions": [
+        [
+          "first",
+          4096,
+          8192,
+          [
+            [
+              4096,
+              4,
+              "short"
+            ]
+          ]
+        ],
+        [
+          "second",
+          4096,
+          8192,
+          [
+            [
+              4096,
+              16,
+              "long"
+            ]
+          ]
+        ]
+      ],
+      "expected": null
+    },
+    {
+      "id": "first-module-symbol",
+      "query": 4098,
+      "regions": [
+        [
+          "first",
+          4096,
+          8192,
+          [
+            [
+              4096,
+              4,
+              "short"
+            ]
+          ]
+        ],
+        [
+          "second",
+          4096,
+          8192,
+          [
+            [
+              4096,
+              16,
+              "long"
+            ]
+          ]
+        ]
+      ],
+      "expected": "short"
+    },
+    {
+      "id": "global-inclusive-end",
+      "query": 16384,
+      "regions": [
+        [
+          "first",
+          12288,
+          20480,
+          [
+            [
+              16384,
+              4,
+              "at-end"
+            ]
+          ]
+        ]
+      ],
+      "expected": "at-end"
+    },
+    {
+      "id": "global-after-end",
+      "query": 16385,
+      "regions": [
+        [
+          "first",
+          12288,
+          20480,
+          [
+            [
+              16384,
+              4,
+              "at-end"
+            ]
+          ]
+        ]
+      ],
+      "expected": null
+    },
+    {
+      "id": "second-outside-first",
+      "query": 8194,
+      "regions": [
+        [
+          "first",
+          4096,
+          8192,
+          [
+            [
+              4096,
+              4,
+              "short"
+            ]
+          ]
+        ],
+        [
+          "second",
+          6144,
+          12288,
+          [
+            [
+              8192,
+              16,
+              "second-symbol"
+            ]
+          ]
+        ]
+      ],
+      "expected": "second-symbol"
+    }
+  ],
+  "stack": [
+    {
+      "id": "aligned-zero",
+      "width": 8,
+      "base": 4096,
+      "sp": 4096,
+      "size": 16,
+      "data_hex": "00000000000000003412000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+      "faults": [],
+      "expected": [
+        {
+          "position": 1,
+          "address": 4104,
+          "value": 4660
+        }
+      ],
+      "expected_error": false
+    },
+    {
+      "id": "unaligned-last-word",
+      "width": 8,
+      "base": 4096,
+      "sp": 4097,
+      "size": 16,
+      "data_hex": "00111100000000000022220000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+      "faults": [],
+      "expected": [
+        {
+          "position": 0,
+          "address": 4097,
+          "value": 4369
+        },
+        {
+          "position": 1,
+          "address": 4105,
+          "value": 8738
+        }
+      ],
+      "expected_error": false
+    },
+    {
+      "id": "unaligned-four-byte",
+      "width": 4,
+      "base": 4096,
+      "sp": 4097,
+      "size": 16,
+      "data_hex": "00000000003412000045230000563400000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+      "faults": [],
+      "expected": [
+        {
+          "position": 1,
+          "address": 4101,
+          "value": 4660
+        },
+        {
+          "position": 2,
+          "address": 4105,
+          "value": 9029
+        },
+        {
+          "position": 3,
+          "address": 4109,
+          "value": 13398
+        }
+      ],
+      "expected_error": false
+    },
+    {
+      "id": "missing-second-word",
+      "width": 8,
+      "base": 4096,
+      "sp": 4096,
+      "size": 16,
+      "data_hex": "11110000000000002222000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+      "faults": [
+        4104
+      ],
+      "expected": [
+        {
+          "position": 0,
+          "address": 4096,
+          "value": 4369
+        }
+      ],
+      "expected_error": false
+    },
+    {
+      "id": "missing-first-word",
+      "width": 8,
+      "base": 4096,
+      "sp": 4096,
+      "size": 16,
+      "data_hex": "11110000000000002222000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+      "faults": [
+        4096
+      ],
+      "expected": [],
+      "expected_error": false
+    },
+    {
+      "id": "sp-at-top",
+      "width": 8,
+      "base": 4096,
+      "sp": 4112,
+      "size": 16,
+      "data_hex": "00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+      "faults": [],
+      "expected": [],
+      "expected_error": true
+    },
+    {
+      "id": "sp-bad-high-bits",
+      "width": 8,
+      "base": 4096,
+      "sp": 1311673391471661056,
+      "size": 16,
+      "data_hex": "00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+      "faults": [],
+      "expected": [],
+      "expected_error": true
+    }
+  ]
+}

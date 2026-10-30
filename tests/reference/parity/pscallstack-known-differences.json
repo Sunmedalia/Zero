@@ -2,40 +2,58 @@
   "schema_version": 1,
   "reference_version": "v2.28.2",
   "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
-  "engine_version": "0.2.1-native-37",
-  "zero_executable_sha256": "8e01e01ad81ef2a98ec3a3c9807b1b487d72d2b289c17ade8e6e33901233372f",
-  "scope": "Unmodified full default and unresolved outputs; differences remain failures. No recovered stack values or names stored.",
+  "engine_version": "0.2.1-native-78",
+  "zero_executable_sha256": "0a6c4834f1f2a01da4f835715283aa648782350d2a2c381f10cbb434fd386426",
+  "scope": "Seven unfiltered parameter/default cases plus a separately retained core-only scoped baseline. All eight fields, every occurrence and paired unresolved fields match. No recovered raw stack values or names are stored here.",
   "cases": [
     {
+      "reference_plugin": "linux.pscallstack.PsCallStack",
+      "zero_plugin": "linux.pscallstack.PsCallStack",
+      "image_sha256": "8ce57b7c7b423173ce970fe8f51e7016c04ef1b4a5f73d5c5f1001d5c18780bc",
+      "mapping_sha256": "c00b525e63e8e965c7f2fffbb643eb2cf8520a8fb480c8675f541252ced810e7",
+      "native_output_sha256": "c53112e3308ec15877e2da5fbbd4f5ef0935e71cf0fe7e9f50a011ac7af43894",
+      "zero_args": [
+        "--pid",
+        "1"
+      ],
+      "reference_args": [
+        "--pid",
+        "1"
+      ],
       "case_id": "debian-3.2/pscallstack-pid1",
-      "reference_plugin": "linux.pscallstack.PsCallStack",
-      "image_sha256": "8ce57b7c7b423173ce970fe8f51e7016c04ef1b4a5f73d5c5f1001d5c18780bc",
-      "mapping_sha256": "dfc2b318f92cec1250e5d7f7f326117d3bd237052384878e56a6910f61d5a699",
-      "native_output_sha256": "9a038304a813cee2cdd4cda40b8dbda13e1c8b169f43be55d6ac6c3fa7c07add",
-      "zero_args": [
-        "--pid",
-        "1"
-      ],
-      "reference_args": [
-        "--pid",
-        "1"
-      ],
+      "sample_source": "https://github.com/volatilityfoundation/volatility3-test-data/releases/download/v0.0.1/linux-sample-1.bin.gz",
+      "comparison": {
+        "schema_version": 1,
+        "mapping_version": 2,
+        "zero_records": 37,
+        "reference_records": 37,
+        "missing": [],
+        "extra": [],
+        "duplicates": [],
+        "duplicate_keys": "multiset",
+        "multiplicity_conflicts": [],
+        "conflicts": [],
+        "unverifiable": [],
+        "matched_absent": {},
+        "all_columns_mapped": true,
+        "positive_evidence": true,
+        "zero_complete": true,
+        "zero_diagnostics": [],
+        "passed": true
+      },
+      "passed": true,
+      "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
       "reference_output_sha256": "a9a6ff6aead1d29bfe8d152ec9ab2efe7561b54588b9130535cdc825f5060262",
-      "passed": false,
-      "zero_records": 38,
-      "reference_records": 37,
-      "missing_count": 0,
-      "extra_count": 1,
-      "conflict_count": 0,
-      "unverifiable_field_count": 0,
-      "duplicate_count": 0
+      "symbol_sha256": "c3b0b875a2d0498fffc0df1259ff49b850cea28355ffddf02e2f90d34a89fbe1",
+      "zero_executable_sha256": "0a6c4834f1f2a01da4f835715283aa648782350d2a2c381f10cbb434fd386426",
+      "engine_version": "0.2.1-native-78"
     },
     {
-      "case_id": "debian-3.2/pscallstack-unresolved",
       "reference_plugin": "linux.pscallstack.PsCallStack",
+      "zero_plugin": "linux.pscallstack.PsCallStack",
       "image_sha256": "8ce57b7c7b423173ce970fe8f51e7016c04ef1b4a5f73d5c5f1001d5c18780bc",
-      "mapping_sha256": "dfc2b318f92cec1250e5d7f7f326117d3bd237052384878e56a6910f61d5a699",
-      "native_output_sha256": "8d3cd16db0d6b9a33799a3f8367314bd3b8865c12a303feefff3499df80f013a",
+      "mapping_sha256": "c00b525e63e8e965c7f2fffbb643eb2cf8520a8fb480c8675f541252ced810e7",
+      "native_output_sha256": "4fc3beaea7377b0c170997ce806d5312744a548ea2a4ce5d379bee4ddaba73d0",
       "zero_args": [
         "--pid",
         "1",
@@ -46,33 +64,329 @@
         "1",
         "--unresolved"
       ],
+      "case_id": "debian-3.2/pscallstack-unresolved",
+      "sample_source": "https://github.com/volatilityfoundation/volatility3-test-data/releases/download/v0.0.1/linux-sample-1.bin.gz",
+      "comparison": {
+        "schema_version": 1,
+        "mapping_version": 2,
+        "zero_records": 383,
+        "reference_records": 383,
+        "missing": [],
+        "extra": [],
+        "duplicates": [],
+        "duplicate_keys": "multiset",
+        "multiplicity_conflicts": [],
+        "conflicts": [],
+        "unverifiable": [],
+        "matched_absent": {
+          "Name": 346,
+          "Type": 346,
+          "Module": 346
+        },
+        "all_columns_mapped": true,
+        "positive_evidence": true,
+        "zero_complete": true,
+        "zero_diagnostics": [],
+        "passed": true
+      },
+      "passed": true,
+      "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
       "reference_output_sha256": "b2d0abeaba157a2add51515e672bc52581e7fc92c73b79e7d0406449e3828532",
-      "passed": false,
-      "zero_records": 383,
-      "reference_records": 383,
-      "missing_count": 0,
-      "extra_count": 0,
-      "conflict_count": 0,
-      "unverifiable_field_count": 3,
-      "duplicate_count": 0
+      "symbol_sha256": "c3b0b875a2d0498fffc0df1259ff49b850cea28355ffddf02e2f90d34a89fbe1",
+      "zero_executable_sha256": "0a6c4834f1f2a01da4f835715283aa648782350d2a2c381f10cbb434fd386426",
+      "engine_version": "0.2.1-native-78"
     },
     {
-      "case_id": "debian-3.2/pscallstack-all-tasks",
       "reference_plugin": "linux.pscallstack.PsCallStack",
+      "zero_plugin": "linux.pscallstack.PsCallStack",
       "image_sha256": "8ce57b7c7b423173ce970fe8f51e7016c04ef1b4a5f73d5c5f1001d5c18780bc",
-      "mapping_sha256": "dfc2b318f92cec1250e5d7f7f326117d3bd237052384878e56a6910f61d5a699",
-      "native_output_sha256": "8089fb7c44f09217bd43d2d1526aab14419a5ca8464a0999265d8f5de56e7d99",
+      "mapping_sha256": "c00b525e63e8e965c7f2fffbb643eb2cf8520a8fb480c8675f541252ced810e7",
+      "native_output_sha256": "667c783715cab89b974123e1b2a09cad8b1dbed060961cd0368a9642348f71b4",
       "zero_args": [],
       "reference_args": [],
+      "case_id": "debian-3.2/pscallstack-all-tasks",
+      "sample_source": "https://github.com/volatilityfoundation/volatility3-test-data/releases/download/v0.0.1/linux-sample-1.bin.gz",
+      "comparison": {
+        "schema_version": 1,
+        "mapping_version": 2,
+        "zero_records": 8120,
+        "reference_records": 8120,
+        "missing": [],
+        "extra": [],
+        "duplicates": [],
+        "duplicate_keys": "multiset",
+        "multiplicity_conflicts": [],
+        "conflicts": [],
+        "unverifiable": [],
+        "matched_absent": {},
+        "all_columns_mapped": true,
+        "positive_evidence": true,
+        "zero_complete": true,
+        "zero_diagnostics": [],
+        "passed": true
+      },
+      "passed": true,
+      "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
       "reference_output_sha256": "5c01d006d2b6930ddfa5acb36bdd20d4afa71d52820698f4d46dbc8164a2f980",
-      "passed": false,
-      "zero_records": 8462,
-      "reference_records": 8120,
-      "missing_count": 0,
-      "extra_count": 342,
-      "conflict_count": 0,
-      "unverifiable_field_count": 0,
-      "duplicate_count": 0
+      "symbol_sha256": "c3b0b875a2d0498fffc0df1259ff49b850cea28355ffddf02e2f90d34a89fbe1",
+      "zero_executable_sha256": "0a6c4834f1f2a01da4f835715283aa648782350d2a2c381f10cbb434fd386426",
+      "engine_version": "0.2.1-native-78"
+    },
+    {
+      "reference_plugin": "linux.pscallstack.PsCallStack",
+      "zero_plugin": "linux.pscallstack.PsCallStack",
+      "image_sha256": "8ce57b7c7b423173ce970fe8f51e7016c04ef1b4a5f73d5c5f1001d5c18780bc",
+      "mapping_sha256": "c00b525e63e8e965c7f2fffbb643eb2cf8520a8fb480c8675f541252ced810e7",
+      "native_output_sha256": "7e4e3e82a4ef15721c3ae98143b9e039557965cf48351aa1c0c2e509ce9a8373",
+      "zero_args": [
+        "--pid",
+        "2"
+      ],
+      "reference_args": [
+        "--pid",
+        "2"
+      ],
+      "case_id": "debian-3.2/pscallstack-kthreadd",
+      "sample_source": "https://github.com/volatilityfoundation/volatility3-test-data/releases/download/v0.0.1/linux-sample-1.bin.gz",
+      "comparison": {
+        "schema_version": 1,
+        "mapping_version": 2,
+        "zero_records": 6,
+        "reference_records": 6,
+        "missing": [],
+        "extra": [],
+        "duplicates": [],
+        "duplicate_keys": "multiset",
+        "multiplicity_conflicts": [],
+        "conflicts": [],
+        "unverifiable": [],
+        "matched_absent": {},
+        "all_columns_mapped": true,
+        "positive_evidence": true,
+        "zero_complete": true,
+        "zero_diagnostics": [],
+        "passed": true
+      },
+      "passed": true,
+      "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+      "reference_output_sha256": "89b6416a1a0323e3ae8727b7360288077a9eac2d4d76a618437567496ea85ae4",
+      "symbol_sha256": "c3b0b875a2d0498fffc0df1259ff49b850cea28355ffddf02e2f90d34a89fbe1",
+      "zero_executable_sha256": "0a6c4834f1f2a01da4f835715283aa648782350d2a2c381f10cbb434fd386426",
+      "engine_version": "0.2.1-native-78"
+    },
+    {
+      "reference_plugin": "linux.pscallstack.PsCallStack",
+      "zero_plugin": "linux.pscallstack.PsCallStack",
+      "image_sha256": "8ce57b7c7b423173ce970fe8f51e7016c04ef1b4a5f73d5c5f1001d5c18780bc",
+      "mapping_sha256": "c00b525e63e8e965c7f2fffbb643eb2cf8520a8fb480c8675f541252ced810e7",
+      "native_output_sha256": "83e60d911d9d7c8af7215807ab1412abc8ee54a9e6a2792645f5636ee56a42d6",
+      "zero_args": [
+        "--pid",
+        "2",
+        "--unresolved"
+      ],
+      "reference_args": [
+        "--pid",
+        "2",
+        "--unresolved"
+      ],
+      "case_id": "debian-3.2/pscallstack-kthreadd-unresolved",
+      "sample_source": "https://github.com/volatilityfoundation/volatility3-test-data/releases/download/v0.0.1/linux-sample-1.bin.gz",
+      "comparison": {
+        "schema_version": 1,
+        "mapping_version": 2,
+        "zero_records": 341,
+        "reference_records": 341,
+        "missing": [],
+        "extra": [],
+        "duplicates": [],
+        "duplicate_keys": "multiset",
+        "multiplicity_conflicts": [],
+        "conflicts": [],
+        "unverifiable": [],
+        "matched_absent": {
+          "Name": 335,
+          "Type": 335,
+          "Module": 335
+        },
+        "all_columns_mapped": true,
+        "positive_evidence": true,
+        "zero_complete": true,
+        "zero_diagnostics": [],
+        "passed": true
+      },
+      "passed": true,
+      "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+      "reference_output_sha256": "731c77e689aa0cb9fc7b74d03f5a7b7f29ef57cde469d8aabf77da0e5ee2af76",
+      "symbol_sha256": "c3b0b875a2d0498fffc0df1259ff49b850cea28355ffddf02e2f90d34a89fbe1",
+      "zero_executable_sha256": "0a6c4834f1f2a01da4f835715283aa648782350d2a2c381f10cbb434fd386426",
+      "engine_version": "0.2.1-native-78"
+    },
+    {
+      "reference_plugin": "linux.pscallstack.PsCallStack",
+      "zero_plugin": "linux.pscallstack.PsCallStack",
+      "image_sha256": "8ce57b7c7b423173ce970fe8f51e7016c04ef1b4a5f73d5c5f1001d5c18780bc",
+      "mapping_sha256": "c00b525e63e8e965c7f2fffbb643eb2cf8520a8fb480c8675f541252ced810e7",
+      "native_output_sha256": "5f69b3f7f890aae1bf73b2d9015828a68b78d78ae884e7f7f570894d4aa50730",
+      "zero_args": [
+        "--pid",
+        "3874"
+      ],
+      "reference_args": [
+        "--pid",
+        "3874"
+      ],
+      "case_id": "debian-3.2/pscallstack-thread-group",
+      "sample_source": "https://github.com/volatilityfoundation/volatility3-test-data/releases/download/v0.0.1/linux-sample-1.bin.gz",
+      "comparison": {
+        "schema_version": 1,
+        "mapping_version": 2,
+        "zero_records": 180,
+        "reference_records": 180,
+        "missing": [],
+        "extra": [],
+        "duplicates": [],
+        "duplicate_keys": "multiset",
+        "multiplicity_conflicts": [],
+        "conflicts": [],
+        "unverifiable": [],
+        "matched_absent": {},
+        "all_columns_mapped": true,
+        "positive_evidence": true,
+        "zero_complete": true,
+        "zero_diagnostics": [],
+        "passed": true
+      },
+      "passed": true,
+      "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+      "reference_output_sha256": "6b1d9ce19b556d5c1a974c9c5c9aee6ce436adb098727be1ca92bf83320e8e39",
+      "symbol_sha256": "c3b0b875a2d0498fffc0df1259ff49b850cea28355ffddf02e2f90d34a89fbe1",
+      "zero_executable_sha256": "0a6c4834f1f2a01da4f835715283aa648782350d2a2c381f10cbb434fd386426",
+      "engine_version": "0.2.1-native-78"
+    },
+    {
+      "reference_plugin": "linux.pscallstack.PsCallStack",
+      "zero_plugin": "linux.pscallstack.PsCallStack",
+      "image_sha256": "8ce57b7c7b423173ce970fe8f51e7016c04ef1b4a5f73d5c5f1001d5c18780bc",
+      "mapping_sha256": "c00b525e63e8e965c7f2fffbb643eb2cf8520a8fb480c8675f541252ced810e7",
+      "native_output_sha256": "359e2e0aa85b9e9196f60ebdf5bf118efbf81bea52f89ef6db5725ad13d0ff14",
+      "zero_args": [
+        "--pid",
+        "2",
+        "--pids",
+        "3874"
+      ],
+      "reference_args": [
+        "--pid",
+        "2",
+        "3874"
+      ],
+      "case_id": "debian-3.2/pscallstack-pid-union",
+      "sample_source": "https://github.com/volatilityfoundation/volatility3-test-data/releases/download/v0.0.1/linux-sample-1.bin.gz",
+      "comparison": {
+        "schema_version": 1,
+        "mapping_version": 2,
+        "zero_records": 186,
+        "reference_records": 186,
+        "missing": [],
+        "extra": [],
+        "duplicates": [],
+        "duplicate_keys": "multiset",
+        "multiplicity_conflicts": [],
+        "conflicts": [],
+        "unverifiable": [],
+        "matched_absent": {},
+        "all_columns_mapped": true,
+        "positive_evidence": true,
+        "zero_complete": true,
+        "zero_diagnostics": [],
+        "passed": true
+      },
+      "passed": true,
+      "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+      "reference_output_sha256": "088df40d5db6faa814505594b0b9e2989ab00b3f3c5d27278667b6f454fd2c55",
+      "symbol_sha256": "c3b0b875a2d0498fffc0df1259ff49b850cea28355ffddf02e2f90d34a89fbe1",
+      "zero_executable_sha256": "0a6c4834f1f2a01da4f835715283aa648782350d2a2c381f10cbb434fd386426",
+      "engine_version": "0.2.1-native-78"
+    },
+    {
+      "reference_plugin": "linux.pscallstack.PsCallStack",
+      "zero_plugin": "linux.pscallstack.PsCallStack",
+      "image_sha256": "8ce57b7c7b423173ce970fe8f51e7016c04ef1b4a5f73d5c5f1001d5c18780bc",
+      "mapping_sha256": "cfbd5686812166848594da36b9ee4933c6575181af1ee37f16c6cfbee17d867b",
+      "native_output_sha256": "667c783715cab89b974123e1b2a09cad8b1dbed060961cd0368a9642348f71b4",
+      "zero_args": [],
+      "reference_args": [],
+      "case_id": "debian-3.2/pscallstack-core-rows",
+      "sample_source": "https://github.com/volatilityfoundation/volatility3-test-data/releases/download/v0.0.1/linux-sample-1.bin.gz",
+      "comparison": {
+        "schema_version": 1,
+        "mapping_version": 2,
+        "record_selection": {
+          "field": "Module",
+          "include": [
+            "kernel"
+          ],
+          "scope": "Core-symbol rows only; full default output remains separately compared without selection",
+          "zero_excluded": 0,
+          "reference_excluded": 0
+        },
+        "zero_records": 8120,
+        "reference_records": 8120,
+        "missing": [],
+        "extra": [],
+        "duplicates": [],
+        "duplicate_keys": "multiset",
+        "multiplicity_conflicts": [],
+        "conflicts": [],
+        "unverifiable": [],
+        "matched_absent": {},
+        "all_columns_mapped": true,
+        "positive_evidence": true,
+        "zero_complete": true,
+        "zero_diagnostics": [],
+        "passed": true
+      },
+      "passed": true,
+      "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+      "reference_output_sha256": "5c01d006d2b6930ddfa5acb36bdd20d4afa71d52820698f4d46dbc8164a2f980",
+      "symbol_sha256": "c3b0b875a2d0498fffc0df1259ff49b850cea28355ffddf02e2f90d34a89fbe1",
+      "zero_executable_sha256": "0a6c4834f1f2a01da4f835715283aa648782350d2a2c381f10cbb434fd386426",
+      "engine_version": "0.2.1-native-78"
     }
-  ]
+  ],
+  "previous_baseline": {
+    "engine_version": "0.2.1-native-77",
+    "pid1": [
+      38,
+      37
+    ],
+    "unresolved": [
+      383,
+      383
+    ],
+    "unresolved_one_sided_fields": 3,
+    "all_tasks": [
+      8462,
+      8120
+    ],
+    "extra_module_frames": 342,
+    "passed": false
+  },
+  "known_limitations": [
+    "The native plugin still requires 64-bit kernels; full 32-bit/architecture support is not established.",
+    "Modern latch-tree routing and damaged/duplicate-name module ownership require more work; current first-module ownership models the pinned list fallback.",
+    "Module-boundary symbol fields use the actual pinned precedence expression; matching the resolver does not validate every reported stack word as a call/return frame.",
+    "The native runtime still materializes module symbols from Kallsyms rows; module type/export differences and BPF/ftrace endpoint behavior need separate real positive coverage.",
+    "Native partial diagnostics and per-task preservation on invalid SP remain distinct from some reference exceptions; the full error contract is not complete.",
+    "One Debian 3.2 capture plus synthetic scalar/byte layers does not verify every task address-space construction, missing field, kernel config or resource limit."
+  ],
+  "vectors": {
+    "sha256": "96cf0e61db296fd19a02bcb5c6297efdbce77a7e03a1c5dc25ade0c49ad5f7a4",
+    "global_bounds": 3,
+    "module_bounds": 7,
+    "routing": 5,
+    "stack": 7,
+    "scope": "Actual global module boundaries, module ELF boundary expression, first-module lookup and get_task_callstack loop with synthetic fields/tables/layers. No recovered names or stack words. Does not validate modern latch-tree routing, task address-space creation or the complete field-fault matrix."
+  }
 }

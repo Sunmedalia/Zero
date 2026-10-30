@@ -89,6 +89,24 @@ class CompareTests(unittest.TestCase):
         native['rows'].pop(0)
         self.assertFalse(compare(native,[reference,reference],mapping)['passed'])
 
+    def test_callstack_unresolved_fields_are_paired_absences_and_still_strict(self):
+        mapping=json.loads((Path(__file__).parent/'mappings/linux-pscallstack.json').read_text())
+        row=['1','init','83','0xffff88001f999ba0','0xffffffffa0007d98','N/A','N/A','N/A']
+        native={'columns':list(mapping['fields']),'rows':[row], 'complete':False,'diagnostics':['partial symbols']}
+        reference={'TID':1,'Comm':'init','Position':83,'Address':0x88001f999ba0,'Value':0xffffa0007d98,'Name':None,'Type':None,'Module':None}
+        proof=compare(native,[reference],mapping)
+        self.assertTrue(proof['passed'])
+        self.assertEqual(proof['matched_absent'],{'Name':1,'Type':1,'Module':1})
+        row[5]='resolved'
+        self.assertFalse(compare(native,[reference],mapping)['passed'])
+        reference['Name']='resolved'
+        self.assertTrue(compare(native,[reference],mapping)['passed'])
+        row[6]='t'
+        self.assertFalse(compare(native,[reference],mapping)['passed'])
+        row[6]='N/A'
+        native['rows']*=2
+        self.assertFalse(compare(native,[reference],mapping)['passed'])
+
     def test_window_procedure_absence_is_payload_and_remains_strict(self):
         mapping=json.loads((Path(__file__).parent/'mappings/windows-windows.json').read_text())
         columns=list(mapping['fields'])

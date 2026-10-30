@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "allow_partial": true,
   "keys": [
     "TID",
@@ -38,21 +38,25 @@
       "reference": "Name",
       "type": "text",
       "zero_type": "na_text",
-      "allow_absent": true
+      "allow_absent": true,
+      "reference_type": "na_text"
     },
     "Type": {
       "zero": "Type",
       "reference": "Type",
       "type": "text",
       "zero_type": "na_text",
-      "allow_absent": true
+      "allow_absent": true,
+      "reference_type": "na_text"
     },
     "Module": {
       "zero": "Module",
       "reference": "Module",
       "type": "text",
       "zero_type": "na_text",
-      "allow_absent": true
+      "allow_absent": true,
+      "reference_type": "na_text"
     }
-  }
+  },
+  "duplicate_keys": "multiset"
 }

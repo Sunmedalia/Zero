@@ -75,6 +75,11 @@ impl SymbolIndex {
     pub fn len(&self) -> usize {
         self.entries.len()
     }
+    pub fn selected_ranges(&self) -> impl Iterator<Item = (u64, u64, &Entry)> {
+        self.spans
+            .iter()
+            .map(|span| (span.start, span.end, &self.entries[span.entry]))
+    }
 }
 #[cfg(test)]
 mod tests {

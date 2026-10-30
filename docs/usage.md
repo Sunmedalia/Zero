@@ -853,24 +853,27 @@ zero --offline analyze --image images/linux-sample-1.bin --symbols /path/to/exac
 参数参与缓存身份，不会把隐藏未解析值的结果复用于包含未解析值的请求。
 
 该插件按固定 Volatility 参考算法，从保存的 SP 起，以 8 字节步长扫描至 stack + 16 KiB。
-零值不输出，Position 仍包含零值所在位置。它报告候选栈值，不是帧指针、ORC 或 DWARF 展开，
+原始零值不输出，Position 仍包含零值所在位置；最后一个未对齐栈字可跨过窗口末端，
+但必须完整可读。它报告候选栈值，不是帧指针、ORC 或 DWARF 展开，
 不能将每一行当成已确认的调用/返回关系。16 KiB 是参考窗口假设，未从内核配置证明实际
 THREAD_SIZE；结果完整性只针对捕获的固定窗口。当前仅支持 64 位小端内核。
 
 使用运行时 core / module / BPF / ftrace 符号，按该顺序查询；相同起点的 core 别名使用首项，
-重叠 ELF 符号保留原表顺序。核心查询限定于 text/inittext，模块查询受可用分配范围约束。
+重叠 ELF 符号保留原表顺序。核心查询限定于 text/inittext；模块查询遵循固定参考的
+全局门槛、ELF 边界和首模块归属，不能用模块雕刻或导出的范围替代。
 索引使用有界区间扫描构建，后续查询不对重叠符号做无界回扫。没有符号的值默认省略，
 `--unresolved` 保留并将 Name/Type/Module 显示为 N/A；零值仍省略。
 
 x86 Value 按参考保留低 48 位并为原生地址显示补齐符号位，未保留被屏蔽的原始高位；
 Address 显示完整虚拟地址。ARM64 保存的 SP 可从 thread.cpu_context.sp 读取，不做 PAC 剥离。
-用户任务优先读取任务地址空间；若该空间无法读取 SP 而已验证内核映射可读，则使用内核
-映射并明确标记部分结果。首个缺页停止该任务的栈读取，保留前缀及其他任务。
+用户任务读取自己的任务地址空间；首个不可读栈字即停止，保留前缀和其他任务，
+不会改用内核页表补出行。整数 SP 按原值验证范围，不通过清除异常高位修复。
 
 每次最多尝试读取 64 MiB 栈字、输出 100 万行或 128 MiB 文本，覆盖记录最多 65536 个任务。
 无效 SP、缺页、符号源受损及资源上限均保留诊断，不能据此证明缺失调用。覆盖与来源记录
-位于 `kernel_identity.pscallstack`。固定参考在模块地址边界计算上的已知差异见
-[Volatility 对齐进度](volatility-parity.md)，默认比较未被标记为对齐通过。
+位于 `kernel_identity.pscallstack`。native78 的完整默认、未解析值及 PID／线程组
+用例已逐字段一致；这仍不代表完整架构和故障合同完成，见
+[Volatility 对齐进度](volatility-parity.md)。
 
 
 ### Framebuffer 列举与导出
