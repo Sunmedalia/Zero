@@ -38,6 +38,10 @@ struct AnalyzeArgs {
     key: Option<String>,
     pattern: Option<String>,
     pids: Option<Vec<u32>>,
+    source: Option<zero_tui::analysis::PESource>,
+    module: Option<String>,
+    symbol_names: Option<Vec<String>>,
+    addresses: Option<Vec<String>>,
     maxsize: Option<usize>,
     unresolved: Option<bool>,
     symbols: Option<PathBuf>,
@@ -122,7 +126,7 @@ fn tools() -> Value {
     json!({"tools": [
         {"name":"zero_plugins","description":"List native Linux and Windows memory forensics plugins and their result columns.","inputSchema":{"type":"object","properties":{},"additionalProperties":false}},
         {"name":"zero_symbols","description":"Identify image banners and exact ISF repository matches. Optional download saves verified symbols locally.","inputSchema":{"type":"object","properties":{"image":{"type":"string"},"offline":{"type":"boolean"},"download":{"type":"boolean"}},"required":["image"],"additionalProperties":false}},
-        {"name":"zero_analyze","description":"Run a native analysis plugin on a local memory image. Returns at most 200 rows and may export all rows to JSON/CSV. Returns result_id; use zero_results for subsequent pages.","inputSchema":{"type":"object","properties":{"image":{"type":"string"},"plugin":{"type":"string"},"os":{"type":"string","enum":["auto","linux","windows"]},"arch":{"type":"string","enum":["auto","x86","x64","arm64"]},"pagefiles":{"type":"array","items":{"type":"object","properties":{"index":{"type":"integer","minimum":0,"maximum":15},"path":{"type":"string"}},"required":["index","path"],"additionalProperties":false}},"swapfile":{"type":"string"},"pid":{"type":"integer","minimum":0},"include_threads":{"type":"boolean"},"decorate_comm":{"type":"boolean"},"plain_taints":{"type":"boolean"},"core":{"type":"boolean"},"modules":{"type":"boolean"},"ftrace":{"type":"boolean"},"bpf":{"type":"boolean"},"hive":{"type":"string"},"key":{"type":"string"},"pattern":{"type":"string","description":"VmaRegExScan/VadRegExScan: byte regex; vmayarascan/windows.vadyarascan: text, wide:TEXT or hex:4d5a??00"},"pids":{"type":"array","maxItems":4096,"items":{"type":"integer","minimum":0},"description":"VmaRegExScan / VadRegExScan / VadWalk / PsCallStack PID list"},"unresolved":{"type":"boolean","description":"PsCallStack: include unresolved nonzero stack words"},"maxsize":{"type":"integer","minimum":1,"maximum":4096,"description":"VmaRegExScan/VadRegExScan display context bytes (default 128)"},"symbols":{"type":"string"},"symbol_choice":{"type":"string"},"offline":{"type":"boolean"},"no_cache":{"type":"boolean"},"limit":{"type":"integer","minimum":1,"maximum":200},"output":{"type":"string"}},"required":["image","plugin"],"additionalProperties":false}},
+        {"name":"zero_analyze","description":"Run a native analysis plugin on a local memory image. Returns at most 200 rows and may export all rows to JSON/CSV. Returns result_id; use zero_results for subsequent pages.","inputSchema":{"type":"object","properties":{"image":{"type":"string"},"plugin":{"type":"string"},"os":{"type":"string","enum":["auto","linux","windows"]},"arch":{"type":"string","enum":["auto","x86","x64","arm64"]},"pagefiles":{"type":"array","items":{"type":"object","properties":{"index":{"type":"integer","minimum":0,"maximum":15},"path":{"type":"string"}},"required":["index","path"],"additionalProperties":false}},"swapfile":{"type":"string"},"pid":{"type":"integer","minimum":0},"include_threads":{"type":"boolean"},"decorate_comm":{"type":"boolean"},"plain_taints":{"type":"boolean"},"core":{"type":"boolean"},"modules":{"type":"boolean"},"ftrace":{"type":"boolean"},"bpf":{"type":"boolean"},"hive":{"type":"string"},"key":{"type":"string"},"pattern":{"type":"string","description":"VmaRegExScan/VadRegExScan: byte regex; vmayarascan/windows.vadyarascan: text, wide:TEXT or hex:4d5a??00"},"pids":{"type":"array","maxItems":4096,"items":{"type":"integer","minimum":0},"description":"VmaRegExScan / VadRegExScan / VadWalk / PsCallStack PID list"},"unresolved":{"type":"boolean","description":"PsCallStack: include unresolved nonzero stack words"},"source":{"type":"string","enum":["kernel","processes"],"description":"PESymbols module source"},"module":{"type":"string","description":"PESymbols module filename"},"symbol_names":{"type":"array","maxItems":4096,"items":{"type":"string"}},"addresses":{"type":"array","maxItems":4096,"items":{"type":"string"},"description":"PESymbols absolute addresses, decimal or 0x"},"maxsize":{"type":"integer","minimum":1,"maximum":4096,"description":"VmaRegExScan/VadRegExScan display context bytes (default 128)"},"symbols":{"type":"string"},"symbol_choice":{"type":"string"},"offline":{"type":"boolean"},"no_cache":{"type":"boolean"},"limit":{"type":"integer","minimum":1,"maximum":200},"output":{"type":"string"}},"required":["image","plugin"],"additionalProperties":false}},
         {"name":"zero_results","description":"Read or export an immutable analysis snapshot. Does not run analysis; expired IDs require a new zero_analyze call.","inputSchema":{"type":"object","properties":{"result_id":{"type":"string"},"offset":{"type":"integer","minimum":0},"limit":{"type":"integer","minimum":1,"maximum":200},"output":{"type":"string"}},"required":["result_id"],"additionalProperties":false}},
         {"name":"zero_dump","description":"Export one process, one PID address range, or ELF mappings to a local directory with a JSON/CSV manifest. Requires explicit paths and a PID for process modes; kernel-module uses start as the struct module address; framebuffer dumps fbdev buffers, optionally selected by fb_info start.","inputSchema":{"type":"object","properties":{"image":{"type":"string"},"symbols":{"type":"string"},"symbol_choice":{"type":"string"},"os":{"type":"string","enum":["auto","linux","windows"]},"arch":{"type":"string","enum":["auto","x86","x64","arm64"]},"pagefiles":{"type":"array","items":{"type":"object","properties":{"index":{"type":"integer","minimum":0,"maximum":15},"path":{"type":"string"}},"required":["index","path"],"additionalProperties":false}},"swapfile":{"type":"string"},"mode":{"type":"string","enum":["process","range","elf","pe","vad","dll","module","kernel-module","framebuffer","files"]},"pid":{"type":"integer","minimum":0},"dump_dir":{"type":"string"},"output":{"type":"string"},"start":{"type":"string"},"end":{"type":"string"},"offline":{"type":"boolean"}},"required":["image","mode","dump_dir","output"],"additionalProperties":false}},
         {"name":"zero_cache_list","description":"Inspect regenerable local cache without deleting it.","inputSchema":{"type":"object","properties":{},"additionalProperties":false}}
@@ -229,6 +233,17 @@ fn call(
                 },
                 None,
                 &zero_tui::analysis::Options {
+                    pe: zero_tui::analysis::PEQuery {
+                        source: a.source,
+                        module: a.module,
+                        names: a.symbol_names.unwrap_or_default(),
+                        addresses: a
+                            .addresses
+                            .unwrap_or_default()
+                            .iter()
+                            .map(|a| dump::parse_address(a).map_err(anyhow::Error::msg))
+                            .collect::<Result<Vec<_>>>()?,
+                    },
                     os: a.os.unwrap_or_default(),
                     arch: a.arch.unwrap_or_default(),
                     pagefiles: a
@@ -644,6 +659,27 @@ pub fn run() -> Result<()> {
 #[cfg(test)]
 mod protocol_tests {
     use super::*;
+    #[test]
+    fn pe_schema_and_arguments_keep_addresses_as_lossless_strings() {
+        let catalog = tools();
+        let schema = &catalog["tools"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|t| t["name"] == "zero_analyze")
+            .unwrap()["inputSchema"]["properties"];
+        assert_eq!(schema["addresses"]["items"]["type"], "string");
+        assert_eq!(schema["source"]["enum"], json!(["kernel", "processes"]));
+        let mut value = json!({"image":"i.raw","plugin":"windows.pe_symbols.PESymbols","source":"processes","module":"ntdll.dll","symbol_names":["NtClose","NtClose"],"addresses":["0xffffffffffffffff"]});
+        let args: AnalyzeArgs = serde_json::from_value(value.clone()).unwrap();
+        assert_eq!(args.symbol_names.unwrap(), ["NtClose", "NtClose"]);
+        assert_eq!(
+            dump::parse_address(&args.addresses.unwrap()[0]).unwrap(),
+            u64::MAX
+        );
+        value["addresses"] = json!([18446744073709551615u64]);
+        assert!(serde_json::from_value::<AnalyzeArgs>(value).is_err());
+    }
     #[test]
     fn oversized_line_is_discarded_and_next_request_survives() {
         let mut input = vec![b'x'; MAX_REQUEST + 8000];

@@ -173,6 +173,10 @@ impl App {
                         "BPF 符号 true / false",
                         "正则上下文字节数 1..4096",
                         "包含未解析栈值 true / false",
+                        "模块来源 kernel / processes",
+                        "模块文件名",
+                        "精确符号名（分号分隔；优先于地址）",
+                        "绝对地址（逗号或空格分隔）",
                     ];
                     let mut lines = vec![Line::raw(if self.windows {
                         "Ctrl+T 展开／收起 Windows 高级配置"

@@ -506,3 +506,28 @@ across 21 plugins, including five explicitly scoped cases. Canonical candidate
 correspondences are 118/135, with 17 missing entries and zero complete contracts.
 Executable SHA256:
 `cda77c2a0a51ea0a7d1c72cf1b8d895b36758aeb5af4242aab999e26a6a39453`.
+
+
+## PESymbols (native55)
+
+`pe-symbols.example.json` runs 16 bounded Intel cases with all three output
+fields and exact record multiplicity, including duplicate/name-priority and
+absolute-address queries. The frozen native55 executable yields 14 positive
+passing cases on five public images. Native x64 address arguments are canonical;
+reference arguments retain its documented 48-bit representation. See
+`mappings/windows-pe-symbols.json` and `pe-symbols-known-limitations.json`.
+
+Win10 ntdll name queries remain a failed comparison: native prototype recovery
+reads an earlier WOW64 header that the pinned reference rejects at e_magic,
+then the reference selects a later x64 instance. Native page-table and header
+recovery provenance is retained. Win11 fltmgr exports are unavailable in both
+offline engines and its PDB is absent; the empty result is a separate negative
+observation, not positive evidence. External PDB acquisition, broader alias
+ordering, malformed PE behavior and other builds need further validation.
+
+`make check` passed 582 Rust and 25 Python tests; Linux 4/4 and Windows 13/13 real
+regressions passed, excluding the unavailable Server2012R2 image. Positive
+evidence is now 94 cases across 22 plugins (five cases remain record-scoped),
+with 119/135 candidate correspondences, 16 missing entries and zero complete
+plugin contracts. Native55 executable SHA256:
+`f64ef19d21dbcf2a8868332d13bc1225faca7b0ed542ff0060ea466c8e64cff4`.

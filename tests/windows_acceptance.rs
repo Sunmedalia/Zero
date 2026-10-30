@@ -10,6 +10,22 @@ use zero_tui::{
 // as an unfiltered default invocation.
 fn fixture_options(fixture: &serde_json::Value, plugin: Plugin) -> Options {
     Options {
+        pe: if plugin == Plugin::WinPESymbols {
+            let options = &fixture["row_options"][plugin.name()];
+            analysis::PEQuery {
+                source: Some(serde_json::from_value(options["source"].clone()).unwrap()),
+                module: Some(options["module"].as_str().unwrap().into()),
+                names: options["symbol_names"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .map(|v| v.as_str().unwrap().to_owned())
+                    .collect(),
+                addresses: Vec::new(),
+            }
+        } else {
+            Default::default()
+        },
         pid: fixture["row_options"][plugin.name()]["pid"]
             .as_u64()
             .map(|pid| u32::try_from(pid).unwrap()),
@@ -61,6 +77,12 @@ fn public_windows_images() {
         );
         for (plugin, expected) in [
             (Plugin::WinPslist, expected_processes),
+            (
+                Plugin::WinPESymbols,
+                fixture["rows"]["windows.pe_symbols.PESymbols"]
+                    .as_u64()
+                    .unwrap() as usize,
+            ),
             (
                 Plugin::WinAmcacheV4,
                 fixture["rows"]["windows.registry.amcache.Amcache"]
@@ -189,6 +211,12 @@ fn public_windows_images() {
             assert_eq!(result.rows.len(), expected, "{variable} {plugin:?}");
             if let Some(complete) = fixture["complete"][plugin.name()].as_bool() {
                 assert_eq!(result.complete, complete, "{variable} {plugin:?} coverage");
+            }
+            if plugin == Plugin::WinPESymbols {
+                assert_eq!(result.rows[0], result.rows[2]);
+                assert_eq!(result.rows[0][1], "PsActiveProcessHead");
+                assert_eq!(result.rows[1][1], "PsLoadedModuleList");
+                assert_eq!(result.kernel_identity["pe_symbols"]["resolved"], 3);
             }
             if plugin == Plugin::WinAmcacheV4 {
                 assert_eq!(result.columns.len(), 11);

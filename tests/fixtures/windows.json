@@ -40,7 +40,8 @@
         "windows.malware.svcdiff.SvcDiff": 0,
         "windows.memmap.Memmap": 131493,
         "windows.registry.userassist.UserAssist": 83,
-        "windows.registry.amcache.Amcache": 1230
+        "windows.registry.amcache.Amcache": 1230,
+        "windows.pe_symbols.PESymbols": 3
       },
       "process_list_complete": false,
       "artifact_reference": {
@@ -88,6 +89,15 @@
       "row_options": {
         "windows.memmap.Memmap": {
           "pid": 4
+        },
+        "windows.pe_symbols.PESymbols": {
+          "source": "kernel",
+          "module": "ntoskrnl.exe",
+          "symbol_names": [
+            "PsActiveProcessHead",
+            "PsLoadedModuleList",
+            "PsActiveProcessHead"
+          ]
         }
       }
     },
@@ -130,7 +140,8 @@
         "windows.malware.svcdiff.SvcDiff": 0,
         "windows.memmap.Memmap": 63692,
         "windows.registry.userassist.UserAssist": 58,
-        "windows.registry.amcache.Amcache": 665
+        "windows.registry.amcache.Amcache": 665,
+        "windows.pe_symbols.PESymbols": 3
       },
       "process_list_complete": false,
       "autoruns_reference": {
@@ -159,6 +170,15 @@
       "row_options": {
         "windows.memmap.Memmap": {
           "pid": 4
+        },
+        "windows.pe_symbols.PESymbols": {
+          "source": "kernel",
+          "module": "ntoskrnl.exe",
+          "symbol_names": [
+            "PsActiveProcessHead",
+            "PsLoadedModuleList",
+            "PsActiveProcessHead"
+          ]
         }
       }
     },

@@ -738,3 +738,36 @@ Server2008、Win7、Server2003 的空输出另外登记，不作为正向恢复�
 Windows 插件；完整插件合同仍为 0。最终 native54 可执行文件 SHA256 为
 `cda77c2a0a51ea0a7d1c72cf1b8d895b36758aeb5af4242aab999e26a6a39453`。
 原用户 Debian 镜像仍未取得，其页表故障尚未实样验收。
+
+
+## native55：PE 模块符号查询
+
+新增原生 `windows.pe_symbols.PESymbols`，输出 Module、Symbol、Address 三列，
+接入 CLI、MCP 和 TUI。支持内核/驱动与进程文件映射 VAD，精确名称或绝对地址、
+重复查询及名称优先。所有实例先尝试精确 RSDS/PDB，再回退到可读 PE 命名导出；
+WOW64 按模块自身机器类型校验。VAD 使用 root/left/right 次序，其他 VAD 消费者仍
+保留地址次序。查询来源记录基址、页表及 PE 头是否需要恢复。
+
+PE 头验证机器类型、可选头和 section 表范围；导出、名称、实例和文本数量均有上限。
+不可读命名导出保留已解码前缀和 partial 诊断，转发项保留原始 RVA，不伪造目标地址。
+缺页不补零。外部 PDB 尚未纳入结果缓存依赖追踪，因此该入口禁用结果缓存读写。
+
+固定可执行文件对五份公开 Intel 镜像运行 16 项三字段全记录比较：**14 项正向通过**，
+覆盖五份内核名称查询、五份内核绝对地址查询、Win10/11 进程绝对地址、Win11 进程名称、
+Win10 驱动名称。重复查询及名称优先也包含在这些用例中。
+配置见 [PESymbols 用例](../tests/reference/parity/pe-symbols.example.json)，
+边界与未通过记录见 [验收限制](../tests/reference/parity/pe-symbols-known-limitations.json)。
+
+Win10 进程名称查询仍存在地址差异：Zero 通过 prototype PTE 恢复第一个 WOW64 实例的
+PE 头，固定 Volatility 在读取该实例 MZ 头时抛出 PagedInvalidAddressException，转而
+选中后面的原生 x64 实例。保留 Zero 的恢复能力，并将此项登记为未通过，不能声称
+完整 PESymbols 对齐。Win11 fltmgr 两边均为空：导出页缺失且精确外部 PDB 未缓存；
+这是负向观察，不计为正向通过。外部 PDB 成功获取、更多别名/损坏输入、其他版本及
+完整插件参数合同仍待验证。
+
+本批 `make check` 通过 **582 Rust / 25 Python** 测试；真实镜像回归 **Linux 4/4、
+Windows 13/13**，Server2012R2 仍缺本地样本。累计 **94 项正向全字段用例，覆盖
+22 个插件**，其中 5 项限定记录范围。候选入口对应 **119/135**，尚缺 16 个标准
+Windows 入口；完整插件合同仍为 0。native55 可执行文件 SHA256：
+`f64ef19d21dbcf2a8868332d13bc1225faca7b0ed542ff0060ea466c8e64cff4`。
+原始用户 Debian 镜像尚未取得，其页表故障仍未实样验收。

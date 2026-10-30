@@ -522,7 +522,18 @@ impl Windows<'_> {
         &self,
         p: &Process,
         job: &Job,
+        result: Option<&mut Results>,
+    ) -> Result<Vec<Vad>> {
+        self.vads_partial_order(p, job, result, false)
+    }
+    /// PESymbols resolves the first matching instance in root/left/right order.
+    /// Other consumers retain address order; validation is shared unchanged.
+    pub(super) fn vads_partial_order(
+        &self,
+        p: &Process,
+        job: &Job,
         mut result: Option<&mut Results>,
+        tree_order: bool,
     ) -> Result<Vec<Vad>> {
         let isf = self.vm.isf;
         let tree = self.vad_tree(p)?;
@@ -535,6 +546,11 @@ impl Windows<'_> {
             .find(|field| isf.has_field(node_type, field));
         let high_vpn = isf.has_field("_MMVAD_SHORT", "StartingVpnHigh");
         let path_layout = self.vad_layout();
+        let children = if tree_order {
+            [children[1], children[0]]
+        } else {
+            children
+        };
         let mut stack = vec![root];
         let mut seen = HashSet::new();
         let mut out = Vec::new();
@@ -645,8 +661,14 @@ impl Windows<'_> {
                 break;
             }
         }
-        out.sort_by_key(|v| v.start);
-        if !out.windows(2).all(|v| v[0].end <= v[1].start) {
+        if !tree_order {
+            out.sort_by_key(|v| v.start);
+        }
+        let mut ordered: Vec<_> = out.iter().collect();
+        if tree_order {
+            ordered.sort_by_key(|v| v.start);
+        }
+        if !ordered.windows(2).all(|v| v[0].end <= v[1].start) {
             match result {
                 Some(r) => Self::issue(r, format!("PID {} VAD", p.pid), "VAD 范围重叠"),
                 None => bail!("VAD 范围重叠"),
@@ -819,6 +841,30 @@ mod tests {
         assert_eq!((vads[0].start, vads[0].end), (4096, 16384));
         assert!(vads[0].private);
         assert_eq!(protection(vads[0].protection), "PAGE_EXECUTE_READWRITE");
+        // First-instance queries use root/left/right order, while memory
+        // range consumers still receive address order and the same checks.
+        let mut branched = b.clone();
+        put(&mut branched, 0xb000, K + 0x4000);
+        put(&mut branched, 0xb008, K + 0x5000);
+        for (at, vpn) in [(0xc000, 0u64), (0xd000, 5)] {
+            branched[at..at + 64].fill(0);
+            put(&mut branched, at + 24, vpn);
+            put(&mut branched, at + 32, vpn);
+            put(&mut branched, at + 40, 4 | 32);
+        }
+        let branch_image = image(&branched);
+        let branch_engine = Windows {
+            vm: Memory::new(&branch_image, 0x1000, &isf, None),
+            base: K,
+            pdb: PdbIdentity::from_isf(&isf).unwrap(),
+        };
+        for (tree_order, expected) in [(false, vec![0, 4096, 20480]), (true, vec![4096, 0, 20480])]
+        {
+            let nodes = branch_engine
+                .vads_partial_order(&process, &Job::default(), None, tree_order)
+                .unwrap();
+            assert_eq!(nodes.iter().map(|v| v.start).collect::<Vec<_>>(), expected);
+        }
         let mut legacy_isf = Isf::parse(
             &serde_json::to_vec(&isf.data).unwrap(),
             "legacy-vad-fixture".into(),

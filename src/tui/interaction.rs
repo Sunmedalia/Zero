@@ -52,8 +52,28 @@ impl App {
                 self.analysis_options.kallsyms.bpf.to_string(),
                 self.analysis_options.maxsize.unwrap_or(128).to_string(),
                 self.analysis_options.unresolved.to_string(),
+                self.analysis_options
+                    .pe
+                    .source
+                    .map(|s| match s {
+                        crate::analysis::PESource::Kernel => "kernel",
+                        crate::analysis::PESource::Processes => "processes",
+                    })
+                    .unwrap_or("kernel")
+                    .into(),
+                self.analysis_options.pe.module.clone().unwrap_or_default(),
+                self.analysis_options.pe.names.join(";"),
+                self.analysis_options
+                    .pe
+                    .addresses
+                    .iter()
+                    .map(|a| format!("{a:#x}"))
+                    .collect::<Vec<_>>()
+                    .join(","),
             ]),
-            field: if self.plugin == Plugin::WinPrintkey {
+            field: if self.plugin == Plugin::WinPESymbols {
+                17
+            } else if self.plugin == Plugin::WinPrintkey {
                 0
             } else if matches!(
                 self.plugin,
@@ -512,7 +532,7 @@ impl App {
                 cursor,
                 selected,
                 ..
-            }) if *field != 6 && *field < 8 => {
+            }) if *field != 6 && (*field < 8 || *field >= 17) => {
                 if *selected {
                     fields[*field].clear();
                     *cursor = 0;

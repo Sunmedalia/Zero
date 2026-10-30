@@ -266,6 +266,14 @@ fn endpoint(vm: &Memory<'_>, address: u64, family: u64, port: u16) -> Result<Str
     }
 }
 pub(super) fn pe_identity(vm: &Memory<'_>, base: u64) -> Result<PdbIdentity> {
+    pe_identity_for_machine(vm, base, Architecture::from_isf(vm.isf)?.machine())
+}
+/// User modules can be WOW64: validate against their PE machine, not kernel width.
+pub(super) fn pe_identity_for_machine(
+    vm: &Memory<'_>,
+    base: u64,
+    machine: u16,
+) -> Result<PdbIdentity> {
     let mut header = [0; 4096];
     vm.read(base, &mut header)?;
     let (size, debug) = pe_header(&header)?;
@@ -276,8 +284,7 @@ pub(super) fn pe_identity(vm: &Memory<'_>, base: u64) -> Result<PdbIdentity> {
         112
     };
     ensure!(
-        u16::from_le_bytes(header[pe + 4..pe + 6].try_into()?)
-            == Architecture::from_isf(vm.isf)?.machine(),
+        u16::from_le_bytes(header[pe + 4..pe + 6].try_into()?) == machine,
         "PE/符号机器类型冲突"
     );
     let len = u32::from_le_bytes(

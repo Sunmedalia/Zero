@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "allow_partial": true,
+  "keys": [
+    "Module"
+  ],
+  "duplicate_keys": "multiset",
+  "fields": {
+    "Module": {
+      "zero": "Module",
+      "reference": "Module",
+      "type": "text"
+    },
+    "Symbol": {
+      "zero": "Symbol",
+      "reference": "Symbol",
+      "type": "text"
+    },
+    "Address": {
+      "zero": "Address",
+      "reference": "Address",
+      "type": "address",
+      "reference_type": "address48"
+    }
+  }
+}

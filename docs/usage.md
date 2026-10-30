@@ -950,3 +950,19 @@ zero --offline analyze --image images/feat-windows-plugins/WinDump/WinDump.mem \
 报告。触及上限、未读字段或损坏链路保留已读取前缀并标记部分。覆盖、PID 选择与 End 语义
 记录在 kernel_identity.vad_walk；与扫描器共享带 tag 的遍历，不要求同时读出文件名或保护
 字段。真实全字段验证范围见 [Volatility 对齐进度](volatility-parity.md)。
+
+`windows.pe_symbols.PESymbols` 按模块文件名查询精确符号，CLI 使用
+`--source kernel|processes --module 文件名`，并重复传入 `--symbol-name 名称`
+或 `--address 绝对地址`。同时指定时名称优先；名称区分大小写，重复查询保留重复记录，
+地址只作精确匹配。输出三列为 Module、Symbol、Address。进程模块来自文件映射 VAD，
+查询实例按进程链表及 VAD 的 root/left/right 顺序选择。TUI 的参数窗口也提供这四项输入。
+
+先对所有实例尝试精确 RSDS/PDB，再用可读 PE 导出项补查。WOW64 模块按自身 PE
+机器类型校验符号；外部模块不能借用内核符号。转发导出保留导出表中的 RVA，
+不假设转发目标已经解析。缺页保留已读记录并标记部分结果；无法读取的导出项不补零。
+本插件暂不复用成功结果缓存，以免外部 PDB 改变后返回过期结果。
+
+查询来源记录模块基址、页表和 PE 头是否需要恢复。Zero 的 prototype 页面恢复可能使
+其较早选中一个 Volatility v2.28.2 无法读取的实例，尤其是同名 WOW64/原生 DLL
+同时存在时；此时名称查询地址可能不同，不能将该用例算作差分通过。PE 机器类型、
+section 表和范围均需验证；外部 PDB 的在线获取、同地址别名次序及更多损坏输入仍需验收。

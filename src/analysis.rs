@@ -31,8 +31,64 @@ impl KallsymsOptions {
         }
     }
 }
+#[derive(Clone, Copy, Debug, PartialEq, Eq, clap::ValueEnum, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum PESource {
+    Kernel,
+    Processes,
+}
+#[derive(Clone, Debug, Default)]
+pub struct PEQuery {
+    pub source: Option<PESource>,
+    pub module: Option<String>,
+    pub names: Vec<String>,
+    pub addresses: Vec<u64>,
+}
+impl PEQuery {
+    pub fn any(&self) -> bool {
+        self.source.is_some()
+            || self.module.is_some()
+            || !self.names.is_empty()
+            || !self.addresses.is_empty()
+    }
+    pub fn validate(&self, plugin: Plugin) -> Result<()> {
+        if plugin != Plugin::WinPESymbols {
+            ensure!(
+                !self.any(),
+                "source/module/symbol-name/address 仅用于 windows.pe_symbols.PESymbols"
+            );
+            return Ok(());
+        }
+        self.source
+            .context("PESymbols 需要 --source kernel|processes")?;
+        let module = self
+            .module
+            .as_deref()
+            .context("PESymbols 需要 --module 文件名")?;
+        ensure!(
+            !module.is_empty() && module.len() <= 1024 && !module.contains(['\\', '/', '\0']),
+            "PESymbols module 必须是文件名"
+        );
+        ensure!(
+            !self.names.is_empty() || !self.addresses.is_empty(),
+            "PESymbols 需要 --symbol-name 或 --address"
+        );
+        ensure!(
+            self.names.len() <= 4096 && self.addresses.len() <= 4096,
+            "PESymbols 查询超过上限"
+        );
+        ensure!(
+            self.names
+                .iter()
+                .all(|s| !s.is_empty() && s.len() <= 4096 && !s.contains('\0')),
+            "PESymbols 符号名无效"
+        );
+        Ok(())
+    }
+}
 #[derive(Clone, Debug, Default)]
 pub struct Options {
+    pub pe: PEQuery,
     pub os: Os,
     pub arch: crate::windows::Architecture,
     pub pid: Option<u32>,
@@ -77,6 +133,7 @@ pub fn analyze(
     options: &Options,
     job: &Job,
 ) -> Result<Outcome> {
+    options.pe.validate(request.plugin)?;
     validate_pattern(request.plugin, options)?;
     ensure!(options.pids.len() <= 4096, "PID 列表超过 4096 项");
     ensure!(
@@ -197,4 +254,30 @@ pub fn plugins(os: Os) -> impl Iterator<Item = &'static Descriptor> {
         Os::Linux => !d.plugin.is_windows(),
         Os::Windows => d.plugin.is_windows(),
     })
+}
+
+#[cfg(test)]
+mod pe_query_tests {
+    use super::*;
+    #[test]
+    fn validates_required_parameters_and_rejects_cross_plugin_options() {
+        let mut query = PEQuery::default();
+        assert!(query.validate(Plugin::WinPESymbols).is_err());
+        assert!(query.validate(Plugin::WinPslist).is_ok());
+        query.source = Some(PESource::Processes);
+        query.module = Some("ntdll.dll".into());
+        query.names = vec!["NtClose".into()];
+        assert!(query.validate(Plugin::WinPESymbols).is_ok());
+        assert!(query.validate(Plugin::WinPslist).is_err());
+        query.module = Some("C:\\Windows\\ntdll.dll".into());
+        assert!(query.validate(Plugin::WinPESymbols).is_err());
+        query.module = Some("ntdll.dll".into());
+        query.names = vec!["bad\0name".into()];
+        assert!(query.validate(Plugin::WinPESymbols).is_err());
+        query.names.clear();
+        query.addresses = vec![u64::MAX];
+        assert!(query.validate(Plugin::WinPESymbols).is_ok());
+        query.addresses.resize(4097, 0);
+        assert!(query.validate(Plugin::WinPESymbols).is_err());
+    }
 }

@@ -4544,3 +4544,34 @@ fn vadwalk_pid_list_is_available_without_regex_controls() {
     assert!(app.analysis_options.maxsize.is_none());
     assert_ne!(before, app.request_key());
 }
+
+#[test]
+fn pe_symbol_parameters_validate_and_separate_query_views() {
+    let mut app = app();
+    app.select_os(crate::analysis::Os::Windows);
+    app.select_plugin(Plugin::WinPESymbols);
+    app.windows_parameters();
+    assert_eq!(app.parameter_fields(false), vec![17, 18, 19, 20, 6]);
+    let before = app.request_key();
+    app.paste("processes");
+    app.dialog_key(KeyEvent::new(KeyCode::Enter, KeyModifiers::CONTROL));
+    assert!(app.dialog.is_some());
+    if let Some(Dialog::WindowsParameters { fields, .. }) = &mut app.dialog {
+        assert_eq!(fields[17], "processes");
+        fields[18] = "ntdll.dll".into();
+        fields[19] = "NtClose;EtwEventWrite;NtClose".into();
+        fields[20] = "0xffff800000001000,4096".into();
+    }
+    app.dialog_key(KeyEvent::new(KeyCode::Enter, KeyModifiers::CONTROL));
+    assert!(app.dialog.is_none());
+    assert_eq!(
+        app.analysis_options.pe.names,
+        ["NtClose", "EtwEventWrite", "NtClose"]
+    );
+    assert_eq!(
+        app.analysis_options.pe.addresses,
+        [0xffff800000001000, 4096]
+    );
+    assert_ne!(before, app.request_key());
+    assert!(app.job.is_none());
+}

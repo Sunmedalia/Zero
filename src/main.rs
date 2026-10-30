@@ -1,3 +1,4 @@
+#![recursion_limit = "256"]
 mod mcp;
 
 use anyhow::{Result, bail};
@@ -50,6 +51,16 @@ struct Cli {
     /// Display context bytes for VmaRegExScan / VadRegExScan (default 128, maximum 4096).
     #[arg(long, global = true)]
     maxsize: Option<usize>,
+    /// PE symbol source: kernel modules or file-backed process VADs.
+    #[arg(long, global = true, value_enum)]
+    source: Option<zero_tui::analysis::PESource>,
+    #[arg(long, global = true)]
+    module: Option<String>,
+    /// Repeat to query several exact symbol names (takes precedence over addresses).
+    #[arg(long = "symbol-name", global = true)]
+    symbol_names: Vec<String>,
+    #[arg(long = "address", global = true, value_parser = zero_tui::dump::parse_address)]
+    addresses: Vec<u64>,
     /// Include user threads in linux.pslist.PsList.
     #[arg(long = "threads", global = true)]
     include_threads: bool,
@@ -377,6 +388,12 @@ fn main() -> Result<()> {
             },
             dump.as_ref(),
             &zero_tui::analysis::Options {
+                pe: zero_tui::analysis::PEQuery {
+                    source: cli.source,
+                    module: cli.module.clone(),
+                    names: cli.symbol_names.clone(),
+                    addresses: cli.addresses.clone(),
+                },
                 os: cli.os,
                 arch: cli.arch,
                 pagefiles: cli.pagefiles.clone(),
@@ -465,6 +482,12 @@ fn launch_tui(cli: Cli) -> Result<()> {
         cache,
         settings,
         zero_tui::analysis::Options {
+            pe: zero_tui::analysis::PEQuery {
+                source: cli.source,
+                module: cli.module,
+                names: cli.symbol_names,
+                addresses: cli.addresses,
+            },
             os: cli.os,
             arch: cli.arch,
             pid: None,
@@ -503,6 +526,36 @@ fn launch_tui(cli: Cli) -> Result<()> {
 #[cfg(test)]
 mod cli_tests {
     use super::*;
+    #[test]
+    fn pe_queries_parse_repeated_names_and_full_width_addresses() {
+        let cli = Cli::try_parse_from([
+            "zero",
+            "analyze",
+            "--image",
+            "image.raw",
+            "--output",
+            "result.json",
+            "--plugin",
+            "windows.pe_symbols.PESymbols",
+            "--source",
+            "processes",
+            "--module",
+            "ntdll.dll",
+            "--symbol-name",
+            "NtClose",
+            "--symbol-name",
+            "NtClose",
+            "--address",
+            "0xffffffffffffffff",
+            "--address",
+            "4096",
+        ])
+        .unwrap();
+        assert_eq!(cli.source, Some(zero_tui::analysis::PESource::Processes));
+        assert_eq!(cli.symbol_names, ["NtClose", "NtClose"]);
+        assert_eq!(cli.addresses, [u64::MAX, 4096]);
+        assert!(Cli::try_parse_from(["zero", "--source", "invalid"]).is_err());
+    }
     #[test]
     fn legacy_tui_backend_is_removed_and_native_ui_and_mcp_remain_available() {
         assert!(Cli::try_parse_from(["zero", "tui-backend"]).is_err());

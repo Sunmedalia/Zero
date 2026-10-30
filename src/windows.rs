@@ -45,6 +45,7 @@ mod network_layout;
 mod objects;
 pub mod paging;
 mod pe_info;
+mod pe_symbols;
 mod peb_masquerade;
 mod pool;
 mod process;
@@ -571,6 +572,9 @@ impl Windows<'_> {
     }
     pub fn run(&self, p: Plugin, options: &Options, job: &Job) -> Result<Results> {
         job.check()?;
+        if p == Plugin::WinPESymbols {
+            return self.pe_symbols(options, None, job);
+        }
         if p == Plugin::WinMemmap {
             return self.memmap(options, None, job);
         }
@@ -1079,7 +1083,11 @@ pub(crate) fn analyze_resolved(
             options.maxsize
         ),
     );
-    let cached = if request.use_cache && dump.is_none() && !request.plugin.is_dump() {
+    let cached = if request.use_cache
+        && dump.is_none()
+        && !request.plugin.is_dump()
+        && request.plugin != Plugin::WinPESymbols
+    {
         if request.plugin == Plugin::WinDriverIrp {
             dispatch::load_cached(request.cache, &key, request.network, job)?
         } else {
@@ -1098,6 +1106,8 @@ pub(crate) fn analyze_resolved(
     }
     let mut result = if let Some(dump) = dump {
         engine.run_dump(request.plugin, dump, job)?
+    } else if request.plugin == Plugin::WinPESymbols {
+        engine.pe_symbols(options, Some((request.cache, request.network)), job)?
     } else if request.plugin == Plugin::WinDriverIrp {
         engine.driver_irp_with_symbols(job, Some((request.cache, request.network)))?
     } else if request.plugin == Plugin::WinNetscan {
@@ -1137,6 +1147,7 @@ pub(crate) fn analyze_resolved(
     }
     job.check()?;
     if request.use_cache
+        && request.plugin != Plugin::WinPESymbols
         && dump.is_none()
         && !request.plugin.is_dump()
         && (request.plugin != Plugin::WinDriverIrp

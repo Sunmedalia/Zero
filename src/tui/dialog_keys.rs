@@ -80,6 +80,33 @@ impl App {
                         "printkey 必须填写 hive 地址"
                     );
                     Ok(crate::analysis::Options {
+                        pe: if self.plugin == Plugin::WinPESymbols {
+                            let pe = crate::analysis::PEQuery {
+                                source: Some(
+                                    <crate::analysis::PESource as clap::ValueEnum>::from_str(
+                                        fields[17].trim(),
+                                        true,
+                                    )
+                                    .map_err(anyhow::Error::msg)?,
+                                ),
+                                module: Some(fields[18].trim().into()),
+                                names: fields[19]
+                                    .split(';')
+                                    .map(str::trim)
+                                    .filter(|s| !s.is_empty())
+                                    .map(str::to_owned)
+                                    .collect(),
+                                addresses: fields[20]
+                                    .split([',', ' '])
+                                    .filter(|s| !s.is_empty())
+                                    .map(|s| parse_address(s).map_err(anyhow::Error::msg))
+                                    .collect::<Result<Vec<_>>>()?,
+                            };
+                            pe.validate(self.plugin)?;
+                            pe
+                        } else {
+                            Default::default()
+                        },
                         arch: <crate::windows::Architecture as clap::ValueEnum>::from_str(
                             fields[3].trim(),
                             true,
@@ -197,13 +224,13 @@ impl App {
                         1
                     })
                     % visible.len()];
-                *cursor = if *field != 6 && *field < 8 {
+                *cursor = if *field != 6 && (*field < 8 || *field >= 17) {
                     fields[*field].len()
                 } else {
                     0
                 };
                 *selected = true;
-            } else if *field != 6 && *field < 8 {
+            } else if *field != 6 && (*field < 8 || *field >= 17) {
                 edit_input(&mut fields[*field], cursor, selected, key);
             }
         }

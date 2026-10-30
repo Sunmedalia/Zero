@@ -48,3 +48,8 @@ cargo test --locked --test native mcp_
 `zero_dump` 的 `mode: "kernel-module"` 对应 Linux ModuleExtract，输出重建 ELF；补零范围、文件 SHA256 与完整路径保留在结果元数据中。
 
 `zero_analyze` 的 `linux.kallsyms.Kallsyms` 支持 `core`、`modules`、`ftrace`、`bpf` 四个布尔参数；全部省略或 false 时选择全部来源，其他插件不能启用这些参数。
+
+`zero_analyze` 的 `windows.pe_symbols.PESymbols` 入口需要 `source`
+（`kernel` 或 `processes`）及 `module`（模块文件名），另提供 `symbol_names`
+字符串数组或 `addresses` 字符串数组。地址字符串支持十进制和 `0x`，避免 JSON
+数值丢失 64 位精度。列表最多 4096 项；两者同时提供时名称优先。

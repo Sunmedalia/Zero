@@ -6896,8 +6896,10 @@
         "Symbol",
         "Address"
       ],
-      "zero_candidates": [],
-      "status": "missing",
+      "zero_candidates": [
+        "windows.pe_symbols.PESymbols"
+      ],
+      "status": "mapped_unverified",
       "evidence": []
     },
     {
