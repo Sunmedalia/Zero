@@ -23,7 +23,7 @@ struct GuiLayout {
     window_direct_name: Option<u64>,
 }
 
-fn reference_unicode_name(bytes: &[u8]) -> String {
+pub(super) fn reference_unicode_name(bytes: &[u8]) -> String {
     let (bytes, big_endian) = if bytes.starts_with(&[0xfe, 0xff]) {
         (&bytes[2..], true)
     } else if bytes.starts_with(&[0xff, 0xfe]) {

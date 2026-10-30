@@ -643,3 +643,8 @@ Windows 映射 v2 将 Procedure 作为可缺失负载字段；双侧缺失、单
 `gui_padding_vectors.py` 执行固定 pool.get_object 的 padding 分支（对象 is_valid 为
 测试桩，只证明 carving 条件）。GUI offset 映射 v2 比较两侧实际报告的 48-bit 值，
 不再只对参考端做 canonical 地址扩展；其他字段和重复数仍严格比较。
+
+PoolScanner 的 `pool_header_vectors.py` 执行固定 `PoolHeaderScanner`，覆盖 executive／
+non-executive 标签在 0、1、3、7、15 地址偏移时均按标签相对位置读取池头，alignment
+仅缩放 BlockSize。相同生成器还执行实际 `PoolScanner._generator`，验证文件名
+缺页时跳过该文件并继续下一条；carving／对象有效性由合成对象隔离，不计真实正向证据。

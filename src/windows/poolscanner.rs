@@ -202,17 +202,12 @@ impl Windows<'_> {
                         job.check()?;
                         let tag = from + at;
                         from = tag + 1;
-                        let Some(mut local) = tag.checked_sub(tag_offset) else {
+                        let Some(local) = tag.checked_sub(tag_offset) else {
                             continue;
                         };
-                        // Executive pool headers are aligned, but non-executive
-                        // records follow the reference scan and keep every tag hit.
-                        if constraint.object_type.is_some() {
-                            local -= local % alignment as usize;
-                        }
-                        if !local.is_multiple_of(alignment as usize)
-                            || local + header_size as usize > data.len()
-                        {
+                        // Alignment scales BlockSize; the fixed scanner does not
+                        // round or reject the address of a matched pool header.
+                        if local + header_size as usize > data.len() {
                             continue;
                         }
                         let bytes = &data[local..local + header_size as usize];
@@ -836,21 +831,19 @@ impl Windows<'_> {
                 Ok(Some(String::from_utf8_lossy(&bytes[..end]).into_owned()))
             }
             Some("File") => {
-                let length =
-                    self.pool_value(body, "_FILE_OBJECT", "FileName.Length", virtual_scan)?;
-                let buffer =
-                    self.pool_value(body, "_FILE_OBJECT", "FileName.Buffer", virtual_scan)?;
-                let mut bytes = vec![0u8; length as usize];
-                self.vm.read(buffer, &mut bytes)?;
-                let units = bytes
-                    .chunks_exact(2)
-                    .map(|word| u16::from_le_bytes([word[0], word[1]]))
-                    .collect::<Vec<_>>();
-                let end = units
-                    .iter()
-                    .position(|unit| *unit == 0)
-                    .unwrap_or(units.len());
-                Ok(Some(String::from_utf16_lossy(&units[..end])))
+                // The reference generator skips a file whose name faults and
+                // continues scanning. Propagating this read error truncates all
+                // later pool observations, including unrelated object types.
+                let name = (|| -> Result<String> {
+                    let length =
+                        self.pool_value(body, "_FILE_OBJECT", "FileName.Length", virtual_scan)?;
+                    let buffer =
+                        self.pool_value(body, "_FILE_OBJECT", "FileName.Buffer", virtual_scan)?;
+                    let mut bytes = vec![0u8; length as usize];
+                    self.vm.read(buffer, &mut bytes)?;
+                    Ok(windowstations::reference_unicode_name(&bytes))
+                })();
+                Ok(name.ok())
             }
             _ => Ok(Some(String::new())),
         }
@@ -862,6 +855,70 @@ mod tests {
     use super::super::tests::{K, fixture, image, put};
     use super::*;
     use serde_json::json;
+
+    #[test]
+    fn missing_file_name_tail_skips_only_that_file() {
+        let (mut bytes, mut isf) = fixture();
+        isf.data["user_types"]["_FILE_OBJECT"] = json!({"size":160,"fields":{"FileName":{"offset":0,"type":{"kind":"struct","name":"_UNICODE_STRING"}}}});
+        put(&mut bytes, 0x4000 + 2 * 8, 0); // Missing second name page.
+        bytes[0xc000..0xc002].copy_from_slice(&4u16.to_le_bytes());
+        put(&mut bytes, 0xc008, K + 0x1ffe);
+        bytes[0x9ffe..0xa000].copy_from_slice(&[b'x', 0]);
+        bytes[0xc100..0xc102].copy_from_slice(&4u16.to_le_bytes());
+        put(&mut bytes, 0xc108, K + 0x6000);
+        bytes[0xe000..0xe004].copy_from_slice(&[b'o', 0, b'k', 0]);
+        let snapshot = image(&bytes);
+        let windows = Windows {
+            vm: Memory::new(&snapshot, 0x1000, &isf, None),
+            base: K,
+            pdb: PdbIdentity::from_isf(&isf).unwrap(),
+        };
+        let file = CONSTRAINTS.iter().find(|c| c.tag == b"File").unwrap();
+        assert!(windows.address_readable(K + 0x1ffe));
+        assert_eq!(
+            windows.pool_scanner_name(file, 0xc000, false).unwrap(),
+            None
+        );
+        let names: Vec<_> = [0xc000, 0xc100]
+            .into_iter()
+            .filter_map(|at| windows.pool_scanner_name(file, at, false).unwrap())
+            .collect();
+        let reference: serde_json::Value = serde_json::from_str(include_str!(
+            "../../tests/reference/parity/fixtures/pool-headers.json"
+        ))
+        .unwrap();
+        assert_eq!(
+            serde_json::json!(names),
+            reference["file_name_fault"]["expected_names"]
+        );
+        let vectors: serde_json::Value = serde_json::from_str(include_str!(
+            "../../tests/reference/parity/fixtures/gui-stations.json"
+        ))
+        .unwrap();
+        for case in vectors["strings"].as_array().unwrap() {
+            let data: Vec<_> = case["hex"]
+                .as_str()
+                .unwrap()
+                .as_bytes()
+                .chunks_exact(2)
+                .map(|word| u8::from_str_radix(std::str::from_utf8(word).unwrap(), 16).unwrap())
+                .collect();
+            let mut named = bytes.clone();
+            named[0xc100..0xc102].copy_from_slice(&(data.len() as u16).to_le_bytes());
+            named[0xe000..0xe000 + data.len()].copy_from_slice(&data);
+            let snapshot = image(&named);
+            let windows = Windows {
+                vm: Memory::new(&snapshot, 0x1000, &isf, None),
+                base: K,
+                pdb: PdbIdentity::from_isf(&isf).unwrap(),
+            };
+            assert_eq!(
+                serde_json::json!(windows.pool_scanner_name(file, 0xc100, false).unwrap()),
+                case["expected"],
+                "{case}"
+            );
+        }
+    }
 
     #[test]
     fn gui_tag_matches_keep_the_exact_unaligned_header_address() {
@@ -1041,5 +1098,43 @@ mod tests {
         assert_eq!(result.rows[0][3], "System");
         assert!(result.columns == ["Tag", "Offset", "Layer", "Name"]);
         assert!(result.complete);
+
+        let vectors: serde_json::Value = serde_json::from_str(include_str!(
+            "../../tests/reference/parity/fixtures/pool-headers.json"
+        ))
+        .unwrap();
+        for case in vectors["cases"].as_array().unwrap() {
+            let offset = case["header_offset"].as_u64().unwrap() as usize;
+            let mut shifted = bytes.clone();
+            shifted[0xc000..0xc400].fill(0);
+            let expected_type = if case["tag_hex"] == "50726fe3" {
+                shifted[0xc000 + offset..0xc300 + offset].copy_from_slice(&bytes[0xc000..0xc300]);
+                "symbol_table_name1!_EPROCESS"
+            } else {
+                shifted[0xc000 + offset..0xc002 + offset].copy_from_slice(&13u16.to_le_bytes());
+                shifted[0xc004 + offset..0xc008 + offset].copy_from_slice(b"AtmT");
+                "symbol_table_name1!_RTL_ATOM_TABLE"
+            };
+            let snapshot = super::super::tests::image(&shifted);
+            let native = Windows {
+                vm: Memory::new(&snapshot, 0x1000, &isf, None),
+                base: K,
+                pdb: PdbIdentity::from_isf(&isf).unwrap(),
+            }
+            .pool_scanner(&Job::default())
+            .unwrap();
+            let expected: Vec<_> = case["expected_headers"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|at| hex(0xc000 + at.as_u64().unwrap()))
+                .collect();
+            assert_eq!(
+                native.rows.iter().map(|r| r[1].clone()).collect::<Vec<_>>(),
+                expected,
+                "{case}"
+            );
+            assert!(native.rows.iter().all(|r| r[0] == expected_type));
+        }
     }
 }

@@ -1,0 +1,83 @@
+{
+  "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+  "source_sha256": "85b7001117f4f9626698ae47f5f921ad4c9643625cb43a7a2a527b5c9469310e",
+  "scope": "Actual PoolHeaderScanner tag offsets and size checks; synthetic module fields, page/index checks disabled. Does not validate object carving or object identity.",
+  "cases": [
+    {
+      "tag_hex": "50726fe3",
+      "header_offset": 0,
+      "expected_headers": [
+        0
+      ]
+    },
+    {
+      "tag_hex": "50726fe3",
+      "header_offset": 1,
+      "expected_headers": [
+        1
+      ]
+    },
+    {
+      "tag_hex": "50726fe3",
+      "header_offset": 3,
+      "expected_headers": [
+        3
+      ]
+    },
+    {
+      "tag_hex": "50726fe3",
+      "header_offset": 7,
+      "expected_headers": [
+        7
+      ]
+    },
+    {
+      "tag_hex": "50726fe3",
+      "header_offset": 15,
+      "expected_headers": [
+        15
+      ]
+    },
+    {
+      "tag_hex": "41746d54",
+      "header_offset": 0,
+      "expected_headers": [
+        0
+      ]
+    },
+    {
+      "tag_hex": "41746d54",
+      "header_offset": 1,
+      "expected_headers": [
+        1
+      ]
+    },
+    {
+      "tag_hex": "41746d54",
+      "header_offset": 3,
+      "expected_headers": [
+        3
+      ]
+    },
+    {
+      "tag_hex": "41746d54",
+      "header_offset": 7,
+      "expected_headers": [
+        7
+      ]
+    },
+    {
+      "tag_hex": "41746d54",
+      "header_offset": 15,
+      "expected_headers": [
+        15
+      ]
+    }
+  ],
+  "file_name_fault": {
+    "scope": "Actual PoolScanner generator, synthetic carved objects and missing file-name read; verifies skip and continuation only.",
+    "expected_names": [
+      "ok"
+    ]
+  }
+}
