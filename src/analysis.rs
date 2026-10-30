@@ -103,6 +103,8 @@ pub struct Options {
     pub key: String,
     /// Byte pattern for vmayarascan / windows.vadyarascan.
     pub pattern: Option<String>,
+    /// Local decimal-offset strings output consumed by windows.strings.Strings.
+    pub strings_file: Option<std::path::PathBuf>,
     pub pagefiles: Vec<crate::windows::paging::Attachment>,
     pub swapfile: Option<std::path::PathBuf>,
 }
@@ -134,6 +136,10 @@ pub fn analyze(
     job: &Job,
 ) -> Result<Outcome> {
     options.pe.validate(request.plugin)?;
+    ensure!(
+        options.strings_file.is_some() == (request.plugin == Plugin::WinStrings),
+        "windows.strings.Strings 需要 strings-file；其他插件不接受该参数"
+    );
     validate_pattern(request.plugin, options)?;
     ensure!(options.pids.len() <= 4096, "PID 列表超过 4096 项");
     ensure!(
@@ -259,6 +265,46 @@ pub fn plugins(os: Os) -> impl Iterator<Item = &'static Descriptor> {
 #[cfg(test)]
 mod pe_query_tests {
     use super::*;
+    #[test]
+    fn strings_file_is_required_and_rejected_for_other_plugins_before_image_io() {
+        let dir = tempfile::tempdir().unwrap();
+        let missing = dir.path().join("missing.raw");
+        let mut request = Request {
+            image: &missing,
+            symbols: dir.path(),
+            choice: None,
+            plugin: Plugin::WinStrings,
+            cache: dir.path(),
+            use_cache: false,
+            network: false,
+        };
+        let mut session = Session::default();
+        let error = analyze(
+            &mut session,
+            &request,
+            None,
+            &Options::default(),
+            &crate::Job::default(),
+        )
+        .err()
+        .unwrap();
+        assert!(error.to_string().contains("strings-file"));
+        request.plugin = Plugin::WinPslist;
+        let options = Options {
+            strings_file: Some(dir.path().join("input.txt")),
+            ..Default::default()
+        };
+        let error = analyze(
+            &mut session,
+            &request,
+            None,
+            &options,
+            &crate::Job::default(),
+        )
+        .err()
+        .unwrap();
+        assert!(error.to_string().contains("其他插件"));
+    }
     #[test]
     fn validates_required_parameters_and_rejects_cross_plugin_options() {
         let mut query = PEQuery::default();

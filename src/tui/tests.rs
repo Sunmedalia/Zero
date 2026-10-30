@@ -4575,3 +4575,28 @@ fn pe_symbol_parameters_validate_and_separate_query_views() {
     assert_ne!(before, app.request_key());
     assert!(app.job.is_none());
 }
+
+#[test]
+fn strings_parameters_keep_path_and_pid_union_in_the_plugin_draft() {
+    let mut app = app();
+    app.select_os(crate::analysis::Os::Windows);
+    app.select_plugin(Plugin::WinStrings);
+    app.windows_parameters();
+    assert_eq!(app.parameter_fields(false), vec![21, 2, 6]);
+    app.dialog_key(KeyEvent::new(KeyCode::Enter, KeyModifiers::CONTROL));
+    assert!(app.dialog.is_some());
+    if let Some(Dialog::WindowsParameters { fields, .. }) = &mut app.dialog {
+        fields[21] = "strings.txt".into();
+        fields[2] = "4,8".into();
+    }
+    app.dialog_key(KeyEvent::new(KeyCode::Enter, KeyModifiers::CONTROL));
+    assert!(app.dialog.is_none());
+    assert_eq!(app.analysis_options.pids, [4, 8]);
+    let path = app.analysis_options.strings_file.clone().unwrap();
+    assert!(path.is_absolute());
+    assert!(path.ends_with("strings.txt"));
+    app.select_plugin(Plugin::WinPslist);
+    assert!(app.analysis_options.strings_file.is_none());
+    app.select_plugin(Plugin::WinStrings);
+    assert_eq!(app.analysis_options.strings_file, Some(path));
+}

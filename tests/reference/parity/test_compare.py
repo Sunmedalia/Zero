@@ -44,6 +44,16 @@ class CompareTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 normalize(item, 'na_boolean')
 
+    def test_strings_owners_compare_members_not_randomized_set_order(self):
+        first = 'kernel:0x1000, Process 4:0x2000'
+        second = 'Process 4:0x2000, kernel:0x1000'
+        self.assertEqual(normalize(first, 'strings_owners'), normalize(second, 'strings_owners'))
+        self.assertNotEqual(normalize(first, 'strings_owners'), normalize('kernel:0x1000', 'strings_owners'))
+        self.assertEqual(normalize('FREE MEMORY', 'strings_owners'), ('FREE MEMORY',))
+        for value in ('', None, 'kernel:0x1, kernel:0x1', 'kernel:0x1, garbage'):
+            with self.assertRaises(ValueError):
+                normalize(value, 'strings_owners')
+
     def test_full_fields_agree(self):
         self.assertTrue(self.check()['passed'])
 

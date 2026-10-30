@@ -60,7 +60,7 @@ def run(config, output, zero, checkout, python, timeout):
         image = Path(sample['image']).resolve(strict=True)
         if digest(image) != sample['image_sha256']:
             raise ValueError(f"image SHA256 mismatch: {sample['id']}")
-        for symbol in sample['symbol_files']:
+        for symbol in sample['symbol_files'] + sample.get('input_files', []):
             if digest(Path(symbol['path']).resolve(strict=True)) != symbol['sha256']:
                 raise ValueError(f"symbol SHA256 mismatch: {symbol['path']}")
         prepared[sample['id']] = sample
@@ -95,6 +95,7 @@ def run(config, output, zero, checkout, python, timeout):
         if digest(zero) != zero_sha256:
             raise ValueError('Zero executable changed during differential run; discard this batch')
         record = {'sample': sample['id'], 'sample_source': sample.get('source'),
+                  'input_files': sample.get('input_files', []),
                   'case_id': case.get('id', str(index)),
                   'zero_args': case.get('zero_args', []), 'reference_args': case.get('reference_args', []), 'image_sha256': sample['image_sha256'],
                   'reference_plugin': case['reference_plugin'], 'zero_plugin': case['zero_plugin'],

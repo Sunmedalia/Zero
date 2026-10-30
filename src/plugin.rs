@@ -30,6 +30,8 @@ pub enum Plugin {
     WinWindows,
     #[value(name = "windows.pe_symbols.PESymbols")]
     WinPESymbols,
+    #[value(name = "windows.strings.Strings", alias = "windows.strings")]
+    WinStrings,
     #[value(
         name = "windows.malware.unhooked_system_calls.UnhookedSystemCalls",
         alias = "windows.unhooked_system_calls"
@@ -420,6 +422,13 @@ pub const PLUGINS: &[Descriptor] = &[
             "Total Implementations",
         ],
         widths: &[32, 0, 24],
+    },
+    Descriptor {
+        plugin: Plugin::WinStrings,
+        name: "windows.strings.Strings",
+        label: "strings",
+        columns: &["String", "Physical Address", "Result"],
+        widths: &[0, 18, 0],
     },
     Descriptor {
         plugin: Plugin::WinPESymbols,
@@ -2083,7 +2092,7 @@ impl Plugin {
         self.is_regex_scan()
             || matches!(
                 self,
-                Self::PsCallStack | Self::WinVadWalk | Self::WinPebMasquerade
+                Self::PsCallStack | Self::WinVadWalk | Self::WinPebMasquerade | Self::WinStrings
             )
     }
     pub fn descriptor(self) -> &'static Descriptor {
@@ -2180,6 +2189,7 @@ impl Plugin {
             Self::WinWindowStations | Self::WinDesktops | Self::WinDeskScan | Self::WinWindows => {
                 "GUI"
             }
+            Self::WinStrings => "Memory",
             Self::WinUnhookedSystemCalls => "Integrity",
             Self::WinDebugRegisters
             | Self::WinSuspendedThreads
@@ -2391,6 +2401,7 @@ impl Plugin {
             WinDebugRegisters => "读取活动线程硬件调试寄存器及精确文件和符号归属",
             WinSuspendedThreads => "列出仍挂起的活动线程及起始地址文件和符号",
             WinUnhookedSystemCalls => "对比进程 ntdll 系统调用入口的 32 字节实现",
+            WinStrings => "读取外部字符串偏移文件并反查内核／进程映射归属",
             WinPESymbols => "通过精确 PDB 和 PE 导出表查询内核或进程模块符号",
             WinAmcacheV4 => "读取 Amcache 驱动、程序与文件的 11 列标准输出",
             WinAmcache => "读取 Amcache.hve 的程序文件清单",

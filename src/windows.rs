@@ -60,6 +60,7 @@ mod scheduled_tasks;
 mod security;
 mod service_list;
 mod shimcache;
+mod strings;
 mod suspended_threads;
 mod thread_symbols;
 mod timeline;
@@ -623,6 +624,9 @@ impl Windows<'_> {
         if p == Plugin::WinUnhookedSystemCalls {
             return self.unhooked_system_calls(None, job);
         }
+        if p == Plugin::WinStrings {
+            return self.strings(options, job);
+        }
         if p == Plugin::WinPESymbols {
             return self.pe_symbols(options, None, job);
         }
@@ -1151,6 +1155,7 @@ pub(crate) fn analyze_resolved(
                 | Plugin::WinSuspendedThreads
                 | Plugin::WinDebugRegisters
                 | Plugin::WinUnhookedSystemCalls
+                | Plugin::WinStrings
         ) {
         if request.plugin == Plugin::WinDriverIrp {
             dispatch::load_cached(request.cache, &key, request.network, job)?
@@ -1225,6 +1230,7 @@ pub(crate) fn analyze_resolved(
                 | Plugin::WinSuspendedThreads
                 | Plugin::WinDebugRegisters
                 | Plugin::WinUnhookedSystemCalls
+                | Plugin::WinStrings
         )
         && dump.is_none()
         && !request.plugin.is_dump()

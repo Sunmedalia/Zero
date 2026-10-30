@@ -2,16 +2,16 @@
 use super::*;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum Backing {
+pub(super) enum Backing {
     Physical,
     Pagefile(u8),
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-struct Mapping {
-    virtual_start: u64,
-    physical_start: u64,
-    size: u64,
-    backing: Backing,
+pub(super) struct Mapping {
+    pub(super) virtual_start: u64,
+    pub(super) physical_start: u64,
+    pub(super) size: u64,
+    pub(super) backing: Backing,
 }
 struct Walker<'a, 'b> {
     vm: &'a Memory<'b>,
@@ -166,7 +166,7 @@ impl Walker<'_, '_> {
         Ok(())
     }
 }
-fn mappings(vm: &Memory<'_>, job: &Job) -> Result<(Vec<Mapping>, Vec<String>)> {
+pub(super) fn mappings(vm: &Memory<'_>, job: &Job) -> Result<(Vec<Mapping>, Vec<String>)> {
     let geometry = vm.paging()?;
     ensure!(
         matches!(geometry.arch, Architecture::X86 | Architecture::X64),

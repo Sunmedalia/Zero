@@ -37,6 +37,7 @@ struct AnalyzeArgs {
     hive: Option<String>,
     key: Option<String>,
     pattern: Option<String>,
+    strings_file: Option<PathBuf>,
     pids: Option<Vec<u32>>,
     source: Option<zero_tui::analysis::PESource>,
     module: Option<String>,
@@ -126,7 +127,7 @@ fn tools() -> Value {
     json!({"tools": [
         {"name":"zero_plugins","description":"List native Linux and Windows memory forensics plugins and their result columns.","inputSchema":{"type":"object","properties":{},"additionalProperties":false}},
         {"name":"zero_symbols","description":"Identify image banners and exact ISF repository matches. Optional download saves verified symbols locally.","inputSchema":{"type":"object","properties":{"image":{"type":"string"},"offline":{"type":"boolean"},"download":{"type":"boolean"}},"required":["image"],"additionalProperties":false}},
-        {"name":"zero_analyze","description":"Run a native analysis plugin on a local memory image. Returns at most 200 rows and may export all rows to JSON/CSV. Returns result_id; use zero_results for subsequent pages.","inputSchema":{"type":"object","properties":{"image":{"type":"string"},"plugin":{"type":"string"},"os":{"type":"string","enum":["auto","linux","windows"]},"arch":{"type":"string","enum":["auto","x86","x64","arm64"]},"pagefiles":{"type":"array","items":{"type":"object","properties":{"index":{"type":"integer","minimum":0,"maximum":15},"path":{"type":"string"}},"required":["index","path"],"additionalProperties":false}},"swapfile":{"type":"string"},"pid":{"type":"integer","minimum":0},"include_threads":{"type":"boolean"},"decorate_comm":{"type":"boolean"},"plain_taints":{"type":"boolean"},"core":{"type":"boolean"},"modules":{"type":"boolean"},"ftrace":{"type":"boolean"},"bpf":{"type":"boolean"},"hive":{"type":"string"},"key":{"type":"string"},"pattern":{"type":"string","description":"VmaRegExScan/VadRegExScan: byte regex; vmayarascan/windows.vadyarascan: text, wide:TEXT or hex:4d5a??00"},"pids":{"type":"array","maxItems":4096,"items":{"type":"integer","minimum":0},"description":"VmaRegExScan / VadRegExScan / VadWalk / PsCallStack PID list"},"unresolved":{"type":"boolean","description":"PsCallStack: include unresolved nonzero stack words"},"source":{"type":"string","enum":["kernel","processes"],"description":"PESymbols module source"},"module":{"type":"string","description":"PESymbols module filename"},"symbol_names":{"type":"array","maxItems":4096,"items":{"type":"string"}},"addresses":{"type":"array","maxItems":4096,"items":{"type":"string"},"description":"PESymbols absolute addresses, decimal or 0x"},"maxsize":{"type":"integer","minimum":1,"maximum":4096,"description":"VmaRegExScan/VadRegExScan display context bytes (default 128)"},"symbols":{"type":"string"},"symbol_choice":{"type":"string"},"offline":{"type":"boolean"},"no_cache":{"type":"boolean"},"limit":{"type":"integer","minimum":1,"maximum":200},"output":{"type":"string"}},"required":["image","plugin"],"additionalProperties":false}},
+        {"name":"zero_analyze","description":"Run a native analysis plugin on a local memory image. Returns at most 200 rows and may export all rows to JSON/CSV. Returns result_id; use zero_results for subsequent pages.","inputSchema":{"type":"object","properties":{"image":{"type":"string"},"plugin":{"type":"string"},"os":{"type":"string","enum":["auto","linux","windows"]},"arch":{"type":"string","enum":["auto","x86","x64","arm64"]},"pagefiles":{"type":"array","items":{"type":"object","properties":{"index":{"type":"integer","minimum":0,"maximum":15},"path":{"type":"string"}},"required":["index","path"],"additionalProperties":false}},"swapfile":{"type":"string"},"pid":{"type":"integer","minimum":0},"include_threads":{"type":"boolean"},"decorate_comm":{"type":"boolean"},"plain_taints":{"type":"boolean"},"core":{"type":"boolean"},"modules":{"type":"boolean"},"ftrace":{"type":"boolean"},"bpf":{"type":"boolean"},"hive":{"type":"string"},"key":{"type":"string"},"strings_file":{"type":"string","description":"Strings: local decimal-offset strings output file"},"pattern":{"type":"string","description":"VmaRegExScan/VadRegExScan: byte regex; vmayarascan/windows.vadyarascan: text, wide:TEXT or hex:4d5a??00"},"pids":{"type":"array","maxItems":4096,"items":{"type":"integer","minimum":0},"description":"Strings / VmaRegExScan / VadRegExScan / VadWalk / PsCallStack PID list"},"unresolved":{"type":"boolean","description":"PsCallStack: include unresolved nonzero stack words"},"source":{"type":"string","enum":["kernel","processes"],"description":"PESymbols module source"},"module":{"type":"string","description":"PESymbols module filename"},"symbol_names":{"type":"array","maxItems":4096,"items":{"type":"string"}},"addresses":{"type":"array","maxItems":4096,"items":{"type":"string"},"description":"PESymbols absolute addresses, decimal or 0x"},"maxsize":{"type":"integer","minimum":1,"maximum":4096,"description":"VmaRegExScan/VadRegExScan display context bytes (default 128)"},"symbols":{"type":"string"},"symbol_choice":{"type":"string"},"offline":{"type":"boolean"},"no_cache":{"type":"boolean"},"limit":{"type":"integer","minimum":1,"maximum":200},"output":{"type":"string"}},"required":["image","plugin"],"additionalProperties":false}},
         {"name":"zero_results","description":"Read or export an immutable analysis snapshot. Does not run analysis; expired IDs require a new zero_analyze call.","inputSchema":{"type":"object","properties":{"result_id":{"type":"string"},"offset":{"type":"integer","minimum":0},"limit":{"type":"integer","minimum":1,"maximum":200},"output":{"type":"string"}},"required":["result_id"],"additionalProperties":false}},
         {"name":"zero_dump","description":"Export one process, one PID address range, or ELF mappings to a local directory with a JSON/CSV manifest. Requires explicit paths and a PID for process modes; kernel-module uses start as the struct module address; framebuffer dumps fbdev buffers, optionally selected by fb_info start.","inputSchema":{"type":"object","properties":{"image":{"type":"string"},"symbols":{"type":"string"},"symbol_choice":{"type":"string"},"os":{"type":"string","enum":["auto","linux","windows"]},"arch":{"type":"string","enum":["auto","x86","x64","arm64"]},"pagefiles":{"type":"array","items":{"type":"object","properties":{"index":{"type":"integer","minimum":0,"maximum":15},"path":{"type":"string"}},"required":["index","path"],"additionalProperties":false}},"swapfile":{"type":"string"},"mode":{"type":"string","enum":["process","range","elf","pe","vad","dll","module","kernel-module","framebuffer","files"]},"pid":{"type":"integer","minimum":0},"dump_dir":{"type":"string"},"output":{"type":"string"},"start":{"type":"string"},"end":{"type":"string"},"offline":{"type":"boolean"}},"required":["image","mode","dump_dir","output"],"additionalProperties":false}},
         {"name":"zero_cache_list","description":"Inspect regenerable local cache without deleting it.","inputSchema":{"type":"object","properties":{},"additionalProperties":false}}
@@ -274,6 +275,7 @@ fn call(
                         .map_err(anyhow::Error::msg)?,
                     key: a.key.unwrap_or_default(),
                     pattern: a.pattern,
+                    strings_file: a.strings_file.map(|p| path(root, &p)),
                     pids: a.pids.unwrap_or_default(),
                     maxsize: a.maxsize,
                     unresolved: a.unresolved.unwrap_or(false),
@@ -659,6 +661,26 @@ pub fn run() -> Result<()> {
 #[cfg(test)]
 mod protocol_tests {
     use super::*;
+    #[test]
+    fn strings_sidecar_and_pid_list_are_in_the_mcp_contract() {
+        let catalog = tools();
+        let schema = &catalog["tools"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|t| t["name"] == "zero_analyze")
+            .unwrap()["inputSchema"]["properties"];
+        assert_eq!(schema["strings_file"]["type"], "string");
+        let args: AnalyzeArgs =
+            serde_json::from_value(json!({"image":"i.raw","plugin":"windows.strings.Strings",
+            "strings_file":"evidence/strings.txt","pids":[4,8]}))
+            .unwrap();
+        assert_eq!(
+            args.strings_file,
+            Some(PathBuf::from("evidence/strings.txt"))
+        );
+        assert_eq!(args.pids, Some(vec![4, 8]));
+    }
     #[test]
     fn pe_schema_and_arguments_keep_addresses_as_lossless_strings() {
         let catalog = tools();

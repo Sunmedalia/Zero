@@ -594,3 +594,17 @@ only its first two byte groups, chooses the second as majority on ties, and read
 Captured-page symbol queries use the same PE resolver with prototype recovery disabled; ordinary
 PESymbols retains its broader recovery policy. Grouping is not proof of malware or complete
 coverage of unreadable process pages. No complete plugin contract is certified.
+
+
+Strings: first generate the local sidecars from the public RAW samples:
+
+    python3 tests/reference/parity/strings_input.py --image images/feat-windows-plugins/WinDump/WinDump.mem --output target/reference/strings-input/win10.txt
+    python3 tests/reference/parity/strings_input.py --image images/feat-windows-plugins/inctf-win7/Challenge.raw --output target/reference/strings-input/win7.txt
+
+Then run strings.example.json with the usual runner. The sample input_files hashes are checked
+alongside symbol files; every input string comes from the capture at its recorded offset, plus
+an intentional duplicate. All three columns and multiplicities are compared. The strings_owners
+normalizer checks exact set membership and addresses, normalizing only randomized member order.
+The fixed reference uses process virtual keys and contiguous-block starts; this is recorded
+explicitly rather than presenting those results as a corrected reverse-physical mapping.
+The all-process reference case can take several minutes because it builds the full reverse map.

@@ -42,7 +42,10 @@ struct Cli {
     /// (UTF-16LE) or hex:4d5a??00 with ?? wildcards; byte regex for VmaRegExScan.
     #[arg(long, global = true)]
     pattern: Option<String>,
-    /// PID list for VmaRegExScan / VadRegExScan / VadWalk / PsCallStack / PebMasquerade (comma-separated or repeated).
+    /// Local strings output with decimal physical offsets (windows.strings.Strings).
+    #[arg(long, global = true)]
+    strings_file: Option<PathBuf>,
+    /// PID list for Strings / VmaRegExScan / VadRegExScan / VadWalk / PsCallStack / PebMasquerade (comma-separated or repeated).
     #[arg(long, global = true, value_delimiter = ',')]
     pids: Vec<u32>,
     /// Include unresolved nonzero saved stack words in PsCallStack.
@@ -402,6 +405,7 @@ fn main() -> Result<()> {
                 hive: cli.hive,
                 key: cli.key.clone(),
                 pattern: cli.pattern.clone(),
+                strings_file: cli.strings_file.clone(),
                 pids: cli.pids.clone(),
                 maxsize: cli.maxsize,
                 unresolved: cli.unresolved,
@@ -507,6 +511,9 @@ fn launch_tui(cli: Cli) -> Result<()> {
             hive: cli.hive,
             key: cli.key,
             pattern: cli.pattern,
+            strings_file: cli
+                .strings_file
+                .map(|p| if p.is_absolute() { p } else { root.join(p) }),
             pids: cli.pids,
             maxsize: cli.maxsize,
             unresolved: cli.unresolved,
@@ -526,6 +533,26 @@ fn launch_tui(cli: Cli) -> Result<()> {
 #[cfg(test)]
 mod cli_tests {
     use super::*;
+    #[test]
+    fn strings_file_and_pid_union_are_cli_parameters() {
+        let cli = Cli::try_parse_from([
+            "zero",
+            "analyze",
+            "--plugin",
+            "windows.strings.Strings",
+            "--image",
+            "image.raw",
+            "--output",
+            "out.json",
+            "--strings-file",
+            "strings.txt",
+            "--pids",
+            "4,8",
+        ])
+        .unwrap();
+        assert_eq!(cli.strings_file, Some(PathBuf::from("strings.txt")));
+        assert_eq!(cli.pids, [4, 8]);
+    }
     #[test]
     fn pe_queries_parse_repeated_names_and_full_width_addresses() {
         let cli = Cli::try_parse_from([

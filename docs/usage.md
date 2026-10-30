@@ -1091,3 +1091,21 @@ Total Implementations；后一列是参考选定的多数实现进程数。相�
 其他 PE 查询的页面恢复行为不变。外部模块 PDB 会影响结果，因此该插件每次重算。
 固定参考只比较发现的前两组实现，平票时第二组为多数；这不是完整的恶意软件判定。
 Win10 15063、Win7 7601 各 45 行已完成全字段对照，仍保留损坏链表／VAD 的 partial 诊断。
+
+
+windows.strings.Strings 读取外部字符串文件，每行使用十进制偏移和字符串正文
+（例如 strings -td 的输出）。输出 String、Physical Address、Result，原始输入次序和
+重复行都会保留。String 按参考的 Latin-1 字节解码，包含行末换行；终端会转义控制字符。
+
+    zero analyze --offline --image memory.raw --symbols ntkrnlmp.json \
+      --plugin windows.strings.Strings --strings-file strings.txt --pids 4,2440 --output strings.json
+
+MCP 的 zero_analyze 使用 strings_file 和 pids 字段；终端参数框提供“字符串文件”和
+PID 列表。文件变化后重新运行会重新读取并计算 SHA256，不复用旧分析结果缓存。
+文件目前必须是本地普通文件，最大 64 MiB，每行最大 1 MiB，最多一百万条记录。
+
+固定参考 v2.28.2 的内核反查键为底层偏移页号，进程反查键却为虚拟页号，连续映射的
+所有页保留整段起点，且不区分底层映射来源。这些输出规则按固定版本保留。PID 筛选只
+筛选进程归属，内核归属始终参与；找不到对应 PID 时不会报“PID 不存在”。
+Result 的归属集合稳定排序；FREE MEMORY 只表示当前映射中未找到归属，不等于已证明
+该页从未使用。页表／进程链损坏仍保留 partial 诊断。

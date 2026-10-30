@@ -70,8 +70,15 @@ impl App {
                     .map(|a| format!("{a:#x}"))
                     .collect::<Vec<_>>()
                     .join(","),
+                self.analysis_options
+                    .strings_file
+                    .as_ref()
+                    .map(|p| p.display().to_string())
+                    .unwrap_or_default(),
             ]),
-            field: if self.plugin == Plugin::WinPESymbols {
+            field: if self.plugin == Plugin::WinStrings {
+                21
+            } else if self.plugin == Plugin::WinPESymbols {
                 17
             } else if self.plugin == Plugin::WinPrintkey {
                 0

@@ -183,6 +183,9 @@ impl App {
 impl App {
     pub(super) fn parameter_fields(&self, advanced: bool) -> Vec<usize> {
         let mut fields = Vec::new();
+        if self.plugin == Plugin::WinStrings {
+            fields.push(21);
+        }
         if self.plugin == Plugin::WinPESymbols {
             fields.extend(17..21);
         }

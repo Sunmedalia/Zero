@@ -8269,8 +8269,10 @@
         "Physical Address",
         "Result"
       ],
-      "zero_candidates": [],
-      "status": "missing",
+      "zero_candidates": [
+        "windows.strings.Strings"
+      ],
+      "status": "mapped_unverified",
       "evidence": []
     },
     {

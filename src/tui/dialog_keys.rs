@@ -79,7 +79,22 @@ impl App {
                         self.plugin != Plugin::WinPrintkey || hive.is_some(),
                         "printkey 必须填写 hive 地址"
                     );
+                    let strings_file = if self.plugin == Plugin::WinStrings {
+                        anyhow::ensure!(
+                            !fields[21].trim().is_empty(),
+                            "Strings 必须填写字符串文件"
+                        );
+                        let path = std::path::PathBuf::from(fields[21].trim());
+                        Some(if path.is_absolute() {
+                            path
+                        } else {
+                            self.root.join(path)
+                        })
+                    } else {
+                        None
+                    };
                     Ok(crate::analysis::Options {
+                        strings_file,
                         pe: if self.plugin == Plugin::WinPESymbols {
                             let pe = crate::analysis::PEQuery {
                                 source: Some(

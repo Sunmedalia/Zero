@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "allow_partial": true,
+  "keys": [
+    "Physical Address",
+    "String"
+  ],
+  "duplicate_keys": "multiset",
+  "fields": {
+    "String": {
+      "zero": "String",
+      "reference": "String",
+      "type": "text"
+    },
+    "Physical Address": {
+      "zero": "Physical Address",
+      "reference": "Physical Address",
+      "type": "address"
+    },
+    "Result": {
+      "zero": "Result",
+      "reference": "Result",
+      "type": "strings_owners"
+    }
+  },
+  "notes": "Input strings and duplicate multiplicity are exact. Owner membership and every rendered address compare exactly; only reference hash-set order is normalized. Fixed process virtual-key and contiguous-block-start semantics are retained. Partial page-table/process-list diagnostics are explicit."
+}

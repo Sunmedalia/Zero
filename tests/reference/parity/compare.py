@@ -4,6 +4,7 @@ import argparse
 import datetime
 from collections import defaultdict
 import json
+import re
 from pathlib import Path
 
 
@@ -11,6 +12,16 @@ def normalize(value, kind):
     # Some optional text fields mean an empty value (e.g. no module taints),
     # not a failed read. Use this only in a reviewed per-field mapping; native
     # partial results are still rejected unless separately allowed.
+    if kind == 'strings_owners':
+        if value == 'FREE MEMORY':
+            return ('FREE MEMORY',)
+        if not isinstance(value, str):
+            raise ValueError('invalid strings owner list')
+        members = value.split(', ')
+        if not members or len(members) != len(set(members)) or any(
+                not re.fullmatch(r'(kernel|Process [0-9]+):0x[0-9a-f]+', m) for m in members):
+            raise ValueError('invalid or duplicated strings owner member')
+        return tuple(sorted(members))
     if kind == 'na_boolean':
         if value == 'N/A' or value is None:
             return None
