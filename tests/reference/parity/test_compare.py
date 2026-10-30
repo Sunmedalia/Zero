@@ -56,6 +56,20 @@ class CompareTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 normalize(value, 'strings_owners')
 
+    def test_gui_object_offsets_use_the_same_reported_48_bit_domain(self):
+        for filename in ['windows-windowstations.json','windows-desktops.json','windows-deskscan.json']:
+            mapping=json.loads((Path(__file__).parent/'mappings'/filename).read_text())
+            native_row=[];reference={}
+            for field,spec in mapping['fields'].items():
+                if field=='Offset': left='0x0000d98df57f7180';right=int(left,16)
+                elif spec['type']=='integer':left='1';right=1
+                else:left=right='example'
+                native_row.append(left);reference[spec['reference']]=right
+            native={'columns':[s['zero'] for s in mapping['fields'].values()],'rows':[native_row],'complete':True,'diagnostics':[]}
+            self.assertTrue(compare(native,[reference],mapping)['passed'],filename)
+            reference['Offset']+=8
+            self.assertFalse(compare(native,[reference],mapping)['passed'],filename)
+
     def test_window_procedure_absence_is_payload_and_remains_strict(self):
         mapping=json.loads((Path(__file__).parent/'mappings/windows-windows.json').read_text())
         columns=list(mapping['fields'])

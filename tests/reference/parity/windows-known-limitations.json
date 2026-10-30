@@ -17,7 +17,7 @@
       "reason": "Both engines return no windows. This is a negative observation, not proof that every Windows 7 image is empty."
     }
   ],
-  "engine_version": "0.2.1-native-72",
+  "engine_version": "0.2.1-native-73",
   "known_limitations": [
     "One positive Win10 x64 capture does not verify the complete plugin contract. Win7 empty agreement is non-positive evidence.",
     "Real x86 GUI support, other builds and full traversal/failure behavior remain unverified. Unavailable procedure classification and field-page faults are now covered synthetically; no separate real fault image has been validated.",
@@ -25,59 +25,6 @@
   ],
   "reference_name_utility_sha256": "d9d54977c471380c01b23f049f29926d42aaa3a9017461780aebe8ffc956f6f1",
   "cases": [
-    {
-      "reference_plugin": "windows.windows.Windows",
-      "zero_plugin": "windows.windows.Windows",
-      "image_sha256": "d58f62e92b8c4ef913ac09b2c36a10482034c10b88d0c154dead3aaaa49cf875",
-      "mapping_sha256": "9b937883de8e43036d6540e990c087428c2c6b5e656d7c85bd012075092bb2d7",
-      "native_output_sha256": "e1b24ed702595d0d26b6d7ed50a56b31b952adef37848415e9529b26ccfc8e63",
-      "comparison": {
-        "schema_version": 1,
-        "mapping_version": 2,
-        "zero_records": 3063,
-        "reference_records": 3063,
-        "missing": [],
-        "extra": [],
-        "duplicates": [
-          {
-            "side": "zero",
-            "summary": true,
-            "groups": 1457,
-            "records": 2914,
-            "keys_and_counts_sha256": "f1776cb4f4e644d86f0ba646ef26739aa68008f6d3a2d01a49a4dd4b28fafc0f"
-          },
-          {
-            "side": "reference",
-            "summary": true,
-            "groups": 1457,
-            "records": 2914,
-            "keys_and_counts_sha256": "d68e69b37b9f259b81d5ab3f70cff77dea60bb2f108d5313edefed6caed94137"
-          }
-        ],
-        "duplicate_keys": "multiset",
-        "multiplicity_conflicts": [],
-        "conflicts": [],
-        "unverifiable": [],
-        "matched_absent": {},
-        "all_columns_mapped": true,
-        "positive_evidence": true,
-        "zero_complete": true,
-        "zero_diagnostics": [],
-        "passed": true
-      },
-      "passed": true,
-      "zero_args": [],
-      "reference_args": [],
-      "case_id": "windows-10-15063/windows-default",
-      "sample_source": "https://www.osforensics.com/downloads/WinDump.zip",
-      "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
-      "reference_output_sha256": "ac439e63d58bd882b9a42c303ec58d041f066adfb2d838ef28e5d384537c8460",
-      "symbol_sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4",
-      "zero_executable_sha256": "0406cba5eb868d7d6953f0427e0eefff82989fe1d5965c51847bedb12155dc4f",
-      "engine_version": "0.2.1-native-72",
-      "full_comparison_sha256": "e86e7fec6bc1ec3dbc3c6c1aae80382b3b1b9b2facf10a23547f03017357e4cf",
-      "comparison_details": "Duplicate groups summarized by side; complete keyed comparison retained in local run.py artifact and bound by full_comparison_sha256. Native/reference JSON digests permit independent reproduction."
-    },
     {
       "reference_plugin": "windows.windows.Windows",
       "zero_plugin": "windows.windows.Windows",
@@ -114,11 +61,64 @@
       "zero_executable_sha256": "0406cba5eb868d7d6953f0427e0eefff82989fe1d5965c51847bedb12155dc4f",
       "engine_version": "0.2.1-native-72",
       "empty_agreement": true
+    },
+    {
+      "reference_plugin": "windows.windows.Windows",
+      "zero_plugin": "windows.windows.Windows",
+      "image_sha256": "d58f62e92b8c4ef913ac09b2c36a10482034c10b88d0c154dead3aaaa49cf875",
+      "mapping_sha256": "9b937883de8e43036d6540e990c087428c2c6b5e656d7c85bd012075092bb2d7",
+      "native_output_sha256": "cca607539a898408b35cc73001db26456583de6fe50860f089e8ded73805299c",
+      "zero_args": [],
+      "reference_args": [],
+      "case_id": "windows-10-15063/windows-default",
+      "sample_source": "https://www.osforensics.com/downloads/WinDump.zip",
+      "comparison": {
+        "schema_version": 1,
+        "mapping_version": 2,
+        "zero_records": 3063,
+        "reference_records": 3063,
+        "missing": [],
+        "extra": [],
+        "duplicates": [
+          {
+            "side": "zero",
+            "summary": true,
+            "groups": 1457,
+            "records": 2914,
+            "keys_and_counts_sha256": "f1776cb4f4e644d86f0ba646ef26739aa68008f6d3a2d01a49a4dd4b28fafc0f"
+          },
+          {
+            "side": "reference",
+            "summary": true,
+            "groups": 1457,
+            "records": 2914,
+            "keys_and_counts_sha256": "2c9c44bcae07549b1f1bea18b35fef1afd15d06694177c424c3079df4c585d3d"
+          }
+        ],
+        "duplicate_keys": "multiset",
+        "multiplicity_conflicts": [],
+        "conflicts": [],
+        "unverifiable": [],
+        "matched_absent": {},
+        "all_columns_mapped": true,
+        "positive_evidence": true,
+        "zero_complete": true,
+        "zero_diagnostics": [],
+        "passed": true
+      },
+      "passed": true,
+      "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+      "reference_output_sha256": "59c21d12f954490ffe0ad1acd167bf85f8c4cb0bb5d9facb5e58c65932951118",
+      "symbol_sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4",
+      "zero_executable_sha256": "4327b2bcda68a07950d0ac28f3af56c4606296d2a39acc73979a369ab5bec1d9",
+      "engine_version": "0.2.1-native-73",
+      "full_comparison_sha256": "3c9b79e2c9a50fe9eb1e693fc95914853c810f9c13468d99148f101a64995caa",
+      "comparison_details": "Duplicate groups summarized by side; complete keyed comparison retained in local run.py artifact and bound by full_comparison_sha256. Native/reference JSON digests permit independent reproduction."
     }
   ],
-  "zero_executable_sha256": "0406cba5eb868d7d6953f0427e0eefff82989fe1d5965c51847bedb12155dc4f",
+  "zero_executable_sha256": "4327b2bcda68a07950d0ac28f3af56c4606296d2a39acc73979a369ab5bec1d9",
   "name_vectors_sha256": "bd3762cf478867f07887f4c7b4c799b4af2f7fdf0f70de84fa710cc4893aa5b9",
-  "validation": "Fresh unmodified pinned-reference and final-native72 runs via run.py; all eight fields and duplicate multiplicity, mapping v2; no record filtering. Synthetic generator classification and native page-fault traversal are recorded separately.",
+  "validation": "Fresh fixed-reference and final-native73 run.py comparisons, all mapped fields and duplicate multiplicities; no row filtering. Empty agreements are not positive evidence.",
   "reference_window_generator_sha256": "0a6b565b31b6537a6bd6f8a3e9be37795b8b078e67fb49387980d865b486d39f",
   "procedure_vectors_sha256": "7e71639b59f4a257abfb1e1ddf66e764a2b912dad8709fa773882150dfd089ff"
 }

@@ -836,7 +836,7 @@ Server 2003 x86 为 2154/2154，仅一条文件名因孤立代理项的 UTF-16 �
 
 ## native59：窗口站
 
-`windows.windowstations.WindowStations` 按参考插件扫描 `Wind` 池标签，只接受 x64，并按版本选择同一套 GUI 符号表。候选先在内核扫描层读取会话号，再进入该会话的进程地址空间读取对象名和 `rpwinstaNext`。名称保留参考的 UNICODE 长度检查，并拒绝控制字符。地址按参考 JSON 的 48 位值渲染。Win10 15063 的 8 条真实窗口站与固定参考一致；参考另有 7 条非规范短名称来自错误链，不作为正向记录。Win7 7601 两侧均为 0。完整插件合同仍为 0，候选入口对应提升至 **123/135**，尚缺 12 个。
+`windows.windowstations.WindowStations` 按参考插件扫描 `Wind` 池标签，只接受 x64，并按版本选择同一套 GUI 符号表。候选先在内核扫描层读取会话号，再进入该会话的进程地址空间读取对象名和 `rpwinstaNext`。当时名称保留 UNICODE 长度检查但额外拒绝控制字符；native73 已移除这一非参考限制。地址按参考 JSON 的 48 位值渲染。当时 Win10 15063 有 8 条共有窗口站观察；当时参考另有 7 条记录未恢复；native73 已定位名称解码、名称位检查和 padding 减法差异并修复，不能再以“错误链”为由排除。Win7 7601 两侧均为 0。完整插件合同仍为 0，候选入口对应提升至 **123/135**，尚缺 12 个。
 
 ## native60：桌面
 
@@ -1057,3 +1057,28 @@ Win7 0/0 仍为非正向证据。该结果替换同名 baseline 的旧证据，�
 完整插件验收仍为 0。`make check` 全部通过（587 库、8 CLI/MCP、50 协议、29 Python
 差分工具测试）；发布包空 PATH／独立目录启动退出通过。源码及比较摘要见
 `tests/reference/parity/windows-known-limitations.json`。
+
+
+## native73：窗口站原始观察和 GUI carving
+
+本轮实际基线为 native72 10 条、参考 15 条：8 条共有，7 条少出，2 条多出。
+名称读取移除非参考的控制字符和 128 字符限制，保留最少两个 Unicode 字符的规则；
+UTF-16 BOM、奇数尾字节替换和首个 NUL 截断与固定 String 构造器一致。NameInfo
+不额外验证 InfoMask 的名称位，而是使用固定参考的表索引规则。
+
+GUI Wind/Desk 扫描不再将标签对应池头地址向下取整，这曾把标签归到其他对象上。
+共享 top-down padding 则保留 Python 的 signed 减法与原条件，0 字段减 4 得到 -4
+仍可成为候选。8 个 UTF-16、9 个站信息和 4 个实际 get_object carving 合成向量
+分别验证这些分支；测试桩不代表完整对象有效性验证。临时真实内存追踪代码已移除。
+
+修复后 Win10 WindowStations 为 15/15、三列一致，没有过滤原始异常名称；这些
+是参考算法的原始观察，不证明每条都是活动窗口站。GUI offset 映射 v2 比较两侧
+实际报告的 48-bit object offset，纠正之前只扩展参考端导致的比较域不一致。共享
+逻辑对其他 GUI 入口的影响另做联合真实差分，不把本轮当作完整插件合同完成。
+
+最终 native73 联合真实差分全部通过：WindowStations 15/15（三列）、Desktops 28/28、
+DeskScan 28/28、Windows 3063/3063（八列），均比较全部重复数，无记录过滤。
+Win7 WindowStations 0/0 单独登记为空结果一致，不计正向证据。新增三个独立正向
+用例，Windows 同名基线替换，累计为 110 项，完整插件合同仍为 0/135。
+`make check` 通过：590 库、8 CLI/MCP、50 协议和 30 Python 测试；native73
+发布包在空 PATH 和独立工作目录启动退出通过。

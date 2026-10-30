@@ -50,7 +50,7 @@
       "id": "windows-7-7601-x64/deskscan-default",
       "reference_plugin": "windows.deskscan.DeskScan",
       "zero_plugin": "windows.deskscan.DeskScan",
-      "mapping": "tests/reference/parity/mappings/windows-deskscan.json"
+      "mapping": "tests/reference/parity/mappings/windows-deskscan-empty.json"
     }
   ]
 }

@@ -5,15 +5,102 @@
   "observations": [
     {
       "sample": "windows-10-15063",
-      "matched_real_stations": 8,
-      "reference_only": 7,
-      "reason": "The reference follows rpwinstaNext from the first scanned object on every iteration. The seven extra records are non-canonical two-character names produced by that walk and are not registered as positive evidence."
+      "previous_zero_rows": 10,
+      "reference_rows": 15,
+      "previous_common": 8,
+      "previous_missing": 7,
+      "previous_extra": 2,
+      "rows": 15,
+      "reason": "Exact tag-relative GUI pool headers, signed padding subtraction and reference name decoding restore all 15 raw observations. Earlier dismissal of seven records as invalid was unsupported; matching these bytes does not establish live station validity."
     },
     {
       "sample": "windows-7-7601-x64",
-      "matched_real_stations": 0,
-      "reference_only": 0,
-      "reason": "Both engines return no window stations. This is a negative observation, not proof that every Windows 7 image is empty."
+      "rows": 0,
+      "reference_rows": 0,
+      "reason": "Empty agreement only; not positive evidence."
     }
+  ],
+  "cases": [
+    {
+      "reference_plugin": "windows.windowstations.WindowStations",
+      "zero_plugin": "windows.windowstations.WindowStations",
+      "image_sha256": "d58f62e92b8c4ef913ac09b2c36a10482034c10b88d0c154dead3aaaa49cf875",
+      "mapping_sha256": "152533a582d46323cb89e0c2fd1370f32df1d409630c1a4366ee866ff1afa676",
+      "native_output_sha256": "a8dec3c1d638bcdfeb9349a14a606a1026cfea2c2542b3799ea85b3ae51d9bdc",
+      "zero_args": [],
+      "reference_args": [],
+      "case_id": "windows-10-15063/windowstations-default",
+      "sample_source": "https://www.osforensics.com/downloads/WinDump.zip",
+      "comparison": {
+        "schema_version": 1,
+        "mapping_version": 2,
+        "zero_records": 15,
+        "reference_records": 15,
+        "missing": [],
+        "extra": [],
+        "duplicates": [],
+        "duplicate_keys": "multiset",
+        "multiplicity_conflicts": [],
+        "conflicts": [],
+        "unverifiable": [],
+        "matched_absent": {},
+        "all_columns_mapped": true,
+        "positive_evidence": true,
+        "zero_complete": true,
+        "zero_diagnostics": [],
+        "passed": true
+      },
+      "passed": true,
+      "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+      "reference_output_sha256": "e69f79f711166f1f123dbfdbc3463e5b96743b0d3fdf2b964257da3967f6f16d",
+      "symbol_sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4",
+      "zero_executable_sha256": "4327b2bcda68a07950d0ac28f3af56c4606296d2a39acc73979a369ab5bec1d9",
+      "engine_version": "0.2.1-native-73"
+    },
+    {
+      "reference_plugin": "windows.windowstations.WindowStations",
+      "zero_plugin": "windows.windowstations.WindowStations",
+      "image_sha256": "80366d7ec64a5529c95c2f523f4281a5f11efbad33ecb19f73525470c1407b23",
+      "mapping_sha256": "8876dcd9a28598dd630b755cefeb1af7157bcfa7cb190d9f8f29945d26c88c91",
+      "native_output_sha256": "183d3d6b21ba453bc065b02f5afba9280deb3dc8e6746847be31d88f9d2f7491",
+      "zero_args": [],
+      "reference_args": [],
+      "case_id": "windows-7-7601-x64/windowstations-default",
+      "sample_source": "https://blog.bi0s.in/2019/09/24/Forensics/InCTFi19-NotchItUp/",
+      "comparison": {
+        "schema_version": 1,
+        "mapping_version": 2,
+        "zero_records": 0,
+        "reference_records": 0,
+        "missing": [],
+        "extra": [],
+        "duplicates": [],
+        "duplicate_keys": "multiset",
+        "multiplicity_conflicts": [],
+        "conflicts": [],
+        "unverifiable": [],
+        "matched_absent": {},
+        "all_columns_mapped": true,
+        "positive_evidence": false,
+        "zero_complete": true,
+        "zero_diagnostics": [],
+        "passed": true
+      },
+      "passed": false,
+      "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+      "reference_output_sha256": "a3cbe01dad52836a7ac8efc91954cf64867f4dee8a6f046c4bb0838d11f48589",
+      "symbol_sha256": "6d5f85f7b953330b9762a57e5a25266547e7391ad4f6655170a9f48876fb6b8c",
+      "zero_executable_sha256": "4327b2bcda68a07950d0ac28f3af56c4606296d2a39acc73979a369ab5bec1d9",
+      "engine_version": "0.2.1-native-73",
+      "empty_agreement": true
+    }
+  ],
+  "engine_version": "0.2.1-native-73",
+  "zero_executable_sha256": "4327b2bcda68a07950d0ac28f3af56c4606296d2a39acc73979a369ab5bec1d9",
+  "validation": "Fresh fixed-reference and final-native73 run.py comparisons, all mapped fields and duplicate multiplicities; no row filtering. Empty agreements are not positive evidence.",
+  "known_limitations": [
+    "One positive Win10 x64 capture does not establish complete build, architecture, parameter, traversal or failure contracts.",
+    "Raw GUI records can include retained or reused object bytes; matching the reference does not validate every object as active.",
+    "Shared pool-carving changes have synthetic padding coverage and real GUI regression coverage; full canonical PoolScanner parity remains unverified."
   ]
 }

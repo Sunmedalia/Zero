@@ -1,0 +1,39 @@
+{
+  "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+  "source_sha256": "cd9846ecdae31e8e5e15f03e9c49fdfb80365c2d62f5ea050203cc9bd0dac4b8",
+  "scope": "Synthetic actual top-down padding branch; object is_valid stubbed true to isolate carving",
+  "cases": [
+    {
+      "encoded_padding": 0,
+      "expected_bodies": [
+        64,
+        80,
+        96
+      ]
+    },
+    {
+      "encoded_padding": 2,
+      "expected_bodies": [
+        64,
+        80,
+        96
+      ]
+    },
+    {
+      "encoded_padding": 4,
+      "expected_bodies": [
+        64,
+        80,
+        96
+      ]
+    },
+    {
+      "encoded_padding": 128,
+      "expected_bodies": [
+        64,
+        80,
+        96
+      ]
+    }
+  ]
+}

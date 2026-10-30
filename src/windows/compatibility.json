@@ -2960,7 +2960,8 @@
             "windows.strings.Strings": 967,
             "windows.malware.direct_system_calls.DirectSystemCalls": 99,
             "windows.malware.skeleton_key_check.Skeleton_Key_Check": 1,
-            "windows.windows.Windows": 3063
+            "windows.windows.Windows": 3063,
+            "windows.windowstations.WindowStations": 15
           },
           "complete": {
             "windows.driverirp.DriverIrp": false,
@@ -2976,7 +2977,8 @@
             "windows.strings.Strings": false,
             "windows.malware.direct_system_calls.DirectSystemCalls": false,
             "windows.malware.skeleton_key_check.Skeleton_Key_Check": false,
-            "windows.windows.Windows": true
+            "windows.windows.Windows": true,
+            "windows.windowstations.WindowStations": true
           },
           "row_options": {
             "windows.memmap.Memmap": {
@@ -3001,7 +3003,8 @@
             "windows.strings.Strings": "967 external strings: all three fields, exact owner sets and duplicate input multiplicity match pinned v2.28.2, all processes. Mapping/process diagnostics remain partial.",
             "windows.malware.direct_system_calls.DirectSystemCalls": "99/99 rows, all five fields and repeated block multiplicities; captured-mapping/VAD diagnostics remain partial. Unreadable handle counts do not exclude processes under the pinned active-filter semantics.",
             "windows.malware.skeleton_key_check.Skeleton_Key_Check": "One RC4-HMAC result, all five fields, matches pinned reference via CDLocateCSystem export analysis. Process/VAD diagnostics remain partial. Real malicious hooks and PDB-path parity remain unverified.",
-            "windows.windows.Windows": "3063/3063 rows and all eight fields match pinned reference after process-name decoding truncates at NUL or U+FFFD. Four empty-name observations retain the complete eight-byte PID field; they are not asserted to be valid processes."
+            "windows.windows.Windows": "3063/3063 rows and all eight fields match pinned reference after process-name decoding truncates at NUL or U+FFFD. Four empty-name observations retain the complete eight-byte PID field; they are not asserted to be valid processes.",
+            "windows.windowstations.WindowStations": "All 15 raw station observations match fixed reference, including unusual names from retained pool/object-header bytes. Exact tag-relative GUI header carving and signed optional-padding behavior are retained; rows do not prove active station validity."
           }
         },
         {

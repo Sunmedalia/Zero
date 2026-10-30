@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "keys": [
     "Offset",
     "SessionId"
@@ -11,7 +11,7 @@
       "zero": "Offset",
       "reference": "Offset",
       "type": "address",
-      "reference_type": "address48"
+      "reference_type": "address"
     },
     "Name": {
       "zero": "Name",
@@ -23,5 +23,6 @@
       "reference": "SessionId",
       "type": "integer"
     }
-  }
+  },
+  "notes": "Both outputs use reference object offsets masked to 48 bits. Compare exact values, all three columns and multiplicities; preserve unusual names and do not filter records."
 }

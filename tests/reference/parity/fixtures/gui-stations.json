@@ -1,0 +1,121 @@
+{
+  "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+  "source_sha256": "1c0288cf96f1c2fee86446ca23be56cebb6ccaf1e271fa45f2e03267cd0b4387",
+  "scope": "Synthetic real String constructor and get_info semantics; no real station names",
+  "strings": [
+    {
+      "id": "plain",
+      "hex": "730074006100740069006f006e00",
+      "expected": "station"
+    },
+    {
+      "id": "nul",
+      "hex": "6100620000007400610069006c00",
+      "expected": "ab"
+    },
+    {
+      "id": "control",
+      "hex": "610062000100",
+      "expected": "ab\u0001"
+    },
+    {
+      "id": "odd",
+      "hex": "6100620078",
+      "expected": "ab\ufffd"
+    },
+    {
+      "id": "replacement",
+      "hex": "00d86100",
+      "expected": "\ufffda"
+    },
+    {
+      "id": "le-bom",
+      "hex": "fffe61006200",
+      "expected": "ab"
+    },
+    {
+      "id": "be-bom",
+      "hex": "feff00610062",
+      "expected": "ab"
+    },
+    {
+      "id": "long",
+      "hex": "580058005800580058005800580058005800580058005800580058005800580058005800580058005800580058005800580058005800580058005800580058005800580058005800580058005800580058005800580058005800580058005800580058005800580058005800580058005800580058005800580058005800580058005800580058005800580058005800580058005800580058005800580058005800580058005800580058005800580058005800580058005800580058005800580058005800580058005800580058005800580058005800580058005800580058005800580058005800580058005800580058005800580058005800580058005800",
+      "expected": "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+    }
+  ],
+  "info": [
+    {
+      "name": "ab",
+      "session": 0,
+      "expected": [
+        "ab",
+        0
+      ]
+    },
+    {
+      "name": "a",
+      "session": 0,
+      "expected": [
+        null,
+        null
+      ]
+    },
+    {
+      "name": "",
+      "session": 0,
+      "expected": [
+        null,
+        null
+      ]
+    },
+    {
+      "name": "ab\u0001",
+      "session": 0,
+      "expected": [
+        "ab\u0001",
+        0
+      ]
+    },
+    {
+      "name": "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+      "session": 2,
+      "expected": [
+        "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+        2
+      ]
+    },
+    {
+      "name": "\ud83d\ude00",
+      "session": 1,
+      "expected": [
+        null,
+        null
+      ]
+    },
+    {
+      "name": "ab",
+      "session": 255,
+      "expected": [
+        "ab",
+        255
+      ]
+    },
+    {
+      "name": "ab",
+      "session": 256,
+      "expected": [
+        null,
+        null
+      ]
+    },
+    {
+      "name": "ab",
+      "session": null,
+      "expected": [
+        null,
+        null
+      ]
+    }
+  ]
+}

@@ -23,6 +23,34 @@ struct GuiLayout {
     window_direct_name: Option<u64>,
 }
 
+fn reference_unicode_name(bytes: &[u8]) -> String {
+    let (bytes, big_endian) = if bytes.starts_with(&[0xfe, 0xff]) {
+        (&bytes[2..], true)
+    } else if bytes.starts_with(&[0xff, 0xfe]) {
+        (&bytes[2..], false)
+    } else {
+        (bytes, false)
+    };
+    let mut units: Vec<_> = bytes
+        .chunks_exact(2)
+        .map(|b| {
+            if big_endian {
+                u16::from_be_bytes([b[0], b[1]])
+            } else {
+                u16::from_le_bytes([b[0], b[1]])
+            }
+        })
+        .collect();
+    if bytes.len() % 2 != 0 {
+        units.push(0xfffd);
+    }
+    String::from_utf16_lossy(&units)
+        .split('\0')
+        .next()
+        .unwrap_or_default()
+        .to_owned()
+}
+
 fn classify_window_procedure(value: Option<u64>) -> Option<String> {
     match value {
         None => Some("N/A".into()),
@@ -1231,8 +1259,7 @@ impl Windows<'_> {
             return None;
         }
         let name = self.session_object_name(memory, station)?;
-        if !(2..=128).contains(&name.chars().count()) || name.chars().any(|unit| unit.is_control())
-        {
+        if name.chars().count() <= 1 {
             return None;
         }
         Some((name, session_id))
@@ -1251,9 +1278,6 @@ impl Windows<'_> {
                     1,
                 )
                 .ok()?;
-            if mask & 2 == 0 {
-                return None;
-            }
             let table = self.symbol("ObpInfoMaskToOffset").ok()?;
             let delta = self.vm.uint(add(table, mask & 3).ok()?, 1).ok()?;
             if delta == 0 {
@@ -1293,7 +1317,7 @@ impl Windows<'_> {
     fn session_unicode(&self, memory: &Memory<'_>, descriptor: u64) -> Result<String> {
         let length = memory.uint(descriptor, 2)?;
         let maximum = memory.uint(add(descriptor, 2)?, 2)?;
-        if length == 0 || maximum == 0 || length > maximum || length > 65534 || length % 2 != 0 {
+        if length == 0 || maximum == 0 || length > maximum {
             bail!("对象名称长度无效");
         }
         let buffer = memory.uint(
@@ -1302,12 +1326,7 @@ impl Windows<'_> {
         )?;
         let mut bytes = vec![0u8; length as usize];
         memory.read(buffer, &mut bytes)?;
-        Ok(String::from_utf16_lossy(
-            &bytes
-                .chunks_exact(2)
-                .map(|word| u16::from_le_bytes([word[0], word[1]]))
-                .collect::<Vec<_>>(),
-        ))
+        Ok(reference_unicode_name(&bytes))
     }
 }
 
@@ -1361,7 +1380,62 @@ mod tests {
     }
 
     #[test]
-    fn station_names_require_a_unicode_name_without_controls() {
+    fn station_unicode_and_info_follow_fixed_reference_vectors() {
+        let vectors: serde_json::Value = serde_json::from_str(include_str!(
+            "../../tests/reference/parity/fixtures/gui-stations.json"
+        ))
+        .unwrap();
+        for c in vectors["strings"].as_array().unwrap() {
+            let data: Vec<_> = c["hex"]
+                .as_str()
+                .unwrap()
+                .as_bytes()
+                .chunks_exact(2)
+                .map(|b| u8::from_str_radix(std::str::from_utf8(b).unwrap(), 16).unwrap())
+                .collect();
+            assert_eq!(
+                reference_unicode_name(&data),
+                c["expected"].as_str().unwrap(),
+                "{}",
+                c["id"]
+            );
+        }
+        for c in vectors["info"].as_array().unwrap() {
+            let (mut bytes, mut isf) = fixture();
+            isf.data["user_types"]["_QUAD"] = serde_json::json!({"size":8,"fields":{}});
+            isf.data["user_types"]["_OBJECT_HEADER"] = serde_json::json!({"size":56,"fields":{"Body":{"offset":48,"type":{"kind":"struct","name":"_QUAD"}},"InfoMask":{"offset":26,"type":{"kind":"base","name":"u64"}}}});
+            isf.data["user_types"]["_OBJECT_HEADER_NAME_INFO"] = serde_json::json!({"size":32,"fields":{"Name":{"offset":0,"type":{"kind":"struct","name":"_UNICODE_STRING"}}}});
+            isf.data["symbols"]["ObpInfoMaskToOffset"] = serde_json::json!({"address":0x500});
+            bytes[0x8501] = 32;
+            bytes[0x10fea] = 1; // Name bit is absent but the reference still indexes the table.
+            bytes[0x11000..0x11004]
+                .copy_from_slice(&(c["session"].as_u64().unwrap_or(256) as u32).to_le_bytes());
+            let name: Vec<_> = c["name"]
+                .as_str()
+                .unwrap()
+                .encode_utf16()
+                .flat_map(u16::to_le_bytes)
+                .collect();
+            bytes[0x10fb0..0x10fb2].copy_from_slice(&(name.len() as u16).to_le_bytes());
+            bytes[0x10fb2..0x10fb4].copy_from_slice(&(name.len() as u16).to_le_bytes());
+            put(&mut bytes, 0x10fb8, K + 0xa000);
+            bytes[0x12000..0x12000 + name.len()].copy_from_slice(&name);
+            let img = image(&bytes);
+            let w = Windows {
+                vm: Memory::new(&img, 0x1000, &isf, None),
+                base: K,
+                pdb: PdbIdentity::from_isf(&isf).unwrap(),
+            };
+            let found = w
+                .station_info(&w.vm, K + 0x9000)
+                .map(|(name, sid)| serde_json::json!([name, sid]))
+                .unwrap_or(serde_json::json!([null, null]));
+            assert_eq!(found, c["expected"]);
+        }
+    }
+
+    #[test]
+    fn station_names_require_readable_object_name_metadata() {
         let (bytes, isf) = fixture();
         let snapshot = image(&bytes);
         let windows = Windows {

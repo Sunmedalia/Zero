@@ -1,0 +1,48 @@
+{
+  "version": 2,
+  "keys": [
+    "Offset",
+    "Window Station",
+    "Session",
+    "Desktop",
+    "Process",
+    "PID"
+  ],
+  "duplicate_keys": "multiset",
+  "allow_partial": true,
+  "fields": {
+    "Offset": {
+      "zero": "Offset",
+      "reference": "Offset",
+      "type": "address",
+      "reference_type": "address"
+    },
+    "Window Station": {
+      "zero": "Window Station",
+      "reference": "Window Station",
+      "type": "text"
+    },
+    "Session": {
+      "zero": "Session",
+      "reference": "Session",
+      "type": "integer"
+    },
+    "Desktop": {
+      "zero": "Desktop",
+      "reference": "Desktop",
+      "type": "text"
+    },
+    "Process": {
+      "zero": "Process",
+      "reference": "Process",
+      "type": "text"
+    },
+    "PID": {
+      "zero": "PID",
+      "reference": "PID",
+      "type": "integer"
+    }
+  },
+  "notes": "Both sides report 48-bit masked GUI object offsets. Compare the emitted offset value without extending just one side; all columns and exact multiplicities remain required. Empty agreement is not positive evidence.",
+  "allow_empty": true
+}

@@ -554,14 +554,11 @@ impl Windows<'_> {
                     continue;
                 };
                 let encoded = u64::from(u32::from_le_bytes(encoded.try_into().unwrap()));
-                let Some(extra) = encoded.checked_sub(padding_size) else {
-                    continue;
-                };
-                if extra <= delta
-                    && selected
-                        .checked_add(extra)
-                        .is_some_and(|length| length > delta)
-                {
+                // Pinned Python subtraction is signed: an encoded padding amount
+                // below its structure size is retained. Preserve its exact chained
+                // comparison instead of imposing a stricter unsigned range check.
+                let extra = i128::from(encoded) - i128::from(padding_size);
+                if i128::from(delta) - i128::from(selected) >= extra && extra > i128::from(delta) {
                     continue;
                 }
             }
@@ -614,13 +611,12 @@ impl Windows<'_> {
                 job.check()?;
                 let tag_at = from + at;
                 from = tag_at + 1;
-                let Some(mut local) = tag_at.checked_sub(tag_offset) else {
+                let Some(local) = tag_at.checked_sub(tag_offset) else {
                     continue;
                 };
-                local -= local % alignment as usize;
-                if !local.is_multiple_of(alignment as usize)
-                    || local + header_size as usize > data.len()
-                {
+                // The fixed scanner reads the header exactly before the matched tag.
+                // Rounding this address down associates the tag with unrelated bytes.
+                if local + header_size as usize > data.len() {
                     continue;
                 }
                 let bytes = &data[local..local + header_size as usize];
@@ -867,6 +863,91 @@ mod tests {
     use super::*;
     use serde_json::json;
 
+    #[test]
+    fn gui_tag_matches_keep_the_exact_unaligned_header_address() {
+        let (mut bytes, mut isf) = fixture();
+        let field =
+            |offset, name| serde_json::json!({"offset":offset,"type":{"kind":"base","name":name}});
+        for (name, size) in [("u16", 2), ("u8", 1), ("u32", 4)] {
+            isf.data["base_types"][name] = serde_json::json!({"size":size});
+        }
+        isf.data["user_types"]["_POOL_HEADER"] = serde_json::json!({"size":16,"fields":{"BlockSize":field(0,"u16"),"PoolType":field(2,"u16"),"PoolTag":field(4,"u32")}});
+        isf.data["user_types"]["_QUAD"] = serde_json::json!({"size":8,"fields":{}});
+        isf.data["user_types"]["_OBJECT_HEADER"] = serde_json::json!({"size":56,"fields":{"Body":{"offset":48,"type":{"kind":"struct","name":"_QUAD"}},"InfoMask":field(26,"u8"),"PointerCount":field(0,"u64")}});
+        isf.data["user_types"]["_OBJECT_HEADER_NAME_INFO"] =
+            serde_json::json!({"size":32,"fields":{}});
+        put(&mut bytes, 0x8200, 15063);
+        let at = 0xc003;
+        bytes[at..at + 64].fill(0);
+        bytes[at..at + 2].copy_from_slice(&16u16.to_le_bytes());
+        bytes[at + 2..at + 4].copy_from_slice(&1u16.to_le_bytes());
+        bytes[at + 4..at + 8].copy_from_slice(b"Wind");
+        let img = image(&bytes);
+        let w = Windows {
+            vm: Memory::new(&img, 0x1000, &isf, None),
+            base: K,
+            pdb: PdbIdentity::from_isf(&isf).unwrap(),
+        };
+        let (virtual_scan, bodies, _) = w
+            .scan_gui_pool(b"Wind", 152, 0x90, &Job::default())
+            .unwrap();
+        assert!(virtual_scan);
+        assert!(bodies.contains(&(K + 0x4003 + 16 + 48)), "{bodies:x?}");
+        assert!(
+            !bodies.contains(&(K + 0x4000 + 16 + 48)),
+            "must not carve at a different header: {bodies:x?}"
+        );
+    }
+    #[test]
+    fn top_down_padding_matches_pinned_signed_subtraction_and_comparison() {
+        let vectors: serde_json::Value = serde_json::from_str(include_str!(
+            "../../tests/reference/parity/fixtures/gui-pool-padding.json"
+        ))
+        .unwrap();
+        for c in vectors["cases"].as_array().unwrap() {
+            let (mut bytes, mut isf) = fixture();
+            isf.data["base_types"]["u8"] = serde_json::json!({"size":1});
+            isf.data["user_types"]["_POOL_HEADER"] = serde_json::json!({"size":16,"fields":{}});
+            isf.data["user_types"]["_QUAD"] = serde_json::json!({"size":8,"fields":{}});
+            isf.data["user_types"]["_OBJECT_HEADER"] = serde_json::json!({"size":56,"fields":{"Body":{"offset":48,"type":{"kind":"struct","name":"_QUAD"}},"InfoMask":{"offset":26,"type":{"kind":"base","name":"u8"}},"PointerCount":{"offset":0,"type":{"kind":"base","name":"u64"}}}});
+            bytes[0xc000..0xc080].fill(0);
+            bytes[0xc01c..0xc020]
+                .copy_from_slice(&(c["encoded_padding"].as_u64().unwrap() as u32).to_le_bytes());
+            bytes[0xc03a] = 2;
+            let img = image(&bytes);
+            let w = Windows {
+                vm: Memory::new(&img, 0x1000, &isf, None),
+                base: K,
+                pdb: PdbIdentity::from_isf(&isf).unwrap(),
+            };
+            let constraint = Constraint::new(
+                b"Wind",
+                "tagWINDOWSTATION",
+                Some("WindowStation"),
+                0,
+                3,
+                true,
+                &[],
+            );
+            let found = w
+                .pool_bodies(
+                    &constraint,
+                    K + 0x4000,
+                    PoolCarve {
+                        block: 128,
+                        alignment: 16,
+                        type_size: 152,
+                        top_down: true,
+                        optional: &[(false, 32), (true, 4)],
+                        virtual_scan: true,
+                    },
+                    &Job::default(),
+                )
+                .unwrap();
+            let relative: Vec<_> = found.into_iter().map(|at| at - (K + 0x4000)).collect();
+            assert_eq!(serde_json::json!(relative), c["expected_bodies"]);
+        }
+    }
     #[test]
     fn physical_pool_scan_keeps_valid_process_and_reports_unreadable_ranges() {
         let (mut bytes, mut isf) = fixture();

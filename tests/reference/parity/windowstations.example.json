@@ -50,7 +50,7 @@
       "id": "windows-7-7601-x64/windowstations-default",
       "reference_plugin": "windows.windowstations.WindowStations",
       "zero_plugin": "windows.windowstations.WindowStations",
-      "mapping": "tests/reference/parity/mappings/windows-windowstations.json"
+      "mapping": "tests/reference/parity/mappings/windows-windowstations-empty.json"
     }
   ]
 }

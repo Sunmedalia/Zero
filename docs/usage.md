@@ -1011,7 +1011,7 @@ PDB/PE 命名导出。不根据最近导出名推断符号。未映射地址仍�
 目前只支持参考要求的 Intel32/Intel64。Server 2003/2008 已有真实对照，Win7/10/11 仍有差异，
 不能据此视为完整插件验收。
 
-`windows.windowstations.WindowStations` 扫描 x64 的 `Wind` 窗口站池。它按内核版本选择参考 GUI 符号表，在对应会话的进程地址空间中读取名称和链表。输出 Offset、Name、SessionId。名称必须通过 UNICODE 长度检查且不含控制字符。x86 与未映射的构建版本明确不支持。Win10 15063 已对齐 8 条真实窗口站；Win7 7601 为双侧空结果。这还不是完整 GUI 插件验收。
+`windows.windowstations.WindowStations` 扫描 x64 的 `Wind` 窗口站池。它按内核版本选择参考 GUI 符号表，在对应会话的进程地址空间中读取名称和链表。输出 Offset、Name、SessionId。名称需通过参考 UNICODE 长度检查，按 UTF-16 及 NUL 截断；参考接受的控制字符和异常名称作为原始观察保留。x86 与未映射的构建版本明确不支持。native73 的 Win10 15063 为 15/15 条、三列一致，包含保留池内存中的异常名称；Win7 7601 为双侧空结果。这还不是完整 GUI 插件验收。
 
 `windows.desktops.Desktops` 从这些窗口站的 `rpdeskList` 读取桌面，再按 `PtiLink` 列出线程所属进程。输出 Offset、Window Station、Session、Desktop、Process、PID。x86 与未映射构建明确不支持。Win10 15063 的 28 行已与参考全字段一致；Win7 7601 为双侧空结果。这还不是完整 GUI 插件验收。
 

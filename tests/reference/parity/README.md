@@ -637,3 +637,9 @@ GUI 过程分类使用 `gui_procedure_vectors.py` 执行固定参考的实际 Wi
 生成 `fixtures/gui-window-procedures.json`。假进程身份不属于该分类测试的验收范围。
 Windows 映射 v2 将 Procedure 作为可缺失负载字段；双侧缺失、单侧缺失、不同地址
 和重复数的比较有工具回归测试，不通过排除字段或选择记录来消除差异。
+
+`gui-regression.example.json` 联合复核 WindowStations、Desktops、DeskScan 和 Windows。
+站名称与 UTF-16 使用 `gui_station_vectors.py` 执行固定 String 构造器和 get_info；
+`gui_padding_vectors.py` 执行固定 pool.get_object 的 padding 分支（对象 is_valid 为
+测试桩，只证明 carving 条件）。GUI offset 映射 v2 比较两侧实际报告的 48-bit 值，
+不再只对参考端做 canonical 地址扩展；其他字段和重复数仍严格比较。

@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "keys": [
     "Offset",
     "Window Station",
@@ -15,7 +15,7 @@
       "zero": "Offset",
       "reference": "Offset",
       "type": "address",
-      "reference_type": "address48"
+      "reference_type": "address"
     },
     "Window Station": {
       "zero": "Window Station",
@@ -42,5 +42,6 @@
       "reference": "PID",
       "type": "integer"
     }
-  }
+  },
+  "notes": "Both sides report 48-bit masked GUI object offsets. Compare the emitted offset value without extending just one side; all columns and exact multiplicities remain required."
 }

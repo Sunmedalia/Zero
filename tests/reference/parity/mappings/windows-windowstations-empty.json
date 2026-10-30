@@ -1,0 +1,29 @@
+{
+  "version": 2,
+  "keys": [
+    "Offset",
+    "SessionId"
+  ],
+  "duplicate_keys": "multiset",
+  "allow_partial": true,
+  "fields": {
+    "Offset": {
+      "zero": "Offset",
+      "reference": "Offset",
+      "type": "address",
+      "reference_type": "address"
+    },
+    "Name": {
+      "zero": "Name",
+      "reference": "Name",
+      "type": "text"
+    },
+    "SessionId": {
+      "zero": "SessionId",
+      "reference": "SessionId",
+      "type": "integer"
+    }
+  },
+  "notes": "Both outputs use reference object offsets masked to 48 bits. Compare exact values, all three columns and multiplicities; preserve unusual names and do not filter records. Empty agreement is not positive evidence.",
+  "allow_empty": true
+}
