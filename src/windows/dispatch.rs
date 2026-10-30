@@ -2,6 +2,7 @@
 use super::*;
 
 pub(super) struct DispatchModules {
+    reference_collection: bool,
     modules: Vec<KernelModule>,
     symbols: BTreeMap<u64, Vec<String>>,
     kernel_base: u64,
@@ -60,6 +61,7 @@ impl DispatchModules {
             names.sort();
         }
         Ok(Self {
+            reference_collection: false,
             modules,
             symbols,
             kernel_base,
@@ -72,6 +74,16 @@ impl DispatchModules {
             stable: true,
         })
     }
+    pub(super) fn reference(
+        modules: Vec<KernelModule>,
+        isf: &Isf,
+        kernel_base: u64,
+        job: &Job,
+    ) -> Result<Self> {
+        let mut collection = Self::new(modules, isf, kernel_base, job)?;
+        collection.reference_collection = true;
+        Ok(collection)
+    }
     /// Resolve only modules containing a used dispatch address. Failures are
     /// remembered for this analysis so missing pages/PDBs never cause retry storms.
     pub(super) fn resolve_at(
@@ -82,6 +94,10 @@ impl DispatchModules {
         r: &mut Results,
         job: &Job,
     ) -> Result<()> {
+        if self.reference_collection {
+            job.check()?;
+            return Ok(());
+        }
         for module in &self.modules {
             job.check()?;
             if module.base == self.kernel_base
@@ -181,6 +197,9 @@ impl DispatchModules {
         &self,
         resources: Option<(&std::path::Path, bool)>,
     ) -> serde_json::Value {
+        if self.reference_collection {
+            return serde_json::json!({"scope":"pinned SSDT module collection; kernel ISF bound at every loaded module base","match":"exact RVA; all aliases; inclusive module endpoints","mode":"reference-kernel-isf","external_resources":false});
+        }
         serde_json::json!({"scope":"exact per-module PDB; no cross-module fallback", "modules":self.evidence,
             "match":"exact address; all aliases; half-open module ranges",
             "cache_dependencies": CacheDependencies {version:1,converter:windows_symbols::CONVERTER_VERSION.into(),
@@ -191,15 +210,18 @@ impl DispatchModules {
         for module in &self.modules {
             if module.name.is_empty()
                 || target < module.base
-                || module
-                    .base
-                    .checked_add(module.size)
-                    .is_none_or(|end| target >= end)
+                || module.base.checked_add(module.size).is_none_or(|end| {
+                    if self.reference_collection {
+                        target > end
+                    } else {
+                        target >= end
+                    }
+                })
             {
                 continue;
             }
             let name = &module.name;
-            let symbols = if module.base == self.kernel_base {
+            let symbols = if self.reference_collection || module.base == self.kernel_base {
                 Some(&self.symbols)
             } else {
                 self.external.get(&module.base)
@@ -235,6 +257,9 @@ pub(super) fn dependencies_match(
 ) -> Result<bool> {
     job.check()?;
     let evidence = &result.kernel_identity["dispatch_symbols"];
+    if evidence["mode"] == "reference-kernel-isf" {
+        return Ok(true);
+    }
     let Ok(deps) =
         serde_json::from_value::<CacheDependencies>(evidence["cache_dependencies"].clone())
     else {
@@ -306,6 +331,37 @@ pub(super) fn load_cached(
 mod tests {
     use super::super::tests::{K, fixture, image};
     use super::*;
+    #[test]
+    fn pinned_collection_binds_kernel_table_at_every_base_and_keeps_inclusive_ends() {
+        let vectors: serde_json::Value = serde_json::from_str(include_str!(
+            "../../tests/reference/parity/fixtures/dispatch-collection.json"
+        ))
+        .unwrap();
+        let (_, mut isf) = super::super::tests::fixture();
+        isf.data["symbols"] = serde_json::json!({"Zero":{"address":0},"AliasA":{"address":16},"AliasB":{"address":16},"End":{"address":32}});
+        for case in vectors["cases"].as_array().unwrap() {
+            let modules = case["modules"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|m| KernelModule {
+                    name: m[0].as_str().unwrap().into(),
+                    base: m[1].as_u64().unwrap(),
+                    size: m[2].as_u64().unwrap(),
+                    path: String::new(),
+                })
+                .collect();
+            let index = DispatchModules::reference(modules, &isf, 0x1000, &Job::default()).unwrap();
+            for query in case["expected"].as_array().unwrap() {
+                assert_eq!(
+                    serde_json::json!(index.at(query["query"].as_u64().unwrap())),
+                    query["rows"],
+                    "{}",
+                    case["id"]
+                );
+            }
+        }
+    }
     use serde_json::json;
 
     fn external_fixture() -> (Vec<u8>, Isf, tempfile::TempDir) {

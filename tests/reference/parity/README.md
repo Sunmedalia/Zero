@@ -675,3 +675,8 @@ Pointer 解码的四种原始层读取情形。来源向量隔离字段格式化
 查询及 get_task_callstack 栈循环。15 个模块查询、7 个栈字向量使用合成字段／
 字节层，分别验证地址域／Python 优先级／重叠归属和未对齐尾字／首错停止／
 无效 SP。真实八个 PsCallStack 用例与合成向量分开统计；core 范围不代替全表。
+
+`dispatch_vectors.py` 执行实际 SSDT.build_module_collection 和 SizedModule／
+ModuleCollection 地址查询，验证默认 DriverIrp 将所有模块绑定同一个内核 ISF，
+精确 RVA／全部别名／inclusive 末端及数字后缀命名。合成 SymbolSpace 只隔离
+精确查找，向量不验证外部 PDB 获取或驱动池扫描。

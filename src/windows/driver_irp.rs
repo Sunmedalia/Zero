@@ -279,7 +279,7 @@ impl Windows<'_> {
         resources: Option<(&std::path::Path, bool)>,
     ) -> Result<()> {
         let modules = self.modules_partial(job, r)?;
-        let mut modules = DispatchModules::new(modules, self.vm.isf, self.base, job)?;
+        let mut modules = DispatchModules::reference(modules, self.vm.isf, self.base, job)?;
         let field = self.vm.isf.field("_DRIVER_OBJECT", "MajorFunction")?;
         ensure!(
             field["type"]["kind"] == "array"

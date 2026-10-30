@@ -1178,3 +1178,10 @@ zero --offline analyze --image memory.raw --symbols symbols/kernel.json \
 缺页保持部分结果和计数，不补零；扫描最多 64 MiB、输出最多 100,000 行，达到上限
 会保留明确诊断。缺失 TrueCrypt 驱动时输出为空；空结果不证明内存中不存在其他
 形式的加密材料。真实正向缓存口令镜像仍待验收。
+
+`windows.driverirp.DriverIrp` 输出驱动的 28 个标准 IRP 入口，列为 Offset、Driver Name、
+IRP、Address、Module、Symbol。默认符号归属遵循固定参考的 SSDT 模块集合：每个已
+加载模块都按自己的基址查询同一份内核 ISF 的精确 RVA，保留全部同址别名和 inclusive
+模块末端。这里的外部模块符号名是该参考查询产生的归属，不保证来自该驱动自己的
+PDB。默认路径不请求外部 PDB；需要独立模块精确符号时使用 `windows.pe_symbols.PESymbols`。
+驱动名称／处理函数单页不可读时仍可能输出部分结果并保留诊断。

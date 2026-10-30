@@ -1,0 +1,212 @@
+{
+  "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+  "ssdt_sha256": "326164e85ef393bff72584168c44f5acd5ddefac2dd5bc02cc62f02b0cfa8cdb",
+  "contexts_sha256": "ba73acc0390554f26ae932f84595af92d89a4e02184ab22309e9ba05b4e2eeb9",
+  "scope": "Actual SSDT build_module_collection and SizedModule/ModuleCollection queries. Synthetic loaded-module fields and a synthetic exact symbol-space query isolate shared table binding, aliases, names and endpoint behavior; no real driver names or PDB acquisition.",
+  "cases": [
+    {
+      "id": "external-rva-aliases",
+      "modules": [
+        [
+          "nt.exe",
+          4096,
+          32
+        ],
+        [
+          "driver.sys",
+          8192,
+          32
+        ]
+      ],
+      "expected": [
+        {
+          "query": 4112,
+          "rows": [
+            [
+              "nt",
+              "AliasA"
+            ],
+            [
+              "nt",
+              "AliasB"
+            ]
+          ]
+        },
+        {
+          "query": 8208,
+          "rows": [
+            [
+              "driver",
+              "AliasA"
+            ],
+            [
+              "driver",
+              "AliasB"
+            ]
+          ]
+        },
+        {
+          "query": 8224,
+          "rows": [
+            [
+              "driver",
+              "End"
+            ]
+          ]
+        },
+        {
+          "query": 8225,
+          "rows": [
+            [
+              "",
+              ""
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "id": "overlap-inclusive",
+      "modules": [
+        [
+          "nt.exe",
+          4096,
+          32
+        ],
+        [
+          "driver.sys",
+          4112,
+          32
+        ]
+      ],
+      "expected": [
+        {
+          "query": 4128,
+          "rows": [
+            [
+              "nt",
+              "End"
+            ],
+            [
+              "driver",
+              "AliasA"
+            ],
+            [
+              "driver",
+              "AliasB"
+            ]
+          ]
+        },
+        {
+          "query": 4144,
+          "rows": [
+            [
+              "driver",
+              "End"
+            ]
+          ]
+        },
+        {
+          "query": 4145,
+          "rows": [
+            [
+              "",
+              ""
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "id": "zero-size",
+      "modules": [
+        [
+          "empty.sys",
+          8192,
+          0
+        ]
+      ],
+      "expected": [
+        {
+          "query": 8192,
+          "rows": [
+            [
+              "empty",
+              "Zero"
+            ]
+          ]
+        },
+        {
+          "query": 8193,
+          "rows": [
+            [
+              "",
+              ""
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "id": "numeric-names",
+      "modules": [
+        [
+          "srv2.sys",
+          4096,
+          32
+        ],
+        [
+          "srv.sys",
+          8192,
+          32
+        ],
+        [
+          "srv.sys",
+          12288,
+          32
+        ]
+      ],
+      "expected": [
+        {
+          "query": 4112,
+          "rows": [
+            [
+              "srv2",
+              "AliasA"
+            ],
+            [
+              "srv2",
+              "AliasB"
+            ]
+          ]
+        },
+        {
+          "query": 8208,
+          "rows": [
+            [
+              "srv1",
+              "AliasA"
+            ],
+            [
+              "srv1",
+              "AliasB"
+            ]
+          ]
+        },
+        {
+          "query": 12304,
+          "rows": [
+            [
+              "srv3",
+              "AliasA"
+            ],
+            [
+              "srv3",
+              "AliasB"
+            ]
+          ]
+        }
+      ]
+    }
+  ]
+}

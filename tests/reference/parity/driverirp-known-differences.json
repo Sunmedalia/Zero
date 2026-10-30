@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
-  "engine_version": "0.2.1-native-43",
+  "engine_version": "0.2.1-native-79",
   "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
-  "zero_executable_sha256": "94a6b2adb084f3d3d3ea77eecbc9066150897465e3e80941c8a5da66c3ef0e31",
+  "zero_executable_sha256": "52febe55c9f55e9c9cd7ec40d3778353b5a433bbd4a3ef514e6c59261fe2147d",
   "source_sha256": {
     "plugins/windows/driverirp.py": "de9d4d773b8d0055f19858c259ea863b639788add7706b459022ad20824f59cb",
     "plugins/windows/driverscan.py": "e7ac4083870765e9c83039bab8fcab5aecbe526ead58ab1f20b25065908b0175",
@@ -12,109 +12,318 @@
   },
   "cases": [
     {
-      "case_id": "windows-10-15063/driverirp-default",
+      "reference_plugin": "windows.driverirp.DriverIrp",
+      "zero_plugin": "windows.driverirp.DriverIrp",
       "image_sha256": "d58f62e92b8c4ef913ac09b2c36a10482034c10b88d0c154dead3aaaa49cf875",
-      "symbol_sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4",
-      "native_output_sha256": "80e969c460627f89efc2f034b468702e9dfba6b74ac5ad78dd61db6ba4ce3125",
-      "reference_output_sha256": "6225df5641c30cda633f00c291dc5e7ab9b6df9733fd0521953537b33e09aefa",
       "mapping_sha256": "8d73db80f6d45cab916c1caebbbec373c4910254fe0f152a76dba796e9091ad4",
-      "native_rows": 4255,
-      "reference_rows": 4255,
-      "native_complete": false,
-      "native_diagnostic_count": 22,
-      "full_six_field_comparison_passed": false,
-      "five_field_unique_projection": {
-        "fields": [
-          "Offset",
-          "Driver Name",
-          "IRP",
-          "Address",
-          "Module"
-        ],
-        "native_records": 4255,
+      "native_output_sha256": "e23be16302ee791346248d7753087a672a8db884267adbaa477059914ac9cbb4",
+      "zero_args": [],
+      "reference_args": [],
+      "case_id": "windows-10-15063/driverirp-default",
+      "sample_source": "https://www.osforensics.com/downloads/WinDump.zip",
+      "comparison": {
+        "schema_version": 1,
+        "mapping_version": 1,
+        "zero_records": 4255,
         "reference_records": 4255,
-        "missing": 0,
-        "extra": 0,
-        "passed": true,
-        "note": "Projection collapses repeated reference aliases; not a substitute for full row/multiplicity comparison."
+        "missing": [],
+        "extra": [],
+        "duplicates": [],
+        "conflicts": [],
+        "unverifiable": [],
+        "matched_absent": {},
+        "all_columns_mapped": true,
+        "positive_evidence": true,
+        "zero_complete": false,
+        "zero_diagnostics": [
+          "Summary: 22 diagnostics; complete entries retained in raw comparison artifact."
+        ],
+        "passed": true
       },
-      "reference_external_symbol_rows": 250,
-      "reference_external_names_present_in_kernel_isf": 250,
-      "native_external_symbol_rows": 0,
-      "kernel_module_six_field_case_id": "windows-10-15063/driverirp-kernel-module"
+      "passed": true,
+      "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+      "reference_output_sha256": "6225df5641c30cda633f00c291dc5e7ab9b6df9733fd0521953537b33e09aefa",
+      "symbol_sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4",
+      "zero_executable_sha256": "52febe55c9f55e9c9cd7ec40d3778353b5a433bbd4a3ef514e6c59261fe2147d",
+      "engine_version": "0.2.1-native-79",
+      "full_comparison_sha256": "fc3ecdfb82371959a39eedc4bbc4df43a276d5eb1b61e4f179709a5b051d71d5",
+      "comparison_details": "Diagnostic entries and duplicate groups summarized; complete raw comparison retained in local run.py artifact and bound by full_comparison_sha256. Native/reference JSON digests permit independent reproduction. Any record_selection scope remains explicit.",
+      "zero_diagnostics_summary": {
+        "count": 22,
+        "sha256": "9c04634135b49d04965d3e167d83f8f5552a6caab0f6c13784ada0136d859bf2"
+      }
     },
     {
-      "case_id": "server-2008-6001-x86/driverirp-default",
+      "reference_plugin": "windows.driverirp.DriverIrp",
+      "zero_plugin": "windows.driverirp.DriverIrp",
       "image_sha256": "d3b13f2224cab20440a4bb3c5c971662be6e61f431340f319cef7312bb6177f4",
-      "symbol_sha256": "5d73f3a7158ba8b72394f2606ea5b4f03393976d5054a11cc51d51afb88a5544",
-      "native_output_sha256": "07bee21f51ce53c51ee119dc018c4e13d2da05be585aea3ca76b39343505b0a4",
-      "reference_output_sha256": "f0b4d195a68390eb56126a71e7d591fabba60355b606191914d8f6ed319f4518",
       "mapping_sha256": "8d73db80f6d45cab916c1caebbbec373c4910254fe0f152a76dba796e9091ad4",
-      "native_rows": 3724,
-      "reference_rows": 3724,
-      "native_complete": false,
-      "native_diagnostic_count": 44,
-      "full_six_field_comparison_passed": false,
-      "five_field_unique_projection": {
-        "fields": [
-          "Offset",
-          "Driver Name",
-          "IRP",
-          "Address",
-          "Module"
-        ],
-        "native_records": 3724,
+      "native_output_sha256": "2f42ac6157d9ef0c10802d8b5e6b728b3f8734bee1192eb93bb322632bc04cbb",
+      "zero_args": [],
+      "reference_args": [],
+      "case_id": "server-2008-6001-x86/driverirp-default",
+      "sample_source": "https://samsclass.info/121/proj/p5-Vol.htm",
+      "comparison": {
+        "schema_version": 1,
+        "mapping_version": 1,
+        "zero_records": 3724,
         "reference_records": 3724,
-        "missing": 0,
-        "extra": 0,
-        "passed": true,
-        "note": "Projection collapses repeated reference aliases; not a substitute for full row/multiplicity comparison."
+        "missing": [],
+        "extra": [],
+        "duplicates": [],
+        "conflicts": [],
+        "unverifiable": [],
+        "matched_absent": {},
+        "all_columns_mapped": true,
+        "positive_evidence": true,
+        "zero_complete": false,
+        "zero_diagnostics": [
+          "Summary: 44 diagnostics; complete entries retained in raw comparison artifact."
+        ],
+        "passed": true
       },
-      "reference_external_symbol_rows": 96,
-      "reference_external_names_present_in_kernel_isf": 96,
-      "native_external_symbol_rows": 0,
-      "kernel_module_six_field_case_id": "server-2008-6001-x86/driverirp-kernel-module"
+      "passed": true,
+      "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+      "reference_output_sha256": "f0b4d195a68390eb56126a71e7d591fabba60355b606191914d8f6ed319f4518",
+      "symbol_sha256": "5d73f3a7158ba8b72394f2606ea5b4f03393976d5054a11cc51d51afb88a5544",
+      "zero_executable_sha256": "52febe55c9f55e9c9cd7ec40d3778353b5a433bbd4a3ef514e6c59261fe2147d",
+      "engine_version": "0.2.1-native-79",
+      "full_comparison_sha256": "54329aba3d1d5bb01084a849e2aeb0df494481326845ba4f222765971da4c262",
+      "comparison_details": "Diagnostic entries and duplicate groups summarized; complete raw comparison retained in local run.py artifact and bound by full_comparison_sha256. Native/reference JSON digests permit independent reproduction. Any record_selection scope remains explicit.",
+      "zero_diagnostics_summary": {
+        "count": 44,
+        "sha256": "e1dadb3c7e1929811b60b19c9d6d9401f1c1fa5ffc216a5cfbe1b75f05ec9213"
+      }
     },
     {
-      "case_id": "windows-11/driverirp-default",
+      "reference_plugin": "windows.driverirp.DriverIrp",
+      "zero_plugin": "windows.driverirp.DriverIrp",
       "image_sha256": "0f00815b8f78f30a63d742c73152474b2a3c35183dbb1d92c8fc6a81fa3de9f1",
-      "symbol_sha256": "6a234099b69b393eb7d652408835205bd12f0b947d0d6b6275e2ffce8ca9c133",
-      "native_output_sha256": "1d124993d7c7ae395ec7e508a288ffab7b5a1b6a9c894d089979d983a55418b1",
-      "reference_output_sha256": "2288235babbeff4ed44ba04e79c36999d6dc7d92e40a7916af07a017730a03b4",
       "mapping_sha256": "8d73db80f6d45cab916c1caebbbec373c4910254fe0f152a76dba796e9091ad4",
-      "native_rows": 3444,
-      "reference_rows": 3453,
-      "native_complete": false,
-      "native_diagnostic_count": 1,
-      "full_six_field_comparison_passed": false,
-      "five_field_unique_projection": {
-        "fields": [
-          "Offset",
-          "Driver Name",
-          "IRP",
-          "Address",
-          "Module"
+      "native_output_sha256": "2075de5ed11718af82bb243af2347ebb8c787b116ed496a90a04c5bdc665b6ae",
+      "zero_args": [],
+      "reference_args": [],
+      "case_id": "windows-11/driverirp-default",
+      "sample_source": "https://www.osforensics.com/downloads/Win11Dump.zip",
+      "comparison": {
+        "schema_version": 1,
+        "mapping_version": 1,
+        "zero_records": 3453,
+        "reference_records": 3453,
+        "missing": [],
+        "extra": [],
+        "duplicates": [],
+        "conflicts": [],
+        "unverifiable": [],
+        "matched_absent": {},
+        "all_columns_mapped": true,
+        "positive_evidence": true,
+        "zero_complete": false,
+        "zero_diagnostics": [
+          "Summary: 1 diagnostics; complete entries retained in raw comparison artifact."
         ],
-        "native_records": 3444,
-        "reference_records": 3444,
-        "missing": 0,
-        "extra": 0,
-        "passed": true,
-        "note": "Projection collapses repeated reference aliases; not a substitute for full row/multiplicity comparison."
+        "passed": true
       },
-      "reference_external_symbol_rows": 158,
-      "reference_external_names_present_in_kernel_isf": 158,
-      "native_external_symbol_rows": 0,
-      "kernel_module_six_field_case_id": "windows-11/driverirp-kernel-module"
+      "passed": true,
+      "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+      "reference_output_sha256": "2288235babbeff4ed44ba04e79c36999d6dc7d92e40a7916af07a017730a03b4",
+      "symbol_sha256": "6a234099b69b393eb7d652408835205bd12f0b947d0d6b6275e2ffce8ca9c133",
+      "zero_executable_sha256": "52febe55c9f55e9c9cd7ec40d3778353b5a433bbd4a3ef514e6c59261fe2147d",
+      "engine_version": "0.2.1-native-79",
+      "full_comparison_sha256": "81ddd631564d8df303530b75c23ce3871859f4f8e85d4a343122baed851670c8",
+      "comparison_details": "Diagnostic entries and duplicate groups summarized; complete raw comparison retained in local run.py artifact and bound by full_comparison_sha256. Native/reference JSON digests permit independent reproduction. Any record_selection scope remains explicit.",
+      "zero_diagnostics_summary": {
+        "count": 1,
+        "sha256": "2d167363debd4213e201da383fad7eeab11f86f78a24581c62631426e6ff55b3"
+      }
+    },
+    {
+      "reference_plugin": "windows.driverirp.DriverIrp",
+      "zero_plugin": "windows.driverirp.DriverIrp",
+      "image_sha256": "d58f62e92b8c4ef913ac09b2c36a10482034c10b88d0c154dead3aaaa49cf875",
+      "mapping_sha256": "0a43abf7cfe0eca340d13102fcd71747c4906a0b46aeb59eb1ae46a4ce8ccc6e",
+      "native_output_sha256": "e23be16302ee791346248d7753087a672a8db884267adbaa477059914ac9cbb4",
+      "zero_args": [],
+      "reference_args": [],
+      "case_id": "windows-10-15063/driverirp-kernel-module",
+      "sample_source": "https://www.osforensics.com/downloads/WinDump.zip",
+      "comparison": {
+        "schema_version": 1,
+        "mapping_version": 1,
+        "record_selection": {
+          "field": "Module",
+          "include": [
+            "ntoskrnl"
+          ],
+          "scope": "Kernel-module IRP handlers only; all six columns. External module PDBs are unavailable; default full-output comparisons remain failing and are recorded separately.",
+          "zero_excluded": 2189,
+          "reference_excluded": 2189
+        },
+        "zero_records": 2066,
+        "reference_records": 2066,
+        "missing": [],
+        "extra": [],
+        "duplicates": [],
+        "conflicts": [],
+        "unverifiable": [],
+        "matched_absent": {},
+        "all_columns_mapped": true,
+        "positive_evidence": true,
+        "zero_complete": false,
+        "zero_diagnostics": [
+          "Summary: 22 diagnostics; complete entries retained in raw comparison artifact."
+        ],
+        "passed": true
+      },
+      "passed": true,
+      "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+      "reference_output_sha256": "6225df5641c30cda633f00c291dc5e7ab9b6df9733fd0521953537b33e09aefa",
+      "symbol_sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4",
+      "zero_executable_sha256": "52febe55c9f55e9c9cd7ec40d3778353b5a433bbd4a3ef514e6c59261fe2147d",
+      "engine_version": "0.2.1-native-79",
+      "full_comparison_sha256": "2bffeff3e73915e9d8ab526b3f33f890c84a6d7078be97820d791cf2fb5f430a",
+      "comparison_details": "Diagnostic entries and duplicate groups summarized; complete raw comparison retained in local run.py artifact and bound by full_comparison_sha256. Native/reference JSON digests permit independent reproduction. Any record_selection scope remains explicit.",
+      "zero_diagnostics_summary": {
+        "count": 22,
+        "sha256": "9c04634135b49d04965d3e167d83f8f5552a6caab0f6c13784ada0136d859bf2"
+      }
+    },
+    {
+      "reference_plugin": "windows.driverirp.DriverIrp",
+      "zero_plugin": "windows.driverirp.DriverIrp",
+      "image_sha256": "d3b13f2224cab20440a4bb3c5c971662be6e61f431340f319cef7312bb6177f4",
+      "mapping_sha256": "0a43abf7cfe0eca340d13102fcd71747c4906a0b46aeb59eb1ae46a4ce8ccc6e",
+      "native_output_sha256": "2f42ac6157d9ef0c10802d8b5e6b728b3f8734bee1192eb93bb322632bc04cbb",
+      "zero_args": [],
+      "reference_args": [],
+      "case_id": "server-2008-6001-x86/driverirp-kernel-module",
+      "sample_source": "https://samsclass.info/121/proj/p5-Vol.htm",
+      "comparison": {
+        "schema_version": 1,
+        "mapping_version": 1,
+        "record_selection": {
+          "field": "Module",
+          "include": [
+            "ntoskrnl"
+          ],
+          "scope": "Kernel-module IRP handlers only; all six columns. External module PDBs are unavailable; default full-output comparisons remain failing and are recorded separately.",
+          "zero_excluded": 2001,
+          "reference_excluded": 2001
+        },
+        "zero_records": 1723,
+        "reference_records": 1723,
+        "missing": [],
+        "extra": [],
+        "duplicates": [],
+        "conflicts": [],
+        "unverifiable": [],
+        "matched_absent": {},
+        "all_columns_mapped": true,
+        "positive_evidence": true,
+        "zero_complete": false,
+        "zero_diagnostics": [
+          "Summary: 44 diagnostics; complete entries retained in raw comparison artifact."
+        ],
+        "passed": true
+      },
+      "passed": true,
+      "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+      "reference_output_sha256": "f0b4d195a68390eb56126a71e7d591fabba60355b606191914d8f6ed319f4518",
+      "symbol_sha256": "5d73f3a7158ba8b72394f2606ea5b4f03393976d5054a11cc51d51afb88a5544",
+      "zero_executable_sha256": "52febe55c9f55e9c9cd7ec40d3778353b5a433bbd4a3ef514e6c59261fe2147d",
+      "engine_version": "0.2.1-native-79",
+      "full_comparison_sha256": "d4645623cb1503654e094ddf1ee09fa0c9e31a718393063a2a0d2cf4c7667001",
+      "comparison_details": "Diagnostic entries and duplicate groups summarized; complete raw comparison retained in local run.py artifact and bound by full_comparison_sha256. Native/reference JSON digests permit independent reproduction. Any record_selection scope remains explicit.",
+      "zero_diagnostics_summary": {
+        "count": 44,
+        "sha256": "e1dadb3c7e1929811b60b19c9d6d9401f1c1fa5ffc216a5cfbe1b75f05ec9213"
+      }
+    },
+    {
+      "reference_plugin": "windows.driverirp.DriverIrp",
+      "zero_plugin": "windows.driverirp.DriverIrp",
+      "image_sha256": "0f00815b8f78f30a63d742c73152474b2a3c35183dbb1d92c8fc6a81fa3de9f1",
+      "mapping_sha256": "0a43abf7cfe0eca340d13102fcd71747c4906a0b46aeb59eb1ae46a4ce8ccc6e",
+      "native_output_sha256": "2075de5ed11718af82bb243af2347ebb8c787b116ed496a90a04c5bdc665b6ae",
+      "zero_args": [],
+      "reference_args": [],
+      "case_id": "windows-11/driverirp-kernel-module",
+      "sample_source": "https://www.osforensics.com/downloads/Win11Dump.zip",
+      "comparison": {
+        "schema_version": 1,
+        "mapping_version": 1,
+        "record_selection": {
+          "field": "Module",
+          "include": [
+            "ntoskrnl"
+          ],
+          "scope": "Kernel-module IRP handlers only; all six columns. External module PDBs are unavailable; default full-output comparisons remain failing and are recorded separately.",
+          "zero_excluded": 1797,
+          "reference_excluded": 1797
+        },
+        "zero_records": 1656,
+        "reference_records": 1656,
+        "missing": [],
+        "extra": [],
+        "duplicates": [],
+        "conflicts": [],
+        "unverifiable": [],
+        "matched_absent": {},
+        "all_columns_mapped": true,
+        "positive_evidence": true,
+        "zero_complete": false,
+        "zero_diagnostics": [
+          "Summary: 1 diagnostics; complete entries retained in raw comparison artifact."
+        ],
+        "passed": true
+      },
+      "passed": true,
+      "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+      "reference_output_sha256": "2288235babbeff4ed44ba04e79c36999d6dc7d92e40a7916af07a017730a03b4",
+      "symbol_sha256": "6a234099b69b393eb7d652408835205bd12f0b947d0d6b6275e2ffce8ca9c133",
+      "zero_executable_sha256": "52febe55c9f55e9c9cd7ec40d3778353b5a433bbd4a3ef514e6c59261fe2147d",
+      "engine_version": "0.2.1-native-79",
+      "full_comparison_sha256": "238f4b3808560042d00631c985715342e681fa9fea66345a84ef07a72cc64e9e",
+      "comparison_details": "Diagnostic entries and duplicate groups summarized; complete raw comparison retained in local run.py artifact and bound by full_comparison_sha256. Native/reference JSON digests permit independent reproduction. Any record_selection scope remains explicit.",
+      "zero_diagnostics_summary": {
+        "count": 1,
+        "sha256": "2d167363debd4213e201da383fad7eeab11f86f78a24581c62631426e6ff55b3"
+      }
     }
   ],
-  "limitations": [
-    "Full DriverIrp parity is not claimed. Only the explicitly scoped kernel-module cases pass all six fields.",
-    "Exact external driver PDB acquisition and per-module symbol resolution remain unimplemented. Zero leaves external Symbol empty rather than borrowing unrelated kernel symbols.",
-    "Captured-page and module/name failures remain partial diagnostics; no successful result cache writes.",
-    "Shared page-table projection is bounded by unique table/level nodes and total relative candidate mappings; software-recovered mapping branches are not included.",
-    "Only the declared x86/x64 samples and synthetic layouts are tested; ARM64 is unsupported.",
-    "Native module intervals are half-open; the reference includes the end address. Malformed padding is rejected by the native scanner."
+  "scope": "Three full six-field defaults and three explicitly retained kernel-module scoped regressions; every reference symbol alias is compared. No five-field projection is used as parity evidence.",
+  "previous_baseline": {
+    "engine_version": "0.2.1-native-78",
+    "windows-10-15063": [
+      4267,
+      4255
+    ],
+    "server-2008-6001-x86": [
+      3724,
+      3724
+    ],
+    "windows-11": [
+      3444,
+      3453
+    ],
+    "passed": false
+  },
+  "notes": [
+    "Pinned SSDT.build_module_collection binds every SizedModule to the kernel symbol table. Native79 default DriverIrp now preserves this table domain, exact per-module RVA, all aliases and inclusive endpoints.",
+    "The earlier explanation that full parity required external driver PDBs described a different symbol model. Existing exact-PDB acquisition and dependency logic remains separately tested; default reference mode does not acquire those resources.",
+    "IRP labels attributed through the shared kernel table are reference algorithm observations, not proof of the external driver own debug symbol identity.",
+    "Reference-kernel-isf mode has no external PDB dependencies; cache validation recognizes that mode."
   ],
-  "reference_reuse": "Pinned source, image and exact ISF bytes/arguments unchanged; retained reference outputs hash-verified while re-running native after compatibility metadata update."
+  "limitations": [
+    "The specialized driver pool scanner retains separate carving/mapping logic; five other default pool comparisons do not establish its complete failure and recovery contract.",
+    "Driver name decoding, MmSystemRangeStart filtering and pointer domain behavior are not yet fully audited across all builds and faults.",
+    "Half-open exact-PDB mode remains distinct from inclusive reference mode. Zero-size/overlap/naming behavior has synthetic reference vectors, not a complete malformed-module matrix.",
+    "Native partial diagnostic reporting is not identical to all reference debug logs or exceptions.",
+    "Other builds, architectures, damaged memory and full parameter/failure contracts remain unverified; complete plugin contract is not claimed."
+  ],
+  "vectors": {
+    "sha256": "b0c44ed334d03aba1e22239a7656c3ec9cb483dd364adaaf36fcd32ad8af952f",
+    "cases": 4,
+    "scope": "Actual SSDT build_module_collection and SizedModule/ModuleCollection queries. Synthetic loaded-module fields and a synthetic exact symbol-space query isolate shared table binding, aliases, names and endpoint behavior; no real driver names or PDB acquisition."
+  }
 }
