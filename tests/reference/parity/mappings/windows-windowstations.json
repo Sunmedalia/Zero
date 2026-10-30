@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "keys": [
+    "Offset",
+    "SessionId"
+  ],
+  "duplicate_keys": "multiset",
+  "allow_partial": true,
+  "fields": {
+    "Offset": {
+      "zero": "Offset",
+      "reference": "Offset",
+      "type": "address",
+      "reference_type": "address48"
+    },
+    "Name": {
+      "zero": "Name",
+      "reference": "Name",
+      "type": "text"
+    },
+    "SessionId": {
+      "zero": "SessionId",
+      "reference": "SessionId",
+      "type": "integer"
+    }
+  }
+}

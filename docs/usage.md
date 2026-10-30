@@ -1011,6 +1011,13 @@ PDB/PE 命名导出。不根据最近导出名推断符号。未映射地址仍�
 目前只支持参考要求的 Intel32/Intel64。Server 2003/2008 已有真实对照，Win7/10/11 仍有差异，
 不能据此视为完整插件验收。
 
+`windows.windowstations.WindowStations` 扫描 x64 的 `Wind` 窗口站池。它按内核版本选择参考 GUI 符号表，在对应会话的进程地址空间中读取名称和链表。输出 Offset、Name、SessionId。名称必须通过 UNICODE 长度检查且不含控制字符。x86 与未映射的构建版本明确不支持。Win10 15063 已对齐 8 条真实窗口站；Win7 7601 为双侧空结果。这还不是完整 GUI 插件验收。
+
+```bash
+zero analyze --offline --image memory.raw --symbols ntkrnlmp.json \
+  --plugin windows.windowstations.WindowStations --output windowstations.json
+```
+
 ```bash
 zero analyze --offline --image memory.raw --symbols ntkrnlmp.json \
   --plugin windows.poolscanner.PoolScanner --output poolscanner.json

@@ -10,6 +10,11 @@ pub enum Plugin {
         alias = "windows.poolscanner"
     )]
     WinPoolScanner,
+    #[value(
+        name = "windows.windowstations.WindowStations",
+        alias = "windows.windowstations"
+    )]
+    WinWindowStations,
     #[value(name = "windows.pe_symbols.PESymbols")]
     WinPESymbols,
     #[value(name = "windows.suspended_threads.SuspendedThreads")]
@@ -306,6 +311,13 @@ pub const PLUGINS: &[Descriptor] = &[
         label: "poolscanner",
         columns: &["Tag", "Offset", "Layer", "Name"],
         widths: &[8, 18, 16, 0],
+    },
+    Descriptor {
+        plugin: Plugin::WinWindowStations,
+        name: "windows.windowstations.WindowStations",
+        label: "windowstations",
+        columns: &["Offset", "Name", "SessionId"],
+        widths: &[18, 24, 0],
     },
     Descriptor {
         plugin: Plugin::WinDebugRegisters,
@@ -2034,6 +2046,7 @@ impl Plugin {
             Self::WinPESymbols | Self::WinIat | Self::WinVerinfo => "Process",
             Self::WinMftscan => "Files",
             Self::WinPoolScanner => "Memory",
+            Self::WinWindowStations => "GUI",
             Self::WinDebugRegisters
             | Self::WinSuspendedThreads
             | Self::WinOrphanThreads
@@ -2233,6 +2246,7 @@ impl Plugin {
             WinEtwpatch => "检查各进程 ntdll ETW 入口是否被打补丁",
             WinScheduledTasks => "解码注册表 TaskCache 中的计划任务及命令",
             WinPoolScanner => "按内核版本扫描内置池标签并校验对象结构",
+            WinWindowStations => "扫描窗口站池并在对应会话地址空间中读取名称",
             WinDebugRegisters => "读取活动线程硬件调试寄存器及精确文件和符号归属",
             WinSuspendedThreads => "列出仍挂起的活动线程及起始地址文件和符号",
             WinPESymbols => "通过精确 PDB 和 PE 导出表查询内核或进程模块符号",

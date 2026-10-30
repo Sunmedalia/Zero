@@ -66,6 +66,7 @@ mod user_layout;
 mod userassist;
 #[cfg(test)]
 mod vadwalk_tests;
+mod windowstations;
 mod wow64;
 const MAX_OBJECTS: usize = 1_000_000;
 const PHYSICAL_MASK: u64 = 0x000f_ffff_ffff_f000;
@@ -581,6 +582,9 @@ impl Windows<'_> {
         }
         if p == Plugin::WinPoolScanner {
             return self.pool_scanner(job);
+        }
+        if p == Plugin::WinWindowStations {
+            return self.window_stations(job);
         }
         if p == Plugin::WinSuspendedThreads {
             return self.suspended_threads(None, job);

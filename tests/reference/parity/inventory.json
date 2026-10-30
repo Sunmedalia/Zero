@@ -9401,8 +9401,10 @@
         "Name",
         "SessionId"
       ],
-      "zero_candidates": [],
-      "status": "missing",
+      "zero_candidates": [
+        "windows.windowstations.WindowStations"
+      ],
+      "status": "mapped_unverified",
       "evidence": []
     }
   ]

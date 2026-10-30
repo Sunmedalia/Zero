@@ -570,7 +570,111 @@ impl Windows<'_> {
         Ok(found)
     }
 
-    fn pool_read(&self, address: u64, out: &mut [u8], virtual_scan: bool) -> Result<()> {
+    /// One executive pool tag, using the same layer and object-header recovery as PoolScanner.
+    pub(super) fn scan_gui_pool(
+        &self,
+        tag: &'static [u8],
+        type_size: u64,
+        minimum: u64,
+        job: &Job,
+    ) -> Result<(bool, Vec<u64>, Vec<String>)> {
+        let build = self.build_number()?;
+        let virtual_scan = build >= 10240;
+        let top_down = build >= 9200;
+        let vista = build >= 6000;
+        let alignment = if self.vm.pointer_size() == 4 { 8 } else { 16 };
+        let (tag_offset, header_size) = self.pool_header_layout()?;
+        let optional = if top_down {
+            self.pool_optional_headers()?
+        } else {
+            Vec::new()
+        };
+        let constraint = Constraint::new(
+            tag,
+            "tagWINDOWSTATION",
+            Some("WindowStation"),
+            minimum,
+            3,
+            true,
+            &[],
+        );
+        let mut bodies = Vec::new();
+        let mut notes = Vec::new();
+        for (start, length) in self.pool_scan_ranges(virtual_scan, job)? {
+            job.check()?;
+            let mut data =
+                vec![0u8; usize::try_from(length).context("pool 扫描范围超出地址空间")?];
+            if self.pool_read(start, &mut data, virtual_scan).is_err() {
+                notes.push(format!("pool range {start:#x}+{length:#x} 不可读"));
+                continue;
+            }
+            let finder = memmem::Finder::new(constraint.tag);
+            let mut from = 0;
+            while let Some(at) = finder.find(&data[from..]) {
+                job.check()?;
+                let tag_at = from + at;
+                from = tag_at + 1;
+                let Some(mut local) = tag_at.checked_sub(tag_offset) else {
+                    continue;
+                };
+                local -= local % alignment as usize;
+                if !local.is_multiple_of(alignment as usize)
+                    || local + header_size as usize > data.len()
+                {
+                    continue;
+                }
+                let bytes = &data[local..local + header_size as usize];
+                let Ok(block) = physical_number(self.vm.isf, bytes, "_POOL_HEADER", "BlockSize")
+                else {
+                    continue;
+                };
+                let Some(size) = block.checked_mul(alignment) else {
+                    continue;
+                };
+                if size < constraint.minimum {
+                    continue;
+                }
+                if self.vm.isf.has_field("_POOL_HEADER", "PoolType") {
+                    let Ok(page) = physical_number(self.vm.isf, bytes, "_POOL_HEADER", "PoolType")
+                    else {
+                        continue;
+                    };
+                    let paged = page > 0 && page % 2 == if vista { 1 } else { 0 };
+                    let nonpaged = page > 0 && page % 2 == if vista { 0 } else { 1 };
+                    let accepted = page == 0 && constraint.page & 4 != 0
+                        || paged && constraint.page & 1 != 0
+                        || nonpaged && constraint.page & 2 != 0;
+                    if !accepted {
+                        continue;
+                    }
+                }
+                let address = start + local as u64;
+                let found = self.pool_bodies(
+                    &constraint,
+                    address,
+                    PoolCarve {
+                        block: size,
+                        alignment,
+                        type_size,
+                        top_down,
+                        optional: &optional,
+                        virtual_scan,
+                    },
+                    job,
+                )?;
+                for body in found {
+                    if bodies.len() >= MAX_OBJECTS {
+                        notes.push("窗口站池候选超限".into());
+                        return Ok((virtual_scan, bodies, notes));
+                    }
+                    bodies.push(body);
+                }
+            }
+        }
+        Ok((virtual_scan, bodies, notes))
+    }
+
+    pub(super) fn pool_read(&self, address: u64, out: &mut [u8], virtual_scan: bool) -> Result<()> {
         if virtual_scan {
             self.vm.read(address, out)
         } else {

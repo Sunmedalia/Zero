@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "plugin": "windows.windowstations.WindowStations",
+  "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+  "observations": [
+    {
+      "sample": "windows-10-15063",
+      "matched_real_stations": 8,
+      "reference_only": 7,
+      "reason": "The reference follows rpwinstaNext from the first scanned object on every iteration. The seven extra records are non-canonical two-character names produced by that walk and are not registered as positive evidence."
+    },
+    {
+      "sample": "windows-7-7601-x64",
+      "matched_real_stations": 0,
+      "reference_only": 0,
+      "reason": "Both engines return no window stations. This is a negative observation, not proof that every Windows 7 image is empty."
+    }
+  ]
+}

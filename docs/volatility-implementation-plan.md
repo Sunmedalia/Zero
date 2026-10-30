@@ -202,3 +202,5 @@ Server2008 SP1 x86 的 3/3 条真实记录全字段一致，但保留 partial；
 完整插件合同与原始 Debian 样本实测仍未完成；继续剩余 GUI、系统调用和扫描插件。
 
 PoolScanner（native58）：新增 canonical `windows.poolscanner.PoolScanner`，覆盖 15 个内核内置池约束、版本化物理/虚拟扫描层、对象头恢复和结构校验。Server 2003/2008 已完成真实对照，但分别保留 1 条文件名解码差异和 7 条参考误报，故不登记正向用例。Win7/10/11 差异仍在，完整合同仍为 0。候选入口对应提升至 122/135。
+
+WindowStations（native59）：新增 canonical `windows.windowstations.WindowStations`。Win10 15063 的 8 条真实窗口站与固定参考一致，Win7 7601 为 0/0。参考额外的 7 条短名称来自错误链表，不登记为正向差异。候选入口对应提升至 123/135，完整合同仍为 0。
