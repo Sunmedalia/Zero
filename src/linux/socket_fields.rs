@@ -1,6 +1,10 @@
 //! Socket field decoding for independent scans. Embedded fields use their owning
-//! address space; pointer targets always use the kernel virtual address space.
+//! address space; IPv6 byte reads retain the pinned reference's original layer.
 use super::*;
+#[cfg(unix)]
+pub(super) const REFERENCE_INET6_FAMILY: u64 = libc::AF_INET6 as u64;
+#[cfg(windows)]
+pub(super) const REFERENCE_INET6_FAMILY: u64 = 23;
 use crate::physical::Object;
 const NA: &str = "N/A";
 const FAMILIES: &[&str] = &[
@@ -109,6 +113,7 @@ fn socket_type(value: u64) -> &'static str {
         _ => "",
     }
 }
+
 fn ip_protocol(value: u64, ipv6: bool) -> Option<&'static str> {
     if ipv6 {
         match value {
@@ -314,13 +319,22 @@ impl View<'_, '_> {
                 )?,
             };
             Ok(Ipv4Addr::from((value as u32).to_le_bytes()).to_string())
+        } else if family != REFERENCE_INET6_FAMILY {
+            // Pinned inet_sock compares Linux's numeric family to Python's
+            // host socket.AF_INET6. Keep its observable host-dependent absence.
+            Ok(NA.into())
         } else {
-            // pinet6 is a virtual pointer even when this sock was carved physically.
-            // New kernels can store the addresses directly in sock_common.
+            // The reference locates the field through pinet6, then reads its
+            // address on this inet_sock's original layer, including a physical
+            // layer for carved sockets. Do not translate that final read to VA.
             let bytes = if self.has("inet_sock", "pinet6") {
-                let info = self.number("inet_sock", "pinet6")?;
-                ensure!(info != 0, "IPv6 pinet6 为空");
-                let info = self.virtual_at(info);
+                // Pointer objects are masked to the 48-bit native-layer domain
+                // before their field offsets are used on the physical parent.
+                let info = self.number("inet_sock", "pinet6")? & 0xffff_ffff_ffff;
+                let info = Self {
+                    base: info,
+                    ..*self
+                };
                 if src {
                     info.bytes("ipv6_pinfo", "saddr", 16)?
                 } else if info.has("ipv6_pinfo", "daddr") {
@@ -742,5 +756,63 @@ impl Linux<'_> {
             _ => {}
         }
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod reference_layer_tests {
+    use super::*;
+    use crate::linux::sockscan::tests::{base_fixture, field, inet, put};
+    use crate::linux::tests::{engine, image};
+    use serde_json::json;
+    #[test]
+    fn ipv6_original_layer_reads_match_fixed_methods_independent_of_host_family_number() {
+        let (mut bytes, mut isf) = base_fixture();
+        field(
+            &mut isf,
+            "ipv6_pinfo",
+            "saddr",
+            0,
+            json!({"kind":"array","count":16}),
+        );
+        field(
+            &mut isf,
+            "ipv6_pinfo",
+            "daddr",
+            16,
+            json!({"kind":"array","count":16}),
+        );
+        inet(&mut bytes, 0x19000, 10);
+        for at in [0x100, 0x1e000] {
+            bytes[at..at + 16].copy_from_slice(&Ipv6Addr::LOCALHOST.octets());
+            bytes[at + 16..at + 32]
+                .copy_from_slice(&"2001:db8::1".parse::<Ipv6Addr>().unwrap().octets());
+        }
+        let vectors: serde_json::Value = serde_json::from_str(include_str!(
+            "../../tests/reference/parity/fixtures/sockscan.json"
+        ))
+        .unwrap();
+        for case in vectors["ipv6"].as_array().unwrap() {
+            put(&mut bytes, 0x19040, case["pointer"].as_u64().unwrap());
+            let snapshot = image(&bytes);
+            let linux = engine(&snapshot, &isf);
+            let view = View {
+                linux: &linux,
+                base: 0x19000,
+                physical: true,
+            };
+            assert_eq!(
+                serde_json::json!(view.inet_addr(true, REFERENCE_INET6_FAMILY).ok()),
+                case["expected_source"],
+                "{}",
+                case["id"]
+            );
+            assert_eq!(
+                serde_json::json!(view.inet_addr(false, REFERENCE_INET6_FAMILY).ok()),
+                case["expected_destination"],
+                "{}",
+                case["id"]
+            );
+        }
     }
 }

@@ -70,6 +70,25 @@ class CompareTests(unittest.TestCase):
             reference['Offset']+=8
             self.assertFalse(compare(native,[reference],mapping)['passed'],filename)
 
+    def test_sockscan_compares_absent_endpoints_and_duplicate_multiplicity(self):
+        mapping=json.loads((Path(__file__).parent/'mappings/linux-sockscan.json').read_text())
+        row=['0x1000','AF_INET6','STREAM','TCP','N/A','8080','N/A','4040','LISTEN','N/A']
+        native={'columns':list(mapping['fields']),'rows':[row.copy(),row.copy()],
+                'complete':False,'diagnostics':['socket field unavailable']}
+        reference=dict(zip(native['columns'],row))
+        reference['Sock Offset']=4096
+        for field in ['Source Addr','Destination Addr','Filter']:reference[field]=None
+        proof=compare(native,[reference,reference],mapping)
+        self.assertTrue(proof['passed'])
+        self.assertEqual(proof['matched_absent']['Source Addr'],2)
+        native['rows'][0][4]='::1'
+        self.assertFalse(compare(native,[reference,reference],mapping)['passed'])
+        native['rows'][0][4]='N/A'
+        native['rows'][0][5]='0'
+        self.assertFalse(compare(native,[reference,reference],mapping)['passed'])
+        native['rows'].pop(0)
+        self.assertFalse(compare(native,[reference,reference],mapping)['passed'])
+
     def test_window_procedure_absence_is_payload_and_remains_strict(self):
         mapping=json.loads((Path(__file__).parent/'mappings/windows-windows.json').read_text())
         columns=list(mapping['fields'])

@@ -83,15 +83,24 @@ impl Linux<'_> {
             "Sockscan 无可用的 file-ops/destructor 扫描来源"
         );
         let mut seen = HashSet::new();
+        let mut physical_candidates = HashSet::new();
         let mut devices = None;
         let mut output_bytes = 0usize;
         let coverage = physical::pointers(self.vm.image, &needles, 8, job, |hit, value| {
             let mut accepted = false;
-            for (method, source) in sources.iter_mut().enumerate() {
-                if !source.needles.contains(&value) {
-                    continue;
+            let destructor = sources[1].needles.contains(&value);
+            let file_ops = sources[0].needles.contains(&value);
+            let key = destructor.then(|| i128::from(hit) - i128::from(sources[1].offset.unwrap()));
+            for source in &mut sources {
+                if source.needles.contains(&value) {
+                    source.hits += 1;
                 }
-                source.hits += 1;
+            }
+            // A file match replaces the object but retains a destructor key if
+            // the same pattern belongs to both reference source sets.
+            let method = if file_ops { 0 } else { 1 };
+            {
+                let source = &mut sources[method];
                 let read = (|| -> Result<Option<super::socket_fields::SocketFields>> {
                     let Some(base) = hit.checked_sub(source.offset.unwrap()) else {
                         return Ok(None);
@@ -105,7 +114,8 @@ impl Linux<'_> {
                         base
                     };
                     source.resolved += 1;
-                    if !seen.insert(address) {
+                    physical_candidates.insert(address);
+                    if !seen.insert(key) {
                         return Ok(None);
                     }
                     let object = Object {
@@ -196,7 +206,7 @@ impl Linux<'_> {
         if !result.kernel_identity.is_object() {
             result.kernel_identity = serde_json::json!({});
         }
-        result.kernel_identity["physical_socket_scan"] = serde_json::json!({"coverage":coverage,"sources":sources,"unique_socket_candidates":seen.len(),"deduplication":"resolved physical sock address","pointer_targets":"kernel virtual address space","source":"physical bytes; independent of task fd lists"});
+        result.kernel_identity["physical_socket_scan"] = serde_json::json!({"coverage":coverage,"sources":sources,"unique_socket_candidates":physical_candidates.len(),"host_af_inet6":super::socket_fields::REFERENCE_INET6_FAMILY,"deduplication_keys":seen.len(),"deduplication":"reference source key: destructor offset or file-only None","pointer_targets":"native pointers resolved through kernel VM; IPv6 address bytes read on original physical socket layer","source":"physical bytes; independent of task fd lists"});
         Ok(result)
     }
     fn socket_from_physical_file(&self, base: u64) -> Result<Option<u64>> {
@@ -253,13 +263,19 @@ pub(super) mod tests {
     use super::super::tests::{engine, fixture, image};
     use super::*;
     use serde_json::json;
-    pub(super) fn put(b: &mut [u8], at: usize, value: u64) {
+    pub(in crate::linux) fn put(b: &mut [u8], at: usize, value: u64) {
         b[at..at + 8].copy_from_slice(&value.to_le_bytes());
     }
-    pub(super) fn field(isf: &mut Isf, ty: &str, name: &str, offset: u64, kind: serde_json::Value) {
+    pub(in crate::linux) fn field(
+        isf: &mut Isf,
+        ty: &str,
+        name: &str,
+        offset: u64,
+        kind: serde_json::Value,
+    ) {
         isf.data["user_types"][ty]["fields"][name] = json!({"offset":offset,"type":kind});
     }
-    pub(super) fn base_fixture() -> (Vec<u8>, Isf) {
+    pub(in crate::linux) fn base_fixture() -> (Vec<u8>, Isf) {
         let (mut b, mut isf) = fixture();
         for (symbol, address) in [("socket_file_ops", 0x18000), ("sock_def_destruct", 0x18100)] {
             isf.data["symbols"][symbol] = json!({"address":address});
@@ -276,7 +292,7 @@ pub(super) mod tests {
         put(&mut b, 0x1800, 0x2003);
         (b, isf)
     }
-    pub(super) fn inet(b: &mut [u8], at: usize, family: u64) {
+    pub(in crate::linux) fn inet(b: &mut [u8], at: usize, family: u64) {
         put(b, at, family);
         put(b, at + 8, 10);
         put(b, at + 16, 0x0100007f);
@@ -294,7 +310,7 @@ pub(super) mod tests {
         put(b, 0x1d000, sk); // socket_alloc.socket.sk
     }
     #[test]
-    fn both_sources_find_independent_objects_and_deduplicate_resolved_physical_addresses() {
+    fn both_sources_keep_the_reference_file_sentinel_and_destructor_keys() {
         let (mut b, isf) = base_fixture();
         inet(&mut b, 0x19000, 2);
         inet(&mut b, 0x19100, 2);
@@ -331,8 +347,9 @@ pub(super) mod tests {
         file(&mut b, 0x1b100, 0xffff800000019000);
         let i = image(&b);
         let r = engine(&i, &isf).sockscan(&Job::default()).unwrap();
-        assert_eq!(r.rows.len(), 1); // both files now point to the destructor object
+        assert_eq!(r.rows.len(), 2); // distinct None and destructor keys retain both rows
         assert_eq!(r.rows[0][0], hex(0x19000));
+        assert_eq!(r.rows[1][0], hex(0x19000));
     }
     #[test]
     fn absent_source_and_unreadable_file_targets_preserve_other_source_with_diagnostics() {
@@ -359,7 +376,7 @@ pub(super) mod tests {
         );
     }
     #[test]
-    fn ipv6_pointer_targets_use_virtual_memory_and_cancel_is_propagated() {
+    fn ipv6_address_reads_keep_the_original_physical_layer_and_cancel_is_propagated() {
         let (mut b, mut isf) = base_fixture();
         field(
             &mut isf,
@@ -379,14 +396,105 @@ pub(super) mod tests {
         put(&mut b, 0x19040, 0xffff80000001e000);
         b[0x1e000..0x1e010].copy_from_slice(&Ipv6Addr::LOCALHOST.octets());
         b[0x1e010..0x1e020].copy_from_slice(&"2001:db8::1".parse::<Ipv6Addr>().unwrap().octets());
+        b[0x100..0x110].copy_from_slice(&Ipv6Addr::LOCALHOST.octets());
+        b[0x110..0x120].copy_from_slice(&"2001:db8::1".parse::<Ipv6Addr>().unwrap().octets());
+        let vectors: serde_json::Value = serde_json::from_str(include_str!(
+            "../../tests/reference/parity/fixtures/sockscan.json"
+        ))
+        .unwrap();
+        for case in vectors["ipv6"].as_array().unwrap() {
+            put(&mut b, 0x19040, case["pointer"].as_u64().unwrap());
+            let i = image(&b);
+            let r = engine(&i, &isf).sockscan(&Job::default()).unwrap();
+            assert_eq!(r.rows.len(), 1, "{}", case["id"]);
+            assert_eq!(
+                r.rows[0][4],
+                if super::super::socket_fields::REFERENCE_INET6_FAMILY == 10 {
+                    case["expected_source"].as_str().unwrap_or("N/A")
+                } else {
+                    "N/A"
+                },
+                "{}",
+                case["id"]
+            );
+            assert_eq!(
+                r.rows[0][6],
+                if super::super::socket_fields::REFERENCE_INET6_FAMILY == 10 {
+                    case["expected_destination"].as_str().unwrap_or("N/A")
+                } else {
+                    "N/A"
+                },
+                "{}",
+                case["id"]
+            );
+        }
         let i = image(&b);
-        let r = engine(&i, &isf).sockscan(&Job::default()).unwrap();
-        assert!(r.complete, "{:?}", r.diagnostics);
-        assert_eq!(&r.rows[0][4], "::1");
-        assert_eq!(&r.rows[0][6], "2001:db8::1");
         let job = Job::default();
         job.cancel.store(true, std::sync::atomic::Ordering::Relaxed);
         assert!(engine(&i, &isf).sockscan(&job).is_err());
+    }
+
+    #[test]
+    fn source_precedence_and_deduplication_match_actual_pinned_generator_vectors() {
+        let vectors: serde_json::Value = serde_json::from_str(include_str!(
+            "../../tests/reference/parity/fixtures/sockscan.json"
+        ))
+        .unwrap();
+        for case in vectors["sources"].as_array().unwrap() {
+            let (mut b, mut isf) = base_fixture();
+            isf.data["symbols"]["sockfs_dentry_operations"] = json!({"address":0x18200});
+            isf.data["symbols"]["unix_sock_destructor"] = json!({"address":0x18200});
+            for at in [0x19000, 0x19100, 0x19200] {
+                inet(&mut b, at, 2);
+                put(&mut b, at + 80, 0);
+            }
+            for target in case["filtered"].as_array().unwrap() {
+                let at = target.as_u64().unwrap() as usize;
+                for offset in [16, 24, 48, 56] {
+                    put(&mut b, at + offset, 0);
+                }
+            }
+            for (index, event) in case["events"].as_array().unwrap().iter().enumerate() {
+                let hit = event[0].as_u64().unwrap() as usize;
+                let kind = event[1].as_str().unwrap();
+                put(
+                    &mut b,
+                    hit,
+                    match kind {
+                        "file" => 0x18000,
+                        "destructor" => 0x18100,
+                        _ => 0x18200,
+                    },
+                );
+                if kind != "destructor" {
+                    let dentry = 0x1c000 + index * 0x100;
+                    let alloc = 0x1d000 + index * 0x100;
+                    put(&mut b, hit - 40 + 8, 0xffff800000000000 + dentry as u64);
+                    put(&mut b, dentry + 24, 0xffff800000000000 + alloc as u64 + 16);
+                    put(
+                        &mut b,
+                        alloc,
+                        event[2]
+                            .as_u64()
+                            .map(|at| 0xffff800000000000 + at)
+                            .unwrap_or(0),
+                    );
+                }
+            }
+            let i = image(&b);
+            let r = engine(&i, &isf).sockscan(&Job::default()).unwrap();
+            let found: Vec<_> = r
+                .rows
+                .iter()
+                .map(|row| u64::from_str_radix(&row[0][2..], 16).unwrap())
+                .collect();
+            assert_eq!(
+                serde_json::json!(found),
+                case["expected_offsets"],
+                "{}",
+                case["id"]
+            );
+        }
     }
     #[test]
     fn legacy_cbpf_and_modern_ebpf_filters_preserve_reuseport_order() {
@@ -638,11 +746,12 @@ mod family_tests {
         let i = image(&b);
         let r = engine(&i, &isf).sockscan(&Job::default()).unwrap();
         assert_eq!(r.rows.len(), 1);
-        assert!(!r.complete);
+        let reads_ipv6 = super::super::socket_fields::REFERENCE_INET6_FAMILY == 10;
+        assert_eq!(r.complete, !reads_ipv6);
         assert_eq!(&r.rows[0][4..8], &["N/A", "8080", "N/A", "4040"]);
         assert_eq!(
             r.kernel_identity["physical_socket_scan"]["sources"][1]["field_warnings"],
-            2
+            if reads_ipv6 { 2 } else { 0 }
         );
     }
 }

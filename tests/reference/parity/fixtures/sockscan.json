@@ -1,0 +1,211 @@
+{
+  "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+  "source_sha256": "37f104c34e2187297bff1103f3bb3d5aa0d99c8b909556385a33ddb8a2e4cd3a",
+  "network_sha256": "896bc9ff51a940816a4df8288cd3fc9f03b53a8ac0e016d82246825be4953436",
+  "host_af_inet6": 30,
+  "scope": "Actual Sockscan generator with synthetic scan events and field extraction; actual inet_sock address methods with synthetic field offsets and physical BufferDataLayer; actual MultiStringScanner order. Does not validate file/inode traversal or full socket-family handlers.",
+  "sources": [
+    {
+      "id": "independent",
+      "events": [
+        [
+          102480,
+          "destructor",
+          null
+        ],
+        [
+          110632,
+          "file",
+          102656
+        ]
+      ],
+      "filtered": [],
+      "expected_offsets": [
+        102400,
+        102656
+      ]
+    },
+    {
+      "id": "same-target",
+      "events": [
+        [
+          102480,
+          "destructor",
+          null
+        ],
+        [
+          110632,
+          "file",
+          102400
+        ],
+        [
+          110888,
+          "file",
+          102400
+        ]
+      ],
+      "filtered": [],
+      "expected_offsets": [
+        102400,
+        102400
+      ]
+    },
+    {
+      "id": "two-file-targets",
+      "events": [
+        [
+          110632,
+          "file",
+          102656
+        ],
+        [
+          110888,
+          "file",
+          102912
+        ]
+      ],
+      "filtered": [],
+      "expected_offsets": [
+        102656
+      ]
+    },
+    {
+      "id": "first-file-filtered",
+      "events": [
+        [
+          110632,
+          "file",
+          102656
+        ],
+        [
+          110888,
+          "file",
+          102912
+        ]
+      ],
+      "filtered": [
+        102656
+      ],
+      "expected_offsets": []
+    },
+    {
+      "id": "first-file-unresolved",
+      "events": [
+        [
+          110632,
+          "file",
+          null
+        ],
+        [
+          110888,
+          "file",
+          102912
+        ]
+      ],
+      "filtered": [],
+      "expected_offsets": [
+        102912
+      ]
+    },
+    {
+      "id": "shared-pattern",
+      "events": [
+        [
+          102480,
+          "both",
+          102656
+        ],
+        [
+          110632,
+          "file",
+          102656
+        ]
+      ],
+      "filtered": [],
+      "expected_offsets": [
+        102656,
+        102656
+      ]
+    }
+  ],
+  "ipv6": [
+    {
+      "id": "physical-high-pointer",
+      "pointer": 18446603336221319168,
+      "expected_source": null,
+      "expected_destination": null,
+      "linux_source": null,
+      "linux_destination": null
+    },
+    {
+      "id": "physical-low-pointer",
+      "pointer": 256,
+      "expected_source": "::1",
+      "expected_destination": "2001:db8::1",
+      "linux_source": null,
+      "linux_destination": null
+    },
+    {
+      "id": "physical-null-pointer",
+      "pointer": 0,
+      "expected_source": "::",
+      "expected_destination": "::",
+      "linux_source": null,
+      "linux_destination": null
+    },
+    {
+      "id": "physical-masked-pointer",
+      "pointer": 15060037153926938880,
+      "expected_source": "::1",
+      "expected_destination": "2001:db8::1",
+      "linux_source": null,
+      "linux_destination": null
+    }
+  ],
+  "scans": [
+    {
+      "width": 4,
+      "values": [
+        305419896,
+        2271560481
+      ],
+      "data_hex": "0000002143658700000000000000000000000000000000000000000000000000785634120000000000000000000000000000000000000000000000002143658700000000000000000000000000000000",
+      "expected_hits": [
+        [
+          3,
+          2271560481
+        ],
+        [
+          32,
+          305419896
+        ],
+        [
+          60,
+          2271560481
+        ]
+      ]
+    },
+    {
+      "width": 8,
+      "values": [
+        1234605616436508552,
+        9833440827789222417
+      ],
+      "data_hex": "0000001122334455667788000000000000000000000000000000000000000000887766554433221100000000000000000000000000000000000000001122334455667788000000000000000000000000",
+      "expected_hits": [
+        [
+          3,
+          9833440827789222417
+        ],
+        [
+          32,
+          1234605616436508552
+        ],
+        [
+          60,
+          9833440827789222417
+        ]
+      ]
+    }
+  ]
+}

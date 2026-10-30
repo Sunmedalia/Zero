@@ -793,17 +793,19 @@ zero --offline analyze --image images/linux-sample-1.bin --symbols /path/to/exac
 `linux.sockscan` 是同一入口的别名。该插件扫描捕获的物理区段，使用 file-ops 与
 sock destructor 两个独立来源，不依赖进程文件描述符列表。file-ops 命中按
 file → dentry → inode → socket_alloc → socket.sk 追踪，指针目标在内核虚拟层读取，
-最后转换成物理 sock 地址。两个来源按解析后的物理地址去重。
+最后转换成物理 sock 地址。按固定参考的来源键去重，因此同一物理地址可能保留重复行，
+而首个 file-only 候选会影响后续文件来源记录。
 
 解码 Unix、IPv4/IPv6、Netlink、Packet、Vsock、XDP、Bluetooth，并读取 socket/reuseport
-的 cBPF/eBPF 过滤器信息。IPv6 指针目标通过虚拟层读取，空字段显示 N/A；Unix 空字符串
+的 cBPF/eBPF 过滤器信息。IPv6 字节按固定参考的原始层读取；镜像家族与宿主
+AF_INET6 常量不一致，或原始层缺少目标地址时，端点显示 N/A。这不证明 socket 没有 IPv6 地址。Unix 空字符串
 和 N/A 不混同。Packet 设备名按 init_task 所在网络命名空间解析。缺少某个家族类型时
 保留可读的通用字段；字段不可读、来源不可用、候选读取失败或资源上限均标记部分结果。
 IPv6 端点不可读时仍保留其余已读字段，并记录字段诊断。
 
 当前仅支持 64 位内核；共享扫描上限为 100 万次命中、128 MiB 输出文本。扫描覆盖与来源
 计数位于 `kernel_identity.physical_socket_scan`。扫描对象可能是活动、已关闭或残留对象，
-更多命中不单独证明隐藏连接。与固定参考的默认差异及局部验收范围见
+更多命中不单独证明隐藏连接。与固定参考的完整默认对照及局部验收范围见
 [Volatility 对齐进度](volatility-parity.md)。
 
 

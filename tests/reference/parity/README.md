@@ -663,3 +663,10 @@ Pointer._unmarshall，覆盖类型表 100 项边界／空哨兵／缺名、未�
 转换，冻结 2026／2035 年本地时钟。33 个进程、11 个线程向量覆盖公历边界、
 同秒 FILETIME、异常退出时间、名称和 PID／DTB／链表字段域。array_to_string
 适配器使用实际字节解码器，其他输入为合成字段；未证明缺页名称读取或全 carving。
+
+`sockscan_vectors.py` 执行固定 Sockscan._generator 的六种来源／去重情形、
+MultiStringScanner 的 4／8 字节混合模式次序，以及 inet_sock 实际地址方法和
+Pointer 解码的四种原始层读取情形。来源向量隔离字段格式化，地址向量记录生成
+宿主 AF_INET6 并隔离家族门槛与真实物理 BufferDataLayer。Linux 镜像家族 10
+与宿主 socket 常量不总相同，不能把 macOS 的缺失结果误判为所有平台的规则。
+完整默认映射 v2 比较全部十列／重复数／成对缺失，无记录筛选；范围映射另保留。

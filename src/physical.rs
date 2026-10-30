@@ -3,7 +3,10 @@
 use crate::{Job, image::Image, symbols::Isf};
 use anyhow::{Context, Result, ensure};
 use serde::Serialize;
-use std::collections::BTreeSet;
+use std::{
+    cmp::Reverse,
+    collections::{BTreeSet, BinaryHeap},
+};
 const CHUNK: usize = 4 * 1024 * 1024;
 const HIT_LIMIT: u64 = 1_000_000;
 #[derive(Default, Serialize)]
@@ -59,6 +62,7 @@ fn pointers_bounded(
         width == 8 || values.iter().all(|v| *v <= u32::MAX as u64),
         "32 位指针值溢出"
     );
+    let values: Vec<_> = values.into_iter().collect();
     let patterns: Vec<_> = values
         .iter()
         .map(|value| value.to_le_bytes()[..width].to_vec())
@@ -121,33 +125,36 @@ fn pointers_bounded(
                 continue;
             }
             coverage.scanned_bytes += count as u64;
-            for (value, finder) in values.iter().zip(&finders) {
-                let mut offset = 0;
-                while offset + width <= tail.len() {
-                    let Some(found) = finder.find(&tail[offset..]) else {
-                        break;
-                    };
-                    let index = offset + found;
-                    if coverage.hits >= limit {
+            // Stateful callers need the same first address as the reference
+            // MultiStringScanner, rather than all hits of the first pattern.
+            let mut next = BinaryHeap::new();
+            for (pattern, finder) in finders.iter().enumerate() {
+                if let Some(index) = finder.find(&tail) {
+                    next.push(Reverse((index, pattern)));
+                }
+            }
+            while let Some(Reverse((index, pattern))) = next.pop() {
+                if coverage.hits >= limit {
+                    coverage.limit_reached = true;
+                    break 'scan;
+                }
+                job.check()?;
+                coverage.hits += 1;
+                let address = position
+                    .checked_sub(overlap as u64)
+                    .and_then(|v| v.checked_add(index as u64))
+                    .context("物理命中地址溢出")?;
+                match visit(address, values[pattern])? {
+                    Decision::Accept => coverage.accepted += 1,
+                    Decision::Reject => {}
+                    Decision::Stop => {
                         coverage.limit_reached = true;
                         break 'scan;
                     }
-                    job.check()?;
-                    coverage.hits += 1;
-                    let address = position
-                        .checked_sub(overlap as u64)
-                        .and_then(|v| v.checked_add(index as u64))
-                        .context("物理命中地址溢出")?;
-                    match visit(address, *value)? {
-                        Decision::Accept => coverage.accepted += 1,
-                        Decision::Reject => {}
-                        Decision::Stop => {
-                            coverage.limit_reached = true;
-                            break 'scan;
-                        }
-                    }
-                    // Advance one byte: even self-overlapping pointer bytes are enumerated.
-                    offset = index + 1;
+                }
+                // Advance one byte: even self-overlapping pointer bytes are enumerated.
+                if let Some(found) = finders[pattern].find(&tail[index + 1..]) {
+                    next.push(Reverse((index + 1 + found, pattern)));
                 }
             }
             let keep = (width - 1).min(tail.len());
@@ -234,6 +241,53 @@ mod tests {
         let mut file = tempfile::tempfile().unwrap();
         file.write_all(bytes).unwrap();
         Image::from_file(file, "physical-fixture".into()).unwrap()
+    }
+    #[test]
+    fn mixed_patterns_and_bounded_prefix_follow_reference_address_order() {
+        let vectors: serde_json::Value = serde_json::from_str(include_str!(
+            "../tests/reference/parity/fixtures/sockscan.json"
+        ))
+        .unwrap();
+        for case in vectors["scans"].as_array().unwrap() {
+            let bytes: Vec<_> = case["data_hex"]
+                .as_str()
+                .unwrap()
+                .as_bytes()
+                .chunks_exact(2)
+                .map(|b| u8::from_str_radix(std::str::from_utf8(b).unwrap(), 16).unwrap())
+                .collect();
+            let image = image(&bytes);
+            let values: Vec<_> = case["values"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|v| v.as_u64().unwrap())
+                .collect();
+            for limit in [2, 100] {
+                let mut hits = Vec::new();
+                let coverage = pointers_bounded(
+                    &image,
+                    &values,
+                    case["width"].as_u64().unwrap() as usize,
+                    &Job::default(),
+                    |at, value| {
+                        hits.push((at, value));
+                        Ok(Decision::Accept)
+                    },
+                    limit,
+                )
+                .unwrap();
+                let expected: Vec<_> = case["expected_hits"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .take(limit as usize)
+                    .cloned()
+                    .collect();
+                assert_eq!(serde_json::json!(hits), serde_json::json!(expected));
+                assert_eq!(coverage.limit_reached, limit == 2);
+            }
+        }
     }
     #[test]
     fn chunk_boundaries_and_duplicate_needles() {

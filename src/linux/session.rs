@@ -301,6 +301,11 @@ impl Session {
             None if request.plugin == Plugin::Kallsyms => {
                 format!("{}:{:?}", request.plugin.name(), options.kallsyms)
             }
+            None if request.plugin == Plugin::LinuxSockscan => format!(
+                "{}:host_af_inet6={}",
+                request.plugin.name(),
+                super::socket_fields::REFERENCE_INET6_FAMILY
+            ),
             None => request.plugin.name().to_string(),
         };
         let key = store::key(&image.digest, &symbol.digest, &identity);
