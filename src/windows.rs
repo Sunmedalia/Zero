@@ -58,6 +58,7 @@ mod registry;
 mod registry_artifacts;
 mod security;
 mod service_list;
+mod shimcache;
 mod suspended_threads;
 mod thread_symbols;
 mod timeline;
@@ -844,6 +845,9 @@ impl Windows<'_> {
         }
         if p == Plugin::WinNetstat {
             return self.netstat(job, None);
+        }
+        if p == Plugin::WinShimcacheMem {
+            return self.shimcache_memory(job);
         }
         if matches!(p, Plugin::WinPsscan | Plugin::WinPsxview) {
             return self.scan_processes(p, options, job);

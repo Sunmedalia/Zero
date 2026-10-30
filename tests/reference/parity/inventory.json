@@ -8146,8 +8146,10 @@
         "File Size",
         "File Path"
       ],
-      "zero_candidates": [],
-      "status": "missing",
+      "zero_candidates": [
+        "windows.shimcachemem.ShimcacheMem"
+      ],
+      "status": "mapped_unverified",
       "evidence": []
     },
     {

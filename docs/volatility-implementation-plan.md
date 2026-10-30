@@ -213,3 +213,5 @@ Windows（native62）：新增 canonical `windows.windows.Windows`。窗口链�
 
 
 NetStat（native63）：新增 canonical `windows.netstat.NetStat`。遍历 tcpip.sys 分区表和端口池，字段来自精确驱动身份的 netscan 布局。Win10 15063 为 92/92，Win7 7601 为 121/121，全字段一致。候选入口对应提升至 127/135，完整合同仍为 0。
+
+ShimcacheMem（native64）：新增 canonical `windows.shimcachemem.ShimcacheMem`。从 ahcache 或 NT 内核的 Shimcache 句柄遍历 LRU。Win10 15063 为 13/13，Win7 7601 为 220/220，全字段一致。候选入口对应提升至 128/135，完整合同仍为 0。

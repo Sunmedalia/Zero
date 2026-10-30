@@ -19,6 +19,11 @@ pub enum Plugin {
     WinDesktops,
     #[value(name = "windows.netstat.NetStat", alias = "windows.netstat")]
     WinNetstat,
+    #[value(
+        name = "windows.shimcachemem.ShimcacheMem",
+        alias = "windows.shimcachemem"
+    )]
+    WinShimcacheMem,
     #[value(name = "windows.deskscan.DeskScan", alias = "windows.deskscan")]
     WinDeskScan,
     #[value(name = "windows.windows.Windows", alias = "windows.windows")]
@@ -916,6 +921,20 @@ pub const PLUGINS: &[Descriptor] = &[
             "Created",
         ],
         widths: &[18, 8, 24, 8, 24, 8, 14, 8, 16, 0],
+    },
+    Descriptor {
+        plugin: Plugin::WinShimcacheMem,
+        name: "windows.shimcachemem.ShimcacheMem",
+        label: "shimcachemem",
+        columns: &[
+            "Order",
+            "Last Modified",
+            "Last Update",
+            "Exec Flag",
+            "File Size",
+            "File Path",
+        ],
+        widths: &[8, 24, 24, 12, 12, 0],
     },
     Descriptor {
         plugin: Plugin::WinHiveScan,
@@ -2091,6 +2110,7 @@ impl Plugin {
             Self::WinHandles => "Files",
             Self::WinMalfind => "Integrity",
             Self::WinNetscan | Self::WinNetstat => "Network",
+            Self::WinShimcacheMem => "Files",
             Self::WinHivelist | Self::WinHiveScan | Self::WinGetCellRoutine => "Files",
             Self::WinPrintkey => "Files",
             Self::WinPsscan => "Integrity",
@@ -2230,6 +2250,7 @@ impl Plugin {
             Lsof | WinHandles => "列出进程打开的文件或对象",
             Sockstat | Netscan | WinNetscan => "查看网络连接及端点",
             WinNetstat => "遍历 tcpip.sys 分区表与端口池中的活动端点",
+            WinShimcacheMem => "从 ahcache 或内核模块的 LRU 链表读取内存 Shimcache",
             Banners => "识别完整内核身份，无需符号",
             Pwd => "读取进程工作目录",
             Pscred => "查看进程身份和凭据",

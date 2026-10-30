@@ -857,3 +857,9 @@ Win10 15063 为 3059/3063。已输出的 3059 行全字段一致。参考多出�
 `windows.netstat.NetStat` 按参考实现读取 `tcpip.sys` 的 `PartitionTable` 和 TCP/UDP 端口池。对象字段来自该驱动身份对应的已发布 netscan 布局，全局符号地址来自精确 PDB。分区哈希项必须是双向链表，用来排除槽位里残留的旧端点。地址按参考 JSON 渲染为 48 位。
 
 Win10 15063 为 92/92，Win7 7601 为 121/121，全部字段一致。完整插件合同仍为 0，候选入口对应提升至 **127/135**，尚缺 8 个。
+
+## native64：内存 Shimcache
+
+`windows.shimcachemem.ShimcacheMem` 按参考实现定位 `SHIM_CACHE_HANDLE` 和随后的 LRU 链表。Windows 10 使用 `ahcache.sys` 的第二个句柄，Windows 7 在 NT 内核 `.data` 中使用内联句柄。AVL 例程必须落在模块 `PAGE` 节内，链表头的双向指针必须指向内核地址。
+
+Win10 15063 为 13/13，Win7 7601 为 220/220，全部字段一致。完整插件合同仍为 0，候选入口对应提升至 **128/135**，尚缺 7 个。

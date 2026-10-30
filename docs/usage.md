@@ -1053,3 +1053,10 @@ zero analyze --offline --image memory.raw --symbols ntkrnlmp.json \
 zero analyze --offline --image memory.raw --symbols ntkrnlmp.json \
   --plugin windows.netstat.NetStat --output netstat.json
 ```
+
+`windows.shimcachemem.ShimcacheMem` 读取内存中的 Shimcache LRU 链表，而不是注册表 AppCompatCache。Windows 8.1 及以后从 `ahcache.sys` 的 `.data` 找两个句柄并使用第二个；更早的 x64 在 NT 内核模块里找内联句柄。输出 Order、Last Modified、Last Update、Exec Flag、File Size、File Path。没有该字段时输出 `N/A`。Win10 15063 的 13 条、Win7 7601 的 220 条已与参考全字段一致。
+
+```bash
+zero analyze --offline --image memory.raw --symbols ntkrnlmp.json \
+  --plugin windows.shimcachemem.ShimcacheMem --output shimcache.json
+```

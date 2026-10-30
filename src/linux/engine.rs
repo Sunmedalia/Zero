@@ -237,19 +237,19 @@ impl Linux<'_> {
             | WinDrivercheck | WinDriverscan | WinSvcscan | WinCrashinfo | WinAutoruns
             | WinEnvars | WinThreads | WinSysteminfo | WinPslist | WinPstree | WinCmdline
             | WinModules | WinDlllist | WinVadinfo | WinHandles | WinMalfind | WinNetscan
-            | WinNetstat | WinHivelist | WinPrintkey | WinPsscan | WinPsxview | WinProcdump
-            | WinMemdump | WinPedump | WinSsdt | WinModscan | WinPrivileges | WinSessions
-            | WinUserassist | WinBigpools | WinSymlinkscan | WinDevicetree | WinGetservicesids
-            | WinIat | WinVerinfo | WinMftscan | WinOrphanThreads | WinEtwpatch
-            | WinScheduledTasks | WinDebugRegisters | WinSuspendedThreads | WinPESymbols
-            | WinAmcacheV4 | WinAmcache | WinCertificates | WinProcessghosting | WinJoblinks
-            | WinTimeliner | WinUserAssistV4 | WinMemmap | WinSvcScanV4 | WinSvcDiff
-            | WinSvcList | WinGetCellRoutine | WinPebMasquerade | WinHiveScan | WinDriverModule
-            | WinDriverIrp | WinKpcrs | WinMbrscan | WinTimers | WinStatistics | WinShimcache
-            | WinVirtmap | WinVadWalk | WinVadRegExScan | WinVadyarascan | WinVaddump
-            | WinDlldump | WinModdump | WinHashdump | WinLsadump | WinCachedump | WinDumpfiles
-            | WinThrdscan | WinPoolScanner | WinWindowStations | WinDesktops | WinDeskScan
-            | WinWindows => Err(unrouted(plugin)),
+            | WinNetstat | WinShimcacheMem | WinHivelist | WinPrintkey | WinPsscan | WinPsxview
+            | WinProcdump | WinMemdump | WinPedump | WinSsdt | WinModscan | WinPrivileges
+            | WinSessions | WinUserassist | WinBigpools | WinSymlinkscan | WinDevicetree
+            | WinGetservicesids | WinIat | WinVerinfo | WinMftscan | WinOrphanThreads
+            | WinEtwpatch | WinScheduledTasks | WinDebugRegisters | WinSuspendedThreads
+            | WinPESymbols | WinAmcacheV4 | WinAmcache | WinCertificates | WinProcessghosting
+            | WinJoblinks | WinTimeliner | WinUserAssistV4 | WinMemmap | WinSvcScanV4
+            | WinSvcDiff | WinSvcList | WinGetCellRoutine | WinPebMasquerade | WinHiveScan
+            | WinDriverModule | WinDriverIrp | WinKpcrs | WinMbrscan | WinTimers
+            | WinStatistics | WinShimcache | WinVirtmap | WinVadWalk | WinVadRegExScan
+            | WinVadyarascan | WinVaddump | WinDlldump | WinModdump | WinHashdump | WinLsadump
+            | WinCachedump | WinDumpfiles | WinThrdscan | WinPoolScanner | WinWindowStations
+            | WinDesktops | WinDeskScan | WinWindows => Err(unrouted(plugin)),
         }
     }
     /// Processes use directional object recovery; module traversal remains
