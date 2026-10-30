@@ -585,3 +585,12 @@ The na_boolean normalization preserves false distinctly from an absent Enabled v
 DynamicInfo field order, unpadded COM GUID components, absent Time descriptions and absent Email
 objects follow pinned v2.28.2. See scheduled-tasks-known-limitations.json for limits.
 There are now 129/135 candidate correspondences, six missing entries, and zero complete contracts.
+
+
+UnhookedSystemCalls: run unhooked-system-calls.example.json with the standard offline runner.
+All three columns and all 45 functions match on Win10 15063 and Win7 7601, including nonempty
+minority process lists. Partial process/VAD diagnostics are explicit. The fixed plugin compares
+only its first two byte groups, chooses the second as majority on ties, and reads 32-byte windows.
+Captured-page symbol queries use the same PE resolver with prototype recovery disabled; ordinary
+PESymbols retains its broader recovery policy. Grouping is not proof of malware or complete
+coverage of unreadable process pages. No complete plugin contract is certified.

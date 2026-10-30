@@ -220,3 +220,9 @@ ShimcacheMem（native64）：新增 canonical `windows.shimcachemem.ShimcacheMem
 ScheduledTasks（native65）：新增规范 15 列入口，解码 TaskCache 二进制动作、
 触发器、主体和执行历史。Win10 15063 为 232/232，Win7 7601 为 92/92；全字段、
 重复次数一致，仍保留镜像链表损坏造成的 partial。候选对应 129/135，完整合同仍为 0。
+
+
+UnhookedSystemCalls（native66）：复用精确 PE 符号查询，按参考的直接映射页规则读取
+45 个 ntdll 入口的 32 字节实现，并保留分组次序、平票和前两组行为。
+Win10 15063、Win7 7601 均为 45/45，全三列一致且保留 partial 诊断。
+候选对应 130/135，完整合同仍为 0。

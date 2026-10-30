@@ -193,7 +193,31 @@ impl Windows<'_> {
         resources: Option<(&std::path::Path, bool)>,
         job: &Job,
     ) -> Result<Results> {
+        self.pe_symbols_with_reads(options, resources, job, false)
+    }
+    pub(super) fn pe_symbols_captured(
+        &self,
+        options: &Options,
+        resources: Option<(&std::path::Path, bool)>,
+        job: &Job,
+    ) -> Result<Results> {
+        self.pe_symbols_with_reads(options, resources, job, true)
+    }
+    fn pe_symbols_with_reads(
+        &self,
+        options: &Options,
+        resources: Option<(&std::path::Path, bool)>,
+        job: &Job,
+        captured: bool,
+    ) -> Result<Results> {
         options.pe.validate(Plugin::WinPESymbols)?;
+        let read = |vm: &Memory<'_>, address, bytes: &mut [u8]| {
+            if captured {
+                vm.read_captured(address, bytes)
+            } else {
+                vm.read(address, bytes)
+            }
+        };
         let query = &options.pe;
         let module = query.module.as_ref().unwrap().to_lowercase();
         let mut result = self.result(Plugin::WinPESymbols);
@@ -303,7 +327,7 @@ impl Windows<'_> {
                     self.vm.isf
                 } else {
                     let mut header = [0; 4096];
-                    vm.read(instance.base, &mut header)?;
+                    read(&vm, instance.base, &mut header)?;
                     ensure!(
                         u64::from(pe_info::parse_header(&header)?.size) == instance.size,
                         "模块范围与 PE SizeOfImage 不一致"
@@ -371,7 +395,7 @@ impl Windows<'_> {
             let mut export_diagnostics = Vec::new();
             let found = (|| -> Result<Vec<(String, u64)>> {
                 let mut header = [0; 4096];
-                vm.read(instance.base, &mut header)?;
+                read(&vm, instance.base, &mut header)?;
                 let header = export_header(&header)?;
                 ensure!(
                     u64::from(header.size) <= instance.size,
@@ -380,7 +404,7 @@ impl Windows<'_> {
                 let exports = export_symbols(
                     header.size,
                     header.exports,
-                    |rva, bytes| vm.read(add(instance.base, u64::from(rva))?, bytes),
+                    |rva, bytes| read(&vm, add(instance.base, u64::from(rva))?, bytes),
                     job,
                     &mut export_diagnostics,
                 )?;

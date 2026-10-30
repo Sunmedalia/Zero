@@ -63,6 +63,7 @@ mod shimcache;
 mod suspended_threads;
 mod thread_symbols;
 mod timeline;
+mod unhooked_system_calls;
 mod user_artifacts;
 mod user_layout;
 mod userassist;
@@ -228,6 +229,19 @@ impl<'a> Memory<'a> {
             table = entry & geometry.mask();
         }
         None
+    }
+    /// Read directly translated capture pages. Matches the reference Intel layer:
+    /// valid/transition PTEs are allowed; prototype/pagefile reconstruction is separate.
+    pub(super) fn read_captured(&self, mut va: u64, mut out: &mut [u8]) -> Result<()> {
+        va.checked_add(out.len() as u64)
+            .context("Windows 读取越界")?;
+        while !out.is_empty() {
+            let n = out.len().min(4096 - (va & 4095) as usize);
+            self.image.read(self.translate(va)?, &mut out[..n])?;
+            va += n as u64;
+            out = &mut out[n..];
+        }
+        Ok(())
     }
     pub fn read(&self, mut va: u64, mut out: &mut [u8]) -> Result<()> {
         va.checked_add(out.len() as u64)
@@ -605,6 +619,9 @@ impl Windows<'_> {
         }
         if p == Plugin::WinSuspendedThreads {
             return self.suspended_threads(None, job);
+        }
+        if p == Plugin::WinUnhookedSystemCalls {
+            return self.unhooked_system_calls(None, job);
         }
         if p == Plugin::WinPESymbols {
             return self.pe_symbols(options, None, job);
@@ -1130,7 +1147,10 @@ pub(crate) fn analyze_resolved(
         && !request.plugin.is_dump()
         && !matches!(
             request.plugin,
-            Plugin::WinPESymbols | Plugin::WinSuspendedThreads | Plugin::WinDebugRegisters
+            Plugin::WinPESymbols
+                | Plugin::WinSuspendedThreads
+                | Plugin::WinDebugRegisters
+                | Plugin::WinUnhookedSystemCalls
         ) {
         if request.plugin == Plugin::WinDriverIrp {
             dispatch::load_cached(request.cache, &key, request.network, job)?
@@ -1154,6 +1174,8 @@ pub(crate) fn analyze_resolved(
         engine.debug_registers(Some((request.cache, request.network)), job)?
     } else if request.plugin == Plugin::WinSuspendedThreads {
         engine.suspended_threads(Some((request.cache, request.network)), job)?
+    } else if request.plugin == Plugin::WinUnhookedSystemCalls {
+        engine.unhooked_system_calls(Some((request.cache, request.network)), job)?
     } else if request.plugin == Plugin::WinPESymbols {
         engine.pe_symbols(options, Some((request.cache, request.network)), job)?
     } else if request.plugin == Plugin::WinDriverIrp {
@@ -1199,7 +1221,10 @@ pub(crate) fn analyze_resolved(
     if request.use_cache
         && !matches!(
             request.plugin,
-            Plugin::WinPESymbols | Plugin::WinSuspendedThreads | Plugin::WinDebugRegisters
+            Plugin::WinPESymbols
+                | Plugin::WinSuspendedThreads
+                | Plugin::WinDebugRegisters
+                | Plugin::WinUnhookedSystemCalls
         )
         && dump.is_none()
         && !request.plugin.is_dump()

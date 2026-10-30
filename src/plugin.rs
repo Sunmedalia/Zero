@@ -30,6 +30,11 @@ pub enum Plugin {
     WinWindows,
     #[value(name = "windows.pe_symbols.PESymbols")]
     WinPESymbols,
+    #[value(
+        name = "windows.malware.unhooked_system_calls.UnhookedSystemCalls",
+        alias = "windows.unhooked_system_calls"
+    )]
+    WinUnhookedSystemCalls,
     #[value(name = "windows.suspended_threads.SuspendedThreads")]
     WinSuspendedThreads,
     #[value(name = "windows.registry.amcache.Amcache")]
@@ -404,6 +409,17 @@ pub const PLUGINS: &[Descriptor] = &[
             "Win32StartAddress",
         ],
         widths: &[20, 7, 7, 0, 0, 18, 0, 0, 18],
+    },
+    Descriptor {
+        plugin: Plugin::WinUnhookedSystemCalls,
+        name: "windows.malware.unhooked_system_calls.UnhookedSystemCalls",
+        label: "unhooked_system_calls",
+        columns: &[
+            "Function",
+            "Distinct Implementations",
+            "Total Implementations",
+        ],
+        widths: &[32, 0, 24],
     },
     Descriptor {
         plugin: Plugin::WinPESymbols,
@@ -2164,6 +2180,7 @@ impl Plugin {
             Self::WinWindowStations | Self::WinDesktops | Self::WinDeskScan | Self::WinWindows => {
                 "GUI"
             }
+            Self::WinUnhookedSystemCalls => "Integrity",
             Self::WinDebugRegisters
             | Self::WinSuspendedThreads
             | Self::WinOrphanThreads
@@ -2373,6 +2390,7 @@ impl Plugin {
             WinWindows => "枚举每个桌面的窗口、过程地址和所属进程",
             WinDebugRegisters => "读取活动线程硬件调试寄存器及精确文件和符号归属",
             WinSuspendedThreads => "列出仍挂起的活动线程及起始地址文件和符号",
+            WinUnhookedSystemCalls => "对比进程 ntdll 系统调用入口的 32 字节实现",
             WinPESymbols => "通过精确 PDB 和 PE 导出表查询内核或进程模块符号",
             WinAmcacheV4 => "读取 Amcache 驱动、程序与文件的 11 列标准输出",
             WinAmcache => "读取 Amcache.hve 的程序文件清单",

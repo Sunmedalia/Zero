@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "allow_partial": true,
+  "keys": [
+    "Function"
+  ],
+  "fields": {
+    "Function": {
+      "zero": "Function",
+      "reference": "Function",
+      "type": "text"
+    },
+    "Distinct Implementations": {
+      "zero": "Distinct Implementations",
+      "reference": "Distinct Implementations",
+      "type": "text"
+    },
+    "Total Implementations": {
+      "zero": "Total Implementations",
+      "reference": "Total Implementations",
+      "type": "integer"
+    }
+  },
+  "notes": "Compare every function, minority-process list and majority count. Empty distinct text is meaningful. Partial diagnostics from process/VAD/symbol discovery are retained. No row selection or count-only comparison."
+}

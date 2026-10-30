@@ -6000,8 +6000,10 @@
         "Distinct Implementations",
         "Total Implementations"
       ],
-      "zero_candidates": [],
-      "status": "missing",
+      "zero_candidates": [
+        "windows.malware.unhooked_system_calls.UnhookedSystemCalls"
+      ],
+      "status": "mapped_unverified",
       "evidence": []
     },
     {
@@ -8818,7 +8820,9 @@
       "replacement": "windows.malware.unhooked_system_calls.UnhookedSystemCalls",
       "declared_requirements": [],
       "declared_columns": [],
-      "zero_candidates": [],
+      "zero_candidates": [
+        "windows.malware.unhooked_system_calls.UnhookedSystemCalls"
+      ],
       "status": "alias",
       "evidence": []
     },

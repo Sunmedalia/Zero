@@ -1076,3 +1076,18 @@ WNF、启动触发器；缺失字段为 N/A。短名称入口保留原有七列�
 前导零，Time 描述为空，Email 动作对象为空；标准入口保留这些参考行为。
 Win10 15063 的 232 行、Win7 7601 的 92 行完成全字段对照，但镜像的 hive／进程链损坏
 诊断仍会令结果为 partial。更多版本、x86 和完整故障行为仍待验收。
+
+
+windows.malware.unhooked_system_calls.UnhookedSystemCalls 查询 ntdll.dll 的 45 个固定函数，
+比较各进程相同虚拟地址的前 32 字节。输出 Function、Distinct Implementations、
+Total Implementations；后一列是参考选定的多数实现进程数。相同字节属于同一个分组，
+空差异字符串表示只有一组可读实现，不代表缺页进程没有异常。
+
+    zero analyze --offline --image memory.raw --symbols ntkrnlmp.json \
+      --plugin windows.malware.unhooked_system_calls.UnhookedSystemCalls --output unhooked.json
+
+符号定位使用精确 PDB 优先、PE 导出回退，按固定参考只从直接映射的捕获页读取 PE 头、
+导出数据和函数字节，允许 transition PTE，不重建 prototype 或 pagefile 内容。
+其他 PE 查询的页面恢复行为不变。外部模块 PDB 会影响结果，因此该插件每次重算。
+固定参考只比较发现的前两组实现，平票时第二组为多数；这不是完整的恶意软件判定。
+Win10 15063、Win7 7601 各 45 行已完成全字段对照，仍保留损坏链表／VAD 的 partial 诊断。
