@@ -64,15 +64,31 @@
       "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
       "reference_output_sha256": "4c05396681ad93f7d06b8d6504aba3c31a5f23699fd84d9b3748703d57222c56",
       "symbol_sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4",
-      "zero_executable_sha256": "150cd17d75835865ce1074a2f488f2649a89993740b2a370f98463853df62a4f",
-      "engine_version": "0.2.1-native-82",
+      "zero_executable_sha256": "16cc7e0d097276d67ed7dcddc26d489b3d53d4a8b410e9c8eab7b90067f9014a",
+      "engine_version": "0.2.1-native-84",
       "full_comparison_sha256": "53957bd70c3e72d2c581a24108d0196c932d7ddc0251011785c5358f3101e7d8",
-      "comparison_details": "Diagnostic entries and duplicate groups summarized; complete raw comparison retained in local run.py artifact and bound by full_comparison_sha256. Native/reference JSON digests permit independent reproduction. Any record_selection scope remains explicit."
+      "comparison_details": "Diagnostic entries and duplicate groups summarized; complete raw comparison retained in local run.py artifact and bound by full_comparison_sha256. Native/reference JSON digests permit independent reproduction. Any record_selection scope remains explicit.",
+      "record_order": {
+        "case_id": "windows-10-15063/desktops-default",
+        "records": [
+          28,
+          28
+        ],
+        "passed": true,
+        "positive_evidence": true,
+        "first_difference": null,
+        "zero_sha256": "e70373e0e7b7e74f2598453073407251b6d69faa651fbe3444355b1f95a642c7",
+        "reference_sha256": "e70373e0e7b7e74f2598453073407251b6d69faa651fbe3444355b1f95a642c7",
+        "scope": "All mapped fields in emitted sequence after declared record selection; duplicate occurrences retained.",
+        "mapping_sha256": "2280f0e18d2dfcb686e514e5a13fb9700035e7388bc365cfaa9fb7f29d8d3856",
+        "native_output_sha256": "052d66197a8c6f3ef0fe9ce9ae2bd9492a83b997a9b839811fad195cd8dc9011",
+        "reference_output_sha256": "4c05396681ad93f7d06b8d6504aba3c31a5f23699fd84d9b3748703d57222c56"
+      }
     }
   ],
-  "engine_version": "0.2.1-native-82",
-  "zero_executable_sha256": "150cd17d75835865ce1074a2f488f2649a89993740b2a370f98463853df62a4f",
-  "validation": "Final native82 binary and unmodified fixed reference, real default/scoped cases compare all mapped fields and multiplicities. Historical cases not rerun retain their own per-case versions. Empty agreement is not positive evidence; no complete plugin contract is claimed.",
+  "engine_version": "0.2.1-native-84",
+  "zero_executable_sha256": "16cc7e0d097276d67ed7dcddc26d489b3d53d4a8b410e9c8eab7b90067f9014a",
+  "validation": "Final native84 binary and unmodified fixed reference, real default/scoped cases compare all mapped fields and multiplicities. Historical cases not rerun retain their own per-case versions. Empty agreement is not positive evidence; no complete plugin contract is claimed.",
   "known_limitations": [
     "One positive Win10 x64 capture does not establish complete build, architecture, parameter, traversal or failure contracts.",
     "Raw GUI records can include retained or reused object bytes; matching the reference does not validate every object as active.",

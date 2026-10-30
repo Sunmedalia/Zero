@@ -68,14 +68,14 @@
     "ARM64 is outside the pinned reference architecture requirement.",
     "Missing-page process-name gathering and full field-fault behavior are not established by synthetic decoded-field validity cases. Native host clock behavior uses Unix localtime_r or Windows GetLocalTime; the Windows clock branch has not been exercised on a real Windows host in this batch."
   ],
-  "engine_version": "0.2.1-native-76",
+  "engine_version": "0.2.1-native-84",
   "cases": [
     {
       "reference_plugin": "windows.poolscanner.PoolScanner",
       "zero_plugin": "windows.poolscanner.PoolScanner",
       "image_sha256": "d58f62e92b8c4ef913ac09b2c36a10482034c10b88d0c154dead3aaaa49cf875",
       "mapping_sha256": "61bf7450b58203cf44032f8f3d5740d2bc181ac385da0953c446196825865dfa",
-      "native_output_sha256": "217917a311320fe49ef9f2bb5db4a0b965c90b1117cac5b8e4632e258adad319",
+      "native_output_sha256": "c64ba2aa9384e2c615fedec348b671af4f0e0405ce1a34089e71226c56cfabe5",
       "zero_args": [],
       "reference_args": [],
       "case_id": "windows-10-15063/poolscanner-default",
@@ -93,7 +93,7 @@
             "summary": true,
             "groups": 102,
             "records": 204,
-            "keys_and_counts_sha256": "98e14d8df19f554055bea48b65f5f46d67a5831b2923d3b41751ae1123e4df28"
+            "keys_and_counts_sha256": "50e67969fe09fe36a2468b65dd6c9a807298423d311e5cd51832fa56651223dc"
           },
           {
             "side": "reference",
@@ -112,7 +112,7 @@
         "positive_evidence": true,
         "zero_complete": false,
         "zero_diagnostics": [
-          "Summary: 257 diagnostics; complete entries retained in the raw comparison artifact."
+          "Summary: 257 diagnostics; complete entries retained in raw comparison artifact."
         ],
         "passed": true
       },
@@ -120,13 +120,29 @@
       "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
       "reference_output_sha256": "1001fdff9ee2eceed8c60a145821566106f0af0e040f0d963c850391c62ef72a",
       "symbol_sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4",
-      "zero_executable_sha256": "0d1593275275e579da33c4fb3be6635a0496292a5aab544e2cb520a02a03e450",
-      "engine_version": "0.2.1-native-76",
-      "full_comparison_sha256": "d6ae3307a5c2ccec663ad97ec755cbbbf52065536239a246df4ce8b7e5c0df46",
-      "comparison_details": "Diagnostic entries and duplicate groups summarized; complete raw comparison retained in local run.py artifact and bound by full_comparison_sha256. Native/reference JSON digests permit independent reproduction. No records or fields filtered during comparison.",
+      "zero_executable_sha256": "16cc7e0d097276d67ed7dcddc26d489b3d53d4a8b410e9c8eab7b90067f9014a",
+      "engine_version": "0.2.1-native-84",
+      "full_comparison_sha256": "6744a0dd4ce50d11bd6d36cd01ee35fe0b6480e3816f4f9364a2be9b9e8c01f6",
+      "comparison_details": "Diagnostic entries and duplicate groups summarized; complete raw comparison retained in local run.py artifact and bound by full_comparison_sha256. Native/reference JSON digests permit independent reproduction. Any record_selection scope remains explicit.",
       "zero_diagnostics_summary": {
         "count": 257,
-        "sha256": "ba857ac67b1a3ce394fd98b656f657d5c0f8f27f12f3d1d079d6662785c8699a"
+        "sha256": "1c1a81aa814bb1ca572a470314e952a8b20a55283ca763e41d22a133a3a9caa6"
+      },
+      "record_order": {
+        "case_id": "windows-10-15063/poolscanner-default",
+        "records": [
+          36172,
+          36172
+        ],
+        "passed": true,
+        "positive_evidence": true,
+        "first_difference": null,
+        "zero_sha256": "dccc5a2eb8d347fbf9830cfed45bf6a1c620585757c23bd1b3c02290ff1c59b6",
+        "reference_sha256": "dccc5a2eb8d347fbf9830cfed45bf6a1c620585757c23bd1b3c02290ff1c59b6",
+        "scope": "All mapped fields in emitted sequence after declared record selection; duplicate occurrences retained.",
+        "mapping_sha256": "61bf7450b58203cf44032f8f3d5740d2bc181ac385da0953c446196825865dfa",
+        "native_output_sha256": "c64ba2aa9384e2c615fedec348b671af4f0e0405ce1a34089e71226c56cfabe5",
+        "reference_output_sha256": "1001fdff9ee2eceed8c60a145821566106f0af0e040f0d963c850391c62ef72a"
       }
     },
     {
@@ -134,7 +150,7 @@
       "zero_plugin": "windows.poolscanner.PoolScanner",
       "image_sha256": "0f00815b8f78f30a63d742c73152474b2a3c35183dbb1d92c8fc6a81fa3de9f1",
       "mapping_sha256": "61bf7450b58203cf44032f8f3d5740d2bc181ac385da0953c446196825865dfa",
-      "native_output_sha256": "203c0c41a1f87dad2820e700245cf0d983dfa6809e5c3f05bcdca48787ad44c8",
+      "native_output_sha256": "62843c0c3df9c739dba1ab18cf802cc0bac22d583996e5d68ca0886ebd28fe52",
       "zero_args": [],
       "reference_args": [],
       "case_id": "windows-11/poolscanner-default",
@@ -171,7 +187,7 @@
         "positive_evidence": true,
         "zero_complete": false,
         "zero_diagnostics": [
-          "Summary: 4097 diagnostics; complete entries retained in the raw comparison artifact."
+          "Summary: 4097 diagnostics; complete entries retained in raw comparison artifact."
         ],
         "passed": true
       },
@@ -179,13 +195,29 @@
       "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
       "reference_output_sha256": "db3bb567502795eb6bc4c63d6feef552e4887edb3931efd03014817b57cfdeb7",
       "symbol_sha256": "6a234099b69b393eb7d652408835205bd12f0b947d0d6b6275e2ffce8ca9c133",
-      "zero_executable_sha256": "0d1593275275e579da33c4fb3be6635a0496292a5aab544e2cb520a02a03e450",
-      "engine_version": "0.2.1-native-76",
+      "zero_executable_sha256": "16cc7e0d097276d67ed7dcddc26d489b3d53d4a8b410e9c8eab7b90067f9014a",
+      "engine_version": "0.2.1-native-84",
       "full_comparison_sha256": "0981adc00c98a399237efb3c8b9a5d4e26e8fb70935421e2490d60bfe4490c0e",
-      "comparison_details": "Diagnostic entries and duplicate groups summarized; complete raw comparison retained in local run.py artifact and bound by full_comparison_sha256. Native/reference JSON digests permit independent reproduction. No records or fields filtered during comparison.",
+      "comparison_details": "Diagnostic entries and duplicate groups summarized; complete raw comparison retained in local run.py artifact and bound by full_comparison_sha256. Native/reference JSON digests permit independent reproduction. Any record_selection scope remains explicit.",
       "zero_diagnostics_summary": {
         "count": 4097,
         "sha256": "d0c5e19d035a1880e3f29a49ec3328b956d2a299922220e0b8523d79d5b7dfa8"
+      },
+      "record_order": {
+        "case_id": "windows-11/poolscanner-default",
+        "records": [
+          8709,
+          8709
+        ],
+        "passed": true,
+        "positive_evidence": true,
+        "first_difference": null,
+        "zero_sha256": "0cd898dd11cb4e48cb814bec0c929eed596e5cf109df3b6f3e5ef01818fa78d8",
+        "reference_sha256": "0cd898dd11cb4e48cb814bec0c929eed596e5cf109df3b6f3e5ef01818fa78d8",
+        "scope": "All mapped fields in emitted sequence after declared record selection; duplicate occurrences retained.",
+        "mapping_sha256": "61bf7450b58203cf44032f8f3d5740d2bc181ac385da0953c446196825865dfa",
+        "native_output_sha256": "62843c0c3df9c739dba1ab18cf802cc0bac22d583996e5d68ca0886ebd28fe52",
+        "reference_output_sha256": "db3bb567502795eb6bc4c63d6feef552e4887edb3931efd03014817b57cfdeb7"
       }
     },
     {
@@ -193,7 +225,7 @@
       "zero_plugin": "windows.poolscanner.PoolScanner",
       "image_sha256": "d3b13f2224cab20440a4bb3c5c971662be6e61f431340f319cef7312bb6177f4",
       "mapping_sha256": "61bf7450b58203cf44032f8f3d5740d2bc181ac385da0953c446196825865dfa",
-      "native_output_sha256": "0038a46922a1c0488c3fe507ea534ab2223263a0ee65f96d7c8be09f90c9e214",
+      "native_output_sha256": "24ed86f07935c3d64d75ab9607ef214fd1d693fe7474ec1e06b246147e2739ad",
       "zero_args": [],
       "reference_args": [],
       "case_id": "server-2008-6001-x86/poolscanner-default",
@@ -215,7 +247,7 @@
         "positive_evidence": true,
         "zero_complete": false,
         "zero_diagnostics": [
-          "Summary: 4097 diagnostics; complete entries retained in the raw comparison artifact."
+          "Summary: 4097 diagnostics; complete entries retained in raw comparison artifact."
         ],
         "passed": true
       },
@@ -223,13 +255,29 @@
       "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
       "reference_output_sha256": "e7c295dfa633ed0297171c80c6deed11681925a1b402cb02e9f567b01737f4e5",
       "symbol_sha256": "5d73f3a7158ba8b72394f2606ea5b4f03393976d5054a11cc51d51afb88a5544",
-      "zero_executable_sha256": "0d1593275275e579da33c4fb3be6635a0496292a5aab544e2cb520a02a03e450",
-      "engine_version": "0.2.1-native-76",
-      "full_comparison_sha256": "2cf3a54f56fca466ec93feb1e2a8b1282fba86bea65765176a68c5c6a72e4346",
-      "comparison_details": "Diagnostic entries and duplicate groups summarized; complete raw comparison retained in local run.py artifact and bound by full_comparison_sha256. Native/reference JSON digests permit independent reproduction. No records or fields filtered during comparison.",
+      "zero_executable_sha256": "16cc7e0d097276d67ed7dcddc26d489b3d53d4a8b410e9c8eab7b90067f9014a",
+      "engine_version": "0.2.1-native-84",
+      "full_comparison_sha256": "ab9e0dbaacf0b0a5da16f2b226ce211dfdaa83504989ac014e6b0f7e996b9572",
+      "comparison_details": "Diagnostic entries and duplicate groups summarized; complete raw comparison retained in local run.py artifact and bound by full_comparison_sha256. Native/reference JSON digests permit independent reproduction. Any record_selection scope remains explicit.",
       "zero_diagnostics_summary": {
         "count": 4097,
-        "sha256": "05342116979d03c0e1fa08236cee22ebf1f684b6bd5d1099ba67f18302f0d30b"
+        "sha256": "cea882ada3a37c49f991d77dd3ff8b5a5707b07e07d77c8f1858a577b0d093bc"
+      },
+      "record_order": {
+        "case_id": "server-2008-6001-x86/poolscanner-default",
+        "records": [
+          3323,
+          3323
+        ],
+        "passed": true,
+        "positive_evidence": true,
+        "first_difference": null,
+        "zero_sha256": "b5f7082ca38db6d37a45b4b1faf69a97255401e10c33830e61b5f7a219a67923",
+        "reference_sha256": "b5f7082ca38db6d37a45b4b1faf69a97255401e10c33830e61b5f7a219a67923",
+        "scope": "All mapped fields in emitted sequence after declared record selection; duplicate occurrences retained.",
+        "mapping_sha256": "61bf7450b58203cf44032f8f3d5740d2bc181ac385da0953c446196825865dfa",
+        "native_output_sha256": "24ed86f07935c3d64d75ab9607ef214fd1d693fe7474ec1e06b246147e2739ad",
+        "reference_output_sha256": "e7c295dfa633ed0297171c80c6deed11681925a1b402cb02e9f567b01737f4e5"
       }
     },
     {
@@ -237,7 +285,7 @@
       "zero_plugin": "windows.poolscanner.PoolScanner",
       "image_sha256": "80366d7ec64a5529c95c2f523f4281a5f11efbad33ecb19f73525470c1407b23",
       "mapping_sha256": "61bf7450b58203cf44032f8f3d5740d2bc181ac385da0953c446196825865dfa",
-      "native_output_sha256": "f41927812d095c6d15edc61e29efa934cc532a5af33ba2fc07ce2f99be1d9d1b",
+      "native_output_sha256": "d8bae731a8e0bb1915e30f3e1b0b6e26e3e3f3c525659fd2274cfcd26860b578",
       "zero_args": [],
       "reference_args": [],
       "case_id": "windows-7-7601-x64/poolscanner-default",
@@ -265,15 +313,31 @@
       "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
       "reference_output_sha256": "cbacf9552535c631717cbfbed9c908b16b812de4d8b7e4f161079e4e5d45bca5",
       "symbol_sha256": "6d5f85f7b953330b9762a57e5a25266547e7391ad4f6655170a9f48876fb6b8c",
-      "zero_executable_sha256": "0d1593275275e579da33c4fb3be6635a0496292a5aab544e2cb520a02a03e450",
-      "engine_version": "0.2.1-native-76"
+      "zero_executable_sha256": "16cc7e0d097276d67ed7dcddc26d489b3d53d4a8b410e9c8eab7b90067f9014a",
+      "engine_version": "0.2.1-native-84",
+      "record_order": {
+        "case_id": "windows-7-7601-x64/poolscanner-default",
+        "records": [
+          4926,
+          4926
+        ],
+        "passed": true,
+        "positive_evidence": true,
+        "first_difference": null,
+        "zero_sha256": "05eaab6ca94c5dfd23f4ac446dac5fc53eb34d654082d80cb9c3cb460fee5130",
+        "reference_sha256": "05eaab6ca94c5dfd23f4ac446dac5fc53eb34d654082d80cb9c3cb460fee5130",
+        "scope": "All mapped fields in emitted sequence after declared record selection; duplicate occurrences retained.",
+        "mapping_sha256": "61bf7450b58203cf44032f8f3d5740d2bc181ac385da0953c446196825865dfa",
+        "native_output_sha256": "d8bae731a8e0bb1915e30f3e1b0b6e26e3e3f3c525659fd2274cfcd26860b578",
+        "reference_output_sha256": "cbacf9552535c631717cbfbed9c908b16b812de4d8b7e4f161079e4e5d45bca5"
+      }
     },
     {
       "reference_plugin": "windows.poolscanner.PoolScanner",
       "zero_plugin": "windows.poolscanner.PoolScanner",
       "image_sha256": "dc7022c2183dade6c36ebf19c74af5234bff8800e2a6f95e825287da9a214adb",
       "mapping_sha256": "61bf7450b58203cf44032f8f3d5740d2bc181ac385da0953c446196825865dfa",
-      "native_output_sha256": "657ae9a19e753fd755e55a117e9573f418dc4b520526d859715bac8dbbbd4164",
+      "native_output_sha256": "8738a38cd70160450eeabc2259d6bdbc86a113357375562e2d75a164d548ab1b",
       "zero_args": [],
       "reference_args": [],
       "case_id": "server-2003-3790-x86/poolscanner-default",
@@ -295,7 +359,7 @@
         "positive_evidence": true,
         "zero_complete": false,
         "zero_diagnostics": [
-          "Summary: 3648 diagnostics; complete entries retained in the raw comparison artifact."
+          "Summary: 3648 diagnostics; complete entries retained in raw comparison artifact."
         ],
         "passed": true
       },
@@ -303,18 +367,34 @@
       "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
       "reference_output_sha256": "7b6cb154912c226c4b39b98d0da814e3b04cbd1e07f0a5bd814532a290f74ded",
       "symbol_sha256": "e71b53897ef6119ca9e51967ffe2399edd422ef54279f3d93659d61d16ec1f67",
-      "zero_executable_sha256": "0d1593275275e579da33c4fb3be6635a0496292a5aab544e2cb520a02a03e450",
-      "engine_version": "0.2.1-native-76",
-      "full_comparison_sha256": "68a1a6e4833ade1654cad888453b9cfb912bbc9e4a895eee3538f45707e82b65",
-      "comparison_details": "Diagnostic entries and duplicate groups summarized; complete raw comparison retained in local run.py artifact and bound by full_comparison_sha256. Native/reference JSON digests permit independent reproduction. No records or fields filtered during comparison.",
+      "zero_executable_sha256": "16cc7e0d097276d67ed7dcddc26d489b3d53d4a8b410e9c8eab7b90067f9014a",
+      "engine_version": "0.2.1-native-84",
+      "full_comparison_sha256": "d49893d69552f3b3ebbeefc6b5b61d358edb4f098ec55c0968fd689d351605e8",
+      "comparison_details": "Diagnostic entries and duplicate groups summarized; complete raw comparison retained in local run.py artifact and bound by full_comparison_sha256. Native/reference JSON digests permit independent reproduction. Any record_selection scope remains explicit.",
       "zero_diagnostics_summary": {
         "count": 3648,
-        "sha256": "80f9b0c4f76c9ec86445fcc878f41c12c3ae315dab761cb539ffa7fe1d5bc44b"
+        "sha256": "311b9fdad0158fa033ec7558ecd033f42c2d194e6c5b292350c64c3a70fee355"
+      },
+      "record_order": {
+        "case_id": "server-2003-3790-x86/poolscanner-default",
+        "records": [
+          2154,
+          2154
+        ],
+        "passed": true,
+        "positive_evidence": true,
+        "first_difference": null,
+        "zero_sha256": "6b7ca1ff7268bbec0194307fcdeb56f7fea4094f4bb01d0fce3a62a0b90acd0c",
+        "reference_sha256": "6b7ca1ff7268bbec0194307fcdeb56f7fea4094f4bb01d0fce3a62a0b90acd0c",
+        "scope": "All mapped fields in emitted sequence after declared record selection; duplicate occurrences retained.",
+        "mapping_sha256": "61bf7450b58203cf44032f8f3d5740d2bc181ac385da0953c446196825865dfa",
+        "native_output_sha256": "8738a38cd70160450eeabc2259d6bdbc86a113357375562e2d75a164d548ab1b",
+        "reference_output_sha256": "7b6cb154912c226c4b39b98d0da814e3b04cbd1e07f0a5bd814532a290f74ded"
       }
     }
   ],
-  "zero_executable_sha256": "0d1593275275e579da33c4fb3be6635a0496292a5aab544e2cb520a02a03e450",
-  "validation": "Fresh unmodified pinned reference and final native76, five default captures, all four fields and duplicate multiplicities, no row filtering. Existing case identities replaced without incrementing the number of positive cases. Process/thread predicates have separate fixed-reference synthetic edge vectors.",
+  "zero_executable_sha256": "16cc7e0d097276d67ed7dcddc26d489b3d53d4a8b410e9c8eab7b90067f9014a",
+  "validation": "Final native84 binary and unmodified fixed reference, real default/scoped cases compare all mapped fields and multiplicities. Historical cases not rerun retain their own per-case versions. Empty agreement is not positive evidence; no complete plugin contract is claimed.",
   "known_causes": [
     "Native74 CMHIVE signature filtering was absent from the pinned non-executive path; native75 retains these raw observations.",
     "Native74 Win11 symbolic-link extras are removed by using the pinned type-map boundaries and missing-name semantics rather than exported-variable fallback.",
@@ -327,5 +407,12 @@
     "process": 33,
     "thread": 11,
     "scope": "Actual EPROCESS/ETHREAD validity and datetime conversion; synthetic decoded field inputs, array_to_string adapter uses the actual byte decoder, local calendar frozen to explicit years. Does not model unreadable structure pages or complete pool carving."
+  },
+  "tag_order_vectors": {
+    "sha256": "d287b90035fefa136c1afee23a9b6409059189a39fb6cdae8081e7ff52a6bfe7",
+    "cases": 11,
+    "scope": "Actual MultiStringScanner and PoolHeaderScanner, with synthetic decoded pool-header scalars. Tests address order across four-byte tags, constraint-order independence, non-overlap including rejected matches, binary patterns and empty buffers. Does not validate layer chunking, physical/virtual ranges, object carving or field read faults.",
+    "implementation": "merge one pending hit per four-byte pattern in scan-range address order, non-overlapping regex consumption; driver constraints share the same range read and global candidate cap",
+    "remaining": "Does not prove layer scan-chunk/overlap equivalence, boundary-spanning tags/headers, damaged-page coverage, or every plugin generator ordering."
   }
 }

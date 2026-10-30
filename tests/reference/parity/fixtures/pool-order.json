@@ -1,0 +1,454 @@
+{
+  "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+  "source_sha256": {
+    "plugins/windows/poolscanner.py": "85b7001117f4f9626698ae47f5f921ad4c9643625cb43a7a2a527b5c9469310e",
+    "layers/scanners/__init__.py": "c9ef412950973004146850acb415786a120d444bd0075ebb2e6ec3eb13d195ed"
+  },
+  "scope": "Actual MultiStringScanner and PoolHeaderScanner, with synthetic decoded pool-header scalars. Tests address order across four-byte tags, constraint-order independence, non-overlap including rejected matches, binary patterns and empty buffers. Does not validate layer chunking, physical/virtual ranges, object carving or field read faults.",
+  "duplicate_error": "Constraint tag is used for more than one constraint: b'Driv'",
+  "cases": [
+    {
+      "id": "interleaved-drivers",
+      "tags_hex": [
+        "447269f6",
+        "44726976"
+      ],
+      "data_hex": "2e2e2e2e447269762e2e2e2e447269f6447269762e2e2e2e447269f6",
+      "rejected_indices": [],
+      "expected_matches": [
+        [
+          4,
+          1
+        ],
+        [
+          12,
+          0
+        ],
+        [
+          16,
+          1
+        ],
+        [
+          24,
+          0
+        ]
+      ],
+      "expected_headers": [
+        [
+          4096,
+          1
+        ],
+        [
+          4104,
+          0
+        ],
+        [
+          4108,
+          1
+        ],
+        [
+          4116,
+          0
+        ]
+      ]
+    },
+    {
+      "id": "reversed-drivers",
+      "tags_hex": [
+        "44726976",
+        "447269f6"
+      ],
+      "data_hex": "2e2e2e2e447269762e2e2e2e447269f6447269762e2e2e2e447269f6",
+      "rejected_indices": [],
+      "expected_matches": [
+        [
+          4,
+          0
+        ],
+        [
+          12,
+          1
+        ],
+        [
+          16,
+          0
+        ],
+        [
+          24,
+          1
+        ]
+      ],
+      "expected_headers": [
+        [
+          4096,
+          0
+        ],
+        [
+          4104,
+          1
+        ],
+        [
+          4108,
+          0
+        ],
+        [
+          4116,
+          1
+        ]
+      ]
+    },
+    {
+      "id": "reversed-builtins",
+      "tags_hex": [
+        "41746d54",
+        "50726fe3",
+        "50726f63",
+        "546872e5",
+        "54687265",
+        "46696ce5",
+        "46696c65",
+        "4d7574e1",
+        "4d757461",
+        "447269f6",
+        "44726976",
+        "4d6d4c64",
+        "53796de2",
+        "53796d62",
+        "434d3130"
+      ],
+      "data_hex": "30303030434d31303030303053796d623030303053796de2303030304d6d4c64303030304472697630303030447269f6303030304d757461303030304d7574e13030303046696c653030303046696ce5303030305468726530303030546872e53030303050726f633030303050726fe33030303041746d54",
+      "rejected_indices": [],
+      "expected_matches": [
+        [
+          4,
+          14
+        ],
+        [
+          12,
+          13
+        ],
+        [
+          20,
+          12
+        ],
+        [
+          28,
+          11
+        ],
+        [
+          36,
+          10
+        ],
+        [
+          44,
+          9
+        ],
+        [
+          52,
+          8
+        ],
+        [
+          60,
+          7
+        ],
+        [
+          68,
+          6
+        ],
+        [
+          76,
+          5
+        ],
+        [
+          84,
+          4
+        ],
+        [
+          92,
+          3
+        ],
+        [
+          100,
+          2
+        ],
+        [
+          108,
+          1
+        ],
+        [
+          116,
+          0
+        ]
+      ],
+      "expected_headers": [
+        [
+          4096,
+          14
+        ],
+        [
+          4104,
+          13
+        ],
+        [
+          4112,
+          12
+        ],
+        [
+          4120,
+          11
+        ],
+        [
+          4128,
+          10
+        ],
+        [
+          4136,
+          9
+        ],
+        [
+          4144,
+          8
+        ],
+        [
+          4152,
+          7
+        ],
+        [
+          4160,
+          6
+        ],
+        [
+          4168,
+          5
+        ],
+        [
+          4176,
+          4
+        ],
+        [
+          4184,
+          3
+        ],
+        [
+          4192,
+          2
+        ],
+        [
+          4200,
+          1
+        ],
+        [
+          4208,
+          0
+        ]
+      ]
+    },
+    {
+      "id": "one-gui-tag",
+      "tags_hex": [
+        "57696e64"
+      ],
+      "data_hex": "3030303057696e6457696e6430303057696e64",
+      "rejected_indices": [],
+      "expected_matches": [
+        [
+          4,
+          0
+        ],
+        [
+          8,
+          0
+        ],
+        [
+          15,
+          0
+        ]
+      ],
+      "expected_headers": [
+        [
+          4096,
+          0
+        ],
+        [
+          4100,
+          0
+        ],
+        [
+          4107,
+          0
+        ]
+      ]
+    },
+    {
+      "id": "self-overlap",
+      "tags_hex": [
+        "41414141"
+      ],
+      "data_hex": "414141414141414141",
+      "rejected_indices": [],
+      "expected_matches": [
+        [
+          0,
+          0
+        ],
+        [
+          4,
+          0
+        ]
+      ],
+      "expected_headers": [
+        [
+          4092,
+          0
+        ],
+        [
+          4096,
+          0
+        ]
+      ]
+    },
+    {
+      "id": "cross-pattern-overlap",
+      "tags_hex": [
+        "41414141",
+        "41414142"
+      ],
+      "data_hex": "4141414141414142",
+      "rejected_indices": [],
+      "expected_matches": [
+        [
+          0,
+          0
+        ],
+        [
+          4,
+          1
+        ]
+      ],
+      "expected_headers": [
+        [
+          4092,
+          0
+        ],
+        [
+          4096,
+          1
+        ]
+      ]
+    },
+    {
+      "id": "reversed-overlap",
+      "tags_hex": [
+        "41414142",
+        "41414141"
+      ],
+      "data_hex": "4141414141414142",
+      "rejected_indices": [],
+      "expected_matches": [
+        [
+          0,
+          1
+        ],
+        [
+          4,
+          0
+        ]
+      ],
+      "expected_headers": [
+        [
+          4092,
+          1
+        ],
+        [
+          4096,
+          0
+        ]
+      ]
+    },
+    {
+      "id": "rejected-first-overlap",
+      "tags_hex": [
+        "41414141",
+        "41414142"
+      ],
+      "data_hex": "4141414141414142",
+      "rejected_indices": [
+        0
+      ],
+      "expected_matches": [
+        [
+          0,
+          0
+        ],
+        [
+          4,
+          1
+        ]
+      ],
+      "expected_headers": [
+        [
+          4096,
+          1
+        ]
+      ]
+    },
+    {
+      "id": "binary-tags",
+      "tags_hex": [
+        "0041ff00",
+        "ff000041"
+      ],
+      "data_hex": "0041ff00ff0000410041ff00",
+      "rejected_indices": [],
+      "expected_matches": [
+        [
+          0,
+          0
+        ],
+        [
+          4,
+          1
+        ],
+        [
+          8,
+          0
+        ]
+      ],
+      "expected_headers": [
+        [
+          4092,
+          0
+        ],
+        [
+          4096,
+          1
+        ],
+        [
+          4100,
+          0
+        ]
+      ]
+    },
+    {
+      "id": "no-hit",
+      "tags_hex": [
+        "44726976",
+        "57696e64"
+      ],
+      "data_hex": "6e6f6e65",
+      "rejected_indices": [],
+      "expected_matches": [],
+      "expected_headers": []
+    },
+    {
+      "id": "empty-buffer",
+      "tags_hex": [
+        "44726976"
+      ],
+      "data_hex": "",
+      "rejected_indices": [],
+      "expected_matches": [],
+      "expected_headers": []
+    }
+  ]
+}

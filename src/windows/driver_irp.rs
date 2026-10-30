@@ -248,6 +248,40 @@ pub(super) mod tests {
     use super::*;
     use serde_json::json;
     #[test]
+    fn driver_constraints_are_interleaved_in_scan_address_order() {
+        for x86 in [false, true] {
+            for modern in [false, true] {
+                let (mut bytes, isf, base, plain) = driver_fixture(x86, modern, false);
+                let (protected_bytes, _, _, protected) = driver_fixture(x86, modern, true);
+                let plain_bytes = bytes[0xb000..0xb200].to_vec();
+                bytes[0xb400..0xb600].copy_from_slice(&protected_bytes[0xb000..0xb200]);
+                bytes[0xb800..0xba00].copy_from_slice(&plain_bytes);
+                let snapshot = image(&bytes);
+                let windows = Windows {
+                    vm: Memory::new(&snapshot, 0x1000, &isf, None),
+                    base,
+                    pdb: PdbIdentity::from_isf(&isf).unwrap(),
+                };
+                let mut result = windows.result(Plugin::WinDriverIrp);
+                let actual = windows
+                    .dispatch_drivers(&mut result, &Job::default())
+                    .unwrap();
+                let expected: Vec<_> = [plain, protected + 0x400, plain + 0x800]
+                    .into_iter()
+                    .map(|at| if modern { base + at - 0x8000 } else { at })
+                    .map(|at| (at, at))
+                    .collect();
+                assert_eq!(
+                    actual, expected,
+                    "x86={x86} modern={modern}: {:?}",
+                    result.diagnostics
+                );
+                assert!(result.complete, "{:?}", result.diagnostics);
+            }
+        }
+    }
+
+    #[test]
     fn dispatch_uses_shared_signed_padding_and_exact_unaligned_pool_headers() {
         let (mut bytes, mut isf, base, _) = driver_fixture(false, true, false);
         isf.data["user_types"]["_OBJECT_HEADER_PADDING_INFO"] = json!({"size":4,"fields":{}});

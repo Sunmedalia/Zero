@@ -2,7 +2,8 @@
 use super::*;
 use memchr::memmem;
 use objects::physical_number;
-use std::collections::BTreeMap;
+use std::cmp::Reverse;
+use std::collections::{BTreeMap, BinaryHeap};
 
 const OPTIONAL_HEADERS: [&str; 9] = [
     "CREATOR_INFO",
@@ -130,6 +131,63 @@ const CONSTRAINTS: &[Constraint] = &[
     Constraint::new(b"CM10", "_CMHIVE", None, 800, 5, true, &[]),
 ];
 
+/// Merge the four-byte pool patterns in address order, consuming each match as
+/// Python MultiStringScanner's regex does. Only one pending hit per pattern is
+/// retained; a buffer with many tags cannot allocate a hit-sized side table.
+struct PoolTagMatches<'data, 'tag> {
+    data: &'data [u8],
+    finders: Vec<memmem::Finder<'tag>>,
+    pending: BinaryHeap<Reverse<(usize, usize)>>,
+    consumed: usize,
+}
+
+impl<'data, 'tag> PoolTagMatches<'data, 'tag> {
+    fn new(data: &'data [u8], tags: impl IntoIterator<Item = &'tag [u8]>) -> Result<Self> {
+        let mut finders = Vec::new();
+        let mut pending = BinaryHeap::new();
+        let mut unique = HashSet::new();
+        for (index, tag) in tags.into_iter().enumerate() {
+            ensure!(tag.len() == 4, "pool 标签必须是四字节");
+            ensure!(unique.insert(tag), "pool 标签约束重复");
+            let finder = memmem::Finder::new(tag);
+            if let Some(at) = finder.find(data) {
+                pending.push(Reverse((at, index)));
+            }
+            finders.push(finder);
+        }
+        ensure!(!finders.is_empty(), "pool 标签约束为空");
+        Ok(Self {
+            data,
+            finders,
+            pending,
+            consumed: 0,
+        })
+    }
+
+    fn advance(&mut self, index: usize, from: usize) {
+        if let Some(at) = self.finders[index].find(&self.data[from..]) {
+            self.pending.push(Reverse((from + at, index)));
+        }
+    }
+}
+
+impl Iterator for PoolTagMatches<'_, '_> {
+    type Item = (usize, usize);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        while let Some(Reverse((at, index))) = self.pending.pop() {
+            if at < self.consumed {
+                self.advance(index, self.consumed);
+                continue;
+            }
+            self.consumed = at + 4;
+            self.advance(index, self.consumed);
+            return Some((index, at));
+        }
+        None
+    }
+}
+
 struct PoolCarve<'a> {
     block: u64,
     alignment: u64,
@@ -239,98 +297,86 @@ impl Windows<'_> {
                 );
                 continue;
             }
-            let position = start;
-            {
-                for constraint in CONSTRAINTS {
-                    let Some(&type_size) = sizes.get(constraint.type_name) else {
+            for (index, tag) in PoolTagMatches::new(&data, CONSTRAINTS.iter().map(|c| c.tag))? {
+                job.check()?;
+                let constraint = &CONSTRAINTS[index];
+                let Some(&type_size) = sizes.get(constraint.type_name) else {
+                    continue;
+                };
+                let Some(local) = tag.checked_sub(tag_offset) else {
+                    continue;
+                };
+                // Alignment scales BlockSize; the fixed scanner does not
+                // round or reject the address of a matched pool header.
+                if local + header_size as usize > data.len() {
+                    continue;
+                }
+                let bytes = &data[local..local + header_size as usize];
+                let Ok(block) = physical_number(self.vm.isf, bytes, "_POOL_HEADER", "BlockSize")
+                else {
+                    continue;
+                };
+                let Some(size) = block.checked_mul(alignment) else {
+                    continue;
+                };
+                if size < constraint.minimum {
+                    continue;
+                }
+                if self.vm.isf.has_field("_POOL_HEADER", "PoolType") {
+                    let Ok(page) = physical_number(self.vm.isf, bytes, "_POOL_HEADER", "PoolType")
+                    else {
                         continue;
                     };
-                    let finder = memmem::Finder::new(constraint.tag);
-                    let mut from = 0;
-                    while let Some(at) = finder.find(&data[from..]) {
-                        job.check()?;
-                        let tag = from + at;
-                        from = tag + 1;
-                        let Some(local) = tag.checked_sub(tag_offset) else {
-                            continue;
-                        };
-                        // Alignment scales BlockSize; the fixed scanner does not
-                        // round or reject the address of a matched pool header.
-                        if local + header_size as usize > data.len() {
-                            continue;
-                        }
-                        let bytes = &data[local..local + header_size as usize];
-                        let Ok(block) =
-                            physical_number(self.vm.isf, bytes, "_POOL_HEADER", "BlockSize")
-                        else {
-                            continue;
-                        };
-                        let Some(size) = block.checked_mul(alignment) else {
-                            continue;
-                        };
-                        if size < constraint.minimum {
-                            continue;
-                        }
-                        if self.vm.isf.has_field("_POOL_HEADER", "PoolType") {
-                            let Ok(page) =
-                                physical_number(self.vm.isf, bytes, "_POOL_HEADER", "PoolType")
-                            else {
-                                continue;
-                            };
-                            let paged = page > 0 && page % 2 == if vista { 1 } else { 0 };
-                            let nonpaged = page > 0 && page % 2 == if vista { 0 } else { 1 };
-                            let accepted = page == 0 && constraint.page & 4 != 0
-                                || paged && constraint.page & 1 != 0
-                                || nonpaged && constraint.page & 2 != 0;
-                            if !accepted {
-                                continue;
-                            }
-                        }
-                        let address = position + local as u64;
-                        let bodies = self.pool_bodies(
-                            constraint,
-                            address,
-                            PoolCarve {
-                                block: size,
-                                alignment,
-                                type_size,
-                                top_down,
-                                optional: &optional,
-                                virtual_scan,
-                            },
-                            job,
-                        )?;
-                        for body in bodies {
-                            if !self.pool_object_valid(
-                                constraint,
-                                body,
-                                virtual_scan,
-                                &validation,
-                                result,
-                                &mut diagnostics,
-                            )? {
-                                continue;
-                            }
-                            let Some(name) =
-                                self.pool_scanner_name(constraint, body, virtual_scan)?
-                            else {
-                                continue;
-                            };
-                            ensure!(rows < MAX_OBJECTS, "pool 结果数量超限");
-                            let row = vec![
-                                format!("symbol_table_name1!{}", constraint.type_name),
-                                hex(address),
-                                layer.into(),
-                                name,
-                            ];
-                            text = text
-                                .checked_add(row.iter().map(String::len).sum())
-                                .context("pool 文本大小溢出")?;
-                            ensure!(text <= 128 * 1024 * 1024, "pool 文本大小超限");
-                            result.rows.push(row);
-                            rows += 1;
-                        }
+                    let paged = page > 0 && page % 2 == if vista { 1 } else { 0 };
+                    let nonpaged = page > 0 && page % 2 == if vista { 0 } else { 1 };
+                    let accepted = page == 0 && constraint.page & 4 != 0
+                        || paged && constraint.page & 1 != 0
+                        || nonpaged && constraint.page & 2 != 0;
+                    if !accepted {
+                        continue;
                     }
+                }
+                let address = start + local as u64;
+                let bodies = self.pool_bodies(
+                    constraint,
+                    address,
+                    PoolCarve {
+                        block: size,
+                        alignment,
+                        type_size,
+                        top_down,
+                        optional: &optional,
+                        virtual_scan,
+                    },
+                    job,
+                )?;
+                for body in bodies {
+                    if !self.pool_object_valid(
+                        constraint,
+                        body,
+                        virtual_scan,
+                        &validation,
+                        result,
+                        &mut diagnostics,
+                    )? {
+                        continue;
+                    }
+                    let Some(name) = self.pool_scanner_name(constraint, body, virtual_scan)? else {
+                        continue;
+                    };
+                    ensure!(rows < MAX_OBJECTS, "pool 结果数量超限");
+                    let row = vec![
+                        format!("symbol_table_name1!{}", constraint.type_name),
+                        hex(address),
+                        layer.into(),
+                        name,
+                    ];
+                    text = text
+                        .checked_add(row.iter().map(String::len).sum())
+                        .context("pool 文本大小溢出")?;
+                    ensure!(text <= 128 * 1024 * 1024, "pool 文本大小超限");
+                    result.rows.push(row);
+                    rows += 1;
                 }
             }
         }
@@ -621,11 +667,11 @@ impl Windows<'_> {
             true,
             &[],
         );
-        self.scan_pool_objects(&constraint, type_size, job)
+        self.scan_pool_objects(&[&constraint], type_size, job)
     }
     fn scan_pool_objects(
         &self,
-        constraint: &Constraint,
+        constraints: &[&Constraint],
         type_size: u64,
         job: &Job,
     ) -> Result<(bool, Vec<u64>, Vec<String>)> {
@@ -650,12 +696,9 @@ impl Windows<'_> {
                 notes.push(format!("pool range {start:#x}+{length:#x} 不可读"));
                 continue;
             }
-            let finder = memmem::Finder::new(constraint.tag);
-            let mut from = 0;
-            while let Some(at) = finder.find(&data[from..]) {
+            for (index, tag_at) in PoolTagMatches::new(&data, constraints.iter().map(|c| c.tag))? {
                 job.check()?;
-                let tag_at = from + at;
-                from = tag_at + 1;
+                let constraint = constraints[index];
                 let Some(local) = tag_at.checked_sub(tag_offset) else {
                     continue;
                 };
@@ -729,40 +772,38 @@ impl Windows<'_> {
         let body_offset = self.vm.isf.offset("_OBJECT_HEADER", "Body")?;
         let mut out = Vec::new();
         let mut candidate_read_failures = 0usize;
-        for constraint in CONSTRAINTS
+        let constraints: Vec<_> = CONSTRAINTS
             .iter()
             .filter(|c| c.object_type == Some("Driver"))
-        {
-            let (virtual_scan, bodies, notes) =
-                self.scan_pool_objects(constraint, type_size, job)?;
-            for note in notes {
-                Self::issue(result, "驱动池扫描", note);
-            }
-            for body in bodies {
-                job.check()?;
-                let valid = (|| -> Result<bool> {
-                    let header = body.checked_sub(body_offset).context("驱动对象头下溢")?;
-                    if self
-                        .pool_reference_object_type(header, virtual_scan, &types)?
-                        .as_deref()
-                        != Some("Driver")
-                    {
-                        return Ok(false);
-                    }
-                    self.reference_driver_start(body, virtual_scan, threshold)
-                })();
-                match valid {
-                    Ok(true) => {
-                        ensure!(out.len() < MAX_OBJECTS, "驱动候选数量超限");
-                        out.push((body, body));
-                    }
-                    Ok(false) => {}
-                    Err(_) => {
-                        job.check()?;
-                        // Invalid carved objects are expected during a tag
-                        // scan; the reference rejects them without a row.
-                        candidate_read_failures += 1;
-                    }
+            .collect();
+        let (virtual_scan, bodies, notes) = self.scan_pool_objects(&constraints, type_size, job)?;
+        for note in notes {
+            Self::issue(result, "驱动池扫描", note);
+        }
+        for body in bodies {
+            job.check()?;
+            let valid = (|| -> Result<bool> {
+                let header = body.checked_sub(body_offset).context("驱动对象头下溢")?;
+                if self
+                    .pool_reference_object_type(header, virtual_scan, &types)?
+                    .as_deref()
+                    != Some("Driver")
+                {
+                    return Ok(false);
+                }
+                self.reference_driver_start(body, virtual_scan, threshold)
+            })();
+            match valid {
+                Ok(true) => {
+                    ensure!(out.len() < MAX_OBJECTS, "驱动候选数量超限");
+                    out.push((body, body));
+                }
+                Ok(false) => {}
+                Err(_) => {
+                    job.check()?;
+                    // Invalid carved objects are expected during a tag
+                    // scan; the reference rejects them without a row.
+                    candidate_read_failures += 1;
                 }
             }
         }
@@ -1131,6 +1172,57 @@ mod tests {
     use super::super::tests::{K, fixture, image, put};
     use super::*;
     use serde_json::json;
+    #[test]
+    fn merged_pool_tags_match_actual_reference_order_and_non_overlap() {
+        let vectors: serde_json::Value = serde_json::from_str(include_str!(
+            "../../tests/reference/parity/fixtures/pool-order.json"
+        ))
+        .unwrap();
+        let decode = |text: &str| -> Vec<u8> {
+            text.as_bytes()
+                .chunks_exact(2)
+                .map(|bytes| u8::from_str_radix(std::str::from_utf8(bytes).unwrap(), 16).unwrap())
+                .collect()
+        };
+        for case in vectors["cases"].as_array().unwrap() {
+            let data = decode(case["data_hex"].as_str().unwrap());
+            let tags: Vec<_> = case["tags_hex"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|tag| decode(tag.as_str().unwrap()))
+                .collect();
+            let matches: Vec<_> = PoolTagMatches::new(&data, tags.iter().map(Vec::as_slice))
+                .unwrap()
+                .map(|(index, at)| [at, index])
+                .collect();
+            assert_eq!(
+                serde_json::json!(matches),
+                case["expected_matches"],
+                "{}",
+                case["id"]
+            );
+            let headers: Vec<_> = matches
+                .iter()
+                .filter(|entry| {
+                    !case["rejected_indices"]
+                        .as_array()
+                        .unwrap()
+                        .contains(&serde_json::json!(entry[1]))
+                })
+                .map(|entry| [0x1000 + entry[0] - 4, entry[1]])
+                .collect();
+            assert_eq!(
+                serde_json::json!(headers),
+                case["expected_headers"],
+                "{}",
+                case["id"]
+            );
+        }
+        assert!(PoolTagMatches::new(b"Driv", [b"Driv".as_slice(), b"Driv".as_slice()]).is_err());
+        assert!(PoolTagMatches::new(b"", std::iter::empty()).is_err());
+    }
+
     #[test]
     fn driverscan_requires_eight_captured_bytes_and_a_strict_start_boundary() {
         let vectors: serde_json::Value = serde_json::from_str(include_str!(
@@ -1724,6 +1816,29 @@ mod tests {
         assert_eq!(result.rows[0][3], "System");
         assert!(result.columns == ["Tag", "Offset", "Layer", "Name"]);
         assert!(result.complete);
+        // A later atom tag must not jump ahead of the earlier process merely
+        // because its constraint appears first in the builtin list.
+        let mut mixed = bytes.clone();
+        mixed[0xc400..0xc402].copy_from_slice(&13u16.to_le_bytes());
+        mixed[0xc404..0xc408].copy_from_slice(b"AtmT");
+        let snapshot = super::super::tests::image(&mixed);
+        let native = Windows {
+            vm: Memory::new(&snapshot, 0x1000, &isf, None),
+            base: K,
+            pdb: PdbIdentity::from_isf(&isf).unwrap(),
+        };
+        let ordered = native.pool_scanner(&Job::default()).unwrap();
+        assert_eq!(
+            ordered
+                .rows
+                .iter()
+                .map(|row| row[0].as_str())
+                .collect::<Vec<_>>(),
+            [
+                "symbol_table_name1!_EPROCESS",
+                "symbol_table_name1!_RTL_ATOM_TABLE"
+            ]
+        );
 
         let vectors: serde_json::Value = serde_json::from_str(include_str!(
             "../../tests/reference/parity/fixtures/pool-headers.json"

@@ -259,6 +259,49 @@ class CompareTests(unittest.TestCase):
         self.assertFalse(self.check()['passed'])
 
 
+class RecordOrderTests(unittest.TestCase):
+    def setUp(self):
+        self.native = {'columns': ['Address', 'Name'], 'rows': [['0xffff800000001000', 'first'], ['0xffff800000002000', 'second']], 'complete': True, 'diagnostics': []}
+        self.reference = [{'Offset': 0x800000002000, 'Label': 'second'}, {'Offset': 0x800000001000, 'Label': 'first'}]
+        self.mapping = {'version': 1, 'keys': ['Address'], 'fields': {
+            'Address': {'zero': 'Address', 'reference': 'Offset', 'type': 'address', 'reference_type': 'address48'},
+            'Name': {'zero': 'Name', 'reference': 'Label', 'type': 'text'}}}
+
+    def test_order_gate_preserves_normalized_addresses_and_detects_reversal(self):
+        self.assertTrue(compare(self.native, self.reference, self.mapping)['passed'])
+        result = compare(self.native, self.reference, self.mapping, record_order=True)
+        self.assertFalse(result['passed'])
+        self.assertFalse(result['record_order']['passed'])
+        self.assertEqual(result['record_order']['first_difference'], 0)
+        self.assertNotEqual(result['record_order']['zero_sha256'], result['record_order']['reference_sha256'])
+        self.reference.reverse()
+        result = compare(self.native, self.reference, self.mapping, record_order=True)
+        self.assertTrue(result['passed'])
+        self.assertEqual(result['record_order']['zero_sha256'], result['record_order']['reference_sha256'])
+
+    def test_duplicate_occurrences_and_non_key_fields_keep_their_sequence(self):
+        self.native['rows'][1][0] = self.native['rows'][0][0]
+        self.reference[0]['Offset'] = self.reference[1]['Offset']
+        self.mapping['duplicate_keys'] = 'multiset'
+        self.assertTrue(compare(self.native, self.reference, self.mapping)['passed'])
+        self.assertFalse(compare(self.native, self.reference, self.mapping, record_order=True)['passed'])
+        self.reference.reverse()
+        self.assertTrue(compare(self.native, self.reference, self.mapping, record_order=True)['passed'])
+        self.reference.append(self.reference[0].copy())
+        self.assertFalse(compare(self.native, self.reference, self.mapping, record_order=True)['passed'])
+
+    def test_selection_is_explicit_and_order_does_not_waive_other_gates(self):
+        self.mapping['record_selection'] = {'field': 'Name', 'include': ['first'], 'scope': 'first named record only'}
+        result = compare(self.native, self.reference, self.mapping, record_order=True)
+        self.assertTrue(result['passed'])
+        self.assertEqual(result['record_selection']['zero_excluded'], 1)
+        self.assertEqual(result['record_selection']['reference_excluded'], 1)
+        self.native['complete'] = False
+        result = compare(self.native, self.reference, self.mapping, record_order=True)
+        self.assertTrue(result['record_order']['passed'])
+        self.assertFalse(result['passed'])
+
+
 class OptionalTextTests(unittest.TestCase):
     def test_optional_integer_preserves_zero_and_rejects_text_and_boolean(self):
         self.assertIsNone(normalize("N/A", "na_integer"))

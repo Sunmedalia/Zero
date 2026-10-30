@@ -715,3 +715,40 @@ fixture page tables and both physical/virtual pool bodies. Equality at the kerne
 boundary is explicitly split between the generator's inclusive gate and the
 upstream scanner's strict gate. These vectors do not establish a complete fault
 or platform contract; individual missing-name diagnostics still differ.
+
+
+Native84 merges the four-byte pool tags by scan-range address, with the same
+non-overlapping match consumption as the pinned MultiStringScanner. Both driver
+tags now share one range read. `pool_order_vectors.py` executes the actual
+MultiStringScanner and PoolHeaderScanner to regenerate 11 cases in
+`fixtures/pool-order.json`; decoded header fields are synthetic. Native tests
+also exercise interleaved driver tags on real x86/x64 physical/virtual fixtures.
+This does not establish scan-chunk/overlap or boundary-spanning header behavior.
+
+Record sequence can now be checked explicitly in addition to the usual full-field
+comparison. This preserves duplicate occurrences, uses the same field and address
+normalization, and applies any declared record selection before checking order:
+
+```sh
+python3 tests/reference/parity/compare.py \
+  --zero target/reference/results/poolscanner-native84/000/zero.json \
+  --reference target/reference/results/poolscanner-native84/000/reference.json \
+  --mapping tests/reference/parity/mappings/windows-poolscanner.json \
+  --record-order \
+  --output target/reference/results/poolscanner-native84/000/ordered-comparison.json
+```
+
+Order agreement does not waive incomplete-output, missing-value, duplicate-key or
+coverage gates. Empty order agreement is still not positive evidence.
+
+
+Final native84 jointly reruns five PoolScanner, six DriverIrp, three DriverModule
+and five GUI cases. All 19 full-field/multiplicity comparisons pass (one empty
+Win7 case is non-positive); 18 strict sequence checks pass. Windows has 3063
+matching records but a sequence difference at index 245. Its pinned reference
+also changes child traversal order between the stored native82/native84 reference
+runs (same full-field multiset, first sequence difference at index 262): the source
+iterates a set containing identity-hashed tagWND objects. Both the failed strict
+check and the reference/reference observation remain recorded in
+`windows-known-limitations.json`; no records are reordered to hide that failure.
+Evidence remains 122 positive cases, five scoped, zero complete contracts.

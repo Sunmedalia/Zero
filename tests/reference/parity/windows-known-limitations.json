@@ -17,7 +17,7 @@
       "reason": "Both engines return no windows. This is a negative observation, not proof that every Windows 7 image is empty."
     }
   ],
-  "engine_version": "0.2.1-native-82",
+  "engine_version": "0.2.1-native-84",
   "known_limitations": [
     "One positive Win10 x64 capture does not verify the complete plugin contract. Win7 empty agreement is non-positive evidence.",
     "Real x86 GUI support, other builds and full traversal/failure behavior remain unverified. Unavailable procedure classification and field-page faults are now covered synthetically; no separate real fault image has been validated.",
@@ -92,7 +92,7 @@
             "summary": true,
             "groups": 1457,
             "records": 2914,
-            "keys_and_counts_sha256": "5ad874b5406ee897b4d99cb11064a60835ac34444cc6f724640336536cdd37b2"
+            "keys_and_counts_sha256": "8e66c249993db7d6ff9f9bbafc5be9779401e1cfd3c767cb43fa6ae9b32ec825"
           }
         ],
         "duplicate_keys": "multiset",
@@ -108,17 +108,53 @@
       },
       "passed": true,
       "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
-      "reference_output_sha256": "1f6ea63e4946fb4ec7422a565831658bd57d1f712b3daa2aecb82181725171f4",
+      "reference_output_sha256": "fc866032507d7b73f21904e930297c83f7d4a9e854a4adee5d29e73b524f2cdc",
       "symbol_sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4",
-      "zero_executable_sha256": "150cd17d75835865ce1074a2f488f2649a89993740b2a370f98463853df62a4f",
-      "engine_version": "0.2.1-native-82",
-      "full_comparison_sha256": "764631fff627dff6a4e2d99f352d59d80dab409a900d8139656b368879b650ed",
-      "comparison_details": "Diagnostic entries and duplicate groups summarized; complete raw comparison retained in local run.py artifact and bound by full_comparison_sha256. Native/reference JSON digests permit independent reproduction. Any record_selection scope remains explicit."
+      "zero_executable_sha256": "16cc7e0d097276d67ed7dcddc26d489b3d53d4a8b410e9c8eab7b90067f9014a",
+      "engine_version": "0.2.1-native-84",
+      "full_comparison_sha256": "5580bc865e061f7ea77d9802e6ca5c9d60e27d9b28fe816f53f1280bc66ac29e",
+      "comparison_details": "Diagnostic entries and duplicate groups summarized; complete raw comparison retained in local run.py artifact and bound by full_comparison_sha256. Native/reference JSON digests permit independent reproduction. Any record_selection scope remains explicit.",
+      "record_order": {
+        "case_id": "windows-10-15063/windows-default",
+        "records": [
+          3063,
+          3063
+        ],
+        "passed": false,
+        "positive_evidence": true,
+        "first_difference": 245,
+        "zero_sha256": "d9bca8f4c1edc77a21ae8ae66a038bb76c2ccb0c941b25d815dbaf0f61b3cb45",
+        "reference_sha256": "47deef01e1189147c74d9eaaf9ff36f3d4f6a2698cad60289b131ad9bbb84e87",
+        "scope": "All mapped fields in emitted sequence after declared record selection; duplicate occurrences retained.",
+        "mapping_sha256": "9b937883de8e43036d6540e990c087428c2c6b5e656d7c85bd012075092bb2d7",
+        "native_output_sha256": "cca607539a898408b35cc73001db26456583de6fe50860f089e8ded73805299c",
+        "reference_output_sha256": "fc866032507d7b73f21904e930297c83f7d4a9e854a4adee5d29e73b524f2cdc"
+      }
     }
   ],
-  "zero_executable_sha256": "150cd17d75835865ce1074a2f488f2649a89993740b2a370f98463853df62a4f",
+  "zero_executable_sha256": "16cc7e0d097276d67ed7dcddc26d489b3d53d4a8b410e9c8eab7b90067f9014a",
   "name_vectors_sha256": "bd3762cf478867f07887f4c7b4c799b4af2f7fdf0f70de84fa710cc4893aa5b9",
-  "validation": "Final native82 binary and unmodified fixed reference, real default/scoped cases compare all mapped fields and multiplicities. Historical cases not rerun retain their own per-case versions. Empty agreement is not positive evidence; no complete plugin contract is claimed.",
+  "validation": "Final native84 binary and unmodified fixed reference, real default/scoped cases compare all mapped fields and multiplicities. Historical cases not rerun retain their own per-case versions. Empty agreement is not positive evidence; no complete plugin contract is claimed.",
   "reference_window_generator_sha256": "0a6b565b31b6537a6bd6f8a3e9be37795b8b078e67fb49387980d865b486d39f",
-  "procedure_vectors_sha256": "7e71639b59f4a257abfb1e1ddf66e764a2b912dad8709fa773882150dfd089ff"
+  "procedure_vectors_sha256": "7e71639b59f4a257abfb1e1ddf66e764a2b912dad8709fa773882150dfd089ff",
+  "reference_record_order": {
+    "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+    "image_sha256": "d58f62e92b8c4ef913ac09b2c36a10482034c10b88d0c154dead3aaaa49cf875",
+    "mapping_sha256": "9b937883de8e43036d6540e990c087428c2c6b5e656d7c85bd012075092bb2d7",
+    "reference_args": [],
+    "reference_output_sha256": [
+      "1f6ea63e4946fb4ec7422a565831658bd57d1f712b3daa2aecb82181725171f4",
+      "fc866032507d7b73f21904e930297c83f7d4a9e854a4adee5d29e73b524f2cdc"
+    ],
+    "records": [
+      3063,
+      3063
+    ],
+    "same_full_field_multiset": true,
+    "same_record_order": false,
+    "first_difference": 262,
+    "source_sha256": "1c0288cf96f1c2fee86446ca23be56cebb6ccaf1e271fa45f2e03267cd0b4387",
+    "source_observation": "Actual tagDESKTOP._do_get_windows iterates a set of window objects for children; tagWND inherits object identity equality/hash, while Pointer inherits integer hash. The reference child order is not stable across independent runs. This does not certify traversal, cycle limits or complete GUI behavior.",
+    "symbol_sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4"
+  }
 }

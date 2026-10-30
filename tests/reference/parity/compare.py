@@ -2,6 +2,7 @@
 """Strict, declarative comparison of native and reference JSON artifacts."""
 import argparse
 import datetime
+import hashlib
 from collections import defaultdict
 import json
 import re
@@ -87,7 +88,7 @@ def reference_rows(rows):
         yield from reference_rows(row.get('__children', []))
 
 
-def compare(native, reference, mapping):
+def compare(native, reference, mapping, *, record_order=False):
     columns = native['columns']
     if len(columns) != len(set(columns)):
         raise ValueError('duplicate native columns')
@@ -107,10 +108,12 @@ def compare(native, reference, mapping):
         if selection.get('field') not in fields or not selection.get('include') or not selection.get('scope'):
             raise ValueError('record selection needs a mapped field, include values and explicit scope')
     sides = []
+    sequences = []
     for side, rows in [('zero', [dict(zip(columns, r, strict=True)) for r in native['rows']]),
                        ('reference', list(reference_rows(reference)))]:
         indexed = defaultdict(list)
         excluded = 0
+        sequence = []
         for row in rows:
             normalized = {}
             for name, spec in fields.items():
@@ -122,11 +125,13 @@ def compare(native, reference, mapping):
             if selection and normalized[selection['field']] not in selection['include']:
                 excluded += 1
                 continue
+            sequence.append(normalized)
             key = tuple(normalized[name] for name in keys)
             if None in key:
                 raise ValueError('unavailable record identity')
             indexed[key].append(normalized)
         sides.append(indexed)
+        sequences.append(sequence)
         selected[side + '_excluded'] = excluded
     ns, rs = sides
     missing = [list(k) for k in sorted(rs.keys() - ns.keys(), key=repr)]
@@ -157,8 +162,22 @@ def compare(native, reference, mapping):
     all_columns = set(columns) == {spec['zero'] for spec in fields.values()}
     ref_columns = {k for row in reference_rows(reference) for k in row}
     all_columns = all_columns and ref_columns <= {spec['reference'] for spec in fields.values()}
+    same_order = sequences[0] == sequences[1]
+    order_evidence = {}
+    if record_order:
+        first = next((index for index, pair in enumerate(zip(*sequences)) if pair[0] != pair[1]), None)
+        if first is None and not same_order:
+            first = min(map(len, sequences))
+        digest = lambda rows: hashlib.sha256(json.dumps(
+            rows, ensure_ascii=False, sort_keys=True, separators=(',', ':')).encode()).hexdigest()
+        order_evidence = {'record_order': {
+            'passed': same_order, 'first_difference': first,
+            'zero_sha256': digest(sequences[0]), 'reference_sha256': digest(sequences[1]),
+            'scope': 'All mapped fields in emitted sequence after declared record selection; duplicate occurrences retained.',
+        }}
     return {
         'schema_version': 1, 'mapping_version': mapping['version'],
+        **order_evidence,
         **({'record_selection': {**selection, **selected}} if selection else {}),
         'zero_records': sum(map(len, ns.values())), 'reference_records': sum(map(len, rs.values())),
         'missing': missing, 'extra': extra, 'duplicates': duplicates,
@@ -170,7 +189,8 @@ def compare(native, reference, mapping):
         'passed': not (missing or extra or (duplicates if multiplicity == 'reject' else multiplicity_conflicts)
                        or conflicts or unavailable)
                   and all_columns and (nonempty or mapping.get('allow_empty', False))
-                  and (native['complete'] or mapping.get('allow_partial', False)),
+                  and (native['complete'] or mapping.get('allow_partial', False))
+                  and (same_order or not record_order),
     }
 
 
@@ -180,9 +200,10 @@ def main():
     parser.add_argument('--reference', type=Path, required=True)
     parser.add_argument('--mapping', type=Path, required=True)
     parser.add_argument('--output', type=Path, required=True)
+    parser.add_argument('--record-order', action='store_true', help='also require exact mapped record order, preserving duplicate occurrences')
     args = parser.parse_args()
     result = compare(json.loads(args.zero.read_text()), json.loads(args.reference.read_text()),
-                     json.loads(args.mapping.read_text()))
+                     json.loads(args.mapping.read_text()), record_order=args.record_order)
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(result, ensure_ascii=False, indent=2) + '\n')
     raise SystemExit(0 if result['passed'] else 1)
