@@ -1189,3 +1189,8 @@ PDB。默认路径不请求外部 PDB；需要独立模块精确符号时使用 
 DriverIrp 对 MajorFunction 指针先按地址层掩码截断，再与镜像内的
 `MmSystemRangeStart` 比较，边界相等时保留。该标量缺页时使用参考默认门槛；
 处理函数数组的单项读取失败会记录诊断并继续后续项。
+
+DriverIrp 名称按直接 `NameInfo.Name.String` 读取，优先旧式 NameInfoOffset，
+否则从名称偏移表查询；按 Length 解码 UTF-16，不额外要求 MaximumLength
+或偶数长度。没有名称偏移显示 N/A；成功读取零长度名称保留空字符串。非零名称 Buffer 缺页会保留诊断及其他
+可读处理函数。

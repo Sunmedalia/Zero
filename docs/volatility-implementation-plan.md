@@ -297,3 +297,7 @@ padding 使用参考的 signed 减法和原始条件。Win10 站观察由 10 条
 - native80：DriverIrp handler 按 native layer 的 Pointer 域和实际
   MmSystemRangeStart 门槛过滤，标量缺页使用固定默认；八个实际参考生成器
   向量加三套完整默认／三套范围回归，名称和专用池扫描故障合同继续验收。
+
+- native81：DriverIrp 独立恢复实际 NameInfo.Name.String 链，保留旧偏移优先、
+  名称表查询、原始描述符层和直接 UTF-16 解码；15 参考向量／四种原生组合与
+  六个真实差分分别验收，专用池扫描完整故障行为仍待补齐。

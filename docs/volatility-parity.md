@@ -1325,3 +1325,38 @@ Win11 3453/3453，六列／全部别名行一致；三个内核范围回归仍�
 122（5 项限定范围），完整插件合同仍为 0/135。最终 `make check` 通过：
 607 库、8 CLI/MCP、50 协议、32 Python 测试；8 个固定方法向量重生成一致。
 最终发布包空 PATH／独立目录启动退出通过。
+
+
+## native81：DriverIrp 的直接名称读取链
+
+固定 DRIVER_OBJECT.get_driver_name 读取 get_object_header().NameInfo.Name.String，
+而不是 OBJECT_HEADER.get_name 的额外长度过滤。NameInfo 优先读取旧式
+NameInfoOffset；该成员不存在才用 InfoMask & 3 查询 native layer 的
+ObpInfoMaskToOffset，不能要求名称 bit 0x2 预先存在。偏移为零在参考中产生
+ValueError，由 DriverIrp 渲染 NotApplicable；它不是成功定位到空名称头。
+
+原生增加 DriverIrp 独立名称读取，保留物理／虚拟 NameInfo 描述符的原始层、
+Buffer 的 native-layer 指针掩码及虚拟层读取。长度仅使用 UNICODE_STRING.Length，
+不检查 MaximumLength、偶数长度或 GUI 名称长度规则；实际 String 解码保留
+UTF-16 BOM、奇数尾字节替换与首 NUL 截断。零长度即使 Buffer 无效也可表示
+空字符串；非零 Buffer 缺页仍保留名称诊断和其他可读处理函数。其他插件的
+通用对象名称验证未改变。
+
+15 个固定 NameInfo 属性／DRIVER_OBJECT 方法／UNICODE_STRING.String 与
+String 构造器向量隔离描述符字段提取；原生另用真实合成页表在 x86/x64、
+物理／虚拟四种组合读取同样描述符，覆盖旧成员优先、名称位缺失、偏移零、
+MaximumLength 不一致、BOM／NUL／奇数尾字节、无效与掩码 Buffer。它们不能
+替代专用驱动池扫描、所有破损描述符或真实跨页故障镜像的完整合同。
+
+名称输出与比较同时区分偏移缺失／读取失败的 N/A 和可读零长度字符串。
+Driver Name 映射 v2 使用显式成对缺失，不再将 None 与空串无条件归一；新增
+工具回归确认单侧缺失、真实空串与不同名称不能互相替代。
+
+最终 native81 构建后正式重跑六例：完整默认 Win10 4255/4255、Server 2008
+3724/3724、Win11 3453/3453；三个内核范围分别 2066/2066、1723/1723、
+1656/1656，六列／全部别名行一致。严格名称映射记录 Win10 默认 27 行成对
+Driver Name 缺失，未把它们等同于可读空串；其他字段没有忽略或行过滤。
+本批只替换同名基线，正向用例仍为 122（5 项限定范围），完整插件合同仍为 0。
+最终 make check 通过：608 库、8 CLI/MCP、50 协议、33 Python 测试；15 个
+固定名称向量重生成一致，四种原生组合通过。最终发布包空 PATH／独立目录启动
+退出通过。真实名称跨页故障和专用驱动池的完整错误行为仍待验收。

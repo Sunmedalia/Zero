@@ -107,6 +107,19 @@ class CompareTests(unittest.TestCase):
         native['rows']*=2
         self.assertFalse(compare(native,[reference],mapping)['passed'])
 
+    def test_driver_absent_name_does_not_equal_a_readable_empty_name(self):
+        mapping=json.loads((Path(__file__).parent/'mappings/windows-driverirp.json').read_text())
+        row=['0xffff800000001000','N/A','IRP_MJ_CREATE','0xffff800000002000','nt','Dispatch']
+        native={'columns':list(mapping['fields']),'rows':[row],'complete':True,'diagnostics':[]}
+        reference={'Offset':0x800000001000,'Driver Name':None,'IRP':'IRP_MJ_CREATE','Address':0x800000002000,'Module':'nt','Symbol':'Dispatch'}
+        self.assertTrue(compare(native,[reference],mapping)['passed'])
+        reference['Driver Name']=''
+        self.assertFalse(compare(native,[reference],mapping)['passed'])
+        row[1]=''
+        self.assertTrue(compare(native,[reference],mapping)['passed'])
+        row[1]='drv'
+        self.assertFalse(compare(native,[reference],mapping)['passed'])
+
     def test_window_procedure_absence_is_payload_and_remains_strict(self):
         mapping=json.loads((Path(__file__).parent/'mappings/windows-windows.json').read_text())
         columns=list(mapping['fields'])

@@ -1,0 +1,277 @@
+{
+  "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+  "pool_sha256": "cd9846ecdae31e8e5e15f03e9c49fdfb80365c2d62f5ea050203cc9bd0dac4b8",
+  "unicode_sha256": "0dcec42856599feaa0f530948ea381c2c35e452233a3b5b683af95badb8da357",
+  "scope": "Actual NameInfo property, DRIVER_OBJECT name method, UNICODE_STRING.String method and String constructor. Synthetic scalar/field adapter isolates location and decoding; native tests separately read physical/virtual descriptors on real fixture page tables. Does not validate pool carving or every NameInfo fault.",
+  "cases": [
+    {
+      "id": "plain",
+      "hex": "640072007600",
+      "maximum": 6,
+      "buffer": 8448,
+      "old_offset": 32,
+      "mask": 2,
+      "table_delta": 32,
+      "expected": "drv",
+      "error": null,
+      "calls": [
+        {
+          "type": "_OBJECT_HEADER_NAME_INFO",
+          "layer": "physical",
+          "offset": 4320
+        }
+      ]
+    },
+    {
+      "id": "odd",
+      "hex": "6100620078",
+      "maximum": 6,
+      "buffer": 8448,
+      "old_offset": 32,
+      "mask": 2,
+      "table_delta": 32,
+      "expected": "ab\ufffd",
+      "error": null,
+      "calls": [
+        {
+          "type": "_OBJECT_HEADER_NAME_INFO",
+          "layer": "physical",
+          "offset": 4320
+        }
+      ]
+    },
+    {
+      "id": "be-bom",
+      "hex": "feff00610062",
+      "maximum": 6,
+      "buffer": 8448,
+      "old_offset": 32,
+      "mask": 2,
+      "table_delta": 32,
+      "expected": "ab",
+      "error": null,
+      "calls": [
+        {
+          "type": "_OBJECT_HEADER_NAME_INFO",
+          "layer": "physical",
+          "offset": 4320
+        }
+      ]
+    },
+    {
+      "id": "le-bom",
+      "hex": "fffe61006200",
+      "maximum": 6,
+      "buffer": 8448,
+      "old_offset": 32,
+      "mask": 2,
+      "table_delta": 32,
+      "expected": "ab",
+      "error": null,
+      "calls": [
+        {
+          "type": "_OBJECT_HEADER_NAME_INFO",
+          "layer": "physical",
+          "offset": 4320
+        }
+      ]
+    },
+    {
+      "id": "nul",
+      "hex": "610000006200",
+      "maximum": 6,
+      "buffer": 8448,
+      "old_offset": 32,
+      "mask": 2,
+      "table_delta": 32,
+      "expected": "a",
+      "error": null,
+      "calls": [
+        {
+          "type": "_OBJECT_HEADER_NAME_INFO",
+          "layer": "physical",
+          "offset": 4320
+        }
+      ]
+    },
+    {
+      "id": "bad-surrogate",
+      "hex": "00d86100",
+      "maximum": 6,
+      "buffer": 8448,
+      "old_offset": 32,
+      "mask": 2,
+      "table_delta": 32,
+      "expected": "\ufffda",
+      "error": null,
+      "calls": [
+        {
+          "type": "_OBJECT_HEADER_NAME_INFO",
+          "layer": "physical",
+          "offset": 4320
+        }
+      ]
+    },
+    {
+      "id": "maximum-zero",
+      "hex": "640072007600",
+      "maximum": 0,
+      "buffer": 8448,
+      "old_offset": 32,
+      "mask": 2,
+      "table_delta": 32,
+      "expected": "drv",
+      "error": null,
+      "calls": [
+        {
+          "type": "_OBJECT_HEADER_NAME_INFO",
+          "layer": "physical",
+          "offset": 4320
+        }
+      ]
+    },
+    {
+      "id": "maximum-short",
+      "hex": "640072007600",
+      "maximum": 1,
+      "buffer": 8448,
+      "old_offset": 32,
+      "mask": 2,
+      "table_delta": 32,
+      "expected": "drv",
+      "error": null,
+      "calls": [
+        {
+          "type": "_OBJECT_HEADER_NAME_INFO",
+          "layer": "physical",
+          "offset": 4320
+        }
+      ]
+    },
+    {
+      "id": "zero-name-length",
+      "hex": "",
+      "maximum": 6,
+      "buffer": 18446744073709551615,
+      "old_offset": 32,
+      "mask": 2,
+      "table_delta": 32,
+      "expected": "",
+      "error": null,
+      "calls": [
+        {
+          "type": "_OBJECT_HEADER_NAME_INFO",
+          "layer": "physical",
+          "offset": 4320
+        }
+      ]
+    },
+    {
+      "id": "zero-old-offset",
+      "hex": "640072007600",
+      "maximum": 6,
+      "buffer": 8448,
+      "old_offset": 0,
+      "mask": 2,
+      "table_delta": 32,
+      "expected": null,
+      "error": "ValueError",
+      "calls": []
+    },
+    {
+      "id": "old-takes-priority",
+      "hex": "640072007600",
+      "maximum": 6,
+      "buffer": 8448,
+      "old_offset": 32,
+      "mask": 0,
+      "table_delta": 0,
+      "expected": "drv",
+      "error": null,
+      "calls": [
+        {
+          "type": "_OBJECT_HEADER_NAME_INFO",
+          "layer": "physical",
+          "offset": 4320
+        }
+      ]
+    },
+    {
+      "id": "no-name-bit",
+      "hex": "640072007600",
+      "maximum": 6,
+      "buffer": 8448,
+      "old_offset": null,
+      "mask": 1,
+      "table_delta": 32,
+      "expected": "drv",
+      "error": null,
+      "calls": [
+        {
+          "type": "unsigned char",
+          "layer": "virtual",
+          "offset": 1281
+        },
+        {
+          "type": "_OBJECT_HEADER_NAME_INFO",
+          "layer": "physical",
+          "offset": 4320
+        }
+      ]
+    },
+    {
+      "id": "zero-table-delta",
+      "hex": "640072007600",
+      "maximum": 6,
+      "buffer": 8448,
+      "old_offset": null,
+      "mask": 2,
+      "table_delta": 0,
+      "expected": null,
+      "error": "ValueError",
+      "calls": [
+        {
+          "type": "unsigned char",
+          "layer": "virtual",
+          "offset": 1282
+        }
+      ]
+    },
+    {
+      "id": "bad-buffer",
+      "hex": "640072007600",
+      "maximum": 6,
+      "buffer": 196608,
+      "old_offset": 32,
+      "mask": 2,
+      "table_delta": 32,
+      "expected": null,
+      "error": "InvalidAddressException",
+      "calls": [
+        {
+          "type": "_OBJECT_HEADER_NAME_INFO",
+          "layer": "physical",
+          "offset": 4320
+        }
+      ]
+    },
+    {
+      "id": "masked-buffer",
+      "hex": "640072007600",
+      "maximum": 6,
+      "buffer": 15060037153926947072,
+      "old_offset": 32,
+      "mask": 2,
+      "table_delta": 32,
+      "expected": "drv",
+      "error": null,
+      "calls": [
+        {
+          "type": "_OBJECT_HEADER_NAME_INFO",
+          "layer": "physical",
+          "offset": 4320
+        }
+      ]
+    }
+  ]
+}

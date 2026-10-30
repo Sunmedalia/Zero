@@ -75,6 +75,58 @@ impl Windows<'_> {
             }
         })
     }
+    fn driver_name(&self, header: u64, physical: bool) -> Result<Option<String>> {
+        let read = |at, size| -> Result<u64> {
+            ensure!(matches!(size, 1 | 2 | 4 | 8), "驱动名称标量宽度无效");
+            if physical {
+                let mut bytes = [0; 8];
+                self.vm.image.read(at, &mut bytes[..size])?;
+                Ok(u64::from_le_bytes(bytes))
+            } else {
+                self.vm.uint(at, size)
+            }
+        };
+        let offset = if self.vm.isf.has_field("_OBJECT_HEADER", "NameInfoOffset") {
+            let at = add(
+                header,
+                self.vm.isf.offset("_OBJECT_HEADER", "NameInfoOffset")?,
+            )?;
+            read(at, self.vm.isf.size("_OBJECT_HEADER", "NameInfoOffset")?)?
+        } else {
+            let at = add(header, self.vm.isf.offset("_OBJECT_HEADER", "InfoMask")?)?;
+            let mask = read(at, self.vm.isf.size("_OBJECT_HEADER", "InfoMask")?)?;
+            self.vm
+                .uint(add(self.symbol("ObpInfoMaskToOffset")?, mask & 3)?, 1)?
+        };
+        // NameInfo raises ValueError for zero, which DriverIrp renders as N/A.
+        if offset == 0 {
+            return Ok(None);
+        }
+        let info = header.checked_sub(offset).context("驱动名称头地址下溢")?;
+        let descriptor = add(
+            info,
+            self.vm.isf.offset("_OBJECT_HEADER_NAME_INFO", "Name")?,
+        )?;
+        let length = read(
+            add(descriptor, self.vm.isf.offset("_UNICODE_STRING", "Length")?)?,
+            2,
+        )?;
+        let raw = read(
+            add(descriptor, self.vm.isf.offset("_UNICODE_STRING", "Buffer")?)?,
+            self.vm.pointer_size(),
+        )?;
+        let masked = raw & self.driver_address_mask();
+        let buffer = if self.vm.pointer_size() == 8 && masked & (1 << 47) != 0 {
+            masked | 0xffff_0000_0000_0000
+        } else {
+            masked
+        };
+        // Direct NameInfo.Name.String does not apply get_name's maximum-length
+        // sanity checks; read exactly Length with the reference String decoder.
+        let mut bytes = vec![0; length as usize];
+        self.vm.read(buffer, &mut bytes)?;
+        Ok(Some(windowstations::reference_unicode_name(&bytes)))
+    }
     /// Pool bodies are retained independently of DriverStart/extension state.
     pub(super) fn dispatch_drivers(&self, r: &mut Results, job: &Job) -> Result<Vec<(u64, u64)>> {
         let isf = self.vm.isf;
@@ -327,22 +379,17 @@ impl Windows<'_> {
                 .is_some_and(|end| end <= size),
             "MajorFunction 越界"
         );
-        let header_layout = self.object_header_layout();
         let physical_scan = self.build_number()? < 10240;
         let mut text_bytes = 0usize;
         for (offset, address) in self.dispatch_drivers(r, job)? {
             let header = address
                 .checked_sub(self.vm.isf.offset("_OBJECT_HEADER", "Body")?)
                 .context("对象头下溢")?;
-            let name = match if physical_scan {
-                self.physical_object_name(header)
-            } else {
-                self.object_name(header, &header_layout)
-            } {
-                Ok(name) => name.split('\0').next().unwrap_or_default().to_string(),
+            let name = match self.driver_name(header, physical_scan) {
+                Ok(name) => name.unwrap_or_else(|| "N/A".into()),
                 Err(e) => {
                     Self::issue(r, "driver name", format!("{e:#}"));
-                    String::new()
+                    "N/A".into()
                 }
             };
             for (index, irp) in IRPS.iter().enumerate() {
@@ -399,6 +446,79 @@ pub(super) mod tests {
     use super::super::tests::{K, fixture, image, put};
     use super::*;
     use serde_json::json;
+    #[test]
+    fn direct_driver_name_matches_reference_location_and_string_semantics() {
+        let vectors: serde_json::Value = serde_json::from_str(include_str!(
+            "../../tests/reference/parity/fixtures/driver-names.json"
+        ))
+        .unwrap();
+        for x86 in [false, true] {
+            for physical in [false, true] {
+                for case in vectors["cases"].as_array().unwrap() {
+                    let (mut bytes, mut isf, base, _) = driver_fixture(x86, false, false);
+                    if x86 {
+                        bytes[0x1000..0x1004].copy_from_slice(&0x2003u32.to_le_bytes());
+                    } else {
+                        put(&mut bytes, 0x1000, 0x2003);
+                    }
+                    isf.data["symbols"]["ObpInfoMaskToOffset"] = json!({"address":0x500});
+                    isf.data["user_types"]["_OBJECT_HEADER_NAME_INFO"]["fields"]["Name"] =
+                        json!({"offset":0,"type":{"kind":"struct","name":"_UNICODE_STRING"}});
+                    let descriptor = 0xc0e0;
+                    bytes[descriptor..descriptor + 16].fill(0);
+                    let payload: Vec<_> = case["hex"]
+                        .as_str()
+                        .unwrap()
+                        .as_bytes()
+                        .chunks_exact(2)
+                        .map(|b| u8::from_str_radix(std::str::from_utf8(b).unwrap(), 16).unwrap())
+                        .collect();
+                    bytes[descriptor..descriptor + 2]
+                        .copy_from_slice(&(payload.len() as u16).to_le_bytes());
+                    bytes[descriptor + 2..descriptor + 4]
+                        .copy_from_slice(&(case["maximum"].as_u64().unwrap() as u16).to_le_bytes());
+                    let raw = case["buffer"].as_u64().unwrap();
+                    let pointer = if x86 { raw & 0xffff_ffff } else { raw };
+                    let buffer_offset = if x86 { 4 } else { 8 };
+                    put(&mut bytes, descriptor + buffer_offset, pointer);
+                    bytes[0xa100..0xa100 + payload.len()].copy_from_slice(&payload);
+                    if let Some(offset) = case["old_offset"].as_u64() {
+                        bytes[0xc110] = offset as u8;
+                    } else {
+                        isf.data["user_types"]["_OBJECT_HEADER"]["fields"]
+                            .as_object_mut()
+                            .unwrap()
+                            .remove("NameInfoOffset");
+                    }
+                    bytes[0xc111] = case["mask"].as_u64().unwrap() as u8;
+                    bytes[0x8500 + (case["mask"].as_u64().unwrap() as usize & 3)] =
+                        case["table_delta"].as_u64().unwrap() as u8;
+                    let snapshot = image(&bytes);
+                    let windows = Windows {
+                        vm: Memory::new(&snapshot, 0x1000, &isf, None),
+                        base,
+                        pdb: PdbIdentity::from_isf(&isf).unwrap(),
+                    };
+                    let result = windows
+                        .driver_name(if physical { 0xc100 } else { base + 0x4100 }, physical);
+                    if case["error"] == "InvalidAddressException" {
+                        assert!(
+                            result.is_err(),
+                            "{} x86={x86} physical={physical}",
+                            case["id"]
+                        );
+                    } else {
+                        assert_eq!(
+                            json!(result.unwrap()),
+                            case["expected"],
+                            "{} x86={x86} physical={physical}",
+                            case["id"]
+                        );
+                    }
+                }
+            }
+        }
+    }
     #[test]
     fn kernel_range_pointer_mask_and_boundary_gate_match_actual_reference_vectors() {
         let vectors: serde_json::Value = serde_json::from_str(include_str!(
@@ -583,7 +703,7 @@ pub(super) mod tests {
             result.rows[0],
             vec![
                 hex(physical),
-                String::new(),
+                "N/A".into(),
                 "IRP_MJ_CREATE".into(),
                 hex(base + 0x1234),
                 String::new(),
@@ -591,7 +711,7 @@ pub(super) mod tests {
             ]
         );
         // A bad object name cannot suppress readable handlers.
-        bytes[physical as usize - 31] = 2;
+        bytes[physical as usize - 32] = 2;
         let img = image(&bytes);
         let w = Windows {
             vm: Memory::new(&img, 0x1000, &isf, None),

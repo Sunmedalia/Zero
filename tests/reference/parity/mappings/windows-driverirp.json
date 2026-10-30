@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "allow_partial": true,
   "keys": [
     "Offset",
@@ -17,7 +17,8 @@
     "Driver Name": {
       "zero": "Driver Name",
       "reference": "Driver Name",
-      "type": "empty_text"
+      "type": "na_text",
+      "allow_absent": true
     },
     "IRP": {
       "zero": "IRP",

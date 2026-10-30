@@ -685,3 +685,9 @@ ModuleCollection 地址查询，验证默认 DriverIrp 将所有模块绑定同�
 指针掩码、Modules.get_kernel_space_start 的真实值／缺页默认及包含边界，
 同时保留数组单项读取失败后继续。驱动池／名称和模块符号由测试桩隔离；原生
 另有真实页表下跨页数组读取回归，不将这些向量计入真实正向差分数量。
+
+`driver_name_vectors.py` 的 15 用例执行实际 NameInfo 属性、驱动名称方法、
+UNICODE_STRING.String 和 String 构造器，验证偏移选择／名称表与长度解码。
+字段提取使用合成适配器，原生另在 x86/x64、物理／虚拟四种真实合成页表组合
+重读描述符。MaximumLength 检查属于其他路径，不能误加到 DriverIrp 的直接
+NameInfo.Name.String 上。名称向量不计入真实正向差分。
