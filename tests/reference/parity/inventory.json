@@ -6740,8 +6740,10 @@
         "Owner",
         "Created"
       ],
-      "zero_candidates": [],
-      "status": "missing",
+      "zero_candidates": [
+        "windows.netstat.NetStat"
+      ],
+      "status": "mapped_unverified",
       "evidence": []
     },
     {

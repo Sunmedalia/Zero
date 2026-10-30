@@ -17,6 +17,28 @@ pub(super) struct Layout {
     pub udp_direct: bool,
     pub source: String,
     pub validation: String,
+    #[serde(default)]
+    pub netstat: Option<NetstatLayout>,
+}
+#[derive(Clone, Deserialize)]
+pub(super) struct NetstatLayout {
+    pub available: bool,
+    pub partition_size: Option<u64>,
+    pub endpoints: Option<u64>,
+    pub hash_directory: u64,
+    pub hash_table_size: u64,
+    pub hash_alignment: u64,
+    pub list_entry: Option<u64>,
+    pub listener_next: Option<u64>,
+    pub udp_next: Option<u64>,
+    pub compartment: Option<u64>,
+    pub protocol: Option<u64>,
+    pub port_pool: u64,
+    pub bitmap: Option<u64>,
+    pub assignments: Option<u64>,
+    pub assignment_list: Option<u64>,
+    pub entry: Option<u64>,
+    pub entry_stride: Option<u64>,
 }
 impl Layout {
     pub fn fields(&self, kind: usize) -> &BTreeMap<String, usize> {
@@ -134,6 +156,7 @@ impl Layout {
             udp_direct,
             source: PdbIdentity::from_isf(isf)?.key(),
             validation: "exact-driver-symbols".into(),
+            netstat: None,
         };
         result.validate(arch)?;
         Ok(result)

@@ -246,13 +246,464 @@ impl Windows<'_> {
             self.vm.pointer(pointer)
         }
     }
+    /// Volatility windows.netstat.NetStat: partition tables and port pools, not pool tags.
+    pub(super) fn netstat(
+        &self,
+        job: &Job,
+        resources: Option<(&std::path::Path, bool)>,
+    ) -> Result<Results> {
+        let (base, size, identity) = self.tcpip_module(job)?;
+        ensure!(
+            (0x1000..=64 * 1024 * 1024).contains(&size),
+            "tcpip.sys 映像大小无效"
+        );
+        let resources = resources.context("netstat 需要 tcpip.sys 的精确 PDB 符号")?;
+        let isf = windows_symbols::acquire(&identity, resources.0, resources.1, job)?;
+        let arch = Architecture::from_isf(self.vm.isf)?;
+        ensure!(Architecture::from_isf(&isf)? == arch, "TCP/IP PDB 架构冲突");
+        let version = network_layout::file_version(&self.vm, base).ok();
+        let layout = network_layout::manifest(&identity, arch, version)
+            .with_context(|| format!("没有 tcpip.sys {} 的 netstat 对象布局", identity.key()))?;
+        let net = layout
+            .netstat
+            .clone()
+            .filter(|item| item.available)
+            .context("该 TCP/IP 布局没有端口池和分区表字段")?;
+        let mut r = self.result(Plugin::WinNetstat);
+        r.kernel_identity["tcpip_pdb"] = serde_json::to_value(&identity)?;
+        r.kernel_identity["network_layout"] = serde_json::json!({
+            "source": layout.source,
+            "validation": layout.validation,
+            "pointer_size": layout.pointer_size
+        });
+        let symbols = &isf.data["symbols"];
+        let symbol = |name: &str| -> Result<u64> {
+            symbols[name]["address"]
+                .as_u64()
+                .with_context(|| format!("tcpip.sys 缺少符号 {name}"))
+        };
+        let mut seen = HashSet::new();
+        if let (Ok(table), Ok(count_rva)) = (symbol("PartitionTable"), symbol("PartitionCount")) {
+            match self.netstat_partitions(&layout, &net, base, (table, count_rva), job, &mut seen) {
+                Ok(rows) => r.rows.extend(rows),
+                Err(error) => Self::issue(&mut r, "PartitionTable", format!("{error:#}")),
+            }
+        } else {
+            Self::issue(&mut r, "PartitionTable", "tcpip 符号没有分区表");
+        }
+        match self.netstat_pool_addresses(&isf, &net, base) {
+            Ok((udp_pool, tcp_pool)) => {
+                match self.netstat_pool(&layout, &net, tcp_pool, true, job, &mut seen) {
+                    Ok(rows) => r.rows.extend(rows),
+                    Err(error) => Self::issue(&mut r, "TcpPortPool", format!("{error:#}")),
+                }
+                match self.netstat_pool(&layout, &net, udp_pool, false, job, &mut seen) {
+                    Ok(rows) => r.rows.extend(rows),
+                    Err(error) => Self::issue(&mut r, "UdpPortPool", format!("{error:#}")),
+                }
+            }
+            Err(error) => Self::issue(&mut r, "PortPool", format!("{error:#}")),
+        }
+        r.rows.sort();
+        r.rows.dedup();
+        Ok(r)
+    }
+
+    fn tcpip_module(&self, job: &Job) -> Result<(u64, u64, PdbIdentity)> {
+        let module_type = self.module_type()?;
+        let (modules, _diagnostics) = self.list_partial(
+            self.symbol("PsLoadedModuleList")?,
+            self.vm.isf.offset(module_type, "InLoadOrderLinks")?,
+            job,
+        )?;
+        for module in modules {
+            let name = self
+                .vm
+                .unicode(self.field(module, module_type, "BaseDllName")?)?;
+            if name.eq_ignore_ascii_case("tcpip.sys") {
+                let base = self.number(module, module_type, "DllBase")?;
+                let size = self.number(module, module_type, "SizeOfImage")?;
+                return Ok((base, size, pe_identity(&self.vm, base)?));
+            }
+        }
+        bail!("tcpip.sys 未加载")
+    }
+
+    fn netstat_partitions(
+        &self,
+        layout: &Layout,
+        net: &network_layout::NetstatLayout,
+        base: u64,
+        table: (u64, u64),
+        job: &Job,
+        seen: &mut HashSet<u64>,
+    ) -> Result<Vec<Vec<String>>> {
+        let (table_rva, count_rva) = table;
+        let table = self.vm.pointer(add(base, table_rva)?)?;
+        ensure!(self.vm.kernel(table), "PartitionTable 不是内核地址");
+        let count = self.vm.uint(add(base, count_rva)?, 1)?;
+        ensure!((1..=256).contains(&count), "PartitionCount 无效: {count}");
+        let part_size = net.partition_size.context("缺少分区大小")?;
+        let endpoints = net.endpoints.context("缺少分区端点偏移")?;
+        let entry = net.list_entry.context("缺少 TCP 链表偏移")?;
+        let mut rows = Vec::new();
+        for index in 0..count {
+            job.check()?;
+            let partition = add(table, index * part_size)?;
+            let hash = match self.vm.pointer(add(partition, endpoints)?) {
+                Ok(address) if self.vm.kernel(address) => address,
+                _ => continue,
+            };
+            let directory = match self.vm.pointer(add(hash, net.hash_directory)?) {
+                Ok(address) if self.vm.kernel(address) => address,
+                _ => continue,
+            };
+            let table_size = self
+                .vm
+                .uint(add(hash, net.hash_table_size)?, 4)
+                .unwrap_or(0);
+            if table_size == 0 || table_size > 4096 {
+                continue;
+            }
+            for slot in 0..table_size {
+                job.check()?;
+                let slot_addr = add(directory, slot * net.hash_alignment)?;
+                let link = match self.vm.pointer(slot_addr) {
+                    Ok(address) if address != slot_addr && self.vm.kernel(address) => address,
+                    _ => continue,
+                };
+                let object = link.wrapping_sub(entry);
+                // A live hash entry is a real LIST_ENTRY. Stale pointers still look
+                // like endpoints but do not point both ways inside kernel space.
+                let Ok(list) = add(object, entry) else {
+                    continue;
+                };
+                let Ok(flink) = self.vm.pointer(list) else {
+                    continue;
+                };
+                let Ok(blink) = self.vm.pointer(add(list, layout.pointer_size as u64)?) else {
+                    continue;
+                };
+                if !self.vm.kernel(flink) || !self.vm.kernel(blink) {
+                    continue;
+                }
+                if seen.insert(object) {
+                    rows.extend(self.netstat_endpoint(layout, object));
+                }
+            }
+        }
+        Ok(rows)
+    }
+
+    fn netstat_pool_addresses(
+        &self,
+        isf: &Isf,
+        net: &network_layout::NetstatLayout,
+        base: u64,
+    ) -> Result<(u64, u64)> {
+        let symbols = &isf.data["symbols"];
+        let address = |name: &str| {
+            symbols[name]["address"]
+                .as_u64()
+                .with_context(|| format!("tcpip.sys 缺少符号 {name}"))
+        };
+        let pointer = |rva: u64| self.vm.pointer(add(base, rva)?);
+        if symbols.get("UdpPortPool").is_some() && symbols.get("TcpPortPool").is_some() {
+            return Ok((
+                pointer(address("UdpPortPool")?)?,
+                pointer(address("TcpPortPool")?)?,
+            ));
+        }
+        let compartment = net.compartment.context("缺少 compartment 偏移")?;
+        let protocol = net.protocol.context("缺少 protocol compartment 偏移")?;
+        let pool = |name: &str| -> Result<u64> {
+            let set = pointer(address(name)?)?;
+            ensure!(self.vm.kernel(set), "{name} 不是内核地址");
+            let compartment = self.vm.pointer(add(set, compartment)?)?;
+            ensure!(self.vm.kernel(compartment), "{name} 的 compartment 不可读");
+            let protocol = self.vm.pointer(add(compartment, protocol)?)?;
+            ensure!(
+                self.vm.kernel(protocol),
+                "{name} 的 protocol compartment 不可读"
+            );
+            let pool = self.vm.pointer(add(protocol, net.port_pool)?)?;
+            ensure!(self.vm.kernel(pool), "{name} 的端口池不可读");
+            Ok(pool)
+        };
+        Ok((pool("UdpCompartmentSet")?, pool("TcpCompartmentSet")?))
+    }
+
+    fn netstat_pool(
+        &self,
+        layout: &Layout,
+        net: &network_layout::NetstatLayout,
+        pool: u64,
+        tcp: bool,
+        job: &Job,
+        seen: &mut HashSet<u64>,
+    ) -> Result<Vec<Vec<String>>> {
+        let bitmap_off = net.bitmap.context("缺少端口位图偏移")?;
+        let assignments = net.assignments.context("缺少端口分配表偏移")?;
+        let list_off = net.assignment_list.context("缺少端口分配链表偏移")?;
+        let entry_off = net.entry.context("缺少端口项偏移")?;
+        let stride = net.entry_stride.context("缺少端口项大小")?;
+        let next = if tcp {
+            net.listener_next.context("缺少 TCP listener Next")?
+        } else {
+            net.udp_next.context("缺少 UDP Next")?
+        };
+        let bitmap = self
+            .vm
+            .pointer(add(pool, bitmap_off + layout.pointer_size as u64)?)?;
+        let bits = self.vm.uint(add(pool, bitmap_off)?, 4)?;
+        let bytes = bits / 8;
+        ensure!(
+            (1..=8192 * 10).contains(&bytes) && self.vm.kernel(bitmap),
+            "端口位图不可读或超过上限"
+        );
+        let kind = if tcp { 1 } else { 2 };
+        let pointer = layout.pointer_size as u64;
+        let mut rows = Vec::new();
+        for index in 0..bytes {
+            job.check()?;
+            let byte = match self.vm.uint(add(bitmap, index)?, 1) {
+                Ok(value) => value,
+                Err(_) => continue,
+            };
+            for bit in 0..8 {
+                if byte & (1 << bit) == 0 {
+                    continue;
+                }
+                let port = index * 8 + bit;
+                if port == 0 {
+                    continue;
+                }
+                let assignment = match self
+                    .vm
+                    .pointer(add(pool, assignments + (port >> 8) * pointer)?)
+                {
+                    Ok(address) if self.vm.kernel(address) => address,
+                    _ => continue,
+                };
+                let list = match self.vm.pointer(add(assignment, list_off)?) {
+                    Ok(address) if self.vm.kernel(address) => address,
+                    _ => continue,
+                };
+                let entry = match self
+                    .vm
+                    .pointer(add(list, (port & 0xff) * stride + entry_off)?)
+                {
+                    Ok(value) if value != 0 => value & 0xffff_ffff_ffff_fffc,
+                    _ => continue,
+                };
+                let mut inside = entry;
+                for _ in 0..64 {
+                    if inside == 0 {
+                        break;
+                    }
+                    let object = inside.wrapping_sub(next);
+                    if self.vm.kernel(object) && seen.insert(object) {
+                        rows.extend(self.netstat_bound(layout, object, kind));
+                    }
+                    inside = match self.vm.pointer(add(object, next)?) {
+                        Ok(value) if value != 0 => value & 0xffff_ffff_ffff_fffc,
+                        _ => 0,
+                    };
+                }
+            }
+        }
+        Ok(rows)
+    }
+
+    fn netstat_endpoint(&self, layout: &Layout, address: u64) -> Vec<Vec<String>> {
+        let parsed = (|| -> Result<Option<Vec<String>>> {
+            let state = self.netstat_field(address, layout, 0, "State", 4)?;
+            let label = match state {
+                0 => "CLOSED",
+                1 => "LISTENING",
+                2 => "SYN_SENT",
+                3 => "SYN_RCVD",
+                4 => "ESTABLISHED",
+                5 => "FIN_WAIT1",
+                6 => "FIN_WAIT2",
+                7 => "CLOSE_WAIT",
+                8 => "CLOSING",
+                9 => "LAST_ACK",
+                12 => "TIME_WAIT",
+                13 => "DELETE_TCB",
+                _ => return Ok(None),
+            };
+            let family = self.netstat_family(address, layout, 0)?;
+            if !matches!(family, 2 | 23) {
+                return Ok(None);
+            }
+            let local_port =
+                (self.netstat_field(address, layout, 0, "LocalPort", 2)? as u16).swap_bytes();
+            let remote_port =
+                (self.netstat_field(address, layout, 0, "RemotePort", 2)? as u16).swap_bytes();
+            let info = self.netstat_field(address, layout, 0, "AddrInfo", layout.pointer_size)?;
+            if !self.vm.kernel(info) {
+                return Ok(None);
+            }
+            let local = self.vm.pointer(add(info, layout.info_local)?)?;
+            let local = if local == 0 {
+                0
+            } else {
+                self.local_address(local, false, layout).unwrap_or(0)
+            };
+            let remote = self.vm.pointer(add(info, layout.info_remote)?)?;
+            let (pid, owner) = self.netstat_owner(address, layout, 0);
+            if local == 0
+                && (pid == "-"
+                    || pid
+                        .parse::<u64>()
+                        .is_ok_and(|value| value == 0 || value > 65535))
+            {
+                return Ok(None);
+            }
+            Ok(Some(vec![
+                format!("{:#x}", address & 0x0000_ffff_ffff_ffff),
+                if family == 2 {
+                    "TCPv4".into()
+                } else {
+                    "TCPv6".into()
+                },
+                address_text(&self.vm, local, family)?,
+                local_port.to_string(),
+                address_text(&self.vm, remote, family)?,
+                remote_port.to_string(),
+                label.into(),
+                pid,
+                owner,
+                self.netstat_time(address, layout, 0)?,
+            ]))
+        })();
+        match parsed {
+            Ok(Some(row)) => vec![row],
+            Ok(None) | Err(_) => Vec::new(),
+        }
+    }
+
+    fn netstat_bound(&self, layout: &Layout, address: u64, kind: usize) -> Vec<Vec<String>> {
+        let parsed = (|| -> Result<Vec<Vec<String>>> {
+            let family = self.netstat_family(address, layout, kind)?;
+            if !matches!(family, 2 | 23) {
+                return Ok(Vec::new());
+            }
+            let port = (self.netstat_field(address, layout, kind, "Port", 2)? as u16).swap_bytes();
+            let local =
+                self.netstat_field(address, layout, kind, "LocalAddr", layout.pointer_size)?;
+            let local = if local == 0 || !self.vm.kernel(local) {
+                0
+            } else {
+                self.local_address(local, kind == 2, layout).unwrap_or(0)
+            };
+            let families = if local == 0 && family == 23 {
+                vec![2, 23]
+            } else {
+                vec![family]
+            };
+            let (pid, owner) = self.netstat_owner(address, layout, kind);
+            let time = self.netstat_time(address, layout, kind)?;
+            let mut rows = Vec::new();
+            for family in families {
+                rows.push(vec![
+                    format!("{:#x}", address & 0x0000_ffff_ffff_ffff),
+                    format!(
+                        "{}v{}",
+                        if kind == 2 { "UDP" } else { "TCP" },
+                        if family == 2 { 4 } else { 6 }
+                    ),
+                    address_text(&self.vm, local, family)?,
+                    port.to_string(),
+                    if kind == 2 {
+                        "*".into()
+                    } else if family == 2 {
+                        "0.0.0.0".into()
+                    } else {
+                        "::".into()
+                    },
+                    "0".into(),
+                    if kind == 1 {
+                        "LISTENING".into()
+                    } else {
+                        String::new()
+                    },
+                    pid.clone(),
+                    owner.clone(),
+                    time.clone(),
+                ]);
+            }
+            Ok(rows)
+        })();
+        parsed.unwrap_or_default()
+    }
+
+    fn netstat_field(
+        &self,
+        address: u64,
+        layout: &Layout,
+        kind: usize,
+        name: &str,
+        width: usize,
+    ) -> Result<u64> {
+        let offset = *layout
+            .fields(kind)
+            .get(name)
+            .context("netstat 布局缺少字段")? as u64;
+        self.vm.uint(add(address, offset)?, width)
+    }
+
+    fn netstat_family(&self, address: u64, layout: &Layout, kind: usize) -> Result<u64> {
+        let inet = self.netstat_field(address, layout, kind, "InetAF", layout.pointer_size)?;
+        if !self.vm.kernel(inet) {
+            bail!("InetAF 无效");
+        }
+        self.vm.uint(add(inet, layout.family)?, 2)
+    }
+
+    fn netstat_owner(&self, address: u64, layout: &Layout, kind: usize) -> (String, String) {
+        let Ok(owner) = self.netstat_field(address, layout, kind, "Owner", layout.pointer_size)
+        else {
+            return ("-".into(), "-".into());
+        };
+        match self.process(owner) {
+            Ok(process) => (process.pid.to_string(), process.name),
+            Err(_) => ("-".into(), "-".into()),
+        }
+    }
+
+    fn netstat_time(&self, address: u64, layout: &Layout, kind: usize) -> Result<String> {
+        let time = self.netstat_field(address, layout, kind, "CreateTime", 8)?;
+        Ok(
+            if (110_000_000_000_000_000..190_000_000_000_000_000).contains(&time) {
+                crate::windows::timeline::filetime_utc(time)
+            } else {
+                String::new()
+            },
+        )
+    }
 }
+
 pub(super) fn read(b: &[u8], offset: usize, size: usize) -> Result<u64> {
     ensure!(size <= 8, "网络字段宽度无效");
     let end = offset.checked_add(size).context("网络字段偏移溢出")?;
     let mut value = [0; 8];
     value[..size].copy_from_slice(b.get(offset..end).context("网络字段越界")?);
     Ok(u64::from_le_bytes(value))
+}
+fn address_text(vm: &Memory<'_>, address: u64, family: u64) -> Result<String> {
+    let mut bytes = [0; 16];
+    if address != 0 {
+        vm.read(address, &mut bytes[..if family == 2 { 4 } else { 16 }])?;
+    }
+    if family == 2 {
+        Ok(Ipv4Addr::new(bytes[0], bytes[1], bytes[2], bytes[3]).to_string())
+    } else if address == 0 {
+        Ok("::".into())
+    } else {
+        Ok(Ipv6Addr::from(bytes).to_string())
+    }
 }
 fn endpoint(vm: &Memory<'_>, address: u64, family: u64, port: u16) -> Result<String> {
     let mut b = [0; 16];

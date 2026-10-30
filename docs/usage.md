@@ -1046,3 +1046,10 @@ zero analyze --offline --image memory.raw --symbols ntkrnlmp.json \
 zero analyze --offline --image memory.raw --symbols ntkrnlmp.json \
   --plugin windows.windows.Windows --output windows.json
 ```
+
+`windows.netstat.NetStat` 从 `tcpip.sys` 的分区表和端口池读取活动端点，不扫描池标签。输出 Offset、Proto、LocalAddr、LocalPort、ForeignAddr、ForeignPort、State、PID、Owner、Created。需要该驱动的精确 PDB。监听套接字的远端地址为 `0.0.0.0` 或 `::`，UDP 为 `*`。Win10 15063 的 92 条、Win7 7601 的 121 条已与参考全字段一致。没有端口池字段的旧布局会明确失败。
+
+```bash
+zero analyze --offline --image memory.raw --symbols ntkrnlmp.json \
+  --plugin windows.netstat.NetStat --output netstat.json
+```

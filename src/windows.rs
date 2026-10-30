@@ -842,6 +842,9 @@ impl Windows<'_> {
         if p == Plugin::WinNetscan {
             return self.netscan(job, None);
         }
+        if p == Plugin::WinNetstat {
+            return self.netstat(job, None);
+        }
         if matches!(p, Plugin::WinPsscan | Plugin::WinPsxview) {
             return self.scan_processes(p, options, job);
         }
@@ -1150,6 +1153,8 @@ pub(crate) fn analyze_resolved(
         engine.driver_irp_with_symbols(job, Some((request.cache, request.network)))?
     } else if request.plugin == Plugin::WinNetscan {
         engine.netscan(job, Some((request.cache, request.network)))?
+    } else if request.plugin == Plugin::WinNetstat {
+        engine.netstat(job, Some((request.cache, request.network)))?
     } else {
         engine.run(request.plugin, options, job)?
     };

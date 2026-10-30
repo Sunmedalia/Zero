@@ -1,5 +1,5 @@
 {
-  "version": "zero-tcpip-6",
+  "version": "zero-tcpip-7",
   "profiles": {
     "netscan-win10-10240-x86": {
       "pointer_size": 4,
@@ -36,7 +36,26 @@
       "info_remote": 12,
       "udp_direct": false,
       "source": "https://raw.githubusercontent.com/volatilityfoundation/volatility3/v2.28.0/volatility3/framework/symbols/windows/netscan/netscan-win10-10240-x86.json",
-      "validation": "synthetic"
+      "validation": "synthetic",
+      "netstat": {
+        "available": true,
+        "partition_size": 64,
+        "endpoints": 4,
+        "hash_directory": 32,
+        "hash_table_size": 8,
+        "hash_alignment": 8,
+        "list_entry": 20,
+        "listener_next": 72,
+        "udp_next": 76,
+        "compartment": 328,
+        "protocol": 32,
+        "port_pool": 0,
+        "bitmap": 144,
+        "assignments": 152,
+        "assignment_list": 16,
+        "entry": 4,
+        "entry_stride": 8
+      }
     },
     "netscan-win10-10586-x86": {
       "pointer_size": 4,
@@ -73,7 +92,26 @@
       "info_remote": 12,
       "udp_direct": false,
       "source": "https://raw.githubusercontent.com/volatilityfoundation/volatility3/v2.28.0/volatility3/framework/symbols/windows/netscan/netscan-win10-10586-x86.json",
-      "validation": "synthetic"
+      "validation": "synthetic",
+      "netstat": {
+        "available": true,
+        "partition_size": 72,
+        "endpoints": 8,
+        "hash_directory": 32,
+        "hash_table_size": 8,
+        "hash_alignment": 8,
+        "list_entry": 32,
+        "listener_next": 72,
+        "udp_next": 64,
+        "compartment": 328,
+        "protocol": 32,
+        "port_pool": 0,
+        "bitmap": 144,
+        "assignments": 152,
+        "assignment_list": 16,
+        "entry": 4,
+        "entry_stride": 8
+      }
     },
     "netscan-win10-14393-x86": {
       "pointer_size": 4,
@@ -110,7 +148,26 @@
       "info_remote": 12,
       "udp_direct": false,
       "source": "https://raw.githubusercontent.com/volatilityfoundation/volatility3/v2.28.0/volatility3/framework/symbols/windows/netscan/netscan-win10-14393-x86.json",
-      "validation": "synthetic"
+      "validation": "synthetic",
+      "netstat": {
+        "available": false,
+        "partition_size": null,
+        "endpoints": null,
+        "hash_directory": 32,
+        "hash_table_size": 8,
+        "hash_alignment": 8,
+        "list_entry": 20,
+        "listener_next": null,
+        "udp_next": null,
+        "compartment": null,
+        "protocol": null,
+        "port_pool": 0,
+        "bitmap": null,
+        "assignments": null,
+        "assignment_list": null,
+        "entry": null,
+        "entry_stride": null
+      }
     },
     "netscan-win10-15063-x64": {
       "pointer_size": 8,
@@ -147,7 +204,26 @@
       "info_remote": 16,
       "udp_direct": true,
       "source": "https://raw.githubusercontent.com/volatilityfoundation/volatility3/v2.28.0/volatility3/framework/symbols/windows/netscan/netscan-win10-15063-x64.json",
-      "validation": "public-raw-reference"
+      "validation": "public-raw-reference",
+      "netstat": {
+        "available": true,
+        "partition_size": 128,
+        "endpoints": 8,
+        "hash_directory": 32,
+        "hash_table_size": 8,
+        "hash_alignment": 16,
+        "list_entry": 40,
+        "listener_next": 120,
+        "udp_next": 112,
+        "compartment": 328,
+        "protocol": 32,
+        "port_pool": 0,
+        "bitmap": 216,
+        "assignments": 232,
+        "assignment_list": 24,
+        "entry": 8,
+        "entry_stride": 24
+      }
     },
     "netscan-win10-15063-x86": {
       "pointer_size": 4,
@@ -184,7 +260,26 @@
       "info_remote": 12,
       "udp_direct": false,
       "source": "https://raw.githubusercontent.com/volatilityfoundation/volatility3/v2.28.0/volatility3/framework/symbols/windows/netscan/netscan-win10-15063-x86.json",
-      "validation": "synthetic"
+      "validation": "synthetic",
+      "netstat": {
+        "available": true,
+        "partition_size": 64,
+        "endpoints": 4,
+        "hash_directory": 32,
+        "hash_table_size": 8,
+        "hash_alignment": 8,
+        "list_entry": 20,
+        "listener_next": 72,
+        "udp_next": 76,
+        "compartment": 324,
+        "protocol": 20,
+        "port_pool": 0,
+        "bitmap": 144,
+        "assignments": 152,
+        "assignment_list": 16,
+        "entry": 4,
+        "entry_stride": 8
+      }
     },
     "netscan-win10-16299-x64": {
       "pointer_size": 8,
@@ -221,7 +316,26 @@
       "info_remote": 16,
       "udp_direct": true,
       "source": "https://raw.githubusercontent.com/volatilityfoundation/volatility3/v2.28.0/volatility3/framework/symbols/windows/netscan/netscan-win10-16299-x64.json",
-      "validation": "synthetic"
+      "validation": "synthetic",
+      "netstat": {
+        "available": true,
+        "partition_size": 128,
+        "endpoints": 8,
+        "hash_directory": 32,
+        "hash_table_size": 8,
+        "hash_alignment": 16,
+        "list_entry": 40,
+        "listener_next": 120,
+        "udp_next": 112,
+        "compartment": 328,
+        "protocol": 32,
+        "port_pool": 0,
+        "bitmap": 216,
+        "assignments": 232,
+        "assignment_list": 24,
+        "entry": 8,
+        "entry_stride": 24
+      }
     },
     "netscan-win10-17134-x64": {
       "pointer_size": 8,
@@ -258,7 +372,26 @@
       "info_remote": 16,
       "udp_direct": true,
       "source": "https://raw.githubusercontent.com/volatilityfoundation/volatility3/v2.28.0/volatility3/framework/symbols/windows/netscan/netscan-win10-17134-x64.json",
-      "validation": "synthetic"
+      "validation": "synthetic",
+      "netstat": {
+        "available": true,
+        "partition_size": 128,
+        "endpoints": 8,
+        "hash_directory": 32,
+        "hash_table_size": 8,
+        "hash_alignment": 16,
+        "list_entry": 40,
+        "listener_next": 120,
+        "udp_next": 112,
+        "compartment": 328,
+        "protocol": 32,
+        "port_pool": 0,
+        "bitmap": 216,
+        "assignments": 232,
+        "assignment_list": 24,
+        "entry": 8,
+        "entry_stride": 24
+      }
     },
     "netscan-win10-17134-x86": {
       "pointer_size": 4,
@@ -295,7 +428,26 @@
       "info_remote": 12,
       "udp_direct": false,
       "source": "https://raw.githubusercontent.com/volatilityfoundation/volatility3/v2.28.0/volatility3/framework/symbols/windows/netscan/netscan-win10-17134-x86.json",
-      "validation": "synthetic"
+      "validation": "synthetic",
+      "netstat": {
+        "available": false,
+        "partition_size": null,
+        "endpoints": null,
+        "hash_directory": 32,
+        "hash_table_size": 8,
+        "hash_alignment": 8,
+        "list_entry": 20,
+        "listener_next": null,
+        "udp_next": null,
+        "compartment": null,
+        "protocol": null,
+        "port_pool": 0,
+        "bitmap": null,
+        "assignments": null,
+        "assignment_list": null,
+        "entry": null,
+        "entry_stride": null
+      }
     },
     "netscan-win10-17763-x64": {
       "pointer_size": 8,
@@ -333,7 +485,26 @@
       "udp_direct": true,
       "source": "https://raw.githubusercontent.com/volatilityfoundation/volatility3/v2.28.0/volatility3/framework/symbols/windows/netscan/netscan-win10-17763-x64.json",
       "validation": "public-crash-reference",
-      "evidence": "Server 2019 x64 public type-6 SDMP crash: all 141 readable reference connections recovered; 191 unreadable reference rows excluded."
+      "evidence": "Server 2019 x64 public type-6 SDMP crash: all 141 readable reference connections recovered; 191 unreadable reference rows excluded.",
+      "netstat": {
+        "available": true,
+        "partition_size": 128,
+        "endpoints": 8,
+        "hash_directory": 32,
+        "hash_table_size": 8,
+        "hash_alignment": 16,
+        "list_entry": 40,
+        "listener_next": 120,
+        "udp_next": 112,
+        "compartment": 328,
+        "protocol": 32,
+        "port_pool": 0,
+        "bitmap": 216,
+        "assignments": 232,
+        "assignment_list": 24,
+        "entry": 8,
+        "entry_stride": 24
+      }
     },
     "netscan-win10-18362-x64": {
       "pointer_size": 8,
@@ -370,7 +541,26 @@
       "info_remote": 16,
       "udp_direct": true,
       "source": "https://raw.githubusercontent.com/volatilityfoundation/volatility3/v2.28.0/volatility3/framework/symbols/windows/netscan/netscan-win10-18362-x64.json",
-      "validation": "synthetic"
+      "validation": "synthetic",
+      "netstat": {
+        "available": true,
+        "partition_size": 128,
+        "endpoints": 8,
+        "hash_directory": 32,
+        "hash_table_size": 8,
+        "hash_alignment": 16,
+        "list_entry": 40,
+        "listener_next": 120,
+        "udp_next": 112,
+        "compartment": 328,
+        "protocol": 32,
+        "port_pool": 0,
+        "bitmap": 208,
+        "assignments": 224,
+        "assignment_list": 24,
+        "entry": 8,
+        "entry_stride": 24
+      }
     },
     "netscan-win10-18363-x64": {
       "pointer_size": 8,
@@ -407,7 +597,26 @@
       "info_remote": 16,
       "udp_direct": true,
       "source": "https://raw.githubusercontent.com/volatilityfoundation/volatility3/v2.28.0/volatility3/framework/symbols/windows/netscan/netscan-win10-18363-x64.json",
-      "validation": "synthetic"
+      "validation": "synthetic",
+      "netstat": {
+        "available": true,
+        "partition_size": 128,
+        "endpoints": 8,
+        "hash_directory": 32,
+        "hash_table_size": 8,
+        "hash_alignment": 16,
+        "list_entry": 40,
+        "listener_next": 120,
+        "udp_next": 112,
+        "compartment": 328,
+        "protocol": 32,
+        "port_pool": 0,
+        "bitmap": 208,
+        "assignments": 224,
+        "assignment_list": 24,
+        "entry": 8,
+        "entry_stride": 24
+      }
     },
     "netscan-win10-19041-x64": {
       "pointer_size": 8,
@@ -444,7 +653,26 @@
       "info_remote": 16,
       "udp_direct": true,
       "source": "https://raw.githubusercontent.com/volatilityfoundation/volatility3/v2.28.0/volatility3/framework/symbols/windows/netscan/netscan-win10-19041-x64.json",
-      "validation": "public-crash-reference"
+      "validation": "public-crash-reference",
+      "netstat": {
+        "available": true,
+        "partition_size": 192,
+        "endpoints": 8,
+        "hash_directory": 32,
+        "hash_table_size": 8,
+        "hash_alignment": 16,
+        "list_entry": 40,
+        "listener_next": 120,
+        "udp_next": 112,
+        "compartment": 328,
+        "protocol": 32,
+        "port_pool": 0,
+        "bitmap": 208,
+        "assignments": 224,
+        "assignment_list": 24,
+        "entry": 16,
+        "entry_stride": 32
+      }
     },
     "netscan-win10-19041-x86": {
       "pointer_size": 4,
@@ -481,7 +709,26 @@
       "info_remote": 16,
       "udp_direct": true,
       "source": "https://raw.githubusercontent.com/volatilityfoundation/volatility3/v2.28.0/volatility3/framework/symbols/windows/netscan/netscan-win10-19041-x86.json",
-      "validation": "synthetic"
+      "validation": "synthetic",
+      "netstat": {
+        "available": false,
+        "partition_size": null,
+        "endpoints": null,
+        "hash_directory": 32,
+        "hash_table_size": 8,
+        "hash_alignment": 8,
+        "list_entry": null,
+        "listener_next": null,
+        "udp_next": null,
+        "compartment": null,
+        "protocol": null,
+        "port_pool": 0,
+        "bitmap": null,
+        "assignments": null,
+        "assignment_list": null,
+        "entry": null,
+        "entry_stride": null
+      }
     },
     "netscan-win10-20348-x64": {
       "pointer_size": 8,
@@ -519,7 +766,26 @@
       "info_remote": 16,
       "udp_direct": true,
       "source": "https://raw.githubusercontent.com/volatilityfoundation/volatility3/v2.28.0/volatility3/framework/symbols/windows/netscan/netscan-win10-20348-x64.json",
-      "validation": "synthetic"
+      "validation": "synthetic",
+      "netstat": {
+        "available": true,
+        "partition_size": 192,
+        "endpoints": 8,
+        "hash_directory": 32,
+        "hash_table_size": 8,
+        "hash_alignment": 16,
+        "list_entry": 40,
+        "listener_next": 120,
+        "udp_next": 112,
+        "compartment": 328,
+        "protocol": 32,
+        "port_pool": 0,
+        "bitmap": 208,
+        "assignments": 224,
+        "assignment_list": 24,
+        "entry": 16,
+        "entry_stride": 32
+      }
     },
     "netscan-win10-x64": {
       "pointer_size": 8,
@@ -556,7 +822,26 @@
       "info_remote": 16,
       "udp_direct": true,
       "source": "https://raw.githubusercontent.com/volatilityfoundation/volatility3/v2.28.0/volatility3/framework/symbols/windows/netscan/netscan-win10-x64.json",
-      "validation": "synthetic"
+      "validation": "synthetic",
+      "netstat": {
+        "available": false,
+        "partition_size": null,
+        "endpoints": null,
+        "hash_directory": 32,
+        "hash_table_size": 8,
+        "hash_alignment": 16,
+        "list_entry": null,
+        "listener_next": null,
+        "udp_next": null,
+        "compartment": null,
+        "protocol": null,
+        "port_pool": 0,
+        "bitmap": null,
+        "assignments": null,
+        "assignment_list": null,
+        "entry": null,
+        "entry_stride": null
+      }
     },
     "netscan-win7-x64": {
       "pointer_size": 8,
@@ -594,7 +879,26 @@
       "udp_direct": false,
       "source": "https://raw.githubusercontent.com/volatilityfoundation/volatility3/v2.28.0/volatility3/framework/symbols/windows/netscan/netscan-win7-x64.json",
       "validation": "public-raw-reference",
-      "reference_evidence": "tests/fixtures/windows.json compatibility_samples Windows 7 SP1 x64; 82 unique readable connections matched independent Volatility 3"
+      "reference_evidence": "tests/fixtures/windows.json compatibility_samples Windows 7 SP1 x64; 82 unique readable connections matched independent Volatility 3",
+      "netstat": {
+        "available": true,
+        "partition_size": 128,
+        "endpoints": 8,
+        "hash_directory": 32,
+        "hash_table_size": 8,
+        "hash_alignment": 16,
+        "list_entry": 40,
+        "listener_next": 112,
+        "udp_next": 136,
+        "compartment": 328,
+        "protocol": 32,
+        "port_pool": 0,
+        "bitmap": 144,
+        "assignments": 160,
+        "assignment_list": 32,
+        "entry": 8,
+        "entry_stride": 16
+      }
     },
     "netscan-win7-x86": {
       "pointer_size": 4,
@@ -631,7 +935,26 @@
       "info_remote": 8,
       "udp_direct": false,
       "source": "https://raw.githubusercontent.com/volatilityfoundation/volatility3/v2.28.0/volatility3/framework/symbols/windows/netscan/netscan-win7-x86.json",
-      "validation": "synthetic"
+      "validation": "synthetic",
+      "netstat": {
+        "available": true,
+        "partition_size": 64,
+        "endpoints": 4,
+        "hash_directory": 32,
+        "hash_table_size": 8,
+        "hash_alignment": 8,
+        "list_entry": 20,
+        "listener_next": 64,
+        "udp_next": 76,
+        "compartment": 328,
+        "protocol": 32,
+        "port_pool": 0,
+        "bitmap": 80,
+        "assignments": 88,
+        "assignment_list": 20,
+        "entry": 4,
+        "entry_stride": 8
+      }
     },
     "netscan-win8-x64": {
       "pointer_size": 8,
@@ -669,7 +992,26 @@
       "udp_direct": false,
       "source": "https://raw.githubusercontent.com/volatilityfoundation/volatility3/v2.28.0/volatility3/framework/symbols/windows/netscan/netscan-win8-x64.json",
       "validation": "public-raw-reference",
-      "evidence": "Server 2012 x64 public RAW: 49 unique connections match independent Volatility 3."
+      "evidence": "Server 2012 x64 public RAW: 49 unique connections match independent Volatility 3.",
+      "netstat": {
+        "available": true,
+        "partition_size": 128,
+        "endpoints": 8,
+        "hash_directory": 32,
+        "hash_table_size": 8,
+        "hash_alignment": 16,
+        "list_entry": 40,
+        "listener_next": 112,
+        "udp_next": 136,
+        "compartment": 328,
+        "protocol": 32,
+        "port_pool": 0,
+        "bitmap": 160,
+        "assignments": 176,
+        "assignment_list": 32,
+        "entry": 8,
+        "entry_stride": 16
+      }
     },
     "netscan-win8-x86": {
       "pointer_size": 4,
@@ -706,7 +1048,26 @@
       "info_remote": 12,
       "udp_direct": false,
       "source": "https://raw.githubusercontent.com/volatilityfoundation/volatility3/v2.28.0/volatility3/framework/symbols/windows/netscan/netscan-win8-x86.json",
-      "validation": "synthetic"
+      "validation": "synthetic",
+      "netstat": {
+        "available": false,
+        "partition_size": null,
+        "endpoints": null,
+        "hash_directory": 32,
+        "hash_table_size": 8,
+        "hash_alignment": 8,
+        "list_entry": 20,
+        "listener_next": null,
+        "udp_next": null,
+        "compartment": null,
+        "protocol": null,
+        "port_pool": 0,
+        "bitmap": null,
+        "assignments": null,
+        "assignment_list": null,
+        "entry": null,
+        "entry_stride": null
+      }
     },
     "netscan-win81-19935-x64": {
       "pointer_size": 8,
@@ -743,7 +1104,26 @@
       "info_remote": 16,
       "udp_direct": false,
       "source": "https://raw.githubusercontent.com/volatilityfoundation/volatility3/v2.28.0/volatility3/framework/symbols/windows/netscan/netscan-win81-19935-x64.json",
-      "validation": "synthetic"
+      "validation": "synthetic",
+      "netstat": {
+        "available": true,
+        "partition_size": 128,
+        "endpoints": 8,
+        "hash_directory": 32,
+        "hash_table_size": 8,
+        "hash_alignment": 16,
+        "list_entry": 40,
+        "listener_next": 112,
+        "udp_next": 112,
+        "compartment": 328,
+        "protocol": 32,
+        "port_pool": 0,
+        "bitmap": 200,
+        "assignments": 216,
+        "assignment_list": 24,
+        "entry": 8,
+        "entry_stride": 24
+      }
     },
     "netscan-win81-x64": {
       "pointer_size": 8,
@@ -780,7 +1160,26 @@
       "info_remote": 16,
       "udp_direct": false,
       "source": "https://raw.githubusercontent.com/volatilityfoundation/volatility3/v2.28.0/volatility3/framework/symbols/windows/netscan/netscan-win81-x64.json",
-      "validation": "synthetic"
+      "validation": "synthetic",
+      "netstat": {
+        "available": true,
+        "partition_size": 128,
+        "endpoints": 8,
+        "hash_directory": 32,
+        "hash_table_size": 8,
+        "hash_alignment": 16,
+        "list_entry": 40,
+        "listener_next": 112,
+        "udp_next": 112,
+        "compartment": 328,
+        "protocol": 32,
+        "port_pool": 0,
+        "bitmap": 160,
+        "assignments": 176,
+        "assignment_list": 32,
+        "entry": 8,
+        "entry_stride": 24
+      }
     },
     "netscan-win81-x86": {
       "pointer_size": 4,
@@ -817,7 +1216,26 @@
       "info_remote": 12,
       "udp_direct": false,
       "source": "https://raw.githubusercontent.com/volatilityfoundation/volatility3/v2.28.0/volatility3/framework/symbols/windows/netscan/netscan-win81-x86.json",
-      "validation": "synthetic"
+      "validation": "synthetic",
+      "netstat": {
+        "available": false,
+        "partition_size": null,
+        "endpoints": null,
+        "hash_directory": 32,
+        "hash_table_size": 8,
+        "hash_alignment": 8,
+        "list_entry": 20,
+        "listener_next": null,
+        "udp_next": null,
+        "compartment": null,
+        "protocol": null,
+        "port_pool": 0,
+        "bitmap": null,
+        "assignments": null,
+        "assignment_list": null,
+        "entry": null,
+        "entry_stride": null
+      }
     },
     "netscan-vista-x86": {
       "pointer_size": 4,
@@ -855,7 +1273,26 @@
       "udp_direct": false,
       "source": "https://raw.githubusercontent.com/volatilityfoundation/volatility3/v2.28.0/volatility3/framework/symbols/windows/netscan/netscan-vista-x86.json",
       "validation": "public-raw-reference",
-      "evidence": "Server 2008 SP1 x86 public RAW: 69 readable unique connections match independent Volatility 3."
+      "evidence": "Server 2008 SP1 x86 public RAW: 69 readable unique connections match independent Volatility 3.",
+      "netstat": {
+        "available": false,
+        "partition_size": null,
+        "endpoints": null,
+        "hash_directory": 32,
+        "hash_table_size": 8,
+        "hash_alignment": 8,
+        "list_entry": 20,
+        "listener_next": null,
+        "udp_next": null,
+        "compartment": null,
+        "protocol": null,
+        "port_pool": 0,
+        "bitmap": null,
+        "assignments": null,
+        "assignment_list": null,
+        "entry": null,
+        "entry_stride": null
+      }
     },
     "netscan-vista-x64": {
       "pointer_size": 8,
@@ -892,7 +1329,26 @@
       "info_remote": 16,
       "udp_direct": false,
       "source": "https://raw.githubusercontent.com/volatilityfoundation/volatility3/v2.28.0/volatility3/framework/symbols/windows/netscan/netscan-vista-x64.json",
-      "validation": "synthetic"
+      "validation": "synthetic",
+      "netstat": {
+        "available": false,
+        "partition_size": null,
+        "endpoints": null,
+        "hash_directory": 32,
+        "hash_table_size": 8,
+        "hash_alignment": 16,
+        "list_entry": 40,
+        "listener_next": null,
+        "udp_next": null,
+        "compartment": null,
+        "protocol": null,
+        "port_pool": 0,
+        "bitmap": null,
+        "assignments": null,
+        "assignment_list": null,
+        "entry": null,
+        "entry_stride": null
+      }
     },
     "netscan-vista-sp12-x64": {
       "pointer_size": 8,
@@ -929,7 +1385,26 @@
       "info_remote": 16,
       "udp_direct": false,
       "source": "https://raw.githubusercontent.com/volatilityfoundation/volatility3/v2.28.0/volatility3/framework/symbols/windows/netscan/netscan-vista-sp12-x64.json",
-      "validation": "synthetic"
+      "validation": "synthetic",
+      "netstat": {
+        "available": false,
+        "partition_size": null,
+        "endpoints": null,
+        "hash_directory": 32,
+        "hash_table_size": 8,
+        "hash_alignment": 16,
+        "list_entry": 40,
+        "listener_next": null,
+        "udp_next": null,
+        "compartment": null,
+        "protocol": null,
+        "port_pool": 0,
+        "bitmap": null,
+        "assignments": null,
+        "assignment_list": null,
+        "entry": null,
+        "entry_stride": null
+      }
     },
     "netscan-server2022-x64": {
       "pointer_size": 8,
