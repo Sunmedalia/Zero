@@ -23,6 +23,14 @@ struct GuiLayout {
     window_direct_name: Option<u64>,
 }
 
+fn classify_window_procedure(value: Option<u64>) -> Option<String> {
+    match value {
+        None => Some("N/A".into()),
+        Some(1..=0x1000) => None,
+        Some(value) => Some(format!("{value:#x}")),
+    }
+}
+
 fn reference_process_name(bytes: &[u8]) -> String {
     String::from_utf8_lossy(bytes)
         .split(['\0', '\u{fffd}'])
@@ -604,6 +612,13 @@ impl Windows<'_> {
                     self.window_record(processes, dtb, window, layout)
                 {
                     ensure!(result.rows.len() < MAX_OBJECTS, "窗口结果数量超限");
+                    if procedure == "N/A" {
+                        Self::issue(
+                            result,
+                            format!("window {reported:#x} Procedure"),
+                            "窗口过程地址不可读，保留 N/A",
+                        );
+                    }
                     result.rows.push(vec![
                         format!("{:#018x}", reported & 0x0000_ffff_ffff_ffff),
                         station_name.to_string(),
@@ -717,19 +732,15 @@ impl Windows<'_> {
         window: u64,
         layout: &GuiLayout,
     ) -> Option<String> {
-        let value = if let Some(sub) = layout.window_subprocedure {
-            let pointer = self.raw_pointer(memory, add(window, sub).ok()?)?;
-            if !kernel(pointer) {
-                return None;
+        let read = (|| {
+            if let Some(sub) = layout.window_subprocedure {
+                let pointer = self.raw_pointer(memory, add(window, sub).ok()?)?;
+                self.raw_pointer(memory, add(pointer, layout.window_procedure).ok()?)
+            } else {
+                self.raw_pointer(memory, add(window, layout.window_procedure).ok()?)
             }
-            self.raw_pointer(memory, add(pointer, layout.window_procedure).ok()?)?
-        } else {
-            self.raw_pointer(memory, add(window, layout.window_procedure).ok()?)?
-        };
-        if value != 0 && value <= 0x1000 {
-            return None;
-        }
-        Some(format!("{value:#x}"))
+        })();
+        classify_window_procedure(read)
     }
 
     /// Same process link as the desktop walk, but a short image-name read still counts.
@@ -1438,6 +1449,110 @@ mod tests {
             pdb: PdbIdentity::from_isf(&isf).unwrap(),
         };
         assert!(w.partial_process_identity(&w.vm, K + 0x1fd8).is_none());
+    }
+    #[test]
+    fn procedure_classification_matches_the_actual_reference_generator() {
+        let vectors: serde_json::Value = serde_json::from_str(include_str!(
+            "../../tests/reference/parity/fixtures/gui-window-procedures.json"
+        ))
+        .unwrap();
+        for c in vectors["cases"].as_array().unwrap() {
+            let got = classify_window_procedure(c["value"].as_u64());
+            assert_eq!(got.is_some(), c["retained"].as_bool().unwrap());
+            assert_eq!(got.as_deref(), c["expected"].as_str());
+        }
+    }
+    #[test]
+    fn unreadable_procedure_preserves_window_row_and_marks_partial() {
+        let (mut bytes, isf) = fixture();
+        let window = K + 0x10f80;
+        put(&mut bytes, 0x18f90, K + 0x12000); // head.pti
+        put(&mut bytes, 0x18f98, K + 0x14000); // head.rpdesk
+        put(&mut bytes, 0x1a000 + 376, K + 0x13000); // pti.ppi
+        put(&mut bytes, 0x1b000, K + 0x2000); // ppi.Process
+        put(&mut bytes, 0x1c000 + 40, K + 0x15000); // desktop.rpwinstaParent
+        bytes[0x1d000..0x1d004].copy_from_slice(&1u32.to_le_bytes());
+        let layout = gui_layout("gui-win10-15063-x64");
+        put(&mut bytes, 0x19020, 0); // lpfnWndProc, next page after head
+        let img = image(&bytes);
+        let w = Windows {
+            vm: Memory::new(&img, 0x1000, &isf, None),
+            base: K,
+            pdb: PdbIdentity::from_isf(&isf).unwrap(),
+        };
+        assert_eq!(
+            w.window_record(&[], 0x1000, window, &layout).unwrap().1,
+            "0x0"
+        );
+        drop(w);
+        drop(img);
+        put(&mut bytes, 0x19020, 0x1000);
+        let img = image(&bytes);
+        let w = Windows {
+            vm: Memory::new(&img, 0x1000, &isf, None),
+            base: K,
+            pdb: PdbIdentity::from_isf(&isf).unwrap(),
+        };
+        assert!(w.window_record(&[], 0x1000, window, &layout).is_none());
+        drop(w);
+        drop(img);
+        put(&mut bytes, 0x4000 + 17 * 8, 0); // Procedure page absent; process and session remain readable.
+        let img = image(&bytes);
+        let w = Windows {
+            vm: Memory::new(&img, 0x1000, &isf, None),
+            base: K,
+            pdb: PdbIdentity::from_isf(&isf).unwrap(),
+        };
+        assert_eq!(
+            w.window_record(&[], 0x1000, window, &layout).unwrap().1,
+            "N/A"
+        );
+        let mut result = w.result(Plugin::WinWindows);
+        let mut seen = HashSet::new();
+        let mut rows = 0;
+        w.walk_window_field(WindowWalk {
+            job: &Job::default(),
+            result: &mut result,
+            processes: &[],
+            dtb: 0x1000,
+            field: window,
+            window,
+            station_name: "WinSta0",
+            session_id: 1,
+            desktop_name: "Default",
+            layout: &layout,
+            seen: &mut seen,
+            rows: &mut rows,
+        })
+        .unwrap();
+        assert_eq!(rows, 1);
+        assert_eq!(result.rows[0][5], "N/A");
+        assert_eq!(result.rows[0][6], "child");
+        assert!(!result.complete);
+        assert!(result.diagnostics.iter().any(|d| d.contains("Procedure")));
+        // Newer layouts read the procedure through subPointer. Missing targets are absent, not invalid values.
+        let mut newer = gui_layout("gui-win10-17134-x64");
+        newer.window_subprocedure = Some(40);
+        assert_eq!(
+            w.window_procedure(&w.vm, window, &newer),
+            Some("N/A".into())
+        );
+        drop(w);
+        drop(img);
+        // Reference follows readable subPointer addresses without imposing a kernel-only range.
+        put(&mut bytes, 0x1000, 0x2003);
+        put(&mut bytes, 0x18fa8, 0x2000);
+        put(&mut bytes, 0xa0a0, 0x1001);
+        let img = image(&bytes);
+        let w = Windows {
+            vm: Memory::new(&img, 0x1000, &isf, None),
+            base: K,
+            pdb: PdbIdentity::from_isf(&isf).unwrap(),
+        };
+        assert_eq!(
+            w.window_procedure(&w.vm, window, &newer),
+            Some("0x1001".into())
+        );
     }
     #[test]
     fn an_unmapped_windows_version_is_rejected() {

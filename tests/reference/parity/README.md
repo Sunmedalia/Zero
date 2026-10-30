@@ -632,3 +632,8 @@ TrueCrypt 的 `truecrypt_vectors.py` 在固定参考上生成 16 个 PE32/PE32+�
 GUI 名称解码的 `gui_name_vectors.py` 使用固定参考 utility 生成
 `fixtures/gui-process-names.json`；数据全部为合成字节。窗口列表的 Win10 真实用例
 严格比较八列和重复数，Win7 空结果通过独立 allow_empty 映射记录，不计正向证据。
+
+GUI 过程分类使用 `gui_procedure_vectors.py` 执行固定参考的实际 Windows 生成器，
+生成 `fixtures/gui-window-procedures.json`。假进程身份不属于该分类测试的验收范围。
+Windows 映射 v2 将 Procedure 作为可缺失负载字段；双侧缺失、单侧缺失、不同地址
+和重复数的比较有工具回归测试，不通过排除字段或选择记录来消除差异。

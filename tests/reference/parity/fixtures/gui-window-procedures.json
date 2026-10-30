@@ -1,0 +1,47 @@
+{
+  "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+  "source_sha256": "0a6b565b31b6537a6bd6f8a3e9be37795b8b078e67fb49387980d865b486d39f",
+  "scope": "Synthetic actual-generator procedure classification only; fake process identity",
+  "cases": [
+    {
+      "value": null,
+      "expected": "N/A",
+      "retained": true
+    },
+    {
+      "value": 0,
+      "expected": "0x0",
+      "retained": true
+    },
+    {
+      "value": 1,
+      "expected": null,
+      "retained": false
+    },
+    {
+      "value": 4095,
+      "expected": null,
+      "retained": false
+    },
+    {
+      "value": 4096,
+      "expected": null,
+      "retained": false
+    },
+    {
+      "value": 4097,
+      "expected": "0x1001",
+      "retained": true
+    },
+    {
+      "value": 140707423588916,
+      "expected": "0x7ff900001234",
+      "retained": true
+    },
+    {
+      "value": 18446735277921949304,
+      "expected": "0xfffff80012345678",
+      "retained": true
+    }
+  ]
+}

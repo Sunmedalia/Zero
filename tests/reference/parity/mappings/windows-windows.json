@@ -1,12 +1,11 @@
 {
-  "version": 1,
+  "version": 2,
   "keys": [
     "Offset",
     "Station",
     "Session",
     "Desktop",
     "Window",
-    "Procedure",
     "Process",
     "PID"
   ],
@@ -44,7 +43,8 @@
       "reference": "Procedure",
       "type": "address",
       "zero_type": "na_integer",
-      "reference_type": "na_integer"
+      "reference_type": "na_integer",
+      "allow_absent": true
     },
     "Process": {
       "zero": "Process",
@@ -56,5 +56,6 @@
       "reference": "PID",
       "type": "integer"
     }
-  }
+  },
+  "notes": "All eight fields and exact multiplicities compare. Procedure is an explicitly optional payload field, excluded from identity so paired reference null/native N/A can compare; one-sided absence or a changed numeric value fails. No rows are filtered."
 }

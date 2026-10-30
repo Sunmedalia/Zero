@@ -1,5 +1,7 @@
 """Regression tests for evidence gates, independently of both engines."""
 import copy
+import json
+from pathlib import Path
 import unittest
 from compare import compare, normalize
 
@@ -53,6 +55,27 @@ class CompareTests(unittest.TestCase):
         for value in ('', None, 'kernel:0x1, kernel:0x1', 'kernel:0x1, garbage'):
             with self.assertRaises(ValueError):
                 normalize(value, 'strings_owners')
+
+    def test_window_procedure_absence_is_payload_and_remains_strict(self):
+        mapping=json.loads((Path(__file__).parent/'mappings/windows-windows.json').read_text())
+        columns=list(mapping['fields'])
+        row=['0x1000','WinSta0','1','Default','test','N/A','test.exe','8']
+        native={'columns':columns,'rows':[row],'complete':False,'diagnostics':['Procedure missing']}
+        reference=[{'Offset':4096,'Station':'WinSta0','Session':1,'Desktop':'Default','Window':'test','Procedure':None,'Process':'test.exe','PID':8}]
+        proof=compare(native,reference,mapping)
+        self.assertTrue(proof['passed'])
+        self.assertEqual(proof['matched_absent'],{'Procedure':1})
+        reference[0]['Procedure']=0
+        self.assertFalse(compare(native,reference,mapping)['passed'])
+        row[5]='0x0'
+        self.assertTrue(compare(native,reference,mapping)['passed'])
+        reference[0]['Procedure']=0x2000
+        self.assertFalse(compare(native,reference,mapping)['passed'])
+        row[5]='0x2000'
+        native['rows']*=2
+        self.assertFalse(compare(native,reference,mapping)['passed'])
+        reference*=2
+        self.assertTrue(compare(native,reference,mapping)['passed'])
 
     def test_full_fields_agree(self):
         self.assertTrue(self.check()['passed'])
