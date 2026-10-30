@@ -178,6 +178,7 @@ impl App {
                         "精确符号名（分号分隔；优先于地址）",
                         "绝对地址（逗号或空格分隔）",
                         "字符串文件（十进制物理偏移）",
+                        "TrueCrypt 最小口令长度（默认 5）",
                     ];
                     let mut lines = vec![Line::raw(if self.windows {
                         "Ctrl+T 展开／收起 Windows 高级配置"

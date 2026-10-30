@@ -66,6 +66,7 @@ mod suspended_threads;
 mod system_calls;
 mod thread_symbols;
 mod timeline;
+mod truecrypt;
 mod unhooked_system_calls;
 mod user_artifacts;
 mod user_layout;
@@ -635,6 +636,9 @@ impl Windows<'_> {
         if p == Plugin::WinSkeletonKeyCheck {
             return self.skeleton_key(None, job);
         }
+        if p == Plugin::WinTruecryptPassphrase {
+            return self.truecrypt_passphrase(options, job);
+        }
         if p == Plugin::WinStrings {
             return self.strings(options, job);
         }
@@ -1167,6 +1171,7 @@ pub(crate) fn analyze_resolved(
                 | Plugin::WinDebugRegisters
                 | Plugin::WinUnhookedSystemCalls
                 | Plugin::WinSkeletonKeyCheck
+                | Plugin::WinTruecryptPassphrase
                 | Plugin::WinStrings
                 | Plugin::WinDirectSystemCalls
                 | Plugin::WinIndirectSystemCalls
@@ -1247,6 +1252,7 @@ pub(crate) fn analyze_resolved(
                 | Plugin::WinDebugRegisters
                 | Plugin::WinUnhookedSystemCalls
                 | Plugin::WinSkeletonKeyCheck
+                | Plugin::WinTruecryptPassphrase
                 | Plugin::WinStrings
                 | Plugin::WinDirectSystemCalls
                 | Plugin::WinIndirectSystemCalls

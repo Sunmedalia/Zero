@@ -1,0 +1,278 @@
+{
+  "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+  "reference_source_sha256": "44b85d8f84b0e1a77dd5039c6d72479aaa30ef830e514b2bacbc1c224df6d542",
+  "scope": "Synthetic section/parser semantics only; invented passwords; no real positive image evidence",
+  "fill_byte": 204,
+  "image_size": 12288,
+  "cases": [
+    {
+      "id": "x64-default",
+      "wide": true,
+      "min_length": 5,
+      "section_size": 256,
+      "patches": [
+        [
+          4096,
+          "100000005465737420706173737068726173652100000000"
+        ],
+        [
+          4160,
+          "040000006162636400000000"
+        ],
+        [
+          4224,
+          "400000005858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585800000000"
+        ]
+      ],
+      "expected": [
+        {
+          "offset": 4100,
+          "password": "Test passphrase!"
+        },
+        {
+          "offset": 4228,
+          "password": "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+        }
+      ]
+    },
+    {
+      "id": "x86-default",
+      "wide": false,
+      "min_length": 5,
+      "section_size": 256,
+      "patches": [
+        [
+          4096,
+          "100000005465737420706173737068726173652100000000"
+        ]
+      ],
+      "expected": [
+        {
+          "offset": 4100,
+          "password": "Test passphrase!"
+        }
+      ]
+    },
+    {
+      "id": "minimum-four",
+      "wide": true,
+      "min_length": 4,
+      "section_size": 256,
+      "patches": [
+        [
+          4096,
+          "040000006162636400000000"
+        ]
+      ],
+      "expected": [
+        {
+          "offset": 4100,
+          "password": "abcd"
+        }
+      ]
+    },
+    {
+      "id": "minimum-over-maximum",
+      "wide": true,
+      "min_length": 65,
+      "section_size": 256,
+      "patches": [
+        [
+          4096,
+          "100000005465737420706173737068726173652100000000"
+        ]
+      ],
+      "expected": []
+    },
+    {
+      "id": "zero-length",
+      "wide": true,
+      "min_length": 0,
+      "section_size": 4,
+      "patches": [
+        [
+          4096,
+          "0000000000000000"
+        ]
+      ],
+      "expected": [
+        {
+          "offset": 4100,
+          "password": ""
+        }
+      ]
+    },
+    {
+      "id": "negative-minimum-positive-length",
+      "wide": true,
+      "min_length": -1,
+      "section_size": 256,
+      "patches": [
+        [
+          4096,
+          "100000005465737420706173737068726173652100000000"
+        ]
+      ],
+      "expected": [
+        {
+          "offset": 4100,
+          "password": "Test passphrase!"
+        }
+      ]
+    },
+    {
+      "id": "negative-length-reference-error",
+      "wide": true,
+      "min_length": -1,
+      "section_size": 256,
+      "patches": [
+        [
+          4096,
+          "ffffffff00000000"
+        ]
+      ],
+      "error_type": "error",
+      "error": "bad char in struct format"
+    },
+    {
+      "id": "non-nul-terminator-still-matches",
+      "wide": true,
+      "min_length": 5,
+      "section_size": 256,
+      "patches": [
+        [
+          4096,
+          "070000004578616d706c657f000000"
+        ]
+      ],
+      "expected": [
+        {
+          "offset": 4100,
+          "password": "Example"
+        }
+      ]
+    },
+    {
+      "id": "nonzero-padding-rejected",
+      "wide": true,
+      "min_length": 5,
+      "section_size": 256,
+      "patches": [
+        [
+          4096,
+          "070000004578616d706c6500000100"
+        ]
+      ],
+      "expected": []
+    },
+    {
+      "id": "non-ascii-rejected",
+      "wide": true,
+      "min_length": 5,
+      "section_size": 256,
+      "patches": [
+        [
+          4096,
+          "080000006261647f776f726400000000"
+        ],
+        [
+          4160,
+          "080000006261641f776f726400000000"
+        ]
+      ],
+      "expected": []
+    },
+    {
+      "id": "maximum-length-rejected",
+      "wide": true,
+      "min_length": 5,
+      "section_size": 256,
+      "patches": [
+        [
+          4096,
+          "41000000585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585800000000"
+        ]
+      ],
+      "expected": []
+    },
+    {
+      "id": "unaligned-record-rejected",
+      "wide": true,
+      "min_length": 5,
+      "section_size": 256,
+      "patches": [
+        [
+          4097,
+          "070000004578616d706c6500000000"
+        ]
+      ],
+      "expected": []
+    },
+    {
+      "id": "record-extends-past-data",
+      "wide": true,
+      "min_length": 5,
+      "section_size": 4,
+      "patches": [
+        [
+          4096,
+          "100000005465737420706173737068726173652100000000"
+        ]
+      ],
+      "expected": [
+        {
+          "offset": 4100,
+          "password": "Test passphrase!"
+        }
+      ]
+    },
+    {
+      "id": "data-virtual-size-unaligned",
+      "wide": true,
+      "min_length": 5,
+      "section_size": 7,
+      "patches": [
+        [
+          4096,
+          "100000005465737420706173737068726173652100000000"
+        ]
+      ],
+      "error_type": "ValueError",
+      "error": "PE data section not DWORD-aligned!"
+    },
+    {
+      "id": "section-base-unaligned",
+      "wide": true,
+      "min_length": 5,
+      "section_size": 256,
+      "patches": [
+        [
+          4097,
+          "070000004578616d706c6500000000"
+        ]
+      ],
+      "section_start": 4097,
+      "expected": [
+        {
+          "offset": 4101,
+          "password": "Example"
+        }
+      ]
+    },
+    {
+      "id": "case-sensitive-section-name",
+      "wide": true,
+      "min_length": 5,
+      "section_size": 256,
+      "patches": [
+        [
+          4096,
+          "100000005465737420706173737068726173652100000000"
+        ]
+      ],
+      "section_name": ".DATA",
+      "error_type": "RuntimeError",
+      "error": "generator raised StopIteration"
+    }
+  ]
+}

@@ -1150,3 +1150,24 @@ zero --offline analyze --image memory.raw --symbols symbols/kernel.json \
 参考的区别。PDB/导出路径成功构造数组后，缺页会保留诊断，不将失败数组替换成扫描
 结果。PDB 可离线复用，在线模式可下载身份匹配的微软符号。未找到 lsass、cryptdll
 或存在不可读记录时会保留部分结果说明。
+
+### TrueCrypt 缓存口令
+
+`windows.truecrypt.Passphrase` 选择模块链中第一个名为 `truecrypt.sys` 的驱动，扫描其
+首个 `.data` section。支持 x86/x64；`--min-length` / MCP `min_length` 默认 5，最大
+候选长度为 64，终端参数按插件保存。示例：
+
+```sh
+zero --offline analyze --image memory.raw --symbols symbols/kernel.json \
+  --plugin windows.truecrypt.Passphrase --min-length 5 --output truecrypt.json
+```
+
+输出 Offset（口令字节首地址）、Length、Password。长度字段按 `.data` 起点每 4 字节
+检查一次，只接受 `[0x20, 0x7f)` 的 ASCII 字节和口令后间隔一字节的三个零填充字节。
+为保持固定参考行为，不检查中间那个应为 NUL 的字节，候选也可跨出 section 末端到
+仍可读取的映射中。`min-length 0` 可产生空字符串，超过 64 会得到空候选；允许有符号
+下限，但遇到被该下限选中的负长度记录时与参考一样报错。
+
+缺页保持部分结果和计数，不补零；扫描最多 64 MiB、输出最多 100,000 行，达到上限
+会保留明确诊断。缺失 TrueCrypt 驱动时输出为空；空结果不证明内存中不存在其他
+形式的加密材料。真实正向缓存口令镜像仍待验收。

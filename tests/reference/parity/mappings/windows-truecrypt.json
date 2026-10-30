@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "allow_partial": true,
+  "allow_empty": true,
+  "duplicate_keys": "multiset",
+  "keys": [
+    "Offset"
+  ],
+  "fields": {
+    "Offset": {
+      "zero": "Offset",
+      "reference": "Offset",
+      "type": "address"
+    },
+    "Length": {
+      "zero": "Length",
+      "reference": "Length",
+      "type": "integer"
+    },
+    "Password": {
+      "zero": "Password",
+      "reference": "Password",
+      "type": "text"
+    }
+  },
+  "notes": "Exact three fields and multiplicities. Empty agreement is not positive parity evidence. Synthetic passwords are tested separately."
+}

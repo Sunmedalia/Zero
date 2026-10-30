@@ -75,6 +75,7 @@ impl App {
                     .as_ref()
                     .map(|p| p.display().to_string())
                     .unwrap_or_default(),
+                self.analysis_options.min_length.unwrap_or(5).to_string(),
             ]),
             field: if matches!(
                 self.plugin,
@@ -83,6 +84,8 @@ impl App {
                     | Plugin::WinSkeletonKeyCheck
             ) {
                 6
+            } else if self.plugin == Plugin::WinTruecryptPassphrase {
+                22
             } else if self.plugin == Plugin::WinStrings {
                 21
             } else if self.plugin == Plugin::WinPESymbols {

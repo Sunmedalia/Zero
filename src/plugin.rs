@@ -32,6 +32,8 @@ pub enum Plugin {
     WinPESymbols,
     #[value(name = "windows.strings.Strings", alias = "windows.strings")]
     WinStrings,
+    #[value(name = "windows.truecrypt.Passphrase", alias = "windows.truecrypt")]
+    WinTruecryptPassphrase,
     #[value(
         name = "windows.malware.skeleton_key_check.Skeleton_Key_Check",
         alias = "windows.skeleton_key_check"
@@ -464,6 +466,13 @@ pub const PLUGINS: &[Descriptor] = &[
             "rc4HmacDecrypt",
         ],
         widths: &[7, 20, 20, 18, 18],
+    },
+    Descriptor {
+        plugin: Plugin::WinTruecryptPassphrase,
+        name: "windows.truecrypt.Passphrase",
+        label: "truecrypt_passphrase",
+        columns: &["Offset", "Length", "Password"],
+        widths: &[18, 8, 0],
     },
     Descriptor {
         plugin: Plugin::WinStrings,
@@ -2231,7 +2240,7 @@ impl Plugin {
             Self::WinWindowStations | Self::WinDesktops | Self::WinDeskScan | Self::WinWindows => {
                 "GUI"
             }
-            Self::WinStrings => "Memory",
+            Self::WinStrings | Self::WinTruecryptPassphrase => "Memory",
             Self::WinSkeletonKeyCheck => "Integrity",
             Self::WinUnhookedSystemCalls
             | Self::WinDirectSystemCalls
@@ -2447,6 +2456,7 @@ impl Plugin {
             WinSuspendedThreads => "列出仍挂起的活动线程及起始地址文件和符号",
             WinUnhookedSystemCalls => "对比进程 ntdll 系统调用入口的 32 字节实现",
             WinStrings => "读取外部字符串偏移文件并反查内核／进程映射归属",
+            WinTruecryptPassphrase => "扫描 truecrypt.sys 数据段中的缓存口令",
             WinSkeletonKeyCheck => "定位 lsass cryptdll RC4-HMAC 结构并检测函数指针挂钩",
             WinDirectSystemCalls => "检测系统 DLL 之外的直接系统调用指令块",
             WinIndirectSystemCalls => "检测跳转至系统 DLL 的间接系统调用指令块",

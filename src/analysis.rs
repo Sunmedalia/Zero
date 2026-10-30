@@ -105,6 +105,8 @@ pub struct Options {
     pub pattern: Option<String>,
     /// Local decimal-offset strings output consumed by windows.strings.Strings.
     pub strings_file: Option<std::path::PathBuf>,
+    /// Signed lower bound for windows.truecrypt.Passphrase lengths.
+    pub min_length: Option<i64>,
     pub pagefiles: Vec<crate::windows::paging::Attachment>,
     pub swapfile: Option<std::path::PathBuf>,
 }
@@ -137,12 +139,17 @@ pub fn analyze(
 ) -> Result<Outcome> {
     options.pe.validate(request.plugin)?;
     ensure!(
+        options.min_length.is_none() || request.plugin == Plugin::WinTruecryptPassphrase,
+        "min-length 仅用于 windows.truecrypt.Passphrase"
+    );
+    ensure!(
         options.pid.is_none()
             || !matches!(
                 request.plugin,
                 Plugin::WinDirectSystemCalls
                     | Plugin::WinIndirectSystemCalls
                     | Plugin::WinSkeletonKeyCheck
+                    | Plugin::WinTruecryptPassphrase
             ),
         "此检测插件按参考自行选择进程，不接受 PID 筛选"
     );

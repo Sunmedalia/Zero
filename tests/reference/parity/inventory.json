@@ -8818,8 +8818,10 @@
         "Length",
         "Password"
       ],
-      "zero_candidates": [],
-      "status": "missing",
+      "zero_candidates": [
+        "windows.truecrypt.Passphrase"
+      ],
+      "status": "mapped_unverified",
       "evidence": []
     },
     {

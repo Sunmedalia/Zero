@@ -45,6 +45,9 @@ struct Cli {
     /// Local strings output with decimal physical offsets (windows.strings.Strings).
     #[arg(long, global = true)]
     strings_file: Option<PathBuf>,
+    /// Minimum cached TrueCrypt passphrase length (default 5).
+    #[arg(long, global = true, allow_hyphen_values = true)]
+    min_length: Option<i64>,
     /// PID list for Strings / VmaRegExScan / VadRegExScan / VadWalk / PsCallStack / PebMasquerade (comma-separated or repeated).
     #[arg(long, global = true, value_delimiter = ',')]
     pids: Vec<u32>,
@@ -406,6 +409,7 @@ fn main() -> Result<()> {
                 key: cli.key.clone(),
                 pattern: cli.pattern.clone(),
                 strings_file: cli.strings_file.clone(),
+                min_length: cli.min_length,
                 pids: cli.pids.clone(),
                 maxsize: cli.maxsize,
                 unresolved: cli.unresolved,
@@ -514,6 +518,7 @@ fn launch_tui(cli: Cli) -> Result<()> {
             strings_file: cli
                 .strings_file
                 .map(|p| if p.is_absolute() { p } else { root.join(p) }),
+            min_length: cli.min_length,
             pids: cli.pids,
             maxsize: cli.maxsize,
             unresolved: cli.unresolved,
@@ -533,6 +538,25 @@ fn launch_tui(cli: Cli) -> Result<()> {
 #[cfg(test)]
 mod cli_tests {
     use super::*;
+    #[test]
+    fn truecrypt_minimum_is_signed_and_preserves_zero_and_large_values() {
+        for minimum in ["-1", "0", "4", "65"] {
+            let cli = Cli::try_parse_from([
+                "zero",
+                "analyze",
+                "--plugin",
+                "windows.truecrypt.Passphrase",
+                "--image",
+                "image.raw",
+                "--output",
+                "out.json",
+                "--min-length",
+                minimum,
+            ])
+            .unwrap();
+            assert_eq!(cli.min_length, Some(minimum.parse().unwrap()));
+        }
+    }
     #[test]
     fn strings_file_and_pid_union_are_cli_parameters() {
         let cli = Cli::try_parse_from([

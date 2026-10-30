@@ -183,6 +183,9 @@ impl App {
 impl App {
     pub(super) fn parameter_fields(&self, advanced: bool) -> Vec<usize> {
         let mut fields = Vec::new();
+        if self.plugin == Plugin::WinTruecryptPassphrase {
+            fields.push(22);
+        }
         if self.plugin == Plugin::WinStrings {
             fields.push(21);
         }

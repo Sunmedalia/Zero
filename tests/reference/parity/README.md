@@ -622,3 +622,9 @@ Skeleton Key 的两项公开镜像用例见 `skeleton-key.example.json`，五列
 固定参考生成 8 个导出函数分析用例和 6 个 hook 边界用例；Rust 回归读取
 `fixtures/skeleton-key.json`。此外原生合成测试覆盖 PDB 数组优先级、计数缺页、数组
 缺页、签名结构跨物理页和取消。公开样本内容不提交。
+
+TrueCrypt 的 `truecrypt_vectors.py` 在固定参考上生成 16 个 PE32/PE32+、长度和
+填充边界用例，全部口令为编造的测试字符串。Rust 使用相同 PE/section 数据和参考
+期望验证；另外覆盖模块枚举、min-length 缓存隔离、缺页、扫描／输出上限和取消。
+`truecrypt.example.json` 保留公开 Win7/Win10 的空结果比较，**不计正向证据**；需要
+取得包含 truecrypt.sys 缓存口令的真实镜像后再补真实正向验收。

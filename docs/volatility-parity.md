@@ -983,3 +983,32 @@ Truecrypt Passphrase；完整插件合同仍为 0，真实恶意挂钩和更多�
 库测试、6 个 CLI/MCP 测试、50 个协议集成测试及 28 个 Python 差分工具测试；未执行
 的样本验收保持 ignored。发布包在空 PATH、不同工作目录下启动与退出通过。
 详见 `tests/reference/parity/skeleton-key-known-limitations.json`。
+
+
+## native70：TrueCrypt 缓存口令
+
+新增 `windows.truecrypt.Passphrase`，扫描模块链中第一个 truecrypt.sys 的首个精确
+`.data` section，按 section 相对 DWORD 网格读取 signed 长度，ASCII 和三个零填充
+字节按固定参考验证。保留跳过 NUL 字节、口令可跨 section 尾部、0 长度和超过 64
+的最小长度参数语义。选中的负长度候选与参考一样无法构造记录而报错。
+
+min-length 接入 CLI、MCP 和终端插件草稿；其他插件拒绝该参数。TrueCrypt 结果
+缓存绕过，参数变化不会借用旧结果。缺页不补零，记录扫描／候选读取失败计数；
+64 MiB 扫描与 100,000 行输出上限会标记部分结果。
+
+固定参考生成的 16 个 PE32/PE32+ 和口令布局用例逐项验证，包含异常；原生测试
+另覆盖模块枚举、大小写、无需 FullDllName、缓存隔离、缺页、取消及资源上限。
+本批公开 Win7/Win10 镜像没有 TrueCrypt 驱动，参考均为空，不能证明真实正向恢复。
+已找到公共挑战中的相关线索，但没有取得并校验含缓存口令的真实镜像，因此不登记
+真实正向用例。
+
+**正式入口已有候选映射为 135/135，别名 28，缺失入口 0。** 这是入口清单覆盖率，
+完整插件合同仍为 0/135；不能解释为 Volatility 全能力已对齐。接下来继续修复已知
+行差异、补齐参数／故障／架构矩阵和真实正向样本，保留此前 Debian 原镜像未取得、
+Direct/Indirect/Skeleton/TrueCrypt 等实际证据边界。
+
+最终 native70 四个真实镜像调用（Win7/Win10 默认和 Win10 min-length 4/65）均与参考
+为空结果一致，全部标记为非正向证据，累计正向用例仍为 106。16 个参考合成向量
+重新生成后一致。`make check` 全部通过：583 个库测试、8 个 CLI/MCP 测试、50 个
+协议集成测试及 28 个 Python 差分工具测试；发布包独立工作目录／空 PATH 验证通过。
+完整限制和输出摘要见 `tests/reference/parity/truecrypt-known-limitations.json`。

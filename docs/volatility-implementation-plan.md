@@ -244,3 +244,10 @@ Skeleton Key 批：复用带 tag 的 VAD 扫描视图和 PE 导出解析，实�
 LEA 终止、数组优先级、scan 的严格 Encrypt/Finish 范围和 hook 的包含末端边界。
 合成指令／边界向量由未修改参考生成。继续补 Truecrypt Passphrase、所有既有插件
 参数／平台／异常合同和最初 Debian 镜像的真实分析验证，不将入口补齐视为完整目标。
+
+TrueCrypt 批：补 `windows.truecrypt.Passphrase`、signed min-length 参数和 CLI/MCP/TUI
+接线。解析首个精确 `.data` section，按 section-relative DWORD 网格读取 signed
+长度，验证 ASCII 与三个填充字节，保留不检查 NUL 和允许候选跨 section 尾部的
+参考语义。结果缓存绕过避免参数变化时复用旧结果；合成向量执行未修改固定参考，
+真实正向样本仍待验收。135 个正式入口均有候选映射后，完整目标继续覆盖逐插件
+参数、全部字段、故障合同、平台和真实样本；不能将入口清单清零视为完成。

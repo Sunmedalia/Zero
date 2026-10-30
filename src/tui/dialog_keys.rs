@@ -100,6 +100,16 @@ impl App {
                     };
                     Ok(crate::analysis::Options {
                         strings_file,
+                        min_length: if self.plugin == Plugin::WinTruecryptPassphrase {
+                            Some(
+                                fields[22]
+                                    .trim()
+                                    .parse::<i64>()
+                                    .context("min-length 无效")?,
+                            )
+                        } else {
+                            None
+                        },
                         pe: if self.plugin == Plugin::WinPESymbols {
                             let pe = crate::analysis::PEQuery {
                                 source: Some(

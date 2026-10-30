@@ -231,9 +231,11 @@ impl Linux<'_> {
                 self.hidden_modules(&mut r, job)?;
                 Ok(r)
             }
-            WinSkeletonKeyCheck | WinStrings | WinDirectSystemCalls | WinIndirectSystemCalls => {
-                Err(unrouted(plugin))
-            }
+            WinTruecryptPassphrase
+            | WinSkeletonKeyCheck
+            | WinStrings
+            | WinDirectSystemCalls
+            | WinIndirectSystemCalls => Err(unrouted(plugin)),
             WinUnhookedSystemCalls => Err(unrouted(plugin)),
             ModuleExtract | Procdump | Memdump | Elfdump | WinLdrmodules | WinHollowprocesses
             | WinSuspiciousThreads | WinCallbacks | WinUnloadedmodules | WinFilescan

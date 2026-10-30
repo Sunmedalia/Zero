@@ -4623,3 +4623,31 @@ fn syscall_detectors_scan_all_active_processes_and_clear_hidden_pid_drafts() {
         assert_eq!(app.analysis_options.pid, None);
     }
 }
+
+#[test]
+fn truecrypt_minimum_has_a_plugin_draft_and_distinct_request_identity() {
+    let mut app = app();
+    app.select_os(crate::analysis::Os::Windows);
+    app.select_plugin(Plugin::WinTruecryptPassphrase);
+    app.windows_parameters();
+    assert_eq!(app.parameter_fields(false), vec![22, 6]);
+    if let Some(Dialog::WindowsParameters { fields, field, .. }) = &mut app.dialog {
+        assert_eq!(*field, 22);
+        assert_eq!(fields[22], "5");
+        fields[22] = "not an integer".into();
+    }
+    app.dialog_key(KeyEvent::new(KeyCode::Enter, KeyModifiers::CONTROL));
+    assert!(app.dialog.is_some());
+    let before = app.request_key();
+    if let Some(Dialog::WindowsParameters { fields, .. }) = &mut app.dialog {
+        fields[22] = "4".into();
+    }
+    app.dialog_key(KeyEvent::new(KeyCode::Enter, KeyModifiers::CONTROL));
+    assert!(app.dialog.is_none());
+    assert_eq!(app.analysis_options.min_length, Some(4));
+    assert_ne!(before, app.request_key());
+    app.select_plugin(Plugin::WinPslist);
+    assert!(app.analysis_options.min_length.is_none());
+    app.select_plugin(Plugin::WinTruecryptPassphrase);
+    assert_eq!(app.analysis_options.min_length, Some(4));
+}
