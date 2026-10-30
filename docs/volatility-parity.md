@@ -1159,3 +1159,31 @@ Win7 WindowStations 0/0 仍是非正向证据。
 
 最终 `make check` 通过：596 库、8 CLI/MCP、50 协议、30 Python 测试；新参考
 向量重生成逐字节一致。最终发布包空 PATH／独立目录启动退出验证通过。
+
+
+## native76：进程／线程有效性的公历与字段域
+
+PoolScanner 的 EPROCESS／ETHREAD 有效性原先用 365.25 天估算年份，并写死
+2036 为上限。固定参考实际将有符号 LARGE_INTEGER FILETIME 按整秒下取整，
+转换为公历 datetime，再要求 1998 < year < datetime.now().year + 10。
+原生现在采用精确公历与系统本地年份；Unix 使用 localtime_r，Windows 使用
+GetLocalTime，不把 UTC 跨年时刻当成本地年份。本地年份在实际需要校验创建时间的每个对象上读取，保留跨年时刻的参考行为。
+
+退出时间比较也按参考截断到秒。同秒内较小的退出 tick 不再额外排除进程；无法
+转换为 datetime 的退出值保留参考的忽略行为。负 FILETIME 与旧 ETHREAD 的
+算术右移按有符号值处理。名称有效性使用实际参考 utility 的 UTF-8／替换字符
+截断规则，生成器的输出名称仍保留其 String 解码规则，两者并非同一规则。
+
+PID／线程链表指针保留 native-layer 地址掩码；DTB 按符号字段类型处理，array
+在参考中 cast 成 pointer 后再检查，普通整数不额外掩成物理页框。33 个实际
+EPROCESS.is_valid 和 11 个 ETHREAD.is_valid 向量覆盖这些边界，分别冻结
+2026 与 2035 年本地时钟；合成字段适配器明确隔离内存读取和完整 carving。
+这些向量不登记为真实正向差分，也不代表完整故障合同完成。
+
+最终 native76 源码 `make check` 全部通过：597 库、8 CLI/MCP、50 协议、30 Python
+测试；44 个固定参考向量重新生成逐字节一致。构建完成后重跑五套真实默认池扫描，
+Win10 36172/36172、Win11 8709/8709、Win7 4926/4926、Server 2008 3323/3323、
+Server 2003 2154/2154，四列及全部重复数一致，无行过滤。证据替换同名 baseline，
+正向用例仍为 115，完整插件合同仍为 0。最终发布包空 PATH／独立目录启动退出通过。
+Windows 本地时钟分支未在本批真实 Windows 宿主上运行；缺页名称读取与完整字段
+故障矩阵也仍待验收，不以这些合成向量或默认行集一致宣称整插件已完成。

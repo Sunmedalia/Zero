@@ -658,3 +658,8 @@ Pointer._unmarshall，覆盖类型表 100 项边界／空哨兵／缺名、未�
 池扫描分页覆盖另由 `pool_type_vectors.py` 的实际 Intel32e.mapping 验证：
 递归根表 alias 与已映射用户半区都必须保留。原生遍历按固定层数终止；这两个
 向量不替代损坏分页结构、其他架构和附件恢复的完整合同。
+
+`pool_validity_vectors.py` 执行固定 EPROCESS／ETHREAD.is_valid 与实际时间
+转换，冻结 2026／2035 年本地时钟。33 个进程、11 个线程向量覆盖公历边界、
+同秒 FILETIME、异常退出时间、名称和 PID／DTB／链表字段域。array_to_string
+适配器使用实际字节解码器，其他输入为合成字段；未证明缺页名称读取或全 carving。

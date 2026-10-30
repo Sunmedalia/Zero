@@ -59,7 +59,7 @@ fn classify_window_procedure(value: Option<u64>) -> Option<String> {
     }
 }
 
-fn reference_process_name(bytes: &[u8]) -> String {
+pub(super) fn reference_process_name(bytes: &[u8]) -> String {
     String::from_utf8_lossy(bytes)
         .split(['\0', '\u{fffd}'])
         .next()

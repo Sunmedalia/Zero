@@ -277,3 +277,7 @@ padding 使用参考的 signed 减法和原始条件。Win10 站观察由 10 条
 - native75：canonical PoolScanner 恢复固定的类型表上限／空哨兵、非 executive
   原始 hive 观察、native-layer 指针掩码及 padded carving 窗口；共享 carving 的
   GUI 行为与五套池扫描镜像联合差分，完整故障和跨版本合同仍需验收。
+
+- native76：池对象进程／线程有效性按精确公历、本地当前年份、整秒 FILETIME 和
+  符号字段域验证；44 个实际固定谓词向量与五套默认真实差分分别验收。继续补
+  缺页、损坏字段和其他插件的完整行为矩阵，不增加重复 baseline 用例数量。

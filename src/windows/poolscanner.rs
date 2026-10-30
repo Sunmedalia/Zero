@@ -139,6 +139,52 @@ struct PoolCarve<'a> {
     virtual_scan: bool,
 }
 
+struct PoolValidation {
+    types: BTreeMap<u64, String>,
+}
+
+fn current_local_year() -> Result<i64> {
+    #[cfg(unix)]
+    {
+        let now: libc::time_t = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)?
+            .as_secs()
+            .try_into()?;
+        let mut local = std::mem::MaybeUninit::<libc::tm>::uninit();
+        // localtime_r initializes the supplied tm on success and retains no
+        // pointer to it; this matches Python datetime.now()'s local calendar.
+        let value = unsafe { libc::localtime_r(&now, local.as_mut_ptr()) };
+        ensure!(!value.is_null(), "无法读取本地年份");
+        Ok(i64::from(unsafe { local.assume_init() }.tm_year) + 1900)
+    }
+    #[cfg(windows)]
+    {
+        #[repr(C)]
+        struct LocalTime {
+            year: u16,
+            month: u16,
+            weekday: u16,
+            day: u16,
+            hour: u16,
+            minute: u16,
+            second: u16,
+            milliseconds: u16,
+        }
+        #[link(name = "kernel32")]
+        unsafe extern "system" {
+            fn GetLocalTime(value: *mut LocalTime);
+        }
+        let mut value = std::mem::MaybeUninit::<LocalTime>::uninit();
+        // GetLocalTime writes all fields of the caller-owned SYSTEMTIME value.
+        unsafe {
+            GetLocalTime(value.as_mut_ptr());
+        }
+        Ok(i64::from(unsafe { value.assume_init() }.year))
+    }
+    #[cfg(not(any(unix, windows)))]
+    bail!("当前平台无法读取本地年份")
+}
+
 impl Windows<'_> {
     pub(super) fn pool_scanner(&self, job: &Job) -> Result<Results> {
         ensure!(
@@ -164,7 +210,9 @@ impl Windows<'_> {
         let alignment = if self.vm.pointer_size() == 4 { 8 } else { 16 };
         let (tag_offset, header_size) = self.pool_header_layout()?;
         let sizes = self.pool_type_sizes()?;
-        let type_map = self.pool_reference_type_map()?;
+        let validation = PoolValidation {
+            types: self.pool_reference_type_map()?,
+        };
         let optional = if top_down {
             self.pool_optional_headers()?
         } else {
@@ -257,7 +305,7 @@ impl Windows<'_> {
                                 constraint,
                                 body,
                                 virtual_scan,
-                                &type_map,
+                                &validation,
                                 result,
                                 &mut diagnostics,
                             )? {
@@ -716,7 +764,7 @@ impl Windows<'_> {
         constraint: &Constraint,
         body: u64,
         virtual_scan: bool,
-        type_map: &BTreeMap<u64, String>,
+        validation: &PoolValidation,
         result: &mut Results,
         diagnostics: &mut usize,
     ) -> Result<bool> {
@@ -728,7 +776,7 @@ impl Windows<'_> {
                     .checked_sub(self.vm.isf.offset("_OBJECT_HEADER", "Body")?)
                     .context("对象头下溢")?;
                 if self
-                    .pool_reference_object_type(header, virtual_scan, type_map)?
+                    .pool_reference_object_type(header, virtual_scan, &validation.types)?
                     .as_deref()
                     != Some(kind)
                 {
@@ -736,8 +784,8 @@ impl Windows<'_> {
                 }
             }
             Ok(match constraint.type_name {
-                "_EPROCESS" => self.pool_process_valid(body, virtual_scan)?,
-                "_ETHREAD" => self.pool_thread_valid(body, virtual_scan)?,
+                "_EPROCESS" => self.pool_process_valid(body, virtual_scan, None)?,
+                "_ETHREAD" => self.pool_thread_valid(body, virtual_scan, None)?,
                 "_FILE_OBJECT" => {
                     let length =
                         self.pool_value(body, "_FILE_OBJECT", "FileName.Length", virtual_scan)?;
@@ -855,72 +903,106 @@ impl Windows<'_> {
         }
     }
 
-    fn pool_year(ticks: u64) -> Option<i64> {
-        let seconds = ticks.checked_div(10_000_000)?.checked_sub(11_644_473_600)?;
-        Some(1970 + seconds as i64 / 31_557_600)
+    fn pool_year(ticks: i64) -> Option<i64> {
+        let seconds = ticks.div_euclid(10_000_000);
+        if seconds == 0 {
+            return None;
+        }
+        let stamp = crate::report::utc(seconds - 11_644_473_600);
+        let year = stamp.split('-').next()?.parse().ok()?;
+        (1..=9999).contains(&year).then_some(year)
     }
 
-    fn pool_process_valid(&self, body: u64, virtual_scan: bool) -> Result<bool> {
+    fn pool_process_valid(
+        &self,
+        body: u64,
+        virtual_scan: bool,
+        current_year: Option<i64>,
+    ) -> Result<bool> {
         let layout = self.vm.isf.layout("_EPROCESS", "ImageFileName")?;
         let mut bytes = vec![0u8; layout.size as usize];
         self.pool_read(add(body, layout.offset)?, &mut bytes, virtual_scan)?;
-        if bytes.first().is_none_or(|byte| *byte == 0) {
+        let name = windowstations::reference_process_name(&bytes);
+        if name.is_empty() {
             return Ok(false);
         }
-        let pid = self.pool_value(body, "_EPROCESS", "UniqueProcessId", virtual_scan)?;
+        let pid = self.pool_typed_value(body, "_EPROCESS", "UniqueProcessId", virtual_scan)?;
         if pid == 0 || pid % 4 != 0 || pid > 0xffff_fffc {
             return Ok(false);
         }
-        let end = bytes
-            .iter()
-            .position(|byte| *byte == 0)
-            .unwrap_or(bytes.len());
-        let system = bytes[..end] == *b"System" && pid == 4;
+        let system = name == "System" && pid == 4;
         if !system {
-            let created = self.pool_value(body, "_EPROCESS", "CreateTime", virtual_scan)?;
+            let created = self.pool_value(body, "_EPROCESS", "CreateTime", virtual_scan)? as i64;
             let Some(year) = Self::pool_year(created) else {
                 return Ok(false);
             };
-            if !(1998 < year && year < 2036) {
+            let current_year = current_year.map_or_else(current_local_year, Ok)?;
+            if !(1998 < year && year < current_year + 10) {
                 return Ok(false);
             }
-            let exited = self.pool_value(body, "_EPROCESS", "ExitTime", virtual_scan)?;
+            let exited = self.pool_value(body, "_EPROCESS", "ExitTime", virtual_scan)? as i64;
             if exited != 0
                 && let Some(exit_year) = Self::pool_year(exited)
-                && (!(1998 < exit_year && exit_year < 2036) || exited < created)
+                && (!(1998 < exit_year && exit_year < current_year + 10)
+                    || exited.div_euclid(10_000_000) < created.div_euclid(10_000_000))
             {
                 return Ok(false);
             }
         }
-        let dtb = self.pool_value(body, "_EPROCESS", "Pcb.DirectoryTableBase", virtual_scan)?
-            & self.vm.root_mask();
+        let dtb =
+            self.pool_typed_value(body, "_EPROCESS", "Pcb.DirectoryTableBase", virtual_scan)?;
         if dtb == 0 || dtb & !0xfff == 0 {
             return Ok(false);
         }
-        let flink = self.pool_value(body, "_EPROCESS", "ThreadListHead.Flink", virtual_scan)?;
-        let blink = self.pool_value(body, "_EPROCESS", "ThreadListHead.Blink", virtual_scan)?;
+        let flink =
+            self.pool_typed_value(body, "_EPROCESS", "ThreadListHead.Flink", virtual_scan)?;
+        let blink =
+            self.pool_typed_value(body, "_EPROCESS", "ThreadListHead.Blink", virtual_scan)?;
         Ok(flink >= 0x8000_0000 && blink >= 0x8000_0000)
     }
 
-    fn pool_thread_valid(&self, body: u64, virtual_scan: bool) -> Result<bool> {
-        let pid = self.pool_value(body, "_ETHREAD", "Cid.UniqueProcess", virtual_scan)?;
-        let tid = self.pool_value(body, "_ETHREAD", "Cid.UniqueThread", virtual_scan)?;
+    fn pool_thread_valid(
+        &self,
+        body: u64,
+        virtual_scan: bool,
+        current_year: Option<i64>,
+    ) -> Result<bool> {
+        let pid = self.pool_typed_value(body, "_ETHREAD", "Cid.UniqueProcess", virtual_scan)?;
+        let tid = self.pool_typed_value(body, "_ETHREAD", "Cid.UniqueThread", virtual_scan)?;
         if pid % 4 != 0 || tid % 4 != 0 {
             return Ok(false);
         }
         if pid != 4 {
-            let mut created = self.pool_value(body, "_ETHREAD", "CreateTime", virtual_scan)?;
+            let mut created = self.pool_value(body, "_ETHREAD", "CreateTime", virtual_scan)? as i64;
             if self.vm.isf.has_field("_ETHREAD", "ThreadsProcess") {
                 created >>= 3;
             }
             let Some(year) = Self::pool_year(created) else {
                 return Ok(false);
             };
-            if !(1998 < year && year < 2036) {
+            let current_year = current_year.map_or_else(current_local_year, Ok)?;
+            if !(1998 < year && year < current_year + 10) {
                 return Ok(false);
             }
         }
         Ok(true)
+    }
+
+    fn pool_typed_value(
+        &self,
+        body: u64,
+        ty: &str,
+        field: &str,
+        virtual_scan: bool,
+    ) -> Result<u64> {
+        let raw = self.pool_value(body, ty, field, virtual_scan)?;
+        let kind = self.vm.isf.field(ty, field)?["type"]["kind"].as_str();
+        // EPROCESS's array DTB is cast to a native pointer by the reference.
+        if kind == Some("pointer") || (field == "Pcb.DirectoryTableBase" && kind == Some("array")) {
+            Ok(self.pool_reference_pointer(raw))
+        } else {
+            Ok(raw)
+        }
     }
 
     fn pool_scanner_name(
@@ -969,6 +1051,88 @@ mod tests {
     use super::super::tests::{K, fixture, image, put};
     use super::*;
     use serde_json::json;
+
+    #[test]
+    fn process_and_thread_validity_match_pinned_calendar_name_and_pointer_vectors() {
+        let vectors: serde_json::Value = serde_json::from_str(include_str!(
+            "../../tests/reference/parity/fixtures/pool-validity.json"
+        ))
+        .unwrap();
+        for case in vectors["process"].as_array().unwrap() {
+            let (mut bytes, mut isf) = fixture();
+            isf.data["user_types"]["_EPROCESS"]["fields"]["ThreadListHead"] =
+                json!({"offset":128,"type":{"kind":"struct","name":"_LIST_ENTRY"}});
+            if !case["pid_pointer"].as_bool().unwrap() {
+                isf.data["user_types"]["_EPROCESS"]["fields"]["UniqueProcessId"]["type"] =
+                    json!({"kind":"base","name":"u64"});
+            }
+            if case["dtb_array"].as_bool().unwrap() {
+                isf.data["user_types"]["_KPROCESS"]["fields"]["DirectoryTableBase"]["type"] =
+                    json!({"kind":"array","count":8});
+            }
+            bytes[0xc000..0xc100].fill(0);
+            let name: Vec<_> = case["name_hex"]
+                .as_str()
+                .unwrap()
+                .as_bytes()
+                .chunks_exact(2)
+                .map(|b| u8::from_str_radix(std::str::from_utf8(b).unwrap(), 16).unwrap())
+                .collect();
+            bytes[0xc030..0xc030 + name.len()].copy_from_slice(&name);
+            for (offset, key) in [(32, "pid"), (112, "dtb"), (128, "flink"), (136, "blink")] {
+                put(&mut bytes, 0xc000 + offset, case[key].as_u64().unwrap());
+            }
+            for (offset, key) in [(88, "created"), (96, "exited")] {
+                put(
+                    &mut bytes,
+                    0xc000 + offset,
+                    case[key].as_i64().unwrap() as u64,
+                );
+            }
+            let snapshot = image(&bytes);
+            let windows = Windows {
+                vm: Memory::new(&snapshot, 0x1000, &isf, None),
+                base: K,
+                pdb: PdbIdentity::from_isf(&isf).unwrap(),
+            };
+            assert_eq!(
+                windows
+                    .pool_process_valid(0xc000, false, Some(case["year"].as_i64().unwrap()))
+                    .unwrap(),
+                case["expected"].as_bool().unwrap(),
+                "{}",
+                case["id"]
+            );
+        }
+        for case in vectors["thread"].as_array().unwrap() {
+            let (mut bytes, mut isf) = fixture();
+            let pointer = |offset| json!({"offset":offset,"type":{"kind":"pointer"}});
+            isf.data["user_types"]["_ETHREAD"] = json!({"size":64,"fields":{"Cid":{"offset":0,"type":{"kind":"struct","name":"_CLIENT_ID"}},"CreateTime":{"offset":16,"type":{"kind":"base","name":"u64"}}}});
+            isf.data["user_types"]["_CLIENT_ID"] =
+                json!({"size":16,"fields":{"UniqueProcess":pointer(0),"UniqueThread":pointer(8)}});
+            if case["legacy"].as_bool().unwrap() {
+                isf.data["user_types"]["_ETHREAD"]["fields"]["ThreadsProcess"] = pointer(24);
+            }
+            bytes[0xc000..0xc040].fill(0);
+            put(&mut bytes, 0xc000, case["pid"].as_u64().unwrap());
+            put(&mut bytes, 0xc008, case["tid"].as_u64().unwrap());
+            put(&mut bytes, 0xc010, case["created"].as_i64().unwrap() as u64);
+            let snapshot = image(&bytes);
+            let windows = Windows {
+                vm: Memory::new(&snapshot, 0x1000, &isf, None),
+                base: K,
+                pdb: PdbIdentity::from_isf(&isf).unwrap(),
+            };
+            assert_eq!(
+                windows
+                    .pool_thread_valid(0xc000, false, Some(case["year"].as_i64().unwrap()))
+                    .unwrap(),
+                case["expected"].as_bool().unwrap(),
+                "{}",
+                case["id"]
+            );
+        }
+    }
 
     #[test]
     fn recursive_kernel_page_aliases_match_fixed_intel_mapping() {
@@ -1194,7 +1358,9 @@ mod tests {
                         constraint,
                         body,
                         false,
-                        &BTreeMap::new(),
+                        &PoolValidation {
+                            types: BTreeMap::new(),
+                        },
                         &mut result,
                         &mut diagnostics
                     )
