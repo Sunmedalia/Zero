@@ -50,7 +50,7 @@
       "id": "windows-7-7601-x64/windows-default",
       "reference_plugin": "windows.windows.Windows",
       "zero_plugin": "windows.windows.Windows",
-      "mapping": "tests/reference/parity/mappings/windows-windows.json"
+      "mapping": "tests/reference/parity/mappings/windows-windows-empty.json"
     }
   ]
 }

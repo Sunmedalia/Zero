@@ -628,3 +628,7 @@ TrueCrypt 的 `truecrypt_vectors.py` 在固定参考上生成 16 个 PE32/PE32+�
 期望验证；另外覆盖模块枚举、min-length 缓存隔离、缺页、扫描／输出上限和取消。
 `truecrypt.example.json` 保留公开 Win7/Win10 的空结果比较，**不计正向证据**；需要
 取得包含 truecrypt.sys 缓存口令的真实镜像后再补真实正向验收。
+
+GUI 名称解码的 `gui_name_vectors.py` 使用固定参考 utility 生成
+`fixtures/gui-process-names.json`；数据全部为合成字节。窗口列表的 Win10 真实用例
+严格比较八列和重复数，Win7 空结果通过独立 allow_empty 映射记录，不计正向证据。

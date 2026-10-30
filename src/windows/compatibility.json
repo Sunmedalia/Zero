@@ -2881,7 +2881,7 @@
           "windows.poolscanner.PoolScanner": "pending",
           "windows.windowstations.WindowStations": "pending",
           "windows.deskscan.DeskScan": "pending",
-          "windows.windows.Windows": "pending",
+          "windows.windows.Windows": "real",
           "windows.desktops.Desktops": "pending",
           "windows.debugregisters.DebugRegisters": "pending",
           "windows.netstat.NetStat": "pending",
@@ -2959,7 +2959,8 @@
             "windows.malware.unhooked_system_calls.UnhookedSystemCalls": 45,
             "windows.strings.Strings": 967,
             "windows.malware.direct_system_calls.DirectSystemCalls": 99,
-            "windows.malware.skeleton_key_check.Skeleton_Key_Check": 1
+            "windows.malware.skeleton_key_check.Skeleton_Key_Check": 1,
+            "windows.windows.Windows": 3063
           },
           "complete": {
             "windows.driverirp.DriverIrp": false,
@@ -2974,7 +2975,8 @@
             "windows.malware.unhooked_system_calls.UnhookedSystemCalls": false,
             "windows.strings.Strings": false,
             "windows.malware.direct_system_calls.DirectSystemCalls": false,
-            "windows.malware.skeleton_key_check.Skeleton_Key_Check": false
+            "windows.malware.skeleton_key_check.Skeleton_Key_Check": false,
+            "windows.windows.Windows": true
           },
           "row_options": {
             "windows.memmap.Memmap": {
@@ -2998,7 +3000,8 @@
             "windows.malware.unhooked_system_calls.UnhookedSystemCalls": "All 45 functions, minority-process strings and majority counts match pinned v2.28.2; process/VAD/symbol diagnostics remain partial.",
             "windows.strings.Strings": "967 external strings: all three fields, exact owner sets and duplicate input multiplicity match pinned v2.28.2, all processes. Mapping/process diagnostics remain partial.",
             "windows.malware.direct_system_calls.DirectSystemCalls": "99/99 rows, all five fields and repeated block multiplicities; captured-mapping/VAD diagnostics remain partial. Unreadable handle counts do not exclude processes under the pinned active-filter semantics.",
-            "windows.malware.skeleton_key_check.Skeleton_Key_Check": "One RC4-HMAC result, all five fields, matches pinned reference via CDLocateCSystem export analysis. Process/VAD diagnostics remain partial. Real malicious hooks and PDB-path parity remain unverified."
+            "windows.malware.skeleton_key_check.Skeleton_Key_Check": "One RC4-HMAC result, all five fields, matches pinned reference via CDLocateCSystem export analysis. Process/VAD diagnostics remain partial. Real malicious hooks and PDB-path parity remain unverified.",
+            "windows.windows.Windows": "3063/3063 rows and all eight fields match pinned reference after process-name decoding truncates at NUL or U+FFFD. Four empty-name observations retain the complete eight-byte PID field; they are not asserted to be valid processes."
           }
         },
         {

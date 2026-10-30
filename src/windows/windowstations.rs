@@ -23,6 +23,14 @@ struct GuiLayout {
     window_direct_name: Option<u64>,
 }
 
+fn reference_process_name(bytes: &[u8]) -> String {
+    String::from_utf8_lossy(bytes)
+        .split(['\0', '\u{fffd}'])
+        .next()
+        .unwrap_or_default()
+        .to_owned()
+}
+
 fn gui_layout(table: &str) -> GuiLayout {
     // Offsets follow the reference GUI JSON for desktops, threads, and tagWND.
     let desktop_info = 8;
@@ -736,7 +744,7 @@ impl Windows<'_> {
         if let Some(found) =
             self.desktop_thread_in_session(processes, preferred_dtb, thread, process_offset)
         {
-            return Some(found);
+            return Some((reference_process_name(found.0.as_bytes()), found.1));
         }
         let mut ordered = Vec::new();
         if preferred_dtb != 0 {
@@ -790,14 +798,9 @@ impl Windows<'_> {
         if got == 0 {
             return None;
         }
-        let end = bytes[..got]
-            .iter()
-            .position(|byte| *byte == 0)
-            .unwrap_or(got);
-        let name = String::from_utf8_lossy(&bytes[..end]).into_owned();
-        if name.chars().any(char::is_control) {
-            return None;
-        }
+        // The fixed utility decodes with replacement, then truncates at the
+        // first NUL or replacement character (even a literal encoded U+FFFD).
+        let name = reference_process_name(&bytes[..got]);
         let pid = memory
             .uint(
                 add(
@@ -1359,6 +1362,83 @@ mod tests {
         assert!(windows.station_chain(&windows.vm, K + 0x9000).len() <= 15);
     }
 
+    #[test]
+    fn partial_window_process_names_match_fixed_decoding_vectors() {
+        let vectors: serde_json::Value = serde_json::from_str(include_str!(
+            "../../tests/reference/parity/fixtures/gui-process-names.json"
+        ))
+        .unwrap();
+        for c in vectors["cases"].as_array().unwrap() {
+            let (mut bytes, isf) = fixture();
+            bytes[0xa030..0xa040].fill(0);
+            let raw: Vec<_> = c["hex"]
+                .as_str()
+                .unwrap()
+                .as_bytes()
+                .chunks_exact(2)
+                .map(|b| u8::from_str_radix(std::str::from_utf8(b).unwrap(), 16).unwrap())
+                .collect();
+            assert!(raw.len() <= 16);
+            bytes[0xa030..0xa030 + raw.len()].copy_from_slice(&raw);
+            put(&mut bytes, 0xa020, 2743092250712); // Synthetic out-of-range PID remains an observed field.
+            let img = image(&bytes);
+            let w = Windows {
+                vm: Memory::new(&img, 0x1000, &isf, None),
+                base: K,
+                pdb: PdbIdentity::from_isf(&isf).unwrap(),
+            };
+            let (name, pid) = w.partial_process_identity(&w.vm, K + 0x2000).unwrap();
+            assert_eq!(name, c["expected"].as_str().unwrap(), "{}", c["id"]);
+            assert_eq!(pid, 2743092250712);
+            let thread = K + 0x6000;
+            drop(w);
+            drop(img);
+            put(&mut bytes, 0xe000 + 376, K + 0x7000);
+            put(&mut bytes, 0xf000, K + 0x2000);
+            let img = image(&bytes);
+            let w = Windows {
+                vm: Memory::new(&img, 0x1000, &isf, None),
+                base: K,
+                pdb: PdbIdentity::from_isf(&isf).unwrap(),
+            };
+            let found = w.window_process(&[], 0x1000, thread, 376).unwrap();
+            assert_eq!(
+                found,
+                (name, pid),
+                "first-choice and fallback must use identical decoding: {}",
+                c["id"]
+            );
+        }
+    }
+    #[test]
+    fn partial_name_prefix_requires_a_real_first_byte_and_a_complete_pid() {
+        let (mut bytes, isf) = fixture();
+        let process = K + 0x1fc8;
+        put(&mut bytes, 0x9fe8, 1234);
+        bytes[0x9ff8..0xa000].copy_from_slice(b"prefixab");
+        put(&mut bytes, 0x4010, 0);
+        let img = image(&bytes);
+        let w = Windows {
+            vm: Memory::new(&img, 0x1000, &isf, None),
+            base: K,
+            pdb: PdbIdentity::from_isf(&isf).unwrap(),
+        };
+        assert_eq!(
+            w.partial_process_identity(&w.vm, process),
+            Some(("prefixab".into(), 1234))
+        );
+        assert!(w.partial_process_identity(&w.vm, K + 0x1fd8).is_none()); // No first name byte.
+        let (mut bytes, isf) = fixture();
+        put(&mut bytes, 0x4008, 0); // PID absent, following name page readable.
+        bytes[0xa008..0xa00d].copy_from_slice(b"name\0");
+        let img = image(&bytes);
+        let w = Windows {
+            vm: Memory::new(&img, 0x1000, &isf, None),
+            base: K,
+            pdb: PdbIdentity::from_isf(&isf).unwrap(),
+        };
+        assert!(w.partial_process_identity(&w.vm, K + 0x1fd8).is_none());
+    }
     #[test]
     fn an_unmapped_windows_version_is_rejected() {
         let (mut bytes, isf) = fixture();

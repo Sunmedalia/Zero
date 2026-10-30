@@ -1,0 +1,47 @@
+{
+  "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+  "source_sha256": "d9d54977c471380c01b23f049f29926d42aaa3a9017461780aebe8ffc956f6f1",
+  "scope": "Synthetic process-name decoding only, no recovered sample strings",
+  "cases": [
+    {
+      "id": "ascii",
+      "hex": "77696e646f772e657865007461696c",
+      "expected": "window.exe"
+    },
+    {
+      "id": "invalid-first",
+      "hex": "a80c0aad6e616d65",
+      "expected": ""
+    },
+    {
+      "id": "invalid-tail",
+      "hex": "77696e2e657865ff7461696c",
+      "expected": "win.exe"
+    },
+    {
+      "id": "literal-replacement",
+      "hex": "77696eefbfbd7461696c",
+      "expected": "win"
+    },
+    {
+      "id": "truncated-multibyte",
+      "hex": "6e616d65e282",
+      "expected": "name"
+    },
+    {
+      "id": "controls",
+      "hex": "6e616d6509666f6f",
+      "expected": "name\tfoo"
+    },
+    {
+      "id": "utf8",
+      "hex": "636166c3a92e657865",
+      "expected": "caf\u00e9.exe"
+    },
+    {
+      "id": "nul",
+      "hex": "007461696c",
+      "expected": ""
+    }
+  ]
+}

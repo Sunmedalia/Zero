@@ -209,7 +209,7 @@ Desktops（native60）：新增 canonical `windows.desktops.Desktops`。从窗�
 
 DeskScan（native61）：新增 canonical `windows.deskscan.DeskScan`。直接扫描 `Desk` 池，经父窗口站确认名称和会话。Win10 15063 的 28 行与固定参考全字段一致，包含窗口站链表未列出的 `Winlogon` 桌面。Win7 7601 为 0/0。候选入口对应提升至 125/135，完整合同仍为 0。
 
-Windows（native62）：新增 canonical `windows.windows.Windows`。窗口链按参考的指针字段地址报告，相邻窗口和子窗口递归遍历。Win10 15063 的 3059 行与固定参考全字段一致；参考另有 4 行指向同一条无法读出进程名的截断记录，不登记为正向差异。Win7 7601 为 0/0。同时修正 x64 大页 PAT 位。候选入口对应提升至 126/135，完整合同仍为 0。
+Windows（native62）：新增 canonical `windows.windows.Windows`。窗口链按参考的指针字段地址报告，相邻窗口和子窗口递归遍历。Win10 15063 的 3059 行与固定参考全字段一致；当时参考另有 4 行未恢复，不登记为正向差异；native71 已确认其名称是无效 UTF-8 截断为空，PID 实际完整可读，并修复至 3063/3063。Win7 7601 为 0/0。同时修正 x64 大页 PAT 位。候选入口对应提升至 126/135，完整合同仍为 0。
 
 
 NetStat（native63）：新增 canonical `windows.netstat.NetStat`。遍历 tcpip.sys 分区表和端口池，字段来自精确驱动身份的 netscan 布局。Win10 15063 为 92/92，Win7 7601 为 121/121，全字段一致。候选入口对应提升至 127/135，完整合同仍为 0。
@@ -251,3 +251,8 @@ TrueCrypt 批：补 `windows.truecrypt.Passphrase`、signed min-length 参数和
 参考语义。结果缓存绕过避免参数变化时复用旧结果；合成向量执行未修改固定参考，
 真实正向样本仍待验收。135 个正式入口均有候选映射后，完整目标继续覆盖逐插件
 参数、全部字段、故障合同、平台和真实样本；不能将入口清单清零视为完成。
+
+GUI 差异修复（native71）：窗口进程名称的首选和回退读取路径统一使用固定参考的
+UTF-8 replacement 后遇 NUL/U+FFFD 截断规则。保留真实首字节／完整 PID 要求，并
+纠正此前将该四行解释为缺页／截断 PID 的诊断。Win10 3063 行全字段差分通过，
+完整 GUI 合同仍待补不可读 Procedure、x86、更多构建和遍历故障路径。

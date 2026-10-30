@@ -1040,7 +1040,7 @@ zero analyze --offline --image memory.raw --symbols ntkrnlmp.json \
 ```
 
 
-`windows.windows.Windows` 枚举每个桌面的窗口。输出 Offset、Station、Session、Desktop、Window、Procedure、Process、PID。窗口地址是参考实现报告的指针字段地址。过程地址为零时输出 `N/A`，名称缺失时留空。x86 与未映射构建明确不支持。Win10 15063 的 3059 行已与参考全字段一致；参考另有 4 行没有可读进程名。Win7 7601 为双侧空结果。这还不是完整 GUI 插件验收。
+`windows.windows.Windows` 枚举每个桌面的窗口。输出 Offset、Station、Session、Desktop、Window、Procedure、Process、PID。窗口地址是参考实现报告的指针字段地址。过程地址为零时保留 `0x0`，名称缺失时留空。x86 与未映射构建明确不支持。native71 的 Win10 15063 为 3063/3063 行全字段一致；其中四行的无效 UTF-8 进程名按参考截断为空，完整 PID 原值保留。不可读过程地址等故障路径仍待验收。Win7 7601 为双侧空结果。这还不是完整 GUI 插件验收。
 
 ```bash
 zero analyze --offline --image memory.raw --symbols ntkrnlmp.json \
