@@ -1006,10 +1006,12 @@ PDB/PE 命名导出。不根据最近导出名推断符号。未映射地址仍�
 该插件暂不缓存结果，ARM64 明确未支持。真实验收范围与差异见 Volatility 对齐进度。
 
 `windows.poolscanner.PoolScanner` 扫描参考实现内置的 15 个内核池约束，输出
-`Tag`、`Offset`、`Layer`、`Name`。Windows 10 以前扫描物理内存，之后扫描内核虚拟映射。
-进程、线程、文件和 hive 会做结构校验；缺页或类型校验失败保留诊断，不把无效候选补成记录。
-目前只支持参考要求的 Intel32/Intel64。Server 2003/2008 已有真实对照，Win7/10/11 仍有差异，
-不能据此视为完整插件验收。
+`Tag`、`Offset`、`Layer`、`Name`。Windows 10 以前扫描物理内存，之后扫描 primary
+虚拟层的实际映射，包含用户半区及递归页表 alias。进程、线程和文件按参考做结构与类型校验；
+非 executive 的 hive 等保留原始观察，不额外要求 hive 签名，也不保证每条记录都是活动对象。
+文件名缺页跳过该文件后继续；其他缺页诊断仍可能使结果标记为 partial。
+目前只支持参考要求的 Intel32/Intel64。native75 的 Win10、Win11、Win7、Server 2008、
+Server 2003 五套默认样本已逐字段及重复数一致；跨构建、参数和完整故障合同仍需验收。
 
 `windows.windowstations.WindowStations` 扫描 x64 的 `Wind` 窗口站池。它按内核版本选择参考 GUI 符号表，在对应会话的进程地址空间中读取名称和链表。输出 Offset、Name、SessionId。名称需通过参考 UNICODE 长度检查，按 UTF-16 及 NUL 截断；参考接受的控制字符和异常名称作为原始观察保留。x86 与未映射的构建版本明确不支持。native73 的 Win10 15063 为 15/15 条、三列一致，包含保留池内存中的异常名称；Win7 7601 为双侧空结果。这还不是完整 GUI 插件验收。
 

@@ -64,15 +64,15 @@
       "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
       "reference_output_sha256": "4c05396681ad93f7d06b8d6504aba3c31a5f23699fd84d9b3748703d57222c56",
       "symbol_sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4",
-      "zero_executable_sha256": "4327b2bcda68a07950d0ac28f3af56c4606296d2a39acc73979a369ab5bec1d9",
-      "engine_version": "0.2.1-native-73",
+      "zero_executable_sha256": "4f28868a08fd6e5e0093d646afc8b922c98d7344787d8592afa100b2de2fbadb",
+      "engine_version": "0.2.1-native-75",
       "full_comparison_sha256": "53957bd70c3e72d2c581a24108d0196c932d7ddc0251011785c5358f3101e7d8",
-      "comparison_details": "Duplicate groups summarized by side; complete keyed comparison retained in local run.py artifact and bound by full_comparison_sha256. Native/reference JSON digests permit independent reproduction."
+      "comparison_details": "Diagnostic entries and duplicate groups summarized; complete raw comparison retained in local run.py artifact and bound by full_comparison_sha256. Native/reference JSON digests permit independent reproduction. No records or fields filtered during comparison."
     }
   ],
-  "engine_version": "0.2.1-native-73",
-  "zero_executable_sha256": "4327b2bcda68a07950d0ac28f3af56c4606296d2a39acc73979a369ab5bec1d9",
-  "validation": "Fresh fixed-reference and final-native73 run.py comparisons, all mapped fields and duplicate multiplicities; no row filtering. Empty agreements are not positive evidence.",
+  "engine_version": "0.2.1-native-75",
+  "zero_executable_sha256": "4f28868a08fd6e5e0093d646afc8b922c98d7344787d8592afa100b2de2fbadb",
+  "validation": "Fresh unmodified pinned-reference and final native75 binary comparisons, all mapped fields and duplicate multiplicities, no row filtering. Previously recorded cases not included in this batch retain their original per-case versions. Empty agreement is not positive evidence. Pool-object diagnostics can still make native output partial; default-row agreement is not a full plugin contract.",
   "known_limitations": [
     "One positive Win10 x64 capture does not establish complete build, architecture, parameter, traversal or failure contracts.",
     "Raw GUI records can include retained or reused object bytes; matching the reference does not validate every object as active.",

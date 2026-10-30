@@ -20,6 +20,15 @@ def generate(checkout):
         constraint=SimpleNamespace(type_name='gui!tagWINDOWSTATION',object_type='WindowStation')
         found=[obj.vol.offset for obj in POOL_HEADER.get_object(header,constraint,True,kernel_symbol_table='nt',native_layer_name='synthetic')]
         cases.append({'encoded_padding':encoded,'expected_bodies':found})
-    return {'reference_commit':PIN,'source_sha256':hashlib.sha256((checkout/'volatility3/framework/symbols/windows/extensions/pool.py').read_bytes()).hexdigest(),'scope':'Synthetic actual top-down padding branch; object is_valid stubbed true to isolate carving','cases':cases}
+    reads=[]
+    class MissingTailLayer:
+        def read(self,at,size,pad=False):
+            reads.append({'offset':at,'length':size,'pad':pad})
+            assert pad, 'the pinned carving window must request padded reads'
+            return bytes(size)
+    ctx.layers={'synthetic':MissingTailLayer()}
+    header.vol.offset=0x1fc0
+    padded=[obj.vol.offset for obj in POOL_HEADER.get_object(header,constraint,True,kernel_symbol_table='nt',native_layer_name='synthetic')]
+    return {'reference_commit':PIN,'source_sha256':hashlib.sha256((checkout/'volatility3/framework/symbols/windows/extensions/pool.py').read_bytes()).hexdigest(),'scope':'Synthetic actual top-down padding branch; object is_valid stubbed true to isolate carving. Missing-tail read is a synthetic padded layer; verifies get_object requests padding and keeps candidates, not object validity.','cases':cases,'missing_tail':{'reads':reads,'expected_bodies':padded}}
 if __name__=='__main__':
     p=argparse.ArgumentParser(description=__doc__);p.add_argument('--checkout',type=Path,default=Path('target/reference/volatility3'));p.add_argument('--output',type=Path,default=Path('tests/reference/parity/fixtures/gui-pool-padding.json'));a=p.parse_args();a.output.write_text(json.dumps(generate(a.checkout.resolve()),indent=2)+'\n')

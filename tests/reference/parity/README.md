@@ -648,3 +648,13 @@ PoolScanner 的 `pool_header_vectors.py` 执行固定 `PoolHeaderScanner`，覆�
 non-executive 标签在 0、1、3、7、15 地址偏移时均按标签相对位置读取池头，alignment
 仅缩放 BlockSize。相同生成器还执行实际 `PoolScanner._generator`，验证文件名
 缺页时跳过该文件并继续下一条；carving／对象有效性由合成对象隔离，不计真实正向证据。
+
+`pool_type_vectors.py` 执行固定 Handles.get_type_map、非 executive get_object 和
+Pointer._unmarshall，覆盖类型表 100 项边界／空哨兵／缺名、未经结构有效性检查
+保留 hive、native-layer 地址掩码。数据全为合成对象，不能替代真实正向证据。
+`gui_padding_vectors.py` 还确认 top-down 窗口使用 pad=True，缺尾窗口保留候选；
+对象有效性为测试桩，原生另测物理可读前缀与缺字节补零。
+
+池扫描分页覆盖另由 `pool_type_vectors.py` 的实际 Intel32e.mapping 验证：
+递归根表 alias 与已映射用户半区都必须保留。原生遍历按固定层数终止；这两个
+向量不替代损坏分页结构、其他架构和附件恢复的完整合同。

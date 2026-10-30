@@ -1112,3 +1112,50 @@ Win10 提前结束的直接原因是一个可翻译文件名首地址的后续�
 
 最终源码 `make check` 全部通过：591 库、8 CLI/MCP、50 协议、30 Python 测试。
 固定参考向量重新生成逐字节一致；发布包空 PATH／独立目录启动退出通过。
+
+
+## native75：PoolScanner 类型表、原始 hive 观察和补零窗口
+
+固定参考的非 executive get_object 路径直接返回结构，不调用 is_valid；canonical
+CMHIVE 不能额外要求 Hive.Signature。native75 移除这项过滤，但不把输出的原始
+观察宣称为已验证活动 hive。实际固定 get_object 合成向量验证该分支。
+
+PoolScanner 的类型表按实际 Handles.get_type_map 读取最多 100 项，索引 0 之后
+遇到首个空指针就停止；名称不可读只跳过该索引，不能用导出的对象类型变量补名。
+旧式 Type 指针还保留参考 Name.Length 的 1..128 检查。该路径独立于其他插件的
+类型恢复策略；六个固定函数向量覆盖表边界、空哨兵与不可读名称。
+
+原始 Pointer 按 native layer 的 address mask 截断，Zero 内部再转换成等价的
+canonical 地址用于翻译。PoolScanner 文件名允许内核 DTB 实际映射的用户地址，
+不附加 kernel-only 限制；实际 Pointer._unmarshall 的五个向量和用户映射读名字的
+合成用例验证。Win7 缺失文件的原始 Buffer 为 0xd10000000001011c，参考将其
+截断为 0x1011c，不能按高位的非 canonical 值直接排除。
+
+共享 top-down carving 按参考请求 padded window，读取长度为可选头上限加
+InfoMask 偏移；缺失字节补零，保留可读前缀。实际固定 get_object 测试桩确认
+pad=True 与候选保留；原生另验证物理区段末尾缺字节。完整对象有效性不属于这些
+合成向量的证明范围，真实 GUI 与五套 PoolScanner 结果单独回归。
+
+Win10 的剩余六条文件记录位于页表递归映射区域。真实根表 self-map 索引为 319；
+原生额外跳过根表指向自身的分支，而参考 Intel32e.mapping 可翻译该区域。遍历
+已有固定页表层数界限，native75 取消这项排除；实际固定 Intel32e 的合成递归
+映射和原生遍历验证物理页一致。最终差分使用包含此修改的最终二进制重新运行。
+
+扫描层还需覆盖参考 primary layer 中实际映射的用户半区，不能只按“池对象通常在
+内核”裁掉根表下半区。遍历现在保留两半区，并按地址最高有效位正确补齐
+canonical 前缀；同一固定 Intel32e 向量另验证用户地址 0 的物理映射。
+
+最终 native75 在全部构建完成后重新运行十例，两个差分报告使用相同二进制
+SHA256 `4f28868a08fd6e5e0093d646afc8b922c98d7344787d8592afa100b2de2fbadb`：
+PoolScanner Win10 36172/36172、Win11 8709/8709、Win7 4926/4926、Server 2008
+3323/3323、Server 2003 2154/2154，四列与全部重复数一致，没有过滤原始记录。
+GUI 为 WindowStations 15/15、Desktops 28/28、DeskScan 28/28、Windows 3063/3063；
+Win7 WindowStations 0/0 仍是非正向证据。
+
+新增长期 case 身份的正向用例三个（Win10／Win11／Win7 PoolScanner），其他
+七例只更新同名基线、不重复计数。累计正向差分 115 项，其中原有 5 项限定范围，
+完整插件合同仍为 0/135。原生 PoolScanner 的部分缺页诊断仍使结果 partial；
+默认行集一致不能证明异常报告、所有故障场景或全部构建的完整合同一致。
+
+最终 `make check` 通过：596 库、8 CLI/MCP、50 协议、30 Python 测试；新参考
+向量重生成逐字节一致。最终发布包空 PATH／独立目录启动退出验证通过。

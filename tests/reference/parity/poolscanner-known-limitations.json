@@ -9,28 +9,28 @@
       "Layer",
       "Name"
     ],
-    "scan": "Intel32/Intel64 only. Builds below 10240 scan physical memory; Windows 10 and later scan kernel virtual mappings, including transition pages and skipping repeated page tables.",
-    "constraints": "Built-in kernel constraints are scanned with tag-relative headers and versioned object carving. Native74 still applies extra CMHIVE signature validation; remaining type-map and missing-page differences are explicitly tracked below.",
+    "scan": "Intel32/Intel64 only. Pre-Windows 10 physical scan; Windows 10+ primary virtual scan includes mapped user half and recursive root aliases, skips identically repeated page tables, and supports transition pages.",
+    "constraints": "All built-in kernel constraints use tag-relative headers. Executive objects use versioned carving and pinned type-map validation. Non-executive observations bypass structure/signature validation as in the fixed get_object path.",
     "rendering": "Tag uses the reference symbol-table type name. Empty names are empty strings. Windows 10+ layer is layer_name; older builds use memory_layer. Offsets retain full canonical values while comparisons accept the reference renderer 48-bit truncation."
   },
   "evidence": [
     {
       "sample": "windows-10-15063",
-      "native_rows": 36119,
+      "native_rows": 36172,
       "reference_rows": 36172,
-      "missing": 53,
+      "missing": 0,
       "extra": 0,
       "conflicts": 0,
-      "passed": false
+      "passed": true
     },
     {
       "sample": "windows-11",
-      "native_rows": 8873,
+      "native_rows": 8709,
       "reference_rows": 8709,
-      "missing": 51,
-      "extra": 213,
+      "missing": 0,
+      "extra": 0,
       "conflicts": 0,
-      "passed": false
+      "passed": true
     },
     {
       "sample": "server-2008-6001-x86",
@@ -43,12 +43,12 @@
     },
     {
       "sample": "windows-7-7601-x64",
-      "native_rows": 4921,
+      "native_rows": 4926,
       "reference_rows": 4926,
-      "missing": 5,
+      "missing": 0,
       "extra": 0,
       "conflicts": 0,
-      "passed": false
+      "passed": true
     },
     {
       "sample": "server-2003-3790-x86",
@@ -61,19 +61,20 @@
     }
   ],
   "not_complete": [
-    "No target has a complete plugin contract.",
-    "Windows 10/11 virtual pool coverage, prototype/pagefile-backed pages, and some executive-object recovery paths remain unverified.",
-    "GUI pool constraints are outside this kernel plugin, matching the pinned reference.",
-    "ARM64 is unsupported by the reference requirement."
+    "Five default positive captures do not verify the complete plugin contract.",
+    "Full parameter/field-fault, damaged paging, pagefile/prototype recovery, cancellation and other-build behavior still require reviewed coverage.",
+    "Some native outputs remain partial with pool-object diagnostics; passing row comparisons do not establish error-reporting parity.",
+    "GUI constraints are outside canonical PoolScanner, matching the pinned reference; affected GUI defaults were separately regressed.",
+    "ARM64 is outside the pinned reference architecture requirement."
   ],
-  "engine_version": "0.2.1-native-74",
+  "engine_version": "0.2.1-native-75",
   "cases": [
     {
       "reference_plugin": "windows.poolscanner.PoolScanner",
       "zero_plugin": "windows.poolscanner.PoolScanner",
       "image_sha256": "d58f62e92b8c4ef913ac09b2c36a10482034c10b88d0c154dead3aaaa49cf875",
       "mapping_sha256": "61bf7450b58203cf44032f8f3d5740d2bc181ac385da0953c446196825865dfa",
-      "native_output_sha256": "e5a0261591fba22eff44b243de27560d0da1ebb2014d0db7c0abf3087643f76f",
+      "native_output_sha256": "217917a311320fe49ef9f2bb5db4a0b965c90b1117cac5b8e4632e258adad319",
       "zero_args": [],
       "reference_args": [],
       "case_id": "windows-10-15063/poolscanner-default",
@@ -81,222 +82,9 @@
       "comparison": {
         "schema_version": 1,
         "mapping_version": 1,
-        "zero_records": 36119,
+        "zero_records": 36172,
         "reference_records": 36172,
-        "missing": [
-          [
-            "symbol_table_name1!_CMHIVE",
-            18446701802423610412
-          ],
-          [
-            "symbol_table_name1!_CMHIVE",
-            18446701802429611052
-          ],
-          [
-            "symbol_table_name1!_CMHIVE",
-            18446701802496724932
-          ],
-          [
-            "symbol_table_name1!_CMHIVE",
-            18446701802496744492
-          ],
-          [
-            "symbol_table_name1!_CMHIVE",
-            18446701802496810852
-          ],
-          [
-            "symbol_table_name1!_CMHIVE",
-            18446701802496814476
-          ],
-          [
-            "symbol_table_name1!_CMHIVE",
-            18446701802496900276
-          ],
-          [
-            "symbol_table_name1!_CMHIVE",
-            18446701802496928860
-          ],
-          [
-            "symbol_table_name1!_CMHIVE",
-            18446701802496936996
-          ],
-          [
-            "symbol_table_name1!_CMHIVE",
-            18446701802497043172
-          ],
-          [
-            "symbol_table_name1!_CMHIVE",
-            18446701802497247796
-          ],
-          [
-            "symbol_table_name1!_CMHIVE",
-            18446701802497349988
-          ],
-          [
-            "symbol_table_name1!_CMHIVE",
-            18446701802497442508
-          ],
-          [
-            "symbol_table_name1!_CMHIVE",
-            18446701802497452780
-          ],
-          [
-            "symbol_table_name1!_CMHIVE",
-            18446701802497479228
-          ],
-          [
-            "symbol_table_name1!_CMHIVE",
-            18446701802497611636
-          ],
-          [
-            "symbol_table_name1!_CMHIVE",
-            18446701802497791372
-          ],
-          [
-            "symbol_table_name1!_CMHIVE",
-            18446701802497791492
-          ],
-          [
-            "symbol_table_name1!_CMHIVE",
-            18446701802497798380
-          ],
-          [
-            "symbol_table_name1!_CMHIVE",
-            18446701802497838172
-          ],
-          [
-            "symbol_table_name1!_CMHIVE",
-            18446701802497845444
-          ],
-          [
-            "symbol_table_name1!_CMHIVE",
-            18446701802497869444
-          ],
-          [
-            "symbol_table_name1!_CMHIVE",
-            18446701802497877700
-          ],
-          [
-            "symbol_table_name1!_CMHIVE",
-            18446701802497885812
-          ],
-          [
-            "symbol_table_name1!_CMHIVE",
-            18446701802498151780
-          ],
-          [
-            "symbol_table_name1!_CMHIVE",
-            18446701802498186748
-          ],
-          [
-            "symbol_table_name1!_CMHIVE",
-            18446701802498307444
-          ],
-          [
-            "symbol_table_name1!_CMHIVE",
-            18446701802498448132
-          ],
-          [
-            "symbol_table_name1!_CMHIVE",
-            18446701802498536884
-          ],
-          [
-            "symbol_table_name1!_CMHIVE",
-            18446701802498916156
-          ],
-          [
-            "symbol_table_name1!_CMHIVE",
-            18446701802499036900
-          ],
-          [
-            "symbol_table_name1!_CMHIVE",
-            18446701802499062028
-          ],
-          [
-            "symbol_table_name1!_CMHIVE",
-            18446701802499105588
-          ],
-          [
-            "symbol_table_name1!_CMHIVE",
-            18446701802499191172
-          ],
-          [
-            "symbol_table_name1!_CMHIVE",
-            18446701802499191364
-          ],
-          [
-            "symbol_table_name1!_CMHIVE",
-            18446701802499286836
-          ],
-          [
-            "symbol_table_name1!_CMHIVE",
-            18446701802499357708
-          ],
-          [
-            "symbol_table_name1!_CMHIVE",
-            18446701802499366204
-          ],
-          [
-            "symbol_table_name1!_CMHIVE",
-            18446701802499406260
-          ],
-          [
-            "symbol_table_name1!_CMHIVE",
-            18446701802499683340
-          ],
-          [
-            "symbol_table_name1!_CMHIVE",
-            18446701802499697380
-          ],
-          [
-            "symbol_table_name1!_CMHIVE",
-            18446701802499765324
-          ],
-          [
-            "symbol_table_name1!_CMHIVE",
-            18446701802499766908
-          ],
-          [
-            "symbol_table_name1!_CMHIVE",
-            18446701802499770532
-          ],
-          [
-            "symbol_table_name1!_CMHIVE",
-            18446725931767983148
-          ],
-          [
-            "symbol_table_name1!_FILE_OBJECT",
-            18446638438032277504
-          ],
-          [
-            "symbol_table_name1!_FILE_OBJECT",
-            18446638438032278320
-          ],
-          [
-            "symbol_table_name1!_FILE_OBJECT",
-            18446638438032279248
-          ],
-          [
-            "symbol_table_name1!_FILE_OBJECT",
-            18446638438032280016
-          ],
-          [
-            "symbol_table_name1!_FILE_OBJECT",
-            18446638438032280800
-          ],
-          [
-            "symbol_table_name1!_FILE_OBJECT",
-            18446638438032281200
-          ],
-          [
-            "symbol_table_name1!_KMUTANT",
-            18446701802437791584
-          ],
-          [
-            "symbol_table_name1!_KMUTANT",
-            18446701802502975296
-          ]
-        ],
+        "missing": [],
         "extra": [],
         "duplicates": [
           {
@@ -323,21 +111,21 @@
         "positive_evidence": true,
         "zero_complete": false,
         "zero_diagnostics": [
-          "Summary: 4097 diagnostics; complete entries retained in the raw comparison artifact."
+          "Summary: 257 diagnostics; complete entries retained in the raw comparison artifact."
         ],
-        "passed": false
+        "passed": true
       },
-      "passed": false,
+      "passed": true,
       "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
       "reference_output_sha256": "1001fdff9ee2eceed8c60a145821566106f0af0e040f0d963c850391c62ef72a",
       "symbol_sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4",
-      "zero_executable_sha256": "a75d01b932443540d98c9d99b2f4e23f2421f221c48dd8ff60a9ebe0ac2cb545",
-      "engine_version": "0.2.1-native-74",
-      "full_comparison_sha256": "c92cfd23f3b1c190b235fd88484e2b117f46534d19b29936912f1d42837983e6",
+      "zero_executable_sha256": "4f28868a08fd6e5e0093d646afc8b922c98d7344787d8592afa100b2de2fbadb",
+      "engine_version": "0.2.1-native-75",
+      "full_comparison_sha256": "d6ae3307a5c2ccec663ad97ec755cbbbf52065536239a246df4ce8b7e5c0df46",
       "comparison_details": "Diagnostic entries and duplicate groups summarized; complete raw comparison retained in local run.py artifact and bound by full_comparison_sha256. Native/reference JSON digests permit independent reproduction. No records or fields filtered during comparison.",
       "zero_diagnostics_summary": {
-        "count": 4097,
-        "sha256": "28a6899e76e97862209aee1bd5d1cec7d67fc83e8dba8cd62bc197844003d65d"
+        "count": 257,
+        "sha256": "ba857ac67b1a3ce394fd98b656f657d5c0f8f27f12f3d1d079d6662785c8699a"
       }
     },
     {
@@ -345,7 +133,7 @@
       "zero_plugin": "windows.poolscanner.PoolScanner",
       "image_sha256": "0f00815b8f78f30a63d742c73152474b2a3c35183dbb1d92c8fc6a81fa3de9f1",
       "mapping_sha256": "61bf7450b58203cf44032f8f3d5740d2bc181ac385da0953c446196825865dfa",
-      "native_output_sha256": "aa56961fc5f89aec92ab045dc1943dc233e4556e42e28ff813d49ec5fdcd5dda",
+      "native_output_sha256": "203c0c41a1f87dad2820e700245cf0d983dfa6809e5c3f05bcdca48787ad44c8",
       "zero_args": [],
       "reference_args": [],
       "case_id": "windows-11/poolscanner-default",
@@ -353,1075 +141,17 @@
       "comparison": {
         "schema_version": 1,
         "mapping_version": 1,
-        "zero_records": 8873,
+        "zero_records": 8709,
         "reference_records": 8709,
-        "missing": [
-          [
-            "symbol_table_name1!_CMHIVE",
-            18446707295490600452
-          ],
-          [
-            "symbol_table_name1!_CMHIVE",
-            18446707295490607236
-          ],
-          [
-            "symbol_table_name1!_CMHIVE",
-            18446707295505710596
-          ],
-          [
-            "symbol_table_name1!_CMHIVE",
-            18446707295505718788
-          ],
-          [
-            "symbol_table_name1!_CMHIVE",
-            18446707295505725956
-          ],
-          [
-            "symbol_table_name1!_CMHIVE",
-            18446707295505739908
-          ],
-          [
-            "symbol_table_name1!_CMHIVE",
-            18446707295505746948
-          ],
-          [
-            "symbol_table_name1!_CMHIVE",
-            18446707295505752612
-          ],
-          [
-            "symbol_table_name1!_CMHIVE",
-            18446707295505758532
-          ],
-          [
-            "symbol_table_name1!_CMHIVE",
-            18446707295505767972
-          ],
-          [
-            "symbol_table_name1!_CMHIVE",
-            18446707295505784292
-          ],
-          [
-            "symbol_table_name1!_CMHIVE",
-            18446707295505796420
-          ],
-          [
-            "symbol_table_name1!_CMHIVE",
-            18446707295505805988
-          ],
-          [
-            "symbol_table_name1!_CMHIVE",
-            18446707295505854500
-          ],
-          [
-            "symbol_table_name1!_CMHIVE",
-            18446707295505913892
-          ],
-          [
-            "symbol_table_name1!_CMHIVE",
-            18446707295505937956
-          ],
-          [
-            "symbol_table_name1!_CMHIVE",
-            18446707295505992132
-          ],
-          [
-            "symbol_table_name1!_CMHIVE",
-            18446707295506016484
-          ],
-          [
-            "symbol_table_name1!_CMHIVE",
-            18446707295506027044
-          ],
-          [
-            "symbol_table_name1!_CMHIVE",
-            18446707295506068612
-          ],
-          [
-            "symbol_table_name1!_CMHIVE",
-            18446707295506069828
-          ],
-          [
-            "symbol_table_name1!_CMHIVE",
-            18446707295506092452
-          ],
-          [
-            "symbol_table_name1!_CMHIVE",
-            18446707295506116036
-          ],
-          [
-            "symbol_table_name1!_CMHIVE",
-            18446707295506130980
-          ],
-          [
-            "symbol_table_name1!_CMHIVE",
-            18446707295506154276
-          ],
-          [
-            "symbol_table_name1!_CMHIVE",
-            18446707295506212100
-          ],
-          [
-            "symbol_table_name1!_CMHIVE",
-            18446707295506225092
-          ],
-          [
-            "symbol_table_name1!_CMHIVE",
-            18446707295506246468
-          ],
-          [
-            "symbol_table_name1!_CMHIVE",
-            18446707295506255364
-          ],
-          [
-            "symbol_table_name1!_CMHIVE",
-            18446707295506291396
-          ],
-          [
-            "symbol_table_name1!_CMHIVE",
-            18446707295506307812
-          ],
-          [
-            "symbol_table_name1!_CMHIVE",
-            18446707295506313860
-          ],
-          [
-            "symbol_table_name1!_CMHIVE",
-            18446707295506329860
-          ],
-          [
-            "symbol_table_name1!_CMHIVE",
-            18446707295506358276
-          ],
-          [
-            "symbol_table_name1!_CMHIVE",
-            18446707295506358564
-          ],
-          [
-            "symbol_table_name1!_CMHIVE",
-            18446707295506370948
-          ],
-          [
-            "symbol_table_name1!_CMHIVE",
-            18446707295506386660
-          ],
-          [
-            "symbol_table_name1!_CMHIVE",
-            18446707295506431972
-          ],
-          [
-            "symbol_table_name1!_CMHIVE",
-            18446707295506526084
-          ],
-          [
-            "symbol_table_name1!_CMHIVE",
-            18446707295506551076
-          ],
-          [
-            "symbol_table_name1!_CMHIVE",
-            18446707295506555108
-          ],
-          [
-            "symbol_table_name1!_CMHIVE",
-            18446707295506558276
-          ],
-          [
-            "symbol_table_name1!_CMHIVE",
-            18446707295506561828
-          ],
-          [
-            "symbol_table_name1!_CMHIVE",
-            18446707295506565892
-          ],
-          [
-            "symbol_table_name1!_CMHIVE",
-            18446707295506611780
-          ],
-          [
-            "symbol_table_name1!_CMHIVE",
-            18446707295506625092
-          ],
-          [
-            "symbol_table_name1!_CMHIVE",
-            18446707295506628196
-          ],
-          [
-            "symbol_table_name1!_CMHIVE",
-            18446707295506636644
-          ],
-          [
-            "symbol_table_name1!_CMHIVE",
-            18446707295506647652
-          ],
-          [
-            "symbol_table_name1!_CMHIVE",
-            18446707295506655364
-          ],
-          [
-            "symbol_table_name1!_CMHIVE",
-            18446707295506686436
-          ]
-        ],
-        "extra": [
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115904012288
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115904113616
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115904113792
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115904138400
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115904216896
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115904322752
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115904409712
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115904456976
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115904753872
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115904755104
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115904757824
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115904758112
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115904759552
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115904760560
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115904760992
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115905189072
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115905190080
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115905190800
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115905190944
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115905192528
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115905193248
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115905193536
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115905194544
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115905195552
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115905195696
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115905695072
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115905697536
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115909206240
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115909206672
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115909208112
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115909208256
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115909209120
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115909209264
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115909209552
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115909209696
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115909210128
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115909210560
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115909211424
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115909211568
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115909213008
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115909213296
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115909213584
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115909213728
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115909213872
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115909458240
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115909472912
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115909473200
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115909473776
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115909474064
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115909474208
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115909474496
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115909474640
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115909474784
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115909475648
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115909476080
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115909476944
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115909477088
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115909477232
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115909477376
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115909477520
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115909477664
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115909477808
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115909477952
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115909478096
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115909478240
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115909478384
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115909478528
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115909478672
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115909478816
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115909478960
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115909479104
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115909479248
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115909479392
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115909479536
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115909479680
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115909479824
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115909479968
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115909480112
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115909480256
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115909491168
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115909491312
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115909491744
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115909494048
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115909544640
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115910771200
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115910774080
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115910774944
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115910775088
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115910777104
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115910778112
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115911176848
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115911177712
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115911178720
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115911179872
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115911181744
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115911182608
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115911403360
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115911464752
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115911931248
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115911934704
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115911934848
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115911936864
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115911939888
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115911940608
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115911940896
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115911941184
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115911941328
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115911941472
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115911942192
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115911942624
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115911942768
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115911943056
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115911943632
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115911943920
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115911944064
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115911944784
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115911945360
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115911945648
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115911945936
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115912287456
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115912287600
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115912287744
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115912287888
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115912289184
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115912290048
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115912291200
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115912292064
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115912293072
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115912293216
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115912293504
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115912293792
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115912294656
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115912295376
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115912295952
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115912298688
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115912299120
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115912565344
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115912565520
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115912565696
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115912566048
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115912566576
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115912569744
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115912570272
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115912572208
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115912573088
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115912576080
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115912576256
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115912576432
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115912577136
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115912578368
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115912578544
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115912579424
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115912579600
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115912579952
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115912580304
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115941714928
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115941715360
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115941716944
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115942257248
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115942257424
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115942260064
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115942261296
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115942262000
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115942262176
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115942264640
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115943193728
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115943194256
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115943194432
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115943194784
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115943195136
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115943195840
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115943197072
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115943197248
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115943197424
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115945191424
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115945197936
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115946040016
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115947433280
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115953596016
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115953596720
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115953600944
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115956943920
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115956944208
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115956945648
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115956981504
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115956988272
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115966103376
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115966109360
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115972857152
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115973031600
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115973034944
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115976186624
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115976251856
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115976253584
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115977487936
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115977489872
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115977492512
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115977501664
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115977502896
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115977510640
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115977513280
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115983714992
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115983742096
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115983746496
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115994521760
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115994522288
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650115994526336
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650116007426880
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650116007428640
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650116007431104
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650116099173184
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650116099173360
-          ],
-          [
-            "symbol_table_name1!_OBJECT_SYMBOLIC_LINK",
-            18446650116099173888
-          ]
-        ],
+        "missing": [],
+        "extra": [],
         "duplicates": [
           {
             "side": "zero",
             "summary": true,
-            "groups": 11,
-            "records": 23,
-            "keys_and_counts_sha256": "ecbed0cedd9a14b59bfa8b19f3af8c5bafef1495d42b2838fb01d150dd3658d0"
+            "groups": 9,
+            "records": 19,
+            "keys_and_counts_sha256": "682f4b3cf81b9260ec6807087c304d1780beee6d787d43de7dd969b79e63f1ce"
           },
           {
             "side": "reference",
@@ -1442,19 +172,19 @@
         "zero_diagnostics": [
           "Summary: 4097 diagnostics; complete entries retained in the raw comparison artifact."
         ],
-        "passed": false
+        "passed": true
       },
-      "passed": false,
+      "passed": true,
       "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
       "reference_output_sha256": "db3bb567502795eb6bc4c63d6feef552e4887edb3931efd03014817b57cfdeb7",
       "symbol_sha256": "6a234099b69b393eb7d652408835205bd12f0b947d0d6b6275e2ffce8ca9c133",
-      "zero_executable_sha256": "a75d01b932443540d98c9d99b2f4e23f2421f221c48dd8ff60a9ebe0ac2cb545",
-      "engine_version": "0.2.1-native-74",
-      "full_comparison_sha256": "d753e5f66085324e23492caac63ff4cdf51aba78d392521b76f6e5627a37f5da",
+      "zero_executable_sha256": "4f28868a08fd6e5e0093d646afc8b922c98d7344787d8592afa100b2de2fbadb",
+      "engine_version": "0.2.1-native-75",
+      "full_comparison_sha256": "0981adc00c98a399237efb3c8b9a5d4e26e8fb70935421e2490d60bfe4490c0e",
       "comparison_details": "Diagnostic entries and duplicate groups summarized; complete raw comparison retained in local run.py artifact and bound by full_comparison_sha256. Native/reference JSON digests permit independent reproduction. No records or fields filtered during comparison.",
       "zero_diagnostics_summary": {
         "count": 4097,
-        "sha256": "92dad7b977febea9e4d4b2e2da24ca0eefae3560c761d21a7af042654d2c4de3"
+        "sha256": "d0c5e19d035a1880e3f29a49ec3328b956d2a299922220e0b8523d79d5b7dfa8"
       }
     },
     {
@@ -1462,7 +192,7 @@
       "zero_plugin": "windows.poolscanner.PoolScanner",
       "image_sha256": "d3b13f2224cab20440a4bb3c5c971662be6e61f431340f319cef7312bb6177f4",
       "mapping_sha256": "61bf7450b58203cf44032f8f3d5740d2bc181ac385da0953c446196825865dfa",
-      "native_output_sha256": "bf82ae342acb985cacb4cf776c650bd5bf806f1d33eeb2c3c12b6cd453344fc9",
+      "native_output_sha256": "0038a46922a1c0488c3fe507ea534ab2223263a0ee65f96d7c8be09f90c9e214",
       "zero_args": [],
       "reference_args": [],
       "case_id": "server-2008-6001-x86/poolscanner-default",
@@ -1492,21 +222,21 @@
       "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
       "reference_output_sha256": "e7c295dfa633ed0297171c80c6deed11681925a1b402cb02e9f567b01737f4e5",
       "symbol_sha256": "5d73f3a7158ba8b72394f2606ea5b4f03393976d5054a11cc51d51afb88a5544",
-      "zero_executable_sha256": "a75d01b932443540d98c9d99b2f4e23f2421f221c48dd8ff60a9ebe0ac2cb545",
-      "engine_version": "0.2.1-native-74",
-      "full_comparison_sha256": "31edde0489abf68d79e2d37c70c5dea9d8088fab27cf82176ef75e2bdd3ae7d6",
+      "zero_executable_sha256": "4f28868a08fd6e5e0093d646afc8b922c98d7344787d8592afa100b2de2fbadb",
+      "engine_version": "0.2.1-native-75",
+      "full_comparison_sha256": "2cf3a54f56fca466ec93feb1e2a8b1282fba86bea65765176a68c5c6a72e4346",
+      "comparison_details": "Diagnostic entries and duplicate groups summarized; complete raw comparison retained in local run.py artifact and bound by full_comparison_sha256. Native/reference JSON digests permit independent reproduction. No records or fields filtered during comparison.",
       "zero_diagnostics_summary": {
         "count": 4097,
-        "sha256": "14ba7b22fd619c55c5d52d90bf09b54f401e470c8147fdcba175ae9ee9a507ed"
-      },
-      "comparison_details": "Diagnostic entries and duplicate groups summarized; complete raw comparison retained in local run.py artifact and bound by full_comparison_sha256. Native/reference JSON digests permit independent reproduction. No records or fields filtered during comparison."
+        "sha256": "05342116979d03c0e1fa08236cee22ebf1f684b6bd5d1099ba67f18302f0d30b"
+      }
     },
     {
       "reference_plugin": "windows.poolscanner.PoolScanner",
       "zero_plugin": "windows.poolscanner.PoolScanner",
       "image_sha256": "80366d7ec64a5529c95c2f523f4281a5f11efbad33ecb19f73525470c1407b23",
       "mapping_sha256": "61bf7450b58203cf44032f8f3d5740d2bc181ac385da0953c446196825865dfa",
-      "native_output_sha256": "600517e41a83fc7997e498dceb54a7f56a4d61538e342f514c74e1839f83aad5",
+      "native_output_sha256": "f41927812d095c6d15edc61e29efa934cc532a5af33ba2fc07ce2f99be1d9d1b",
       "zero_args": [],
       "reference_args": [],
       "case_id": "windows-7-7601-x64/poolscanner-default",
@@ -1514,30 +244,9 @@
       "comparison": {
         "schema_version": 1,
         "mapping_version": 1,
-        "zero_records": 4921,
+        "zero_records": 4926,
         "reference_records": 4926,
-        "missing": [
-          [
-            "symbol_table_name1!_CMHIVE",
-            756648567
-          ],
-          [
-            "symbol_table_name1!_CMHIVE",
-            991910279
-          ],
-          [
-            "symbol_table_name1!_CMHIVE",
-            991910303
-          ],
-          [
-            "symbol_table_name1!_CMHIVE",
-            991910335
-          ],
-          [
-            "symbol_table_name1!_FILE_OBJECT",
-            723471817
-          ]
-        ],
+        "missing": [],
         "extra": [],
         "duplicates": [],
         "duplicate_keys": "multiset",
@@ -1547,31 +256,23 @@
         "matched_absent": {},
         "all_columns_mapped": true,
         "positive_evidence": true,
-        "zero_complete": false,
-        "zero_diagnostics": [
-          "Summary: 4097 diagnostics; complete entries retained in the raw comparison artifact."
-        ],
-        "passed": false
+        "zero_complete": true,
+        "zero_diagnostics": [],
+        "passed": true
       },
-      "passed": false,
+      "passed": true,
       "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
       "reference_output_sha256": "cbacf9552535c631717cbfbed9c908b16b812de4d8b7e4f161079e4e5d45bca5",
       "symbol_sha256": "6d5f85f7b953330b9762a57e5a25266547e7391ad4f6655170a9f48876fb6b8c",
-      "zero_executable_sha256": "a75d01b932443540d98c9d99b2f4e23f2421f221c48dd8ff60a9ebe0ac2cb545",
-      "engine_version": "0.2.1-native-74",
-      "full_comparison_sha256": "cc28290925c3e258d6c4194c55e6682faca428b4a116bb7966650a12fba460c9",
-      "zero_diagnostics_summary": {
-        "count": 4097,
-        "sha256": "1f0b625cef0eba18d62c3027f2d8fd77d0fa882fcec3b1f94806ea34acff23e2"
-      },
-      "comparison_details": "Diagnostic entries and duplicate groups summarized; complete raw comparison retained in local run.py artifact and bound by full_comparison_sha256. Native/reference JSON digests permit independent reproduction. No records or fields filtered during comparison."
+      "zero_executable_sha256": "4f28868a08fd6e5e0093d646afc8b922c98d7344787d8592afa100b2de2fbadb",
+      "engine_version": "0.2.1-native-75"
     },
     {
       "reference_plugin": "windows.poolscanner.PoolScanner",
       "zero_plugin": "windows.poolscanner.PoolScanner",
       "image_sha256": "dc7022c2183dade6c36ebf19c74af5234bff8800e2a6f95e825287da9a214adb",
       "mapping_sha256": "61bf7450b58203cf44032f8f3d5740d2bc181ac385da0953c446196825865dfa",
-      "native_output_sha256": "88f0d8f99ecd892ccaa8e2719839a52f1948268a7ab07604358a9e8efd014ded",
+      "native_output_sha256": "657ae9a19e753fd755e55a117e9573f418dc4b520526d859715bac8dbbbd4164",
       "zero_args": [],
       "reference_args": [],
       "case_id": "server-2003-3790-x86/poolscanner-default",
@@ -1593,7 +294,7 @@
         "positive_evidence": true,
         "zero_complete": false,
         "zero_diagnostics": [
-          "Summary: 3731 diagnostics; complete entries retained in the raw comparison artifact."
+          "Summary: 3648 diagnostics; complete entries retained in the raw comparison artifact."
         ],
         "passed": true
       },
@@ -1601,24 +302,23 @@
       "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
       "reference_output_sha256": "7b6cb154912c226c4b39b98d0da814e3b04cbd1e07f0a5bd814532a290f74ded",
       "symbol_sha256": "e71b53897ef6119ca9e51967ffe2399edd422ef54279f3d93659d61d16ec1f67",
-      "zero_executable_sha256": "a75d01b932443540d98c9d99b2f4e23f2421f221c48dd8ff60a9ebe0ac2cb545",
-      "engine_version": "0.2.1-native-74",
-      "full_comparison_sha256": "388ad99710e72f6c3808a2907907421ed6033d3210375a96281777d9263b5d3f",
+      "zero_executable_sha256": "4f28868a08fd6e5e0093d646afc8b922c98d7344787d8592afa100b2de2fbadb",
+      "engine_version": "0.2.1-native-75",
+      "full_comparison_sha256": "68a1a6e4833ade1654cad888453b9cfb912bbc9e4a895eee3538f45707e82b65",
+      "comparison_details": "Diagnostic entries and duplicate groups summarized; complete raw comparison retained in local run.py artifact and bound by full_comparison_sha256. Native/reference JSON digests permit independent reproduction. No records or fields filtered during comparison.",
       "zero_diagnostics_summary": {
-        "count": 3731,
-        "sha256": "3513f7ddf92759970feee41f4f6939df60f3170df2ac1702557fabdfb3e34094"
-      },
-      "comparison_details": "Diagnostic entries and duplicate groups summarized; complete raw comparison retained in local run.py artifact and bound by full_comparison_sha256. Native/reference JSON digests permit independent reproduction. No records or fields filtered during comparison."
+        "count": 3648,
+        "sha256": "80f9b0c4f76c9ec86445fcc878f41c12c3ae315dab761cb539ffa7fe1d5bc44b"
+      }
     }
   ],
-  "zero_executable_sha256": "a75d01b932443540d98c9d99b2f4e23f2421f221c48dd8ff60a9ebe0ac2cb545",
-  "validation": "Unmodified pinned reference and final native74 binary; five images, all four columns and duplicate multiplicity, no row filtering. Three failed comparisons remain explicit; partial diagnostics are allowed by the reviewed mapping.",
+  "zero_executable_sha256": "4f28868a08fd6e5e0093d646afc8b922c98d7344787d8592afa100b2de2fbadb",
+  "validation": "Fresh unmodified pinned-reference and final native75 binary comparisons, all mapped fields and duplicate multiplicities, no row filtering. Previously recorded cases not included in this batch retain their original per-case versions. Empty agreement is not positive evidence. Pool-object diagnostics can still make native output partial; default-row agreement is not a full plugin contract.",
   "known_causes": [
-    "Native73 Win10 aborted on a file-name page fault; native74 skips it and continues. Matching rows increased from 3801 to 36119 with no extra rows.",
-    "Native73 rejected or rounded unaligned headers. Native74 uses exact tag-relative headers and restores Server 2008 full-field agreement.",
-    "Server 2003 name descriptor at physical 0x62cfea8 has Length=1. Native74 preserves the odd byte as replacement and now matches every field.",
-    "Remaining CMHIVE misses (Win10 45, Win11 51, Win7 4) coincide with native signature validation absent from the reference non-executive carving path; not yet corrected in native74.",
-    "Win11 retains 213 extra symbolic-link observations; exact reference type-map and recovery paths require investigation.",
-    "Win10 six file and two mutant misses, plus one Win7 file miss, remain unresolved; missing-page/padded object-header behavior requires investigation."
+    "Native74 CMHIVE signature filtering was absent from the pinned non-executive path; native75 retains these raw observations.",
+    "Native74 Win11 symbolic-link extras are removed by using the pinned type-map boundaries and missing-name semantics rather than exported-variable fallback.",
+    "Native74 top-down window reads rejected whole candidates at missing tails; native75 preserves captured bytes and pads holes exactly for the carving window.",
+    "Native74 Win7 file miss had raw Buffer 0xd10000000001011c. The pinned Pointer masks this to mapped user address 0x1011c; native75 applies the native-layer pointer domain.",
+    "The first native75 prototype retained six Win10 misses in recursive root-map index 319. Final native75 includes recursive aliases and mapped user-half pages; synthetic fixed Intel32e mappings independently validate both branches."
   ]
 }

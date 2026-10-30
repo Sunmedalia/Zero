@@ -164,6 +164,7 @@ impl Windows<'_> {
         let alignment = if self.vm.pointer_size() == 4 { 8 } else { 16 };
         let (tag_offset, header_size) = self.pool_header_layout()?;
         let sizes = self.pool_type_sizes()?;
+        let type_map = self.pool_reference_type_map()?;
         let optional = if top_down {
             self.pool_optional_headers()?
         } else {
@@ -256,6 +257,7 @@ impl Windows<'_> {
                                 constraint,
                                 body,
                                 virtual_scan,
+                                &type_map,
                                 result,
                                 &mut diagnostics,
                             )? {
@@ -422,9 +424,6 @@ impl Windows<'_> {
             return Ok(());
         }
         for (index, entry_bytes) in bytes.chunks_exact(width).enumerate() {
-            if level == 0 && index < entries / 2 {
-                continue;
-            }
             let mut raw = [0u8; 8];
             raw[..width].copy_from_slice(entry_bytes);
             let entry = u64::from_le_bytes(raw);
@@ -440,10 +439,8 @@ impl Windows<'_> {
             };
             let relative = prefix | (index as u64) << shift;
             if geometry.block(entry, shift) || shift == 12 {
-                visit(geometry.extend(relative), frame, shift)?;
-            } else if level + 1 < geometry.shifts().len()
-                && !(geometry.arch == Architecture::X64 && level == 0 && frame == table)
-            {
+                visit(self.pool_reference_pointer(relative), frame, shift)?;
+            } else if level + 1 < geometry.shifts().len() {
                 self.walk_kernel_pages(frame, level + 1, relative, geometry, visit)?;
             }
         }
@@ -503,13 +500,10 @@ impl Windows<'_> {
         let pointer_size = self.vm.isf.size("_OBJECT_HEADER", "PointerCount")?;
         ensure!(matches!(pointer_size, 4 | 8), "PointerCount 宽度无效");
         let window_length = (limit as usize)
-            .checked_add(info.max(pointer))
-            .and_then(|value| value.checked_add(pointer_size))
+            .checked_add(info)
             .context("对象头扫描窗口溢出")?;
         let mut window = vec![0u8; window_length];
-        if self.pool_read(start, &mut window, virtual_scan).is_err() {
-            return Ok(Vec::new());
-        }
+        self.pool_read_padded(start, &mut window, virtual_scan)?;
         let mut found = Vec::new();
         for delta in (0..limit).step_by(alignment as usize) {
             job.check()?;
@@ -673,6 +667,36 @@ impl Windows<'_> {
         }
     }
 
+    fn pool_read_padded(
+        &self,
+        mut address: u64,
+        mut out: &mut [u8],
+        virtual_scan: bool,
+    ) -> Result<()> {
+        while !out.is_empty() {
+            let length = out.len().min(4096 - (address & 4095) as usize);
+            let (chunk, rest) = out.split_at_mut(length);
+            if self.pool_read(address, chunk, virtual_scan).is_err() {
+                // Preserve captured bytes even if a physical segment ends part
+                // way through this page. Unreadable bytes alone become zero.
+                for (offset, byte) in chunk.iter_mut().enumerate() {
+                    let mut value = [0];
+                    *byte = if self
+                        .pool_read(add(address, offset as u64)?, &mut value, virtual_scan)
+                        .is_ok()
+                    {
+                        value[0]
+                    } else {
+                        0
+                    };
+                }
+            }
+            address = add(address, length as u64)?;
+            out = rest;
+        }
+        Ok(())
+    }
+
     fn pool_value(
         &self,
         address: u64,
@@ -692,6 +716,7 @@ impl Windows<'_> {
         constraint: &Constraint,
         body: u64,
         virtual_scan: bool,
+        type_map: &BTreeMap<u64, String>,
         result: &mut Results,
         diagnostics: &mut usize,
     ) -> Result<bool> {
@@ -702,12 +727,11 @@ impl Windows<'_> {
                 let header = body
                     .checked_sub(self.vm.isf.offset("_OBJECT_HEADER", "Body")?)
                     .context("对象头下溢")?;
-                let found = if virtual_scan {
-                    self.object_type(header, &self.object_header_layout())?
-                } else {
-                    self.physical_object_type(header)?
-                };
-                if found != kind {
+                if self
+                    .pool_reference_object_type(header, virtual_scan, type_map)?
+                    .as_deref()
+                    != Some(kind)
+                {
                     return Ok(false);
                 }
             }
@@ -720,9 +744,6 @@ impl Windows<'_> {
                     let buffer =
                         self.pool_value(body, "_FILE_OBJECT", "FileName.Buffer", virtual_scan)?;
                     length > 0 && self.address_readable(buffer)
-                }
-                "_CMHIVE" => {
-                    self.pool_value(body, "_CMHIVE", "Hive.Signature", virtual_scan)? == 0xBEE0BEE0
                 }
                 _ => true,
             })
@@ -741,8 +762,97 @@ impl Windows<'_> {
         }
     }
 
+    fn pool_reference_unicode(&self, descriptor: u64) -> Result<String> {
+        let length = self.vm.uint(descriptor, 2)?;
+        let buffer = self.pool_reference_pointer(self.vm.pointer(add(
+            descriptor,
+            self.vm.isf.offset("_UNICODE_STRING", "Buffer")?,
+        )?)?);
+        let mut bytes = vec![0; length as usize];
+        self.vm.read(buffer, &mut bytes)?;
+        Ok(windowstations::reference_unicode_name(&bytes))
+    }
+
+    fn pool_reference_type_map(&self) -> Result<BTreeMap<u64, String>> {
+        let mut types = BTreeMap::new();
+        if !self.vm.isf.has_field("_OBJECT_HEADER", "TypeIndex") {
+            return Ok(types);
+        }
+        let table = self
+            .symbol("ObTypeIndexTable")
+            .or_else(|_| self.symbol("ObpObjectTypes"))?;
+        if !self.address_readable(table) {
+            return Ok(types);
+        }
+        // Handles.get_type_map reads 100 pointers and stops at the first null
+        // after index zero. An unreadable name skips only that index; exported
+        // type variables do not provide a fallback in this reference path.
+        for index in 0..100 {
+            let pointer = self.pool_reference_pointer(
+                self.vm
+                    .pointer(add(table, index * self.vm.pointer_size() as u64)?)?,
+            );
+            if index > 0 && pointer == 0 {
+                break;
+            }
+            if let Ok(name) = self
+                .field(pointer, "_OBJECT_TYPE", "Name")
+                .and_then(|descriptor| self.pool_reference_unicode(descriptor))
+            {
+                types.insert(index, name);
+            }
+        }
+        Ok(types)
+    }
+
+    fn pool_reference_object_type(
+        &self,
+        header: u64,
+        virtual_scan: bool,
+        types: &BTreeMap<u64, String>,
+    ) -> Result<Option<String>> {
+        if self.vm.isf.has_field("_OBJECT_HEADER", "TypeIndex") {
+            let encoded = self.pool_value(header, "_OBJECT_HEADER", "TypeIndex", virtual_scan)?;
+            let index = if let Ok(cookie_address) = self.symbol("ObHeaderCookie") {
+                let cookie = self.vm.uint(cookie_address, 1)?;
+                ((header >> 8) ^ cookie ^ encoded) & 0xff
+            } else {
+                encoded
+            };
+            return Ok(types.get(&index).cloned());
+        }
+        let pointer = self.pool_reference_pointer(self.pool_value(
+            header,
+            "_OBJECT_HEADER",
+            "Type",
+            virtual_scan,
+        )?);
+        let descriptor = self.field(pointer, "_OBJECT_TYPE", "Name")?;
+        let length = self.vm.uint(descriptor, 2)?;
+        if length == 0 || length > 128 {
+            return Ok(None);
+        }
+        let name = self.pool_reference_unicode(descriptor)?;
+        Ok((!name.is_empty() && name.chars().count() <= 128).then_some(name))
+    }
+
     fn address_readable(&self, address: u64) -> bool {
-        self.vm.kernel(address) && self.vm.translate(address).is_ok()
+        self.vm
+            .translate(self.pool_reference_pointer(address))
+            .is_ok_and(|physical| self.vm.image.read(physical, &mut [0]).is_ok())
+    }
+
+    fn pool_reference_pointer(&self, value: u64) -> u64 {
+        if self.vm.pointer_size() == 4 {
+            value & 0xffff_ffff
+        } else {
+            let value = value & 0xffff_ffff_ffff;
+            if value & (1 << 47) != 0 {
+                value | 0xffff_0000_0000_0000
+            } else {
+                value
+            }
+        }
     }
 
     fn pool_year(ticks: u64) -> Option<i64> {
@@ -837,8 +947,12 @@ impl Windows<'_> {
                 let name = (|| -> Result<String> {
                     let length =
                         self.pool_value(body, "_FILE_OBJECT", "FileName.Length", virtual_scan)?;
-                    let buffer =
-                        self.pool_value(body, "_FILE_OBJECT", "FileName.Buffer", virtual_scan)?;
+                    let buffer = self.pool_reference_pointer(self.pool_value(
+                        body,
+                        "_FILE_OBJECT",
+                        "FileName.Buffer",
+                        virtual_scan,
+                    )?);
                     let mut bytes = vec![0u8; length as usize];
                     self.vm.read(buffer, &mut bytes)?;
                     Ok(windowstations::reference_unicode_name(&bytes))
@@ -857,15 +971,250 @@ mod tests {
     use serde_json::json;
 
     #[test]
+    fn recursive_kernel_page_aliases_match_fixed_intel_mapping() {
+        let (mut bytes, isf) = fixture();
+        put(&mut bytes, 0x1000, 0x2003);
+        let snapshot = image(&bytes);
+        let windows = Windows {
+            vm: Memory::new(&snapshot, 0x1000, &isf, None),
+            base: K,
+            pdb: PdbIdentity::from_isf(&isf).unwrap(),
+        };
+        let vectors: serde_json::Value = serde_json::from_str(include_str!(
+            "../../tests/reference/parity/fixtures/pool-types.json"
+        ))
+        .unwrap();
+        let alias = windows
+            .pool_reference_pointer(vectors["recursive_mapping"]["address"].as_u64().unwrap());
+        let expected_physical = vectors["recursive_mapping"]["mappings"][0][2]
+            .as_u64()
+            .unwrap();
+        let mut found = None;
+        let mut user = None;
+        windows
+            .walk_kernel_pages(
+                windows.vm.root,
+                0,
+                0,
+                &windows.vm.paging().unwrap(),
+                &mut |va, physical, shift| {
+                    if alias >= va && alias < va + (1 << shift) {
+                        found = Some(physical + alias - va);
+                    }
+                    if va == 0 {
+                        user = Some(physical);
+                    }
+                    Ok(())
+                },
+            )
+            .unwrap();
+        assert_eq!(found, Some(expected_physical));
+        assert_eq!(user, vectors["user_mapping"]["mappings"][0][2].as_u64());
+    }
+
+    #[test]
+    fn pool_pointer_values_match_reference_native_layer_mask() {
+        let vectors: serde_json::Value = serde_json::from_str(include_str!(
+            "../../tests/reference/parity/fixtures/pool-types.json"
+        ))
+        .unwrap();
+        for case in vectors["pointer_cases"].as_array().unwrap() {
+            let (bytes, mut isf) = fixture();
+            let width = case["width"].as_u64().unwrap();
+            if width == 4 {
+                isf.data["base_types"]["pointer"]["size"] = json!(4);
+                isf.data["metadata"]["windows"]["pdb"]["machine_type"] = json!(0x14c);
+            }
+            let snapshot = image(&bytes);
+            let windows = Windows {
+                vm: Memory::new(&snapshot, 0x1000, &isf, None),
+                base: K,
+                pdb: PdbIdentity::from_isf(&isf).unwrap(),
+            };
+            let value = windows.pool_reference_pointer(case["raw"].as_u64().unwrap());
+            let mask = if width == 4 {
+                0xffff_ffff
+            } else {
+                0xffff_ffff_ffff
+            };
+            assert_eq!(value & mask, case["expected"].as_u64().unwrap());
+            assert!(windows.vm.paging().unwrap().canonical(value));
+        }
+    }
+
+    #[test]
+    fn top_down_missing_window_tail_matches_pinned_padded_carving() {
+        let (bytes, mut isf) = fixture();
+        isf.data["base_types"]["u8"] = json!({"size":1});
+        isf.data["user_types"]["_POOL_HEADER"] = json!({"size":16,"fields":{}});
+        isf.data["user_types"]["_OBJECT_HEADER"] = json!({"size":56,"fields":{"Body":{"offset":48,"type":{"kind":"base","name":"u64"}},"InfoMask":{"offset":26,"type":{"kind":"base","name":"u8"}},"PointerCount":{"offset":0,"type":{"kind":"base","name":"u64"}}}});
+        let mut truncated = bytes[..0x2000].to_vec();
+        truncated[0x1fc0..].fill(0);
+        let snapshot = image(&truncated);
+        let windows = Windows {
+            vm: Memory::new(&snapshot, 0x1000, &isf, None),
+            base: K,
+            pdb: PdbIdentity::from_isf(&isf).unwrap(),
+        };
+        let constraint = Constraint::new(
+            b"Wind",
+            "tagWINDOWSTATION",
+            Some("WindowStation"),
+            0,
+            3,
+            true,
+            &[],
+        );
+        let bodies = windows
+            .pool_bodies(
+                &constraint,
+                0x1fc0,
+                PoolCarve {
+                    block: 128,
+                    alignment: 16,
+                    type_size: 152,
+                    top_down: true,
+                    optional: &[(false, 32), (true, 4)],
+                    virtual_scan: false,
+                },
+                &Job::default(),
+            )
+            .unwrap();
+        let vectors: serde_json::Value = serde_json::from_str(include_str!(
+            "../../tests/reference/parity/fixtures/gui-pool-padding.json"
+        ))
+        .unwrap();
+        assert_eq!(
+            serde_json::json!(bodies),
+            vectors["missing_tail"]["expected_bodies"]
+        );
+        // A successful prefix is retained; padding replaces only absent bytes.
+        truncated[0x1ffe..].copy_from_slice(&[0x41, 0x42]);
+        let snapshot = image(&truncated);
+        let windows = Windows {
+            vm: Memory::new(&snapshot, 0x1000, &isf, None),
+            base: K,
+            pdb: PdbIdentity::from_isf(&isf).unwrap(),
+        };
+        let mut read = [0xff; 4];
+        windows.pool_read_padded(0x1ffe, &mut read, false).unwrap();
+        assert_eq!(read, [0x41, 0x42, 0, 0]);
+    }
+
+    #[test]
+    fn pool_type_map_matches_pinned_sentinel_limit_and_missing_names() {
+        let vectors: serde_json::Value = serde_json::from_str(include_str!(
+            "../../tests/reference/parity/fixtures/pool-types.json"
+        ))
+        .unwrap();
+        for case in vectors["cases"].as_array().unwrap() {
+            let (mut bytes, mut isf) = fixture();
+            isf.data["user_types"]["_OBJECT_HEADER"] = json!({"size":56,"fields":{"TypeIndex":{"offset":24,"type":{"kind":"base","name":"u16"}}}});
+            isf.data["user_types"]["_OBJECT_TYPE"] = json!({"size":16,"fields":{"Name":{"offset":0,"type":{"kind":"struct","name":"_UNICODE_STRING"}}}});
+            isf.data["symbols"]["ObTypeIndexTable"] = json!({"address":0x500});
+            bytes[0x8500..0x8500 + 102 * 8].fill(0);
+            for (index, entry) in case["entries"].as_array().unwrap().iter().enumerate() {
+                let Some(name) = entry.as_str() else { continue };
+                let descriptor = 0x12000 + index * 32;
+                let buffer = 0x16000 + index * 32;
+                put(
+                    &mut bytes,
+                    0x8500 + index * 8,
+                    K + (descriptor - 0x8000) as u64,
+                );
+                let encoded: Vec<_> = name.encode_utf16().flat_map(u16::to_le_bytes).collect();
+                bytes[descriptor..descriptor + 2]
+                    .copy_from_slice(&(encoded.len() as u16).to_le_bytes());
+                put(
+                    &mut bytes,
+                    descriptor + 8,
+                    if name == "!unreadable" {
+                        K + 0x30000
+                    } else {
+                        K + (buffer - 0x8000) as u64
+                    },
+                );
+                bytes[buffer..buffer + encoded.len()].copy_from_slice(&encoded);
+            }
+            if !case["table_valid"].as_bool().unwrap() {
+                isf.data["symbols"]["ObTypeIndexTable"] = json!({"address":0x30000});
+            }
+            let snapshot = image(&bytes);
+            let windows = Windows {
+                vm: Memory::new(&snapshot, 0x1000, &isf, None),
+                base: K,
+                pdb: PdbIdentity::from_isf(&isf).unwrap(),
+            };
+            assert_eq!(
+                serde_json::json!(windows.pool_reference_type_map().unwrap()),
+                case["expected"],
+                "{}",
+                case["id"]
+            );
+        }
+    }
+
+    #[test]
+    fn nonexecutive_hives_keep_raw_observations_without_signature_validation() {
+        let (bytes, mut isf) = fixture();
+        isf.data["user_types"]["_POOL_HEADER"] = json!({"size":16,"fields":{}});
+        let snapshot = image(&bytes);
+        let windows = Windows {
+            vm: Memory::new(&snapshot, 0x1000, &isf, None),
+            base: K,
+            pdb: PdbIdentity::from_isf(&isf).unwrap(),
+        };
+        let constraint = CONSTRAINTS.iter().find(|c| c.tag == b"CM10").unwrap();
+        let bodies = windows
+            .pool_bodies(
+                constraint,
+                0x1000,
+                PoolCarve {
+                    block: 800,
+                    alignment: 16,
+                    type_size: 816,
+                    top_down: true,
+                    optional: &[],
+                    virtual_scan: false,
+                },
+                &Job::default(),
+            )
+            .unwrap();
+        let reference: serde_json::Value = serde_json::from_str(include_str!(
+            "../../tests/reference/parity/fixtures/pool-types.json"
+        ))
+        .unwrap();
+        assert_eq!(serde_json::json!(bodies), reference["nonexecutive_bodies"]);
+        let mut result = windows.result(Plugin::WinPoolScanner);
+        let mut diagnostics = 0;
+        for body in bodies {
+            assert!(
+                windows
+                    .pool_object_valid(
+                        constraint,
+                        body,
+                        false,
+                        &BTreeMap::new(),
+                        &mut result,
+                        &mut diagnostics
+                    )
+                    .unwrap()
+            );
+        }
+        assert_eq!(diagnostics, 0);
+    }
+
+    #[test]
     fn missing_file_name_tail_skips_only_that_file() {
         let (mut bytes, mut isf) = fixture();
         isf.data["user_types"]["_FILE_OBJECT"] = json!({"size":160,"fields":{"FileName":{"offset":0,"type":{"kind":"struct","name":"_UNICODE_STRING"}}}});
+        put(&mut bytes, 0x1000, 0x2003); // The native kernel DTB also maps user addresses.
         put(&mut bytes, 0x4000 + 2 * 8, 0); // Missing second name page.
         bytes[0xc000..0xc002].copy_from_slice(&4u16.to_le_bytes());
         put(&mut bytes, 0xc008, K + 0x1ffe);
         bytes[0x9ffe..0xa000].copy_from_slice(&[b'x', 0]);
         bytes[0xc100..0xc102].copy_from_slice(&4u16.to_le_bytes());
-        put(&mut bytes, 0xc108, K + 0x6000);
+        put(&mut bytes, 0xc108, 0xd100000000006000);
         bytes[0xe000..0xe004].copy_from_slice(&[b'o', 0, b'k', 0]);
         let snapshot = image(&bytes);
         let windows = Windows {
@@ -875,6 +1224,7 @@ mod tests {
         };
         let file = CONSTRAINTS.iter().find(|c| c.tag == b"File").unwrap();
         assert!(windows.address_readable(K + 0x1ffe));
+        assert!(windows.address_readable(0xd100000000006000));
         assert_eq!(
             windows.pool_scanner_name(file, 0xc000, false).unwrap(),
             None

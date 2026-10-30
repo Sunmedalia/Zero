@@ -21,7 +21,7 @@
       "zero_plugin": "windows.deskscan.DeskScan",
       "image_sha256": "d58f62e92b8c4ef913ac09b2c36a10482034c10b88d0c154dead3aaaa49cf875",
       "mapping_sha256": "2280f0e18d2dfcb686e514e5a13fb9700035e7388bc365cfaa9fb7f29d8d3856",
-      "native_output_sha256": "14fca7c108ea6bb29105fb42f4c2c35d3d116ecb09cc57a6d7b05d223baa6d88",
+      "native_output_sha256": "e88e26bbd2ffd354504e159a46d3208eca3d47578d0d69552be41474e6fd72cd",
       "zero_args": [],
       "reference_args": [],
       "case_id": "windows-10-15063/deskscan-default",
@@ -64,15 +64,15 @@
       "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
       "reference_output_sha256": "1139b850c4e6bd2a57b8d932fcf487e006102367b3d44d04bf22f786713d90ee",
       "symbol_sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4",
-      "zero_executable_sha256": "4327b2bcda68a07950d0ac28f3af56c4606296d2a39acc73979a369ab5bec1d9",
-      "engine_version": "0.2.1-native-73",
+      "zero_executable_sha256": "4f28868a08fd6e5e0093d646afc8b922c98d7344787d8592afa100b2de2fbadb",
+      "engine_version": "0.2.1-native-75",
       "full_comparison_sha256": "a8e8398c65415715446339f173936f1e2760d6f86fb5619bcf28dc9c1d4c345e",
-      "comparison_details": "Duplicate groups summarized by side; complete keyed comparison retained in local run.py artifact and bound by full_comparison_sha256. Native/reference JSON digests permit independent reproduction."
+      "comparison_details": "Diagnostic entries and duplicate groups summarized; complete raw comparison retained in local run.py artifact and bound by full_comparison_sha256. Native/reference JSON digests permit independent reproduction. No records or fields filtered during comparison."
     }
   ],
-  "engine_version": "0.2.1-native-73",
-  "zero_executable_sha256": "4327b2bcda68a07950d0ac28f3af56c4606296d2a39acc73979a369ab5bec1d9",
-  "validation": "Fresh fixed-reference and final-native73 run.py comparisons, all mapped fields and duplicate multiplicities; no row filtering. Empty agreements are not positive evidence.",
+  "engine_version": "0.2.1-native-75",
+  "zero_executable_sha256": "4f28868a08fd6e5e0093d646afc8b922c98d7344787d8592afa100b2de2fbadb",
+  "validation": "Fresh unmodified pinned-reference and final native75 binary comparisons, all mapped fields and duplicate multiplicities, no row filtering. Previously recorded cases not included in this batch retain their original per-case versions. Empty agreement is not positive evidence. Pool-object diagnostics can still make native output partial; default-row agreement is not a full plugin contract.",
   "known_limitations": [
     "One positive Win10 x64 capture does not establish complete build, architecture, parameter, traversal or failure contracts.",
     "Raw GUI records can include retained or reused object bytes; matching the reference does not validate every object as active.",
