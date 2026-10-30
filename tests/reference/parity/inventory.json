@@ -7031,8 +7031,10 @@
         "Layer",
         "Name"
       ],
-      "zero_candidates": [],
-      "status": "missing",
+      "zero_candidates": [
+        "windows.poolscanner.PoolScanner"
+      ],
+      "status": "mapped_unverified",
       "evidence": []
     },
     {

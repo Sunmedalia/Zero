@@ -248,7 +248,7 @@ impl Linux<'_> {
             | WinDriverIrp | WinKpcrs | WinMbrscan | WinTimers | WinStatistics | WinShimcache
             | WinVirtmap | WinVadWalk | WinVadRegExScan | WinVadyarascan | WinVaddump
             | WinDlldump | WinModdump | WinHashdump | WinLsadump | WinCachedump | WinDumpfiles
-            | WinThrdscan => Err(unrouted(plugin)),
+            | WinThrdscan | WinPoolScanner => Err(unrouted(plugin)),
         }
     }
     /// Processes use directional object recovery; module traversal remains

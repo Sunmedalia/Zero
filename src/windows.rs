@@ -49,6 +49,7 @@ mod pe_info;
 mod pe_symbols;
 mod peb_masquerade;
 mod pool;
+mod poolscanner;
 mod process;
 mod process_checks;
 mod processors;
@@ -239,7 +240,7 @@ impl<'a> Memory<'a> {
         }
         Ok(())
     }
-    fn transition_frame(&self, entry: u64, geometry: Paging) -> Result<u64> {
+    pub(in crate::windows) fn transition_frame(&self, entry: u64, geometry: Paging) -> Result<u64> {
         if self
             .isf
             .field("_MMPTE_TRANSITION", "PageFrameNumber")
@@ -577,6 +578,9 @@ impl Windows<'_> {
         job.check()?;
         if p == Plugin::WinDebugRegisters {
             return self.debug_registers(None, job);
+        }
+        if p == Plugin::WinPoolScanner {
+            return self.pool_scanner(job);
         }
         if p == Plugin::WinSuspendedThreads {
             return self.suspended_threads(None, job);

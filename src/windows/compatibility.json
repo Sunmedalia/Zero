@@ -111,6 +111,7 @@
           "windows.registry.amcache.Amcache": "pending",
           "windows.pe_symbols.PESymbols": "real",
           "windows.suspended_threads.SuspendedThreads": "pending",
+          "windows.poolscanner.PoolScanner": "pending",
           "windows.debugregisters.DebugRegisters": "pending"
         },
         "x64": {
@@ -200,6 +201,7 @@
           "windows.registry.amcache.Amcache": "pending",
           "windows.pe_symbols.PESymbols": "pending",
           "windows.suspended_threads.SuspendedThreads": "pending",
+          "windows.poolscanner.PoolScanner": "pending",
           "windows.debugregisters.DebugRegisters": "pending"
         }
       },
@@ -373,6 +375,7 @@
           "windows.registry.amcache.Amcache": "pending",
           "windows.pe_symbols.PESymbols": "pending",
           "windows.suspended_threads.SuspendedThreads": "pending",
+          "windows.poolscanner.PoolScanner": "pending",
           "windows.debugregisters.DebugRegisters": "pending"
         },
         "x64": {
@@ -462,6 +465,7 @@
           "windows.registry.amcache.Amcache": "pending",
           "windows.pe_symbols.PESymbols": "pending",
           "windows.suspended_threads.SuspendedThreads": "pending",
+          "windows.poolscanner.PoolScanner": "pending",
           "windows.debugregisters.DebugRegisters": "pending"
         }
       },
@@ -572,6 +576,7 @@
           "windows.registry.amcache.Amcache": "pending",
           "windows.pe_symbols.PESymbols": "real",
           "windows.suspended_threads.SuspendedThreads": "pending",
+          "windows.poolscanner.PoolScanner": "pending",
           "windows.debugregisters.DebugRegisters": "real"
         },
         "x64": {
@@ -661,6 +666,7 @@
           "windows.registry.amcache.Amcache": "pending",
           "windows.pe_symbols.PESymbols": "pending",
           "windows.suspended_threads.SuspendedThreads": "pending",
+          "windows.poolscanner.PoolScanner": "pending",
           "windows.debugregisters.DebugRegisters": "pending"
         }
       },
@@ -852,6 +858,7 @@
           "windows.registry.amcache.Amcache": "pending",
           "windows.pe_symbols.PESymbols": "pending",
           "windows.suspended_threads.SuspendedThreads": "pending",
+          "windows.poolscanner.PoolScanner": "pending",
           "windows.debugregisters.DebugRegisters": "pending"
         }
       },
@@ -961,6 +968,7 @@
           "windows.registry.amcache.Amcache": "pending",
           "windows.pe_symbols.PESymbols": "pending",
           "windows.suspended_threads.SuspendedThreads": "pending",
+          "windows.poolscanner.PoolScanner": "pending",
           "windows.debugregisters.DebugRegisters": "pending"
         }
       },
@@ -1116,6 +1124,7 @@
           "windows.registry.amcache.Amcache": "pending",
           "windows.pe_symbols.PESymbols": "pending",
           "windows.suspended_threads.SuspendedThreads": "pending",
+          "windows.poolscanner.PoolScanner": "pending",
           "windows.debugregisters.DebugRegisters": "pending"
         }
       },
@@ -1272,6 +1281,7 @@
           "windows.registry.amcache.Amcache": "pending",
           "windows.pe_symbols.PESymbols": "pending",
           "windows.suspended_threads.SuspendedThreads": "pending",
+          "windows.poolscanner.PoolScanner": "pending",
           "windows.debugregisters.DebugRegisters": "pending"
         }
       },
@@ -1400,6 +1410,7 @@
           "windows.registry.amcache.Amcache": "pending",
           "windows.pe_symbols.PESymbols": "pending",
           "windows.suspended_threads.SuspendedThreads": "pending",
+          "windows.poolscanner.PoolScanner": "pending",
           "windows.debugregisters.DebugRegisters": "pending"
         }
       },
@@ -1557,6 +1568,7 @@
           "windows.registry.amcache.Amcache": "pending",
           "windows.pe_symbols.PESymbols": "pending",
           "windows.suspended_threads.SuspendedThreads": "pending",
+          "windows.poolscanner.PoolScanner": "pending",
           "windows.debugregisters.DebugRegisters": "pending"
         }
       },
@@ -1714,6 +1726,7 @@
           "windows.registry.amcache.Amcache": "pending",
           "windows.pe_symbols.PESymbols": "pending",
           "windows.suspended_threads.SuspendedThreads": "pending",
+          "windows.poolscanner.PoolScanner": "pending",
           "windows.debugregisters.DebugRegisters": "pending"
         }
       },
@@ -1825,6 +1838,7 @@
           "windows.registry.amcache.Amcache": "pending",
           "windows.pe_symbols.PESymbols": "pending",
           "windows.suspended_threads.SuspendedThreads": "pending",
+          "windows.poolscanner.PoolScanner": "pending",
           "windows.debugregisters.DebugRegisters": "pending"
         },
         "x64": {
@@ -1914,6 +1928,7 @@
           "windows.registry.amcache.Amcache": "pending",
           "windows.pe_symbols.PESymbols": "real",
           "windows.suspended_threads.SuspendedThreads": "pending",
+          "windows.poolscanner.PoolScanner": "pending",
           "windows.debugregisters.DebugRegisters": "pending"
         }
       },
@@ -2082,6 +2097,7 @@
           "windows.registry.amcache.Amcache": "pending",
           "windows.pe_symbols.PESymbols": "pending",
           "windows.suspended_threads.SuspendedThreads": "pending",
+          "windows.poolscanner.PoolScanner": "pending",
           "windows.debugregisters.DebugRegisters": "pending"
         },
         "x64": {
@@ -2171,6 +2187,7 @@
           "windows.registry.amcache.Amcache": "pending",
           "windows.pe_symbols.PESymbols": "pending",
           "windows.suspended_threads.SuspendedThreads": "pending",
+          "windows.poolscanner.PoolScanner": "pending",
           "windows.debugregisters.DebugRegisters": "pending"
         }
       },
@@ -2280,6 +2297,7 @@
           "windows.registry.amcache.Amcache": "pending",
           "windows.pe_symbols.PESymbols": "pending",
           "windows.suspended_threads.SuspendedThreads": "pending",
+          "windows.poolscanner.PoolScanner": "pending",
           "windows.debugregisters.DebugRegisters": "pending"
         },
         "x64": {
@@ -2369,6 +2387,7 @@
           "windows.registry.amcache.Amcache": "pending",
           "windows.pe_symbols.PESymbols": "pending",
           "windows.suspended_threads.SuspendedThreads": "pending",
+          "windows.poolscanner.PoolScanner": "pending",
           "windows.debugregisters.DebugRegisters": "pending"
         }
       },
@@ -2491,6 +2510,7 @@
           "windows.registry.amcache.Amcache": "pending",
           "windows.pe_symbols.PESymbols": "pending",
           "windows.suspended_threads.SuspendedThreads": "pending",
+          "windows.poolscanner.PoolScanner": "pending",
           "windows.debugregisters.DebugRegisters": "pending"
         },
         "x64": {
@@ -2580,6 +2600,7 @@
           "windows.registry.amcache.Amcache": "real",
           "windows.pe_symbols.PESymbols": "real",
           "windows.suspended_threads.SuspendedThreads": "pending",
+          "windows.poolscanner.PoolScanner": "pending",
           "windows.debugregisters.DebugRegisters": "pending"
         }
       },
@@ -2796,6 +2817,7 @@
           "windows.registry.amcache.Amcache": "real",
           "windows.pe_symbols.PESymbols": "real",
           "windows.suspended_threads.SuspendedThreads": "pending",
+          "windows.poolscanner.PoolScanner": "pending",
           "windows.debugregisters.DebugRegisters": "pending"
         }
       },

@@ -1004,3 +1004,15 @@ PDB/PE 命名导出。不根据最近导出名推断符号。未映射地址仍�
 符号为空；字段、页面或符号源缺失保留 partial 诊断。调试寄存器存在本身不证明恶意。
 遍历数量、VAD 缓存、输出文本及共享符号缓存均有上限，超限保留已读取记录。
 该插件暂不缓存结果，ARM64 明确未支持。真实验收范围与差异见 Volatility 对齐进度。
+
+`windows.poolscanner.PoolScanner` 扫描参考实现内置的 15 个内核池约束，输出
+`Tag`、`Offset`、`Layer`、`Name`。Windows 10 以前扫描物理内存，之后扫描内核虚拟映射。
+进程、线程、文件和 hive 会做结构校验；缺页或类型校验失败保留诊断，不把无效候选补成记录。
+目前只支持参考要求的 Intel32/Intel64。Server 2003/2008 已有真实对照，Win7/10/11 仍有差异，
+不能据此视为完整插件验收。
+
+```bash
+zero analyze --offline --image memory.raw --symbols ntkrnlmp.json \
+  --plugin windows.poolscanner.PoolScanner --output poolscanner.json
+```
+

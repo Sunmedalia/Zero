@@ -5,6 +5,11 @@ use clap::ValueEnum;
 pub enum Plugin {
     #[value(name = "windows.debugregisters.DebugRegisters")]
     WinDebugRegisters,
+    #[value(
+        name = "windows.poolscanner.PoolScanner",
+        alias = "windows.poolscanner"
+    )]
+    WinPoolScanner,
     #[value(name = "windows.pe_symbols.PESymbols")]
     WinPESymbols,
     #[value(name = "windows.suspended_threads.SuspendedThreads")]
@@ -295,6 +300,13 @@ pub struct Descriptor {
     pub widths: &'static [u16],
 }
 pub const PLUGINS: &[Descriptor] = &[
+    Descriptor {
+        plugin: Plugin::WinPoolScanner,
+        name: "windows.poolscanner.PoolScanner",
+        label: "poolscanner",
+        columns: &["Tag", "Offset", "Layer", "Name"],
+        widths: &[8, 18, 16, 0],
+    },
     Descriptor {
         plugin: Plugin::WinDebugRegisters,
         name: "windows.debugregisters.DebugRegisters",
@@ -2021,6 +2033,7 @@ impl Plugin {
             Self::WinGetservicesids => "System",
             Self::WinPESymbols | Self::WinIat | Self::WinVerinfo => "Process",
             Self::WinMftscan => "Files",
+            Self::WinPoolScanner => "Memory",
             Self::WinDebugRegisters
             | Self::WinSuspendedThreads
             | Self::WinOrphanThreads
@@ -2219,6 +2232,7 @@ impl Plugin {
             WinOrphanThreads => "列出起始地址不在任何内核模块中的系统线程",
             WinEtwpatch => "检查各进程 ntdll ETW 入口是否被打补丁",
             WinScheduledTasks => "解码注册表 TaskCache 中的计划任务及命令",
+            WinPoolScanner => "按内核版本扫描内置池标签并校验对象结构",
             WinDebugRegisters => "读取活动线程硬件调试寄存器及精确文件和符号归属",
             WinSuspendedThreads => "列出仍挂起的活动线程及起始地址文件和符号",
             WinPESymbols => "通过精确 PDB 和 PE 导出表查询内核或进程模块符号",

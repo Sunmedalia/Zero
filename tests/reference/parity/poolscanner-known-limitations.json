@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "plugin": "windows.poolscanner.PoolScanner",
+  "reference": "Volatility 3 v2.28.2 windows.poolscanner.PoolScanner",
+  "behavior": {
+    "columns": [
+      "Tag",
+      "Offset",
+      "Layer",
+      "Name"
+    ],
+    "scan": "Intel32/Intel64 only. Builds below 10240 scan physical memory; Windows 10 and later scan kernel virtual mappings, including transition pages and skipping repeated page tables.",
+    "constraints": "All built-in kernel constraints are scanned. Executive objects use the versioned bottom-up or top-down header recovery and exact object-type checks. Process, thread, file, and hive candidates use the reference structure checks.",
+    "rendering": "Tag uses the reference symbol-table type name. Empty names are empty strings. Windows 10+ layer is layer_name; older builds use memory_layer. Offsets retain full canonical values while comparisons accept the reference renderer 48-bit truncation."
+  },
+  "evidence": [
+    {
+      "sample": "server-2003-3790-x86",
+      "result": "2154/2154 identities match; one file name differs because native UTF-16 lossy decoding replaces an unpaired surrogate and the reference leaves U+FFFD bytes."
+    },
+    {
+      "sample": "server-2008-6001-x86",
+      "result": "3316/3323. The seven reference-only hits are executable/string bytes containing a tag, not pool headers; native header and structure checks reject them."
+    },
+    {
+      "sample": "windows-7-7601-x64",
+      "result": "4909 versus 4926, with 24 missing and 7 extra after address normalization. No positive claim."
+    },
+    {
+      "sample": "windows-10-15063-x64",
+      "result": "3800 versus 36172. Kernel-virtual coverage is not yet aligned; no positive claim."
+    },
+    {
+      "sample": "windows-11",
+      "result": "8857 versus 8709, with 64 missing and 214 extra. No positive claim."
+    }
+  ],
+  "not_complete": [
+    "No target has a complete plugin contract.",
+    "Windows 10/11 virtual pool coverage, prototype/pagefile-backed pages, and some executive-object recovery paths remain unverified.",
+    "GUI pool constraints are outside this kernel plugin, matching the pinned reference.",
+    "ARM64 is unsupported by the reference requirement."
+  ]
+}

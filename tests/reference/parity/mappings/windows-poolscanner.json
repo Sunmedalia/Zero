@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "keys": ["Tag", "Offset"],
+  "duplicate_keys": "multiset",
+  "allow_partial": true,
+  "fields": {
+    "Tag": {"zero": "Tag", "reference": "Tag", "type": "text"},
+    "Offset": {"zero": "Offset", "reference": "Offset", "type": "address", "reference_type": "address48"},
+    "Layer": {"zero": "Layer", "reference": "Layer", "type": "text"},
+    "Name": {"zero": "Name", "reference": "Name", "type": "empty_text"}
+  }
+}
