@@ -5,6 +5,8 @@ use clap::ValueEnum;
 pub enum Plugin {
     #[value(name = "windows.pe_symbols.PESymbols")]
     WinPESymbols,
+    #[value(name = "windows.suspended_threads.SuspendedThreads")]
+    WinSuspendedThreads,
     #[value(name = "windows.registry.amcache.Amcache")]
     WinAmcacheV4,
     #[value(name = "windows.registry.userassist.UserAssist")]
@@ -291,6 +293,23 @@ pub struct Descriptor {
     pub widths: &'static [u16],
 }
 pub const PLUGINS: &[Descriptor] = &[
+    Descriptor {
+        plugin: Plugin::WinSuspendedThreads,
+        name: "windows.suspended_threads.SuspendedThreads",
+        label: "suspended_threads",
+        columns: &[
+            "Process",
+            "PID",
+            "TID",
+            "StartFile",
+            "StartSymbol",
+            "StartAddress",
+            "Win32StartFile",
+            "Win32StartSymbol",
+            "Win32StartAddress",
+        ],
+        widths: &[20, 7, 7, 0, 0, 18, 0, 0, 18],
+    },
     Descriptor {
         plugin: Plugin::WinPESymbols,
         name: "windows.pe_symbols.PESymbols",
@@ -1990,7 +2009,7 @@ impl Plugin {
             Self::WinGetservicesids => "System",
             Self::WinPESymbols | Self::WinIat | Self::WinVerinfo => "Process",
             Self::WinMftscan => "Files",
-            Self::WinOrphanThreads | Self::WinEtwpatch => "Integrity",
+            Self::WinSuspendedThreads | Self::WinOrphanThreads | Self::WinEtwpatch => "Integrity",
             Self::WinAmcacheV4
             | Self::WinScheduledTasks
             | Self::WinAmcache
@@ -2185,6 +2204,7 @@ impl Plugin {
             WinOrphanThreads => "列出起始地址不在任何内核模块中的系统线程",
             WinEtwpatch => "检查各进程 ntdll ETW 入口是否被打补丁",
             WinScheduledTasks => "解码注册表 TaskCache 中的计划任务及命令",
+            WinSuspendedThreads => "列出仍挂起的活动线程及起始地址文件和符号",
             WinPESymbols => "通过精确 PDB 和 PE 导出表查询内核或进程模块符号",
             WinAmcacheV4 => "读取 Amcache 驱动、程序与文件的 11 列标准输出",
             WinAmcache => "读取 Amcache.hve 的程序文件清单",

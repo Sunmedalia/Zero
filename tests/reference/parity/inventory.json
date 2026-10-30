@@ -8322,8 +8322,10 @@
         "Win32StartSymbol",
         "Win32StartAddress"
       ],
-      "zero_candidates": [],
-      "status": "missing",
+      "zero_candidates": [
+        "windows.suspended_threads.SuspendedThreads"
+      ],
+      "status": "mapped_unverified",
       "evidence": []
     },
     {

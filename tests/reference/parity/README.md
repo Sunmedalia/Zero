@@ -531,3 +531,22 @@ evidence is now 94 cases across 22 plugins (five cases remain record-scoped),
 with 119/135 candidate correspondences, 16 missing entries and zero complete
 plugin contracts. Native55 executable SHA256:
 `f64ef19d21dbcf2a8868332d13bc1225faca7b0ed542ff0060ea466c8e64cff4`.
+
+
+## SuspendedThreads (native56)
+
+`suspended-threads.example.json` compares all nine fields of canonical
+`windows.suspended_threads.SuspendedThreads` on the same five public Intel
+samples used by PESymbols. Missing optional path/symbol text is normalized to
+empty text; addresses compare full native canonical values with the reference's
+48-bit presentation. Empty/empty cases remain negative observations and are
+never registered as positive evidence.
+
+Native tests exercise positive thread rows with exact PE export symbols for both
+entry points, shared module queries, legacy ownership precedence, terminated and
+unsuspended exclusion, WorkFolders filtering, missing SuspendCount, cancellation,
+half-open VAD attribution, missing symbols and retained rows at resource limits.
+These synthetic fixtures are not real recovery evidence. The known-limitations
+file records the frozen final executable, real sample observations and remaining
+contract gaps. Positive evidence remains 94 cases across 22 plugins (five scoped);
+candidate correspondences become 120/135, 15 absent, zero complete contracts.

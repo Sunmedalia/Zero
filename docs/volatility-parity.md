@@ -771,3 +771,27 @@ Windows 13/13**，Server2012R2 仍缺本地样本。累计 **94 项正向全字�
 Windows 入口；完整插件合同仍为 0。native55 可执行文件 SHA256：
 `f64ef19d21dbcf2a8868332d13bc1225faca7b0ed542ff0060ea466c8e64cff4`。
 原始用户 Debian 镜像尚未取得，其页表故障仍未实样验收。
+
+
+## native56：挂起线程及起始符号
+
+新增原生 `windows.suspended_threads.SuspendedThreads`，接入 CLI、MCP 和 TUI，
+输出固定参考插件的九列。按 SuspendCount/State 筛选、读取线程归属和两个起始地址，
+按文件 VAD 半开范围关联路径；排除 WorkFoldersShell.dll，按模块批量查询精确地址符号。
+缺页、字段错误和符号不可读保留记录与 partial 诊断；不查询最近符号。
+线程数量、VAD 缓存、输出文本均有限额，超限保留已有输出；外部 PDB 依赖尚未追踪，
+因此禁用此插件的结果缓存。ARM64 明确未支持。
+
+五项针对性合成测试覆盖完整九列及两个地址的精确 PE 导出符号、批量去重、
+旧版归属优先级、非挂起/已终止排除、WorkFolders 排除、缺字段、取消、范围边界、
+符号缺失和资源超限后的记录保留。真实五份 Intel 镜像最终差分均为 0/0；Win11 的
+五条挂起候选全部被 WorkFolders 规则排除。Win10/11/Win7 仍带链表或缺页诊断。
+**这些空结果不算正向通过**，正向真实挂起线程与 PDB 归属仍待样本验收。
+[用例](../tests/reference/parity/suspended-threads.example.json)和
+[冻结验收限制](../tests/reference/parity/suspended-threads-known-limitations.json)记录全部观察。
+
+本批 `make check` 通过 **587 Rust / 25 Python** 测试；真实回归 **Linux 4/4、
+Windows 13/13**，Server2012R2 仍缺本地样本。正向差分累计维持 **94 项、22 个插件**
+（5 项限定记录范围）；候选入口对应 **120/135**，尚缺 15 个；完整插件合同仍为 0。
+最终可执行文件 SHA256：`83db7e831a87099bab752c16aa249d4e36d27460ab9365d8411daed8b806907e`。
+原始用户 Debian 镜像仍不可用，不能宣称其页表故障已实样解决。

@@ -56,6 +56,7 @@ mod registry;
 mod registry_artifacts;
 mod security;
 mod service_list;
+mod suspended_threads;
 mod timeline;
 mod user_artifacts;
 mod user_layout;
@@ -572,6 +573,9 @@ impl Windows<'_> {
     }
     pub fn run(&self, p: Plugin, options: &Options, job: &Job) -> Result<Results> {
         job.check()?;
+        if p == Plugin::WinSuspendedThreads {
+            return self.suspended_threads(None, job);
+        }
         if p == Plugin::WinPESymbols {
             return self.pe_symbols(options, None, job);
         }
@@ -1086,8 +1090,10 @@ pub(crate) fn analyze_resolved(
     let cached = if request.use_cache
         && dump.is_none()
         && !request.plugin.is_dump()
-        && request.plugin != Plugin::WinPESymbols
-    {
+        && !matches!(
+            request.plugin,
+            Plugin::WinPESymbols | Plugin::WinSuspendedThreads
+        ) {
         if request.plugin == Plugin::WinDriverIrp {
             dispatch::load_cached(request.cache, &key, request.network, job)?
         } else {
@@ -1106,6 +1112,8 @@ pub(crate) fn analyze_resolved(
     }
     let mut result = if let Some(dump) = dump {
         engine.run_dump(request.plugin, dump, job)?
+    } else if request.plugin == Plugin::WinSuspendedThreads {
+        engine.suspended_threads(Some((request.cache, request.network)), job)?
     } else if request.plugin == Plugin::WinPESymbols {
         engine.pe_symbols(options, Some((request.cache, request.network)), job)?
     } else if request.plugin == Plugin::WinDriverIrp {
@@ -1147,7 +1155,10 @@ pub(crate) fn analyze_resolved(
     }
     job.check()?;
     if request.use_cache
-        && request.plugin != Plugin::WinPESymbols
+        && !matches!(
+            request.plugin,
+            Plugin::WinPESymbols | Plugin::WinSuspendedThreads
+        )
         && dump.is_none()
         && !request.plugin.is_dump()
         && (request.plugin != Plugin::WinDriverIrp

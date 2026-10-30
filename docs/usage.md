@@ -966,3 +966,22 @@ zero --offline analyze --image images/feat-windows-plugins/WinDump/WinDump.mem \
 其较早选中一个 Volatility v2.28.2 无法读取的实例，尤其是同名 WOW64/原生 DLL
 同时存在时；此时名称查询地址可能不同，不能将该用例算作差分通过。PE 机器类型、
 section 表和范围均需验证；外部 PDB 的在线获取、同地址别名次序及更多损坏输入仍需验收。
+
+
+`windows.suspended_threads.SuspendedThreads` 枚举活动进程的线程链，保留
+SuspendCount 非零且状态不是 Terminated 的线程。输出 Process、PID、TID、StartFile、
+StartSymbol、StartAddress、Win32StartFile、Win32StartSymbol、Win32StartAddress 九列。
+路径按归属进程的文件映射 VAD 半开范围查找，符号按模块精确地址查询，不猜测最近符号。
+无文件映射 VAD 的进程不输出；两个路径任一个以 `\WorkFoldersShell.dll` 结尾则排除。
+这些筛选沿用固定参考插件，输出条目只是调查线索。
+
+```sh
+zero --offline analyze --image /path/to/memory.raw --symbols /path/to/exact.json \
+  --plugin windows.suspended_threads.SuspendedThreads --output suspended.json
+```
+
+缺少挂起计数、归属、线程字段或 VAD/符号页时保留诊断与已读取记录。
+线程遍历上限一百万，归属 VAD 缓存和输出文本各限 128 MiB，超限标记 partial。
+外部 PDB 依赖暂未纳入缓存键，因此该插件与 PESymbols 均禁用结果缓存。
+目前正向输出和精确导出符号由合成测试验证；五份公开镜像的最终输出均为空，
+不证明真实挂起线程恢复。ARM64、真实挂起线程/PDB 归属及损坏内存等价性仍待验收。

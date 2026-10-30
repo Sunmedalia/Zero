@@ -1,0 +1,58 @@
+{
+  "version": 1,
+  "allow_partial": true,
+  "keys": [
+    "PID",
+    "TID"
+  ],
+  "duplicate_keys": "multiset",
+  "fields": {
+    "Process": {
+      "zero": "Process",
+      "reference": "Process",
+      "type": "text"
+    },
+    "PID": {
+      "zero": "PID",
+      "reference": "PID",
+      "type": "integer"
+    },
+    "TID": {
+      "zero": "TID",
+      "reference": "TID",
+      "type": "integer"
+    },
+    "StartFile": {
+      "zero": "StartFile",
+      "reference": "StartFile",
+      "type": "empty_text"
+    },
+    "StartSymbol": {
+      "zero": "StartSymbol",
+      "reference": "StartSymbol",
+      "type": "empty_text"
+    },
+    "StartAddress": {
+      "zero": "StartAddress",
+      "reference": "StartAddress",
+      "type": "address",
+      "reference_type": "address48"
+    },
+    "Win32StartFile": {
+      "zero": "Win32StartFile",
+      "reference": "Win32StartFile",
+      "type": "empty_text"
+    },
+    "Win32StartSymbol": {
+      "zero": "Win32StartSymbol",
+      "reference": "Win32StartSymbol",
+      "type": "empty_text"
+    },
+    "Win32StartAddress": {
+      "zero": "Win32StartAddress",
+      "reference": "Win32StartAddress",
+      "type": "address",
+      "reference_type": "address48"
+    }
+  }
+}

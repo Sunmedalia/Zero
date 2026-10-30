@@ -109,7 +109,8 @@
           "windows.memmap.Memmap": "real",
           "windows.registry.userassist.UserAssist": "real",
           "windows.registry.amcache.Amcache": "pending",
-          "windows.pe_symbols.PESymbols": "real"
+          "windows.pe_symbols.PESymbols": "real",
+          "windows.suspended_threads.SuspendedThreads": "pending"
         },
         "x64": {
           "windows.callbacks": "synthetic",
@@ -196,7 +197,8 @@
           "windows.memmap.Memmap": "pending",
           "windows.registry.userassist.UserAssist": "pending",
           "windows.registry.amcache.Amcache": "pending",
-          "windows.pe_symbols.PESymbols": "pending"
+          "windows.pe_symbols.PESymbols": "pending",
+          "windows.suspended_threads.SuspendedThreads": "pending"
         }
       },
       "evidence": [
@@ -367,7 +369,8 @@
           "windows.memmap.Memmap": "pending",
           "windows.registry.userassist.UserAssist": "pending",
           "windows.registry.amcache.Amcache": "pending",
-          "windows.pe_symbols.PESymbols": "pending"
+          "windows.pe_symbols.PESymbols": "pending",
+          "windows.suspended_threads.SuspendedThreads": "pending"
         },
         "x64": {
           "windows.callbacks": "synthetic",
@@ -454,7 +457,8 @@
           "windows.memmap.Memmap": "pending",
           "windows.registry.userassist.UserAssist": "pending",
           "windows.registry.amcache.Amcache": "pending",
-          "windows.pe_symbols.PESymbols": "pending"
+          "windows.pe_symbols.PESymbols": "pending",
+          "windows.suspended_threads.SuspendedThreads": "pending"
         }
       },
       "evidence": []
@@ -562,7 +566,8 @@
           "windows.memmap.Memmap": "real",
           "windows.registry.userassist.UserAssist": "real",
           "windows.registry.amcache.Amcache": "pending",
-          "windows.pe_symbols.PESymbols": "real"
+          "windows.pe_symbols.PESymbols": "real",
+          "windows.suspended_threads.SuspendedThreads": "pending"
         },
         "x64": {
           "windows.callbacks": "synthetic",
@@ -649,7 +654,8 @@
           "windows.memmap.Memmap": "pending",
           "windows.registry.userassist.UserAssist": "pending",
           "windows.registry.amcache.Amcache": "pending",
-          "windows.pe_symbols.PESymbols": "pending"
+          "windows.pe_symbols.PESymbols": "pending",
+          "windows.suspended_threads.SuspendedThreads": "pending"
         }
       },
       "evidence": [
@@ -833,7 +839,8 @@
           "windows.memmap.Memmap": "pending",
           "windows.registry.userassist.UserAssist": "pending",
           "windows.registry.amcache.Amcache": "pending",
-          "windows.pe_symbols.PESymbols": "pending"
+          "windows.pe_symbols.PESymbols": "pending",
+          "windows.suspended_threads.SuspendedThreads": "pending"
         }
       },
       "evidence": [],
@@ -940,7 +947,8 @@
           "windows.memmap.Memmap": "pending",
           "windows.registry.userassist.UserAssist": "pending",
           "windows.registry.amcache.Amcache": "pending",
-          "windows.pe_symbols.PESymbols": "pending"
+          "windows.pe_symbols.PESymbols": "pending",
+          "windows.suspended_threads.SuspendedThreads": "pending"
         }
       },
       "evidence": [
@@ -1093,7 +1101,8 @@
           "windows.memmap.Memmap": "pending",
           "windows.registry.userassist.UserAssist": "pending",
           "windows.registry.amcache.Amcache": "pending",
-          "windows.pe_symbols.PESymbols": "pending"
+          "windows.pe_symbols.PESymbols": "pending",
+          "windows.suspended_threads.SuspendedThreads": "pending"
         }
       },
       "evidence": [
@@ -1247,7 +1256,8 @@
           "windows.memmap.Memmap": "pending",
           "windows.registry.userassist.UserAssist": "pending",
           "windows.registry.amcache.Amcache": "pending",
-          "windows.pe_symbols.PESymbols": "pending"
+          "windows.pe_symbols.PESymbols": "pending",
+          "windows.suspended_threads.SuspendedThreads": "pending"
         }
       },
       "evidence": [
@@ -1373,7 +1383,8 @@
           "windows.memmap.Memmap": "pending",
           "windows.registry.userassist.UserAssist": "pending",
           "windows.registry.amcache.Amcache": "pending",
-          "windows.pe_symbols.PESymbols": "pending"
+          "windows.pe_symbols.PESymbols": "pending",
+          "windows.suspended_threads.SuspendedThreads": "pending"
         }
       },
       "evidence": [
@@ -1528,7 +1539,8 @@
           "windows.memmap.Memmap": "pending",
           "windows.registry.userassist.UserAssist": "pending",
           "windows.registry.amcache.Amcache": "pending",
-          "windows.pe_symbols.PESymbols": "pending"
+          "windows.pe_symbols.PESymbols": "pending",
+          "windows.suspended_threads.SuspendedThreads": "pending"
         }
       },
       "evidence": [
@@ -1683,7 +1695,8 @@
           "windows.memmap.Memmap": "pending",
           "windows.registry.userassist.UserAssist": "pending",
           "windows.registry.amcache.Amcache": "pending",
-          "windows.pe_symbols.PESymbols": "pending"
+          "windows.pe_symbols.PESymbols": "pending",
+          "windows.suspended_threads.SuspendedThreads": "pending"
         }
       },
       "evidence": [],
@@ -1792,7 +1805,8 @@
           "windows.memmap.Memmap": "pending",
           "windows.registry.userassist.UserAssist": "pending",
           "windows.registry.amcache.Amcache": "pending",
-          "windows.pe_symbols.PESymbols": "pending"
+          "windows.pe_symbols.PESymbols": "pending",
+          "windows.suspended_threads.SuspendedThreads": "pending"
         },
         "x64": {
           "windows.callbacks": "real",
@@ -1879,7 +1893,8 @@
           "windows.memmap.Memmap": "real",
           "windows.registry.userassist.UserAssist": "real",
           "windows.registry.amcache.Amcache": "pending",
-          "windows.pe_symbols.PESymbols": "real"
+          "windows.pe_symbols.PESymbols": "real",
+          "windows.suspended_threads.SuspendedThreads": "pending"
         }
       },
       "evidence": [
@@ -2045,7 +2060,8 @@
           "windows.memmap.Memmap": "pending",
           "windows.registry.userassist.UserAssist": "pending",
           "windows.registry.amcache.Amcache": "pending",
-          "windows.pe_symbols.PESymbols": "pending"
+          "windows.pe_symbols.PESymbols": "pending",
+          "windows.suspended_threads.SuspendedThreads": "pending"
         },
         "x64": {
           "windows.callbacks": "synthetic",
@@ -2132,7 +2148,8 @@
           "windows.memmap.Memmap": "pending",
           "windows.registry.userassist.UserAssist": "pending",
           "windows.registry.amcache.Amcache": "pending",
-          "windows.pe_symbols.PESymbols": "pending"
+          "windows.pe_symbols.PESymbols": "pending",
+          "windows.suspended_threads.SuspendedThreads": "pending"
         }
       },
       "evidence": []
@@ -2239,7 +2256,8 @@
           "windows.memmap.Memmap": "pending",
           "windows.registry.userassist.UserAssist": "pending",
           "windows.registry.amcache.Amcache": "pending",
-          "windows.pe_symbols.PESymbols": "pending"
+          "windows.pe_symbols.PESymbols": "pending",
+          "windows.suspended_threads.SuspendedThreads": "pending"
         },
         "x64": {
           "windows.callbacks": "synthetic",
@@ -2326,7 +2344,8 @@
           "windows.memmap.Memmap": "pending",
           "windows.registry.userassist.UserAssist": "pending",
           "windows.registry.amcache.Amcache": "pending",
-          "windows.pe_symbols.PESymbols": "pending"
+          "windows.pe_symbols.PESymbols": "pending",
+          "windows.suspended_threads.SuspendedThreads": "pending"
         }
       },
       "evidence": []
@@ -2446,7 +2465,8 @@
           "windows.memmap.Memmap": "pending",
           "windows.registry.userassist.UserAssist": "pending",
           "windows.registry.amcache.Amcache": "pending",
-          "windows.pe_symbols.PESymbols": "pending"
+          "windows.pe_symbols.PESymbols": "pending",
+          "windows.suspended_threads.SuspendedThreads": "pending"
         },
         "x64": {
           "windows.callbacks": "real",
@@ -2533,7 +2553,8 @@
           "windows.memmap.Memmap": "real",
           "windows.registry.userassist.UserAssist": "real",
           "windows.registry.amcache.Amcache": "real",
-          "windows.pe_symbols.PESymbols": "real"
+          "windows.pe_symbols.PESymbols": "real",
+          "windows.suspended_threads.SuspendedThreads": "pending"
         }
       },
       "evidence": [
@@ -2747,7 +2768,8 @@
           "windows.memmap.Memmap": "real",
           "windows.registry.userassist.UserAssist": "real",
           "windows.registry.amcache.Amcache": "real",
-          "windows.pe_symbols.PESymbols": "real"
+          "windows.pe_symbols.PESymbols": "real",
+          "windows.suspended_threads.SuspendedThreads": "pending"
         }
       },
       "evidence": [

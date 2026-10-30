@@ -241,10 +241,10 @@ impl Linux<'_> {
             | WinPedump | WinSsdt | WinModscan | WinPrivileges | WinSessions | WinUserassist
             | WinBigpools | WinSymlinkscan | WinDevicetree | WinGetservicesids | WinIat
             | WinVerinfo | WinMftscan | WinOrphanThreads | WinEtwpatch | WinScheduledTasks
-            | WinPESymbols | WinAmcacheV4 | WinAmcache | WinCertificates | WinProcessghosting
-            | WinJoblinks | WinTimeliner | WinUserAssistV4 | WinMemmap | WinSvcScanV4
-            | WinSvcDiff | WinSvcList | WinGetCellRoutine | WinPebMasquerade | WinHiveScan
-            | WinDriverModule | WinDriverIrp | WinKpcrs | WinMbrscan | WinTimers
+            | WinSuspendedThreads | WinPESymbols | WinAmcacheV4 | WinAmcache | WinCertificates
+            | WinProcessghosting | WinJoblinks | WinTimeliner | WinUserAssistV4 | WinMemmap
+            | WinSvcScanV4 | WinSvcDiff | WinSvcList | WinGetCellRoutine | WinPebMasquerade
+            | WinHiveScan | WinDriverModule | WinDriverIrp | WinKpcrs | WinMbrscan | WinTimers
             | WinStatistics | WinShimcache | WinVirtmap | WinVadWalk | WinVadRegExScan
             | WinVadyarascan | WinVaddump | WinDlldump | WinModdump | WinHashdump | WinLsadump
             | WinCachedump | WinDumpfiles | WinThrdscan => Err(unrouted(plugin)),
