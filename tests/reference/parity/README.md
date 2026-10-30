@@ -691,3 +691,13 @@ UNICODE_STRING.String 和 String 构造器，验证偏移选择／名称表与�
 字段提取使用合成适配器，原生另在 x86/x64、物理／虚拟四种真实合成页表组合
 重读描述符。MaximumLength 检查属于其他路径，不能误加到 DriverIrp 的直接
 NameInfo.Name.String 上。名称向量不计入真实正向差分。
+
+`driver_scan_vectors.py` 执行实际 DriverScan.scan_drivers、builtin Driver
+约束及内核门槛方法，14 用例检查零／严格边界／指针域和必须八字节可读
+（包括 x86）。pool candidate 恢复使用共享固定 carving；原生另测零
+padding、未对齐标签与虚拟别名。用例的 carved objects 是测试桩，不替代
+DriverIrp、DriverModule 和 GUI 的真实联合差分。
+
+`driver-regression.example.json` 汇总 DriverIrp 六例、DriverModule 三例及 GUI
+五例，覆盖共享池候选恢复的调用方。native82 实际验收以原三个配置并行执行，
+三个报告绑定同一最终二进制摘要；汇总配置可顺序复现相同 14 个 case。

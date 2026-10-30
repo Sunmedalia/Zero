@@ -221,25 +221,6 @@ impl Windows<'_> {
         )?;
         json_number(self.vm.isf, u64::from_le_bytes(bytes), ty, field)
     }
-    pub(super) fn physical_object_type(&self, header: u64) -> Result<String> {
-        let ty = if self.vm.isf.has_field("_OBJECT_HEADER", "TypeIndex") {
-            // Pre-Win10 physical scanning predates address-dependent cookies.
-            ensure!(
-                self.symbol("ObHeaderCookie").is_err(),
-                "带 cookie 的对象头需要虚拟地址"
-            );
-            let index = self.physical_field(header, "_OBJECT_HEADER", "TypeIndex")?;
-            ensure!(index < 256, "对象类型索引越界");
-            self.vm.pointer(add(
-                self.symbol("ObTypeIndexTable")?,
-                index * self.vm.pointer_size() as u64,
-            )?)?
-        } else {
-            self.physical_field(header, "_OBJECT_HEADER", "Type")?
-        };
-        ensure!(self.vm.kernel(ty), "物理对象类型指针无效");
-        self.vm.unicode(self.field(ty, "_OBJECT_TYPE", "Name")?)
-    }
     pub(super) fn physical_object_name(&self, header: u64) -> Result<String> {
         let offset = if self.vm.isf.has_field("_OBJECT_HEADER", "InfoMask") {
             let mask = self.physical_field(header, "_OBJECT_HEADER", "InfoMask")?;

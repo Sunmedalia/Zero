@@ -612,6 +612,23 @@ impl Windows<'_> {
         minimum: u64,
         job: &Job,
     ) -> Result<(bool, Vec<u64>, Vec<String>)> {
+        let constraint = Constraint::new(
+            tag,
+            "tagWINDOWSTATION",
+            Some("WindowStation"),
+            minimum,
+            3,
+            true,
+            &[],
+        );
+        self.scan_pool_objects(&constraint, type_size, job)
+    }
+    fn scan_pool_objects(
+        &self,
+        constraint: &Constraint,
+        type_size: u64,
+        job: &Job,
+    ) -> Result<(bool, Vec<u64>, Vec<String>)> {
         let build = self.build_number()?;
         let virtual_scan = build >= 10240;
         let top_down = build >= 9200;
@@ -623,15 +640,6 @@ impl Windows<'_> {
         } else {
             Vec::new()
         };
-        let constraint = Constraint::new(
-            tag,
-            "tagWINDOWSTATION",
-            Some("WindowStation"),
-            minimum,
-            3,
-            true,
-            &[],
-        );
         let mut bodies = Vec::new();
         let mut notes = Vec::new();
         for (start, length) in self.pool_scan_ranges(virtual_scan, job)? {
@@ -683,7 +691,7 @@ impl Windows<'_> {
                 }
                 let address = start + local as u64;
                 let found = self.pool_bodies(
-                    &constraint,
+                    constraint,
                     address,
                     PoolCarve {
                         block: size,
@@ -697,7 +705,7 @@ impl Windows<'_> {
                 )?;
                 for body in found {
                     if bodies.len() >= MAX_OBJECTS {
-                        notes.push("窗口站池候选超限".into());
+                        notes.push("池对象候选超限".into());
                         return Ok((virtual_scan, bodies, notes));
                     }
                     bodies.push(body);
@@ -707,6 +715,78 @@ impl Windows<'_> {
         Ok((virtual_scan, bodies, notes))
     }
 
+    pub(super) fn reference_dispatch_drivers(
+        &self,
+        result: &mut Results,
+        job: &Job,
+    ) -> Result<Vec<(u64, u64)>> {
+        let type_size = self.vm.isf.data["user_types"]["_DRIVER_OBJECT"]["size"]
+            .as_u64()
+            .context("缺少驱动对象大小")?;
+        ensure!((16..=65536).contains(&type_size), "驱动对象大小无效");
+        let types = self.pool_reference_type_map()?;
+        let threshold = self.driver_kernel_start()?;
+        let body_offset = self.vm.isf.offset("_OBJECT_HEADER", "Body")?;
+        let mut out = Vec::new();
+        let mut candidate_read_failures = 0usize;
+        for constraint in CONSTRAINTS
+            .iter()
+            .filter(|c| c.object_type == Some("Driver"))
+        {
+            let (virtual_scan, bodies, notes) =
+                self.scan_pool_objects(constraint, type_size, job)?;
+            for note in notes {
+                Self::issue(result, "驱动池扫描", note);
+            }
+            for body in bodies {
+                job.check()?;
+                let valid = (|| -> Result<bool> {
+                    let header = body.checked_sub(body_offset).context("驱动对象头下溢")?;
+                    if self
+                        .pool_reference_object_type(header, virtual_scan, &types)?
+                        .as_deref()
+                        != Some("Driver")
+                    {
+                        return Ok(false);
+                    }
+                    self.reference_driver_start(body, virtual_scan, threshold)
+                })();
+                match valid {
+                    Ok(true) => {
+                        ensure!(out.len() < MAX_OBJECTS, "驱动候选数量超限");
+                        out.push((body, body));
+                    }
+                    Ok(false) => {}
+                    Err(_) => {
+                        job.check()?;
+                        // Invalid carved objects are expected during a tag
+                        // scan; the reference rejects them without a row.
+                        candidate_read_failures += 1;
+                    }
+                }
+            }
+        }
+        result.kernel_identity["driver_pool"] = serde_json::json!({"source":"shared reference pool constraints and carving","offset_layer":if self.build_number()?>=10240 {"primary virtual"}else{"physical"},"driver_count":out.len(),"rejected_candidate_reads":candidate_read_failures,"driver_start":"8 readable bytes; zero or strictly above masked MmSystemRangeStart"});
+        Ok(out)
+    }
+    fn reference_driver_start(
+        &self,
+        body: u64,
+        virtual_scan: bool,
+        threshold: u64,
+    ) -> Result<bool> {
+        let offset = self.vm.isf.offset("_DRIVER_OBJECT", "DriverStart")?;
+        // DriverScan requires eight readable bytes even for an x86 pointer.
+        let mut bytes = [0; 8];
+        self.pool_read(add(body, offset)?, &mut bytes, virtual_scan)?;
+        let raw = if self.vm.pointer_size() == 4 {
+            u64::from(u32::from_le_bytes(bytes[..4].try_into().unwrap()))
+        } else {
+            u64::from_le_bytes(bytes)
+        };
+        let start = raw & self.driver_address_mask();
+        Ok(start == 0 || start > threshold)
+    }
     pub(super) fn pool_read(&self, address: u64, out: &mut [u8], virtual_scan: bool) -> Result<()> {
         if virtual_scan {
             self.vm.read(address, out)
@@ -1051,6 +1131,36 @@ mod tests {
     use super::super::tests::{K, fixture, image, put};
     use super::*;
     use serde_json::json;
+    #[test]
+    fn driverscan_requires_eight_captured_bytes_and_a_strict_start_boundary() {
+        let vectors: serde_json::Value = serde_json::from_str(include_str!(
+            "../../tests/reference/parity/fixtures/driver-scan.json"
+        ))
+        .unwrap();
+        for case in vectors["cases"].as_array().unwrap() {
+            let width = case["width"].as_u64().unwrap();
+            let (mut bytes, isf, base, _) =
+                super::super::driver_irp::tests::driver_fixture(width == 4, false, false);
+            let available = case["available_bytes"].as_u64().unwrap() as usize;
+            let descriptor = 0x3f000;
+            put(&mut bytes, descriptor, case["raw"].as_u64().unwrap());
+            bytes.truncate(descriptor + available);
+            let snapshot = image(&bytes);
+            let windows = Windows {
+                vm: Memory::new(&snapshot, 0x1000, &isf, None),
+                base,
+                pdb: PdbIdentity::from_isf(&isf).unwrap(),
+            };
+            let found = windows
+                .reference_driver_start(
+                    (descriptor - 16) as u64,
+                    false,
+                    case["threshold"].as_u64().unwrap(),
+                )
+                .unwrap_or(false);
+            assert_eq!(found, case["expected"].as_bool().unwrap(), "{}", case["id"]);
+        }
+    }
 
     #[test]
     fn process_and_thread_validity_match_pinned_calendar_name_and_pointer_vectors() {

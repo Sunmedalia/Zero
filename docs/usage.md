@@ -1194,3 +1194,8 @@ DriverIrp 名称按直接 `NameInfo.Name.String` 读取，优先旧式 NameInfoO
 否则从名称偏移表查询；按 Length 解码 UTF-16，不额外要求 MaximumLength
 或偶数长度。没有名称偏移显示 N/A；成功读取零长度名称保留空字符串。非零名称 Buffer 缺页会保留诊断及其他
 可读处理函数。
+
+DriverIrp／DriverModule 的驱动候选与参考共享池约束恢复；DriverStart 必须
+有八个可读字节，即使是 x86 指针。值为零或严格大于内核门槛才保留。
+不可读的雕刻候选会被拒绝并计入覆盖元数据；名称和处理函数的缺页诊断
+仍独立保留。

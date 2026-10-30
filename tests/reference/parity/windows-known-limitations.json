@@ -17,7 +17,7 @@
       "reason": "Both engines return no windows. This is a negative observation, not proof that every Windows 7 image is empty."
     }
   ],
-  "engine_version": "0.2.1-native-75",
+  "engine_version": "0.2.1-native-82",
   "known_limitations": [
     "One positive Win10 x64 capture does not verify the complete plugin contract. Win7 empty agreement is non-positive evidence.",
     "Real x86 GUI support, other builds and full traversal/failure behavior remain unverified. Unavailable procedure classification and field-page faults are now covered synthetically; no separate real fault image has been validated.",
@@ -92,7 +92,7 @@
             "summary": true,
             "groups": 1457,
             "records": 2914,
-            "keys_and_counts_sha256": "cce2db813d7a759ad6bec98705bb8173e70aed8b82816f7b4f0fcb456e5cdf6b"
+            "keys_and_counts_sha256": "5ad874b5406ee897b4d99cb11064a60835ac34444cc6f724640336536cdd37b2"
           }
         ],
         "duplicate_keys": "multiset",
@@ -108,17 +108,17 @@
       },
       "passed": true,
       "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
-      "reference_output_sha256": "b581bf7e60f032f94f9b899123a5c0f620029b53765c8ba02d8a8127a697e5d1",
+      "reference_output_sha256": "1f6ea63e4946fb4ec7422a565831658bd57d1f712b3daa2aecb82181725171f4",
       "symbol_sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4",
-      "zero_executable_sha256": "4f28868a08fd6e5e0093d646afc8b922c98d7344787d8592afa100b2de2fbadb",
-      "engine_version": "0.2.1-native-75",
-      "full_comparison_sha256": "132a81c2c0bf0a81a528b5ea6d7283dc40ea99903967fd65e359d73adb82b7d0",
-      "comparison_details": "Diagnostic entries and duplicate groups summarized; complete raw comparison retained in local run.py artifact and bound by full_comparison_sha256. Native/reference JSON digests permit independent reproduction. No records or fields filtered during comparison."
+      "zero_executable_sha256": "150cd17d75835865ce1074a2f488f2649a89993740b2a370f98463853df62a4f",
+      "engine_version": "0.2.1-native-82",
+      "full_comparison_sha256": "764631fff627dff6a4e2d99f352d59d80dab409a900d8139656b368879b650ed",
+      "comparison_details": "Diagnostic entries and duplicate groups summarized; complete raw comparison retained in local run.py artifact and bound by full_comparison_sha256. Native/reference JSON digests permit independent reproduction. Any record_selection scope remains explicit."
     }
   ],
-  "zero_executable_sha256": "4f28868a08fd6e5e0093d646afc8b922c98d7344787d8592afa100b2de2fbadb",
+  "zero_executable_sha256": "150cd17d75835865ce1074a2f488f2649a89993740b2a370f98463853df62a4f",
   "name_vectors_sha256": "bd3762cf478867f07887f4c7b4c799b4af2f7fdf0f70de84fa710cc4893aa5b9",
-  "validation": "Fresh unmodified pinned-reference and final native75 binary comparisons, all mapped fields and duplicate multiplicities, no row filtering. Previously recorded cases not included in this batch retain their original per-case versions. Empty agreement is not positive evidence. Pool-object diagnostics can still make native output partial; default-row agreement is not a full plugin contract.",
+  "validation": "Final native82 binary and unmodified fixed reference, real default/scoped cases compare all mapped fields and multiplicities. Historical cases not rerun retain their own per-case versions. Empty agreement is not positive evidence; no complete plugin contract is claimed.",
   "reference_window_generator_sha256": "0a6b565b31b6537a6bd6f8a3e9be37795b8b078e67fb49387980d865b486d39f",
   "procedure_vectors_sha256": "7e71639b59f4a257abfb1e1ddf66e764a2b912dad8709fa773882150dfd089ff"
 }

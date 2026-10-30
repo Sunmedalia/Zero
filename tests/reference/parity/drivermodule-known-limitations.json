@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
-  "engine_version": "0.2.1-native-46",
+  "engine_version": "0.2.1-native-82",
   "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
-  "zero_executable_sha256": "a743365d1745ee82bc08fcfcaf78399ac4d01cac33ef1d00bcb51b6e8fe28153",
+  "zero_executable_sha256": "150cd17d75835865ce1074a2f488f2649a89993740b2a370f98463853df62a4f",
   "source_sha256": {
     "plugins/windows/malware/drivermodule.py": "35627d702a0e79bc38d7157d83e1b6211b5d0c8855efc73d851f924eb74a2198",
     "plugins/windows/driverscan.py": "e7ac4083870765e9c83039bab8fcab5aecbe526ead58ab1f20b25065908b0175",
@@ -12,52 +12,130 @@
   },
   "cases": [
     {
-      "case_id": "windows-10-15063/drivermodule-default",
+      "reference_plugin": "windows.malware.drivermodule.DriverModule",
+      "zero_plugin": "windows.malware.drivermodule.DriverModule",
       "image_sha256": "d58f62e92b8c4ef913ac09b2c36a10482034c10b88d0c154dead3aaaa49cf875",
-      "symbol_sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4",
-      "native_output_sha256": "eadcb6a013d3aee6513c0c4a22061985cd69e54361817ca1adc51bfef3a8ebb6",
+      "mapping_sha256": "12b692a843f3a42f713b3a662fbd7ff4e7f7552ee847ade78bb12656c984e910",
+      "native_output_sha256": "9f235114f8f89bcef7478c1fb58d6a567a2102bbe09a092b021693caf81ae8e5",
+      "zero_args": [],
+      "reference_args": [],
+      "case_id": "windows-10-15063/drivermodule-default",
+      "sample_source": "https://www.osforensics.com/downloads/WinDump.zip",
+      "comparison": {
+        "schema_version": 1,
+        "mapping_version": 1,
+        "zero_records": 3,
+        "reference_records": 3,
+        "missing": [],
+        "extra": [],
+        "duplicates": [],
+        "conflicts": [],
+        "unverifiable": [],
+        "matched_absent": {},
+        "all_columns_mapped": true,
+        "positive_evidence": true,
+        "zero_complete": false,
+        "zero_diagnostics": [
+          "Summary: 19 diagnostics; complete entries retained in raw comparison artifact."
+        ],
+        "passed": true
+      },
+      "passed": true,
+      "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
       "reference_output_sha256": "9d6d07e4a4c5dc2e1d3b1904ad5a20fd40f7e2dd559e00aa878bf74a167de5f9",
-      "mapping_sha256": "12b692a843f3a42f713b3a662fbd7ff4e7f7552ee847ade78bb12656c984e910",
-      "native_records": 3,
-      "reference_records": 3,
-      "known_exception_records": 1,
-      "complete": false,
-      "diagnostic_count": 20,
-      "pool_candidates": 153,
-      "unmapped_pool_positions": 264,
-      "passed": true
+      "symbol_sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4",
+      "zero_executable_sha256": "150cd17d75835865ce1074a2f488f2649a89993740b2a370f98463853df62a4f",
+      "engine_version": "0.2.1-native-82",
+      "full_comparison_sha256": "01202d5f1beb023ff7e10f41dcaadab3c2f255b0e1befce091e4aaddfc1f00fb",
+      "comparison_details": "Diagnostic entries and duplicate groups summarized; complete raw comparison retained in local run.py artifact and bound by full_comparison_sha256. Native/reference JSON digests permit independent reproduction. Any record_selection scope remains explicit.",
+      "zero_diagnostics_summary": {
+        "count": 19,
+        "sha256": "59172732e20ebd2d4a66abda317e332117c03c222dbaabad566dfd1d4123d5cf"
+      }
     },
     {
-      "case_id": "server-2008-6001-x86/drivermodule-default",
+      "reference_plugin": "windows.malware.drivermodule.DriverModule",
+      "zero_plugin": "windows.malware.drivermodule.DriverModule",
       "image_sha256": "d3b13f2224cab20440a4bb3c5c971662be6e61f431340f319cef7312bb6177f4",
-      "symbol_sha256": "5d73f3a7158ba8b72394f2606ea5b4f03393976d5054a11cc51d51afb88a5544",
-      "native_output_sha256": "c73be4f2ddd4c3ead8948db73cf63a27367600b61c78efb8a85d1a7b4d04fe99",
-      "reference_output_sha256": "6a26597ecaf6d3100e50809121facae619d9f7562be0b21f98a84a51f4f5be4c",
       "mapping_sha256": "12b692a843f3a42f713b3a662fbd7ff4e7f7552ee847ade78bb12656c984e910",
-      "native_records": 2,
-      "reference_records": 2,
-      "known_exception_records": 2,
-      "complete": false,
-      "diagnostic_count": 44,
-      "pool_candidates": 133,
-      "unmapped_pool_positions": 0,
-      "passed": true
+      "native_output_sha256": "a36c05acb70e8e02af1d8861b9fa422bc9b162839f56fb23353c8420d054c08a",
+      "zero_args": [],
+      "reference_args": [],
+      "case_id": "server-2008-6001-x86/drivermodule-default",
+      "sample_source": "https://samsclass.info/121/proj/p5-Vol.htm",
+      "comparison": {
+        "schema_version": 1,
+        "mapping_version": 1,
+        "zero_records": 2,
+        "reference_records": 2,
+        "missing": [],
+        "extra": [],
+        "duplicates": [],
+        "conflicts": [],
+        "unverifiable": [],
+        "matched_absent": {},
+        "all_columns_mapped": true,
+        "positive_evidence": true,
+        "zero_complete": false,
+        "zero_diagnostics": [
+          "Summary: 44 diagnostics; complete entries retained in raw comparison artifact."
+        ],
+        "passed": true
+      },
+      "passed": true,
+      "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+      "reference_output_sha256": "6a26597ecaf6d3100e50809121facae619d9f7562be0b21f98a84a51f4f5be4c",
+      "symbol_sha256": "5d73f3a7158ba8b72394f2606ea5b4f03393976d5054a11cc51d51afb88a5544",
+      "zero_executable_sha256": "150cd17d75835865ce1074a2f488f2649a89993740b2a370f98463853df62a4f",
+      "engine_version": "0.2.1-native-82",
+      "full_comparison_sha256": "3a032924063510431c99eb856d72092b1fc06bf71dac98740ea42db9cb6e3004",
+      "comparison_details": "Diagnostic entries and duplicate groups summarized; complete raw comparison retained in local run.py artifact and bound by full_comparison_sha256. Native/reference JSON digests permit independent reproduction. Any record_selection scope remains explicit.",
+      "zero_diagnostics_summary": {
+        "count": 44,
+        "sha256": "e1dadb3c7e1929811b60b19c9d6d9401f1c1fa5ffc216a5cfbe1b75f05ec9213"
+      }
     },
     {
-      "case_id": "windows-11/drivermodule-default",
+      "reference_plugin": "windows.malware.drivermodule.DriverModule",
+      "zero_plugin": "windows.malware.drivermodule.DriverModule",
       "image_sha256": "0f00815b8f78f30a63d742c73152474b2a3c35183dbb1d92c8fc6a81fa3de9f1",
-      "symbol_sha256": "6a234099b69b393eb7d652408835205bd12f0b947d0d6b6275e2ffce8ca9c133",
-      "native_output_sha256": "165303ce277a00cb97ab6113b8c7904e17306f4096f7d17273f9fa7ece9e2da0",
-      "reference_output_sha256": "e5ad0f82abd8e95bd10aa42ccf113cdffcbaf84edbdc593deeb634f820a14231",
       "mapping_sha256": "12b692a843f3a42f713b3a662fbd7ff4e7f7552ee847ade78bb12656c984e910",
-      "native_records": 1,
-      "reference_records": 1,
-      "known_exception_records": 1,
-      "complete": false,
-      "diagnostic_count": 1,
-      "pool_candidates": 123,
-      "unmapped_pool_positions": 303,
-      "passed": true
+      "native_output_sha256": "2073c944d6e889d098185a848d5664cce9031622886ab0c335126a623e6f0b90",
+      "zero_args": [],
+      "reference_args": [],
+      "case_id": "windows-11/drivermodule-default",
+      "sample_source": "https://www.osforensics.com/downloads/Win11Dump.zip",
+      "comparison": {
+        "schema_version": 1,
+        "mapping_version": 1,
+        "zero_records": 1,
+        "reference_records": 1,
+        "missing": [],
+        "extra": [],
+        "duplicates": [],
+        "conflicts": [],
+        "unverifiable": [],
+        "matched_absent": {},
+        "all_columns_mapped": true,
+        "positive_evidence": true,
+        "zero_complete": false,
+        "zero_diagnostics": [
+          "Summary: 10516 diagnostics; complete entries retained in raw comparison artifact."
+        ],
+        "passed": true
+      },
+      "passed": true,
+      "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+      "reference_output_sha256": "e5ad0f82abd8e95bd10aa42ccf113cdffcbaf84edbdc593deeb634f820a14231",
+      "symbol_sha256": "6a234099b69b393eb7d652408835205bd12f0b947d0d6b6275e2ffce8ca9c133",
+      "zero_executable_sha256": "150cd17d75835865ce1074a2f488f2649a89993740b2a370f98463853df62a4f",
+      "engine_version": "0.2.1-native-82",
+      "full_comparison_sha256": "76c9f617c076fb42567273c8133243da2b3c999ba21a31d3e6f22038f19d8ac1",
+      "comparison_details": "Diagnostic entries and duplicate groups summarized; complete raw comparison retained in local run.py artifact and bound by full_comparison_sha256. Native/reference JSON digests permit independent reproduction. Any record_selection scope remains explicit.",
+      "zero_diagnostics_summary": {
+        "count": 10516,
+        "sha256": "fc725c2df8ae0d3d80aa7c46276b127ccb028db854604d7c80d3b6477f4bffcf"
+      }
     }
   ],
   "limitations": [
@@ -67,5 +145,13 @@
     "Unreadable MmSystemRangeStart uses the reference architecture default and marks the result partial; absent symbols or invalid values never manufacture a complete result.",
     "Only x86 and x64 are supported. Further kernel builds, malicious hidden-driver samples and damaged-input coverage remain outstanding.",
     "Original user image c8f6a7f79a5a83d238b1ff16c2a51277d56b6e16580f7db5706b38bcfd5a5c66 remains unavailable and untested."
-  ]
+  ],
+  "validation": "Final native82 binary and unmodified fixed reference, real default/scoped cases compare all mapped fields and multiplicities. Historical cases not rerun retain their own per-case versions. Empty agreement is not positive evidence; no complete plugin contract is claimed.",
+  "driver_recovery": {
+    "implementation": "shared versioned pool ranges, tag-relative headers, padded carving and reference type map; eight readable DriverStart bytes, zero or strict masked threshold",
+    "vectors_sha256": "da8a48206c98b1626f80bf6d48311f686283b59342c7addb1bdd48697412f7d8",
+    "cases": 14,
+    "scope": "Actual DriverScan.scan_drivers, builtin driver constraints and kernel-space-start helper. Synthetic carved objects/scanned-layer validity isolate eight-byte accessibility, pointer mask and strict DriverStart comparison. Does not prove full candidate recovery or name parsing.",
+    "remaining": "Full ordering, malformed symbol tables/headers, every missing-page boundary and other builds/architectures remain unverified."
+  }
 }

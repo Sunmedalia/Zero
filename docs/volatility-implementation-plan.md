@@ -301,3 +301,7 @@ padding 使用参考的 signed 减法和原始条件。Win10 站观察由 10 条
 - native81：DriverIrp 独立恢复实际 NameInfo.Name.String 链，保留旧偏移优先、
   名称表查询、原始描述符层和直接 UTF-16 解码；15 参考向量／四种原生组合与
   六个真实差分分别验收，专用池扫描完整故障行为仍待补齐。
+
+- native82：删除驱动派遣的重复物理 carving，复用固定池约束／候选恢复／
+  类型校验与 primary 扫描范围。DriverStart 按八字节可读及严格门槛过滤；
+  14 个固定方法向量、DriverIrp／DriverModule／GUI 联合真实回归分别验收。

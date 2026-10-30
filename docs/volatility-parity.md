@@ -1360,3 +1360,39 @@ Driver Name 缺失，未把它们等同于可读空串；其他字段没有忽�
 最终 make check 通过：608 库、8 CLI/MCP、50 协议、33 Python 测试；15 个
 固定名称向量重生成一致，四种原生组合通过。最终发布包空 PATH／独立目录启动
 退出通过。真实名称跨页故障和专用驱动池的完整错误行为仍待验收。
+
+
+## native82：DriverIrp／DriverModule 共享固定池候选恢复
+
+驱动派遣原先从物理池头恢复对象后重新映射虚拟地址，保留了额外对齐／
+4096-byte 分配上限、未完整对齐的 padding 检查和独立对象类型解析。固定
+DriverScan.scan_drivers 实际复用 canonical PoolScanner 的两个 Driver 约束。
+原生现在共享精确标签相对池头、版本化物理／primary 虚拟扫描范围、可选头
+padded window、有符号 padding、TypeMap 和旧对象类型名称规则；删除旧的
+驱动专用 carving 和不再调用的物理类型辅助函数。GUI 包装器也通过同一
+候选恢复入口，保留 GUI 的标签、大小和 page-type 约束。
+
+候选需先通过 Driver 类型校验；随后与固定 DriverScan 一致，DriverStart
+位置必须有八个可读字节，x86 也不能只验证四字节。读取 native Pointer 并
+应用地址域后，只保留 start==0 或 start>MmSystemRangeStart（严格大于，
+与 IRP handler 的包含边界不同）。14 个实际 DriverScan／内置约束／内核
+门槛方法向量隔离这条分支；原生另验证部分捕获的八字节窗口，并在真实
+合成页表下确认零 padding、未对齐池头和虚拟别名。
+
+无效的雕刻候选按参考拒绝，不把正常候选拒绝逐条记为结果缺页；原生在
+kernel_identity.driver_pool 记录 rejected_candidate_reads。扫描区段读取
+失败／候选资源上限仍保留覆盖诊断。候选出现次数保留，不能用物理地址集合合并不同来源或虚拟别名；标签遍历
+的完整输出排序仍需另外审查。DriverModule 也受本批共享路径影响，需
+与 DriverIrp、GUI 包装器分别回归。这不代表所有损坏分页／pool-header
+跨边界、32-bit 宿主或专用插件故障合同已完成。
+
+最终 native82 在构建结束后并行跑三个配置、14 例：DriverIrp 完整默认
+4255/4255、3724/3724、3453/3453，三个内核范围 2066/2066、1723/1723、
+1656/1656；DriverModule 默认 3/3、2/2、1/1；GUI WindowStations 15/15、
+Desktops 28/28、DeskScan 28/28、Windows 3063/3063，Win7 WindowStations
+0/0 单独为空结果一致。所有映射字段及重复数通过，三个报告绑定同一最终
+可执行文件。仅替换已有 case，累计正向仍为 122（5 项限定范围），完整
+插件合同仍为 0/135。
+
+最终 make check 通过：610 库、8 CLI/MCP、50 协议、33 Python 测试；14 个
+固定 DriverScan 向量重生成一致。最终发布包空 PATH／独立目录启动退出通过。

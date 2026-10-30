@@ -1,7 +1,6 @@
 //! Symbol-driven driver pool objects and independent dispatch-entry reads.
 use super::dispatch::DispatchModules;
 use super::*;
-use std::collections::BTreeSet;
 
 const IRPS: [&str; 28] = [
     "IRP_MJ_CREATE",
@@ -33,27 +32,15 @@ const IRPS: [&str; 28] = [
     "IRP_MJ_SET_QUOTA",
     "IRP_MJ_PNP",
 ];
-const OPTIONAL_HEADERS: [&str; 9] = [
-    "CREATOR_INFO",
-    "NAME_INFO",
-    "HANDLE_INFO",
-    "QUOTA_INFO",
-    "PROCESS_INFO",
-    "AUDIT_INFO",
-    "EXTENDED_INFO",
-    "HANDLE_REVOCATION_INFO",
-    "PADDING_INFO",
-];
-
 impl Windows<'_> {
-    fn driver_address_mask(&self) -> u64 {
+    pub(super) fn driver_address_mask(&self) -> u64 {
         if self.vm.pointer_size() == 4 {
             0xffff_ffff
         } else {
             0xffff_ffff_ffff
         }
     }
-    fn driver_kernel_start(&self) -> Result<u64> {
+    pub(super) fn driver_kernel_start(&self) -> Result<u64> {
         let at = self.symbol("MmSystemRangeStart")?;
         let default = if self.vm.pointer_size() == 4 {
             0x8000_0000
@@ -129,207 +116,7 @@ impl Windows<'_> {
     }
     /// Pool bodies are retained independently of DriverStart/extension state.
     pub(super) fn dispatch_drivers(&self, r: &mut Results, job: &Job) -> Result<Vec<(u64, u64)>> {
-        let isf = self.vm.isf;
-        let build = self.build_number()?;
-        let modern = build >= 9200;
-        let virtual_scan = build >= 10240;
-        let alignment = if self.vm.pointer_size() == 4 { 8 } else { 16 };
-        let body = isf.offset("_OBJECT_HEADER", "Body")?;
-        ensure!((8..=256).contains(&body), "对象头 Body 偏移无效");
-        let pool_size = isf.data["user_types"]["_POOL_HEADER"]["size"]
-            .as_u64()
-            .context("缺少 pool 大小")?;
-        let driver_size = isf.data["user_types"]["_DRIVER_OBJECT"]["size"]
-            .as_u64()
-            .context("缺少驱动大小")?;
-        ensure!((16..=4096).contains(&driver_size), "驱动对象尺寸无效");
-        ensure!((8..=64).contains(&pool_size), "pool header 大小无效");
-        let optional: Vec<_> = OPTIONAL_HEADERS
-            .iter()
-            .filter_map(|name| {
-                isf.data["user_types"][format!("_OBJECT_HEADER_{name}")]["size"].as_u64()
-            })
-            .collect();
-        let optional_limit = optional.iter().try_fold(0u64, |total, size| {
-            ensure!(*size <= 4096, "可选对象头大小无效");
-            total.checked_add(*size).context("可选对象头大小溢出")
-        })?;
-        ensure!(
-            !modern || (1..=4096).contains(&optional_limit),
-            "缺少或无效可选对象头大小"
-        );
-        let info_offset = if modern {
-            Some(isf.offset("_OBJECT_HEADER", "InfoMask")? as usize)
-        } else {
-            None
-        };
-        ensure!(
-            info_offset.is_none_or(|offset| offset < body as usize),
-            "InfoMask 越界"
-        );
-        let mut candidates = BTreeSet::new();
-        let mut pool_header = vec![0; pool_size as usize];
-        let mut object_bytes = vec![0; body as usize];
-        let tag_offset = isf.offset("_POOL_HEADER", "PoolTag")? as usize;
-        ensure!(
-            tag_offset
-                .checked_add(4)
-                .is_some_and(|end| end <= pool_header.len()),
-            "PoolTag 越界"
-        );
-        for (start, length) in self.pool_blocks(&[b"Driv", b"Dri\xf6"], 1, job)? {
-            job.check()?;
-            let header = start.checked_sub(pool_size).context("池头下溢")?;
-            self.vm.image.read(header, &mut pool_header)?;
-            let page_type =
-                objects::physical_number(isf, &pool_header, "_POOL_HEADER", "PoolType")?;
-            let nonpaged = if build >= 6000 {
-                page_type > 0 && page_type % 2 == 0
-            } else {
-                page_type % 2 == 1
-            };
-            if page_type != 0 && !nonpaged {
-                continue;
-            }
-            if length + pool_size < 248 {
-                continue;
-            }
-            if modern {
-                for delta in (0..optional_limit.min(length + pool_size)).step_by(alignment as usize)
-                {
-                    job.check()?;
-                    let object_header = add(start, delta)?;
-                    if self
-                        .vm
-                        .image
-                        .read(object_header, &mut object_bytes)
-                        .is_err()
-                    {
-                        continue;
-                    }
-                    let count = objects::physical_number(
-                        isf,
-                        &object_bytes,
-                        "_OBJECT_HEADER",
-                        "PointerCount",
-                    )?;
-                    if let Some(info_offset) = info_offset {
-                        let mask = object_bytes[info_offset];
-                        let selected: u64 = optional
-                            .iter()
-                            .enumerate()
-                            .filter(|(bit, _)| u16::from(mask) & (1u16 << bit) != 0)
-                            .map(|(_, size)| size)
-                            .sum();
-                        if isf.data["user_types"]["_OBJECT_HEADER_PADDING_INFO"]["size"]
-                            .as_u64()
-                            .is_some()
-                        {
-                            let bit = optional.len() - 1;
-                            if bit < 8 && u16::from(mask) & (1u16 << bit) != 0 {
-                                let Some(padding_address) = object_header
-                                    .checked_sub(selected)
-                                    .filter(|_| selected <= delta)
-                                else {
-                                    continue;
-                                };
-                                let mut padding = [0u8; 4];
-                                if self.vm.image.read(padding_address, &mut padding).is_err() {
-                                    continue;
-                                }
-                                let Some(extra) = u64::from(u32::from_le_bytes(padding))
-                                    .checked_sub(optional[bit])
-                                else {
-                                    continue;
-                                };
-                                if selected
-                                    .checked_add(extra)
-                                    .is_none_or(|length| length > delta)
-                                {
-                                    continue;
-                                }
-                            }
-                        }
-                    }
-                    if count >= 0x1000000 {
-                        continue;
-                    }
-                    candidates.insert(add(object_header, body)?);
-                }
-            } else {
-                let extension = if &pool_header[tag_offset..tag_offset + 4] == b"Dri\xf6" {
-                    let size = isf.data["user_types"]["_DRIVER_EXTENSION"]["size"]
-                        .as_u64()
-                        .context("缺少 DRIVER_EXTENSION 大小")?;
-                    ensure!(size <= 4096, "DRIVER_EXTENSION 大小无效");
-                    size
-                } else {
-                    0
-                };
-                let size = driver_size
-                    .checked_add(extension)
-                    .context("驱动分配大小溢出")?;
-                let size = size.checked_add(alignment - 1).context("驱动对齐溢出")? / alignment
-                    * alignment;
-                if let Some(physical) = add(start, length)?.checked_sub(size)
-                    && physical >= start
-                {
-                    candidates.insert(physical);
-                }
-            }
-            ensure!(candidates.len() <= MAX_OBJECTS, "驱动候选数量超限");
-        }
-        let mapped = if virtual_scan {
-            self.mapped_pool_candidates(&candidates, job)?
-        } else {
-            BTreeMap::new()
-        };
-        let layout = self.object_header_layout();
-        let mut out = Vec::new();
-        let mut unmapped = 0;
-        for physical in candidates {
-            job.check()?;
-            if !virtual_scan {
-                let read = (|| -> Result<bool> {
-                    let header = physical.checked_sub(body).context("物理驱动对象头下溢")?;
-                    if self.physical_object_type(header)? != "Driver" {
-                        return Ok(false);
-                    }
-                    let base = self.physical_field(physical, "_DRIVER_OBJECT", "DriverStart")?;
-                    Ok(base == 0 || self.vm.kernel(base))
-                })();
-                if matches!(read, Ok(true)) {
-                    out.push((physical, physical));
-                }
-                continue;
-            }
-            let Some(aliases) = mapped.get(&physical) else {
-                unmapped += 1;
-                continue;
-            };
-            for &address in aliases {
-                let read = (|| -> Result<bool> {
-                    let h = address.checked_sub(body).context("驱动对象头下溢")?;
-                    if self.object_type(h, &layout)? != "Driver" {
-                        return Ok(false);
-                    }
-                    let base = self.number(address, "_DRIVER_OBJECT", "DriverStart")?;
-                    Ok(base == 0 || self.vm.kernel(base))
-                })();
-                if matches!(read, Ok(true)) {
-                    out.push((if virtual_scan { address } else { physical }, address));
-                }
-            }
-        }
-        if unmapped > 0 {
-            Self::issue(
-                r,
-                "驱动池覆盖",
-                format!("{unmapped} 个池内位置缺少可验证内核映射，未输出这些候选"),
-            );
-        }
-        r.kernel_identity["driver_pool"] = serde_json::json!({"source":"versioned pool object headers","offset_layer":if virtual_scan {"kernel virtual"} else {"physical"},"unmapped_positions":unmapped,"driver_count":out.len()});
-        Ok(out)
+        self.reference_dispatch_drivers(r, job)
     }
     pub(super) fn driver_irp(&self, job: &Job) -> Result<Results> {
         self.driver_irp_with_symbols(job, None)
@@ -446,6 +233,43 @@ pub(super) mod tests {
     use super::super::tests::{K, fixture, image, put};
     use super::*;
     use serde_json::json;
+    #[test]
+    fn dispatch_uses_shared_signed_padding_and_exact_unaligned_pool_headers() {
+        let (mut bytes, mut isf, base, _) = driver_fixture(false, true, false);
+        isf.data["user_types"]["_OBJECT_HEADER_PADDING_INFO"] = json!({"size":4,"fields":{}});
+        bytes[0xb010..0xb060].fill(0);
+        put(&mut bytes, 0xb020, 1);
+        put(&mut bytes, 0xb028, base + 0x9000);
+        bytes[0xb031] = 2;
+        // PADDING_INFO at start+16-4 is zero; the reference keeps signed -4.
+        let snapshot = image(&bytes);
+        let windows = Windows {
+            vm: Memory::new(&snapshot, 0x1000, &isf, None),
+            base,
+            pdb: PdbIdentity::from_isf(&isf).unwrap(),
+        };
+        let mut result = windows.result(Plugin::WinDriverIrp);
+        let drivers = windows
+            .dispatch_drivers(&mut result, &Job::default())
+            .unwrap();
+        assert_eq!(drivers, [(base + 0x3050, base + 0x3050)]);
+        let (mut bytes, isf, base, physical) = driver_fixture(false, false, false);
+        bytes.copy_within(0xb000..0xb200, 0xb003);
+        bytes[0xb000..0xb003].fill(0);
+        let snapshot = image(&bytes);
+        let windows = Windows {
+            vm: Memory::new(&snapshot, 0x1000, &isf, None),
+            base,
+            pdb: PdbIdentity::from_isf(&isf).unwrap(),
+        };
+        let mut result = windows.result(Plugin::WinDriverIrp);
+        assert_eq!(
+            windows
+                .dispatch_drivers(&mut result, &Job::default())
+                .unwrap(),
+            [(physical + 3, physical + 3)]
+        );
+    }
     #[test]
     fn direct_driver_name_matches_reference_location_and_string_semantics() {
         let vectors: serde_json::Value = serde_json::from_str(include_str!(

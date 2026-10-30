@@ -54,8 +54,8 @@
       "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
       "reference_output_sha256": "e69f79f711166f1f123dbfdbc3463e5b96743b0d3fdf2b964257da3967f6f16d",
       "symbol_sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4",
-      "zero_executable_sha256": "4f28868a08fd6e5e0093d646afc8b922c98d7344787d8592afa100b2de2fbadb",
-      "engine_version": "0.2.1-native-75"
+      "zero_executable_sha256": "150cd17d75835865ce1074a2f488f2649a89993740b2a370f98463853df62a4f",
+      "engine_version": "0.2.1-native-82"
     },
     {
       "reference_plugin": "windows.windowstations.WindowStations",
@@ -90,14 +90,14 @@
       "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
       "reference_output_sha256": "a3cbe01dad52836a7ac8efc91954cf64867f4dee8a6f046c4bb0838d11f48589",
       "symbol_sha256": "6d5f85f7b953330b9762a57e5a25266547e7391ad4f6655170a9f48876fb6b8c",
-      "zero_executable_sha256": "4f28868a08fd6e5e0093d646afc8b922c98d7344787d8592afa100b2de2fbadb",
-      "engine_version": "0.2.1-native-75",
+      "zero_executable_sha256": "150cd17d75835865ce1074a2f488f2649a89993740b2a370f98463853df62a4f",
+      "engine_version": "0.2.1-native-82",
       "empty_agreement": true
     }
   ],
-  "engine_version": "0.2.1-native-75",
-  "zero_executable_sha256": "4f28868a08fd6e5e0093d646afc8b922c98d7344787d8592afa100b2de2fbadb",
-  "validation": "Fresh unmodified pinned-reference and final native75 binary comparisons, all mapped fields and duplicate multiplicities, no row filtering. Previously recorded cases not included in this batch retain their original per-case versions. Empty agreement is not positive evidence. Pool-object diagnostics can still make native output partial; default-row agreement is not a full plugin contract.",
+  "engine_version": "0.2.1-native-82",
+  "zero_executable_sha256": "150cd17d75835865ce1074a2f488f2649a89993740b2a370f98463853df62a4f",
+  "validation": "Final native82 binary and unmodified fixed reference, real default/scoped cases compare all mapped fields and multiplicities. Historical cases not rerun retain their own per-case versions. Empty agreement is not positive evidence; no complete plugin contract is claimed.",
   "known_limitations": [
     "One positive Win10 x64 capture does not establish complete build, architecture, parameter, traversal or failure contracts.",
     "Raw GUI records can include retained or reused object bytes; matching the reference does not validate every object as active.",

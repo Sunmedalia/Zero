@@ -1,0 +1,175 @@
+{
+  "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+  "source_sha256": "e7ac4083870765e9c83039bab8fcab5aecbe526ead58ab1f20b25065908b0175",
+  "scope": "Actual DriverScan.scan_drivers, builtin driver constraints and kernel-space-start helper. Synthetic carved objects/scanned-layer validity isolate eight-byte accessibility, pointer mask and strict DriverStart comparison. Does not prove full candidate recovery or name parsing.",
+  "cases": [
+    {
+      "id": "4-zero",
+      "width": 4,
+      "raw": 0,
+      "available_bytes": 8,
+      "threshold": 2147483648,
+      "expected": true,
+      "tags": [
+        "447269f6",
+        "44726976"
+      ]
+    },
+    {
+      "id": "4-below",
+      "width": 4,
+      "raw": 2147483647,
+      "available_bytes": 8,
+      "threshold": 2147483648,
+      "expected": false,
+      "tags": [
+        "447269f6",
+        "44726976"
+      ]
+    },
+    {
+      "id": "4-equal",
+      "width": 4,
+      "raw": 2147483648,
+      "available_bytes": 8,
+      "threshold": 2147483648,
+      "expected": false,
+      "tags": [
+        "447269f6",
+        "44726976"
+      ]
+    },
+    {
+      "id": "4-above",
+      "width": 4,
+      "raw": 2147483649,
+      "available_bytes": 8,
+      "threshold": 2147483648,
+      "expected": true,
+      "tags": [
+        "447269f6",
+        "44726976"
+      ]
+    },
+    {
+      "id": "4-last-pointer",
+      "width": 4,
+      "raw": 4294967295,
+      "available_bytes": 8,
+      "threshold": 2147483648,
+      "expected": true,
+      "tags": [
+        "447269f6",
+        "44726976"
+      ]
+    },
+    {
+      "id": "4-four-readable",
+      "width": 4,
+      "raw": 2147483649,
+      "available_bytes": 4,
+      "threshold": 2147483648,
+      "expected": false,
+      "tags": [
+        "447269f6",
+        "44726976"
+      ]
+    },
+    {
+      "id": "4-no-bytes",
+      "width": 4,
+      "raw": 2147483649,
+      "available_bytes": 0,
+      "threshold": 2147483648,
+      "expected": false,
+      "tags": [
+        "447269f6",
+        "44726976"
+      ]
+    },
+    {
+      "id": "8-zero",
+      "width": 8,
+      "raw": 0,
+      "available_bytes": 8,
+      "threshold": 140737488355328,
+      "expected": true,
+      "tags": [
+        "447269f6",
+        "44726976"
+      ]
+    },
+    {
+      "id": "8-below",
+      "width": 8,
+      "raw": 18446603336221196287,
+      "available_bytes": 8,
+      "threshold": 140737488355328,
+      "expected": false,
+      "tags": [
+        "447269f6",
+        "44726976"
+      ]
+    },
+    {
+      "id": "8-equal",
+      "width": 8,
+      "raw": 18446603336221196288,
+      "available_bytes": 8,
+      "threshold": 140737488355328,
+      "expected": false,
+      "tags": [
+        "447269f6",
+        "44726976"
+      ]
+    },
+    {
+      "id": "8-above",
+      "width": 8,
+      "raw": 18446603336221196289,
+      "available_bytes": 8,
+      "threshold": 140737488355328,
+      "expected": true,
+      "tags": [
+        "447269f6",
+        "44726976"
+      ]
+    },
+    {
+      "id": "8-last-pointer",
+      "width": 8,
+      "raw": 18446744073709551615,
+      "available_bytes": 8,
+      "threshold": 140737488355328,
+      "expected": true,
+      "tags": [
+        "447269f6",
+        "44726976"
+      ]
+    },
+    {
+      "id": "8-four-readable",
+      "width": 8,
+      "raw": 18446603336221196289,
+      "available_bytes": 4,
+      "threshold": 140737488355328,
+      "expected": false,
+      "tags": [
+        "447269f6",
+        "44726976"
+      ]
+    },
+    {
+      "id": "8-no-bytes",
+      "width": 8,
+      "raw": 18446603336221196289,
+      "available_bytes": 0,
+      "threshold": 140737488355328,
+      "expected": false,
+      "tags": [
+        "447269f6",
+        "44726976"
+      ]
+    }
+  ]
+}
