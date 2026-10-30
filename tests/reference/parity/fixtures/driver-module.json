@@ -1,0 +1,1208 @@
+{
+  "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+  "source_sha256": {
+    "plugins/windows/malware/drivermodule.py": "35627d702a0e79bc38d7157d83e1b6211b5d0c8855efc73d851f924eb74a2198",
+    "plugins/windows/driverscan.py": "e7ac4083870765e9c83039bab8fcab5aecbe526ead58ab1f20b25065908b0175",
+    "plugins/windows/ssdt.py": "326164e85ef393bff72584168c44f5acd5ddefac2dd5bc02cc62f02b0cfa8cdb",
+    "contexts/__init__.py": "ba73acc0390554f26ae932f84595af92d89a4e02184ab22309e9ba05b4e2eeb9",
+    "symbols/windows/extensions/__init__.py": "0dcec42856599feaa0f530948ea381c2c35e452233a3b5b683af95badb8da357"
+  },
+  "scope": "Actual DriverModule generator, SSDT builder/ModuleCollection and DriverScan get_names_for_driver. Synthetic module scalars/names and already-scanned driver objects isolate interval ownership, pointer domain, empty/read-fault names, independent fallback and known exceptions. Kernel threshold and pre-carving scan gates have separate vectors; this fixture does not prove traversal, carving or real UTF16 decoding.",
+  "cases": [
+    {
+      "id": "4-below-module",
+      "width": 4,
+      "start": 2147491839,
+      "module_base": 2147491840,
+      "module_size": 4096,
+      "module_name": "loaded.sys",
+      "names": [
+        "RAW",
+        "service",
+        "alternate"
+      ],
+      "expected": [
+        [
+          true,
+          "RAW",
+          "service",
+          "alternate"
+        ]
+      ]
+    },
+    {
+      "id": "4-module-base",
+      "width": 4,
+      "start": 2147491840,
+      "module_base": 2147491840,
+      "module_size": 4096,
+      "module_name": "loaded.sys",
+      "names": [
+        "RAW",
+        "service",
+        "alternate"
+      ],
+      "expected": []
+    },
+    {
+      "id": "4-module-last-byte",
+      "width": 4,
+      "start": 2147495935,
+      "module_base": 2147491840,
+      "module_size": 4096,
+      "module_name": "loaded.sys",
+      "names": [
+        "RAW",
+        "service",
+        "alternate"
+      ],
+      "expected": []
+    },
+    {
+      "id": "4-module-end",
+      "width": 4,
+      "start": 2147495936,
+      "module_base": 2147491840,
+      "module_size": 4096,
+      "module_name": "loaded.sys",
+      "names": [
+        "RAW",
+        "service",
+        "alternate"
+      ],
+      "expected": []
+    },
+    {
+      "id": "4-after-module",
+      "width": 4,
+      "start": 2147495937,
+      "module_base": 2147491840,
+      "module_size": 4096,
+      "module_name": "loaded.sys",
+      "names": [
+        "RAW",
+        "service",
+        "alternate"
+      ],
+      "expected": [
+        [
+          true,
+          "RAW",
+          "service",
+          "alternate"
+        ]
+      ]
+    },
+    {
+      "id": "4-zero-size-base",
+      "width": 4,
+      "start": 2147491840,
+      "module_base": 2147491840,
+      "module_size": 0,
+      "module_name": "loaded.sys",
+      "names": [
+        "RAW",
+        "service",
+        "alternate"
+      ],
+      "expected": []
+    },
+    {
+      "id": "4-zero-size-after",
+      "width": 4,
+      "start": 2147491841,
+      "module_base": 2147491840,
+      "module_size": 0,
+      "module_name": "loaded.sys",
+      "names": [
+        "RAW",
+        "service",
+        "alternate"
+      ],
+      "expected": [
+        [
+          true,
+          "RAW",
+          "service",
+          "alternate"
+        ]
+      ]
+    },
+    {
+      "id": "4-empty-module-name",
+      "width": 4,
+      "start": 2147491840,
+      "module_base": 2147491840,
+      "module_size": 4096,
+      "module_name": "",
+      "names": [
+        "RAW",
+        "service",
+        "alternate"
+      ],
+      "expected": []
+    },
+    {
+      "id": "4-faulted-module-name",
+      "width": 4,
+      "start": 2147491840,
+      "module_base": 2147491840,
+      "module_size": 4096,
+      "module_name": null,
+      "names": [
+        "RAW",
+        "service",
+        "alternate"
+      ],
+      "expected": [
+        [
+          true,
+          "RAW",
+          "service",
+          "alternate"
+        ]
+      ]
+    },
+    {
+      "id": "4-zero-start",
+      "width": 4,
+      "start": 0,
+      "module_base": 2147491840,
+      "module_size": 4096,
+      "module_name": "loaded.sys",
+      "names": [
+        "RAW",
+        "service",
+        "alternate"
+      ],
+      "expected": [
+        [
+          true,
+          "RAW",
+          "service",
+          "alternate"
+        ]
+      ]
+    },
+    {
+      "id": "4-equal-kernel-boundary",
+      "width": 4,
+      "start": 2147483648,
+      "module_base": 2147491840,
+      "module_size": 4096,
+      "module_name": "loaded.sys",
+      "names": [
+        "RAW",
+        "service",
+        "alternate"
+      ],
+      "expected": [
+        [
+          true,
+          "RAW",
+          "service",
+          "alternate"
+        ]
+      ]
+    },
+    {
+      "id": "4-user-start",
+      "width": 4,
+      "start": 16384,
+      "module_base": 2147491840,
+      "module_size": 4096,
+      "module_name": "loaded.sys",
+      "names": [
+        "RAW",
+        "service",
+        "alternate"
+      ],
+      "expected": []
+    },
+    {
+      "id": "4-faulted-driver-name",
+      "width": 4,
+      "start": 0,
+      "module_base": 2147491840,
+      "module_size": 4096,
+      "module_name": "loaded.sys",
+      "names": [
+        null,
+        "service",
+        "alternate"
+      ],
+      "expected": [
+        [
+          false,
+          "",
+          "service",
+          "alternate"
+        ]
+      ]
+    },
+    {
+      "id": "4-faulted-service-key",
+      "width": 4,
+      "start": 0,
+      "module_base": 2147491840,
+      "module_size": 4096,
+      "module_name": "loaded.sys",
+      "names": [
+        "RAW",
+        null,
+        "alternate"
+      ],
+      "expected": [
+        [
+          true,
+          "RAW",
+          "",
+          "alternate"
+        ]
+      ]
+    },
+    {
+      "id": "4-faulted-alternative",
+      "width": 4,
+      "start": 0,
+      "module_base": 2147491840,
+      "module_size": 4096,
+      "module_name": "loaded.sys",
+      "names": [
+        "RAW",
+        "service",
+        null
+      ],
+      "expected": [
+        [
+          true,
+          "RAW",
+          "service",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "4-all-empty",
+      "width": 4,
+      "start": 0,
+      "module_base": 2147491840,
+      "module_size": 4096,
+      "module_name": "loaded.sys",
+      "names": [
+        "",
+        "",
+        ""
+      ],
+      "expected": []
+    },
+    {
+      "id": "4-all-faulted",
+      "width": 4,
+      "start": 0,
+      "module_base": 2147491840,
+      "module_size": 4096,
+      "module_name": "loaded.sys",
+      "names": [
+        null,
+        null,
+        null
+      ],
+      "expected": []
+    },
+    {
+      "id": "4-known-case-sensitive",
+      "width": 4,
+      "start": 0,
+      "module_base": 2147491840,
+      "module_size": 4096,
+      "module_name": "loaded.sys",
+      "names": [
+        "raw",
+        "",
+        ""
+      ],
+      "expected": [
+        [
+          false,
+          "raw",
+          "",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "4-known-ACPI_HAL",
+      "width": 4,
+      "start": 0,
+      "module_base": 2147491840,
+      "module_size": 4096,
+      "module_name": "loaded.sys",
+      "names": [
+        "ACPI_HAL",
+        "",
+        ""
+      ],
+      "expected": [
+        [
+          true,
+          "ACPI_HAL",
+          "",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "4-known-PnpManager",
+      "width": 4,
+      "start": 0,
+      "module_base": 2147491840,
+      "module_size": 4096,
+      "module_name": "loaded.sys",
+      "names": [
+        "PnpManager",
+        "",
+        ""
+      ],
+      "expected": [
+        [
+          true,
+          "PnpManager",
+          "",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "4-known-RAW",
+      "width": 4,
+      "start": 0,
+      "module_base": 2147491840,
+      "module_size": 4096,
+      "module_name": "loaded.sys",
+      "names": [
+        "RAW",
+        "",
+        ""
+      ],
+      "expected": [
+        [
+          true,
+          "RAW",
+          "",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "4-known-WMIxWDM",
+      "width": 4,
+      "start": 0,
+      "module_base": 2147491840,
+      "module_size": 4096,
+      "module_name": "loaded.sys",
+      "names": [
+        "WMIxWDM",
+        "",
+        ""
+      ],
+      "expected": [
+        [
+          true,
+          "WMIxWDM",
+          "",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "4-known-Win32k",
+      "width": 4,
+      "start": 0,
+      "module_base": 2147491840,
+      "module_size": 4096,
+      "module_name": "loaded.sys",
+      "names": [
+        "Win32k",
+        "",
+        ""
+      ],
+      "expected": [
+        [
+          true,
+          "Win32k",
+          "",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "4-known-Fs_Rec",
+      "width": 4,
+      "start": 0,
+      "module_base": 2147491840,
+      "module_size": 4096,
+      "module_name": "loaded.sys",
+      "names": [
+        "Fs_Rec",
+        "",
+        ""
+      ],
+      "expected": [
+        [
+          true,
+          "Fs_Rec",
+          "",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "8-below-module",
+      "width": 8,
+      "start": 18446603336221204479,
+      "module_base": 18446603336221204480,
+      "module_size": 4096,
+      "module_name": "loaded.sys",
+      "names": [
+        "RAW",
+        "service",
+        "alternate"
+      ],
+      "expected": [
+        [
+          true,
+          "RAW",
+          "service",
+          "alternate"
+        ]
+      ]
+    },
+    {
+      "id": "8-module-base",
+      "width": 8,
+      "start": 18446603336221204480,
+      "module_base": 18446603336221204480,
+      "module_size": 4096,
+      "module_name": "loaded.sys",
+      "names": [
+        "RAW",
+        "service",
+        "alternate"
+      ],
+      "expected": []
+    },
+    {
+      "id": "8-module-last-byte",
+      "width": 8,
+      "start": 18446603336221208575,
+      "module_base": 18446603336221204480,
+      "module_size": 4096,
+      "module_name": "loaded.sys",
+      "names": [
+        "RAW",
+        "service",
+        "alternate"
+      ],
+      "expected": []
+    },
+    {
+      "id": "8-module-end",
+      "width": 8,
+      "start": 18446603336221208576,
+      "module_base": 18446603336221204480,
+      "module_size": 4096,
+      "module_name": "loaded.sys",
+      "names": [
+        "RAW",
+        "service",
+        "alternate"
+      ],
+      "expected": []
+    },
+    {
+      "id": "8-after-module",
+      "width": 8,
+      "start": 18446603336221208577,
+      "module_base": 18446603336221204480,
+      "module_size": 4096,
+      "module_name": "loaded.sys",
+      "names": [
+        "RAW",
+        "service",
+        "alternate"
+      ],
+      "expected": [
+        [
+          true,
+          "RAW",
+          "service",
+          "alternate"
+        ]
+      ]
+    },
+    {
+      "id": "8-zero-size-base",
+      "width": 8,
+      "start": 18446603336221204480,
+      "module_base": 18446603336221204480,
+      "module_size": 0,
+      "module_name": "loaded.sys",
+      "names": [
+        "RAW",
+        "service",
+        "alternate"
+      ],
+      "expected": []
+    },
+    {
+      "id": "8-zero-size-after",
+      "width": 8,
+      "start": 18446603336221204481,
+      "module_base": 18446603336221204480,
+      "module_size": 0,
+      "module_name": "loaded.sys",
+      "names": [
+        "RAW",
+        "service",
+        "alternate"
+      ],
+      "expected": [
+        [
+          true,
+          "RAW",
+          "service",
+          "alternate"
+        ]
+      ]
+    },
+    {
+      "id": "8-empty-module-name",
+      "width": 8,
+      "start": 18446603336221204480,
+      "module_base": 18446603336221204480,
+      "module_size": 4096,
+      "module_name": "",
+      "names": [
+        "RAW",
+        "service",
+        "alternate"
+      ],
+      "expected": []
+    },
+    {
+      "id": "8-faulted-module-name",
+      "width": 8,
+      "start": 18446603336221204480,
+      "module_base": 18446603336221204480,
+      "module_size": 4096,
+      "module_name": null,
+      "names": [
+        "RAW",
+        "service",
+        "alternate"
+      ],
+      "expected": [
+        [
+          true,
+          "RAW",
+          "service",
+          "alternate"
+        ]
+      ]
+    },
+    {
+      "id": "8-zero-start",
+      "width": 8,
+      "start": 0,
+      "module_base": 18446603336221204480,
+      "module_size": 4096,
+      "module_name": "loaded.sys",
+      "names": [
+        "RAW",
+        "service",
+        "alternate"
+      ],
+      "expected": [
+        [
+          true,
+          "RAW",
+          "service",
+          "alternate"
+        ]
+      ]
+    },
+    {
+      "id": "8-equal-kernel-boundary",
+      "width": 8,
+      "start": 18446603336221196288,
+      "module_base": 18446603336221204480,
+      "module_size": 4096,
+      "module_name": "loaded.sys",
+      "names": [
+        "RAW",
+        "service",
+        "alternate"
+      ],
+      "expected": [
+        [
+          true,
+          "RAW",
+          "service",
+          "alternate"
+        ]
+      ]
+    },
+    {
+      "id": "8-user-start",
+      "width": 8,
+      "start": 16384,
+      "module_base": 18446603336221204480,
+      "module_size": 4096,
+      "module_name": "loaded.sys",
+      "names": [
+        "RAW",
+        "service",
+        "alternate"
+      ],
+      "expected": []
+    },
+    {
+      "id": "8-faulted-driver-name",
+      "width": 8,
+      "start": 0,
+      "module_base": 18446603336221204480,
+      "module_size": 4096,
+      "module_name": "loaded.sys",
+      "names": [
+        null,
+        "service",
+        "alternate"
+      ],
+      "expected": [
+        [
+          false,
+          "",
+          "service",
+          "alternate"
+        ]
+      ]
+    },
+    {
+      "id": "8-faulted-service-key",
+      "width": 8,
+      "start": 0,
+      "module_base": 18446603336221204480,
+      "module_size": 4096,
+      "module_name": "loaded.sys",
+      "names": [
+        "RAW",
+        null,
+        "alternate"
+      ],
+      "expected": [
+        [
+          true,
+          "RAW",
+          "",
+          "alternate"
+        ]
+      ]
+    },
+    {
+      "id": "8-faulted-alternative",
+      "width": 8,
+      "start": 0,
+      "module_base": 18446603336221204480,
+      "module_size": 4096,
+      "module_name": "loaded.sys",
+      "names": [
+        "RAW",
+        "service",
+        null
+      ],
+      "expected": [
+        [
+          true,
+          "RAW",
+          "service",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "8-all-empty",
+      "width": 8,
+      "start": 0,
+      "module_base": 18446603336221204480,
+      "module_size": 4096,
+      "module_name": "loaded.sys",
+      "names": [
+        "",
+        "",
+        ""
+      ],
+      "expected": []
+    },
+    {
+      "id": "8-all-faulted",
+      "width": 8,
+      "start": 0,
+      "module_base": 18446603336221204480,
+      "module_size": 4096,
+      "module_name": "loaded.sys",
+      "names": [
+        null,
+        null,
+        null
+      ],
+      "expected": []
+    },
+    {
+      "id": "8-known-case-sensitive",
+      "width": 8,
+      "start": 0,
+      "module_base": 18446603336221204480,
+      "module_size": 4096,
+      "module_name": "loaded.sys",
+      "names": [
+        "raw",
+        "",
+        ""
+      ],
+      "expected": [
+        [
+          false,
+          "raw",
+          "",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "8-known-ACPI_HAL",
+      "width": 8,
+      "start": 0,
+      "module_base": 18446603336221204480,
+      "module_size": 4096,
+      "module_name": "loaded.sys",
+      "names": [
+        "ACPI_HAL",
+        "",
+        ""
+      ],
+      "expected": [
+        [
+          true,
+          "ACPI_HAL",
+          "",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "8-known-PnpManager",
+      "width": 8,
+      "start": 0,
+      "module_base": 18446603336221204480,
+      "module_size": 4096,
+      "module_name": "loaded.sys",
+      "names": [
+        "PnpManager",
+        "",
+        ""
+      ],
+      "expected": [
+        [
+          true,
+          "PnpManager",
+          "",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "8-known-RAW",
+      "width": 8,
+      "start": 0,
+      "module_base": 18446603336221204480,
+      "module_size": 4096,
+      "module_name": "loaded.sys",
+      "names": [
+        "RAW",
+        "",
+        ""
+      ],
+      "expected": [
+        [
+          true,
+          "RAW",
+          "",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "8-known-WMIxWDM",
+      "width": 8,
+      "start": 0,
+      "module_base": 18446603336221204480,
+      "module_size": 4096,
+      "module_name": "loaded.sys",
+      "names": [
+        "WMIxWDM",
+        "",
+        ""
+      ],
+      "expected": [
+        [
+          true,
+          "WMIxWDM",
+          "",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "8-known-Win32k",
+      "width": 8,
+      "start": 0,
+      "module_base": 18446603336221204480,
+      "module_size": 4096,
+      "module_name": "loaded.sys",
+      "names": [
+        "Win32k",
+        "",
+        ""
+      ],
+      "expected": [
+        [
+          true,
+          "Win32k",
+          "",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "8-known-Fs_Rec",
+      "width": 8,
+      "start": 0,
+      "module_base": 18446603336221204480,
+      "module_size": 4096,
+      "module_name": "loaded.sys",
+      "names": [
+        "Fs_Rec",
+        "",
+        ""
+      ],
+      "expected": [
+        [
+          true,
+          "Fs_Rec",
+          "",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "8-masked-start",
+      "width": 8,
+      "start": 1311814128960020480,
+      "module_base": 18446603336221204480,
+      "module_size": 4096,
+      "module_name": "loaded.sys",
+      "names": [
+        "RAW",
+        "service",
+        "alternate"
+      ],
+      "expected": []
+    },
+    {
+      "id": "8-masked-module-base",
+      "width": 8,
+      "start": 18446603336221204480,
+      "module_base": 1311814128960020480,
+      "module_size": 4096,
+      "module_name": "loaded.sys",
+      "names": [
+        "RAW",
+        "service",
+        "alternate"
+      ],
+      "expected": []
+    }
+  ],
+  "links": [
+    {
+      "id": "4-reverse-only",
+      "width": 4,
+      "first": 1792,
+      "relative": 16,
+      "nodes": [
+        [
+          65536,
+          1792,
+          1792
+        ]
+      ],
+      "expected": []
+    },
+    {
+      "id": "4-wrong-blink",
+      "width": 4,
+      "first": 65536,
+      "relative": 16,
+      "nodes": [
+        [
+          65536,
+          69632,
+          0
+        ],
+        [
+          69632,
+          1792,
+          0
+        ]
+      ],
+      "expected": [
+        65520,
+        69616
+      ]
+    },
+    {
+      "id": "4-cycle-away-from-head",
+      "width": 4,
+      "first": 65536,
+      "relative": 16,
+      "nodes": [
+        [
+          65536,
+          69632,
+          0
+        ],
+        [
+          69632,
+          65536,
+          0
+        ]
+      ],
+      "expected": [
+        65520,
+        69616
+      ]
+    },
+    {
+      "id": "4-null-next",
+      "width": 4,
+      "first": 65536,
+      "relative": 16,
+      "nodes": [
+        [
+          65536,
+          0,
+          0
+        ]
+      ],
+      "expected": [
+        65520
+      ]
+    },
+    {
+      "id": "4-unreadable-next",
+      "width": 4,
+      "first": 65536,
+      "relative": 16,
+      "nodes": [
+        [
+          65536,
+          8388608,
+          0
+        ]
+      ],
+      "expected": [
+        65520
+      ]
+    },
+    {
+      "id": "4-unreadable-object",
+      "width": 4,
+      "first": 4096,
+      "relative": 8192,
+      "nodes": [
+        [
+          4096,
+          1792,
+          0
+        ]
+      ],
+      "expected": []
+    },
+    {
+      "id": "4-partial-list-entry",
+      "width": 4,
+      "first": 131068,
+      "relative": 16,
+      "nodes": [
+        [
+          131068,
+          1792,
+          0
+        ]
+      ],
+      "expected": []
+    },
+    {
+      "id": "4-unaligned-link",
+      "width": 4,
+      "first": 65539,
+      "relative": 16,
+      "nodes": [
+        [
+          65539,
+          1792,
+          0
+        ]
+      ],
+      "expected": [
+        65523
+      ]
+    },
+    {
+      "id": "8-reverse-only",
+      "width": 8,
+      "first": 1792,
+      "relative": 16,
+      "nodes": [
+        [
+          65536,
+          1792,
+          1792
+        ]
+      ],
+      "expected": []
+    },
+    {
+      "id": "8-wrong-blink",
+      "width": 8,
+      "first": 65536,
+      "relative": 16,
+      "nodes": [
+        [
+          65536,
+          69632,
+          0
+        ],
+        [
+          69632,
+          1792,
+          0
+        ]
+      ],
+      "expected": [
+        65520,
+        69616
+      ]
+    },
+    {
+      "id": "8-cycle-away-from-head",
+      "width": 8,
+      "first": 65536,
+      "relative": 16,
+      "nodes": [
+        [
+          65536,
+          69632,
+          0
+        ],
+        [
+          69632,
+          65536,
+          0
+        ]
+      ],
+      "expected": [
+        65520,
+        69616
+      ]
+    },
+    {
+      "id": "8-null-next",
+      "width": 8,
+      "first": 65536,
+      "relative": 16,
+      "nodes": [
+        [
+          65536,
+          0,
+          0
+        ]
+      ],
+      "expected": [
+        65520
+      ]
+    },
+    {
+      "id": "8-unreadable-next",
+      "width": 8,
+      "first": 65536,
+      "relative": 16,
+      "nodes": [
+        [
+          65536,
+          8388608,
+          0
+        ]
+      ],
+      "expected": [
+        65520
+      ]
+    },
+    {
+      "id": "8-unreadable-object",
+      "width": 8,
+      "first": 4096,
+      "relative": 8192,
+      "nodes": [
+        [
+          4096,
+          1792,
+          0
+        ]
+      ],
+      "expected": []
+    },
+    {
+      "id": "8-partial-list-entry",
+      "width": 8,
+      "first": 131068,
+      "relative": 16,
+      "nodes": [
+        [
+          131068,
+          1792,
+          0
+        ]
+      ],
+      "expected": []
+    },
+    {
+      "id": "8-unaligned-link",
+      "width": 8,
+      "first": 65539,
+      "relative": 16,
+      "nodes": [
+        [
+          65539,
+          1792,
+          0
+        ]
+      ],
+      "expected": [
+        65523
+      ]
+    }
+  ],
+  "links_scope": "Actual LIST_ENTRY.to_list with synthetic pointer and layer validity adapters; tests forward-only traversal, ignored Blink, non-head cycles, null and unreadable pointers, containing-object validity and unaligned links. Native counterparts run real fixture page tables and captured reads."
+}

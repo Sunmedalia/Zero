@@ -701,3 +701,17 @@ DriverIrp、DriverModule 和 GUI 的真实联合差分。
 `driver-regression.example.json` 汇总 DriverIrp 六例、DriverModule 三例及 GUI
 五例，覆盖共享池候选恢复的调用方。native82 实际验收以原三个配置并行执行，
 三个报告绑定同一最终二进制摘要；汇总配置可顺序复现相同 14 个 case。
+
+
+Native83 aligns DriverModule ownership with inclusive SSDT ModuleCollection
+intervals, native pointer domains, zero-size/readable empty-name modules, and
+forward-only LIST_ENTRY traversal. It avoids querying FullDllName. Names reuse
+direct NameInfo/UNICODE_STRING.String decoding, including odd UTF16,
+MaximumLength-independent reads and readable user-half extension pointers.
+`driver_module_vectors.py` regenerates 50 actual generator/collection/name-helper
+vectors plus 16 actual LIST_ENTRY.to_list vectors in `fixtures/driver-module.json`.
+Adapters supply synthetic fields and validity; native counterparts use real
+fixture page tables and both physical/virtual pool bodies. Equality at the kernel
+boundary is explicitly split between the generator's inclusive gate and the
+upstream scanner's strict gate. These vectors do not establish a complete fault
+or platform contract; individual missing-name diagnostics still differ.

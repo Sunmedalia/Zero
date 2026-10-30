@@ -11,14 +11,15 @@ const KNOWN_DRIVERS: [&str; 6] = [
 ];
 
 fn in_module(modules: &[KernelModule], address: u64) -> bool {
+    // Python module.offset + module.size does not wrap at the pointer width.
     modules.iter().any(|module| {
-        !module.name.is_empty()
-            && address >= module.base
-            && module
-                .base
-                .checked_add(module.size)
-                .is_some_and(|end| address < end)
+        address >= module.base
+            && u128::from(address) <= u128::from(module.base) + u128::from(module.size)
     })
+}
+
+fn driver_module_orphan(modules: &[KernelModule], start: u64, range_start: u64) -> bool {
+    (start == 0 || start >= range_start) && !in_module(modules, start)
 }
 
 impl Windows<'_> {
@@ -38,29 +39,97 @@ impl Windows<'_> {
         Ok(r)
     }
 
-    fn driver_module_rows(&self, r: &mut Results, job: &Job) -> Result<()> {
-        let modules = self.modules_partial(job, r)?;
-        let range_symbol = self.symbol("MmSystemRangeStart")?;
-        let range_start = match self.vm.pointer(range_symbol) {
-            Ok(start) => {
-                ensure!(self.vm.kernel(start), "MmSystemRangeStart 无效");
-                start
-            }
-            Err(error) => {
-                Self::issue(
-                    r,
-                    "MmSystemRangeStart 使用架构默认边界",
-                    format!("{error:#}"),
-                );
-                if self.vm.pointer_size() == 4 {
-                    0x80000000
-                } else {
-                    0xffff800000000000
-                }
+    /// LIST_ENTRY.to_list uses only forward links. Walking Blink as a recovery
+    /// path can add stale entries that incorrectly claim an orphan driver's range.
+    fn driver_module_links(
+        &self,
+        head: u64,
+        offset: u64,
+        r: &mut Results,
+        job: &Job,
+    ) -> Result<Vec<u64>> {
+        let flink = self.vm.isf.offset("_LIST_ENTRY", "Flink")?;
+        let size = self.vm.isf.data["user_types"]["_LIST_ENTRY"]["size"]
+            .as_u64()
+            .context("缺少 LIST_ENTRY 大小")?;
+        ensure!(size <= 4096, "LIST_ENTRY 大小超限");
+        let mut bytes = vec![0; size as usize];
+        let native = |raw| {
+            let masked = raw & self.driver_address_mask();
+            if self.vm.pointer_size() == 8 && masked & (1 << 47) != 0 {
+                masked | 0xffff_0000_0000_0000
+            } else {
+                masked
             }
         };
+        let next = |at| -> Result<u64> {
+            let mut pointer = [0; 8];
+            self.vm
+                .read_captured(add(at, flink)?, &mut pointer[..self.vm.pointer_size()])?;
+            Ok(native(u64::from_le_bytes(pointer)))
+        };
+        let mut entries = Vec::new();
+        let mut seen = HashSet::from([head]);
+        let walk = (|| -> Result<()> {
+            self.vm.read_captured(head, &mut [0])?;
+            let mut current = next(head)?;
+            while current != 0 && seen.insert(current) {
+                job.check()?;
+                ensure!(entries.len() < MAX_OBJECTS, "模块链表数量超限");
+                // Pointer.is_readable validates the entire LIST_ENTRY, while
+                // the yielded containing object only needs its first byte.
+                self.vm.read_captured(current, &mut bytes)?;
+                let object = current
+                    .checked_sub(offset)
+                    .context("模块链表成员地址下溢")?;
+                self.vm.read_captured(object, &mut [0])?;
+                entries.push(object);
+                current = next(current)?;
+            }
+            Ok(())
+        })();
+        if let Err(error) = walk {
+            job.check()?;
+            Self::issue(r, "PsLoadedModuleList forward traversal", error);
+        }
+        Ok(entries)
+    }
+
+    /// SSDT's collection only reads BaseDllName, DllBase and SizeOfImage.
+    /// An unreadable name skips that module; a readable empty name still owns
+    /// its interval. Do not require FullDllName or a nonempty module stem.
+    fn driver_module_intervals(&self, r: &mut Results, job: &Job) -> Result<Vec<KernelModule>> {
+        let ty = self.module_type()?;
+        let entries = self.driver_module_links(
+            self.symbol("PsLoadedModuleList")?,
+            self.vm.isf.offset(ty, "InLoadOrderLinks")?,
+            r,
+            job,
+        )?;
+        let mut out = Vec::new();
+        for address in entries {
+            job.check()?;
+            let module = (|| -> Result<KernelModule> {
+                let name = self.driver_unicode(self.field(address, ty, "BaseDllName")?, false)?;
+                Ok(KernelModule {
+                    name,
+                    base: self.number(address, ty, "DllBase")? & self.driver_address_mask(),
+                    size: self.number(address, ty, "SizeOfImage")?,
+                    path: String::new(),
+                })
+            })();
+            match module {
+                Ok(module) => out.push(module),
+                Err(error) => Self::issue(r, format!("module {address:#x}"), error),
+            }
+        }
+        Ok(out)
+    }
+
+    fn driver_module_rows(&self, r: &mut Results, job: &Job) -> Result<()> {
+        let modules = self.driver_module_intervals(r, job)?;
+        let range_start = self.driver_kernel_start()?;
         let physical = self.build_number()? < 10240;
-        let header_layout = self.object_header_layout();
         let body = self.vm.isf.offset("_OBJECT_HEADER", "Body")?;
         let mut text_bytes = 0usize;
         for (offset, address) in self.dispatch_drivers(r, job)? {
@@ -73,7 +142,7 @@ impl Windows<'_> {
                 }
             };
             let start = match number("DriverStart") {
-                Ok(start) => start,
+                Ok(start) => start & self.driver_address_mask(),
                 Err(error) => {
                     Self::issue(
                         r,
@@ -83,7 +152,7 @@ impl Windows<'_> {
                     continue;
                 }
             };
-            if (start > 0 && start <= range_start) || in_module(&modules, start) {
+            if !driver_module_orphan(&modules, start, range_start) {
                 continue;
             }
             // Each name is independent; an unreadable extension must not hide a
@@ -91,25 +160,23 @@ impl Windows<'_> {
             let names = [
                 (|| {
                     let header = address.checked_sub(body).context("驱动对象头下溢")?;
-                    if physical {
-                        self.physical_object_name(header)
-                    } else {
-                        self.object_name(header, &header_layout)
-                    }
+                    Ok(self.driver_name(header, physical)?.unwrap_or_default())
                 })(),
                 (|| {
-                    let extension = number("DriverExtension")?;
-                    ensure!(self.vm.kernel(extension), "驱动扩展指针无效");
-                    self.vm
-                        .unicode(self.field(extension, "_DRIVER_EXTENSION", "ServiceKeyName")?)
+                    let raw = number("DriverExtension")? & self.driver_address_mask();
+                    let extension = if self.vm.pointer_size() == 8 && raw & (1 << 47) != 0 {
+                        raw | 0xffff_0000_0000_0000
+                    } else {
+                        raw
+                    };
+                    self.driver_unicode(
+                        self.field(extension, "_DRIVER_EXTENSION", "ServiceKeyName")?,
+                        false,
+                    )
                 })(),
                 (|| {
                     let descriptor = self.field(address, "_DRIVER_OBJECT", "DriverName")?;
-                    if physical {
-                        self.physical_unicode(descriptor)
-                    } else {
-                        self.vm.unicode(descriptor)
-                    }
+                    self.driver_unicode(descriptor, physical)
                 })(),
             ];
             let mut values = Vec::with_capacity(3);
@@ -146,7 +213,8 @@ impl Windows<'_> {
             r.rows.push(row);
         }
         r.kernel_identity["driver_module"] = serde_json::json!({
-            "module_ranges":"half-open; named loaded modules only", "kernel_space_start":hex(range_start),
+            "module_ranges":"inclusive; readable BaseDllName including empty names; native pointer domain",
+            "module_traversal":"forward LIST_ENTRY only; full link readability; no Blink recovery", "kernel_space_start":hex(range_start),
             "source":"versioned driver pool cross-view; zero DriverStart retained", "known_exceptions":KNOWN_DRIVERS
         });
         Ok(())
@@ -192,6 +260,7 @@ mod tests {
             json!({"offset":0,"type":{"kind":"struct","name":"_UNICODE_STRING"}});
         put(&mut bytes, physical + 16, start);
         put(&mut bytes, physical + 8, base + 0xd000);
+        bytes[physical - 48 + 16] = 32;
         bytes[physical - 48 + 17] = 2;
         unicode(
             &mut bytes,
@@ -274,6 +343,54 @@ mod tests {
         assert!(r.diagnostics.iter().any(|s| s.contains("Service Key")));
     }
     #[test]
+    fn direct_driver_strings_do_not_require_maximum_length_or_kernel_extension() {
+        for x86 in [false, true] {
+            for modern in [false, true] {
+                for low_extension in [false, true] {
+                    let (mut bytes, isf, base, physical) = fixture(x86, modern, 0, "RAW");
+                    let physical = physical as usize;
+                    for descriptor in [physical - 80, 0x15000, physical + 32] {
+                        bytes[descriptor + 2..descriptor + 4].fill(0);
+                    }
+                    if low_extension {
+                        // A readable user-half extension is accepted by the
+                        // native pointer dereference; no kernel-only gate.
+                        if x86 {
+                            bytes[0x1000..0x1004].copy_from_slice(&0x2003u32.to_le_bytes());
+                        } else {
+                            put(&mut bytes, 0x1000, 0x2003);
+                        }
+                        put(&mut bytes, physical + 8, 0xd000);
+                    } else if !x86 {
+                        put(&mut bytes, physical + 8, 0x1234_8000_0000_d000);
+                    }
+                    // Odd-length UTF16 is decoded with replacement, not rejected.
+                    bytes[physical + 32..physical + 34].copy_from_slice(&3u16.to_le_bytes());
+                    bytes[0x17000..0x17003].copy_from_slice(&[b'a', 0, b'x']);
+                    let img = image(&bytes);
+                    let w = Windows {
+                        vm: Memory::new(&img, 0x1000, &isf, None),
+                        base,
+                        pdb: PdbIdentity::from_isf(&isf).unwrap(),
+                    };
+                    let r = w.driver_module(&Job::default()).unwrap();
+                    // Modern scanning preserves the new user/kernel alias pair.
+                    assert_eq!(
+                        r.rows.len(),
+                        if modern && low_extension { 2 } else { 1 },
+                        "x86={x86} modern={modern} low={low_extension}: {:?}",
+                        r.diagnostics
+                    );
+                    for row in &r.rows {
+                        assert_eq!(&row[1..], &["true", "RAW", "service", "a\u{fffd}"]);
+                    }
+                    assert!(r.complete, "{:?}", r.diagnostics);
+                }
+            }
+        }
+    }
+
+    #[test]
     fn nameless_candidates_and_user_starts_do_not_produce_rows() {
         for nameless in [false, true] {
             let (mut bytes, isf, base, physical) =
@@ -293,7 +410,7 @@ mod tests {
     }
     #[test]
     fn loaded_module_cross_view_excludes_only_starts_inside_its_range() {
-        for (delta, rows) in [(0, 0), (0xfff, 0), (0x1000, 1)] {
+        for (delta, rows) in [(0, 0), (0xfff, 0), (0x1000, 0), (0x1001, 1)] {
             let base = super::super::tests::K;
             let (mut bytes, mut isf, _, _) = fixture(false, true, base + 0x2000 + delta, "orphan");
             let fields = &mut isf.data["user_types"]["_LDR_DATA_TABLE_ENTRY"]["fields"];
@@ -343,7 +460,7 @@ mod tests {
     }
 
     #[test]
-    fn range_read_failure_uses_default_with_explicit_partial_diagnostic() {
+    fn range_read_failure_uses_reference_default_without_extra_failure() {
         let (bytes, mut isf, base, _) = fixture(false, true, 0, "RAW");
         isf.data["symbols"]["MmSystemRangeStart"]["address"] = json!(0x800000);
         let img = image(&bytes);
@@ -354,12 +471,7 @@ mod tests {
         };
         let r = w.driver_module(&Job::default()).unwrap();
         assert_eq!(r.rows.len(), 1);
-        assert!(!r.complete);
-        assert!(
-            r.diagnostics
-                .iter()
-                .any(|s| s.contains("MmSystemRangeStart"))
-        );
+        assert!(r.complete, "{:?}", r.diagnostics);
         isf.data["metadata"]["windows"]["pdb"]["machine_type"] = json!(0xaa64);
         let w = Windows {
             vm: Memory::new(&img, 0x1000, &isf, None),
@@ -375,7 +487,7 @@ mod tests {
     }
 
     #[test]
-    fn module_membership_is_half_open_and_overflow_safe() {
+    fn module_membership_is_inclusive_and_uses_python_integer_bounds() {
         let modules = vec![
             KernelModule {
                 name: "test.sys".into(),
@@ -401,11 +513,159 @@ mod tests {
             (0xfff, false),
             (0x1000, true),
             (0x1fff, true),
-            (0x2000, false),
-            (0x3000, false),
-            (u64::MAX - 1, false),
+            (0x2000, true),
+            (0x3000, true),
+            (u64::MAX - 1, true),
         ] {
             assert_eq!(in_module(&modules, address), expected, "{address:#x}");
+        }
+    }
+    #[test]
+    fn module_forward_links_match_actual_list_entry_vectors() {
+        let vectors: serde_json::Value = serde_json::from_str(include_str!(
+            "../../tests/reference/parity/fixtures/driver-module.json"
+        ))
+        .unwrap();
+        for case in vectors["links"].as_array().unwrap() {
+            let width = case["width"].as_u64().unwrap() as usize;
+            let (mut bytes, mut isf, base, _) = fixture(width == 4, true, 0, "RAW");
+            isf.data["user_types"]["_LIST_ENTRY"]["size"] = json!(width * 2);
+            let first = case["first"].as_u64().unwrap();
+            put(&mut bytes, 0x8700, base + first);
+            // A backward recovery would reach this node even for reverse-only.
+            put(&mut bytes, 0x8700 + width, base + 0x10000);
+            for node in case["nodes"].as_array().unwrap() {
+                let at = node[0].as_u64().unwrap() as usize + 0x8000;
+                let pointer = |value: u64| if value == 0 { 0 } else { base + value };
+                put(&mut bytes, at, pointer(node[1].as_u64().unwrap()));
+                put(&mut bytes, at + width, pointer(node[2].as_u64().unwrap()));
+            }
+            let img = image(&bytes);
+            let w = Windows {
+                vm: Memory::new(&img, 0x1000, &isf, None),
+                base,
+                pdb: PdbIdentity::from_isf(&isf).unwrap(),
+            };
+            let mut r = w.result(Plugin::WinDriverModule);
+            let entries = w
+                .driver_module_links(
+                    base + 0x700,
+                    case["relative"].as_u64().unwrap(),
+                    &mut r,
+                    &Job::default(),
+                )
+                .unwrap();
+            assert_eq!(
+                json!(entries.iter().map(|at| at - base).collect::<Vec<_>>()),
+                case["expected"],
+                "{}: {:?}",
+                case["id"],
+                r.diagnostics
+            );
+        }
+    }
+
+    #[test]
+    fn pinned_driver_module_generator_and_name_fallback_vectors() {
+        let vectors: serde_json::Value = serde_json::from_str(include_str!(
+            "../../tests/reference/parity/fixtures/driver-module.json"
+        ))
+        .unwrap();
+        for case in vectors["cases"].as_array().unwrap() {
+            let width = case["width"].as_u64().unwrap() as usize;
+            for modern in [false, true] {
+                let start = case["start"].as_u64().unwrap();
+                let (mut bytes, mut isf, base, physical) = fixture(width == 4, modern, start, "");
+                let fields = &mut isf.data["user_types"]["_LDR_DATA_TABLE_ENTRY"]["fields"];
+                fields["DllBase"] = json!({"offset":16,"type":{"kind":"pointer"}});
+                fields["SizeOfImage"] = json!({"offset":24,"type":{"kind":"base","name":"u64"}});
+                fields["BaseDllName"] =
+                    json!({"offset":32,"type":{"kind":"struct","name":"_UNICODE_STRING"}});
+                // FullDllName deliberately absent: SSDT never reads that field.
+                for (at, value) in [
+                    (0x8700, base + 0x10000),
+                    (0x8700 + width, base + 0x10000),
+                    (0x18000, base + 0x700),
+                    (0x18000 + width, base + 0x700),
+                    (0x18010, case["module_base"].as_u64().unwrap()),
+                    (0x18018, case["module_size"].as_u64().unwrap()),
+                ] {
+                    put(&mut bytes, at, value);
+                }
+                unicode(
+                    &mut bytes,
+                    0x18020,
+                    0x19000,
+                    base + 0x11000,
+                    width,
+                    case["module_name"].as_str().unwrap_or("bad"),
+                );
+                if case["module_name"].is_null() {
+                    put(&mut bytes, 0x18020 + width, base + 0x800000);
+                }
+                for (index, (descriptor, buffer)) in [
+                    (physical as usize - 80, 0x16000),
+                    (0x15000, 0x16800),
+                    (physical as usize + 32, 0x17000),
+                ]
+                .into_iter()
+                .enumerate()
+                {
+                    unicode(
+                        &mut bytes,
+                        descriptor,
+                        buffer,
+                        base + buffer as u64 - 0x8000,
+                        width,
+                        case["names"][index].as_str().unwrap_or("bad"),
+                    );
+                    if case["names"][index].is_null() {
+                        put(&mut bytes, descriptor + width, base + 0x800000);
+                    }
+                }
+                let img = image(&bytes);
+                let w = Windows {
+                    vm: Memory::new(&img, 0x1000, &isf, None),
+                    base,
+                    pdb: PdbIdentity::from_isf(&isf).unwrap(),
+                };
+                let r = w.driver_module(&Job::default()).unwrap();
+                let actual: Vec<Vec<String>> = r.rows.iter().map(|row| row[1..].to_vec()).collect();
+                let expected: Vec<Vec<String>> = case["expected"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .map(|row| {
+                        row.as_array()
+                            .unwrap()
+                            .iter()
+                            .map(|value| {
+                                value
+                                    .as_str()
+                                    .map(str::to_owned)
+                                    .unwrap_or_else(|| value.as_bool().unwrap().to_string())
+                            })
+                            .collect()
+                    })
+                    .collect();
+                if case["id"]
+                    .as_str()
+                    .unwrap()
+                    .ends_with("equal-kernel-boundary")
+                {
+                    // Actual generator accepts equality, but the upstream scanner
+                    // rejects it. Keep both stage contracts explicit.
+                    assert!(driver_module_orphan(&[], base, base));
+                    assert_eq!(expected.len(), 1);
+                    assert!(actual.is_empty());
+                } else {
+                    assert_eq!(
+                        actual, expected,
+                        "{} modern={modern}: {:?}",
+                        case["id"], r.diagnostics
+                    );
+                }
+            }
         }
     }
 }

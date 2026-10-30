@@ -62,7 +62,7 @@ impl Windows<'_> {
             }
         })
     }
-    fn driver_name(&self, header: u64, physical: bool) -> Result<Option<String>> {
+    pub(super) fn driver_name(&self, header: u64, physical: bool) -> Result<Option<String>> {
         let read = |at, size| -> Result<u64> {
             ensure!(matches!(size, 1 | 2 | 4 | 8), "驱动名称标量宽度无效");
             if physical {
@@ -94,6 +94,20 @@ impl Windows<'_> {
             info,
             self.vm.isf.offset("_OBJECT_HEADER_NAME_INFO", "Name")?,
         )?;
+        self.driver_unicode(descriptor, physical).map(Some)
+    }
+    /// Direct UNICODE_STRING.String, including native pointer masking and the
+    /// reference decoder. MaximumLength is not consulted by this property.
+    pub(super) fn driver_unicode(&self, descriptor: u64, physical: bool) -> Result<String> {
+        let read = |at, size| -> Result<u64> {
+            if physical {
+                let mut bytes = [0; 8];
+                self.vm.image.read(at, &mut bytes[..size])?;
+                Ok(u64::from_le_bytes(bytes))
+            } else {
+                self.vm.uint(at, size)
+            }
+        };
         let length = read(
             add(descriptor, self.vm.isf.offset("_UNICODE_STRING", "Length")?)?,
             2,
@@ -112,7 +126,7 @@ impl Windows<'_> {
         // sanity checks; read exactly Length with the reference String decoder.
         let mut bytes = vec![0; length as usize];
         self.vm.read(buffer, &mut bytes)?;
-        Ok(Some(windowstations::reference_unicode_name(&bytes)))
+        Ok(windowstations::reference_unicode_name(&bytes))
     }
     /// Pool bodies are retained independently of DriverStart/extension state.
     pub(super) fn dispatch_drivers(&self, r: &mut Results, job: &Job) -> Result<Vec<(u64, u64)>> {

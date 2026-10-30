@@ -1396,3 +1396,44 @@ Desktops 28/28、DeskScan 28/28、Windows 3063/3063，Win7 WindowStations
 
 最终 make check 通过：610 库、8 CLI/MCP、50 协议、33 Python 测试；14 个
 固定 DriverScan 向量重生成一致。最终发布包空 PATH／独立目录启动退出通过。
+
+## native83：DriverModule 模块归属、名称及正向链语义
+
+DriverModule 对照固定 SSDT／ModuleCollection，使用含结束地址的模块区间；
+零大小模块拥有基址本身，可读的空 BaseDllName 同样参与归属。DriverStart 与
+DllBase 都进入原生层的 32／48-bit 指针域，区间加法使用足够宽的整数，避免
+宿主整数溢出改变 Python 判断。集合只读取 BaseDllName、DllBase、SizeOfImage，
+不再读取此插件不需要的 FullDllName。
+
+模块遍历遵循实际 LIST_ENTRY.to_list：只沿 Flink，验证整个 LIST_ENTRY 和
+包含对象首字节；不要求反向指针闭合，也不沿 Blink 补链。补回的旧条目可能
+错误地覆盖孤立驱动地址，故不能把额外恢复视为此插件的等价行为。普通循环
+按 seen 停止，不额外加入未对齐／用户半区过滤。区段缺页仍记覆盖诊断。
+
+驱动的三种名称分别调用直接 NameInfo.Name.String、ServiceKeyName.String、
+DriverName.String 语义，共享 native81 的 NameInfo 优先级、指针掩码与 UTF16
+解码。不额外读取 MaximumLength，不拒绝奇数字节／可读用户半区扩展；单个
+名称不可读不会隐藏另外两种名称。空名称仍映射该插件的不可用值，已知系统
+驱动例外按固定六个名称区分大小写。MmSystemRangeStart 读取失败与固定参考
+一致使用架构默认值；缺失符号仍失败。
+
+新增 [固定 DriverModule 向量](../tests/reference/parity/driver_module_vectors.py)：
+50 个真实 generator／SSDT 集合／DriverScan 名称助手用例，加 16 个实际
+LIST_ENTRY.to_list 用例。向量适配的是合成字段和可读性，不能替代真实镜像。
+原生测试通过实际 x86／x64 页表、物理／虚拟池候选读取名称与范围，并覆盖
+MaximumLength 为零、奇数 UTF16、扩展指针掩码和用户／内核虚拟别名。generator
+接受等于内核边界，而上游 DriverScan 先拒绝该非零值，两层分别验证。
+
+最终 native83 的九个真实差分全部通过：DriverModule 在 Win10／Server 2008
+x86／Win11 为 3/3、2/2、1/1；前两个原生结果 complete，Win11 仍有 10516 条
+名称缺页诊断。DriverIrp 完整默认为 4255/4255、3724/3724、3453/3453，三个内核
+限定范围为 2066/2066、1723/1723、1656/1656，字段及重复数全部一致。原始
+差分保存在 target/reference/results/{drivermodule,driverirp}-native83-final。
+证据只替换同名 case，累计仍为 122 项（5 项限定范围），完整插件合同仍为
+0/135。名称读错仍保留原生 partial 诊断，未与参考静默不可用值完全对齐；
+更广的损坏输入、模块标量缺页、池扫描排序和平台组合仍待验收。原始用户
+Debian 镜像仍未取得，不能声称该镜像已能分析。
+
+最终 make check 通过：613 库、8 CLI/MCP、50 协议、33 Python 测试；固定向量
+重生成一致。最终发布包在空 PATH、发布目录及独立目录的启动／退出通过。
+可执行文件 SHA256：`558eb283b56b04e038069fdde35f6a2db131388f6067838f231cb49dbc32d51f`。

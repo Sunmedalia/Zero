@@ -221,48 +221,6 @@ impl Windows<'_> {
         )?;
         json_number(self.vm.isf, u64::from_le_bytes(bytes), ty, field)
     }
-    pub(super) fn physical_object_name(&self, header: u64) -> Result<String> {
-        let offset = if self.vm.isf.has_field("_OBJECT_HEADER", "InfoMask") {
-            let mask = self.physical_field(header, "_OBJECT_HEADER", "InfoMask")?;
-            if mask & 2 == 0 {
-                return Ok(String::new());
-            }
-            self.vm
-                .uint(add(self.symbol("ObpInfoMaskToOffset")?, mask & 3)?, 1)?
-        } else {
-            self.physical_field(header, "_OBJECT_HEADER", "NameInfoOffset")?
-        };
-        if offset == 0 {
-            return Ok(String::new());
-        }
-        let info = header.checked_sub(offset).context("物理对象名称头下溢")?;
-        let descriptor = add(
-            info,
-            self.vm.isf.offset("_OBJECT_HEADER_NAME_INFO", "Name")?,
-        )?;
-        self.physical_unicode(descriptor)
-    }
-    pub(super) fn physical_unicode(&self, descriptor: u64) -> Result<String> {
-        let length = self.physical_field(descriptor, "_UNICODE_STRING", "Length")?;
-        let maximum = self.physical_field(descriptor, "_UNICODE_STRING", "MaximumLength")?;
-        ensure!(
-            length % 2 == 0 && length <= maximum && length <= 65534,
-            "无效物理 UNICODE_STRING 长度"
-        );
-        let mut bytes = vec![0u8; length as usize];
-        if length > 0 {
-            self.vm.read(
-                self.physical_field(descriptor, "_UNICODE_STRING", "Buffer")?,
-                &mut bytes,
-            )?;
-        }
-        Ok(String::from_utf16_lossy(
-            &bytes
-                .chunks_exact(2)
-                .map(|word| u16::from_le_bytes([word[0], word[1]]))
-                .collect::<Vec<_>>(),
-        ))
-    }
     pub(super) fn object_type(&self, header: u64, layout: &ObjectHeaderLayout) -> Result<String> {
         if !layout.type_index {
             let ty = self.number(header, "_OBJECT_HEADER", "Type")?;
