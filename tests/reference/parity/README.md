@@ -550,3 +550,28 @@ These synthetic fixtures are not real recovery evidence. The known-limitations
 file records the frozen final executable, real sample observations and remaining
 contract gaps. Positive evidence remains 94 cases across 22 plugins (five scoped);
 candidate correspondences become 120/135, 15 absent, zero complete contracts.
+
+
+## DebugRegisters (native57)
+
+`debugregisters.example.json` runs the canonical
+`windows.debugregisters.DebugRegisters` on five public Intel samples. The mapping
+covers all 17 columns; Dr7 is an integer and Dr0–Dr3 use address48 normalization
+for the reference representation. Missing optional paths and symbols normalize
+to empty text. Empty/empty results remain negative observations.
+
+Native tests cover all four register addresses and exact export symbols, owner-PID
+semantics, legacy ownership precedence, four exclusion paths, unmapped boundaries,
+missing TrapFrame/register fields, unavailable PDBs with retained rows, cancellation,
+resource limits, x86 pointer width and explicit ARM64 rejection. Shared path/symbol
+helpers and synthetic PE fixtures also serve SuspendedThreads; its five tests are
+rerun with this change. The frozen known-limitations file records real results
+without promoting negative observations to positive recovery evidence.
+
+Final native57 evidence adds one Server2008 SP1 x86 default case: 3/3 records,
+all 17 fields equal, with native partial diagnostics explicitly retained. All
+symbol columns are absent on that real case; nonempty symbols remain synthetic
+coverage. The other four cases are empty/empty negative observations. Registered
+positive evidence totals 95 cases across 23 plugins (five scoped), 121/135
+candidate correspondences, 14 absent and zero complete contracts. The frozen
+executable SHA256 is `7a503c0d5f9e65c71e9294300134038b220ba1dcfa30193aad3859119db46cfe`.

@@ -985,3 +985,22 @@ zero --offline analyze --image /path/to/memory.raw --symbols /path/to/exact.json
 外部 PDB 依赖暂未纳入缓存键，因此该插件与 PESymbols 均禁用结果缓存。
 目前正向输出和精确导出符号由合成测试验证；五份公开镜像的最终输出均为空，
 不证明真实挂起线程恢复。ARM64、真实挂起线程/PDB 归属及损坏内存等价性仍待验收。
+
+
+`windows.debugregisters.DebugRegisters` 读取活动进程线程的 `Tcb.TrapFrame`，按精确
+ISF 布局解码 Dr7 和 Dr0–Dr3。跳过 Dr7 为零、状态 Terminated（4）、四个调试地址全零
+的线程；归属进程无文件映射 VAD，或四个地址均不在文件 VAD 中，也不输出。
+输出 Process、PID、TID、State、Dr7，以及每个 Dr0–Dr3 对应的 Range 和 Symbol，共 17 列。
+PID 来自归属 EPROCESS，TID 来自线程 Cid；旧布局优先使用 ThreadsProcess 归属字段。
+Dr7 按参考插件输出十进制整数；Dr0–Dr3 为十六进制地址。
+
+```sh
+zero --offline analyze --image /path/to/memory.raw --symbols /path/to/exact.json \
+  --plugin windows.debugregisters.DebugRegisters --output debug-registers.json
+```
+
+Range 列是匹配的文件路径；地址按 VAD 半开区间匹配，Symbol 只接受精确地址的
+PDB/PE 命名导出。不根据最近导出名推断符号。未映射地址仍显示原始寄存器值，路径和
+符号为空；字段、页面或符号源缺失保留 partial 诊断。调试寄存器存在本身不证明恶意。
+遍历数量、VAD 缓存、输出文本及共享符号缓存均有上限，超限保留已读取记录。
+该插件暂不缓存结果，ARM64 明确未支持。真实验收范围与差异见 Volatility 对齐进度。

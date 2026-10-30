@@ -1,0 +1,100 @@
+{
+  "version": 1,
+  "allow_partial": true,
+  "keys": [
+    "PID",
+    "TID"
+  ],
+  "duplicate_keys": "multiset",
+  "fields": {
+    "Process": {
+      "zero": "Process",
+      "reference": "Process",
+      "type": "text"
+    },
+    "PID": {
+      "zero": "PID",
+      "reference": "PID",
+      "type": "integer"
+    },
+    "TID": {
+      "zero": "TID",
+      "reference": "TID",
+      "type": "integer"
+    },
+    "State": {
+      "zero": "State",
+      "reference": "State",
+      "type": "integer"
+    },
+    "Dr7": {
+      "zero": "Dr7",
+      "reference": "Dr7",
+      "type": "integer"
+    },
+    "Dr0": {
+      "zero": "Dr0",
+      "reference": "Dr0",
+      "type": "address",
+      "reference_type": "address48"
+    },
+    "Range0": {
+      "zero": "Range0",
+      "reference": "Range0",
+      "type": "empty_text"
+    },
+    "Symbol0": {
+      "zero": "Symbol0",
+      "reference": "Symbol0",
+      "type": "empty_text"
+    },
+    "Dr1": {
+      "zero": "Dr1",
+      "reference": "Dr1",
+      "type": "address",
+      "reference_type": "address48"
+    },
+    "Range1": {
+      "zero": "Range1",
+      "reference": "Range1",
+      "type": "empty_text"
+    },
+    "Symbol1": {
+      "zero": "Symbol1",
+      "reference": "Symbol1",
+      "type": "empty_text"
+    },
+    "Dr2": {
+      "zero": "Dr2",
+      "reference": "Dr2",
+      "type": "address",
+      "reference_type": "address48"
+    },
+    "Range2": {
+      "zero": "Range2",
+      "reference": "Range2",
+      "type": "empty_text"
+    },
+    "Symbol2": {
+      "zero": "Symbol2",
+      "reference": "Symbol2",
+      "type": "empty_text"
+    },
+    "Dr3": {
+      "zero": "Dr3",
+      "reference": "Dr3",
+      "type": "address",
+      "reference_type": "address48"
+    },
+    "Range3": {
+      "zero": "Range3",
+      "reference": "Range3",
+      "type": "empty_text"
+    },
+    "Symbol3": {
+      "zero": "Symbol3",
+      "reference": "Symbol3",
+      "type": "empty_text"
+    }
+  }
+}

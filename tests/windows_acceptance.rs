@@ -1,4 +1,5 @@
 //! Public OSForensics RAW samples. Opt-in: make windows-acceptance.
+use sha2::{Digest, Sha256};
 use std::path::{Path, PathBuf};
 use zero_tui::{
     Job,
@@ -76,6 +77,18 @@ fn public_windows_images() {
             "sample SHA256"
         );
         for (plugin, expected) in [
+            (
+                Plugin::WinDebugRegisters,
+                fixture["rows"]["windows.debugregisters.DebugRegisters"]
+                    .as_u64()
+                    .unwrap() as usize,
+            ),
+            (
+                Plugin::WinSuspendedThreads,
+                fixture["rows"]["windows.suspended_threads.SuspendedThreads"]
+                    .as_u64()
+                    .unwrap() as usize,
+            ),
             (Plugin::WinPslist, expected_processes),
             (
                 Plugin::WinPESymbols,
@@ -541,6 +554,17 @@ fn compatibility_sample(index: usize, variable: &str) {
             "{} {name}",
             fixture["name"]
         );
+        if let Some(expected) = fixture["rows_sha256"][name].as_str() {
+            let actual = format!(
+                "{:x}",
+                Sha256::digest(serde_json::to_vec(&result.rows).unwrap())
+            );
+            assert_eq!(
+                actual, expected,
+                "{} {name} full rows changed",
+                fixture["name"]
+            );
+        }
         let build = if plugin == Plugin::WinCrashinfo {
             &result.kernel_identity["metadata"]["build"]
         } else {

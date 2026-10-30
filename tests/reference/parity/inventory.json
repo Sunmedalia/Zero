@@ -3921,8 +3921,10 @@
         "Range3",
         "Symbol3"
       ],
-      "zero_candidates": [],
-      "status": "missing",
+      "zero_candidates": [
+        "windows.debugregisters.DebugRegisters"
+      ],
+      "status": "mapped_unverified",
       "evidence": []
     },
     {

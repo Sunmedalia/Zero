@@ -795,3 +795,35 @@ Windows 13/13**，Server2012R2 仍缺本地样本。正向差分累计维持 **9
 （5 项限定记录范围）；候选入口对应 **120/135**，尚缺 15 个；完整插件合同仍为 0。
 最终可执行文件 SHA256：`83db7e831a87099bab752c16aa249d4e36d27460ab9365d8411daed8b806907e`。
 原始用户 Debian 镜像仍不可用，不能宣称其页表故障已实样解决。
+
+
+## native57：线程硬件调试寄存器
+
+新增原生 `windows.debugregisters.DebugRegisters`，与固定参考插件一致输出 17 列，
+包括归属进程/PID、线程 TID/State、Dr7，以及 Dr0–Dr3 地址、文件路径和精确符号。
+按 Dr7、线程状态和文件 VAD 关联筛选；不对调试寄存器值作恶意判定。
+PID 来自归属 EPROCESS，旧布局优先 ThreadsProcess，TID 来自线程 Cid。
+挂起线程与调试寄存器共享文件 VAD 和批量精确符号解析，不根据最近符号推断名称。
+共享符号缓存与符号输出也限制为 128 MiB，超限保留记录并标记 partial；
+外部 PDB 依赖尚未进入缓存键，所以两插件都禁用结果缓存。
+
+七项新合成测试覆盖完整 17 列、精确导出符号、归属 PID 语义、四条排除路径、
+半开映射边界、旧归属优先级、缺少 TrapFrame/寄存器字段、未解析符号、
+x86 四字节读取、取消、资源上限及 ARM64 明确拒绝。五项挂起线程测试也重新通过。
+
+五份真实 Intel 镜像差分中，**Server 2008 SP1 x86 build 6001 的 3/3 条记录，
+全部 17 字段一致**。原生仍带 561 条覆盖诊断，此项配置显式允许 partial；
+证明的是已恢复记录一致，不能据此声称线程视图完整。
+该样本所有 Symbol 字段均为空；真实非空 PDB/导出符号归属尚未验证。
+Win10/Win11/Win7/Server2003 均为 0/0，保留为负向观察。
+[用例](../tests/reference/parity/debugregisters.example.json)与
+[冻结验收限制](../tests/reference/parity/debugregisters-known-limitations.json)保存身份和哈希。
+
+新增真实全记录 17 列摘要回归基线，五份 Intel 的 DebugRegisters/SuspendedThreads 行数
+与 complete 状态也纳入长期回归。本批 `make check` 通过 **594 Rust / 25 Python**；
+真实回归 **Linux 4/4、Windows 13/13**，Server2012R2 仍缺本地样本。
+累计 **95 项正向全字段差分，覆盖 23 个插件**（5 项限定记录范围）；
+候选入口对应 **121/135**，尚缺 14 个；完整插件合同仍为 0。
+原始 Debian 镜像仍未取得，其页表故障不能宣称完成实样验收。
+
+最终 native57 可执行文件 SHA256：`7a503c0d5f9e65c71e9294300134038b220ba1dcfa30193aad3859119db46cfe`。

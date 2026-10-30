@@ -25,6 +25,7 @@ mod compressed;
 pub mod container;
 mod creds;
 mod crypto;
+mod debugregisters;
 mod dispatch;
 mod driver_irp;
 mod driver_module;
@@ -57,6 +58,7 @@ mod registry_artifacts;
 mod security;
 mod service_list;
 mod suspended_threads;
+mod thread_symbols;
 mod timeline;
 mod user_artifacts;
 mod user_layout;
@@ -573,6 +575,9 @@ impl Windows<'_> {
     }
     pub fn run(&self, p: Plugin, options: &Options, job: &Job) -> Result<Results> {
         job.check()?;
+        if p == Plugin::WinDebugRegisters {
+            return self.debug_registers(None, job);
+        }
         if p == Plugin::WinSuspendedThreads {
             return self.suspended_threads(None, job);
         }
@@ -1092,7 +1097,7 @@ pub(crate) fn analyze_resolved(
         && !request.plugin.is_dump()
         && !matches!(
             request.plugin,
-            Plugin::WinPESymbols | Plugin::WinSuspendedThreads
+            Plugin::WinPESymbols | Plugin::WinSuspendedThreads | Plugin::WinDebugRegisters
         ) {
         if request.plugin == Plugin::WinDriverIrp {
             dispatch::load_cached(request.cache, &key, request.network, job)?
@@ -1112,6 +1117,8 @@ pub(crate) fn analyze_resolved(
     }
     let mut result = if let Some(dump) = dump {
         engine.run_dump(request.plugin, dump, job)?
+    } else if request.plugin == Plugin::WinDebugRegisters {
+        engine.debug_registers(Some((request.cache, request.network)), job)?
     } else if request.plugin == Plugin::WinSuspendedThreads {
         engine.suspended_threads(Some((request.cache, request.network)), job)?
     } else if request.plugin == Plugin::WinPESymbols {
@@ -1157,7 +1164,7 @@ pub(crate) fn analyze_resolved(
     if request.use_cache
         && !matches!(
             request.plugin,
-            Plugin::WinPESymbols | Plugin::WinSuspendedThreads
+            Plugin::WinPESymbols | Plugin::WinSuspendedThreads | Plugin::WinDebugRegisters
         )
         && dump.is_none()
         && !request.plugin.is_dump()

@@ -41,7 +41,9 @@
         "windows.memmap.Memmap": 131493,
         "windows.registry.userassist.UserAssist": 83,
         "windows.registry.amcache.Amcache": 1230,
-        "windows.pe_symbols.PESymbols": 3
+        "windows.pe_symbols.PESymbols": 3,
+        "windows.debugregisters.DebugRegisters": 0,
+        "windows.suspended_threads.SuspendedThreads": 0
       },
       "process_list_complete": false,
       "artifact_reference": {
@@ -84,7 +86,9 @@
         "windows.svcscan.SvcScan": false,
         "windows.malware.svcdiff.SvcDiff": false,
         "windows.registry.userassist.UserAssist": false,
-        "windows.registry.amcache.Amcache": false
+        "windows.registry.amcache.Amcache": false,
+        "windows.debugregisters.DebugRegisters": false,
+        "windows.suspended_threads.SuspendedThreads": false
       },
       "row_options": {
         "windows.memmap.Memmap": {
@@ -141,7 +145,9 @@
         "windows.memmap.Memmap": 63692,
         "windows.registry.userassist.UserAssist": 58,
         "windows.registry.amcache.Amcache": 665,
-        "windows.pe_symbols.PESymbols": 3
+        "windows.pe_symbols.PESymbols": 3,
+        "windows.debugregisters.DebugRegisters": 0,
+        "windows.suspended_threads.SuspendedThreads": 0
       },
       "process_list_complete": false,
       "autoruns_reference": {
@@ -165,7 +171,9 @@
         "windows.svcscan.SvcScan": false,
         "windows.malware.svcdiff.SvcDiff": false,
         "windows.registry.userassist.UserAssist": false,
-        "windows.registry.amcache.Amcache": false
+        "windows.registry.amcache.Amcache": false,
+        "windows.debugregisters.DebugRegisters": false,
+        "windows.suspended_threads.SuspendedThreads": false
       },
       "row_options": {
         "windows.memmap.Memmap": {
@@ -258,9 +266,15 @@
         "windows.threads": 312,
         "windows.unloadedmodules": 4,
         "windows.vadinfo": 1986,
-        "windows.svcscan.SvcScan": 230
+        "windows.svcscan.SvcScan": 230,
+        "windows.debugregisters.DebugRegisters": 0,
+        "windows.suspended_threads.SuspendedThreads": 0
       },
-      "symbol_source": "https://downloads.volatilityfoundation.org/volatility3/symbols/windows.zip"
+      "symbol_source": "https://downloads.volatilityfoundation.org/volatility3/symbols/windows.zip",
+      "complete": {
+        "windows.debugregisters.DebugRegisters": false,
+        "windows.suspended_threads.SuspendedThreads": true
+      }
     },
     {
       "name": "Windows 7 SP1 x64",
@@ -295,7 +309,9 @@
         "windows.registry.hivescan.HiveScan": 16,
         "windows.malware.pebmasquerade.PebMasquerade": 53,
         "windows.svcscan.SvcScan": 863,
-        "windows.memmap.Memmap": 34991
+        "windows.memmap.Memmap": 34991,
+        "windows.debugregisters.DebugRegisters": 0,
+        "windows.suspended_threads.SuspendedThreads": 0
       },
       "symbol_source": "Microsoft exact PDB; independent Volatility conversion for comparisons",
       "coverage_notes": {
@@ -303,7 +319,9 @@
       },
       "complete": {
         "windows.registry.hivescan.HiveScan": true,
-        "windows.malware.pebmasquerade.PebMasquerade": false
+        "windows.malware.pebmasquerade.PebMasquerade": false,
+        "windows.debugregisters.DebugRegisters": false,
+        "windows.suspended_threads.SuspendedThreads": false
       },
       "row_options": {
         "windows.memmap.Memmap": {
@@ -349,7 +367,9 @@
         "windows.registry.hivescan.HiveScan": 17,
         "windows.malware.pebmasquerade.PebMasquerade": 48,
         "windows.svcscan.SvcScan": 728,
-        "windows.memmap.Memmap": 15297
+        "windows.memmap.Memmap": 15297,
+        "windows.debugregisters.DebugRegisters": 3,
+        "windows.suspended_threads.SuspendedThreads": 0
       },
       "symbol_source": "Microsoft exact PDB; independent Volatility conversion for comparisons",
       "complete": {
@@ -370,12 +390,17 @@
         "windows.driverirp.DriverIrp": false,
         "windows.malware.drivermodule.DriverModule": false,
         "windows.registry.hivescan.HiveScan": true,
-        "windows.malware.pebmasquerade.PebMasquerade": false
+        "windows.malware.pebmasquerade.PebMasquerade": false,
+        "windows.debugregisters.DebugRegisters": false,
+        "windows.suspended_threads.SuspendedThreads": true
       },
       "row_options": {
         "windows.memmap.Memmap": {
           "pid": 4
         }
+      },
+      "rows_sha256": {
+        "windows.debugregisters.DebugRegisters": "8d516d07bb4f5a20f253b90d559932723efdf9d21ea1f076a53c5e29ce17202b"
       }
     },
     {

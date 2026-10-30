@@ -3,6 +3,8 @@ use clap::ValueEnum;
 
 #[derive(Clone, Copy, Debug, ValueEnum, PartialEq, Eq)]
 pub enum Plugin {
+    #[value(name = "windows.debugregisters.DebugRegisters")]
+    WinDebugRegisters,
     #[value(name = "windows.pe_symbols.PESymbols")]
     WinPESymbols,
     #[value(name = "windows.suspended_threads.SuspendedThreads")]
@@ -293,6 +295,16 @@ pub struct Descriptor {
     pub widths: &'static [u16],
 }
 pub const PLUGINS: &[Descriptor] = &[
+    Descriptor {
+        plugin: Plugin::WinDebugRegisters,
+        name: "windows.debugregisters.DebugRegisters",
+        label: "debugregisters",
+        columns: &[
+            "Process", "PID", "TID", "State", "Dr7", "Dr0", "Range0", "Symbol0", "Dr1", "Range1",
+            "Symbol1", "Dr2", "Range2", "Symbol2", "Dr3", "Range3", "Symbol3",
+        ],
+        widths: &[20, 7, 7, 7, 10, 18, 0, 0, 18, 0, 0, 18, 0, 0, 18, 0, 0],
+    },
     Descriptor {
         plugin: Plugin::WinSuspendedThreads,
         name: "windows.suspended_threads.SuspendedThreads",
@@ -2009,7 +2021,10 @@ impl Plugin {
             Self::WinGetservicesids => "System",
             Self::WinPESymbols | Self::WinIat | Self::WinVerinfo => "Process",
             Self::WinMftscan => "Files",
-            Self::WinSuspendedThreads | Self::WinOrphanThreads | Self::WinEtwpatch => "Integrity",
+            Self::WinDebugRegisters
+            | Self::WinSuspendedThreads
+            | Self::WinOrphanThreads
+            | Self::WinEtwpatch => "Integrity",
             Self::WinAmcacheV4
             | Self::WinScheduledTasks
             | Self::WinAmcache
@@ -2204,6 +2219,7 @@ impl Plugin {
             WinOrphanThreads => "列出起始地址不在任何内核模块中的系统线程",
             WinEtwpatch => "检查各进程 ntdll ETW 入口是否被打补丁",
             WinScheduledTasks => "解码注册表 TaskCache 中的计划任务及命令",
+            WinDebugRegisters => "读取活动线程硬件调试寄存器及精确文件和符号归属",
             WinSuspendedThreads => "列出仍挂起的活动线程及起始地址文件和符号",
             WinPESymbols => "通过精确 PDB 和 PE 导出表查询内核或进程模块符号",
             WinAmcacheV4 => "读取 Amcache 驱动、程序与文件的 11 列标准输出",

@@ -604,3 +604,109 @@ fn module_range_survives_missing_path_text() {
     assert!(!result.complete);
     assert_eq!(result.diagnostics.len(), 1);
 }
+
+pub(super) fn suspended_fixture(path: &str) -> (Vec<u8>, Isf) {
+    let (mut b, mut isf) = fixture();
+    let ptr = |offset| json!({"offset":offset,"type":{"kind":"pointer"}});
+    let number = |offset| json!({"offset":offset,"type":{"kind":"base","name":"u64"}});
+    isf.data["user_types"]["_EPROCESS"]["fields"]["ThreadListHead"] =
+        json!({"offset":144,"type":{"kind":"struct","name":"_LIST_ENTRY"}});
+    isf.data["user_types"]["_ETHREAD"] = json!({"size":80,"fields":{
+            "ThreadListEntry":{"offset":0,"type":{"kind":"struct","name":"_LIST_ENTRY"}},
+            "Cid":{"offset":16,"type":{"kind":"struct","name":"_CLIENT_ID"}},
+            "Tcb":{"offset":32,"type":{"kind":"struct","name":"_KTHREAD"}},
+            "StartAddress":ptr(56),"Win32StartAddress":ptr(64)}});
+    isf.data["user_types"]["_CLIENT_ID"] =
+        json!({"size":16,"fields":{"UniqueProcess":ptr(0),"UniqueThread":ptr(8)}});
+    isf.data["user_types"]["_KTHREAD"] =
+        json!({"size":24,"fields":{"SuspendCount":number(0),"State":number(8),"Process":ptr(16)}});
+    isf.data["user_types"]["_EPROCESS"]["fields"]["VadRoot"] =
+        json!({"offset":128,"type":{"kind":"struct","name":"_RTL_AVL_TREE"}});
+    isf.data["user_types"]["_RTL_AVL_TREE"] = json!({"size":8,"fields":{"Root":ptr(0)}});
+    isf.data["user_types"]["_RTL_BALANCED_NODE"] =
+        json!({"size":24,"fields":{"Left":ptr(0),"Right":ptr(8)}});
+    isf.data["user_types"]["_MMVAD_SHORT"] = json!({"size":64,"fields":{
+            "VadNode":{"offset":0,"type":{"kind":"struct","name":"_RTL_BALANCED_NODE"}},
+            "StartingVpn":number(24),"EndingVpn":number(32),"u":{"offset":40,"type":{"kind":"struct","name":"_MMVAD_FLAGS"}}}});
+    isf.data["user_types"]["_MMVAD_FLAGS"] = json!({"size":8,"fields":{
+            "Protection":{"offset":0,"type":{"kind":"bitfield","bit_position":0,"bit_length":5,"type":{"kind":"base","name":"u64"}}},
+            "PrivateMemory":{"offset":0,"type":{"kind":"bitfield","bit_position":5,"bit_length":1,"type":{"kind":"base","name":"u64"}}}}});
+    isf.data["user_types"]["_MMVAD"] = json!({"size":64,"fields":{"ControlArea":ptr(48)}});
+    isf.data["user_types"]["_CONTROL_AREA"] = json!({"size":8,"fields":{"FilePointer":ptr(0)}});
+    isf.data["user_types"]["_FILE_OBJECT"] = json!({"size":16,"fields":{"FileName":{"offset":0,"type":{"kind":"struct","name":"_UNICODE_STRING"}}}});
+    // Empty System thread list; two live suspended child threads.
+    put(&mut b, 0x9090, K + 0x1090);
+    put(&mut b, 0x9098, K + 0x1090);
+    put(&mut b, 0xa090, K + 0x3000);
+    put(&mut b, 0xa098, K + 0x3100);
+    for (at, previous, next, tid) in [
+        (0xb000, K + 0x2090, K + 0x3100, 99),
+        (0xb100, K + 0x3000, K + 0x2090, 100),
+    ] {
+        for (offset, value) in [
+            (0, next),
+            (8, previous),
+            (16, 8),
+            (24, tid),
+            (32, 1),
+            (40, 5),
+            (48, K + 0x2000),
+            (56, 0x1234),
+            (64, 0),
+        ] {
+            put(&mut b, at + offset, value);
+        }
+    }
+    put(&mut b, 0xa080, K + 0x4000);
+    for (at, value) in [
+        (0xc018, 1),
+        (0xc020, 1),
+        (0xc028, 4),
+        (0xc030, K + 0x5000),
+        (0xd000, K + 0x6000),
+    ] {
+        put(&mut b, at, value);
+    }
+    let text: Vec<_> = path.encode_utf16().flat_map(u16::to_le_bytes).collect();
+    b[0xe000..0xe002].copy_from_slice(&(text.len() as u16).to_le_bytes());
+    b[0xe002..0xe004].copy_from_slice(&(text.len() as u16).to_le_bytes());
+    put(&mut b, 0xe008, K + 0x7000);
+    b[0xf000..0xf000 + text.len()].copy_from_slice(&text);
+    (b, isf)
+}
+
+pub(super) fn thread_exports_fixture(path: &str) -> (Vec<u8>, Isf) {
+    let (mut b, isf) = suspended_fixture(path);
+    // Map a user-mode PE independently of the kernel/process objects.
+    put(&mut b, 0x1000, 0x2003);
+    put(&mut b, 0xc018, 16);
+    put(&mut b, 0xc020, 16);
+    for at in [0xb000, 0xb100] {
+        put(&mut b, at + 56, 0x10500);
+        put(&mut b, at + 64, 0x10500);
+    }
+    let pe = &mut b[0x18000..0x19000];
+    pe[..2].copy_from_slice(b"MZ");
+    pe[60..64].copy_from_slice(&0x80u32.to_le_bytes());
+    pe[0x80..0x84].copy_from_slice(b"PE\0\0");
+    pe[0x84..0x86].copy_from_slice(&0x8664u16.to_le_bytes());
+    pe[0x94..0x96].copy_from_slice(&240u16.to_le_bytes());
+    pe[0x98..0x9a].copy_from_slice(&0x20bu16.to_le_bytes());
+    for (at, value) in [
+        (0xd0, 0x1000u32),
+        (0x104, 16),
+        (0x108, 0x300),
+        (0x10c, 0x40),
+        (0x314, 1),
+        (0x318, 1),
+        (0x31c, 0x400),
+        (0x320, 0x410),
+        (0x324, 0x420),
+        (0x400, 0x500),
+        (0x410, 0x440),
+    ] {
+        pe[at..at + 4].copy_from_slice(&value.to_le_bytes());
+    }
+    pe[0x440..0x446].copy_from_slice(b"Entry\0");
+    (b, isf)
+}
