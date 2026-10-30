@@ -7909,8 +7909,10 @@
         "Working Directory",
         "Key Name"
       ],
-      "zero_candidates": [],
-      "status": "missing",
+      "zero_candidates": [
+        "windows.registry.scheduled_tasks.ScheduledTasks"
+      ],
+      "status": "mapped_unverified",
       "evidence": []
     },
     {
@@ -7997,7 +7999,9 @@
       "replacement": "windows.registry.scheduled_tasks.ScheduledTasks",
       "declared_requirements": [],
       "declared_columns": [],
-      "zero_candidates": [],
+      "zero_candidates": [
+        "windows.registry.scheduled_tasks.ScheduledTasks"
+      ],
       "status": "alias",
       "evidence": []
     },

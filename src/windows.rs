@@ -56,6 +56,7 @@ mod processors;
 mod regex;
 mod registry;
 mod registry_artifacts;
+mod scheduled_tasks;
 mod security;
 mod service_list;
 mod shimcache;
@@ -768,6 +769,7 @@ impl Windows<'_> {
                 | Plugin::WinUserAssistV4
                 | Plugin::WinGetservicesids
                 | Plugin::WinScheduledTasks
+                | Plugin::WinScheduledTasksV4
                 | Plugin::WinAmcache
                 | Plugin::WinAmcacheV4
                 | Plugin::WinCertificates
@@ -804,6 +806,7 @@ impl Windows<'_> {
                     Plugin::WinUserassist => engine.userassist(options, job),
                     Plugin::WinUserAssistV4 => engine.userassist_canonical(options, job),
                     Plugin::WinGetservicesids => engine.service_sids(job),
+                    Plugin::WinScheduledTasksV4 => engine.scheduled_tasks_canonical(job),
                     Plugin::WinScheduledTasks => engine.scheduled_tasks(job),
                     Plugin::WinAmcache => engine.amcache(job),
                     Plugin::WinAmcacheV4 => engine.amcache_canonical(job),

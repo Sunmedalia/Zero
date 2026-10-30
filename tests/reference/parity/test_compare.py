@@ -33,6 +33,17 @@ class CompareTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 normalize(value, 'na_timestamp')
 
+    def test_optional_boolean_retains_false_and_rejects_unknown_values(self):
+        for item in (None, 'N/A'):
+            self.assertIsNone(normalize(item, 'na_boolean'))
+        for item in (False, 'false'):
+            self.assertIs(normalize(item, 'na_boolean'), False)
+        for item in (True, 'true'):
+            self.assertIs(normalize(item, 'na_boolean'), True)
+        for item in ('False', 'unknown', 0, 1, ''):
+            with self.assertRaises(ValueError):
+                normalize(item, 'na_boolean')
+
     def test_full_fields_agree(self):
         self.assertTrue(self.check()['passed'])
 

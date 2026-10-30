@@ -31374,5 +31374,736 @@
     "symbol_sha256": "5d73f3a7158ba8b72394f2606ea5b4f03393976d5054a11cc51d51afb88a5544",
     "zero_executable_sha256": "7a503c0d5f9e65c71e9294300134038b220ba1dcfa30193aad3859119db46cfe",
     "engine_version": "0.2.1-native-57"
+  },
+  {
+    "reference_plugin": "windows.registry.scheduled_tasks.ScheduledTasks",
+    "zero_plugin": "windows.registry.scheduled_tasks.ScheduledTasks",
+    "image_sha256": "d58f62e92b8c4ef913ac09b2c36a10482034c10b88d0c154dead3aaaa49cf875",
+    "mapping_sha256": "b8a600e7a9893357e0b5d3f3df7d8da6c567bb8e374d4f8e8a4eae4ee2763d0d",
+    "native_output_sha256": "870a091d728b84c362013726a48407b22d6e81d3a364c3c8db36905b131ccfa7",
+    "comparison": {
+      "schema_version": 1,
+      "mapping_version": 1,
+      "zero_records": 232,
+      "reference_records": 232,
+      "missing": [],
+      "extra": [],
+      "duplicates": [
+        {
+          "side": "zero",
+          "key": [
+            "{01074E30-FAC1-4B55-8157-36D727E07016}"
+          ],
+          "count": 2
+        },
+        {
+          "side": "zero",
+          "key": [
+            "{1052FED2-54C5-4DBD-9F21-43D5A8DC030E}"
+          ],
+          "count": 2
+        },
+        {
+          "side": "zero",
+          "key": [
+            "{27E50876-1871-4B02-984F-886A56851431}"
+          ],
+          "count": 2
+        },
+        {
+          "side": "zero",
+          "key": [
+            "{2FB31EBF-BDE4-4BF4-9081-ACD91D347D6B}"
+          ],
+          "count": 2
+        },
+        {
+          "side": "zero",
+          "key": [
+            "{3E757B5E-55B1-4F43-820F-3CA89C3FB296}"
+          ],
+          "count": 4
+        },
+        {
+          "side": "zero",
+          "key": [
+            "{4051EB0B-2917-432F-B9F9-431C7E3C9181}"
+          ],
+          "count": 2
+        },
+        {
+          "side": "zero",
+          "key": [
+            "{492AC19E-D465-4F61-A60E-35FC7ADF2A5A}"
+          ],
+          "count": 2
+        },
+        {
+          "side": "zero",
+          "key": [
+            "{501EAF94-31C6-47DA-90B1-0A7195C866B7}"
+          ],
+          "count": 2
+        },
+        {
+          "side": "zero",
+          "key": [
+            "{58F1D983-CB5F-4ECC-AF34-03FE576F7642}"
+          ],
+          "count": 2
+        },
+        {
+          "side": "zero",
+          "key": [
+            "{5BC5A21F-4785-41A6-B4B1-62FB9B08FABD}"
+          ],
+          "count": 2
+        },
+        {
+          "side": "zero",
+          "key": [
+            "{5C326114-085E-444C-9B7A-D3E2E59C549E}"
+          ],
+          "count": 2
+        },
+        {
+          "side": "zero",
+          "key": [
+            "{5C43827A-D8C9-495B-AC43-3E0C135AA98D}"
+          ],
+          "count": 2
+        },
+        {
+          "side": "zero",
+          "key": [
+            "{6A0B670E-D367-4B29-8550-6595B0C66E6B}"
+          ],
+          "count": 4
+        },
+        {
+          "side": "zero",
+          "key": [
+            "{6B14B27A-2145-41DB-9412-B1DF02D5594E}"
+          ],
+          "count": 2
+        },
+        {
+          "side": "zero",
+          "key": [
+            "{6EDB8E1C-DDFF-4B0B-BCDC-04F976BB332B}"
+          ],
+          "count": 3
+        },
+        {
+          "side": "zero",
+          "key": [
+            "{7967787C-AD12-4A52-8B86-417C8C663B24}"
+          ],
+          "count": 6
+        },
+        {
+          "side": "zero",
+          "key": [
+            "{7A3FC220-2DFA-448D-8CDA-5ACC0ACC317F}"
+          ],
+          "count": 5
+        },
+        {
+          "side": "zero",
+          "key": [
+            "{7BCF3D2E-692B-4A3E-ACD2-362FC98570CC}"
+          ],
+          "count": 3
+        },
+        {
+          "side": "zero",
+          "key": [
+            "{8031D549-4284-49A0-AF75-A7C34DC4EDA7}"
+          ],
+          "count": 2
+        },
+        {
+          "side": "zero",
+          "key": [
+            "{88209412-5377-4AA1-B01E-F5D5A6F39E21}"
+          ],
+          "count": 2
+        },
+        {
+          "side": "zero",
+          "key": [
+            "{909B04D3-4596-424C-8664-3CC2FD533BEF}"
+          ],
+          "count": 4
+        },
+        {
+          "side": "zero",
+          "key": [
+            "{9DC56D08-3AB7-4DFE-B855-BCD9E0834276}"
+          ],
+          "count": 2
+        },
+        {
+          "side": "zero",
+          "key": [
+            "{AC6A394F-3673-454C-9286-9AD94A1C11D8}"
+          ],
+          "count": 3
+        },
+        {
+          "side": "zero",
+          "key": [
+            "{AF8C81AB-2CD9-4042-89CE-DACC4CBEE0F0}"
+          ],
+          "count": 2
+        },
+        {
+          "side": "zero",
+          "key": [
+            "{B41362C4-B234-439F-A497-C0CDA9E218E3}"
+          ],
+          "count": 2
+        },
+        {
+          "side": "zero",
+          "key": [
+            "{B5EA650A-8EE9-4BA5-BAA0-2A8ACE00500D}"
+          ],
+          "count": 2
+        },
+        {
+          "side": "zero",
+          "key": [
+            "{BADCD9F0-BE48-420C-A2A8-84136226659D}"
+          ],
+          "count": 2
+        },
+        {
+          "side": "zero",
+          "key": [
+            "{C97B639A-C1BF-4E0C-ACFD-CF5B27B65B3C}"
+          ],
+          "count": 3
+        },
+        {
+          "side": "zero",
+          "key": [
+            "{CAF2AF6A-1405-46FA-8499-26F79056F301}"
+          ],
+          "count": 4
+        },
+        {
+          "side": "zero",
+          "key": [
+            "{CFE9501D-B60F-45DB-B48F-19C572F7F30E}"
+          ],
+          "count": 2
+        },
+        {
+          "side": "zero",
+          "key": [
+            "{DD0841EB-CC9E-42C2-9E00-4BADD3F5846F}"
+          ],
+          "count": 3
+        },
+        {
+          "side": "zero",
+          "key": [
+            "{EAFC0664-6C93-42A7-A361-7DB7DE4E3ECF}"
+          ],
+          "count": 3
+        },
+        {
+          "side": "zero",
+          "key": [
+            "{EBA4FCC3-F485-48FA-8B69-D126BE09BAAA}"
+          ],
+          "count": 2
+        },
+        {
+          "side": "zero",
+          "key": [
+            "{EC0C29B5-FD23-4C30-9BC7-393ACA773785}"
+          ],
+          "count": 6
+        },
+        {
+          "side": "reference",
+          "key": [
+            "{01074E30-FAC1-4B55-8157-36D727E07016}"
+          ],
+          "count": 2
+        },
+        {
+          "side": "reference",
+          "key": [
+            "{1052FED2-54C5-4DBD-9F21-43D5A8DC030E}"
+          ],
+          "count": 2
+        },
+        {
+          "side": "reference",
+          "key": [
+            "{27E50876-1871-4B02-984F-886A56851431}"
+          ],
+          "count": 2
+        },
+        {
+          "side": "reference",
+          "key": [
+            "{2FB31EBF-BDE4-4BF4-9081-ACD91D347D6B}"
+          ],
+          "count": 2
+        },
+        {
+          "side": "reference",
+          "key": [
+            "{3E757B5E-55B1-4F43-820F-3CA89C3FB296}"
+          ],
+          "count": 4
+        },
+        {
+          "side": "reference",
+          "key": [
+            "{4051EB0B-2917-432F-B9F9-431C7E3C9181}"
+          ],
+          "count": 2
+        },
+        {
+          "side": "reference",
+          "key": [
+            "{492AC19E-D465-4F61-A60E-35FC7ADF2A5A}"
+          ],
+          "count": 2
+        },
+        {
+          "side": "reference",
+          "key": [
+            "{501EAF94-31C6-47DA-90B1-0A7195C866B7}"
+          ],
+          "count": 2
+        },
+        {
+          "side": "reference",
+          "key": [
+            "{58F1D983-CB5F-4ECC-AF34-03FE576F7642}"
+          ],
+          "count": 2
+        },
+        {
+          "side": "reference",
+          "key": [
+            "{5BC5A21F-4785-41A6-B4B1-62FB9B08FABD}"
+          ],
+          "count": 2
+        },
+        {
+          "side": "reference",
+          "key": [
+            "{5C326114-085E-444C-9B7A-D3E2E59C549E}"
+          ],
+          "count": 2
+        },
+        {
+          "side": "reference",
+          "key": [
+            "{5C43827A-D8C9-495B-AC43-3E0C135AA98D}"
+          ],
+          "count": 2
+        },
+        {
+          "side": "reference",
+          "key": [
+            "{6A0B670E-D367-4B29-8550-6595B0C66E6B}"
+          ],
+          "count": 4
+        },
+        {
+          "side": "reference",
+          "key": [
+            "{6B14B27A-2145-41DB-9412-B1DF02D5594E}"
+          ],
+          "count": 2
+        },
+        {
+          "side": "reference",
+          "key": [
+            "{6EDB8E1C-DDFF-4B0B-BCDC-04F976BB332B}"
+          ],
+          "count": 3
+        },
+        {
+          "side": "reference",
+          "key": [
+            "{7967787C-AD12-4A52-8B86-417C8C663B24}"
+          ],
+          "count": 6
+        },
+        {
+          "side": "reference",
+          "key": [
+            "{7A3FC220-2DFA-448D-8CDA-5ACC0ACC317F}"
+          ],
+          "count": 5
+        },
+        {
+          "side": "reference",
+          "key": [
+            "{7BCF3D2E-692B-4A3E-ACD2-362FC98570CC}"
+          ],
+          "count": 3
+        },
+        {
+          "side": "reference",
+          "key": [
+            "{8031D549-4284-49A0-AF75-A7C34DC4EDA7}"
+          ],
+          "count": 2
+        },
+        {
+          "side": "reference",
+          "key": [
+            "{88209412-5377-4AA1-B01E-F5D5A6F39E21}"
+          ],
+          "count": 2
+        },
+        {
+          "side": "reference",
+          "key": [
+            "{909B04D3-4596-424C-8664-3CC2FD533BEF}"
+          ],
+          "count": 4
+        },
+        {
+          "side": "reference",
+          "key": [
+            "{9DC56D08-3AB7-4DFE-B855-BCD9E0834276}"
+          ],
+          "count": 2
+        },
+        {
+          "side": "reference",
+          "key": [
+            "{AC6A394F-3673-454C-9286-9AD94A1C11D8}"
+          ],
+          "count": 3
+        },
+        {
+          "side": "reference",
+          "key": [
+            "{AF8C81AB-2CD9-4042-89CE-DACC4CBEE0F0}"
+          ],
+          "count": 2
+        },
+        {
+          "side": "reference",
+          "key": [
+            "{B41362C4-B234-439F-A497-C0CDA9E218E3}"
+          ],
+          "count": 2
+        },
+        {
+          "side": "reference",
+          "key": [
+            "{B5EA650A-8EE9-4BA5-BAA0-2A8ACE00500D}"
+          ],
+          "count": 2
+        },
+        {
+          "side": "reference",
+          "key": [
+            "{BADCD9F0-BE48-420C-A2A8-84136226659D}"
+          ],
+          "count": 2
+        },
+        {
+          "side": "reference",
+          "key": [
+            "{C97B639A-C1BF-4E0C-ACFD-CF5B27B65B3C}"
+          ],
+          "count": 3
+        },
+        {
+          "side": "reference",
+          "key": [
+            "{CAF2AF6A-1405-46FA-8499-26F79056F301}"
+          ],
+          "count": 4
+        },
+        {
+          "side": "reference",
+          "key": [
+            "{CFE9501D-B60F-45DB-B48F-19C572F7F30E}"
+          ],
+          "count": 2
+        },
+        {
+          "side": "reference",
+          "key": [
+            "{DD0841EB-CC9E-42C2-9E00-4BADD3F5846F}"
+          ],
+          "count": 3
+        },
+        {
+          "side": "reference",
+          "key": [
+            "{EAFC0664-6C93-42A7-A361-7DB7DE4E3ECF}"
+          ],
+          "count": 3
+        },
+        {
+          "side": "reference",
+          "key": [
+            "{EBA4FCC3-F485-48FA-8B69-D126BE09BAAA}"
+          ],
+          "count": 2
+        },
+        {
+          "side": "reference",
+          "key": [
+            "{EC0C29B5-FD23-4C30-9BC7-393ACA773785}"
+          ],
+          "count": 6
+        }
+      ],
+      "duplicate_keys": "multiset",
+      "multiplicity_conflicts": [],
+      "conflicts": [],
+      "unverifiable": [],
+      "matched_absent": {
+        "Display Name": 232,
+        "Working Directory": 230,
+        "Enabled": 60,
+        "Creation Time": 78,
+        "Last Successful Run Time": 88,
+        "Trigger Type": 60,
+        "Trigger Description": 92,
+        "Action Arguments": 84,
+        "Action Type": 37,
+        "Action": 37
+      },
+      "all_columns_mapped": true,
+      "positive_evidence": true,
+      "zero_complete": false,
+      "zero_diagnostics": [
+        "Windows 链表末尾未闭合 @ 0xfffff8021f3bed48 direction 0",
+        "Windows 链表不一致 @ 0xffff8b854be0daa8 direction 8: expected 0xfffff8021f3bed48, found 0x0",
+        "链表 @ 0xfffff8021f3bed48 direction 8: 无效链表地址 0x1",
+        "0xffff8b854be0d000 FileFullPath: 无效 UNICODE_STRING 长度",
+        "0xffff8b854be0d000 HiveRootPath: Windows 缺页 VA 0x2058cc40fd0 level 39 PTE 0x0; prototype 所在页表不驻留",
+        "Windows 链表不一致 @ 0xffffd98df8f9c8e8 direction 0: expected 0xffffd98df8be88e8, found 0xffffd98df7cbe668",
+        "Windows 链表不一致 @ 0xffffd98df8831368 direction 0: expected 0xffffd98df41a88e8, found 0xffffd98df9d4e8e8",
+        "Windows 链表不一致 @ 0xffffd98df3ab88e8 direction 0: expected 0xffffd98df63618e8, found 0xffffd98df480e368",
+        "Windows 链表不一致 @ 0xffffd98df7cbe668 direction 0: expected 0xffffd98df503a368, found 0xffffd98df8be88e8",
+        "链表 @ 0xfffff8021ef5c120 direction 0: Windows 链表循环或超限 0xffffd98df8f9c8e8",
+        "Windows 链表不一致 @ 0xffffd98df9d4e8e8 direction 8: expected 0xfffff8021ef5c120, found 0xffffd98df8831368",
+        "Windows 链表不一致 @ 0xffffd98df41a88e8 direction 8: expected 0xffffd98df9d4e8e8, found 0xffffd98df8831368",
+        "Windows 链表不一致 @ 0xffffd98df8be88e8 direction 8: expected 0xffffd98df7cbe668, found 0xffffd98df8f9c8e8"
+      ],
+      "passed": true
+    },
+    "passed": true,
+    "zero_args": [],
+    "reference_args": [],
+    "case_id": "windows-10-15063/scheduled-tasks-default",
+    "sample_source": "https://www.osforensics.com/downloads/WinDump.zip",
+    "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+    "reference_output_sha256": "cafd4d207dec9403f293832e6113a2e68a908baf05202a36b51312fc00e38163",
+    "symbol_sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4",
+    "zero_executable_sha256": "b94526ffa9fe23b93fe325645337b414668ef0bf8a9daa6064b5212492d0af70",
+    "engine_version": "0.2.1-native-65"
+  },
+  {
+    "reference_plugin": "windows.registry.scheduled_tasks.ScheduledTasks",
+    "zero_plugin": "windows.registry.scheduled_tasks.ScheduledTasks",
+    "image_sha256": "80366d7ec64a5529c95c2f523f4281a5f11efbad33ecb19f73525470c1407b23",
+    "mapping_sha256": "b8a600e7a9893357e0b5d3f3df7d8da6c567bb8e374d4f8e8a4eae4ee2763d0d",
+    "native_output_sha256": "05c676468c02e77afa0697c05f49f766605af219b857f0a1645472b62693c448",
+    "comparison": {
+      "schema_version": 1,
+      "mapping_version": 1,
+      "zero_records": 92,
+      "reference_records": 92,
+      "missing": [],
+      "extra": [],
+      "duplicates": [
+        {
+          "side": "zero",
+          "key": [
+            "{19392BF5-8751-463A-B349-31E993701A8D}"
+          ],
+          "count": 2
+        },
+        {
+          "side": "zero",
+          "key": [
+            "{5F5A18EB-DC73-4E45-A11C-B59043598412}"
+          ],
+          "count": 3
+        },
+        {
+          "side": "zero",
+          "key": [
+            "{613612BA-897D-44CE-8DC1-8FC283F9FD51}"
+          ],
+          "count": 2
+        },
+        {
+          "side": "zero",
+          "key": [
+            "{7AFCC0CA-7121-422A-AB45-B0E8D599FF08}"
+          ],
+          "count": 3
+        },
+        {
+          "side": "zero",
+          "key": [
+            "{994C86AD-A929-4B2C-88A0-4E25A107A029}"
+          ],
+          "count": 2
+        },
+        {
+          "side": "zero",
+          "key": [
+            "{9979CB83-103A-4105-9E5D-C74B0AF6D198}"
+          ],
+          "count": 2
+        },
+        {
+          "side": "zero",
+          "key": [
+            "{A35BB7A6-5F0C-4C9F-8450-2B3BED532D51}"
+          ],
+          "count": 2
+        },
+        {
+          "side": "zero",
+          "key": [
+            "{B0CBAB43-44FC-469B-A4CE-87426761FDCE}"
+          ],
+          "count": 2
+        },
+        {
+          "side": "zero",
+          "key": [
+            "{CB3D64BF-C0C9-45FF-BFB0-FF1A8F680186}"
+          ],
+          "count": 2
+        },
+        {
+          "side": "zero",
+          "key": [
+            "{EACA24FF-236C-401D-A1E7-B3D5267B8A50}"
+          ],
+          "count": 2
+        },
+        {
+          "side": "reference",
+          "key": [
+            "{19392BF5-8751-463A-B349-31E993701A8D}"
+          ],
+          "count": 2
+        },
+        {
+          "side": "reference",
+          "key": [
+            "{5F5A18EB-DC73-4E45-A11C-B59043598412}"
+          ],
+          "count": 3
+        },
+        {
+          "side": "reference",
+          "key": [
+            "{613612BA-897D-44CE-8DC1-8FC283F9FD51}"
+          ],
+          "count": 2
+        },
+        {
+          "side": "reference",
+          "key": [
+            "{7AFCC0CA-7121-422A-AB45-B0E8D599FF08}"
+          ],
+          "count": 3
+        },
+        {
+          "side": "reference",
+          "key": [
+            "{994C86AD-A929-4B2C-88A0-4E25A107A029}"
+          ],
+          "count": 2
+        },
+        {
+          "side": "reference",
+          "key": [
+            "{9979CB83-103A-4105-9E5D-C74B0AF6D198}"
+          ],
+          "count": 2
+        },
+        {
+          "side": "reference",
+          "key": [
+            "{A35BB7A6-5F0C-4C9F-8450-2B3BED532D51}"
+          ],
+          "count": 2
+        },
+        {
+          "side": "reference",
+          "key": [
+            "{B0CBAB43-44FC-469B-A4CE-87426761FDCE}"
+          ],
+          "count": 2
+        },
+        {
+          "side": "reference",
+          "key": [
+            "{CB3D64BF-C0C9-45FF-BFB0-FF1A8F680186}"
+          ],
+          "count": 2
+        },
+        {
+          "side": "reference",
+          "key": [
+            "{EACA24FF-236C-401D-A1E7-B3D5267B8A50}"
+          ],
+          "count": 2
+        }
+      ],
+      "duplicate_keys": "multiset",
+      "multiplicity_conflicts": [],
+      "conflicts": [],
+      "unverifiable": [],
+      "matched_absent": {
+        "Principal ID": 92,
+        "Display Name": 92,
+        "Enabled": 25,
+        "Creation Time": 89,
+        "Last Successful Run Time": 92,
+        "Trigger Type": 25,
+        "Trigger Description": 48,
+        "Action Type": 92,
+        "Action": 92,
+        "Action Arguments": 92,
+        "Action Context": 92,
+        "Working Directory": 92
+      },
+      "all_columns_mapped": true,
+      "positive_evidence": true,
+      "zero_complete": false,
+      "zero_diagnostics": [
+        "Windows 链表末尾未闭合 @ 0xfffff80002830b90 direction 0",
+        "Windows 链表不一致 @ 0xfffffa80014c11e8 direction 8: expected 0xfffff80002830b90, found 0xfffffa80014aa1e8"
+      ],
+      "passed": true
+    },
+    "passed": true,
+    "zero_args": [],
+    "reference_args": [],
+    "case_id": "windows-7-7601-x64/scheduled-tasks-default",
+    "sample_source": "https://blog.bi0s.in/2019/09/24/Forensics/InCTFi19-NotchItUp/",
+    "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+    "reference_output_sha256": "dc211364913ea46a4e9f85d2b6103a2b25b0b9ec667e805141f93a870c35baa0",
+    "symbol_sha256": "6d5f85f7b953330b9762a57e5a25266547e7391ad4f6655170a9f48876fb6b8c",
+    "zero_executable_sha256": "b94526ffa9fe23b93fe325645337b414668ef0bf8a9daa6064b5212492d0af70",
+    "engine_version": "0.2.1-native-65"
   }
 ]

@@ -116,7 +116,10 @@
           "windows.deskscan.DeskScan": "pending",
           "windows.windows.Windows": "unsupported",
           "windows.desktops.Desktops": "pending",
-          "windows.debugregisters.DebugRegisters": "pending"
+          "windows.debugregisters.DebugRegisters": "pending",
+          "windows.netstat.NetStat": "unsupported",
+          "windows.shimcachemem.ShimcacheMem": "unsupported",
+          "windows.registry.scheduled_tasks.ScheduledTasks": "synthetic"
         },
         "x64": {
           "windows.callbacks": "synthetic",
@@ -210,7 +213,10 @@
           "windows.deskscan.DeskScan": "pending",
           "windows.windows.Windows": "pending",
           "windows.desktops.Desktops": "pending",
-          "windows.debugregisters.DebugRegisters": "pending"
+          "windows.debugregisters.DebugRegisters": "pending",
+          "windows.netstat.NetStat": "unsupported",
+          "windows.shimcachemem.ShimcacheMem": "unsupported",
+          "windows.registry.scheduled_tasks.ScheduledTasks": "synthetic"
         }
       },
       "evidence": [
@@ -388,7 +394,10 @@
           "windows.deskscan.DeskScan": "pending",
           "windows.windows.Windows": "unsupported",
           "windows.desktops.Desktops": "pending",
-          "windows.debugregisters.DebugRegisters": "pending"
+          "windows.debugregisters.DebugRegisters": "pending",
+          "windows.netstat.NetStat": "unsupported",
+          "windows.shimcachemem.ShimcacheMem": "unsupported",
+          "windows.registry.scheduled_tasks.ScheduledTasks": "synthetic"
         },
         "x64": {
           "windows.callbacks": "synthetic",
@@ -482,7 +491,10 @@
           "windows.deskscan.DeskScan": "pending",
           "windows.windows.Windows": "pending",
           "windows.desktops.Desktops": "pending",
-          "windows.debugregisters.DebugRegisters": "pending"
+          "windows.debugregisters.DebugRegisters": "pending",
+          "windows.netstat.NetStat": "unsupported",
+          "windows.shimcachemem.ShimcacheMem": "unsupported",
+          "windows.registry.scheduled_tasks.ScheduledTasks": "synthetic"
         }
       },
       "evidence": []
@@ -597,7 +609,10 @@
           "windows.deskscan.DeskScan": "pending",
           "windows.windows.Windows": "unsupported",
           "windows.desktops.Desktops": "pending",
-          "windows.debugregisters.DebugRegisters": "real"
+          "windows.debugregisters.DebugRegisters": "real",
+          "windows.netstat.NetStat": "pending",
+          "windows.shimcachemem.ShimcacheMem": "unsupported",
+          "windows.registry.scheduled_tasks.ScheduledTasks": "synthetic"
         },
         "x64": {
           "windows.callbacks": "synthetic",
@@ -691,7 +706,10 @@
           "windows.deskscan.DeskScan": "pending",
           "windows.windows.Windows": "pending",
           "windows.desktops.Desktops": "pending",
-          "windows.debugregisters.DebugRegisters": "pending"
+          "windows.debugregisters.DebugRegisters": "pending",
+          "windows.netstat.NetStat": "pending",
+          "windows.shimcachemem.ShimcacheMem": "pending",
+          "windows.registry.scheduled_tasks.ScheduledTasks": "synthetic"
         }
       },
       "evidence": [
@@ -887,7 +905,10 @@
           "windows.deskscan.DeskScan": "pending",
           "windows.windows.Windows": "pending",
           "windows.desktops.Desktops": "pending",
-          "windows.debugregisters.DebugRegisters": "pending"
+          "windows.debugregisters.DebugRegisters": "pending",
+          "windows.netstat.NetStat": "pending",
+          "windows.shimcachemem.ShimcacheMem": "pending",
+          "windows.registry.scheduled_tasks.ScheduledTasks": "synthetic"
         }
       },
       "evidence": [],
@@ -1001,7 +1022,10 @@
           "windows.deskscan.DeskScan": "pending",
           "windows.windows.Windows": "pending",
           "windows.desktops.Desktops": "pending",
-          "windows.debugregisters.DebugRegisters": "pending"
+          "windows.debugregisters.DebugRegisters": "pending",
+          "windows.netstat.NetStat": "pending",
+          "windows.shimcachemem.ShimcacheMem": "pending",
+          "windows.registry.scheduled_tasks.ScheduledTasks": "synthetic"
         }
       },
       "evidence": [
@@ -1161,7 +1185,10 @@
           "windows.deskscan.DeskScan": "pending",
           "windows.windows.Windows": "pending",
           "windows.desktops.Desktops": "pending",
-          "windows.debugregisters.DebugRegisters": "pending"
+          "windows.debugregisters.DebugRegisters": "pending",
+          "windows.netstat.NetStat": "pending",
+          "windows.shimcachemem.ShimcacheMem": "pending",
+          "windows.registry.scheduled_tasks.ScheduledTasks": "synthetic"
         }
       },
       "evidence": [
@@ -1322,7 +1349,10 @@
           "windows.deskscan.DeskScan": "pending",
           "windows.windows.Windows": "pending",
           "windows.desktops.Desktops": "pending",
-          "windows.debugregisters.DebugRegisters": "pending"
+          "windows.debugregisters.DebugRegisters": "pending",
+          "windows.netstat.NetStat": "pending",
+          "windows.shimcachemem.ShimcacheMem": "pending",
+          "windows.registry.scheduled_tasks.ScheduledTasks": "synthetic"
         }
       },
       "evidence": [
@@ -1455,7 +1485,10 @@
           "windows.deskscan.DeskScan": "pending",
           "windows.windows.Windows": "pending",
           "windows.desktops.Desktops": "pending",
-          "windows.debugregisters.DebugRegisters": "pending"
+          "windows.debugregisters.DebugRegisters": "pending",
+          "windows.netstat.NetStat": "pending",
+          "windows.shimcachemem.ShimcacheMem": "pending",
+          "windows.registry.scheduled_tasks.ScheduledTasks": "synthetic"
         }
       },
       "evidence": [
@@ -1617,7 +1650,10 @@
           "windows.deskscan.DeskScan": "pending",
           "windows.windows.Windows": "pending",
           "windows.desktops.Desktops": "pending",
-          "windows.debugregisters.DebugRegisters": "pending"
+          "windows.debugregisters.DebugRegisters": "pending",
+          "windows.netstat.NetStat": "pending",
+          "windows.shimcachemem.ShimcacheMem": "pending",
+          "windows.registry.scheduled_tasks.ScheduledTasks": "synthetic"
         }
       },
       "evidence": [
@@ -1779,7 +1815,10 @@
           "windows.deskscan.DeskScan": "pending",
           "windows.windows.Windows": "pending",
           "windows.desktops.Desktops": "pending",
-          "windows.debugregisters.DebugRegisters": "pending"
+          "windows.debugregisters.DebugRegisters": "pending",
+          "windows.netstat.NetStat": "pending",
+          "windows.shimcachemem.ShimcacheMem": "pending",
+          "windows.registry.scheduled_tasks.ScheduledTasks": "synthetic"
         }
       },
       "evidence": [],
@@ -1895,7 +1934,10 @@
           "windows.deskscan.DeskScan": "pending",
           "windows.windows.Windows": "unsupported",
           "windows.desktops.Desktops": "pending",
-          "windows.debugregisters.DebugRegisters": "pending"
+          "windows.debugregisters.DebugRegisters": "pending",
+          "windows.netstat.NetStat": "pending",
+          "windows.shimcachemem.ShimcacheMem": "unsupported",
+          "windows.registry.scheduled_tasks.ScheduledTasks": "synthetic"
         },
         "x64": {
           "windows.callbacks": "real",
@@ -1989,7 +2031,10 @@
           "windows.deskscan.DeskScan": "pending",
           "windows.windows.Windows": "pending",
           "windows.desktops.Desktops": "pending",
-          "windows.debugregisters.DebugRegisters": "pending"
+          "windows.debugregisters.DebugRegisters": "pending",
+          "windows.netstat.NetStat": "pending",
+          "windows.shimcachemem.ShimcacheMem": "pending",
+          "windows.registry.scheduled_tasks.ScheduledTasks": "real"
         }
       },
       "evidence": [
@@ -2025,16 +2070,19 @@
             "windows.svcscan.SvcScan": 863,
             "windows.memmap.Memmap": 34991,
             "windows.registry.userassist.UserAssist": 60,
-            "windows.pe_symbols.PESymbols": 3
+            "windows.pe_symbols.PESymbols": 3,
+            "windows.registry.scheduled_tasks.ScheduledTasks": 92
           },
           "coverage_notes": {
-            "windows.vadinfo": "Tagged legacy AVL parent validation rejects an inconsistent branch. 7265 rows remain, down from 7325 before the validation; keep partial diagnostics rather than traverse the damaged branch."
+            "windows.vadinfo": "Tagged legacy AVL parent validation rejects an inconsistent branch. 7265 rows remain, down from 7325 before the validation; keep partial diagnostics rather than traverse the damaged branch.",
+            "windows.registry.scheduled_tasks.ScheduledTasks": "All 15 fields and exact action/trigger multiplicities match pinned v2.28.2. Damaged hive/process-list diagnostics remain partial."
           },
           "complete": {
             "windows.registry.hivescan.HiveScan": true,
             "windows.malware.pebmasquerade.PebMasquerade": false,
             "windows.registry.userassist.UserAssist": false,
-            "windows.pe_symbols.PESymbols": true
+            "windows.pe_symbols.PESymbols": true,
+            "windows.registry.scheduled_tasks.ScheduledTasks": false
           },
           "row_options": {
             "windows.memmap.Memmap": {
@@ -2162,7 +2210,10 @@
           "windows.deskscan.DeskScan": "pending",
           "windows.windows.Windows": "unsupported",
           "windows.desktops.Desktops": "pending",
-          "windows.debugregisters.DebugRegisters": "pending"
+          "windows.debugregisters.DebugRegisters": "pending",
+          "windows.netstat.NetStat": "pending",
+          "windows.shimcachemem.ShimcacheMem": "unsupported",
+          "windows.registry.scheduled_tasks.ScheduledTasks": "synthetic"
         },
         "x64": {
           "windows.callbacks": "synthetic",
@@ -2256,7 +2307,10 @@
           "windows.deskscan.DeskScan": "pending",
           "windows.windows.Windows": "pending",
           "windows.desktops.Desktops": "pending",
-          "windows.debugregisters.DebugRegisters": "pending"
+          "windows.debugregisters.DebugRegisters": "pending",
+          "windows.netstat.NetStat": "pending",
+          "windows.shimcachemem.ShimcacheMem": "pending",
+          "windows.registry.scheduled_tasks.ScheduledTasks": "synthetic"
         }
       },
       "evidence": []
@@ -2370,7 +2424,10 @@
           "windows.deskscan.DeskScan": "pending",
           "windows.windows.Windows": "unsupported",
           "windows.desktops.Desktops": "pending",
-          "windows.debugregisters.DebugRegisters": "pending"
+          "windows.debugregisters.DebugRegisters": "pending",
+          "windows.netstat.NetStat": "pending",
+          "windows.shimcachemem.ShimcacheMem": "unsupported",
+          "windows.registry.scheduled_tasks.ScheduledTasks": "synthetic"
         },
         "x64": {
           "windows.callbacks": "synthetic",
@@ -2464,7 +2521,10 @@
           "windows.deskscan.DeskScan": "pending",
           "windows.windows.Windows": "pending",
           "windows.desktops.Desktops": "pending",
-          "windows.debugregisters.DebugRegisters": "pending"
+          "windows.debugregisters.DebugRegisters": "pending",
+          "windows.netstat.NetStat": "pending",
+          "windows.shimcachemem.ShimcacheMem": "pending",
+          "windows.registry.scheduled_tasks.ScheduledTasks": "synthetic"
         }
       },
       "evidence": []
@@ -2591,7 +2651,10 @@
           "windows.deskscan.DeskScan": "pending",
           "windows.windows.Windows": "unsupported",
           "windows.desktops.Desktops": "pending",
-          "windows.debugregisters.DebugRegisters": "pending"
+          "windows.debugregisters.DebugRegisters": "pending",
+          "windows.netstat.NetStat": "pending",
+          "windows.shimcachemem.ShimcacheMem": "unsupported",
+          "windows.registry.scheduled_tasks.ScheduledTasks": "synthetic"
         },
         "x64": {
           "windows.callbacks": "real",
@@ -2685,7 +2748,10 @@
           "windows.deskscan.DeskScan": "pending",
           "windows.windows.Windows": "pending",
           "windows.desktops.Desktops": "pending",
-          "windows.debugregisters.DebugRegisters": "pending"
+          "windows.debugregisters.DebugRegisters": "pending",
+          "windows.netstat.NetStat": "pending",
+          "windows.shimcachemem.ShimcacheMem": "pending",
+          "windows.registry.scheduled_tasks.ScheduledTasks": "real"
         }
       },
       "evidence": [
@@ -2747,7 +2813,8 @@
             "windows.memmap.Memmap": 131493,
             "windows.registry.userassist.UserAssist": 83,
             "windows.registry.amcache.Amcache": 1230,
-            "windows.pe_symbols.PESymbols": 3
+            "windows.pe_symbols.PESymbols": 3,
+            "windows.registry.scheduled_tasks.ScheduledTasks": 232
           },
           "complete": {
             "windows.driverirp.DriverIrp": false,
@@ -2757,7 +2824,8 @@
             "windows.svclist.SvcList": false,
             "windows.registry.userassist.UserAssist": false,
             "windows.registry.amcache.Amcache": false,
-            "windows.pe_symbols.PESymbols": false
+            "windows.pe_symbols.PESymbols": false,
+            "windows.registry.scheduled_tasks.ScheduledTasks": false
           },
           "row_options": {
             "windows.memmap.Memmap": {
@@ -2772,6 +2840,9 @@
                 "PsActiveProcessHead"
               ]
             }
+          },
+          "coverage_notes": {
+            "windows.registry.scheduled_tasks.ScheduledTasks": "All 15 fields and exact action/trigger multiplicities match pinned v2.28.2. Damaged hive/process-list diagnostics remain partial."
           }
         },
         {
@@ -2906,7 +2977,10 @@
           "windows.deskscan.DeskScan": "pending",
           "windows.windows.Windows": "pending",
           "windows.desktops.Desktops": "pending",
-          "windows.debugregisters.DebugRegisters": "pending"
+          "windows.debugregisters.DebugRegisters": "pending",
+          "windows.netstat.NetStat": "pending",
+          "windows.shimcachemem.ShimcacheMem": "pending",
+          "windows.registry.scheduled_tasks.ScheduledTasks": "synthetic"
         }
       },
       "evidence": [
@@ -3003,7 +3077,8 @@
     "ARM64, user minidumps and hibernation retain existing independently documented scope.",
     "DriverIrp real rows are native partial-output acceptance only. Kernel-module scoped six-field cases pass on Win10/11 and Server 2008 x86; full default comparisons remain failing on external Symbol attribution. See tests/reference/parity/driverirp-known-differences.json. Shared module reading now preserves readable ranges when names or paths are missing; counts rise without improving completeness.",
     "Native51 standard SvcScan has full-field multiset differential evidence on Win10 15063 x64, Win11 22000 x64, Win7 7601 x64 and Server2008 6001 x86 only. Server2003 3790 x86 has native 230-row acceptance; pinned Volatility rejects this version, so there is no differential parity claim. SvcDiff Win10/11 empty-result agreement is negative evidence, with partial diagnostics; no actual hidden-service sample is validated.",
-    "Native55 PESymbols real evidence is bounded to kernel-name/address queries on Server2003 3790 x86, Server2008 6001 x86, Win7 7601 x64, Win10 15063 x64 and Win11 22000 x64. Win10/11 additionally exercise fltmgr exports and process queries; Win10 ntdll name-query addresses differ because native prototype-page recovery accepts an earlier WOW64 instance that pinned Volatility cannot read. This is not full PESymbols parity. External PDB acquisition, aliases, other builds and complete failure contracts remain unverified."
+    "Native55 PESymbols real evidence is bounded to kernel-name/address queries on Server2003 3790 x86, Server2008 6001 x86, Win7 7601 x64, Win10 15063 x64 and Win11 22000 x64. Win10/11 additionally exercise fltmgr exports and process queries; Win10 ntdll name-query addresses differ because native prototype-page recovery accepts an earlier WOW64 instance that pinned Volatility cannot read. This is not full PESymbols parity. External PDB acquisition, aliases, other builds and complete failure contracts remain unverified.",
+    "NetStat and ShimcacheMem have explicit pending/unsupported cells; this ScheduledTasks batch does not certify their full version matrices."
   ],
   "scope": "Levels are per plugin and architecture. Real applies only to listed evidence builds and containers. Synthetic object fixtures validate pointer widths, not every product layout; zero-row scans do not certify recovery. Unlisted builds, containers and plugin fields remain pending."
 }

@@ -1060,3 +1060,19 @@ zero analyze --offline --image memory.raw --symbols ntkrnlmp.json \
 zero analyze --offline --image memory.raw --symbols ntkrnlmp.json \
   --plugin windows.shimcachemem.ShimcacheMem --output shimcache.json
 ```
+
+
+规范入口 windows.registry.scheduled_tasks.ScheduledTasks 输出 Task Name、Principal ID、
+Display Name、Enabled、Creation Time、Last Run Time、Last Successful Run Time、
+Trigger Type、Trigger Description、Action Type、Action、Action Arguments、Action Context、
+Working Directory、Key Name。任务名来自 TaskCache Tree 的 GUID 对应关系，每个动作与每个
+触发器组合成一行。支持执行命令、COM、消息框与注册表中的时间、事件、登录、会话、
+WNF、启动触发器；缺失字段为 N/A。短名称入口保留原有七列视图。
+
+    zero analyze --offline --image memory.raw --symbols ntkrnlmp.json \
+      --plugin windows.registry.scheduled_tasks.ScheduledTasks --output tasks.json
+
+固定参考 v2.28.2 会交换 DynamicInfo 的创建／上次运行字段，省略 COM GUID 数值段的
+前导零，Time 描述为空，Email 动作对象为空；标准入口保留这些参考行为。
+Win10 15063 的 232 行、Win7 7601 的 92 行完成全字段对照，但镜像的 hive／进程链损坏
+诊断仍会令结果为 partial。更多版本、x86 和完整故障行为仍待验收。

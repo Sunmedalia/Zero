@@ -1,0 +1,101 @@
+{
+  "version": 1,
+  "allow_partial": true,
+  "keys": [
+    "Key Name"
+  ],
+  "duplicate_keys": "multiset",
+  "fields": {
+    "Task Name": {
+      "zero": "Task Name",
+      "reference": "Task Name",
+      "type": "na_text",
+      "allow_absent": true
+    },
+    "Principal ID": {
+      "zero": "Principal ID",
+      "reference": "Principal ID",
+      "type": "na_text",
+      "allow_absent": true
+    },
+    "Display Name": {
+      "zero": "Display Name",
+      "reference": "Display Name",
+      "type": "na_text",
+      "allow_absent": true
+    },
+    "Enabled": {
+      "zero": "Enabled",
+      "reference": "Enabled",
+      "type": "na_boolean",
+      "allow_absent": true
+    },
+    "Creation Time": {
+      "zero": "Creation Time",
+      "reference": "Creation Time",
+      "type": "na_timestamp",
+      "allow_absent": true
+    },
+    "Last Run Time": {
+      "zero": "Last Run Time",
+      "reference": "Last Run Time",
+      "type": "na_timestamp",
+      "allow_absent": true
+    },
+    "Last Successful Run Time": {
+      "zero": "Last Successful Run Time",
+      "reference": "Last Successful Run Time",
+      "type": "na_timestamp",
+      "allow_absent": true
+    },
+    "Trigger Type": {
+      "zero": "Trigger Type",
+      "reference": "Trigger Type",
+      "type": "na_text",
+      "allow_absent": true
+    },
+    "Trigger Description": {
+      "zero": "Trigger Description",
+      "reference": "Trigger Description",
+      "type": "na_text",
+      "allow_absent": true
+    },
+    "Action Type": {
+      "zero": "Action Type",
+      "reference": "Action Type",
+      "type": "na_text",
+      "allow_absent": true
+    },
+    "Action": {
+      "zero": "Action",
+      "reference": "Action",
+      "type": "na_text",
+      "allow_absent": true
+    },
+    "Action Arguments": {
+      "zero": "Action Arguments",
+      "reference": "Action Arguments",
+      "type": "na_text",
+      "allow_absent": true
+    },
+    "Action Context": {
+      "zero": "Action Context",
+      "reference": "Action Context",
+      "type": "na_text",
+      "allow_absent": true
+    },
+    "Working Directory": {
+      "zero": "Working Directory",
+      "reference": "Working Directory",
+      "type": "na_text",
+      "allow_absent": true
+    },
+    "Key Name": {
+      "zero": "Key Name",
+      "reference": "Key Name",
+      "type": "na_text",
+      "allow_absent": true
+    }
+  },
+  "notes": "All fifteen columns and exact action/trigger multiplicities. Win10 retains damaged hive/process-list diagnostics; no rows are excluded. Pinned v2.28.2 swaps DynamicInfo creation/run times, leaves Time descriptions absent, and renders GUID integer components without zero padding."
+}

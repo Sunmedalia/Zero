@@ -1,0 +1,72 @@
+{
+  "schema_version": 1,
+  "engine_version": "0.2.1-native-65",
+  "reference_version": "v2.28.2",
+  "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+  "reference_source_sha256": "f7c1c49087bafcf8956cf72a053f33091fb79321beb43a30b8ded60296cf3beb",
+  "zero_executable_sha256": "b94526ffa9fe23b93fe325645337b414668ef0bf8a9daa6064b5212492d0af70",
+  "scope": "Two default x64 real-image cases; all 15 fields and exact action/trigger multiplicity. Partial diagnostics retained. No complete plugin contract.",
+  "cases": [
+    {
+      "case_id": "windows-10-15063/scheduled-tasks-default",
+      "image_sha256": "d58f62e92b8c4ef913ac09b2c36a10482034c10b88d0c154dead3aaaa49cf875",
+      "rows": 232,
+      "passed": true,
+      "complete": false,
+      "diagnostics": [
+        "Windows 链表末尾未闭合 @ 0xfffff8021f3bed48 direction 0",
+        "Windows 链表不一致 @ 0xffff8b854be0daa8 direction 8: expected 0xfffff8021f3bed48, found 0x0",
+        "链表 @ 0xfffff8021f3bed48 direction 8: 无效链表地址 0x1",
+        "0xffff8b854be0d000 FileFullPath: 无效 UNICODE_STRING 长度",
+        "0xffff8b854be0d000 HiveRootPath: Windows 缺页 VA 0x2058cc40fd0 level 39 PTE 0x0; prototype 所在页表不驻留",
+        "Windows 链表不一致 @ 0xffffd98df8f9c8e8 direction 0: expected 0xffffd98df8be88e8, found 0xffffd98df7cbe668",
+        "Windows 链表不一致 @ 0xffffd98df8831368 direction 0: expected 0xffffd98df41a88e8, found 0xffffd98df9d4e8e8",
+        "Windows 链表不一致 @ 0xffffd98df3ab88e8 direction 0: expected 0xffffd98df63618e8, found 0xffffd98df480e368",
+        "Windows 链表不一致 @ 0xffffd98df7cbe668 direction 0: expected 0xffffd98df503a368, found 0xffffd98df8be88e8",
+        "链表 @ 0xfffff8021ef5c120 direction 0: Windows 链表循环或超限 0xffffd98df8f9c8e8",
+        "Windows 链表不一致 @ 0xffffd98df9d4e8e8 direction 8: expected 0xfffff8021ef5c120, found 0xffffd98df8831368",
+        "Windows 链表不一致 @ 0xffffd98df41a88e8 direction 8: expected 0xffffd98df9d4e8e8, found 0xffffd98df8831368",
+        "Windows 链表不一致 @ 0xffffd98df8be88e8 direction 8: expected 0xffffd98df7cbe668, found 0xffffd98df8f9c8e8"
+      ],
+      "native_output_sha256": "870a091d728b84c362013726a48407b22d6e81d3a364c3c8db36905b131ccfa7",
+      "reference_output_sha256": "cafd4d207dec9403f293832e6113a2e68a908baf05202a36b51312fc00e38163"
+    },
+    {
+      "case_id": "windows-7-7601-x64/scheduled-tasks-default",
+      "image_sha256": "80366d7ec64a5529c95c2f523f4281a5f11efbad33ecb19f73525470c1407b23",
+      "rows": 92,
+      "passed": true,
+      "complete": false,
+      "diagnostics": [
+        "Windows 链表末尾未闭合 @ 0xfffff80002830b90 direction 0",
+        "Windows 链表不一致 @ 0xfffffa80014c11e8 direction 8: expected 0xfffff80002830b90, found 0xfffffa80014aa1e8"
+      ],
+      "native_output_sha256": "05c676468c02e77afa0697c05f49f766605af219b857f0a1645472b62693c448",
+      "reference_output_sha256": "dc211364913ea46a4e9f85d2b6103a2b25b0b9ec667e805141f93a870c35baa0"
+    }
+  ],
+  "reference_behaviors": [
+    "Pinned DynamicInfo returns last_run_time as creation_time and creation_time as last_run_time.",
+    "COM GUID components are hexadecimal integers without leading zero padding.",
+    "TimeMode has string enum values; encoded integer modes give no Time trigger description.",
+    "Exec actions with an empty command or empty arguments return no action; context is preserved.",
+    "Email properties are consumed but the pinned decoder does not return an Email action object.",
+    "Idle and Registration triggers are labeled Logon by the fixed decoder."
+  ],
+  "limitations": [
+    "Positive real evidence covers Windows 10 build 15063 and Windows 7 build 7601 x64 only. Intel x86 has decoder coverage, not positive real-image acceptance. ARM64 is rejected.",
+    "Binary values are bounded to 1 MiB by the shared registry reader. At most 4096 actions/triggers/queries per value and MAX_OBJECTS output rows; limits preserve partial diagnostics.",
+    "Truncated recognized triggers retain earlier decoded triggers and principal/display fields and report partial. This deliberately does not imitate unbounded reads or Python parser exceptions.",
+    "Output times have whole-second precision following the fixed TaskCache reference decoder.",
+    "Loaded hive/process-list diagnostics are retained; no claim that a matching row set proves complete image coverage.",
+    "Nonempty Event query lists, MessageBox/Email consumption, SID decoding and malformed binary boundaries have synthetic tests. More real examples and arbitrary Unicode query repr remain unverified.",
+    "Canonical scheduled-task timeline integration and complete option/failure contracts are outstanding. Legacy seven-column task output and timeline source remain separate."
+  ],
+  "verification": {
+    "rust_lib_passed": 550,
+    "rust_lib_ignored": 3,
+    "python_parity_tests_passed": 26,
+    "clippy": "release --all-targets -D warnings",
+    "format": "cargo fmt --check"
+  }
+}

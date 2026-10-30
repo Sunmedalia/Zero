@@ -11,6 +11,12 @@ def normalize(value, kind):
     # Some optional text fields mean an empty value (e.g. no module taints),
     # not a failed read. Use this only in a reviewed per-field mapping; native
     # partial results are still rejected unless separately allowed.
+    if kind == 'na_boolean':
+        if value == 'N/A' or value is None:
+            return None
+        if value == '':
+            raise ValueError('empty optional boolean')
+        return normalize(value, 'boolean')
     if kind == 'na_timestamp':
         if value == 'N/A' or value is None:
             return None

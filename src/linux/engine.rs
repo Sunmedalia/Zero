@@ -241,11 +241,11 @@ impl Linux<'_> {
             | WinProcdump | WinMemdump | WinPedump | WinSsdt | WinModscan | WinPrivileges
             | WinSessions | WinUserassist | WinBigpools | WinSymlinkscan | WinDevicetree
             | WinGetservicesids | WinIat | WinVerinfo | WinMftscan | WinOrphanThreads
-            | WinEtwpatch | WinScheduledTasks | WinDebugRegisters | WinSuspendedThreads
-            | WinPESymbols | WinAmcacheV4 | WinAmcache | WinCertificates | WinProcessghosting
-            | WinJoblinks | WinTimeliner | WinUserAssistV4 | WinMemmap | WinSvcScanV4
-            | WinSvcDiff | WinSvcList | WinGetCellRoutine | WinPebMasquerade | WinHiveScan
-            | WinDriverModule | WinDriverIrp | WinKpcrs | WinMbrscan | WinTimers
+            | WinEtwpatch | WinScheduledTasks | WinScheduledTasksV4 | WinDebugRegisters
+            | WinSuspendedThreads | WinPESymbols | WinAmcacheV4 | WinAmcache | WinCertificates
+            | WinProcessghosting | WinJoblinks | WinTimeliner | WinUserAssistV4 | WinMemmap
+            | WinSvcScanV4 | WinSvcDiff | WinSvcList | WinGetCellRoutine | WinPebMasquerade
+            | WinHiveScan | WinDriverModule | WinDriverIrp | WinKpcrs | WinMbrscan | WinTimers
             | WinStatistics | WinShimcache | WinVirtmap | WinVadWalk | WinVadRegExScan
             | WinVadyarascan | WinVaddump | WinDlldump | WinModdump | WinHashdump | WinLsadump
             | WinCachedump | WinDumpfiles | WinThrdscan | WinPoolScanner | WinWindowStations

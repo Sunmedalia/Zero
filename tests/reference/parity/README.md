@@ -575,3 +575,13 @@ coverage. The other four cases are empty/empty negative observations. Registered
 positive evidence totals 95 cases across 23 plugins (five scoped), 121/135
 candidate correspondences, 14 absent and zero complete contracts. The frozen
 executable SHA256 is `7a503c0d5f9e65c71e9294300134038b220ba1dcfa30193aad3859119db46cfe`.
+
+
+The canonical ScheduledTasks case uses every one of the pinned source's fifteen columns.
+Run scheduled-tasks.example.json with the standard runner. Win10 15063 yields 232 rows,
+Win7 7601 yields 92, with exact action/trigger multiplicities. The explicit partial allowance
+keeps damaged hive/process-list diagnostics; it does not remove rows or permit differing fields.
+The na_boolean normalization preserves false distinctly from an absent Enabled value.
+DynamicInfo field order, unpadded COM GUID components, absent Time descriptions and absent Email
+objects follow pinned v2.28.2. See scheduled-tasks-known-limitations.json for limits.
+There are now 129/135 candidate correspondences, six missing entries, and zero complete contracts.

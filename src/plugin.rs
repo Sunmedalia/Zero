@@ -222,6 +222,8 @@ pub enum Plugin {
     WinEtwpatch,
     #[value(name = "windows.registry.scheduled_tasks")]
     WinScheduledTasks,
+    #[value(name = "windows.registry.scheduled_tasks.ScheduledTasks")]
+    WinScheduledTasksV4,
     #[value(name = "windows.registry.amcache")]
     WinAmcache,
     #[value(name = "windows.registry.certificates")]
@@ -1231,6 +1233,29 @@ pub const PLUGINS: &[Descriptor] = &[
         widths: &[8, 16, 0, 14, 18, 24, 0],
     },
     Descriptor {
+        plugin: Plugin::WinScheduledTasksV4,
+        name: "windows.registry.scheduled_tasks.ScheduledTasks",
+        label: "scheduled_tasks",
+        columns: &[
+            "Task Name",
+            "Principal ID",
+            "Display Name",
+            "Enabled",
+            "Creation Time",
+            "Last Run Time",
+            "Last Successful Run Time",
+            "Trigger Type",
+            "Trigger Description",
+            "Action Type",
+            "Action",
+            "Action Arguments",
+            "Action Context",
+            "Working Directory",
+            "Key Name",
+        ],
+        widths: &[24, 16, 16, 8, 24, 24, 24, 16, 0, 16, 0, 0, 16, 0, 38],
+    },
+    Descriptor {
         plugin: Plugin::WinScheduledTasks,
         name: "windows.registry.scheduled_tasks",
         label: "windows.registry.scheduled_tasks",
@@ -2145,6 +2170,7 @@ impl Plugin {
             | Self::WinEtwpatch => "Integrity",
             Self::WinAmcacheV4
             | Self::WinScheduledTasks
+            | Self::WinScheduledTasksV4
             | Self::WinAmcache
             | Self::WinCertificates => "Files",
             Self::WinProcessghosting => "Integrity",
@@ -2338,6 +2364,7 @@ impl Plugin {
             WinMftscan => "从物理内存雕刻 NTFS MFT 记录及两组时间戳",
             WinOrphanThreads => "列出起始地址不在任何内核模块中的系统线程",
             WinEtwpatch => "检查各进程 ntdll ETW 入口是否被打补丁",
+            WinScheduledTasksV4 => "解码计划任务的动作、触发器、主体与执行历史",
             WinScheduledTasks => "解码注册表 TaskCache 中的计划任务及命令",
             WinPoolScanner => "按内核版本扫描内置池标签并校验对象结构",
             WinWindowStations => "扫描窗口站池并在对应会话地址空间中读取名称",
