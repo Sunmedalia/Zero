@@ -231,7 +231,9 @@ impl Linux<'_> {
                 self.hidden_modules(&mut r, job)?;
                 Ok(r)
             }
-            WinStrings | WinDirectSystemCalls | WinIndirectSystemCalls => Err(unrouted(plugin)),
+            WinSkeletonKeyCheck | WinStrings | WinDirectSystemCalls | WinIndirectSystemCalls => {
+                Err(unrouted(plugin))
+            }
             WinUnhookedSystemCalls => Err(unrouted(plugin)),
             ModuleExtract | Procdump | Memdump | Elfdump | WinLdrmodules | WinHollowprocesses
             | WinSuspiciousThreads | WinCallbacks | WinUnloadedmodules | WinFilescan

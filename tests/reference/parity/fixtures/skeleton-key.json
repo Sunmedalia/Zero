@@ -1,0 +1,128 @@
+{
+  "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+  "reference_source_sha256": "313605767eade3949db2b3125863b59e08feeb919389fe82ee17fe9a5e384d7b",
+  "reference_layout_sha256": "08accc7d92e785a5ef3d48b0035882903c2c9e54bae8f0e07e09ed22e01e7872",
+  "scope": "Synthetic export analysis and hook boundary vectors; not whole-plugin evidence",
+  "export_cases": [
+    {
+      "id": "standard",
+      "start": 4096,
+      "code": "8b0d20000000488d1540000000c3",
+      "count_address": 4134,
+      "count": 3,
+      "expected": {
+        "start": 4173,
+        "count": 3
+      }
+    },
+    {
+      "id": "unreadable-count",
+      "start": 4096,
+      "code": "8b0d20000000488d1540000000c3",
+      "count_address": 4134,
+      "count": null,
+      "expected": {
+        "start": 4173,
+        "count": 16
+      }
+    },
+    {
+      "id": "zero-count",
+      "start": 4096,
+      "code": "8b0d20000000488d1540000000c3",
+      "count_address": 4134,
+      "count": 0,
+      "expected": null
+    },
+    {
+      "id": "first-mov-register",
+      "start": 4096,
+      "code": "89d1488d1540000000",
+      "count_address": 4134,
+      "count": null,
+      "expected": {
+        "start": 4169,
+        "count": 16
+      }
+    },
+    {
+      "id": "lea-before-count",
+      "start": 4096,
+      "code": "488d15400000008b0d20000000",
+      "count_address": 4134,
+      "count": 3,
+      "expected": null
+    },
+    {
+      "id": "non-rip-first-lea",
+      "start": 4096,
+      "code": "8b0d20000000488d14c0488d1540000000",
+      "count_address": 4134,
+      "count": 3,
+      "expected": null
+    },
+    {
+      "id": "trap-before-lea",
+      "start": 4096,
+      "code": "8b0d20000000cc488d1540000000",
+      "count_address": 4134,
+      "count": 3,
+      "expected": null
+    },
+    {
+      "id": "signed-rip",
+      "start": 4096,
+      "code": "8b0de0ffffff488d15c0ffffff",
+      "count_address": 4070,
+      "count": 7,
+      "expected": {
+        "start": 4045,
+        "count": 7
+      }
+    }
+  ],
+  "hook_cases": [
+    {
+      "initialize": 4096,
+      "decrypt": 8192,
+      "expected": null,
+      "hooked": false
+    },
+    {
+      "initialize": 4095,
+      "decrypt": 6144,
+      "expected": null,
+      "hooked": true
+    },
+    {
+      "initialize": 6144,
+      "decrypt": 8193,
+      "expected": null,
+      "hooked": true
+    },
+    {
+      "initialize": 4352,
+      "decrypt": 4608,
+      "expected": {
+        "initialize": 4352,
+        "decrypt": 4608
+      },
+      "hooked": false
+    },
+    {
+      "initialize": 4353,
+      "decrypt": 4608,
+      "expected": {
+        "initialize": 4352,
+        "decrypt": 4608
+      },
+      "hooked": true
+    },
+    {
+      "initialize": 0,
+      "decrypt": 0,
+      "expected": null,
+      "hooked": true
+    }
+  ]
+}

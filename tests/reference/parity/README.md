@@ -616,3 +616,9 @@ Capstone 引擎，使用等价的固定字节规则，不运行 Python/Yara。
 `fixtures/system-calls.json`，由 Rust 回归验证 14 个合成指令块用例，包含间接调用正向
 命中、无符号位移、错误目标／路径和缺失上下文。这些合成向量不能替代真实正向样本，
 也不登记为整插件通过。空结果比较单独记录，不计入 positive evidence。
+
+Skeleton Key 的两项公开镜像用例见 `skeleton-key.example.json`，五列及重复数严格
+比较。Win7 空结果独立记录，不能作为正向证据。`skeleton_key_vectors.py` 使用未修改
+固定参考生成 8 个导出函数分析用例和 6 个 hook 边界用例；Rust 回归读取
+`fixtures/skeleton-key.json`。此外原生合成测试覆盖 PDB 数组优先级、计数缺页、数组
+缺页、签名结构跨物理页和取消。公开样本内容不提交。

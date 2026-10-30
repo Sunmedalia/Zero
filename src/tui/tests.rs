@@ -4606,7 +4606,11 @@ fn syscall_detectors_scan_all_active_processes_and_clear_hidden_pid_drafts() {
     let mut app = app();
     app.windows = true;
     app.analysis_options.pid = Some(8);
-    for plugin in [Plugin::WinDirectSystemCalls, Plugin::WinIndirectSystemCalls] {
+    for plugin in [
+        Plugin::WinDirectSystemCalls,
+        Plugin::WinIndirectSystemCalls,
+        Plugin::WinSkeletonKeyCheck,
+    ] {
         app.select_plugin(plugin);
         assert_eq!(app.parameter_fields(false), vec![6]);
         app.windows_parameters();

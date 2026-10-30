@@ -5812,8 +5812,10 @@
         "rc4HmacInitialize",
         "rc4HmacDecrypt"
       ],
-      "zero_candidates": [],
-      "status": "missing",
+      "zero_candidates": [
+        "windows.malware.skeleton_key_check.Skeleton_Key_Check"
+      ],
+      "status": "mapped_unverified",
       "evidence": []
     },
     {
@@ -8178,7 +8180,9 @@
       "replacement": "windows.malware.skeleton_key_check.Skeleton_Key_Check",
       "declared_requirements": [],
       "declared_columns": [],
-      "zero_candidates": [],
+      "zero_candidates": [
+        "windows.malware.skeleton_key_check.Skeleton_Key_Check"
+      ],
       "status": "alias",
       "evidence": []
     },

@@ -16,7 +16,7 @@ struct Instance {
 
 /// Validate the mapped image before accepting its export directory. Section
 /// metadata must be captured; missing bytes are never supplied as zeroes.
-fn export_header(bytes: &[u8]) -> Result<pe_info::Header> {
+pub(super) fn export_header(bytes: &[u8]) -> Result<pe_info::Header> {
     let header = pe_info::parse_header(bytes)?;
     let nt = u32::from_le_bytes(bytes[60..64].try_into()?) as usize;
     let machine = u16::from_le_bytes(bytes[nt + 4..nt + 6].try_into()?);
@@ -50,7 +50,7 @@ fn export_header(bytes: &[u8]) -> Result<pe_info::Header> {
 }
 
 /// All reads are image-relative and bounded by SizeOfImage, including names.
-fn export_symbols(
+pub(super) fn export_symbols(
     size: u32,
     directory: (u32, u32),
     mut read: impl FnMut(u32, &mut [u8]) -> Result<()>,

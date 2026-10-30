@@ -955,3 +955,31 @@ empty agreement，不计正向通过用例。累计正向差分用例为 105。�
 来自已完成的未修改固定源码调用，最终 native68 重新执行，比较记录显式写明参考
 输出复用来源与 SHA256；未把复用产物冒充新的 run.py 执行。详见
 `tests/reference/parity/system-calls-known-limitations.json`。
+
+## native69：Skeleton Key 函数指针检查
+
+新增 `windows.malware.skeleton_key_check.Skeleton_Key_Check`，从第一个可用 lsass
+地址空间中的首个 cryptdll VAD 开始，按精确 PDB、CDLocateCSystem 导出函数分析、
+RC4-HMAC 签名扫描的顺序定位结构。复用带 tag 的 VAD 视图和 PE 导出解析，不引入
+运行时 Python。PDB 要求 RSDS 身份、cryptdll.pdb 名称和 x64 架构一致。
+
+固定参考的 KERB_ECRYPT 为 128 字节，关键偏移 0/40/48/56/64。count 缺页默认 16，
+导出代码中首个 MOV 设置计数，首个 LEA 结束分析；非 RIP 相对 MOV 仍使用默认计数。
+数组路径按 EncryptionType 23 筛选，签名扫描另外验证 Encrypt/Finish 严格位于 VAD
+内部；hook 范围判断包含 VAD 上界，精确函数地址可用时优先比较地址。
+数组已定位后不因记录缺页而改用扫描；缺页保留诊断。
+
+8 个导出指令向量和 6 个 hook 边界向量来自未修改固定参考，并记录源码及布局摘要。
+原生合成测试覆盖 PDB 优先级、零计数、缺失计数默认值、导出优先级、跨页结构、
+扫描目标指针排除和取消。Win10 15063 的 1/1 条、全部五列与参考一致，真实命中来自
+导出分析；Win7 双方均为 0，仅记录空结果一致。候选入口对应 134/135，剩余
+Truecrypt Passphrase；完整插件合同仍为 0，真实恶意挂钩和更多构建仍待验收。
+
+本批在线尝试获取精确 cryptdll PDB 时服务器返回 HTTP 503，备用下载连接也失败；
+因此真实 PDB 路径不计为已验证，记录在已知限制中。导出／扫描回退不依赖该下载。
+
+最终使用 native69 可执行文件重新运行正式差分配置，两例比较通过；Win10 登记正向
+证据，Win7 空结果不计入正向用例，累计正向用例 106。`make check` 全部通过：576 个
+库测试、6 个 CLI/MCP 测试、50 个协议集成测试及 28 个 Python 差分工具测试；未执行
+的样本验收保持 ignored。发布包在空 PATH、不同工作目录下启动与退出通过。
+详见 `tests/reference/parity/skeleton-key-known-limitations.json`。

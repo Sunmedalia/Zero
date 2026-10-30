@@ -123,7 +123,8 @@
           "windows.malware.unhooked_system_calls.UnhookedSystemCalls": "synthetic",
           "windows.strings.Strings": "synthetic",
           "windows.malware.direct_system_calls.DirectSystemCalls": "synthetic",
-          "windows.malware.indirect_system_calls.IndirectSystemCalls": "synthetic"
+          "windows.malware.indirect_system_calls.IndirectSystemCalls": "synthetic",
+          "windows.malware.skeleton_key_check.Skeleton_Key_Check": "unsupported"
         },
         "x64": {
           "windows.callbacks": "synthetic",
@@ -224,7 +225,8 @@
           "windows.malware.unhooked_system_calls.UnhookedSystemCalls": "synthetic",
           "windows.strings.Strings": "synthetic",
           "windows.malware.direct_system_calls.DirectSystemCalls": "synthetic",
-          "windows.malware.indirect_system_calls.IndirectSystemCalls": "synthetic"
+          "windows.malware.indirect_system_calls.IndirectSystemCalls": "synthetic",
+          "windows.malware.skeleton_key_check.Skeleton_Key_Check": "synthetic"
         }
       },
       "evidence": [
@@ -409,7 +411,8 @@
           "windows.malware.unhooked_system_calls.UnhookedSystemCalls": "synthetic",
           "windows.strings.Strings": "synthetic",
           "windows.malware.direct_system_calls.DirectSystemCalls": "synthetic",
-          "windows.malware.indirect_system_calls.IndirectSystemCalls": "synthetic"
+          "windows.malware.indirect_system_calls.IndirectSystemCalls": "synthetic",
+          "windows.malware.skeleton_key_check.Skeleton_Key_Check": "unsupported"
         },
         "x64": {
           "windows.callbacks": "synthetic",
@@ -510,7 +513,8 @@
           "windows.malware.unhooked_system_calls.UnhookedSystemCalls": "synthetic",
           "windows.strings.Strings": "synthetic",
           "windows.malware.direct_system_calls.DirectSystemCalls": "synthetic",
-          "windows.malware.indirect_system_calls.IndirectSystemCalls": "synthetic"
+          "windows.malware.indirect_system_calls.IndirectSystemCalls": "synthetic",
+          "windows.malware.skeleton_key_check.Skeleton_Key_Check": "synthetic"
         }
       },
       "evidence": []
@@ -632,7 +636,8 @@
           "windows.malware.unhooked_system_calls.UnhookedSystemCalls": "synthetic",
           "windows.strings.Strings": "synthetic",
           "windows.malware.direct_system_calls.DirectSystemCalls": "synthetic",
-          "windows.malware.indirect_system_calls.IndirectSystemCalls": "synthetic"
+          "windows.malware.indirect_system_calls.IndirectSystemCalls": "synthetic",
+          "windows.malware.skeleton_key_check.Skeleton_Key_Check": "unsupported"
         },
         "x64": {
           "windows.callbacks": "synthetic",
@@ -733,7 +738,8 @@
           "windows.malware.unhooked_system_calls.UnhookedSystemCalls": "synthetic",
           "windows.strings.Strings": "synthetic",
           "windows.malware.direct_system_calls.DirectSystemCalls": "synthetic",
-          "windows.malware.indirect_system_calls.IndirectSystemCalls": "synthetic"
+          "windows.malware.indirect_system_calls.IndirectSystemCalls": "synthetic",
+          "windows.malware.skeleton_key_check.Skeleton_Key_Check": "synthetic"
         }
       },
       "evidence": [
@@ -936,7 +942,8 @@
           "windows.malware.unhooked_system_calls.UnhookedSystemCalls": "synthetic",
           "windows.strings.Strings": "synthetic",
           "windows.malware.direct_system_calls.DirectSystemCalls": "synthetic",
-          "windows.malware.indirect_system_calls.IndirectSystemCalls": "synthetic"
+          "windows.malware.indirect_system_calls.IndirectSystemCalls": "synthetic",
+          "windows.malware.skeleton_key_check.Skeleton_Key_Check": "synthetic"
         }
       },
       "evidence": [],
@@ -1057,7 +1064,8 @@
           "windows.malware.unhooked_system_calls.UnhookedSystemCalls": "synthetic",
           "windows.strings.Strings": "synthetic",
           "windows.malware.direct_system_calls.DirectSystemCalls": "synthetic",
-          "windows.malware.indirect_system_calls.IndirectSystemCalls": "synthetic"
+          "windows.malware.indirect_system_calls.IndirectSystemCalls": "synthetic",
+          "windows.malware.skeleton_key_check.Skeleton_Key_Check": "synthetic"
         }
       },
       "evidence": [
@@ -1224,7 +1232,8 @@
           "windows.malware.unhooked_system_calls.UnhookedSystemCalls": "synthetic",
           "windows.strings.Strings": "synthetic",
           "windows.malware.direct_system_calls.DirectSystemCalls": "synthetic",
-          "windows.malware.indirect_system_calls.IndirectSystemCalls": "synthetic"
+          "windows.malware.indirect_system_calls.IndirectSystemCalls": "synthetic",
+          "windows.malware.skeleton_key_check.Skeleton_Key_Check": "synthetic"
         }
       },
       "evidence": [
@@ -1392,7 +1401,8 @@
           "windows.malware.unhooked_system_calls.UnhookedSystemCalls": "synthetic",
           "windows.strings.Strings": "synthetic",
           "windows.malware.direct_system_calls.DirectSystemCalls": "synthetic",
-          "windows.malware.indirect_system_calls.IndirectSystemCalls": "synthetic"
+          "windows.malware.indirect_system_calls.IndirectSystemCalls": "synthetic",
+          "windows.malware.skeleton_key_check.Skeleton_Key_Check": "synthetic"
         }
       },
       "evidence": [
@@ -1532,7 +1542,8 @@
           "windows.malware.unhooked_system_calls.UnhookedSystemCalls": "synthetic",
           "windows.strings.Strings": "synthetic",
           "windows.malware.direct_system_calls.DirectSystemCalls": "synthetic",
-          "windows.malware.indirect_system_calls.IndirectSystemCalls": "synthetic"
+          "windows.malware.indirect_system_calls.IndirectSystemCalls": "synthetic",
+          "windows.malware.skeleton_key_check.Skeleton_Key_Check": "synthetic"
         }
       },
       "evidence": [
@@ -1701,7 +1712,8 @@
           "windows.malware.unhooked_system_calls.UnhookedSystemCalls": "synthetic",
           "windows.strings.Strings": "synthetic",
           "windows.malware.direct_system_calls.DirectSystemCalls": "synthetic",
-          "windows.malware.indirect_system_calls.IndirectSystemCalls": "synthetic"
+          "windows.malware.indirect_system_calls.IndirectSystemCalls": "synthetic",
+          "windows.malware.skeleton_key_check.Skeleton_Key_Check": "synthetic"
         }
       },
       "evidence": [
@@ -1870,7 +1882,8 @@
           "windows.malware.unhooked_system_calls.UnhookedSystemCalls": "synthetic",
           "windows.strings.Strings": "synthetic",
           "windows.malware.direct_system_calls.DirectSystemCalls": "synthetic",
-          "windows.malware.indirect_system_calls.IndirectSystemCalls": "synthetic"
+          "windows.malware.indirect_system_calls.IndirectSystemCalls": "synthetic",
+          "windows.malware.skeleton_key_check.Skeleton_Key_Check": "synthetic"
         }
       },
       "evidence": [],
@@ -1993,7 +2006,8 @@
           "windows.malware.unhooked_system_calls.UnhookedSystemCalls": "synthetic",
           "windows.strings.Strings": "synthetic",
           "windows.malware.direct_system_calls.DirectSystemCalls": "synthetic",
-          "windows.malware.indirect_system_calls.IndirectSystemCalls": "synthetic"
+          "windows.malware.indirect_system_calls.IndirectSystemCalls": "synthetic",
+          "windows.malware.skeleton_key_check.Skeleton_Key_Check": "unsupported"
         },
         "x64": {
           "windows.callbacks": "real",
@@ -2094,7 +2108,8 @@
           "windows.malware.unhooked_system_calls.UnhookedSystemCalls": "real",
           "windows.strings.Strings": "real",
           "windows.malware.direct_system_calls.DirectSystemCalls": "real",
-          "windows.malware.indirect_system_calls.IndirectSystemCalls": "synthetic"
+          "windows.malware.indirect_system_calls.IndirectSystemCalls": "synthetic",
+          "windows.malware.skeleton_key_check.Skeleton_Key_Check": "synthetic"
         }
       },
       "evidence": [
@@ -2292,7 +2307,8 @@
           "windows.malware.unhooked_system_calls.UnhookedSystemCalls": "synthetic",
           "windows.strings.Strings": "synthetic",
           "windows.malware.direct_system_calls.DirectSystemCalls": "synthetic",
-          "windows.malware.indirect_system_calls.IndirectSystemCalls": "synthetic"
+          "windows.malware.indirect_system_calls.IndirectSystemCalls": "synthetic",
+          "windows.malware.skeleton_key_check.Skeleton_Key_Check": "unsupported"
         },
         "x64": {
           "windows.callbacks": "synthetic",
@@ -2393,7 +2409,8 @@
           "windows.malware.unhooked_system_calls.UnhookedSystemCalls": "synthetic",
           "windows.strings.Strings": "synthetic",
           "windows.malware.direct_system_calls.DirectSystemCalls": "synthetic",
-          "windows.malware.indirect_system_calls.IndirectSystemCalls": "synthetic"
+          "windows.malware.indirect_system_calls.IndirectSystemCalls": "synthetic",
+          "windows.malware.skeleton_key_check.Skeleton_Key_Check": "synthetic"
         }
       },
       "evidence": []
@@ -2514,7 +2531,8 @@
           "windows.malware.unhooked_system_calls.UnhookedSystemCalls": "synthetic",
           "windows.strings.Strings": "synthetic",
           "windows.malware.direct_system_calls.DirectSystemCalls": "synthetic",
-          "windows.malware.indirect_system_calls.IndirectSystemCalls": "synthetic"
+          "windows.malware.indirect_system_calls.IndirectSystemCalls": "synthetic",
+          "windows.malware.skeleton_key_check.Skeleton_Key_Check": "unsupported"
         },
         "x64": {
           "windows.callbacks": "synthetic",
@@ -2615,7 +2633,8 @@
           "windows.malware.unhooked_system_calls.UnhookedSystemCalls": "synthetic",
           "windows.strings.Strings": "synthetic",
           "windows.malware.direct_system_calls.DirectSystemCalls": "synthetic",
-          "windows.malware.indirect_system_calls.IndirectSystemCalls": "synthetic"
+          "windows.malware.indirect_system_calls.IndirectSystemCalls": "synthetic",
+          "windows.malware.skeleton_key_check.Skeleton_Key_Check": "synthetic"
         }
       },
       "evidence": []
@@ -2749,7 +2768,8 @@
           "windows.malware.unhooked_system_calls.UnhookedSystemCalls": "synthetic",
           "windows.strings.Strings": "synthetic",
           "windows.malware.direct_system_calls.DirectSystemCalls": "synthetic",
-          "windows.malware.indirect_system_calls.IndirectSystemCalls": "synthetic"
+          "windows.malware.indirect_system_calls.IndirectSystemCalls": "synthetic",
+          "windows.malware.skeleton_key_check.Skeleton_Key_Check": "unsupported"
         },
         "x64": {
           "windows.callbacks": "real",
@@ -2850,7 +2870,8 @@
           "windows.malware.unhooked_system_calls.UnhookedSystemCalls": "real",
           "windows.strings.Strings": "real",
           "windows.malware.direct_system_calls.DirectSystemCalls": "real",
-          "windows.malware.indirect_system_calls.IndirectSystemCalls": "synthetic"
+          "windows.malware.indirect_system_calls.IndirectSystemCalls": "synthetic",
+          "windows.malware.skeleton_key_check.Skeleton_Key_Check": "real"
         }
       },
       "evidence": [
@@ -2916,7 +2937,8 @@
             "windows.registry.scheduled_tasks.ScheduledTasks": 232,
             "windows.malware.unhooked_system_calls.UnhookedSystemCalls": 45,
             "windows.strings.Strings": 967,
-            "windows.malware.direct_system_calls.DirectSystemCalls": 99
+            "windows.malware.direct_system_calls.DirectSystemCalls": 99,
+            "windows.malware.skeleton_key_check.Skeleton_Key_Check": 1
           },
           "complete": {
             "windows.driverirp.DriverIrp": false,
@@ -2930,7 +2952,8 @@
             "windows.registry.scheduled_tasks.ScheduledTasks": false,
             "windows.malware.unhooked_system_calls.UnhookedSystemCalls": false,
             "windows.strings.Strings": false,
-            "windows.malware.direct_system_calls.DirectSystemCalls": false
+            "windows.malware.direct_system_calls.DirectSystemCalls": false,
+            "windows.malware.skeleton_key_check.Skeleton_Key_Check": false
           },
           "row_options": {
             "windows.memmap.Memmap": {
@@ -2953,7 +2976,8 @@
             "windows.registry.scheduled_tasks.ScheduledTasks": "All 15 fields and exact action/trigger multiplicities match pinned v2.28.2. Damaged hive/process-list diagnostics remain partial.",
             "windows.malware.unhooked_system_calls.UnhookedSystemCalls": "All 45 functions, minority-process strings and majority counts match pinned v2.28.2; process/VAD/symbol diagnostics remain partial.",
             "windows.strings.Strings": "967 external strings: all three fields, exact owner sets and duplicate input multiplicity match pinned v2.28.2, all processes. Mapping/process diagnostics remain partial.",
-            "windows.malware.direct_system_calls.DirectSystemCalls": "99/99 rows, all five fields and repeated block multiplicities; captured-mapping/VAD diagnostics remain partial. Unreadable handle counts do not exclude processes under the pinned active-filter semantics."
+            "windows.malware.direct_system_calls.DirectSystemCalls": "99/99 rows, all five fields and repeated block multiplicities; captured-mapping/VAD diagnostics remain partial. Unreadable handle counts do not exclude processes under the pinned active-filter semantics.",
+            "windows.malware.skeleton_key_check.Skeleton_Key_Check": "One RC4-HMAC result, all five fields, matches pinned reference via CDLocateCSystem export analysis. Process/VAD diagnostics remain partial. Real malicious hooks and PDB-path parity remain unverified."
           }
         },
         {
@@ -3095,7 +3119,8 @@
           "windows.malware.unhooked_system_calls.UnhookedSystemCalls": "synthetic",
           "windows.strings.Strings": "synthetic",
           "windows.malware.direct_system_calls.DirectSystemCalls": "synthetic",
-          "windows.malware.indirect_system_calls.IndirectSystemCalls": "synthetic"
+          "windows.malware.indirect_system_calls.IndirectSystemCalls": "synthetic",
+          "windows.malware.skeleton_key_check.Skeleton_Key_Check": "synthetic"
         }
       },
       "evidence": [

@@ -140,9 +140,11 @@ pub fn analyze(
         options.pid.is_none()
             || !matches!(
                 request.plugin,
-                Plugin::WinDirectSystemCalls | Plugin::WinIndirectSystemCalls
+                Plugin::WinDirectSystemCalls
+                    | Plugin::WinIndirectSystemCalls
+                    | Plugin::WinSkeletonKeyCheck
             ),
-        "DirectSystemCalls / IndirectSystemCalls 按参考扫描所有活动进程，不接受 PID 筛选"
+        "此检测插件按参考自行选择进程，不接受 PID 筛选"
     );
     ensure!(
         options.strings_file.is_some() == (request.plugin == Plugin::WinStrings),

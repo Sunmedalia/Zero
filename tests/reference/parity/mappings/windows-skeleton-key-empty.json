@@ -1,0 +1,39 @@
+{
+  "version": 1,
+  "allow_partial": true,
+  "keys": [
+    "PID",
+    "rc4HmacInitialize",
+    "rc4HmacDecrypt"
+  ],
+  "duplicate_keys": "multiset",
+  "fields": {
+    "PID": {
+      "zero": "PID",
+      "reference": "PID",
+      "type": "integer"
+    },
+    "Process": {
+      "zero": "Process",
+      "reference": "Process",
+      "type": "text"
+    },
+    "Skeleton Key Found": {
+      "zero": "Skeleton Key Found",
+      "reference": "Skeleton Key Found",
+      "type": "boolean"
+    },
+    "rc4HmacInitialize": {
+      "zero": "rc4HmacInitialize",
+      "reference": "rc4HmacInitialize",
+      "type": "address"
+    },
+    "rc4HmacDecrypt": {
+      "zero": "rc4HmacDecrypt",
+      "reference": "rc4HmacDecrypt",
+      "type": "address"
+    }
+  },
+  "notes": "Exact five-column comparison and multiplicities; no record selection. Empty agreement is not positive parity evidence.",
+  "allow_empty": true
+}

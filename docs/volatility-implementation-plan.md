@@ -238,3 +238,9 @@ Strings（native67）：新增规范入口、外部本地字符串文件和 PID 
 8 字节指针和 absent-value 身份比较语义，避免句柄字段缺失时误排除 Win10 进程。
 真实差分与合成的正向／反向指令用例分别记录；空结果不能作为完整插件证据。
 继续补 Skeleton_Key_Check / Truecrypt 及既有插件全参数、平台和故障合同。
+
+Skeleton Key 批：复用带 tag 的 VAD 扫描视图和 PE 导出解析，实现 cryptdll 精确 PDB、
+导出函数 RIP 相对分析、RC4-HMAC 签名扫描三条路径；保留 count 缺页默认 16、首个
+LEA 终止、数组优先级、scan 的严格 Encrypt/Finish 范围和 hook 的包含末端边界。
+合成指令／边界向量由未修改参考生成。继续补 Truecrypt Passphrase、所有既有插件
+参数／平台／异常合同和最初 Debian 镜像的真实分析验证，不将入口补齐视为完整目标。

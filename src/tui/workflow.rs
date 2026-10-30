@@ -204,7 +204,9 @@ impl App {
         if (self.plugin.accepts_pid_list() || self.plugin.descriptor().columns.contains(&"PID"))
             && !matches!(
                 self.plugin,
-                Plugin::WinDirectSystemCalls | Plugin::WinIndirectSystemCalls
+                Plugin::WinDirectSystemCalls
+                    | Plugin::WinIndirectSystemCalls
+                    | Plugin::WinSkeletonKeyCheck
             )
         {
             fields.push(2);

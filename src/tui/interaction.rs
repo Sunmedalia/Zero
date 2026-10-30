@@ -78,7 +78,9 @@ impl App {
             ]),
             field: if matches!(
                 self.plugin,
-                Plugin::WinDirectSystemCalls | Plugin::WinIndirectSystemCalls
+                Plugin::WinDirectSystemCalls
+                    | Plugin::WinIndirectSystemCalls
+                    | Plugin::WinSkeletonKeyCheck
             ) {
                 6
             } else if self.plugin == Plugin::WinStrings {

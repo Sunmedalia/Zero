@@ -60,6 +60,7 @@ mod scheduled_tasks;
 mod security;
 mod service_list;
 mod shimcache;
+mod skeleton_key;
 mod strings;
 mod suspended_threads;
 mod system_calls;
@@ -631,6 +632,9 @@ impl Windows<'_> {
         ) {
             return self.system_calls(p, job);
         }
+        if p == Plugin::WinSkeletonKeyCheck {
+            return self.skeleton_key(None, job);
+        }
         if p == Plugin::WinStrings {
             return self.strings(options, job);
         }
@@ -1162,6 +1166,7 @@ pub(crate) fn analyze_resolved(
                 | Plugin::WinSuspendedThreads
                 | Plugin::WinDebugRegisters
                 | Plugin::WinUnhookedSystemCalls
+                | Plugin::WinSkeletonKeyCheck
                 | Plugin::WinStrings
                 | Plugin::WinDirectSystemCalls
                 | Plugin::WinIndirectSystemCalls
@@ -1190,6 +1195,8 @@ pub(crate) fn analyze_resolved(
         engine.suspended_threads(Some((request.cache, request.network)), job)?
     } else if request.plugin == Plugin::WinUnhookedSystemCalls {
         engine.unhooked_system_calls(Some((request.cache, request.network)), job)?
+    } else if request.plugin == Plugin::WinSkeletonKeyCheck {
+        engine.skeleton_key(Some((request.cache, request.network)), job)?
     } else if request.plugin == Plugin::WinPESymbols {
         engine.pe_symbols(options, Some((request.cache, request.network)), job)?
     } else if request.plugin == Plugin::WinDriverIrp {
@@ -1239,6 +1246,7 @@ pub(crate) fn analyze_resolved(
                 | Plugin::WinSuspendedThreads
                 | Plugin::WinDebugRegisters
                 | Plugin::WinUnhookedSystemCalls
+                | Plugin::WinSkeletonKeyCheck
                 | Plugin::WinStrings
                 | Plugin::WinDirectSystemCalls
                 | Plugin::WinIndirectSystemCalls

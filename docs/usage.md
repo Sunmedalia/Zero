@@ -1132,3 +1132,21 @@ zero --offline analyze --image memory.raw --symbols symbols/kernel.json \
 反汇编使用静态链接的 [Capstone 5.0.6](https://www.capstone-engine.org/)（仅编译 x86
 后端），无需安装 Python、Capstone 动态库或 Yara。缺页、VAD 损坏和扫描资源上限保留
 部分结果与覆盖诊断；未命中不代表内存完整或没有恶意代码。
+
+### Skeleton Key 检测
+
+`windows.malware.skeleton_key_check.Skeleton_Key_Check` 在第一个可用的 `lsass.exe`
+地址空间中寻找 `cryptdll.dll`，依次尝试精确 PDB、`CDLocateCSystem` 导出函数分析、
+RC4-HMAC 结构签名扫描。仅支持 x64，按参考自行选择进程，不接受 PID 筛选。
+
+```sh
+zero --offline analyze --image memory.raw --symbols symbols/kernel.json \
+  --plugin windows.malware.skeleton_key_check.Skeleton_Key_Check --output skeleton.json
+```
+
+输出 PID、Process、Skeleton Key Found、rc4HmacInitialize、rc4HmacDecrypt。
+可用 PDB 时比较精确函数地址，否则检查指针是否位于 cryptdll 映射内。
+扫描路径另外验证 Encrypt、Finish 指针；数组路径只按 EncryptionType 筛选，保持固定
+参考的区别。PDB/导出路径成功构造数组后，缺页会保留诊断，不将失败数组替换成扫描
+结果。PDB 可离线复用，在线模式可下载身份匹配的微软符号。未找到 lsass、cryptdll
+或存在不可读记录时会保留部分结果说明。

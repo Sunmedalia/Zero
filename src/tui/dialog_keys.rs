@@ -64,7 +64,9 @@ impl App {
                     };
                     let pid = if matches!(
                         self.plugin,
-                        Plugin::WinDirectSystemCalls | Plugin::WinIndirectSystemCalls
+                        Plugin::WinDirectSystemCalls
+                            | Plugin::WinIndirectSystemCalls
+                            | Plugin::WinSkeletonKeyCheck
                     ) || self.plugin.accepts_pid_list()
                         || !self.plugin.descriptor().columns.contains(&"PID")
                         || fields[2].trim().is_empty()
