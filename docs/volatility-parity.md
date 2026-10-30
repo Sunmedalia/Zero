@@ -925,3 +925,33 @@ Win7 7601 的 PID 4 为 966/966，Win10 15063 的全部进程为 967/967；包�
 JSON 逐字段比较，967/967；复用来源和哈希单独记录，没有冒充新的参考执行。四例证据
 已登记，累计 103 个通过用例，完整插件验收仍为 0。已知限制见
 `tests/reference/parity/strings-known-limitations.json`。
+
+
+## native68：直接／间接系统调用指令块
+
+新增 DirectSystemCalls 和 IndirectSystemCalls，两项共享固定字节候选规则、活动进程
+筛选和 Capstone 5.0.6 反汇编。仅编译 Intel 后端，依赖静态链接且 release 带许可文本，
+无需运行时 Python、Yara 或 Capstone 动态库。
+
+按参考检查所有寄存器写入（含算术、交换、隐式写入），而非只识别 mov；候选向后
+32 字节逐字节尝试反汇编。直接调用需要 syscall 之前已写 RAX/EAX 和 R10，终止于
+ret；间接调用终止于 jmp，并验证指针目标是系统 DLL 中的 syscall。保留参考无符号
+u32 位移和固定 8 字节指针、重叠候选及重复指令块输出。参考活动筛选中缺失句柄计数
+与新建 UnreadableValue 的比较是身份比较，不会排除 Win10 缺少 HandleCount 的进程；
+本实现不把这个分支误改成严格的句柄可读性要求。
+
+扫描改用现有带 tag 的 VAD 遍历，父反链损坏只报告诊断，继续验证子节点 tag 和范围，
+不让无关的 protection 字段阻止扫描。指令字节仅来自 valid/transition 捕获页；缺页、
+不可读上下文、资源上限和损坏链表保持 partial。
+
+固定参考生成的 14 个合成验证向量包含直接／间接正向命中、x86 模式、算术寄存器
+写入、零 opcode、错误目标／路径、无符号位移和缺失上下文。合成向量不等于真实
+恶意样本验收，尤其间接调用还需要真实正向镜像。候选入口对应提升至 133/135，
+尚缺 Skeleton_Key_Check 和 Truecrypt Passphrase；完整插件验收仍为 0。
+
+最终真实差分：Win7 DirectSystemCalls 9505/9505，Win10 99/99，五列、重复命中数及
+匿名区域的空路径全部一致。IndirectSystemCalls 两侧在这两个镜像均为 0，单独标记
+empty agreement，不计正向通过用例。累计正向差分用例为 105。两项原始参考 JSON
+来自已完成的未修改固定源码调用，最终 native68 重新执行，比较记录显式写明参考
+输出复用来源与 SHA256；未把复用产物冒充新的 run.py 执行。详见
+`tests/reference/parity/system-calls-known-limitations.json`。

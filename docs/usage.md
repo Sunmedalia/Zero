@@ -1109,3 +1109,26 @@ PID 列表。文件变化后重新运行会重新读取并计算 SHA256，不复
 筛选进程归属，内核归属始终参与；找不到对应 PID 时不会报“PID 不存在”。
 Result 的归属集合稳定排序；FREE MEMORY 只表示当前映射中未找到归属，不等于已证明
 该页从未使用。页表／进程链损坏仍保留 partial 诊断。
+
+### 直接／间接系统调用检测
+
+`windows.malware.direct_system_calls.DirectSystemCalls` 和
+`windows.malware.indirect_system_calls.IndirectSystemCalls` 扫描活动用户进程的不足
+10,000,000 字节 VAD。输入示例：
+
+```sh
+zero --offline analyze --image memory.raw --symbols symbols/kernel.json \
+  --plugin windows.malware.direct_system_calls.DirectSystemCalls --output direct.json
+zero --offline analyze --image memory.raw --symbols symbols/kernel.json \
+  --plugin windows.malware.indirect_system_calls.IndirectSystemCalls --output indirect.json
+```
+
+五列为 Process、PID、Range、Address、Disasm；匿名区域的 Range 为 N/A。
+检测会验证寄存器写入和终止指令，并排除 ntdll.dll、win32u.dll 内的候选；间接调用还
+验证跳转目标的 syscall 指令及 DLL 路径。候选命中可输出同一指令块多次，保持参考
+记录数。两项按固定参考扫描所有活动进程，不接受 PID 筛选；参考继承的通用 Yara 参数
+并未用于实际规则，本入口不提供这些无效参数。
+
+反汇编使用静态链接的 [Capstone 5.0.6](https://www.capstone-engine.org/)（仅编译 x86
+后端），无需安装 Python、Capstone 动态库或 Yara。缺页、VAD 损坏和扫描资源上限保留
+部分结果与覆盖诊断；未命中不代表内存完整或没有恶意代码。

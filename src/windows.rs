@@ -62,6 +62,7 @@ mod service_list;
 mod shimcache;
 mod strings;
 mod suspended_threads;
+mod system_calls;
 mod thread_symbols;
 mod timeline;
 mod unhooked_system_calls;
@@ -624,6 +625,12 @@ impl Windows<'_> {
         if p == Plugin::WinUnhookedSystemCalls {
             return self.unhooked_system_calls(None, job);
         }
+        if matches!(
+            p,
+            Plugin::WinDirectSystemCalls | Plugin::WinIndirectSystemCalls
+        ) {
+            return self.system_calls(p, job);
+        }
         if p == Plugin::WinStrings {
             return self.strings(options, job);
         }
@@ -1156,6 +1163,8 @@ pub(crate) fn analyze_resolved(
                 | Plugin::WinDebugRegisters
                 | Plugin::WinUnhookedSystemCalls
                 | Plugin::WinStrings
+                | Plugin::WinDirectSystemCalls
+                | Plugin::WinIndirectSystemCalls
         ) {
         if request.plugin == Plugin::WinDriverIrp {
             dispatch::load_cached(request.cache, &key, request.network, job)?
@@ -1231,6 +1240,8 @@ pub(crate) fn analyze_resolved(
                 | Plugin::WinDebugRegisters
                 | Plugin::WinUnhookedSystemCalls
                 | Plugin::WinStrings
+                | Plugin::WinDirectSystemCalls
+                | Plugin::WinIndirectSystemCalls
         )
         && dump.is_none()
         && !request.plugin.is_dump()

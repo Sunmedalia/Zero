@@ -722,6 +722,51 @@ impl Windows<'_> {
         self.vm
             .unicode(self.field(file, "_FILE_OBJECT", "FileName")?)
     }
+    /// Scanner view: validate pool tags/ranges and retain parent-link warnings.
+    /// Unlike structural listing, an inconsistent back link does not hide a readable subtree.
+    pub(super) fn tagged_vads_with_paths(
+        &self,
+        p: &Process,
+        r: &mut Results,
+        job: &Job,
+    ) -> Result<Vec<Vad>> {
+        let layout = self.vad_layout();
+        let mut vads = Vec::new();
+        let mut bytes = 0usize;
+        self.walk_tagged_vads(p, r, job, |node, r| {
+            let short = matches!(node.tag.as_str(), "VadS" | "VadF");
+            let path = if short {
+                String::new()
+            } else {
+                match self.vad_path(node.address, &layout) {
+                    Ok(path) => path,
+                    Err(e) => {
+                        Self::issue(r, format!("PID {} VAD {:#x} file", p.pid, node.address), e);
+                        String::new()
+                    }
+                }
+            };
+            bytes += std::mem::size_of::<Vad>() + path.len();
+            if bytes > 128 * 1024 * 1024 {
+                Self::issue(
+                    r,
+                    format!("PID {} VAD", p.pid),
+                    "扫描 VAD 路径视图达到 128 MiB 上限",
+                );
+                return Ok(false);
+            }
+            vads.push(Vad {
+                address: node.address,
+                start: node.start,
+                end: node.end,
+                protection: 0,
+                private: short,
+                path,
+            });
+            Ok(true)
+        })?;
+        Ok(vads)
+    }
     pub(super) fn vad_result(
         &self,
         p: &Process,

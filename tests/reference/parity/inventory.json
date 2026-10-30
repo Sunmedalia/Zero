@@ -4082,7 +4082,9 @@
       "replacement": "windows.malware.direct_system_calls.DirectSystemCalls",
       "declared_requirements": [],
       "declared_columns": [],
-      "zero_candidates": [],
+      "zero_candidates": [
+        "windows.malware.direct_system_calls.DirectSystemCalls"
+      ],
       "status": "alias",
       "evidence": []
     },
@@ -4929,7 +4931,9 @@
       "replacement": "windows.malware.indirect_system_calls.IndirectSystemCalls",
       "declared_requirements": [],
       "declared_columns": [],
-      "zero_candidates": [],
+      "zero_candidates": [
+        "windows.malware.indirect_system_calls.IndirectSystemCalls"
+      ],
       "status": "alias",
       "evidence": []
     },
@@ -5168,8 +5172,10 @@
         "Address",
         "Disasm"
       ],
-      "zero_candidates": [],
-      "status": "missing",
+      "zero_candidates": [
+        "windows.malware.direct_system_calls.DirectSystemCalls"
+      ],
+      "status": "mapped_unverified",
       "evidence": []
     },
     {
@@ -5362,8 +5368,10 @@
         }
       ],
       "declared_columns": [],
-      "zero_candidates": [],
-      "status": "missing",
+      "zero_candidates": [
+        "windows.malware.indirect_system_calls.IndirectSystemCalls"
+      ],
+      "status": "mapped_unverified",
       "evidence": []
     },
     {

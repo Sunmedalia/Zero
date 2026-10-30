@@ -1,0 +1,38 @@
+{
+  "version": 1,
+  "allow_partial": true,
+  "keys": [
+    "PID",
+    "Address"
+  ],
+  "duplicate_keys": "multiset",
+  "fields": {
+    "Process": {
+      "zero": "Process",
+      "reference": "Process",
+      "type": "text"
+    },
+    "PID": {
+      "zero": "PID",
+      "reference": "PID",
+      "type": "integer"
+    },
+    "Range": {
+      "zero": "Range",
+      "reference": "Range",
+      "type": "na_text",
+      "allow_absent": true
+    },
+    "Address": {
+      "zero": "Address",
+      "reference": "Address",
+      "type": "address"
+    },
+    "Disasm": {
+      "zero": "Disasm",
+      "reference": "Disasm",
+      "type": "text"
+    }
+  },
+  "notes": "All five fields and exact record multiplicities; duplicate block addresses from separate candidate hits are retained. Missing file path normalizes native N/A and reference null as the same explicitly absent Range. No record filtering."
+}

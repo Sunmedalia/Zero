@@ -121,7 +121,9 @@
           "windows.shimcachemem.ShimcacheMem": "unsupported",
           "windows.registry.scheduled_tasks.ScheduledTasks": "synthetic",
           "windows.malware.unhooked_system_calls.UnhookedSystemCalls": "synthetic",
-          "windows.strings.Strings": "synthetic"
+          "windows.strings.Strings": "synthetic",
+          "windows.malware.direct_system_calls.DirectSystemCalls": "synthetic",
+          "windows.malware.indirect_system_calls.IndirectSystemCalls": "synthetic"
         },
         "x64": {
           "windows.callbacks": "synthetic",
@@ -220,7 +222,9 @@
           "windows.shimcachemem.ShimcacheMem": "unsupported",
           "windows.registry.scheduled_tasks.ScheduledTasks": "synthetic",
           "windows.malware.unhooked_system_calls.UnhookedSystemCalls": "synthetic",
-          "windows.strings.Strings": "synthetic"
+          "windows.strings.Strings": "synthetic",
+          "windows.malware.direct_system_calls.DirectSystemCalls": "synthetic",
+          "windows.malware.indirect_system_calls.IndirectSystemCalls": "synthetic"
         }
       },
       "evidence": [
@@ -403,7 +407,9 @@
           "windows.shimcachemem.ShimcacheMem": "unsupported",
           "windows.registry.scheduled_tasks.ScheduledTasks": "synthetic",
           "windows.malware.unhooked_system_calls.UnhookedSystemCalls": "synthetic",
-          "windows.strings.Strings": "synthetic"
+          "windows.strings.Strings": "synthetic",
+          "windows.malware.direct_system_calls.DirectSystemCalls": "synthetic",
+          "windows.malware.indirect_system_calls.IndirectSystemCalls": "synthetic"
         },
         "x64": {
           "windows.callbacks": "synthetic",
@@ -502,7 +508,9 @@
           "windows.shimcachemem.ShimcacheMem": "unsupported",
           "windows.registry.scheduled_tasks.ScheduledTasks": "synthetic",
           "windows.malware.unhooked_system_calls.UnhookedSystemCalls": "synthetic",
-          "windows.strings.Strings": "synthetic"
+          "windows.strings.Strings": "synthetic",
+          "windows.malware.direct_system_calls.DirectSystemCalls": "synthetic",
+          "windows.malware.indirect_system_calls.IndirectSystemCalls": "synthetic"
         }
       },
       "evidence": []
@@ -622,7 +630,9 @@
           "windows.shimcachemem.ShimcacheMem": "unsupported",
           "windows.registry.scheduled_tasks.ScheduledTasks": "synthetic",
           "windows.malware.unhooked_system_calls.UnhookedSystemCalls": "synthetic",
-          "windows.strings.Strings": "synthetic"
+          "windows.strings.Strings": "synthetic",
+          "windows.malware.direct_system_calls.DirectSystemCalls": "synthetic",
+          "windows.malware.indirect_system_calls.IndirectSystemCalls": "synthetic"
         },
         "x64": {
           "windows.callbacks": "synthetic",
@@ -721,7 +731,9 @@
           "windows.shimcachemem.ShimcacheMem": "pending",
           "windows.registry.scheduled_tasks.ScheduledTasks": "synthetic",
           "windows.malware.unhooked_system_calls.UnhookedSystemCalls": "synthetic",
-          "windows.strings.Strings": "synthetic"
+          "windows.strings.Strings": "synthetic",
+          "windows.malware.direct_system_calls.DirectSystemCalls": "synthetic",
+          "windows.malware.indirect_system_calls.IndirectSystemCalls": "synthetic"
         }
       },
       "evidence": [
@@ -922,7 +934,9 @@
           "windows.shimcachemem.ShimcacheMem": "pending",
           "windows.registry.scheduled_tasks.ScheduledTasks": "synthetic",
           "windows.malware.unhooked_system_calls.UnhookedSystemCalls": "synthetic",
-          "windows.strings.Strings": "synthetic"
+          "windows.strings.Strings": "synthetic",
+          "windows.malware.direct_system_calls.DirectSystemCalls": "synthetic",
+          "windows.malware.indirect_system_calls.IndirectSystemCalls": "synthetic"
         }
       },
       "evidence": [],
@@ -1041,7 +1055,9 @@
           "windows.shimcachemem.ShimcacheMem": "pending",
           "windows.registry.scheduled_tasks.ScheduledTasks": "synthetic",
           "windows.malware.unhooked_system_calls.UnhookedSystemCalls": "synthetic",
-          "windows.strings.Strings": "synthetic"
+          "windows.strings.Strings": "synthetic",
+          "windows.malware.direct_system_calls.DirectSystemCalls": "synthetic",
+          "windows.malware.indirect_system_calls.IndirectSystemCalls": "synthetic"
         }
       },
       "evidence": [
@@ -1206,7 +1222,9 @@
           "windows.shimcachemem.ShimcacheMem": "pending",
           "windows.registry.scheduled_tasks.ScheduledTasks": "synthetic",
           "windows.malware.unhooked_system_calls.UnhookedSystemCalls": "synthetic",
-          "windows.strings.Strings": "synthetic"
+          "windows.strings.Strings": "synthetic",
+          "windows.malware.direct_system_calls.DirectSystemCalls": "synthetic",
+          "windows.malware.indirect_system_calls.IndirectSystemCalls": "synthetic"
         }
       },
       "evidence": [
@@ -1372,7 +1390,9 @@
           "windows.shimcachemem.ShimcacheMem": "pending",
           "windows.registry.scheduled_tasks.ScheduledTasks": "synthetic",
           "windows.malware.unhooked_system_calls.UnhookedSystemCalls": "synthetic",
-          "windows.strings.Strings": "synthetic"
+          "windows.strings.Strings": "synthetic",
+          "windows.malware.direct_system_calls.DirectSystemCalls": "synthetic",
+          "windows.malware.indirect_system_calls.IndirectSystemCalls": "synthetic"
         }
       },
       "evidence": [
@@ -1510,7 +1530,9 @@
           "windows.shimcachemem.ShimcacheMem": "pending",
           "windows.registry.scheduled_tasks.ScheduledTasks": "synthetic",
           "windows.malware.unhooked_system_calls.UnhookedSystemCalls": "synthetic",
-          "windows.strings.Strings": "synthetic"
+          "windows.strings.Strings": "synthetic",
+          "windows.malware.direct_system_calls.DirectSystemCalls": "synthetic",
+          "windows.malware.indirect_system_calls.IndirectSystemCalls": "synthetic"
         }
       },
       "evidence": [
@@ -1677,7 +1699,9 @@
           "windows.shimcachemem.ShimcacheMem": "pending",
           "windows.registry.scheduled_tasks.ScheduledTasks": "synthetic",
           "windows.malware.unhooked_system_calls.UnhookedSystemCalls": "synthetic",
-          "windows.strings.Strings": "synthetic"
+          "windows.strings.Strings": "synthetic",
+          "windows.malware.direct_system_calls.DirectSystemCalls": "synthetic",
+          "windows.malware.indirect_system_calls.IndirectSystemCalls": "synthetic"
         }
       },
       "evidence": [
@@ -1844,7 +1868,9 @@
           "windows.shimcachemem.ShimcacheMem": "pending",
           "windows.registry.scheduled_tasks.ScheduledTasks": "synthetic",
           "windows.malware.unhooked_system_calls.UnhookedSystemCalls": "synthetic",
-          "windows.strings.Strings": "synthetic"
+          "windows.strings.Strings": "synthetic",
+          "windows.malware.direct_system_calls.DirectSystemCalls": "synthetic",
+          "windows.malware.indirect_system_calls.IndirectSystemCalls": "synthetic"
         }
       },
       "evidence": [],
@@ -1965,7 +1991,9 @@
           "windows.shimcachemem.ShimcacheMem": "unsupported",
           "windows.registry.scheduled_tasks.ScheduledTasks": "synthetic",
           "windows.malware.unhooked_system_calls.UnhookedSystemCalls": "synthetic",
-          "windows.strings.Strings": "synthetic"
+          "windows.strings.Strings": "synthetic",
+          "windows.malware.direct_system_calls.DirectSystemCalls": "synthetic",
+          "windows.malware.indirect_system_calls.IndirectSystemCalls": "synthetic"
         },
         "x64": {
           "windows.callbacks": "real",
@@ -2064,7 +2092,9 @@
           "windows.shimcachemem.ShimcacheMem": "pending",
           "windows.registry.scheduled_tasks.ScheduledTasks": "real",
           "windows.malware.unhooked_system_calls.UnhookedSystemCalls": "real",
-          "windows.strings.Strings": "real"
+          "windows.strings.Strings": "real",
+          "windows.malware.direct_system_calls.DirectSystemCalls": "real",
+          "windows.malware.indirect_system_calls.IndirectSystemCalls": "synthetic"
         }
       },
       "evidence": [
@@ -2103,13 +2133,15 @@
             "windows.pe_symbols.PESymbols": 3,
             "windows.registry.scheduled_tasks.ScheduledTasks": 92,
             "windows.malware.unhooked_system_calls.UnhookedSystemCalls": 45,
-            "windows.strings.Strings": 966
+            "windows.strings.Strings": 966,
+            "windows.malware.direct_system_calls.DirectSystemCalls": 9505
           },
           "coverage_notes": {
             "windows.vadinfo": "Tagged legacy AVL parent validation rejects an inconsistent branch. 7265 rows remain, down from 7325 before the validation; keep partial diagnostics rather than traverse the damaged branch.",
             "windows.registry.scheduled_tasks.ScheduledTasks": "All 15 fields and exact action/trigger multiplicities match pinned v2.28.2. Damaged hive/process-list diagnostics remain partial.",
             "windows.malware.unhooked_system_calls.UnhookedSystemCalls": "All 45 functions, minority-process strings and majority counts match pinned v2.28.2; process/VAD/symbol diagnostics remain partial.",
-            "windows.strings.Strings": "966 externally extracted strings, exact owner membership and duplicate multiplicity match pinned v2.28.2 with PID 4. Mapping/process diagnostics remain partial."
+            "windows.strings.Strings": "966 externally extracted strings, exact owner membership and duplicate multiplicity match pinned v2.28.2 with PID 4. Mapping/process diagnostics remain partial.",
+            "windows.malware.direct_system_calls.DirectSystemCalls": "9505/9505 rows, all five fields and repeated block multiplicities; 78 absent paths match reference null. Captured-mapping/VAD diagnostics remain partial."
           },
           "complete": {
             "windows.registry.hivescan.HiveScan": true,
@@ -2118,7 +2150,8 @@
             "windows.pe_symbols.PESymbols": true,
             "windows.registry.scheduled_tasks.ScheduledTasks": false,
             "windows.malware.unhooked_system_calls.UnhookedSystemCalls": false,
-            "windows.strings.Strings": false
+            "windows.strings.Strings": false,
+            "windows.malware.direct_system_calls.DirectSystemCalls": false
           },
           "row_options": {
             "windows.memmap.Memmap": {
@@ -2257,7 +2290,9 @@
           "windows.shimcachemem.ShimcacheMem": "unsupported",
           "windows.registry.scheduled_tasks.ScheduledTasks": "synthetic",
           "windows.malware.unhooked_system_calls.UnhookedSystemCalls": "synthetic",
-          "windows.strings.Strings": "synthetic"
+          "windows.strings.Strings": "synthetic",
+          "windows.malware.direct_system_calls.DirectSystemCalls": "synthetic",
+          "windows.malware.indirect_system_calls.IndirectSystemCalls": "synthetic"
         },
         "x64": {
           "windows.callbacks": "synthetic",
@@ -2356,7 +2391,9 @@
           "windows.shimcachemem.ShimcacheMem": "pending",
           "windows.registry.scheduled_tasks.ScheduledTasks": "synthetic",
           "windows.malware.unhooked_system_calls.UnhookedSystemCalls": "synthetic",
-          "windows.strings.Strings": "synthetic"
+          "windows.strings.Strings": "synthetic",
+          "windows.malware.direct_system_calls.DirectSystemCalls": "synthetic",
+          "windows.malware.indirect_system_calls.IndirectSystemCalls": "synthetic"
         }
       },
       "evidence": []
@@ -2475,7 +2512,9 @@
           "windows.shimcachemem.ShimcacheMem": "unsupported",
           "windows.registry.scheduled_tasks.ScheduledTasks": "synthetic",
           "windows.malware.unhooked_system_calls.UnhookedSystemCalls": "synthetic",
-          "windows.strings.Strings": "synthetic"
+          "windows.strings.Strings": "synthetic",
+          "windows.malware.direct_system_calls.DirectSystemCalls": "synthetic",
+          "windows.malware.indirect_system_calls.IndirectSystemCalls": "synthetic"
         },
         "x64": {
           "windows.callbacks": "synthetic",
@@ -2574,7 +2613,9 @@
           "windows.shimcachemem.ShimcacheMem": "pending",
           "windows.registry.scheduled_tasks.ScheduledTasks": "synthetic",
           "windows.malware.unhooked_system_calls.UnhookedSystemCalls": "synthetic",
-          "windows.strings.Strings": "synthetic"
+          "windows.strings.Strings": "synthetic",
+          "windows.malware.direct_system_calls.DirectSystemCalls": "synthetic",
+          "windows.malware.indirect_system_calls.IndirectSystemCalls": "synthetic"
         }
       },
       "evidence": []
@@ -2706,7 +2747,9 @@
           "windows.shimcachemem.ShimcacheMem": "unsupported",
           "windows.registry.scheduled_tasks.ScheduledTasks": "synthetic",
           "windows.malware.unhooked_system_calls.UnhookedSystemCalls": "synthetic",
-          "windows.strings.Strings": "synthetic"
+          "windows.strings.Strings": "synthetic",
+          "windows.malware.direct_system_calls.DirectSystemCalls": "synthetic",
+          "windows.malware.indirect_system_calls.IndirectSystemCalls": "synthetic"
         },
         "x64": {
           "windows.callbacks": "real",
@@ -2805,7 +2848,9 @@
           "windows.shimcachemem.ShimcacheMem": "pending",
           "windows.registry.scheduled_tasks.ScheduledTasks": "real",
           "windows.malware.unhooked_system_calls.UnhookedSystemCalls": "real",
-          "windows.strings.Strings": "real"
+          "windows.strings.Strings": "real",
+          "windows.malware.direct_system_calls.DirectSystemCalls": "real",
+          "windows.malware.indirect_system_calls.IndirectSystemCalls": "synthetic"
         }
       },
       "evidence": [
@@ -2870,7 +2915,8 @@
             "windows.pe_symbols.PESymbols": 3,
             "windows.registry.scheduled_tasks.ScheduledTasks": 232,
             "windows.malware.unhooked_system_calls.UnhookedSystemCalls": 45,
-            "windows.strings.Strings": 967
+            "windows.strings.Strings": 967,
+            "windows.malware.direct_system_calls.DirectSystemCalls": 99
           },
           "complete": {
             "windows.driverirp.DriverIrp": false,
@@ -2883,7 +2929,8 @@
             "windows.pe_symbols.PESymbols": false,
             "windows.registry.scheduled_tasks.ScheduledTasks": false,
             "windows.malware.unhooked_system_calls.UnhookedSystemCalls": false,
-            "windows.strings.Strings": false
+            "windows.strings.Strings": false,
+            "windows.malware.direct_system_calls.DirectSystemCalls": false
           },
           "row_options": {
             "windows.memmap.Memmap": {
@@ -2905,7 +2952,8 @@
           "coverage_notes": {
             "windows.registry.scheduled_tasks.ScheduledTasks": "All 15 fields and exact action/trigger multiplicities match pinned v2.28.2. Damaged hive/process-list diagnostics remain partial.",
             "windows.malware.unhooked_system_calls.UnhookedSystemCalls": "All 45 functions, minority-process strings and majority counts match pinned v2.28.2; process/VAD/symbol diagnostics remain partial.",
-            "windows.strings.Strings": "967 external strings: all three fields, exact owner sets and duplicate input multiplicity match pinned v2.28.2, all processes. Mapping/process diagnostics remain partial."
+            "windows.strings.Strings": "967 external strings: all three fields, exact owner sets and duplicate input multiplicity match pinned v2.28.2, all processes. Mapping/process diagnostics remain partial.",
+            "windows.malware.direct_system_calls.DirectSystemCalls": "99/99 rows, all five fields and repeated block multiplicities; captured-mapping/VAD diagnostics remain partial. Unreadable handle counts do not exclude processes under the pinned active-filter semantics."
           }
         },
         {
@@ -3045,7 +3093,9 @@
           "windows.shimcachemem.ShimcacheMem": "pending",
           "windows.registry.scheduled_tasks.ScheduledTasks": "synthetic",
           "windows.malware.unhooked_system_calls.UnhookedSystemCalls": "synthetic",
-          "windows.strings.Strings": "synthetic"
+          "windows.strings.Strings": "synthetic",
+          "windows.malware.direct_system_calls.DirectSystemCalls": "synthetic",
+          "windows.malware.indirect_system_calls.IndirectSystemCalls": "synthetic"
         }
       },
       "evidence": [

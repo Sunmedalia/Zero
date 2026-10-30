@@ -608,3 +608,11 @@ normalizer checks exact set membership and addresses, normalizing only randomize
 The fixed reference uses process virtual keys and contiguous-block starts; this is recorded
 explicitly rather than presenting those results as a corrected reverse-physical mapping.
 The all-process reference case can take several minutes because it builds the full reverse map.
+
+系统调用检测使用 `system-calls.example.json`，真实用例比较全部五列及命中重复数。
+参考环境需 Capstone 5.0.6 和 Yara（本轮使用 yara-x 1.22.1）；Zero 静态编译同版本
+Capstone 引擎，使用等价的固定字节规则，不运行 Python/Yara。
+`system_calls_blocks.py` 在未修改的固定 checkout 上生成
+`fixtures/system-calls.json`，由 Rust 回归验证 14 个合成指令块用例，包含间接调用正向
+命中、无符号位移、错误目标／路径和缺失上下文。这些合成向量不能替代真实正向样本，
+也不登记为整插件通过。空结果比较单独记录，不计入 positive evidence。

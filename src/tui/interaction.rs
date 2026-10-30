@@ -76,7 +76,12 @@ impl App {
                     .map(|p| p.display().to_string())
                     .unwrap_or_default(),
             ]),
-            field: if self.plugin == Plugin::WinStrings {
+            field: if matches!(
+                self.plugin,
+                Plugin::WinDirectSystemCalls | Plugin::WinIndirectSystemCalls
+            ) {
+                6
+            } else if self.plugin == Plugin::WinStrings {
                 21
             } else if self.plugin == Plugin::WinPESymbols {
                 17

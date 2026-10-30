@@ -62,7 +62,10 @@ impl App {
                     } else {
                         Vec::new()
                     };
-                    let pid = if self.plugin.accepts_pid_list()
+                    let pid = if matches!(
+                        self.plugin,
+                        Plugin::WinDirectSystemCalls | Plugin::WinIndirectSystemCalls
+                    ) || self.plugin.accepts_pid_list()
                         || !self.plugin.descriptor().columns.contains(&"PID")
                         || fields[2].trim().is_empty()
                     {

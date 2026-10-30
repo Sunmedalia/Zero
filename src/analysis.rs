@@ -137,6 +137,14 @@ pub fn analyze(
 ) -> Result<Outcome> {
     options.pe.validate(request.plugin)?;
     ensure!(
+        options.pid.is_none()
+            || !matches!(
+                request.plugin,
+                Plugin::WinDirectSystemCalls | Plugin::WinIndirectSystemCalls
+            ),
+        "DirectSystemCalls / IndirectSystemCalls 按参考扫描所有活动进程，不接受 PID 筛选"
+    );
+    ensure!(
         options.strings_file.is_some() == (request.plugin == Plugin::WinStrings),
         "windows.strings.Strings 需要 strings-file；其他插件不接受该参数"
     );

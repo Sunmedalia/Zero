@@ -201,7 +201,12 @@ impl App {
         ) {
             fields.push(7);
         }
-        if self.plugin.accepts_pid_list() || self.plugin.descriptor().columns.contains(&"PID") {
+        if (self.plugin.accepts_pid_list() || self.plugin.descriptor().columns.contains(&"PID"))
+            && !matches!(
+                self.plugin,
+                Plugin::WinDirectSystemCalls | Plugin::WinIndirectSystemCalls
+            )
+        {
             fields.push(2);
         }
         if self.windows && advanced {

@@ -33,6 +33,16 @@ pub enum Plugin {
     #[value(name = "windows.strings.Strings", alias = "windows.strings")]
     WinStrings,
     #[value(
+        name = "windows.malware.direct_system_calls.DirectSystemCalls",
+        alias = "windows.direct_system_calls"
+    )]
+    WinDirectSystemCalls,
+    #[value(
+        name = "windows.malware.indirect_system_calls.IndirectSystemCalls",
+        alias = "windows.indirect_system_calls"
+    )]
+    WinIndirectSystemCalls,
+    #[value(
         name = "windows.malware.unhooked_system_calls.UnhookedSystemCalls",
         alias = "windows.unhooked_system_calls"
     )]
@@ -422,6 +432,20 @@ pub const PLUGINS: &[Descriptor] = &[
             "Total Implementations",
         ],
         widths: &[32, 0, 24],
+    },
+    Descriptor {
+        plugin: Plugin::WinDirectSystemCalls,
+        name: "windows.malware.direct_system_calls.DirectSystemCalls",
+        label: "direct_system_calls",
+        columns: &["Process", "PID", "Range", "Address", "Disasm"],
+        widths: &[20, 7, 0, 18, 0],
+    },
+    Descriptor {
+        plugin: Plugin::WinIndirectSystemCalls,
+        name: "windows.malware.indirect_system_calls.IndirectSystemCalls",
+        label: "indirect_system_calls",
+        columns: &["Process", "PID", "Range", "Address", "Disasm"],
+        widths: &[20, 7, 0, 18, 0],
     },
     Descriptor {
         plugin: Plugin::WinStrings,
@@ -2190,7 +2214,9 @@ impl Plugin {
                 "GUI"
             }
             Self::WinStrings => "Memory",
-            Self::WinUnhookedSystemCalls => "Integrity",
+            Self::WinUnhookedSystemCalls
+            | Self::WinDirectSystemCalls
+            | Self::WinIndirectSystemCalls => "Integrity",
             Self::WinDebugRegisters
             | Self::WinSuspendedThreads
             | Self::WinOrphanThreads
@@ -2402,6 +2428,8 @@ impl Plugin {
             WinSuspendedThreads => "列出仍挂起的活动线程及起始地址文件和符号",
             WinUnhookedSystemCalls => "对比进程 ntdll 系统调用入口的 32 字节实现",
             WinStrings => "读取外部字符串偏移文件并反查内核／进程映射归属",
+            WinDirectSystemCalls => "检测系统 DLL 之外的直接系统调用指令块",
+            WinIndirectSystemCalls => "检测跳转至系统 DLL 的间接系统调用指令块",
             WinPESymbols => "通过精确 PDB 和 PE 导出表查询内核或进程模块符号",
             WinAmcacheV4 => "读取 Amcache 驱动、程序与文件的 11 列标准输出",
             WinAmcache => "读取 Amcache.hve 的程序文件清单",

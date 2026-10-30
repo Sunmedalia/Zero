@@ -4600,3 +4600,22 @@ fn strings_parameters_keep_path_and_pid_union_in_the_plugin_draft() {
     app.select_plugin(Plugin::WinStrings);
     assert_eq!(app.analysis_options.strings_file, Some(path));
 }
+
+#[test]
+fn syscall_detectors_scan_all_active_processes_and_clear_hidden_pid_drafts() {
+    let mut app = app();
+    app.windows = true;
+    app.analysis_options.pid = Some(8);
+    for plugin in [Plugin::WinDirectSystemCalls, Plugin::WinIndirectSystemCalls] {
+        app.select_plugin(plugin);
+        assert_eq!(app.parameter_fields(false), vec![6]);
+        app.windows_parameters();
+        if let Some(Dialog::WindowsParameters { fields, field, .. }) = &mut app.dialog {
+            assert_eq!(*field, 6);
+            fields[2] = "stale invalid PID".into();
+        }
+        app.dialog_key(KeyEvent::new(KeyCode::Enter, KeyModifiers::CONTROL));
+        assert!(app.dialog.is_none());
+        assert_eq!(app.analysis_options.pid, None);
+    }
+}
