@@ -7,6 +7,22 @@ use zero_tui::{
     linux::{Outcome, Plugin, Request, Session},
 };
 
+fn sample_path(variable: &str, default: &str) -> PathBuf {
+    if let Some(path) = std::env::var_os(variable) {
+        return path.into();
+    }
+    let original = Path::new(default);
+    if original.is_file() {
+        return original.into();
+    }
+    original
+        .strip_prefix("images")
+        .ok()
+        .map(|suffix| Path::new("images/feat-windows-plugins").join(suffix))
+        .filter(|path| path.is_file())
+        .unwrap_or_else(|| original.into())
+}
+
 // Row baselines explicitly record filters; scoped counts must never be run
 // as an unfiltered default invocation.
 fn fixture_options(fixture: &serde_json::Value, plugin: Plugin) -> Options {
@@ -55,9 +71,7 @@ fn public_windows_images() {
             38,
         ),
     ] {
-        let image = std::env::var_os(variable)
-            .map(PathBuf::from)
-            .unwrap_or_else(|| default.into());
+        let image = sample_path(variable, default);
         let symbols = std::env::var_os("ZERO_WINDOWS_SYMBOLS")
             .map(PathBuf::from)
             .unwrap_or_else(|| ".zero/rust/symbols/isf/windows".into());
@@ -404,9 +418,10 @@ fn native_pdb_conversion_is_deterministic_and_preserves_anonymous_layouts() {
 #[test]
 #[ignore = "requires public Windows 10 bitmap crash dump and exact local PDB"]
 fn public_bitmap_crash_processes_and_networks() {
-    let image = std::env::var_os("ZERO_WINDOWS_CRASH_IMAGE")
-        .map(PathBuf::from)
-        .unwrap_or_else(|| "images/win-10_19041-2025_03.dmp.gz".into());
+    let image = sample_path(
+        "ZERO_WINDOWS_CRASH_IMAGE",
+        "images/win-10_19041-2025_03.dmp.gz",
+    );
     let symbols = std::env::var_os("ZERO_WINDOWS_SYMBOLS")
         .map(PathBuf::from)
         .unwrap_or_else(|| ".zero/rust/symbols/isf/windows".into());
@@ -459,9 +474,10 @@ fn public_bitmap_crash_processes_and_networks() {
 #[test]
 #[ignore = "requires public rust-minidump x86 Windows XP crash fixture"]
 fn public_user_minidump_context_and_exception() {
-    let image = std::env::var_os("ZERO_WINDOWS_MINIDUMP_IMAGE")
-        .map(PathBuf::from)
-        .unwrap_or_else(|| "images/rust-minidump-test.dmp".into());
+    let image = sample_path(
+        "ZERO_WINDOWS_MINIDUMP_IMAGE",
+        "images/rust-minidump-test.dmp",
+    );
     let mut session = Session::default();
     let cache = tempfile::tempdir().unwrap();
     let prepared = session
@@ -516,9 +532,7 @@ fn compatibility_sample(index: usize, variable: &str) {
     let baseline: serde_json::Value =
         serde_json::from_str(include_str!("fixtures/windows.json")).unwrap();
     let fixture = &baseline["compatibility_samples"][index];
-    let image = std::env::var_os(variable)
-        .map(PathBuf::from)
-        .unwrap_or_else(|| fixture["path"].as_str().unwrap().into());
+    let image = sample_path(variable, fixture["path"].as_str().unwrap());
     let symbols = std::env::var_os("ZERO_WINDOWS_SYMBOLS")
         .map(PathBuf::from)
         .unwrap_or_else(|| ".zero/rust/symbols/isf/windows".into());
@@ -662,9 +676,10 @@ fn public_server2016_triage_metadata() {
     let baseline: serde_json::Value =
         serde_json::from_str(include_str!("fixtures/windows.json")).unwrap();
     let fixture = &baseline["server_triage_samples"][0];
-    let image = std::env::var_os("ZERO_WINDOWS2016_TRIAGE_IMAGE")
-        .map(PathBuf::from)
-        .unwrap_or_else(|| fixture["path"].as_str().unwrap().into());
+    let image = sample_path(
+        "ZERO_WINDOWS2016_TRIAGE_IMAGE",
+        fixture["path"].as_str().unwrap(),
+    );
     let cache = tempfile::tempdir().unwrap();
     let mut session = Session::default();
     let prepared = session
@@ -743,7 +758,7 @@ fn exact_driver_symbols_and_cache(
     expected: usize,
 ) {
     use zero_tui::{symbols::Isf, windows_symbols::PdbIdentity};
-    let image = PathBuf::from(std::env::var(variable).unwrap_or_else(|_| default.into()));
+    let image = sample_path(variable, default);
     let kernel = Path::new(".zero/rust/symbols/isf/windows").join(kernel_file);
     let identity = PdbIdentity::from_key(driver_key).unwrap();
     let driver_file = format!("{}-{}{:X}.json", identity.name, identity.guid, identity.age);
