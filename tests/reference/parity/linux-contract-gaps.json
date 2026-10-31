@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+  "scope": "Verified remaining Linux parity boundaries; not a certification manifest",
+  "gaps": [
+    {
+      "id": "linux-intel32",
+      "kind": "implementation",
+      "reference": "Linux requirements include Intel32 and Intel64",
+      "native": "Isf::parse rejects four-byte Linux pointers; Linux discovery and VirtualMemory implement x86_64 and ARM64",
+      "required_work": "Add explicit Linux Intel32 address-space discovery and translation, width-aware object/list readers, and ELF32 module reconstruction with actual reference evidence"
+    },
+    {
+      "id": "lsmod-array-read-failure",
+      "kind": "diagnostic-policy",
+      "reference": "Modules._get_param_val array metadata reads are outside InvalidAddressException handlers and propagate failures",
+      "native": "parameter_value propagates array read failures; kernel_list catches the error, preserves the module row and emits partial diagnostics",
+      "required_work": "Add focused actual method failure vectors and record the project-required partial-result policy; do not silently certify identical failure behavior"
+    }
+  ],
+  "excluded_stale_claims": [
+    "Dump parity is not absent: native112 Debian comparison verified 79 six-field rows and 79 ELF filenames and SHA256",
+    "Boottime is not missing all read-fault evidence: buffer-inum cases execute objects.Integer and BufferDataLayer",
+    "Lsmod no longer gates forward traversal on prev pointers",
+    "Pinned Linux ARM64 translation does not exist and is not a reference parity requirement"
+  ],
+  "complete_contracts_promoted": 0
+}
