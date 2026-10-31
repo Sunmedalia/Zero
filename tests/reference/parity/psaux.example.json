@@ -1,0 +1,114 @@
+{
+  "samples": [
+    {
+      "id": "debian-3.2",
+      "image": "images/linux-sample-1.bin",
+      "image_sha256": "8ce57b7c7b423173ce970fe8f51e7016c04ef1b4a5f73d5c5f1001d5c18780bc",
+      "zero_symbols": "symbols/Debian_3.2.0-4-amd64_3.2.57-3+deb7u2_amd64-795bb1b381f4311e7165a8e3ad813c625e6a87e85b0450709b342d01c3be9843.json.xz",
+      "reference_symbols": "target/reference/symbols",
+      "symbol_files": [
+        {
+          "path": "symbols/Debian_3.2.0-4-amd64_3.2.57-3+deb7u2_amd64-795bb1b381f4311e7165a8e3ad813c625e6a87e85b0450709b342d01c3be9843.json.xz",
+          "sha256": "c3b0b875a2d0498fffc0df1259ff49b850cea28355ffddf02e2f90d34a89fbe1"
+        },
+        {
+          "path": "target/reference/symbols/linux/Debian_3.2.0-4-amd64_3.2.57-3+deb7u2_amd64-795bb1b381f4311e7165a8e3ad813c625e6a87e85b0450709b342d01c3be9843.json.xz",
+          "sha256": "c3b0b875a2d0498fffc0df1259ff49b850cea28355ffddf02e2f90d34a89fbe1"
+        }
+      ],
+      "source": "https://github.com/volatilityfoundation/volatility3-test-data/releases/download/v0.0.1/linux-sample-1.bin.gz"
+    }
+  ],
+  "cases": [
+    {
+      "sample": "debian-3.2",
+      "id": "debian-3.2/psaux-default",
+      "reference_plugin": "linux.psaux.PsAux",
+      "zero_plugin": "linux.psaux.PsAux",
+      "mapping": "tests/reference/parity/mappings/linux-psaux.json",
+      "zero_args": [],
+      "reference_args": []
+    },
+    {
+      "sample": "debian-3.2",
+      "id": "debian-3.2/psaux-pid-3976",
+      "reference_plugin": "linux.psaux.PsAux",
+      "zero_plugin": "linux.psaux.PsAux",
+      "mapping": "tests/reference/parity/mappings/linux-psaux.json",
+      "zero_args": [
+        "--pid",
+        "3976"
+      ],
+      "reference_args": [
+        "--pid",
+        "3976"
+      ]
+    },
+    {
+      "sample": "debian-3.2",
+      "id": "debian-3.2/psaux-pids-shells",
+      "reference_plugin": "linux.psaux.PsAux",
+      "zero_plugin": "linux.psaux.PsAux",
+      "mapping": "tests/reference/parity/mappings/linux-psaux.json",
+      "zero_args": [
+        "--pids",
+        "3976,8503"
+      ],
+      "reference_args": [
+        "--pid",
+        "3976",
+        "8503"
+      ]
+    },
+    {
+      "sample": "debian-3.2",
+      "id": "debian-3.2/psaux-repeated-pids",
+      "reference_plugin": "linux.psaux.PsAux",
+      "zero_plugin": "linux.psaux.PsAux",
+      "mapping": "tests/reference/parity/mappings/linux-psaux.json",
+      "zero_args": [
+        "--pids",
+        "8503,3976,3976"
+      ],
+      "reference_args": [
+        "--pid",
+        "8503",
+        "3976",
+        "3976"
+      ]
+    },
+    {
+      "sample": "debian-3.2",
+      "id": "debian-3.2/psaux-pid-union",
+      "reference_plugin": "linux.psaux.PsAux",
+      "zero_plugin": "linux.psaux.PsAux",
+      "mapping": "tests/reference/parity/mappings/linux-psaux.json",
+      "zero_args": [
+        "--pid",
+        "3976",
+        "--pids",
+        "8503"
+      ],
+      "reference_args": [
+        "--pid",
+        "3976",
+        "8503"
+      ]
+    },
+    {
+      "sample": "debian-3.2",
+      "id": "debian-3.2/psaux-unmatched",
+      "reference_plugin": "linux.psaux.PsAux",
+      "zero_plugin": "linux.psaux.PsAux",
+      "mapping": "tests/reference/parity/mappings/linux-psaux-empty.json",
+      "zero_args": [
+        "--pids",
+        "2147483647"
+      ],
+      "reference_args": [
+        "--pid",
+        "2147483647"
+      ]
+    }
+  ]
+}

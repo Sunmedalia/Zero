@@ -2414,7 +2414,7 @@
         "ARGS"
       ],
       "zero_candidates": [
-        "psaux"
+        "linux.psaux.PsAux"
       ],
       "status": "mapped_unverified",
       "evidence": []

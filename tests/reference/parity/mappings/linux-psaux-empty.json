@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "keys": [
+    "pid"
+  ],
+  "fields": {
+    "pid": {
+      "zero": "PID",
+      "reference": "PID",
+      "type": "integer"
+    },
+    "ppid": {
+      "zero": "PPID",
+      "reference": "PPID",
+      "type": "integer"
+    },
+    "comm": {
+      "zero": "COMM",
+      "reference": "COMM",
+      "type": "text"
+    },
+    "args": {
+      "zero": "ARGS",
+      "reference": "ARGS",
+      "type": "na_text",
+      "allow_absent": true
+    }
+  },
+  "allow_empty": true
+}

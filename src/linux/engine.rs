@@ -164,6 +164,7 @@ impl Linux<'_> {
             LinuxBoottime => self.namespace_boottimes(job),
             LinuxCapabilities => self.capabilities(&Default::default(), job),
             LinuxEnvars => self.envars(&Default::default(), job),
+            LinuxPsaux => self.psaux(&Default::default(), job),
             Banners => banner_result(self.vm.image, job),
             Psaux | Envars | Maps | Lsof | Sockstat | Netscan => self.task_objects(plugin, job),
             Pwd | Pscred | CheckCreds | Threads | Mountinfo => self.task_context(plugin, job),

@@ -1000,3 +1000,29 @@ verified cache hit; this is not an extra differential case. Evidence grows to
 library, 8 CLI/MCP, 50 protocol and 36 Python tests; package smoke passes in
 project/unrelated directories with empty PATH. Raw groups are `envars-native94`,
 `debian-native94`, `boottime-native94` and `envars-cache-native94`.
+
+Native95 adds `linux.psaux.PsAux` (`linux.psaux`) with PID/PPID/COMM/ARGS, early
+task.pid selection and independent PID/list cache keys. The standard view emits
+N/A for a nonempty-mm task whose process layer, 1..4096-byte bounds or complete
+read is unavailable; null/unreadable mm uses `[COMM]`. PF_KTHREAD does not replace
+the mm decision. UTF8 replacement and NUL-to-space decoding remove only one final
+ASCII space when the resulting string contains more than one character.
+`psaux_vectors.py` calls actual pinned argument/generator/parent methods and the
+PID filter over field/layer adapters. Its 29 native fixtures cover spacing, bounds,
+missing pages/layers/mm, noncontiguous user pages and pointer-byte capture holes.
+They do not certify full list_tasks validity, every architecture or layer build,
+all corrupt layouts or complete fault/resource contracts. `psaux.example.json`
+compares all fields, with explicit matched-absent ARGS handling; unmatched PID
+agreement remains non-positive. The legacy status-column interface is retained.
+
+Final native95 PsAux compares 133 default rows, one selected shell and two rows
+for paired/repeated/union selectors. All fields, multiplicities and strict
+sequences pass; unmatched selection is empty agreement. Existing Envars, five
+PsList and Boottime cases also pass: 18 cases, 16 nonempty, two empty. Same IDs
+replace prior proofs, adding five new positive identities for a cumulative
+136 (five scoped), zero complete contracts. The isolated MCP cache session
+compares 133/1/1/1/2 rows and full cached results with a verified cache hit.
+`make check` passes 626 library, 8 CLI/MCP, 50 protocol and 36 Python tests;
+release package smoke passes in project/unrelated directories with empty PATH.
+Raw groups are `psaux-native95`, `envars-native95`, `debian-native95`,
+`boottime-native95` and `psaux-cache-native95`, bound to one final binary.

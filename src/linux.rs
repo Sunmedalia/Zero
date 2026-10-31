@@ -32,6 +32,7 @@ mod modules;
 mod net;
 mod netdev;
 mod process;
+mod psaux;
 mod regex;
 mod scan;
 mod session;

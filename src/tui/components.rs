@@ -1,7 +1,7 @@
 fn plugin_label(plugin: Plugin) -> &'static str {
     if plugin.is_dump() {
         "dump"
-    } else if matches!(plugin, Plugin::LinuxEnvars | Plugin::LinuxCapabilities | Plugin::ProcessSpoofing | Plugin::Modxview | Plugin::Kallsyms | Plugin::LinuxPsscan | Plugin::LinuxSockscan | Plugin::VmaRegExScan | Plugin::WinVadWalk | Plugin::WinVadRegExScan | Plugin::PsCallStack | Plugin::Fbdev) {
+    } else if matches!(plugin, Plugin::LinuxPsaux | Plugin::LinuxEnvars | Plugin::LinuxCapabilities | Plugin::ProcessSpoofing | Plugin::Modxview | Plugin::Kallsyms | Plugin::LinuxPsscan | Plugin::LinuxSockscan | Plugin::VmaRegExScan | Plugin::WinVadWalk | Plugin::WinVadRegExScan | Plugin::PsCallStack | Plugin::Fbdev) {
         plugin.descriptor().label
     } else {
         plugin

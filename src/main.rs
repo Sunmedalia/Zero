@@ -48,7 +48,7 @@ struct Cli {
     /// Minimum cached TrueCrypt passphrase length (default 5).
     #[arg(long, global = true, allow_hyphen_values = true)]
     min_length: Option<i64>,
-    /// PID list for Envars / Capabilities / Strings / VmaRegExScan / VadRegExScan / VadWalk / PsCallStack / PebMasquerade (comma-separated or repeated).
+    /// PID list for PsAux / Envars / Capabilities / Strings / VmaRegExScan / VadRegExScan / VadWalk / PsCallStack / PebMasquerade (comma-separated or repeated).
     #[arg(long, global = true, value_delimiter = ',')]
     pids: Vec<u32>,
     /// Include unresolved nonzero saved stack words in PsCallStack.

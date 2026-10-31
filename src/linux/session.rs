@@ -295,7 +295,7 @@ impl Session {
             ),
             None if matches!(
                 request.plugin,
-                Plugin::LinuxCapabilities | Plugin::LinuxEnvars
+                Plugin::LinuxCapabilities | Plugin::LinuxEnvars | Plugin::LinuxPsaux
             ) =>
             {
                 format!(
@@ -365,6 +365,8 @@ impl Session {
             engine.capabilities(options, job)?
         } else if request.plugin == Plugin::LinuxEnvars {
             engine.envars(options, job)?
+        } else if request.plugin == Plugin::LinuxPsaux {
+            engine.psaux(options, job)?
         } else {
             engine.run(request.plugin, job)?
         };

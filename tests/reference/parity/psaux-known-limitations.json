@@ -1,0 +1,387 @@
+{
+  "schema_version": 1,
+  "engine_version": "0.2.1-native-95",
+  "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+  "zero_executable_sha256": "defa5c09defa8de4ac62ef3c17b13b96d248dc1a290a29e036e947d2947a1f48",
+  "method_vectors": {
+    "sha256": "5fabb0227aaf5e828225a2b0de02b9921796fe00b58147c7d2e587e1c9634c23",
+    "cases": 29,
+    "scope": "Actual PsAux._generator/_get_command_line_args, task parent method, UTF8 replacement and PID filter. Field/process-layer adapters supply mm faults, bounds, layer availability and read faults. Does not certify full list_tasks validity, real layer construction, all ISF/page corruption or complete fault/resource contracts.",
+    "source_sha256": {
+      "volatility3/framework/plugins/linux/psaux.py": "214e265b5af92e208b59faa24da6bfb31a099ebb6f33493b55f3ce4c0c19cdb1",
+      "volatility3/framework/plugins/linux/pslist.py": "e1ac96b662564255ca82d1f784e24473aba2d69d66d0b09a252771af9c0c929c",
+      "volatility3/framework/symbols/linux/extensions/__init__.py": "5e43dbf482df74ec78c810ece3584323205eeac20d44fede5381f9a12b78e249",
+      "volatility3/framework/objects/utility.py": "d9d54977c471380c01b23f049f29926d42aaa3a9017461780aebe8ffc956f6f1"
+    }
+  },
+  "cases": [
+    {
+      "reference_plugin": "linux.psaux.PsAux",
+      "zero_plugin": "linux.psaux.PsAux",
+      "image_sha256": "8ce57b7c7b423173ce970fe8f51e7016c04ef1b4a5f73d5c5f1001d5c18780bc",
+      "mapping_sha256": "296c084389527b0e7acf33906f2dcbb4f901bb67e90be35d221664d30883ee16",
+      "native_output_sha256": "800bf761a01e84e726e0c035adf7249ab7b567e04765d4595868ac29b7db4af9",
+      "zero_args": [],
+      "reference_args": [],
+      "case_id": "debian-3.2/psaux-default",
+      "sample_source": "https://github.com/volatilityfoundation/volatility3-test-data/releases/download/v0.0.1/linux-sample-1.bin.gz",
+      "comparison": {
+        "schema_version": 1,
+        "mapping_version": 1,
+        "zero_records": 133,
+        "reference_records": 133,
+        "missing": [],
+        "extra": [],
+        "duplicates": [],
+        "conflicts": [],
+        "unverifiable": [],
+        "matched_absent": {
+          "args": 2
+        },
+        "all_columns_mapped": true,
+        "positive_evidence": true,
+        "zero_complete": true,
+        "zero_diagnostics": [],
+        "passed": true
+      },
+      "passed": true,
+      "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+      "reference_output_sha256": "825678ce9e64af94e87c43d6902ebc6dcb07867ff0c730f77b2ff31d7efbbc80",
+      "symbol_sha256": "c3b0b875a2d0498fffc0df1259ff49b850cea28355ffddf02e2f90d34a89fbe1",
+      "zero_executable_sha256": "defa5c09defa8de4ac62ef3c17b13b96d248dc1a290a29e036e947d2947a1f48",
+      "engine_version": "0.2.1-native-95",
+      "record_order": {
+        "passed": true,
+        "first_difference": null,
+        "zero_sha256": "37e5545feb74eab714e8122a795298ad19e53fe4cc4026a8111fdb08b9119f52",
+        "reference_sha256": "37e5545feb74eab714e8122a795298ad19e53fe4cc4026a8111fdb08b9119f52",
+        "scope": "All mapped fields in emitted sequence after declared record selection; duplicate occurrences retained.",
+        "case_id": "debian-3.2/psaux-default",
+        "mapping_sha256": "296c084389527b0e7acf33906f2dcbb4f901bb67e90be35d221664d30883ee16",
+        "native_output_sha256": "800bf761a01e84e726e0c035adf7249ab7b567e04765d4595868ac29b7db4af9",
+        "reference_output_sha256": "825678ce9e64af94e87c43d6902ebc6dcb07867ff0c730f77b2ff31d7efbbc80"
+      }
+    },
+    {
+      "reference_plugin": "linux.psaux.PsAux",
+      "zero_plugin": "linux.psaux.PsAux",
+      "image_sha256": "8ce57b7c7b423173ce970fe8f51e7016c04ef1b4a5f73d5c5f1001d5c18780bc",
+      "mapping_sha256": "296c084389527b0e7acf33906f2dcbb4f901bb67e90be35d221664d30883ee16",
+      "native_output_sha256": "5b969fda49f0a685f7eea4fbabc5d940b18747823b182e2d3fa6bfcd0bbf3a7e",
+      "zero_args": [
+        "--pid",
+        "3976"
+      ],
+      "reference_args": [
+        "--pid",
+        "3976"
+      ],
+      "case_id": "debian-3.2/psaux-pid-3976",
+      "sample_source": "https://github.com/volatilityfoundation/volatility3-test-data/releases/download/v0.0.1/linux-sample-1.bin.gz",
+      "comparison": {
+        "schema_version": 1,
+        "mapping_version": 1,
+        "zero_records": 1,
+        "reference_records": 1,
+        "missing": [],
+        "extra": [],
+        "duplicates": [],
+        "conflicts": [],
+        "unverifiable": [],
+        "matched_absent": {},
+        "all_columns_mapped": true,
+        "positive_evidence": true,
+        "zero_complete": true,
+        "zero_diagnostics": [],
+        "passed": true
+      },
+      "passed": true,
+      "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+      "reference_output_sha256": "78465e1ed77d23196686a26ef0d47c4e000908e426d8f5cfaa4be5f008f348b9",
+      "symbol_sha256": "c3b0b875a2d0498fffc0df1259ff49b850cea28355ffddf02e2f90d34a89fbe1",
+      "zero_executable_sha256": "defa5c09defa8de4ac62ef3c17b13b96d248dc1a290a29e036e947d2947a1f48",
+      "engine_version": "0.2.1-native-95",
+      "record_order": {
+        "passed": true,
+        "first_difference": null,
+        "zero_sha256": "d6745baef9f06a06e5a87ef9b3b12c1622dba5ae8c25e4be6addb8974832d3e6",
+        "reference_sha256": "d6745baef9f06a06e5a87ef9b3b12c1622dba5ae8c25e4be6addb8974832d3e6",
+        "scope": "All mapped fields in emitted sequence after declared record selection; duplicate occurrences retained.",
+        "case_id": "debian-3.2/psaux-pid-3976",
+        "mapping_sha256": "296c084389527b0e7acf33906f2dcbb4f901bb67e90be35d221664d30883ee16",
+        "native_output_sha256": "5b969fda49f0a685f7eea4fbabc5d940b18747823b182e2d3fa6bfcd0bbf3a7e",
+        "reference_output_sha256": "78465e1ed77d23196686a26ef0d47c4e000908e426d8f5cfaa4be5f008f348b9"
+      }
+    },
+    {
+      "reference_plugin": "linux.psaux.PsAux",
+      "zero_plugin": "linux.psaux.PsAux",
+      "image_sha256": "8ce57b7c7b423173ce970fe8f51e7016c04ef1b4a5f73d5c5f1001d5c18780bc",
+      "mapping_sha256": "296c084389527b0e7acf33906f2dcbb4f901bb67e90be35d221664d30883ee16",
+      "native_output_sha256": "556b55bb02416fe1ca898481791471aaa411d43e8613d103e8fa3a75a076b00e",
+      "zero_args": [
+        "--pids",
+        "3976,8503"
+      ],
+      "reference_args": [
+        "--pid",
+        "3976",
+        "8503"
+      ],
+      "case_id": "debian-3.2/psaux-pids-shells",
+      "sample_source": "https://github.com/volatilityfoundation/volatility3-test-data/releases/download/v0.0.1/linux-sample-1.bin.gz",
+      "comparison": {
+        "schema_version": 1,
+        "mapping_version": 1,
+        "zero_records": 2,
+        "reference_records": 2,
+        "missing": [],
+        "extra": [],
+        "duplicates": [],
+        "conflicts": [],
+        "unverifiable": [],
+        "matched_absent": {},
+        "all_columns_mapped": true,
+        "positive_evidence": true,
+        "zero_complete": true,
+        "zero_diagnostics": [],
+        "passed": true
+      },
+      "passed": true,
+      "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+      "reference_output_sha256": "7fa581a4d62063870236c077cf225f0ef0f0427b94fef70fb53f48a915c3962c",
+      "symbol_sha256": "c3b0b875a2d0498fffc0df1259ff49b850cea28355ffddf02e2f90d34a89fbe1",
+      "zero_executable_sha256": "defa5c09defa8de4ac62ef3c17b13b96d248dc1a290a29e036e947d2947a1f48",
+      "engine_version": "0.2.1-native-95",
+      "record_order": {
+        "passed": true,
+        "first_difference": null,
+        "zero_sha256": "479e8e1bbefadb3a708f247adef1321101b5d6da29340f727b0871b516bddce1",
+        "reference_sha256": "479e8e1bbefadb3a708f247adef1321101b5d6da29340f727b0871b516bddce1",
+        "scope": "All mapped fields in emitted sequence after declared record selection; duplicate occurrences retained.",
+        "case_id": "debian-3.2/psaux-pids-shells",
+        "mapping_sha256": "296c084389527b0e7acf33906f2dcbb4f901bb67e90be35d221664d30883ee16",
+        "native_output_sha256": "556b55bb02416fe1ca898481791471aaa411d43e8613d103e8fa3a75a076b00e",
+        "reference_output_sha256": "7fa581a4d62063870236c077cf225f0ef0f0427b94fef70fb53f48a915c3962c"
+      }
+    },
+    {
+      "reference_plugin": "linux.psaux.PsAux",
+      "zero_plugin": "linux.psaux.PsAux",
+      "image_sha256": "8ce57b7c7b423173ce970fe8f51e7016c04ef1b4a5f73d5c5f1001d5c18780bc",
+      "mapping_sha256": "296c084389527b0e7acf33906f2dcbb4f901bb67e90be35d221664d30883ee16",
+      "native_output_sha256": "556b55bb02416fe1ca898481791471aaa411d43e8613d103e8fa3a75a076b00e",
+      "zero_args": [
+        "--pids",
+        "8503,3976,3976"
+      ],
+      "reference_args": [
+        "--pid",
+        "8503",
+        "3976",
+        "3976"
+      ],
+      "case_id": "debian-3.2/psaux-repeated-pids",
+      "sample_source": "https://github.com/volatilityfoundation/volatility3-test-data/releases/download/v0.0.1/linux-sample-1.bin.gz",
+      "comparison": {
+        "schema_version": 1,
+        "mapping_version": 1,
+        "zero_records": 2,
+        "reference_records": 2,
+        "missing": [],
+        "extra": [],
+        "duplicates": [],
+        "conflicts": [],
+        "unverifiable": [],
+        "matched_absent": {},
+        "all_columns_mapped": true,
+        "positive_evidence": true,
+        "zero_complete": true,
+        "zero_diagnostics": [],
+        "passed": true
+      },
+      "passed": true,
+      "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+      "reference_output_sha256": "7fa581a4d62063870236c077cf225f0ef0f0427b94fef70fb53f48a915c3962c",
+      "symbol_sha256": "c3b0b875a2d0498fffc0df1259ff49b850cea28355ffddf02e2f90d34a89fbe1",
+      "zero_executable_sha256": "defa5c09defa8de4ac62ef3c17b13b96d248dc1a290a29e036e947d2947a1f48",
+      "engine_version": "0.2.1-native-95",
+      "record_order": {
+        "passed": true,
+        "first_difference": null,
+        "zero_sha256": "479e8e1bbefadb3a708f247adef1321101b5d6da29340f727b0871b516bddce1",
+        "reference_sha256": "479e8e1bbefadb3a708f247adef1321101b5d6da29340f727b0871b516bddce1",
+        "scope": "All mapped fields in emitted sequence after declared record selection; duplicate occurrences retained.",
+        "case_id": "debian-3.2/psaux-repeated-pids",
+        "mapping_sha256": "296c084389527b0e7acf33906f2dcbb4f901bb67e90be35d221664d30883ee16",
+        "native_output_sha256": "556b55bb02416fe1ca898481791471aaa411d43e8613d103e8fa3a75a076b00e",
+        "reference_output_sha256": "7fa581a4d62063870236c077cf225f0ef0f0427b94fef70fb53f48a915c3962c"
+      }
+    },
+    {
+      "reference_plugin": "linux.psaux.PsAux",
+      "zero_plugin": "linux.psaux.PsAux",
+      "image_sha256": "8ce57b7c7b423173ce970fe8f51e7016c04ef1b4a5f73d5c5f1001d5c18780bc",
+      "mapping_sha256": "296c084389527b0e7acf33906f2dcbb4f901bb67e90be35d221664d30883ee16",
+      "native_output_sha256": "556b55bb02416fe1ca898481791471aaa411d43e8613d103e8fa3a75a076b00e",
+      "zero_args": [
+        "--pid",
+        "3976",
+        "--pids",
+        "8503"
+      ],
+      "reference_args": [
+        "--pid",
+        "3976",
+        "8503"
+      ],
+      "case_id": "debian-3.2/psaux-pid-union",
+      "sample_source": "https://github.com/volatilityfoundation/volatility3-test-data/releases/download/v0.0.1/linux-sample-1.bin.gz",
+      "comparison": {
+        "schema_version": 1,
+        "mapping_version": 1,
+        "zero_records": 2,
+        "reference_records": 2,
+        "missing": [],
+        "extra": [],
+        "duplicates": [],
+        "conflicts": [],
+        "unverifiable": [],
+        "matched_absent": {},
+        "all_columns_mapped": true,
+        "positive_evidence": true,
+        "zero_complete": true,
+        "zero_diagnostics": [],
+        "passed": true
+      },
+      "passed": true,
+      "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+      "reference_output_sha256": "7fa581a4d62063870236c077cf225f0ef0f0427b94fef70fb53f48a915c3962c",
+      "symbol_sha256": "c3b0b875a2d0498fffc0df1259ff49b850cea28355ffddf02e2f90d34a89fbe1",
+      "zero_executable_sha256": "defa5c09defa8de4ac62ef3c17b13b96d248dc1a290a29e036e947d2947a1f48",
+      "engine_version": "0.2.1-native-95",
+      "record_order": {
+        "passed": true,
+        "first_difference": null,
+        "zero_sha256": "479e8e1bbefadb3a708f247adef1321101b5d6da29340f727b0871b516bddce1",
+        "reference_sha256": "479e8e1bbefadb3a708f247adef1321101b5d6da29340f727b0871b516bddce1",
+        "scope": "All mapped fields in emitted sequence after declared record selection; duplicate occurrences retained.",
+        "case_id": "debian-3.2/psaux-pid-union",
+        "mapping_sha256": "296c084389527b0e7acf33906f2dcbb4f901bb67e90be35d221664d30883ee16",
+        "native_output_sha256": "556b55bb02416fe1ca898481791471aaa411d43e8613d103e8fa3a75a076b00e",
+        "reference_output_sha256": "7fa581a4d62063870236c077cf225f0ef0f0427b94fef70fb53f48a915c3962c"
+      }
+    },
+    {
+      "reference_plugin": "linux.psaux.PsAux",
+      "zero_plugin": "linux.psaux.PsAux",
+      "image_sha256": "8ce57b7c7b423173ce970fe8f51e7016c04ef1b4a5f73d5c5f1001d5c18780bc",
+      "mapping_sha256": "7afb79a1d5d9dbd87d61d4a85d270051ab791d1d8477f9336b29c03f976005d3",
+      "native_output_sha256": "0e3df3b93322b8d000d0838ce9fd746ae9fd2ec951b16907659f46213b8c4c6c",
+      "zero_args": [
+        "--pids",
+        "2147483647"
+      ],
+      "reference_args": [
+        "--pid",
+        "2147483647"
+      ],
+      "case_id": "debian-3.2/psaux-unmatched",
+      "sample_source": "https://github.com/volatilityfoundation/volatility3-test-data/releases/download/v0.0.1/linux-sample-1.bin.gz",
+      "comparison": {
+        "schema_version": 1,
+        "mapping_version": 1,
+        "zero_records": 0,
+        "reference_records": 0,
+        "missing": [],
+        "extra": [],
+        "duplicates": [],
+        "conflicts": [],
+        "unverifiable": [],
+        "matched_absent": {},
+        "all_columns_mapped": true,
+        "positive_evidence": false,
+        "zero_complete": true,
+        "zero_diagnostics": [],
+        "passed": true
+      },
+      "passed": false,
+      "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+      "reference_output_sha256": "a3cbe01dad52836a7ac8efc91954cf64867f4dee8a6f046c4bb0838d11f48589",
+      "symbol_sha256": "c3b0b875a2d0498fffc0df1259ff49b850cea28355ffddf02e2f90d34a89fbe1",
+      "zero_executable_sha256": "defa5c09defa8de4ac62ef3c17b13b96d248dc1a290a29e036e947d2947a1f48",
+      "engine_version": "0.2.1-native-95",
+      "record_order": {
+        "passed": true,
+        "first_difference": null,
+        "zero_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "reference_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "scope": "All mapped fields in emitted sequence after declared record selection; duplicate occurrences retained.",
+        "case_id": "debian-3.2/psaux-unmatched",
+        "mapping_sha256": "7afb79a1d5d9dbd87d61d4a85d270051ab791d1d8477f9336b29c03f976005d3",
+        "native_output_sha256": "0e3df3b93322b8d000d0838ce9fd746ae9fd2ec951b16907659f46213b8c4c6c",
+        "reference_output_sha256": "a3cbe01dad52836a7ac8efc91954cf64867f4dee8a6f046c4bb0838d11f48589"
+      },
+      "empty_agreement": true
+    }
+  ],
+  "mcp_cache_regression": {
+    "passed": true,
+    "zero_executable_sha256": "defa5c09defa8de4ac62ef3c17b13b96d248dc1a290a29e036e947d2947a1f48",
+    "image_sha256": "8ce57b7c7b423173ce970fe8f51e7016c04ef1b4a5f73d5c5f1001d5c18780bc",
+    "selectors": [
+      {},
+      {
+        "pid": 3976
+      },
+      {
+        "pids": [
+          8503
+        ]
+      },
+      {
+        "pid": 3976
+      },
+      {
+        "pid": 3976,
+        "pids": [
+          8503
+        ]
+      }
+    ],
+    "rows": [
+      133,
+      1,
+      1,
+      1,
+      2
+    ],
+    "unique_cache_entries": 4,
+    "full_cached_rows_compared": true,
+    "cache_hit_log_sha256": "7231dc10fb2fa9f763b85787aeab9c7d7b2b838f8b666b6ba9309a16652d28ae",
+    "replies_sha256": "f037b8b225f0a92110abc3257ad0b6a54638e855cc77399c8067a3d8d0258af5",
+    "baseline_native_output_sha256": "800bf761a01e84e726e0c035adf7249ab7b567e04765d4595868ac29b7db4af9",
+    "scope": "One persistent native MCP session with an isolated initially empty cache. Default, single PID, list, repeated cache hit and union: compare first 200 API rows plus total counts, and all stored cache rows against full no-cache native output. Native cache regression, not an additional differential case."
+  },
+  "regressions": [
+    "debian-3.2/envars-default",
+    "debian-3.2/envars-pid-3976",
+    "debian-3.2/envars-pids-shells",
+    "debian-3.2/envars-repeated-pids",
+    "debian-3.2/envars-pid-union",
+    "debian-3.2/envars-unmatched",
+    "debian-3.2/default",
+    "debian-3.2/threads",
+    "debian-3.2/decorate",
+    "debian-3.2/threads-decorate",
+    "debian-3.2/pid-1",
+    "debian-3.2/boottime-default"
+  ],
+  "limitations": [
+    "One real Debian 3.2 Intel64 sample covers default, shell selectors, repeated selectors and PID/list union; it does not prove all kernels or namespace/architecture combinations.",
+    "The unmatched PID case is empty agreement and adds no positive evidence. Native MCP cache proof also does not add reference cases.",
+    "Typed method adapters supply process-layer readability/availability and task identity. Native synthetic memory validates representative noncontiguous/cross-page buffers but not every malformed page table, field layout or race/fault boundary.",
+    "Exact warning/fault behavior, all resource and cancellation contracts, 32-bit and ARM64 real-image differential coverage remain unverified.",
+    "No complete plugin contract is claimed."
+  ]
+}

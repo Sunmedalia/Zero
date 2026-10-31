@@ -9,6 +9,8 @@ pub enum Plugin {
     LinuxCapabilities,
     #[value(name = "linux.envars.Envars", alias = "linux.envars")]
     LinuxEnvars,
+    #[value(name = "linux.psaux.PsAux", alias = "linux.psaux")]
+    LinuxPsaux,
     #[value(name = "windows.debugregisters.DebugRegisters")]
     WinDebugRegisters,
     #[value(
@@ -1934,6 +1936,13 @@ pub const PLUGINS: &[Descriptor] = &[
         widths: &[6, 6, 16, 20, 0],
     },
     Descriptor {
+        plugin: Plugin::LinuxPsaux,
+        name: "linux.psaux.PsAux",
+        label: "psaux·完整",
+        columns: &["PID", "PPID", "COMM", "ARGS"],
+        widths: &[6, 6, 16, 0],
+    },
+    Descriptor {
         plugin: Plugin::Fdsummary,
         name: "fdsummary",
         label: "fdsummary",
@@ -2187,6 +2196,7 @@ impl Plugin {
                     | Self::WinStrings
                     | Self::LinuxCapabilities
                     | Self::LinuxEnvars
+                    | Self::LinuxPsaux
             )
     }
     pub fn descriptor(self) -> &'static Descriptor {
@@ -2327,6 +2337,7 @@ impl Plugin {
             | Self::Capabilities
             | Self::LinuxCapabilities
             | Self::LinuxEnvars
+            | Self::LinuxPsaux
             | Self::Pslist
             | Self::LinuxPslist
             | Self::Pstree
@@ -2443,6 +2454,7 @@ impl Plugin {
             Capabilities => "查看进程能力集合",
             LinuxCapabilities => "解码 real_cred 能力集合、ambient 与 cred EUID；可按 PID 列表筛选",
             LinuxEnvars => "读取完整环境区并按参考处理损坏条目；支持 PID 列表筛选",
+            LinuxPsaux => "读取完整命令行、父进程 TGID 和内核线程名称；支持 PID 列表",
             Fdsummary => "汇总进程文件描述符",
             WinCallbacks => "查看内核回调及模块归属",
             WinUnloadedmodules => "读取已卸载驱动记录",
