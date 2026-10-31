@@ -87,10 +87,11 @@ impl Linux<'_> {
                             &mut result,
                             format!("PID {pid} 正则扫描"),
                             anyhow::anyhow!(
-                                "扫描 {} / {} 字节；缺页 {} 字节；上下文补零 {} 字节；{}",
+                                "扫描 {} / {} 字节；缺页 {} 字节；区间合并省略 {} 字节；上下文补零 {} 字节；{}",
                                 coverage.scanned_bytes,
                                 coverage.requested_bytes,
                                 coverage.unreadable_bytes,
+                                coverage.reference_coalescing_omitted_bytes,
                                 context_missing,
                                 coverage.stop_reason.as_deref().unwrap_or("扫描结束")
                             ),

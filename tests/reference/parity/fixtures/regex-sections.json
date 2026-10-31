@@ -1,0 +1,1609 @@
+{
+  "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+  "source_sha256": {
+    "volatility3/framework/interfaces/layers.py": "5515d539fe1dfb78723a82d2f18762bf455dd29cb246c2642460e1eae8853b6a",
+    "volatility3/framework/layers/scanners/__init__.py": "c9ef412950973004146850acb415786a120d444bd0075ebb2e6ec3eb13d195ed"
+  },
+  "scope": "Actual _coalesce_sections, translation-layer _scan_iterator, _scan_chunk and RegExScanner over supplied contiguous maps and immutable bytes. Reduced 8/4 geometry exercises the same chunk boundary algorithm; production remains 16MiB/4KiB. No layer bounds clipping, discontinuous backing/mapping, leading empty chunks, capture faults, arbitrary regex syntax or full resource contract is certified.",
+  "coalescing": [
+    {
+      "sections": [],
+      "expected": []
+    },
+    {
+      "sections": [
+        [
+          0,
+          8
+        ]
+      ],
+      "expected": [
+        [
+          0,
+          8
+        ]
+      ]
+    },
+    {
+      "sections": [
+        [
+          0,
+          8
+        ],
+        [
+          8,
+          4
+        ]
+      ],
+      "expected": [
+        [
+          0,
+          12
+        ]
+      ]
+    },
+    {
+      "sections": [
+        [
+          0,
+          12
+        ],
+        [
+          4,
+          4
+        ]
+      ],
+      "expected": [
+        [
+          0,
+          8
+        ]
+      ]
+    },
+    {
+      "sections": [
+        [
+          4,
+          4
+        ],
+        [
+          0,
+          12
+        ]
+      ],
+      "expected": [
+        [
+          0,
+          8
+        ]
+      ]
+    },
+    {
+      "sections": [
+        [
+          0,
+          16
+        ],
+        [
+          4,
+          8
+        ],
+        [
+          6,
+          1
+        ]
+      ],
+      "expected": [
+        [
+          0,
+          7
+        ]
+      ]
+    },
+    {
+      "sections": [
+        [
+          0,
+          8
+        ],
+        [
+          4,
+          0
+        ]
+      ],
+      "expected": [
+        [
+          0,
+          4
+        ]
+      ]
+    },
+    {
+      "sections": [
+        [
+          0,
+          0
+        ]
+      ],
+      "expected": [
+        [
+          0,
+          0
+        ]
+      ]
+    },
+    {
+      "sections": [
+        [
+          8,
+          8
+        ],
+        [
+          8,
+          0
+        ]
+      ],
+      "expected": [
+        [
+          8,
+          8
+        ]
+      ]
+    },
+    {
+      "sections": [
+        [
+          0,
+          8
+        ],
+        [
+          4,
+          4
+        ],
+        [
+          6,
+          8
+        ]
+      ],
+      "expected": [
+        [
+          0,
+          14
+        ]
+      ]
+    },
+    {
+      "sections": [
+        [
+          0,
+          4
+        ],
+        [
+          8,
+          4
+        ]
+      ],
+      "expected": [
+        [
+          0,
+          4
+        ],
+        [
+          8,
+          4
+        ]
+      ]
+    },
+    {
+      "sections": [
+        [
+          58,
+          14
+        ],
+        [
+          22,
+          22
+        ]
+      ],
+      "expected": [
+        [
+          22,
+          22
+        ],
+        [
+          58,
+          14
+        ]
+      ]
+    },
+    {
+      "sections": [
+        [
+          44,
+          13
+        ],
+        [
+          14,
+          17
+        ],
+        [
+          15,
+          2
+        ],
+        [
+          58,
+          8
+        ]
+      ],
+      "expected": [
+        [
+          14,
+          3
+        ],
+        [
+          44,
+          13
+        ],
+        [
+          58,
+          8
+        ]
+      ]
+    },
+    {
+      "sections": [
+        [
+          26,
+          10
+        ]
+      ],
+      "expected": [
+        [
+          26,
+          10
+        ]
+      ]
+    },
+    {
+      "sections": [
+        [
+          39,
+          6
+        ],
+        [
+          22,
+          4
+        ]
+      ],
+      "expected": [
+        [
+          22,
+          4
+        ],
+        [
+          39,
+          6
+        ]
+      ]
+    },
+    {
+      "sections": [
+        [
+          44,
+          11
+        ],
+        [
+          52,
+          6
+        ]
+      ],
+      "expected": [
+        [
+          44,
+          14
+        ]
+      ]
+    },
+    {
+      "sections": [
+        [
+          59,
+          17
+        ],
+        [
+          35,
+          12
+        ],
+        [
+          20,
+          20
+        ],
+        [
+          15,
+          5
+        ]
+      ],
+      "expected": [
+        [
+          15,
+          32
+        ],
+        [
+          59,
+          17
+        ]
+      ]
+    },
+    {
+      "sections": [
+        [
+          50,
+          4
+        ]
+      ],
+      "expected": [
+        [
+          50,
+          4
+        ]
+      ]
+    },
+    {
+      "sections": [
+        [
+          20,
+          6
+        ],
+        [
+          21,
+          0
+        ],
+        [
+          30,
+          14
+        ],
+        [
+          49,
+          4
+        ],
+        [
+          6,
+          19
+        ],
+        [
+          31,
+          22
+        ],
+        [
+          37,
+          22
+        ]
+      ],
+      "expected": [
+        [
+          6,
+          15
+        ],
+        [
+          30,
+          23
+        ]
+      ]
+    },
+    {
+      "sections": [
+        [
+          43,
+          16
+        ],
+        [
+          43,
+          17
+        ],
+        [
+          46,
+          15
+        ],
+        [
+          51,
+          1
+        ],
+        [
+          12,
+          9
+        ]
+      ],
+      "expected": [
+        [
+          12,
+          9
+        ],
+        [
+          43,
+          9
+        ]
+      ]
+    },
+    {
+      "sections": [
+        [
+          55,
+          8
+        ],
+        [
+          30,
+          22
+        ],
+        [
+          55,
+          16
+        ],
+        [
+          63,
+          18
+        ],
+        [
+          32,
+          4
+        ],
+        [
+          7,
+          21
+        ]
+      ],
+      "expected": [
+        [
+          7,
+          21
+        ],
+        [
+          30,
+          6
+        ],
+        [
+          55,
+          26
+        ]
+      ]
+    },
+    {
+      "sections": [
+        [
+          41,
+          5
+        ],
+        [
+          6,
+          8
+        ],
+        [
+          15,
+          22
+        ],
+        [
+          6,
+          19
+        ],
+        [
+          28,
+          9
+        ]
+      ],
+      "expected": [
+        [
+          6,
+          31
+        ],
+        [
+          41,
+          5
+        ]
+      ]
+    },
+    {
+      "sections": [
+        [
+          27,
+          20
+        ],
+        [
+          45,
+          10
+        ],
+        [
+          58,
+          0
+        ],
+        [
+          14,
+          15
+        ],
+        [
+          24,
+          16
+        ]
+      ],
+      "expected": [
+        [
+          14,
+          41
+        ],
+        [
+          58,
+          0
+        ]
+      ]
+    },
+    {
+      "sections": [
+        [
+          26,
+          1
+        ]
+      ],
+      "expected": [
+        [
+          26,
+          1
+        ]
+      ]
+    },
+    {
+      "sections": [
+        [
+          13,
+          12
+        ],
+        [
+          19,
+          19
+        ],
+        [
+          61,
+          17
+        ],
+        [
+          4,
+          22
+        ]
+      ],
+      "expected": [
+        [
+          4,
+          34
+        ],
+        [
+          61,
+          17
+        ]
+      ]
+    },
+    {
+      "sections": [
+        [
+          20,
+          1
+        ],
+        [
+          60,
+          1
+        ],
+        [
+          25,
+          7
+        ],
+        [
+          20,
+          3
+        ]
+      ],
+      "expected": [
+        [
+          20,
+          3
+        ],
+        [
+          25,
+          7
+        ],
+        [
+          60,
+          1
+        ]
+      ]
+    },
+    {
+      "sections": [
+        [
+          17,
+          6
+        ]
+      ],
+      "expected": [
+        [
+          17,
+          6
+        ]
+      ]
+    },
+    {
+      "sections": [
+        [
+          11,
+          3
+        ],
+        [
+          32,
+          2
+        ],
+        [
+          51,
+          1
+        ],
+        [
+          54,
+          15
+        ],
+        [
+          57,
+          10
+        ],
+        [
+          58,
+          16
+        ]
+      ],
+      "expected": [
+        [
+          11,
+          3
+        ],
+        [
+          32,
+          2
+        ],
+        [
+          51,
+          1
+        ],
+        [
+          54,
+          20
+        ]
+      ]
+    },
+    {
+      "sections": [
+        [
+          32,
+          13
+        ],
+        [
+          18,
+          6
+        ]
+      ],
+      "expected": [
+        [
+          18,
+          6
+        ],
+        [
+          32,
+          13
+        ]
+      ]
+    },
+    {
+      "sections": [
+        [
+          52,
+          2
+        ],
+        [
+          34,
+          12
+        ],
+        [
+          33,
+          22
+        ],
+        [
+          12,
+          6
+        ],
+        [
+          29,
+          1
+        ],
+        [
+          49,
+          8
+        ],
+        [
+          0,
+          8
+        ]
+      ],
+      "expected": [
+        [
+          0,
+          8
+        ],
+        [
+          12,
+          6
+        ],
+        [
+          29,
+          1
+        ],
+        [
+          33,
+          13
+        ],
+        [
+          49,
+          5
+        ]
+      ]
+    },
+    {
+      "sections": [
+        [
+          38,
+          1
+        ],
+        [
+          3,
+          17
+        ],
+        [
+          37,
+          7
+        ],
+        [
+          51,
+          0
+        ],
+        [
+          10,
+          7
+        ],
+        [
+          38,
+          20
+        ],
+        [
+          2,
+          2
+        ]
+      ],
+      "expected": [
+        [
+          2,
+          15
+        ],
+        [
+          37,
+          14
+        ]
+      ]
+    },
+    {
+      "sections": [
+        [
+          45,
+          10
+        ],
+        [
+          56,
+          1
+        ],
+        [
+          23,
+          2
+        ],
+        [
+          2,
+          22
+        ],
+        [
+          45,
+          17
+        ],
+        [
+          18,
+          5
+        ],
+        [
+          0,
+          21
+        ]
+      ],
+      "expected": [
+        [
+          0,
+          25
+        ],
+        [
+          45,
+          12
+        ]
+      ]
+    },
+    {
+      "sections": [
+        [
+          1,
+          22
+        ],
+        [
+          40,
+          16
+        ],
+        [
+          50,
+          5
+        ],
+        [
+          48,
+          12
+        ],
+        [
+          57,
+          6
+        ],
+        [
+          27,
+          5
+        ]
+      ],
+      "expected": [
+        [
+          1,
+          22
+        ],
+        [
+          27,
+          5
+        ],
+        [
+          40,
+          15
+        ],
+        [
+          57,
+          6
+        ]
+      ]
+    },
+    {
+      "sections": [
+        [
+          34,
+          2
+        ],
+        [
+          58,
+          20
+        ],
+        [
+          17,
+          13
+        ],
+        [
+          14,
+          20
+        ],
+        [
+          38,
+          4
+        ]
+      ],
+      "expected": [
+        [
+          14,
+          16
+        ],
+        [
+          34,
+          2
+        ],
+        [
+          38,
+          4
+        ],
+        [
+          58,
+          20
+        ]
+      ]
+    },
+    {
+      "sections": [
+        [
+          14,
+          18
+        ],
+        [
+          28,
+          1
+        ],
+        [
+          50,
+          14
+        ],
+        [
+          55,
+          22
+        ],
+        [
+          44,
+          2
+        ],
+        [
+          8,
+          1
+        ],
+        [
+          56,
+          13
+        ]
+      ],
+      "expected": [
+        [
+          8,
+          1
+        ],
+        [
+          14,
+          15
+        ],
+        [
+          44,
+          2
+        ],
+        [
+          50,
+          19
+        ]
+      ]
+    },
+    {
+      "sections": [
+        [
+          19,
+          15
+        ]
+      ],
+      "expected": [
+        [
+          19,
+          15
+        ]
+      ]
+    }
+  ],
+  "scans": [
+    {
+      "id": "nested-truncation",
+      "sections": [
+        [
+          0,
+          16
+        ],
+        [
+          4,
+          4
+        ]
+      ],
+      "coalesced_sections": [
+        [
+          0,
+          8
+        ]
+      ],
+      "data_hex": "78786e6565646c6558586e6565646c6558",
+      "pattern": "needle",
+      "chunk_size": 8,
+      "overlap": 4,
+      "chunks": [
+        [
+          [
+            [
+              "virtual",
+              0,
+              8
+            ]
+          ],
+          8
+        ]
+      ],
+      "expected": [
+        2
+      ]
+    },
+    {
+      "id": "zero-nested-truncation",
+      "sections": [
+        [
+          0,
+          16
+        ],
+        [
+          8,
+          0
+        ]
+      ],
+      "coalesced_sections": [
+        [
+          0,
+          8
+        ]
+      ],
+      "data_hex": "78786e6565646c6558586e6565646c6558",
+      "pattern": "needle",
+      "chunk_size": 8,
+      "overlap": 4,
+      "chunks": [
+        [
+          [
+            [
+              "virtual",
+              0,
+              8
+            ]
+          ],
+          8
+        ]
+      ],
+      "expected": [
+        2
+      ]
+    },
+    {
+      "id": "adjacent",
+      "sections": [
+        [
+          0,
+          4
+        ],
+        [
+          4,
+          12
+        ]
+      ],
+      "coalesced_sections": [
+        [
+          0,
+          16
+        ]
+      ],
+      "data_hex": "78786e6565646c6558586e6565646c6558",
+      "pattern": "needle",
+      "chunk_size": 8,
+      "overlap": 4,
+      "chunks": [
+        [
+          [
+            [
+              "virtual",
+              0,
+              12
+            ]
+          ],
+          12
+        ],
+        [
+          [
+            [
+              "virtual",
+              8,
+              8
+            ]
+          ],
+          16
+        ]
+      ],
+      "expected": [
+        2,
+        10
+      ]
+    },
+    {
+      "id": "overlap",
+      "sections": [
+        [
+          0,
+          12
+        ],
+        [
+          8,
+          8
+        ]
+      ],
+      "coalesced_sections": [
+        [
+          0,
+          16
+        ]
+      ],
+      "data_hex": "78786e6565646c6558586e6565646c6558",
+      "pattern": "needle",
+      "chunk_size": 8,
+      "overlap": 4,
+      "chunks": [
+        [
+          [
+            [
+              "virtual",
+              0,
+              12
+            ]
+          ],
+          12
+        ],
+        [
+          [
+            [
+              "virtual",
+              8,
+              8
+            ]
+          ],
+          16
+        ]
+      ],
+      "expected": [
+        2,
+        10
+      ]
+    },
+    {
+      "id": "empty-at-exact-chunk-end",
+      "sections": [
+        [
+          0,
+          8
+        ]
+      ],
+      "coalesced_sections": [
+        [
+          0,
+          8
+        ]
+      ],
+      "data_hex": "7878787878787878",
+      "pattern": "$",
+      "chunk_size": 8,
+      "overlap": 4,
+      "chunks": [
+        [
+          [
+            [
+              "virtual",
+              0,
+              8
+            ]
+          ],
+          8
+        ]
+      ],
+      "expected": []
+    },
+    {
+      "id": "empty-at-short-tail",
+      "sections": [
+        [
+          0,
+          7
+        ]
+      ],
+      "coalesced_sections": [
+        [
+          0,
+          7
+        ]
+      ],
+      "data_hex": "7878787878787878",
+      "pattern": "$",
+      "chunk_size": 8,
+      "overlap": 4,
+      "chunks": [
+        [
+          [
+            [
+              "virtual",
+              0,
+              7
+            ]
+          ],
+          7
+        ]
+      ],
+      "expected": [
+        7
+      ]
+    },
+    {
+      "id": "empty-at-overlap-end",
+      "sections": [
+        [
+          0,
+          9
+        ]
+      ],
+      "coalesced_sections": [
+        [
+          0,
+          9
+        ]
+      ],
+      "data_hex": "787878787878787878",
+      "pattern": "$",
+      "chunk_size": 8,
+      "overlap": 4,
+      "chunks": [
+        [
+          [
+            [
+              "virtual",
+              0,
+              9
+            ]
+          ],
+          9
+        ],
+        [
+          [
+            [
+              "virtual",
+              8,
+              1
+            ]
+          ],
+          9
+        ]
+      ],
+      "expected": [
+        9
+      ]
+    },
+    {
+      "id": "cross-chunk",
+      "sections": [
+        [
+          0,
+          16
+        ]
+      ],
+      "coalesced_sections": [
+        [
+          0,
+          16
+        ]
+      ],
+      "data_hex": "7878787878786e6565646c6558585858",
+      "pattern": "needle",
+      "chunk_size": 8,
+      "overlap": 4,
+      "chunks": [
+        [
+          [
+            [
+              "virtual",
+              0,
+              12
+            ]
+          ],
+          12
+        ],
+        [
+          [
+            [
+              "virtual",
+              8,
+              8
+            ]
+          ],
+          16
+        ]
+      ],
+      "expected": [
+        6
+      ]
+    },
+    {
+      "id": "short-final-tail",
+      "sections": [
+        [
+          0,
+          13
+        ]
+      ],
+      "coalesced_sections": [
+        [
+          0,
+          13
+        ]
+      ],
+      "data_hex": "78787878787878787878454e44",
+      "pattern": "END",
+      "chunk_size": 8,
+      "overlap": 4,
+      "chunks": [
+        [
+          [
+            [
+              "virtual",
+              0,
+              12
+            ]
+          ],
+          12
+        ],
+        [
+          [
+            [
+              "virtual",
+              8,
+              5
+            ]
+          ],
+          13
+        ]
+      ],
+      "expected": [
+        10
+      ]
+    },
+    {
+      "id": "subject-starts",
+      "sections": [
+        [
+          0,
+          16
+        ]
+      ],
+      "coalesced_sections": [
+        [
+          0,
+          16
+        ]
+      ],
+      "data_hex": "78787878787878787878787878787878",
+      "pattern": "^x",
+      "chunk_size": 8,
+      "overlap": 4,
+      "chunks": [
+        [
+          [
+            [
+              "virtual",
+              0,
+              12
+            ]
+          ],
+          12
+        ],
+        [
+          [
+            [
+              "virtual",
+              8,
+              8
+            ]
+          ],
+          16
+        ]
+      ],
+      "expected": [
+        0,
+        8
+      ]
+    },
+    {
+      "id": "zero-match-at-overlap-boundary",
+      "sections": [
+        [
+          0,
+          16
+        ]
+      ],
+      "coalesced_sections": [
+        [
+          0,
+          16
+        ]
+      ],
+      "data_hex": "78787878787878587878787878787878",
+      "pattern": "(?<=X)",
+      "chunk_size": 8,
+      "overlap": 4,
+      "chunks": [
+        [
+          [
+            [
+              "virtual",
+              0,
+              12
+            ]
+          ],
+          12
+        ],
+        [
+          [
+            [
+              "virtual",
+              8,
+              8
+            ]
+          ],
+          16
+        ]
+      ],
+      "expected": []
+    },
+    {
+      "id": "empty-sections",
+      "sections": [],
+      "coalesced_sections": [],
+      "data_hex": "78787878",
+      "pattern": "$",
+      "chunk_size": 8,
+      "overlap": 4,
+      "chunks": [],
+      "expected": []
+    },
+    {
+      "id": "separated-sections",
+      "sections": [
+        [
+          0,
+          4
+        ],
+        [
+          8,
+          4
+        ]
+      ],
+      "coalesced_sections": [
+        [
+          0,
+          4
+        ],
+        [
+          8,
+          4
+        ]
+      ],
+      "data_hex": "787841427878787843447878",
+      "pattern": "ABCD",
+      "chunk_size": 8,
+      "overlap": 4,
+      "chunks": [
+        [
+          [
+            [
+              "virtual",
+              0,
+              4
+            ]
+          ],
+          4
+        ],
+        [
+          [],
+          0
+        ],
+        [
+          [
+            [
+              "virtual",
+              8,
+              4
+            ]
+          ],
+          12
+        ]
+      ],
+      "expected": []
+    }
+  ],
+  "unresolved_mappings": [
+    {
+      "id": "discontinuous-backing",
+      "sections": [
+        [
+          0,
+          8
+        ]
+      ],
+      "data_hex": "78786e6565646c65",
+      "pattern": "needle",
+      "maps": [
+        [
+          0,
+          4,
+          0,
+          4,
+          "physical"
+        ],
+        [
+          4,
+          4,
+          12,
+          4,
+          "physical"
+        ]
+      ],
+      "chunk_size": 8,
+      "overlap": 4,
+      "chunks": [
+        [
+          [
+            [
+              "virtual",
+              0,
+              4
+            ]
+          ],
+          4
+        ],
+        [
+          [
+            [
+              "virtual",
+              4,
+              4
+            ]
+          ],
+          8
+        ]
+      ],
+      "expected": []
+    },
+    {
+      "id": "leading-empty-chunk",
+      "sections": [
+        [
+          4,
+          4
+        ]
+      ],
+      "data_hex": "7878787878787878",
+      "pattern": "^$",
+      "maps": [
+        [
+          4,
+          4,
+          4,
+          4,
+          "physical"
+        ]
+      ],
+      "chunk_size": 8,
+      "overlap": 4,
+      "chunks": [
+        [
+          [],
+          0
+        ],
+        [
+          [
+            [
+              "virtual",
+              4,
+              4
+            ]
+          ],
+          8
+        ]
+      ],
+      "expected": [
+        0
+      ]
+    }
+  ]
+}

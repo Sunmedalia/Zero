@@ -290,10 +290,11 @@ impl Windows<'_> {
                         &mut result,
                         format!("PID {} syscall scan", process.pid),
                         format!(
-                            "扫描 {} / {} 字节；缺页 {} 字节；不可读候选上下文 {}；{}",
+                            "扫描 {} / {} 字节；缺页 {} 字节；区间合并省略 {} 字节；不可读候选上下文 {}；{}",
                             coverage.scanned_bytes,
                             coverage.requested_bytes,
                             coverage.unreadable_bytes,
+                            coverage.reference_coalescing_omitted_bytes,
                             unreadable_context,
                             coverage.stop_reason.as_deref().unwrap_or("扫描结束")
                         ),

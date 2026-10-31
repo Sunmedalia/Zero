@@ -1102,3 +1102,20 @@ eight analyses (20 protocol calls), preserving partial state and avoiding succes
 cache files. `windows-layer-read-known-limitations.json` binds current proof and
 historical failure summaries to native99. Stable evidence totals 157 positive
 cases (five scoped), zero complete plugin contracts.
+
+Native100 follows the pinned nested/zero-length section coalescing and suppresses
+zero-length hits starting exactly at chunk_size. Original requested byte counts
+are retained; reference coalescing omissions are explicit and keep results partial.
+`regex_sections_vectors.py` covers 36 coalescing and 13 contiguous-map chunk cases
+using actual pinned methods at reduced 8/4 geometry (production stays 16MiB/4KiB).
+Two mapping cases remain explicitly failed in an ignored method test: discontinuous
+backing can be concatenated natively, and the pinned leading empty chunk is absent.
+The failure is retained, not counted as parity. See `regex-sections-known-limitations.json`.
+
+All 29 affected real regressions pass mapped fields and strict sequence on the
+final binary (26 positive, three empty). The final native rerun reuses the same
+batch's fixed reference outputs after input/symbol/argument/mapping/output hash
+and clean pinned-checkout validation; `reference_execution` records that reuse.
+No new positive identities are added: totals remain 157 (five scoped), zero
+complete contracts. The complete gate and release smoke pass; the known mapping
+method test is explicitly excluded from the default gate and still fails when run.
