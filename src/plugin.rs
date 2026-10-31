@@ -2188,7 +2188,7 @@ pub const PLUGINS: &[Descriptor] = &[
 impl Plugin {
     /// Some listing plugins also support explicitly requested artifact exports.
     pub fn accepts_dump(self) -> bool {
-        self.is_dump() || matches!(self, Self::Fbdev | Self::WinMemmap)
+        self.is_dump() || matches!(self, Self::Fbdev | Self::WinMemmap | Self::Lsmod)
     }
     pub fn is_regex_scan(self) -> bool {
         matches!(self, Self::VmaRegExScan | Self::WinVadRegExScan)

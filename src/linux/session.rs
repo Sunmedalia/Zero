@@ -349,7 +349,9 @@ impl Session {
             vm: VirtualMemory::new(&image, root),
             isf: &symbol,
         };
-        let result = if dump.is_some() || request.plugin.is_dump() {
+        let result = if request.plugin == Plugin::Lsmod && dump.is_some() {
+            engine.lsmod_with_dump(dump.context("Lsmod 导出需要目录")?, job)?
+        } else if dump.is_some() || request.plugin.is_dump() {
             engine.run_dump(request.plugin, dump.context("Dump 插件需要转储参数")?, job)?
         } else if request.plugin == Plugin::PsCallStack {
             engine.ps_callstack(options, job)?

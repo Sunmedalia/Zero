@@ -591,6 +591,59 @@ mod tests {
         }
     }
     #[test]
+    fn lsmod_exports_existing_reconstruction_and_preserves_conflicts() {
+        let (mut bytes, mut isf) = fixture();
+        for (name, offset) in [
+            ("list", 48),
+            ("module_core", 64),
+            ("core_size", 72),
+            ("init_size", 80),
+            ("taints", 88),
+        ] {
+            isf.data["user_types"]["module"]["fields"][name] = if name == "list" {
+                json!({"offset":offset,"type":{"kind":"struct","name":"list_head"}})
+            } else {
+                json!({"offset":offset,"type":{"kind":"base","name":"u64"}})
+            };
+        }
+        isf.data["user_types"]["module"]["size"] = json!(96);
+        isf.data["symbols"]["modules"] = json!({"address":0x37000});
+        for (at, value) in [
+            (0x37000, 0x30030),
+            (0x37008, 0x30030),
+            (0x30030, 0x37000),
+            (0x30038, 0x37000),
+            (0x30040, 0x18000),
+            (0x30048, 0x4000),
+        ] {
+            put(&mut bytes, at, value);
+        }
+        let image = super::super::tests::image(&bytes);
+        let linux = super::super::tests::engine(&image, &isf);
+        let expected = linux
+            .reconstructed_module_elf(0x30000, &Job::default())
+            .unwrap();
+        let directory = tempfile::tempdir().unwrap();
+        let mut dump = options(directory.path());
+        dump.start = None;
+        let result = linux.lsmod_with_dump(&dump, &Job::default()).unwrap();
+        let filename = "kernel_module.test.0x30000.elf";
+        assert_eq!(result.rows.len(), 1);
+        assert_eq!(result.rows[0][5], filename);
+        assert_eq!(
+            std::fs::read(directory.path().join(filename)).unwrap(),
+            expected.bytes
+        );
+        let conflict = linux.lsmod_with_dump(&dump, &Job::default()).unwrap();
+        assert!(!conflict.complete);
+        assert_eq!(conflict.rows[0][5], "-");
+        assert_eq!(
+            std::fs::read(directory.path().join(filename)).unwrap(),
+            expected.bytes
+        );
+    }
+
+    #[test]
     fn reconstructed_elf_contains_ordered_payloads_and_normalized_symbols() {
         let (bytes, isf) = fixture();
         let image = super::super::tests::image(&bytes);

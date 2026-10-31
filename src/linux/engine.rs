@@ -294,6 +294,53 @@ impl Linux<'_> {
     }
     /// Processes use directional object recovery; module traversal remains
     /// independently strict until its own recovery evidence is implemented.
+    pub(super) fn lsmod_with_dump(
+        &self,
+        options: &crate::dump::DumpOptions,
+        job: &Job,
+    ) -> Result<Results> {
+        let mut result = self.kernel_list(Plugin::Lsmod, job)?;
+        for index in 0..result.rows.len() {
+            job.check()?;
+            let address = result.rows[index][0].clone();
+            let object = u64::from_str_radix(address.trim_start_matches("0x"), 16)?;
+            let extraction = crate::dump::DumpOptions {
+                pid: 0,
+                start: Some(if self.arm64() {
+                    object
+                } else {
+                    object & ((1u64 << 48) - 1)
+                }),
+                end: None,
+                directory: options.directory.clone(),
+            };
+            let mut output = "-".to_owned();
+            let mut output_type = "NotAvailableValue";
+            match self.extract_module(&extraction, job) {
+                Ok(extracted) => {
+                    if let Some(row) = extracted.rows.first() {
+                        output = row[2].clone();
+                        output_type = "file";
+                    }
+                    if !extracted.complete {
+                        result.complete = false;
+                    }
+                    result.diagnostics.extend(extracted.diagnostics);
+                    result.kernel_identity["module_exports"][format!("{object:#x}")] =
+                        extracted.kernel_identity;
+                }
+                Err(error) => {
+                    job.check()?;
+                    partial(&mut result, format!("module {object:#x} export"), error);
+                }
+            }
+            result.rows[index][5] = output;
+            result.kernel_identity["module_file_output_types"][format!("{object:#x}")] =
+                output_type.into();
+        }
+        Ok(result)
+    }
+
     fn kernel_list(&self, plugin: Plugin, job: &Job) -> Result<Results> {
         if plugin != Plugin::Lsmod {
             return self.process_list(plugin, job);

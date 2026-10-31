@@ -363,7 +363,7 @@ fn main() -> Result<()> {
             Some(zero_tui::dump::DumpOptions {
                 pid: if matches!(
                     plugin,
-                    Plugin::ModuleExtract | Plugin::WinModdump | Plugin::Fbdev
+                    Plugin::ModuleExtract | Plugin::WinModdump | Plugin::Fbdev | Plugin::Lsmod
                 ) {
                     pid.unwrap_or(0)
                 } else {

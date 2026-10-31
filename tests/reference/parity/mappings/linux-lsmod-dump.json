@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "keys": ["offset", "name"],
+  "duplicate_keys": "multiset",
+  "allow_partial": true,
+  "fields": {
+    "offset": {"zero": "Offset", "reference": "Offset", "type": "address", "reference_type": "address48"},
+    "name": {"zero": "Module Name", "reference": "Module Name", "type": "text"},
+    "code_size": {"zero": "Code Size", "reference": "Code Size", "type": "na_integer"},
+    "taints": {"zero": "Taints", "reference": "Taints", "type": "text"},
+    "arguments": {"zero": "Load Arguments", "reference": "Load Arguments", "type": "text"},
+    "file_output": {"zero": "File Output", "reference": "File Output", "type": "na_text", "allow_absent": true}
+  }
+}

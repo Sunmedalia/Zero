@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+  "engine_version": "0.2.1-native-110",
+  "scope": "Explicit Lsmod --dump-dir on the local Debian 3.2 sample; six fields and all exported ELF files compared against pinned linux.lsmod.Lsmod --dump.",
+  "result_path": "target/reference/results/lsmod-dump-native110-pass4/summary.json",
+  "verification": {
+    "rows": 79,
+    "all_six_fields_match": true,
+    "artifact_files": 79,
+    "all_filenames_and_sha256_match": true,
+    "native_complete": false,
+    "partial_policy": "Missing captured ranges remain explicit padding diagnostics; dedicated dump mapping permits partial comparison without changing the default mapping."
+  },
+  "tests": [
+    "lsmod_export_failure_preserves_rows_and_cancellation",
+    "lsmod_exports_existing_reconstruction_and_preserves_conflicts"
+  ],
+  "limitations": [
+    "Does not certify the complete Lsmod contract or all failure and platform dimensions.",
+    "No ARM64 dump parity claim; existing reconstruction rejects unsupported architectures.",
+    "Synthetic success test compares against existing native reconstruction; real pinned sample comparison supplies independent ELF byte evidence.",
+    "Original working tree has unrelated rollback changes; implementation is on align/lsmod-dump-native110."
+  ]
+}

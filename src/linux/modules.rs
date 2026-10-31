@@ -731,6 +731,35 @@ mod tests {
         (bytes, isf)
     }
     #[test]
+    fn lsmod_export_failure_preserves_rows_and_cancellation() {
+        let (bytes, isf) = fixture();
+        let image = super::super::tests::image(&bytes);
+        let linux = super::super::tests::engine(&image, &isf);
+        let directory = tempfile::tempdir().unwrap();
+        let options = crate::dump::DumpOptions {
+            pid: 0,
+            start: None,
+            end: None,
+            directory: directory.path().into(),
+        };
+        options.validate(Plugin::Lsmod).unwrap();
+        let result = linux.lsmod_with_dump(&options, &Job::default()).unwrap();
+        assert!(!result.complete);
+        assert_eq!(result.rows.len(), 1);
+        assert_eq!(result.rows[0][1], "listed");
+        assert_eq!(result.rows[0][5], "-");
+        assert_eq!(
+            result.kernel_identity["module_file_output_types"]["0x34100"],
+            "NotAvailableValue"
+        );
+        assert!(!result.diagnostics.is_empty());
+        assert_eq!(std::fs::read_dir(directory.path()).unwrap().count(), 0);
+        let job = Job::default();
+        job.cancel.store(true, std::sync::atomic::Ordering::Relaxed);
+        assert!(linux.lsmod_with_dump(&options, &job).is_err());
+    }
+
+    #[test]
     fn independent_module_views_and_taints() {
         let (mut bytes, isf) = fixture();
         put(&mut bytes, 0x35100 + 112, 1 | (1 << 12));

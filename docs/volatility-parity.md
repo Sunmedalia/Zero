@@ -519,6 +519,16 @@ make check 通过（501 项 Rust、19 项 Python）；Debian/Kali 四项、可�
 127 个（Linux 62 / Windows 65），固定参考缺失入口为 Windows 27 个。正向全字段用例累计
 39 项，含 2 项限定行范围，覆盖 9 个 Linux / 3 个 Windows 插件；完整插件合同验收仍为 0。
 
+## native110：Lsmod 显式模块导出
+
+Lsmod 支持 `analyze --plugin lsmod --dump-dir DIR`，无需 PID，不接受地址范围。
+逐模块复用原生 ModuleExtract，Intel 文件名使用参考的 48 位地址，默认六列保持不变。
+取消传播，导出冲突不覆盖已有文件；重建失败保留模块行并标记 partial。
+Debian 3.2 固定参考 `linux.lsmod.Lsmod --dump` 实测 79/79 行六列一致，
+79/79 个 ELF 文件名和 SHA256 一致。缺页补零诊断继续保留，专用 dump 映射允许
+比较 partial，不修改默认映射或完整合同计数。证据见
+`tests/reference/parity/lsmod-dump-known-limitations.json`。ARM64 和完整故障合同未验收。
+
 ## Windows DriverIrp 与共享池映射
 
 native43 新增 `windows.driverirp.DriverIrp`（别名 `windows.driverirp`），读取 28 个标准
