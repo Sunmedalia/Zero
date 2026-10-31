@@ -23,7 +23,7 @@ def generate(checkout):
         if arch in ['pae','x64']:
             variants += ['root-pse-bit']
         if arch == 'x64':
-            variants += ['present-high-bit45', 'transition-high-bit45', 'present-high-bit51', 'table-high-bit45']
+            variants += ['canonical-midpoint', 'present-high-bit45', 'transition-high-bit45', 'present-high-bit51', 'table-high-bit45']
         if arch == 'pae':
             variants += ['short-root-page', 'high-physical-bits', 'four-identical-root-entries']
         for label in variants:
@@ -42,6 +42,7 @@ def generate(checkout):
                 put(root,0x2003);leaf=0x2000
             put(leaf,0x8003);put(leaf+width,0x9003);put(leaf+2*width,0x10003)
             holes=[]
+            data_writes=[]
             if label=='backing-hole':holes=[[0x9000,0xa000]]
             elif label=='short-backing-tail':holes=[[0x10fff,0x11000]]
             elif label=='missing-leaf-table':holes=[[leaf,leaf+4096]]
@@ -59,6 +60,12 @@ def generate(checkout):
             elif label=='four-identical-root-entries':
                 for at in range(root,root+32,8):put(at,0x2003)
             elif label=='short-root-page':holes=[[root+32,root+4096]]
+            elif label=='canonical-midpoint':
+                data[0x1000:0x8000]=b'\0'*0x7000;writes=[]
+                put(root+255*8,0x2003);put(0x2000+511*8,0x3003);put(0x3000+511*8,0x4003);put(0x4000+511*8,0x8003)
+                put(root+256*8,0x5003);put(0x5000,0x6003);put(0x6000,0x7003);put(0x7000,0x9003)
+                for at,value in [(0x8ff0,b'A'*16),(0x9000,b'B'*32)]:
+                    data[at:at+len(value)]=value;data_writes.append([at,value.hex()])
             elif label=='final-page':
                 data[0x1000:0x5000]=b'\0'*0x4000;writes=[]
                 if arch=='x64':put(root+511*8,0x2003);put(0x2000+511*8,0x3003);put(0x3000+511*8,0x4003);put(0x4000+511*8,0x8003)
@@ -85,16 +92,23 @@ def generate(checkout):
             addresses=[0,0x123,0x1000,0x2000]
             if label=='final-page':addresses += [maxva-4095,maxva]
             requests=[(at,1) for at in addresses]
+            if label=='basic':requests += [(maxva+1,1),(maxva+1+0x123,1)]
+            if label=='canonical-midpoint':requests += [((1<<47)-8,32),((1<<47),1),((1<<47)+0x10,1)]
             if patterned:requests += [(0x1ff8,32)]
+            for at,read_length in list(requests):
+                canonical=at & maxva
+                if arch=='x64' and canonical & (1<<47):canonical |= 0xffff000000000000
+                requests.append((canonical,read_length))
+            requests=list(dict.fromkeys(requests))
             for at,read_length in requests:
                 try:physical,_,_=layer._translate(at);translate_error=None
                 except exceptions.InvalidAddressException as exc:physical=None;translate_error=type(exc).__name__
                 try:read_hex=layer.read(at,read_length).hex();read_error=None
                 except exceptions.InvalidAddressException as exc:read_hex=None;read_error=type(exc).__name__
                 queries.append(dict(address=at,length=read_length,physical=physical,translate_error=translate_error,read_hex=read_hex,read_error=read_error))
-            cases.append(dict(id=f'{arch}-{label}',arch=arch,width=width,length=length,root=root,writes=writes,holes=holes,patterned=patterned,queries=queries,expected=[[at,size,physical] for at,size,physical,_,_ in mapped]))
+            cases.append(dict(id=f'{arch}-{label}',arch=arch,width=width,length=length,root=root,writes=writes,holes=holes,patterned=patterned,data_writes=data_writes,queries=queries,expected=[[at,size,physical] for at,size,physical,_,_ in mapped]))
     source=checkout/'volatility3/framework/layers/intel.py'
-    return dict(reference_commit=PIN,source_sha256=hashlib.sha256(source.read_bytes()).hexdigest(),scope='Actual WindowsIntel/WindowsIntelPAE/WindowsIntel32e mapping and translation over full synthetic page-table bytes, plus direct translation, one-byte reads and patterned 32-byte reads across 4 KiB boundaries. Physical BufferDataLayer subclass models explicit backing holes. Full default virtual range length excludes maximum_address. Covers contiguous/discontiguous PFNs, missing tables and backing tails, uniform tables, transition/prototype flags, uppermost page, large pages/PAT, reserved PFN bits, transition large pages and PAE root/physical-bit limits and Windows x64 45-bit PFN/software-flag behavior. Does not certify container mapping/decompression, all malformed reserved PFNs, all architectures or complete scan fault reporting.',cases=cases)
+    return dict(reference_commit=PIN,source_sha256=hashlib.sha256(source.read_bytes()).hexdigest(),scope='Actual WindowsIntel/WindowsIntelPAE/WindowsIntel32e mapping and translation over full synthetic page-table bytes, plus direct translation, one-byte reads and patterned 32-byte reads across 4 KiB boundaries. Physical BufferDataLayer subclass models explicit backing holes. Full default virtual range length excludes maximum_address. Covers contiguous/discontiguous PFNs, missing tables and backing tails, uniform tables, transition/prototype flags, uppermost page, large pages/PAT, reserved PFN bits, transition large pages, noncanonical input aliases, contiguous mappings across the x64 canonical midpoint and PAE root/physical-bit limits and Windows x64 45-bit PFN/software-flag behavior. Does not certify container mapping/decompression, all malformed reserved PFNs, all architectures or complete scan fault reporting.',cases=cases)
 
 
 if __name__=='__main__':

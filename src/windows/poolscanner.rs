@@ -583,9 +583,10 @@ impl Windows<'_> {
         };
         self.walk_kernel_pages(self.vm.root, 0, 0, &geometry, &mut |va, physical, shift| {
             job.check()?;
+            let va = va & self.driver_address_mask();
             // The reference's default section excludes maximum_address.
-            // Clip in the layer's native address domain before canonicalizing
-            // its end, including the final x64 page at u64::MAX.
+            // Clip and coalesce in the layer's native address domain. Extending
+            // addresses first would split a contiguous range at the sign bit.
             let size =
                 (1u64 << shift).min(self.driver_address_mask() - (va & self.driver_address_mask()));
             if size == 0 || !self.pool_captured_span(physical, size) {
@@ -606,7 +607,10 @@ impl Windows<'_> {
             Ok(())
         })?;
         flush(&mut ranges, &mut current);
-        Ok(ranges)
+        Ok(ranges
+            .into_iter()
+            .map(|(start, size, physical)| (self.pool_reference_pointer(start), size, physical))
+            .collect())
     }
 
     fn pool_captured_span(&self, mut physical: u64, mut length: u64) -> bool {
@@ -1344,6 +1348,14 @@ mod tests {
                     bytes[page..page + 4096].fill(((page / 4096) % 251) as u8);
                 }
             }
+            for write in case["data_writes"].as_array().unwrap() {
+                let at = write[0].as_u64().unwrap() as usize;
+                let value = write[1].as_str().unwrap();
+                for (index, pair) in value.as_bytes().chunks_exact(2).enumerate() {
+                    bytes[at + index] =
+                        u8::from_str_radix(std::str::from_utf8(pair).unwrap(), 16).unwrap();
+                }
+            }
             let mut snapshot = image(&bytes);
             snapshot.segments.clear();
             let mut start = 0;
@@ -1369,7 +1381,7 @@ mod tests {
                 pdb: PdbIdentity::from_isf(&isf).unwrap(),
             };
             for query in case["queries"].as_array().unwrap() {
-                let address = windows.pool_reference_pointer(query["address"].as_u64().unwrap());
+                let address = query["address"].as_u64().unwrap();
                 let translated = windows.vm.translate(address);
                 match query["physical"].as_u64() {
                     Some(expected) => {
@@ -1394,6 +1406,11 @@ mod tests {
                     assert_eq!(captured, byte);
                 } else {
                     assert!(read.is_err(), "{} {query}", case["id"]);
+                    assert!(
+                        windows.vm.read_captured(address, &mut byte).is_err(),
+                        "{} {query}",
+                        case["id"]
+                    );
                 }
             }
             let ranges = windows.pool_virtual_ranges(&Job::default()).unwrap();

@@ -907,3 +907,21 @@ Evidence remains 125 positive cases (five scoped), zero complete plugin contract
 `make check`, release package smoke and gzip-crash process/network acceptance
 (120/108 rows, DTB and exact TCP/IP identity) pass. Large mapping read sizes are
 limited in u64 before conversion to usize for 32-bit hosts.
+
+Native91 normalizes Intel translation inputs to their architectural address bits
+before cache lookup; canonical pointer validation remains distinct, and ARM64
+keeps its address checks. Prototype/pagefile entry points use the same input
+interpretation. Pool mappings coalesce in the native address domain before sign
+extending their output starts, preserving physical/virtual continuity across the
+x64 sign boundary. Actual pinned-reference vectors now contain 55 cases and
+257 queries, including raw and canonical aliases and patterned 32-byte reads
+across the midpoint. Native tests pass the queried raw address directly and check
+captured failure states as well as successful bytes. This does not certify all
+architectures, u64-overflow reads, software paging combinations or fault contracts.
+
+Final native91 repeats the five groups (22 real cases): mapped fields and
+multiplicities pass, and 21 strict sequences pass. Windows GUI child ordering
+retains its known difference at index 245. `*-native91` raw reports bind one
+binary. Evidence stays at 125 positive cases (five scoped), zero complete plugin
+contracts. `make check`, package smoke in unrelated/empty-PATH environments and
+release gzip-crash acceptance (PsList120/Netscan108 with DTB/TCP-IP checks) pass.

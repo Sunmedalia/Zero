@@ -125,6 +125,22 @@ impl Paging {
             _ => va >> 47 == 0 || va >> 47 == 0x1ffff,
         }
     }
+    /// Intel translation indexes the architectural address bits even when the
+    /// caller supplies a noncanonical alias. Pointer validity is a separate check.
+    pub fn translation_address(self, va: u64) -> u64 {
+        match self.arch {
+            Architecture::X86 => va & 0xffff_ffff,
+            Architecture::X64 => {
+                let va = va & 0xffff_ffff_ffff;
+                if va & (1 << 47) != 0 {
+                    va | 0xffff_0000_0000_0000
+                } else {
+                    va
+                }
+            }
+            _ => va,
+        }
+    }
     pub fn extend(self, va: u64) -> u64 {
         if self.arch == Architecture::X86 {
             va
@@ -159,6 +175,7 @@ mod tests {
         let img = image(&b);
         let vm = Memory::new(&img, 0x1000, &isf, None);
         assert_eq!(vm.translate(K + 0x1234).unwrap(), 0x9234);
+        assert!(vm.translate(0x0001_0000_0000_1234).is_err());
         assert_eq!(discover(&img, &isf, &Job::default()).unwrap(), (0x1000, K));
         put(&mut b, 0x3000, 0x200001);
         let img = image(&b);
@@ -181,7 +198,7 @@ mod tests {
         let img = image(&b);
         let vm = Memory::new(&img, 0x1000, &isf, None);
         assert_eq!(vm.translate(0x80000123).unwrap(), 0x8123);
-        assert!(vm.translate(0x1_80000123).is_err());
+        assert_eq!(vm.translate(0x1_80000123).unwrap(), 0x8123);
         b[0x1800..0x1804].copy_from_slice(&0x400083u32.to_le_bytes());
         let img = image(&b);
         assert_eq!(

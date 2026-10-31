@@ -193,13 +193,16 @@ fn transition_prototype_missing_and_linux_isolation() {
     let vm = Memory::new(&image, 0x1000, &isf, None);
     assert_eq!(vm.uint(K + 0x1000, 1).unwrap(), 42);
     assert_eq!(vm.uint(K + 0x2000, 1).unwrap(), 19);
+    assert_eq!(vm.uint((K + 0x1000) & 0xffff_ffff_ffff, 1).unwrap(), 42);
+    assert_eq!(vm.uint((K + 0x2000) & 0xffff_ffff_ffff, 1).unwrap(), 19);
     assert!(
         VirtualMemory::new(&image, 0x1000)
             .translate(K + 0x1000)
             .is_err()
     );
     assert!(vm.uint(K + 0x30000, 1).is_err());
-    assert!(vm.uint(0x800000000000, 1).is_err());
+    assert!(!vm.paging().unwrap().canonical(0x800000000000));
+    assert_eq!(vm.uint(0x800000000000, 1).unwrap(), vm.uint(K, 1).unwrap());
 }
 #[test]
 fn arm64_transition_prototype_and_recursive_page_rejection() {

@@ -1,7 +1,7 @@
 {
   "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
   "source_sha256": "01ea3e198f9c4226cb8c06280facbf9b8cc0990863301f82f991e5609908f716",
-  "scope": "Actual WindowsIntel/WindowsIntelPAE/WindowsIntel32e mapping and translation over full synthetic page-table bytes, plus direct translation, one-byte reads and patterned 32-byte reads across 4 KiB boundaries. Physical BufferDataLayer subclass models explicit backing holes. Full default virtual range length excludes maximum_address. Covers contiguous/discontiguous PFNs, missing tables and backing tails, uniform tables, transition/prototype flags, uppermost page, large pages/PAT, reserved PFN bits, transition large pages and PAE root/physical-bit limits and Windows x64 45-bit PFN/software-flag behavior. Does not certify container mapping/decompression, all malformed reserved PFNs, all architectures or complete scan fault reporting.",
+  "scope": "Actual WindowsIntel/WindowsIntelPAE/WindowsIntel32e mapping and translation over full synthetic page-table bytes, plus direct translation, one-byte reads and patterned 32-byte reads across 4 KiB boundaries. Physical BufferDataLayer subclass models explicit backing holes. Full default virtual range length excludes maximum_address. Covers contiguous/discontiguous PFNs, missing tables and backing tails, uniform tables, transition/prototype flags, uppermost page, large pages/PAT, reserved PFN bits, transition large pages, noncanonical input aliases, contiguous mappings across the x64 canonical midpoint and PAE root/physical-bit limits and Windows x64 45-bit PFN/software-flag behavior. Does not certify container mapping/decompression, all malformed reserved PFNs, all architectures or complete scan fault reporting.",
   "cases": [
     {
       "id": "x86-basic",
@@ -29,6 +29,7 @@
       ],
       "holes": [],
       "patterned": false,
+      "data_writes": [],
       "queries": [
         {
           "address": 0,
@@ -58,6 +59,22 @@
           "address": 8192,
           "length": 1,
           "physical": 65536,
+          "translate_error": null,
+          "read_hex": "00",
+          "read_error": null
+        },
+        {
+          "address": 4294967296,
+          "length": 1,
+          "physical": 32768,
+          "translate_error": null,
+          "read_hex": "00",
+          "read_error": null
+        },
+        {
+          "address": 4294967587,
+          "length": 1,
+          "physical": 33059,
           "translate_error": null,
           "read_hex": "00",
           "read_error": null
@@ -107,6 +124,7 @@
         ]
       ],
       "patterned": false,
+      "data_writes": [],
       "queries": [
         {
           "address": 0,
@@ -185,6 +203,7 @@
         ]
       ],
       "patterned": false,
+      "data_writes": [],
       "queries": [
         {
           "address": 0,
@@ -258,6 +277,7 @@
         ]
       ],
       "patterned": false,
+      "data_writes": [],
       "queries": [
         {
           "address": 0,
@@ -325,6 +345,7 @@
         ]
       ],
       "patterned": false,
+      "data_writes": [],
       "queries": [
         {
           "address": 0,
@@ -4483,6 +4504,7 @@
       ],
       "holes": [],
       "patterned": false,
+      "data_writes": [],
       "queries": [
         {
           "address": 0,
@@ -4549,6 +4571,7 @@
       ],
       "holes": [],
       "patterned": false,
+      "data_writes": [],
       "queries": [
         {
           "address": 0,
@@ -4626,6 +4649,7 @@
       ],
       "holes": [],
       "patterned": false,
+      "data_writes": [],
       "queries": [
         {
           "address": 0,
@@ -4691,6 +4715,7 @@
       ],
       "holes": [],
       "patterned": false,
+      "data_writes": [],
       "queries": [
         {
           "address": 0,
@@ -4779,6 +4804,7 @@
       ],
       "holes": [],
       "patterned": true,
+      "data_writes": [],
       "queries": [
         {
           "address": 0,
@@ -4859,6 +4885,7 @@
       ],
       "holes": [],
       "patterned": true,
+      "data_writes": [],
       "queries": [
         {
           "address": 0,
@@ -4944,6 +4971,7 @@
         ]
       ],
       "patterned": true,
+      "data_writes": [],
       "queries": [
         {
           "address": 0,
@@ -5022,6 +5050,7 @@
       ],
       "holes": [],
       "patterned": true,
+      "data_writes": [],
       "queries": [
         {
           "address": 0,
@@ -5100,6 +5129,7 @@
       ],
       "holes": [],
       "patterned": true,
+      "data_writes": [],
       "queries": [
         {
           "address": 0,
@@ -5178,6 +5208,7 @@
       ],
       "holes": [],
       "patterned": true,
+      "data_writes": [],
       "queries": [
         {
           "address": 0,
@@ -5258,6 +5289,7 @@
       ],
       "holes": [],
       "patterned": false,
+      "data_writes": [],
       "queries": [
         {
           "address": 0,
@@ -5287,6 +5319,22 @@
           "address": 8192,
           "length": 1,
           "physical": 65536,
+          "translate_error": null,
+          "read_hex": "00",
+          "read_error": null
+        },
+        {
+          "address": 4294967296,
+          "length": 1,
+          "physical": 32768,
+          "translate_error": null,
+          "read_hex": "00",
+          "read_error": null
+        },
+        {
+          "address": 4294967587,
+          "length": 1,
+          "physical": 33059,
           "translate_error": null,
           "read_hex": "00",
           "read_error": null
@@ -5340,6 +5388,7 @@
         ]
       ],
       "patterned": false,
+      "data_writes": [],
       "queries": [
         {
           "address": 0,
@@ -5422,6 +5471,7 @@
         ]
       ],
       "patterned": false,
+      "data_writes": [],
       "queries": [
         {
           "address": 0,
@@ -5499,6 +5549,7 @@
         ]
       ],
       "patterned": false,
+      "data_writes": [],
       "queries": [
         {
           "address": 0,
@@ -5570,6 +5621,7 @@
         ]
       ],
       "patterned": false,
+      "data_writes": [],
       "queries": [
         {
           "address": 0,
@@ -7684,6 +7736,7 @@
       ],
       "holes": [],
       "patterned": false,
+      "data_writes": [],
       "queries": [
         {
           "address": 0,
@@ -7754,6 +7807,7 @@
       ],
       "holes": [],
       "patterned": false,
+      "data_writes": [],
       "queries": [
         {
           "address": 0,
@@ -7835,6 +7889,7 @@
       ],
       "holes": [],
       "patterned": false,
+      "data_writes": [],
       "queries": [
         {
           "address": 0,
@@ -7904,6 +7959,7 @@
       ],
       "holes": [],
       "patterned": false,
+      "data_writes": [],
       "queries": [
         {
           "address": 0,
@@ -7996,6 +8052,7 @@
       ],
       "holes": [],
       "patterned": true,
+      "data_writes": [],
       "queries": [
         {
           "address": 0,
@@ -8080,6 +8137,7 @@
       ],
       "holes": [],
       "patterned": true,
+      "data_writes": [],
       "queries": [
         {
           "address": 0,
@@ -8169,6 +8227,7 @@
         ]
       ],
       "patterned": true,
+      "data_writes": [],
       "queries": [
         {
           "address": 0,
@@ -8251,6 +8310,7 @@
       ],
       "holes": [],
       "patterned": true,
+      "data_writes": [],
       "queries": [
         {
           "address": 0,
@@ -8339,6 +8399,7 @@
       ],
       "holes": [],
       "patterned": true,
+      "data_writes": [],
       "queries": [
         {
           "address": 0,
@@ -8427,6 +8488,7 @@
       ],
       "holes": [],
       "patterned": true,
+      "data_writes": [],
       "queries": [
         {
           "address": 0,
@@ -8511,6 +8573,7 @@
       ],
       "holes": [],
       "patterned": false,
+      "data_writes": [],
       "queries": [
         {
           "address": 0,
@@ -8593,6 +8656,7 @@
         ]
       ],
       "patterned": false,
+      "data_writes": [],
       "queries": [
         {
           "address": 0,
@@ -8663,6 +8727,7 @@
       ],
       "holes": [],
       "patterned": false,
+      "data_writes": [],
       "queries": [
         {
           "address": 0,
@@ -8756,6 +8821,7 @@
       ],
       "holes": [],
       "patterned": false,
+      "data_writes": [],
       "queries": [
         {
           "address": 0,
@@ -8867,6 +8933,7 @@
       ],
       "holes": [],
       "patterned": false,
+      "data_writes": [],
       "queries": [
         {
           "address": 0,
@@ -8896,6 +8963,22 @@
           "address": 8192,
           "length": 1,
           "physical": 65536,
+          "translate_error": null,
+          "read_hex": "00",
+          "read_error": null
+        },
+        {
+          "address": 281474976710656,
+          "length": 1,
+          "physical": 32768,
+          "translate_error": null,
+          "read_hex": "00",
+          "read_error": null
+        },
+        {
+          "address": 281474976710947,
+          "length": 1,
+          "physical": 33059,
           "translate_error": null,
           "read_hex": "00",
           "read_error": null
@@ -8953,6 +9036,7 @@
         ]
       ],
       "patterned": false,
+      "data_writes": [],
       "queries": [
         {
           "address": 0,
@@ -9039,6 +9123,7 @@
         ]
       ],
       "patterned": false,
+      "data_writes": [],
       "queries": [
         {
           "address": 0,
@@ -9120,6 +9205,7 @@
         ]
       ],
       "patterned": false,
+      "data_writes": [],
       "queries": [
         {
           "address": 0,
@@ -9195,6 +9281,7 @@
         ]
       ],
       "patterned": false,
+      "data_writes": [],
       "queries": [
         {
           "address": 0,
@@ -11313,6 +11400,7 @@
       ],
       "holes": [],
       "patterned": false,
+      "data_writes": [],
       "queries": [
         {
           "address": 0,
@@ -11387,6 +11475,7 @@
       ],
       "holes": [],
       "patterned": false,
+      "data_writes": [],
       "queries": [
         {
           "address": 0,
@@ -11472,6 +11561,7 @@
       ],
       "holes": [],
       "patterned": false,
+      "data_writes": [],
       "queries": [
         {
           "address": 0,
@@ -11545,6 +11635,7 @@
       ],
       "holes": [],
       "patterned": false,
+      "data_writes": [],
       "queries": [
         {
           "address": 0,
@@ -11588,6 +11679,22 @@
         },
         {
           "address": 281474976710655,
+          "length": 1,
+          "physical": 36863,
+          "translate_error": null,
+          "read_hex": "00",
+          "read_error": null
+        },
+        {
+          "address": 18446744073709547520,
+          "length": 1,
+          "physical": 32768,
+          "translate_error": null,
+          "read_hex": "00",
+          "read_error": null
+        },
+        {
+          "address": 18446744073709551615,
           "length": 1,
           "physical": 36863,
           "translate_error": null,
@@ -11641,6 +11748,7 @@
       ],
       "holes": [],
       "patterned": true,
+      "data_writes": [],
       "queries": [
         {
           "address": 0,
@@ -11729,6 +11837,7 @@
       ],
       "holes": [],
       "patterned": true,
+      "data_writes": [],
       "queries": [
         {
           "address": 0,
@@ -11822,6 +11931,7 @@
         ]
       ],
       "patterned": true,
+      "data_writes": [],
       "queries": [
         {
           "address": 0,
@@ -11908,6 +12018,7 @@
       ],
       "holes": [],
       "patterned": true,
+      "data_writes": [],
       "queries": [
         {
           "address": 0,
@@ -12000,6 +12111,7 @@
       ],
       "holes": [],
       "patterned": true,
+      "data_writes": [],
       "queries": [
         {
           "address": 0,
@@ -12092,6 +12204,7 @@
       ],
       "holes": [],
       "patterned": true,
+      "data_writes": [],
       "queries": [
         {
           "address": 0,
@@ -12180,6 +12293,7 @@
       ],
       "holes": [],
       "patterned": false,
+      "data_writes": [],
       "queries": [
         {
           "address": 0,
@@ -12228,6 +12342,140 @@
       ]
     },
     {
+      "id": "x64-canonical-midpoint",
+      "arch": "x64",
+      "width": 8,
+      "length": 131072,
+      "root": 4096,
+      "writes": [
+        [
+          6136,
+          8195
+        ],
+        [
+          12280,
+          12291
+        ],
+        [
+          16376,
+          16387
+        ],
+        [
+          20472,
+          32771
+        ],
+        [
+          6144,
+          20483
+        ],
+        [
+          20480,
+          24579
+        ],
+        [
+          24576,
+          28675
+        ],
+        [
+          28672,
+          36867
+        ]
+      ],
+      "holes": [],
+      "patterned": false,
+      "data_writes": [
+        [
+          36848,
+          "41414141414141414141414141414141"
+        ],
+        [
+          36864,
+          "4242424242424242424242424242424242424242424242424242424242424242"
+        ]
+      ],
+      "queries": [
+        {
+          "address": 0,
+          "length": 1,
+          "physical": null,
+          "translate_error": "PagedInvalidAddressException",
+          "read_hex": null,
+          "read_error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 291,
+          "length": 1,
+          "physical": null,
+          "translate_error": "PagedInvalidAddressException",
+          "read_hex": null,
+          "read_error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 4096,
+          "length": 1,
+          "physical": null,
+          "translate_error": "PagedInvalidAddressException",
+          "read_hex": null,
+          "read_error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 8192,
+          "length": 1,
+          "physical": null,
+          "translate_error": "PagedInvalidAddressException",
+          "read_hex": null,
+          "read_error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 140737488355320,
+          "length": 32,
+          "physical": 36856,
+          "translate_error": null,
+          "read_hex": "4141414141414141424242424242424242424242424242424242424242424242",
+          "read_error": null
+        },
+        {
+          "address": 140737488355328,
+          "length": 1,
+          "physical": 36864,
+          "translate_error": null,
+          "read_hex": "42",
+          "read_error": null
+        },
+        {
+          "address": 140737488355344,
+          "length": 1,
+          "physical": 36880,
+          "translate_error": null,
+          "read_hex": "42",
+          "read_error": null
+        },
+        {
+          "address": 18446603336221196288,
+          "length": 1,
+          "physical": 36864,
+          "translate_error": null,
+          "read_hex": "42",
+          "read_error": null
+        },
+        {
+          "address": 18446603336221196304,
+          "length": 1,
+          "physical": 36880,
+          "translate_error": null,
+          "read_hex": "42",
+          "read_error": null
+        }
+      ],
+      "expected": [
+        [
+          140737488351232,
+          8192,
+          32768
+        ]
+      ]
+    },
+    {
       "id": "x64-present-high-bit45",
       "arch": "x64",
       "width": 8,
@@ -12265,6 +12513,7 @@
       ],
       "holes": [],
       "patterned": false,
+      "data_writes": [],
       "queries": [
         {
           "address": 0,
@@ -12350,6 +12599,7 @@
       ],
       "holes": [],
       "patterned": false,
+      "data_writes": [],
       "queries": [
         {
           "address": 0,
@@ -12435,6 +12685,7 @@
       ],
       "holes": [],
       "patterned": false,
+      "data_writes": [],
       "queries": [
         {
           "address": 0,
@@ -12520,6 +12771,7 @@
       ],
       "holes": [],
       "patterned": false,
+      "data_writes": [],
       "queries": [
         {
           "address": 0,

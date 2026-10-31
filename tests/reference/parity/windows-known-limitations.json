@@ -17,7 +17,7 @@
       "reason": "Both engines return no windows. This is a negative observation, not proof that every Windows 7 image is empty."
     }
   ],
-  "engine_version": "0.2.1-native-90",
+  "engine_version": "0.2.1-native-91",
   "known_limitations": [
     "One positive Win10 x64 capture does not verify the complete plugin contract. Win7 empty agreement is non-positive evidence.",
     "Real x86 GUI support, other builds and full traversal/failure behavior remain unverified. Unavailable procedure classification and field-page faults are now covered synthetically; no separate real fault image has been validated.",
@@ -92,7 +92,7 @@
             "summary": true,
             "groups": 1457,
             "records": 2914,
-            "keys_and_counts_sha256": "dffd2f285069f4d45c7e65ba9e10b903fe4f222786b038a1157e2c66bd3e2fa9"
+            "keys_and_counts_sha256": "343015c12a6f7ab63cb36d9b98a6d7034cc2fd3724ffd4aa6c690943e3a044ee"
           }
         ],
         "duplicate_keys": "multiset",
@@ -108,11 +108,11 @@
       },
       "passed": true,
       "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
-      "reference_output_sha256": "167c2c3a9cca4f15e97f6d0dae03bb71d042aad13ea1c507697680445fba0eb2",
+      "reference_output_sha256": "f30a0980a5f2f31a295956cd4d822ce6de7bf1cf68b48608408c3e3543257cb1",
       "symbol_sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4",
-      "zero_executable_sha256": "c091fcb17225cc22425efe719467e70cd2ca4813c9200b0a144e3f783351bb23",
-      "engine_version": "0.2.1-native-90",
-      "full_comparison_sha256": "d98493a556f074f5759e4e862ff336aeb922dc19601e34603973d3ce204e5134",
+      "zero_executable_sha256": "328ed3e63513204a1d6d81806882a46d277be1d3b97306eb1cbc4e6600aef81f",
+      "engine_version": "0.2.1-native-91",
+      "full_comparison_sha256": "4521c3b0fd4400f6a39c7df81f9e72588bf9715654926ecc450cd8bfedfbc9bb",
       "comparison_details": "Diagnostic entries and duplicate groups summarized; complete raw comparison retained in local run.py artifact and bound by full_comparison_sha256. Native/reference JSON digests permit independent reproduction. Any record_selection scope remains explicit.",
       "record_order": {
         "case_id": "windows-10-15063/windows-default",
@@ -124,17 +124,17 @@
         "positive_evidence": true,
         "first_difference": 245,
         "zero_sha256": "d9bca8f4c1edc77a21ae8ae66a038bb76c2ccb0c941b25d815dbaf0f61b3cb45",
-        "reference_sha256": "79fcf9728fb84b4023acfa9ba44575508b6eb79adfe65d54c7dc7d3f1030a529",
+        "reference_sha256": "be83a2a024427940b62f92fb73f674fa2b54d4d1efdc3b02284a829768201191",
         "scope": "All mapped fields in emitted sequence after declared record selection; duplicate occurrences retained.",
         "mapping_sha256": "9b937883de8e43036d6540e990c087428c2c6b5e656d7c85bd012075092bb2d7",
         "native_output_sha256": "cca607539a898408b35cc73001db26456583de6fe50860f089e8ded73805299c",
-        "reference_output_sha256": "167c2c3a9cca4f15e97f6d0dae03bb71d042aad13ea1c507697680445fba0eb2"
+        "reference_output_sha256": "f30a0980a5f2f31a295956cd4d822ce6de7bf1cf68b48608408c3e3543257cb1"
       }
     }
   ],
-  "zero_executable_sha256": "c091fcb17225cc22425efe719467e70cd2ca4813c9200b0a144e3f783351bb23",
+  "zero_executable_sha256": "328ed3e63513204a1d6d81806882a46d277be1d3b97306eb1cbc4e6600aef81f",
   "name_vectors_sha256": "bd3762cf478867f07887f4c7b4c799b4af2f7fdf0f70de84fa710cc4893aa5b9",
-  "validation": "Final native90 binary and unmodified fixed reference, real default/scoped cases compare all mapped fields and multiplicities. Historical cases not rerun retain their own per-case versions. Empty agreement is not positive evidence; no complete plugin contract is claimed.",
+  "validation": "Final native91 binary and unmodified fixed reference, real default/scoped cases compare all mapped fields and multiplicities. Historical cases not rerun retain their own per-case versions. Empty agreement is not positive evidence; no complete plugin contract is claimed.",
   "reference_window_generator_sha256": "0a6b565b31b6537a6bd6f8a3e9be37795b8b078e67fb49387980d865b486d39f",
   "procedure_vectors_sha256": "7e71639b59f4a257abfb1e1ddf66e764a2b912dad8709fa773882150dfd089ff",
   "reference_record_order": {
@@ -173,26 +173,34 @@
     "remaining": "Mapping enumeration, all backing formats, tags split across distinct mapping ranges, damaged-page/fault diagnostics and full plugin coverage remain unverified."
   },
   "mapping_vectors": {
-    "sha256": "75da2a1dd33d047d687dcdd801dbcde727a33f027504a1cb2d86574e6828630c",
-    "cases": 54,
-    "scope": "Actual WindowsIntel/WindowsIntelPAE/WindowsIntel32e mapping and translation over full synthetic page-table bytes, plus direct translation, one-byte reads and patterned 32-byte reads across 4 KiB boundaries. Physical BufferDataLayer subclass models explicit backing holes. Full default virtual range length excludes maximum_address. Covers contiguous/discontiguous PFNs, missing tables and backing tails, uniform tables, transition/prototype flags, uppermost page, large pages/PAT, reserved PFN bits, transition large pages and PAE root/physical-bit limits and Windows x64 45-bit PFN/software-flag behavior. Does not certify container mapping/decompression, all malformed reserved PFNs, all architectures or complete scan fault reporting.",
+    "sha256": "4b49e6ab53374139fbd629d44aa4d99b0a3a2dffa994c75daed8f9e13b6f7a3f",
+    "cases": 55,
+    "scope": "Actual WindowsIntel/WindowsIntelPAE/WindowsIntel32e mapping and translation over full synthetic page-table bytes, plus direct translation, one-byte reads and patterned 32-byte reads across 4 KiB boundaries. Physical BufferDataLayer subclass models explicit backing holes. Full default virtual range length excludes maximum_address. Covers contiguous/discontiguous PFNs, missing tables and backing tails, uniform tables, transition/prototype flags, uppermost page, large pages/PAT, reserved PFN bits, transition large pages, noncanonical input aliases, contiguous mappings across the x64 canonical midpoint and PAE root/physical-bit limits and Windows x64 45-bit PFN/software-flag behavior. Does not certify container mapping/decompression, all malformed reserved PFNs, all architectures or complete scan fault reporting.",
     "implementation": "Compare all virtual range starts, lengths and physical starts; backing holes rejected before coalescing, native-domain maximum-address clipping, full PAE root table validation, level-specific large pages and PAE physical mask",
     "remaining": "All container mapping/decompression, arbitrary reserved PFNs, custom transition layouts, table resource/cancellation limits and full scan fault reporting remain unverified."
   },
   "captured_table_validation": {
-    "vectors_sha256": "75da2a1dd33d047d687dcdd801dbcde727a33f027504a1cb2d86574e6828630c",
-    "cases": 54,
-    "direct_queries": 240,
-    "scope": "Actual WindowsIntel/WindowsIntelPAE/WindowsIntel32e mapping and translation over full synthetic page-table bytes, plus direct translation, one-byte reads and patterned 32-byte reads across 4 KiB boundaries. Physical BufferDataLayer subclass models explicit backing holes. Full default virtual range length excludes maximum_address. Covers contiguous/discontiguous PFNs, missing tables and backing tails, uniform tables, transition/prototype flags, uppermost page, large pages/PAT, reserved PFN bits, transition large pages and PAE root/physical-bit limits and Windows x64 45-bit PFN/software-flag behavior. Does not certify container mapping/decompression, all malformed reserved PFNs, all architectures or complete scan fault reporting.",
+    "vectors_sha256": "4b49e6ab53374139fbd629d44aa4d99b0a3a2dffa994c75daed8f9e13b6f7a3f",
+    "cases": 55,
+    "direct_queries": 257,
+    "scope": "Actual WindowsIntel/WindowsIntelPAE/WindowsIntel32e mapping and translation over full synthetic page-table bytes, plus direct translation, one-byte reads and patterned 32-byte reads across 4 KiB boundaries. Physical BufferDataLayer subclass models explicit backing holes. Full default virtual range length excludes maximum_address. Covers contiguous/discontiguous PFNs, missing tables and backing tails, uniform tables, transition/prototype flags, uppermost page, large pages/PAT, reserved PFN bits, transition large pages, noncanonical input aliases, contiguous mappings across the x64 canonical midpoint and PAE root/physical-bit limits and Windows x64 45-bit PFN/software-flag behavior. Does not certify container mapping/decompression, all malformed reserved PFNs, all architectures or complete scan fault reporting.",
     "implementation": "Intel captured table walks validate a complete 4 KiB table and reject uniformly repeated entries; ordinary translation, prototype lookup, physical part of pagefile traversal and absent-page hints share that gate. A bounded validity LRU caches successes and failures; ARM64 table behavior remains separate. Reads permit the last native-domain byte without unsigned overflow.",
     "remaining": "Exact exception/log contracts, arbitrary malformed pages, swap-backed table validation, all container layouts and complete plugin contracts remain unverified."
   },
   "large_page_reads": {
-    "vectors_sha256": "75da2a1dd33d047d687dcdd801dbcde727a33f027504a1cb2d86574e6828630c",
-    "cases": 54,
-    "queries": 240,
-    "scope": "Actual WindowsIntel/WindowsIntelPAE/WindowsIntel32e mapping and translation over full synthetic page-table bytes, plus direct translation, one-byte reads and patterned 32-byte reads across 4 KiB boundaries. Physical BufferDataLayer subclass models explicit backing holes. Full default virtual range length excludes maximum_address. Covers contiguous/discontiguous PFNs, missing tables and backing tails, uniform tables, transition/prototype flags, uppermost page, large pages/PAT, reserved PFN bits, transition large pages and PAE root/physical-bit limits and Windows x64 45-bit PFN/software-flag behavior. Does not certify container mapping/decompression, all malformed reserved PFNs, all architectures or complete scan fault reporting.",
+    "vectors_sha256": "4b49e6ab53374139fbd629d44aa4d99b0a3a2dffa994c75daed8f9e13b6f7a3f",
+    "cases": 55,
+    "queries": 257,
+    "scope": "Actual WindowsIntel/WindowsIntelPAE/WindowsIntel32e mapping and translation over full synthetic page-table bytes, plus direct translation, one-byte reads and patterned 32-byte reads across 4 KiB boundaries. Physical BufferDataLayer subclass models explicit backing holes. Full default virtual range length excludes maximum_address. Covers contiguous/discontiguous PFNs, missing tables and backing tails, uniform tables, transition/prototype flags, uppermost page, large pages/PAT, reserved PFN bits, transition large pages, noncanonical input aliases, contiguous mappings across the x64 canonical midpoint and PAE root/physical-bit limits and Windows x64 45-bit PFN/software-flag behavior. Does not certify container mapping/decompression, all malformed reserved PFNs, all architectures or complete scan fault reporting.",
     "implementation": "Intel large translations preserve PFN address bits except PAT and OR the virtual block offset; cached translations retain mapping shift. Reads consume the current mapped extent rather than remapping every 4 KiB, matching reference direct-read behavior for reserved PFN bits. Transition entry flags are retained for the level-specific large-page check.",
-    "remaining": "All reserved-bit combinations, canonical midpoint coalescing, software/pagefile-backed extents and full fault contracts remain unverified."
+    "remaining": "All reserved-bit combinations, software/pagefile-backed extents and full fault contracts remain unverified."
+  },
+  "intel_address_domain": {
+    "vectors_sha256": "4b49e6ab53374139fbd629d44aa4d99b0a3a2dffa994c75daed8f9e13b6f7a3f",
+    "cases": 55,
+    "queries": 257,
+    "scope": "Actual WindowsIntel/WindowsIntelPAE/WindowsIntel32e mapping and translation over full synthetic page-table bytes, plus direct translation, one-byte reads and patterned 32-byte reads across 4 KiB boundaries. Physical BufferDataLayer subclass models explicit backing holes. Full default virtual range length excludes maximum_address. Covers contiguous/discontiguous PFNs, missing tables and backing tails, uniform tables, transition/prototype flags, uppermost page, large pages/PAT, reserved PFN bits, transition large pages, noncanonical input aliases, contiguous mappings across the x64 canonical midpoint and PAE root/physical-bit limits and Windows x64 45-bit PFN/software-flag behavior. Does not certify container mapping/decompression, all malformed reserved PFNs, all architectures or complete scan fault reporting.",
+    "implementation": "Intel translation cache keys normalize to the architectural address domain; prototype/pagefile entry points share normalization. Canonical pointer checks remain distinct and ARM64 validation stays independent. Pool mappings clip and coalesce in the native address domain before extending output starts, preserving continuous physical/virtual mappings across the x64 sign boundary. Native queries use unmodified raw addresses, compare captured success bytes/failures, and include patterned reads across the midpoint.",
+    "remaining": "All architectures, requests extending past u64::MAX, all software paging combinations and complete fault/parameter contracts remain unverified."
   }
 }

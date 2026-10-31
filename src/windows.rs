@@ -152,6 +152,7 @@ impl<'a> Memory<'a> {
         self.translate_span(va).map(|(physical, _)| physical)
     }
     fn translate_span(&self, va: u64) -> Result<(u64, u64)> {
+        let va = self.paging()?.translation_address(va);
         let page = va & !4095;
         let cached = self
             .pages
@@ -242,7 +243,7 @@ impl<'a> Memory<'a> {
     /// holes produce no hint and still pass through the normal recovery reader.
     pub(super) fn absent_end(&self, va: u64, limit: u64) -> Option<u64> {
         let geometry = self.paging().ok()?;
-        if !geometry.canonical(va) {
+        if geometry.arch == Architecture::Arm64 && !geometry.canonical(va) {
             return None;
         }
         let mut table = self.root & geometry.root_mask();
@@ -386,6 +387,7 @@ impl<'a> Memory<'a> {
     }
     fn prototype(&self, va: u64) -> Result<u64> {
         let geometry = self.paging()?;
+        let va = geometry.translation_address(va);
         ensure!(geometry.canonical(va), "Windows 非 canonical 地址");
         let mut table = self.root & geometry.root_mask();
         for (level, &shift) in geometry.shifts().iter().enumerate() {

@@ -322,6 +322,7 @@ impl Memory<'_> {
     }
     pub(super) fn pagefile_read(&self, va: u64, out: &mut [u8]) -> Result<()> {
         let geometry = self.paging()?;
+        let va = geometry.translation_address(va);
         ensure!(geometry.canonical(va), "Windows 非 canonical 地址");
         let mut table = self.root & geometry.root_mask();
         let mut backing = None;
