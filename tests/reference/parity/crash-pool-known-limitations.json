@@ -1,0 +1,363 @@
+{
+  "schema_version": 1,
+  "engine_version": "0.2.1-native-88",
+  "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+  "zero_executable_sha256": "ed4748ca3b066be86818c46fb10ccf985cbb2d89c70656362e6df91b1a8e7b18",
+  "cases": [
+    {
+      "reference_plugin": "windows.poolscanner.PoolScanner",
+      "zero_plugin": "windows.poolscanner.PoolScanner",
+      "image_sha256": "ef92b50aa2ba2f830e3f816eb55ed8d15b0658fdfff0ab7af8adb68f2c8da460",
+      "mapping_sha256": "61bf7450b58203cf44032f8f3d5740d2bc181ac385da0953c446196825865dfa",
+      "native_output_sha256": "fe0f0314c5cf615d99386c6c0597f4038f76c524119c57d4a7baa107795abebf",
+      "zero_args": [],
+      "reference_args": [],
+      "case_id": "windows-10-19041-bitmap/poolscanner-default",
+      "sample_source": "https://mirror.nju.edu.cn/gentoo/distfiles/e4/volatility3-win-10_19041-2025_03.dmp.gz",
+      "comparison": {
+        "schema_version": 1,
+        "mapping_version": 1,
+        "zero_records": 8090,
+        "reference_records": 8090,
+        "missing": [],
+        "extra": [],
+        "duplicates": [
+          {
+            "side": "zero",
+            "summary": true,
+            "groups": 18,
+            "records": 36,
+            "keys_and_counts_sha256": "f3d0f6d4f18eb7d1f1763a7fc2c9dd3b81826884cdabd399591a8aeccc1c3584"
+          },
+          {
+            "side": "reference",
+            "summary": true,
+            "groups": 18,
+            "records": 36,
+            "keys_and_counts_sha256": "718bd66ff0269730ecb64e3c5734ffc32d2583a40a63c41eb2d639d32d6c6fe5"
+          }
+        ],
+        "duplicate_keys": "multiset",
+        "multiplicity_conflicts": [],
+        "conflicts": [],
+        "unverifiable": [],
+        "matched_absent": {},
+        "all_columns_mapped": true,
+        "positive_evidence": true,
+        "zero_complete": false,
+        "zero_diagnostics": [
+          "Summary: 89 diagnostics; complete entries retained in raw comparison artifact."
+        ],
+        "passed": true
+      },
+      "passed": true,
+      "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+      "reference_output_sha256": "f0512cedf8848a0029835048ba5d5c2436d3e8f07d64e79a991e39f5ffe993f2",
+      "symbol_sha256": "f2da89bac5e8e253db8046c6f2d2db475b5ae411e0a356eece7c9ca2111f737b",
+      "zero_executable_sha256": "ed4748ca3b066be86818c46fb10ccf985cbb2d89c70656362e6df91b1a8e7b18",
+      "engine_version": "0.2.1-native-88",
+      "full_comparison_sha256": "a7bd058ff81d9d87f108aaf6c7aeb2b71d4f5b01578a652feb02cef900781a68",
+      "comparison_details": "Diagnostic entries and duplicate groups summarized; complete raw comparison retained in local run.py artifact and bound by full_comparison_sha256. Native/reference JSON digests permit independent reproduction. Any record_selection scope remains explicit.",
+      "zero_diagnostics_summary": {
+        "count": 89,
+        "sha256": "95bb46ce495050ad0c6692c8a1d3bca512d6996c754f91aca456088308934829"
+      },
+      "record_order": {
+        "case_id": "windows-10-19041-bitmap/poolscanner-default",
+        "records": [
+          8090,
+          8090
+        ],
+        "passed": true,
+        "positive_evidence": true,
+        "first_difference": null,
+        "zero_sha256": "c90a9cfb92183732a6a676c05278a7c61ff8aff3249a765c2bca86a3a4040662",
+        "reference_sha256": "c90a9cfb92183732a6a676c05278a7c61ff8aff3249a765c2bca86a3a4040662",
+        "scope": "All mapped fields in emitted sequence after declared record selection; duplicate occurrences retained.",
+        "mapping_sha256": "61bf7450b58203cf44032f8f3d5740d2bc181ac385da0953c446196825865dfa",
+        "native_output_sha256": "fe0f0314c5cf615d99386c6c0597f4038f76c524119c57d4a7baa107795abebf",
+        "reference_output_sha256": "f0512cedf8848a0029835048ba5d5c2436d3e8f07d64e79a991e39f5ffe993f2"
+      }
+    },
+    {
+      "reference_plugin": "windows.driverirp.DriverIrp",
+      "zero_plugin": "windows.driverirp.DriverIrp",
+      "image_sha256": "ef92b50aa2ba2f830e3f816eb55ed8d15b0658fdfff0ab7af8adb68f2c8da460",
+      "mapping_sha256": "8d056d2ceace8872a6bec5eec99e0441f1acad43f40a484f9d4dc0e60bec52f8",
+      "native_output_sha256": "d47e89f0bd46d427c97fcf24a59f79067495e3ed37fac1303bad91074c36bf51",
+      "zero_args": [],
+      "reference_args": [],
+      "case_id": "windows-10-19041-bitmap/driverirp-default",
+      "sample_source": "https://mirror.nju.edu.cn/gentoo/distfiles/e4/volatility3-win-10_19041-2025_03.dmp.gz",
+      "comparison": {
+        "schema_version": 1,
+        "mapping_version": 2,
+        "zero_records": 3972,
+        "reference_records": 3972,
+        "missing": [],
+        "extra": [],
+        "duplicates": [],
+        "conflicts": [],
+        "unverifiable": [],
+        "matched_absent": {
+          "Driver Name": 21
+        },
+        "all_columns_mapped": true,
+        "positive_evidence": true,
+        "zero_complete": false,
+        "zero_diagnostics": [
+          "Summary: 19 diagnostics; complete entries retained in raw comparison artifact."
+        ],
+        "passed": true
+      },
+      "passed": true,
+      "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+      "reference_output_sha256": "0e6a5e8a23f0e6892fa714d86292a6031b46b63cd48bfbeb07f0e39549ab71a0",
+      "symbol_sha256": "f2da89bac5e8e253db8046c6f2d2db475b5ae411e0a356eece7c9ca2111f737b",
+      "zero_executable_sha256": "ed4748ca3b066be86818c46fb10ccf985cbb2d89c70656362e6df91b1a8e7b18",
+      "engine_version": "0.2.1-native-88",
+      "full_comparison_sha256": "1be41dc123f292820b2a9979f426c75106719273effed325b7c0d0b665b87e16",
+      "comparison_details": "Diagnostic entries and duplicate groups summarized; complete raw comparison retained in local run.py artifact and bound by full_comparison_sha256. Native/reference JSON digests permit independent reproduction. Any record_selection scope remains explicit.",
+      "zero_diagnostics_summary": {
+        "count": 19,
+        "sha256": "a1d6b16d8f11148bb515e43a30782a5d94161cd11fb0ca8d14070a702ff64067"
+      },
+      "record_order": {
+        "case_id": "windows-10-19041-bitmap/driverirp-default",
+        "records": [
+          3972,
+          3972
+        ],
+        "passed": true,
+        "positive_evidence": true,
+        "first_difference": null,
+        "zero_sha256": "7514373a290b7eb7bef8c61059dd52f52f1e6229e70ffa4cb5a15528257e6933",
+        "reference_sha256": "7514373a290b7eb7bef8c61059dd52f52f1e6229e70ffa4cb5a15528257e6933",
+        "scope": "All mapped fields in emitted sequence after declared record selection; duplicate occurrences retained.",
+        "mapping_sha256": "8d056d2ceace8872a6bec5eec99e0441f1acad43f40a484f9d4dc0e60bec52f8",
+        "native_output_sha256": "d47e89f0bd46d427c97fcf24a59f79067495e3ed37fac1303bad91074c36bf51",
+        "reference_output_sha256": "0e6a5e8a23f0e6892fa714d86292a6031b46b63cd48bfbeb07f0e39549ab71a0"
+      }
+    },
+    {
+      "reference_plugin": "windows.malware.drivermodule.DriverModule",
+      "zero_plugin": "windows.malware.drivermodule.DriverModule",
+      "image_sha256": "ef92b50aa2ba2f830e3f816eb55ed8d15b0658fdfff0ab7af8adb68f2c8da460",
+      "mapping_sha256": "12b692a843f3a42f713b3a662fbd7ff4e7f7552ee847ade78bb12656c984e910",
+      "native_output_sha256": "34eabf8cf2274ba92c8f6312a4aed177d67bfa384d400a90e65e9eb3a99645fa",
+      "zero_args": [],
+      "reference_args": [],
+      "case_id": "windows-10-19041-bitmap/drivermodule-default",
+      "sample_source": "https://mirror.nju.edu.cn/gentoo/distfiles/e4/volatility3-win-10_19041-2025_03.dmp.gz",
+      "comparison": {
+        "schema_version": 1,
+        "mapping_version": 1,
+        "zero_records": 1,
+        "reference_records": 1,
+        "missing": [],
+        "extra": [],
+        "duplicates": [],
+        "conflicts": [],
+        "unverifiable": [],
+        "matched_absent": {},
+        "all_columns_mapped": true,
+        "positive_evidence": true,
+        "zero_complete": true,
+        "zero_diagnostics": [],
+        "passed": true
+      },
+      "passed": true,
+      "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+      "reference_output_sha256": "aa78522fbedafef5432ce143e019f9b3f2047d0639fef7b7f477d2b196f3fd2f",
+      "symbol_sha256": "f2da89bac5e8e253db8046c6f2d2db475b5ae411e0a356eece7c9ca2111f737b",
+      "zero_executable_sha256": "ed4748ca3b066be86818c46fb10ccf985cbb2d89c70656362e6df91b1a8e7b18",
+      "engine_version": "0.2.1-native-88",
+      "record_order": {
+        "case_id": "windows-10-19041-bitmap/drivermodule-default",
+        "records": [
+          1,
+          1
+        ],
+        "passed": true,
+        "positive_evidence": true,
+        "first_difference": null,
+        "zero_sha256": "3085052c960dbc2ce1fcf7ae1c7fbfaab568bde7f3205981b3e6c247b5e832fe",
+        "reference_sha256": "3085052c960dbc2ce1fcf7ae1c7fbfaab568bde7f3205981b3e6c247b5e832fe",
+        "scope": "All mapped fields in emitted sequence after declared record selection; duplicate occurrences retained.",
+        "mapping_sha256": "12b692a843f3a42f713b3a662fbd7ff4e7f7552ee847ade78bb12656c984e910",
+        "native_output_sha256": "34eabf8cf2274ba92c8f6312a4aed177d67bfa384d400a90e65e9eb3a99645fa",
+        "reference_output_sha256": "aa78522fbedafef5432ce143e019f9b3f2047d0639fef7b7f477d2b196f3fd2f"
+      }
+    }
+  ],
+  "container_vectors": {
+    "sha256": "ded9b5cb7f39988db0e3231e3509571432976e31ecbf7f72b12f705deaa32638",
+    "cases": 14,
+    "scope": "Actual WindowsCrashDump32Layer/64Layer constructors, actual bundled crash symbols, segment extraction and actual reads from complete synthetic full and bitmap containers. Covers disjoint/adjacent full runs, bitmap ULONG boundaries, fully populated and zero words, gaps, packed file offsets and cross-segment reads. Valid containers only; truncated/malformed headers, unused bitmap tail bits, all dump kinds and failure-contract equivalence remain unverified."
+  },
+  "prepared_input": {
+    "source": "images/feat-windows-plugins/win-10_19041-2025_03.dmp.gz",
+    "compressed_sha256": "b377ecd13bf40c90f59a8c41ffc8bc81166462627a7800ec82a67a73520c7f9d",
+    "prepared_sha256": "ef92b50aa2ba2f830e3f816eb55ed8d15b0658fdfff0ab7af8adb68f2c8da460",
+    "prepared_bytes": 2094154496,
+    "method": "Independent streaming gzip decompression and SHA256; input compressed SHA256 separately checked by parity runner."
+  },
+  "limitations": [
+    "Fixed reference does not support Server 2019 dump type 6; the three initial reference requirement failures remain under crash-pool-prepared-native87 and are not positive evidence.",
+    "Direct compressed-reference attempt used gzip.GzipFile random seeking and was stopped; no passing evidence is claimed from that attempt. Final plugin parity uses verified decompressed bytes; the compressed input digest is separately bound.",
+    "Only the three full default plugins on the declared Win10 bitmap capture are newly covered. Other crash layouts, malformed/truncated inputs, unused bitmap bits and complete plugin fault/parameter contracts remain unverified."
+  ],
+  "native87_regression": {
+    "case_id": "windows-10-19041-bitmap/poolscanner-default",
+    "image_sha256": "ef92b50aa2ba2f830e3f816eb55ed8d15b0658fdfff0ab7af8adb68f2c8da460",
+    "zero_records": 8080,
+    "reference_records": 8090,
+    "missing": [
+      [
+        "symbol_table_name1!_FILE_OBJECT",
+        18446607800492935472
+      ],
+      [
+        "symbol_table_name1!_FILE_OBJECT",
+        18446607800492946272
+      ],
+      [
+        "symbol_table_name1!_FILE_OBJECT",
+        18446607800496549136
+      ],
+      [
+        "symbol_table_name1!_FILE_OBJECT",
+        18446607800499558688
+      ],
+      [
+        "symbol_table_name1!_FILE_OBJECT",
+        18446607800556930976
+      ],
+      [
+        "symbol_table_name1!_FILE_OBJECT",
+        18446607800557021376
+      ],
+      [
+        "symbol_table_name1!_FILE_OBJECT",
+        18446607800566053088
+      ],
+      [
+        "symbol_table_name1!_FILE_OBJECT",
+        18446607800566073088
+      ],
+      [
+        "symbol_table_name1!_FILE_OBJECT",
+        18446607800566106288
+      ],
+      [
+        "symbol_table_name1!_FILE_OBJECT",
+        18446607800566266688
+      ]
+    ],
+    "native_output_sha256": "7d34ff07a3519304e414bdd3c4d0232302f7cec7d523f913d164c62ecba75da6",
+    "reference_output_sha256": "f0512cedf8848a0029835048ba5d5c2436d3e8f07d64e79a991e39f5ffe993f2",
+    "comparison_sha256": "7a5882289b1404c1af53fd6251958a230f5102f7b5e5cb3a5626b046146c54bd",
+    "cause": "WindowsIntel32e uses 45-bit physical extraction; native generic 52-bit/ISF transition extraction retained software PFN flags and rejected ten readable file name pointers. Native88 full-field and emitted-sequence default passes without filtering."
+  },
+  "unsupported_reference": {
+    "image_sha256": "1c354a67986a4448b95fc1814455710def009728749cb6274790f266a3957d77",
+    "dump_type": 6,
+    "reference_supported_dump_types": [
+      1,
+      5
+    ],
+    "source_sha256": "9639b6fad700f9a3e3824cb4408b9bd8431642867e55eb0dc91cd34c45677893",
+    "cases": [
+      {
+        "case_id": "server-2019-bitmap/poolscanner-default",
+        "reference": {
+          "status": "completed",
+          "exit_code": 1,
+          "elapsed_seconds": 1.8742714999825694,
+          "command": [
+            "/Volumes/w/code/zero/target/reference/venv/bin/python",
+            "/Volumes/w/code/zero/target/reference/volatility3/vol.py",
+            "--offline",
+            "--cache-path",
+            "/Volumes/w/code/zero/target/reference/results/crash-pool-prepared-native87/reference-cache",
+            "-s",
+            "/Volumes/w/code/zero/target/reference/crash-symbols",
+            "-f",
+            "/Volumes/w/code/zero/images/feat-windows-plugins/server2019/MEMORY.DMP",
+            "-r",
+            "json",
+            "windows.poolscanner.PoolScanner"
+          ],
+          "output_sha256": "9e8c3d1d8d5ec8e4fb4d7cca151b3a7b83f2716581d1b6336770e938a6bd132a",
+          "log_sha256": "84da5da33c5487c7dd975a9ba3737253dd6f95e119defca070cf915d58d320a4"
+        },
+        "error": "reference engine failed; not comparable",
+        "passed": false
+      },
+      {
+        "case_id": "server-2019-bitmap/driverirp-default",
+        "reference": {
+          "status": "completed",
+          "exit_code": 1,
+          "elapsed_seconds": 1.8685322919627652,
+          "command": [
+            "/Volumes/w/code/zero/target/reference/venv/bin/python",
+            "/Volumes/w/code/zero/target/reference/volatility3/vol.py",
+            "--offline",
+            "--cache-path",
+            "/Volumes/w/code/zero/target/reference/results/crash-pool-prepared-native87/reference-cache",
+            "-s",
+            "/Volumes/w/code/zero/target/reference/crash-symbols",
+            "-f",
+            "/Volumes/w/code/zero/images/feat-windows-plugins/server2019/MEMORY.DMP",
+            "-r",
+            "json",
+            "windows.driverirp.DriverIrp"
+          ],
+          "output_sha256": "acd3a142668bbb37d0b2ff686b75f978cec4a1e3e184cc67494f092e7216b8a6",
+          "log_sha256": "1ac40bcb8ea2689ac37c6f6b95fab357f40e0fabdbe438059f24ffa1b77974d3"
+        },
+        "error": "reference engine failed; not comparable",
+        "passed": false
+      },
+      {
+        "case_id": "server-2019-bitmap/drivermodule-default",
+        "reference": {
+          "status": "completed",
+          "exit_code": 1,
+          "elapsed_seconds": 1.9825174169964157,
+          "command": [
+            "/Volumes/w/code/zero/target/reference/venv/bin/python",
+            "/Volumes/w/code/zero/target/reference/volatility3/vol.py",
+            "--offline",
+            "--cache-path",
+            "/Volumes/w/code/zero/target/reference/results/crash-pool-prepared-native87/reference-cache",
+            "-s",
+            "/Volumes/w/code/zero/target/reference/crash-symbols",
+            "-f",
+            "/Volumes/w/code/zero/images/feat-windows-plugins/server2019/MEMORY.DMP",
+            "-r",
+            "json",
+            "windows.malware.drivermodule.DriverModule"
+          ],
+          "output_sha256": "5335d06e1df84b3426b46b77ae112f22c1efb5822a4ec4106f48c0916225f9da",
+          "log_sha256": "9603ce2fc634ea59013d2ad0b44f0642422e258c9e57297c5f2c729011c6dce7"
+        },
+        "error": "reference engine failed; not comparable",
+        "passed": false
+      }
+    ]
+  },
+  "additional_acceptance": {
+    "test": "public_bitmap_crash_processes_and_networks",
+    "profile": "release",
+    "image_sha256": "ef92b50aa2ba2f830e3f816eb55ed8d15b0658fdfff0ab7af8adb68f2c8da460",
+    "rows": {
+      "windows.pslist": 120,
+      "windows.netscan": 108
+    },
+    "passed": true,
+    "log_sha256": "9accef027355633d70ceb2a81216974705fc75fb2761c6cac867e451b4095843",
+    "scope": "Actual published-image acceptance test uses the gzip input, checks the prepared image digest, complete process/network outputs, exact DTB and TCP/IP PDB identity. Row-count regression only, not additional full-field differential evidence."
+  }
+}

@@ -1,7 +1,7 @@
 {
   "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
   "source_sha256": "01ea3e198f9c4226cb8c06280facbf9b8cc0990863301f82f991e5609908f716",
-  "scope": "Actual WindowsIntel/WindowsIntelPAE/WindowsIntel32e mapping and translation over full synthetic page-table bytes. Physical BufferDataLayer subclass models explicit backing holes. Full default virtual range length excludes maximum_address. Covers contiguous/discontiguous PFNs, missing tables and backing tails, uniform tables, transition/prototype flags, uppermost page, large pages/PAT and PAE root/physical-bit limits. Does not certify container mapping/decompression, arbitrary malformed reserved PFNs, all architectures or complete scan fault reporting.",
+  "scope": "Actual WindowsIntel/WindowsIntelPAE/WindowsIntel32e mapping and translation over full synthetic page-table bytes. Physical BufferDataLayer subclass models explicit backing holes. Full default virtual range length excludes maximum_address. Covers contiguous/discontiguous PFNs, missing tables and backing tails, uniform tables, transition/prototype flags, uppermost page, large pages/PAT and PAE root/physical-bit limits and Windows x64 45-bit PFN/software-flag behavior. Does not certify container mapping/decompression, arbitrary malformed reserved PFNs, all architectures or complete scan fault reporting.",
   "cases": [
     {
       "id": "x86-basic",
@@ -9768,6 +9768,206 @@
         [
           4096,
           8323
+        ]
+      ],
+      "holes": [],
+      "expected": [
+        [
+          0,
+          8192,
+          32768
+        ],
+        [
+          8192,
+          4096,
+          65536
+        ]
+      ]
+    },
+    {
+      "id": "x64-present-high-bit45",
+      "arch": "x64",
+      "width": 8,
+      "length": 131072,
+      "root": 4096,
+      "writes": [
+        [
+          4096,
+          8195
+        ],
+        [
+          8192,
+          12291
+        ],
+        [
+          12288,
+          16387
+        ],
+        [
+          16384,
+          32771
+        ],
+        [
+          16392,
+          36867
+        ],
+        [
+          16400,
+          65539
+        ],
+        [
+          16384,
+          35184372121603
+        ]
+      ],
+      "holes": [],
+      "expected": [
+        [
+          0,
+          8192,
+          32768
+        ],
+        [
+          8192,
+          4096,
+          65536
+        ]
+      ]
+    },
+    {
+      "id": "x64-transition-high-bit45",
+      "arch": "x64",
+      "width": 8,
+      "length": 131072,
+      "root": 4096,
+      "writes": [
+        [
+          4096,
+          8195
+        ],
+        [
+          8192,
+          12291
+        ],
+        [
+          12288,
+          16387
+        ],
+        [
+          16384,
+          32771
+        ],
+        [
+          16392,
+          36867
+        ],
+        [
+          16400,
+          65539
+        ],
+        [
+          16384,
+          35184372123648
+        ]
+      ],
+      "holes": [],
+      "expected": [
+        [
+          0,
+          8192,
+          32768
+        ],
+        [
+          8192,
+          4096,
+          65536
+        ]
+      ]
+    },
+    {
+      "id": "x64-present-high-bit51",
+      "arch": "x64",
+      "width": 8,
+      "length": 131072,
+      "root": 4096,
+      "writes": [
+        [
+          4096,
+          8195
+        ],
+        [
+          8192,
+          12291
+        ],
+        [
+          12288,
+          16387
+        ],
+        [
+          16384,
+          32771
+        ],
+        [
+          16392,
+          36867
+        ],
+        [
+          16400,
+          65539
+        ],
+        [
+          16384,
+          2251799813718019
+        ]
+      ],
+      "holes": [],
+      "expected": [
+        [
+          0,
+          8192,
+          32768
+        ],
+        [
+          8192,
+          4096,
+          65536
+        ]
+      ]
+    },
+    {
+      "id": "x64-table-high-bit45",
+      "arch": "x64",
+      "width": 8,
+      "length": 131072,
+      "root": 4096,
+      "writes": [
+        [
+          4096,
+          8195
+        ],
+        [
+          8192,
+          12291
+        ],
+        [
+          12288,
+          16387
+        ],
+        [
+          16384,
+          32771
+        ],
+        [
+          16392,
+          36867
+        ],
+        [
+          16400,
+          65539
+        ],
+        [
+          4096,
+          35184372097027
         ]
       ],
       "holes": [],

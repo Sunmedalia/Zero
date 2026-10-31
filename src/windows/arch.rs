@@ -87,15 +87,17 @@ impl Paging {
         }
     }
     pub fn mask(self) -> u64 {
-        if self.width() == 4 {
-            0xfffff000
-        } else {
-            PHYSICAL_MASK
+        match (self.arch, self.pae) {
+            (Architecture::X86, false) => 0xffff_f000,
+            (Architecture::X86, true) => 0x0000_00ff_ffff_f000,
+            // Pinned WindowsIntel32e reserves high PFN bits for software flags.
+            (Architecture::X64, _) => 0x0000_1fff_ffff_f000,
+            _ => PHYSICAL_MASK,
         }
     }
     pub fn root_mask(self) -> u64 {
         if self.pae {
-            PHYSICAL_MASK | 0xfe0
+            self.mask() | 0xfe0
         } else {
             self.mask()
         }
@@ -108,12 +110,13 @@ impl Paging {
         }
     }
     pub fn block(self, entry: u64, shift: u32) -> bool {
-        shift != 12
-            && if self.arch == Architecture::Arm64 {
-                entry & 3 == 1
-            } else {
-                entry & 128 != 0
-            }
+        match (self.arch, self.pae) {
+            (Architecture::Arm64, _) => shift != 12 && entry & 3 == 1,
+            (Architecture::X86, false) => shift == 22 && entry & 128 != 0,
+            (Architecture::X86, true) => shift == 21 && entry & 128 != 0,
+            (Architecture::X64, _) => matches!(shift, 21 | 30) && entry & 128 != 0,
+            (Architecture::Auto, _) => false,
+        }
     }
     pub fn canonical(self, va: u64) -> bool {
         match self.arch {

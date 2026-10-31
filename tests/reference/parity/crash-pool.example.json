@@ -1,0 +1,57 @@
+{
+  "samples": [
+    {
+      "id": "windows-10-19041-bitmap",
+      "image": "target/reference/prepared/win-10_19041-2025_03.dmp",
+      "image_sha256": "ef92b50aa2ba2f830e3f816eb55ed8d15b0658fdfff0ab7af8adb68f2c8da460",
+      "zero_symbols": ".zero/rust/symbols/isf/windows/ntkrnlmp.pdb-167FE94B5641C005AC3036212A01F8DC1.json",
+      "reference_symbols": "target/reference/crash-symbols",
+      "symbol_files": [
+        {
+          "path": ".zero/rust/symbols/isf/windows/ntkrnlmp.pdb-167FE94B5641C005AC3036212A01F8DC1.json",
+          "sha256": "f2da89bac5e8e253db8046c6f2d2db475b5ae411e0a356eece7c9ca2111f737b"
+        },
+        {
+          "path": "target/reference/crash-symbols/windows/ntkrnlmp.pdb/167FE94B5641C005AC3036212A01F8DC1.json",
+          "sha256": "f2da89bac5e8e253db8046c6f2d2db475b5ae411e0a356eece7c9ca2111f737b"
+        }
+      ],
+      "source": "https://mirror.nju.edu.cn/gentoo/distfiles/e4/volatility3-win-10_19041-2025_03.dmp.gz",
+      "input_files": [
+        {
+          "path": "images/feat-windows-plugins/win-10_19041-2025_03.dmp.gz",
+          "sha256": "b377ecd13bf40c90f59a8c41ffc8bc81166462627a7800ec82a67a73520c7f9d"
+        }
+      ]
+    }
+  ],
+  "cases": [
+    {
+      "sample": "windows-10-19041-bitmap",
+      "id": "windows-10-19041-bitmap/poolscanner-default",
+      "reference_plugin": "windows.poolscanner.PoolScanner",
+      "zero_plugin": "windows.poolscanner.PoolScanner",
+      "mapping": "tests/reference/parity/mappings/windows-poolscanner.json",
+      "zero_args": [],
+      "reference_args": []
+    },
+    {
+      "sample": "windows-10-19041-bitmap",
+      "id": "windows-10-19041-bitmap/driverirp-default",
+      "reference_plugin": "windows.driverirp.DriverIrp",
+      "zero_plugin": "windows.driverirp.DriverIrp",
+      "mapping": "tests/reference/parity/mappings/windows-driverirp.json",
+      "zero_args": [],
+      "reference_args": []
+    },
+    {
+      "sample": "windows-10-19041-bitmap",
+      "id": "windows-10-19041-bitmap/drivermodule-default",
+      "reference_plugin": "windows.malware.drivermodule.DriverModule",
+      "zero_plugin": "windows.malware.drivermodule.DriverModule",
+      "mapping": "tests/reference/parity/mappings/windows-drivermodule.json",
+      "zero_args": [],
+      "reference_args": []
+    }
+  ]
+}

@@ -268,6 +268,11 @@ impl<'a> Memory<'a> {
         Ok(())
     }
     pub(in crate::windows) fn transition_frame(&self, entry: u64, geometry: Paging) -> Result<u64> {
+        if geometry.arch != Architecture::Arm64 {
+            // Windows Intel layers extract PFNs from the raw PTE's fixed
+            // physical domain; ISF transition fields may include software flags.
+            return Ok(entry & geometry.mask());
+        }
         if self
             .isf
             .field("_MMPTE_TRANSITION", "PageFrameNumber")
@@ -1336,7 +1341,7 @@ pub fn discover(image: &Image, isf: &Isf, job: &Job) -> Result<(u64, u64)> {
                 if geometry.arch == Architecture::X64
                     && page.chunks_exact(8).skip(256).any(|b| {
                         let e = u64::from_le_bytes(b.try_into().unwrap());
-                        e & 1 != 0 && e & PHYSICAL_MASK == pa
+                        e & 1 != 0 && e & geometry.mask() == pa
                     })
                 {
                     roots.push(pa);

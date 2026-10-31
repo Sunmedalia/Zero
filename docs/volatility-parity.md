@@ -1611,3 +1611,60 @@ pool range 诊断，native87 均为 0 且结果 complete；这是先按实际 ma
 范围），完整插件合同 0/135。最终 make check 通过：620 库、8 CLI/MCP、
 50 协议、36 Python 测试；固定映射向量重生成一致。发布包空 PATH／独立
 目录启动退出通过。最终可执行文件 SHA256：`d681a4f7276d01f90fcfa9dc3de09c9da3fca3e91fee06308013181ff7663f6c`。
+
+
+## native88：Windows Intel PFN 域及 bitmap crash 实际差分
+
+新增 Win10 19041 系列公开 bitmap crash dump 的完整默认 PoolScanner、
+DriverIrp、DriverModule 差分，首次 native87 运行发现 PoolScanner 8080/8090：
+少的十条全部是 _FILE_OBJECT，来自可读文件对象而非需要删除的字符串命中。
+逐对象检查显示名称 Buffer 的翻译被带到 `0x200115678bd0` 等捕获范围以外；
+固定参考在同一 DTB 下翻译为 `0x115678bd0`。定位到 WindowsIntel32e 独立于
+Intel32e 的 `_maxphyaddr = 45`：这是固定参考对 transition PFN 软件高位的
+处理，不能用通用 x64 的 52-bit mask 替代。
+
+Windows Paging 现在按实际层固定物理域：x86 32-bit、PAE 40-bit、Windows
+x64 45-bit，ARM64 保留其原有域。Intel transition PFN 从原始 entry 的该域
+提取，ISF 中较宽 PageFrameNumber 字段不能把软件标志重新带进物理地址。
+根表／中间表、普通页、大页、缓存后的翻译及根候选自引用比较使用一致的
+域。大页判断在 Paging 中统一为架构允许的层，PAE 根或 x64 PML4 上的
+同一位不再被当作大页。共享池枚举复用这一规则。
+
+实际 Windows Intel 映射向量从 38 增至 42：加入 present／transition 的
+bit45、present 的 bit51 和表指针 bit45。原生同时验证所有返回范围的起点
+和末字节的 Memory.translate 结果，并特意提供包含软件标志的较宽 ISF
+transition PFN，防止只修扫描范围却仍读错对象字段。
+
+另新增 [实际 crash 层容器向量](../tests/reference/parity/crash_mapping_vectors.py)：
+14 例直接构造完整文件，使用固定 WindowsCrashDump32Layer／64Layer 及其
+真实 crash／crash64／crash_common 符号表。原生逐段比较物理起止与文件偏移，
+逐字节比较读取，包括 full dump 相邻／分离 run、bitmap ULONG 字边界、
+全置位／零字、空洞以及跨区段读取。解析器在这些有效容器用例中一致，无需
+为获得通过而放宽截断和范围校验；畸形／截断／未使用 bitmap 尾位合同仍待
+单独审查。
+
+Win10 的 gzip 原文件 SHA256 与解压后 2094154496 字节的 SHA256 均独立核对。
+固定 ResourceAccessor 将本地 gzip 直接包装为 gzip.GzipFile，反复随机 seek
+导致参考首例持续解压；该诊断尝试被主动停止并保留，未产生正向证据。
+正式插件差分双方使用已验证的解压后相同字节，配置额外绑定原 gzip 摘要。
+Server 2019 公开镜像是 dump type 6，而固定 crash 层仅支持 1／5，三个参考
+需求失败保留为不可比较记录，不能计算为“双方一致”或正向证据。
+
+最终 native88 的 22 例真实差分字段与重复数全部通过。新增 bitmap crash 的
+PoolScanner 8090/8090（修复前 8080/8090）、DriverIrp 3972/3972、DriverModule
+1/1，全默认、无记录范围过滤，三例严格发出顺序也一致。原有十九例维持
+通过；Windows 子窗口的索引 245 顺序差异仍如实保留。全批 21 个严格顺序
+检查通过，另一个已知差异不影响记录多重集合一致；Win7 空结果仍不计正向。
+
+新增三个独立正向 case，累计从 122 增至 125，仍含 5 个限定范围，完整插件
+合同仍为 0/135。原始报告在 target/reference/results 下五个 *-native88 目录，
+新样本的旧版漏项、压缩输入摘要、容器向量及不支持的 Server 2019 参考
+失败记录见 [crash 验收限制](../tests/reference/parity/crash-pool-known-limitations.json)。
+所有最终报告绑定同一二进制。最终 make check 通过：621 库、8 CLI/MCP、
+50 协议、36 Python 测试；42 个映射／14 个容器向量重生成一致。发布包
+空 PATH／独立目录启动退出通过。可执行文件 SHA256：`ed4748ca3b066be86818c46fb10ccf985cbb2d89c70656362e6df91b1a8e7b18`。
+
+
+另以标准 release 配置运行 public_bitmap_crash_processes_and_networks，直接
+使用 gzip 输入，校验解压摘要、DTB、完整 PsList 120 行、Netscan 108 行及
+精确 TCP/IP PDB，全部通过。该额外验收不增加全字段正向差分计数。

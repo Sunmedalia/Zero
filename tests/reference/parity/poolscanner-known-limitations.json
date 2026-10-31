@@ -68,7 +68,7 @@
     "ARM64 is outside the pinned reference architecture requirement.",
     "Missing-page process-name gathering and full field-fault behavior are not established by synthetic decoded-field validity cases. Native host clock behavior uses Unix localtime_r or Windows GetLocalTime; the Windows clock branch has not been exercised on a real Windows host in this batch."
   ],
-  "engine_version": "0.2.1-native-87",
+  "engine_version": "0.2.1-native-88",
   "cases": [
     {
       "reference_plugin": "windows.poolscanner.PoolScanner",
@@ -120,8 +120,8 @@
       "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
       "reference_output_sha256": "1001fdff9ee2eceed8c60a145821566106f0af0e040f0d963c850391c62ef72a",
       "symbol_sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4",
-      "zero_executable_sha256": "d681a4f7276d01f90fcfa9dc3de09c9da3fca3e91fee06308013181ff7663f6c",
-      "engine_version": "0.2.1-native-87",
+      "zero_executable_sha256": "ed4748ca3b066be86818c46fb10ccf985cbb2d89c70656362e6df91b1a8e7b18",
+      "engine_version": "0.2.1-native-88",
       "full_comparison_sha256": "3e9da4e221bf64c610944a8eb682d0ea727276691b1f50830b48467ecc90bb98",
       "comparison_details": "Diagnostic entries and duplicate groups summarized; complete raw comparison retained in local run.py artifact and bound by full_comparison_sha256. Native/reference JSON digests permit independent reproduction. Any record_selection scope remains explicit.",
       "zero_diagnostics_summary": {
@@ -150,7 +150,7 @@
       "zero_plugin": "windows.poolscanner.PoolScanner",
       "image_sha256": "0f00815b8f78f30a63d742c73152474b2a3c35183dbb1d92c8fc6a81fa3de9f1",
       "mapping_sha256": "61bf7450b58203cf44032f8f3d5740d2bc181ac385da0953c446196825865dfa",
-      "native_output_sha256": "46ddc48ccc1ddba229c2cbce7a044886d9da97ff50e5481ae144fc7288bf7c38",
+      "native_output_sha256": "ae87e72f66d906b0a466f122e5d48b2c4252ed760f727ed48ab70ca436d7e1ce",
       "zero_args": [],
       "reference_args": [],
       "case_id": "windows-11/poolscanner-default",
@@ -195,13 +195,13 @@
       "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
       "reference_output_sha256": "db3bb567502795eb6bc4c63d6feef552e4887edb3931efd03014817b57cfdeb7",
       "symbol_sha256": "6a234099b69b393eb7d652408835205bd12f0b947d0d6b6275e2ffce8ca9c133",
-      "zero_executable_sha256": "d681a4f7276d01f90fcfa9dc3de09c9da3fca3e91fee06308013181ff7663f6c",
-      "engine_version": "0.2.1-native-87",
-      "full_comparison_sha256": "242fd584a75b1625ebe97ac577c02f93798055852f9516f4521ff2e8f70b77e7",
+      "zero_executable_sha256": "ed4748ca3b066be86818c46fb10ccf985cbb2d89c70656362e6df91b1a8e7b18",
+      "engine_version": "0.2.1-native-88",
+      "full_comparison_sha256": "1900ee49a8c8940156ea0b5c2f53adfe985354ce87363fe70533f5688ffabd05",
       "comparison_details": "Diagnostic entries and duplicate groups summarized; complete raw comparison retained in local run.py artifact and bound by full_comparison_sha256. Native/reference JSON digests permit independent reproduction. Any record_selection scope remains explicit.",
       "zero_diagnostics_summary": {
         "count": 179,
-        "sha256": "fb423ba9c9225b151e2b90238e71e14b100307da8ab4b55adce52f77e7f3c0ad"
+        "sha256": "c3f252bca17929ad8c1b60a61fd5f05c405c939f03de7024f6482b21c856733a"
       },
       "record_order": {
         "case_id": "windows-11/poolscanner-default",
@@ -216,7 +216,7 @@
         "reference_sha256": "0cd898dd11cb4e48cb814bec0c929eed596e5cf109df3b6f3e5ef01818fa78d8",
         "scope": "All mapped fields in emitted sequence after declared record selection; duplicate occurrences retained.",
         "mapping_sha256": "61bf7450b58203cf44032f8f3d5740d2bc181ac385da0953c446196825865dfa",
-        "native_output_sha256": "46ddc48ccc1ddba229c2cbce7a044886d9da97ff50e5481ae144fc7288bf7c38",
+        "native_output_sha256": "ae87e72f66d906b0a466f122e5d48b2c4252ed760f727ed48ab70ca436d7e1ce",
         "reference_output_sha256": "db3bb567502795eb6bc4c63d6feef552e4887edb3931efd03014817b57cfdeb7"
       }
     },
@@ -255,8 +255,8 @@
       "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
       "reference_output_sha256": "e7c295dfa633ed0297171c80c6deed11681925a1b402cb02e9f567b01737f4e5",
       "symbol_sha256": "5d73f3a7158ba8b72394f2606ea5b4f03393976d5054a11cc51d51afb88a5544",
-      "zero_executable_sha256": "d681a4f7276d01f90fcfa9dc3de09c9da3fca3e91fee06308013181ff7663f6c",
-      "engine_version": "0.2.1-native-87",
+      "zero_executable_sha256": "ed4748ca3b066be86818c46fb10ccf985cbb2d89c70656362e6df91b1a8e7b18",
+      "engine_version": "0.2.1-native-88",
       "full_comparison_sha256": "ab9e0dbaacf0b0a5da16f2b226ce211dfdaa83504989ac014e6b0f7e996b9572",
       "comparison_details": "Diagnostic entries and duplicate groups summarized; complete raw comparison retained in local run.py artifact and bound by full_comparison_sha256. Native/reference JSON digests permit independent reproduction. Any record_selection scope remains explicit.",
       "zero_diagnostics_summary": {
@@ -313,8 +313,8 @@
       "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
       "reference_output_sha256": "cbacf9552535c631717cbfbed9c908b16b812de4d8b7e4f161079e4e5d45bca5",
       "symbol_sha256": "6d5f85f7b953330b9762a57e5a25266547e7391ad4f6655170a9f48876fb6b8c",
-      "zero_executable_sha256": "d681a4f7276d01f90fcfa9dc3de09c9da3fca3e91fee06308013181ff7663f6c",
-      "engine_version": "0.2.1-native-87",
+      "zero_executable_sha256": "ed4748ca3b066be86818c46fb10ccf985cbb2d89c70656362e6df91b1a8e7b18",
+      "engine_version": "0.2.1-native-88",
       "record_order": {
         "case_id": "windows-7-7601-x64/poolscanner-default",
         "records": [
@@ -367,8 +367,8 @@
       "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
       "reference_output_sha256": "7b6cb154912c226c4b39b98d0da814e3b04cbd1e07f0a5bd814532a290f74ded",
       "symbol_sha256": "e71b53897ef6119ca9e51967ffe2399edd422ef54279f3d93659d61d16ec1f67",
-      "zero_executable_sha256": "d681a4f7276d01f90fcfa9dc3de09c9da3fca3e91fee06308013181ff7663f6c",
-      "engine_version": "0.2.1-native-87",
+      "zero_executable_sha256": "ed4748ca3b066be86818c46fb10ccf985cbb2d89c70656362e6df91b1a8e7b18",
+      "engine_version": "0.2.1-native-88",
       "full_comparison_sha256": "d49893d69552f3b3ebbeefc6b5b61d358edb4f098ec55c0968fd689d351605e8",
       "comparison_details": "Diagnostic entries and duplicate groups summarized; complete raw comparison retained in local run.py artifact and bound by full_comparison_sha256. Native/reference JSON digests permit independent reproduction. Any record_selection scope remains explicit.",
       "zero_diagnostics_summary": {
@@ -391,10 +391,85 @@
         "native_output_sha256": "8738a38cd70160450eeabc2259d6bdbc86a113357375562e2d75a164d548ab1b",
         "reference_output_sha256": "7b6cb154912c226c4b39b98d0da814e3b04cbd1e07f0a5bd814532a290f74ded"
       }
+    },
+    {
+      "reference_plugin": "windows.poolscanner.PoolScanner",
+      "zero_plugin": "windows.poolscanner.PoolScanner",
+      "image_sha256": "ef92b50aa2ba2f830e3f816eb55ed8d15b0658fdfff0ab7af8adb68f2c8da460",
+      "mapping_sha256": "61bf7450b58203cf44032f8f3d5740d2bc181ac385da0953c446196825865dfa",
+      "native_output_sha256": "fe0f0314c5cf615d99386c6c0597f4038f76c524119c57d4a7baa107795abebf",
+      "zero_args": [],
+      "reference_args": [],
+      "case_id": "windows-10-19041-bitmap/poolscanner-default",
+      "sample_source": "https://mirror.nju.edu.cn/gentoo/distfiles/e4/volatility3-win-10_19041-2025_03.dmp.gz",
+      "comparison": {
+        "schema_version": 1,
+        "mapping_version": 1,
+        "zero_records": 8090,
+        "reference_records": 8090,
+        "missing": [],
+        "extra": [],
+        "duplicates": [
+          {
+            "side": "zero",
+            "summary": true,
+            "groups": 18,
+            "records": 36,
+            "keys_and_counts_sha256": "f3d0f6d4f18eb7d1f1763a7fc2c9dd3b81826884cdabd399591a8aeccc1c3584"
+          },
+          {
+            "side": "reference",
+            "summary": true,
+            "groups": 18,
+            "records": 36,
+            "keys_and_counts_sha256": "718bd66ff0269730ecb64e3c5734ffc32d2583a40a63c41eb2d639d32d6c6fe5"
+          }
+        ],
+        "duplicate_keys": "multiset",
+        "multiplicity_conflicts": [],
+        "conflicts": [],
+        "unverifiable": [],
+        "matched_absent": {},
+        "all_columns_mapped": true,
+        "positive_evidence": true,
+        "zero_complete": false,
+        "zero_diagnostics": [
+          "Summary: 89 diagnostics; complete entries retained in raw comparison artifact."
+        ],
+        "passed": true
+      },
+      "passed": true,
+      "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+      "reference_output_sha256": "f0512cedf8848a0029835048ba5d5c2436d3e8f07d64e79a991e39f5ffe993f2",
+      "symbol_sha256": "f2da89bac5e8e253db8046c6f2d2db475b5ae411e0a356eece7c9ca2111f737b",
+      "zero_executable_sha256": "ed4748ca3b066be86818c46fb10ccf985cbb2d89c70656362e6df91b1a8e7b18",
+      "engine_version": "0.2.1-native-88",
+      "full_comparison_sha256": "a7bd058ff81d9d87f108aaf6c7aeb2b71d4f5b01578a652feb02cef900781a68",
+      "comparison_details": "Diagnostic entries and duplicate groups summarized; complete raw comparison retained in local run.py artifact and bound by full_comparison_sha256. Native/reference JSON digests permit independent reproduction. Any record_selection scope remains explicit.",
+      "zero_diagnostics_summary": {
+        "count": 89,
+        "sha256": "95bb46ce495050ad0c6692c8a1d3bca512d6996c754f91aca456088308934829"
+      },
+      "record_order": {
+        "case_id": "windows-10-19041-bitmap/poolscanner-default",
+        "records": [
+          8090,
+          8090
+        ],
+        "passed": true,
+        "positive_evidence": true,
+        "first_difference": null,
+        "zero_sha256": "c90a9cfb92183732a6a676c05278a7c61ff8aff3249a765c2bca86a3a4040662",
+        "reference_sha256": "c90a9cfb92183732a6a676c05278a7c61ff8aff3249a765c2bca86a3a4040662",
+        "scope": "All mapped fields in emitted sequence after declared record selection; duplicate occurrences retained.",
+        "mapping_sha256": "61bf7450b58203cf44032f8f3d5740d2bc181ac385da0953c446196825865dfa",
+        "native_output_sha256": "fe0f0314c5cf615d99386c6c0597f4038f76c524119c57d4a7baa107795abebf",
+        "reference_output_sha256": "f0512cedf8848a0029835048ba5d5c2436d3e8f07d64e79a991e39f5ffe993f2"
+      }
     }
   ],
-  "zero_executable_sha256": "d681a4f7276d01f90fcfa9dc3de09c9da3fca3e91fee06308013181ff7663f6c",
-  "validation": "Final native87 binary and unmodified fixed reference, real default/scoped cases compare all mapped fields and multiplicities. Historical cases not rerun retain their own per-case versions. Empty agreement is not positive evidence; no complete plugin contract is claimed.",
+  "zero_executable_sha256": "ed4748ca3b066be86818c46fb10ccf985cbb2d89c70656362e6df91b1a8e7b18",
+  "validation": "Final native88 binary and unmodified fixed reference, real default/scoped cases compare all mapped fields and multiplicities. Historical cases not rerun retain their own per-case versions. Empty agreement is not positive evidence; no complete plugin contract is claimed.",
   "known_causes": [
     "Native74 CMHIVE signature filtering was absent from the pinned non-executive path; native75 retains these raw observations.",
     "Native74 Win11 symbolic-link extras are removed by using the pinned type-map boundaries and missing-name semantics rather than exported-variable fallback.",
@@ -431,9 +506,9 @@
     "remaining": "Mapping enumeration, all backing formats, tags split across distinct mapping ranges, damaged-page/fault diagnostics and full plugin coverage remain unverified."
   },
   "mapping_vectors": {
-    "sha256": "9030a1156a013aba97a62af7b1dcc69897a275671b3cff1464a4ce90ff568455",
-    "cases": 38,
-    "scope": "Actual WindowsIntel/WindowsIntelPAE/WindowsIntel32e mapping and translation over full synthetic page-table bytes. Physical BufferDataLayer subclass models explicit backing holes. Full default virtual range length excludes maximum_address. Covers contiguous/discontiguous PFNs, missing tables and backing tails, uniform tables, transition/prototype flags, uppermost page, large pages/PAT and PAE root/physical-bit limits. Does not certify container mapping/decompression, arbitrary malformed reserved PFNs, all architectures or complete scan fault reporting.",
+    "sha256": "0298a716742f922a434271f717bfbaa1a80cf215f3817f605dc192b2aa7c7204",
+    "cases": 42,
+    "scope": "Actual WindowsIntel/WindowsIntelPAE/WindowsIntel32e mapping and translation over full synthetic page-table bytes. Physical BufferDataLayer subclass models explicit backing holes. Full default virtual range length excludes maximum_address. Covers contiguous/discontiguous PFNs, missing tables and backing tails, uniform tables, transition/prototype flags, uppermost page, large pages/PAT and PAE root/physical-bit limits and Windows x64 45-bit PFN/software-flag behavior. Does not certify container mapping/decompression, arbitrary malformed reserved PFNs, all architectures or complete scan fault reporting.",
     "implementation": "Compare all virtual range starts, lengths and physical starts; backing holes rejected before coalescing, native-domain maximum-address clipping, full PAE root table validation, level-specific large pages and PAE physical mask",
     "remaining": "All container mapping/decompression, arbitrary reserved PFNs, custom transition layouts, table resource/cancellation limits and full scan fault reporting remain unverified."
   }

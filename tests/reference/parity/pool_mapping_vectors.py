@@ -22,6 +22,8 @@ def generate(checkout):
         variants = ['basic', 'backing-hole', 'short-backing-tail', 'missing-leaf-table', 'uniform-leaf-table', 'transition', 'prototype-transition', 'final-page', 'large-page', 'large-pat', 'large-with-backing-hole']
         if arch in ['pae','x64']:
             variants += ['root-pse-bit']
+        if arch == 'x64':
+            variants += ['present-high-bit45', 'transition-high-bit45', 'present-high-bit51', 'table-high-bit45']
         if arch == 'pae':
             variants += ['short-root-page', 'high-physical-bits', 'four-identical-root-entries']
         for label in variants:
@@ -48,6 +50,10 @@ def generate(checkout):
             elif label=='transition':put(leaf,0x8800)
             elif label=='prototype-transition':put(leaf,0x8c00)
             elif label=='root-pse-bit':put(root,0x2083)
+            elif label=='present-high-bit45':put(leaf,(1<<45)|0x8003)
+            elif label=='transition-high-bit45':put(leaf,(1<<45)|0x8800)
+            elif label=='present-high-bit51':put(leaf,(1<<51)|0x8003)
+            elif label=='table-high-bit45':put(root,(1<<45)|0x2003)
             elif label=='high-physical-bits':put(leaf,(1<<44)|0x8003)
             elif label=='four-identical-root-entries':
                 for at in range(root,root+32,8):put(at,0x2003)
@@ -70,7 +76,7 @@ def generate(checkout):
             mapped=list(layer.mapping(0,maxva,ignore_errors=True))
             cases.append(dict(id=f'{arch}-{label}',arch=arch,width=width,length=length,root=root,writes=writes,holes=holes,expected=[[at,size,physical] for at,size,physical,_,_ in mapped]))
     source=checkout/'volatility3/framework/layers/intel.py'
-    return dict(reference_commit=PIN,source_sha256=hashlib.sha256(source.read_bytes()).hexdigest(),scope='Actual WindowsIntel/WindowsIntelPAE/WindowsIntel32e mapping and translation over full synthetic page-table bytes. Physical BufferDataLayer subclass models explicit backing holes. Full default virtual range length excludes maximum_address. Covers contiguous/discontiguous PFNs, missing tables and backing tails, uniform tables, transition/prototype flags, uppermost page, large pages/PAT and PAE root/physical-bit limits. Does not certify container mapping/decompression, arbitrary malformed reserved PFNs, all architectures or complete scan fault reporting.',cases=cases)
+    return dict(reference_commit=PIN,source_sha256=hashlib.sha256(source.read_bytes()).hexdigest(),scope='Actual WindowsIntel/WindowsIntelPAE/WindowsIntel32e mapping and translation over full synthetic page-table bytes. Physical BufferDataLayer subclass models explicit backing holes. Full default virtual range length excludes maximum_address. Covers contiguous/discontiguous PFNs, missing tables and backing tails, uniform tables, transition/prototype flags, uppermost page, large pages/PAT and PAE root/physical-bit limits and Windows x64 45-bit PFN/software-flag behavior. Does not certify container mapping/decompression, arbitrary malformed reserved PFNs, all architectures or complete scan fault reporting.',cases=cases)
 
 
 if __name__=='__main__':

@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
-  "engine_version": "0.2.1-native-87",
+  "engine_version": "0.2.1-native-88",
   "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
-  "zero_executable_sha256": "d681a4f7276d01f90fcfa9dc3de09c9da3fca3e91fee06308013181ff7663f6c",
+  "zero_executable_sha256": "ed4748ca3b066be86818c46fb10ccf985cbb2d89c70656362e6df91b1a8e7b18",
   "source_sha256": {
     "plugins/windows/driverirp.py": "de9d4d773b8d0055f19858c259ea863b639788add7706b459022ad20824f59cb",
     "plugins/windows/driverscan.py": "e7ac4083870765e9c83039bab8fcab5aecbe526ead58ab1f20b25065908b0175",
@@ -46,8 +46,8 @@
       "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
       "reference_output_sha256": "6225df5641c30cda633f00c291dc5e7ab9b6df9733fd0521953537b33e09aefa",
       "symbol_sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4",
-      "zero_executable_sha256": "d681a4f7276d01f90fcfa9dc3de09c9da3fca3e91fee06308013181ff7663f6c",
-      "engine_version": "0.2.1-native-87",
+      "zero_executable_sha256": "ed4748ca3b066be86818c46fb10ccf985cbb2d89c70656362e6df91b1a8e7b18",
+      "engine_version": "0.2.1-native-88",
       "full_comparison_sha256": "4e06184b11be3dd4c9abd55ebfa927e6f7cea1ec5335ee1166dbea6114fac594",
       "comparison_details": "Diagnostic entries and duplicate groups summarized; complete raw comparison retained in local run.py artifact and bound by full_comparison_sha256. Native/reference JSON digests permit independent reproduction. Any record_selection scope remains explicit.",
       "zero_diagnostics_summary": {
@@ -104,8 +104,8 @@
       "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
       "reference_output_sha256": "f0b4d195a68390eb56126a71e7d591fabba60355b606191914d8f6ed319f4518",
       "symbol_sha256": "5d73f3a7158ba8b72394f2606ea5b4f03393976d5054a11cc51d51afb88a5544",
-      "zero_executable_sha256": "d681a4f7276d01f90fcfa9dc3de09c9da3fca3e91fee06308013181ff7663f6c",
-      "engine_version": "0.2.1-native-87",
+      "zero_executable_sha256": "ed4748ca3b066be86818c46fb10ccf985cbb2d89c70656362e6df91b1a8e7b18",
+      "engine_version": "0.2.1-native-88",
       "full_comparison_sha256": "3e51efd28fad715fc9d9f915e5d6f73f959afa870696afb34199a75242757acd",
       "comparison_details": "Diagnostic entries and duplicate groups summarized; complete raw comparison retained in local run.py artifact and bound by full_comparison_sha256. Native/reference JSON digests permit independent reproduction. Any record_selection scope remains explicit.",
       "zero_diagnostics_summary": {
@@ -160,8 +160,8 @@
       "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
       "reference_output_sha256": "2288235babbeff4ed44ba04e79c36999d6dc7d92e40a7916af07a017730a03b4",
       "symbol_sha256": "6a234099b69b393eb7d652408835205bd12f0b947d0d6b6275e2ffce8ca9c133",
-      "zero_executable_sha256": "d681a4f7276d01f90fcfa9dc3de09c9da3fca3e91fee06308013181ff7663f6c",
-      "engine_version": "0.2.1-native-87",
+      "zero_executable_sha256": "ed4748ca3b066be86818c46fb10ccf985cbb2d89c70656362e6df91b1a8e7b18",
+      "engine_version": "0.2.1-native-88",
       "record_order": {
         "case_id": "windows-11/driverirp-default",
         "records": [
@@ -223,8 +223,8 @@
       "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
       "reference_output_sha256": "6225df5641c30cda633f00c291dc5e7ab9b6df9733fd0521953537b33e09aefa",
       "symbol_sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4",
-      "zero_executable_sha256": "d681a4f7276d01f90fcfa9dc3de09c9da3fca3e91fee06308013181ff7663f6c",
-      "engine_version": "0.2.1-native-87",
+      "zero_executable_sha256": "ed4748ca3b066be86818c46fb10ccf985cbb2d89c70656362e6df91b1a8e7b18",
+      "engine_version": "0.2.1-native-88",
       "full_comparison_sha256": "de9f80d47b2e8febcefe5808fac135e3777c73c985a1e6f586a718115caad846",
       "comparison_details": "Diagnostic entries and duplicate groups summarized; complete raw comparison retained in local run.py artifact and bound by full_comparison_sha256. Native/reference JSON digests permit independent reproduction. Any record_selection scope remains explicit.",
       "zero_diagnostics_summary": {
@@ -299,8 +299,8 @@
       "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
       "reference_output_sha256": "f0b4d195a68390eb56126a71e7d591fabba60355b606191914d8f6ed319f4518",
       "symbol_sha256": "5d73f3a7158ba8b72394f2606ea5b4f03393976d5054a11cc51d51afb88a5544",
-      "zero_executable_sha256": "d681a4f7276d01f90fcfa9dc3de09c9da3fca3e91fee06308013181ff7663f6c",
-      "engine_version": "0.2.1-native-87",
+      "zero_executable_sha256": "ed4748ca3b066be86818c46fb10ccf985cbb2d89c70656362e6df91b1a8e7b18",
+      "engine_version": "0.2.1-native-88",
       "full_comparison_sha256": "b1ec5c66932e6bf0adcecf2203f68cd606abf93e69e2102d414cf4169ded08a6",
       "comparison_details": "Diagnostic entries and duplicate groups summarized; complete raw comparison retained in local run.py artifact and bound by full_comparison_sha256. Native/reference JSON digests permit independent reproduction. Any record_selection scope remains explicit.",
       "zero_diagnostics_summary": {
@@ -373,8 +373,8 @@
       "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
       "reference_output_sha256": "2288235babbeff4ed44ba04e79c36999d6dc7d92e40a7916af07a017730a03b4",
       "symbol_sha256": "6a234099b69b393eb7d652408835205bd12f0b947d0d6b6275e2ffce8ca9c133",
-      "zero_executable_sha256": "d681a4f7276d01f90fcfa9dc3de09c9da3fca3e91fee06308013181ff7663f6c",
-      "engine_version": "0.2.1-native-87",
+      "zero_executable_sha256": "ed4748ca3b066be86818c46fb10ccf985cbb2d89c70656362e6df91b1a8e7b18",
+      "engine_version": "0.2.1-native-88",
       "record_order": {
         "case_id": "windows-11/driverirp-kernel-module",
         "records": [
@@ -399,6 +399,66 @@
           "zero_excluded": 1797,
           "reference_excluded": 1797
         }
+      }
+    },
+    {
+      "reference_plugin": "windows.driverirp.DriverIrp",
+      "zero_plugin": "windows.driverirp.DriverIrp",
+      "image_sha256": "ef92b50aa2ba2f830e3f816eb55ed8d15b0658fdfff0ab7af8adb68f2c8da460",
+      "mapping_sha256": "8d056d2ceace8872a6bec5eec99e0441f1acad43f40a484f9d4dc0e60bec52f8",
+      "native_output_sha256": "d47e89f0bd46d427c97fcf24a59f79067495e3ed37fac1303bad91074c36bf51",
+      "zero_args": [],
+      "reference_args": [],
+      "case_id": "windows-10-19041-bitmap/driverirp-default",
+      "sample_source": "https://mirror.nju.edu.cn/gentoo/distfiles/e4/volatility3-win-10_19041-2025_03.dmp.gz",
+      "comparison": {
+        "schema_version": 1,
+        "mapping_version": 2,
+        "zero_records": 3972,
+        "reference_records": 3972,
+        "missing": [],
+        "extra": [],
+        "duplicates": [],
+        "conflicts": [],
+        "unverifiable": [],
+        "matched_absent": {
+          "Driver Name": 21
+        },
+        "all_columns_mapped": true,
+        "positive_evidence": true,
+        "zero_complete": false,
+        "zero_diagnostics": [
+          "Summary: 19 diagnostics; complete entries retained in raw comparison artifact."
+        ],
+        "passed": true
+      },
+      "passed": true,
+      "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+      "reference_output_sha256": "0e6a5e8a23f0e6892fa714d86292a6031b46b63cd48bfbeb07f0e39549ab71a0",
+      "symbol_sha256": "f2da89bac5e8e253db8046c6f2d2db475b5ae411e0a356eece7c9ca2111f737b",
+      "zero_executable_sha256": "ed4748ca3b066be86818c46fb10ccf985cbb2d89c70656362e6df91b1a8e7b18",
+      "engine_version": "0.2.1-native-88",
+      "full_comparison_sha256": "1be41dc123f292820b2a9979f426c75106719273effed325b7c0d0b665b87e16",
+      "comparison_details": "Diagnostic entries and duplicate groups summarized; complete raw comparison retained in local run.py artifact and bound by full_comparison_sha256. Native/reference JSON digests permit independent reproduction. Any record_selection scope remains explicit.",
+      "zero_diagnostics_summary": {
+        "count": 19,
+        "sha256": "a1d6b16d8f11148bb515e43a30782a5d94161cd11fb0ca8d14070a702ff64067"
+      },
+      "record_order": {
+        "case_id": "windows-10-19041-bitmap/driverirp-default",
+        "records": [
+          3972,
+          3972
+        ],
+        "passed": true,
+        "positive_evidence": true,
+        "first_difference": null,
+        "zero_sha256": "7514373a290b7eb7bef8c61059dd52f52f1e6229e70ffa4cb5a15528257e6933",
+        "reference_sha256": "7514373a290b7eb7bef8c61059dd52f52f1e6229e70ffa4cb5a15528257e6933",
+        "scope": "All mapped fields in emitted sequence after declared record selection; duplicate occurrences retained.",
+        "mapping_sha256": "8d056d2ceace8872a6bec5eec99e0441f1acad43f40a484f9d4dc0e60bec52f8",
+        "native_output_sha256": "d47e89f0bd46d427c97fcf24a59f79067495e3ed37fac1303bad91074c36bf51",
+        "reference_output_sha256": "0e6a5e8a23f0e6892fa714d86292a6031b46b63cd48bfbeb07f0e39549ab71a0"
       }
     }
   ],
@@ -456,7 +516,7 @@
     ],
     "scope": "Actual NameInfo property, DRIVER_OBJECT name method, UNICODE_STRING.String method and String constructor. Synthetic scalar/field adapter isolates location and decoding; native tests separately read physical/virtual descriptors on real fixture page tables. Does not validate pool carving or every NameInfo fault."
   },
-  "validation": "Final native87 binary and unmodified fixed reference, real default/scoped cases compare all mapped fields and multiplicities. Historical cases not rerun retain their own per-case versions. Empty agreement is not positive evidence; no complete plugin contract is claimed.",
+  "validation": "Final native88 binary and unmodified fixed reference, real default/scoped cases compare all mapped fields and multiplicities. Historical cases not rerun retain their own per-case versions. Empty agreement is not positive evidence; no complete plugin contract is claimed.",
   "driver_recovery": {
     "implementation": "shared versioned pool ranges, tag-relative headers, padded carving and reference type map; eight readable DriverStart bytes, zero or strict masked threshold",
     "vectors_sha256": "da8a48206c98b1626f80bf6d48311f686283b59342c7addb1bdd48697412f7d8",
@@ -487,9 +547,9 @@
     "remaining": "Mapping enumeration, all backing formats, tags split across distinct mapping ranges, damaged-page/fault diagnostics and full plugin coverage remain unverified."
   },
   "mapping_vectors": {
-    "sha256": "9030a1156a013aba97a62af7b1dcc69897a275671b3cff1464a4ce90ff568455",
-    "cases": 38,
-    "scope": "Actual WindowsIntel/WindowsIntelPAE/WindowsIntel32e mapping and translation over full synthetic page-table bytes. Physical BufferDataLayer subclass models explicit backing holes. Full default virtual range length excludes maximum_address. Covers contiguous/discontiguous PFNs, missing tables and backing tails, uniform tables, transition/prototype flags, uppermost page, large pages/PAT and PAE root/physical-bit limits. Does not certify container mapping/decompression, arbitrary malformed reserved PFNs, all architectures or complete scan fault reporting.",
+    "sha256": "0298a716742f922a434271f717bfbaa1a80cf215f3817f605dc192b2aa7c7204",
+    "cases": 42,
+    "scope": "Actual WindowsIntel/WindowsIntelPAE/WindowsIntel32e mapping and translation over full synthetic page-table bytes. Physical BufferDataLayer subclass models explicit backing holes. Full default virtual range length excludes maximum_address. Covers contiguous/discontiguous PFNs, missing tables and backing tails, uniform tables, transition/prototype flags, uppermost page, large pages/PAT and PAE root/physical-bit limits and Windows x64 45-bit PFN/software-flag behavior. Does not certify container mapping/decompression, arbitrary malformed reserved PFNs, all architectures or complete scan fault reporting.",
     "implementation": "Compare all virtual range starts, lengths and physical starts; backing holes rejected before coalescing, native-domain maximum-address clipping, full PAE root table validation, level-specific large pages and PAE physical mask",
     "remaining": "All container mapping/decompression, arbitrary reserved PFNs, custom transition layouts, table resource/cancellation limits and full scan fault reporting remain unverified."
   }

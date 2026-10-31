@@ -668,18 +668,8 @@ impl Windows<'_> {
             if entry & 1 == 0 && !(entry & (1 << 11) != 0 && entry & (1 << 10) == 0) {
                 continue;
             }
-            let large = geometry.block(entry, shift)
-                && match (geometry.arch, geometry.pae) {
-                    (Architecture::X86, false) => shift == 22,
-                    (Architecture::X86, true) => shift == 21,
-                    (Architecture::X64, _) => matches!(shift, 21 | 30),
-                    _ => true,
-                };
-            let mask = if geometry.arch == Architecture::X86 && geometry.pae {
-                0x0000_00ff_ffff_f000 // pinned IntelPAE MAXPHYADDR = 40
-            } else {
-                geometry.mask()
-            };
+            let large = geometry.block(entry, shift);
+            let mask = geometry.mask();
             let frame = entry
                 & mask
                 & if large && geometry.arch != Architecture::Arm64 {
@@ -1335,6 +1325,14 @@ mod tests {
                     isf.data["metadata"]["windows"]["paging"] = json!("pae");
                 }
             }
+            if arch == "x64" {
+                // Real ISFs can expose the software flag as part of a 40-bit
+                // transition PFN. The pinned Intel layer still uses raw 45-bit
+                // physical extraction, independent of that field width.
+                isf.data["user_types"]["_MMPTE_TRANSITION"] = json!({"size":8,"fields":{
+                    "PageFrameNumber":{"offset":0,"type":{"kind":"bitfield","bit_position":12,
+                        "bit_length":40,"type":{"kind":"base","name":"u64"}}}}});
+            }
             let mut bytes = vec![0; case["length"].as_u64().unwrap() as usize];
             for write in case["writes"].as_array().unwrap() {
                 let at = write[0].as_u64().unwrap() as usize;
@@ -1366,6 +1364,20 @@ mod tests {
                 pdb: PdbIdentity::from_isf(&isf).unwrap(),
             };
             let ranges = windows.pool_virtual_ranges(&Job::default()).unwrap();
+            for &(at, length, physical) in &ranges {
+                assert_eq!(
+                    windows.vm.translate(at).unwrap(),
+                    physical,
+                    "{} at={at:#x}",
+                    case["id"]
+                );
+                assert_eq!(
+                    windows.vm.translate(at + length - 1).unwrap(),
+                    physical + length - 1,
+                    "{} tail",
+                    case["id"]
+                );
+            }
             let masked: Vec<_> = ranges
                 .into_iter()
                 .map(|(at, size, physical)| [at & windows.driver_address_mask(), size, physical])

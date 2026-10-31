@@ -917,6 +917,66 @@ pub(super) fn analyze(
 mod tests {
     use super::super::tests::{K, fixture, image, put};
     use super::*;
+    #[test]
+    fn crash_segments_and_reads_match_actual_reference_containers() {
+        let vectors: serde_json::Value = serde_json::from_str(include_str!(
+            "../../tests/reference/parity/fixtures/crash-mappings.json"
+        ))
+        .unwrap();
+        for case in vectors["cases"].as_array().unwrap() {
+            let mut bytes = vec![0; case["length"].as_u64().unwrap() as usize];
+            let width = case["width"].as_u64().unwrap();
+            bytes[..8].copy_from_slice(if width == 4 { b"PAGEDUMP" } else { b"PAGEDU64" });
+            for write in case["writes"].as_array().unwrap() {
+                let at = write[0].as_u64().unwrap() as usize;
+                let value = write[1].as_u64().unwrap();
+                let size = write[2].as_u64().unwrap() as usize;
+                bytes[at..at + size].copy_from_slice(&value.to_le_bytes()[..size]);
+            }
+            let header = case["header"].as_u64().unwrap() as usize;
+            let offset = case["data_offset"].as_u64().unwrap() as usize;
+            if case["kind"] == 5 {
+                bytes[header..header + 8].copy_from_slice(b"SDMPDUMP");
+                for page in case["pages"].as_array().unwrap() {
+                    let page = page.as_u64().unwrap() as usize;
+                    bytes[header + 56 + page / 8] |= 1 << (page % 8);
+                }
+            }
+            for (index, page) in case["pages"].as_array().unwrap().iter().enumerate() {
+                bytes[offset + index * 4096..offset + (index + 1) * 4096]
+                    .fill((page.as_u64().unwrap() % 251) as u8);
+            }
+            let img = image(&bytes);
+            let actual: Vec<_> = img
+                .segments
+                .iter()
+                .map(|segment| [segment.start, segment.end, segment.file_offset])
+                .collect();
+            assert_eq!(
+                serde_json::json!(actual),
+                case["expected_segments"],
+                "{}",
+                case["id"]
+            );
+            for query in case["queries"].as_array().unwrap() {
+                let mut data = vec![0; query["length"].as_u64().unwrap() as usize];
+                let read = img.read(query["address"].as_u64().unwrap(), &mut data);
+                if query["expected_hex"].is_null() {
+                    assert!(read.is_err(), "{} {query}", case["id"]);
+                } else {
+                    read.unwrap();
+                    let hex: String = data.iter().map(|byte| format!("{byte:02x}")).collect();
+                    assert_eq!(
+                        hex,
+                        query["expected_hex"].as_str().unwrap(),
+                        "{} {query}",
+                        case["id"]
+                    );
+                }
+            }
+        }
+    }
+
     fn full(raw: &[u8]) -> Vec<u8> {
         let mut b = vec![0; 8192];
         b[..8].copy_from_slice(b"PAGEDU64");

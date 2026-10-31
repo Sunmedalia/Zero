@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
-  "engine_version": "0.2.1-native-87",
+  "engine_version": "0.2.1-native-88",
   "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
-  "zero_executable_sha256": "d681a4f7276d01f90fcfa9dc3de09c9da3fca3e91fee06308013181ff7663f6c",
+  "zero_executable_sha256": "ed4748ca3b066be86818c46fb10ccf985cbb2d89c70656362e6df91b1a8e7b18",
   "source_sha256": {
     "plugins/windows/malware/drivermodule.py": "35627d702a0e79bc38d7157d83e1b6211b5d0c8855efc73d851f924eb74a2198",
     "plugins/windows/driverscan.py": "e7ac4083870765e9c83039bab8fcab5aecbe526ead58ab1f20b25065908b0175",
@@ -44,8 +44,8 @@
       "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
       "reference_output_sha256": "9d6d07e4a4c5dc2e1d3b1904ad5a20fd40f7e2dd559e00aa878bf74a167de5f9",
       "symbol_sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4",
-      "zero_executable_sha256": "d681a4f7276d01f90fcfa9dc3de09c9da3fca3e91fee06308013181ff7663f6c",
-      "engine_version": "0.2.1-native-87",
+      "zero_executable_sha256": "ed4748ca3b066be86818c46fb10ccf985cbb2d89c70656362e6df91b1a8e7b18",
+      "engine_version": "0.2.1-native-88",
       "record_order": {
         "case_id": "windows-10-15063/drivermodule-default",
         "records": [
@@ -94,8 +94,8 @@
       "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
       "reference_output_sha256": "6a26597ecaf6d3100e50809121facae619d9f7562be0b21f98a84a51f4f5be4c",
       "symbol_sha256": "5d73f3a7158ba8b72394f2606ea5b4f03393976d5054a11cc51d51afb88a5544",
-      "zero_executable_sha256": "d681a4f7276d01f90fcfa9dc3de09c9da3fca3e91fee06308013181ff7663f6c",
-      "engine_version": "0.2.1-native-87",
+      "zero_executable_sha256": "ed4748ca3b066be86818c46fb10ccf985cbb2d89c70656362e6df91b1a8e7b18",
+      "engine_version": "0.2.1-native-88",
       "record_order": {
         "case_id": "server-2008-6001-x86/drivermodule-default",
         "records": [
@@ -144,8 +144,8 @@
       "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
       "reference_output_sha256": "e5ad0f82abd8e95bd10aa42ccf113cdffcbaf84edbdc593deeb634f820a14231",
       "symbol_sha256": "6a234099b69b393eb7d652408835205bd12f0b947d0d6b6275e2ffce8ca9c133",
-      "zero_executable_sha256": "d681a4f7276d01f90fcfa9dc3de09c9da3fca3e91fee06308013181ff7663f6c",
-      "engine_version": "0.2.1-native-87",
+      "zero_executable_sha256": "ed4748ca3b066be86818c46fb10ccf985cbb2d89c70656362e6df91b1a8e7b18",
+      "engine_version": "0.2.1-native-88",
       "record_order": {
         "case_id": "windows-11/drivermodule-default",
         "records": [
@@ -162,6 +162,56 @@
         "native_output_sha256": "7f7ea167bac55aa4b9ad8bd9b68d64f4a9188eb5ebfa114e88c6e26a02afac8c",
         "reference_output_sha256": "e5ad0f82abd8e95bd10aa42ccf113cdffcbaf84edbdc593deeb634f820a14231"
       }
+    },
+    {
+      "reference_plugin": "windows.malware.drivermodule.DriverModule",
+      "zero_plugin": "windows.malware.drivermodule.DriverModule",
+      "image_sha256": "ef92b50aa2ba2f830e3f816eb55ed8d15b0658fdfff0ab7af8adb68f2c8da460",
+      "mapping_sha256": "12b692a843f3a42f713b3a662fbd7ff4e7f7552ee847ade78bb12656c984e910",
+      "native_output_sha256": "34eabf8cf2274ba92c8f6312a4aed177d67bfa384d400a90e65e9eb3a99645fa",
+      "zero_args": [],
+      "reference_args": [],
+      "case_id": "windows-10-19041-bitmap/drivermodule-default",
+      "sample_source": "https://mirror.nju.edu.cn/gentoo/distfiles/e4/volatility3-win-10_19041-2025_03.dmp.gz",
+      "comparison": {
+        "schema_version": 1,
+        "mapping_version": 1,
+        "zero_records": 1,
+        "reference_records": 1,
+        "missing": [],
+        "extra": [],
+        "duplicates": [],
+        "conflicts": [],
+        "unverifiable": [],
+        "matched_absent": {},
+        "all_columns_mapped": true,
+        "positive_evidence": true,
+        "zero_complete": true,
+        "zero_diagnostics": [],
+        "passed": true
+      },
+      "passed": true,
+      "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+      "reference_output_sha256": "aa78522fbedafef5432ce143e019f9b3f2047d0639fef7b7f477d2b196f3fd2f",
+      "symbol_sha256": "f2da89bac5e8e253db8046c6f2d2db475b5ae411e0a356eece7c9ca2111f737b",
+      "zero_executable_sha256": "ed4748ca3b066be86818c46fb10ccf985cbb2d89c70656362e6df91b1a8e7b18",
+      "engine_version": "0.2.1-native-88",
+      "record_order": {
+        "case_id": "windows-10-19041-bitmap/drivermodule-default",
+        "records": [
+          1,
+          1
+        ],
+        "passed": true,
+        "positive_evidence": true,
+        "first_difference": null,
+        "zero_sha256": "3085052c960dbc2ce1fcf7ae1c7fbfaab568bde7f3205981b3e6c247b5e832fe",
+        "reference_sha256": "3085052c960dbc2ce1fcf7ae1c7fbfaab568bde7f3205981b3e6c247b5e832fe",
+        "scope": "All mapped fields in emitted sequence after declared record selection; duplicate occurrences retained.",
+        "mapping_sha256": "12b692a843f3a42f713b3a662fbd7ff4e7f7552ee847ade78bb12656c984e910",
+        "native_output_sha256": "34eabf8cf2274ba92c8f6312a4aed177d67bfa384d400a90e65e9eb3a99645fa",
+        "reference_output_sha256": "aa78522fbedafef5432ce143e019f9b3f2047d0639fef7b7f477d2b196f3fd2f"
+      }
     }
   ],
   "limitations": [
@@ -173,7 +223,7 @@
     "Only x86 and x64 are supported. Further kernel builds, malicious hidden-driver samples and damaged-input coverage remain outstanding.",
     "Original user image c8f6a7f79a5a83d238b1ff16c2a51277d56b6e16580f7db5706b38bcfd5a5c66 remains unavailable and untested."
   ],
-  "validation": "Final native87 binary and unmodified fixed reference, real default/scoped cases compare all mapped fields and multiplicities. Historical cases not rerun retain their own per-case versions. Empty agreement is not positive evidence; no complete plugin contract is claimed.",
+  "validation": "Final native88 binary and unmodified fixed reference, real default/scoped cases compare all mapped fields and multiplicities. Historical cases not rerun retain their own per-case versions. Empty agreement is not positive evidence; no complete plugin contract is claimed.",
   "driver_recovery": {
     "implementation": "shared versioned pool ranges, tag-relative headers, padded carving and reference type map; eight readable DriverStart bytes, zero or strict masked threshold",
     "vectors_sha256": "da8a48206c98b1626f80bf6d48311f686283b59342c7addb1bdd48697412f7d8",
@@ -212,9 +262,9 @@
     "remaining": "Mapping enumeration, all backing formats, tags split across distinct mapping ranges, damaged-page/fault diagnostics and full plugin coverage remain unverified."
   },
   "mapping_vectors": {
-    "sha256": "9030a1156a013aba97a62af7b1dcc69897a275671b3cff1464a4ce90ff568455",
-    "cases": 38,
-    "scope": "Actual WindowsIntel/WindowsIntelPAE/WindowsIntel32e mapping and translation over full synthetic page-table bytes. Physical BufferDataLayer subclass models explicit backing holes. Full default virtual range length excludes maximum_address. Covers contiguous/discontiguous PFNs, missing tables and backing tails, uniform tables, transition/prototype flags, uppermost page, large pages/PAT and PAE root/physical-bit limits. Does not certify container mapping/decompression, arbitrary malformed reserved PFNs, all architectures or complete scan fault reporting.",
+    "sha256": "0298a716742f922a434271f717bfbaa1a80cf215f3817f605dc192b2aa7c7204",
+    "cases": 42,
+    "scope": "Actual WindowsIntel/WindowsIntelPAE/WindowsIntel32e mapping and translation over full synthetic page-table bytes. Physical BufferDataLayer subclass models explicit backing holes. Full default virtual range length excludes maximum_address. Covers contiguous/discontiguous PFNs, missing tables and backing tails, uniform tables, transition/prototype flags, uppermost page, large pages/PAT and PAE root/physical-bit limits and Windows x64 45-bit PFN/software-flag behavior. Does not certify container mapping/decompression, arbitrary malformed reserved PFNs, all architectures or complete scan fault reporting.",
     "implementation": "Compare all virtual range starts, lengths and physical starts; backing holes rejected before coalescing, native-domain maximum-address clipping, full PAE root table validation, level-specific large pages and PAE physical mask",
     "remaining": "All container mapping/decompression, arbitrary reserved PFNs, custom transition layouts, table resource/cancellation limits and full scan fault reporting remain unverified."
   }

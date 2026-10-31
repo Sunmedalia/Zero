@@ -820,3 +820,44 @@ reflects actual backing-span mapping checks rather than suppressing read errors.
 Reports and ordered comparisons are bound to the final binary under the four
 `*-native87` directories. Evidence remains 122 positive cases (five scoped), zero
 complete contracts.
+
+
+Native88 fixes the Windows-specific PFN domain exposed by the new Win10 bitmap
+crash default: the pinned WindowsIntel32e uses 45 physical bits rather than the
+generic Intel32e 52. Paging, Intel transition extraction, root self-reference
+checks and pool mappings now share the correct architecture domain (x86 32,
+PAE 40, Windows x64 45; ARM64 unchanged). The 42 actual mapping vectors include
+software high flags and native Memory.translate endpoint checks. Fourteen new
+actual crash-layer fixtures in `fixtures/crash-mappings.json` validate full and
+bitmap dump segments/reads against both 32/64-bit reference constructors and
+their real bundled symbols.
+
+`crash-pool.example.json` covers the three complete default pool/driver plugins
+on the public Win10 bitmap capture. Prepare its decompressed file first; the
+runner checks its raw SHA256 and separately checks the listed gzip input digest:
+
+```sh
+mkdir -p target/reference/prepared
+gzip -dc images/feat-windows-plugins/win-10_19041-2025_03.dmp.gz > target/reference/prepared/win-10_19041-2025_03.dmp
+python3 tests/reference/parity/run.py \
+  --config tests/reference/parity/crash-pool.example.json \
+  --output target/reference/results/crash-pool-native88
+```
+
+Place the exact kernel ISF at both local and reference paths listed in the config
+before running. Server 2019 type 6 is not accepted by the pinned reference crash
+layer; its initial requirement failures are retained as incomparable, never
+positive evidence. Direct reference gzip random-seek performance is not part of
+the container plugin parity claim. Truncated/malformed containers and full fault
+contracts remain unverified.
+
+
+Final native88 passes 22 real full-field/multiplicity cases, including three new
+unscoped bitmap crash defaults: PoolScanner 8090/8090 (native87 missed ten files),
+DriverIrp 3972/3972 and DriverModule 1/1. Twenty-one strict sequences pass; the
+existing Windows child-order difference at index 245 remains recorded. The empty
+Win7 agreement is non-positive. Positive evidence increases from 122 to 125 cases
+(five scoped); complete plugin contracts remain zero. The final five
+`*-native88` result groups share one executable digest. See
+`crash-pool-known-limitations.json` for the old mismatch, prepared-input hashes,
+actual container vectors and unsupported Server 2019 reference failures.

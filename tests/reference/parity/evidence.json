@@ -40722,8 +40722,8 @@
     "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
     "reference_output_sha256": "6225df5641c30cda633f00c291dc5e7ab9b6df9733fd0521953537b33e09aefa",
     "symbol_sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4",
-    "zero_executable_sha256": "d681a4f7276d01f90fcfa9dc3de09c9da3fca3e91fee06308013181ff7663f6c",
-    "engine_version": "0.2.1-native-87",
+    "zero_executable_sha256": "ed4748ca3b066be86818c46fb10ccf985cbb2d89c70656362e6df91b1a8e7b18",
+    "engine_version": "0.2.1-native-88",
     "full_comparison_sha256": "4e06184b11be3dd4c9abd55ebfa927e6f7cea1ec5335ee1166dbea6114fac594",
     "comparison_details": "Diagnostic entries and duplicate groups summarized; complete raw comparison retained in local run.py artifact and bound by full_comparison_sha256. Native/reference JSON digests permit independent reproduction. Any record_selection scope remains explicit.",
     "zero_diagnostics_summary": {
@@ -40780,8 +40780,8 @@
     "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
     "reference_output_sha256": "f0b4d195a68390eb56126a71e7d591fabba60355b606191914d8f6ed319f4518",
     "symbol_sha256": "5d73f3a7158ba8b72394f2606ea5b4f03393976d5054a11cc51d51afb88a5544",
-    "zero_executable_sha256": "d681a4f7276d01f90fcfa9dc3de09c9da3fca3e91fee06308013181ff7663f6c",
-    "engine_version": "0.2.1-native-87",
+    "zero_executable_sha256": "ed4748ca3b066be86818c46fb10ccf985cbb2d89c70656362e6df91b1a8e7b18",
+    "engine_version": "0.2.1-native-88",
     "full_comparison_sha256": "3e51efd28fad715fc9d9f915e5d6f73f959afa870696afb34199a75242757acd",
     "comparison_details": "Diagnostic entries and duplicate groups summarized; complete raw comparison retained in local run.py artifact and bound by full_comparison_sha256. Native/reference JSON digests permit independent reproduction. Any record_selection scope remains explicit.",
     "zero_diagnostics_summary": {
@@ -40836,8 +40836,8 @@
     "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
     "reference_output_sha256": "2288235babbeff4ed44ba04e79c36999d6dc7d92e40a7916af07a017730a03b4",
     "symbol_sha256": "6a234099b69b393eb7d652408835205bd12f0b947d0d6b6275e2ffce8ca9c133",
-    "zero_executable_sha256": "d681a4f7276d01f90fcfa9dc3de09c9da3fca3e91fee06308013181ff7663f6c",
-    "engine_version": "0.2.1-native-87",
+    "zero_executable_sha256": "ed4748ca3b066be86818c46fb10ccf985cbb2d89c70656362e6df91b1a8e7b18",
+    "engine_version": "0.2.1-native-88",
     "record_order": {
       "case_id": "windows-11/driverirp-default",
       "records": [
@@ -40899,8 +40899,8 @@
     "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
     "reference_output_sha256": "6225df5641c30cda633f00c291dc5e7ab9b6df9733fd0521953537b33e09aefa",
     "symbol_sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4",
-    "zero_executable_sha256": "d681a4f7276d01f90fcfa9dc3de09c9da3fca3e91fee06308013181ff7663f6c",
-    "engine_version": "0.2.1-native-87",
+    "zero_executable_sha256": "ed4748ca3b066be86818c46fb10ccf985cbb2d89c70656362e6df91b1a8e7b18",
+    "engine_version": "0.2.1-native-88",
     "full_comparison_sha256": "de9f80d47b2e8febcefe5808fac135e3777c73c985a1e6f586a718115caad846",
     "comparison_details": "Diagnostic entries and duplicate groups summarized; complete raw comparison retained in local run.py artifact and bound by full_comparison_sha256. Native/reference JSON digests permit independent reproduction. Any record_selection scope remains explicit.",
     "zero_diagnostics_summary": {
@@ -40975,8 +40975,8 @@
     "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
     "reference_output_sha256": "f0b4d195a68390eb56126a71e7d591fabba60355b606191914d8f6ed319f4518",
     "symbol_sha256": "5d73f3a7158ba8b72394f2606ea5b4f03393976d5054a11cc51d51afb88a5544",
-    "zero_executable_sha256": "d681a4f7276d01f90fcfa9dc3de09c9da3fca3e91fee06308013181ff7663f6c",
-    "engine_version": "0.2.1-native-87",
+    "zero_executable_sha256": "ed4748ca3b066be86818c46fb10ccf985cbb2d89c70656362e6df91b1a8e7b18",
+    "engine_version": "0.2.1-native-88",
     "full_comparison_sha256": "b1ec5c66932e6bf0adcecf2203f68cd606abf93e69e2102d414cf4169ded08a6",
     "comparison_details": "Diagnostic entries and duplicate groups summarized; complete raw comparison retained in local run.py artifact and bound by full_comparison_sha256. Native/reference JSON digests permit independent reproduction. Any record_selection scope remains explicit.",
     "zero_diagnostics_summary": {
@@ -41049,8 +41049,8 @@
     "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
     "reference_output_sha256": "2288235babbeff4ed44ba04e79c36999d6dc7d92e40a7916af07a017730a03b4",
     "symbol_sha256": "6a234099b69b393eb7d652408835205bd12f0b947d0d6b6275e2ffce8ca9c133",
-    "zero_executable_sha256": "d681a4f7276d01f90fcfa9dc3de09c9da3fca3e91fee06308013181ff7663f6c",
-    "engine_version": "0.2.1-native-87",
+    "zero_executable_sha256": "ed4748ca3b066be86818c46fb10ccf985cbb2d89c70656362e6df91b1a8e7b18",
+    "engine_version": "0.2.1-native-88",
     "record_order": {
       "case_id": "windows-11/driverirp-kernel-module",
       "records": [
@@ -41108,8 +41108,8 @@
     "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
     "reference_output_sha256": "9d6d07e4a4c5dc2e1d3b1904ad5a20fd40f7e2dd559e00aa878bf74a167de5f9",
     "symbol_sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4",
-    "zero_executable_sha256": "d681a4f7276d01f90fcfa9dc3de09c9da3fca3e91fee06308013181ff7663f6c",
-    "engine_version": "0.2.1-native-87",
+    "zero_executable_sha256": "ed4748ca3b066be86818c46fb10ccf985cbb2d89c70656362e6df91b1a8e7b18",
+    "engine_version": "0.2.1-native-88",
     "record_order": {
       "case_id": "windows-10-15063/drivermodule-default",
       "records": [
@@ -41158,8 +41158,8 @@
     "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
     "reference_output_sha256": "6a26597ecaf6d3100e50809121facae619d9f7562be0b21f98a84a51f4f5be4c",
     "symbol_sha256": "5d73f3a7158ba8b72394f2606ea5b4f03393976d5054a11cc51d51afb88a5544",
-    "zero_executable_sha256": "d681a4f7276d01f90fcfa9dc3de09c9da3fca3e91fee06308013181ff7663f6c",
-    "engine_version": "0.2.1-native-87",
+    "zero_executable_sha256": "ed4748ca3b066be86818c46fb10ccf985cbb2d89c70656362e6df91b1a8e7b18",
+    "engine_version": "0.2.1-native-88",
     "record_order": {
       "case_id": "server-2008-6001-x86/drivermodule-default",
       "records": [
@@ -41208,8 +41208,8 @@
     "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
     "reference_output_sha256": "e5ad0f82abd8e95bd10aa42ccf113cdffcbaf84edbdc593deeb634f820a14231",
     "symbol_sha256": "6a234099b69b393eb7d652408835205bd12f0b947d0d6b6275e2ffce8ca9c133",
-    "zero_executable_sha256": "d681a4f7276d01f90fcfa9dc3de09c9da3fca3e91fee06308013181ff7663f6c",
-    "engine_version": "0.2.1-native-87",
+    "zero_executable_sha256": "ed4748ca3b066be86818c46fb10ccf985cbb2d89c70656362e6df91b1a8e7b18",
+    "engine_version": "0.2.1-native-88",
     "record_order": {
       "case_id": "windows-11/drivermodule-default",
       "records": [
@@ -41260,8 +41260,8 @@
     "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
     "reference_output_sha256": "e69f79f711166f1f123dbfdbc3463e5b96743b0d3fdf2b964257da3967f6f16d",
     "symbol_sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4",
-    "zero_executable_sha256": "d681a4f7276d01f90fcfa9dc3de09c9da3fca3e91fee06308013181ff7663f6c",
-    "engine_version": "0.2.1-native-87",
+    "zero_executable_sha256": "ed4748ca3b066be86818c46fb10ccf985cbb2d89c70656362e6df91b1a8e7b18",
+    "engine_version": "0.2.1-native-88",
     "record_order": {
       "case_id": "windows-10-15063/windowstations-default",
       "records": [
@@ -41312,8 +41312,8 @@
     "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
     "reference_output_sha256": "a3cbe01dad52836a7ac8efc91954cf64867f4dee8a6f046c4bb0838d11f48589",
     "symbol_sha256": "6d5f85f7b953330b9762a57e5a25266547e7391ad4f6655170a9f48876fb6b8c",
-    "zero_executable_sha256": "d681a4f7276d01f90fcfa9dc3de09c9da3fca3e91fee06308013181ff7663f6c",
-    "engine_version": "0.2.1-native-87",
+    "zero_executable_sha256": "ed4748ca3b066be86818c46fb10ccf985cbb2d89c70656362e6df91b1a8e7b18",
+    "engine_version": "0.2.1-native-88",
     "empty_agreement": true,
     "record_order": {
       "case_id": "windows-7-7601-x64/windowstations-default",
@@ -41380,8 +41380,8 @@
     "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
     "reference_output_sha256": "4c05396681ad93f7d06b8d6504aba3c31a5f23699fd84d9b3748703d57222c56",
     "symbol_sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4",
-    "zero_executable_sha256": "d681a4f7276d01f90fcfa9dc3de09c9da3fca3e91fee06308013181ff7663f6c",
-    "engine_version": "0.2.1-native-87",
+    "zero_executable_sha256": "ed4748ca3b066be86818c46fb10ccf985cbb2d89c70656362e6df91b1a8e7b18",
+    "engine_version": "0.2.1-native-88",
     "full_comparison_sha256": "53957bd70c3e72d2c581a24108d0196c932d7ddc0251011785c5358f3101e7d8",
     "comparison_details": "Diagnostic entries and duplicate groups summarized; complete raw comparison retained in local run.py artifact and bound by full_comparison_sha256. Native/reference JSON digests permit independent reproduction. Any record_selection scope remains explicit.",
     "record_order": {
@@ -41449,8 +41449,8 @@
     "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
     "reference_output_sha256": "1139b850c4e6bd2a57b8d932fcf487e006102367b3d44d04bf22f786713d90ee",
     "symbol_sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4",
-    "zero_executable_sha256": "d681a4f7276d01f90fcfa9dc3de09c9da3fca3e91fee06308013181ff7663f6c",
-    "engine_version": "0.2.1-native-87",
+    "zero_executable_sha256": "ed4748ca3b066be86818c46fb10ccf985cbb2d89c70656362e6df91b1a8e7b18",
+    "engine_version": "0.2.1-native-88",
     "full_comparison_sha256": "a8e8398c65415715446339f173936f1e2760d6f86fb5619bcf28dc9c1d4c345e",
     "comparison_details": "Diagnostic entries and duplicate groups summarized; complete raw comparison retained in local run.py artifact and bound by full_comparison_sha256. Native/reference JSON digests permit independent reproduction. Any record_selection scope remains explicit.",
     "record_order": {
@@ -41500,7 +41500,7 @@
           "summary": true,
           "groups": 1457,
           "records": 2914,
-          "keys_and_counts_sha256": "a95363cdc4c55b3e41ce961fa20eaffe4d02c0f0e201fe3f6f0c30aa1e31ab29"
+          "keys_and_counts_sha256": "b8d19dd28f9aa59c2be50c9b2c4fa57e3ae346e0fc8b9a0213f38c0bed8e9fd5"
         }
       ],
       "duplicate_keys": "multiset",
@@ -41516,11 +41516,11 @@
     },
     "passed": true,
     "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
-    "reference_output_sha256": "a5bd628e1c82a7b6bd4556db530c63f755713f5233e2d7cc14fbbd8c38429ffd",
+    "reference_output_sha256": "d3986769d9a037d3faaced0ccc3016b75d06b5c76d0956decb13782f02359bbf",
     "symbol_sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4",
-    "zero_executable_sha256": "d681a4f7276d01f90fcfa9dc3de09c9da3fca3e91fee06308013181ff7663f6c",
-    "engine_version": "0.2.1-native-87",
-    "full_comparison_sha256": "06fb35e47e75c01982a6410f09c731548a347055c777fc2216d7b888c5904f0c",
+    "zero_executable_sha256": "ed4748ca3b066be86818c46fb10ccf985cbb2d89c70656362e6df91b1a8e7b18",
+    "engine_version": "0.2.1-native-88",
+    "full_comparison_sha256": "a14ee0000b7831db41fefcbbe63532babc2a26e80b7c26cebb47e95d7b339b45",
     "comparison_details": "Diagnostic entries and duplicate groups summarized; complete raw comparison retained in local run.py artifact and bound by full_comparison_sha256. Native/reference JSON digests permit independent reproduction. Any record_selection scope remains explicit.",
     "record_order": {
       "case_id": "windows-10-15063/windows-default",
@@ -41532,11 +41532,11 @@
       "positive_evidence": true,
       "first_difference": 245,
       "zero_sha256": "d9bca8f4c1edc77a21ae8ae66a038bb76c2ccb0c941b25d815dbaf0f61b3cb45",
-      "reference_sha256": "728a24e12b37d347ba16c294a0d95ef5d17c7c803e0715cf0fd5e19c678b67b4",
+      "reference_sha256": "f8c0110b6b60c9a63907f0a9cb5f113075c82e1d1c89010b4439e7a07b147746",
       "scope": "All mapped fields in emitted sequence after declared record selection; duplicate occurrences retained.",
       "mapping_sha256": "9b937883de8e43036d6540e990c087428c2c6b5e656d7c85bd012075092bb2d7",
       "native_output_sha256": "cca607539a898408b35cc73001db26456583de6fe50860f089e8ded73805299c",
-      "reference_output_sha256": "a5bd628e1c82a7b6bd4556db530c63f755713f5233e2d7cc14fbbd8c38429ffd"
+      "reference_output_sha256": "d3986769d9a037d3faaced0ccc3016b75d06b5c76d0956decb13782f02359bbf"
     }
   },
   {
@@ -41589,8 +41589,8 @@
     "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
     "reference_output_sha256": "1001fdff9ee2eceed8c60a145821566106f0af0e040f0d963c850391c62ef72a",
     "symbol_sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4",
-    "zero_executable_sha256": "d681a4f7276d01f90fcfa9dc3de09c9da3fca3e91fee06308013181ff7663f6c",
-    "engine_version": "0.2.1-native-87",
+    "zero_executable_sha256": "ed4748ca3b066be86818c46fb10ccf985cbb2d89c70656362e6df91b1a8e7b18",
+    "engine_version": "0.2.1-native-88",
     "full_comparison_sha256": "3e9da4e221bf64c610944a8eb682d0ea727276691b1f50830b48467ecc90bb98",
     "comparison_details": "Diagnostic entries and duplicate groups summarized; complete raw comparison retained in local run.py artifact and bound by full_comparison_sha256. Native/reference JSON digests permit independent reproduction. Any record_selection scope remains explicit.",
     "zero_diagnostics_summary": {
@@ -41619,7 +41619,7 @@
     "zero_plugin": "windows.poolscanner.PoolScanner",
     "image_sha256": "0f00815b8f78f30a63d742c73152474b2a3c35183dbb1d92c8fc6a81fa3de9f1",
     "mapping_sha256": "61bf7450b58203cf44032f8f3d5740d2bc181ac385da0953c446196825865dfa",
-    "native_output_sha256": "46ddc48ccc1ddba229c2cbce7a044886d9da97ff50e5481ae144fc7288bf7c38",
+    "native_output_sha256": "ae87e72f66d906b0a466f122e5d48b2c4252ed760f727ed48ab70ca436d7e1ce",
     "zero_args": [],
     "reference_args": [],
     "case_id": "windows-11/poolscanner-default",
@@ -41664,13 +41664,13 @@
     "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
     "reference_output_sha256": "db3bb567502795eb6bc4c63d6feef552e4887edb3931efd03014817b57cfdeb7",
     "symbol_sha256": "6a234099b69b393eb7d652408835205bd12f0b947d0d6b6275e2ffce8ca9c133",
-    "zero_executable_sha256": "d681a4f7276d01f90fcfa9dc3de09c9da3fca3e91fee06308013181ff7663f6c",
-    "engine_version": "0.2.1-native-87",
-    "full_comparison_sha256": "242fd584a75b1625ebe97ac577c02f93798055852f9516f4521ff2e8f70b77e7",
+    "zero_executable_sha256": "ed4748ca3b066be86818c46fb10ccf985cbb2d89c70656362e6df91b1a8e7b18",
+    "engine_version": "0.2.1-native-88",
+    "full_comparison_sha256": "1900ee49a8c8940156ea0b5c2f53adfe985354ce87363fe70533f5688ffabd05",
     "comparison_details": "Diagnostic entries and duplicate groups summarized; complete raw comparison retained in local run.py artifact and bound by full_comparison_sha256. Native/reference JSON digests permit independent reproduction. Any record_selection scope remains explicit.",
     "zero_diagnostics_summary": {
       "count": 179,
-      "sha256": "fb423ba9c9225b151e2b90238e71e14b100307da8ab4b55adce52f77e7f3c0ad"
+      "sha256": "c3f252bca17929ad8c1b60a61fd5f05c405c939f03de7024f6482b21c856733a"
     },
     "record_order": {
       "case_id": "windows-11/poolscanner-default",
@@ -41685,7 +41685,7 @@
       "reference_sha256": "0cd898dd11cb4e48cb814bec0c929eed596e5cf109df3b6f3e5ef01818fa78d8",
       "scope": "All mapped fields in emitted sequence after declared record selection; duplicate occurrences retained.",
       "mapping_sha256": "61bf7450b58203cf44032f8f3d5740d2bc181ac385da0953c446196825865dfa",
-      "native_output_sha256": "46ddc48ccc1ddba229c2cbce7a044886d9da97ff50e5481ae144fc7288bf7c38",
+      "native_output_sha256": "ae87e72f66d906b0a466f122e5d48b2c4252ed760f727ed48ab70ca436d7e1ce",
       "reference_output_sha256": "db3bb567502795eb6bc4c63d6feef552e4887edb3931efd03014817b57cfdeb7"
     }
   },
@@ -41724,8 +41724,8 @@
     "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
     "reference_output_sha256": "e7c295dfa633ed0297171c80c6deed11681925a1b402cb02e9f567b01737f4e5",
     "symbol_sha256": "5d73f3a7158ba8b72394f2606ea5b4f03393976d5054a11cc51d51afb88a5544",
-    "zero_executable_sha256": "d681a4f7276d01f90fcfa9dc3de09c9da3fca3e91fee06308013181ff7663f6c",
-    "engine_version": "0.2.1-native-87",
+    "zero_executable_sha256": "ed4748ca3b066be86818c46fb10ccf985cbb2d89c70656362e6df91b1a8e7b18",
+    "engine_version": "0.2.1-native-88",
     "full_comparison_sha256": "ab9e0dbaacf0b0a5da16f2b226ce211dfdaa83504989ac014e6b0f7e996b9572",
     "comparison_details": "Diagnostic entries and duplicate groups summarized; complete raw comparison retained in local run.py artifact and bound by full_comparison_sha256. Native/reference JSON digests permit independent reproduction. Any record_selection scope remains explicit.",
     "zero_diagnostics_summary": {
@@ -41782,8 +41782,8 @@
     "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
     "reference_output_sha256": "cbacf9552535c631717cbfbed9c908b16b812de4d8b7e4f161079e4e5d45bca5",
     "symbol_sha256": "6d5f85f7b953330b9762a57e5a25266547e7391ad4f6655170a9f48876fb6b8c",
-    "zero_executable_sha256": "d681a4f7276d01f90fcfa9dc3de09c9da3fca3e91fee06308013181ff7663f6c",
-    "engine_version": "0.2.1-native-87",
+    "zero_executable_sha256": "ed4748ca3b066be86818c46fb10ccf985cbb2d89c70656362e6df91b1a8e7b18",
+    "engine_version": "0.2.1-native-88",
     "record_order": {
       "case_id": "windows-7-7601-x64/poolscanner-default",
       "records": [
@@ -41836,8 +41836,8 @@
     "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
     "reference_output_sha256": "7b6cb154912c226c4b39b98d0da814e3b04cbd1e07f0a5bd814532a290f74ded",
     "symbol_sha256": "e71b53897ef6119ca9e51967ffe2399edd422ef54279f3d93659d61d16ec1f67",
-    "zero_executable_sha256": "d681a4f7276d01f90fcfa9dc3de09c9da3fca3e91fee06308013181ff7663f6c",
-    "engine_version": "0.2.1-native-87",
+    "zero_executable_sha256": "ed4748ca3b066be86818c46fb10ccf985cbb2d89c70656362e6df91b1a8e7b18",
+    "engine_version": "0.2.1-native-88",
     "full_comparison_sha256": "d49893d69552f3b3ebbeefc6b5b61d358edb4f098ec55c0968fd689d351605e8",
     "comparison_details": "Diagnostic entries and duplicate groups summarized; complete raw comparison retained in local run.py artifact and bound by full_comparison_sha256. Native/reference JSON digests permit independent reproduction. Any record_selection scope remains explicit.",
     "zero_diagnostics_summary": {
@@ -41859,6 +41859,191 @@
       "mapping_sha256": "61bf7450b58203cf44032f8f3d5740d2bc181ac385da0953c446196825865dfa",
       "native_output_sha256": "8738a38cd70160450eeabc2259d6bdbc86a113357375562e2d75a164d548ab1b",
       "reference_output_sha256": "7b6cb154912c226c4b39b98d0da814e3b04cbd1e07f0a5bd814532a290f74ded"
+    }
+  },
+  {
+    "reference_plugin": "windows.poolscanner.PoolScanner",
+    "zero_plugin": "windows.poolscanner.PoolScanner",
+    "image_sha256": "ef92b50aa2ba2f830e3f816eb55ed8d15b0658fdfff0ab7af8adb68f2c8da460",
+    "mapping_sha256": "61bf7450b58203cf44032f8f3d5740d2bc181ac385da0953c446196825865dfa",
+    "native_output_sha256": "fe0f0314c5cf615d99386c6c0597f4038f76c524119c57d4a7baa107795abebf",
+    "zero_args": [],
+    "reference_args": [],
+    "case_id": "windows-10-19041-bitmap/poolscanner-default",
+    "sample_source": "https://mirror.nju.edu.cn/gentoo/distfiles/e4/volatility3-win-10_19041-2025_03.dmp.gz",
+    "comparison": {
+      "schema_version": 1,
+      "mapping_version": 1,
+      "zero_records": 8090,
+      "reference_records": 8090,
+      "missing": [],
+      "extra": [],
+      "duplicates": [
+        {
+          "side": "zero",
+          "summary": true,
+          "groups": 18,
+          "records": 36,
+          "keys_and_counts_sha256": "f3d0f6d4f18eb7d1f1763a7fc2c9dd3b81826884cdabd399591a8aeccc1c3584"
+        },
+        {
+          "side": "reference",
+          "summary": true,
+          "groups": 18,
+          "records": 36,
+          "keys_and_counts_sha256": "718bd66ff0269730ecb64e3c5734ffc32d2583a40a63c41eb2d639d32d6c6fe5"
+        }
+      ],
+      "duplicate_keys": "multiset",
+      "multiplicity_conflicts": [],
+      "conflicts": [],
+      "unverifiable": [],
+      "matched_absent": {},
+      "all_columns_mapped": true,
+      "positive_evidence": true,
+      "zero_complete": false,
+      "zero_diagnostics": [
+        "Summary: 89 diagnostics; complete entries retained in raw comparison artifact."
+      ],
+      "passed": true
+    },
+    "passed": true,
+    "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+    "reference_output_sha256": "f0512cedf8848a0029835048ba5d5c2436d3e8f07d64e79a991e39f5ffe993f2",
+    "symbol_sha256": "f2da89bac5e8e253db8046c6f2d2db475b5ae411e0a356eece7c9ca2111f737b",
+    "zero_executable_sha256": "ed4748ca3b066be86818c46fb10ccf985cbb2d89c70656362e6df91b1a8e7b18",
+    "engine_version": "0.2.1-native-88",
+    "full_comparison_sha256": "a7bd058ff81d9d87f108aaf6c7aeb2b71d4f5b01578a652feb02cef900781a68",
+    "comparison_details": "Diagnostic entries and duplicate groups summarized; complete raw comparison retained in local run.py artifact and bound by full_comparison_sha256. Native/reference JSON digests permit independent reproduction. Any record_selection scope remains explicit.",
+    "zero_diagnostics_summary": {
+      "count": 89,
+      "sha256": "95bb46ce495050ad0c6692c8a1d3bca512d6996c754f91aca456088308934829"
+    },
+    "record_order": {
+      "case_id": "windows-10-19041-bitmap/poolscanner-default",
+      "records": [
+        8090,
+        8090
+      ],
+      "passed": true,
+      "positive_evidence": true,
+      "first_difference": null,
+      "zero_sha256": "c90a9cfb92183732a6a676c05278a7c61ff8aff3249a765c2bca86a3a4040662",
+      "reference_sha256": "c90a9cfb92183732a6a676c05278a7c61ff8aff3249a765c2bca86a3a4040662",
+      "scope": "All mapped fields in emitted sequence after declared record selection; duplicate occurrences retained.",
+      "mapping_sha256": "61bf7450b58203cf44032f8f3d5740d2bc181ac385da0953c446196825865dfa",
+      "native_output_sha256": "fe0f0314c5cf615d99386c6c0597f4038f76c524119c57d4a7baa107795abebf",
+      "reference_output_sha256": "f0512cedf8848a0029835048ba5d5c2436d3e8f07d64e79a991e39f5ffe993f2"
+    }
+  },
+  {
+    "reference_plugin": "windows.driverirp.DriverIrp",
+    "zero_plugin": "windows.driverirp.DriverIrp",
+    "image_sha256": "ef92b50aa2ba2f830e3f816eb55ed8d15b0658fdfff0ab7af8adb68f2c8da460",
+    "mapping_sha256": "8d056d2ceace8872a6bec5eec99e0441f1acad43f40a484f9d4dc0e60bec52f8",
+    "native_output_sha256": "d47e89f0bd46d427c97fcf24a59f79067495e3ed37fac1303bad91074c36bf51",
+    "zero_args": [],
+    "reference_args": [],
+    "case_id": "windows-10-19041-bitmap/driverirp-default",
+    "sample_source": "https://mirror.nju.edu.cn/gentoo/distfiles/e4/volatility3-win-10_19041-2025_03.dmp.gz",
+    "comparison": {
+      "schema_version": 1,
+      "mapping_version": 2,
+      "zero_records": 3972,
+      "reference_records": 3972,
+      "missing": [],
+      "extra": [],
+      "duplicates": [],
+      "conflicts": [],
+      "unverifiable": [],
+      "matched_absent": {
+        "Driver Name": 21
+      },
+      "all_columns_mapped": true,
+      "positive_evidence": true,
+      "zero_complete": false,
+      "zero_diagnostics": [
+        "Summary: 19 diagnostics; complete entries retained in raw comparison artifact."
+      ],
+      "passed": true
+    },
+    "passed": true,
+    "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+    "reference_output_sha256": "0e6a5e8a23f0e6892fa714d86292a6031b46b63cd48bfbeb07f0e39549ab71a0",
+    "symbol_sha256": "f2da89bac5e8e253db8046c6f2d2db475b5ae411e0a356eece7c9ca2111f737b",
+    "zero_executable_sha256": "ed4748ca3b066be86818c46fb10ccf985cbb2d89c70656362e6df91b1a8e7b18",
+    "engine_version": "0.2.1-native-88",
+    "full_comparison_sha256": "1be41dc123f292820b2a9979f426c75106719273effed325b7c0d0b665b87e16",
+    "comparison_details": "Diagnostic entries and duplicate groups summarized; complete raw comparison retained in local run.py artifact and bound by full_comparison_sha256. Native/reference JSON digests permit independent reproduction. Any record_selection scope remains explicit.",
+    "zero_diagnostics_summary": {
+      "count": 19,
+      "sha256": "a1d6b16d8f11148bb515e43a30782a5d94161cd11fb0ca8d14070a702ff64067"
+    },
+    "record_order": {
+      "case_id": "windows-10-19041-bitmap/driverirp-default",
+      "records": [
+        3972,
+        3972
+      ],
+      "passed": true,
+      "positive_evidence": true,
+      "first_difference": null,
+      "zero_sha256": "7514373a290b7eb7bef8c61059dd52f52f1e6229e70ffa4cb5a15528257e6933",
+      "reference_sha256": "7514373a290b7eb7bef8c61059dd52f52f1e6229e70ffa4cb5a15528257e6933",
+      "scope": "All mapped fields in emitted sequence after declared record selection; duplicate occurrences retained.",
+      "mapping_sha256": "8d056d2ceace8872a6bec5eec99e0441f1acad43f40a484f9d4dc0e60bec52f8",
+      "native_output_sha256": "d47e89f0bd46d427c97fcf24a59f79067495e3ed37fac1303bad91074c36bf51",
+      "reference_output_sha256": "0e6a5e8a23f0e6892fa714d86292a6031b46b63cd48bfbeb07f0e39549ab71a0"
+    }
+  },
+  {
+    "reference_plugin": "windows.malware.drivermodule.DriverModule",
+    "zero_plugin": "windows.malware.drivermodule.DriverModule",
+    "image_sha256": "ef92b50aa2ba2f830e3f816eb55ed8d15b0658fdfff0ab7af8adb68f2c8da460",
+    "mapping_sha256": "12b692a843f3a42f713b3a662fbd7ff4e7f7552ee847ade78bb12656c984e910",
+    "native_output_sha256": "34eabf8cf2274ba92c8f6312a4aed177d67bfa384d400a90e65e9eb3a99645fa",
+    "zero_args": [],
+    "reference_args": [],
+    "case_id": "windows-10-19041-bitmap/drivermodule-default",
+    "sample_source": "https://mirror.nju.edu.cn/gentoo/distfiles/e4/volatility3-win-10_19041-2025_03.dmp.gz",
+    "comparison": {
+      "schema_version": 1,
+      "mapping_version": 1,
+      "zero_records": 1,
+      "reference_records": 1,
+      "missing": [],
+      "extra": [],
+      "duplicates": [],
+      "conflicts": [],
+      "unverifiable": [],
+      "matched_absent": {},
+      "all_columns_mapped": true,
+      "positive_evidence": true,
+      "zero_complete": true,
+      "zero_diagnostics": [],
+      "passed": true
+    },
+    "passed": true,
+    "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+    "reference_output_sha256": "aa78522fbedafef5432ce143e019f9b3f2047d0639fef7b7f477d2b196f3fd2f",
+    "symbol_sha256": "f2da89bac5e8e253db8046c6f2d2db475b5ae411e0a356eece7c9ca2111f737b",
+    "zero_executable_sha256": "ed4748ca3b066be86818c46fb10ccf985cbb2d89c70656362e6df91b1a8e7b18",
+    "engine_version": "0.2.1-native-88",
+    "record_order": {
+      "case_id": "windows-10-19041-bitmap/drivermodule-default",
+      "records": [
+        1,
+        1
+      ],
+      "passed": true,
+      "positive_evidence": true,
+      "first_difference": null,
+      "zero_sha256": "3085052c960dbc2ce1fcf7ae1c7fbfaab568bde7f3205981b3e6c247b5e832fe",
+      "reference_sha256": "3085052c960dbc2ce1fcf7ae1c7fbfaab568bde7f3205981b3e6c247b5e832fe",
+      "scope": "All mapped fields in emitted sequence after declared record selection; duplicate occurrences retained.",
+      "mapping_sha256": "12b692a843f3a42f713b3a662fbd7ff4e7f7552ee847ade78bb12656c984e910",
+      "native_output_sha256": "34eabf8cf2274ba92c8f6312a4aed177d67bfa384d400a90e65e9eb3a99645fa",
+      "reference_output_sha256": "aa78522fbedafef5432ce143e019f9b3f2047d0639fef7b7f477d2b196f3fd2f"
     }
   }
 ]
