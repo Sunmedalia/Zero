@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+  "scope": "Fully readable module name decoding in Lsmod and ModuleExtract",
+  "reference_method": "utility.bytes_to_decoded_string",
+  "vectors": [
+    {"input_hex": "61016200", "expected": "a\u0001b"},
+    {"input_hex": "61ff6200", "expected": "a"},
+    {"input_hex": "61efbfbd6200", "expected": "a"}
+  ],
+  "verification": "Executed the pinned decoder for all three vectors; native lsmod_names_preserve_controls_and_stop_at_replacement reads fixture memory and compares the actual Lsmod name column.",
+  "validation": "make check passed: 713 Rust tests and 45 reference harness tests",
+  "limitations": ["Module name reader still requires a fully readable field; contiguous prefix recovery is not implemented by this change.", "No full Lsmod contract promotion or real control-character module sample claim."]
+}

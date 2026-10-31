@@ -153,6 +153,19 @@ impl Linux<'_> {
             self.isf.size(structure, field)?,
         )
     }
+    pub(super) fn module_name(&self, base: u64) -> Result<String> {
+        let length = self.isf.size("module", "name")?;
+        ensure!((1..=4096).contains(&length), "模块名称长度无效");
+        let mut bytes = vec![0; length];
+        self.vm
+            .read(self.field_address(base, "module", "name")?, &mut bytes)?;
+        Ok(String::from_utf8_lossy(&bytes)
+            .split(['\0', '\u{fffd}'])
+            .next()
+            .unwrap_or_default()
+            .to_owned())
+    }
+
     /// Route every plugin; non-Linux plugins are rejected instead of reaching a family
     /// dispatcher that does not handle them.
     pub fn run(&self, plugin: Plugin, job: &Job) -> Result<Results> {
@@ -407,7 +420,7 @@ impl Linux<'_> {
                         };
                         ensure!(base != 0 && size > 0, "模块基址或大小无效 @ {object:#x}");
                         vec![
-                            self.string(object, structure, "name")?,
+                            self.module_name(object)?,
                             format!("{base:#018x}"),
                             size.to_string(),
                         ]

@@ -472,7 +472,7 @@ impl Linux<'_> {
                 return Ok(result);
             }
         };
-        let name = self.string(module, "module", "name")?;
+        let name = self.module_name(module)?;
         let name: String = name
             .chars()
             .map(|c| {

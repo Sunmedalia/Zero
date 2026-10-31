@@ -731,6 +731,25 @@ mod tests {
         (bytes, isf)
     }
     #[test]
+    fn lsmod_names_preserve_controls_and_stop_at_replacement() {
+        for (payload, expected) in [
+            (b"a\x01b\0".as_slice(), "a\u{1}b"),
+            (b"a\xffb\0".as_slice(), "a"),
+            ("a\u{fffd}b\0".as_bytes(), "a"),
+        ] {
+            let (mut bytes, isf) = fixture();
+            bytes[0x34110..0x34130].fill(0);
+            bytes[0x34110..0x34110 + payload.len()].copy_from_slice(payload);
+            let image = super::super::tests::image(&bytes);
+            let result = super::super::tests::engine(&image, &isf)
+                .run(Plugin::Lsmod, &Job::default())
+                .unwrap();
+            assert!(result.complete, "{:?}", result.diagnostics);
+            assert_eq!(result.rows[0][1], expected);
+        }
+    }
+
+    #[test]
     fn lsmod_unreadable_name_never_becomes_a_prefix_row() {
         for name_offset in [0xbef0, 0xbf00] {
             let (mut bytes, mut isf) = fixture();
