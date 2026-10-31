@@ -44,7 +44,7 @@ impl Windows<'_> {
                     &regions,
                     &mut Default::default(),
                     job,
-                    |at, bytes| vm.read(at, bytes),
+                    |at, bytes| vm.read_reference(at, bytes),
                     |at| {
                         if result.rows.len() >= 100_000 {
                             output_limit = true;
@@ -55,7 +55,7 @@ impl Windows<'_> {
                             at,
                             maxsize,
                             job,
-                            |address, bytes| vm.read(address, bytes),
+                            |address, bytes| vm.read_reference(address, bytes),
                         )?;
                         context_missing += shown.unreadable_bytes;
                         let text = shown.text;
@@ -68,7 +68,9 @@ impl Windows<'_> {
                         output_bytes += size;
                         if vm.translate(at).is_err() {
                             if recovered_hits.len() < 65536 {
-                                let origin = if vm.prototype(at).is_ok() {
+                                let origin = if vm.paging()?.arch != Architecture::Arm64 {
+                                    "reference_pagefile"
+                                } else if vm.prototype(at).is_ok() {
                                     "prototype"
                                 } else {
                                     "software_or_compressed"
@@ -133,7 +135,7 @@ impl Windows<'_> {
         if !result.kernel_identity.is_object() {
             result.kernel_identity = serde_json::json!({});
         }
-        result.kernel_identity["vad_regex_scan"] = serde_json::json!({"engine":"PCRE2 bytes; no UTF/UCP/JIT","scan_dotall":true,"display_dotall":false,"maxsize":maxsize,"requested_maxsize":options.maxsize,"pids":pids,"chunk_bytes":16*1024*1024,"overlap_bytes":4096,"match_limit":crate::byte_regex::MATCH_LIMIT,"depth_limit":crate::byte_regex::DEPTH_LIMIT,"heap_kib":crate::byte_regex::HEAP_KIB,"subject_work_limit":crate::byte_regex::WORK_LIMIT,"output_limit":output_limit,"metadata_truncated":metadata_truncated,"recovered_hit_overflow":recovered_hit_overflow,"recovered_start_page_hits":recovered_hits,"processes":process_reports});
+        result.kernel_identity["vad_regex_scan"] = serde_json::json!({"read_policy":if self.vm.paging()?.arch == Architecture::Arm64 {"native_arm64_recovery"} else {"pinned_windows_intel"},"engine":"PCRE2 bytes; no UTF/UCP/JIT","scan_dotall":true,"display_dotall":false,"maxsize":maxsize,"requested_maxsize":options.maxsize,"pids":pids,"chunk_bytes":16*1024*1024,"overlap_bytes":4096,"match_limit":crate::byte_regex::MATCH_LIMIT,"depth_limit":crate::byte_regex::DEPTH_LIMIT,"heap_kib":crate::byte_regex::HEAP_KIB,"subject_work_limit":crate::byte_regex::WORK_LIMIT,"output_limit":output_limit,"metadata_truncated":metadata_truncated,"recovered_hit_overflow":recovered_hit_overflow,"recovered_start_page_hits":recovered_hits,"processes":process_reports});
         Ok(result)
     }
 }
@@ -187,6 +189,46 @@ pub(super) mod tests {
         .run(Plugin::WinVadRegExScan, options, &Job::default())
         .unwrap()
     }
+    #[test]
+    fn canonical_scan_reads_explicit_reference_pagefile_and_tracks_origin() {
+        let (mut bytes, isf) = prepared();
+        put(&mut bytes, 0x7010, (1 << 32) | 0x80);
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("pagefile.sys");
+        let mut data = vec![0; 8192];
+        data[4096..4100].copy_from_slice(b"ZXCV");
+        std::fs::write(&path, data).unwrap();
+        let options = Options {
+            pattern: Some("ZXCV".into()),
+            pid: Some(8),
+            pagefiles: vec![paging::Attachment { index: 0, path }],
+            ..Default::default()
+        };
+        let sources = paging::Sources::open(&options, &Job::default()).unwrap();
+        let image = image(&bytes);
+        let windows = Windows {
+            vm: Memory::new(&image, 0x1000, &isf, Some(&sources)),
+            base: K,
+            pdb: PdbIdentity::from_isf(&isf).unwrap(),
+        };
+        let result = windows.vad_regex_scan(&options, &Job::default()).unwrap();
+        assert!(result.complete, "{:?}", result.diagnostics);
+        assert_eq!(
+            result.rows,
+            [vec![
+                "8",
+                "child",
+                "0x0000000000002000",
+                "ZXCV",
+                "5a 58 43 56"
+            ]]
+        );
+        assert_eq!(
+            result.kernel_identity["vad_regex_scan"]["recovered_start_page_hits"],
+            json!([{"pid":8,"offset":hex(0x2000),"start_page_origin":"reference_pagefile"}])
+        );
+    }
+
     #[test]
     fn display_context_matches_actual_pinned_generator_vectors() {
         let vectors: serde_json::Value = serde_json::from_str(include_str!(
@@ -484,7 +526,7 @@ pub(super) mod tests {
         assert_eq!(execute(&union, true).rows, first.rows);
     }
     #[test]
-    fn prototype_backed_hits_keep_page_origin_evidence() {
+    fn canonical_scan_excludes_prototype_pages_and_native_recovery_still_reads_them() {
         let (mut b, isf) = prepared();
         let prototype = K + 0x6000;
         put(
@@ -502,11 +544,17 @@ pub(super) mod tests {
                 ..Default::default()
             },
         );
-        assert!(r.complete, "{:?}", r.diagnostics);
-        assert_eq!(r.rows.len(), 2);
+        assert!(!r.complete);
+        assert_eq!(r.rows.len(), 1);
         assert_eq!(
             r.kernel_identity["vad_regex_scan"]["recovered_start_page_hits"],
-            serde_json::json!([{"pid":8,"offset":hex(0x2000),"start_page_origin":"prototype"}])
+            serde_json::json!([])
         );
+        let image = image(&b);
+        let vm = Memory::new(&image, 0x1000, &isf, None);
+        let mut bytes = [0; 2];
+        vm.read(0x2000, &mut bytes).unwrap();
+        assert_eq!(&bytes, b"AB");
+        assert!(vm.read_reference(0x2000, &mut bytes).is_err());
     }
 }

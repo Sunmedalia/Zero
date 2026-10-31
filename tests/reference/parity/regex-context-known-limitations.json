@@ -2325,5 +2325,10 @@
     "Windows prototype-page recovery still yields extra rows in known cases. Full comparisons remain failed; no row filtering or independent validation of hidden memory is claimed.",
     "Python versus PCRE2 syntax/semantics, full scanner/layer chunk behavior, missing-page/exception/resource contracts, all platforms and live races remain incompletely validated.",
     "Original user Debian6.12 image is unavailable. No complete plugin contract is claimed."
-  ]
+  ],
+  "superseded_regex_read_policy": {
+    "engine_version": "0.2.1-native-99",
+    "proof": "windows-layer-read-known-limitations.json",
+    "note": "Historical Windows prototype-page scan extras are resolved in the canonical regex input layer; all 13 current real cases pass full fields and strict sequence. Historical hashes/counts remain unchanged."
+  }
 }

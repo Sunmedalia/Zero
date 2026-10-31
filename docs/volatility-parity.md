@@ -2059,3 +2059,48 @@ Linux／Windows 持续 MCP 会话各 8 次参数请求分别始终为 2／27 行
 同名基线替换，只新增 7 个正向身份，累计 148 正向案例（5 项限定范围），
 完整插件合同仍为 0/135。Windows 页面恢复与参考的差异、广泛平台／异常／
 资源合同、原始 Debian6.12 镜像复测等工作仍未完成。
+
+## native99：VadRegExScan 使用固定参考的 Intel 读取策略
+
+修复 native98 保留的 9 个 Windows 正则失败用例。差异发生在输入读取阶段：
+原生通用读取器会跟随 prototype PTE，或从软件分页／压缩 store 重建页面；
+固定参考的 Windows Intel 层读取驻留／transition 页面，仅按固定规则处理显式
+swap layer，不跟随 prototype。标准 VadRegExScan 的搜索输入和显示上下文现在
+使用新的 `Memory::read_reference`，在进入正则搜索前应用这些规则，而不是
+过滤已有结果。通用 `Memory::read` 的 prototype／软件页／压缩恢复功能保留；
+ARM64 路径也保留原生策略，诊断元数据明确区分两种策略，不将其计为参考证据。
+
+新的 Intel 读取器复用经过验证的物理翻译，保留固定参考的 swap 位判断、索引、
+x86/PAE/x64 偏移宽度、无效大页上的 PAT 清除及未对齐调用的实际 swap-base
+语义。它不使用 ISF PageFileLow/High 或 SwizzleBit 来替代参考固定规则。
+附件允许短尾和空的普通文件；每次读取仍校验边界、文件身份及修改状态，
+不足的字节报不可读。没有要求附件长度必须为 4096 的倍数。
+
+`windows_layer_read_vectors.py` 直接执行固定参考的 WindowsIntel /
+WindowsIntelPAE / WindowsIntel32e `.read`，以完整合成页表、捕获空洞和显式
+swap BufferDataLayer 对照。57 组共 570 次读取覆盖驻留／transition／prototype、
+索引 0/3、附件缺失或索引错误、标记位、高偏移、未对齐和跨页调用、上层软件
+条目、PAT、短尾／空文件及物理／页表缺页。原生逐次比较成功字节或读取失败，
+没有声称异常类型／文本完全相同；这些也不代替全平台发现或完整扫描分块合同。
+新增扫描集成测试证明显式 pagefile 仍能提供命中，并证明通用读取器仍可恢复
+标准扫描层不接受的 prototype 页面。
+
+真实 Win10 15063 使用与 native98 相同的冻结 converter8 ISF，两组 13 例全部
+全字段和严格行序通过：PID7688 的普通、lookbehind、反向引用和 maxsize4 各
+701 行；多 PID 与并集各 727 行；PID356 为 3 行；PID356/468 为 30 行；
+PID844 为 26 行；PID468 默认及 -1/0/4097 参数各 27 行。9 个旧失败用例的
+修复前计数／输出哈希继续保留，实际符号来源逐例校验，没有删除历史记录。
+
+持续 MCP 会话执行 8 次分析和 20 次协议调用，完整读取每个不可变快照的全部
+分页，再与无缓存 CLI 输出按顺序比较。行数依次为
+701/701/27/27/30/701/3/727，重复请求、PID 列表／并集和 maxsize 均通过。
+捕获／链表／VAD 诊断继续保留 partial，成功结果缓存文件为 0，不把字段一致
+解释为完整捕获。最终 make check 通过：634 库、10 CLI/MCP、50 协议、40
+Python；发布包通过原目录／无关目录和空 PATH 的启动、退出检查。
+
+证明在 `windows-layer-read-known-limitations.json`，原始报告在
+`target/reference/results/{vadregexscan,vadregexscan-maxsize}-native99`。
+最终二进制 SHA256 `2f7f6c4abbf5da8f98f9fae91099c3d7e643e9a7542e5dd37a51ef22e75878ec`。
+同名基线替换、新增 9 个正向身份，累计 157 个正向用例（5 个限定范围）。
+完整插件合同仍为 0/135；其他消费者的读取策略、扫描映射／分块／补零、
+任意 Python/PCRE2 语义、全部异常／资源／平台合同仍未全面验收。

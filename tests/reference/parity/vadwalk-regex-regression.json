@@ -33,5 +33,10 @@
   "extra_page_origins": {
     "prototype": 8
   },
-  "every_extra_has_matching_origin_evidence": true
+  "every_extra_has_matching_origin_evidence": true,
+  "superseded_regex_read_policy": {
+    "engine_version": "0.2.1-native-99",
+    "proof": "windows-layer-read-known-limitations.json",
+    "note": "Historical Windows prototype-page scan extras are resolved in the canonical regex input layer; all 13 current real cases pass full fields and strict sequence. Historical hashes/counts remain unchanged."
+  }
 }

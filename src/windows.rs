@@ -53,6 +53,7 @@ mod poolscanner;
 mod process;
 mod process_checks;
 mod processors;
+mod reference_layer;
 mod regex;
 mod registry;
 mod registry_artifacts;

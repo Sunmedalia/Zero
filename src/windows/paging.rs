@@ -79,10 +79,7 @@ impl BackingFile {
     fn open(path: &Path, kind: &'static str, job: &Job) -> Result<Self> {
         let file = File::open(path).with_context(|| format!("打开 {kind} {}", path.display()))?;
         let metadata = file.metadata()?;
-        ensure!(
-            metadata.is_file() && metadata.len() != 0 && metadata.len().is_multiple_of(4096),
-            "分页附件必须是完整页组成的普通文件"
-        );
+        ensure!(metadata.is_file(), "分页附件必须是普通文件");
         let stamp = Stamp::from(&metadata);
         let digest = crate::image::digest_file(file.try_clone()?, job)?;
         let result = Self {

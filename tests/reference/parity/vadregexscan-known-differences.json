@@ -494,5 +494,10 @@
     "engine_version": "0.2.1-native-98",
     "proof": "regex-context-known-limitations.json",
     "note": "Historical maxsize Text/Hex conflicts are fixed by canonical 128-byte context. See current proof for complete comparisons; Windows extra recovered records remain failing."
+  },
+  "superseded_regex_read_policy": {
+    "engine_version": "0.2.1-native-99",
+    "proof": "windows-layer-read-known-limitations.json",
+    "note": "Historical Windows prototype-page scan extras are resolved in the canonical regex input layer; all 13 current real cases pass full fields and strict sequence. Historical hashes/counts remain unchanged."
   }
 }

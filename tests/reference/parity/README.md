@@ -188,26 +188,32 @@ real-image evidence. Runtime Zero has no Python/Pillow dependency.
 Windows 10 15063 image, including standalone PID controls for the multi-PID cases.
 The exact PDB identity is 0C9CC659210046EC84231597DADFDB3B1. Both engines use the same
 native PDB-derived ISF; these tests do not independently validate type conversion.
-Before running, copy that exact cached ISF to the declared reference symbol path
-without changing its bytes (both hashes are pinned in the configuration).
+Both engines now read the same frozen converter8 ISF named by the configuration;
+the runner and evidence archive verify the actual native symbol file too.
 
-PID 468 has 27 matching positive rows. The other eight cases remain failed: every
-extra native row is matched to native prototype-page recovery evidence, with no
-missing reference rows or common-field conflicts. No rows are removed to make a
-case pass. The combined configuration deliberately exits nonzero. Page recovery
-can make native output larger than reference output; it does not establish a
-hidden-memory finding. Partial coverage/tree warnings remain explicit.
+Native99 passes all nine main cases and four maxsize cases, including PID 7688's
+701 rows, the 727-row PID union and PID 468's 27 rows. Native39/native98's extra
+prototype-backed hits remain in historical reports. Canonical regex scanning now
+reads through the pinned Intel layer policy before searching and displaying:
+resident/transition pages and explicit swap layers, without native prototype or
+compressed-store reconstruction. No result rows are filtered after matching.
+The general native recovery reader remains available to other consumers. These
+bounded cases do not establish every plugin/platform contract or complete capture.
 
-`vadregexscan-maxsize.example.json` exercises the reference's unused
-maxsize parameter. Native98 aligns the fixed 128-byte context, including negative,
-zero and above-4096 compatibility values. The original PID7688 case still requires
-full comparison; the previously observed eight extra recovered rows are not
-removed or treated as a pass. `vadregexscan-known-differences.json` records counts, origin validation,
-coverage and output hashes, never recovered match contents. The scanner can skip
-only proven zero-page-table spans, with every skipped byte retained in unavailable
-coverage. Nonzero software PTEs and missing page-table pages still use recovery or
-the bounded page-by-page fallback. The compatibility matrix records synthetic x64
-coverage; the one real positive PID case is not generalized to all Windows builds.
+`vadregexscan-maxsize.example.json` exercises the pinned generator's unused
+maxsize parameter; display context stays 128 bytes. `windows_layer_read_vectors.py`
+adds actual x86/PAE/x64 layer reads over complete synthetic table bytes and explicit
+swap buffers. The 57 cases include 570 reads: fixed swap flags/indices, unaligned
+and crossing reads, large PAT, prototypes, transition, missing attachments,
+short/empty backing files and capture holes. Native ordinary attachments now
+accept partial tails and validate each read's bounds and file identity.
+
+The latest proof is `windows-layer-read-known-limitations.json`. Older difference
+files preserve historical counts/hashes with a superseding link. Native coverage
+and damaged-tree warnings remain explicit; zero-table skip hints never certify
+readability. The ARM64 path retains native recovery and has no pinned Windows
+ARM64 reference parity evidence. Synthetic read results do not establish all
+scanner mappings, chunk boundaries, padding, exception text or resource behavior.
 
 ### Windows VadWalk
 
@@ -1086,3 +1092,13 @@ create zero success cache files. The current proof is
 `regex-context-known-limitations.json`; older known-difference files retain their
 historical hashes with a link to the replacement context proof. Stable evidence
 now totals 148 positive cases (five scoped), zero complete plugin contracts.
+
+Native99 resolves the nine native98 Windows regex failures by admitting scan
+bytes through the pinned Intel layer policy, including explicit swap support.
+All 13 real VadRegExScan cases pass full fields and strict sequence; the native
+prototype recovery reader remains separate. The 57 actual layer cases cover 570
+read calls, and one persistent MCP session verifies every result page across
+eight analyses (20 protocol calls), preserving partial state and avoiding success
+cache files. `windows-layer-read-known-limitations.json` binds current proof and
+historical failure summaries to native99. Stable evidence totals 157 positive
+cases (five scoped), zero complete plugin contracts.

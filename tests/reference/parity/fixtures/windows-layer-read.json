@@ -1,0 +1,5477 @@
+{
+  "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+  "source_sha256": {
+    "volatility3/framework/layers/intel.py": "01ea3e198f9c4226cb8c06280facbf9b8cc0990863301f82f991e5609908f716",
+    "volatility3/framework/interfaces/layers.py": "5515d539fe1dfb78723a82d2f18762bf455dd29cb246c2642460e1eae8853b6a",
+    "volatility3/framework/layers/physical.py": "49065728f89b0187ebfe02af8f10283e9702e5b88e5910ab35b516e2169d9828"
+  },
+  "scope": "Actual WindowsIntel/WindowsIntelPAE/WindowsIntel32e read with physical and explicit swap BufferDataLayers over synthetic page tables. Resident/transition/prototype flags, fixed swap bits and indices, unaligned/cross-page reads, upper-level software entries, missing attachments, backing and table holes are covered. Synthetic adapters do not establish all scanner mapping/chunk/padding or full architecture/platform/exception/resource contracts. Reference swap reads intentionally preserve the pinned offset semantics.",
+  "cases": [
+    {
+      "id": "x86-resident",
+      "arch": "x86",
+      "width": 4,
+      "writes": [
+        [
+          4096,
+          8195
+        ],
+        [
+          8192,
+          32771
+        ],
+        [
+          8196,
+          40963
+        ],
+        [
+          8200,
+          47104
+        ]
+      ],
+      "attached": 0,
+      "pagefile_length": 65536,
+      "holes": [],
+      "queries": [
+        {
+          "address": 0,
+          "length": 16,
+          "expected_hex": "5a6b7c8d9eafc0d1e2f3091a2b3c4d5e",
+          "error": null
+        },
+        {
+          "address": 3,
+          "length": 16,
+          "expected_hex": "8d9eafc0d1e2f3091a2b3c4d5e6f8091",
+          "error": null
+        },
+        {
+          "address": 4090,
+          "length": 24,
+          "expected_hex": "5d6e7f90a1b231425364758697a8b9cadbec021324354657",
+          "error": null
+        },
+        {
+          "address": 4096,
+          "length": 16,
+          "expected_hex": "31425364758697a8b9cadbec02132435",
+          "error": null
+        },
+        {
+          "address": 4099,
+          "length": 16,
+          "expected_hex": "64758697a8b9cadbec02132435465768",
+          "error": null
+        },
+        {
+          "address": 8192,
+          "length": 16,
+          "expected_hex": "9aabbccddeef05162738495a6b7c8d9e",
+          "error": null
+        },
+        {
+          "address": 291,
+          "length": 1,
+          "expected_hex": "11",
+          "error": null
+        },
+        {
+          "address": 4096,
+          "length": 4,
+          "expected_hex": "31425364",
+          "error": null
+        },
+        {
+          "address": 4099,
+          "length": 1,
+          "expected_hex": "64",
+          "error": null
+        },
+        {
+          "address": 8190,
+          "length": 4,
+          "expected_hex": "78899aab",
+          "error": null
+        }
+      ]
+    },
+    {
+      "id": "x86-transition",
+      "arch": "x86",
+      "width": 4,
+      "writes": [
+        [
+          4096,
+          8195
+        ],
+        [
+          8192,
+          32771
+        ],
+        [
+          8196,
+          40963
+        ],
+        [
+          8200,
+          47104
+        ],
+        [
+          8192,
+          34816
+        ]
+      ],
+      "attached": 0,
+      "pagefile_length": 65536,
+      "holes": [],
+      "queries": [
+        {
+          "address": 0,
+          "length": 16,
+          "expected_hex": "5a6b7c8d9eafc0d1e2f3091a2b3c4d5e",
+          "error": null
+        },
+        {
+          "address": 3,
+          "length": 16,
+          "expected_hex": "8d9eafc0d1e2f3091a2b3c4d5e6f8091",
+          "error": null
+        },
+        {
+          "address": 4090,
+          "length": 24,
+          "expected_hex": "5d6e7f90a1b231425364758697a8b9cadbec021324354657",
+          "error": null
+        },
+        {
+          "address": 4096,
+          "length": 16,
+          "expected_hex": "31425364758697a8b9cadbec02132435",
+          "error": null
+        },
+        {
+          "address": 4099,
+          "length": 16,
+          "expected_hex": "64758697a8b9cadbec02132435465768",
+          "error": null
+        },
+        {
+          "address": 8192,
+          "length": 16,
+          "expected_hex": "9aabbccddeef05162738495a6b7c8d9e",
+          "error": null
+        },
+        {
+          "address": 291,
+          "length": 1,
+          "expected_hex": "11",
+          "error": null
+        },
+        {
+          "address": 4096,
+          "length": 4,
+          "expected_hex": "31425364",
+          "error": null
+        },
+        {
+          "address": 4099,
+          "length": 1,
+          "expected_hex": "64",
+          "error": null
+        },
+        {
+          "address": 8190,
+          "length": 4,
+          "expected_hex": "78899aab",
+          "error": null
+        }
+      ]
+    },
+    {
+      "id": "x86-prototype",
+      "arch": "x86",
+      "width": 4,
+      "writes": [
+        [
+          4096,
+          8195
+        ],
+        [
+          8192,
+          32771
+        ],
+        [
+          8196,
+          40963
+        ],
+        [
+          8200,
+          47104
+        ],
+        [
+          8192,
+          33792
+        ]
+      ],
+      "attached": 0,
+      "pagefile_length": 65536,
+      "holes": [],
+      "queries": [
+        {
+          "address": 0,
+          "length": 16,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 3,
+          "length": 16,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 4090,
+          "length": 24,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 4096,
+          "length": 16,
+          "expected_hex": "31425364758697a8b9cadbec02132435",
+          "error": null
+        },
+        {
+          "address": 4099,
+          "length": 16,
+          "expected_hex": "64758697a8b9cadbec02132435465768",
+          "error": null
+        },
+        {
+          "address": 8192,
+          "length": 16,
+          "expected_hex": "9aabbccddeef05162738495a6b7c8d9e",
+          "error": null
+        },
+        {
+          "address": 291,
+          "length": 1,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 4096,
+          "length": 4,
+          "expected_hex": "31425364",
+          "error": null
+        },
+        {
+          "address": 4099,
+          "length": 1,
+          "expected_hex": "64",
+          "error": null
+        },
+        {
+          "address": 8190,
+          "length": 4,
+          "expected_hex": "78899aab",
+          "error": null
+        }
+      ]
+    },
+    {
+      "id": "x86-prototype-transition",
+      "arch": "x86",
+      "width": 4,
+      "writes": [
+        [
+          4096,
+          8195
+        ],
+        [
+          8192,
+          32771
+        ],
+        [
+          8196,
+          40963
+        ],
+        [
+          8200,
+          47104
+        ],
+        [
+          8192,
+          35840
+        ]
+      ],
+      "attached": 0,
+      "pagefile_length": 65536,
+      "holes": [],
+      "queries": [
+        {
+          "address": 0,
+          "length": 16,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 3,
+          "length": 16,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 4090,
+          "length": 24,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 4096,
+          "length": 16,
+          "expected_hex": "31425364758697a8b9cadbec02132435",
+          "error": null
+        },
+        {
+          "address": 4099,
+          "length": 16,
+          "expected_hex": "64758697a8b9cadbec02132435465768",
+          "error": null
+        },
+        {
+          "address": 8192,
+          "length": 16,
+          "expected_hex": "9aabbccddeef05162738495a6b7c8d9e",
+          "error": null
+        },
+        {
+          "address": 291,
+          "length": 1,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 4096,
+          "length": 4,
+          "expected_hex": "31425364",
+          "error": null
+        },
+        {
+          "address": 4099,
+          "length": 1,
+          "expected_hex": "64",
+          "error": null
+        },
+        {
+          "address": 8190,
+          "length": 4,
+          "expected_hex": "78899aab",
+          "error": null
+        }
+      ]
+    },
+    {
+      "id": "x86-swap-zero",
+      "arch": "x86",
+      "width": 4,
+      "writes": [
+        [
+          4096,
+          8195
+        ],
+        [
+          8192,
+          32771
+        ],
+        [
+          8196,
+          40963
+        ],
+        [
+          8200,
+          47104
+        ],
+        [
+          8196,
+          4224
+        ]
+      ],
+      "attached": 0,
+      "pagefile_length": 65536,
+      "holes": [],
+      "queries": [
+        {
+          "address": 0,
+          "length": 16,
+          "expected_hex": "5a6b7c8d9eafc0d1e2f3091a2b3c4d5e",
+          "error": null
+        },
+        {
+          "address": 3,
+          "length": 16,
+          "expected_hex": "8d9eafc0d1e2f3091a2b3c4d5e6f8091",
+          "error": null
+        },
+        {
+          "address": 4090,
+          "length": 24,
+          "expected_hex": "5d6e7f90a1b22b3845525f6c798693a0adbac7d4e1ee000d",
+          "error": null
+        },
+        {
+          "address": 4096,
+          "length": 16,
+          "expected_hex": "2b3845525f6c798693a0adbac7d4e1ee",
+          "error": null
+        },
+        {
+          "address": 4099,
+          "length": 16,
+          "expected_hex": "2b3845525f6c798693a0adbac7d4e1ee",
+          "error": null
+        },
+        {
+          "address": 8192,
+          "length": 16,
+          "expected_hex": "9aabbccddeef05162738495a6b7c8d9e",
+          "error": null
+        },
+        {
+          "address": 291,
+          "length": 1,
+          "expected_hex": "11",
+          "error": null
+        },
+        {
+          "address": 4096,
+          "length": 4,
+          "expected_hex": "2b384552",
+          "error": null
+        },
+        {
+          "address": 4099,
+          "length": 1,
+          "expected_hex": "2b",
+          "error": null
+        },
+        {
+          "address": 8190,
+          "length": 4,
+          "expected_hex": "2b389aab",
+          "error": null
+        }
+      ]
+    },
+    {
+      "id": "x86-swap-three",
+      "arch": "x86",
+      "width": 4,
+      "writes": [
+        [
+          4096,
+          8195
+        ],
+        [
+          8192,
+          32771
+        ],
+        [
+          8196,
+          40963
+        ],
+        [
+          8200,
+          47104
+        ],
+        [
+          8196,
+          4230
+        ]
+      ],
+      "attached": 3,
+      "pagefile_length": 65536,
+      "holes": [],
+      "queries": [
+        {
+          "address": 0,
+          "length": 16,
+          "expected_hex": "5a6b7c8d9eafc0d1e2f3091a2b3c4d5e",
+          "error": null
+        },
+        {
+          "address": 3,
+          "length": 16,
+          "expected_hex": "8d9eafc0d1e2f3091a2b3c4d5e6f8091",
+          "error": null
+        },
+        {
+          "address": 4090,
+          "length": 24,
+          "expected_hex": "5d6e7f90a1b22b3845525f6c798693a0adbac7d4e1ee000d",
+          "error": null
+        },
+        {
+          "address": 4096,
+          "length": 16,
+          "expected_hex": "2b3845525f6c798693a0adbac7d4e1ee",
+          "error": null
+        },
+        {
+          "address": 4099,
+          "length": 16,
+          "expected_hex": "2b3845525f6c798693a0adbac7d4e1ee",
+          "error": null
+        },
+        {
+          "address": 8192,
+          "length": 16,
+          "expected_hex": "9aabbccddeef05162738495a6b7c8d9e",
+          "error": null
+        },
+        {
+          "address": 291,
+          "length": 1,
+          "expected_hex": "11",
+          "error": null
+        },
+        {
+          "address": 4096,
+          "length": 4,
+          "expected_hex": "2b384552",
+          "error": null
+        },
+        {
+          "address": 4099,
+          "length": 1,
+          "expected_hex": "2b",
+          "error": null
+        },
+        {
+          "address": 8190,
+          "length": 4,
+          "expected_hex": "2b389aab",
+          "error": null
+        }
+      ]
+    },
+    {
+      "id": "x86-swap-no-attachment",
+      "arch": "x86",
+      "width": 4,
+      "writes": [
+        [
+          4096,
+          8195
+        ],
+        [
+          8192,
+          32771
+        ],
+        [
+          8196,
+          40963
+        ],
+        [
+          8200,
+          47104
+        ],
+        [
+          8196,
+          4224
+        ]
+      ],
+      "attached": null,
+      "pagefile_length": 65536,
+      "holes": [],
+      "queries": [
+        {
+          "address": 0,
+          "length": 16,
+          "expected_hex": "5a6b7c8d9eafc0d1e2f3091a2b3c4d5e",
+          "error": null
+        },
+        {
+          "address": 3,
+          "length": 16,
+          "expected_hex": "8d9eafc0d1e2f3091a2b3c4d5e6f8091",
+          "error": null
+        },
+        {
+          "address": 4090,
+          "length": 24,
+          "expected_hex": null,
+          "error": "SwappedInvalidAddressException"
+        },
+        {
+          "address": 4096,
+          "length": 16,
+          "expected_hex": null,
+          "error": "SwappedInvalidAddressException"
+        },
+        {
+          "address": 4099,
+          "length": 16,
+          "expected_hex": null,
+          "error": "SwappedInvalidAddressException"
+        },
+        {
+          "address": 8192,
+          "length": 16,
+          "expected_hex": "9aabbccddeef05162738495a6b7c8d9e",
+          "error": null
+        },
+        {
+          "address": 291,
+          "length": 1,
+          "expected_hex": "11",
+          "error": null
+        },
+        {
+          "address": 4096,
+          "length": 4,
+          "expected_hex": null,
+          "error": "SwappedInvalidAddressException"
+        },
+        {
+          "address": 4099,
+          "length": 1,
+          "expected_hex": null,
+          "error": "SwappedInvalidAddressException"
+        },
+        {
+          "address": 8190,
+          "length": 4,
+          "expected_hex": null,
+          "error": "SwappedInvalidAddressException"
+        }
+      ]
+    },
+    {
+      "id": "x86-swap-wrong-index",
+      "arch": "x86",
+      "width": 4,
+      "writes": [
+        [
+          4096,
+          8195
+        ],
+        [
+          8192,
+          32771
+        ],
+        [
+          8196,
+          40963
+        ],
+        [
+          8200,
+          47104
+        ],
+        [
+          8196,
+          4224
+        ]
+      ],
+      "attached": 3,
+      "pagefile_length": 65536,
+      "holes": [],
+      "queries": [
+        {
+          "address": 0,
+          "length": 16,
+          "expected_hex": "5a6b7c8d9eafc0d1e2f3091a2b3c4d5e",
+          "error": null
+        },
+        {
+          "address": 3,
+          "length": 16,
+          "expected_hex": "8d9eafc0d1e2f3091a2b3c4d5e6f8091",
+          "error": null
+        },
+        {
+          "address": 4090,
+          "length": 24,
+          "expected_hex": null,
+          "error": "SwappedInvalidAddressException"
+        },
+        {
+          "address": 4096,
+          "length": 16,
+          "expected_hex": null,
+          "error": "SwappedInvalidAddressException"
+        },
+        {
+          "address": 4099,
+          "length": 16,
+          "expected_hex": null,
+          "error": "SwappedInvalidAddressException"
+        },
+        {
+          "address": 8192,
+          "length": 16,
+          "expected_hex": "9aabbccddeef05162738495a6b7c8d9e",
+          "error": null
+        },
+        {
+          "address": 291,
+          "length": 1,
+          "expected_hex": "11",
+          "error": null
+        },
+        {
+          "address": 4096,
+          "length": 4,
+          "expected_hex": null,
+          "error": "SwappedInvalidAddressException"
+        },
+        {
+          "address": 4099,
+          "length": 1,
+          "expected_hex": null,
+          "error": "SwappedInvalidAddressException"
+        },
+        {
+          "address": 8190,
+          "length": 4,
+          "expected_hex": null,
+          "error": "SwappedInvalidAddressException"
+        }
+      ]
+    },
+    {
+      "id": "x86-swap-no-bit7",
+      "arch": "x86",
+      "width": 4,
+      "writes": [
+        [
+          4096,
+          8195
+        ],
+        [
+          8192,
+          32771
+        ],
+        [
+          8196,
+          40963
+        ],
+        [
+          8200,
+          47104
+        ],
+        [
+          8196,
+          4096
+        ]
+      ],
+      "attached": 0,
+      "pagefile_length": 65536,
+      "holes": [],
+      "queries": [
+        {
+          "address": 0,
+          "length": 16,
+          "expected_hex": "5a6b7c8d9eafc0d1e2f3091a2b3c4d5e",
+          "error": null
+        },
+        {
+          "address": 3,
+          "length": 16,
+          "expected_hex": "8d9eafc0d1e2f3091a2b3c4d5e6f8091",
+          "error": null
+        },
+        {
+          "address": 4090,
+          "length": 24,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 4096,
+          "length": 16,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 4099,
+          "length": 16,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 8192,
+          "length": 16,
+          "expected_hex": "9aabbccddeef05162738495a6b7c8d9e",
+          "error": null
+        },
+        {
+          "address": 291,
+          "length": 1,
+          "expected_hex": "11",
+          "error": null
+        },
+        {
+          "address": 4096,
+          "length": 4,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 4099,
+          "length": 1,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 8190,
+          "length": 4,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        }
+      ]
+    },
+    {
+      "id": "x86-swap-no-high",
+      "arch": "x86",
+      "width": 4,
+      "writes": [
+        [
+          4096,
+          8195
+        ],
+        [
+          8192,
+          32771
+        ],
+        [
+          8196,
+          40963
+        ],
+        [
+          8200,
+          47104
+        ],
+        [
+          8196,
+          128
+        ]
+      ],
+      "attached": 0,
+      "pagefile_length": 65536,
+      "holes": [],
+      "queries": [
+        {
+          "address": 0,
+          "length": 16,
+          "expected_hex": "5a6b7c8d9eafc0d1e2f3091a2b3c4d5e",
+          "error": null
+        },
+        {
+          "address": 3,
+          "length": 16,
+          "expected_hex": "8d9eafc0d1e2f3091a2b3c4d5e6f8091",
+          "error": null
+        },
+        {
+          "address": 4090,
+          "length": 24,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 4096,
+          "length": 16,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 4099,
+          "length": 16,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 8192,
+          "length": 16,
+          "expected_hex": "9aabbccddeef05162738495a6b7c8d9e",
+          "error": null
+        },
+        {
+          "address": 291,
+          "length": 1,
+          "expected_hex": "11",
+          "error": null
+        },
+        {
+          "address": 4096,
+          "length": 4,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 4099,
+          "length": 1,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 8190,
+          "length": 4,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        }
+      ]
+    },
+    {
+      "id": "x86-swap-transition",
+      "arch": "x86",
+      "width": 4,
+      "writes": [
+        [
+          4096,
+          8195
+        ],
+        [
+          8192,
+          32771
+        ],
+        [
+          8196,
+          40963
+        ],
+        [
+          8200,
+          47104
+        ],
+        [
+          8196,
+          6272
+        ]
+      ],
+      "attached": 0,
+      "pagefile_length": 65536,
+      "holes": [],
+      "queries": [
+        {
+          "address": 0,
+          "length": 16,
+          "expected_hex": "5a6b7c8d9eafc0d1e2f3091a2b3c4d5e",
+          "error": null
+        },
+        {
+          "address": 3,
+          "length": 16,
+          "expected_hex": "8d9eafc0d1e2f3091a2b3c4d5e6f8091",
+          "error": null
+        },
+        {
+          "address": 4090,
+          "length": 24,
+          "expected_hex": "5d6e7f90a1b2032000000000000000000000000000000000",
+          "error": null
+        },
+        {
+          "address": 4096,
+          "length": 16,
+          "expected_hex": "03200000000000000000000000000000",
+          "error": null
+        },
+        {
+          "address": 4099,
+          "length": 16,
+          "expected_hex": "00000000000000000000000000000000",
+          "error": null
+        },
+        {
+          "address": 8192,
+          "length": 16,
+          "expected_hex": "9aabbccddeef05162738495a6b7c8d9e",
+          "error": null
+        },
+        {
+          "address": 291,
+          "length": 1,
+          "expected_hex": "11",
+          "error": null
+        },
+        {
+          "address": 4096,
+          "length": 4,
+          "expected_hex": "03200000",
+          "error": null
+        },
+        {
+          "address": 4099,
+          "length": 1,
+          "expected_hex": "00",
+          "error": null
+        },
+        {
+          "address": 8190,
+          "length": 4,
+          "expected_hex": "00009aab",
+          "error": null
+        }
+      ]
+    },
+    {
+      "id": "x86-swap-prototype",
+      "arch": "x86",
+      "width": 4,
+      "writes": [
+        [
+          4096,
+          8195
+        ],
+        [
+          8192,
+          32771
+        ],
+        [
+          8196,
+          40963
+        ],
+        [
+          8200,
+          47104
+        ],
+        [
+          8196,
+          5248
+        ]
+      ],
+      "attached": 0,
+      "pagefile_length": 65536,
+      "holes": [],
+      "queries": [
+        {
+          "address": 0,
+          "length": 16,
+          "expected_hex": "5a6b7c8d9eafc0d1e2f3091a2b3c4d5e",
+          "error": null
+        },
+        {
+          "address": 3,
+          "length": 16,
+          "expected_hex": "8d9eafc0d1e2f3091a2b3c4d5e6f8091",
+          "error": null
+        },
+        {
+          "address": 4090,
+          "length": 24,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 4096,
+          "length": 16,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 4099,
+          "length": 16,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 8192,
+          "length": 16,
+          "expected_hex": "9aabbccddeef05162738495a6b7c8d9e",
+          "error": null
+        },
+        {
+          "address": 291,
+          "length": 1,
+          "expected_hex": "11",
+          "error": null
+        },
+        {
+          "address": 4096,
+          "length": 4,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 4099,
+          "length": 1,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 8190,
+          "length": 4,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        }
+      ]
+    },
+    {
+      "id": "x86-upper-swap",
+      "arch": "x86",
+      "width": 4,
+      "writes": [
+        [
+          4096,
+          8195
+        ],
+        [
+          8192,
+          32771
+        ],
+        [
+          8196,
+          40963
+        ],
+        [
+          8200,
+          47104
+        ],
+        [
+          4096,
+          4224
+        ]
+      ],
+      "attached": 0,
+      "pagefile_length": 16789504,
+      "holes": [],
+      "queries": [
+        {
+          "address": 0,
+          "length": 16,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 3,
+          "length": 16,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 4090,
+          "length": 24,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 4096,
+          "length": 16,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 4099,
+          "length": 16,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 8192,
+          "length": 16,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 291,
+          "length": 1,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 4096,
+          "length": 4,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 4099,
+          "length": 1,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 8190,
+          "length": 4,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        }
+      ]
+    },
+    {
+      "id": "x86-upper-swap-pat",
+      "arch": "x86",
+      "width": 4,
+      "writes": [
+        [
+          4096,
+          8195
+        ],
+        [
+          8192,
+          32771
+        ],
+        [
+          8196,
+          40963
+        ],
+        [
+          8200,
+          47104
+        ],
+        [
+          4096,
+          12416
+        ]
+      ],
+      "attached": 0,
+      "pagefile_length": 16789504,
+      "holes": [],
+      "queries": [
+        {
+          "address": 0,
+          "length": 16,
+          "expected_hex": "c0cddae7f40613202d3a4754616e7b88",
+          "error": null
+        },
+        {
+          "address": 3,
+          "length": 16,
+          "expected_hex": "c0cddae7f40613202d3a4754616e7b88",
+          "error": null
+        },
+        {
+          "address": 4090,
+          "length": 24,
+          "expected_hex": "c0cddae7f40613202d3a4754616e7b8895a2afbcc9d6e3f0",
+          "error": null
+        },
+        {
+          "address": 4096,
+          "length": 16,
+          "expected_hex": "c0cddae7f40613202d3a4754616e7b88",
+          "error": null
+        },
+        {
+          "address": 4099,
+          "length": 16,
+          "expected_hex": "c0cddae7f40613202d3a4754616e7b88",
+          "error": null
+        },
+        {
+          "address": 8192,
+          "length": 16,
+          "expected_hex": "c0cddae7f40613202d3a4754616e7b88",
+          "error": null
+        },
+        {
+          "address": 291,
+          "length": 1,
+          "expected_hex": "c0",
+          "error": null
+        },
+        {
+          "address": 4096,
+          "length": 4,
+          "expected_hex": "c0cddae7",
+          "error": null
+        },
+        {
+          "address": 4099,
+          "length": 1,
+          "expected_hex": "c0",
+          "error": null
+        },
+        {
+          "address": 8190,
+          "length": 4,
+          "expected_hex": "c0cddae7",
+          "error": null
+        }
+      ]
+    },
+    {
+      "id": "x86-upper-prototype",
+      "arch": "x86",
+      "width": 4,
+      "writes": [
+        [
+          4096,
+          8195
+        ],
+        [
+          8192,
+          32771
+        ],
+        [
+          8196,
+          40963
+        ],
+        [
+          8200,
+          47104
+        ],
+        [
+          4096,
+          5120
+        ]
+      ],
+      "attached": 0,
+      "pagefile_length": 16789504,
+      "holes": [],
+      "queries": [
+        {
+          "address": 0,
+          "length": 16,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 3,
+          "length": 16,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 4090,
+          "length": 24,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 4096,
+          "length": 16,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 4099,
+          "length": 16,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 8192,
+          "length": 16,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 291,
+          "length": 1,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 4096,
+          "length": 4,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 4099,
+          "length": 1,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 8190,
+          "length": 4,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        }
+      ]
+    },
+    {
+      "id": "x86-physical-hole",
+      "arch": "x86",
+      "width": 4,
+      "writes": [
+        [
+          4096,
+          8195
+        ],
+        [
+          8192,
+          32771
+        ],
+        [
+          8196,
+          40963
+        ],
+        [
+          8200,
+          47104
+        ]
+      ],
+      "attached": 0,
+      "pagefile_length": 65536,
+      "holes": [
+        [
+          32768,
+          36864
+        ]
+      ],
+      "queries": [
+        {
+          "address": 0,
+          "length": 16,
+          "expected_hex": null,
+          "error": "InvalidAddressException"
+        },
+        {
+          "address": 3,
+          "length": 16,
+          "expected_hex": null,
+          "error": "InvalidAddressException"
+        },
+        {
+          "address": 4090,
+          "length": 24,
+          "expected_hex": null,
+          "error": "InvalidAddressException"
+        },
+        {
+          "address": 4096,
+          "length": 16,
+          "expected_hex": "31425364758697a8b9cadbec02132435",
+          "error": null
+        },
+        {
+          "address": 4099,
+          "length": 16,
+          "expected_hex": "64758697a8b9cadbec02132435465768",
+          "error": null
+        },
+        {
+          "address": 8192,
+          "length": 16,
+          "expected_hex": "9aabbccddeef05162738495a6b7c8d9e",
+          "error": null
+        },
+        {
+          "address": 291,
+          "length": 1,
+          "expected_hex": null,
+          "error": "InvalidAddressException"
+        },
+        {
+          "address": 4096,
+          "length": 4,
+          "expected_hex": "31425364",
+          "error": null
+        },
+        {
+          "address": 4099,
+          "length": 1,
+          "expected_hex": "64",
+          "error": null
+        },
+        {
+          "address": 8190,
+          "length": 4,
+          "expected_hex": "78899aab",
+          "error": null
+        }
+      ]
+    },
+    {
+      "id": "x86-table-hole",
+      "arch": "x86",
+      "width": 4,
+      "writes": [
+        [
+          4096,
+          8195
+        ],
+        [
+          8192,
+          32771
+        ],
+        [
+          8196,
+          40963
+        ],
+        [
+          8200,
+          47104
+        ]
+      ],
+      "attached": 0,
+      "pagefile_length": 65536,
+      "holes": [
+        [
+          8192,
+          12288
+        ]
+      ],
+      "queries": [
+        {
+          "address": 0,
+          "length": 16,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 3,
+          "length": 16,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 4090,
+          "length": 24,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 4096,
+          "length": 16,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 4099,
+          "length": 16,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 8192,
+          "length": 16,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 291,
+          "length": 1,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 4096,
+          "length": 4,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 4099,
+          "length": 1,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 8190,
+          "length": 4,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        }
+      ]
+    },
+    {
+      "id": "x86-short-swap",
+      "arch": "x86",
+      "width": 4,
+      "writes": [
+        [
+          4096,
+          8195
+        ],
+        [
+          8192,
+          32771
+        ],
+        [
+          8196,
+          40963
+        ],
+        [
+          8200,
+          47104
+        ],
+        [
+          8196,
+          4224
+        ]
+      ],
+      "attached": 0,
+      "pagefile_length": 4101,
+      "holes": [],
+      "queries": [
+        {
+          "address": 0,
+          "length": 16,
+          "expected_hex": "5a6b7c8d9eafc0d1e2f3091a2b3c4d5e",
+          "error": null
+        },
+        {
+          "address": 3,
+          "length": 16,
+          "expected_hex": "8d9eafc0d1e2f3091a2b3c4d5e6f8091",
+          "error": null
+        },
+        {
+          "address": 4090,
+          "length": 24,
+          "expected_hex": null,
+          "error": "InvalidAddressException"
+        },
+        {
+          "address": 4096,
+          "length": 16,
+          "expected_hex": null,
+          "error": "InvalidAddressException"
+        },
+        {
+          "address": 4099,
+          "length": 16,
+          "expected_hex": null,
+          "error": "InvalidAddressException"
+        },
+        {
+          "address": 8192,
+          "length": 16,
+          "expected_hex": "9aabbccddeef05162738495a6b7c8d9e",
+          "error": null
+        },
+        {
+          "address": 291,
+          "length": 1,
+          "expected_hex": "11",
+          "error": null
+        },
+        {
+          "address": 4096,
+          "length": 4,
+          "expected_hex": "2b384552",
+          "error": null
+        },
+        {
+          "address": 4099,
+          "length": 1,
+          "expected_hex": "2b",
+          "error": null
+        },
+        {
+          "address": 8190,
+          "length": 4,
+          "expected_hex": "2b389aab",
+          "error": null
+        }
+      ]
+    },
+    {
+      "id": "x86-empty-swap",
+      "arch": "x86",
+      "width": 4,
+      "writes": [
+        [
+          4096,
+          8195
+        ],
+        [
+          8192,
+          32771
+        ],
+        [
+          8196,
+          40963
+        ],
+        [
+          8200,
+          47104
+        ],
+        [
+          8196,
+          4224
+        ]
+      ],
+      "attached": 0,
+      "pagefile_length": 0,
+      "holes": [],
+      "queries": [
+        {
+          "address": 0,
+          "length": 16,
+          "expected_hex": "5a6b7c8d9eafc0d1e2f3091a2b3c4d5e",
+          "error": null
+        },
+        {
+          "address": 3,
+          "length": 16,
+          "expected_hex": "8d9eafc0d1e2f3091a2b3c4d5e6f8091",
+          "error": null
+        },
+        {
+          "address": 4090,
+          "length": 24,
+          "expected_hex": null,
+          "error": "InvalidAddressException"
+        },
+        {
+          "address": 4096,
+          "length": 16,
+          "expected_hex": null,
+          "error": "InvalidAddressException"
+        },
+        {
+          "address": 4099,
+          "length": 16,
+          "expected_hex": null,
+          "error": "InvalidAddressException"
+        },
+        {
+          "address": 8192,
+          "length": 16,
+          "expected_hex": "9aabbccddeef05162738495a6b7c8d9e",
+          "error": null
+        },
+        {
+          "address": 291,
+          "length": 1,
+          "expected_hex": "11",
+          "error": null
+        },
+        {
+          "address": 4096,
+          "length": 4,
+          "expected_hex": null,
+          "error": "InvalidAddressException"
+        },
+        {
+          "address": 4099,
+          "length": 1,
+          "expected_hex": null,
+          "error": "InvalidAddressException"
+        },
+        {
+          "address": 8190,
+          "length": 4,
+          "expected_hex": null,
+          "error": "InvalidAddressException"
+        }
+      ]
+    },
+    {
+      "id": "pae-resident",
+      "arch": "pae",
+      "width": 8,
+      "writes": [
+        [
+          4096,
+          8195
+        ],
+        [
+          8192,
+          12291
+        ],
+        [
+          12288,
+          32771
+        ],
+        [
+          12296,
+          40963
+        ],
+        [
+          12304,
+          47104
+        ]
+      ],
+      "attached": 0,
+      "pagefile_length": 65536,
+      "holes": [],
+      "queries": [
+        {
+          "address": 0,
+          "length": 16,
+          "expected_hex": "5a6b7c8d9eafc0d1e2f3091a2b3c4d5e",
+          "error": null
+        },
+        {
+          "address": 3,
+          "length": 16,
+          "expected_hex": "8d9eafc0d1e2f3091a2b3c4d5e6f8091",
+          "error": null
+        },
+        {
+          "address": 4090,
+          "length": 24,
+          "expected_hex": "5d6e7f90a1b231425364758697a8b9cadbec021324354657",
+          "error": null
+        },
+        {
+          "address": 4096,
+          "length": 16,
+          "expected_hex": "31425364758697a8b9cadbec02132435",
+          "error": null
+        },
+        {
+          "address": 4099,
+          "length": 16,
+          "expected_hex": "64758697a8b9cadbec02132435465768",
+          "error": null
+        },
+        {
+          "address": 8192,
+          "length": 16,
+          "expected_hex": "9aabbccddeef05162738495a6b7c8d9e",
+          "error": null
+        },
+        {
+          "address": 291,
+          "length": 1,
+          "expected_hex": "11",
+          "error": null
+        },
+        {
+          "address": 4096,
+          "length": 4,
+          "expected_hex": "31425364",
+          "error": null
+        },
+        {
+          "address": 4099,
+          "length": 1,
+          "expected_hex": "64",
+          "error": null
+        },
+        {
+          "address": 8190,
+          "length": 4,
+          "expected_hex": "78899aab",
+          "error": null
+        }
+      ]
+    },
+    {
+      "id": "pae-transition",
+      "arch": "pae",
+      "width": 8,
+      "writes": [
+        [
+          4096,
+          8195
+        ],
+        [
+          8192,
+          12291
+        ],
+        [
+          12288,
+          32771
+        ],
+        [
+          12296,
+          40963
+        ],
+        [
+          12304,
+          47104
+        ],
+        [
+          12288,
+          34816
+        ]
+      ],
+      "attached": 0,
+      "pagefile_length": 65536,
+      "holes": [],
+      "queries": [
+        {
+          "address": 0,
+          "length": 16,
+          "expected_hex": "5a6b7c8d9eafc0d1e2f3091a2b3c4d5e",
+          "error": null
+        },
+        {
+          "address": 3,
+          "length": 16,
+          "expected_hex": "8d9eafc0d1e2f3091a2b3c4d5e6f8091",
+          "error": null
+        },
+        {
+          "address": 4090,
+          "length": 24,
+          "expected_hex": "5d6e7f90a1b231425364758697a8b9cadbec021324354657",
+          "error": null
+        },
+        {
+          "address": 4096,
+          "length": 16,
+          "expected_hex": "31425364758697a8b9cadbec02132435",
+          "error": null
+        },
+        {
+          "address": 4099,
+          "length": 16,
+          "expected_hex": "64758697a8b9cadbec02132435465768",
+          "error": null
+        },
+        {
+          "address": 8192,
+          "length": 16,
+          "expected_hex": "9aabbccddeef05162738495a6b7c8d9e",
+          "error": null
+        },
+        {
+          "address": 291,
+          "length": 1,
+          "expected_hex": "11",
+          "error": null
+        },
+        {
+          "address": 4096,
+          "length": 4,
+          "expected_hex": "31425364",
+          "error": null
+        },
+        {
+          "address": 4099,
+          "length": 1,
+          "expected_hex": "64",
+          "error": null
+        },
+        {
+          "address": 8190,
+          "length": 4,
+          "expected_hex": "78899aab",
+          "error": null
+        }
+      ]
+    },
+    {
+      "id": "pae-prototype",
+      "arch": "pae",
+      "width": 8,
+      "writes": [
+        [
+          4096,
+          8195
+        ],
+        [
+          8192,
+          12291
+        ],
+        [
+          12288,
+          32771
+        ],
+        [
+          12296,
+          40963
+        ],
+        [
+          12304,
+          47104
+        ],
+        [
+          12288,
+          33792
+        ]
+      ],
+      "attached": 0,
+      "pagefile_length": 65536,
+      "holes": [],
+      "queries": [
+        {
+          "address": 0,
+          "length": 16,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 3,
+          "length": 16,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 4090,
+          "length": 24,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 4096,
+          "length": 16,
+          "expected_hex": "31425364758697a8b9cadbec02132435",
+          "error": null
+        },
+        {
+          "address": 4099,
+          "length": 16,
+          "expected_hex": "64758697a8b9cadbec02132435465768",
+          "error": null
+        },
+        {
+          "address": 8192,
+          "length": 16,
+          "expected_hex": "9aabbccddeef05162738495a6b7c8d9e",
+          "error": null
+        },
+        {
+          "address": 291,
+          "length": 1,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 4096,
+          "length": 4,
+          "expected_hex": "31425364",
+          "error": null
+        },
+        {
+          "address": 4099,
+          "length": 1,
+          "expected_hex": "64",
+          "error": null
+        },
+        {
+          "address": 8190,
+          "length": 4,
+          "expected_hex": "78899aab",
+          "error": null
+        }
+      ]
+    },
+    {
+      "id": "pae-prototype-transition",
+      "arch": "pae",
+      "width": 8,
+      "writes": [
+        [
+          4096,
+          8195
+        ],
+        [
+          8192,
+          12291
+        ],
+        [
+          12288,
+          32771
+        ],
+        [
+          12296,
+          40963
+        ],
+        [
+          12304,
+          47104
+        ],
+        [
+          12288,
+          35840
+        ]
+      ],
+      "attached": 0,
+      "pagefile_length": 65536,
+      "holes": [],
+      "queries": [
+        {
+          "address": 0,
+          "length": 16,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 3,
+          "length": 16,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 4090,
+          "length": 24,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 4096,
+          "length": 16,
+          "expected_hex": "31425364758697a8b9cadbec02132435",
+          "error": null
+        },
+        {
+          "address": 4099,
+          "length": 16,
+          "expected_hex": "64758697a8b9cadbec02132435465768",
+          "error": null
+        },
+        {
+          "address": 8192,
+          "length": 16,
+          "expected_hex": "9aabbccddeef05162738495a6b7c8d9e",
+          "error": null
+        },
+        {
+          "address": 291,
+          "length": 1,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 4096,
+          "length": 4,
+          "expected_hex": "31425364",
+          "error": null
+        },
+        {
+          "address": 4099,
+          "length": 1,
+          "expected_hex": "64",
+          "error": null
+        },
+        {
+          "address": 8190,
+          "length": 4,
+          "expected_hex": "78899aab",
+          "error": null
+        }
+      ]
+    },
+    {
+      "id": "pae-swap-zero",
+      "arch": "pae",
+      "width": 8,
+      "writes": [
+        [
+          4096,
+          8195
+        ],
+        [
+          8192,
+          12291
+        ],
+        [
+          12288,
+          32771
+        ],
+        [
+          12296,
+          40963
+        ],
+        [
+          12304,
+          47104
+        ],
+        [
+          12296,
+          4294967424
+        ]
+      ],
+      "attached": 0,
+      "pagefile_length": 65536,
+      "holes": [],
+      "queries": [
+        {
+          "address": 0,
+          "length": 16,
+          "expected_hex": "5a6b7c8d9eafc0d1e2f3091a2b3c4d5e",
+          "error": null
+        },
+        {
+          "address": 3,
+          "length": 16,
+          "expected_hex": "8d9eafc0d1e2f3091a2b3c4d5e6f8091",
+          "error": null
+        },
+        {
+          "address": 4090,
+          "length": 24,
+          "expected_hex": "5d6e7f90a1b22b3845525f6c798693a0adbac7d4e1ee000d",
+          "error": null
+        },
+        {
+          "address": 4096,
+          "length": 16,
+          "expected_hex": "2b3845525f6c798693a0adbac7d4e1ee",
+          "error": null
+        },
+        {
+          "address": 4099,
+          "length": 16,
+          "expected_hex": "2b3845525f6c798693a0adbac7d4e1ee",
+          "error": null
+        },
+        {
+          "address": 8192,
+          "length": 16,
+          "expected_hex": "9aabbccddeef05162738495a6b7c8d9e",
+          "error": null
+        },
+        {
+          "address": 291,
+          "length": 1,
+          "expected_hex": "11",
+          "error": null
+        },
+        {
+          "address": 4096,
+          "length": 4,
+          "expected_hex": "2b384552",
+          "error": null
+        },
+        {
+          "address": 4099,
+          "length": 1,
+          "expected_hex": "2b",
+          "error": null
+        },
+        {
+          "address": 8190,
+          "length": 4,
+          "expected_hex": "2b389aab",
+          "error": null
+        }
+      ]
+    },
+    {
+      "id": "pae-swap-three",
+      "arch": "pae",
+      "width": 8,
+      "writes": [
+        [
+          4096,
+          8195
+        ],
+        [
+          8192,
+          12291
+        ],
+        [
+          12288,
+          32771
+        ],
+        [
+          12296,
+          40963
+        ],
+        [
+          12304,
+          47104
+        ],
+        [
+          12296,
+          4294967430
+        ]
+      ],
+      "attached": 3,
+      "pagefile_length": 65536,
+      "holes": [],
+      "queries": [
+        {
+          "address": 0,
+          "length": 16,
+          "expected_hex": "5a6b7c8d9eafc0d1e2f3091a2b3c4d5e",
+          "error": null
+        },
+        {
+          "address": 3,
+          "length": 16,
+          "expected_hex": "8d9eafc0d1e2f3091a2b3c4d5e6f8091",
+          "error": null
+        },
+        {
+          "address": 4090,
+          "length": 24,
+          "expected_hex": "5d6e7f90a1b22b3845525f6c798693a0adbac7d4e1ee000d",
+          "error": null
+        },
+        {
+          "address": 4096,
+          "length": 16,
+          "expected_hex": "2b3845525f6c798693a0adbac7d4e1ee",
+          "error": null
+        },
+        {
+          "address": 4099,
+          "length": 16,
+          "expected_hex": "2b3845525f6c798693a0adbac7d4e1ee",
+          "error": null
+        },
+        {
+          "address": 8192,
+          "length": 16,
+          "expected_hex": "9aabbccddeef05162738495a6b7c8d9e",
+          "error": null
+        },
+        {
+          "address": 291,
+          "length": 1,
+          "expected_hex": "11",
+          "error": null
+        },
+        {
+          "address": 4096,
+          "length": 4,
+          "expected_hex": "2b384552",
+          "error": null
+        },
+        {
+          "address": 4099,
+          "length": 1,
+          "expected_hex": "2b",
+          "error": null
+        },
+        {
+          "address": 8190,
+          "length": 4,
+          "expected_hex": "2b389aab",
+          "error": null
+        }
+      ]
+    },
+    {
+      "id": "pae-swap-no-attachment",
+      "arch": "pae",
+      "width": 8,
+      "writes": [
+        [
+          4096,
+          8195
+        ],
+        [
+          8192,
+          12291
+        ],
+        [
+          12288,
+          32771
+        ],
+        [
+          12296,
+          40963
+        ],
+        [
+          12304,
+          47104
+        ],
+        [
+          12296,
+          4294967424
+        ]
+      ],
+      "attached": null,
+      "pagefile_length": 65536,
+      "holes": [],
+      "queries": [
+        {
+          "address": 0,
+          "length": 16,
+          "expected_hex": "5a6b7c8d9eafc0d1e2f3091a2b3c4d5e",
+          "error": null
+        },
+        {
+          "address": 3,
+          "length": 16,
+          "expected_hex": "8d9eafc0d1e2f3091a2b3c4d5e6f8091",
+          "error": null
+        },
+        {
+          "address": 4090,
+          "length": 24,
+          "expected_hex": null,
+          "error": "SwappedInvalidAddressException"
+        },
+        {
+          "address": 4096,
+          "length": 16,
+          "expected_hex": null,
+          "error": "SwappedInvalidAddressException"
+        },
+        {
+          "address": 4099,
+          "length": 16,
+          "expected_hex": null,
+          "error": "SwappedInvalidAddressException"
+        },
+        {
+          "address": 8192,
+          "length": 16,
+          "expected_hex": "9aabbccddeef05162738495a6b7c8d9e",
+          "error": null
+        },
+        {
+          "address": 291,
+          "length": 1,
+          "expected_hex": "11",
+          "error": null
+        },
+        {
+          "address": 4096,
+          "length": 4,
+          "expected_hex": null,
+          "error": "SwappedInvalidAddressException"
+        },
+        {
+          "address": 4099,
+          "length": 1,
+          "expected_hex": null,
+          "error": "SwappedInvalidAddressException"
+        },
+        {
+          "address": 8190,
+          "length": 4,
+          "expected_hex": null,
+          "error": "SwappedInvalidAddressException"
+        }
+      ]
+    },
+    {
+      "id": "pae-swap-wrong-index",
+      "arch": "pae",
+      "width": 8,
+      "writes": [
+        [
+          4096,
+          8195
+        ],
+        [
+          8192,
+          12291
+        ],
+        [
+          12288,
+          32771
+        ],
+        [
+          12296,
+          40963
+        ],
+        [
+          12304,
+          47104
+        ],
+        [
+          12296,
+          4294967424
+        ]
+      ],
+      "attached": 3,
+      "pagefile_length": 65536,
+      "holes": [],
+      "queries": [
+        {
+          "address": 0,
+          "length": 16,
+          "expected_hex": "5a6b7c8d9eafc0d1e2f3091a2b3c4d5e",
+          "error": null
+        },
+        {
+          "address": 3,
+          "length": 16,
+          "expected_hex": "8d9eafc0d1e2f3091a2b3c4d5e6f8091",
+          "error": null
+        },
+        {
+          "address": 4090,
+          "length": 24,
+          "expected_hex": null,
+          "error": "SwappedInvalidAddressException"
+        },
+        {
+          "address": 4096,
+          "length": 16,
+          "expected_hex": null,
+          "error": "SwappedInvalidAddressException"
+        },
+        {
+          "address": 4099,
+          "length": 16,
+          "expected_hex": null,
+          "error": "SwappedInvalidAddressException"
+        },
+        {
+          "address": 8192,
+          "length": 16,
+          "expected_hex": "9aabbccddeef05162738495a6b7c8d9e",
+          "error": null
+        },
+        {
+          "address": 291,
+          "length": 1,
+          "expected_hex": "11",
+          "error": null
+        },
+        {
+          "address": 4096,
+          "length": 4,
+          "expected_hex": null,
+          "error": "SwappedInvalidAddressException"
+        },
+        {
+          "address": 4099,
+          "length": 1,
+          "expected_hex": null,
+          "error": "SwappedInvalidAddressException"
+        },
+        {
+          "address": 8190,
+          "length": 4,
+          "expected_hex": null,
+          "error": "SwappedInvalidAddressException"
+        }
+      ]
+    },
+    {
+      "id": "pae-swap-no-bit7",
+      "arch": "pae",
+      "width": 8,
+      "writes": [
+        [
+          4096,
+          8195
+        ],
+        [
+          8192,
+          12291
+        ],
+        [
+          12288,
+          32771
+        ],
+        [
+          12296,
+          40963
+        ],
+        [
+          12304,
+          47104
+        ],
+        [
+          12296,
+          4294967296
+        ]
+      ],
+      "attached": 0,
+      "pagefile_length": 65536,
+      "holes": [],
+      "queries": [
+        {
+          "address": 0,
+          "length": 16,
+          "expected_hex": "5a6b7c8d9eafc0d1e2f3091a2b3c4d5e",
+          "error": null
+        },
+        {
+          "address": 3,
+          "length": 16,
+          "expected_hex": "8d9eafc0d1e2f3091a2b3c4d5e6f8091",
+          "error": null
+        },
+        {
+          "address": 4090,
+          "length": 24,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 4096,
+          "length": 16,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 4099,
+          "length": 16,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 8192,
+          "length": 16,
+          "expected_hex": "9aabbccddeef05162738495a6b7c8d9e",
+          "error": null
+        },
+        {
+          "address": 291,
+          "length": 1,
+          "expected_hex": "11",
+          "error": null
+        },
+        {
+          "address": 4096,
+          "length": 4,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 4099,
+          "length": 1,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 8190,
+          "length": 4,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        }
+      ]
+    },
+    {
+      "id": "pae-swap-no-high",
+      "arch": "pae",
+      "width": 8,
+      "writes": [
+        [
+          4096,
+          8195
+        ],
+        [
+          8192,
+          12291
+        ],
+        [
+          12288,
+          32771
+        ],
+        [
+          12296,
+          40963
+        ],
+        [
+          12304,
+          47104
+        ],
+        [
+          12296,
+          128
+        ]
+      ],
+      "attached": 0,
+      "pagefile_length": 65536,
+      "holes": [],
+      "queries": [
+        {
+          "address": 0,
+          "length": 16,
+          "expected_hex": "5a6b7c8d9eafc0d1e2f3091a2b3c4d5e",
+          "error": null
+        },
+        {
+          "address": 3,
+          "length": 16,
+          "expected_hex": "8d9eafc0d1e2f3091a2b3c4d5e6f8091",
+          "error": null
+        },
+        {
+          "address": 4090,
+          "length": 24,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 4096,
+          "length": 16,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 4099,
+          "length": 16,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 8192,
+          "length": 16,
+          "expected_hex": "9aabbccddeef05162738495a6b7c8d9e",
+          "error": null
+        },
+        {
+          "address": 291,
+          "length": 1,
+          "expected_hex": "11",
+          "error": null
+        },
+        {
+          "address": 4096,
+          "length": 4,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 4099,
+          "length": 1,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 8190,
+          "length": 4,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        }
+      ]
+    },
+    {
+      "id": "pae-swap-transition",
+      "arch": "pae",
+      "width": 8,
+      "writes": [
+        [
+          4096,
+          8195
+        ],
+        [
+          8192,
+          12291
+        ],
+        [
+          12288,
+          32771
+        ],
+        [
+          12296,
+          40963
+        ],
+        [
+          12304,
+          47104
+        ],
+        [
+          12296,
+          4294969472
+        ]
+      ],
+      "attached": 0,
+      "pagefile_length": 65536,
+      "holes": [],
+      "queries": [
+        {
+          "address": 0,
+          "length": 16,
+          "expected_hex": "5a6b7c8d9eafc0d1e2f3091a2b3c4d5e",
+          "error": null
+        },
+        {
+          "address": 3,
+          "length": 16,
+          "expected_hex": "8d9eafc0d1e2f3091a2b3c4d5e6f8091",
+          "error": null
+        },
+        {
+          "address": 4090,
+          "length": 24,
+          "expected_hex": null,
+          "error": "InvalidAddressException"
+        },
+        {
+          "address": 4096,
+          "length": 16,
+          "expected_hex": null,
+          "error": "InvalidAddressException"
+        },
+        {
+          "address": 4099,
+          "length": 16,
+          "expected_hex": null,
+          "error": "InvalidAddressException"
+        },
+        {
+          "address": 8192,
+          "length": 16,
+          "expected_hex": "9aabbccddeef05162738495a6b7c8d9e",
+          "error": null
+        },
+        {
+          "address": 291,
+          "length": 1,
+          "expected_hex": "11",
+          "error": null
+        },
+        {
+          "address": 4096,
+          "length": 4,
+          "expected_hex": null,
+          "error": "InvalidAddressException"
+        },
+        {
+          "address": 4099,
+          "length": 1,
+          "expected_hex": null,
+          "error": "InvalidAddressException"
+        },
+        {
+          "address": 8190,
+          "length": 4,
+          "expected_hex": null,
+          "error": "InvalidAddressException"
+        }
+      ]
+    },
+    {
+      "id": "pae-swap-prototype",
+      "arch": "pae",
+      "width": 8,
+      "writes": [
+        [
+          4096,
+          8195
+        ],
+        [
+          8192,
+          12291
+        ],
+        [
+          12288,
+          32771
+        ],
+        [
+          12296,
+          40963
+        ],
+        [
+          12304,
+          47104
+        ],
+        [
+          12296,
+          4294968448
+        ]
+      ],
+      "attached": 0,
+      "pagefile_length": 65536,
+      "holes": [],
+      "queries": [
+        {
+          "address": 0,
+          "length": 16,
+          "expected_hex": "5a6b7c8d9eafc0d1e2f3091a2b3c4d5e",
+          "error": null
+        },
+        {
+          "address": 3,
+          "length": 16,
+          "expected_hex": "8d9eafc0d1e2f3091a2b3c4d5e6f8091",
+          "error": null
+        },
+        {
+          "address": 4090,
+          "length": 24,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 4096,
+          "length": 16,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 4099,
+          "length": 16,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 8192,
+          "length": 16,
+          "expected_hex": "9aabbccddeef05162738495a6b7c8d9e",
+          "error": null
+        },
+        {
+          "address": 291,
+          "length": 1,
+          "expected_hex": "11",
+          "error": null
+        },
+        {
+          "address": 4096,
+          "length": 4,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 4099,
+          "length": 1,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 8190,
+          "length": 4,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        }
+      ]
+    },
+    {
+      "id": "pae-upper-swap",
+      "arch": "pae",
+      "width": 8,
+      "writes": [
+        [
+          4096,
+          8195
+        ],
+        [
+          8192,
+          12291
+        ],
+        [
+          12288,
+          32771
+        ],
+        [
+          12296,
+          40963
+        ],
+        [
+          12304,
+          47104
+        ],
+        [
+          8192,
+          4294967424
+        ]
+      ],
+      "attached": 0,
+      "pagefile_length": 8400896,
+      "holes": [],
+      "queries": [
+        {
+          "address": 0,
+          "length": 16,
+          "expected_hex": "74818e9ba8b5c2cfdce9f60815222f3c",
+          "error": null
+        },
+        {
+          "address": 3,
+          "length": 16,
+          "expected_hex": "74818e9ba8b5c2cfdce9f60815222f3c",
+          "error": null
+        },
+        {
+          "address": 4090,
+          "length": 24,
+          "expected_hex": "74818e9ba8b5c2cfdce9f60815222f3c495663707d8a97a4",
+          "error": null
+        },
+        {
+          "address": 4096,
+          "length": 16,
+          "expected_hex": "74818e9ba8b5c2cfdce9f60815222f3c",
+          "error": null
+        },
+        {
+          "address": 4099,
+          "length": 16,
+          "expected_hex": "74818e9ba8b5c2cfdce9f60815222f3c",
+          "error": null
+        },
+        {
+          "address": 8192,
+          "length": 16,
+          "expected_hex": "74818e9ba8b5c2cfdce9f60815222f3c",
+          "error": null
+        },
+        {
+          "address": 291,
+          "length": 1,
+          "expected_hex": "74",
+          "error": null
+        },
+        {
+          "address": 4096,
+          "length": 4,
+          "expected_hex": "74818e9b",
+          "error": null
+        },
+        {
+          "address": 4099,
+          "length": 1,
+          "expected_hex": "74",
+          "error": null
+        },
+        {
+          "address": 8190,
+          "length": 4,
+          "expected_hex": "74818e9b",
+          "error": null
+        }
+      ]
+    },
+    {
+      "id": "pae-upper-swap-pat",
+      "arch": "pae",
+      "width": 8,
+      "writes": [
+        [
+          4096,
+          8195
+        ],
+        [
+          8192,
+          12291
+        ],
+        [
+          12288,
+          32771
+        ],
+        [
+          12296,
+          40963
+        ],
+        [
+          12304,
+          47104
+        ],
+        [
+          8192,
+          12884906112
+        ]
+      ],
+      "attached": 0,
+      "pagefile_length": 8400896,
+      "holes": [],
+      "queries": [
+        {
+          "address": 0,
+          "length": 16,
+          "expected_hex": "53606d7a8794a1aebbc8d5e2ef010e1b",
+          "error": null
+        },
+        {
+          "address": 3,
+          "length": 16,
+          "expected_hex": "53606d7a8794a1aebbc8d5e2ef010e1b",
+          "error": null
+        },
+        {
+          "address": 4090,
+          "length": 24,
+          "expected_hex": "53606d7a8794a1aebbc8d5e2ef010e1b2835424f5c697683",
+          "error": null
+        },
+        {
+          "address": 4096,
+          "length": 16,
+          "expected_hex": "53606d7a8794a1aebbc8d5e2ef010e1b",
+          "error": null
+        },
+        {
+          "address": 4099,
+          "length": 16,
+          "expected_hex": "53606d7a8794a1aebbc8d5e2ef010e1b",
+          "error": null
+        },
+        {
+          "address": 8192,
+          "length": 16,
+          "expected_hex": "53606d7a8794a1aebbc8d5e2ef010e1b",
+          "error": null
+        },
+        {
+          "address": 291,
+          "length": 1,
+          "expected_hex": "53",
+          "error": null
+        },
+        {
+          "address": 4096,
+          "length": 4,
+          "expected_hex": "53606d7a",
+          "error": null
+        },
+        {
+          "address": 4099,
+          "length": 1,
+          "expected_hex": "53",
+          "error": null
+        },
+        {
+          "address": 8190,
+          "length": 4,
+          "expected_hex": "53606d7a",
+          "error": null
+        }
+      ]
+    },
+    {
+      "id": "pae-upper-prototype",
+      "arch": "pae",
+      "width": 8,
+      "writes": [
+        [
+          4096,
+          8195
+        ],
+        [
+          8192,
+          12291
+        ],
+        [
+          12288,
+          32771
+        ],
+        [
+          12296,
+          40963
+        ],
+        [
+          12304,
+          47104
+        ],
+        [
+          8192,
+          4294968320
+        ]
+      ],
+      "attached": 0,
+      "pagefile_length": 8400896,
+      "holes": [],
+      "queries": [
+        {
+          "address": 0,
+          "length": 16,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 3,
+          "length": 16,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 4090,
+          "length": 24,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 4096,
+          "length": 16,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 4099,
+          "length": 16,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 8192,
+          "length": 16,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 291,
+          "length": 1,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 4096,
+          "length": 4,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 4099,
+          "length": 1,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 8190,
+          "length": 4,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        }
+      ]
+    },
+    {
+      "id": "pae-physical-hole",
+      "arch": "pae",
+      "width": 8,
+      "writes": [
+        [
+          4096,
+          8195
+        ],
+        [
+          8192,
+          12291
+        ],
+        [
+          12288,
+          32771
+        ],
+        [
+          12296,
+          40963
+        ],
+        [
+          12304,
+          47104
+        ]
+      ],
+      "attached": 0,
+      "pagefile_length": 65536,
+      "holes": [
+        [
+          32768,
+          36864
+        ]
+      ],
+      "queries": [
+        {
+          "address": 0,
+          "length": 16,
+          "expected_hex": null,
+          "error": "InvalidAddressException"
+        },
+        {
+          "address": 3,
+          "length": 16,
+          "expected_hex": null,
+          "error": "InvalidAddressException"
+        },
+        {
+          "address": 4090,
+          "length": 24,
+          "expected_hex": null,
+          "error": "InvalidAddressException"
+        },
+        {
+          "address": 4096,
+          "length": 16,
+          "expected_hex": "31425364758697a8b9cadbec02132435",
+          "error": null
+        },
+        {
+          "address": 4099,
+          "length": 16,
+          "expected_hex": "64758697a8b9cadbec02132435465768",
+          "error": null
+        },
+        {
+          "address": 8192,
+          "length": 16,
+          "expected_hex": "9aabbccddeef05162738495a6b7c8d9e",
+          "error": null
+        },
+        {
+          "address": 291,
+          "length": 1,
+          "expected_hex": null,
+          "error": "InvalidAddressException"
+        },
+        {
+          "address": 4096,
+          "length": 4,
+          "expected_hex": "31425364",
+          "error": null
+        },
+        {
+          "address": 4099,
+          "length": 1,
+          "expected_hex": "64",
+          "error": null
+        },
+        {
+          "address": 8190,
+          "length": 4,
+          "expected_hex": "78899aab",
+          "error": null
+        }
+      ]
+    },
+    {
+      "id": "pae-table-hole",
+      "arch": "pae",
+      "width": 8,
+      "writes": [
+        [
+          4096,
+          8195
+        ],
+        [
+          8192,
+          12291
+        ],
+        [
+          12288,
+          32771
+        ],
+        [
+          12296,
+          40963
+        ],
+        [
+          12304,
+          47104
+        ]
+      ],
+      "attached": 0,
+      "pagefile_length": 65536,
+      "holes": [
+        [
+          12288,
+          16384
+        ]
+      ],
+      "queries": [
+        {
+          "address": 0,
+          "length": 16,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 3,
+          "length": 16,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 4090,
+          "length": 24,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 4096,
+          "length": 16,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 4099,
+          "length": 16,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 8192,
+          "length": 16,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 291,
+          "length": 1,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 4096,
+          "length": 4,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 4099,
+          "length": 1,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 8190,
+          "length": 4,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        }
+      ]
+    },
+    {
+      "id": "pae-short-swap",
+      "arch": "pae",
+      "width": 8,
+      "writes": [
+        [
+          4096,
+          8195
+        ],
+        [
+          8192,
+          12291
+        ],
+        [
+          12288,
+          32771
+        ],
+        [
+          12296,
+          40963
+        ],
+        [
+          12304,
+          47104
+        ],
+        [
+          12296,
+          4294967424
+        ]
+      ],
+      "attached": 0,
+      "pagefile_length": 4101,
+      "holes": [],
+      "queries": [
+        {
+          "address": 0,
+          "length": 16,
+          "expected_hex": "5a6b7c8d9eafc0d1e2f3091a2b3c4d5e",
+          "error": null
+        },
+        {
+          "address": 3,
+          "length": 16,
+          "expected_hex": "8d9eafc0d1e2f3091a2b3c4d5e6f8091",
+          "error": null
+        },
+        {
+          "address": 4090,
+          "length": 24,
+          "expected_hex": null,
+          "error": "InvalidAddressException"
+        },
+        {
+          "address": 4096,
+          "length": 16,
+          "expected_hex": null,
+          "error": "InvalidAddressException"
+        },
+        {
+          "address": 4099,
+          "length": 16,
+          "expected_hex": null,
+          "error": "InvalidAddressException"
+        },
+        {
+          "address": 8192,
+          "length": 16,
+          "expected_hex": "9aabbccddeef05162738495a6b7c8d9e",
+          "error": null
+        },
+        {
+          "address": 291,
+          "length": 1,
+          "expected_hex": "11",
+          "error": null
+        },
+        {
+          "address": 4096,
+          "length": 4,
+          "expected_hex": "2b384552",
+          "error": null
+        },
+        {
+          "address": 4099,
+          "length": 1,
+          "expected_hex": "2b",
+          "error": null
+        },
+        {
+          "address": 8190,
+          "length": 4,
+          "expected_hex": "2b389aab",
+          "error": null
+        }
+      ]
+    },
+    {
+      "id": "pae-empty-swap",
+      "arch": "pae",
+      "width": 8,
+      "writes": [
+        [
+          4096,
+          8195
+        ],
+        [
+          8192,
+          12291
+        ],
+        [
+          12288,
+          32771
+        ],
+        [
+          12296,
+          40963
+        ],
+        [
+          12304,
+          47104
+        ],
+        [
+          12296,
+          4294967424
+        ]
+      ],
+      "attached": 0,
+      "pagefile_length": 0,
+      "holes": [],
+      "queries": [
+        {
+          "address": 0,
+          "length": 16,
+          "expected_hex": "5a6b7c8d9eafc0d1e2f3091a2b3c4d5e",
+          "error": null
+        },
+        {
+          "address": 3,
+          "length": 16,
+          "expected_hex": "8d9eafc0d1e2f3091a2b3c4d5e6f8091",
+          "error": null
+        },
+        {
+          "address": 4090,
+          "length": 24,
+          "expected_hex": null,
+          "error": "InvalidAddressException"
+        },
+        {
+          "address": 4096,
+          "length": 16,
+          "expected_hex": null,
+          "error": "InvalidAddressException"
+        },
+        {
+          "address": 4099,
+          "length": 16,
+          "expected_hex": null,
+          "error": "InvalidAddressException"
+        },
+        {
+          "address": 8192,
+          "length": 16,
+          "expected_hex": "9aabbccddeef05162738495a6b7c8d9e",
+          "error": null
+        },
+        {
+          "address": 291,
+          "length": 1,
+          "expected_hex": "11",
+          "error": null
+        },
+        {
+          "address": 4096,
+          "length": 4,
+          "expected_hex": null,
+          "error": "InvalidAddressException"
+        },
+        {
+          "address": 4099,
+          "length": 1,
+          "expected_hex": null,
+          "error": "InvalidAddressException"
+        },
+        {
+          "address": 8190,
+          "length": 4,
+          "expected_hex": null,
+          "error": "InvalidAddressException"
+        }
+      ]
+    },
+    {
+      "id": "x64-resident",
+      "arch": "x64",
+      "width": 8,
+      "writes": [
+        [
+          4096,
+          8195
+        ],
+        [
+          8192,
+          12291
+        ],
+        [
+          12288,
+          16387
+        ],
+        [
+          16384,
+          32771
+        ],
+        [
+          16392,
+          40963
+        ],
+        [
+          16400,
+          47104
+        ]
+      ],
+      "attached": 0,
+      "pagefile_length": 65536,
+      "holes": [],
+      "queries": [
+        {
+          "address": 0,
+          "length": 16,
+          "expected_hex": "5a6b7c8d9eafc0d1e2f3091a2b3c4d5e",
+          "error": null
+        },
+        {
+          "address": 3,
+          "length": 16,
+          "expected_hex": "8d9eafc0d1e2f3091a2b3c4d5e6f8091",
+          "error": null
+        },
+        {
+          "address": 4090,
+          "length": 24,
+          "expected_hex": "5d6e7f90a1b231425364758697a8b9cadbec021324354657",
+          "error": null
+        },
+        {
+          "address": 4096,
+          "length": 16,
+          "expected_hex": "31425364758697a8b9cadbec02132435",
+          "error": null
+        },
+        {
+          "address": 4099,
+          "length": 16,
+          "expected_hex": "64758697a8b9cadbec02132435465768",
+          "error": null
+        },
+        {
+          "address": 8192,
+          "length": 16,
+          "expected_hex": "9aabbccddeef05162738495a6b7c8d9e",
+          "error": null
+        },
+        {
+          "address": 291,
+          "length": 1,
+          "expected_hex": "11",
+          "error": null
+        },
+        {
+          "address": 4096,
+          "length": 4,
+          "expected_hex": "31425364",
+          "error": null
+        },
+        {
+          "address": 4099,
+          "length": 1,
+          "expected_hex": "64",
+          "error": null
+        },
+        {
+          "address": 8190,
+          "length": 4,
+          "expected_hex": "78899aab",
+          "error": null
+        }
+      ]
+    },
+    {
+      "id": "x64-transition",
+      "arch": "x64",
+      "width": 8,
+      "writes": [
+        [
+          4096,
+          8195
+        ],
+        [
+          8192,
+          12291
+        ],
+        [
+          12288,
+          16387
+        ],
+        [
+          16384,
+          32771
+        ],
+        [
+          16392,
+          40963
+        ],
+        [
+          16400,
+          47104
+        ],
+        [
+          16384,
+          34816
+        ]
+      ],
+      "attached": 0,
+      "pagefile_length": 65536,
+      "holes": [],
+      "queries": [
+        {
+          "address": 0,
+          "length": 16,
+          "expected_hex": "5a6b7c8d9eafc0d1e2f3091a2b3c4d5e",
+          "error": null
+        },
+        {
+          "address": 3,
+          "length": 16,
+          "expected_hex": "8d9eafc0d1e2f3091a2b3c4d5e6f8091",
+          "error": null
+        },
+        {
+          "address": 4090,
+          "length": 24,
+          "expected_hex": "5d6e7f90a1b231425364758697a8b9cadbec021324354657",
+          "error": null
+        },
+        {
+          "address": 4096,
+          "length": 16,
+          "expected_hex": "31425364758697a8b9cadbec02132435",
+          "error": null
+        },
+        {
+          "address": 4099,
+          "length": 16,
+          "expected_hex": "64758697a8b9cadbec02132435465768",
+          "error": null
+        },
+        {
+          "address": 8192,
+          "length": 16,
+          "expected_hex": "9aabbccddeef05162738495a6b7c8d9e",
+          "error": null
+        },
+        {
+          "address": 291,
+          "length": 1,
+          "expected_hex": "11",
+          "error": null
+        },
+        {
+          "address": 4096,
+          "length": 4,
+          "expected_hex": "31425364",
+          "error": null
+        },
+        {
+          "address": 4099,
+          "length": 1,
+          "expected_hex": "64",
+          "error": null
+        },
+        {
+          "address": 8190,
+          "length": 4,
+          "expected_hex": "78899aab",
+          "error": null
+        }
+      ]
+    },
+    {
+      "id": "x64-prototype",
+      "arch": "x64",
+      "width": 8,
+      "writes": [
+        [
+          4096,
+          8195
+        ],
+        [
+          8192,
+          12291
+        ],
+        [
+          12288,
+          16387
+        ],
+        [
+          16384,
+          32771
+        ],
+        [
+          16392,
+          40963
+        ],
+        [
+          16400,
+          47104
+        ],
+        [
+          16384,
+          33792
+        ]
+      ],
+      "attached": 0,
+      "pagefile_length": 65536,
+      "holes": [],
+      "queries": [
+        {
+          "address": 0,
+          "length": 16,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 3,
+          "length": 16,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 4090,
+          "length": 24,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 4096,
+          "length": 16,
+          "expected_hex": "31425364758697a8b9cadbec02132435",
+          "error": null
+        },
+        {
+          "address": 4099,
+          "length": 16,
+          "expected_hex": "64758697a8b9cadbec02132435465768",
+          "error": null
+        },
+        {
+          "address": 8192,
+          "length": 16,
+          "expected_hex": "9aabbccddeef05162738495a6b7c8d9e",
+          "error": null
+        },
+        {
+          "address": 291,
+          "length": 1,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 4096,
+          "length": 4,
+          "expected_hex": "31425364",
+          "error": null
+        },
+        {
+          "address": 4099,
+          "length": 1,
+          "expected_hex": "64",
+          "error": null
+        },
+        {
+          "address": 8190,
+          "length": 4,
+          "expected_hex": "78899aab",
+          "error": null
+        }
+      ]
+    },
+    {
+      "id": "x64-prototype-transition",
+      "arch": "x64",
+      "width": 8,
+      "writes": [
+        [
+          4096,
+          8195
+        ],
+        [
+          8192,
+          12291
+        ],
+        [
+          12288,
+          16387
+        ],
+        [
+          16384,
+          32771
+        ],
+        [
+          16392,
+          40963
+        ],
+        [
+          16400,
+          47104
+        ],
+        [
+          16384,
+          35840
+        ]
+      ],
+      "attached": 0,
+      "pagefile_length": 65536,
+      "holes": [],
+      "queries": [
+        {
+          "address": 0,
+          "length": 16,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 3,
+          "length": 16,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 4090,
+          "length": 24,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 4096,
+          "length": 16,
+          "expected_hex": "31425364758697a8b9cadbec02132435",
+          "error": null
+        },
+        {
+          "address": 4099,
+          "length": 16,
+          "expected_hex": "64758697a8b9cadbec02132435465768",
+          "error": null
+        },
+        {
+          "address": 8192,
+          "length": 16,
+          "expected_hex": "9aabbccddeef05162738495a6b7c8d9e",
+          "error": null
+        },
+        {
+          "address": 291,
+          "length": 1,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 4096,
+          "length": 4,
+          "expected_hex": "31425364",
+          "error": null
+        },
+        {
+          "address": 4099,
+          "length": 1,
+          "expected_hex": "64",
+          "error": null
+        },
+        {
+          "address": 8190,
+          "length": 4,
+          "expected_hex": "78899aab",
+          "error": null
+        }
+      ]
+    },
+    {
+      "id": "x64-swap-zero",
+      "arch": "x64",
+      "width": 8,
+      "writes": [
+        [
+          4096,
+          8195
+        ],
+        [
+          8192,
+          12291
+        ],
+        [
+          12288,
+          16387
+        ],
+        [
+          16384,
+          32771
+        ],
+        [
+          16392,
+          40963
+        ],
+        [
+          16400,
+          47104
+        ],
+        [
+          16392,
+          4294967424
+        ]
+      ],
+      "attached": 0,
+      "pagefile_length": 65536,
+      "holes": [],
+      "queries": [
+        {
+          "address": 0,
+          "length": 16,
+          "expected_hex": "5a6b7c8d9eafc0d1e2f3091a2b3c4d5e",
+          "error": null
+        },
+        {
+          "address": 3,
+          "length": 16,
+          "expected_hex": "8d9eafc0d1e2f3091a2b3c4d5e6f8091",
+          "error": null
+        },
+        {
+          "address": 4090,
+          "length": 24,
+          "expected_hex": "5d6e7f90a1b22b3845525f6c798693a0adbac7d4e1ee000d",
+          "error": null
+        },
+        {
+          "address": 4096,
+          "length": 16,
+          "expected_hex": "2b3845525f6c798693a0adbac7d4e1ee",
+          "error": null
+        },
+        {
+          "address": 4099,
+          "length": 16,
+          "expected_hex": "2b3845525f6c798693a0adbac7d4e1ee",
+          "error": null
+        },
+        {
+          "address": 8192,
+          "length": 16,
+          "expected_hex": "9aabbccddeef05162738495a6b7c8d9e",
+          "error": null
+        },
+        {
+          "address": 291,
+          "length": 1,
+          "expected_hex": "11",
+          "error": null
+        },
+        {
+          "address": 4096,
+          "length": 4,
+          "expected_hex": "2b384552",
+          "error": null
+        },
+        {
+          "address": 4099,
+          "length": 1,
+          "expected_hex": "2b",
+          "error": null
+        },
+        {
+          "address": 8190,
+          "length": 4,
+          "expected_hex": "2b389aab",
+          "error": null
+        }
+      ]
+    },
+    {
+      "id": "x64-swap-three",
+      "arch": "x64",
+      "width": 8,
+      "writes": [
+        [
+          4096,
+          8195
+        ],
+        [
+          8192,
+          12291
+        ],
+        [
+          12288,
+          16387
+        ],
+        [
+          16384,
+          32771
+        ],
+        [
+          16392,
+          40963
+        ],
+        [
+          16400,
+          47104
+        ],
+        [
+          16392,
+          4294967430
+        ]
+      ],
+      "attached": 3,
+      "pagefile_length": 65536,
+      "holes": [],
+      "queries": [
+        {
+          "address": 0,
+          "length": 16,
+          "expected_hex": "5a6b7c8d9eafc0d1e2f3091a2b3c4d5e",
+          "error": null
+        },
+        {
+          "address": 3,
+          "length": 16,
+          "expected_hex": "8d9eafc0d1e2f3091a2b3c4d5e6f8091",
+          "error": null
+        },
+        {
+          "address": 4090,
+          "length": 24,
+          "expected_hex": "5d6e7f90a1b22b3845525f6c798693a0adbac7d4e1ee000d",
+          "error": null
+        },
+        {
+          "address": 4096,
+          "length": 16,
+          "expected_hex": "2b3845525f6c798693a0adbac7d4e1ee",
+          "error": null
+        },
+        {
+          "address": 4099,
+          "length": 16,
+          "expected_hex": "2b3845525f6c798693a0adbac7d4e1ee",
+          "error": null
+        },
+        {
+          "address": 8192,
+          "length": 16,
+          "expected_hex": "9aabbccddeef05162738495a6b7c8d9e",
+          "error": null
+        },
+        {
+          "address": 291,
+          "length": 1,
+          "expected_hex": "11",
+          "error": null
+        },
+        {
+          "address": 4096,
+          "length": 4,
+          "expected_hex": "2b384552",
+          "error": null
+        },
+        {
+          "address": 4099,
+          "length": 1,
+          "expected_hex": "2b",
+          "error": null
+        },
+        {
+          "address": 8190,
+          "length": 4,
+          "expected_hex": "2b389aab",
+          "error": null
+        }
+      ]
+    },
+    {
+      "id": "x64-swap-no-attachment",
+      "arch": "x64",
+      "width": 8,
+      "writes": [
+        [
+          4096,
+          8195
+        ],
+        [
+          8192,
+          12291
+        ],
+        [
+          12288,
+          16387
+        ],
+        [
+          16384,
+          32771
+        ],
+        [
+          16392,
+          40963
+        ],
+        [
+          16400,
+          47104
+        ],
+        [
+          16392,
+          4294967424
+        ]
+      ],
+      "attached": null,
+      "pagefile_length": 65536,
+      "holes": [],
+      "queries": [
+        {
+          "address": 0,
+          "length": 16,
+          "expected_hex": "5a6b7c8d9eafc0d1e2f3091a2b3c4d5e",
+          "error": null
+        },
+        {
+          "address": 3,
+          "length": 16,
+          "expected_hex": "8d9eafc0d1e2f3091a2b3c4d5e6f8091",
+          "error": null
+        },
+        {
+          "address": 4090,
+          "length": 24,
+          "expected_hex": null,
+          "error": "SwappedInvalidAddressException"
+        },
+        {
+          "address": 4096,
+          "length": 16,
+          "expected_hex": null,
+          "error": "SwappedInvalidAddressException"
+        },
+        {
+          "address": 4099,
+          "length": 16,
+          "expected_hex": null,
+          "error": "SwappedInvalidAddressException"
+        },
+        {
+          "address": 8192,
+          "length": 16,
+          "expected_hex": "9aabbccddeef05162738495a6b7c8d9e",
+          "error": null
+        },
+        {
+          "address": 291,
+          "length": 1,
+          "expected_hex": "11",
+          "error": null
+        },
+        {
+          "address": 4096,
+          "length": 4,
+          "expected_hex": null,
+          "error": "SwappedInvalidAddressException"
+        },
+        {
+          "address": 4099,
+          "length": 1,
+          "expected_hex": null,
+          "error": "SwappedInvalidAddressException"
+        },
+        {
+          "address": 8190,
+          "length": 4,
+          "expected_hex": null,
+          "error": "SwappedInvalidAddressException"
+        }
+      ]
+    },
+    {
+      "id": "x64-swap-wrong-index",
+      "arch": "x64",
+      "width": 8,
+      "writes": [
+        [
+          4096,
+          8195
+        ],
+        [
+          8192,
+          12291
+        ],
+        [
+          12288,
+          16387
+        ],
+        [
+          16384,
+          32771
+        ],
+        [
+          16392,
+          40963
+        ],
+        [
+          16400,
+          47104
+        ],
+        [
+          16392,
+          4294967424
+        ]
+      ],
+      "attached": 3,
+      "pagefile_length": 65536,
+      "holes": [],
+      "queries": [
+        {
+          "address": 0,
+          "length": 16,
+          "expected_hex": "5a6b7c8d9eafc0d1e2f3091a2b3c4d5e",
+          "error": null
+        },
+        {
+          "address": 3,
+          "length": 16,
+          "expected_hex": "8d9eafc0d1e2f3091a2b3c4d5e6f8091",
+          "error": null
+        },
+        {
+          "address": 4090,
+          "length": 24,
+          "expected_hex": null,
+          "error": "SwappedInvalidAddressException"
+        },
+        {
+          "address": 4096,
+          "length": 16,
+          "expected_hex": null,
+          "error": "SwappedInvalidAddressException"
+        },
+        {
+          "address": 4099,
+          "length": 16,
+          "expected_hex": null,
+          "error": "SwappedInvalidAddressException"
+        },
+        {
+          "address": 8192,
+          "length": 16,
+          "expected_hex": "9aabbccddeef05162738495a6b7c8d9e",
+          "error": null
+        },
+        {
+          "address": 291,
+          "length": 1,
+          "expected_hex": "11",
+          "error": null
+        },
+        {
+          "address": 4096,
+          "length": 4,
+          "expected_hex": null,
+          "error": "SwappedInvalidAddressException"
+        },
+        {
+          "address": 4099,
+          "length": 1,
+          "expected_hex": null,
+          "error": "SwappedInvalidAddressException"
+        },
+        {
+          "address": 8190,
+          "length": 4,
+          "expected_hex": null,
+          "error": "SwappedInvalidAddressException"
+        }
+      ]
+    },
+    {
+      "id": "x64-swap-no-bit7",
+      "arch": "x64",
+      "width": 8,
+      "writes": [
+        [
+          4096,
+          8195
+        ],
+        [
+          8192,
+          12291
+        ],
+        [
+          12288,
+          16387
+        ],
+        [
+          16384,
+          32771
+        ],
+        [
+          16392,
+          40963
+        ],
+        [
+          16400,
+          47104
+        ],
+        [
+          16392,
+          4294967296
+        ]
+      ],
+      "attached": 0,
+      "pagefile_length": 65536,
+      "holes": [],
+      "queries": [
+        {
+          "address": 0,
+          "length": 16,
+          "expected_hex": "5a6b7c8d9eafc0d1e2f3091a2b3c4d5e",
+          "error": null
+        },
+        {
+          "address": 3,
+          "length": 16,
+          "expected_hex": "8d9eafc0d1e2f3091a2b3c4d5e6f8091",
+          "error": null
+        },
+        {
+          "address": 4090,
+          "length": 24,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 4096,
+          "length": 16,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 4099,
+          "length": 16,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 8192,
+          "length": 16,
+          "expected_hex": "9aabbccddeef05162738495a6b7c8d9e",
+          "error": null
+        },
+        {
+          "address": 291,
+          "length": 1,
+          "expected_hex": "11",
+          "error": null
+        },
+        {
+          "address": 4096,
+          "length": 4,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 4099,
+          "length": 1,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 8190,
+          "length": 4,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        }
+      ]
+    },
+    {
+      "id": "x64-swap-no-high",
+      "arch": "x64",
+      "width": 8,
+      "writes": [
+        [
+          4096,
+          8195
+        ],
+        [
+          8192,
+          12291
+        ],
+        [
+          12288,
+          16387
+        ],
+        [
+          16384,
+          32771
+        ],
+        [
+          16392,
+          40963
+        ],
+        [
+          16400,
+          47104
+        ],
+        [
+          16392,
+          128
+        ]
+      ],
+      "attached": 0,
+      "pagefile_length": 65536,
+      "holes": [],
+      "queries": [
+        {
+          "address": 0,
+          "length": 16,
+          "expected_hex": "5a6b7c8d9eafc0d1e2f3091a2b3c4d5e",
+          "error": null
+        },
+        {
+          "address": 3,
+          "length": 16,
+          "expected_hex": "8d9eafc0d1e2f3091a2b3c4d5e6f8091",
+          "error": null
+        },
+        {
+          "address": 4090,
+          "length": 24,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 4096,
+          "length": 16,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 4099,
+          "length": 16,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 8192,
+          "length": 16,
+          "expected_hex": "9aabbccddeef05162738495a6b7c8d9e",
+          "error": null
+        },
+        {
+          "address": 291,
+          "length": 1,
+          "expected_hex": "11",
+          "error": null
+        },
+        {
+          "address": 4096,
+          "length": 4,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 4099,
+          "length": 1,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 8190,
+          "length": 4,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        }
+      ]
+    },
+    {
+      "id": "x64-swap-transition",
+      "arch": "x64",
+      "width": 8,
+      "writes": [
+        [
+          4096,
+          8195
+        ],
+        [
+          8192,
+          12291
+        ],
+        [
+          12288,
+          16387
+        ],
+        [
+          16384,
+          32771
+        ],
+        [
+          16392,
+          40963
+        ],
+        [
+          16400,
+          47104
+        ],
+        [
+          16392,
+          4294969472
+        ]
+      ],
+      "attached": 0,
+      "pagefile_length": 65536,
+      "holes": [],
+      "queries": [
+        {
+          "address": 0,
+          "length": 16,
+          "expected_hex": "5a6b7c8d9eafc0d1e2f3091a2b3c4d5e",
+          "error": null
+        },
+        {
+          "address": 3,
+          "length": 16,
+          "expected_hex": "8d9eafc0d1e2f3091a2b3c4d5e6f8091",
+          "error": null
+        },
+        {
+          "address": 4090,
+          "length": 24,
+          "expected_hex": null,
+          "error": "InvalidAddressException"
+        },
+        {
+          "address": 4096,
+          "length": 16,
+          "expected_hex": null,
+          "error": "InvalidAddressException"
+        },
+        {
+          "address": 4099,
+          "length": 16,
+          "expected_hex": null,
+          "error": "InvalidAddressException"
+        },
+        {
+          "address": 8192,
+          "length": 16,
+          "expected_hex": "9aabbccddeef05162738495a6b7c8d9e",
+          "error": null
+        },
+        {
+          "address": 291,
+          "length": 1,
+          "expected_hex": "11",
+          "error": null
+        },
+        {
+          "address": 4096,
+          "length": 4,
+          "expected_hex": null,
+          "error": "InvalidAddressException"
+        },
+        {
+          "address": 4099,
+          "length": 1,
+          "expected_hex": null,
+          "error": "InvalidAddressException"
+        },
+        {
+          "address": 8190,
+          "length": 4,
+          "expected_hex": null,
+          "error": "InvalidAddressException"
+        }
+      ]
+    },
+    {
+      "id": "x64-swap-prototype",
+      "arch": "x64",
+      "width": 8,
+      "writes": [
+        [
+          4096,
+          8195
+        ],
+        [
+          8192,
+          12291
+        ],
+        [
+          12288,
+          16387
+        ],
+        [
+          16384,
+          32771
+        ],
+        [
+          16392,
+          40963
+        ],
+        [
+          16400,
+          47104
+        ],
+        [
+          16392,
+          4294968448
+        ]
+      ],
+      "attached": 0,
+      "pagefile_length": 65536,
+      "holes": [],
+      "queries": [
+        {
+          "address": 0,
+          "length": 16,
+          "expected_hex": "5a6b7c8d9eafc0d1e2f3091a2b3c4d5e",
+          "error": null
+        },
+        {
+          "address": 3,
+          "length": 16,
+          "expected_hex": "8d9eafc0d1e2f3091a2b3c4d5e6f8091",
+          "error": null
+        },
+        {
+          "address": 4090,
+          "length": 24,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 4096,
+          "length": 16,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 4099,
+          "length": 16,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 8192,
+          "length": 16,
+          "expected_hex": "9aabbccddeef05162738495a6b7c8d9e",
+          "error": null
+        },
+        {
+          "address": 291,
+          "length": 1,
+          "expected_hex": "11",
+          "error": null
+        },
+        {
+          "address": 4096,
+          "length": 4,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 4099,
+          "length": 1,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 8190,
+          "length": 4,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        }
+      ]
+    },
+    {
+      "id": "x64-upper-swap",
+      "arch": "x64",
+      "width": 8,
+      "writes": [
+        [
+          4096,
+          8195
+        ],
+        [
+          8192,
+          12291
+        ],
+        [
+          12288,
+          16387
+        ],
+        [
+          16384,
+          32771
+        ],
+        [
+          16392,
+          40963
+        ],
+        [
+          16400,
+          47104
+        ],
+        [
+          12288,
+          4294967424
+        ]
+      ],
+      "attached": 0,
+      "pagefile_length": 8400896,
+      "holes": [],
+      "queries": [
+        {
+          "address": 0,
+          "length": 16,
+          "expected_hex": "74818e9ba8b5c2cfdce9f60815222f3c",
+          "error": null
+        },
+        {
+          "address": 3,
+          "length": 16,
+          "expected_hex": "74818e9ba8b5c2cfdce9f60815222f3c",
+          "error": null
+        },
+        {
+          "address": 4090,
+          "length": 24,
+          "expected_hex": "74818e9ba8b5c2cfdce9f60815222f3c495663707d8a97a4",
+          "error": null
+        },
+        {
+          "address": 4096,
+          "length": 16,
+          "expected_hex": "74818e9ba8b5c2cfdce9f60815222f3c",
+          "error": null
+        },
+        {
+          "address": 4099,
+          "length": 16,
+          "expected_hex": "74818e9ba8b5c2cfdce9f60815222f3c",
+          "error": null
+        },
+        {
+          "address": 8192,
+          "length": 16,
+          "expected_hex": "74818e9ba8b5c2cfdce9f60815222f3c",
+          "error": null
+        },
+        {
+          "address": 291,
+          "length": 1,
+          "expected_hex": "74",
+          "error": null
+        },
+        {
+          "address": 4096,
+          "length": 4,
+          "expected_hex": "74818e9b",
+          "error": null
+        },
+        {
+          "address": 4099,
+          "length": 1,
+          "expected_hex": "74",
+          "error": null
+        },
+        {
+          "address": 8190,
+          "length": 4,
+          "expected_hex": "74818e9b",
+          "error": null
+        }
+      ]
+    },
+    {
+      "id": "x64-upper-swap-pat",
+      "arch": "x64",
+      "width": 8,
+      "writes": [
+        [
+          4096,
+          8195
+        ],
+        [
+          8192,
+          12291
+        ],
+        [
+          12288,
+          16387
+        ],
+        [
+          16384,
+          32771
+        ],
+        [
+          16392,
+          40963
+        ],
+        [
+          16400,
+          47104
+        ],
+        [
+          12288,
+          12884906112
+        ]
+      ],
+      "attached": 0,
+      "pagefile_length": 8400896,
+      "holes": [],
+      "queries": [
+        {
+          "address": 0,
+          "length": 16,
+          "expected_hex": "53606d7a8794a1aebbc8d5e2ef010e1b",
+          "error": null
+        },
+        {
+          "address": 3,
+          "length": 16,
+          "expected_hex": "53606d7a8794a1aebbc8d5e2ef010e1b",
+          "error": null
+        },
+        {
+          "address": 4090,
+          "length": 24,
+          "expected_hex": "53606d7a8794a1aebbc8d5e2ef010e1b2835424f5c697683",
+          "error": null
+        },
+        {
+          "address": 4096,
+          "length": 16,
+          "expected_hex": "53606d7a8794a1aebbc8d5e2ef010e1b",
+          "error": null
+        },
+        {
+          "address": 4099,
+          "length": 16,
+          "expected_hex": "53606d7a8794a1aebbc8d5e2ef010e1b",
+          "error": null
+        },
+        {
+          "address": 8192,
+          "length": 16,
+          "expected_hex": "53606d7a8794a1aebbc8d5e2ef010e1b",
+          "error": null
+        },
+        {
+          "address": 291,
+          "length": 1,
+          "expected_hex": "53",
+          "error": null
+        },
+        {
+          "address": 4096,
+          "length": 4,
+          "expected_hex": "53606d7a",
+          "error": null
+        },
+        {
+          "address": 4099,
+          "length": 1,
+          "expected_hex": "53",
+          "error": null
+        },
+        {
+          "address": 8190,
+          "length": 4,
+          "expected_hex": "53606d7a",
+          "error": null
+        }
+      ]
+    },
+    {
+      "id": "x64-upper-prototype",
+      "arch": "x64",
+      "width": 8,
+      "writes": [
+        [
+          4096,
+          8195
+        ],
+        [
+          8192,
+          12291
+        ],
+        [
+          12288,
+          16387
+        ],
+        [
+          16384,
+          32771
+        ],
+        [
+          16392,
+          40963
+        ],
+        [
+          16400,
+          47104
+        ],
+        [
+          12288,
+          4294968320
+        ]
+      ],
+      "attached": 0,
+      "pagefile_length": 8400896,
+      "holes": [],
+      "queries": [
+        {
+          "address": 0,
+          "length": 16,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 3,
+          "length": 16,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 4090,
+          "length": 24,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 4096,
+          "length": 16,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 4099,
+          "length": 16,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 8192,
+          "length": 16,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 291,
+          "length": 1,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 4096,
+          "length": 4,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 4099,
+          "length": 1,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 8190,
+          "length": 4,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        }
+      ]
+    },
+    {
+      "id": "x64-physical-hole",
+      "arch": "x64",
+      "width": 8,
+      "writes": [
+        [
+          4096,
+          8195
+        ],
+        [
+          8192,
+          12291
+        ],
+        [
+          12288,
+          16387
+        ],
+        [
+          16384,
+          32771
+        ],
+        [
+          16392,
+          40963
+        ],
+        [
+          16400,
+          47104
+        ]
+      ],
+      "attached": 0,
+      "pagefile_length": 65536,
+      "holes": [
+        [
+          32768,
+          36864
+        ]
+      ],
+      "queries": [
+        {
+          "address": 0,
+          "length": 16,
+          "expected_hex": null,
+          "error": "InvalidAddressException"
+        },
+        {
+          "address": 3,
+          "length": 16,
+          "expected_hex": null,
+          "error": "InvalidAddressException"
+        },
+        {
+          "address": 4090,
+          "length": 24,
+          "expected_hex": null,
+          "error": "InvalidAddressException"
+        },
+        {
+          "address": 4096,
+          "length": 16,
+          "expected_hex": "31425364758697a8b9cadbec02132435",
+          "error": null
+        },
+        {
+          "address": 4099,
+          "length": 16,
+          "expected_hex": "64758697a8b9cadbec02132435465768",
+          "error": null
+        },
+        {
+          "address": 8192,
+          "length": 16,
+          "expected_hex": "9aabbccddeef05162738495a6b7c8d9e",
+          "error": null
+        },
+        {
+          "address": 291,
+          "length": 1,
+          "expected_hex": null,
+          "error": "InvalidAddressException"
+        },
+        {
+          "address": 4096,
+          "length": 4,
+          "expected_hex": "31425364",
+          "error": null
+        },
+        {
+          "address": 4099,
+          "length": 1,
+          "expected_hex": "64",
+          "error": null
+        },
+        {
+          "address": 8190,
+          "length": 4,
+          "expected_hex": "78899aab",
+          "error": null
+        }
+      ]
+    },
+    {
+      "id": "x64-table-hole",
+      "arch": "x64",
+      "width": 8,
+      "writes": [
+        [
+          4096,
+          8195
+        ],
+        [
+          8192,
+          12291
+        ],
+        [
+          12288,
+          16387
+        ],
+        [
+          16384,
+          32771
+        ],
+        [
+          16392,
+          40963
+        ],
+        [
+          16400,
+          47104
+        ]
+      ],
+      "attached": 0,
+      "pagefile_length": 65536,
+      "holes": [
+        [
+          16384,
+          20480
+        ]
+      ],
+      "queries": [
+        {
+          "address": 0,
+          "length": 16,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 3,
+          "length": 16,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 4090,
+          "length": 24,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 4096,
+          "length": 16,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 4099,
+          "length": 16,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 8192,
+          "length": 16,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 291,
+          "length": 1,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 4096,
+          "length": 4,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 4099,
+          "length": 1,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 8190,
+          "length": 4,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        }
+      ]
+    },
+    {
+      "id": "x64-short-swap",
+      "arch": "x64",
+      "width": 8,
+      "writes": [
+        [
+          4096,
+          8195
+        ],
+        [
+          8192,
+          12291
+        ],
+        [
+          12288,
+          16387
+        ],
+        [
+          16384,
+          32771
+        ],
+        [
+          16392,
+          40963
+        ],
+        [
+          16400,
+          47104
+        ],
+        [
+          16392,
+          4294967424
+        ]
+      ],
+      "attached": 0,
+      "pagefile_length": 4101,
+      "holes": [],
+      "queries": [
+        {
+          "address": 0,
+          "length": 16,
+          "expected_hex": "5a6b7c8d9eafc0d1e2f3091a2b3c4d5e",
+          "error": null
+        },
+        {
+          "address": 3,
+          "length": 16,
+          "expected_hex": "8d9eafc0d1e2f3091a2b3c4d5e6f8091",
+          "error": null
+        },
+        {
+          "address": 4090,
+          "length": 24,
+          "expected_hex": null,
+          "error": "InvalidAddressException"
+        },
+        {
+          "address": 4096,
+          "length": 16,
+          "expected_hex": null,
+          "error": "InvalidAddressException"
+        },
+        {
+          "address": 4099,
+          "length": 16,
+          "expected_hex": null,
+          "error": "InvalidAddressException"
+        },
+        {
+          "address": 8192,
+          "length": 16,
+          "expected_hex": "9aabbccddeef05162738495a6b7c8d9e",
+          "error": null
+        },
+        {
+          "address": 291,
+          "length": 1,
+          "expected_hex": "11",
+          "error": null
+        },
+        {
+          "address": 4096,
+          "length": 4,
+          "expected_hex": "2b384552",
+          "error": null
+        },
+        {
+          "address": 4099,
+          "length": 1,
+          "expected_hex": "2b",
+          "error": null
+        },
+        {
+          "address": 8190,
+          "length": 4,
+          "expected_hex": "2b389aab",
+          "error": null
+        }
+      ]
+    },
+    {
+      "id": "x64-empty-swap",
+      "arch": "x64",
+      "width": 8,
+      "writes": [
+        [
+          4096,
+          8195
+        ],
+        [
+          8192,
+          12291
+        ],
+        [
+          12288,
+          16387
+        ],
+        [
+          16384,
+          32771
+        ],
+        [
+          16392,
+          40963
+        ],
+        [
+          16400,
+          47104
+        ],
+        [
+          16392,
+          4294967424
+        ]
+      ],
+      "attached": 0,
+      "pagefile_length": 0,
+      "holes": [],
+      "queries": [
+        {
+          "address": 0,
+          "length": 16,
+          "expected_hex": "5a6b7c8d9eafc0d1e2f3091a2b3c4d5e",
+          "error": null
+        },
+        {
+          "address": 3,
+          "length": 16,
+          "expected_hex": "8d9eafc0d1e2f3091a2b3c4d5e6f8091",
+          "error": null
+        },
+        {
+          "address": 4090,
+          "length": 24,
+          "expected_hex": null,
+          "error": "InvalidAddressException"
+        },
+        {
+          "address": 4096,
+          "length": 16,
+          "expected_hex": null,
+          "error": "InvalidAddressException"
+        },
+        {
+          "address": 4099,
+          "length": 16,
+          "expected_hex": null,
+          "error": "InvalidAddressException"
+        },
+        {
+          "address": 8192,
+          "length": 16,
+          "expected_hex": "9aabbccddeef05162738495a6b7c8d9e",
+          "error": null
+        },
+        {
+          "address": 291,
+          "length": 1,
+          "expected_hex": "11",
+          "error": null
+        },
+        {
+          "address": 4096,
+          "length": 4,
+          "expected_hex": null,
+          "error": "InvalidAddressException"
+        },
+        {
+          "address": 4099,
+          "length": 1,
+          "expected_hex": null,
+          "error": "InvalidAddressException"
+        },
+        {
+          "address": 8190,
+          "length": 4,
+          "expected_hex": null,
+          "error": "InvalidAddressException"
+        }
+      ]
+    }
+  ]
+}
