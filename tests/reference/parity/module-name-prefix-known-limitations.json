@@ -15,7 +15,7 @@
     "executable_sha256": "57098f3b2dae2aba5fd7a4d8ab64f040e8748a44d22e8a999ed4b224138419c5"
   },
   "limitations": [
-    "Prefix-specific behavior is supported by reference source inspection and a native real-page-table fixture; this batch did not execute a separate pinned translation-layer prefix method vector.",
+    "Five subsequent actual Intel32e address_to_string vectors in fixtures/module-names.json now verify prefix, NUL, first-missing, control and invalid-UTF8 behavior against module_names_match_actual_pinned_translation_layer_vectors. Full module display and all mapped read failures are not certified.",
     "No ARM64 prefix recovery claim and no complete Lsmod contract promotion.",
     "Real ELF outputs retain explicit partial padding diagnostics."
   ]

@@ -731,6 +731,58 @@ mod tests {
         (bytes, isf)
     }
     #[test]
+    fn module_names_match_actual_pinned_translation_layer_vectors() {
+        let vectors: serde_json::Value = serde_json::from_str(include_str!(
+            "../../tests/reference/parity/fixtures/module-names.json"
+        ))
+        .unwrap();
+        for case in vectors["cases"].as_array().unwrap() {
+            let (mut bytes, mut isf) = fixture();
+            put(&mut bytes, 0x3000, 0x4003);
+            put(
+                &mut bytes,
+                0x4000,
+                if case["first_present"] == true {
+                    0x8003
+                } else {
+                    0
+                },
+            );
+            put(
+                &mut bytes,
+                0x4008,
+                if case["second_present"] == true {
+                    0x9003
+                } else {
+                    0
+                },
+            );
+            let hex = case["payload_hex"].as_str().unwrap();
+            let payload: Vec<u8> = (0..hex.len())
+                .step_by(2)
+                .map(|i| u8::from_str_radix(&hex[i..i + 2], 16).unwrap())
+                .collect();
+            bytes[0x8ff0..0x9000].copy_from_slice(&payload);
+            bytes[0x9000..0xa000].fill(b'Z');
+            isf.data["user_types"]["module"]["fields"]["name"]["offset"] = json!(0xff0);
+            isf.data["user_types"]["module"]["fields"]["name"]["type"]["count"] = json!(64);
+            isf.data["user_types"]["module"]["size"] = json!(0x1030);
+            let image = super::super::tests::image(&bytes);
+            let value = super::super::tests::engine(&image, &isf).module_name(0, &Job::default());
+            if case["error"].is_null() {
+                assert_eq!(
+                    value.unwrap(),
+                    case["expected"].as_str().unwrap(),
+                    "{}",
+                    case["id"]
+                );
+            } else {
+                assert!(value.is_err(), "{}", case["id"]);
+            }
+        }
+    }
+
+    #[test]
     fn module_name_preserves_only_contiguous_mapped_prefix() {
         let (mut bytes, mut isf) = fixture();
         put(&mut bytes, 0x3000, 0x4003);

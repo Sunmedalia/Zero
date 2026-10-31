@@ -1,0 +1,49 @@
+{
+  "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+  "source_sha256": {
+    "volatility3/framework/objects/utility.py": "d9d54977c471380c01b23f049f29926d42aaa3a9017461780aebe8ffc956f6f1"
+  },
+  "scope": "Actual address_to_string over Intel32e and BufferDataLayer; synthetic 4K page tables. Not ARM64 or full module display evidence.",
+  "cases": [
+    {
+      "id": "prefix",
+      "payload_hex": "6162636465666768696a6b6c6d6e6f70",
+      "first_present": true,
+      "second_present": false,
+      "expected": "abcdefghijklmnop",
+      "error": null
+    },
+    {
+      "id": "nul-prefix",
+      "payload_hex": "74657374006162636465666768696a6b",
+      "first_present": true,
+      "second_present": false,
+      "expected": "test",
+      "error": null
+    },
+    {
+      "id": "first-missing",
+      "payload_hex": "6162636465666768696a6b6c6d6e6f70",
+      "first_present": false,
+      "second_present": true,
+      "expected": null,
+      "error": "InvalidAddressException"
+    },
+    {
+      "id": "control",
+      "payload_hex": "610162006162636465666768696a6b6c",
+      "first_present": true,
+      "second_present": false,
+      "expected": "a\u0001b",
+      "error": null
+    },
+    {
+      "id": "invalid-utf8",
+      "payload_hex": "61ff62006162636465666768696a6b6c",
+      "first_present": true,
+      "second_present": false,
+      "expected": "a",
+      "error": null
+    }
+  ]
+}
