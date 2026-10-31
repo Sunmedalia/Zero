@@ -775,3 +775,25 @@ native84 reference/reference instability observation is preserved. Empty Win7
 agreement remains non-positive. Fresh reports and ordered comparisons are under
 the four `*-native85` result directories, bound to the final binary hash.
 Evidence remains 122 positive cases (five scoped), zero complete contracts.
+
+
+Native86 bounds pool scan reads to the pinned 16 MiB chunk plus 4 KiB overlap.
+Only starts below chunk_size are emitted from each buffer. DataLayer and
+TranslationLayer have separate final-step behavior, including the actual RAW
+short-tail duplicate observations; these are retained rather than deduplicated.
+Physical default scans exclude maximum_address itself, matching the reference's
+exclusive default section length. `pool_chunk_vectors.py` regenerates 26 actual
+layer-iterator plans, 12 actual _scan_chunk/MultiStringScanner cases and a default
+section boundary observation in `fixtures/pool-chunks.json`. Mapping/fault
+adapters are synthetic; native tests also exercise the shared carver across a
+16 MiB tag boundary and a short RAW tail. Complete mapping enumeration, container
+format behavior and all missing-page reporting contracts remain outstanding.
+
+
+Final native86 reruns the same 19 pool/driver/GUI cases against the pinned
+reference: all mapped fields and multiplicities pass, including one non-positive
+empty Win7 agreement. Eighteen strict emitted sequences pass; Windows retains
+the strict sequence discrepancy at index 245 and the prior reference/reference
+instability observation. Reports and ordered comparisons are under the four
+`*-native86` result directories and bound to the final executable hash.
+Evidence remains 122 positive cases (five scoped), zero complete contracts.

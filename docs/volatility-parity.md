@@ -1522,3 +1522,43 @@ PoolHeaderScanner 加 pre-Vista／Vista 池类型谓词，48 例覆盖完整 hea
 5 个限定范围，完整插件合同 0/135。最终 make check 通过：617 库、8 CLI/MCP、
 50 协议、36 Python 测试；固定向量重生成一致。发布包空 PATH／独立目录
 启动退出通过。最终可执行文件 SHA256：`cff08a8bac35524e92dabb9f42e373e756ff696805aa5439ed2683879812d7d9`。
+
+
+## native86：池扫描的固定层分块与重叠发出规则
+
+此前 canonical PoolScanner、驱动及 GUI 共享路径将一个映射范围整体读入。
+现在按固定 ScannerInterface 的 16 MiB chunk／4 KiB overlap 分块，每次
+最多读 16 MiB + 4 KiB。标签扫描仍使用 native84 的交错匹配顺序，但只
+发出局部起点小于 16 MiB 的命中；跨块标签可在前一块的重叠字节中完整
+识别，重叠区自身的命中按实际后续块发出。不可读块记覆盖诊断并继续，
+避免一次失败吞掉整个大范围。
+
+分别保留 DataLayerInterface 和 TranslationLayerInterface 的实际尾块推进：
+前者在剩余长度大于 chunk、但小于 chunk+overlap 时，以本次读取长度减去
+4 KiB 推进，可能再次输出 chunk 末尾之前的部分记录；后者按固定 chunk
+步长推进。不能为结果看起来更干净而去掉固定参考自身产生的重复次数。
+RAW 采用 data-layer 路径，虚拟扫描和映射容器采用 translation-layer 路径。
+物理层默认扫描长度按 maximum_address-minimum_address 计算，因此最大
+有效地址本身不在扫描区间，独立保留这个边界语义。
+
+新增 [固定分块向量](../tests/reference/parity/pool_chunk_vectors.py)，调用
+实际两种 layer iterator、_scan_chunk 和 MultiStringScanner：26 组范围／
+尾块／相邻映射／空范围计划，以及 12 组跨块标签、只处于 overlap 的命中、
+短尾块重复、精确 overlap 长度及读取失败后的继续行为。映射和读错由适配器
+提供，不替代真实页表枚举验证。另有默认范围最后字节排除的实际参考用例。
+原生逐组验证计划、发出偏移和重复次数，并通过共享雕刻器恢复跨 16 MiB
+边界的对象及 RAW 短尾块预期重复对象。映射范围之间不新增拼接规则；不同
+底层格式的完整 mapping、所有跨映射边界标签和缺页诊断合同仍待验收。
+
+最终 native86 十九例联合差分的字段及重复次数全部通过。PoolScanner 五个
+样本仍为 36172、8709、3323、4926、2154 行；DriverIrp 三个默认 4255、3724、
+3453 行，三个内核范围 2066、1723、1656 行；DriverModule 3、2、1 行；GUI
+WindowStations 15、Desktops 28、DeskScan 28、Windows 3063 行，Win7 0 行
+为空结果一致。十八例严格发出顺序一致；Windows 仍在索引 245 有子窗口
+顺序差异，继续保留该失败及 native84 的参考自身顺序不稳定证据。
+
+报告在 target/reference/results 下四个 *-native86 目录，均绑定同一最终
+二进制；只替换同名证据，累计仍为 122 个正向用例，其中 5 个限定范围，
+完整插件合同 0/135。最终 make check 通过：619 库、8 CLI/MCP、50 协议、
+36 Python 测试。固定分块向量重生成一致，发布包空 PATH／独立目录启动
+退出通过。最终可执行文件 SHA256：`4ab2ebc564dac5238b61a64325ce48b3e0d05a722e9cc91c4907438b1ded3874`。

@@ -54,8 +54,8 @@
       "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
       "reference_output_sha256": "e69f79f711166f1f123dbfdbc3463e5b96743b0d3fdf2b964257da3967f6f16d",
       "symbol_sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4",
-      "zero_executable_sha256": "cff08a8bac35524e92dabb9f42e373e756ff696805aa5439ed2683879812d7d9",
-      "engine_version": "0.2.1-native-85",
+      "zero_executable_sha256": "4ab2ebc564dac5238b61a64325ce48b3e0d05a722e9cc91c4907438b1ded3874",
+      "engine_version": "0.2.1-native-86",
       "record_order": {
         "case_id": "windows-10-15063/windowstations-default",
         "records": [
@@ -106,8 +106,8 @@
       "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
       "reference_output_sha256": "a3cbe01dad52836a7ac8efc91954cf64867f4dee8a6f046c4bb0838d11f48589",
       "symbol_sha256": "6d5f85f7b953330b9762a57e5a25266547e7391ad4f6655170a9f48876fb6b8c",
-      "zero_executable_sha256": "cff08a8bac35524e92dabb9f42e373e756ff696805aa5439ed2683879812d7d9",
-      "engine_version": "0.2.1-native-85",
+      "zero_executable_sha256": "4ab2ebc564dac5238b61a64325ce48b3e0d05a722e9cc91c4907438b1ded3874",
+      "engine_version": "0.2.1-native-86",
       "empty_agreement": true,
       "record_order": {
         "case_id": "windows-7-7601-x64/windowstations-default",
@@ -127,9 +127,9 @@
       }
     }
   ],
-  "engine_version": "0.2.1-native-85",
-  "zero_executable_sha256": "cff08a8bac35524e92dabb9f42e373e756ff696805aa5439ed2683879812d7d9",
-  "validation": "Final native85 binary and unmodified fixed reference, real default/scoped cases compare all mapped fields and multiplicities. Historical cases not rerun retain their own per-case versions. Empty agreement is not positive evidence; no complete plugin contract is claimed.",
+  "engine_version": "0.2.1-native-86",
+  "zero_executable_sha256": "4ab2ebc564dac5238b61a64325ce48b3e0d05a722e9cc91c4907438b1ded3874",
+  "validation": "Final native86 binary and unmodified fixed reference, real default/scoped cases compare all mapped fields and multiplicities. Historical cases not rerun retain their own per-case versions. Empty agreement is not positive evidence; no complete plugin contract is claimed.",
   "known_limitations": [
     "One positive Win10 x64 capture does not establish complete build, architecture, parameter, traversal or failure contracts.",
     "Raw GUI records can include retained or reused object bytes; matching the reference does not validate every object as active.",
@@ -141,5 +141,13 @@
     "scope": "Actual PoolHeaderScanner plus actual pre-Vista/Vista pool predicates. Synthetic independent scalar reads isolate tag-only slices, partially external headers, unreadable unused tails and necessary fields. Native tests use real physical/virtual page tables and missing backing segments; these vectors do not prove layer scan chunking or tag discovery across slice boundaries.",
     "implementation": "BlockSize and PoolType are independently read from the scan slice when fully present, otherwise from the matching layer at the exact field address. Header prefix/unused tail do not need to be in the scan slice.",
     "remaining": "Does not prove discovery of tags split across ranges/chunks, scan overlap equivalence, all header layouts or damaged-page and resource-limit contracts."
+  },
+  "chunk_vectors": {
+    "sha256": "8578644111dbd4f0155e33d1bf3a49b1c17e50b52002a9ca45d46f71e6783db0",
+    "plans": 26,
+    "scans": 12,
+    "scope": "Actual DataLayerInterface/TranslationLayerInterface scan iterators and actual _scan_chunk/MultiStringScanner. Synthetic mapping ranges and read-fault adapter isolate chunk plans, overlap output suppression, data-layer tail repeats and continuation after failed chunks. Does not prove mapping enumeration, crash/hibernation decompression or full pool object carving.",
+    "implementation": "16 MiB chunk plus 4 KiB overlap, emit only tag starts below 16 MiB per chunk; actual data-layer versus translation-layer tail step; default physical maximum address excluded",
+    "remaining": "Mapping enumeration, all backing formats, tags split across distinct mapping ranges, damaged-page/fault diagnostics and full plugin coverage remain unverified."
   }
 }

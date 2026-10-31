@@ -187,6 +187,53 @@ impl Iterator for PoolTagMatches<'_, '_> {
     }
 }
 
+const POOL_SCAN_CHUNK: u64 = 0x1000000;
+const POOL_SCAN_OVERLAP: u64 = 0x1000;
+
+/// Fixed DataLayer and TranslationLayer iterators use different final steps.
+/// Preserve their exact overlap behavior instead of treating every large
+/// mapping as one unbounded read or deduplicating repeated tail observations.
+struct PoolScanChunks {
+    ranges: std::vec::IntoIter<(u64, u64)>,
+    current: Option<(u64, u64)>,
+    translated: bool,
+}
+
+impl PoolScanChunks {
+    fn new(ranges: Vec<(u64, u64)>, translated: bool) -> Self {
+        Self {
+            ranges: ranges.into_iter(),
+            current: None,
+            translated,
+        }
+    }
+}
+
+impl Iterator for PoolScanChunks {
+    type Item = (u64, u64);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        loop {
+            let (start, remaining) = self.current.take().or_else(|| self.ranges.next())?;
+            if remaining == 0 {
+                continue;
+            }
+            let length = remaining.min(POOL_SCAN_CHUNK + POOL_SCAN_OVERLAP);
+            let advance = if self.translated {
+                remaining.min(POOL_SCAN_CHUNK)
+            } else if length > POOL_SCAN_CHUNK {
+                length - POOL_SCAN_OVERLAP
+            } else {
+                length
+            };
+            if advance < remaining {
+                self.current = Some((start + advance, remaining - advance));
+            }
+            return Some((start, length));
+        }
+    }
+}
+
 struct PoolHeaderRead<'a> {
     start: u64,
     data: &'a [u8],
@@ -291,7 +338,10 @@ impl Windows<'_> {
         let mut rows = 0usize;
         let mut text = 0usize;
         let mut diagnostics = 0usize;
-        for (start, length) in self.pool_scan_ranges(virtual_scan, job)? {
+        let translated = virtual_scan || self.vm.image.format != "RAW";
+        for (start, length) in
+            PoolScanChunks::new(self.pool_scan_ranges(virtual_scan, job)?, translated)
+        {
             job.check()?;
             let mut data =
                 vec![0u8; usize::try_from(length).context("pool 扫描范围超出地址空间")?];
@@ -306,6 +356,9 @@ impl Windows<'_> {
             }
             for (index, tag) in PoolTagMatches::new(&data, CONSTRAINTS.iter().map(|c| c.tag))? {
                 job.check()?;
+                if tag as u64 >= POOL_SCAN_CHUNK {
+                    break;
+                }
                 let constraint = &CONSTRAINTS[index];
                 let Some(&type_size) = sizes.get(constraint.type_name) else {
                     continue;
@@ -492,6 +545,13 @@ impl Windows<'_> {
 
     fn pool_scan_ranges(&self, virtual_scan: bool, job: &Job) -> Result<Vec<(u64, u64)>> {
         if !virtual_scan {
+            let maximum = self
+                .vm
+                .image
+                .segments
+                .last()
+                .map(|s| s.end.saturating_sub(1))
+                .unwrap_or(0);
             return self
                 .vm
                 .image
@@ -500,10 +560,7 @@ impl Windows<'_> {
                 .map(|segment| {
                     Ok((
                         segment.start,
-                        segment
-                            .end
-                            .checked_sub(segment.start)
-                            .context("物理区段下溢")?,
+                        segment.end.min(maximum).saturating_sub(segment.start),
                     ))
                 })
                 .collect();
@@ -730,7 +787,10 @@ impl Windows<'_> {
         };
         let mut bodies = Vec::new();
         let mut notes = Vec::new();
-        for (start, length) in self.pool_scan_ranges(virtual_scan, job)? {
+        let translated = virtual_scan || self.vm.image.format != "RAW";
+        for (start, length) in
+            PoolScanChunks::new(self.pool_scan_ranges(virtual_scan, job)?, translated)
+        {
             job.check()?;
             let mut data =
                 vec![0u8; usize::try_from(length).context("pool 扫描范围超出地址空间")?];
@@ -740,6 +800,9 @@ impl Windows<'_> {
             }
             for (index, tag_at) in PoolTagMatches::new(&data, constraints.iter().map(|c| c.tag))? {
                 job.check()?;
+                if tag_at as u64 >= POOL_SCAN_CHUNK {
+                    break;
+                }
                 let constraint = constraints[index];
                 let Some(address) = add(start, tag_at as u64)?.checked_sub(tag_offset as u64)
                 else {
@@ -1198,6 +1261,112 @@ mod tests {
     use super::super::tests::{K, fixture, image, put};
     use super::*;
     use serde_json::json;
+    #[test]
+    fn pool_chunk_plans_and_overlap_match_actual_layer_iterators() {
+        let vectors: serde_json::Value = serde_json::from_str(include_str!(
+            "../../tests/reference/parity/fixtures/pool-chunks.json"
+        ))
+        .unwrap();
+        assert_eq!(vectors["chunk_size"], POOL_SCAN_CHUNK);
+        assert_eq!(vectors["overlap"], POOL_SCAN_OVERLAP);
+        for case in vectors["plans"].as_array().unwrap() {
+            let ranges = case["ranges"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|range| (range[0].as_u64().unwrap(), range[1].as_u64().unwrap()))
+                .collect();
+            let chunks: Vec<_> = PoolScanChunks::new(ranges, case["translated"].as_bool().unwrap())
+                .map(|(at, size)| [at, size])
+                .collect();
+            assert_eq!(json!(chunks), case["expected"], "{}", case["id"]);
+        }
+        for case in vectors["scans"].as_array().unwrap() {
+            let length = case["length"].as_u64().unwrap();
+            let mut bytes = vec![0; length as usize];
+            for at in case["tags"].as_array().unwrap() {
+                let at = at.as_u64().unwrap() as usize;
+                bytes[at..at + 4].copy_from_slice(b"Driv");
+            }
+            let mut found = Vec::new();
+            let mut chunks = Vec::new();
+            for (start, length) in
+                PoolScanChunks::new(vec![(0, length)], case["translated"].as_bool().unwrap())
+            {
+                chunks.push(vec![[start, length]]);
+                if case["fault_chunks"].as_array().unwrap().iter().any(|bad| {
+                    let bad = bad.as_u64().unwrap() * POOL_SCAN_CHUNK;
+                    start <= bad && bad < start + length
+                }) {
+                    continue;
+                }
+                let data = &bytes[start as usize..(start + length) as usize];
+                for (_, at) in PoolTagMatches::new(data, [b"Driv".as_slice()]).unwrap() {
+                    if at as u64 >= POOL_SCAN_CHUNK {
+                        break;
+                    }
+                    found.push(start + at as u64);
+                }
+            }
+            assert_eq!(json!(chunks), case["chunks"], "{}", case["id"]);
+            assert_eq!(json!(found), case["expected"], "{}", case["id"]);
+        }
+    }
+
+    #[test]
+    fn shared_carver_handles_chunk_crossings_and_reference_raw_tail_repeats() {
+        for (length, tag, copies) in [
+            (
+                POOL_SCAN_CHUNK + POOL_SCAN_OVERLAP + 16,
+                POOL_SCAN_CHUNK - 2,
+                1,
+            ),
+            (POOL_SCAN_CHUNK + 100, POOL_SCAN_CHUNK - 20, 2),
+        ] {
+            let (mut bytes, isf, base, _) =
+                super::super::driver_irp::tests::driver_fixture(false, false, false);
+            bytes.resize(length as usize, 0);
+            let header = tag as usize - 4;
+            bytes[header..header + 2].copy_from_slice(&32u16.to_le_bytes());
+            bytes[header + 2..header + 4].copy_from_slice(&2u16.to_le_bytes());
+            bytes[tag as usize..tag as usize + 4].copy_from_slice(b"Wind");
+            let snapshot = image(&bytes);
+            let windows = Windows {
+                vm: Memory::new(&snapshot, 0x1000, &isf, None),
+                base,
+                pdb: PdbIdentity::from_isf(&isf).unwrap(),
+            };
+            let constraint = Constraint::new(b"Wind", "station", None, 0x90, 3, true, &[]);
+            let (_, bodies, notes) = windows
+                .scan_pool_objects(&[&constraint], 32, &Job::default())
+                .unwrap();
+            assert_eq!(bodies, vec![header as u64 + 16; copies]);
+            assert!(notes.is_empty(), "{notes:?}");
+        }
+        let (mut bytes, isf, base, _) =
+            super::super::driver_irp::tests::driver_fixture(false, false, false);
+        bytes.extend_from_slice(b"Wind");
+        let snapshot = image(&bytes);
+        let windows = Windows {
+            vm: Memory::new(&snapshot, 0x1000, &isf, None),
+            base,
+            pdb: PdbIdentity::from_isf(&isf).unwrap(),
+        };
+        let ranges = windows.pool_scan_ranges(false, &Job::default()).unwrap();
+        assert_eq!(ranges, [(0, bytes.len() as u64 - 1)]);
+        let vectors: serde_json::Value = serde_json::from_str(include_str!(
+            "../../tests/reference/parity/fixtures/pool-chunks.json"
+        ))
+        .unwrap();
+        let length = vectors["default_section"]["length"].as_u64().unwrap() as usize;
+        let data = b"....Driv";
+        let found: Vec<_> = PoolTagMatches::new(&data[..length], [b"Driv".as_slice()])
+            .unwrap()
+            .map(|(_, at)| at)
+            .collect();
+        assert_eq!(json!(found), vectors["default_section"]["expected"]);
+    }
+
     #[test]
     fn pool_header_constraints_read_only_required_fields_across_scan_slices() {
         let vectors: serde_json::Value = serde_json::from_str(include_str!(

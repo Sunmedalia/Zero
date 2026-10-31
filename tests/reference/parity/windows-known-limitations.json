@@ -17,7 +17,7 @@
       "reason": "Both engines return no windows. This is a negative observation, not proof that every Windows 7 image is empty."
     }
   ],
-  "engine_version": "0.2.1-native-85",
+  "engine_version": "0.2.1-native-86",
   "known_limitations": [
     "One positive Win10 x64 capture does not verify the complete plugin contract. Win7 empty agreement is non-positive evidence.",
     "Real x86 GUI support, other builds and full traversal/failure behavior remain unverified. Unavailable procedure classification and field-page faults are now covered synthetically; no separate real fault image has been validated.",
@@ -92,7 +92,7 @@
             "summary": true,
             "groups": 1457,
             "records": 2914,
-            "keys_and_counts_sha256": "48d3b70afc953e056e521cc6e0bc29c40c585ffe75e485d1dfac24481b3518ec"
+            "keys_and_counts_sha256": "be7ca36ad3a2303ca29ba27259f518319faf74e537eb179598915eeb1d4d4b17"
           }
         ],
         "duplicate_keys": "multiset",
@@ -108,11 +108,11 @@
       },
       "passed": true,
       "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
-      "reference_output_sha256": "51b07f80f76673be5adfe67a5618b1515075e8ac1cb157d675b6cadc5497c9b9",
+      "reference_output_sha256": "31187621ba975f8614619cea4c60aab77fd447438513788c55640cf858296fbf",
       "symbol_sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4",
-      "zero_executable_sha256": "cff08a8bac35524e92dabb9f42e373e756ff696805aa5439ed2683879812d7d9",
-      "engine_version": "0.2.1-native-85",
-      "full_comparison_sha256": "647c30c05bffc7e6b3ac5bc9b370306cca788570d87cfdb1c9ed135c33837b4d",
+      "zero_executable_sha256": "4ab2ebc564dac5238b61a64325ce48b3e0d05a722e9cc91c4907438b1ded3874",
+      "engine_version": "0.2.1-native-86",
+      "full_comparison_sha256": "f76ca41008ffa3c0e62b4419dbf7629db0262590ceeb855ede9ea878be2681d8",
       "comparison_details": "Diagnostic entries and duplicate groups summarized; complete raw comparison retained in local run.py artifact and bound by full_comparison_sha256. Native/reference JSON digests permit independent reproduction. Any record_selection scope remains explicit.",
       "record_order": {
         "case_id": "windows-10-15063/windows-default",
@@ -124,17 +124,17 @@
         "positive_evidence": true,
         "first_difference": 245,
         "zero_sha256": "d9bca8f4c1edc77a21ae8ae66a038bb76c2ccb0c941b25d815dbaf0f61b3cb45",
-        "reference_sha256": "b5c1b40a434997c1ba04d597a30d650478714a22fdf53e60fef273f0b17bafcf",
+        "reference_sha256": "103a30547813d51fa3ccd0a2178f4c312c0e7b0e097ab598973f8ecac6dfe1d1",
         "scope": "All mapped fields in emitted sequence after declared record selection; duplicate occurrences retained.",
         "mapping_sha256": "9b937883de8e43036d6540e990c087428c2c6b5e656d7c85bd012075092bb2d7",
         "native_output_sha256": "cca607539a898408b35cc73001db26456583de6fe50860f089e8ded73805299c",
-        "reference_output_sha256": "51b07f80f76673be5adfe67a5618b1515075e8ac1cb157d675b6cadc5497c9b9"
+        "reference_output_sha256": "31187621ba975f8614619cea4c60aab77fd447438513788c55640cf858296fbf"
       }
     }
   ],
-  "zero_executable_sha256": "cff08a8bac35524e92dabb9f42e373e756ff696805aa5439ed2683879812d7d9",
+  "zero_executable_sha256": "4ab2ebc564dac5238b61a64325ce48b3e0d05a722e9cc91c4907438b1ded3874",
   "name_vectors_sha256": "bd3762cf478867f07887f4c7b4c799b4af2f7fdf0f70de84fa710cc4893aa5b9",
-  "validation": "Final native85 binary and unmodified fixed reference, real default/scoped cases compare all mapped fields and multiplicities. Historical cases not rerun retain their own per-case versions. Empty agreement is not positive evidence; no complete plugin contract is claimed.",
+  "validation": "Final native86 binary and unmodified fixed reference, real default/scoped cases compare all mapped fields and multiplicities. Historical cases not rerun retain their own per-case versions. Empty agreement is not positive evidence; no complete plugin contract is claimed.",
   "reference_window_generator_sha256": "0a6b565b31b6537a6bd6f8a3e9be37795b8b078e67fb49387980d865b486d39f",
   "procedure_vectors_sha256": "7e71639b59f4a257abfb1e1ddf66e764a2b912dad8709fa773882150dfd089ff",
   "reference_record_order": {
@@ -163,5 +163,13 @@
     "scope": "Actual PoolHeaderScanner plus actual pre-Vista/Vista pool predicates. Synthetic independent scalar reads isolate tag-only slices, partially external headers, unreadable unused tails and necessary fields. Native tests use real physical/virtual page tables and missing backing segments; these vectors do not prove layer scan chunking or tag discovery across slice boundaries.",
     "implementation": "BlockSize and PoolType are independently read from the scan slice when fully present, otherwise from the matching layer at the exact field address. Header prefix/unused tail do not need to be in the scan slice.",
     "remaining": "Does not prove discovery of tags split across ranges/chunks, scan overlap equivalence, all header layouts or damaged-page and resource-limit contracts."
+  },
+  "chunk_vectors": {
+    "sha256": "8578644111dbd4f0155e33d1bf3a49b1c17e50b52002a9ca45d46f71e6783db0",
+    "plans": 26,
+    "scans": 12,
+    "scope": "Actual DataLayerInterface/TranslationLayerInterface scan iterators and actual _scan_chunk/MultiStringScanner. Synthetic mapping ranges and read-fault adapter isolate chunk plans, overlap output suppression, data-layer tail repeats and continuation after failed chunks. Does not prove mapping enumeration, crash/hibernation decompression or full pool object carving.",
+    "implementation": "16 MiB chunk plus 4 KiB overlap, emit only tag starts below 16 MiB per chunk; actual data-layer versus translation-layer tail step; default physical maximum address excluded",
+    "remaining": "Mapping enumeration, all backing formats, tags split across distinct mapping ranges, damaged-page/fault diagnostics and full plugin coverage remain unverified."
   }
 }

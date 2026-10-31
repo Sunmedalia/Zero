@@ -1,0 +1,908 @@
+{
+  "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+  "source_sha256": {
+    "interfaces/layers.py": "5515d539fe1dfb78723a82d2f18762bf455dd29cb246c2642460e1eae8853b6a",
+    "layers/scanners/__init__.py": "c9ef412950973004146850acb415786a120d444bd0075ebb2e6ec3eb13d195ed"
+  },
+  "chunk_size": 16777216,
+  "overlap": 4096,
+  "scope": "Actual DataLayerInterface/TranslationLayerInterface scan iterators and actual _scan_chunk/MultiStringScanner. Synthetic mapping ranges and read-fault adapter isolate chunk plans, overlap output suppression, data-layer tail repeats and continuation after failed chunks. Does not prove mapping enumeration, crash/hibernation decompression or full pool object carving.",
+  "plans": [
+    {
+      "id": "0-length-0",
+      "translated": false,
+      "ranges": [
+        [
+          0,
+          0
+        ]
+      ],
+      "expected": []
+    },
+    {
+      "id": "0-length-1",
+      "translated": false,
+      "ranges": [
+        [
+          0,
+          1
+        ]
+      ],
+      "expected": [
+        [
+          0,
+          1
+        ]
+      ]
+    },
+    {
+      "id": "0-length-16777215",
+      "translated": false,
+      "ranges": [
+        [
+          0,
+          16777215
+        ]
+      ],
+      "expected": [
+        [
+          0,
+          16777215
+        ]
+      ]
+    },
+    {
+      "id": "0-length-16777216",
+      "translated": false,
+      "ranges": [
+        [
+          0,
+          16777216
+        ]
+      ],
+      "expected": [
+        [
+          0,
+          16777216
+        ]
+      ]
+    },
+    {
+      "id": "0-length-16777217",
+      "translated": false,
+      "ranges": [
+        [
+          0,
+          16777217
+        ]
+      ],
+      "expected": [
+        [
+          0,
+          16777217
+        ],
+        [
+          16773121,
+          4096
+        ]
+      ]
+    },
+    {
+      "id": "0-length-16781311",
+      "translated": false,
+      "ranges": [
+        [
+          0,
+          16781311
+        ]
+      ],
+      "expected": [
+        [
+          0,
+          16781311
+        ],
+        [
+          16777215,
+          4096
+        ]
+      ]
+    },
+    {
+      "id": "0-length-16781312",
+      "translated": false,
+      "ranges": [
+        [
+          0,
+          16781312
+        ]
+      ],
+      "expected": [
+        [
+          0,
+          16781312
+        ],
+        [
+          16777216,
+          4096
+        ]
+      ]
+    },
+    {
+      "id": "0-length-16781313",
+      "translated": false,
+      "ranges": [
+        [
+          0,
+          16781313
+        ]
+      ],
+      "expected": [
+        [
+          0,
+          16781312
+        ],
+        [
+          16777216,
+          4097
+        ]
+      ]
+    },
+    {
+      "id": "0-length-33554432",
+      "translated": false,
+      "ranges": [
+        [
+          0,
+          33554432
+        ]
+      ],
+      "expected": [
+        [
+          0,
+          16781312
+        ],
+        [
+          16777216,
+          16777216
+        ]
+      ]
+    },
+    {
+      "id": "0-length-33558535",
+      "translated": false,
+      "ranges": [
+        [
+          0,
+          33558535
+        ]
+      ],
+      "expected": [
+        [
+          0,
+          16781312
+        ],
+        [
+          16777216,
+          16781312
+        ],
+        [
+          33554432,
+          4103
+        ]
+      ]
+    },
+    {
+      "id": "0-adjacent-map-boundary",
+      "translated": false,
+      "ranges": [
+        [
+          4096,
+          4096
+        ],
+        [
+          8192,
+          4096
+        ]
+      ],
+      "expected": [
+        [
+          4096,
+          4096
+        ],
+        [
+          8192,
+          4096
+        ]
+      ]
+    },
+    {
+      "id": "0-mapping-gap",
+      "translated": false,
+      "ranges": [
+        [
+          4096,
+          4096
+        ],
+        [
+          16384,
+          8192
+        ]
+      ],
+      "expected": [
+        [
+          4096,
+          4096
+        ],
+        [
+          16384,
+          8192
+        ]
+      ]
+    },
+    {
+      "id": "0-unaligned-long-mapping",
+      "translated": false,
+      "ranges": [
+        [
+          4660,
+          16777316
+        ],
+        [
+          16781976,
+          8192
+        ]
+      ],
+      "expected": [
+        [
+          4660,
+          16777316
+        ],
+        [
+          16777880,
+          4096
+        ],
+        [
+          16781976,
+          8192
+        ]
+      ]
+    },
+    {
+      "id": "1-length-0",
+      "translated": true,
+      "ranges": [
+        [
+          0,
+          0
+        ]
+      ],
+      "expected": []
+    },
+    {
+      "id": "1-length-1",
+      "translated": true,
+      "ranges": [
+        [
+          0,
+          1
+        ]
+      ],
+      "expected": [
+        [
+          0,
+          1
+        ]
+      ]
+    },
+    {
+      "id": "1-length-16777215",
+      "translated": true,
+      "ranges": [
+        [
+          0,
+          16777215
+        ]
+      ],
+      "expected": [
+        [
+          0,
+          16777215
+        ]
+      ]
+    },
+    {
+      "id": "1-length-16777216",
+      "translated": true,
+      "ranges": [
+        [
+          0,
+          16777216
+        ]
+      ],
+      "expected": [
+        [
+          0,
+          16777216
+        ]
+      ]
+    },
+    {
+      "id": "1-length-16777217",
+      "translated": true,
+      "ranges": [
+        [
+          0,
+          16777217
+        ]
+      ],
+      "expected": [
+        [
+          0,
+          16777217
+        ],
+        [
+          16777216,
+          1
+        ]
+      ]
+    },
+    {
+      "id": "1-length-16781311",
+      "translated": true,
+      "ranges": [
+        [
+          0,
+          16781311
+        ]
+      ],
+      "expected": [
+        [
+          0,
+          16781311
+        ],
+        [
+          16777216,
+          4095
+        ]
+      ]
+    },
+    {
+      "id": "1-length-16781312",
+      "translated": true,
+      "ranges": [
+        [
+          0,
+          16781312
+        ]
+      ],
+      "expected": [
+        [
+          0,
+          16781312
+        ],
+        [
+          16777216,
+          4096
+        ]
+      ]
+    },
+    {
+      "id": "1-length-16781313",
+      "translated": true,
+      "ranges": [
+        [
+          0,
+          16781313
+        ]
+      ],
+      "expected": [
+        [
+          0,
+          16781312
+        ],
+        [
+          16777216,
+          4097
+        ]
+      ]
+    },
+    {
+      "id": "1-length-33554432",
+      "translated": true,
+      "ranges": [
+        [
+          0,
+          33554432
+        ]
+      ],
+      "expected": [
+        [
+          0,
+          16781312
+        ],
+        [
+          16777216,
+          16777216
+        ]
+      ]
+    },
+    {
+      "id": "1-length-33558535",
+      "translated": true,
+      "ranges": [
+        [
+          0,
+          33558535
+        ]
+      ],
+      "expected": [
+        [
+          0,
+          16781312
+        ],
+        [
+          16777216,
+          16781312
+        ],
+        [
+          33554432,
+          4103
+        ]
+      ]
+    },
+    {
+      "id": "1-adjacent-map-boundary",
+      "translated": true,
+      "ranges": [
+        [
+          4096,
+          4096
+        ],
+        [
+          8192,
+          4096
+        ]
+      ],
+      "expected": [
+        [
+          4096,
+          4096
+        ],
+        [
+          8192,
+          4096
+        ]
+      ]
+    },
+    {
+      "id": "1-mapping-gap",
+      "translated": true,
+      "ranges": [
+        [
+          4096,
+          4096
+        ],
+        [
+          16384,
+          8192
+        ]
+      ],
+      "expected": [
+        [
+          4096,
+          4096
+        ],
+        [
+          16384,
+          8192
+        ]
+      ]
+    },
+    {
+      "id": "1-unaligned-long-mapping",
+      "translated": true,
+      "ranges": [
+        [
+          4660,
+          16777316
+        ],
+        [
+          16781976,
+          8192
+        ]
+      ],
+      "expected": [
+        [
+          4660,
+          16777316
+        ],
+        [
+          16781876,
+          100
+        ],
+        [
+          16781976,
+          8192
+        ]
+      ]
+    }
+  ],
+  "scans": [
+    {
+      "id": "0-cross-boundary",
+      "translated": false,
+      "length": 16781320,
+      "tags": [
+        16777214,
+        16777224
+      ],
+      "fault_chunks": [],
+      "expected": [
+        16777214,
+        16777224
+      ],
+      "chunks": [
+        [
+          [
+            0,
+            16781312
+          ]
+        ],
+        [
+          [
+            16777216,
+            4104
+          ]
+        ]
+      ]
+    },
+    {
+      "id": "0-overlap-only",
+      "translated": false,
+      "length": 16781320,
+      "tags": [
+        16777220,
+        16781308
+      ],
+      "fault_chunks": [],
+      "expected": [
+        16777220,
+        16781308
+      ],
+      "chunks": [
+        [
+          [
+            0,
+            16781312
+          ]
+        ],
+        [
+          [
+            16777216,
+            4104
+          ]
+        ]
+      ]
+    },
+    {
+      "id": "0-short-tail-repeat",
+      "translated": false,
+      "length": 16777316,
+      "tags": [
+        16777196,
+        16777220
+      ],
+      "fault_chunks": [],
+      "expected": [
+        16777196,
+        16777196,
+        16777220
+      ],
+      "chunks": [
+        [
+          [
+            0,
+            16777316
+          ]
+        ],
+        [
+          [
+            16773220,
+            4096
+          ]
+        ]
+      ]
+    },
+    {
+      "id": "0-exact-full-overlap",
+      "translated": false,
+      "length": 16781312,
+      "tags": [
+        16777196,
+        16777220
+      ],
+      "fault_chunks": [],
+      "expected": [
+        16777196,
+        16777220
+      ],
+      "chunks": [
+        [
+          [
+            0,
+            16781312
+          ]
+        ],
+        [
+          [
+            16777216,
+            4096
+          ]
+        ]
+      ]
+    },
+    {
+      "id": "0-bad-first-chunk",
+      "translated": false,
+      "length": 33558536,
+      "tags": [
+        100,
+        16777316,
+        33554436
+      ],
+      "fault_chunks": [
+        0
+      ],
+      "expected": [
+        16777316,
+        33554436
+      ],
+      "chunks": [
+        [
+          [
+            0,
+            16781312
+          ]
+        ],
+        [
+          [
+            16777216,
+            16781312
+          ]
+        ],
+        [
+          [
+            33554432,
+            4104
+          ]
+        ]
+      ]
+    },
+    {
+      "id": "0-bad-second-chunk",
+      "translated": false,
+      "length": 33558536,
+      "tags": [
+        100,
+        16777316,
+        33554436
+      ],
+      "fault_chunks": [
+        1
+      ],
+      "expected": [
+        33554436
+      ],
+      "chunks": [
+        [
+          [
+            0,
+            16781312
+          ]
+        ],
+        [
+          [
+            16777216,
+            16781312
+          ]
+        ],
+        [
+          [
+            33554432,
+            4104
+          ]
+        ]
+      ]
+    },
+    {
+      "id": "1-cross-boundary",
+      "translated": true,
+      "length": 16781320,
+      "tags": [
+        16777214,
+        16777224
+      ],
+      "fault_chunks": [],
+      "expected": [
+        16777214,
+        16777224
+      ],
+      "chunks": [
+        [
+          [
+            0,
+            16781312
+          ]
+        ],
+        [
+          [
+            16777216,
+            4104
+          ]
+        ]
+      ]
+    },
+    {
+      "id": "1-overlap-only",
+      "translated": true,
+      "length": 16781320,
+      "tags": [
+        16777220,
+        16781308
+      ],
+      "fault_chunks": [],
+      "expected": [
+        16777220,
+        16781308
+      ],
+      "chunks": [
+        [
+          [
+            0,
+            16781312
+          ]
+        ],
+        [
+          [
+            16777216,
+            4104
+          ]
+        ]
+      ]
+    },
+    {
+      "id": "1-short-tail-repeat",
+      "translated": true,
+      "length": 16777316,
+      "tags": [
+        16777196,
+        16777220
+      ],
+      "fault_chunks": [],
+      "expected": [
+        16777196,
+        16777220
+      ],
+      "chunks": [
+        [
+          [
+            0,
+            16777316
+          ]
+        ],
+        [
+          [
+            16777216,
+            100
+          ]
+        ]
+      ]
+    },
+    {
+      "id": "1-exact-full-overlap",
+      "translated": true,
+      "length": 16781312,
+      "tags": [
+        16777196,
+        16777220
+      ],
+      "fault_chunks": [],
+      "expected": [
+        16777196,
+        16777220
+      ],
+      "chunks": [
+        [
+          [
+            0,
+            16781312
+          ]
+        ],
+        [
+          [
+            16777216,
+            4096
+          ]
+        ]
+      ]
+    },
+    {
+      "id": "1-bad-first-chunk",
+      "translated": true,
+      "length": 33558536,
+      "tags": [
+        100,
+        16777316,
+        33554436
+      ],
+      "fault_chunks": [
+        0
+      ],
+      "expected": [
+        16777316,
+        33554436
+      ],
+      "chunks": [
+        [
+          [
+            0,
+            16781312
+          ]
+        ],
+        [
+          [
+            16777216,
+            16781312
+          ]
+        ],
+        [
+          [
+            33554432,
+            4104
+          ]
+        ]
+      ]
+    },
+    {
+      "id": "1-bad-second-chunk",
+      "translated": true,
+      "length": 33558536,
+      "tags": [
+        100,
+        16777316,
+        33554436
+      ],
+      "fault_chunks": [
+        1
+      ],
+      "expected": [
+        33554436
+      ],
+      "chunks": [
+        [
+          [
+            0,
+            16781312
+          ]
+        ],
+        [
+          [
+            16777216,
+            16781312
+          ]
+        ],
+        [
+          [
+            33554432,
+            4104
+          ]
+        ]
+      ]
+    }
+  ],
+  "default_section": {
+    "payload_hex": "2e2e2e2e44726976",
+    "expected": [],
+    "length": 7
+  }
+}
