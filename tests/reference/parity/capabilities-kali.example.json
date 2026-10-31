@@ -1,0 +1,114 @@
+{
+  "samples": [
+    {
+      "id": "kali-6.8-arm64",
+      "image": "images/kali.raw",
+      "image_sha256": "cf04d76ab9177d7ee355cc96020d29ae194c065c692304ff25e594ab510c639d",
+      "zero_symbols": "symbols/kali-6.8.11-arm64.json.xz",
+      "reference_symbols": "target/reference/kali-symbols",
+      "symbol_files": [
+        {
+          "path": "symbols/kali-6.8.11-arm64.json.xz",
+          "sha256": "234d998fc6ec0d2640b680bcef9d42f30eaac8c8fd10428d8d36b6484f985ff5"
+        },
+        {
+          "path": "target/reference/kali-symbols/linux/kali-6.8.11-arm64.json.xz",
+          "sha256": "234d998fc6ec0d2640b680bcef9d42f30eaac8c8fd10428d8d36b6484f985ff5"
+        }
+      ],
+      "source": "Local original Kali ARM64 memory image; existing workspace acceptance fixture, not publicly distributed"
+    }
+  ],
+  "cases": [
+    {
+      "sample": "kali-6.8-arm64",
+      "id": "kali-6.8-arm64/capabilities-default",
+      "reference_plugin": "linux.capabilities.Capabilities",
+      "zero_plugin": "linux.capabilities.Capabilities",
+      "mapping": "tests/reference/parity/mappings/linux-capabilities.json",
+      "zero_args": [],
+      "reference_args": []
+    },
+    {
+      "sample": "kali-6.8-arm64",
+      "id": "kali-6.8-arm64/capabilities-pid-1",
+      "reference_plugin": "linux.capabilities.Capabilities",
+      "zero_plugin": "linux.capabilities.Capabilities",
+      "mapping": "tests/reference/parity/mappings/linux-capabilities.json",
+      "zero_args": [
+        "--pid",
+        "1"
+      ],
+      "reference_args": [
+        "--pids",
+        "1"
+      ]
+    },
+    {
+      "sample": "kali-6.8-arm64",
+      "id": "kali-6.8-arm64/capabilities-pids-1-2",
+      "reference_plugin": "linux.capabilities.Capabilities",
+      "zero_plugin": "linux.capabilities.Capabilities",
+      "mapping": "tests/reference/parity/mappings/linux-capabilities.json",
+      "zero_args": [
+        "--pids",
+        "1,2"
+      ],
+      "reference_args": [
+        "--pids",
+        "1",
+        "2"
+      ]
+    },
+    {
+      "sample": "kali-6.8-arm64",
+      "id": "kali-6.8-arm64/capabilities-repeated-pids",
+      "reference_plugin": "linux.capabilities.Capabilities",
+      "zero_plugin": "linux.capabilities.Capabilities",
+      "mapping": "tests/reference/parity/mappings/linux-capabilities.json",
+      "zero_args": [
+        "--pids",
+        "2,1,1"
+      ],
+      "reference_args": [
+        "--pids",
+        "2",
+        "1",
+        "1"
+      ]
+    },
+    {
+      "sample": "kali-6.8-arm64",
+      "id": "kali-6.8-arm64/capabilities-pid-union",
+      "reference_plugin": "linux.capabilities.Capabilities",
+      "zero_plugin": "linux.capabilities.Capabilities",
+      "mapping": "tests/reference/parity/mappings/linux-capabilities.json",
+      "zero_args": [
+        "--pid",
+        "1",
+        "--pids",
+        "2"
+      ],
+      "reference_args": [
+        "--pids",
+        "1",
+        "2"
+      ]
+    },
+    {
+      "sample": "kali-6.8-arm64",
+      "id": "kali-6.8-arm64/capabilities-unmatched",
+      "reference_plugin": "linux.capabilities.Capabilities",
+      "zero_plugin": "linux.capabilities.Capabilities",
+      "mapping": "tests/reference/parity/mappings/linux-capabilities-empty.json",
+      "zero_args": [
+        "--pids",
+        "2147483647"
+      ],
+      "reference_args": [
+        "--pids",
+        "2147483647"
+      ]
+    }
+  ]
+}

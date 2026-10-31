@@ -204,7 +204,7 @@
         "cap_ambient"
       ],
       "zero_candidates": [
-        "capabilities"
+        "linux.capabilities.Capabilities"
       ],
       "status": "mapped_unverified",
       "evidence": []

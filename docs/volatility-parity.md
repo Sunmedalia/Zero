@@ -1819,3 +1819,45 @@ TimeLiner 集成。完整插件合同仍未验收。
 make check 通过：623 库、8 CLI/MCP、50 协议及 36 Python 测试；
 发布包在项目／无关目录、空 PATH 下启动退出通过。22 例向量重新
 生成与提交文件逐字节一致。新内核真实时间命名空间样本尚未验收。
+
+## native93：Capabilities 的 real_cred、解码及筛选
+
+新增标准 linux.capabilities.Capabilities（别名 linux.capabilities）。
+输出完整 10 列，区分 Tid／Pid／父进程 TGID，EUID 从 task.cred 读取，
+五组能力从 task.real_cred 读取；ambient 成员不存在时显示 N/A。
+旧 capabilities 十六进制接口保留。支持旧 kernel_cap_struct 的标量
+或 1／2 个 u32 数组、现代 kernel_cap_t.val，按 cap_last_cap 屏蔽位，
+缺少该符号时使用固定参考的 41 项名称表。空集合、all 与名称顺序
+对齐参考；超出已知名称的位遵循参考显示规则，完整警告合同仍待验证。
+
+单 PID 与 PID 列表取并集，按 task.pid 在能力字段读取之前筛选；重复
+选择不会复制行，也不会误按输出 Pid（TGID）筛选。缓存键包含两种
+选择器。标准插件使用只提取任务身份的链表读取路径，再自行按参考
+检查父进程整个对象可读性，缺失时输出 PPid 0；普通任务列表保留既有
+父进程读取诊断。链表损坏／任务身份验证没有被跳过。
+
+96 例实际固定方法向量覆盖所有 41 个已知名称、scalar／array1／array2
+及 val、缺少 cap_last_cap、未来上界、空／全能力、ambient 缺失、
+不可读父进程及非法数组长度／负位移。原生完整合成内存故意让 cred
+与 real_cred、PID 与 TGID 不同，并验证选择器排除任务后不会触碰其
+能力读取错误。这些方法向量不等于全插件真实样本通过。
+
+真实样本暴露了固定参考的限制：Debian 3.2 的 ISF 将旧式 cap 数组命名
+为 kernel_cap_t，但参考扩展要求 val，实际报 Unsupported kernel
+capabilities implementation；原生标准入口也拒绝缺少 val。未修改
+符号或参考来强行通过。Kali ARM64 的原生标准入口完整输出 169 行，
+固定参考在 Intel 层读取 VA 0x80e4d000 时失败。两组原始失败报告
+capabilities-native93／capabilities-kali-native93 和 -vvv 诊断均保留。
+Debian 未匹配 PID 仅为空结果一致，不计正向证据。
+
+一个隔离缓存的真实 MCP 会话在 Kali 上依次得到 169／1／1／1／2 行，
+验证默认、单 PID、列表、缓存命中重读及并集，四个独立缓存条目。
+该证明绑定输入／二进制／完整响应／日志摘要，是原生回归而非 Vol
+差分。原始记录为 capabilities-kali-cache-native93。5 个 PsList 及
+Boottime 真实 Debian 全字段、重复次数和严格顺序回归通过；累计正向
+仍为 126（5 项限定范围），完整插件合同 0/135。make check 通过
+624 库、8 CLI/MCP、50 协议及 36 Python 测试；发布包在项目／无关
+目录、空 PATH 下启动退出通过。完整原生／参考故障及架构合同仍待验收。
+
+本轮最终二进制 SHA256 `ad9f0563498653e7bf5485e88dacebadcfac46188e4d5c36cfd2b71ceb62ecbc`。
+96 例向量重新生成与提交文件逐字节一致。

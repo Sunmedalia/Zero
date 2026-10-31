@@ -14,7 +14,16 @@ impl Linux<'_> {
     /// Walk the tasks list through pslist and hand back its entries plus an empty
     /// result for `plugin` that inherits pslist's completeness and diagnostics.
     pub(crate) fn tasks(&self, plugin: Plugin, job: &Job) -> Result<(Results, Vec<Task>)> {
-        let mut result = self.run(Plugin::Pslist, job)?;
+        self.tasks_from_rows(plugin, self.run(Plugin::Pslist, job)?)
+    }
+    pub(super) fn task_identities(
+        &self,
+        plugin: Plugin,
+        job: &Job,
+    ) -> Result<(Results, Vec<Task>)> {
+        self.tasks_from_rows(plugin, self.process_identities(plugin, job)?)
+    }
+    fn tasks_from_rows(&self, plugin: Plugin, mut result: Results) -> Result<(Results, Vec<Task>)> {
         let tasks = std::mem::take(&mut result.rows)
             .into_iter()
             .map(|row| {
@@ -139,6 +148,7 @@ impl Linux<'_> {
             ProcessSpoofing => self.process_spoofing(job),
             LinuxPslist => self.process_details(job),
             LinuxBoottime => self.namespace_boottimes(job),
+            LinuxCapabilities => self.capabilities(&Default::default(), job),
             Banners => banner_result(self.vm.image, job),
             Psaux | Envars | Maps | Lsof | Sockstat | Netscan => self.task_objects(plugin, job),
             Pwd | Pscred | CheckCreds | Threads | Mountinfo => self.task_context(plugin, job),

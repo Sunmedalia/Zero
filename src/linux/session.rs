@@ -293,6 +293,12 @@ impl Session {
                 options.include_threads,
                 options.decorate_comm
             ),
+            None if request.plugin == Plugin::LinuxCapabilities => format!(
+                "{}:pid={:?}:pids={:?}",
+                request.plugin.name(),
+                options.pid,
+                options.pids
+            ),
             None if request.plugin == Plugin::Modxview => format!(
                 "{}:plain_taints={}",
                 request.plugin.name(),
@@ -349,6 +355,8 @@ impl Session {
             engine.modxview(options.plain_taints, job)?
         } else if request.plugin == Plugin::LinuxPslist {
             engine.process_details_with_options(options, job)?
+        } else if request.plugin == Plugin::LinuxCapabilities {
+            engine.capabilities(options, job)?
         } else {
             engine.run(request.plugin, job)?
         };

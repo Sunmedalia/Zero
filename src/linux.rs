@@ -16,6 +16,7 @@ use std::{
 
 mod boottime;
 mod callstack;
+mod capabilities;
 mod discover;
 mod engine;
 mod fbdev;

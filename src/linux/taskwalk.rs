@@ -23,6 +23,17 @@ fn evidence(result: &mut Results, direction: &str, address: u64, kind: &str, mes
 
 impl Linux<'_> {
     pub(super) fn process_list(&self, plugin: Plugin, job: &Job) -> Result<Results> {
+        self.process_list_with_parent(plugin, true, job)
+    }
+    pub(super) fn process_identities(&self, plugin: Plugin, job: &Job) -> Result<Results> {
+        self.process_list_with_parent(plugin, false, job)
+    }
+    fn process_list_with_parent(
+        &self,
+        plugin: Plugin,
+        read_parent: bool,
+        job: &Job,
+    ) -> Result<Results> {
         self.require(&[
             ("task_struct", "tasks"),
             ("task_struct", "pid"),
@@ -148,24 +159,28 @@ impl Linux<'_> {
                                     format!("重复 PID {pid}: first={other:#x}"),
                                 );
                             } else {
-                                let parent = (|| -> Result<u64> {
-                                    let parent =
-                                        self.number(object, "task_struct", "real_parent")?;
-                                    let pid = self.number(parent, "task_struct", "pid")?;
-                                    ensure!(pid <= i32::MAX as u64, "非法 PPID");
-                                    Ok(pid)
-                                })();
-                                let ppid = match parent {
-                                    Ok(pid) => pid.to_string(),
-                                    Err(error) => {
-                                        evidence(
-                                            &mut result,
-                                            direction,
-                                            object,
-                                            "unreadable_parent",
-                                            format!("父进程读取失败: {error:#}"),
-                                        );
-                                        String::new()
+                                let ppid = if !read_parent {
+                                    "0".into()
+                                } else {
+                                    let parent = (|| -> Result<u64> {
+                                        let parent =
+                                            self.number(object, "task_struct", "real_parent")?;
+                                        let pid = self.number(parent, "task_struct", "pid")?;
+                                        ensure!(pid <= i32::MAX as u64, "非法 PPID");
+                                        Ok(pid)
+                                    })();
+                                    match parent {
+                                        Ok(pid) => pid.to_string(),
+                                        Err(error) => {
+                                            evidence(
+                                                &mut result,
+                                                direction,
+                                                object,
+                                                "unreadable_parent",
+                                                format!("父进程读取失败: {error:#}"),
+                                            );
+                                            String::new()
+                                        }
                                     }
                                 };
                                 result.rows.push(vec![

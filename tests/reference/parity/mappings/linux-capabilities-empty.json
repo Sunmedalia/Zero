@@ -1,0 +1,60 @@
+{
+  "version": 1,
+  "keys": [
+    "tid"
+  ],
+  "fields": {
+    "name": {
+      "zero": "Name",
+      "reference": "Name",
+      "type": "text"
+    },
+    "tid": {
+      "zero": "Tid",
+      "reference": "Tid",
+      "type": "integer"
+    },
+    "pid": {
+      "zero": "Pid",
+      "reference": "Pid",
+      "type": "integer"
+    },
+    "ppid": {
+      "zero": "PPid",
+      "reference": "PPid",
+      "type": "integer"
+    },
+    "euid": {
+      "zero": "EUID",
+      "reference": "EUID",
+      "type": "integer"
+    },
+    "cap_inheritable": {
+      "zero": "cap_inheritable",
+      "reference": "cap_inheritable",
+      "type": "text"
+    },
+    "cap_permitted": {
+      "zero": "cap_permitted",
+      "reference": "cap_permitted",
+      "type": "text"
+    },
+    "cap_effective": {
+      "zero": "cap_effective",
+      "reference": "cap_effective",
+      "type": "text"
+    },
+    "cap_bounding": {
+      "zero": "cap_bounding",
+      "reference": "cap_bounding",
+      "type": "text"
+    },
+    "cap_ambient": {
+      "zero": "cap_ambient",
+      "reference": "cap_ambient",
+      "type": "na_text",
+      "allow_absent": true
+    }
+  },
+  "allow_empty": true
+}

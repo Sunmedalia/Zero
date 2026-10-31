@@ -5,6 +5,8 @@ use clap::ValueEnum;
 pub enum Plugin {
     #[value(name = "linux.boottime.Boottime", alias = "linux.boottime")]
     LinuxBoottime,
+    #[value(name = "linux.capabilities.Capabilities", alias = "linux.capabilities")]
+    LinuxCapabilities,
     #[value(name = "windows.debugregisters.DebugRegisters")]
     WinDebugRegisters,
     #[value(
@@ -1905,6 +1907,24 @@ pub const PLUGINS: &[Descriptor] = &[
         widths: &[6, 16, 18, 18, 18, 18, 18],
     },
     Descriptor {
+        plugin: Plugin::LinuxCapabilities,
+        name: "linux.capabilities.Capabilities",
+        label: "capabilities·解码",
+        columns: &[
+            "Name",
+            "Tid",
+            "Pid",
+            "PPid",
+            "EUID",
+            "cap_inheritable",
+            "cap_permitted",
+            "cap_effective",
+            "cap_bounding",
+            "cap_ambient",
+        ],
+        widths: &[16, 6, 6, 6, 6, 0, 0, 0, 0, 0],
+    },
+    Descriptor {
         plugin: Plugin::Fdsummary,
         name: "fdsummary",
         label: "fdsummary",
@@ -2152,7 +2172,11 @@ impl Plugin {
         self.is_regex_scan()
             || matches!(
                 self,
-                Self::PsCallStack | Self::WinVadWalk | Self::WinPebMasquerade | Self::WinStrings
+                Self::PsCallStack
+                    | Self::WinVadWalk
+                    | Self::WinPebMasquerade
+                    | Self::WinStrings
+                    | Self::LinuxCapabilities
             )
     }
     pub fn descriptor(self) -> &'static Descriptor {
@@ -2291,6 +2315,7 @@ impl Plugin {
             | Self::Ptrace
             | Self::Psstate
             | Self::Capabilities
+            | Self::LinuxCapabilities
             | Self::Pslist
             | Self::LinuxPslist
             | Self::Pstree
@@ -2405,6 +2430,7 @@ impl Plugin {
             KeyboardNotifiers => "查看键盘通知回调",
             Psstate => "查看进程状态",
             Capabilities => "查看进程能力集合",
+            LinuxCapabilities => "解码 real_cred 能力集合、ambient 与 cred EUID；可按 PID 列表筛选",
             Fdsummary => "汇总进程文件描述符",
             WinCallbacks => "查看内核回调及模块归属",
             WinUnloadedmodules => "读取已卸载驱动记录",

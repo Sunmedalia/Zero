@@ -949,3 +949,27 @@ reports are `boottime-native92` and `debian-native92`, bound to one final binary
 `make check` passes 623 library, 8 CLI/MCP, 50 protocol and 36 Python tests;
 release package smoke passes in project/unrelated directories with empty PATH.
 Modern namespaces remain synthetic method coverage, not real-image parity.
+
+Native93 adds `linux.capabilities.Capabilities` (`linux.capabilities`), decoding
+real-credential capability sets while reading EUID from task credentials. It
+selects task.pid before reading capability fields, supports PID/list unions and
+keys the cache by both selectors. Parent TGID follows the reference's whole-object
+readability/zero fallback without discarding task-list integrity diagnostics.
+`capabilities_vectors.py` calls fixed extraction/decode and bound capability/parent
+methods through typed adapters. Its 96 cases cover all 41 names, supported layouts,
+mask/all/empty handling and selected fault boundaries; native memory fixtures
+deliberately distinguish override credentials and PID/TGID.
+
+`capabilities.example.json` and `capabilities-kali.example.json` currently expose
+reference failures and intentionally return failing batch status. The Debian ISF
+has an old cap-array under kernel_cap_t while the pinned extension demands val.
+Kali ARM64 reaches a failing Intel translation. Sources and symbols are not
+changed to force passing. Only Debian's unmatched PID case agrees emptily; it is
+not positive evidence. Native Kali completes 169 default rows; an isolated native
+MCP session verifies 169/1/1/1/2 rows, selector isolation and a repeated cache hit.
+Those are native regression evidence, never positive reference cases. Full proofs
+and failure hashes are in `capabilities-known-limitations.json`; raw reports use
+`capabilities-native93`, `capabilities-kali-native93` and
+`capabilities-kali-cache-native93`. Five PsList and one Boottime real regressions
+pass all fields and emitted sequences; cumulative positive cases remain 126 (five
+scoped), zero complete contracts. `make check` and release package smoke pass.

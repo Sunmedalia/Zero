@@ -1,0 +1,1719 @@
+{
+  "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+  "source_sha256": {
+    "volatility3/framework/plugins/linux/capabilities.py": "e989f879847b36adcb47931b713e3f471fc80687feb08e4fa8952949f52abd78",
+    "volatility3/framework/symbols/linux/extensions/__init__.py": "5e43dbf482df74ec78c810ece3584323205eeac20d44fede5381f9a12b78e249",
+    "volatility3/framework/constants/linux/__init__.py": "4f801ec3a68a851a308a8d0cd98529087f08138baccc3e1f5238e250cc395d66"
+  },
+  "scope": "Actual Capabilities.get_task_capabilities/_decode_cap, bound kernel capability methods and task.get_parent_pid. Typed array/scalar/credential adapters isolate extraction and decoding; no full real task traversal, page recovery, parameter/cache or complete fault contract is certified.",
+  "cases": [
+    {
+      "id": "scalar-None-0",
+      "kind": "scalar",
+      "last": null,
+      "value": "0",
+      "expected": [
+        "task",
+        "1",
+        "101",
+        "77",
+        "1001",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ]
+    },
+    {
+      "id": "scalar-None-274877906943",
+      "kind": "scalar",
+      "last": null,
+      "value": "274877906943",
+      "expected": [
+        "task",
+        "1",
+        "101",
+        "77",
+        "1001",
+        "chown, dac_override, dac_read_search, fowner, fsetid, kill, setgid, setuid, setpcap, linux_immutable, net_bind_service, net_broadcast, net_admin, net_raw, ipc_lock, ipc_owner, sys_module, sys_rawio, sys_chroot, sys_ptrace, sys_pacct, sys_admin, sys_boot, sys_nice, sys_resource, sys_time, sys_tty_config, mknod, lease, audit_write, audit_control, setfcap",
+        "chown, dac_override, dac_read_search, fowner, fsetid, kill, setgid, setuid, setpcap, linux_immutable, net_bind_service, net_broadcast, net_admin, net_raw, ipc_lock, ipc_owner, sys_module, sys_rawio, sys_chroot, sys_ptrace, sys_pacct, sys_admin, sys_boot, sys_nice, sys_resource, sys_time, sys_tty_config, mknod, lease, audit_write, audit_control, setfcap",
+        "chown, dac_override, dac_read_search, fowner, fsetid, kill, setgid, setuid, setpcap, linux_immutable, net_bind_service, net_broadcast, net_admin, net_raw, ipc_lock, ipc_owner, sys_module, sys_rawio, sys_chroot, sys_ptrace, sys_pacct, sys_admin, sys_boot, sys_nice, sys_resource, sys_time, sys_tty_config, mknod, lease, audit_write, audit_control, setfcap",
+        "chown, dac_override, dac_read_search, fowner, fsetid, kill, setgid, setuid, setpcap, linux_immutable, net_bind_service, net_broadcast, net_admin, net_raw, ipc_lock, ipc_owner, sys_module, sys_rawio, sys_chroot, sys_ptrace, sys_pacct, sys_admin, sys_boot, sys_nice, sys_resource, sys_time, sys_tty_config, mknod, lease, audit_write, audit_control, setfcap",
+        "chown, dac_override, dac_read_search, fowner, fsetid, kill, setgid, setuid, setpcap, linux_immutable, net_bind_service, net_broadcast, net_admin, net_raw, ipc_lock, ipc_owner, sys_module, sys_rawio, sys_chroot, sys_ptrace, sys_pacct, sys_admin, sys_boot, sys_nice, sys_resource, sys_time, sys_tty_config, mknod, lease, audit_write, audit_control, setfcap"
+      ]
+    },
+    {
+      "id": "scalar-None-1099511631872",
+      "kind": "scalar",
+      "last": null,
+      "value": "1099511631872",
+      "expected": [
+        "task",
+        "1",
+        "101",
+        "77",
+        "1001",
+        "net_admin",
+        "net_admin",
+        "net_admin",
+        "net_admin",
+        "net_admin"
+      ]
+    },
+    {
+      "id": "scalar-None-18446744073709551615",
+      "kind": "scalar",
+      "last": null,
+      "value": "18446744073709551615",
+      "expected": [
+        "task",
+        "1",
+        "101",
+        "77",
+        "1001",
+        "chown, dac_override, dac_read_search, fowner, fsetid, kill, setgid, setuid, setpcap, linux_immutable, net_bind_service, net_broadcast, net_admin, net_raw, ipc_lock, ipc_owner, sys_module, sys_rawio, sys_chroot, sys_ptrace, sys_pacct, sys_admin, sys_boot, sys_nice, sys_resource, sys_time, sys_tty_config, mknod, lease, audit_write, audit_control, setfcap",
+        "chown, dac_override, dac_read_search, fowner, fsetid, kill, setgid, setuid, setpcap, linux_immutable, net_bind_service, net_broadcast, net_admin, net_raw, ipc_lock, ipc_owner, sys_module, sys_rawio, sys_chroot, sys_ptrace, sys_pacct, sys_admin, sys_boot, sys_nice, sys_resource, sys_time, sys_tty_config, mknod, lease, audit_write, audit_control, setfcap",
+        "chown, dac_override, dac_read_search, fowner, fsetid, kill, setgid, setuid, setpcap, linux_immutable, net_bind_service, net_broadcast, net_admin, net_raw, ipc_lock, ipc_owner, sys_module, sys_rawio, sys_chroot, sys_ptrace, sys_pacct, sys_admin, sys_boot, sys_nice, sys_resource, sys_time, sys_tty_config, mknod, lease, audit_write, audit_control, setfcap",
+        "chown, dac_override, dac_read_search, fowner, fsetid, kill, setgid, setuid, setpcap, linux_immutable, net_bind_service, net_broadcast, net_admin, net_raw, ipc_lock, ipc_owner, sys_module, sys_rawio, sys_chroot, sys_ptrace, sys_pacct, sys_admin, sys_boot, sys_nice, sys_resource, sys_time, sys_tty_config, mknod, lease, audit_write, audit_control, setfcap",
+        "chown, dac_override, dac_read_search, fowner, fsetid, kill, setgid, setuid, setpcap, linux_immutable, net_bind_service, net_broadcast, net_admin, net_raw, ipc_lock, ipc_owner, sys_module, sys_rawio, sys_chroot, sys_ptrace, sys_pacct, sys_admin, sys_boot, sys_nice, sys_resource, sys_time, sys_tty_config, mknod, lease, audit_write, audit_control, setfcap"
+      ]
+    },
+    {
+      "id": "scalar-37-0",
+      "kind": "scalar",
+      "last": 37,
+      "value": "0",
+      "expected": [
+        "task",
+        "1",
+        "101",
+        "77",
+        "1001",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ]
+    },
+    {
+      "id": "scalar-37-274877906943",
+      "kind": "scalar",
+      "last": 37,
+      "value": "274877906943",
+      "expected": [
+        "task",
+        "1",
+        "101",
+        "77",
+        "1001",
+        "chown, dac_override, dac_read_search, fowner, fsetid, kill, setgid, setuid, setpcap, linux_immutable, net_bind_service, net_broadcast, net_admin, net_raw, ipc_lock, ipc_owner, sys_module, sys_rawio, sys_chroot, sys_ptrace, sys_pacct, sys_admin, sys_boot, sys_nice, sys_resource, sys_time, sys_tty_config, mknod, lease, audit_write, audit_control, setfcap",
+        "chown, dac_override, dac_read_search, fowner, fsetid, kill, setgid, setuid, setpcap, linux_immutable, net_bind_service, net_broadcast, net_admin, net_raw, ipc_lock, ipc_owner, sys_module, sys_rawio, sys_chroot, sys_ptrace, sys_pacct, sys_admin, sys_boot, sys_nice, sys_resource, sys_time, sys_tty_config, mknod, lease, audit_write, audit_control, setfcap",
+        "chown, dac_override, dac_read_search, fowner, fsetid, kill, setgid, setuid, setpcap, linux_immutable, net_bind_service, net_broadcast, net_admin, net_raw, ipc_lock, ipc_owner, sys_module, sys_rawio, sys_chroot, sys_ptrace, sys_pacct, sys_admin, sys_boot, sys_nice, sys_resource, sys_time, sys_tty_config, mknod, lease, audit_write, audit_control, setfcap",
+        "chown, dac_override, dac_read_search, fowner, fsetid, kill, setgid, setuid, setpcap, linux_immutable, net_bind_service, net_broadcast, net_admin, net_raw, ipc_lock, ipc_owner, sys_module, sys_rawio, sys_chroot, sys_ptrace, sys_pacct, sys_admin, sys_boot, sys_nice, sys_resource, sys_time, sys_tty_config, mknod, lease, audit_write, audit_control, setfcap",
+        "chown, dac_override, dac_read_search, fowner, fsetid, kill, setgid, setuid, setpcap, linux_immutable, net_bind_service, net_broadcast, net_admin, net_raw, ipc_lock, ipc_owner, sys_module, sys_rawio, sys_chroot, sys_ptrace, sys_pacct, sys_admin, sys_boot, sys_nice, sys_resource, sys_time, sys_tty_config, mknod, lease, audit_write, audit_control, setfcap"
+      ]
+    },
+    {
+      "id": "scalar-37-1099511631872",
+      "kind": "scalar",
+      "last": 37,
+      "value": "1099511631872",
+      "expected": [
+        "task",
+        "1",
+        "101",
+        "77",
+        "1001",
+        "net_admin",
+        "net_admin",
+        "net_admin",
+        "net_admin",
+        "net_admin"
+      ]
+    },
+    {
+      "id": "scalar-37-18446744073709551615",
+      "kind": "scalar",
+      "last": 37,
+      "value": "18446744073709551615",
+      "expected": [
+        "task",
+        "1",
+        "101",
+        "77",
+        "1001",
+        "chown, dac_override, dac_read_search, fowner, fsetid, kill, setgid, setuid, setpcap, linux_immutable, net_bind_service, net_broadcast, net_admin, net_raw, ipc_lock, ipc_owner, sys_module, sys_rawio, sys_chroot, sys_ptrace, sys_pacct, sys_admin, sys_boot, sys_nice, sys_resource, sys_time, sys_tty_config, mknod, lease, audit_write, audit_control, setfcap",
+        "chown, dac_override, dac_read_search, fowner, fsetid, kill, setgid, setuid, setpcap, linux_immutable, net_bind_service, net_broadcast, net_admin, net_raw, ipc_lock, ipc_owner, sys_module, sys_rawio, sys_chroot, sys_ptrace, sys_pacct, sys_admin, sys_boot, sys_nice, sys_resource, sys_time, sys_tty_config, mknod, lease, audit_write, audit_control, setfcap",
+        "chown, dac_override, dac_read_search, fowner, fsetid, kill, setgid, setuid, setpcap, linux_immutable, net_bind_service, net_broadcast, net_admin, net_raw, ipc_lock, ipc_owner, sys_module, sys_rawio, sys_chroot, sys_ptrace, sys_pacct, sys_admin, sys_boot, sys_nice, sys_resource, sys_time, sys_tty_config, mknod, lease, audit_write, audit_control, setfcap",
+        "chown, dac_override, dac_read_search, fowner, fsetid, kill, setgid, setuid, setpcap, linux_immutable, net_bind_service, net_broadcast, net_admin, net_raw, ipc_lock, ipc_owner, sys_module, sys_rawio, sys_chroot, sys_ptrace, sys_pacct, sys_admin, sys_boot, sys_nice, sys_resource, sys_time, sys_tty_config, mknod, lease, audit_write, audit_control, setfcap",
+        "chown, dac_override, dac_read_search, fowner, fsetid, kill, setgid, setuid, setpcap, linux_immutable, net_bind_service, net_broadcast, net_admin, net_raw, ipc_lock, ipc_owner, sys_module, sys_rawio, sys_chroot, sys_ptrace, sys_pacct, sys_admin, sys_boot, sys_nice, sys_resource, sys_time, sys_tty_config, mknod, lease, audit_write, audit_control, setfcap"
+      ]
+    },
+    {
+      "id": "scalar-64-0",
+      "kind": "scalar",
+      "last": 64,
+      "value": "0",
+      "expected": [
+        "task",
+        "1",
+        "101",
+        "77",
+        "1001",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ]
+    },
+    {
+      "id": "scalar-64-274877906943",
+      "kind": "scalar",
+      "last": 64,
+      "value": "274877906943",
+      "expected": [
+        "task",
+        "1",
+        "101",
+        "77",
+        "1001",
+        "chown, dac_override, dac_read_search, fowner, fsetid, kill, setgid, setuid, setpcap, linux_immutable, net_bind_service, net_broadcast, net_admin, net_raw, ipc_lock, ipc_owner, sys_module, sys_rawio, sys_chroot, sys_ptrace, sys_pacct, sys_admin, sys_boot, sys_nice, sys_resource, sys_time, sys_tty_config, mknod, lease, audit_write, audit_control, setfcap",
+        "chown, dac_override, dac_read_search, fowner, fsetid, kill, setgid, setuid, setpcap, linux_immutable, net_bind_service, net_broadcast, net_admin, net_raw, ipc_lock, ipc_owner, sys_module, sys_rawio, sys_chroot, sys_ptrace, sys_pacct, sys_admin, sys_boot, sys_nice, sys_resource, sys_time, sys_tty_config, mknod, lease, audit_write, audit_control, setfcap",
+        "chown, dac_override, dac_read_search, fowner, fsetid, kill, setgid, setuid, setpcap, linux_immutable, net_bind_service, net_broadcast, net_admin, net_raw, ipc_lock, ipc_owner, sys_module, sys_rawio, sys_chroot, sys_ptrace, sys_pacct, sys_admin, sys_boot, sys_nice, sys_resource, sys_time, sys_tty_config, mknod, lease, audit_write, audit_control, setfcap",
+        "chown, dac_override, dac_read_search, fowner, fsetid, kill, setgid, setuid, setpcap, linux_immutable, net_bind_service, net_broadcast, net_admin, net_raw, ipc_lock, ipc_owner, sys_module, sys_rawio, sys_chroot, sys_ptrace, sys_pacct, sys_admin, sys_boot, sys_nice, sys_resource, sys_time, sys_tty_config, mknod, lease, audit_write, audit_control, setfcap",
+        "chown, dac_override, dac_read_search, fowner, fsetid, kill, setgid, setuid, setpcap, linux_immutable, net_bind_service, net_broadcast, net_admin, net_raw, ipc_lock, ipc_owner, sys_module, sys_rawio, sys_chroot, sys_ptrace, sys_pacct, sys_admin, sys_boot, sys_nice, sys_resource, sys_time, sys_tty_config, mknod, lease, audit_write, audit_control, setfcap"
+      ]
+    },
+    {
+      "id": "scalar-64-1099511631872",
+      "kind": "scalar",
+      "last": 64,
+      "value": "1099511631872",
+      "expected": [
+        "task",
+        "1",
+        "101",
+        "77",
+        "1001",
+        "net_admin",
+        "net_admin",
+        "net_admin",
+        "net_admin",
+        "net_admin"
+      ]
+    },
+    {
+      "id": "scalar-64-18446744073709551615",
+      "kind": "scalar",
+      "last": 64,
+      "value": "18446744073709551615",
+      "expected": [
+        "task",
+        "1",
+        "101",
+        "77",
+        "1001",
+        "chown, dac_override, dac_read_search, fowner, fsetid, kill, setgid, setuid, setpcap, linux_immutable, net_bind_service, net_broadcast, net_admin, net_raw, ipc_lock, ipc_owner, sys_module, sys_rawio, sys_chroot, sys_ptrace, sys_pacct, sys_admin, sys_boot, sys_nice, sys_resource, sys_time, sys_tty_config, mknod, lease, audit_write, audit_control, setfcap",
+        "chown, dac_override, dac_read_search, fowner, fsetid, kill, setgid, setuid, setpcap, linux_immutable, net_bind_service, net_broadcast, net_admin, net_raw, ipc_lock, ipc_owner, sys_module, sys_rawio, sys_chroot, sys_ptrace, sys_pacct, sys_admin, sys_boot, sys_nice, sys_resource, sys_time, sys_tty_config, mknod, lease, audit_write, audit_control, setfcap",
+        "chown, dac_override, dac_read_search, fowner, fsetid, kill, setgid, setuid, setpcap, linux_immutable, net_bind_service, net_broadcast, net_admin, net_raw, ipc_lock, ipc_owner, sys_module, sys_rawio, sys_chroot, sys_ptrace, sys_pacct, sys_admin, sys_boot, sys_nice, sys_resource, sys_time, sys_tty_config, mknod, lease, audit_write, audit_control, setfcap",
+        "chown, dac_override, dac_read_search, fowner, fsetid, kill, setgid, setuid, setpcap, linux_immutable, net_bind_service, net_broadcast, net_admin, net_raw, ipc_lock, ipc_owner, sys_module, sys_rawio, sys_chroot, sys_ptrace, sys_pacct, sys_admin, sys_boot, sys_nice, sys_resource, sys_time, sys_tty_config, mknod, lease, audit_write, audit_control, setfcap",
+        "chown, dac_override, dac_read_search, fowner, fsetid, kill, setgid, setuid, setpcap, linux_immutable, net_bind_service, net_broadcast, net_admin, net_raw, ipc_lock, ipc_owner, sys_module, sys_rawio, sys_chroot, sys_ptrace, sys_pacct, sys_admin, sys_boot, sys_nice, sys_resource, sys_time, sys_tty_config, mknod, lease, audit_write, audit_control, setfcap"
+      ]
+    },
+    {
+      "id": "array1-None-0",
+      "kind": "array1",
+      "last": null,
+      "value": "0",
+      "expected": [
+        "task",
+        "1",
+        "101",
+        "77",
+        "1001",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ]
+    },
+    {
+      "id": "array1-None-274877906943",
+      "kind": "array1",
+      "last": null,
+      "value": "274877906943",
+      "expected": [
+        "task",
+        "1",
+        "101",
+        "77",
+        "1001",
+        "chown, dac_override, dac_read_search, fowner, fsetid, kill, setgid, setuid, setpcap, linux_immutable, net_bind_service, net_broadcast, net_admin, net_raw, ipc_lock, ipc_owner, sys_module, sys_rawio, sys_chroot, sys_ptrace, sys_pacct, sys_admin, sys_boot, sys_nice, sys_resource, sys_time, sys_tty_config, mknod, lease, audit_write, audit_control, setfcap",
+        "chown, dac_override, dac_read_search, fowner, fsetid, kill, setgid, setuid, setpcap, linux_immutable, net_bind_service, net_broadcast, net_admin, net_raw, ipc_lock, ipc_owner, sys_module, sys_rawio, sys_chroot, sys_ptrace, sys_pacct, sys_admin, sys_boot, sys_nice, sys_resource, sys_time, sys_tty_config, mknod, lease, audit_write, audit_control, setfcap",
+        "chown, dac_override, dac_read_search, fowner, fsetid, kill, setgid, setuid, setpcap, linux_immutable, net_bind_service, net_broadcast, net_admin, net_raw, ipc_lock, ipc_owner, sys_module, sys_rawio, sys_chroot, sys_ptrace, sys_pacct, sys_admin, sys_boot, sys_nice, sys_resource, sys_time, sys_tty_config, mknod, lease, audit_write, audit_control, setfcap",
+        "chown, dac_override, dac_read_search, fowner, fsetid, kill, setgid, setuid, setpcap, linux_immutable, net_bind_service, net_broadcast, net_admin, net_raw, ipc_lock, ipc_owner, sys_module, sys_rawio, sys_chroot, sys_ptrace, sys_pacct, sys_admin, sys_boot, sys_nice, sys_resource, sys_time, sys_tty_config, mknod, lease, audit_write, audit_control, setfcap",
+        "chown, dac_override, dac_read_search, fowner, fsetid, kill, setgid, setuid, setpcap, linux_immutable, net_bind_service, net_broadcast, net_admin, net_raw, ipc_lock, ipc_owner, sys_module, sys_rawio, sys_chroot, sys_ptrace, sys_pacct, sys_admin, sys_boot, sys_nice, sys_resource, sys_time, sys_tty_config, mknod, lease, audit_write, audit_control, setfcap"
+      ]
+    },
+    {
+      "id": "array1-None-1099511631872",
+      "kind": "array1",
+      "last": null,
+      "value": "1099511631872",
+      "expected": [
+        "task",
+        "1",
+        "101",
+        "77",
+        "1001",
+        "net_admin",
+        "net_admin",
+        "net_admin",
+        "net_admin",
+        "net_admin"
+      ]
+    },
+    {
+      "id": "array1-None-18446744073709551615",
+      "kind": "array1",
+      "last": null,
+      "value": "18446744073709551615",
+      "expected": [
+        "task",
+        "1",
+        "101",
+        "77",
+        "1001",
+        "chown, dac_override, dac_read_search, fowner, fsetid, kill, setgid, setuid, setpcap, linux_immutable, net_bind_service, net_broadcast, net_admin, net_raw, ipc_lock, ipc_owner, sys_module, sys_rawio, sys_chroot, sys_ptrace, sys_pacct, sys_admin, sys_boot, sys_nice, sys_resource, sys_time, sys_tty_config, mknod, lease, audit_write, audit_control, setfcap",
+        "chown, dac_override, dac_read_search, fowner, fsetid, kill, setgid, setuid, setpcap, linux_immutable, net_bind_service, net_broadcast, net_admin, net_raw, ipc_lock, ipc_owner, sys_module, sys_rawio, sys_chroot, sys_ptrace, sys_pacct, sys_admin, sys_boot, sys_nice, sys_resource, sys_time, sys_tty_config, mknod, lease, audit_write, audit_control, setfcap",
+        "chown, dac_override, dac_read_search, fowner, fsetid, kill, setgid, setuid, setpcap, linux_immutable, net_bind_service, net_broadcast, net_admin, net_raw, ipc_lock, ipc_owner, sys_module, sys_rawio, sys_chroot, sys_ptrace, sys_pacct, sys_admin, sys_boot, sys_nice, sys_resource, sys_time, sys_tty_config, mknod, lease, audit_write, audit_control, setfcap",
+        "chown, dac_override, dac_read_search, fowner, fsetid, kill, setgid, setuid, setpcap, linux_immutable, net_bind_service, net_broadcast, net_admin, net_raw, ipc_lock, ipc_owner, sys_module, sys_rawio, sys_chroot, sys_ptrace, sys_pacct, sys_admin, sys_boot, sys_nice, sys_resource, sys_time, sys_tty_config, mknod, lease, audit_write, audit_control, setfcap",
+        "chown, dac_override, dac_read_search, fowner, fsetid, kill, setgid, setuid, setpcap, linux_immutable, net_bind_service, net_broadcast, net_admin, net_raw, ipc_lock, ipc_owner, sys_module, sys_rawio, sys_chroot, sys_ptrace, sys_pacct, sys_admin, sys_boot, sys_nice, sys_resource, sys_time, sys_tty_config, mknod, lease, audit_write, audit_control, setfcap"
+      ]
+    },
+    {
+      "id": "array1-37-0",
+      "kind": "array1",
+      "last": 37,
+      "value": "0",
+      "expected": [
+        "task",
+        "1",
+        "101",
+        "77",
+        "1001",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ]
+    },
+    {
+      "id": "array1-37-274877906943",
+      "kind": "array1",
+      "last": 37,
+      "value": "274877906943",
+      "expected": [
+        "task",
+        "1",
+        "101",
+        "77",
+        "1001",
+        "chown, dac_override, dac_read_search, fowner, fsetid, kill, setgid, setuid, setpcap, linux_immutable, net_bind_service, net_broadcast, net_admin, net_raw, ipc_lock, ipc_owner, sys_module, sys_rawio, sys_chroot, sys_ptrace, sys_pacct, sys_admin, sys_boot, sys_nice, sys_resource, sys_time, sys_tty_config, mknod, lease, audit_write, audit_control, setfcap",
+        "chown, dac_override, dac_read_search, fowner, fsetid, kill, setgid, setuid, setpcap, linux_immutable, net_bind_service, net_broadcast, net_admin, net_raw, ipc_lock, ipc_owner, sys_module, sys_rawio, sys_chroot, sys_ptrace, sys_pacct, sys_admin, sys_boot, sys_nice, sys_resource, sys_time, sys_tty_config, mknod, lease, audit_write, audit_control, setfcap",
+        "chown, dac_override, dac_read_search, fowner, fsetid, kill, setgid, setuid, setpcap, linux_immutable, net_bind_service, net_broadcast, net_admin, net_raw, ipc_lock, ipc_owner, sys_module, sys_rawio, sys_chroot, sys_ptrace, sys_pacct, sys_admin, sys_boot, sys_nice, sys_resource, sys_time, sys_tty_config, mknod, lease, audit_write, audit_control, setfcap",
+        "chown, dac_override, dac_read_search, fowner, fsetid, kill, setgid, setuid, setpcap, linux_immutable, net_bind_service, net_broadcast, net_admin, net_raw, ipc_lock, ipc_owner, sys_module, sys_rawio, sys_chroot, sys_ptrace, sys_pacct, sys_admin, sys_boot, sys_nice, sys_resource, sys_time, sys_tty_config, mknod, lease, audit_write, audit_control, setfcap",
+        "chown, dac_override, dac_read_search, fowner, fsetid, kill, setgid, setuid, setpcap, linux_immutable, net_bind_service, net_broadcast, net_admin, net_raw, ipc_lock, ipc_owner, sys_module, sys_rawio, sys_chroot, sys_ptrace, sys_pacct, sys_admin, sys_boot, sys_nice, sys_resource, sys_time, sys_tty_config, mknod, lease, audit_write, audit_control, setfcap"
+      ]
+    },
+    {
+      "id": "array1-37-1099511631872",
+      "kind": "array1",
+      "last": 37,
+      "value": "1099511631872",
+      "expected": [
+        "task",
+        "1",
+        "101",
+        "77",
+        "1001",
+        "net_admin",
+        "net_admin",
+        "net_admin",
+        "net_admin",
+        "net_admin"
+      ]
+    },
+    {
+      "id": "array1-37-18446744073709551615",
+      "kind": "array1",
+      "last": 37,
+      "value": "18446744073709551615",
+      "expected": [
+        "task",
+        "1",
+        "101",
+        "77",
+        "1001",
+        "chown, dac_override, dac_read_search, fowner, fsetid, kill, setgid, setuid, setpcap, linux_immutable, net_bind_service, net_broadcast, net_admin, net_raw, ipc_lock, ipc_owner, sys_module, sys_rawio, sys_chroot, sys_ptrace, sys_pacct, sys_admin, sys_boot, sys_nice, sys_resource, sys_time, sys_tty_config, mknod, lease, audit_write, audit_control, setfcap",
+        "chown, dac_override, dac_read_search, fowner, fsetid, kill, setgid, setuid, setpcap, linux_immutable, net_bind_service, net_broadcast, net_admin, net_raw, ipc_lock, ipc_owner, sys_module, sys_rawio, sys_chroot, sys_ptrace, sys_pacct, sys_admin, sys_boot, sys_nice, sys_resource, sys_time, sys_tty_config, mknod, lease, audit_write, audit_control, setfcap",
+        "chown, dac_override, dac_read_search, fowner, fsetid, kill, setgid, setuid, setpcap, linux_immutable, net_bind_service, net_broadcast, net_admin, net_raw, ipc_lock, ipc_owner, sys_module, sys_rawio, sys_chroot, sys_ptrace, sys_pacct, sys_admin, sys_boot, sys_nice, sys_resource, sys_time, sys_tty_config, mknod, lease, audit_write, audit_control, setfcap",
+        "chown, dac_override, dac_read_search, fowner, fsetid, kill, setgid, setuid, setpcap, linux_immutable, net_bind_service, net_broadcast, net_admin, net_raw, ipc_lock, ipc_owner, sys_module, sys_rawio, sys_chroot, sys_ptrace, sys_pacct, sys_admin, sys_boot, sys_nice, sys_resource, sys_time, sys_tty_config, mknod, lease, audit_write, audit_control, setfcap",
+        "chown, dac_override, dac_read_search, fowner, fsetid, kill, setgid, setuid, setpcap, linux_immutable, net_bind_service, net_broadcast, net_admin, net_raw, ipc_lock, ipc_owner, sys_module, sys_rawio, sys_chroot, sys_ptrace, sys_pacct, sys_admin, sys_boot, sys_nice, sys_resource, sys_time, sys_tty_config, mknod, lease, audit_write, audit_control, setfcap"
+      ]
+    },
+    {
+      "id": "array1-64-0",
+      "kind": "array1",
+      "last": 64,
+      "value": "0",
+      "expected": [
+        "task",
+        "1",
+        "101",
+        "77",
+        "1001",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ]
+    },
+    {
+      "id": "array1-64-274877906943",
+      "kind": "array1",
+      "last": 64,
+      "value": "274877906943",
+      "expected": [
+        "task",
+        "1",
+        "101",
+        "77",
+        "1001",
+        "chown, dac_override, dac_read_search, fowner, fsetid, kill, setgid, setuid, setpcap, linux_immutable, net_bind_service, net_broadcast, net_admin, net_raw, ipc_lock, ipc_owner, sys_module, sys_rawio, sys_chroot, sys_ptrace, sys_pacct, sys_admin, sys_boot, sys_nice, sys_resource, sys_time, sys_tty_config, mknod, lease, audit_write, audit_control, setfcap",
+        "chown, dac_override, dac_read_search, fowner, fsetid, kill, setgid, setuid, setpcap, linux_immutable, net_bind_service, net_broadcast, net_admin, net_raw, ipc_lock, ipc_owner, sys_module, sys_rawio, sys_chroot, sys_ptrace, sys_pacct, sys_admin, sys_boot, sys_nice, sys_resource, sys_time, sys_tty_config, mknod, lease, audit_write, audit_control, setfcap",
+        "chown, dac_override, dac_read_search, fowner, fsetid, kill, setgid, setuid, setpcap, linux_immutable, net_bind_service, net_broadcast, net_admin, net_raw, ipc_lock, ipc_owner, sys_module, sys_rawio, sys_chroot, sys_ptrace, sys_pacct, sys_admin, sys_boot, sys_nice, sys_resource, sys_time, sys_tty_config, mknod, lease, audit_write, audit_control, setfcap",
+        "chown, dac_override, dac_read_search, fowner, fsetid, kill, setgid, setuid, setpcap, linux_immutable, net_bind_service, net_broadcast, net_admin, net_raw, ipc_lock, ipc_owner, sys_module, sys_rawio, sys_chroot, sys_ptrace, sys_pacct, sys_admin, sys_boot, sys_nice, sys_resource, sys_time, sys_tty_config, mknod, lease, audit_write, audit_control, setfcap",
+        "chown, dac_override, dac_read_search, fowner, fsetid, kill, setgid, setuid, setpcap, linux_immutable, net_bind_service, net_broadcast, net_admin, net_raw, ipc_lock, ipc_owner, sys_module, sys_rawio, sys_chroot, sys_ptrace, sys_pacct, sys_admin, sys_boot, sys_nice, sys_resource, sys_time, sys_tty_config, mknod, lease, audit_write, audit_control, setfcap"
+      ]
+    },
+    {
+      "id": "array1-64-1099511631872",
+      "kind": "array1",
+      "last": 64,
+      "value": "1099511631872",
+      "expected": [
+        "task",
+        "1",
+        "101",
+        "77",
+        "1001",
+        "net_admin",
+        "net_admin",
+        "net_admin",
+        "net_admin",
+        "net_admin"
+      ]
+    },
+    {
+      "id": "array1-64-18446744073709551615",
+      "kind": "array1",
+      "last": 64,
+      "value": "18446744073709551615",
+      "expected": [
+        "task",
+        "1",
+        "101",
+        "77",
+        "1001",
+        "chown, dac_override, dac_read_search, fowner, fsetid, kill, setgid, setuid, setpcap, linux_immutable, net_bind_service, net_broadcast, net_admin, net_raw, ipc_lock, ipc_owner, sys_module, sys_rawio, sys_chroot, sys_ptrace, sys_pacct, sys_admin, sys_boot, sys_nice, sys_resource, sys_time, sys_tty_config, mknod, lease, audit_write, audit_control, setfcap",
+        "chown, dac_override, dac_read_search, fowner, fsetid, kill, setgid, setuid, setpcap, linux_immutable, net_bind_service, net_broadcast, net_admin, net_raw, ipc_lock, ipc_owner, sys_module, sys_rawio, sys_chroot, sys_ptrace, sys_pacct, sys_admin, sys_boot, sys_nice, sys_resource, sys_time, sys_tty_config, mknod, lease, audit_write, audit_control, setfcap",
+        "chown, dac_override, dac_read_search, fowner, fsetid, kill, setgid, setuid, setpcap, linux_immutable, net_bind_service, net_broadcast, net_admin, net_raw, ipc_lock, ipc_owner, sys_module, sys_rawio, sys_chroot, sys_ptrace, sys_pacct, sys_admin, sys_boot, sys_nice, sys_resource, sys_time, sys_tty_config, mknod, lease, audit_write, audit_control, setfcap",
+        "chown, dac_override, dac_read_search, fowner, fsetid, kill, setgid, setuid, setpcap, linux_immutable, net_bind_service, net_broadcast, net_admin, net_raw, ipc_lock, ipc_owner, sys_module, sys_rawio, sys_chroot, sys_ptrace, sys_pacct, sys_admin, sys_boot, sys_nice, sys_resource, sys_time, sys_tty_config, mknod, lease, audit_write, audit_control, setfcap",
+        "chown, dac_override, dac_read_search, fowner, fsetid, kill, setgid, setuid, setpcap, linux_immutable, net_bind_service, net_broadcast, net_admin, net_raw, ipc_lock, ipc_owner, sys_module, sys_rawio, sys_chroot, sys_ptrace, sys_pacct, sys_admin, sys_boot, sys_nice, sys_resource, sys_time, sys_tty_config, mknod, lease, audit_write, audit_control, setfcap"
+      ]
+    },
+    {
+      "id": "array2-None-0",
+      "kind": "array2",
+      "last": null,
+      "value": "0",
+      "expected": [
+        "task",
+        "1",
+        "101",
+        "77",
+        "1001",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ]
+    },
+    {
+      "id": "array2-None-274877906943",
+      "kind": "array2",
+      "last": null,
+      "value": "274877906943",
+      "expected": [
+        "task",
+        "1",
+        "101",
+        "77",
+        "1001",
+        "chown, dac_override, dac_read_search, fowner, fsetid, kill, setgid, setuid, setpcap, linux_immutable, net_bind_service, net_broadcast, net_admin, net_raw, ipc_lock, ipc_owner, sys_module, sys_rawio, sys_chroot, sys_ptrace, sys_pacct, sys_admin, sys_boot, sys_nice, sys_resource, sys_time, sys_tty_config, mknod, lease, audit_write, audit_control, setfcap, mac_override, mac_admin, syslog, wake_alarm, block_suspend, audit_read",
+        "chown, dac_override, dac_read_search, fowner, fsetid, kill, setgid, setuid, setpcap, linux_immutable, net_bind_service, net_broadcast, net_admin, net_raw, ipc_lock, ipc_owner, sys_module, sys_rawio, sys_chroot, sys_ptrace, sys_pacct, sys_admin, sys_boot, sys_nice, sys_resource, sys_time, sys_tty_config, mknod, lease, audit_write, audit_control, setfcap, mac_override, mac_admin, syslog, wake_alarm, block_suspend, audit_read",
+        "chown, dac_override, dac_read_search, fowner, fsetid, kill, setgid, setuid, setpcap, linux_immutable, net_bind_service, net_broadcast, net_admin, net_raw, ipc_lock, ipc_owner, sys_module, sys_rawio, sys_chroot, sys_ptrace, sys_pacct, sys_admin, sys_boot, sys_nice, sys_resource, sys_time, sys_tty_config, mknod, lease, audit_write, audit_control, setfcap, mac_override, mac_admin, syslog, wake_alarm, block_suspend, audit_read",
+        "chown, dac_override, dac_read_search, fowner, fsetid, kill, setgid, setuid, setpcap, linux_immutable, net_bind_service, net_broadcast, net_admin, net_raw, ipc_lock, ipc_owner, sys_module, sys_rawio, sys_chroot, sys_ptrace, sys_pacct, sys_admin, sys_boot, sys_nice, sys_resource, sys_time, sys_tty_config, mknod, lease, audit_write, audit_control, setfcap, mac_override, mac_admin, syslog, wake_alarm, block_suspend, audit_read",
+        "chown, dac_override, dac_read_search, fowner, fsetid, kill, setgid, setuid, setpcap, linux_immutable, net_bind_service, net_broadcast, net_admin, net_raw, ipc_lock, ipc_owner, sys_module, sys_rawio, sys_chroot, sys_ptrace, sys_pacct, sys_admin, sys_boot, sys_nice, sys_resource, sys_time, sys_tty_config, mknod, lease, audit_write, audit_control, setfcap, mac_override, mac_admin, syslog, wake_alarm, block_suspend, audit_read"
+      ]
+    },
+    {
+      "id": "array2-None-1099511631872",
+      "kind": "array2",
+      "last": null,
+      "value": "1099511631872",
+      "expected": [
+        "task",
+        "1",
+        "101",
+        "77",
+        "1001",
+        "net_admin, checkpoint_restore",
+        "net_admin, checkpoint_restore",
+        "net_admin, checkpoint_restore",
+        "net_admin, checkpoint_restore",
+        "net_admin, checkpoint_restore"
+      ]
+    },
+    {
+      "id": "array2-None-18446744073709551615",
+      "kind": "array2",
+      "last": null,
+      "value": "18446744073709551615",
+      "expected": [
+        "task",
+        "1",
+        "101",
+        "77",
+        "1001",
+        "all",
+        "all",
+        "all",
+        "all",
+        "all"
+      ]
+    },
+    {
+      "id": "array2-37-0",
+      "kind": "array2",
+      "last": 37,
+      "value": "0",
+      "expected": [
+        "task",
+        "1",
+        "101",
+        "77",
+        "1001",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ]
+    },
+    {
+      "id": "array2-37-274877906943",
+      "kind": "array2",
+      "last": 37,
+      "value": "274877906943",
+      "expected": [
+        "task",
+        "1",
+        "101",
+        "77",
+        "1001",
+        "all",
+        "all",
+        "all",
+        "all",
+        "all"
+      ]
+    },
+    {
+      "id": "array2-37-1099511631872",
+      "kind": "array2",
+      "last": 37,
+      "value": "1099511631872",
+      "expected": [
+        "task",
+        "1",
+        "101",
+        "77",
+        "1001",
+        "net_admin",
+        "net_admin",
+        "net_admin",
+        "net_admin",
+        "net_admin"
+      ]
+    },
+    {
+      "id": "array2-37-18446744073709551615",
+      "kind": "array2",
+      "last": 37,
+      "value": "18446744073709551615",
+      "expected": [
+        "task",
+        "1",
+        "101",
+        "77",
+        "1001",
+        "all",
+        "all",
+        "all",
+        "all",
+        "all"
+      ]
+    },
+    {
+      "id": "array2-64-0",
+      "kind": "array2",
+      "last": 64,
+      "value": "0",
+      "expected": [
+        "task",
+        "1",
+        "101",
+        "77",
+        "1001",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ]
+    },
+    {
+      "id": "array2-64-274877906943",
+      "kind": "array2",
+      "last": 64,
+      "value": "274877906943",
+      "expected": [
+        "task",
+        "1",
+        "101",
+        "77",
+        "1001",
+        "chown, dac_override, dac_read_search, fowner, fsetid, kill, setgid, setuid, setpcap, linux_immutable, net_bind_service, net_broadcast, net_admin, net_raw, ipc_lock, ipc_owner, sys_module, sys_rawio, sys_chroot, sys_ptrace, sys_pacct, sys_admin, sys_boot, sys_nice, sys_resource, sys_time, sys_tty_config, mknod, lease, audit_write, audit_control, setfcap, mac_override, mac_admin, syslog, wake_alarm, block_suspend, audit_read",
+        "chown, dac_override, dac_read_search, fowner, fsetid, kill, setgid, setuid, setpcap, linux_immutable, net_bind_service, net_broadcast, net_admin, net_raw, ipc_lock, ipc_owner, sys_module, sys_rawio, sys_chroot, sys_ptrace, sys_pacct, sys_admin, sys_boot, sys_nice, sys_resource, sys_time, sys_tty_config, mknod, lease, audit_write, audit_control, setfcap, mac_override, mac_admin, syslog, wake_alarm, block_suspend, audit_read",
+        "chown, dac_override, dac_read_search, fowner, fsetid, kill, setgid, setuid, setpcap, linux_immutable, net_bind_service, net_broadcast, net_admin, net_raw, ipc_lock, ipc_owner, sys_module, sys_rawio, sys_chroot, sys_ptrace, sys_pacct, sys_admin, sys_boot, sys_nice, sys_resource, sys_time, sys_tty_config, mknod, lease, audit_write, audit_control, setfcap, mac_override, mac_admin, syslog, wake_alarm, block_suspend, audit_read",
+        "chown, dac_override, dac_read_search, fowner, fsetid, kill, setgid, setuid, setpcap, linux_immutable, net_bind_service, net_broadcast, net_admin, net_raw, ipc_lock, ipc_owner, sys_module, sys_rawio, sys_chroot, sys_ptrace, sys_pacct, sys_admin, sys_boot, sys_nice, sys_resource, sys_time, sys_tty_config, mknod, lease, audit_write, audit_control, setfcap, mac_override, mac_admin, syslog, wake_alarm, block_suspend, audit_read",
+        "chown, dac_override, dac_read_search, fowner, fsetid, kill, setgid, setuid, setpcap, linux_immutable, net_bind_service, net_broadcast, net_admin, net_raw, ipc_lock, ipc_owner, sys_module, sys_rawio, sys_chroot, sys_ptrace, sys_pacct, sys_admin, sys_boot, sys_nice, sys_resource, sys_time, sys_tty_config, mknod, lease, audit_write, audit_control, setfcap, mac_override, mac_admin, syslog, wake_alarm, block_suspend, audit_read"
+      ]
+    },
+    {
+      "id": "array2-64-1099511631872",
+      "kind": "array2",
+      "last": 64,
+      "value": "1099511631872",
+      "expected": [
+        "task",
+        "1",
+        "101",
+        "77",
+        "1001",
+        "net_admin, checkpoint_restore",
+        "net_admin, checkpoint_restore",
+        "net_admin, checkpoint_restore",
+        "net_admin, checkpoint_restore",
+        "net_admin, checkpoint_restore"
+      ]
+    },
+    {
+      "id": "array2-64-18446744073709551615",
+      "kind": "array2",
+      "last": 64,
+      "value": "18446744073709551615",
+      "expected": [
+        "task",
+        "1",
+        "101",
+        "77",
+        "1001",
+        "chown, dac_override, dac_read_search, fowner, fsetid, kill, setgid, setuid, setpcap, linux_immutable, net_bind_service, net_broadcast, net_admin, net_raw, ipc_lock, ipc_owner, sys_module, sys_rawio, sys_chroot, sys_ptrace, sys_pacct, sys_admin, sys_boot, sys_nice, sys_resource, sys_time, sys_tty_config, mknod, lease, audit_write, audit_control, setfcap, mac_override, mac_admin, syslog, wake_alarm, block_suspend, audit_read, perfmon, bpf, checkpoint_restore",
+        "chown, dac_override, dac_read_search, fowner, fsetid, kill, setgid, setuid, setpcap, linux_immutable, net_bind_service, net_broadcast, net_admin, net_raw, ipc_lock, ipc_owner, sys_module, sys_rawio, sys_chroot, sys_ptrace, sys_pacct, sys_admin, sys_boot, sys_nice, sys_resource, sys_time, sys_tty_config, mknod, lease, audit_write, audit_control, setfcap, mac_override, mac_admin, syslog, wake_alarm, block_suspend, audit_read, perfmon, bpf, checkpoint_restore",
+        "chown, dac_override, dac_read_search, fowner, fsetid, kill, setgid, setuid, setpcap, linux_immutable, net_bind_service, net_broadcast, net_admin, net_raw, ipc_lock, ipc_owner, sys_module, sys_rawio, sys_chroot, sys_ptrace, sys_pacct, sys_admin, sys_boot, sys_nice, sys_resource, sys_time, sys_tty_config, mknod, lease, audit_write, audit_control, setfcap, mac_override, mac_admin, syslog, wake_alarm, block_suspend, audit_read, perfmon, bpf, checkpoint_restore",
+        "chown, dac_override, dac_read_search, fowner, fsetid, kill, setgid, setuid, setpcap, linux_immutable, net_bind_service, net_broadcast, net_admin, net_raw, ipc_lock, ipc_owner, sys_module, sys_rawio, sys_chroot, sys_ptrace, sys_pacct, sys_admin, sys_boot, sys_nice, sys_resource, sys_time, sys_tty_config, mknod, lease, audit_write, audit_control, setfcap, mac_override, mac_admin, syslog, wake_alarm, block_suspend, audit_read, perfmon, bpf, checkpoint_restore",
+        "chown, dac_override, dac_read_search, fowner, fsetid, kill, setgid, setuid, setpcap, linux_immutable, net_bind_service, net_broadcast, net_admin, net_raw, ipc_lock, ipc_owner, sys_module, sys_rawio, sys_chroot, sys_ptrace, sys_pacct, sys_admin, sys_boot, sys_nice, sys_resource, sys_time, sys_tty_config, mknod, lease, audit_write, audit_control, setfcap, mac_override, mac_admin, syslog, wake_alarm, block_suspend, audit_read, perfmon, bpf, checkpoint_restore"
+      ]
+    },
+    {
+      "id": "val-None-0",
+      "kind": "val",
+      "last": null,
+      "value": "0",
+      "expected": [
+        "task",
+        "1",
+        "101",
+        "77",
+        "1001",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ]
+    },
+    {
+      "id": "val-None-274877906943",
+      "kind": "val",
+      "last": null,
+      "value": "274877906943",
+      "expected": [
+        "task",
+        "1",
+        "101",
+        "77",
+        "1001",
+        "chown, dac_override, dac_read_search, fowner, fsetid, kill, setgid, setuid, setpcap, linux_immutable, net_bind_service, net_broadcast, net_admin, net_raw, ipc_lock, ipc_owner, sys_module, sys_rawio, sys_chroot, sys_ptrace, sys_pacct, sys_admin, sys_boot, sys_nice, sys_resource, sys_time, sys_tty_config, mknod, lease, audit_write, audit_control, setfcap, mac_override, mac_admin, syslog, wake_alarm, block_suspend, audit_read",
+        "chown, dac_override, dac_read_search, fowner, fsetid, kill, setgid, setuid, setpcap, linux_immutable, net_bind_service, net_broadcast, net_admin, net_raw, ipc_lock, ipc_owner, sys_module, sys_rawio, sys_chroot, sys_ptrace, sys_pacct, sys_admin, sys_boot, sys_nice, sys_resource, sys_time, sys_tty_config, mknod, lease, audit_write, audit_control, setfcap, mac_override, mac_admin, syslog, wake_alarm, block_suspend, audit_read",
+        "chown, dac_override, dac_read_search, fowner, fsetid, kill, setgid, setuid, setpcap, linux_immutable, net_bind_service, net_broadcast, net_admin, net_raw, ipc_lock, ipc_owner, sys_module, sys_rawio, sys_chroot, sys_ptrace, sys_pacct, sys_admin, sys_boot, sys_nice, sys_resource, sys_time, sys_tty_config, mknod, lease, audit_write, audit_control, setfcap, mac_override, mac_admin, syslog, wake_alarm, block_suspend, audit_read",
+        "chown, dac_override, dac_read_search, fowner, fsetid, kill, setgid, setuid, setpcap, linux_immutable, net_bind_service, net_broadcast, net_admin, net_raw, ipc_lock, ipc_owner, sys_module, sys_rawio, sys_chroot, sys_ptrace, sys_pacct, sys_admin, sys_boot, sys_nice, sys_resource, sys_time, sys_tty_config, mknod, lease, audit_write, audit_control, setfcap, mac_override, mac_admin, syslog, wake_alarm, block_suspend, audit_read",
+        "chown, dac_override, dac_read_search, fowner, fsetid, kill, setgid, setuid, setpcap, linux_immutable, net_bind_service, net_broadcast, net_admin, net_raw, ipc_lock, ipc_owner, sys_module, sys_rawio, sys_chroot, sys_ptrace, sys_pacct, sys_admin, sys_boot, sys_nice, sys_resource, sys_time, sys_tty_config, mknod, lease, audit_write, audit_control, setfcap, mac_override, mac_admin, syslog, wake_alarm, block_suspend, audit_read"
+      ]
+    },
+    {
+      "id": "val-None-1099511631872",
+      "kind": "val",
+      "last": null,
+      "value": "1099511631872",
+      "expected": [
+        "task",
+        "1",
+        "101",
+        "77",
+        "1001",
+        "net_admin, checkpoint_restore",
+        "net_admin, checkpoint_restore",
+        "net_admin, checkpoint_restore",
+        "net_admin, checkpoint_restore",
+        "net_admin, checkpoint_restore"
+      ]
+    },
+    {
+      "id": "val-None-18446744073709551615",
+      "kind": "val",
+      "last": null,
+      "value": "18446744073709551615",
+      "expected": [
+        "task",
+        "1",
+        "101",
+        "77",
+        "1001",
+        "all",
+        "all",
+        "all",
+        "all",
+        "all"
+      ]
+    },
+    {
+      "id": "val-37-0",
+      "kind": "val",
+      "last": 37,
+      "value": "0",
+      "expected": [
+        "task",
+        "1",
+        "101",
+        "77",
+        "1001",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ]
+    },
+    {
+      "id": "val-37-274877906943",
+      "kind": "val",
+      "last": 37,
+      "value": "274877906943",
+      "expected": [
+        "task",
+        "1",
+        "101",
+        "77",
+        "1001",
+        "all",
+        "all",
+        "all",
+        "all",
+        "all"
+      ]
+    },
+    {
+      "id": "val-37-1099511631872",
+      "kind": "val",
+      "last": 37,
+      "value": "1099511631872",
+      "expected": [
+        "task",
+        "1",
+        "101",
+        "77",
+        "1001",
+        "net_admin",
+        "net_admin",
+        "net_admin",
+        "net_admin",
+        "net_admin"
+      ]
+    },
+    {
+      "id": "val-37-18446744073709551615",
+      "kind": "val",
+      "last": 37,
+      "value": "18446744073709551615",
+      "expected": [
+        "task",
+        "1",
+        "101",
+        "77",
+        "1001",
+        "all",
+        "all",
+        "all",
+        "all",
+        "all"
+      ]
+    },
+    {
+      "id": "val-64-0",
+      "kind": "val",
+      "last": 64,
+      "value": "0",
+      "expected": [
+        "task",
+        "1",
+        "101",
+        "77",
+        "1001",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ]
+    },
+    {
+      "id": "val-64-274877906943",
+      "kind": "val",
+      "last": 64,
+      "value": "274877906943",
+      "expected": [
+        "task",
+        "1",
+        "101",
+        "77",
+        "1001",
+        "chown, dac_override, dac_read_search, fowner, fsetid, kill, setgid, setuid, setpcap, linux_immutable, net_bind_service, net_broadcast, net_admin, net_raw, ipc_lock, ipc_owner, sys_module, sys_rawio, sys_chroot, sys_ptrace, sys_pacct, sys_admin, sys_boot, sys_nice, sys_resource, sys_time, sys_tty_config, mknod, lease, audit_write, audit_control, setfcap, mac_override, mac_admin, syslog, wake_alarm, block_suspend, audit_read",
+        "chown, dac_override, dac_read_search, fowner, fsetid, kill, setgid, setuid, setpcap, linux_immutable, net_bind_service, net_broadcast, net_admin, net_raw, ipc_lock, ipc_owner, sys_module, sys_rawio, sys_chroot, sys_ptrace, sys_pacct, sys_admin, sys_boot, sys_nice, sys_resource, sys_time, sys_tty_config, mknod, lease, audit_write, audit_control, setfcap, mac_override, mac_admin, syslog, wake_alarm, block_suspend, audit_read",
+        "chown, dac_override, dac_read_search, fowner, fsetid, kill, setgid, setuid, setpcap, linux_immutable, net_bind_service, net_broadcast, net_admin, net_raw, ipc_lock, ipc_owner, sys_module, sys_rawio, sys_chroot, sys_ptrace, sys_pacct, sys_admin, sys_boot, sys_nice, sys_resource, sys_time, sys_tty_config, mknod, lease, audit_write, audit_control, setfcap, mac_override, mac_admin, syslog, wake_alarm, block_suspend, audit_read",
+        "chown, dac_override, dac_read_search, fowner, fsetid, kill, setgid, setuid, setpcap, linux_immutable, net_bind_service, net_broadcast, net_admin, net_raw, ipc_lock, ipc_owner, sys_module, sys_rawio, sys_chroot, sys_ptrace, sys_pacct, sys_admin, sys_boot, sys_nice, sys_resource, sys_time, sys_tty_config, mknod, lease, audit_write, audit_control, setfcap, mac_override, mac_admin, syslog, wake_alarm, block_suspend, audit_read",
+        "chown, dac_override, dac_read_search, fowner, fsetid, kill, setgid, setuid, setpcap, linux_immutable, net_bind_service, net_broadcast, net_admin, net_raw, ipc_lock, ipc_owner, sys_module, sys_rawio, sys_chroot, sys_ptrace, sys_pacct, sys_admin, sys_boot, sys_nice, sys_resource, sys_time, sys_tty_config, mknod, lease, audit_write, audit_control, setfcap, mac_override, mac_admin, syslog, wake_alarm, block_suspend, audit_read"
+      ]
+    },
+    {
+      "id": "val-64-1099511631872",
+      "kind": "val",
+      "last": 64,
+      "value": "1099511631872",
+      "expected": [
+        "task",
+        "1",
+        "101",
+        "77",
+        "1001",
+        "net_admin, checkpoint_restore",
+        "net_admin, checkpoint_restore",
+        "net_admin, checkpoint_restore",
+        "net_admin, checkpoint_restore",
+        "net_admin, checkpoint_restore"
+      ]
+    },
+    {
+      "id": "val-64-18446744073709551615",
+      "kind": "val",
+      "last": 64,
+      "value": "18446744073709551615",
+      "expected": [
+        "task",
+        "1",
+        "101",
+        "77",
+        "1001",
+        "chown, dac_override, dac_read_search, fowner, fsetid, kill, setgid, setuid, setpcap, linux_immutable, net_bind_service, net_broadcast, net_admin, net_raw, ipc_lock, ipc_owner, sys_module, sys_rawio, sys_chroot, sys_ptrace, sys_pacct, sys_admin, sys_boot, sys_nice, sys_resource, sys_time, sys_tty_config, mknod, lease, audit_write, audit_control, setfcap, mac_override, mac_admin, syslog, wake_alarm, block_suspend, audit_read, perfmon, bpf, checkpoint_restore",
+        "chown, dac_override, dac_read_search, fowner, fsetid, kill, setgid, setuid, setpcap, linux_immutable, net_bind_service, net_broadcast, net_admin, net_raw, ipc_lock, ipc_owner, sys_module, sys_rawio, sys_chroot, sys_ptrace, sys_pacct, sys_admin, sys_boot, sys_nice, sys_resource, sys_time, sys_tty_config, mknod, lease, audit_write, audit_control, setfcap, mac_override, mac_admin, syslog, wake_alarm, block_suspend, audit_read, perfmon, bpf, checkpoint_restore",
+        "chown, dac_override, dac_read_search, fowner, fsetid, kill, setgid, setuid, setpcap, linux_immutable, net_bind_service, net_broadcast, net_admin, net_raw, ipc_lock, ipc_owner, sys_module, sys_rawio, sys_chroot, sys_ptrace, sys_pacct, sys_admin, sys_boot, sys_nice, sys_resource, sys_time, sys_tty_config, mknod, lease, audit_write, audit_control, setfcap, mac_override, mac_admin, syslog, wake_alarm, block_suspend, audit_read, perfmon, bpf, checkpoint_restore",
+        "chown, dac_override, dac_read_search, fowner, fsetid, kill, setgid, setuid, setpcap, linux_immutable, net_bind_service, net_broadcast, net_admin, net_raw, ipc_lock, ipc_owner, sys_module, sys_rawio, sys_chroot, sys_ptrace, sys_pacct, sys_admin, sys_boot, sys_nice, sys_resource, sys_time, sys_tty_config, mknod, lease, audit_write, audit_control, setfcap, mac_override, mac_admin, syslog, wake_alarm, block_suspend, audit_read, perfmon, bpf, checkpoint_restore",
+        "chown, dac_override, dac_read_search, fowner, fsetid, kill, setgid, setuid, setpcap, linux_immutable, net_bind_service, net_broadcast, net_admin, net_raw, ipc_lock, ipc_owner, sys_module, sys_rawio, sys_chroot, sys_ptrace, sys_pacct, sys_admin, sys_boot, sys_nice, sys_resource, sys_time, sys_tty_config, mknod, lease, audit_write, audit_control, setfcap, mac_override, mac_admin, syslog, wake_alarm, block_suspend, audit_read, perfmon, bpf, checkpoint_restore"
+      ]
+    },
+    {
+      "id": "bit-0",
+      "kind": "val",
+      "last": 40,
+      "value": "1",
+      "expected": [
+        "task",
+        "1",
+        "101",
+        "77",
+        "1001",
+        "chown",
+        "chown",
+        "chown",
+        "chown",
+        "chown"
+      ]
+    },
+    {
+      "id": "bit-1",
+      "kind": "val",
+      "last": 40,
+      "value": "2",
+      "expected": [
+        "task",
+        "1",
+        "101",
+        "77",
+        "1001",
+        "dac_override",
+        "dac_override",
+        "dac_override",
+        "dac_override",
+        "dac_override"
+      ]
+    },
+    {
+      "id": "bit-2",
+      "kind": "val",
+      "last": 40,
+      "value": "4",
+      "expected": [
+        "task",
+        "1",
+        "101",
+        "77",
+        "1001",
+        "dac_read_search",
+        "dac_read_search",
+        "dac_read_search",
+        "dac_read_search",
+        "dac_read_search"
+      ]
+    },
+    {
+      "id": "bit-3",
+      "kind": "val",
+      "last": 40,
+      "value": "8",
+      "expected": [
+        "task",
+        "1",
+        "101",
+        "77",
+        "1001",
+        "fowner",
+        "fowner",
+        "fowner",
+        "fowner",
+        "fowner"
+      ]
+    },
+    {
+      "id": "bit-4",
+      "kind": "val",
+      "last": 40,
+      "value": "16",
+      "expected": [
+        "task",
+        "1",
+        "101",
+        "77",
+        "1001",
+        "fsetid",
+        "fsetid",
+        "fsetid",
+        "fsetid",
+        "fsetid"
+      ]
+    },
+    {
+      "id": "bit-5",
+      "kind": "val",
+      "last": 40,
+      "value": "32",
+      "expected": [
+        "task",
+        "1",
+        "101",
+        "77",
+        "1001",
+        "kill",
+        "kill",
+        "kill",
+        "kill",
+        "kill"
+      ]
+    },
+    {
+      "id": "bit-6",
+      "kind": "val",
+      "last": 40,
+      "value": "64",
+      "expected": [
+        "task",
+        "1",
+        "101",
+        "77",
+        "1001",
+        "setgid",
+        "setgid",
+        "setgid",
+        "setgid",
+        "setgid"
+      ]
+    },
+    {
+      "id": "bit-7",
+      "kind": "val",
+      "last": 40,
+      "value": "128",
+      "expected": [
+        "task",
+        "1",
+        "101",
+        "77",
+        "1001",
+        "setuid",
+        "setuid",
+        "setuid",
+        "setuid",
+        "setuid"
+      ]
+    },
+    {
+      "id": "bit-8",
+      "kind": "val",
+      "last": 40,
+      "value": "256",
+      "expected": [
+        "task",
+        "1",
+        "101",
+        "77",
+        "1001",
+        "setpcap",
+        "setpcap",
+        "setpcap",
+        "setpcap",
+        "setpcap"
+      ]
+    },
+    {
+      "id": "bit-9",
+      "kind": "val",
+      "last": 40,
+      "value": "512",
+      "expected": [
+        "task",
+        "1",
+        "101",
+        "77",
+        "1001",
+        "linux_immutable",
+        "linux_immutable",
+        "linux_immutable",
+        "linux_immutable",
+        "linux_immutable"
+      ]
+    },
+    {
+      "id": "bit-10",
+      "kind": "val",
+      "last": 40,
+      "value": "1024",
+      "expected": [
+        "task",
+        "1",
+        "101",
+        "77",
+        "1001",
+        "net_bind_service",
+        "net_bind_service",
+        "net_bind_service",
+        "net_bind_service",
+        "net_bind_service"
+      ]
+    },
+    {
+      "id": "bit-11",
+      "kind": "val",
+      "last": 40,
+      "value": "2048",
+      "expected": [
+        "task",
+        "1",
+        "101",
+        "77",
+        "1001",
+        "net_broadcast",
+        "net_broadcast",
+        "net_broadcast",
+        "net_broadcast",
+        "net_broadcast"
+      ]
+    },
+    {
+      "id": "bit-12",
+      "kind": "val",
+      "last": 40,
+      "value": "4096",
+      "expected": [
+        "task",
+        "1",
+        "101",
+        "77",
+        "1001",
+        "net_admin",
+        "net_admin",
+        "net_admin",
+        "net_admin",
+        "net_admin"
+      ]
+    },
+    {
+      "id": "bit-13",
+      "kind": "val",
+      "last": 40,
+      "value": "8192",
+      "expected": [
+        "task",
+        "1",
+        "101",
+        "77",
+        "1001",
+        "net_raw",
+        "net_raw",
+        "net_raw",
+        "net_raw",
+        "net_raw"
+      ]
+    },
+    {
+      "id": "bit-14",
+      "kind": "val",
+      "last": 40,
+      "value": "16384",
+      "expected": [
+        "task",
+        "1",
+        "101",
+        "77",
+        "1001",
+        "ipc_lock",
+        "ipc_lock",
+        "ipc_lock",
+        "ipc_lock",
+        "ipc_lock"
+      ]
+    },
+    {
+      "id": "bit-15",
+      "kind": "val",
+      "last": 40,
+      "value": "32768",
+      "expected": [
+        "task",
+        "1",
+        "101",
+        "77",
+        "1001",
+        "ipc_owner",
+        "ipc_owner",
+        "ipc_owner",
+        "ipc_owner",
+        "ipc_owner"
+      ]
+    },
+    {
+      "id": "bit-16",
+      "kind": "val",
+      "last": 40,
+      "value": "65536",
+      "expected": [
+        "task",
+        "1",
+        "101",
+        "77",
+        "1001",
+        "sys_module",
+        "sys_module",
+        "sys_module",
+        "sys_module",
+        "sys_module"
+      ]
+    },
+    {
+      "id": "bit-17",
+      "kind": "val",
+      "last": 40,
+      "value": "131072",
+      "expected": [
+        "task",
+        "1",
+        "101",
+        "77",
+        "1001",
+        "sys_rawio",
+        "sys_rawio",
+        "sys_rawio",
+        "sys_rawio",
+        "sys_rawio"
+      ]
+    },
+    {
+      "id": "bit-18",
+      "kind": "val",
+      "last": 40,
+      "value": "262144",
+      "expected": [
+        "task",
+        "1",
+        "101",
+        "77",
+        "1001",
+        "sys_chroot",
+        "sys_chroot",
+        "sys_chroot",
+        "sys_chroot",
+        "sys_chroot"
+      ]
+    },
+    {
+      "id": "bit-19",
+      "kind": "val",
+      "last": 40,
+      "value": "524288",
+      "expected": [
+        "task",
+        "1",
+        "101",
+        "77",
+        "1001",
+        "sys_ptrace",
+        "sys_ptrace",
+        "sys_ptrace",
+        "sys_ptrace",
+        "sys_ptrace"
+      ]
+    },
+    {
+      "id": "bit-20",
+      "kind": "val",
+      "last": 40,
+      "value": "1048576",
+      "expected": [
+        "task",
+        "1",
+        "101",
+        "77",
+        "1001",
+        "sys_pacct",
+        "sys_pacct",
+        "sys_pacct",
+        "sys_pacct",
+        "sys_pacct"
+      ]
+    },
+    {
+      "id": "bit-21",
+      "kind": "val",
+      "last": 40,
+      "value": "2097152",
+      "expected": [
+        "task",
+        "1",
+        "101",
+        "77",
+        "1001",
+        "sys_admin",
+        "sys_admin",
+        "sys_admin",
+        "sys_admin",
+        "sys_admin"
+      ]
+    },
+    {
+      "id": "bit-22",
+      "kind": "val",
+      "last": 40,
+      "value": "4194304",
+      "expected": [
+        "task",
+        "1",
+        "101",
+        "77",
+        "1001",
+        "sys_boot",
+        "sys_boot",
+        "sys_boot",
+        "sys_boot",
+        "sys_boot"
+      ]
+    },
+    {
+      "id": "bit-23",
+      "kind": "val",
+      "last": 40,
+      "value": "8388608",
+      "expected": [
+        "task",
+        "1",
+        "101",
+        "77",
+        "1001",
+        "sys_nice",
+        "sys_nice",
+        "sys_nice",
+        "sys_nice",
+        "sys_nice"
+      ]
+    },
+    {
+      "id": "bit-24",
+      "kind": "val",
+      "last": 40,
+      "value": "16777216",
+      "expected": [
+        "task",
+        "1",
+        "101",
+        "77",
+        "1001",
+        "sys_resource",
+        "sys_resource",
+        "sys_resource",
+        "sys_resource",
+        "sys_resource"
+      ]
+    },
+    {
+      "id": "bit-25",
+      "kind": "val",
+      "last": 40,
+      "value": "33554432",
+      "expected": [
+        "task",
+        "1",
+        "101",
+        "77",
+        "1001",
+        "sys_time",
+        "sys_time",
+        "sys_time",
+        "sys_time",
+        "sys_time"
+      ]
+    },
+    {
+      "id": "bit-26",
+      "kind": "val",
+      "last": 40,
+      "value": "67108864",
+      "expected": [
+        "task",
+        "1",
+        "101",
+        "77",
+        "1001",
+        "sys_tty_config",
+        "sys_tty_config",
+        "sys_tty_config",
+        "sys_tty_config",
+        "sys_tty_config"
+      ]
+    },
+    {
+      "id": "bit-27",
+      "kind": "val",
+      "last": 40,
+      "value": "134217728",
+      "expected": [
+        "task",
+        "1",
+        "101",
+        "77",
+        "1001",
+        "mknod",
+        "mknod",
+        "mknod",
+        "mknod",
+        "mknod"
+      ]
+    },
+    {
+      "id": "bit-28",
+      "kind": "val",
+      "last": 40,
+      "value": "268435456",
+      "expected": [
+        "task",
+        "1",
+        "101",
+        "77",
+        "1001",
+        "lease",
+        "lease",
+        "lease",
+        "lease",
+        "lease"
+      ]
+    },
+    {
+      "id": "bit-29",
+      "kind": "val",
+      "last": 40,
+      "value": "536870912",
+      "expected": [
+        "task",
+        "1",
+        "101",
+        "77",
+        "1001",
+        "audit_write",
+        "audit_write",
+        "audit_write",
+        "audit_write",
+        "audit_write"
+      ]
+    },
+    {
+      "id": "bit-30",
+      "kind": "val",
+      "last": 40,
+      "value": "1073741824",
+      "expected": [
+        "task",
+        "1",
+        "101",
+        "77",
+        "1001",
+        "audit_control",
+        "audit_control",
+        "audit_control",
+        "audit_control",
+        "audit_control"
+      ]
+    },
+    {
+      "id": "bit-31",
+      "kind": "val",
+      "last": 40,
+      "value": "2147483648",
+      "expected": [
+        "task",
+        "1",
+        "101",
+        "77",
+        "1001",
+        "setfcap",
+        "setfcap",
+        "setfcap",
+        "setfcap",
+        "setfcap"
+      ]
+    },
+    {
+      "id": "bit-32",
+      "kind": "val",
+      "last": 40,
+      "value": "4294967296",
+      "expected": [
+        "task",
+        "1",
+        "101",
+        "77",
+        "1001",
+        "mac_override",
+        "mac_override",
+        "mac_override",
+        "mac_override",
+        "mac_override"
+      ]
+    },
+    {
+      "id": "bit-33",
+      "kind": "val",
+      "last": 40,
+      "value": "8589934592",
+      "expected": [
+        "task",
+        "1",
+        "101",
+        "77",
+        "1001",
+        "mac_admin",
+        "mac_admin",
+        "mac_admin",
+        "mac_admin",
+        "mac_admin"
+      ]
+    },
+    {
+      "id": "bit-34",
+      "kind": "val",
+      "last": 40,
+      "value": "17179869184",
+      "expected": [
+        "task",
+        "1",
+        "101",
+        "77",
+        "1001",
+        "syslog",
+        "syslog",
+        "syslog",
+        "syslog",
+        "syslog"
+      ]
+    },
+    {
+      "id": "bit-35",
+      "kind": "val",
+      "last": 40,
+      "value": "34359738368",
+      "expected": [
+        "task",
+        "1",
+        "101",
+        "77",
+        "1001",
+        "wake_alarm",
+        "wake_alarm",
+        "wake_alarm",
+        "wake_alarm",
+        "wake_alarm"
+      ]
+    },
+    {
+      "id": "bit-36",
+      "kind": "val",
+      "last": 40,
+      "value": "68719476736",
+      "expected": [
+        "task",
+        "1",
+        "101",
+        "77",
+        "1001",
+        "block_suspend",
+        "block_suspend",
+        "block_suspend",
+        "block_suspend",
+        "block_suspend"
+      ]
+    },
+    {
+      "id": "bit-37",
+      "kind": "val",
+      "last": 40,
+      "value": "137438953472",
+      "expected": [
+        "task",
+        "1",
+        "101",
+        "77",
+        "1001",
+        "audit_read",
+        "audit_read",
+        "audit_read",
+        "audit_read",
+        "audit_read"
+      ]
+    },
+    {
+      "id": "bit-38",
+      "kind": "val",
+      "last": 40,
+      "value": "274877906944",
+      "expected": [
+        "task",
+        "1",
+        "101",
+        "77",
+        "1001",
+        "perfmon",
+        "perfmon",
+        "perfmon",
+        "perfmon",
+        "perfmon"
+      ]
+    },
+    {
+      "id": "bit-39",
+      "kind": "val",
+      "last": 40,
+      "value": "549755813888",
+      "expected": [
+        "task",
+        "1",
+        "101",
+        "77",
+        "1001",
+        "bpf",
+        "bpf",
+        "bpf",
+        "bpf",
+        "bpf"
+      ]
+    },
+    {
+      "id": "bit-40",
+      "kind": "val",
+      "last": 40,
+      "value": "1099511627776",
+      "expected": [
+        "task",
+        "1",
+        "101",
+        "77",
+        "1001",
+        "checkpoint_restore",
+        "checkpoint_restore",
+        "checkpoint_restore",
+        "checkpoint_restore",
+        "checkpoint_restore"
+      ]
+    },
+    {
+      "id": "last--2",
+      "kind": "val",
+      "last": -2,
+      "value": "18446744073709551615",
+      "error": "ValueError"
+    },
+    {
+      "id": "last--1",
+      "kind": "val",
+      "last": -1,
+      "value": "18446744073709551615",
+      "expected": [
+        "task",
+        "1",
+        "101",
+        "77",
+        "1001",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ]
+    },
+    {
+      "id": "last-0",
+      "kind": "val",
+      "last": 0,
+      "value": "18446744073709551615",
+      "expected": [
+        "task",
+        "1",
+        "101",
+        "77",
+        "1001",
+        "all",
+        "all",
+        "all",
+        "all",
+        "all"
+      ]
+    },
+    {
+      "id": "last-63",
+      "kind": "val",
+      "last": 63,
+      "value": "18446744073709551615",
+      "expected": [
+        "task",
+        "1",
+        "101",
+        "77",
+        "1001",
+        "all",
+        "all",
+        "all",
+        "all",
+        "all"
+      ]
+    },
+    {
+      "id": "bad-array-count",
+      "kind": "array3",
+      "last": 40,
+      "value": "1",
+      "error": "VolatilityException"
+    },
+    {
+      "id": "ambient-missing",
+      "kind": "array2",
+      "last": 37,
+      "value": "8193",
+      "ambient": false,
+      "expected": [
+        "task",
+        "1",
+        "101",
+        "77",
+        "1001",
+        "chown, net_raw",
+        "chown, net_raw",
+        "chown, net_raw",
+        "chown, net_raw",
+        "N/A"
+      ]
+    },
+    {
+      "id": "unreadable-parent",
+      "kind": "val",
+      "last": 40,
+      "value": "8193",
+      "parent_readable": false,
+      "expected": [
+        "task",
+        "1",
+        "101",
+        "0",
+        "1001",
+        "chown, net_raw",
+        "chown, net_raw",
+        "chown, net_raw",
+        "chown, net_raw",
+        "chown, net_raw"
+      ]
+    }
+  ]
+}
