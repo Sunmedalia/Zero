@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+  "engine_version": "0.2.1-native-111",
+  "scope": "Forward module list prefix recovery",
+  "reference_method": "list_head.to_list called by Modules.list_modules",
+  "method_vectors": {
+    "head": "0x31000",
+    "first_module": "0x34100",
+    "successors": ["0x31000", "0x34100", "0", "0x50000"],
+    "all_reference_outputs": ["0x34100"]
+  },
+  "verification": "Executed the actual pinned list_head.to_list using synthetic context, pointer readability and layer adapters. Native fixture tests use real captured reads with broken prev pointers and normal, repeated, null and unreadable successors; all preserve the first module row.",
+  "native_test": "lsmod_forward_walk_ignores_prev_and_preserves_cycle_prefix",
+  "validation": {"make_check": "passed: 711 Rust tests and 45 reference harness tests", "linux_acceptance": "4 passed", "debian_dump_comparison": "79/79 six-field rows and 79/79 ELF filenames and SHA256", "result_path": "target/reference/results/lsmod-dump-native111/summary.json"},
+  "diagnostic_policy": "Only normal return to the sentinel is complete. Repeated, null or unreadable successors preserve explicit partial diagnostics even though reference iteration stops silently.",
+  "limitations": ["Synthetic list method comparison does not prove all pointer object semantics or platform layouts.", "No complete Lsmod contract promotion."]
+}

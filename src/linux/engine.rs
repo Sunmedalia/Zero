@@ -292,8 +292,7 @@ impl Linux<'_> {
             | WinDesktops | WinDeskScan | WinWindows => Err(unrouted(plugin)),
         }
     }
-    /// Processes use directional object recovery; module traversal remains
-    /// independently strict until its own recovery evidence is implemented.
+    /// Export the modules recovered by the forward list walk, preserving partial diagnostics.
     pub(super) fn lsmod_with_dump(
         &self,
         options: &crate::dump::DumpOptions,
@@ -349,25 +348,15 @@ impl Linux<'_> {
         let offset = self.isf.offset(structure, "list")?;
         let head = self.isf.address("modules")?;
         let next = self.isf.offset("list_head", "next")?;
-        let prev = self.isf.offset("list_head", "prev")?;
         let mut result = self.result(plugin);
         let traversal = (|| -> Result<()> {
             let mut node = self.vm.uint(add(head, next)?, 8)?;
-            let mut previous = head;
             let mut visited = HashSet::new();
             while node != head {
                 job.check()?;
                 ensure!(visited.insert(node), "链表循环未回到表头 @ {node:#x}");
                 ensure!(visited.len() <= 1_000_000, "链表超过安全上限");
-                ensure!(
-                    self.vm.uint(add(node, prev)?, 8)? == previous,
-                    "链表 prev 不一致 @ {node:#x}"
-                );
-                let successor = self.vm.uint(add(node, next)?, 8)?;
-                ensure!(
-                    self.vm.uint(add(successor, prev)?, 8)? == node,
-                    "链表 next/prev 不一致 @ {node:#x}"
-                );
+                ensure!(node != 0, "模块链表遇到空 next");
                 let object = node.checked_sub(offset).context("对象地址下溢")?;
                 let row = (|| -> Result<Vec<String>> {
                     Ok({
@@ -504,14 +493,9 @@ impl Linux<'_> {
                             .push(format!("对象 {object:#018x}: {error:#}"));
                     }
                 }
-                previous = node;
-                node = successor;
+                node = self.vm.uint(add(node, next)?, 8)?;
                 job.report(format!("{}: {} 条", plugin.name(), result.rows.len()));
             }
-            ensure!(
-                self.vm.uint(add(head, prev)?, 8)? == previous,
-                "链表表头 prev 不一致"
-            );
             Ok(())
         })();
         if let Err(error) = traversal {

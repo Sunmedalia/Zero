@@ -731,6 +731,32 @@ mod tests {
         (bytes, isf)
     }
     #[test]
+    fn lsmod_forward_walk_ignores_prev_and_preserves_cycle_prefix() {
+        for (successor, complete) in [
+            (0x31000, true),
+            (0x34100, false),
+            (0, false),
+            (0x50000, false),
+        ] {
+            let (mut bytes, isf) = fixture();
+            put(&mut bytes, 0x34108, 0x50000);
+            put(&mut bytes, 0x31008, 0);
+            put(&mut bytes, 0x34100, successor);
+            let image = super::super::tests::image(&bytes);
+            let result = super::super::tests::engine(&image, &isf)
+                .run(Plugin::Lsmod, &Job::default())
+                .unwrap();
+            assert_eq!(result.rows.len(), 1, "{successor:#x}");
+            assert_eq!(result.rows[0][1], "listed");
+            assert_eq!(
+                result.complete, complete,
+                "{successor:#x}: {:?}",
+                result.diagnostics
+            );
+        }
+    }
+
+    #[test]
     fn lsmod_export_failure_preserves_rows_and_cancellation() {
         let (bytes, isf) = fixture();
         let image = super::super::tests::image(&bytes);
