@@ -171,7 +171,7 @@ impl App {
                         "模块符号 true / false",
                         "ftrace 符号 true / false",
                         "BPF 符号 true / false",
-                        "正则上下文字节数 1..4096",
+                        "maxsize（兼容参数；上下文固定 128）",
                         "包含未解析栈值 true / false",
                         "模块来源 kernel / processes",
                         "模块文件名",

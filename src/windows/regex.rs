@@ -9,8 +9,8 @@ impl Windows<'_> {
             .context("此插件需要 --pattern 字节正则")?;
         let regex = ByteRegex::compile(pattern, true)?;
         let display = ByteRegex::compile(pattern, false)?;
-        let maxsize = options.maxsize.unwrap_or(128);
-        ensure!((1..=4096).contains(&maxsize), "maxsize 必须为 1..4096");
+        // Both pinned canonical generators read MAXSIZE_DEFAULT, not config.maxsize.
+        let maxsize = regex_scan::REFERENCE_CONTEXT_SIZE;
         ensure!(options.pids.len() <= 4096, "PID 列表超过 4096 项");
         let pids: std::collections::BTreeSet<_> = options
             .pids
@@ -133,7 +133,7 @@ impl Windows<'_> {
         if !result.kernel_identity.is_object() {
             result.kernel_identity = serde_json::json!({});
         }
-        result.kernel_identity["vad_regex_scan"] = serde_json::json!({"engine":"PCRE2 bytes; no UTF/UCP/JIT","scan_dotall":true,"display_dotall":false,"maxsize":maxsize,"pids":pids,"chunk_bytes":16*1024*1024,"overlap_bytes":4096,"match_limit":crate::byte_regex::MATCH_LIMIT,"depth_limit":crate::byte_regex::DEPTH_LIMIT,"heap_kib":crate::byte_regex::HEAP_KIB,"subject_work_limit":crate::byte_regex::WORK_LIMIT,"output_limit":output_limit,"metadata_truncated":metadata_truncated,"recovered_hit_overflow":recovered_hit_overflow,"recovered_start_page_hits":recovered_hits,"processes":process_reports});
+        result.kernel_identity["vad_regex_scan"] = serde_json::json!({"engine":"PCRE2 bytes; no UTF/UCP/JIT","scan_dotall":true,"display_dotall":false,"maxsize":maxsize,"requested_maxsize":options.maxsize,"pids":pids,"chunk_bytes":16*1024*1024,"overlap_bytes":4096,"match_limit":crate::byte_regex::MATCH_LIMIT,"depth_limit":crate::byte_regex::DEPTH_LIMIT,"heap_kib":crate::byte_regex::HEAP_KIB,"subject_work_limit":crate::byte_regex::WORK_LIMIT,"output_limit":output_limit,"metadata_truncated":metadata_truncated,"recovered_hit_overflow":recovered_hit_overflow,"recovered_start_page_hits":recovered_hits,"processes":process_reports});
         Ok(result)
     }
 }
@@ -188,6 +188,57 @@ pub(super) mod tests {
         .unwrap()
     }
     #[test]
+    fn display_context_matches_actual_pinned_generator_vectors() {
+        let vectors: serde_json::Value = serde_json::from_str(include_str!(
+            "../../tests/reference/parity/fixtures/regex-context.json"
+        ))
+        .unwrap();
+        for case in vectors["cases"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter(|c| c["system"] == "windows")
+        {
+            let data: Vec<u8> = case["data_hex"]
+                .as_str()
+                .unwrap()
+                .as_bytes()
+                .chunks_exact(2)
+                .map(|pair| u8::from_str_radix(std::str::from_utf8(pair).unwrap(), 16).unwrap())
+                .collect();
+            let options = Options {
+                pattern: Some(case["pattern"].as_str().unwrap().into()),
+                pid: Some(42),
+                maxsize: case["maxsize"].as_i64(),
+                ..Default::default()
+            };
+            let (mut bytes, isf) = prepared();
+            bytes[0x20000..0x21000].fill(0);
+            bytes[0x25000..0x26000].fill(0);
+            bytes[0x20000..0x20000 + data.len()].copy_from_slice(&data);
+            put(&mut bytes, 0xa020, 42);
+            bytes[0xa030..0xa040].fill(0);
+            bytes[0xa030..0xa036].copy_from_slice(b"sample");
+            let actual = run(&bytes, &isf, &options);
+
+            let mut expected = case["expected"].clone();
+            for row in expected.as_array_mut().unwrap() {
+                let address = u64::from_str_radix(&row[2].as_str().unwrap()[2..], 16).unwrap();
+                row[2] = serde_json::json!(format!("0x{address:016x}"));
+            }
+            assert_eq!(serde_json::json!(actual.rows), expected, "{}", case["id"]);
+            assert_eq!(actual.kernel_identity["vad_regex_scan"]["maxsize"], 128);
+            assert!(
+                case["reads"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .all(|read| read[1] == 128 && read[2] == true)
+            );
+        }
+    }
+
+    #[test]
     fn all_five_fields_adjacent_vads_noncontiguous_pages_and_pid_union() {
         let (b, isf) = prepared();
         let options = Options {
@@ -241,7 +292,7 @@ pub(super) mod tests {
         assert_eq!(&r.rows[0][3..], ["AB", "41 42"]);
         let evidence = &r.kernel_identity["vad_regex_scan"]["processes"][0];
         assert_eq!(evidence["coverage"]["unreadable_bytes"], 4096);
-        assert_eq!(evidence["context_unreadable_bytes"], 2);
+        assert_eq!(evidence["context_unreadable_bytes"], 126);
         let r = run(
             &b,
             &isf,
@@ -264,7 +315,9 @@ pub(super) mod tests {
             ..Default::default()
         };
         let r = run(&b, &isf, &options);
-        assert_eq!(&r.rows[0][3..], ["A\nBxx", "41 0a 42 78 78"]);
+        assert!(r.rows[0][3].starts_with("A\nBxx"));
+        assert_eq!(r.rows[0][3].len(), 128);
+        assert_eq!(r.rows[0][4].split_whitespace().count(), 128);
         let image = image(&b);
         let w = Windows {
             vm: Memory::new(&image, 0x1000, &isf, None),
@@ -282,17 +335,19 @@ pub(super) mod tests {
             )
             .is_err()
         );
-        assert!(
-            w.run(
-                Plugin::WinVadRegExScan,
-                &Options {
-                    maxsize: Some(0),
-                    ..options.clone()
-                },
-                &Job::default()
-            )
-            .is_err()
-        );
+        for size in [i64::MIN, -1, 0, 1, 4097, i64::MAX] {
+            let same = w
+                .run(
+                    Plugin::WinVadRegExScan,
+                    &Options {
+                        maxsize: Some(size),
+                        ..options.clone()
+                    },
+                    &Job::default(),
+                )
+                .unwrap();
+            assert_eq!(same.rows, r.rows, "maxsize={size}");
+        }
         let job = Job::default();
         job.cancel.store(true, std::sync::atomic::Ordering::Relaxed);
         assert!(w.run(Plugin::WinVadRegExScan, &options, &job).is_err());
@@ -417,7 +472,7 @@ pub(super) mod tests {
             ..union.clone()
         };
         let a = execute(&small, false);
-        assert_eq!(a.rows[0][3].len(), 4);
+        assert_eq!(a.rows[0][3].len(), 8);
         let large = execute(
             &Options {
                 maxsize: Some(8),
@@ -425,7 +480,7 @@ pub(super) mod tests {
             },
             false,
         );
-        assert_eq!(large.rows[0][3].len(), 8);
+        assert_eq!(large.rows, a.rows);
         assert_eq!(execute(&union, true).rows, first.rows);
     }
     #[test]

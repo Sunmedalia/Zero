@@ -9,8 +9,8 @@ impl Linux<'_> {
             .context("此插件需要 --pattern 字节正则")?;
         let regex = ByteRegex::compile(pattern, true)?;
         let display = ByteRegex::compile(pattern, false)?;
-        let maxsize = options.maxsize.unwrap_or(128);
-        ensure!((1..=4096).contains(&maxsize), "maxsize 必须为 1..4096");
+        // Both pinned canonical generators read MAXSIZE_DEFAULT, not config.maxsize.
+        let maxsize = regex_scan::REFERENCE_CONTEXT_SIZE;
         ensure!(options.pids.len() <= 4096, "PID 列表超过 4096 项");
         let pids: std::collections::BTreeSet<_> =
             options.pids.iter().copied().chain(options.pid).collect();
@@ -22,7 +22,7 @@ impl Linux<'_> {
         for task in tasks {
             job.check()?;
             let pid = self.number(task.address, "task_struct", "tgid")? as u32;
-            if !pids.is_empty() && !pids.contains(&pid) {
+            if !pids.is_empty() && !pids.contains(&task.pid.parse::<u32>()?) {
                 continue;
             }
             let mut context_missing = 0u64;
@@ -122,7 +122,7 @@ impl Linux<'_> {
         if !result.kernel_identity.is_object() {
             result.kernel_identity = serde_json::json!({});
         }
-        result.kernel_identity["vma_regex_scan"] = serde_json::json!({"engine":"PCRE2 bytes; no UTF/UCP/JIT","scan_dotall":true,"display_dotall":false,"maxsize":maxsize,"pids":pids,"chunk_bytes":16*1024*1024,"overlap_bytes":4096,"match_limit":crate::byte_regex::MATCH_LIMIT,"depth_limit":crate::byte_regex::DEPTH_LIMIT,"heap_kib":crate::byte_regex::HEAP_KIB,"subject_work_limit":crate::byte_regex::WORK_LIMIT,"output_limit":output_limit,"metadata_truncated":metadata_truncated,"processes":process_reports});
+        result.kernel_identity["vma_regex_scan"] = serde_json::json!({"engine":"PCRE2 bytes; no UTF/UCP/JIT","scan_dotall":true,"display_dotall":false,"maxsize":maxsize,"requested_maxsize":options.maxsize,"pids":pids,"chunk_bytes":16*1024*1024,"overlap_bytes":4096,"match_limit":crate::byte_regex::MATCH_LIMIT,"depth_limit":crate::byte_regex::DEPTH_LIMIT,"heap_kib":crate::byte_regex::HEAP_KIB,"subject_work_limit":crate::byte_regex::WORK_LIMIT,"output_limit":output_limit,"metadata_truncated":metadata_truncated,"processes":process_reports});
         Ok(result)
     }
 }
@@ -145,6 +145,95 @@ mod tests {
         bytes[0x25000..0x25002].copy_from_slice(b"AB");
         (bytes, isf)
     }
+    #[test]
+    fn pid_selection_uses_task_pid_while_output_uses_tgid() {
+        let vectors: serde_json::Value = serde_json::from_str(include_str!(
+            "../../tests/reference/parity/fixtures/regex-context.json"
+        ))
+        .unwrap();
+        let (mut bytes, isf) = prepared();
+        put(&mut bytes, 0xa010, 43);
+        put(&mut bytes, 0xa018, 42);
+        let image = image(&bytes);
+        for case in vectors["pid_filters"].as_array().unwrap() {
+            let options = Options {
+                pattern: Some("ABAB".into()),
+                pids: case["pids"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .map(|v| v.as_u64().unwrap() as u32)
+                    .collect(),
+                ..Default::default()
+            };
+            let actual = engine(&image, &isf)
+                .vma_regex_scan(&options, &Job::default())
+                .unwrap();
+            assert_eq!(
+                actual.rows.is_empty(),
+                case["excluded"].as_bool().unwrap(),
+                "{case}"
+            );
+            if !actual.rows.is_empty() {
+                assert_eq!(actual.rows[0][0], "42");
+            }
+        }
+    }
+
+    #[test]
+    fn display_context_matches_actual_pinned_generator_vectors() {
+        let vectors: serde_json::Value = serde_json::from_str(include_str!(
+            "../../tests/reference/parity/fixtures/regex-context.json"
+        ))
+        .unwrap();
+        for case in vectors["cases"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter(|c| c["system"] == "linux")
+        {
+            let data: Vec<u8> = case["data_hex"]
+                .as_str()
+                .unwrap()
+                .as_bytes()
+                .chunks_exact(2)
+                .map(|pair| u8::from_str_radix(std::str::from_utf8(pair).unwrap(), 16).unwrap())
+                .collect();
+            let options = Options {
+                pattern: Some(case["pattern"].as_str().unwrap().into()),
+                pid: Some(43),
+                maxsize: case["maxsize"].as_i64(),
+                ..Default::default()
+            };
+            let (mut bytes, isf) = prepared();
+            bytes[0x20000..0x21000].fill(0);
+            bytes[0x20000..0x20000 + data.len()].copy_from_slice(&data);
+            put(&mut bytes, 0xa010, 43);
+            put(&mut bytes, 0xa018, 42);
+            bytes[0xa028..0xa030].copy_from_slice(b"sample\0\0");
+            put(&mut bytes, 0xc810, 0x200000 + data.len() as u64);
+            let image = image(&bytes);
+            let actual = engine(&image, &isf)
+                .vma_regex_scan(&options, &Job::default())
+                .unwrap();
+
+            let mut expected = case["expected"].clone();
+            for row in expected.as_array_mut().unwrap() {
+                let address = u64::from_str_radix(&row[2].as_str().unwrap()[2..], 16).unwrap();
+                row[2] = serde_json::json!(format!("0x{address:016x}"));
+            }
+            assert_eq!(serde_json::json!(actual.rows), expected, "{}", case["id"]);
+            assert_eq!(actual.kernel_identity["vma_regex_scan"]["maxsize"], 128);
+            assert!(
+                case["reads"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .all(|read| read[1] == 128 && read[2] == true)
+            );
+        }
+    }
+
     #[test]
     fn regex_matches_across_noncontiguous_physical_pages_and_preserves_fields() {
         let (bytes, isf) = prepared();
@@ -177,7 +266,9 @@ mod tests {
         let r = engine(&image, &isf)
             .vma_regex_scan(&options, &Job::default())
             .unwrap();
-        assert_eq!(&r.rows[0][3..], &["ABA", "41 42 41"]);
+        assert_eq!(&r.rows[0][3..], &["ABAB", "41 42 41 42"]);
+        assert_eq!(r.kernel_identity["vma_regex_scan"]["maxsize"], 128);
+        assert_eq!(r.kernel_identity["vma_regex_scan"]["requested_maxsize"], 3);
     }
     #[test]
     fn pid_list_is_applied_before_user_memory_and_display_rechecks_lookbehind() {
@@ -197,8 +288,10 @@ mod tests {
         assert!(r.complete, "{:?}", r.diagnostics);
         assert_eq!(r.rows.len(), 2);
         // Context starts at the match, so the display re-match has no lookbehind.
-        // It falls back to the full configured context, exactly as the reference.
-        assert_eq!(&r.rows[0][3..], &["ABc\0", "41 42 63 00"]);
+        // It falls back to 128 bytes, regardless of the configured maxsize.
+        assert!(r.rows[0][3].starts_with("ABc\0d\0"));
+        assert_eq!(r.rows[0][3].len(), 128);
+        assert_eq!(r.rows[0][4].split_whitespace().count(), 128);
         let options = Options {
             pids: vec![999],
             ..options

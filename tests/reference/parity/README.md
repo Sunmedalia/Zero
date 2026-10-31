@@ -47,7 +47,11 @@ https://raw.githubusercontent.com/Abyss-W4tcher/volatility3-symbols/master/Debia
 Keep the same verified ISF in the configured Zero file and in the reference
 `target/reference/symbols/linux/` directory. The example specifies both file
 hashes. Use an otherwise clean reference symbols directory. The runner verifies
-listed files, not arbitrary additional files in that directory.
+listed files, not arbitrary additional files in that directory. For an explicit
+JSON ISF input (including supported compressed JSON names), native98 also checks
+the actual native result symbol file against the configured bytes; a different
+cached fallback fails the case. Directory/archive selection is outside this
+additional file guard.
 
 ```sh
 python3 tests/reference/parity/run.py \
@@ -133,9 +137,10 @@ backreference, multi-PID, all-process and single/list PID union searches compare
 text and the full spaced-hex byte output must match. Keys include PID and virtual
 Offset. The mapping permits native partial output because absent user pages are
 reported rather than silently skipped; this does not certify complete coverage.
-The separate `vmaregexscan-maxsize.example.json` records the pinned reference's
-unused maxsize option: Zero applies the parameter, so that case remains divergent
-and must not be counted as passed. Raw matched bytes remain in ignored artifacts.
+The separate `vmaregexscan-maxsize.example.json` exercises the pinned reference's
+unused maxsize option. Starting with native98, canonical Zero also reads a fixed
+128-byte display context regardless of that argument; earlier native36/native96
+failures remain historical evidence. Raw matched bytes remain in ignored artifacts.
 
 PsCallStack uses `pscallstack.example.json`. Unfiltered PID 1, unresolved PID 1 and
 all-task cases retain known differences in the pinned reference's module symbol
@@ -193,9 +198,11 @@ case pass. The combined configuration deliberately exits nonzero. Page recovery
 can make native output larger than reference output; it does not establish a
 hidden-memory finding. Partial coverage/tree warnings remain explicit.
 
-`vadregexscan-maxsize.example.json` separately preserves the reference's unused
-maxsize parameter. With maxsize=4, common-record Text/Hex differ; this is not marked
-passed. `vadregexscan-known-differences.json` records counts, origin validation,
+`vadregexscan-maxsize.example.json` exercises the reference's unused
+maxsize parameter. Native98 aligns the fixed 128-byte context, including negative,
+zero and above-4096 compatibility values. The original PID7688 case still requires
+full comparison; the previously observed eight extra recovered rows are not
+removed or treated as a pass. `vadregexscan-known-differences.json` records counts, origin validation,
 coverage and output hashes, never recovered match contents. The scanner can skip
 only proven zero-page-table spans, with every skipped byte retained in unavailable
 coverage. Nonzero software PTEs and missing page-table pages still use recovery or
@@ -1063,3 +1070,19 @@ release package smoke also pass. Stable evidence identities replace older
 records; five added positive identities bring the total to 141 (five scoped),
 zero complete contracts. `pslist-selection-known-limitations.json` binds the
 proofs to native97 and retains the native96 one-versus-seven-row regression.
+
+native98 aligns both canonical regex generators with the pinned 128-byte display
+context, including ignored signed maxsize values, and separates Linux task.pid
+filtering from displayed task.tgid. `regex_context_vectors.py` captures 96 actual
+generator/scanner cases and five PID-filter methods over supplied adapters.
+Four suites retain 23 real cases: 14 pass all mapped fields and strict sequence,
+nine Windows cases remain failed. Linux maxsize4 field conflicts and Windows
+maxsize4's 1,402 common-field conflicts are fixed; the latter still has eight
+extra recovered records and is not a positive case. The Windows suites now share
+a frozen current converter8 ISF, and archived actual native symbol files are
+checked against that input. Earlier cache-dependent exploratory output is not
+used as new evidence. Two persistent MCP sessions retain partial status and
+create zero success cache files. The current proof is
+`regex-context-known-limitations.json`; older known-difference files retain their
+historical hashes with a link to the replacement context proof. Stable evidence
+now totals 148 positive cases (five scoped), zero complete plugin contracts.

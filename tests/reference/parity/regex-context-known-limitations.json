@@ -1,0 +1,2329 @@
+{
+  "schema_version": 1,
+  "engine_version": "0.2.1-native-98",
+  "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+  "zero_executable_sha256": "b5fba34b76bf8c71a43d11466ab322a687616deda36af2ffea80eb32ac9b2163",
+  "method_vectors": {
+    "sha256": "8d317a5c5314ba9fa2dd1ca548b907d975e61af56c40f813cbc17cad7013bcf5",
+    "generator_cases": 96,
+    "pid_filter_cases": 5,
+    "scope": "Actual canonical regex generators and RegExScanner over supplied task/section/layer adapters. Read calls, displayed Text/Hex and ignored maxsize configuration are captured. Linux PID filter is executed separately with distinct PID/TGID. Does not certify task/VAD/VMA admission, platform translation, full layer chunk/missing-page behavior, arbitrary Python regex syntax or all failure/resource contracts.",
+    "source_sha256": {
+      "volatility3/framework/plugins/linux/vmaregexscan.py": "78fef84ede8081bf966566f57a584b892dd2651e66c5185c9c117de999978bf3",
+      "volatility3/framework/plugins/windows/vadregexscan.py": "2e7a25c4776af86d48e95ccc2b8b2a1dfca3bce203fe8ff8b03eb77a7c51b9bd",
+      "volatility3/framework/plugins/linux/pslist.py": "e1ac96b662564255ca82d1f784e24473aba2d69d66d0b09a252771af9c0c929c",
+      "volatility3/framework/layers/scanners/__init__.py": "c9ef412950973004146850acb415786a120d444bd0075ebb2e6ec3eb13d195ed",
+      "volatility3/framework/objects/utility.py": "d9d54977c471380c01b23f049f29926d42aaa3a9017461780aebe8ffc956f6f1"
+    }
+  },
+  "before_fix": [
+    {
+      "engine_version": "0.2.1-native-97",
+      "zero_executable_sha256": "ca38931e01ee55afb7cd95fb64608f3fb6d3ee5aa105db745a1d0cb74053c62b",
+      "case_id": "debian-3.2/vmaregex-maxsize-known-difference",
+      "image_sha256": "8ce57b7c7b423173ce970fe8f51e7016c04ef1b4a5f73d5c5f1001d5c18780bc",
+      "native_output_sha256": "5fd766457070fcf3851420bcf9f674dcdaf4c5df003c3f1a78827cdaf59e8849",
+      "reference_output_sha256": "884588e7878bc4893667aec0c38affff0af5c891513054aa27ffe659595ac579",
+      "mapping_sha256": "8027af0b0d2fee906720de26419fde6ee58a6befc69548d9efc040a629c0e4a3",
+      "native_symbol_source": {
+        "path": "/Volumes/w/code/zero/symbols/Debian_3.2.0-4-amd64_3.2.57-3+deb7u2_amd64-795bb1b381f4311e7165a8e3ad813c625e6a87e85b0450709b342d01c3be9843.json.xz",
+        "sha256": "c3b0b875a2d0498fffc0df1259ff49b850cea28355ffddf02e2f90d34a89fbe1",
+        "configured_path": "/Volumes/w/code/zero/symbols/Debian_3.2.0-4-amd64_3.2.57-3+deb7u2_amd64-795bb1b381f4311e7165a8e3ad813c625e6a87e85b0450709b342d01c3be9843.json.xz",
+        "configured_sha256": "c3b0b875a2d0498fffc0df1259ff49b850cea28355ffddf02e2f90d34a89fbe1"
+      },
+      "comparison_summary": {
+        "zero_records": 2,
+        "reference_records": 2,
+        "all_columns_mapped": true,
+        "zero_complete": false,
+        "passed": false
+      },
+      "difference_counts": {
+        "missing": 0,
+        "extra": 0,
+        "duplicates": 0,
+        "conflicts": 4,
+        "unverifiable": 0
+      },
+      "conflicting_fields": {
+        "Text": 2,
+        "Hex": 2
+      },
+      "summary_sha256": "59c70057bfc031ac7203daf24c812e968818a1cf06ff68f89d8bca60960f412a"
+    },
+    {
+      "engine_version": "0.2.1-native-97",
+      "zero_executable_sha256": "ca38931e01ee55afb7cd95fb64608f3fb6d3ee5aa105db745a1d0cb74053c62b",
+      "case_id": "windows-10-15063/vadregex-maxsize",
+      "image_sha256": "d58f62e92b8c4ef913ac09b2c36a10482034c10b88d0c154dead3aaaa49cf875",
+      "native_output_sha256": "ae6acc5403e13e0c3880fc089bc39b54d4a4c033277be7e3b5fc1b586ff7932b",
+      "reference_output_sha256": "5d665c63a3ff3f395f0d97a4b880fa9de34c0f97fbc0a1ca3cebf6681ed1cebd",
+      "mapping_sha256": "8027af0b0d2fee906720de26419fde6ee58a6befc69548d9efc040a629c0e4a3",
+      "native_symbol_source": {
+        "path": "/Volumes/w/code/zero/target/reference/regex-exact-symbols/windows/ntkrnlmp.pdb/0C9CC659210046EC84231597DADFDB3B1.json",
+        "sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4",
+        "configured_path": "/Volumes/w/code/zero/target/reference/regex-exact-symbols/windows/ntkrnlmp.pdb/0C9CC659210046EC84231597DADFDB3B1.json",
+        "configured_sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4"
+      },
+      "comparison_summary": {
+        "zero_records": 709,
+        "reference_records": 701,
+        "all_columns_mapped": true,
+        "zero_complete": false,
+        "passed": false
+      },
+      "difference_counts": {
+        "missing": 0,
+        "extra": 8,
+        "duplicates": 0,
+        "conflicts": 1402,
+        "unverifiable": 0
+      },
+      "conflicting_fields": {
+        "Text": 701,
+        "Hex": 701
+      },
+      "summary_sha256": "be4cb77916eb3ca159b8cdb2c3707b5d307e2e1c50eeb663f9f2a3a904839922"
+    }
+  ],
+  "passing_cases": [
+    {
+      "reference_plugin": "linux.vmaregexscan.VmaRegExScan",
+      "zero_plugin": "linux.vmaregexscan.VmaRegExScan",
+      "image_sha256": "8ce57b7c7b423173ce970fe8f51e7016c04ef1b4a5f73d5c5f1001d5c18780bc",
+      "mapping_sha256": "8027af0b0d2fee906720de26419fde6ee58a6befc69548d9efc040a629c0e4a3",
+      "native_output_sha256": "7abd47c74b81225b6af6934bb1ec1d703ea9a44c137ee04084c00940a6968e6a",
+      "zero_args": [
+        "--pattern",
+        "/bin/sh",
+        "--pid",
+        "1"
+      ],
+      "reference_args": [
+        "--pattern",
+        "/bin/sh",
+        "--pid",
+        "1"
+      ],
+      "case_id": "debian-3.2/vmaregex-literal",
+      "sample_source": "https://github.com/volatilityfoundation/volatility3-test-data/releases/download/v0.0.1/linux-sample-1.bin.gz",
+      "native_symbol_source": {
+        "path": "/Volumes/w/code/zero/symbols/Debian_3.2.0-4-amd64_3.2.57-3+deb7u2_amd64-795bb1b381f4311e7165a8e3ad813c625e6a87e85b0450709b342d01c3be9843.json.xz",
+        "sha256": "c3b0b875a2d0498fffc0df1259ff49b850cea28355ffddf02e2f90d34a89fbe1",
+        "configured_path": "/Volumes/w/code/zero/symbols/Debian_3.2.0-4-amd64_3.2.57-3+deb7u2_amd64-795bb1b381f4311e7165a8e3ad813c625e6a87e85b0450709b342d01c3be9843.json.xz",
+        "configured_sha256": "c3b0b875a2d0498fffc0df1259ff49b850cea28355ffddf02e2f90d34a89fbe1"
+      },
+      "comparison": {
+        "schema_version": 1,
+        "mapping_version": 1,
+        "zero_records": 2,
+        "reference_records": 2,
+        "missing": [],
+        "extra": [],
+        "duplicates": [],
+        "conflicts": [],
+        "unverifiable": [],
+        "matched_absent": {},
+        "all_columns_mapped": true,
+        "positive_evidence": true,
+        "zero_complete": false,
+        "zero_diagnostics": [
+          "PID 1 正则扫描: 扫描 712704 / 10903552 字节；缺页 10190848 字节；上下文补零 0 字节；扫描结束"
+        ],
+        "passed": true
+      },
+      "passed": true,
+      "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+      "reference_output_sha256": "73aa3e70e3925c95632552bbe3c31344a3dcc73bbb867d4862c4b4b5df1c764f",
+      "symbol_sha256": "c3b0b875a2d0498fffc0df1259ff49b850cea28355ffddf02e2f90d34a89fbe1",
+      "zero_executable_sha256": "b5fba34b76bf8c71a43d11466ab322a687616deda36af2ffea80eb32ac9b2163",
+      "engine_version": "0.2.1-native-98",
+      "record_order": {
+        "passed": true,
+        "first_difference": null,
+        "zero_sha256": "6aaace956bbc9d9d9fa2d0938fae4c2459de2087fe722b185acfa80306d9a2bf",
+        "reference_sha256": "6aaace956bbc9d9d9fa2d0938fae4c2459de2087fe722b185acfa80306d9a2bf",
+        "scope": "All mapped fields in emitted sequence after declared record selection; duplicate occurrences retained.",
+        "case_id": "debian-3.2/vmaregex-literal",
+        "mapping_sha256": "8027af0b0d2fee906720de26419fde6ee58a6befc69548d9efc040a629c0e4a3",
+        "native_output_sha256": "7abd47c74b81225b6af6934bb1ec1d703ea9a44c137ee04084c00940a6968e6a",
+        "reference_output_sha256": "73aa3e70e3925c95632552bbe3c31344a3dcc73bbb867d4862c4b4b5df1c764f"
+      }
+    },
+    {
+      "reference_plugin": "linux.vmaregexscan.VmaRegExScan",
+      "zero_plugin": "linux.vmaregexscan.VmaRegExScan",
+      "image_sha256": "8ce57b7c7b423173ce970fe8f51e7016c04ef1b4a5f73d5c5f1001d5c18780bc",
+      "mapping_sha256": "8027af0b0d2fee906720de26419fde6ee58a6befc69548d9efc040a629c0e4a3",
+      "native_output_sha256": "f1b8af407025615c40596446d76ac7ab171b406788586dcfc746792ec931c42a",
+      "zero_args": [
+        "--pattern",
+        "(?<=/bin/)sh",
+        "--pid",
+        "1"
+      ],
+      "reference_args": [
+        "--pattern",
+        "(?<=/bin/)sh",
+        "--pid",
+        "1"
+      ],
+      "case_id": "debian-3.2/vmaregex-lookbehind",
+      "sample_source": "https://github.com/volatilityfoundation/volatility3-test-data/releases/download/v0.0.1/linux-sample-1.bin.gz",
+      "native_symbol_source": {
+        "path": "/Volumes/w/code/zero/symbols/Debian_3.2.0-4-amd64_3.2.57-3+deb7u2_amd64-795bb1b381f4311e7165a8e3ad813c625e6a87e85b0450709b342d01c3be9843.json.xz",
+        "sha256": "c3b0b875a2d0498fffc0df1259ff49b850cea28355ffddf02e2f90d34a89fbe1",
+        "configured_path": "/Volumes/w/code/zero/symbols/Debian_3.2.0-4-amd64_3.2.57-3+deb7u2_amd64-795bb1b381f4311e7165a8e3ad813c625e6a87e85b0450709b342d01c3be9843.json.xz",
+        "configured_sha256": "c3b0b875a2d0498fffc0df1259ff49b850cea28355ffddf02e2f90d34a89fbe1"
+      },
+      "comparison": {
+        "schema_version": 1,
+        "mapping_version": 1,
+        "zero_records": 2,
+        "reference_records": 2,
+        "missing": [],
+        "extra": [],
+        "duplicates": [],
+        "conflicts": [],
+        "unverifiable": [],
+        "matched_absent": {},
+        "all_columns_mapped": true,
+        "positive_evidence": true,
+        "zero_complete": false,
+        "zero_diagnostics": [
+          "PID 1 正则扫描: 扫描 712704 / 10903552 字节；缺页 10190848 字节；上下文补零 0 字节；扫描结束"
+        ],
+        "passed": true
+      },
+      "passed": true,
+      "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+      "reference_output_sha256": "884588e7878bc4893667aec0c38affff0af5c891513054aa27ffe659595ac579",
+      "symbol_sha256": "c3b0b875a2d0498fffc0df1259ff49b850cea28355ffddf02e2f90d34a89fbe1",
+      "zero_executable_sha256": "b5fba34b76bf8c71a43d11466ab322a687616deda36af2ffea80eb32ac9b2163",
+      "engine_version": "0.2.1-native-98",
+      "record_order": {
+        "passed": true,
+        "first_difference": null,
+        "zero_sha256": "45cfdd6953f61a9d1ce10c8bf696fb16cc49953e5a1fb214f6a2865ed4726dc1",
+        "reference_sha256": "45cfdd6953f61a9d1ce10c8bf696fb16cc49953e5a1fb214f6a2865ed4726dc1",
+        "scope": "All mapped fields in emitted sequence after declared record selection; duplicate occurrences retained.",
+        "case_id": "debian-3.2/vmaregex-lookbehind",
+        "mapping_sha256": "8027af0b0d2fee906720de26419fde6ee58a6befc69548d9efc040a629c0e4a3",
+        "native_output_sha256": "f1b8af407025615c40596446d76ac7ab171b406788586dcfc746792ec931c42a",
+        "reference_output_sha256": "884588e7878bc4893667aec0c38affff0af5c891513054aa27ffe659595ac579"
+      }
+    },
+    {
+      "reference_plugin": "linux.vmaregexscan.VmaRegExScan",
+      "zero_plugin": "linux.vmaregexscan.VmaRegExScan",
+      "image_sha256": "8ce57b7c7b423173ce970fe8f51e7016c04ef1b4a5f73d5c5f1001d5c18780bc",
+      "mapping_sha256": "8027af0b0d2fee906720de26419fde6ee58a6befc69548d9efc040a629c0e4a3",
+      "native_output_sha256": "7abd47c74b81225b6af6934bb1ec1d703ea9a44c137ee04084c00940a6968e6a",
+      "zero_args": [
+        "--pattern",
+        "(?P<slash>/)bin(?P=slash)sh",
+        "--pid",
+        "1"
+      ],
+      "reference_args": [
+        "--pattern",
+        "(?P<slash>/)bin(?P=slash)sh",
+        "--pid",
+        "1"
+      ],
+      "case_id": "debian-3.2/vmaregex-backreference",
+      "sample_source": "https://github.com/volatilityfoundation/volatility3-test-data/releases/download/v0.0.1/linux-sample-1.bin.gz",
+      "native_symbol_source": {
+        "path": "/Volumes/w/code/zero/symbols/Debian_3.2.0-4-amd64_3.2.57-3+deb7u2_amd64-795bb1b381f4311e7165a8e3ad813c625e6a87e85b0450709b342d01c3be9843.json.xz",
+        "sha256": "c3b0b875a2d0498fffc0df1259ff49b850cea28355ffddf02e2f90d34a89fbe1",
+        "configured_path": "/Volumes/w/code/zero/symbols/Debian_3.2.0-4-amd64_3.2.57-3+deb7u2_amd64-795bb1b381f4311e7165a8e3ad813c625e6a87e85b0450709b342d01c3be9843.json.xz",
+        "configured_sha256": "c3b0b875a2d0498fffc0df1259ff49b850cea28355ffddf02e2f90d34a89fbe1"
+      },
+      "comparison": {
+        "schema_version": 1,
+        "mapping_version": 1,
+        "zero_records": 2,
+        "reference_records": 2,
+        "missing": [],
+        "extra": [],
+        "duplicates": [],
+        "conflicts": [],
+        "unverifiable": [],
+        "matched_absent": {},
+        "all_columns_mapped": true,
+        "positive_evidence": true,
+        "zero_complete": false,
+        "zero_diagnostics": [
+          "PID 1 正则扫描: 扫描 712704 / 10903552 字节；缺页 10190848 字节；上下文补零 0 字节；扫描结束"
+        ],
+        "passed": true
+      },
+      "passed": true,
+      "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+      "reference_output_sha256": "73aa3e70e3925c95632552bbe3c31344a3dcc73bbb867d4862c4b4b5df1c764f",
+      "symbol_sha256": "c3b0b875a2d0498fffc0df1259ff49b850cea28355ffddf02e2f90d34a89fbe1",
+      "zero_executable_sha256": "b5fba34b76bf8c71a43d11466ab322a687616deda36af2ffea80eb32ac9b2163",
+      "engine_version": "0.2.1-native-98",
+      "record_order": {
+        "passed": true,
+        "first_difference": null,
+        "zero_sha256": "6aaace956bbc9d9d9fa2d0938fae4c2459de2087fe722b185acfa80306d9a2bf",
+        "reference_sha256": "6aaace956bbc9d9d9fa2d0938fae4c2459de2087fe722b185acfa80306d9a2bf",
+        "scope": "All mapped fields in emitted sequence after declared record selection; duplicate occurrences retained.",
+        "case_id": "debian-3.2/vmaregex-backreference",
+        "mapping_sha256": "8027af0b0d2fee906720de26419fde6ee58a6befc69548d9efc040a629c0e4a3",
+        "native_output_sha256": "7abd47c74b81225b6af6934bb1ec1d703ea9a44c137ee04084c00940a6968e6a",
+        "reference_output_sha256": "73aa3e70e3925c95632552bbe3c31344a3dcc73bbb867d4862c4b4b5df1c764f"
+      }
+    },
+    {
+      "reference_plugin": "linux.vmaregexscan.VmaRegExScan",
+      "zero_plugin": "linux.vmaregexscan.VmaRegExScan",
+      "image_sha256": "8ce57b7c7b423173ce970fe8f51e7016c04ef1b4a5f73d5c5f1001d5c18780bc",
+      "mapping_sha256": "8027af0b0d2fee906720de26419fde6ee58a6befc69548d9efc040a629c0e4a3",
+      "native_output_sha256": "b96b4f7e1b414d12f89134a3b43989dbeaf2ac48a419dd8b52d6e830091f1d70",
+      "zero_args": [
+        "--pattern",
+        "/bin/(?:ba)?sh",
+        "--pids",
+        "1,2344"
+      ],
+      "reference_args": [
+        "--pattern",
+        "/bin/(?:ba)?sh",
+        "--pid",
+        "1",
+        "2344"
+      ],
+      "case_id": "debian-3.2/vmaregex-multi-pid",
+      "sample_source": "https://github.com/volatilityfoundation/volatility3-test-data/releases/download/v0.0.1/linux-sample-1.bin.gz",
+      "native_symbol_source": {
+        "path": "/Volumes/w/code/zero/symbols/Debian_3.2.0-4-amd64_3.2.57-3+deb7u2_amd64-795bb1b381f4311e7165a8e3ad813c625e6a87e85b0450709b342d01c3be9843.json.xz",
+        "sha256": "c3b0b875a2d0498fffc0df1259ff49b850cea28355ffddf02e2f90d34a89fbe1",
+        "configured_path": "/Volumes/w/code/zero/symbols/Debian_3.2.0-4-amd64_3.2.57-3+deb7u2_amd64-795bb1b381f4311e7165a8e3ad813c625e6a87e85b0450709b342d01c3be9843.json.xz",
+        "configured_sha256": "c3b0b875a2d0498fffc0df1259ff49b850cea28355ffddf02e2f90d34a89fbe1"
+      },
+      "comparison": {
+        "schema_version": 1,
+        "mapping_version": 1,
+        "zero_records": 6,
+        "reference_records": 6,
+        "missing": [],
+        "extra": [],
+        "duplicates": [],
+        "conflicts": [],
+        "unverifiable": [],
+        "matched_absent": {},
+        "all_columns_mapped": true,
+        "positive_evidence": true,
+        "zero_complete": false,
+        "zero_diagnostics": [
+          "PID 1 正则扫描: 扫描 712704 / 10903552 字节；缺页 10190848 字节；上下文补零 0 字节；扫描结束",
+          "PID 2344 正则扫描: 扫描 200704 / 17072128 字节；缺页 16871424 字节；上下文补零 0 字节；扫描结束"
+        ],
+        "passed": true
+      },
+      "passed": true,
+      "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+      "reference_output_sha256": "e3f489066d930b0fb8d46e0eb50246ba406cc4f3fabbd72c192564b0209c0bbb",
+      "symbol_sha256": "c3b0b875a2d0498fffc0df1259ff49b850cea28355ffddf02e2f90d34a89fbe1",
+      "zero_executable_sha256": "b5fba34b76bf8c71a43d11466ab322a687616deda36af2ffea80eb32ac9b2163",
+      "engine_version": "0.2.1-native-98",
+      "record_order": {
+        "passed": true,
+        "first_difference": null,
+        "zero_sha256": "4f5410da310dddd62ced4254ef12b8cc1ab96012348aee7524ec97ccdb8ed7ff",
+        "reference_sha256": "4f5410da310dddd62ced4254ef12b8cc1ab96012348aee7524ec97ccdb8ed7ff",
+        "scope": "All mapped fields in emitted sequence after declared record selection; duplicate occurrences retained.",
+        "case_id": "debian-3.2/vmaregex-multi-pid",
+        "mapping_sha256": "8027af0b0d2fee906720de26419fde6ee58a6befc69548d9efc040a629c0e4a3",
+        "native_output_sha256": "b96b4f7e1b414d12f89134a3b43989dbeaf2ac48a419dd8b52d6e830091f1d70",
+        "reference_output_sha256": "e3f489066d930b0fb8d46e0eb50246ba406cc4f3fabbd72c192564b0209c0bbb"
+      }
+    },
+    {
+      "reference_plugin": "linux.vmaregexscan.VmaRegExScan",
+      "zero_plugin": "linux.vmaregexscan.VmaRegExScan",
+      "image_sha256": "8ce57b7c7b423173ce970fe8f51e7016c04ef1b4a5f73d5c5f1001d5c18780bc",
+      "mapping_sha256": "8027af0b0d2fee906720de26419fde6ee58a6befc69548d9efc040a629c0e4a3",
+      "native_output_sha256": "44d53101e1b995b504bec0e6976c5b865ed1ec9031e0db39c5a0c1e3a04978de",
+      "zero_args": [
+        "--pattern",
+        "/bin/(?:ba)?sh"
+      ],
+      "reference_args": [
+        "--pattern",
+        "/bin/(?:ba)?sh"
+      ],
+      "case_id": "debian-3.2/vmaregex-all-processes",
+      "sample_source": "https://github.com/volatilityfoundation/volatility3-test-data/releases/download/v0.0.1/linux-sample-1.bin.gz",
+      "native_symbol_source": {
+        "path": "/Volumes/w/code/zero/symbols/Debian_3.2.0-4-amd64_3.2.57-3+deb7u2_amd64-795bb1b381f4311e7165a8e3ad813c625e6a87e85b0450709b342d01c3be9843.json.xz",
+        "sha256": "c3b0b875a2d0498fffc0df1259ff49b850cea28355ffddf02e2f90d34a89fbe1",
+        "configured_path": "/Volumes/w/code/zero/symbols/Debian_3.2.0-4-amd64_3.2.57-3+deb7u2_amd64-795bb1b381f4311e7165a8e3ad813c625e6a87e85b0450709b342d01c3be9843.json.xz",
+        "configured_sha256": "c3b0b875a2d0498fffc0df1259ff49b850cea28355ffddf02e2f90d34a89fbe1"
+      },
+      "comparison": {
+        "schema_version": 1,
+        "mapping_version": 1,
+        "zero_records": 403,
+        "reference_records": 403,
+        "missing": [],
+        "extra": [],
+        "duplicates": [],
+        "conflicts": [],
+        "unverifiable": [],
+        "matched_absent": {},
+        "all_columns_mapped": true,
+        "positive_evidence": true,
+        "zero_complete": false,
+        "zero_diagnostics": [
+          "PID 1 正则扫描: 扫描 712704 / 10903552 字节；缺页 10190848 字节；上下文补零 0 字节；扫描结束",
+          "PID 322 正则扫描: 扫描 811008 / 22351872 字节；缺页 21540864 字节；上下文补零 69 字节；扫描结束",
+          "PID 468 正则扫描: 扫描 401408 / 22347776 字节；缺页 21946368 字节；上下文补零 69 字节；扫描结束",
+          "PID 469 正则扫描: 扫描 401408 / 22347776 字节；缺页 21946368 字节；上下文补零 69 字节；扫描结束",
+          "PID 1752 正则扫描: 扫描 581632 / 19427328 字节；缺页 18845696 字节；上下文补零 58 字节；扫描结束",
+          "PID 1784 正则扫描: 扫描 729088 / 23904256 字节；缺页 23175168 字节；上下文补零 0 字节；扫描结束",
+          "PID 1798 正则扫描: 扫描 274432 / 25899008 字节；缺页 25624576 字节；上下文补零 0 字节；扫描结束",
+          "PID 2057 正则扫描: 扫描 1253376 / 121028608 字节；缺页 119775232 字节；上下文补零 53 字节；扫描结束",
+          "PID 2157 正则扫描: 扫描 516096 / 4214784 字节；缺页 3698688 字节；上下文补零 56 字节；扫描结束",
+          "PID 2178 正则扫描: 扫描 1925120 / 31592448 字节；缺页 29667328 字节；上下文补零 51 字节；扫描结束",
+          "PID 2254 正则扫描: 扫描 2387968 / 73543680 字节；缺页 71155712 字节；上下文补零 0 字节；扫描结束",
+          "PID 2344 正则扫描: 扫描 200704 / 17072128 字节；缺页 16871424 字节；上下文补零 0 字节；扫描结束",
+          "PID 2363 正则扫描: 扫描 4517888 / 101134336 字节；缺页 96616448 字节；上下文补零 47 字节；扫描结束",
+          "PID 2388 正则扫描: 扫描 1810432 / 34983936 字节；缺页 33173504 字节；上下文补零 0 字节；扫描结束",
+          "PID 2390 正则扫描: 扫描 516096 / 34852864 字节；缺页 34336768 字节；上下文补零 0 字节；扫描结束",
+          "PID 2393 正则扫描: 扫描 4730880 / 135561216 字节；缺页 130830336 字节；上下文补零 0 字节；扫描结束",
+          "PID 2403 正则扫描: 扫描 2727936 / 82796544 字节；缺页 80068608 字节；上下文补零 0 字节；扫描结束",
+          "PID 2425 正则扫描: 扫描 3190784 / 85848064 字节；缺页 82657280 字节；上下文补零 57 字节；扫描结束",
+          "PID 2440 正则扫描: 扫描 4517888 / 107778048 字节；缺页 103260160 字节；上下文补零 41 字节；扫描结束",
+          "PID 2450 正则扫描: 扫描 3375104 / 10199040 字节；缺页 6823936 字节；上下文补零 39 字节；扫描结束",
+          "PID 2451 正则扫描: 扫描 1486848 / 21508096 字节；缺页 20021248 字节；上下文补零 51 字节；扫描结束",
+          "PID 2459 正则扫描: 扫描 17850368 / 195915776 字节；缺页 178065408 字节；上下文补零 0 字节；扫描结束",
+          "PID 2532 正则扫描: 扫描 1073152 / 20897792 字节；缺页 19824640 字节；上下文补零 57 字节；扫描结束",
+          "PID 2573 正则扫描: 扫描 397312 / 17293312 字节；缺页 16896000 字节；上下文补零 56 字节；扫描结束",
+          "PID 2575 正则扫描: 扫描 741376 / 4280320 字节；缺页 3538944 字节；上下文补零 48 字节；扫描结束",
+          "PID 2645 正则扫描: 扫描 3534848 / 63008768 字节；缺页 59473920 字节；上下文补零 0 字节；扫描结束",
+          "PID 2652 正则扫描: 扫描 4239360 / 63520768 字节；缺页 59281408 字节；上下文补零 0 字节；扫描结束",
+          "PID 2720 正则扫描: 扫描 712704 / 10690560 字节；缺页 9977856 字节；上下文补零 56 字节；扫描结束",
+          "PID 2798 正则扫描: 扫描 1675264 / 71462912 字节；缺页 69787648 字节；上下文补零 57 字节；扫描结束",
+          "PID 2802 正则扫描: 扫描 4235264 / 94638080 字节；缺页 90402816 字节；上下文补零 0 字节；扫描结束",
+          "PID 2803 正则扫描: 扫描 2732032 / 102354944 字节；缺页 99622912 字节；上下文补零 57 字节；扫描结束",
+          "PID 2813 正则扫描: 扫描 1474560 / 102883328 字节；缺页 101408768 字节；上下文补零 57 字节；扫描结束",
+          "PID 2974 正则扫描: 扫描 1351680 / 40587264 字节；缺页 39235584 字节；上下文补零 0 字节；扫描结束",
+          "PID 3300 正则扫描: 扫描 1073152 / 52146176 字节；缺页 51073024 字节；上下文补零 56 字节；扫描结束",
+          "PID 3373 正则扫描: 扫描 1253376 / 51130368 字节；缺页 49876992 字节；上下文补零 57 字节；扫描结束",
+          "PID 3415 正则扫描: 扫描 2306048 / 85323776 字节；缺页 83017728 字节；上下文补零 53 字节；扫描结束",
+          "PID 3419 正则扫描: 扫描 1556480 / 85323776 字节；缺页 83767296 字节；上下文补零 53 字节；扫描结束",
+          "PID 3444 正则扫描: 扫描 933888 / 22036480 字节；缺页 21102592 字节；上下文补零 0 字节；扫描结束",
+          "PID 3468 正则扫描: 扫描 348160 / 4046848 字节；缺页 3698688 字节；上下文补零 0 字节；扫描结束",
+          "PID 3476 正则扫描: 扫描 942080 / 16646144 字节；缺页 15704064 字节；上下文补零 29 字节；扫描结束",
+          "PID 3477 正则扫描: 扫描 946176 / 16646144 字节；缺页 15699968 字节；上下文补零 29 字节；扫描结束",
+          "PID 3478 正则扫描: 扫描 942080 / 16646144 字节；缺页 15704064 字节；上下文补零 29 字节；扫描结束",
+          "PID 3479 正则扫描: 扫描 950272 / 16646144 字节；缺页 15695872 字节；上下文补零 29 字节；扫描结束",
+          "PID 3480 正则扫描: 扫描 946176 / 16646144 字节；缺页 15699968 字节；上下文补零 29 字节；扫描结束",
+          "PID 3481 正则扫描: 扫描 937984 / 16646144 字节；缺页 15708160 字节；上下文补零 29 字节；扫描结束",
+          "PID 3482 正则扫描: 扫描 1081344 / 13361152 字节；缺页 12279808 字节；上下文补零 0 字节；扫描结束",
+          "PID 3483 正则扫描: 扫描 1236992 / 13492224 字节；缺页 12255232 字节；上下文补零 0 字节；扫描结束",
+          "PID 3485 正则扫描: 扫描 3231744 / 23990272 字节；缺页 20758528 字节；上下文补零 0 字节；扫描结束",
+          "PID 3575 正则扫描: 扫描 983040 / 73551872 字节；缺页 72568832 字节；上下文补零 0 字节；扫描结束",
+          "PID 3576 正则扫描: 扫描 1974272 / 302342144 字节；缺页 300367872 字节；上下文补零 0 字节；扫描结束",
+          "PID 3578 正则扫描: 扫描 1949696 / 302333952 字节；缺页 300384256 字节；上下文补零 0 字节；扫描结束",
+          "PID 3733 正则扫描: 扫描 4726784 / 130670592 字节；缺页 125943808 字节；上下文补零 0 字节；扫描结束",
+          "PID 3737 正则扫描: 扫描 4292608 / 123912192 字节；缺页 119619584 字节；上下文补零 7 字节；扫描结束",
+          "PID 3754 正则扫描: 扫描 10141696 / 281604096 字节；缺页 271462400 字节；上下文补零 0 字节；扫描结束",
+          "PID 3794 正则扫描: 扫描 446464 / 12767232 字节；缺页 12320768 字节；上下文补零 0 字节；扫描结束",
+          "PID 3797 正则扫描: 扫描 819200 / 24768512 字节；缺页 23949312 字节；上下文补零 0 字节；扫描结束",
+          "PID 3798 正则扫描: 扫描 1957888 / 32129024 字节；缺页 30171136 字节；上下文补零 0 字节；扫描结束",
+          "PID 3807 正则扫描: 扫描 17469440 / 525152256 字节；缺页 507682816 字节；上下文补零 0 字节；扫描结束",
+          "PID 3818 正则扫描: 扫描 2605056 / 63381504 字节；缺页 60776448 字节；上下文补零 0 字节；扫描结束",
+          "PID 3824 正则扫描: 扫描 6012928 / 244789248 字节；缺页 238776320 字节；上下文补零 0 字节；扫描结束",
+          "PID 3828 正则扫描: 扫描 3575808 / 72650752 字节；缺页 69074944 字节；上下文补零 0 字节；扫描结束",
+          "PID 3830 正则扫描: 扫描 3522560 / 57249792 字节；缺页 53727232 字节；上下文补零 0 字节；扫描结束",
+          "PID 3831 正则扫描: 扫描 970752 / 48549888 字节；缺页 47579136 字节；上下文补零 0 字节；扫描结束",
+          "PID 3834 正则扫描: 扫描 2580480 / 61952000 字节；缺页 59371520 字节；上下文补零 0 字节；扫描结束",
+          "PID 3836 正则扫描: 扫描 2756608 / 80809984 字节；缺页 78053376 字节；上下文补零 0 字节；扫描结束",
+          "PID 3841 正则扫描: 扫描 4509696 / 86609920 字节；缺页 82100224 字节；上下文补零 0 字节；扫描结束",
+          "PID 3842 正则扫描: 扫描 10629120 / 287678464 字节；缺页 277049344 字节；上下文补零 0 字节；扫描结束",
+          "PID 3852 正则扫描: 扫描 5885952 / 255340544 字节；缺页 249454592 字节；上下文补零 0 字节；扫描结束",
+          "PID 3854 正则扫描: 扫描 4988928 / 173289472 字节；缺页 168300544 字节；上下文补零 0 字节；扫描结束",
+          "PID 3856 正则扫描: 扫描 19668992 / 429940736 字节；缺页 410271744 字节；上下文补零 0 字节；扫描结束",
+          "PID 3868 正则扫描: 扫描 3473408 / 55463936 字节；缺页 51990528 字节；上下文补零 0 字节；扫描结束",
+          "PID 3870 正则扫描: 扫描 2809856 / 68943872 字节；缺页 66134016 字节；上下文补零 0 字节；扫描结束",
+          "PID 3874 正则扫描: 扫描 9150464 / 200699904 字节；缺页 191549440 字节；上下文补零 0 字节；扫描结束",
+          "PID 3875 正则扫描: 扫描 9424896 / 183635968 字节；缺页 174211072 字节；上下文补零 0 字节；扫描结束",
+          "PID 3876 正则扫描: 扫描 9162752 / 179552256 字节；缺页 170389504 字节；上下文补零 0 字节；扫描结束",
+          "PID 3877 正则扫描: 扫描 13361152 / 381202432 字节；缺页 367841280 字节；上下文补零 0 字节；扫描结束",
+          "PID 3878 正则扫描: 扫描 9146368 / 195772416 字节；缺页 186626048 字节；上下文补零 0 字节；扫描结束",
+          "PID 3879 正则扫描: 扫描 11567104 / 428064768 字节；缺页 416497664 字节；上下文补零 0 字节；扫描结束",
+          "PID 3883 正则扫描: 扫描 11403264 / 287883264 字节；缺页 276480000 字节；上下文补零 0 字节；扫描结束",
+          "PID 3884 正则扫描: 扫描 15097856 / 295030784 字节；缺页 279932928 字节；上下文补零 0 字节；扫描结束",
+          "PID 3885 正则扫描: 扫描 9326592 / 206979072 字节；缺页 197652480 字节；上下文补零 0 字节；扫描结束",
+          "PID 3887 正则扫描: 扫描 13213696 / 483254272 字节；缺页 470040576 字节；上下文补零 0 字节；扫描结束",
+          "PID 3889 正则扫描: 扫描 7864320 / 143618048 字节；缺页 135753728 字节；上下文补零 0 字节；扫描结束",
+          "PID 3924 正则扫描: 扫描 5529600 / 184475648 字节；缺页 178946048 字节；上下文补零 0 字节；扫描结束",
+          "PID 3929 正则扫描: 扫描 14393344 / 296693760 字节；缺页 282300416 字节；上下文补零 0 字节；扫描结束",
+          "PID 3968 正则扫描: 扫描 15347712 / 322277376 字节；缺页 306929664 字节；上下文补零 0 字节；扫描结束",
+          "PID 3975 正则扫描: 扫描 835584 / 14901248 字节；缺页 14065664 字节；上下文补零 0 字节；扫描结束",
+          "PID 3976 正则扫描: 扫描 2850816 / 20541440 字节；缺页 17690624 字节；上下文补零 149 字节；扫描结束",
+          "PID 8471 正则扫描: 扫描 544768 / 4194304 字节；缺页 3649536 字节；上下文补零 61 字节；扫描结束",
+          "PID 8497 正则扫描: 扫描 4268032 / 100868096 字节；缺页 96600064 字节；上下文补零 0 字节；扫描结束",
+          "PID 8502 正则扫描: 扫描 2031616 / 100868096 字节；缺页 98836480 字节；上下文补零 0 字节；扫描结束",
+          "PID 8503 正则扫描: 扫描 4239360 / 21864448 字节；缺页 17625088 字节；上下文补零 110 字节；扫描结束",
+          "PID 8599 正则扫描: 扫描 2113536 / 60108800 字节；缺页 57995264 字节；上下文补零 0 字节；扫描结束",
+          "PID 8600 正则扫描: 扫描 2162688 / 19849216 字节；缺页 17686528 字节；上下文补零 168 字节；扫描结束"
+        ],
+        "passed": true
+      },
+      "passed": true,
+      "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+      "reference_output_sha256": "95d636748d723e7a7532268e20737c557eefbbe00e21faf6558c3027dee80367",
+      "symbol_sha256": "c3b0b875a2d0498fffc0df1259ff49b850cea28355ffddf02e2f90d34a89fbe1",
+      "zero_executable_sha256": "b5fba34b76bf8c71a43d11466ab322a687616deda36af2ffea80eb32ac9b2163",
+      "engine_version": "0.2.1-native-98",
+      "record_order": {
+        "passed": true,
+        "first_difference": null,
+        "zero_sha256": "7e64d41f5f861299b1cb8f6ca1bbf1e91e9ac6aabd00076ee062125557b9fe0c",
+        "reference_sha256": "7e64d41f5f861299b1cb8f6ca1bbf1e91e9ac6aabd00076ee062125557b9fe0c",
+        "scope": "All mapped fields in emitted sequence after declared record selection; duplicate occurrences retained.",
+        "case_id": "debian-3.2/vmaregex-all-processes",
+        "mapping_sha256": "8027af0b0d2fee906720de26419fde6ee58a6befc69548d9efc040a629c0e4a3",
+        "native_output_sha256": "44d53101e1b995b504bec0e6976c5b865ed1ec9031e0db39c5a0c1e3a04978de",
+        "reference_output_sha256": "95d636748d723e7a7532268e20737c557eefbbe00e21faf6558c3027dee80367"
+      }
+    },
+    {
+      "reference_plugin": "linux.vmaregexscan.VmaRegExScan",
+      "zero_plugin": "linux.vmaregexscan.VmaRegExScan",
+      "image_sha256": "8ce57b7c7b423173ce970fe8f51e7016c04ef1b4a5f73d5c5f1001d5c18780bc",
+      "mapping_sha256": "8027af0b0d2fee906720de26419fde6ee58a6befc69548d9efc040a629c0e4a3",
+      "native_output_sha256": "b96b4f7e1b414d12f89134a3b43989dbeaf2ac48a419dd8b52d6e830091f1d70",
+      "zero_args": [
+        "--pattern",
+        "/bin/(?:ba)?sh",
+        "--pid",
+        "1",
+        "--pids",
+        "2344"
+      ],
+      "reference_args": [
+        "--pattern",
+        "/bin/(?:ba)?sh",
+        "--pid",
+        "1",
+        "2344"
+      ],
+      "case_id": "debian-3.2/vmaregex-pid-union",
+      "sample_source": "https://github.com/volatilityfoundation/volatility3-test-data/releases/download/v0.0.1/linux-sample-1.bin.gz",
+      "native_symbol_source": {
+        "path": "/Volumes/w/code/zero/symbols/Debian_3.2.0-4-amd64_3.2.57-3+deb7u2_amd64-795bb1b381f4311e7165a8e3ad813c625e6a87e85b0450709b342d01c3be9843.json.xz",
+        "sha256": "c3b0b875a2d0498fffc0df1259ff49b850cea28355ffddf02e2f90d34a89fbe1",
+        "configured_path": "/Volumes/w/code/zero/symbols/Debian_3.2.0-4-amd64_3.2.57-3+deb7u2_amd64-795bb1b381f4311e7165a8e3ad813c625e6a87e85b0450709b342d01c3be9843.json.xz",
+        "configured_sha256": "c3b0b875a2d0498fffc0df1259ff49b850cea28355ffddf02e2f90d34a89fbe1"
+      },
+      "comparison": {
+        "schema_version": 1,
+        "mapping_version": 1,
+        "zero_records": 6,
+        "reference_records": 6,
+        "missing": [],
+        "extra": [],
+        "duplicates": [],
+        "conflicts": [],
+        "unverifiable": [],
+        "matched_absent": {},
+        "all_columns_mapped": true,
+        "positive_evidence": true,
+        "zero_complete": false,
+        "zero_diagnostics": [
+          "PID 1 正则扫描: 扫描 712704 / 10903552 字节；缺页 10190848 字节；上下文补零 0 字节；扫描结束",
+          "PID 2344 正则扫描: 扫描 200704 / 17072128 字节；缺页 16871424 字节；上下文补零 0 字节；扫描结束"
+        ],
+        "passed": true
+      },
+      "passed": true,
+      "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+      "reference_output_sha256": "e3f489066d930b0fb8d46e0eb50246ba406cc4f3fabbd72c192564b0209c0bbb",
+      "symbol_sha256": "c3b0b875a2d0498fffc0df1259ff49b850cea28355ffddf02e2f90d34a89fbe1",
+      "zero_executable_sha256": "b5fba34b76bf8c71a43d11466ab322a687616deda36af2ffea80eb32ac9b2163",
+      "engine_version": "0.2.1-native-98",
+      "record_order": {
+        "passed": true,
+        "first_difference": null,
+        "zero_sha256": "4f5410da310dddd62ced4254ef12b8cc1ab96012348aee7524ec97ccdb8ed7ff",
+        "reference_sha256": "4f5410da310dddd62ced4254ef12b8cc1ab96012348aee7524ec97ccdb8ed7ff",
+        "scope": "All mapped fields in emitted sequence after declared record selection; duplicate occurrences retained.",
+        "case_id": "debian-3.2/vmaregex-pid-union",
+        "mapping_sha256": "8027af0b0d2fee906720de26419fde6ee58a6befc69548d9efc040a629c0e4a3",
+        "native_output_sha256": "b96b4f7e1b414d12f89134a3b43989dbeaf2ac48a419dd8b52d6e830091f1d70",
+        "reference_output_sha256": "e3f489066d930b0fb8d46e0eb50246ba406cc4f3fabbd72c192564b0209c0bbb"
+      }
+    },
+    {
+      "reference_plugin": "linux.vmaregexscan.VmaRegExScan",
+      "zero_plugin": "linux.vmaregexscan.VmaRegExScan",
+      "image_sha256": "8ce57b7c7b423173ce970fe8f51e7016c04ef1b4a5f73d5c5f1001d5c18780bc",
+      "mapping_sha256": "8027af0b0d2fee906720de26419fde6ee58a6befc69548d9efc040a629c0e4a3",
+      "native_output_sha256": "9b6a786474891c3b2ed21a77f09f161e59f540cda57b233af28d50014cf447eb",
+      "zero_args": [
+        "--pattern",
+        "(?<=/bin/)sh",
+        "--pid",
+        "1",
+        "--maxsize",
+        "4"
+      ],
+      "reference_args": [
+        "--pattern",
+        "(?<=/bin/)sh",
+        "--pid",
+        "1",
+        "--maxsize",
+        "4"
+      ],
+      "case_id": "debian-3.2/vmaregex-maxsize-known-difference",
+      "sample_source": "https://github.com/volatilityfoundation/volatility3-test-data/releases/download/v0.0.1/linux-sample-1.bin.gz",
+      "native_symbol_source": {
+        "path": "/Volumes/w/code/zero/symbols/Debian_3.2.0-4-amd64_3.2.57-3+deb7u2_amd64-795bb1b381f4311e7165a8e3ad813c625e6a87e85b0450709b342d01c3be9843.json.xz",
+        "sha256": "c3b0b875a2d0498fffc0df1259ff49b850cea28355ffddf02e2f90d34a89fbe1",
+        "configured_path": "/Volumes/w/code/zero/symbols/Debian_3.2.0-4-amd64_3.2.57-3+deb7u2_amd64-795bb1b381f4311e7165a8e3ad813c625e6a87e85b0450709b342d01c3be9843.json.xz",
+        "configured_sha256": "c3b0b875a2d0498fffc0df1259ff49b850cea28355ffddf02e2f90d34a89fbe1"
+      },
+      "comparison": {
+        "schema_version": 1,
+        "mapping_version": 1,
+        "zero_records": 2,
+        "reference_records": 2,
+        "missing": [],
+        "extra": [],
+        "duplicates": [],
+        "conflicts": [],
+        "unverifiable": [],
+        "matched_absent": {},
+        "all_columns_mapped": true,
+        "positive_evidence": true,
+        "zero_complete": false,
+        "zero_diagnostics": [
+          "PID 1 正则扫描: 扫描 712704 / 10903552 字节；缺页 10190848 字节；上下文补零 0 字节；扫描结束"
+        ],
+        "passed": true
+      },
+      "passed": true,
+      "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+      "reference_output_sha256": "884588e7878bc4893667aec0c38affff0af5c891513054aa27ffe659595ac579",
+      "symbol_sha256": "c3b0b875a2d0498fffc0df1259ff49b850cea28355ffddf02e2f90d34a89fbe1",
+      "zero_executable_sha256": "b5fba34b76bf8c71a43d11466ab322a687616deda36af2ffea80eb32ac9b2163",
+      "engine_version": "0.2.1-native-98",
+      "record_order": {
+        "passed": true,
+        "first_difference": null,
+        "zero_sha256": "45cfdd6953f61a9d1ce10c8bf696fb16cc49953e5a1fb214f6a2865ed4726dc1",
+        "reference_sha256": "45cfdd6953f61a9d1ce10c8bf696fb16cc49953e5a1fb214f6a2865ed4726dc1",
+        "scope": "All mapped fields in emitted sequence after declared record selection; duplicate occurrences retained.",
+        "case_id": "debian-3.2/vmaregex-maxsize-known-difference",
+        "mapping_sha256": "8027af0b0d2fee906720de26419fde6ee58a6befc69548d9efc040a629c0e4a3",
+        "native_output_sha256": "9b6a786474891c3b2ed21a77f09f161e59f540cda57b233af28d50014cf447eb",
+        "reference_output_sha256": "884588e7878bc4893667aec0c38affff0af5c891513054aa27ffe659595ac579"
+      }
+    },
+    {
+      "reference_plugin": "linux.vmaregexscan.VmaRegExScan",
+      "zero_plugin": "linux.vmaregexscan.VmaRegExScan",
+      "image_sha256": "8ce57b7c7b423173ce970fe8f51e7016c04ef1b4a5f73d5c5f1001d5c18780bc",
+      "mapping_sha256": "8027af0b0d2fee906720de26419fde6ee58a6befc69548d9efc040a629c0e4a3",
+      "native_output_sha256": "b2dcc10b2b3b5043347cdc8430efcf07b5643ee9953fac56b27751d3efb8a8e3",
+      "zero_args": [
+        "--pattern",
+        "(?<=/bin/)sh",
+        "--pid",
+        "1",
+        "--maxsize",
+        "-1"
+      ],
+      "reference_args": [
+        "--pattern",
+        "(?<=/bin/)sh",
+        "--pid",
+        "1",
+        "--maxsize",
+        "-1"
+      ],
+      "case_id": "debian-3.2/vmaregex-maxsize--1",
+      "sample_source": "https://github.com/volatilityfoundation/volatility3-test-data/releases/download/v0.0.1/linux-sample-1.bin.gz",
+      "native_symbol_source": {
+        "path": "/Volumes/w/code/zero/symbols/Debian_3.2.0-4-amd64_3.2.57-3+deb7u2_amd64-795bb1b381f4311e7165a8e3ad813c625e6a87e85b0450709b342d01c3be9843.json.xz",
+        "sha256": "c3b0b875a2d0498fffc0df1259ff49b850cea28355ffddf02e2f90d34a89fbe1",
+        "configured_path": "/Volumes/w/code/zero/symbols/Debian_3.2.0-4-amd64_3.2.57-3+deb7u2_amd64-795bb1b381f4311e7165a8e3ad813c625e6a87e85b0450709b342d01c3be9843.json.xz",
+        "configured_sha256": "c3b0b875a2d0498fffc0df1259ff49b850cea28355ffddf02e2f90d34a89fbe1"
+      },
+      "comparison": {
+        "schema_version": 1,
+        "mapping_version": 1,
+        "zero_records": 2,
+        "reference_records": 2,
+        "missing": [],
+        "extra": [],
+        "duplicates": [],
+        "conflicts": [],
+        "unverifiable": [],
+        "matched_absent": {},
+        "all_columns_mapped": true,
+        "positive_evidence": true,
+        "zero_complete": false,
+        "zero_diagnostics": [
+          "PID 1 正则扫描: 扫描 712704 / 10903552 字节；缺页 10190848 字节；上下文补零 0 字节；扫描结束"
+        ],
+        "passed": true
+      },
+      "passed": true,
+      "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+      "reference_output_sha256": "884588e7878bc4893667aec0c38affff0af5c891513054aa27ffe659595ac579",
+      "symbol_sha256": "c3b0b875a2d0498fffc0df1259ff49b850cea28355ffddf02e2f90d34a89fbe1",
+      "zero_executable_sha256": "b5fba34b76bf8c71a43d11466ab322a687616deda36af2ffea80eb32ac9b2163",
+      "engine_version": "0.2.1-native-98",
+      "record_order": {
+        "passed": true,
+        "first_difference": null,
+        "zero_sha256": "45cfdd6953f61a9d1ce10c8bf696fb16cc49953e5a1fb214f6a2865ed4726dc1",
+        "reference_sha256": "45cfdd6953f61a9d1ce10c8bf696fb16cc49953e5a1fb214f6a2865ed4726dc1",
+        "scope": "All mapped fields in emitted sequence after declared record selection; duplicate occurrences retained.",
+        "case_id": "debian-3.2/vmaregex-maxsize--1",
+        "mapping_sha256": "8027af0b0d2fee906720de26419fde6ee58a6befc69548d9efc040a629c0e4a3",
+        "native_output_sha256": "b2dcc10b2b3b5043347cdc8430efcf07b5643ee9953fac56b27751d3efb8a8e3",
+        "reference_output_sha256": "884588e7878bc4893667aec0c38affff0af5c891513054aa27ffe659595ac579"
+      }
+    },
+    {
+      "reference_plugin": "linux.vmaregexscan.VmaRegExScan",
+      "zero_plugin": "linux.vmaregexscan.VmaRegExScan",
+      "image_sha256": "8ce57b7c7b423173ce970fe8f51e7016c04ef1b4a5f73d5c5f1001d5c18780bc",
+      "mapping_sha256": "8027af0b0d2fee906720de26419fde6ee58a6befc69548d9efc040a629c0e4a3",
+      "native_output_sha256": "a7233abdc8d000b6fdb96c120ee9264c13cab17df9a7c1f34bfadca629666238",
+      "zero_args": [
+        "--pattern",
+        "(?<=/bin/)sh",
+        "--pid",
+        "1",
+        "--maxsize",
+        "0"
+      ],
+      "reference_args": [
+        "--pattern",
+        "(?<=/bin/)sh",
+        "--pid",
+        "1",
+        "--maxsize",
+        "0"
+      ],
+      "case_id": "debian-3.2/vmaregex-maxsize-0",
+      "sample_source": "https://github.com/volatilityfoundation/volatility3-test-data/releases/download/v0.0.1/linux-sample-1.bin.gz",
+      "native_symbol_source": {
+        "path": "/Volumes/w/code/zero/symbols/Debian_3.2.0-4-amd64_3.2.57-3+deb7u2_amd64-795bb1b381f4311e7165a8e3ad813c625e6a87e85b0450709b342d01c3be9843.json.xz",
+        "sha256": "c3b0b875a2d0498fffc0df1259ff49b850cea28355ffddf02e2f90d34a89fbe1",
+        "configured_path": "/Volumes/w/code/zero/symbols/Debian_3.2.0-4-amd64_3.2.57-3+deb7u2_amd64-795bb1b381f4311e7165a8e3ad813c625e6a87e85b0450709b342d01c3be9843.json.xz",
+        "configured_sha256": "c3b0b875a2d0498fffc0df1259ff49b850cea28355ffddf02e2f90d34a89fbe1"
+      },
+      "comparison": {
+        "schema_version": 1,
+        "mapping_version": 1,
+        "zero_records": 2,
+        "reference_records": 2,
+        "missing": [],
+        "extra": [],
+        "duplicates": [],
+        "conflicts": [],
+        "unverifiable": [],
+        "matched_absent": {},
+        "all_columns_mapped": true,
+        "positive_evidence": true,
+        "zero_complete": false,
+        "zero_diagnostics": [
+          "PID 1 正则扫描: 扫描 712704 / 10903552 字节；缺页 10190848 字节；上下文补零 0 字节；扫描结束"
+        ],
+        "passed": true
+      },
+      "passed": true,
+      "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+      "reference_output_sha256": "884588e7878bc4893667aec0c38affff0af5c891513054aa27ffe659595ac579",
+      "symbol_sha256": "c3b0b875a2d0498fffc0df1259ff49b850cea28355ffddf02e2f90d34a89fbe1",
+      "zero_executable_sha256": "b5fba34b76bf8c71a43d11466ab322a687616deda36af2ffea80eb32ac9b2163",
+      "engine_version": "0.2.1-native-98",
+      "record_order": {
+        "passed": true,
+        "first_difference": null,
+        "zero_sha256": "45cfdd6953f61a9d1ce10c8bf696fb16cc49953e5a1fb214f6a2865ed4726dc1",
+        "reference_sha256": "45cfdd6953f61a9d1ce10c8bf696fb16cc49953e5a1fb214f6a2865ed4726dc1",
+        "scope": "All mapped fields in emitted sequence after declared record selection; duplicate occurrences retained.",
+        "case_id": "debian-3.2/vmaregex-maxsize-0",
+        "mapping_sha256": "8027af0b0d2fee906720de26419fde6ee58a6befc69548d9efc040a629c0e4a3",
+        "native_output_sha256": "a7233abdc8d000b6fdb96c120ee9264c13cab17df9a7c1f34bfadca629666238",
+        "reference_output_sha256": "884588e7878bc4893667aec0c38affff0af5c891513054aa27ffe659595ac579"
+      }
+    },
+    {
+      "reference_plugin": "linux.vmaregexscan.VmaRegExScan",
+      "zero_plugin": "linux.vmaregexscan.VmaRegExScan",
+      "image_sha256": "8ce57b7c7b423173ce970fe8f51e7016c04ef1b4a5f73d5c5f1001d5c18780bc",
+      "mapping_sha256": "8027af0b0d2fee906720de26419fde6ee58a6befc69548d9efc040a629c0e4a3",
+      "native_output_sha256": "8be565607e6d5ee1ac29c2ab01c480dcac15739defa88832b32a44a824f16f93",
+      "zero_args": [
+        "--pattern",
+        "(?<=/bin/)sh",
+        "--pid",
+        "1",
+        "--maxsize",
+        "4097"
+      ],
+      "reference_args": [
+        "--pattern",
+        "(?<=/bin/)sh",
+        "--pid",
+        "1",
+        "--maxsize",
+        "4097"
+      ],
+      "case_id": "debian-3.2/vmaregex-maxsize-4097",
+      "sample_source": "https://github.com/volatilityfoundation/volatility3-test-data/releases/download/v0.0.1/linux-sample-1.bin.gz",
+      "native_symbol_source": {
+        "path": "/Volumes/w/code/zero/symbols/Debian_3.2.0-4-amd64_3.2.57-3+deb7u2_amd64-795bb1b381f4311e7165a8e3ad813c625e6a87e85b0450709b342d01c3be9843.json.xz",
+        "sha256": "c3b0b875a2d0498fffc0df1259ff49b850cea28355ffddf02e2f90d34a89fbe1",
+        "configured_path": "/Volumes/w/code/zero/symbols/Debian_3.2.0-4-amd64_3.2.57-3+deb7u2_amd64-795bb1b381f4311e7165a8e3ad813c625e6a87e85b0450709b342d01c3be9843.json.xz",
+        "configured_sha256": "c3b0b875a2d0498fffc0df1259ff49b850cea28355ffddf02e2f90d34a89fbe1"
+      },
+      "comparison": {
+        "schema_version": 1,
+        "mapping_version": 1,
+        "zero_records": 2,
+        "reference_records": 2,
+        "missing": [],
+        "extra": [],
+        "duplicates": [],
+        "conflicts": [],
+        "unverifiable": [],
+        "matched_absent": {},
+        "all_columns_mapped": true,
+        "positive_evidence": true,
+        "zero_complete": false,
+        "zero_diagnostics": [
+          "PID 1 正则扫描: 扫描 712704 / 10903552 字节；缺页 10190848 字节；上下文补零 0 字节；扫描结束"
+        ],
+        "passed": true
+      },
+      "passed": true,
+      "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+      "reference_output_sha256": "884588e7878bc4893667aec0c38affff0af5c891513054aa27ffe659595ac579",
+      "symbol_sha256": "c3b0b875a2d0498fffc0df1259ff49b850cea28355ffddf02e2f90d34a89fbe1",
+      "zero_executable_sha256": "b5fba34b76bf8c71a43d11466ab322a687616deda36af2ffea80eb32ac9b2163",
+      "engine_version": "0.2.1-native-98",
+      "record_order": {
+        "passed": true,
+        "first_difference": null,
+        "zero_sha256": "45cfdd6953f61a9d1ce10c8bf696fb16cc49953e5a1fb214f6a2865ed4726dc1",
+        "reference_sha256": "45cfdd6953f61a9d1ce10c8bf696fb16cc49953e5a1fb214f6a2865ed4726dc1",
+        "scope": "All mapped fields in emitted sequence after declared record selection; duplicate occurrences retained.",
+        "case_id": "debian-3.2/vmaregex-maxsize-4097",
+        "mapping_sha256": "8027af0b0d2fee906720de26419fde6ee58a6befc69548d9efc040a629c0e4a3",
+        "native_output_sha256": "8be565607e6d5ee1ac29c2ab01c480dcac15739defa88832b32a44a824f16f93",
+        "reference_output_sha256": "884588e7878bc4893667aec0c38affff0af5c891513054aa27ffe659595ac579"
+      }
+    },
+    {
+      "reference_plugin": "windows.vadregexscan.VadRegExScan",
+      "zero_plugin": "windows.vadregexscan.VadRegExScan",
+      "image_sha256": "d58f62e92b8c4ef913ac09b2c36a10482034c10b88d0c154dead3aaaa49cf875",
+      "mapping_sha256": "8027af0b0d2fee906720de26419fde6ee58a6befc69548d9efc040a629c0e4a3",
+      "native_output_sha256": "30ebf5ddd31708bd9a6e3a54626168921abdc5a362d8a842e7bb48a3ea1b1394",
+      "zero_args": [
+        "--pid",
+        "468",
+        "--pattern",
+        "MZ"
+      ],
+      "reference_args": [
+        "--pid",
+        "468",
+        "--pattern",
+        "MZ"
+      ],
+      "case_id": "windows-10-15063/vadregex-pid-468",
+      "sample_source": "https://www.osforensics.com/downloads/WinDump.zip",
+      "native_symbol_source": {
+        "path": "/Volumes/w/code/zero/target/reference/regex-exact-symbols/windows/ntkrnlmp.pdb/0C9CC659210046EC84231597DADFDB3B1.json",
+        "sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4",
+        "configured_path": "/Volumes/w/code/zero/target/reference/regex-exact-symbols/windows/ntkrnlmp.pdb/0C9CC659210046EC84231597DADFDB3B1.json",
+        "configured_sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4"
+      },
+      "comparison": {
+        "schema_version": 1,
+        "mapping_version": 1,
+        "zero_records": 27,
+        "reference_records": 27,
+        "missing": [],
+        "extra": [],
+        "duplicates": [],
+        "conflicts": [],
+        "unverifiable": [],
+        "matched_absent": {},
+        "all_columns_mapped": true,
+        "positive_evidence": true,
+        "zero_complete": false,
+        "zero_diagnostics": [
+          "Windows 链表不一致 @ 0xffffd98df8f9c8e8 direction 0: expected 0xffffd98df8be88e8, found 0xffffd98df7cbe668",
+          "Windows 链表不一致 @ 0xffffd98df8831368 direction 0: expected 0xffffd98df41a88e8, found 0xffffd98df9d4e8e8",
+          "Windows 链表不一致 @ 0xffffd98df3ab88e8 direction 0: expected 0xffffd98df63618e8, found 0xffffd98df480e368",
+          "Windows 链表不一致 @ 0xffffd98df7cbe668 direction 0: expected 0xffffd98df503a368, found 0xffffd98df8be88e8",
+          "链表 @ 0xfffff8021ef5c120 direction 0: Windows 链表循环或超限 0xffffd98df8f9c8e8",
+          "Windows 链表不一致 @ 0xffffd98df9d4e8e8 direction 8: expected 0xfffff8021ef5c120, found 0xffffd98df8831368",
+          "Windows 链表不一致 @ 0xffffd98df41a88e8 direction 8: expected 0xffffd98df9d4e8e8, found 0xffffd98df8831368",
+          "Windows 链表不一致 @ 0xffffd98df8be88e8 direction 8: expected 0xffffd98df7cbe668, found 0xffffd98df8f9c8e8",
+          "PID 468 VAD 0xffffd98df6af13d0 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802478683760)",
+          "PID 468 VAD 0xffffd98df70ef6b0 Left: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802437165920)",
+          "PID 468 正则扫描: 扫描 5279744 / 2199083278336 字节；缺页 2199077998592 字节；上下文补零 0 字节；扫描结束"
+        ],
+        "passed": true
+      },
+      "passed": true,
+      "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+      "reference_output_sha256": "e6dc1f5bf2ba73fd2973123ea42caad24b1bd35aba177177aad7cdc2d336c21e",
+      "symbol_sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4",
+      "zero_executable_sha256": "b5fba34b76bf8c71a43d11466ab322a687616deda36af2ffea80eb32ac9b2163",
+      "engine_version": "0.2.1-native-98",
+      "record_order": {
+        "passed": true,
+        "first_difference": null,
+        "zero_sha256": "2fb554104adeb77a00f8b1cfb2fe49d9a19e20b27161442201a3cae349027595",
+        "reference_sha256": "2fb554104adeb77a00f8b1cfb2fe49d9a19e20b27161442201a3cae349027595",
+        "scope": "All mapped fields in emitted sequence after declared record selection; duplicate occurrences retained.",
+        "case_id": "windows-10-15063/vadregex-pid-468",
+        "mapping_sha256": "8027af0b0d2fee906720de26419fde6ee58a6befc69548d9efc040a629c0e4a3",
+        "native_output_sha256": "30ebf5ddd31708bd9a6e3a54626168921abdc5a362d8a842e7bb48a3ea1b1394",
+        "reference_output_sha256": "e6dc1f5bf2ba73fd2973123ea42caad24b1bd35aba177177aad7cdc2d336c21e"
+      }
+    },
+    {
+      "reference_plugin": "windows.vadregexscan.VadRegExScan",
+      "zero_plugin": "windows.vadregexscan.VadRegExScan",
+      "image_sha256": "d58f62e92b8c4ef913ac09b2c36a10482034c10b88d0c154dead3aaaa49cf875",
+      "mapping_sha256": "8027af0b0d2fee906720de26419fde6ee58a6befc69548d9efc040a629c0e4a3",
+      "native_output_sha256": "d55316d3a7c4a31abb4d9eb04f14829ec094d460c03f194462b99bffddbb68e3",
+      "zero_args": [
+        "--pid",
+        "468",
+        "--pattern",
+        "MZ.{6}",
+        "--maxsize",
+        "-1"
+      ],
+      "reference_args": [
+        "--pid",
+        "468",
+        "--pattern",
+        "MZ.{6}",
+        "--maxsize",
+        "-1"
+      ],
+      "case_id": "windows-10-15063/vadregex-maxsize--1",
+      "sample_source": "https://www.osforensics.com/downloads/WinDump.zip",
+      "native_symbol_source": {
+        "path": "/Volumes/w/code/zero/target/reference/regex-exact-symbols/windows/ntkrnlmp.pdb/0C9CC659210046EC84231597DADFDB3B1.json",
+        "sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4",
+        "configured_path": "/Volumes/w/code/zero/target/reference/regex-exact-symbols/windows/ntkrnlmp.pdb/0C9CC659210046EC84231597DADFDB3B1.json",
+        "configured_sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4"
+      },
+      "comparison": {
+        "schema_version": 1,
+        "mapping_version": 1,
+        "zero_records": 27,
+        "reference_records": 27,
+        "missing": [],
+        "extra": [],
+        "duplicates": [],
+        "conflicts": [],
+        "unverifiable": [],
+        "matched_absent": {},
+        "all_columns_mapped": true,
+        "positive_evidence": true,
+        "zero_complete": false,
+        "zero_diagnostics": [
+          "Windows 链表不一致 @ 0xffffd98df8f9c8e8 direction 0: expected 0xffffd98df8be88e8, found 0xffffd98df7cbe668",
+          "Windows 链表不一致 @ 0xffffd98df8831368 direction 0: expected 0xffffd98df41a88e8, found 0xffffd98df9d4e8e8",
+          "Windows 链表不一致 @ 0xffffd98df3ab88e8 direction 0: expected 0xffffd98df63618e8, found 0xffffd98df480e368",
+          "Windows 链表不一致 @ 0xffffd98df7cbe668 direction 0: expected 0xffffd98df503a368, found 0xffffd98df8be88e8",
+          "链表 @ 0xfffff8021ef5c120 direction 0: Windows 链表循环或超限 0xffffd98df8f9c8e8",
+          "Windows 链表不一致 @ 0xffffd98df9d4e8e8 direction 8: expected 0xfffff8021ef5c120, found 0xffffd98df8831368",
+          "Windows 链表不一致 @ 0xffffd98df41a88e8 direction 8: expected 0xffffd98df9d4e8e8, found 0xffffd98df8831368",
+          "Windows 链表不一致 @ 0xffffd98df8be88e8 direction 8: expected 0xffffd98df7cbe668, found 0xffffd98df8f9c8e8",
+          "PID 468 VAD 0xffffd98df6af13d0 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802478683760)",
+          "PID 468 VAD 0xffffd98df70ef6b0 Left: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802437165920)",
+          "PID 468 正则扫描: 扫描 5279744 / 2199083278336 字节；缺页 2199077998592 字节；上下文补零 0 字节；扫描结束"
+        ],
+        "passed": true
+      },
+      "passed": true,
+      "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+      "reference_output_sha256": "9a11d28a322bc0eb254187568e80f66a687388be46320e51d6da8fece67a9f70",
+      "symbol_sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4",
+      "zero_executable_sha256": "b5fba34b76bf8c71a43d11466ab322a687616deda36af2ffea80eb32ac9b2163",
+      "engine_version": "0.2.1-native-98",
+      "record_order": {
+        "passed": true,
+        "first_difference": null,
+        "zero_sha256": "04cddae6e06b675d946610938eb14144254e299276dc42810dc2fb9210c455c9",
+        "reference_sha256": "04cddae6e06b675d946610938eb14144254e299276dc42810dc2fb9210c455c9",
+        "scope": "All mapped fields in emitted sequence after declared record selection; duplicate occurrences retained.",
+        "case_id": "windows-10-15063/vadregex-maxsize--1",
+        "mapping_sha256": "8027af0b0d2fee906720de26419fde6ee58a6befc69548d9efc040a629c0e4a3",
+        "native_output_sha256": "d55316d3a7c4a31abb4d9eb04f14829ec094d460c03f194462b99bffddbb68e3",
+        "reference_output_sha256": "9a11d28a322bc0eb254187568e80f66a687388be46320e51d6da8fece67a9f70"
+      }
+    },
+    {
+      "reference_plugin": "windows.vadregexscan.VadRegExScan",
+      "zero_plugin": "windows.vadregexscan.VadRegExScan",
+      "image_sha256": "d58f62e92b8c4ef913ac09b2c36a10482034c10b88d0c154dead3aaaa49cf875",
+      "mapping_sha256": "8027af0b0d2fee906720de26419fde6ee58a6befc69548d9efc040a629c0e4a3",
+      "native_output_sha256": "390605eee945fb930f04025be62a5ab3dcd1a1f4bdd7773389198f0dbcdb15af",
+      "zero_args": [
+        "--pid",
+        "468",
+        "--pattern",
+        "MZ.{6}",
+        "--maxsize",
+        "0"
+      ],
+      "reference_args": [
+        "--pid",
+        "468",
+        "--pattern",
+        "MZ.{6}",
+        "--maxsize",
+        "0"
+      ],
+      "case_id": "windows-10-15063/vadregex-maxsize-0",
+      "sample_source": "https://www.osforensics.com/downloads/WinDump.zip",
+      "native_symbol_source": {
+        "path": "/Volumes/w/code/zero/target/reference/regex-exact-symbols/windows/ntkrnlmp.pdb/0C9CC659210046EC84231597DADFDB3B1.json",
+        "sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4",
+        "configured_path": "/Volumes/w/code/zero/target/reference/regex-exact-symbols/windows/ntkrnlmp.pdb/0C9CC659210046EC84231597DADFDB3B1.json",
+        "configured_sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4"
+      },
+      "comparison": {
+        "schema_version": 1,
+        "mapping_version": 1,
+        "zero_records": 27,
+        "reference_records": 27,
+        "missing": [],
+        "extra": [],
+        "duplicates": [],
+        "conflicts": [],
+        "unverifiable": [],
+        "matched_absent": {},
+        "all_columns_mapped": true,
+        "positive_evidence": true,
+        "zero_complete": false,
+        "zero_diagnostics": [
+          "Windows 链表不一致 @ 0xffffd98df8f9c8e8 direction 0: expected 0xffffd98df8be88e8, found 0xffffd98df7cbe668",
+          "Windows 链表不一致 @ 0xffffd98df8831368 direction 0: expected 0xffffd98df41a88e8, found 0xffffd98df9d4e8e8",
+          "Windows 链表不一致 @ 0xffffd98df3ab88e8 direction 0: expected 0xffffd98df63618e8, found 0xffffd98df480e368",
+          "Windows 链表不一致 @ 0xffffd98df7cbe668 direction 0: expected 0xffffd98df503a368, found 0xffffd98df8be88e8",
+          "链表 @ 0xfffff8021ef5c120 direction 0: Windows 链表循环或超限 0xffffd98df8f9c8e8",
+          "Windows 链表不一致 @ 0xffffd98df9d4e8e8 direction 8: expected 0xfffff8021ef5c120, found 0xffffd98df8831368",
+          "Windows 链表不一致 @ 0xffffd98df41a88e8 direction 8: expected 0xffffd98df9d4e8e8, found 0xffffd98df8831368",
+          "Windows 链表不一致 @ 0xffffd98df8be88e8 direction 8: expected 0xffffd98df7cbe668, found 0xffffd98df8f9c8e8",
+          "PID 468 VAD 0xffffd98df6af13d0 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802478683760)",
+          "PID 468 VAD 0xffffd98df70ef6b0 Left: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802437165920)",
+          "PID 468 正则扫描: 扫描 5279744 / 2199083278336 字节；缺页 2199077998592 字节；上下文补零 0 字节；扫描结束"
+        ],
+        "passed": true
+      },
+      "passed": true,
+      "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+      "reference_output_sha256": "9a11d28a322bc0eb254187568e80f66a687388be46320e51d6da8fece67a9f70",
+      "symbol_sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4",
+      "zero_executable_sha256": "b5fba34b76bf8c71a43d11466ab322a687616deda36af2ffea80eb32ac9b2163",
+      "engine_version": "0.2.1-native-98",
+      "record_order": {
+        "passed": true,
+        "first_difference": null,
+        "zero_sha256": "04cddae6e06b675d946610938eb14144254e299276dc42810dc2fb9210c455c9",
+        "reference_sha256": "04cddae6e06b675d946610938eb14144254e299276dc42810dc2fb9210c455c9",
+        "scope": "All mapped fields in emitted sequence after declared record selection; duplicate occurrences retained.",
+        "case_id": "windows-10-15063/vadregex-maxsize-0",
+        "mapping_sha256": "8027af0b0d2fee906720de26419fde6ee58a6befc69548d9efc040a629c0e4a3",
+        "native_output_sha256": "390605eee945fb930f04025be62a5ab3dcd1a1f4bdd7773389198f0dbcdb15af",
+        "reference_output_sha256": "9a11d28a322bc0eb254187568e80f66a687388be46320e51d6da8fece67a9f70"
+      }
+    },
+    {
+      "reference_plugin": "windows.vadregexscan.VadRegExScan",
+      "zero_plugin": "windows.vadregexscan.VadRegExScan",
+      "image_sha256": "d58f62e92b8c4ef913ac09b2c36a10482034c10b88d0c154dead3aaaa49cf875",
+      "mapping_sha256": "8027af0b0d2fee906720de26419fde6ee58a6befc69548d9efc040a629c0e4a3",
+      "native_output_sha256": "02eac533e48bc0319e3397c5e7ed23aa6994e317b4a9afb59ed3aa81d77beb2c",
+      "zero_args": [
+        "--pid",
+        "468",
+        "--pattern",
+        "MZ.{6}",
+        "--maxsize",
+        "4097"
+      ],
+      "reference_args": [
+        "--pid",
+        "468",
+        "--pattern",
+        "MZ.{6}",
+        "--maxsize",
+        "4097"
+      ],
+      "case_id": "windows-10-15063/vadregex-maxsize-4097",
+      "sample_source": "https://www.osforensics.com/downloads/WinDump.zip",
+      "native_symbol_source": {
+        "path": "/Volumes/w/code/zero/target/reference/regex-exact-symbols/windows/ntkrnlmp.pdb/0C9CC659210046EC84231597DADFDB3B1.json",
+        "sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4",
+        "configured_path": "/Volumes/w/code/zero/target/reference/regex-exact-symbols/windows/ntkrnlmp.pdb/0C9CC659210046EC84231597DADFDB3B1.json",
+        "configured_sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4"
+      },
+      "comparison": {
+        "schema_version": 1,
+        "mapping_version": 1,
+        "zero_records": 27,
+        "reference_records": 27,
+        "missing": [],
+        "extra": [],
+        "duplicates": [],
+        "conflicts": [],
+        "unverifiable": [],
+        "matched_absent": {},
+        "all_columns_mapped": true,
+        "positive_evidence": true,
+        "zero_complete": false,
+        "zero_diagnostics": [
+          "Windows 链表不一致 @ 0xffffd98df8f9c8e8 direction 0: expected 0xffffd98df8be88e8, found 0xffffd98df7cbe668",
+          "Windows 链表不一致 @ 0xffffd98df8831368 direction 0: expected 0xffffd98df41a88e8, found 0xffffd98df9d4e8e8",
+          "Windows 链表不一致 @ 0xffffd98df3ab88e8 direction 0: expected 0xffffd98df63618e8, found 0xffffd98df480e368",
+          "Windows 链表不一致 @ 0xffffd98df7cbe668 direction 0: expected 0xffffd98df503a368, found 0xffffd98df8be88e8",
+          "链表 @ 0xfffff8021ef5c120 direction 0: Windows 链表循环或超限 0xffffd98df8f9c8e8",
+          "Windows 链表不一致 @ 0xffffd98df9d4e8e8 direction 8: expected 0xfffff8021ef5c120, found 0xffffd98df8831368",
+          "Windows 链表不一致 @ 0xffffd98df41a88e8 direction 8: expected 0xffffd98df9d4e8e8, found 0xffffd98df8831368",
+          "Windows 链表不一致 @ 0xffffd98df8be88e8 direction 8: expected 0xffffd98df7cbe668, found 0xffffd98df8f9c8e8",
+          "PID 468 VAD 0xffffd98df6af13d0 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802478683760)",
+          "PID 468 VAD 0xffffd98df70ef6b0 Left: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802437165920)",
+          "PID 468 正则扫描: 扫描 5279744 / 2199083278336 字节；缺页 2199077998592 字节；上下文补零 0 字节；扫描结束"
+        ],
+        "passed": true
+      },
+      "passed": true,
+      "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+      "reference_output_sha256": "9a11d28a322bc0eb254187568e80f66a687388be46320e51d6da8fece67a9f70",
+      "symbol_sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4",
+      "zero_executable_sha256": "b5fba34b76bf8c71a43d11466ab322a687616deda36af2ffea80eb32ac9b2163",
+      "engine_version": "0.2.1-native-98",
+      "record_order": {
+        "passed": true,
+        "first_difference": null,
+        "zero_sha256": "04cddae6e06b675d946610938eb14144254e299276dc42810dc2fb9210c455c9",
+        "reference_sha256": "04cddae6e06b675d946610938eb14144254e299276dc42810dc2fb9210c455c9",
+        "scope": "All mapped fields in emitted sequence after declared record selection; duplicate occurrences retained.",
+        "case_id": "windows-10-15063/vadregex-maxsize-4097",
+        "mapping_sha256": "8027af0b0d2fee906720de26419fde6ee58a6befc69548d9efc040a629c0e4a3",
+        "native_output_sha256": "02eac533e48bc0319e3397c5e7ed23aa6994e317b4a9afb59ed3aa81d77beb2c",
+        "reference_output_sha256": "9a11d28a322bc0eb254187568e80f66a687388be46320e51d6da8fece67a9f70"
+      }
+    }
+  ],
+  "known_failures": [
+    {
+      "reference_plugin": "windows.vadregexscan.VadRegExScan",
+      "zero_plugin": "windows.vadregexscan.VadRegExScan",
+      "image_sha256": "d58f62e92b8c4ef913ac09b2c36a10482034c10b88d0c154dead3aaaa49cf875",
+      "mapping_sha256": "8027af0b0d2fee906720de26419fde6ee58a6befc69548d9efc040a629c0e4a3",
+      "native_output_sha256": "897267c62523d4521be22709adc3435ca763233b7ae27656a530b93e5d7b7ef6",
+      "zero_args": [
+        "--pid",
+        "7688",
+        "--pattern",
+        "MZ"
+      ],
+      "reference_args": [
+        "--pid",
+        "7688",
+        "--pattern",
+        "MZ"
+      ],
+      "case_id": "windows-10-15063/vadregex-mz",
+      "sample_source": "https://www.osforensics.com/downloads/WinDump.zip",
+      "native_symbol_source": {
+        "path": "/Volumes/w/code/zero/target/reference/regex-exact-symbols/windows/ntkrnlmp.pdb/0C9CC659210046EC84231597DADFDB3B1.json",
+        "sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4",
+        "configured_path": "/Volumes/w/code/zero/target/reference/regex-exact-symbols/windows/ntkrnlmp.pdb/0C9CC659210046EC84231597DADFDB3B1.json",
+        "configured_sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4"
+      },
+      "comparison": {
+        "schema_version": 1,
+        "mapping_version": 1,
+        "zero_records": 709,
+        "reference_records": 701,
+        "missing": [],
+        "extra": [
+          [
+            7688,
+            140709709742080
+          ],
+          [
+            7688,
+            140709711904768
+          ],
+          [
+            7688,
+            140709736532360
+          ],
+          [
+            7688,
+            140709818392400
+          ],
+          [
+            7688,
+            140709977497889
+          ],
+          [
+            7688,
+            140709977499609
+          ],
+          [
+            7688,
+            140709990196292
+          ],
+          [
+            7688,
+            140710166003712
+          ]
+        ],
+        "duplicates": [],
+        "conflicts": [],
+        "unverifiable": [],
+        "matched_absent": {},
+        "all_columns_mapped": true,
+        "positive_evidence": true,
+        "zero_complete": false,
+        "zero_diagnostics": [
+          "Windows 链表不一致 @ 0xffffd98df8f9c8e8 direction 0: expected 0xffffd98df8be88e8, found 0xffffd98df7cbe668",
+          "Windows 链表不一致 @ 0xffffd98df8831368 direction 0: expected 0xffffd98df41a88e8, found 0xffffd98df9d4e8e8",
+          "Windows 链表不一致 @ 0xffffd98df3ab88e8 direction 0: expected 0xffffd98df63618e8, found 0xffffd98df480e368",
+          "Windows 链表不一致 @ 0xffffd98df7cbe668 direction 0: expected 0xffffd98df503a368, found 0xffffd98df8be88e8",
+          "链表 @ 0xfffff8021ef5c120 direction 0: Windows 链表循环或超限 0xffffd98df8f9c8e8",
+          "Windows 链表不一致 @ 0xffffd98df9d4e8e8 direction 8: expected 0xfffff8021ef5c120, found 0xffffd98df8831368",
+          "Windows 链表不一致 @ 0xffffd98df41a88e8 direction 8: expected 0xffffd98df9d4e8e8, found 0xffffd98df8831368",
+          "Windows 链表不一致 @ 0xffffd98df8be88e8 direction 8: expected 0xffffd98df7cbe668, found 0xffffd98df8f9c8e8",
+          "PID 7688 VAD 0xffffd98df7301010 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802494325552)",
+          "PID 7688 VAD 0xffffd98df81fbf70 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802493797296)",
+          "PID 7688 VAD 0xffffd98df81fbf70 Left: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802516888096)",
+          "PID 7688 VAD 0xffffd98df8adab00 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802496149233)",
+          "PID 7688 VAD 0xffffd98df8adab00 Left: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446744073709551615)",
+          "PID 7688 VAD 0xffffd98df7aa22b0 Left: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(0)",
+          "PID 7688 VAD 0xffffd98df6882360: VAD pool tag 无法验证",
+          "PID 7688 VAD 0xffffd98df5312bc0 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802447722048)",
+          "PID 7688 VAD 0xffffd98dfa19ede0 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802503482208)",
+          "PID 7688 VAD 0xffffd98dfa19ede0 Left: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802427381873)",
+          "PID 7688 VAD 0xffffd98df9ddbc90 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802539203424)",
+          "PID 7688 VAD 0xffffd98df908fba0 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802535079072)",
+          "PID 7688 VAD 0xffffd98df53ed9d0 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802524721824)",
+          "PID 7688 VAD 0xffffd98df9540620: VAD pool tag 无法验证",
+          "PID 7688 VAD 0xffffd98df751ed90 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802431937248)",
+          "PID 7688 VAD 0xffffd98df751ed90 Left: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802501077889)",
+          "PID 7688 VAD 0xffffd98df6937ad0 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802501077891)",
+          "PID 7688 VAD 0xffffd98df751ed90: VAD 节点地址/循环/深度/数量无效",
+          "PID 7688 VAD 0xffffd98df397c5a0 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802479414432)",
+          "PID 7688 VAD 0xffffd98df6a3cbd0 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802491176288)",
+          "PID 7688 VAD 0xffffd98df6a3cbd0 Left: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802475990896)",
+          "PID 7688 VAD 0xffffd98df3b52dd0 Left: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446744073709551615)",
+          "PID 7688 VAD 0xffffd98df39c09d0 Left: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802470758592)",
+          "PID 7688 VAD 0xffffd98df3ac1a70 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802531519073)",
+          "PID 7688 VAD 0xffffd98df3654240 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802531519072)",
+          "PID 7688 VAD 0xffffd98df6a07cc0 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802531426913)",
+          "PID 7688 VAD 0xffffd98df7e53730 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802502910529)",
+          "PID 7688 VAD 0xffffd98df85b3240 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802496195232)",
+          "PID 7688 VAD 0xffffd98df3662bb0 Left: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802440800352)",
+          "PID 7688 VAD 0xffffd98df7f472e0: VAD pool tag 无法验证",
+          "PID 7688 VAD 0xffffd98df3e427d0 Left: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802469052352)",
+          "PID 7688 VAD 0xffffd98dfa282820 Left: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802448599912)",
+          "PID 7688 VAD 0xffffd98df75099f0: VAD pool tag 无法验证",
+          "PID 7688 VAD 0xffffd98df3e9d860 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802426966256)",
+          "PID 7688 VAD 0xffffd98df6b2bb60 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802482536305)",
+          "PID 7688 VAD 0xffffd98df6b2bb60 Left: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802485264241)",
+          "PID 7688 VAD 0xffffd98dfa9a6e90 Left: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802539441808)",
+          "PID 7688 VAD 0xffffd98dfa0710f0 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802539441808)",
+          "PID 7688 VAD 0xffffd98df539c290 Left: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802501107123)",
+          "PID 7688 VAD 0xffffd98df97b81b0 Left: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802546491664)",
+          "PID 7688 VAD 0xffffd98df60accf0 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802456475440)",
+          "PID 7688 正则扫描: 扫描 113451008 / 2199629770752 字节；缺页 2199516319744 字节；上下文补零 0 字节；扫描结束"
+        ],
+        "passed": false
+      },
+      "passed": false,
+      "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+      "reference_output_sha256": "95ff5d9f0ba362512b8949f30860786c8091fabfe98033fc63dfd7f1ddc6510d",
+      "symbol_sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4",
+      "zero_executable_sha256": "b5fba34b76bf8c71a43d11466ab322a687616deda36af2ffea80eb32ac9b2163",
+      "engine_version": "0.2.1-native-98",
+      "record_order": {
+        "passed": false,
+        "first_difference": 93,
+        "zero_sha256": "2abd473090b61479f86ccc87ed100efcf1367d33f779b3d14a820f1ebff7fe6a",
+        "reference_sha256": "7ff746524736c0a3236ddcd0ba21a7c657b2a93a2bea24e94ad39953091cc20e",
+        "scope": "All mapped fields in emitted sequence after declared record selection; duplicate occurrences retained.",
+        "case_id": "windows-10-15063/vadregex-mz",
+        "mapping_sha256": "8027af0b0d2fee906720de26419fde6ee58a6befc69548d9efc040a629c0e4a3",
+        "native_output_sha256": "897267c62523d4521be22709adc3435ca763233b7ae27656a530b93e5d7b7ef6",
+        "reference_output_sha256": "95ff5d9f0ba362512b8949f30860786c8091fabfe98033fc63dfd7f1ddc6510d"
+      }
+    },
+    {
+      "reference_plugin": "windows.vadregexscan.VadRegExScan",
+      "zero_plugin": "windows.vadregexscan.VadRegExScan",
+      "image_sha256": "d58f62e92b8c4ef913ac09b2c36a10482034c10b88d0c154dead3aaaa49cf875",
+      "mapping_sha256": "8027af0b0d2fee906720de26419fde6ee58a6befc69548d9efc040a629c0e4a3",
+      "native_output_sha256": "932acc1727fd44979b0c79feb8994cb5fa3e88fce8c9d10ddc2878dd14305aaf",
+      "zero_args": [
+        "--pid",
+        "7688",
+        "--pattern",
+        "(?<=M)Z"
+      ],
+      "reference_args": [
+        "--pid",
+        "7688",
+        "--pattern",
+        "(?<=M)Z"
+      ],
+      "case_id": "windows-10-15063/vadregex-lookbehind",
+      "sample_source": "https://www.osforensics.com/downloads/WinDump.zip",
+      "native_symbol_source": {
+        "path": "/Volumes/w/code/zero/target/reference/regex-exact-symbols/windows/ntkrnlmp.pdb/0C9CC659210046EC84231597DADFDB3B1.json",
+        "sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4",
+        "configured_path": "/Volumes/w/code/zero/target/reference/regex-exact-symbols/windows/ntkrnlmp.pdb/0C9CC659210046EC84231597DADFDB3B1.json",
+        "configured_sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4"
+      },
+      "comparison": {
+        "schema_version": 1,
+        "mapping_version": 1,
+        "zero_records": 709,
+        "reference_records": 701,
+        "missing": [],
+        "extra": [
+          [
+            7688,
+            140709709742081
+          ],
+          [
+            7688,
+            140709711904769
+          ],
+          [
+            7688,
+            140709736532361
+          ],
+          [
+            7688,
+            140709818392401
+          ],
+          [
+            7688,
+            140709977497890
+          ],
+          [
+            7688,
+            140709977499610
+          ],
+          [
+            7688,
+            140709990196293
+          ],
+          [
+            7688,
+            140710166003713
+          ]
+        ],
+        "duplicates": [],
+        "conflicts": [],
+        "unverifiable": [],
+        "matched_absent": {},
+        "all_columns_mapped": true,
+        "positive_evidence": true,
+        "zero_complete": false,
+        "zero_diagnostics": [
+          "Windows 链表不一致 @ 0xffffd98df8f9c8e8 direction 0: expected 0xffffd98df8be88e8, found 0xffffd98df7cbe668",
+          "Windows 链表不一致 @ 0xffffd98df8831368 direction 0: expected 0xffffd98df41a88e8, found 0xffffd98df9d4e8e8",
+          "Windows 链表不一致 @ 0xffffd98df3ab88e8 direction 0: expected 0xffffd98df63618e8, found 0xffffd98df480e368",
+          "Windows 链表不一致 @ 0xffffd98df7cbe668 direction 0: expected 0xffffd98df503a368, found 0xffffd98df8be88e8",
+          "链表 @ 0xfffff8021ef5c120 direction 0: Windows 链表循环或超限 0xffffd98df8f9c8e8",
+          "Windows 链表不一致 @ 0xffffd98df9d4e8e8 direction 8: expected 0xfffff8021ef5c120, found 0xffffd98df8831368",
+          "Windows 链表不一致 @ 0xffffd98df41a88e8 direction 8: expected 0xffffd98df9d4e8e8, found 0xffffd98df8831368",
+          "Windows 链表不一致 @ 0xffffd98df8be88e8 direction 8: expected 0xffffd98df7cbe668, found 0xffffd98df8f9c8e8",
+          "PID 7688 VAD 0xffffd98df7301010 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802494325552)",
+          "PID 7688 VAD 0xffffd98df81fbf70 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802493797296)",
+          "PID 7688 VAD 0xffffd98df81fbf70 Left: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802516888096)",
+          "PID 7688 VAD 0xffffd98df8adab00 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802496149233)",
+          "PID 7688 VAD 0xffffd98df8adab00 Left: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446744073709551615)",
+          "PID 7688 VAD 0xffffd98df7aa22b0 Left: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(0)",
+          "PID 7688 VAD 0xffffd98df6882360: VAD pool tag 无法验证",
+          "PID 7688 VAD 0xffffd98df5312bc0 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802447722048)",
+          "PID 7688 VAD 0xffffd98dfa19ede0 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802503482208)",
+          "PID 7688 VAD 0xffffd98dfa19ede0 Left: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802427381873)",
+          "PID 7688 VAD 0xffffd98df9ddbc90 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802539203424)",
+          "PID 7688 VAD 0xffffd98df908fba0 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802535079072)",
+          "PID 7688 VAD 0xffffd98df53ed9d0 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802524721824)",
+          "PID 7688 VAD 0xffffd98df9540620: VAD pool tag 无法验证",
+          "PID 7688 VAD 0xffffd98df751ed90 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802431937248)",
+          "PID 7688 VAD 0xffffd98df751ed90 Left: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802501077889)",
+          "PID 7688 VAD 0xffffd98df6937ad0 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802501077891)",
+          "PID 7688 VAD 0xffffd98df751ed90: VAD 节点地址/循环/深度/数量无效",
+          "PID 7688 VAD 0xffffd98df397c5a0 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802479414432)",
+          "PID 7688 VAD 0xffffd98df6a3cbd0 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802491176288)",
+          "PID 7688 VAD 0xffffd98df6a3cbd0 Left: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802475990896)",
+          "PID 7688 VAD 0xffffd98df3b52dd0 Left: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446744073709551615)",
+          "PID 7688 VAD 0xffffd98df39c09d0 Left: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802470758592)",
+          "PID 7688 VAD 0xffffd98df3ac1a70 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802531519073)",
+          "PID 7688 VAD 0xffffd98df3654240 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802531519072)",
+          "PID 7688 VAD 0xffffd98df6a07cc0 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802531426913)",
+          "PID 7688 VAD 0xffffd98df7e53730 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802502910529)",
+          "PID 7688 VAD 0xffffd98df85b3240 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802496195232)",
+          "PID 7688 VAD 0xffffd98df3662bb0 Left: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802440800352)",
+          "PID 7688 VAD 0xffffd98df7f472e0: VAD pool tag 无法验证",
+          "PID 7688 VAD 0xffffd98df3e427d0 Left: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802469052352)",
+          "PID 7688 VAD 0xffffd98dfa282820 Left: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802448599912)",
+          "PID 7688 VAD 0xffffd98df75099f0: VAD pool tag 无法验证",
+          "PID 7688 VAD 0xffffd98df3e9d860 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802426966256)",
+          "PID 7688 VAD 0xffffd98df6b2bb60 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802482536305)",
+          "PID 7688 VAD 0xffffd98df6b2bb60 Left: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802485264241)",
+          "PID 7688 VAD 0xffffd98dfa9a6e90 Left: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802539441808)",
+          "PID 7688 VAD 0xffffd98dfa0710f0 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802539441808)",
+          "PID 7688 VAD 0xffffd98df539c290 Left: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802501107123)",
+          "PID 7688 VAD 0xffffd98df97b81b0 Left: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802546491664)",
+          "PID 7688 VAD 0xffffd98df60accf0 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802456475440)",
+          "PID 7688 正则扫描: 扫描 113451008 / 2199629770752 字节；缺页 2199516319744 字节；上下文补零 0 字节；扫描结束"
+        ],
+        "passed": false
+      },
+      "passed": false,
+      "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+      "reference_output_sha256": "b3ef9d5c861935bb25deda7b26c4126548552fa201c678d6f4c604f6cd4b167f",
+      "symbol_sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4",
+      "zero_executable_sha256": "b5fba34b76bf8c71a43d11466ab322a687616deda36af2ffea80eb32ac9b2163",
+      "engine_version": "0.2.1-native-98",
+      "record_order": {
+        "passed": false,
+        "first_difference": 93,
+        "zero_sha256": "27544ca6de7fcc68f1a6f5eb8c38d66c47931272495fcae877bba8ce48676146",
+        "reference_sha256": "f2474542546b4016c852dea432f743002618b58a66c835fcff276479b8707adf",
+        "scope": "All mapped fields in emitted sequence after declared record selection; duplicate occurrences retained.",
+        "case_id": "windows-10-15063/vadregex-lookbehind",
+        "mapping_sha256": "8027af0b0d2fee906720de26419fde6ee58a6befc69548d9efc040a629c0e4a3",
+        "native_output_sha256": "932acc1727fd44979b0c79feb8994cb5fa3e88fce8c9d10ddc2878dd14305aaf",
+        "reference_output_sha256": "b3ef9d5c861935bb25deda7b26c4126548552fa201c678d6f4c604f6cd4b167f"
+      }
+    },
+    {
+      "reference_plugin": "windows.vadregexscan.VadRegExScan",
+      "zero_plugin": "windows.vadregexscan.VadRegExScan",
+      "image_sha256": "d58f62e92b8c4ef913ac09b2c36a10482034c10b88d0c154dead3aaaa49cf875",
+      "mapping_sha256": "8027af0b0d2fee906720de26419fde6ee58a6befc69548d9efc040a629c0e4a3",
+      "native_output_sha256": "897267c62523d4521be22709adc3435ca763233b7ae27656a530b93e5d7b7ef6",
+      "zero_args": [
+        "--pid",
+        "7688",
+        "--pattern",
+        "(?P<p>MZ)(?P=p)?"
+      ],
+      "reference_args": [
+        "--pid",
+        "7688",
+        "--pattern",
+        "(?P<p>MZ)(?P=p)?"
+      ],
+      "case_id": "windows-10-15063/vadregex-backreference",
+      "sample_source": "https://www.osforensics.com/downloads/WinDump.zip",
+      "native_symbol_source": {
+        "path": "/Volumes/w/code/zero/target/reference/regex-exact-symbols/windows/ntkrnlmp.pdb/0C9CC659210046EC84231597DADFDB3B1.json",
+        "sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4",
+        "configured_path": "/Volumes/w/code/zero/target/reference/regex-exact-symbols/windows/ntkrnlmp.pdb/0C9CC659210046EC84231597DADFDB3B1.json",
+        "configured_sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4"
+      },
+      "comparison": {
+        "schema_version": 1,
+        "mapping_version": 1,
+        "zero_records": 709,
+        "reference_records": 701,
+        "missing": [],
+        "extra": [
+          [
+            7688,
+            140709709742080
+          ],
+          [
+            7688,
+            140709711904768
+          ],
+          [
+            7688,
+            140709736532360
+          ],
+          [
+            7688,
+            140709818392400
+          ],
+          [
+            7688,
+            140709977497889
+          ],
+          [
+            7688,
+            140709977499609
+          ],
+          [
+            7688,
+            140709990196292
+          ],
+          [
+            7688,
+            140710166003712
+          ]
+        ],
+        "duplicates": [],
+        "conflicts": [],
+        "unverifiable": [],
+        "matched_absent": {},
+        "all_columns_mapped": true,
+        "positive_evidence": true,
+        "zero_complete": false,
+        "zero_diagnostics": [
+          "Windows 链表不一致 @ 0xffffd98df8f9c8e8 direction 0: expected 0xffffd98df8be88e8, found 0xffffd98df7cbe668",
+          "Windows 链表不一致 @ 0xffffd98df8831368 direction 0: expected 0xffffd98df41a88e8, found 0xffffd98df9d4e8e8",
+          "Windows 链表不一致 @ 0xffffd98df3ab88e8 direction 0: expected 0xffffd98df63618e8, found 0xffffd98df480e368",
+          "Windows 链表不一致 @ 0xffffd98df7cbe668 direction 0: expected 0xffffd98df503a368, found 0xffffd98df8be88e8",
+          "链表 @ 0xfffff8021ef5c120 direction 0: Windows 链表循环或超限 0xffffd98df8f9c8e8",
+          "Windows 链表不一致 @ 0xffffd98df9d4e8e8 direction 8: expected 0xfffff8021ef5c120, found 0xffffd98df8831368",
+          "Windows 链表不一致 @ 0xffffd98df41a88e8 direction 8: expected 0xffffd98df9d4e8e8, found 0xffffd98df8831368",
+          "Windows 链表不一致 @ 0xffffd98df8be88e8 direction 8: expected 0xffffd98df7cbe668, found 0xffffd98df8f9c8e8",
+          "PID 7688 VAD 0xffffd98df7301010 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802494325552)",
+          "PID 7688 VAD 0xffffd98df81fbf70 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802493797296)",
+          "PID 7688 VAD 0xffffd98df81fbf70 Left: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802516888096)",
+          "PID 7688 VAD 0xffffd98df8adab00 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802496149233)",
+          "PID 7688 VAD 0xffffd98df8adab00 Left: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446744073709551615)",
+          "PID 7688 VAD 0xffffd98df7aa22b0 Left: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(0)",
+          "PID 7688 VAD 0xffffd98df6882360: VAD pool tag 无法验证",
+          "PID 7688 VAD 0xffffd98df5312bc0 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802447722048)",
+          "PID 7688 VAD 0xffffd98dfa19ede0 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802503482208)",
+          "PID 7688 VAD 0xffffd98dfa19ede0 Left: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802427381873)",
+          "PID 7688 VAD 0xffffd98df9ddbc90 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802539203424)",
+          "PID 7688 VAD 0xffffd98df908fba0 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802535079072)",
+          "PID 7688 VAD 0xffffd98df53ed9d0 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802524721824)",
+          "PID 7688 VAD 0xffffd98df9540620: VAD pool tag 无法验证",
+          "PID 7688 VAD 0xffffd98df751ed90 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802431937248)",
+          "PID 7688 VAD 0xffffd98df751ed90 Left: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802501077889)",
+          "PID 7688 VAD 0xffffd98df6937ad0 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802501077891)",
+          "PID 7688 VAD 0xffffd98df751ed90: VAD 节点地址/循环/深度/数量无效",
+          "PID 7688 VAD 0xffffd98df397c5a0 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802479414432)",
+          "PID 7688 VAD 0xffffd98df6a3cbd0 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802491176288)",
+          "PID 7688 VAD 0xffffd98df6a3cbd0 Left: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802475990896)",
+          "PID 7688 VAD 0xffffd98df3b52dd0 Left: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446744073709551615)",
+          "PID 7688 VAD 0xffffd98df39c09d0 Left: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802470758592)",
+          "PID 7688 VAD 0xffffd98df3ac1a70 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802531519073)",
+          "PID 7688 VAD 0xffffd98df3654240 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802531519072)",
+          "PID 7688 VAD 0xffffd98df6a07cc0 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802531426913)",
+          "PID 7688 VAD 0xffffd98df7e53730 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802502910529)",
+          "PID 7688 VAD 0xffffd98df85b3240 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802496195232)",
+          "PID 7688 VAD 0xffffd98df3662bb0 Left: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802440800352)",
+          "PID 7688 VAD 0xffffd98df7f472e0: VAD pool tag 无法验证",
+          "PID 7688 VAD 0xffffd98df3e427d0 Left: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802469052352)",
+          "PID 7688 VAD 0xffffd98dfa282820 Left: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802448599912)",
+          "PID 7688 VAD 0xffffd98df75099f0: VAD pool tag 无法验证",
+          "PID 7688 VAD 0xffffd98df3e9d860 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802426966256)",
+          "PID 7688 VAD 0xffffd98df6b2bb60 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802482536305)",
+          "PID 7688 VAD 0xffffd98df6b2bb60 Left: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802485264241)",
+          "PID 7688 VAD 0xffffd98dfa9a6e90 Left: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802539441808)",
+          "PID 7688 VAD 0xffffd98dfa0710f0 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802539441808)",
+          "PID 7688 VAD 0xffffd98df539c290 Left: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802501107123)",
+          "PID 7688 VAD 0xffffd98df97b81b0 Left: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802546491664)",
+          "PID 7688 VAD 0xffffd98df60accf0 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802456475440)",
+          "PID 7688 正则扫描: 扫描 113451008 / 2199629770752 字节；缺页 2199516319744 字节；上下文补零 0 字节；扫描结束"
+        ],
+        "passed": false
+      },
+      "passed": false,
+      "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+      "reference_output_sha256": "95ff5d9f0ba362512b8949f30860786c8091fabfe98033fc63dfd7f1ddc6510d",
+      "symbol_sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4",
+      "zero_executable_sha256": "b5fba34b76bf8c71a43d11466ab322a687616deda36af2ffea80eb32ac9b2163",
+      "engine_version": "0.2.1-native-98",
+      "record_order": {
+        "passed": false,
+        "first_difference": 93,
+        "zero_sha256": "2abd473090b61479f86ccc87ed100efcf1367d33f779b3d14a820f1ebff7fe6a",
+        "reference_sha256": "7ff746524736c0a3236ddcd0ba21a7c657b2a93a2bea24e94ad39953091cc20e",
+        "scope": "All mapped fields in emitted sequence after declared record selection; duplicate occurrences retained.",
+        "case_id": "windows-10-15063/vadregex-backreference",
+        "mapping_sha256": "8027af0b0d2fee906720de26419fde6ee58a6befc69548d9efc040a629c0e4a3",
+        "native_output_sha256": "897267c62523d4521be22709adc3435ca763233b7ae27656a530b93e5d7b7ef6",
+        "reference_output_sha256": "95ff5d9f0ba362512b8949f30860786c8091fabfe98033fc63dfd7f1ddc6510d"
+      }
+    },
+    {
+      "reference_plugin": "windows.vadregexscan.VadRegExScan",
+      "zero_plugin": "windows.vadregexscan.VadRegExScan",
+      "image_sha256": "d58f62e92b8c4ef913ac09b2c36a10482034c10b88d0c154dead3aaaa49cf875",
+      "mapping_sha256": "8027af0b0d2fee906720de26419fde6ee58a6befc69548d9efc040a629c0e4a3",
+      "native_output_sha256": "cb070eb499d085b2ae68019d671644985f0ccf6bd3dae63f0fd855cb0b78ddf4",
+      "zero_args": [
+        "--pids",
+        "844,7688",
+        "--pattern",
+        "MZ"
+      ],
+      "reference_args": [
+        "--pid",
+        "844",
+        "7688",
+        "--pattern",
+        "MZ"
+      ],
+      "case_id": "windows-10-15063/vadregex-multi-pid",
+      "sample_source": "https://www.osforensics.com/downloads/WinDump.zip",
+      "native_symbol_source": {
+        "path": "/Volumes/w/code/zero/target/reference/regex-exact-symbols/windows/ntkrnlmp.pdb/0C9CC659210046EC84231597DADFDB3B1.json",
+        "sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4",
+        "configured_path": "/Volumes/w/code/zero/target/reference/regex-exact-symbols/windows/ntkrnlmp.pdb/0C9CC659210046EC84231597DADFDB3B1.json",
+        "configured_sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4"
+      },
+      "comparison": {
+        "schema_version": 1,
+        "mapping_version": 1,
+        "zero_records": 736,
+        "reference_records": 727,
+        "missing": [],
+        "extra": [
+          [
+            7688,
+            140709709742080
+          ],
+          [
+            7688,
+            140709711904768
+          ],
+          [
+            7688,
+            140709736532360
+          ],
+          [
+            7688,
+            140709818392400
+          ],
+          [
+            7688,
+            140709977497889
+          ],
+          [
+            7688,
+            140709977499609
+          ],
+          [
+            7688,
+            140709990196292
+          ],
+          [
+            7688,
+            140710166003712
+          ],
+          [
+            844,
+            140710268305408
+          ]
+        ],
+        "duplicates": [],
+        "conflicts": [],
+        "unverifiable": [],
+        "matched_absent": {},
+        "all_columns_mapped": true,
+        "positive_evidence": true,
+        "zero_complete": false,
+        "zero_diagnostics": [
+          "Windows 链表不一致 @ 0xffffd98df8f9c8e8 direction 0: expected 0xffffd98df8be88e8, found 0xffffd98df7cbe668",
+          "Windows 链表不一致 @ 0xffffd98df8831368 direction 0: expected 0xffffd98df41a88e8, found 0xffffd98df9d4e8e8",
+          "Windows 链表不一致 @ 0xffffd98df3ab88e8 direction 0: expected 0xffffd98df63618e8, found 0xffffd98df480e368",
+          "Windows 链表不一致 @ 0xffffd98df7cbe668 direction 0: expected 0xffffd98df503a368, found 0xffffd98df8be88e8",
+          "链表 @ 0xfffff8021ef5c120 direction 0: Windows 链表循环或超限 0xffffd98df8f9c8e8",
+          "Windows 链表不一致 @ 0xffffd98df9d4e8e8 direction 8: expected 0xfffff8021ef5c120, found 0xffffd98df8831368",
+          "Windows 链表不一致 @ 0xffffd98df41a88e8 direction 8: expected 0xffffd98df9d4e8e8, found 0xffffd98df8831368",
+          "Windows 链表不一致 @ 0xffffd98df8be88e8 direction 8: expected 0xffffd98df7cbe668, found 0xffffd98df8f9c8e8",
+          "PID 844 正则扫描: 扫描 3567616 / 2199047540736 字节；缺页 2199043973120 字节；上下文补零 0 字节；扫描结束",
+          "PID 7688 VAD 0xffffd98df7301010 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802494325552)",
+          "PID 7688 VAD 0xffffd98df81fbf70 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802493797296)",
+          "PID 7688 VAD 0xffffd98df81fbf70 Left: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802516888096)",
+          "PID 7688 VAD 0xffffd98df8adab00 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802496149233)",
+          "PID 7688 VAD 0xffffd98df8adab00 Left: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446744073709551615)",
+          "PID 7688 VAD 0xffffd98df7aa22b0 Left: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(0)",
+          "PID 7688 VAD 0xffffd98df6882360: VAD pool tag 无法验证",
+          "PID 7688 VAD 0xffffd98df5312bc0 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802447722048)",
+          "PID 7688 VAD 0xffffd98dfa19ede0 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802503482208)",
+          "PID 7688 VAD 0xffffd98dfa19ede0 Left: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802427381873)",
+          "PID 7688 VAD 0xffffd98df9ddbc90 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802539203424)",
+          "PID 7688 VAD 0xffffd98df908fba0 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802535079072)",
+          "PID 7688 VAD 0xffffd98df53ed9d0 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802524721824)",
+          "PID 7688 VAD 0xffffd98df9540620: VAD pool tag 无法验证",
+          "PID 7688 VAD 0xffffd98df751ed90 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802431937248)",
+          "PID 7688 VAD 0xffffd98df751ed90 Left: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802501077889)",
+          "PID 7688 VAD 0xffffd98df6937ad0 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802501077891)",
+          "PID 7688 VAD 0xffffd98df751ed90: VAD 节点地址/循环/深度/数量无效",
+          "PID 7688 VAD 0xffffd98df397c5a0 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802479414432)",
+          "PID 7688 VAD 0xffffd98df6a3cbd0 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802491176288)",
+          "PID 7688 VAD 0xffffd98df6a3cbd0 Left: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802475990896)",
+          "PID 7688 VAD 0xffffd98df3b52dd0 Left: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446744073709551615)",
+          "PID 7688 VAD 0xffffd98df39c09d0 Left: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802470758592)",
+          "PID 7688 VAD 0xffffd98df3ac1a70 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802531519073)",
+          "PID 7688 VAD 0xffffd98df3654240 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802531519072)",
+          "PID 7688 VAD 0xffffd98df6a07cc0 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802531426913)",
+          "PID 7688 VAD 0xffffd98df7e53730 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802502910529)",
+          "PID 7688 VAD 0xffffd98df85b3240 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802496195232)",
+          "PID 7688 VAD 0xffffd98df3662bb0 Left: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802440800352)",
+          "PID 7688 VAD 0xffffd98df7f472e0: VAD pool tag 无法验证",
+          "PID 7688 VAD 0xffffd98df3e427d0 Left: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802469052352)",
+          "PID 7688 VAD 0xffffd98dfa282820 Left: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802448599912)",
+          "PID 7688 VAD 0xffffd98df75099f0: VAD pool tag 无法验证",
+          "PID 7688 VAD 0xffffd98df3e9d860 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802426966256)",
+          "PID 7688 VAD 0xffffd98df6b2bb60 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802482536305)",
+          "PID 7688 VAD 0xffffd98df6b2bb60 Left: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802485264241)",
+          "PID 7688 VAD 0xffffd98dfa9a6e90 Left: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802539441808)",
+          "PID 7688 VAD 0xffffd98dfa0710f0 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802539441808)",
+          "PID 7688 VAD 0xffffd98df539c290 Left: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802501107123)",
+          "PID 7688 VAD 0xffffd98df97b81b0 Left: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802546491664)",
+          "PID 7688 VAD 0xffffd98df60accf0 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802456475440)",
+          "PID 7688 正则扫描: 扫描 113451008 / 2199629770752 字节；缺页 2199516319744 字节；上下文补零 0 字节；扫描结束"
+        ],
+        "passed": false
+      },
+      "passed": false,
+      "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+      "reference_output_sha256": "530c99ea29d533afac71764f1191f120ce804a42e62663254fc59db8f1ef8ef7",
+      "symbol_sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4",
+      "zero_executable_sha256": "b5fba34b76bf8c71a43d11466ab322a687616deda36af2ffea80eb32ac9b2163",
+      "engine_version": "0.2.1-native-98",
+      "record_order": {
+        "passed": false,
+        "first_difference": 24,
+        "zero_sha256": "d855119bcb61907f36d48948ddd8ee8f04ca018395ecad6410556f98474660e0",
+        "reference_sha256": "f8da264d342b2269e19b04a1de1c3ec042a7d6b2cb4ecc7750f29560381b4a42",
+        "scope": "All mapped fields in emitted sequence after declared record selection; duplicate occurrences retained.",
+        "case_id": "windows-10-15063/vadregex-multi-pid",
+        "mapping_sha256": "8027af0b0d2fee906720de26419fde6ee58a6befc69548d9efc040a629c0e4a3",
+        "native_output_sha256": "cb070eb499d085b2ae68019d671644985f0ccf6bd3dae63f0fd855cb0b78ddf4",
+        "reference_output_sha256": "530c99ea29d533afac71764f1191f120ce804a42e62663254fc59db8f1ef8ef7"
+      }
+    },
+    {
+      "reference_plugin": "windows.vadregexscan.VadRegExScan",
+      "zero_plugin": "windows.vadregexscan.VadRegExScan",
+      "image_sha256": "d58f62e92b8c4ef913ac09b2c36a10482034c10b88d0c154dead3aaaa49cf875",
+      "mapping_sha256": "8027af0b0d2fee906720de26419fde6ee58a6befc69548d9efc040a629c0e4a3",
+      "native_output_sha256": "cb070eb499d085b2ae68019d671644985f0ccf6bd3dae63f0fd855cb0b78ddf4",
+      "zero_args": [
+        "--pid",
+        "844",
+        "--pids",
+        "7688",
+        "--pattern",
+        "MZ"
+      ],
+      "reference_args": [
+        "--pid",
+        "844",
+        "7688",
+        "--pattern",
+        "MZ"
+      ],
+      "case_id": "windows-10-15063/vadregex-pid-union",
+      "sample_source": "https://www.osforensics.com/downloads/WinDump.zip",
+      "native_symbol_source": {
+        "path": "/Volumes/w/code/zero/target/reference/regex-exact-symbols/windows/ntkrnlmp.pdb/0C9CC659210046EC84231597DADFDB3B1.json",
+        "sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4",
+        "configured_path": "/Volumes/w/code/zero/target/reference/regex-exact-symbols/windows/ntkrnlmp.pdb/0C9CC659210046EC84231597DADFDB3B1.json",
+        "configured_sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4"
+      },
+      "comparison": {
+        "schema_version": 1,
+        "mapping_version": 1,
+        "zero_records": 736,
+        "reference_records": 727,
+        "missing": [],
+        "extra": [
+          [
+            7688,
+            140709709742080
+          ],
+          [
+            7688,
+            140709711904768
+          ],
+          [
+            7688,
+            140709736532360
+          ],
+          [
+            7688,
+            140709818392400
+          ],
+          [
+            7688,
+            140709977497889
+          ],
+          [
+            7688,
+            140709977499609
+          ],
+          [
+            7688,
+            140709990196292
+          ],
+          [
+            7688,
+            140710166003712
+          ],
+          [
+            844,
+            140710268305408
+          ]
+        ],
+        "duplicates": [],
+        "conflicts": [],
+        "unverifiable": [],
+        "matched_absent": {},
+        "all_columns_mapped": true,
+        "positive_evidence": true,
+        "zero_complete": false,
+        "zero_diagnostics": [
+          "Windows 链表不一致 @ 0xffffd98df8f9c8e8 direction 0: expected 0xffffd98df8be88e8, found 0xffffd98df7cbe668",
+          "Windows 链表不一致 @ 0xffffd98df8831368 direction 0: expected 0xffffd98df41a88e8, found 0xffffd98df9d4e8e8",
+          "Windows 链表不一致 @ 0xffffd98df3ab88e8 direction 0: expected 0xffffd98df63618e8, found 0xffffd98df480e368",
+          "Windows 链表不一致 @ 0xffffd98df7cbe668 direction 0: expected 0xffffd98df503a368, found 0xffffd98df8be88e8",
+          "链表 @ 0xfffff8021ef5c120 direction 0: Windows 链表循环或超限 0xffffd98df8f9c8e8",
+          "Windows 链表不一致 @ 0xffffd98df9d4e8e8 direction 8: expected 0xfffff8021ef5c120, found 0xffffd98df8831368",
+          "Windows 链表不一致 @ 0xffffd98df41a88e8 direction 8: expected 0xffffd98df9d4e8e8, found 0xffffd98df8831368",
+          "Windows 链表不一致 @ 0xffffd98df8be88e8 direction 8: expected 0xffffd98df7cbe668, found 0xffffd98df8f9c8e8",
+          "PID 844 正则扫描: 扫描 3567616 / 2199047540736 字节；缺页 2199043973120 字节；上下文补零 0 字节；扫描结束",
+          "PID 7688 VAD 0xffffd98df7301010 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802494325552)",
+          "PID 7688 VAD 0xffffd98df81fbf70 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802493797296)",
+          "PID 7688 VAD 0xffffd98df81fbf70 Left: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802516888096)",
+          "PID 7688 VAD 0xffffd98df8adab00 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802496149233)",
+          "PID 7688 VAD 0xffffd98df8adab00 Left: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446744073709551615)",
+          "PID 7688 VAD 0xffffd98df7aa22b0 Left: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(0)",
+          "PID 7688 VAD 0xffffd98df6882360: VAD pool tag 无法验证",
+          "PID 7688 VAD 0xffffd98df5312bc0 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802447722048)",
+          "PID 7688 VAD 0xffffd98dfa19ede0 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802503482208)",
+          "PID 7688 VAD 0xffffd98dfa19ede0 Left: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802427381873)",
+          "PID 7688 VAD 0xffffd98df9ddbc90 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802539203424)",
+          "PID 7688 VAD 0xffffd98df908fba0 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802535079072)",
+          "PID 7688 VAD 0xffffd98df53ed9d0 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802524721824)",
+          "PID 7688 VAD 0xffffd98df9540620: VAD pool tag 无法验证",
+          "PID 7688 VAD 0xffffd98df751ed90 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802431937248)",
+          "PID 7688 VAD 0xffffd98df751ed90 Left: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802501077889)",
+          "PID 7688 VAD 0xffffd98df6937ad0 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802501077891)",
+          "PID 7688 VAD 0xffffd98df751ed90: VAD 节点地址/循环/深度/数量无效",
+          "PID 7688 VAD 0xffffd98df397c5a0 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802479414432)",
+          "PID 7688 VAD 0xffffd98df6a3cbd0 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802491176288)",
+          "PID 7688 VAD 0xffffd98df6a3cbd0 Left: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802475990896)",
+          "PID 7688 VAD 0xffffd98df3b52dd0 Left: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446744073709551615)",
+          "PID 7688 VAD 0xffffd98df39c09d0 Left: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802470758592)",
+          "PID 7688 VAD 0xffffd98df3ac1a70 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802531519073)",
+          "PID 7688 VAD 0xffffd98df3654240 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802531519072)",
+          "PID 7688 VAD 0xffffd98df6a07cc0 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802531426913)",
+          "PID 7688 VAD 0xffffd98df7e53730 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802502910529)",
+          "PID 7688 VAD 0xffffd98df85b3240 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802496195232)",
+          "PID 7688 VAD 0xffffd98df3662bb0 Left: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802440800352)",
+          "PID 7688 VAD 0xffffd98df7f472e0: VAD pool tag 无法验证",
+          "PID 7688 VAD 0xffffd98df3e427d0 Left: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802469052352)",
+          "PID 7688 VAD 0xffffd98dfa282820 Left: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802448599912)",
+          "PID 7688 VAD 0xffffd98df75099f0: VAD pool tag 无法验证",
+          "PID 7688 VAD 0xffffd98df3e9d860 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802426966256)",
+          "PID 7688 VAD 0xffffd98df6b2bb60 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802482536305)",
+          "PID 7688 VAD 0xffffd98df6b2bb60 Left: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802485264241)",
+          "PID 7688 VAD 0xffffd98dfa9a6e90 Left: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802539441808)",
+          "PID 7688 VAD 0xffffd98dfa0710f0 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802539441808)",
+          "PID 7688 VAD 0xffffd98df539c290 Left: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802501107123)",
+          "PID 7688 VAD 0xffffd98df97b81b0 Left: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802546491664)",
+          "PID 7688 VAD 0xffffd98df60accf0 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802456475440)",
+          "PID 7688 正则扫描: 扫描 113451008 / 2199629770752 字节；缺页 2199516319744 字节；上下文补零 0 字节；扫描结束"
+        ],
+        "passed": false
+      },
+      "passed": false,
+      "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+      "reference_output_sha256": "530c99ea29d533afac71764f1191f120ce804a42e62663254fc59db8f1ef8ef7",
+      "symbol_sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4",
+      "zero_executable_sha256": "b5fba34b76bf8c71a43d11466ab322a687616deda36af2ffea80eb32ac9b2163",
+      "engine_version": "0.2.1-native-98",
+      "record_order": {
+        "passed": false,
+        "first_difference": 24,
+        "zero_sha256": "d855119bcb61907f36d48948ddd8ee8f04ca018395ecad6410556f98474660e0",
+        "reference_sha256": "f8da264d342b2269e19b04a1de1c3ec042a7d6b2cb4ecc7750f29560381b4a42",
+        "scope": "All mapped fields in emitted sequence after declared record selection; duplicate occurrences retained.",
+        "case_id": "windows-10-15063/vadregex-pid-union",
+        "mapping_sha256": "8027af0b0d2fee906720de26419fde6ee58a6befc69548d9efc040a629c0e4a3",
+        "native_output_sha256": "cb070eb499d085b2ae68019d671644985f0ccf6bd3dae63f0fd855cb0b78ddf4",
+        "reference_output_sha256": "530c99ea29d533afac71764f1191f120ce804a42e62663254fc59db8f1ef8ef7"
+      }
+    },
+    {
+      "reference_plugin": "windows.vadregexscan.VadRegExScan",
+      "zero_plugin": "windows.vadregexscan.VadRegExScan",
+      "image_sha256": "d58f62e92b8c4ef913ac09b2c36a10482034c10b88d0c154dead3aaaa49cf875",
+      "mapping_sha256": "8027af0b0d2fee906720de26419fde6ee58a6befc69548d9efc040a629c0e4a3",
+      "native_output_sha256": "474688b573836d0d2656daf2ad3736bf42f29cf3c4ec6cf87e80f09467388c7d",
+      "zero_args": [
+        "--pid",
+        "356",
+        "--pattern",
+        "MZ"
+      ],
+      "reference_args": [
+        "--pid",
+        "356",
+        "--pattern",
+        "MZ"
+      ],
+      "case_id": "windows-10-15063/vadregex-smss",
+      "sample_source": "https://www.osforensics.com/downloads/WinDump.zip",
+      "native_symbol_source": {
+        "path": "/Volumes/w/code/zero/target/reference/regex-exact-symbols/windows/ntkrnlmp.pdb/0C9CC659210046EC84231597DADFDB3B1.json",
+        "sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4",
+        "configured_path": "/Volumes/w/code/zero/target/reference/regex-exact-symbols/windows/ntkrnlmp.pdb/0C9CC659210046EC84231597DADFDB3B1.json",
+        "configured_sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4"
+      },
+      "comparison": {
+        "schema_version": 1,
+        "mapping_version": 1,
+        "zero_records": 4,
+        "reference_records": 3,
+        "missing": [],
+        "extra": [
+          [
+            356,
+            140710268305408
+          ]
+        ],
+        "duplicates": [],
+        "conflicts": [],
+        "unverifiable": [],
+        "matched_absent": {},
+        "all_columns_mapped": true,
+        "positive_evidence": true,
+        "zero_complete": false,
+        "zero_diagnostics": [
+          "Windows 链表不一致 @ 0xffffd98df8f9c8e8 direction 0: expected 0xffffd98df8be88e8, found 0xffffd98df7cbe668",
+          "Windows 链表不一致 @ 0xffffd98df8831368 direction 0: expected 0xffffd98df41a88e8, found 0xffffd98df9d4e8e8",
+          "Windows 链表不一致 @ 0xffffd98df3ab88e8 direction 0: expected 0xffffd98df63618e8, found 0xffffd98df480e368",
+          "Windows 链表不一致 @ 0xffffd98df7cbe668 direction 0: expected 0xffffd98df503a368, found 0xffffd98df8be88e8",
+          "链表 @ 0xfffff8021ef5c120 direction 0: Windows 链表循环或超限 0xffffd98df8f9c8e8",
+          "Windows 链表不一致 @ 0xffffd98df9d4e8e8 direction 8: expected 0xfffff8021ef5c120, found 0xffffd98df8831368",
+          "Windows 链表不一致 @ 0xffffd98df41a88e8 direction 8: expected 0xffffd98df9d4e8e8, found 0xffffd98df8831368",
+          "Windows 链表不一致 @ 0xffffd98df8be88e8 direction 8: expected 0xffffd98df7cbe668, found 0xffffd98df8f9c8e8",
+          "PID 356 正则扫描: 扫描 1142784 / 2199030435840 字节；缺页 2199029293056 字节；上下文补零 0 字节；扫描结束"
+        ],
+        "passed": false
+      },
+      "passed": false,
+      "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+      "reference_output_sha256": "5b68e3a7fdd5f6a469332a227099d148a116e2c84ec521545153d1f021fa5763",
+      "symbol_sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4",
+      "zero_executable_sha256": "b5fba34b76bf8c71a43d11466ab322a687616deda36af2ffea80eb32ac9b2163",
+      "engine_version": "0.2.1-native-98",
+      "record_order": {
+        "passed": false,
+        "first_difference": 1,
+        "zero_sha256": "7690f0fa4fcf3680b4e26b2467e8d21d8e036fd0a15d73f15d744d93fe7b8845",
+        "reference_sha256": "b55877793aa27882368b7640babb6ddda8c01565abd1ba8080c7ce75590144ec",
+        "scope": "All mapped fields in emitted sequence after declared record selection; duplicate occurrences retained.",
+        "case_id": "windows-10-15063/vadregex-smss",
+        "mapping_sha256": "8027af0b0d2fee906720de26419fde6ee58a6befc69548d9efc040a629c0e4a3",
+        "native_output_sha256": "474688b573836d0d2656daf2ad3736bf42f29cf3c4ec6cf87e80f09467388c7d",
+        "reference_output_sha256": "5b68e3a7fdd5f6a469332a227099d148a116e2c84ec521545153d1f021fa5763"
+      }
+    },
+    {
+      "reference_plugin": "windows.vadregexscan.VadRegExScan",
+      "zero_plugin": "windows.vadregexscan.VadRegExScan",
+      "image_sha256": "d58f62e92b8c4ef913ac09b2c36a10482034c10b88d0c154dead3aaaa49cf875",
+      "mapping_sha256": "8027af0b0d2fee906720de26419fde6ee58a6befc69548d9efc040a629c0e4a3",
+      "native_output_sha256": "b61ba92e7f9bd8bac4cffb06cb12df5056aa72a004282d8bbcd9326a5f74d3c7",
+      "zero_args": [
+        "--pids",
+        "356,468",
+        "--pattern",
+        "MZ"
+      ],
+      "reference_args": [
+        "--pid",
+        "356",
+        "468",
+        "--pattern",
+        "MZ"
+      ],
+      "case_id": "windows-10-15063/vadregex-system-process-pids",
+      "sample_source": "https://www.osforensics.com/downloads/WinDump.zip",
+      "native_symbol_source": {
+        "path": "/Volumes/w/code/zero/target/reference/regex-exact-symbols/windows/ntkrnlmp.pdb/0C9CC659210046EC84231597DADFDB3B1.json",
+        "sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4",
+        "configured_path": "/Volumes/w/code/zero/target/reference/regex-exact-symbols/windows/ntkrnlmp.pdb/0C9CC659210046EC84231597DADFDB3B1.json",
+        "configured_sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4"
+      },
+      "comparison": {
+        "schema_version": 1,
+        "mapping_version": 1,
+        "zero_records": 31,
+        "reference_records": 30,
+        "missing": [],
+        "extra": [
+          [
+            356,
+            140710268305408
+          ]
+        ],
+        "duplicates": [],
+        "conflicts": [],
+        "unverifiable": [],
+        "matched_absent": {},
+        "all_columns_mapped": true,
+        "positive_evidence": true,
+        "zero_complete": false,
+        "zero_diagnostics": [
+          "Windows 链表不一致 @ 0xffffd98df8f9c8e8 direction 0: expected 0xffffd98df8be88e8, found 0xffffd98df7cbe668",
+          "Windows 链表不一致 @ 0xffffd98df8831368 direction 0: expected 0xffffd98df41a88e8, found 0xffffd98df9d4e8e8",
+          "Windows 链表不一致 @ 0xffffd98df3ab88e8 direction 0: expected 0xffffd98df63618e8, found 0xffffd98df480e368",
+          "Windows 链表不一致 @ 0xffffd98df7cbe668 direction 0: expected 0xffffd98df503a368, found 0xffffd98df8be88e8",
+          "链表 @ 0xfffff8021ef5c120 direction 0: Windows 链表循环或超限 0xffffd98df8f9c8e8",
+          "Windows 链表不一致 @ 0xffffd98df9d4e8e8 direction 8: expected 0xfffff8021ef5c120, found 0xffffd98df8831368",
+          "Windows 链表不一致 @ 0xffffd98df41a88e8 direction 8: expected 0xffffd98df9d4e8e8, found 0xffffd98df8831368",
+          "Windows 链表不一致 @ 0xffffd98df8be88e8 direction 8: expected 0xffffd98df7cbe668, found 0xffffd98df8f9c8e8",
+          "PID 356 正则扫描: 扫描 1142784 / 2199030435840 字节；缺页 2199029293056 字节；上下文补零 0 字节；扫描结束",
+          "PID 468 VAD 0xffffd98df6af13d0 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802478683760)",
+          "PID 468 VAD 0xffffd98df70ef6b0 Left: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802437165920)",
+          "PID 468 正则扫描: 扫描 5279744 / 2199083278336 字节；缺页 2199077998592 字节；上下文补零 0 字节；扫描结束"
+        ],
+        "passed": false
+      },
+      "passed": false,
+      "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+      "reference_output_sha256": "bb1f588a39fe13f1ec7b104611d5c0341ba03c084bd50ff4d9db75040875ed16",
+      "symbol_sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4",
+      "zero_executable_sha256": "b5fba34b76bf8c71a43d11466ab322a687616deda36af2ffea80eb32ac9b2163",
+      "engine_version": "0.2.1-native-98",
+      "record_order": {
+        "passed": false,
+        "first_difference": 1,
+        "zero_sha256": "11b2419adf0b51ef6522293cfdea6f0ebe949717c7ffadd982cb86af25e033e6",
+        "reference_sha256": "c99e7d1682126016af9615172efe94135aecf42a016cdd4e0fb366f3b259b862",
+        "scope": "All mapped fields in emitted sequence after declared record selection; duplicate occurrences retained.",
+        "case_id": "windows-10-15063/vadregex-system-process-pids",
+        "mapping_sha256": "8027af0b0d2fee906720de26419fde6ee58a6befc69548d9efc040a629c0e4a3",
+        "native_output_sha256": "b61ba92e7f9bd8bac4cffb06cb12df5056aa72a004282d8bbcd9326a5f74d3c7",
+        "reference_output_sha256": "bb1f588a39fe13f1ec7b104611d5c0341ba03c084bd50ff4d9db75040875ed16"
+      }
+    },
+    {
+      "reference_plugin": "windows.vadregexscan.VadRegExScan",
+      "zero_plugin": "windows.vadregexscan.VadRegExScan",
+      "image_sha256": "d58f62e92b8c4ef913ac09b2c36a10482034c10b88d0c154dead3aaaa49cf875",
+      "mapping_sha256": "8027af0b0d2fee906720de26419fde6ee58a6befc69548d9efc040a629c0e4a3",
+      "native_output_sha256": "4df18c543e933bdf0f1d8e2d54d7422ac781aa35433de3a0cee0d0172ffa544d",
+      "zero_args": [
+        "--pid",
+        "844",
+        "--pattern",
+        "MZ"
+      ],
+      "reference_args": [
+        "--pid",
+        "844",
+        "--pattern",
+        "MZ"
+      ],
+      "case_id": "windows-10-15063/vadregex-pid-844",
+      "sample_source": "https://www.osforensics.com/downloads/WinDump.zip",
+      "native_symbol_source": {
+        "path": "/Volumes/w/code/zero/target/reference/regex-exact-symbols/windows/ntkrnlmp.pdb/0C9CC659210046EC84231597DADFDB3B1.json",
+        "sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4",
+        "configured_path": "/Volumes/w/code/zero/target/reference/regex-exact-symbols/windows/ntkrnlmp.pdb/0C9CC659210046EC84231597DADFDB3B1.json",
+        "configured_sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4"
+      },
+      "comparison": {
+        "schema_version": 1,
+        "mapping_version": 1,
+        "zero_records": 27,
+        "reference_records": 26,
+        "missing": [],
+        "extra": [
+          [
+            844,
+            140710268305408
+          ]
+        ],
+        "duplicates": [],
+        "conflicts": [],
+        "unverifiable": [],
+        "matched_absent": {},
+        "all_columns_mapped": true,
+        "positive_evidence": true,
+        "zero_complete": false,
+        "zero_diagnostics": [
+          "Windows 链表不一致 @ 0xffffd98df8f9c8e8 direction 0: expected 0xffffd98df8be88e8, found 0xffffd98df7cbe668",
+          "Windows 链表不一致 @ 0xffffd98df8831368 direction 0: expected 0xffffd98df41a88e8, found 0xffffd98df9d4e8e8",
+          "Windows 链表不一致 @ 0xffffd98df3ab88e8 direction 0: expected 0xffffd98df63618e8, found 0xffffd98df480e368",
+          "Windows 链表不一致 @ 0xffffd98df7cbe668 direction 0: expected 0xffffd98df503a368, found 0xffffd98df8be88e8",
+          "链表 @ 0xfffff8021ef5c120 direction 0: Windows 链表循环或超限 0xffffd98df8f9c8e8",
+          "Windows 链表不一致 @ 0xffffd98df9d4e8e8 direction 8: expected 0xfffff8021ef5c120, found 0xffffd98df8831368",
+          "Windows 链表不一致 @ 0xffffd98df41a88e8 direction 8: expected 0xffffd98df9d4e8e8, found 0xffffd98df8831368",
+          "Windows 链表不一致 @ 0xffffd98df8be88e8 direction 8: expected 0xffffd98df7cbe668, found 0xffffd98df8f9c8e8",
+          "PID 844 正则扫描: 扫描 3567616 / 2199047540736 字节；缺页 2199043973120 字节；上下文补零 0 字节；扫描结束"
+        ],
+        "passed": false
+      },
+      "passed": false,
+      "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+      "reference_output_sha256": "06d26dd8a46471ab41d75d83444b914f4bb3eb70858ea9fb3c1e80c43cf1ce33",
+      "symbol_sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4",
+      "zero_executable_sha256": "b5fba34b76bf8c71a43d11466ab322a687616deda36af2ffea80eb32ac9b2163",
+      "engine_version": "0.2.1-native-98",
+      "record_order": {
+        "passed": false,
+        "first_difference": 24,
+        "zero_sha256": "5e77270edcf887d8accb65380e778030fef798ce87ea26143b0e479867866026",
+        "reference_sha256": "8491f8e187ee2374403baaf434373acca0f53223019b3e5e629e420832950e46",
+        "scope": "All mapped fields in emitted sequence after declared record selection; duplicate occurrences retained.",
+        "case_id": "windows-10-15063/vadregex-pid-844",
+        "mapping_sha256": "8027af0b0d2fee906720de26419fde6ee58a6befc69548d9efc040a629c0e4a3",
+        "native_output_sha256": "4df18c543e933bdf0f1d8e2d54d7422ac781aa35433de3a0cee0d0172ffa544d",
+        "reference_output_sha256": "06d26dd8a46471ab41d75d83444b914f4bb3eb70858ea9fb3c1e80c43cf1ce33"
+      }
+    },
+    {
+      "reference_plugin": "windows.vadregexscan.VadRegExScan",
+      "zero_plugin": "windows.vadregexscan.VadRegExScan",
+      "image_sha256": "d58f62e92b8c4ef913ac09b2c36a10482034c10b88d0c154dead3aaaa49cf875",
+      "mapping_sha256": "8027af0b0d2fee906720de26419fde6ee58a6befc69548d9efc040a629c0e4a3",
+      "native_output_sha256": "8e435f98d19e79108278164a24dd2ef7791a498ac073855fca96c84dfa75de95",
+      "zero_args": [
+        "--pid",
+        "7688",
+        "--pattern",
+        "MZ.{6}",
+        "--maxsize",
+        "4"
+      ],
+      "reference_args": [
+        "--pid",
+        "7688",
+        "--pattern",
+        "MZ.{6}",
+        "--maxsize",
+        "4"
+      ],
+      "case_id": "windows-10-15063/vadregex-maxsize",
+      "sample_source": "https://www.osforensics.com/downloads/WinDump.zip",
+      "native_symbol_source": {
+        "path": "/Volumes/w/code/zero/target/reference/regex-exact-symbols/windows/ntkrnlmp.pdb/0C9CC659210046EC84231597DADFDB3B1.json",
+        "sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4",
+        "configured_path": "/Volumes/w/code/zero/target/reference/regex-exact-symbols/windows/ntkrnlmp.pdb/0C9CC659210046EC84231597DADFDB3B1.json",
+        "configured_sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4"
+      },
+      "comparison": {
+        "schema_version": 1,
+        "mapping_version": 1,
+        "zero_records": 709,
+        "reference_records": 701,
+        "missing": [],
+        "extra": [
+          [
+            7688,
+            140709709742080
+          ],
+          [
+            7688,
+            140709711904768
+          ],
+          [
+            7688,
+            140709736532360
+          ],
+          [
+            7688,
+            140709818392400
+          ],
+          [
+            7688,
+            140709977497889
+          ],
+          [
+            7688,
+            140709977499609
+          ],
+          [
+            7688,
+            140709990196292
+          ],
+          [
+            7688,
+            140710166003712
+          ]
+        ],
+        "duplicates": [],
+        "conflicts": [],
+        "unverifiable": [],
+        "matched_absent": {},
+        "all_columns_mapped": true,
+        "positive_evidence": true,
+        "zero_complete": false,
+        "zero_diagnostics": [
+          "Windows 链表不一致 @ 0xffffd98df8f9c8e8 direction 0: expected 0xffffd98df8be88e8, found 0xffffd98df7cbe668",
+          "Windows 链表不一致 @ 0xffffd98df8831368 direction 0: expected 0xffffd98df41a88e8, found 0xffffd98df9d4e8e8",
+          "Windows 链表不一致 @ 0xffffd98df3ab88e8 direction 0: expected 0xffffd98df63618e8, found 0xffffd98df480e368",
+          "Windows 链表不一致 @ 0xffffd98df7cbe668 direction 0: expected 0xffffd98df503a368, found 0xffffd98df8be88e8",
+          "链表 @ 0xfffff8021ef5c120 direction 0: Windows 链表循环或超限 0xffffd98df8f9c8e8",
+          "Windows 链表不一致 @ 0xffffd98df9d4e8e8 direction 8: expected 0xfffff8021ef5c120, found 0xffffd98df8831368",
+          "Windows 链表不一致 @ 0xffffd98df41a88e8 direction 8: expected 0xffffd98df9d4e8e8, found 0xffffd98df8831368",
+          "Windows 链表不一致 @ 0xffffd98df8be88e8 direction 8: expected 0xffffd98df7cbe668, found 0xffffd98df8f9c8e8",
+          "PID 7688 VAD 0xffffd98df7301010 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802494325552)",
+          "PID 7688 VAD 0xffffd98df81fbf70 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802493797296)",
+          "PID 7688 VAD 0xffffd98df81fbf70 Left: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802516888096)",
+          "PID 7688 VAD 0xffffd98df8adab00 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802496149233)",
+          "PID 7688 VAD 0xffffd98df8adab00 Left: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446744073709551615)",
+          "PID 7688 VAD 0xffffd98df7aa22b0 Left: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(0)",
+          "PID 7688 VAD 0xffffd98df6882360: VAD pool tag 无法验证",
+          "PID 7688 VAD 0xffffd98df5312bc0 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802447722048)",
+          "PID 7688 VAD 0xffffd98dfa19ede0 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802503482208)",
+          "PID 7688 VAD 0xffffd98dfa19ede0 Left: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802427381873)",
+          "PID 7688 VAD 0xffffd98df9ddbc90 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802539203424)",
+          "PID 7688 VAD 0xffffd98df908fba0 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802535079072)",
+          "PID 7688 VAD 0xffffd98df53ed9d0 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802524721824)",
+          "PID 7688 VAD 0xffffd98df9540620: VAD pool tag 无法验证",
+          "PID 7688 VAD 0xffffd98df751ed90 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802431937248)",
+          "PID 7688 VAD 0xffffd98df751ed90 Left: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802501077889)",
+          "PID 7688 VAD 0xffffd98df6937ad0 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802501077891)",
+          "PID 7688 VAD 0xffffd98df751ed90: VAD 节点地址/循环/深度/数量无效",
+          "PID 7688 VAD 0xffffd98df397c5a0 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802479414432)",
+          "PID 7688 VAD 0xffffd98df6a3cbd0 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802491176288)",
+          "PID 7688 VAD 0xffffd98df6a3cbd0 Left: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802475990896)",
+          "PID 7688 VAD 0xffffd98df3b52dd0 Left: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446744073709551615)",
+          "PID 7688 VAD 0xffffd98df39c09d0 Left: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802470758592)",
+          "PID 7688 VAD 0xffffd98df3ac1a70 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802531519073)",
+          "PID 7688 VAD 0xffffd98df3654240 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802531519072)",
+          "PID 7688 VAD 0xffffd98df6a07cc0 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802531426913)",
+          "PID 7688 VAD 0xffffd98df7e53730 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802502910529)",
+          "PID 7688 VAD 0xffffd98df85b3240 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802496195232)",
+          "PID 7688 VAD 0xffffd98df3662bb0 Left: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802440800352)",
+          "PID 7688 VAD 0xffffd98df7f472e0: VAD pool tag 无法验证",
+          "PID 7688 VAD 0xffffd98df3e427d0 Left: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802469052352)",
+          "PID 7688 VAD 0xffffd98dfa282820 Left: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802448599912)",
+          "PID 7688 VAD 0xffffd98df75099f0: VAD pool tag 无法验证",
+          "PID 7688 VAD 0xffffd98df3e9d860 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802426966256)",
+          "PID 7688 VAD 0xffffd98df6b2bb60 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802482536305)",
+          "PID 7688 VAD 0xffffd98df6b2bb60 Left: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802485264241)",
+          "PID 7688 VAD 0xffffd98dfa9a6e90 Left: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802539441808)",
+          "PID 7688 VAD 0xffffd98dfa0710f0 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802539441808)",
+          "PID 7688 VAD 0xffffd98df539c290 Left: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802501107123)",
+          "PID 7688 VAD 0xffffd98df97b81b0 Left: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802546491664)",
+          "PID 7688 VAD 0xffffd98df60accf0 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802456475440)",
+          "PID 7688 正则扫描: 扫描 113451008 / 2199629770752 字节；缺页 2199516319744 字节；上下文补零 0 字节；扫描结束"
+        ],
+        "passed": false
+      },
+      "passed": false,
+      "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+      "reference_output_sha256": "5d665c63a3ff3f395f0d97a4b880fa9de34c0f97fbc0a1ca3cebf6681ed1cebd",
+      "symbol_sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4",
+      "zero_executable_sha256": "b5fba34b76bf8c71a43d11466ab322a687616deda36af2ffea80eb32ac9b2163",
+      "engine_version": "0.2.1-native-98",
+      "record_order": {
+        "passed": false,
+        "first_difference": 93,
+        "zero_sha256": "dfd18f4a23eda723cb4b09c315275b225ab1350ebab10a16c2403970c43e434b",
+        "reference_sha256": "dab42066e8997e1a83704445bd10cb2c93105baa0400d0799d6482f77665327f",
+        "scope": "All mapped fields in emitted sequence after declared record selection; duplicate occurrences retained.",
+        "case_id": "windows-10-15063/vadregex-maxsize",
+        "mapping_sha256": "8027af0b0d2fee906720de26419fde6ee58a6befc69548d9efc040a629c0e4a3",
+        "native_output_sha256": "8e435f98d19e79108278164a24dd2ef7791a498ac073855fca96c84dfa75de95",
+        "reference_output_sha256": "5d665c63a3ff3f395f0d97a4b880fa9de34c0f97fbc0a1ca3cebf6681ed1cebd"
+      }
+    }
+  ],
+  "mcp_cache_regressions": {
+    "linux": {
+      "passed": true,
+      "zero_executable_sha256": "b5fba34b76bf8c71a43d11466ab322a687616deda36af2ffea80eb32ac9b2163",
+      "image_sha256": "8ce57b7c7b423173ce970fe8f51e7016c04ef1b4a5f73d5c5f1001d5c18780bc",
+      "sizes": [
+        null,
+        4,
+        0,
+        -1,
+        4097,
+        4,
+        -9223372036854775808,
+        9223372036854775807
+      ],
+      "rows": [
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2
+      ],
+      "unique_cache_entries": 0,
+      "baseline_complete": false,
+      "partial_results_not_persisted": true,
+      "baseline_native_output_sha256": "9b6a786474891c3b2ed21a77f09f161e59f540cda57b233af28d50014cf447eb",
+      "replies_sha256": "cfca34d2eb7b3e24f1177c454f60caf2ecdb05fb495ddb5f9aff8e2e2d7cafa7",
+      "scope": "One persistent isolated native MCP session. Compare first200 API and total counts to no-cache native output; preserve complete/partial state and requested/effective context metadata on each reply. Complete results compare all stored cache rows; partial results must never create success cache files. Signed limits, negative, zero and large compatibility values do not alter displayed rows; repeated request verified with the expected cache policy. Not additional reference parity evidence."
+    },
+    "windows": {
+      "passed": true,
+      "zero_executable_sha256": "b5fba34b76bf8c71a43d11466ab322a687616deda36af2ffea80eb32ac9b2163",
+      "image_sha256": "d58f62e92b8c4ef913ac09b2c36a10482034c10b88d0c154dead3aaaa49cf875",
+      "sizes": [
+        null,
+        4,
+        0,
+        -1,
+        4097,
+        4,
+        -9223372036854775808,
+        9223372036854775807
+      ],
+      "rows": [
+        27,
+        27,
+        27,
+        27,
+        27,
+        27,
+        27,
+        27
+      ],
+      "unique_cache_entries": 0,
+      "baseline_complete": false,
+      "partial_results_not_persisted": true,
+      "baseline_native_output_sha256": "d55316d3a7c4a31abb4d9eb04f14829ec094d460c03f194462b99bffddbb68e3",
+      "replies_sha256": "1cbeb1248717b7e8ee145904a9f0d6138bb92c4b602739923fb2fc4fe6def9a9",
+      "scope": "One persistent isolated native MCP session. Compare first200 API and total counts to no-cache native output; preserve complete/partial state and requested/effective context metadata on each reply. Complete results compare all stored cache rows; partial results must never create success cache files. Signed limits, negative, zero and large compatibility values do not alter displayed rows; repeated request verified with the expected cache policy. Not additional reference parity evidence."
+    }
+  },
+  "limitations": [
+    "Pinned canonical generators always read 128 display bytes; maxsize is accepted and retained as requested metadata but does not change output. CLI/MCP/TUI integer representation is signed64, not arbitrary Python integer precision.",
+    "Linux PID selectors use task.pid; displayed PID is task.tgid. Adapter cases use distinct PID/TGID, while the real Debian sample does not prove every malformed task layout.",
+    "Windows prototype-page recovery still yields extra rows in known cases. Full comparisons remain failed; no row filtering or independent validation of hidden memory is claimed.",
+    "Python versus PCRE2 syntax/semantics, full scanner/layer chunk behavior, missing-page/exception/resource contracts, all platforms and live races remain incompletely validated.",
+    "Original user Debian6.12 image is unavailable. No complete plugin contract is claimed."
+  ]
+}

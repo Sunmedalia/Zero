@@ -4,16 +4,12 @@
       "id": "windows-10-15063",
       "image": "images/feat-windows-plugins/WinDump/WinDump.mem",
       "image_sha256": "d58f62e92b8c4ef913ac09b2c36a10482034c10b88d0c154dead3aaaa49cf875",
-      "zero_symbols": ".zero/rust/symbols/isf/windows/ntkrnlmp.pdb-0C9CC659210046EC84231597DADFDB3B1.json",
-      "reference_symbols": "target/reference/windows-regex-symbols",
+      "zero_symbols": "target/reference/regex-exact-symbols/windows/ntkrnlmp.pdb/0C9CC659210046EC84231597DADFDB3B1.json",
+      "reference_symbols": "target/reference/regex-exact-symbols",
       "symbol_files": [
         {
-          "path": ".zero/rust/symbols/isf/windows/ntkrnlmp.pdb-0C9CC659210046EC84231597DADFDB3B1.json",
-          "sha256": "9f13351c91d46e1b21abbe0787b4f841a5410ddd3f7a5655486cb4028a44e400"
-        },
-        {
-          "path": "target/reference/windows-regex-symbols/windows/ntkrnlmp.pdb/0C9CC659210046EC84231597DADFDB3B1.json",
-          "sha256": "9f13351c91d46e1b21abbe0787b4f841a5410ddd3f7a5655486cb4028a44e400"
+          "path": "target/reference/regex-exact-symbols/windows/ntkrnlmp.pdb/0C9CC659210046EC84231597DADFDB3B1.json",
+          "sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4"
         }
       ],
       "source": "https://www.osforensics.com/downloads/WinDump.zip"
@@ -41,6 +37,75 @@
         "MZ.{6}",
         "--maxsize",
         "4"
+      ]
+    },
+    {
+      "sample": "windows-10-15063",
+      "id": "windows-10-15063/vadregex-maxsize--1",
+      "reference_plugin": "windows.vadregexscan.VadRegExScan",
+      "zero_plugin": "windows.vadregexscan.VadRegExScan",
+      "mapping": "tests/reference/parity/mappings/windows-vadregexscan.json",
+      "zero_args": [
+        "--pid",
+        "468",
+        "--pattern",
+        "MZ.{6}",
+        "--maxsize",
+        "-1"
+      ],
+      "reference_args": [
+        "--pid",
+        "468",
+        "--pattern",
+        "MZ.{6}",
+        "--maxsize",
+        "-1"
+      ]
+    },
+    {
+      "sample": "windows-10-15063",
+      "id": "windows-10-15063/vadregex-maxsize-0",
+      "reference_plugin": "windows.vadregexscan.VadRegExScan",
+      "zero_plugin": "windows.vadregexscan.VadRegExScan",
+      "mapping": "tests/reference/parity/mappings/windows-vadregexscan.json",
+      "zero_args": [
+        "--pid",
+        "468",
+        "--pattern",
+        "MZ.{6}",
+        "--maxsize",
+        "0"
+      ],
+      "reference_args": [
+        "--pid",
+        "468",
+        "--pattern",
+        "MZ.{6}",
+        "--maxsize",
+        "0"
+      ]
+    },
+    {
+      "sample": "windows-10-15063",
+      "id": "windows-10-15063/vadregex-maxsize-4097",
+      "reference_plugin": "windows.vadregexscan.VadRegExScan",
+      "zero_plugin": "windows.vadregexscan.VadRegExScan",
+      "mapping": "tests/reference/parity/mappings/windows-vadregexscan.json",
+      "zero_args": [
+        "--pid",
+        "468",
+        "--pattern",
+        "MZ.{6}",
+        "--maxsize",
+        "4097"
+      ],
+      "reference_args": [
+        "--pid",
+        "468",
+        "--pattern",
+        "MZ.{6}",
+        "--maxsize",
+        "4097"
       ]
     }
   ]

@@ -3,6 +3,9 @@
 use crate::{Job, byte_regex::ByteRegex};
 use anyhow::{Context, Result, ensure};
 use serde::Serialize;
+/// Pinned Linux and Windows canonical generators always read this context size.
+pub const REFERENCE_CONTEXT_SIZE: usize = 128;
+
 /// Display bytes use an independent non-DOTALL anchored re-match, like the reference.
 /// Missing bytes are padded only here, never in a searchable subject.
 pub struct DisplayMatch {

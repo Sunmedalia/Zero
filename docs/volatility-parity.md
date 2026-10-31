@@ -2010,3 +2010,52 @@ thread_group；前向遍历，逐任务应用完整准入，按组内地址去�
 同名基线替换，仅增加 5 个正向用例，累计 141 个正向用例（5 个限定范围），
 完整插件合同仍为 0/135。既有 regex maxsize=4 差异尚未修复；原始 Debian6.12
 用户镜像仍不可得，不能据此声称该镜像已可分析。
+
+## native98：标准正则入口的固定上下文与实际符号来源
+
+固定参考的 Linux VmaRegExScan 和 Windows VadRegExScan 都声明 `maxsize`，
+但生成器实际调用 `read(offset, MAXSIZE_DEFAULT, pad=True)`，没有读取配置值。
+两个标准原生入口现在同样固定读取 128 字节，再用非 DOTALL 正则锚定重匹配；
+匹配不成立或超出上下文时输出整段上下文。CLI/MCP/TUI 接受 signed64 整数兼容
+参数，包括负数、零和大于 4096 的值，但不会据此分配内存或改变显示长度。
+诊断元数据同时保留 effective `maxsize=128` 与 `requested_maxsize`，界面与帮助
+说明这一行为。Python 任意精度整数仍不属于当前输入合同。
+
+同时修复 Linux 正则按 TGID 过滤的问题：参考先按 task.pid 筛选，再输出
+task.tgid；现在二者分开。96 个生成器适配器用例直接执行固定参考的 Linux /
+Windows `_generator` 和 RegExScanner，覆盖默认／负数／零／大参数、普通匹配、
+lookbehind、DOTALL 显示回退、160 字节长匹配、命名反向引用和无效 UTF-8。
+另有 5 个 PID/TGID 不同的筛选方法用例；原生测试使用实际页表与结构字节对照。
+这些适配器不证明所有页表、VMA/VAD 准入、分块、缺页和 Python/PCRE2 语义。
+
+验证时发现旧 Windows 配置指定的 converter5 ISF 会被当前转换器规则跳过，
+CLI 实际从本机缓存读取 converter8 ISF，而参考仍读取旧文件。本轮不使用该组
+输出作为新证据；改为冻结同一份 converter8 ISF 给两端，SHA256 为
+`d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4`。
+随后从 native97 发布包恢复原二进制，使用这份符号重建修复前基线。两个工具
+仍共享同源 PDB 派生布局，不是独立符号布局验证。
+
+差分工具新增实际符号来源保护：对显式 JSON ISF 输入，比较结果所载符号文件
+与配置文件的实际 SHA256；不同的缓存回退使该用例失败。归档也逐例重新检查
+来源。目录／归档符号选择不受这个额外文件保护覆盖。4 个新增 Python 测试
+验证缓存换源拒绝、相同字节异路径接受、实际文件缺失拒绝和保护的适用范围。
+
+最终两组 Linux 10 例均全字段／严格行序通过，包括原 maxsize4 的 4 个 Text/Hex
+冲突归零。Windows 使用同一 ISF 重跑 13 例，4 例通过：PID468 默认 27 行，
+maxsize=-1/0/4097 各 27 行。其余 9 例仍失败，保留全部额外原生记录；原
+PID7688 maxsize4 共有 701 行的 1402 个字段冲突已归零，但仍为 709/701，
+额外 8 行不作正向对齐证明。没有为了通过比较而过滤页面恢复结果。
+
+Linux／Windows 持续 MCP 会话各 8 次参数请求分别始终为 2／27 行；逐次验证
+完整行、effective/requested 元数据和 partial 状态。两组均有缺页，成功缓存
+文件均为 0，证明没有将 partial 结果落为成功缓存；不声称真实样本缓存命中。
+原有完整合成 Windows 会话测试继续覆盖参数间缓存隔离。最终 make check：
+632 库、10 CLI/MCP、50 协议、40 Python 全过，发布包启动／退出检查通过。
+
+新证明见 `regex-context-known-limitations.json`，保留修复前计数与输出哈希，
+不提交恢复的 Text/Hex 内容。真实原始报告位于 target/reference/results 下
+`vmaregexscan[-maxsize]-native98`、`vadregexscan[-maxsize]-exact-native98`；
+最终二进制 SHA256 `b5fba34b76bf8c71a43d11466ab322a687616deda36af2ffea80eb32ac9b2163`。
+同名基线替换，只新增 7 个正向身份，累计 148 正向案例（5 项限定范围），
+完整插件合同仍为 0/135。Windows 页面恢复与参考的差异、广泛平台／异常／
+资源合同、原始 Debian6.12 镜像复测等工作仍未完成。

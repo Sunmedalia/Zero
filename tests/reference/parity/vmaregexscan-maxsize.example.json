@@ -42,6 +42,75 @@
         "4"
       ],
       "id": "debian-3.2/vmaregex-maxsize-known-difference"
+    },
+    {
+      "sample": "debian-3.2",
+      "reference_plugin": "linux.vmaregexscan.VmaRegExScan",
+      "zero_plugin": "linux.vmaregexscan.VmaRegExScan",
+      "mapping": "tests/reference/parity/mappings/linux-vmaregexscan.json",
+      "zero_args": [
+        "--pattern",
+        "(?<=/bin/)sh",
+        "--pid",
+        "1",
+        "--maxsize",
+        "-1"
+      ],
+      "reference_args": [
+        "--pattern",
+        "(?<=/bin/)sh",
+        "--pid",
+        "1",
+        "--maxsize",
+        "-1"
+      ],
+      "id": "debian-3.2/vmaregex-maxsize--1"
+    },
+    {
+      "sample": "debian-3.2",
+      "reference_plugin": "linux.vmaregexscan.VmaRegExScan",
+      "zero_plugin": "linux.vmaregexscan.VmaRegExScan",
+      "mapping": "tests/reference/parity/mappings/linux-vmaregexscan.json",
+      "zero_args": [
+        "--pattern",
+        "(?<=/bin/)sh",
+        "--pid",
+        "1",
+        "--maxsize",
+        "0"
+      ],
+      "reference_args": [
+        "--pattern",
+        "(?<=/bin/)sh",
+        "--pid",
+        "1",
+        "--maxsize",
+        "0"
+      ],
+      "id": "debian-3.2/vmaregex-maxsize-0"
+    },
+    {
+      "sample": "debian-3.2",
+      "reference_plugin": "linux.vmaregexscan.VmaRegExScan",
+      "zero_plugin": "linux.vmaregexscan.VmaRegExScan",
+      "mapping": "tests/reference/parity/mappings/linux-vmaregexscan.json",
+      "zero_args": [
+        "--pattern",
+        "(?<=/bin/)sh",
+        "--pid",
+        "1",
+        "--maxsize",
+        "4097"
+      ],
+      "reference_args": [
+        "--pattern",
+        "(?<=/bin/)sh",
+        "--pid",
+        "1",
+        "--maxsize",
+        "4097"
+      ],
+      "id": "debian-3.2/vmaregex-maxsize-4097"
     }
   ]
 }

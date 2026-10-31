@@ -20,6 +20,20 @@ def digest(path):
         return hashlib.file_digest(stream, 'sha256').hexdigest()
 
 
+def verify_native_symbol(sample, result):
+    """Bind an explicit ISF input to the file the native result actually used."""
+    expected = Path(sample['zero_symbols'])
+    if not expected.name.endswith(('.json', '.json.xz', '.json.gz', '.json.bz2', '.json.zst')):
+        return None
+    actual = Path(result['symbol']).resolve(strict=True)
+    expected_sha256 = digest(expected)
+    actual_sha256 = digest(actual)
+    if actual_sha256 != expected_sha256:
+        raise ValueError('native resolved a different ISF than zero_symbols; cached fallback cannot certify the configured symbols')
+    return {'path': str(actual), 'sha256': actual_sha256,
+            'configured_path': str(expected.resolve()), 'configured_sha256': expected_sha256}
+
+
 def compare_artifacts(native, reference):
     left = {str(p.relative_to(native)): p for p in native.rglob('*') if p.is_file()}
     right = {str(p.relative_to(reference)): p for p in reference.rglob('*') if p.is_file()}
@@ -109,6 +123,7 @@ def run(config, output, zero, checkout, python, timeout):
             mapping = json.loads(mapping_path.read_text())
             record['mapping_sha256'] = digest(mapping_path)
             n = json.loads(native_output.read_text())
+            record['native_symbol_source'] = verify_native_symbol(sample, n)
             if native['exit_code'] != 0 and (n['complete'] or not mapping.get('allow_partial', False)):
                 raise ValueError('native engine failed without an explicitly accepted partial result')
             record['comparison'] = compare(n, json.loads(reference_output.read_text()), mapping)

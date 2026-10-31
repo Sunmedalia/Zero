@@ -47,5 +47,10 @@
     "The pinned reference declares maxsize but reads MAXSIZE_DEFAULT (128) regardless of the supplied value.",
     "Native applies maxsize=4; Text/Hex differ while PID/Process/Offset agree.",
     "This known-difference case is not counted as passed; raw recovered bytes are not committed."
-  ]
+  ],
+  "superseded_context_behavior": {
+    "engine_version": "0.2.1-native-98",
+    "proof": "regex-context-known-limitations.json",
+    "note": "Historical maxsize Text/Hex conflicts are fixed by canonical 128-byte context. See current proof for complete comparisons; Windows extra recovered records remain failing."
+  }
 }

@@ -77,8 +77,7 @@ impl App {
                     };
                     anyhow::ensure!(pids.len() <= 4096, "PID 列表超过 4096 项");
                     if self.plugin.is_regex_scan() {
-                        let size = fields[15].trim().parse::<usize>().context("maxsize 无效")?;
-                        anyhow::ensure!((1..=4096).contains(&size), "maxsize 必须为 1..4096");
+                        fields[15].trim().parse::<i64>().context("maxsize 无效")?;
                     }
                     anyhow::ensure!(
                         self.plugin != Plugin::WinPrintkey || hive.is_some(),
@@ -181,7 +180,7 @@ impl App {
                                 .parse::<bool>()
                                 .context("unresolved 应为 true/false")?,
                         maxsize: if self.plugin.is_regex_scan() {
-                            Some(fields[15].trim().parse::<usize>().context("maxsize 无效")?)
+                            Some(fields[15].trim().parse::<i64>().context("maxsize 无效")?)
                         } else {
                             None
                         },

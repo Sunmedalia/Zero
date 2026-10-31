@@ -93,7 +93,7 @@ pub struct Options {
     pub arch: crate::windows::Architecture,
     pub pid: Option<u32>,
     pub pids: Vec<u32>,
-    pub maxsize: Option<usize>,
+    pub maxsize: Option<i64>,
     pub unresolved: bool,
     pub include_threads: bool,
     pub decorate_comm: bool,
@@ -171,9 +171,6 @@ pub fn analyze(
         !options.unresolved || request.plugin == Plugin::PsCallStack,
         "unresolved 仅用于 PsCallStack"
     );
-    if let Some(size) = options.maxsize {
-        ensure!((1..=4096).contains(&size), "maxsize 必须为 1..4096");
-    }
 
     ensure!(
         !(options.include_threads || options.decorate_comm)

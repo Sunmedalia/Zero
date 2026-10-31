@@ -54,9 +54,9 @@ struct Cli {
     /// Include unresolved nonzero saved stack words in PsCallStack.
     #[arg(long, global = true)]
     unresolved: bool,
-    /// Display context bytes for VmaRegExScan / VadRegExScan (default 128, maximum 4096).
-    #[arg(long, global = true)]
-    maxsize: Option<usize>,
+    /// Compatibility option for VmaRegExScan / VadRegExScan; display context stays 128 bytes, matching Volatility 2.28.2.
+    #[arg(long, global = true, allow_hyphen_values = true)]
+    maxsize: Option<i64>,
     /// PE symbol source: kernel modules or file-backed process VADs.
     #[arg(long, global = true, value_enum)]
     source: Option<zero_tui::analysis::PESource>,
@@ -538,6 +538,19 @@ fn launch_tui(cli: Cli) -> Result<()> {
 #[cfg(test)]
 mod cli_tests {
     use super::*;
+    #[test]
+    fn regex_compatibility_maxsize_accepts_signed_integer_parameters() {
+        for size in [
+            "-9223372036854775808",
+            "-1",
+            "0",
+            "4097",
+            "9223372036854775807",
+        ] {
+            let cli = Cli::try_parse_from(["zero", "--maxsize", size]).unwrap();
+            assert_eq!(cli.maxsize, Some(size.parse().unwrap()));
+        }
+    }
     #[test]
     fn truecrypt_minimum_is_signed_and_preserves_zero_and_large_values() {
         for minimum in ["-1", "0", "4", "65"] {

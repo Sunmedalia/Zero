@@ -4396,24 +4396,24 @@ fn regex_parameters_preserve_spaces_pid_lists_context_and_cache_identity() {
     if let Some(Dialog::WindowsParameters { fields, .. }) = &mut app.dialog {
         fields[7] = " AB ".into();
         fields[2] = "1, 2".into();
-        fields[15] = "0".into();
+        fields[15] = "not-an-integer".into();
     }
     app.dialog_key(KeyEvent::new(KeyCode::Enter, KeyModifiers::CONTROL));
     assert!(app.dialog.is_some());
     assert!(app.analysis_options.pattern.is_none());
     if let Some(Dialog::WindowsParameters { fields, .. }) = &mut app.dialog {
-        fields[15] = "64".into();
+        fields[15] = "-1".into();
     }
     app.dialog_key(KeyEvent::new(KeyCode::Enter, KeyModifiers::CONTROL));
     assert!(app.dialog.is_none());
     assert_eq!(app.analysis_options.pattern.as_deref(), Some(" AB "));
     assert_eq!(app.analysis_options.pids, [1, 2]);
-    assert_eq!(app.analysis_options.maxsize, Some(64));
+    assert_eq!(app.analysis_options.maxsize, Some(-1));
     assert_ne!(before, app.request_key());
     app.windows_parameters();
     if let Some(Dialog::WindowsParameters { fields, .. }) = &app.dialog {
         assert_eq!(fields[2], "1,2");
-        assert_eq!(fields[15], "64");
+        assert_eq!(fields[15], "-1");
     } else {
         panic!("parameter dialog missing");
     }
