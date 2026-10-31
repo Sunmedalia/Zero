@@ -39,6 +39,7 @@ mod session;
 mod socket_fields;
 mod sockscan;
 mod spoofing;
+mod task_validity;
 mod taskwalk;
 #[cfg(test)]
 pub(crate) mod tests;

@@ -1026,3 +1026,26 @@ compares 133/1/1/1/2 rows and full cached results with a verified cache hit.
 release package smoke passes in project/unrelated directories with empty PATH.
 Raw groups are `psaux-native95`, `envars-native95`, `debian-native95`,
 `boottime-native95` and `psaux-cache-native95`, bound to one final binary.
+
+Native96 standard task consumers use the pinned task_struct admission and
+list_head direction rules. Whole tasks/pointed objects must be readable; signed
+IDs reject negatives while zero/unsigned-high IDs remain valid. Optional signal,
+nsproxy and real_parent pointers must be nonnull/readable; active_mm is checked
+when nonnull, and nonnull mm must be readable and equal active_mm. Lists dedupe
+addresses, not PIDs, and retain reference COMM handling (unterminated/empty/control
+text, truncate at NUL/replacement). Legacy recovery diagnostics remain separate.
+`task_validity_vectors.py` calls actual fixed validity/list/selection/name methods
+with byte-backed adapters: 50 validity cases and 18 walks. Native uses identical
+field bytes with full x64 page tables/capture holes. Width4 cases do not certify
+Intel32 paging. Existing generator-only fixtures now use a separate native
+extraction adapter, never task-admission evidence. Full thread enumeration and
+all fault/resource/architecture contracts remain unverified.
+
+Final native96 reruns 35 real cases across eight groups. 34 mapped comparisons
+(32 nonempty, two empty) and their strict sequences pass. The known regex
+maxsize4 Text/Hex conflict remains failing. Three native MCP cache sessions
+(PsAux, Envars and Kali capabilities) pass; native-only cases never add reference
+positives. Evidence stays 136 positives (five scoped), zero complete contracts.
+`task-validity-known-limitations.json` binds case/known-failure/cache/vector proofs;
+raw reports are under the eight `*-native96` groups. `make check` passes 628 lib,
+8 CLI/MCP, 50 protocol and 36 Python tests; release package smoke passes.

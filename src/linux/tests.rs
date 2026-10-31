@@ -115,6 +115,16 @@ pub(crate) fn fixture() -> (Vec<u8>, Isf) {
             "comm",
             json!({"kind":"array","count":8,"subtype":{"kind":"base","name":"char"}}),
         ),
+        (
+            "task_struct",
+            "real_parent",
+            json!({"kind":"pointer","subtype":{"kind":"struct","name":"task_struct"}}),
+        ),
+        (
+            "task_struct",
+            "mm",
+            json!({"kind":"pointer","subtype":{"kind":"struct","name":"mm_struct"}}),
+        ),
         ("file", "f_path", json!({"kind":"struct","name":"path"})),
         ("fs_struct", "root", json!({"kind":"struct","name":"path"})),
         ("dentry", "d_name", json!({"kind":"struct","name":"qstr"})),
@@ -176,6 +186,8 @@ pub(crate) fn fixture() -> (Vec<u8>, Isf) {
     b[0xa028..0xa02c].copy_from_slice(b"init");
     b[0xa128..0xa12b].copy_from_slice(b"kth");
     put(&mut b, 0xa030, 0xb000);
+    data["user_types"]["task_struct"]["fields"]["active_mm"] = json!({"offset":120,"type":{"kind":"pointer","subtype":{"kind":"struct","name":"mm_struct"}}});
+    put(&mut b, 0xa078, 0xb000);
     put(&mut b, 0xa040, 0xc000);
     put(&mut b, 0xb000, 0x4000);
     put(&mut b, 0xb008, 0x200ffe);

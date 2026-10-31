@@ -95,7 +95,15 @@ impl Linux<'_> {
     }
 
     pub(super) fn namespace_boottimes(&self, job: &Job) -> Result<Results> {
-        let (mut result, tasks) = self.tasks(Plugin::LinuxBoottime, job)?;
+        let (result, tasks) = self.tasks(Plugin::LinuxBoottime, job)?;
+        self.namespace_boottimes_tasks(job, result, tasks)
+    }
+    fn namespace_boottimes_tasks(
+        &self,
+        job: &Job,
+        mut result: Results,
+        tasks: Vec<Task>,
+    ) -> Result<Results> {
         let mut seen = HashSet::new();
         for task in tasks {
             job.check()?;
@@ -367,7 +375,10 @@ mod tests {
             }
             let image = image(&bytes);
             let linux = engine(&image, &isf);
-            let result = linux.namespace_boottimes(&Job::default());
+            let (result, tasks) = linux
+                .adapter_tasks(Plugin::LinuxBoottime, &Job::default())
+                .unwrap();
+            let result = linux.namespace_boottimes_tasks(&Job::default(), result, tasks);
             if case.get("error").is_some() {
                 assert!(result.is_err(), "{}", case["id"]);
             } else {

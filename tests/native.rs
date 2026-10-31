@@ -2455,7 +2455,14 @@ fn directional_task_recovery_keeps_valid_objects_and_reports_conflicts_without_i
 fn official_pslist_missing_supplementary_fields_preserves_tasks_as_partial() {
     let bytes = linked();
     let memory = image(&bytes);
-    let isf = symbols();
+    let mut isf = symbols();
+    for (field, offset) in [("mm", 48), ("active_mm", 56)] {
+        isf.data["user_types"]["task_struct"]["fields"][field] = json!({"offset":offset,"type":{"kind":"pointer","subtype":{"kind":"struct","name":"mm_struct"}}});
+    }
+    isf.data["user_types"]["task_struct"]["fields"]["real_parent"]["type"]["subtype"] =
+        json!({"kind":"struct","name":"task_struct"});
+    isf.data["user_types"]["mm_struct"] = json!({"size":16,"fields":{}});
+    isf.invalidate_layouts();
     let linux = Linux {
         isf: &isf,
         vm: VirtualMemory::new(&memory, 0x1000),

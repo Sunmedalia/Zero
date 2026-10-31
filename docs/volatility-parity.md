@@ -1936,3 +1936,44 @@ debian-native95 及 boottime-native95，绑定最终二进制 SHA256
 确认实际命中日志；不额外增加差分案例。make check 通过：626 库、
 8 CLI/MCP、50 协议及 36 Python 测试；发布包在项目／无关目录、
 空 PATH 下启动退出通过。29 例向量重生成逐字节一致。
+
+## native96：标准任务准入与实际双向遍历
+
+标准 linux.* 任务消费者以及 PsList／PsCallStack 的 leader 路径改用
+固定参考的 task_struct.is_valid 与 list_head.to_list 规则：完整 task
+对象可读，PID／TGID 按 ISF 的实际有符号类型判断负数；可选 signal、
+nsproxy、real_parent 存在时必须非零且目标完整可读；active_mm 非零
+必须完整可读；mm 非零必须可读并与 active_mm 相同。零 ID 和无符号
+高位 ID 不再由原生额外的“正整数”规则丢弃。缺少符号布局仍报错。
+
+双向遍历按对象地址去重，参考允许两个不同对象具有同一 PID。每个
+方向按实际链接、目标 list_head 读取及任务首字节可读性前进；失效
+任务仍记入全局已见集合，避免逆向重试。没有因单向回指不一致另造
+结果；传统 pslist 恢复接口仍保留原有诊断。标准 COMM 不要求 NUL，
+空和控制字符保留，并按参考在首个 NUL／替代字符处截断。线程枚举
+仍使用已有恢复路径，完整 get_threads 合同尚未对齐。
+
+方法验证为 50 个有效性例和 18 个实际遍历／名称／选择例，调用
+未修改的 task_struct.is_valid、list_head.to_list、PsList.list_tasks
+及 array_to_string，使用明确捕获空洞的字节存储适配器。原生用相同
+字段字节、完整 x64 页表与物理区段。4／8 字节指针测试仅证明字段
+及目标范围处理，不证明 Linux Intel32 页表／发现能力。针对直接
+传入参考 generator 的旧合成例，原生现在也经单独方法适配路径测试
+提取行为，避免把这些例误当作全插件任务准入通过。
+
+最终 native96 共重跑 35 例：PsAux 6、Envars 6、PsList 5、Boottime 1、
+ProcessSpoofing 2、VmaRegExScan 6、maxsize 1、PsCallStack 8。34 例
+字段／重复次数通过（32 非空、2 空），这些例严格输出顺序也通过；
+maxsize=4 的既有 Text／Hex 4 处冲突继续保留失败，不录入正向证据。
+默认 PsAux133、Envars1402、PsCallStack8120 记录无意外变化。
+三个隔离缓存 MCP 会话分别验证 PsAux133／1／1／1／2、
+Envars1402／26／12／26／38、Kali 能力169／1／1／1／2，包含实际
+缓存命中。Kali 是原生回归，不是参考差分。
+
+八组原始报告在 target/reference/results 下 *-native96，最终二进制
+SHA256 `af2d9589ad93808abfd2a9c599b4e8db8390049e518f044105419536012df396`。同名案例替换旧
+证明，累计仍 136 正向案例（5 项限定范围），完整插件合同 0/135。
+make check 通过：628 库、8 CLI/MCP、50 协议及 36 Python 测试；
+发布包在项目／无关目录、空 PATH 下启动退出通过。68 例向量重新
+生成逐字节一致。资源边界、异常文字、任意 ISF、架构和线程损坏
+合同仍待验证。

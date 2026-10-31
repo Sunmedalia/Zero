@@ -118,9 +118,19 @@ impl Linux<'_> {
 
     pub(super) fn capabilities(&self, options: &Options, job: &Job) -> Result<Results> {
         let last = self.capabilities_last()?;
+        let (result, tasks) = self.task_identities(Plugin::LinuxCapabilities, job)?;
+        self.capabilities_tasks(options, job, last, result, tasks)
+    }
+    fn capabilities_tasks(
+        &self,
+        options: &Options,
+        job: &Job,
+        last: i64,
+        mut result: Results,
+        tasks: Vec<Task>,
+    ) -> Result<Results> {
         let pids: std::collections::BTreeSet<_> =
             options.pids.iter().copied().chain(options.pid).collect();
-        let (mut result, tasks) = self.task_identities(Plugin::LinuxCapabilities, job)?;
         for task in tasks {
             job.check()?;
             if !pids.is_empty() && !task.pid.parse::<u32>().is_ok_and(|pid| pids.contains(&pid)) {
@@ -257,7 +267,15 @@ mod tests {
             }
             let image = image(&bytes);
             let linux = engine(&image, &isf);
-            let result = linux.capabilities(&Options::default(), &Job::default());
+            // These vectors call the reference generator with supplied task objects.
+            // Test extraction separately from the reference task-list admission gate.
+            let run = |options: &Options| -> Result<Results> {
+                let (result, tasks) =
+                    linux.adapter_tasks(Plugin::LinuxCapabilities, &Job::default())?;
+                let last = linux.capabilities_last()?;
+                linux.capabilities_tasks(options, &Job::default(), last, result, tasks)
+            };
+            let result = run(&Options::default());
             if case.get("error").is_some() {
                 assert!(result.is_err(), "{}", case["id"]);
             } else {
@@ -269,27 +287,19 @@ mod tests {
                     "{}",
                     case["id"]
                 );
-                let selected = linux
-                    .capabilities(
-                        &Options {
-                            pid: Some(1),
-                            pids: vec![1, 101],
-                            ..Default::default()
-                        },
-                        &Job::default(),
-                    )
-                    .unwrap();
+                let selected = run(&Options {
+                    pid: Some(1),
+                    pids: vec![1, 101],
+                    ..Default::default()
+                })
+                .unwrap();
                 assert_eq!(selected.rows, result.rows);
             }
-            let excluded = linux
-                .capabilities(
-                    &Options {
-                        pids: vec![101],
-                        ..Default::default()
-                    },
-                    &Job::default(),
-                )
-                .unwrap();
+            let excluded = run(&Options {
+                pids: vec![101],
+                ..Default::default()
+            })
+            .unwrap();
             assert!(
                 excluded.complete && excluded.rows.is_empty(),
                 "{}",

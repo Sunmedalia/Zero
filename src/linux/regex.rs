@@ -183,6 +183,7 @@ mod tests {
     fn pid_list_is_applied_before_user_memory_and_display_rechecks_lookbehind() {
         let (mut bytes, isf) = prepared();
         put(&mut bytes, 0xa130, 0xb000);
+        put(&mut bytes, 0xa178, 0xb000);
         let image = image(&bytes);
         let options = Options {
             pattern: Some(r"(?<=AB)AB".into()),

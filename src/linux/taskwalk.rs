@@ -25,6 +25,7 @@ impl Linux<'_> {
     pub(super) fn process_list(&self, plugin: Plugin, job: &Job) -> Result<Results> {
         self.process_list_with_parent(plugin, true, job)
     }
+    #[cfg(test)]
     pub(super) fn process_identities(&self, plugin: Plugin, job: &Job) -> Result<Results> {
         self.process_list_with_parent(plugin, false, job)
     }
@@ -250,7 +251,7 @@ impl Linux<'_> {
         pids: &std::collections::BTreeSet<u32>,
         job: &Job,
     ) -> Result<Results> {
-        let mut result = self.process_list(Plugin::Pslist, job)?;
+        let mut result = self.reference_process_rows(Plugin::Pslist, job)?;
         if !pids.is_empty() {
             result
                 .rows

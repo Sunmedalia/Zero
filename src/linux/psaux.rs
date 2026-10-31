@@ -40,9 +40,18 @@ impl Linux<'_> {
     }
 
     pub(super) fn psaux(&self, options: &Options, job: &Job) -> Result<Results> {
+        let (result, tasks) = self.task_identities(Plugin::LinuxPsaux, job)?;
+        self.psaux_tasks(options, job, result, tasks)
+    }
+    fn psaux_tasks(
+        &self,
+        options: &Options,
+        job: &Job,
+        mut result: Results,
+        tasks: Vec<Task>,
+    ) -> Result<Results> {
         let pids: std::collections::BTreeSet<_> =
             options.pids.iter().copied().chain(options.pid).collect();
-        let (mut result, tasks) = self.task_identities(Plugin::LinuxPsaux, job)?;
         for task in tasks {
             job.check()?;
             if !pids.is_empty() && !task.pid.parse::<u32>().is_ok_and(|pid| pids.contains(&pid)) {
@@ -139,29 +148,27 @@ mod tests {
                 ];
             }
             let linux = engine(&image, &isf);
-            let result = linux.psaux(&Options::default(), &Job::default()).unwrap();
+            // These vectors call the reference generator with supplied task objects.
+            // Test extraction separately from the reference task-list admission gate.
+            let run = |options: &Options| -> Result<Results> {
+                let (result, tasks) = linux.adapter_tasks(Plugin::LinuxPsaux, &Job::default())?;
+                linux.psaux_tasks(options, &Job::default(), result, tasks)
+            };
+            let result = run(&Options::default()).unwrap();
             assert!(result.complete, "{} {:?}", case["id"], result.diagnostics);
             assert_eq!(json!(result.rows), case["expected"], "{}", case["id"]);
-            let selected = linux
-                .psaux(
-                    &Options {
-                        pid: Some(1),
-                        pids: vec![1, 101],
-                        ..Default::default()
-                    },
-                    &Job::default(),
-                )
-                .unwrap();
+            let selected = run(&Options {
+                pid: Some(1),
+                pids: vec![1, 101],
+                ..Default::default()
+            })
+            .unwrap();
             assert_eq!(selected.rows, result.rows, "{}", case["id"]);
-            let excluded = linux
-                .psaux(
-                    &Options {
-                        pids: vec![101],
-                        ..Default::default()
-                    },
-                    &Job::default(),
-                )
-                .unwrap();
+            let excluded = run(&Options {
+                pids: vec![101],
+                ..Default::default()
+            })
+            .unwrap();
             assert!(
                 excluded.complete && excluded.rows.is_empty(),
                 "{}",
