@@ -473,7 +473,6 @@ impl Linux<'_> {
             }
         };
         let name = self.string(module, "module", "name")?;
-        ensure!(!name.is_empty(), "模块名称为空");
         let name: String = name
             .chars()
             .map(|c| {
@@ -641,6 +640,20 @@ mod tests {
             std::fs::read(directory.path().join(filename)).unwrap(),
             expected.bytes
         );
+    }
+
+    #[test]
+    fn readable_empty_module_name_still_exports_elf() {
+        let (mut bytes, isf) = fixture();
+        bytes[0x30000..0x30010].fill(0);
+        let image = super::super::tests::image(&bytes);
+        let linux = super::super::tests::engine(&image, &isf);
+        let directory = tempfile::tempdir().unwrap();
+        let result = linux
+            .extract_module(&options(directory.path()), &Job::default())
+            .unwrap();
+        assert_eq!(result.rows[0][2], "kernel_module..0x30000.elf");
+        assert!(directory.path().join(&result.rows[0][2]).is_file());
     }
 
     #[test]

@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+  "scope": "Readable empty module names in explicit ELF export",
+  "reference_method": "ModuleDisplayPlugin.generate_results",
+  "reference_input": {"module_offset": "0x30000", "name": "", "init_size": 0, "core_size": 4096, "dump": true},
+  "reference_expected_filename": "kernel_module..0x30000.elf",
+  "verification": "Executed the pinned generator with synthetic module fields and patched parameter, taint and ELF suppliers; it emitted an empty-name row and the expected filename. Native readable_empty_module_name_still_exports_elf uses captured fixture memory and real ELF reconstruction.",
+  "checks": "make check passed: 708 Rust tests, 45 reference harness tests",
+  "limitations": ["Synthetic method evidence; not a real empty-name module image.", "Does not certify unreadable names or the complete Lsmod failure contract."]
+}
