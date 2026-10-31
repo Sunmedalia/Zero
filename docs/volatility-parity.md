@@ -2333,3 +2333,16 @@ Debian 验收路径同步支持压缩包不存在时查找同名 RAW，仍优先
 原生以真实 fixture 页表读取相同地址：正常得到 ID 42，两种后备数据不足均返回
 错误。当前共 30 个方法场景。这验证 ID 读取失败的传播边界，不代表真实 namespace
 镜像、完整指针对象路径或所有缺页合同已验证。
+
+## native106：Lsmod 布局选择优先级
+
+Lsmod 的基址与 core 大小读取改为固定参考的 mem → core_layout → module_core
+顺序。旧实现优先旧字段；同时存在 mem 与 module_core 的合成 ISF 原本得到
+0x18000 / 4096，参考应为 0x19000 / 2048，回归先失败再修复。新增固定参考
+get_module_base/get_core_size 的四种布局向量，原生 fixture 逐项比较。
+
+真实 Debian 固定参考 Lsmod 输出 79 行，其中 44 行包含加载参数。当前原生仍为
+三列，缺少参考的 Taints、Load Arguments、File Output，以及含 init 的 Code Size
+语义；本次只修布局顺序，不声称完整字段对齐。导出参数和损坏链表合同继续核查。
+证据见 lsmod-layout-known-limitations.json，真实参考保存在
+target/reference/results/lsmod-native106/reference.json。

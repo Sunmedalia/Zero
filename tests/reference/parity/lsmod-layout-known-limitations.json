@@ -1,0 +1,27 @@
+{
+  "engine_version": "0.2.1-native-106",
+  "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+  "fixture": "tests/reference/parity/fixtures/module-layouts.json",
+  "reference_methods": ["module.get_module_base", "module.get_core_size"],
+  "priority": ["mem", "core_layout", "module_core"],
+  "cases": ["legacy", "core-layout-and-legacy", "mem-and-legacy", "all-layouts"],
+  "regression": "With mem and module_core both present, native previously returned base 0x18000 and size 4096 instead of reference base 0x19000 and size 2048. The regression test failed before the fix.",
+  "real_reference_observation": {
+    "sample": "debian-3.2",
+    "output": "target/reference/results/lsmod-native106/reference.json",
+    "rows": 79,
+    "rows_with_load_arguments": 44,
+    "full_field_parity": false
+  },
+  "validation": {
+    "make_check_passed": true,
+    "debian_kali_acceptance_passed": 4,
+    "pinned_layout_cases_passed": 4,
+    "final_all_targets_clippy_passed": true
+  },
+  "limitations": [
+    "Layout vectors use synthetic field adapters in the reference and actual native fixture reads; they do not establish complete module list or fault behavior.",
+    "Native Lsmod still has three columns; the pinned reference has six, including load arguments, taints and file output. Code size also includes init size in the reference.",
+    "Dump mode and damaged-list behavior remain outstanding; no full plugin contract is claimed."
+  ]
+}

@@ -1,0 +1,29 @@
+{
+  "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+  "source_sha256": {
+    "volatility3/framework/symbols/linux/extensions/__init__.py": "5e43dbf482df74ec78c810ece3584323205eeac20d44fede5381f9a12b78e249"
+  },
+  "scope": "Actual module.get_module_base/get_core_size methods; synthetic members and memory-index adapters isolate layout priority. No real ISF reads, list faults, init sizes, six-column display or dump contract are established.",
+  "cases": [
+    {
+      "id": "legacy",
+      "base": 98304,
+      "core_size": 4096
+    },
+    {
+      "id": "core-layout-and-legacy",
+      "base": 106496,
+      "core_size": 3072
+    },
+    {
+      "id": "mem-and-legacy",
+      "base": 102400,
+      "core_size": 2048
+    },
+    {
+      "id": "all-layouts",
+      "base": 102400,
+      "core_size": 2048
+    }
+  ]
+}

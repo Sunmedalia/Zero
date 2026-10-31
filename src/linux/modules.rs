@@ -768,6 +768,104 @@ mod tests {
         assert!(result.rows.iter().all(|row| row[4] == "true"));
     }
     #[test]
+    fn lsmod_layout_priority_matches_pinned_methods() {
+        let vectors: serde_json::Value = serde_json::from_str(include_str!(
+            "../../tests/reference/parity/fixtures/module-layouts.json"
+        ))
+        .unwrap();
+        for case in vectors["cases"].as_array().unwrap() {
+            let (mut bytes, mut isf) = fixture();
+            let id = case["id"].as_str().unwrap();
+            if matches!(id, "core-layout-and-legacy" | "all-layouts") {
+                isf.data["user_types"]["module"]["fields"]["core_layout"] =
+                    json!({"offset":144,"type":{"kind":"struct","name":"module_layout"}});
+                isf.data["user_types"]["module"]["size"] = json!(160);
+                isf.data["user_types"]["module_layout"] = json!({"size":16,"fields":{
+                    "base":{"offset":0,"type":{"kind":"pointer"}},
+                    "size":{"offset":8,"type":{"kind":"base","name":"u64"}}
+                }});
+                put(&mut bytes, 0x34100 + 144, 0x1a000);
+                put(&mut bytes, 0x34100 + 152, 3072);
+            }
+            if matches!(id, "mem-and-legacy" | "all-layouts") {
+                isf.data["user_types"]["module"]["fields"]["mem"] = json!({"offset":160,"type":{"kind":"array","count":4,"subtype":{"kind":"struct","name":"module_memory"}}});
+                isf.data["user_types"]["module"]["size"] = json!(224);
+                isf.data["user_types"]["module_memory"] = json!({"size":16,"fields":{
+                    "base":{"offset":0,"type":{"kind":"pointer"}},
+                    "size":{"offset":8,"type":{"kind":"base","name":"u64"}}
+                }});
+                isf.data["enums"]["mod_mem_type"]["constants"] =
+                    json!({"MOD_TEXT":0,"MOD_DATA":1,"MOD_RODATA":2,"MOD_RO_AFTER_INIT":3});
+                put(&mut bytes, 0x34100 + 160, 0x19000);
+                put(&mut bytes, 0x34100 + 168, 1024);
+                put(&mut bytes, 0x34100 + 184, 1024);
+            }
+            let image = super::super::tests::image(&bytes);
+            let result = super::super::tests::engine(&image, &isf)
+                .run(Plugin::Lsmod, &Job::default())
+                .unwrap();
+            assert!(result.complete, "{id}: {:?}", result.diagnostics);
+            assert_eq!(
+                result.rows,
+                vec![vec![
+                    "listed".to_owned(),
+                    format!("{:#018x}", case["base"].as_u64().unwrap()),
+                    case["core_size"].as_u64().unwrap().to_string()
+                ]],
+                "{id}"
+            );
+        }
+    }
+
+    #[test]
+    fn lsmod_prefers_split_memory_over_legacy_fields() {
+        let (mut bytes, mut isf) = fixture();
+        isf.data["user_types"]["module"]["fields"]["mem"] = json!({"offset":160,"type":{"kind":"array","count":4,"subtype":{"kind":"struct","name":"module_memory"}}});
+        isf.data["user_types"]["module"]["size"] = json!(224);
+        isf.data["user_types"]["module_memory"] = json!({"size":16,"fields":{
+            "base":{"offset":0,"type":{"kind":"pointer"}},
+            "size":{"offset":8,"type":{"kind":"base","name":"u64"}}
+        }});
+        isf.data["enums"]["mod_mem_type"]["constants"] =
+            json!({"MOD_TEXT":0,"MOD_DATA":1,"MOD_RODATA":2,"MOD_RO_AFTER_INIT":3});
+        put(&mut bytes, 0x34100 + 160, 0x19000);
+        put(&mut bytes, 0x34100 + 168, 1024);
+        put(&mut bytes, 0x34100 + 184, 1024);
+        let image = super::super::tests::image(&bytes);
+        let result = super::super::tests::engine(&image, &isf)
+            .run(Plugin::Lsmod, &Job::default())
+            .unwrap();
+        assert!(result.complete, "{:?}", result.diagnostics);
+        assert_eq!(
+            result.rows,
+            vec![vec!["listed", "0x0000000000019000", "2048"]]
+        );
+    }
+
+    #[test]
+    fn lsmod_prefers_core_layout_over_legacy_fields() {
+        let (mut bytes, mut isf) = fixture();
+        isf.data["user_types"]["module"]["fields"]["core_layout"] =
+            json!({"offset":160,"type":{"kind":"struct","name":"module_layout"}});
+        isf.data["user_types"]["module"]["size"] = json!(176);
+        isf.data["user_types"]["module_layout"] = json!({"size":16,"fields":{
+            "base":{"offset":0,"type":{"kind":"pointer"}},
+            "size":{"offset":8,"type":{"kind":"base","name":"u64"}}
+        }});
+        put(&mut bytes, 0x34100 + 160, 0x1a000);
+        put(&mut bytes, 0x34100 + 168, 3072);
+        let image = super::super::tests::image(&bytes);
+        let result = super::super::tests::engine(&image, &isf)
+            .run(Plugin::Lsmod, &Job::default())
+            .unwrap();
+        assert!(result.complete, "{:?}", result.diagnostics);
+        assert_eq!(
+            result.rows,
+            vec![vec!["listed", "0x000000000001a000", "3072"]]
+        );
+    }
+
+    #[test]
     fn object_validation_has_an_independent_read_budget() {
         let (bytes, isf) = fixture();
         let image = super::super::tests::image(&bytes);

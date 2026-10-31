@@ -324,12 +324,7 @@ impl Linux<'_> {
                 let object = node.checked_sub(offset).context("对象地址下溢")?;
                 let row = (|| -> Result<Vec<String>> {
                     Ok({
-                        let (base, size) = if self.isf.field("module", "module_core").is_ok() {
-                            (
-                                self.number(object, structure, "module_core")?,
-                                self.number(object, structure, "core_size")?,
-                            )
-                        } else if self.isf.field("module", "mem").is_ok() {
+                        let (base, size) = if self.isf.field("module", "mem").is_ok() {
                             let mem = self.field_address(object, "module", "mem")?;
                             let n = self.isf.field("module", "mem")?["type"]["count"]
                                 .as_u64()
@@ -362,11 +357,16 @@ impl Linux<'_> {
                                 self.number(add(mem, text * size)?, "module_memory", "base")?,
                                 total,
                             )
-                        } else {
+                        } else if self.isf.field("module", "core_layout").is_ok() {
                             let layout = self.field_address(object, "module", "core_layout")?;
                             (
                                 self.number(layout, "module_layout", "base")?,
                                 self.number(layout, "module_layout", "size")?,
+                            )
+                        } else {
+                            (
+                                self.number(object, structure, "module_core")?,
+                                self.number(object, structure, "core_size")?,
                             )
                         };
                         ensure!(base != 0 && size > 0, "模块基址或大小无效 @ {object:#x}");
