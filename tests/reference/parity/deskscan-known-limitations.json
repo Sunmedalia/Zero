@@ -64,8 +64,8 @@
       "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
       "reference_output_sha256": "1139b850c4e6bd2a57b8d932fcf487e006102367b3d44d04bf22f786713d90ee",
       "symbol_sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4",
-      "zero_executable_sha256": "4ab2ebc564dac5238b61a64325ce48b3e0d05a722e9cc91c4907438b1ded3874",
-      "engine_version": "0.2.1-native-86",
+      "zero_executable_sha256": "d681a4f7276d01f90fcfa9dc3de09c9da3fca3e91fee06308013181ff7663f6c",
+      "engine_version": "0.2.1-native-87",
       "full_comparison_sha256": "a8e8398c65415715446339f173936f1e2760d6f86fb5619bcf28dc9c1d4c345e",
       "comparison_details": "Diagnostic entries and duplicate groups summarized; complete raw comparison retained in local run.py artifact and bound by full_comparison_sha256. Native/reference JSON digests permit independent reproduction. Any record_selection scope remains explicit.",
       "record_order": {
@@ -86,9 +86,9 @@
       }
     }
   ],
-  "engine_version": "0.2.1-native-86",
-  "zero_executable_sha256": "4ab2ebc564dac5238b61a64325ce48b3e0d05a722e9cc91c4907438b1ded3874",
-  "validation": "Final native86 binary and unmodified fixed reference, real default/scoped cases compare all mapped fields and multiplicities. Historical cases not rerun retain their own per-case versions. Empty agreement is not positive evidence; no complete plugin contract is claimed.",
+  "engine_version": "0.2.1-native-87",
+  "zero_executable_sha256": "d681a4f7276d01f90fcfa9dc3de09c9da3fca3e91fee06308013181ff7663f6c",
+  "validation": "Final native87 binary and unmodified fixed reference, real default/scoped cases compare all mapped fields and multiplicities. Historical cases not rerun retain their own per-case versions. Empty agreement is not positive evidence; no complete plugin contract is claimed.",
   "known_limitations": [
     "One positive Win10 x64 capture does not establish complete build, architecture, parameter, traversal or failure contracts.",
     "Raw GUI records can include retained or reused object bytes; matching the reference does not validate every object as active.",
@@ -108,5 +108,12 @@
     "scope": "Actual DataLayerInterface/TranslationLayerInterface scan iterators and actual _scan_chunk/MultiStringScanner. Synthetic mapping ranges and read-fault adapter isolate chunk plans, overlap output suppression, data-layer tail repeats and continuation after failed chunks. Does not prove mapping enumeration, crash/hibernation decompression or full pool object carving.",
     "implementation": "16 MiB chunk plus 4 KiB overlap, emit only tag starts below 16 MiB per chunk; actual data-layer versus translation-layer tail step; default physical maximum address excluded",
     "remaining": "Mapping enumeration, all backing formats, tags split across distinct mapping ranges, damaged-page/fault diagnostics and full plugin coverage remain unverified."
+  },
+  "mapping_vectors": {
+    "sha256": "9030a1156a013aba97a62af7b1dcc69897a275671b3cff1464a4ce90ff568455",
+    "cases": 38,
+    "scope": "Actual WindowsIntel/WindowsIntelPAE/WindowsIntel32e mapping and translation over full synthetic page-table bytes. Physical BufferDataLayer subclass models explicit backing holes. Full default virtual range length excludes maximum_address. Covers contiguous/discontiguous PFNs, missing tables and backing tails, uniform tables, transition/prototype flags, uppermost page, large pages/PAT and PAE root/physical-bit limits. Does not certify container mapping/decompression, arbitrary malformed reserved PFNs, all architectures or complete scan fault reporting.",
+    "implementation": "Compare all virtual range starts, lengths and physical starts; backing holes rejected before coalescing, native-domain maximum-address clipping, full PAE root table validation, level-specific large pages and PAE physical mask",
+    "remaining": "All container mapping/decompression, arbitrary reserved PFNs, custom transition layouts, table resource/cancellation limits and full scan fault reporting remain unverified."
   }
 }

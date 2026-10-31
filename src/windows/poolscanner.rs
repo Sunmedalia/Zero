@@ -565,18 +565,33 @@ impl Windows<'_> {
                 })
                 .collect();
         }
+        Ok(self
+            .pool_virtual_ranges(job)?
+            .into_iter()
+            .map(|(start, size, _)| (start, size))
+            .collect())
+    }
+
+    fn pool_virtual_ranges(&self, job: &Job) -> Result<Vec<(u64, u64, u64)>> {
         let geometry = self.vm.paging()?;
         let mut ranges = Vec::new();
         let mut current: Option<(u64, u64, u64)> = None;
-        let flush = |ranges: &mut Vec<(u64, u64)>, current: &mut Option<(u64, u64, u64)>| {
-            if let Some((start, end, _)) = current.take() {
-                ranges.push((start, end - start));
+        let flush = |ranges: &mut Vec<(u64, u64, u64)>, current: &mut Option<(u64, u64, u64)>| {
+            if let Some((start, end, physical)) = current.take() {
+                ranges.push((start, end - start, physical));
             }
         };
         self.walk_kernel_pages(self.vm.root, 0, 0, &geometry, &mut |va, physical, shift| {
             job.check()?;
-            let size = 1u64 << shift;
-            let page = physical & !(size - 1);
+            // The reference's default section excludes maximum_address.
+            // Clip in the layer's native address domain before canonicalizing
+            // its end, including the final x64 page at u64::MAX.
+            let size =
+                (1u64 << shift).min(self.driver_address_mask() - (va & self.driver_address_mask()));
+            if size == 0 || !self.pool_captured_span(physical, size) {
+                return Ok(());
+            }
+            let page = physical;
             match current {
                 Some((start, end, previous))
                     if end == va && previous.checked_add(end - start) == Some(page) =>
@@ -594,6 +609,34 @@ impl Windows<'_> {
         Ok(ranges)
     }
 
+    fn pool_captured_span(&self, mut physical: u64, mut length: u64) -> bool {
+        while length > 0 {
+            let index = self
+                .vm
+                .image
+                .segments
+                .partition_point(|segment| segment.start <= physical);
+            let Some(segment) = index
+                .checked_sub(1)
+                .and_then(|index| self.vm.image.segments.get(index))
+            else {
+                return false;
+            };
+            if physical >= segment.end {
+                return false;
+            }
+            let take = length.min(segment.end - physical);
+            length -= take;
+            if length > 0 {
+                let Some(next) = physical.checked_add(take) else {
+                    return false;
+                };
+                physical = next;
+            }
+        }
+        true
+    }
+
     fn walk_kernel_pages(
         &self,
         table: u64,
@@ -605,7 +648,9 @@ impl Windows<'_> {
         let shift = geometry.shifts()[level];
         let width = geometry.width();
         let entries = geometry.entries(level);
-        let mut bytes = vec![0u8; entries * width];
+        // _get_valid_table always reads a full 4 KiB table, including the
+        // four-entry PAE root; only indexing is restricted to those entries.
+        let mut bytes = vec![0u8; 4096];
         if self.vm.image.read(table, &mut bytes).is_err() {
             return Ok(());
         }
@@ -616,22 +661,34 @@ impl Windows<'_> {
         {
             return Ok(());
         }
-        for (index, entry_bytes) in bytes.chunks_exact(width).enumerate() {
+        for (index, entry_bytes) in bytes.chunks_exact(width).take(entries).enumerate() {
             let mut raw = [0u8; 8];
             raw[..width].copy_from_slice(entry_bytes);
             let entry = u64::from_le_bytes(raw);
             if entry & 1 == 0 && !(entry & (1 << 11) != 0 && entry & (1 << 10) == 0) {
                 continue;
             }
-            let frame = if entry & 1 == 0 {
-                self.vm.transition_frame(entry, *geometry)?
-            } else if geometry.block(entry, shift) && shift > 12 {
-                entry & geometry.mask() & !((1u64 << shift) - 1) & !0x1000
+            let large = geometry.block(entry, shift)
+                && match (geometry.arch, geometry.pae) {
+                    (Architecture::X86, false) => shift == 22,
+                    (Architecture::X86, true) => shift == 21,
+                    (Architecture::X64, _) => matches!(shift, 21 | 30),
+                    _ => true,
+                };
+            let mask = if geometry.arch == Architecture::X86 && geometry.pae {
+                0x0000_00ff_ffff_f000 // pinned IntelPAE MAXPHYADDR = 40
             } else {
-                entry & geometry.mask()
+                geometry.mask()
             };
+            let frame = entry
+                & mask
+                & if large && geometry.arch != Architecture::Arm64 {
+                    !(1 << 12) // large-page PAT bit is not part of the PFN
+                } else {
+                    u64::MAX
+                };
             let relative = prefix | (index as u64) << shift;
-            if geometry.block(entry, shift) || shift == 12 {
+            if large || shift == 12 {
                 visit(self.pool_reference_pointer(relative), frame, shift)?;
             } else if level + 1 < geometry.shifts().len() {
                 self.walk_kernel_pages(frame, level + 1, relative, geometry, visit)?;
@@ -1261,6 +1318,68 @@ mod tests {
     use super::super::tests::{K, fixture, image, put};
     use super::*;
     use serde_json::json;
+    #[test]
+    fn virtual_pool_ranges_match_actual_windows_intel_mapping() {
+        let vectors: serde_json::Value = serde_json::from_str(include_str!(
+            "../../tests/reference/parity/fixtures/pool-mappings.json"
+        ))
+        .unwrap();
+        for case in vectors["cases"].as_array().unwrap() {
+            let (_, mut isf) = fixture();
+            let arch = case["arch"].as_str().unwrap();
+            let width = case["width"].as_u64().unwrap() as usize;
+            if arch != "x64" {
+                isf.data["metadata"]["windows"]["pdb"]["machine_type"] = json!(0x14c);
+                isf.data["base_types"]["pointer"]["size"] = json!(4);
+                if arch == "pae" {
+                    isf.data["metadata"]["windows"]["paging"] = json!("pae");
+                }
+            }
+            let mut bytes = vec![0; case["length"].as_u64().unwrap() as usize];
+            for write in case["writes"].as_array().unwrap() {
+                let at = write[0].as_u64().unwrap() as usize;
+                bytes[at..at + width]
+                    .copy_from_slice(&write[1].as_u64().unwrap().to_le_bytes()[..width]);
+            }
+            let mut snapshot = image(&bytes);
+            snapshot.segments.clear();
+            let mut start = 0;
+            for hole in case["holes"].as_array().unwrap() {
+                let end = hole[0].as_u64().unwrap();
+                if start < end {
+                    snapshot.segments.push(crate::image::Segment {
+                        start,
+                        end,
+                        file_offset: start,
+                    });
+                }
+                start = hole[1].as_u64().unwrap();
+            }
+            snapshot.segments.push(crate::image::Segment {
+                start,
+                end: bytes.len() as u64,
+                file_offset: start,
+            });
+            let windows = Windows {
+                vm: Memory::new(&snapshot, case["root"].as_u64().unwrap(), &isf, None),
+                base: K,
+                pdb: PdbIdentity::from_isf(&isf).unwrap(),
+            };
+            let ranges = windows.pool_virtual_ranges(&Job::default()).unwrap();
+            let masked: Vec<_> = ranges
+                .into_iter()
+                .map(|(at, size, physical)| [at & windows.driver_address_mask(), size, physical])
+                .collect();
+            assert_eq!(json!(masked), case["expected"], "{}", case["id"]);
+            let job = Job::default();
+            job.cancel.store(true, std::sync::atomic::Ordering::Relaxed);
+            // A valid mapping must reach the callback's cancellation check.
+            if !masked.is_empty() {
+                assert!(windows.pool_virtual_ranges(&job).is_err());
+            }
+        }
+    }
+
     #[test]
     fn pool_chunk_plans_and_overlap_match_actual_layer_iterators() {
         let vectors: serde_json::Value = serde_json::from_str(include_str!(

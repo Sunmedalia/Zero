@@ -797,3 +797,26 @@ the strict sequence discrepancy at index 245 and the prior reference/reference
 instability observation. Reports and ordered comparisons are under the four
 `*-native86` result directories and bound to the final executable hash.
 Evidence remains 122 positive cases (five scoped), zero complete contracts.
+
+
+Native87 aligns virtual pool range enumeration with the actual Windows Intel
+mapping layer: validate complete captured backing spans before coalescing, clip
+the uppermost native-domain page to the exclusive default maximum, validate full
+4 KiB PAE root pages, restrict large-page flags to their valid levels and apply
+the pinned PAE 40-bit physical mask. `pool_mapping_vectors.py` regenerates 38
+actual WindowsIntel/WindowsIntelPAE/WindowsIntel32e.mapping cases from complete
+synthetic page-table bytes in `fixtures/pool-mappings.json`. Native tests compare
+all three mapping columns (virtual start, length, physical start), including
+explicit backing holes. Arbitrary reserved PFNs, custom transition layouts,
+container mapping/decompression and full scan-fault reporting remain unverified.
+
+
+Final native87 jointly reruns the same 19 cases: all full-field/multiplicity
+comparisons pass, 18 emitted sequences pass, and Windows retains its recorded
+strict sequence discrepancy at index 245. One empty Win7 agreement is non-positive.
+Win11 DriverIrp and DriverModule retain matching rows while their 5258 native86
+unbacked-range diagnostics become zero and the outputs become complete. This
+reflects actual backing-span mapping checks rather than suppressing read errors.
+Reports and ordered comparisons are bound to the final binary under the four
+`*-native87` directories. Evidence remains 122 positive cases (five scoped), zero
+complete contracts.

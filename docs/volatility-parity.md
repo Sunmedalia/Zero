@@ -1562,3 +1562,52 @@ WindowStations 15、Desktops 28、DeskScan 28、Windows 3063 行，Win7 0 行
 完整插件合同 0/135。最终 make check 通过：619 库、8 CLI/MCP、50 协议、
 36 Python 测试。固定分块向量重生成一致，发布包空 PATH／独立目录启动
 退出通过。最终可执行文件 SHA256：`4ab2ebc564dac5238b61a64325ce48b3e0d05a722e9cc91c4907438b1ded3874`。
+
+
+## native87：池扫描的实际 Windows Intel 映射范围
+
+虚拟池扫描此前仅枚举页表叶子，并未像固定 Intel.mapping 一样检查底层
+捕获范围的完整可用性。现在在合并连续 VA／PFN 前确认整段物理 backing
+存在，空洞页不再并入随后会整体读错的范围。大页对应物理范围有缺口时，
+按参考拒绝该完整映射块，避免臆造部分有效页。相邻 VA 只有 PFN 也连续才
+合并，保留重复映射／递归别名。
+
+默认范围在 32／48-bit 原生地址域排除 maximum_address；最后一个虚拟页
+输出 4095 字节，避免 canonical u64::MAX 之后的地址加法溢出。映射内部保留
+虚拟起点、长度、物理起点三列，再提供给现有分块扫描，不借助对象扫描结果
+反推覆盖范围。
+
+页表读取对齐实际 _get_valid_table：包括只有四个可索引项的 PAE 根，也
+读取完整 4 KiB 页进行可读性及全页重复项检查；不会因前四项相同而丢弃
+完整页其余内容不同的根。大页标志仅在架构允许的层生效：x86 的目录层、
+PAE 的 2 MiB 目录层、x64 的 1 GiB／2 MiB 层；根层的同一位不再错误地
+提前终止枚举。PAE PFN 限制到固定 IntelPAE 的 40-bit 物理域；transition／
+prototype 标志按实际 Windows 层判断，允许大页时移除 PAT 位。
+
+新增 [实际 Windows Intel 映射向量](../tests/reference/parity/pool_mapping_vectors.py)：
+38 例使用完整合成页表字节，调用未修改的 WindowsIntel／WindowsIntelPAE／
+WindowsIntel32e.mapping，比较全部 VA、长度和物理起点。底层 BufferDataLayer
+仅通过显式范围模拟缺失 backing。覆盖连续／不连续 PFN、backing 空洞和
+缺失尾字节、页表缺失／全页重复、transition／prototype、地址域最后一页、
+大页／PAT、根层标志及 PAE 根／高物理位。原生通过真实 Memory／Image 页表
+与缺失区段逐列验证；这不代表任意畸形保留 PFN、各容器解压与 mapping、
+自定义 transition 布局、资源／取消上限和完整故障报告合同已经验收。
+
+最终 native87 十九例真实联合差分的字段和重复次数全部通过：PoolScanner
+五例为 36172、8709、3323、4926、2154 行；DriverIrp 三个完整默认 4255、3724、
+3453 行，三个内核范围 2066、1723、1656 行；DriverModule 3、2、1 行；GUI
+WindowStations 15、Desktops 28、DeskScan 28、Windows 3063 行，Win7 0 行
+仍为空结果一致。十八例严格顺序一致；Windows 子窗口在索引 245 的顺序
+差异继续保留，不把 native84 已确认的参考自身顺序变化伪装成严格通过。
+
+Win11 DriverIrp／DriverModule 的记录不变，native86 各有 5258 条不可读
+pool range 诊断，native87 均为 0 且结果 complete；这是先按实际 mapping
+可用性排除无 backing 范围的效果，而不是隐藏扫描读错。早期 native82 的
+同样路径因双标签重复扫描各有 10516 条，此处不混用历史数量。其余样本
+仍可能因实际名称／对象读错而 partial，完整故障合同仍需验收。
+
+报告保存在 target/reference/results 下四个 *-native87 目录，全部绑定
+同一最终二进制；只替换同名 case，累计仍为 122 个正向用例（5 个限定
+范围），完整插件合同 0/135。最终 make check 通过：620 库、8 CLI/MCP、
+50 协议、36 Python 测试；固定映射向量重生成一致。发布包空 PATH／独立
+目录启动退出通过。最终可执行文件 SHA256：`d681a4f7276d01f90fcfa9dc3de09c9da3fca3e91fee06308013181ff7663f6c`。
