@@ -34,9 +34,21 @@ def verify_native_symbol(sample, result):
             'configured_path': str(expected.resolve()), 'configured_sha256': expected_sha256}
 
 
+def artifact_files(root):
+    if root.is_symlink():
+        raise ValueError('artifact directory must not be a symbolic link')
+    files = {}
+    for path in root.rglob('*'):
+        if path.is_symlink():
+            raise ValueError(f'artifact symbolic link is not evidence: {path.relative_to(root)}')
+        if path.is_file():
+            files[str(path.relative_to(root))] = path
+    return files
+
+
 def compare_artifacts(native, reference):
-    left = {str(p.relative_to(native)): p for p in native.rglob('*') if p.is_file()}
-    right = {str(p.relative_to(reference)): p for p in reference.rglob('*') if p.is_file()}
+    left = artifact_files(native)
+    right = artifact_files(reference)
     records = []
     for name in sorted(left.keys() | right.keys()):
         n, r = left.get(name), right.get(name)
@@ -133,6 +145,7 @@ def run(config, output, zero, checkout, python, timeout):
                 record['passed'] = record['passed'] and bool(record['artifacts']) and all(item['passed'] for item in record['artifacts'])
             record['native_output_sha256'] = digest(native_output)
         except (OSError, ValueError, KeyError) as error:
+            record['passed'] = False
             record['error'] = str(error)
         (destination / 'comparison.json').write_text(json.dumps(record, ensure_ascii=False, indent=2) + '\n')
         records.append(record)
