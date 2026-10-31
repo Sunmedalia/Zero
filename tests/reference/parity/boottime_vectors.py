@@ -109,6 +109,11 @@ def generate(checkout):
         try:
             rows = list(Boottime.get_time_namespaces_bootime(context, 'kernel'))
             case['expected'] = [[str(ns) if ns else 'N/A', time.isoformat() if isinstance(time, datetime.datetime) else 'N/A'] for ns,time in rows]
+            timeline_proxy = Node(context=context, config={'kernel': 'kernel'},
+                                  get_time_namespaces_bootime=Boottime.get_time_namespaces_bootime)
+            case['timeline'] = [dict(description=description, event_type=event_type.name,
+                                     timestamp=time.isoformat() if isinstance(time, datetime.datetime) else 'N/A')
+                                for description, event_type, time in Boottime.generate_timeline(timeline_proxy)]
         except Exception as error:
             case['error'] = type(error).__name__
         case['root'] = str(root)

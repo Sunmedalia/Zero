@@ -21,6 +21,13 @@
           "N/A",
           "2023-11-14T22:13:20.456789+00:00"
         ]
+      ],
+      "timeline": [
+        {
+          "description": "System boot time for time namespace None",
+          "event_type": "CREATED",
+          "timestamp": "2023-11-14T22:13:20.456789+00:00"
+        }
       ]
     },
     {
@@ -36,6 +43,13 @@
           "N/A",
           "2023-11-14T22:13:20.456789+00:00"
         ]
+      ],
+      "timeline": [
+        {
+          "description": "System boot time for time namespace None",
+          "event_type": "CREATED",
+          "timestamp": "2023-11-14T22:13:20.456789+00:00"
+        }
       ]
     },
     {
@@ -51,6 +65,13 @@
           "N/A",
           "2023-11-14T22:13:20.456789+00:00"
         ]
+      ],
+      "timeline": [
+        {
+          "description": "System boot time for time namespace None",
+          "event_type": "CREATED",
+          "timestamp": "2023-11-14T22:13:20.456789+00:00"
+        }
       ]
     },
     {
@@ -66,6 +87,13 @@
           "N/A",
           "2023-11-14T22:13:20.456789+00:00"
         ]
+      ],
+      "timeline": [
+        {
+          "description": "System boot time for time namespace None",
+          "event_type": "CREATED",
+          "timestamp": "2023-11-14T22:13:20.456789+00:00"
+        }
       ]
     },
     {
@@ -81,6 +109,13 @@
           "N/A",
           "2023-11-14T22:13:20.456789+00:00"
         ]
+      ],
+      "timeline": [
+        {
+          "description": "System boot time for time namespace None",
+          "event_type": "CREATED",
+          "timestamp": "2023-11-14T22:13:20.456789+00:00"
+        }
       ]
     },
     {
@@ -96,6 +131,13 @@
           "N/A",
           "2023-11-14T22:13:20.456789+00:00"
         ]
+      ],
+      "timeline": [
+        {
+          "description": "System boot time for time namespace None",
+          "event_type": "CREATED",
+          "timestamp": "2023-11-14T22:13:20.456789+00:00"
+        }
       ]
     },
     {
@@ -111,6 +153,13 @@
           "N/A",
           "2023-11-14T22:13:20.456789+00:00"
         ]
+      ],
+      "timeline": [
+        {
+          "description": "System boot time for time namespace None",
+          "event_type": "CREATED",
+          "timestamp": "2023-11-14T22:13:20.456789+00:00"
+        }
       ]
     },
     {
@@ -126,6 +175,13 @@
           "N/A",
           "2023-11-14T22:13:20.456789+00:00"
         ]
+      ],
+      "timeline": [
+        {
+          "description": "System boot time for time namespace None",
+          "event_type": "CREATED",
+          "timestamp": "2023-11-14T22:13:20.456789+00:00"
+        }
       ]
     },
     {
@@ -169,6 +225,23 @@
           "N/A",
           "2023-11-14T22:13:20.456789+00:00"
         ]
+      ],
+      "timeline": [
+        {
+          "description": "System boot time for time namespace 42",
+          "event_type": "CREATED",
+          "timestamp": "2023-11-14T22:13:15.333333+00:00"
+        },
+        {
+          "description": "System boot time for time namespace 43",
+          "event_type": "CREATED",
+          "timestamp": "2023-11-14T22:13:21.656789+00:00"
+        },
+        {
+          "description": "System boot time for time namespace None",
+          "event_type": "CREATED",
+          "timestamp": "2023-11-14T22:13:20.456789+00:00"
+        }
       ]
     },
     {
@@ -192,6 +265,18 @@
           "8",
           "2023-11-14T22:13:20.456789+00:00"
         ]
+      ],
+      "timeline": [
+        {
+          "description": "System boot time for time namespace 7",
+          "event_type": "CREATED",
+          "timestamp": "2023-11-14T22:13:20.456789+00:00"
+        },
+        {
+          "description": "System boot time for time namespace 8",
+          "event_type": "CREATED",
+          "timestamp": "2023-11-14T22:13:20.456789+00:00"
+        }
       ]
     },
     {
@@ -216,6 +301,18 @@
           "N/A",
           "2023-11-14T22:13:20+00:00"
         ]
+      ],
+      "timeline": [
+        {
+          "description": "System boot time for time namespace 0",
+          "event_type": "CREATED",
+          "timestamp": "2023-11-14T22:13:20+00:00"
+        },
+        {
+          "description": "System boot time for time namespace None",
+          "event_type": "CREATED",
+          "timestamp": "2023-11-14T22:13:20+00:00"
+        }
       ]
     },
     {
@@ -223,7 +320,8 @@
       "kind": "unsupported",
       "root": "0",
       "tasks": [],
-      "expected": []
+      "expected": [],
+      "timeline": []
     },
     {
       "id": "unsupported-timekeeping",
@@ -282,6 +380,13 @@
           "N/A",
           "N/A"
         ]
+      ],
+      "timeline": [
+        {
+          "description": "System boot time for time namespace None",
+          "event_type": "CREATED",
+          "timestamp": "N/A"
+        }
       ]
     },
     {
@@ -296,6 +401,13 @@
           "N/A",
           "N/A"
         ]
+      ],
+      "timeline": [
+        {
+          "description": "System boot time for time namespace None",
+          "event_type": "CREATED",
+          "timestamp": "N/A"
+        }
       ]
     },
     {
@@ -310,6 +422,13 @@
           "N/A",
           "1970-01-01T00:00:00+00:00"
         ]
+      ],
+      "timeline": [
+        {
+          "description": "System boot time for time namespace None",
+          "event_type": "CREATED",
+          "timestamp": "1970-01-01T00:00:00+00:00"
+        }
       ]
     },
     {
@@ -324,6 +443,13 @@
           "N/A",
           "1970-01-01T00:00:00.000002+00:00"
         ]
+      ],
+      "timeline": [
+        {
+          "description": "System boot time for time namespace None",
+          "event_type": "CREATED",
+          "timestamp": "1970-01-01T00:00:00.000002+00:00"
+        }
       ]
     },
     {
@@ -338,6 +464,13 @@
           "N/A",
           "1970-01-01T00:00:00.000002+00:00"
         ]
+      ],
+      "timeline": [
+        {
+          "description": "System boot time for time namespace None",
+          "event_type": "CREATED",
+          "timestamp": "1970-01-01T00:00:00.000002+00:00"
+        }
       ]
     },
     {
@@ -352,6 +485,13 @@
           "N/A",
           "1970-01-01T00:00:01+00:00"
         ]
+      ],
+      "timeline": [
+        {
+          "description": "System boot time for time namespace None",
+          "event_type": "CREATED",
+          "timestamp": "1970-01-01T00:00:01+00:00"
+        }
       ]
     },
     {
@@ -366,6 +506,13 @@
           "N/A",
           "2023-11-14T22:13:20.123456+00:00"
         ]
+      ],
+      "timeline": [
+        {
+          "description": "System boot time for time namespace None",
+          "event_type": "CREATED",
+          "timestamp": "2023-11-14T22:13:20.123456+00:00"
+        }
       ]
     },
     {
@@ -380,6 +527,13 @@
           "N/A",
           "2100-01-01T00:00:01.123457+00:00"
         ]
+      ],
+      "timeline": [
+        {
+          "description": "System boot time for time namespace None",
+          "event_type": "CREATED",
+          "timestamp": "2100-01-01T00:00:01.123457+00:00"
+        }
       ]
     },
     {
@@ -394,6 +548,13 @@
           "N/A",
           "N/A"
         ]
+      ],
+      "timeline": [
+        {
+          "description": "System boot time for time namespace None",
+          "event_type": "CREATED",
+          "timestamp": "N/A"
+        }
       ]
     }
   ]

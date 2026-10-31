@@ -2279,3 +2279,19 @@ extra、conflicts、unverifiable 或 multiplicity_conflicts 的证据明确拒�
 多重集合的 duplicates 不受影响。新增三项回归后 43 项 Python 测试通过，既有
 161 项正向证据仍可审计，完整插件合同仍为 0/135；尚未用这项加固代替逐插件
 参数／故障／平台矩阵审查。
+
+## native103：Boottime 时间线事件元数据
+
+Boottime 在 kernel_identity.boottime_timeline 提供按发射顺序排列的 description、
+event_type、timestamp，保留 namespace None 与 0 的描述区别。25 个方法场景
+直接执行固定 generate_timeline，比较规范化事件与既有插件行；故障场景仍返回
+错误，不产生伪造完整输出。引擎版本更新，旧结果缓存失效。
+
+固定参考真实 TimeLiner 通过 --plugin-filter Boottime 取得 Debian 事件，新原生
+结果元数据三字段完全相同：System boot time for time namespace None、CREATED、
+2014-06-24T10:22:33.691776+00:00。默认两列输出的真实差分亦为 1/1 通过；
+make check 通过。证据见 boottime-timeline-known-limitations.json。
+
+这仅实现单插件事件元数据，不代表跨插件 TimeLiner、排序或 bodyfile 已对齐；
+不可用时间当前规范化为 N/A，参考 absent-value 子类型仍未实现。现代 namespace
+真实样本和 Intel32 平台合同仍需验证，完整插件合同不提升。

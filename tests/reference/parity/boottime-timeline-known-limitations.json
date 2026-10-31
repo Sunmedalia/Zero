@@ -1,0 +1,29 @@
+{
+  "engine_version": "0.2.1-native-103",
+  "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+  "native_output": "kernel_identity.boottime_timeline",
+  "method_validation": {
+    "fixture": "tests/reference/parity/fixtures/boottime.json",
+    "cases": 25,
+    "reference_method": "Boottime.generate_timeline",
+    "comparison": "description, event_type.name, normalized timestamp; ordered events",
+    "passed": true
+  },
+  "real_validation": {
+    "sample": "debian-3.2",
+    "reference_command": "timeliner.Timeliner --plugin-filter Boottime",
+    "reference_output": "target/reference/results/boottime-native103/reference-timeline.json",
+    "native_output": "target/reference/results/boottime-native103/000/zero.json",
+    "events": 1,
+    "description": "System boot time for time namespace None",
+    "event_type": "CREATED",
+    "timestamp": "2014-06-24T10:22:33.691776+00:00",
+    "passed": true
+  },
+  "validation": {"make_check_passed": true, "debian_kali_acceptance_passed": 4},
+  "limitations": [
+    "This is per-plugin event metadata, not the complete cross-plugin TimeLiner aggregator, sorting or bodyfile export.",
+    "Unavailable timestamp values are normalized to N/A; reference absent-value subtype semantics remain unimplemented.",
+    "Modern time namespace real samples, Intel32 platform behavior, all faults and full plugin contracts remain unverified."
+  ]
+}

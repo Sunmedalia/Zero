@@ -105,6 +105,7 @@ impl Linux<'_> {
         tasks: Vec<Task>,
     ) -> Result<Results> {
         let mut seen = HashSet::new();
+        let mut timeline = Vec::new();
         for task in tasks {
             job.check()?;
             let namespace = self.task_time_namespace(task.address)?;
@@ -131,12 +132,20 @@ impl Linux<'_> {
                     self.time_field_type(ty, "boottime")?,
                 )?;
             }
+            let timestamp = boot_datetime(nanos).unwrap_or_else(|| "N/A".into());
+            timeline.push(serde_json::json!({
+                "description": format!("System boot time for time namespace {}",
+                    id.map_or_else(|| "None".into(), |value| value.to_string())),
+                "event_type": "CREATED",
+                "timestamp": timestamp,
+            }));
             result.rows.push(vec![
                 id.filter(|id| *id != 0)
                     .map_or_else(|| "N/A".into(), |id| id.to_string()),
-                boot_datetime(nanos).unwrap_or_else(|| "N/A".into()),
+                timestamp,
             ]);
         }
+        result.kernel_identity["boottime_timeline"] = serde_json::json!(timeline);
         Ok(result)
     }
 }
@@ -397,6 +406,11 @@ mod tests {
                 let result = result.unwrap();
                 assert!(result.complete, "{} {:?}", case["id"], result.diagnostics);
                 assert_eq!(json!(result.rows), case["expected"], "{}", case["id"]);
+                assert_eq!(
+                    result.kernel_identity["boottime_timeline"], case["timeline"],
+                    "{}",
+                    case["id"]
+                );
             }
         }
     }

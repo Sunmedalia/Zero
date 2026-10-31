@@ -324,3 +324,8 @@ padding 使用参考的 signed 减法和原始条件。Win10 站观察由 10 条
 六列参考证据更新为 3453，当前 Win10/Win11 联合验收及重新执行的六项固定参考
 完整字段差分均已通过。继续核对层边界和地址别名，并补齐逐插件参数／
 故障／平台合同；这些验收修复不提升完整插件合同。
+
+- native103：Boottime 结果元数据提供 boottime_timeline 事件，直接按
+  固定 generate_timeline 方法比较描述、CREATED 类型和时间戳，保留 None/0 的
+  描述区别与既有 namespace 去重顺序。该入口不是完整跨插件 TimeLiner 汇总；
+  现代 namespace 真实样本和 Intel32 平台合同仍待补齐。
