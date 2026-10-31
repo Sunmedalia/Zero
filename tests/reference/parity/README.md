@@ -925,3 +925,27 @@ retains its known difference at index 245. `*-native91` raw reports bind one
 binary. Evidence stays at 125 positive cases (five scoped), zero complete plugin
 contracts. `make check`, package smoke in unrelated/empty-PATH environments and
 release gzip-crash acceptance (PsList120/Netscan108 with DTB/TCP-IP checks) pass.
+
+Native92 adds `linux.boottime.Boottime` (`linux.boottime`) with namespace/time
+columns. `boottime.example.json` compares every field of the public Debian case;
+`linux-boottime.json` explicitly permits unavailable namespace IDs on old kernels
+and compares full row multisets keyed by timestamp, preserving different namespaces
+with identical boot times. Missing timestamps cannot establish positive identity.
+`boottime_vectors.py` calls pinned Boottime, PsList iteration and bound task time
+methods through synthetic typed field/list adapters. Its 22 cases cover timekeeping
+branches, first-ID order, namespace offsets, missing namespace fields, empty tasks,
+unsupported timekeeping and datetime boundaries. The native tests use complete
+synthetic memory/ISF layouts. Modern ktime conversion reproduces the reference's
+floating NSEC_PER_SEC divmod before applying namespace offsets and datetime
+rounding. This does not prove every architecture, real modern namespace samples,
+all corruption contracts or TimeLiner integration. The legacy key/value interface
+is retained and shares the kernel timekeeping reader.
+
+Final native92 real Debian Boottime and five PsList cases pass all fields,
+multiplicities and strict emitted sequences. The legacy boot summary's columns
+and rows equal the native91 baseline. The new Boottime case raises cumulative
+positive cases to 126 (five scoped), with zero complete plugin contracts. Raw
+reports are `boottime-native92` and `debian-native92`, bound to one final binary.
+`make check` passes 623 library, 8 CLI/MCP, 50 protocol and 36 Python tests;
+release package smoke passes in project/unrelated directories with empty PATH.
+Modern namespaces remain synthetic method coverage, not real-image parity.

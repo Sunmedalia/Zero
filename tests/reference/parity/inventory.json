@@ -145,7 +145,7 @@
         "Boot Time"
       ],
       "zero_candidates": [
-        "boottime"
+        "linux.boottime.Boottime"
       ],
       "status": "mapped_unverified",
       "evidence": []

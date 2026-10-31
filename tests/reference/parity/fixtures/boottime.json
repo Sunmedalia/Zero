@@ -1,0 +1,364 @@
+{
+  "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+  "source_sha256": {
+    "volatility3/framework/plugins/linux/boottime.py": "28e59cea60b43facd9e617b7a5986d069ad5f578fb1931a12c35ccd6b98f527c",
+    "volatility3/framework/symbols/linux/extensions/__init__.py": "5e43dbf482df74ec78c810ece3584323205eeac20d44fede5381f9a12b78e249",
+    "volatility3/framework/renderers/conversion.py": "0af8425c9da0629cc2545edb5e74bfc32fb7f05536dd37d11444eaaeeec38ea8",
+    "volatility3/framework/constants/linux/__init__.py": "4f801ec3a68a851a308a8d0cd98529087f08138baccc3e1f5238e250cc395d66"
+  },
+  "scope": "Actual Boottime.get_time_namespaces_bootime, PsList iteration and bound task_struct time namespace/timekeeping methods. Synthetic typed objects supply fields and list order; this does not prove real page-table recovery, every task validity rule, all layouts, full fault contracts or timeline integration.",
+  "cases": [
+    {
+      "id": "modern",
+      "kind": "modern",
+      "root": "1700000000456789123",
+      "tasks": [
+        null,
+        null
+      ],
+      "expected": [
+        [
+          "N/A",
+          "2023-11-14T22:13:20.456789+00:00"
+        ]
+      ]
+    },
+    {
+      "id": "wrapped",
+      "kind": "wrapped",
+      "root": "1700000000456789123",
+      "tasks": [
+        null,
+        null
+      ],
+      "expected": [
+        [
+          "N/A",
+          "2023-11-14T22:13:20.456789+00:00"
+        ]
+      ]
+    },
+    {
+      "id": "global-timekeeper",
+      "kind": "global-timekeeper",
+      "root": "1700000000456789123",
+      "tasks": [
+        null,
+        null
+      ],
+      "expected": [
+        [
+          "N/A",
+          "2023-11-14T22:13:20.456789+00:00"
+        ]
+      ]
+    },
+    {
+      "id": "wall-timespec",
+      "kind": "wall-timespec",
+      "root": "1700000000456789123",
+      "tasks": [
+        null,
+        null
+      ],
+      "expected": [
+        [
+          "N/A",
+          "2023-11-14T22:13:20.456789+00:00"
+        ]
+      ]
+    },
+    {
+      "id": "wall-scalar",
+      "kind": "wall-scalar",
+      "root": "1700000000456789123",
+      "tasks": [
+        null,
+        null
+      ],
+      "expected": [
+        [
+          "N/A",
+          "2023-11-14T22:13:20.456789+00:00"
+        ]
+      ]
+    },
+    {
+      "id": "wall-only",
+      "kind": "wall-only",
+      "root": "1700000000456789123",
+      "tasks": [
+        null,
+        null
+      ],
+      "expected": [
+        [
+          "N/A",
+          "2023-11-14T22:13:20.456789+00:00"
+        ]
+      ]
+    },
+    {
+      "id": "pre-nsproxy",
+      "kind": "wall-only",
+      "root": "1700000000456789123",
+      "namespace_layout": "no-proxy",
+      "tasks": [
+        null
+      ],
+      "expected": [
+        [
+          "N/A",
+          "2023-11-14T22:13:20.456789+00:00"
+        ]
+      ]
+    },
+    {
+      "id": "pre-time-ns",
+      "kind": "global-timekeeper",
+      "root": "1700000000456789123",
+      "namespace_layout": "no-time",
+      "tasks": [
+        null
+      ],
+      "expected": [
+        [
+          "N/A",
+          "2023-11-14T22:13:20.456789+00:00"
+        ]
+      ]
+    },
+    {
+      "id": "namespace-order-and-duplicate",
+      "kind": "modern",
+      "root": "1700000000456789123",
+      "tasks": [
+        {
+          "id": 42,
+          "offset": [
+            5,
+            123456789
+          ]
+        },
+        {
+          "id": 42,
+          "offset": [
+            99,
+            0
+          ]
+        },
+        {
+          "id": 43,
+          "offset": [
+            -2,
+            800000000
+          ]
+        },
+        null
+      ],
+      "expected": [
+        [
+          "42",
+          "2023-11-14T22:13:15.333333+00:00"
+        ],
+        [
+          "43",
+          "2023-11-14T22:13:21.656789+00:00"
+        ],
+        [
+          "N/A",
+          "2023-11-14T22:13:20.456789+00:00"
+        ]
+      ]
+    },
+    {
+      "id": "no-offset-member",
+      "kind": "modern",
+      "root": "1700000000456789123",
+      "tasks": [
+        {
+          "id": 7
+        },
+        {
+          "id": 8
+        }
+      ],
+      "expected": [
+        [
+          "7",
+          "2023-11-14T22:13:20.456789+00:00"
+        ],
+        [
+          "8",
+          "2023-11-14T22:13:20.456789+00:00"
+        ]
+      ]
+    },
+    {
+      "id": "zero-namespace-distinct-from-none",
+      "kind": "modern",
+      "root": "1700000000000000000",
+      "tasks": [
+        {
+          "id": 0
+        },
+        null,
+        {
+          "id": 0
+        }
+      ],
+      "expected": [
+        [
+          "N/A",
+          "2023-11-14T22:13:20+00:00"
+        ],
+        [
+          "N/A",
+          "2023-11-14T22:13:20+00:00"
+        ]
+      ]
+    },
+    {
+      "id": "empty-task-list",
+      "kind": "unsupported",
+      "root": "0",
+      "tasks": [],
+      "expected": []
+    },
+    {
+      "id": "unsupported-timekeeping",
+      "kind": "unsupported",
+      "root": "0",
+      "tasks": [
+        null
+      ],
+      "error": "VolatilityException"
+    },
+    {
+      "id": "datetime-0",
+      "kind": "modern",
+      "root": "0",
+      "tasks": [
+        null
+      ],
+      "expected": [
+        [
+          "N/A",
+          "N/A"
+        ]
+      ]
+    },
+    {
+      "id": "datetime--1",
+      "kind": "modern",
+      "root": "-1",
+      "tasks": [
+        null
+      ],
+      "expected": [
+        [
+          "N/A",
+          "N/A"
+        ]
+      ]
+    },
+    {
+      "id": "datetime-500",
+      "kind": "modern",
+      "root": "500",
+      "tasks": [
+        null
+      ],
+      "expected": [
+        [
+          "N/A",
+          "1970-01-01T00:00:00+00:00"
+        ]
+      ]
+    },
+    {
+      "id": "datetime-1500",
+      "kind": "modern",
+      "root": "1500",
+      "tasks": [
+        null
+      ],
+      "expected": [
+        [
+          "N/A",
+          "1970-01-01T00:00:00.000002+00:00"
+        ]
+      ]
+    },
+    {
+      "id": "datetime-2500",
+      "kind": "modern",
+      "root": "2500",
+      "tasks": [
+        null
+      ],
+      "expected": [
+        [
+          "N/A",
+          "1970-01-01T00:00:00.000002+00:00"
+        ]
+      ]
+    },
+    {
+      "id": "datetime-999999999",
+      "kind": "modern",
+      "root": "999999999",
+      "tasks": [
+        null
+      ],
+      "expected": [
+        [
+          "N/A",
+          "1970-01-01T00:00:01+00:00"
+        ]
+      ]
+    },
+    {
+      "id": "datetime-1700000000123456500",
+      "kind": "modern",
+      "root": "1700000000123456500",
+      "tasks": [
+        null
+      ],
+      "expected": [
+        [
+          "N/A",
+          "2023-11-14T22:13:20.123456+00:00"
+        ]
+      ]
+    },
+    {
+      "id": "datetime-4102444801123456789",
+      "kind": "modern",
+      "root": "4102444801123456789",
+      "tasks": [
+        null
+      ],
+      "expected": [
+        [
+          "N/A",
+          "2100-01-01T00:00:01.123457+00:00"
+        ]
+      ]
+    },
+    {
+      "id": "datetime-253402300799999999999",
+      "kind": "wall-only",
+      "root": "253402300799999999999",
+      "tasks": [
+        null
+      ],
+      "expected": [
+        [
+          "N/A",
+          "N/A"
+        ]
+      ]
+    }
+  ]
+}

@@ -798,33 +798,7 @@ impl Linux<'_> {
     }
     /// boottime: wall-clock boot time from the timekeeping offsets.
     pub(super) fn boottime(&self, r: &mut Results) -> Result<()> {
-        // 3.x: boot = -(wall_to_monotonic + total_sleep_time).
-        let seconds_nanos = if let (Ok(wtm), Ok(sleep)) = (
-            self.isf.address("wall_to_monotonic"),
-            self.isf.address("total_sleep_time"),
-        ) {
-            let read = |base| -> Result<i128> {
-                let seconds = self.number(base, "timespec", "tv_sec")? as i64 as i128;
-                let nanos = self.number(base, "timespec", "tv_nsec")? as i64 as i128;
-                Ok(seconds * 1_000_000_000 + nanos)
-            };
-            -(read(wtm)? + read(sleep)?)
-        } else {
-            // Since 3.17: boot = offs_real - offs_boot (both ktime_t nanoseconds).
-            let core = self
-                .isf
-                .address("tk_core")
-                .context("不支持: 缺少 wall_to_monotonic 与 tk_core")?;
-            // Modern DWARF may name tk_core's anonymous structure by a
-            // generated identifier. Resolve its actual type from this ISF.
-            let core_type = self.isf.data["symbols"]["tk_core"]["type"]["name"]
-                .as_str()
-                .unwrap_or("tk_core");
-            let keeper = self.field_address(core, core_type, "timekeeper")?;
-            let real = self.number(keeper, "timekeeper", "offs_real")? as i64 as i128;
-            let boot = self.number(keeper, "timekeeper", "offs_boot")? as i64 as i128;
-            real - boot
-        };
+        let seconds_nanos = self.root_boot_time_nanos()?;
         let seconds = seconds_nanos.div_euclid(1_000_000_000);
         ensure!(
             (0..=4_102_444_800).contains(&seconds),

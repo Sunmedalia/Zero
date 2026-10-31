@@ -14,6 +14,7 @@ use std::{
     path::Path,
 };
 
+mod boottime;
 mod callstack;
 mod discover;
 mod engine;

@@ -138,6 +138,7 @@ impl Linux<'_> {
             Modxview => self.modxview(false, job),
             ProcessSpoofing => self.process_spoofing(job),
             LinuxPslist => self.process_details(job),
+            LinuxBoottime => self.namespace_boottimes(job),
             Banners => banner_result(self.vm.image, job),
             Psaux | Envars | Maps | Lsof | Sockstat | Netscan => self.task_objects(plugin, job),
             Pwd | Pscred | CheckCreds | Threads | Mountinfo => self.task_context(plugin, job),

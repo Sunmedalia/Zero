@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "keys": [
+    "boot_time"
+  ],
+  "duplicate_keys": "multiset",
+  "fields": {
+    "namespace": {
+      "zero": "TIME NS",
+      "reference": "TIME NS",
+      "type": "na_integer",
+      "allow_absent": true
+    },
+    "boot_time": {
+      "zero": "Boot Time",
+      "reference": "Boot Time",
+      "type": "timestamp"
+    }
+  }
+}

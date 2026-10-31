@@ -1780,3 +1780,42 @@ make check 通过：622 库、8 CLI/MCP、50 协议及 36 Python 测试；
 release gzip crash 验收 PsList 120／Netscan 108（含 DTB 与精确 TCP/IP
 PDB 检查）及发布包空 PATH、无关目录启动退出检查通过。向量重新生成
 与提交文件逐字节一致。这些回归结果不证明所有畸形别名或软件恢复组合。
+
+## native92：Linux Boottime 的标准入口和时间命名空间
+
+新增 linux.boottime.Boottime（别名 linux.boottime），按固定参考的两列
+TIME NS／Boot Time 输出。按任务链表顺序对命名空间 ID 去重；旧内核
+或空时间命名空间使用 N/A，ID 0 也按参考显示 N/A，但其去重身份与
+没有命名空间不同。time_namespace.offsets 存在时减去 boottime 偏移，
+缺少该成员时保留根启动时间。传统 boottime 仍输出原有 Key／Value
+数据，和 PsList 共用内核时间读取函数。
+
+内核时间读取按参考优先级支持 tk_core.timekeeper 的整型纳秒或
+ktime_t.tv64、全局 timekeeper 的 wall_to_monotonic＋total_sleep_time、
+旧版全局 wall_to_monotonic 及可选的 timespec／标量秒休眠时间。
+匿名 tk_core 类型通过 ISF 实际类型解析；timespec 字段按实际宽度
+有符号读取。标准入口不施加传统摘要的 2100 年上限。
+
+参考 Timespec64Concrete 使用浮点 NSEC_PER_SEC，new_from_nsec 先将
+纳秒转为浮点再执行 divmod，因此 namespace 偏移后的时间可能与精确
+整数计算相差 1 微秒。标准入口复现该 divmod，再复现 fromtimestamp
+的微秒舍入；无效或超出 datetime 范围的日期显示 N/A。
+
+22 例实际固定方法向量覆盖以上布局、命名空间首次出现顺序与重复、
+空任务列表、缺少支持的符号、epoch 附近及年份上界。参考方法与
+PsList 迭代器使用合成字段对象及链表适配器，未修改参考源码；
+原生使用完整合成内存和 ISF 字段。它们不证明真实新内核／时间
+命名空间镜像、所有 32-bit／ARM64 布局、完整损坏页故障合同或
+TimeLiner 集成。完整插件合同仍未验收。
+
+最终 native92 真实 Debian Boottime 默认两列全字段及严格顺序通过，
+启动时间为 2014-06-24T10:22:33.691776+00:00，TIME NS 按旧内核语义
+为空。依赖时间保持读取的 5 个 PsList 默认／线程／装饰／PID 案例
+全字段、重复次数及严格顺序全部通过；传统 Boottime 摘要与 native91
+的列及行完全相同。原始报告为 target/reference/results/boottime-native92
+及 debian-native92，统一绑定二进制 SHA256
+`a691b1661d46a3c2a65dcd089c7457675181a64e18b856c5fd2af596ead39de0`。新增一个正向身份，累计
+126 个正向案例（5 个限定范围），完整插件合同仍 0/135。
+make check 通过：623 库、8 CLI/MCP、50 协议及 36 Python 测试；
+发布包在项目／无关目录、空 PATH 下启动退出通过。22 例向量重新
+生成与提交文件逐字节一致。新内核真实时间命名空间样本尚未验收。

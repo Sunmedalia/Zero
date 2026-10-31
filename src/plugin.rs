@@ -3,6 +3,8 @@ use clap::ValueEnum;
 
 #[derive(Clone, Copy, Debug, ValueEnum, PartialEq, Eq)]
 pub enum Plugin {
+    #[value(name = "linux.boottime.Boottime", alias = "linux.boottime")]
+    LinuxBoottime,
     #[value(name = "windows.debugregisters.DebugRegisters")]
     WinDebugRegisters,
     #[value(
@@ -1857,6 +1859,13 @@ pub const PLUGINS: &[Descriptor] = &[
         widths: &[16, 0],
     },
     Descriptor {
+        plugin: Plugin::LinuxBoottime,
+        name: "linux.boottime.Boottime",
+        label: "boottime·命名空间",
+        columns: &["TIME NS", "Boot Time"],
+        widths: &[12, 32],
+    },
+    Descriptor {
         plugin: Plugin::Pagecache,
         name: "pagecache",
         label: "pagecache",
@@ -2321,7 +2330,7 @@ impl Plugin {
             | Self::Ftrace
             | Self::PerfEvents
             | Self::Ebpf => "Integrity",
-            Self::Boottime | Self::Fbdev => "System",
+            Self::Boottime | Self::LinuxBoottime | Self::Fbdev => "System",
             Self::Pagecache => "Files",
         }
     }
@@ -2388,6 +2397,7 @@ impl Plugin {
             Ebpf => "列出已加载的 eBPF 程序",
             PerfEvents => "列出进程持有的 perf 事件及溢出处理函数",
             Boottime => "根据时间保持偏移计算系统启动时间",
+            LinuxBoottime => "按任务遍历顺序列出各时间命名空间的启动时间",
             Pagecache => "列出页缓存中各文件系统的 inode 及缓存页数",
             Iomem => "查看物理内存资源范围",
             Ioports => "查看 I/O 端口资源",
