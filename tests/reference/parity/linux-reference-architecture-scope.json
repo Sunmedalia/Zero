@@ -1,0 +1,10 @@
+{
+  "schema_version": 1,
+  "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+  "source": "volatility3/framework/constants/architectures.py",
+  "linux_architectures": ["Intel32", "Intel64"],
+  "linux_layer_base": "intel.Intel",
+  "verification": "Read the pinned architecture constants and enumerated framework/layers; no ARM64 translation layer is present.",
+  "contract_policy": "Assess fixed-reference Linux parity within Intel32/Intel64 requirements. ARM64 native capabilities require separately labeled native evidence and cannot be certified using a nonexistent pinned ARM64 reference layer.",
+  "limitations": ["This scope clarification does not certify Intel32 support in Zero or promote any complete plugin contract."]
+}
