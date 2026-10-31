@@ -731,6 +731,24 @@ mod tests {
         (bytes, isf)
     }
     #[test]
+    fn lsmod_unreadable_name_never_becomes_a_prefix_row() {
+        for name_offset in [0xbef0, 0xbf00] {
+            let (mut bytes, mut isf) = fixture();
+            isf.data["user_types"]["module"]["fields"]["name"] = json!({"offset":name_offset,"type":{"kind":"array","count":64,"subtype":{"kind":"base","name":"char"}}});
+            if name_offset == 0xbef0 {
+                bytes[0x3fff0..0x40000].copy_from_slice(b"abcdefghijklmnop");
+            }
+            let image = super::super::tests::image(&bytes);
+            let result = super::super::tests::engine(&image, &isf)
+                .run(Plugin::Lsmod, &Job::default())
+                .unwrap();
+            assert!(result.rows.is_empty());
+            assert!(!result.complete);
+            assert!(!result.diagnostics.is_empty());
+        }
+    }
+
+    #[test]
     fn lsmod_forward_walk_ignores_prev_and_preserves_cycle_prefix() {
         for (successor, complete) in [
             (0x31000, true),
