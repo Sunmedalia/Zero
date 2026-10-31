@@ -1,7 +1,6 @@
 //! Canonical pool scanner: every built-in kernel tag, scanned in the version's layer.
 use super::*;
 use memchr::memmem;
-use objects::physical_number;
 use std::cmp::Reverse;
 use std::collections::{BTreeMap, BinaryHeap};
 
@@ -188,6 +187,14 @@ impl Iterator for PoolTagMatches<'_, '_> {
     }
 }
 
+struct PoolHeaderRead<'a> {
+    start: u64,
+    data: &'a [u8],
+    virtual_scan: bool,
+    alignment: u64,
+    vista: bool,
+}
+
 struct PoolCarve<'a> {
     block: u64,
     alignment: u64,
@@ -266,7 +273,7 @@ impl Windows<'_> {
         let top_down = build >= 9200;
         let vista = build >= 6000;
         let alignment = if self.vm.pointer_size() == 4 { 8 } else { 16 };
-        let (tag_offset, header_size) = self.pool_header_layout()?;
+        let (tag_offset, _) = self.pool_header_layout()?;
         let sizes = self.pool_type_sizes()?;
         let validation = PoolValidation {
             types: self.pool_reference_type_map()?,
@@ -303,40 +310,23 @@ impl Windows<'_> {
                 let Some(&type_size) = sizes.get(constraint.type_name) else {
                     continue;
                 };
-                let Some(local) = tag.checked_sub(tag_offset) else {
+                let Some(address) = add(start, tag as u64)?.checked_sub(tag_offset as u64) else {
                     continue;
                 };
-                // Alignment scales BlockSize; the fixed scanner does not
-                // round or reject the address of a matched pool header.
-                if local + header_size as usize > data.len() {
-                    continue;
-                }
-                let bytes = &data[local..local + header_size as usize];
-                let Ok(block) = physical_number(self.vm.isf, bytes, "_POOL_HEADER", "BlockSize")
+                let Some(size) = self.pool_header_block(
+                    constraint,
+                    address,
+                    PoolHeaderRead {
+                        start,
+                        data: &data,
+                        virtual_scan,
+                        alignment,
+                        vista,
+                    },
+                )?
                 else {
                     continue;
                 };
-                let Some(size) = block.checked_mul(alignment) else {
-                    continue;
-                };
-                if size < constraint.minimum {
-                    continue;
-                }
-                if self.vm.isf.has_field("_POOL_HEADER", "PoolType") {
-                    let Ok(page) = physical_number(self.vm.isf, bytes, "_POOL_HEADER", "PoolType")
-                    else {
-                        continue;
-                    };
-                    let paged = page > 0 && page % 2 == if vista { 1 } else { 0 };
-                    let nonpaged = page > 0 && page % 2 == if vista { 0 } else { 1 };
-                    let accepted = page == 0 && constraint.page & 4 != 0
-                        || paged && constraint.page & 1 != 0
-                        || nonpaged && constraint.page & 2 != 0;
-                    if !accepted {
-                        continue;
-                    }
-                }
-                let address = start + local as u64;
                 let bodies = self.pool_bodies(
                     constraint,
                     address,
@@ -405,6 +395,58 @@ impl Windows<'_> {
             Self::issue(result, context, error);
         }
         *diagnostics += 1;
+    }
+
+    /// PoolHeaderScanner lazily reads only fields needed by the constraints.
+    /// The matched tag may start at the scan buffer's first byte, and neither
+    /// the header prefix nor its unused tail needs to be in that buffer.
+    fn pool_header_block(
+        &self,
+        constraint: &Constraint,
+        address: u64,
+        scan: PoolHeaderRead<'_>,
+    ) -> Result<Option<u64>> {
+        let field = |name| -> Result<u64> {
+            let layout = self.vm.isf.layout("_POOL_HEADER", name)?;
+            let at = add(address, layout.offset)?;
+            let length = usize::try_from(layout.size).context("pool 字段大小溢出")?;
+            ensure!(matches!(length, 1 | 2 | 4 | 8), "pool 字段宽度无效");
+            let mut bytes = [0; 8];
+            if let Some(value) = at
+                .checked_sub(scan.start)
+                .and_then(|offset| usize::try_from(offset).ok())
+                .and_then(|offset| offset.checked_add(length).map(|end| (offset, end)))
+                .and_then(|(offset, end)| scan.data.get(offset..end))
+            {
+                bytes[..length].copy_from_slice(value);
+            } else {
+                self.pool_read(at, &mut bytes[..length], scan.virtual_scan)?;
+            }
+            json_number(self.vm.isf, u64::from_le_bytes(bytes), "_POOL_HEADER", name)
+        };
+        let Ok(block) = field("BlockSize") else {
+            return Ok(None);
+        };
+        let Some(size) = block.checked_mul(scan.alignment) else {
+            return Ok(None);
+        };
+        if size < constraint.minimum {
+            return Ok(None);
+        }
+        if self.vm.isf.has_field("_POOL_HEADER", "PoolType") {
+            let Ok(page) = field("PoolType") else {
+                return Ok(None);
+            };
+            let paged = page > 0 && page % 2 == if scan.vista { 1 } else { 0 };
+            let nonpaged = page > 0 && page % 2 == if scan.vista { 0 } else { 1 };
+            let accepted = page == 0 && constraint.page & 4 != 0
+                || paged && constraint.page & 1 != 0
+                || nonpaged && constraint.page & 2 != 0;
+            if !accepted {
+                return Ok(None);
+            }
+        }
+        Ok(Some(size))
     }
 
     fn pool_header_layout(&self) -> Result<(usize, u64)> {
@@ -680,7 +722,7 @@ impl Windows<'_> {
         let top_down = build >= 9200;
         let vista = build >= 6000;
         let alignment = if self.vm.pointer_size() == 4 { 8 } else { 16 };
-        let (tag_offset, header_size) = self.pool_header_layout()?;
+        let (tag_offset, _) = self.pool_header_layout()?;
         let optional = if top_down {
             self.pool_optional_headers()?
         } else {
@@ -699,40 +741,24 @@ impl Windows<'_> {
             for (index, tag_at) in PoolTagMatches::new(&data, constraints.iter().map(|c| c.tag))? {
                 job.check()?;
                 let constraint = constraints[index];
-                let Some(local) = tag_at.checked_sub(tag_offset) else {
-                    continue;
-                };
-                // The fixed scanner reads the header exactly before the matched tag.
-                // Rounding this address down associates the tag with unrelated bytes.
-                if local + header_size as usize > data.len() {
-                    continue;
-                }
-                let bytes = &data[local..local + header_size as usize];
-                let Ok(block) = physical_number(self.vm.isf, bytes, "_POOL_HEADER", "BlockSize")
+                let Some(address) = add(start, tag_at as u64)?.checked_sub(tag_offset as u64)
                 else {
                     continue;
                 };
-                let Some(size) = block.checked_mul(alignment) else {
+                let Some(size) = self.pool_header_block(
+                    constraint,
+                    address,
+                    PoolHeaderRead {
+                        start,
+                        data: &data,
+                        virtual_scan,
+                        alignment,
+                        vista,
+                    },
+                )?
+                else {
                     continue;
                 };
-                if size < constraint.minimum {
-                    continue;
-                }
-                if self.vm.isf.has_field("_POOL_HEADER", "PoolType") {
-                    let Ok(page) = physical_number(self.vm.isf, bytes, "_POOL_HEADER", "PoolType")
-                    else {
-                        continue;
-                    };
-                    let paged = page > 0 && page % 2 == if vista { 1 } else { 0 };
-                    let nonpaged = page > 0 && page % 2 == if vista { 0 } else { 1 };
-                    let accepted = page == 0 && constraint.page & 4 != 0
-                        || paged && constraint.page & 1 != 0
-                        || nonpaged && constraint.page & 2 != 0;
-                    if !accepted {
-                        continue;
-                    }
-                }
-                let address = start + local as u64;
                 let found = self.pool_bodies(
                     constraint,
                     address,
@@ -1172,6 +1198,137 @@ mod tests {
     use super::super::tests::{K, fixture, image, put};
     use super::*;
     use serde_json::json;
+    #[test]
+    fn pool_header_constraints_read_only_required_fields_across_scan_slices() {
+        let vectors: serde_json::Value = serde_json::from_str(include_str!(
+            "../../tests/reference/parity/fixtures/pool-boundaries.json"
+        ))
+        .unwrap();
+        for x86 in [false, true] {
+            for virtual_scan in [false, true] {
+                for case in vectors["cases"].as_array().unwrap() {
+                    let (mut bytes, mut isf, base, _) =
+                        super::super::driver_irp::tests::driver_fixture(x86, virtual_scan, false);
+                    let physical = 0x18000;
+                    let address = if virtual_scan {
+                        base + 0x10000
+                    } else {
+                        physical as u64
+                    };
+                    let payload: Vec<_> = case["payload_hex"]
+                        .as_str()
+                        .unwrap()
+                        .as_bytes()
+                        .chunks_exact(2)
+                        .map(|pair| {
+                            u8::from_str_radix(std::str::from_utf8(pair).unwrap(), 16).unwrap()
+                        })
+                        .collect();
+                    bytes[physical..physical + payload.len()].copy_from_slice(&payload);
+                    let mut snapshot = image(&bytes);
+                    let mut missing: Vec<_> = case["missing"]
+                        .as_array()
+                        .unwrap()
+                        .iter()
+                        .map(|at| physical as u64 + at.as_u64().unwrap() - 0x1000)
+                        .collect();
+                    missing.sort_unstable();
+                    // Backing-byte holes are real Image segments, so fallback
+                    // cannot accidentally read them from the scan buffer.
+                    let mut begin = 0;
+                    snapshot.segments.clear();
+                    for at in missing {
+                        if at > begin {
+                            snapshot.segments.push(crate::image::Segment {
+                                start: begin,
+                                end: at,
+                                file_offset: begin,
+                            });
+                        }
+                        begin = at + 1;
+                    }
+                    snapshot.segments.push(crate::image::Segment {
+                        start: begin,
+                        end: bytes.len() as u64,
+                        file_offset: begin,
+                    });
+                    // Both pointer widths use the fixed vector's explicit
+                    // alignment; these isolate header reads, not carving.
+                    isf.data["user_types"]["_POOL_HEADER"]["size"] = json!(16);
+                    let windows = Windows {
+                        vm: Memory::new(&snapshot, 0x1000, &isf, None),
+                        base,
+                        pdb: PdbIdentity::from_isf(&isf).unwrap(),
+                    };
+                    let constraint = Constraint::new(b"Wind", "station", None, 0x90, 3, true, &[]);
+                    let local = case["scan_start"].as_u64().unwrap() as usize - 0x1000;
+                    let length = case["scan_length"].as_u64().unwrap() as usize;
+                    let matched = windows
+                        .pool_header_block(
+                            &constraint,
+                            address,
+                            PoolHeaderRead {
+                                start: address + local as u64,
+                                data: &payload[local..local + length],
+                                virtual_scan,
+                                alignment: 16,
+                                vista: case["vista"].as_bool().unwrap(),
+                            },
+                        )
+                        .unwrap();
+                    assert_eq!(
+                        matched.is_some(),
+                        !case["expected"].as_array().unwrap().is_empty(),
+                        "{} x86={x86} virtual={virtual_scan}",
+                        case["id"]
+                    );
+                    if let Some(size) = matched {
+                        assert_eq!(size, 512);
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn carved_pool_tag_at_segment_start_does_not_require_unused_header_tail() {
+        let (mut bytes, isf, base, _) =
+            super::super::driver_irp::tests::driver_fixture(false, false, false);
+        bytes[0xb000..0xb008].fill(0); // Remove unrelated driver tag.
+        bytes[0x18000..0x18002].copy_from_slice(&32u16.to_le_bytes());
+        bytes[0x18002..0x18004].copy_from_slice(&2u16.to_le_bytes());
+        bytes[0x18004..0x18008].copy_from_slice(b"Wind");
+        let mut snapshot = image(&bytes);
+        snapshot.segments = vec![
+            crate::image::Segment {
+                start: 0,
+                end: 0x18004,
+                file_offset: 0,
+            },
+            crate::image::Segment {
+                start: 0x18004,
+                end: 0x18008,
+                file_offset: 0x18004,
+            },
+            crate::image::Segment {
+                start: 0x18010,
+                end: bytes.len() as u64,
+                file_offset: 0x18010,
+            },
+        ];
+        let windows = Windows {
+            vm: Memory::new(&snapshot, 0x1000, &isf, None),
+            base,
+            pdb: PdbIdentity::from_isf(&isf).unwrap(),
+        };
+        let constraint = Constraint::new(b"Wind", "station", None, 0x90, 3, true, &[]);
+        let (_, bodies, notes) = windows
+            .scan_pool_objects(&[&constraint], 32, &Job::default())
+            .unwrap();
+        assert_eq!(bodies, [0x18010]);
+        assert!(notes.is_empty(), "{notes:?}");
+    }
+
     #[test]
     fn merged_pool_tags_match_actual_reference_order_and_non_overlap() {
         let vectors: serde_json::Value = serde_json::from_str(include_str!(

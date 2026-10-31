@@ -1,0 +1,1226 @@
+{
+  "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+  "source_sha256": "85b7001117f4f9626698ae47f5f921ad4c9643625cb43a7a2a527b5c9469310e",
+  "pool_extension_sha256": "cd9846ecdae31e8e5e15f03e9c49fdfb80365c2d62f5ea050203cc9bd0dac4b8",
+  "scope": "Actual PoolHeaderScanner plus actual pre-Vista/Vista pool predicates. Synthetic independent scalar reads isolate tag-only slices, partially external headers, unreadable unused tails and necessary fields. Native tests use real physical/virtual page tables and missing backing segments; these vectors do not prove layer scan chunking or tag discovery across slice boundaries.",
+  "cases": [
+    {
+      "id": "0-full-header-0",
+      "vista": false,
+      "scan_start": 4096,
+      "scan_length": 32,
+      "missing": [],
+      "payload_hex": "2000000057696e64000000000000000000000000000000000000000000000000",
+      "expected": [],
+      "reads": [
+        [
+          4096,
+          2
+        ],
+        [
+          4098,
+          2
+        ],
+        [
+          4098,
+          2
+        ],
+        [
+          4098,
+          2
+        ]
+      ]
+    },
+    {
+      "id": "0-full-header-1",
+      "vista": false,
+      "scan_start": 4096,
+      "scan_length": 32,
+      "missing": [],
+      "payload_hex": "2000010057696e64000000000000000000000000000000000000000000000000",
+      "expected": [
+        4096
+      ],
+      "reads": [
+        [
+          4096,
+          2
+        ],
+        [
+          4098,
+          2
+        ]
+      ]
+    },
+    {
+      "id": "0-full-header-2",
+      "vista": false,
+      "scan_start": 4096,
+      "scan_length": 32,
+      "missing": [],
+      "payload_hex": "2000020057696e64000000000000000000000000000000000000000000000000",
+      "expected": [
+        4096
+      ],
+      "reads": [
+        [
+          4096,
+          2
+        ],
+        [
+          4098,
+          2
+        ],
+        [
+          4098,
+          2
+        ],
+        [
+          4098,
+          2
+        ]
+      ]
+    },
+    {
+      "id": "0-tag-only-0",
+      "vista": false,
+      "scan_start": 4100,
+      "scan_length": 4,
+      "missing": [],
+      "payload_hex": "2000000057696e64000000000000000000000000000000000000000000000000",
+      "expected": [],
+      "reads": [
+        [
+          4096,
+          2
+        ],
+        [
+          4098,
+          2
+        ],
+        [
+          4098,
+          2
+        ],
+        [
+          4098,
+          2
+        ]
+      ]
+    },
+    {
+      "id": "0-tag-only-1",
+      "vista": false,
+      "scan_start": 4100,
+      "scan_length": 4,
+      "missing": [],
+      "payload_hex": "2000010057696e64000000000000000000000000000000000000000000000000",
+      "expected": [
+        4096
+      ],
+      "reads": [
+        [
+          4096,
+          2
+        ],
+        [
+          4098,
+          2
+        ]
+      ]
+    },
+    {
+      "id": "0-tag-only-2",
+      "vista": false,
+      "scan_start": 4100,
+      "scan_length": 4,
+      "missing": [],
+      "payload_hex": "2000020057696e64000000000000000000000000000000000000000000000000",
+      "expected": [
+        4096
+      ],
+      "reads": [
+        [
+          4096,
+          2
+        ],
+        [
+          4098,
+          2
+        ],
+        [
+          4098,
+          2
+        ],
+        [
+          4098,
+          2
+        ]
+      ]
+    },
+    {
+      "id": "0-tag-plus-tail-0",
+      "vista": false,
+      "scan_start": 4100,
+      "scan_length": 12,
+      "missing": [],
+      "payload_hex": "2000000057696e64000000000000000000000000000000000000000000000000",
+      "expected": [],
+      "reads": [
+        [
+          4096,
+          2
+        ],
+        [
+          4098,
+          2
+        ],
+        [
+          4098,
+          2
+        ],
+        [
+          4098,
+          2
+        ]
+      ]
+    },
+    {
+      "id": "0-tag-plus-tail-1",
+      "vista": false,
+      "scan_start": 4100,
+      "scan_length": 12,
+      "missing": [],
+      "payload_hex": "2000010057696e64000000000000000000000000000000000000000000000000",
+      "expected": [
+        4096
+      ],
+      "reads": [
+        [
+          4096,
+          2
+        ],
+        [
+          4098,
+          2
+        ]
+      ]
+    },
+    {
+      "id": "0-tag-plus-tail-2",
+      "vista": false,
+      "scan_start": 4100,
+      "scan_length": 12,
+      "missing": [],
+      "payload_hex": "2000020057696e64000000000000000000000000000000000000000000000000",
+      "expected": [
+        4096
+      ],
+      "reads": [
+        [
+          4096,
+          2
+        ],
+        [
+          4098,
+          2
+        ],
+        [
+          4098,
+          2
+        ],
+        [
+          4098,
+          2
+        ]
+      ]
+    },
+    {
+      "id": "0-one-prefix-byte-0",
+      "vista": false,
+      "scan_start": 4099,
+      "scan_length": 5,
+      "missing": [],
+      "payload_hex": "2000000057696e64000000000000000000000000000000000000000000000000",
+      "expected": [],
+      "reads": [
+        [
+          4096,
+          2
+        ],
+        [
+          4098,
+          2
+        ],
+        [
+          4098,
+          2
+        ],
+        [
+          4098,
+          2
+        ]
+      ]
+    },
+    {
+      "id": "0-one-prefix-byte-1",
+      "vista": false,
+      "scan_start": 4099,
+      "scan_length": 5,
+      "missing": [],
+      "payload_hex": "2000010057696e64000000000000000000000000000000000000000000000000",
+      "expected": [
+        4096
+      ],
+      "reads": [
+        [
+          4096,
+          2
+        ],
+        [
+          4098,
+          2
+        ]
+      ]
+    },
+    {
+      "id": "0-one-prefix-byte-2",
+      "vista": false,
+      "scan_start": 4099,
+      "scan_length": 5,
+      "missing": [],
+      "payload_hex": "2000020057696e64000000000000000000000000000000000000000000000000",
+      "expected": [
+        4096
+      ],
+      "reads": [
+        [
+          4096,
+          2
+        ],
+        [
+          4098,
+          2
+        ],
+        [
+          4098,
+          2
+        ],
+        [
+          4098,
+          2
+        ]
+      ]
+    },
+    {
+      "id": "0-unused-tail-missing-0",
+      "vista": false,
+      "scan_start": 4096,
+      "scan_length": 8,
+      "missing": [
+        4104,
+        4105,
+        4106,
+        4107,
+        4108,
+        4109,
+        4110,
+        4111
+      ],
+      "payload_hex": "2000000057696e64000000000000000000000000000000000000000000000000",
+      "expected": [],
+      "reads": [
+        [
+          4096,
+          2
+        ],
+        [
+          4098,
+          2
+        ],
+        [
+          4098,
+          2
+        ],
+        [
+          4098,
+          2
+        ]
+      ]
+    },
+    {
+      "id": "0-unused-tail-missing-1",
+      "vista": false,
+      "scan_start": 4096,
+      "scan_length": 8,
+      "missing": [
+        4104,
+        4105,
+        4106,
+        4107,
+        4108,
+        4109,
+        4110,
+        4111
+      ],
+      "payload_hex": "2000010057696e64000000000000000000000000000000000000000000000000",
+      "expected": [
+        4096
+      ],
+      "reads": [
+        [
+          4096,
+          2
+        ],
+        [
+          4098,
+          2
+        ]
+      ]
+    },
+    {
+      "id": "0-unused-tail-missing-2",
+      "vista": false,
+      "scan_start": 4096,
+      "scan_length": 8,
+      "missing": [
+        4104,
+        4105,
+        4106,
+        4107,
+        4108,
+        4109,
+        4110,
+        4111
+      ],
+      "payload_hex": "2000020057696e64000000000000000000000000000000000000000000000000",
+      "expected": [
+        4096
+      ],
+      "reads": [
+        [
+          4096,
+          2
+        ],
+        [
+          4098,
+          2
+        ],
+        [
+          4098,
+          2
+        ],
+        [
+          4098,
+          2
+        ]
+      ]
+    },
+    {
+      "id": "0-required-block-missing-0",
+      "vista": false,
+      "scan_start": 4100,
+      "scan_length": 4,
+      "missing": [
+        4096
+      ],
+      "payload_hex": "2000000057696e64000000000000000000000000000000000000000000000000",
+      "expected": [],
+      "reads": [
+        [
+          4096,
+          2
+        ]
+      ]
+    },
+    {
+      "id": "0-required-block-missing-1",
+      "vista": false,
+      "scan_start": 4100,
+      "scan_length": 4,
+      "missing": [
+        4096
+      ],
+      "payload_hex": "2000010057696e64000000000000000000000000000000000000000000000000",
+      "expected": [],
+      "reads": [
+        [
+          4096,
+          2
+        ]
+      ]
+    },
+    {
+      "id": "0-required-block-missing-2",
+      "vista": false,
+      "scan_start": 4100,
+      "scan_length": 4,
+      "missing": [
+        4096
+      ],
+      "payload_hex": "2000020057696e64000000000000000000000000000000000000000000000000",
+      "expected": [],
+      "reads": [
+        [
+          4096,
+          2
+        ]
+      ]
+    },
+    {
+      "id": "0-required-page-missing-0",
+      "vista": false,
+      "scan_start": 4100,
+      "scan_length": 4,
+      "missing": [
+        4098
+      ],
+      "payload_hex": "2000000057696e64000000000000000000000000000000000000000000000000",
+      "expected": [],
+      "reads": [
+        [
+          4096,
+          2
+        ],
+        [
+          4098,
+          2
+        ]
+      ]
+    },
+    {
+      "id": "0-required-page-missing-1",
+      "vista": false,
+      "scan_start": 4100,
+      "scan_length": 4,
+      "missing": [
+        4098
+      ],
+      "payload_hex": "2000010057696e64000000000000000000000000000000000000000000000000",
+      "expected": [],
+      "reads": [
+        [
+          4096,
+          2
+        ],
+        [
+          4098,
+          2
+        ]
+      ]
+    },
+    {
+      "id": "0-required-page-missing-2",
+      "vista": false,
+      "scan_start": 4100,
+      "scan_length": 4,
+      "missing": [
+        4098
+      ],
+      "payload_hex": "2000020057696e64000000000000000000000000000000000000000000000000",
+      "expected": [],
+      "reads": [
+        [
+          4096,
+          2
+        ],
+        [
+          4098,
+          2
+        ]
+      ]
+    },
+    {
+      "id": "0-first-unmapped-tail-byte-0",
+      "vista": false,
+      "scan_start": 4096,
+      "scan_length": 8,
+      "missing": [
+        4104
+      ],
+      "payload_hex": "2000000057696e64000000000000000000000000000000000000000000000000",
+      "expected": [],
+      "reads": [
+        [
+          4096,
+          2
+        ],
+        [
+          4098,
+          2
+        ],
+        [
+          4098,
+          2
+        ],
+        [
+          4098,
+          2
+        ]
+      ]
+    },
+    {
+      "id": "0-first-unmapped-tail-byte-1",
+      "vista": false,
+      "scan_start": 4096,
+      "scan_length": 8,
+      "missing": [
+        4104
+      ],
+      "payload_hex": "2000010057696e64000000000000000000000000000000000000000000000000",
+      "expected": [
+        4096
+      ],
+      "reads": [
+        [
+          4096,
+          2
+        ],
+        [
+          4098,
+          2
+        ]
+      ]
+    },
+    {
+      "id": "0-first-unmapped-tail-byte-2",
+      "vista": false,
+      "scan_start": 4096,
+      "scan_length": 8,
+      "missing": [
+        4104
+      ],
+      "payload_hex": "2000020057696e64000000000000000000000000000000000000000000000000",
+      "expected": [
+        4096
+      ],
+      "reads": [
+        [
+          4096,
+          2
+        ],
+        [
+          4098,
+          2
+        ],
+        [
+          4098,
+          2
+        ],
+        [
+          4098,
+          2
+        ]
+      ]
+    },
+    {
+      "id": "1-full-header-0",
+      "vista": true,
+      "scan_start": 4096,
+      "scan_length": 32,
+      "missing": [],
+      "payload_hex": "2000000057696e64000000000000000000000000000000000000000000000000",
+      "expected": [],
+      "reads": [
+        [
+          4096,
+          2
+        ],
+        [
+          4098,
+          2
+        ],
+        [
+          4098,
+          2
+        ],
+        [
+          4098,
+          2
+        ]
+      ]
+    },
+    {
+      "id": "1-full-header-1",
+      "vista": true,
+      "scan_start": 4096,
+      "scan_length": 32,
+      "missing": [],
+      "payload_hex": "2000010057696e64000000000000000000000000000000000000000000000000",
+      "expected": [
+        4096
+      ],
+      "reads": [
+        [
+          4096,
+          2
+        ],
+        [
+          4098,
+          2
+        ],
+        [
+          4098,
+          2
+        ]
+      ]
+    },
+    {
+      "id": "1-full-header-2",
+      "vista": true,
+      "scan_start": 4096,
+      "scan_length": 32,
+      "missing": [],
+      "payload_hex": "2000020057696e64000000000000000000000000000000000000000000000000",
+      "expected": [
+        4096
+      ],
+      "reads": [
+        [
+          4096,
+          2
+        ],
+        [
+          4098,
+          2
+        ],
+        [
+          4098,
+          2
+        ]
+      ]
+    },
+    {
+      "id": "1-tag-only-0",
+      "vista": true,
+      "scan_start": 4100,
+      "scan_length": 4,
+      "missing": [],
+      "payload_hex": "2000000057696e64000000000000000000000000000000000000000000000000",
+      "expected": [],
+      "reads": [
+        [
+          4096,
+          2
+        ],
+        [
+          4098,
+          2
+        ],
+        [
+          4098,
+          2
+        ],
+        [
+          4098,
+          2
+        ]
+      ]
+    },
+    {
+      "id": "1-tag-only-1",
+      "vista": true,
+      "scan_start": 4100,
+      "scan_length": 4,
+      "missing": [],
+      "payload_hex": "2000010057696e64000000000000000000000000000000000000000000000000",
+      "expected": [
+        4096
+      ],
+      "reads": [
+        [
+          4096,
+          2
+        ],
+        [
+          4098,
+          2
+        ],
+        [
+          4098,
+          2
+        ]
+      ]
+    },
+    {
+      "id": "1-tag-only-2",
+      "vista": true,
+      "scan_start": 4100,
+      "scan_length": 4,
+      "missing": [],
+      "payload_hex": "2000020057696e64000000000000000000000000000000000000000000000000",
+      "expected": [
+        4096
+      ],
+      "reads": [
+        [
+          4096,
+          2
+        ],
+        [
+          4098,
+          2
+        ],
+        [
+          4098,
+          2
+        ]
+      ]
+    },
+    {
+      "id": "1-tag-plus-tail-0",
+      "vista": true,
+      "scan_start": 4100,
+      "scan_length": 12,
+      "missing": [],
+      "payload_hex": "2000000057696e64000000000000000000000000000000000000000000000000",
+      "expected": [],
+      "reads": [
+        [
+          4096,
+          2
+        ],
+        [
+          4098,
+          2
+        ],
+        [
+          4098,
+          2
+        ],
+        [
+          4098,
+          2
+        ]
+      ]
+    },
+    {
+      "id": "1-tag-plus-tail-1",
+      "vista": true,
+      "scan_start": 4100,
+      "scan_length": 12,
+      "missing": [],
+      "payload_hex": "2000010057696e64000000000000000000000000000000000000000000000000",
+      "expected": [
+        4096
+      ],
+      "reads": [
+        [
+          4096,
+          2
+        ],
+        [
+          4098,
+          2
+        ],
+        [
+          4098,
+          2
+        ]
+      ]
+    },
+    {
+      "id": "1-tag-plus-tail-2",
+      "vista": true,
+      "scan_start": 4100,
+      "scan_length": 12,
+      "missing": [],
+      "payload_hex": "2000020057696e64000000000000000000000000000000000000000000000000",
+      "expected": [
+        4096
+      ],
+      "reads": [
+        [
+          4096,
+          2
+        ],
+        [
+          4098,
+          2
+        ],
+        [
+          4098,
+          2
+        ]
+      ]
+    },
+    {
+      "id": "1-one-prefix-byte-0",
+      "vista": true,
+      "scan_start": 4099,
+      "scan_length": 5,
+      "missing": [],
+      "payload_hex": "2000000057696e64000000000000000000000000000000000000000000000000",
+      "expected": [],
+      "reads": [
+        [
+          4096,
+          2
+        ],
+        [
+          4098,
+          2
+        ],
+        [
+          4098,
+          2
+        ],
+        [
+          4098,
+          2
+        ]
+      ]
+    },
+    {
+      "id": "1-one-prefix-byte-1",
+      "vista": true,
+      "scan_start": 4099,
+      "scan_length": 5,
+      "missing": [],
+      "payload_hex": "2000010057696e64000000000000000000000000000000000000000000000000",
+      "expected": [
+        4096
+      ],
+      "reads": [
+        [
+          4096,
+          2
+        ],
+        [
+          4098,
+          2
+        ],
+        [
+          4098,
+          2
+        ]
+      ]
+    },
+    {
+      "id": "1-one-prefix-byte-2",
+      "vista": true,
+      "scan_start": 4099,
+      "scan_length": 5,
+      "missing": [],
+      "payload_hex": "2000020057696e64000000000000000000000000000000000000000000000000",
+      "expected": [
+        4096
+      ],
+      "reads": [
+        [
+          4096,
+          2
+        ],
+        [
+          4098,
+          2
+        ],
+        [
+          4098,
+          2
+        ]
+      ]
+    },
+    {
+      "id": "1-unused-tail-missing-0",
+      "vista": true,
+      "scan_start": 4096,
+      "scan_length": 8,
+      "missing": [
+        4104,
+        4105,
+        4106,
+        4107,
+        4108,
+        4109,
+        4110,
+        4111
+      ],
+      "payload_hex": "2000000057696e64000000000000000000000000000000000000000000000000",
+      "expected": [],
+      "reads": [
+        [
+          4096,
+          2
+        ],
+        [
+          4098,
+          2
+        ],
+        [
+          4098,
+          2
+        ],
+        [
+          4098,
+          2
+        ]
+      ]
+    },
+    {
+      "id": "1-unused-tail-missing-1",
+      "vista": true,
+      "scan_start": 4096,
+      "scan_length": 8,
+      "missing": [
+        4104,
+        4105,
+        4106,
+        4107,
+        4108,
+        4109,
+        4110,
+        4111
+      ],
+      "payload_hex": "2000010057696e64000000000000000000000000000000000000000000000000",
+      "expected": [
+        4096
+      ],
+      "reads": [
+        [
+          4096,
+          2
+        ],
+        [
+          4098,
+          2
+        ],
+        [
+          4098,
+          2
+        ]
+      ]
+    },
+    {
+      "id": "1-unused-tail-missing-2",
+      "vista": true,
+      "scan_start": 4096,
+      "scan_length": 8,
+      "missing": [
+        4104,
+        4105,
+        4106,
+        4107,
+        4108,
+        4109,
+        4110,
+        4111
+      ],
+      "payload_hex": "2000020057696e64000000000000000000000000000000000000000000000000",
+      "expected": [
+        4096
+      ],
+      "reads": [
+        [
+          4096,
+          2
+        ],
+        [
+          4098,
+          2
+        ],
+        [
+          4098,
+          2
+        ]
+      ]
+    },
+    {
+      "id": "1-required-block-missing-0",
+      "vista": true,
+      "scan_start": 4100,
+      "scan_length": 4,
+      "missing": [
+        4096
+      ],
+      "payload_hex": "2000000057696e64000000000000000000000000000000000000000000000000",
+      "expected": [],
+      "reads": [
+        [
+          4096,
+          2
+        ]
+      ]
+    },
+    {
+      "id": "1-required-block-missing-1",
+      "vista": true,
+      "scan_start": 4100,
+      "scan_length": 4,
+      "missing": [
+        4096
+      ],
+      "payload_hex": "2000010057696e64000000000000000000000000000000000000000000000000",
+      "expected": [],
+      "reads": [
+        [
+          4096,
+          2
+        ]
+      ]
+    },
+    {
+      "id": "1-required-block-missing-2",
+      "vista": true,
+      "scan_start": 4100,
+      "scan_length": 4,
+      "missing": [
+        4096
+      ],
+      "payload_hex": "2000020057696e64000000000000000000000000000000000000000000000000",
+      "expected": [],
+      "reads": [
+        [
+          4096,
+          2
+        ]
+      ]
+    },
+    {
+      "id": "1-required-page-missing-0",
+      "vista": true,
+      "scan_start": 4100,
+      "scan_length": 4,
+      "missing": [
+        4098
+      ],
+      "payload_hex": "2000000057696e64000000000000000000000000000000000000000000000000",
+      "expected": [],
+      "reads": [
+        [
+          4096,
+          2
+        ],
+        [
+          4098,
+          2
+        ]
+      ]
+    },
+    {
+      "id": "1-required-page-missing-1",
+      "vista": true,
+      "scan_start": 4100,
+      "scan_length": 4,
+      "missing": [
+        4098
+      ],
+      "payload_hex": "2000010057696e64000000000000000000000000000000000000000000000000",
+      "expected": [],
+      "reads": [
+        [
+          4096,
+          2
+        ],
+        [
+          4098,
+          2
+        ]
+      ]
+    },
+    {
+      "id": "1-required-page-missing-2",
+      "vista": true,
+      "scan_start": 4100,
+      "scan_length": 4,
+      "missing": [
+        4098
+      ],
+      "payload_hex": "2000020057696e64000000000000000000000000000000000000000000000000",
+      "expected": [],
+      "reads": [
+        [
+          4096,
+          2
+        ],
+        [
+          4098,
+          2
+        ]
+      ]
+    },
+    {
+      "id": "1-first-unmapped-tail-byte-0",
+      "vista": true,
+      "scan_start": 4096,
+      "scan_length": 8,
+      "missing": [
+        4104
+      ],
+      "payload_hex": "2000000057696e64000000000000000000000000000000000000000000000000",
+      "expected": [],
+      "reads": [
+        [
+          4096,
+          2
+        ],
+        [
+          4098,
+          2
+        ],
+        [
+          4098,
+          2
+        ],
+        [
+          4098,
+          2
+        ]
+      ]
+    },
+    {
+      "id": "1-first-unmapped-tail-byte-1",
+      "vista": true,
+      "scan_start": 4096,
+      "scan_length": 8,
+      "missing": [
+        4104
+      ],
+      "payload_hex": "2000010057696e64000000000000000000000000000000000000000000000000",
+      "expected": [
+        4096
+      ],
+      "reads": [
+        [
+          4096,
+          2
+        ],
+        [
+          4098,
+          2
+        ],
+        [
+          4098,
+          2
+        ]
+      ]
+    },
+    {
+      "id": "1-first-unmapped-tail-byte-2",
+      "vista": true,
+      "scan_start": 4096,
+      "scan_length": 8,
+      "missing": [
+        4104
+      ],
+      "payload_hex": "2000020057696e64000000000000000000000000000000000000000000000000",
+      "expected": [
+        4096
+      ],
+      "reads": [
+        [
+          4096,
+          2
+        ],
+        [
+          4098,
+          2
+        ],
+        [
+          4098,
+          2
+        ]
+      ]
+    }
+  ]
+}

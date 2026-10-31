@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
-  "engine_version": "0.2.1-native-84",
+  "engine_version": "0.2.1-native-85",
   "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
-  "zero_executable_sha256": "16cc7e0d097276d67ed7dcddc26d489b3d53d4a8b410e9c8eab7b90067f9014a",
+  "zero_executable_sha256": "cff08a8bac35524e92dabb9f42e373e756ff696805aa5439ed2683879812d7d9",
   "source_sha256": {
     "plugins/windows/driverirp.py": "de9d4d773b8d0055f19858c259ea863b639788add7706b459022ad20824f59cb",
     "plugins/windows/driverscan.py": "e7ac4083870765e9c83039bab8fcab5aecbe526ead58ab1f20b25065908b0175",
@@ -46,8 +46,8 @@
       "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
       "reference_output_sha256": "6225df5641c30cda633f00c291dc5e7ab9b6df9733fd0521953537b33e09aefa",
       "symbol_sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4",
-      "zero_executable_sha256": "16cc7e0d097276d67ed7dcddc26d489b3d53d4a8b410e9c8eab7b90067f9014a",
-      "engine_version": "0.2.1-native-84",
+      "zero_executable_sha256": "cff08a8bac35524e92dabb9f42e373e756ff696805aa5439ed2683879812d7d9",
+      "engine_version": "0.2.1-native-85",
       "full_comparison_sha256": "4e06184b11be3dd4c9abd55ebfa927e6f7cea1ec5335ee1166dbea6114fac594",
       "comparison_details": "Diagnostic entries and duplicate groups summarized; complete raw comparison retained in local run.py artifact and bound by full_comparison_sha256. Native/reference JSON digests permit independent reproduction. Any record_selection scope remains explicit.",
       "zero_diagnostics_summary": {
@@ -104,8 +104,8 @@
       "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
       "reference_output_sha256": "f0b4d195a68390eb56126a71e7d591fabba60355b606191914d8f6ed319f4518",
       "symbol_sha256": "5d73f3a7158ba8b72394f2606ea5b4f03393976d5054a11cc51d51afb88a5544",
-      "zero_executable_sha256": "16cc7e0d097276d67ed7dcddc26d489b3d53d4a8b410e9c8eab7b90067f9014a",
-      "engine_version": "0.2.1-native-84",
+      "zero_executable_sha256": "cff08a8bac35524e92dabb9f42e373e756ff696805aa5439ed2683879812d7d9",
+      "engine_version": "0.2.1-native-85",
       "full_comparison_sha256": "3e51efd28fad715fc9d9f915e5d6f73f959afa870696afb34199a75242757acd",
       "comparison_details": "Diagnostic entries and duplicate groups summarized; complete raw comparison retained in local run.py artifact and bound by full_comparison_sha256. Native/reference JSON digests permit independent reproduction. Any record_selection scope remains explicit.",
       "zero_diagnostics_summary": {
@@ -162,8 +162,8 @@
       "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
       "reference_output_sha256": "2288235babbeff4ed44ba04e79c36999d6dc7d92e40a7916af07a017730a03b4",
       "symbol_sha256": "6a234099b69b393eb7d652408835205bd12f0b947d0d6b6275e2ffce8ca9c133",
-      "zero_executable_sha256": "16cc7e0d097276d67ed7dcddc26d489b3d53d4a8b410e9c8eab7b90067f9014a",
-      "engine_version": "0.2.1-native-84",
+      "zero_executable_sha256": "cff08a8bac35524e92dabb9f42e373e756ff696805aa5439ed2683879812d7d9",
+      "engine_version": "0.2.1-native-85",
       "full_comparison_sha256": "42b8de5e180b09e13fb855cfec6bced292b43a23b392a2cd8c1ca900c03b7750",
       "comparison_details": "Diagnostic entries and duplicate groups summarized; complete raw comparison retained in local run.py artifact and bound by full_comparison_sha256. Native/reference JSON digests permit independent reproduction. Any record_selection scope remains explicit.",
       "zero_diagnostics_summary": {
@@ -231,8 +231,8 @@
       "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
       "reference_output_sha256": "6225df5641c30cda633f00c291dc5e7ab9b6df9733fd0521953537b33e09aefa",
       "symbol_sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4",
-      "zero_executable_sha256": "16cc7e0d097276d67ed7dcddc26d489b3d53d4a8b410e9c8eab7b90067f9014a",
-      "engine_version": "0.2.1-native-84",
+      "zero_executable_sha256": "cff08a8bac35524e92dabb9f42e373e756ff696805aa5439ed2683879812d7d9",
+      "engine_version": "0.2.1-native-85",
       "full_comparison_sha256": "de9f80d47b2e8febcefe5808fac135e3777c73c985a1e6f586a718115caad846",
       "comparison_details": "Diagnostic entries and duplicate groups summarized; complete raw comparison retained in local run.py artifact and bound by full_comparison_sha256. Native/reference JSON digests permit independent reproduction. Any record_selection scope remains explicit.",
       "zero_diagnostics_summary": {
@@ -307,8 +307,8 @@
       "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
       "reference_output_sha256": "f0b4d195a68390eb56126a71e7d591fabba60355b606191914d8f6ed319f4518",
       "symbol_sha256": "5d73f3a7158ba8b72394f2606ea5b4f03393976d5054a11cc51d51afb88a5544",
-      "zero_executable_sha256": "16cc7e0d097276d67ed7dcddc26d489b3d53d4a8b410e9c8eab7b90067f9014a",
-      "engine_version": "0.2.1-native-84",
+      "zero_executable_sha256": "cff08a8bac35524e92dabb9f42e373e756ff696805aa5439ed2683879812d7d9",
+      "engine_version": "0.2.1-native-85",
       "full_comparison_sha256": "b1ec5c66932e6bf0adcecf2203f68cd606abf93e69e2102d414cf4169ded08a6",
       "comparison_details": "Diagnostic entries and duplicate groups summarized; complete raw comparison retained in local run.py artifact and bound by full_comparison_sha256. Native/reference JSON digests permit independent reproduction. Any record_selection scope remains explicit.",
       "zero_diagnostics_summary": {
@@ -383,8 +383,8 @@
       "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
       "reference_output_sha256": "2288235babbeff4ed44ba04e79c36999d6dc7d92e40a7916af07a017730a03b4",
       "symbol_sha256": "6a234099b69b393eb7d652408835205bd12f0b947d0d6b6275e2ffce8ca9c133",
-      "zero_executable_sha256": "16cc7e0d097276d67ed7dcddc26d489b3d53d4a8b410e9c8eab7b90067f9014a",
-      "engine_version": "0.2.1-native-84",
+      "zero_executable_sha256": "cff08a8bac35524e92dabb9f42e373e756ff696805aa5439ed2683879812d7d9",
+      "engine_version": "0.2.1-native-85",
       "full_comparison_sha256": "56980f85475f73bd61e2d9fbe025ed736bf6d9070f36fa52d5a27647343e6f3d",
       "comparison_details": "Diagnostic entries and duplicate groups summarized; complete raw comparison retained in local run.py artifact and bound by full_comparison_sha256. Native/reference JSON digests permit independent reproduction. Any record_selection scope remains explicit.",
       "zero_diagnostics_summary": {
@@ -472,13 +472,13 @@
     ],
     "scope": "Actual NameInfo property, DRIVER_OBJECT name method, UNICODE_STRING.String method and String constructor. Synthetic scalar/field adapter isolates location and decoding; native tests separately read physical/virtual descriptors on real fixture page tables. Does not validate pool carving or every NameInfo fault."
   },
-  "validation": "Final native84 binary and unmodified fixed reference, real default/scoped cases compare all mapped fields and multiplicities. Historical cases not rerun retain their own per-case versions. Empty agreement is not positive evidence; no complete plugin contract is claimed.",
+  "validation": "Final native85 binary and unmodified fixed reference, real default/scoped cases compare all mapped fields and multiplicities. Historical cases not rerun retain their own per-case versions. Empty agreement is not positive evidence; no complete plugin contract is claimed.",
   "driver_recovery": {
     "implementation": "shared versioned pool ranges, tag-relative headers, padded carving and reference type map; eight readable DriverStart bytes, zero or strict masked threshold",
     "vectors_sha256": "da8a48206c98b1626f80bf6d48311f686283b59342c7addb1bdd48697412f7d8",
     "cases": 14,
     "scope": "Actual DriverScan.scan_drivers, builtin driver constraints and kernel-space-start helper. Synthetic carved objects/scanned-layer validity isolate eight-byte accessibility, pointer mask and strict DriverStart comparison. Does not prove full candidate recovery or name parsing.",
-    "remaining": "Tag order within each scanned range is now separately tested; full layer chunking/overlap, boundary-spanning tags/headers, malformed symbol tables, every missing-page boundary and other builds/architectures remain unverified."
+    "remaining": "Header-field reads across scan-slice boundaries now have separate vectors. Tags split across ranges/chunks, layer overlap, malformed symbol tables, every missing-page boundary and other builds/architectures remain unverified."
   },
   "tag_order_vectors": {
     "sha256": "d287b90035fefa136c1afee23a9b6409059189a39fb6cdae8081e7ff52a6bfe7",
@@ -486,5 +486,12 @@
     "scope": "Actual MultiStringScanner and PoolHeaderScanner, with synthetic decoded pool-header scalars. Tests address order across four-byte tags, constraint-order independence, non-overlap including rejected matches, binary patterns and empty buffers. Does not validate layer chunking, physical/virtual ranges, object carving or field read faults.",
     "implementation": "merge one pending hit per four-byte pattern in scan-range address order, non-overlapping regex consumption; driver constraints share the same range read and global candidate cap",
     "remaining": "Does not prove layer scan-chunk/overlap equivalence, boundary-spanning tags/headers, damaged-page coverage, or every plugin generator ordering."
+  },
+  "header_boundary_vectors": {
+    "sha256": "f9d59a7878f500ae8cf07a7fad74e77c6d15b610451345a4e40df6fd224e352f",
+    "cases": 48,
+    "scope": "Actual PoolHeaderScanner plus actual pre-Vista/Vista pool predicates. Synthetic independent scalar reads isolate tag-only slices, partially external headers, unreadable unused tails and necessary fields. Native tests use real physical/virtual page tables and missing backing segments; these vectors do not prove layer scan chunking or tag discovery across slice boundaries.",
+    "implementation": "BlockSize and PoolType are independently read from the scan slice when fully present, otherwise from the matching layer at the exact field address. Header prefix/unused tail do not need to be in the scan slice.",
+    "remaining": "Does not prove discovery of tags split across ranges/chunks, scan overlap equivalence, all header layouts or damaged-page and resource-limit contracts."
   }
 }

@@ -64,8 +64,8 @@
       "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
       "reference_output_sha256": "4c05396681ad93f7d06b8d6504aba3c31a5f23699fd84d9b3748703d57222c56",
       "symbol_sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4",
-      "zero_executable_sha256": "16cc7e0d097276d67ed7dcddc26d489b3d53d4a8b410e9c8eab7b90067f9014a",
-      "engine_version": "0.2.1-native-84",
+      "zero_executable_sha256": "cff08a8bac35524e92dabb9f42e373e756ff696805aa5439ed2683879812d7d9",
+      "engine_version": "0.2.1-native-85",
       "full_comparison_sha256": "53957bd70c3e72d2c581a24108d0196c932d7ddc0251011785c5358f3101e7d8",
       "comparison_details": "Diagnostic entries and duplicate groups summarized; complete raw comparison retained in local run.py artifact and bound by full_comparison_sha256. Native/reference JSON digests permit independent reproduction. Any record_selection scope remains explicit.",
       "record_order": {
@@ -86,12 +86,19 @@
       }
     }
   ],
-  "engine_version": "0.2.1-native-84",
-  "zero_executable_sha256": "16cc7e0d097276d67ed7dcddc26d489b3d53d4a8b410e9c8eab7b90067f9014a",
-  "validation": "Final native84 binary and unmodified fixed reference, real default/scoped cases compare all mapped fields and multiplicities. Historical cases not rerun retain their own per-case versions. Empty agreement is not positive evidence; no complete plugin contract is claimed.",
+  "engine_version": "0.2.1-native-85",
+  "zero_executable_sha256": "cff08a8bac35524e92dabb9f42e373e756ff696805aa5439ed2683879812d7d9",
+  "validation": "Final native85 binary and unmodified fixed reference, real default/scoped cases compare all mapped fields and multiplicities. Historical cases not rerun retain their own per-case versions. Empty agreement is not positive evidence; no complete plugin contract is claimed.",
   "known_limitations": [
     "One positive Win10 x64 capture does not establish complete build, architecture, parameter, traversal or failure contracts.",
     "Raw GUI records can include retained or reused object bytes; matching the reference does not validate every object as active.",
     "Shared pool-carving changes have synthetic padding coverage and real GUI regression coverage; full canonical PoolScanner parity remains unverified."
-  ]
+  ],
+  "header_boundary_vectors": {
+    "sha256": "f9d59a7878f500ae8cf07a7fad74e77c6d15b610451345a4e40df6fd224e352f",
+    "cases": 48,
+    "scope": "Actual PoolHeaderScanner plus actual pre-Vista/Vista pool predicates. Synthetic independent scalar reads isolate tag-only slices, partially external headers, unreadable unused tails and necessary fields. Native tests use real physical/virtual page tables and missing backing segments; these vectors do not prove layer scan chunking or tag discovery across slice boundaries.",
+    "implementation": "BlockSize and PoolType are independently read from the scan slice when fully present, otherwise from the matching layer at the exact field address. Header prefix/unused tail do not need to be in the scan slice.",
+    "remaining": "Does not prove discovery of tags split across ranges/chunks, scan overlap equivalence, all header layouts or damaged-page and resource-limit contracts."
+  }
 }

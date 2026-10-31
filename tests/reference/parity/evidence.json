@@ -40722,8 +40722,8 @@
     "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
     "reference_output_sha256": "6225df5641c30cda633f00c291dc5e7ab9b6df9733fd0521953537b33e09aefa",
     "symbol_sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4",
-    "zero_executable_sha256": "16cc7e0d097276d67ed7dcddc26d489b3d53d4a8b410e9c8eab7b90067f9014a",
-    "engine_version": "0.2.1-native-84",
+    "zero_executable_sha256": "cff08a8bac35524e92dabb9f42e373e756ff696805aa5439ed2683879812d7d9",
+    "engine_version": "0.2.1-native-85",
     "full_comparison_sha256": "4e06184b11be3dd4c9abd55ebfa927e6f7cea1ec5335ee1166dbea6114fac594",
     "comparison_details": "Diagnostic entries and duplicate groups summarized; complete raw comparison retained in local run.py artifact and bound by full_comparison_sha256. Native/reference JSON digests permit independent reproduction. Any record_selection scope remains explicit.",
     "zero_diagnostics_summary": {
@@ -40780,8 +40780,8 @@
     "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
     "reference_output_sha256": "f0b4d195a68390eb56126a71e7d591fabba60355b606191914d8f6ed319f4518",
     "symbol_sha256": "5d73f3a7158ba8b72394f2606ea5b4f03393976d5054a11cc51d51afb88a5544",
-    "zero_executable_sha256": "16cc7e0d097276d67ed7dcddc26d489b3d53d4a8b410e9c8eab7b90067f9014a",
-    "engine_version": "0.2.1-native-84",
+    "zero_executable_sha256": "cff08a8bac35524e92dabb9f42e373e756ff696805aa5439ed2683879812d7d9",
+    "engine_version": "0.2.1-native-85",
     "full_comparison_sha256": "3e51efd28fad715fc9d9f915e5d6f73f959afa870696afb34199a75242757acd",
     "comparison_details": "Diagnostic entries and duplicate groups summarized; complete raw comparison retained in local run.py artifact and bound by full_comparison_sha256. Native/reference JSON digests permit independent reproduction. Any record_selection scope remains explicit.",
     "zero_diagnostics_summary": {
@@ -40838,8 +40838,8 @@
     "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
     "reference_output_sha256": "2288235babbeff4ed44ba04e79c36999d6dc7d92e40a7916af07a017730a03b4",
     "symbol_sha256": "6a234099b69b393eb7d652408835205bd12f0b947d0d6b6275e2ffce8ca9c133",
-    "zero_executable_sha256": "16cc7e0d097276d67ed7dcddc26d489b3d53d4a8b410e9c8eab7b90067f9014a",
-    "engine_version": "0.2.1-native-84",
+    "zero_executable_sha256": "cff08a8bac35524e92dabb9f42e373e756ff696805aa5439ed2683879812d7d9",
+    "engine_version": "0.2.1-native-85",
     "full_comparison_sha256": "42b8de5e180b09e13fb855cfec6bced292b43a23b392a2cd8c1ca900c03b7750",
     "comparison_details": "Diagnostic entries and duplicate groups summarized; complete raw comparison retained in local run.py artifact and bound by full_comparison_sha256. Native/reference JSON digests permit independent reproduction. Any record_selection scope remains explicit.",
     "zero_diagnostics_summary": {
@@ -40907,8 +40907,8 @@
     "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
     "reference_output_sha256": "6225df5641c30cda633f00c291dc5e7ab9b6df9733fd0521953537b33e09aefa",
     "symbol_sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4",
-    "zero_executable_sha256": "16cc7e0d097276d67ed7dcddc26d489b3d53d4a8b410e9c8eab7b90067f9014a",
-    "engine_version": "0.2.1-native-84",
+    "zero_executable_sha256": "cff08a8bac35524e92dabb9f42e373e756ff696805aa5439ed2683879812d7d9",
+    "engine_version": "0.2.1-native-85",
     "full_comparison_sha256": "de9f80d47b2e8febcefe5808fac135e3777c73c985a1e6f586a718115caad846",
     "comparison_details": "Diagnostic entries and duplicate groups summarized; complete raw comparison retained in local run.py artifact and bound by full_comparison_sha256. Native/reference JSON digests permit independent reproduction. Any record_selection scope remains explicit.",
     "zero_diagnostics_summary": {
@@ -40983,8 +40983,8 @@
     "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
     "reference_output_sha256": "f0b4d195a68390eb56126a71e7d591fabba60355b606191914d8f6ed319f4518",
     "symbol_sha256": "5d73f3a7158ba8b72394f2606ea5b4f03393976d5054a11cc51d51afb88a5544",
-    "zero_executable_sha256": "16cc7e0d097276d67ed7dcddc26d489b3d53d4a8b410e9c8eab7b90067f9014a",
-    "engine_version": "0.2.1-native-84",
+    "zero_executable_sha256": "cff08a8bac35524e92dabb9f42e373e756ff696805aa5439ed2683879812d7d9",
+    "engine_version": "0.2.1-native-85",
     "full_comparison_sha256": "b1ec5c66932e6bf0adcecf2203f68cd606abf93e69e2102d414cf4169ded08a6",
     "comparison_details": "Diagnostic entries and duplicate groups summarized; complete raw comparison retained in local run.py artifact and bound by full_comparison_sha256. Native/reference JSON digests permit independent reproduction. Any record_selection scope remains explicit.",
     "zero_diagnostics_summary": {
@@ -41059,8 +41059,8 @@
     "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
     "reference_output_sha256": "2288235babbeff4ed44ba04e79c36999d6dc7d92e40a7916af07a017730a03b4",
     "symbol_sha256": "6a234099b69b393eb7d652408835205bd12f0b947d0d6b6275e2ffce8ca9c133",
-    "zero_executable_sha256": "16cc7e0d097276d67ed7dcddc26d489b3d53d4a8b410e9c8eab7b90067f9014a",
-    "engine_version": "0.2.1-native-84",
+    "zero_executable_sha256": "cff08a8bac35524e92dabb9f42e373e756ff696805aa5439ed2683879812d7d9",
+    "engine_version": "0.2.1-native-85",
     "full_comparison_sha256": "56980f85475f73bd61e2d9fbe025ed736bf6d9070f36fa52d5a27647343e6f3d",
     "comparison_details": "Diagnostic entries and duplicate groups summarized; complete raw comparison retained in local run.py artifact and bound by full_comparison_sha256. Native/reference JSON digests permit independent reproduction. Any record_selection scope remains explicit.",
     "zero_diagnostics_summary": {
@@ -41124,8 +41124,8 @@
     "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
     "reference_output_sha256": "9d6d07e4a4c5dc2e1d3b1904ad5a20fd40f7e2dd559e00aa878bf74a167de5f9",
     "symbol_sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4",
-    "zero_executable_sha256": "16cc7e0d097276d67ed7dcddc26d489b3d53d4a8b410e9c8eab7b90067f9014a",
-    "engine_version": "0.2.1-native-84",
+    "zero_executable_sha256": "cff08a8bac35524e92dabb9f42e373e756ff696805aa5439ed2683879812d7d9",
+    "engine_version": "0.2.1-native-85",
     "record_order": {
       "case_id": "windows-10-15063/drivermodule-default",
       "records": [
@@ -41174,8 +41174,8 @@
     "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
     "reference_output_sha256": "6a26597ecaf6d3100e50809121facae619d9f7562be0b21f98a84a51f4f5be4c",
     "symbol_sha256": "5d73f3a7158ba8b72394f2606ea5b4f03393976d5054a11cc51d51afb88a5544",
-    "zero_executable_sha256": "16cc7e0d097276d67ed7dcddc26d489b3d53d4a8b410e9c8eab7b90067f9014a",
-    "engine_version": "0.2.1-native-84",
+    "zero_executable_sha256": "cff08a8bac35524e92dabb9f42e373e756ff696805aa5439ed2683879812d7d9",
+    "engine_version": "0.2.1-native-85",
     "record_order": {
       "case_id": "server-2008-6001-x86/drivermodule-default",
       "records": [
@@ -41226,8 +41226,8 @@
     "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
     "reference_output_sha256": "e5ad0f82abd8e95bd10aa42ccf113cdffcbaf84edbdc593deeb634f820a14231",
     "symbol_sha256": "6a234099b69b393eb7d652408835205bd12f0b947d0d6b6275e2ffce8ca9c133",
-    "zero_executable_sha256": "16cc7e0d097276d67ed7dcddc26d489b3d53d4a8b410e9c8eab7b90067f9014a",
-    "engine_version": "0.2.1-native-84",
+    "zero_executable_sha256": "cff08a8bac35524e92dabb9f42e373e756ff696805aa5439ed2683879812d7d9",
+    "engine_version": "0.2.1-native-85",
     "full_comparison_sha256": "173c0d484a92154ab5629083fb34016504dfd261e7fd3613eb471b40c5d087f6",
     "comparison_details": "Diagnostic entries and duplicate groups summarized; complete raw comparison retained in local run.py artifact and bound by full_comparison_sha256. Native/reference JSON digests permit independent reproduction. Any record_selection scope remains explicit.",
     "zero_diagnostics_summary": {
@@ -41256,7 +41256,7 @@
     "zero_plugin": "windows.windowstations.WindowStations",
     "image_sha256": "d58f62e92b8c4ef913ac09b2c36a10482034c10b88d0c154dead3aaaa49cf875",
     "mapping_sha256": "152533a582d46323cb89e0c2fd1370f32df1d409630c1a4366ee866ff1afa676",
-    "native_output_sha256": "d8ae20372893c79232efc3af403aded2e87e9b7d7049428c8dbefb5bd019024d",
+    "native_output_sha256": "259ae5861e50fa3a9ce5238dc884e7af0a8b561bcd5e436616c614a8998079ab",
     "zero_args": [],
     "reference_args": [],
     "case_id": "windows-10-15063/windowstations-default",
@@ -41284,8 +41284,8 @@
     "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
     "reference_output_sha256": "e69f79f711166f1f123dbfdbc3463e5b96743b0d3fdf2b964257da3967f6f16d",
     "symbol_sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4",
-    "zero_executable_sha256": "16cc7e0d097276d67ed7dcddc26d489b3d53d4a8b410e9c8eab7b90067f9014a",
-    "engine_version": "0.2.1-native-84",
+    "zero_executable_sha256": "cff08a8bac35524e92dabb9f42e373e756ff696805aa5439ed2683879812d7d9",
+    "engine_version": "0.2.1-native-85",
     "record_order": {
       "case_id": "windows-10-15063/windowstations-default",
       "records": [
@@ -41299,7 +41299,7 @@
       "reference_sha256": "50d293161258cec410c2b37d33ec2c8f84db84ac66ae37a7a31745174f2ff8ed",
       "scope": "All mapped fields in emitted sequence after declared record selection; duplicate occurrences retained.",
       "mapping_sha256": "152533a582d46323cb89e0c2fd1370f32df1d409630c1a4366ee866ff1afa676",
-      "native_output_sha256": "d8ae20372893c79232efc3af403aded2e87e9b7d7049428c8dbefb5bd019024d",
+      "native_output_sha256": "259ae5861e50fa3a9ce5238dc884e7af0a8b561bcd5e436616c614a8998079ab",
       "reference_output_sha256": "e69f79f711166f1f123dbfdbc3463e5b96743b0d3fdf2b964257da3967f6f16d"
     }
   },
@@ -41336,8 +41336,8 @@
     "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
     "reference_output_sha256": "a3cbe01dad52836a7ac8efc91954cf64867f4dee8a6f046c4bb0838d11f48589",
     "symbol_sha256": "6d5f85f7b953330b9762a57e5a25266547e7391ad4f6655170a9f48876fb6b8c",
-    "zero_executable_sha256": "16cc7e0d097276d67ed7dcddc26d489b3d53d4a8b410e9c8eab7b90067f9014a",
-    "engine_version": "0.2.1-native-84",
+    "zero_executable_sha256": "cff08a8bac35524e92dabb9f42e373e756ff696805aa5439ed2683879812d7d9",
+    "engine_version": "0.2.1-native-85",
     "empty_agreement": true,
     "record_order": {
       "case_id": "windows-7-7601-x64/windowstations-default",
@@ -41404,8 +41404,8 @@
     "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
     "reference_output_sha256": "4c05396681ad93f7d06b8d6504aba3c31a5f23699fd84d9b3748703d57222c56",
     "symbol_sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4",
-    "zero_executable_sha256": "16cc7e0d097276d67ed7dcddc26d489b3d53d4a8b410e9c8eab7b90067f9014a",
-    "engine_version": "0.2.1-native-84",
+    "zero_executable_sha256": "cff08a8bac35524e92dabb9f42e373e756ff696805aa5439ed2683879812d7d9",
+    "engine_version": "0.2.1-native-85",
     "full_comparison_sha256": "53957bd70c3e72d2c581a24108d0196c932d7ddc0251011785c5358f3101e7d8",
     "comparison_details": "Diagnostic entries and duplicate groups summarized; complete raw comparison retained in local run.py artifact and bound by full_comparison_sha256. Native/reference JSON digests permit independent reproduction. Any record_selection scope remains explicit.",
     "record_order": {
@@ -41473,8 +41473,8 @@
     "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
     "reference_output_sha256": "1139b850c4e6bd2a57b8d932fcf487e006102367b3d44d04bf22f786713d90ee",
     "symbol_sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4",
-    "zero_executable_sha256": "16cc7e0d097276d67ed7dcddc26d489b3d53d4a8b410e9c8eab7b90067f9014a",
-    "engine_version": "0.2.1-native-84",
+    "zero_executable_sha256": "cff08a8bac35524e92dabb9f42e373e756ff696805aa5439ed2683879812d7d9",
+    "engine_version": "0.2.1-native-85",
     "full_comparison_sha256": "a8e8398c65415715446339f173936f1e2760d6f86fb5619bcf28dc9c1d4c345e",
     "comparison_details": "Diagnostic entries and duplicate groups summarized; complete raw comparison retained in local run.py artifact and bound by full_comparison_sha256. Native/reference JSON digests permit independent reproduction. Any record_selection scope remains explicit.",
     "record_order": {
@@ -41524,7 +41524,7 @@
           "summary": true,
           "groups": 1457,
           "records": 2914,
-          "keys_and_counts_sha256": "8e66c249993db7d6ff9f9bbafc5be9779401e1cfd3c767cb43fa6ae9b32ec825"
+          "keys_and_counts_sha256": "48d3b70afc953e056e521cc6e0bc29c40c585ffe75e485d1dfac24481b3518ec"
         }
       ],
       "duplicate_keys": "multiset",
@@ -41540,11 +41540,11 @@
     },
     "passed": true,
     "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
-    "reference_output_sha256": "fc866032507d7b73f21904e930297c83f7d4a9e854a4adee5d29e73b524f2cdc",
+    "reference_output_sha256": "51b07f80f76673be5adfe67a5618b1515075e8ac1cb157d675b6cadc5497c9b9",
     "symbol_sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4",
-    "zero_executable_sha256": "16cc7e0d097276d67ed7dcddc26d489b3d53d4a8b410e9c8eab7b90067f9014a",
-    "engine_version": "0.2.1-native-84",
-    "full_comparison_sha256": "5580bc865e061f7ea77d9802e6ca5c9d60e27d9b28fe816f53f1280bc66ac29e",
+    "zero_executable_sha256": "cff08a8bac35524e92dabb9f42e373e756ff696805aa5439ed2683879812d7d9",
+    "engine_version": "0.2.1-native-85",
+    "full_comparison_sha256": "647c30c05bffc7e6b3ac5bc9b370306cca788570d87cfdb1c9ed135c33837b4d",
     "comparison_details": "Diagnostic entries and duplicate groups summarized; complete raw comparison retained in local run.py artifact and bound by full_comparison_sha256. Native/reference JSON digests permit independent reproduction. Any record_selection scope remains explicit.",
     "record_order": {
       "case_id": "windows-10-15063/windows-default",
@@ -41556,11 +41556,11 @@
       "positive_evidence": true,
       "first_difference": 245,
       "zero_sha256": "d9bca8f4c1edc77a21ae8ae66a038bb76c2ccb0c941b25d815dbaf0f61b3cb45",
-      "reference_sha256": "47deef01e1189147c74d9eaaf9ff36f3d4f6a2698cad60289b131ad9bbb84e87",
+      "reference_sha256": "b5c1b40a434997c1ba04d597a30d650478714a22fdf53e60fef273f0b17bafcf",
       "scope": "All mapped fields in emitted sequence after declared record selection; duplicate occurrences retained.",
       "mapping_sha256": "9b937883de8e43036d6540e990c087428c2c6b5e656d7c85bd012075092bb2d7",
       "native_output_sha256": "cca607539a898408b35cc73001db26456583de6fe50860f089e8ded73805299c",
-      "reference_output_sha256": "fc866032507d7b73f21904e930297c83f7d4a9e854a4adee5d29e73b524f2cdc"
+      "reference_output_sha256": "51b07f80f76673be5adfe67a5618b1515075e8ac1cb157d675b6cadc5497c9b9"
     }
   },
   {
@@ -41568,7 +41568,7 @@
     "zero_plugin": "windows.poolscanner.PoolScanner",
     "image_sha256": "d58f62e92b8c4ef913ac09b2c36a10482034c10b88d0c154dead3aaaa49cf875",
     "mapping_sha256": "61bf7450b58203cf44032f8f3d5740d2bc181ac385da0953c446196825865dfa",
-    "native_output_sha256": "c64ba2aa9384e2c615fedec348b671af4f0e0405ce1a34089e71226c56cfabe5",
+    "native_output_sha256": "adc3cf64242aebbf23650611c4ac34d351be7e56fabf610c8d4f34746f2ee883",
     "zero_args": [],
     "reference_args": [],
     "case_id": "windows-10-15063/poolscanner-default",
@@ -41605,7 +41605,7 @@
       "positive_evidence": true,
       "zero_complete": false,
       "zero_diagnostics": [
-        "Summary: 257 diagnostics; complete entries retained in raw comparison artifact."
+        "Summary: 268 diagnostics; complete entries retained in raw comparison artifact."
       ],
       "passed": true
     },
@@ -41613,13 +41613,13 @@
     "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
     "reference_output_sha256": "1001fdff9ee2eceed8c60a145821566106f0af0e040f0d963c850391c62ef72a",
     "symbol_sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4",
-    "zero_executable_sha256": "16cc7e0d097276d67ed7dcddc26d489b3d53d4a8b410e9c8eab7b90067f9014a",
-    "engine_version": "0.2.1-native-84",
-    "full_comparison_sha256": "6744a0dd4ce50d11bd6d36cd01ee35fe0b6480e3816f4f9364a2be9b9e8c01f6",
+    "zero_executable_sha256": "cff08a8bac35524e92dabb9f42e373e756ff696805aa5439ed2683879812d7d9",
+    "engine_version": "0.2.1-native-85",
+    "full_comparison_sha256": "3e9da4e221bf64c610944a8eb682d0ea727276691b1f50830b48467ecc90bb98",
     "comparison_details": "Diagnostic entries and duplicate groups summarized; complete raw comparison retained in local run.py artifact and bound by full_comparison_sha256. Native/reference JSON digests permit independent reproduction. Any record_selection scope remains explicit.",
     "zero_diagnostics_summary": {
-      "count": 257,
-      "sha256": "1c1a81aa814bb1ca572a470314e952a8b20a55283ca763e41d22a133a3a9caa6"
+      "count": 268,
+      "sha256": "223cf68fe12cf207ba6283bd8b6742c1078dc7000b911cda0a20574d2bd02f25"
     },
     "record_order": {
       "case_id": "windows-10-15063/poolscanner-default",
@@ -41634,7 +41634,7 @@
       "reference_sha256": "dccc5a2eb8d347fbf9830cfed45bf6a1c620585757c23bd1b3c02290ff1c59b6",
       "scope": "All mapped fields in emitted sequence after declared record selection; duplicate occurrences retained.",
       "mapping_sha256": "61bf7450b58203cf44032f8f3d5740d2bc181ac385da0953c446196825865dfa",
-      "native_output_sha256": "c64ba2aa9384e2c615fedec348b671af4f0e0405ce1a34089e71226c56cfabe5",
+      "native_output_sha256": "adc3cf64242aebbf23650611c4ac34d351be7e56fabf610c8d4f34746f2ee883",
       "reference_output_sha256": "1001fdff9ee2eceed8c60a145821566106f0af0e040f0d963c850391c62ef72a"
     }
   },
@@ -41688,8 +41688,8 @@
     "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
     "reference_output_sha256": "db3bb567502795eb6bc4c63d6feef552e4887edb3931efd03014817b57cfdeb7",
     "symbol_sha256": "6a234099b69b393eb7d652408835205bd12f0b947d0d6b6275e2ffce8ca9c133",
-    "zero_executable_sha256": "16cc7e0d097276d67ed7dcddc26d489b3d53d4a8b410e9c8eab7b90067f9014a",
-    "engine_version": "0.2.1-native-84",
+    "zero_executable_sha256": "cff08a8bac35524e92dabb9f42e373e756ff696805aa5439ed2683879812d7d9",
+    "engine_version": "0.2.1-native-85",
     "full_comparison_sha256": "0981adc00c98a399237efb3c8b9a5d4e26e8fb70935421e2490d60bfe4490c0e",
     "comparison_details": "Diagnostic entries and duplicate groups summarized; complete raw comparison retained in local run.py artifact and bound by full_comparison_sha256. Native/reference JSON digests permit independent reproduction. Any record_selection scope remains explicit.",
     "zero_diagnostics_summary": {
@@ -41748,8 +41748,8 @@
     "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
     "reference_output_sha256": "e7c295dfa633ed0297171c80c6deed11681925a1b402cb02e9f567b01737f4e5",
     "symbol_sha256": "5d73f3a7158ba8b72394f2606ea5b4f03393976d5054a11cc51d51afb88a5544",
-    "zero_executable_sha256": "16cc7e0d097276d67ed7dcddc26d489b3d53d4a8b410e9c8eab7b90067f9014a",
-    "engine_version": "0.2.1-native-84",
+    "zero_executable_sha256": "cff08a8bac35524e92dabb9f42e373e756ff696805aa5439ed2683879812d7d9",
+    "engine_version": "0.2.1-native-85",
     "full_comparison_sha256": "ab9e0dbaacf0b0a5da16f2b226ce211dfdaa83504989ac014e6b0f7e996b9572",
     "comparison_details": "Diagnostic entries and duplicate groups summarized; complete raw comparison retained in local run.py artifact and bound by full_comparison_sha256. Native/reference JSON digests permit independent reproduction. Any record_selection scope remains explicit.",
     "zero_diagnostics_summary": {
@@ -41806,8 +41806,8 @@
     "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
     "reference_output_sha256": "cbacf9552535c631717cbfbed9c908b16b812de4d8b7e4f161079e4e5d45bca5",
     "symbol_sha256": "6d5f85f7b953330b9762a57e5a25266547e7391ad4f6655170a9f48876fb6b8c",
-    "zero_executable_sha256": "16cc7e0d097276d67ed7dcddc26d489b3d53d4a8b410e9c8eab7b90067f9014a",
-    "engine_version": "0.2.1-native-84",
+    "zero_executable_sha256": "cff08a8bac35524e92dabb9f42e373e756ff696805aa5439ed2683879812d7d9",
+    "engine_version": "0.2.1-native-85",
     "record_order": {
       "case_id": "windows-7-7601-x64/poolscanner-default",
       "records": [
@@ -41860,8 +41860,8 @@
     "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
     "reference_output_sha256": "7b6cb154912c226c4b39b98d0da814e3b04cbd1e07f0a5bd814532a290f74ded",
     "symbol_sha256": "e71b53897ef6119ca9e51967ffe2399edd422ef54279f3d93659d61d16ec1f67",
-    "zero_executable_sha256": "16cc7e0d097276d67ed7dcddc26d489b3d53d4a8b410e9c8eab7b90067f9014a",
-    "engine_version": "0.2.1-native-84",
+    "zero_executable_sha256": "cff08a8bac35524e92dabb9f42e373e756ff696805aa5439ed2683879812d7d9",
+    "engine_version": "0.2.1-native-85",
     "full_comparison_sha256": "d49893d69552f3b3ebbeefc6b5b61d358edb4f098ec55c0968fd689d351605e8",
     "comparison_details": "Diagnostic entries and duplicate groups summarized; complete raw comparison retained in local run.py artifact and bound by full_comparison_sha256. Native/reference JSON digests permit independent reproduction. Any record_selection scope remains explicit.",
     "zero_diagnostics_summary": {

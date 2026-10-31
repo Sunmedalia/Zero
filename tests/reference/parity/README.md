@@ -752,3 +752,26 @@ iterates a set containing identity-hashed tagWND objects. Both the failed strict
 check and the reference/reference observation remain recorded in
 `windows-known-limitations.json`; no records are reordered to hide that failure.
 Evidence remains 122 positive cases, five scoped, zero complete contracts.
+
+
+Native85 removes a scan-buffer containment requirement on pool headers. The tag
+still has to be discovered in the supplied slice, but BlockSize and PoolType are
+read independently at their exact header field addresses. A fully cached field
+uses the slice; a partially/external field reads the matching physical/virtual
+layer. Unused header tails no longer gate candidates, and required-field holes
+still reject them. `pool_boundary_vectors.py` runs the actual PoolHeaderScanner
+and pre-Vista/Vista predicates for 48 independent-field cases in
+`fixtures/pool-boundaries.json`. Native counterparts use x86/x64 physical/virtual
+fixtures with real missing image segments. A shared-carver integration fixture
+places a tag at a segment start with its prefix in the previous segment and an
+unreadable unused tail. These checks do not prove discovery of split tags or
+layer chunk/overlap equivalence; those remain separate gaps.
+
+
+Final native85 reruns the same 19 PoolScanner/driver/GUI cases against the fixed
+reference. All mapped fields and multiplicities pass; 18 emitted sequences pass.
+Windows retains its recorded strict sequence discrepancy at index 245 and the
+native84 reference/reference instability observation is preserved. Empty Win7
+agreement remains non-positive. Fresh reports and ordered comparisons are under
+the four `*-native85` result directories, bound to the final binary hash.
+Evidence remains 122 positive cases (five scoped), zero complete contracts.

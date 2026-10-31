@@ -1485,3 +1485,40 @@ GUI Windows 的 3063 行多重集合一致，严格顺序检查在索引 245（�
 最终 make check 通过：615 库、8 CLI/MCP、50 协议、36 Python 测试；固定
 向量重生成一致；发布包空 PATH／独立目录启动退出通过。可执行文件 SHA256：
 `16cc7e0d097276d67ed7dcddc26d489b3d53d4a8b410e9c8eab7b90067f9014a`。
+
+
+## native85：池头字段跨扫描缓冲区读取
+
+固定 PoolHeaderScanner 在标签命中后按需要读取 BlockSize／PoolType，并不
+要求整个 _POOL_HEADER 都在传入扫描缓冲区内。原生此前用缓冲区内局部偏移
+定位 header，要求 header 起点不早于缓冲区且完整尾部也在缓冲区内，导致
+标签处于范围起点或未使用尾部缺失时漏掉候选。
+
+canonical PoolScanner 与驱动／GUI 共享雕刻路径现在都按扫描层绝对地址
+减去 PoolTag 偏移定位 header；分别读取约束所用字段。字段完全在缓冲区内
+时复用其字节，否则按该字段准确地址向物理／虚拟层补读，保留 ISF 位域
+解码。不读取未使用尾部，不填零伪造必需字段；BlockSize／PoolType 不能
+读取时仍拒绝该候选。雕刻方式、类型检查和别名重复次数不由此改写。
+
+新增 [固定边界向量](../tests/reference/parity/pool_boundary_vectors.py)：实际
+PoolHeaderScanner 加 pre-Vista／Vista 池类型谓词，48 例覆盖完整 header、
+仅标签、部分前缀、未使用尾部缺失、必要大小／页类型字段缺页及不同池类型。
+字段读取由独立合成适配器提供；原生分别用真实 x86／x64 页表、物理／虚拟
+读取及缺失 Image 区段验证，共 192 个组合。另外直接测试共享雕刻器：标签
+独占新区段，池头前缀位于前一区段，未使用尾部为空洞，仍产生预期对象。
+这些不证明跨扫描范围拆分的标签能够被发现，也不证明层扫描分块／overlap
+已完整对齐；更广 pool-header 布局和损坏页合同仍需验收。
+
+最终 native85 十九例真实联合差分的字段和重复次数全部通过：PoolScanner 五个
+样本分别 36172/36172、8709/8709、3323/3323、4926/4926、2154/2154；DriverIrp
+三个完整默认 4255/4255、3724/3724、3453/3453，三个内核限定范围 2066/2066、
+1723/1723、1656/1656；DriverModule 为 3/3、2/2、1/1。GUI 的 WindowStations
+15/15、Desktops 28/28、DeskScan 28/28、Windows 3063/3063，Win7 WindowStations
+0/0 只为空结果一致。十八例严格记录顺序一致；Windows 子窗口仍在索引 245
+出现顺序差异，保留失败，不改变 native84 已记录的参考自身序列不稳定观察。
+
+报告保存在 target/reference/results/{poolscanner,driverirp,drivermodule,gui}-native85，
+全部绑定同一最终二进制。证据只替换同名 case，仍为 122 个正向用例，其中
+5 个限定范围，完整插件合同 0/135。最终 make check 通过：617 库、8 CLI/MCP、
+50 协议、36 Python 测试；固定向量重生成一致。发布包空 PATH／独立目录
+启动退出通过。最终可执行文件 SHA256：`cff08a8bac35524e92dabb9f42e373e756ff696805aa5439ed2683879812d7d9`。
