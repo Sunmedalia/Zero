@@ -1,0 +1,54 @@
+{
+  "engine_version": "0.2.1-native-102",
+  "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+  "zero_executable_sha256": "6df7af3ac5c98ed9f1228dea53d8102511dd3b70f31171dd183dc1f58a4bfd14",
+  "method_vectors": {
+    "intel_cases": 99,
+    "mapping_queries": 792,
+    "read_queries": 990,
+    "mapping_event_cases": 6
+  },
+  "fixture_sha256": {
+    "tests/reference/parity/fixtures/intel-scan.json": "9da715a0dc00fd7269e3324665f0b3e519de46f85ebb10ee015e21cb1cea4c80",
+    "tests/reference/parity/fixtures/regex-sections.json": "137317ded9a1dcd1460603c9f9e92cd99f3a9d8c6d061a528fee091a31155835"
+  },
+  "regression": [
+    {
+      "case_id": "debian-3.2/regex-leading-empty-chunk",
+      "rows": 7,
+      "strict_order_passed": true
+    },
+    {
+      "case_id": "debian-3.2/regex-mapping-boundaries",
+      "rows": 128,
+      "strict_order_passed": true
+    },
+    {
+      "case_id": "windows-10-15063/regex-leading-empty-chunk",
+      "rows": 42,
+      "strict_order_passed": true
+    },
+    {
+      "case_id": "windows-10-15063/regex-mapping-boundaries",
+      "rows": 1241,
+      "strict_order_passed": true
+    }
+  ],
+  "summary_sha256": "69210cedf4ad2bfe712a326d54a02c80fbac5ae720d934d472dde1c80436f8d5",
+  "validation": {
+    "make_check_exit": 0,
+    "linux_acceptance_passed": 4,
+    "windows_local_path_acceptance": {
+      "passed": 9,
+      "failed": 4,
+      "not_run": ["public_server2012r2_x64: local image not extracted"],
+      "failure_classes": ["two stale DriverModule completeness assertions", "two pre-native79 DriverIrp independent-PDB assumptions"],
+      "log": "target/reference/results/zero-native102-windows-acceptance-paths.log"
+    }
+  },
+  "limitations": [
+    "Zero-length mapping/chunk behavior is method-level synthetic evidence; real anchor regressions retain explicit partial diagnostics.",
+    "Windows local-path acceptance rerun passed 9 and failed 4: two stale DriverModule completeness assertions and two pre-native79 DriverIrp independent-PDB assumptions remain unresolved. Server2012R2 was not run because the image is not extracted.",
+    "Full plugin contracts, general layer bounds/overflow, Linux32/ARM64 reference parity and arbitrary Python/PCRE2 semantics remain unverified."
+  ]
+}

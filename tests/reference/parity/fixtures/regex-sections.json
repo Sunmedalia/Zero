@@ -1641,6 +1641,77 @@
       "expected": [
         8
       ]
+    },
+    {
+      "id": "zero-mapped-positive",
+      "sections": [
+        [
+          4,
+          0
+        ]
+      ],
+      "data_hex": "7878787878787878",
+      "pattern": "^$",
+      "maps": [
+        [
+          4,
+          0,
+          4,
+          0,
+          "physical"
+        ]
+      ],
+      "chunk_size": 8,
+      "overlap": 4,
+      "chunks": [
+        [
+          [],
+          0
+        ]
+      ],
+      "expected": [
+        0
+      ]
+    },
+    {
+      "id": "zero-mapped-origin",
+      "sections": [
+        [
+          0,
+          0
+        ]
+      ],
+      "data_hex": "7878787878787878",
+      "pattern": "^$",
+      "maps": [
+        [
+          0,
+          0,
+          0,
+          0,
+          "physical"
+        ]
+      ],
+      "chunk_size": 8,
+      "overlap": 4,
+      "chunks": [],
+      "expected": []
+    },
+    {
+      "id": "zero-unmapped-positive",
+      "sections": [
+        [
+          4,
+          0
+        ]
+      ],
+      "data_hex": "7878787878787878",
+      "pattern": "^$",
+      "maps": [],
+      "chunk_size": 8,
+      "overlap": 4,
+      "chunks": [],
+      "expected": []
     }
   ]
 }

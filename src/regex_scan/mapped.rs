@@ -55,7 +55,9 @@ fn scan_mapped_impl<const CHUNK: usize, const OVERLAP: usize>(
         let mut mapped = 0u64;
         for &(at, limit) in &maps {
             ensure!(
-                at >= previous && at < limit && limit <= end,
+                at >= previous
+                    && (at < limit || (start == end && at == start && limit == end))
+                    && limit <= end,
                 "扫描器收到无效映射块"
             );
             mapped += limit - at;

@@ -27,7 +27,7 @@ def generate(checkout, extended=False):
         for kind in ['resident', 'transition', 'prototype', 'prototype-transition',
                      'swap-zero', 'swap-three', 'swap-no-attachment', 'swap-wrong-index',
                      'swap-no-bit7', 'swap-no-high', 'swap-transition', 'swap-prototype',
-                     'upper-swap', 'upper-swap-pat', 'upper-prototype', 'physical-hole', 'table-hole', 'short-swap', 'empty-swap'] + (((['present-high45'] if width==8 else [])+['uniform-table','large-pat']) if extended else []):
+                     'upper-swap', 'upper-swap-pat', 'upper-prototype', 'physical-hole', 'table-hole', 'short-swap', 'empty-swap'] + (((['present-high45'] if width==8 else [])+['uniform-table','large-pat','swap-end','swap-last-byte','physical-last-byte']) if extended else []):
             data = bytearray(0x400000 if kind=='large-pat' else 0x20000)
             writes = []
             def put(at, value):
@@ -59,6 +59,8 @@ def generate(checkout, extended=False):
                 if kind == 'swap-prototype': entry |= 1 << 10
                 if kind == 'short-swap': pagefile_length = 4101
                 if kind == 'empty-swap': pagefile_length = 0
+                if kind == 'swap-end': pagefile_length = 4096
+                if kind == 'swap-last-byte': pagefile_length = 4097
                 put(leaf + width, entry)
             elif kind.startswith('upper'):
                 entry = (1 << bit_offset) | (0x80 if kind.startswith('upper-swap') else 0x400)
@@ -66,6 +68,7 @@ def generate(checkout, extended=False):
                 put(leaf - 0x1000, entry)
                 pagefile_length = (4 << shifts[-2]) + 0x3000
             elif kind == 'physical-hole': holes = [[0x8000, 0x9000]]
+            elif kind == 'physical-last-byte': holes = [[0x8001, 0x9000]]
             elif kind == 'table-hole': holes = [[leaf, leaf + 4096]]
             patterned_ranges=[[0x8000,0xc000]]+([[0x200000,0x400000]] if kind=='large-pat' else [])
             for start,end in patterned_ranges:
@@ -92,7 +95,8 @@ def generate(checkout, extended=False):
                 queries.append(dict(address=at, length=length, expected_hex=value, error=error))
             mapping_queries=[]
             if extended:
-                for start,length in [(0,12288),(3,4098),(4096,4)]:
+                for start,length in [(0,12288),(3,4098),(4096,4),
+                                     (0,0),(3,0),(4096,0),(8192,0),(12288,0)]:
                     expected=[[at,at+size,physical,0 if layer_name=='physical' else 1+attached] for at,size,physical,_,layer_name in layer.mapping(start,length,ignore_errors=True)]
                     mapping_queries.append(dict(start=start,end=start+length,expected=expected))
             record=dict(id=f'{arch}-{kind}', arch=arch, width=width, writes=writes,

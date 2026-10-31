@@ -67,6 +67,9 @@ def generate(checkout):
         ('discontinuous-backing', [(0, 8)], b'xxneedle', 'needle', [(0, 4, 0, 4, 'physical'), (4, 4, 12, 4, 'physical')]),
         ('leading-empty-chunk', [(4, 4)], b'xxxxxxxx', '^$', [(4, 4, 4, 4, 'physical')]),
         ('read-failure-empty', [(0,8)], b'xxxx', '^$', [(0,8,0,8,'physical')]),
+        ('zero-mapped-positive', [(4,0)], b'xxxxxxxx', '^$', [(4,0,4,0,'physical')]),
+        ('zero-mapped-origin', [(0,0)], b'xxxxxxxx', '^$', [(0,0,0,0,'physical')]),
+        ('zero-unmapped-positive', [(4,0)], b'xxxxxxxx', '^$', []),
     ]:
         context = contexts.Context()
         context.layers.add_layer(BufferDataLayer(context, 'virtual', 'virtual', buffer=data))

@@ -311,6 +311,11 @@ padding 使用参考的 signed 减法和原始条件。Win10 站观察由 10 条
   和既有正则／系统调用／Skeleton Key 回归分别记录，不能由一项推导完整合同。
   最终验收记录见 volatility-parity.md 的 native101 和 scan-mapping 证据。
 
+- native102：补齐零长度 Intel 选区事件；先按固定参考翻译地址并检查底层一个字节，
+  有效时保留零长度映射。正地址选区的空 subject、地址零无 chunk、未映射无事件
+  分别验证；不改变 ARM64 sparse 扫描。新增底层只剩一个字节及分页末端向量，
+  验证范围不扩展为完整层边界或插件合同。
+
 后续验收债务：大样本回归发现旧 DriverModule 完整性基线仍固定为 false，
 以及两项独立驱动 PDB 集成测试仍把 native79 之前的策略施加给 canonical
 DriverIrp。应将 canonical 参考符号域和独立 PDB 解析器的验收分别接到其实际

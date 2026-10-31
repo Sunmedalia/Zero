@@ -2200,3 +2200,26 @@ Windows 空块0/42、块首425/1241。native101 分别为7/7、128/128、42/42�
 证据为 `tests/reference/parity/scan-mapping-known-limitations.json`，原始报告
 为 `target/reference/results/*-native101-final`。仅新增四个 anchor 身份，
 正向用例累计 **161 项**（5 项限定范围），完整插件合同仍为 **0/135**。
+
+## native102：零长度 Intel 选区事件
+
+补齐 native101 保留的 `(4096, 0)` 边界。零长度请求现在只执行一次地址翻译，
+并验证翻译后的底层一个字节；有效时输出零长度映射，无效页表或底层范围不产生
+事件。扫描器仅在原始选区也是零长度时接收该事件，保留固定参考的正地址首个
+空 subject：`^$` 命中地址 0；地址零的零长度事件与未映射事件均不产生 chunk。
+不读取或填充扫描字节，不改变 ARM64 sparse 分支；引擎版本更新使旧缓存失效。
+
+新增向量先复现原生缺失事件及扫描器拒绝零事件的失败，再验证修复。实际执行
+固定参考的 99 组 Intel 场景，共 792 次选区映射、990 次读取；覆盖四种既有层、
+驻留／transition／显式 swap、缺失 backing、分页末端和仅一个字节可读的底层。
+另有 6 个映射分块场景，其中 3 个新增零长度事件；既有 36 个合并和 13 个连续
+扫描场景保留。合成方法验证不代表真实镜像具备零长度 VMA/VAD 正向证据。
+
+`make check` 通过；指定实际本地路径的 `make acceptance` 四项全部通过。
+重新执行 Linux／Windows 的四项真实 anchor 差分，完整字段、重复次数及严格
+行序分别为 7/7、128/128、42/42、1241/1241，均保留原有 partial 诊断。
+证据见 `tests/reference/parity/zero-section-known-limitations.json`，原始结果位于
+`target/reference/results/scan-mapping-native102`。Windows 首轮默认路径缺失，指定
+实际路径重跑后为 9 项通过、4 项失败：两项 DriverModule 旧完整性断言和两项
+DriverIrp 独立 PDB 旧策略；Server2012R2 未解压，未运行。未以本批方法通过
+替代完整验收；完整插件合同仍为 **0/135**。

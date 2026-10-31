@@ -217,7 +217,9 @@ impl<'a> Mapper<'a> {
         ensure!(start <= end, "扫描区间倒置");
         let mut at = start;
         let mut maps: Vec<Mapping> = Vec::new();
-        while at < end {
+        let mut zero_pending = start == end;
+        while at < end || zero_pending {
+            zero_pending = false;
             job.check()?;
             self.attempts += 1;
             ensure!(self.attempts <= 1_000_000, "Intel 扫描映射次数超过上限");
@@ -250,10 +252,13 @@ impl<'a> Mapper<'a> {
             match candidate {
                 Ok((backing, offset, span)) => {
                     let count = (span - (at & (span - 1))).min(end - at);
+                    // The pinned zero-length branch checks the translated byte,
+                    // then emits a zero-length event rather than reading a page.
+                    let valid_length = count.max(1);
                     let valid = if backing == 0 {
-                        self.captured(offset, count)
+                        self.captured(offset, valid_length)
                     } else {
-                        swap_valid(backing - 1, offset, count)
+                        swap_valid(backing - 1, offset, valid_length)
                     };
                     if valid {
                         if let Some(last) = maps.last_mut()
@@ -272,7 +277,7 @@ impl<'a> Mapper<'a> {
                             });
                         }
                         at += count;
-                    } else {
+                    } else if count != 0 {
                         let mask = count - 1;
                         at = at
                             .checked_add(count - (at & mask))
@@ -281,6 +286,9 @@ impl<'a> Mapper<'a> {
                     }
                 }
                 Err(fault) => {
+                    if start == end {
+                        break;
+                    }
                     let mask = (1u64 << fault.bits) - 1;
                     at = at
                         .checked_add(mask + 1 - (at & mask))
