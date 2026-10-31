@@ -1668,3 +1668,46 @@ PoolScanner 8090/8090（修复前 8080/8090）、DriverIrp 3972/3972、DriverMod
 另以标准 release 配置运行 public_bitmap_crash_processes_and_networks，直接
 使用 gzip 输入，校验解压摘要、DTB、完整 PsList 120 行、Netscan 108 行及
 精确 TCP/IP PDB，全部通过。该额外验收不增加全字段正向差分计数。
+
+
+## native89：捕获页表验证与读取地址域末字节
+
+固定 Windows Intel `_get_valid_table` 会读取完整 4 KiB 表，并拒绝整页内容
+由同一个 PTE 重复组成的情况，包括全零页。池映射枚举已有这一判断，但
+普通 Memory.translate 此前只读取目标项，prototype／分页路径也能绕过
+检查，可能从参考拒绝的表中恢复出额外对象。
+
+现在捕获页表有统一入口：Intel 的普通翻译、prototype 表遍历、分页附件
+遍历中仍位于物理捕获层的部分，以及缺页跳过提示，都先验证完整页表。
+ARM64 保留其独立 descriptor 规则；swap-backed 页表的完整故障合同仍待
+另行审查。缓存仅存储只读表的成功／失败判定，最多 1025 项，并受用户
+page_cache_entries 上限约束，每项仅保存判定。关闭缓存或
+只保留一项时，输出与拒绝行为不变。
+
+[实际 Windows Intel 向量](../tests/reference/parity/pool_mapping_vectors.py)
+扩展至 45 例、186 个直接查询：除 mapping 三列，直接调用固定层的
+_translate 和 read，验证成功与失败地址。新增每个架构只有目标条目可读、
+其余表页缺失的情况；整页重复表不能经 prototype／分页回退重新产生数据。
+缓存回归独立覆盖禁用／单项／正常预算，以及重复读取后的有效与拒绝结果。
+
+直接读取查询还发现地址域末字节差异：默认扫描确实排除 maximum_address，
+但固定层 read 仍可读取该有效字节。native x64 canonical u64::MAX 地址
+此前被“起点+长度”的溢出判断拒绝，且循环尾部无条件递增也可能溢出。
+两个读取入口改为检查最后一个有效字节，并只在还有待读数据时推进地址；
+末页映射及其最后字节的实际参考查询均通过。该改动不声称异常类型／日志
+文本、所有畸形表、分页附件及容器组合的完整故障合同已对齐。
+
+最终 native89 的 22 例真实差分字段与重复次数全部通过：PoolScanner 五个
+RAW 样本为 36172、8709、3323、4926、2154 行，bitmap crash 为 8090 行；
+DriverIrp 三个 RAW 默认 4255、3724、3453 行，三个内核限定范围 2066、1723、
+1656 行，crash 默认 3972 行；DriverModule 为 3、2、1、1 行；GUI 的窗口站
+15、桌面 28、DeskScan 28、Windows 3063 行，Win7 0 行仍非正向证据。
+21 例严格发出顺序一致；Windows 子窗口索引 245 的已知顺序差异继续保留。
+
+原始报告在 target/reference/results 下五个 *-native89 目录，绑定同一
+最终二进制。只替换同名 case，正向仍为 125 项（5 项限定范围），完整
+插件合同 0/135。最终 make check 通过：622 库、8 CLI/MCP、50 协议、36
+Python 测试。45 例／186 直接查询向量重生成一致。公开 gzip crash 的
+release 验收仍通过：完整 PsList 120、Netscan 108，校验 DTB 与精确 TCP/IP
+PDB；不额外增加正向差分计数。发布包空 PATH／独立目录启动退出通过。
+最终可执行文件 SHA256：`5bcae63a969ba5284650667e2360377299780ec6a8797ce6d613bf04db14588f`。

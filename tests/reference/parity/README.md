@@ -861,3 +861,27 @@ Win7 agreement is non-positive. Positive evidence increases from 122 to 125 case
 `*-native88` result groups share one executable digest. See
 `crash-pool-known-limitations.json` for the old mismatch, prepared-input hashes,
 actual container vectors and unsupported Server 2019 reference failures.
+
+
+Native89 shares full captured Intel page-table validation across direct translation,
+prototype lookup, captured portions of pagefile-table walks and absent-page hints.
+Unreadable or uniformly repeated 4 KiB tables are rejected before reading a
+particular entry. A validity-only LRU retains at most 1025 results, bounded by the
+configured page-cache budget, and caches failed tables as well. ARM64 remains
+separate. The actual Windows Intel vectors now contain 45 cases and 186 direct
+translation/read queries, including partially readable tables and failed reads.
+Native cache-disabled/single-entry tests retain the same results. Direct reads now
+allow the native-domain last byte without unsigned overflow; this is distinct
+from the reference default scan section's exclusive upper bound. Exact exception
+formatting, swap-backed table validity and complete malformed-input contracts
+remain unverified.
+
+
+Final native89 repeats all 22 real cases: mapped fields and multiplicities pass;
+21 strict sequences pass, with the known Windows child-order difference at index
+245 retained. The release gzip-crash process/network acceptance also passes
+(120/108 complete rows, DTB and exact TCP/IP identity checked). All five
+`*-native89` report groups bind the final binary. Same case identities replace
+prior proofs; evidence remains 125 positive cases (five scoped), zero complete
+plugin contracts. Empty Win7 agreement and row-count-only acceptance do not add
+positive differential cases.

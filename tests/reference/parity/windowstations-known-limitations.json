@@ -54,8 +54,8 @@
       "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
       "reference_output_sha256": "e69f79f711166f1f123dbfdbc3463e5b96743b0d3fdf2b964257da3967f6f16d",
       "symbol_sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4",
-      "zero_executable_sha256": "ed4748ca3b066be86818c46fb10ccf985cbb2d89c70656362e6df91b1a8e7b18",
-      "engine_version": "0.2.1-native-88",
+      "zero_executable_sha256": "5bcae63a969ba5284650667e2360377299780ec6a8797ce6d613bf04db14588f",
+      "engine_version": "0.2.1-native-89",
       "record_order": {
         "case_id": "windows-10-15063/windowstations-default",
         "records": [
@@ -106,8 +106,8 @@
       "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
       "reference_output_sha256": "a3cbe01dad52836a7ac8efc91954cf64867f4dee8a6f046c4bb0838d11f48589",
       "symbol_sha256": "6d5f85f7b953330b9762a57e5a25266547e7391ad4f6655170a9f48876fb6b8c",
-      "zero_executable_sha256": "ed4748ca3b066be86818c46fb10ccf985cbb2d89c70656362e6df91b1a8e7b18",
-      "engine_version": "0.2.1-native-88",
+      "zero_executable_sha256": "5bcae63a969ba5284650667e2360377299780ec6a8797ce6d613bf04db14588f",
+      "engine_version": "0.2.1-native-89",
       "empty_agreement": true,
       "record_order": {
         "case_id": "windows-7-7601-x64/windowstations-default",
@@ -127,9 +127,9 @@
       }
     }
   ],
-  "engine_version": "0.2.1-native-88",
-  "zero_executable_sha256": "ed4748ca3b066be86818c46fb10ccf985cbb2d89c70656362e6df91b1a8e7b18",
-  "validation": "Final native88 binary and unmodified fixed reference, real default/scoped cases compare all mapped fields and multiplicities. Historical cases not rerun retain their own per-case versions. Empty agreement is not positive evidence; no complete plugin contract is claimed.",
+  "engine_version": "0.2.1-native-89",
+  "zero_executable_sha256": "5bcae63a969ba5284650667e2360377299780ec6a8797ce6d613bf04db14588f",
+  "validation": "Final native89 binary and unmodified fixed reference, real default/scoped cases compare all mapped fields and multiplicities. Historical cases not rerun retain their own per-case versions. Empty agreement is not positive evidence; no complete plugin contract is claimed.",
   "known_limitations": [
     "One positive Win10 x64 capture does not establish complete build, architecture, parameter, traversal or failure contracts.",
     "Raw GUI records can include retained or reused object bytes; matching the reference does not validate every object as active.",
@@ -151,10 +151,18 @@
     "remaining": "Mapping enumeration, all backing formats, tags split across distinct mapping ranges, damaged-page/fault diagnostics and full plugin coverage remain unverified."
   },
   "mapping_vectors": {
-    "sha256": "0298a716742f922a434271f717bfbaa1a80cf215f3817f605dc192b2aa7c7204",
-    "cases": 42,
-    "scope": "Actual WindowsIntel/WindowsIntelPAE/WindowsIntel32e mapping and translation over full synthetic page-table bytes. Physical BufferDataLayer subclass models explicit backing holes. Full default virtual range length excludes maximum_address. Covers contiguous/discontiguous PFNs, missing tables and backing tails, uniform tables, transition/prototype flags, uppermost page, large pages/PAT and PAE root/physical-bit limits and Windows x64 45-bit PFN/software-flag behavior. Does not certify container mapping/decompression, arbitrary malformed reserved PFNs, all architectures or complete scan fault reporting.",
+    "sha256": "03d94d2c20325f2ac88aa93fc8c3a2a50a2dc06ef29051b6e393b4d32582ceed",
+    "cases": 45,
+    "scope": "Actual WindowsIntel/WindowsIntelPAE/WindowsIntel32e mapping and translation over full synthetic page-table bytes, plus direct translation and one-byte reads for both successful and failing addresses. Physical BufferDataLayer subclass models explicit backing holes. Full default virtual range length excludes maximum_address. Covers contiguous/discontiguous PFNs, missing tables and backing tails, uniform tables, transition/prototype flags, uppermost page, large pages/PAT and PAE root/physical-bit limits and Windows x64 45-bit PFN/software-flag behavior. Does not certify container mapping/decompression, arbitrary malformed reserved PFNs, all architectures or complete scan fault reporting.",
     "implementation": "Compare all virtual range starts, lengths and physical starts; backing holes rejected before coalescing, native-domain maximum-address clipping, full PAE root table validation, level-specific large pages and PAE physical mask",
     "remaining": "All container mapping/decompression, arbitrary reserved PFNs, custom transition layouts, table resource/cancellation limits and full scan fault reporting remain unverified."
+  },
+  "captured_table_validation": {
+    "vectors_sha256": "03d94d2c20325f2ac88aa93fc8c3a2a50a2dc06ef29051b6e393b4d32582ceed",
+    "cases": 45,
+    "direct_queries": 186,
+    "scope": "Actual WindowsIntel/WindowsIntelPAE/WindowsIntel32e mapping and translation over full synthetic page-table bytes, plus direct translation and one-byte reads for both successful and failing addresses. Physical BufferDataLayer subclass models explicit backing holes. Full default virtual range length excludes maximum_address. Covers contiguous/discontiguous PFNs, missing tables and backing tails, uniform tables, transition/prototype flags, uppermost page, large pages/PAT and PAE root/physical-bit limits and Windows x64 45-bit PFN/software-flag behavior. Does not certify container mapping/decompression, arbitrary malformed reserved PFNs, all architectures or complete scan fault reporting.",
+    "implementation": "Intel captured table walks validate a complete 4 KiB table and reject uniformly repeated entries; ordinary translation, prototype lookup, physical part of pagefile traversal and absent-page hints share that gate. A bounded validity LRU caches successes and failures; ARM64 table behavior remains separate. Reads permit the last native-domain byte without unsigned overflow.",
+    "remaining": "Exact exception/log contracts, arbitrary malformed pages, swap-backed table validation, all container layouts and complete plugin contracts remain unverified."
   }
 }

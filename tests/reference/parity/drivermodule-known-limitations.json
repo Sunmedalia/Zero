@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
-  "engine_version": "0.2.1-native-88",
+  "engine_version": "0.2.1-native-89",
   "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
-  "zero_executable_sha256": "ed4748ca3b066be86818c46fb10ccf985cbb2d89c70656362e6df91b1a8e7b18",
+  "zero_executable_sha256": "5bcae63a969ba5284650667e2360377299780ec6a8797ce6d613bf04db14588f",
   "source_sha256": {
     "plugins/windows/malware/drivermodule.py": "35627d702a0e79bc38d7157d83e1b6211b5d0c8855efc73d851f924eb74a2198",
     "plugins/windows/driverscan.py": "e7ac4083870765e9c83039bab8fcab5aecbe526ead58ab1f20b25065908b0175",
@@ -44,8 +44,8 @@
       "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
       "reference_output_sha256": "9d6d07e4a4c5dc2e1d3b1904ad5a20fd40f7e2dd559e00aa878bf74a167de5f9",
       "symbol_sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4",
-      "zero_executable_sha256": "ed4748ca3b066be86818c46fb10ccf985cbb2d89c70656362e6df91b1a8e7b18",
-      "engine_version": "0.2.1-native-88",
+      "zero_executable_sha256": "5bcae63a969ba5284650667e2360377299780ec6a8797ce6d613bf04db14588f",
+      "engine_version": "0.2.1-native-89",
       "record_order": {
         "case_id": "windows-10-15063/drivermodule-default",
         "records": [
@@ -94,8 +94,8 @@
       "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
       "reference_output_sha256": "6a26597ecaf6d3100e50809121facae619d9f7562be0b21f98a84a51f4f5be4c",
       "symbol_sha256": "5d73f3a7158ba8b72394f2606ea5b4f03393976d5054a11cc51d51afb88a5544",
-      "zero_executable_sha256": "ed4748ca3b066be86818c46fb10ccf985cbb2d89c70656362e6df91b1a8e7b18",
-      "engine_version": "0.2.1-native-88",
+      "zero_executable_sha256": "5bcae63a969ba5284650667e2360377299780ec6a8797ce6d613bf04db14588f",
+      "engine_version": "0.2.1-native-89",
       "record_order": {
         "case_id": "server-2008-6001-x86/drivermodule-default",
         "records": [
@@ -144,8 +144,8 @@
       "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
       "reference_output_sha256": "e5ad0f82abd8e95bd10aa42ccf113cdffcbaf84edbdc593deeb634f820a14231",
       "symbol_sha256": "6a234099b69b393eb7d652408835205bd12f0b947d0d6b6275e2ffce8ca9c133",
-      "zero_executable_sha256": "ed4748ca3b066be86818c46fb10ccf985cbb2d89c70656362e6df91b1a8e7b18",
-      "engine_version": "0.2.1-native-88",
+      "zero_executable_sha256": "5bcae63a969ba5284650667e2360377299780ec6a8797ce6d613bf04db14588f",
+      "engine_version": "0.2.1-native-89",
       "record_order": {
         "case_id": "windows-11/drivermodule-default",
         "records": [
@@ -194,8 +194,8 @@
       "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
       "reference_output_sha256": "aa78522fbedafef5432ce143e019f9b3f2047d0639fef7b7f477d2b196f3fd2f",
       "symbol_sha256": "f2da89bac5e8e253db8046c6f2d2db475b5ae411e0a356eece7c9ca2111f737b",
-      "zero_executable_sha256": "ed4748ca3b066be86818c46fb10ccf985cbb2d89c70656362e6df91b1a8e7b18",
-      "engine_version": "0.2.1-native-88",
+      "zero_executable_sha256": "5bcae63a969ba5284650667e2360377299780ec6a8797ce6d613bf04db14588f",
+      "engine_version": "0.2.1-native-89",
       "record_order": {
         "case_id": "windows-10-19041-bitmap/drivermodule-default",
         "records": [
@@ -223,7 +223,7 @@
     "Only x86 and x64 are supported. Further kernel builds, malicious hidden-driver samples and damaged-input coverage remain outstanding.",
     "Original user image c8f6a7f79a5a83d238b1ff16c2a51277d56b6e16580f7db5706b38bcfd5a5c66 remains unavailable and untested."
   ],
-  "validation": "Final native88 binary and unmodified fixed reference, real default/scoped cases compare all mapped fields and multiplicities. Historical cases not rerun retain their own per-case versions. Empty agreement is not positive evidence; no complete plugin contract is claimed.",
+  "validation": "Final native89 binary and unmodified fixed reference, real default/scoped cases compare all mapped fields and multiplicities. Historical cases not rerun retain their own per-case versions. Empty agreement is not positive evidence; no complete plugin contract is claimed.",
   "driver_recovery": {
     "implementation": "shared versioned pool ranges, tag-relative headers, padded carving and reference type map; eight readable DriverStart bytes, zero or strict masked threshold",
     "vectors_sha256": "da8a48206c98b1626f80bf6d48311f686283b59342c7addb1bdd48697412f7d8",
@@ -262,10 +262,18 @@
     "remaining": "Mapping enumeration, all backing formats, tags split across distinct mapping ranges, damaged-page/fault diagnostics and full plugin coverage remain unverified."
   },
   "mapping_vectors": {
-    "sha256": "0298a716742f922a434271f717bfbaa1a80cf215f3817f605dc192b2aa7c7204",
-    "cases": 42,
-    "scope": "Actual WindowsIntel/WindowsIntelPAE/WindowsIntel32e mapping and translation over full synthetic page-table bytes. Physical BufferDataLayer subclass models explicit backing holes. Full default virtual range length excludes maximum_address. Covers contiguous/discontiguous PFNs, missing tables and backing tails, uniform tables, transition/prototype flags, uppermost page, large pages/PAT and PAE root/physical-bit limits and Windows x64 45-bit PFN/software-flag behavior. Does not certify container mapping/decompression, arbitrary malformed reserved PFNs, all architectures or complete scan fault reporting.",
+    "sha256": "03d94d2c20325f2ac88aa93fc8c3a2a50a2dc06ef29051b6e393b4d32582ceed",
+    "cases": 45,
+    "scope": "Actual WindowsIntel/WindowsIntelPAE/WindowsIntel32e mapping and translation over full synthetic page-table bytes, plus direct translation and one-byte reads for both successful and failing addresses. Physical BufferDataLayer subclass models explicit backing holes. Full default virtual range length excludes maximum_address. Covers contiguous/discontiguous PFNs, missing tables and backing tails, uniform tables, transition/prototype flags, uppermost page, large pages/PAT and PAE root/physical-bit limits and Windows x64 45-bit PFN/software-flag behavior. Does not certify container mapping/decompression, arbitrary malformed reserved PFNs, all architectures or complete scan fault reporting.",
     "implementation": "Compare all virtual range starts, lengths and physical starts; backing holes rejected before coalescing, native-domain maximum-address clipping, full PAE root table validation, level-specific large pages and PAE physical mask",
     "remaining": "All container mapping/decompression, arbitrary reserved PFNs, custom transition layouts, table resource/cancellation limits and full scan fault reporting remain unverified."
+  },
+  "captured_table_validation": {
+    "vectors_sha256": "03d94d2c20325f2ac88aa93fc8c3a2a50a2dc06ef29051b6e393b4d32582ceed",
+    "cases": 45,
+    "direct_queries": 186,
+    "scope": "Actual WindowsIntel/WindowsIntelPAE/WindowsIntel32e mapping and translation over full synthetic page-table bytes, plus direct translation and one-byte reads for both successful and failing addresses. Physical BufferDataLayer subclass models explicit backing holes. Full default virtual range length excludes maximum_address. Covers contiguous/discontiguous PFNs, missing tables and backing tails, uniform tables, transition/prototype flags, uppermost page, large pages/PAT and PAE root/physical-bit limits and Windows x64 45-bit PFN/software-flag behavior. Does not certify container mapping/decompression, arbitrary malformed reserved PFNs, all architectures or complete scan fault reporting.",
+    "implementation": "Intel captured table walks validate a complete 4 KiB table and reject uniformly repeated entries; ordinary translation, prototype lookup, physical part of pagefile traversal and absent-page hints share that gate. A bounded validity LRU caches successes and failures; ARM64 table behavior remains separate. Reads permit the last native-domain byte without unsigned overflow.",
+    "remaining": "Exact exception/log contracts, arbitrary malformed pages, swap-backed table validation, all container layouts and complete plugin contracts remain unverified."
   }
 }

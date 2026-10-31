@@ -1363,6 +1363,32 @@ mod tests {
                 base: K,
                 pdb: PdbIdentity::from_isf(&isf).unwrap(),
             };
+            for query in case["queries"].as_array().unwrap() {
+                let address = windows.pool_reference_pointer(query["address"].as_u64().unwrap());
+                let translated = windows.vm.translate(address);
+                match query["physical"].as_u64() {
+                    Some(expected) => {
+                        assert_eq!(translated.unwrap(), expected, "{} {query}", case["id"])
+                    }
+                    None => assert!(translated.is_err(), "{} {query}", case["id"]),
+                }
+                let mut byte = [0xff];
+                let read = windows.vm.read(address, &mut byte);
+                if let Some(expected) = query["read_hex"].as_str() {
+                    read.unwrap();
+                    assert_eq!(
+                        format!("{:02x}", byte[0]),
+                        expected,
+                        "{} {query}",
+                        case["id"]
+                    );
+                    let mut captured = [0xff];
+                    windows.vm.read_captured(address, &mut captured).unwrap();
+                    assert_eq!(captured, byte);
+                } else {
+                    assert!(read.is_err(), "{} {query}", case["id"]);
+                }
+            }
             let ranges = windows.pool_virtual_ranges(&Job::default()).unwrap();
             for &(at, length, physical) in &ranges {
                 assert_eq!(

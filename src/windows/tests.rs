@@ -710,3 +710,36 @@ pub(super) fn thread_exports_fixture(path: &str) -> (Vec<u8>, Isf) {
     pe[0x440..0x446].copy_from_slice(b"Entry\0");
     (b, isf)
 }
+
+#[test]
+fn captured_table_rejection_is_independent_of_cache_budget() {
+    for budget in [0, 1, 1025] {
+        for uniform in [false, true] {
+            let (mut bytes, isf) = fixture();
+            if uniform {
+                for at in (0x4000..0x5000).step_by(8) {
+                    put(&mut bytes, at, 0x8003);
+                }
+            }
+            let mut img = image(&bytes);
+            img.limits.page_cache_entries = budget;
+            let vm = Memory::new(&img, 0x1000, &isf, None);
+            for _ in 0..3 {
+                for address in [K, K + 0x1000, K + 0x2000, K] {
+                    let mut captured = [0];
+                    let mut recovered = [0];
+                    if uniform {
+                        assert!(vm.translate(address).is_err());
+                        assert!(vm.read_captured(address, &mut captured).is_err());
+                        assert!(vm.read(address, &mut recovered).is_err());
+                    } else {
+                        assert_eq!(vm.translate(address).unwrap(), 0x8000 + address - K);
+                        vm.read_captured(address, &mut captured).unwrap();
+                        vm.read(address, &mut recovered).unwrap();
+                        assert_eq!(captured, recovered);
+                    }
+                }
+            }
+        }
+    }
+}

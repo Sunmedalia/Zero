@@ -1,7 +1,7 @@
 {
   "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
   "source_sha256": "01ea3e198f9c4226cb8c06280facbf9b8cc0990863301f82f991e5609908f716",
-  "scope": "Actual WindowsIntel/WindowsIntelPAE/WindowsIntel32e mapping and translation over full synthetic page-table bytes. Physical BufferDataLayer subclass models explicit backing holes. Full default virtual range length excludes maximum_address. Covers contiguous/discontiguous PFNs, missing tables and backing tails, uniform tables, transition/prototype flags, uppermost page, large pages/PAT and PAE root/physical-bit limits and Windows x64 45-bit PFN/software-flag behavior. Does not certify container mapping/decompression, arbitrary malformed reserved PFNs, all architectures or complete scan fault reporting.",
+  "scope": "Actual WindowsIntel/WindowsIntelPAE/WindowsIntel32e mapping and translation over full synthetic page-table bytes, plus direct translation and one-byte reads for both successful and failing addresses. Physical BufferDataLayer subclass models explicit backing holes. Full default virtual range length excludes maximum_address. Covers contiguous/discontiguous PFNs, missing tables and backing tails, uniform tables, transition/prototype flags, uppermost page, large pages/PAT and PAE root/physical-bit limits and Windows x64 45-bit PFN/software-flag behavior. Does not certify container mapping/decompression, arbitrary malformed reserved PFNs, all architectures or complete scan fault reporting.",
   "cases": [
     {
       "id": "x86-basic",
@@ -28,6 +28,36 @@
         ]
       ],
       "holes": [],
+      "queries": [
+        {
+          "address": 0,
+          "physical": 32768,
+          "translate_error": null,
+          "read_hex": "00",
+          "read_error": null
+        },
+        {
+          "address": 291,
+          "physical": 33059,
+          "translate_error": null,
+          "read_hex": "00",
+          "read_error": null
+        },
+        {
+          "address": 4096,
+          "physical": 36864,
+          "translate_error": null,
+          "read_hex": "00",
+          "read_error": null
+        },
+        {
+          "address": 8192,
+          "physical": 65536,
+          "translate_error": null,
+          "read_hex": "00",
+          "read_error": null
+        }
+      ],
       "expected": [
         [
           0,
@@ -70,6 +100,36 @@
           36864,
           40960
         ]
+      ],
+      "queries": [
+        {
+          "address": 0,
+          "physical": 32768,
+          "translate_error": null,
+          "read_hex": "00",
+          "read_error": null
+        },
+        {
+          "address": 291,
+          "physical": 33059,
+          "translate_error": null,
+          "read_hex": "00",
+          "read_error": null
+        },
+        {
+          "address": 4096,
+          "physical": 36864,
+          "translate_error": null,
+          "read_hex": null,
+          "read_error": "InvalidAddressException"
+        },
+        {
+          "address": 8192,
+          "physical": 65536,
+          "translate_error": null,
+          "read_hex": "00",
+          "read_error": null
+        }
       ],
       "expected": [
         [
@@ -114,6 +174,36 @@
           69632
         ]
       ],
+      "queries": [
+        {
+          "address": 0,
+          "physical": 32768,
+          "translate_error": null,
+          "read_hex": "00",
+          "read_error": null
+        },
+        {
+          "address": 291,
+          "physical": 33059,
+          "translate_error": null,
+          "read_hex": "00",
+          "read_error": null
+        },
+        {
+          "address": 4096,
+          "physical": 36864,
+          "translate_error": null,
+          "read_hex": "00",
+          "read_error": null
+        },
+        {
+          "address": 8192,
+          "physical": 65536,
+          "translate_error": null,
+          "read_hex": "00",
+          "read_error": null
+        }
+      ],
       "expected": [
         [
           0,
@@ -151,6 +241,98 @@
           8192,
           12288
         ]
+      ],
+      "queries": [
+        {
+          "address": 0,
+          "physical": null,
+          "translate_error": "PagedInvalidAddressException",
+          "read_hex": null,
+          "read_error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 291,
+          "physical": null,
+          "translate_error": "PagedInvalidAddressException",
+          "read_hex": null,
+          "read_error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 4096,
+          "physical": null,
+          "translate_error": "PagedInvalidAddressException",
+          "read_hex": null,
+          "read_error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 8192,
+          "physical": null,
+          "translate_error": "PagedInvalidAddressException",
+          "read_hex": null,
+          "read_error": "PagedInvalidAddressException"
+        }
+      ],
+      "expected": []
+    },
+    {
+      "id": "x86-one-readable-entry",
+      "arch": "x86",
+      "width": 4,
+      "length": 131072,
+      "root": 4096,
+      "writes": [
+        [
+          4096,
+          8195
+        ],
+        [
+          8192,
+          32771
+        ],
+        [
+          8196,
+          36867
+        ],
+        [
+          8200,
+          65539
+        ]
+      ],
+      "holes": [
+        [
+          8196,
+          12288
+        ]
+      ],
+      "queries": [
+        {
+          "address": 0,
+          "physical": null,
+          "translate_error": "PagedInvalidAddressException",
+          "read_hex": null,
+          "read_error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 291,
+          "physical": null,
+          "translate_error": "PagedInvalidAddressException",
+          "read_hex": null,
+          "read_error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 4096,
+          "physical": null,
+          "translate_error": "PagedInvalidAddressException",
+          "read_hex": null,
+          "read_error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 8192,
+          "physical": null,
+          "translate_error": "PagedInvalidAddressException",
+          "read_hex": null,
+          "read_error": "PagedInvalidAddressException"
+        }
       ],
       "expected": []
     },
@@ -4275,6 +4457,36 @@
         ]
       ],
       "holes": [],
+      "queries": [
+        {
+          "address": 0,
+          "physical": null,
+          "translate_error": "PagedInvalidAddressException",
+          "read_hex": null,
+          "read_error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 291,
+          "physical": null,
+          "translate_error": "PagedInvalidAddressException",
+          "read_hex": null,
+          "read_error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 4096,
+          "physical": null,
+          "translate_error": "PagedInvalidAddressException",
+          "read_hex": null,
+          "read_error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 8192,
+          "physical": null,
+          "translate_error": "PagedInvalidAddressException",
+          "read_hex": null,
+          "read_error": "PagedInvalidAddressException"
+        }
+      ],
       "expected": []
     },
     {
@@ -4306,6 +4518,36 @@
         ]
       ],
       "holes": [],
+      "queries": [
+        {
+          "address": 0,
+          "physical": 32768,
+          "translate_error": null,
+          "read_hex": "00",
+          "read_error": null
+        },
+        {
+          "address": 291,
+          "physical": 33059,
+          "translate_error": null,
+          "read_hex": "00",
+          "read_error": null
+        },
+        {
+          "address": 4096,
+          "physical": 36864,
+          "translate_error": null,
+          "read_hex": "00",
+          "read_error": null
+        },
+        {
+          "address": 8192,
+          "physical": 65536,
+          "translate_error": null,
+          "read_hex": "00",
+          "read_error": null
+        }
+      ],
       "expected": [
         [
           0,
@@ -4348,6 +4590,36 @@
         ]
       ],
       "holes": [],
+      "queries": [
+        {
+          "address": 0,
+          "physical": null,
+          "translate_error": "PagedInvalidAddressException",
+          "read_hex": null,
+          "read_error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 291,
+          "physical": null,
+          "translate_error": "PagedInvalidAddressException",
+          "read_hex": null,
+          "read_error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 4096,
+          "physical": 36864,
+          "translate_error": null,
+          "read_hex": "00",
+          "read_error": null
+        },
+        {
+          "address": 8192,
+          "physical": 65536,
+          "translate_error": null,
+          "read_hex": "00",
+          "read_error": null
+        }
+      ],
       "expected": [
         [
           4096,
@@ -4378,6 +4650,50 @@
         ]
       ],
       "holes": [],
+      "queries": [
+        {
+          "address": 0,
+          "physical": null,
+          "translate_error": "PagedInvalidAddressException",
+          "read_hex": null,
+          "read_error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 291,
+          "physical": null,
+          "translate_error": "PagedInvalidAddressException",
+          "read_hex": null,
+          "read_error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 4096,
+          "physical": null,
+          "translate_error": "PagedInvalidAddressException",
+          "read_hex": null,
+          "read_error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 8192,
+          "physical": null,
+          "translate_error": "PagedInvalidAddressException",
+          "read_hex": null,
+          "read_error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 4294963200,
+          "physical": 32768,
+          "translate_error": null,
+          "read_hex": "00",
+          "read_error": null
+        },
+        {
+          "address": 4294967295,
+          "physical": 36863,
+          "translate_error": null,
+          "read_hex": "00",
+          "read_error": null
+        }
+      ],
       "expected": [
         [
           4294963200,
@@ -4415,6 +4731,36 @@
         ]
       ],
       "holes": [],
+      "queries": [
+        {
+          "address": 0,
+          "physical": 4194304,
+          "translate_error": null,
+          "read_hex": "00",
+          "read_error": null
+        },
+        {
+          "address": 291,
+          "physical": 4194595,
+          "translate_error": null,
+          "read_hex": "00",
+          "read_error": null
+        },
+        {
+          "address": 4096,
+          "physical": 4198400,
+          "translate_error": null,
+          "read_hex": "00",
+          "read_error": null
+        },
+        {
+          "address": 8192,
+          "physical": 4202496,
+          "translate_error": null,
+          "read_hex": "00",
+          "read_error": null
+        }
+      ],
       "expected": [
         [
           0,
@@ -4452,6 +4798,36 @@
         ]
       ],
       "holes": [],
+      "queries": [
+        {
+          "address": 0,
+          "physical": 4194304,
+          "translate_error": null,
+          "read_hex": "00",
+          "read_error": null
+        },
+        {
+          "address": 291,
+          "physical": 4194595,
+          "translate_error": null,
+          "read_hex": "00",
+          "read_error": null
+        },
+        {
+          "address": 4096,
+          "physical": 4198400,
+          "translate_error": null,
+          "read_hex": "00",
+          "read_error": null
+        },
+        {
+          "address": 8192,
+          "physical": 4202496,
+          "translate_error": null,
+          "read_hex": "00",
+          "read_error": null
+        }
+      ],
       "expected": [
         [
           0,
@@ -4494,6 +4870,36 @@
           4202496
         ]
       ],
+      "queries": [
+        {
+          "address": 0,
+          "physical": 4194304,
+          "translate_error": null,
+          "read_hex": "00",
+          "read_error": null
+        },
+        {
+          "address": 291,
+          "physical": 4194595,
+          "translate_error": null,
+          "read_hex": "00",
+          "read_error": null
+        },
+        {
+          "address": 4096,
+          "physical": 4198400,
+          "translate_error": null,
+          "read_hex": null,
+          "read_error": "InvalidAddressException"
+        },
+        {
+          "address": 8192,
+          "physical": 4202496,
+          "translate_error": null,
+          "read_hex": "00",
+          "read_error": null
+        }
+      ],
       "expected": []
     },
     {
@@ -4525,6 +4931,36 @@
         ]
       ],
       "holes": [],
+      "queries": [
+        {
+          "address": 0,
+          "physical": 32768,
+          "translate_error": null,
+          "read_hex": "00",
+          "read_error": null
+        },
+        {
+          "address": 291,
+          "physical": 33059,
+          "translate_error": null,
+          "read_hex": "00",
+          "read_error": null
+        },
+        {
+          "address": 4096,
+          "physical": 36864,
+          "translate_error": null,
+          "read_hex": "00",
+          "read_error": null
+        },
+        {
+          "address": 8192,
+          "physical": 65536,
+          "translate_error": null,
+          "read_hex": "00",
+          "read_error": null
+        }
+      ],
       "expected": [
         [
           0,
@@ -4571,6 +5007,36 @@
           36864,
           40960
         ]
+      ],
+      "queries": [
+        {
+          "address": 0,
+          "physical": 32768,
+          "translate_error": null,
+          "read_hex": "00",
+          "read_error": null
+        },
+        {
+          "address": 291,
+          "physical": 33059,
+          "translate_error": null,
+          "read_hex": "00",
+          "read_error": null
+        },
+        {
+          "address": 4096,
+          "physical": 36864,
+          "translate_error": null,
+          "read_hex": null,
+          "read_error": "InvalidAddressException"
+        },
+        {
+          "address": 8192,
+          "physical": 65536,
+          "translate_error": null,
+          "read_hex": "00",
+          "read_error": null
+        }
       ],
       "expected": [
         [
@@ -4619,6 +5085,36 @@
           69632
         ]
       ],
+      "queries": [
+        {
+          "address": 0,
+          "physical": 32768,
+          "translate_error": null,
+          "read_hex": "00",
+          "read_error": null
+        },
+        {
+          "address": 291,
+          "physical": 33059,
+          "translate_error": null,
+          "read_hex": "00",
+          "read_error": null
+        },
+        {
+          "address": 4096,
+          "physical": 36864,
+          "translate_error": null,
+          "read_hex": "00",
+          "read_error": null
+        },
+        {
+          "address": 8192,
+          "physical": 65536,
+          "translate_error": null,
+          "read_hex": "00",
+          "read_error": null
+        }
+      ],
       "expected": [
         [
           0,
@@ -4660,6 +5156,102 @@
           12288,
           16384
         ]
+      ],
+      "queries": [
+        {
+          "address": 0,
+          "physical": null,
+          "translate_error": "PagedInvalidAddressException",
+          "read_hex": null,
+          "read_error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 291,
+          "physical": null,
+          "translate_error": "PagedInvalidAddressException",
+          "read_hex": null,
+          "read_error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 4096,
+          "physical": null,
+          "translate_error": "PagedInvalidAddressException",
+          "read_hex": null,
+          "read_error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 8192,
+          "physical": null,
+          "translate_error": "PagedInvalidAddressException",
+          "read_hex": null,
+          "read_error": "PagedInvalidAddressException"
+        }
+      ],
+      "expected": []
+    },
+    {
+      "id": "pae-one-readable-entry",
+      "arch": "pae",
+      "width": 8,
+      "length": 131072,
+      "root": 4096,
+      "writes": [
+        [
+          4096,
+          8195
+        ],
+        [
+          8192,
+          12291
+        ],
+        [
+          12288,
+          32771
+        ],
+        [
+          12296,
+          36867
+        ],
+        [
+          12304,
+          65539
+        ]
+      ],
+      "holes": [
+        [
+          12296,
+          16384
+        ]
+      ],
+      "queries": [
+        {
+          "address": 0,
+          "physical": null,
+          "translate_error": "PagedInvalidAddressException",
+          "read_hex": null,
+          "read_error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 291,
+          "physical": null,
+          "translate_error": "PagedInvalidAddressException",
+          "read_hex": null,
+          "read_error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 4096,
+          "physical": null,
+          "translate_error": "PagedInvalidAddressException",
+          "read_hex": null,
+          "read_error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 8192,
+          "physical": null,
+          "translate_error": "PagedInvalidAddressException",
+          "read_hex": null,
+          "read_error": "PagedInvalidAddressException"
+        }
       ],
       "expected": []
     },
@@ -6740,6 +7332,36 @@
         ]
       ],
       "holes": [],
+      "queries": [
+        {
+          "address": 0,
+          "physical": null,
+          "translate_error": "PagedInvalidAddressException",
+          "read_hex": null,
+          "read_error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 291,
+          "physical": null,
+          "translate_error": "PagedInvalidAddressException",
+          "read_hex": null,
+          "read_error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 4096,
+          "physical": null,
+          "translate_error": "PagedInvalidAddressException",
+          "read_hex": null,
+          "read_error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 8192,
+          "physical": null,
+          "translate_error": "PagedInvalidAddressException",
+          "read_hex": null,
+          "read_error": "PagedInvalidAddressException"
+        }
+      ],
       "expected": []
     },
     {
@@ -6775,6 +7397,36 @@
         ]
       ],
       "holes": [],
+      "queries": [
+        {
+          "address": 0,
+          "physical": 32768,
+          "translate_error": null,
+          "read_hex": "00",
+          "read_error": null
+        },
+        {
+          "address": 291,
+          "physical": 33059,
+          "translate_error": null,
+          "read_hex": "00",
+          "read_error": null
+        },
+        {
+          "address": 4096,
+          "physical": 36864,
+          "translate_error": null,
+          "read_hex": "00",
+          "read_error": null
+        },
+        {
+          "address": 8192,
+          "physical": 65536,
+          "translate_error": null,
+          "read_hex": "00",
+          "read_error": null
+        }
+      ],
       "expected": [
         [
           0,
@@ -6821,6 +7473,36 @@
         ]
       ],
       "holes": [],
+      "queries": [
+        {
+          "address": 0,
+          "physical": null,
+          "translate_error": "PagedInvalidAddressException",
+          "read_hex": null,
+          "read_error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 291,
+          "physical": null,
+          "translate_error": "PagedInvalidAddressException",
+          "read_hex": null,
+          "read_error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 4096,
+          "physical": 36864,
+          "translate_error": null,
+          "read_hex": "00",
+          "read_error": null
+        },
+        {
+          "address": 8192,
+          "physical": 65536,
+          "translate_error": null,
+          "read_hex": "00",
+          "read_error": null
+        }
+      ],
       "expected": [
         [
           4096,
@@ -6855,6 +7537,50 @@
         ]
       ],
       "holes": [],
+      "queries": [
+        {
+          "address": 0,
+          "physical": null,
+          "translate_error": "PagedInvalidAddressException",
+          "read_hex": null,
+          "read_error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 291,
+          "physical": null,
+          "translate_error": "PagedInvalidAddressException",
+          "read_hex": null,
+          "read_error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 4096,
+          "physical": null,
+          "translate_error": "PagedInvalidAddressException",
+          "read_hex": null,
+          "read_error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 8192,
+          "physical": null,
+          "translate_error": "PagedInvalidAddressException",
+          "read_hex": null,
+          "read_error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 4294963200,
+          "physical": 32768,
+          "translate_error": null,
+          "read_hex": "00",
+          "read_error": null
+        },
+        {
+          "address": 4294967295,
+          "physical": 36863,
+          "translate_error": null,
+          "read_hex": "00",
+          "read_error": null
+        }
+      ],
       "expected": [
         [
           4294963200,
@@ -6896,6 +7622,36 @@
         ]
       ],
       "holes": [],
+      "queries": [
+        {
+          "address": 0,
+          "physical": 4194304,
+          "translate_error": null,
+          "read_hex": "00",
+          "read_error": null
+        },
+        {
+          "address": 291,
+          "physical": 4194595,
+          "translate_error": null,
+          "read_hex": "00",
+          "read_error": null
+        },
+        {
+          "address": 4096,
+          "physical": 4198400,
+          "translate_error": null,
+          "read_hex": "00",
+          "read_error": null
+        },
+        {
+          "address": 8192,
+          "physical": 4202496,
+          "translate_error": null,
+          "read_hex": "00",
+          "read_error": null
+        }
+      ],
       "expected": [
         [
           0,
@@ -6937,6 +7693,36 @@
         ]
       ],
       "holes": [],
+      "queries": [
+        {
+          "address": 0,
+          "physical": 4194304,
+          "translate_error": null,
+          "read_hex": "00",
+          "read_error": null
+        },
+        {
+          "address": 291,
+          "physical": 4194595,
+          "translate_error": null,
+          "read_hex": "00",
+          "read_error": null
+        },
+        {
+          "address": 4096,
+          "physical": 4198400,
+          "translate_error": null,
+          "read_hex": "00",
+          "read_error": null
+        },
+        {
+          "address": 8192,
+          "physical": 4202496,
+          "translate_error": null,
+          "read_hex": "00",
+          "read_error": null
+        }
+      ],
       "expected": [
         [
           0,
@@ -6983,6 +7769,36 @@
           4202496
         ]
       ],
+      "queries": [
+        {
+          "address": 0,
+          "physical": 4194304,
+          "translate_error": null,
+          "read_hex": "00",
+          "read_error": null
+        },
+        {
+          "address": 291,
+          "physical": 4194595,
+          "translate_error": null,
+          "read_hex": "00",
+          "read_error": null
+        },
+        {
+          "address": 4096,
+          "physical": 4198400,
+          "translate_error": null,
+          "read_hex": null,
+          "read_error": "InvalidAddressException"
+        },
+        {
+          "address": 8192,
+          "physical": 4202496,
+          "translate_error": null,
+          "read_hex": "00",
+          "read_error": null
+        }
+      ],
       "expected": []
     },
     {
@@ -7018,6 +7834,36 @@
         ]
       ],
       "holes": [],
+      "queries": [
+        {
+          "address": 0,
+          "physical": 32768,
+          "translate_error": null,
+          "read_hex": "00",
+          "read_error": null
+        },
+        {
+          "address": 291,
+          "physical": 33059,
+          "translate_error": null,
+          "read_hex": "00",
+          "read_error": null
+        },
+        {
+          "address": 4096,
+          "physical": 36864,
+          "translate_error": null,
+          "read_hex": "00",
+          "read_error": null
+        },
+        {
+          "address": 8192,
+          "physical": 65536,
+          "translate_error": null,
+          "read_hex": "00",
+          "read_error": null
+        }
+      ],
       "expected": [
         [
           0,
@@ -7065,6 +7911,36 @@
           8192
         ]
       ],
+      "queries": [
+        {
+          "address": 0,
+          "physical": null,
+          "translate_error": "PagedInvalidAddressException",
+          "read_hex": null,
+          "read_error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 291,
+          "physical": null,
+          "translate_error": "PagedInvalidAddressException",
+          "read_hex": null,
+          "read_error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 4096,
+          "physical": null,
+          "translate_error": "PagedInvalidAddressException",
+          "read_hex": null,
+          "read_error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 8192,
+          "physical": null,
+          "translate_error": "PagedInvalidAddressException",
+          "read_hex": null,
+          "read_error": "PagedInvalidAddressException"
+        }
+      ],
       "expected": []
     },
     {
@@ -7100,6 +7976,36 @@
         ]
       ],
       "holes": [],
+      "queries": [
+        {
+          "address": 0,
+          "physical": 32768,
+          "translate_error": null,
+          "read_hex": "00",
+          "read_error": null
+        },
+        {
+          "address": 291,
+          "physical": 33059,
+          "translate_error": null,
+          "read_hex": "00",
+          "read_error": null
+        },
+        {
+          "address": 4096,
+          "physical": 36864,
+          "translate_error": null,
+          "read_hex": "00",
+          "read_error": null
+        },
+        {
+          "address": 8192,
+          "physical": 65536,
+          "translate_error": null,
+          "read_hex": "00",
+          "read_error": null
+        }
+      ],
       "expected": [
         [
           0,
@@ -7158,6 +8064,36 @@
         ]
       ],
       "holes": [],
+      "queries": [
+        {
+          "address": 0,
+          "physical": 32768,
+          "translate_error": null,
+          "read_hex": "00",
+          "read_error": null
+        },
+        {
+          "address": 291,
+          "physical": 33059,
+          "translate_error": null,
+          "read_hex": "00",
+          "read_error": null
+        },
+        {
+          "address": 4096,
+          "physical": 36864,
+          "translate_error": null,
+          "read_hex": "00",
+          "read_error": null
+        },
+        {
+          "address": 8192,
+          "physical": 65536,
+          "translate_error": null,
+          "read_hex": "00",
+          "read_error": null
+        }
+      ],
       "expected": [
         [
           0,
@@ -7234,6 +8170,36 @@
         ]
       ],
       "holes": [],
+      "queries": [
+        {
+          "address": 0,
+          "physical": 32768,
+          "translate_error": null,
+          "read_hex": "00",
+          "read_error": null
+        },
+        {
+          "address": 291,
+          "physical": 33059,
+          "translate_error": null,
+          "read_hex": "00",
+          "read_error": null
+        },
+        {
+          "address": 4096,
+          "physical": 36864,
+          "translate_error": null,
+          "read_hex": "00",
+          "read_error": null
+        },
+        {
+          "address": 8192,
+          "physical": 65536,
+          "translate_error": null,
+          "read_hex": "00",
+          "read_error": null
+        }
+      ],
       "expected": [
         [
           0,
@@ -7284,6 +8250,36 @@
           36864,
           40960
         ]
+      ],
+      "queries": [
+        {
+          "address": 0,
+          "physical": 32768,
+          "translate_error": null,
+          "read_hex": "00",
+          "read_error": null
+        },
+        {
+          "address": 291,
+          "physical": 33059,
+          "translate_error": null,
+          "read_hex": "00",
+          "read_error": null
+        },
+        {
+          "address": 4096,
+          "physical": 36864,
+          "translate_error": null,
+          "read_hex": null,
+          "read_error": "InvalidAddressException"
+        },
+        {
+          "address": 8192,
+          "physical": 65536,
+          "translate_error": null,
+          "read_hex": "00",
+          "read_error": null
+        }
       ],
       "expected": [
         [
@@ -7336,6 +8332,36 @@
           69632
         ]
       ],
+      "queries": [
+        {
+          "address": 0,
+          "physical": 32768,
+          "translate_error": null,
+          "read_hex": "00",
+          "read_error": null
+        },
+        {
+          "address": 291,
+          "physical": 33059,
+          "translate_error": null,
+          "read_hex": "00",
+          "read_error": null
+        },
+        {
+          "address": 4096,
+          "physical": 36864,
+          "translate_error": null,
+          "read_hex": "00",
+          "read_error": null
+        },
+        {
+          "address": 8192,
+          "physical": 65536,
+          "translate_error": null,
+          "read_hex": "00",
+          "read_error": null
+        }
+      ],
       "expected": [
         [
           0,
@@ -7381,6 +8407,106 @@
           16384,
           20480
         ]
+      ],
+      "queries": [
+        {
+          "address": 0,
+          "physical": null,
+          "translate_error": "PagedInvalidAddressException",
+          "read_hex": null,
+          "read_error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 291,
+          "physical": null,
+          "translate_error": "PagedInvalidAddressException",
+          "read_hex": null,
+          "read_error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 4096,
+          "physical": null,
+          "translate_error": "PagedInvalidAddressException",
+          "read_hex": null,
+          "read_error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 8192,
+          "physical": null,
+          "translate_error": "PagedInvalidAddressException",
+          "read_hex": null,
+          "read_error": "PagedInvalidAddressException"
+        }
+      ],
+      "expected": []
+    },
+    {
+      "id": "x64-one-readable-entry",
+      "arch": "x64",
+      "width": 8,
+      "length": 131072,
+      "root": 4096,
+      "writes": [
+        [
+          4096,
+          8195
+        ],
+        [
+          8192,
+          12291
+        ],
+        [
+          12288,
+          16387
+        ],
+        [
+          16384,
+          32771
+        ],
+        [
+          16392,
+          36867
+        ],
+        [
+          16400,
+          65539
+        ]
+      ],
+      "holes": [
+        [
+          16392,
+          20480
+        ]
+      ],
+      "queries": [
+        {
+          "address": 0,
+          "physical": null,
+          "translate_error": "PagedInvalidAddressException",
+          "read_hex": null,
+          "read_error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 291,
+          "physical": null,
+          "translate_error": "PagedInvalidAddressException",
+          "read_hex": null,
+          "read_error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 4096,
+          "physical": null,
+          "translate_error": "PagedInvalidAddressException",
+          "read_hex": null,
+          "read_error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 8192,
+          "physical": null,
+          "translate_error": "PagedInvalidAddressException",
+          "read_hex": null,
+          "read_error": "PagedInvalidAddressException"
+        }
       ],
       "expected": []
     },
@@ -9465,6 +10591,36 @@
         ]
       ],
       "holes": [],
+      "queries": [
+        {
+          "address": 0,
+          "physical": null,
+          "translate_error": "PagedInvalidAddressException",
+          "read_hex": null,
+          "read_error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 291,
+          "physical": null,
+          "translate_error": "PagedInvalidAddressException",
+          "read_hex": null,
+          "read_error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 4096,
+          "physical": null,
+          "translate_error": "PagedInvalidAddressException",
+          "read_hex": null,
+          "read_error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 8192,
+          "physical": null,
+          "translate_error": "PagedInvalidAddressException",
+          "read_hex": null,
+          "read_error": "PagedInvalidAddressException"
+        }
+      ],
       "expected": []
     },
     {
@@ -9504,6 +10660,36 @@
         ]
       ],
       "holes": [],
+      "queries": [
+        {
+          "address": 0,
+          "physical": 32768,
+          "translate_error": null,
+          "read_hex": "00",
+          "read_error": null
+        },
+        {
+          "address": 291,
+          "physical": 33059,
+          "translate_error": null,
+          "read_hex": "00",
+          "read_error": null
+        },
+        {
+          "address": 4096,
+          "physical": 36864,
+          "translate_error": null,
+          "read_hex": "00",
+          "read_error": null
+        },
+        {
+          "address": 8192,
+          "physical": 65536,
+          "translate_error": null,
+          "read_hex": "00",
+          "read_error": null
+        }
+      ],
       "expected": [
         [
           0,
@@ -9554,6 +10740,36 @@
         ]
       ],
       "holes": [],
+      "queries": [
+        {
+          "address": 0,
+          "physical": null,
+          "translate_error": "PagedInvalidAddressException",
+          "read_hex": null,
+          "read_error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 291,
+          "physical": null,
+          "translate_error": "PagedInvalidAddressException",
+          "read_hex": null,
+          "read_error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 4096,
+          "physical": 36864,
+          "translate_error": null,
+          "read_hex": "00",
+          "read_error": null
+        },
+        {
+          "address": 8192,
+          "physical": 65536,
+          "translate_error": null,
+          "read_hex": "00",
+          "read_error": null
+        }
+      ],
       "expected": [
         [
           4096,
@@ -9592,6 +10808,50 @@
         ]
       ],
       "holes": [],
+      "queries": [
+        {
+          "address": 0,
+          "physical": null,
+          "translate_error": "PagedInvalidAddressException",
+          "read_hex": null,
+          "read_error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 291,
+          "physical": null,
+          "translate_error": "PagedInvalidAddressException",
+          "read_hex": null,
+          "read_error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 4096,
+          "physical": null,
+          "translate_error": "PagedInvalidAddressException",
+          "read_hex": null,
+          "read_error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 8192,
+          "physical": null,
+          "translate_error": "PagedInvalidAddressException",
+          "read_hex": null,
+          "read_error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 281474976706560,
+          "physical": 32768,
+          "translate_error": null,
+          "read_hex": "00",
+          "read_error": null
+        },
+        {
+          "address": 281474976710655,
+          "physical": 36863,
+          "translate_error": null,
+          "read_hex": "00",
+          "read_error": null
+        }
+      ],
       "expected": [
         [
           281474976706560,
@@ -9637,6 +10897,36 @@
         ]
       ],
       "holes": [],
+      "queries": [
+        {
+          "address": 0,
+          "physical": 4194304,
+          "translate_error": null,
+          "read_hex": "00",
+          "read_error": null
+        },
+        {
+          "address": 291,
+          "physical": 4194595,
+          "translate_error": null,
+          "read_hex": "00",
+          "read_error": null
+        },
+        {
+          "address": 4096,
+          "physical": 4198400,
+          "translate_error": null,
+          "read_hex": "00",
+          "read_error": null
+        },
+        {
+          "address": 8192,
+          "physical": 4202496,
+          "translate_error": null,
+          "read_hex": "00",
+          "read_error": null
+        }
+      ],
       "expected": [
         [
           0,
@@ -9682,6 +10972,36 @@
         ]
       ],
       "holes": [],
+      "queries": [
+        {
+          "address": 0,
+          "physical": 4194304,
+          "translate_error": null,
+          "read_hex": "00",
+          "read_error": null
+        },
+        {
+          "address": 291,
+          "physical": 4194595,
+          "translate_error": null,
+          "read_hex": "00",
+          "read_error": null
+        },
+        {
+          "address": 4096,
+          "physical": 4198400,
+          "translate_error": null,
+          "read_hex": "00",
+          "read_error": null
+        },
+        {
+          "address": 8192,
+          "physical": 4202496,
+          "translate_error": null,
+          "read_hex": "00",
+          "read_error": null
+        }
+      ],
       "expected": [
         [
           0,
@@ -9732,6 +11052,36 @@
           4202496
         ]
       ],
+      "queries": [
+        {
+          "address": 0,
+          "physical": 4194304,
+          "translate_error": null,
+          "read_hex": "00",
+          "read_error": null
+        },
+        {
+          "address": 291,
+          "physical": 4194595,
+          "translate_error": null,
+          "read_hex": "00",
+          "read_error": null
+        },
+        {
+          "address": 4096,
+          "physical": 4198400,
+          "translate_error": null,
+          "read_hex": null,
+          "read_error": "InvalidAddressException"
+        },
+        {
+          "address": 8192,
+          "physical": 4202496,
+          "translate_error": null,
+          "read_hex": "00",
+          "read_error": null
+        }
+      ],
       "expected": []
     },
     {
@@ -9771,6 +11121,36 @@
         ]
       ],
       "holes": [],
+      "queries": [
+        {
+          "address": 0,
+          "physical": 32768,
+          "translate_error": null,
+          "read_hex": "00",
+          "read_error": null
+        },
+        {
+          "address": 291,
+          "physical": 33059,
+          "translate_error": null,
+          "read_hex": "00",
+          "read_error": null
+        },
+        {
+          "address": 4096,
+          "physical": 36864,
+          "translate_error": null,
+          "read_hex": "00",
+          "read_error": null
+        },
+        {
+          "address": 8192,
+          "physical": 65536,
+          "translate_error": null,
+          "read_hex": "00",
+          "read_error": null
+        }
+      ],
       "expected": [
         [
           0,
@@ -9821,6 +11201,36 @@
         ]
       ],
       "holes": [],
+      "queries": [
+        {
+          "address": 0,
+          "physical": 32768,
+          "translate_error": null,
+          "read_hex": "00",
+          "read_error": null
+        },
+        {
+          "address": 291,
+          "physical": 33059,
+          "translate_error": null,
+          "read_hex": "00",
+          "read_error": null
+        },
+        {
+          "address": 4096,
+          "physical": 36864,
+          "translate_error": null,
+          "read_hex": "00",
+          "read_error": null
+        },
+        {
+          "address": 8192,
+          "physical": 65536,
+          "translate_error": null,
+          "read_hex": "00",
+          "read_error": null
+        }
+      ],
       "expected": [
         [
           0,
@@ -9871,6 +11281,36 @@
         ]
       ],
       "holes": [],
+      "queries": [
+        {
+          "address": 0,
+          "physical": 32768,
+          "translate_error": null,
+          "read_hex": "00",
+          "read_error": null
+        },
+        {
+          "address": 291,
+          "physical": 33059,
+          "translate_error": null,
+          "read_hex": "00",
+          "read_error": null
+        },
+        {
+          "address": 4096,
+          "physical": 36864,
+          "translate_error": null,
+          "read_hex": "00",
+          "read_error": null
+        },
+        {
+          "address": 8192,
+          "physical": 65536,
+          "translate_error": null,
+          "read_hex": "00",
+          "read_error": null
+        }
+      ],
       "expected": [
         [
           0,
@@ -9921,6 +11361,36 @@
         ]
       ],
       "holes": [],
+      "queries": [
+        {
+          "address": 0,
+          "physical": 32768,
+          "translate_error": null,
+          "read_hex": "00",
+          "read_error": null
+        },
+        {
+          "address": 291,
+          "physical": 33059,
+          "translate_error": null,
+          "read_hex": "00",
+          "read_error": null
+        },
+        {
+          "address": 4096,
+          "physical": 36864,
+          "translate_error": null,
+          "read_hex": "00",
+          "read_error": null
+        },
+        {
+          "address": 8192,
+          "physical": 65536,
+          "translate_error": null,
+          "read_hex": "00",
+          "read_error": null
+        }
+      ],
       "expected": [
         [
           0,
@@ -9971,6 +11441,36 @@
         ]
       ],
       "holes": [],
+      "queries": [
+        {
+          "address": 0,
+          "physical": 32768,
+          "translate_error": null,
+          "read_hex": "00",
+          "read_error": null
+        },
+        {
+          "address": 291,
+          "physical": 33059,
+          "translate_error": null,
+          "read_hex": "00",
+          "read_error": null
+        },
+        {
+          "address": 4096,
+          "physical": 36864,
+          "translate_error": null,
+          "read_hex": "00",
+          "read_error": null
+        },
+        {
+          "address": 8192,
+          "physical": 65536,
+          "translate_error": null,
+          "read_hex": "00",
+          "read_error": null
+        }
+      ],
       "expected": [
         [
           0,

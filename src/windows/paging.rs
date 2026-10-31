@@ -336,7 +336,7 @@ impl Memory<'_> {
                 )?;
                 u64::from_le_bytes(b)
             } else {
-                geometry.entry(self.image, table, index)?
+                self.captured_table_entry(geometry, table, index)?
             };
             if entry & 1 != 0 || (entry & (1 << 11) != 0 && entry & (1 << 10) == 0) {
                 ensure!(

@@ -101,6 +101,8 @@ pub struct Memory<'a> {
     paging: std::sync::OnceLock<Paging>,
     /// Virtual 4 KiB page → physical 4 KiB page. The image is read-only.
     pages: std::sync::Mutex<crate::resources::Lru<u64, u64>>,
+    /// Immutable captured Intel tables: cache both valid and rejected pages.
+    tables: std::sync::Mutex<crate::resources::Lru<u64, bool>>,
 }
 impl<'a> Memory<'a> {
     pub(crate) fn new(
@@ -115,6 +117,9 @@ impl<'a> Memory<'a> {
             isf,
             sources,
             paging: std::sync::OnceLock::new(),
+            tables: std::sync::Mutex::new(crate::resources::Lru::new(
+                image.limits.page_cache_entries.min(1025),
+            )),
             pages: std::sync::Mutex::new(crate::resources::Lru::new(
                 image.limits.page_cache_entries,
             )),
@@ -161,13 +166,41 @@ impl<'a> Memory<'a> {
             .insert(page, pa & !4095, 1);
         Ok(pa)
     }
+    fn captured_table_entry(&self, geometry: Paging, table: u64, index: usize) -> Result<u64> {
+        if geometry.arch == Architecture::Arm64 {
+            return geometry.entry(self.image, table, index);
+        }
+        let cached = self
+            .tables
+            .lock()
+            .unwrap_or_else(|error| error.into_inner())
+            .get(&table)
+            .copied();
+        let valid = match cached {
+            Some(valid) => valid,
+            None => {
+                let mut bytes = [0; 4096];
+                let valid = self.image.read(table, &mut bytes).is_ok()
+                    && !bytes
+                        .chunks_exact(geometry.width())
+                        .all(|entry| entry == &bytes[..geometry.width()]);
+                self.tables
+                    .lock()
+                    .unwrap_or_else(|error| error.into_inner())
+                    .insert(table, valid, 1);
+                valid
+            }
+        };
+        ensure!(valid, "Windows 页表不可读或全页重复 @ {table:#x}");
+        geometry.entry(self.image, table, index)
+    }
     fn translate_walk(&self, va: u64) -> Result<u64> {
         let geometry = self.paging()?;
         ensure!(geometry.canonical(va), "Windows 非 canonical 地址");
         let mut table = self.root & geometry.root_mask();
         for (level, &shift) in geometry.shifts().iter().enumerate() {
             let index = ((va >> shift) & (geometry.entries(level) as u64 - 1)) as usize;
-            let mut entry = geometry.entry(self.image, table, index)?;
+            let mut entry = self.captured_table_entry(geometry, table, index)?;
             if entry & 1 == 0 {
                 if entry & (1 << 11) != 0 && entry & (1 << 10) == 0 {
                     entry = self.transition_frame(entry, geometry)?
@@ -208,7 +241,7 @@ impl<'a> Memory<'a> {
         let mut table = self.root & geometry.root_mask();
         for (level, &shift) in geometry.shifts().iter().enumerate() {
             let index = ((va >> shift) & (geometry.entries(level) as u64 - 1)) as usize;
-            let mut entry = geometry.entry(self.image, table, index).ok()?;
+            let mut entry = self.captured_table_entry(geometry, table, index).ok()?;
             if entry == 0 {
                 return Some((va | ((1u64 << shift) - 1)).checked_add(1)?.min(limit));
             }
@@ -237,19 +270,25 @@ impl<'a> Memory<'a> {
     /// Read directly translated capture pages. Matches the reference Intel layer:
     /// valid/transition PTEs are allowed; prototype/pagefile reconstruction is separate.
     pub(super) fn read_captured(&self, mut va: u64, mut out: &mut [u8]) -> Result<()> {
-        va.checked_add(out.len() as u64)
-            .context("Windows 读取越界")?;
+        if !out.is_empty() {
+            va.checked_add(out.len() as u64 - 1)
+                .context("Windows 读取越界")?;
+        }
         while !out.is_empty() {
             let n = out.len().min(4096 - (va & 4095) as usize);
             self.image.read(self.translate(va)?, &mut out[..n])?;
-            va += n as u64;
             out = &mut out[n..];
+            if !out.is_empty() {
+                va = add(va, n as u64)?;
+            }
         }
         Ok(())
     }
     pub fn read(&self, mut va: u64, mut out: &mut [u8]) -> Result<()> {
-        va.checked_add(out.len() as u64)
-            .context("Windows 读取越界")?;
+        if !out.is_empty() {
+            va.checked_add(out.len() as u64 - 1)
+                .context("Windows 读取越界")?;
+        }
         while !out.is_empty() {
             let _depth = paging::ReadDepth::enter(self.image, self.root, va)?;
             let n = out.len().min(4096 - (va & 4095) as usize);
@@ -262,8 +301,10 @@ impl<'a> Memory<'a> {
                         .with_context(|| format!("{original:#}; {proto:#}"))?,
                 },
             }
-            va += n as u64;
             out = &mut out[n..];
+            if !out.is_empty() {
+                va = add(va, n as u64)?;
+            }
         }
         Ok(())
     }
@@ -339,7 +380,7 @@ impl<'a> Memory<'a> {
         let mut table = self.root & geometry.root_mask();
         for (level, &shift) in geometry.shifts().iter().enumerate() {
             let index = ((va >> shift) & (geometry.entries(level) as u64 - 1)) as usize;
-            let entry = geometry.entry(self.image, table, index)?;
+            let entry = self.captured_table_entry(geometry, table, index)?;
             if entry & 1 != 0 {
                 table = entry & geometry.mask();
                 continue;
