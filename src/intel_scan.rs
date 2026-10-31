@@ -6,6 +6,22 @@ use std::sync::Arc;
 #[derive(Clone, Copy)]
 pub(crate) enum Kind {
     Linux64,
+    #[cfg_attr(
+        not(test),
+        expect(
+            dead_code,
+            reason = "Linux32 discovery is not yet connected; pinned layer vectors validate this foundation"
+        )
+    )]
+    Linux32,
+    #[cfg_attr(
+        not(test),
+        expect(
+            dead_code,
+            reason = "Linux PAE discovery is not yet connected; pinned layer vectors validate this foundation"
+        )
+    )]
+    LinuxPae,
     Windows64,
     Windows32,
     WindowsPae,
@@ -13,13 +29,13 @@ pub(crate) enum Kind {
 impl Kind {
     fn shifts(self) -> &'static [u32] {
         match self {
-            Self::Windows32 => &[22, 12],
-            Self::WindowsPae => &[30, 21, 12],
+            Self::Windows32 | Self::Linux32 => &[22, 12],
+            Self::WindowsPae | Self::LinuxPae => &[30, 21, 12],
             _ => &[39, 30, 21, 12],
         }
     }
     fn width(self) -> usize {
-        if matches!(self, Self::Windows32) {
+        if matches!(self, Self::Windows32 | Self::Linux32) {
             4
         } else {
             8
@@ -27,26 +43,32 @@ impl Kind {
     }
     fn bits(self) -> u32 {
         match self {
-            Self::Windows32 => 32,
-            Self::WindowsPae => 40,
+            Self::Windows32 | Self::Linux32 => 32,
+            Self::WindowsPae | Self::LinuxPae => 40,
             Self::Windows64 => 45,
             Self::Linux64 => 52,
         }
     }
     fn va_bits(self) -> u32 {
-        if matches!(self, Self::Windows32 | Self::WindowsPae) {
+        if matches!(
+            self,
+            Self::Windows32 | Self::Linux32 | Self::WindowsPae | Self::LinuxPae
+        ) {
             32
         } else {
             48
         }
     }
     fn valid(self, e: u64) -> bool {
-        e & 1 != 0 || (!matches!(self, Self::Linux64) && e & (1 << 11) != 0 && e & (1 << 10) == 0)
+        e & 1 != 0
+            || (!matches!(self, Self::Linux64 | Self::Linux32 | Self::LinuxPae)
+                && e & (1 << 11) != 0
+                && e & (1 << 10) == 0)
     }
     fn large(self, shift: u32) -> bool {
         match self {
-            Self::Windows32 => shift == 22,
-            Self::WindowsPae => shift == 21,
+            Self::Windows32 | Self::Linux32 => shift == 22,
+            Self::WindowsPae | Self::LinuxPae => shift == 21,
             _ => matches!(shift, 21 | 30),
         }
     }
@@ -106,10 +128,10 @@ impl<'a> Mapper<'a> {
                     entry,
                 });
             }
-            let size = if matches!(self.kind, Kind::WindowsPae) && level == 0 {
+            let size = if matches!(self.kind, Kind::WindowsPae | Kind::LinuxPae) && level == 0 {
                 2
             } else {
-                if matches!(self.kind, Kind::Windows32) {
+                if matches!(self.kind, Kind::Windows32 | Kind::Linux32) {
                     10
                 } else {
                     9
@@ -173,14 +195,14 @@ impl<'a> Mapper<'a> {
             let (backing, offset, span) = match self.translate(at) {
                 Ok((offset, span)) => (0, offset, span),
                 Err(fault) => {
-                    let bit = if matches!(self.kind, Kind::Windows32) {
+                    let bit = if matches!(self.kind, Kind::Windows32 | Kind::Linux32) {
                         12
                     } else {
                         32
                     };
                     let page = fault.entry >> bit;
                     ensure!(
-                        !matches!(self.kind, Kind::Linux64)
+                        !matches!(self.kind, Kind::Linux64 | Kind::Linux32 | Kind::LinuxPae)
                             && fault.entry & ((1 << 11) | (1 << 10) | 1) == 0
                             && fault.entry & 128 != 0
                             && page != 0
@@ -227,13 +249,13 @@ impl<'a> Mapper<'a> {
             let candidate = match translated {
                 Ok((offset, span)) => Ok((0, offset, span)),
                 Err(fault) => {
-                    let bit = if matches!(self.kind, Kind::Windows32) {
+                    let bit = if matches!(self.kind, Kind::Windows32 | Kind::Linux32) {
                         12
                     } else {
                         32
                     };
                     let page = fault.entry >> bit;
-                    if !matches!(self.kind, Kind::Linux64)
+                    if !matches!(self.kind, Kind::Linux64 | Kind::Linux32 | Kind::LinuxPae)
                         && fault.entry & ((1 << 11) | (1 << 10) | 1) == 0
                         && fault.entry & 128 != 0
                         && page != 0
@@ -312,8 +334,19 @@ mod tests {
             "../tests/reference/parity/fixtures/intel-scan.json"
         ))
         .unwrap();
-        for case in vectors["cases"].as_array().unwrap() {
+        let linux32: Value = serde_json::from_str(include_str!(
+            "../tests/reference/parity/fixtures/linux32-layers.json"
+        ))
+        .unwrap();
+        for case in vectors["cases"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .chain(linux32["cases"].as_array().unwrap())
+        {
             let kind = match case["arch"].as_str().unwrap() {
+                "linux32" => Kind::Linux32,
+                "linux-pae" => Kind::LinuxPae,
                 "linux" => Kind::Linux64,
                 "x64" => Kind::Windows64,
                 "pae" => Kind::WindowsPae,

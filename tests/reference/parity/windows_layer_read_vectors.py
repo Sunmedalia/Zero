@@ -10,19 +10,21 @@ import sys
 PIN = '881e970121c16f0932fb9d16fbd5fb258cbcbf75'
 
 
-def generate(checkout, extended=False):
+def generate(checkout, extended=False, linux32=False):
     assert subprocess.check_output(['git', '-C', str(checkout), 'rev-parse', 'HEAD'], text=True).strip() == PIN
     assert not subprocess.check_output(['git', '-C', str(checkout), 'status', '--porcelain', '--untracked-files=no'], text=True).strip()
     sys.path.insert(0, str(checkout))
     from volatility3.framework import contexts, exceptions
     from volatility3.framework.layers.physical import BufferDataLayer
-    from volatility3.framework.layers.intel import WindowsIntel, WindowsIntelPAE, WindowsIntel32e, Intel32e
+    from volatility3.framework.layers.intel import WindowsIntel, WindowsIntelPAE, WindowsIntel32e, Intel32e, Intel, IntelPAE
 
     cases = []
     architectures=[('x86', WindowsIntel, 4, [22, 12]),
                    ('pae', WindowsIntelPAE, 8, [30, 21, 12]),
                    ('x64', WindowsIntel32e, 8, [39, 30, 21, 12])]
     if extended: architectures.append(('linux', Intel32e, 8, [39, 30, 21, 12]))
+    if linux32:
+        architectures = [('linux32', Intel, 4, [22, 12]), ('linux-pae', IntelPAE, 8, [30, 21, 12])]
     for arch, cls, width, shifts in architectures:
         for kind in ['resident', 'transition', 'prototype', 'prototype-transition',
                      'swap-zero', 'swap-three', 'swap-no-attachment', 'swap-wrong-index',
@@ -37,7 +39,7 @@ def generate(checkout, extended=False):
                 put(0x1000 + i * 0x1000, 0x2003 + i * 0x1000)
             leaf = 0x1000 * len(shifts)
             put(leaf, 0x8003); put(leaf + width, 0xa003); put(leaf + 2 * width, 0xb800)
-            bit_offset = 12 if arch == 'x86' else 32
+            bit_offset = 12 if width == 4 else 32
             attached = 0
             pagefile_length = 0x10000
             holes = []

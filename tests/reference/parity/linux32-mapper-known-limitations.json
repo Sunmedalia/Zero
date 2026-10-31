@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+  "scope": "Standalone Linux Intel32 and IntelPAE mapping/read foundation",
+  "fixture": "fixtures/linux32-layers.json",
+  "generator": "windows_layer_read_vectors.generate(checkout, extended=True, linux32=True)",
+  "verification": {"actual_reference_layer_cases": 49, "read_queries": 490, "mapping_queries": 392, "all_passed": true, "make_check": "716 Rust tests and 45 reference harness tests passed"},
+  "implementation": "Separate Linux32/LinuxPae kinds share hardware paging geometry while rejecting Windows transition and software swap entries.",
+  "limitations": [
+    "Production Linux32 discovery and VirtualMemory routing are not connected; Linux four-byte-pointer ISFs remain rejected.",
+    "No full Linux32 plugin, process traversal or ELF32 reconstruction claim.",
+    "The two foundational kinds carry precise non-test dead-code expectations until discovery connects them.",
+    "Synthetic reference layers do not replace real 32-bit image and exact-symbol acceptance."
+  ]
+}
