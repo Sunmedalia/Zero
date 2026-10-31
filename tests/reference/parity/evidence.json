@@ -31543,15 +31543,23 @@
     }
   },
   {
-    "reference_plugin": "windows.malware.direct_system_calls.DirectSystemCalls",
-    "zero_plugin": "windows.malware.direct_system_calls.DirectSystemCalls",
-    "image_sha256": "d58f62e92b8c4ef913ac09b2c36a10482034c10b88d0c154dead3aaaa49cf875",
-    "mapping_sha256": "01028c6ce89359d9835d7791e2ee670ae7bf732d2a6ccfbba45de7f4abcbb21f",
-    "native_output_sha256": "11be1facec44c51d785bf0b42f68d5b6ded034c774a746a65bafe61d368cb731",
+    "sample": "windows-10-15063",
+    "sample_source": "https://www.osforensics.com/downloads/WinDump.zip",
+    "input_files": [],
+    "case_id": "windows-10-15063/direct-system-calls-default",
     "zero_args": [],
     "reference_args": [],
-    "case_id": "windows-10-15063/direct-system-calls-default",
-    "sample_source": "https://www.osforensics.com/downloads/WinDump.zip",
+    "image_sha256": "d58f62e92b8c4ef913ac09b2c36a10482034c10b88d0c154dead3aaaa49cf875",
+    "reference_plugin": "windows.malware.direct_system_calls.DirectSystemCalls",
+    "zero_plugin": "windows.malware.direct_system_calls.DirectSystemCalls",
+    "passed": true,
+    "mapping_sha256": "01028c6ce89359d9835d7791e2ee670ae7bf732d2a6ccfbba45de7f4abcbb21f",
+    "native_symbol_source": {
+      "path": "/Volumes/w/code/zero/.zero/rust/symbols/isf/windows/ntkrnlmp.pdb-0C9CC659210046EC84231597DADFDB3B1.json",
+      "sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4",
+      "configured_path": "/Volumes/w/code/zero/.zero/rust/symbols/isf/windows/ntkrnlmp.pdb-0C9CC659210046EC84231597DADFDB3B1.json",
+      "configured_sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4"
+    },
     "comparison": {
       "schema_version": 1,
       "mapping_version": 1,
@@ -32188,47 +32196,31 @@
       ],
       "passed": true
     },
-    "passed": true,
+    "native_output_sha256": "236d4b79177d79a229ae27dfc8c7f745bc773c07b71f9edc1e568fb5e9870d9c",
     "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
     "reference_output_sha256": "3c170558970cce6d7018105d2cc587b452313303752451806b469cfb39951af9",
     "symbol_sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4",
-    "zero_executable_sha256": "ca1395c19f8dd1760c6a1827c090bd9b8857abc863575f376ddcfbab96306b78",
-    "engine_version": "0.2.1-native-100",
-    "record_order": {
-      "passed": true,
-      "first_difference": null,
-      "zero_sha256": "581c3343ec1a1d863f4b5fc4eca4a2f798fe717644c8796a30d50f24b2fcc60f",
-      "reference_sha256": "581c3343ec1a1d863f4b5fc4eca4a2f798fe717644c8796a30d50f24b2fcc60f",
-      "scope": "All mapped fields in emitted sequence after declared record selection; duplicate occurrences retained.",
-      "case_id": "windows-10-15063/direct-system-calls-default",
-      "mapping_sha256": "01028c6ce89359d9835d7791e2ee670ae7bf732d2a6ccfbba45de7f4abcbb21f",
-      "native_output_sha256": "11be1facec44c51d785bf0b42f68d5b6ded034c774a746a65bafe61d368cb731",
-      "reference_output_sha256": "3c170558970cce6d7018105d2cc587b452313303752451806b469cfb39951af9"
-    },
+    "zero_executable_sha256": "8e904349328fc6800a9cc513fd74989aa76e1bc4b8775edbdc5b464728017af8",
+    "engine_version": "0.2.1-native-101"
+  },
+  {
+    "sample": "windows-10-15063",
+    "sample_source": "https://www.osforensics.com/downloads/WinDump.zip",
+    "input_files": [],
+    "case_id": "windows-10-15063/indirect-system-calls-default",
+    "zero_args": [],
+    "reference_args": [],
+    "image_sha256": "d58f62e92b8c4ef913ac09b2c36a10482034c10b88d0c154dead3aaaa49cf875",
+    "reference_plugin": "windows.malware.indirect_system_calls.IndirectSystemCalls",
+    "zero_plugin": "windows.malware.indirect_system_calls.IndirectSystemCalls",
+    "passed": false,
+    "mapping_sha256": "bf06139c75603d189adb9dd010613c95138f2edc82e6d548199247f1a67bea09",
     "native_symbol_source": {
       "path": "/Volumes/w/code/zero/.zero/rust/symbols/isf/windows/ntkrnlmp.pdb-0C9CC659210046EC84231597DADFDB3B1.json",
       "sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4",
       "configured_path": "/Volumes/w/code/zero/.zero/rust/symbols/isf/windows/ntkrnlmp.pdb-0C9CC659210046EC84231597DADFDB3B1.json",
       "configured_sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4"
     },
-    "reference_execution": {
-      "summary_path": "/Volumes/w/code/zero/target/reference/results/system-calls-native100/summary.json",
-      "summary_sha256": "f69d47ccbbca6f18bfc9bf7b5b251e36e36b48ce08a2d5658f9db5a3c32f8032",
-      "case_id": "windows-10-15063/direct-system-calls-default",
-      "reference_output_sha256": "3c170558970cce6d7018105d2cc587b452313303752451806b469cfb39951af9",
-      "scope": "Original pinned Vol execution is reused after validating input, symbol and output hashes, unchanged reference checkout, arguments and mapping. Native command is rerun on the final executable."
-    }
-  },
-  {
-    "reference_plugin": "windows.malware.indirect_system_calls.IndirectSystemCalls",
-    "zero_plugin": "windows.malware.indirect_system_calls.IndirectSystemCalls",
-    "image_sha256": "d58f62e92b8c4ef913ac09b2c36a10482034c10b88d0c154dead3aaaa49cf875",
-    "mapping_sha256": "bf06139c75603d189adb9dd010613c95138f2edc82e6d548199247f1a67bea09",
-    "native_output_sha256": "ad512397da1dd39081ce70e2ff5ea3159d84ebab317cabcb94e3db15bb4401f4",
-    "zero_args": [],
-    "reference_args": [],
-    "case_id": "windows-10-15063/indirect-system-calls-default",
-    "sample_source": "https://www.osforensics.com/downloads/WinDump.zip",
     "comparison": {
       "schema_version": 1,
       "mapping_version": 1,
@@ -32863,48 +32855,32 @@
       ],
       "passed": true
     },
-    "passed": false,
+    "native_output_sha256": "9c697912567c53284d55bc2305e5bcf279c8a51574515150bf598c8c29d9a889",
     "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
     "reference_output_sha256": "a3cbe01dad52836a7ac8efc91954cf64867f4dee8a6f046c4bb0838d11f48589",
     "symbol_sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4",
-    "zero_executable_sha256": "ca1395c19f8dd1760c6a1827c090bd9b8857abc863575f376ddcfbab96306b78",
-    "engine_version": "0.2.1-native-100",
-    "record_order": {
-      "passed": true,
-      "first_difference": null,
-      "zero_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
-      "reference_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
-      "scope": "All mapped fields in emitted sequence after declared record selection; duplicate occurrences retained.",
-      "case_id": "windows-10-15063/indirect-system-calls-default",
-      "mapping_sha256": "bf06139c75603d189adb9dd010613c95138f2edc82e6d548199247f1a67bea09",
-      "native_output_sha256": "ad512397da1dd39081ce70e2ff5ea3159d84ebab317cabcb94e3db15bb4401f4",
-      "reference_output_sha256": "a3cbe01dad52836a7ac8efc91954cf64867f4dee8a6f046c4bb0838d11f48589"
-    },
-    "native_symbol_source": {
-      "path": "/Volumes/w/code/zero/.zero/rust/symbols/isf/windows/ntkrnlmp.pdb-0C9CC659210046EC84231597DADFDB3B1.json",
-      "sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4",
-      "configured_path": "/Volumes/w/code/zero/.zero/rust/symbols/isf/windows/ntkrnlmp.pdb-0C9CC659210046EC84231597DADFDB3B1.json",
-      "configured_sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4"
-    },
-    "reference_execution": {
-      "summary_path": "/Volumes/w/code/zero/target/reference/results/system-calls-native100/summary.json",
-      "summary_sha256": "f69d47ccbbca6f18bfc9bf7b5b251e36e36b48ce08a2d5658f9db5a3c32f8032",
-      "case_id": "windows-10-15063/indirect-system-calls-default",
-      "reference_output_sha256": "a3cbe01dad52836a7ac8efc91954cf64867f4dee8a6f046c4bb0838d11f48589",
-      "scope": "Original pinned Vol execution is reused after validating input, symbol and output hashes, unchanged reference checkout, arguments and mapping. Native command is rerun on the final executable."
-    },
+    "zero_executable_sha256": "8e904349328fc6800a9cc513fd74989aa76e1bc4b8775edbdc5b464728017af8",
+    "engine_version": "0.2.1-native-101",
     "empty_agreement": true
   },
   {
-    "reference_plugin": "windows.malware.direct_system_calls.DirectSystemCalls",
-    "zero_plugin": "windows.malware.direct_system_calls.DirectSystemCalls",
-    "image_sha256": "80366d7ec64a5529c95c2f523f4281a5f11efbad33ecb19f73525470c1407b23",
-    "mapping_sha256": "01028c6ce89359d9835d7791e2ee670ae7bf732d2a6ccfbba45de7f4abcbb21f",
-    "native_output_sha256": "56ca93e9dab5d87be7bc2e27aecc168c9035af5fe9bbc68f482dc120bc7f3e4c",
+    "sample": "windows-7-7601-x64",
+    "sample_source": "https://blog.bi0s.in/2019/09/24/Forensics/InCTFi19-NotchItUp/",
+    "input_files": [],
+    "case_id": "windows-7-7601-x64/direct-system-calls-default",
     "zero_args": [],
     "reference_args": [],
-    "case_id": "windows-7-7601-x64/direct-system-calls-default",
-    "sample_source": "https://blog.bi0s.in/2019/09/24/Forensics/InCTFi19-NotchItUp/",
+    "image_sha256": "80366d7ec64a5529c95c2f523f4281a5f11efbad33ecb19f73525470c1407b23",
+    "reference_plugin": "windows.malware.direct_system_calls.DirectSystemCalls",
+    "zero_plugin": "windows.malware.direct_system_calls.DirectSystemCalls",
+    "passed": true,
+    "mapping_sha256": "01028c6ce89359d9835d7791e2ee670ae7bf732d2a6ccfbba45de7f4abcbb21f",
+    "native_symbol_source": {
+      "path": "/Volumes/w/code/zero/.zero/rust/symbols/isf/windows/ntkrnlmp.pdb-3844DBB920174967BE7AA4A2C20430FA2.json",
+      "sha256": "6d5f85f7b953330b9762a57e5a25266547e7391ad4f6655170a9f48876fb6b8c",
+      "configured_path": "/Volumes/w/code/zero/.zero/rust/symbols/isf/windows/ntkrnlmp.pdb-3844DBB920174967BE7AA4A2C20430FA2.json",
+      "configured_sha256": "6d5f85f7b953330b9762a57e5a25266547e7391ad4f6655170a9f48876fb6b8c"
+    },
     "comparison": {
       "schema_version": 1,
       "mapping_version": 1,
@@ -38954,47 +38930,31 @@
       ],
       "passed": true
     },
-    "passed": true,
+    "native_output_sha256": "07d9f2792c87abfe1eaffe99ff98bcfcb69af1c42d51a8501843edbb17e6e539",
     "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
     "reference_output_sha256": "4d53774808b59392a3365d2d633e9de60fbee05130e88022818b6bb9930999bb",
     "symbol_sha256": "6d5f85f7b953330b9762a57e5a25266547e7391ad4f6655170a9f48876fb6b8c",
-    "zero_executable_sha256": "ca1395c19f8dd1760c6a1827c090bd9b8857abc863575f376ddcfbab96306b78",
-    "engine_version": "0.2.1-native-100",
-    "record_order": {
-      "passed": true,
-      "first_difference": null,
-      "zero_sha256": "fd819a0139a9102f2ee33e61ee47f64f4ea1e0d35c87223b30f101832709aed1",
-      "reference_sha256": "fd819a0139a9102f2ee33e61ee47f64f4ea1e0d35c87223b30f101832709aed1",
-      "scope": "All mapped fields in emitted sequence after declared record selection; duplicate occurrences retained.",
-      "case_id": "windows-7-7601-x64/direct-system-calls-default",
-      "mapping_sha256": "01028c6ce89359d9835d7791e2ee670ae7bf732d2a6ccfbba45de7f4abcbb21f",
-      "native_output_sha256": "56ca93e9dab5d87be7bc2e27aecc168c9035af5fe9bbc68f482dc120bc7f3e4c",
-      "reference_output_sha256": "4d53774808b59392a3365d2d633e9de60fbee05130e88022818b6bb9930999bb"
-    },
+    "zero_executable_sha256": "8e904349328fc6800a9cc513fd74989aa76e1bc4b8775edbdc5b464728017af8",
+    "engine_version": "0.2.1-native-101"
+  },
+  {
+    "sample": "windows-7-7601-x64",
+    "sample_source": "https://blog.bi0s.in/2019/09/24/Forensics/InCTFi19-NotchItUp/",
+    "input_files": [],
+    "case_id": "windows-7-7601-x64/indirect-system-calls-default",
+    "zero_args": [],
+    "reference_args": [],
+    "image_sha256": "80366d7ec64a5529c95c2f523f4281a5f11efbad33ecb19f73525470c1407b23",
+    "reference_plugin": "windows.malware.indirect_system_calls.IndirectSystemCalls",
+    "zero_plugin": "windows.malware.indirect_system_calls.IndirectSystemCalls",
+    "passed": false,
+    "mapping_sha256": "bf06139c75603d189adb9dd010613c95138f2edc82e6d548199247f1a67bea09",
     "native_symbol_source": {
       "path": "/Volumes/w/code/zero/.zero/rust/symbols/isf/windows/ntkrnlmp.pdb-3844DBB920174967BE7AA4A2C20430FA2.json",
       "sha256": "6d5f85f7b953330b9762a57e5a25266547e7391ad4f6655170a9f48876fb6b8c",
       "configured_path": "/Volumes/w/code/zero/.zero/rust/symbols/isf/windows/ntkrnlmp.pdb-3844DBB920174967BE7AA4A2C20430FA2.json",
       "configured_sha256": "6d5f85f7b953330b9762a57e5a25266547e7391ad4f6655170a9f48876fb6b8c"
     },
-    "reference_execution": {
-      "summary_path": "/Volumes/w/code/zero/target/reference/results/system-calls-native100/summary.json",
-      "summary_sha256": "f69d47ccbbca6f18bfc9bf7b5b251e36e36b48ce08a2d5658f9db5a3c32f8032",
-      "case_id": "windows-7-7601-x64/direct-system-calls-default",
-      "reference_output_sha256": "4d53774808b59392a3365d2d633e9de60fbee05130e88022818b6bb9930999bb",
-      "scope": "Original pinned Vol execution is reused after validating input, symbol and output hashes, unchanged reference checkout, arguments and mapping. Native command is rerun on the final executable."
-    }
-  },
-  {
-    "reference_plugin": "windows.malware.indirect_system_calls.IndirectSystemCalls",
-    "zero_plugin": "windows.malware.indirect_system_calls.IndirectSystemCalls",
-    "image_sha256": "80366d7ec64a5529c95c2f523f4281a5f11efbad33ecb19f73525470c1407b23",
-    "mapping_sha256": "bf06139c75603d189adb9dd010613c95138f2edc82e6d548199247f1a67bea09",
-    "native_output_sha256": "81bca4b3b00467629c1c7e9577ef883a7e3fba57ca450e7c7bec1fdc99f921eb",
-    "zero_args": [],
-    "reference_args": [],
-    "case_id": "windows-7-7601-x64/indirect-system-calls-default",
-    "sample_source": "https://blog.bi0s.in/2019/09/24/Forensics/InCTFi19-NotchItUp/",
     "comparison": {
       "schema_version": 1,
       "mapping_version": 1,
@@ -39093,7 +39053,7 @@
         "PID 2800 syscall scan: 扫描 5431296 / 31580160 字节；缺页 26148864 字节；区间合并省略 0 字节；不可读候选上下文 0；扫描结束",
         "PID 2896 VAD 0xfffffa8002cf1590 file: Windows 缺页 VA 0x100 level 12 PTE 0x0; 不是 prototype PTE",
         "PID 2896 syscall scan: 扫描 5836800 / 39411712 字节；缺页 33574912 字节；区间合并省略 0 字节；不可读候选上下文 0；扫描结束",
-        "PID 2940 syscall scan: 扫描 8101888 / 104394752 字节；缺页 31363072 字节；区间合并省略 0 字节；不可读候选上下文 0；正则执行工作计数达到 10000000 上限",
+        "PID 2940 syscall scan: 扫描 29335552 / 104394752 字节；缺页 75059200 字节；区间合并省略 0 字节；不可读候选上下文 0；扫描结束",
         "PID 2080 VAD 0xfffffa80013ffed0 LeftChild: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446738026417267883)",
         "PID 2080 VAD 0xfffffa80014461d0 file: Windows 缺页 VA 0xfffff8a001aef660 level 12 PTE 0x33ce00000000; 不是 prototype PTE",
         "PID 2080 VAD 0xfffffa8002dba900 file: 无效 UNICODE_STRING 长度",
@@ -39185,48 +39145,32 @@
       ],
       "passed": true
     },
-    "passed": false,
+    "native_output_sha256": "c4479ad5cc306c8b089ac45f76f286c593d4b23e8a8ee98bf3c67b029fe5d8c7",
     "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
     "reference_output_sha256": "a3cbe01dad52836a7ac8efc91954cf64867f4dee8a6f046c4bb0838d11f48589",
     "symbol_sha256": "6d5f85f7b953330b9762a57e5a25266547e7391ad4f6655170a9f48876fb6b8c",
-    "zero_executable_sha256": "ca1395c19f8dd1760c6a1827c090bd9b8857abc863575f376ddcfbab96306b78",
-    "engine_version": "0.2.1-native-100",
-    "record_order": {
-      "passed": true,
-      "first_difference": null,
-      "zero_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
-      "reference_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
-      "scope": "All mapped fields in emitted sequence after declared record selection; duplicate occurrences retained.",
-      "case_id": "windows-7-7601-x64/indirect-system-calls-default",
-      "mapping_sha256": "bf06139c75603d189adb9dd010613c95138f2edc82e6d548199247f1a67bea09",
-      "native_output_sha256": "81bca4b3b00467629c1c7e9577ef883a7e3fba57ca450e7c7bec1fdc99f921eb",
-      "reference_output_sha256": "a3cbe01dad52836a7ac8efc91954cf64867f4dee8a6f046c4bb0838d11f48589"
-    },
-    "native_symbol_source": {
-      "path": "/Volumes/w/code/zero/.zero/rust/symbols/isf/windows/ntkrnlmp.pdb-3844DBB920174967BE7AA4A2C20430FA2.json",
-      "sha256": "6d5f85f7b953330b9762a57e5a25266547e7391ad4f6655170a9f48876fb6b8c",
-      "configured_path": "/Volumes/w/code/zero/.zero/rust/symbols/isf/windows/ntkrnlmp.pdb-3844DBB920174967BE7AA4A2C20430FA2.json",
-      "configured_sha256": "6d5f85f7b953330b9762a57e5a25266547e7391ad4f6655170a9f48876fb6b8c"
-    },
-    "reference_execution": {
-      "summary_path": "/Volumes/w/code/zero/target/reference/results/system-calls-native100/summary.json",
-      "summary_sha256": "f69d47ccbbca6f18bfc9bf7b5b251e36e36b48ce08a2d5658f9db5a3c32f8032",
-      "case_id": "windows-7-7601-x64/indirect-system-calls-default",
-      "reference_output_sha256": "a3cbe01dad52836a7ac8efc91954cf64867f4dee8a6f046c4bb0838d11f48589",
-      "scope": "Original pinned Vol execution is reused after validating input, symbol and output hashes, unchanged reference checkout, arguments and mapping. Native command is rerun on the final executable."
-    },
+    "zero_executable_sha256": "8e904349328fc6800a9cc513fd74989aa76e1bc4b8775edbdc5b464728017af8",
+    "engine_version": "0.2.1-native-101",
     "empty_agreement": true
   },
   {
-    "reference_plugin": "windows.malware.skeleton_key_check.Skeleton_Key_Check",
-    "zero_plugin": "windows.malware.skeleton_key_check.Skeleton_Key_Check",
-    "image_sha256": "d58f62e92b8c4ef913ac09b2c36a10482034c10b88d0c154dead3aaaa49cf875",
-    "mapping_sha256": "9e9bae8957e2406687eacd399809e1d28f5a32dcc59ec83c02dab752dd362316",
-    "native_output_sha256": "4e5408461da906dffd2e6329172d77f43dd44bd5da04c5e47f22cd395c39c540",
+    "sample": "windows-10-15063",
+    "sample_source": "https://www.osforensics.com/downloads/WinDump.zip",
+    "input_files": [],
+    "case_id": "windows-10-15063/skeleton-key-default",
     "zero_args": [],
     "reference_args": [],
-    "case_id": "windows-10-15063/skeleton-key-default",
-    "sample_source": "https://www.osforensics.com/downloads/WinDump.zip",
+    "image_sha256": "d58f62e92b8c4ef913ac09b2c36a10482034c10b88d0c154dead3aaaa49cf875",
+    "reference_plugin": "windows.malware.skeleton_key_check.Skeleton_Key_Check",
+    "zero_plugin": "windows.malware.skeleton_key_check.Skeleton_Key_Check",
+    "passed": true,
+    "mapping_sha256": "9e9bae8957e2406687eacd399809e1d28f5a32dcc59ec83c02dab752dd362316",
+    "native_symbol_source": {
+      "path": "/Volumes/w/code/zero/.zero/rust/symbols/isf/windows/ntkrnlmp.pdb-0C9CC659210046EC84231597DADFDB3B1.json",
+      "sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4",
+      "configured_path": "/Volumes/w/code/zero/.zero/rust/symbols/isf/windows/ntkrnlmp.pdb-0C9CC659210046EC84231597DADFDB3B1.json",
+      "configured_sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4"
+    },
     "comparison": {
       "schema_version": 1,
       "mapping_version": 1,
@@ -39256,47 +39200,31 @@
       ],
       "passed": true
     },
-    "passed": true,
+    "native_output_sha256": "4e5408461da906dffd2e6329172d77f43dd44bd5da04c5e47f22cd395c39c540",
     "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
     "reference_output_sha256": "fd26a6b23f6975ff3fa90a5d29ec04d75e23c495d960344195784767047e784d",
     "symbol_sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4",
-    "zero_executable_sha256": "ca1395c19f8dd1760c6a1827c090bd9b8857abc863575f376ddcfbab96306b78",
-    "engine_version": "0.2.1-native-100",
-    "record_order": {
-      "passed": true,
-      "first_difference": null,
-      "zero_sha256": "18f24fb68571e550d5e4fdc730f8a8ba1c879f091d92cf7118c0e94d09d1757e",
-      "reference_sha256": "18f24fb68571e550d5e4fdc730f8a8ba1c879f091d92cf7118c0e94d09d1757e",
-      "scope": "All mapped fields in emitted sequence after declared record selection; duplicate occurrences retained.",
-      "case_id": "windows-10-15063/skeleton-key-default",
-      "mapping_sha256": "9e9bae8957e2406687eacd399809e1d28f5a32dcc59ec83c02dab752dd362316",
-      "native_output_sha256": "4e5408461da906dffd2e6329172d77f43dd44bd5da04c5e47f22cd395c39c540",
-      "reference_output_sha256": "fd26a6b23f6975ff3fa90a5d29ec04d75e23c495d960344195784767047e784d"
-    },
-    "native_symbol_source": {
-      "path": "/Volumes/w/code/zero/.zero/rust/symbols/isf/windows/ntkrnlmp.pdb-0C9CC659210046EC84231597DADFDB3B1.json",
-      "sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4",
-      "configured_path": "/Volumes/w/code/zero/.zero/rust/symbols/isf/windows/ntkrnlmp.pdb-0C9CC659210046EC84231597DADFDB3B1.json",
-      "configured_sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4"
-    },
-    "reference_execution": {
-      "summary_path": "/Volumes/w/code/zero/target/reference/results/skeleton-key-native100/summary.json",
-      "summary_sha256": "1c60e8df463d360d4615c048ee548ac1fd0b2d76eff213f41495b7772959a807",
-      "case_id": "windows-10-15063/skeleton-key-default",
-      "reference_output_sha256": "fd26a6b23f6975ff3fa90a5d29ec04d75e23c495d960344195784767047e784d",
-      "scope": "Original pinned Vol execution is reused after validating input, symbol and output hashes, unchanged reference checkout, arguments and mapping. Native command is rerun on the final executable."
-    }
+    "zero_executable_sha256": "8e904349328fc6800a9cc513fd74989aa76e1bc4b8775edbdc5b464728017af8",
+    "engine_version": "0.2.1-native-101"
   },
   {
-    "reference_plugin": "windows.malware.skeleton_key_check.Skeleton_Key_Check",
-    "zero_plugin": "windows.malware.skeleton_key_check.Skeleton_Key_Check",
-    "image_sha256": "80366d7ec64a5529c95c2f523f4281a5f11efbad33ecb19f73525470c1407b23",
-    "mapping_sha256": "ce1999ffda3b9437d7c3567953dcbb0582e3c7907f18aba544eb7ffa50d69454",
-    "native_output_sha256": "5af5498e96aaea8d6340bbf66ed76b1f5ad485532131acf9bb221d9fdc74bf16",
+    "sample": "windows-7-7601-x64",
+    "sample_source": "https://blog.bi0s.in/2019/09/24/Forensics/InCTFi19-NotchItUp/",
+    "input_files": [],
+    "case_id": "windows-7-7601-x64/skeleton-key-default",
     "zero_args": [],
     "reference_args": [],
-    "case_id": "windows-7-7601-x64/skeleton-key-default",
-    "sample_source": "https://blog.bi0s.in/2019/09/24/Forensics/InCTFi19-NotchItUp/",
+    "image_sha256": "80366d7ec64a5529c95c2f523f4281a5f11efbad33ecb19f73525470c1407b23",
+    "reference_plugin": "windows.malware.skeleton_key_check.Skeleton_Key_Check",
+    "zero_plugin": "windows.malware.skeleton_key_check.Skeleton_Key_Check",
+    "passed": false,
+    "mapping_sha256": "ce1999ffda3b9437d7c3567953dcbb0582e3c7907f18aba544eb7ffa50d69454",
+    "native_symbol_source": {
+      "path": "/Volumes/w/code/zero/.zero/rust/symbols/isf/windows/ntkrnlmp.pdb-3844DBB920174967BE7AA4A2C20430FA2.json",
+      "sha256": "6d5f85f7b953330b9762a57e5a25266547e7391ad4f6655170a9f48876fb6b8c",
+      "configured_path": "/Volumes/w/code/zero/.zero/rust/symbols/isf/windows/ntkrnlmp.pdb-3844DBB920174967BE7AA4A2C20430FA2.json",
+      "configured_sha256": "6d5f85f7b953330b9762a57e5a25266547e7391ad4f6655170a9f48876fb6b8c"
+    },
     "comparison": {
       "schema_version": 1,
       "mapping_version": 1,
@@ -39320,36 +39248,12 @@
       ],
       "passed": true
     },
-    "passed": false,
+    "native_output_sha256": "5af5498e96aaea8d6340bbf66ed76b1f5ad485532131acf9bb221d9fdc74bf16",
     "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
     "reference_output_sha256": "a3cbe01dad52836a7ac8efc91954cf64867f4dee8a6f046c4bb0838d11f48589",
     "symbol_sha256": "6d5f85f7b953330b9762a57e5a25266547e7391ad4f6655170a9f48876fb6b8c",
-    "zero_executable_sha256": "ca1395c19f8dd1760c6a1827c090bd9b8857abc863575f376ddcfbab96306b78",
-    "engine_version": "0.2.1-native-100",
-    "record_order": {
-      "passed": true,
-      "first_difference": null,
-      "zero_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
-      "reference_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
-      "scope": "All mapped fields in emitted sequence after declared record selection; duplicate occurrences retained.",
-      "case_id": "windows-7-7601-x64/skeleton-key-default",
-      "mapping_sha256": "ce1999ffda3b9437d7c3567953dcbb0582e3c7907f18aba544eb7ffa50d69454",
-      "native_output_sha256": "5af5498e96aaea8d6340bbf66ed76b1f5ad485532131acf9bb221d9fdc74bf16",
-      "reference_output_sha256": "a3cbe01dad52836a7ac8efc91954cf64867f4dee8a6f046c4bb0838d11f48589"
-    },
-    "native_symbol_source": {
-      "path": "/Volumes/w/code/zero/.zero/rust/symbols/isf/windows/ntkrnlmp.pdb-3844DBB920174967BE7AA4A2C20430FA2.json",
-      "sha256": "6d5f85f7b953330b9762a57e5a25266547e7391ad4f6655170a9f48876fb6b8c",
-      "configured_path": "/Volumes/w/code/zero/.zero/rust/symbols/isf/windows/ntkrnlmp.pdb-3844DBB920174967BE7AA4A2C20430FA2.json",
-      "configured_sha256": "6d5f85f7b953330b9762a57e5a25266547e7391ad4f6655170a9f48876fb6b8c"
-    },
-    "reference_execution": {
-      "summary_path": "/Volumes/w/code/zero/target/reference/results/skeleton-key-native100/summary.json",
-      "summary_sha256": "1c60e8df463d360d4615c048ee548ac1fd0b2d76eff213f41495b7772959a807",
-      "case_id": "windows-7-7601-x64/skeleton-key-default",
-      "reference_output_sha256": "a3cbe01dad52836a7ac8efc91954cf64867f4dee8a6f046c4bb0838d11f48589",
-      "scope": "Original pinned Vol execution is reused after validating input, symbol and output hashes, unchanged reference checkout, arguments and mapping. Native command is rerun on the final executable."
-    },
+    "zero_executable_sha256": "8e904349328fc6800a9cc513fd74989aa76e1bc4b8775edbdc5b464728017af8",
+    "engine_version": "0.2.1-native-101",
     "empty_agreement": true
   },
   {
@@ -42940,11 +42844,10 @@
     }
   },
   {
-    "reference_plugin": "linux.vmaregexscan.VmaRegExScan",
-    "zero_plugin": "linux.vmaregexscan.VmaRegExScan",
-    "image_sha256": "8ce57b7c7b423173ce970fe8f51e7016c04ef1b4a5f73d5c5f1001d5c18780bc",
-    "mapping_sha256": "8027af0b0d2fee906720de26419fde6ee58a6befc69548d9efc040a629c0e4a3",
-    "native_output_sha256": "0ee3423d374f9dfb196c840710159c9edcf7b0cda80dd28f61c3a59611eab029",
+    "sample": "debian-3.2",
+    "sample_source": "https://github.com/volatilityfoundation/volatility3-test-data/releases/download/v0.0.1/linux-sample-1.bin.gz",
+    "input_files": [],
+    "case_id": "debian-3.2/vmaregex-literal",
     "zero_args": [
       "--pattern",
       "/bin/sh",
@@ -42957,78 +42860,17 @@
       "--pid",
       "1"
     ],
-    "case_id": "debian-3.2/vmaregex-literal",
-    "sample_source": "https://github.com/volatilityfoundation/volatility3-test-data/releases/download/v0.0.1/linux-sample-1.bin.gz",
-    "comparison": {
-      "schema_version": 1,
-      "mapping_version": 1,
-      "zero_records": 2,
-      "reference_records": 2,
-      "missing": [],
-      "extra": [],
-      "duplicates": [],
-      "conflicts": [],
-      "unverifiable": [],
-      "matched_absent": {},
-      "all_columns_mapped": true,
-      "positive_evidence": true,
-      "zero_complete": false,
-      "zero_diagnostics": [
-        "PID 1 正则扫描: 扫描 712704 / 10903552 字节；缺页 10190848 字节；区间合并省略 0 字节；上下文补零 0 字节；扫描结束"
-      ],
-      "passed": true
-    },
+    "image_sha256": "8ce57b7c7b423173ce970fe8f51e7016c04ef1b4a5f73d5c5f1001d5c18780bc",
+    "reference_plugin": "linux.vmaregexscan.VmaRegExScan",
+    "zero_plugin": "linux.vmaregexscan.VmaRegExScan",
     "passed": true,
-    "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
-    "reference_output_sha256": "73aa3e70e3925c95632552bbe3c31344a3dcc73bbb867d4862c4b4b5df1c764f",
-    "symbol_sha256": "c3b0b875a2d0498fffc0df1259ff49b850cea28355ffddf02e2f90d34a89fbe1",
-    "zero_executable_sha256": "ca1395c19f8dd1760c6a1827c090bd9b8857abc863575f376ddcfbab96306b78",
-    "engine_version": "0.2.1-native-100",
-    "record_order": {
-      "passed": true,
-      "first_difference": null,
-      "zero_sha256": "6aaace956bbc9d9d9fa2d0938fae4c2459de2087fe722b185acfa80306d9a2bf",
-      "reference_sha256": "6aaace956bbc9d9d9fa2d0938fae4c2459de2087fe722b185acfa80306d9a2bf",
-      "scope": "All mapped fields in emitted sequence after declared record selection; duplicate occurrences retained.",
-      "case_id": "debian-3.2/vmaregex-literal",
-      "mapping_sha256": "8027af0b0d2fee906720de26419fde6ee58a6befc69548d9efc040a629c0e4a3",
-      "native_output_sha256": "0ee3423d374f9dfb196c840710159c9edcf7b0cda80dd28f61c3a59611eab029",
-      "reference_output_sha256": "73aa3e70e3925c95632552bbe3c31344a3dcc73bbb867d4862c4b4b5df1c764f"
-    },
+    "mapping_sha256": "8027af0b0d2fee906720de26419fde6ee58a6befc69548d9efc040a629c0e4a3",
     "native_symbol_source": {
       "path": "/Volumes/w/code/zero/symbols/Debian_3.2.0-4-amd64_3.2.57-3+deb7u2_amd64-795bb1b381f4311e7165a8e3ad813c625e6a87e85b0450709b342d01c3be9843.json.xz",
       "sha256": "c3b0b875a2d0498fffc0df1259ff49b850cea28355ffddf02e2f90d34a89fbe1",
       "configured_path": "/Volumes/w/code/zero/symbols/Debian_3.2.0-4-amd64_3.2.57-3+deb7u2_amd64-795bb1b381f4311e7165a8e3ad813c625e6a87e85b0450709b342d01c3be9843.json.xz",
       "configured_sha256": "c3b0b875a2d0498fffc0df1259ff49b850cea28355ffddf02e2f90d34a89fbe1"
     },
-    "reference_execution": {
-      "summary_path": "/Volumes/w/code/zero/target/reference/results/vmaregexscan-native100/summary.json",
-      "summary_sha256": "0f9fc4ba4a761d4793f283ad627d28aaa42ec5aad8602d758adec125f7176002",
-      "case_id": "debian-3.2/vmaregex-literal",
-      "reference_output_sha256": "73aa3e70e3925c95632552bbe3c31344a3dcc73bbb867d4862c4b4b5df1c764f",
-      "scope": "Original pinned Vol execution is reused after validating input, symbol and output hashes, unchanged reference checkout, arguments and mapping. Native command is rerun on the final executable."
-    }
-  },
-  {
-    "reference_plugin": "linux.vmaregexscan.VmaRegExScan",
-    "zero_plugin": "linux.vmaregexscan.VmaRegExScan",
-    "image_sha256": "8ce57b7c7b423173ce970fe8f51e7016c04ef1b4a5f73d5c5f1001d5c18780bc",
-    "mapping_sha256": "8027af0b0d2fee906720de26419fde6ee58a6befc69548d9efc040a629c0e4a3",
-    "native_output_sha256": "989400073065d50c1d14039bfc6220ccfa6418324a6fae88026d8f286eaf7c4b",
-    "zero_args": [
-      "--pattern",
-      "(?<=/bin/)sh",
-      "--pid",
-      "1"
-    ],
-    "reference_args": [
-      "--pattern",
-      "(?<=/bin/)sh",
-      "--pid",
-      "1"
-    ],
-    "case_id": "debian-3.2/vmaregex-lookbehind",
-    "sample_source": "https://github.com/volatilityfoundation/volatility3-test-data/releases/download/v0.0.1/linux-sample-1.bin.gz",
     "comparison": {
       "schema_version": 1,
       "mapping_version": 1,
@@ -43048,43 +42890,72 @@
       ],
       "passed": true
     },
+    "native_output_sha256": "225fef41f85aa75b7ae36ce1b2e0d0b6cea692c564b08b4f480d5c8f3a2c7ff9",
+    "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+    "reference_output_sha256": "73aa3e70e3925c95632552bbe3c31344a3dcc73bbb867d4862c4b4b5df1c764f",
+    "symbol_sha256": "c3b0b875a2d0498fffc0df1259ff49b850cea28355ffddf02e2f90d34a89fbe1",
+    "zero_executable_sha256": "8e904349328fc6800a9cc513fd74989aa76e1bc4b8775edbdc5b464728017af8",
+    "engine_version": "0.2.1-native-101"
+  },
+  {
+    "sample": "debian-3.2",
+    "sample_source": "https://github.com/volatilityfoundation/volatility3-test-data/releases/download/v0.0.1/linux-sample-1.bin.gz",
+    "input_files": [],
+    "case_id": "debian-3.2/vmaregex-lookbehind",
+    "zero_args": [
+      "--pattern",
+      "(?<=/bin/)sh",
+      "--pid",
+      "1"
+    ],
+    "reference_args": [
+      "--pattern",
+      "(?<=/bin/)sh",
+      "--pid",
+      "1"
+    ],
+    "image_sha256": "8ce57b7c7b423173ce970fe8f51e7016c04ef1b4a5f73d5c5f1001d5c18780bc",
+    "reference_plugin": "linux.vmaregexscan.VmaRegExScan",
+    "zero_plugin": "linux.vmaregexscan.VmaRegExScan",
     "passed": true,
+    "mapping_sha256": "8027af0b0d2fee906720de26419fde6ee58a6befc69548d9efc040a629c0e4a3",
+    "native_symbol_source": {
+      "path": "/Volumes/w/code/zero/symbols/Debian_3.2.0-4-amd64_3.2.57-3+deb7u2_amd64-795bb1b381f4311e7165a8e3ad813c625e6a87e85b0450709b342d01c3be9843.json.xz",
+      "sha256": "c3b0b875a2d0498fffc0df1259ff49b850cea28355ffddf02e2f90d34a89fbe1",
+      "configured_path": "/Volumes/w/code/zero/symbols/Debian_3.2.0-4-amd64_3.2.57-3+deb7u2_amd64-795bb1b381f4311e7165a8e3ad813c625e6a87e85b0450709b342d01c3be9843.json.xz",
+      "configured_sha256": "c3b0b875a2d0498fffc0df1259ff49b850cea28355ffddf02e2f90d34a89fbe1"
+    },
+    "comparison": {
+      "schema_version": 1,
+      "mapping_version": 1,
+      "zero_records": 2,
+      "reference_records": 2,
+      "missing": [],
+      "extra": [],
+      "duplicates": [],
+      "conflicts": [],
+      "unverifiable": [],
+      "matched_absent": {},
+      "all_columns_mapped": true,
+      "positive_evidence": true,
+      "zero_complete": false,
+      "zero_diagnostics": [
+        "PID 1 正则扫描: 扫描 712704 / 10903552 字节；缺页 10190848 字节；区间合并省略 0 字节；上下文补零 0 字节；扫描结束"
+      ],
+      "passed": true
+    },
+    "native_output_sha256": "37546eaf8f1accc28fef5c71724e38a1b39d54d769b36bceaac9e60ea984f4df",
     "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
     "reference_output_sha256": "884588e7878bc4893667aec0c38affff0af5c891513054aa27ffe659595ac579",
     "symbol_sha256": "c3b0b875a2d0498fffc0df1259ff49b850cea28355ffddf02e2f90d34a89fbe1",
-    "zero_executable_sha256": "ca1395c19f8dd1760c6a1827c090bd9b8857abc863575f376ddcfbab96306b78",
-    "engine_version": "0.2.1-native-100",
-    "record_order": {
-      "passed": true,
-      "first_difference": null,
-      "zero_sha256": "45cfdd6953f61a9d1ce10c8bf696fb16cc49953e5a1fb214f6a2865ed4726dc1",
-      "reference_sha256": "45cfdd6953f61a9d1ce10c8bf696fb16cc49953e5a1fb214f6a2865ed4726dc1",
-      "scope": "All mapped fields in emitted sequence after declared record selection; duplicate occurrences retained.",
-      "case_id": "debian-3.2/vmaregex-lookbehind",
-      "mapping_sha256": "8027af0b0d2fee906720de26419fde6ee58a6befc69548d9efc040a629c0e4a3",
-      "native_output_sha256": "989400073065d50c1d14039bfc6220ccfa6418324a6fae88026d8f286eaf7c4b",
-      "reference_output_sha256": "884588e7878bc4893667aec0c38affff0af5c891513054aa27ffe659595ac579"
-    },
-    "native_symbol_source": {
-      "path": "/Volumes/w/code/zero/symbols/Debian_3.2.0-4-amd64_3.2.57-3+deb7u2_amd64-795bb1b381f4311e7165a8e3ad813c625e6a87e85b0450709b342d01c3be9843.json.xz",
-      "sha256": "c3b0b875a2d0498fffc0df1259ff49b850cea28355ffddf02e2f90d34a89fbe1",
-      "configured_path": "/Volumes/w/code/zero/symbols/Debian_3.2.0-4-amd64_3.2.57-3+deb7u2_amd64-795bb1b381f4311e7165a8e3ad813c625e6a87e85b0450709b342d01c3be9843.json.xz",
-      "configured_sha256": "c3b0b875a2d0498fffc0df1259ff49b850cea28355ffddf02e2f90d34a89fbe1"
-    },
-    "reference_execution": {
-      "summary_path": "/Volumes/w/code/zero/target/reference/results/vmaregexscan-native100/summary.json",
-      "summary_sha256": "0f9fc4ba4a761d4793f283ad627d28aaa42ec5aad8602d758adec125f7176002",
-      "case_id": "debian-3.2/vmaregex-lookbehind",
-      "reference_output_sha256": "884588e7878bc4893667aec0c38affff0af5c891513054aa27ffe659595ac579",
-      "scope": "Original pinned Vol execution is reused after validating input, symbol and output hashes, unchanged reference checkout, arguments and mapping. Native command is rerun on the final executable."
-    }
+    "zero_executable_sha256": "8e904349328fc6800a9cc513fd74989aa76e1bc4b8775edbdc5b464728017af8",
+    "engine_version": "0.2.1-native-101"
   },
   {
-    "reference_plugin": "linux.vmaregexscan.VmaRegExScan",
-    "zero_plugin": "linux.vmaregexscan.VmaRegExScan",
-    "image_sha256": "8ce57b7c7b423173ce970fe8f51e7016c04ef1b4a5f73d5c5f1001d5c18780bc",
-    "mapping_sha256": "8027af0b0d2fee906720de26419fde6ee58a6befc69548d9efc040a629c0e4a3",
-    "native_output_sha256": "0ee3423d374f9dfb196c840710159c9edcf7b0cda80dd28f61c3a59611eab029",
+    "sample": "debian-3.2",
+    "sample_source": "https://github.com/volatilityfoundation/volatility3-test-data/releases/download/v0.0.1/linux-sample-1.bin.gz",
+    "input_files": [],
+    "case_id": "debian-3.2/vmaregex-backreference",
     "zero_args": [
       "--pattern",
       "(?P<slash>/)bin(?P=slash)sh",
@@ -43097,8 +42968,17 @@
       "--pid",
       "1"
     ],
-    "case_id": "debian-3.2/vmaregex-backreference",
-    "sample_source": "https://github.com/volatilityfoundation/volatility3-test-data/releases/download/v0.0.1/linux-sample-1.bin.gz",
+    "image_sha256": "8ce57b7c7b423173ce970fe8f51e7016c04ef1b4a5f73d5c5f1001d5c18780bc",
+    "reference_plugin": "linux.vmaregexscan.VmaRegExScan",
+    "zero_plugin": "linux.vmaregexscan.VmaRegExScan",
+    "passed": true,
+    "mapping_sha256": "8027af0b0d2fee906720de26419fde6ee58a6befc69548d9efc040a629c0e4a3",
+    "native_symbol_source": {
+      "path": "/Volumes/w/code/zero/symbols/Debian_3.2.0-4-amd64_3.2.57-3+deb7u2_amd64-795bb1b381f4311e7165a8e3ad813c625e6a87e85b0450709b342d01c3be9843.json.xz",
+      "sha256": "c3b0b875a2d0498fffc0df1259ff49b850cea28355ffddf02e2f90d34a89fbe1",
+      "configured_path": "/Volumes/w/code/zero/symbols/Debian_3.2.0-4-amd64_3.2.57-3+deb7u2_amd64-795bb1b381f4311e7165a8e3ad813c625e6a87e85b0450709b342d01c3be9843.json.xz",
+      "configured_sha256": "c3b0b875a2d0498fffc0df1259ff49b850cea28355ffddf02e2f90d34a89fbe1"
+    },
     "comparison": {
       "schema_version": 1,
       "mapping_version": 1,
@@ -43118,43 +42998,18 @@
       ],
       "passed": true
     },
-    "passed": true,
+    "native_output_sha256": "225fef41f85aa75b7ae36ce1b2e0d0b6cea692c564b08b4f480d5c8f3a2c7ff9",
     "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
     "reference_output_sha256": "73aa3e70e3925c95632552bbe3c31344a3dcc73bbb867d4862c4b4b5df1c764f",
     "symbol_sha256": "c3b0b875a2d0498fffc0df1259ff49b850cea28355ffddf02e2f90d34a89fbe1",
-    "zero_executable_sha256": "ca1395c19f8dd1760c6a1827c090bd9b8857abc863575f376ddcfbab96306b78",
-    "engine_version": "0.2.1-native-100",
-    "record_order": {
-      "passed": true,
-      "first_difference": null,
-      "zero_sha256": "6aaace956bbc9d9d9fa2d0938fae4c2459de2087fe722b185acfa80306d9a2bf",
-      "reference_sha256": "6aaace956bbc9d9d9fa2d0938fae4c2459de2087fe722b185acfa80306d9a2bf",
-      "scope": "All mapped fields in emitted sequence after declared record selection; duplicate occurrences retained.",
-      "case_id": "debian-3.2/vmaregex-backreference",
-      "mapping_sha256": "8027af0b0d2fee906720de26419fde6ee58a6befc69548d9efc040a629c0e4a3",
-      "native_output_sha256": "0ee3423d374f9dfb196c840710159c9edcf7b0cda80dd28f61c3a59611eab029",
-      "reference_output_sha256": "73aa3e70e3925c95632552bbe3c31344a3dcc73bbb867d4862c4b4b5df1c764f"
-    },
-    "native_symbol_source": {
-      "path": "/Volumes/w/code/zero/symbols/Debian_3.2.0-4-amd64_3.2.57-3+deb7u2_amd64-795bb1b381f4311e7165a8e3ad813c625e6a87e85b0450709b342d01c3be9843.json.xz",
-      "sha256": "c3b0b875a2d0498fffc0df1259ff49b850cea28355ffddf02e2f90d34a89fbe1",
-      "configured_path": "/Volumes/w/code/zero/symbols/Debian_3.2.0-4-amd64_3.2.57-3+deb7u2_amd64-795bb1b381f4311e7165a8e3ad813c625e6a87e85b0450709b342d01c3be9843.json.xz",
-      "configured_sha256": "c3b0b875a2d0498fffc0df1259ff49b850cea28355ffddf02e2f90d34a89fbe1"
-    },
-    "reference_execution": {
-      "summary_path": "/Volumes/w/code/zero/target/reference/results/vmaregexscan-native100/summary.json",
-      "summary_sha256": "0f9fc4ba4a761d4793f283ad627d28aaa42ec5aad8602d758adec125f7176002",
-      "case_id": "debian-3.2/vmaregex-backreference",
-      "reference_output_sha256": "73aa3e70e3925c95632552bbe3c31344a3dcc73bbb867d4862c4b4b5df1c764f",
-      "scope": "Original pinned Vol execution is reused after validating input, symbol and output hashes, unchanged reference checkout, arguments and mapping. Native command is rerun on the final executable."
-    }
+    "zero_executable_sha256": "8e904349328fc6800a9cc513fd74989aa76e1bc4b8775edbdc5b464728017af8",
+    "engine_version": "0.2.1-native-101"
   },
   {
-    "reference_plugin": "linux.vmaregexscan.VmaRegExScan",
-    "zero_plugin": "linux.vmaregexscan.VmaRegExScan",
-    "image_sha256": "8ce57b7c7b423173ce970fe8f51e7016c04ef1b4a5f73d5c5f1001d5c18780bc",
-    "mapping_sha256": "8027af0b0d2fee906720de26419fde6ee58a6befc69548d9efc040a629c0e4a3",
-    "native_output_sha256": "e274b0e55089a3910ce668fac017d7c56a9ab04cc3933a86a14df45501ea308b",
+    "sample": "debian-3.2",
+    "sample_source": "https://github.com/volatilityfoundation/volatility3-test-data/releases/download/v0.0.1/linux-sample-1.bin.gz",
+    "input_files": [],
+    "case_id": "debian-3.2/vmaregex-multi-pid",
     "zero_args": [
       "--pattern",
       "/bin/(?:ba)?sh",
@@ -43168,8 +43023,17 @@
       "1",
       "2344"
     ],
-    "case_id": "debian-3.2/vmaregex-multi-pid",
-    "sample_source": "https://github.com/volatilityfoundation/volatility3-test-data/releases/download/v0.0.1/linux-sample-1.bin.gz",
+    "image_sha256": "8ce57b7c7b423173ce970fe8f51e7016c04ef1b4a5f73d5c5f1001d5c18780bc",
+    "reference_plugin": "linux.vmaregexscan.VmaRegExScan",
+    "zero_plugin": "linux.vmaregexscan.VmaRegExScan",
+    "passed": true,
+    "mapping_sha256": "8027af0b0d2fee906720de26419fde6ee58a6befc69548d9efc040a629c0e4a3",
+    "native_symbol_source": {
+      "path": "/Volumes/w/code/zero/symbols/Debian_3.2.0-4-amd64_3.2.57-3+deb7u2_amd64-795bb1b381f4311e7165a8e3ad813c625e6a87e85b0450709b342d01c3be9843.json.xz",
+      "sha256": "c3b0b875a2d0498fffc0df1259ff49b850cea28355ffddf02e2f90d34a89fbe1",
+      "configured_path": "/Volumes/w/code/zero/symbols/Debian_3.2.0-4-amd64_3.2.57-3+deb7u2_amd64-795bb1b381f4311e7165a8e3ad813c625e6a87e85b0450709b342d01c3be9843.json.xz",
+      "configured_sha256": "c3b0b875a2d0498fffc0df1259ff49b850cea28355ffddf02e2f90d34a89fbe1"
+    },
     "comparison": {
       "schema_version": 1,
       "mapping_version": 1,
@@ -43190,43 +43054,18 @@
       ],
       "passed": true
     },
-    "passed": true,
+    "native_output_sha256": "c98979fa092b9bae67a7d5f06911bebb0ffb7e10f115f966fb8dba109b2b80b6",
     "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
     "reference_output_sha256": "e3f489066d930b0fb8d46e0eb50246ba406cc4f3fabbd72c192564b0209c0bbb",
     "symbol_sha256": "c3b0b875a2d0498fffc0df1259ff49b850cea28355ffddf02e2f90d34a89fbe1",
-    "zero_executable_sha256": "ca1395c19f8dd1760c6a1827c090bd9b8857abc863575f376ddcfbab96306b78",
-    "engine_version": "0.2.1-native-100",
-    "record_order": {
-      "passed": true,
-      "first_difference": null,
-      "zero_sha256": "4f5410da310dddd62ced4254ef12b8cc1ab96012348aee7524ec97ccdb8ed7ff",
-      "reference_sha256": "4f5410da310dddd62ced4254ef12b8cc1ab96012348aee7524ec97ccdb8ed7ff",
-      "scope": "All mapped fields in emitted sequence after declared record selection; duplicate occurrences retained.",
-      "case_id": "debian-3.2/vmaregex-multi-pid",
-      "mapping_sha256": "8027af0b0d2fee906720de26419fde6ee58a6befc69548d9efc040a629c0e4a3",
-      "native_output_sha256": "e274b0e55089a3910ce668fac017d7c56a9ab04cc3933a86a14df45501ea308b",
-      "reference_output_sha256": "e3f489066d930b0fb8d46e0eb50246ba406cc4f3fabbd72c192564b0209c0bbb"
-    },
-    "native_symbol_source": {
-      "path": "/Volumes/w/code/zero/symbols/Debian_3.2.0-4-amd64_3.2.57-3+deb7u2_amd64-795bb1b381f4311e7165a8e3ad813c625e6a87e85b0450709b342d01c3be9843.json.xz",
-      "sha256": "c3b0b875a2d0498fffc0df1259ff49b850cea28355ffddf02e2f90d34a89fbe1",
-      "configured_path": "/Volumes/w/code/zero/symbols/Debian_3.2.0-4-amd64_3.2.57-3+deb7u2_amd64-795bb1b381f4311e7165a8e3ad813c625e6a87e85b0450709b342d01c3be9843.json.xz",
-      "configured_sha256": "c3b0b875a2d0498fffc0df1259ff49b850cea28355ffddf02e2f90d34a89fbe1"
-    },
-    "reference_execution": {
-      "summary_path": "/Volumes/w/code/zero/target/reference/results/vmaregexscan-native100/summary.json",
-      "summary_sha256": "0f9fc4ba4a761d4793f283ad627d28aaa42ec5aad8602d758adec125f7176002",
-      "case_id": "debian-3.2/vmaregex-multi-pid",
-      "reference_output_sha256": "e3f489066d930b0fb8d46e0eb50246ba406cc4f3fabbd72c192564b0209c0bbb",
-      "scope": "Original pinned Vol execution is reused after validating input, symbol and output hashes, unchanged reference checkout, arguments and mapping. Native command is rerun on the final executable."
-    }
+    "zero_executable_sha256": "8e904349328fc6800a9cc513fd74989aa76e1bc4b8775edbdc5b464728017af8",
+    "engine_version": "0.2.1-native-101"
   },
   {
-    "reference_plugin": "linux.vmaregexscan.VmaRegExScan",
-    "zero_plugin": "linux.vmaregexscan.VmaRegExScan",
-    "image_sha256": "8ce57b7c7b423173ce970fe8f51e7016c04ef1b4a5f73d5c5f1001d5c18780bc",
-    "mapping_sha256": "8027af0b0d2fee906720de26419fde6ee58a6befc69548d9efc040a629c0e4a3",
-    "native_output_sha256": "ac807f547d4bcf2b0e90d52ec6a38a8ac472d29c5be03e54cf419299078cdfd3",
+    "sample": "debian-3.2",
+    "sample_source": "https://github.com/volatilityfoundation/volatility3-test-data/releases/download/v0.0.1/linux-sample-1.bin.gz",
+    "input_files": [],
+    "case_id": "debian-3.2/vmaregex-all-processes",
     "zero_args": [
       "--pattern",
       "/bin/(?:ba)?sh"
@@ -43235,8 +43074,17 @@
       "--pattern",
       "/bin/(?:ba)?sh"
     ],
-    "case_id": "debian-3.2/vmaregex-all-processes",
-    "sample_source": "https://github.com/volatilityfoundation/volatility3-test-data/releases/download/v0.0.1/linux-sample-1.bin.gz",
+    "image_sha256": "8ce57b7c7b423173ce970fe8f51e7016c04ef1b4a5f73d5c5f1001d5c18780bc",
+    "reference_plugin": "linux.vmaregexscan.VmaRegExScan",
+    "zero_plugin": "linux.vmaregexscan.VmaRegExScan",
+    "passed": true,
+    "mapping_sha256": "8027af0b0d2fee906720de26419fde6ee58a6befc69548d9efc040a629c0e4a3",
+    "native_symbol_source": {
+      "path": "/Volumes/w/code/zero/symbols/Debian_3.2.0-4-amd64_3.2.57-3+deb7u2_amd64-795bb1b381f4311e7165a8e3ad813c625e6a87e85b0450709b342d01c3be9843.json.xz",
+      "sha256": "c3b0b875a2d0498fffc0df1259ff49b850cea28355ffddf02e2f90d34a89fbe1",
+      "configured_path": "/Volumes/w/code/zero/symbols/Debian_3.2.0-4-amd64_3.2.57-3+deb7u2_amd64-795bb1b381f4311e7165a8e3ad813c625e6a87e85b0450709b342d01c3be9843.json.xz",
+      "configured_sha256": "c3b0b875a2d0498fffc0df1259ff49b850cea28355ffddf02e2f90d34a89fbe1"
+    },
     "comparison": {
       "schema_version": 1,
       "mapping_version": 1,
@@ -43349,43 +43197,18 @@
       ],
       "passed": true
     },
-    "passed": true,
+    "native_output_sha256": "5461f349c76dcc125edfae031fcfd24da9fd430d77e298b4652e8546ae11623f",
     "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
     "reference_output_sha256": "95d636748d723e7a7532268e20737c557eefbbe00e21faf6558c3027dee80367",
     "symbol_sha256": "c3b0b875a2d0498fffc0df1259ff49b850cea28355ffddf02e2f90d34a89fbe1",
-    "zero_executable_sha256": "ca1395c19f8dd1760c6a1827c090bd9b8857abc863575f376ddcfbab96306b78",
-    "engine_version": "0.2.1-native-100",
-    "record_order": {
-      "passed": true,
-      "first_difference": null,
-      "zero_sha256": "7e64d41f5f861299b1cb8f6ca1bbf1e91e9ac6aabd00076ee062125557b9fe0c",
-      "reference_sha256": "7e64d41f5f861299b1cb8f6ca1bbf1e91e9ac6aabd00076ee062125557b9fe0c",
-      "scope": "All mapped fields in emitted sequence after declared record selection; duplicate occurrences retained.",
-      "case_id": "debian-3.2/vmaregex-all-processes",
-      "mapping_sha256": "8027af0b0d2fee906720de26419fde6ee58a6befc69548d9efc040a629c0e4a3",
-      "native_output_sha256": "ac807f547d4bcf2b0e90d52ec6a38a8ac472d29c5be03e54cf419299078cdfd3",
-      "reference_output_sha256": "95d636748d723e7a7532268e20737c557eefbbe00e21faf6558c3027dee80367"
-    },
-    "native_symbol_source": {
-      "path": "/Volumes/w/code/zero/symbols/Debian_3.2.0-4-amd64_3.2.57-3+deb7u2_amd64-795bb1b381f4311e7165a8e3ad813c625e6a87e85b0450709b342d01c3be9843.json.xz",
-      "sha256": "c3b0b875a2d0498fffc0df1259ff49b850cea28355ffddf02e2f90d34a89fbe1",
-      "configured_path": "/Volumes/w/code/zero/symbols/Debian_3.2.0-4-amd64_3.2.57-3+deb7u2_amd64-795bb1b381f4311e7165a8e3ad813c625e6a87e85b0450709b342d01c3be9843.json.xz",
-      "configured_sha256": "c3b0b875a2d0498fffc0df1259ff49b850cea28355ffddf02e2f90d34a89fbe1"
-    },
-    "reference_execution": {
-      "summary_path": "/Volumes/w/code/zero/target/reference/results/vmaregexscan-native100/summary.json",
-      "summary_sha256": "0f9fc4ba4a761d4793f283ad627d28aaa42ec5aad8602d758adec125f7176002",
-      "case_id": "debian-3.2/vmaregex-all-processes",
-      "reference_output_sha256": "95d636748d723e7a7532268e20737c557eefbbe00e21faf6558c3027dee80367",
-      "scope": "Original pinned Vol execution is reused after validating input, symbol and output hashes, unchanged reference checkout, arguments and mapping. Native command is rerun on the final executable."
-    }
+    "zero_executable_sha256": "8e904349328fc6800a9cc513fd74989aa76e1bc4b8775edbdc5b464728017af8",
+    "engine_version": "0.2.1-native-101"
   },
   {
-    "reference_plugin": "linux.vmaregexscan.VmaRegExScan",
-    "zero_plugin": "linux.vmaregexscan.VmaRegExScan",
-    "image_sha256": "8ce57b7c7b423173ce970fe8f51e7016c04ef1b4a5f73d5c5f1001d5c18780bc",
-    "mapping_sha256": "8027af0b0d2fee906720de26419fde6ee58a6befc69548d9efc040a629c0e4a3",
-    "native_output_sha256": "e274b0e55089a3910ce668fac017d7c56a9ab04cc3933a86a14df45501ea308b",
+    "sample": "debian-3.2",
+    "sample_source": "https://github.com/volatilityfoundation/volatility3-test-data/releases/download/v0.0.1/linux-sample-1.bin.gz",
+    "input_files": [],
+    "case_id": "debian-3.2/vmaregex-pid-union",
     "zero_args": [
       "--pattern",
       "/bin/(?:ba)?sh",
@@ -43401,8 +43224,17 @@
       "1",
       "2344"
     ],
-    "case_id": "debian-3.2/vmaregex-pid-union",
-    "sample_source": "https://github.com/volatilityfoundation/volatility3-test-data/releases/download/v0.0.1/linux-sample-1.bin.gz",
+    "image_sha256": "8ce57b7c7b423173ce970fe8f51e7016c04ef1b4a5f73d5c5f1001d5c18780bc",
+    "reference_plugin": "linux.vmaregexscan.VmaRegExScan",
+    "zero_plugin": "linux.vmaregexscan.VmaRegExScan",
+    "passed": true,
+    "mapping_sha256": "8027af0b0d2fee906720de26419fde6ee58a6befc69548d9efc040a629c0e4a3",
+    "native_symbol_source": {
+      "path": "/Volumes/w/code/zero/symbols/Debian_3.2.0-4-amd64_3.2.57-3+deb7u2_amd64-795bb1b381f4311e7165a8e3ad813c625e6a87e85b0450709b342d01c3be9843.json.xz",
+      "sha256": "c3b0b875a2d0498fffc0df1259ff49b850cea28355ffddf02e2f90d34a89fbe1",
+      "configured_path": "/Volumes/w/code/zero/symbols/Debian_3.2.0-4-amd64_3.2.57-3+deb7u2_amd64-795bb1b381f4311e7165a8e3ad813c625e6a87e85b0450709b342d01c3be9843.json.xz",
+      "configured_sha256": "c3b0b875a2d0498fffc0df1259ff49b850cea28355ffddf02e2f90d34a89fbe1"
+    },
     "comparison": {
       "schema_version": 1,
       "mapping_version": 1,
@@ -43423,61 +43255,45 @@
       ],
       "passed": true
     },
-    "passed": true,
+    "native_output_sha256": "c98979fa092b9bae67a7d5f06911bebb0ffb7e10f115f966fb8dba109b2b80b6",
     "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
     "reference_output_sha256": "e3f489066d930b0fb8d46e0eb50246ba406cc4f3fabbd72c192564b0209c0bbb",
     "symbol_sha256": "c3b0b875a2d0498fffc0df1259ff49b850cea28355ffddf02e2f90d34a89fbe1",
-    "zero_executable_sha256": "ca1395c19f8dd1760c6a1827c090bd9b8857abc863575f376ddcfbab96306b78",
-    "engine_version": "0.2.1-native-100",
-    "record_order": {
-      "passed": true,
-      "first_difference": null,
-      "zero_sha256": "4f5410da310dddd62ced4254ef12b8cc1ab96012348aee7524ec97ccdb8ed7ff",
-      "reference_sha256": "4f5410da310dddd62ced4254ef12b8cc1ab96012348aee7524ec97ccdb8ed7ff",
-      "scope": "All mapped fields in emitted sequence after declared record selection; duplicate occurrences retained.",
-      "case_id": "debian-3.2/vmaregex-pid-union",
-      "mapping_sha256": "8027af0b0d2fee906720de26419fde6ee58a6befc69548d9efc040a629c0e4a3",
-      "native_output_sha256": "e274b0e55089a3910ce668fac017d7c56a9ab04cc3933a86a14df45501ea308b",
-      "reference_output_sha256": "e3f489066d930b0fb8d46e0eb50246ba406cc4f3fabbd72c192564b0209c0bbb"
-    },
-    "native_symbol_source": {
-      "path": "/Volumes/w/code/zero/symbols/Debian_3.2.0-4-amd64_3.2.57-3+deb7u2_amd64-795bb1b381f4311e7165a8e3ad813c625e6a87e85b0450709b342d01c3be9843.json.xz",
-      "sha256": "c3b0b875a2d0498fffc0df1259ff49b850cea28355ffddf02e2f90d34a89fbe1",
-      "configured_path": "/Volumes/w/code/zero/symbols/Debian_3.2.0-4-amd64_3.2.57-3+deb7u2_amd64-795bb1b381f4311e7165a8e3ad813c625e6a87e85b0450709b342d01c3be9843.json.xz",
-      "configured_sha256": "c3b0b875a2d0498fffc0df1259ff49b850cea28355ffddf02e2f90d34a89fbe1"
-    },
-    "reference_execution": {
-      "summary_path": "/Volumes/w/code/zero/target/reference/results/vmaregexscan-native100/summary.json",
-      "summary_sha256": "0f9fc4ba4a761d4793f283ad627d28aaa42ec5aad8602d758adec125f7176002",
-      "case_id": "debian-3.2/vmaregex-pid-union",
-      "reference_output_sha256": "e3f489066d930b0fb8d46e0eb50246ba406cc4f3fabbd72c192564b0209c0bbb",
-      "scope": "Original pinned Vol execution is reused after validating input, symbol and output hashes, unchanged reference checkout, arguments and mapping. Native command is rerun on the final executable."
-    }
+    "zero_executable_sha256": "8e904349328fc6800a9cc513fd74989aa76e1bc4b8775edbdc5b464728017af8",
+    "engine_version": "0.2.1-native-101"
   },
   {
-    "reference_plugin": "linux.vmaregexscan.VmaRegExScan",
-    "zero_plugin": "linux.vmaregexscan.VmaRegExScan",
-    "image_sha256": "8ce57b7c7b423173ce970fe8f51e7016c04ef1b4a5f73d5c5f1001d5c18780bc",
-    "mapping_sha256": "8027af0b0d2fee906720de26419fde6ee58a6befc69548d9efc040a629c0e4a3",
-    "native_output_sha256": "8ea541b03a0363cc962c0b5abae85d7b6b5af024ae6b386b015dc08198cc05a8",
-    "zero_args": [
-      "--pattern",
-      "(?<=/bin/)sh",
-      "--pid",
-      "1",
-      "--maxsize",
-      "4"
-    ],
-    "reference_args": [
-      "--pattern",
-      "(?<=/bin/)sh",
-      "--pid",
-      "1",
-      "--maxsize",
-      "4"
-    ],
+    "sample": "debian-3.2",
+    "sample_source": "https://github.com/volatilityfoundation/volatility3-test-data/releases/download/v0.0.1/linux-sample-1.bin.gz",
+    "input_files": [],
     "case_id": "debian-3.2/vmaregex-maxsize-known-difference",
-    "sample_source": "https://github.com/volatilityfoundation/volatility3-test-data/releases/download/v0.0.1/linux-sample-1.bin.gz",
+    "zero_args": [
+      "--pattern",
+      "(?<=/bin/)sh",
+      "--pid",
+      "1",
+      "--maxsize",
+      "4"
+    ],
+    "reference_args": [
+      "--pattern",
+      "(?<=/bin/)sh",
+      "--pid",
+      "1",
+      "--maxsize",
+      "4"
+    ],
+    "image_sha256": "8ce57b7c7b423173ce970fe8f51e7016c04ef1b4a5f73d5c5f1001d5c18780bc",
+    "reference_plugin": "linux.vmaregexscan.VmaRegExScan",
+    "zero_plugin": "linux.vmaregexscan.VmaRegExScan",
+    "passed": true,
+    "mapping_sha256": "8027af0b0d2fee906720de26419fde6ee58a6befc69548d9efc040a629c0e4a3",
+    "native_symbol_source": {
+      "path": "/Volumes/w/code/zero/symbols/Debian_3.2.0-4-amd64_3.2.57-3+deb7u2_amd64-795bb1b381f4311e7165a8e3ad813c625e6a87e85b0450709b342d01c3be9843.json.xz",
+      "sha256": "c3b0b875a2d0498fffc0df1259ff49b850cea28355ffddf02e2f90d34a89fbe1",
+      "configured_path": "/Volumes/w/code/zero/symbols/Debian_3.2.0-4-amd64_3.2.57-3+deb7u2_amd64-795bb1b381f4311e7165a8e3ad813c625e6a87e85b0450709b342d01c3be9843.json.xz",
+      "configured_sha256": "c3b0b875a2d0498fffc0df1259ff49b850cea28355ffddf02e2f90d34a89fbe1"
+    },
     "comparison": {
       "schema_version": 1,
       "mapping_version": 1,
@@ -43497,61 +43313,45 @@
       ],
       "passed": true
     },
-    "passed": true,
+    "native_output_sha256": "50d1645a77ebf2a49d3f67d8a9f2c6542aa50c653f28175fb942a6741feb77a9",
     "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
     "reference_output_sha256": "884588e7878bc4893667aec0c38affff0af5c891513054aa27ffe659595ac579",
     "symbol_sha256": "c3b0b875a2d0498fffc0df1259ff49b850cea28355ffddf02e2f90d34a89fbe1",
-    "zero_executable_sha256": "ca1395c19f8dd1760c6a1827c090bd9b8857abc863575f376ddcfbab96306b78",
-    "engine_version": "0.2.1-native-100",
-    "record_order": {
-      "passed": true,
-      "first_difference": null,
-      "zero_sha256": "45cfdd6953f61a9d1ce10c8bf696fb16cc49953e5a1fb214f6a2865ed4726dc1",
-      "reference_sha256": "45cfdd6953f61a9d1ce10c8bf696fb16cc49953e5a1fb214f6a2865ed4726dc1",
-      "scope": "All mapped fields in emitted sequence after declared record selection; duplicate occurrences retained.",
-      "case_id": "debian-3.2/vmaregex-maxsize-known-difference",
-      "mapping_sha256": "8027af0b0d2fee906720de26419fde6ee58a6befc69548d9efc040a629c0e4a3",
-      "native_output_sha256": "8ea541b03a0363cc962c0b5abae85d7b6b5af024ae6b386b015dc08198cc05a8",
-      "reference_output_sha256": "884588e7878bc4893667aec0c38affff0af5c891513054aa27ffe659595ac579"
-    },
-    "native_symbol_source": {
-      "path": "/Volumes/w/code/zero/symbols/Debian_3.2.0-4-amd64_3.2.57-3+deb7u2_amd64-795bb1b381f4311e7165a8e3ad813c625e6a87e85b0450709b342d01c3be9843.json.xz",
-      "sha256": "c3b0b875a2d0498fffc0df1259ff49b850cea28355ffddf02e2f90d34a89fbe1",
-      "configured_path": "/Volumes/w/code/zero/symbols/Debian_3.2.0-4-amd64_3.2.57-3+deb7u2_amd64-795bb1b381f4311e7165a8e3ad813c625e6a87e85b0450709b342d01c3be9843.json.xz",
-      "configured_sha256": "c3b0b875a2d0498fffc0df1259ff49b850cea28355ffddf02e2f90d34a89fbe1"
-    },
-    "reference_execution": {
-      "summary_path": "/Volumes/w/code/zero/target/reference/results/vmaregexscan-maxsize-native100/summary.json",
-      "summary_sha256": "d863cc3b9e421dfbc4a142965bd1066b06a0f8143ba63172b5226d744c09247c",
-      "case_id": "debian-3.2/vmaregex-maxsize-known-difference",
-      "reference_output_sha256": "884588e7878bc4893667aec0c38affff0af5c891513054aa27ffe659595ac579",
-      "scope": "Original pinned Vol execution is reused after validating input, symbol and output hashes, unchanged reference checkout, arguments and mapping. Native command is rerun on the final executable."
-    }
+    "zero_executable_sha256": "8e904349328fc6800a9cc513fd74989aa76e1bc4b8775edbdc5b464728017af8",
+    "engine_version": "0.2.1-native-101"
   },
   {
-    "reference_plugin": "linux.vmaregexscan.VmaRegExScan",
-    "zero_plugin": "linux.vmaregexscan.VmaRegExScan",
-    "image_sha256": "8ce57b7c7b423173ce970fe8f51e7016c04ef1b4a5f73d5c5f1001d5c18780bc",
-    "mapping_sha256": "8027af0b0d2fee906720de26419fde6ee58a6befc69548d9efc040a629c0e4a3",
-    "native_output_sha256": "b98305324efe835b257ce8b0db8767c9fa8ecdd83714ecd9c873d4ca210d6206",
-    "zero_args": [
-      "--pattern",
-      "(?<=/bin/)sh",
-      "--pid",
-      "1",
-      "--maxsize",
-      "-1"
-    ],
-    "reference_args": [
-      "--pattern",
-      "(?<=/bin/)sh",
-      "--pid",
-      "1",
-      "--maxsize",
-      "-1"
-    ],
+    "sample": "debian-3.2",
+    "sample_source": "https://github.com/volatilityfoundation/volatility3-test-data/releases/download/v0.0.1/linux-sample-1.bin.gz",
+    "input_files": [],
     "case_id": "debian-3.2/vmaregex-maxsize--1",
-    "sample_source": "https://github.com/volatilityfoundation/volatility3-test-data/releases/download/v0.0.1/linux-sample-1.bin.gz",
+    "zero_args": [
+      "--pattern",
+      "(?<=/bin/)sh",
+      "--pid",
+      "1",
+      "--maxsize",
+      "-1"
+    ],
+    "reference_args": [
+      "--pattern",
+      "(?<=/bin/)sh",
+      "--pid",
+      "1",
+      "--maxsize",
+      "-1"
+    ],
+    "image_sha256": "8ce57b7c7b423173ce970fe8f51e7016c04ef1b4a5f73d5c5f1001d5c18780bc",
+    "reference_plugin": "linux.vmaregexscan.VmaRegExScan",
+    "zero_plugin": "linux.vmaregexscan.VmaRegExScan",
+    "passed": true,
+    "mapping_sha256": "8027af0b0d2fee906720de26419fde6ee58a6befc69548d9efc040a629c0e4a3",
+    "native_symbol_source": {
+      "path": "/Volumes/w/code/zero/symbols/Debian_3.2.0-4-amd64_3.2.57-3+deb7u2_amd64-795bb1b381f4311e7165a8e3ad813c625e6a87e85b0450709b342d01c3be9843.json.xz",
+      "sha256": "c3b0b875a2d0498fffc0df1259ff49b850cea28355ffddf02e2f90d34a89fbe1",
+      "configured_path": "/Volumes/w/code/zero/symbols/Debian_3.2.0-4-amd64_3.2.57-3+deb7u2_amd64-795bb1b381f4311e7165a8e3ad813c625e6a87e85b0450709b342d01c3be9843.json.xz",
+      "configured_sha256": "c3b0b875a2d0498fffc0df1259ff49b850cea28355ffddf02e2f90d34a89fbe1"
+    },
     "comparison": {
       "schema_version": 1,
       "mapping_version": 1,
@@ -43571,61 +43371,45 @@
       ],
       "passed": true
     },
-    "passed": true,
+    "native_output_sha256": "534eafee5a83454d18680d432e38cdb0228a94fc4243e0e2582b26a23653b98f",
     "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
     "reference_output_sha256": "884588e7878bc4893667aec0c38affff0af5c891513054aa27ffe659595ac579",
     "symbol_sha256": "c3b0b875a2d0498fffc0df1259ff49b850cea28355ffddf02e2f90d34a89fbe1",
-    "zero_executable_sha256": "ca1395c19f8dd1760c6a1827c090bd9b8857abc863575f376ddcfbab96306b78",
-    "engine_version": "0.2.1-native-100",
-    "record_order": {
-      "passed": true,
-      "first_difference": null,
-      "zero_sha256": "45cfdd6953f61a9d1ce10c8bf696fb16cc49953e5a1fb214f6a2865ed4726dc1",
-      "reference_sha256": "45cfdd6953f61a9d1ce10c8bf696fb16cc49953e5a1fb214f6a2865ed4726dc1",
-      "scope": "All mapped fields in emitted sequence after declared record selection; duplicate occurrences retained.",
-      "case_id": "debian-3.2/vmaregex-maxsize--1",
-      "mapping_sha256": "8027af0b0d2fee906720de26419fde6ee58a6befc69548d9efc040a629c0e4a3",
-      "native_output_sha256": "b98305324efe835b257ce8b0db8767c9fa8ecdd83714ecd9c873d4ca210d6206",
-      "reference_output_sha256": "884588e7878bc4893667aec0c38affff0af5c891513054aa27ffe659595ac579"
-    },
-    "native_symbol_source": {
-      "path": "/Volumes/w/code/zero/symbols/Debian_3.2.0-4-amd64_3.2.57-3+deb7u2_amd64-795bb1b381f4311e7165a8e3ad813c625e6a87e85b0450709b342d01c3be9843.json.xz",
-      "sha256": "c3b0b875a2d0498fffc0df1259ff49b850cea28355ffddf02e2f90d34a89fbe1",
-      "configured_path": "/Volumes/w/code/zero/symbols/Debian_3.2.0-4-amd64_3.2.57-3+deb7u2_amd64-795bb1b381f4311e7165a8e3ad813c625e6a87e85b0450709b342d01c3be9843.json.xz",
-      "configured_sha256": "c3b0b875a2d0498fffc0df1259ff49b850cea28355ffddf02e2f90d34a89fbe1"
-    },
-    "reference_execution": {
-      "summary_path": "/Volumes/w/code/zero/target/reference/results/vmaregexscan-maxsize-native100/summary.json",
-      "summary_sha256": "d863cc3b9e421dfbc4a142965bd1066b06a0f8143ba63172b5226d744c09247c",
-      "case_id": "debian-3.2/vmaregex-maxsize--1",
-      "reference_output_sha256": "884588e7878bc4893667aec0c38affff0af5c891513054aa27ffe659595ac579",
-      "scope": "Original pinned Vol execution is reused after validating input, symbol and output hashes, unchanged reference checkout, arguments and mapping. Native command is rerun on the final executable."
-    }
+    "zero_executable_sha256": "8e904349328fc6800a9cc513fd74989aa76e1bc4b8775edbdc5b464728017af8",
+    "engine_version": "0.2.1-native-101"
   },
   {
-    "reference_plugin": "linux.vmaregexscan.VmaRegExScan",
-    "zero_plugin": "linux.vmaregexscan.VmaRegExScan",
-    "image_sha256": "8ce57b7c7b423173ce970fe8f51e7016c04ef1b4a5f73d5c5f1001d5c18780bc",
-    "mapping_sha256": "8027af0b0d2fee906720de26419fde6ee58a6befc69548d9efc040a629c0e4a3",
-    "native_output_sha256": "0d42a21dd4b7beae8f67ac127804c721a31cc4b8d16c998d1735b94ed611f894",
-    "zero_args": [
-      "--pattern",
-      "(?<=/bin/)sh",
-      "--pid",
-      "1",
-      "--maxsize",
-      "0"
-    ],
-    "reference_args": [
-      "--pattern",
-      "(?<=/bin/)sh",
-      "--pid",
-      "1",
-      "--maxsize",
-      "0"
-    ],
+    "sample": "debian-3.2",
+    "sample_source": "https://github.com/volatilityfoundation/volatility3-test-data/releases/download/v0.0.1/linux-sample-1.bin.gz",
+    "input_files": [],
     "case_id": "debian-3.2/vmaregex-maxsize-0",
-    "sample_source": "https://github.com/volatilityfoundation/volatility3-test-data/releases/download/v0.0.1/linux-sample-1.bin.gz",
+    "zero_args": [
+      "--pattern",
+      "(?<=/bin/)sh",
+      "--pid",
+      "1",
+      "--maxsize",
+      "0"
+    ],
+    "reference_args": [
+      "--pattern",
+      "(?<=/bin/)sh",
+      "--pid",
+      "1",
+      "--maxsize",
+      "0"
+    ],
+    "image_sha256": "8ce57b7c7b423173ce970fe8f51e7016c04ef1b4a5f73d5c5f1001d5c18780bc",
+    "reference_plugin": "linux.vmaregexscan.VmaRegExScan",
+    "zero_plugin": "linux.vmaregexscan.VmaRegExScan",
+    "passed": true,
+    "mapping_sha256": "8027af0b0d2fee906720de26419fde6ee58a6befc69548d9efc040a629c0e4a3",
+    "native_symbol_source": {
+      "path": "/Volumes/w/code/zero/symbols/Debian_3.2.0-4-amd64_3.2.57-3+deb7u2_amd64-795bb1b381f4311e7165a8e3ad813c625e6a87e85b0450709b342d01c3be9843.json.xz",
+      "sha256": "c3b0b875a2d0498fffc0df1259ff49b850cea28355ffddf02e2f90d34a89fbe1",
+      "configured_path": "/Volumes/w/code/zero/symbols/Debian_3.2.0-4-amd64_3.2.57-3+deb7u2_amd64-795bb1b381f4311e7165a8e3ad813c625e6a87e85b0450709b342d01c3be9843.json.xz",
+      "configured_sha256": "c3b0b875a2d0498fffc0df1259ff49b850cea28355ffddf02e2f90d34a89fbe1"
+    },
     "comparison": {
       "schema_version": 1,
       "mapping_version": 1,
@@ -43645,43 +43429,18 @@
       ],
       "passed": true
     },
-    "passed": true,
+    "native_output_sha256": "126daa25bb82f88e494e85875f86647b137237bf5420076a82ce43eac73a447b",
     "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
     "reference_output_sha256": "884588e7878bc4893667aec0c38affff0af5c891513054aa27ffe659595ac579",
     "symbol_sha256": "c3b0b875a2d0498fffc0df1259ff49b850cea28355ffddf02e2f90d34a89fbe1",
-    "zero_executable_sha256": "ca1395c19f8dd1760c6a1827c090bd9b8857abc863575f376ddcfbab96306b78",
-    "engine_version": "0.2.1-native-100",
-    "record_order": {
-      "passed": true,
-      "first_difference": null,
-      "zero_sha256": "45cfdd6953f61a9d1ce10c8bf696fb16cc49953e5a1fb214f6a2865ed4726dc1",
-      "reference_sha256": "45cfdd6953f61a9d1ce10c8bf696fb16cc49953e5a1fb214f6a2865ed4726dc1",
-      "scope": "All mapped fields in emitted sequence after declared record selection; duplicate occurrences retained.",
-      "case_id": "debian-3.2/vmaregex-maxsize-0",
-      "mapping_sha256": "8027af0b0d2fee906720de26419fde6ee58a6befc69548d9efc040a629c0e4a3",
-      "native_output_sha256": "0d42a21dd4b7beae8f67ac127804c721a31cc4b8d16c998d1735b94ed611f894",
-      "reference_output_sha256": "884588e7878bc4893667aec0c38affff0af5c891513054aa27ffe659595ac579"
-    },
-    "native_symbol_source": {
-      "path": "/Volumes/w/code/zero/symbols/Debian_3.2.0-4-amd64_3.2.57-3+deb7u2_amd64-795bb1b381f4311e7165a8e3ad813c625e6a87e85b0450709b342d01c3be9843.json.xz",
-      "sha256": "c3b0b875a2d0498fffc0df1259ff49b850cea28355ffddf02e2f90d34a89fbe1",
-      "configured_path": "/Volumes/w/code/zero/symbols/Debian_3.2.0-4-amd64_3.2.57-3+deb7u2_amd64-795bb1b381f4311e7165a8e3ad813c625e6a87e85b0450709b342d01c3be9843.json.xz",
-      "configured_sha256": "c3b0b875a2d0498fffc0df1259ff49b850cea28355ffddf02e2f90d34a89fbe1"
-    },
-    "reference_execution": {
-      "summary_path": "/Volumes/w/code/zero/target/reference/results/vmaregexscan-maxsize-native100/summary.json",
-      "summary_sha256": "d863cc3b9e421dfbc4a142965bd1066b06a0f8143ba63172b5226d744c09247c",
-      "case_id": "debian-3.2/vmaregex-maxsize-0",
-      "reference_output_sha256": "884588e7878bc4893667aec0c38affff0af5c891513054aa27ffe659595ac579",
-      "scope": "Original pinned Vol execution is reused after validating input, symbol and output hashes, unchanged reference checkout, arguments and mapping. Native command is rerun on the final executable."
-    }
+    "zero_executable_sha256": "8e904349328fc6800a9cc513fd74989aa76e1bc4b8775edbdc5b464728017af8",
+    "engine_version": "0.2.1-native-101"
   },
   {
-    "reference_plugin": "linux.vmaregexscan.VmaRegExScan",
-    "zero_plugin": "linux.vmaregexscan.VmaRegExScan",
-    "image_sha256": "8ce57b7c7b423173ce970fe8f51e7016c04ef1b4a5f73d5c5f1001d5c18780bc",
-    "mapping_sha256": "8027af0b0d2fee906720de26419fde6ee58a6befc69548d9efc040a629c0e4a3",
-    "native_output_sha256": "c262a85c7b791e5335e86867d606030eb58585b72fa0eb8b965eebaa0fbc6786",
+    "sample": "debian-3.2",
+    "sample_source": "https://github.com/volatilityfoundation/volatility3-test-data/releases/download/v0.0.1/linux-sample-1.bin.gz",
+    "input_files": [],
+    "case_id": "debian-3.2/vmaregex-maxsize-4097",
     "zero_args": [
       "--pattern",
       "(?<=/bin/)sh",
@@ -43698,8 +43457,17 @@
       "--maxsize",
       "4097"
     ],
-    "case_id": "debian-3.2/vmaregex-maxsize-4097",
-    "sample_source": "https://github.com/volatilityfoundation/volatility3-test-data/releases/download/v0.0.1/linux-sample-1.bin.gz",
+    "image_sha256": "8ce57b7c7b423173ce970fe8f51e7016c04ef1b4a5f73d5c5f1001d5c18780bc",
+    "reference_plugin": "linux.vmaregexscan.VmaRegExScan",
+    "zero_plugin": "linux.vmaregexscan.VmaRegExScan",
+    "passed": true,
+    "mapping_sha256": "8027af0b0d2fee906720de26419fde6ee58a6befc69548d9efc040a629c0e4a3",
+    "native_symbol_source": {
+      "path": "/Volumes/w/code/zero/symbols/Debian_3.2.0-4-amd64_3.2.57-3+deb7u2_amd64-795bb1b381f4311e7165a8e3ad813c625e6a87e85b0450709b342d01c3be9843.json.xz",
+      "sha256": "c3b0b875a2d0498fffc0df1259ff49b850cea28355ffddf02e2f90d34a89fbe1",
+      "configured_path": "/Volumes/w/code/zero/symbols/Debian_3.2.0-4-amd64_3.2.57-3+deb7u2_amd64-795bb1b381f4311e7165a8e3ad813c625e6a87e85b0450709b342d01c3be9843.json.xz",
+      "configured_sha256": "c3b0b875a2d0498fffc0df1259ff49b850cea28355ffddf02e2f90d34a89fbe1"
+    },
     "comparison": {
       "schema_version": 1,
       "mapping_version": 1,
@@ -43719,176 +43487,41 @@
       ],
       "passed": true
     },
-    "passed": true,
+    "native_output_sha256": "d2864badc1aa7a5fca958e608907dbcb5454b87b0de9b97a76752d09383aa25d",
     "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
     "reference_output_sha256": "884588e7878bc4893667aec0c38affff0af5c891513054aa27ffe659595ac579",
     "symbol_sha256": "c3b0b875a2d0498fffc0df1259ff49b850cea28355ffddf02e2f90d34a89fbe1",
-    "zero_executable_sha256": "ca1395c19f8dd1760c6a1827c090bd9b8857abc863575f376ddcfbab96306b78",
-    "engine_version": "0.2.1-native-100",
-    "record_order": {
-      "passed": true,
-      "first_difference": null,
-      "zero_sha256": "45cfdd6953f61a9d1ce10c8bf696fb16cc49953e5a1fb214f6a2865ed4726dc1",
-      "reference_sha256": "45cfdd6953f61a9d1ce10c8bf696fb16cc49953e5a1fb214f6a2865ed4726dc1",
-      "scope": "All mapped fields in emitted sequence after declared record selection; duplicate occurrences retained.",
-      "case_id": "debian-3.2/vmaregex-maxsize-4097",
-      "mapping_sha256": "8027af0b0d2fee906720de26419fde6ee58a6befc69548d9efc040a629c0e4a3",
-      "native_output_sha256": "c262a85c7b791e5335e86867d606030eb58585b72fa0eb8b965eebaa0fbc6786",
-      "reference_output_sha256": "884588e7878bc4893667aec0c38affff0af5c891513054aa27ffe659595ac579"
-    },
-    "native_symbol_source": {
-      "path": "/Volumes/w/code/zero/symbols/Debian_3.2.0-4-amd64_3.2.57-3+deb7u2_amd64-795bb1b381f4311e7165a8e3ad813c625e6a87e85b0450709b342d01c3be9843.json.xz",
-      "sha256": "c3b0b875a2d0498fffc0df1259ff49b850cea28355ffddf02e2f90d34a89fbe1",
-      "configured_path": "/Volumes/w/code/zero/symbols/Debian_3.2.0-4-amd64_3.2.57-3+deb7u2_amd64-795bb1b381f4311e7165a8e3ad813c625e6a87e85b0450709b342d01c3be9843.json.xz",
-      "configured_sha256": "c3b0b875a2d0498fffc0df1259ff49b850cea28355ffddf02e2f90d34a89fbe1"
-    },
-    "reference_execution": {
-      "summary_path": "/Volumes/w/code/zero/target/reference/results/vmaregexscan-maxsize-native100/summary.json",
-      "summary_sha256": "d863cc3b9e421dfbc4a142965bd1066b06a0f8143ba63172b5226d744c09247c",
-      "case_id": "debian-3.2/vmaregex-maxsize-4097",
-      "reference_output_sha256": "884588e7878bc4893667aec0c38affff0af5c891513054aa27ffe659595ac579",
-      "scope": "Original pinned Vol execution is reused after validating input, symbol and output hashes, unchanged reference checkout, arguments and mapping. Native command is rerun on the final executable."
-    }
+    "zero_executable_sha256": "8e904349328fc6800a9cc513fd74989aa76e1bc4b8775edbdc5b464728017af8",
+    "engine_version": "0.2.1-native-101"
   },
   {
+    "sample": "windows-10-15063",
+    "sample_source": "https://www.osforensics.com/downloads/WinDump.zip",
+    "input_files": [],
+    "case_id": "windows-10-15063/vadregex-mz",
+    "zero_args": [
+      "--pid",
+      "7688",
+      "--pattern",
+      "MZ"
+    ],
+    "reference_args": [
+      "--pid",
+      "7688",
+      "--pattern",
+      "MZ"
+    ],
+    "image_sha256": "d58f62e92b8c4ef913ac09b2c36a10482034c10b88d0c154dead3aaaa49cf875",
     "reference_plugin": "windows.vadregexscan.VadRegExScan",
     "zero_plugin": "windows.vadregexscan.VadRegExScan",
-    "image_sha256": "d58f62e92b8c4ef913ac09b2c36a10482034c10b88d0c154dead3aaaa49cf875",
-    "mapping_sha256": "8027af0b0d2fee906720de26419fde6ee58a6befc69548d9efc040a629c0e4a3",
-    "native_output_sha256": "efba65bf1e9028f12c2df0db05cf09e85b74976e2951b3fe78babc4e2e895d34",
-    "zero_args": [
-      "--pid",
-      "7688",
-      "--pattern",
-      "MZ"
-    ],
-    "reference_args": [
-      "--pid",
-      "7688",
-      "--pattern",
-      "MZ"
-    ],
-    "case_id": "windows-10-15063/vadregex-mz",
-    "sample_source": "https://www.osforensics.com/downloads/WinDump.zip",
-    "comparison": {
-      "schema_version": 1,
-      "mapping_version": 1,
-      "zero_records": 701,
-      "reference_records": 701,
-      "missing": [],
-      "extra": [],
-      "duplicates": [],
-      "conflicts": [],
-      "unverifiable": [],
-      "matched_absent": {},
-      "all_columns_mapped": true,
-      "positive_evidence": true,
-      "zero_complete": false,
-      "zero_diagnostics": [
-        "Windows 链表不一致 @ 0xffffd98df8f9c8e8 direction 0: expected 0xffffd98df8be88e8, found 0xffffd98df7cbe668",
-        "Windows 链表不一致 @ 0xffffd98df8831368 direction 0: expected 0xffffd98df41a88e8, found 0xffffd98df9d4e8e8",
-        "Windows 链表不一致 @ 0xffffd98df3ab88e8 direction 0: expected 0xffffd98df63618e8, found 0xffffd98df480e368",
-        "Windows 链表不一致 @ 0xffffd98df7cbe668 direction 0: expected 0xffffd98df503a368, found 0xffffd98df8be88e8",
-        "链表 @ 0xfffff8021ef5c120 direction 0: Windows 链表循环或超限 0xffffd98df8f9c8e8",
-        "Windows 链表不一致 @ 0xffffd98df9d4e8e8 direction 8: expected 0xfffff8021ef5c120, found 0xffffd98df8831368",
-        "Windows 链表不一致 @ 0xffffd98df41a88e8 direction 8: expected 0xffffd98df9d4e8e8, found 0xffffd98df8831368",
-        "Windows 链表不一致 @ 0xffffd98df8be88e8 direction 8: expected 0xffffd98df7cbe668, found 0xffffd98df8f9c8e8",
-        "PID 7688 VAD 0xffffd98df7301010 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802494325552)",
-        "PID 7688 VAD 0xffffd98df81fbf70 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802493797296)",
-        "PID 7688 VAD 0xffffd98df81fbf70 Left: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802516888096)",
-        "PID 7688 VAD 0xffffd98df8adab00 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802496149233)",
-        "PID 7688 VAD 0xffffd98df8adab00 Left: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446744073709551615)",
-        "PID 7688 VAD 0xffffd98df7aa22b0 Left: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(0)",
-        "PID 7688 VAD 0xffffd98df6882360: VAD pool tag 无法验证",
-        "PID 7688 VAD 0xffffd98df5312bc0 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802447722048)",
-        "PID 7688 VAD 0xffffd98dfa19ede0 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802503482208)",
-        "PID 7688 VAD 0xffffd98dfa19ede0 Left: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802427381873)",
-        "PID 7688 VAD 0xffffd98df9ddbc90 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802539203424)",
-        "PID 7688 VAD 0xffffd98df908fba0 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802535079072)",
-        "PID 7688 VAD 0xffffd98df53ed9d0 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802524721824)",
-        "PID 7688 VAD 0xffffd98df9540620: VAD pool tag 无法验证",
-        "PID 7688 VAD 0xffffd98df751ed90 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802431937248)",
-        "PID 7688 VAD 0xffffd98df751ed90 Left: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802501077889)",
-        "PID 7688 VAD 0xffffd98df6937ad0 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802501077891)",
-        "PID 7688 VAD 0xffffd98df751ed90: VAD 节点地址/循环/深度/数量无效",
-        "PID 7688 VAD 0xffffd98df397c5a0 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802479414432)",
-        "PID 7688 VAD 0xffffd98df6a3cbd0 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802491176288)",
-        "PID 7688 VAD 0xffffd98df6a3cbd0 Left: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802475990896)",
-        "PID 7688 VAD 0xffffd98df3b52dd0 Left: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446744073709551615)",
-        "PID 7688 VAD 0xffffd98df39c09d0 Left: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802470758592)",
-        "PID 7688 VAD 0xffffd98df3ac1a70 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802531519073)",
-        "PID 7688 VAD 0xffffd98df3654240 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802531519072)",
-        "PID 7688 VAD 0xffffd98df6a07cc0 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802531426913)",
-        "PID 7688 VAD 0xffffd98df7e53730 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802502910529)",
-        "PID 7688 VAD 0xffffd98df85b3240 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802496195232)",
-        "PID 7688 VAD 0xffffd98df3662bb0 Left: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802440800352)",
-        "PID 7688 VAD 0xffffd98df7f472e0: VAD pool tag 无法验证",
-        "PID 7688 VAD 0xffffd98df3e427d0 Left: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802469052352)",
-        "PID 7688 VAD 0xffffd98dfa282820 Left: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802448599912)",
-        "PID 7688 VAD 0xffffd98df75099f0: VAD pool tag 无法验证",
-        "PID 7688 VAD 0xffffd98df3e9d860 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802426966256)",
-        "PID 7688 VAD 0xffffd98df6b2bb60 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802482536305)",
-        "PID 7688 VAD 0xffffd98df6b2bb60 Left: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802485264241)",
-        "PID 7688 VAD 0xffffd98dfa9a6e90 Left: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802539441808)",
-        "PID 7688 VAD 0xffffd98dfa0710f0 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802539441808)",
-        "PID 7688 VAD 0xffffd98df539c290 Left: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802501107123)",
-        "PID 7688 VAD 0xffffd98df97b81b0 Left: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802546491664)",
-        "PID 7688 VAD 0xffffd98df60accf0 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802456475440)",
-        "PID 7688 正则扫描: 扫描 111976448 / 2199629770752 字节；缺页 2199517728768 字节；区间合并省略 65536 字节；上下文补零 0 字节；扫描结束"
-      ],
-      "passed": true
-    },
     "passed": true,
-    "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
-    "reference_output_sha256": "95ff5d9f0ba362512b8949f30860786c8091fabfe98033fc63dfd7f1ddc6510d",
-    "symbol_sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4",
-    "zero_executable_sha256": "ca1395c19f8dd1760c6a1827c090bd9b8857abc863575f376ddcfbab96306b78",
-    "engine_version": "0.2.1-native-100",
-    "record_order": {
-      "passed": true,
-      "first_difference": null,
-      "zero_sha256": "7ff746524736c0a3236ddcd0ba21a7c657b2a93a2bea24e94ad39953091cc20e",
-      "reference_sha256": "7ff746524736c0a3236ddcd0ba21a7c657b2a93a2bea24e94ad39953091cc20e",
-      "scope": "All mapped fields in emitted sequence after declared record selection; duplicate occurrences retained.",
-      "case_id": "windows-10-15063/vadregex-mz",
-      "mapping_sha256": "8027af0b0d2fee906720de26419fde6ee58a6befc69548d9efc040a629c0e4a3",
-      "native_output_sha256": "efba65bf1e9028f12c2df0db05cf09e85b74976e2951b3fe78babc4e2e895d34",
-      "reference_output_sha256": "95ff5d9f0ba362512b8949f30860786c8091fabfe98033fc63dfd7f1ddc6510d"
-    },
+    "mapping_sha256": "8027af0b0d2fee906720de26419fde6ee58a6befc69548d9efc040a629c0e4a3",
     "native_symbol_source": {
       "path": "/Volumes/w/code/zero/target/reference/regex-exact-symbols/windows/ntkrnlmp.pdb/0C9CC659210046EC84231597DADFDB3B1.json",
       "sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4",
       "configured_path": "/Volumes/w/code/zero/target/reference/regex-exact-symbols/windows/ntkrnlmp.pdb/0C9CC659210046EC84231597DADFDB3B1.json",
       "configured_sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4"
     },
-    "reference_execution": {
-      "summary_path": "/Volumes/w/code/zero/target/reference/results/vadregexscan-native100/summary.json",
-      "summary_sha256": "37996867280422f976b0458a1dbde051a408a267d4e3a5bef67c900a69861dc8",
-      "case_id": "windows-10-15063/vadregex-mz",
-      "reference_output_sha256": "95ff5d9f0ba362512b8949f30860786c8091fabfe98033fc63dfd7f1ddc6510d",
-      "scope": "Original pinned Vol execution is reused after validating input, symbol and output hashes, unchanged reference checkout, arguments and mapping. Native command is rerun on the final executable."
-    }
-  },
-  {
-    "reference_plugin": "windows.vadregexscan.VadRegExScan",
-    "zero_plugin": "windows.vadregexscan.VadRegExScan",
-    "image_sha256": "d58f62e92b8c4ef913ac09b2c36a10482034c10b88d0c154dead3aaaa49cf875",
-    "mapping_sha256": "8027af0b0d2fee906720de26419fde6ee58a6befc69548d9efc040a629c0e4a3",
-    "native_output_sha256": "8100f01befeae9c333688e0228d4a7d84ccef15b1fb642ae7e0b576d1d286217",
-    "zero_args": [
-      "--pid",
-      "7688",
-      "--pattern",
-      "(?<=M)Z"
-    ],
-    "reference_args": [
-      "--pid",
-      "7688",
-      "--pattern",
-      "(?<=M)Z"
-    ],
-    "case_id": "windows-10-15063/vadregex-lookbehind",
-    "sample_source": "https://www.osforensics.com/downloads/WinDump.zip",
     "comparison": {
       "schema_version": 1,
       "mapping_version": 1,
@@ -43957,43 +43590,121 @@
       ],
       "passed": true
     },
+    "native_output_sha256": "355f882cf21b605ec50b2d621942c84253c9e3dfbcf8ea141cd659203e018841",
+    "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+    "reference_output_sha256": "95ff5d9f0ba362512b8949f30860786c8091fabfe98033fc63dfd7f1ddc6510d",
+    "symbol_sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4",
+    "zero_executable_sha256": "8e904349328fc6800a9cc513fd74989aa76e1bc4b8775edbdc5b464728017af8",
+    "engine_version": "0.2.1-native-101"
+  },
+  {
+    "sample": "windows-10-15063",
+    "sample_source": "https://www.osforensics.com/downloads/WinDump.zip",
+    "input_files": [],
+    "case_id": "windows-10-15063/vadregex-lookbehind",
+    "zero_args": [
+      "--pid",
+      "7688",
+      "--pattern",
+      "(?<=M)Z"
+    ],
+    "reference_args": [
+      "--pid",
+      "7688",
+      "--pattern",
+      "(?<=M)Z"
+    ],
+    "image_sha256": "d58f62e92b8c4ef913ac09b2c36a10482034c10b88d0c154dead3aaaa49cf875",
+    "reference_plugin": "windows.vadregexscan.VadRegExScan",
+    "zero_plugin": "windows.vadregexscan.VadRegExScan",
     "passed": true,
+    "mapping_sha256": "8027af0b0d2fee906720de26419fde6ee58a6befc69548d9efc040a629c0e4a3",
+    "native_symbol_source": {
+      "path": "/Volumes/w/code/zero/target/reference/regex-exact-symbols/windows/ntkrnlmp.pdb/0C9CC659210046EC84231597DADFDB3B1.json",
+      "sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4",
+      "configured_path": "/Volumes/w/code/zero/target/reference/regex-exact-symbols/windows/ntkrnlmp.pdb/0C9CC659210046EC84231597DADFDB3B1.json",
+      "configured_sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4"
+    },
+    "comparison": {
+      "schema_version": 1,
+      "mapping_version": 1,
+      "zero_records": 701,
+      "reference_records": 701,
+      "missing": [],
+      "extra": [],
+      "duplicates": [],
+      "conflicts": [],
+      "unverifiable": [],
+      "matched_absent": {},
+      "all_columns_mapped": true,
+      "positive_evidence": true,
+      "zero_complete": false,
+      "zero_diagnostics": [
+        "Windows 链表不一致 @ 0xffffd98df8f9c8e8 direction 0: expected 0xffffd98df8be88e8, found 0xffffd98df7cbe668",
+        "Windows 链表不一致 @ 0xffffd98df8831368 direction 0: expected 0xffffd98df41a88e8, found 0xffffd98df9d4e8e8",
+        "Windows 链表不一致 @ 0xffffd98df3ab88e8 direction 0: expected 0xffffd98df63618e8, found 0xffffd98df480e368",
+        "Windows 链表不一致 @ 0xffffd98df7cbe668 direction 0: expected 0xffffd98df503a368, found 0xffffd98df8be88e8",
+        "链表 @ 0xfffff8021ef5c120 direction 0: Windows 链表循环或超限 0xffffd98df8f9c8e8",
+        "Windows 链表不一致 @ 0xffffd98df9d4e8e8 direction 8: expected 0xfffff8021ef5c120, found 0xffffd98df8831368",
+        "Windows 链表不一致 @ 0xffffd98df41a88e8 direction 8: expected 0xffffd98df9d4e8e8, found 0xffffd98df8831368",
+        "Windows 链表不一致 @ 0xffffd98df8be88e8 direction 8: expected 0xffffd98df7cbe668, found 0xffffd98df8f9c8e8",
+        "PID 7688 VAD 0xffffd98df7301010 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802494325552)",
+        "PID 7688 VAD 0xffffd98df81fbf70 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802493797296)",
+        "PID 7688 VAD 0xffffd98df81fbf70 Left: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802516888096)",
+        "PID 7688 VAD 0xffffd98df8adab00 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802496149233)",
+        "PID 7688 VAD 0xffffd98df8adab00 Left: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446744073709551615)",
+        "PID 7688 VAD 0xffffd98df7aa22b0 Left: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(0)",
+        "PID 7688 VAD 0xffffd98df6882360: VAD pool tag 无法验证",
+        "PID 7688 VAD 0xffffd98df5312bc0 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802447722048)",
+        "PID 7688 VAD 0xffffd98dfa19ede0 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802503482208)",
+        "PID 7688 VAD 0xffffd98dfa19ede0 Left: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802427381873)",
+        "PID 7688 VAD 0xffffd98df9ddbc90 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802539203424)",
+        "PID 7688 VAD 0xffffd98df908fba0 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802535079072)",
+        "PID 7688 VAD 0xffffd98df53ed9d0 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802524721824)",
+        "PID 7688 VAD 0xffffd98df9540620: VAD pool tag 无法验证",
+        "PID 7688 VAD 0xffffd98df751ed90 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802431937248)",
+        "PID 7688 VAD 0xffffd98df751ed90 Left: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802501077889)",
+        "PID 7688 VAD 0xffffd98df6937ad0 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802501077891)",
+        "PID 7688 VAD 0xffffd98df751ed90: VAD 节点地址/循环/深度/数量无效",
+        "PID 7688 VAD 0xffffd98df397c5a0 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802479414432)",
+        "PID 7688 VAD 0xffffd98df6a3cbd0 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802491176288)",
+        "PID 7688 VAD 0xffffd98df6a3cbd0 Left: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802475990896)",
+        "PID 7688 VAD 0xffffd98df3b52dd0 Left: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446744073709551615)",
+        "PID 7688 VAD 0xffffd98df39c09d0 Left: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802470758592)",
+        "PID 7688 VAD 0xffffd98df3ac1a70 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802531519073)",
+        "PID 7688 VAD 0xffffd98df3654240 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802531519072)",
+        "PID 7688 VAD 0xffffd98df6a07cc0 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802531426913)",
+        "PID 7688 VAD 0xffffd98df7e53730 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802502910529)",
+        "PID 7688 VAD 0xffffd98df85b3240 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802496195232)",
+        "PID 7688 VAD 0xffffd98df3662bb0 Left: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802440800352)",
+        "PID 7688 VAD 0xffffd98df7f472e0: VAD pool tag 无法验证",
+        "PID 7688 VAD 0xffffd98df3e427d0 Left: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802469052352)",
+        "PID 7688 VAD 0xffffd98dfa282820 Left: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802448599912)",
+        "PID 7688 VAD 0xffffd98df75099f0: VAD pool tag 无法验证",
+        "PID 7688 VAD 0xffffd98df3e9d860 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802426966256)",
+        "PID 7688 VAD 0xffffd98df6b2bb60 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802482536305)",
+        "PID 7688 VAD 0xffffd98df6b2bb60 Left: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802485264241)",
+        "PID 7688 VAD 0xffffd98dfa9a6e90 Left: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802539441808)",
+        "PID 7688 VAD 0xffffd98dfa0710f0 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802539441808)",
+        "PID 7688 VAD 0xffffd98df539c290 Left: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802501107123)",
+        "PID 7688 VAD 0xffffd98df97b81b0 Left: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802546491664)",
+        "PID 7688 VAD 0xffffd98df60accf0 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802456475440)",
+        "PID 7688 正则扫描: 扫描 111976448 / 2199629770752 字节；缺页 2199517728768 字节；区间合并省略 65536 字节；上下文补零 0 字节；扫描结束"
+      ],
+      "passed": true
+    },
+    "native_output_sha256": "5af6ff129d0664e9c1f8ced243c464ecea8ddbd67b0f74a7e15e8388a94f3338",
     "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
     "reference_output_sha256": "b3ef9d5c861935bb25deda7b26c4126548552fa201c678d6f4c604f6cd4b167f",
     "symbol_sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4",
-    "zero_executable_sha256": "ca1395c19f8dd1760c6a1827c090bd9b8857abc863575f376ddcfbab96306b78",
-    "engine_version": "0.2.1-native-100",
-    "record_order": {
-      "passed": true,
-      "first_difference": null,
-      "zero_sha256": "f2474542546b4016c852dea432f743002618b58a66c835fcff276479b8707adf",
-      "reference_sha256": "f2474542546b4016c852dea432f743002618b58a66c835fcff276479b8707adf",
-      "scope": "All mapped fields in emitted sequence after declared record selection; duplicate occurrences retained.",
-      "case_id": "windows-10-15063/vadregex-lookbehind",
-      "mapping_sha256": "8027af0b0d2fee906720de26419fde6ee58a6befc69548d9efc040a629c0e4a3",
-      "native_output_sha256": "8100f01befeae9c333688e0228d4a7d84ccef15b1fb642ae7e0b576d1d286217",
-      "reference_output_sha256": "b3ef9d5c861935bb25deda7b26c4126548552fa201c678d6f4c604f6cd4b167f"
-    },
-    "native_symbol_source": {
-      "path": "/Volumes/w/code/zero/target/reference/regex-exact-symbols/windows/ntkrnlmp.pdb/0C9CC659210046EC84231597DADFDB3B1.json",
-      "sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4",
-      "configured_path": "/Volumes/w/code/zero/target/reference/regex-exact-symbols/windows/ntkrnlmp.pdb/0C9CC659210046EC84231597DADFDB3B1.json",
-      "configured_sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4"
-    },
-    "reference_execution": {
-      "summary_path": "/Volumes/w/code/zero/target/reference/results/vadregexscan-native100/summary.json",
-      "summary_sha256": "37996867280422f976b0458a1dbde051a408a267d4e3a5bef67c900a69861dc8",
-      "case_id": "windows-10-15063/vadregex-lookbehind",
-      "reference_output_sha256": "b3ef9d5c861935bb25deda7b26c4126548552fa201c678d6f4c604f6cd4b167f",
-      "scope": "Original pinned Vol execution is reused after validating input, symbol and output hashes, unchanged reference checkout, arguments and mapping. Native command is rerun on the final executable."
-    }
+    "zero_executable_sha256": "8e904349328fc6800a9cc513fd74989aa76e1bc4b8775edbdc5b464728017af8",
+    "engine_version": "0.2.1-native-101"
   },
   {
-    "reference_plugin": "windows.vadregexscan.VadRegExScan",
-    "zero_plugin": "windows.vadregexscan.VadRegExScan",
-    "image_sha256": "d58f62e92b8c4ef913ac09b2c36a10482034c10b88d0c154dead3aaaa49cf875",
-    "mapping_sha256": "8027af0b0d2fee906720de26419fde6ee58a6befc69548d9efc040a629c0e4a3",
-    "native_output_sha256": "efba65bf1e9028f12c2df0db05cf09e85b74976e2951b3fe78babc4e2e895d34",
+    "sample": "windows-10-15063",
+    "sample_source": "https://www.osforensics.com/downloads/WinDump.zip",
+    "input_files": [],
+    "case_id": "windows-10-15063/vadregex-backreference",
     "zero_args": [
       "--pid",
       "7688",
@@ -44006,8 +43717,17 @@
       "--pattern",
       "(?P<p>MZ)(?P=p)?"
     ],
-    "case_id": "windows-10-15063/vadregex-backreference",
-    "sample_source": "https://www.osforensics.com/downloads/WinDump.zip",
+    "image_sha256": "d58f62e92b8c4ef913ac09b2c36a10482034c10b88d0c154dead3aaaa49cf875",
+    "reference_plugin": "windows.vadregexscan.VadRegExScan",
+    "zero_plugin": "windows.vadregexscan.VadRegExScan",
+    "passed": true,
+    "mapping_sha256": "8027af0b0d2fee906720de26419fde6ee58a6befc69548d9efc040a629c0e4a3",
+    "native_symbol_source": {
+      "path": "/Volumes/w/code/zero/target/reference/regex-exact-symbols/windows/ntkrnlmp.pdb/0C9CC659210046EC84231597DADFDB3B1.json",
+      "sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4",
+      "configured_path": "/Volumes/w/code/zero/target/reference/regex-exact-symbols/windows/ntkrnlmp.pdb/0C9CC659210046EC84231597DADFDB3B1.json",
+      "configured_sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4"
+    },
     "comparison": {
       "schema_version": 1,
       "mapping_version": 1,
@@ -44076,43 +43796,18 @@
       ],
       "passed": true
     },
-    "passed": true,
+    "native_output_sha256": "355f882cf21b605ec50b2d621942c84253c9e3dfbcf8ea141cd659203e018841",
     "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
     "reference_output_sha256": "95ff5d9f0ba362512b8949f30860786c8091fabfe98033fc63dfd7f1ddc6510d",
     "symbol_sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4",
-    "zero_executable_sha256": "ca1395c19f8dd1760c6a1827c090bd9b8857abc863575f376ddcfbab96306b78",
-    "engine_version": "0.2.1-native-100",
-    "record_order": {
-      "passed": true,
-      "first_difference": null,
-      "zero_sha256": "7ff746524736c0a3236ddcd0ba21a7c657b2a93a2bea24e94ad39953091cc20e",
-      "reference_sha256": "7ff746524736c0a3236ddcd0ba21a7c657b2a93a2bea24e94ad39953091cc20e",
-      "scope": "All mapped fields in emitted sequence after declared record selection; duplicate occurrences retained.",
-      "case_id": "windows-10-15063/vadregex-backreference",
-      "mapping_sha256": "8027af0b0d2fee906720de26419fde6ee58a6befc69548d9efc040a629c0e4a3",
-      "native_output_sha256": "efba65bf1e9028f12c2df0db05cf09e85b74976e2951b3fe78babc4e2e895d34",
-      "reference_output_sha256": "95ff5d9f0ba362512b8949f30860786c8091fabfe98033fc63dfd7f1ddc6510d"
-    },
-    "native_symbol_source": {
-      "path": "/Volumes/w/code/zero/target/reference/regex-exact-symbols/windows/ntkrnlmp.pdb/0C9CC659210046EC84231597DADFDB3B1.json",
-      "sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4",
-      "configured_path": "/Volumes/w/code/zero/target/reference/regex-exact-symbols/windows/ntkrnlmp.pdb/0C9CC659210046EC84231597DADFDB3B1.json",
-      "configured_sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4"
-    },
-    "reference_execution": {
-      "summary_path": "/Volumes/w/code/zero/target/reference/results/vadregexscan-native100/summary.json",
-      "summary_sha256": "37996867280422f976b0458a1dbde051a408a267d4e3a5bef67c900a69861dc8",
-      "case_id": "windows-10-15063/vadregex-backreference",
-      "reference_output_sha256": "95ff5d9f0ba362512b8949f30860786c8091fabfe98033fc63dfd7f1ddc6510d",
-      "scope": "Original pinned Vol execution is reused after validating input, symbol and output hashes, unchanged reference checkout, arguments and mapping. Native command is rerun on the final executable."
-    }
+    "zero_executable_sha256": "8e904349328fc6800a9cc513fd74989aa76e1bc4b8775edbdc5b464728017af8",
+    "engine_version": "0.2.1-native-101"
   },
   {
-    "reference_plugin": "windows.vadregexscan.VadRegExScan",
-    "zero_plugin": "windows.vadregexscan.VadRegExScan",
-    "image_sha256": "d58f62e92b8c4ef913ac09b2c36a10482034c10b88d0c154dead3aaaa49cf875",
-    "mapping_sha256": "8027af0b0d2fee906720de26419fde6ee58a6befc69548d9efc040a629c0e4a3",
-    "native_output_sha256": "0ab2a422386d878730e359c1345eee8394bb210b7445ddd398290c7508a3b976",
+    "sample": "windows-10-15063",
+    "sample_source": "https://www.osforensics.com/downloads/WinDump.zip",
+    "input_files": [],
+    "case_id": "windows-10-15063/vadregex-multi-pid",
     "zero_args": [
       "--pids",
       "844,7688",
@@ -44126,8 +43821,17 @@
       "--pattern",
       "MZ"
     ],
-    "case_id": "windows-10-15063/vadregex-multi-pid",
-    "sample_source": "https://www.osforensics.com/downloads/WinDump.zip",
+    "image_sha256": "d58f62e92b8c4ef913ac09b2c36a10482034c10b88d0c154dead3aaaa49cf875",
+    "reference_plugin": "windows.vadregexscan.VadRegExScan",
+    "zero_plugin": "windows.vadregexscan.VadRegExScan",
+    "passed": true,
+    "mapping_sha256": "8027af0b0d2fee906720de26419fde6ee58a6befc69548d9efc040a629c0e4a3",
+    "native_symbol_source": {
+      "path": "/Volumes/w/code/zero/target/reference/regex-exact-symbols/windows/ntkrnlmp.pdb/0C9CC659210046EC84231597DADFDB3B1.json",
+      "sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4",
+      "configured_path": "/Volumes/w/code/zero/target/reference/regex-exact-symbols/windows/ntkrnlmp.pdb/0C9CC659210046EC84231597DADFDB3B1.json",
+      "configured_sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4"
+    },
     "comparison": {
       "schema_version": 1,
       "mapping_version": 1,
@@ -44197,43 +43901,18 @@
       ],
       "passed": true
     },
-    "passed": true,
+    "native_output_sha256": "59fe57d14e6a323839e968072666406adce2c6e823e0ea92fa016abd228760e6",
     "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
     "reference_output_sha256": "530c99ea29d533afac71764f1191f120ce804a42e62663254fc59db8f1ef8ef7",
     "symbol_sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4",
-    "zero_executable_sha256": "ca1395c19f8dd1760c6a1827c090bd9b8857abc863575f376ddcfbab96306b78",
-    "engine_version": "0.2.1-native-100",
-    "record_order": {
-      "passed": true,
-      "first_difference": null,
-      "zero_sha256": "f8da264d342b2269e19b04a1de1c3ec042a7d6b2cb4ecc7750f29560381b4a42",
-      "reference_sha256": "f8da264d342b2269e19b04a1de1c3ec042a7d6b2cb4ecc7750f29560381b4a42",
-      "scope": "All mapped fields in emitted sequence after declared record selection; duplicate occurrences retained.",
-      "case_id": "windows-10-15063/vadregex-multi-pid",
-      "mapping_sha256": "8027af0b0d2fee906720de26419fde6ee58a6befc69548d9efc040a629c0e4a3",
-      "native_output_sha256": "0ab2a422386d878730e359c1345eee8394bb210b7445ddd398290c7508a3b976",
-      "reference_output_sha256": "530c99ea29d533afac71764f1191f120ce804a42e62663254fc59db8f1ef8ef7"
-    },
-    "native_symbol_source": {
-      "path": "/Volumes/w/code/zero/target/reference/regex-exact-symbols/windows/ntkrnlmp.pdb/0C9CC659210046EC84231597DADFDB3B1.json",
-      "sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4",
-      "configured_path": "/Volumes/w/code/zero/target/reference/regex-exact-symbols/windows/ntkrnlmp.pdb/0C9CC659210046EC84231597DADFDB3B1.json",
-      "configured_sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4"
-    },
-    "reference_execution": {
-      "summary_path": "/Volumes/w/code/zero/target/reference/results/vadregexscan-native100/summary.json",
-      "summary_sha256": "37996867280422f976b0458a1dbde051a408a267d4e3a5bef67c900a69861dc8",
-      "case_id": "windows-10-15063/vadregex-multi-pid",
-      "reference_output_sha256": "530c99ea29d533afac71764f1191f120ce804a42e62663254fc59db8f1ef8ef7",
-      "scope": "Original pinned Vol execution is reused after validating input, symbol and output hashes, unchanged reference checkout, arguments and mapping. Native command is rerun on the final executable."
-    }
+    "zero_executable_sha256": "8e904349328fc6800a9cc513fd74989aa76e1bc4b8775edbdc5b464728017af8",
+    "engine_version": "0.2.1-native-101"
   },
   {
-    "reference_plugin": "windows.vadregexscan.VadRegExScan",
-    "zero_plugin": "windows.vadregexscan.VadRegExScan",
-    "image_sha256": "d58f62e92b8c4ef913ac09b2c36a10482034c10b88d0c154dead3aaaa49cf875",
-    "mapping_sha256": "8027af0b0d2fee906720de26419fde6ee58a6befc69548d9efc040a629c0e4a3",
-    "native_output_sha256": "0ab2a422386d878730e359c1345eee8394bb210b7445ddd398290c7508a3b976",
+    "sample": "windows-10-15063",
+    "sample_source": "https://www.osforensics.com/downloads/WinDump.zip",
+    "input_files": [],
+    "case_id": "windows-10-15063/vadregex-pid-union",
     "zero_args": [
       "--pid",
       "844",
@@ -44249,8 +43928,17 @@
       "--pattern",
       "MZ"
     ],
-    "case_id": "windows-10-15063/vadregex-pid-union",
-    "sample_source": "https://www.osforensics.com/downloads/WinDump.zip",
+    "image_sha256": "d58f62e92b8c4ef913ac09b2c36a10482034c10b88d0c154dead3aaaa49cf875",
+    "reference_plugin": "windows.vadregexscan.VadRegExScan",
+    "zero_plugin": "windows.vadregexscan.VadRegExScan",
+    "passed": true,
+    "mapping_sha256": "8027af0b0d2fee906720de26419fde6ee58a6befc69548d9efc040a629c0e4a3",
+    "native_symbol_source": {
+      "path": "/Volumes/w/code/zero/target/reference/regex-exact-symbols/windows/ntkrnlmp.pdb/0C9CC659210046EC84231597DADFDB3B1.json",
+      "sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4",
+      "configured_path": "/Volumes/w/code/zero/target/reference/regex-exact-symbols/windows/ntkrnlmp.pdb/0C9CC659210046EC84231597DADFDB3B1.json",
+      "configured_sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4"
+    },
     "comparison": {
       "schema_version": 1,
       "mapping_version": 1,
@@ -44320,43 +44008,18 @@
       ],
       "passed": true
     },
-    "passed": true,
+    "native_output_sha256": "59fe57d14e6a323839e968072666406adce2c6e823e0ea92fa016abd228760e6",
     "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
     "reference_output_sha256": "530c99ea29d533afac71764f1191f120ce804a42e62663254fc59db8f1ef8ef7",
     "symbol_sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4",
-    "zero_executable_sha256": "ca1395c19f8dd1760c6a1827c090bd9b8857abc863575f376ddcfbab96306b78",
-    "engine_version": "0.2.1-native-100",
-    "record_order": {
-      "passed": true,
-      "first_difference": null,
-      "zero_sha256": "f8da264d342b2269e19b04a1de1c3ec042a7d6b2cb4ecc7750f29560381b4a42",
-      "reference_sha256": "f8da264d342b2269e19b04a1de1c3ec042a7d6b2cb4ecc7750f29560381b4a42",
-      "scope": "All mapped fields in emitted sequence after declared record selection; duplicate occurrences retained.",
-      "case_id": "windows-10-15063/vadregex-pid-union",
-      "mapping_sha256": "8027af0b0d2fee906720de26419fde6ee58a6befc69548d9efc040a629c0e4a3",
-      "native_output_sha256": "0ab2a422386d878730e359c1345eee8394bb210b7445ddd398290c7508a3b976",
-      "reference_output_sha256": "530c99ea29d533afac71764f1191f120ce804a42e62663254fc59db8f1ef8ef7"
-    },
-    "native_symbol_source": {
-      "path": "/Volumes/w/code/zero/target/reference/regex-exact-symbols/windows/ntkrnlmp.pdb/0C9CC659210046EC84231597DADFDB3B1.json",
-      "sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4",
-      "configured_path": "/Volumes/w/code/zero/target/reference/regex-exact-symbols/windows/ntkrnlmp.pdb/0C9CC659210046EC84231597DADFDB3B1.json",
-      "configured_sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4"
-    },
-    "reference_execution": {
-      "summary_path": "/Volumes/w/code/zero/target/reference/results/vadregexscan-native100/summary.json",
-      "summary_sha256": "37996867280422f976b0458a1dbde051a408a267d4e3a5bef67c900a69861dc8",
-      "case_id": "windows-10-15063/vadregex-pid-union",
-      "reference_output_sha256": "530c99ea29d533afac71764f1191f120ce804a42e62663254fc59db8f1ef8ef7",
-      "scope": "Original pinned Vol execution is reused after validating input, symbol and output hashes, unchanged reference checkout, arguments and mapping. Native command is rerun on the final executable."
-    }
+    "zero_executable_sha256": "8e904349328fc6800a9cc513fd74989aa76e1bc4b8775edbdc5b464728017af8",
+    "engine_version": "0.2.1-native-101"
   },
   {
-    "reference_plugin": "windows.vadregexscan.VadRegExScan",
-    "zero_plugin": "windows.vadregexscan.VadRegExScan",
-    "image_sha256": "d58f62e92b8c4ef913ac09b2c36a10482034c10b88d0c154dead3aaaa49cf875",
-    "mapping_sha256": "8027af0b0d2fee906720de26419fde6ee58a6befc69548d9efc040a629c0e4a3",
-    "native_output_sha256": "fff0d9789f7d81203139e22efe345fe6d138be25ef03460ce797f66a1c78ec4a",
+    "sample": "windows-10-15063",
+    "sample_source": "https://www.osforensics.com/downloads/WinDump.zip",
+    "input_files": [],
+    "case_id": "windows-10-15063/vadregex-smss",
     "zero_args": [
       "--pid",
       "356",
@@ -44369,8 +44032,17 @@
       "--pattern",
       "MZ"
     ],
-    "case_id": "windows-10-15063/vadregex-smss",
-    "sample_source": "https://www.osforensics.com/downloads/WinDump.zip",
+    "image_sha256": "d58f62e92b8c4ef913ac09b2c36a10482034c10b88d0c154dead3aaaa49cf875",
+    "reference_plugin": "windows.vadregexscan.VadRegExScan",
+    "zero_plugin": "windows.vadregexscan.VadRegExScan",
+    "passed": true,
+    "mapping_sha256": "8027af0b0d2fee906720de26419fde6ee58a6befc69548d9efc040a629c0e4a3",
+    "native_symbol_source": {
+      "path": "/Volumes/w/code/zero/target/reference/regex-exact-symbols/windows/ntkrnlmp.pdb/0C9CC659210046EC84231597DADFDB3B1.json",
+      "sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4",
+      "configured_path": "/Volumes/w/code/zero/target/reference/regex-exact-symbols/windows/ntkrnlmp.pdb/0C9CC659210046EC84231597DADFDB3B1.json",
+      "configured_sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4"
+    },
     "comparison": {
       "schema_version": 1,
       "mapping_version": 1,
@@ -44398,43 +44070,18 @@
       ],
       "passed": true
     },
-    "passed": true,
+    "native_output_sha256": "764277645cf5daa1030c372f7bd40cf200bbe04f6992ebd051b0418fc4bef05e",
     "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
     "reference_output_sha256": "5b68e3a7fdd5f6a469332a227099d148a116e2c84ec521545153d1f021fa5763",
     "symbol_sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4",
-    "zero_executable_sha256": "ca1395c19f8dd1760c6a1827c090bd9b8857abc863575f376ddcfbab96306b78",
-    "engine_version": "0.2.1-native-100",
-    "record_order": {
-      "passed": true,
-      "first_difference": null,
-      "zero_sha256": "b55877793aa27882368b7640babb6ddda8c01565abd1ba8080c7ce75590144ec",
-      "reference_sha256": "b55877793aa27882368b7640babb6ddda8c01565abd1ba8080c7ce75590144ec",
-      "scope": "All mapped fields in emitted sequence after declared record selection; duplicate occurrences retained.",
-      "case_id": "windows-10-15063/vadregex-smss",
-      "mapping_sha256": "8027af0b0d2fee906720de26419fde6ee58a6befc69548d9efc040a629c0e4a3",
-      "native_output_sha256": "fff0d9789f7d81203139e22efe345fe6d138be25ef03460ce797f66a1c78ec4a",
-      "reference_output_sha256": "5b68e3a7fdd5f6a469332a227099d148a116e2c84ec521545153d1f021fa5763"
-    },
-    "native_symbol_source": {
-      "path": "/Volumes/w/code/zero/target/reference/regex-exact-symbols/windows/ntkrnlmp.pdb/0C9CC659210046EC84231597DADFDB3B1.json",
-      "sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4",
-      "configured_path": "/Volumes/w/code/zero/target/reference/regex-exact-symbols/windows/ntkrnlmp.pdb/0C9CC659210046EC84231597DADFDB3B1.json",
-      "configured_sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4"
-    },
-    "reference_execution": {
-      "summary_path": "/Volumes/w/code/zero/target/reference/results/vadregexscan-native100/summary.json",
-      "summary_sha256": "37996867280422f976b0458a1dbde051a408a267d4e3a5bef67c900a69861dc8",
-      "case_id": "windows-10-15063/vadregex-smss",
-      "reference_output_sha256": "5b68e3a7fdd5f6a469332a227099d148a116e2c84ec521545153d1f021fa5763",
-      "scope": "Original pinned Vol execution is reused after validating input, symbol and output hashes, unchanged reference checkout, arguments and mapping. Native command is rerun on the final executable."
-    }
+    "zero_executable_sha256": "8e904349328fc6800a9cc513fd74989aa76e1bc4b8775edbdc5b464728017af8",
+    "engine_version": "0.2.1-native-101"
   },
   {
-    "reference_plugin": "windows.vadregexscan.VadRegExScan",
-    "zero_plugin": "windows.vadregexscan.VadRegExScan",
-    "image_sha256": "d58f62e92b8c4ef913ac09b2c36a10482034c10b88d0c154dead3aaaa49cf875",
-    "mapping_sha256": "8027af0b0d2fee906720de26419fde6ee58a6befc69548d9efc040a629c0e4a3",
-    "native_output_sha256": "591d0fc97e10c192c265bafce711859ec13cd7d7f6877d2c50edf7fad8807ec3",
+    "sample": "windows-10-15063",
+    "sample_source": "https://www.osforensics.com/downloads/WinDump.zip",
+    "input_files": [],
+    "case_id": "windows-10-15063/vadregex-system-process-pids",
     "zero_args": [
       "--pids",
       "356,468",
@@ -44448,8 +44095,17 @@
       "--pattern",
       "MZ"
     ],
-    "case_id": "windows-10-15063/vadregex-system-process-pids",
-    "sample_source": "https://www.osforensics.com/downloads/WinDump.zip",
+    "image_sha256": "d58f62e92b8c4ef913ac09b2c36a10482034c10b88d0c154dead3aaaa49cf875",
+    "reference_plugin": "windows.vadregexscan.VadRegExScan",
+    "zero_plugin": "windows.vadregexscan.VadRegExScan",
+    "passed": true,
+    "mapping_sha256": "8027af0b0d2fee906720de26419fde6ee58a6befc69548d9efc040a629c0e4a3",
+    "native_symbol_source": {
+      "path": "/Volumes/w/code/zero/target/reference/regex-exact-symbols/windows/ntkrnlmp.pdb/0C9CC659210046EC84231597DADFDB3B1.json",
+      "sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4",
+      "configured_path": "/Volumes/w/code/zero/target/reference/regex-exact-symbols/windows/ntkrnlmp.pdb/0C9CC659210046EC84231597DADFDB3B1.json",
+      "configured_sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4"
+    },
     "comparison": {
       "schema_version": 1,
       "mapping_version": 1,
@@ -44480,43 +44136,18 @@
       ],
       "passed": true
     },
-    "passed": true,
+    "native_output_sha256": "986c6d4a6393781557ba40ac248fc45474024fa674b1c9875a78867f91b4756c",
     "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
     "reference_output_sha256": "bb1f588a39fe13f1ec7b104611d5c0341ba03c084bd50ff4d9db75040875ed16",
     "symbol_sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4",
-    "zero_executable_sha256": "ca1395c19f8dd1760c6a1827c090bd9b8857abc863575f376ddcfbab96306b78",
-    "engine_version": "0.2.1-native-100",
-    "record_order": {
-      "passed": true,
-      "first_difference": null,
-      "zero_sha256": "c99e7d1682126016af9615172efe94135aecf42a016cdd4e0fb366f3b259b862",
-      "reference_sha256": "c99e7d1682126016af9615172efe94135aecf42a016cdd4e0fb366f3b259b862",
-      "scope": "All mapped fields in emitted sequence after declared record selection; duplicate occurrences retained.",
-      "case_id": "windows-10-15063/vadregex-system-process-pids",
-      "mapping_sha256": "8027af0b0d2fee906720de26419fde6ee58a6befc69548d9efc040a629c0e4a3",
-      "native_output_sha256": "591d0fc97e10c192c265bafce711859ec13cd7d7f6877d2c50edf7fad8807ec3",
-      "reference_output_sha256": "bb1f588a39fe13f1ec7b104611d5c0341ba03c084bd50ff4d9db75040875ed16"
-    },
-    "native_symbol_source": {
-      "path": "/Volumes/w/code/zero/target/reference/regex-exact-symbols/windows/ntkrnlmp.pdb/0C9CC659210046EC84231597DADFDB3B1.json",
-      "sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4",
-      "configured_path": "/Volumes/w/code/zero/target/reference/regex-exact-symbols/windows/ntkrnlmp.pdb/0C9CC659210046EC84231597DADFDB3B1.json",
-      "configured_sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4"
-    },
-    "reference_execution": {
-      "summary_path": "/Volumes/w/code/zero/target/reference/results/vadregexscan-native100/summary.json",
-      "summary_sha256": "37996867280422f976b0458a1dbde051a408a267d4e3a5bef67c900a69861dc8",
-      "case_id": "windows-10-15063/vadregex-system-process-pids",
-      "reference_output_sha256": "bb1f588a39fe13f1ec7b104611d5c0341ba03c084bd50ff4d9db75040875ed16",
-      "scope": "Original pinned Vol execution is reused after validating input, symbol and output hashes, unchanged reference checkout, arguments and mapping. Native command is rerun on the final executable."
-    }
+    "zero_executable_sha256": "8e904349328fc6800a9cc513fd74989aa76e1bc4b8775edbdc5b464728017af8",
+    "engine_version": "0.2.1-native-101"
   },
   {
-    "reference_plugin": "windows.vadregexscan.VadRegExScan",
-    "zero_plugin": "windows.vadregexscan.VadRegExScan",
-    "image_sha256": "d58f62e92b8c4ef913ac09b2c36a10482034c10b88d0c154dead3aaaa49cf875",
-    "mapping_sha256": "8027af0b0d2fee906720de26419fde6ee58a6befc69548d9efc040a629c0e4a3",
-    "native_output_sha256": "25af1fddd5ff0e3d338dacea05cb2487e83050c6bd948db1a0cdbd889a1d3086",
+    "sample": "windows-10-15063",
+    "sample_source": "https://www.osforensics.com/downloads/WinDump.zip",
+    "input_files": [],
+    "case_id": "windows-10-15063/vadregex-pid-844",
     "zero_args": [
       "--pid",
       "844",
@@ -44529,8 +44160,17 @@
       "--pattern",
       "MZ"
     ],
-    "case_id": "windows-10-15063/vadregex-pid-844",
-    "sample_source": "https://www.osforensics.com/downloads/WinDump.zip",
+    "image_sha256": "d58f62e92b8c4ef913ac09b2c36a10482034c10b88d0c154dead3aaaa49cf875",
+    "reference_plugin": "windows.vadregexscan.VadRegExScan",
+    "zero_plugin": "windows.vadregexscan.VadRegExScan",
+    "passed": true,
+    "mapping_sha256": "8027af0b0d2fee906720de26419fde6ee58a6befc69548d9efc040a629c0e4a3",
+    "native_symbol_source": {
+      "path": "/Volumes/w/code/zero/target/reference/regex-exact-symbols/windows/ntkrnlmp.pdb/0C9CC659210046EC84231597DADFDB3B1.json",
+      "sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4",
+      "configured_path": "/Volumes/w/code/zero/target/reference/regex-exact-symbols/windows/ntkrnlmp.pdb/0C9CC659210046EC84231597DADFDB3B1.json",
+      "configured_sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4"
+    },
     "comparison": {
       "schema_version": 1,
       "mapping_version": 1,
@@ -44558,43 +44198,18 @@
       ],
       "passed": true
     },
-    "passed": true,
+    "native_output_sha256": "a4eb09a5fc344b066159c8b1004de7b0dcc021d5d2af7469be49096be8d14cae",
     "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
     "reference_output_sha256": "06d26dd8a46471ab41d75d83444b914f4bb3eb70858ea9fb3c1e80c43cf1ce33",
     "symbol_sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4",
-    "zero_executable_sha256": "ca1395c19f8dd1760c6a1827c090bd9b8857abc863575f376ddcfbab96306b78",
-    "engine_version": "0.2.1-native-100",
-    "record_order": {
-      "passed": true,
-      "first_difference": null,
-      "zero_sha256": "8491f8e187ee2374403baaf434373acca0f53223019b3e5e629e420832950e46",
-      "reference_sha256": "8491f8e187ee2374403baaf434373acca0f53223019b3e5e629e420832950e46",
-      "scope": "All mapped fields in emitted sequence after declared record selection; duplicate occurrences retained.",
-      "case_id": "windows-10-15063/vadregex-pid-844",
-      "mapping_sha256": "8027af0b0d2fee906720de26419fde6ee58a6befc69548d9efc040a629c0e4a3",
-      "native_output_sha256": "25af1fddd5ff0e3d338dacea05cb2487e83050c6bd948db1a0cdbd889a1d3086",
-      "reference_output_sha256": "06d26dd8a46471ab41d75d83444b914f4bb3eb70858ea9fb3c1e80c43cf1ce33"
-    },
-    "native_symbol_source": {
-      "path": "/Volumes/w/code/zero/target/reference/regex-exact-symbols/windows/ntkrnlmp.pdb/0C9CC659210046EC84231597DADFDB3B1.json",
-      "sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4",
-      "configured_path": "/Volumes/w/code/zero/target/reference/regex-exact-symbols/windows/ntkrnlmp.pdb/0C9CC659210046EC84231597DADFDB3B1.json",
-      "configured_sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4"
-    },
-    "reference_execution": {
-      "summary_path": "/Volumes/w/code/zero/target/reference/results/vadregexscan-native100/summary.json",
-      "summary_sha256": "37996867280422f976b0458a1dbde051a408a267d4e3a5bef67c900a69861dc8",
-      "case_id": "windows-10-15063/vadregex-pid-844",
-      "reference_output_sha256": "06d26dd8a46471ab41d75d83444b914f4bb3eb70858ea9fb3c1e80c43cf1ce33",
-      "scope": "Original pinned Vol execution is reused after validating input, symbol and output hashes, unchanged reference checkout, arguments and mapping. Native command is rerun on the final executable."
-    }
+    "zero_executable_sha256": "8e904349328fc6800a9cc513fd74989aa76e1bc4b8775edbdc5b464728017af8",
+    "engine_version": "0.2.1-native-101"
   },
   {
-    "reference_plugin": "windows.vadregexscan.VadRegExScan",
-    "zero_plugin": "windows.vadregexscan.VadRegExScan",
-    "image_sha256": "d58f62e92b8c4ef913ac09b2c36a10482034c10b88d0c154dead3aaaa49cf875",
-    "mapping_sha256": "8027af0b0d2fee906720de26419fde6ee58a6befc69548d9efc040a629c0e4a3",
-    "native_output_sha256": "25f60f1563c3a1d9a083f8af177fc7483fb52e04c4971140d651f316f00d94f8",
+    "sample": "windows-10-15063",
+    "sample_source": "https://www.osforensics.com/downloads/WinDump.zip",
+    "input_files": [],
+    "case_id": "windows-10-15063/vadregex-pid-468",
     "zero_args": [
       "--pid",
       "468",
@@ -44607,8 +44222,17 @@
       "--pattern",
       "MZ"
     ],
-    "case_id": "windows-10-15063/vadregex-pid-468",
-    "sample_source": "https://www.osforensics.com/downloads/WinDump.zip",
+    "image_sha256": "d58f62e92b8c4ef913ac09b2c36a10482034c10b88d0c154dead3aaaa49cf875",
+    "reference_plugin": "windows.vadregexscan.VadRegExScan",
+    "zero_plugin": "windows.vadregexscan.VadRegExScan",
+    "passed": true,
+    "mapping_sha256": "8027af0b0d2fee906720de26419fde6ee58a6befc69548d9efc040a629c0e4a3",
+    "native_symbol_source": {
+      "path": "/Volumes/w/code/zero/target/reference/regex-exact-symbols/windows/ntkrnlmp.pdb/0C9CC659210046EC84231597DADFDB3B1.json",
+      "sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4",
+      "configured_path": "/Volumes/w/code/zero/target/reference/regex-exact-symbols/windows/ntkrnlmp.pdb/0C9CC659210046EC84231597DADFDB3B1.json",
+      "configured_sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4"
+    },
     "comparison": {
       "schema_version": 1,
       "mapping_version": 1,
@@ -44638,43 +44262,18 @@
       ],
       "passed": true
     },
-    "passed": true,
+    "native_output_sha256": "d4a97c668ed5783d0bd485a32daf8d85b13df32b9045b5f328719aa85c772620",
     "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
     "reference_output_sha256": "e6dc1f5bf2ba73fd2973123ea42caad24b1bd35aba177177aad7cdc2d336c21e",
     "symbol_sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4",
-    "zero_executable_sha256": "ca1395c19f8dd1760c6a1827c090bd9b8857abc863575f376ddcfbab96306b78",
-    "engine_version": "0.2.1-native-100",
-    "record_order": {
-      "passed": true,
-      "first_difference": null,
-      "zero_sha256": "2fb554104adeb77a00f8b1cfb2fe49d9a19e20b27161442201a3cae349027595",
-      "reference_sha256": "2fb554104adeb77a00f8b1cfb2fe49d9a19e20b27161442201a3cae349027595",
-      "scope": "All mapped fields in emitted sequence after declared record selection; duplicate occurrences retained.",
-      "case_id": "windows-10-15063/vadregex-pid-468",
-      "mapping_sha256": "8027af0b0d2fee906720de26419fde6ee58a6befc69548d9efc040a629c0e4a3",
-      "native_output_sha256": "25f60f1563c3a1d9a083f8af177fc7483fb52e04c4971140d651f316f00d94f8",
-      "reference_output_sha256": "e6dc1f5bf2ba73fd2973123ea42caad24b1bd35aba177177aad7cdc2d336c21e"
-    },
-    "native_symbol_source": {
-      "path": "/Volumes/w/code/zero/target/reference/regex-exact-symbols/windows/ntkrnlmp.pdb/0C9CC659210046EC84231597DADFDB3B1.json",
-      "sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4",
-      "configured_path": "/Volumes/w/code/zero/target/reference/regex-exact-symbols/windows/ntkrnlmp.pdb/0C9CC659210046EC84231597DADFDB3B1.json",
-      "configured_sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4"
-    },
-    "reference_execution": {
-      "summary_path": "/Volumes/w/code/zero/target/reference/results/vadregexscan-native100/summary.json",
-      "summary_sha256": "37996867280422f976b0458a1dbde051a408a267d4e3a5bef67c900a69861dc8",
-      "case_id": "windows-10-15063/vadregex-pid-468",
-      "reference_output_sha256": "e6dc1f5bf2ba73fd2973123ea42caad24b1bd35aba177177aad7cdc2d336c21e",
-      "scope": "Original pinned Vol execution is reused after validating input, symbol and output hashes, unchanged reference checkout, arguments and mapping. Native command is rerun on the final executable."
-    }
+    "zero_executable_sha256": "8e904349328fc6800a9cc513fd74989aa76e1bc4b8775edbdc5b464728017af8",
+    "engine_version": "0.2.1-native-101"
   },
   {
-    "reference_plugin": "windows.vadregexscan.VadRegExScan",
-    "zero_plugin": "windows.vadregexscan.VadRegExScan",
-    "image_sha256": "d58f62e92b8c4ef913ac09b2c36a10482034c10b88d0c154dead3aaaa49cf875",
-    "mapping_sha256": "8027af0b0d2fee906720de26419fde6ee58a6befc69548d9efc040a629c0e4a3",
-    "native_output_sha256": "9ff4f8cfffc2270f619b3a7ed1e6296a738df4d2df0a413e409c928ec1bf724e",
+    "sample": "windows-10-15063",
+    "sample_source": "https://www.osforensics.com/downloads/WinDump.zip",
+    "input_files": [],
+    "case_id": "windows-10-15063/vadregex-maxsize",
     "zero_args": [
       "--pid",
       "7688",
@@ -44691,8 +44290,17 @@
       "--maxsize",
       "4"
     ],
-    "case_id": "windows-10-15063/vadregex-maxsize",
-    "sample_source": "https://www.osforensics.com/downloads/WinDump.zip",
+    "image_sha256": "d58f62e92b8c4ef913ac09b2c36a10482034c10b88d0c154dead3aaaa49cf875",
+    "reference_plugin": "windows.vadregexscan.VadRegExScan",
+    "zero_plugin": "windows.vadregexscan.VadRegExScan",
+    "passed": true,
+    "mapping_sha256": "8027af0b0d2fee906720de26419fde6ee58a6befc69548d9efc040a629c0e4a3",
+    "native_symbol_source": {
+      "path": "/Volumes/w/code/zero/target/reference/regex-exact-symbols/windows/ntkrnlmp.pdb/0C9CC659210046EC84231597DADFDB3B1.json",
+      "sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4",
+      "configured_path": "/Volumes/w/code/zero/target/reference/regex-exact-symbols/windows/ntkrnlmp.pdb/0C9CC659210046EC84231597DADFDB3B1.json",
+      "configured_sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4"
+    },
     "comparison": {
       "schema_version": 1,
       "mapping_version": 1,
@@ -44761,61 +44369,45 @@
       ],
       "passed": true
     },
-    "passed": true,
+    "native_output_sha256": "5ac86d9d6d5d1255023912dd7c4104e4cfbd6fcfe46f3c7a069f0a6a58885620",
     "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
     "reference_output_sha256": "5d665c63a3ff3f395f0d97a4b880fa9de34c0f97fbc0a1ca3cebf6681ed1cebd",
     "symbol_sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4",
-    "zero_executable_sha256": "ca1395c19f8dd1760c6a1827c090bd9b8857abc863575f376ddcfbab96306b78",
-    "engine_version": "0.2.1-native-100",
-    "record_order": {
-      "passed": true,
-      "first_difference": null,
-      "zero_sha256": "dab42066e8997e1a83704445bd10cb2c93105baa0400d0799d6482f77665327f",
-      "reference_sha256": "dab42066e8997e1a83704445bd10cb2c93105baa0400d0799d6482f77665327f",
-      "scope": "All mapped fields in emitted sequence after declared record selection; duplicate occurrences retained.",
-      "case_id": "windows-10-15063/vadregex-maxsize",
-      "mapping_sha256": "8027af0b0d2fee906720de26419fde6ee58a6befc69548d9efc040a629c0e4a3",
-      "native_output_sha256": "9ff4f8cfffc2270f619b3a7ed1e6296a738df4d2df0a413e409c928ec1bf724e",
-      "reference_output_sha256": "5d665c63a3ff3f395f0d97a4b880fa9de34c0f97fbc0a1ca3cebf6681ed1cebd"
-    },
-    "native_symbol_source": {
-      "path": "/Volumes/w/code/zero/target/reference/regex-exact-symbols/windows/ntkrnlmp.pdb/0C9CC659210046EC84231597DADFDB3B1.json",
-      "sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4",
-      "configured_path": "/Volumes/w/code/zero/target/reference/regex-exact-symbols/windows/ntkrnlmp.pdb/0C9CC659210046EC84231597DADFDB3B1.json",
-      "configured_sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4"
-    },
-    "reference_execution": {
-      "summary_path": "/Volumes/w/code/zero/target/reference/results/vadregexscan-maxsize-native100/summary.json",
-      "summary_sha256": "720075a35da4ee64f433ef74b70cbc2cc1151a82f001a78fa3e37becc72e8b91",
-      "case_id": "windows-10-15063/vadregex-maxsize",
-      "reference_output_sha256": "5d665c63a3ff3f395f0d97a4b880fa9de34c0f97fbc0a1ca3cebf6681ed1cebd",
-      "scope": "Original pinned Vol execution is reused after validating input, symbol and output hashes, unchanged reference checkout, arguments and mapping. Native command is rerun on the final executable."
-    }
+    "zero_executable_sha256": "8e904349328fc6800a9cc513fd74989aa76e1bc4b8775edbdc5b464728017af8",
+    "engine_version": "0.2.1-native-101"
   },
   {
-    "reference_plugin": "windows.vadregexscan.VadRegExScan",
-    "zero_plugin": "windows.vadregexscan.VadRegExScan",
-    "image_sha256": "d58f62e92b8c4ef913ac09b2c36a10482034c10b88d0c154dead3aaaa49cf875",
-    "mapping_sha256": "8027af0b0d2fee906720de26419fde6ee58a6befc69548d9efc040a629c0e4a3",
-    "native_output_sha256": "021b4976940f9da33e65458f3f2fddf6ae5064dbe0450ebef03e3a210fce8e3d",
-    "zero_args": [
-      "--pid",
-      "468",
-      "--pattern",
-      "MZ.{6}",
-      "--maxsize",
-      "-1"
-    ],
-    "reference_args": [
-      "--pid",
-      "468",
-      "--pattern",
-      "MZ.{6}",
-      "--maxsize",
-      "-1"
-    ],
+    "sample": "windows-10-15063",
+    "sample_source": "https://www.osforensics.com/downloads/WinDump.zip",
+    "input_files": [],
     "case_id": "windows-10-15063/vadregex-maxsize--1",
-    "sample_source": "https://www.osforensics.com/downloads/WinDump.zip",
+    "zero_args": [
+      "--pid",
+      "468",
+      "--pattern",
+      "MZ.{6}",
+      "--maxsize",
+      "-1"
+    ],
+    "reference_args": [
+      "--pid",
+      "468",
+      "--pattern",
+      "MZ.{6}",
+      "--maxsize",
+      "-1"
+    ],
+    "image_sha256": "d58f62e92b8c4ef913ac09b2c36a10482034c10b88d0c154dead3aaaa49cf875",
+    "reference_plugin": "windows.vadregexscan.VadRegExScan",
+    "zero_plugin": "windows.vadregexscan.VadRegExScan",
+    "passed": true,
+    "mapping_sha256": "8027af0b0d2fee906720de26419fde6ee58a6befc69548d9efc040a629c0e4a3",
+    "native_symbol_source": {
+      "path": "/Volumes/w/code/zero/target/reference/regex-exact-symbols/windows/ntkrnlmp.pdb/0C9CC659210046EC84231597DADFDB3B1.json",
+      "sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4",
+      "configured_path": "/Volumes/w/code/zero/target/reference/regex-exact-symbols/windows/ntkrnlmp.pdb/0C9CC659210046EC84231597DADFDB3B1.json",
+      "configured_sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4"
+    },
     "comparison": {
       "schema_version": 1,
       "mapping_version": 1,
@@ -44845,61 +44437,45 @@
       ],
       "passed": true
     },
-    "passed": true,
+    "native_output_sha256": "823f05da9d02569edccf8f4235643eb3a4e48050314ac53e81f9f4e946a281b2",
     "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
     "reference_output_sha256": "9a11d28a322bc0eb254187568e80f66a687388be46320e51d6da8fece67a9f70",
     "symbol_sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4",
-    "zero_executable_sha256": "ca1395c19f8dd1760c6a1827c090bd9b8857abc863575f376ddcfbab96306b78",
-    "engine_version": "0.2.1-native-100",
-    "record_order": {
-      "passed": true,
-      "first_difference": null,
-      "zero_sha256": "04cddae6e06b675d946610938eb14144254e299276dc42810dc2fb9210c455c9",
-      "reference_sha256": "04cddae6e06b675d946610938eb14144254e299276dc42810dc2fb9210c455c9",
-      "scope": "All mapped fields in emitted sequence after declared record selection; duplicate occurrences retained.",
-      "case_id": "windows-10-15063/vadregex-maxsize--1",
-      "mapping_sha256": "8027af0b0d2fee906720de26419fde6ee58a6befc69548d9efc040a629c0e4a3",
-      "native_output_sha256": "021b4976940f9da33e65458f3f2fddf6ae5064dbe0450ebef03e3a210fce8e3d",
-      "reference_output_sha256": "9a11d28a322bc0eb254187568e80f66a687388be46320e51d6da8fece67a9f70"
-    },
-    "native_symbol_source": {
-      "path": "/Volumes/w/code/zero/target/reference/regex-exact-symbols/windows/ntkrnlmp.pdb/0C9CC659210046EC84231597DADFDB3B1.json",
-      "sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4",
-      "configured_path": "/Volumes/w/code/zero/target/reference/regex-exact-symbols/windows/ntkrnlmp.pdb/0C9CC659210046EC84231597DADFDB3B1.json",
-      "configured_sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4"
-    },
-    "reference_execution": {
-      "summary_path": "/Volumes/w/code/zero/target/reference/results/vadregexscan-maxsize-native100/summary.json",
-      "summary_sha256": "720075a35da4ee64f433ef74b70cbc2cc1151a82f001a78fa3e37becc72e8b91",
-      "case_id": "windows-10-15063/vadregex-maxsize--1",
-      "reference_output_sha256": "9a11d28a322bc0eb254187568e80f66a687388be46320e51d6da8fece67a9f70",
-      "scope": "Original pinned Vol execution is reused after validating input, symbol and output hashes, unchanged reference checkout, arguments and mapping. Native command is rerun on the final executable."
-    }
+    "zero_executable_sha256": "8e904349328fc6800a9cc513fd74989aa76e1bc4b8775edbdc5b464728017af8",
+    "engine_version": "0.2.1-native-101"
   },
   {
-    "reference_plugin": "windows.vadregexscan.VadRegExScan",
-    "zero_plugin": "windows.vadregexscan.VadRegExScan",
-    "image_sha256": "d58f62e92b8c4ef913ac09b2c36a10482034c10b88d0c154dead3aaaa49cf875",
-    "mapping_sha256": "8027af0b0d2fee906720de26419fde6ee58a6befc69548d9efc040a629c0e4a3",
-    "native_output_sha256": "44f406cc8115641650874356a6ffb54d3c246b402f0cfff294d9aa0ae56a7487",
-    "zero_args": [
-      "--pid",
-      "468",
-      "--pattern",
-      "MZ.{6}",
-      "--maxsize",
-      "0"
-    ],
-    "reference_args": [
-      "--pid",
-      "468",
-      "--pattern",
-      "MZ.{6}",
-      "--maxsize",
-      "0"
-    ],
+    "sample": "windows-10-15063",
+    "sample_source": "https://www.osforensics.com/downloads/WinDump.zip",
+    "input_files": [],
     "case_id": "windows-10-15063/vadregex-maxsize-0",
-    "sample_source": "https://www.osforensics.com/downloads/WinDump.zip",
+    "zero_args": [
+      "--pid",
+      "468",
+      "--pattern",
+      "MZ.{6}",
+      "--maxsize",
+      "0"
+    ],
+    "reference_args": [
+      "--pid",
+      "468",
+      "--pattern",
+      "MZ.{6}",
+      "--maxsize",
+      "0"
+    ],
+    "image_sha256": "d58f62e92b8c4ef913ac09b2c36a10482034c10b88d0c154dead3aaaa49cf875",
+    "reference_plugin": "windows.vadregexscan.VadRegExScan",
+    "zero_plugin": "windows.vadregexscan.VadRegExScan",
+    "passed": true,
+    "mapping_sha256": "8027af0b0d2fee906720de26419fde6ee58a6befc69548d9efc040a629c0e4a3",
+    "native_symbol_source": {
+      "path": "/Volumes/w/code/zero/target/reference/regex-exact-symbols/windows/ntkrnlmp.pdb/0C9CC659210046EC84231597DADFDB3B1.json",
+      "sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4",
+      "configured_path": "/Volumes/w/code/zero/target/reference/regex-exact-symbols/windows/ntkrnlmp.pdb/0C9CC659210046EC84231597DADFDB3B1.json",
+      "configured_sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4"
+    },
     "comparison": {
       "schema_version": 1,
       "mapping_version": 1,
@@ -44929,43 +44505,18 @@
       ],
       "passed": true
     },
-    "passed": true,
+    "native_output_sha256": "ce458d45e8b79d96a84cf3fde4a678c279ad09d8fee7de7f4f82077e8c85f9ab",
     "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
     "reference_output_sha256": "9a11d28a322bc0eb254187568e80f66a687388be46320e51d6da8fece67a9f70",
     "symbol_sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4",
-    "zero_executable_sha256": "ca1395c19f8dd1760c6a1827c090bd9b8857abc863575f376ddcfbab96306b78",
-    "engine_version": "0.2.1-native-100",
-    "record_order": {
-      "passed": true,
-      "first_difference": null,
-      "zero_sha256": "04cddae6e06b675d946610938eb14144254e299276dc42810dc2fb9210c455c9",
-      "reference_sha256": "04cddae6e06b675d946610938eb14144254e299276dc42810dc2fb9210c455c9",
-      "scope": "All mapped fields in emitted sequence after declared record selection; duplicate occurrences retained.",
-      "case_id": "windows-10-15063/vadregex-maxsize-0",
-      "mapping_sha256": "8027af0b0d2fee906720de26419fde6ee58a6befc69548d9efc040a629c0e4a3",
-      "native_output_sha256": "44f406cc8115641650874356a6ffb54d3c246b402f0cfff294d9aa0ae56a7487",
-      "reference_output_sha256": "9a11d28a322bc0eb254187568e80f66a687388be46320e51d6da8fece67a9f70"
-    },
-    "native_symbol_source": {
-      "path": "/Volumes/w/code/zero/target/reference/regex-exact-symbols/windows/ntkrnlmp.pdb/0C9CC659210046EC84231597DADFDB3B1.json",
-      "sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4",
-      "configured_path": "/Volumes/w/code/zero/target/reference/regex-exact-symbols/windows/ntkrnlmp.pdb/0C9CC659210046EC84231597DADFDB3B1.json",
-      "configured_sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4"
-    },
-    "reference_execution": {
-      "summary_path": "/Volumes/w/code/zero/target/reference/results/vadregexscan-maxsize-native100/summary.json",
-      "summary_sha256": "720075a35da4ee64f433ef74b70cbc2cc1151a82f001a78fa3e37becc72e8b91",
-      "case_id": "windows-10-15063/vadregex-maxsize-0",
-      "reference_output_sha256": "9a11d28a322bc0eb254187568e80f66a687388be46320e51d6da8fece67a9f70",
-      "scope": "Original pinned Vol execution is reused after validating input, symbol and output hashes, unchanged reference checkout, arguments and mapping. Native command is rerun on the final executable."
-    }
+    "zero_executable_sha256": "8e904349328fc6800a9cc513fd74989aa76e1bc4b8775edbdc5b464728017af8",
+    "engine_version": "0.2.1-native-101"
   },
   {
-    "reference_plugin": "windows.vadregexscan.VadRegExScan",
-    "zero_plugin": "windows.vadregexscan.VadRegExScan",
-    "image_sha256": "d58f62e92b8c4ef913ac09b2c36a10482034c10b88d0c154dead3aaaa49cf875",
-    "mapping_sha256": "8027af0b0d2fee906720de26419fde6ee58a6befc69548d9efc040a629c0e4a3",
-    "native_output_sha256": "1ca8e33f992f4899f008cc564bf8ec6b826d852b84dafb1695c2b7ce03e0f3bf",
+    "sample": "windows-10-15063",
+    "sample_source": "https://www.osforensics.com/downloads/WinDump.zip",
+    "input_files": [],
+    "case_id": "windows-10-15063/vadregex-maxsize-4097",
     "zero_args": [
       "--pid",
       "468",
@@ -44982,8 +44533,17 @@
       "--maxsize",
       "4097"
     ],
-    "case_id": "windows-10-15063/vadregex-maxsize-4097",
-    "sample_source": "https://www.osforensics.com/downloads/WinDump.zip",
+    "image_sha256": "d58f62e92b8c4ef913ac09b2c36a10482034c10b88d0c154dead3aaaa49cf875",
+    "reference_plugin": "windows.vadregexscan.VadRegExScan",
+    "zero_plugin": "windows.vadregexscan.VadRegExScan",
+    "passed": true,
+    "mapping_sha256": "8027af0b0d2fee906720de26419fde6ee58a6befc69548d9efc040a629c0e4a3",
+    "native_symbol_source": {
+      "path": "/Volumes/w/code/zero/target/reference/regex-exact-symbols/windows/ntkrnlmp.pdb/0C9CC659210046EC84231597DADFDB3B1.json",
+      "sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4",
+      "configured_path": "/Volumes/w/code/zero/target/reference/regex-exact-symbols/windows/ntkrnlmp.pdb/0C9CC659210046EC84231597DADFDB3B1.json",
+      "configured_sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4"
+    },
     "comparison": {
       "schema_version": 1,
       "mapping_version": 1,
@@ -45013,35 +44573,323 @@
       ],
       "passed": true
     },
-    "passed": true,
+    "native_output_sha256": "170618036403feb448826b65a7c7863f2d885ef5387ae2031459b192a5942044",
     "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
     "reference_output_sha256": "9a11d28a322bc0eb254187568e80f66a687388be46320e51d6da8fece67a9f70",
     "symbol_sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4",
-    "zero_executable_sha256": "ca1395c19f8dd1760c6a1827c090bd9b8857abc863575f376ddcfbab96306b78",
-    "engine_version": "0.2.1-native-100",
-    "record_order": {
-      "passed": true,
-      "first_difference": null,
-      "zero_sha256": "04cddae6e06b675d946610938eb14144254e299276dc42810dc2fb9210c455c9",
-      "reference_sha256": "04cddae6e06b675d946610938eb14144254e299276dc42810dc2fb9210c455c9",
-      "scope": "All mapped fields in emitted sequence after declared record selection; duplicate occurrences retained.",
-      "case_id": "windows-10-15063/vadregex-maxsize-4097",
-      "mapping_sha256": "8027af0b0d2fee906720de26419fde6ee58a6befc69548d9efc040a629c0e4a3",
-      "native_output_sha256": "1ca8e33f992f4899f008cc564bf8ec6b826d852b84dafb1695c2b7ce03e0f3bf",
-      "reference_output_sha256": "9a11d28a322bc0eb254187568e80f66a687388be46320e51d6da8fece67a9f70"
+    "zero_executable_sha256": "8e904349328fc6800a9cc513fd74989aa76e1bc4b8775edbdc5b464728017af8",
+    "engine_version": "0.2.1-native-101"
+  },
+  {
+    "sample": "debian-3.2",
+    "sample_source": "https://github.com/volatilityfoundation/volatility3-test-data/releases/download/v0.0.1/linux-sample-1.bin.gz",
+    "input_files": [],
+    "case_id": "debian-3.2/regex-leading-empty-chunk",
+    "zero_args": [
+      "--pid",
+      "1",
+      "--pattern",
+      "^$"
+    ],
+    "reference_args": [
+      "--pid",
+      "1",
+      "--pattern",
+      "^$"
+    ],
+    "image_sha256": "8ce57b7c7b423173ce970fe8f51e7016c04ef1b4a5f73d5c5f1001d5c18780bc",
+    "reference_plugin": "linux.vmaregexscan.VmaRegExScan",
+    "zero_plugin": "linux.vmaregexscan.VmaRegExScan",
+    "passed": true,
+    "mapping_sha256": "b523828171061e27c00b398a8a99a0e43c01ef9444bb21cae13252ee2423fdbf",
+    "native_symbol_source": {
+      "path": "/Volumes/w/code/zero/symbols/Debian_3.2.0-4-amd64_3.2.57-3+deb7u2_amd64-795bb1b381f4311e7165a8e3ad813c625e6a87e85b0450709b342d01c3be9843.json.xz",
+      "sha256": "c3b0b875a2d0498fffc0df1259ff49b850cea28355ffddf02e2f90d34a89fbe1",
+      "configured_path": "/Volumes/w/code/zero/symbols/Debian_3.2.0-4-amd64_3.2.57-3+deb7u2_amd64-795bb1b381f4311e7165a8e3ad813c625e6a87e85b0450709b342d01c3be9843.json.xz",
+      "configured_sha256": "c3b0b875a2d0498fffc0df1259ff49b850cea28355ffddf02e2f90d34a89fbe1"
     },
+    "comparison": {
+      "schema_version": 1,
+      "mapping_version": 1,
+      "zero_records": 7,
+      "reference_records": 7,
+      "missing": [],
+      "extra": [],
+      "duplicates": [
+        {
+          "side": "zero",
+          "key": [
+            1,
+            0
+          ],
+          "count": 7
+        },
+        {
+          "side": "reference",
+          "key": [
+            1,
+            0
+          ],
+          "count": 7
+        }
+      ],
+      "duplicate_keys": "multiset",
+      "multiplicity_conflicts": [],
+      "conflicts": [],
+      "unverifiable": [],
+      "matched_absent": {},
+      "all_columns_mapped": true,
+      "positive_evidence": true,
+      "zero_complete": false,
+      "zero_diagnostics": [
+        "PID 1 正则扫描: 扫描 712704 / 10903552 字节；缺页 10190848 字节；区间合并省略 0 字节；上下文补零 896 字节；扫描结束"
+      ],
+      "passed": true
+    },
+    "native_output_sha256": "d6a9a34efa0af0fba04416ae5d9745fa84faca164b36a0c522181f227613503a",
+    "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+    "reference_output_sha256": "ce625c9c3b13f6d1c77d1868d6456306040d4ec2eb25b98656eb30185892c960",
+    "symbol_sha256": "c3b0b875a2d0498fffc0df1259ff49b850cea28355ffddf02e2f90d34a89fbe1",
+    "zero_executable_sha256": "8e904349328fc6800a9cc513fd74989aa76e1bc4b8775edbdc5b464728017af8",
+    "engine_version": "0.2.1-native-101"
+  },
+  {
+    "sample": "debian-3.2",
+    "sample_source": "https://github.com/volatilityfoundation/volatility3-test-data/releases/download/v0.0.1/linux-sample-1.bin.gz",
+    "input_files": [],
+    "case_id": "debian-3.2/regex-mapping-boundaries",
+    "zero_args": [
+      "--pid",
+      "1",
+      "--pattern",
+      "^"
+    ],
+    "reference_args": [
+      "--pid",
+      "1",
+      "--pattern",
+      "^"
+    ],
+    "image_sha256": "8ce57b7c7b423173ce970fe8f51e7016c04ef1b4a5f73d5c5f1001d5c18780bc",
+    "reference_plugin": "linux.vmaregexscan.VmaRegExScan",
+    "zero_plugin": "linux.vmaregexscan.VmaRegExScan",
+    "passed": true,
+    "mapping_sha256": "b523828171061e27c00b398a8a99a0e43c01ef9444bb21cae13252ee2423fdbf",
+    "native_symbol_source": {
+      "path": "/Volumes/w/code/zero/symbols/Debian_3.2.0-4-amd64_3.2.57-3+deb7u2_amd64-795bb1b381f4311e7165a8e3ad813c625e6a87e85b0450709b342d01c3be9843.json.xz",
+      "sha256": "c3b0b875a2d0498fffc0df1259ff49b850cea28355ffddf02e2f90d34a89fbe1",
+      "configured_path": "/Volumes/w/code/zero/symbols/Debian_3.2.0-4-amd64_3.2.57-3+deb7u2_amd64-795bb1b381f4311e7165a8e3ad813c625e6a87e85b0450709b342d01c3be9843.json.xz",
+      "configured_sha256": "c3b0b875a2d0498fffc0df1259ff49b850cea28355ffddf02e2f90d34a89fbe1"
+    },
+    "comparison": {
+      "schema_version": 1,
+      "mapping_version": 1,
+      "zero_records": 128,
+      "reference_records": 128,
+      "missing": [],
+      "extra": [],
+      "duplicates": [
+        {
+          "side": "zero",
+          "key": [
+            1,
+            0
+          ],
+          "count": 7
+        },
+        {
+          "side": "reference",
+          "key": [
+            1,
+            0
+          ],
+          "count": 7
+        }
+      ],
+      "duplicate_keys": "multiset",
+      "multiplicity_conflicts": [],
+      "conflicts": [],
+      "unverifiable": [],
+      "matched_absent": {},
+      "all_columns_mapped": true,
+      "positive_evidence": true,
+      "zero_complete": false,
+      "zero_diagnostics": [
+        "PID 1 正则扫描: 扫描 712704 / 10903552 字节；缺页 10190848 字节；区间合并省略 0 字节；上下文补零 896 字节；扫描结束"
+      ],
+      "passed": true
+    },
+    "native_output_sha256": "6c5015958b8f318cf109c00249d32c6b166da5db0a20681fef7f6239db82ae1c",
+    "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+    "reference_output_sha256": "5e0a9ff9a0819a717f27c6712fe4a332ac557f359eb98f90f1349d0d4c6ce78c",
+    "symbol_sha256": "c3b0b875a2d0498fffc0df1259ff49b850cea28355ffddf02e2f90d34a89fbe1",
+    "zero_executable_sha256": "8e904349328fc6800a9cc513fd74989aa76e1bc4b8775edbdc5b464728017af8",
+    "engine_version": "0.2.1-native-101"
+  },
+  {
+    "sample": "windows-10-15063",
+    "sample_source": "https://www.osforensics.com/downloads/WinDump.zip",
+    "input_files": [],
+    "case_id": "windows-10-15063/regex-leading-empty-chunk",
+    "zero_args": [
+      "--pid",
+      "468",
+      "--pattern",
+      "^$"
+    ],
+    "reference_args": [
+      "--pid",
+      "468",
+      "--pattern",
+      "^$"
+    ],
+    "image_sha256": "d58f62e92b8c4ef913ac09b2c36a10482034c10b88d0c154dead3aaaa49cf875",
+    "reference_plugin": "windows.vadregexscan.VadRegExScan",
+    "zero_plugin": "windows.vadregexscan.VadRegExScan",
+    "passed": true,
+    "mapping_sha256": "b523828171061e27c00b398a8a99a0e43c01ef9444bb21cae13252ee2423fdbf",
     "native_symbol_source": {
       "path": "/Volumes/w/code/zero/target/reference/regex-exact-symbols/windows/ntkrnlmp.pdb/0C9CC659210046EC84231597DADFDB3B1.json",
       "sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4",
       "configured_path": "/Volumes/w/code/zero/target/reference/regex-exact-symbols/windows/ntkrnlmp.pdb/0C9CC659210046EC84231597DADFDB3B1.json",
       "configured_sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4"
     },
-    "reference_execution": {
-      "summary_path": "/Volumes/w/code/zero/target/reference/results/vadregexscan-maxsize-native100/summary.json",
-      "summary_sha256": "720075a35da4ee64f433ef74b70cbc2cc1151a82f001a78fa3e37becc72e8b91",
-      "case_id": "windows-10-15063/vadregex-maxsize-4097",
-      "reference_output_sha256": "9a11d28a322bc0eb254187568e80f66a687388be46320e51d6da8fece67a9f70",
-      "scope": "Original pinned Vol execution is reused after validating input, symbol and output hashes, unchanged reference checkout, arguments and mapping. Native command is rerun on the final executable."
-    }
+    "comparison": {
+      "schema_version": 1,
+      "mapping_version": 1,
+      "zero_records": 42,
+      "reference_records": 42,
+      "missing": [],
+      "extra": [],
+      "duplicates": [
+        {
+          "side": "zero",
+          "key": [
+            468,
+            0
+          ],
+          "count": 42
+        },
+        {
+          "side": "reference",
+          "key": [
+            468,
+            0
+          ],
+          "count": 42
+        }
+      ],
+      "duplicate_keys": "multiset",
+      "multiplicity_conflicts": [],
+      "conflicts": [],
+      "unverifiable": [],
+      "matched_absent": {},
+      "all_columns_mapped": true,
+      "positive_evidence": true,
+      "zero_complete": false,
+      "zero_diagnostics": [
+        "Windows 链表不一致 @ 0xffffd98df8f9c8e8 direction 0: expected 0xffffd98df8be88e8, found 0xffffd98df7cbe668",
+        "Windows 链表不一致 @ 0xffffd98df8831368 direction 0: expected 0xffffd98df41a88e8, found 0xffffd98df9d4e8e8",
+        "Windows 链表不一致 @ 0xffffd98df3ab88e8 direction 0: expected 0xffffd98df63618e8, found 0xffffd98df480e368",
+        "Windows 链表不一致 @ 0xffffd98df7cbe668 direction 0: expected 0xffffd98df503a368, found 0xffffd98df8be88e8",
+        "链表 @ 0xfffff8021ef5c120 direction 0: Windows 链表循环或超限 0xffffd98df8f9c8e8",
+        "Windows 链表不一致 @ 0xffffd98df9d4e8e8 direction 8: expected 0xfffff8021ef5c120, found 0xffffd98df8831368",
+        "Windows 链表不一致 @ 0xffffd98df41a88e8 direction 8: expected 0xffffd98df9d4e8e8, found 0xffffd98df8831368",
+        "Windows 链表不一致 @ 0xffffd98df8be88e8 direction 8: expected 0xffffd98df7cbe668, found 0xffffd98df8f9c8e8",
+        "PID 468 VAD 0xffffd98df6af13d0 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802478683760)",
+        "PID 468 VAD 0xffffd98df70ef6b0 Left: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802437165920)",
+        "PID 468 正则扫描: 扫描 5271552 / 2199083278336 字节；缺页 2199078006784 字节；区间合并省略 0 字节；上下文补零 5376 字节；扫描结束"
+      ],
+      "passed": true
+    },
+    "native_output_sha256": "3a8eac0beac102b13dd2e0a58c90b4fbc4efd48135490b9cb5678cf3dbf135e1",
+    "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+    "reference_output_sha256": "dbbb329e96310a128d7ceb7d82e080e56038515cff902dcc8ace5ea1f86d93b8",
+    "symbol_sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4",
+    "zero_executable_sha256": "8e904349328fc6800a9cc513fd74989aa76e1bc4b8775edbdc5b464728017af8",
+    "engine_version": "0.2.1-native-101"
+  },
+  {
+    "sample": "windows-10-15063",
+    "sample_source": "https://www.osforensics.com/downloads/WinDump.zip",
+    "input_files": [],
+    "case_id": "windows-10-15063/regex-mapping-boundaries",
+    "zero_args": [
+      "--pid",
+      "468",
+      "--pattern",
+      "^"
+    ],
+    "reference_args": [
+      "--pid",
+      "468",
+      "--pattern",
+      "^"
+    ],
+    "image_sha256": "d58f62e92b8c4ef913ac09b2c36a10482034c10b88d0c154dead3aaaa49cf875",
+    "reference_plugin": "windows.vadregexscan.VadRegExScan",
+    "zero_plugin": "windows.vadregexscan.VadRegExScan",
+    "passed": true,
+    "mapping_sha256": "b523828171061e27c00b398a8a99a0e43c01ef9444bb21cae13252ee2423fdbf",
+    "native_symbol_source": {
+      "path": "/Volumes/w/code/zero/target/reference/regex-exact-symbols/windows/ntkrnlmp.pdb/0C9CC659210046EC84231597DADFDB3B1.json",
+      "sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4",
+      "configured_path": "/Volumes/w/code/zero/target/reference/regex-exact-symbols/windows/ntkrnlmp.pdb/0C9CC659210046EC84231597DADFDB3B1.json",
+      "configured_sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4"
+    },
+    "comparison": {
+      "schema_version": 1,
+      "mapping_version": 1,
+      "zero_records": 1241,
+      "reference_records": 1241,
+      "missing": [],
+      "extra": [],
+      "duplicates": [
+        {
+          "side": "zero",
+          "key": [
+            468,
+            0
+          ],
+          "count": 42
+        },
+        {
+          "side": "reference",
+          "key": [
+            468,
+            0
+          ],
+          "count": 42
+        }
+      ],
+      "duplicate_keys": "multiset",
+      "multiplicity_conflicts": [],
+      "conflicts": [],
+      "unverifiable": [],
+      "matched_absent": {},
+      "all_columns_mapped": true,
+      "positive_evidence": true,
+      "zero_complete": false,
+      "zero_diagnostics": [
+        "Windows 链表不一致 @ 0xffffd98df8f9c8e8 direction 0: expected 0xffffd98df8be88e8, found 0xffffd98df7cbe668",
+        "Windows 链表不一致 @ 0xffffd98df8831368 direction 0: expected 0xffffd98df41a88e8, found 0xffffd98df9d4e8e8",
+        "Windows 链表不一致 @ 0xffffd98df3ab88e8 direction 0: expected 0xffffd98df63618e8, found 0xffffd98df480e368",
+        "Windows 链表不一致 @ 0xffffd98df7cbe668 direction 0: expected 0xffffd98df503a368, found 0xffffd98df8be88e8",
+        "链表 @ 0xfffff8021ef5c120 direction 0: Windows 链表循环或超限 0xffffd98df8f9c8e8",
+        "Windows 链表不一致 @ 0xffffd98df9d4e8e8 direction 8: expected 0xfffff8021ef5c120, found 0xffffd98df8831368",
+        "Windows 链表不一致 @ 0xffffd98df41a88e8 direction 8: expected 0xffffd98df9d4e8e8, found 0xffffd98df8831368",
+        "Windows 链表不一致 @ 0xffffd98df8be88e8 direction 8: expected 0xffffd98df7cbe668, found 0xffffd98df8f9c8e8",
+        "PID 468 VAD 0xffffd98df6af13d0 Right: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802478683760)",
+        "PID 468 VAD 0xffffd98df70ef6b0 Left: 父指针不可读或不一致；继续验证带 tag 的子节点: Ok(18446701802437165920)",
+        "PID 468 正则扫描: 扫描 5271552 / 2199083278336 字节；缺页 2199078006784 字节；区间合并省略 0 字节；上下文补零 5376 字节；扫描结束"
+      ],
+      "passed": true
+    },
+    "native_output_sha256": "d99748f209bd64bc3e5faf1c580aaf2907c074f979378ea57b40e63ed17a6631",
+    "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+    "reference_output_sha256": "78f9665ae264e1c25c2e9cbf9ffdf502b857860c1aa728c973dfa9da38c554b3",
+    "symbol_sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4",
+    "zero_executable_sha256": "8e904349328fc6800a9cc513fd74989aa76e1bc4b8775edbdc5b464728017af8",
+    "engine_version": "0.2.1-native-101"
   }
 ]

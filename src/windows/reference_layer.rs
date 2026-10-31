@@ -2,6 +2,60 @@
 use super::*;
 
 impl Memory<'_> {
+    pub(super) fn scan_reference(
+        &self,
+        regex: &crate::byte_regex::ByteRegex,
+        regions: &[(u64, u64)],
+        budget: &mut crate::regex_scan::Budget,
+        job: &Job,
+        visit: impl FnMut(u64) -> Result<bool>,
+    ) -> Result<crate::regex_scan::Coverage> {
+        use crate::intel_scan::{Kind, Mapper};
+        let geometry = self.paging()?;
+        if geometry.arch == Architecture::Arm64 {
+            return crate::regex_scan::scan_sparse(
+                regex,
+                regions,
+                budget,
+                job,
+                |at, out| self.read(at, out),
+                visit,
+                |at, end| self.absent_end(at, end),
+            );
+        }
+        let kind = if geometry.arch == Architecture::X64 {
+            Kind::Windows64
+        } else if geometry.pae {
+            Kind::WindowsPae
+        } else {
+            Kind::Windows32
+        };
+        let mapper = std::cell::RefCell::new(Mapper::new(self.image, self.root, kind));
+        crate::regex_scan::scan_mapped(
+            regex,
+            regions,
+            budget,
+            job,
+            |start, end| {
+                mapper
+                    .borrow_mut()
+                    .mappings(start, end, job, |index, offset, size| {
+                        self.sources
+                            .is_some_and(|s| s.mapping_valid(index, offset, size))
+                    })
+                    .map(|maps| maps.into_iter().map(|m| (m.start, m.end)).collect())
+            },
+            |at, out| {
+                mapper.borrow_mut().read(at, out, |index, offset, bytes| {
+                    self.sources
+                        .context("未附加分页文件")?
+                        .read(index, offset, bytes)
+                })
+            },
+            visit,
+        )
+    }
+
     fn reference_swap(&self, va: u64) -> Result<(u8, u64, u64)> {
         let geometry = self.paging()?;
         let va = geometry.translation_address(va);

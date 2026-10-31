@@ -41,43 +41,80 @@ impl Linux<'_> {
                         self.number(node, "vm_area_struct", "vm_end")?,
                     ));
                 }
-                let coverage = regex_scan::scan(
-                    &regex,
-                    &regions,
-                    &mut Default::default(),
-                    job,
-                    |at, bytes| vm.read(at, bytes),
-                    |at| {
-                        if result.rows.len() >= 100_000 {
-                            output_limit = true;
-                            return Ok(false);
-                        }
-                        let shown = regex_scan::display_match(
-                            &display,
-                            at,
-                            maxsize,
-                            job,
-                            |address, bytes| vm.read(address, bytes),
-                        )?;
-                        context_missing += shown.unreadable_bytes;
-                        let text = shown.text;
-                        let encoded = shown.hex;
-                        let size = text.len() + encoded.len() + task.name.len() + 64;
-                        if output_bytes + size > 128 * 1024 * 1024 {
-                            output_limit = true;
-                            return Ok(false);
-                        }
-                        output_bytes += size;
-                        result.rows.push(vec![
-                            pid.to_string(),
-                            task.name.clone(),
-                            hex(at),
-                            text,
-                            encoded,
-                        ]);
-                        Ok(true)
-                    },
-                )?;
+                let mapper = (vm
+                    .image
+                    .arm64_va_bits
+                    .load(std::sync::atomic::Ordering::Relaxed)
+                    == 0)
+                    .then(|| {
+                        std::cell::RefCell::new(crate::intel_scan::Mapper::new(
+                            vm.image,
+                            vm.root,
+                            crate::intel_scan::Kind::Linux64,
+                        ))
+                    });
+                let read = |at, out: &mut [u8]| {
+                    if let Some(mapper) = mapper.as_ref() {
+                        mapper
+                            .borrow_mut()
+                            .read(at, out, |_, _, _| anyhow::bail!("Linux 层无 swap 附件"))
+                    } else {
+                        vm.read(at, out)
+                    }
+                };
+                let mut visit = |at| {
+                    if result.rows.len() >= 100_000 {
+                        output_limit = true;
+                        return Ok(false);
+                    }
+                    let shown =
+                        regex_scan::display_match(&display, at, maxsize, job, |address, bytes| {
+                            vm.read(address, bytes)
+                        })?;
+                    context_missing += shown.unreadable_bytes;
+                    let text = shown.text;
+                    let encoded = shown.hex;
+                    let size = text.len() + encoded.len() + task.name.len() + 64;
+                    if output_bytes + size > 128 * 1024 * 1024 {
+                        output_limit = true;
+                        return Ok(false);
+                    }
+                    output_bytes += size;
+                    result.rows.push(vec![
+                        pid.to_string(),
+                        task.name.clone(),
+                        hex(at),
+                        text,
+                        encoded,
+                    ]);
+                    Ok(true)
+                };
+                let mut budget = regex_scan::Budget::default();
+                let coverage = if let Some(mapper) = mapper.as_ref() {
+                    regex_scan::scan_mapped(
+                        &regex,
+                        &regions,
+                        &mut budget,
+                        job,
+                        |start, end| {
+                            mapper
+                                .borrow_mut()
+                                .mappings(start, end, job, |_, _, _| false)
+                                .map(|maps| maps.into_iter().map(|m| (m.start, m.end)).collect())
+                        },
+                        |at, bytes| read(at, bytes),
+                        &mut visit,
+                    )?
+                } else {
+                    regex_scan::scan(
+                        &regex,
+                        &regions,
+                        &mut budget,
+                        job,
+                        |at, bytes| read(at, bytes),
+                        &mut visit,
+                    )?
+                };
                 Ok(Some(coverage))
             })();
             match scanned {
@@ -123,7 +160,7 @@ impl Linux<'_> {
         if !result.kernel_identity.is_object() {
             result.kernel_identity = serde_json::json!({});
         }
-        result.kernel_identity["vma_regex_scan"] = serde_json::json!({"engine":"PCRE2 bytes; no UTF/UCP/JIT","scan_dotall":true,"display_dotall":false,"maxsize":maxsize,"requested_maxsize":options.maxsize,"pids":pids,"chunk_bytes":16*1024*1024,"overlap_bytes":4096,"match_limit":crate::byte_regex::MATCH_LIMIT,"depth_limit":crate::byte_regex::DEPTH_LIMIT,"heap_kib":crate::byte_regex::HEAP_KIB,"subject_work_limit":crate::byte_regex::WORK_LIMIT,"output_limit":output_limit,"metadata_truncated":metadata_truncated,"processes":process_reports});
+        result.kernel_identity["vma_regex_scan"] = serde_json::json!({"engine":"PCRE2 bytes; no UTF/UCP/JIT","mapping_policy":if self.vm.image.arm64_va_bits.load(std::sync::atomic::Ordering::Relaxed)==0 {"pinned_intel"}else{"native_arm64"},"scan_dotall":true,"display_dotall":false,"maxsize":maxsize,"requested_maxsize":options.maxsize,"pids":pids,"chunk_bytes":16*1024*1024,"overlap_bytes":4096,"match_limit":crate::byte_regex::MATCH_LIMIT,"depth_limit":crate::byte_regex::DEPTH_LIMIT,"heap_kib":crate::byte_regex::HEAP_KIB,"subject_work_limit":crate::byte_regex::WORK_LIMIT,"output_limit":output_limit,"metadata_truncated":metadata_truncated,"processes":process_reports});
         Ok(result)
     }
 }
@@ -146,13 +183,18 @@ mod tests {
         bytes[0x25000..0x25002].copy_from_slice(b"AB");
         (bytes, isf)
     }
+    fn resident_match() -> (Vec<u8>, Isf) {
+        let (mut bytes, isf) = prepared();
+        bytes[0x20010..0x20014].copy_from_slice(b"ABAB");
+        (bytes, isf)
+    }
     #[test]
     fn pid_selection_uses_task_pid_while_output_uses_tgid() {
         let vectors: serde_json::Value = serde_json::from_str(include_str!(
             "../../tests/reference/parity/fixtures/regex-context.json"
         ))
         .unwrap();
-        let (mut bytes, isf) = prepared();
+        let (mut bytes, isf) = resident_match();
         put(&mut bytes, 0xa010, 43);
         put(&mut bytes, 0xa018, 42);
         let image = image(&bytes);
@@ -236,8 +278,8 @@ mod tests {
     }
 
     #[test]
-    fn regex_matches_across_noncontiguous_physical_pages_and_preserves_fields() {
-        let (bytes, isf) = prepared();
+    fn resident_match_preserves_fields_without_crossing_backing_boundaries() {
+        let (bytes, isf) = resident_match();
         let image = image(&bytes);
         let options = Options {
             pattern: Some(r"(?P<p>AB)(?P=p)".into()),
@@ -253,7 +295,7 @@ mod tests {
             vec![vec![
                 "1",
                 "init",
-                "0x0000000000200ffe",
+                "0x0000000000200010",
                 "ABAB",
                 "41 42 41 42"
             ]]
@@ -273,7 +315,7 @@ mod tests {
     }
     #[test]
     fn pid_list_is_applied_before_user_memory_and_display_rechecks_lookbehind() {
-        let (mut bytes, isf) = prepared();
+        let (mut bytes, isf) = resident_match();
         put(&mut bytes, 0xa130, 0xb000);
         put(&mut bytes, 0xa178, 0xb000);
         let image = image(&bytes);
@@ -290,7 +332,7 @@ mod tests {
         assert_eq!(r.rows.len(), 2);
         // Context starts at the match, so the display re-match has no lookbehind.
         // It falls back to 128 bytes, regardless of the configured maxsize.
-        assert!(r.rows[0][3].starts_with("ABc\0d\0"));
+        assert!(r.rows[0][3].starts_with("AB\0\0"));
         assert_eq!(r.rows[0][3].len(), 128);
         assert_eq!(r.rows[0][4].split_whitespace().count(), 128);
         let options = Options {

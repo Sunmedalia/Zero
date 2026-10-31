@@ -1,0 +1,140 @@
+{
+  "schema_version": 1,
+  "engine_version": "0.2.1-native-101",
+  "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+  "zero_executable_sha256": "8e904349328fc6800a9cc513fd74989aa76e1bc4b8775edbdc5b464728017af8",
+  "native_sources_sha256": {
+    "src/intel_scan.rs": "650f924045f1de05845ac250f6b3d8d6c6b3b2b336ff3a0f48f64ab2c795fca7",
+    "src/regex_scan/mapped.rs": "f982e4dd43b3ee0bdb4b8dfe6037d3342ff477b2c01a832812085ecd2196affd",
+    "src/windows/reference_layer.rs": "b69b99d2b41d26cfcd516f2b9a763f5df1de849934eda061b108a793ea9c8e42"
+  },
+  "method_vectors": {
+    "intel-scan": {
+      "sha256": "f507d960b0ca0bd6fed52da75b7811255e2d043c07732dd3a98a8887b3e3b6c8",
+      "source_sha256": {
+        "volatility3/framework/layers/intel.py": "01ea3e198f9c4226cb8c06280facbf9b8cc0990863301f82f991e5609908f716",
+        "volatility3/framework/interfaces/layers.py": "5515d539fe1dfb78723a82d2f18762bf455dd29cb246c2642460e1eae8853b6a",
+        "volatility3/framework/layers/physical.py": "49065728f89b0187ebfe02af8f10283e9702e5b88e5910ab35b516e2169d9828"
+      },
+      "cases": 87
+    },
+    "regex-sections": {
+      "sha256": "b21773218552e81d6f9ebcde27b6917a16e1069fa6922b1a9676f6df3f3e11b6",
+      "source_sha256": {
+        "volatility3/framework/interfaces/layers.py": "5515d539fe1dfb78723a82d2f18762bf455dd29cb246c2642460e1eae8853b6a",
+        "volatility3/framework/layers/scanners/__init__.py": "c9ef412950973004146850acb415786a120d444bd0075ebb2e6ec3eb13d195ed"
+      },
+      "cases": 0
+    }
+  },
+  "real_batches": [
+    {
+      "path": "target/reference/results/vmaregexscan-native101-final/summary.json",
+      "sha256": "ae66d07c3b6aeb0b502dc04587e6d8ca4266c160d953da07510c2bf182169b18",
+      "order_sha256": "b96c4dea657ba28517560d7d0967af418b588c5fac6a2750fd1e05d3fe2fc8a7",
+      "cases": 6,
+      "positive_cases": 6
+    },
+    {
+      "path": "target/reference/results/vmaregexscan-maxsize-native101-final/summary.json",
+      "sha256": "b3527191b01b7d2f10f7f679974651288af2c1a6c32eb70350f12ffeefd85b51",
+      "order_sha256": "0b78d8ba6be620d59c9910ac63c7349f9a2f09e0e3161f818ba926f0a05aa30f",
+      "cases": 4,
+      "positive_cases": 4
+    },
+    {
+      "path": "target/reference/results/vadregexscan-native101-final/summary.json",
+      "sha256": "52f439face875790f7ca28dff2fe2d244567d3bc575ebb72f4dc142864373434",
+      "order_sha256": "338cef3db3b7e70180cb7dd89f4b0d23339d30820c40c3c37eb4262c36179dc2",
+      "cases": 9,
+      "positive_cases": 9
+    },
+    {
+      "path": "target/reference/results/vadregexscan-maxsize-native101-final/summary.json",
+      "sha256": "a71a8696778e1cfa2becfdbe7307d2d31a2cf2b3ef15e73151ad7a15e1dad45d",
+      "order_sha256": "78d4fa229153bd3ebce690cfef11eb9a9f700966b44cee493998a1ec2b702432",
+      "cases": 4,
+      "positive_cases": 4
+    },
+    {
+      "path": "target/reference/results/system-calls-native101-final/summary.json",
+      "sha256": "fa436cbced9b6ea3e112de17437f25b0253f7bf394cdbb8c6ddf56a2519ea693",
+      "order_sha256": "7248c0fbf47243f00242538190096ad477068faed61ea03e636a4a328a1f42e4",
+      "cases": 4,
+      "positive_cases": 2
+    },
+    {
+      "path": "target/reference/results/skeleton-key-native101-final/summary.json",
+      "sha256": "0240dbe9521ba890b48b6937dfa947a12ef99b6b6057301d2e109c3d4b1ea149",
+      "order_sha256": "05a6e489884d87b69bb4a34e18992875512ed323cac44be7b1d7cd559b92e656",
+      "cases": 2,
+      "positive_cases": 1
+    },
+    {
+      "path": "target/reference/results/scan-mapping-native101-final/summary.json",
+      "sha256": "199c0cc5570fa11fbf03a7397c85a271362ddb8d44422b27f228b4eeb99cd031",
+      "order_sha256": "39b81d3218a7fda0f99df369877bc16658c04fc5350f1d31e77edf121abcc9d0",
+      "cases": 4,
+      "positive_cases": 4
+    }
+  ],
+  "before_fix": {
+    "summary_sha256": "ac094342dd85f17a2bfd2bd5681189ebb34464bd3a46fbb437456a6d182b5c83",
+    "native_rows": [
+      0,
+      43,
+      0,
+      425
+    ],
+    "reference_rows": [
+      7,
+      128,
+      42,
+      1241
+    ]
+  },
+  "after_fix_rows": [
+    7,
+    128,
+    42,
+    1241
+  ],
+  "known_limitations": [
+    "Positive cases certify only the listed inputs and declared mapped columns. Full plugin contracts remain empty.",
+    "A separate actual Intel32e probe for a valid zero-length section at 4096 emits a leading empty subject/hit 0; current Mapper.mappings returns no zero-length event. This remains a concrete next-batch gap; probe: target/reference/results/native102-zero-section-probe.json.",
+    "Linux32/ARM64 parity, all layer bounds/overflow aliases, arbitrary Python/PCRE2 semantics, acquisition races, exception text and full resource behavior remain unverified.",
+    "Partial capture, omitted coalescing bytes and unreadable display context retain diagnostics. Native budgets are not reference-equivalent.",
+    "Original user Debian6.12 image is unavailable.",
+    "Windows acceptance also retains two stale complete=false assertions for DriverModule (Server2008 and combined Win10/11); mapping-policy coverage improved in earlier native87. Exact-driver-symbol integration tests still assume the pre-native79 independent-PDB DriverIrp policy. They fail at a missing module observation under the current reference symbol policy; this is retained as an acceptance gap, not counted as passed. Server2012R2 capture is not extracted locally."
+  ],
+  "validation": {
+    "make_check": {
+      "exit_code": 0,
+      "scope": "fmt, all-target clippy, cargo tests, release build, compatibility check, 40 Python tests and parity audit"
+    },
+    "fixture_regeneration": {
+      "intel_scan_bytes_equal": true,
+      "regex_sections_bytes_equal": true
+    },
+    "release_smoke": {
+      "passed": true,
+      "archive": "target/reference/results/release-native101-final/zero-0.2.1-aarch64-apple-darwin.tar.gz",
+      "scope": "TUI ready and q exit from release and unrelated cwd with empty PATH"
+    },
+    "acceptance_logs": {
+      "native101-acceptance.log": {
+        "sha256": "55e978e6d48bc5012fcb71d5b46bf958af662497e47e7a59c6cd610b1c379e6c"
+      },
+      "native101-debian-acceptance-paths.log": {
+        "sha256": "8e1521cd252818ae06cc53b214e28faf3ab86baac3721a021674cdd6d27ff09c"
+      },
+      "native101-windows-acceptance.log": {
+        "sha256": "f511bc121a6d5fcb252960137c26f3ca8dc1dff3056f218b6ff617a47a9197e3"
+      },
+      "native101-windows-acceptance-paths.log": {
+        "sha256": "29520ed95da2889469e66532282af878b5f670ac4336a21ab4848d84b0e247f8"
+      }
+    }
+  },
+  "next_zero_length_probe_sha256": "aa670e0d683d88ca58911b45612b970d1e82ed718260ab4b5d5cca5307ae055a"
+}

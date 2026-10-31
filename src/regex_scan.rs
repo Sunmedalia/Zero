@@ -3,6 +3,8 @@
 use crate::{Job, byte_regex::ByteRegex};
 use anyhow::{Context, Result, ensure};
 use serde::Serialize;
+mod mapped;
+pub(crate) use mapped::scan_mapped;
 /// Pinned Linux and Windows canonical generators always read this context size.
 pub const REFERENCE_CONTEXT_SIZE: usize = 128;
 
@@ -88,6 +90,31 @@ pub fn ranges(regions: &[(u64, u64)]) -> Result<Vec<(u64, u64)>> {
     }
     Ok(out)
 }
+fn prepare_regions(regions: &[(u64, u64)]) -> Result<(Vec<(u64, u64)>, Coverage)> {
+    let mut original = regions.to_vec();
+    original.sort_unstable();
+    let mut requested_bytes = 0u64;
+    let mut union_end = 0;
+    for (start, end) in original {
+        ensure!(start <= end, "虚拟区域倒置");
+        requested_bytes = requested_bytes
+            .checked_add(end.saturating_sub(start.max(union_end)))
+            .context("虚拟扫描范围溢出")?;
+        union_end = union_end.max(end);
+    }
+    let regions = ranges(regions)?;
+    let selected_bytes = regions.iter().try_fold(0u64, |total, (start, end)| {
+        total.checked_add(end - start).context("虚拟扫描范围溢出")
+    })?;
+    let report = Coverage {
+        requested_bytes,
+        reference_coalescing_omitted_bytes: requested_bytes
+            .checked_sub(selected_bytes)
+            .context("参考区间超出原始请求")?,
+        ..Default::default()
+    };
+    Ok((regions, report))
+}
 pub fn scan(
     regex: &ByteRegex,
     regions: &[(u64, u64)],
@@ -121,28 +148,7 @@ fn scan_sparse_impl<const CHUNK: usize, const OVERLAP: usize>(
     mut visit: impl FnMut(u64) -> Result<bool>,
     mut absent_end: impl FnMut(u64, u64) -> Option<u64>,
 ) -> Result<Coverage> {
-    let mut original = regions.to_vec();
-    original.sort_unstable();
-    let mut requested_bytes = 0u64;
-    let mut union_end = 0;
-    for (start, end) in original {
-        ensure!(start <= end, "虚拟区域倒置");
-        requested_bytes = requested_bytes
-            .checked_add(end.saturating_sub(start.max(union_end)))
-            .context("虚拟扫描范围溢出")?;
-        union_end = union_end.max(end);
-    }
-    let regions = ranges(regions)?;
-    let selected_bytes = regions.iter().try_fold(0u64, |total, (start, end)| {
-        total.checked_add(end - start).context("虚拟扫描范围溢出")
-    })?;
-    let mut report = Coverage {
-        requested_bytes,
-        reference_coalescing_omitted_bytes: requested_bytes
-            .checked_sub(selected_bytes)
-            .context("参考区间超出原始请求")?,
-        ..Default::default()
-    };
+    let (regions, mut report) = prepare_regions(regions)?;
     let mut buffer = Vec::with_capacity(CHUNK + OVERLAP);
     let mut flush = |buffer: &[u8], base: u64, report: &mut Coverage| -> Result<bool> {
         let mut stopped = false;
@@ -292,55 +298,6 @@ pub fn context(
 #[cfg(test)]
 mod tests {
     use super::*;
-    #[test]
-    #[ignore = "Mapping-aware chunk boundaries remain unresolved; see regex-sections proof"]
-    fn unresolved_mapping_chunks_match_pinned_methods() {
-        let vectors: serde_json::Value = serde_json::from_str(include_str!(
-            "../tests/reference/parity/fixtures/regex-sections.json"
-        ))
-        .unwrap();
-        let mut mismatches = Vec::new();
-        for case in vectors["unresolved_mappings"].as_array().unwrap() {
-            let data: Vec<u8> = case["data_hex"]
-                .as_str()
-                .unwrap()
-                .as_bytes()
-                .chunks_exact(2)
-                .map(|pair| u8::from_str_radix(std::str::from_utf8(pair).unwrap(), 16).unwrap())
-                .collect();
-            let regions: Vec<_> = case["sections"]
-                .as_array()
-                .unwrap()
-                .iter()
-                .map(|v| {
-                    let at = v[0].as_u64().unwrap();
-                    (at, at + v[1].as_u64().unwrap())
-                })
-                .collect();
-            let mut hits = Vec::new();
-            scan_sparse_impl::<8, 4>(
-                &ByteRegex::compile(case["pattern"].as_str().unwrap(), true).unwrap(),
-                &regions,
-                &mut Budget::default(),
-                &Job::default(),
-                |at, out| {
-                    out.copy_from_slice(&data[at as usize..at as usize + out.len()]);
-                    Ok(())
-                },
-                |at| {
-                    hits.push(at);
-                    Ok(true)
-                },
-                |_, _| None,
-            )
-            .unwrap();
-            if serde_json::json!(hits) != case["expected"] {
-                mismatches.push(serde_json::json!({"case":case["id"],"native":hits,"reference":case["expected"]}));
-            }
-        }
-        assert!(mismatches.is_empty(), "{}", serde_json::json!(mismatches));
-    }
-
     #[test]
     fn section_and_chunk_behavior_matches_actual_pinned_methods() {
         let vectors: serde_json::Value = serde_json::from_str(include_str!(

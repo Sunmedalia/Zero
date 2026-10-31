@@ -51,8 +51,8 @@ def generate(checkout):
         input_sections = sections
         sections = list(DataLayerInterface._coalesce_sections(bounds, sections))
         # These cases deliberately supply one contiguous backing map per selected
-        # section. Physical discontinuities and initial empty chunks have a
-        # separate unresolved mapping contract, not an inferred pass here.
+        # section. Discontinuity and empty/fault chunks are covered by the separate
+        # mapping-event cases below.
         proxy = SimpleNamespace(name='virtual', context=context,
                                 mapping=lambda at, length, ignore_errors: iter([(at, length, at, length, 'physical')] if length else []))
         scanner = RegExScanner(pattern.encode()); scanner.chunk_size = 8; scanner.overlap = 4
@@ -62,10 +62,11 @@ def generate(checkout):
             hits.extend(DataLayerInterface._scan_chunk(proxy, scanner, SimpleNamespace(value=0), chunk))
         scans.append(dict(id=name, sections=input_sections, coalesced_sections=sections, data_hex=data.hex(), pattern=pattern,
                           chunk_size=8, overlap=4, chunks=chunks, expected=hits))
-    unresolved = []
+    mapping_cases = []
     for name, sections, data, pattern, maps in [
         ('discontinuous-backing', [(0, 8)], b'xxneedle', 'needle', [(0, 4, 0, 4, 'physical'), (4, 4, 12, 4, 'physical')]),
         ('leading-empty-chunk', [(4, 4)], b'xxxxxxxx', '^$', [(4, 4, 4, 4, 'physical')]),
+        ('read-failure-empty', [(0,8)], b'xxxx', '^$', [(0,8,0,8,'physical')]),
     ]:
         context = contexts.Context()
         context.layers.add_layer(BufferDataLayer(context, 'virtual', 'virtual', buffer=data))
@@ -74,12 +75,12 @@ def generate(checkout):
         chunks = list(TranslationLayerInterface._scan_iterator(proxy, scanner, sections))
         hits = []
         for chunk in chunks: hits.extend(DataLayerInterface._scan_chunk(proxy, scanner, SimpleNamespace(value=0), chunk))
-        unresolved.append(dict(id=name, sections=sections, data_hex=data.hex(), pattern=pattern, maps=maps,
+        mapping_cases.append(dict(id=name, sections=sections, data_hex=data.hex(), pattern=pattern, maps=maps,
                                chunk_size=8, overlap=4, chunks=chunks, expected=hits))
     sources = ['volatility3/framework/interfaces/layers.py', 'volatility3/framework/layers/scanners/__init__.py']
     return dict(reference_commit=PIN, source_sha256={p: hashlib.sha256((checkout / p).read_bytes()).hexdigest() for p in sources},
-                scope='Actual _coalesce_sections, translation-layer _scan_iterator, _scan_chunk and RegExScanner over supplied contiguous maps and immutable bytes. Reduced 8/4 geometry exercises the same chunk boundary algorithm; production remains 16MiB/4KiB. No layer bounds clipping, discontinuous backing/mapping, leading empty chunks, capture faults, arbitrary regex syntax or full resource contract is certified.',
-                coalescing=coalescing, scans=scans, unresolved_mappings=unresolved)
+                scope='Actual _coalesce_sections, translation-layer _scan_iterator, _scan_chunk and RegExScanner over supplied contiguous maps and immutable bytes. Reduced 8/4 geometry exercises the same chunk boundary algorithm; production remains 16MiB/4KiB. Mapping events cover discontinuous backing, leading empty chunks and failed chunk reads over supplied map events. No complete page-table discovery, layer bounds clipping, arbitrary regex syntax or full resource contract is certified.',
+                coalescing=coalescing, scans=scans, mapping_cases=mapping_cases)
 
 
 if __name__ == '__main__':

@@ -10,23 +10,25 @@ import sys
 PIN = '881e970121c16f0932fb9d16fbd5fb258cbcbf75'
 
 
-def generate(checkout):
+def generate(checkout, extended=False):
     assert subprocess.check_output(['git', '-C', str(checkout), 'rev-parse', 'HEAD'], text=True).strip() == PIN
     assert not subprocess.check_output(['git', '-C', str(checkout), 'status', '--porcelain', '--untracked-files=no'], text=True).strip()
     sys.path.insert(0, str(checkout))
     from volatility3.framework import contexts, exceptions
     from volatility3.framework.layers.physical import BufferDataLayer
-    from volatility3.framework.layers.intel import WindowsIntel, WindowsIntelPAE, WindowsIntel32e
+    from volatility3.framework.layers.intel import WindowsIntel, WindowsIntelPAE, WindowsIntel32e, Intel32e
 
     cases = []
-    for arch, cls, width, shifts in [('x86', WindowsIntel, 4, [22, 12]),
-                                     ('pae', WindowsIntelPAE, 8, [30, 21, 12]),
-                                     ('x64', WindowsIntel32e, 8, [39, 30, 21, 12])]:
+    architectures=[('x86', WindowsIntel, 4, [22, 12]),
+                   ('pae', WindowsIntelPAE, 8, [30, 21, 12]),
+                   ('x64', WindowsIntel32e, 8, [39, 30, 21, 12])]
+    if extended: architectures.append(('linux', Intel32e, 8, [39, 30, 21, 12]))
+    for arch, cls, width, shifts in architectures:
         for kind in ['resident', 'transition', 'prototype', 'prototype-transition',
                      'swap-zero', 'swap-three', 'swap-no-attachment', 'swap-wrong-index',
                      'swap-no-bit7', 'swap-no-high', 'swap-transition', 'swap-prototype',
-                     'upper-swap', 'upper-swap-pat', 'upper-prototype', 'physical-hole', 'table-hole', 'short-swap', 'empty-swap']:
-            data = bytearray(0x20000)
+                     'upper-swap', 'upper-swap-pat', 'upper-prototype', 'physical-hole', 'table-hole', 'short-swap', 'empty-swap'] + (((['present-high45'] if width==8 else [])+['uniform-table','large-pat']) if extended else []):
+            data = bytearray(0x400000 if kind=='large-pat' else 0x20000)
             writes = []
             def put(at, value):
                 data[at:at + width] = value.to_bytes(width, 'little')
@@ -39,7 +41,11 @@ def generate(checkout):
             attached = 0
             pagefile_length = 0x10000
             holes = []
-            if kind == 'transition': put(leaf, 0x8800)
+            if kind=='present-high45' and width==8:put(leaf,(1<<45)|0x8003)
+            elif kind=='uniform-table':
+                for at in range(leaf,leaf+4096,width):put(at,0x8003)
+            elif kind=='large-pat':put(leaf-0x1000,0x201083)
+            elif kind == 'transition': put(leaf, 0x8800)
             elif kind == 'prototype': put(leaf, 0x8400)
             elif kind == 'prototype-transition': put(leaf, 0x8c00)
             elif kind.startswith('swap') or kind in ['short-swap', 'empty-swap']:
@@ -61,7 +67,9 @@ def generate(checkout):
                 pagefile_length = (4 << shifts[-2]) + 0x3000
             elif kind == 'physical-hole': holes = [[0x8000, 0x9000]]
             elif kind == 'table-hole': holes = [[leaf, leaf + 4096]]
-            for i in range(0x8000, 0xc000): data[i] = (i * 17 + 3) % 251
+            patterned_ranges=[[0x8000,0xc000]]+([[0x200000,0x400000]] if kind=='large-pat' else [])
+            for start,end in patterned_ranges:
+                for i in range(start,end):data[i]=(i*17+3)%251
             class Capture(BufferDataLayer):
                 def is_valid(self, offset, length=1):
                     return super().is_valid(offset, length) and not any(offset < end and offset + length > start for start, end in holes)
@@ -82,8 +90,15 @@ def generate(checkout):
                 except exceptions.InvalidAddressException as exc:
                     value = None; error = type(exc).__name__
                 queries.append(dict(address=at, length=length, expected_hex=value, error=error))
-            cases.append(dict(id=f'{arch}-{kind}', arch=arch, width=width, writes=writes,
-                              attached=attached, pagefile_length=pagefile_length, holes=holes, queries=queries))
+            mapping_queries=[]
+            if extended:
+                for start,length in [(0,12288),(3,4098),(4096,4)]:
+                    expected=[[at,at+size,physical,0 if layer_name=='physical' else 1+attached] for at,size,physical,_,layer_name in layer.mapping(start,length,ignore_errors=True)]
+                    mapping_queries.append(dict(start=start,end=start+length,expected=expected))
+            record=dict(id=f'{arch}-{kind}', arch=arch, width=width, writes=writes,
+                              attached=attached, pagefile_length=pagefile_length, holes=holes, queries=queries)
+            if extended:record.update(data_length=len(data),patterned_ranges=patterned_ranges,mapping_queries=mapping_queries)
+            cases.append(record)
     sources = ['volatility3/framework/layers/intel.py', 'volatility3/framework/interfaces/layers.py',
                'volatility3/framework/layers/physical.py']
     return dict(reference_commit=PIN, source_sha256={p: hashlib.sha256((checkout / p).read_bytes()).hexdigest() for p in sources},

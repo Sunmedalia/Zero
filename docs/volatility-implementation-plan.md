@@ -305,3 +305,15 @@ padding 使用参考的 signed 减法和原始条件。Win10 站观察由 10 条
 - native82：删除驱动派遣的重复物理 carving，复用固定池约束／候选恢复／
   类型校验与 primary 扫描范围。DriverStart 按八字节可读及严格门槛过滤；
   14 个固定方法向量、DriverIrp／DriverModule／GUI 联合真实回归分别验收。
+
+- native101：标准正则及其扫描消费者按真实 Intel 页表映射事件分块，保留
+  不连续 backing、首个空块及失败读取空 subject。固定方法向量、真实 anchor
+  和既有正则／系统调用／Skeleton Key 回归分别记录，不能由一项推导完整合同。
+  最终验收记录见 volatility-parity.md 的 native101 和 scan-mapping 证据。
+
+后续验收债务：大样本回归发现旧 DriverModule 完整性基线仍固定为 false，
+以及两项独立驱动 PDB 集成测试仍把 native79 之前的策略施加给 canonical
+DriverIrp。应将 canonical 参考符号域和独立 PDB 解析器的验收分别接到其实际
+入口，核对完整输出、缓存依赖和真实资源变化；不得为让旧测试变绿恢复错误
+符号策略，也不得删除独立解析器的有效验收。继续核对零长度选区、层边界及
+地址别名的实际固定方法，同时补齐逐插件参数／故障／平台合同。

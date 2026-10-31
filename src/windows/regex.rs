@@ -39,58 +39,49 @@ impl Windows<'_> {
             let scanned = (|| -> Result<Option<regex_scan::Coverage>> {
                 let vm = self.process_memory(&task)?;
                 let regions = self.vad_scan_ranges(&task, &mut result, job)?;
-                let coverage = regex_scan::scan_sparse(
-                    &regex,
-                    &regions,
-                    &mut Default::default(),
-                    job,
-                    |at, bytes| vm.read_reference(at, bytes),
-                    |at| {
-                        if result.rows.len() >= 100_000 {
-                            output_limit = true;
-                            return Ok(false);
-                        }
-                        let shown = regex_scan::display_match(
-                            &display,
-                            at,
-                            maxsize,
-                            job,
-                            |address, bytes| vm.read_reference(address, bytes),
-                        )?;
-                        context_missing += shown.unreadable_bytes;
-                        let text = shown.text;
-                        let encoded = shown.hex;
-                        let size = text.len() + encoded.len() + task.name.len() + 64;
-                        if output_bytes + size > 128 * 1024 * 1024 {
-                            output_limit = true;
-                            return Ok(false);
-                        }
-                        output_bytes += size;
-                        if vm.translate(at).is_err() {
-                            if recovered_hits.len() < 65536 {
-                                let origin = if vm.paging()?.arch != Architecture::Arm64 {
-                                    "reference_pagefile"
-                                } else if vm.prototype(at).is_ok() {
-                                    "prototype"
-                                } else {
-                                    "software_or_compressed"
-                                };
-                                recovered_hits.push(serde_json::json!({"pid":pid,"offset":hex(at),"start_page_origin":origin}));
+                let mut visit = |at| {
+                    if result.rows.len() >= 100_000 {
+                        output_limit = true;
+                        return Ok(false);
+                    }
+                    let shown =
+                        regex_scan::display_match(&display, at, maxsize, job, |address, bytes| {
+                            vm.read_reference(address, bytes)
+                        })?;
+                    context_missing += shown.unreadable_bytes;
+                    let text = shown.text;
+                    let encoded = shown.hex;
+                    let size = text.len() + encoded.len() + task.name.len() + 64;
+                    if output_bytes + size > 128 * 1024 * 1024 {
+                        output_limit = true;
+                        return Ok(false);
+                    }
+                    output_bytes += size;
+                    if vm.translate(at).is_err() && vm.read_reference(at, &mut [0]).is_ok() {
+                        if recovered_hits.len() < 65536 {
+                            let origin = if vm.paging()?.arch != Architecture::Arm64 {
+                                "reference_pagefile"
+                            } else if vm.prototype(at).is_ok() {
+                                "prototype"
                             } else {
-                                recovered_hit_overflow = true;
-                            }
+                                "software_or_compressed"
+                            };
+                            recovered_hits.push(serde_json::json!({"pid":pid,"offset":hex(at),"start_page_origin":origin}));
+                        } else {
+                            recovered_hit_overflow = true;
                         }
-                        result.rows.push(vec![
-                            pid.to_string(),
-                            task.name.clone(),
-                            hex(at),
-                            text,
-                            encoded,
-                        ]);
-                        Ok(true)
-                    },
-                    |at, end| vm.absent_end(at, end),
-                )?;
+                    }
+                    result.rows.push(vec![
+                        pid.to_string(),
+                        task.name.clone(),
+                        hex(at),
+                        text,
+                        encoded,
+                    ]);
+                    Ok(true)
+                };
+                let mut budget = regex_scan::Budget::default();
+                let coverage = vm.scan_reference(&regex, &regions, &mut budget, job, &mut visit)?;
                 Ok(Some(coverage))
             })();
             match scanned {
@@ -136,7 +127,7 @@ impl Windows<'_> {
         if !result.kernel_identity.is_object() {
             result.kernel_identity = serde_json::json!({});
         }
-        result.kernel_identity["vad_regex_scan"] = serde_json::json!({"read_policy":if self.vm.paging()?.arch == Architecture::Arm64 {"native_arm64_recovery"} else {"pinned_windows_intel"},"engine":"PCRE2 bytes; no UTF/UCP/JIT","scan_dotall":true,"display_dotall":false,"maxsize":maxsize,"requested_maxsize":options.maxsize,"pids":pids,"chunk_bytes":16*1024*1024,"overlap_bytes":4096,"match_limit":crate::byte_regex::MATCH_LIMIT,"depth_limit":crate::byte_regex::DEPTH_LIMIT,"heap_kib":crate::byte_regex::HEAP_KIB,"subject_work_limit":crate::byte_regex::WORK_LIMIT,"output_limit":output_limit,"metadata_truncated":metadata_truncated,"recovered_hit_overflow":recovered_hit_overflow,"recovered_start_page_hits":recovered_hits,"processes":process_reports});
+        result.kernel_identity["vad_regex_scan"] = serde_json::json!({"read_policy":if self.vm.paging()?.arch == Architecture::Arm64 {"native_arm64_recovery"} else {"pinned_windows_intel"},"engine":"PCRE2 bytes; no UTF/UCP/JIT","mapping_policy":if self.vm.paging()?.arch==Architecture::Arm64 {"native_arm64"}else{"pinned_intel"},"scan_dotall":true,"display_dotall":false,"maxsize":maxsize,"requested_maxsize":options.maxsize,"pids":pids,"chunk_bytes":16*1024*1024,"overlap_bytes":4096,"match_limit":crate::byte_regex::MATCH_LIMIT,"depth_limit":crate::byte_regex::DEPTH_LIMIT,"heap_kib":crate::byte_regex::HEAP_KIB,"subject_work_limit":crate::byte_regex::WORK_LIMIT,"output_limit":output_limit,"metadata_truncated":metadata_truncated,"recovered_hit_overflow":recovered_hit_overflow,"recovered_start_page_hits":recovered_hits,"processes":process_reports});
         Ok(result)
     }
 }
@@ -190,6 +181,33 @@ pub(super) mod tests {
         .run(Plugin::WinVadRegExScan, options, &Job::default())
         .unwrap()
     }
+    fn resident_match() -> (Vec<u8>, Isf) {
+        let (mut bytes, isf) = prepared();
+        bytes[0x20010..0x20014].copy_from_slice(b"ABAB");
+        (bytes, isf)
+    }
+    #[test]
+    fn leading_empty_subject_hit_is_not_a_recovered_page() {
+        let (bytes, isf) = prepared();
+        let result = run(
+            &bytes,
+            &isf,
+            &Options {
+                pattern: Some("^$".into()),
+                pid: Some(8),
+                ..Default::default()
+            },
+        );
+        assert_eq!(result.rows.len(), 1);
+        assert_eq!(result.rows[0][2], hex(0));
+        assert_eq!(result.rows[0][3], "\0".repeat(128));
+        assert_eq!(
+            result.kernel_identity["vad_regex_scan"]["recovered_start_page_hits"],
+            json!([])
+        );
+        assert!(!result.complete);
+    }
+
     #[test]
     fn canonical_scan_reads_explicit_reference_pagefile_and_tracks_origin() {
         let (mut bytes, isf) = prepared();
@@ -283,7 +301,7 @@ pub(super) mod tests {
 
     #[test]
     fn all_five_fields_adjacent_vads_noncontiguous_pages_and_pid_union() {
-        let (b, isf) = prepared();
+        let (b, isf) = resident_match();
         let options = Options {
             pattern: Some("(?P<p>AB)(?P=p)".into()),
             pid: Some(4),
@@ -297,7 +315,7 @@ pub(super) mod tests {
             [vec![
                 "8",
                 "child",
-                "0x0000000000001ffe",
+                "0x0000000000001010",
                 "ABAB",
                 "41 42 41 42"
             ]]
@@ -426,7 +444,7 @@ pub(super) mod tests {
         assert_eq!(r.rows[0][2], hex(1u64 << 39));
         let c = &r.kernel_identity["vad_regex_scan"]["processes"][0]["coverage"];
         assert!(c["page_attempts"].as_u64().unwrap() < 3000);
-        assert!(c["proven_unmapped_bytes"].as_u64().unwrap() > 500 * 1024 * 1024 * 1024);
+        assert!(c["unreadable_bytes"].as_u64().unwrap() > 500 * 1024 * 1024 * 1024);
         assert!(c["stop_reason"].is_null());
         assert_eq!(c["read_bytes"], 12288);
         let img = image(&b);
@@ -440,7 +458,7 @@ pub(super) mod tests {
     }
     #[test]
     fn scanner_uses_tagged_bounds_without_unneeded_file_fields_and_keeps_parent_warnings() {
-        let (b, mut isf) = prepared();
+        let (b, mut isf) = resident_match();
         isf.data["user_types"]
             .as_object_mut()
             .unwrap()
@@ -457,7 +475,7 @@ pub(super) mod tests {
         assert!(!r.complete);
         assert!(r.diagnostics.iter().any(|d| d.contains("父指针")));
         let mut b = b;
-        b[0xb100 - 12..0xb100 - 8].fill(0);
+        b[0xb000 - 12..0xb000 - 8].fill(0);
         let r = run(&b, &isf, &options);
         assert!(r.rows.is_empty());
         assert!(!r.complete);
@@ -465,7 +483,7 @@ pub(super) mod tests {
     }
     #[test]
     fn session_cache_distinguishes_pid_union_and_display_size() {
-        let (b, isf) = prepared();
+        let (b, isf) = resident_match();
         let dir = tempfile::tempdir().unwrap();
         let image = dir.path().join("windows.raw");
         let symbols = dir.path().join("windows.json");

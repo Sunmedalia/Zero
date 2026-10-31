@@ -4,7 +4,7 @@
     "volatility3/framework/interfaces/layers.py": "5515d539fe1dfb78723a82d2f18762bf455dd29cb246c2642460e1eae8853b6a",
     "volatility3/framework/layers/scanners/__init__.py": "c9ef412950973004146850acb415786a120d444bd0075ebb2e6ec3eb13d195ed"
   },
-  "scope": "Actual _coalesce_sections, translation-layer _scan_iterator, _scan_chunk and RegExScanner over supplied contiguous maps and immutable bytes. Reduced 8/4 geometry exercises the same chunk boundary algorithm; production remains 16MiB/4KiB. No layer bounds clipping, discontinuous backing/mapping, leading empty chunks, capture faults, arbitrary regex syntax or full resource contract is certified.",
+  "scope": "Actual _coalesce_sections, translation-layer _scan_iterator, _scan_chunk and RegExScanner over supplied contiguous maps and immutable bytes. Reduced 8/4 geometry exercises the same chunk boundary algorithm; production remains 16MiB/4KiB. Mapping events cover discontinuous backing, leading empty chunks and failed chunk reads over supplied map events. No complete page-table discovery, layer bounds clipping, arbitrary regex syntax or full resource contract is certified.",
   "coalescing": [
     {
       "sections": [],
@@ -1511,7 +1511,7 @@
       "expected": []
     }
   ],
-  "unresolved_mappings": [
+  "mapping_cases": [
     {
       "id": "discontinuous-backing",
       "sections": [
@@ -1603,6 +1603,43 @@
       ],
       "expected": [
         0
+      ]
+    },
+    {
+      "id": "read-failure-empty",
+      "sections": [
+        [
+          0,
+          8
+        ]
+      ],
+      "data_hex": "78787878",
+      "pattern": "^$",
+      "maps": [
+        [
+          0,
+          8,
+          0,
+          8,
+          "physical"
+        ]
+      ],
+      "chunk_size": 8,
+      "overlap": 4,
+      "chunks": [
+        [
+          [
+            [
+              "virtual",
+              0,
+              8
+            ]
+          ],
+          8
+        ]
+      ],
+      "expected": [
+        8
       ]
     }
   ]

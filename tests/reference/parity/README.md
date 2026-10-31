@@ -1119,3 +1119,25 @@ and clean pinned-checkout validation; `reference_execution` records that reuse.
 No new positive identities are added: totals remain 157 (five scoped), zero
 complete contracts. The complete gate and release smoke pass; the known mapping
 method test is explicitly excluded from the default gate and still fails when run.
+
+Native101 uses selected-range Intel mapping events for canonical regex chunking,
+Windows system-call scans and Skeleton Key fallback scans. Linux x64 and Windows
+x86/PAE/x64 have explicit page-table-derived backing boundaries; ARM64 retains a
+separate native path. The former ignored discontinuity/leading-empty cases are
+now normal mapped-scanner tests, alongside a failed-read empty-subject case.
+`intel_scan_vectors.py` adds 87 actual Intel cases (870 reads, 261 mapping queries).
+`scan-mapping.example.json` compares real empty-chunk and mapping-start anchors;
+its `duplicate_keys: multiset` mapping preserves every full record occurrence and
+strict sequence is separately checked. Native100's failures remain archived;
+no post-match filtering is used to fix the output.
+
+The final native101 binary reruns all seven affected configurations: 33 cases
+match every field, duplicate occurrence and strict output order (30 positive,
+three empty agreements). Four new anchor identities bring stable positive
+evidence to 161 cases (five scoped); complete plugin contracts remain zero.
+`scan-mapping-known-limitations.json` binds the final binary, fixture/source
+hashes, pre-fix failures, final summaries and validation boundaries. The separate
+actual Intel32e zero-length-section probe still exposes a missing empty event;
+that edge remains unresolved. Large-sample acceptance also retains stale
+DriverModule completeness and pre-native79 independent-PDB assertions, documented
+as failures instead of being claimed as passing regressions.

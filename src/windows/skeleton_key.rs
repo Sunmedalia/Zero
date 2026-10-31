@@ -195,7 +195,7 @@ impl Windows<'_> {
         result.kernel_identity["skeleton_key"] = serde_json::json!({"pid":process.pid,"cryptdll_base":hex(vad.start),"cryptdll_size":vad.end-vad.start});
         let acquired = (|| -> Result<Isf> {
             let mut header = [0; 4096];
-            vm.read_captured(vad.start, &mut header)?;
+            vm.read_reference(vad.start, &mut header)?;
             let header = pe_symbols::export_header(&header)?;
             ensure!(
                 header.wide && u64::from(header.size) <= vad.end - vad.start,
@@ -244,7 +244,7 @@ impl Windows<'_> {
         let mut evidence = Evidence::default();
         let mut addresses = Vec::new();
         if let Some(isf) = isf {
-            match array_from_symbols(isf, vad.start, |at, b| vm.read_captured(at, b)) {
+            match array_from_symbols(isf, vad.start, |at, b| vm.read_reference(at, b)) {
                 Ok((array, expected)) => {
                     evidence.array = Some(array);
                     evidence.expected = Some(expected);
@@ -260,7 +260,7 @@ impl Windows<'_> {
         if evidence.array.is_none() {
             let found = (|| -> Result<Option<Array>> {
                 let mut header = [0; 4096];
-                vm.read_captured(vad.start, &mut header)?;
+                vm.read_reference(vad.start, &mut header)?;
                 let header = pe_symbols::export_header(&header)?;
                 ensure!(
                     header.wide && u64::from(header.size) <= vad.end - vad.start,
@@ -270,7 +270,7 @@ impl Windows<'_> {
                 let symbols = pe_symbols::export_symbols(
                     header.size,
                     header.exports,
-                    |rva, b| vm.read_captured(add(vad.start, u64::from(rva))?, b),
+                    |rva, b| vm.read_reference(add(vad.start, u64::from(rva))?, b),
                     job,
                     &mut diagnostics,
                 )?;
@@ -283,8 +283,8 @@ impl Windows<'_> {
                 };
                 let start = add(vad.start, u64::from(*rva))?;
                 let mut function = [0; 0x50];
-                vm.read_captured(start, &mut function)?;
-                analyze_export(&function, start, |at, b| vm.read_captured(at, b), job)
+                vm.read_reference(start, &mut function)?;
+                analyze_export(&function, start, |at, b| vm.read_reference(at, b), job)
             })();
             match found {
                 Ok(Some(array)) => {
@@ -310,19 +310,18 @@ impl Windows<'_> {
         } else {
             evidence.method = "scan";
             let regex = ByteRegex::compile(r"(?=\x17\x00\x00\x00\x01\x00\x00\x00)", false)?;
-            let coverage = regex_scan::scan_sparse(
+            let coverage = vm.scan_reference(
                 &regex,
                 &[(vad.start, vad.end)],
                 &mut Default::default(),
                 job,
-                |at, b| vm.read_captured(at, b),
                 |at| {
                     evidence.scanned_candidates += 1;
                     if evidence.scanned_candidates > MAX_OBJECTS {
                         return Ok(false);
                     }
                     let mut bytes = [0; ECRYPT_SIZE];
-                    if vm.read_captured(at, &mut bytes).is_err() {
+                    if vm.read_reference(at, &mut bytes).is_err() {
                         evidence.unreadable_records += 1;
                         return Ok(true);
                     }
@@ -331,7 +330,6 @@ impl Windows<'_> {
                     }
                     Ok(true)
                 },
-                |at, end| vm.absent_end(at, end),
             )?;
             if !coverage.complete() {
                 Self::issue(
@@ -352,7 +350,7 @@ impl Windows<'_> {
         for address in &addresses {
             job.check()?;
             let mut bytes = [0; ECRYPT_SIZE];
-            if vm.read_captured(*address, &mut bytes).is_err() {
+            if vm.read_reference(*address, &mut bytes).is_err() {
                 evidence.unreadable_records += 1;
                 continue;
             }

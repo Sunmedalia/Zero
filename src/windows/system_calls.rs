@@ -1,6 +1,6 @@
 //! Direct/indirect syscall block validation against the pinned reference contract.
 use super::*;
-use crate::{byte_regex::ByteRegex, regex_scan};
+use crate::byte_regex::ByteRegex;
 use capstone::prelude::*;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -233,13 +233,8 @@ impl Windows<'_> {
                     .collect();
                 let regions: Vec<_> = vads.iter().map(|v| (v.start, v.end)).collect();
                 let (mut hits, mut unreadable_context) = (0usize, 0usize);
-                let coverage = regex_scan::scan_sparse(
-                    &regex,
-                    &regions,
-                    &mut Default::default(),
-                    job,
-                    |at, bytes| vm.read_captured(at, bytes),
-                    |hit| {
+                let coverage =
+                    vm.scan_reference(&regex, &regions, &mut Default::default(), job, |hit| {
                         if hits >= MAX_OBJECTS
                             || result.rows.len() >= MAX_OBJECTS
                             || output_bytes >= 128 * 1024 * 1024
@@ -254,7 +249,7 @@ impl Windows<'_> {
                         }
                         if hit < 32
                             || vm
-                                .read_captured(hit.saturating_sub(32), &mut [0; 64])
+                                .read_reference(hit.saturating_sub(32), &mut [0; 64])
                                 .is_err()
                         {
                             unreadable_context += 1;
@@ -263,7 +258,7 @@ impl Windows<'_> {
                         if let Some((start, disasm)) = validate(
                             cs,
                             technique,
-                            |at, bytes| vm.read_captured(at, bytes),
+                            |at, bytes| vm.read_reference(at, bytes),
                             &vads,
                             hit,
                             job,
@@ -282,9 +277,7 @@ impl Windows<'_> {
                             ]);
                         }
                         Ok(true)
-                    },
-                    |at, end| vm.absent_end(at, end),
-                )?;
+                    })?;
                 if !coverage.complete() || unreadable_context > 0 {
                     Self::issue(
                         &mut result,
