@@ -234,15 +234,6 @@ impl Linux<'_> {
 }
 
 impl Linux<'_> {
-    /// Shared task identities and thread enumeration, without credentials/time
-    /// reads that unrelated consumers do not need.
-    pub(super) fn task_list_with_threads(
-        &self,
-        include_threads: bool,
-        job: &Job,
-    ) -> Result<Results> {
-        self.selected_task_list_with_threads(include_threads, &Default::default(), job)
-    }
     /// Apply PID selection to leaders before enumerating their entire groups,
     /// matching the reference even when a recovered thread's TGID is stale.
     pub(super) fn selected_task_list_with_threads(
@@ -259,75 +250,11 @@ impl Linux<'_> {
         }
         if include_threads {
             let leaders = std::mem::take(&mut result.rows);
-            let mut seen: HashSet<_> = leaders.iter().map(|r| r[4].clone()).collect();
-            let mut tids: HashSet<_> = leaders.iter().map(|r| r[0].clone()).collect();
             for row in leaders {
                 let leader = u64::from_str_radix(&row[4][2..], 16)?;
                 result.rows.push(row);
-                let nodes = match self.thread_nodes(leader, job) {
-                    Ok(nodes) => nodes,
-                    Err(error) => {
-                        partial(&mut result, format!("thread group {leader:#x}"), error);
-                        continue;
-                    }
-                };
-                for task in nodes {
-                    job.check()?;
-                    if seen.contains(&hex(task)) {
-                        continue;
-                    }
-                    let read = (|| -> Result<Vec<String>> {
-                        let pid = self.number(task, "task_struct", "pid")?;
-                        let tgid = self.number(task, "task_struct", "tgid")?;
-                        ensure!(
-                            pid > 0
-                                && pid <= i32::MAX as u64
-                                && tgid > 0
-                                && tgid <= i32::MAX as u64,
-                            "非法线程 PID/TGID"
-                        );
-                        let parent = self.number(task, "task_struct", "real_parent")?;
-                        let ppid = self.number(parent, "task_struct", "tgid")?;
-                        ensure!(ppid <= i32::MAX as u64, "非法线程 PPID");
-                        let size = self.isf.size("task_struct", "comm")?;
-                        ensure!((1..=256).contains(&size), "线程名称长度无效");
-                        let mut bytes = vec![0; size];
-                        self.vm
-                            .read(self.field_address(task, "task_struct", "comm")?, &mut bytes)?;
-                        let end = bytes
-                            .iter()
-                            .position(|b| *b == 0)
-                            .context("线程名称未终止")?;
-                        let name = String::from_utf8_lossy(&bytes[..end]).into_owned();
-                        ensure!(
-                            !name.is_empty() && !name.chars().any(char::is_control),
-                            "线程名称无效"
-                        );
-                        Ok(vec![
-                            pid.to_string(),
-                            tgid.to_string(),
-                            ppid.to_string(),
-                            name,
-                            hex(task),
-                        ])
-                    })();
-                    match read {
-                        Ok(row) => {
-                            if !tids.insert(row[0].clone()) {
-                                evidence(
-                                    &mut result,
-                                    "thread_group",
-                                    task,
-                                    "duplicate_pid",
-                                    format!("重复线程 PID {}", row[0]),
-                                );
-                                continue;
-                            }
-                            seen.insert(hex(task));
-                            result.rows.push(row);
-                        }
-                        Err(error) => partial(&mut result, format!("thread {task:#x}"), error),
-                    }
+                for task in self.reference_threads(leader, job)? {
+                    result.rows.push(self.reference_task_row(task)?);
                 }
             }
         }
@@ -341,7 +268,9 @@ impl Linux<'_> {
         options: &crate::analysis::Options,
         job: &Job,
     ) -> Result<Results> {
-        let mut result = self.task_list_with_threads(options.include_threads, job)?;
+        let pids = options.pids.iter().copied().chain(options.pid).collect();
+        let mut result =
+            self.selected_task_list_with_threads(options.include_threads, &pids, job)?;
         result.plugin = Plugin::LinuxPslist.name().into();
         result.columns = Plugin::LinuxPslist
             .descriptor()

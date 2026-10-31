@@ -1049,3 +1049,17 @@ positives. Evidence stays 136 positives (five scoped), zero complete contracts.
 `task-validity-known-limitations.json` binds case/known-failure/cache/vector proofs;
 raw reports are under the eight `*-native96` groups. `make check` passes 628 lib,
 8 CLI/MCP, 50 protocol and 36 Python tests; release package smoke passes.
+
+native97 adds `pslist-selection.example.json`: leader PID filtering before full
+thread expansion, PID lists/unions/repeated selectors, decorated thread groups,
+leader-only lists and unmatched selection. The shared typed-byte method vectors
+now include 28 thread cases running pinned `get_threads`, `_get_tasks_iterable`,
+`list_head.to_list` and `PsList.list_tasks`. Modern signal-list precedence is
+covered by these method cases, not a modern real-image differential. Full plugin
+contracts remain unverified.
+All 19 native97 real cases pass mapped fields and strict sequence (18 positive,
+one empty); the persistent MCP selector/thread/decoration cache session and
+release package smoke also pass. Stable evidence identities replace older
+records; five added positive identities bring the total to 141 (five scoped),
+zero complete contracts. `pslist-selection-known-limitations.json` binds the
+proofs to native97 and retains the native96 one-versus-seven-row regression.

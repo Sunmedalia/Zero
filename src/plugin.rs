@@ -2197,6 +2197,7 @@ impl Plugin {
                     | Self::LinuxCapabilities
                     | Self::LinuxEnvars
                     | Self::LinuxPsaux
+                    | Self::LinuxPslist
             )
     }
     pub fn descriptor(self) -> &'static Descriptor {

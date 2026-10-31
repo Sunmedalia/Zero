@@ -9,6 +9,72 @@ fn reference_comm(bytes: &[u8]) -> String {
 }
 
 impl Linux<'_> {
+    pub(super) fn reference_task_row(&self, task: u64) -> Result<Vec<String>> {
+        let size = self.isf.size("task_struct", "comm")?;
+        ensure!((1..=256).contains(&size), "任务名称超过读取上限");
+        let mut name = vec![0; size];
+        self.vm
+            .read(self.field_address(task, "task_struct", "comm")?, &mut name)?;
+        Ok(vec![
+            self.number(task, "task_struct", "pid")?.to_string(),
+            self.number(task, "task_struct", "tgid")?.to_string(),
+            "0".into(),
+            reference_comm(&name),
+            hex(task),
+        ])
+    }
+
+    pub(super) fn reference_threads(&self, leader: u64, job: &Job) -> Result<Vec<u64>> {
+        let (head, offset) = if self.isf.field("task_struct", "signal").is_ok()
+            && self.isf.field("signal_struct", "thread_head").is_ok()
+        {
+            let signal = self.number(leader, "task_struct", "signal")?;
+            (
+                self.field_address(signal, "signal_struct", "thread_head")?,
+                self.isf.offset("task_struct", "thread_node")?,
+            )
+        } else if self.isf.field("task_struct", "thread_group").is_ok() {
+            (
+                self.field_address(leader, "task_struct", "thread_group")?,
+                self.isf.offset("task_struct", "thread_group")?,
+            )
+        } else {
+            bail!("找不到线程组列表布局");
+        };
+        let size = self.isf.data["user_types"]["list_head"]["size"]
+            .as_u64()
+            .context("list_head 缺少大小")?;
+        let mut threads = Vec::new();
+        if !self.task_span_readable(head, 1)? {
+            return Ok(threads);
+        }
+        let mut link = self.number(head, "list_head", "next")?;
+        if link == 0 || !self.task_span_readable(link, size)? {
+            return Ok(threads);
+        }
+        let mut links = HashSet::from([head]);
+        let mut seen = HashSet::from([leader]);
+        while !links.contains(&link) {
+            job.check()?;
+            ensure!(links.len() <= LIMIT, "线程组达到遍历上限");
+            let Some(task) = link.checked_sub(offset) else {
+                break;
+            };
+            if !self.task_span_readable(task, 1)? {
+                break;
+            }
+            if self.reference_task_valid(task)? && seen.insert(task) {
+                threads.push(task);
+            }
+            links.insert(link);
+            let next = self.number(link, "list_head", "next")?;
+            if next == 0 || !self.task_span_readable(next, size)? {
+                break;
+            }
+            link = next;
+        }
+        Ok(threads)
+    }
     fn task_span_readable(&self, address: u64, size: u64) -> Result<bool> {
         ensure!(size <= 1024 * 1024, "任务目标结构超过读取上限");
         Ok(self
@@ -96,18 +162,7 @@ impl Linux<'_> {
                     break;
                 }
                 if seen.insert(task) && self.reference_task_valid(task)? {
-                    let size = self.isf.size("task_struct", "comm")?;
-                    ensure!((1..=256).contains(&size), "任务名称超过读取上限");
-                    let mut name = vec![0; size];
-                    self.vm
-                        .read(self.field_address(task, "task_struct", "comm")?, &mut name)?;
-                    result.rows.push(vec![
-                        self.number(task, "task_struct", "pid")?.to_string(),
-                        self.number(task, "task_struct", "tgid")?.to_string(),
-                        "0".into(),
-                        reference_comm(&name),
-                        hex(task),
-                    ]);
+                    result.rows.push(self.reference_task_row(task)?);
                 }
                 direction_seen.insert(link);
                 let next = self.number(link, "list_head", direction)?;
@@ -171,6 +226,16 @@ mod tests {
                     u8::from_str_radix(std::str::from_utf8(pair).unwrap(), 16).unwrap();
             }
         }
+        if case.get("modern").is_some() {
+            for (field, offset) in [("thread_group", 96), ("thread_node", 112)] {
+                isf.data["user_types"]["task_struct"]["fields"][field] =
+                    json!({"offset":offset,"type":{"kind":"struct","name":"list_head"}});
+            }
+            if case["modern"] == true {
+                isf.data["user_types"]["signal_struct"]["fields"]["thread_head"] =
+                    json!({"offset":16,"type":{"kind":"struct","name":"list_head"}});
+            }
+        }
         isf.invalidate_layouts();
         let mut image = image(&bytes);
         if let Some(holes) = case["holes"].as_array() {
@@ -196,6 +261,39 @@ mod tests {
             }
         }
         (image, isf)
+    }
+
+    #[test]
+    fn thread_selection_matches_pinned_task_and_list_methods() {
+        let vectors: Value = serde_json::from_str(include_str!(
+            "../../tests/reference/parity/fixtures/task-validity.json"
+        ))
+        .unwrap();
+        for case in vectors["threads"].as_array().unwrap() {
+            let (image, isf) = materialize(case);
+            let pids = case["pids"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|p| p.as_u64().unwrap() as u32)
+                .collect();
+            let actual = engine(&image, &isf)
+                .selected_task_list_with_threads(true, &pids, &Job::default())
+                .unwrap();
+            let rows: Vec<_> = actual
+                .rows
+                .iter()
+                .map(|row| {
+                    json!([
+                        u64::from_str_radix(&row[4][2..], 16).unwrap(),
+                        row[0].parse::<u64>().unwrap(),
+                        row[1].parse::<u64>().unwrap(),
+                        row[3]
+                    ])
+                })
+                .collect();
+            assert_eq!(json!(rows), case["expected"], "{}", case["id"]);
+        }
     }
 
     #[test]

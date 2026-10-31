@@ -288,10 +288,12 @@ impl Session {
                 options.maxsize.unwrap_or(128)
             ),
             None if request.plugin == Plugin::LinuxPslist => format!(
-                "{}:threads={}:decorate={}",
+                "{}:threads={}:decorate={}:pid={:?}:pids={:?}",
                 request.plugin.name(),
                 options.include_threads,
-                options.decorate_comm
+                options.decorate_comm,
+                options.pid,
+                options.pids
             ),
             None if matches!(
                 request.plugin,

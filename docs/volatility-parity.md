@@ -1977,3 +1977,36 @@ make check 通过：628 库、8 CLI/MCP、50 协议及 36 Python 测试；
 发布包在项目／无关目录、空 PATH 下启动退出通过。68 例向量重新
 生成逐字节一致。资源边界、异常文字、任意 ISF、架构和线程损坏
 合同仍待验证。
+
+## native97：PsList 先选主进程，再展开完整线程组
+
+修复实际差分发现的漏行：`linux.pslist.PsList --pid 3874 --threads`
+在 Debian 3.2 样本上原来只返回主线程 1 行，固定参考返回 7 行。原因是
+通用结果过滤在展开线程后按 TID 再次筛选。现在标准入口接受 `--pids`，
+单 PID 与列表取并集，在主进程阶段筛选，然后展开整个组；缓存键包含两个
+选择器以及 threads/decorate，避免选择器之间复用错误结果。
+
+线程枚举按固定参考的 `get_threads` / `_get_tasks_iterable` / `list_head.to_list`
+语义：优先 signal_struct.thread_head / task_struct.thread_node，旧布局回退
+thread_group；前向遍历，逐任务应用完整准入，按组内地址去重，不再按全局
+地址或 TID 去重。保留零 ID、重复 ID、空名称和控制字符等参考允许的值，
+不额外要求反向链接一致。旧版恢复链路径仍单独保留。
+
+28 个新增字节适配器用例直接执行固定参考方法，覆盖布局优先级、主进程
+筛选、重复选择器、无效线程、组间共享线程、环、空链接、缺页与控制字符。
+它们补充此前 50 个任务准入和 18 个遍历／名称用例；现代布局还没有真实
+镜像线程差分证明，也不代表已覆盖所有异常、采集竞争或平台合同。
+
+最终 19 个真实用例（选择器 6、原 PsList 5、PsCallStack 8）全字段和严格行序
+通过，其中 18 个为非空正向结果、1 个为空结果一致。选择器各输出
+7/8/8/8/2/0 行；原 PsList 默认 133 行、含线程 316 行。持续 MCP 会话
+8 次请求分别 133/7/8/8/7/8/2/0 行，7 个缓存项，重复命中和完整缓存行均
+与无缓存结果一致。通过 make check：629 库、8 CLI/MCP、50 协议、36 Python；
+发布包通过原目录及无关目录、空 PATH 的启动与退出检查。
+
+证明存于 `pslist-selection-known-limitations.json`，原始输出在
+`target/reference/results/{pslist-selection,debian,pscallstack}-native97`。
+最终二进制 SHA256 `ca38931e01ee55afb7cd95fb64608f3fb6d3ee5aa105db745a1d0cb74053c62b`。
+同名基线替换，仅增加 5 个正向用例，累计 141 个正向用例（5 个限定范围），
+完整插件合同仍为 0/135。既有 regex maxsize=4 差异尚未修复；原始 Debian6.12
+用户镜像仍不可得，不能据此声称该镜像已可分析。

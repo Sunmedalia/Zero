@@ -38,6 +38,9 @@ def generate(checkout):
             obj=int.__new__(cls,value);obj.target=target;obj.context=context;return obj
         def is_readable(self):return self.context.layers['memory'].is_valid(int(self),sizes[self.target])
         def dereference(self):return Head(self.context,int(self))
+        def __getattr__(self,name):
+            if self.target=='signal_struct' and name=='thread_head':return Head(self.context,int(self)+16)
+            raise AttributeError(name)
     class Head:
         def __init__(self,context,at):self._context=context;self.vol=SimpleNamespace(offset=at,layer_name='memory')
         def __getattr__(self,name):
@@ -53,12 +56,16 @@ def generate(checkout):
             self.vol=SimpleNamespace(offset=at,size=256,layer_name='memory',type_name='kernel!task_struct')
         def has_member(self,name):return name in self.fields or name in ['tasks','comm']
         def __getattr__(self,name):
+            if name in ['thread_group','thread_node']:return Head(self._context,self.vol.offset+(96 if name=='thread_group' else 112))
             if name=='tasks':return Head(self._context,self.vol.offset+self.task_offset)
             if name=='comm':return Array(self._context,self.vol.offset+64)
             if name not in self.fields:raise AttributeError(name)
             offset,ty=self.fields[name];size=4 if name in ['pid','tgid'] else self.width
             value=int.from_bytes(self._context.layers['memory'].read(self.vol.offset+offset,size),'little',signed=self.signed if name in ['pid','tgid'] else False)
             return value if name in ['pid','tgid'] else Pointer(value,ty,self._context)
+        get_symbol_table_name=lambda self:"kernel"
+        _get_tasks_iterable=extensions.task_struct._get_tasks_iterable
+        get_threads=extensions.task_struct.get_threads
         is_valid=extensions.task_struct.is_valid
 
     def build(spec,width=8):
@@ -133,9 +140,47 @@ def generate(checkout):
             record['expected']=[[t.vol.offset,int(t.pid),int(t.tgid),utility.array_to_string(t.comm)] for t in found]
         except Exception as error:record['error']=type(error).__name__
         walks.append(record)
+    threads=[]
+    class Modules(dict):
+        def get_modules_by_symbol_tables(self,_):return ['kernel']
+    for modern in [False,True]:
+        for variant in ['normal','pid-leader','pid-child','duplicate-selectors','invalid-child','zero-duplicate-ids','bad-backlink','cycle','null-link','shared-group','name-control','link-tail-hole','child-tail-hole','modern-legacy-conflict']:
+            entries=[dict(address=0xa000),dict(address=0xa200),dict(address=0xa400),dict(address=0xa600)]
+            if variant=='invalid-child':entries[2]['values']=dict(signal=0)
+            if variant=='zero-duplicate-ids':
+                entries[2]['values']=dict(pid=0,tgid=0);entries[3]['values']=dict(pid=0,tgid=0)
+            if variant=='name-control':entries[2]['name_hex']=b'A\nB\0'.hex()
+            spec=dict(id=f'{"modern" if modern else "legacy"}-{variant}',walk=True,entries=entries)
+            context,task,memory=build(spec)
+            # Only first two objects are process-list leaders; other two are threads.
+            off=80;head=0x9000+off
+            for at,value in [(head,0xa000+off),(head+8,0xa200+off),(0xa000+off,0xa200+off),(0xa200+off,head)]:memory.put(at,value.to_bytes(8,'little'))
+            node=112 if modern else 96
+            h=0x11010 if modern else 0xa000+node
+            for at,value in [(h,0xa400+node),(0xa400+node,0xa600+node),(0xa600+node,h)]:memory.put(at,value.to_bytes(8,'little'))
+            if not modern:
+                memory.put(0xa200+node,(0xa200+node).to_bytes(8,'little'))
+                if variant=='shared-group':memory.put(0xa200+node,(0xa400+node).to_bytes(8,'little'))
+            if variant=='link-tail-hole':memory.holes.append([0xa400+node+15,0xa400+node+16])
+            if variant=='child-tail-hole':memory.holes.append([0xa4ff,0xa500])
+            if variant=='modern-legacy-conflict':memory.put(0xa000+96,(0xa600+96).to_bytes(8,'little'))
+            if memory.holes:spec['holes']=memory.holes
+            if variant=='cycle':memory.put(0xa600+node,(0xa400+node).to_bytes(8,'little'))
+            if variant=='null-link':memory.put(h,(0).to_bytes(8,'little'))
+            # Backlinks intentionally absent; modern fixtures also contain an empty legacy list.
+            pids={'pid-leader':[1],'pid-child':[3],'duplicate-selectors':[1,1]}.get(variant,[])
+            spec.update(pids=pids,modern=modern,pointer_width=8,writes=memory.writes)
+            offsets={'tasks':80,'thread_group':96,'thread_node':112}
+            context.symbol_space=SimpleNamespace(get_type=lambda _:SimpleNamespace(relative_child_offset=lambda member:offsets[member]))
+            module=context.modules['kernel'];module.symbol_table_name='kernel'
+            module.get_type=lambda name:SimpleNamespace(has_member=lambda field:field!='thread_head' or modern)
+            context.modules=Modules(kernel=module)
+            found=PsList.list_tasks(context,'kernel',filter_func=PsList.create_pid_filter(pids),include_threads=True)
+            spec['expected']=[[t.vol.offset,int(t.pid),int(t.tgid),utility.array_to_string(t.comm)] for t in found]
+            threads.append(spec)
     return dict(reference_commit=PIN,source_sha256={p:hashlib.sha256((checkout/p).read_bytes()).hexdigest() for p in [
         'volatility3/framework/symbols/linux/extensions/__init__.py','volatility3/framework/plugins/linux/pslist.py','volatility3/framework/objects/utility.py']},
-        scope='Actual task_struct.is_valid, list_head.to_list, PsList.list_tasks and array_to_string over typed byte-backed adapters with explicit capture holes. Pointer widths 4/8 test field decoding under supplied layer validity, not Intel32 page-table support. Native fixtures use full x64 page tables and identical field bytes. All layer alias/exception/resource contracts and thread enumeration remain unverified.',validity=validity,walks=walks)
+        scope='Actual task_struct.is_valid, list_head.to_list, PsList.list_tasks and array_to_string over typed byte-backed adapters with explicit capture holes. Pointer widths 4/8 test field decoding under supplied layer validity, not Intel32 page-table support. Native fixtures use full x64 page tables and identical field bytes. All layer alias/exception/resource contracts remain unverified. Thread cases invoke actual get_threads and layout selection with supplied module metadata; full platform contracts remain unverified.',validity=validity,walks=walks,threads=threads)
 
 
 if __name__=='__main__':
