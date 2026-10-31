@@ -1,0 +1,60 @@
+{
+  "runtime": "0.2.1-native-102; acceptance-only changes",
+  "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+  "summary_sha256": "e8b987c326c0b0305038059cd11e5ab6ca5cbd039a6d28c5ebef296691c409c6",
+  "cases": [
+    {
+      "case_id": "windows-10-15063/driverirp-default",
+      "passed": true,
+      "zero_records": 4255,
+      "reference_records": 4255,
+      "zero_complete": false
+    },
+    {
+      "case_id": "server-2008-6001-x86/driverirp-default",
+      "passed": true,
+      "zero_records": 3724,
+      "reference_records": 3724,
+      "zero_complete": false
+    },
+    {
+      "case_id": "windows-11/driverirp-default",
+      "passed": true,
+      "zero_records": 3453,
+      "reference_records": 3453,
+      "zero_complete": true
+    },
+    {
+      "case_id": "windows-10-15063/driverirp-kernel-module",
+      "passed": true,
+      "zero_records": 2066,
+      "reference_records": 2066,
+      "zero_complete": false
+    },
+    {
+      "case_id": "server-2008-6001-x86/driverirp-kernel-module",
+      "passed": true,
+      "zero_records": 1723,
+      "reference_records": 1723,
+      "zero_complete": false
+    },
+    {
+      "case_id": "windows-11/driverirp-kernel-module",
+      "passed": true,
+      "zero_records": 1656,
+      "reference_records": 1656,
+      "zero_complete": true
+    }
+  ],
+  "checks": {
+    "make_check": true,
+    "canonical_cache_tests": 2,
+    "external_driver_real_lifecycle_samples": 2,
+    "win10_win11_joint_acceptance": true,
+    "server2012r2_acceptance": true
+  },
+  "limitations": [
+    "Kernel-module cases are explicitly scoped and do not certify full-plugin behavior.",
+    "Full parameter, failure and platform contracts remain incomplete."
+  ]
+}

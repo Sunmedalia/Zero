@@ -314,7 +314,7 @@ fn public_windows_images() {
                         "Alternative Name"
                     ]
                 );
-                assert!(!result.complete);
+                assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
                 assert!(
                     result
                         .rows
@@ -775,14 +775,43 @@ fn exact_driver_symbols_and_cache(
             .digest,
         digest
     );
+    let Outcome::Ready(loaded_modules) = analysis::analyze(
+        &mut session,
+        &Request {
+            image: &image,
+            symbols: &kernel,
+            choice: None,
+            plugin: Plugin::WinModules,
+            cache: cache.path(),
+            use_cache: false,
+            network: false,
+        },
+        None,
+        &Options::default(),
+        &Job::default(),
+    )
+    .unwrap() else {
+        panic!("ambiguous kernel")
+    };
+    let module_name = identity.name.trim_end_matches(".pdb");
+    let loaded = loaded_modules
+        .rows
+        .iter()
+        .find(|row| row[0].eq_ignore_ascii_case(&format!("{module_name}.sys")))
+        .expect("exact driver must be present in loaded modules");
+    let module_base = u64::from_str_radix(loaded[1].trim_start_matches("0x"), 16).unwrap();
+    let kernel_bytes = std::fs::read(&kernel).unwrap();
+    let kernel_isf = Isf::parse(&kernel_bytes, kernel.display().to_string()).unwrap();
     let mut original = None;
-    // Cold, positive cache, deletion, negative cache, then offline PDB conversion.
-    for (phase, cached, named) in [
-        (0, false, true),
-        (1, true, true),
-        (2, false, false),
-        (3, true, false),
-        (4, false, true),
+    // Canonical dispatch uses the kernel ISF. External driver resources must not
+    // change its rows or invalidate its cache, including an uncached replay.
+    for (phase, cached) in [
+        (0, false),
+        (1, true),
+        (2, true),
+        (3, false),
+        (4, true),
+        (5, false),
     ] {
         if phase == 2 {
             std::fs::remove_file(&local_driver).unwrap();
@@ -803,7 +832,7 @@ fn exact_driver_symbols_and_cache(
                 choice: None,
                 plugin: Plugin::WinDriverIrp,
                 cache: cache.path(),
-                use_cache: true,
+                use_cache: !matches!(phase, 3 | 5),
                 network: false,
             },
             None,
@@ -814,22 +843,16 @@ fn exact_driver_symbols_and_cache(
             panic!("ambiguous kernel")
         };
         assert_eq!(job.served_from_cache(), cached, "phase {phase}");
-        let module = result.kernel_identity["dispatch_symbols"]["modules"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .find(|module| module["pdb"] == driver_key)
-            .unwrap();
-        assert_eq!(module["resolved"], named, "phase {phase}");
-        if named {
-            assert_eq!(module["isf_sha256"], driver_digest);
-        }
-        let base = u64::from_str_radix(
-            module["base"].as_str().unwrap().trim_start_matches("0x"),
-            16,
-        )
-        .unwrap();
-        let module_name = module["module"].as_str().unwrap();
+        let evidence = &result.kernel_identity["dispatch_symbols"];
+        assert_eq!(evidence["mode"], "reference-kernel-isf", "phase {phase}");
+        assert_eq!(evidence["external_resources"], false);
+        assert!(evidence.get("modules").is_none());
+        assert_eq!(
+            evidence["match"],
+            "exact RVA; all aliases; inclusive module endpoints"
+        );
+        assert!(evidence.get("cache_dependencies").is_none());
+        let module_name = identity.name.trim_end_matches(".pdb");
         let rows: Vec<_> = result
             .rows
             .iter()
@@ -837,15 +860,22 @@ fn exact_driver_symbols_and_cache(
             .collect();
         assert_eq!(rows.len(), expected, "phase {phase}");
         for row in rows {
-            if named {
-                let address = u64::from_str_radix(row[3].trim_start_matches("0x"), 16).unwrap();
-                assert!(!row[5].is_empty());
+            assert_eq!(row.len(), 6);
+            let address = u64::from_str_radix(row[3].trim_start_matches("0x"), 16).unwrap();
+            let rva = address.checked_sub(module_base).unwrap();
+            if !row[5].is_empty() {
                 assert_eq!(
-                    driver.data["symbols"][&row[5]]["address"].as_u64(),
-                    address.checked_sub(base)
+                    kernel_isf.data["symbols"][&row[5]]["address"].as_u64(),
+                    Some(rva)
                 );
             } else {
-                assert!(row[5].is_empty());
+                assert!(
+                    !kernel_isf.data["symbols"]
+                        .as_object()
+                        .unwrap()
+                        .values()
+                        .any(|symbol| symbol["address"].as_u64() == Some(rva))
+                );
             }
         }
         assert!(
@@ -859,10 +889,19 @@ fn exact_driver_symbols_and_cache(
                 .unwrap();
         }
         if phase == 0 {
-            original = Some(result.rows.clone());
+            original = Some((
+                result.rows.clone(),
+                result.kernel_identity.clone(),
+                result.diagnostics.clone(),
+                result.complete,
+            ));
         }
-        if phase == 1 || phase == 4 {
-            assert_eq!(original.as_ref().unwrap(), &result.rows);
+        if phase != 0 {
+            let (rows, identity, diagnostics, complete) = original.as_ref().unwrap();
+            assert_eq!(rows, &result.rows);
+            assert_eq!(identity, &result.kernel_identity);
+            assert_eq!(diagnostics, &result.diagnostics);
+            assert_eq!(*complete, result.complete);
         }
     }
 }

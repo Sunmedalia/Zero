@@ -79,6 +79,7 @@
         }
       },
       "complete": {
+        "windows.malware.drivermodule.DriverModule": true,
         "windows.registry.hivescan.HiveScan": true,
         "windows.malware.pebmasquerade.PebMasquerade": false,
         "windows.registry.getcellroutine.GetCellRoutine": false,
@@ -134,7 +135,7 @@
         "windows.svcscan": 634,
         "windows.vadwalk.VadWalk": 17405,
         "windows.kpcrs.KPCRs": 4,
-        "windows.driverirp.DriverIrp": 3444,
+        "windows.driverirp.DriverIrp": 3453,
         "windows.malware.drivermodule.DriverModule": 1,
         "windows.registry.hivescan.HiveScan": 38,
         "windows.malware.pebmasquerade.PebMasquerade": 102,
@@ -164,6 +165,7 @@
         ]
       },
       "complete": {
+        "windows.malware.drivermodule.DriverModule": true,
         "windows.registry.hivescan.HiveScan": true,
         "windows.malware.pebmasquerade.PebMasquerade": false,
         "windows.registry.getcellroutine.GetCellRoutine": false,
@@ -388,7 +390,7 @@
         "windows.pslist": true,
         "windows.netscan": false,
         "windows.driverirp.DriverIrp": false,
-        "windows.malware.drivermodule.DriverModule": false,
+        "windows.malware.drivermodule.DriverModule": true,
         "windows.registry.hivescan.HiveScan": true,
         "windows.malware.pebmasquerade.PebMasquerade": false,
         "windows.debugregisters.DebugRegisters": false,

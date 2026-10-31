@@ -2223,3 +2223,29 @@ Windows 空块0/42、块首425/1241。native101 分别为7/7、128/128、42/42�
 实际路径重跑后为 9 项通过、4 项失败：两项 DriverModule 旧完整性断言和两项
 DriverIrp 独立 PDB 旧策略；Server2012R2 未解压，未运行。未以本批方法通过
 替代完整验收；完整插件合同仍为 **0/135**。
+
+## 驱动验收入口修正
+
+本批仅更新验收与证据，不改变 native102 运行时策略。独立实测 Win10 15063、
+Win11 22000、Server2008 的 DriverModule 分别为 3、1、2 行，均 complete=true
+且无诊断；完整性 fixture 据此更新，既有字段、行数与名称校验保留。
+
+canonical DriverIrp 验收使用当前 reference-kernel-isf 符号域，取实际已加载模块
+基址核对每个有名 handler 的精确内核 ISF RVA，并验证无名 RVA 不存在对应符号。
+六阶段覆盖冷／热缓存、独立驱动 ISF 删除后的缓存及禁缓存重算、加入独立 PDB
+后的缓存及禁缓存重算。每阶段完整比较 rows、kernel_identity、diagnostics 和
+complete，Win10 与 Server2008 两项通过；原有 partial 断言保留。
+
+独立模块 PDB 解析验收移至 dispatch 内部的 ignored 真实样本测试，显式使用
+DispatchModules::new/resolve_at/acquire。在 Win10 与 Server2008 分别执行五阶段，
+验证本地 ISF、删除后的依赖失效／缺失诊断、partial 缓存和本地 PDB 重新转换。
+资源缺失即失败，不通过静默跳过伪造成功。该测试已实际执行通过。
+
+Server2012R2 本地原始 ZIP 仅含一个 2 GiB 内存文件，无路径穿越或符号链接，
+已解压至独立新目录并通过 public_server2012r2_x64 验收；原归档保持不变。
+Win10/Win11 联合验收已通过。重新执行的六项 DriverIrp 固定参考差分全部完整
+字段通过：默认 Win10 4255/4255、Server2008 3724/3724、Win11 3453/3453；
+限定 kernel 模块范围分别为 2066/2066、1723/1723、1656/1656。前两种样本
+继续 partial，Win11 为完整结果，不能将单一样本完整性推导到其他样本。
+原始报告为 `target/reference/results/driverirp-acceptance-refresh/summary.json`。
+上述测试不能替代完整插件故障／平台合同，完整插件合同仍为 **0/135**。

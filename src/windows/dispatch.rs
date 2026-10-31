@@ -694,4 +694,141 @@ mod tests {
             .store(true, std::sync::atomic::Ordering::Relaxed);
         assert!(dependencies_match(&partial, cache.path(), false, &cancelled).is_err());
     }
+
+    #[test]
+    #[ignore = "requires public Win10/Server2008 images and exact local mup ISF/PDBs"]
+    fn real_external_driver_resources_and_cache_lifecycle() -> Result<()> {
+        for (variable, default, kernel_file, driver_key) in [
+            (
+                "ZERO_WINDOWS10_IMAGE",
+                "images/feat-windows-plugins/WinDump/WinDump.mem",
+                "ntkrnlmp.pdb-0C9CC659210046EC84231597DADFDB3B1.json",
+                "mup.pdb/8443AA648B71EE252D2008EB6EBBC0311",
+            ),
+            (
+                "ZERO_WINDOWS2008_IMAGE",
+                "images/feat-windows-plugins/server2008/memdump.mem",
+                "ntkrpamp.pdb-37D328E3BAE5460F8E662756ED80951D2.json",
+                "mup.pdb/2383AD05D3F9414EB69278AB890373CA2",
+            ),
+        ] {
+            let cache = tempfile::tempdir()?;
+            let job = Job::default();
+            let path = std::env::var(variable).unwrap_or_else(|_| default.into());
+            let image = Image::open(std::path::Path::new(&path), cache.path(), &job)?;
+            let kernel_path =
+                std::path::Path::new(".zero/rust/symbols/isf/windows").join(kernel_file);
+            let isf = Isf::parse(
+                &std::fs::read(&kernel_path)?,
+                kernel_path.display().to_string(),
+            )?;
+            let (root, base) = super::super::discover(&image, &isf, &job)?;
+            let windows = Windows {
+                vm: Memory::new(&image, root, &isf, None),
+                base,
+                pdb: PdbIdentity::from_isf(&isf)?,
+            };
+            let mut inventory = windows.result(Plugin::WinModules);
+            let modules = windows.modules_partial(&job, &mut inventory)?;
+            let module = modules
+                .iter()
+                .find(|m| m.name.eq_ignore_ascii_case("mup.sys"))
+                .context("sample has no mup.sys module")?
+                .clone();
+            let identity = PdbIdentity::from_key(driver_key)?;
+            let stem = format!("{}-{}{:X}", identity.name, identity.guid, identity.age);
+            let source = std::path::Path::new(".zero/rust/symbols");
+            let driver_bytes =
+                std::fs::read(source.join("isf/windows").join(format!("{stem}.json")))?;
+            let driver = Isf::parse(&driver_bytes, driver_key.into())?;
+            assert_eq!(PdbIdentity::from_isf(&driver)?, identity);
+            let rva = driver.data["symbols"]
+                .as_object()
+                .context("driver symbols missing")?
+                .values()
+                .filter_map(|s| s["address"].as_u64())
+                .find(|rva| *rva > 0 && *rva < module.size)
+                .context("no driver symbol in image")?;
+            let target = module
+                .base
+                .checked_add(rva)
+                .context("driver target overflow")?;
+            let local_isf = cache
+                .path()
+                .join("symbols/isf/windows")
+                .join(format!("{stem}.json"));
+            store::atomic_write(&local_isf, &driver_bytes)?;
+            let mut prior: Option<Results> = None;
+            for (phase, named) in [(0, true), (1, true), (2, false), (3, false), (4, true)] {
+                if phase == 2 {
+                    std::fs::remove_file(&local_isf)?;
+                    assert!(!dependencies_match(
+                        prior.as_ref().unwrap(),
+                        cache.path(),
+                        false,
+                        &job
+                    )?);
+                }
+                if phase == 4 {
+                    let pdb = std::fs::read(source.join("build/pdb").join(format!("{stem}.pdb")))?;
+                    store::atomic_write(
+                        &cache
+                            .path()
+                            .join("symbols/build/pdb")
+                            .join(format!("{stem}.pdb")),
+                        &pdb,
+                    )?;
+                    assert!(!dependencies_match(
+                        prior.as_ref().unwrap(),
+                        cache.path(),
+                        false,
+                        &job
+                    )?);
+                }
+                let mut index = DispatchModules::new(vec![module.clone()], &isf, base, &job)?;
+                let mut result = result_for(&index, cache.path(), false);
+                index.resolve_at(
+                    target,
+                    &windows.vm,
+                    Some((cache.path(), false)),
+                    &mut result,
+                    &job,
+                )?;
+                result.kernel_identity["dispatch_symbols"] =
+                    index.evidence(Some((cache.path(), false)));
+                assert_eq!(
+                    result.kernel_identity["dispatch_symbols"]["modules"][0]["resolved"], named,
+                    "{variable} phase {phase}"
+                );
+                let hits = index.at(target);
+                assert!(!hits.is_empty());
+                assert!(hits.iter().all(|(_, symbol)| symbol.is_empty() != named));
+                if named {
+                    for (_, symbol) in hits {
+                        assert_eq!(
+                            driver.data["symbols"][&symbol]["address"].as_u64(),
+                            Some(rva)
+                        );
+                    }
+                    assert!(result.complete && result.diagnostics.is_empty());
+                } else {
+                    assert!(!result.complete && !result.diagnostics.is_empty());
+                }
+                assert!(dependencies_match(&result, cache.path(), false, &job)?);
+                store::save_any(
+                    cache.path(),
+                    "external-driver",
+                    &store::Owner::default(),
+                    &result,
+                    &job,
+                )?;
+                assert_eq!(
+                    load_cached(cache.path(), "external-driver", false, &job)?,
+                    Some(result.clone())
+                );
+                prior = Some(result);
+            }
+        }
+        Ok(())
+    }
 }
