@@ -153,12 +153,35 @@ impl Linux<'_> {
             self.isf.size(structure, field)?,
         )
     }
-    pub(super) fn module_name(&self, base: u64) -> Result<String> {
+    pub(super) fn module_name(&self, base: u64, job: &Job) -> Result<String> {
         let length = self.isf.size("module", "name")?;
         ensure!((1..=4096).contains(&length), "模块名称长度无效");
-        let mut bytes = vec![0; length];
-        self.vm
-            .read(self.field_address(base, "module", "name")?, &mut bytes)?;
+        let start = self.field_address(base, "module", "name")?;
+        let mut bytes = Vec::new();
+        if self.arm64() {
+            bytes.resize(length, 0);
+            self.vm.read(start, &mut bytes)?;
+        } else {
+            let mut mapper = crate::intel_scan::Mapper::new(
+                self.vm.image,
+                self.vm.root,
+                crate::intel_scan::Kind::Linux64,
+            );
+            let maps = mapper.mappings(start, add(start, length as u64)?, job, |_, _, _| false)?;
+            let mut next = start;
+            for map in maps {
+                if map.start != next {
+                    break;
+                }
+                let offset = bytes.len();
+                bytes.resize(offset + (map.end - map.start) as usize, 0);
+                mapper.read(map.start, &mut bytes[offset..], |_, _, _| {
+                    anyhow::bail!("模块名称无 swap 附件")
+                })?;
+                next = map.end;
+            }
+            ensure!(!bytes.is_empty(), "模块名称起始地址不可读 @ {start:#x}");
+        }
         Ok(String::from_utf8_lossy(&bytes)
             .split(['\0', '\u{fffd}'])
             .next()
@@ -420,7 +443,7 @@ impl Linux<'_> {
                         };
                         ensure!(base != 0 && size > 0, "模块基址或大小无效 @ {object:#x}");
                         vec![
-                            self.module_name(object)?,
+                            self.module_name(object, job)?,
                             format!("{base:#018x}"),
                             size.to_string(),
                         ]

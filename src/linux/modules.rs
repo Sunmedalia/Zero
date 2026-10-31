@@ -731,6 +731,25 @@ mod tests {
         (bytes, isf)
     }
     #[test]
+    fn module_name_preserves_only_contiguous_mapped_prefix() {
+        let (mut bytes, mut isf) = fixture();
+        put(&mut bytes, 0x3000, 0x4003);
+        for page in 0..64 {
+            put(&mut bytes, 0x4000 + page * 8, (page * 4096) as u64 | 3);
+        }
+        put(&mut bytes, 0x4000 + 63 * 8, 0);
+        isf.data["user_types"]["module"]["fields"]["name"] = json!({"offset":0xaef0,"type":{"kind":"array","count":64,"subtype":{"kind":"base","name":"char"}}});
+        isf.data["user_types"]["module"]["size"] = json!(0xaf30);
+        bytes[0x3eff0..0x3f000].copy_from_slice(b"abcdefghijklmnop");
+        let image = super::super::tests::image(&bytes);
+        let linux = super::super::tests::engine(&image, &isf);
+        assert_eq!(
+            linux.module_name(0x34100, &Job::default()).unwrap(),
+            "abcdefghijklmnop"
+        );
+    }
+
+    #[test]
     fn lsmod_names_preserve_controls_and_stop_at_replacement() {
         for (payload, expected) in [
             (b"a\x01b\0".as_slice(), "a\u{1}b"),
@@ -754,6 +773,7 @@ mod tests {
         for name_offset in [0xbef0, 0xbf00] {
             let (mut bytes, mut isf) = fixture();
             isf.data["user_types"]["module"]["fields"]["name"] = json!({"offset":name_offset,"type":{"kind":"array","count":64,"subtype":{"kind":"base","name":"char"}}});
+            isf.data["user_types"]["module"]["size"] = json!(name_offset + 64);
             if name_offset == 0xbef0 {
                 bytes[0x3fff0..0x40000].copy_from_slice(b"abcdefghijklmnop");
             }
@@ -764,6 +784,12 @@ mod tests {
             assert!(result.rows.is_empty());
             assert!(!result.complete);
             assert!(!result.diagnostics.is_empty());
+            assert!(
+                result
+                    .diagnostics
+                    .iter()
+                    .all(|message| !message.contains("ISF 字段越界"))
+            );
         }
     }
 

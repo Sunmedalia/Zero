@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+  "engine_version": "0.2.1-native-112",
+  "scope": "Intel module name contiguous mapping prefix recovery",
+  "reference_source": "volatility3/framework/objects/utility.py:gather_contiguous_bytes_from_address",
+  "implementation": "Reuse pinned-compatible Intel Linux64 mappings; stop at the first mapping gap, reject an empty prefix, propagate mapped read failures. ARM64 retains full-field reads.",
+  "native_test": "module_name_preserves_only_contiguous_mapped_prefix",
+  "test_correction": "lsmod_unreadable_name_never_becomes_a_prefix_row now declares a module size covering the relocated name and rejects ISF field-bound errors. Earlier versions could pass through layout rejection rather than captured-memory failure.",
+  "validation": {
+    "make_check": "714 Rust tests and 45 reference harness tests passed",
+    "linux_acceptance": "4 passed",
+    "real_debian_comparison": "79/79 six-field rows and 79/79 ELF filenames and SHA256",
+    "result_path": "target/reference/results/lsmod-dump-native112/summary.json",
+    "executable_sha256": "57098f3b2dae2aba5fd7a4d8ab64f040e8748a44d22e8a999ed4b224138419c5"
+  },
+  "limitations": [
+    "Prefix-specific behavior is supported by reference source inspection and a native real-page-table fixture; this batch did not execute a separate pinned translation-layer prefix method vector.",
+    "No ARM64 prefix recovery claim and no complete Lsmod contract promotion.",
+    "Real ELF outputs retain explicit partial padding diagnostics."
+  ]
+}
