@@ -326,7 +326,7 @@ impl App {
                 let parsed = (|| -> Result<DumpOptions> {
                     let pid = if matches!(
                         *mode,
-                        Plugin::WinModdump | Plugin::ModuleExtract | Plugin::Fbdev
+                        Plugin::WinModdump | Plugin::ModuleExtract | Plugin::Fbdev | Plugin::Lsmod
                     ) && fields[0].trim().is_empty()
                     {
                         0

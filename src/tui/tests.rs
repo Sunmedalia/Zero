@@ -4336,6 +4336,24 @@ fn module_plain_taints_parameter_validates_and_separates_results() {
 }
 
 #[test]
+fn lsmod_dump_dialog_accepts_empty_pid_and_focuses_directory() {
+    let mut app = app();
+    app.open_dump(Plugin::Lsmod, false);
+    assert!(
+        matches!(&app.dialog, Some(Dialog::Dump { mode: Plugin::Lsmod, field: 3, fields, .. }) if fields[0].is_empty())
+    );
+    app.dialog_key(KeyEvent::new(KeyCode::Enter, KeyModifiers::CONTROL));
+    assert!(!matches!(&app.dialog, Some(Dialog::Dump { .. })));
+    let (plugin, options) = app
+        .dump_options
+        .as_ref()
+        .expect("Lsmod options must be saved");
+    assert_eq!(*plugin, Plugin::Lsmod);
+    assert_eq!(options.pid, 0);
+    assert!(options.start.is_none() && options.end.is_none());
+}
+
+#[test]
 fn linux_module_extract_dump_mode_requires_base_and_no_pid() {
     let mut app = app();
     app.open_dump(Plugin::Procdump, false);

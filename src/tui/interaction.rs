@@ -491,7 +491,11 @@ impl App {
             })
             .unwrap_or_default();
         let fields = [
-            pid,
+            if mode == Plugin::Lsmod {
+                String::new()
+            } else {
+                pid
+            },
             previous
                 .and_then(|o| o.start)
                 .map(|a| format!("{a:#x}"))
@@ -509,7 +513,7 @@ impl App {
                         .to_string()
                 }),
         ];
-        let field = if mode == Plugin::Fbdev {
+        let field = if matches!(mode, Plugin::Fbdev | Plugin::Lsmod) {
             3
         } else if mode == Plugin::ModuleExtract {
             1

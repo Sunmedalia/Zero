@@ -283,6 +283,8 @@ impl App {
                     let labels = [
                         if *mode == Plugin::Fbdev {
                             "PID（framebuffer 不填写）"
+                        } else if *mode == Plugin::Lsmod {
+                            "PID（模块列表导出不填写）"
                         } else if *mode == Plugin::ModuleExtract {
                             "PID（模块提取不填写）"
                         } else if *mode == Plugin::WinModdump {
@@ -292,12 +294,18 @@ impl App {
                         },
                         if *mode == Plugin::Fbdev {
                             "Start（可选 fb_info 地址）"
+                        } else if *mode == Plugin::Lsmod {
+                            "Start（不填写）"
                         } else if *mode == Plugin::ModuleExtract {
                             "Base / Start（struct module 地址）"
                         } else {
                             "Start (0x / 十进制)"
                         },
-                        "End (不包含)",
+                        if *mode == Plugin::Lsmod {
+                            "End（不填写）"
+                        } else {
+                            "End (不包含)"
+                        },
                         "转储目录 (必填)",
                     ];
                     frame.render_widget(
@@ -307,6 +315,7 @@ impl App {
                         popup,
                     );
                     let hint = match mode {
+                        Plugin::Lsmod => "导出列表中的模块 ELF；只填写目录，缺页补零保留诊断",
                         Plugin::Fbdev => {
                             "导出注册 framebuffer；Start 留空选全部；PNG 位域转换，FOURCC 保留 RAW"
                         }
