@@ -6,7 +6,7 @@
     "volatility3/framework/renderers/conversion.py": "0af8425c9da0629cc2545edb5e74bfc32fb7f05536dd37d11444eaaeeec38ea8",
     "volatility3/framework/constants/linux/__init__.py": "4f801ec3a68a851a308a8d0cd98529087f08138baccc3e1f5238e250cc395d66"
   },
-  "scope": "Actual Boottime.get_time_namespaces_bootime, PsList iteration and bound task_struct time namespace/timekeeping methods. Synthetic typed objects supply fields and list order; this does not prove real page-table recovery, every task validity rule, all layouts, full fault contracts or timeline integration.",
+  "scope": "Actual Boottime.get_time_namespaces_bootime, PsList iteration and bound task_struct time namespace/timekeeping methods. Synthetic field adapters supply fields and list order; buffer-inum cases use actual objects.Integer and BufferDataLayer reads for u32 namespace IDs, including outside-buffer and cross-end faults. This does not prove real page-table recovery, every task validity rule, all layouts, full fault contracts or timeline integration.",
   "cases": [
     {
       "id": "modern",
@@ -400,6 +400,55 @@
         null
       ],
       "error": "TypeError"
+    },
+    {
+      "id": "buffer-inum-12000",
+      "kind": "modern",
+      "root": "1700000000000000000",
+      "tasks": [
+        {
+          "id": 42,
+          "inum_at": 73728
+        }
+      ],
+      "expected": [
+        [
+          "42",
+          "2023-11-14T22:13:20+00:00"
+        ]
+      ],
+      "timeline": [
+        {
+          "description": "System boot time for time namespace 42",
+          "event_type": "CREATED",
+          "timestamp": "2023-11-14T22:13:20+00:00",
+          "timestamp_type": "datetime"
+        }
+      ]
+    },
+    {
+      "id": "buffer-inum-40000",
+      "kind": "modern",
+      "root": "1700000000000000000",
+      "tasks": [
+        {
+          "id": 42,
+          "inum_at": 262144
+        }
+      ],
+      "error": "InvalidAddressException"
+    },
+    {
+      "id": "buffer-inum-3fffe",
+      "kind": "modern",
+      "root": "1700000000000000000",
+      "tasks": [
+        {
+          "id": 42,
+          "inum_at": 262142
+        }
+      ],
+      "error": "InvalidAddressException"
     },
     {
       "id": "datetime-0",

@@ -334,3 +334,6 @@ padding 使用参考的 signed 减法和原始条件。Win10 站观察由 10 条
   比较全部事件字段；不将该字段扩展视为完整 TimeLiner 或平台合同。
 - native105：共同使用 offs_real 的 ktime 包装分支，拒绝混合标量／结构体布局，
   新增两项参考先失败再修复的故障向量；方法场景增至 27 项。
+- namespace ID 读取：新增真实 Integer/BufferDataLayer 正常、全越界、跨尾三项，
+  原生 fixture 以 u32 字段和实际后备数据边界比较；方法场景增至 30 项。
+  下一步核对 Lsmod 的 dump 参数与损坏链表合同，不以默认成功一例替代矩阵。

@@ -14,6 +14,13 @@ fn local_sample(name: &str) -> PathBuf {
         PathBuf::from("symbols").join(name),
     ]
     .into_iter()
+    .chain(name.strip_suffix(".gz").into_iter().flat_map(|raw| {
+        [
+            PathBuf::from(raw),
+            PathBuf::from("images").join(raw),
+            PathBuf::from("symbols").join(raw),
+        ]
+    }))
     .find(|p| p.is_file())
     .unwrap_or_else(|| PathBuf::from(name))
 }

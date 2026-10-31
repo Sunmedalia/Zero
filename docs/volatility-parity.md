@@ -2322,4 +2322,14 @@ boottime-mixed-layout-known-limitations.json。混合布局为合成故障输入
 真实内核存在这种布局，也不据此提升完整插件合同。
 
 Debian 验收路径同步支持压缩包不存在时查找同名 RAW，仍优先环境变量和既有
-压缩文件。该改动只查找现存文件，不解压或更改资产。
+压缩文件。该改动只查找现存文件，不解压或更改资产；默认 make acceptance
+已通过 Debian/Kali 四项验收。
+
+## Boottime：namespace ID 实际读取故障
+
+参考向量新增正常 u32 ID、指向缓冲区末尾之外、跨末尾两种读取失败。ID 属性在
+固定 Boottime 方法内部惰性构造实际 objects.Integer，经过 BufferDataLayer 读取，
+两种故障均抛 InvalidAddressException；不再只用现成 Python 属性模拟这条读取。
+原生以真实 fixture 页表读取相同地址：正常得到 ID 42，两种后备数据不足均返回
+错误。当前共 30 个方法场景。这验证 ID 读取失败的传播边界，不代表真实 namespace
+镜像、完整指针对象路径或所有缺页合同已验证。

@@ -226,7 +226,7 @@ mod tests {
                 .or_else(|| data["user_types"][ty]["size"].as_u64())
                 .unwrap();
             size = size.max(offset + field_size);
-            let kind = if matches!(ty, "i64" | "u64") {
+            let kind = if matches!(ty, "i64" | "u64" | "u32") {
                 "base"
             } else {
                 "struct"
@@ -333,7 +333,16 @@ mod tests {
                 Some("no-time") => fields(&mut isf.data, "nsproxy", &[]),
                 _ => (),
             }
-            fields(&mut isf.data, "ns_common", &[("inum", 0, "u64")]);
+            let buffer_inum = case["tasks"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|task| task.get("inum_at").is_some());
+            fields(
+                &mut isf.data,
+                "ns_common",
+                &[("inum", 0, if buffer_inum { "u32" } else { "u64" })],
+            );
             fields(
                 &mut isf.data,
                 "timens_offsets",
@@ -382,7 +391,9 @@ mod tests {
                 let comm = at + isf.offset("task_struct", "comm").unwrap();
                 bytes[comm as usize..comm as usize + 8].copy_from_slice(b"task\0\0\0\0");
                 let proxy = 0x11000 + index as u64 * 0x100;
-                let ns = 0x12000 + index as u64 * 0x100;
+                let ns = namespace["inum_at"]
+                    .as_u64()
+                    .unwrap_or(0x12000 + index as u64 * 0x100);
                 put(&mut bytes, at + 112, proxy as i128);
                 put(
                     &mut bytes,
@@ -390,7 +401,16 @@ mod tests {
                     if namespace.is_null() { 0 } else { ns as i128 },
                 );
                 if !namespace.is_null() {
-                    put(&mut bytes, ns, namespace["id"].as_i64().unwrap() as i128);
+                    if buffer_inum {
+                        let payload = (namespace["id"].as_u64().unwrap() as u32).to_le_bytes();
+                        let at = ns as usize;
+                        if at < bytes.len() {
+                            let count = payload.len().min(bytes.len() - at);
+                            bytes[at..at + count].copy_from_slice(&payload[..count]);
+                        }
+                    } else {
+                        put(&mut bytes, ns, namespace["id"].as_i64().unwrap() as i128);
+                    }
                     if let Some(offset) = namespace["offset"].as_array() {
                         fields(
                             &mut isf.data,
@@ -424,6 +444,12 @@ mod tests {
             let (result, tasks) = linux
                 .adapter_tasks(Plugin::LinuxBoottime, &Job::default())
                 .unwrap();
+            assert_eq!(
+                tasks.len(),
+                case["tasks"].as_array().unwrap().len(),
+                "{}",
+                case["id"]
+            );
             let result = linux.namespace_boottimes_tasks(&Job::default(), result, tasks);
             if case.get("error").is_some() {
                 assert!(result.is_err(), "{}", case["id"]);

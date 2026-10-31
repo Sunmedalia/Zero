@@ -1,0 +1,25 @@
+{
+  "engine_version": "0.2.1-native-105",
+  "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+  "fixture": "tests/reference/parity/fixtures/boottime.json",
+  "reference_read": "NamespaceCommon.inum property constructs objects.Integer backed by BufferDataLayer only when the pinned method accesses the ID.",
+  "buffer_bytes": 262144,
+  "field_bytes": 4,
+  "cases": [
+    {"id": "buffer-inum-12000", "address": 73728, "namespace_id": 42},
+    {"id": "buffer-inum-40000", "address": 262144, "reference_error": "InvalidAddressException", "native_error": true},
+    {"id": "buffer-inum-3fffe", "address": 262142, "reference_error": "InvalidAddressException", "native_error": true}
+  ],
+  "validation": {
+    "method_cases_passed": 30,
+    "task_count_checked_before_plugin_execution": true,
+    "final_all_targets_clippy_passed": true,
+    "parity_tool_tests_passed": 43,
+    "default_debian_kali_acceptance_passed": 4
+  },
+  "limitations": [
+    "The reference executes actual integer reads but still uses adapters for surrounding task and namespace structures.",
+    "Native fixture uses a large identity mapping with insufficient backing data at the tested addresses; this is not proof of an absent PTE.",
+    "Real modern namespace images, all faults and complete plugin contracts remain unverified."
+  ]
+}

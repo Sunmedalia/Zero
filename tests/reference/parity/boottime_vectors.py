@@ -16,6 +16,8 @@ def generate(checkout):
     assert subprocess.check_output(['git', '-C', str(checkout), 'rev-parse', 'HEAD'], text=True).strip() == PIN
     assert not subprocess.check_output(['git', '-C', str(checkout), 'status', '--porcelain', '--untracked-files=no'], text=True).strip()
     sys.path.insert(0, str(checkout))
+    from volatility3.framework import contexts, interfaces, objects
+    from volatility3.framework.layers.physical import BufferDataLayer
     from volatility3.framework.symbols.linux import extensions
     from volatility3.plugins.linux.boottime import Boottime
 
@@ -71,6 +73,10 @@ def generate(checkout):
         dict(id='mixed-real-wrapped', kind='mixed-real-wrapped', root=1_700_000_000_000_000_000, tasks=[None]),
         dict(id='mixed-boot-wrapped', kind='mixed-boot-wrapped', root=1_700_000_000_000_000_000, tasks=[None]),
     ]
+    for at in [0x12000, 0x40000, 0x3fffe]:
+        specifications.append(dict(id=f'buffer-inum-{at:x}', kind='modern',
+                                   root=1_700_000_000_000_000_000,
+                                   tasks=[dict(id=42, inum_at=at)]))
     for value in [0, -1, 500, 1500, 2500, 999_999_999, 1_700_000_000_123_456_500,
                   4_102_444_801_123_456_789, 253_402_300_799_999_999_999]:
         specifications.append(dict(id=f'datetime-{value}', kind='wall-only' if value > (1<<63)-123_000_000_001 else 'modern', root=value, tasks=[None]))
@@ -96,6 +102,26 @@ def generate(checkout):
             del symbols['tk_core'].timekeeper
         elif case.get('missing_member') == 'total_sleep_time':
             del symbols['timekeeper'].total_sleep_time
+        data = bytearray(0x40000)
+        for namespace in case['tasks']:
+            if namespace is not None and 'inum_at' in namespace:
+                at = namespace['inum_at']
+                payload = namespace['id'].to_bytes(4, 'little')
+                if at < len(data):
+                    count = min(4, len(data) - at)
+                    data[at:at+count] = payload[:count]
+        memory = contexts.Context()
+        memory.layers.add_layer(BufferDataLayer(memory, 'virtual', 'virtual', buffer=bytes(data)))
+
+        class NamespaceCommon:
+            def __init__(self, at):
+                self.at = at
+
+            @property
+            def inum(self):
+                info = interfaces.objects.ObjectInformation(layer_name='virtual', native_layer_name='virtual', offset=self.at)
+                return objects.Integer(memory, 'kernel!u32', info, objects.DataFormatInfo(4, 'little', False))
+
         tasks = []
         module = Node(has_symbol=lambda name: name in symbols,
                       get_type=lambda name: Node(has_member=lambda field: field == ('time_ns' if name == 'nsproxy' else 'wall_to_monotonic') and (name != 'nsproxy' or case.get('namespace_layout') != 'no-time')))
@@ -104,7 +130,8 @@ def generate(checkout):
             task = Task();task._context = context;task.vol = Node(offset=0xa000+index*0x100)
             ns = None
             if namespace is not None:
-                ns = Node(ns=Node(inum=namespace['id']))
+                common = NamespaceCommon(namespace['inum_at']) if 'inum_at' in namespace else Node(inum=namespace['id'])
+                ns = Node(ns=common)
                 if 'offset' in namespace: ns.offsets = Node(boottime=spec(*namespace['offset']))
                 if case.get('missing_member') == 'boottime': del ns.offsets.boottime
             if case.get('namespace_layout') != 'no-proxy': task.nsproxy = Node(time_ns=ns)
@@ -130,7 +157,7 @@ def generate(checkout):
                     'volatility3/framework/symbols/linux/extensions/__init__.py',
                     'volatility3/framework/renderers/conversion.py',
                     'volatility3/framework/constants/linux/__init__.py']},
-                scope='Actual Boottime.get_time_namespaces_bootime, PsList iteration and bound task_struct time namespace/timekeeping methods. Synthetic typed objects supply fields and list order; this does not prove real page-table recovery, every task validity rule, all layouts, full fault contracts or timeline integration.', cases=cases)
+                scope='Actual Boottime.get_time_namespaces_bootime, PsList iteration and bound task_struct time namespace/timekeeping methods. Synthetic field adapters supply fields and list order; buffer-inum cases use actual objects.Integer and BufferDataLayer reads for u32 namespace IDs, including outside-buffer and cross-end faults. This does not prove real page-table recovery, every task validity rule, all layouts, full fault contracts or timeline integration.', cases=cases)
 
 
 if __name__ == '__main__':
