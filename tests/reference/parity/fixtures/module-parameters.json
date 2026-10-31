@@ -1,8 +1,59 @@
 {
   "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
   "source_sha256": {
-    "volatility3/framework/symbols/linux/utilities/modules.py": "a5e33f20ecbfb1403de58e5c8b1c037215758747bc32ef5404235dc809bba1bf"
+    "volatility3/framework/symbols/linux/utilities/modules.py": "a5e33f20ecbfb1403de58e5c8b1c037215758747bc32ef5404235dc809bba1bf",
+    "volatility3/framework/objects/utility.py": "d9d54977c471380c01b23f049f29926d42aaa3a9017461780aebe8ffc956f6f1"
   },
+  "getter_faults": [
+    {
+      "id": "direct",
+      "expected": null
+    },
+    {
+      "id": "ops",
+      "expected": null
+    }
+  ],
+  "arrays": [
+    {
+      "count": 0,
+      "expected": null
+    },
+    {
+      "count": 2,
+      "expected": "7,None"
+    },
+    {
+      "count": 33,
+      "expected": null
+    }
+  ],
+  "strings": [
+    {
+      "hex": "",
+      "expected": ""
+    },
+    {
+      "hex": "616263",
+      "expected": "abc"
+    },
+    {
+      "hex": "616263c3a9",
+      "expected": "abc\u00e9"
+    },
+    {
+      "hex": "6162ff6364",
+      "expected": "ab"
+    },
+    {
+      "hex": "6162efbfbd6364",
+      "expected": "ab"
+    },
+    {
+      "hex": "6162006364",
+      "expected": "ab"
+    }
+  ],
   "handlers": {
     "param_get_invbool": 86016,
     "param_get_bool": 86032,
@@ -15,7 +66,7 @@
     "param_get_short": 86144,
     "param_get_byte": 86160
   },
-  "scope": "Actual _get_param_handlers and _get_param_val handler-to-type selection, integer values, boolean truth tables, unknown/null and scalar-read failure branches with supplied Python integer reads. Reference integer width/sign decoding is not exercised. Does not establish aliases, getter-read faults, array/string/name faults or the full Lsmod contract.",
+  "scope": "Actual _get_param_handlers and _get_param_val handler-to-type selection, integer values, boolean truth tables, unknown/null and scalar-read failure branches with supplied Python integer reads. Reference integer width/sign decoding is not exercised. Additional cases exercise direct/ops getter-read faults, zero/two/oversized arrays and bytes_to_decoded_string. Array pointer reads and string mappings still use adapters or separate native reads; aliases, name faults, nested arrays and the full Lsmod contract remain unverified.",
   "cases": [
     {
       "id": "param_get_invbool-0",

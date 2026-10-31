@@ -379,6 +379,32 @@ impl Linux<'_> {
                 })();
                 match row {
                     Ok(row) => {
+                        let code_size_layout = if self.isf.has_field("module", "mem") {
+                            ["MOD_INIT_TEXT", "MOD_INIT_DATA", "MOD_INIT_RODATA"]
+                                .iter()
+                                .all(|name| {
+                                    self.isf.data["enums"]["mod_mem_type"]["constants"][name]
+                                        .is_u64()
+                                })
+                        } else {
+                            self.isf.has_field("module", "init_layout")
+                                || self.isf.has_field("module", "init_size")
+                        };
+                        if code_size_layout {
+                            match self.module_code_size(object) {
+                                Ok(size) => {
+                                    result.kernel_identity["module_code_sizes"]
+                                        [format!("{object:#x}")] = size.into()
+                                }
+                                Err(error) => partial(
+                                    &mut result,
+                                    format!("module {object:#x} code size"),
+                                    error,
+                                ),
+                            }
+                        } else {
+                            result.kernel_identity["module_code_size_unsupported"] = true.into();
+                        }
                         match self.module_load_arguments(object, job) {
                             Ok(arguments) => {
                                 result.kernel_identity["module_load_arguments"]

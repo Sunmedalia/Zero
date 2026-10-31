@@ -504,6 +504,57 @@ impl Linux<'_> {
 }
 
 impl Linux<'_> {
+    pub(super) fn module_code_size(&self, module: u64) -> Result<u64> {
+        if self.isf.has_field("module", "mem") {
+            let count = self.isf.field("module", "mem")?["type"]["count"]
+                .as_u64()
+                .context("module.mem count 缺失")?;
+            let stride = self.isf.data["user_types"]["module_memory"]["size"]
+                .as_u64()
+                .context("module_memory size 缺失")?;
+            ensure!(
+                (1..=32).contains(&count) && (1..=4096).contains(&stride),
+                "module.mem 布局无效"
+            );
+            let mem = self.field_address(module, "module", "mem")?;
+            let mut total = 0;
+            for name in [
+                "MOD_INIT_TEXT",
+                "MOD_INIT_DATA",
+                "MOD_INIT_RODATA",
+                "MOD_TEXT",
+                "MOD_DATA",
+                "MOD_RODATA",
+                "MOD_RO_AFTER_INIT",
+            ] {
+                let index = self.isf.data["enums"]["mod_mem_type"]["constants"][name]
+                    .as_u64()
+                    .with_context(|| format!("{name} enum 缺失"))?;
+                ensure!(index < count, "module.mem enum 越界");
+                total = add(
+                    total,
+                    self.number(add(mem, index * stride)?, "module_memory", "size")?,
+                )?;
+            }
+            return Ok(total);
+        }
+        let size = |layout: &str, legacy: &str| -> Result<u64> {
+            if self.isf.has_field("module", layout) {
+                self.number(
+                    self.field_address(module, "module", layout)?,
+                    "module_layout",
+                    "size",
+                )
+            } else {
+                self.number(module, "module", legacy)
+            }
+        };
+        add(
+            size("init_layout", "init_size")?,
+            size("core_layout", "core_size")?,
+        )
+    }
+
     fn module_size_layout(&self) -> Result<()> {
         if self.isf.has_field("module", "mem") {
             self.require(&[("module_memory", "size")])?;
@@ -800,11 +851,33 @@ mod tests {
                 put(&mut bytes, 0x34100 + 168, 1024);
                 put(&mut bytes, 0x34100 + 184, 1024);
             }
+            isf.data["user_types"]["module"]["fields"]["init_layout"] =
+                json!({"offset":280,"type":{"kind":"struct","name":"module_layout"}});
+            isf.data["user_types"]["module"]["size"] = json!(296);
+            isf.data["user_types"]["module_layout"] = json!({"size":16,"fields":{
+                "base":{"offset":0,"type":{"kind":"pointer"}},
+                "size":{"offset":8,"type":{"kind":"base","name":"u64"}}
+            }});
+            put(&mut bytes, 0x34100 + 128, 512);
+            put(&mut bytes, 0x34100 + 288, 768);
+            if matches!(id, "mem-and-legacy" | "all-layouts") {
+                isf.data["user_types"]["module"]["fields"]["mem"]["type"]["count"] = json!(7);
+                isf.data["enums"]["mod_mem_type"]["constants"]["MOD_INIT_TEXT"] = json!(4);
+                isf.data["enums"]["mod_mem_type"]["constants"]["MOD_INIT_DATA"] = json!(5);
+                isf.data["enums"]["mod_mem_type"]["constants"]["MOD_INIT_RODATA"] = json!(6);
+                for (index, value) in [(4, 128), (5, 64), (6, 32)] {
+                    put(&mut bytes, 0x34100 + 160 + index * 16 + 8, value);
+                }
+            }
             let image = super::super::tests::image(&bytes);
             let result = super::super::tests::engine(&image, &isf)
                 .run(Plugin::Lsmod, &Job::default())
                 .unwrap();
             assert!(result.complete, "{id}: {:?}", result.diagnostics);
+            assert_eq!(
+                result.kernel_identity["module_code_sizes"]["0x34100"], case["code_size"],
+                "{id}"
+            );
             assert_eq!(
                 result.rows,
                 vec![vec![

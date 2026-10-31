@@ -159,6 +159,95 @@ mod tests {
     use serde_json::{Value, json};
 
     #[test]
+    fn parameter_arrays_getter_faults_and_strings_match_pinned_methods() {
+        let vectors: Value = serde_json::from_str(include_str!(
+            "../../tests/reference/parity/fixtures/module-parameters.json"
+        ))
+        .unwrap();
+        for case in vectors["arrays"].as_array().unwrap() {
+            let (mut bytes, mut isf) = crate::linux::tests::fixture();
+            isf.data["base_types"]["int"] = json!({"size":4,"signed":true});
+            isf.data["base_types"]["unsigned int"] = json!({"size":4,"signed":false});
+            isf.data["symbols"]["param_array_get"] = json!({"address":0x16000});
+            isf.data["symbols"]["param_get_int"] = json!({"address":0x15020});
+            isf.data["user_types"]["kernel_param"] = json!({"size":16,"fields":{
+                "get":{"offset":0,"type":{"kind":"pointer"}},
+                "arg":{"offset":8,"type":{"kind":"pointer"}},
+                "arr":{"offset":8,"type":{"kind":"pointer"}}
+            }});
+            isf.data["user_types"]["kparam_array"] = json!({"size":32,"fields":{
+                "num":{"offset":0,"type":{"kind":"pointer"}},
+                "max":{"offset":8,"type":{"kind":"base","name":"u64"}},
+                "elem":{"offset":16,"type":{"kind":"pointer"}},
+                "elemsize":{"offset":24,"type":{"kind":"base","name":"u64"}}
+            }});
+            let count = case["count"].as_u64().unwrap();
+            for (at, value) in [
+                (0x11000, 0x16000u64),
+                (0x11008, 0x14000),
+                (0x14000, if count == 0 { 0 } else { 0x14100 }),
+                (0x14008, count),
+                (0x14010, 0x13000),
+                (0x14018, 16),
+                (0x14100, count),
+                (0x13000, 0x15020),
+                (0x13008, 0x12000),
+                (0x12000, 7),
+            ] {
+                bytes[at..at + 8].copy_from_slice(&value.to_le_bytes());
+            }
+            let image = crate::linux::tests::image(&bytes);
+            let linux = crate::linux::tests::engine(&image, &isf);
+            assert_eq!(
+                serde_json::to_value(linux.parameter_value(0x11000, 0, &Job::default()).unwrap())
+                    .unwrap(),
+                case["expected"]
+            );
+        }
+        for case in vectors["getter_faults"].as_array().unwrap() {
+            let (mut bytes, mut isf) = crate::linux::tests::fixture();
+            let at = if case["id"] == "direct" {
+                isf.data["user_types"]["kernel_param"] =
+                    json!({"size":8,"fields":{"get":{"offset":0,"type":{"kind":"pointer"}}}});
+                0x40000
+            } else {
+                isf.data["user_types"]["kernel_param"] =
+                    json!({"size":8,"fields":{"ops":{"offset":0,"type":{"kind":"pointer"}}}});
+                isf.data["user_types"]["kernel_param_ops"] =
+                    json!({"size":8,"fields":{"get":{"offset":0,"type":{"kind":"pointer"}}}});
+                bytes[0x11000..0x11008].copy_from_slice(&0x40000u64.to_le_bytes());
+                0x11000
+            };
+            let image = crate::linux::tests::image(&bytes);
+            assert_eq!(
+                serde_json::to_value(
+                    crate::linux::tests::engine(&image, &isf)
+                        .parameter_value(at, 0, &Job::default())
+                        .unwrap()
+                )
+                .unwrap(),
+                case["expected"]
+            );
+        }
+        for case in vectors["strings"].as_array().unwrap() {
+            let (mut bytes, isf) = crate::linux::tests::fixture();
+            let input = case["hex"].as_str().unwrap();
+            let data: Vec<u8> = (0..input.len())
+                .step_by(2)
+                .map(|i| u8::from_str_radix(&input[i..i + 2], 16).unwrap())
+                .collect();
+            bytes[0x12000..0x12000 + data.len()].copy_from_slice(&data);
+            let image = crate::linux::tests::image(&bytes);
+            assert_eq!(
+                crate::linux::tests::engine(&image, &isf)
+                    .parameter_string(0x12000, data.len().max(1) as u64)
+                    .unwrap(),
+                case["expected"].as_str().unwrap()
+            );
+        }
+    }
+
+    #[test]
     fn parameter_scalars_match_pinned_methods() {
         let vectors: Value = serde_json::from_str(include_str!(
             "../../tests/reference/parity/fixtures/module-parameters.json"

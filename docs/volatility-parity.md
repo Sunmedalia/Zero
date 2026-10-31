@@ -2360,3 +2360,15 @@ Lsmod 结果元数据 module_load_arguments 按 struct module 原生地址记录
 不覆盖完整六列表格。数组、字符串故障、别名和全部异常边界尚无完整方法矩阵；
 字符串 4096 字节和递归 32 层上限仍为原生资源边界。参数失败保留模块行并标记
 partial。证据见 module-parameters-known-limitations.json。
+
+## native108：参数故障矩阵与 Code Size
+
+新增固定方法向量覆盖两种 getter 读取故障、空／两元素含 None／超限数组，以及
+六种 UTF-8 解码输入。原生使用实际 fixture 读取对照；参考数组仍用字段适配器，
+字符串向量只证明解码，不证明跨页映射或全部名字读取故障。
+
+module_code_sizes 元数据按模块地址记录 init + core。mem 布局求七类内存之和；
+其他布局独立选择 init_layout/init_size 与 core_layout/core_size，不强制 text_size。
+四种固定布局向量比较该值，包括只有 init_layout 和旧 core_size 的组合。
+缺少 init 布局明确记录 module_code_size_unsupported；可用布局的读取故障标记
+partial。该元数据仍不代表六列表格、导出模式或全部失败合同已完成。

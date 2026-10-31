@@ -1,0 +1,28 @@
+{
+  "engine_version": "0.2.1-native-108",
+  "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+  "native_output": "kernel_identity.module_code_sizes",
+  "fixtures": ["tests/reference/parity/fixtures/module-layouts.json", "tests/reference/parity/fixtures/module-parameters.json"],
+  "method_scope": {
+    "code_size_layout_cases": 4,
+    "scalar_parameter_cases": 29,
+    "getter_read_faults": 2,
+    "array_cases": 3,
+    "string_decode_cases": 6
+  },
+  "validation": {
+    "make_check_passed": true,
+    "debian_kali_acceptance_passed": 4,
+    "real_output": "target/reference/results/lsmod-native106/parameters-native108-final.json",
+    "real_code_size_matched": 79,
+    "real_load_arguments_matched": 79,
+    "reference_output": "target/reference/results/lsmod-native106/reference.json",
+    "real_result_complete": true
+  },
+  "limitations": [
+    "Native Lsmod still displays the existing three columns; this metadata does not establish full six-column parity or export behavior.",
+    "Missing init layout is explicitly marked unsupported. Read failures in an available code-size layout mark the result partial.",
+    "Reference method vectors use adapters for fields and arrays; string vectors exercise decoding only, not full mapped string reads.",
+    "Aliases, nested arrays, name faults and all resource/exception boundaries remain unverified."
+  ]
+}

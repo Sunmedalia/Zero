@@ -58,9 +58,52 @@ def generate(checkout):
                                         SimpleNamespace(get=getter, arg=0x12000))
         case['expected'] = None if result is None else str(result)
         cases.append(case)
+    class BadGetter:
+        @property
+        def get(self):
+            raise exceptions.InvalidAddressException('virtual', 0x40000)
+
+    getter_faults = []
+    for name, param in [('direct', BadGetter()), ('ops', SimpleNamespace(ops=BadGetter()))]:
+        result = Modules._get_param_val(context, 'kernel', integer_map, getters,
+                                        SimpleNamespace(vol=SimpleNamespace(offset=0x10000)), param)
+        getter_faults.append(dict(id=name, expected=result))
+
+    class CountPointer(int):
+        def dereference(self):
+            return int(self)
+
+    class Array(SimpleNamespace):
+        def member(self, name):
+            return getattr(self, name)
+
+    class ArrayKernel(Kernel):
+        def object(self, object_type, offset, **kwargs):
+            calls.append((object_type, offset))
+            if object_type == 'kernel_param':
+                assert kwargs == {'absolute': True}
+                assert offset in [0x13000, 0x13010]
+                return SimpleNamespace(get=addresses['param_get_int'] if offset == 0x13000 else 0, arg=0x12000)
+            assert object_type == 'int' and offset == 0x12000
+            return 7
+
+    array_context = SimpleNamespace(modules={'kernel': ArrayKernel()})
+    array_getters = dict(getters, param_array_get=0x16000)
+    arrays = []
+    for count in [0, 2, 33]:
+        calls = []
+        array = Array(num=CountPointer(count), max=count, elem=0x13000, elemsize=16)
+        param = SimpleNamespace(get=0x16000, arr=array)
+        result = Modules._get_param_val(array_context, 'kernel', integer_map, array_getters,
+                                        SimpleNamespace(vol=SimpleNamespace(offset=0x10000)), param)
+        assert calls == ([('kernel_param', 0x13000), ('int', 0x12000), ('kernel_param', 0x13010)] if count == 2 else [])
+        arrays.append(dict(count=count, expected=result))
+    from volatility3.framework.objects.utility import bytes_to_decoded_string
+    strings = [dict(hex=value.hex(), expected=bytes_to_decoded_string(value, 'utf-8', 'replace'))
+               for value in [b'', b'abc', b'abc\xc3\xa9', b'ab\xffcd', b'ab\xef\xbf\xbdcd', b'ab\0cd']]
     source = 'volatility3/framework/symbols/linux/utilities/modules.py'
-    return dict(reference_commit=PIN, source_sha256={source: hashlib.sha256((checkout/source).read_bytes()).hexdigest()},
-                handlers=addresses, scope='Actual _get_param_handlers and _get_param_val handler-to-type selection, integer values, boolean truth tables, unknown/null and scalar-read failure branches with supplied Python integer reads. Reference integer width/sign decoding is not exercised. Does not establish aliases, getter-read faults, array/string/name faults or the full Lsmod contract.', cases=cases)
+    return dict(reference_commit=PIN, source_sha256={path: hashlib.sha256((checkout/path).read_bytes()).hexdigest() for path in [source, 'volatility3/framework/objects/utility.py']},
+                getter_faults=getter_faults, arrays=arrays, strings=strings, handlers=addresses, scope='Actual _get_param_handlers and _get_param_val handler-to-type selection, integer values, boolean truth tables, unknown/null and scalar-read failure branches with supplied Python integer reads. Reference integer width/sign decoding is not exercised. Additional cases exercise direct/ops getter-read faults, zero/two/oversized arrays and bytes_to_decoded_string. Array pointer reads and string mappings still use adapters or separate native reads; aliases, name faults, nested arrays and the full Lsmod contract remain unverified.', cases=cases)
 
 
 if __name__ == '__main__':

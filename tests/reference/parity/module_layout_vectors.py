@@ -29,18 +29,21 @@ def generate(checkout):
 
     cases = []
     for layout in ['legacy', 'core-layout-and-legacy', 'mem-and-legacy', 'all-layouts']:
-        value = Module(module_core=0x18000, core_size=4096)
+        value = Module(module_core=0x18000, core_size=4096, init_size=512)
+        value.init_layout = SimpleNamespace(size=768)
         if layout in ['core-layout-and-legacy', 'all-layouts']:
             value.core_layout = SimpleNamespace(base=0x1a000, size=3072)
         if layout in ['mem-and-legacy', 'all-layouts']:
             value.mem = True
             value.mem_values = {'MOD_TEXT': (0x19000, 1024), 'MOD_DATA': (0, 1024),
-                                'MOD_RODATA': (0, 0), 'MOD_RO_AFTER_INIT': (0, 0)}
+                                'MOD_RODATA': (0, 0), 'MOD_RO_AFTER_INIT': (0, 0),
+                                'MOD_INIT_TEXT': (0, 128), 'MOD_INIT_DATA': (0, 64), 'MOD_INIT_RODATA': (0, 32)}
         cases.append(dict(id=layout, base=module.get_module_base(value),
-                          core_size=module.get_core_size(value)))
+                          core_size=module.get_core_size(value),
+                          code_size=module.get_init_size(value) + module.get_core_size(value)))
     source = 'volatility3/framework/symbols/linux/extensions/__init__.py'
     return dict(reference_commit=PIN, source_sha256={source: hashlib.sha256((checkout/source).read_bytes()).hexdigest()},
-                scope='Actual module.get_module_base/get_core_size methods; synthetic members and memory-index adapters isolate layout priority. No real ISF reads, list faults, init sizes, six-column display or dump contract are established.', cases=cases)
+                scope='Actual module.get_module_base/get_core_size methods; synthetic members and memory-index adapters isolate layout priority. Code size additionally exercises get_init_size + get_core_size, including independent init_layout precedence and split init allocations. No real ISF reads, list faults, six-column display or dump contract are established.', cases=cases)
 
 
 if __name__ == '__main__':
