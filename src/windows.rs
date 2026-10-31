@@ -99,8 +99,8 @@ pub struct Memory<'a> {
     pub sources: Option<&'a paging::Sources>,
     /// Paging geometry is fixed for this ISF. Callers mutate ISF layouts only before the first translation.
     paging: std::sync::OnceLock<Paging>,
-    /// Virtual 4 KiB page → physical 4 KiB page. The image is read-only.
-    pages: std::sync::Mutex<crate::resources::Lru<u64, u64>>,
+    /// Virtual 4 KiB page → physical 4 KiB page and mapping shift. The image is read-only.
+    pages: std::sync::Mutex<crate::resources::Lru<u64, (u64, u32)>>,
     /// Immutable captured Intel tables: cache both valid and rejected pages.
     tables: std::sync::Mutex<crate::resources::Lru<u64, bool>>,
 }
@@ -149,22 +149,27 @@ impl<'a> Memory<'a> {
         self.paging().expect("validated Windows ISF").root_mask()
     }
     pub fn translate(&self, va: u64) -> Result<u64> {
+        self.translate_span(va).map(|(physical, _)| physical)
+    }
+    fn translate_span(&self, va: u64) -> Result<(u64, u64)> {
         let page = va & !4095;
-        if let Some(base) = self
+        let cached = self
             .pages
             .lock()
             .unwrap_or_else(|error| error.into_inner())
             .get(&page)
-            .copied()
-        {
-            return Ok(base | (va & 4095));
-        }
-        let pa = self.translate_walk(va)?;
-        self.pages
-            .lock()
-            .unwrap_or_else(|error| error.into_inner())
-            .insert(page, pa & !4095, 1);
-        Ok(pa)
+            .copied();
+        let (physical, shift) = if let Some((base, shift)) = cached {
+            (base | (va & 4095), shift)
+        } else {
+            let (physical, shift) = self.translate_walk(va)?;
+            self.pages
+                .lock()
+                .unwrap_or_else(|error| error.into_inner())
+                .insert(page, (physical & !4095, shift), 1);
+            (physical, shift)
+        };
+        Ok((physical, (1u64 << shift) - (va & ((1u64 << shift) - 1))))
     }
     fn captured_table_entry(&self, geometry: Paging, table: u64, index: usize) -> Result<u64> {
         if geometry.arch == Architecture::Arm64 {
@@ -194,7 +199,7 @@ impl<'a> Memory<'a> {
         ensure!(valid, "Windows 页表不可读或全页重复 @ {table:#x}");
         geometry.entry(self.image, table, index)
     }
-    fn translate_walk(&self, va: u64) -> Result<u64> {
+    fn translate_walk(&self, va: u64) -> Result<(u64, u32)> {
         let geometry = self.paging()?;
         ensure!(geometry.canonical(va), "Windows 非 canonical 地址");
         let mut table = self.root & geometry.root_mask();
@@ -203,12 +208,9 @@ impl<'a> Memory<'a> {
             let mut entry = self.captured_table_entry(geometry, table, index)?;
             if entry & 1 == 0 {
                 if entry & (1 << 11) != 0 && entry & (1 << 10) == 0 {
-                    entry = self.transition_frame(entry, geometry)?
-                        | if geometry.arch == Architecture::Arm64 {
-                            3
-                        } else {
-                            1
-                        };
+                    if geometry.arch == Architecture::Arm64 {
+                        entry = self.transition_frame(entry, geometry)? | 3;
+                    }
                 } else {
                     bail!("Windows 缺页 VA {va:#x} level {shift} PTE {entry:#x}");
                 }
@@ -221,14 +223,19 @@ impl<'a> Memory<'a> {
                 } else {
                     entry & geometry.mask() & !(1 << 12)
                 };
-                return Ok((physical & !mask) | (va & mask));
+                let physical = if geometry.arch == Architecture::Arm64 {
+                    physical & !mask
+                } else {
+                    physical
+                };
+                return Ok((physical | (va & mask), shift));
             }
             if geometry.arch == Architecture::Arm64 {
                 ensure!(entry & 3 == 3, "无效 ARM64 table/page descriptor");
             }
             table = entry & geometry.mask();
         }
-        Ok(table | (va & 4095))
+        Ok((table | (va & 4095), 12))
     }
     /// Conservative skip hint for a zero page-table entry in this read-only image.
     /// Nonzero software/prototype/pagefile PTEs, missing tables and captured-page
@@ -247,12 +254,9 @@ impl<'a> Memory<'a> {
             }
             if entry & 1 == 0 {
                 if entry & (1 << 11) != 0 && entry & (1 << 10) == 0 {
-                    entry = self.transition_frame(entry, geometry).ok()?
-                        | if geometry.arch == Architecture::Arm64 {
-                            3
-                        } else {
-                            1
-                        };
+                    if geometry.arch == Architecture::Arm64 {
+                        entry = self.transition_frame(entry, geometry).ok()? | 3;
+                    }
                 } else {
                     return None;
                 }
@@ -275,8 +279,9 @@ impl<'a> Memory<'a> {
                 .context("Windows 读取越界")?;
         }
         while !out.is_empty() {
-            let n = out.len().min(4096 - (va & 4095) as usize);
-            self.image.read(self.translate(va)?, &mut out[..n])?;
+            let (physical, available) = self.translate_span(va)?;
+            let n = available.min(out.len() as u64) as usize;
+            self.image.read(physical, &mut out[..n])?;
             out = &mut out[n..];
             if !out.is_empty() {
                 va = add(va, n as u64)?;
@@ -291,9 +296,14 @@ impl<'a> Memory<'a> {
         }
         while !out.is_empty() {
             let _depth = paging::ReadDepth::enter(self.image, self.root, va)?;
-            let n = out.len().min(4096 - (va & 4095) as usize);
-            match self.translate(va) {
-                Ok(physical) => self.image.read(physical, &mut out[..n])?,
+            let translated = self.translate_span(va);
+            let available = translated
+                .as_ref()
+                .map(|(_, span)| *span)
+                .unwrap_or(4096 - (va & 4095));
+            let n = available.min(out.len() as u64) as usize;
+            match translated {
+                Ok((physical, _)) => self.image.read(physical, &mut out[..n])?,
                 Err(original) => match self.prototype(va) {
                     Ok(physical) => self.image.read(physical, &mut out[..n])?,
                     Err(proto) => self

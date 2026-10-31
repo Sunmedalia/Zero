@@ -1,7 +1,7 @@
 {
   "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
   "source_sha256": "01ea3e198f9c4226cb8c06280facbf9b8cc0990863301f82f991e5609908f716",
-  "scope": "Actual WindowsIntel/WindowsIntelPAE/WindowsIntel32e mapping and translation over full synthetic page-table bytes, plus direct translation and one-byte reads for both successful and failing addresses. Physical BufferDataLayer subclass models explicit backing holes. Full default virtual range length excludes maximum_address. Covers contiguous/discontiguous PFNs, missing tables and backing tails, uniform tables, transition/prototype flags, uppermost page, large pages/PAT and PAE root/physical-bit limits and Windows x64 45-bit PFN/software-flag behavior. Does not certify container mapping/decompression, arbitrary malformed reserved PFNs, all architectures or complete scan fault reporting.",
+  "scope": "Actual WindowsIntel/WindowsIntelPAE/WindowsIntel32e mapping and translation over full synthetic page-table bytes, plus direct translation, one-byte reads and patterned 32-byte reads across 4 KiB boundaries. Physical BufferDataLayer subclass models explicit backing holes. Full default virtual range length excludes maximum_address. Covers contiguous/discontiguous PFNs, missing tables and backing tails, uniform tables, transition/prototype flags, uppermost page, large pages/PAT, reserved PFN bits, transition large pages and PAE root/physical-bit limits and Windows x64 45-bit PFN/software-flag behavior. Does not certify container mapping/decompression, all malformed reserved PFNs, all architectures or complete scan fault reporting.",
   "cases": [
     {
       "id": "x86-basic",
@@ -28,9 +28,11 @@
         ]
       ],
       "holes": [],
+      "patterned": false,
       "queries": [
         {
           "address": 0,
+          "length": 1,
           "physical": 32768,
           "translate_error": null,
           "read_hex": "00",
@@ -38,6 +40,7 @@
         },
         {
           "address": 291,
+          "length": 1,
           "physical": 33059,
           "translate_error": null,
           "read_hex": "00",
@@ -45,6 +48,7 @@
         },
         {
           "address": 4096,
+          "length": 1,
           "physical": 36864,
           "translate_error": null,
           "read_hex": "00",
@@ -52,6 +56,7 @@
         },
         {
           "address": 8192,
+          "length": 1,
           "physical": 65536,
           "translate_error": null,
           "read_hex": "00",
@@ -101,9 +106,11 @@
           40960
         ]
       ],
+      "patterned": false,
       "queries": [
         {
           "address": 0,
+          "length": 1,
           "physical": 32768,
           "translate_error": null,
           "read_hex": "00",
@@ -111,6 +118,7 @@
         },
         {
           "address": 291,
+          "length": 1,
           "physical": 33059,
           "translate_error": null,
           "read_hex": "00",
@@ -118,6 +126,7 @@
         },
         {
           "address": 4096,
+          "length": 1,
           "physical": 36864,
           "translate_error": null,
           "read_hex": null,
@@ -125,6 +134,7 @@
         },
         {
           "address": 8192,
+          "length": 1,
           "physical": 65536,
           "translate_error": null,
           "read_hex": "00",
@@ -174,9 +184,11 @@
           69632
         ]
       ],
+      "patterned": false,
       "queries": [
         {
           "address": 0,
+          "length": 1,
           "physical": 32768,
           "translate_error": null,
           "read_hex": "00",
@@ -184,6 +196,7 @@
         },
         {
           "address": 291,
+          "length": 1,
           "physical": 33059,
           "translate_error": null,
           "read_hex": "00",
@@ -191,6 +204,7 @@
         },
         {
           "address": 4096,
+          "length": 1,
           "physical": 36864,
           "translate_error": null,
           "read_hex": "00",
@@ -198,6 +212,7 @@
         },
         {
           "address": 8192,
+          "length": 1,
           "physical": 65536,
           "translate_error": null,
           "read_hex": "00",
@@ -242,9 +257,11 @@
           12288
         ]
       ],
+      "patterned": false,
       "queries": [
         {
           "address": 0,
+          "length": 1,
           "physical": null,
           "translate_error": "PagedInvalidAddressException",
           "read_hex": null,
@@ -252,6 +269,7 @@
         },
         {
           "address": 291,
+          "length": 1,
           "physical": null,
           "translate_error": "PagedInvalidAddressException",
           "read_hex": null,
@@ -259,6 +277,7 @@
         },
         {
           "address": 4096,
+          "length": 1,
           "physical": null,
           "translate_error": "PagedInvalidAddressException",
           "read_hex": null,
@@ -266,6 +285,7 @@
         },
         {
           "address": 8192,
+          "length": 1,
           "physical": null,
           "translate_error": "PagedInvalidAddressException",
           "read_hex": null,
@@ -304,9 +324,11 @@
           12288
         ]
       ],
+      "patterned": false,
       "queries": [
         {
           "address": 0,
+          "length": 1,
           "physical": null,
           "translate_error": "PagedInvalidAddressException",
           "read_hex": null,
@@ -314,6 +336,7 @@
         },
         {
           "address": 291,
+          "length": 1,
           "physical": null,
           "translate_error": "PagedInvalidAddressException",
           "read_hex": null,
@@ -321,6 +344,7 @@
         },
         {
           "address": 4096,
+          "length": 1,
           "physical": null,
           "translate_error": "PagedInvalidAddressException",
           "read_hex": null,
@@ -328,6 +352,7 @@
         },
         {
           "address": 8192,
+          "length": 1,
           "physical": null,
           "translate_error": "PagedInvalidAddressException",
           "read_hex": null,
@@ -4457,9 +4482,11 @@
         ]
       ],
       "holes": [],
+      "patterned": false,
       "queries": [
         {
           "address": 0,
+          "length": 1,
           "physical": null,
           "translate_error": "PagedInvalidAddressException",
           "read_hex": null,
@@ -4467,6 +4494,7 @@
         },
         {
           "address": 291,
+          "length": 1,
           "physical": null,
           "translate_error": "PagedInvalidAddressException",
           "read_hex": null,
@@ -4474,6 +4502,7 @@
         },
         {
           "address": 4096,
+          "length": 1,
           "physical": null,
           "translate_error": "PagedInvalidAddressException",
           "read_hex": null,
@@ -4481,6 +4510,7 @@
         },
         {
           "address": 8192,
+          "length": 1,
           "physical": null,
           "translate_error": "PagedInvalidAddressException",
           "read_hex": null,
@@ -4518,9 +4548,11 @@
         ]
       ],
       "holes": [],
+      "patterned": false,
       "queries": [
         {
           "address": 0,
+          "length": 1,
           "physical": 32768,
           "translate_error": null,
           "read_hex": "00",
@@ -4528,6 +4560,7 @@
         },
         {
           "address": 291,
+          "length": 1,
           "physical": 33059,
           "translate_error": null,
           "read_hex": "00",
@@ -4535,6 +4568,7 @@
         },
         {
           "address": 4096,
+          "length": 1,
           "physical": 36864,
           "translate_error": null,
           "read_hex": "00",
@@ -4542,6 +4576,7 @@
         },
         {
           "address": 8192,
+          "length": 1,
           "physical": 65536,
           "translate_error": null,
           "read_hex": "00",
@@ -4590,9 +4625,11 @@
         ]
       ],
       "holes": [],
+      "patterned": false,
       "queries": [
         {
           "address": 0,
+          "length": 1,
           "physical": null,
           "translate_error": "PagedInvalidAddressException",
           "read_hex": null,
@@ -4600,6 +4637,7 @@
         },
         {
           "address": 291,
+          "length": 1,
           "physical": null,
           "translate_error": "PagedInvalidAddressException",
           "read_hex": null,
@@ -4607,6 +4645,7 @@
         },
         {
           "address": 4096,
+          "length": 1,
           "physical": 36864,
           "translate_error": null,
           "read_hex": "00",
@@ -4614,6 +4653,7 @@
         },
         {
           "address": 8192,
+          "length": 1,
           "physical": 65536,
           "translate_error": null,
           "read_hex": "00",
@@ -4650,9 +4690,11 @@
         ]
       ],
       "holes": [],
+      "patterned": false,
       "queries": [
         {
           "address": 0,
+          "length": 1,
           "physical": null,
           "translate_error": "PagedInvalidAddressException",
           "read_hex": null,
@@ -4660,6 +4702,7 @@
         },
         {
           "address": 291,
+          "length": 1,
           "physical": null,
           "translate_error": "PagedInvalidAddressException",
           "read_hex": null,
@@ -4667,6 +4710,7 @@
         },
         {
           "address": 4096,
+          "length": 1,
           "physical": null,
           "translate_error": "PagedInvalidAddressException",
           "read_hex": null,
@@ -4674,6 +4718,7 @@
         },
         {
           "address": 8192,
+          "length": 1,
           "physical": null,
           "translate_error": "PagedInvalidAddressException",
           "read_hex": null,
@@ -4681,6 +4726,7 @@
         },
         {
           "address": 4294963200,
+          "length": 1,
           "physical": 32768,
           "translate_error": null,
           "read_hex": "00",
@@ -4688,6 +4734,7 @@
         },
         {
           "address": 4294967295,
+          "length": 1,
           "physical": 36863,
           "translate_error": null,
           "read_hex": "00",
@@ -4731,33 +4778,46 @@
         ]
       ],
       "holes": [],
+      "patterned": true,
       "queries": [
         {
           "address": 0,
+          "length": 1,
           "physical": 4194304,
           "translate_error": null,
-          "read_hex": "00",
+          "read_hex": "14",
           "read_error": null
         },
         {
           "address": 291,
+          "length": 1,
           "physical": 4194595,
           "translate_error": null,
-          "read_hex": "00",
+          "read_hex": "14",
           "read_error": null
         },
         {
           "address": 4096,
+          "length": 1,
           "physical": 4198400,
           "translate_error": null,
-          "read_hex": "00",
+          "read_hex": "15",
           "read_error": null
         },
         {
           "address": 8192,
+          "length": 1,
           "physical": 4202496,
           "translate_error": null,
-          "read_hex": "00",
+          "read_hex": "16",
+          "read_error": null
+        },
+        {
+          "address": 8184,
+          "length": 32,
+          "physical": 4202488,
+          "translate_error": null,
+          "read_hex": "1515151515151515161616161616161616161616161616161616161616161616",
           "read_error": null
         }
       ],
@@ -4798,33 +4858,46 @@
         ]
       ],
       "holes": [],
+      "patterned": true,
       "queries": [
         {
           "address": 0,
+          "length": 1,
           "physical": 4194304,
           "translate_error": null,
-          "read_hex": "00",
+          "read_hex": "14",
           "read_error": null
         },
         {
           "address": 291,
+          "length": 1,
           "physical": 4194595,
           "translate_error": null,
-          "read_hex": "00",
+          "read_hex": "14",
           "read_error": null
         },
         {
           "address": 4096,
+          "length": 1,
           "physical": 4198400,
           "translate_error": null,
-          "read_hex": "00",
+          "read_hex": "15",
           "read_error": null
         },
         {
           "address": 8192,
+          "length": 1,
           "physical": 4202496,
           "translate_error": null,
-          "read_hex": "00",
+          "read_hex": "16",
+          "read_error": null
+        },
+        {
+          "address": 8184,
+          "length": 32,
+          "physical": 4202488,
+          "translate_error": null,
+          "read_hex": "1515151515151515161616161616161616161616161616161616161616161616",
           "read_error": null
         }
       ],
@@ -4870,23 +4943,27 @@
           4202496
         ]
       ],
+      "patterned": true,
       "queries": [
         {
           "address": 0,
+          "length": 1,
           "physical": 4194304,
           "translate_error": null,
-          "read_hex": "00",
+          "read_hex": "14",
           "read_error": null
         },
         {
           "address": 291,
+          "length": 1,
           "physical": 4194595,
           "translate_error": null,
-          "read_hex": "00",
+          "read_hex": "14",
           "read_error": null
         },
         {
           "address": 4096,
+          "length": 1,
           "physical": 4198400,
           "translate_error": null,
           "read_hex": null,
@@ -4894,13 +4971,262 @@
         },
         {
           "address": 8192,
+          "length": 1,
           "physical": 4202496,
           "translate_error": null,
-          "read_hex": "00",
+          "read_hex": "16",
+          "read_error": null
+        },
+        {
+          "address": 8184,
+          "length": 32,
+          "physical": 4202488,
+          "translate_error": null,
+          "read_hex": null,
+          "read_error": "InvalidAddressException"
+        }
+      ],
+      "expected": []
+    },
+    {
+      "id": "x86-large-reserved-bit13",
+      "arch": "x86",
+      "width": 4,
+      "length": 8388608,
+      "root": 4096,
+      "writes": [
+        [
+          4096,
+          8195
+        ],
+        [
+          8192,
+          32771
+        ],
+        [
+          8196,
+          36867
+        ],
+        [
+          8200,
+          65539
+        ],
+        [
+          4096,
+          4194435
+        ],
+        [
+          4096,
+          4202627
+        ]
+      ],
+      "holes": [],
+      "patterned": true,
+      "queries": [
+        {
+          "address": 0,
+          "length": 1,
+          "physical": 4202496,
+          "translate_error": null,
+          "read_hex": "16",
+          "read_error": null
+        },
+        {
+          "address": 291,
+          "length": 1,
+          "physical": 4202787,
+          "translate_error": null,
+          "read_hex": "16",
+          "read_error": null
+        },
+        {
+          "address": 4096,
+          "length": 1,
+          "physical": 4206592,
+          "translate_error": null,
+          "read_hex": "17",
+          "read_error": null
+        },
+        {
+          "address": 8192,
+          "length": 1,
+          "physical": 4202496,
+          "translate_error": null,
+          "read_hex": "16",
+          "read_error": null
+        },
+        {
+          "address": 8184,
+          "length": 32,
+          "physical": 4210680,
+          "translate_error": null,
+          "read_hex": "1717171717171717181818181818181818181818181818181818181818181818",
           "read_error": null
         }
       ],
       "expected": []
+    },
+    {
+      "id": "x86-large-reserved-bit20",
+      "arch": "x86",
+      "width": 4,
+      "length": 8388608,
+      "root": 4096,
+      "writes": [
+        [
+          4096,
+          8195
+        ],
+        [
+          8192,
+          32771
+        ],
+        [
+          8196,
+          36867
+        ],
+        [
+          8200,
+          65539
+        ],
+        [
+          4096,
+          4194435
+        ],
+        [
+          4096,
+          5243011
+        ]
+      ],
+      "holes": [],
+      "patterned": true,
+      "queries": [
+        {
+          "address": 0,
+          "length": 1,
+          "physical": 5242880,
+          "translate_error": null,
+          "read_hex": "19",
+          "read_error": null
+        },
+        {
+          "address": 291,
+          "length": 1,
+          "physical": 5243171,
+          "translate_error": null,
+          "read_hex": "19",
+          "read_error": null
+        },
+        {
+          "address": 4096,
+          "length": 1,
+          "physical": 5246976,
+          "translate_error": null,
+          "read_hex": "1a",
+          "read_error": null
+        },
+        {
+          "address": 8192,
+          "length": 1,
+          "physical": 5251072,
+          "translate_error": null,
+          "read_hex": "1b",
+          "read_error": null
+        },
+        {
+          "address": 8184,
+          "length": 32,
+          "physical": 5251064,
+          "translate_error": null,
+          "read_hex": "1a1a1a1a1a1a1a1a1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b",
+          "read_error": null
+        }
+      ],
+      "expected": []
+    },
+    {
+      "id": "x86-large-transition",
+      "arch": "x86",
+      "width": 4,
+      "length": 8388608,
+      "root": 4096,
+      "writes": [
+        [
+          4096,
+          8195
+        ],
+        [
+          8192,
+          32771
+        ],
+        [
+          8196,
+          36867
+        ],
+        [
+          8200,
+          65539
+        ],
+        [
+          4096,
+          4194435
+        ],
+        [
+          4096,
+          4196480
+        ]
+      ],
+      "holes": [],
+      "patterned": true,
+      "queries": [
+        {
+          "address": 0,
+          "length": 1,
+          "physical": 4194304,
+          "translate_error": null,
+          "read_hex": "14",
+          "read_error": null
+        },
+        {
+          "address": 291,
+          "length": 1,
+          "physical": 4194595,
+          "translate_error": null,
+          "read_hex": "14",
+          "read_error": null
+        },
+        {
+          "address": 4096,
+          "length": 1,
+          "physical": 4198400,
+          "translate_error": null,
+          "read_hex": "15",
+          "read_error": null
+        },
+        {
+          "address": 8192,
+          "length": 1,
+          "physical": 4202496,
+          "translate_error": null,
+          "read_hex": "16",
+          "read_error": null
+        },
+        {
+          "address": 8184,
+          "length": 32,
+          "physical": 4202488,
+          "translate_error": null,
+          "read_hex": "1515151515151515161616161616161616161616161616161616161616161616",
+          "read_error": null
+        }
+      ],
+      "expected": [
+        [
+          0,
+          4194304,
+          4194304
+        ]
+      ]
     },
     {
       "id": "pae-basic",
@@ -4931,9 +5257,11 @@
         ]
       ],
       "holes": [],
+      "patterned": false,
       "queries": [
         {
           "address": 0,
+          "length": 1,
           "physical": 32768,
           "translate_error": null,
           "read_hex": "00",
@@ -4941,6 +5269,7 @@
         },
         {
           "address": 291,
+          "length": 1,
           "physical": 33059,
           "translate_error": null,
           "read_hex": "00",
@@ -4948,6 +5277,7 @@
         },
         {
           "address": 4096,
+          "length": 1,
           "physical": 36864,
           "translate_error": null,
           "read_hex": "00",
@@ -4955,6 +5285,7 @@
         },
         {
           "address": 8192,
+          "length": 1,
           "physical": 65536,
           "translate_error": null,
           "read_hex": "00",
@@ -5008,9 +5339,11 @@
           40960
         ]
       ],
+      "patterned": false,
       "queries": [
         {
           "address": 0,
+          "length": 1,
           "physical": 32768,
           "translate_error": null,
           "read_hex": "00",
@@ -5018,6 +5351,7 @@
         },
         {
           "address": 291,
+          "length": 1,
           "physical": 33059,
           "translate_error": null,
           "read_hex": "00",
@@ -5025,6 +5359,7 @@
         },
         {
           "address": 4096,
+          "length": 1,
           "physical": 36864,
           "translate_error": null,
           "read_hex": null,
@@ -5032,6 +5367,7 @@
         },
         {
           "address": 8192,
+          "length": 1,
           "physical": 65536,
           "translate_error": null,
           "read_hex": "00",
@@ -5085,9 +5421,11 @@
           69632
         ]
       ],
+      "patterned": false,
       "queries": [
         {
           "address": 0,
+          "length": 1,
           "physical": 32768,
           "translate_error": null,
           "read_hex": "00",
@@ -5095,6 +5433,7 @@
         },
         {
           "address": 291,
+          "length": 1,
           "physical": 33059,
           "translate_error": null,
           "read_hex": "00",
@@ -5102,6 +5441,7 @@
         },
         {
           "address": 4096,
+          "length": 1,
           "physical": 36864,
           "translate_error": null,
           "read_hex": "00",
@@ -5109,6 +5449,7 @@
         },
         {
           "address": 8192,
+          "length": 1,
           "physical": 65536,
           "translate_error": null,
           "read_hex": "00",
@@ -5157,9 +5498,11 @@
           16384
         ]
       ],
+      "patterned": false,
       "queries": [
         {
           "address": 0,
+          "length": 1,
           "physical": null,
           "translate_error": "PagedInvalidAddressException",
           "read_hex": null,
@@ -5167,6 +5510,7 @@
         },
         {
           "address": 291,
+          "length": 1,
           "physical": null,
           "translate_error": "PagedInvalidAddressException",
           "read_hex": null,
@@ -5174,6 +5518,7 @@
         },
         {
           "address": 4096,
+          "length": 1,
           "physical": null,
           "translate_error": "PagedInvalidAddressException",
           "read_hex": null,
@@ -5181,6 +5526,7 @@
         },
         {
           "address": 8192,
+          "length": 1,
           "physical": null,
           "translate_error": "PagedInvalidAddressException",
           "read_hex": null,
@@ -5223,9 +5569,11 @@
           16384
         ]
       ],
+      "patterned": false,
       "queries": [
         {
           "address": 0,
+          "length": 1,
           "physical": null,
           "translate_error": "PagedInvalidAddressException",
           "read_hex": null,
@@ -5233,6 +5581,7 @@
         },
         {
           "address": 291,
+          "length": 1,
           "physical": null,
           "translate_error": "PagedInvalidAddressException",
           "read_hex": null,
@@ -5240,6 +5589,7 @@
         },
         {
           "address": 4096,
+          "length": 1,
           "physical": null,
           "translate_error": "PagedInvalidAddressException",
           "read_hex": null,
@@ -5247,6 +5597,7 @@
         },
         {
           "address": 8192,
+          "length": 1,
           "physical": null,
           "translate_error": "PagedInvalidAddressException",
           "read_hex": null,
@@ -7332,9 +7683,11 @@
         ]
       ],
       "holes": [],
+      "patterned": false,
       "queries": [
         {
           "address": 0,
+          "length": 1,
           "physical": null,
           "translate_error": "PagedInvalidAddressException",
           "read_hex": null,
@@ -7342,6 +7695,7 @@
         },
         {
           "address": 291,
+          "length": 1,
           "physical": null,
           "translate_error": "PagedInvalidAddressException",
           "read_hex": null,
@@ -7349,6 +7703,7 @@
         },
         {
           "address": 4096,
+          "length": 1,
           "physical": null,
           "translate_error": "PagedInvalidAddressException",
           "read_hex": null,
@@ -7356,6 +7711,7 @@
         },
         {
           "address": 8192,
+          "length": 1,
           "physical": null,
           "translate_error": "PagedInvalidAddressException",
           "read_hex": null,
@@ -7397,9 +7753,11 @@
         ]
       ],
       "holes": [],
+      "patterned": false,
       "queries": [
         {
           "address": 0,
+          "length": 1,
           "physical": 32768,
           "translate_error": null,
           "read_hex": "00",
@@ -7407,6 +7765,7 @@
         },
         {
           "address": 291,
+          "length": 1,
           "physical": 33059,
           "translate_error": null,
           "read_hex": "00",
@@ -7414,6 +7773,7 @@
         },
         {
           "address": 4096,
+          "length": 1,
           "physical": 36864,
           "translate_error": null,
           "read_hex": "00",
@@ -7421,6 +7781,7 @@
         },
         {
           "address": 8192,
+          "length": 1,
           "physical": 65536,
           "translate_error": null,
           "read_hex": "00",
@@ -7473,9 +7834,11 @@
         ]
       ],
       "holes": [],
+      "patterned": false,
       "queries": [
         {
           "address": 0,
+          "length": 1,
           "physical": null,
           "translate_error": "PagedInvalidAddressException",
           "read_hex": null,
@@ -7483,6 +7846,7 @@
         },
         {
           "address": 291,
+          "length": 1,
           "physical": null,
           "translate_error": "PagedInvalidAddressException",
           "read_hex": null,
@@ -7490,6 +7854,7 @@
         },
         {
           "address": 4096,
+          "length": 1,
           "physical": 36864,
           "translate_error": null,
           "read_hex": "00",
@@ -7497,6 +7862,7 @@
         },
         {
           "address": 8192,
+          "length": 1,
           "physical": 65536,
           "translate_error": null,
           "read_hex": "00",
@@ -7537,9 +7903,11 @@
         ]
       ],
       "holes": [],
+      "patterned": false,
       "queries": [
         {
           "address": 0,
+          "length": 1,
           "physical": null,
           "translate_error": "PagedInvalidAddressException",
           "read_hex": null,
@@ -7547,6 +7915,7 @@
         },
         {
           "address": 291,
+          "length": 1,
           "physical": null,
           "translate_error": "PagedInvalidAddressException",
           "read_hex": null,
@@ -7554,6 +7923,7 @@
         },
         {
           "address": 4096,
+          "length": 1,
           "physical": null,
           "translate_error": "PagedInvalidAddressException",
           "read_hex": null,
@@ -7561,6 +7931,7 @@
         },
         {
           "address": 8192,
+          "length": 1,
           "physical": null,
           "translate_error": "PagedInvalidAddressException",
           "read_hex": null,
@@ -7568,6 +7939,7 @@
         },
         {
           "address": 4294963200,
+          "length": 1,
           "physical": 32768,
           "translate_error": null,
           "read_hex": "00",
@@ -7575,6 +7947,7 @@
         },
         {
           "address": 4294967295,
+          "length": 1,
           "physical": 36863,
           "translate_error": null,
           "read_hex": "00",
@@ -7622,33 +7995,46 @@
         ]
       ],
       "holes": [],
+      "patterned": true,
       "queries": [
         {
           "address": 0,
+          "length": 1,
           "physical": 4194304,
           "translate_error": null,
-          "read_hex": "00",
+          "read_hex": "14",
           "read_error": null
         },
         {
           "address": 291,
+          "length": 1,
           "physical": 4194595,
           "translate_error": null,
-          "read_hex": "00",
+          "read_hex": "14",
           "read_error": null
         },
         {
           "address": 4096,
+          "length": 1,
           "physical": 4198400,
           "translate_error": null,
-          "read_hex": "00",
+          "read_hex": "15",
           "read_error": null
         },
         {
           "address": 8192,
+          "length": 1,
           "physical": 4202496,
           "translate_error": null,
-          "read_hex": "00",
+          "read_hex": "16",
+          "read_error": null
+        },
+        {
+          "address": 8184,
+          "length": 32,
+          "physical": 4202488,
+          "translate_error": null,
+          "read_hex": "1515151515151515161616161616161616161616161616161616161616161616",
           "read_error": null
         }
       ],
@@ -7693,33 +8079,46 @@
         ]
       ],
       "holes": [],
+      "patterned": true,
       "queries": [
         {
           "address": 0,
+          "length": 1,
           "physical": 4194304,
           "translate_error": null,
-          "read_hex": "00",
+          "read_hex": "14",
           "read_error": null
         },
         {
           "address": 291,
+          "length": 1,
           "physical": 4194595,
           "translate_error": null,
-          "read_hex": "00",
+          "read_hex": "14",
           "read_error": null
         },
         {
           "address": 4096,
+          "length": 1,
           "physical": 4198400,
           "translate_error": null,
-          "read_hex": "00",
+          "read_hex": "15",
           "read_error": null
         },
         {
           "address": 8192,
+          "length": 1,
           "physical": 4202496,
           "translate_error": null,
-          "read_hex": "00",
+          "read_hex": "16",
+          "read_error": null
+        },
+        {
+          "address": 8184,
+          "length": 32,
+          "physical": 4202488,
+          "translate_error": null,
+          "read_hex": "1515151515151515161616161616161616161616161616161616161616161616",
           "read_error": null
         }
       ],
@@ -7769,23 +8168,27 @@
           4202496
         ]
       ],
+      "patterned": true,
       "queries": [
         {
           "address": 0,
+          "length": 1,
           "physical": 4194304,
           "translate_error": null,
-          "read_hex": "00",
+          "read_hex": "14",
           "read_error": null
         },
         {
           "address": 291,
+          "length": 1,
           "physical": 4194595,
           "translate_error": null,
-          "read_hex": "00",
+          "read_hex": "14",
           "read_error": null
         },
         {
           "address": 4096,
+          "length": 1,
           "physical": 4198400,
           "translate_error": null,
           "read_hex": null,
@@ -7793,13 +8196,286 @@
         },
         {
           "address": 8192,
+          "length": 1,
           "physical": 4202496,
           "translate_error": null,
-          "read_hex": "00",
+          "read_hex": "16",
           "read_error": null
+        },
+        {
+          "address": 8184,
+          "length": 32,
+          "physical": 4202488,
+          "translate_error": null,
+          "read_hex": null,
+          "read_error": "InvalidAddressException"
         }
       ],
       "expected": []
+    },
+    {
+      "id": "pae-large-reserved-bit13",
+      "arch": "pae",
+      "width": 8,
+      "length": 8388608,
+      "root": 4096,
+      "writes": [
+        [
+          4096,
+          8195
+        ],
+        [
+          8192,
+          12291
+        ],
+        [
+          12288,
+          32771
+        ],
+        [
+          12296,
+          36867
+        ],
+        [
+          12304,
+          65539
+        ],
+        [
+          8192,
+          4194435
+        ],
+        [
+          8192,
+          4202627
+        ]
+      ],
+      "holes": [],
+      "patterned": true,
+      "queries": [
+        {
+          "address": 0,
+          "length": 1,
+          "physical": 4202496,
+          "translate_error": null,
+          "read_hex": "16",
+          "read_error": null
+        },
+        {
+          "address": 291,
+          "length": 1,
+          "physical": 4202787,
+          "translate_error": null,
+          "read_hex": "16",
+          "read_error": null
+        },
+        {
+          "address": 4096,
+          "length": 1,
+          "physical": 4206592,
+          "translate_error": null,
+          "read_hex": "17",
+          "read_error": null
+        },
+        {
+          "address": 8192,
+          "length": 1,
+          "physical": 4202496,
+          "translate_error": null,
+          "read_hex": "16",
+          "read_error": null
+        },
+        {
+          "address": 8184,
+          "length": 32,
+          "physical": 4210680,
+          "translate_error": null,
+          "read_hex": "1717171717171717181818181818181818181818181818181818181818181818",
+          "read_error": null
+        }
+      ],
+      "expected": [
+        [
+          0,
+          2097152,
+          4202496
+        ]
+      ]
+    },
+    {
+      "id": "pae-large-reserved-bit20",
+      "arch": "pae",
+      "width": 8,
+      "length": 8388608,
+      "root": 4096,
+      "writes": [
+        [
+          4096,
+          8195
+        ],
+        [
+          8192,
+          12291
+        ],
+        [
+          12288,
+          32771
+        ],
+        [
+          12296,
+          36867
+        ],
+        [
+          12304,
+          65539
+        ],
+        [
+          8192,
+          4194435
+        ],
+        [
+          8192,
+          5243011
+        ]
+      ],
+      "holes": [],
+      "patterned": true,
+      "queries": [
+        {
+          "address": 0,
+          "length": 1,
+          "physical": 5242880,
+          "translate_error": null,
+          "read_hex": "19",
+          "read_error": null
+        },
+        {
+          "address": 291,
+          "length": 1,
+          "physical": 5243171,
+          "translate_error": null,
+          "read_hex": "19",
+          "read_error": null
+        },
+        {
+          "address": 4096,
+          "length": 1,
+          "physical": 5246976,
+          "translate_error": null,
+          "read_hex": "1a",
+          "read_error": null
+        },
+        {
+          "address": 8192,
+          "length": 1,
+          "physical": 5251072,
+          "translate_error": null,
+          "read_hex": "1b",
+          "read_error": null
+        },
+        {
+          "address": 8184,
+          "length": 32,
+          "physical": 5251064,
+          "translate_error": null,
+          "read_hex": "1a1a1a1a1a1a1a1a1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b",
+          "read_error": null
+        }
+      ],
+      "expected": [
+        [
+          0,
+          2097152,
+          5242880
+        ]
+      ]
+    },
+    {
+      "id": "pae-large-transition",
+      "arch": "pae",
+      "width": 8,
+      "length": 8388608,
+      "root": 4096,
+      "writes": [
+        [
+          4096,
+          8195
+        ],
+        [
+          8192,
+          12291
+        ],
+        [
+          12288,
+          32771
+        ],
+        [
+          12296,
+          36867
+        ],
+        [
+          12304,
+          65539
+        ],
+        [
+          8192,
+          4194435
+        ],
+        [
+          8192,
+          4196480
+        ]
+      ],
+      "holes": [],
+      "patterned": true,
+      "queries": [
+        {
+          "address": 0,
+          "length": 1,
+          "physical": 4194304,
+          "translate_error": null,
+          "read_hex": "14",
+          "read_error": null
+        },
+        {
+          "address": 291,
+          "length": 1,
+          "physical": 4194595,
+          "translate_error": null,
+          "read_hex": "14",
+          "read_error": null
+        },
+        {
+          "address": 4096,
+          "length": 1,
+          "physical": 4198400,
+          "translate_error": null,
+          "read_hex": "15",
+          "read_error": null
+        },
+        {
+          "address": 8192,
+          "length": 1,
+          "physical": 4202496,
+          "translate_error": null,
+          "read_hex": "16",
+          "read_error": null
+        },
+        {
+          "address": 8184,
+          "length": 32,
+          "physical": 4202488,
+          "translate_error": null,
+          "read_hex": "1515151515151515161616161616161616161616161616161616161616161616",
+          "read_error": null
+        }
+      ],
+      "expected": [
+        [
+          0,
+          2097152,
+          4194304
+        ]
+      ]
     },
     {
       "id": "pae-root-pse-bit",
@@ -7834,9 +8510,11 @@
         ]
       ],
       "holes": [],
+      "patterned": false,
       "queries": [
         {
           "address": 0,
+          "length": 1,
           "physical": 32768,
           "translate_error": null,
           "read_hex": "00",
@@ -7844,6 +8522,7 @@
         },
         {
           "address": 291,
+          "length": 1,
           "physical": 33059,
           "translate_error": null,
           "read_hex": "00",
@@ -7851,6 +8530,7 @@
         },
         {
           "address": 4096,
+          "length": 1,
           "physical": 36864,
           "translate_error": null,
           "read_hex": "00",
@@ -7858,6 +8538,7 @@
         },
         {
           "address": 8192,
+          "length": 1,
           "physical": 65536,
           "translate_error": null,
           "read_hex": "00",
@@ -7911,9 +8592,11 @@
           8192
         ]
       ],
+      "patterned": false,
       "queries": [
         {
           "address": 0,
+          "length": 1,
           "physical": null,
           "translate_error": "PagedInvalidAddressException",
           "read_hex": null,
@@ -7921,6 +8604,7 @@
         },
         {
           "address": 291,
+          "length": 1,
           "physical": null,
           "translate_error": "PagedInvalidAddressException",
           "read_hex": null,
@@ -7928,6 +8612,7 @@
         },
         {
           "address": 4096,
+          "length": 1,
           "physical": null,
           "translate_error": "PagedInvalidAddressException",
           "read_hex": null,
@@ -7935,6 +8620,7 @@
         },
         {
           "address": 8192,
+          "length": 1,
           "physical": null,
           "translate_error": "PagedInvalidAddressException",
           "read_hex": null,
@@ -7976,9 +8662,11 @@
         ]
       ],
       "holes": [],
+      "patterned": false,
       "queries": [
         {
           "address": 0,
+          "length": 1,
           "physical": 32768,
           "translate_error": null,
           "read_hex": "00",
@@ -7986,6 +8674,7 @@
         },
         {
           "address": 291,
+          "length": 1,
           "physical": 33059,
           "translate_error": null,
           "read_hex": "00",
@@ -7993,6 +8682,7 @@
         },
         {
           "address": 4096,
+          "length": 1,
           "physical": 36864,
           "translate_error": null,
           "read_hex": "00",
@@ -8000,6 +8690,7 @@
         },
         {
           "address": 8192,
+          "length": 1,
           "physical": 65536,
           "translate_error": null,
           "read_hex": "00",
@@ -8064,9 +8755,11 @@
         ]
       ],
       "holes": [],
+      "patterned": false,
       "queries": [
         {
           "address": 0,
+          "length": 1,
           "physical": 32768,
           "translate_error": null,
           "read_hex": "00",
@@ -8074,6 +8767,7 @@
         },
         {
           "address": 291,
+          "length": 1,
           "physical": 33059,
           "translate_error": null,
           "read_hex": "00",
@@ -8081,6 +8775,7 @@
         },
         {
           "address": 4096,
+          "length": 1,
           "physical": 36864,
           "translate_error": null,
           "read_hex": "00",
@@ -8088,6 +8783,7 @@
         },
         {
           "address": 8192,
+          "length": 1,
           "physical": 65536,
           "translate_error": null,
           "read_hex": "00",
@@ -8170,9 +8866,11 @@
         ]
       ],
       "holes": [],
+      "patterned": false,
       "queries": [
         {
           "address": 0,
+          "length": 1,
           "physical": 32768,
           "translate_error": null,
           "read_hex": "00",
@@ -8180,6 +8878,7 @@
         },
         {
           "address": 291,
+          "length": 1,
           "physical": 33059,
           "translate_error": null,
           "read_hex": "00",
@@ -8187,6 +8886,7 @@
         },
         {
           "address": 4096,
+          "length": 1,
           "physical": 36864,
           "translate_error": null,
           "read_hex": "00",
@@ -8194,6 +8894,7 @@
         },
         {
           "address": 8192,
+          "length": 1,
           "physical": 65536,
           "translate_error": null,
           "read_hex": "00",
@@ -8251,9 +8952,11 @@
           40960
         ]
       ],
+      "patterned": false,
       "queries": [
         {
           "address": 0,
+          "length": 1,
           "physical": 32768,
           "translate_error": null,
           "read_hex": "00",
@@ -8261,6 +8964,7 @@
         },
         {
           "address": 291,
+          "length": 1,
           "physical": 33059,
           "translate_error": null,
           "read_hex": "00",
@@ -8268,6 +8972,7 @@
         },
         {
           "address": 4096,
+          "length": 1,
           "physical": 36864,
           "translate_error": null,
           "read_hex": null,
@@ -8275,6 +8980,7 @@
         },
         {
           "address": 8192,
+          "length": 1,
           "physical": 65536,
           "translate_error": null,
           "read_hex": "00",
@@ -8332,9 +9038,11 @@
           69632
         ]
       ],
+      "patterned": false,
       "queries": [
         {
           "address": 0,
+          "length": 1,
           "physical": 32768,
           "translate_error": null,
           "read_hex": "00",
@@ -8342,6 +9050,7 @@
         },
         {
           "address": 291,
+          "length": 1,
           "physical": 33059,
           "translate_error": null,
           "read_hex": "00",
@@ -8349,6 +9058,7 @@
         },
         {
           "address": 4096,
+          "length": 1,
           "physical": 36864,
           "translate_error": null,
           "read_hex": "00",
@@ -8356,6 +9066,7 @@
         },
         {
           "address": 8192,
+          "length": 1,
           "physical": 65536,
           "translate_error": null,
           "read_hex": "00",
@@ -8408,9 +9119,11 @@
           20480
         ]
       ],
+      "patterned": false,
       "queries": [
         {
           "address": 0,
+          "length": 1,
           "physical": null,
           "translate_error": "PagedInvalidAddressException",
           "read_hex": null,
@@ -8418,6 +9131,7 @@
         },
         {
           "address": 291,
+          "length": 1,
           "physical": null,
           "translate_error": "PagedInvalidAddressException",
           "read_hex": null,
@@ -8425,6 +9139,7 @@
         },
         {
           "address": 4096,
+          "length": 1,
           "physical": null,
           "translate_error": "PagedInvalidAddressException",
           "read_hex": null,
@@ -8432,6 +9147,7 @@
         },
         {
           "address": 8192,
+          "length": 1,
           "physical": null,
           "translate_error": "PagedInvalidAddressException",
           "read_hex": null,
@@ -8478,9 +9194,11 @@
           20480
         ]
       ],
+      "patterned": false,
       "queries": [
         {
           "address": 0,
+          "length": 1,
           "physical": null,
           "translate_error": "PagedInvalidAddressException",
           "read_hex": null,
@@ -8488,6 +9206,7 @@
         },
         {
           "address": 291,
+          "length": 1,
           "physical": null,
           "translate_error": "PagedInvalidAddressException",
           "read_hex": null,
@@ -8495,6 +9214,7 @@
         },
         {
           "address": 4096,
+          "length": 1,
           "physical": null,
           "translate_error": "PagedInvalidAddressException",
           "read_hex": null,
@@ -8502,6 +9222,7 @@
         },
         {
           "address": 8192,
+          "length": 1,
           "physical": null,
           "translate_error": "PagedInvalidAddressException",
           "read_hex": null,
@@ -10591,9 +11312,11 @@
         ]
       ],
       "holes": [],
+      "patterned": false,
       "queries": [
         {
           "address": 0,
+          "length": 1,
           "physical": null,
           "translate_error": "PagedInvalidAddressException",
           "read_hex": null,
@@ -10601,6 +11324,7 @@
         },
         {
           "address": 291,
+          "length": 1,
           "physical": null,
           "translate_error": "PagedInvalidAddressException",
           "read_hex": null,
@@ -10608,6 +11332,7 @@
         },
         {
           "address": 4096,
+          "length": 1,
           "physical": null,
           "translate_error": "PagedInvalidAddressException",
           "read_hex": null,
@@ -10615,6 +11340,7 @@
         },
         {
           "address": 8192,
+          "length": 1,
           "physical": null,
           "translate_error": "PagedInvalidAddressException",
           "read_hex": null,
@@ -10660,9 +11386,11 @@
         ]
       ],
       "holes": [],
+      "patterned": false,
       "queries": [
         {
           "address": 0,
+          "length": 1,
           "physical": 32768,
           "translate_error": null,
           "read_hex": "00",
@@ -10670,6 +11398,7 @@
         },
         {
           "address": 291,
+          "length": 1,
           "physical": 33059,
           "translate_error": null,
           "read_hex": "00",
@@ -10677,6 +11406,7 @@
         },
         {
           "address": 4096,
+          "length": 1,
           "physical": 36864,
           "translate_error": null,
           "read_hex": "00",
@@ -10684,6 +11414,7 @@
         },
         {
           "address": 8192,
+          "length": 1,
           "physical": 65536,
           "translate_error": null,
           "read_hex": "00",
@@ -10740,9 +11471,11 @@
         ]
       ],
       "holes": [],
+      "patterned": false,
       "queries": [
         {
           "address": 0,
+          "length": 1,
           "physical": null,
           "translate_error": "PagedInvalidAddressException",
           "read_hex": null,
@@ -10750,6 +11483,7 @@
         },
         {
           "address": 291,
+          "length": 1,
           "physical": null,
           "translate_error": "PagedInvalidAddressException",
           "read_hex": null,
@@ -10757,6 +11491,7 @@
         },
         {
           "address": 4096,
+          "length": 1,
           "physical": 36864,
           "translate_error": null,
           "read_hex": "00",
@@ -10764,6 +11499,7 @@
         },
         {
           "address": 8192,
+          "length": 1,
           "physical": 65536,
           "translate_error": null,
           "read_hex": "00",
@@ -10808,9 +11544,11 @@
         ]
       ],
       "holes": [],
+      "patterned": false,
       "queries": [
         {
           "address": 0,
+          "length": 1,
           "physical": null,
           "translate_error": "PagedInvalidAddressException",
           "read_hex": null,
@@ -10818,6 +11556,7 @@
         },
         {
           "address": 291,
+          "length": 1,
           "physical": null,
           "translate_error": "PagedInvalidAddressException",
           "read_hex": null,
@@ -10825,6 +11564,7 @@
         },
         {
           "address": 4096,
+          "length": 1,
           "physical": null,
           "translate_error": "PagedInvalidAddressException",
           "read_hex": null,
@@ -10832,6 +11572,7 @@
         },
         {
           "address": 8192,
+          "length": 1,
           "physical": null,
           "translate_error": "PagedInvalidAddressException",
           "read_hex": null,
@@ -10839,6 +11580,7 @@
         },
         {
           "address": 281474976706560,
+          "length": 1,
           "physical": 32768,
           "translate_error": null,
           "read_hex": "00",
@@ -10846,6 +11588,7 @@
         },
         {
           "address": 281474976710655,
+          "length": 1,
           "physical": 36863,
           "translate_error": null,
           "read_hex": "00",
@@ -10897,33 +11640,46 @@
         ]
       ],
       "holes": [],
+      "patterned": true,
       "queries": [
         {
           "address": 0,
+          "length": 1,
           "physical": 4194304,
           "translate_error": null,
-          "read_hex": "00",
+          "read_hex": "14",
           "read_error": null
         },
         {
           "address": 291,
+          "length": 1,
           "physical": 4194595,
           "translate_error": null,
-          "read_hex": "00",
+          "read_hex": "14",
           "read_error": null
         },
         {
           "address": 4096,
+          "length": 1,
           "physical": 4198400,
           "translate_error": null,
-          "read_hex": "00",
+          "read_hex": "15",
           "read_error": null
         },
         {
           "address": 8192,
+          "length": 1,
           "physical": 4202496,
           "translate_error": null,
-          "read_hex": "00",
+          "read_hex": "16",
+          "read_error": null
+        },
+        {
+          "address": 8184,
+          "length": 32,
+          "physical": 4202488,
+          "translate_error": null,
+          "read_hex": "1515151515151515161616161616161616161616161616161616161616161616",
           "read_error": null
         }
       ],
@@ -10972,33 +11728,46 @@
         ]
       ],
       "holes": [],
+      "patterned": true,
       "queries": [
         {
           "address": 0,
+          "length": 1,
           "physical": 4194304,
           "translate_error": null,
-          "read_hex": "00",
+          "read_hex": "14",
           "read_error": null
         },
         {
           "address": 291,
+          "length": 1,
           "physical": 4194595,
           "translate_error": null,
-          "read_hex": "00",
+          "read_hex": "14",
           "read_error": null
         },
         {
           "address": 4096,
+          "length": 1,
           "physical": 4198400,
           "translate_error": null,
-          "read_hex": "00",
+          "read_hex": "15",
           "read_error": null
         },
         {
           "address": 8192,
+          "length": 1,
           "physical": 4202496,
           "translate_error": null,
-          "read_hex": "00",
+          "read_hex": "16",
+          "read_error": null
+        },
+        {
+          "address": 8184,
+          "length": 32,
+          "physical": 4202488,
+          "translate_error": null,
+          "read_hex": "1515151515151515161616161616161616161616161616161616161616161616",
           "read_error": null
         }
       ],
@@ -11052,23 +11821,27 @@
           4202496
         ]
       ],
+      "patterned": true,
       "queries": [
         {
           "address": 0,
+          "length": 1,
           "physical": 4194304,
           "translate_error": null,
-          "read_hex": "00",
+          "read_hex": "14",
           "read_error": null
         },
         {
           "address": 291,
+          "length": 1,
           "physical": 4194595,
           "translate_error": null,
-          "read_hex": "00",
+          "read_hex": "14",
           "read_error": null
         },
         {
           "address": 4096,
+          "length": 1,
           "physical": 4198400,
           "translate_error": null,
           "read_hex": null,
@@ -11076,13 +11849,298 @@
         },
         {
           "address": 8192,
+          "length": 1,
           "physical": 4202496,
           "translate_error": null,
-          "read_hex": "00",
+          "read_hex": "16",
           "read_error": null
+        },
+        {
+          "address": 8184,
+          "length": 32,
+          "physical": 4202488,
+          "translate_error": null,
+          "read_hex": null,
+          "read_error": "InvalidAddressException"
         }
       ],
       "expected": []
+    },
+    {
+      "id": "x64-large-reserved-bit13",
+      "arch": "x64",
+      "width": 8,
+      "length": 8388608,
+      "root": 4096,
+      "writes": [
+        [
+          4096,
+          8195
+        ],
+        [
+          8192,
+          12291
+        ],
+        [
+          12288,
+          16387
+        ],
+        [
+          16384,
+          32771
+        ],
+        [
+          16392,
+          36867
+        ],
+        [
+          16400,
+          65539
+        ],
+        [
+          12288,
+          4194435
+        ],
+        [
+          12288,
+          4202627
+        ]
+      ],
+      "holes": [],
+      "patterned": true,
+      "queries": [
+        {
+          "address": 0,
+          "length": 1,
+          "physical": 4202496,
+          "translate_error": null,
+          "read_hex": "16",
+          "read_error": null
+        },
+        {
+          "address": 291,
+          "length": 1,
+          "physical": 4202787,
+          "translate_error": null,
+          "read_hex": "16",
+          "read_error": null
+        },
+        {
+          "address": 4096,
+          "length": 1,
+          "physical": 4206592,
+          "translate_error": null,
+          "read_hex": "17",
+          "read_error": null
+        },
+        {
+          "address": 8192,
+          "length": 1,
+          "physical": 4202496,
+          "translate_error": null,
+          "read_hex": "16",
+          "read_error": null
+        },
+        {
+          "address": 8184,
+          "length": 32,
+          "physical": 4210680,
+          "translate_error": null,
+          "read_hex": "1717171717171717181818181818181818181818181818181818181818181818",
+          "read_error": null
+        }
+      ],
+      "expected": [
+        [
+          0,
+          2097152,
+          4202496
+        ]
+      ]
+    },
+    {
+      "id": "x64-large-reserved-bit20",
+      "arch": "x64",
+      "width": 8,
+      "length": 8388608,
+      "root": 4096,
+      "writes": [
+        [
+          4096,
+          8195
+        ],
+        [
+          8192,
+          12291
+        ],
+        [
+          12288,
+          16387
+        ],
+        [
+          16384,
+          32771
+        ],
+        [
+          16392,
+          36867
+        ],
+        [
+          16400,
+          65539
+        ],
+        [
+          12288,
+          4194435
+        ],
+        [
+          12288,
+          5243011
+        ]
+      ],
+      "holes": [],
+      "patterned": true,
+      "queries": [
+        {
+          "address": 0,
+          "length": 1,
+          "physical": 5242880,
+          "translate_error": null,
+          "read_hex": "19",
+          "read_error": null
+        },
+        {
+          "address": 291,
+          "length": 1,
+          "physical": 5243171,
+          "translate_error": null,
+          "read_hex": "19",
+          "read_error": null
+        },
+        {
+          "address": 4096,
+          "length": 1,
+          "physical": 5246976,
+          "translate_error": null,
+          "read_hex": "1a",
+          "read_error": null
+        },
+        {
+          "address": 8192,
+          "length": 1,
+          "physical": 5251072,
+          "translate_error": null,
+          "read_hex": "1b",
+          "read_error": null
+        },
+        {
+          "address": 8184,
+          "length": 32,
+          "physical": 5251064,
+          "translate_error": null,
+          "read_hex": "1a1a1a1a1a1a1a1a1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b",
+          "read_error": null
+        }
+      ],
+      "expected": [
+        [
+          0,
+          2097152,
+          5242880
+        ]
+      ]
+    },
+    {
+      "id": "x64-large-transition",
+      "arch": "x64",
+      "width": 8,
+      "length": 8388608,
+      "root": 4096,
+      "writes": [
+        [
+          4096,
+          8195
+        ],
+        [
+          8192,
+          12291
+        ],
+        [
+          12288,
+          16387
+        ],
+        [
+          16384,
+          32771
+        ],
+        [
+          16392,
+          36867
+        ],
+        [
+          16400,
+          65539
+        ],
+        [
+          12288,
+          4194435
+        ],
+        [
+          12288,
+          4196480
+        ]
+      ],
+      "holes": [],
+      "patterned": true,
+      "queries": [
+        {
+          "address": 0,
+          "length": 1,
+          "physical": 4194304,
+          "translate_error": null,
+          "read_hex": "14",
+          "read_error": null
+        },
+        {
+          "address": 291,
+          "length": 1,
+          "physical": 4194595,
+          "translate_error": null,
+          "read_hex": "14",
+          "read_error": null
+        },
+        {
+          "address": 4096,
+          "length": 1,
+          "physical": 4198400,
+          "translate_error": null,
+          "read_hex": "15",
+          "read_error": null
+        },
+        {
+          "address": 8192,
+          "length": 1,
+          "physical": 4202496,
+          "translate_error": null,
+          "read_hex": "16",
+          "read_error": null
+        },
+        {
+          "address": 8184,
+          "length": 32,
+          "physical": 4202488,
+          "translate_error": null,
+          "read_hex": "1515151515151515161616161616161616161616161616161616161616161616",
+          "read_error": null
+        }
+      ],
+      "expected": [
+        [
+          0,
+          2097152,
+          4194304
+        ]
+      ]
     },
     {
       "id": "x64-root-pse-bit",
@@ -11121,9 +12179,11 @@
         ]
       ],
       "holes": [],
+      "patterned": false,
       "queries": [
         {
           "address": 0,
+          "length": 1,
           "physical": 32768,
           "translate_error": null,
           "read_hex": "00",
@@ -11131,6 +12191,7 @@
         },
         {
           "address": 291,
+          "length": 1,
           "physical": 33059,
           "translate_error": null,
           "read_hex": "00",
@@ -11138,6 +12199,7 @@
         },
         {
           "address": 4096,
+          "length": 1,
           "physical": 36864,
           "translate_error": null,
           "read_hex": "00",
@@ -11145,6 +12207,7 @@
         },
         {
           "address": 8192,
+          "length": 1,
           "physical": 65536,
           "translate_error": null,
           "read_hex": "00",
@@ -11201,9 +12264,11 @@
         ]
       ],
       "holes": [],
+      "patterned": false,
       "queries": [
         {
           "address": 0,
+          "length": 1,
           "physical": 32768,
           "translate_error": null,
           "read_hex": "00",
@@ -11211,6 +12276,7 @@
         },
         {
           "address": 291,
+          "length": 1,
           "physical": 33059,
           "translate_error": null,
           "read_hex": "00",
@@ -11218,6 +12284,7 @@
         },
         {
           "address": 4096,
+          "length": 1,
           "physical": 36864,
           "translate_error": null,
           "read_hex": "00",
@@ -11225,6 +12292,7 @@
         },
         {
           "address": 8192,
+          "length": 1,
           "physical": 65536,
           "translate_error": null,
           "read_hex": "00",
@@ -11281,9 +12349,11 @@
         ]
       ],
       "holes": [],
+      "patterned": false,
       "queries": [
         {
           "address": 0,
+          "length": 1,
           "physical": 32768,
           "translate_error": null,
           "read_hex": "00",
@@ -11291,6 +12361,7 @@
         },
         {
           "address": 291,
+          "length": 1,
           "physical": 33059,
           "translate_error": null,
           "read_hex": "00",
@@ -11298,6 +12369,7 @@
         },
         {
           "address": 4096,
+          "length": 1,
           "physical": 36864,
           "translate_error": null,
           "read_hex": "00",
@@ -11305,6 +12377,7 @@
         },
         {
           "address": 8192,
+          "length": 1,
           "physical": 65536,
           "translate_error": null,
           "read_hex": "00",
@@ -11361,9 +12434,11 @@
         ]
       ],
       "holes": [],
+      "patterned": false,
       "queries": [
         {
           "address": 0,
+          "length": 1,
           "physical": 32768,
           "translate_error": null,
           "read_hex": "00",
@@ -11371,6 +12446,7 @@
         },
         {
           "address": 291,
+          "length": 1,
           "physical": 33059,
           "translate_error": null,
           "read_hex": "00",
@@ -11378,6 +12454,7 @@
         },
         {
           "address": 4096,
+          "length": 1,
           "physical": 36864,
           "translate_error": null,
           "read_hex": "00",
@@ -11385,6 +12462,7 @@
         },
         {
           "address": 8192,
+          "length": 1,
           "physical": 65536,
           "translate_error": null,
           "read_hex": "00",
@@ -11441,9 +12519,11 @@
         ]
       ],
       "holes": [],
+      "patterned": false,
       "queries": [
         {
           "address": 0,
+          "length": 1,
           "physical": 32768,
           "translate_error": null,
           "read_hex": "00",
@@ -11451,6 +12531,7 @@
         },
         {
           "address": 291,
+          "length": 1,
           "physical": 33059,
           "translate_error": null,
           "read_hex": "00",
@@ -11458,6 +12539,7 @@
         },
         {
           "address": 4096,
+          "length": 1,
           "physical": 36864,
           "translate_error": null,
           "read_hex": "00",
@@ -11465,6 +12547,7 @@
         },
         {
           "address": 8192,
+          "length": 1,
           "physical": 65536,
           "translate_error": null,
           "read_hex": "00",

@@ -885,3 +885,25 @@ Final native89 repeats all 22 real cases: mapped fields and multiplicities pass;
 prior proofs; evidence remains 125 positive cases (five scoped), zero complete
 plugin contracts. Empty Win7 agreement and row-count-only acceptance do not add
 positive differential cases.
+
+
+Native90 follows the actual Intel large-page PFN/offset OR semantics without
+extra alignment of reserved PFN bits. The virtual-page cache also retains mapping
+shift, so reads consume the current large mapping instead of remapping every
+4 KiB. This matters for reserved-bit entries where the pinned whole-range mapping
+assumes linearity but independent direct translations OR each queried start;
+both API observations are checked independently. Intel transition large-page
+flags are retained through the level check. ARM64 descriptor behavior remains
+separate. The actual reference vectors now contain 54 cases and 240 direct
+queries, including per-physical-page byte patterns and 32-byte reads crossing
+4 KiB boundaries. All malformed combinations, canonical-midpoint coalescing and
+software/pagefile-backed extents remain unverified.
+
+Final native90 repeats all 22 real cases with mapped fields and multiplicities
+passing; 21 strict sequences pass. The known Windows GUI child sequence
+difference at index 245 remains a failure. The five `*-native90` report groups
+bind the same final binary; repeated case identities replace previous proofs.
+Evidence remains 125 positive cases (five scoped), zero complete plugin contracts.
+`make check`, release package smoke and gzip-crash process/network acceptance
+(120/108 rows, DTB and exact TCP/IP identity) pass. Large mapping read sizes are
+limited in u64 before conversion to usize for 32-bit hosts.

@@ -1711,3 +1711,42 @@ Python 测试。45 例／186 直接查询向量重生成一致。公开 gzip cra
 release 验收仍通过：完整 PsList 120、Netscan 108，校验 DTB 与精确 TCP/IP
 PDB；不额外增加正向差分计数。发布包空 PATH／独立目录启动退出通过。
 最终可执行文件 SHA256：`5bcae63a969ba5284650667e2360377299780ec6a8797ce6d613bf04db14588f`。
+
+
+## native90：实际大页 PFN 组合及跨 4 KiB 读取
+
+固定 Intel 层从大页 entry 去掉 PAT 后直接提取 PFN，再与大页内虚拟偏移
+按位 OR。原生此前额外清除了所有低于大页边界的物理地址位；对于带保留
+PFN 位的捕获 entry，这会读取与参考不同的物理页。现在 Intel 大页保留
+这些实际地址位，ARM64 仍使用自身对齐 descriptor 规则。
+
+固定层的 read 按当前 mapping 的连续长度读取。对于保留 PFN 位，整个
+映射范围按线性物理区间表示，而重新从另一个起点调用直接 translate 又会
+执行 OR，两个 API 的观察不具有普通有效 PFN 的线性关系。原生此前每
+4 KiB 重算一次翻译，在这样的跨边界 read 中返回不同字节。缓存现在保留
+映射 shift；读取在当前大页映射范围内一次消费所需字节，只在映射结束后
+重新翻译，匹配实际 read。缺页的 prototype／pagefile 恢复仍按原路径处理。
+
+Intel transition entry 的标志也保留到允许大页的层级检查；之前将它直接
+改写为 PFN|Present，会丢失参考使用的大页位并错误进入下级表。ARM64 的
+transition descriptor 归一化仍独立保留。缺页跳过提示使用同样的标志规则。
+
+实际 Windows Intel 向量扩为 54 例、240 个直接翻译／读取查询，覆盖 x86
+4 MiB、PAE／x64 2 MiB 的保留 bit13／bit20、transition 大页和跨 4 KiB
+读取。大页 backing 每个物理页填充不同标记，32 字节跨界读取会暴露错误
+的二次翻译，而非只比较全零数据。whole-range mapping 三列与直接 API
+结果分别对照实际参考；保留位用例不再用非参考的“物理起点+长度”推导
+直接 API 终点。所有保留位组合、canonical 中点拼接、软件／分页大页及
+完整故障合同仍未完成。
+
+最终 native90 的 22 例真实差分字段及重复次数全部通过，21 例严格顺序通过；
+Windows GUI 子节点顺序仍在 index 245 不同，保留该失败而不排序消除。
+五组原始报告在 target/reference/results 下 *-native90，绑定同一二进制
+SHA256 `c091fcb17225cc22425efe719467e70cd2ca4813c9200b0a144e3f783351bb23`。同名案例替换旧证据，累计仍为
+125 个正向案例（5 个限定范围），完整插件合同 0/135。
+
+最终 make check 通过：622 库、8 CLI/MCP、50 协议及 36 Python 测试；
+release gzip crash 验收通过 PsList 120、Netscan 108，检查 DTB 及精确
+TCP/IP PDB。发布包在项目目录及无关目录、空 PATH 下启动退出通过。
+读取长度先以 u64 限定到输出缓冲区，再转 usize，避免 32 位宿主对巨大
+映射长度截断为零。54 例参考向量重新生成与提交文件逐字节一致。
