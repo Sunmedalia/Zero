@@ -936,399 +936,636 @@
   ],
   "lsmod": [
     [
+      "0xffffffffa0426260",
       "rfcomm",
-      "0xffffffffa0420000",
-      "33700"
+      "33700",
+      "",
+      "l2cap_ertm=N, l2cap_mtu=1013, channel_mtu=-1, disable_cfc=N",
+      "N/A"
     ],
     [
+      "0xffffffffa03ad1e0",
       "bnep",
-      "0xffffffffa03aa000",
-      "17567"
+      "17567",
+      "",
+      "compress_dst=Y, compress_src=Y",
+      "N/A"
     ],
     [
+      "0xffffffffa0323110",
       "binfmt_misc",
-      "0xffffffffa0321000",
-      "12957"
+      "12957",
+      "",
+      "",
+      "N/A"
     ],
     [
+      "0xffffffffa045f1d0",
       "nfsd",
-      "0xffffffffa043a000",
-      "216170"
+      "216170",
+      "",
+      "",
+      "N/A"
     ],
     [
+      "0xffffffffa0411580",
       "nfs",
-      "0xffffffffa03d3000",
-      "308353"
+      "308353",
+      "",
+      "nfs4_disable_idmapping=N, enable_ino64=Y, cache_getent_timeout=15, cache_getent=, idmap_cache_timeout=150000, callback_tcpport=0",
+      "N/A"
     ],
     [
+      "0xffffffffa02c9000",
       "nfs_acl",
-      "0xffffffffa02c7000",
-      "12511"
+      "12511",
+      "",
+      "",
+      "N/A"
     ],
     [
+      "0xffffffffa03cd240",
       "auth_rpcgss",
-      "0xffffffffa03c8000",
-      "37143"
+      "37143",
+      "",
+      "expired_cred_retry_delay=5",
+      "N/A"
     ],
     [
+      "0xffffffffa03a7370",
       "fscache",
-      "0xffffffffa03a0000",
-      "36739"
+      "36739",
+      "",
+      "debug=0, defer_create=1, defer_lookup=1",
+      "N/A"
     ],
     [
+      "0xffffffffa03c28f0",
       "lockd",
-      "0xffffffffa03b6000",
-      "67306"
+      "67306",
+      "",
+      "nlm_max_connections=1024, nsm_use_hostnames=N, nlm_tcpport=0, nlm_udpport=0, nlm_timeout=10, nlm_grace_period=0",
+      "N/A"
     ],
     [
+      "0xffffffffa03942a0",
       "sunrpc",
-      "0xffffffffa0374000",
-      "173730"
+      "173730",
+      "",
+      "udp_slot_table_entries=16, tcp_max_slot_table_entries=128, tcp_slot_table_entries=2, max_resvport=1023, min_resvport=665, auth_hashtable_size=None, pool_mode=None",
+      "N/A"
     ],
     [
+      "0xffffffffa034f260",
       "loop",
-      "0xffffffffa034b000",
-      "22641"
+      "22641",
+      "",
+      "max_part=0, max_loop=0",
+      "N/A"
     ],
     [
+      "0xffffffffa03488c0",
       "btusb",
-      "0xffffffffa0345000",
-      "17502"
+      "17502",
+      "",
+      "reset=Y, force_scofix=N, disable_scofix=N, ignore_sniffer=N, ignore_csr=N, ignore_dga=N",
+      "N/A"
     ],
     [
+      "0xffffffffa036d9e0",
       "bluetooth",
-      "0xffffffffa0355000",
-      "119455"
+      "119455",
+      "",
+      "enable_le=N, enable_mgmt=N, disable_ertm=N, disable_esco=N",
+      "N/A"
     ],
     [
+      "0xffffffffa0342340",
       "rfkill",
-      "0xffffffffa033f000",
-      "19012"
+      "19012",
+      "",
+      "default_state=1, master_switch_mode=2",
+      "N/A"
     ],
     [
+      "0xffffffffa03371c0",
       "coretemp",
-      "0xffffffffa0335000",
-      "12898"
+      "12898",
+      "",
+      "tjmax=0",
+      "N/A"
     ],
     [
+      "0xffffffffa024f170",
       "crc32c_intel",
-      "0xffffffffa024d000",
-      "12747"
+      "12747",
+      "",
+      "",
+      "N/A"
     ],
     [
+      "0xffffffffa033c2f0",
       "ghash_clmulni_intel",
-      "0xffffffffa033a000",
-      "13130"
+      "13130",
+      "",
+      "",
+      "N/A"
     ],
     [
+      "0xffffffffa0331100",
       "aesni_intel",
-      "0xffffffffa0327000",
-      "50667"
+      "50667",
+      "",
+      "",
+      "N/A"
     ],
     [
+      "0xffffffffa0317120",
       "aes_x86_64",
-      "0xffffffffa0314000",
-      "16843"
+      "16843",
+      "",
+      "",
+      "N/A"
     ],
     [
+      "0xffffffffa031e2a0",
       "parport_pc",
-      "0xffffffffa031a000",
-      "22364"
+      "22364",
+      "",
+      "init_mode=, dma=None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None, irq=None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None, io_hi=None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None, io=None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None",
+      "N/A"
     ],
     [
+      "0xffffffffa02fd3b0",
       "parport",
-      "0xffffffffa02f7000",
-      "31858"
+      "31858",
+      "",
+      "",
+      "N/A"
     ],
     [
+      "0xffffffffa0311120",
       "aes_generic",
-      "0xffffffffa030a000",
-      "33026"
+      "33026",
+      "",
+      "",
+      "N/A"
     ],
     [
+      "0xffffffffa0303080",
       "cryptd",
-      "0xffffffffa0301000",
-      "14517"
+      "14517",
+      "",
+      "",
+      "N/A"
     ],
     [
+      "0xffffffffa02f2e50",
       "psmouse",
-      "0xffffffffa02e5000",
-      "69265"
+      "69265",
+      "",
+      "resync_time=0, resetafter=5, smartscroll=Y, rate=100, resolution=200, proto=None",
+      "N/A"
     ],
     [
+      "0xffffffffa02e2000",
       "vmw_balloon",
-      "0xffffffffa02e0000",
-      "12606"
+      "12606",
+      "",
+      "",
+      "N/A"
     ],
     [
+      "0xffffffffa02dd0a0",
       "pcspkr",
-      "0xffffffffa02db000",
-      "12579"
+      "12579",
+      "",
+      "",
+      "N/A"
     ],
     [
+      "0xffffffffa02d8100",
       "serio_raw",
-      "0xffffffffa02d6000",
-      "12931"
+      "12931",
+      "",
+      "",
+      "N/A"
     ],
     [
+      "0xffffffffa02cf0a0",
       "evdev",
-      "0xffffffffa02cc000",
-      "17562"
+      "17562",
+      "",
+      "",
+      "N/A"
     ],
     [
+      "0xffffffffa02b9170",
       "container",
-      "0xffffffffa02b7000",
-      "12581"
+      "12581",
+      "",
+      "",
+      "N/A"
     ],
     [
+      "0xffffffffa02c46c0",
       "snd_ens1371",
-      "0xffffffffa02c0000",
-      "23250"
+      "23250",
+      "",
+      "lineio=None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None, spdif=None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None, joystick_port=None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None, enable=None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None, id=None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None, index=None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None",
+      "N/A"
     ],
     [
+      "0xffffffffa02b1690",
       "snd_ac97_codec",
-      "0xffffffffa029b000",
-      "106942"
+      "106942",
+      "",
+      "power_save=0, enable_loopback=N",
+      "N/A"
     ],
     [
+      "0xffffffffa0298040",
       "snd_seq_midi",
-      "0xffffffffa0296000",
-      "12848"
+      "12848",
+      "",
+      "input_buffer_size=4096, output_buffer_size=4096",
+      "N/A"
     ],
     [
+      "0xffffffffa0293010",
       "snd_seq_midi_event",
-      "0xffffffffa0291000",
-      "13316"
+      "13316",
+      "",
+      "",
+      "N/A"
     ],
     [
+      "0xffffffffa02780d0",
       "snd_rawmidi",
-      "0xffffffffa0274000",
-      "23060"
+      "23060",
+      "",
+      "amidi_map=None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None, midi_map=None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None",
+      "N/A"
     ],
     [
+      "0xffffffffa028c4f0",
       "snd_pcm",
-      "0xffffffffa027f000",
-      "68083"
+      "68083",
+      "",
+      "maximum_substreams=4, preallocate_dma=1",
+      "N/A"
     ],
     [
+      "0xffffffffa025f030",
       "snd_page_alloc",
-      "0xffffffffa025d000",
-      "13003"
+      "13003",
+      "",
+      "",
+      "N/A"
     ],
     [
+      "0xffffffffa026f260",
       "snd_seq",
-      "0xffffffffa0267000",
-      "45126"
+      "45126",
+      "",
+      "seq_default_timer_resolution=0, seq_default_timer_subdevice=0, seq_default_timer_device=3, seq_default_timer_card=-1, seq_default_timer_sclass=0, seq_default_timer_class=1, seq_client_load=None,None,None,None,None,None,None,None,None,None,None,None,None,None,None",
+      "N/A"
     ],
     [
+      "0xffffffffa0264050",
       "snd_seq_device",
-      "0xffffffffa0262000",
-      "13176"
+      "13176",
+      "",
+      "",
+      "N/A"
     ],
     [
+      "0xffffffffa025a080",
       "snd_timer",
-      "0xffffffffa0256000",
-      "22917"
+      "22917",
+      "",
+      "timer_tstamp_monotonic=1, timer_limit=4",
+      "N/A"
     ],
     [
+      "0xffffffffa022f170",
       "ac",
-      "0xffffffffa022d000",
-      "12624"
+      "12624",
+      "",
+      "",
+      "N/A"
     ],
     [
+      "0xffffffffa0247a10",
       "vmwgfx",
-      "0xffffffffa0233000",
-      "99436"
+      "99436",
+      "",
+      "enable_fbdev=0",
+      "N/A"
     ],
     [
+      "0xffffffffa022a9f0",
       "processor",
-      "0xffffffffa0225000",
-      "28149"
+      "28149",
+      "",
+      "ignore_tpc=0, latency_factor=2, bm_check_disable=0, nocst=0, max_cstate=8, ignore_ppc=-1",
+      "N/A"
     ],
     [
+      "0xffffffffa021e590",
       "thermal_sys",
-      "0xffffffffa021b000",
-      "18040"
+      "18040",
+      "",
+      "",
+      "N/A"
     ],
     [
+      "0xffffffffa0202590",
       "power_supply",
-      "0xffffffffa0200000",
-      "13475"
+      "13475",
+      "",
+      "",
+      "N/A"
     ],
     [
+      "0xffffffffa01fb210",
       "snd",
-      "0xffffffffa01f2000",
-      "52889"
+      "52889",
+      "",
+      "cards_limit=1, major=116, slots=None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None",
+      "N/A"
     ],
     [
+      "0xffffffffa0212520",
       "ttm",
-      "0xffffffffa0208000",
-      "53664"
+      "53664",
+      "",
+      "",
+      "N/A"
     ],
     [
+      "0xffffffffa01eaf80",
       "drm",
-      "0xffffffffa01c4000",
-      "183952"
+      "183952",
+      "",
+      "timestamp_precision_usec=20, vblankoffdelay=5000, debug=0",
+      "N/A"
     ],
     [
+      "0xffffffffa01be1a0",
       "button",
-      "0xffffffffa01bc000",
-      "12937"
+      "12937",
+      "",
+      "",
+      "N/A"
     ],
     [
+      "0xffffffffa01b9b00",
       "i2c_piix4",
-      "0xffffffffa01b7000",
-      "12536"
+      "12536",
+      "",
+      "force_addr=0, force=0",
+      "N/A"
     ],
     [
+      "0xffffffffa01ab310",
       "i2c_core",
-      "0xffffffffa01a7000",
-      "23876"
+      "23876",
+      "",
+      "",
+      "N/A"
     ],
     [
+      "0xffffffffa01b4230",
       "shpchp",
-      "0xffffffffa01ae000",
-      "31293"
+      "31293",
+      "",
+      "shpchp_poll_time=0, shpchp_poll_mode=N, shpchp_debug=N",
+      "N/A"
     ],
     [
+      "0xffffffffa012c000",
       "soundcore",
-      "0xffffffffa012a000",
-      "13065"
+      "13065",
+      "",
+      "preclaim_oss=0",
+      "N/A"
     ],
     [
+      "0xffffffffa01a4080",
       "ac97_bus",
-      "0xffffffffa01a2000",
-      "12510"
+      "12510",
+      "",
+      "",
+      "N/A"
     ],
     [
+      "0xffffffffa00f0180",
       "gameport",
-      "0xffffffffa00ee000",
-      "13612"
+      "13612",
+      "",
+      "",
+      "N/A"
     ],
     [
+      "0xffffffffa0195c00",
       "ext4",
-      "0xffffffffa014b000",
-      "350763"
+      "350763",
+      "",
+      "",
+      "N/A"
     ],
     [
+      "0xffffffffa0087000",
       "crc16",
-      "0xffffffffa0085000",
-      "12343"
+      "12343",
+      "",
+      "",
+      "N/A"
     ],
     [
+      "0xffffffffa0146b20",
       "jbd2",
-      "0xffffffffa013a000",
-      "62115"
+      "62115",
+      "",
+      "",
+      "N/A"
     ],
     [
+      "0xffffffffa006d070",
       "mbcache",
-      "0xffffffffa006b000",
-      "13114"
+      "13114",
+      "",
+      "",
+      "N/A"
     ],
     [
+      "0xffffffffa01372a0",
       "usbhid",
-      "0xffffffffa0130000",
-      "36418"
+      "36418",
+      "",
+      "quirks=None,None,None,None, ignoreled=0, mousepoll=0",
+      "N/A"
     ],
     [
+      "0xffffffffa0126cb0",
       "hid",
-      "0xffffffffa0115000",
-      "81372"
+      "81372",
+      "",
+      "debug=0",
+      "N/A"
     ],
     [
+      "0xffffffffa00c8080",
       "sg",
-      "0xffffffffa00c3000",
-      "25874"
+      "25874",
+      "",
+      "allow_dio=0, def_reserved_size=32768, scatter_elem_sz=32768",
+      "N/A"
     ],
     [
+      "0xffffffffa0074150",
       "sr_mod",
-      "0xffffffffa0070000",
-      "21899"
+      "21899",
+      "",
+      "xa_test=0",
+      "N/A"
     ],
     [
+      "0xffffffffa0112370",
       "cdrom",
-      "0xffffffffa010b000",
-      "35401"
+      "35401",
+      "",
+      "mrw_format_restart=Y, check_media_type=N, lockdoor=Y, autoeject=N, autoclose=Y, debug=N",
+      "N/A"
     ],
     [
+      "0xffffffffa0108430",
       "sd_mod",
-      "0xffffffffa0101000",
-      "36136"
+      "36136",
+      "",
+      "",
+      "N/A"
     ],
     [
+      "0xffffffffa003a5a0",
       "ata_generic",
-      "0xffffffffa0038000",
-      "12479"
+      "12479",
+      "",
+      "all_generic_ide=0",
+      "N/A"
     ],
     [
+      "0xffffffffa0068000",
       "crc_t10dif",
-      "0xffffffffa0066000",
-      "12348"
+      "12348",
+      "",
+      "",
+      "N/A"
     ],
     [
+      "0xffffffffa00fba20",
       "floppy",
-      "0xffffffffa00f3000",
-      "53134"
+      "53134",
+      "",
+      "FLOPPY_DMA=2, FLOPPY_IRQ=6, floppy=",
+      "N/A"
     ],
     [
+      "0xffffffffa00c00f0",
       "uhci_hcd",
-      "0xffffffffa00bb000",
-      "26865"
+      "26865",
+      "",
+      "ignore_oc=N",
+      "N/A"
     ],
     [
+      "0xffffffffa00eb130",
       "ehci_hcd",
-      "0xffffffffa00e3000",
-      "40249"
+      "40249",
+      "",
+      "hird=0, ignore_oc=N, park=0, log2_irq_thresh=0",
+      "N/A"
     ],
     [
+      "0xffffffffa00de8b0",
       "e1000",
-      "0xffffffffa00cc000",
-      "86156"
+      "86156",
+      "",
+      "debug=3, copybreak=256, SmartPowerDownEnable=None, InterruptThrottleRate=None, RxAbsIntDelay=None, RxIntDelay=None, TxAbsIntDelay=None, TxIntDelay=None, XsumRX=None, FlowControl=None, AutoNeg=None, Duplex=None, Speed=None, RxDescriptors=None, TxDescriptors=None",
+      "N/A"
     ],
     [
+      "0xffffffffa00b40c0",
       "usbcore",
-      "0xffffffffa009a000",
-      "128741"
+      "128741",
+      "",
+      "nousb=N, autosuspend=2, use_both_schemes=Y, old_scheme_first=N, initial_descriptor_timeout=5000, blinkenlights=N, authorized_default=-1, usbfs_snoop=N",
+      "N/A"
     ],
     [
+      "0xffffffffa0063000",
       "usb_common",
-      "0xffffffffa0061000",
-      "12354"
+      "12354",
+      "",
+      "",
+      "N/A"
     ],
     [
+      "0xffffffffa0097080",
       "ata_piix",
-      "0xffffffffa0091000",
-      "29535"
+      "29535",
+      "",
+      "prefer_ms_hyperv=1",
+      "N/A"
     ],
     [
+      "0xffffffffa008e390",
       "mptspi",
-      "0xffffffffa008b000",
-      "18065"
+      "18065",
+      "",
+      "mpt_saf_te=0",
+      "N/A"
     ],
     [
+      "0xffffffffa007b5b0",
       "scsi_transport_spi",
-      "0xffffffffa0077000",
-      "23870"
+      "23870",
+      "",
+      "",
+      "N/A"
     ],
     [
+      "0xffffffffa00821f0",
       "mptscsih",
-      "0xffffffffa007e000",
-      "22710"
+      "22710",
+      "",
+      "",
+      "N/A"
     ],
     [
+      "0xffffffffa0035040",
       "mptbase",
-      "0xffffffffa0029000",
-      "56773"
+      "56773",
+      "",
+      "mpt_fwfault_debug=0, mpt_debug_level=0, mpt_channel_mapping=0, mpt_msi_enable_sas=0, mpt_msi_enable_fc=0, mpt_msi_enable_spi=0",
+      "N/A"
     ],
     [
+      "0xffffffffa00594a0",
       "libata",
-      "0xffffffffa003d000",
-      "140630"
+      "140630",
+      "",
+      "atapi_an=0, allow_tpm=0, noacpi=0, ata_probe_timeout=0, dma=7, ignore_hpa=0, fua=0, atapi_passthru16=1, atapi_dmadir=0, atapi_enabled=1, force=, acpi_gtf_filter=7",
+      "N/A"
     ],
     [
+      "0xffffffffa00230f0",
       "scsi_mod",
-      "0xffffffffa0000000",
-      "162269"
+      "162269",
+      "",
+      "scsi_logging_level=0, inq_timeout=20, max_report_luns=511, scan=\u0006, max_luns=512, default_dev_flags=0, dev_flags=",
+      "N/A"
     ]
   ]
 }

@@ -2372,3 +2372,17 @@ module_code_sizes 元数据按模块地址记录 init + core。mem 布局求七�
 四种固定布局向量比较该值，包括只有 init_layout 和旧 core_size 的组合。
 缺少 init 布局明确记录 module_code_size_unsupported；可用布局的读取故障标记
 partial。该元数据仍不代表六列表格、导出模式或全部失败合同已完成。
+
+## native109：Lsmod 六列输出
+
+默认 Lsmod 输出迁移为 Offset、Module Name、Code Size、Taints、Load Arguments、
+File Output。Offset 为 struct module 地址，原分配基址与 core-only 大小保留在
+module_ranges 元数据；Code Size 为 init + core。未启用导出时 File Output 为
+N/A，元数据保留 NotApplicableValue 类型。新显示字段读取失败仍保留行并标记
+partial，缺 init 布局也不再允许完整结果。
+
+固定 Debian 参考六列 79/79 全部字段与重复计数通过，证据加入 evidence.json；
+映射仅规范化参考 Intel 48 位地址和双方缺席值。Debian 精确行基线来自固定参考。
+Kali 110 行六列摘要为原生本地回归，不计为 ARM64 固定参考证据；独立检查脚本
+仅核对模块名、结构体地址和保留的分配范围，不声称独立核验六列全部字段。
+导出参数、损坏链表、完整平台／故障合同仍待补齐，完整插件合同不提升。

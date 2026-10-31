@@ -379,6 +379,11 @@ impl Linux<'_> {
                 })();
                 match row {
                     Ok(row) => {
+                        let name = row[0].clone();
+                        result.kernel_identity["module_ranges"][format!("{object:#x}")] =
+                            serde_json::json!({"base":row[1],"core_size":row[2]});
+                        let mut code_size = "N/A".to_owned();
+                        let mut arguments = "N/A".to_owned();
                         let code_size_layout = if self.isf.has_field("module", "mem") {
                             ["MOD_INIT_TEXT", "MOD_INIT_DATA", "MOD_INIT_RODATA"]
                                 .iter()
@@ -393,6 +398,7 @@ impl Linux<'_> {
                         if code_size_layout {
                             match self.module_code_size(object) {
                                 Ok(size) => {
+                                    code_size = size.to_string();
                                     result.kernel_identity["module_code_sizes"]
                                         [format!("{object:#x}")] = size.into()
                                 }
@@ -404,11 +410,17 @@ impl Linux<'_> {
                             }
                         } else {
                             result.kernel_identity["module_code_size_unsupported"] = true.into();
+                            partial(
+                                &mut result,
+                                format!("module {object:#x} code size"),
+                                anyhow::anyhow!("缺少 init 大小布局"),
+                            );
                         }
                         match self.module_load_arguments(object, job) {
-                            Ok(arguments) => {
+                            Ok(value) => {
+                                arguments = value.clone();
                                 result.kernel_identity["module_load_arguments"]
-                                    [format!("{object:#x}")] = arguments.into();
+                                    [format!("{object:#x}")] = value.into();
                             }
                             Err(error) => {
                                 job.check()?;
@@ -419,7 +431,23 @@ impl Linux<'_> {
                                 );
                             }
                         }
-                        result.rows.push(row);
+                        let taints = match self.module_taints(object, false) {
+                            Ok(value) => value,
+                            Err(error) => {
+                                partial(&mut result, format!("module {object:#x} taints"), error);
+                                "N/A".into()
+                            }
+                        };
+                        result.kernel_identity["module_file_output_types"]
+                            [format!("{object:#x}")] = "NotApplicableValue".into();
+                        result.rows.push(vec![
+                            hex(object),
+                            name,
+                            code_size,
+                            taints,
+                            arguments,
+                            "N/A".into(),
+                        ]);
                     }
                     Err(error) => {
                         job.check()?;

@@ -1,0 +1,27 @@
+{
+  "engine_version": "0.2.1-native-109",
+  "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+  "mapping": "tests/reference/parity/mappings/linux-lsmod.json",
+  "real_validation": {
+    "sample": "debian-3.2",
+    "report": "target/reference/results/lsmod-native109/summary.json",
+    "rows": 79,
+    "all_six_columns_mapped": true,
+    "duplicate_policy": "multiset",
+    "passed": true
+  },
+  "columns": ["Offset", "Module Name", "Code Size", "Taints", "Load Arguments", "File Output"],
+  "preserved_metadata": "module_ranges holds allocation base and core-only size; default module_file_output_types is NotApplicableValue.",
+  "validation": {
+    "make_check_passed": true,
+    "debian_kali_acceptance_passed": 4,
+    "audit_passed_cases": 162,
+    "verified_plugin_contracts": 0
+  },
+  "limitations": [
+    "Only the default no-dump invocation has full-field real reference evidence; dump mode is still outstanding.",
+    "Kali ARM64 110-row six-column baseline is a native regression baseline, not pinned reference platform parity.",
+    "The independent verify_inspect script verifies names, struct addresses and allocation ranges only, not all six display fields.",
+    "Damaged-list behavior, all parameter faults, resource limits and full plugin contracts remain outstanding."
+  ]
+}

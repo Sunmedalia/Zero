@@ -376,7 +376,7 @@ fn taint_description(c: char) -> Option<&'static str> {
     }
 }
 impl Linux<'_> {
-    fn module_taints(&self, module: u64, plain: bool) -> Result<String> {
+    pub(super) fn module_taints(&self, module: u64, plain: bool) -> Result<String> {
         let value = self.number(module, "module", "taints")?;
         let mut chars = String::new();
         if let Ok(flags) = self.isf.address("taint_flags") {
@@ -881,9 +881,12 @@ mod tests {
             assert_eq!(
                 result.rows,
                 vec![vec![
+                    "0x0000000000034100".to_owned(),
                     "listed".to_owned(),
-                    format!("{:#018x}", case["base"].as_u64().unwrap()),
-                    case["core_size"].as_u64().unwrap().to_string()
+                    case["code_size"].as_u64().unwrap().to_string(),
+                    String::new(),
+                    String::new(),
+                    "N/A".to_owned()
                 ]],
                 "{id}"
             );
@@ -908,11 +911,13 @@ mod tests {
         let result = super::super::tests::engine(&image, &isf)
             .run(Plugin::Lsmod, &Job::default())
             .unwrap();
-        assert!(result.complete, "{:?}", result.diagnostics);
+        assert!(!result.complete);
         assert_eq!(
-            result.rows,
-            vec![vec!["listed", "0x0000000000019000", "2048"]]
+            result.kernel_identity["module_ranges"]["0x34100"]["base"],
+            "0x0000000000019000"
         );
+        assert_eq!(result.rows[0][1], "listed");
+        assert_eq!(result.rows[0][2], "N/A");
     }
 
     #[test]
@@ -934,7 +939,7 @@ mod tests {
         assert!(result.complete, "{:?}", result.diagnostics);
         assert_eq!(
             result.rows,
-            vec![vec!["listed", "0x000000000001a000", "3072"]]
+            vec![vec!["0x0000000000034100", "listed", "3072", "", "", "N/A"]]
         );
     }
 

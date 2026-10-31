@@ -37,7 +37,7 @@ fn mapped() -> Vec<u8> {
 fn symbols() -> Isf {
     let integer = |offset| json!({"offset":offset,"type":{"kind":"base","name":"int"}});
     let pointer = |offset| json!({"offset":offset,"type":{"kind":"pointer"}});
-    let data = json!({"base_types":{"pointer":{"size":8},"int":{"size":4}},"symbols":{"linux_banner":{"address":0x1100,"constant_data":STANDARD.encode(b"Linux version synthetic\n\0")},"init_task":{"address":0x1200},"init_level4_pgt":{"address":0x1000},"modules":{"address":0x1500}},"user_types":{"list_head":{"size":16,"fields":{"next":pointer(0),"prev":pointer(8)}},"task_struct":{"size":80,"fields":{"tasks":{"offset":0,"type":{"kind":"struct","name":"list_head"}},"pid":integer(16),"tgid":integer(20),"real_parent":pointer(24),"comm":{"offset":32,"type":{"kind":"array","count":16}}}},"module":{"size":80,"fields":{"list":{"offset":0,"type":{"kind":"struct","name":"list_head"}},"name":{"offset":16,"type":{"kind":"array","count":16}},"module_core":pointer(32),"core_size":integer(40)}}}});
+    let data = json!({"base_types":{"pointer":{"size":8},"int":{"size":4}},"symbols":{"linux_banner":{"address":0x1100,"constant_data":STANDARD.encode(b"Linux version synthetic\n\0")},"init_task":{"address":0x1200},"init_level4_pgt":{"address":0x1000},"modules":{"address":0x1500}},"user_types":{"list_head":{"size":16,"fields":{"next":pointer(0),"prev":pointer(8)}},"task_struct":{"size":80,"fields":{"tasks":{"offset":0,"type":{"kind":"struct","name":"list_head"}},"pid":integer(16),"tgid":integer(20),"real_parent":pointer(24),"comm":{"offset":32,"type":{"kind":"array","count":16}}}},"module":{"size":80,"fields":{"list":{"offset":0,"type":{"kind":"struct","name":"list_head"}},"name":{"offset":16,"type":{"kind":"array","count":16}},"module_core":pointer(32),"core_size":integer(40),"init_size":integer(44),"taints":integer(48)}}}});
     Isf::parse(&serde_json::to_vec(&data).unwrap(), "synthetic.json".into()).unwrap()
 }
 fn linked() -> Vec<u8> {
@@ -139,7 +139,10 @@ fn closed_lists_and_parent_fields() {
     );
     let m = linux.run(Plugin::Lsmod, &Job::default()).unwrap();
     assert!(m.complete);
-    assert_eq!(m.rows[0], vec!["test", "0x0000000000009000", "4096"]);
+    assert_eq!(
+        m.rows[0],
+        vec!["0x0000000000001600", "test", "4096", "", "", "N/A"]
+    );
 }
 #[test]
 fn corrupt_and_cyclic_lists_are_partial_uncached() {
@@ -1053,7 +1056,7 @@ fn x86_kaslr_discovery_handles_high_physical_lime_and_relocated_symbols() -> Res
     .run(Plugin::Lsmod, &job)?;
     assert!(modules.complete, "{:?}", modules.diagnostics);
     assert_eq!(modules.rows.len(), 1);
-    assert_eq!(modules.rows[0][0], "test");
+    assert_eq!(modules.rows[0][1], "test");
     assert_eq!(linux::discover(&img, &isf, &job)?, root);
     drop(img);
     put(&mut bytes, 0x8208, runtime_base + 0x9300);

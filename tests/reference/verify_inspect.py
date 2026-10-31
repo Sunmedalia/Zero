@@ -33,7 +33,16 @@ for m in mods:
   mem=m+off('module','mem');size=sum(num(mem+i*D['user_types']['module_memory']['size'],'module_memory','size') for i in range(4));base=num(mem,'module_memory','base')
  else:base=num(m,'module','module_core');size=num(m,'module','core_size')
  ls.append([cstr(m+off('module','name')),hexaddr(base),str(size)])
-check('lsmod',ls)
+# The six-column display no longer includes the allocation base/core-only size.
+# Verify those independently through the preserved module_ranges metadata; this
+# check does not certify taints, parameters, init size or file-output semantics.
+module_output=exported('lsmod')
+assert [row[1] for row in module_output['rows']]==[row[0] for row in ls]
+assert [row[0] for row in module_output['rows']]==[hexaddr(m) for m in mods]
+for m,(_,base,size) in zip(mods,ls):
+ entry=module_output['kernel_identity']['module_ranges'][hex(m)]
+ assert (entry['base'],entry['core_size'])==(base,size)
+print('lsmod',len(ls),'names, struct addresses and allocation ranges independently verified')
 kset=word(D['symbols']['module_kset']['address']);objects=linked(kset+off('kset','list'),off('kobject','entry'));sysfs=set()
 for obj in objects:
  m=num(obj-off('module_kobject','kobj'),'module_kobject','mod')

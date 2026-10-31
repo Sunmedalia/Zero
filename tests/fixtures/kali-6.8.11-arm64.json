@@ -1874,12 +1874,15 @@
     },
     "lsmod": {
       "columns": [
-        "Name",
-        "Base",
-        "Size"
+        "Offset",
+        "Module Name",
+        "Code Size",
+        "Taints",
+        "Load Arguments",
+        "File Output"
       ],
       "count": 110,
-      "rows_sha256": "16bc4ad9b1af2fc603b0ea8b31df9e5ae38d88561825c41243c9947803a9e7f3",
+      "rows_sha256": "b7c2a93361ed3bddaf032803c7c1e2119db9603d75de89cb453741f17238906d",
       "complete": true,
       "diagnostics": []
     },

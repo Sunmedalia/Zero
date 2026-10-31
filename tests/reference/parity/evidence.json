@@ -44891,5 +44891,49 @@
     "symbol_sha256": "d07a9e3b68f1596d77f51a987cc361391b658bd2873e066a60aa105bb8d67ce4",
     "zero_executable_sha256": "8e904349328fc6800a9cc513fd74989aa76e1bc4b8775edbdc5b464728017af8",
     "engine_version": "0.2.1-native-101"
+  },
+  {
+    "sample": "debian-3.2",
+    "sample_source": "https://github.com/volatilityfoundation/volatility3-test-data/releases/download/v0.0.1/linux-sample-1.bin.gz",
+    "input_files": [],
+    "case_id": "debian-3.2/lsmod-default",
+    "zero_args": [],
+    "reference_args": [],
+    "image_sha256": "8ce57b7c7b423173ce970fe8f51e7016c04ef1b4a5f73d5c5f1001d5c18780bc",
+    "reference_plugin": "linux.lsmod.Lsmod",
+    "zero_plugin": "lsmod",
+    "passed": true,
+    "mapping_sha256": "e4a8dce78c488f4233d1a432544991b39932f0bdae4707a81acc127359bd7116",
+    "native_symbol_source": {
+      "path": "/Volumes/w/code/zero/symbols/Debian_3.2.0-4-amd64_3.2.57-3+deb7u2_amd64-795bb1b381f4311e7165a8e3ad813c625e6a87e85b0450709b342d01c3be9843.json.xz",
+      "sha256": "c3b0b875a2d0498fffc0df1259ff49b850cea28355ffddf02e2f90d34a89fbe1",
+      "configured_path": "/Volumes/w/code/zero/symbols/Debian_3.2.0-4-amd64_3.2.57-3+deb7u2_amd64-795bb1b381f4311e7165a8e3ad813c625e6a87e85b0450709b342d01c3be9843.json.xz",
+      "configured_sha256": "c3b0b875a2d0498fffc0df1259ff49b850cea28355ffddf02e2f90d34a89fbe1"
+    },
+    "comparison": {
+      "schema_version": 1,
+      "mapping_version": 1,
+      "zero_records": 79,
+      "reference_records": 79,
+      "missing": [],
+      "extra": [],
+      "duplicates": [],
+      "duplicate_keys": "multiset",
+      "multiplicity_conflicts": [],
+      "conflicts": [],
+      "unverifiable": [],
+      "matched_absent": {
+        "file_output": 79
+      },
+      "all_columns_mapped": true,
+      "positive_evidence": true,
+      "zero_complete": true,
+      "zero_diagnostics": [],
+      "passed": true
+    },
+    "native_output_sha256": "7a0087bb5eb57dde4049ae55bfb7b9fa9e83f5f89d5aa38775e9ebe5ec9b33aa",
+    "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+    "zero_executable_sha256": "7343aed46f3b786a8dece679f59160af687b72e03391503539e9f0a7a056acb2",
+    "engine_version": "0.2.1-native-109"
   }
 ]

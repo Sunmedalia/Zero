@@ -1508,8 +1508,15 @@ pub const PLUGINS: &[Descriptor] = &[
         plugin: Plugin::Lsmod,
         name: "lsmod",
         label: "lsmod",
-        columns: &["Name", "Base", "Size"],
-        widths: &[0, 18, 10],
+        columns: &[
+            "Offset",
+            "Module Name",
+            "Code Size",
+            "Taints",
+            "Load Arguments",
+            "File Output",
+        ],
+        widths: &[18, 18, 10, 16, 0, 16],
     },
     Descriptor {
         plugin: Plugin::Psaux,
