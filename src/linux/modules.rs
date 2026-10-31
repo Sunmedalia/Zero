@@ -731,6 +731,55 @@ mod tests {
         (bytes, isf)
     }
     #[test]
+    fn lsmod_array_metadata_failure_preserves_module_with_partial_diagnostic() {
+        let (mut bytes, mut isf) = fixture();
+        isf.data["user_types"]["module"]["size"] = json!(152);
+        isf.data["user_types"]["module"]["fields"]["kp"] =
+            json!({"offset":136,"type":{"kind":"pointer"}});
+        isf.data["user_types"]["module"]["fields"]["num_kp"] =
+            json!({"offset":144,"type":{"kind":"base","name":"u64"}});
+        isf.data["symbols"]["param_array_get"] = json!({"address":0x16000});
+        isf.data["user_types"]["kernel_param"] = json!({"size":24,"fields":{
+            "name":{"offset":0,"type":{"kind":"pointer"}},
+            "get":{"offset":8,"type":{"kind":"pointer"}},
+            "arr":{"offset":16,"type":{"kind":"pointer"}}
+        }});
+        isf.data["user_types"]["kparam_array"] = json!({"size":8,"fields":{
+            "num":{"offset":0,"type":{"kind":"pointer"}}
+        }});
+        for (at, value) in [
+            (0x34100 + 136, 0x11000),
+            (0x34100 + 144, 1),
+            (0x11000, 0x12000),
+            (0x11008, 0x16000),
+            (0x11010, 0x40000),
+        ] {
+            put(&mut bytes, at, value);
+        }
+        bytes[0x12000..0x12004].copy_from_slice(b"arg\0");
+        let image = super::super::tests::image(&bytes);
+        let result = super::super::tests::engine(&image, &isf)
+            .run(Plugin::Lsmod, &Job::default())
+            .unwrap();
+        assert!(!result.complete);
+        assert_eq!(result.rows.len(), 1);
+        assert_eq!(result.rows[0][1], "listed");
+        assert_eq!(result.rows[0][4], "N/A");
+        assert!(
+            result
+                .diagnostics
+                .iter()
+                .any(|message| message.contains("parameters"))
+        );
+        assert!(
+            result
+                .diagnostics
+                .iter()
+                .all(|message| !message.contains("ISF 字段越界"))
+        );
+    }
+
+    #[test]
     fn module_names_match_actual_pinned_translation_layer_vectors() {
         let vectors: serde_json::Value = serde_json::from_str(include_str!(
             "../../tests/reference/parity/fixtures/module-names.json"
