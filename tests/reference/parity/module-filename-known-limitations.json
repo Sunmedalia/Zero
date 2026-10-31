@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+  "scope": "Module ELF filename character sanitization",
+  "reference_method": "FileHandlerInterface.sanitize_filename",
+  "vectors": [
+    {"input": "abc_123.- ()[]{}!$%^#~,", "output": "abc_123.- ()[]{}!$%^#~,"},
+    {"input": "a/b\\c:d*e?f\"g<h>i|j", "output": "a_b_c_d_e_f_g_h_i_j"},
+    {"input": "模块é\n\t", "output": "_____"}
+  ],
+  "verification": "Executed the pinned sanitizer for the vectors and all 128 ASCII code points; native exported_module_names_keep_reference_punctuation_and_replace_separators exercises real fixture-backed ELF export for punctuation, separators and Unicode.",
+  "checks": "make check passed: 709 Rust tests, 45 reference harness tests",
+  "limitations": ["No real captured module with these unusual names was tested.", "Does not certify the full module extraction or Lsmod contract."]
+}

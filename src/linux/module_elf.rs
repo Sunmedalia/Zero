@@ -476,7 +476,7 @@ impl Linux<'_> {
         let name: String = name
             .chars()
             .map(|c| {
-                if c.is_ascii_alphanumeric() || "._-".contains(c) {
+                if c.is_ascii_alphanumeric() || "._- ()[]{}!$%^#~,".contains(c) {
                     c
                 } else {
                     '_'
@@ -640,6 +640,29 @@ mod tests {
             std::fs::read(directory.path().join(filename)).unwrap(),
             expected.bytes
         );
+    }
+
+    #[test]
+    fn exported_module_names_keep_reference_punctuation_and_replace_separators() {
+        for (name, cleaned) in [
+            ("a ()[]{}!$%^#~,", "a ()[]{}!$%^#~,"),
+            ("a/b\\c:d*e?f", "a_b_c_d_e_f"),
+            ("模块é", "___"),
+        ] {
+            let (mut bytes, isf) = fixture();
+            bytes[0x30000..0x30010].fill(0);
+            bytes[0x30000..0x30000 + name.len()].copy_from_slice(name.as_bytes());
+            let image = super::super::tests::image(&bytes);
+            let linux = super::super::tests::engine(&image, &isf);
+            let directory = tempfile::tempdir().unwrap();
+            let result = linux
+                .extract_module(&options(directory.path()), &Job::default())
+                .unwrap();
+            let filename = format!("kernel_module.{cleaned}.0x30000.elf");
+            assert_eq!(result.rows[0][2], filename, "{name}");
+            assert!(directory.path().join(filename).is_file());
+            assert_eq!(std::fs::read_dir(directory.path()).unwrap().count(), 1);
+        }
     }
 
     #[test]
