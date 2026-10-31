@@ -378,7 +378,23 @@ impl Linux<'_> {
                     })
                 })();
                 match row {
-                    Ok(row) => result.rows.push(row),
+                    Ok(row) => {
+                        match self.module_load_arguments(object, job) {
+                            Ok(arguments) => {
+                                result.kernel_identity["module_load_arguments"]
+                                    [format!("{object:#x}")] = arguments.into();
+                            }
+                            Err(error) => {
+                                job.check()?;
+                                partial(
+                                    &mut result,
+                                    format!("module {object:#x} parameters"),
+                                    error,
+                                );
+                            }
+                        }
+                        result.rows.push(row);
+                    }
                     Err(error) => {
                         job.check()?;
                         result.complete = false;

@@ -2346,3 +2346,17 @@ get_module_base/get_core_size 的四种布局向量，原生 fixture 逐项比�
 语义；本次只修布局顺序，不声称完整字段对齐。导出参数和损坏链表合同继续核查。
 证据见 lsmod-layout-known-limitations.json，真实参考保存在
 target/reference/results/lsmod-native106/reference.json。
+
+## native107：模块加载参数解析
+
+Lsmod 结果元数据 module_load_arguments 按 struct module 原生地址记录参数字符串。
+原生解析 getter 符号、直接 get/ops.get、整数符号宽度、bool/invbool、未知值 None、
+字符串及数组。名称读取失败跳过该参数，getter 或标量读取失败保留 key=None。
+字符串按 UTF-8 在 NUL 或首个替换字符截断，后续页缺失保留已读前缀。
+
+固定 _get_param_handlers/_get_param_val 的标量方法向量覆盖整数、布尔、未知、
+零 getter 和标量读失败。真实 Debian 首版无缓存输出的参数与固定参考 79/79
+相同（44 条非空），按 Intel 48 位地址域对应模块。该比较只针对加载参数，
+不覆盖完整六列表格。数组、字符串故障、别名和全部异常边界尚无完整方法矩阵；
+字符串 4096 字节和递归 32 层上限仍为原生资源边界。参数失败保留模块行并标记
+partial。证据见 module-parameters-known-limitations.json。

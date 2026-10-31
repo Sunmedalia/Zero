@@ -1,0 +1,285 @@
+{
+  "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+  "source_sha256": {
+    "volatility3/framework/symbols/linux/utilities/modules.py": "a5e33f20ecbfb1403de58e5c8b1c037215758747bc32ef5404235dc809bba1bf"
+  },
+  "handlers": {
+    "param_get_invbool": 86016,
+    "param_get_bool": 86032,
+    "param_get_int": 86048,
+    "param_get_ulong": 86064,
+    "param_get_ullong": 86080,
+    "param_get_long": 86096,
+    "param_get_uint": 86112,
+    "param_get_ushort": 86128,
+    "param_get_short": 86144,
+    "param_get_byte": 86160
+  },
+  "scope": "Actual _get_param_handlers and _get_param_val handler-to-type selection, integer values, boolean truth tables, unknown/null and scalar-read failure branches with supplied Python integer reads. Reference integer width/sign decoding is not exercised. Does not establish aliases, getter-read faults, array/string/name faults or the full Lsmod contract.",
+  "cases": [
+    {
+      "id": "param_get_invbool-0",
+      "getter": 86016,
+      "type": "int",
+      "size": 4,
+      "signed": true,
+      "value": 0,
+      "expected": "Y"
+    },
+    {
+      "id": "param_get_invbool-1",
+      "getter": 86016,
+      "type": "int",
+      "size": 4,
+      "signed": true,
+      "value": 1,
+      "expected": "N"
+    },
+    {
+      "id": "param_get_invbool--1",
+      "getter": 86016,
+      "type": "int",
+      "size": 4,
+      "signed": true,
+      "value": -1,
+      "expected": "N"
+    },
+    {
+      "id": "param_get_bool-0",
+      "getter": 86032,
+      "type": "int",
+      "size": 4,
+      "signed": true,
+      "value": 0,
+      "expected": "N"
+    },
+    {
+      "id": "param_get_bool-1",
+      "getter": 86032,
+      "type": "int",
+      "size": 4,
+      "signed": true,
+      "value": 1,
+      "expected": "Y"
+    },
+    {
+      "id": "param_get_bool--1",
+      "getter": 86032,
+      "type": "int",
+      "size": 4,
+      "signed": true,
+      "value": -1,
+      "expected": "Y"
+    },
+    {
+      "id": "param_get_int-0",
+      "getter": 86048,
+      "type": "int",
+      "size": 4,
+      "signed": true,
+      "value": 0,
+      "expected": "0"
+    },
+    {
+      "id": "param_get_int-1",
+      "getter": 86048,
+      "type": "int",
+      "size": 4,
+      "signed": true,
+      "value": 1,
+      "expected": "1"
+    },
+    {
+      "id": "param_get_int--1",
+      "getter": 86048,
+      "type": "int",
+      "size": 4,
+      "signed": true,
+      "value": -1,
+      "expected": "-1"
+    },
+    {
+      "id": "param_get_ulong-0",
+      "getter": 86064,
+      "type": "long unsigned int",
+      "size": 8,
+      "signed": false,
+      "value": 0,
+      "expected": "0"
+    },
+    {
+      "id": "param_get_ulong-18446744073709551615",
+      "getter": 86064,
+      "type": "long unsigned int",
+      "size": 8,
+      "signed": false,
+      "value": 18446744073709551615,
+      "expected": "18446744073709551615"
+    },
+    {
+      "id": "param_get_ullong-0",
+      "getter": 86080,
+      "type": "long long unsigned int",
+      "size": 8,
+      "signed": false,
+      "value": 0,
+      "expected": "0"
+    },
+    {
+      "id": "param_get_ullong-18446744073709551615",
+      "getter": 86080,
+      "type": "long long unsigned int",
+      "size": 8,
+      "signed": false,
+      "value": 18446744073709551615,
+      "expected": "18446744073709551615"
+    },
+    {
+      "id": "param_get_long-0",
+      "getter": 86096,
+      "type": "long int",
+      "size": 8,
+      "signed": true,
+      "value": 0,
+      "expected": "0"
+    },
+    {
+      "id": "param_get_long-1",
+      "getter": 86096,
+      "type": "long int",
+      "size": 8,
+      "signed": true,
+      "value": 1,
+      "expected": "1"
+    },
+    {
+      "id": "param_get_long--1",
+      "getter": 86096,
+      "type": "long int",
+      "size": 8,
+      "signed": true,
+      "value": -1,
+      "expected": "-1"
+    },
+    {
+      "id": "param_get_uint-0",
+      "getter": 86112,
+      "type": "unsigned int",
+      "size": 4,
+      "signed": false,
+      "value": 0,
+      "expected": "0"
+    },
+    {
+      "id": "param_get_uint-4294967295",
+      "getter": 86112,
+      "type": "unsigned int",
+      "size": 4,
+      "signed": false,
+      "value": 4294967295,
+      "expected": "4294967295"
+    },
+    {
+      "id": "param_get_ushort-0",
+      "getter": 86128,
+      "type": "short unsigned int",
+      "size": 2,
+      "signed": false,
+      "value": 0,
+      "expected": "0"
+    },
+    {
+      "id": "param_get_ushort-65535",
+      "getter": 86128,
+      "type": "short unsigned int",
+      "size": 2,
+      "signed": false,
+      "value": 65535,
+      "expected": "65535"
+    },
+    {
+      "id": "param_get_short-0",
+      "getter": 86144,
+      "type": "short int",
+      "size": 2,
+      "signed": true,
+      "value": 0,
+      "expected": "0"
+    },
+    {
+      "id": "param_get_short-1",
+      "getter": 86144,
+      "type": "short int",
+      "size": 2,
+      "signed": true,
+      "value": 1,
+      "expected": "1"
+    },
+    {
+      "id": "param_get_short--1",
+      "getter": 86144,
+      "type": "short int",
+      "size": 2,
+      "signed": true,
+      "value": -1,
+      "expected": "-1"
+    },
+    {
+      "id": "param_get_byte-0",
+      "getter": 86160,
+      "type": "char",
+      "size": 1,
+      "signed": true,
+      "value": 0,
+      "expected": "0"
+    },
+    {
+      "id": "param_get_byte-1",
+      "getter": 86160,
+      "type": "char",
+      "size": 1,
+      "signed": true,
+      "value": 1,
+      "expected": "1"
+    },
+    {
+      "id": "param_get_byte--1",
+      "getter": 86160,
+      "type": "char",
+      "size": 1,
+      "signed": true,
+      "value": -1,
+      "expected": "-1"
+    },
+    {
+      "id": "unknown",
+      "getter": 98304,
+      "type": "int",
+      "size": 4,
+      "signed": true,
+      "value": 42,
+      "fault": false,
+      "expected": null
+    },
+    {
+      "id": "null",
+      "getter": 0,
+      "type": "int",
+      "size": 4,
+      "signed": true,
+      "value": 42,
+      "fault": false,
+      "expected": null
+    },
+    {
+      "id": "unreadable-int",
+      "getter": 86048,
+      "type": "int",
+      "size": 4,
+      "signed": true,
+      "value": 42,
+      "fault": true,
+      "expected": null
+    }
+  ]
+}

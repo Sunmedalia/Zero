@@ -28,6 +28,7 @@ mod kernel;
 mod malware;
 mod memory;
 mod module_elf;
+mod module_parameters;
 mod modules;
 mod net;
 mod netdev;

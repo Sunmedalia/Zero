@@ -1,0 +1,29 @@
+{
+  "engine_version": "0.2.1-native-107",
+  "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+  "native_output": "kernel_identity.module_load_arguments, keyed by native struct module address",
+  "method_fixture": "tests/reference/parity/fixtures/module-parameters.json",
+  "real_comparison": {
+    "sample": "debian-3.2",
+    "reference_output": "target/reference/results/lsmod-native106/reference.json",
+    "address_normalization": "module address masked to 48 bits for comparison with the pinned Intel layer",
+    "scope": "Load Arguments only; no whole-row parity claim",
+    "native_output": "target/reference/results/lsmod-native106/parameters-native107.json",
+    "matched_rows": 79,
+    "nonempty_rows": 44,
+    "passed": true
+  },
+  "validation": {
+    "scalar_method_cases_passed": 29,
+    "make_check_passed": true,
+    "debian_kali_acceptance_passed": 4,
+    "parity_tool_tests_passed": 43
+  },
+  "limitations": [
+    "The native table remains the legacy three-column view. This metadata is an implementation step toward the six-column reference view, not a completed plugin contract.",
+    "Reference scalar vectors use supplied object reads and do not cover arrays, strings, name faults, handler aliases or every schema error.",
+    "Parameter strings are bounded to 4096 bytes and recursion to 32 levels. Oversized/cyclic inputs do not establish reference parity.",
+    "The existing per-module partial policy preserves table rows on parameter extraction errors; this is not a claim that all reference exception propagation is identical.",
+    "Module export and damaged-list behavior remain outstanding."
+  ]
+}
