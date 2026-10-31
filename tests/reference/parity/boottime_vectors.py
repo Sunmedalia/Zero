@@ -60,6 +60,12 @@ def generate(checkout):
              tasks=[dict(id=0), None, dict(id=0)]),
         dict(id='empty-task-list', kind='unsupported', root=0, tasks=[]),
         dict(id='unsupported-timekeeping', kind='unsupported', root=0, tasks=[None]),
+        dict(id='modern-missing-timekeeper', kind='modern', root=1_700_000_000_000_000_000,
+             missing_member='timekeeper', tasks=[None]),
+        dict(id='global-missing-sleep', kind='global-timekeeper', root=1_700_000_000_000_000_000,
+             missing_member='total_sleep_time', tasks=[None]),
+        dict(id='namespace-missing-boottime', kind='modern', root=1_700_000_000_000_000_000,
+             missing_member='boottime', tasks=[dict(id=42, offset=[5, 0])]),
     ]
     for value in [0, -1, 500, 1500, 2500, 999_999_999, 1_700_000_000_123_456_500,
                   4_102_444_801_123_456_789, 253_402_300_799_999_999_999]:
@@ -81,6 +87,10 @@ def generate(checkout):
             if kind == 'wall-scalar': symbols['total_sleep_time'] = Scalar(10)
             if 'total_sleep_time' in symbols:
                 symbols['total_sleep_time'].vol = Node(type_name='kernel!'+('timespec' if kind == 'wall-timespec' else 'unsigned long'))
+        if case.get('missing_member') == 'timekeeper':
+            del symbols['tk_core'].timekeeper
+        elif case.get('missing_member') == 'total_sleep_time':
+            del symbols['timekeeper'].total_sleep_time
         tasks = []
         module = Node(has_symbol=lambda name: name in symbols,
                       get_type=lambda name: Node(has_member=lambda field: field == ('time_ns' if name == 'nsproxy' else 'wall_to_monotonic') and (name != 'nsproxy' or case.get('namespace_layout') != 'no-time')))
@@ -91,6 +101,7 @@ def generate(checkout):
             if namespace is not None:
                 ns = Node(ns=Node(inum=namespace['id']))
                 if 'offset' in namespace: ns.offsets = Node(boottime=spec(*namespace['offset']))
+                if case.get('missing_member') == 'boottime': del ns.offsets.boottime
             if case.get('namespace_layout') != 'no-proxy': task.nsproxy = Node(time_ns=ns)
             tasks.append(task)
         init = Node(vol=Node(type_name='kernel!task_struct'), tasks=Node(to_list=lambda **kw: iter(tasks if kw['forward'] else reversed(tasks))))

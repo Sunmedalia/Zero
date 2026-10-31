@@ -235,6 +235,42 @@
       "error": "VolatilityException"
     },
     {
+      "id": "modern-missing-timekeeper",
+      "kind": "modern",
+      "root": "1700000000000000000",
+      "missing_member": "timekeeper",
+      "tasks": [
+        null
+      ],
+      "error": "AttributeError"
+    },
+    {
+      "id": "global-missing-sleep",
+      "kind": "global-timekeeper",
+      "root": "1700000000000000000",
+      "missing_member": "total_sleep_time",
+      "tasks": [
+        null
+      ],
+      "error": "AttributeError"
+    },
+    {
+      "id": "namespace-missing-boottime",
+      "kind": "modern",
+      "root": "1700000000000000000",
+      "missing_member": "boottime",
+      "tasks": [
+        {
+          "id": 42,
+          "offset": [
+            5,
+            0
+          ]
+        }
+      ],
+      "error": "AttributeError"
+    },
+    {
       "id": "datetime-0",
       "kind": "modern",
       "root": "0",

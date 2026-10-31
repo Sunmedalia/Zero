@@ -1,0 +1,22 @@
+{
+  "runtime": "0.2.1-native-102; vector-only changes",
+  "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+  "coverage": {
+    "intel_cases": 99,
+    "read_queries": 1090,
+    "mapping_queries": 892,
+    "additional_alias_reads": 100,
+    "additional_alias_mappings": 100,
+    "architectures": ["WindowsIntel32e", "Intel32e"]
+  },
+  "behavior": "Actual pinned read at 2^48 and 2^48+3 and mapping at 2^48 with zero/nonzero length preserve masked translation with unmasked mapping starts, across existing valid and fault cases.",
+  "validation": {
+    "intel_rust_vectors_passed": true,
+    "make_check_passed": true,
+    "windows_layer_read_fixture_regenerated_identically": true
+  },
+  "limitations": [
+    "No runtime changes were needed for these aliases.",
+    "These synthetic method vectors do not certify all address boundaries, overflow, five-level paging, Windows32/PAE alias behavior or full plugin contracts."
+  ]
+}

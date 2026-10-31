@@ -373,6 +373,18 @@ mod tests {
                     }
                 }
             }
+            if let Some(member) = case["missing_member"].as_str() {
+                let ty = match member {
+                    "timekeeper" => "exact_anonymous_core",
+                    "total_sleep_time" => "timekeeper",
+                    "boottime" => "timens_offsets",
+                    _ => panic!("unknown missing field"),
+                };
+                isf.data["user_types"][ty]["fields"]
+                    .as_object_mut()
+                    .unwrap()
+                    .remove(member);
+            }
             let image = image(&bytes);
             let linux = engine(&image, &isf);
             let (result, tasks) = linux
@@ -386,6 +398,41 @@ mod tests {
                 assert!(result.complete, "{} {:?}", case["id"], result.diagnostics);
                 assert_eq!(json!(result.rows), case["expected"], "{}", case["id"]);
             }
+        }
+    }
+
+    #[test]
+    fn timekeeping_32_bit_fields_preserve_signed_seconds_and_unsigned_sleep() {
+        for scalar_sleep in [false, true] {
+            let (mut bytes, mut isf) = fixture();
+            isf.data["base_types"]["i32"] = json!({"size":4,"signed":true});
+            isf.data["user_types"]["timespec"] = json!({"size":8,"fields":{
+                "tv_sec":{"offset":0,"type":{"kind":"base","name":"i32"}},
+                "tv_nsec":{"offset":4,"type":{"kind":"base","name":"i32"}}
+            }});
+            isf.data["symbols"]["wall_to_monotonic"] =
+                json!({"address":0x10000,"type":{"name":"timespec"}});
+            let write = |bytes: &mut [u8], at: usize, value: u32| {
+                bytes[at..at + 4].copy_from_slice(&value.to_le_bytes());
+            };
+            write(&mut bytes, 0x10000, (-1_700_000_010i32) as u32);
+            write(&mut bytes, 0x10004, 123_456_789);
+            if scalar_sleep {
+                isf.data["symbols"]["total_sleep_time"] =
+                    json!({"address":0x10020,"type":{"name":"u32"}});
+                write(&mut bytes, 0x10020, 10);
+            } else {
+                isf.data["symbols"]["total_sleep_time"] =
+                    json!({"address":0x10020,"type":{"name":"timespec"}});
+                write(&mut bytes, 0x10020, 10);
+                write(&mut bytes, 0x10024, 0);
+            }
+            let image = image(&bytes);
+            let linux = engine(&image, &isf);
+            assert_eq!(
+                linux.root_boot_time_nanos().unwrap(),
+                1_699_999_999_876_543_211
+            );
         }
     }
 }

@@ -2249,3 +2249,24 @@ Win10/Win11 联合验收已通过。重新执行的六项 DriverIrp 固定参考
 继续 partial，Win11 为完整结果，不能将单一样本完整性推导到其他样本。
 原始报告为 `target/reference/results/driverirp-acceptance-refresh/summary.json`。
 上述测试不能替代完整插件故障／平台合同，完整插件合同仍为 **0/135**。
+
+## Intel 48 位地址别名向量
+
+对 Linux Intel32e 与 WindowsIntel32e 新增实际固定参考的 `2^48`、`2^48+3`
+读取，以及 `2^48` 零长度／非零长度选区映射。既有驻留、transition、swap、
+缺失 backing 和页表故障场景均执行：翻译按 48 位掩码取索引，映射起点保留
+请求地址。100 次新增读取和 100 次新增映射全部通过，无需修改运行时。
+
+Intel 向量累计 99 组、1090 次读取、892 次映射；`make check` 通过，非 extended
+Windows 层 fixture 重新生成后逐字节不变。证据见 intel-alias-known-limitations.json。
+这不代表 32 位／PAE 地址别名、五级页表、所有溢出或完整插件合同通过。
+
+## Boottime 缺字段故障向量
+
+固定参考方法新增三项缺字段故障：tk_core 缺 timekeeper、旧 timekeeper 缺
+ total_sleep_time、namespace offsets 缺 boottime。参考均抛异常，原生均返回
+错误，未生成伪造完整行；方法场景由 22 增至 25。重新执行 Debian 3.2 默认
+真实差分为 1/1、完整字段通过。另加原生四字节 timespec 秒／纳秒和 unsigned
+sleep 标量读取测试，验证负秒数符号扩展与两条总休眠路径；它仍使用现有宿主
+测试地址空间，不代表 Intel32 页表或真实镜像验收。现代命名空间真实镜像、
+Intel32 平台及 timeline 接入仍缺验证，不能据此提升完整插件合同。

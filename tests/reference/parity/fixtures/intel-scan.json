@@ -15298,6 +15298,18 @@
           "length": 4,
           "expected_hex": "78899aab",
           "error": null
+        },
+        {
+          "address": 281474976710656,
+          "length": 16,
+          "expected_hex": "5a6b7c8d9eafc0d1e2f3091a2b3c4d5e",
+          "error": null
+        },
+        {
+          "address": 281474976710659,
+          "length": 16,
+          "expected_hex": "8d9eafc0d1e2f3091a2b3c4d5e6f8091",
+          "error": null
         }
       ],
       "data_length": 131072,
@@ -15408,6 +15420,36 @@
           "start": 12288,
           "end": 12288,
           "expected": []
+        },
+        {
+          "start": 281474976710656,
+          "end": 281474976710656,
+          "expected": [
+            [
+              281474976710656,
+              281474976710656,
+              32768,
+              0
+            ]
+          ]
+        },
+        {
+          "start": 281474976710656,
+          "end": 281474976722944,
+          "expected": [
+            [
+              281474976710656,
+              281474976714752,
+              32768,
+              0
+            ],
+            [
+              281474976714752,
+              281474976722944,
+              40960,
+              0
+            ]
+          ]
         }
       ]
     },
@@ -15508,6 +15550,18 @@
           "length": 4,
           "expected_hex": "78899aab",
           "error": null
+        },
+        {
+          "address": 281474976710656,
+          "length": 16,
+          "expected_hex": "5a6b7c8d9eafc0d1e2f3091a2b3c4d5e",
+          "error": null
+        },
+        {
+          "address": 281474976710659,
+          "length": 16,
+          "expected_hex": "8d9eafc0d1e2f3091a2b3c4d5e6f8091",
+          "error": null
         }
       ],
       "data_length": 131072,
@@ -15618,6 +15672,36 @@
           "start": 12288,
           "end": 12288,
           "expected": []
+        },
+        {
+          "start": 281474976710656,
+          "end": 281474976710656,
+          "expected": [
+            [
+              281474976710656,
+              281474976710656,
+              32768,
+              0
+            ]
+          ]
+        },
+        {
+          "start": 281474976710656,
+          "end": 281474976722944,
+          "expected": [
+            [
+              281474976710656,
+              281474976714752,
+              32768,
+              0
+            ],
+            [
+              281474976714752,
+              281474976722944,
+              40960,
+              0
+            ]
+          ]
         }
       ]
     },
@@ -15718,6 +15802,18 @@
           "length": 4,
           "expected_hex": "78899aab",
           "error": null
+        },
+        {
+          "address": 281474976710656,
+          "length": 16,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 281474976710659,
+          "length": 16,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
         }
       ],
       "data_length": 131072,
@@ -15802,6 +15898,23 @@
           "start": 12288,
           "end": 12288,
           "expected": []
+        },
+        {
+          "start": 281474976710656,
+          "end": 281474976710656,
+          "expected": []
+        },
+        {
+          "start": 281474976710656,
+          "end": 281474976722944,
+          "expected": [
+            [
+              281474976714752,
+              281474976722944,
+              40960,
+              0
+            ]
+          ]
         }
       ]
     },
@@ -15902,6 +16015,18 @@
           "length": 4,
           "expected_hex": "78899aab",
           "error": null
+        },
+        {
+          "address": 281474976710656,
+          "length": 16,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 281474976710659,
+          "length": 16,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
         }
       ],
       "data_length": 131072,
@@ -15986,6 +16111,23 @@
           "start": 12288,
           "end": 12288,
           "expected": []
+        },
+        {
+          "start": 281474976710656,
+          "end": 281474976710656,
+          "expected": []
+        },
+        {
+          "start": 281474976710656,
+          "end": 281474976722944,
+          "expected": [
+            [
+              281474976714752,
+              281474976722944,
+              40960,
+              0
+            ]
+          ]
         }
       ]
     },
@@ -16086,6 +16228,18 @@
           "length": 4,
           "expected_hex": "2b389aab",
           "error": null
+        },
+        {
+          "address": 281474976710656,
+          "length": 16,
+          "expected_hex": "5a6b7c8d9eafc0d1e2f3091a2b3c4d5e",
+          "error": null
+        },
+        {
+          "address": 281474976710659,
+          "length": 16,
+          "expected_hex": "8d9eafc0d1e2f3091a2b3c4d5e6f8091",
+          "error": null
         }
       ],
       "data_length": 131072,
@@ -16202,6 +16356,42 @@
           "start": 12288,
           "end": 12288,
           "expected": []
+        },
+        {
+          "start": 281474976710656,
+          "end": 281474976710656,
+          "expected": [
+            [
+              281474976710656,
+              281474976710656,
+              32768,
+              0
+            ]
+          ]
+        },
+        {
+          "start": 281474976710656,
+          "end": 281474976722944,
+          "expected": [
+            [
+              281474976710656,
+              281474976714752,
+              32768,
+              0
+            ],
+            [
+              281474976714752,
+              281474976718848,
+              4096,
+              1
+            ],
+            [
+              281474976718848,
+              281474976722944,
+              45056,
+              0
+            ]
+          ]
         }
       ]
     },
@@ -16302,6 +16492,18 @@
           "length": 4,
           "expected_hex": "2b389aab",
           "error": null
+        },
+        {
+          "address": 281474976710656,
+          "length": 16,
+          "expected_hex": "5a6b7c8d9eafc0d1e2f3091a2b3c4d5e",
+          "error": null
+        },
+        {
+          "address": 281474976710659,
+          "length": 16,
+          "expected_hex": "8d9eafc0d1e2f3091a2b3c4d5e6f8091",
+          "error": null
         }
       ],
       "data_length": 131072,
@@ -16418,6 +16620,42 @@
           "start": 12288,
           "end": 12288,
           "expected": []
+        },
+        {
+          "start": 281474976710656,
+          "end": 281474976710656,
+          "expected": [
+            [
+              281474976710656,
+              281474976710656,
+              32768,
+              0
+            ]
+          ]
+        },
+        {
+          "start": 281474976710656,
+          "end": 281474976722944,
+          "expected": [
+            [
+              281474976710656,
+              281474976714752,
+              32768,
+              0
+            ],
+            [
+              281474976714752,
+              281474976718848,
+              4096,
+              4
+            ],
+            [
+              281474976718848,
+              281474976722944,
+              45056,
+              0
+            ]
+          ]
         }
       ]
     },
@@ -16518,6 +16756,18 @@
           "length": 4,
           "expected_hex": null,
           "error": "SwappedInvalidAddressException"
+        },
+        {
+          "address": 281474976710656,
+          "length": 16,
+          "expected_hex": "5a6b7c8d9eafc0d1e2f3091a2b3c4d5e",
+          "error": null
+        },
+        {
+          "address": 281474976710659,
+          "length": 16,
+          "expected_hex": "8d9eafc0d1e2f3091a2b3c4d5e6f8091",
+          "error": null
         }
       ],
       "data_length": 131072,
@@ -16608,6 +16858,36 @@
           "start": 12288,
           "end": 12288,
           "expected": []
+        },
+        {
+          "start": 281474976710656,
+          "end": 281474976710656,
+          "expected": [
+            [
+              281474976710656,
+              281474976710656,
+              32768,
+              0
+            ]
+          ]
+        },
+        {
+          "start": 281474976710656,
+          "end": 281474976722944,
+          "expected": [
+            [
+              281474976710656,
+              281474976714752,
+              32768,
+              0
+            ],
+            [
+              281474976718848,
+              281474976722944,
+              45056,
+              0
+            ]
+          ]
         }
       ]
     },
@@ -16708,6 +16988,18 @@
           "length": 4,
           "expected_hex": null,
           "error": "SwappedInvalidAddressException"
+        },
+        {
+          "address": 281474976710656,
+          "length": 16,
+          "expected_hex": "5a6b7c8d9eafc0d1e2f3091a2b3c4d5e",
+          "error": null
+        },
+        {
+          "address": 281474976710659,
+          "length": 16,
+          "expected_hex": "8d9eafc0d1e2f3091a2b3c4d5e6f8091",
+          "error": null
         }
       ],
       "data_length": 131072,
@@ -16798,6 +17090,36 @@
           "start": 12288,
           "end": 12288,
           "expected": []
+        },
+        {
+          "start": 281474976710656,
+          "end": 281474976710656,
+          "expected": [
+            [
+              281474976710656,
+              281474976710656,
+              32768,
+              0
+            ]
+          ]
+        },
+        {
+          "start": 281474976710656,
+          "end": 281474976722944,
+          "expected": [
+            [
+              281474976710656,
+              281474976714752,
+              32768,
+              0
+            ],
+            [
+              281474976718848,
+              281474976722944,
+              45056,
+              0
+            ]
+          ]
         }
       ]
     },
@@ -16898,6 +17220,18 @@
           "length": 4,
           "expected_hex": null,
           "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 281474976710656,
+          "length": 16,
+          "expected_hex": "5a6b7c8d9eafc0d1e2f3091a2b3c4d5e",
+          "error": null
+        },
+        {
+          "address": 281474976710659,
+          "length": 16,
+          "expected_hex": "8d9eafc0d1e2f3091a2b3c4d5e6f8091",
+          "error": null
         }
       ],
       "data_length": 131072,
@@ -16988,6 +17322,36 @@
           "start": 12288,
           "end": 12288,
           "expected": []
+        },
+        {
+          "start": 281474976710656,
+          "end": 281474976710656,
+          "expected": [
+            [
+              281474976710656,
+              281474976710656,
+              32768,
+              0
+            ]
+          ]
+        },
+        {
+          "start": 281474976710656,
+          "end": 281474976722944,
+          "expected": [
+            [
+              281474976710656,
+              281474976714752,
+              32768,
+              0
+            ],
+            [
+              281474976718848,
+              281474976722944,
+              45056,
+              0
+            ]
+          ]
         }
       ]
     },
@@ -17088,6 +17452,18 @@
           "length": 4,
           "expected_hex": null,
           "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 281474976710656,
+          "length": 16,
+          "expected_hex": "5a6b7c8d9eafc0d1e2f3091a2b3c4d5e",
+          "error": null
+        },
+        {
+          "address": 281474976710659,
+          "length": 16,
+          "expected_hex": "8d9eafc0d1e2f3091a2b3c4d5e6f8091",
+          "error": null
         }
       ],
       "data_length": 131072,
@@ -17178,6 +17554,36 @@
           "start": 12288,
           "end": 12288,
           "expected": []
+        },
+        {
+          "start": 281474976710656,
+          "end": 281474976710656,
+          "expected": [
+            [
+              281474976710656,
+              281474976710656,
+              32768,
+              0
+            ]
+          ]
+        },
+        {
+          "start": 281474976710656,
+          "end": 281474976722944,
+          "expected": [
+            [
+              281474976710656,
+              281474976714752,
+              32768,
+              0
+            ],
+            [
+              281474976718848,
+              281474976722944,
+              45056,
+              0
+            ]
+          ]
         }
       ]
     },
@@ -17278,6 +17684,18 @@
           "length": 4,
           "expected_hex": null,
           "error": "InvalidAddressException"
+        },
+        {
+          "address": 281474976710656,
+          "length": 16,
+          "expected_hex": "5a6b7c8d9eafc0d1e2f3091a2b3c4d5e",
+          "error": null
+        },
+        {
+          "address": 281474976710659,
+          "length": 16,
+          "expected_hex": "8d9eafc0d1e2f3091a2b3c4d5e6f8091",
+          "error": null
         }
       ],
       "data_length": 131072,
@@ -17368,6 +17786,36 @@
           "start": 12288,
           "end": 12288,
           "expected": []
+        },
+        {
+          "start": 281474976710656,
+          "end": 281474976710656,
+          "expected": [
+            [
+              281474976710656,
+              281474976710656,
+              32768,
+              0
+            ]
+          ]
+        },
+        {
+          "start": 281474976710656,
+          "end": 281474976722944,
+          "expected": [
+            [
+              281474976710656,
+              281474976714752,
+              32768,
+              0
+            ],
+            [
+              281474976718848,
+              281474976722944,
+              45056,
+              0
+            ]
+          ]
         }
       ]
     },
@@ -17468,6 +17916,18 @@
           "length": 4,
           "expected_hex": null,
           "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 281474976710656,
+          "length": 16,
+          "expected_hex": "5a6b7c8d9eafc0d1e2f3091a2b3c4d5e",
+          "error": null
+        },
+        {
+          "address": 281474976710659,
+          "length": 16,
+          "expected_hex": "8d9eafc0d1e2f3091a2b3c4d5e6f8091",
+          "error": null
         }
       ],
       "data_length": 131072,
@@ -17558,6 +18018,36 @@
           "start": 12288,
           "end": 12288,
           "expected": []
+        },
+        {
+          "start": 281474976710656,
+          "end": 281474976710656,
+          "expected": [
+            [
+              281474976710656,
+              281474976710656,
+              32768,
+              0
+            ]
+          ]
+        },
+        {
+          "start": 281474976710656,
+          "end": 281474976722944,
+          "expected": [
+            [
+              281474976710656,
+              281474976714752,
+              32768,
+              0
+            ],
+            [
+              281474976718848,
+              281474976722944,
+              45056,
+              0
+            ]
+          ]
         }
       ]
     },
@@ -17657,6 +18147,18 @@
           "address": 8190,
           "length": 4,
           "expected_hex": "74818e9b",
+          "error": null
+        },
+        {
+          "address": 281474976710656,
+          "length": 16,
+          "expected_hex": "74818e9ba8b5c2cfdce9f60815222f3c",
+          "error": null
+        },
+        {
+          "address": 281474976710659,
+          "length": 16,
+          "expected_hex": "74818e9ba8b5c2cfdce9f60815222f3c",
           "error": null
         }
       ],
@@ -17759,6 +18261,30 @@
             [
               12288,
               12288,
+              2097152,
+              1
+            ]
+          ]
+        },
+        {
+          "start": 281474976710656,
+          "end": 281474976710656,
+          "expected": [
+            [
+              281474976710656,
+              281474976710656,
+              2097152,
+              1
+            ]
+          ]
+        },
+        {
+          "start": 281474976710656,
+          "end": 281474976722944,
+          "expected": [
+            [
+              281474976710656,
+              281474976722944,
               2097152,
               1
             ]
@@ -17863,6 +18389,18 @@
           "length": 4,
           "expected_hex": "53606d7a",
           "error": null
+        },
+        {
+          "address": 281474976710656,
+          "length": 16,
+          "expected_hex": "53606d7a8794a1aebbc8d5e2ef010e1b",
+          "error": null
+        },
+        {
+          "address": 281474976710659,
+          "length": 16,
+          "expected_hex": "53606d7a8794a1aebbc8d5e2ef010e1b",
+          "error": null
         }
       ],
       "data_length": 131072,
@@ -17964,6 +18502,30 @@
             [
               12288,
               12288,
+              6291456,
+              1
+            ]
+          ]
+        },
+        {
+          "start": 281474976710656,
+          "end": 281474976710656,
+          "expected": [
+            [
+              281474976710656,
+              281474976710656,
+              6291456,
+              1
+            ]
+          ]
+        },
+        {
+          "start": 281474976710656,
+          "end": 281474976722944,
+          "expected": [
+            [
+              281474976710656,
+              281474976722944,
               6291456,
               1
             ]
@@ -18068,6 +18630,18 @@
           "length": 4,
           "expected_hex": null,
           "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 281474976710656,
+          "length": 16,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 281474976710659,
+          "length": 16,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
         }
       ],
       "data_length": 131072,
@@ -18116,6 +18690,16 @@
         {
           "start": 12288,
           "end": 12288,
+          "expected": []
+        },
+        {
+          "start": 281474976710656,
+          "end": 281474976710656,
+          "expected": []
+        },
+        {
+          "start": 281474976710656,
+          "end": 281474976722944,
           "expected": []
         }
       ]
@@ -18218,6 +18802,18 @@
           "length": 4,
           "expected_hex": "78899aab",
           "error": null
+        },
+        {
+          "address": 281474976710656,
+          "length": 16,
+          "expected_hex": null,
+          "error": "InvalidAddressException"
+        },
+        {
+          "address": 281474976710659,
+          "length": 16,
+          "expected_hex": null,
+          "error": "InvalidAddressException"
         }
       ],
       "data_length": 131072,
@@ -18302,6 +18898,23 @@
           "start": 12288,
           "end": 12288,
           "expected": []
+        },
+        {
+          "start": 281474976710656,
+          "end": 281474976710656,
+          "expected": []
+        },
+        {
+          "start": 281474976710656,
+          "end": 281474976722944,
+          "expected": [
+            [
+              281474976714752,
+              281474976722944,
+              40960,
+              0
+            ]
+          ]
         }
       ]
     },
@@ -18403,6 +19016,18 @@
           "length": 4,
           "expected_hex": null,
           "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 281474976710656,
+          "length": 16,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 281474976710659,
+          "length": 16,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
         }
       ],
       "data_length": 131072,
@@ -18451,6 +19076,16 @@
         {
           "start": 12288,
           "end": 12288,
+          "expected": []
+        },
+        {
+          "start": 281474976710656,
+          "end": 281474976710656,
+          "expected": []
+        },
+        {
+          "start": 281474976710656,
+          "end": 281474976722944,
           "expected": []
         }
       ]
@@ -18552,6 +19187,18 @@
           "length": 4,
           "expected_hex": "2b389aab",
           "error": null
+        },
+        {
+          "address": 281474976710656,
+          "length": 16,
+          "expected_hex": "5a6b7c8d9eafc0d1e2f3091a2b3c4d5e",
+          "error": null
+        },
+        {
+          "address": 281474976710659,
+          "length": 16,
+          "expected_hex": "8d9eafc0d1e2f3091a2b3c4d5e6f8091",
+          "error": null
         }
       ],
       "data_length": 131072,
@@ -18662,6 +19309,36 @@
           "start": 12288,
           "end": 12288,
           "expected": []
+        },
+        {
+          "start": 281474976710656,
+          "end": 281474976710656,
+          "expected": [
+            [
+              281474976710656,
+              281474976710656,
+              32768,
+              0
+            ]
+          ]
+        },
+        {
+          "start": 281474976710656,
+          "end": 281474976722944,
+          "expected": [
+            [
+              281474976710656,
+              281474976714752,
+              32768,
+              0
+            ],
+            [
+              281474976718848,
+              281474976722944,
+              45056,
+              0
+            ]
+          ]
         }
       ]
     },
@@ -18762,6 +19439,18 @@
           "length": 4,
           "expected_hex": null,
           "error": "InvalidAddressException"
+        },
+        {
+          "address": 281474976710656,
+          "length": 16,
+          "expected_hex": "5a6b7c8d9eafc0d1e2f3091a2b3c4d5e",
+          "error": null
+        },
+        {
+          "address": 281474976710659,
+          "length": 16,
+          "expected_hex": "8d9eafc0d1e2f3091a2b3c4d5e6f8091",
+          "error": null
         }
       ],
       "data_length": 131072,
@@ -18852,6 +19541,36 @@
           "start": 12288,
           "end": 12288,
           "expected": []
+        },
+        {
+          "start": 281474976710656,
+          "end": 281474976710656,
+          "expected": [
+            [
+              281474976710656,
+              281474976710656,
+              32768,
+              0
+            ]
+          ]
+        },
+        {
+          "start": 281474976710656,
+          "end": 281474976722944,
+          "expected": [
+            [
+              281474976710656,
+              281474976714752,
+              32768,
+              0
+            ],
+            [
+              281474976718848,
+              281474976722944,
+              45056,
+              0
+            ]
+          ]
         }
       ]
     },
@@ -18951,6 +19670,18 @@
           "address": 8190,
           "length": 4,
           "expected_hex": "78899aab",
+          "error": null
+        },
+        {
+          "address": 281474976710656,
+          "length": 16,
+          "expected_hex": "5a6b7c8d9eafc0d1e2f3091a2b3c4d5e",
+          "error": null
+        },
+        {
+          "address": 281474976710659,
+          "length": 16,
+          "expected_hex": "8d9eafc0d1e2f3091a2b3c4d5e6f8091",
           "error": null
         }
       ],
@@ -19062,6 +19793,36 @@
           "start": 12288,
           "end": 12288,
           "expected": []
+        },
+        {
+          "start": 281474976710656,
+          "end": 281474976710656,
+          "expected": [
+            [
+              281474976710656,
+              281474976710656,
+              32768,
+              0
+            ]
+          ]
+        },
+        {
+          "start": 281474976710656,
+          "end": 281474976722944,
+          "expected": [
+            [
+              281474976710656,
+              281474976714752,
+              32768,
+              0
+            ],
+            [
+              281474976714752,
+              281474976722944,
+              40960,
+              0
+            ]
+          ]
         }
       ]
     },
@@ -21206,6 +21967,18 @@
           "length": 4,
           "expected_hex": null,
           "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 281474976710656,
+          "length": 16,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 281474976710659,
+          "length": 16,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
         }
       ],
       "data_length": 131072,
@@ -21254,6 +22027,16 @@
         {
           "start": 12288,
           "end": 12288,
+          "expected": []
+        },
+        {
+          "start": 281474976710656,
+          "end": 281474976710656,
+          "expected": []
+        },
+        {
+          "start": 281474976710656,
+          "end": 281474976722944,
           "expected": []
         }
       ]
@@ -21354,6 +22137,18 @@
           "address": 8190,
           "length": 4,
           "expected_hex": "e1f20819",
+          "error": null
+        },
+        {
+          "address": 281474976710656,
+          "length": 16,
+          "expected_hex": "31425364758697a8b9cadbec02132435",
+          "error": null
+        },
+        {
+          "address": 281474976710659,
+          "length": 16,
+          "expected_hex": "64758697a8b9cadbec02132435465768",
           "error": null
         }
       ],
@@ -21464,6 +22259,30 @@
               0
             ]
           ]
+        },
+        {
+          "start": 281474976710656,
+          "end": 281474976710656,
+          "expected": [
+            [
+              281474976710656,
+              281474976710656,
+              2097152,
+              0
+            ]
+          ]
+        },
+        {
+          "start": 281474976710656,
+          "end": 281474976722944,
+          "expected": [
+            [
+              281474976710656,
+              281474976722944,
+              2097152,
+              0
+            ]
+          ]
         }
       ]
     },
@@ -21564,6 +22383,18 @@
           "length": 4,
           "expected_hex": null,
           "error": "InvalidAddressException"
+        },
+        {
+          "address": 281474976710656,
+          "length": 16,
+          "expected_hex": "5a6b7c8d9eafc0d1e2f3091a2b3c4d5e",
+          "error": null
+        },
+        {
+          "address": 281474976710659,
+          "length": 16,
+          "expected_hex": "8d9eafc0d1e2f3091a2b3c4d5e6f8091",
+          "error": null
         }
       ],
       "data_length": 131072,
@@ -21654,6 +22485,36 @@
           "start": 12288,
           "end": 12288,
           "expected": []
+        },
+        {
+          "start": 281474976710656,
+          "end": 281474976710656,
+          "expected": [
+            [
+              281474976710656,
+              281474976710656,
+              32768,
+              0
+            ]
+          ]
+        },
+        {
+          "start": 281474976710656,
+          "end": 281474976722944,
+          "expected": [
+            [
+              281474976710656,
+              281474976714752,
+              32768,
+              0
+            ],
+            [
+              281474976718848,
+              281474976722944,
+              45056,
+              0
+            ]
+          ]
         }
       ]
     },
@@ -21754,6 +22615,18 @@
           "length": 4,
           "expected_hex": null,
           "error": "InvalidAddressException"
+        },
+        {
+          "address": 281474976710656,
+          "length": 16,
+          "expected_hex": "5a6b7c8d9eafc0d1e2f3091a2b3c4d5e",
+          "error": null
+        },
+        {
+          "address": 281474976710659,
+          "length": 16,
+          "expected_hex": "8d9eafc0d1e2f3091a2b3c4d5e6f8091",
+          "error": null
         }
       ],
       "data_length": 131072,
@@ -21851,6 +22724,36 @@
           "start": 12288,
           "end": 12288,
           "expected": []
+        },
+        {
+          "start": 281474976710656,
+          "end": 281474976710656,
+          "expected": [
+            [
+              281474976710656,
+              281474976710656,
+              32768,
+              0
+            ]
+          ]
+        },
+        {
+          "start": 281474976710656,
+          "end": 281474976722944,
+          "expected": [
+            [
+              281474976710656,
+              281474976714752,
+              32768,
+              0
+            ],
+            [
+              281474976718848,
+              281474976722944,
+              45056,
+              0
+            ]
+          ]
         }
       ]
     },
@@ -21952,6 +22855,18 @@
           "length": 4,
           "expected_hex": "78899aab",
           "error": null
+        },
+        {
+          "address": 281474976710656,
+          "length": 16,
+          "expected_hex": null,
+          "error": "InvalidAddressException"
+        },
+        {
+          "address": 281474976710659,
+          "length": 16,
+          "expected_hex": null,
+          "error": "InvalidAddressException"
         }
       ],
       "data_length": 131072,
@@ -22043,6 +22958,30 @@
           "start": 12288,
           "end": 12288,
           "expected": []
+        },
+        {
+          "start": 281474976710656,
+          "end": 281474976710656,
+          "expected": [
+            [
+              281474976710656,
+              281474976710656,
+              32768,
+              0
+            ]
+          ]
+        },
+        {
+          "start": 281474976710656,
+          "end": 281474976722944,
+          "expected": [
+            [
+              281474976714752,
+              281474976722944,
+              40960,
+              0
+            ]
+          ]
         }
       ]
     },
@@ -22139,6 +23078,18 @@
           "length": 4,
           "expected_hex": null,
           "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 281474976710656,
+          "length": 16,
+          "expected_hex": "5a6b7c8d9eafc0d1e2f3091a2b3c4d5e",
+          "error": null
+        },
+        {
+          "address": 281474976710659,
+          "length": 16,
+          "expected_hex": "8d9eafc0d1e2f3091a2b3c4d5e6f8091",
+          "error": null
         }
       ],
       "data_length": 131072,
@@ -22242,6 +23193,36 @@
           "start": 12288,
           "end": 12288,
           "expected": []
+        },
+        {
+          "start": 281474976710656,
+          "end": 281474976710656,
+          "expected": [
+            [
+              281474976710656,
+              281474976710656,
+              32768,
+              0
+            ]
+          ]
+        },
+        {
+          "start": 281474976710656,
+          "end": 281474976722944,
+          "expected": [
+            [
+              281474976710656,
+              281474976714752,
+              32768,
+              0
+            ],
+            [
+              281474976714752,
+              281474976718848,
+              40960,
+              0
+            ]
+          ]
         }
       ]
     },
@@ -22342,6 +23323,18 @@
           "length": 4,
           "expected_hex": null,
           "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 281474976710656,
+          "length": 16,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 281474976710659,
+          "length": 16,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
         }
       ],
       "data_length": 131072,
@@ -22419,6 +23412,23 @@
           "start": 12288,
           "end": 12288,
           "expected": []
+        },
+        {
+          "start": 281474976710656,
+          "end": 281474976710656,
+          "expected": []
+        },
+        {
+          "start": 281474976710656,
+          "end": 281474976722944,
+          "expected": [
+            [
+              281474976714752,
+              281474976718848,
+              40960,
+              0
+            ]
+          ]
         }
       ]
     },
@@ -22519,6 +23529,18 @@
           "length": 4,
           "expected_hex": null,
           "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 281474976710656,
+          "length": 16,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 281474976710659,
+          "length": 16,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
         }
       ],
       "data_length": 131072,
@@ -22596,6 +23618,23 @@
           "start": 12288,
           "end": 12288,
           "expected": []
+        },
+        {
+          "start": 281474976710656,
+          "end": 281474976710656,
+          "expected": []
+        },
+        {
+          "start": 281474976710656,
+          "end": 281474976722944,
+          "expected": [
+            [
+              281474976714752,
+              281474976718848,
+              40960,
+              0
+            ]
+          ]
         }
       ]
     },
@@ -22696,6 +23735,18 @@
           "length": 4,
           "expected_hex": null,
           "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 281474976710656,
+          "length": 16,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 281474976710659,
+          "length": 16,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
         }
       ],
       "data_length": 131072,
@@ -22773,6 +23824,23 @@
           "start": 12288,
           "end": 12288,
           "expected": []
+        },
+        {
+          "start": 281474976710656,
+          "end": 281474976710656,
+          "expected": []
+        },
+        {
+          "start": 281474976710656,
+          "end": 281474976722944,
+          "expected": [
+            [
+              281474976714752,
+              281474976718848,
+              40960,
+              0
+            ]
+          ]
         }
       ]
     },
@@ -22873,6 +23941,18 @@
           "length": 4,
           "expected_hex": null,
           "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 281474976710656,
+          "length": 16,
+          "expected_hex": "5a6b7c8d9eafc0d1e2f3091a2b3c4d5e",
+          "error": null
+        },
+        {
+          "address": 281474976710659,
+          "length": 16,
+          "expected_hex": "8d9eafc0d1e2f3091a2b3c4d5e6f8091",
+          "error": null
         }
       ],
       "data_length": 131072,
@@ -22950,6 +24030,30 @@
           "start": 12288,
           "end": 12288,
           "expected": []
+        },
+        {
+          "start": 281474976710656,
+          "end": 281474976710656,
+          "expected": [
+            [
+              281474976710656,
+              281474976710656,
+              32768,
+              0
+            ]
+          ]
+        },
+        {
+          "start": 281474976710656,
+          "end": 281474976722944,
+          "expected": [
+            [
+              281474976710656,
+              281474976714752,
+              32768,
+              0
+            ]
+          ]
         }
       ]
     },
@@ -23050,6 +24154,18 @@
           "length": 4,
           "expected_hex": null,
           "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 281474976710656,
+          "length": 16,
+          "expected_hex": "5a6b7c8d9eafc0d1e2f3091a2b3c4d5e",
+          "error": null
+        },
+        {
+          "address": 281474976710659,
+          "length": 16,
+          "expected_hex": "8d9eafc0d1e2f3091a2b3c4d5e6f8091",
+          "error": null
         }
       ],
       "data_length": 131072,
@@ -23127,6 +24243,30 @@
           "start": 12288,
           "end": 12288,
           "expected": []
+        },
+        {
+          "start": 281474976710656,
+          "end": 281474976710656,
+          "expected": [
+            [
+              281474976710656,
+              281474976710656,
+              32768,
+              0
+            ]
+          ]
+        },
+        {
+          "start": 281474976710656,
+          "end": 281474976722944,
+          "expected": [
+            [
+              281474976710656,
+              281474976714752,
+              32768,
+              0
+            ]
+          ]
         }
       ]
     },
@@ -23227,6 +24367,18 @@
           "length": 4,
           "expected_hex": null,
           "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 281474976710656,
+          "length": 16,
+          "expected_hex": "5a6b7c8d9eafc0d1e2f3091a2b3c4d5e",
+          "error": null
+        },
+        {
+          "address": 281474976710659,
+          "length": 16,
+          "expected_hex": "8d9eafc0d1e2f3091a2b3c4d5e6f8091",
+          "error": null
         }
       ],
       "data_length": 131072,
@@ -23304,6 +24456,30 @@
           "start": 12288,
           "end": 12288,
           "expected": []
+        },
+        {
+          "start": 281474976710656,
+          "end": 281474976710656,
+          "expected": [
+            [
+              281474976710656,
+              281474976710656,
+              32768,
+              0
+            ]
+          ]
+        },
+        {
+          "start": 281474976710656,
+          "end": 281474976722944,
+          "expected": [
+            [
+              281474976710656,
+              281474976714752,
+              32768,
+              0
+            ]
+          ]
         }
       ]
     },
@@ -23404,6 +24580,18 @@
           "length": 4,
           "expected_hex": null,
           "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 281474976710656,
+          "length": 16,
+          "expected_hex": "5a6b7c8d9eafc0d1e2f3091a2b3c4d5e",
+          "error": null
+        },
+        {
+          "address": 281474976710659,
+          "length": 16,
+          "expected_hex": "8d9eafc0d1e2f3091a2b3c4d5e6f8091",
+          "error": null
         }
       ],
       "data_length": 131072,
@@ -23481,6 +24669,30 @@
           "start": 12288,
           "end": 12288,
           "expected": []
+        },
+        {
+          "start": 281474976710656,
+          "end": 281474976710656,
+          "expected": [
+            [
+              281474976710656,
+              281474976710656,
+              32768,
+              0
+            ]
+          ]
+        },
+        {
+          "start": 281474976710656,
+          "end": 281474976722944,
+          "expected": [
+            [
+              281474976710656,
+              281474976714752,
+              32768,
+              0
+            ]
+          ]
         }
       ]
     },
@@ -23581,6 +24793,18 @@
           "length": 4,
           "expected_hex": null,
           "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 281474976710656,
+          "length": 16,
+          "expected_hex": "5a6b7c8d9eafc0d1e2f3091a2b3c4d5e",
+          "error": null
+        },
+        {
+          "address": 281474976710659,
+          "length": 16,
+          "expected_hex": "8d9eafc0d1e2f3091a2b3c4d5e6f8091",
+          "error": null
         }
       ],
       "data_length": 131072,
@@ -23658,6 +24882,30 @@
           "start": 12288,
           "end": 12288,
           "expected": []
+        },
+        {
+          "start": 281474976710656,
+          "end": 281474976710656,
+          "expected": [
+            [
+              281474976710656,
+              281474976710656,
+              32768,
+              0
+            ]
+          ]
+        },
+        {
+          "start": 281474976710656,
+          "end": 281474976722944,
+          "expected": [
+            [
+              281474976710656,
+              281474976714752,
+              32768,
+              0
+            ]
+          ]
         }
       ]
     },
@@ -23758,6 +25006,18 @@
           "length": 4,
           "expected_hex": null,
           "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 281474976710656,
+          "length": 16,
+          "expected_hex": "5a6b7c8d9eafc0d1e2f3091a2b3c4d5e",
+          "error": null
+        },
+        {
+          "address": 281474976710659,
+          "length": 16,
+          "expected_hex": "8d9eafc0d1e2f3091a2b3c4d5e6f8091",
+          "error": null
         }
       ],
       "data_length": 131072,
@@ -23835,6 +25095,30 @@
           "start": 12288,
           "end": 12288,
           "expected": []
+        },
+        {
+          "start": 281474976710656,
+          "end": 281474976710656,
+          "expected": [
+            [
+              281474976710656,
+              281474976710656,
+              32768,
+              0
+            ]
+          ]
+        },
+        {
+          "start": 281474976710656,
+          "end": 281474976722944,
+          "expected": [
+            [
+              281474976710656,
+              281474976714752,
+              32768,
+              0
+            ]
+          ]
         }
       ]
     },
@@ -23935,6 +25219,18 @@
           "length": 4,
           "expected_hex": null,
           "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 281474976710656,
+          "length": 16,
+          "expected_hex": "5a6b7c8d9eafc0d1e2f3091a2b3c4d5e",
+          "error": null
+        },
+        {
+          "address": 281474976710659,
+          "length": 16,
+          "expected_hex": "8d9eafc0d1e2f3091a2b3c4d5e6f8091",
+          "error": null
         }
       ],
       "data_length": 131072,
@@ -24012,6 +25308,30 @@
           "start": 12288,
           "end": 12288,
           "expected": []
+        },
+        {
+          "start": 281474976710656,
+          "end": 281474976710656,
+          "expected": [
+            [
+              281474976710656,
+              281474976710656,
+              32768,
+              0
+            ]
+          ]
+        },
+        {
+          "start": 281474976710656,
+          "end": 281474976722944,
+          "expected": [
+            [
+              281474976710656,
+              281474976714752,
+              32768,
+              0
+            ]
+          ]
         }
       ]
     },
@@ -24112,6 +25432,18 @@
           "length": 4,
           "expected_hex": null,
           "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 281474976710656,
+          "length": 16,
+          "expected_hex": "5a6b7c8d9eafc0d1e2f3091a2b3c4d5e",
+          "error": null
+        },
+        {
+          "address": 281474976710659,
+          "length": 16,
+          "expected_hex": "8d9eafc0d1e2f3091a2b3c4d5e6f8091",
+          "error": null
         }
       ],
       "data_length": 131072,
@@ -24189,6 +25521,30 @@
           "start": 12288,
           "end": 12288,
           "expected": []
+        },
+        {
+          "start": 281474976710656,
+          "end": 281474976710656,
+          "expected": [
+            [
+              281474976710656,
+              281474976710656,
+              32768,
+              0
+            ]
+          ]
+        },
+        {
+          "start": 281474976710656,
+          "end": 281474976722944,
+          "expected": [
+            [
+              281474976710656,
+              281474976714752,
+              32768,
+              0
+            ]
+          ]
         }
       ]
     },
@@ -24289,6 +25645,18 @@
           "length": 4,
           "expected_hex": null,
           "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 281474976710656,
+          "length": 16,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 281474976710659,
+          "length": 16,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
         }
       ],
       "data_length": 131072,
@@ -24337,6 +25705,16 @@
         {
           "start": 12288,
           "end": 12288,
+          "expected": []
+        },
+        {
+          "start": 281474976710656,
+          "end": 281474976710656,
+          "expected": []
+        },
+        {
+          "start": 281474976710656,
+          "end": 281474976722944,
           "expected": []
         }
       ]
@@ -24438,6 +25816,18 @@
           "length": 4,
           "expected_hex": null,
           "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 281474976710656,
+          "length": 16,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 281474976710659,
+          "length": 16,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
         }
       ],
       "data_length": 131072,
@@ -24486,6 +25876,16 @@
         {
           "start": 12288,
           "end": 12288,
+          "expected": []
+        },
+        {
+          "start": 281474976710656,
+          "end": 281474976710656,
+          "expected": []
+        },
+        {
+          "start": 281474976710656,
+          "end": 281474976722944,
           "expected": []
         }
       ]
@@ -24587,6 +25987,18 @@
           "length": 4,
           "expected_hex": null,
           "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 281474976710656,
+          "length": 16,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 281474976710659,
+          "length": 16,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
         }
       ],
       "data_length": 131072,
@@ -24635,6 +26047,16 @@
         {
           "start": 12288,
           "end": 12288,
+          "expected": []
+        },
+        {
+          "start": 281474976710656,
+          "end": 281474976710656,
+          "expected": []
+        },
+        {
+          "start": 281474976710656,
+          "end": 281474976722944,
           "expected": []
         }
       ]
@@ -24737,6 +26159,18 @@
           "length": 4,
           "expected_hex": null,
           "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 281474976710656,
+          "length": 16,
+          "expected_hex": null,
+          "error": "InvalidAddressException"
+        },
+        {
+          "address": 281474976710659,
+          "length": 16,
+          "expected_hex": null,
+          "error": "InvalidAddressException"
         }
       ],
       "data_length": 131072,
@@ -24814,6 +26248,23 @@
           "start": 12288,
           "end": 12288,
           "expected": []
+        },
+        {
+          "start": 281474976710656,
+          "end": 281474976710656,
+          "expected": []
+        },
+        {
+          "start": 281474976710656,
+          "end": 281474976722944,
+          "expected": [
+            [
+              281474976714752,
+              281474976718848,
+              40960,
+              0
+            ]
+          ]
         }
       ]
     },
@@ -24915,6 +26366,18 @@
           "length": 4,
           "expected_hex": null,
           "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 281474976710656,
+          "length": 16,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 281474976710659,
+          "length": 16,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
         }
       ],
       "data_length": 131072,
@@ -24963,6 +26426,16 @@
         {
           "start": 12288,
           "end": 12288,
+          "expected": []
+        },
+        {
+          "start": 281474976710656,
+          "end": 281474976710656,
+          "expected": []
+        },
+        {
+          "start": 281474976710656,
+          "end": 281474976722944,
           "expected": []
         }
       ]
@@ -25064,6 +26537,18 @@
           "length": 4,
           "expected_hex": null,
           "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 281474976710656,
+          "length": 16,
+          "expected_hex": "5a6b7c8d9eafc0d1e2f3091a2b3c4d5e",
+          "error": null
+        },
+        {
+          "address": 281474976710659,
+          "length": 16,
+          "expected_hex": "8d9eafc0d1e2f3091a2b3c4d5e6f8091",
+          "error": null
         }
       ],
       "data_length": 131072,
@@ -25141,6 +26626,30 @@
           "start": 12288,
           "end": 12288,
           "expected": []
+        },
+        {
+          "start": 281474976710656,
+          "end": 281474976710656,
+          "expected": [
+            [
+              281474976710656,
+              281474976710656,
+              32768,
+              0
+            ]
+          ]
+        },
+        {
+          "start": 281474976710656,
+          "end": 281474976722944,
+          "expected": [
+            [
+              281474976710656,
+              281474976714752,
+              32768,
+              0
+            ]
+          ]
         }
       ]
     },
@@ -25241,6 +26750,18 @@
           "length": 4,
           "expected_hex": null,
           "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 281474976710656,
+          "length": 16,
+          "expected_hex": "5a6b7c8d9eafc0d1e2f3091a2b3c4d5e",
+          "error": null
+        },
+        {
+          "address": 281474976710659,
+          "length": 16,
+          "expected_hex": "8d9eafc0d1e2f3091a2b3c4d5e6f8091",
+          "error": null
         }
       ],
       "data_length": 131072,
@@ -25318,6 +26839,30 @@
           "start": 12288,
           "end": 12288,
           "expected": []
+        },
+        {
+          "start": 281474976710656,
+          "end": 281474976710656,
+          "expected": [
+            [
+              281474976710656,
+              281474976710656,
+              32768,
+              0
+            ]
+          ]
+        },
+        {
+          "start": 281474976710656,
+          "end": 281474976722944,
+          "expected": [
+            [
+              281474976710656,
+              281474976714752,
+              32768,
+              0
+            ]
+          ]
         }
       ]
     },
@@ -25418,6 +26963,18 @@
           "length": 4,
           "expected_hex": null,
           "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 281474976710656,
+          "length": 16,
+          "expected_hex": null,
+          "error": "InvalidAddressException"
+        },
+        {
+          "address": 281474976710659,
+          "length": 16,
+          "expected_hex": null,
+          "error": "InvalidAddressException"
         }
       ],
       "data_length": 131072,
@@ -25495,6 +27052,23 @@
           "start": 12288,
           "end": 12288,
           "expected": []
+        },
+        {
+          "start": 281474976710656,
+          "end": 281474976710656,
+          "expected": []
+        },
+        {
+          "start": 281474976710656,
+          "end": 281474976722944,
+          "expected": [
+            [
+              281474976714752,
+              281474976718848,
+              40960,
+              0
+            ]
+          ]
         }
       ]
     },
@@ -27639,6 +29213,18 @@
           "length": 4,
           "expected_hex": null,
           "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 281474976710656,
+          "length": 16,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 281474976710659,
+          "length": 16,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
         }
       ],
       "data_length": 131072,
@@ -27687,6 +29273,16 @@
         {
           "start": 12288,
           "end": 12288,
+          "expected": []
+        },
+        {
+          "start": 281474976710656,
+          "end": 281474976710656,
+          "expected": []
+        },
+        {
+          "start": 281474976710656,
+          "end": 281474976722944,
           "expected": []
         }
       ]
@@ -27787,6 +29383,18 @@
           "address": 8190,
           "length": 4,
           "expected_hex": "e1f20819",
+          "error": null
+        },
+        {
+          "address": 281474976710656,
+          "length": 16,
+          "expected_hex": "31425364758697a8b9cadbec02132435",
+          "error": null
+        },
+        {
+          "address": 281474976710659,
+          "length": 16,
+          "expected_hex": "64758697a8b9cadbec02132435465768",
           "error": null
         }
       ],
@@ -27897,6 +29505,30 @@
               0
             ]
           ]
+        },
+        {
+          "start": 281474976710656,
+          "end": 281474976710656,
+          "expected": [
+            [
+              281474976710656,
+              281474976710656,
+              2097152,
+              0
+            ]
+          ]
+        },
+        {
+          "start": 281474976710656,
+          "end": 281474976722944,
+          "expected": [
+            [
+              281474976710656,
+              281474976722944,
+              2097152,
+              0
+            ]
+          ]
         }
       ]
     },
@@ -27997,6 +29629,18 @@
           "length": 4,
           "expected_hex": null,
           "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 281474976710656,
+          "length": 16,
+          "expected_hex": "5a6b7c8d9eafc0d1e2f3091a2b3c4d5e",
+          "error": null
+        },
+        {
+          "address": 281474976710659,
+          "length": 16,
+          "expected_hex": "8d9eafc0d1e2f3091a2b3c4d5e6f8091",
+          "error": null
         }
       ],
       "data_length": 131072,
@@ -28074,6 +29718,30 @@
           "start": 12288,
           "end": 12288,
           "expected": []
+        },
+        {
+          "start": 281474976710656,
+          "end": 281474976710656,
+          "expected": [
+            [
+              281474976710656,
+              281474976710656,
+              32768,
+              0
+            ]
+          ]
+        },
+        {
+          "start": 281474976710656,
+          "end": 281474976722944,
+          "expected": [
+            [
+              281474976710656,
+              281474976714752,
+              32768,
+              0
+            ]
+          ]
         }
       ]
     },
@@ -28174,6 +29842,18 @@
           "length": 4,
           "expected_hex": null,
           "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 281474976710656,
+          "length": 16,
+          "expected_hex": "5a6b7c8d9eafc0d1e2f3091a2b3c4d5e",
+          "error": null
+        },
+        {
+          "address": 281474976710659,
+          "length": 16,
+          "expected_hex": "8d9eafc0d1e2f3091a2b3c4d5e6f8091",
+          "error": null
         }
       ],
       "data_length": 131072,
@@ -28251,6 +29931,30 @@
           "start": 12288,
           "end": 12288,
           "expected": []
+        },
+        {
+          "start": 281474976710656,
+          "end": 281474976710656,
+          "expected": [
+            [
+              281474976710656,
+              281474976710656,
+              32768,
+              0
+            ]
+          ]
+        },
+        {
+          "start": 281474976710656,
+          "end": 281474976722944,
+          "expected": [
+            [
+              281474976710656,
+              281474976714752,
+              32768,
+              0
+            ]
+          ]
         }
       ]
     },
@@ -28352,6 +30056,18 @@
           "length": 4,
           "expected_hex": null,
           "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 281474976710656,
+          "length": 16,
+          "expected_hex": null,
+          "error": "InvalidAddressException"
+        },
+        {
+          "address": 281474976710659,
+          "length": 16,
+          "expected_hex": null,
+          "error": "InvalidAddressException"
         }
       ],
       "data_length": 131072,
@@ -28436,6 +30152,30 @@
           "start": 12288,
           "end": 12288,
           "expected": []
+        },
+        {
+          "start": 281474976710656,
+          "end": 281474976710656,
+          "expected": [
+            [
+              281474976710656,
+              281474976710656,
+              32768,
+              0
+            ]
+          ]
+        },
+        {
+          "start": 281474976710656,
+          "end": 281474976722944,
+          "expected": [
+            [
+              281474976714752,
+              281474976718848,
+              40960,
+              0
+            ]
+          ]
         }
       ]
     }

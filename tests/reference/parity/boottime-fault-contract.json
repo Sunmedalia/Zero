@@ -1,0 +1,28 @@
+{
+  "runtime": "0.2.1-native-102; test-only changes",
+  "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+  "method_cases": 25,
+  "fixture_sha256": "ce5df3ebed0dedcc67496d9f6c8aa67c426f7bc8959da91bcf0fe024df0ecbde",
+  "new_faults": [
+    {
+      "id": "modern-missing-timekeeper",
+      "reference_error": "AttributeError",
+      "native_result": "Err verified by timekeeping_and_namespace_rows_match_pinned_methods"
+    },
+    {
+      "id": "global-missing-sleep",
+      "reference_error": "AttributeError",
+      "native_result": "Err verified by timekeeping_and_namespace_rows_match_pinned_methods"
+    },
+    {
+      "id": "namespace-missing-boottime",
+      "reference_error": "AttributeError",
+      "native_result": "Err verified by timekeeping_and_namespace_rows_match_pinned_methods"
+    }
+  ],
+  "real_summary_sha256": "efd4493ae80a803cf497cdb719c331f8b3e188a5c5b3a5e7573f81e90e05ec2c",
+  "real_passed": true,
+  "limitations": [
+    "Modern namespace real captures, Intel32 layouts, timeline integration and complete plugin contracts remain unverified."
+  ]
+}

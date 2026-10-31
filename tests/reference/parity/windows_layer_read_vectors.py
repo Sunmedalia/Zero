@@ -87,7 +87,10 @@ def generate(checkout, extended=False):
                 ctx.config[f'kernel.swap_layers.swap_layers{attached}'] = 'swap'
             layer = cls(ctx, 'kernel', 'kernel'); ctx.layers.add_layer(layer)
             queries = []
-            for at, length in [(0, 16), (3, 16), (4090, 24), (4096, 16), (4099, 16), (8192, 16), (0x123, 1), (4096, 4), (4099, 1), (8190, 4)]:
+            read_specs = [(0, 16), (3, 16), (4090, 24), (4096, 16), (4099, 16), (8192, 16), (0x123, 1), (4096, 4), (4099, 1), (8190, 4)]
+            if extended and arch in ('x64', 'linux'):
+                read_specs += [((1 << 48), 16), ((1 << 48) + 3, 16)]
+            for at, length in read_specs:
                 try:
                     value = layer.read(at, length).hex(); error = None
                 except exceptions.InvalidAddressException as exc:
@@ -95,8 +98,11 @@ def generate(checkout, extended=False):
                 queries.append(dict(address=at, length=length, expected_hex=value, error=error))
             mapping_queries=[]
             if extended:
-                for start,length in [(0,12288),(3,4098),(4096,4),
-                                     (0,0),(3,0),(4096,0),(8192,0),(12288,0)]:
+                mapping_specs = [(0,12288),(3,4098),(4096,4),
+                                 (0,0),(3,0),(4096,0),(8192,0),(12288,0)]
+                if arch in ('x64', 'linux'):
+                    mapping_specs += [((1 << 48), 0), ((1 << 48), 12288)]
+                for start,length in mapping_specs:
                     expected=[[at,at+size,physical,0 if layer_name=='physical' else 1+attached] for at,size,physical,_,layer_name in layer.mapping(start,length,ignore_errors=True)]
                     mapping_queries.append(dict(start=start,end=start+length,expected=expected))
             record=dict(id=f'{arch}-{kind}', arch=arch, width=width, writes=writes,
