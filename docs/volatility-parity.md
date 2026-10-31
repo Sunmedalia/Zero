@@ -2270,3 +2270,12 @@ Windows 层 fixture 重新生成后逐字节不变。证据见 intel-alias-known
 sleep 标量读取测试，验证负秒数符号扩展与两条总休眠路径；它仍使用现有宿主
 测试地址空间，不代表 Intel32 页表或真实镜像验收。现代命名空间真实镜像、
 Intel32 平台及 timeline 接入仍缺验证，不能据此提升完整插件合同。
+
+## 完整合同审计标志校验
+
+审计的 requirements_reviewed/failure_cases_reviewed 和正向比较三项标志现在
+必须为 JSON true，不再接受字符串或整数真值。宣称 passed 但仍含 missing、
+extra、conflicts、unverifiable 或 multiplicity_conflicts 的证据明确拒绝；相等
+多重集合的 duplicates 不受影响。新增三项回归后 43 项 Python 测试通过，既有
+161 项正向证据仍可审计，完整插件合同仍为 0/135；尚未用这项加固代替逐插件
+参数／故障／平台矩阵审查。

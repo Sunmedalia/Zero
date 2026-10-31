@@ -46,6 +46,26 @@ class AuditTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             audit(self.manifest, [self.case], self.contract)
 
+    def test_truthy_review_markers_cannot_certify_a_contract(self):
+        thread = dict(self.case, case_id='threads')
+        for value in [1, 'true', ['reviewed'], {'reviewed': True}]:
+            for field in ['requirements_reviewed', 'failure_cases_reviewed']:
+                contract = {name: dict(item) for name, item in self.contract.items()}
+                contract['linux.pslist.PsList'][field] = value
+                self.assertFalse(audit(self.manifest, [self.case, thread], contract)['complete'])
+
+    def test_claimed_pass_rejects_unresolved_comparison_failures(self):
+        for field in ['missing', 'extra', 'conflicts', 'unverifiable', 'multiplicity_conflicts']:
+            case = dict(self.case, comparison={**self.case['comparison'], field: [{'row': 1}]})
+            with self.assertRaises(ValueError):
+                audit(self.manifest, [case])
+
+    def test_truthy_comparison_flags_cannot_claim_a_pass(self):
+        for field in ['passed', 'positive_evidence', 'all_columns_mapped']:
+            case = dict(self.case, comparison={**self.case['comparison'], field: 'true'})
+            with self.assertRaises(ValueError):
+                audit(self.manifest, [case])
+
     def test_module_extraction_requires_binary_evidence(self):
         name = 'linux.module_extract.ModuleExtract'
         self.manifest['plugins'][0]['reference'] = name

@@ -29,8 +29,12 @@ def audit(manifest, evidence, contracts=None):
             raise ValueError('evidence is for a different reference version')
         if item['passed']:
             proof = item['comparison']
-            if not proof['passed'] or not proof['positive_evidence'] or not proof['all_columns_mapped']:
+            if any(proof.get(field) is not True for field in
+                   ('passed', 'positive_evidence', 'all_columns_mapped')):
                 raise ValueError('claimed parity lacks a positive full-field comparison')
+            if any(proof.get(field) for field in
+                   ('missing', 'extra', 'conflicts', 'unverifiable', 'multiplicity_conflicts')):
+                raise ValueError('claimed parity contains unresolved comparison failures')
             if not item.get('sample_source') or len(item.get('image_sha256', '')) != 64:
                 raise ValueError('claimed parity lacks reproducible sample identity')
             if (item['reference_plugin'] == 'linux.module_extract.ModuleExtract'
@@ -53,7 +57,8 @@ def audit(manifest, evidence, contracts=None):
         required = contract['required_cases']
         if not required or len(set(required)) != len(required):
             raise ValueError('empty or duplicate contract cases')
-        if not contract.get('requirements_reviewed') or not contract.get('failure_cases_reviewed'):
+        if (contract.get('requirements_reviewed') is not True
+                or contract.get('failure_cases_reviewed') is not True):
             continue
         source = next(p['source_sha256'] for p in manifest['plugins'] if p['reference'] == plugin)
         if contract['source_sha256'] != source:
