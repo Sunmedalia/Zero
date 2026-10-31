@@ -7,6 +7,8 @@ pub enum Plugin {
     LinuxBoottime,
     #[value(name = "linux.capabilities.Capabilities", alias = "linux.capabilities")]
     LinuxCapabilities,
+    #[value(name = "linux.envars.Envars", alias = "linux.envars")]
+    LinuxEnvars,
     #[value(name = "windows.debugregisters.DebugRegisters")]
     WinDebugRegisters,
     #[value(
@@ -1925,6 +1927,13 @@ pub const PLUGINS: &[Descriptor] = &[
         widths: &[16, 6, 6, 6, 6, 0, 0, 0, 0, 0],
     },
     Descriptor {
+        plugin: Plugin::LinuxEnvars,
+        name: "linux.envars.Envars",
+        label: "envars·完整",
+        columns: &["PID", "PPID", "COMM", "KEY", "VALUE"],
+        widths: &[6, 6, 16, 20, 0],
+    },
+    Descriptor {
         plugin: Plugin::Fdsummary,
         name: "fdsummary",
         label: "fdsummary",
@@ -2177,6 +2186,7 @@ impl Plugin {
                     | Self::WinPebMasquerade
                     | Self::WinStrings
                     | Self::LinuxCapabilities
+                    | Self::LinuxEnvars
             )
     }
     pub fn descriptor(self) -> &'static Descriptor {
@@ -2316,6 +2326,7 @@ impl Plugin {
             | Self::Psstate
             | Self::Capabilities
             | Self::LinuxCapabilities
+            | Self::LinuxEnvars
             | Self::Pslist
             | Self::LinuxPslist
             | Self::Pstree
@@ -2431,6 +2442,7 @@ impl Plugin {
             Psstate => "查看进程状态",
             Capabilities => "查看进程能力集合",
             LinuxCapabilities => "解码 real_cred 能力集合、ambient 与 cred EUID；可按 PID 列表筛选",
+            LinuxEnvars => "读取完整环境区并按参考处理损坏条目；支持 PID 列表筛选",
             Fdsummary => "汇总进程文件描述符",
             WinCallbacks => "查看内核回调及模块归属",
             WinUnloadedmodules => "读取已卸载驱动记录",

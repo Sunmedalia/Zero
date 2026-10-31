@@ -43,6 +43,20 @@ impl Linux<'_> {
             .collect();
         Ok((result, tasks))
     }
+    /// Match task.get_parent_pid: use the parent's TGID only when the whole
+    /// pointed-to task object is readable; otherwise report zero.
+    pub(super) fn task_parent_tgid(&self, task: u64) -> Result<u64> {
+        let parent = self.number(task, "task_struct", "real_parent")?;
+        let size = self.isf.data["user_types"]["task_struct"]["size"]
+            .as_u64()
+            .context("task_struct 缺少大小")?;
+        ensure!(size <= 1024 * 1024, "task_struct 超过读取上限");
+        if parent != 0 && self.vm.read(parent, &mut vec![0; size as usize]).is_ok() {
+            self.number(parent, "task_struct", "tgid")
+        } else {
+            Ok(0)
+        }
+    }
     pub(crate) fn field_address(&self, base: u64, structure: &str, field: &str) -> Result<u64> {
         base.checked_add(self.isf.offset(structure, field)?)
             .context("对象地址溢出")
@@ -149,6 +163,7 @@ impl Linux<'_> {
             LinuxPslist => self.process_details(job),
             LinuxBoottime => self.namespace_boottimes(job),
             LinuxCapabilities => self.capabilities(&Default::default(), job),
+            LinuxEnvars => self.envars(&Default::default(), job),
             Banners => banner_result(self.vm.image, job),
             Psaux | Envars | Maps | Lsof | Sockstat | Netscan => self.task_objects(plugin, job),
             Pwd | Pscred | CheckCreds | Threads | Mountinfo => self.task_context(plugin, job),

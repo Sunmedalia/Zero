@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "keys": [
+    "pid",
+    "key"
+  ],
+  "duplicate_keys": "multiset",
+  "fields": {
+    "pid": {
+      "zero": "PID",
+      "reference": "PID",
+      "type": "integer"
+    },
+    "ppid": {
+      "zero": "PPID",
+      "reference": "PPID",
+      "type": "integer"
+    },
+    "comm": {
+      "zero": "COMM",
+      "reference": "COMM",
+      "type": "text"
+    },
+    "key": {
+      "zero": "KEY",
+      "reference": "KEY",
+      "type": "text"
+    },
+    "value": {
+      "zero": "VALUE",
+      "reference": "VALUE",
+      "type": "text"
+    }
+  },
+  "allow_empty": true
+}

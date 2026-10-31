@@ -129,21 +129,7 @@ impl Linux<'_> {
             let at = task.address;
             let cred = self.number(at, "task_struct", "cred")?;
             let real = self.number(at, "task_struct", "real_cred")?;
-            let parent = self.number(at, "task_struct", "real_parent")?;
-            let task_size = self.isf.data["user_types"]["task_struct"]["size"]
-                .as_u64()
-                .context("task_struct 缺少大小")?;
-            ensure!(task_size <= 1024 * 1024, "task_struct 超过读取上限");
-            let readable = parent != 0
-                && self
-                    .vm
-                    .read(parent, &mut vec![0; task_size as usize])
-                    .is_ok();
-            let ppid = if readable {
-                self.number(parent, "task_struct", "tgid")?
-            } else {
-                0
-            };
+            let ppid = self.task_parent_tgid(at)?;
             let mut row = vec![
                 task.name,
                 task.pid,

@@ -442,7 +442,7 @@
         "VALUE"
       ],
       "zero_candidates": [
-        "envars"
+        "linux.envars.Envars"
       ],
       "status": "mapped_unverified",
       "evidence": []

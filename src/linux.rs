@@ -19,6 +19,7 @@ mod callstack;
 mod capabilities;
 mod discover;
 mod engine;
+mod envars;
 mod fbdev;
 mod fs;
 mod hooks;

@@ -973,3 +973,30 @@ and failure hashes are in `capabilities-known-limitations.json`; raw reports use
 `capabilities-kali-cache-native93`. Five PsList and one Boottime real regressions
 pass all fields and emitted sequences; cumulative positive cases remain 126 (five
 scoped), zero complete contracts. `make check` and release package smoke pass.
+
+Native94 adds `linux.envars.Envars` (`linux.envars`) with the five reference
+columns, early task.pid selection, PID/list unions and selector-specific caches.
+It skips PF_KTHREAD tasks and uses the shared whole-parent/TGID fallback. Buffers
+must be 1..8192 bytes and wholly readable; unavailable process layers/buffers are
+skipped without padded or prefix-derived environment output. Parsing strips only
+trailing NULs, preserves empty keys/values and duplicate pairs, replaces invalid
+UTF8, splits on the first equals sign and stops at the first malformed entry.
+The old four-column interface retains its existing behavior.
+`envars_vectors.py` exercises actual pinned Envars methods, flag/parent methods
+and PID filter over typed field/layer adapters. Its 28 native memory fixtures
+include noncontiguous pages and a three-page 8192-byte buffer. This does not
+certify all real layer construction, damaged layouts, architectures or fault and
+resource contracts. `envars.example.json` supplies default and selected-shell
+real Debian cases; unmatched PID agreement is explicitly non-positive.
+
+Final native94 default Envars compares 1402 real Debian rows; single-shell
+selection compares 26, and paired/repeated/union selectors each compare 38.
+All five nonempty cases and six existing PsList/Boottime cases pass every field,
+multiplicity and strict emitted sequence. The unmatched selector is empty
+agreement. A persistent isolated MCP cache session compares 1402/26/12/26/38
+totals, first 200 API rows and every row of four stored caches, including a
+verified cache hit; this is not an extra differential case. Evidence grows to
+131 positives (five scoped), zero complete contracts. `make check` passes 625
+library, 8 CLI/MCP, 50 protocol and 36 Python tests; package smoke passes in
+project/unrelated directories with empty PATH. Raw groups are `envars-native94`,
+`debian-native94`, `boottime-native94` and `envars-cache-native94`.
