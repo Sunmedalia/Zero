@@ -112,7 +112,8 @@ def generate(checkout):
             timeline_proxy = Node(context=context, config={'kernel': 'kernel'},
                                   get_time_namespaces_bootime=Boottime.get_time_namespaces_bootime)
             case['timeline'] = [dict(description=description, event_type=event_type.name,
-                                     timestamp=time.isoformat() if isinstance(time, datetime.datetime) else 'N/A')
+                                     timestamp=time.isoformat() if isinstance(time, datetime.datetime) else 'N/A',
+                                     timestamp_type='datetime' if isinstance(time, datetime.datetime) else type(time).__name__)
                                 for description, event_type, time in Boottime.generate_timeline(timeline_proxy)]
         except Exception as error:
             case['error'] = type(error).__name__

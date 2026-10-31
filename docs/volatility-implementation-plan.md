@@ -329,3 +329,6 @@ padding 使用参考的 signed 减法和原始条件。Win10 站观察由 10 条
   固定 generate_timeline 方法比较描述、CREATED 类型和时间戳，保留 None/0 的
   描述区别与既有 namespace 去重顺序。该入口不是完整跨插件 TimeLiner 汇总；
   现代 namespace 真实样本和 Intel32 平台合同仍待补齐。
+- native104：Boottime 事件增加 timestamp_type，按固定参考实际返回类型区分
+  datetime 与 UnparsableValue，保留 timestamp 字符串兼容性。25 个方法场景
+  比较全部事件字段；不将该字段扩展视为完整 TimeLiner 或平台合同。

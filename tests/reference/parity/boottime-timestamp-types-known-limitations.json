@@ -1,0 +1,30 @@
+{
+  "engine_version": "0.2.1-native-104",
+  "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+  "native_output": "kernel_identity.boottime_timeline",
+  "method_validation": {
+    "fixture": "tests/reference/parity/fixtures/boottime.json",
+    "cases": 25,
+    "reference_method": "Boottime.generate_timeline",
+    "comparison": "ordered description, event_type.name, normalized timestamp and actual timestamp type",
+    "passed": true
+  },
+  "timestamp_types": {
+    "datetime": "datetime",
+    "nonpositive_or_out_of_range": "UnparsableValue"
+  },
+  "real_validation": {
+    "sample": "debian-3.2",
+    "native_output": "target/reference/results/boottime-native104-built/000/zero.json",
+    "reference_output": "target/reference/results/boottime-native103/reference-timeline.json",
+    "timestamp_type": "datetime",
+    "events": 1,
+    "passed": true
+  },
+  "validation": {"make_check_passed": true},
+  "limitations": [
+    "The timestamp display string remains N/A for unparsable values; the additional timestamp_type preserves the reference subtype for event consumers.",
+    "This does not implement the complete cross-plugin TimeLiner aggregator, sorting, bodyfile export or a generic absent-value schema.",
+    "Modern time namespace real samples, Intel32 platform behavior, all faults and full plugin contracts remain unverified."
+  ]
+}

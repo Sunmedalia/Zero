@@ -2293,5 +2293,19 @@ event_type、timestamp，保留 namespace None 与 0 的描述区别。25 个方
 make check 通过。证据见 boottime-timeline-known-limitations.json。
 
 这仅实现单插件事件元数据，不代表跨插件 TimeLiner、排序或 bodyfile 已对齐；
-不可用时间当前规范化为 N/A，参考 absent-value 子类型仍未实现。现代 namespace
+native103 的不可用时间规范化为 N/A，未保留参考 absent-value 子类型。现代 namespace
 真实样本和 Intel32 平台合同仍需验证，完整插件合同不提升。
+
+## native104：Boottime 时间戳类型
+
+事件元数据增加 timestamp_type：有效时间为 datetime，参考转换失败时为
+UnparsableValue。timestamp 保留 ISO 字符串或 N/A，表格显示不变。固定参考
+conversion.unixtime_to_datetime 对非正时间或超范围时间返回 UnparsableValue；
+不能与 TIME NS 列使用的 NotAvailableValue 混同。参考生成器现在记录实际类型，
+25 个场景逐项比较全部事件字段，包括零、负数和超出 datetime 上界的时间。
+引擎版本更新以使旧结果缓存失效；这不补齐通用 TimeLiner 或全部 absent 类型。
+
+Windows 验收样本路径支持环境变量、原默认路径、保留资产目录
+images/feat-windows-plugins 的顺序。仅 Server2012R2 使用显式解压路径的完整
+make windows-acceptance 已通过 14/14；样本源文件未移动。日志保存在
+ target/reference/results/windows-sample-path-native103/。

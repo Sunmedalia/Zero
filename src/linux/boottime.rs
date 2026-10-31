@@ -132,12 +132,19 @@ impl Linux<'_> {
                     self.time_field_type(ty, "boottime")?,
                 )?;
             }
-            let timestamp = boot_datetime(nanos).unwrap_or_else(|| "N/A".into());
+            let datetime = boot_datetime(nanos);
+            let timestamp_type = if datetime.is_some() {
+                "datetime"
+            } else {
+                "UnparsableValue"
+            };
+            let timestamp = datetime.unwrap_or_else(|| "N/A".into());
             timeline.push(serde_json::json!({
                 "description": format!("System boot time for time namespace {}",
                     id.map_or_else(|| "None".into(), |value| value.to_string())),
                 "event_type": "CREATED",
                 "timestamp": timestamp,
+                "timestamp_type": timestamp_type,
             }));
             result.rows.push(vec![
                 id.filter(|id| *id != 0)
