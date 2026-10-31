@@ -98,12 +98,37 @@ def generate(checkout):
                                         SimpleNamespace(vol=SimpleNamespace(offset=0x10000)), param)
         assert calls == ([('kernel_param', 0x13000), ('int', 0x12000), ('kernel_param', 0x13010)] if count == 2 else [])
         arrays.append(dict(count=count, expected=result))
+    class BadArray:
+        def __init__(self, failing):
+            self.failing = failing
+
+        @property
+        def num(self):
+            if self.failing == 'num':
+                raise exceptions.InvalidAddressException('virtual', 0x40000)
+            return 0
+
+        def member(self, name):
+            assert name == 'max'
+            raise exceptions.InvalidAddressException('virtual', 0x40008)
+
+    array_faults = []
+    for field in ['num', 'max']:
+        param = SimpleNamespace(get=0x16000, arr=BadArray(field))
+        try:
+            Modules._get_param_val(array_context, 'kernel', integer_map, array_getters,
+                                   SimpleNamespace(vol=SimpleNamespace(offset=0x10000)), param)
+        except exceptions.InvalidAddressException as error:
+            array_faults.append(dict(field=field, error=type(error).__name__))
+        else:
+            raise AssertionError('array metadata read failure was swallowed')
+
     from volatility3.framework.objects.utility import bytes_to_decoded_string
     strings = [dict(hex=value.hex(), expected=bytes_to_decoded_string(value, 'utf-8', 'replace'))
                for value in [b'', b'abc', b'abc\xc3\xa9', b'ab\xffcd', b'ab\xef\xbf\xbdcd', b'ab\0cd']]
     source = 'volatility3/framework/symbols/linux/utilities/modules.py'
     return dict(reference_commit=PIN, source_sha256={path: hashlib.sha256((checkout/path).read_bytes()).hexdigest() for path in [source, 'volatility3/framework/objects/utility.py']},
-                getter_faults=getter_faults, arrays=arrays, strings=strings, handlers=addresses, scope='Actual _get_param_handlers and _get_param_val handler-to-type selection, integer values, boolean truth tables, unknown/null and scalar-read failure branches with supplied Python integer reads. Reference integer width/sign decoding is not exercised. Additional cases exercise direct/ops getter-read faults, zero/two/oversized arrays and bytes_to_decoded_string. Array pointer reads and string mappings still use adapters or separate native reads; aliases, name faults, nested arrays and the full Lsmod contract remain unverified.', cases=cases)
+                array_faults=array_faults, getter_faults=getter_faults, arrays=arrays, strings=strings, handlers=addresses, scope='Actual _get_param_handlers and _get_param_val handler-to-type selection, integer values, boolean truth tables, unknown/null and scalar-read failure branches with supplied Python integer reads. Reference integer width/sign decoding is not exercised. Additional cases exercise direct/ops getter-read faults, zero/two/oversized arrays and bytes_to_decoded_string. Array pointer reads and string mappings still use adapters or separate native reads; aliases, name faults, nested arrays and the full Lsmod contract remain unverified.', cases=cases)
 
 
 if __name__ == '__main__':

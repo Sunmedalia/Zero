@@ -4,6 +4,16 @@
     "volatility3/framework/symbols/linux/utilities/modules.py": "a5e33f20ecbfb1403de58e5c8b1c037215758747bc32ef5404235dc809bba1bf",
     "volatility3/framework/objects/utility.py": "d9d54977c471380c01b23f049f29926d42aaa3a9017461780aebe8ffc956f6f1"
   },
+  "array_faults": [
+    {
+      "field": "num",
+      "error": "InvalidAddressException"
+    },
+    {
+      "field": "max",
+      "error": "InvalidAddressException"
+    }
+  ],
   "getter_faults": [
     {
       "id": "direct",

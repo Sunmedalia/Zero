@@ -204,6 +204,31 @@ mod tests {
                 case["expected"]
             );
         }
+        for case in vectors["array_faults"].as_array().unwrap() {
+            let (mut bytes, mut isf) = crate::linux::tests::fixture();
+            isf.data["symbols"]["param_array_get"] = json!({"address":0x16000});
+            isf.data["user_types"]["kernel_param"] = json!({"size":16,"fields":{
+                "get":{"offset":0,"type":{"kind":"pointer"}},
+                "arr":{"offset":8,"type":{"kind":"pointer"}}
+            }});
+            isf.data["user_types"]["kparam_array"] = json!({"size":16,"fields":{
+                "num":{"offset":0,"type":{"kind":"pointer"}},
+                "max":{"offset":8,"type":{"kind":"base","name":"u64"}}
+            }});
+            bytes[0x11000..0x11008].copy_from_slice(&0x16000u64.to_le_bytes());
+            let array = if case["field"] == "num" {
+                0x40000u64
+            } else {
+                0x3fff8u64
+            };
+            bytes[0x11008..0x11010].copy_from_slice(&array.to_le_bytes());
+            let image = crate::linux::tests::image(&bytes);
+            let error = crate::linux::tests::engine(&image, &isf)
+                .parameter_value(0x11000, 0, &Job::default())
+                .unwrap_err();
+            assert!(!error.to_string().contains("ISF 字段越界"));
+            assert_eq!(case["error"], "InvalidAddressException");
+        }
         for case in vectors["getter_faults"].as_array().unwrap() {
             let (mut bytes, mut isf) = crate::linux::tests::fixture();
             let at = if case["id"] == "direct" {
