@@ -1,0 +1,20 @@
+{
+  "engine_version": "0.2.1-native-105",
+  "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+  "fixture": "tests/reference/parity/fixtures/boottime.json",
+  "cases": ["mixed-real-wrapped", "mixed-boot-wrapped"],
+  "reference_behavior": "The offs_real tv64 membership determines the branch for both fields; mixed scalar/wrapped layouts raise an exception.",
+  "native_behavior": "Use the offs_real branch for both fields and require a base or enum scalar in the unwrapped branch; inconsistent layouts return Err.",
+  "regression": "Both cases were accepted before the fix. The generated reference cases first failed the native test, then passed after the fix.",
+  "validation": {
+    "make_check_passed": true,
+    "method_cases_passed": 27,
+    "real_boottime_output": "target/reference/results/boottime-native105/000/zero.json",
+    "real_boottime_passed": true,
+    "explicit_raw_debian_kali_acceptance_passed": 4
+  },
+  "limitations": [
+    "Synthetic inconsistent ISF layouts test rejection boundaries, not support for a real kernel with such a layout.",
+    "This does not establish modern time namespace real-image coverage, Intel32 platform parity or a complete plugin contract."
+  ]
+}

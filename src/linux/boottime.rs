@@ -34,15 +34,24 @@ impl Linux<'_> {
             let core_type = self.symbol_time_type("tk_core", "tk_core");
             let keeper = self.field_address(core, &core_type, "timekeeper")?;
             let keeper_type = self.time_field_type(&core_type, "timekeeper")?;
+            let real_type = self.time_field_type(keeper_type, "offs_real")?;
+            let wrapped = self.isf.field(real_type, "tv64").is_ok();
             let ktime = |field| -> Result<i128> {
                 let ty = self.time_field_type(keeper_type, field)?;
-                if self.isf.field(ty, "tv64").is_ok() {
+                if wrapped {
                     self.signed_time_field(
                         self.field_address(keeper, keeper_type, field)?,
                         ty,
                         "tv64",
                     )
                 } else {
+                    ensure!(
+                        matches!(
+                            self.isf.field(keeper_type, field)?["type"]["kind"].as_str(),
+                            Some("base" | "enum")
+                        ),
+                        "ktime 标量布局与 offs_real 不一致"
+                    );
                     self.signed_time_field(keeper, keeper_type, field)
                 }
             };
@@ -253,13 +262,22 @@ mod tests {
                     json!({"address":address,"type":{"kind":"struct","name":ty}});
             };
             match kind {
-                "modern" | "wrapped" => {
-                    let ty = if kind == "wrapped" { "ktime_t" } else { "i64" };
+                "modern" | "wrapped" | "mixed-real-wrapped" | "mixed-boot-wrapped" => {
+                    let real_ty = if matches!(kind, "wrapped" | "mixed-real-wrapped") {
+                        "ktime_t"
+                    } else {
+                        "i64"
+                    };
+                    let boot_ty = if matches!(kind, "wrapped" | "mixed-boot-wrapped") {
+                        "ktime_t"
+                    } else {
+                        "i64"
+                    };
                     fields(&mut isf.data, "ktime_t", &[("tv64", 0, "i64")]);
                     fields(
                         &mut isf.data,
                         "timekeeper",
-                        &[("offs_real", 0, ty), ("offs_boot", 8, ty)],
+                        &[("offs_real", 0, real_ty), ("offs_boot", 8, boot_ty)],
                     );
                     fields(
                         &mut isf.data,

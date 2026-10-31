@@ -384,6 +384,24 @@
       "error": "AttributeError"
     },
     {
+      "id": "mixed-real-wrapped",
+      "kind": "mixed-real-wrapped",
+      "root": "1700000000000000000",
+      "tasks": [
+        null
+      ],
+      "error": "AttributeError"
+    },
+    {
+      "id": "mixed-boot-wrapped",
+      "kind": "mixed-boot-wrapped",
+      "root": "1700000000000000000",
+      "tasks": [
+        null
+      ],
+      "error": "TypeError"
+    },
+    {
       "id": "datetime-0",
       "kind": "modern",
       "root": "0",

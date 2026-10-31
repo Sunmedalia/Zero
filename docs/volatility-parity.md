@@ -2308,4 +2308,18 @@ conversion.unixtime_to_datetime 对非正时间或超范围时间返回 Unparsab
 Windows 验收样本路径支持环境变量、原默认路径、保留资产目录
 images/feat-windows-plugins 的顺序。仅 Server2012R2 使用显式解压路径的完整
 make windows-acceptance 已通过 14/14；样本源文件未移动。日志保存在
- target/reference/results/windows-sample-path-native103/。
+target/reference/results/windows-sample-path-native103/。
+
+## native105：Boottime 混合 ktime 布局拒绝边界
+
+固定参考以 offs_real 是否带 tv64 决定 offs_real 和 offs_boot 的共同读取分支。
+此前原生独立判断两个字段，在结构体与标量混合的两种不一致布局上仍输出时间，
+而参考抛出异常。新增两个实际参考方法向量先复现原生测试失败，再将分支统一，
+并要求非包装分支为基础或枚举标量类型（参考 Enumeration 继承 int）；两种
+混合布局现在返回错误，不再产生完整结果。
+27 个方法场景保留正常布局、时间戳类型与旧字段故障比较。证据见
+boottime-mixed-layout-known-limitations.json。混合布局为合成故障输入，不宣称
+真实内核存在这种布局，也不据此提升完整插件合同。
+
+Debian 验收路径同步支持压缩包不存在时查找同名 RAW，仍优先环境变量和既有
+压缩文件。该改动只查找现存文件，不解压或更改资产。

@@ -332,3 +332,5 @@ padding 使用参考的 signed 减法和原始条件。Win10 站观察由 10 条
 - native104：Boottime 事件增加 timestamp_type，按固定参考实际返回类型区分
   datetime 与 UnparsableValue，保留 timestamp 字符串兼容性。25 个方法场景
   比较全部事件字段；不将该字段扩展视为完整 TimeLiner 或平台合同。
+- native105：共同使用 offs_real 的 ktime 包装分支，拒绝混合标量／结构体布局，
+  新增两项参考先失败再修复的故障向量；方法场景增至 27 项。

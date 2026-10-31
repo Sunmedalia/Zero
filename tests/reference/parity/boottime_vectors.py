@@ -67,6 +67,10 @@ def generate(checkout):
         dict(id='namespace-missing-boottime', kind='modern', root=1_700_000_000_000_000_000,
              missing_member='boottime', tasks=[dict(id=42, offset=[5, 0])]),
     ]
+    specifications += [
+        dict(id='mixed-real-wrapped', kind='mixed-real-wrapped', root=1_700_000_000_000_000_000, tasks=[None]),
+        dict(id='mixed-boot-wrapped', kind='mixed-boot-wrapped', root=1_700_000_000_000_000_000, tasks=[None]),
+    ]
     for value in [0, -1, 500, 1500, 2500, 999_999_999, 1_700_000_000_123_456_500,
                   4_102_444_801_123_456_789, 253_402_300_799_999_999_999]:
         specifications.append(dict(id=f'datetime-{value}', kind='wall-only' if value > (1<<63)-123_000_000_001 else 'modern', root=value, tasks=[None]))
@@ -74,10 +78,11 @@ def generate(checkout):
         kind, root = case['kind'], case['root']
         symbols = {}
         spec = extensions.Timespec64Concrete
-        if kind in ['modern', 'wrapped']:
+        if kind in ['modern', 'wrapped', 'mixed-real-wrapped', 'mixed-boot-wrapped']:
             real, boot = root + 123_000_000_000, 123_000_000_000
-            wrap = (lambda v: Node(tv64=v)) if kind == 'wrapped' else Scalar
-            symbols['tk_core'] = Node(timekeeper=Node(offs_real=wrap(real), offs_boot=wrap(boot)))
+            real_value = Node(tv64=real) if kind in ['wrapped', 'mixed-real-wrapped'] else Scalar(real)
+            boot_value = Node(tv64=boot) if kind in ['wrapped', 'mixed-boot-wrapped'] else Scalar(boot)
+            symbols['tk_core'] = Node(timekeeper=Node(offs_real=real_value, offs_boot=boot_value))
         elif kind == 'global-timekeeper':
             symbols['timekeeper'] = Node(wall_to_monotonic=spec.new_from_nsec(-root-10_000_000_000), total_sleep_time=spec(10, 0))
         elif kind.startswith('wall'):
