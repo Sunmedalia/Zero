@@ -1,11 +1,11 @@
 //! Native HTTPS downloads. Every redirect hop stays HTTPS, bodies stream to a caller
-//! file under a hard size limit, and cancellation returns without waiting for the socket.
+//! file under a hard size limit. Cancellation shuts down sockets and joins the worker.
 use super::HttpError;
 use crate::Job;
-use anyhow::{Context, Result, anyhow, bail, ensure};
+use anyhow::{Context, Result, anyhow, ensure};
 use std::{
     fs::File,
-    io::{Read, Write},
+    io::{Read, Seek, Write},
     sync::mpsc::{self, RecvTimeoutError},
     thread,
     time::Duration,
@@ -28,43 +28,21 @@ pub(crate) struct Response {
     pub status: u16,
     pub content_range: Option<String>,
 }
-/// Stream one response into `file`, returning as soon as `job` is cancelled.
+/// Stream one response into `file`. Each attempt owns its agent so cancelling
+/// it interrupts active I/O without affecting other downloads. No worker may
+/// retain the file or a connection after this function returns.
+/// DNS and TCP connects not yet established finish within their phase timeouts.
 pub(crate) fn download(request: Request<'_>, file: File, job: &Job) -> Result<Response> {
     job.check()?;
-    let (url, range) = (request.url.to_owned(), request.range.map(str::to_owned));
-    let (limit, timeout, https_only) = (request.limit, request.timeout, request.https_only);
-    let worker_job = job.clone();
-    let (sender, receiver) = mpsc::channel();
-    thread::Builder::new()
-        .name("zero-download".into())
-        .spawn(move || {
-            let request = Request {
-                url: &url,
-                range: range.as_deref(),
-                limit,
-                timeout,
-                https_only,
-            };
-            // The receiver is gone after cancellation; the socket ends with this thread.
-            let _ = sender.send(with_trust_fallback(&request, &file, &worker_job));
-        })
-        .context("无法启动下载线程")?;
-    loop {
-        match receiver.recv_timeout(CANCEL_POLL) {
-            Ok(result) => {
-                job.check()?;
-                return result;
-            }
-            Err(RecvTimeoutError::Timeout) => job.check()?,
-            Err(RecvTimeoutError::Disconnected) => bail!("下载线程意外退出"),
+    // System roots first; bundled Mozilla roots support hosts without a CA store.
+    // Both verify the chain; cancellation must never trigger the fallback.
+    match attempt(&request, RootCerts::PlatformVerifier, &file, job) {
+        Err(error) if is_tls_failure(&error) => {
+            job.check()?;
+            file.set_len(0)?;
+            (&file).rewind()?;
+            attempt(&request, RootCerts::WebPki, &file, job)
         }
-    }
-}
-/// System roots first; the bundled Mozilla roots serve systems without a CA store.
-/// Both verify the certificate chain, so the retry never relaxes validation.
-fn with_trust_fallback(request: &Request<'_>, file: &File, job: &Job) -> Result<Response> {
-    match attempt(request, RootCerts::PlatformVerifier, file, job) {
-        Err(error) if is_tls_failure(&error) => attempt(request, RootCerts::WebPki, file, job),
         result => result,
     }
 }
@@ -77,15 +55,63 @@ fn is_tls_failure(error: &anyhow::Error) -> bool {
     })
 }
 fn attempt(request: &Request<'_>, roots: RootCerts, file: &File, job: &Job) -> Result<Response> {
+    job.check()?;
     let agent = ureq::Agent::config_builder()
         .https_only(request.https_only)
         .http_status_as_error(false)
+        // shutdown interrupts established sockets, including TLS/proxy setup.
+        // DNS and a TCP connect in progress still need explicit time bounds.
+        .timeout_resolve(Some(CONNECT_TIMEOUT))
         .timeout_connect(Some(CONNECT_TIMEOUT))
         .timeout_global(Some(request.timeout))
         .user_agent(concat!("zero/", env!("CARGO_PKG_VERSION")))
         .tls_config(TlsConfig::builder().root_certs(roots).build())
         .build()
         .new_agent();
+    let worker_agent = agent.clone();
+    let worker_job = job.clone();
+    let file = file.try_clone()?;
+    let (url, range) = (request.url.to_owned(), request.range.map(str::to_owned));
+    let (limit, timeout, https_only) = (request.limit, request.timeout, request.https_only);
+    let (sender, receiver) = mpsc::channel();
+    let worker = thread::Builder::new()
+        .name("zero-download".into())
+        .spawn(move || {
+            let request = Request {
+                url: &url,
+                range: range.as_deref(),
+                limit,
+                timeout,
+                https_only,
+            };
+            let _ = sender.send(transfer(&worker_agent, &request, &file, &worker_job));
+        })
+        .context("无法启动下载线程")?;
+    let result = loop {
+        if let Err(cancelled) = job.check() {
+            break Err(cancelled);
+        }
+        match receiver.recv_timeout(CANCEL_POLL) {
+            Ok(result) => break result,
+            Err(RecvTimeoutError::Timeout) => continue,
+            Err(RecvTimeoutError::Disconnected) => break Err(anyhow!("下载线程意外退出")),
+        }
+    };
+    // Closing the agent wakes blocked headers, body reads and TLS handshakes.
+    // Join before exposing completion, cancellation or a TLS retry to callers.
+    agent.shutdown();
+    let joined = worker.join();
+    job.check()?;
+    joined.map_err(|_| anyhow!("下载线程意外退出"))?;
+    result
+}
+fn transfer(
+    agent: &ureq::Agent,
+    request: &Request<'_>,
+    file: &File,
+    job: &Job,
+) -> Result<Response> {
+    job.check()?;
     let mut call = agent.get(request.url);
     if let Some(range) = request.range {
         call = call.header("Range", format!("bytes={range}"));
@@ -93,6 +119,7 @@ fn attempt(request: &Request<'_>, roots: RootCerts, file: &File, job: &Job) -> R
     let failed =
         |error: ureq::Error| anyhow!(error).context(format!("符号下载失败: {}", request.url));
     let response = call.call().map_err(failed)?;
+    job.check()?;
     let status = response.status().as_u16();
     if status >= 400 {
         return Err(HttpError {
@@ -123,10 +150,12 @@ fn attempt(request: &Request<'_>, roots: RootCerts, file: &File, job: &Job) -> R
         let Some(chunk) = buffer.get(..read).filter(|chunk| !chunk.is_empty()) else {
             break;
         };
+        job.check()?;
         written += read as u64;
         ensure!(written <= request.limit, "下载响应超过大小限制");
         output.write_all(chunk)?;
     }
+    job.check()?;
     output.flush()?;
     Ok(Response {
         status,
@@ -248,20 +277,116 @@ mod tests {
         .unwrap_err();
         assert!(format!("{error:#}").contains("https only"), "{error:#}");
     }
-    #[test]
-    fn cancellation_returns_while_the_server_stalls() {
+    fn cancelled_connection_closes(scheme: &str, response: Option<&'static [u8]>) {
         let listener = TcpListener::bind("127.0.0.1:0").unwrap();
-        let url = format!("http://{}/", listener.local_addr().unwrap());
+        let url = format!("{scheme}://{}/", listener.local_addr().unwrap());
+        let tls = scheme == "https";
         let job = Job::default();
         let cancel = job.cancel.clone();
-        thread::spawn(move || {
-            thread::sleep(Duration::from_millis(100));
-            cancel.store(true, Ordering::Relaxed);
+        let (ready_tx, ready_rx) = mpsc::channel();
+        let (check_tx, check_rx) = mpsc::channel();
+        let server = thread::spawn(move || {
+            let (mut stream, _) = listener.accept().unwrap();
+            stream
+                .set_read_timeout(Some(Duration::from_secs(3)))
+                .unwrap();
+            if tls {
+                // Stall after receiving ClientHello, before the TLS handshake completes.
+                assert!(stream.read(&mut [0; 1024]).unwrap() > 0);
+            } else {
+                let mut reader = BufReader::new(&mut stream);
+                let mut head = String::new();
+                while reader.read_line(&mut head).unwrap() > 0 && !head.ends_with("\r\n\r\n") {}
+                if let Some(response) = response {
+                    stream.write_all(response).unwrap();
+                }
+            }
+            ready_tx.send(()).unwrap();
+            check_rx.recv_timeout(Duration::from_secs(15)).unwrap();
+            stream
+                .set_read_timeout(Some(Duration::from_secs(1)))
+                .unwrap();
+            let closed = loop {
+                match stream.read(&mut [0; 4096]) {
+                    Ok(0) => break true,
+                    Ok(_) => continue,
+                    Err(error) => break error.kind() == std::io::ErrorKind::ConnectionReset,
+                }
+            };
+            // Release even a broken client's blocked worker before failing the test.
+            let _ = stream.shutdown(std::net::Shutdown::Both);
+            closed
         });
+        let client = thread::spawn(move || {
+            download(
+                Request {
+                    url: &url,
+                    range: None,
+                    limit: 1024,
+                    timeout: Duration::from_secs(10),
+                    https_only: tls,
+                },
+                tempfile::tempfile().unwrap(),
+                &job,
+            )
+        });
+        ready_rx.recv_timeout(Duration::from_secs(3)).unwrap();
+        // Ensure the response-body case is blocked inside read, not at the
+        // job.check immediately before it. Header/TLS cases block inside call.
+        thread::sleep(Duration::from_millis(150));
         let started = Instant::now();
-        let error = get(&url, None, 16, &job).unwrap_err();
+        cancel.store(true, Ordering::Relaxed);
+        let error = client.join().unwrap().unwrap_err();
+        check_tx.send(()).unwrap();
+        let closed = server.join().unwrap();
         assert!(error.to_string().contains("cancelled"), "{error:#}");
         assert!(started.elapsed() < Duration::from_secs(3));
-        drop(listener);
+        assert!(closed, "cancelled download left the peer connection open");
+    }
+
+    #[test]
+    fn cancellation_closes_a_connection_waiting_for_headers() {
+        cancelled_connection_closes("http", None);
+    }
+
+    #[test]
+    fn cancellation_closes_a_connection_waiting_for_body() {
+        cancelled_connection_closes(
+            "http",
+            Some(b"HTTP/1.1 200 OK\r\nContent-Length: 100\r\n\r\n"),
+        );
+    }
+
+    #[test]
+    fn cancellation_does_not_accept_a_close_delimited_partial_body() {
+        cancelled_connection_closes(
+            "http",
+            Some(b"HTTP/1.1 200 OK\r\nConnection: close\r\n\r\npartial"),
+        );
+    }
+
+    #[test]
+    fn cancellation_closes_a_connection_during_tls_handshake() {
+        cancelled_connection_closes("https", None);
+    }
+
+    #[test]
+    fn already_cancelled_jobs_do_not_open_a_connection() {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        listener.set_nonblocking(true).unwrap();
+        let job = Job::default();
+        job.cancel.store(true, Ordering::Relaxed);
+        let error = get(
+            &format!("http://{}/", listener.local_addr().unwrap()),
+            None,
+            16,
+            &job,
+        )
+        .unwrap_err();
+        assert!(error.to_string().contains("cancelled"));
+        assert_eq!(
+            listener.accept().unwrap_err().kind(),
+            std::io::ErrorKind::WouldBlock
+        );
     }
 }
