@@ -44,6 +44,8 @@ impl Linux<'_> {
             ("list_head", "next"),
             ("list_head", "prev"),
         ])?;
+        let width = self.isf.size("list_head", "next")?;
+        ensure!(matches!(width, 4 | 8), "任务链指针宽度无效");
         let offset = self.isf.offset("task_struct", "tasks")?;
         let head = self.field_address(self.isf.address("init_task")?, "task_struct", "tasks")?;
         let mut result = self.result(plugin);
@@ -84,7 +86,11 @@ impl Linux<'_> {
                     }
                     break;
                 }
-                if node == 0 || node & 7 != 0 || !visited.insert(node) || visited.len() > LIMIT {
+                if node == 0
+                    || node & (width as u64 - 1) != 0
+                    || !visited.insert(node)
+                    || visited.len() > LIMIT
+                {
                     evidence(
                         &mut result,
                         direction,

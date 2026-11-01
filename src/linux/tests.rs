@@ -567,6 +567,77 @@ fn ipv4_ipv6_tcp_udp_unix_and_unsupported() {
     );
 }
 #[test]
+fn four_byte_aligned_task_nodes_preserve_parents_and_both_directions() {
+    let (mut b, mut isf) = fixture();
+    isf.data["base_types"]["pointer"]["size"] = json!(4);
+    isf.data["user_types"]["list_head"] = json!({"size":8,"fields":{
+        "next":{"offset":0,"type":{"kind":"pointer"}},
+        "prev":{"offset":4,"type":{"kind":"pointer"}}
+    }});
+    isf.data["user_types"]["task_struct"] = json!({"size":64,"fields":{
+        "tasks":{"offset":4,"type":{"kind":"struct","name":"list_head"}},
+        "pid":{"offset":24,"type":{"kind":"base","name":"u32"}},
+        "tgid":{"offset":28,"type":{"kind":"base","name":"u32"}},
+        "real_parent":{"offset":32,"type":{"kind":"pointer"}},
+        "comm":{"offset":36,"type":{"kind":"array","count":8,"subtype":{"kind":"base","name":"char"}}}
+    }});
+    for base in [0x9000, 0xa000, 0xa100] {
+        b[base..base + 64].fill(0);
+    }
+    for (at, value) in [
+        (0x9004, 0xa004u32),
+        (0x9008, 0xa104),
+        (0xa004, 0xa104),
+        (0xa008, 0x9004),
+        (0xa018, 1),
+        (0xa01c, 1),
+        (0xa020, 0x9000),
+        (0xa104, 0x9004),
+        (0xa108, 0xa004),
+        (0xa118, 2),
+        (0xa11c, 2),
+        (0xa120, 0xa000),
+    ] {
+        b[at..at + 4].copy_from_slice(&value.to_le_bytes());
+    }
+    b[0xa024..0xa029].copy_from_slice(b"init\0");
+    b[0xa124..0xa12a].copy_from_slice(b"child\0");
+    let i = image(&b);
+    let r = engine(&i, &isf)
+        .process_list(Plugin::Pslist, &Job::default())
+        .unwrap();
+    assert!(r.complete, "{:?}", r.diagnostics);
+    assert_eq!(
+        r.rows,
+        vec![
+            vec![
+                "1".to_string(),
+                "1".into(),
+                "0".into(),
+                "init".into(),
+                hex(0xa000)
+            ],
+            vec![
+                "2".to_string(),
+                "2".into(),
+                "1".into(),
+                "child".into(),
+                hex(0xa100)
+            ],
+        ]
+    );
+    b[0x9004..0x9008].copy_from_slice(&0u32.to_le_bytes());
+    let i = image(&b);
+    let reverse = engine(&i, &isf)
+        .process_list(Plugin::Pslist, &Job::default())
+        .unwrap();
+    assert!(!reverse.complete);
+    assert_eq!(reverse.rows.len(), 2);
+    assert_eq!(reverse.rows[0][0], "2");
+    assert_eq!(reverse.rows[0][2], "1");
+}
+
+#[test]
 fn syscall_table_uses_pointer_width_for_count_stride_and_reads() {
     for width in [4u64, 8] {
         for sized in [false, true] {
