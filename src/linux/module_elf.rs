@@ -84,10 +84,6 @@ impl SymbolRecord {
         Ok(bytes)
     }
 }
-fn section_header(name_offset: u32, section: &Section, strings: u32, symbols: u32) -> Vec<u8> {
-    section_header_width(name_offset, section, strings, symbols, false)
-        .expect("ELF64 section fields fit")
-}
 fn section_header_width(
     name_offset: u32,
     section: &Section,
@@ -366,15 +362,16 @@ impl Linux<'_> {
     fn reconstructed_module_elf(&self, module: u64, job: &Job) -> Result<Elf> {
         ensure!(
             !self.arm64(),
-            "不支持: ModuleExtract 的参考 ELF 格式仅适用于 x86_64"
+            "不支持: ModuleExtract 的参考 ELF 格式仅适用于 Intel"
         );
-        ensure!(
-            self.isf.data["base_types"]["pointer"]["size"]
-                .as_u64()
-                .unwrap_or(8)
-                == 8,
-            "不支持: ModuleExtract 尚未实现 32 位 ELF 重建"
-        );
+        let width = self.isf.data["base_types"]["pointer"]["size"]
+            .as_u64()
+            .context("模块 ELF 指针宽度缺失")?;
+        ensure!(matches!(width, 4 | 8), "模块 ELF 指针宽度无效");
+        let elf32 = width == 4;
+        let header_size = if elf32 { 52 } else { 64 };
+        let section_size = if elf32 { 40 } else { 64 };
+        let symbol_type = if elf32 { "Elf32_Sym" } else { "Elf64_Sym" };
         let symbols = self.module_symbols(module)?;
         let (ranges, proven) = self.module_extraction_bounds()?;
         ensure!(proven, "模块提取需要分配器边界");
@@ -397,7 +394,7 @@ impl Linux<'_> {
         ordered.sort_by_key(|s| s.address);
         let mut sections = Vec::new();
         let mut sizes = BTreeMap::new();
-        let mut offset = 64u64;
+        let mut offset = header_size as u64;
         let mut strtab_index = None;
         let mut symtab_address = None;
         let mut padding = Vec::new();
@@ -446,19 +443,25 @@ impl Linux<'_> {
         let symtab_address = symtab_address.context("模块缺少 .symtab section")?;
         let strtab_index = strtab_index.context("模块缺少 .strtab section")?;
         let symtab_index = sections.len() as u32;
-        let sym_size = self.isf.data["user_types"]["Elf64_Sym"]["size"]
+        let sym_size = self.isf.data["user_types"][symbol_type]["size"]
             .as_u64()
-            .context("Elf64_Sym 类型缺失")?;
-        ensure!(sym_size == 24, "Elf64_Sym 布局大小无效");
+            .with_context(|| format!("{symbol_type} 类型缺失"))?;
+        ensure!(
+            sym_size == if elf32 { 16 } else { 24 },
+            "{symbol_type} 布局大小无效"
+        );
         let mut table = Vec::new();
         let mut lookup_budget = 16_000_000u64;
         for index in 0..symbols.count {
             job.check()?;
-            let at = add(symbols.table, index * 24)?;
-            let name = u32::try_from(self.number(at, "Elf64_Sym", "st_name")?)?;
-            let other = u8::try_from(self.number(at, "Elf64_Sym", "st_other")?)?;
-            let size = self.number(at, "Elf64_Sym", "st_size")?;
-            let address = self.number(at, "Elf64_Sym", "st_value")?;
+            let at = add(
+                symbols.table,
+                index.checked_mul(sym_size).context("符号偏移溢出")?,
+            )?;
+            let name = u32::try_from(self.number(at, symbol_type, "st_name")?)?;
+            let other = u8::try_from(self.number(at, symbol_type, "st_other")?)?;
+            let size = self.number(at, symbol_type, "st_size")?;
+            let address = self.number(at, symbol_type, "st_value")?;
             let mut matched = None;
             for (index, section) in original.iter().enumerate() {
                 ensure!(lookup_budget > 0, "模块符号 section 查找超过 1600 万次上限");
@@ -490,10 +493,10 @@ impl Linux<'_> {
                 shndx: if section.is_some() {
                     0
                 } else {
-                    u16::try_from(self.number(at, "Elf64_Sym", "st_shndx")?)?
+                    u16::try_from(self.number(at, symbol_type, "st_shndx")?)?
                 },
             };
-            append(&mut table, &symbol.encode(false, section)?)?;
+            append(&mut table, &symbol.encode(elf32, section)?)?;
         }
         sections.push(Section {
             name: ".symtab".into(),
@@ -502,12 +505,12 @@ impl Linux<'_> {
             bytes: table,
         });
         let mut names = vec![0];
-        let mut headers = vec![0; 64];
+        let mut headers = vec![0; section_size];
         let mut name_offset = 1u32;
         for section in &sections {
             append(
                 &mut headers,
-                &section_header(name_offset, section, strtab_index, symtab_index),
+                &section_header_width(name_offset, section, strtab_index, symtab_index, elf32)?,
             )?;
             append(&mut names, section.name.as_bytes())?;
             append(&mut names, &[0])?;
@@ -525,17 +528,23 @@ impl Linux<'_> {
         };
         append(
             &mut headers,
-            &section_header(name_offset, &names_section, strtab_index, symtab_index),
+            &section_header_width(
+                name_offset,
+                &names_section,
+                strtab_index,
+                symtab_index,
+                elf32,
+            )?,
         )?;
         let shstrndx = u16::try_from(sections.len() + 1)?;
         sections.push(names_section);
-        let mut output = vec![0; 64];
+        let mut output = vec![0; header_size];
         for section in sections {
             append(&mut output, &section.bytes)?;
         }
         let shoff = output.len() as u64;
         append(&mut output, &headers)?;
-        output[..64].copy_from_slice(&elf_header(false, shoff, shstrndx)?);
+        output[..header_size].copy_from_slice(&elf_header(elf32, shoff, shstrndx)?);
         Ok(Elf {
             bytes: output,
             padding,
@@ -950,6 +959,59 @@ mod tests {
                 .extract_module(&options(directory.path()), &job)
                 .is_err()
         );
+    }
+    #[test]
+    fn reconstructed_elf32_uses_complete_header_section_and_symbol_layouts() {
+        let (mut bytes, mut isf) = fixture();
+        isf.data["base_types"]["pointer"]["size"] = json!(4);
+        isf.data["user_types"]["Elf32_Sym"] = json!({"size":16,"fields":{
+            "st_name":{"offset":0,"type":{"kind":"base","name":"u32"}},
+            "st_value":{"offset":4,"type":{"kind":"base","name":"u32"}},
+            "st_size":{"offset":8,"type":{"kind":"base","name":"u32"}},
+            "st_info":{"offset":12,"type":{"kind":"base","name":"char"}},
+            "st_other":{"offset":13,"type":{"kind":"base","name":"char"}},
+            "st_shndx":{"offset":14,"type":{"kind":"base","name":"u16"}}
+        }});
+        bytes[0x32000..0x32048].fill(0);
+        bytes[0x32010..0x32014].copy_from_slice(&1u32.to_le_bytes());
+        bytes[0x32014..0x32018].copy_from_slice(&0x18003u32.to_le_bytes());
+        bytes[0x32018..0x3201c].copy_from_slice(&5u32.to_le_bytes());
+        bytes[0x32020..0x32024].copy_from_slice(&7u32.to_le_bytes());
+        // Adjacent bytes must not become the upper half of an allocator bound.
+        bytes[0x35004..0x35008].copy_from_slice(&0xdeadbeefu32.to_le_bytes());
+        bytes[0x3500c..0x35010].copy_from_slice(&0xdeadbeefu32.to_le_bytes());
+        let image = super::super::tests::image(&bytes);
+        let engine = super::super::tests::engine(&image, &isf);
+        assert_eq!(
+            engine.module_extraction_bounds().unwrap(),
+            (vec![(0x18000, 0x1c000)], true)
+        );
+        let elf = engine
+            .reconstructed_module_elf(0x30000, &Job::default())
+            .unwrap();
+        let u16_at = |at| u16::from_le_bytes(elf.bytes[at..at + 2].try_into().unwrap());
+        let u32_at = |at| u32::from_le_bytes(elf.bytes[at..at + 4].try_into().unwrap()) as usize;
+        assert_eq!(&elf.bytes[..5], b"\x7fELF\x01");
+        assert_eq!(u16_at(18), 3);
+        assert_eq!(u16_at(40), 52);
+        assert_eq!(u16_at(46), 40);
+        assert_eq!(u16_at(48), 6);
+        assert_eq!(u16_at(50), 5);
+        let headers = u32_at(32);
+        assert_eq!(&elf.bytes[headers..headers + 40], &[0; 40]);
+        assert_eq!(u32_at(headers + 40 + 16), 52);
+        let sym_header = headers + 4 * 40;
+        assert_eq!(u32_at(sym_header + 20), 48);
+        assert_eq!(u32_at(sym_header + 36), 16);
+        let sym = u32_at(sym_header + 16);
+        assert_eq!(elf.bytes[sym + 12], 3);
+        assert_eq!(u32_at(sym + 16), 1);
+        assert_eq!(u32_at(sym + 20), 3);
+        assert_eq!(u32_at(sym + 24), 5);
+        assert_eq!(elf.bytes[sym + 28], 0x12);
+        assert_eq!(u16_at(sym + 30), 2);
+        assert_eq!(u32_at(sym + 32), 7);
+        assert_eq!(elf.bytes[sym + 44], 0x10);
     }
     #[test]
     fn section_pointer_arrays_use_isf_width_and_stop_at_four_byte_null() {

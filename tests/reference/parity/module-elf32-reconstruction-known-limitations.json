@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+  "scope": "Native internal ELF32 full-file reconstruction with synthetic ISF and captured module sections",
+  "verification": {
+    "test": "linux::module_elf::tests::reconstructed_elf32_uses_complete_header_section_and_symbol_layouts",
+    "targeted_tests": "All twelve module ELF tests passed.",
+    "checks": ["ELFCLASS32 and EM_386", "52-byte file header and 40-byte section records", "null section and payload offsets", "16-byte symbol records and section-relative text symbol", "four-byte allocator bounds ignore nonzero adjacent bytes"]
+  },
+  "limitations": [
+    "This extends the earlier header and symbol encoder batches; their limitations describe those historical batches. Full reconstruction now selects Elf32_Sym or Elf64_Sym using ISF pointer width.",
+    "Actual pinned method vectors cover headers and symbol normalization separately. The full synthetic ELF32 file is checked for layout consistency, not compared byte-for-byte with an actual pinned full-file extraction.",
+    "The shared synthetic memory fixture uses the existing test virtual-memory setup. This does not establish real Linux32 paging, discovery and extraction end-to-end.",
+    "The public Linux32 ISF parse gate remains closed; no real Linux32 image with exact ISF has been accepted.",
+    "No full plugin contract is established. ARM64 ModuleExtract remains unsupported by the pinned Intel ELF reconstruction contract."
+  ]
+}

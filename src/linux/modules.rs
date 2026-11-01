@@ -38,8 +38,14 @@ impl Linux<'_> {
             }
         }
         if let Ok(min) = self.isf.address("module_addr_min") {
-            let start = self.vm.uint(min, 8)?;
-            let end = self.vm.uint(self.isf.address("module_addr_max")?, 8)?;
+            let width = self.isf.data["base_types"]["pointer"]["size"]
+                .as_u64()
+                .context("模块分配边界指针宽度缺失")?;
+            ensure!(matches!(width, 4 | 8), "模块分配边界指针宽度无效");
+            let start = self.vm.uint(min, width as usize)?;
+            let end = self
+                .vm
+                .uint(self.isf.address("module_addr_max")?, width as usize)?;
             ensure!(start < end && start != u64::MAX, "module_addr_min/max 无效");
             return Ok(ModuleRegions {
                 ranges: vec![(start, end)],
