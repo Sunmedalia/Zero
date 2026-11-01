@@ -52,7 +52,7 @@ impl Windows<'_> {
                 // x64 stores signed offsets from the table, shifted past four
                 // argument-count bits; x86 stores absolute addresses.
                 let target = if x64 {
-                    let offset = i64::from(entry as u32 as i32) >> 4;
+                    let offset = i64::from(crate::bytes::low_u32(entry) as i32) >> 4;
                     table.wrapping_add_signed(offset)
                 } else {
                     entry

@@ -232,7 +232,7 @@ pub fn parse(file: &File, job: &Job) -> Result<(Hibernation, container::Metadata
             }
             .into(),
             pointer_size: width,
-            image_type: uint(&header, 4, 4)? as u32,
+            image_type: u32::try_from(uint(&header, 4, 4)?)?,
             hiberboot: if width == 8 && length == 0x3e0 {
                 Some(header[0x364] != 0)
             } else {

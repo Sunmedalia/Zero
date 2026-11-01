@@ -245,12 +245,12 @@ impl Windows<'_> {
         let value = |name| {
             identity[name]
                 .as_u64()
-                .filter(|value| *value <= u16::MAX as u64)
+                .and_then(|value| u16::try_from(value).ok())
         };
         if let (Some(major), Some(minor), Some(build)) =
             (value("major"), value("minor"), value("build"))
         {
-            return gui_table(major as u16, minor as u16, build as u16);
+            return gui_table(major, minor, build);
         }
         let build = self.build_number().ok()?;
         const BUILD_TABLES: &[(u32, &str)] = &[

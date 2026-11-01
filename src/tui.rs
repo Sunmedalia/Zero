@@ -153,6 +153,9 @@ pub fn run_with_options(
     let mut terminal = Terminal::new(CrosstermBackend::new(std::io::stdout()))?;
     let mut app = App::new(image, symbols, cache, settings);
     app.initialize(options);
+    if let Some(hint) = crate::prepare::build_tools_hint() {
+        app.status = hint;
+    }
     let outcome = (|| -> Result<()> {
         let mut dirty = true;
         let mut last_tick = Instant::now();

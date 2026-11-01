@@ -106,7 +106,7 @@ impl Linux<'_> {
                             }
                             let value = self.number(parent, "task_struct", "tgid")?;
                             Ok(match self.isf.size("task_struct", "tgid")? {
-                                4 => value as i32 as i64,
+                                4 => i64::from(u32::try_from(value)? as i32),
                                 8 => value as i64,
                                 _ => anyhow::bail!("TGID 宽度无效"),
                             })

@@ -210,9 +210,9 @@ impl Object<'_> {
     pub fn signed(&self, structure: &str, field: &str) -> Result<i64> {
         let value = self.number(structure, field)?;
         Ok(match self.isf.size(structure, field)? {
-            1 => value as i8 as i64,
-            2 => value as i16 as i64,
-            4 => value as i32 as i64,
+            1 => i64::from(u8::try_from(value)? as i8),
+            2 => i64::from(u16::try_from(value)? as i16),
+            4 => i64::from(u32::try_from(value)? as i32),
             8 => value as i64,
             size => anyhow::bail!("{structure}.{field} 大小 {size} 不是有符号整数"),
         })

@@ -21,7 +21,7 @@ impl Linux<'_> {
         let mut output_limit = false;
         for task in tasks {
             job.check()?;
-            let pid = self.number(task.address, "task_struct", "tgid")? as u32;
+            let pid = u32::try_from(self.number(task.address, "task_struct", "tgid")?)?;
             if !pids.is_empty() && !pids.contains(&task.pid.parse::<u32>()?) {
                 continue;
             }

@@ -196,7 +196,7 @@ impl Linux<'_> {
                 seen.insert(address) && seen.len() <= ADDRESS_COUNT_LIMIT,
                 "IPv4 地址链表循环或超限"
             );
-            let ip = self.number(address, "in_ifaddr", "ifa_address")? as u32;
+            let ip = u32::try_from(self.number(address, "in_ifaddr", "ifa_address")?)?;
             let mut row = prefix.to_vec();
             row.extend([
                 Ipv4Addr::from(ip.to_le_bytes()).to_string(),

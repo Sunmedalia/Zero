@@ -281,7 +281,7 @@ impl Windows<'_> {
     }
     pub(super) fn cell(&self, hive: u64, index: u32) -> Result<Vec<u8>> {
         let address = self.cell_address(hive, index)?;
-        let length = self.vm.uint(address, 4)? as u32 as i32;
+        let length = u32::try_from(self.vm.uint(address, 4)?)? as i32;
         ensure!(
             length < 0,
             "hive cell 未分配 index={index:#x} address={address:#x} length={length}"
@@ -293,7 +293,7 @@ impl Windows<'_> {
         while copied < out.len() {
             let cell_index = index
                 .checked_add(4)
-                .and_then(|i| i.checked_add(copied as u32))
+                .and_then(|i| i.checked_add(u32::try_from(copied).ok()?))
                 .context("hive cell 索引溢出")?;
             ensure!(cell_index >> 31 == index >> 31, "hive cell 跨存储边界");
             let count = (4096 - (cell_index as usize & 4095)).min(out.len() - copied);
@@ -577,7 +577,11 @@ impl Windows<'_> {
                     "hive base block Signature 非 regf"
                 );
             }
-            Ok(self.number(base, "_HBASE_BLOCK", "RootCell")? as u32)
+            Ok(u32::try_from(self.number(
+                base,
+                "_HBASE_BLOCK",
+                "RootCell",
+            )?)?)
         })();
         match recorded {
             Ok(root) => Ok(root),

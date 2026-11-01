@@ -5,10 +5,10 @@ impl Linux<'_> {
         ensure!(ptr != 0, "字符串指针为空");
         let mut bytes = Vec::new();
         for i in 0..limit {
-            let b = self
-                .vm
-                .uint(ptr.checked_add(i as u64).context("字符串地址溢出")?, 1)?
-                as u8;
+            let b = u8::try_from(
+                self.vm
+                    .uint(ptr.checked_add(i as u64).context("字符串地址溢出")?, 1)?,
+            )?;
             if b == 0 {
                 return Ok(String::from_utf8_lossy(&bytes).into_owned());
             }
@@ -29,12 +29,12 @@ impl Linux<'_> {
             );
             // Linux 3.2 SYSLOG_ACTION_READ_ALL / kdb_syslog_data semantics.
             // log_start tracks the consuming syslog reader, not retained history.
-            let end = self.vm.uint(self.isf.address("log_end")?, 4)? as u32;
+            let end = u32::try_from(self.vm.uint(self.isf.address("log_end")?, 4)?)?;
             let length = self
                 .vm
                 .uint(self.isf.address("logged_chars")?, 4)?
                 .min(size);
-            let start = end.wrapping_sub(length as u32);
+            let start = end.wrapping_sub(u32::try_from(length)?);
             let mut bytes = Vec::with_capacity(length as usize);
             let mut pos = start as u64;
             while bytes.len() < (length as usize) {

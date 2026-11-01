@@ -211,11 +211,7 @@ impl Windows<'_> {
                     Ok(())
                 })();
                 if let Err(e) = read {
-                    Self::issue(
-                        r,
-                        format!("PID {} VAD {:#x}", process.pid as u32, vad.address),
-                        e,
-                    );
+                    Self::issue(r, format!("PID {} VAD {:#x}", process.pid, vad.address), e);
                 }
             }
             Ok(files)
@@ -271,7 +267,7 @@ impl Windows<'_> {
                 let write = (|| -> Result<Vec<String>> {
                     let written = self.write_cached_file(
                         &cached,
-                        process.pid as u32,
+                        u32::try_from(process.pid)?,
                         file_object,
                         options,
                         &mut total,

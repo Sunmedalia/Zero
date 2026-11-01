@@ -640,7 +640,7 @@ impl Windows<'_> {
             let signed = if pointer_size == 8 {
                 count as i64
             } else {
-                count as u32 as i32 as i64
+                i64::from(crate::bytes::low_u32(count) as i32)
             };
             if !(0..0x1000000).contains(&signed) {
                 continue;

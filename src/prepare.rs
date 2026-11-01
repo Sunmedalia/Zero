@@ -306,12 +306,31 @@ fn on_path(tool: &str, path: Option<&std::ffi::OsStr>) -> bool {
     let name = format!("{tool}{}", std::env::consts::EXE_SUFFIX);
     path.is_some_and(|path| std::env::split_paths(path).any(|dir| dir.join(&name).is_file()))
 }
-fn require_tools(tools: &[&str], path: Option<&std::ffi::OsStr>) -> Result<()> {
-    let missing: Vec<_> = tools
+/// Tools `prepare_kali` needs on first use. Analysis itself needs no external program.
+const BUILD_TOOLS: [&str; 2] = ["git", "go"];
+fn absent<'a>(tools: &[&'a str], path: Option<&std::ffi::OsStr>) -> Vec<&'a str> {
+    tools
         .iter()
         .copied()
         .filter(|tool| !on_path(tool, path))
-        .collect();
+        .collect()
+}
+/// Optional tools missing from this environment, for startup hints and `zero doctor`.
+pub fn missing_build_tools() -> Vec<&'static str> {
+    absent(&BUILD_TOOLS, std::env::var_os("PATH").as_deref())
+}
+/// One line for `zero doctor` and the TUI; `None` when nothing is missing.
+pub fn build_tools_hint() -> Option<String> {
+    let missing = missing_build_tools();
+    (!missing.is_empty()).then(|| {
+        format!(
+            "未找到 {}：分析不受影响，但无法自动准备 Kali 符号",
+            missing.join("、")
+        )
+    })
+}
+fn require_tools(tools: &[&str], path: Option<&std::ffi::OsStr>) -> Result<()> {
+    let missing = absent(tools, path);
     ensure!(
         missing.is_empty(),
         "编译 dwarf2json 需要 {}，请先安装；或提供已编译工具与调试 ELF，改用 --tool 生成 ISF",
@@ -344,7 +363,7 @@ pub fn prepare_kali(image: &Image, cache: &Path, network: bool, job: &Job) -> Re
     if !tool.is_file() {
         // Fail before downloading a gigabyte of packages that could not be used.
         ensure!(network, "离线模式且 dwarf2json 尚未准备");
-        require_tools(&["git", "go"], std::env::var_os("PATH").as_deref())?;
+        require_tools(&BUILD_TOOLS, std::env::var_os("PATH").as_deref())?;
     }
     let root = cache.join("symbols/build/kali-6.8.11");
     fs::create_dir_all(&root)?;

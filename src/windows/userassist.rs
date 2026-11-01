@@ -95,7 +95,12 @@ impl Windows<'_> {
             );
             let node = self.cell(hive, cell)?;
             parts.push(self.key_name(&node)?);
-            cell = objects::physical_number(self.vm.isf, &node, "_CM_KEY_NODE", "Parent")? as u32;
+            cell = u32::try_from(objects::physical_number(
+                self.vm.isf,
+                &node,
+                "_CM_KEY_NODE",
+                "Parent",
+            )?)?;
         }
         parts.push(name.rsplit('\\').next().unwrap_or(name).to_owned());
         parts.reverse();

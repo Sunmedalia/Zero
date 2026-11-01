@@ -318,7 +318,7 @@ impl View<'_, '_> {
                     },
                 )?,
             };
-            Ok(Ipv4Addr::from((value as u32).to_le_bytes()).to_string())
+            Ok(Ipv4Addr::from(u32::try_from(value)?.to_le_bytes()).to_string())
         } else if family != REFERENCE_INET6_FAMILY {
             // Pinned inet_sock compares Linux's numeric family to Python's
             // host socket.AF_INET6. Keep its observable host-dependent absence.
@@ -537,7 +537,9 @@ impl Linux<'_> {
                     }
                     sport = sock
                         .optional("inet_sock", &["sport", "inet_sport"])?
-                        .map(|p| (p as u16).to_be().to_string())
+                        .map(u16::try_from)
+                        .transpose()?
+                        .map(|p| p.to_be().to_string())
                         .unwrap_or_else(|| NA.into());
                     let port = if sock.has("sock", "__sk_common.skc_portpair") {
                         Some(sock.number("sock", "__sk_common.skc_portpair")? & 0xffff)
@@ -549,7 +551,9 @@ impl Linux<'_> {
                         sock.optional("sock", &["__sk_common.skc_dport"])?
                     };
                     dport = port
-                        .map(|p| (p as u16).to_be().to_string())
+                        .map(u16::try_from)
+                        .transpose()?
+                        .map(|p| p.to_be().to_string())
                         .unwrap_or_else(|| NA.into());
                     state = Some(sock.inet_state(false)?);
                 }
@@ -595,7 +599,7 @@ impl Linux<'_> {
                         .to_string();
                 }
                 17 => {
-                    let index = sock.number("packet_sock", "ifindex")? as u32 as i32;
+                    let index = u32::try_from(sock.number("packet_sock", "ifindex")?)? as i32;
                     src = if index <= 0 {
                         "ANY".into()
                     } else {
@@ -604,7 +608,7 @@ impl Linux<'_> {
                             .cloned()
                             .unwrap_or_else(|| NA.into())
                     };
-                    let protocol = (sock.number("packet_sock", "num")? as u16).to_be();
+                    let protocol = u16::try_from(sock.number("packet_sock", "num")?)?.to_be();
                     proto = ethernet_protocol(protocol);
                 }
                 44 => {

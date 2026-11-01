@@ -78,8 +78,11 @@ impl Linux<'_> {
                                 let read = (|| -> Result<(u64, i64)> {
                                     Ok((
                                         self.number(op, "nf_hook_ops", "hook")?,
-                                        self.number(op, "nf_hook_ops", "priority")? as u32 as i32
-                                            as i64,
+                                        u32::try_from(self.number(
+                                            op,
+                                            "nf_hook_ops",
+                                            "priority",
+                                        )?)? as i32 as i64,
                                     ))
                                 })();
                                 match read {
@@ -144,7 +147,13 @@ impl Linux<'_> {
                                 .vm
                                 .uint(add(origin, i * 8)?, 8)
                                 .and_then(|ops| self.number(ops, "nf_hook_ops", "priority"))
-                                .map_or_else(|_| "-".into(), |p| (p as u32 as i32).to_string());
+                                .map_or_else(
+                                    |_| "-".into(),
+                                    |p| {
+                                        u32::try_from(p)
+                                            .map_or_else(|_| "-".into(), |p| (p as i32).to_string())
+                                    },
+                                );
                             out.push((handler, priority));
                         }
                         Ok(out)
@@ -192,7 +201,9 @@ impl Linux<'_> {
             job.check()?;
             let read = (|| -> Result<()> {
                 let point = if relative {
-                    slot.wrapping_add_signed(i64::from(self.vm.uint(slot, 4)? as u32 as i32))
+                    slot.wrapping_add_signed(i64::from(
+                        u32::try_from(self.vm.uint(slot, 4)?)? as i32
+                    ))
                 } else {
                     self.vm.uint(slot, 8)?
                 };

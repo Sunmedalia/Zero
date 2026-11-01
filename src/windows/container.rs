@@ -154,16 +154,16 @@ fn crash(r: &Reader<'_>, job: &Job) -> Result<Parsed> {
         (arch == Architecture::X86) != wide,
         "crash dump 架构与头部冲突"
     );
-    let kind = r.uint(type_offset, 4)? as u32;
+    let kind = u32::try_from(r.uint(type_offset, 4)?)?;
     let metadata = Metadata {
         architecture: arch,
         dtb: Some(r.uint(16, width)?),
         module_list: Some(r.uint(if wide { 32 } else { 24 }, width)?),
         process_list: Some(r.uint(if wide { 40 } else { 28 }, width)?),
         dump_type: Some(kind),
-        build: Some(r.uint(12, 4)? as u32),
+        build: Some(u32::try_from(r.uint(12, 4)?)?),
         crash: Some(Crash {
-            code: r.uint(if wide { 56 } else { 40 }, 4)? as u32,
+            code: u32::try_from(r.uint(if wide { 56 } else { 40 }, 4)?)?,
             parameters: (0..4)
                 .map(|i| r.uint(if wide { 64 + i * 8 } else { 44 + i * 4 }, width))
                 .collect::<Result<Vec<_>>>()?,
@@ -324,7 +324,7 @@ fn triage(r: &Reader<'_>, p: &mut Parsed, header: u64, width: usize, job: &Job) 
         let record_size = if width == 8 { 152 } else { 80 };
         r.bytes(exception, record_size)?;
         if let Some(crash) = &mut p.metadata.crash {
-            crash.exception_code = Some(r.uint(exception, 4)? as u32);
+            crash.exception_code = Some(u32::try_from(r.uint(exception, 4)?)?);
             crash.exception_address = Some(r.uint(exception + address_offset, width)?);
         }
     }
@@ -374,7 +374,7 @@ fn triage(r: &Reader<'_>, p: &mut Parsed, header: u64, width: usize, job: &Job) 
         );
         p.metadata.modules.push(Module {
             base,
-            size: size as u32,
+            size: u32::try_from(size)?,
             name,
         });
     }
@@ -457,7 +457,7 @@ fn minidump(r: &Reader<'_>, job: &Job) -> Result<Parsed> {
             12 => Architecture::Arm64,
             _ => bail!("未知 minidump CPU"),
         };
-        p.metadata.build = Some(r.uint(off + 16, 4)? as u32);
+        p.metadata.build = Some(u32::try_from(r.uint(off + 16, 4)?)?);
         ensure!(r.uint(off + 20, 4)? <= 2, "此 minidump 的平台不是 Windows");
     }
     if let Some(&(off, size)) = streams.get(&15) {
@@ -466,7 +466,7 @@ fn minidump(r: &Reader<'_>, job: &Job) -> Result<Parsed> {
             "minidump MiscInfo 截断"
         );
         if r.uint(off + 4, 4)? & 1 != 0 {
-            p.metadata.pid = Some(r.uint(off + 8, 4)? as u32);
+            p.metadata.pid = Some(u32::try_from(r.uint(off + 8, 4)?)?);
         }
     }
     if let Some(&(off, size)) = streams.get(&4) {
@@ -480,7 +480,7 @@ fn minidump(r: &Reader<'_>, job: &Job) -> Result<Parsed> {
             job.check()?;
             let pos = off + 4 + i * 108;
             let base = r.uint(pos, 8)?;
-            let size = r.uint(pos + 8, 4)? as u32;
+            let size = u32::try_from(r.uint(pos + 8, 4)?)?;
             ensure!(
                 base.checked_add(size as u64).is_some(),
                 "minidump 模块范围溢出"
@@ -529,7 +529,7 @@ fn minidump(r: &Reader<'_>, job: &Job) -> Result<Parsed> {
         for i in 0..threads {
             job.check()?;
             let pos = off + 4 + i * 48;
-            let tid = r.uint(pos, 4)? as u32;
+            let tid = u32::try_from(r.uint(pos, 4)?)?;
             p.metadata.threads.push(tid);
             let context_size = r.uint(pos + 40, 4)? as usize;
             let context_offset = r.uint(pos + 44, 4)?;
@@ -573,14 +573,14 @@ fn minidump(r: &Reader<'_>, job: &Job) -> Result<Parsed> {
         ensure!(size >= 168, "minidump ExceptionStream 截断");
         let count = r.uint(off + 32, 4)?;
         ensure!(count <= 15, "异常参数超限");
-        let tid = r.uint(off, 4)? as u32;
+        let tid = u32::try_from(r.uint(off, 4)?)?;
         p.metadata.crash = Some(Crash {
-            code: r.uint(off + 8, 4)? as u32,
+            code: u32::try_from(r.uint(off + 8, 4)?)?,
             parameters: (0..count)
                 .map(|i| r.uint(off + 40 + i * 8, 8))
                 .collect::<Result<Vec<_>>>()?,
             exception_address: Some(r.uint(off + 24, 8)?),
-            exception_code: Some(r.uint(off + 8, 4)? as u32),
+            exception_code: Some(u32::try_from(r.uint(off + 8, 4)?)?),
             thread_id: Some(tid),
         });
         let length = r.uint(off + 160, 4)? as usize;

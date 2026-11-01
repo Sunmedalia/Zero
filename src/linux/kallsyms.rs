@@ -178,7 +178,11 @@ impl Linux<'_> {
             let mut unsigned_hits = HashSet::new();
             for i in 0..count {
                 job.check()?;
-                let raw = self.vm.uint(add(offsets, i * 4)?, 4).ok().map(|v| v as u32);
+                let raw = self
+                    .vm
+                    .uint(add(offsets, i * 4)?, 4)
+                    .ok()
+                    .and_then(|v| u32::try_from(v).ok());
                 let signed_value = raw.and_then(|value| {
                     let value = value as i32;
                     if value < 0 {
@@ -388,7 +392,7 @@ impl Linux<'_> {
             let at = add(base, remaining / 2 * size)?;
             let read_pointer = |field: &str, relative: &str| -> Result<u64> {
                 if self.isf.has_field("kernel_symbol", relative) {
-                    let value = self.number(at, "kernel_symbol", relative)? as u32 as i32;
+                    let value = u32::try_from(self.number(at, "kernel_symbol", relative)?)? as i32;
                     // Preserve the reference object's masked-base relative semantics.
                     Ok((at
                         & if self.arm64() {
@@ -461,14 +465,14 @@ impl Linux<'_> {
                         }
                         let address = self.number(symbol, "Elf64_Sym", "st_value")?;
                         let size = self.number(symbol, "Elf64_Sym", "st_size")?;
-                        let kind = self.vm.uint(
+                        let kind = u8::try_from(self.vm.uint(
                             if let Some(types) = types {
                                 add(types, index)?
                             } else {
                                 self.field_address(symbol, "Elf64_Sym", "st_info")?
                             },
                             1,
-                        )? as u8 as char;
+                        )?)? as char;
                         let exported = if export_unreadable {
                             None
                         } else {

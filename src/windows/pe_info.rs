@@ -164,7 +164,7 @@ impl Windows<'_> {
                     let function = if value & ordinal != 0 {
                         format!("Ordinal#{}", value & 0xffff)
                     } else {
-                        self.ascii_at(&vm, base, (value as u32).wrapping_add(2))?
+                        self.ascii_at(&vm, base, crate::bytes::low_u32(value).wrapping_add(2))?
                     };
                     let mut bound = [0u8; 8];
                     self.read_image(
@@ -223,7 +223,7 @@ impl Windows<'_> {
                 .is_ok_and(|name| name == wanted)
             {
                 let mut ordinal = [0u8; 2];
-                self.read_image(vm, base, ordinals + index as u32 * 2, &mut ordinal)?;
+                self.read_image(vm, base, ordinals + u32::try_from(index)? * 2, &mut ordinal)?;
                 let mut function = [0u8; 4];
                 self.read_image(
                     vm,

@@ -20,7 +20,7 @@ fn wide_string(vm: &Memory<'_>, address: u64) -> Result<String> {
     );
     let mut units = Vec::new();
     for i in 0..2048 {
-        let n = vm.uint(add(address, i * 2)?, 2)? as u16;
+        let n = u16::try_from(vm.uint(add(address, i * 2)?, 2)?)?;
         if n == 0 {
             return String::from_utf16(&units).context("用户字符串 UTF-16 无效");
         }

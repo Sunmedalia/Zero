@@ -147,7 +147,8 @@ impl Windows<'_> {
                     } else {
                         String::new()
                     };
-                    let port = field(if kind == 0 { "LocalPort" } else { "Port" }, 2)? as u16;
+                    let port =
+                        u16::try_from(field(if kind == 0 { "LocalPort" } else { "Port" }, 2)?)?;
                     let port = port.swap_bytes();
                     let (local, remote, state, remote_port) = if kind == 0 {
                         let state = field("State", 4)?;
@@ -171,7 +172,7 @@ impl Windows<'_> {
                         let local = self.vm.pointer(add(info, layout.info_local)?)?;
                         let local = self.local_address(local, false, &layout)?;
                         let remote = self.vm.pointer(add(info, layout.info_remote)?)?;
-                        let remote_port = (field("RemotePort", 2)? as u16).swap_bytes();
+                        let remote_port = u16::try_from(field("RemotePort", 2)?)?.swap_bytes();
                         (local, remote, label, remote_port)
                     } else {
                         recognized = true;
@@ -538,9 +539,11 @@ impl Windows<'_> {
                 return Ok(None);
             }
             let local_port =
-                (self.netstat_field(address, layout, 0, "LocalPort", 2)? as u16).swap_bytes();
+                u16::try_from(self.netstat_field(address, layout, 0, "LocalPort", 2)?)?
+                    .swap_bytes();
             let remote_port =
-                (self.netstat_field(address, layout, 0, "RemotePort", 2)? as u16).swap_bytes();
+                u16::try_from(self.netstat_field(address, layout, 0, "RemotePort", 2)?)?
+                    .swap_bytes();
             let info = self.netstat_field(address, layout, 0, "AddrInfo", layout.pointer_size)?;
             if !self.vm.kernel(info) {
                 return Ok(None);
@@ -590,7 +593,8 @@ impl Windows<'_> {
             if !matches!(family, 2 | 23) {
                 return Ok(Vec::new());
             }
-            let port = (self.netstat_field(address, layout, kind, "Port", 2)? as u16).swap_bytes();
+            let port =
+                u16::try_from(self.netstat_field(address, layout, kind, "Port", 2)?)?.swap_bytes();
             let local =
                 self.netstat_field(address, layout, kind, "LocalAddr", layout.pointer_size)?;
             let local = if local == 0 || !self.vm.kernel(local) {

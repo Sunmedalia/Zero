@@ -12,10 +12,19 @@ pub(crate) fn le_u32(bytes: &[u8], at: usize) -> Option<u32> {
 pub(crate) fn le_u64(bytes: &[u8], at: usize) -> Option<u64> {
     array(bytes, at).map(u64::from_le_bytes)
 }
+/// Low half of a 64-bit value, for fields whose high bits are deliberately discarded.
+pub(crate) fn low_u32(value: u64) -> u32 {
+    let [a, b, c, d, ..] = value.to_le_bytes();
+    u32::from_le_bytes([a, b, c, d])
+}
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn low_half_discards_only_the_high_bits() {
+        assert_eq!(low_u32(0x1234_5678_9abc_def0), 0x9abc_def0);
+    }
     #[test]
     fn reads_little_endian_values_in_bounds() {
         let bytes = [1, 2, 3, 4, 5, 6, 7, 8, 9];

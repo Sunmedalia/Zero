@@ -61,19 +61,21 @@ impl Linux<'_> {
         };
         let (family_name, local, remote, state) = match family {
             2 | 10 if matches!(protocol, 6 | 17) => {
-                let sport = (self.number(sk, "inet_sock", "inet_sport")? as u16).to_be();
-                let dport = (if self.isf.field("inet_sock", "inet_dport").is_ok() {
+                let sport = u16::try_from(self.number(sk, "inet_sock", "inet_sport")?)?.to_be();
+                let dport = u16::try_from(if self.isf.field("inet_sock", "inet_dport").is_ok() {
                     self.number(sk, "inet_sock", "inet_dport")?
                 } else {
                     self.number(common, "sock_common", "skc_dport")?
-                } as u16)
-                    .to_be();
+                })?
+                .to_be();
                 let (local, remote) = if family == 2 {
                     let local = Ipv4Addr::from(
-                        (self.number(common, "sock_common", "skc_rcv_saddr")? as u32).to_le_bytes(),
+                        u32::try_from(self.number(common, "sock_common", "skc_rcv_saddr")?)?
+                            .to_le_bytes(),
                     );
                     let remote = Ipv4Addr::from(
-                        (self.number(common, "sock_common", "skc_daddr")? as u32).to_le_bytes(),
+                        u32::try_from(self.number(common, "sock_common", "skc_daddr")?)?
+                            .to_le_bytes(),
                     );
                     (format!("{local}:{sport}"), format!("{remote}:{dport}"))
                 } else {

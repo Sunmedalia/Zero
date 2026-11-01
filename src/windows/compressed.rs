@@ -46,7 +46,7 @@ impl paging::Sources {
         );
         let high = vm.pagefile_high(pte)?;
         ensure!(high < 1 << 28, "压缩 store 页键越界");
-        let page_key = (u32::from(index) << 28) | high as u32;
+        let page_key = (u32::from(index) << 28) | u32::try_from(high)?;
         let mut globals = kernel
             .symbol("SmGlobals")
             .context("压缩 store 需要精确 SmGlobals 符号和 SMKM 类型")?;
@@ -268,7 +268,7 @@ fn tree_search(vm: &Memory<'_>, mut tree: u64, key: u32, job: &Job) -> Result<u3
         for i in 0..count {
             job.check()?;
             let node = add(nodes, i * stride)?;
-            let current = vm.uint(node, 4)? as u32;
+            let current = u32::try_from(vm.uint(node, 4)?)?;
             ensure!(
                 previous.is_none_or(|p| p < current),
                 "store B-tree key 未排序或重复"
@@ -281,7 +281,7 @@ fn tree_search(vm: &Memory<'_>, mut tree: u64, key: u32, job: &Job) -> Result<u3
         if leaf {
             let (node, current) = predecessor.context("store B-tree 未找到页键")?;
             ensure!(current == key, "store B-tree 没有该页键");
-            return Ok(vm.uint(add(node, 4)?, 4)? as u32);
+            return Ok(u32::try_from(vm.uint(add(node, 4)?, 4)?)?);
         }
         tree = if let Some((node, _)) = predecessor {
             vm.pointer(add(node, vm.isf.offset("_B_TREE_NODE", "Child")?)?)?

@@ -47,7 +47,7 @@ impl Windows<'_> {
                     if offset.is_multiple_of(4096) {
                         job.check()?;
                     }
-                    let unit = vm.uint(add(address, offset as u64)?, 2)? as u16;
+                    let unit = u16::try_from(vm.uint(add(address, offset as u64)?, 2)?)?;
                     if unit == 0 {
                         if previous_zero {
                             return Ok(());

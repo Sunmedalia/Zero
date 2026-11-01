@@ -181,7 +181,7 @@ impl Sources {
                         .vm
                         .pointer(add(array, index * engine.vm.pointer_size() as u64)?)?;
                     if object != 0 && engine.vm.number(object, "_MMPAGING_FILE", field)? != 0 {
-                        self.virtual_indexes.insert(index as u8);
+                        self.virtual_indexes.insert(u8::try_from(index)?);
                     }
                 }
             }
@@ -224,7 +224,7 @@ impl Sources {
                 .next()
                 .is_some_and(|name| name.eq_ignore_ascii_case("swapfile.sys"))
             {
-                matches.push(index as u8);
+                matches.push(u8::try_from(index)?);
             }
         }
         ensure!(matches.len() == 1, "无法唯一验证 swapfile 的内核分页索引");

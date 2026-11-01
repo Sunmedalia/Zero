@@ -92,13 +92,13 @@ pub(super) fn export_symbols(
             let mut ordinal = [0; 2];
             bounded(
                 word(32)
-                    .checked_add(index as u32 * 4)
+                    .checked_add(u32::try_from(index)? * 4)
                     .context("PE 名称表溢出")?,
                 &mut pointer,
             )?;
             bounded(
                 word(36)
-                    .checked_add(index as u32 * 2)
+                    .checked_add(u32::try_from(index)? * 2)
                     .context("PE ordinal 表溢出")?,
                 &mut ordinal,
             )?;
@@ -107,7 +107,7 @@ pub(super) fn export_symbols(
             let mut address = [0; 4];
             bounded(
                 word(28)
-                    .checked_add(ordinal as u32 * 4)
+                    .checked_add(u32::try_from(ordinal)? * 4)
                     .context("PE 地址表溢出")?,
                 &mut address,
             )?;
@@ -124,7 +124,9 @@ pub(super) fn export_symbols(
                 }
                 let mut byte = [0];
                 bounded(
-                    name_rva.checked_add(offset as u32).context("PE 名称溢出")?,
+                    name_rva
+                        .checked_add(u32::try_from(offset)?)
+                        .context("PE 名称溢出")?,
                     &mut byte,
                 )?;
                 if byte[0] == 0 {

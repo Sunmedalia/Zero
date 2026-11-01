@@ -86,7 +86,7 @@ fn plain(input: &[u8], size: usize) -> Result<Vec<u8>> {
         }
         bits -= 1;
         if flags & (1 << bits) == 0 {
-            output.push(take(input, &mut at, 1)? as u8);
+            output.push(u8::try_from(take(input, &mut at, 1)?)?);
             continue;
         }
         let token = take(input, &mut at, 2)?;

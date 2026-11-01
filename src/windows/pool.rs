@@ -251,7 +251,7 @@ impl Windows<'_> {
                         ensure!(owner == 0 || self.vm.kernel(owner), "无效互斥 OwnerThread");
                         row.push(hex(owner));
                         let signal = self.number(address, ty, "Header.SignalState")?;
-                        row.push((signal as u32 as i32).to_string());
+                        row.push((u32::try_from(signal)? as i32).to_string());
                     }
                     Ok(Some(row))
                 })();

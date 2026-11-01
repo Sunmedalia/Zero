@@ -163,7 +163,7 @@ fn section_header_sized(
     bytes.extend_from_slice(&0u32.to_le_bytes());
     if elf32 {
         bytes.extend_from_slice(&1u32.to_le_bytes());
-        bytes.extend_from_slice(&(entsize as u32).to_le_bytes());
+        bytes.extend_from_slice(&u32::try_from(entsize).unwrap_or(u32::MAX).to_le_bytes());
     } else {
         bytes.extend_from_slice(&1u64.to_le_bytes());
         bytes.extend_from_slice(&entsize.to_le_bytes());
