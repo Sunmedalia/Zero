@@ -53,41 +53,46 @@ pub(super) fn fixup(record: &mut [u8]) -> Result<()> {
 pub(super) fn parse_record(mut bytes: [u8; RECORD]) -> Result<Record> {
     ensure!(bytes.starts_with(b"FILE"), "非 MFT 记录");
     fixup(&mut bytes)?;
-    let u16_at = |b: &[u8], at: usize| le_u16(b, at).unwrap_or_default();
-    let u32_at = |b: &[u8], at: usize| le_u32(b, at).unwrap_or_default();
-    let u64_at = |b: &[u8], at: usize| le_u64(b, at).unwrap_or_default();
-    let flags = u16_at(&bytes, 22);
+    let u16_at = |b: &[u8], at: usize| le_u16(b, at).context("MFT u16 字段截断");
+    let u32_at = |b: &[u8], at: usize| le_u32(b, at).context("MFT u32 字段截断");
+    let u64_at = |b: &[u8], at: usize| le_u64(b, at).context("MFT u64 字段截断");
+    let flags = u16_at(&bytes, 22)?;
     let mut record = Record {
-        number: u32_at(&bytes, 44),
+        number: u32_at(&bytes, 44)?,
         in_use: flags & 1 != 0,
         directory: flags & 2 != 0,
         ..Default::default()
     };
     // Win32 (1) and Win32+DOS (3) names beat POSIX (0) beat DOS-only (2).
     let mut rank = -1;
-    let mut at = usize::from(u16_at(&bytes, 20));
+    let mut at = usize::from(u16_at(&bytes, 20)?);
     ensure!((48..RECORD).contains(&at), "首属性偏移无效");
-    while at + 16 <= RECORD {
-        let kind = u32_at(&bytes, at);
+    while at < RECORD {
+        let kind = u32_at(&bytes, at)?;
         if kind == 0xffff_ffff {
             break;
         }
-        let length = u32_at(&bytes, at + 4) as usize;
+        let length = u32_at(&bytes, at + 4)? as usize;
         ensure!(length >= 16 && at + length <= RECORD, "属性长度无效");
-        let resident = bytes.get(at + 8) == Some(&0);
+        // All field offsets below are relative to this attribute, never to the
+        // rest of the record: a short header cannot borrow the next one's bytes.
+        let attribute = bytes.at(at..at + length)?;
+        let resident = attribute.get(8) == Some(&0);
         if resident && matches!(kind, STANDARD_INFORMATION | FILE_NAME) {
-            let size = u32_at(&bytes, at + 16) as usize;
-            let offset = usize::from(u16_at(&bytes, at + 20));
-            ensure!(offset + size <= length, "属性内容越界");
-            let content = bytes
-                .get(at + offset..at + offset + size)
+            ensure!(attribute.len() >= 24, "常驻属性头被截断");
+            let size = u32_at(attribute, 16)? as usize;
+            let offset = usize::from(u16_at(attribute, 20)?);
+            ensure!(offset >= 24, "属性内容与常驻属性头重叠");
+            let content = attribute
+                .get(offset..offset + size)
                 .context("属性内容越界")?;
-            if kind == STANDARD_INFORMATION && size >= 32 {
-                record.si = (u64_at(content, 0), u64_at(content, 8));
-            } else if let (FILE_NAME, Some(&[characters, namespace])) =
-                (kind, content.get(64..66).and_then(|b| b.first_chunk()))
-            {
-                let characters = usize::from(characters);
+            if kind == STANDARD_INFORMATION {
+                ensure!(content.len() >= 32, "$STANDARD_INFORMATION 内容截断");
+                record.si = (u64_at(content, 0)?, u64_at(content, 8)?);
+            } else {
+                ensure!(content.len() >= 66, "$FILE_NAME 内容截断");
+                let characters = usize::from(*content.at(64)?);
+                let namespace = *content.at(65)?;
                 let name = content.get(66..66 + characters * 2).context("文件名越界")?;
                 let score = match namespace {
                     1 | 3 => 2,
@@ -104,9 +109,9 @@ pub(super) fn parse_record(mut bytes: [u8; RECORD]) -> Result<Record> {
                             .map(|c| u16::from_le_bytes(*c))
                             .collect::<Vec<_>>(),
                     );
-                    record.parent = u64_at(content, 0) & 0xffff_ffff_ffff;
-                    record.fn_times = (u64_at(content, 8), u64_at(content, 16));
-                    record.size = u64_at(content, 48);
+                    record.parent = u64_at(content, 0)? & 0xffff_ffff_ffff;
+                    record.fn_times = (u64_at(content, 8)?, u64_at(content, 16)?);
+                    record.size = u64_at(content, 48)?;
                 }
             }
         }
@@ -326,6 +331,64 @@ mod tests {
                 size: 4096,
             }
         );
+    }
+
+    #[test]
+    fn truncated_resident_header_after_a_valid_name_is_rejected() {
+        let mut b = record("X", 1);
+        let end = 152 + le_u32(&b, 156).unwrap() as usize;
+        // An opaque nonresident attribute places the next header at EOF - 16.
+        b[end..end + 16].fill(0);
+        b[end..end + 4].copy_from_slice(&0x80u32.to_le_bytes());
+        b[end + 4..end + 8].copy_from_slice(&((1008 - end) as u32).to_le_bytes());
+        b[end + 8] = 1;
+        b[1008..1024].fill(0);
+        b[1008..1012].copy_from_slice(&STANDARD_INFORMATION.to_le_bytes());
+        b[1012..1016].copy_from_slice(&16u32.to_le_bytes());
+        let error = parse_record(b).unwrap_err();
+        assert!(error.to_string().contains("常驻属性头"), "{error:#}");
+    }
+
+    #[test]
+    fn short_trailing_headers_are_not_silently_skipped() {
+        for at in [1016usize, 1020] {
+            let mut b = record("X", 1);
+            let end = 152 + le_u32(&b, 156).unwrap() as usize;
+            b[end..].fill(0);
+            b[end..end + 4].copy_from_slice(&0x80u32.to_le_bytes());
+            b[end + 4..end + 8].copy_from_slice(&((at - end) as u32).to_le_bytes());
+            b[end + 8] = 1;
+            b[at..at + 4].copy_from_slice(&STANDARD_INFORMATION.to_le_bytes());
+            if at + 8 <= RECORD {
+                b[at + 4..at + 8].copy_from_slice(&8u32.to_le_bytes());
+            }
+            assert!(parse_record(b).is_err(), "accepted short header at {at}");
+            // The four-byte end marker is valid even at the end of a record.
+            b[at..at + 4].copy_from_slice(&u32::MAX.to_le_bytes());
+            assert_eq!(parse_record(b).unwrap().name, "X");
+        }
+    }
+
+    #[test]
+    fn resident_content_must_not_overlap_its_header_or_be_truncated() {
+        for offset in [0u16, 16, 23] {
+            let mut b = record("X", 1);
+            b[76..78].copy_from_slice(&offset.to_le_bytes());
+            assert!(
+                parse_record(b).is_err(),
+                "accepted header overlap at {offset}"
+            );
+        }
+        // A later valid name must not hide a truncated timestamp or name value.
+        for (kind, size) in [(STANDARD_INFORMATION, 31u32), (FILE_NAME, 65)] {
+            let mut b = record("X", 1);
+            b[56..60].copy_from_slice(&kind.to_le_bytes());
+            b[72..76].copy_from_slice(&size.to_le_bytes());
+            assert!(parse_record(b).is_err(), "accepted short {kind:#x} value");
+        }
+        let mut b = record("X", 1);
+        b[72..76].copy_from_slice(&u32::MAX.to_le_bytes());
+        assert!(parse_record(b).is_err());
     }
 
     #[test]
