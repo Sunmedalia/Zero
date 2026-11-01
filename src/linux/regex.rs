@@ -50,7 +50,7 @@ impl Linux<'_> {
                         std::cell::RefCell::new(crate::intel_scan::Mapper::new(
                             vm.image,
                             vm.root,
-                            crate::intel_scan::Kind::Linux64,
+                            vm.linux_intel_kind(),
                         ))
                     });
                 let read = |at, out: &mut [u8]| {

@@ -1003,6 +1003,9 @@ impl<'a> VirtualMemory<'a> {
         vm.linux32 = Some(kind);
         vm
     }
+    pub(crate) fn linux_intel_kind(&self) -> crate::intel_scan::Kind {
+        self.linux32.unwrap_or(crate::intel_scan::Kind::Linux64)
+    }
     pub(crate) fn with_root(&self, root: u64) -> VirtualMemory<'a> {
         let mut vm = Self::new(self.image, root);
         vm.linux32 = self.linux32;

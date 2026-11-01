@@ -919,6 +919,33 @@ mod tests {
     }
 
     #[test]
+    fn module_names_use_explicit_linux32_and_pae_translation_modes() {
+        for pae in [false, true] {
+            let (mut bytes, mut isf) = fixture();
+            bytes[0x1000..0x4000].fill(0);
+            isf.data["base_types"]["pointer"]["size"] = json!(4);
+            if pae {
+                put(&mut bytes, 0x1000, 0x2003);
+                put(&mut bytes, 0x2000, 0x3003);
+                put(&mut bytes, 0x3000 + 0x34 * 8, 0x34003);
+            } else {
+                bytes[0x1000..0x1004].copy_from_slice(&0x2003u32.to_le_bytes());
+                bytes[0x2000 + 0x34 * 4..0x2004 + 0x34 * 4]
+                    .copy_from_slice(&0x34003u32.to_le_bytes());
+            }
+            let image = super::super::tests::image(&bytes);
+            let linux = Linux {
+                vm: VirtualMemory::new_linux32(&image, 0x1000, pae),
+                isf: &isf,
+            };
+            assert_eq!(
+                linux.module_name(0x34100, &Job::default()).unwrap(),
+                "listed",
+                "pae={pae}"
+            );
+        }
+    }
+    #[test]
     fn lsmod_names_preserve_controls_and_stop_at_replacement() {
         for (payload, expected) in [
             (b"a\x01b\0".as_slice(), "a\u{1}b"),

@@ -165,7 +165,7 @@ impl Linux<'_> {
             let mut mapper = crate::intel_scan::Mapper::new(
                 self.vm.image,
                 self.vm.root,
-                crate::intel_scan::Kind::Linux64,
+                self.vm.linux_intel_kind(),
             );
             let maps = mapper.mappings(start, add(start, length as u64)?, job, |_, _, _| false)?;
             let mut next = start;

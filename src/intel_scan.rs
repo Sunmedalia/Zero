@@ -463,6 +463,14 @@ mod tests {
                         assert_eq!(virtual_out, out, "VM {} {query}", case["id"]);
                     }
                     let child = vm.with_root(0x1000);
+                    assert!(
+                        std::mem::discriminant(&vm.linux_intel_kind())
+                            == std::mem::discriminant(&kind)
+                    );
+                    assert!(
+                        std::mem::discriminant(&child.linux_intel_kind())
+                            == std::mem::discriminant(&kind)
+                    );
                     let mut child_out = vec![0; out.len()];
                     let child_read = child.read(query["address"].as_u64().unwrap(), &mut child_out);
                     assert_eq!(
