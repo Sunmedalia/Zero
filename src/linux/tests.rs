@@ -567,6 +567,48 @@ fn ipv4_ipv6_tcp_udp_unix_and_unsupported() {
     );
 }
 #[test]
+fn syscall_table_uses_pointer_width_for_count_stride_and_reads() {
+    for width in [4u64, 8] {
+        for sized in [false, true] {
+            let (mut b, mut isf) = fixture();
+            isf.data["base_types"]["pointer"]["size"] = json!(width);
+            isf.data["symbols"]["sys_call_table"] =
+                json!({"address":0x18000,"type":{"kind":"array","count":2}});
+            isf.data["symbols"]["_stext"] = json!({"address":0x19000});
+            isf.data["symbols"]["_etext"] = json!({"address":0x1a000});
+            isf.data["symbols"]["modules"] = json!({"address":0x17000});
+            isf.data["user_types"]["module"] = json!({"size":16,"fields":{
+                "list":{"offset":0,"type":{"kind":"struct","name":"list_head"}}
+            }});
+            if sized {
+                isf.data["metadata"]["zero"]["symbol_sizes"]["sys_call_table"] = json!(width * 3);
+            }
+            put(&mut b, 0x17000, 0x17000);
+            put(&mut b, 0x17008, 0x17000);
+            for (index, target) in [0x19000u64, 0x19010, 0x19020].into_iter().enumerate() {
+                let at = 0x18000 + index * width as usize;
+                b[at..at + width as usize].copy_from_slice(&target.to_le_bytes()[..width as usize]);
+            }
+            let i = image(&b);
+            let linux = engine(&i, &isf);
+            let mut result = linux.result(Plugin::CheckSyscall);
+            linux.check_syscall(&mut result, &Job::default()).unwrap();
+            assert!(result.complete, "{width} {sized}: {:?}", result.diagnostics);
+            assert_eq!(
+                result.rows.len(),
+                if sized { 3 } else { 2 },
+                "{width} {sized}"
+            );
+            assert_eq!(result.rows[0][2], hex(0x19000));
+            assert_eq!(result.rows[1][2], hex(0x19010));
+            if sized {
+                assert_eq!(result.rows[2][2], hex(0x19020));
+            }
+        }
+    }
+}
+
+#[test]
 fn four_byte_fd_arrays_do_not_merge_adjacent_slots() {
     let (mut b, mut isf) = fixture();
     isf.data["base_types"]["pointer"]["size"] = json!(4);

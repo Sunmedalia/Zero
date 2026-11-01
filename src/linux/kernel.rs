@@ -569,6 +569,10 @@ impl Linux<'_> {
         Ok(CodeMap { ranges, symbols })
     }
     pub(super) fn check_syscall(&self, r: &mut Results, job: &Job) -> Result<()> {
+        let width = self.isf.data["base_types"]["pointer"]["size"]
+            .as_u64()
+            .context("ISF pointer size 缺失")?;
+        ensure!(matches!(width, 4 | 8), "ISF pointer size 无效");
         let table = self
             .isf
             .address("sys_call_table")
@@ -579,18 +583,22 @@ impl Linux<'_> {
                 self.isf.data["symbols"]["sys_call_table"]["type"]["count"]
                     .as_u64()
                     .filter(|n| *n > 0)
-                    .and_then(|n| n.checked_mul(8))
+                    .and_then(|n| n.checked_mul(width))
             })
             .context("不支持: ISF 缺少准确的 sys_call_table 长度；请从调试 ELF 生成符号")?;
         ensure!(
-            size > 0 && size % 8 == 0 && size / 8 <= 4096,
+            size > 0 && size % width == 0 && size / width <= 4096,
             "sys_call_table 长度无效"
         );
         let code = self.code_map(job)?;
-        for i in 0..size / 8 {
+        for i in 0..size / width {
             job.check()?;
             let read = (|| -> Result<Vec<String>> {
-                let target = self.vm.uint(table + i * 8, 8)?;
+                let address = add(
+                    table,
+                    i.checked_mul(width).context("sys_call_table 偏移溢出")?,
+                )?;
+                let target = self.vm.uint(address, width as usize)?;
                 let (symbol, owner, reason) = code.describe(target);
                 let mut byte = [0];
                 self.vm.read(target, &mut byte)?;
