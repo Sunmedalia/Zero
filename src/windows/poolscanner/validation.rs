@@ -186,7 +186,7 @@ impl Windows<'_> {
             descriptor,
             self.vm.isf.offset("_UNICODE_STRING", "Buffer")?,
         )?)?);
-        let mut bytes = vec![0; length as usize];
+        let mut bytes = vec![0; usize::try_from(length)?];
         self.vm.read(buffer, &mut bytes)?;
         Ok(windowstations::reference_unicode_name(&bytes))
     }
@@ -290,7 +290,7 @@ impl Windows<'_> {
         current_year: Option<i64>,
     ) -> Result<bool> {
         let layout = self.vm.isf.layout("_EPROCESS", "ImageFileName")?;
-        let mut bytes = vec![0u8; layout.size as usize];
+        let mut bytes = vec![0u8; usize::try_from(layout.size)?];
         self.pool_read(add(body, layout.offset)?, &mut bytes, virtual_scan)?;
         let name = windowstations::reference_process_name(&bytes);
         if name.is_empty() {
@@ -384,7 +384,7 @@ impl Windows<'_> {
         match constraint.object_type {
             Some("Process") => {
                 let layout = self.vm.isf.layout("_EPROCESS", "ImageFileName")?;
-                let mut bytes = vec![0u8; layout.size as usize];
+                let mut bytes = vec![0u8; usize::try_from(layout.size)?];
                 self.pool_read(add(body, layout.offset)?, &mut bytes, virtual_scan)?;
                 let end = bytes
                     .iter()
@@ -405,7 +405,7 @@ impl Windows<'_> {
                         "FileName.Buffer",
                         virtual_scan,
                     )?);
-                    let mut bytes = vec![0u8; length as usize];
+                    let mut bytes = vec![0u8; usize::try_from(length)?];
                     self.vm.read(buffer, &mut bytes)?;
                     Ok(windowstations::reference_unicode_name(&bytes))
                 })();

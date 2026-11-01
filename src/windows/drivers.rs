@@ -30,7 +30,7 @@ impl Windows<'_> {
                 if !header.is_multiple_of(alignment) {
                     continue;
                 }
-                let mut pool = vec![0; header_size as usize];
+                let mut pool = vec![0; usize::try_from(header_size)?];
                 if self.vm.image.read(header, &mut pool).is_err() {
                     continue;
                 }
@@ -40,9 +40,9 @@ impl Windows<'_> {
                 if block < header_size + size || block > 4096 {
                     continue;
                 }
-                for delta in (header_size..=block - size).step_by(alignment as usize) {
+                for delta in (header_size..=block - size).step_by(usize::try_from(alignment)?) {
                     let physical = add(header, delta)?;
-                    let mut b = vec![0; size as usize];
+                    let mut b = vec![0; usize::try_from(size)?];
                     if self.vm.image.read(physical, &mut b).is_err() {
                         continue;
                     }

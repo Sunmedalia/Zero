@@ -212,7 +212,7 @@ pub(super) fn file_version(vm: &Memory<'_>, base: u64) -> Result<[u16; 4]> {
         rva != 0 && (16..=1024 * 1024).contains(&len) && rva + len <= size as u64,
         "PE resource 越界"
     );
-    let mut resources = vec![0; len as usize];
+    let mut resources = vec![0; usize::try_from(len)?];
     vm.read(add(base, rva)?, &mut resources)?;
     let mut offset = 0usize;
     for depth in 0..3 {
@@ -244,7 +244,7 @@ pub(super) fn file_version(vm: &Memory<'_>, base: u64) -> Result<[u16; 4]> {
                 (52..=1024 * 1024).contains(&length) && start + length <= size as u64,
                 "版本资源越界"
             );
-            let mut value = vec![0; length as usize];
+            let mut value = vec![0; usize::try_from(length)?];
             vm.read(add(base, start)?, &mut value)?;
             return fixed_version(&value);
         }

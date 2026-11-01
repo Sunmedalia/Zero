@@ -53,7 +53,7 @@ impl Windows<'_> {
             .as_u64()
             .context("缺少 LIST_ENTRY 大小")?;
         ensure!(size <= 4096, "LIST_ENTRY 大小超限");
-        let mut bytes = vec![0; size as usize];
+        let mut bytes = vec![0; usize::try_from(size)?];
         let native = |raw| {
             let masked = raw & self.driver_address_mask();
             if self.vm.pointer_size() == 8 && masked & (1 << 47) != 0 {

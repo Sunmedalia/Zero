@@ -75,10 +75,10 @@ fn scan(
     let mut at = section.start;
     while at < end {
         job.check()?;
-        let n = (4096 - (at & 4095)).min(end - at) as usize;
+        let n = usize::try_from((4096 - (at & 4095)).min(end - at))?;
         // At an unaligned virtual section base, preserve the section-relative DWORD grid.
         let n = if n < 4 {
-            4.min((end - at) as usize)
+            4.min(usize::try_from(end - at)?)
         } else {
             n - n % 4
         };

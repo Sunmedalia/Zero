@@ -132,10 +132,12 @@ impl Hibernation {
             ensure!(
                 self.maps.len() < MAX_OBJECTS
                     && start < end
-                    && offset.checked_add(length as usize).is_some_and(|n| self
-                        .blocks
-                        .get(index)
-                        .is_some_and(|block| n <= block.size)),
+                    && offset
+                        .checked_add(usize::try_from(length)?)
+                        .is_some_and(|n| self
+                            .blocks
+                            .get(index)
+                            .is_some_and(|block| n <= block.size)),
                 "休眠映射范围无效"
             );
             if let Some((_, previous)) = self.maps.range(..=start).next_back() {
@@ -152,7 +154,7 @@ impl Hibernation {
                     offset,
                 },
             );
-            offset += length as usize;
+            offset += usize::try_from(length)?;
             self.info.saved_pages += count;
         }
         ensure!(
@@ -182,9 +184,9 @@ impl Hibernation {
                 .next_back()
                 .filter(|(_, m)| address < m.end)
                 .with_context(|| format!("休眠文件缺少物理页 {address:#x}"))?;
-            let n = out.len().min((map.end - address) as usize);
+            let n = out.len().min(usize::try_from(map.end - address)?);
             let bytes = self.decode(&r, map.block)?;
-            let at = map.offset + (address - start) as usize;
+            let at = map.offset + usize::try_from(address - start)?;
             let (head, tail) = out.split_at_mut(n);
             head.copy_from_slice(bytes.get(at..at + n).context("休眠解压块范围无效")?);
             address += n as u64;
@@ -382,7 +384,7 @@ fn modern_ranges(
             Block {
                 offset: data,
                 length,
-                size: total as usize * 4096,
+                size: usize::try_from(total)? * 4096,
                 format,
                 raw: false,
             },
@@ -413,7 +415,7 @@ fn legacy_ranges(
         let at = page.checked_mul(4096).context("range table offset 溢出")?;
         let bytes = r.bytes(at, 4096)?;
         let next = uint(&bytes, 0, width)?;
-        let count = uint(&bytes, width, 4)? as usize;
+        let count = usize::try_from(uint(&bytes, width, 4)?)?;
         let header = width * 2;
         ensure!(
             count > 0 && count <= (4096 - header) / (width * 2),
@@ -467,8 +469,8 @@ fn legacy_ranges(
                 r,
                 Block {
                     offset: start,
-                    length: length as usize,
-                    size: pages as usize * 4096,
+                    length: usize::try_from(length)?,
+                    size: usize::try_from(pages)? * 4096,
                     format: 3,
                     raw: length == pages * 4096,
                 },

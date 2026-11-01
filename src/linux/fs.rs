@@ -293,13 +293,13 @@ impl Linux<'_> {
             let len = self.number(qstr, "qstr", "len")?;
             ensure!((1..=255).contains(&len), "路径名称长度无效: {len}");
             let ptr = self.number(qstr, "qstr", "name")?;
-            let mut bytes = vec![0; len as usize + 1];
+            let mut bytes = vec![0; usize::try_from(len)? + 1];
             self.vm.read(ptr, &mut bytes)?;
             ensure!(
-                bytes[len as usize] == 0 && !bytes[..len as usize].contains(&0),
+                bytes[usize::try_from(len)?] == 0 && !bytes[..usize::try_from(len)?].contains(&0),
                 "路径名称无效"
             );
-            parts.push(String::from_utf8_lossy(&bytes[..len as usize]).into_owned());
+            parts.push(String::from_utf8_lossy(&bytes[..usize::try_from(len)?]).into_owned());
             let parent = self.number(d, "dentry", "d_parent")?;
             if parent == d && self.filesystem(d)? == "anon_inodefs" {
                 return Ok(format!("anon_inode:[{}]", parts[0]));

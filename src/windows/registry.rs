@@ -71,7 +71,7 @@ impl Windows<'_> {
                 Err(e) => Self::issue(&mut r, format!("hive {hive:#x} cell {child:#x}"), e),
             }
         }
-        let list_offset = self.vm.isf.offset("_CM_KEY_NODE", "ValueList")? as usize;
+        let list_offset = usize::try_from(self.vm.isf.offset("_CM_KEY_NODE", "ValueList")?)?;
         let list = node.get(list_offset..).context("注册表 ValueList 截断")?;
         let count = objects::physical_number(self.vm.isf, list, "_CHILD_LIST", "Count")?;
         let index = u32::try_from(objects::physical_number(
@@ -83,8 +83,11 @@ impl Windows<'_> {
         ensure!(count <= MAX_OBJECTS as u64, "注册表值超限");
         if count > 0 {
             let indices = self.cell(hhive, index)?;
-            ensure!(count as usize * 4 <= indices.len(), "注册表值列表截断");
-            for chunk in indices[..count as usize * 4].chunks_exact(4) {
+            ensure!(
+                usize::try_from(count)? * 4 <= indices.len(),
+                "注册表值列表截断"
+            );
+            for chunk in indices[..usize::try_from(count)? * 4].chunks_exact(4) {
                 job.check()?;
                 let index = u32::from_le_bytes(chunk.try_into()?);
                 let read = self.value(hhive, index, job).map(|(name, ty, data)| {
@@ -308,17 +311,21 @@ impl Windows<'_> {
     pub(super) fn key_name(&self, node: &[u8]) -> Result<String> {
         ensure!(node.len() >= 2 && &node[..2] == b"nk", "无效 nk cell");
         let flags = objects::physical_number(self.vm.isf, node, "_CM_KEY_NODE", "Flags")?;
-        let len =
-            objects::physical_number(self.vm.isf, node, "_CM_KEY_NODE", "NameLength")? as usize;
-        let offset = self.vm.isf.offset("_CM_KEY_NODE", "Name")? as usize;
+        let len = usize::try_from(objects::physical_number(
+            self.vm.isf,
+            node,
+            "_CM_KEY_NODE",
+            "NameLength",
+        )?)?;
+        let offset = usize::try_from(self.vm.isf.offset("_CM_KEY_NODE", "Name")?)?;
         decode_name(
             node.get(offset..offset + len).context("键名截断")?,
             flags & 0x20 != 0,
         )
     }
     pub(super) fn subkeys(&self, hive: u64, node: &[u8], job: &Job) -> Result<Vec<u32>> {
-        let counts = self.vm.isf.offset("_CM_KEY_NODE", "SubKeyCounts")? as usize;
-        let lists = self.vm.isf.offset("_CM_KEY_NODE", "SubKeyLists")? as usize;
+        let counts = usize::try_from(self.vm.isf.offset("_CM_KEY_NODE", "SubKeyCounts")?)?;
+        let lists = usize::try_from(self.vm.isf.offset("_CM_KEY_NODE", "SubKeyLists")?)?;
         let mut out = Vec::new();
         let mut seen = HashSet::new();
         for storage in 0..2 {
@@ -384,8 +391,8 @@ impl Windows<'_> {
     fn value_cell_name(&self, cell: &[u8]) -> Result<String> {
         ensure!(cell.len() >= 2 && &cell[..2] == b"vk", "非 vk cell");
         let get = |f| objects::physical_number(self.vm.isf, cell, "_CM_KEY_VALUE", f);
-        let len = get("NameLength")? as usize;
-        let offset = self.vm.isf.offset("_CM_KEY_VALUE", "Name")? as usize;
+        let len = usize::try_from(get("NameLength")?)?;
+        let offset = usize::try_from(self.vm.isf.offset("_CM_KEY_VALUE", "Name")?)?;
         decode_name(
             cell.get(offset..offset + len).context("值名截断")?,
             get("Flags")? & 1 != 0,
@@ -429,8 +436,12 @@ impl Windows<'_> {
     pub(super) fn key_class(&self, hive: u64, key_index: u32) -> Result<Vec<u8>> {
         let node = self.cell(hive, key_index)?;
         ensure!(node.len() >= 2 && &node[..2] == b"nk", "非 nk cell");
-        let length =
-            objects::physical_number(self.vm.isf, &node, "_CM_KEY_NODE", "ClassLength")? as usize;
+        let length = usize::try_from(objects::physical_number(
+            self.vm.isf,
+            &node,
+            "_CM_KEY_NODE",
+            "ClassLength",
+        )?)?;
         if length == 0 {
             return Ok(Vec::new());
         }
@@ -466,9 +477,14 @@ impl Windows<'_> {
     /// 键的 ValueList 索引（cell index 序列）。
     pub(super) fn value_indices(&self, hive: u64, key: u32) -> Result<Vec<u32>> {
         let node = self.cell(hive, key)?;
-        let list_offset = self.vm.isf.offset("_CM_KEY_NODE", "ValueList")? as usize;
+        let list_offset = usize::try_from(self.vm.isf.offset("_CM_KEY_NODE", "ValueList")?)?;
         let list = node.get(list_offset..).context("注册表 ValueList 截断")?;
-        let count = objects::physical_number(self.vm.isf, list, "_CHILD_LIST", "Count")? as usize;
+        let count = usize::try_from(objects::physical_number(
+            self.vm.isf,
+            list,
+            "_CHILD_LIST",
+            "Count",
+        )?)?;
         ensure!(count <= MAX_OBJECTS, "注册表值超限");
         if count == 0 {
             return Ok(Vec::new());

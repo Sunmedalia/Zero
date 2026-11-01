@@ -35,9 +35,9 @@ impl Linux<'_> {
                 .uint(self.isf.address("logged_chars")?, 4)?
                 .min(size);
             let start = end.wrapping_sub(u32::try_from(length)?);
-            let mut bytes = Vec::with_capacity(length as usize);
+            let mut bytes = Vec::with_capacity(usize::try_from(length)?);
             let mut pos = start as u64;
-            while bytes.len() < (length as usize) {
+            while bytes.len() < usize::try_from(length)? {
                 job.check()?;
                 let index = pos & (size - 1);
                 let n = (size - index).min(length - bytes.len() as u64).min(4096) as usize;
@@ -125,7 +125,7 @@ impl Linux<'_> {
                     self.vm.uint(bytes + pos, 8)? == id,
                     "printk 文本 descriptor ID 不一致"
                 );
-                let mut text = vec![0; len as usize];
+                let mut text = vec![0; usize::try_from(len)?];
                 self.vm.read(bytes + pos + 8, &mut text)?;
                 Ok(Some(vec![
                     self.number(info, "printk_info", "seq")?.to_string(),
@@ -598,7 +598,7 @@ impl Linux<'_> {
                     table,
                     i.checked_mul(width).context("sys_call_table 偏移溢出")?,
                 )?;
-                let target = self.vm.uint(address, width as usize)?;
+                let target = self.vm.uint(address, usize::try_from(width)?)?;
                 let (symbol, owner, reason) = code.describe(target);
                 let mut byte = [0];
                 self.vm.read(target, &mut byte)?;
@@ -763,7 +763,7 @@ impl Linux<'_> {
             8,
         )?;
         ensure!(data != 0 && size <= 65536, "vmcoreinfo 缓冲区无效");
-        let mut bytes = vec![0; size as usize];
+        let mut bytes = vec![0; usize::try_from(size)?];
         self.vm.read(data, &mut bytes)?;
         for line in String::from_utf8_lossy(&bytes).lines() {
             if let Some((key, value)) = line.split_once('=') {

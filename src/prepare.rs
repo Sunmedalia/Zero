@@ -62,7 +62,7 @@ pub fn elf_metadata(path: &Path) -> Result<(u16, serde_json::Value)> {
             .context("ELF string section 越界")?;
         let strings = read_at(&mut file, u64le(st, 24)?, usize::try_from(u64le(st, 32)?)?)?;
         let symbols = read_at(&mut file, u64le(s, 24)?, usize::try_from(u64le(s, 32)?)?)?;
-        let entry = u64le(s, 56)? as usize;
+        let entry = usize::try_from(u64le(s, 56)?)?;
         ensure!(entry >= 24, "ELF symbol entry 无效");
         for symbol in symbols.chunks_exact(entry) {
             let name = u32le(symbol, 0)? as usize;

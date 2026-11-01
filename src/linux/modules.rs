@@ -42,10 +42,11 @@ impl Linux<'_> {
                 .as_u64()
                 .context("模块分配边界指针宽度缺失")?;
             ensure!(matches!(width, 4 | 8), "模块分配边界指针宽度无效");
-            let start = self.vm.uint(min, width as usize)?;
-            let end = self
-                .vm
-                .uint(self.isf.address("module_addr_max")?, width as usize)?;
+            let start = self.vm.uint(min, usize::try_from(width)?)?;
+            let end = self.vm.uint(
+                self.isf.address("module_addr_max")?,
+                usize::try_from(width)?,
+            )?;
             ensure!(start < end && start != u64::MAX, "module_addr_min/max 无效");
             return Ok(ModuleRegions {
                 ranges: vec![(start, end)],
@@ -115,7 +116,7 @@ impl Linux<'_> {
         let step = if known.iter().any(|address| address % alignment != 0) {
             1
         } else {
-            alignment as usize
+            usize::try_from(alignment)?
         };
         ensure!(
             back <= PAGE - width as u64,
@@ -158,14 +159,14 @@ impl Linux<'_> {
             ensure!(end - start <= CARVE_SPAN, "模块内存范围超过 2 GiB 上限");
             // Two-page window: a candidate in the previous page may keep its
             // back-reference in the current one.
-            let mut window = vec![0u8; 2 * PAGE as usize];
+            let mut window = vec![0u8; 2 * usize::try_from(PAGE)?];
             let mut previous_mapped = false;
             let mut page = start;
             let flush = add(end, PAGE - 1)? & !(PAGE - 1);
             while page <= flush {
                 job.check()?;
-                window.copy_within((PAGE as usize).., 0);
-                let current = &mut window[(PAGE as usize)..];
+                window.copy_within(usize::try_from(PAGE)?.., 0);
+                let current = &mut window[usize::try_from(PAGE)?..];
                 let mapped = if page >= end {
                     false
                 } else {
@@ -209,7 +210,7 @@ impl Linux<'_> {
                     };
                     for offset in (first..PAGE).step_by(step) {
                         let candidate = base + offset;
-                        let at = (offset + back) as usize;
+                        let at = usize::try_from(offset + back)?;
                         let mut raw = [0u8; 8];
                         raw[..width].copy_from_slice(&window[at..at + width]);
                         let pointer = u64::from_le_bytes(raw);

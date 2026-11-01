@@ -431,7 +431,7 @@ pub(super) fn reconstruct_pe(
     for (raw, len, rva) in ranges {
         while position < raw {
             job.check()?;
-            let n = ((raw - position) as usize).min(zeros.len());
+            let n = usize::try_from(raw - position)?.min(zeros.len());
             file.write_all(&zeros[..n])?;
             hash.update(&zeros[..n]);
             position += n as u64;
@@ -488,7 +488,7 @@ pub(super) fn write_reader(
     let mut b = vec![0; 1024 * 1024];
     while size > 0 {
         job.check()?;
-        let n = (size as usize).min(b.len());
+        let n = usize::try_from(size)?.min(b.len());
         read(address, &mut b[..n])?;
         file.write_all(&b[..n])?;
         hash.update(&b[..n]);

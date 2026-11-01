@@ -28,8 +28,9 @@ pub(super) fn nf_protocol(family: u64) -> &'static str {
 }
 pub(super) fn nf_hook(family: u64, hook: u64) -> String {
     let names: &[&str] = if family == 3 { &ARP_HOOKS } else { &INET_HOOKS };
-    names
-        .get(hook as usize)
+    usize::try_from(hook)
+        .ok()
+        .and_then(|index| names.get(index))
         .map_or_else(|| hook.to_string(), |name| (*name).to_string())
 }
 
@@ -132,7 +133,10 @@ impl Linux<'_> {
                             return Ok(vec![]);
                         }
                         let n = self.number(entries, "nf_hook_entries", "num_hook_entries")?;
-                        ensure!(n as usize <= HOOK_LIMIT, "nf_hook_entries 数量超限");
+                        ensure!(
+                            usize::try_from(n)? <= HOOK_LIMIT,
+                            "nf_hook_entries 数量超限"
+                        );
                         let hooks = self.field_address(entries, "nf_hook_entries", "hooks")?;
                         let size = self.isf.data["user_types"]["nf_hook_entry"]["size"]
                             .as_u64()

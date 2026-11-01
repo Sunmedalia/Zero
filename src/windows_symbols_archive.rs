@@ -37,7 +37,7 @@ impl<F: FnMut(&str) -> Result<symbols::RangeResponse>> RangeReader<F> {
             fetch,
             tail,
             position: 0,
-            blocks: Lru::new(8 * BLOCK as usize),
+            blocks: Lru::new(8 * usize::try_from(BLOCK)?),
             requests: 1,
         })
     }
@@ -48,7 +48,10 @@ impl<F: FnMut(&str) -> Result<symbols::RangeResponse>> Read for RangeReader<F> {
             return Ok(0);
         }
         let (bytes, offset) = if self.position >= self.tail.start {
-            (&self.tail.bytes, (self.position - self.tail.start) as usize)
+            (
+                &self.tail.bytes,
+                usize::try_from(self.position - self.tail.start).map_err(std::io::Error::other)?,
+            )
         } else {
             let start = self.position / BLOCK * BLOCK;
             if self.blocks.get(&start).is_none() {
@@ -63,14 +66,17 @@ impl<F: FnMut(&str) -> Result<symbols::RangeResponse>> Read for RangeReader<F> {
                         && response.bytes.len() as u64 == end - start + 1,
                     "官方 ZIP Range 不一致或文件发生变化",
                 )?;
-                self.blocks
-                    .insert(start, response.bytes, (end - start + 1) as usize);
+                self.blocks.insert(
+                    start,
+                    response.bytes,
+                    usize::try_from(end - start + 1).map_err(std::io::Error::other)?,
+                );
             }
             (
                 self.blocks
                     .get(&start)
                     .ok_or_else(|| std::io::Error::other("ZIP 块缓存未保留刚读取的数据"))?,
-                (self.position - start) as usize,
+                usize::try_from(self.position - start).map_err(std::io::Error::other)?,
             )
         };
         let count = out.len().min(bytes.len() - offset);
@@ -168,7 +174,7 @@ pub(crate) fn acquire(
     let reader = RangeReader::open(|range: &str| {
         job.check()?;
         job.report(format!("官方符号包按需读取 bytes={range}"));
-        symbols::fetch_range(URL, range, BLOCK as usize, job)
+        symbols::fetch_range(URL, range, usize::try_from(BLOCK)?, job)
     })?;
     extract(reader, identity, target, job)
 }

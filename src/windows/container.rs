@@ -93,7 +93,7 @@ impl Reader<'_> {
         Ok(())
     }
     fn string(&self, rva: u64) -> Result<String> {
-        let length = self.uint(rva, 4)? as usize;
+        let length = usize::try_from(self.uint(rva, 4)?)?;
         ensure!(
             length <= 65536 && length.is_multiple_of(2),
             "minidump 字符串长度无效"
@@ -216,7 +216,7 @@ fn crash(r: &Reader<'_>, job: &Job) -> Result<Parsed> {
                 bits > 0 && bits <= 128 * 1024 * 1024,
                 "bitmap dump 页位图超限"
             );
-            let bitmap_size = bits.div_ceil(8) as usize;
+            let bitmap_size = usize::try_from(bits.div_ceil(8))?;
             ensure!(
                 offset >= header + 56 + bitmap_size as u64 && offset.is_multiple_of(4096),
                 "bitmap dump 数据偏移无效"
@@ -228,7 +228,7 @@ fn crash(r: &Reader<'_>, job: &Job) -> Result<Parsed> {
                     job.check()?;
                 }
                 if bitmap
-                    .get(bit as usize / 8)
+                    .get(usize::try_from(bit)? / 8)
                     .is_none_or(|byte| byte & (1 << (bit % 8)) == 0)
                 {
                     continue;
@@ -310,7 +310,7 @@ fn triage(r: &Reader<'_>, p: &mut Parsed, header: u64, width: usize, job: &Job) 
     let count = r.uint(tail + 12, 4)?;
     ensure!(count <= MAX_OBJECTS as u64, "triage 数据块超限");
     let stride = width as u64 + 8;
-    r.bytes(table, count as usize * stride as usize)?;
+    r.bytes(table, usize::try_from(count)? * usize::try_from(stride)?)?;
     for i in 0..count {
         job.check()?;
         let pos = table + i * stride;
@@ -340,7 +340,7 @@ fn triage(r: &Reader<'_>, p: &mut Parsed, header: u64, width: usize, job: &Job) 
         driver_count <= MAX_OBJECTS as u64,
         "triage driver count 超限"
     );
-    r.bytes(drivers, driver_count as usize * entry_size)?;
+    r.bytes(drivers, usize::try_from(driver_count)? * entry_size)?;
     let pool_end = add(string_pool, string_size)?;
     ensure!(pool_end <= r.len, "triage 字符串池越界");
     for i in 0..driver_count {
@@ -356,7 +356,7 @@ fn triage(r: &Reader<'_>, p: &mut Parsed, header: u64, width: usize, job: &Job) 
             chars <= 32767 && add(name_offset, 4 + chars * 2 + 2)? <= pool_end,
             "triage driver 名称长度越界"
         );
-        let bytes = r.bytes(name_offset + 4, chars as usize * 2)?;
+        let bytes = r.bytes(name_offset + 4, usize::try_from(chars)? * 2)?;
         ensure!(
             r.uint(name_offset + 4 + chars * 2, 2)? == 0,
             "triage driver 名称未终止"
@@ -425,7 +425,7 @@ fn minidump(r: &Reader<'_>, job: &Job) -> Result<Parsed> {
     let count = r.uint(8, 4)?;
     let directory = r.uint(12, 4)?;
     ensure!(count <= 4096, "minidump stream 超限");
-    r.bytes(directory, count as usize * 12)?;
+    r.bytes(directory, usize::try_from(count)? * 12)?;
     let mut p = Parsed {
         format: "Windows minidump",
         segments: vec![],
@@ -536,7 +536,7 @@ fn minidump(r: &Reader<'_>, job: &Job) -> Result<Parsed> {
             let pos = off + 4 + i * 48;
             let tid = u32::try_from(r.uint(pos, 4)?)?;
             p.metadata.threads.push(tid);
-            let context_size = r.uint(pos + 40, 4)? as usize;
+            let context_size = usize::try_from(r.uint(pos + 40, 4)?)?;
             let context_offset = r.uint(pos + 44, 4)?;
             if context_size != 0 {
                 p.metadata.contexts.push(context::parse(
@@ -588,7 +588,7 @@ fn minidump(r: &Reader<'_>, job: &Job) -> Result<Parsed> {
             exception_code: Some(u32::try_from(r.uint(off + 8, 4)?)?),
             thread_id: Some(tid),
         });
-        let length = r.uint(off + 160, 4)? as usize;
+        let length = usize::try_from(r.uint(off + 160, 4)?)?;
         let offset = r.uint(off + 164, 4)?;
         if length != 0 {
             p.metadata.contexts.push(context::parse(

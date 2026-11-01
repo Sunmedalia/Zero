@@ -124,7 +124,7 @@ impl Windows<'_> {
         };
         // Direct NameInfo.Name.String does not apply get_name's maximum-length
         // sanity checks; read exactly Length with the reference String decoder.
-        let mut bytes = vec![0; length as usize];
+        let mut bytes = vec![0; usize::try_from(length)?];
         self.vm.read(buffer, &mut bytes)?;
         Ok(windowstations::reference_unicode_name(&bytes))
     }

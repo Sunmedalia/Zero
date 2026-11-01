@@ -125,7 +125,7 @@ impl Linux<'_> {
             for i in 0..count {
                 let child = self
                     .vm
-                    .uint(add(slots, i * slot_width)?, slot_width as usize)?;
+                    .uint(add(slots, i * slot_width)?, usize::try_from(slot_width)?)?;
                 if child & !15 != 0 {
                     if leaf {
                         ensure!(child & (pointer_width - 1) == 0, "maple VMA 指针对齐错误");
@@ -225,7 +225,7 @@ impl Linux<'_> {
         let root = self.vm.translate(pgd).context("mm.pgd 内核地址转换失败")?;
         ensure!(root & 4095 == 0, "进程页表未对齐");
         let vm = self.vm.with_root(root);
-        let mut out = vec![0; length as usize];
+        let mut out = vec![0; usize::try_from(length)?];
         for (i, chunk) in out.chunks_mut(4096).enumerate() {
             job.check()?;
             vm.read(start + i as u64 * 4096, chunk)?;

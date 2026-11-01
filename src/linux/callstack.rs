@@ -102,7 +102,7 @@ impl Linux<'_> {
             let symbols = self.module_symbols(module)?;
             ensure!(symbols.count <= budget, "模块边界读取超过 100 万项上限");
             budget -= symbols.count;
-            let mut values = Vec::with_capacity(symbols.count as usize);
+            let mut values = Vec::with_capacity(usize::try_from(symbols.count)?);
             for index in 0..symbols.count {
                 job.check()?;
                 let symbol = add(symbols.table, index * 24)?;

@@ -113,7 +113,7 @@ impl Linux<'_> {
                 let mut buffer = vec![0; 65536];
                 while source_bytes < fb.size {
                     job.check()?;
-                    let len = (fb.size - source_bytes).min(buffer.len() as u64) as usize;
+                    let len = usize::try_from((fb.size - source_bytes).min(buffer.len() as u64))?;
                     self.vm
                         .read(fb.address + source_bytes, &mut buffer[..len])?;
                     out.write_all(&buffer[..len])?;
@@ -142,7 +142,7 @@ impl Linux<'_> {
             if count == 0 {
                 return Ok((0, 0));
             }
-            Ok((self.isf.address("registered_fb")?, count as usize))
+            Ok((self.isf.address("registered_fb")?, usize::try_from(count)?))
         })();
         let (array, count) = match registered {
             Ok(value) => value,
@@ -171,7 +171,7 @@ impl Linux<'_> {
             let parsed = (|| -> Result<Option<Frame>> {
                 let object = self
                     .vm
-                    .uint(add(array, i as u64 * width)?, width as usize)?;
+                    .uint(add(array, i as u64 * width)?, usize::try_from(width)?)?;
                 ensure!(object != 0, "registered_fb[{i}] 为空；注册数量与数组不一致");
                 if dump
                     .and_then(|o| o.start)

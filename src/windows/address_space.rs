@@ -119,7 +119,7 @@ impl<'a> Memory<'a> {
         ensure!(geometry.canonical(va), "Windows 非 canonical 地址");
         let mut table = self.root & geometry.root_mask();
         for (level, &shift) in geometry.shifts().iter().enumerate() {
-            let index = ((va >> shift) & (geometry.entries(level) as u64 - 1)) as usize;
+            let index = usize::try_from((va >> shift) & (geometry.entries(level) as u64 - 1))?;
             let mut entry = self.captured_table_entry(geometry, table, index)?;
             if entry & 1 == 0 {
                 if entry & (1 << 11) != 0 && entry & (1 << 10) == 0 {
@@ -162,7 +162,8 @@ impl<'a> Memory<'a> {
         }
         let mut table = self.root & geometry.root_mask();
         for (level, &shift) in geometry.shifts().iter().enumerate() {
-            let index = ((va >> shift) & (geometry.entries(level) as u64 - 1)) as usize;
+            let index =
+                usize::try_from((va >> shift) & (geometry.entries(level) as u64 - 1)).ok()?;
             let mut entry = self.captured_table_entry(geometry, table, index).ok()?;
             if entry == 0 {
                 return Some((va | ((1u64 << shift) - 1)).checked_add(1)?.min(limit));
@@ -195,7 +196,7 @@ impl<'a> Memory<'a> {
         }
         while !out.is_empty() {
             let (physical, available) = self.translate_span(va)?;
-            let n = available.min(out.len() as u64) as usize;
+            let n = usize::try_from(available.min(out.len() as u64))?;
             self.image.read(physical, &mut out[..n])?;
             out = &mut out[n..];
             if !out.is_empty() {
@@ -216,7 +217,7 @@ impl<'a> Memory<'a> {
                 .as_ref()
                 .map(|(_, span)| *span)
                 .unwrap_or(4096 - (va & 4095));
-            let n = available.min(out.len() as u64) as usize;
+            let n = usize::try_from(available.min(out.len() as u64))?;
             match translated {
                 Ok((physical, _)) => self.image.read(physical, &mut out[..n])?,
                 Err(original) => match self.prototype(va) {
@@ -305,7 +306,7 @@ impl<'a> Memory<'a> {
         ensure!(geometry.canonical(va), "Windows 非 canonical 地址");
         let mut table = self.root & geometry.root_mask();
         for (level, &shift) in geometry.shifts().iter().enumerate() {
-            let index = ((va >> shift) & (geometry.entries(level) as u64 - 1)) as usize;
+            let index = usize::try_from((va >> shift) & (geometry.entries(level) as u64 - 1))?;
             let entry = self.captured_table_entry(geometry, table, index)?;
             if entry & 1 != 0 {
                 table = entry & geometry.mask();
@@ -342,7 +343,7 @@ impl<'a> Memory<'a> {
             len % 2 == 0 && len <= max && len <= 65534,
             "无效 UNICODE_STRING 长度"
         );
-        let mut bytes = vec![0; len as usize];
+        let mut bytes = vec![0; usize::try_from(len)?];
         if len > 0 {
             self.read(
                 self.number(address, "_UNICODE_STRING", "Buffer")?,

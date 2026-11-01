@@ -319,7 +319,7 @@ impl Windows<'_> {
             return None;
         }
         let buffer = self.raw_pointer(&memory, add(window, layout.window_name + 8).ok()?)?;
-        self.utf16_exact(processes, dtb, buffer, length as usize)
+        self.utf16_exact(processes, dtb, buffer, usize::try_from(length).ok()?)
     }
 
     pub(super) fn utf16_exact(

@@ -29,7 +29,7 @@ impl Windows<'_> {
         let mut blocks = BTreeSet::new();
         // One header buffer: this loop runs once per pool-tag hit across the
         // whole image.
-        let mut b = vec![0; size as usize];
+        let mut b = vec![0; usize::try_from(size)?];
         self.prefetch_pool_tags(job)?;
         for tag in tags {
             for hit in self.vm.image.scan(tag, job)? {
@@ -114,7 +114,7 @@ impl Windows<'_> {
         // One buffer reused across candidates: the scan probes a slot every
         // `align` bytes over whole pool blocks, so a per-candidate allocation
         // dominated this loop.
-        let mut bytes = vec![0; size as usize];
+        let mut bytes = vec![0; usize::try_from(size)?];
         for (start, length) in self.pool_blocks(tags, size + body_offset, job)? {
             for delta in (body_offset..=length - size).step_by(align as usize) {
                 job.check()?;
@@ -290,7 +290,7 @@ impl Windows<'_> {
         let Ok(offset) = isf.offset(ty, "LinkTarget") else {
             return false;
         };
-        let Some(target) = bytes.get(offset as usize..) else {
+        let Some(target) = usize::try_from(offset).ok().and_then(|at| bytes.get(at..)) else {
             return false;
         };
         let field = |name| physical_number(isf, target, "_UNICODE_STRING", name);

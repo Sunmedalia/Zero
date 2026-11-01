@@ -7,7 +7,7 @@ use super::*;
 fn descriptor_text(vm: &Memory<'_>, address: u64) -> Result<(String, u64)> {
     let length = vm.number(address, "_UNICODE_STRING", "Length")?;
     ensure!(length <= u16::MAX as u64, "UNICODE_STRING 长度超过 USHORT");
-    let mut bytes = vec![0; length as usize];
+    let mut bytes = vec![0; usize::try_from(length)?];
     if length != 0 {
         vm.read(vm.number(address, "_UNICODE_STRING", "Buffer")?, &mut bytes)?;
     }

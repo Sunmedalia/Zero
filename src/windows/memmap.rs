@@ -288,7 +288,7 @@ impl Windows<'_> {
             let mut offset = 0;
             while offset < map.size {
                 job.check()?;
-                let count = (map.size - offset).min(bytes.len() as u64) as usize;
+                let count = usize::try_from((map.size - offset).min(bytes.len() as u64))?;
                 match map.backing {
                     Backing::Physical => vm
                         .image

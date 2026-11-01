@@ -61,7 +61,7 @@ impl Memory<'_> {
         let va = geometry.translation_address(va);
         let mut table = self.root & geometry.root_mask();
         for (level, &shift) in geometry.shifts().iter().enumerate() {
-            let index = ((va >> shift) & (geometry.entries(level) as u64 - 1)) as usize;
+            let index = usize::try_from((va >> shift) & (geometry.entries(level) as u64 - 1))?;
             let mut entry = self.captured_table_entry(geometry, table, index)?;
             // Intel._translate_entry clears a large descriptor's PAT bit even
             // before deciding whether that descriptor is valid or swapped.
@@ -109,7 +109,7 @@ impl Memory<'_> {
         while !out.is_empty() {
             let n = match self.translate_span(va) {
                 Ok((physical, available)) => {
-                    let n = available.min(out.len() as u64) as usize;
+                    let n = usize::try_from(available.min(out.len() as u64))?;
                     self.image.read(physical, &mut out[..n])?;
                     n
                 }
@@ -117,7 +117,7 @@ impl Memory<'_> {
                     let (file, offset, available) = self
                         .reference_swap(va)
                         .with_context(|| format!("{original:#}"))?;
-                    let n = available.min(out.len() as u64) as usize;
+                    let n = usize::try_from(available.min(out.len() as u64))?;
                     self.sources.context("参考 Intel 层未附加分页文件")?.read(
                         file,
                         offset,

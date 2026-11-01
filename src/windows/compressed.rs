@@ -202,7 +202,7 @@ impl paging::Sources {
                 "CompressionAlgorithm",
             )?)?)
         };
-        let mut input = vec![0; length as usize];
+        let mut input = vec![0; usize::try_from(length)?];
         process_vm.read(address, &mut input)?;
         let bytes = if length == 4096 {
             input

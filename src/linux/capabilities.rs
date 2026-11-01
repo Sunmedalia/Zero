@@ -80,7 +80,7 @@ impl Linux<'_> {
             .type_size(&self.isf.data["symbols"]["cap_last_cap"]["type"])?;
         ensure!(matches!(size, 1 | 2 | 4 | 8), "cap_last_cap 宽度无效");
         let shift = 64 - size * 8;
-        let value = ((self.vm.uint(at, size as usize)? << shift) as i64) >> shift;
+        let value = ((self.vm.uint(at, usize::try_from(size)?)? << shift) as i64) >> shift;
         Ok(value)
     }
 

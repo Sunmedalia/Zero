@@ -162,11 +162,11 @@ fn write_region(
     let mut temp = tempfile::NamedTempFile::new_in(target.parent().context("输出文件缺少目录")?)?;
     let mut hash = Sha256::new();
     let size = end - start;
-    let mut buffer = vec![0; (1024 * 1024).min(size as usize)];
+    let mut buffer = vec![0; (1024 * 1024).min(usize::try_from(size)?)];
     let mut offset = 0;
     while offset < size {
         job.check()?;
-        let count = (size - offset).min(buffer.len() as u64) as usize;
+        let count = usize::try_from((size - offset).min(buffer.len() as u64))?;
         vm.read(start + offset, &mut buffer[..count])?;
         temp.write_all(&buffer[..count])?;
         hash.update(&buffer[..count]);

@@ -10,7 +10,7 @@ impl Memory<'_> {
             "UNICODE_STRING32 长度无效"
         );
         let pointer = self.uint(add(address, 4)?, 4)?;
-        let mut bytes = vec![0; length as usize];
+        let mut bytes = vec![0; usize::try_from(length)?];
         if length > 0 {
             ensure!(pointer != 0, "UNICODE_STRING32 空指针");
             self.read(pointer, &mut bytes)?;

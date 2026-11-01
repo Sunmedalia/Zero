@@ -148,7 +148,7 @@ impl Linux<'_> {
                         .field_address(addr, "unix_address", "name")?
                         .checked_add(offset)
                         .context("Unix 名称地址溢出")?;
-                    let mut bytes = vec![0; (len - offset) as usize];
+                    let mut bytes = vec![0; usize::try_from(len - offset)?];
                     self.vm.read(name, &mut bytes)?;
                     unix_name(&bytes)
                 };

@@ -18,9 +18,10 @@ impl Linux<'_> {
     fn parameter_string(&self, at: u64, count: u64) -> Result<String> {
         ensure!((1..=4096).contains(&count), "模块参数字符串超出读取上限");
         let mut bytes = Vec::new();
-        while bytes.len() < count as usize {
+        while bytes.len() < usize::try_from(count)? {
             let address = add(at, bytes.len() as u64)?;
-            let length = ((4096 - (address & 4095)) as usize).min(count as usize - bytes.len());
+            let length = usize::try_from(4096 - (address & 4095))?
+                .min(usize::try_from(count)? - bytes.len());
             let mut page = vec![0; length];
             if let Err(error) = self.vm.read(address, &mut page) {
                 if bytes.is_empty() {

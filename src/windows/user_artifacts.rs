@@ -41,7 +41,7 @@ fn command(vm: &Memory<'_>, address: u64) -> Result<String> {
         vm.pointer(address)?
     };
     ensure!(user(vm, source), "命令字符串指针无效");
-    let mut b = vec![0; length as usize * 2];
+    let mut b = vec![0; usize::try_from(length)? * 2];
     vm.read(source, &mut b)?;
     String::from_utf16(
         &b.chunks_exact(2)

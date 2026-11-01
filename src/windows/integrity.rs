@@ -115,12 +115,12 @@ impl Windows<'_> {
         let mut seen = HashSet::new();
         for (start, length) in self.pool_blocks(&[b"MmLd"], size, job)? {
             job.check()?;
-            let mut block = vec![0; length as usize];
+            let mut block = vec![0; usize::try_from(length)?];
             if self.vm.image.read(start, &mut block).is_err() {
                 continue;
             }
             for delta in (0..=length - size).step_by(align) {
-                let entry = &block[delta as usize..(delta + size) as usize];
+                let entry = &block[usize::try_from(delta)?..usize::try_from(delta + size)?];
                 let Ok((base, image, name, path)) = self.carved_module(entry, ty) else {
                     continue;
                 };
@@ -168,7 +168,7 @@ impl Windows<'_> {
     /// Read a UNICODE_STRING embedded in physical bytes; its buffer is virtual.
     fn unicode_in(&self, bytes: &[u8], ty: &str, field: &str) -> Result<String> {
         let isf = self.vm.isf;
-        let offset = isf.offset(ty, field)? as usize;
+        let offset = usize::try_from(isf.offset(ty, field)?)?;
         let string = bytes.get(offset..).context("UNICODE_STRING 截断")?;
         let length = physical_number(isf, string, "_UNICODE_STRING", "Length")?;
         let maximum = physical_number(isf, string, "_UNICODE_STRING", "MaximumLength")?;
@@ -178,7 +178,7 @@ impl Windows<'_> {
             "UNICODE_STRING 长度无效"
         );
         ensure!(self.vm.kernel(buffer), "UNICODE_STRING 缓冲区无效");
-        let mut b = vec![0; length as usize];
+        let mut b = vec![0; usize::try_from(length)?];
         self.vm.read(buffer, &mut b)?;
         String::from_utf16(
             &b.chunks_exact(2)
@@ -224,12 +224,12 @@ impl Windows<'_> {
         while index < count {
             job.check()?;
             let n = per_chunk.min(count - index);
-            let mut chunk = vec![0; (n * size) as usize];
+            let mut chunk = vec![0; usize::try_from(n * size)?];
             let start = add(table, index * size)?;
             let whole = self.vm.read(start, &mut chunk).is_ok();
             let mut missing = 0usize;
             let mut first_error = String::new();
-            for (delta, entry) in chunk.chunks_exact_mut(size as usize).enumerate() {
+            for (delta, entry) in chunk.chunks_exact_mut(usize::try_from(size)?).enumerate() {
                 job.check()?;
                 if !whole && let Err(error) = self.vm.read(add(start, delta as u64 * size)?, entry)
                 {

@@ -192,7 +192,7 @@ fn scan_sparse_impl<const CHUNK: usize, const OVERLAP: usize>(
                     .get_or_insert_with(|| "页面尝试次数上限".into());
                 return Ok(report);
             }
-            let count = ((PAGE - (cursor & (PAGE - 1))).min(end - cursor) as usize)
+            let count = usize::try_from((PAGE - (cursor & (PAGE - 1))).min(end - cursor))?
                 .min(CHUNK + OVERLAP - buffer.len());
             if budget.resident_bytes < count as u64 {
                 if !buffer.is_empty() {
@@ -285,7 +285,7 @@ pub fn context(
     while offset < length {
         job.check()?;
         let address = at.checked_add(offset as u64).context("上下文地址溢出")?;
-        let count = ((PAGE - (address & (PAGE - 1))) as usize).min(length - offset);
+        let count = usize::try_from(PAGE - (address & (PAGE - 1)))?.min(length - offset);
         if read(address, &mut out[offset..offset + count]).is_err() {
             job.check()?;
             out[offset..offset + count].fill(0);

@@ -43,7 +43,7 @@ impl Windows<'_> {
         ensure!(tag_offset + 4 <= pool_size, "池 tag 越界");
         let align = if self.vm.pointer_size() == 4 { 8 } else { 16 };
         let mut candidates = BTreeSet::new();
-        let mut header_bytes = vec![0; pool_size as usize];
+        let mut header_bytes = vec![0; usize::try_from(pool_size)?];
         self.prefetch_pool_tags(job)?;
         for hit in self.vm.image.scan(b"CM10", job)? {
             job.check()?;

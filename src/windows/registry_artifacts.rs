@@ -182,8 +182,10 @@ pub(super) fn shimcache_entries(bytes: &[u8]) -> Vec<(String, u64)> {
             else {
                 break;
             };
-            let Some(path) = bytes.get(offset as usize..offset as usize + usize::from(length))
-            else {
+            let path = usize::try_from(offset)
+                .ok()
+                .and_then(|offset| bytes.get(offset..offset.checked_add(usize::from(length))?));
+            let Some(path) = path else {
                 break;
             };
             out.push((utf16(path), time));

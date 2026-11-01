@@ -51,7 +51,7 @@ impl Linux<'_> {
             let Ok(Some(vm)) = self.process_vm(task.address) else {
                 continue;
             };
-            let mut bytes = vec![0; length as usize];
+            let mut bytes = vec![0; usize::try_from(length)?];
             if vm.read(start, &mut bytes).is_err() {
                 continue;
             }

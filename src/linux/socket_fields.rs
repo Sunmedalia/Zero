@@ -259,7 +259,7 @@ impl View<'_, '_> {
         // The reference reads address zero too; do not silently invent FREE.
         let state = self.virtual_at(socket).number("socket", "state")?;
         Ok(SOCKET_STATES
-            .get(state as usize)
+            .get(usize::try_from(state)?)
             .unwrap_or(&"Unknown socket state")
             .to_string())
     }
@@ -559,14 +559,16 @@ impl Linux<'_> {
                 }
                 16 => {
                     proto = NETLINK
-                        .get(sock.number("sock", "sk_protocol")? as usize)
+                        .get(usize::try_from(sock.number("sock", "sk_protocol")?)?)
                         .unwrap_or(&"Unknown netlink_sock protocol")
                         .to_string();
                     let groups = sock.number("netlink_sock", "groups")?;
                     if groups != 0 {
-                        let width = self.isf.data["base_types"]["unsigned long int"]["size"]
-                            .as_u64()
-                            .unwrap_or(8) as usize;
+                        let width = usize::try_from(
+                            self.isf.data["base_types"]["unsigned long int"]["size"]
+                                .as_u64()
+                                .unwrap_or(8),
+                        )?;
                         src = format!("groups:0x{:08x}", self.vm.uint(groups, width)?);
                     }
                     sport = sock
@@ -653,10 +655,15 @@ impl Linux<'_> {
                 }
                 31 => {
                     let protocol = sock.number("sock", "sk_protocol")?;
-                    proto = BT.get(protocol as usize).unwrap_or(&NA).to_string();
+                    proto = BT
+                        .get(usize::try_from(protocol)?)
+                        .unwrap_or(&NA)
+                        .to_string();
                     state = Some(
                         BT_STATES
-                            .get(sock.number("sock", "__sk_common.skc_state")? as usize)
+                            .get(usize::try_from(
+                                sock.number("sock", "__sk_common.skc_state")?,
+                            )?)
                             .unwrap_or(&NA)
                             .to_string(),
                     );
@@ -687,7 +694,7 @@ impl Linux<'_> {
             row: vec![
                 hex(address),
                 FAMILIES
-                    .get(family as usize)
+                    .get(usize::try_from(family)?)
                     .unwrap_or(&"Unknown socket family")
                     .to_string(),
                 socket_type(ty).into(),

@@ -65,7 +65,7 @@ impl Input {
                 break;
             }
             ensure!(
-                bytes.len() + n <= INPUT_LIMIT as usize,
+                bytes.len() + n <= usize::try_from(INPUT_LIMIT)?,
                 "字符串文件读取时超过 64 MiB"
             );
             bytes.extend_from_slice(&chunk[..n]);

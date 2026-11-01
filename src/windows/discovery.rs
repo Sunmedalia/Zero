@@ -52,7 +52,7 @@ pub fn discover(image: &Image, isf: &Isf, job: &Job) -> Result<(u64, u64)> {
         let mut start = segment.start.next_multiple_of(4096);
         while start < segment.end {
             job.check()?;
-            let n = ((segment.end - start) as usize).min(block.len());
+            let n = usize::try_from(segment.end - start)?.min(block.len());
             image.read(start, &mut block[..n])?;
             for (i, page) in block[..n].chunks_exact(4096).enumerate() {
                 let pa = start + i as u64 * 4096;

@@ -245,7 +245,11 @@ impl Linux<'_> {
             loop {
                 job.check()?;
                 ensure!(count < 100, "模块 section 属性超过 100 项上限");
-                if self.vm.uint(add(array, count * width)?, width as usize)? == 0 {
+                if self
+                    .vm
+                    .uint(add(array, count * width)?, usize::try_from(width)?)?
+                    == 0
+                {
                     break;
                 }
                 count += 1;
@@ -326,7 +330,7 @@ impl Linux<'_> {
         while (bytes.len() as u64) < length {
             job.check()?;
             let at = add(address, bytes.len() as u64)?;
-            let count = (4096 - (at & 4095)).min(length - bytes.len() as u64) as usize;
+            let count = usize::try_from((4096 - (at & 4095)).min(length - bytes.len() as u64))?;
             let mut page = vec![0; count];
             if self.vm.read(at, &mut page).is_err() {
                 page.fill(0);

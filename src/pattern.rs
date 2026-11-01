@@ -136,7 +136,7 @@ pub fn scan_region(
     let mut out = RegionScan::default();
     let mut carry: Vec<u8> = Vec::new();
     let mut page = start & !(PAGE - 1);
-    let mut bytes = vec![0u8; PAGE as usize];
+    let mut bytes = vec![0u8; usize::try_from(PAGE)?];
     while page < end {
         if read(page, &mut bytes).is_err() {
             out.unreadable += 1;

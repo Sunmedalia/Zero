@@ -130,7 +130,11 @@ impl<'a> Mapper<'a> {
                 bits: previous,
                 entry,
             })?;
-            let index = ((at >> shift) & ((1u64 << size) - 1)) as usize * self.kind.width();
+            let index =
+                usize::try_from((at >> shift) & ((1u64 << size) - 1)).map_err(|_| Fault {
+                    bits: previous,
+                    entry,
+                })? * self.kind.width();
             let mut word = [0; 8];
             word[..self.kind.width()].copy_from_slice(&table[index..index + self.kind.width()]);
             entry = u64::from_le_bytes(word);
@@ -227,7 +231,7 @@ impl<'a> Mapper<'a> {
                     )
                 }
             };
-            let count = (span - (at & (span - 1))).min(out.len() as u64) as usize;
+            let count = usize::try_from((span - (at & (span - 1))).min(out.len() as u64))?;
             if backing == 0 {
                 self.image.read(offset, &mut out[..count])?;
             } else {

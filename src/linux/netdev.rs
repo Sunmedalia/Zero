@@ -111,7 +111,7 @@ impl Linux<'_> {
                     let length = self.number(device, "net_device", "addr_len")?;
                     ensure!(length <= ADDRESS_LIMIT, "硬件地址长度无效");
                     let pointer = self.number(device, "net_device", "dev_addr")?;
-                    let mut mac = vec![0; length as usize];
+                    let mut mac = vec![0; usize::try_from(length)?];
                     if pointer != 0 && length > 0 {
                         self.vm.read(pointer, &mut mac)?;
                     }

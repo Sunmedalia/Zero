@@ -79,7 +79,7 @@ impl Linux<'_> {
         ensure!(size <= 1024 * 1024, "任务目标结构超过读取上限");
         Ok(self
             .vm
-            .read(address, &mut vec![0; size.max(1) as usize])
+            .read(address, &mut vec![0; usize::try_from(size.max(1))?])
             .is_ok())
     }
 

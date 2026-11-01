@@ -58,7 +58,12 @@ impl Linux<'_> {
             .as_u64()
             .context("task_struct 缺少大小")?;
         ensure!(size <= 1024 * 1024, "task_struct 超过读取上限");
-        if parent != 0 && self.vm.read(parent, &mut vec![0; size as usize]).is_ok() {
+        if parent != 0
+            && self
+                .vm
+                .read(parent, &mut vec![0; usize::try_from(size)?])
+                .is_ok()
+        {
             self.number(parent, "task_struct", "tgid")
         } else {
             Ok(0)
@@ -174,7 +179,7 @@ impl Linux<'_> {
                     break;
                 }
                 let offset = bytes.len();
-                bytes.resize(offset + (map.end - map.start) as usize, 0);
+                bytes.resize(offset + usize::try_from(map.end - map.start)?, 0);
                 mapper.read(map.start, &mut bytes[offset..], |_, _, _| {
                     anyhow::bail!("模块名称无 swap 附件")
                 })?;

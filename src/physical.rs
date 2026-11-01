@@ -109,7 +109,7 @@ fn pointers_bounded(
         let mut position = segment.start;
         while position < segment.end {
             job.check()?;
-            let count = (segment.end - position).min(CHUNK as u64) as usize;
+            let count = usize::try_from((segment.end - position).min(CHUNK as u64))?;
             let overlap = tail.len();
             tail.resize(overlap + count, 0);
             if let Err(error) = image.read(position, &mut tail[overlap..]) {
@@ -189,7 +189,7 @@ impl Object<'_> {
             self.address
                 .checked_add(layout.offset)
                 .context("物理对象字段溢出")?,
-            &mut bytes[..layout.size as usize],
+            &mut bytes[..usize::try_from(layout.size)?],
         )?;
         let value = u64::from_le_bytes(bytes);
         if let Some((position, length)) = layout.bits {

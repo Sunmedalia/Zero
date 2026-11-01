@@ -109,7 +109,7 @@ impl CoreNames {
         let mut text = String::new();
         for i in 0..length {
             job.check()?;
-            let token = linux.vm.uint(add(at, i)?, 1)? as usize;
+            let token = usize::try_from(linux.vm.uint(add(at, i)?, 1)?)?;
             let value = &self.tokens[usize::from(self.index[token])];
             ensure!(
                 text.len() + value.len() <= 32768,
@@ -172,8 +172,8 @@ impl Linux<'_> {
             .filter_map(|name| self.isf.address(name).ok())
             .filter(|address| *address != 0)
             .collect();
-            let mut signed = Vec::with_capacity(count as usize);
-            let mut unsigned = Vec::with_capacity(count as usize);
+            let mut signed = Vec::with_capacity(usize::try_from(count)?);
+            let mut unsigned = Vec::with_capacity(usize::try_from(count)?);
             let mut signed_hits = HashSet::new();
             let mut unsigned_hits = HashSet::new();
             for i in 0..count {
@@ -222,7 +222,7 @@ impl Linux<'_> {
                 .isf
                 .address("kallsyms_addresses")
                 .context("没有 kallsyms 地址表")?;
-            let mut output = Vec::with_capacity(count as usize);
+            let mut output = Vec::with_capacity(usize::try_from(count)?);
             for i in 0..count {
                 job.check()?;
                 output.push(self.vm.uint(add(addresses, i * 8)?, 8).ok());
@@ -234,9 +234,10 @@ impl Linux<'_> {
         let symbol = &self.isf.data["symbols"]["kallsyms_num_syms"];
         let width = self.isf.type_size(&symbol["type"])?;
         ensure!(matches!(width, 4 | 8), "kallsyms_num_syms 类型无效");
-        let count = self
-            .vm
-            .uint(self.isf.address("kallsyms_num_syms")?, width as usize)?;
+        let count = self.vm.uint(
+            self.isf.address("kallsyms_num_syms")?,
+            usize::try_from(width)?,
+        )?;
         ensure!(count > 0 && count <= OBJECT_LIMIT, "kallsyms 数量无效/超限");
         let names = self.core_names(job)?;
         let mask = if self.arm64() {
@@ -259,7 +260,7 @@ impl Linux<'_> {
                 anyhow::anyhow!("index {} 的地址不递增，尺寸信息可能受损", index + 1),
             );
         }
-        let mut sizes = vec![None; count as usize];
+        let mut sizes = vec![None; usize::try_from(count)?];
         let mut i = 0;
         while i < addresses.len() {
             job.check()?;
@@ -309,7 +310,7 @@ impl Linux<'_> {
         let mut index = 0usize;
         let mut offset = 0;
         let mut decode_budget = 64 * 1024 * 1024;
-        while index < count as usize {
+        while index < usize::try_from(count)? {
             job.check()?;
             let decoded = names.decode(self, offset, job, &mut decode_budget);
             match decoded {
@@ -344,12 +345,14 @@ impl Linux<'_> {
                         break;
                     }
                     let next = (index / 256 + 1) * 256;
-                    if next >= count as usize {
+                    if next >= usize::try_from(count)? {
                         break;
                     }
                     let marker = self.isf.address("kallsyms_markers").and_then(|base| {
-                        self.vm
-                            .uint(add(base, (next / 256) as u64 * width)?, width as usize)
+                        self.vm.uint(
+                            add(base, (next / 256) as u64 * width)?,
+                            usize::try_from(width)?,
+                        )
                     });
                     match marker {
                         Ok(marker) => {

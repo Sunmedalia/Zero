@@ -427,7 +427,7 @@ impl Windows<'_> {
     }
 
     fn shim_path(&self, address: u64) -> Option<String> {
-        let length = self.vm.uint(address, 2).ok()? as usize;
+        let length = usize::try_from(self.vm.uint(address, 2).ok()?).ok()?;
         let buffer = self.vm.pointer(add(address, 8).ok()?).ok()?;
         if length == 0 || length > 1024 || !length.is_multiple_of(2) || !self.vm.kernel(buffer) {
             return None;

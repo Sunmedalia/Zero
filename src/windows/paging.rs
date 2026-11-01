@@ -324,7 +324,7 @@ impl Memory<'_> {
         let mut table = self.root & geometry.root_mask();
         let mut backing = None;
         for (level, &shift) in geometry.shifts().iter().enumerate() {
-            let index = ((va >> shift) & (geometry.entries(level) as u64 - 1)) as usize;
+            let index = usize::try_from((va >> shift) & (geometry.entries(level) as u64 - 1))?;
             let entry = if let Some((file, offset)) = backing {
                 let mut b = [0; 8];
                 self.sources.context("未附加分页文件")?.read(

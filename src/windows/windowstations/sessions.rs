@@ -208,7 +208,7 @@ impl Windows<'_> {
         let mut bytes = vec![0u8; width];
         let mut done = 0usize;
         while done < width {
-            let page_left = 4096 - ((address as usize + done) & 4095);
+            let page_left = 4096 - ((usize::try_from(address).ok()? + done) & 4095);
             let take = (width - done).min(page_left);
             if memory
                 .read(address + done as u64, &mut bytes[done..done + take])
@@ -415,7 +415,7 @@ impl Windows<'_> {
             add(descriptor, self.vm.isf.offset("_UNICODE_STRING", "Buffer")?)?,
             self.vm.pointer_size(),
         )?;
-        let mut bytes = vec![0u8; length as usize];
+        let mut bytes = vec![0u8; usize::try_from(length)?];
         memory.read(buffer, &mut bytes)?;
         Ok(reference_unicode_name(&bytes))
     }

@@ -76,7 +76,7 @@ fn scan_mapped_impl<const CHUNK: usize, const OVERLAP: usize>(
         for (mut at, limit) in maps {
             while at < limit {
                 job.check()?;
-                let count = (limit - at).min((CHUNK + OVERLAP) as u64) as usize;
+                let count = usize::try_from((limit - at).min((CHUNK + OVERLAP) as u64))?;
                 let attempts = ((at & 4095) + count as u64).div_ceil(4096);
                 if budget.resident_bytes < count as u64 || budget.page_attempts < attempts {
                     report.stop_reason = Some("映射扫描达到字节／页面尝试上限".into());

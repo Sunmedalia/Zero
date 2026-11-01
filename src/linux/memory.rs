@@ -195,8 +195,8 @@ impl Linux<'_> {
                         let amount = if headers { 64 } else { 32 };
                         ensure!(budget >= amount, "用户读取达到 256 MiB 上限");
                         budget -= amount;
-                        bytes[..amount as usize].fill(0);
-                        vm.read(start, &mut bytes[..amount as usize])?;
+                        bytes[..usize::try_from(amount)?].fill(0);
+                        vm.read(start, &mut bytes[..usize::try_from(amount)?])?;
                         if headers && !bytes.starts_with(b"\x7fELF") {
                             return Ok(());
                         }
@@ -264,7 +264,7 @@ impl Linux<'_> {
                                 perms,
                                 path,
                                 reason.into(),
-                                bytes[..amount as usize]
+                                bytes[..usize::try_from(amount)?]
                                     .iter()
                                     .map(|b| format!("{b:02x}"))
                                     .collect::<Vec<_>>()

@@ -156,10 +156,10 @@ fn content_sample(file: &File) -> Result<String> {
     let len = file.metadata()?.len();
     let mut hash = Sha256::new();
     hash.update(len.to_le_bytes());
-    let mut buf = vec![0; BLOCK as usize];
+    let mut buf = vec![0; usize::try_from(BLOCK)?];
     for index in 0..16u64 {
         let offset = len.saturating_sub(BLOCK) * index / 15;
-        let n = BLOCK.min(len - offset) as usize;
+        let n = usize::try_from(BLOCK.min(len - offset))?;
         file.read_exact_at(&mut buf[..n], offset)?;
         hash.update(offset.to_le_bytes());
         hash.update(&buf[..n]);
@@ -351,7 +351,8 @@ fn physical_hits(image: &Image, file_hits: &[u64], needle: &[u8]) -> Result<Vec<
     for pair in image.segments.windows(2) {
         if pair[0].end == pair[1].start {
             let start = pair[0].end.saturating_sub(length - 1).max(pair[0].start);
-            let mut bytes = vec![0; (pair[1].end.min(pair[1].start + length - 1) - start) as usize];
+            let mut bytes =
+                vec![0; usize::try_from(pair[1].end.min(pair[1].start + length - 1) - start)?];
             image.read(start, &mut bytes)?;
             physical.extend(
                 memchr::memmem::find_iter(&bytes, needle)
@@ -598,7 +599,8 @@ impl Image {
         for pair in image.segments.windows(2) {
             if pair[0].end == pair[1].start {
                 let start = pair[0].end.saturating_sub(12).max(pair[0].start);
-                let mut bytes = vec![0; (pair[1].end.min(pair[1].start + 12) - start) as usize];
+                let mut bytes =
+                    vec![0; usize::try_from(pair[1].end.min(pair[1].start + 12) - start)?];
                 image.read(start, &mut bytes)?;
                 physical.extend(
                     memchr::memmem::find_iter(&bytes, b"Linux version ").map(|n| start + n as u64),
@@ -772,7 +774,7 @@ impl Image {
                         format!("物理地址越界或 LiME 空洞 @ {address:#x}")
                     }
                 })?;
-            let n = out.len().min((s.end - address) as usize);
+            let n = out.len().min(usize::try_from(s.end - address)?);
             self.file
                 .read_exact_at(&mut out[..n], s.file_offset + address - s.start)?;
             address += n as u64;

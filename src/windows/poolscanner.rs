@@ -386,8 +386,8 @@ impl Windows<'_> {
             .as_u64()
             .context("缺少 pool header 大小")?;
         ensure!((8..=64).contains(&size), "pool header 大小无效");
-        let tag = self.vm.isf.offset("_POOL_HEADER", "PoolTag")? as usize;
-        ensure!(tag + 4 <= size as usize, "PoolTag 越界");
+        let tag = usize::try_from(self.vm.isf.offset("_POOL_HEADER", "PoolTag")?)?;
+        ensure!(tag + 4 <= usize::try_from(size)?, "PoolTag 越界");
         let _ = self.vm.isf.layout("_POOL_HEADER", "BlockSize")?;
         Ok((tag, size))
     }
@@ -618,19 +618,19 @@ impl Windows<'_> {
             .try_fold(0u64, |total, (_, size)| total.checked_add(*size))
             .context("可选对象头溢出")?
             .min(block);
-        let info = self.vm.isf.offset("_OBJECT_HEADER", "InfoMask")? as usize;
-        let pointer = self.vm.isf.offset("_OBJECT_HEADER", "PointerCount")? as usize;
+        let info = usize::try_from(self.vm.isf.offset("_OBJECT_HEADER", "InfoMask")?)?;
+        let pointer = usize::try_from(self.vm.isf.offset("_OBJECT_HEADER", "PointerCount")?)?;
         let pointer_size = self.vm.isf.size("_OBJECT_HEADER", "PointerCount")?;
         ensure!(matches!(pointer_size, 4 | 8), "PointerCount 宽度无效");
-        let window_length = (limit as usize)
+        let window_length = usize::try_from(limit)?
             .checked_add(info)
             .context("对象头扫描窗口溢出")?;
         let mut window = vec![0u8; window_length];
         self.pool_read_padded(start, &mut window, virtual_scan)?;
         let mut found = Vec::new();
-        for delta in (0..limit).step_by(alignment as usize) {
+        for delta in (0..limit).step_by(usize::try_from(alignment)?) {
             job.check()?;
-            let count_at = delta as usize + pointer;
+            let count_at = usize::try_from(delta)? + pointer;
             let Some(slice) = window.get(count_at..count_at + pointer_size) else {
                 continue;
             };
@@ -645,7 +645,7 @@ impl Windows<'_> {
             if !(0..0x1000000).contains(&signed) {
                 continue;
             }
-            let Some(&mask) = window.get(delta as usize + info) else {
+            let Some(&mask) = window.get(usize::try_from(delta)? + info) else {
                 continue;
             };
             let mut selected = 0u64;
@@ -659,7 +659,8 @@ impl Windows<'_> {
                 }
             }
             if let Some(padding_size) = padding {
-                let Some(at) = (delta as usize).checked_sub(selected as usize) else {
+                let Some(at) = usize::try_from(delta)?.checked_sub(usize::try_from(selected)?)
+                else {
                     continue;
                 };
                 let Some(encoded) = le_u32(&window, at).map(u64::from) else {

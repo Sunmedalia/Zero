@@ -70,7 +70,7 @@ impl Windows<'_> {
         };
         let mut out = Vec::new();
         let mut diagnostics = Vec::new();
-        for first in (0..max / 4).step_by(per as usize) {
+        for first in (0..max / 4).step_by(usize::try_from(per)?) {
             job.check()?;
             let mut page = root;
             let slot = first / per;
@@ -91,7 +91,8 @@ impl Windows<'_> {
             }
             for index in first..(first + per).min(max / 4) {
                 job.check()?;
-                let entry = &entries[((index % per) * size) as usize..][..size as usize];
+                let entry =
+                    &entries[usize::try_from((index % per) * size)?..][..usize::try_from(size)?];
                 let read = (|| -> Result<Option<(u64, u64, u64)>> {
                     let header = if object_pointer_bits {
                         let bits = physical_number(
@@ -217,7 +218,7 @@ impl Windows<'_> {
         let mut bytes = [0u8; 8];
         self.vm.image.read(
             add(address, layout.offset)?,
-            &mut bytes[..layout.size as usize],
+            &mut bytes[..usize::try_from(layout.size)?],
         )?;
         json_number(self.vm.isf, u64::from_le_bytes(bytes), ty, field)
     }
@@ -358,7 +359,7 @@ impl Windows<'_> {
                 if header % alignment != 0 {
                     continue;
                 }
-                let mut bytes = vec![0; header_size as usize];
+                let mut bytes = vec![0; usize::try_from(header_size)?];
                 if self.vm.image.read(header, &mut bytes).is_err() {
                     continue;
                 }
@@ -367,19 +368,19 @@ impl Windows<'_> {
                     continue;
                 }
                 // Object optional headers vary: locate and validate the object body inside the allocation.
-                for delta in (header_size..=block - size).step_by(alignment as usize) {
+                for delta in (header_size..=block - size).step_by(usize::try_from(alignment)?) {
                     let address = header + delta;
                     if !seen.insert(address) {
                         continue;
                     }
-                    let mut b = vec![0; size as usize];
+                    let mut b = vec![0; usize::try_from(size)?];
                     if self.vm.image.read(address, &mut b).is_err() {
                         continue;
                     }
                     let parsed = (|| -> Result<Process> {
                         let pid = physical_number(isf, &b, "_EPROCESS", "UniqueProcessId")?;
                         ensure!(pid <= u32::MAX as u64 && pid % 4 == 0, "无效 PID");
-                        let offset = isf.offset("_EPROCESS", "ImageFileName")? as usize;
+                        let offset = usize::try_from(isf.offset("_EPROCESS", "ImageFileName")?)?;
                         let len = isf.size("_EPROCESS", "ImageFileName")?;
                         let raw = b.get(offset..offset + len).context("进程名称越界")?;
                         let end = raw.iter().position(|b| *b == 0).unwrap_or(raw.len());
@@ -435,7 +436,7 @@ impl Windows<'_> {
     }
 }
 pub(super) fn physical_number(isf: &Isf, bytes: &[u8], ty: &str, field: &str) -> Result<u64> {
-    let offset = isf.offset(ty, field)? as usize;
+    let offset = usize::try_from(isf.offset(ty, field)?)?;
     let size = isf.size(ty, field)?;
     ensure!(matches!(size, 1 | 2 | 4 | 8), "无效物理字段宽度");
     let mut b = [0; 8];

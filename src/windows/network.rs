@@ -112,7 +112,7 @@ impl Windows<'_> {
                 if header % alignment != 0 {
                     continue;
                 }
-                let mut bytes = vec![0; header_size as usize];
+                let mut bytes = vec![0; usize::try_from(header_size)?];
                 if self.vm.image.read(header, &mut bytes).is_err() {
                     continue;
                 }
@@ -767,7 +767,7 @@ pub(super) fn pe_identity_for_machine(
                 (25..=4096).contains(&length) && in_image(rva, length),
                 "PE CodeView 长度无效或越界"
             );
-            let mut cv = vec![0; length as usize];
+            let mut cv = vec![0; usize::try_from(length)?];
             vm.read(add(base, rva)?, &mut cv)?;
             // Older NB10 records cannot establish an exact RSDS identity.
             if !cv.starts_with(b"RSDS") {

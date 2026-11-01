@@ -488,7 +488,7 @@ impl Windows<'_> {
                 Self::issue(r, "SvcList scan", "达到 128 MiB 扫描上限");
                 break;
             }
-            let length = (end - at).min(4096 - (at & 4095)) as usize;
+            let length = usize::try_from((end - at).min(4096 - (at & 4095)))?;
             let mut bytes = vec![0; length];
             match vm.read(at, &mut bytes) {
                 Ok(()) => {
@@ -645,8 +645,8 @@ impl Windows<'_> {
                 hex(reported_offset),
                 order.to_string(),
                 pid,
-                START[start as usize].into(),
-                STATE[state as usize - 1].into(),
+                START[usize::try_from(start)?].into(),
+                STATE[usize::try_from(state)? - 1].into(),
                 types(kind),
                 name,
                 display,

@@ -116,12 +116,15 @@ impl Windows<'_> {
                 for index in 0..count {
                     job.check()?;
                     let address = add(base, index * layout.size)?;
-                    let entry = self.vm.uint(address, layout.size as usize)?;
+                    let entry = self.vm.uint(address, usize::try_from(layout.size)?)?;
                     if let Some(frame) = pte_frame(entry, &layout)
                         && frame != 0
                         && pages.insert(start + index * 4096, frame << 12).is_none()
                     {
-                        ensure!(pages.len() <= MAX_FILE_PAGES as usize, "文件页数超限");
+                        ensure!(
+                            pages.len() <= usize::try_from(MAX_FILE_PAGES)?,
+                            "文件页数超限"
+                        );
                     }
                 }
                 Ok(true)
@@ -321,7 +324,7 @@ impl Windows<'_> {
             Self::account(total, gap)?;
             let mut remaining = gap;
             while remaining > 0 {
-                let n = (remaining as usize).min(zeros.len());
+                let n = usize::try_from(remaining)?.min(zeros.len());
                 tmp.write_all(&zeros[..n])?;
                 hash.update(&zeros[..n]);
                 remaining -= n as u64;
