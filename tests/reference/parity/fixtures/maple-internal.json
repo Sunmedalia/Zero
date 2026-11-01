@@ -9,6 +9,7 @@
       "width": 4,
       "kind": 2,
       "parent_mismatch": false,
+      "parent_self": false,
       "duplicate": false,
       "duplicate_vma": false,
       "root": 69650,
@@ -53,6 +54,7 @@
       "width": 4,
       "kind": 2,
       "parent_mismatch": false,
+      "parent_self": false,
       "duplicate": false,
       "duplicate_vma": true,
       "root": 69650,
@@ -97,6 +99,7 @@
       "width": 4,
       "kind": 2,
       "parent_mismatch": false,
+      "parent_self": false,
       "duplicate": true,
       "duplicate_vma": false,
       "root": 69650,
@@ -141,6 +144,7 @@
       "width": 4,
       "kind": 2,
       "parent_mismatch": false,
+      "parent_self": false,
       "duplicate": true,
       "duplicate_vma": true,
       "root": 69650,
@@ -185,6 +189,7 @@
       "width": 4,
       "kind": 2,
       "parent_mismatch": true,
+      "parent_self": false,
       "duplicate": false,
       "duplicate_vma": false,
       "root": 69650,
@@ -228,6 +233,7 @@
       "width": 4,
       "kind": 2,
       "parent_mismatch": true,
+      "parent_self": false,
       "duplicate": false,
       "duplicate_vma": true,
       "root": 69650,
@@ -271,6 +277,7 @@
       "width": 4,
       "kind": 2,
       "parent_mismatch": true,
+      "parent_self": false,
       "duplicate": true,
       "duplicate_vma": false,
       "root": 69650,
@@ -314,6 +321,7 @@
       "width": 4,
       "kind": 2,
       "parent_mismatch": true,
+      "parent_self": false,
       "duplicate": true,
       "duplicate_vma": true,
       "root": 69650,
@@ -341,6 +349,182 @@
         {
           "address": 77824,
           "parent": 90118,
+          "slots": [
+            81924,
+            0,
+            0,
+            0
+          ]
+        }
+      ],
+      "found": [
+        81924
+      ]
+    },
+    {
+      "width": 4,
+      "kind": 2,
+      "parent_mismatch": true,
+      "parent_self": true,
+      "duplicate": false,
+      "duplicate_vma": false,
+      "root": 69650,
+      "nodes": [
+        {
+          "address": 69632,
+          "parent": 45097,
+          "slots": [
+            73740,
+            0,
+            77836,
+            0
+          ]
+        },
+        {
+          "address": 73728,
+          "parent": 69638,
+          "slots": [
+            81924,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "address": 77824,
+          "parent": 77830,
+          "slots": [
+            82180,
+            0,
+            0,
+            0
+          ]
+        }
+      ],
+      "found": [
+        81924
+      ]
+    },
+    {
+      "width": 4,
+      "kind": 2,
+      "parent_mismatch": true,
+      "parent_self": true,
+      "duplicate": false,
+      "duplicate_vma": true,
+      "root": 69650,
+      "nodes": [
+        {
+          "address": 69632,
+          "parent": 45097,
+          "slots": [
+            73740,
+            0,
+            77836,
+            0
+          ]
+        },
+        {
+          "address": 73728,
+          "parent": 69638,
+          "slots": [
+            81924,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "address": 77824,
+          "parent": 77830,
+          "slots": [
+            81924,
+            0,
+            0,
+            0
+          ]
+        }
+      ],
+      "found": [
+        81924
+      ]
+    },
+    {
+      "width": 4,
+      "kind": 2,
+      "parent_mismatch": true,
+      "parent_self": true,
+      "duplicate": true,
+      "duplicate_vma": false,
+      "root": 69650,
+      "nodes": [
+        {
+          "address": 69632,
+          "parent": 45097,
+          "slots": [
+            73740,
+            73740,
+            77836,
+            0
+          ]
+        },
+        {
+          "address": 73728,
+          "parent": 69638,
+          "slots": [
+            81924,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "address": 77824,
+          "parent": 77830,
+          "slots": [
+            82180,
+            0,
+            0,
+            0
+          ]
+        }
+      ],
+      "found": [
+        81924
+      ]
+    },
+    {
+      "width": 4,
+      "kind": 2,
+      "parent_mismatch": true,
+      "parent_self": true,
+      "duplicate": true,
+      "duplicate_vma": true,
+      "root": 69650,
+      "nodes": [
+        {
+          "address": 69632,
+          "parent": 45097,
+          "slots": [
+            73740,
+            73740,
+            77836,
+            0
+          ]
+        },
+        {
+          "address": 73728,
+          "parent": 69638,
+          "slots": [
+            81924,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "address": 77824,
+          "parent": 77830,
           "slots": [
             81924,
             0,
@@ -357,6 +541,7 @@
       "width": 4,
       "kind": 3,
       "parent_mismatch": false,
+      "parent_self": false,
       "duplicate": false,
       "duplicate_vma": false,
       "root": 69658,
@@ -401,6 +586,7 @@
       "width": 4,
       "kind": 3,
       "parent_mismatch": false,
+      "parent_self": false,
       "duplicate": false,
       "duplicate_vma": true,
       "root": 69658,
@@ -445,6 +631,7 @@
       "width": 4,
       "kind": 3,
       "parent_mismatch": false,
+      "parent_self": false,
       "duplicate": true,
       "duplicate_vma": false,
       "root": 69658,
@@ -489,6 +676,7 @@
       "width": 4,
       "kind": 3,
       "parent_mismatch": false,
+      "parent_self": false,
       "duplicate": true,
       "duplicate_vma": true,
       "root": 69658,
@@ -533,6 +721,7 @@
       "width": 4,
       "kind": 3,
       "parent_mismatch": true,
+      "parent_self": false,
       "duplicate": false,
       "duplicate_vma": false,
       "root": 69658,
@@ -576,6 +765,7 @@
       "width": 4,
       "kind": 3,
       "parent_mismatch": true,
+      "parent_self": false,
       "duplicate": false,
       "duplicate_vma": true,
       "root": 69658,
@@ -619,6 +809,7 @@
       "width": 4,
       "kind": 3,
       "parent_mismatch": true,
+      "parent_self": false,
       "duplicate": true,
       "duplicate_vma": false,
       "root": 69658,
@@ -662,6 +853,7 @@
       "width": 4,
       "kind": 3,
       "parent_mismatch": true,
+      "parent_self": false,
       "duplicate": true,
       "duplicate_vma": true,
       "root": 69658,
@@ -702,9 +894,186 @@
       ]
     },
     {
+      "width": 4,
+      "kind": 3,
+      "parent_mismatch": true,
+      "parent_self": true,
+      "duplicate": false,
+      "duplicate_vma": false,
+      "root": 69658,
+      "nodes": [
+        {
+          "address": 69632,
+          "parent": 45097,
+          "slots": [
+            73740,
+            0,
+            77836,
+            0
+          ]
+        },
+        {
+          "address": 73728,
+          "parent": 69638,
+          "slots": [
+            81924,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "address": 77824,
+          "parent": 77830,
+          "slots": [
+            82180,
+            0,
+            0,
+            0
+          ]
+        }
+      ],
+      "found": [
+        81924
+      ]
+    },
+    {
+      "width": 4,
+      "kind": 3,
+      "parent_mismatch": true,
+      "parent_self": true,
+      "duplicate": false,
+      "duplicate_vma": true,
+      "root": 69658,
+      "nodes": [
+        {
+          "address": 69632,
+          "parent": 45097,
+          "slots": [
+            73740,
+            0,
+            77836,
+            0
+          ]
+        },
+        {
+          "address": 73728,
+          "parent": 69638,
+          "slots": [
+            81924,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "address": 77824,
+          "parent": 77830,
+          "slots": [
+            81924,
+            0,
+            0,
+            0
+          ]
+        }
+      ],
+      "found": [
+        81924
+      ]
+    },
+    {
+      "width": 4,
+      "kind": 3,
+      "parent_mismatch": true,
+      "parent_self": true,
+      "duplicate": true,
+      "duplicate_vma": false,
+      "root": 69658,
+      "nodes": [
+        {
+          "address": 69632,
+          "parent": 45097,
+          "slots": [
+            73740,
+            73740,
+            77836,
+            0
+          ]
+        },
+        {
+          "address": 73728,
+          "parent": 69638,
+          "slots": [
+            81924,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "address": 77824,
+          "parent": 77830,
+          "slots": [
+            82180,
+            0,
+            0,
+            0
+          ]
+        }
+      ],
+      "found": [
+        81924
+      ]
+    },
+    {
+      "width": 4,
+      "kind": 3,
+      "parent_mismatch": true,
+      "parent_self": true,
+      "duplicate": true,
+      "duplicate_vma": true,
+      "root": 69658,
+      "nodes": [
+        {
+          "address": 69632,
+          "parent": 45097,
+          "slots": [
+            73740,
+            73740,
+            77836,
+            0
+          ]
+        },
+        {
+          "address": 73728,
+          "parent": 69638,
+          "slots": [
+            81924,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "address": 77824,
+          "parent": 77830,
+          "slots": [
+            81924,
+            0,
+            0,
+            0
+          ]
+        }
+      ],
+      "found": [
+        81924
+      ]
+    },
+    {
       "width": 8,
       "kind": 2,
       "parent_mismatch": false,
+      "parent_self": false,
       "duplicate": false,
       "duplicate_vma": false,
       "root": 69650,
@@ -749,6 +1118,7 @@
       "width": 8,
       "kind": 2,
       "parent_mismatch": false,
+      "parent_self": false,
       "duplicate": false,
       "duplicate_vma": true,
       "root": 69650,
@@ -793,6 +1163,7 @@
       "width": 8,
       "kind": 2,
       "parent_mismatch": false,
+      "parent_self": false,
       "duplicate": true,
       "duplicate_vma": false,
       "root": 69650,
@@ -837,6 +1208,7 @@
       "width": 8,
       "kind": 2,
       "parent_mismatch": false,
+      "parent_self": false,
       "duplicate": true,
       "duplicate_vma": true,
       "root": 69650,
@@ -881,6 +1253,7 @@
       "width": 8,
       "kind": 2,
       "parent_mismatch": true,
+      "parent_self": false,
       "duplicate": false,
       "duplicate_vma": false,
       "root": 69650,
@@ -924,6 +1297,7 @@
       "width": 8,
       "kind": 2,
       "parent_mismatch": true,
+      "parent_self": false,
       "duplicate": false,
       "duplicate_vma": true,
       "root": 69650,
@@ -967,6 +1341,7 @@
       "width": 8,
       "kind": 2,
       "parent_mismatch": true,
+      "parent_self": false,
       "duplicate": true,
       "duplicate_vma": false,
       "root": 69650,
@@ -1010,6 +1385,7 @@
       "width": 8,
       "kind": 2,
       "parent_mismatch": true,
+      "parent_self": false,
       "duplicate": true,
       "duplicate_vma": true,
       "root": 69650,
@@ -1037,6 +1413,182 @@
         {
           "address": 77824,
           "parent": 90118,
+          "slots": [
+            81920,
+            0,
+            0,
+            0
+          ]
+        }
+      ],
+      "found": [
+        81920
+      ]
+    },
+    {
+      "width": 8,
+      "kind": 2,
+      "parent_mismatch": true,
+      "parent_self": true,
+      "duplicate": false,
+      "duplicate_vma": false,
+      "root": 69650,
+      "nodes": [
+        {
+          "address": 69632,
+          "parent": 45097,
+          "slots": [
+            73740,
+            0,
+            77836,
+            0
+          ]
+        },
+        {
+          "address": 73728,
+          "parent": 69638,
+          "slots": [
+            81920,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "address": 77824,
+          "parent": 77830,
+          "slots": [
+            82176,
+            0,
+            0,
+            0
+          ]
+        }
+      ],
+      "found": [
+        81920
+      ]
+    },
+    {
+      "width": 8,
+      "kind": 2,
+      "parent_mismatch": true,
+      "parent_self": true,
+      "duplicate": false,
+      "duplicate_vma": true,
+      "root": 69650,
+      "nodes": [
+        {
+          "address": 69632,
+          "parent": 45097,
+          "slots": [
+            73740,
+            0,
+            77836,
+            0
+          ]
+        },
+        {
+          "address": 73728,
+          "parent": 69638,
+          "slots": [
+            81920,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "address": 77824,
+          "parent": 77830,
+          "slots": [
+            81920,
+            0,
+            0,
+            0
+          ]
+        }
+      ],
+      "found": [
+        81920
+      ]
+    },
+    {
+      "width": 8,
+      "kind": 2,
+      "parent_mismatch": true,
+      "parent_self": true,
+      "duplicate": true,
+      "duplicate_vma": false,
+      "root": 69650,
+      "nodes": [
+        {
+          "address": 69632,
+          "parent": 45097,
+          "slots": [
+            73740,
+            73740,
+            77836,
+            0
+          ]
+        },
+        {
+          "address": 73728,
+          "parent": 69638,
+          "slots": [
+            81920,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "address": 77824,
+          "parent": 77830,
+          "slots": [
+            82176,
+            0,
+            0,
+            0
+          ]
+        }
+      ],
+      "found": [
+        81920
+      ]
+    },
+    {
+      "width": 8,
+      "kind": 2,
+      "parent_mismatch": true,
+      "parent_self": true,
+      "duplicate": true,
+      "duplicate_vma": true,
+      "root": 69650,
+      "nodes": [
+        {
+          "address": 69632,
+          "parent": 45097,
+          "slots": [
+            73740,
+            73740,
+            77836,
+            0
+          ]
+        },
+        {
+          "address": 73728,
+          "parent": 69638,
+          "slots": [
+            81920,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "address": 77824,
+          "parent": 77830,
           "slots": [
             81920,
             0,
@@ -1053,6 +1605,7 @@
       "width": 8,
       "kind": 3,
       "parent_mismatch": false,
+      "parent_self": false,
       "duplicate": false,
       "duplicate_vma": false,
       "root": 69658,
@@ -1097,6 +1650,7 @@
       "width": 8,
       "kind": 3,
       "parent_mismatch": false,
+      "parent_self": false,
       "duplicate": false,
       "duplicate_vma": true,
       "root": 69658,
@@ -1141,6 +1695,7 @@
       "width": 8,
       "kind": 3,
       "parent_mismatch": false,
+      "parent_self": false,
       "duplicate": true,
       "duplicate_vma": false,
       "root": 69658,
@@ -1185,6 +1740,7 @@
       "width": 8,
       "kind": 3,
       "parent_mismatch": false,
+      "parent_self": false,
       "duplicate": true,
       "duplicate_vma": true,
       "root": 69658,
@@ -1229,6 +1785,7 @@
       "width": 8,
       "kind": 3,
       "parent_mismatch": true,
+      "parent_self": false,
       "duplicate": false,
       "duplicate_vma": false,
       "root": 69658,
@@ -1272,6 +1829,7 @@
       "width": 8,
       "kind": 3,
       "parent_mismatch": true,
+      "parent_self": false,
       "duplicate": false,
       "duplicate_vma": true,
       "root": 69658,
@@ -1315,6 +1873,7 @@
       "width": 8,
       "kind": 3,
       "parent_mismatch": true,
+      "parent_self": false,
       "duplicate": true,
       "duplicate_vma": false,
       "root": 69658,
@@ -1358,6 +1917,7 @@
       "width": 8,
       "kind": 3,
       "parent_mismatch": true,
+      "parent_self": false,
       "duplicate": true,
       "duplicate_vma": true,
       "root": 69658,
@@ -1385,6 +1945,182 @@
         {
           "address": 77824,
           "parent": 90118,
+          "slots": [
+            81920,
+            0,
+            0,
+            0
+          ]
+        }
+      ],
+      "found": [
+        81920
+      ]
+    },
+    {
+      "width": 8,
+      "kind": 3,
+      "parent_mismatch": true,
+      "parent_self": true,
+      "duplicate": false,
+      "duplicate_vma": false,
+      "root": 69658,
+      "nodes": [
+        {
+          "address": 69632,
+          "parent": 45097,
+          "slots": [
+            73740,
+            0,
+            77836,
+            0
+          ]
+        },
+        {
+          "address": 73728,
+          "parent": 69638,
+          "slots": [
+            81920,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "address": 77824,
+          "parent": 77830,
+          "slots": [
+            82176,
+            0,
+            0,
+            0
+          ]
+        }
+      ],
+      "found": [
+        81920
+      ]
+    },
+    {
+      "width": 8,
+      "kind": 3,
+      "parent_mismatch": true,
+      "parent_self": true,
+      "duplicate": false,
+      "duplicate_vma": true,
+      "root": 69658,
+      "nodes": [
+        {
+          "address": 69632,
+          "parent": 45097,
+          "slots": [
+            73740,
+            0,
+            77836,
+            0
+          ]
+        },
+        {
+          "address": 73728,
+          "parent": 69638,
+          "slots": [
+            81920,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "address": 77824,
+          "parent": 77830,
+          "slots": [
+            81920,
+            0,
+            0,
+            0
+          ]
+        }
+      ],
+      "found": [
+        81920
+      ]
+    },
+    {
+      "width": 8,
+      "kind": 3,
+      "parent_mismatch": true,
+      "parent_self": true,
+      "duplicate": true,
+      "duplicate_vma": false,
+      "root": 69658,
+      "nodes": [
+        {
+          "address": 69632,
+          "parent": 45097,
+          "slots": [
+            73740,
+            73740,
+            77836,
+            0
+          ]
+        },
+        {
+          "address": 73728,
+          "parent": 69638,
+          "slots": [
+            81920,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "address": 77824,
+          "parent": 77830,
+          "slots": [
+            82176,
+            0,
+            0,
+            0
+          ]
+        }
+      ],
+      "found": [
+        81920
+      ]
+    },
+    {
+      "width": 8,
+      "kind": 3,
+      "parent_mismatch": true,
+      "parent_self": true,
+      "duplicate": true,
+      "duplicate_vma": true,
+      "root": 69658,
+      "nodes": [
+        {
+          "address": 69632,
+          "parent": 45097,
+          "slots": [
+            73740,
+            73740,
+            77836,
+            0
+          ]
+        },
+        {
+          "address": 73728,
+          "parent": 69638,
+          "slots": [
+            81920,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "address": 77824,
+          "parent": 77830,
           "slots": [
             81920,
             0,

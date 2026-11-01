@@ -99,7 +99,10 @@ impl Linux<'_> {
                 self.field_address(node, "maple_node", member)?
             };
             let parent = self.number(base, structure, "parent")?;
-            ensure!(parent & !255 != node, "maple 已删除节点");
+            if parent & !255 == node {
+                diagnostics.push("maple 已删除节点".into());
+                continue;
+            }
             if parent & !255 != expected_parent {
                 continue;
             }
@@ -301,7 +304,16 @@ mod tests {
             assert_eq!(
                 coverage.complete,
                 case["duplicate"] != true
+                    && case["parent_self"] != true
                     && !(case["duplicate_vma"] == true && case["parent_mismatch"] == false),
+                "{case}"
+            );
+            assert_eq!(
+                coverage
+                    .diagnostics
+                    .iter()
+                    .any(|d| d.contains("maple 已删除节点")),
+                case["parent_self"] == true,
                 "{case}"
             );
             isf.data["user_types"]["mm_struct"]["fields"]["map_count"] =

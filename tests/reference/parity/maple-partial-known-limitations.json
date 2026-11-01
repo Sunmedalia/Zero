@@ -4,13 +4,22 @@
   "scope": "Preserve readable maple VMAs on duplicate nodes and map_count mismatch with explicit partial diagnostics",
   "verification": {
     "test": "linux::walk::tests::maple_internal_nodes_match_actual_reference_without_pivot_metadata",
-    "cases": 32,
+    "cases": 48,
     "full_check": "make check passed: 730 Rust tests, 45 Python reference framework tests and release build",
     "checks": ["Duplicate subtree is visited once while other subtrees survive", "Recovered nodes remain available with complete=false", "Count mismatch adds an explicit coverage diagnostic", "All production VMA consumers receive mutable Results for partial propagation"]
   },
+  "real_sample_recovery": {
+    "image_sha256": "cf04d76ab9177d7ee355cc96020d29ae194c065c692304ff25e594ab510c639d",
+    "pid": 32043,
+    "mm": "0xffff000062b7ca00",
+    "map_count": 13,
+    "recovered_vmas": 6,
+    "verification": "Standard-library ARM64 page translation using the pre-existing frozen acceptance DTB, checked against the native DTB, and independent ISF field reads, with the actual pinned maple method invoked through typed read adapters, matched all seven maps columns. The root, deleted-node self-parent and readable-sibling parent values were explicitly asserted; six recovered VMAs versus map_count thirteen is an expected incomplete view, not full coverage. Each recovered vm_mm equals the process mm. The executable anonymous mapping independently contains ELF64 little-endian ET_DYN EM_AARCH64 with entry zero.",
+    "scope": "Real-image method evidence; not a complete Volatility ARM64 plugin execution. Deleted subtree and count mismatch remain explicit partial diagnostics. All prior maps, elfs and malfind rows excluding PID 32043 retain their previous baseline SHA256."
+  },
   "limitations": [
-    "Thirty-two actual pinned internal-node cases combine duplicate subtrees, duplicate VMA pointers and parent mismatches. Native recovered node sequences preserve reference VMA multiplicity; native additionally exposes explicit partial diagnostics for repeated nodes and VMA pointers. Native count-mismatch diagnostics remain separately tested.",
-    "Self-referential deleted nodes and unreadable structures still return errors, preserving existing damage diagnostics.",
+    "Forty-eight actual pinned internal-node cases combine duplicate subtrees, duplicate VMA pointers, parent mismatches and self-parent deleted nodes. Native recovered node sequences preserve reference VMA multiplicity; native additionally exposes explicit partial diagnostics for repeated nodes and VMA pointers. Native count-mismatch diagnostics remain separately tested.",
+    "Self-parent deleted nodes are skipped with the existing deleted-node text carried as an explicit partial diagnostic, preserving readable sibling subtrees. Unreadable structures still return errors.",
     "The test-only strict wrapper rejects diagnostics; production maps, scans and dumps use the coverage-aware path.",
     "This supersedes the earlier abort-on-duplicate and abort-on-map_count-mismatch behavior, but establishes no full plugin contract.",
     "Real Linux32 end-to-end acceptance remains unavailable and its public ISF gate stays closed."

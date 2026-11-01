@@ -33,14 +33,15 @@ def generate(checkout):
                 setattr(mock, attr, getattr(maple_tree, attr))
             mock._parse_maple_tree_node = MethodType(maple_tree._parse_maple_tree_node, mock)
             root = 0x11002 | (kind << 3)
-            for mismatch in [False, True]:
-                parents[0x13000] = 0x16006 if mismatch else 0x11006
+            for parent_mode in ['matching', 'mismatch', 'self']:
+                mismatch = parent_mode != 'matching'
+                parents[0x13000] = {'matching': 0x11006, 'mismatch': 0x16006, 'self': 0x13006}[parent_mode]
                 for duplicate in [False, True]:
                     nodes[0x11000][1] = 0x1200c if duplicate else 0
                     for duplicate_vma in [False, True]:
                         nodes[0x13000][0] = leaves[0] if duplicate_vma else leaves[1]
                         found = list(mock._parse_maple_tree_node(root, 0xb000, 2))
-                        cases.append(dict(width=width, kind=kind, parent_mismatch=mismatch, duplicate=duplicate, duplicate_vma=duplicate_vma, root=root, nodes=[dict(address=at, parent=parents[at], slots=list(slots)) for at, slots in nodes.items()], found=found))
+                        cases.append(dict(width=width, kind=kind, parent_mismatch=mismatch, parent_self=parent_mode == 'self', duplicate=duplicate, duplicate_vma=duplicate_vma, root=root, nodes=[dict(address=at, parent=parents[at], slots=list(slots)) for at, slots in nodes.items()], found=found))
     source = 'volatility3/framework/symbols/linux/extensions/__init__.py'
     return dict(reference_commit=PIN, source_sha256={source: hashlib.sha256((checkout / source).read_bytes()).hexdigest()}, scope='Actual pinned RANGE64/ARANGE64 recursion and parent validation with mocked typed slots; no real-image claim.', cases=cases)
 

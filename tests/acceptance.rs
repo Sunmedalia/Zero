@@ -320,8 +320,13 @@ fn kali_arm64_all_plugins_full_field_baseline() -> Result<()> {
         };
         ensure!(
             result.columns == expected.columns && result.rows.len() == expected.count,
-            "{} schema/count changed",
-            plugin.name()
+            "{} schema/count changed: columns={:?} expected={:?}; count={} expected={}; diagnostics={:?}",
+            plugin.name(),
+            result.columns,
+            expected.columns,
+            result.rows.len(),
+            expected.count,
+            result.diagnostics
         );
         ensure!(
             result.complete == expected.complete && result.diagnostics == expected.diagnostics,

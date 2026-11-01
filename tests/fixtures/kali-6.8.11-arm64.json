@@ -91,8 +91,8 @@
         "Entry",
         "Path"
       ],
-      "count": 3629,
-      "rows_sha256": "f911c42e66207010534ea27bc23f2d3dab5548917670503c1cdd2d445cad6ef6",
+      "count": 3630,
+      "rows_sha256": "2496f35a6a47b2a92fe72a25d0c19efa3b544c841289cd070af76e93090484db",
       "complete": false,
       "diagnostics": [
         "父进程不在 tasks 链表（可能为线程或已退出）: 29451",
@@ -1855,7 +1855,10 @@
         "PID 32042 VMA 0xffff00000e951000: ARM64 缺页 VA 0xffff8c2b3000 level 12",
         "PID 32042 VMA 0xffff00000e9510b8: ARM64 缺页 VA 0xffff8c2c4000 level 12",
         "PID 32042 VMA 0xffff0000387dd508: ARM64 缺页 VA 0xffffc0d8e000 level 12",
-        "PID 32043 0xffff00002f6a1280: maple 已删除节点"
+        "maple VMA 0xffff000062b7ca00: maple 已删除节点",
+        "maple VMA 0xffff000062b7ca00: maple VMA 数量与 map_count 不一致",
+        "PID 32043 VMA 0xffff00000308ba10: ARM64 缺页 VA 0xffffab7a6000 level 12",
+        "PID 32043 VMA 0xffff00000308b0b8: ARM64 缺页 VA 0xffffec1c0000 level 12"
       ]
     },
     "envars": {
@@ -1946,8 +1949,8 @@
         "Reason",
         "Preview"
       ],
-      "count": 92,
-      "rows_sha256": "e917ece9ca2e58dac39b424a3dbc9c384380a5c7a4e3f6695bb03d39c5a1d3b5",
+      "count": 93,
+      "rows_sha256": "61762175a4720abefcf6b2753c4631528296a5f98b4bf648afe613d763f5ce8a",
       "complete": false,
       "diagnostics": [
         "父进程不在 tasks 链表（可能为线程或已退出）: 29451",
@@ -1957,7 +1960,8 @@
         "PID 28501 VMA 0xffff0000499c12e0: ARM64 缺页 VA 0xffff807f7000 level 12",
         "PID 29235 VMA 0xffff00002a8efda8: ARM64 缺页 VA 0xffff89eeb000 level 12",
         "PID 32042 VMA 0xffff00000e9510b8: ARM64 缺页 VA 0xffff8c2c4000 level 12",
-        "PID 32043 0xffff00002f6a1280: maple 已删除节点"
+        "maple VMA 0xffff000062b7ca00: maple 已删除节点",
+        "maple VMA 0xffff000062b7ca00: maple VMA 数量与 map_count 不一致"
       ]
     },
     "maps": {
@@ -1970,8 +1974,8 @@
         "FileOffset",
         "Path"
       ],
-      "count": 19529,
-      "rows_sha256": "57200abb61a75ab1d5f6c734e36d41e85f2ffb396883905588a4b76f744333f6",
+      "count": 19535,
+      "rows_sha256": "15e961fdd5188fdef7754a2c44e35b3139793d90cfdf458cbf5a690186bcda3d",
       "complete": false,
       "diagnostics": [
         "父进程不在 tasks 链表（可能为线程或已退出）: 29451",
@@ -2033,7 +2037,8 @@
         "PID 29146 VMA 0xffff0000208d77e8 路径: 路径未到根目录",
         "PID 29198 VMA 0xffff000026ac9da8 路径: 路径未到根目录",
         "PID 29215 VMA 0xffff000003ecb508 路径: 路径未到根目录",
-        "PID 32043 @ 0xffff00002f6a1280: maple 已删除节点"
+        "maple VMA 0xffff000062b7ca00: maple 已删除节点",
+        "maple VMA 0xffff000062b7ca00: maple VMA 数量与 map_count 不一致"
       ]
     },
     "mountinfo": {
