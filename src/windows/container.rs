@@ -1,5 +1,6 @@
 //! Bounded, read-only Windows dump containers. Offsets are file-format facts.
 //! References: Microsoft MINIDUMP_* definitions and DUMP_HEADER32/64 layouts.
+#![cfg_attr(not(test), deny(clippy::indexing_slicing))]
 use super::*;
 use crate::image::Segment;
 use serde::{Deserialize, Serialize};
@@ -70,10 +71,7 @@ impl Reader<'_> {
         Ok(b)
     }
     fn uint(&self, offset: u64, width: usize) -> Result<u64> {
-        let b = self.bytes(offset, width)?;
-        let mut out = [0; 8];
-        out[..width].copy_from_slice(&b);
-        Ok(u64::from_le_bytes(out))
+        crate::bytes::le_uint(&self.bytes(offset, width)?).context("容器字段宽度无效")
     }
     fn segment(
         &self,
@@ -102,8 +100,10 @@ impl Reader<'_> {
         );
         let b = self.bytes(add(rva, 4)?, length)?;
         Ok(String::from_utf16_lossy(
-            &b.chunks_exact(2)
-                .map(|b| u16::from_le_bytes([b[0], b[1]]))
+            &b.as_chunks::<2>()
+                .0
+                .iter()
+                .map(|b| u16::from_le_bytes(*b))
                 .collect::<Vec<_>>(),
         ))
     }
@@ -132,7 +132,7 @@ fn finish(mut p: Parsed) -> Result<Parsed> {
     p.segments.sort_by_key(|s| s.start);
     ensure!(p.segments.len() <= MAX_OBJECTS, "转储内存段超限");
     ensure!(
-        p.segments.windows(2).all(|s| s[0].end <= s[1].start),
+        p.segments.array_windows().all(|[a, b]| a.end <= b.start),
         "转储内存段重叠"
     );
     Ok(p)
@@ -206,7 +206,7 @@ fn crash(r: &Reader<'_>, job: &Job) -> Result<Parsed> {
             // SUMMARY_DUMP stores an absolute data offset and a physical-page bitmap.
             let signature = r.bytes(header, 8)?;
             ensure!(
-                &signature[4..] == b"DUMP" && matches!(&signature[..4], b"SDMP" | b"FDMP"),
+                matches!(signature.as_slice(), b"SDMPDUMP" | b"FDMPDUMP"),
                 "bitmap dump 标记无效"
             );
             let mut offset = r.uint(header + 32, 8)?;
@@ -227,7 +227,10 @@ fn crash(r: &Reader<'_>, job: &Job) -> Result<Parsed> {
                 if bit.is_multiple_of(32768) {
                     job.check()?;
                 }
-                if bitmap[bit as usize / 8] & (1 << (bit % 8)) == 0 {
+                if bitmap
+                    .get(bit as usize / 8)
+                    .is_none_or(|byte| byte & (1 << (bit % 8)) == 0)
+                {
                     continue;
                 }
                 let base = bit * 4096;
@@ -360,8 +363,10 @@ fn triage(r: &Reader<'_>, p: &mut Parsed, header: u64, width: usize, job: &Job) 
         );
         let name = String::from_utf16(
             &bytes
-                .chunks_exact(2)
-                .map(|b| u16::from_le_bytes([b[0], b[1]]))
+                .as_chunks::<2>()
+                .0
+                .iter()
+                .map(|b| u16::from_le_bytes(*b))
                 .collect::<Vec<_>>(),
         )
         .context("triage driver 名称 UTF-16 无效")?;

@@ -1,4 +1,5 @@
 //! Microsoft CONTEXT integer/control subsets. Respect ContextFlags, never invent registers.
+#![cfg_attr(not(test), deny(clippy::indexing_slicing))]
 use super::*;
 pub(super) fn parse(
     bytes: &[u8],
@@ -8,9 +9,7 @@ pub(super) fn parse(
 ) -> Result<ThreadContext> {
     let uint = |at: usize, width: usize| -> Result<u64> {
         let b = bytes.get(at..at + width).context("CONTEXT 截断")?;
-        let mut out = [0; 8];
-        out[..width].copy_from_slice(b);
-        Ok(u64::from_le_bytes(out))
+        crate::bytes::le_uint(b).context("CONTEXT 字段宽度无效")
     };
     let flags = uint(if arch == Architecture::X64 { 48 } else { 0 }, 4)?;
     let expected = match arch {
