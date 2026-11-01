@@ -1,6 +1,7 @@
 //! Socket field decoding for independent scans. Embedded fields use their owning
 //! address space; IPv6 byte reads retain the pinned reference's original layer.
 use super::*;
+use crate::bytes::JsonKey as _;
 #[cfg(unix)]
 pub(super) const REFERENCE_INET6_FAMILY: u64 = libc::AF_INET6 as u64;
 #[cfg(windows)]
@@ -471,7 +472,8 @@ pub(super) struct SocketFields {
 }
 impl Linux<'_> {
     fn enum_socket_value(&self, ty: &str, value: u64) -> Option<String> {
-        self.isf.data["enums"][ty]["constants"]
+        self.isf.data.key("enums")[ty]
+            .key("constants")
             .as_object()?
             .iter()
             .find(|(_, v)| v.as_u64() == Some(value))
@@ -508,7 +510,7 @@ impl Linux<'_> {
         };
         // An absent family type is the reference's generic fallback, not a
         // successful read of zero endpoints. Reads of present types must succeed.
-        let supported = child.is_some_and(|ty| self.isf.data["user_types"][ty].is_object());
+        let supported = child.is_some_and(|ty| self.isf.data.key("user_types")[ty].is_object());
         if supported {
             match family {
                 1 => {
@@ -565,7 +567,8 @@ impl Linux<'_> {
                     let groups = sock.number("netlink_sock", "groups")?;
                     if groups != 0 {
                         let width = usize::try_from(
-                            self.isf.data["base_types"]["unsigned long int"]["size"]
+                            self.isf.data.key("base_types")["unsigned long int"]
+                                .key("size")
                                 .as_u64()
                                 .unwrap_or(8),
                         )?;
@@ -644,7 +647,8 @@ impl Linux<'_> {
                     }
                     state = Some(
                         self.enum_socket_value(
-                            self.isf.field("xdp_sock", "state")?["type"]["name"]
+                            &*self.isf.field("xdp_sock", "state")?["type"]
+                                .key("name")
                                 .as_str()
                                 .context("XDP state enum 类型缺失")?,
                             sock.number("xdp_sock", "state")?,
@@ -725,7 +729,7 @@ impl Linux<'_> {
             "SCO" => "sco_pinfo",
             _ => return Ok(()),
         };
-        if !self.isf.data["user_types"][kind].is_object() {
+        if !self.isf.data.key("user_types")[kind].is_object() {
             return Ok(());
         }
         let addr = |view: &View<'_, '_>, ty: &str, field: &str| -> Result<String> {
@@ -745,7 +749,7 @@ impl Linux<'_> {
                 }
             }
             "L2CAP" => {
-                let chan = if self.isf.field(kind, "chan")?["type"]["kind"] == "pointer" {
+                let chan = if *self.isf.field(kind, "chan")?["type"].key("kind") == "pointer" {
                     let chan = sock.number(kind, "chan")?;
                     ensure!(chan != 0, "L2CAP chan 为空");
                     sock.virtual_at(chan)

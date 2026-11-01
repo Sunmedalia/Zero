@@ -1,4 +1,5 @@
 //! Offline symbol generation from an explicit debug ELF and kernel config.
+use crate::bytes::JsonKey as _;
 use crate::{
     Job,
     bytes::{le_u16, le_u32, le_u64},
@@ -176,10 +177,10 @@ pub fn generate(
     );
     let mut data: serde_json::Value = serde_json::from_reader(output.reopen()?)?;
     ensure!(
-        data.is_object() && (data["metadata"].is_object() || data["metadata"].is_null()),
+        data.is_object() && (data.key("metadata").is_object() || data.key("metadata").is_null()),
         "生成的 ISF 结构无效"
     );
-    data["metadata"]["zero"] = json!({"architecture":if machine==183{"aarch64"}else{"x86_64"},"page_shift":12,"va_bits":bits,"symbol_sizes":sizes,
+    *data.key_mut("metadata")?.key_mut("zero")? = json!({"architecture":if machine==183{"aarch64"}else{"x86_64"},"page_shift":12,"va_bits":bits,"symbol_sizes":sizes,
         "elf_sha256":digest_reader(File::open(elf)?,job)?,"config_sha256":digest_reader(File::open(config)?,job)?,"dwarf2json_tool_sha256":digest_reader(File::open(tool)?,job)?});
     let bytes = serde_json::to_vec(&data)?;
     let isf = Isf::parse(&bytes, "generated".into())?;
@@ -198,7 +199,7 @@ pub fn generate(
     store::atomic_write(
         &source,
         &serde_json::to_vec_pretty(
-            &json!({"elf":elf,"config":config,"metadata":data["metadata"]}),
+            &json!({"elf":elf,"config":config,"metadata":*data.key("metadata")}),
         )?,
     )?;
     job.report(format!("已生成精确匹配 ISF: {}", path.display()));
@@ -350,7 +351,7 @@ pub fn prepare_kali(image: &Image, cache: &Path, network: bool, job: &Job) -> Re
     for path in [PathBuf::from("symbols"), cache.join("symbols/isf")] {
         if let Ok(matches) = matching(&path, image, job)
             && let Some(isf) = matches.iter().find(|s| {
-                s.data["metadata"]["zero"]["symbol_sizes"]["sys_call_table"]
+                s.data.key("metadata")["zero"].key("symbol_sizes")["sys_call_table"]
                     .as_u64()
                     .is_some()
             })
@@ -424,8 +425,8 @@ pub fn prepare_kali(image: &Image, cache: &Path, network: bool, job: &Job) -> Re
     let path = generate(&elf, &config, &tool, image, cache, job)?;
     let source = path.with_extension("source.json");
     let mut value: serde_json::Value = serde_json::from_slice(&fs::read(&source)?)?;
-    value["source_url"] = json!(KALI_DEBUG);
-    value["package_sha256"] = json!(digest_reader(File::open(debug)?, job)?);
+    *value.key_mut("source_url")? = json!(KALI_DEBUG);
+    *value.key_mut("package_sha256")? = json!(digest_reader(File::open(debug)?, job)?);
     store::atomic_write(&source, &serde_json::to_vec_pretty(&value)?)?;
     Ok(path)
 }

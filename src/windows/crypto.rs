@@ -1,5 +1,6 @@
 //! Credential-decryption primitives for SAM/LSA secret analysis. Algorithms
 //! stay compatible with Volatility 3's hashdump/lsadump/cachedump lineage.
+use crate::bytes::Checked as _;
 use aes::cipher::{BlockDecrypt, KeyInit, generic_array::GenericArray};
 use anyhow::{Result, ensure};
 use hmac::{Hmac, Mac};
@@ -30,16 +31,16 @@ pub(super) fn rc4(key: &[u8], data: &mut [u8]) -> Result<()> {
     }
     let mut j = 0usize;
     for i in 0..256 {
-        j = (j + s[i] as usize + key[i % key.len()] as usize) & 0xff;
+        j = (j + *s.at(i)? as usize + *key.at(i % key.len())? as usize) & 0xff;
         s.swap(i, j);
     }
     let mut i = 0usize;
     let mut j = 0usize;
     for byte in data.iter_mut() {
         i = (i + 1) & 0xff;
-        j = (j + s[i] as usize) & 0xff;
+        j = (j + *s.at(i)? as usize) & 0xff;
         s.swap(i, j);
-        *byte ^= s[(s[i] as usize + s[j] as usize) & 0xff];
+        *byte ^= *s.at((*s.at(i)? as usize + *s.at(j)? as usize) & 0xff)?;
     }
     Ok(())
 }

@@ -1,4 +1,5 @@
 //! Native Linux analysis: sessions, kernel discovery and ISF-driven plugins.
+use crate::bytes::Checked as _;
 pub use crate::plugin::{Descriptor, PLUGINS, Plugin};
 use crate::{
     Job,
@@ -110,7 +111,7 @@ fn user_string(vm: &VirtualMemory<'_>, start: u64, limit: usize, job: &Job) -> R
         let mut chunk = vec![0; n];
         vm.read(addr, &mut chunk)?;
         if let Some(end) = chunk.iter().position(|b| *b == 0) {
-            bytes.extend_from_slice(&chunk[..end]);
+            bytes.extend_from_slice(chunk.at(..end)?);
             return Ok(String::from_utf8_lossy(&bytes).into_owned());
         }
         bytes.extend(chunk);

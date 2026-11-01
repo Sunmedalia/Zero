@@ -1,6 +1,7 @@
 //! Canonical pool scanner: every built-in kernel tag, scanned in the version's layer.
 use super::*;
 use crate::bytes::le_u32;
+use crate::bytes::{Checked as _, JsonKey as _};
 use memchr::memmem;
 use std::cmp::Reverse;
 use std::collections::{BTreeMap, BinaryHeap};
@@ -238,7 +239,7 @@ impl Windows<'_> {
                 if tag as u64 >= POOL_SCAN_CHUNK {
                     break;
                 }
-                let constraint = &CONSTRAINTS[index];
+                let constraint = CONSTRAINTS.at(index)?;
                 let Some(&type_size) = sizes.get(constraint.type_name) else {
                     continue;
                 };
@@ -312,7 +313,7 @@ impl Windows<'_> {
                 ),
             );
         }
-        result.kernel_identity["poolscanner"] = serde_json::json!({"source":"versioned kernel pool tags","layer":layer,"constraints":CONSTRAINTS.len(),"rows":rows,"diagnostics":diagnostics});
+        *result.kernel_identity.key_mut("poolscanner")? = serde_json::json!({"source":"versioned kernel pool tags","layer":layer,"constraints":CONSTRAINTS.len(),"rows":rows,"diagnostics":diagnostics});
         Ok(())
     }
 
@@ -350,9 +351,9 @@ impl Windows<'_> {
                 .and_then(|offset| offset.checked_add(length).map(|end| (offset, end)))
                 .and_then(|(offset, end)| scan.data.get(offset..end))
             {
-                bytes[..length].copy_from_slice(value);
+                bytes.at_mut(..length)?.copy_from_slice(value);
             } else {
-                self.pool_read(at, &mut bytes[..length], scan.virtual_scan)?;
+                self.pool_read(at, bytes.at_mut(..length)?, scan.virtual_scan)?;
             }
             json_number(self.vm.isf, u64::from_le_bytes(bytes), "_POOL_HEADER", name)
         };
@@ -382,7 +383,8 @@ impl Windows<'_> {
     }
 
     fn pool_header_layout(&self) -> Result<(usize, u64)> {
-        let size = self.vm.isf.data["user_types"]["_POOL_HEADER"]["size"]
+        let size = self.vm.isf.data.key("user_types")["_POOL_HEADER"]
+            .key("size")
             .as_u64()
             .context("缺少 pool header 大小")?;
         ensure!((8..=64).contains(&size), "pool header 大小无效");
@@ -395,7 +397,8 @@ impl Windows<'_> {
     fn pool_type_sizes(&self) -> Result<BTreeMap<&'static str, u64>> {
         let mut sizes = BTreeMap::new();
         for constraint in CONSTRAINTS {
-            let size = self.vm.isf.data["user_types"][constraint.type_name]["size"]
+            let size = self.vm.isf.data.key("user_types")[constraint.type_name]
+                .key("size")
                 .as_u64()
                 .context("缺少 pool 对象大小")?;
             ensure!((1..=65536).contains(&size), "pool 对象大小无效");
@@ -407,8 +410,9 @@ impl Windows<'_> {
     fn pool_optional_headers(&self) -> Result<Vec<(bool, u64)>> {
         let mut headers = Vec::new();
         for name in OPTIONAL_HEADERS {
-            if let Some(size) =
-                self.vm.isf.data["user_types"][format!("_OBJECT_HEADER_{name}")]["size"].as_u64()
+            if let Some(size) = self.vm.isf.data.key("user_types")[format!("_OBJECT_HEADER_{name}")]
+                .key("size")
+                .as_u64()
             {
                 ensure!(size <= 4096, "可选对象头大小无效");
                 headers.push((name == "PADDING_INFO", size));
@@ -528,7 +532,7 @@ impl Windows<'_> {
         geometry: &Paging,
         visit: &mut dyn FnMut(u64, u64, u32) -> Result<()>,
     ) -> Result<()> {
-        let shift = geometry.shifts()[level];
+        let shift = *geometry.shifts().at(level)?;
         let width = geometry.width();
         let entries = geometry.entries(level);
         // _get_valid_table always reads a full 4 KiB table, including the
@@ -546,7 +550,7 @@ impl Windows<'_> {
         }
         for (index, entry_bytes) in bytes.chunks_exact(width).take(entries).enumerate() {
             let mut raw = [0u8; 8];
-            raw[..width].copy_from_slice(entry_bytes);
+            raw.at_mut(..width)?.copy_from_slice(entry_bytes);
             let entry = u64::from_le_bytes(raw);
             if entry & 1 == 0 && !(entry & (1 << 11) != 0 && entry & (1 << 10) == 0) {
                 continue;
@@ -585,7 +589,8 @@ impl Windows<'_> {
             optional,
             virtual_scan,
         } = carve;
-        let pool_size = self.vm.isf.data["user_types"]["_POOL_HEADER"]["size"]
+        let pool_size = self.vm.isf.data.key("user_types")["_POOL_HEADER"]
+            .key("size")
             .as_u64()
             .context("缺少 pool 大小")?;
         let start = add(header, pool_size)?;
@@ -598,7 +603,8 @@ impl Windows<'_> {
             for extra in constraint.extra {
                 size = size
                     .checked_add(
-                        self.vm.isf.data["user_types"][*extra]["size"]
+                        self.vm.isf.data.key("user_types")[*extra]
+                            .key("size")
                             .as_u64()
                             .context("缺少附加 pool 结构大小")?,
                     )
@@ -635,7 +641,7 @@ impl Windows<'_> {
                 continue;
             };
             let mut raw = [0u8; 8];
-            raw[..pointer_size].copy_from_slice(slice);
+            raw.at_mut(..pointer_size)?.copy_from_slice(slice);
             let count = u64::from_le_bytes(raw);
             let signed = if pointer_size == 8 {
                 count as i64
@@ -733,7 +739,7 @@ impl Windows<'_> {
                 if tag_at as u64 >= POOL_SCAN_CHUNK {
                     break;
                 }
-                let constraint = constraints[index];
+                let constraint = *constraints.at(index)?;
                 let Some(address) = add(start, tag_at as u64)?.checked_sub(tag_offset as u64)
                 else {
                     continue;

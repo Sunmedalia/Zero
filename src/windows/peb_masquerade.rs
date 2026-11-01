@@ -1,5 +1,6 @@
 //! EPROCESS/audit/PEB names and independent Unicode descriptor length checks.
 use super::*;
+use crate::bytes::{Checked as _, JsonKey as _};
 
 /// Read only Length and Buffer: MaximumLength is evidence to compare, not a
 /// prerequisite that may suppress a spoofed descriptor. Match reference UTF-16
@@ -50,7 +51,7 @@ impl Windows<'_> {
         let (processes, diagnostics) = self.processes_partial(job)?;
         r.complete &= diagnostics.is_empty();
         r.diagnostics = diagnostics;
-        r.kernel_identity["peb_masquerade"] = serde_json::json!({
+        *r.kernel_identity.key_mut("peb_masquerade")? = serde_json::json!({
             "view":"native EPROCESS.Peb, including WOW64 processes; no WOW64 PEB substitution",
             "true_means":"descriptor length mismatch only; not proof of malicious process masquerading",
             "flags":"independent ImagePathName and CommandLine checks; false means no mismatch established, not proof of no spoofing",
@@ -109,7 +110,7 @@ impl Windows<'_> {
                             if !text.is_empty() {
                                 let maximum =
                                     vm.number(address, "_UNICODE_STRING", "MaximumLength")?;
-                                flags[i] = length_mismatch(&text, length, maximum);
+                                *flags.at_mut(i)? = length_mismatch(&text, length, maximum);
                             }
                             Ok(())
                         })();

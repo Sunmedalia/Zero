@@ -1,5 +1,6 @@
 //! Per-image session: prepared image, matched symbols and validated page tables.
 use super::*;
+use crate::bytes::Checked as _;
 fn source_stamp(path: &Path, job: &Job) -> Result<String> {
     fn visit(path: &Path, out: &mut Vec<String>, depth: usize, job: &Job) -> Result<()> {
         job.check()?;
@@ -268,7 +269,7 @@ impl Session {
                     self.symbols.iter().map(|s| s.label.clone()).collect(),
                 ));
             }
-            self.symbols[0].clone()
+            self.symbols.at(0)?.clone()
         };
         let identity = match pattern {
             Some(pattern) => format!("{}:{}", request.plugin.name(), pattern.source()),

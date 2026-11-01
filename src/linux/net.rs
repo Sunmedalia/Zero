@@ -1,5 +1,6 @@
 //! Socket decoding shared by sockstat and the Internet-only netscan view.
 use super::*;
+use crate::bytes::JsonKey as _;
 pub(super) fn unix_name(bytes: &[u8]) -> String {
     if bytes.is_empty() {
         "[unnamed]".into()
@@ -139,7 +140,8 @@ impl Linux<'_> {
                     ensure!(
                         len >= offset
                             && len
-                                <= self.isf.data["user_types"]["sockaddr_un"]["size"]
+                                <= self.isf.data.key("user_types")["sockaddr_un"]
+                                    .key("size")
                                     .as_u64()
                                     .context("sockaddr_un size 缺失")?,
                         "Unix 名称长度无效: {len}"

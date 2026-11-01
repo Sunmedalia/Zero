@@ -1,5 +1,6 @@
 //! Pool candidates require structure checks and a verified virtual object type.
 use super::*;
+use crate::bytes::{Checked as _, JsonKey as _};
 use objects::physical_number;
 use std::collections::BTreeSet;
 /// Pool tags read by the scanning plugins; the first scan finds all of them in
@@ -19,7 +20,8 @@ impl Windows<'_> {
         job: &Job,
     ) -> Result<Vec<(u64, u64)>> {
         let isf = self.vm.isf;
-        let size = isf.data["user_types"]["_POOL_HEADER"]["size"]
+        let size = isf.data.key("user_types")["_POOL_HEADER"]
+            .key("size")
             .as_u64()
             .context("缺少 pool header 大小")?;
         ensure!((8..=64).contains(&size), "pool header 大小无效");
@@ -103,7 +105,8 @@ impl Windows<'_> {
             Plugin::WinThrdscan => ("_ETHREAD", "Thread", &[b"Thre", b"Thr\xe5"]),
             _ => ("_KMUTANT", "Mutant", &[b"Muta", b"Mut\xe1"]),
         };
-        let size = self.vm.isf.data["user_types"][ty]["size"]
+        let size = self.vm.isf.data.key("user_types")[ty]
+            .key("size")
             .as_u64()
             .context("缺少对象类型大小")?;
         ensure!((16..=4096).contains(&size), "pool 对象大小无效");
@@ -275,7 +278,7 @@ impl Windows<'_> {
                 format!("{unmatched} 个结构候选没有可验证的虚拟对象类型；未输出这些候选"),
             );
         }
-        r.kernel_identity["pool_scan"] = serde_json::json!({"object_type":kind,"validation":"structure and mapped object header type","scope":"mapped live or retained pool objects; unmapped freed candidates excluded"});
+        *r.kernel_identity.key_mut("pool_scan")? = serde_json::json!({"object_type":kind,"validation":"structure and mapped object header type","scope":"mapped live or retained pool objects; unmapped freed candidates excluded"});
         Ok(())
     }
 }
@@ -333,7 +336,7 @@ impl PoolMappings<'_> {
         }
         ensure!(self.budget > 0, "对象虚拟地址映射搜索超限");
         self.budget -= 1;
-        let shift = self.geometry.shifts()[level];
+        let shift = *self.geometry.shifts().at(level)?;
         let need = self.geometry.entries(level) * self.geometry.width();
         self.scratch.resize(need, 0);
         self.scratch.fill(0);
@@ -349,7 +352,7 @@ impl PoolMappings<'_> {
                 continue;
             }
             let mut raw = [0u8; 8];
-            raw[..bytes.len()].copy_from_slice(bytes);
+            raw.at_mut(..bytes.len())?.copy_from_slice(bytes);
             let entry = u64::from_le_bytes(raw);
             if entry & 1 == 0 {
                 continue;

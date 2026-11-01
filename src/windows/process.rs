@@ -1,5 +1,6 @@
 //! Process artifacts read using exact kernel types and the 32-bit NT user ABI.
 use super::*;
+use crate::bytes::Checked as _;
 const ENVIRONMENT_LIMIT: usize = 1024 * 1024;
 
 impl Windows<'_> {
@@ -156,7 +157,8 @@ impl Windows<'_> {
                         }
                     }
                 }
-                let start = u64::from_str_radix(row[5].trim_start_matches("0x"), 16).unwrap_or(0);
+                let start =
+                    u64::from_str_radix(row.at(5)?.trim_start_matches("0x"), 16).unwrap_or(0);
                 let module = modules
                     .rows
                     .iter()

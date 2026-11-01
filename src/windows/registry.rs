@@ -1,4 +1,5 @@
 use super::*;
+use crate::bytes::{Checked as _, JsonKey as _};
 impl Windows<'_> {
     pub(super) fn registry(&self, p: Plugin, options: &Options, job: &Job) -> Result<Results> {
         let mut r = self.result(p);
@@ -35,7 +36,7 @@ impl Windows<'_> {
         let hhive = self.field(hive, "_CMHIVE", "Hive")?;
         let cell = self.registry_index(hhive, &options.key, job)?;
         let node = self.cell(hhive, cell)?;
-        ensure!(&node[..2] == b"nk", "非注册表键节点");
+        ensure!(node.at(..2)? == b"nk", "非注册表键节点");
         let name = self.key_name(&node)?;
         let time = objects::physical_number(self.vm.isf, &node, "_CM_KEY_NODE", "LastWriteTime")?;
         r.rows.push(vec![
@@ -87,7 +88,7 @@ impl Windows<'_> {
                 usize::try_from(count)? * 4 <= indices.len(),
                 "注册表值列表截断"
             );
-            for chunk in indices[..usize::try_from(count)? * 4].chunks_exact(4) {
+            for chunk in indices.at(..usize::try_from(count)? * 4)?.chunks_exact(4) {
                 job.check()?;
                 let index = u32::from_le_bytes(chunk.try_into()?);
                 let read = self.value(hhive, index, job).map(|(name, ty, data)| {
@@ -127,11 +128,11 @@ impl Windows<'_> {
         }
         for hive in hives.rows {
             job.check()?;
-            let address = u64::from_str_radix(hive[0].trim_start_matches("0x"), 16)?;
+            let address = u64::from_str_radix(hive.at(0)?.trim_start_matches("0x"), 16)?;
             if options.hive.is_some_and(|selected| selected != address) {
                 continue;
             }
-            let lower = hive[1].to_ascii_lowercase();
+            let lower = hive.at(1)?.to_ascii_lowercase();
             let mut keys = Vec::new();
             if lower.ends_with("software") || lower.ends_with("ntuser.dat") {
                 for prefix in [
@@ -148,7 +149,7 @@ impl Windows<'_> {
                         "Microsoft\\Windows NT\\CurrentVersion\\Image File Execution Options";
                     if let Some(parent) = self.optional_registry(address, ifeo, job, &mut result)? {
                         for row in parent.rows.into_iter().filter(|row| row[2] == "SubKey") {
-                            keys.push(format!("{ifeo}\\{}", row[3]));
+                            keys.push(format!("{ifeo}\\{}", *row.at(3)?));
                         }
                     }
                 }
@@ -160,7 +161,8 @@ impl Windows<'_> {
                     .iter()
                     .find(|row| row[2] == "Value" && row[3].eq_ignore_ascii_case("Current"));
                 if let Some(current) = current {
-                    let n = current[5]
+                    let n = current
+                        .at(5)?
                         .parse::<u32>()
                         .context("Select.Current 不是 DWORD")?;
                     ensure!((1..=999).contains(&n), "Select.Current 越界");
@@ -169,7 +171,7 @@ impl Windows<'_> {
                         self.optional_registry(address, &services, job, &mut result)?
                     {
                         for row in parent.rows.into_iter().filter(|row| row[2] == "SubKey") {
-                            keys.push(format!("{services}\\{}", row[3]));
+                            keys.push(format!("{services}\\{}", *row.at(3)?));
                         }
                     }
                 } else {
@@ -180,7 +182,7 @@ impl Windows<'_> {
                 job.check()?;
                 if let Some(query) = self.optional_registry(address, &key, job, &mut result)? {
                     for row in query.rows.into_iter().filter(|row| row[2] == "Value") {
-                        let name = row[3].to_ascii_lowercase();
+                        let name = row.at(3)?.to_ascii_lowercase();
                         if key.ends_with("Winlogon")
                             && !["shell", "userinit", "taskman"].contains(&name.as_str())
                         {
@@ -204,7 +206,7 @@ impl Windows<'_> {
         }
         result.diagnostics.sort();
         result.diagnostics.dedup();
-        result.kernel_identity["coverage"] = serde_json::json!(
+        *result.kernel_identity.key_mut("coverage")? = serde_json::json!(
             "Run/RunOnce, Winlogon, IFEO, current ControlSet services; not all persistence mechanisms"
         );
         Ok(result)
@@ -246,7 +248,8 @@ impl Windows<'_> {
         ensure!(index != u32::MAX, "无效 hive cell");
         let storage = (index >> 31) as u64;
         let index = u64::from(index & 0x7fff_ffff);
-        let dual_size = self.vm.isf.data["user_types"]["_DUAL"]["size"]
+        let dual_size = self.vm.isf.data.key("user_types")["_DUAL"]
+            .key("size")
             .as_u64()
             .context("缺少 _DUAL")?;
         let dual = add(self.field(hive, "_HHIVE", "Storage")?, storage * dual_size)?;
@@ -260,7 +263,8 @@ impl Windows<'_> {
             (index >> 21) * self.vm.pointer_size() as u64,
         )?)?;
         ensure!(table != 0, "hive 映射表缺失");
-        let entry_size = self.vm.isf.data["user_types"]["_HMAP_ENTRY"]["size"]
+        let entry_size = self.vm.isf.data.key("user_types")["_HMAP_ENTRY"]
+            .key("size")
             .as_u64()
             .context("缺少 _HMAP_ENTRY")?;
         let entry = add(
@@ -302,14 +306,14 @@ impl Windows<'_> {
             let count = (4096 - (cell_index as usize & 4095)).min(out.len() - copied);
             self.vm.read(
                 self.cell_address(hive, cell_index)?,
-                &mut out[copied..copied + count],
+                out.at_mut(copied..copied + count)?,
             )?;
             copied += count;
         }
         Ok(out)
     }
     pub(super) fn key_name(&self, node: &[u8]) -> Result<String> {
-        ensure!(node.len() >= 2 && &node[..2] == b"nk", "无效 nk cell");
+        ensure!(node.len() >= 2 && node.at(..2)? == b"nk", "无效 nk cell");
         let flags = objects::physical_number(self.vm.isf, node, "_CM_KEY_NODE", "Flags")?;
         let len = usize::try_from(objects::physical_number(
             self.vm.isf,
@@ -364,17 +368,17 @@ impl Windows<'_> {
         );
         let cell = self.cell(hive, index)?;
         ensure!(cell.len() >= 4, "子键列表截断");
-        let count = u16::from_le_bytes(cell[2..4].try_into()?) as usize;
-        let sig = &cell[..2];
+        let count = u16::from_le_bytes(cell.at(2..4)?.try_into()?) as usize;
+        let sig = cell.at(..2)?;
         let width = match sig {
             b"lf" | b"lh" => 8,
             b"li" | b"ri" => 4,
             _ => bail!("未知子键索引类型"),
         };
         ensure!(4 + count * width <= cell.len(), "子键索引越界");
-        for chunk in cell[4..4 + count * width].chunks_exact(width) {
+        for chunk in cell.at(4..4 + count * width)?.chunks_exact(width) {
             job.check()?;
-            let child = u32::from_le_bytes(chunk[..4].try_into()?);
+            let child = u32::from_le_bytes(chunk.at(..4)?.try_into()?);
             if sig == b"ri" {
                 self.subkey_list(hive, child, out, seen, job)?;
             } else {
@@ -389,7 +393,7 @@ impl Windows<'_> {
         self.value_cell_name(&self.cell(hive, index)?)
     }
     fn value_cell_name(&self, cell: &[u8]) -> Result<String> {
-        ensure!(cell.len() >= 2 && &cell[..2] == b"vk", "非 vk cell");
+        ensure!(cell.len() >= 2 && cell.at(..2)? == b"vk", "非 vk cell");
         let get = |f| objects::physical_number(self.vm.isf, cell, "_CM_KEY_VALUE", f);
         let len = usize::try_from(get("NameLength")?)?;
         let offset = usize::try_from(self.vm.isf.offset("_CM_KEY_VALUE", "Name")?)?;
@@ -415,13 +419,16 @@ impl Windows<'_> {
         ensure!(length <= 1024 * 1024, "注册表值超过 1 MiB");
         let bytes = if inline {
             ensure!(length <= 4, "内联值长度无效");
-            u32::try_from(get("Data")?)?.to_le_bytes()[..length].to_vec()
+            u32::try_from(get("Data")?)?
+                .to_le_bytes()
+                .at(..length)?
+                .to_vec()
         } else if length == 0 {
             Vec::new()
         } else {
             let data = self.cell(hive, u32::try_from(get("Data")?)?)?;
             if length <= data.len() {
-                data[..length].to_vec()
+                data.at(..length)?.to_vec()
             } else {
                 segmented_value(&data, length, |index| {
                     job.check()?;
@@ -435,7 +442,7 @@ impl Windows<'_> {
     /// 读取 `nk` 键单元的 class 数据（SAM bootkey 片段存放位置）。
     pub(super) fn key_class(&self, hive: u64, key_index: u32) -> Result<Vec<u8>> {
         let node = self.cell(hive, key_index)?;
-        ensure!(node.len() >= 2 && &node[..2] == b"nk", "非 nk cell");
+        ensure!(node.len() >= 2 && node.at(..2)? == b"nk", "非 nk cell");
         let length = usize::try_from(objects::physical_number(
             self.vm.isf,
             &node,
@@ -455,7 +462,7 @@ impl Windows<'_> {
         ensure!(class != 0, "注册表键 class 缺失");
         let data = self.cell(hive, class)?;
         ensure!(length <= data.len(), "注册表键 class 截断");
-        Ok(data[..length].to_vec())
+        Ok(data.at(..length)?.to_vec())
     }
     /// 在父键下按名称（大小写不敏感）查找子键 cell index。
     pub(super) fn subkey_named(
@@ -497,7 +504,8 @@ impl Windows<'_> {
         )?)?;
         let indices = self.cell(hive, index)?;
         ensure!(count * 4 <= indices.len(), "注册表值列表截断");
-        Ok(indices[..count * 4]
+        Ok(indices
+            .at(..count * 4)?
             .as_chunks::<4>()
             .0
             .iter()
@@ -684,23 +692,23 @@ fn segmented_value(
 ) -> Result<Vec<u8>> {
     const SEGMENT: usize = 0x3fd8;
     ensure!(
-        length > SEGMENT && length <= 1024 * 1024 && header.len() >= 8 && &header[..2] == b"db",
+        length > SEGMENT && length <= 1024 * 1024 && header.len() >= 8 && header.at(..2)? == b"db",
         "注册表分段值头部无效"
     );
-    let count = u16::from_le_bytes(header[2..4].try_into()?) as usize;
+    let count = u16::from_le_bytes(header.at(2..4)?.try_into()?) as usize;
     ensure!(count == length.div_ceil(SEGMENT), "注册表分段计数不一致");
-    let list_index = u32::from_le_bytes(header[4..8].try_into()?);
+    let list_index = u32::from_le_bytes(header.at(4..8)?.try_into()?);
     let list = cell(list_index)?;
     ensure!(count * 4 <= list.len(), "注册表分段索引截断");
     let mut seen = HashSet::from([list_index]);
     let mut out = Vec::with_capacity(length);
-    for chunk in list[..count * 4].chunks_exact(4) {
+    for chunk in list.at(..count * 4)?.chunks_exact(4) {
         let index = u32::from_le_bytes(chunk.try_into()?);
         ensure!(seen.insert(index), "注册表分段索引重复/循环");
         let data = cell(index)?;
         let needed = (length - out.len()).min(SEGMENT);
         ensure!(data.len() >= needed, "注册表分段数据截断");
-        out.extend_from_slice(&data[..needed]);
+        out.extend_from_slice(data.at(..needed)?);
     }
     ensure!(out.len() == length, "注册表分段数据长度不一致");
     Ok(out)

@@ -1,6 +1,7 @@
 //! In-memory PE metadata: the import address table of each process image
 //! and the fixed version resource of loaded modules.
 use super::*;
+use crate::bytes::Checked as _;
 use crate::bytes::le_u32;
 
 const IMPORT_LIMIT: u32 = 65536;
@@ -20,10 +21,10 @@ pub(super) struct Header {
 }
 
 pub(super) fn parse_header(bytes: &[u8]) -> Result<Header> {
-    ensure!(bytes.len() >= 0x40 && &bytes[..2] == b"MZ", "缺少 MZ 头");
-    let at = u32::from_le_bytes(bytes[0x3c..0x40].try_into()?) as usize;
+    ensure!(bytes.len() >= 0x40 && bytes.at(..2)? == b"MZ", "缺少 MZ 头");
+    let at = u32::from_le_bytes(bytes.at(0x3c..0x40)?.try_into()?) as usize;
     let nt = bytes.get(at..at + 24).context("PE 头越界")?;
-    ensure!(&nt[..4] == b"PE\0\0", "缺少 PE 签名");
+    ensure!(nt.at(..4)? == b"PE\0\0", "缺少 PE 签名");
     let optional = at + 24;
     let magic = u16::from_le_bytes(
         bytes
@@ -101,21 +102,22 @@ impl Windows<'_> {
         // Names may end near a page boundary; shrink until the read succeeds.
         let mut length = bytes.len();
         loop {
-            match self.read_image(vm, base, rva, &mut bytes[..length]) {
+            match self.read_image(vm, base, rva, bytes.at_mut(..length)?) {
                 Ok(()) => break,
                 Err(e) if length <= 16 => return Err(e),
                 Err(_) => length /= 2,
             }
         }
-        let end = bytes[..length]
+        let end = bytes
+            .at(..length)?
             .iter()
             .position(|b| *b == 0)
             .context("导入名称未终止")?;
         ensure!(
-            bytes[..end].iter().all(|b| b.is_ascii_graphic()),
+            bytes.at(..end)?.iter().all(|b| b.is_ascii_graphic()),
             "导入名称包含非 ASCII 字符"
         );
-        Ok(String::from_utf8_lossy(&bytes[..end]).into_owned())
+        Ok(String::from_utf8_lossy(bytes.at(..end)?).into_owned())
     }
     /// windows.iat: the import table of each process's main image.
     pub(super) fn iat(&self, p: &Process, r: &mut Results, job: &Job) -> Result<()> {
@@ -155,7 +157,7 @@ impl Windows<'_> {
                         &vm,
                         base,
                         lookup + slot * width,
-                        &mut entry[..width as usize],
+                        entry.at_mut(..width as usize)?,
                     )?;
                     let value = u64::from_le_bytes(entry);
                     if value == 0 {
@@ -171,7 +173,7 @@ impl Windows<'_> {
                         &vm,
                         base,
                         thunks + slot * width,
-                        &mut bound[..width as usize],
+                        bound.at_mut(..width as usize)?,
                     )?;
                     Ok(Some(vec![
                         p.pid.to_string(),
@@ -349,18 +351,18 @@ impl Windows<'_> {
         }
         for module in modules.rows {
             job.check()?;
-            let base = u64::from_str_radix(module[1].trim_start_matches("0x"), 16)?;
+            let base = u64::from_str_radix(module.at(1)?.trim_start_matches("0x"), 16)?;
             match self.image_version(&self.vm, base) {
                 Ok(Some((file, product))) => r.rows.push(vec![
                     "0".into(),
                     "[kernel]".into(),
-                    module[1].clone(),
-                    module[3].clone(),
+                    module.at(1)?.clone(),
+                    module.at(3)?.clone(),
                     file,
                     product,
                 ]),
                 Ok(None) => {}
-                Err(e) => Self::issue(r, format!("module {}", module[0]), format!("{e:#}")),
+                Err(e) => Self::issue(r, format!("module {}", *module.at(0)?), format!("{e:#}")),
             }
         }
         Ok(())

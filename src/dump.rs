@@ -1,4 +1,5 @@
 //! Targeted, atomic exports of bytes from a process address space.
+use crate::bytes::Checked as _;
 use crate::{
     Job,
     image::VirtualMemory,
@@ -167,9 +168,9 @@ fn write_region(
     while offset < size {
         job.check()?;
         let count = usize::try_from((size - offset).min(buffer.len() as u64))?;
-        vm.read(start + offset, &mut buffer[..count])?;
-        temp.write_all(&buffer[..count])?;
-        hash.update(&buffer[..count]);
+        vm.read(start + offset, buffer.at_mut(..count)?)?;
+        temp.write_all(buffer.at(..count)?)?;
+        hash.update(buffer.at(..count)?);
         offset += count as u64;
         job.report(format!("dump {start:#x}: {offset}/{size} bytes"));
     }

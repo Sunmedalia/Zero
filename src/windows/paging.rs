@@ -1,5 +1,6 @@
 //! Explicit, read-only paging attachments. No adjacent-file discovery or implicit index guessing.
 use super::*;
+use crate::bytes::Checked as _;
 use serde::{Deserialize, Serialize};
 use std::{
     fs::{File, Metadata},
@@ -229,11 +230,13 @@ impl Sources {
         }
         ensure!(matches.len() == 1, "无法唯一验证 swapfile 的内核分页索引");
         ensure!(
-            !self.files.contains_key(&matches[0]),
+            !self.files.contains_key(matches.at(0)?),
             "swapfile 与 pagefile 索引冲突"
         );
-        self.files
-            .insert(matches[0], self.swap.take().context("swapfile 未打开")?);
+        self.files.insert(
+            *matches.at(0)?,
+            self.swap.take().context("swapfile 未打开")?,
+        );
         Ok(())
     }
     pub(super) fn mapping_valid(&self, index: u8, offset: u64, size: u64) -> bool {
@@ -330,7 +333,7 @@ impl Memory<'_> {
                 self.sources.context("未附加分页文件")?.read(
                     file,
                     add(offset, (index * geometry.width()) as u64)?,
-                    &mut b[..geometry.width()],
+                    b.at_mut(..geometry.width())?,
                 )?;
                 u64::from_le_bytes(b)
             } else {

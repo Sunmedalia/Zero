@@ -1,5 +1,6 @@
 //! Kernel-wide views: printk, resources, notifiers, modules, syscalls and cross-views.
 use super::*;
+use crate::bytes::{Checked as _, JsonKey as _};
 impl Linux<'_> {
     pub(crate) fn kernel_text(&self, ptr: u64, limit: usize) -> Result<String> {
         ensure!(ptr != 0, "字符串指针为空");
@@ -45,7 +46,7 @@ impl Linux<'_> {
                 bytes.resize(old + n, 0);
                 self.vm.read(
                     ptr.checked_add(index).context("日志地址溢出")?,
-                    &mut bytes[old..],
+                    bytes.at_mut(old..)?,
                 )?;
                 pos += n as u64;
             }
@@ -90,7 +91,8 @@ impl Linux<'_> {
             let read = (|| -> Result<Option<Vec<String>>> {
                 let d = descs
                     + idx
-                        * self.isf.data["user_types"]["prb_desc"]["size"]
+                        * self.isf.data.key("user_types")["prb_desc"]
+                            .key("size")
                             .as_u64()
                             .context("prb_desc size")?;
                 let state = self.number(d, "prb_desc", "state_var.counter")?;
@@ -99,7 +101,8 @@ impl Linux<'_> {
                 }
                 let info = infos
                     + idx
-                        * self.isf.data["user_types"]["printk_info"]["size"]
+                        * self.isf.data.key("user_types")["printk_info"]
+                            .key("size")
                             .as_u64()
                             .context("printk_info size")?;
                 let len = self.number(info, "printk_info", "text_len")?;
@@ -379,7 +382,10 @@ impl Linux<'_> {
                 Err(e) => partial(result, format!("module {}", hex(module)), e),
             }
         }
-        let mut symbols: Vec<_> = self.isf.data["symbols"]
+        let mut symbols: Vec<_> = self
+            .isf
+            .data
+            .key("symbols")
             .as_object()
             .context("ISF symbols 缺失")?
             .iter()
@@ -470,13 +476,15 @@ impl Linux<'_> {
                     .context("module range 溢出")?,
             ));
         }
-        let count = self.isf.field("module", "mem")?["type"]["count"]
+        let count = self.isf.field("module", "mem")?["type"]
+            .key("count")
             .as_u64()
             .context("module.mem count 缺失")?;
-        let text = self.isf.data["enums"]["mod_mem_type"]["constants"]["MOD_TEXT"]
+        let text = self.isf.data.key("enums")["mod_mem_type"].key("constants")["MOD_TEXT"]
             .as_u64()
             .context("MOD_TEXT enum 缺失")?;
-        let size = self.isf.data["user_types"]["module_memory"]["size"]
+        let size = self.isf.data.key("user_types")["module_memory"]
+            .key("size")
             .as_u64()
             .context("module_memory size 缺失")?;
         ensure!(text < count && count <= 32, "module mem enum 越界");
@@ -557,7 +565,10 @@ impl Linux<'_> {
             ));
         }
         let mut symbols = Vec::new();
-        for (name, value) in self.isf.data["symbols"]
+        for (name, value) in self
+            .isf
+            .data
+            .key("symbols")
             .as_object()
             .context("ISF symbols 缺失")?
         {
@@ -569,7 +580,8 @@ impl Linux<'_> {
         Ok(CodeMap { ranges, symbols })
     }
     pub(super) fn check_syscall(&self, r: &mut Results, job: &Job) -> Result<()> {
-        let width = self.isf.data["base_types"]["pointer"]["size"]
+        let width = self.isf.data.key("base_types")["pointer"]
+            .key("size")
             .as_u64()
             .context("ISF pointer size 缺失")?;
         ensure!(matches!(width, 4 | 8), "ISF pointer size 无效");
@@ -577,10 +589,10 @@ impl Linux<'_> {
             .isf
             .address("sys_call_table")
             .context("不支持: 缺少 sys_call_table")?;
-        let size = self.isf.data["metadata"]["zero"]["symbol_sizes"]["sys_call_table"]
+        let size = self.isf.data.key("metadata")["zero"].key("symbol_sizes")["sys_call_table"]
             .as_u64()
             .or_else(|| {
-                self.isf.data["symbols"]["sys_call_table"]["type"]["count"]
+                self.isf.data.key("symbols")["sys_call_table"].key("type")["count"]
                     .as_u64()
                     .filter(|n| *n > 0)
                     .and_then(|n| n.checked_mul(width))
@@ -751,11 +763,12 @@ impl Linux<'_> {
             .address("vmcoreinfo_data")
             .context("不支持: 缺少 vmcoreinfo_data")?;
         // Since 4.15 the buffer is allocated and the symbol is a pointer.
-        let data = if self.isf.data["symbols"]["vmcoreinfo_data"]["type"]["kind"] == "pointer" {
-            self.vm.uint(symbol, 8)?
-        } else {
-            symbol
-        };
+        let data =
+            if self.isf.data.key("symbols")["vmcoreinfo_data"].key("type")["kind"] == "pointer" {
+                self.vm.uint(symbol, 8)?
+            } else {
+                symbol
+            };
         let size = self.vm.uint(
             self.isf
                 .address("vmcoreinfo_size")
@@ -790,7 +803,8 @@ impl Linux<'_> {
                 ensure!(entry > 4096, "xarray 保留节点／sibling 不支持");
                 let node = entry - 2;
                 let slots = self.field_address(node, "xa_node", "slots")?;
-                let count = self.isf.field("xa_node", "slots")?["type"]["count"]
+                let count = self.isf.field("xa_node", "slots")?["type"]
+                    .key("count")
                     .as_u64()
                     .context("xa slots count")?;
                 ensure!(count <= 256, "xarray slot count 越界");
@@ -840,7 +854,8 @@ impl Linux<'_> {
         for i in 0..(1u64 << shift) {
             job.check()?;
             let head = hash
-                + i * self.isf.data["user_types"]["hlist_head"]["size"]
+                + i * self.isf.data.key("user_types")["hlist_head"]
+                    .key("size")
                     .as_u64()
                     .context("hlist size")?;
             let mut n = self.number(head, "hlist_head", "first")?;

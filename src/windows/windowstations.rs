@@ -1,5 +1,6 @@
 //! Canonical window station scan. Session objects are reread in a process of that session.
 use super::*;
+use crate::bytes::JsonKey as _;
 use std::collections::{HashMap, HashSet};
 
 const STATION_SIZE: u64 = 152;
@@ -165,7 +166,7 @@ impl Windows<'_> {
             Ok(sessions) => sessions,
             Err(error) => {
                 Self::issue(&mut result, "会话层", format!("{error:#}"));
-                result.kernel_identity["windowstations"] = serde_json::json!({
+                *result.kernel_identity.key_mut("windowstations")? = serde_json::json!({
                     "table": table,
                     "rows": 0,
                 });
@@ -220,7 +221,7 @@ impl Windows<'_> {
                 rows += 1;
             }
         }
-        result.kernel_identity["windowstations"] = serde_json::json!({
+        *result.kernel_identity.key_mut("windowstations")? = serde_json::json!({
             "source": "Wind pool tag and session address space",
             "table": table,
             "virtual_scan": virtual_scan,
@@ -274,7 +275,7 @@ impl Windows<'_> {
             Ok(sessions) => sessions,
             Err(error) => {
                 Self::issue(&mut result, "会话层", format!("{error:#}"));
-                result.kernel_identity["desktops"] = serde_json::json!({
+                *result.kernel_identity.key_mut("desktops")? = serde_json::json!({
                     "table": table,
                     "rows": 0,
                 });
@@ -419,7 +420,7 @@ impl Windows<'_> {
                 link = list_memory.uint(link, self.vm.pointer_size()).unwrap_or(0);
             }
         }
-        result.kernel_identity["desktops"] = serde_json::json!({
+        *result.kernel_identity.key_mut("desktops")? = serde_json::json!({
             "source": "window station rpdeskList and tagTHREADINFO.PtiLink",
             "table": table,
             "stations": named_stations,
@@ -520,7 +521,7 @@ impl Windows<'_> {
                 link = list_memory.uint(link, self.vm.pointer_size()).unwrap_or(0);
             }
         }
-        result.kernel_identity["deskscan"] = serde_json::json!({
+        *result.kernel_identity.key_mut("deskscan")? = serde_json::json!({
             "source": "Desk pool tag, parent window station, and desktop thread list",
             "table": table,
             "candidates": candidates,

@@ -1,5 +1,6 @@
 //! Canonical TaskCache binary decoding against the pinned ScheduledTasks schema.
 use super::*;
+use crate::bytes::JsonKey as _;
 const CACHE: &str = "Microsoft\\Windows NT\\CurrentVersion\\Schedule\\TaskCache";
 const NA: &str = "N/A";
 const LIMIT: usize = 4096;
@@ -100,15 +101,16 @@ fn guid(b: &[u8]) -> Option<String> {
         return None;
     }
     // Pinned windows_bytes_to_guid renders all five integers without padding.
-    let tail = b[10..16]
+    let tail = b
+        .get(10..16)?
         .iter()
         .fold(0u64, |value, byte| value * 256 + u64::from(*byte));
     Some(format!(
         "{{{:x}-{:x}-{:x}-{:x}-{:x}}}",
-        u32::from_le_bytes(b[0..4].try_into().ok()?),
-        u16::from_le_bytes(b[4..6].try_into().ok()?),
-        u16::from_le_bytes(b[6..8].try_into().ok()?),
-        u16::from_be_bytes(b[8..10].try_into().ok()?),
+        u32::from_le_bytes(b.get(0..4)?.try_into().ok()?),
+        u16::from_le_bytes(b.get(4..6)?.try_into().ok()?),
+        u16::from_le_bytes(b.get(6..8)?.try_into().ok()?),
+        u16::from_be_bytes(b.get(8..10)?.try_into().ok()?),
         tail
     ))
 }
@@ -667,7 +669,8 @@ impl Windows<'_> {
                 Self::issue(&mut result, format!("task key {key:#x}"), e);
             }
         }
-        result.kernel_identity["time_format"] = serde_json::json!("ISO 8601 UTC (seconds)");
+        *result.kernel_identity.key_mut("time_format")? =
+            serde_json::json!("ISO 8601 UTC (seconds)");
         Ok(result)
     }
 }

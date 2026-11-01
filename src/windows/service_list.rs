@@ -1,6 +1,7 @@
 //! Services anchored in the executable VAD, with registry binary information.
 use super::user_layout::{self, ServiceLayout};
 use super::*;
+use crate::bytes::{Checked as _, JsonKey as _, MapAt as _};
 
 const NA: &str = "N/A";
 const MAX_CHAIN: usize = 65536;
@@ -56,9 +57,9 @@ fn registry_string(bytes: &[u8]) -> Result<String> {
         "服务注册表字符串 UTF-16 截断"
     );
     let (bytes, be) = if bytes.starts_with(&[0xfe, 0xff]) {
-        (&bytes[2..], true)
+        (bytes.at(2..)?, true)
     } else if bytes.starts_with(&[0xff, 0xfe]) {
-        (&bytes[2..], false)
+        (bytes.at(2..)?, false)
     } else {
         (bytes, false)
     };
@@ -77,7 +78,7 @@ fn registry_string(bytes: &[u8]) -> Result<String> {
         .to_owned())
 }
 fn valid_record(vm: &Memory<'_>, at: u64, layout: &ServiceLayout) -> Result<(u64, u64, u64)> {
-    let read = |field| vm.uint(add(at, layout.fields[field])?, 4);
+    let read = |field| vm.uint(add(at, *layout.fields.at(field)?)?, 4);
     let (order, start, state) = (read("Order")?, read("Start")?, read("State")?);
     ensure!(
         order <= 0xffff && start <= 4 && (1..=7).contains(&state),
@@ -118,15 +119,15 @@ impl Windows<'_> {
         r.diagnostics
             .extend(listed.diagnostics.iter().map(|d| format!("list: {d}")));
         r.rows = service_difference(&scan.rows, &listed.rows);
-        r.kernel_identity["services_diff"] = serde_json::json!({
+        *r.kernel_identity.key_mut("services_diff")? = serde_json::json!({
             "scan_records":scan.rows.len(),"list_records":listed.rows.len(),
             "scan_names":scan.rows.iter().map(|r| &r[6]).collect::<HashSet<_>>().len(),
             "list_names":listed.rows.iter().map(|r| &r[6]).collect::<HashSet<_>>().len(),
             "scan_complete":scan.complete,"list_complete":listed.complete,
             "comparison":"case-sensitive service name; last scanned record per name",
             "meaning":"scan-only service names are leads; incomplete views cannot prove hiding or absence",
-            "scan_coverage":scan.kernel_identity["services_scan"],
-            "list_coverage":listed.kernel_identity["services_list"]
+            "scan_coverage":*scan.kernel_identity.key("services_scan"),
+            "list_coverage":*listed.kernel_identity.key("services_list")
         });
         Ok(r)
     }
@@ -239,7 +240,8 @@ impl Windows<'_> {
                         self.service_vad(&vm, vad.start, vad.end, &layout, &map, &mut r, job)?;
                     ranges.push((hex(vad.start), hex(vad.end)));
                 }
-                r.kernel_identity[format!("pid{}_services", p.pid)] = serde_json::json!({"vad_ranges":ranges,"headers":headers,"pages_read":pages,"missing_pages":missing,"rows_before_scan_dedup":r.rows.len()-before});
+                *r.kernel_identity
+                    .key_mut(format!("pid{}_services", p.pid))? = serde_json::json!({"vad_ranges":ranges,"headers":headers,"pages_read":pages,"missing_pages":missing,"rows_before_scan_dedup":r.rows.len()-before});
                 Ok(())
             })();
             if let Err(e) = read {
@@ -258,9 +260,9 @@ impl Windows<'_> {
             // The reference breaks a header traversal at its first repeated
             // complete tuple, rather than deduplicating record addresses.
             // Each header is handled before insertion in service_tag_vad.
-            r.kernel_identity["services_scan"] = serde_json::json!({"kernel_version":version,"layout":layout.source,"registry_entries":map.len(),"processes":found,"scope":"serH headers in all services.exe VADs; NT5 sErv records","limits":{"scan_bytes_per_process":MAX_SCAN,"chain_records":MAX_CHAIN},"meaning":"scanned service records; partial views cannot prove absence"});
+            *r.kernel_identity.key_mut("services_scan")? = serde_json::json!({"kernel_version":version,"layout":layout.source,"registry_entries":map.len(),"processes":found,"scope":"serH headers in all services.exe VADs; NT5 sErv records","limits":{"scan_bytes_per_process":MAX_SCAN,"chain_records":MAX_CHAIN},"meaning":"scanned service records; partial views cannot prove absence"});
         } else {
-            r.kernel_identity["services_list"] = serde_json::json!({"kernel_version":version,"layout":layout.source,"registry_entries":map.len(),"processes":found,"scope":"Sc27 in first services.exe image VAD; enumerate each header's backward chain","limits":{"scan_bytes_per_process":MAX_SCAN,"chain_records":MAX_CHAIN},"offset_semantics":"pinned Volatility output: first row is record VA, subsequent rows are previous record PrevEntry field VA; diagnostics use actual record VA","meaning":"listed service records; empty output does not prove absence of hidden services"});
+            *r.kernel_identity.key_mut("services_list")? = serde_json::json!({"kernel_version":version,"layout":layout.source,"registry_entries":map.len(),"processes":found,"scope":"Sc27 in first services.exe image VAD; enumerate each header's backward chain","limits":{"scan_bytes_per_process":MAX_SCAN,"chain_records":MAX_CHAIN},"offset_semantics":"pinned Volatility output: first row is record VA, subsequent rows are previous record PrevEntry field VA; diagnostics use actual record VA","meaning":"listed service records; empty output does not prove absence of hidden services"});
         }
         Ok(r)
     }
@@ -285,7 +287,7 @@ impl Windows<'_> {
         {
             job.check()?;
             let read = (|| -> Result<BinaryMap> {
-                let address = u64::from_str_radix(row[0].trim_start_matches("0x"), 16)?;
+                let address = u64::from_str_radix(row.at(0)?.trim_start_matches("0x"), 16)?;
                 let hive = self.field(address, "_CMHIVE", "Hive")?;
                 ensure!(
                     self.number(hive, "_HHIVE", "Signature")? == 0xbee0bee0,
@@ -504,7 +506,7 @@ impl Windows<'_> {
                         }
                         let record = if direct {
                             header
-                                .checked_sub(layout.fields["Tag"])
+                                .checked_sub(*layout.fields.at("Tag")?)
                                 .context("服务 tag 下溢")
                         } else {
                             vm.pointer(add(header, layout.header_record)?)
@@ -525,8 +527,8 @@ impl Windows<'_> {
                                         // Registry absences in the prebuilt map are shared;
                                         // fallback absences for an unknown name are fresh.
                                         let comparable = [2, 6, 7, 8].iter().all(|&i| row[i] != NA)
-                                            && (map.contains_key(&row[6])
-                                                || (row[9] != NA && row[10] != NA));
+                                            && (map.contains_key(row.at(6)?)
+                                                || (*row.at(9)? != NA && *row.at(10)? != NA));
                                         if comparable && !scan_seen.insert(row.clone()) {
                                             break;
                                         }
@@ -541,7 +543,7 @@ impl Windows<'_> {
                             ),
                         }
                     }
-                    carry = joined[joined.len().saturating_sub(3)..].to_vec();
+                    carry = joined.at(joined.len().saturating_sub(3)..)?.to_vec();
                 }
                 Err(_) => {
                     missing += 1;
@@ -586,7 +588,7 @@ impl Windows<'_> {
                     return Ok(());
                 }
             };
-            let kind = vm.uint(add(record, layout.fields["Type"])?, 4);
+            let kind = vm.uint(add(record, *layout.fields.at("Type")?)?, 4);
             let kind = match kind {
                 Ok(k) => k,
                 Err(e) => {
@@ -596,7 +598,7 @@ impl Windows<'_> {
             };
             let mut string = |field: &str| -> Result<String> {
                 match vm
-                    .pointer(add(record, layout.fields[field])?)
+                    .pointer(add(record, *layout.fields.at(field)?)?)
                     .and_then(|p| memory_string(vm, p))
                 {
                     Ok(s) => Ok(s),
@@ -614,11 +616,11 @@ impl Windows<'_> {
                 let read = (|| -> Result<String> {
                     let pointer = vm.pointer(add(
                         record,
-                        layout.fields[if kind & 0x130 != 0 {
+                        *layout.fields.at(if kind & 0x130 != 0 {
                             "ServiceProcess"
                         } else {
                             "DriverName"
-                        }],
+                        })?,
                     )?)?;
                     if kind & 0x130 != 0 {
                         match vm.uint(add(pointer, layout.pid)?, 4) {
@@ -645,8 +647,8 @@ impl Windows<'_> {
                 hex(reported_offset),
                 order.to_string(),
                 pid,
-                START[usize::try_from(start)?].into(),
-                STATE[usize::try_from(state)? - 1].into(),
+                (*START.at(usize::try_from(start)?)?).into(),
+                (*STATE.at(usize::try_from(state)? - 1)?).into(),
                 types(kind),
                 name,
                 display,

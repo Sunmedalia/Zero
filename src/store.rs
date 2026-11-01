@@ -1,3 +1,4 @@
+use crate::bytes::Checked as _;
 use crate::{ENGINE_VERSION, Job};
 use anyhow::{Context, Result, ensure};
 use serde::{Deserialize, Serialize};
@@ -160,7 +161,7 @@ pub fn summary(path: &Path) -> Option<Summary> {
     // `,"` never occurs inside a JSON string (its quote would be escaped), so
     // the first `,"result":` ends the header fields written before it.
     let end = memchr::memmem::find(&head, br#","result":"#)?;
-    let mut header = head[..end].to_vec();
+    let mut header = head.get(..end)?.to_vec();
     header.push(b'}');
     #[derive(Deserialize)]
     struct Head {
@@ -441,7 +442,7 @@ pub fn record_export(
             if n == 0 {
                 break;
             }
-            hasher.update(&buffer[..n]);
+            hasher.update(buffer.at(..n)?);
         }
         Ok(format!("{:x}", hasher.finalize()))
     };

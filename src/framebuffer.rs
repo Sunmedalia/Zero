@@ -3,6 +3,7 @@
 //! Channels retain the fbdev reference's unscaled integer values (saturated at
 //! 255); absent alpha is opaque. Row padding is respected, not rendered.
 use crate::Job;
+use crate::bytes::Checked as _;
 use anyhow::{Context, Result, ensure};
 use flate2::{Compression, write::ZlibEncoder};
 use std::io::Write;
@@ -72,6 +73,7 @@ fn channel_value(pixel: u64, channel: Channel, absent: u8) -> u8 {
     }
     value.min(255) as u8
 }
+#[allow(clippy::indexing_slicing)] // Evaluated at compile time: out of range cannot build.
 const fn crc_table() -> [u32; 256] {
     let mut table = [0; 256];
     let mut i = 0u32;
@@ -173,10 +175,11 @@ pub fn write_png(
                 job.check()?;
             }
             let mut raw = [0; 8];
-            raw[..bytes_per_pixel].copy_from_slice(source);
+            raw.at_mut(..bytes_per_pixel)?.copy_from_slice(source);
             let pixel = u64::from_le_bytes(raw);
             for (i, channel) in layout.channels.iter().copied().enumerate() {
-                rgba[1 + x * 4 + i] = channel_value(pixel, channel, if i == 3 { 255 } else { 0 });
+                *rgba.at_mut(1 + x * 4 + i)? =
+                    channel_value(pixel, channel, if i == 3 { 255 } else { 0 });
             }
         }
         encoder.write_all(&rgba)?;

@@ -1,5 +1,6 @@
 //! Session address spaces, station chains and process identity for GUI objects.
 use super::*;
+use crate::bytes::JsonKey as _;
 
 impl Windows<'_> {
     pub(super) fn address_space(&self, process: &Process) -> Option<u64> {
@@ -110,7 +111,7 @@ impl Windows<'_> {
             .iter()
             .position(|byte| *byte == 0)
             .unwrap_or(bytes.len());
-        let name = String::from_utf8_lossy(&bytes[..end]).into_owned();
+        let name = String::from_utf8_lossy(bytes.get(..end)?).into_owned();
         if name.chars().any(char::is_control) {
             return None;
         }
@@ -211,7 +212,7 @@ impl Windows<'_> {
             let page_left = 4096 - ((usize::try_from(address).ok()? + done) & 4095);
             let take = (width - done).min(page_left);
             if memory
-                .read(address + done as u64, &mut bytes[done..done + take])
+                .read(address + done as u64, bytes.get_mut(done..done + take)?)
                 .is_err()
             {
                 break;
@@ -222,7 +223,7 @@ impl Windows<'_> {
             return None;
         }
         let mut wide = [0u8; 8];
-        wide[..done].copy_from_slice(&bytes[..done]);
+        wide.get_mut(..done)?.copy_from_slice(bytes.get(..done)?);
         Some(u64::from_le_bytes(wide))
     }
 
@@ -243,7 +244,8 @@ impl Windows<'_> {
     pub(super) fn gui_symbol_table(&self) -> Option<&'static str> {
         let identity = self.version_identity();
         let value = |name| {
-            identity[name]
+            identity
+                .key(name)
                 .as_u64()
                 .and_then(|value| u16::try_from(value).ok())
         };

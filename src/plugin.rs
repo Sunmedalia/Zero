@@ -348,6 +348,7 @@ pub use catalog::PLUGINS;
 
 /// `Plugin` discriminant to `PLUGINS` position. Built at compile time, which also proves
 /// that every variant has exactly one descriptor, so `Plugin::descriptor` cannot miss.
+#[allow(clippy::indexing_slicing)] // Evaluated at compile time: out of range cannot build.
 const DESCRIPTOR_INDEX: [usize; PLUGINS.len()] = {
     const UNSET: usize = usize::MAX;
     let mut index = [UNSET; PLUGINS.len()];

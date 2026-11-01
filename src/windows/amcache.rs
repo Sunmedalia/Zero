@@ -1,5 +1,6 @@
 //! Canonical Amcache records. Legacy six-column inventory remains separate.
 use super::*;
+use crate::bytes::Checked as _;
 use std::collections::BTreeMap;
 
 const NA: &str = "N/A";
@@ -254,7 +255,7 @@ impl Windows<'_> {
         else {
             return Ok(r);
         };
-        let address = u64::from_str_radix(hive[0].trim_start_matches("0x"), 16)?;
+        let address = u64::from_str_radix(hive.at(0)?.trim_start_matches("0x"), 16)?;
         let hive = self.field(address, "_CMHIVE", "Hive")?;
         let mut read = |path, layout| -> Result<_> {
             match self.amcache_records(hive, path, layout, job, &mut r) {
@@ -283,7 +284,7 @@ impl Windows<'_> {
                         grouped.push(None);
                         grouped.len() - 1
                     });
-                    grouped[at] = Some(row);
+                    *grouped.at_mut(at)? = Some(row);
                 }
                 files.sort_by(|a, b| a.0.cmp(&b.0));
                 for (id, row) in files {
@@ -291,7 +292,7 @@ impl Windows<'_> {
                     let id = id.trim().trim_matches('\0');
                     if let Some(at) = positions.remove(id) {
                         ensure!(r.rows.len() < MAX_OBJECTS, "Amcache 输出超过上限");
-                        r.rows.extend(grouped[at].take());
+                        r.rows.extend(grouped.at_mut(at)?.take());
                     }
                     ensure!(r.rows.len() < MAX_OBJECTS, "Amcache 输出超过上限");
                     r.rows.push(row);

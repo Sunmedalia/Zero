@@ -1,5 +1,6 @@
 //! Request validation and the public analysis entry points.
 use super::*;
+use crate::bytes::{Checked as _, JsonKey as _};
 
 pub fn analyze(
     image: &Image,
@@ -79,7 +80,7 @@ pub(crate) fn analyze_resolved(
                 symbols.iter().map(|s| s.label.clone()).collect(),
             ));
         }
-        &symbols[0]
+        symbols.at(0)?
     };
     let arch = Architecture::from_isf(isf)?;
     ensure!(
@@ -179,7 +180,7 @@ pub(crate) fn analyze_resolved(
         result.rows.retain(|row| row[index] == pid.to_string());
     }
     sources.validate()?;
-    result.kernel_identity["paging_sources"] = sources.manifest()?;
+    *result.kernel_identity.key_mut("paging_sources")? = sources.manifest()?;
     let compressed = sources.compressed_evidence()?;
     if !compressed.as_array().is_none_or(Vec::is_empty) {
         Windows::issue(
@@ -188,9 +189,9 @@ pub(crate) fn analyze_resolved(
             "此恢复路径经合成测试验证，尚未完成真实镜像对照",
         );
     }
-    result.kernel_identity["compressed_pages"] = compressed;
+    *result.kernel_identity.key_mut("compressed_pages")? = compressed;
     if let Some(hiber) = image.hibernation.as_ref() {
-        result.kernel_identity["hibernation"] = serde_json::to_value(&hiber.info)?;
+        *result.kernel_identity.key_mut("hibernation")? = serde_json::to_value(&hiber.info)?;
         Windows::issue(
             &mut result,
             "休眠文件",

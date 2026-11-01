@@ -1,4 +1,5 @@
 //! Read only the official ZIP directory and exact ISF entry using bounded HTTPS ranges.
+use crate::bytes::Checked as _;
 use crate::{
     Job,
     resources::Lru,
@@ -147,7 +148,7 @@ fn extract<R: Read + Seek>(
         "官方符号包存在多个精确候选；需手动选择本地 ISF"
     );
     job.check()?;
-    let name = &names[0];
+    let name = names.at(0)?;
     let member = zip.by_name(name)?;
     ensure!(
         member.size() <= MAX_MEMBER && member.compressed_size() <= MAX_MEMBER,

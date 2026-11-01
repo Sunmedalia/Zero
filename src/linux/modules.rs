@@ -1,5 +1,6 @@
 //! Shared module allocation ranges, carving and independent module views.
 use super::*;
+use crate::bytes::{Checked as _, JsonKey as _};
 
 /// Ceiling for the module carving range and for the bytes read from it.
 const CARVE_SPAN: u64 = 2 * 1024 * 1024 * 1024;
@@ -38,7 +39,8 @@ impl Linux<'_> {
             }
         }
         if let Ok(min) = self.isf.address("module_addr_min") {
-            let width = self.isf.data["base_types"]["pointer"]["size"]
+            let width = self.isf.data.key("base_types")["pointer"]
+                .key("size")
                 .as_u64()
                 .context("模块分配边界指针宽度缺失")?;
             ensure!(matches!(width, 4 | 8), "模块分配边界指针宽度无效");
@@ -109,7 +111,8 @@ impl Linux<'_> {
         )?;
         let width = self.isf.size("module_kobject", "mod")?;
         ensure!(matches!(width, 4 | 8), "module.mkobj.mod 宽度无效");
-        let alignment = self.isf.data["base_types"]["pointer"]["size"]
+        let alignment = self.isf.data.key("base_types")["pointer"]
+            .key("size")
             .as_u64()
             .context("模块扫描指针宽度缺失")?;
         ensure!(matches!(alignment, 4 | 8), "模块扫描指针宽度无效");
@@ -166,7 +169,7 @@ impl Linux<'_> {
             while page <= flush {
                 job.check()?;
                 window.copy_within(usize::try_from(PAGE)?.., 0);
-                let current = &mut window[usize::try_from(PAGE)?..];
+                let current = window.at_mut(usize::try_from(PAGE)?..)?;
                 let mapped = if page >= end {
                     false
                 } else {
@@ -212,7 +215,8 @@ impl Linux<'_> {
                         let candidate = base + offset;
                         let at = usize::try_from(offset + back)?;
                         let mut raw = [0u8; 8];
-                        raw[..width].copy_from_slice(&window[at..at + width]);
+                        raw.at_mut(..width)?
+                            .copy_from_slice(window.at(at..at + width)?);
                         let pointer = u64::from_le_bytes(raw);
                         if candidate < lower
                             || candidate >= end
@@ -408,11 +412,12 @@ impl Linux<'_> {
         let value = self.number(module, "module", "taints")?;
         let mut chars = String::new();
         if let Ok(flags) = self.isf.address("taint_flags") {
-            let count = self.isf.data["symbols"]["taint_flags"]["type"]["count"]
+            let count = self.isf.data.key("symbols")["taint_flags"].key("type")["count"]
                 .as_u64()
                 .context("taint_flags 长度缺失")?;
             ensure!((1..=64).contains(&count), "taint_flags 长度无效");
-            let size = self.isf.data["user_types"]["taint_flag"]["size"]
+            let size = self.isf.data.key("user_types")["taint_flag"]
+                .key("size")
                 .as_u64()
                 .context("taint_flag size 缺失")?;
             ensure!((1..=4096).contains(&size), "taint_flag size 无效");
@@ -518,8 +523,8 @@ impl Linux<'_> {
             };
             let mut row = vec![name, hex(module)];
             for i in 0..3 {
-                row.push(if sources[i] || complete[i] {
-                    sources[i].to_string()
+                row.push(if *sources.at(i)? || *complete.at(i)? {
+                    sources.at(i)?.to_string()
                 } else {
                     String::new()
                 });
@@ -534,10 +539,12 @@ impl Linux<'_> {
 impl Linux<'_> {
     pub(super) fn module_code_size(&self, module: u64) -> Result<u64> {
         if self.isf.has_field("module", "mem") {
-            let count = self.isf.field("module", "mem")?["type"]["count"]
+            let count = self.isf.field("module", "mem")?["type"]
+                .key("count")
                 .as_u64()
                 .context("module.mem count 缺失")?;
-            let stride = self.isf.data["user_types"]["module_memory"]["size"]
+            let stride = self.isf.data.key("user_types")["module_memory"]
+                .key("size")
                 .as_u64()
                 .context("module_memory size 缺失")?;
             ensure!(
@@ -555,7 +562,7 @@ impl Linux<'_> {
                 "MOD_RODATA",
                 "MOD_RO_AFTER_INIT",
             ] {
-                let index = self.isf.data["enums"]["mod_mem_type"]["constants"][name]
+                let index = self.isf.data.key("enums")["mod_mem_type"].key("constants")[name]
                     .as_u64()
                     .with_context(|| format!("{name} enum 缺失"))?;
                 ensure!(index < count, "module.mem enum 越界");
@@ -596,7 +603,7 @@ impl Linux<'_> {
                 "MOD_INIT_RODATA",
             ] {
                 ensure!(
-                    self.isf.data["enums"]["mod_mem_type"]["constants"][name].is_u64(),
+                    self.isf.data.key("enums")["mod_mem_type"].key("constants")[name].is_u64(),
                     "缺少 {name} enum"
                 );
             }
@@ -617,10 +624,12 @@ impl Linux<'_> {
     }
     fn module_sizes(&self, module: u64) -> Result<(u64, u64, u64)> {
         if self.isf.has_field("module", "mem") {
-            let count = self.isf.field("module", "mem")?["type"]["count"]
+            let count = self.isf.field("module", "mem")?["type"]
+                .key("count")
                 .as_u64()
                 .context("module.mem count 缺失")?;
-            let size = self.isf.data["user_types"]["module_memory"]["size"]
+            let size = self.isf.data.key("user_types")["module_memory"]
+                .key("size")
                 .as_u64()
                 .context("module_memory size 缺失")?;
             ensure!(
@@ -629,7 +638,7 @@ impl Linux<'_> {
             );
             let mem = self.field_address(module, "module", "mem")?;
             let read = |name: &str| -> Result<u64> {
-                let index = self.isf.data["enums"]["mod_mem_type"]["constants"][name]
+                let index = self.isf.data.key("enums")["mod_mem_type"].key("constants")[name]
                     .as_u64()
                     .context("module enum 缺失")?;
                 ensure!(index < count, "module.mem enum 越界");
@@ -660,7 +669,8 @@ impl Linux<'_> {
         }
     }
     fn valid_module_allocation(&self, module: u64, job: &Job, budget: &mut u64) -> Result<bool> {
-        let size = self.isf.data["user_types"]["module"]["size"]
+        let size = self.isf.data.key("user_types")["module"]
+            .key("size")
             .as_u64()
             .context("module size 缺失")?;
         ensure!((1..=REGION_LIMIT).contains(&size), "module size 无效");
@@ -672,7 +682,7 @@ impl Linux<'_> {
             while offset < size {
                 job.check()?;
                 let count = (size - offset).min(4096) as usize;
-                self.vm.read(add(module, offset)?, &mut chunk[..count])?;
+                self.vm.read(add(module, offset)?, chunk.at_mut(..count)?)?;
                 offset += count as u64;
             }
             let (text, core, init) = self.module_sizes(module)?;

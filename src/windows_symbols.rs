@@ -1,4 +1,5 @@
 //! Exact Windows PDB identities and native PDB -> ISF conversion.
+use crate::bytes::{Checked as _, JsonKey as _};
 use crate::{
     Job,
     image::Image,
@@ -62,25 +63,26 @@ impl PdbIdentity {
     }
     pub fn from_rsds(bytes: &[u8]) -> Result<Self> {
         ensure!(
-            bytes.len() >= 25 && &bytes[..4] == b"RSDS",
+            bytes.len() >= 25 && bytes.at(..4)? == b"RSDS",
             "无效 CodeView RSDS"
         );
-        let name_bytes = &bytes[24..];
+        let name_bytes = bytes.at(24..)?;
         let end = name_bytes
             .iter()
             .position(|b| *b == 0)
             .context("PDB 名称未终止")?;
-        let name = std::str::from_utf8(&name_bytes[..end])?
+        let name = std::str::from_utf8(name_bytes.at(..end)?)?
             .rsplit(['\\', '/'])
             .next()
             .context("PDB 名称为空")?
             .to_ascii_lowercase();
         let guid = format!(
             "{:08X}{:04X}{:04X}{}",
-            u32::from_le_bytes(bytes[4..8].try_into()?),
-            u16::from_le_bytes(bytes[8..10].try_into()?),
-            u16::from_le_bytes(bytes[10..12].try_into()?),
-            bytes[12..20]
+            u32::from_le_bytes(bytes.at(4..8)?.try_into()?),
+            u16::from_le_bytes(bytes.at(8..10)?.try_into()?),
+            u16::from_le_bytes(bytes.at(10..12)?.try_into()?),
+            bytes
+                .at(12..20)?
                 .iter()
                 .map(|b| format!("{b:02X}"))
                 .collect::<String>()
@@ -88,13 +90,13 @@ impl PdbIdentity {
         let identity = Self {
             name,
             guid,
-            age: u32::from_le_bytes(bytes[20..24].try_into()?),
+            age: u32::from_le_bytes(bytes.at(20..24)?.try_into()?),
         };
         identity.url()?;
         Ok(identity)
     }
     pub fn from_isf(isf: &Isf) -> Result<Self> {
-        let p = &isf.data["metadata"]["windows"]["pdb"];
+        let p = isf.data.key("metadata")["windows"].key("pdb");
         let identity = Self {
             name: p["database"]
                 .as_str()
@@ -181,8 +183,9 @@ pub fn resolve(
             match Isf::parse(&bytes, label.clone()) {
                 Ok(isf)
                     if isf.is_windows()
-                        && (isf.data["metadata"]["zero"]["converter"].is_null()
-                            || isf.data["metadata"]["zero"]["converter"] == CONVERTER_VERSION)
+                        && (isf.data.key("metadata")["zero"].key("converter").is_null()
+                            || *isf.data.key("metadata")["zero"].key("converter")
+                                == CONVERTER_VERSION)
                         && PdbIdentity::from_isf(&isf).is_ok_and(|id| identities.contains(&id))
                         && seen.insert(isf.digest.clone()) =>
                 {
@@ -262,7 +265,7 @@ pub(crate) fn cache_state(identity: &PdbIdentity, cache: &Path, job: &Job) -> Re
             }
             total += read as u64;
             ensure!(total <= metadata.len(), "模块符号缓存读取时变大");
-            hasher.update(&bytes[..read]);
+            hasher.update(bytes.at(..read)?);
         }
         ensure!(
             total == metadata.len()
@@ -294,8 +297,8 @@ pub fn acquire(identity: &PdbIdentity, cache: &Path, network: bool, job: &Job) -
     if target.is_file()
         && let Ok(isf) = Isf::parse(&fs::read(&target)?, target.display().to_string())
         && PdbIdentity::from_isf(&isf)? == *identity
-        && (isf.data["metadata"]["zero"]["converter"].is_null()
-            || isf.data["metadata"]["zero"]["converter"] == CONVERTER_VERSION)
+        && (isf.data.key("metadata")["zero"].key("converter").is_null()
+            || *isf.data.key("metadata")["zero"].key("converter") == CONVERTER_VERSION)
     {
         return Ok(isf);
     }
@@ -457,7 +460,10 @@ pub fn convert(bytes: &[u8], identity: &PdbIdentity, job: &Job) -> Result<Vec<u8
             );
             return Ok((
                 json!({"kind":"pointer","subtype":{"kind":"base","name":"void"}}),
-                bases["pointer"]["size"].as_u64().context("缺少指针宽度")?,
+                bases["pointer"]
+                    .key("size")
+                    .as_u64()
+                    .context("缺少指针宽度")?,
             ));
         }
         let size = match p.kind {
@@ -514,7 +520,10 @@ pub fn convert(bytes: &[u8], identity: &PdbIdentity, job: &Job) -> Result<Vec<u8
                 c.size,
             )),
             TypeData::Pointer(p) => {
-                let width = bases["pointer"]["size"].as_u64().context("缺少指针宽度")?;
+                let width = bases["pointer"]
+                    .key("size")
+                    .as_u64()
+                    .context("缺少指针宽度")?;
                 ensure!(
                     p.attributes.size() as u64 == width,
                     "PDB 指针宽度与机器类型不一致"
@@ -645,7 +654,7 @@ pub fn convert(bytes: &[u8], identity: &PdbIdentity, job: &Job) -> Result<Vec<u8
                 }
                 enums.insert(
                     e.name.to_string().into_owned(),
-                    json!({"size":size,"base":base["name"],"constants":constants}),
+                    json!({"size":size,"base":*base.key("name"),"constants":constants}),
                 );
                 continue;
             }

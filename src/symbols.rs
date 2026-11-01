@@ -1,3 +1,4 @@
+use crate::bytes::{Checked as _, JsonKey as _};
 use crate::{Job, image::Image};
 use anyhow::{Context, Result, bail, ensure};
 use base64::{Engine, engine::general_purpose::STANDARD};
@@ -57,13 +58,13 @@ impl Isf {
     pub fn parse(bytes: &[u8], label: String) -> Result<Self> {
         let data: Value = serde_json::from_slice(bytes).context("ISF JSON 解析失败")?;
         ensure!(
-            data["base_types"]["pointer"]["size"].as_u64() == Some(8)
-                || (data["metadata"]["windows"]["pdb"].is_object()
-                    && data["base_types"]["pointer"]["size"].as_u64() == Some(4)),
+            data.key("base_types")["pointer"].key("size").as_u64() == Some(8)
+                || (data.key("metadata")["windows"].key("pdb").is_object()
+                    && data.key("base_types")["pointer"].key("size").as_u64() == Some(4)),
             "仅支持 64 位 ISF"
         );
-        let banner = if data["metadata"]["windows"]["pdb"].is_object() {
-            let p = &data["metadata"]["windows"]["pdb"];
+        let banner = if data.key("metadata")["windows"].key("pdb").is_object() {
+            let p = data.key("metadata")["windows"].key("pdb");
             let (Some(database), Some(guid), Some(age)) = (
                 p["database"].as_str(),
                 p["GUID"].as_str(),
@@ -73,7 +74,8 @@ impl Isf {
             };
             format!("Windows PDB {database} {guid} age {age}\0").into_bytes()
         } else {
-            let encoded = data["symbols"]["linux_banner"]["constant_data"]
+            let encoded = data.key("symbols")["linux_banner"]
+                .key("constant_data")
                 .as_str()
                 .context("ISF 缺少完整 linux_banner constant_data")?;
             let banner = STANDARD.decode(encoded)?;
@@ -81,12 +83,12 @@ impl Isf {
                 banner.starts_with(b"Linux version ")
                     && banner.last() == Some(&0)
                     && banner.len() <= 65536
-                    && !banner[..banner.len() - 1].contains(&0),
+                    && !banner.at(..banner.len() - 1)?.contains(&0),
                 "ISF banner 无效或不完整"
             );
             banner
         };
-        let windows = data["metadata"]["windows"]["pdb"].is_object();
+        let windows = data.key("metadata")["windows"].key("pdb").is_object();
         let isf = Self {
             slide: std::sync::atomic::AtomicU64::new(0),
             validation_diagnostics: RwLock::default(),
@@ -104,7 +106,7 @@ impl Isf {
         Ok(isf)
     }
     pub fn is_windows(&self) -> bool {
-        self.data["metadata"]["windows"]["pdb"].is_object()
+        self.data.key("metadata")["windows"].key("pdb").is_object()
     }
     pub fn address(&self, name: &str) -> Result<u64> {
         Ok(self
@@ -112,14 +114,15 @@ impl Isf {
             .wrapping_add(self.slide.load(std::sync::atomic::Ordering::Relaxed)))
     }
     pub fn raw_address(&self, name: &str) -> Result<u64> {
-        self.data["symbols"][name]["address"]
+        self.data.key("symbols")[name]
+            .key("address")
             .as_u64()
             .with_context(|| format!("ISF 缺少符号 {name}"))
     }
     /// Size of a typed global, without inferring its type from its name/address.
     pub fn symbol_size(&self, name: &str) -> Result<u64> {
         self.raw_address(name)?;
-        let symbol = &self.data["symbols"][name];
+        let symbol = &self.data.key("symbols")[name];
         ensure!(symbol["type_conflict"] != true, "ISF 符号类型冲突: {name}");
         let size = self.type_size(
             symbol
@@ -139,18 +142,20 @@ impl Isf {
         if let Some((first, rest)) = field.split_once('.') {
             let (offset, f) = self.resolved_field(structure, first, depth + 1)?;
             let (inner, f) = self.resolved_field(
-                f["type"]["name"].as_str().context("ISF 嵌套类型无效")?,
+                f["type"].key("name").as_str().context("ISF 嵌套类型无效")?,
                 rest,
                 depth + 1,
             )?;
             return Ok((offset.checked_add(inner).context("ISF offset 溢出")?, f));
         }
-        let fields = self.data["user_types"][structure]["fields"]
+        let fields = self.data.key("user_types")[structure]
+            .key("fields")
             .as_object()
             .context("ISF 结构缺失")?;
         if let Some(f) = fields.get(field) {
             let offset = f["offset"].as_u64().context("ISF offset 无效")?;
-            let size = self.data["user_types"][structure]["size"]
+            let size = self.data.key("user_types")[structure]
+                .key("size")
                 .as_u64()
                 .context("ISF 结构 size 无效")?;
             let length = self.type_size(&f["type"])?;
@@ -163,8 +168,8 @@ impl Isf {
         let mut found = None;
         for (name, f) in fields {
             if name.starts_with("unnamed_field_")
-                && matches!(f["type"]["kind"].as_str(), Some("union" | "struct"))
-                && let Some(ty) = f["type"]["name"].as_str()
+                && matches!(f["type"].key("kind").as_str(), Some("union" | "struct"))
+                && let Some(ty) = f["type"].key("name").as_str()
                 && let Ok((offset, leaf)) = self.resolved_field(ty, field, depth + 1)
             {
                 ensure!(found.is_none(), "ISF 匿名字段歧义 {structure}.{field}");
@@ -196,7 +201,8 @@ impl Isf {
         let name = || ty["name"].as_str().context("ISF type name 无效");
         match ty["kind"].as_str() {
             Some("pointer") => {
-                let width = self.data["base_types"]["pointer"]["size"]
+                let width = self.data.key("base_types")["pointer"]
+                    .key("size")
                     .as_u64()
                     .unwrap_or(8);
                 ensure!(matches!(width, 4 | 8), "ISF pointer size 无效");
@@ -211,13 +217,16 @@ impl Isf {
                     1
                 })
                 .context("ISF array size 溢出"),
-            Some("base") => self.data["base_types"][name()?]["size"]
+            Some("base") => self.data.key("base_types")[name()?]
+                .key("size")
                 .as_u64()
                 .context("ISF base size 无效"),
-            Some("struct" | "union") => self.data["user_types"][name()?]["size"]
+            Some("struct" | "union") => self.data.key("user_types")[name()?]
+                .key("size")
                 .as_u64()
                 .context("ISF structure size 无效"),
-            Some("enum") => self.data["enums"][name()?]["size"]
+            Some("enum") => self.data.key("enums")[name()?]
+                .key("size")
                 .as_u64()
                 .context("ISF enum size 无效"),
             Some("bitfield") => self.type_size(&ty["type"]),
@@ -237,7 +246,8 @@ impl Isf {
             return Ok(layout);
         }
         let (offset, f) = self.resolved_field(structure, field, 0)?;
-        let size = self.data["user_types"][structure]["size"]
+        let size = self.data.key("user_types")[structure]
+            .key("size")
             .as_u64()
             .context("ISF 结构 size 无效")?;
         let length = self.type_size(&f["type"])?;
@@ -287,7 +297,7 @@ fn read_stream(mut r: impl Read, job: &Job) -> Result<Vec<u8>> {
             break;
         }
         ensure!(data.len() + n <= 256 * 1024 * 1024, "ISF 超过 256 MiB 限制");
-        data.extend_from_slice(&buffer[..n]);
+        data.extend_from_slice(buffer.at(..n)?);
     }
     Ok(data)
 }

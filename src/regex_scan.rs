@@ -1,5 +1,6 @@
 //! Shared resident virtual range scanning. Holes break subjects; no scan bytes
 //! are fabricated. Like the fixed reference, chunks are 16 MiB + 4 KiB overlap.
+use crate::bytes::Checked as _;
 use crate::{Job, byte_regex::ByteRegex};
 use anyhow::{Context, Result, ensure};
 use serde::Serialize;
@@ -207,7 +208,7 @@ fn scan_sparse_impl<const CHUNK: usize, const OVERLAP: usize>(
             report.page_attempts += 1;
             let previous = buffer.len();
             buffer.resize(previous + count, 0);
-            match read(cursor, &mut buffer[previous..]) {
+            match read(cursor, buffer.at_mut(previous..)?) {
                 Ok(()) => {
                     budget.resident_bytes -= count as u64;
                     report.read_bytes += count as u64;
@@ -286,9 +287,9 @@ pub fn context(
         job.check()?;
         let address = at.checked_add(offset as u64).context("上下文地址溢出")?;
         let count = usize::try_from(PAGE - (address & (PAGE - 1)))?.min(length - offset);
-        if read(address, &mut out[offset..offset + count]).is_err() {
+        if read(address, out.at_mut(offset..offset + count)?).is_err() {
             job.check()?;
-            out[offset..offset + count].fill(0);
+            out.at_mut(offset..offset + count)?.fill(0);
             missing += count as u64;
         }
         offset += count;

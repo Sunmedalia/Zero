@@ -1,5 +1,6 @@
 //! Token privileges, logon sessions and per-user UserAssist execution records.
 use super::*;
+use crate::bytes::{Checked as _, JsonKey as _};
 use crate::bytes::{le_u32, le_u64};
 
 /// LUID low parts of the well-known privileges, indexed by bit position.
@@ -223,10 +224,10 @@ impl Windows<'_> {
         r.diagnostics = hives.diagnostics;
         for hive in hives.rows {
             job.check()?;
-            if !hive[1].to_ascii_lowercase().ends_with("system") {
+            if !hive.at(1)?.to_ascii_lowercase().ends_with("system") {
                 continue;
             }
-            let address = u64::from_str_radix(hive[0].trim_start_matches("0x"), 16)?;
+            let address = u64::from_str_radix(hive.at(0)?.trim_start_matches("0x"), 16)?;
             let Some(cs) = self.current_control_set(address, job, &mut r)? else {
                 continue;
             };
@@ -234,7 +235,7 @@ impl Windows<'_> {
             if let Some(services) = self.optional_registry(address, &key, job, &mut r)? {
                 for service in services.rows.iter().filter(|row| row[2] == "SubKey") {
                     r.rows
-                        .push(vec![service_sid(&service[3]), service[3].clone()]);
+                        .push(vec![service_sid(service.at(3)?), service.at(3)?.clone()]);
                 }
             }
         }
@@ -248,10 +249,10 @@ impl Windows<'_> {
         r.diagnostics = hives.diagnostics;
         for hive in hives.rows {
             job.check()?;
-            if !hive[1].to_ascii_lowercase().ends_with("ntuser.dat") {
+            if !hive.at(1)?.to_ascii_lowercase().ends_with("ntuser.dat") {
                 continue;
             }
-            let address = u64::from_str_radix(hive[0].trim_start_matches("0x"), 16)?;
+            let address = u64::from_str_radix(hive.at(0)?.trim_start_matches("0x"), 16)?;
             if options.hive.is_some_and(|selected| selected != address) {
                 continue;
             }
@@ -259,15 +260,15 @@ impl Windows<'_> {
                 continue;
             };
             for guid in root.rows.iter().filter(|row| row[2] == "SubKey") {
-                let key = format!("{USERASSIST}\\{}\\Count", guid[3]);
+                let key = format!("{USERASSIST}\\{}\\Count", *guid.at(3)?);
                 let Some(values) = self.optional_registry(address, &key, job, &mut r)? else {
                     continue;
                 };
                 for value in values.rows.iter().filter(|row| row[2] == "Value") {
                     job.check()?;
-                    let bytes: Option<Vec<u8>> = (0..value[5].len())
+                    let bytes: Option<Vec<u8>> = (0..value.at(5)?.len())
                         .step_by(2)
-                        .map(|i| u8::from_str_radix(value[5].get(i..i + 2)?, 16).ok())
+                        .map(|i| u8::from_str_radix(value.get(5)?.get(i..i + 2)?, 16).ok())
                         .collect();
                     let Some([count, focus, focus_time, last]) =
                         bytes.as_deref().and_then(userassist_record)
@@ -275,9 +276,9 @@ impl Windows<'_> {
                         continue;
                     };
                     r.rows.push(vec![
-                        hive[1].clone(),
-                        guid[3].clone(),
-                        rot13(&value[3]),
+                        hive.at(1)?.clone(),
+                        guid.at(3)?.clone(),
+                        rot13(value.at(3)?),
                         count,
                         focus,
                         focus_time,
@@ -286,7 +287,7 @@ impl Windows<'_> {
                 }
             }
         }
-        r.kernel_identity["coverage"] = serde_json::json!(
+        *r.kernel_identity.key_mut("coverage")? = serde_json::json!(
             "NTUSER.DAT hives loaded in memory; paged-out cells are reported as partial"
         );
         Ok(r)

@@ -1,5 +1,6 @@
 //! Read policy of the pinned Windows Intel layers, without native prototype/store recovery.
 use super::*;
+use crate::bytes::Checked as _;
 
 impl Memory<'_> {
     pub(super) fn scan_reference(
@@ -110,7 +111,7 @@ impl Memory<'_> {
             let n = match self.translate_span(va) {
                 Ok((physical, available)) => {
                     let n = usize::try_from(available.min(out.len() as u64))?;
-                    self.image.read(physical, &mut out[..n])?;
+                    self.image.read(physical, out.at_mut(..n)?)?;
                     n
                 }
                 Err(original) => {
@@ -121,12 +122,12 @@ impl Memory<'_> {
                     self.sources.context("参考 Intel 层未附加分页文件")?.read(
                         file,
                         offset,
-                        &mut out[..n],
+                        out.at_mut(..n)?,
                     )?;
                     n
                 }
             };
-            out = &mut out[n..];
+            out = out.at_mut(n..)?;
             if !out.is_empty() {
                 va = add(va, n as u64)?;
             }

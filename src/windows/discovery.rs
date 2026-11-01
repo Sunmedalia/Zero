@@ -1,5 +1,6 @@
 //! Kernel root discovery: self-referencing page tables validated against the exact PDB.
 use super::*;
+use crate::bytes::Checked as _;
 
 /// Discover self-referencing x64 roots and validate a mapped kernel against its PDB.
 pub fn discover(image: &Image, isf: &Isf, job: &Job) -> Result<(u64, u64)> {
@@ -53,8 +54,8 @@ pub fn discover(image: &Image, isf: &Isf, job: &Job) -> Result<(u64, u64)> {
         while start < segment.end {
             job.check()?;
             let n = usize::try_from(segment.end - start)?.min(block.len());
-            image.read(start, &mut block[..n])?;
-            for (i, page) in block[..n].chunks_exact(4096).enumerate() {
+            image.read(start, block.at_mut(..n)?)?;
+            for (i, page) in block.at(..n)?.chunks_exact(4096).enumerate() {
                 let pa = start + i as u64 * 4096;
                 if pe_header(page)
                     .is_ok_and(|(size, debug)| u64::from(size) > minimum && debug != 0)
@@ -90,7 +91,7 @@ pub fn discover(image: &Image, isf: &Isf, job: &Job) -> Result<(u64, u64)> {
             let mut b = [0; 8];
             image.read(
                 add(address, isf.offset("_EPROCESS", field)?)?,
-                &mut b[..isf.size("_EPROCESS", field)?],
+                b.at_mut(..isf.size("_EPROCESS", field)?)?,
             )?;
             Ok(u64::from_le_bytes(b))
         };
@@ -169,7 +170,7 @@ pub(super) fn validate_kernel(
     let pe = u32::from_le_bytes(header[60..64].try_into()?) as usize;
     pe_header(&header)?;
     ensure!(
-        u16::from_le_bytes(header[pe + 4..pe + 6].try_into()?) == geometry.arch.machine(),
+        u16::from_le_bytes(header.at(pe + 4..pe + 6)?.try_into()?) == geometry.arch.machine(),
         "内核 PE 与符号指针架构冲突"
     );
     ensure!(
@@ -226,7 +227,7 @@ pub(super) fn find_mappings(
     job: &Job,
 ) -> Result<()> {
     job.check()?;
-    let shift = geometry.shifts()[level];
+    let shift = *geometry.shifts().at(level)?;
     if !seen.insert((table, shift)) {
         return Ok(());
     }
@@ -241,7 +242,7 @@ pub(super) fn find_mappings(
             continue;
         }
         let mut raw = [0; 8];
-        raw[..geometry.width()].copy_from_slice(chunk);
+        raw.at_mut(..geometry.width())?.copy_from_slice(chunk);
         let e = u64::from_le_bytes(raw);
         if e & 1 == 0 {
             continue;
@@ -274,22 +275,24 @@ pub(super) fn find_mappings(
     Ok(())
 }
 pub(crate) fn pe_header(b: &[u8]) -> Result<(u32, u32)> {
-    ensure!(b.len() >= 64 && &b[..2] == b"MZ", "非 PE");
-    let pe = u32::from_le_bytes(b[60..64].try_into()?) as usize;
+    ensure!(b.len() >= 64 && b.at(..2)? == b"MZ", "非 PE");
+    let pe = u32::from_le_bytes(b.at(60..64)?.try_into()?) as usize;
     ensure!(
-        pe >= 64 && pe + 24 + 168 <= b.len() && &b[pe..pe + 4] == b"PE\0\0",
+        pe >= 64 && pe + 24 + 168 <= b.len() && b.at(pe..pe + 4)? == b"PE\0\0",
         "PE 头越界"
     );
-    let machine = u16::from_le_bytes(b[pe + 4..pe + 6].try_into()?);
-    let magic = u16::from_le_bytes(b[pe + 24..pe + 26].try_into()?);
+    let machine = u16::from_le_bytes(b.at(pe + 4..pe + 6)?.try_into()?);
+    let magic = u16::from_le_bytes(b.at(pe + 24..pe + 26)?.try_into()?);
     ensure!(
         matches!((machine, magic), (0x14c, 0x10b) | (0x8664 | 0xaa64, 0x20b)),
         "未知 PE 机器类型/optional header"
     );
     let directories = if magic == 0x10b { 96 } else { 112 };
-    let size = u32::from_le_bytes(b[pe + 80..pe + 84].try_into()?);
-    let debug =
-        u32::from_le_bytes(b[pe + 24 + directories + 48..pe + 24 + directories + 52].try_into()?);
+    let size = u32::from_le_bytes(b.at(pe + 80..pe + 84)?.try_into()?);
+    let debug = u32::from_le_bytes(
+        b.at(pe + 24 + directories + 48..pe + 24 + directories + 52)?
+            .try_into()?,
+    );
     ensure!(
         (4096..=256 * 1024 * 1024).contains(&size),
         "PE SizeOfImage 无效"

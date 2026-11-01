@@ -1,5 +1,6 @@
 //! TCP/IP object layouts are allowlisted by exact driver PDB identity, not OS version.
 use super::*;
+use crate::bytes::{Checked as _, JsonKey as _};
 use std::net::{Ipv4Addr, Ipv6Addr};
 pub(super) const LAYOUTS: &str = include_str!("network_layouts.json");
 use super::network_layout::{self, Layout};
@@ -68,18 +69,18 @@ impl Windows<'_> {
         let mut r = self.result(Plugin::WinNetscan);
         r.complete = diagnostics.is_empty();
         r.diagnostics = diagnostics;
-        r.kernel_identity["tcpip_pdb"] = serde_json::to_value(&identity)?;
-        r.kernel_identity["tcpip_file_version"] = serde_json::json!(version);
+        *r.kernel_identity.key_mut("tcpip_pdb")? = serde_json::to_value(&identity)?;
+        *r.kernel_identity.key_mut("tcpip_file_version")? = serde_json::json!(version);
         if layout.validation == "synthetic-kernel-version-fallback" {
             Self::issue(
                 &mut r,
                 "TCP/IP identity",
                 "驱动 PE 版本不可读；仅采用显式声明的内核系列布局，未验证驱动布局兼容性",
             );
-            r.kernel_identity["network_kernel_fallback"] =
+            *r.kernel_identity.key_mut("network_kernel_fallback")? =
                 serde_json::json!(self.declared_kernel_version()?);
         }
-        r.kernel_identity["network_layout"] = serde_json::json!({"source":layout.source,"validation":layout.validation,"pointer_size":layout.pointer_size});
+        *r.kernel_identity.key_mut("network_layout")? = serde_json::json!({"source":layout.source,"validation":layout.validation,"pointer_size":layout.pointer_size});
         if !matches!(
             layout.validation.as_str(),
             "exact-driver-symbols" | "public-raw-reference" | "public-crash-reference"
@@ -92,7 +93,8 @@ impl Windows<'_> {
         }
         let isf = self.vm.isf;
         let alignment = if layout.pointer_size == 4 { 8 } else { 16 };
-        let header_size = isf.data["user_types"]["_POOL_HEADER"]["size"]
+        let header_size = isf.data.key("user_types")["_POOL_HEADER"]
+            .key("size")
             .as_u64()
             .context("缺少 pool header")?;
         let tag_offset = isf.offset("_POOL_HEADER", "PoolTag")?;
@@ -271,15 +273,16 @@ impl Windows<'_> {
             .filter(|item| item.available)
             .context("该 TCP/IP 布局没有端口池和分区表字段")?;
         let mut r = self.result(Plugin::WinNetstat);
-        r.kernel_identity["tcpip_pdb"] = serde_json::to_value(&identity)?;
-        r.kernel_identity["network_layout"] = serde_json::json!({
+        *r.kernel_identity.key_mut("tcpip_pdb")? = serde_json::to_value(&identity)?;
+        *r.kernel_identity.key_mut("network_layout")? = serde_json::json!({
             "source": layout.source,
             "validation": layout.validation,
             "pointer_size": layout.pointer_size
         });
-        let symbols = &isf.data["symbols"];
+        let symbols = isf.data.key("symbols");
         let symbol = |name: &str| -> Result<u64> {
-            symbols[name]["address"]
+            symbols[name]
+                .key("address")
                 .as_u64()
                 .with_context(|| format!("tcpip.sys 缺少符号 {name}"))
         };
@@ -402,9 +405,10 @@ impl Windows<'_> {
         net: &network_layout::NetstatLayout,
         base: u64,
     ) -> Result<(u64, u64)> {
-        let symbols = &isf.data["symbols"];
+        let symbols = isf.data.key("symbols");
         let address = |name: &str| {
-            symbols[name]["address"]
+            symbols[name]
+                .key("address")
                 .as_u64()
                 .with_context(|| format!("tcpip.sys 缺少符号 {name}"))
         };
@@ -693,13 +697,15 @@ pub(super) fn read(b: &[u8], offset: usize, size: usize) -> Result<u64> {
     ensure!(size <= 8, "网络字段宽度无效");
     let end = offset.checked_add(size).context("网络字段偏移溢出")?;
     let mut value = [0; 8];
-    value[..size].copy_from_slice(b.get(offset..end).context("网络字段越界")?);
+    value
+        .at_mut(..size)?
+        .copy_from_slice(b.get(offset..end).context("网络字段越界")?);
     Ok(u64::from_le_bytes(value))
 }
 fn address_text(vm: &Memory<'_>, address: u64, family: u64) -> Result<String> {
     let mut bytes = [0; 16];
     if address != 0 {
-        vm.read(address, &mut bytes[..if family == 2 { 4 } else { 16 }])?;
+        vm.read(address, bytes.at_mut(..if family == 2 { 4 } else { 16 })?)?;
     }
     if family == 2 {
         Ok(Ipv4Addr::new(bytes[0], bytes[1], bytes[2], bytes[3]).to_string())
@@ -712,7 +718,7 @@ fn address_text(vm: &Memory<'_>, address: u64, family: u64) -> Result<String> {
 fn endpoint(vm: &Memory<'_>, address: u64, family: u64, port: u16) -> Result<String> {
     let mut b = [0; 16];
     if address != 0 {
-        vm.read(address, &mut b[..if family == 2 { 4 } else { 16 }])?;
+        vm.read(address, b.at_mut(..if family == 2 { 4 } else { 16 })?)?;
     }
     if family == 2 {
         Ok(format!("{}:{port}", Ipv4Addr::new(b[0], b[1], b[2], b[3])))
@@ -733,17 +739,19 @@ pub(super) fn pe_identity_for_machine(
     vm.read(base, &mut header)?;
     let (size, debug) = pe_header(&header)?;
     let pe = u32::from_le_bytes(header[60..64].try_into()?) as usize;
-    let directories = if u16::from_le_bytes(header[pe + 24..pe + 26].try_into()?) == 0x10b {
+    let directories = if u16::from_le_bytes(header.at(pe + 24..pe + 26)?.try_into()?) == 0x10b {
         96
     } else {
         112
     };
     ensure!(
-        u16::from_le_bytes(header[pe + 4..pe + 6].try_into()?) == machine,
+        u16::from_le_bytes(header.at(pe + 4..pe + 6)?.try_into()?) == machine,
         "PE/符号机器类型冲突"
     );
     let len = u32::from_le_bytes(
-        header[pe + 24 + directories + 52..pe + 24 + directories + 56].try_into()?,
+        header
+            .at(pe + 24 + directories + 52..pe + 24 + directories + 56)?
+            .try_into()?,
     ) as u64;
     let in_image = |rva: u64, length: u64| {
         rva != 0

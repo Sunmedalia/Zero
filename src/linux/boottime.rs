@@ -1,10 +1,12 @@
 //! Kernel boot timestamps and the time namespace view used by Boottime.
 use super::*;
+use crate::bytes::JsonKey as _;
 use crate::bytes::float_to_i128;
 
 impl Linux<'_> {
     fn time_field_type<'b>(&'b self, ty: &str, field: &str) -> Result<&'b str> {
-        self.isf.field(ty, field)?["type"]["name"]
+        self.isf.field(ty, field)?["type"]
+            .key("name")
             .as_str()
             .context("时间字段缺少类型名")
     }
@@ -23,14 +25,14 @@ impl Linux<'_> {
     }
 
     fn symbol_time_type(&self, name: &str, fallback: &str) -> String {
-        self.isf.data["symbols"][name]["type"]["name"]
+        self.isf.data.key("symbols")[name].key("type")["name"]
             .as_str()
             .unwrap_or(fallback)
             .to_owned()
     }
 
     pub(super) fn root_boot_time_nanos(&self) -> Result<i128> {
-        if self.isf.data["symbols"].get("tk_core").is_some() {
+        if self.isf.data.key("symbols").get("tk_core").is_some() {
             let core = self.isf.address("tk_core")?;
             let core_type = self.symbol_time_type("tk_core", "tk_core");
             let keeper = self.field_address(core, &core_type, "timekeeper")?;
@@ -48,7 +50,9 @@ impl Linux<'_> {
                 } else {
                     ensure!(
                         matches!(
-                            self.isf.field(keeper_type, field)?["type"]["kind"].as_str(),
+                            self.isf.field(keeper_type, field)?["type"]
+                                .key("kind")
+                                .as_str(),
                             Some("base" | "enum")
                         ),
                         "ktime 标量布局与 offs_real 不一致"
@@ -58,7 +62,7 @@ impl Linux<'_> {
             };
             return Ok(ktime("offs_real")? - ktime("offs_boot")?);
         }
-        if self.isf.data["symbols"].get("timekeeper").is_some()
+        if self.isf.data.key("symbols").get("timekeeper").is_some()
             && self.isf.field("timekeeper", "wall_to_monotonic").is_ok()
         {
             let keeper = self.isf.address("timekeeper")?;
@@ -78,13 +82,20 @@ impl Linux<'_> {
             wall,
             &self.symbol_time_type("wall_to_monotonic", "timespec"),
         )?;
-        if self.isf.data["symbols"].get("total_sleep_time").is_some() {
+        if self
+            .isf
+            .data
+            .key("symbols")
+            .get("total_sleep_time")
+            .is_some()
+        {
             let at = self.isf.address("total_sleep_time")?;
             let ty = self.symbol_time_type("total_sleep_time", "timespec");
             total += if ty == "timespec" {
                 self.timespec_nanos(at, &ty)?
             } else {
-                let size = self.isf.data["base_types"][&ty]["size"]
+                let size = self.isf.data.key("base_types")[&ty]
+                    .key("size")
                     .as_u64()
                     .context("total_sleep_time 缺少标量宽度")?;
                 self.vm.uint(at, usize::try_from(size)?)? as i128 * 1_000_000_000
@@ -129,7 +140,7 @@ impl Linux<'_> {
                 continue;
             }
             let mut nanos = self.root_boot_time_nanos()?;
-            if self.isf.data["symbols"].get("tk_core").is_some() {
+            if self.isf.data.key("symbols").get("tk_core").is_some() {
                 nanos = reference_ktime_nanos(nanos);
             }
             if let Some(at) = namespace
@@ -162,7 +173,7 @@ impl Linux<'_> {
                 timestamp,
             ]);
         }
-        result.kernel_identity["boottime_timeline"] = serde_json::json!(timeline);
+        *result.kernel_identity.key_mut("boottime_timeline")? = serde_json::json!(timeline);
         Ok(result)
     }
 }

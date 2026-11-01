@@ -54,7 +54,7 @@ impl Index {
         };
         let ids: HashSet<_> = filtered
             .iter()
-            .filter_map(|&i| result.rows[i].first().map(String::as_str))
+            .filter_map(|&i| result.rows.get(i)?.first().map(String::as_str))
             .collect();
         let mut children: HashMap<&str, Vec<usize>> = HashMap::new();
         let mut roots = Vec::new();

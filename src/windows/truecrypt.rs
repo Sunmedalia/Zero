@@ -1,5 +1,6 @@
 //! TrueCrypt's DWORD-aligned cached Password records in the first .data section.
 use super::*;
+use crate::bytes::{Checked as _, JsonKey as _};
 const SCAN_LIMIT: u64 = 64 * 1024 * 1024;
 const HIT_LIMIT: usize = 100_000;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -36,7 +37,7 @@ fn data_section(
         let mut bytes = [0; 40];
         read(add(sections, index * 40)?, &mut bytes)?;
         let end = bytes[..8].iter().position(|b| *b == 0).unwrap_or(8);
-        if &bytes[..end] == b".data" {
+        if bytes.at(..end)? == b".data" {
             let size = u64::from(u32::from_le_bytes(bytes[8..12].try_into()?));
             let start = add(
                 base,
@@ -152,7 +153,7 @@ impl Windows<'_> {
             .iter()
             .find(|m| m.name.to_lowercase() == "truecrypt.sys")
         else {
-            r.kernel_identity["truecrypt"] = serde_json::json!({"module_found":false,"min_length":options.min_length.unwrap_or(5)});
+            *r.kernel_identity.key_mut("truecrypt")? = serde_json::json!({"module_found":false,"min_length":options.min_length.unwrap_or(5)});
             return Ok(r);
         };
         let section = data_section(module.base, |at, b| self.vm.read_captured(at, b), job)?;
@@ -171,7 +172,7 @@ impl Windows<'_> {
                 ),
             );
         }
-        r.kernel_identity["truecrypt"] = serde_json::json!({"module_found":true,"module_base":hex(module.base),"section_start":hex(section.start),"section_size":section.size,"min_length":min,"length_words":found.length_words,"missing_words":found.missing_words,"missing_records":found.missing_records,"stopped":found.stopped,"scan_limit":SCAN_LIMIT,"hit_limit":HIT_LIMIT,"terminator":"pinned reference skips the would-be NUL byte; requires the following three zero bytes"});
+        *r.kernel_identity.key_mut("truecrypt")? = serde_json::json!({"module_found":true,"module_base":hex(module.base),"section_start":hex(section.start),"section_size":section.size,"min_length":min,"length_words":found.length_words,"missing_words":found.missing_words,"missing_records":found.missing_records,"stopped":found.stopped,"scan_limit":SCAN_LIMIT,"hit_limit":HIT_LIMIT,"terminator":"pinned reference skips the would-be NUL byte; requires the following three zero bytes"});
         r.rows = found
             .rows
             .into_iter()

@@ -1,5 +1,6 @@
 //! Locate RC4-HMAC KERB_ECRYPT instances in the first usable lsass cryptdll mapping.
 use super::*;
+use crate::bytes::JsonKey as _;
 use crate::bytes::{le_u32, le_u64};
 use crate::{byte_regex::ByteRegex, regex_scan};
 use capstone::{arch::x86::X86OperandType, prelude::*};
@@ -193,7 +194,7 @@ impl Windows<'_> {
             );
             return Ok(result);
         };
-        result.kernel_identity["skeleton_key"] = serde_json::json!({"pid":process.pid,"cryptdll_base":hex(vad.start),"cryptdll_size":vad.end-vad.start});
+        *result.kernel_identity.key_mut("skeleton_key")? = serde_json::json!({"pid":process.pid,"cryptdll_base":hex(vad.start),"cryptdll_size":vad.end-vad.start});
         let acquired = (|| -> Result<Isf> {
             let mut header = [0; 4096];
             vm.read_reference(vad.start, &mut header)?;
@@ -216,11 +217,16 @@ impl Windows<'_> {
         job.check()?;
         match &acquired {
             Ok(isf) => {
-                result.kernel_identity["skeleton_key"]["pdb_sha256"] = serde_json::json!(isf.digest)
+                *result
+                    .kernel_identity
+                    .key_mut("skeleton_key")?
+                    .key_mut("pdb_sha256")? = serde_json::json!(isf.digest)
             }
             Err(e) => {
-                result.kernel_identity["skeleton_key"]["optional_pdb_failure"] =
-                    serde_json::json!(format!("{e:#}"))
+                *result
+                    .kernel_identity
+                    .key_mut("skeleton_key")?
+                    .key_mut("optional_pdb_failure")? = serde_json::json!(format!("{e:#}"))
             }
         }
         self.skeleton_records(
@@ -253,8 +259,9 @@ impl Windows<'_> {
                 }
                 Err(e) => {
                     job.check()?;
-                    r.kernel_identity["skeleton_key"]["pdb_array_failure"] =
-                        serde_json::json!(format!("{e:#}"));
+                    *r.kernel_identity
+                        .key_mut("skeleton_key")?
+                        .key_mut("pdb_array_failure")? = serde_json::json!(format!("{e:#}"));
                 }
             }
         }
@@ -295,8 +302,9 @@ impl Windows<'_> {
                 Ok(None) => (),
                 Err(e) => {
                     job.check()?;
-                    r.kernel_identity["skeleton_key"]["export_failure"] =
-                        serde_json::json!(format!("{e:#}"));
+                    *r.kernel_identity
+                        .key_mut("skeleton_key")?
+                        .key_mut("export_failure")? = serde_json::json!(format!("{e:#}"));
                 }
             }
         }
@@ -374,7 +382,7 @@ impl Windows<'_> {
                 format!("{} 个候选记录未完整采集", evidence.unreadable_records),
             );
         }
-        let meta = &mut r.kernel_identity["skeleton_key"];
+        let meta = r.kernel_identity.key_mut("skeleton_key")?;
         if !meta.is_object() {
             *meta = serde_json::json!({});
         }

@@ -1,6 +1,7 @@
 //! Immutable interval lookup with explicit source and alias precedence. Built by
 //! a sweep rather than a backward linear search, even for nested/overlapping ELF symbols.
 use crate::Job;
+use crate::bytes::Checked as _;
 use anyhow::{Result, ensure};
 use std::collections::BTreeSet;
 pub(crate) struct Entry {
@@ -53,7 +54,7 @@ impl SymbolIndex {
                     });
                 }
             }
-            let e = &entries[index];
+            let e = entries.at(index)?;
             let key = (e.priority, e.ordinal, index);
             if start {
                 active.insert(key);
@@ -69,7 +70,7 @@ impl SymbolIndex {
             .spans
             .partition_point(|s| s.start <= address)
             .checked_sub(1)?;
-        let span = &self.spans[i];
+        let span = self.spans.get(i)?;
         (address < span.end).then(|| &self.entries[span.entry])
     }
     pub fn len(&self) -> usize {

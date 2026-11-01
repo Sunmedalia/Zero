@@ -1,6 +1,7 @@
 //! Registry-backed artifacts: scheduled tasks, Amcache inventory and the
 //! system certificate stores. Values are decoded in place; nothing is exported.
 use super::*;
+use crate::bytes::Checked as _;
 use crate::bytes::{le_u16, le_u32, le_u64};
 
 const TASKS: &str = "Microsoft\\Windows NT\\CurrentVersion\\Schedule\\TaskCache\\Tasks";
@@ -115,7 +116,7 @@ fn der(bytes: &[u8]) -> Option<(u8, &[u8], &[u8])> {
         (length, 2 + count)
     };
     let contents = bytes.get(header..header + length)?;
-    Some((tag, contents, &bytes[header + length..]))
+    Some((tag, contents, bytes.get(header + length..)?))
 }
 /// The commonName of an X.509 Name, or its organisation as a fallback.
 fn common_name(name: &[u8]) -> String {
@@ -228,11 +229,11 @@ impl Windows<'_> {
         }
         let mut out = Vec::new();
         for hive in hives.rows {
-            let lower = hive[1].to_ascii_lowercase();
+            let lower = hive.at(1)?.to_ascii_lowercase();
             if suffix.iter().any(|s| lower.ends_with(s)) {
                 out.push((
-                    u64::from_str_radix(hive[0].trim_start_matches("0x"), 16)?,
-                    hive[1].clone(),
+                    u64::from_str_radix(hive.at(0)?.trim_start_matches("0x"), 16)?,
+                    hive.at(1)?.clone(),
                 ));
             }
         }
@@ -259,7 +260,7 @@ impl Windows<'_> {
             };
             for task in tasks.rows.iter().filter(|row| row[2] == "SubKey") {
                 job.check()?;
-                let key = format!("{TASKS}\\{}", task[3]);
+                let key = format!("{TASKS}\\{}", *task.at(3)?);
                 let Some(entry) = self.optional_registry(hive, &key, job, &mut r)? else {
                     continue;
                 };
@@ -285,7 +286,7 @@ impl Windows<'_> {
                 for [command, arguments, directory] in actions {
                     r.rows.push(vec![
                         path.clone(),
-                        task[3].clone(),
+                        task.at(3)?.clone(),
                         command,
                         arguments,
                         directory,
@@ -349,7 +350,7 @@ impl Windows<'_> {
             };
             for file in files.rows.iter().filter(|row| row[2] == "SubKey") {
                 job.check()?;
-                let key = format!("{AMCACHE}\\{}", file[3]);
+                let key = format!("{AMCACHE}\\{}", *file.at(3)?);
                 let Some(entry) = self.optional_registry(hive, &key, job, &mut r)? else {
                     continue;
                 };
@@ -391,7 +392,7 @@ impl Windows<'_> {
                     job.check()?;
                     let Some(entry) = self.optional_registry(
                         hive,
-                        &format!("{key}\\{}", certificate[3]),
+                        &format!("{key}\\{}", *certificate.at(3)?),
                         job,
                         &mut r,
                     )?
@@ -409,7 +410,7 @@ impl Windows<'_> {
                     r.rows.push(vec![
                         path.clone(),
                         (*store).into(),
-                        certificate[3].clone(),
+                        certificate.at(3)?.clone(),
                         friendly,
                         subject,
                         issuer,

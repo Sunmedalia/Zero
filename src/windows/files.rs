@@ -3,6 +3,7 @@
 //! 的 VACB 视图不在此列。字节直接来自物理驻留页，空洞保持稀疏，绝不伪造。
 use super::dump::sanitized_component;
 use super::*;
+use crate::bytes::{Checked as _, JsonKey as _};
 use sha2::{Digest, Sha256};
 use std::io::Write;
 
@@ -16,10 +17,12 @@ type Bits = (u64, u64);
 fn bits(isf: &Isf, path: &str) -> Result<Bits> {
     let field = isf.field("_MMPTE", path)?;
     Ok((
-        field["type"]["bit_position"]
+        field["type"]
+            .key("bit_position")
             .as_u64()
             .context("PTE 位域缺少位置")?,
-        field["type"]["bit_length"]
+        field["type"]
+            .key("bit_length")
             .as_u64()
             .context("PTE 位域缺少长度")?,
     ))
@@ -41,7 +44,8 @@ struct PteLayout {
 }
 fn pte_layout(isf: &Isf) -> Result<PteLayout> {
     Ok(PteLayout {
-        size: isf.data["user_types"]["_MMPTE"]["size"]
+        size: isf.data.key("user_types")["_MMPTE"]
+            .key("size")
             .as_u64()
             .context("缺少 _MMPTE")?,
         valid: bits(isf, "u.Hard.Valid")?,
@@ -90,7 +94,8 @@ impl Windows<'_> {
         // ImageSection 按 0x200 扇区对齐磁盘；DataSection 按页。
         let sector = if image { 0x200 } else { 0x1000 };
         let layout = pte_layout(isf)?;
-        let ca_size = isf.data["user_types"]["_CONTROL_AREA"]["size"]
+        let ca_size = isf.data.key("user_types")["_CONTROL_AREA"]
+            .key("size")
             .as_u64()
             .context("缺少 _CONTROL_AREA 大小")?;
         let mut pages = BTreeMap::new();
@@ -325,8 +330,8 @@ impl Windows<'_> {
             let mut remaining = gap;
             while remaining > 0 {
                 let n = usize::try_from(remaining)?.min(zeros.len());
-                tmp.write_all(&zeros[..n])?;
-                hash.update(&zeros[..n]);
+                tmp.write_all(zeros.at(..n)?)?;
+                hash.update(zeros.at(..n)?);
                 remaining -= n as u64;
             }
             position += gap;

@@ -1,5 +1,6 @@
 //! Bounded processor roots shared by KPCR projection and timer enumeration.
 use super::*;
+use crate::bytes::JsonKey as _;
 
 const MAX_PROCESSORS: u64 = 2048;
 
@@ -7,7 +8,7 @@ impl Windows<'_> {
     fn processor_count(&self, r: &mut Results) -> Result<u64> {
         let isf = self.vm.isf;
         let arch = Architecture::from_isf(isf)?;
-        let global = &isf.data["symbols"]["KeNumberProcessors"];
+        let global = &isf.data.key("symbols")["KeNumberProcessors"];
         ensure!(
             global["type_conflict"] != true,
             "KeNumberProcessors 类型冲突"
@@ -59,7 +60,7 @@ impl Windows<'_> {
             "处理器数量无效: {count}"
         );
         if r.kernel_identity.is_object() {
-            r.kernel_identity["processors"] =
+            *r.kernel_identity.key_mut("processors")? =
                 serde_json::json!({"count":count,"count_source":source});
         }
         Ok(count)
@@ -106,8 +107,9 @@ impl Windows<'_> {
         let embedded = ["Prcb", "PrcbData"]
             .into_iter()
             .find(|name| {
-                isf.field("_KPCR", name)
-                    .is_ok_and(|f| f["type"]["kind"] == "struct" && f["type"]["name"] == "_KPRCB")
+                isf.field("_KPCR", name).is_ok_and(|f| {
+                    *f["type"].key("kind") == "struct" && *f["type"].key("name") == "_KPRCB"
+                })
             })
             .context("不支持: _KPCR 缺少内嵌 _KPRCB")?;
         let relative = isf.offset("_KPCR", embedded)?;
@@ -115,14 +117,14 @@ impl Windows<'_> {
             .into_iter()
             .find(|name| {
                 isf.field("_KPCR", name)
-                    .is_ok_and(|f| f["type"]["kind"] == "pointer")
+                    .is_ok_and(|f| *f["type"].key("kind") == "pointer")
             })
             .context("不支持: _KPCR 缺少自指针")?;
         let prcb_field = ["CurrentPrcb", "Prcb"]
             .into_iter()
             .find(|name| {
                 isf.field("_KPCR", name)
-                    .is_ok_and(|f| f["type"]["kind"] == "pointer")
+                    .is_ok_and(|f| *f["type"].key("kind") == "pointer")
             })
             .context("不支持: _KPCR 缺少 PRCB 回指针")?;
         let mut r = self.result(Plugin::WinKpcrs);

@@ -1,6 +1,7 @@
 //! Bounded native enumeration of compressed core, module, ftrace and BPF symbols.
 use super::*;
 use crate::analysis::KallsymsOptions;
+use crate::bytes::{Checked as _, JsonKey as _};
 
 fn canonical(address: u64) -> u64 {
     if address < 1 << 48 && address & (1 << 47) != 0 {
@@ -110,7 +111,7 @@ impl CoreNames {
         for i in 0..length {
             job.check()?;
             let token = usize::try_from(linux.vm.uint(add(at, i)?, 1)?)?;
-            let value = &self.tokens[usize::from(self.index[token])];
+            let value = self.tokens.at(usize::from(*self.index.at(token)?))?;
             ensure!(
                 text.len() + value.len() <= 32768,
                 "kallsyms 展开名称超过 32 KiB"
@@ -215,7 +216,7 @@ impl Linux<'_> {
             if !result.kernel_identity.is_object() {
                 result.kernel_identity = serde_json::json!({});
             }
-            result.kernel_identity["kallsyms_address_mode"] = serde_json::json!({"mode":if unsigned_selected {"base-relative unsigned"}else{"absolute-percpu signed"},"anchor_matches":signed_count.max(unsigned_count)});
+            *result.kernel_identity.key_mut("kallsyms_address_mode")? = serde_json::json!({"mode":if unsigned_selected {"base-relative unsigned"}else{"absolute-percpu signed"},"anchor_matches":signed_count.max(unsigned_count)});
             Ok(if unsigned_selected { unsigned } else { signed })
         } else {
             let addresses = self
@@ -231,7 +232,7 @@ impl Linux<'_> {
         }
     }
     fn core_kallsyms(&self, result: &mut Results, budget: &mut u64, job: &Job) -> Result<()> {
-        let symbol = &self.isf.data["symbols"]["kallsyms_num_syms"];
+        let symbol = &self.isf.data.key("symbols")["kallsyms_num_syms"];
         let width = self.isf.type_size(&symbol["type"])?;
         ensure!(matches!(width, 4 | 8), "kallsyms_num_syms 类型无效");
         let count = self.vm.uint(
@@ -264,16 +265,16 @@ impl Linux<'_> {
         let mut i = 0;
         while i < addresses.len() {
             job.check()?;
-            let Some(start) = addresses[i] else {
+            let Some(start) = *addresses.at(i)? else {
                 i += 1;
                 continue;
             };
             let mut end = i + 1;
-            while end < addresses.len() && addresses[end] == Some(start) {
+            while end < addresses.len() && *addresses.at(end)? == Some(start) {
                 end += 1;
             }
             let next = if end < addresses.len() {
-                addresses[end]
+                *addresses.at(end)?
             } else {
                 let init = self
                     .isf
@@ -296,7 +297,7 @@ impl Linux<'_> {
             let size = next
                 .and_then(|next| next.checked_sub(start))
                 .filter(|size| *size > 0);
-            sizes[i..end].fill(size);
+            sizes.at_mut(i..end)?.fill(size);
             i = end;
         }
         let unreadable = addresses.iter().filter(|a| a.is_none()).count();
@@ -315,7 +316,7 @@ impl Linux<'_> {
             let decoded = names.decode(self, offset, job, &mut decode_budget);
             match decoded {
                 Ok((kind, name, next)) => {
-                    if let Some(address) = addresses[index] {
+                    if let Some(address) = *addresses.at(index)? {
                         push(
                             result,
                             budget,
@@ -326,7 +327,7 @@ impl Linux<'_> {
                                     canonical(address)
                                 },
                                 kind: &kind,
-                                size: sizes[index],
+                                size: *sizes.at(index)?,
                                 exported: global(&kind),
                                 source: "core",
                                 module: "kernel",
@@ -385,7 +386,8 @@ impl Linux<'_> {
         }
         ensure!(count <= OBJECT_LIMIT, "模块导出符号数量超过上限");
         let mut base = self.number(module, "module", "syms")?;
-        let size = self.isf.data["user_types"]["kernel_symbol"]["size"]
+        let size = self.isf.data.key("user_types")["kernel_symbol"]
+            .key("size")
             .as_u64()
             .context("kernel_symbol size 缺失")?;
         ensure!((1..=4096).contains(&size), "kernel_symbol size 无效");
@@ -441,7 +443,7 @@ impl Linux<'_> {
                 let symbols = self.module_symbols(module)?;
                 let types = if self.isf.has_field("module", "kallsyms") {
                     let kallsyms = self.number(module, "module", "kallsyms")?;
-                    let ty = self.isf.field("module", "kallsyms")?["type"]["subtype"]["name"]
+                    let ty = self.isf.field("module", "kallsyms")?["type"].key("subtype")["name"]
                         .as_str()
                         .context("mod_kallsyms 类型缺失")?;
                     if self.isf.has_field(ty, "typetab") {
@@ -537,8 +539,8 @@ impl Linux<'_> {
         Ok(())
     }
     fn ftrace_kallsyms(&self, result: &mut Results, budget: &mut u64, job: &Job) -> Result<()> {
-        if self.isf.data["user_types"]["ftrace_mod_map"].is_object()
-            && self.isf.data["user_types"]["ftrace_mod_func"].is_object()
+        if self.isf.data.key("user_types")["ftrace_mod_map"].is_object()
+            && self.isf.data.key("user_types")["ftrace_mod_func"].is_object()
         {
             for map in self.list_objects(
                 self.isf.address("ftrace_mod_maps")?,
@@ -597,10 +599,10 @@ impl Linux<'_> {
         let Ok(head) = self.isf.address("bpf_kallsyms") else {
             return Ok(());
         };
-        let modern = self.isf.data["user_types"]["bpf_ksym"].is_object();
+        let modern = self.isf.data.key("user_types")["bpf_ksym"].is_object();
         let (ty, member) = if modern {
             ("bpf_ksym", "lnode")
-        } else if self.isf.data["user_types"]["bpf_prog_aux"].is_object() {
+        } else if self.isf.data.key("user_types")["bpf_prog_aux"].is_object() {
             ("bpf_prog_aux", "ksym_lnode")
         } else {
             return Ok(());
@@ -665,7 +667,8 @@ impl Linux<'_> {
     }
     pub(super) fn kallsyms(&self, options: KallsymsOptions, job: &Job) -> Result<Results> {
         ensure!(
-            self.isf.data["base_types"]["pointer"]["size"]
+            self.isf.data.key("base_types")["pointer"]
+                .key("size")
                 .as_u64()
                 .unwrap_or(8)
                 == 8,
@@ -689,7 +692,10 @@ impl Linux<'_> {
                 job.check()?;
                 partial(
                     &mut result,
-                    format!("kallsyms {}", ["core", "module", "ftrace", "bpf"][index]),
+                    format!(
+                        "kallsyms {}",
+                        *["core", "module", "ftrace", "bpf"].at(index)?
+                    ),
                     error,
                 );
             }

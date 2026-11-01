@@ -1,6 +1,7 @@
 //! Live thread hardware debug registers, attributed to file VADs and exact symbols.
 use super::thread_symbols::file_for_address;
 use super::*;
+use crate::bytes::{Checked as _, JsonKey as _, MapAt as _};
 use std::collections::BTreeMap;
 
 struct DebugThread {
@@ -23,7 +24,7 @@ impl Windows<'_> {
         let owner = self.thread_owner(thread)?;
         let mut addresses = [0; 4];
         for (i, field) in ["Dr0", "Dr1", "Dr2", "Dr3"].into_iter().enumerate() {
-            addresses[i] = self.number(trap, "_KTRAP_FRAME", field)?;
+            *addresses.at_mut(i)? = self.number(trap, "_KTRAP_FRAME", field)?;
         }
         if addresses.iter().all(|address| *address == 0) {
             return Ok(None);
@@ -129,7 +130,7 @@ impl Windows<'_> {
                         vad_bytes += bytes;
                         entry.insert((owner, vads));
                     }
-                    let (owner, vads) = &owners[&debug.owner];
+                    let (owner, vads) = owners.at(&debug.owner)?;
                     if vads.is_empty() {
                         return Ok(None);
                     }
@@ -185,7 +186,7 @@ impl Windows<'_> {
             resources,
             job,
         )?;
-        result.kernel_identity["debug_registers"] = serde_json::json!({"examined":examined,"active_debug_threads":active,"no_file_mapping":unmapped,"owner_vad_views":owners.len(),"symbol_queries":symbol_queries,"vad_cache_bytes":vad_bytes,"output_text_bytes":output_bytes,"max_threads":max_threads,"max_vad_bytes":max_bytes});
+        *result.kernel_identity.key_mut("debug_registers")? = serde_json::json!({"examined":examined,"active_debug_threads":active,"no_file_mapping":unmapped,"owner_vad_views":owners.len(),"symbol_queries":symbol_queries,"vad_cache_bytes":vad_bytes,"output_text_bytes":output_bytes,"max_threads":max_threads,"max_vad_bytes":max_bytes});
         Ok(result)
     }
 }

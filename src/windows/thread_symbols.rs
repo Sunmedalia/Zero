@@ -1,6 +1,7 @@
 //! Shared file VAD lookup and batched exact symbol queries for thread artifacts.
 use super::*;
 use crate::analysis::{PEQuery, PESource};
+use crate::bytes::Checked as _;
 use std::collections::BTreeMap;
 
 pub(super) fn file_for_address(vads: &[memory::Vad], address: u64) -> Option<&str> {
@@ -33,13 +34,15 @@ impl Windows<'_> {
         for row in &result.rows {
             job.check()?;
             for &(file, _, address) in columns {
-                if !row[file].is_empty() {
-                    let module = row[file]
+                if !row.at(file)?.is_empty() {
+                    let module = row
+                        .at(file)?
                         .rsplit('\\')
                         .next()
                         .unwrap_or_default()
                         .to_lowercase();
-                    let address = u64::from_str_radix(row[address].trim_start_matches("0x"), 16)?;
+                    let address =
+                        u64::from_str_radix(row.at(address)?.trim_start_matches("0x"), 16)?;
                     queries.entry(module).or_default().insert(address);
                 }
             }
@@ -68,11 +71,12 @@ impl Windows<'_> {
                             result.diagnostics.extend(found.diagnostics);
                         }
                         for row in found.rows {
-                            let address = u64::from_str_radix(row[2].trim_start_matches("0x"), 16)?;
+                            let address =
+                                u64::from_str_radix(row.at(2)?.trim_start_matches("0x"), 16)?;
                             if let std::collections::btree_map::Entry::Vacant(entry) =
                                 symbols.entry((module.clone(), address))
                             {
-                                let bytes = module.len() + row[1].len();
+                                let bytes = module.len() + row.at(1)?.len();
                                 if bytes > TEXT_LIMIT.saturating_sub(symbol_bytes) {
                                     Self::issue(
                                         result,
@@ -82,7 +86,7 @@ impl Windows<'_> {
                                     break 'queries;
                                 }
                                 symbol_bytes += bytes;
-                                entry.insert(row[1].clone());
+                                entry.insert(row.at(1)?.clone());
                             }
                         }
                     }
@@ -98,19 +102,20 @@ impl Windows<'_> {
         'rows: for row in &mut result.rows {
             job.check()?;
             for &(file, symbol, address) in columns {
-                let module = row[file]
+                let module = row
+                    .at(file)?
                     .rsplit('\\')
                     .next()
                     .unwrap_or_default()
                     .to_lowercase();
-                let address = u64::from_str_radix(row[address].trim_start_matches("0x"), 16)?;
+                let address = u64::from_str_radix(row.at(address)?.trim_start_matches("0x"), 16)?;
                 if let Some(value) = symbols.get(&(module, address)) {
                     if value.len() > TEXT_LIMIT.saturating_sub(output_bytes) {
                         limit = true;
                         break 'rows;
                     }
                     output_bytes += value.len();
-                    row[symbol] = value.clone();
+                    *row.at_mut(symbol)? = value.clone();
                 }
             }
         }

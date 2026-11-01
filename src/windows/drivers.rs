@@ -1,12 +1,15 @@
 //! Driver pool candidates validated against a mapped DRIVER_EXTENSION back-reference.
 use super::*;
+use crate::bytes::JsonKey as _;
 impl Windows<'_> {
     pub(super) fn drivers(&self, plugin: Plugin, job: &Job) -> Result<Results> {
         let isf = self.vm.isf;
-        let size = isf.data["user_types"]["_DRIVER_OBJECT"]["size"]
+        let size = isf.data.key("user_types")["_DRIVER_OBJECT"]
+            .key("size")
             .as_u64()
             .context("缺少 DRIVER_OBJECT")?;
-        let header_size = isf.data["user_types"]["_POOL_HEADER"]["size"]
+        let header_size = isf.data.key("user_types")["_POOL_HEADER"]
+            .key("size")
             .as_u64()
             .context("缺少 POOL_HEADER")?;
         let tag_offset = isf.offset("_POOL_HEADER", "PoolTag")?;
@@ -142,7 +145,7 @@ impl Windows<'_> {
                 }
             }
         }
-        r.kernel_identity["coverage"] = serde_json::json!(
+        *r.kernel_identity.key_mut("coverage")? = serde_json::json!(
             "pool candidates with mapped extension back-reference; unavailable/freed objects may be absent; dispatch differences do not imply malicious behavior"
         );
         Ok(r)

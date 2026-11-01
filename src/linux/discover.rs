@@ -1,15 +1,16 @@
 //! Kernel page-table discovery and validation against the complete banner.
 use super::*;
+use crate::bytes::{Checked as _, JsonKey as _};
 fn physical_field(image: &Image, isf: &Isf, at: u64, structure: &str, field: &str) -> Result<u64> {
     let width = isf.size(structure, field)?;
     ensure!(matches!(width, 1 | 2 | 4 | 8), "物理字段宽度无效");
     let mut bytes = [0u8; 8];
-    image.read(at, &mut bytes[..width])?;
+    image.read(at, bytes.at_mut(..width)?)?;
     Ok(u64::from_le_bytes(bytes))
 }
 pub(super) fn kernel_vm<'a>(image: &'a Image, isf: &Isf, root: u64) -> VirtualMemory<'a> {
-    if isf.data["base_types"]["pointer"]["size"].as_u64() == Some(4) {
-        let pae = isf.data["symbols"]["pkmap_count"]["type"]["count"]
+    if isf.data.key("base_types")["pointer"].key("size").as_u64() == Some(4) {
+        let pae = isf.data.key("symbols")["pkmap_count"].key("type")["count"]
             .as_u64()
             .is_some_and(|count| matches!(count, 512 | 2048));
         VirtualMemory::new_linux32(image, root, pae)
@@ -18,13 +19,19 @@ pub(super) fn kernel_vm<'a>(image: &'a Image, isf: &Isf, root: u64) -> VirtualMe
     }
 }
 pub fn discover(image: &Image, isf: &Isf, job: &Job) -> Result<u64> {
-    if isf.data["metadata"]["linux"]["architecture"].as_str() == Some("AArch64")
-        || isf.data["metadata"]["zero"]["architecture"].as_str() == Some("aarch64")
+    if isf.data.key("metadata")["linux"]
+        .key("architecture")
+        .as_str()
+        == Some("AArch64")
+        || isf.data.key("metadata")["zero"]
+            .key("architecture")
+            .as_str()
+            == Some("aarch64")
         || String::from_utf8_lossy(&isf.banner).contains("aarch64-linux")
     {
         return discover_arm64(image, isf, job);
     }
-    let linux32 = isf.data["base_types"]["pointer"]["size"].as_u64() == Some(4);
+    let linux32 = isf.data.key("base_types")["pointer"].key("size").as_u64() == Some(4);
     // Physical placement and virtual KASLR are independent. Relative symbol
     // offsets locate the static objects, but their pointers use runtime VAs.
     let banner = isf.raw_address("linux_banner")?;
@@ -54,7 +61,7 @@ pub fn discover(image: &Image, isf: &Isf, job: &Job) -> Result<u64> {
                 break;
             }
         }
-        let physical = &placements[index];
+        let physical = placements.at(index)?;
         index += 1;
         job.check()?;
         let mut slides = vec![0];
@@ -361,7 +368,7 @@ fn validate_forward_tasks(
             identity.push(value);
         }
         ensure!(
-            identity[0] == identity[1] && pids.insert(identity[0]),
+            *identity.at(0)? == *identity.at(1)? && pids.insert(*identity.at(0)?),
             "任务 PID/TGID 不一致或重复 @ {task:#x}"
         );
         let mut name = vec![0; comm_size];
@@ -371,7 +378,7 @@ fn validate_forward_tasks(
             .position(|b| *b == 0)
             .context("任务名称未终止")?;
         ensure!(
-            end > 0 && !name[..end].iter().any(|b| b.is_ascii_control()),
+            end > 0 && !name.at(..end)?.iter().any(|b| b.is_ascii_control()),
             "任务名称无效 @ {task:#x}"
         );
         previous = node;
@@ -385,7 +392,7 @@ fn validate_forward_tasks(
 }
 fn discover_arm64(image: &Image, isf: &Isf, job: &Job) -> Result<u64> {
     use std::sync::atomic::Ordering;
-    let config = &isf.data["metadata"]["zero"];
+    let config = &isf.data.key("metadata")["zero"];
     ensure!(
         config["page_shift"].as_u64() == Some(12),
         "ARM64 需要已核对的 4 KiB 内核配置；请通过符号生成入口附加配置"
@@ -462,12 +469,13 @@ fn discover_arm64(image: &Image, isf: &Isf, job: &Job) -> Result<u64> {
         "无法唯一验证 ARM64 页表／重定位: {}",
         errors.join("; ")
     );
-    isf.slide.store(valid[0].1, Ordering::Relaxed);
+    isf.slide.store(valid.at(0)?.1, Ordering::Relaxed);
     job.report(format!(
         "ARM64 页表已验证 · DTB {:#x} · 重定位 {:#x}",
-        valid[0].0, valid[0].1
+        valid.at(0)?.0,
+        valid.at(0)?.1
     ));
-    Ok(valid[0].0)
+    Ok(valid.at(0)?.0)
 }
 
 #[cfg(test)]

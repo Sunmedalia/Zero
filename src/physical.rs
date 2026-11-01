@@ -1,5 +1,6 @@
 //! Shared, bounded physical pointer scans and ISF-driven embedded object reads.
 //! Pointer fields are read physically; dereferences remain the caller's VM choice.
+use crate::bytes::Checked as _;
 use crate::{Job, image::Image, symbols::Isf};
 use anyhow::{Context, Result, ensure};
 use serde::Serialize;
@@ -87,9 +88,10 @@ fn pointers_bounded(
             .context("物理覆盖总量溢出")?;
     }
     for pair in image.segments.windows(2) {
-        let gap = pair[1]
+        let gap = pair
+            .at(1)?
             .start
-            .checked_sub(pair[0].end)
+            .checked_sub(pair.at(0)?.end)
             .context("物理区段重叠或未排序")?;
         if gap > 0 {
             coverage.gap_count += 1;
@@ -112,7 +114,7 @@ fn pointers_bounded(
             let count = usize::try_from((segment.end - position).min(CHUNK as u64))?;
             let overlap = tail.len();
             tail.resize(overlap + count, 0);
-            if let Err(error) = image.read(position, &mut tail[overlap..]) {
+            if let Err(error) = image.read(position, tail.at_mut(overlap..)?) {
                 coverage.read_failures += 1;
                 if coverage.first_read_failure.is_none() {
                     coverage.first_read_failure = Some(format!(
@@ -144,7 +146,7 @@ fn pointers_bounded(
                     .checked_sub(overlap as u64)
                     .and_then(|v| v.checked_add(index as u64))
                     .context("物理命中地址溢出")?;
-                match visit(address, values[pattern])? {
+                match visit(address, *values.at(pattern)?)? {
                     Decision::Accept => coverage.accepted += 1,
                     Decision::Reject => {}
                     Decision::Stop => {
@@ -153,7 +155,7 @@ fn pointers_bounded(
                     }
                 }
                 // Advance one byte: even self-overlapping pointer bytes are enumerated.
-                if let Some(found) = finders[pattern].find(&tail[index + 1..]) {
+                if let Some(found) = finders.at(pattern)?.find(tail.at(index + 1..)?) {
                     next.push(Reverse((index + 1 + found, pattern)));
                 }
             }
@@ -189,7 +191,7 @@ impl Object<'_> {
             self.address
                 .checked_add(layout.offset)
                 .context("物理对象字段溢出")?,
-            &mut bytes[..usize::try_from(layout.size)?],
+            bytes.at_mut(..usize::try_from(layout.size)?)?,
         )?;
         let value = u64::from_le_bytes(bytes);
         if let Some((position, length)) = layout.bits {
@@ -228,7 +230,7 @@ impl Object<'_> {
             &mut bytes,
         )?;
         let end = bytes.iter().position(|b| *b == 0).unwrap_or(bytes.len());
-        Ok(String::from_utf8_lossy(&bytes[..end]).into_owned())
+        Ok(String::from_utf8_lossy(bytes.at(..end)?).into_owned())
     }
 }
 

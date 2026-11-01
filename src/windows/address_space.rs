@@ -1,5 +1,6 @@
 //! Windows virtual address translation over a read-only image.
 use super::*;
+use crate::bytes::Checked as _;
 
 /// Independent Windows translation; software PTEs never change Linux semantics.
 pub struct Memory<'a> {
@@ -197,8 +198,8 @@ impl<'a> Memory<'a> {
         while !out.is_empty() {
             let (physical, available) = self.translate_span(va)?;
             let n = usize::try_from(available.min(out.len() as u64))?;
-            self.image.read(physical, &mut out[..n])?;
-            out = &mut out[n..];
+            self.image.read(physical, out.at_mut(..n)?)?;
+            out = out.at_mut(n..)?;
             if !out.is_empty() {
                 va = add(va, n as u64)?;
             }
@@ -219,15 +220,15 @@ impl<'a> Memory<'a> {
                 .unwrap_or(4096 - (va & 4095));
             let n = usize::try_from(available.min(out.len() as u64))?;
             match translated {
-                Ok((physical, _)) => self.image.read(physical, &mut out[..n])?,
+                Ok((physical, _)) => self.image.read(physical, out.at_mut(..n)?)?,
                 Err(original) => match self.prototype(va) {
-                    Ok(physical) => self.image.read(physical, &mut out[..n])?,
+                    Ok(physical) => self.image.read(physical, out.at_mut(..n)?)?,
                     Err(proto) => self
-                        .pagefile_read(va, &mut out[..n])
+                        .pagefile_read(va, out.at_mut(..n)?)
                         .with_context(|| format!("{original:#}; {proto:#}"))?,
                 },
             }
-            out = &mut out[n..];
+            out = out.at_mut(n..)?;
             if !out.is_empty() {
                 va = add(va, n as u64)?;
             }
@@ -327,7 +328,7 @@ impl<'a> Memory<'a> {
             "无效 Windows 数值宽度 {size}"
         );
         let mut b = [0; 8];
-        self.read(va, &mut b[..size])?;
+        self.read(va, b.at_mut(..size)?)?;
         Ok(u64::from_le_bytes(b))
     }
     pub(super) fn number(&self, base: u64, structure: &str, field: &str) -> Result<u64> {

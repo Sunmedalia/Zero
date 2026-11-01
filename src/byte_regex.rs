@@ -1,6 +1,7 @@
 //! Bounded PCRE2 byte regular expressions. Compiled code is immutable; match
 //! data and contexts are owned per call and never shared with a worker.
 use crate::Job;
+use crate::bytes::Checked as _;
 use anyhow::{Context, Result, bail, ensure};
 use pcre2_sys::*;
 use std::{
@@ -73,7 +74,7 @@ fn reject_control_verbs(pattern: &str) -> Result<()> {
     let mut first = false;
     let mut negate = false;
     while index < bytes.len() {
-        match bytes[index] {
+        match *bytes.at(index)? {
             b'\\' => {
                 index += 2;
                 first = false;

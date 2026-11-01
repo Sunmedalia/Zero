@@ -1,4 +1,5 @@
 //! Pinned Intel mapping events for selected virtual scan sections.
+use crate::bytes::Checked as _;
 use crate::{Job, image::Image, resources::Lru};
 use anyhow::{Context, Result, ensure};
 use std::sync::Arc;
@@ -233,11 +234,11 @@ impl<'a> Mapper<'a> {
             };
             let count = usize::try_from((span - (at & (span - 1))).min(out.len() as u64))?;
             if backing == 0 {
-                self.image.read(offset, &mut out[..count])?;
+                self.image.read(offset, out.at_mut(..count)?)?;
             } else {
-                swap_read(backing - 1, offset, &mut out[..count])?;
+                swap_read(backing - 1, offset, out.at_mut(..count)?)?;
             }
-            out = &mut out[count..];
+            out = out.at_mut(count..)?;
             if !out.is_empty() {
                 at = at.checked_add(count as u64).context("Intel 读取地址溢出")?;
             }

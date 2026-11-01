@@ -274,7 +274,7 @@ impl Windows<'_> {
         let mut got = 0usize;
         while got < length {
             if memory
-                .read(name_at + got as u64, &mut bytes[got..got + 1])
+                .read(name_at + got as u64, bytes.get_mut(got..got + 1)?)
                 .is_err()
             {
                 break;
@@ -286,7 +286,7 @@ impl Windows<'_> {
         }
         // The fixed utility decodes with replacement, then truncates at the
         // first NUL or replacement character (even a literal encoded U+FFFD).
-        let name = reference_process_name(&bytes[..got]);
+        let name = reference_process_name(bytes.get(..got)?);
         let pid = memory
             .uint(
                 add(

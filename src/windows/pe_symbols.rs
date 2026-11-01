@@ -2,6 +2,7 @@
 use super::*;
 use crate::analysis::PESource;
 use crate::bytes::le_u32;
+use crate::bytes::{Checked as _, JsonKey as _};
 
 const EXPORT_LIMIT: usize = 65536;
 const INSTANCE_LIMIT: usize = 65536;
@@ -19,15 +20,15 @@ struct Instance {
 /// metadata must be captured; missing bytes are never supplied as zeroes.
 pub(super) fn export_header(bytes: &[u8]) -> Result<pe_info::Header> {
     let header = pe_info::parse_header(bytes)?;
-    let nt = u32::from_le_bytes(bytes[60..64].try_into()?) as usize;
-    let machine = u16::from_le_bytes(bytes[nt + 4..nt + 6].try_into()?);
+    let nt = u32::from_le_bytes(bytes.at(60..64)?.try_into()?) as usize;
+    let machine = u16::from_le_bytes(bytes.at(nt + 4..nt + 6)?.try_into()?);
     ensure!(
         (machine == 0x14c && !header.wide) || (matches!(machine, 0x8664 | 0xaa64) && header.wide),
         "模块 PE 架构与位宽冲突"
     );
-    let sections = u16::from_le_bytes(bytes[nt + 6..nt + 8].try_into()?) as usize;
+    let sections = u16::from_le_bytes(bytes.at(nt + 6..nt + 8)?.try_into()?) as usize;
     ensure!(sections <= 96, "PE section 数量超限");
-    let optional_size = u16::from_le_bytes(bytes[nt + 20..nt + 22].try_into()?) as usize;
+    let optional_size = u16::from_le_bytes(bytes.at(nt + 20..nt + 22)?.try_into()?) as usize;
     ensure!(
         optional_size >= if header.wide { 112 } else { 96 },
         "PE 可选头长度无效"
@@ -43,7 +44,7 @@ pub(super) fn export_header(bytes: &[u8]) -> Result<pe_info::Header> {
     let table = bytes.get(start..end).context("PE section 表未完整捕获")?;
     for section in table.chunks_exact(40) {
         for offset in [8, 12, 16] {
-            let value = u32::from_le_bytes(section[offset..offset + 4].try_into()?);
+            let value = u32::from_le_bytes(section.at(offset..offset + 4)?.try_into()?);
             ensure!(value <= header.size, "PE section 范围超出映像");
         }
     }
@@ -340,7 +341,7 @@ impl Windows<'_> {
                         "模块范围与 PE SizeOfImage 不一致"
                     );
                     let pe = u32::from_le_bytes(header[60..64].try_into()?) as usize;
-                    let machine = u16::from_le_bytes(header[pe + 4..pe + 6].try_into()?);
+                    let machine = u16::from_le_bytes(header.at(pe + 4..pe + 6)?.try_into()?);
                     let parsed = pe_info::parse_header(&header)?;
                     ensure!(
                         (machine == 0x14c && !parsed.wide)
@@ -362,7 +363,11 @@ impl Windows<'_> {
                 };
                 let mut symbols = Vec::new();
                 let mut symbol_bytes = 0usize;
-                let entries = isf.data["symbols"].as_object().context("缺少符号映射")?;
+                let entries = isf
+                    .data
+                    .key("symbols")
+                    .as_object()
+                    .context("缺少符号映射")?;
                 ensure!(entries.len() <= 1_000_000, "模块符号数量超限");
                 for (name, entry) in entries {
                     job.check()?;
@@ -454,7 +459,7 @@ impl Windows<'_> {
                 .diagnostics
                 .extend(pdb_failures.iter().take(32).cloned());
         }
-        result.kernel_identity["pe_symbols"] = serde_json::json!({"instances":instances.len(),"resolved":resolved.iter().filter(|done| **done).count(),"queries":count,"sources":evidence,"optional_pdb_failures":pdb_failures.iter().take(32).collect::<Vec<_>>()});
+        *result.kernel_identity.key_mut("pe_symbols")? = serde_json::json!({"instances":instances.len(),"resolved":resolved.iter().filter(|done| **done).count(),"queries":count,"sources":evidence,"optional_pdb_failures":pdb_failures.iter().take(32).collect::<Vec<_>>()});
         Ok(result)
     }
 }

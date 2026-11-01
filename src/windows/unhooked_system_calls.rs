@@ -1,6 +1,7 @@
 //! Compare the pinned ntdll syscall byte windows across process address spaces.
 use super::*;
 use crate::analysis::{PEQuery, PESource};
+use crate::bytes::{Checked as _, JsonKey as _};
 
 const FUNCTIONS: &[&str] = &[
     "NtCreateThread",
@@ -70,16 +71,17 @@ impl Groups {
         }
         // Pinned v2.28.2 compares only the first two implementations, not all groups.
         // A tie chooses the second group as majority and reports the first as distinct.
-        let majority = usize::from(first.len() <= self.owners[1].len());
+        let majority = usize::from(first.len() <= self.owners.get(1)?.len());
         let minority = 1 - majority;
         Some(vec![
             name.into(),
-            self.owners[minority]
+            self.owners
+                .get(minority)?
                 .iter()
                 .map(|p| owner(*p))
                 .collect::<Vec<_>>()
                 .join(", "),
-            self.owners[majority].len().to_string(),
+            self.owners.get(majority)?.len().to_string(),
         ])
     }
 }
@@ -109,13 +111,14 @@ impl Windows<'_> {
         let mut result = self.result(Plugin::WinUnhookedSystemCalls);
         result.complete = symbols.complete;
         result.diagnostics = symbols.diagnostics;
-        result.kernel_identity["pe_symbols"] = symbols.kernel_identity["pe_symbols"].clone();
+        *result.kernel_identity.key_mut("pe_symbols")? =
+            symbols.kernel_identity.key("pe_symbols").clone();
         let mut functions = Vec::new();
         for row in symbols.rows {
             ensure!(row.len() == 3, "PESymbols 输出结构无效");
             functions.push((
-                row[1].clone(),
-                u64::from_str_radix(row[2].trim_start_matches("0x"), 16)?,
+                row.at(1)?.clone(),
+                u64::from_str_radix(row.at(2)?.trim_start_matches("0x"), 16)?,
             ));
         }
         let (processes, diagnostics) = self.processes_partial(job)?;
@@ -165,7 +168,7 @@ impl Windows<'_> {
                 result.rows.push(row);
             }
         }
-        result.kernel_identity["syscall_implementations"] = serde_json::json!({
+        *result.kernel_identity.key_mut("syscall_implementations")? = serde_json::json!({
             "window_bytes":32,"resolved_functions":functions.len(),"processes":processes.len(),
             "readable_windows":reads,"unreadable_windows":missing,"resource_limit_reached":reached_limit,
             "functions_with_more_than_two_groups":extra_groups,

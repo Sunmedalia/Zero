@@ -1,4 +1,5 @@
 use super::*;
+use crate::bytes::Checked as _;
 
 impl App {
     pub(super) fn system_key(&mut self, mut dialog: Dialog, key: KeyEvent) {
@@ -47,14 +48,15 @@ impl App {
                 && (*field == 6 || key.modifiers.contains(KeyModifiers::CONTROL))
             {
                 let parsed = (|| -> Result<crate::analysis::Options> {
-                    let hive = if self.plugin != Plugin::WinPrintkey || fields[0].trim().is_empty()
-                    {
-                        None
-                    } else {
-                        Some(parse_address(fields[0].trim()).map_err(anyhow::Error::msg)?)
-                    };
+                    let hive =
+                        if self.plugin != Plugin::WinPrintkey || fields.at(0)?.trim().is_empty() {
+                            None
+                        } else {
+                            Some(parse_address(fields.at(0)?.trim()).map_err(anyhow::Error::msg)?)
+                        };
                     let pids = if self.plugin.accepts_pid_list() {
-                        fields[2]
+                        fields
+                            .at(2)?
                             .split([',', ' '])
                             .filter(|s| !s.is_empty())
                             .map(|s| s.parse::<u32>().context("PID 列表无效"))
@@ -69,15 +71,19 @@ impl App {
                             | Plugin::WinSkeletonKeyCheck
                     ) || self.plugin.accepts_pid_list()
                         || !self.plugin.descriptor().columns.contains(&"PID")
-                        || fields[2].trim().is_empty()
+                        || fields.at(2)?.trim().is_empty()
                     {
                         None
                     } else {
-                        Some(fields[2].trim().parse::<u32>().context("PID 无效")?)
+                        Some(fields.at(2)?.trim().parse::<u32>().context("PID 无效")?)
                     };
                     anyhow::ensure!(pids.len() <= 4096, "PID 列表超过 4096 项");
                     if self.plugin.is_regex_scan() {
-                        fields[15].trim().parse::<i64>().context("maxsize 无效")?;
+                        fields
+                            .at(15)?
+                            .trim()
+                            .parse::<i64>()
+                            .context("maxsize 无效")?;
                     }
                     anyhow::ensure!(
                         self.plugin != Plugin::WinPrintkey || hive.is_some(),
@@ -85,10 +91,10 @@ impl App {
                     );
                     let strings_file = if self.plugin == Plugin::WinStrings {
                         anyhow::ensure!(
-                            !fields[21].trim().is_empty(),
+                            !fields.at(21)?.trim().is_empty(),
                             "Strings 必须填写字符串文件"
                         );
-                        let path = std::path::PathBuf::from(fields[21].trim());
+                        let path = std::path::PathBuf::from(fields.at(21)?.trim());
                         Some(if path.is_absolute() {
                             path
                         } else {
@@ -101,7 +107,8 @@ impl App {
                         strings_file,
                         min_length: if self.plugin == Plugin::WinTruecryptPassphrase {
                             Some(
-                                fields[22]
+                                fields
+                                    .at(22)?
                                     .trim()
                                     .parse::<i64>()
                                     .context("min-length 无效")?,
@@ -113,19 +120,21 @@ impl App {
                             let pe = crate::analysis::PEQuery {
                                 source: Some(
                                     <crate::analysis::PESource as clap::ValueEnum>::from_str(
-                                        fields[17].trim(),
+                                        fields.at(17)?.trim(),
                                         true,
                                     )
                                     .map_err(anyhow::Error::msg)?,
                                 ),
-                                module: Some(fields[18].trim().into()),
-                                names: fields[19]
+                                module: Some(fields.at(18)?.trim().into()),
+                                names: fields
+                                    .at(19)?
                                     .split(';')
                                     .map(str::trim)
                                     .filter(|s| !s.is_empty())
                                     .map(str::to_owned)
                                     .collect(),
-                                addresses: fields[20]
+                                addresses: fields
+                                    .at(20)?
                                     .split([',', ' '])
                                     .filter(|s| !s.is_empty())
                                     .map(|s| parse_address(s).map_err(anyhow::Error::msg))
@@ -137,50 +146,61 @@ impl App {
                             Default::default()
                         },
                         arch: <crate::windows::Architecture as clap::ValueEnum>::from_str(
-                            fields[3].trim(),
+                            fields.at(3)?.trim(),
                             true,
                         )
                         .map_err(anyhow::Error::msg)?,
                         os: self.analysis_options.os,
                         include_threads: self.plugin == Plugin::LinuxPslist
-                            && fields[8]
+                            && fields
+                                .at(8)?
                                 .trim()
                                 .parse::<bool>()
                                 .context("包含线程应为 true/false")?,
                         decorate_comm: self.plugin == Plugin::LinuxPslist
-                            && fields[9]
+                            && fields
+                                .at(9)?
                                 .trim()
                                 .parse::<bool>()
                                 .context("名称标记应为 true/false")?,
                         plain_taints: self.plugin == Plugin::Modxview
-                            && fields[10]
+                            && fields
+                                .at(10)?
                                 .trim()
                                 .parse::<bool>()
                                 .context("模块 taint 简写应为 true/false")?,
                         kallsyms: if self.plugin == Plugin::Kallsyms {
-                            let flags = fields[11..15]
+                            let flags = fields
+                                .at(11..15)?
                                 .iter()
                                 .map(|s| {
                                     s.trim().parse::<bool>().context("符号来源应为 true/false")
                                 })
                                 .collect::<Result<Vec<_>>>()?;
                             crate::analysis::KallsymsOptions {
-                                core: flags[0],
-                                modules: flags[1],
-                                ftrace: flags[2],
-                                bpf: flags[3],
+                                core: *flags.at(0)?,
+                                modules: *flags.at(1)?,
+                                ftrace: *flags.at(2)?,
+                                bpf: *flags.at(3)?,
                             }
                         } else {
                             Default::default()
                         },
                         pids,
                         unresolved: self.plugin == Plugin::PsCallStack
-                            && fields[16]
+                            && fields
+                                .at(16)?
                                 .trim()
                                 .parse::<bool>()
                                 .context("unresolved 应为 true/false")?,
                         maxsize: if self.plugin.is_regex_scan() {
-                            Some(fields[15].trim().parse::<i64>().context("maxsize 无效")?)
+                            Some(
+                                fields
+                                    .at(15)?
+                                    .trim()
+                                    .parse::<i64>()
+                                    .context("maxsize 无效")?,
+                            )
                         } else {
                             None
                         },
@@ -192,18 +212,18 @@ impl App {
                                 | Plugin::WinVadRegExScan
                         ) {
                             anyhow::ensure!(
-                                self.plugin.is_regex_scan() || !fields[7].trim().is_empty(),
+                                self.plugin.is_regex_scan() || !fields.at(7)?.trim().is_empty(),
                                 "扫描插件需要填写搜索模式"
                             );
                             if self.plugin.is_regex_scan() {
-                                crate::byte_regex::ByteRegex::compile(&fields[7], true)?;
+                                crate::byte_regex::ByteRegex::compile(fields.at(7)?, true)?;
                             } else {
-                                crate::pattern::Pattern::parse(fields[7].trim())?;
+                                crate::pattern::Pattern::parse(fields.at(7)?.trim())?;
                             }
                             Some(if self.plugin.is_regex_scan() {
-                                fields[7].clone()
+                                fields.at(7)?.clone()
                             } else {
-                                fields[7].trim().into()
+                                fields.at(7)?.trim().into()
                             })
                         } else {
                             None
@@ -211,11 +231,12 @@ impl App {
                         pid,
                         hive,
                         key: if self.plugin == Plugin::WinPrintkey {
-                            fields[1].clone()
+                            fields.at(1)?.clone()
                         } else {
                             String::new()
                         },
-                        pagefiles: fields[4]
+                        pagefiles: fields
+                            .at(4)?
                             .split([';', '\n'])
                             .filter(|s| !s.trim().is_empty())
                             .map(|s| {
@@ -223,10 +244,10 @@ impl App {
                                     .map_err(anyhow::Error::msg)
                             })
                             .collect::<Result<Vec<_>>>()?,
-                        swapfile: if fields[5].trim().is_empty() {
+                        swapfile: if fields.at(5)?.trim().is_empty() {
                             None
                         } else {
-                            Some(fields[5].trim().into())
+                            Some(fields.at(5)?.trim().into())
                         },
                     })
                 })();

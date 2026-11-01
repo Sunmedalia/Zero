@@ -1,4 +1,5 @@
 //! Project asset registry. Import/remove affects the registry, never source files.
+use crate::bytes::JsonKey as _;
 use crate::{Job, store};
 use anyhow::{Result, ensure};
 use serde::{Deserialize, Serialize};
@@ -290,11 +291,12 @@ pub fn inspect_symbols(path: &Path, job: &Job) -> Result<String> {
                 isf.label,
                 isf.digest,
                 identity.key(),
-                isf.data["metadata"]["zero"]["converter"]
+                *isf.data.key("metadata")["zero"].key("converter")
             ));
             continue;
         }
-        let architecture = isf.data["metadata"]["zero"]["architecture"]
+        let architecture = isf.data.key("metadata")["zero"]
+            .key("architecture")
             .as_str()
             .unwrap_or("未附配置；以完整 banner 匹配为准");
         details.push(format!(
@@ -303,8 +305,8 @@ pub fn inspect_symbols(path: &Path, job: &Job) -> Result<String> {
             isf.digest,
             architecture,
             String::from_utf8_lossy(&isf.banner).trim_end_matches('\0'),
-            isf.data["metadata"]["zero"]["va_bits"],
-            isf.data["metadata"]["zero"]["page_shift"]
+            *isf.data.key("metadata")["zero"].key("va_bits"),
+            *isf.data.key("metadata")["zero"].key("page_shift")
         ));
     }
     let side = path.with_extension("source.json");
@@ -313,7 +315,7 @@ pub fn inspect_symbols(path: &Path, job: &Job) -> Result<String> {
         && let Ok(value) = serde_json::from_slice::<serde_json::Value>(&bytes)
     {
         for key in ["url", "source_url", "package_sha256"] {
-            if let Some(value) = value[key].as_str() {
+            if let Some(value) = value.key(key).as_str() {
                 details.push(format!("{key}: {value}"));
             }
         }

@@ -1,4 +1,5 @@
 //! Native Windows x64 memory analysis. Offsets come from exact ISF types.
+use crate::bytes::{Checked as _, JsonKey as _};
 use crate::{
     Job,
     analysis::Options,
@@ -258,7 +259,7 @@ impl Windows<'_> {
         self.vm
             .read(self.field(address, "_EPROCESS", "ImageFileName")?, &mut b)?;
         let end = b.iter().position(|b| *b == 0).unwrap_or(b.len());
-        let name = String::from_utf8_lossy(&b[..end]).into_owned();
+        let name = String::from_utf8_lossy(b.at(..end)?).into_owned();
         let pid = self.number(address, "_EPROCESS", "UniqueProcessId")?;
         ensure!(
             pid <= u32::MAX as u64 && !name.is_empty() && !name.chars().any(char::is_control),
@@ -419,7 +420,7 @@ impl Windows<'_> {
                 ]);
             }
             for key in ["product", "major", "minor", "product_type", "evidence"] {
-                if let Some(value) = result.kernel_identity["version"].get(key) {
+                if let Some(value) = result.kernel_identity.key("version").get(key) {
                     result.rows.push(vec![key.into(), value.to_string()]);
                 }
             }
@@ -473,14 +474,15 @@ impl Windows<'_> {
             result.complete = threads.complete;
             result.diagnostics = threads.diagnostics;
             for row in threads.rows {
-                let start = u64::from_str_radix(row[5].trim_start_matches("0x"), 16).unwrap_or(0);
-                if self.vm.kernel(start) && row[6].is_empty() {
+                let start =
+                    u64::from_str_radix(row.at(5)?.trim_start_matches("0x"), 16).unwrap_or(0);
+                if self.vm.kernel(start) && row.at(6)?.is_empty() {
                     result.rows.push(vec![
-                        row[0].clone(),
-                        row[2].clone(),
-                        row[3].clone(),
-                        row[5].clone(),
-                        row[7].clone(),
+                        row.at(0)?.clone(),
+                        row.at(2)?.clone(),
+                        row.at(3)?.clone(),
+                        row.at(5)?.clone(),
+                        row.at(7)?.clone(),
                     ]);
                 }
             }
@@ -591,7 +593,7 @@ impl Windows<'_> {
                 result.diagnostics.extend(diagnostics);
             }
             if let Some(owner) = owners.first() {
-                result.kernel_identity["registry_process"] = serde_json::json!({"pid":owner.pid,"address":owner.address,"dtb":registry.vm.root,"kernel_dtb":self.vm.root});
+                *result.kernel_identity.key_mut("registry_process")? = serde_json::json!({"pid":owner.pid,"address":owner.address,"dtb":registry.vm.root,"kernel_dtb":self.vm.root});
             }
             return Ok(result);
         }

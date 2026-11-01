@@ -1,5 +1,6 @@
 //! External decimal strings output, attributed using the fixed Strings mapping contract.
 use super::*;
+use crate::bytes::{Checked as _, JsonKey as _};
 use std::collections::{BTreeMap, BTreeSet};
 use std::io::Read;
 use std::path::Path;
@@ -16,26 +17,27 @@ fn word(b: u8) -> bool {
 /// In particular, group two keeps the newline, and digit-only lines backtrack.
 fn parse_line(bytes: &[u8]) -> Option<Entry> {
     let start = bytes.iter().position(|b| word(*b))?;
-    if !bytes[start].is_ascii_digit() {
+    if !bytes.get(start)?.is_ascii_digit() {
         return None;
     }
     let end = start
-        + bytes[start..]
+        + bytes
+            .get(start..)?
             .iter()
             .take_while(|b| b.is_ascii_digit())
             .count();
     for cut in (start + 1..=end).rev() {
         let mut at = cut;
-        while at < bytes.len() && !word(bytes[at]) {
+        while at < bytes.len() && !word(*bytes.get(at)?) {
             at += 1;
         }
         if at.checked_add(1)? >= bytes.len() {
             continue;
         }
-        let address = bytes[start..cut].iter().try_fold(0u64, |value, b| {
+        let address = bytes.get(start..cut)?.iter().try_fold(0u64, |value, b| {
             value.checked_mul(10)?.checked_add(u64::from(b - b'0'))
         })?;
-        let text = bytes[at..].iter().map(|b| char::from(*b)).collect();
+        let text = bytes.get(at..)?.iter().map(|b| char::from(*b)).collect();
         return Some(Entry { address, text });
     }
     None
@@ -68,7 +70,7 @@ impl Input {
                 bytes.len() + n <= usize::try_from(INPUT_LIMIT)?,
                 "字符串文件读取时超过 64 MiB"
             );
-            bytes.extend_from_slice(&chunk[..n]);
+            bytes.extend_from_slice(chunk.at(..n)?);
         }
         ensure!(
             stamp == crate::image::metadata_stamp(&file.metadata()?)?,
@@ -238,7 +240,7 @@ impl Windows<'_> {
             ]);
         }
         input.validate(path)?;
-        result.kernel_identity["strings_input"] = serde_json::json!({
+        *result.kernel_identity.key_mut("strings_input")? = serde_json::json!({
             "path":path.display().to_string(),"sha256":input.sha256,"invalid_lines":input.invalid,
             "records":input.rows.len(),"queried_pages":targets.len(),"owner_members":count,
             "mapping_contract":"pinned v2.28.2: kernel physical keys, process virtual keys",

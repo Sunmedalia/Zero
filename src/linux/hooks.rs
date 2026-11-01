@@ -1,6 +1,7 @@
 //! Kernel hook surfaces: netfilter hooks, tracepoint probes, ftrace
 //! callbacks and loaded eBPF programs.
 use super::*;
+use crate::bytes::JsonKey as _;
 
 const HOOK_LIMIT: usize = 65536;
 /// NF_INET_NUMHOOKS; ARP uses the first three slots.
@@ -58,14 +59,16 @@ impl Linux<'_> {
             ]);
         };
         if let Ok(table) = self.isf.address("nf_hooks") {
-            let families = self.isf.data["symbols"]["nf_hooks"]["type"]["count"]
+            let families = self.isf.data.key("symbols")["nf_hooks"].key("type")["count"]
                 .as_u64()
                 .context("nf_hooks 缺少协议数")?;
-            let hooks = self.isf.data["symbols"]["nf_hooks"]["type"]["subtype"]["count"]
+            let hooks = self.isf.data.key("symbols")["nf_hooks"].key("type")["subtype"]
+                .key("count")
                 .as_u64()
                 .context("nf_hooks 缺少 hook 数")?;
             ensure!(families <= 32 && hooks <= 16, "nf_hooks 维度无效");
-            let size = self.isf.data["user_types"]["list_head"]["size"]
+            let size = self.isf.data.key("user_types")["list_head"]
+                .key("size")
                 .as_u64()
                 .unwrap_or(16);
             let offset = self.isf.offset("nf_hook_ops", "list")?;
@@ -120,7 +123,8 @@ impl Linux<'_> {
                 if self.isf.field("netns_nf", field).is_err() {
                     continue;
                 }
-                let count = self.isf.field("netns_nf", field)?["type"]["count"]
+                let count = self.isf.field("netns_nf", field)?["type"]
+                    .key("count")
                     .as_u64()
                     .context("netns_nf hook 数缺失")?;
                 ensure!(count <= 16, "netns_nf hook 数无效");
@@ -138,7 +142,8 @@ impl Linux<'_> {
                             "nf_hook_entries 数量超限"
                         );
                         let hooks = self.field_address(entries, "nf_hook_entries", "hooks")?;
-                        let size = self.isf.data["user_types"]["nf_hook_entry"]["size"]
+                        let size = self.isf.data.key("user_types")["nf_hook_entry"]
+                            .key("size")
                             .as_u64()
                             .context("nf_hook_entry 大小缺失")?;
                         // The original nf_hook_ops pointers follow the hooks array.
@@ -193,12 +198,14 @@ impl Linux<'_> {
             "tracepoint 指针表无效"
         );
         // Since 4.19 the table may hold 32-bit relative offsets.
-        let relative = self.isf.data["metadata"]["zero"]["tracepoint_relative"]
+        let relative = self.isf.data.key("metadata")["zero"]
+            .key("tracepoint_relative")
             .as_bool()
             .unwrap_or(false);
         let width = if relative { 4 } else { 8 };
         let code = self.code_map(job)?;
-        let size = self.isf.data["user_types"]["tracepoint_func"]["size"]
+        let size = self.isf.data.key("user_types")["tracepoint_func"]
+            .key("size")
             .as_u64()
             .context("tracepoint_func 大小缺失")?;
         for slot in (start..stop).step_by(width) {
@@ -321,7 +328,8 @@ impl Linux<'_> {
             .address("prog_idr")
             .context("不支持: 缺少 prog_idr（内核早于 4.13 或未启用 BPF syscall）")?;
         let xa = self.field_address(idr, "idr", "idr_rt")?;
-        let types = self.isf.data["enums"]["bpf_prog_type"]["constants"]
+        let types = self.isf.data.key("enums")["bpf_prog_type"]
+            .key("constants")
             .as_object()
             .cloned()
             .unwrap_or_default();

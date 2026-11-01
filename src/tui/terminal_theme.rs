@@ -51,7 +51,7 @@ fn query() -> Option<bool> {
         if read <= 0 {
             break;
         }
-        reply.extend_from_slice(&bytes[..read as usize]);
+        reply.extend_from_slice(bytes.get(..read as usize)?);
         let value = String::from_utf8_lossy(&reply);
         if value.contains("\x1b[?") && value.ends_with('c') {
             break;

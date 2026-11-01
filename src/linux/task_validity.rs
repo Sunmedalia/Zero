@@ -1,5 +1,6 @@
 //! Pinned task_struct validity and directional list selection for standard plugins.
 use super::*;
+use crate::bytes::JsonKey as _;
 
 fn reference_comm(bytes: &[u8]) -> String {
     String::from_utf8_lossy(bytes)
@@ -41,7 +42,8 @@ impl Linux<'_> {
         } else {
             bail!("找不到线程组列表布局");
         };
-        let size = self.isf.data["user_types"]["list_head"]["size"]
+        let size = self.isf.data.key("user_types")["list_head"]
+            .key("size")
             .as_u64()
             .context("list_head 缺少大小")?;
         let mut threads = Vec::new();
@@ -100,14 +102,15 @@ impl Linux<'_> {
         let signed = ty["kind"] == "base"
             && ty["name"]
                 .as_str()
-                .is_some_and(|name| self.isf.data["base_types"][name]["signed"] == true);
+                .is_some_and(|name| *self.isf.data.key("base_types")[name].key("signed") == true);
         let size = self.isf.size("task_struct", field)?;
         ensure!(matches!(size, 1 | 2 | 4 | 8), "任务 ID 宽度无效");
         Ok(signed && value & (1 << (size * 8 - 1)) != 0)
     }
 
     pub(super) fn reference_task_valid(&self, task: u64) -> Result<bool> {
-        let size = self.isf.data["user_types"]["task_struct"]["size"]
+        let size = self.isf.data.key("user_types")["task_struct"]
+            .key("size")
             .as_u64()
             .context("task_struct 缺少大小")?;
         if !self.task_span_readable(task, size)?
@@ -137,7 +140,8 @@ impl Linux<'_> {
     pub(super) fn reference_process_rows(&self, plugin: Plugin, job: &Job) -> Result<Results> {
         let offset = self.isf.offset("task_struct", "tasks")?;
         let head = self.field_address(self.isf.address("init_task")?, "task_struct", "tasks")?;
-        let link_size = self.isf.data["user_types"]["list_head"]["size"]
+        let link_size = self.isf.data.key("user_types")["list_head"]
+            .key("size")
             .as_u64()
             .context("list_head 缺少大小")?;
         let mut result = self.result(plugin);

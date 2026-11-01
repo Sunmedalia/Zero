@@ -2,6 +2,7 @@
 //! Structural facts: mandiant/win10_rekall, win10_memcompression research (2019).
 //! Windows 11 SmPa indirection and size flags: ufrisk/MemProcFS vmm/mm/mm_win.c.
 use super::*;
+use crate::bytes::JsonKey as _;
 #[derive(Default)]
 pub(super) struct State {
     pages: BTreeMap<(u64, u64), Vec<u8>>,
@@ -78,7 +79,8 @@ impl paging::Sources {
         let row = kernel
             .vm
             .pointer(add(array, u64::from(store_index >> 5) * width)?)?;
-        let meta_size = vm.isf.data["user_types"]["_SMKM_STORE_METADATA"]["size"]
+        let meta_size = vm.isf.data.key("user_types")["_SMKM_STORE_METADATA"]
+            .key("size")
             .as_u64()
             .context("缺少 store metadata 尺寸")?;
         ensure!(
@@ -258,7 +260,8 @@ fn tree_search(vm: &Memory<'_>, mut tree: u64, key: u32, job: &Job) -> Result<u3
         let stride = if leaf {
             8
         } else {
-            vm.isf.data["user_types"]["_B_TREE_NODE"]["size"]
+            vm.isf.data.key("user_types")["_B_TREE_NODE"]
+                .key("size")
                 .as_u64()
                 .context("缺少 store B-tree node 尺寸")?
         };

@@ -1,5 +1,6 @@
 use super::memory::protection;
 use super::*;
+use crate::bytes::Checked as _;
 use sha2::{Digest, Sha256};
 use std::io::Write;
 impl Windows<'_> {
@@ -390,13 +391,13 @@ pub(super) fn reconstruct_pe(
     read(base, &mut b)?;
     let (image_size, _) = pe_header(&b)?;
     let pe = u32::from_le_bytes(b[60..64].try_into()?) as usize;
-    let sections = u16::from_le_bytes(b[pe + 6..pe + 8].try_into()?) as usize;
-    let optional = u16::from_le_bytes(b[pe + 20..pe + 22].try_into()?) as usize;
+    let sections = u16::from_le_bytes(b.at(pe + 6..pe + 8)?.try_into()?) as usize;
+    let optional = u16::from_le_bytes(b.at(pe + 20..pe + 22)?.try_into()?) as usize;
     ensure!(
         sections <= 96 && pe + 24 + optional + sections * 40 <= 4096,
         "PE 节表越界"
     );
-    let headers = u32::from_le_bytes(b[pe + 84..pe + 88].try_into()?) as u64;
+    let headers = u32::from_le_bytes(b.at(pe + 84..pe + 88)?.try_into()?) as u64;
     ensure!(
         headers <= 4096 && headers >= ((pe + 24 + optional + sections * 40) as u64),
         "PE SizeOfHeaders 无效"
@@ -405,9 +406,9 @@ pub(super) fn reconstruct_pe(
     let mut size = headers;
     for i in 0..sections {
         let section = pe + 24 + optional + i * 40;
-        let rva = u32::from_le_bytes(b[section + 12..section + 16].try_into()?) as u64;
-        let len = u32::from_le_bytes(b[section + 16..section + 20].try_into()?) as u64;
-        let raw = u32::from_le_bytes(b[section + 20..section + 24].try_into()?) as u64;
+        let rva = u32::from_le_bytes(b.at(section + 12..section + 16)?.try_into()?) as u64;
+        let len = u32::from_le_bytes(b.at(section + 16..section + 20)?.try_into()?) as u64;
+        let raw = u32::from_le_bytes(b.at(section + 20..section + 24)?.try_into()?) as u64;
         if len == 0 {
             continue;
         }
@@ -432,8 +433,8 @@ pub(super) fn reconstruct_pe(
         while position < raw {
             job.check()?;
             let n = usize::try_from(raw - position)?.min(zeros.len());
-            file.write_all(&zeros[..n])?;
-            hash.update(&zeros[..n]);
+            file.write_all(zeros.at(..n)?)?;
+            hash.update(zeros.at(..n)?);
             position += n as u64;
         }
         write_reader(read, add(base, rva)?, len, file, hash, job)?;
@@ -489,9 +490,9 @@ pub(super) fn write_reader(
     while size > 0 {
         job.check()?;
         let n = usize::try_from(size)?.min(b.len());
-        read(address, &mut b[..n])?;
-        file.write_all(&b[..n])?;
-        hash.update(&b[..n]);
+        read(address, b.at_mut(..n)?)?;
+        file.write_all(b.at(..n)?)?;
+        hash.update(b.at(..n)?);
         address += n as u64;
         size -= n as u64;
     }

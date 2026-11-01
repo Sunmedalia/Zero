@@ -1,5 +1,6 @@
 //! Compare independently captured process identity sources (Volatility ProcessSpoofing).
 use super::*;
+use crate::bytes::Checked as _;
 
 // PurePosixPath.name semantics: ignore trailing separators and dot components.
 fn basename(path: &str) -> Option<&str> {
@@ -112,7 +113,7 @@ impl Linux<'_> {
                         .iter()
                         .position(|byte| *byte == 0)
                         .unwrap_or(bytes.len());
-                    let text = String::from_utf8_lossy(&bytes[..end]);
+                    let text = String::from_utf8_lossy(bytes.at(..end)?);
                     Ok(basename(&text).map(str::to_owned))
                 })();
                 match read {

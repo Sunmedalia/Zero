@@ -1,5 +1,6 @@
 //! windows.timeliner: one time-ordered view over the timestamped plugins.
 use super::*;
+use crate::bytes::JsonKey as _;
 
 /// FILETIME ticks between 1601-01-01 and the Unix epoch.
 const EPOCH_TICKS: u64 = 116_444_736_000_000_000;
@@ -105,7 +106,7 @@ impl Windows<'_> {
                 ]
             })
             .collect();
-        r.kernel_identity["coverage"] = serde_json::json!(
+        *r.kernel_identity.key_mut("coverage")? = serde_json::json!(
             "pslist, netscan, symlinkscan, userassist, scheduled_tasks, amcache and mftscan timestamps"
         );
         Ok(r)

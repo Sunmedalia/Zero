@@ -1,6 +1,7 @@
 //! Kernel tables and carved module entries: the native system service table
 //! and `MmLd` pool allocations cross-checked against PsLoadedModuleList.
 use super::*;
+use crate::bytes::{Checked as _, JsonKey as _};
 use drivers::module_at;
 use objects::physical_number;
 
@@ -12,7 +13,11 @@ impl Windows<'_> {
     /// Sorted kernel symbols as virtual addresses, for naming code pointers.
     fn kernel_symbols(&self) -> Result<Vec<(u64, String)>> {
         let mut symbols = Vec::new();
-        for (name, value) in self.vm.isf.data["symbols"]
+        for (name, value) in self
+            .vm
+            .isf
+            .data
+            .key("symbols")
             .as_object()
             .context("ISF symbols 缺失")?
         {
@@ -91,7 +96,7 @@ impl Windows<'_> {
                 Err(e) => Self::issue(&mut r, format!("KiServiceTable[{index}]"), format!("{e:#}")),
             }
         }
-        r.kernel_identity["coverage"] = serde_json::json!(
+        *r.kernel_identity.key_mut("coverage")? = serde_json::json!(
             "native KiServiceTable only; the win32k shadow table needs a GUI session space"
         );
         Ok(r)
@@ -101,7 +106,8 @@ impl Windows<'_> {
         let mut r = self.result(Plugin::WinModscan);
         let ty = self.module_type()?;
         let isf = self.vm.isf;
-        let size = isf.data["user_types"][ty]["size"]
+        let size = isf.data.key("user_types")[ty]
+            .key("size")
             .as_u64()
             .context("缺少模块条目大小")?;
         ensure!((32..=4096).contains(&size), "模块条目大小无效");
@@ -120,7 +126,7 @@ impl Windows<'_> {
                 continue;
             }
             for delta in (0..=length - size).step_by(align) {
-                let entry = &block[usize::try_from(delta)?..usize::try_from(delta + size)?];
+                let entry = block.at(usize::try_from(delta)?..usize::try_from(delta + size)?)?;
                 let Ok((base, image, name, path)) = self.carved_module(entry, ty) else {
                     continue;
                 };
@@ -138,7 +144,7 @@ impl Windows<'_> {
                 break;
             }
         }
-        r.kernel_identity["coverage"] = serde_json::json!(
+        *r.kernel_identity.key_mut("coverage")? = serde_json::json!(
             "MmLd pool allocations; freed entries can remain and paged-out names are skipped"
         );
         Ok(r)
@@ -212,7 +218,8 @@ impl Windows<'_> {
             return Ok(());
         }
         ensure!(self.vm.kernel(table), "PoolBigPageTable 指针无效");
-        let size = self.vm.isf.data["user_types"][ty]["size"]
+        let size = self.vm.isf.data.key("user_types")[ty]
+            .key("size")
             .as_u64()
             .context("缺少 _POOL_TRACKER_BIG_PAGES")?;
         ensure!((8..=64).contains(&size), "大页池表项大小无效");
@@ -310,10 +317,14 @@ impl Windows<'_> {
         r.diagnostics = drivers.diagnostics.clone();
         for driver in drivers.rows {
             job.check()?;
-            let address = u64::from_str_radix(driver[0].trim_start_matches("0x"), 16)?;
-            if let Err(e) = self.driver_devices(address, &driver[1], &mut r, job) {
+            let address = u64::from_str_radix(driver.at(0)?.trim_start_matches("0x"), 16)?;
+            if let Err(e) = self.driver_devices(address, driver.at(1)?, &mut r, job) {
                 job.check()?;
-                Self::issue(&mut r, format!("driver {}", driver[1]), format!("{e:#}"));
+                Self::issue(
+                    &mut r,
+                    format!("driver {}", *driver.at(1)?),
+                    format!("{e:#}"),
+                );
             }
         }
         Ok(r)
@@ -423,7 +434,8 @@ impl Windows<'_> {
             ty = &ty["subtype"];
         }
         ensure!(count <= 4096, "TimerEntries 数量无效");
-        let entry_size = isf.data["user_types"]["_KTIMER_TABLE_ENTRY"]["size"]
+        let entry_size = isf.data.key("user_types")["_KTIMER_TABLE_ENTRY"]
+            .key("size")
             .as_u64()
             .context("缺少 _KTIMER_TABLE_ENTRY 大小")?;
         let list = isf.offset("_KTIMER_TABLE_ENTRY", "Entry")?;
@@ -532,7 +544,7 @@ impl Windows<'_> {
                 continue;
             }
             ensure!(visited.len() <= MAX_OBJECTS, "页表数量超过上限");
-            let shift = geometry.shifts()[level];
+            let shift = *geometry.shifts().at(level)?;
             let leaf = level + 1 == geometry.shifts().len();
             for index in from..to {
                 let entry = match geometry.entry(self.vm.image, table, index) {
@@ -591,7 +603,7 @@ impl Windows<'_> {
                 stats.shared_tables.to_string(),
             ],
         ];
-        r.kernel_identity["coverage"] = serde_json::json!(
+        *r.kernel_identity.key_mut("coverage")? = serde_json::json!(
             "kernel half of the validated kernel page tables; software PTEs include paged-out, demand-zero and prototype entries"
         );
         Ok(r)
@@ -608,28 +620,31 @@ impl Windows<'_> {
             .context("不支持: 缺少 MiVisibleState（Windows 10 之前的布局）")?;
         // Public symbols carry no type; MiVisibleState is a pointer variable
         // unless the ISF explicitly types it as the structure itself.
-        let state = if isf.data["symbols"]["MiVisibleState"]["type"]["kind"] == "struct" {
+        let state = if isf.data.key("symbols")["MiVisibleState"].key("type")["kind"] == "struct" {
             symbol
         } else {
             self.vm.pointer(symbol)?
         };
         ensure!(self.vm.kernel(state), "MiVisibleState 无效");
-        let count = isf.field("_MI_VISIBLE_STATE", "SystemVaRegions")?["type"]["count"]
+        let count = isf.field("_MI_VISIBLE_STATE", "SystemVaRegions")?["type"]
+            .key("count")
             .as_u64()
             .context("SystemVaRegions 长度缺失")?;
         ensure!(count <= 64, "SystemVaRegions 长度无效");
-        let size = isf.data["user_types"]["_MI_SYSTEM_VA_ASSIGNMENT"]["size"]
+        let size = isf.data.key("user_types")["_MI_SYSTEM_VA_ASSIGNMENT"]
+            .key("size")
             .as_u64()
             .context("缺少 _MI_SYSTEM_VA_ASSIGNMENT 大小")?;
         let regions = self.field(state, "_MI_VISIBLE_STATE", "SystemVaRegions")?;
         // SystemVaRegions is indexed by _MI_ASSIGNED_REGION_TYPES, whose
         // order differs between builds; older layouts reuse the VA type.
-        let names_enum = if isf.data["enums"]["_MI_ASSIGNED_REGION_TYPES"].is_object() {
+        let names_enum = if isf.data.key("enums")["_MI_ASSIGNED_REGION_TYPES"].is_object() {
             "_MI_ASSIGNED_REGION_TYPES"
         } else {
             "_MI_SYSTEM_VA_TYPE"
         };
-        let names: BTreeMap<u64, String> = isf.data["enums"][names_enum]["constants"]
+        let names: BTreeMap<u64, String> = isf.data.key("enums")[names_enum]
+            .key("constants")
             .as_object()
             .map(|constants| {
                 constants

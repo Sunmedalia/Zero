@@ -1,5 +1,6 @@
 //! Asset inventory refresh and the list, text and detail views built from it.
 use super::*;
+use crate::bytes::JsonKey as _;
 
 impl App {
     pub(super) fn refresh_assets(&mut self) {
@@ -46,7 +47,7 @@ impl App {
                         && side.metadata().is_ok_and(|m| m.len() <= 1024 * 1024)
                         && let Ok(bytes) = std::fs::read(side)
                         && let Ok(value) = serde_json::from_slice::<serde_json::Value>(&bytes)
-                        && let Some(url) = value["url"].as_str()
+                        && let Some(url) = value.key("url").as_str()
                     {
                         self.downloads.insert(url.into(), asset.path.clone());
                         if asset.origin == "下载／生成" {
@@ -244,7 +245,7 @@ impl App {
     }
     pub(super) fn selected_asset(&self) -> Option<Asset> {
         self.asset_list()
-            .get(self.asset_rows[self.section.slot()])
+            .get(*self.asset_rows.get(self.section.slot())?)
             .map(|a| (*a).clone())
     }
     pub(super) fn asset_text(&self) -> String {

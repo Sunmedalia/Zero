@@ -1,5 +1,6 @@
 //! Native byte-regex scans over task VMAs, backed by shared resident-range scans.
 use super::*;
+use crate::bytes::JsonKey as _;
 use crate::{analysis::Options, byte_regex::ByteRegex, regex_scan};
 impl Linux<'_> {
     pub(super) fn vma_regex_scan(&self, options: &Options, job: &Job) -> Result<Results> {
@@ -160,7 +161,7 @@ impl Linux<'_> {
         if !result.kernel_identity.is_object() {
             result.kernel_identity = serde_json::json!({});
         }
-        result.kernel_identity["vma_regex_scan"] = serde_json::json!({"engine":"PCRE2 bytes; no UTF/UCP/JIT","mapping_policy":if self.vm.image.arm64_va_bits.load(std::sync::atomic::Ordering::Relaxed)==0 {"pinned_intel"}else{"native_arm64"},"scan_dotall":true,"display_dotall":false,"maxsize":maxsize,"requested_maxsize":options.maxsize,"pids":pids,"chunk_bytes":16*1024*1024,"overlap_bytes":4096,"match_limit":crate::byte_regex::MATCH_LIMIT,"depth_limit":crate::byte_regex::DEPTH_LIMIT,"heap_kib":crate::byte_regex::HEAP_KIB,"subject_work_limit":crate::byte_regex::WORK_LIMIT,"output_limit":output_limit,"metadata_truncated":metadata_truncated,"processes":process_reports});
+        *result.kernel_identity.key_mut("vma_regex_scan")? = serde_json::json!({"engine":"PCRE2 bytes; no UTF/UCP/JIT","mapping_policy":if self.vm.image.arm64_va_bits.load(std::sync::atomic::Ordering::Relaxed)==0 {"pinned_intel"}else{"native_arm64"},"scan_dotall":true,"display_dotall":false,"maxsize":maxsize,"requested_maxsize":options.maxsize,"pids":pids,"chunk_bytes":16*1024*1024,"overlap_bytes":4096,"match_limit":crate::byte_regex::MATCH_LIMIT,"depth_limit":crate::byte_regex::DEPTH_LIMIT,"heap_kib":crate::byte_regex::HEAP_KIB,"subject_work_limit":crate::byte_regex::WORK_LIMIT,"output_limit":output_limit,"metadata_truncated":metadata_truncated,"processes":process_reports});
         Ok(result)
     }
 }

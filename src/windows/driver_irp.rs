@@ -1,6 +1,7 @@
 //! Symbol-driven driver pool objects and independent dispatch-entry reads.
 use super::dispatch::DispatchModules;
 use super::*;
+use crate::bytes::{Checked as _, JsonKey as _};
 
 const IRPS: [&str; 28] = [
     "IRP_MJ_CREATE",
@@ -67,7 +68,7 @@ impl Windows<'_> {
             ensure!(matches!(size, 1 | 2 | 4 | 8), "驱动名称标量宽度无效");
             if physical {
                 let mut bytes = [0; 8];
-                self.vm.image.read(at, &mut bytes[..size])?;
+                self.vm.image.read(at, bytes.at_mut(..size)?)?;
                 Ok(u64::from_le_bytes(bytes))
             } else {
                 self.vm.uint(at, size)
@@ -102,7 +103,7 @@ impl Windows<'_> {
         let read = |at, size| -> Result<u64> {
             if physical {
                 let mut bytes = [0; 8];
-                self.vm.image.read(at, &mut bytes[..size])?;
+                self.vm.image.read(at, bytes.at_mut(..size)?)?;
                 Ok(u64::from_le_bytes(bytes))
             } else {
                 self.vm.uint(at, size)
@@ -165,13 +166,14 @@ impl Windows<'_> {
         let kernel_start = self.driver_kernel_start()?;
         let field = self.vm.isf.field("_DRIVER_OBJECT", "MajorFunction")?;
         ensure!(
-            field["type"]["kind"] == "array"
-                && field["type"]["count"] == 28
-                && field["type"]["subtype"]["kind"] == "pointer",
+            *field["type"].key("kind") == "array"
+                && *field["type"].key("count") == 28
+                && field["type"].key("subtype")["kind"] == "pointer",
             "MajorFunction 布局不是 28 个指针"
         );
         let major = self.vm.isf.offset("_DRIVER_OBJECT", "MajorFunction")?;
-        let size = self.vm.isf.data["user_types"]["_DRIVER_OBJECT"]["size"]
+        let size = self.vm.isf.data.key("user_types")["_DRIVER_OBJECT"]
+            .key("size")
             .as_u64()
             .context("缺少驱动大小")?;
         ensure!(
@@ -203,7 +205,7 @@ impl Windows<'_> {
                     let mut bytes = [0u8; 8];
                     self.vm
                         .image
-                        .read(slot, &mut bytes[..self.vm.pointer_size()])
+                        .read(slot, bytes.at_mut(..self.vm.pointer_size())?)
                         .map(|()| u64::from_le_bytes(bytes))
                 } else {
                     self.vm.pointer(slot)
@@ -238,8 +240,9 @@ impl Windows<'_> {
                 }
             }
         }
-        r.kernel_identity["dispatch_symbols"] = modules.evidence(resources);
-        r.kernel_identity["driver_kernel_space_start"] = serde_json::json!(hex(kernel_start));
+        *r.kernel_identity.key_mut("dispatch_symbols")? = modules.evidence(resources);
+        *r.kernel_identity.key_mut("driver_kernel_space_start")? =
+            serde_json::json!(hex(kernel_start));
         Ok(())
     }
 }

@@ -1,5 +1,6 @@
 //! Object validation behind pool scanning: reference type maps, process and thread checks.
 use super::*;
+use crate::bytes::{Checked as _, JsonKey as _};
 
 impl Windows<'_> {
     pub(in crate::windows) fn reference_dispatch_drivers(
@@ -7,7 +8,8 @@ impl Windows<'_> {
         result: &mut Results,
         job: &Job,
     ) -> Result<Vec<(u64, u64)>> {
-        let type_size = self.vm.isf.data["user_types"]["_DRIVER_OBJECT"]["size"]
+        let type_size = self.vm.isf.data.key("user_types")["_DRIVER_OBJECT"]
+            .key("size")
             .as_u64()
             .context("缺少驱动对象大小")?;
         ensure!((16..=65536).contains(&type_size), "驱动对象大小无效");
@@ -51,7 +53,7 @@ impl Windows<'_> {
                 }
             }
         }
-        result.kernel_identity["driver_pool"] = serde_json::json!({"source":"shared reference pool constraints and carving","offset_layer":if self.build_number()?>=10240 {"primary virtual"}else{"physical"},"driver_count":out.len(),"rejected_candidate_reads":candidate_read_failures,"driver_start":"8 readable bytes; zero or strictly above masked MmSystemRangeStart"});
+        *result.kernel_identity.key_mut("driver_pool")? = serde_json::json!({"source":"shared reference pool constraints and carving","offset_layer":if self.build_number()?>=10240 {"primary virtual"}else{"physical"},"driver_count":out.len(),"rejected_candidate_reads":candidate_read_failures,"driver_start":"8 readable bytes; zero or strictly above masked MmSystemRangeStart"});
         Ok(out)
     }
     pub(super) fn reference_driver_start(
@@ -366,7 +368,7 @@ impl Windows<'_> {
         virtual_scan: bool,
     ) -> Result<u64> {
         let raw = self.pool_value(body, ty, field, virtual_scan)?;
-        let kind = self.vm.isf.field(ty, field)?["type"]["kind"].as_str();
+        let kind = self.vm.isf.field(ty, field)?["type"].key("kind").as_str();
         // EPROCESS's array DTB is cast to a native pointer by the reference.
         if kind == Some("pointer") || (field == "Pcb.DirectoryTableBase" && kind == Some("array")) {
             Ok(self.pool_reference_pointer(raw))
@@ -390,7 +392,7 @@ impl Windows<'_> {
                     .iter()
                     .position(|byte| *byte == 0)
                     .unwrap_or(bytes.len());
-                Ok(Some(String::from_utf8_lossy(&bytes[..end]).into_owned()))
+                Ok(Some(String::from_utf8_lossy(bytes.at(..end)?).into_owned()))
             }
             Some("File") => {
                 // The reference generator skips a file whose name faults and

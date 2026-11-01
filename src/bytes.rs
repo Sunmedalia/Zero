@@ -1,5 +1,6 @@
 //! Bounds-checked integers from untrusted image bytes. `None` means truncated input.
 #![cfg_attr(not(test), deny(clippy::indexing_slicing))]
+use std::slice::SliceIndex;
 fn array<const N: usize>(bytes: &[u8], at: usize) -> Option<[u8; N]> {
     bytes.get(at..at.checked_add(N)?)?.first_chunk().copied()
 }
@@ -23,6 +24,84 @@ pub(crate) fn low_u32(value: u64) -> u32 {
     let [a, b, c, d, ..] = value.to_le_bytes();
     u32::from_le_bytes([a, b, c, d])
 }
+/// Checked slice and string access. An out-of-range index becomes an error naming the
+/// source line, so corrupt input fails visibly instead of panicking or reading as empty.
+pub(crate) trait Checked {
+    #[track_caller]
+    fn at<I: SliceIndex<Self>>(&self, index: I) -> anyhow::Result<&I::Output>;
+    #[track_caller]
+    fn at_mut<I: SliceIndex<Self>>(&mut self, index: I) -> anyhow::Result<&mut I::Output>;
+}
+#[cold]
+#[track_caller]
+fn out_of_range() -> anyhow::Error {
+    anyhow::anyhow!("索引越界: {}", std::panic::Location::caller())
+}
+macro_rules! checked {
+    ($($type:ty, [$($generic:ident)?]);*) => {$(
+        impl<$($generic)?> Checked for $type {
+            #[inline]
+            #[track_caller]
+            fn at<I: SliceIndex<Self>>(&self, index: I) -> anyhow::Result<&I::Output> {
+                match self.get(index) {
+                    Some(value) => Ok(value),
+                    None => Err(out_of_range()),
+                }
+            }
+            #[inline]
+            #[track_caller]
+            fn at_mut<I: SliceIndex<Self>>(&mut self, index: I) -> anyhow::Result<&mut I::Output> {
+                match self.get_mut(index) {
+                    Some(value) => Ok(value),
+                    None => Err(out_of_range()),
+                }
+            }
+        }
+    )*};
+}
+checked!([T], [T]; str, []);
+/// Checked map lookup; a missing key is an error, as it would be a panic through `Index`.
+pub(crate) trait MapAt<K, V> {
+    #[track_caller]
+    fn at<Q: Ord + ?Sized>(&self, key: &Q) -> anyhow::Result<&V>
+    where
+        K: std::borrow::Borrow<Q> + Ord;
+}
+impl<K, V> MapAt<K, V> for std::collections::BTreeMap<K, V> {
+    #[inline]
+    #[track_caller]
+    fn at<Q: Ord + ?Sized>(&self, key: &Q) -> anyhow::Result<&V>
+    where
+        K: std::borrow::Borrow<Q> + Ord,
+    {
+        match self.get(key) {
+            Some(value) => Ok(value),
+            None => Err(out_of_range()),
+        }
+    }
+}
+/// `serde_json` access without the `Index` operators. `key` keeps their read behavior, a
+/// missing key is `Null`; `key_mut` reports a non-object instead of panicking.
+pub(crate) trait JsonKey {
+    fn key<I: serde_json::value::Index>(&self, key: I) -> &serde_json::Value;
+    fn key_mut(&mut self, key: impl AsRef<str>) -> anyhow::Result<&mut serde_json::Value>;
+}
+impl JsonKey for serde_json::Value {
+    fn key<I: serde_json::value::Index>(&self, key: I) -> &serde_json::Value {
+        self.get(key).unwrap_or(&serde_json::Value::Null)
+    }
+    fn key_mut(&mut self, key: impl AsRef<str>) -> anyhow::Result<&mut serde_json::Value> {
+        if self.is_null() {
+            *self = serde_json::Value::Object(serde_json::Map::new());
+        }
+        let object = self
+            .as_object_mut()
+            .ok_or_else(|| anyhow::anyhow!("JSON 值不是对象: {}", key.as_ref()))?;
+        Ok(object
+            .entry(key.as_ref())
+            .or_insert(serde_json::Value::Null))
+    }
+}
 /// Terminal cell counts. Anything wider than a screen saturates instead of wrapping.
 pub(crate) trait Cells {
     fn cells(self) -> u16;
@@ -42,6 +121,34 @@ pub(crate) fn float_to_i128(value: f64) -> i128 {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn checked_access_reports_the_caller() {
+        let bytes = [1u8, 2, 3];
+        assert_eq!(bytes.at(1).ok(), Some(&2));
+        assert_eq!(bytes.at(1..).ok(), Some(&[2u8, 3][..]));
+        let error = bytes.at(3).err().map(|e| e.to_string()).unwrap_or_default();
+        assert!(error.contains("src/bytes.rs"), "{error}");
+        assert!("ab".at(5..).is_err());
+        assert!("中".at(1..).is_err());
+        let mut values = vec![0u8; 2];
+        *values.at_mut(1).map_err(|e| e.to_string()).unwrap() = 9;
+        assert_eq!(values, [0, 9]);
+        assert!(values.at_mut(2).is_err());
+    }
+    #[test]
+    fn json_keys_match_index_reads_and_report_bad_writes() {
+        let mut value = serde_json::json!({"a": {"b": 1}, "list": [7]});
+        assert_eq!(value.key("a").key("b"), &value["a"]["b"]);
+        assert!(value.key("missing").key("deeper").is_null());
+        assert_eq!(value.key("list").key(0), &serde_json::json!(7));
+        assert!(value.key("list").key(9).is_null());
+        let mut empty = serde_json::Value::Null;
+        *empty.key_mut("x").map_err(|e| e.to_string()).unwrap() = 1.into();
+        assert_eq!(empty, serde_json::json!({"x": 1}));
+        assert!(value.key_mut("a").is_ok());
+        let mut number = serde_json::json!(1);
+        assert!(number.key_mut("x").is_err());
+    }
     #[test]
     fn cells_and_floats_saturate() {
         assert_eq!(70_000usize.cells(), u16::MAX);

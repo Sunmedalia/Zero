@@ -188,7 +188,7 @@ impl App {
         for (image, children) in groups {
             let name = children
                 .first()
-                .and_then(|item| self.cache_page.summaries.get(&item.paths[0]))
+                .and_then(|item| self.cache_page.summaries.get(item.paths.first()?))
                 .map(|s| self.display_path(&s.source))
                 .filter(|s| !s.is_empty())
                 .unwrap_or_else(|| image.clone());

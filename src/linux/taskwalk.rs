@@ -1,6 +1,7 @@
 //! Independent directional recovery of captured task-list objects.
 use super::*;
 use crate::bytes::float_to_i128;
+use crate::bytes::{Checked as _, JsonKey as _};
 
 fn evidence(result: &mut Results, direction: &str, address: u64, kind: &str, message: String) {
     result.complete = false;
@@ -148,13 +149,13 @@ impl Linux<'_> {
                             .position(|b| *b == 0)
                             .context("任务名称未终止")?;
                         ensure!(
-                            end > 0 && !name[..end].iter().any(|b| b.is_ascii_control()),
+                            end > 0 && !name.at(..end)?.iter().any(|b| b.is_ascii_control()),
                             "任务名称无效"
                         );
                         Ok((
                             pid,
                             tgid,
-                            String::from_utf8_lossy(&name[..end]).into_owned(),
+                            String::from_utf8_lossy(name.at(..end)?).into_owned(),
                         ))
                     })();
                     match identity {
@@ -259,7 +260,7 @@ impl Linux<'_> {
         if include_threads {
             let leaders = std::mem::take(&mut result.rows);
             for row in leaders {
-                let leader = u64::from_str_radix(&row[4][2..], 16)?;
+                let leader = u64::from_str_radix(&row.at(4)?[2..], 16)?;
                 result.rows.push(row);
                 for task in self.reference_threads(leader, job)? {
                     result.rows.push(self.reference_task_row(task)?);
@@ -291,36 +292,41 @@ impl Linux<'_> {
             boot.rows
                 .iter()
                 .find(|r| r[0] == "BootTimeUnix")
-                .context("缺少启动时间")?[1]
+                .context("缺少启动时间")?
+                .at(1)?
                 .parse::<i128>()
                 .context("启动时间无效")
         });
         for row in &mut result.rows {
             job.check()?;
-            let task = u64::from_str_radix(&row[4][2..], 16)?;
+            let task = u64::from_str_radix(&row.at(4)?[2..], 16)?;
             match self
                 .number(task, "task_struct", "real_parent")
                 .and_then(|parent| self.number(parent, "task_struct", "tgid"))
             {
-                Ok(ppid) if ppid <= i32::MAX as u64 => row[2] = ppid.to_string(),
+                Ok(ppid) if ppid <= i32::MAX as u64 => *row.at_mut(2)? = ppid.to_string(),
                 other => {
-                    row[2].clear();
+                    row.at_mut(2)?.clear();
                     result.complete = false;
                     result
                         .diagnostics
-                        .push(format!("PID {} parent TGID: {other:?}", row[0]));
+                        .push(format!("PID {} parent TGID: {other:?}", *row.at(0)?));
                 }
             }
             if options.decorate_comm {
                 match self.number(task, "task_struct", "flags") {
-                    Ok(flags) if flags & 0x0020_0000 != 0 => row[3] = format!("[{}]", row[3]),
-                    Ok(_) if row[0] != row[1] => row[3] = format!("{{{}}}", row[3]),
+                    Ok(flags) if flags & 0x0020_0000 != 0 => {
+                        *row.at_mut(3)? = format!("[{}]", *row.at(3)?)
+                    }
+                    Ok(_) if *row.at(0)? != *row.at(1)? => {
+                        *row.at_mut(3)? = format!("{{{}}}", *row.at(3)?)
+                    }
                     Ok(_) => (),
                     Err(error) => {
                         result.complete = false;
                         result
                             .diagnostics
-                            .push(format!("PID {} thread flags: {error:#}", row[0]));
+                            .push(format!("PID {} thread flags: {error:#}", *row.at(0)?));
                     }
                 }
             }
@@ -340,7 +346,7 @@ impl Linux<'_> {
                         result.complete = false;
                         result
                             .diagnostics
-                            .push(format!("PID {} {field}: {error:#}", row[0]));
+                            .push(format!("PID {} {field}: {error:#}", *row.at(0)?));
                     }
                 }
             }
@@ -355,7 +361,7 @@ impl Linux<'_> {
                     result.complete = false;
                     result
                         .diagnostics
-                        .push(format!("PID {} creation time: {error:#}", row[0]));
+                        .push(format!("PID {} creation time: {error:#}", *row.at(0)?));
                 }
             }
             row.push("Disabled".into());
@@ -367,8 +373,9 @@ impl Linux<'_> {
         let mut start = None;
         for field in ["start_boottime", "real_start_time", "start_time"] {
             if let Ok(layout) = self.isf.field("task_struct", field) {
-                let nanos = if layout["type"]["kind"] == "struct" {
-                    let name = layout["type"]["name"]
+                let nanos = if *layout["type"].key("kind") == "struct" {
+                    let name = layout["type"]
+                        .key("name")
                         .as_str()
                         .context("开始时间结构无类型")?;
                     let address = self.field_address(task, "task_struct", field)?;

@@ -1,5 +1,6 @@
 //! Per-task plugins: arguments, environment, credentials, threads, state and ptrace.
 use super::*;
+use crate::bytes::{Checked as _, JsonKey as _};
 impl Linux<'_> {
     pub(super) fn preflight(&self, plugin: Plugin) -> Result<()> {
         self.require(&[
@@ -265,7 +266,7 @@ impl Linux<'_> {
             for f in [
                 "uid", "gid", "euid", "egid", "suid", "sgid", "fsuid", "fsgid",
             ] {
-                if self.isf.field("cred", f)?["type"]["kind"] == "struct" {
+                if *self.isf.field("cred", f)?["type"].key("kind") == "struct" {
                     self.require(&[("cred", &format!("{f}.val"))])?;
                 }
             }
@@ -427,7 +428,7 @@ impl Linux<'_> {
                 Ok(row) => result.rows.push(row),
                 Err(e) => partial(
                     result,
-                    format!("PID {} thread {}", prefix[0], hex(current)),
+                    format!("PID {} thread {}", *prefix.at(0)?, hex(current)),
                     e,
                 ),
             }
@@ -484,9 +485,9 @@ impl Linux<'_> {
             result.diagnostics.extend(files.diagnostics);
             for row in files.rows {
                 job.check()?;
-                let n = counts.entry(row[0].clone()).or_default();
+                let n = counts.entry(row.at(0)?.clone()).or_default();
                 n[0] += 1;
-                match row[3].as_str() {
+                match row.at(3)?.as_str() {
                     "Regular" => n[1] += 1,
                     "Socket" => n[2] += 1,
                     "FIFO" => n[3] += 1,
@@ -557,12 +558,12 @@ impl Linux<'_> {
         result.diagnostics.extend(threads.diagnostics);
         let mut tasks = BTreeMap::new();
         for row in threads.rows {
-            let address = u64::from_str_radix(&row[4][2..], 16)?;
+            let address = u64::from_str_radix(&row.at(4)?[2..], 16)?;
             tasks.insert(address, row);
         }
         for (address, task) in tasks {
             job.check()?;
-            let context = format!("TID {} @ {}", task[2], hex(address));
+            let context = format!("TID {} @ {}", *task.at(2)?, hex(address));
             let read = (|| -> Result<()> {
                 let flags = self.number(address, "task_struct", "ptrace")?;
                 let tracer = if flags == 0 {
@@ -607,9 +608,9 @@ impl Linux<'_> {
                 }
                 for tracee in tracees {
                     result.rows.push(vec![
-                        task[3].clone(),
+                        task.at(3)?.clone(),
                         self.number(address, "task_struct", "tgid")?.to_string(),
-                        task[2].clone(),
+                        task.at(2)?.clone(),
                         tracer.clone(),
                         tracee,
                         hex(flags),

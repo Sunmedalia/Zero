@@ -1,5 +1,6 @@
 //! The Linux engine: ISF-driven field readers and plugin routing.
 use super::*;
+use crate::bytes::{Checked as _, JsonKey as _};
 pub struct Linux<'a> {
     pub vm: VirtualMemory<'a>,
     pub isf: &'a Isf,
@@ -35,9 +36,9 @@ impl Linux<'_> {
             .into_iter()
             .map(|row| {
                 Ok(Task {
-                    address: u64::from_str_radix(&row[4][2..], 16)?,
-                    pid: row[0].clone(),
-                    name: row[3].clone(),
+                    address: u64::from_str_radix(&row.at(4)?[2..], 16)?,
+                    pid: row.at(0)?.clone(),
+                    name: row.at(3)?.clone(),
                 })
             })
             .collect::<Result<_>>()?;
@@ -54,7 +55,8 @@ impl Linux<'_> {
     /// pointed-to task object is readable; otherwise report zero.
     pub(super) fn task_parent_tgid(&self, task: u64) -> Result<u64> {
         let parent = self.number(task, "task_struct", "real_parent")?;
-        let size = self.isf.data["user_types"]["task_struct"]["size"]
+        let size = self.isf.data.key("user_types")["task_struct"]
+            .key("size")
             .as_u64()
             .context("task_struct 缺少大小")?;
         ensure!(size <= 1024 * 1024, "task_struct 超过读取上限");
@@ -180,7 +182,7 @@ impl Linux<'_> {
                 }
                 let offset = bytes.len();
                 bytes.resize(offset + usize::try_from(map.end - map.start)?, 0);
-                mapper.read(map.start, &mut bytes[offset..], |_, _, _| {
+                mapper.read(map.start, bytes.at_mut(offset..)?, |_, _, _| {
                     anyhow::bail!("模块名称无 swap 附件")
                 })?;
                 next = map.end;
@@ -342,7 +344,7 @@ impl Linux<'_> {
         let mut result = self.kernel_list(Plugin::Lsmod, job)?;
         for index in 0..result.rows.len() {
             job.check()?;
-            let address = result.rows[index][0].clone();
+            let address = result.rows.at(index)?.at(0)?.clone();
             let object = u64::from_str_radix(address.trim_start_matches("0x"), 16)?;
             let extraction = crate::dump::DumpOptions {
                 pid: 0,
@@ -359,24 +361,28 @@ impl Linux<'_> {
             match self.extract_module(&extraction, job) {
                 Ok(extracted) => {
                     if let Some(row) = extracted.rows.first() {
-                        output = row[2].clone();
+                        output = row.at(2)?.clone();
                         output_type = "file";
                     }
                     if !extracted.complete {
                         result.complete = false;
                     }
                     result.diagnostics.extend(extracted.diagnostics);
-                    result.kernel_identity["module_exports"][format!("{object:#x}")] =
-                        extracted.kernel_identity;
+                    *result
+                        .kernel_identity
+                        .key_mut("module_exports")?
+                        .key_mut(format!("{object:#x}"))? = extracted.kernel_identity;
                 }
                 Err(error) => {
                     job.check()?;
                     partial(&mut result, format!("module {object:#x} export"), error);
                 }
             }
-            result.rows[index][5] = output;
-            result.kernel_identity["module_file_output_types"][format!("{object:#x}")] =
-                output_type.into();
+            *result.rows.at_mut(index)?.at_mut(5)? = output;
+            *result
+                .kernel_identity
+                .key_mut("module_file_output_types")?
+                .key_mut(format!("{object:#x}"))? = output_type.into();
         }
         Ok(result)
     }
@@ -405,22 +411,25 @@ impl Linux<'_> {
                     Ok({
                         let (base, size) = if self.isf.field("module", "mem").is_ok() {
                             let mem = self.field_address(object, "module", "mem")?;
-                            let n = self.isf.field("module", "mem")?["type"]["count"]
+                            let n = self.isf.field("module", "mem")?["type"]
+                                .key("count")
                                 .as_u64()
                                 .context("module.mem count")?;
                             ensure!((1..=32).contains(&n), "module.mem count 无效");
-                            let size = self.isf.data["user_types"]["module_memory"]["size"]
+                            let size = self.isf.data.key("user_types")["module_memory"]
+                                .key("size")
                                 .as_u64()
                                 .context("module_memory size")?;
-                            let text =
-                                self.isf.data["enums"]["mod_mem_type"]["constants"]["MOD_TEXT"]
-                                    .as_u64()
-                                    .context("MOD_TEXT enum 缺失")?;
+                            let text = self.isf.data.key("enums")["mod_mem_type"].key("constants")
+                                ["MOD_TEXT"]
+                                .as_u64()
+                                .context("MOD_TEXT enum 缺失")?;
                             ensure!(text < n, "MOD_TEXT enum 越界");
                             let mut total = 0u64;
                             for kind in ["MOD_TEXT", "MOD_DATA", "MOD_RODATA", "MOD_RO_AFTER_INIT"]
                             {
-                                let i = self.isf.data["enums"]["mod_mem_type"]["constants"][kind]
+                                let i = self.isf.data.key("enums")["mod_mem_type"].key("constants")
+                                    [kind]
                                     .as_u64()
                                     .with_context(|| format!("{kind} enum 缺失"))?;
                                 ensure!(i < n, "module memory enum 越界");
@@ -458,16 +467,20 @@ impl Linux<'_> {
                 })();
                 match row {
                     Ok(row) => {
-                        let name = row[0].clone();
-                        result.kernel_identity["module_ranges"][format!("{object:#x}")] =
-                            serde_json::json!({"base":row[1],"core_size":row[2]});
+                        let name = row.at(0)?.clone();
+                        *result
+                            .kernel_identity
+                            .key_mut("module_ranges")?
+                            .key_mut(format!("{object:#x}"))? =
+                            serde_json::json!({"base":*row.at(1)?,"core_size":*row.at(2)?});
                         let mut code_size = "N/A".to_owned();
                         let mut arguments = "N/A".to_owned();
                         let code_size_layout = if self.isf.has_field("module", "mem") {
                             ["MOD_INIT_TEXT", "MOD_INIT_DATA", "MOD_INIT_RODATA"]
                                 .iter()
                                 .all(|name| {
-                                    self.isf.data["enums"]["mod_mem_type"]["constants"][name]
+                                    self.isf.data.key("enums")["mod_mem_type"].key("constants")
+                                        [name]
                                         .is_u64()
                                 })
                         } else {
@@ -478,8 +491,10 @@ impl Linux<'_> {
                             match self.module_code_size(object) {
                                 Ok(size) => {
                                     code_size = size.to_string();
-                                    result.kernel_identity["module_code_sizes"]
-                                        [format!("{object:#x}")] = size.into()
+                                    *result
+                                        .kernel_identity
+                                        .key_mut("module_code_sizes")?
+                                        .key_mut(format!("{object:#x}"))? = size.into()
                                 }
                                 Err(error) => partial(
                                     &mut result,
@@ -488,7 +503,9 @@ impl Linux<'_> {
                                 ),
                             }
                         } else {
-                            result.kernel_identity["module_code_size_unsupported"] = true.into();
+                            *result
+                                .kernel_identity
+                                .key_mut("module_code_size_unsupported")? = true.into();
                             partial(
                                 &mut result,
                                 format!("module {object:#x} code size"),
@@ -498,8 +515,10 @@ impl Linux<'_> {
                         match self.module_load_arguments(object, job) {
                             Ok(value) => {
                                 arguments = value.clone();
-                                result.kernel_identity["module_load_arguments"]
-                                    [format!("{object:#x}")] = value.into();
+                                *result
+                                    .kernel_identity
+                                    .key_mut("module_load_arguments")?
+                                    .key_mut(format!("{object:#x}"))? = value.into();
                             }
                             Err(error) => {
                                 job.check()?;
@@ -517,8 +536,10 @@ impl Linux<'_> {
                                 "N/A".into()
                             }
                         };
-                        result.kernel_identity["module_file_output_types"]
-                            [format!("{object:#x}")] = "NotApplicableValue".into();
+                        *result
+                            .kernel_identity
+                            .key_mut("module_file_output_types")?
+                            .key_mut(format!("{object:#x}"))? = "NotApplicableValue".into();
                         result.rows.push(vec![
                             hex(object),
                             name,

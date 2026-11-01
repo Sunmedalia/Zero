@@ -1,6 +1,7 @@
 //! Reconstruct a reference-compatible ELF from captured module sections/symbols.
 //! This is a reconstructed analysis artifact, never the original on-disk module.
 use super::*;
+use crate::bytes::{Checked as _, JsonKey as _};
 use crate::dump::{DumpOptions, MAX_DUMP_BYTES};
 use serde::Serialize;
 
@@ -172,24 +173,34 @@ fn section_header_sized(
 }
 fn elf_header(elf32: bool, shoff: u64, shstrndx: u16) -> Result<Vec<u8>> {
     let mut output = vec![0; if elf32 { 52 } else { 64 }];
-    output[..16].copy_from_slice(b"\x7fELF\x02\x01\x01\0\0\0\0\0\0\0\0\0");
-    output[4] = if elf32 { 1 } else { 2 };
-    output[16..18].copy_from_slice(&1u16.to_le_bytes());
-    output[18..20].copy_from_slice(&(if elf32 { 3u16 } else { 62u16 }).to_le_bytes());
-    output[20..24].copy_from_slice(&1u32.to_le_bytes());
+    output
+        .at_mut(..16)?
+        .copy_from_slice(b"\x7fELF\x02\x01\x01\0\0\0\0\0\0\0\0\0");
+    *output.at_mut(4)? = if elf32 { 1 } else { 2 };
+    output.at_mut(16..18)?.copy_from_slice(&1u16.to_le_bytes());
+    output
+        .at_mut(18..20)?
+        .copy_from_slice(&(if elf32 { 3u16 } else { 62u16 }).to_le_bytes());
+    output.at_mut(20..24)?.copy_from_slice(&1u32.to_le_bytes());
     let count = shstrndx.checked_add(1).context("ELF section 数量溢出")?;
     if elf32 {
-        output[32..36].copy_from_slice(&u32::try_from(shoff)?.to_le_bytes());
-        output[40..42].copy_from_slice(&52u16.to_le_bytes());
-        output[46..48].copy_from_slice(&40u16.to_le_bytes());
-        output[48..50].copy_from_slice(&count.to_le_bytes());
-        output[50..52].copy_from_slice(&shstrndx.to_le_bytes());
+        output
+            .at_mut(32..36)?
+            .copy_from_slice(&u32::try_from(shoff)?.to_le_bytes());
+        output.at_mut(40..42)?.copy_from_slice(&52u16.to_le_bytes());
+        output.at_mut(46..48)?.copy_from_slice(&40u16.to_le_bytes());
+        output.at_mut(48..50)?.copy_from_slice(&count.to_le_bytes());
+        output
+            .at_mut(50..52)?
+            .copy_from_slice(&shstrndx.to_le_bytes());
     } else {
-        output[40..48].copy_from_slice(&shoff.to_le_bytes());
-        output[52..54].copy_from_slice(&64u16.to_le_bytes());
-        output[58..60].copy_from_slice(&64u16.to_le_bytes());
-        output[60..62].copy_from_slice(&count.to_le_bytes());
-        output[62..64].copy_from_slice(&shstrndx.to_le_bytes());
+        output.at_mut(40..48)?.copy_from_slice(&shoff.to_le_bytes());
+        output.at_mut(52..54)?.copy_from_slice(&64u16.to_le_bytes());
+        output.at_mut(58..60)?.copy_from_slice(&64u16.to_le_bytes());
+        output.at_mut(60..62)?.copy_from_slice(&count.to_le_bytes());
+        output
+            .at_mut(62..64)?
+            .copy_from_slice(&shstrndx.to_le_bytes());
     }
     Ok(output)
 }
@@ -199,7 +210,7 @@ impl Linux<'_> {
         let (base, ty) = if self.isf.has_field("module", "kallsyms") {
             let base = self.number(module, "module", "kallsyms")?;
             ensure!(base != 0, "module.kallsyms 为空");
-            let ty = self.isf.field("module", "kallsyms")?["type"]["subtype"]["name"]
+            let ty = self.isf.field("module", "kallsyms")?["type"].key("subtype")["name"]
                 .as_str()
                 .context("module.kallsyms 类型缺失")?;
             (base, ty)
@@ -237,7 +248,8 @@ impl Linux<'_> {
             };
             let array = self.number(attrs, "module_sect_attrs", field)?;
             ensure!(array != 0, "模块 section 属性数组为空");
-            let width = self.isf.data["base_types"]["pointer"]["size"]
+            let width = self.isf.data.key("base_types")["pointer"]
+                .key("size")
                 .as_u64()
                 .context("模块 section 属性指针宽度缺失")?;
             ensure!(matches!(width, 4 | 8), "模块 section 属性指针宽度无效");
@@ -262,10 +274,11 @@ impl Linux<'_> {
         );
         let array = self.field_address(attrs, "module_sect_attrs", "attrs")?;
         ensure!(
-            self.isf.field("module_sect_attrs", "attrs")?["type"]["kind"] == "array",
+            *self.isf.field("module_sect_attrs", "attrs")?["type"].key("kind") == "array",
             "模块 section attrs 不是内联数组"
         );
-        let size = self.isf.data["user_types"]["module_sect_attr"]["size"]
+        let size = self.isf.data.key("user_types")["module_sect_attr"]
+            .key("size")
             .as_u64()
             .context("module_sect_attr size 缺失")?;
         ensure!((1..=4096).contains(&size), "module_sect_attr size 无效");
@@ -290,7 +303,7 @@ impl Linux<'_> {
                 )?
             } else {
                 let read = (|| -> Result<String> {
-                    if self.isf.field("module_sect_attr", "name")?["type"]["kind"] == "array" {
+                    if *self.isf.field("module_sect_attr", "name")?["type"].key("kind") == "array" {
                         self.string(section, "module_sect_attr", "name")
                     } else {
                         self.kernel_text(self.number(section, "module_sect_attr", "name")?, 255)
@@ -348,7 +361,8 @@ impl Linux<'_> {
             let previous = bytes.len();
             append(&mut bytes, &page)?;
             if string_table
-                && let Some(end) = bytes[previous.saturating_sub(1)..]
+                && let Some(end) = bytes
+                    .at(previous.saturating_sub(1)..)?
                     .windows(2)
                     .position(|b| b == [0, 0])
             {
@@ -368,7 +382,8 @@ impl Linux<'_> {
             !self.arm64(),
             "不支持: ModuleExtract 的参考 ELF 格式仅适用于 Intel"
         );
-        let width = self.isf.data["base_types"]["pointer"]["size"]
+        let width = self.isf.data.key("base_types")["pointer"]
+            .key("size")
             .as_u64()
             .context("模块 ELF 指针宽度缺失")?;
         ensure!(matches!(width, 4 | 8), "模块 ELF 指针宽度无效");
@@ -448,7 +463,8 @@ impl Linux<'_> {
         let symtab_address = symtab_address.context("模块缺少 .symtab section")?;
         let strtab_index = strtab_index.context("模块缺少 .strtab section")?;
         let symtab_index = u32::try_from(sections.len())?;
-        let sym_size = self.isf.data["user_types"][symbol_type]["size"]
+        let sym_size = self.isf.data.key("user_types")[symbol_type]
+            .key("size")
             .as_u64()
             .with_context(|| format!("{symbol_type} 类型缺失"))?;
         ensure!(
@@ -549,7 +565,9 @@ impl Linux<'_> {
         }
         let shoff = output.len() as u64;
         append(&mut output, &headers)?;
-        output[..header_size].copy_from_slice(&elf_header(elf32, shoff, shstrndx)?);
+        output
+            .at_mut(..header_size)?
+            .copy_from_slice(&elf_header(elf32, shoff, shstrndx)?);
         Ok(Elf {
             bytes: output,
             padding,
