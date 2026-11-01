@@ -49,7 +49,19 @@ impl Linux<'_> {
     pub(crate) fn maple_vmas(&self, mm: u64, job: &Job, limit: u64) -> Result<Vec<u64>> {
         let tree = self.field_address(mm, "mm_struct", "mm_mt")?;
         let root = self.number(tree, "maple_tree", "ma_root")?;
-        let mut stack = vec![(root, u64::MAX, root & 3 == 2)];
+        let pointer_width = self.isf.data["base_types"]["pointer"]["size"]
+            .as_u64()
+            .context("maple 指针宽度缺失")?;
+        ensure!(matches!(pointer_width, 4 | 8), "maple 指针宽度无效");
+        let mut stack = vec![(
+            root,
+            if pointer_width == 4 {
+                u32::MAX as u64
+            } else {
+                u64::MAX
+            },
+            root & 3 == 2,
+        )];
         let mut seen = HashSet::new();
         let mut leaves = Vec::new();
         while let Some((entry, max, is_node)) = stack.pop() {
@@ -60,7 +72,7 @@ impl Linux<'_> {
             ensure!(seen.insert(entry), "maple tree 循环或重复指针 @ {entry:#x}");
             ensure!(seen.len() as u64 <= limit, "VMA 超过遍历上限");
             if !is_node {
-                ensure!(entry & 7 == 0, "maple leaf 指针对齐错误");
+                ensure!(entry & (pointer_width - 1) == 0, "maple leaf 指针对齐错误");
                 leaves.push(entry);
                 continue;
             }
@@ -86,14 +98,40 @@ impl Linux<'_> {
                 .as_u64()
                 .context("maple slot count 缺失")?;
             ensure!((1..=64).contains(&count), "maple slot count 异常");
+            let slot_width = self.isf.size(structure, "slot")? as u64 / count;
+            ensure!(
+                matches!(slot_width, 4 | 8)
+                    && self.isf.size(structure, "slot")? as u64 == slot_width * count,
+                "maple slot 宽度无效"
+            );
+            let pivot_width = if kind == 0 {
+                0
+            } else {
+                let pivots = self.isf.field(structure, "pivot")?["type"]["count"]
+                    .as_u64()
+                    .context("maple pivot count 缺失")?;
+                ensure!(pivots > 0 && pivots <= 64, "maple pivot count 异常");
+                let size = self.isf.size(structure, "pivot")? as u64;
+                let width = size / pivots;
+                ensure!(
+                    matches!(width, 4 | 8)
+                        && size == width * pivots
+                        && pivots >= count.saturating_sub(1),
+                    "maple pivot 宽度/数量无效"
+                );
+                width
+            };
             let end = if kind == 0 {
                 count - 1
             } else if kind == 3 {
                 self.number(base, structure, "meta.end")?
             } else {
                 let last = self.vm.uint(
-                    self.field_address(base, structure, "pivot")? + (count - 2) * 8,
-                    8,
+                    add(
+                        self.field_address(base, structure, "pivot")?,
+                        count.checked_sub(2).context("maple slot 数量不足")? * pivot_width,
+                    )?,
+                    pivot_width as usize,
                 )?;
                 if last == 0 {
                     self.number(base, structure, "meta.end")?
@@ -105,19 +143,26 @@ impl Linux<'_> {
             };
             ensure!(end < count, "maple meta.end 越界");
             for i in 0..=end {
-                let child = self.vm.uint(slots + i * 8, 8)?;
+                let child = self
+                    .vm
+                    .uint(add(slots, i * slot_width)?, slot_width as usize)?;
                 let pivot = if kind == 0 || i == count - 1 {
                     max
                 } else {
-                    self.vm
-                        .uint(self.field_address(base, structure, "pivot")? + i * 8, 8)?
+                    self.vm.uint(
+                        add(
+                            self.field_address(base, structure, "pivot")?,
+                            i * pivot_width,
+                        )?,
+                        pivot_width as usize,
+                    )?
                 };
                 if i > 0 && pivot == 0 {
                     break;
                 }
                 if child != 0 {
                     if leaf {
-                        ensure!(child & 7 == 0, "maple VMA 指针对齐错误");
+                        ensure!(child & (pointer_width - 1) == 0, "maple VMA 指针对齐错误");
                         leaves.push(child);
                     } else {
                         stack.push((child, pivot, true));
@@ -218,6 +263,58 @@ mod tests {
     }
     fn base() -> serde_json::Value {
         json!({"kind":"base","name":"u64"})
+    }
+    #[test]
+    fn maple_four_byte_slots_pivots_and_leaf_alignment() {
+        let (mut b, mut isf) = fixture();
+        isf.data["base_types"]["pointer"]["size"] = json!(4);
+        let word = json!({"kind":"base","name":"u32"});
+        isf.data["user_types"]["mm_struct"]["fields"]["mm_mt"] =
+            json!({"offset":40,"type":{"kind":"struct","name":"maple_tree"}});
+        isf.data["user_types"]["maple_tree"] = ty(&[("ma_root", 0, word.clone())], 4);
+        isf.data["user_types"]["maple_metadata"] =
+            ty(&[("end", 0, json!({"kind":"base","name":"char"}))], 1);
+        isf.data["user_types"]["maple_range_64"] = ty(
+            &[
+                ("parent", 0, word.clone()),
+                (
+                    "pivot",
+                    4,
+                    json!({"kind":"array","count":3,"subtype":word.clone()}),
+                ),
+                (
+                    "slot",
+                    16,
+                    json!({"kind":"array","count":4,"subtype":{"kind":"pointer"}}),
+                ),
+                ("meta", 32, json!({"kind":"struct","name":"maple_metadata"})),
+            ],
+            36,
+        );
+        isf.data["user_types"]["maple_node"] = ty(
+            &[("mr64", 0, json!({"kind":"struct","name":"maple_range_64"}))],
+            256,
+        );
+        for (at, value) in [
+            (0xb028, 0x1100e),
+            (0x11000, 0xb029),
+            (0x11004, 0x200fff),
+            (0x11008, 0x201fff),
+            (0x11010, 0x12004),
+            (0x11014, 0x12104),
+        ] {
+            b[at..at + 4].copy_from_slice(&(value as u32).to_le_bytes());
+        }
+        b[0x11020] = 1;
+        put(&mut b, 0x1200c, 0x200000);
+        put(&mut b, 0x1210c, 0x201000);
+        let img = image(&b);
+        assert_eq!(
+            engine(&img, &isf)
+                .maple_vmas(0xb000, &Job::default(), 100)
+                .unwrap(),
+            vec![0x12004, 0x12104]
+        );
     }
     #[test]
     fn maple_encoded_children_metadata_and_cycles() {

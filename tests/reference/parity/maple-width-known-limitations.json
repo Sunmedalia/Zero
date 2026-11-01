@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+  "scope": "Native ISF-width-aware maple slot and pivot reads",
+  "verification": {
+    "test": "linux::walk::tests::maple_four_byte_slots_pivots_and_leaf_alignment",
+    "checks": ["Four-byte adjacent slot and pivot elements", "Four-byte-aligned VMA leaf pointers", "Existing eight-byte encoded-node, metadata, limit and cycle regression tests"],
+    "full_check": "make check passed: 728 Rust tests, 45 Python reference framework tests and release build"
+  },
+  "limitations": [
+    "Synthetic native regression only; no actual pinned maple execution vectors or real Linux32 image are established.",
+    "The pinned extension scans all node slots, while the native walker retains its existing pivot/meta termination and stricter validation. Full maple traversal parity is not established.",
+    "This batch changes element widths and pointer alignment, not the existing dense-node traversal algorithm.",
+    "The public Linux32 ISF parse gate remains closed.",
+    "No full plugin contract is established."
+  ]
+}
