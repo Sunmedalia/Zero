@@ -204,7 +204,6 @@ pub fn run_with_options(
 }
 
 #[cfg(test)]
-#[path = "tui/tests.rs"]
 mod tests;
 
 #[cfg(test)]
