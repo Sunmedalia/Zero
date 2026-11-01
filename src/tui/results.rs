@@ -1,6 +1,7 @@
 //! The analysis page workbench: plugin menu, inspector, content search and the
 //! result table, including horizontal scrolling over a virtual canvas.
 use super::*;
+use crate::bytes::{Cells, float_to_i128};
 
 impl App {
     /// Draw the plugin menu, inspector and result table into `body`.
@@ -172,13 +173,15 @@ impl App {
                 let natural = table_widths(&columns, rows.sample(0, 200));
                 let widths: Vec<_> = natural.iter().copied().map(Constraint::Length).collect();
                 let total = natural.iter().map(|n| *n as u32).sum::<u32>()
-                    + natural.len().saturating_sub(1) as u32
+                    + u32::from(natural.len().saturating_sub(1).cells())
                     + 4;
-                let virtual_width = (total.min(4096) as u16).max(main.width);
+                let virtual_width = u16::try_from(total.min(4096))
+                    .unwrap_or(4096)
+                    .max(main.width);
                 let scroll = self
                     .horizontal
                     .min(virtual_width.saturating_sub(main.width) as usize)
-                    as u16;
+                    .cells();
                 let render_area = Rect::new(main.x, main.y, virtual_width, main.height);
                 let row_count = rows.len().saturating_sub(page_start).min(page_size);
                 let viewport_block = block.clone();
@@ -252,9 +255,9 @@ impl App {
                         let right =
                             (rect.right() as i32 - scroll as i32).min(main.right() as i32 - 1);
                         *rect = Rect::new(
-                            left as u16,
+                            u16::try_from(left).unwrap_or(0),
                             rect.y,
-                            (right - left).max(0) as u16,
+                            u16::try_from(right - left).unwrap_or(0),
                             rect.height,
                         );
                     }
@@ -398,10 +401,14 @@ impl App {
             let elapsed = self.started.map_or(0.0, |t| t.elapsed().as_secs_f64());
             let label = format!(
                 "运行中 {} · {} · Esc 取消",
-                pulses[((elapsed * 1000.0 / 180.0) as usize) % 4],
+                pulses[usize::try_from(float_to_i128(elapsed * 1000.0 / 180.0)).unwrap_or(0) % 4],
                 status::format_duration(elapsed)
             );
-            let width = (Span::raw(&label).width() as u16 + 4).min(main.width.saturating_sub(2));
+            let width = Span::raw(&label)
+                .width()
+                .cells()
+                .saturating_add(4)
+                .min(main.width.saturating_sub(2));
             let rect = Rect::new(
                 main.x + (main.width - width) / 2,
                 main.y + main.height / 2 - 1,

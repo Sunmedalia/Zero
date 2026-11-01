@@ -1,5 +1,6 @@
 //! Status line and the contextual action strip shared by both pages.
 use super::*;
+use crate::bytes::Cells;
 
 impl App {
     /// Draw the status line, the resource toolbar (assets page) and the action
@@ -98,7 +99,7 @@ impl App {
         // `更多 ?`, which opens the palette listing every remaining command.
         let buttons = self.footer_actions();
         let more_label = " 更多 ? ";
-        let more_width = Span::raw(more_label).width() as u16;
+        let more_width = Span::raw(more_label).width().cells();
         if footer.height < 2 {
             return;
         }
@@ -109,11 +110,13 @@ impl App {
         let y = strip;
         for (label, key) in buttons.iter().copied().take(count) {
             placed.push((x, y, label, key));
-            x += Span::raw(format!(" {label} ")).width() as u16 + 1;
+            x = x
+                .saturating_add(Span::raw(format!(" {label} ")).width().cells())
+                .saturating_add(1);
         }
         for (px, py, label, key) in &placed {
             let command = Command::from_key(self.page, *key);
-            let width = Span::raw(format!(" {label} ")).width() as u16;
+            let width = Span::raw(format!(" {label} ")).width().cells();
             let disabled = command.and_then(|command| self.command_disabled(command));
             frame.render_widget(
                 Paragraph::new(format!(" {label} ")).style(if disabled.is_some() {

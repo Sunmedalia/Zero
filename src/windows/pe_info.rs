@@ -3,7 +3,7 @@
 use super::*;
 use crate::bytes::le_u32;
 
-const IMPORT_LIMIT: usize = 65536;
+const IMPORT_LIMIT: u32 = 65536;
 const RESOURCE_LIMIT: usize = 4096;
 const VS_FIXED_SIGNATURE: u32 = 0xfeef_04bd;
 const RT_VERSION: u32 = 16;
@@ -135,7 +135,7 @@ impl Windows<'_> {
         }
         let width = if header.wide { 8 } else { 4 };
         let ordinal = if header.wide { 1u64 << 63 } else { 1 << 31 };
-        for index in 0..IMPORT_LIMIT as u32 {
+        for index in 0..IMPORT_LIMIT {
             job.check()?;
             let mut descriptor = [0u8; 20];
             self.read_image(&vm, base, directory + index * 20, &mut descriptor)?;
@@ -148,7 +148,7 @@ impl Windows<'_> {
                 .ascii_at(&vm, base, name)
                 .unwrap_or_else(|_| "[unreadable]".into());
             let lookup = if lookup == 0 { thunks } else { lookup };
-            for slot in 0..IMPORT_LIMIT as u32 {
+            for slot in 0..IMPORT_LIMIT {
                 let read = (|| -> Result<Option<Vec<String>>> {
                     let mut entry = [0u8; 8];
                     self.read_image(
@@ -213,7 +213,7 @@ impl Windows<'_> {
         self.read_image(vm, base, directory, &mut table)?;
         let word = |at: usize| le_u32(&table, at).unwrap_or_default();
         let (names, functions, name_table, ordinals) = (word(24), word(28), word(32), word(36));
-        ensure!(names as usize <= IMPORT_LIMIT, "导出名称数量超限");
+        ensure!(names <= IMPORT_LIMIT, "导出名称数量超限");
         let mut pointers = vec![0u8; names as usize * 4];
         self.read_image(vm, base, name_table, &mut pointers)?;
         for (index, pointer) in pointers.chunks_exact(4).enumerate() {

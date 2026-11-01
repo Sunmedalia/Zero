@@ -23,10 +23,33 @@ pub(crate) fn low_u32(value: u64) -> u32 {
     let [a, b, c, d, ..] = value.to_le_bytes();
     u32::from_le_bytes([a, b, c, d])
 }
+/// Terminal cell counts. Anything wider than a screen saturates instead of wrapping.
+pub(crate) trait Cells {
+    fn cells(self) -> u16;
+}
+impl Cells for usize {
+    fn cells(self) -> u16 {
+        u16::try_from(self).unwrap_or(u16::MAX)
+    }
+}
+/// Whole part of a float. The only float-to-integer cast: `as` saturates and maps NaN
+/// to zero, and `try_from` does not exist for floats.
+#[allow(clippy::cast_possible_truncation)]
+pub(crate) fn float_to_i128(value: f64) -> i128 {
+    value as i128
+}
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn cells_and_floats_saturate() {
+        assert_eq!(70_000usize.cells(), u16::MAX);
+        assert_eq!(7usize.cells(), 7);
+        assert_eq!(float_to_i128(f64::NAN), 0);
+        assert_eq!(float_to_i128(-1.9), -1);
+        assert_eq!(float_to_i128(f64::INFINITY), i128::MAX);
+    }
     #[test]
     fn variable_width_reads_stop_at_eight_bytes() {
         assert_eq!(le_uint(&[1, 2, 3]), Some(0x03_0201));

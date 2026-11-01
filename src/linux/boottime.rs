@@ -1,5 +1,6 @@
 //! Kernel boot timestamps and the time namespace view used by Boottime.
 use super::*;
+use crate::bytes::float_to_i128;
 
 impl Linux<'_> {
     fn time_field_type<'b>(&'b self, ty: &str, field: &str) -> Result<&'b str> {
@@ -179,7 +180,7 @@ fn reference_ktime_nanos(nanos: i128) -> i128 {
     if div - quotient > 0.5 {
         quotient += 1.0;
     }
-    let positive = quotient as i128 * 1_000_000_000 + remainder as i128;
+    let positive = float_to_i128(quotient) * 1_000_000_000 + float_to_i128(remainder);
     if nanos < 0 { -positive - 1 } else { positive }
 }
 
@@ -190,8 +191,11 @@ fn boot_datetime(nanos: i128) -> Option<String> {
     if time <= 0.0 || !time.is_finite() {
         return None;
     }
-    let mut seconds = time.floor() as i64;
-    let mut micros = ((time - time.floor()) * 1_000_000.0).round_ties_even() as i64;
+    let mut seconds = i64::try_from(float_to_i128(time.floor())).ok()?;
+    let mut micros = i64::try_from(float_to_i128(
+        ((time - time.floor()) * 1_000_000.0).round_ties_even(),
+    ))
+    .ok()?;
     if micros == 1_000_000 {
         seconds = seconds.checked_add(1)?;
         micros = 0;

@@ -1,6 +1,7 @@
 #![cfg_attr(
     not(test),
     deny(
+        clippy::cast_possible_truncation,
         clippy::unwrap_used,
         clippy::expect_used,
         clippy::panic,

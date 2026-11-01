@@ -1,5 +1,6 @@
 //! Offline figure generation shares the production state machine and Buffer.
 use super::*;
+use crate::bytes::Cells;
 use ratatui::{backend::TestBackend, buffer::Buffer};
 use std::{fmt::Write, path::Path};
 
@@ -65,7 +66,9 @@ fn svg(buffer: &Buffer, title: &str) -> String {
                 if next.fg != cell.fg || next.bg != cell.bg || next.modifier != cell.modifier {
                     break;
                 }
-                end += unicode_width::UnicodeWidthStr::width(next.symbol()).max(1) as u16;
+                end += unicode_width::UnicodeWidthStr::width(next.symbol())
+                    .max(1)
+                    .cells();
             }
             let px = 14.0 + x as f64 * 8.4;
             let py = 44 + y * 18;
@@ -85,7 +88,7 @@ fn svg(buffer: &Buffer, title: &str) -> String {
             let mut column = x;
             while column < end {
                 let symbol = buffer[(column, y)].symbol();
-                let cells = unicode_width::UnicodeWidthStr::width(symbol).max(1) as u16;
+                let cells = unicode_width::UnicodeWidthStr::width(symbol).max(1).cells();
                 if !symbol.trim().is_empty() {
                     let px = 14.0 + column as f64 * 8.4;
                     let _ = writeln!(
@@ -125,7 +128,7 @@ fn shot(app: &App, output: &Path, name: &str, title: &str) -> Result<()> {
                 while x < buffer.area.width {
                     let symbol = buffer[(x, y)].symbol();
                     line.push_str(symbol);
-                    x += unicode_width::UnicodeWidthStr::width(symbol).max(1) as u16;
+                    x += unicode_width::UnicodeWidthStr::width(symbol).max(1).cells();
                 }
                 line
             })

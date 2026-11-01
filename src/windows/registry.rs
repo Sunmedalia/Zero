@@ -337,7 +337,7 @@ impl Windows<'_> {
             if count == 0 {
                 continue;
             }
-            ensure!(count <= MAX_OBJECTS as u32, "子键超限");
+            ensure!(usize::try_from(count)? <= MAX_OBJECTS, "子键超限");
             let index = u32::from_le_bytes(
                 node.get(lists + storage * 4..lists + storage * 4 + 4)
                     .context("子键索引截断")?

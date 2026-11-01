@@ -1,3 +1,4 @@
+use crate::bytes::Cells;
 // One action table drives keyboard dispatch, availability, the command palette,
 // the resource toolbar, the analysis footer and the help text.
 //
@@ -729,10 +730,10 @@ fn footer_actions(focus: Focus) -> Vec<(&'static str, KeyCode)> {
 }
 /// Number of leading actions that fit, reserving More only on overflow.
 fn fitting_actions(actions: &[(&str, KeyCode)], width: u16) -> usize {
-    let widths = actions.iter().map(|(label, _)| Span::raw(format!(" {label} ")).width() as u16).collect::<Vec<_>>();
-    let total = widths.iter().map(|w| u32::from(*w)).sum::<u32>() + widths.len().saturating_sub(1) as u32;
+    let widths = actions.iter().map(|(label, _)| Span::raw(format!(" {label} ")).width().cells()).collect::<Vec<_>>();
+    let total = widths.iter().map(|w| u32::from(*w)).sum::<u32>() + u32::from(widths.len().saturating_sub(1).cells());
     if total <= u32::from(width) { return actions.len(); }
-    let budget = width.saturating_sub(Span::raw(" 更多 ? ").width() as u16);
+    let budget = width.saturating_sub(Span::raw(" 更多 ? ").width().cells());
     let mut used = 0;
     widths.iter().take_while(|&&w| {
         if used + w + 1 > budget { return false; }

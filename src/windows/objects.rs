@@ -75,7 +75,7 @@ impl Windows<'_> {
             let mut page = root;
             let slot = first / per;
             for level in (0..levels).rev() {
-                let n = (slot >> (level as u32 * index_shift)) & (pointers_per_page - 1);
+                let n = (slot >> (u32::try_from(level)? * index_shift)) & (pointers_per_page - 1);
                 page = self.vm.pointer(add(page, n * pointer_size)?)?;
                 if page == 0 {
                     break;

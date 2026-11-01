@@ -24,7 +24,10 @@ pub(super) fn hmac_md5(key: &[u8], data: &[u8]) -> Result<[u8; 16]> {
 /// RC4 keystream XOR in place.
 pub(super) fn rc4(key: &[u8], data: &mut [u8]) -> Result<()> {
     ensure!(!key.is_empty() && key.len() <= 256, "RC4 密钥长度无效");
-    let mut s: [u8; 256] = core::array::from_fn(|i| i as u8);
+    let mut s = [0u8; 256];
+    for (slot, value) in s.iter_mut().zip(0u8..=u8::MAX) {
+        *slot = value;
+    }
     let mut j = 0usize;
     for i in 0..256 {
         j = (j + s[i] as usize + key[i % key.len()] as usize) & 0xff;

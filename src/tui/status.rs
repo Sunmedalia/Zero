@@ -1,5 +1,6 @@
 //! Status vocabulary shared by results, the footer and diagnostic details.
 use super::*;
+use crate::bytes::float_to_i128;
 const FAMILIES: &[(&str, &[&str], &str)] = &[
     (
         "页面不在镜像中",
@@ -81,7 +82,7 @@ pub(super) fn format_duration(seconds: f64) -> String {
     } else if seconds < 60.0 {
         format!("{:.0} s", seconds)
     } else {
-        let whole = seconds.round() as u64;
+        let whole = u64::try_from(float_to_i128(seconds.round())).unwrap_or(0);
         format!("{}m{:02}s", whole / 60, whole % 60)
     }
 }

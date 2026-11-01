@@ -403,7 +403,7 @@ fn table_widths<'a>(
                 })
                 .max()
                 .unwrap_or(0);
-            header.max(data.min(60)).clamp(3, 120) as u16
+            header.max(data.min(60)).clamp(3, 120).cells()
         })
         .collect()
 }

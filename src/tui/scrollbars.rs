@@ -1,5 +1,6 @@
 //! The same track/thumbnail geometry drives painting, clicking and dragging.
 use super::*;
+use crate::bytes::Cells;
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub(super) enum ScrollTarget {
     Results,
@@ -40,10 +41,11 @@ impl App {
         let track = Rect::new(area.right() - 1, area.y + 1, 1, area.height - 2);
         let height = ((track.height as usize * viewport) / total)
             .max(1)
-            .min(track.height as usize) as u16;
+            .min(track.height as usize)
+            .cells();
         let travel = track.height - height;
         let y = track.y
-            + ((offset.min(total - viewport) * travel as usize) / (total - viewport)) as u16;
+            + ((offset.min(total - viewport) * travel as usize) / (total - viewport)).cells();
         let thumb = Rect::new(track.x, y, 1, height);
         for y in track.y..track.bottom() {
             frame.buffer_mut()[(track.x, y)]

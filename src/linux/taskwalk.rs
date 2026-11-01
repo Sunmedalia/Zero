@@ -1,5 +1,6 @@
 //! Independent directional recovery of captured task-list objects.
 use super::*;
+use crate::bytes::float_to_i128;
 
 fn evidence(result: &mut Results, direction: &str, address: u64, kind: &str, message: String) {
     result.complete = false;
@@ -407,8 +408,8 @@ impl Linux<'_> {
 /// integer nanosecond total directly differs at long-uptime half-microseconds.
 fn start_time_micros(nanos: i128) -> i128 {
     let seconds = (nanos / 1_000_000_000) as f64 + (nanos % 1_000_000_000) as f64 / 1_000_000_000.0;
-    seconds.trunc() as i128 * 1_000_000
-        + ((seconds - seconds.trunc()) * 1_000_000.0).round_ties_even() as i128
+    float_to_i128(seconds.trunc()) * 1_000_000
+        + float_to_i128(((seconds - seconds.trunc()) * 1_000_000.0).round_ties_even())
 }
 
 #[cfg(test)]

@@ -74,9 +74,9 @@ fn channel_value(pixel: u64, channel: Channel, absent: u8) -> u8 {
 }
 const fn crc_table() -> [u32; 256] {
     let mut table = [0; 256];
-    let mut i = 0;
+    let mut i = 0u32;
     while i < 256 {
-        let mut value = i as u32;
+        let mut value = i;
         let mut bit = 0;
         while bit < 8 {
             value = if value & 1 != 0 {
@@ -86,7 +86,7 @@ const fn crc_table() -> [u32; 256] {
             };
             bit += 1;
         }
-        table[i] = value;
+        table[i as usize] = value;
         i += 1;
     }
     table

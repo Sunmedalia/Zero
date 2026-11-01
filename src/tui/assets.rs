@@ -1,6 +1,7 @@
 //! The resource library page: source tabs, both asset panes, the inline detail
 //! panel and the bottom action toolbar.
 use super::*;
+use crate::bytes::Cells;
 
 impl App {
     pub(super) fn draw_asset_buttons(
@@ -11,7 +12,7 @@ impl App {
         actions: &[(&'static str, KeyCode)],
     ) {
         let more = " 更多 ? ";
-        let more_width = Span::raw(more).width() as u16;
+        let more_width = Span::raw(more).width().cells();
         let mut x = area.x;
         let y = area.y;
         if area.height == 0 {
@@ -21,7 +22,7 @@ impl App {
         let mut shown = 0usize;
         for (label, key) in actions.iter().copied().take(count) {
             let text = format!(" {label} ");
-            let width = Span::raw(&text).width() as u16;
+            let width = Span::raw(&text).width().cells();
             let rect = Rect::new(x, y, width, 1);
             let disabled = Command::from_key(Page::Assets, key)
                 .and_then(|command| self.command_disabled(command));
@@ -249,7 +250,7 @@ impl App {
         };
         let row_heights = rows
             .iter()
-            .map(|row| row.height() as u16)
+            .map(|row| row.height().cells())
             .collect::<Vec<_>>();
         let count = rows.len();
         let mut states = self.asset_states.borrow_mut();
@@ -449,7 +450,7 @@ impl App {
             (" 本地库 ", AssetSection::Symbols),
             (" 远程索引 ", AssetSection::Remote),
         ] {
-            let width = Span::raw(label).width() as u16;
+            let width = Span::raw(label).width().cells();
             if x + width > regions[1].right() {
                 break;
             }
@@ -479,7 +480,7 @@ impl App {
                     false,
                 ),
             ] {
-                let width = (Span::raw(&label).width() as u16).min(body.right().saturating_sub(x));
+                let width = (Span::raw(&label).width().cells()).min(body.right().saturating_sub(x));
                 let rect = Rect::new(x, y, width, 1);
                 frame.render_widget(
                     Paragraph::new(label).style(
@@ -576,7 +577,7 @@ impl App {
         let mut shown = 0;
         for (index, lines) in rows.iter().enumerate().skip(offset) {
             let height =
-                (lines.len() as u16).min(area.bottom().saturating_sub(1).saturating_sub(y));
+                (lines.len().cells()).min(area.bottom().saturating_sub(1).saturating_sub(y));
             if height == 0 {
                 break;
             }

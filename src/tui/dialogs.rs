@@ -1,6 +1,7 @@
 //! Every modal. `draw_dialog` picks the popup geometry, then dispatches to the
 //! per-dialog renderer below.
 use super::*;
+use crate::bytes::Cells;
 
 impl App {
     /// Columns a dialog needs for its own content.
@@ -64,7 +65,7 @@ impl App {
         // A rough cell estimate: CJK and wide glyphs take two columns.
         let estimate = longest * 3 / 2 + CHROME + 20;
         let max = screen.width.saturating_sub(6).min(MAX);
-        (estimate as u16).clamp(30, max.max(30)).min(max)
+        estimate.cells().clamp(30, max.max(30)).min(max)
     }
     /// Rows a dialog needs for its own content, including the frame and one
     /// hint row.
@@ -78,12 +79,12 @@ impl App {
         let rows = match dialog {
             Dialog::Quit { .. } => 5,
             Dialog::System { .. } => 2,
-            Dialog::Sort { .. } => self.result().map_or(4, |r| r.columns.len()) as u16,
-            Dialog::Symbols { labels, .. } => labels.len() as u16,
-            Dialog::Links { matches, .. } => matches.len() as u16,
-            Dialog::Commands { .. } => self.available_commands("").len() as u16,
-            Dialog::Plugins { .. } => self.plugin_matches("").len() as u16,
-            Dialog::Settings { .. } => self.settings_labels().len() as u16,
+            Dialog::Sort { .. } => self.result().map_or(4, |r| r.columns.len()).cells(),
+            Dialog::Symbols { labels, .. } => labels.len().cells(),
+            Dialog::Links { matches, .. } => matches.len().cells(),
+            Dialog::Commands { .. } => self.available_commands("").len().cells(),
+            Dialog::Plugins { .. } => self.plugin_matches("").len().cells(),
+            Dialog::Settings { .. } => self.settings_labels().len().cells(),
             Dialog::Input { .. } => 4,
             Dialog::KernelDiagnostics { .. } => screen.height,
             Dialog::Detail { .. } => 12,
@@ -154,7 +155,7 @@ impl App {
                         (" 确认退出 ", KeyCode::Char('y'), *confirm, buttons_left),
                         (" 取消 Esc ", KeyCode::Esc, !*confirm, buttons_left + 14),
                     ] {
-                        let rect = Rect::new(x, y, Span::raw(label).width() as u16, 1);
+                        let rect = Rect::new(x, y, Span::raw(label).width().cells(), 1);
                         frame.render_widget(
                             Paragraph::new(label).style(
                                 Style::default()
@@ -277,7 +278,7 @@ impl App {
                     frame.render_widget(
                         Paragraph::new(lines)
                             .style(Style::default().fg(color_text()).bg(color_surface()))
-                            .scroll((offset as u16, 0))
+                            .scroll((offset.cells(), 0))
                             .block(panel().title("适用参数 · 保存后 R 运行")),
                         popup,
                     );
@@ -285,7 +286,7 @@ impl App {
                         if row + 1 < offset || row >= offset + inner.height as usize {
                             continue;
                         }
-                        let top = row.saturating_sub(offset) as u16;
+                        let top = row.saturating_sub(offset).cells();
                         let rect = Rect::new(
                             inner.x,
                             inner.y + top,
@@ -298,9 +299,10 @@ impl App {
                                 + (Span::raw(escaped(
                                     &fields[index][..(*cursor).min(fields[index].len())],
                                 ))
-                                .width() as u16)
-                                    .min(inner.width.saturating_sub(1));
-                            let y = inner.y + (row + 1 - offset) as u16;
+                                .width()
+                                .cells())
+                                .min(inner.width.saturating_sub(1));
+                            let y = inner.y + (row + 1 - offset).cells();
                             if y < inner.bottom() {
                                 frame.set_cursor_position((x, y));
                             }
@@ -308,7 +310,7 @@ impl App {
                     }
                     if save >= offset && save < offset + inner.height as usize {
                         self.hits.borrow_mut().buttons.push((
-                            Rect::new(inner.x, inner.y + (save - offset) as u16, inner.width, 1),
+                            Rect::new(inner.x, inner.y + (save - offset).cells(), inner.width, 1),
                             KeyCode::Enter,
                         ));
                     }
@@ -389,7 +391,7 @@ impl App {
                             index + 1,
                             plugin_label(plugin).trim_end_matches("dump")
                         );
-                        let width = Span::raw(&label).width() as u16 + 2;
+                        let width = Span::raw(&label).width().cells().saturating_add(2);
                         if x + width >= popup.right() {
                             x = popup.x + 2;
                             mode_y += 1;
@@ -423,7 +425,7 @@ impl App {
                                 + if compact {
                                     field_start
                                 } else {
-                                    field_start + i as u16
+                                    field_start + i.cells()
                                 },
                             popup.width.saturating_sub(4),
                             1,
@@ -442,8 +444,13 @@ impl App {
                         self.hits.borrow_mut().dump_fields.push((rect, i));
                         if *field == i && !selected {
                             let x = rect.x
-                                + Span::raw(format!("{}: {}", labels[i], escaped(&text[..*cursor])))
-                                    .width() as u16;
+                                + Span::raw(format!(
+                                    "{}: {}",
+                                    labels[i],
+                                    escaped(&text[..*cursor])
+                                ))
+                                .width()
+                                .cells();
                             if x < rect.right() {
                                 frame.set_cursor_position((x, rect.y));
                             }
@@ -603,18 +610,16 @@ impl App {
                     let visible = search.width.saturating_sub(2).max(1) as usize;
                     let scroll = query_width.saturating_sub(visible.saturating_sub(1));
                     frame.render_widget(
-                        Paragraph::new(query)
-                            .scroll((0, scroll.min(u16::MAX as usize) as u16))
-                            .block(
-                                panel()
-                                    .title("搜索插件 / · Esc 返回")
-                                    .border_style(Style::default().fg(color_focus())),
-                            ),
+                        Paragraph::new(query).scroll((0, scroll.cells())).block(
+                            panel()
+                                .title("搜索插件 / · Esc 返回")
+                                .border_style(Style::default().fg(color_focus())),
+                        ),
                         search,
                     );
                     if search.width > 2 && search.height > 1 {
                         frame.set_cursor_position((
-                            search.x + 1 + query_width.saturating_sub(scroll) as u16,
+                            search.x + 1 + query_width.saturating_sub(scroll).cells(),
                             search.y + 1,
                         ));
                     }
@@ -761,7 +766,7 @@ impl App {
                         ("取消", KeyCode::Esc, true),
                     ] {
                         let text = format!("[{label}]");
-                        let width = Span::raw(&text).width() as u16;
+                        let width = Span::raw(&text).width().cells();
                         if x + width >= popup.right() || popup.height < 5 {
                             continue;
                         }
@@ -811,8 +816,8 @@ impl App {
                     };
                     let expand = " ⤢ t ";
                     let copy = " 复制 c ";
-                    let expand_width = Span::raw(expand).width() as u16;
-                    let copy_width = Span::raw(copy).width() as u16;
+                    let expand_width = Span::raw(expand).width().cells();
+                    let copy_width = Span::raw(copy).width().cells();
                     let actions_x = popup
                         .right()
                         .saturating_sub(2 + expand_width + 1 + copy_width);
@@ -901,7 +906,7 @@ impl App {
                         popup,
                     );
                     let width = popup.width.saturating_sub(2).max(1);
-                    let n = Span::raw(escaped(&text[..*cursor])).width() as u16;
+                    let n = Span::raw(escaped(&text[..*cursor])).width().cells();
                     let y_cursor = popup.y + 1 + n / width;
                     if y_cursor < popup.bottom().saturating_sub(2) {
                         frame.set_cursor_position(Position::new(popup.x + 1 + n % width, y_cursor));
