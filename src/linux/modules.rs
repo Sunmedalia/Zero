@@ -759,19 +759,21 @@ mod tests {
     }
     #[test]
     fn module_scanner_uses_member_width_and_known_alignment_fallback() {
-        for (width, candidate, known_address, lower) in [
-            (4, 0x35104usize, 0x34100, 0x34000),
-            (4, 0x35105usize, 0x34101, 0x34000),
-            (8, 0x35105usize, 0x34101, 0x34000),
-            (4, 0x35105usize, 0x34100, 0x34001),
-            (8, 0x35109usize, 0x34100, 0x34001),
-        ] {
+        let vectors: serde_json::Value = serde_json::from_str(include_str!(
+            "../../tests/reference/parity/fixtures/module-scan-width.json"
+        ))
+        .unwrap();
+        for case in vectors["cases"].as_array().unwrap() {
+            let width = case["width"].as_u64().unwrap() as usize;
+            let candidate = case["candidate"].as_u64().unwrap() as usize;
+            let known_address = case["known"].as_u64().unwrap();
+            let lower = case["lower"].as_u64().unwrap();
             let (mut bytes, mut isf) = fixture();
             isf.data["base_types"]["pointer"]["size"] = json!(width);
             isf.data["user_types"]["module_kobject"]["fields"]["mod"] =
                 json!({"offset":32,"type":{"kind":"pointer"}});
             put(&mut bytes, 0x30010, lower);
-            bytes[0x35100..0x35200].fill(0);
+            bytes[0x34000..0x37000].fill(0);
             bytes[candidate + 16..candidate + 22].copy_from_slice(b"hidden");
             put(&mut bytes, candidate + 96, 0x18000);
             put(&mut bytes, candidate + 104, 4096);
@@ -792,10 +794,13 @@ mod tests {
                     &Job::default(),
                 )
                 .unwrap();
-            assert!(
-                found.contains(&(candidate as u64)),
-                "width={width}, candidate={candidate:#x}, found={found:?}"
-            );
+            let expected: Vec<u64> = case["found"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|v| v.as_u64().unwrap())
+                .collect();
+            assert_eq!(found, expected, "{case}");
         }
     }
     #[test]

@@ -6,6 +6,8 @@
   "verification": {
     "test": "linux::modules::tests::module_scanner_uses_member_width_and_known_alignment_fallback",
     "cases": 5,
+    "generator": "module_scan_width_vectors.py",
+    "fixture": "fixtures/module-scan-width.json",
     "checks": [
       "Four-byte back-reference excludes nonzero neighboring bytes",
       "Pointer-width candidate stride",
@@ -14,7 +16,7 @@
     ]
   },
   "limitations": [
-    "These are native synthetic regression cases and a pinned source comparison, not actual-reference execution vectors for full hidden module scanning.",
+    "The vectors execute the actual pinned get_hidden_modules with a synthetic memory layer and mocked module validity. Native candidate lists match all five cases; real module.is_valid behavior and full hidden-module plugin parity are outside this evidence.",
     "ISF member size controls the back-reference read; ISF pointer size controls alignment. Both are restricted to four or eight bytes.",
     "The existing two-page window, cancellation, scan budget, partial diagnostics and back-offset bound remain in force.",
     "Real Linux32 discovery and extraction are not established; the public Linux32 ISF parse gate remains closed.",

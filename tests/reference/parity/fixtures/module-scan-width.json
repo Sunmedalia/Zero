@@ -1,0 +1,84 @@
+{
+  "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+  "source_sha256": {
+    "volatility3/framework/symbols/linux/utilities/modules.py": "a5e33f20ecbfb1403de58e5c8b1c037215758747bc32ef5404235dc809bba1bf"
+  },
+  "scope": "Actual pinned get_hidden_modules alignment, member-width prefilter and candidate sequence with mocked validity only.",
+  "cases": [
+    {
+      "width": 4,
+      "candidate": 217348,
+      "known": 213248,
+      "lower": 212992,
+      "upper": 225280,
+      "found": [
+        217348
+      ],
+      "first_read": [
+        213080,
+        4
+      ],
+      "read_count": 3071
+    },
+    {
+      "width": 4,
+      "candidate": 217349,
+      "known": 213249,
+      "lower": 212992,
+      "upper": 225280,
+      "found": [
+        217349
+      ],
+      "first_read": [
+        213080,
+        4
+      ],
+      "read_count": 12287
+    },
+    {
+      "width": 8,
+      "candidate": 217349,
+      "known": 213249,
+      "lower": 212992,
+      "upper": 225280,
+      "found": [
+        217349
+      ],
+      "first_read": [
+        213080,
+        8
+      ],
+      "read_count": 12287
+    },
+    {
+      "width": 4,
+      "candidate": 217349,
+      "known": 213248,
+      "lower": 212993,
+      "upper": 225280,
+      "found": [
+        217349
+      ],
+      "first_read": [
+        213081,
+        4
+      ],
+      "read_count": 3072
+    },
+    {
+      "width": 8,
+      "candidate": 217353,
+      "known": 213248,
+      "lower": 212993,
+      "upper": 225280,
+      "found": [
+        217353
+      ],
+      "first_read": [
+        213081,
+        8
+      ],
+      "read_count": 1536
+    }
+  ]
+}
