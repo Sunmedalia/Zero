@@ -53,18 +53,10 @@ impl Linux<'_> {
             .as_u64()
             .context("maple 指针宽度缺失")?;
         ensure!(matches!(pointer_width, 4 | 8), "maple 指针宽度无效");
-        let mut stack = vec![(
-            root,
-            if pointer_width == 4 {
-                u32::MAX as u64
-            } else {
-                u64::MAX
-            },
-            root & 3 == 2,
-        )];
+        let mut stack = vec![(root, root & 3 == 2)];
         let mut seen = HashSet::new();
         let mut leaves = Vec::new();
-        while let Some((entry, max, is_node)) = stack.pop() {
+        while let Some((entry, is_node)) = stack.pop() {
             job.check()?;
             if entry == 0 {
                 continue;
@@ -109,75 +101,17 @@ impl Linux<'_> {
                     && self.isf.size(structure, slot_field)? as u64 == slot_width * count,
                 "maple slot 宽度无效"
             );
-            let pivot_width = if leaf {
-                0
-            } else {
-                let pivots = self.isf.field(structure, "pivot")?["type"]["count"]
-                    .as_u64()
-                    .context("maple pivot count 缺失")?;
-                ensure!(pivots > 0 && pivots <= 64, "maple pivot count 异常");
-                let size = self.isf.size(structure, "pivot")? as u64;
-                let width = size / pivots;
-                ensure!(
-                    matches!(width, 4 | 8)
-                        && size == width * pivots
-                        && pivots >= count.saturating_sub(1),
-                    "maple pivot 宽度/数量无效"
-                );
-                width
-            };
-            let end = if leaf {
-                count - 1
-            } else if kind == 3 {
-                self.number(base, structure, "meta.end")?
-            } else {
-                let last = self.vm.uint(
-                    add(
-                        self.field_address(base, structure, "pivot")?,
-                        count.checked_sub(2).context("maple slot 数量不足")? * pivot_width,
-                    )?,
-                    pivot_width as usize,
-                )?;
-                if last == 0 {
-                    self.number(base, structure, "meta.end")?
-                } else if last == max {
-                    count - 2
-                } else {
-                    count - 1
-                }
-            };
-            ensure!(end < count, "maple meta.end 越界");
-            for i in 0..=if leaf { count - 1 } else { end } {
+            for i in 0..count {
                 let child = self
                     .vm
                     .uint(add(slots, i * slot_width)?, slot_width as usize)?;
-                let pivot = if leaf || i == count - 1 {
-                    max
-                } else {
-                    self.vm.uint(
-                        add(
-                            self.field_address(base, structure, "pivot")?,
-                            i * pivot_width,
-                        )?,
-                        pivot_width as usize,
-                    )?
-                };
-                if i > 0 && pivot == 0 {
-                    break;
-                }
-                if child != 0 {
+                if child & !15 != 0 {
                     if leaf {
-                        if child & !15 == 0 {
-                            continue;
-                        }
                         ensure!(child & (pointer_width - 1) == 0, "maple VMA 指针对齐错误");
                         leaves.push(child);
                     } else {
-                        stack.push((child, pivot, true));
+                        stack.push((child, true));
                     }
-                }
-                if !leaf && pivot >= max {
-                    break;
                 }
             }
         }
@@ -263,6 +197,69 @@ mod tests {
     use super::*;
     use crate::linux::tests::{engine, fixture, image};
     use serde_json::json;
+    #[test]
+    fn maple_internal_nodes_match_actual_reference_without_pivot_metadata() {
+        let vectors: serde_json::Value = serde_json::from_str(include_str!(
+            "../../tests/reference/parity/fixtures/maple-internal.json"
+        ))
+        .unwrap();
+        for case in vectors["cases"].as_array().unwrap() {
+            let (mut b, mut isf) = fixture();
+            let width = case["width"].as_u64().unwrap() as usize;
+            isf.data["base_types"]["pointer"]["size"] = json!(width);
+            let word = json!({"kind":"base","name":if width == 4 {"u32"} else {"u64"}});
+            isf.data["user_types"]["mm_struct"]["fields"]["mm_mt"] =
+                json!({"offset":40,"type":{"kind":"struct","name":"maple_tree"}});
+            isf.data["user_types"]["maple_tree"] =
+                ty(&[("ma_root", 0, word.clone())], width as u64);
+            for name in ["maple_range_64", "maple_arange_64"] {
+                isf.data["user_types"][name] = ty(
+                    &[
+                        ("parent", 0, word.clone()),
+                        (
+                            "slot",
+                            32,
+                            json!({"kind":"array","count":4,"subtype":{"kind":"pointer"}}),
+                        ),
+                    ],
+                    72,
+                );
+            }
+            isf.data["user_types"]["maple_node"] = ty(
+                &[
+                    ("mr64", 0, json!({"kind":"struct","name":"maple_range_64"})),
+                    ("ma64", 0, json!({"kind":"struct","name":"maple_arange_64"})),
+                ],
+                256,
+            );
+            put(&mut b, 0xb028, case["root"].as_u64().unwrap());
+            for node in case["nodes"].as_array().unwrap() {
+                let base = node["address"].as_u64().unwrap() as usize;
+                put(&mut b, base, node["parent"].as_u64().unwrap());
+                for (i, slot) in node["slots"].as_array().unwrap().iter().enumerate() {
+                    b[base + 32 + i * width..base + 32 + (i + 1) * width]
+                        .copy_from_slice(&slot.as_u64().unwrap().to_le_bytes()[..width]);
+                }
+            }
+            let expected: Vec<u64> = case["found"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|v| v.as_u64().unwrap())
+                .collect();
+            for (i, address) in expected.iter().enumerate() {
+                put(&mut b, *address as usize + 8, 0x200000 + i as u64 * 4096);
+            }
+            let img = image(&b);
+            assert_eq!(
+                engine(&img, &isf)
+                    .maple_vmas(0xb000, &Job::default(), 100)
+                    .unwrap(),
+                expected,
+                "{case}"
+            );
+        }
+    }
     #[test]
     fn maple_dense_nodes_match_actual_reference_all_slot_iteration() {
         let vectors: serde_json::Value = serde_json::from_str(include_str!(
@@ -524,10 +521,11 @@ mod tests {
         );
         b[0x11140] = 4;
         let img = image(&b);
-        assert!(
+        assert_eq!(
             engine(&img, &isf)
                 .maple_vmas(0xb000, &Job::default(), 100)
-                .is_err()
+                .unwrap(),
+            vec![0x12000, 0x12100]
         );
         b[0x11140] = 0;
         put(&mut b, 0x11120, 0x1111c);

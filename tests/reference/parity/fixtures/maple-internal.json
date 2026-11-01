@@ -1,0 +1,173 @@
+{
+  "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+  "source_sha256": {
+    "volatility3/framework/symbols/linux/extensions/__init__.py": "5e43dbf482df74ec78c810ece3584323205eeac20d44fede5381f9a12b78e249"
+  },
+  "scope": "Actual pinned RANGE64/ARANGE64 recursion and parent validation with mocked typed slots; no real-image claim.",
+  "cases": [
+    {
+      "width": 4,
+      "kind": 2,
+      "root": 69650,
+      "nodes": [
+        {
+          "address": 69632,
+          "parent": 45097,
+          "slots": [
+            73740,
+            0,
+            77836,
+            0
+          ]
+        },
+        {
+          "address": 73728,
+          "parent": 69638,
+          "slots": [
+            81924,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "address": 77824,
+          "parent": 69638,
+          "slots": [
+            82180,
+            0,
+            0,
+            0
+          ]
+        }
+      ],
+      "found": [
+        81924,
+        82180
+      ]
+    },
+    {
+      "width": 4,
+      "kind": 3,
+      "root": 69658,
+      "nodes": [
+        {
+          "address": 69632,
+          "parent": 45097,
+          "slots": [
+            73740,
+            0,
+            77836,
+            0
+          ]
+        },
+        {
+          "address": 73728,
+          "parent": 69638,
+          "slots": [
+            81924,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "address": 77824,
+          "parent": 69638,
+          "slots": [
+            82180,
+            0,
+            0,
+            0
+          ]
+        }
+      ],
+      "found": [
+        81924,
+        82180
+      ]
+    },
+    {
+      "width": 8,
+      "kind": 2,
+      "root": 69650,
+      "nodes": [
+        {
+          "address": 69632,
+          "parent": 45097,
+          "slots": [
+            73740,
+            0,
+            77836,
+            0
+          ]
+        },
+        {
+          "address": 73728,
+          "parent": 69638,
+          "slots": [
+            81920,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "address": 77824,
+          "parent": 69638,
+          "slots": [
+            82176,
+            0,
+            0,
+            0
+          ]
+        }
+      ],
+      "found": [
+        81920,
+        82176
+      ]
+    },
+    {
+      "width": 8,
+      "kind": 3,
+      "root": 69658,
+      "nodes": [
+        {
+          "address": 69632,
+          "parent": 45097,
+          "slots": [
+            73740,
+            0,
+            77836,
+            0
+          ]
+        },
+        {
+          "address": 73728,
+          "parent": 69638,
+          "slots": [
+            81920,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "address": 77824,
+          "parent": 69638,
+          "slots": [
+            82176,
+            0,
+            0,
+            0
+          ]
+        }
+      ],
+      "found": [
+        81920,
+        82176
+      ]
+    }
+  ]
+}
