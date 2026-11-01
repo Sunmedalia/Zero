@@ -567,6 +567,40 @@ fn ipv4_ipv6_tcp_udp_unix_and_unsupported() {
     );
 }
 #[test]
+fn four_byte_fd_arrays_do_not_merge_adjacent_slots() {
+    let (mut b, mut isf) = fixture();
+    isf.data["base_types"]["pointer"]["size"] = json!(4);
+    put(&mut b, 0xa038, 0xcb00);
+    put(&mut b, 0xcb00, 0xcc00);
+    put(&mut b, 0xcc00, 2);
+    put(&mut b, 0xcc08, 0xcd00);
+    b[0xcd00..0xcd04].copy_from_slice(&0u32.to_le_bytes());
+    b[0xcd04..0xcd08].copy_from_slice(&0x40000u32.to_le_bytes());
+    let i = image(&b);
+    let linux = engine(&i, &isf);
+    let mut result = linux.result(Plugin::Lsof);
+    linux
+        .files_bounded(
+            0xa000,
+            vec!["1".into(), "init".into()],
+            Plugin::Lsof,
+            &mut result,
+            &Job::default(),
+            2,
+        )
+        .unwrap();
+    assert!(result.rows.is_empty());
+    assert!(!result.complete);
+    assert_eq!(result.diagnostics.len(), 1, "{:?}", result.diagnostics);
+    assert!(
+        result.diagnostics[0].contains("FD 1"),
+        "{:?}",
+        result.diagnostics
+    );
+    assert!(!result.diagnostics[0].contains("FD 0"));
+}
+
+#[test]
 fn traversal_limits_cancel_and_identity_failure() {
     let (mut b, isf) = fixture();
     let job = Job::default();

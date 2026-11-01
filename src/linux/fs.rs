@@ -36,12 +36,20 @@ impl Linux<'_> {
         let count = self.number(table, "fdtable", "max_fds")?;
         let array = self.number(table, "fdtable", "fd")?;
         ensure!(count == 0 || array != 0, "FD 数组为空");
+        let width = usize::try_from(
+            self.isf.data["base_types"]["pointer"]["size"]
+                .as_u64()
+                .context("ISF pointer size 缺失")?,
+        )?;
+        ensure!(matches!(width, 4 | 8), "ISF pointer size 无效");
         let mut seen_sockets = HashSet::new();
         for fd in 0..count.min(limit) {
             job.check()?;
             let row = (|| -> Result<Option<Vec<String>>> {
-                let slot = array.checked_add(fd * 8).context("FD 地址溢出")?;
-                let file = self.vm.uint(slot, 8)?;
+                let slot = array
+                    .checked_add(fd.checked_mul(width as u64).context("FD 偏移溢出")?)
+                    .context("FD 地址溢出")?;
+                let file = self.vm.uint(slot, width)?;
                 if file == 0 {
                     return Ok(None);
                 }

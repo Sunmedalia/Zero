@@ -386,7 +386,9 @@ impl Linux<'_> {
         let next = self.isf.offset("list_head", "next")?;
         let mut result = self.result(plugin);
         let traversal = (|| -> Result<()> {
-            let mut node = self.vm.uint(add(head, next)?, 8)?;
+            let mut node = self
+                .vm
+                .uint(add(head, next)?, self.isf.size("list_head", "next")?)?;
             let mut visited = HashSet::new();
             while node != head {
                 job.check()?;
@@ -529,7 +531,9 @@ impl Linux<'_> {
                             .push(format!("对象 {object:#018x}: {error:#}"));
                     }
                 }
-                node = self.vm.uint(add(node, next)?, 8)?;
+                node = self
+                    .vm
+                    .uint(add(node, next)?, self.isf.size("list_head", "next")?)?;
                 job.report(format!("{}: {} 条", plugin.name(), result.rows.len()));
             }
             Ok(())

@@ -921,6 +921,27 @@ mod tests {
     }
 
     #[test]
+    fn lsmod_reads_four_byte_links_without_adjacent_bytes() {
+        let (mut bytes, mut isf) = fixture();
+        isf.data["base_types"]["pointer"]["size"] = json!(4);
+        isf.data["user_types"]["list_head"] = json!({"size":8,"fields":{
+            "next":{"offset":0,"type":{"kind":"pointer"}},
+            "prev":{"offset":4,"type":{"kind":"pointer"}}
+        }});
+        for (at, next) in [(0x31000usize, 0x34100u32), (0x34100, 0x31000)] {
+            bytes[at..at + 4].copy_from_slice(&next.to_le_bytes());
+            bytes[at + 4..at + 8].copy_from_slice(&0xdeadbeefu32.to_le_bytes());
+        }
+        let image = super::super::tests::image(&bytes);
+        let result = super::super::tests::engine(&image, &isf)
+            .run(Plugin::Lsmod, &Job::default())
+            .unwrap();
+        assert_eq!(result.rows.len(), 1, "{:?}", result.diagnostics);
+        assert_eq!(result.rows[0][1], "listed");
+        assert!(result.complete, "{:?}", result.diagnostics);
+    }
+
+    #[test]
     fn lsmod_export_failure_preserves_rows_and_cancellation() {
         let (bytes, isf) = fixture();
         let image = super::super::tests::image(&bytes);
