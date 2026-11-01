@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+  "scope": "Actual pinned dense maple node slot iteration",
+  "generator": "maple_dense_vectors.py",
+  "fixture": "fixtures/maple-dense.json",
+  "verification": {
+    "cases": 2,
+    "regression": "Before the fix the four-byte case returned only the first of three expected nonzero slots; after the fix four/eight-byte cases match actual pinned outputs including a hole between populated slots.",
+    "test": "linux::walk::tests::maple_dense_nodes_match_actual_reference_all_slot_iteration"
+  },
+  "limitations": [
+    "The actual pinned method receives mocked typed nodes and context. This establishes dense slot iteration only, not full reference object validation or real-image VMA extraction.",
+    "Native dense nodes retain ISF parent/slot fields; the reference mock exposes alloc.slot. Full native nested dense layout selection remains outside this batch.",
+    "Non-dense pivot/meta termination and stricter native validation remain separate parity gaps.",
+    "Real Linux32 end-to-end acceptance is not established and the public Linux32 ISF parse gate remains closed.",
+    "No full plugin contract is established."
+  ]
+}

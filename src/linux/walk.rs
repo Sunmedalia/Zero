@@ -168,7 +168,7 @@ impl Linux<'_> {
                         stack.push((child, pivot, true));
                     }
                 }
-                if pivot >= max {
+                if kind != 0 && pivot >= max {
                     break;
                 }
             }
@@ -255,6 +255,55 @@ mod tests {
     use super::*;
     use crate::linux::tests::{engine, fixture, image};
     use serde_json::json;
+    #[test]
+    fn maple_dense_nodes_match_actual_reference_all_slot_iteration() {
+        let vectors: serde_json::Value = serde_json::from_str(include_str!(
+            "../../tests/reference/parity/fixtures/maple-dense.json"
+        ))
+        .unwrap();
+        for case in vectors["cases"].as_array().unwrap() {
+            let (mut b, mut isf) = fixture();
+            let width = case["width"].as_u64().unwrap() as usize;
+            isf.data["base_types"]["pointer"]["size"] = json!(width);
+            let word = json!({"kind":"base","name":if width == 4 {"u32"} else {"u64"}});
+            isf.data["user_types"]["mm_struct"]["fields"]["mm_mt"] =
+                json!({"offset":40,"type":{"kind":"struct","name":"maple_tree"}});
+            isf.data["user_types"]["maple_tree"] =
+                ty(&[("ma_root", 0, word.clone())], width as u64);
+            isf.data["user_types"]["maple_node"] = ty(
+                &[
+                    ("parent", 0, word),
+                    (
+                        "slot",
+                        8,
+                        json!({"kind":"array","count":4,"subtype":{"kind":"pointer"}}),
+                    ),
+                ],
+                256,
+            );
+            put(&mut b, 0xb028, case["root"].as_u64().unwrap());
+            put(&mut b, 0x11000, 0xb029);
+            for (i, value) in case["slots"].as_array().unwrap().iter().enumerate() {
+                let value = value.as_u64().unwrap();
+                let at = 0x11008 + i * width;
+                b[at..at + width].copy_from_slice(&value.to_le_bytes()[..width]);
+                if value != 0 {
+                    put(&mut b, value as usize + 8, 0x200000 + i as u64 * 4096);
+                }
+            }
+            let img = image(&b);
+            let actual = engine(&img, &isf)
+                .maple_vmas(0xb000, &Job::default(), 100)
+                .unwrap();
+            let expected: Vec<u64> = case["found"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|v| v.as_u64().unwrap())
+                .collect();
+            assert_eq!(actual, expected, "{case}");
+        }
+    }
     fn put(b: &mut [u8], p: usize, v: u64) {
         b[p..p + 8].copy_from_slice(&v.to_le_bytes());
     }

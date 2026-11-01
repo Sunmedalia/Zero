@@ -1,0 +1,39 @@
+{
+  "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+  "source_sha256": {
+    "volatility3/framework/symbols/linux/extensions/__init__.py": "5e43dbf482df74ec78c810ece3584323205eeac20d44fede5381f9a12b78e249"
+  },
+  "scope": "Actual pinned dense-node iteration with mocked typed slots; no real image or complete VMA validity claim.",
+  "cases": [
+    {
+      "width": 4,
+      "root": 69634,
+      "slots": [
+        73732,
+        73988,
+        0,
+        74244
+      ],
+      "found": [
+        73732,
+        73988,
+        74244
+      ]
+    },
+    {
+      "width": 8,
+      "root": 69634,
+      "slots": [
+        73728,
+        73984,
+        0,
+        74240
+      ],
+      "found": [
+        73728,
+        73984,
+        74240
+      ]
+    }
+  ]
+}
