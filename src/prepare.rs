@@ -3,7 +3,7 @@ use crate::{
     Job,
     image::{Image, digest_reader},
     store,
-    symbols::{Isf, matching},
+    symbols::{Isf, http, matching},
 };
 use anyhow::{Context, Result, ensure};
 use serde_json::json;
@@ -201,29 +201,15 @@ fn download(url: &str, path: &Path, network: bool, job: &Job) -> Result<()> {
     ensure!(network, "离线模式且准备文件缺失: {url}");
     let temporary = path.with_extension("part");
     job.report(format!("下载符号准备文件: {url}"));
-    let result = run(
-        Command::new("curl")
-            .args([
-                "--fail",
-                "--location",
-                "--silent",
-                "--show-error",
-                "--proto",
-                "=https",
-                "--proto-redir",
-                "=https",
-                "--connect-timeout",
-                "10",
-                "--max-time",
-                "1800",
-                "--max-filesize",
-                "1073741824",
-                "--output",
-            ])
-            .arg(&temporary)
-            .arg("--")
-            .arg(url)
-            .stdout(Stdio::null()),
+    let result = http::download(
+        http::Request {
+            url,
+            range: None,
+            limit: 1024 * 1024 * 1024,
+            timeout: Duration::from_secs(1800),
+            https_only: true,
+        },
+        File::create(&temporary)?,
         job,
     );
     if let Err(e) = result {
@@ -233,26 +219,95 @@ fn download(url: &str, path: &Path, network: bool, job: &Job) -> Result<()> {
     fs::rename(temporary, path)?;
     Ok(())
 }
+const AR_MAGIC: &[u8; 8] = b"!<arch>\n";
+const AR_HEADER: usize = 60;
+/// Position `package` at the named ar member and return that member's size.
+fn ar_member(package: &mut File, wanted: &str) -> Result<u64> {
+    let mut magic = [0; AR_MAGIC.len()];
+    package.read_exact(&mut magic).context("deb 文件过短")?;
+    ensure!(magic == *AR_MAGIC, "不是有效的 deb(ar)文件");
+    let total = package.metadata()?.len();
+    let mut position = AR_MAGIC.len() as u64;
+    loop {
+        ensure!(position < total, "deb 缺少成员 {wanted}");
+        let mut header = [0; AR_HEADER];
+        package.seek(SeekFrom::Start(position))?;
+        package
+            .read_exact(&mut header)
+            .context("deb 成员头被截断")?;
+        ensure!(header.ends_with(b"`\n"), "deb 成员头无效");
+        let field = |range: std::ops::Range<usize>| {
+            header
+                .get(range)
+                .and_then(|bytes| std::str::from_utf8(bytes).ok())
+                .map(str::trim_end)
+                .context("deb 成员头无效")
+        };
+        let name = field(0..16)?;
+        let size: u64 = field(48..58)?.parse().context("deb 成员大小无效")?;
+        let data = position + AR_HEADER as u64;
+        ensure!(
+            data.checked_add(size).is_some_and(|end| end <= total),
+            "deb 成员超出文件范围"
+        );
+        if name.trim_end_matches('/') == wanted {
+            return Ok(size);
+        }
+        // ar pads each member to an even offset.
+        position = data + size + (size & 1);
+    }
+}
+fn plain(path: &str) -> &Path {
+    let path = Path::new(path);
+    path.strip_prefix(".").unwrap_or(path)
+}
+/// Copy only the named regular files out of a package's data.tar.xz under `root`.
+/// Names come from the caller, so archive-controlled paths never reach the filesystem.
 fn extract(package: &Path, root: &Path, paths: &[&str], job: &Job) -> Result<()> {
-    let tar = tempfile::NamedTempFile::new()?;
-    run(
-        Command::new("ar")
-            .arg("-p")
-            .arg(package)
-            .arg("data.tar.xz")
-            .stdout(tar.reopen()?),
-        job,
-    )?;
-    run(
-        Command::new("tar")
-            .arg("-xJf")
-            .arg(tar.path())
-            .arg("-C")
-            .arg(root)
-            .args(paths)
-            .stdout(Stdio::null()),
-        job,
-    )
+    let mut file = File::open(package)?;
+    let size = ar_member(&mut file, "data.tar.xz")?;
+    let xz = xz2::read::XzDecoder::new_multi_decoder(file.take(size));
+    let mut archive = tar::Archive::new(xz);
+    let mut missing: Vec<&str> = paths.to_vec();
+    for entry in archive.entries().context("读取 deb 数据包失败")? {
+        job.check()?;
+        let mut entry = entry.context("读取 deb 数据包失败")?;
+        let name = entry.path()?.into_owned();
+        // Packages name members `./boot/x` or `boot/x`; the two are the same file.
+        let same = |path: &&str| name.strip_prefix(".").unwrap_or(&name) == plain(path);
+        let Some(index) = missing.iter().position(same) else {
+            continue;
+        };
+        let path = missing.swap_remove(index);
+        ensure!(entry.header().entry_type().is_file(), "{path} 不是普通文件");
+        let target = root.join(path);
+        store::atomic_stream(&target, job, |writer| {
+            std::io::copy(&mut entry, writer)?;
+            Ok(())
+        })?;
+        if missing.is_empty() {
+            return Ok(());
+        }
+    }
+    anyhow::bail!("deb 数据包缺少文件: {}", missing.join(", "))
+}
+/// Executable lookup without running it; `path` is the `PATH` value to search.
+fn on_path(tool: &str, path: Option<&std::ffi::OsStr>) -> bool {
+    let name = format!("{tool}{}", std::env::consts::EXE_SUFFIX);
+    path.is_some_and(|path| std::env::split_paths(path).any(|dir| dir.join(&name).is_file()))
+}
+fn require_tools(tools: &[&str], path: Option<&std::ffi::OsStr>) -> Result<()> {
+    let missing: Vec<_> = tools
+        .iter()
+        .copied()
+        .filter(|tool| !on_path(tool, path))
+        .collect();
+    ensure!(
+        missing.is_empty(),
+        "编译 dwarf2json 需要 {}，请先安装；或提供已编译工具与调试 ELF，改用 --tool 生成 ISF",
+        missing.join("、")
+    );
+    Ok(())
 }
 pub fn prepare_kali(image: &Image, cache: &Path, network: bool, job: &Job) -> Result<PathBuf> {
     let _lock = crate::cache::lock(cache, false)?;
@@ -273,6 +328,13 @@ pub fn prepare_kali(image: &Image, cache: &Path, network: bool, job: &Job) -> Re
         {
             return Ok(PathBuf::from(&isf.label));
         }
+    }
+    let tool_root = cache.join("symbols/build/dwarf2json");
+    let tool = tool_root.join("dwarf2json");
+    if !tool.is_file() {
+        // Fail before downloading a gigabyte of packages that could not be used.
+        ensure!(network, "离线模式且 dwarf2json 尚未准备");
+        require_tools(&["git", "go"], std::env::var_os("PATH").as_deref())?;
     }
     let root = cache.join("symbols/build/kali-6.8.11");
     fs::create_dir_all(&root)?;
@@ -301,10 +363,7 @@ pub fn prepare_kali(image: &Image, cache: &Path, network: bool, job: &Job) -> Re
             job,
         )?;
     }
-    let tool_root = cache.join("symbols/build/dwarf2json");
-    let tool = tool_root.join("dwarf2json");
     if !tool.is_file() {
-        ensure!(network, "离线模式且 dwarf2json 尚未准备");
         if !tool_root.exists() {
             run(
                 Command::new("git")
@@ -446,5 +505,110 @@ mod tests {
         fs::write(&elf, [0; 64])?;
         assert!(elf_metadata(&elf).is_err());
         Ok(())
+    }
+    fn deb(root: &Path, members: &[(&str, &[u8])]) -> PathBuf {
+        let path = root.join("package.deb");
+        let mut out = AR_MAGIC.to_vec();
+        for (name, data) in members {
+            out.extend_from_slice(
+                format!(
+                    "{name:<16}{:<12}{:<6}{:<6}{:<8}{:<10}`\n",
+                    0,
+                    0,
+                    0,
+                    100644,
+                    data.len()
+                )
+                .as_bytes(),
+            );
+            out.extend_from_slice(data);
+            if data.len() % 2 == 1 {
+                out.push(b'\n');
+            }
+        }
+        fs::write(&path, out).unwrap();
+        path
+    }
+    fn data_tar(files: &[(&str, &[u8])]) -> Vec<u8> {
+        let mut tar = tar::Builder::new(Vec::new());
+        for (name, data) in files {
+            let mut header = tar::Header::new_gnu();
+            header.set_size(data.len() as u64);
+            header.set_mode(0o644);
+            header.set_cksum();
+            tar.append_data(&mut header, name, *data).unwrap();
+        }
+        let mut xz = xz2::write::XzEncoder::new(Vec::new(), 1);
+        xz.write_all(&tar.into_inner().unwrap()).unwrap();
+        xz.finish().unwrap()
+    }
+    #[test]
+    fn extracts_only_requested_files_from_data_member() {
+        let dir = tempfile::tempdir().unwrap();
+        let data = data_tar(&[
+            ("./boot/other", b"skip"),
+            ("./boot/config-6.8.11-arm64", b"CONFIG=y"),
+        ]);
+        let package = deb(
+            dir.path(),
+            &[
+                ("debian-binary", b"2.0\n"),
+                ("control.tar.xz", b"odd"),
+                ("data.tar.xz", &data),
+            ],
+        );
+        let root = dir.path().join("root");
+        extract(
+            &package,
+            &root,
+            &["./boot/config-6.8.11-arm64"],
+            &Job::default(),
+        )
+        .unwrap();
+        assert_eq!(
+            fs::read(root.join("boot/config-6.8.11-arm64")).unwrap(),
+            b"CONFIG=y"
+        );
+        assert!(!root.join("boot/other").exists());
+    }
+    #[test]
+    fn missing_or_malformed_packages_are_errors() {
+        let dir = tempfile::tempdir().unwrap();
+        let data = data_tar(&[("./a", b"a")]);
+        let package = deb(dir.path(), &[("data.tar.xz", &data)]);
+        let error = extract(&package, dir.path(), &["./b"], &Job::default()).unwrap_err();
+        assert!(error.to_string().contains("缺少文件"), "{error:#}");
+        let package = deb(dir.path(), &[("debian-binary", b"2.0\n")]);
+        let error = extract(&package, dir.path(), &["./a"], &Job::default()).unwrap_err();
+        assert!(error.to_string().contains("缺少成员"), "{error:#}");
+        let truncated = dir.path().join("short.deb");
+        let mut bytes = AR_MAGIC.to_vec();
+        bytes.extend_from_slice(
+            format!(
+                "{:<16}{:<12}{:<6}{:<6}{:<8}{:<10}`\n",
+                "data.tar.xz", 0, 0, 0, 100644, 999
+            )
+            .as_bytes(),
+        );
+        fs::write(&truncated, bytes).unwrap();
+        let error = extract(&truncated, dir.path(), &["./a"], &Job::default()).unwrap_err();
+        assert!(error.to_string().contains("超出文件范围"), "{error:#}");
+        fs::write(&truncated, b"not an archive").unwrap();
+        assert!(extract(&truncated, dir.path(), &["./a"], &Job::default()).is_err());
+    }
+    #[test]
+    fn missing_build_tools_are_named_before_any_download() {
+        let dir = tempfile::tempdir().unwrap();
+        fs::write(
+            dir.path()
+                .join(format!("git{}", std::env::consts::EXE_SUFFIX)),
+            b"",
+        )
+        .unwrap();
+        let error = require_tools(&["git", "go"], Some(dir.path().as_os_str())).unwrap_err();
+        assert!(error.to_string().contains("go"), "{error:#}");
+        assert!(!error.to_string().contains("git"), "{error:#}");
+        assert!(require_tools(&["git"], Some(dir.path().as_os_str())).is_ok());
+        assert!(require_tools(&["git"], None).is_err());
     }
 }

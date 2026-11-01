@@ -3,7 +3,7 @@
 This repository is a native Rust 2024 local Linux and Windows memory forensics TUI with exact ISF/PDB symbol matching.
 
 - `src/image.rs`: read-only RAW / LiME / Windows container address spaces, fused digest/banner preparation, x86_64 and ARM64 4K page translation.
-- `src/symbols.rs`: local ISF JSON / XZ / ZIP, complete banners, repository links and validated downloads.
+- `src/symbols.rs`: local ISF JSON / XZ / ZIP, complete banners, repository links and validated downloads. `src/symbols/http.rs` is the only network path: native rustls HTTPS, HTTPS-only redirects, size limits and immediate cancellation.
 - `src/analysis.rs`: platform routing, OS choice and targeted PID/hive/key options.
 - `src/windows.rs` / `src/windows/`: native Windows kernel discovery, processes, VADs, handles, registry, symbol/architecture/driver-version network layouts and atomic process/range/PE dumps.
 - `src/windows/malware.rs`: PEB/VAD loader cross-views, hollowing leads and active thread start checks; incomplete views never prove absence.

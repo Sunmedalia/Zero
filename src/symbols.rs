@@ -10,6 +10,7 @@ use std::{
     sync::RwLock,
 };
 
+pub(crate) mod http;
 mod network;
 pub use network::GithubAccess;
 use network::fetch_github;
@@ -629,20 +630,12 @@ pub(crate) fn fetch_range(
     limit: usize,
     job: &Job,
 ) -> Result<RangeResponse> {
-    let (bytes, status, headers) = transfer(url, Some(range), limit, job)?;
+    let (bytes, status, content_range) = transfer(url, Some(range), limit, job)?;
     ensure!(
         status == 206,
         "官方符号包服务器未返回 HTTP 206；无法按需读取 ZIP"
     );
-    let value = headers
-        .lines()
-        .filter_map(|line| {
-            let (key, value) = line.split_once(':')?;
-            key.eq_ignore_ascii_case("content-range")
-                .then_some(value.trim())
-        })
-        .next_back()
-        .context("Range 响应缺少 Content-Range")?;
+    let value = content_range.context("Range 响应缺少 Content-Range")?;
     let (span, total) = value
         .strip_prefix("bytes ")
         .and_then(|v| v.split_once('/'))
@@ -667,7 +660,7 @@ fn transfer(
     range: Option<&str>,
     limit: usize,
     job: &Job,
-) -> Result<(Vec<u8>, u16, String)> {
+) -> Result<(Vec<u8>, u16, Option<String>)> {
     transfer_with_timeout(url, range, limit, 90, job)
 }
 fn transfer_with_timeout(
@@ -676,88 +669,26 @@ fn transfer_with_timeout(
     limit: usize,
     timeout: u64,
     job: &Job,
-) -> Result<(Vec<u8>, u16, String)> {
-    use std::{
-        process::{Command, Stdio},
-        thread,
-        time::Duration,
-    };
-    job.check()?;
-    let file = tempfile::NamedTempFile::new()?;
-    let headers = tempfile::NamedTempFile::new()?;
-    let errors = tempfile::tempfile()?;
-    let status_output = tempfile::tempfile()?;
-    let mut command = Command::new("curl");
-    command
-        .args([
-            "--fail",
-            "--silent",
-            "--show-error",
-            "--location",
-            "--proto",
-            "=https",
-            "--proto-redir",
-            "=https",
-            "--connect-timeout",
-            "10",
-            "--max-time",
-        ])
-        .arg(timeout.to_string())
-        .arg("--max-filesize")
-        .arg(limit.to_string())
-        .arg("--output")
-        .arg(file.path())
-        .arg("--dump-header")
-        .arg(headers.path())
-        .args(["--write-out", "%{http_code}"]);
-    if let Some(range) = range {
-        command.arg("--range").arg(range);
-    }
-    let mut child = command
-        .arg("--")
-        .arg(url)
-        .stdin(Stdio::null())
-        .stdout(status_output.try_clone()?)
-        .stderr(errors.try_clone()?)
-        .spawn()
-        .context("无法启动 curl；安装 curl 或使用本地 ISF / --offline")?;
-    let status = loop {
-        if let Err(e) = job.check() {
-            let _ = child.kill();
-            let _ = child.wait();
-            return Err(e);
-        }
-        if let Some(status) = child.try_wait()? {
-            break status;
-        }
-        thread::sleep(Duration::from_millis(50));
-    };
+) -> Result<(Vec<u8>, u16, Option<String>)> {
     use std::io::{Seek, SeekFrom};
-    let mut status_output = status_output;
-    status_output.seek(SeekFrom::Start(0))?;
-    let mut code = String::new();
-    status_output.take(16).read_to_string(&mut code)?;
-    let code: u16 = code.trim().parse().unwrap_or(0);
-    if code >= 400 {
-        return Err(HttpError {
-            status: code,
-            url: url.into(),
-        }
-        .into());
-    }
-    let mut error = String::new();
-    let mut errors = errors;
-    errors.seek(SeekFrom::Start(0))?;
-    errors.take(4096).read_to_string(&mut error)?;
-    ensure!(status.success(), "符号下载失败: {url} ({})", error.trim());
-    job.check()?;
-    ensure!(
-        fs::metadata(file.path())?.len() <= limit as u64,
-        "下载响应超过大小限制"
-    );
-    let bytes = read_stream(File::open(file.path())?, job)?;
-    let headers = fs::read_to_string(headers.path())?;
-    Ok((bytes, code, headers))
+    let mut file = tempfile::tempfile()?;
+    let response = http::download(
+        http::Request {
+            url,
+            range,
+            limit: limit as u64,
+            timeout: std::time::Duration::from_secs(timeout),
+            https_only: true,
+        },
+        file.try_clone()?,
+        job,
+    )?;
+    file.seek(SeekFrom::Start(0))?;
+    Ok((
+        read_stream(file, job)?,
+        response.status,
+        response.content_range,
+    ))
 }
 pub fn lookup_index(index: &Value, banners: &[(u64, Vec<u8>)]) -> Result<Vec<RemoteMatch>> {
     lookup_index_in(&Repository::default_repository(), index, banners)
