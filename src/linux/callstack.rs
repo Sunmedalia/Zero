@@ -370,9 +370,9 @@ impl Linux<'_> {
                         Ok(true)
                     },
                 )?;
-                if coverage.first_unreadable.is_some() {
+                if let Some(error) = coverage.first_unreadable.clone() {
                     failed += 1;
-                    first_error.get_or_insert_with(|| coverage.first_unreadable.clone().unwrap());
+                    first_error.get_or_insert(error);
                 }
                 Ok(Some(
                     serde_json::json!({"tid":task[0],"tgid":tgid,"base":hex(base),"sp":hex(sp),"scan_bytes":stack_size,"layer":if kernel_thread {"kernel"} else {"task"},"coverage":coverage,"resolved_words":resolved,"unresolved_words":unresolved}),

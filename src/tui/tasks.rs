@@ -456,7 +456,7 @@ impl App {
             }
             let progress_event = matches!(&event, WorkerEvent::Progress(_));
             match event {
-                WorkerEvent::Tagged(..) => unreachable!("事件已解包"),
+                WorkerEvent::Tagged(..) => continue,
                 WorkerEvent::Inventory(inventory) => {
                     self.finish_worker();
                     self.apply_inventory(inventory);

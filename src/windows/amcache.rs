@@ -291,7 +291,7 @@ impl Windows<'_> {
                     let id = id.trim().trim_matches('\0');
                     if let Some(at) = positions.remove(id) {
                         ensure!(r.rows.len() < MAX_OBJECTS, "Amcache 输出超过上限");
-                        r.rows.push(grouped[at].take().unwrap());
+                        r.rows.extend(grouped[at].take());
                     }
                     ensure!(r.rows.len() < MAX_OBJECTS, "Amcache 输出超过上限");
                     r.rows.push(row);

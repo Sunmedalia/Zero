@@ -13,6 +13,15 @@ pub enum Architecture {
     Arm64,
 }
 impl Architecture {
+    /// Serialized and command-line spelling.
+    pub fn name(self) -> &'static str {
+        match self {
+            Self::Auto => "auto",
+            Self::X86 => "x86",
+            Self::X64 => "x64",
+            Self::Arm64 => "arm64",
+        }
+    }
     pub fn from_isf(isf: &Isf) -> Result<Self> {
         let width = isf.data["base_types"]["pointer"]["size"]
             .as_u64()

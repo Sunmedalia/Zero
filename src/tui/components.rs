@@ -596,8 +596,8 @@ fn remote_fields(candidate: &RemoteMatch) -> Vec<(String, String)> {
             .unwrap_or("")
             .into(),
     ));
-    if parts.len() >= 3 {
-        fields.push(("架构".into(), parts.last().unwrap().to_string()));
+    if let Some(architecture) = parts.last().filter(|_| parts.len() >= 3) {
+        fields.push(("架构".into(), architecture.to_string()));
     }
     if let Some(start) = candidate
         .banner

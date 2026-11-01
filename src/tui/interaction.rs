@@ -25,11 +25,7 @@ impl App {
                         .map(|n| n.to_string())
                         .unwrap_or_default()
                 },
-                serde_json::to_value(self.analysis_options.arch)
-                    .unwrap()
-                    .as_str()
-                    .unwrap()
-                    .into(),
+                self.analysis_options.arch.name().into(),
                 self.analysis_options
                     .pagefiles
                     .iter()

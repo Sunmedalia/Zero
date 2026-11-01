@@ -67,7 +67,9 @@ impl<F: FnMut(&str) -> Result<symbols::RangeResponse>> Read for RangeReader<F> {
                     .insert(start, response.bytes, (end - start + 1) as usize);
             }
             (
-                self.blocks.get(&start).expect("bounded block inserted"),
+                self.blocks
+                    .get(&start)
+                    .ok_or_else(|| std::io::Error::other("ZIP 块缓存未保留刚读取的数据"))?,
                 (self.position - start) as usize,
             )
         };

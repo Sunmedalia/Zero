@@ -1,5 +1,6 @@
 //! Token privileges, logon sessions and per-user UserAssist execution records.
 use super::*;
+use crate::bytes::{le_u32, le_u64};
 
 /// LUID low parts of the well-known privileges, indexed by bit position.
 const PRIVILEGES: &[(u32, &str)] = &[
@@ -55,20 +56,20 @@ pub(super) fn rot13(text: &str) -> String {
 /// Count, focus count, focus milliseconds and last-run FILETIME of one
 /// UserAssist record: 72 bytes since Windows 7, 16 bytes before.
 pub(super) fn userassist_record(bytes: &[u8]) -> Option<[String; 4]> {
-    let u32_at = |at: usize| u32::from_le_bytes(bytes[at..at + 4].try_into().unwrap());
+    let u32_at = |at: usize| le_u32(bytes, at);
     match bytes.len() {
         72 => Some([
-            u32_at(4).to_string(),
-            u32_at(8).to_string(),
-            u32_at(12).to_string(),
-            filetime(u64::from_le_bytes(bytes[60..68].try_into().unwrap())),
+            u32_at(4)?.to_string(),
+            u32_at(8)?.to_string(),
+            u32_at(12)?.to_string(),
+            filetime(le_u64(bytes, 60)?),
         ]),
         16 => Some([
             // XP starts counting at 5.
-            u32_at(4).saturating_sub(5).to_string(),
+            u32_at(4)?.saturating_sub(5).to_string(),
             String::new(),
             String::new(),
-            filetime(u64::from_le_bytes(bytes[8..16].try_into().unwrap())),
+            filetime(le_u64(bytes, 8)?),
         ]),
         _ => None,
     }
@@ -91,8 +92,8 @@ pub(super) fn sha1(data: &[u8]) -> [u8; 20] {
     message.extend_from_slice(&((data.len() as u64) * 8).to_be_bytes());
     for block in message.chunks_exact(64) {
         let mut w = [0u32; 80];
-        for (i, word) in block.chunks_exact(4).enumerate() {
-            w[i] = u32::from_be_bytes(word.try_into().unwrap());
+        for (i, word) in block.as_chunks::<4>().0.iter().enumerate() {
+            w[i] = u32::from_be_bytes(*word);
         }
         for i in 16..80 {
             w[i] = (w[i - 3] ^ w[i - 8] ^ w[i - 14] ^ w[i - 16]).rotate_left(1);
@@ -136,8 +137,10 @@ pub(super) fn service_sid(name: &str) -> String {
         .collect();
     let digest = sha1(&bytes);
     let parts: Vec<String> = digest
-        .chunks_exact(4)
-        .map(|c| u32::from_le_bytes(c.try_into().unwrap()).to_string())
+        .as_chunks::<4>()
+        .0
+        .iter()
+        .map(|c| u32::from_le_bytes(*c).to_string())
         .collect();
     format!("S-1-5-80-{}", parts.join("-"))
 }

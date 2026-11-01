@@ -1,5 +1,6 @@
 //! Canonical pool scanner: every built-in kernel tag, scanned in the version's layer.
 use super::*;
+use crate::bytes::le_u32;
 use memchr::memmem;
 use std::cmp::Reverse;
 use std::collections::{BTreeMap, BinaryHeap};
@@ -783,10 +784,9 @@ impl Windows<'_> {
                 let Some(at) = (delta as usize).checked_sub(selected as usize) else {
                     continue;
                 };
-                let Some(encoded) = window.get(at..at + 4) else {
+                let Some(encoded) = le_u32(&window, at).map(u64::from) else {
                     continue;
                 };
-                let encoded = u64::from(u32::from_le_bytes(encoded.try_into().unwrap()));
                 // Pinned Python subtraction is signed: an encoded padding amount
                 // below its structure size is retained. Preserve its exact chained
                 // comparison instead of imposing a stricter unsigned range check.
@@ -961,7 +961,7 @@ impl Windows<'_> {
         let mut bytes = [0; 8];
         self.pool_read(add(body, offset)?, &mut bytes, virtual_scan)?;
         let raw = if self.vm.pointer_size() == 4 {
-            u64::from(u32::from_le_bytes(bytes[..4].try_into().unwrap()))
+            le_u32(&bytes, 0).map_or(0, u64::from)
         } else {
             u64::from_le_bytes(bytes)
         };

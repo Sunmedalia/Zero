@@ -6,7 +6,7 @@ pub(super) fn unix_name(bytes: &[u8]) -> String {
     } else if bytes[0] == 0 {
         format!("@{}", String::from_utf8_lossy(&bytes[1..]))
     } else {
-        String::from_utf8_lossy(bytes.split(|b| *b == 0).next().unwrap()).into_owned()
+        String::from_utf8_lossy(bytes.split(|b| *b == 0).next().unwrap_or(bytes)).into_owned()
     }
 }
 pub(super) fn tcp_state(state: u64) -> &'static str {

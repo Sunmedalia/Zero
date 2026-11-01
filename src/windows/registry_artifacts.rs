@@ -1,6 +1,7 @@
 //! Registry-backed artifacts: scheduled tasks, Amcache inventory and the
 //! system certificate stores. Values are decoded in place; nothing is exported.
 use super::*;
+use crate::bytes::{le_u16, le_u32, le_u64};
 
 const TASKS: &str = "Microsoft\\Windows NT\\CurrentVersion\\Schedule\\TaskCache\\Tasks";
 const AMCACHE: &str = "Root\\InventoryApplicationFile";
@@ -79,8 +80,10 @@ pub(super) fn certificate_blob(bytes: &[u8]) -> (Option<&[u8]>, String) {
     let mut certificate = None;
     let mut name = String::new();
     while let Some(header) = bytes.get(at..at + 12) {
-        let id = u32::from_le_bytes(header[..4].try_into().unwrap());
-        let length = u32::from_le_bytes(header[8..12].try_into().unwrap()) as usize;
+        let (Some(id), Some(length)) = (le_u32(header, 0), le_u32(header, 8)) else {
+            break;
+        };
+        let length = length as usize;
         let Some(data) = bytes.get(at + 12..at + 12 + length) else {
             break;
         };
@@ -166,21 +169,9 @@ pub(super) fn certificate_summary(certificate: &[u8]) -> Option<[String; 4]> {
 /// Windows 8+ entries carry a `00ts`/`10ts` signature; Windows 7 x64 uses a
 /// 0xbadc0fee header with fixed 48-byte records pointing into the value.
 pub(super) fn shimcache_entries(bytes: &[u8]) -> Vec<(String, u64)> {
-    let u16_at = |at: usize| {
-        bytes
-            .get(at..at + 2)
-            .map(|b| u16::from_le_bytes([b[0], b[1]]))
-    };
-    let u32_at = |at: usize| {
-        bytes
-            .get(at..at + 4)
-            .map(|b| u32::from_le_bytes(b.try_into().unwrap()))
-    };
-    let u64_at = |at: usize| {
-        bytes
-            .get(at..at + 8)
-            .map(|b| u64::from_le_bytes(b.try_into().unwrap()))
-    };
+    let u16_at = |at: usize| le_u16(bytes, at);
+    let u32_at = |at: usize| le_u32(bytes, at);
+    let u64_at = |at: usize| le_u64(bytes, at);
     let mut out = Vec::new();
     if u32_at(0) == Some(0xbadc_0fee) {
         let count = u32_at(4).unwrap_or(0).min(4096) as usize;

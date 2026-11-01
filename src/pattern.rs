@@ -57,7 +57,7 @@ impl Pattern {
         if best.1 - best.0 < 2 {
             bail!("模式至少需要连续 2 个确定字节");
         }
-        let anchor = bytes[best.0..best.1].iter().map(|b| b.unwrap()).collect();
+        let anchor = bytes[best.0..best.1].iter().flatten().copied().collect();
         Ok(Self {
             bytes,
             anchor: (best.0, anchor),

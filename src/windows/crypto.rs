@@ -60,8 +60,8 @@ pub(super) fn aes_cbc_decrypt(key: &[u8], iv: &[u8; 16], data: &mut [u8]) -> Res
 
 fn cbc_decrypt_all<C: BlockDecrypt>(cipher: &C, iv: &[u8; 16], data: &mut [u8]) -> Result<()> {
     let mut prev = *iv;
-    for chunk in data.chunks_exact_mut(16) {
-        let ciphertext: [u8; 16] = chunk.try_into().expect("16-byte chunk");
+    for chunk in data.as_chunks_mut::<16>().0 {
+        let ciphertext = *chunk;
         cipher.decrypt_block(GenericArray::from_mut_slice(chunk));
         for (byte, mask) in chunk.iter_mut().zip(prev.iter()) {
             *byte ^= mask;

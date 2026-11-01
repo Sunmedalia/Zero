@@ -353,7 +353,10 @@ impl View<'_, '_> {
                     16,
                 )?
             };
-            Ok(Ipv6Addr::from(<[u8; 16]>::try_from(bytes).unwrap()).to_string())
+            let bytes = <[u8; 16]>::try_from(bytes)
+                .ok()
+                .context("IPv6 地址长度无效")?;
+            Ok(Ipv6Addr::from(bytes).to_string())
         }
     }
     fn filters(&self) -> Result<String> {

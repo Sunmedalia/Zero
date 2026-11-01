@@ -37,7 +37,7 @@ pub(super) fn parse(
                 ("Pc", 264, 8),
                 ("Cpsr", 4, 4),
             ],
-            _ => unreachable!(),
+            Architecture::Auto => bail!("CONTEXT 缺少 CPU 身份"),
         };
         for &(name, at, width) in control {
             registers.insert(name.into(), uint(at, width)?);
@@ -83,7 +83,7 @@ pub(super) fn parse(
                     registers.insert(format!("X{n}"), uint(8 + n * 8, 8)?);
                 }
             }
-            _ => unreachable!(),
+            Architecture::Auto => bail!("CONTEXT 缺少 CPU 身份"),
         }
     }
     registers.insert("ContextFlags".into(), flags);

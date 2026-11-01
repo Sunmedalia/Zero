@@ -214,9 +214,13 @@ pub fn discover(image: &Image, isf: &Isf, job: &Job) -> Result<u64> {
                             n_prev.as_ref().is_ok_and(|value| *value == head) && p_next.is_ok(),
                             "{evidence}"
                         );
-                        let count =
-                            validate_forward_tasks(&vm, isf, head, *p.as_ref().unwrap(), job)
-                                .with_context(|| evidence.clone())?;
+                        let count = p
+                            .as_ref()
+                            .ok()
+                            .copied()
+                            .context(evidence.clone())
+                            .and_then(|first| validate_forward_tasks(&vm, isf, head, first, job))
+                            .with_context(|| evidence.clone())?;
                         Ok(vec![format!(
                             "内核校验部分恢复：{evidence}；正向 {count} 个任务的 PID/TGID、名称及相邻回指均通过并闭环；表头 prev 指向链内非尾节点。可能为采集时状态不一致或链表异常，不能认定结果完整"
                         )])
@@ -240,13 +244,13 @@ pub fn discover(image: &Image, isf: &Isf, job: &Job) -> Result<u64> {
         valid.len() == 1,
         "多个有效页表／重定位候选，拒绝猜测: {valid:?}"
     );
-    let ((root, slide), diagnostics) = valid.into_iter().next().unwrap();
+    let ((root, slide), diagnostics) = valid.into_iter().next().context("页表候选为空")?;
     isf.slide.store(slide, std::sync::atomic::Ordering::Relaxed);
-    *isf.validation_diagnostics.write().unwrap() = diagnostics;
+    isf.set_diagnostics(diagnostics);
     let architecture = if linux32 { "x86 32 位" } else { "x86_64" };
     job.report(format!(
         "{architecture} 页表已验证 · DTB {root:#x} · 重定位 {slide:#x}{}",
-        if isf.validation_diagnostics.read().unwrap().is_empty() {
+        if isf.diagnostics().is_empty() {
             ""
         } else {
             " · 任务链异常，部分恢复"

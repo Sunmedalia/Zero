@@ -41,6 +41,19 @@ pub(crate) struct LayoutCache(
     RwLock<std::collections::HashMap<String, std::collections::HashMap<String, Layout>>>,
 );
 impl Isf {
+    /// Kernel validation warnings; a poisoned lock still holds a complete value.
+    pub(crate) fn diagnostics(&self) -> Vec<String> {
+        self.validation_diagnostics
+            .read()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .clone()
+    }
+    pub(crate) fn set_diagnostics(&self, diagnostics: Vec<String>) {
+        *self
+            .validation_diagnostics
+            .write()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = diagnostics;
+    }
     pub fn parse(bytes: &[u8], label: String) -> Result<Self> {
         let data: Value = serde_json::from_slice(bytes).context("ISF JSON 解析失败")?;
         ensure!(
@@ -51,17 +64,14 @@ impl Isf {
         );
         let banner = if data["metadata"]["windows"]["pdb"].is_object() {
             let p = &data["metadata"]["windows"]["pdb"];
-            ensure!(
-                p["database"].is_string() && p["GUID"].is_string() && p["age"].is_u64(),
-                "Windows ISF PDB 身份不完整"
-            );
-            format!(
-                "Windows PDB {} {} age {}\0",
-                p["database"].as_str().unwrap(),
-                p["GUID"].as_str().unwrap(),
-                p["age"]
-            )
-            .into_bytes()
+            let (Some(database), Some(guid), Some(age)) = (
+                p["database"].as_str(),
+                p["GUID"].as_str(),
+                p["age"].as_u64(),
+            ) else {
+                bail!("Windows ISF PDB 身份不完整");
+            };
+            format!("Windows PDB {database} {guid} age {age}\0").into_bytes()
         } else {
             let encoded = data["symbols"]["linux_banner"]["constant_data"]
                 .as_str()
@@ -438,6 +448,8 @@ pub fn match_local_files(
 }
 /// Default symbol repository; settings may name another GitHub repository.
 pub const REPOSITORY: &str = "https://github.com/Abyss-W4tcher/volatility3-symbols";
+const DEFAULT_RAW: &str =
+    "https://raw.githubusercontent.com/Abyss-W4tcher/volatility3-symbols/master/";
 /// A GitHub symbol repository laid out like the default one: an index at
 /// `banners/banners_plain.json` on a branch, ISFs as files or release assets.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -486,7 +498,11 @@ impl Repository {
         })
     }
     pub fn default_repository() -> Self {
-        Self::parse(REPOSITORY).expect("default repository")
+        Self {
+            web: REPOSITORY.into(),
+            raw: DEFAULT_RAW.into(),
+            branch: "master".into(),
+        }
     }
     /// The repository named in this cache's settings.
     pub fn configured(cache: &Path) -> Result<Self> {

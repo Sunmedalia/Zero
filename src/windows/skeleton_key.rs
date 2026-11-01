@@ -1,5 +1,6 @@
 //! Locate RC4-HMAC KERB_ECRYPT instances in the first usable lsass cryptdll mapping.
 use super::*;
+use crate::bytes::{le_u32, le_u64};
 use crate::{byte_regex::ByteRegex, regex_scan};
 use capstone::{arch::x86::X86OperandType, prelude::*};
 const ECRYPT_SIZE: usize = 128;
@@ -24,9 +25,9 @@ struct Ecrypt {
 }
 impl Ecrypt {
     fn parse(bytes: &[u8; ECRYPT_SIZE]) -> Self {
-        let pointer = |at| u64::from_le_bytes(bytes[at..at + 8].try_into().unwrap());
+        let pointer = |at| le_u64(bytes, at).unwrap_or_default();
         Self {
-            encryption_type: u32::from_le_bytes(bytes[..4].try_into().unwrap()),
+            encryption_type: le_u32(bytes, 0).unwrap_or_default(),
             initialize: pointer(40),
             encrypt: pointer(48),
             decrypt: pointer(56),

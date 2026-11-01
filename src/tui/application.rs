@@ -1418,7 +1418,7 @@ impl App {
             self.navigation_plugins()
                 .iter()
                 .position(|p| *p == plugin)
-                .unwrap()
+                .unwrap_or(0)
         };
         self.history_revision += 1;
         self.history = None;

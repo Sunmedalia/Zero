@@ -1,9 +1,24 @@
 //! Product identity is evidence, never a substitute for exact structure symbols.
 use super::*;
 const TARGETS: &str = include_str!("compatibility.json");
-fn targets() -> &'static serde_json::Value {
-    static M: std::sync::OnceLock<serde_json::Value> = std::sync::OnceLock::new();
-    M.get_or_init(|| serde_json::from_str(TARGETS).expect("checked compatibility manifest"))
+#[derive(serde::Deserialize)]
+struct Target {
+    name: String,
+    server: bool,
+    major: u16,
+    minor: u16,
+    builds: Vec<u32>,
+}
+#[derive(serde::Deserialize)]
+struct Manifest {
+    targets: Vec<Target>,
+}
+fn targets() -> Result<&'static [Target]> {
+    static M: std::sync::OnceLock<Result<Manifest, String>> = std::sync::OnceLock::new();
+    M.get_or_init(|| serde_json::from_str(TARGETS).map_err(|e| e.to_string()))
+        .as_ref()
+        .map(|manifest| manifest.targets.as_slice())
+        .map_err(|e| anyhow::anyhow!("内置兼容矩阵无效: {e}"))
 }
 impl Windows<'_> {
     pub(super) fn build_number(&self) -> Result<u32> {
@@ -32,24 +47,18 @@ impl Windows<'_> {
         let minor = version
             .map(|v| u64::from(v[1]))
             .or_else(|| read("NtMinorVersion"));
-        let manifest = targets();
-        let target = manifest["targets"]
-            .as_array()
-            .unwrap()
+        let target = targets()
+            .unwrap_or_default()
             .iter()
             .filter(|t| {
                 let server = product_type.is_some_and(|p| p != 1);
                 product_type.is_some()
-                    && t["server"].as_bool() == Some(server)
-                    && t["builds"]
-                        .as_array()
-                        .unwrap()
-                        .iter()
-                        .any(|b| b.as_u64() == build.map(u64::from))
-                    && major.is_none_or(|m| t["major"].as_u64() == Some(m))
-                    && minor.is_none_or(|m| t["minor"].as_u64() == Some(m))
+                    && t.server == server
+                    && build.is_some_and(|build| t.builds.contains(&build))
+                    && major.is_none_or(|m| u64::from(t.major) == m)
+                    && minor.is_none_or(|m| u64::from(t.minor) == m)
             })
-            .map(|t| t["name"].as_str().unwrap())
+            .map(|t| t.name.as_str())
             .collect::<Vec<_>>();
         serde_json::json!({"major":major,"minor":minor,"build":build,"pe_version":version,
             "product_type":product_type,"product":if target.is_empty(){None}else{Some(target.join(" / "))},
@@ -59,36 +68,15 @@ impl Windows<'_> {
     }
     pub(super) fn declared_kernel_version(&self) -> Result<[u16; 4]> {
         let build = self.build_number()?;
-        let target = targets()["targets"]
-            .as_array()
-            .unwrap()
+        let target = targets()?
             .iter()
-            .find(|t| {
-                t["builds"]
-                    .as_array()
-                    .unwrap()
-                    .iter()
-                    .any(|n| n.as_u64() == Some(u64::from(build)))
-            })
+            .find(|t| t.builds.contains(&build))
             .context("未声明该内核构建版本")?;
-        Ok([
-            target["major"].as_u64().unwrap() as u16,
-            target["minor"].as_u64().unwrap() as u16,
-            build as u16,
-            0,
-        ])
+        Ok([target.major, target.minor, build as u16, 0])
     }
     pub(super) fn declared_build(&self) -> bool {
-        let Ok(build) = self.build_number() else {
-            return false;
-        };
-        let manifest = targets();
-        manifest["targets"].as_array().unwrap().iter().any(|t| {
-            t["builds"]
-                .as_array()
-                .unwrap()
-                .iter()
-                .any(|b| b.as_u64() == Some(u64::from(build)))
+        self.build_number().is_ok_and(|build| {
+            targets().is_ok_and(|targets| targets.iter().any(|t| t.builds.contains(&build)))
         })
     }
 }

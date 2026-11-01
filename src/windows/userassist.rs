@@ -1,6 +1,7 @@
 //! Twelve-column UserAssist registry view; the seven-column legacy view stays separate.
 use super::security::rot13;
 use super::*;
+use crate::bytes::{le_u32, le_u64};
 
 const PATH: &str = "Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\UserAssist";
 const NA: &str = "N/A";
@@ -60,7 +61,7 @@ fn record(bytes: &[u8], modern: Option<bool>) -> [String; 6] {
     if modern.is_none() || bytes.len() < minimum {
         return fields;
     }
-    let uint = |at| u32::from_le_bytes(bytes[at..at + 4].try_into().unwrap());
+    let uint = |at| le_u32(bytes, at).unwrap_or_default();
     let at = if modern == Some(true) {
         fields[1] = uint(4).to_string();
         fields[2] = uint(8).to_string();
@@ -72,7 +73,7 @@ fn record(bytes: &[u8], modern: Option<bool>) -> [String; 6] {
         fields[1] = if count < 5 { count } else { count - 5 }.to_string();
         8
     };
-    fields[4] = timestamp(u64::from_le_bytes(bytes[at..at + 8].try_into().unwrap()));
+    fields[4] = timestamp(le_u64(bytes, at).unwrap_or_default());
     fields
 }
 impl Windows<'_> {

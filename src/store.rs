@@ -308,10 +308,9 @@ pub fn export_fallible<R: AsRef<[String]>>(
     atomic_stream(path, job, |mut writer| {
         if extension == Some("json") {
             let mut metadata = serde_json::to_value(result.metadata())?;
-            metadata
-                .as_object_mut()
-                .expect("result object")
-                .remove("rows");
+            if let Some(object) = metadata.as_object_mut() {
+                object.remove("rows");
+            }
             let mut prefix = serde_json::to_vec_pretty(&metadata)?;
             prefix.pop();
             writer.write_all(&prefix)?;

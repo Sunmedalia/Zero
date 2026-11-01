@@ -103,7 +103,7 @@ impl Linux<'_> {
     }
     /// Empty result carrying this kernel's identity and validation warnings.
     pub(crate) fn result(&self, plugin: Plugin) -> Results {
-        let diagnostics = self.isf.validation_diagnostics.read().unwrap().clone();
+        let diagnostics = self.isf.diagnostics();
         Results {
             plugin: plugin.name().into(),
             columns: plugin
@@ -114,7 +114,7 @@ impl Linux<'_> {
                 .collect(),
             rows: vec![],
             complete: diagnostics.is_empty(),
-            diagnostics,
+            diagnostics: diagnostics.clone(),
             banner: String::from_utf8_lossy(&self.isf.banner[..self.isf.banner.len() - 1])
                 .trim_end()
                 .into(),
@@ -122,11 +122,11 @@ impl Linux<'_> {
             page_table: self.vm.root,
             historical: false,
             system: "linux".into(),
-            kernel_identity: if self.isf.validation_diagnostics.read().unwrap().is_empty() {
+            kernel_identity: if diagnostics.is_empty() {
                 serde_json::Value::Null
             } else {
                 serde_json::json!({"system": "linux", "validation": {
-                    "partial": true, "diagnostics": self.isf.validation_diagnostics.read().unwrap().clone()
+                    "partial": true, "diagnostics": diagnostics
                 }})
             },
         }

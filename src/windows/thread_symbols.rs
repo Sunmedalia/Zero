@@ -34,7 +34,11 @@ impl Windows<'_> {
             job.check()?;
             for &(file, _, address) in columns {
                 if !row[file].is_empty() {
-                    let module = row[file].rsplit('\\').next().unwrap().to_lowercase();
+                    let module = row[file]
+                        .rsplit('\\')
+                        .next()
+                        .unwrap_or_default()
+                        .to_lowercase();
                     let address = u64::from_str_radix(row[address].trim_start_matches("0x"), 16)?;
                     queries.entry(module).or_default().insert(address);
                 }
@@ -94,7 +98,11 @@ impl Windows<'_> {
         'rows: for row in &mut result.rows {
             job.check()?;
             for &(file, symbol, address) in columns {
-                let module = row[file].rsplit('\\').next().unwrap().to_lowercase();
+                let module = row[file]
+                    .rsplit('\\')
+                    .next()
+                    .unwrap_or_default()
+                    .to_lowercase();
                 let address = u64::from_str_radix(row[address].trim_start_matches("0x"), 16)?;
                 if let Some(value) = symbols.get(&(module, address)) {
                     if value.len() > TEXT_LIMIT.saturating_sub(output_bytes) {

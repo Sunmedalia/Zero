@@ -120,7 +120,7 @@ impl Windows<'_> {
                     .as_ref()
                     .map(|l| l.source.as_str())
                     .or_else(|| console_layout.as_ref().map(|l| l.source.as_str()))
-                    .unwrap();
+                    .unwrap_or_default();
                 result.kernel_identity[format!("pid{}_layout", p.pid)] = serde_json::json!({"file_version":version,"source":source,"validation":"synthetic"});
                 Self::issue(
                     &mut result,
@@ -152,7 +152,9 @@ impl Windows<'_> {
                             continue;
                         }
                         if plugin == Plugin::WinSvcscan {
-                            let layout = service_layout.as_ref().expect("service layout");
+                            let Some(layout) = service_layout.as_ref() else {
+                                break;
+                            };
                             let tag: &[u8] = if version[0] < 6 { b"sErv" } else { b"serH" };
                             for hit in memchr::memmem::find_iter(&bytes, tag) {
                                 let header = address + hit as u64;
@@ -213,7 +215,9 @@ impl Windows<'_> {
                                         }
                                     }
                                 } else {
-                                    let layout = console_layout.as_ref().expect("console layout");
+                                    let Some(layout) = console_layout.as_ref() else {
+                                        continue;
+                                    };
                                     let size_offset = 0;
                                     if at + size_offset + 6 > bytes.len() {
                                         continue;

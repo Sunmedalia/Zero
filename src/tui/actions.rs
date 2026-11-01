@@ -636,6 +636,7 @@ const TOOLBAR_ORDER: &[Command] = &[
     Command::Palette,
 ];
 
+#[allow(clippy::expect_used)] // Table completeness is a compile-time-fixed list checked by tests.
 fn action_of(command: Command) -> &'static Action {
     ACTIONS
         .iter()

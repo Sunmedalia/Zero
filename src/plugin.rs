@@ -343,6 +343,20 @@ pub enum Plugin {
     PerfEvents,
     Vmayarascan,
 }
+/// `Plugin` discriminant to `PLUGINS` position. Built at compile time, which also proves
+/// that every variant has exactly one descriptor, so `Plugin::descriptor` cannot miss.
+const DESCRIPTOR_INDEX: [u16; PLUGINS.len()] = {
+    const UNSET: u16 = u16::MAX;
+    let mut index = [UNSET; PLUGINS.len()];
+    let mut position = 0;
+    while position < PLUGINS.len() {
+        let plugin = PLUGINS[position].plugin as usize;
+        assert!(index[plugin] == UNSET, "duplicate plugin descriptor");
+        index[plugin] = position as u16;
+        position += 1;
+    }
+    index
+};
 pub struct Descriptor {
     pub plugin: Plugin,
     pub name: &'static str,
@@ -2208,7 +2222,7 @@ impl Plugin {
             )
     }
     pub fn descriptor(self) -> &'static Descriptor {
-        PLUGINS.iter().find(|d| d.plugin == self).unwrap()
+        &PLUGINS[DESCRIPTOR_INDEX[self as usize] as usize]
     }
     pub fn is_dump(self) -> bool {
         matches!(

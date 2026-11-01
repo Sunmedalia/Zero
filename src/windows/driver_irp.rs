@@ -210,7 +210,9 @@ impl Windows<'_> {
                 };
                 match target {
                     Ok(raw) if self.driver_target(raw, kernel_start).is_some() => {
-                        let target = self.driver_target(raw, kernel_start).unwrap();
+                        let Some(target) = self.driver_target(raw, kernel_start) else {
+                            continue;
+                        };
                         modules.resolve_at(target, &self.vm, resources, r, job)?;
                         for (module, symbol) in modules.at(target) {
                             ensure!(r.rows.len() < 100_000, "IRP 结果数量超限");

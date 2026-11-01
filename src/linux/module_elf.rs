@@ -432,13 +432,14 @@ impl Linux<'_> {
                 hole.file_offset = add(offset, hole.file_offset)?;
                 padding.push(hole);
             }
+            let length = bytes.len() as u64;
             sections.push(Section {
                 name: section.name.clone(),
                 address: section.address,
                 offset,
                 bytes,
             });
-            offset = add(offset, sections.last().unwrap().bytes.len() as u64)?;
+            offset = add(offset, length)?;
         }
         let symtab_address = symtab_address.context("模块缺少 .symtab section")?;
         let strtab_index = strtab_index.context("模块缺少 .strtab section")?;

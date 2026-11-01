@@ -1,6 +1,7 @@
 //! Offline symbol generation from an explicit debug ELF and kernel config.
 use crate::{
     Job,
+    bytes::{le_u16, le_u32, le_u64},
     image::{Image, digest_reader},
     store,
     symbols::{Isf, http, matching},
@@ -26,40 +27,42 @@ fn read_at(file: &mut File, pos: u64, n: usize) -> Result<Vec<u8>> {
     file.read_exact(&mut bytes)?;
     Ok(bytes)
 }
-fn u16le(bytes: &[u8], p: usize) -> u16 {
-    u16::from_le_bytes(bytes[p..p + 2].try_into().unwrap())
+fn u16le(bytes: &[u8], p: usize) -> Result<u16> {
+    le_u16(bytes, p).context("ELF 数据被截断")
 }
-fn u32le(bytes: &[u8], p: usize) -> u32 {
-    u32::from_le_bytes(bytes[p..p + 4].try_into().unwrap())
+fn u32le(bytes: &[u8], p: usize) -> Result<u32> {
+    le_u32(bytes, p).context("ELF 数据被截断")
 }
-fn u64le(bytes: &[u8], p: usize) -> u64 {
-    u64::from_le_bytes(bytes[p..p + 8].try_into().unwrap())
+fn u64le(bytes: &[u8], p: usize) -> Result<u64> {
+    le_u64(bytes, p).context("ELF 数据被截断")
 }
 pub fn elf_metadata(path: &Path) -> Result<(u16, serde_json::Value)> {
     let mut file = File::open(path)?;
     let h = read_at(&mut file, 0, 64)?;
     ensure!(&h[..7] == b"\x7fELF\x02\x01\x01", "需要小端 ELF64 调试文件");
-    let machine = u16le(&h, 18);
+    let machine = u16le(&h, 18)?;
     ensure!(matches!(machine, 62 | 183), "ELF 架构不支持");
-    let off = u64le(&h, 40);
-    let size = u16le(&h, 58) as usize;
-    let count = u16le(&h, 60) as usize;
+    let off = u64le(&h, 40)?;
+    let size = u16le(&h, 58)? as usize;
+    let count = u16le(&h, 60)? as usize;
     ensure!(size >= 64 && count > 0, "ELF section table 缺失");
     let sections = read_at(&mut file, off, size * count)?;
     let mut sizes = serde_json::Map::new();
     for s in sections.chunks_exact(size) {
-        if u32le(s, 4) != 2 {
+        if u32le(s, 4)? != 2 {
             continue;
         }
-        let link = u32le(s, 40) as usize;
+        let link = u32le(s, 40)? as usize;
         ensure!(link < count, "ELF string section 越界");
-        let st = &sections[link * size..(link + 1) * size];
-        let strings = read_at(&mut file, u64le(st, 24), usize::try_from(u64le(st, 32))?)?;
-        let symbols = read_at(&mut file, u64le(s, 24), usize::try_from(u64le(s, 32))?)?;
-        let entry = u64le(s, 56) as usize;
+        let st = sections
+            .get(link * size..(link + 1) * size)
+            .context("ELF string section 越界")?;
+        let strings = read_at(&mut file, u64le(st, 24)?, usize::try_from(u64le(st, 32)?)?)?;
+        let symbols = read_at(&mut file, u64le(s, 24)?, usize::try_from(u64le(s, 32)?)?)?;
+        let entry = u64le(s, 56)? as usize;
         ensure!(entry >= 24, "ELF symbol entry 无效");
         for symbol in symbols.chunks_exact(entry) {
-            let name = u32le(symbol, 0) as usize;
+            let name = u32le(symbol, 0)? as usize;
             if name >= strings.len() {
                 continue;
             }
@@ -70,7 +73,7 @@ pub fn elf_metadata(path: &Path) -> Result<(u16, serde_json::Value)> {
                 .context("ELF symbol name 未终止")?;
             let name = std::str::from_utf8(&bytes[..end])?;
             if matches!(name, "sys_call_table" | "compat_sys_call_table") {
-                sizes.insert(name.into(), json!(u64le(symbol, 16)));
+                sizes.insert(name.into(), json!(u64le(symbol, 16)?));
             }
         }
     }

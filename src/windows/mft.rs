@@ -1,5 +1,6 @@
 //! NTFS MFT records carved from physical memory.
 use super::*;
+use crate::bytes::{le_u32, le_u64};
 
 const RECORD: usize = 1024;
 const SECTOR: usize = 512;
@@ -54,8 +55,8 @@ pub(super) fn parse_record(mut bytes: [u8; RECORD]) -> Result<Record> {
     ensure!(&bytes[..4] == b"FILE", "非 MFT 记录");
     fixup(&mut bytes)?;
     let u16_at = |b: &[u8], at: usize| u16::from_le_bytes([b[at], b[at + 1]]);
-    let u32_at = |b: &[u8], at: usize| u32::from_le_bytes(b[at..at + 4].try_into().unwrap());
-    let u64_at = |b: &[u8], at: usize| u64::from_le_bytes(b[at..at + 8].try_into().unwrap());
+    let u32_at = |b: &[u8], at: usize| le_u32(b, at).unwrap_or_default();
+    let u64_at = |b: &[u8], at: usize| le_u64(b, at).unwrap_or_default();
     let flags = u16_at(&bytes, 22);
     let mut record = Record {
         number: u32_at(&bytes, 44),
@@ -175,8 +176,8 @@ pub(super) fn parse_mbr(sector: &[u8]) -> Option<(u32, Vec<Partition>)> {
             return None;
         }
         let kind = entry[4];
-        let start = u32::from_le_bytes(entry[8..12].try_into().unwrap());
-        let count = u32::from_le_bytes(entry[12..16].try_into().unwrap());
+        let start = le_u32(entry, 8)?;
+        let count = le_u32(entry, 12)?;
         if kind == 0 {
             if count != 0 {
                 return None;
@@ -191,10 +192,7 @@ pub(super) fn parse_mbr(sector: &[u8]) -> Option<(u32, Vec<Partition>)> {
     if partitions.is_empty() {
         return None;
     }
-    Some((
-        u32::from_le_bytes(sector[440..444].try_into().unwrap()),
-        partitions,
-    ))
+    Some((le_u32(sector, 440)?, partitions))
 }
 
 impl Windows<'_> {

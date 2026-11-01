@@ -380,12 +380,13 @@ impl App {
                             bytes as f64 / 1048576.0
                         )
                     } else {
-                        let item = item.unwrap();
-                        format!(
-                            "再按 Delete 确认删除 {} · {:.1} MiB · 保留原文件",
-                            item.label,
-                            item.bytes as f64 / 1048576.0
-                        )
+                        item.map_or_else(String::new, |item| {
+                            format!(
+                                "再按 Delete 确认删除 {} · {:.1} MiB · 保留原文件",
+                                item.label,
+                                item.bytes as f64 / 1048576.0
+                            )
+                        })
                     };
                 }
             }

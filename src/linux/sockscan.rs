@@ -90,7 +90,10 @@ impl Linux<'_> {
             let mut accepted = false;
             let destructor = sources[1].needles.contains(&value);
             let file_ops = sources[0].needles.contains(&value);
-            let key = destructor.then(|| i128::from(hit) - i128::from(sources[1].offset.unwrap()));
+            let key = sources[1]
+                .offset
+                .filter(|_| destructor)
+                .map(|offset| i128::from(hit) - i128::from(offset));
             for source in &mut sources {
                 if source.needles.contains(&value) {
                     source.hits += 1;
@@ -102,7 +105,8 @@ impl Linux<'_> {
             {
                 let source = &mut sources[method];
                 let read = (|| -> Result<Option<super::socket_fields::SocketFields>> {
-                    let Some(base) = hit.checked_sub(source.offset.unwrap()) else {
+                    let Some(base) = source.offset.and_then(|offset| hit.checked_sub(offset))
+                    else {
                         return Ok(None);
                     };
                     let address = if method == 0 {

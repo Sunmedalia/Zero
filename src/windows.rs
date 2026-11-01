@@ -134,10 +134,9 @@ impl<'a> Memory<'a> {
         Ok(*self.paging.get_or_init(|| paging))
     }
     fn pointer_size(&self) -> usize {
-        self.paging()
-            .expect("validated Windows ISF")
-            .arch
-            .pointer_size()
+        // A Memory is built from an ISF already validated by Paging::new; translation
+        // reports any failure, so this default never reaches a successful read.
+        self.paging().map_or(8, |paging| paging.arch.pointer_size())
     }
     fn pointer(&self, address: u64) -> Result<u64> {
         self.uint(address, self.pointer_size())
@@ -147,7 +146,7 @@ impl<'a> Memory<'a> {
             .is_ok_and(|paging| paging.arch.kernel(address))
     }
     fn root_mask(&self) -> u64 {
-        self.paging().expect("validated Windows ISF").root_mask()
+        self.paging().map_or(u64::MAX, |paging| paging.root_mask())
     }
     pub fn translate(&self, va: u64) -> Result<u64> {
         self.translate_span(va).map(|(physical, _)| physical)
@@ -528,14 +527,14 @@ impl Windows<'_> {
             diagnostics: vec![],
             banner: format!(
                 "Windows {:?} {}",
-                Architecture::from_isf(self.vm.isf).unwrap(),
+                Architecture::from_isf(self.vm.isf).unwrap_or_default(),
                 self.pdb.key()
             ),
             symbol: self.vm.isf.label.clone(),
             page_table: self.vm.root,
             historical: false,
             system: "windows".into(),
-            kernel_identity: serde_json::json!({"version":self.version_identity(),"pdb":self.pdb,"architecture":Architecture::from_isf(self.vm.isf).unwrap(),"container":self.vm.image.format,"kernel_base":self.base,"time_format":"FILETIME"}),
+            kernel_identity: serde_json::json!({"version":self.version_identity(),"pdb":self.pdb,"architecture":Architecture::from_isf(self.vm.isf).unwrap_or_default(),"container":self.vm.image.format,"kernel_base":self.base,"time_format":"FILETIME"}),
         }
     }
     fn list_partial(&self, head: u64, offset: u64, job: &Job) -> Result<(Vec<u64>, Vec<String>)> {
@@ -977,12 +976,10 @@ impl Windows<'_> {
                 Plugin::WinCmdline => self.cmdline(&process, &mut result),
                 Plugin::WinGetsids => self.sids(&process, &mut result, job),
                 Plugin::WinEnvars => self.environments(&process, &mut result, job),
-                Plugin::WinThreads => self.thread_rows(
-                    &process,
-                    &mut result,
-                    thread_modules.as_ref().expect("thread modules"),
-                    job,
-                ),
+                Plugin::WinThreads => thread_modules
+                    .as_ref()
+                    .context("线程模块未加载")
+                    .and_then(|modules| self.thread_rows(&process, &mut result, modules, job)),
                 Plugin::WinLdrmodules
                 | Plugin::WinHollowprocesses
                 | Plugin::WinSuspiciousThreads => self.malware(&process, p, &mut result, job),
@@ -1134,8 +1131,8 @@ pub(crate) fn validate_request(
     if request.plugin.is_dump() {
         dump.context("Windows 转储需要 PID 和输出目录")?
             .validate(request.plugin)?;
-    } else if request.plugin.accepts_dump() && dump.is_some() {
-        dump.unwrap().validate(request.plugin)?;
+    } else if let Some(dump) = dump.filter(|_| request.plugin.accepts_dump()) {
+        dump.validate(request.plugin)?;
     } else {
         ensure!(dump.is_none(), "分析插件不接受转储参数");
     }
@@ -1393,8 +1390,8 @@ pub fn discover(image: &Image, isf: &Isf, job: &Job) -> Result<(u64, u64)> {
                     headers.insert(pa);
                 }
                 if geometry.arch == Architecture::X64
-                    && page.chunks_exact(8).skip(256).any(|b| {
-                        let e = u64::from_le_bytes(b.try_into().unwrap());
+                    && page.as_chunks::<8>().0.iter().skip(256).any(|b| {
+                        let e = u64::from_le_bytes(*b);
                         e & 1 != 0 && e & geometry.mask() == pa
                     })
                 {

@@ -467,8 +467,10 @@ impl Windows<'_> {
         let indices = self.cell(hive, index)?;
         ensure!(count * 4 <= indices.len(), "注册表值列表截断");
         Ok(indices[..count * 4]
-            .chunks_exact(4)
-            .map(|c| u32::from_le_bytes(c.try_into().expect("4-byte chunk")))
+            .as_chunks::<4>()
+            .0
+            .iter()
+            .map(|c| u32::from_le_bytes(*c))
             .collect())
     }
     /// 键的具名值原始数据（大小写不敏感）。

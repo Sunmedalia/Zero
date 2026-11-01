@@ -9,16 +9,17 @@ fn evidence(result: &mut Results, direction: &str, address: u64, kind: &str, mes
     if !result.kernel_identity.is_object() {
         result.kernel_identity = serde_json::json!({"system": "linux"});
     }
-    let identity = result.kernel_identity.as_object_mut().unwrap();
-    identity
-        .entry("task_recovery")
-        .or_insert_with(|| serde_json::json!([]))
-        .as_array_mut()
-        .unwrap()
-        .push(serde_json::json!({
+    if let Some(recoveries) = result.kernel_identity.as_object_mut().and_then(|identity| {
+        identity
+            .entry("task_recovery")
+            .or_insert_with(|| serde_json::json!([]))
+            .as_array_mut()
+    }) {
+        recoveries.push(serde_json::json!({
             "source": "init_task.tasks", "direction": direction,
             "address": hex(address), "kind": kind, "message": message,
         }));
+    }
 }
 
 impl Linux<'_> {

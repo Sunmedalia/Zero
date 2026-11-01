@@ -1,3 +1,14 @@
+#![cfg_attr(
+    not(test),
+    deny(
+        clippy::unwrap_used,
+        clippy::expect_used,
+        clippy::panic,
+        clippy::unreachable,
+        clippy::todo,
+        clippy::unimplemented
+    )
+)]
 pub mod byte_regex;
 pub mod cache;
 pub mod framebuffer;
@@ -69,6 +80,7 @@ impl Job {
     }
 }
 
+mod bytes;
 pub mod prepare;
 
 pub mod workspace;

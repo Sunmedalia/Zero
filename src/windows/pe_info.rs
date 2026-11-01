@@ -1,6 +1,7 @@
 //! In-memory PE metadata: the import address table of each process image
 //! and the fixed version resource of loaded modules.
 use super::*;
+use crate::bytes::le_u32;
 
 const IMPORT_LIMIT: usize = 65536;
 const RESOURCE_LIMIT: usize = 4096;
@@ -66,7 +67,7 @@ pub(super) fn parse_header(bytes: &[u8]) -> Result<Header> {
 pub(super) fn fixed_version(bytes: &[u8]) -> Option<(String, String)> {
     let at = memchr::memmem::find(bytes, &VS_FIXED_SIGNATURE.to_le_bytes())?;
     let fixed = bytes.get(at..at + 52)?;
-    let word = |offset: usize| u32::from_le_bytes(fixed[offset..offset + 4].try_into().unwrap());
+    let word = |offset: usize| le_u32(fixed, offset).unwrap_or_default();
     let format =
         |ms: u32, ls: u32| format!("{}.{}.{}.{}", ms >> 16, ms & 0xffff, ls >> 16, ls & 0xffff);
     Some((format(word(8), word(12)), format(word(16), word(20))))
@@ -138,7 +139,7 @@ impl Windows<'_> {
             job.check()?;
             let mut descriptor = [0u8; 20];
             self.read_image(&vm, base, directory + index * 20, &mut descriptor)?;
-            let word = |at: usize| u32::from_le_bytes(descriptor[at..at + 4].try_into().unwrap());
+            let word = |at: usize| le_u32(&descriptor, at).unwrap_or_default();
             let (lookup, name, thunks) = (word(0), word(12), word(16));
             if name == 0 && thunks == 0 {
                 break;
@@ -210,7 +211,7 @@ impl Windows<'_> {
         }
         let mut table = [0u8; 40];
         self.read_image(vm, base, directory, &mut table)?;
-        let word = |at: usize| u32::from_le_bytes(table[at..at + 4].try_into().unwrap());
+        let word = |at: usize| le_u32(&table, at).unwrap_or_default();
         let (names, functions, name_table, ordinals) = (word(24), word(28), word(32), word(36));
         ensure!(names as usize <= IMPORT_LIMIT, "导出名称数量超限");
         let mut pointers = vec![0u8; names as usize * 4];
@@ -293,13 +294,10 @@ impl Windows<'_> {
             let mut raw = vec![0u8; count as usize * 8];
             self.read_image(vm, base, root + offset + 16, &mut raw)?;
             Ok(raw
-                .chunks_exact(8)
-                .map(|e| {
-                    (
-                        u32::from_le_bytes(e[..4].try_into().unwrap()),
-                        u32::from_le_bytes(e[4..].try_into().unwrap()),
-                    )
-                })
+                .as_chunks::<8>()
+                .0
+                .iter()
+                .filter_map(|e| Some((le_u32(e, 0)?, le_u32(e, 4)?)))
                 .collect())
         };
         let Some(&(_, version)) = entries(0)?.iter().find(|(id, _)| *id == RT_VERSION) else {

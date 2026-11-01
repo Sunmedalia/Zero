@@ -1,6 +1,7 @@
 //! Exact module symbol queries. PDBs take precedence over mapped PE exports.
 use super::*;
 use crate::analysis::PESource;
+use crate::bytes::le_u32;
 
 const EXPORT_LIMIT: usize = 65536;
 const INSTANCE_LIMIT: usize = 65536;
@@ -75,7 +76,7 @@ pub(super) fn export_symbols(
     );
     let mut header = [0; 40];
     bounded(rva, &mut header)?;
-    let word = |at| u32::from_le_bytes(header[at..at + 4].try_into().unwrap());
+    let word = |at| le_u32(&header, at).unwrap_or_default();
     let functions = word(20) as usize;
     let names = word(24) as usize;
     ensure!(
@@ -219,7 +220,11 @@ impl Windows<'_> {
             }
         };
         let query = &options.pe;
-        let module = query.module.as_ref().unwrap().to_lowercase();
+        let module = query
+            .module
+            .as_ref()
+            .context("PE 符号查询缺少模块名")?
+            .to_lowercase();
         let mut result = self.result(Plugin::WinPESymbols);
         let mut instances = Vec::new();
         if query.source == Some(PESource::Kernel) {
@@ -252,7 +257,7 @@ impl Windows<'_> {
                                 .collect::<Vec<_>>(),
                         );
                     }
-                    let root = session_roots.as_ref().unwrap().iter().find(|root| {
+                    let root = session_roots.iter().flatten().find(|root| {
                         Memory::new(self.vm.image, **root, self.vm.isf, self.vm.sources)
                             .read(loaded.base, &mut probe)
                             .is_ok()

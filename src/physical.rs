@@ -214,7 +214,7 @@ impl Object<'_> {
             2 => value as i16 as i64,
             4 => value as i32 as i64,
             8 => value as i64,
-            _ => unreachable!(),
+            size => anyhow::bail!("{structure}.{field} 大小 {size} 不是有符号整数"),
         })
     }
     pub fn string(&self, structure: &str, field: &str) -> Result<String> {

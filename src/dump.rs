@@ -205,7 +205,12 @@ impl Linux<'_> {
         result.diagnostics = listed.diagnostics;
         let mut regions = Vec::new();
         if plugin == Plugin::Memdump {
-            regions.push((options.start.unwrap(), options.end.unwrap()));
+            regions.push(
+                options
+                    .start
+                    .zip(options.end)
+                    .context("memdump 需要起止地址")?,
+            );
         } else {
             let mm = self.number(address, "task_struct", "mm")?;
             for node in self.vma_nodes(mm, job, &mut result)? {

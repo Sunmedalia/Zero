@@ -1,3 +1,14 @@
+#![cfg_attr(
+    not(test),
+    deny(
+        clippy::unwrap_used,
+        clippy::expect_used,
+        clippy::panic,
+        clippy::unreachable,
+        clippy::todo,
+        clippy::unimplemented
+    )
+)]
 #![recursion_limit = "256"]
 mod mcp;
 
@@ -243,7 +254,9 @@ fn main() -> Result<()> {
             zero_tui::prepare::generate(
                 elf.as_deref()
                     .ok_or_else(|| anyhow::anyhow!("需要 --elf / --config 或 --kali"))?,
-                config.as_deref().unwrap(),
+                config
+                    .as_deref()
+                    .ok_or_else(|| anyhow::anyhow!("需要 --elf / --config 或 --kali"))?,
                 tool.as_deref()
                     .unwrap_or(&cache.join("symbols/build/dwarf2json/dwarf2json")),
                 &image,
