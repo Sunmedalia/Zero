@@ -298,7 +298,12 @@ mod tests {
                 expected,
                 "{case}"
             );
-            assert_eq!(coverage.complete, case["duplicate"] != true, "{case}");
+            assert_eq!(
+                coverage.complete,
+                case["duplicate"] != true
+                    && !(case["duplicate_vma"] == true && case["parent_mismatch"] == false),
+                "{case}"
+            );
             isf.data["user_types"]["mm_struct"]["fields"]["map_count"] =
                 json!({"offset":48,"type":{"kind":"base","name":"u64"}});
             put(&mut b, 0xb030, 2);
