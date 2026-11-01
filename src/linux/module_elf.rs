@@ -44,6 +44,33 @@ fn append(target: &mut Vec<u8>, bytes: &[u8]) -> Result<()> {
     Ok(())
 }
 fn section_header(name_offset: u32, section: &Section, strings: u32, symbols: u32) -> Vec<u8> {
+    section_header_width(name_offset, section, strings, symbols, false)
+        .expect("ELF64 section fields fit")
+}
+fn section_header_width(
+    name_offset: u32,
+    section: &Section,
+    strings: u32,
+    symbols: u32,
+    elf32: bool,
+) -> Result<Vec<u8>> {
+    section_header_sized(
+        name_offset,
+        section,
+        strings,
+        symbols,
+        elf32,
+        section.bytes.len() as u64,
+    )
+}
+fn section_header_sized(
+    name_offset: u32,
+    section: &Section,
+    strings: u32,
+    symbols: u32,
+    elf32: bool,
+    size: u64,
+) -> Result<Vec<u8>> {
     let name = section.name.as_str();
     let kind: u32 = if name.contains(".rela.") {
         4
@@ -74,27 +101,60 @@ fn section_header(name_offset: u32, section: &Section, strings: u32, symbols: u3
     } else {
         0
     };
-    let entsize: u64 = if name.contains(".rela.") || kind == 2 {
+    let entsize: u64 = if name.contains(".rela.") {
         24
+    } else if kind == 2 {
+        if elf32 { 16 } else { 24 }
     } else {
         0
     };
     let mut bytes = Vec::with_capacity(64);
     bytes.extend_from_slice(&name_offset.to_le_bytes());
     bytes.extend_from_slice(&kind.to_le_bytes());
-    for value in [
-        flags,
-        section.address,
-        section.offset,
-        section.bytes.len() as u64,
-    ] {
-        bytes.extend_from_slice(&value.to_le_bytes());
+    for value in [flags, section.address, section.offset, size] {
+        if elf32 {
+            bytes.extend_from_slice(
+                &u32::try_from(value)
+                    .context("ELF32 section 字段溢出")?
+                    .to_le_bytes(),
+            );
+        } else {
+            bytes.extend_from_slice(&value.to_le_bytes());
+        }
     }
     bytes.extend_from_slice(&link.to_le_bytes());
     bytes.extend_from_slice(&0u32.to_le_bytes());
-    bytes.extend_from_slice(&1u64.to_le_bytes());
-    bytes.extend_from_slice(&entsize.to_le_bytes());
-    bytes
+    if elf32 {
+        bytes.extend_from_slice(&1u32.to_le_bytes());
+        bytes.extend_from_slice(&(entsize as u32).to_le_bytes());
+    } else {
+        bytes.extend_from_slice(&1u64.to_le_bytes());
+        bytes.extend_from_slice(&entsize.to_le_bytes());
+    }
+    Ok(bytes)
+}
+fn elf_header(elf32: bool, shoff: u64, shstrndx: u16) -> Result<Vec<u8>> {
+    let mut output = vec![0; if elf32 { 52 } else { 64 }];
+    output[..16].copy_from_slice(b"\x7fELF\x02\x01\x01\0\0\0\0\0\0\0\0\0");
+    output[4] = if elf32 { 1 } else { 2 };
+    output[16..18].copy_from_slice(&1u16.to_le_bytes());
+    output[18..20].copy_from_slice(&(if elf32 { 3u16 } else { 62u16 }).to_le_bytes());
+    output[20..24].copy_from_slice(&1u32.to_le_bytes());
+    let count = shstrndx.checked_add(1).context("ELF section 数量溢出")?;
+    if elf32 {
+        output[32..36].copy_from_slice(&u32::try_from(shoff)?.to_le_bytes());
+        output[40..42].copy_from_slice(&52u16.to_le_bytes());
+        output[46..48].copy_from_slice(&40u16.to_le_bytes());
+        output[48..50].copy_from_slice(&count.to_le_bytes());
+        output[50..52].copy_from_slice(&shstrndx.to_le_bytes());
+    } else {
+        output[40..48].copy_from_slice(&shoff.to_le_bytes());
+        output[52..54].copy_from_slice(&64u16.to_le_bytes());
+        output[58..60].copy_from_slice(&64u16.to_le_bytes());
+        output[60..62].copy_from_slice(&count.to_le_bytes());
+        output[62..64].copy_from_slice(&shstrndx.to_le_bytes());
+    }
+    Ok(output)
 }
 impl Linux<'_> {
     /// Resolve old direct symbol tables and newer mod_kallsyms pointers once.
@@ -437,15 +497,7 @@ impl Linux<'_> {
         }
         let shoff = output.len() as u64;
         append(&mut output, &headers)?;
-        output[..16].copy_from_slice(b"\x7fELF\x02\x01\x01\0\0\0\0\0\0\0\0\0");
-        output[16..18].copy_from_slice(&1u16.to_le_bytes());
-        output[18..20].copy_from_slice(&62u16.to_le_bytes());
-        output[20..24].copy_from_slice(&1u32.to_le_bytes());
-        output[40..48].copy_from_slice(&shoff.to_le_bytes());
-        output[52..54].copy_from_slice(&64u16.to_le_bytes());
-        output[58..60].copy_from_slice(&64u16.to_le_bytes());
-        output[60..62].copy_from_slice(&(shstrndx + 1).to_le_bytes());
-        output[62..64].copy_from_slice(&shstrndx.to_le_bytes());
+        output[..64].copy_from_slice(&elf_header(false, shoff, shstrndx)?);
         Ok(Elf {
             bytes: output,
             padding,
@@ -518,6 +570,55 @@ mod tests {
     use serde_json::json;
     fn put(bytes: &mut [u8], at: usize, value: u64) {
         bytes[at..at + 8].copy_from_slice(&value.to_le_bytes());
+    }
+    #[test]
+    fn elf_headers_match_actual_pinned_32_and_64_bit_methods() {
+        let vectors: serde_json::Value = serde_json::from_str(include_str!(
+            "../../tests/reference/parity/fixtures/module-elf-headers.json"
+        ))
+        .unwrap();
+        let encoded = |bytes: &[u8]| bytes.iter().map(|b| format!("{b:02x}")).collect::<String>();
+        for case in vectors["headers"].as_array().unwrap() {
+            let actual = elf_header(
+                case["bits"] == 32,
+                case["offset"].as_u64().unwrap(),
+                case["count"].as_u64().unwrap() as u16,
+            );
+            if case["error"] == "struct.error" {
+                assert!(actual.is_err());
+            } else {
+                assert_eq!(
+                    encoded(&actual.unwrap()),
+                    case["expected_hex"].as_str().unwrap()
+                );
+            }
+        }
+        for case in vectors["sections"].as_array().unwrap() {
+            let a = &case["args"];
+            let section = Section {
+                name: a[2].as_str().unwrap().into(),
+                address: a[3].as_u64().unwrap(),
+                offset: a[5].as_u64().unwrap(),
+                bytes: vec![0; a[4].as_u64().unwrap().min(0x123) as usize],
+            };
+            // Test oversized lengths without allocating their payload.
+            let actual = section_header_sized(
+                a[1].as_u64().unwrap() as u32,
+                &section,
+                a[6].as_u64().unwrap() as u32,
+                a[7].as_u64().unwrap() as u32,
+                a[0] == 32,
+                a[4].as_u64().unwrap(),
+            );
+            if case["expected_hex"].is_null() {
+                assert!(actual.is_err());
+            } else {
+                assert_eq!(
+                    encoded(&actual.unwrap()),
+                    case["expected_hex"].as_str().unwrap()
+                );
+            }
+        }
     }
     fn fixture() -> (Vec<u8>, Isf) {
         let (mut bytes, mut isf) = super::super::tests::fixture();

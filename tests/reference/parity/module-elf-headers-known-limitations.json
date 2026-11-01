@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+  "scope": "Actual pinned ELF32/ELF64 file and section header construction",
+  "generator": "module_elf_header_vectors.py",
+  "fixture": "fixtures/module-elf-headers.json",
+  "verification": {
+    "file_header_cases": 8,
+    "section_header_cases": 24,
+    "targeted_tests": "All nine linux::module_elf tests passed, including byte comparisons for every generated header case."
+  },
+  "limitations": [
+    "Full native module reconstruction still accepts only 64-bit Intel symbols; ELF32 symbol normalization and full-file reconstruction are not implemented by this batch.",
+    "The pinned reference keeps sh_entsize=24 for .rela.* on both architectures and treats .rel.* as ordinary PROGBITS; the vectors preserve those behaviors.",
+    "ELF32 section address, length and file-offset overflows are compared against the actual reference None result without allocating oversized section payloads. File-header offset/count overflows record the reference struct.error separately; both failure forms map to native Result::Err rather than reproducing Python exception objects.",
+    "No real Linux32 image or full plugin contract is established."
+  ]
+}
