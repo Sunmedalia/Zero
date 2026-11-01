@@ -1,6 +1,5 @@
 //! Intel page-table mappings, projected to the pinned Memmap contract.
 use super::*;
-use crate::bytes::{Checked as _, JsonKey as _};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) enum Backing {

@@ -1,6 +1,6 @@
 //! Open files, path reconstruction and mount tables.
 use super::*;
-use crate::bytes::{Checked as _, JsonKey as _};
+use crate::bytes::JsonKey as _;
 impl Linux<'_> {
     pub(super) fn inode(&self, file: u64) -> Result<u64> {
         let path = self.field_address(file, "file", "f_path")?;

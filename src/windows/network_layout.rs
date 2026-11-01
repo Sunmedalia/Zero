@@ -1,6 +1,5 @@
 //! Declarative TCP/IP field facts; no nearest-version or cross-architecture fallback.
 use super::*;
-use crate::bytes::{Checked as _, JsonKey as _};
 use serde::Deserialize;
 use std::collections::BTreeMap;
 #[derive(Clone, Deserialize)]

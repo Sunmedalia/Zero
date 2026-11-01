@@ -1,6 +1,6 @@
 //! Kernel object walkers: lists, maple trees, VMAs and process address spaces.
 use super::*;
-use crate::bytes::{Checked as _, JsonKey as _};
+use crate::bytes::JsonKey as _;
 impl Linux<'_> {
     /// Kernel uses the split `mount`/`vfsmount` layout instead of the older
     /// single `vfsmount`. Probed on every `number()` call, so memoized.

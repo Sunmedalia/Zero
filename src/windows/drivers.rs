@@ -1,6 +1,5 @@
 //! Driver pool candidates validated against a mapped DRIVER_EXTENSION back-reference.
 use super::*;
-use crate::bytes::JsonKey as _;
 impl Windows<'_> {
     pub(super) fn drivers(&self, plugin: Plugin, job: &Job) -> Result<Results> {
         let isf = self.vm.isf;

@@ -3,7 +3,6 @@
 //! 的 VACB 视图不在此列。字节直接来自物理驻留页，空洞保持稀疏，绝不伪造。
 use super::dump::sanitized_component;
 use super::*;
-use crate::bytes::{Checked as _, JsonKey as _};
 use sha2::{Digest, Sha256};
 use std::io::Write;
 

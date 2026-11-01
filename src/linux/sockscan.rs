@@ -1,6 +1,6 @@
 //! Independent physical socket discovery through file operations and destructors.
 use super::*;
-use crate::bytes::{Checked as _, JsonKey as _};
+use crate::bytes::JsonKey as _;
 use crate::physical::{self, Decision, Object};
 use serde::Serialize;
 use std::collections::BTreeSet;

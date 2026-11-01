@@ -1,6 +1,5 @@
 //! Canonical Amcache records. Legacy six-column inventory remains separate.
 use super::*;
-use crate::bytes::Checked as _;
 use std::collections::BTreeMap;
 
 const NA: &str = "N/A";

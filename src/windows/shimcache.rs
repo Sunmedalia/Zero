@@ -1,6 +1,5 @@
 //! windows.shimcachemem.ShimcacheMem: the in-memory ahcache/ntoskrnl LRU list.
 use super::*;
-use crate::bytes::Checked as _;
 
 struct ShimLayout {
     /// 8.1+ looks in ahcache.sys; earlier builds look in the NT kernel.

@@ -1,7 +1,7 @@
 //! Reconstruct a reference-compatible ELF from captured module sections/symbols.
 //! This is a reconstructed analysis artifact, never the original on-disk module.
 use super::*;
-use crate::bytes::{Checked as _, JsonKey as _};
+use crate::bytes::JsonKey as _;
 use crate::dump::{DumpOptions, MAX_DUMP_BYTES};
 use serde::Serialize;
 

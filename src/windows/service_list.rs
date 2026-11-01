@@ -1,7 +1,7 @@
 //! Services anchored in the executable VAD, with registry binary information.
 use super::user_layout::{self, ServiceLayout};
 use super::*;
-use crate::bytes::{Checked as _, JsonKey as _, MapAt as _};
+use crate::bytes::MapAt as _;
 
 const NA: &str = "N/A";
 const MAX_CHAIN: usize = 65536;

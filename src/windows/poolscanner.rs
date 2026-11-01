@@ -1,7 +1,6 @@
 //! Canonical pool scanner: every built-in kernel tag, scanned in the version's layer.
 use super::*;
 use crate::bytes::le_u32;
-use crate::bytes::{Checked as _, JsonKey as _};
 use memchr::memmem;
 use std::cmp::Reverse;
 use std::collections::{BTreeMap, BinaryHeap};

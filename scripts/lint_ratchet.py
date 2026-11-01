@@ -6,14 +6,14 @@ fall. Run with --update after lowering one to record the new baseline.
 """
 import json
 import os
-import re
 import subprocess
 import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 BASELINE = ROOT / "scripts" / "lint-baseline.json"
-LINTS = ("indexing_slicing", "cast_possible_truncation")
+MESSAGES = {"indexing_slicing": "may panic", "cast_possible_truncation": "truncate"}
+LINTS = tuple(MESSAGES)
 
 
 def count(lint: str) -> int:
@@ -24,7 +24,9 @@ def count(lint: str) -> int:
          "--", f"-Wclippy::{lint}"],
         cwd=ROOT, capture_output=True, text=True, check=True,
     ).stderr
-    return len(set(re.findall(r"^src/\S+:\d+:\d+", output, re.M)))
+    pattern = MESSAGES[lint]
+    return len({line.split(": ")[0] for line in output.splitlines()
+                if line.startswith("src/") and pattern in line})
 
 
 def main() -> int:

@@ -1,6 +1,6 @@
 //! The Linux engine: ISF-driven field readers and plugin routing.
 use super::*;
-use crate::bytes::{Checked as _, JsonKey as _};
+use crate::bytes::JsonKey as _;
 pub struct Linux<'a> {
     pub vm: VirtualMemory<'a>,
     pub isf: &'a Isf,

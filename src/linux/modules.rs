@@ -1,6 +1,6 @@
 //! Shared module allocation ranges, carving and independent module views.
 use super::*;
-use crate::bytes::{Checked as _, JsonKey as _};
+use crate::bytes::JsonKey as _;
 
 /// Ceiling for the module carving range and for the bytes read from it.
 const CARVE_SPAN: u64 = 2 * 1024 * 1024 * 1024;

@@ -1,7 +1,6 @@
 //! Direct/indirect syscall block validation against the pinned reference contract.
 use super::*;
 use crate::byte_regex::ByteRegex;
-use crate::bytes::{Checked as _, JsonKey as _};
 use capstone::prelude::*;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

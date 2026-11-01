@@ -1,7 +1,6 @@
 //! Kernel tables and carved module entries: the native system service table
 //! and `MmLd` pool allocations cross-checked against PsLoadedModuleList.
 use super::*;
-use crate::bytes::{Checked as _, JsonKey as _};
 use drivers::module_at;
 use objects::physical_number;
 

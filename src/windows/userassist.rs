@@ -1,7 +1,6 @@
 //! Twelve-column UserAssist registry view; the seven-column legacy view stays separate.
 use super::security::rot13;
 use super::*;
-use crate::bytes::{Checked as _, JsonKey as _};
 use crate::bytes::{le_u32, le_u64};
 
 const PATH: &str = "Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\UserAssist";

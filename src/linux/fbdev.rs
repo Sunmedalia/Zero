@@ -1,6 +1,6 @@
 //! fbdev registration, geometry and explicit bounded framebuffer exports.
 use super::*;
-use crate::bytes::{Checked as _, JsonKey as _};
+use crate::bytes::JsonKey as _;
 use crate::{
     dump::DumpOptions,
     framebuffer::{Channel, Layout},

@@ -1,7 +1,7 @@
 //! Live thread hardware debug registers, attributed to file VADs and exact symbols.
 use super::thread_symbols::file_for_address;
 use super::*;
-use crate::bytes::{Checked as _, JsonKey as _, MapAt as _};
+use crate::bytes::MapAt as _;
 use std::collections::BTreeMap;
 
 struct DebugThread {

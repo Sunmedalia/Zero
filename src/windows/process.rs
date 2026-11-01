@@ -1,6 +1,5 @@
 //! Process artifacts read using exact kernel types and the 32-bit NT user ABI.
 use super::*;
-use crate::bytes::Checked as _;
 const ENVIRONMENT_LIMIT: usize = 1024 * 1024;
 
 impl Windows<'_> {

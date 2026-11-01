@@ -1,6 +1,5 @@
 //! Pool candidates require structure checks and a verified virtual object type.
 use super::*;
-use crate::bytes::{Checked as _, JsonKey as _};
 use objects::physical_number;
 use std::collections::BTreeSet;
 /// Pool tags read by the scanning plugins; the first scan finds all of them in

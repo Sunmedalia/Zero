@@ -1,6 +1,5 @@
 //! Cross-view driver starts against loaded module intervals.
 use super::*;
-use crate::bytes::{Checked as _, JsonKey as _};
 
 const KNOWN_DRIVERS: [&str; 6] = [
     "ACPI_HAL",

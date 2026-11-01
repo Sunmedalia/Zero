@@ -2,7 +2,6 @@
 use super::*;
 use crate::analysis::PESource;
 use crate::bytes::le_u32;
-use crate::bytes::{Checked as _, JsonKey as _};
 
 const EXPORT_LIMIT: usize = 65536;
 const INSTANCE_LIMIT: usize = 65536;

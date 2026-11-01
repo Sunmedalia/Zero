@@ -1,6 +1,5 @@
 //! Explicit, read-only paging attachments. No adjacent-file discovery or implicit index guessing.
 use super::*;
-use crate::bytes::Checked as _;
 use serde::{Deserialize, Serialize};
 use std::{
     fs::{File, Metadata},

@@ -1,6 +1,6 @@
 //! Saved kernel stack-word candidates attributed to runtime symbol intervals.
 use super::*;
-use crate::bytes::{Checked as _, JsonKey as _};
+use crate::bytes::JsonKey as _;
 use crate::{
     analysis::Options,
     stack_scan,

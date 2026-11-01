@@ -1,6 +1,5 @@
 //! Registry pool allocation candidates, independent of the live hive list.
 use super::*;
-use crate::bytes::JsonKey as _;
 use std::collections::BTreeSet;
 
 impl Windows<'_> {

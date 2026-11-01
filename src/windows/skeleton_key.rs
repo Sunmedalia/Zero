@@ -1,6 +1,5 @@
 //! Locate RC4-HMAC KERB_ECRYPT instances in the first usable lsass cryptdll mapping.
 use super::*;
-use crate::bytes::JsonKey as _;
 use crate::bytes::{le_u32, le_u64};
 use crate::{byte_regex::ByteRegex, regex_scan};
 use capstone::{arch::x86::X86OperandType, prelude::*};

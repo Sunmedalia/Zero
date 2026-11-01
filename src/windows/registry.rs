@@ -1,5 +1,4 @@
 use super::*;
-use crate::bytes::{Checked as _, JsonKey as _};
 impl Windows<'_> {
     pub(super) fn registry(&self, p: Plugin, options: &Options, job: &Job) -> Result<Results> {
         let mut r = self.result(p);

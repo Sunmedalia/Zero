@@ -1,6 +1,5 @@
 //! TCP/IP object layouts are allowlisted by exact driver PDB identity, not OS version.
 use super::*;
-use crate::bytes::{Checked as _, JsonKey as _};
 use std::net::{Ipv4Addr, Ipv6Addr};
 pub(super) const LAYOUTS: &str = include_str!("network_layouts.json");
 use super::network_layout::{self, Layout};

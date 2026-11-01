@@ -1,6 +1,5 @@
 //! Request validation and the public analysis entry points.
 use super::*;
-use crate::bytes::{Checked as _, JsonKey as _};
 
 pub fn analyze(
     image: &Image,

@@ -2,7 +2,6 @@
 //! Structural facts: mandiant/win10_rekall, win10_memcompression research (2019).
 //! Windows 11 SmPa indirection and size flags: ufrisk/MemProcFS vmm/mm/mm_win.c.
 use super::*;
-use crate::bytes::JsonKey as _;
 #[derive(Default)]
 pub(super) struct State {
     pages: BTreeMap<(u64, u64), Vec<u8>>,

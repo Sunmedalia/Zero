@@ -1,6 +1,5 @@
 //! Object validation behind pool scanning: reference type maps, process and thread checks.
 use super::*;
-use crate::bytes::{Checked as _, JsonKey as _};
 
 impl Windows<'_> {
     pub(in crate::windows) fn reference_dispatch_drivers(

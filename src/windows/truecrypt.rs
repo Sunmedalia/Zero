@@ -1,6 +1,5 @@
 //! TrueCrypt's DWORD-aligned cached Password records in the first .data section.
 use super::*;
-use crate::bytes::{Checked as _, JsonKey as _};
 const SCAN_LIMIT: u64 = 64 * 1024 * 1024;
 const HIT_LIMIT: usize = 100_000;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

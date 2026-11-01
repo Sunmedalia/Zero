@@ -1,5 +1,4 @@
 use super::*;
-use crate::bytes::{Checked as _, JsonKey as _};
 // Windows 8 encodes 41 address bits; later kernels may encode 44.
 // Sign-extend the exact symbol-declared width after the four alignment bits.
 /// Exported kernel variables that point at well-known object types.

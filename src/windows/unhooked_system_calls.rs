@@ -1,7 +1,6 @@
 //! Compare the pinned ntdll syscall byte windows across process address spaces.
 use super::*;
 use crate::analysis::{PEQuery, PESource};
-use crate::bytes::{Checked as _, JsonKey as _};
 
 const FUNCTIONS: &[&str] = &[
     "NtCreateThread",

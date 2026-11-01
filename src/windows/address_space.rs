@@ -1,6 +1,5 @@
 //! Windows virtual address translation over a read-only image.
 use super::*;
-use crate::bytes::Checked as _;
 
 /// Independent Windows translation; software PTEs never change Linux semantics.
 pub struct Memory<'a> {

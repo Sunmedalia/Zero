@@ -1,6 +1,5 @@
 use super::memory::protection;
 use super::*;
-use crate::bytes::Checked as _;
 use sha2::{Digest, Sha256};
 use std::io::Write;
 impl Windows<'_> {

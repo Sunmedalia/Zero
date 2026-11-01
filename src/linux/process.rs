@@ -1,6 +1,6 @@
 //! Per-task plugins: arguments, environment, credentials, threads, state and ptrace.
 use super::*;
-use crate::bytes::{Checked as _, JsonKey as _};
+use crate::bytes::JsonKey as _;
 impl Linux<'_> {
     pub(super) fn preflight(&self, plugin: Plugin) -> Result<()> {
         self.require(&[

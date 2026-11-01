@@ -1,6 +1,5 @@
 //! Bounded processor roots shared by KPCR projection and timer enumeration.
 use super::*;
-use crate::bytes::JsonKey as _;
 
 const MAX_PROCESSORS: u64 = 2048;
 

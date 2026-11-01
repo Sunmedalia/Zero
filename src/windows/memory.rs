@@ -1,5 +1,4 @@
 use super::*;
-use crate::bytes::{Checked as _, JsonKey as _};
 #[derive(Clone, Debug)]
 /// Symbol-derived layout facts for resolving a VAD's backing file.
 pub(super) struct VadLayout {

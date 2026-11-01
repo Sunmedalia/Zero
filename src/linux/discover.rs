@@ -1,6 +1,6 @@
 //! Kernel page-table discovery and validation against the complete banner.
 use super::*;
-use crate::bytes::{Checked as _, JsonKey as _};
+use crate::bytes::JsonKey as _;
 fn physical_field(image: &Image, isf: &Isf, at: u64, structure: &str, field: &str) -> Result<u64> {
     let width = isf.size(structure, field)?;
     ensure!(matches!(width, 1 | 2 | 4 | 8), "物理字段宽度无效");

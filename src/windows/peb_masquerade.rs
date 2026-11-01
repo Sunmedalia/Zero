@@ -1,6 +1,5 @@
 //! EPROCESS/audit/PEB names and independent Unicode descriptor length checks.
 use super::*;
-use crate::bytes::{Checked as _, JsonKey as _};
 
 /// Read only Length and Buffer: MaximumLength is evidence to compare, not a
 /// prerequisite that may suppress a spoofed descriptor. Match reference UTF-16

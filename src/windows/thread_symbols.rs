@@ -1,7 +1,6 @@
 //! Shared file VAD lookup and batched exact symbol queries for thread artifacts.
 use super::*;
 use crate::analysis::{PEQuery, PESource};
-use crate::bytes::Checked as _;
 use std::collections::BTreeMap;
 
 pub(super) fn file_for_address(vads: &[memory::Vad], address: u64) -> Option<&str> {

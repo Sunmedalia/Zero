@@ -1,6 +1,5 @@
 //! Read policy of the pinned Windows Intel layers, without native prototype/store recovery.
 use super::*;
-use crate::bytes::Checked as _;
 
 impl Memory<'_> {
     pub(super) fn scan_reference(

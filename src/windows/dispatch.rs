@@ -1,6 +1,5 @@
 //! Shared module intervals and exact per-module PDB aliases for dispatch analysis.
 use super::*;
-use crate::bytes::JsonKey as _;
 
 pub(super) struct DispatchModules {
     reference_collection: bool,

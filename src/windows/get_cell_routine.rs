@@ -1,6 +1,5 @@
 //! Registry handler ownership against the loaded module view.
 use super::*;
-use crate::bytes::{Checked as _, JsonKey as _};
 
 /// The pinned reference treats the end of a SizedModule as inclusive for a
 /// point lookup. Preserve every overlapping owner rather than first-match wins.

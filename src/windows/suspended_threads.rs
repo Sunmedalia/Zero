@@ -1,7 +1,7 @@
 //! Suspended live threads, with file-backed VAD and exact module-symbol attribution.
 use super::thread_symbols::file_for_address;
 use super::*;
-use crate::bytes::{JsonKey as _, MapAt as _};
+use crate::bytes::MapAt as _;
 use std::collections::BTreeMap;
 
 struct SuspendedThread {

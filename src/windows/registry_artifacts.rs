@@ -1,7 +1,6 @@
 //! Registry-backed artifacts: scheduled tasks, Amcache inventory and the
 //! system certificate stores. Values are decoded in place; nothing is exported.
 use super::*;
-use crate::bytes::Checked as _;
 use crate::bytes::{le_u16, le_u32, le_u64};
 
 const TASKS: &str = "Microsoft\\Windows NT\\CurrentVersion\\Schedule\\TaskCache\\Tasks";

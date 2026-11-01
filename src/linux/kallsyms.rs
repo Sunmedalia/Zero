@@ -1,7 +1,7 @@
 //! Bounded native enumeration of compressed core, module, ftrace and BPF symbols.
 use super::*;
 use crate::analysis::KallsymsOptions;
-use crate::bytes::{Checked as _, JsonKey as _};
+use crate::bytes::JsonKey as _;
 
 fn canonical(address: u64) -> u64 {
     if address < 1 << 48 && address & (1 << 47) != 0 {

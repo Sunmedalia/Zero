@@ -1,6 +1,6 @@
 //! Physical object scans, independent of active task/file linked lists.
 use super::*;
-use crate::bytes::{Checked as _, JsonKey as _};
+use crate::bytes::JsonKey as _;
 use crate::physical::{self, Decision, Object};
 impl Linux<'_> {
     pub(super) fn scan_symbol_address(&self, name: &str) -> Result<u64> {

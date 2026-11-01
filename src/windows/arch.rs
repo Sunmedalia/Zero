@@ -1,6 +1,5 @@
 //! Windows machine types and paging geometry. Linux translation stays independent.
 use super::*;
-use crate::bytes::{Checked as _, JsonKey as _};
 use clap::ValueEnum;
 use serde::{Deserialize, Serialize};
 

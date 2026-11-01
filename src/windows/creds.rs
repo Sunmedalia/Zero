@@ -2,7 +2,6 @@
 //! 算法对齐 Volatility 3 的 registry/hashdump.py、lsadump.py、cachedump.py。
 use super::crypto;
 use super::*;
-use crate::bytes::Checked as _;
 
 /// bootkey 片段所在的 Lsa 子键，顺序敏感。
 const LSA_BOOTKEY_KEYS: [&str; 4] = ["JD", "Skew1", "GBG", "Data"];

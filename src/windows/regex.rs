@@ -1,6 +1,5 @@
 //! Native byte-regex scans over process VADs, backed by shared resident-range scans.
 use super::*;
-use crate::bytes::JsonKey as _;
 use crate::{analysis::Options, byte_regex::ByteRegex, regex_scan};
 impl Windows<'_> {
     pub(super) fn vad_regex_scan(&self, options: &Options, job: &Job) -> Result<Results> {

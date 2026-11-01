@@ -1,6 +1,5 @@
 //! Canonical TaskCache binary decoding against the pinned ScheduledTasks schema.
 use super::*;
-use crate::bytes::JsonKey as _;
 const CACHE: &str = "Microsoft\\Windows NT\\CurrentVersion\\Schedule\\TaskCache";
 const NA: &str = "N/A";
 const LIMIT: usize = 4096;

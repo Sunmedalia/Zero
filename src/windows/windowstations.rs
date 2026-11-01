@@ -1,6 +1,5 @@
 //! Canonical window station scan. Session objects are reread in a process of that session.
 use super::*;
-use crate::bytes::JsonKey as _;
 use std::collections::{HashMap, HashSet};
 
 const STATION_SIZE: u64 = 152;

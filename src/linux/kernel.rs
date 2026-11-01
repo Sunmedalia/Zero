@@ -1,6 +1,6 @@
 //! Kernel-wide views: printk, resources, notifiers, modules, syscalls and cross-views.
 use super::*;
-use crate::bytes::{Checked as _, JsonKey as _};
+use crate::bytes::JsonKey as _;
 impl Linux<'_> {
     pub(crate) fn kernel_text(&self, ptr: u64, limit: usize) -> Result<String> {
         ensure!(ptr != 0, "字符串指针为空");

@@ -1,7 +1,6 @@
 //! In-memory PE metadata: the import address table of each process image
 //! and the fixed version resource of loaded modules.
 use super::*;
-use crate::bytes::Checked as _;
 use crate::bytes::le_u32;
 
 const IMPORT_LIMIT: u32 = 65536;

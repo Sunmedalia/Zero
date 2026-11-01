@@ -1,6 +1,6 @@
 //! Process memory views: mappings, ELF headers, injected code and bash history.
 use super::*;
-use crate::bytes::{Checked as _, JsonKey as _};
+use crate::bytes::JsonKey as _;
 pub(super) fn header(bytes: &[u8], arm: bool) -> Result<(String, u64)> {
     ensure!(
         bytes.len() >= 64 && bytes.at(..4)? == b"\x7fELF",

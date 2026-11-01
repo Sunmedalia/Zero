@@ -1,6 +1,5 @@
 //! Kernel root discovery: self-referencing page tables validated against the exact PDB.
 use super::*;
-use crate::bytes::Checked as _;
 
 /// Discover self-referencing x64 roots and validate a mapped kernel against its PDB.
 pub fn discover(image: &Image, isf: &Isf, job: &Job) -> Result<(u64, u64)> {

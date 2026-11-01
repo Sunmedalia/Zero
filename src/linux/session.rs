@@ -1,6 +1,5 @@
 //! Per-image session: prepared image, matched symbols and validated page tables.
 use super::*;
-use crate::bytes::Checked as _;
 fn source_stamp(path: &Path, job: &Job) -> Result<String> {
     fn visit(path: &Path, out: &mut Vec<String>, depth: usize, job: &Job) -> Result<()> {
         job.check()?;

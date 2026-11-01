@@ -1,6 +1,5 @@
 //! NT5 TCP/IP layouts are separate from Vista+ endpoint objects.
 use super::*;
-use crate::bytes::{Checked as _, JsonKey as _};
 use serde::Deserialize;
 use std::net::Ipv4Addr;
 #[derive(Deserialize)]

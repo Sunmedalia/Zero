@@ -1,6 +1,5 @@
 //! Compare independently captured process identity sources (Volatility ProcessSpoofing).
 use super::*;
-use crate::bytes::Checked as _;
 
 // PurePosixPath.name semantics: ignore trailing separators and dot components.
 fn basename(path: &str) -> Option<&str> {

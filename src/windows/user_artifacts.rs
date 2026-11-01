@@ -2,7 +2,7 @@
 //! These are independent Rust parsers, not runtime Python plugins.
 use super::user_layout::{self, ServiceLayout};
 use super::*;
-use crate::bytes::{Checked as _, JsonKey as _, MapAt as _};
+use crate::bytes::MapAt as _;
 fn layout_tag_offset(layout: &ServiceLayout) -> Result<u64> {
     layout
         .fields

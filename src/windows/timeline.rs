@@ -1,6 +1,5 @@
 //! windows.timeliner: one time-ordered view over the timestamped plugins.
 use super::*;
-use crate::bytes::JsonKey as _;
 
 /// FILETIME ticks between 1601-01-01 and the Unix epoch.
 const EPOCH_TICKS: u64 = 116_444_736_000_000_000;
