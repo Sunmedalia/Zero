@@ -17,20 +17,21 @@ def generate(checkout):
     sys.path.insert(0, str(checkout))
     from volatility3.framework.symbols.linux.extensions import maple_tree
     cases = []
-    for width, slots in [(4, [0x12004, 0x12104, 0, 0x12204]), (8, [0x12000, 0x12100, 0, 0x12200])]:
+    for width, kind, slots in [(4, 0, [0x12004, 0x12104, 0, 0x12204]), (8, 0, [0x12000, 0x12100, 0, 0x12200]), (4, 1, [0x12004, 0x12104, 0, 0x12204]), (8, 1, [0x12000, 0x12100, 0, 0x12200])]:
         def object_at(name, **kwargs):
             if name.endswith('!pointer'):
                 return 0xb000
             assert name.endswith('!maple_node')
-            return SimpleNamespace(alloc=SimpleNamespace(slot=slots))
+            return SimpleNamespace(alloc=SimpleNamespace(slot=slots), mr64=SimpleNamespace(slot=slots))
         mock = SimpleNamespace(
             vol=SimpleNamespace(offset=0xb028, native_layer_name='memory', layer_name='memory'),
             _context=SimpleNamespace(object=object_at), get_symbol_table_name=lambda: 'kernel',
         )
         for attr in ['MAPLE_NODE_TYPE_SHIFT', 'MAPLE_NODE_TYPE_MASK', 'MAPLE_NODE_POINTER_MASK', 'MAPLE_DENSE', 'MAPLE_LEAF_64', 'MAPLE_RANGE_64', 'MAPLE_ARANGE_64']:
             setattr(mock, attr, getattr(maple_tree, attr))
-        found = list(maple_tree._parse_maple_tree_node(mock, 0x11002, 0xb000, 1))
-        cases.append(dict(width=width, root=0x11002, slots=slots, found=found))
+        root = 0x11002 | (kind << 3)
+        found = list(maple_tree._parse_maple_tree_node(mock, root, 0xb000, 1))
+        cases.append(dict(width=width, kind=kind, root=root, slots=slots, found=found))
     source = 'volatility3/framework/symbols/linux/extensions/__init__.py'
     return dict(reference_commit=PIN, source_sha256={source: hashlib.sha256((checkout / source).read_bytes()).hexdigest()}, scope='Actual pinned dense-node iteration with mocked typed slots; no real image or complete VMA validity claim.', cases=cases)
 

@@ -147,11 +147,11 @@ impl Linux<'_> {
                 }
             };
             ensure!(end < count, "maple meta.end 越界");
-            for i in 0..=end {
+            for i in 0..=if leaf { count - 1 } else { end } {
                 let child = self
                     .vm
                     .uint(add(slots, i * slot_width)?, slot_width as usize)?;
-                let pivot = if kind == 0 || i == count - 1 {
+                let pivot = if leaf || i == count - 1 {
                     max
                 } else {
                     self.vm.uint(
@@ -167,13 +167,16 @@ impl Linux<'_> {
                 }
                 if child != 0 {
                     if leaf {
+                        if child & !15 == 0 {
+                            continue;
+                        }
                         ensure!(child & (pointer_width - 1) == 0, "maple VMA 指针对齐错误");
                         leaves.push(child);
                     } else {
                         stack.push((child, pivot, true));
                     }
                 }
-                if kind != 0 && pivot >= max {
+                if !leaf && pivot >= max {
                     break;
                 }
             }
@@ -275,6 +278,56 @@ mod tests {
                 json!({"offset":40,"type":{"kind":"struct","name":"maple_tree"}});
             isf.data["user_types"]["maple_tree"] =
                 ty(&[("ma_root", 0, word.clone())], width as u64);
+            if case["kind"] == 1 {
+                isf.data["user_types"]["maple_metadata"] =
+                    ty(&[("end", 0, json!({"kind":"base","name":"char"}))], 1);
+                isf.data["user_types"]["maple_range_64"] = ty(
+                    &[
+                        ("parent", 0, word.clone()),
+                        (
+                            "pivot",
+                            8,
+                            json!({"kind":"array","count":3,"subtype":word.clone()}),
+                        ),
+                        (
+                            "slot",
+                            32,
+                            json!({"kind":"array","count":4,"subtype":{"kind":"pointer"}}),
+                        ),
+                        ("meta", 64, json!({"kind":"struct","name":"maple_metadata"})),
+                    ],
+                    72,
+                );
+                isf.data["user_types"]["maple_node"] = ty(
+                    &[("mr64", 0, json!({"kind":"struct","name":"maple_range_64"}))],
+                    256,
+                );
+                put(&mut b, 0xb028, case["root"].as_u64().unwrap());
+                put(&mut b, 0x11000, 0xb029);
+                for (i, value) in case["slots"].as_array().unwrap().iter().enumerate() {
+                    let value = value.as_u64().unwrap();
+                    let at = 0x11020 + i * width;
+                    b[at..at + width].copy_from_slice(&value.to_le_bytes()[..width]);
+                    if value != 0 {
+                        put(&mut b, value as usize + 8, 0x200000 + i as u64 * 4096);
+                    }
+                }
+                let img = image(&b);
+                let expected: Vec<u64> = case["found"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .map(|v| v.as_u64().unwrap())
+                    .collect();
+                assert_eq!(
+                    engine(&img, &isf)
+                        .maple_vmas(0xb000, &Job::default(), 100)
+                        .unwrap(),
+                    expected,
+                    "leaf {case}"
+                );
+                continue;
+            }
             isf.data["user_types"]["maple_node"] = ty(
                 &[
                     ("parent", 0, word),
