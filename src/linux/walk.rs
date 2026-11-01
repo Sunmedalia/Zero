@@ -53,10 +53,10 @@ impl Linux<'_> {
             .as_u64()
             .context("maple 指针宽度缺失")?;
         ensure!(matches!(pointer_width, 4 | 8), "maple 指针宽度无效");
-        let mut stack = vec![(root, root & 3 == 2)];
+        let mut stack = vec![(root, root & 3 == 2, tree & !255)];
         let mut seen = HashSet::new();
         let mut leaves = Vec::new();
-        while let Some((entry, is_node)) = stack.pop() {
+        while let Some((entry, is_node, expected_parent)) = stack.pop() {
             job.check()?;
             if entry == 0 {
                 continue;
@@ -84,7 +84,9 @@ impl Linux<'_> {
                 self.field_address(node, "maple_node", member)?
             };
             let parent = self.number(base, structure, "parent")?;
-            ensure!(parent & !255 != node, "maple 已删除节点");
+            if parent & !255 != expected_parent {
+                continue;
+            }
             let slot_field = if kind == 0 && self.isf.has_field(structure, "alloc.slot") {
                 "alloc.slot"
             } else {
@@ -110,7 +112,7 @@ impl Linux<'_> {
                         ensure!(child & (pointer_width - 1) == 0, "maple VMA 指针对齐错误");
                         leaves.push(child);
                     } else {
-                        stack.push((child, true));
+                        stack.push((child, true, node));
                     }
                 }
             }

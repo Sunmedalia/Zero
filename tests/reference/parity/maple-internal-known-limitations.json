@@ -5,14 +5,14 @@
   "generator": "maple_internal_vectors.py",
   "fixture": "fixtures/maple-internal.json",
   "verification": {
-    "cases": 4,
+    "cases": 8,
     "test": "linux::walk::tests::maple_internal_nodes_match_actual_reference_without_pivot_metadata",
     "regression": "Native traversal previously failed on missing pivot fields. Four/eight-byte internal node cases now recover both leaves around an empty internal slot without pivot/meta dependencies."
   },
   "limitations": [
     "Actual pinned recursion executes with mocked typed nodes and parent pointer reads. This is not a real image or complete object validity contract.",
     "This supersedes earlier internal pivot/meta termination limitations. Native traversal now reads all ISF slots and applies the pinned low-nibble-only slot filter.",
-    "Native duplicate/cycle handling, parent validation and result sorting retain independent behavior; complete maple traversal parity is not claimed.",
+    "Native parent validation now compares each node's masked parent against its expected tree/parent address and skips mismatches, matching eight reference cases. Duplicate/cycle handling and result sorting retain independent behavior; complete maple traversal parity is not claimed.",
     "The public Linux32 ISF gate remains closed and real Linux32 end-to-end acceptance is not established.",
     "No full plugin contract is established."
   ]
