@@ -900,20 +900,23 @@ fn natural_cmp(a: &str, b: &str) -> std::cmp::Ordering {
                 let (ra, rb) = (run(a), run(b));
                 let trim = |s: &[u8]| {
                     let zeros = s.iter().take_while(|c| **c == b'0').count();
-                    s[zeros..].to_vec()
+                    s.get(zeros..).unwrap_or(&[]).to_vec()
                 };
-                let (na, nb) = (trim(&a[..ra]), trim(&b[..rb]));
+                let (na, nb) = (
+                    trim(a.get(..ra).unwrap_or(&[])),
+                    trim(b.get(..rb).unwrap_or(&[])),
+                );
                 let order = na.len().cmp(&nb.len()).then_with(|| na.cmp(&nb));
                 if order.is_ne() {
                     return order;
                 }
-                (a, b) = (&a[ra..], &b[rb..]);
+                (a, b) = (a.get(ra..).unwrap_or(&[]), b.get(rb..).unwrap_or(&[]));
             }
             (Some(x), Some(y)) => {
                 if x != y {
                     return x.cmp(y);
                 }
-                (a, b) = (&a[1..], &b[1..]);
+                (a, b) = (a.get(1..).unwrap_or(&[]), b.get(1..).unwrap_or(&[]));
             }
         }
     }
@@ -977,7 +980,7 @@ pub fn catalog(
         matches: ranked
             .iter()
             .take(limit)
-            .map(|(_, _, index)| parsed.entries[*index].0.clone())
+            .filter_map(|(_, _, index)| parsed.entries.get(*index).map(|entry| entry.0.clone()))
             .collect(),
         index: IndexInfo {
             banners: parsed.banners,

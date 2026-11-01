@@ -199,18 +199,24 @@ impl Fingerprint {
             // chunks is only possible when the retained tail plus this chunk's
             // head contains the needle.
             let overlap = self.tail.len().min(needle.len() - 1);
-            let tail = &self.tail[self.tail.len() - overlap..];
+            let tail = self.tail.get(self.tail.len() - overlap..).unwrap_or(&[]);
             if overlap > 0 && bytes.len() >= needle.len() {
-                let head = &bytes[..needle.len() - 1];
+                let head = bytes.get(..needle.len() - 1).unwrap_or(&[]);
                 let mut boundary = [0u8; 32];
-                boundary[..overlap].copy_from_slice(tail);
-                boundary[overlap..overlap + head.len()].copy_from_slice(head);
-                let boundary = &boundary[..overlap + head.len()];
+                if let Some(start) = boundary.get_mut(..overlap) {
+                    start.copy_from_slice(tail);
+                }
+                if let Some(end) = boundary.get_mut(overlap..overlap + head.len()) {
+                    end.copy_from_slice(head);
+                }
+                let boundary = boundary.get(..overlap + head.len()).unwrap_or(&[]);
                 for i in memchr::memmem::find_iter(boundary, needle)
                     .filter(|i| *i < overlap && *i + needle.len() > overlap)
                 {
                     let position = self.offset - overlap as u64 + i as u64;
-                    self.found[index].push(position);
+                    if let Some(found) = self.found.get_mut(index) {
+                        found.push(position);
+                    }
                     if index == 0 {
                         job.report(format!(
                             "发现 banner 候选 @ 文件偏移 {position:#x}（尚未验证）"
@@ -220,7 +226,9 @@ impl Fingerprint {
             }
             for i in memchr::memmem::find_iter(bytes, needle) {
                 let position = self.offset + i as u64;
-                self.found[index].push(position);
+                if let Some(found) = self.found.get_mut(index) {
+                    found.push(position);
+                }
                 if index == 0 {
                     job.report(format!(
                         "发现 banner 候选 @ 文件偏移 {position:#x}（尚未验证）"
@@ -231,7 +239,8 @@ impl Fingerprint {
         let width = FINGERPRINT_TAIL;
         if bytes.len() >= width {
             self.tail.clear();
-            self.tail.extend_from_slice(&bytes[bytes.len() - width..]);
+            self.tail
+                .extend_from_slice(bytes.get(bytes.len() - width..).unwrap_or(&[]));
         } else {
             self.tail.extend_from_slice(bytes);
             let keep = self.tail.len().min(width);
@@ -365,7 +374,10 @@ fn physical_hits(image: &Image, file_hits: &[u64], needle: &[u8]) -> Result<Vec<
             physical.extend(
                 memchr::memmem::find_iter(&bytes, needle)
                     .map(|n| start + n as u64)
-                    .filter(|hit| *hit < pair[0].end && hit + length > pair[0].end),
+                    .filter(|hit| {
+                        pair.first()
+                            .is_some_and(|p| *hit < p.end && hit + length > p.end)
+                    }),
             );
         }
     }
@@ -726,7 +738,9 @@ impl Image {
             }
             segments.sort_by_key(|s| s.start);
             ensure!(
-                segments.windows(2).all(|s| s[0].end <= s[1].start),
+                segments
+                    .windows(2)
+                    .all(|s| matches!(s, [a, b] if a.end <= b.start)),
                 "LiME 范围重叠"
             );
             "LiME"
@@ -978,7 +992,7 @@ impl Image {
 /// A needle with a proper border (e.g. `aa`) can match at overlapping offsets,
 /// where non-overlapping iteration depends on where a chunk starts.
 fn self_overlapping(needle: &[u8]) -> bool {
-    (1..needle.len()).any(|k| needle[..k] == needle[needle.len() - k..])
+    (1..needle.len()).any(|k| needle.get(..k) == needle.get(needle.len() - k..))
 }
 struct PageCache {
     /// `arm64_va_bits` this map was filled for. `u8::MAX` means empty.

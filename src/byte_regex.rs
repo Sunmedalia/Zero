@@ -62,7 +62,7 @@ fn error(code: i32) -> String {
     if n < 0 {
         format!("PCRE2 error {code}")
     } else {
-        String::from_utf8_lossy(&bytes[..n as usize]).into_owned()
+        String::from_utf8_lossy(bytes.get(..n as usize).unwrap_or(&[])).into_owned()
     }
 }
 /// Control verbs are PCRE-specific, but escaped parentheses and character

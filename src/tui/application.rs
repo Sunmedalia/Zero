@@ -292,8 +292,8 @@ impl App {
             path_cache: RefCell::new(HashMap::new()),
             asset_index_cache: RefCell::new(Default::default()),
             registry,
-            asset_rows: [asset_rows[0], asset_rows[1], 0],
-            asset_scroll: [0; 3],
+            asset_rows: PerSection([asset_rows[0], asset_rows[1], 0]),
+            asset_scroll: PerSection([0; 3]),
             asset_queries: Default::default(),
             asset_states: RefCell::new(Default::default()),
             asset_identities: assets
@@ -451,7 +451,7 @@ impl App {
             (self.page == Page::Assets).then_some(self.section),
         )
         .into_iter()
-        .map(|i| (ACTIONS[i].label, ACTIONS[i].key))
+        .filter_map(|i| ACTIONS.get(i).map(|action| (action.label, action.key)))
         .collect()
     }
     pub(super) fn remote_detail_text(&self, candidate: &RemoteMatch) -> String {
@@ -768,7 +768,7 @@ impl App {
                 .local_matches
                 .get(&asset.path)
                 .filter(|labels| labels.len() == 1)
-                .map(|labels| labels[0].clone());
+                .and_then(|labels| labels.first().cloned());
             self.symbols = asset.path;
         }
         if asset.kind == Kind::Symbols {

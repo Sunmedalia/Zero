@@ -46,13 +46,15 @@ fn family(text: &str) -> usize {
 pub(super) fn diagnostic_summary(diagnostics: &[String]) -> String {
     let mut counts = [0; 5];
     for text in diagnostics {
-        counts[family(text)] += 1;
+        if let Some(count) = counts.get_mut(family(text)) {
+            *count += 1;
+        }
     }
     FAMILIES
         .iter()
         .enumerate()
-        .filter(|(i, _)| counts[*i] > 0)
-        .map(|(i, (label, _, _))| format!("{label} {}", counts[i]))
+        .filter(|(i, _)| counts.get(*i).is_some_and(|count| *count > 0))
+        .map(|(i, (label, _, _))| format!("{label} {}", counts.get(i).copied().unwrap_or(0)))
         .collect::<Vec<_>>()
         .join(" · ")
 }

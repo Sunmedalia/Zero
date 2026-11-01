@@ -191,9 +191,9 @@ impl Linux<'_> {
                 ),
             );
         }
-        result
-            .rows
-            .sort_unstable_by_key(|row| u64::from_str_radix(&row[0][2..], 16).unwrap_or(0));
+        result.rows.sort_unstable_by_key(|row| {
+            u64::from_str_radix(row.cell(0).get(2..).unwrap_or(""), 16).unwrap_or(0)
+        });
         if !result.kernel_identity.is_object() {
             result.kernel_identity = serde_json::json!({});
         }

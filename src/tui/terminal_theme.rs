@@ -20,7 +20,10 @@ pub(super) fn parse(reply: &str) -> Option<bool> {
             (maximum > 0).then_some(number as f64 / maximum as f64)
         })
         .collect::<Option<_>>()?;
-    (rgb.len() == 3).then(|| 0.2126 * rgb[0] + 0.7152 * rgb[1] + 0.0722 * rgb[2] > 0.5)
+    match rgb.as_slice() {
+        [r, g, b] => Some(0.2126 * r + 0.7152 * g + 0.0722 * b > 0.5),
+        _ => None,
+    }
 }
 pub(super) fn detect() -> bool {
     query()

@@ -1,5 +1,6 @@
 //! Driver pool candidates validated against a mapped DRIVER_EXTENSION back-reference.
 use super::*;
+use crate::bytes::Row as _;
 impl Windows<'_> {
     pub(super) fn drivers(&self, plugin: Plugin, job: &Job) -> Result<Results> {
         let isf = self.vm.isf;
@@ -155,13 +156,13 @@ pub(super) fn module_at(modules: &Results, address: u64) -> String {
         .rows
         .iter()
         .find(|m| {
-            let base = u64::from_str_radix(m[1].trim_start_matches("0x"), 16).unwrap_or(0);
-            let size = m[2].parse::<u64>().unwrap_or(0);
+            let base = u64::from_str_radix(m.cell(1).trim_start_matches("0x"), 16).unwrap_or(0);
+            let size = m.cell(2).parse::<u64>().unwrap_or(0);
             address != 0
                 && address >= base
                 && base.checked_add(size).is_some_and(|end| address < end)
         })
-        .map(|m| m[0].clone())
+        .map(|m| m.cell(0).to_owned())
         .unwrap_or_default()
 }
 

@@ -345,8 +345,10 @@ pub(crate) fn write_stream_artifact(
             if bytes.len() as u64 > MAX_DUMP_BYTES - self.count {
                 return Err(std::io::Error::other("转储文件超过 256 MiB 上限"));
             }
-            let n = self.file.write(&bytes[..bytes.len().min(65536)])?;
-            self.hash.update(&bytes[..n]);
+            let n = self
+                .file
+                .write(bytes.get(..bytes.len().min(65536)).unwrap_or(bytes))?;
+            self.hash.update(bytes.get(..n).unwrap_or(bytes));
             self.count += n as u64;
             Ok(n)
         }

@@ -46,7 +46,7 @@ fn command(vm: &Memory<'_>, address: u64) -> Result<String> {
     vm.read(source, &mut b)?;
     String::from_utf16(
         &b.chunks_exact(2)
-            .map(|b| u16::from_le_bytes([b[0], b[1]]))
+            .map(|b| crate::bytes::le_u16(b, 0).unwrap_or(0))
             .collect::<Vec<_>>(),
     )
     .context("命令 UTF-16 无效")

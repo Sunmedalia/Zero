@@ -71,7 +71,9 @@ impl SymbolIndex {
             .partition_point(|s| s.start <= address)
             .checked_sub(1)?;
         let span = self.spans.get(i)?;
-        (address < span.end).then(|| &self.entries[span.entry])
+        (address < span.end)
+            .then(|| self.entries.get(span.entry))
+            .flatten()
     }
     pub fn len(&self) -> usize {
         self.entries.len()
@@ -79,7 +81,7 @@ impl SymbolIndex {
     pub fn selected_ranges(&self) -> impl Iterator<Item = (u64, u64, &Entry)> {
         self.spans
             .iter()
-            .map(|span| (span.start, span.end, &self.entries[span.entry]))
+            .filter_map(|span| Some((span.start, span.end, self.entries.get(span.entry)?)))
     }
 }
 #[cfg(test)]

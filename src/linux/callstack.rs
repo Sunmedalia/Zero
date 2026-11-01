@@ -393,7 +393,7 @@ impl Linux<'_> {
                 Err(e) => {
                     job.check()?;
                     failed += 1;
-                    first_error.get_or_insert_with(|| format!("TID {}: {e:#}", task[0]));
+                    first_error.get_or_insert_with(|| format!("TID {}: {e:#}", task.cell(0)));
                 }
             }
             if output_stopped || read_budget == 0 {

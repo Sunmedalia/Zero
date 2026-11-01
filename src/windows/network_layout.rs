@@ -227,7 +227,7 @@ pub(super) fn file_version(vm: &Memory<'_>, base: u64) -> Result<[u16; 4]> {
             .context("resource entries 截断")?;
         let entry = entries
             .chunks_exact(8)
-            .find(|e| depth != 0 || e[..4] == 16u32.to_le_bytes())
+            .find(|e| depth != 0 || e.get(..4) == Some(&16u32.to_le_bytes()[..]))
             .context("PE 缺少 RT_VERSION")?;
         let child = u32::from_le_bytes(entry.at(4..8)?.try_into()?);
         if depth < 2 {

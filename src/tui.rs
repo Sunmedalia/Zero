@@ -1,3 +1,4 @@
+use crate::bytes::Regions as _;
 mod application;
 mod asset_views;
 mod cache_page;

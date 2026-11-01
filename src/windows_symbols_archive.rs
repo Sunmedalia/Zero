@@ -81,7 +81,12 @@ impl<F: FnMut(&str) -> Result<symbols::RangeResponse>> Read for RangeReader<F> {
             )
         };
         let count = out.len().min(bytes.len() - offset);
-        out[..count].copy_from_slice(&bytes[offset..offset + count]);
+        let (Some(target), Some(source)) =
+            (out.get_mut(..count), bytes.get(offset..offset + count))
+        else {
+            return Err(std::io::Error::other("ZIP 读取越界"));
+        };
+        target.copy_from_slice(source);
         self.position += count as u64;
         Ok(count)
     }

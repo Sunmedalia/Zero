@@ -14,7 +14,7 @@ fn descriptor_text(vm: &Memory<'_>, address: u64) -> Result<(String, u64)> {
     let mut text = String::from_utf16_lossy(
         &bytes
             .chunks_exact(2)
-            .map(|c| u16::from_le_bytes([c[0], c[1]]))
+            .map(|c| crate::bytes::le_u16(c, 0).unwrap_or(0))
             .collect::<Vec<_>>(),
     );
     if length % 2 != 0 {

@@ -93,11 +93,18 @@ impl App {
             if !*automatic {
                 let back = matches!(key.code, KeyCode::BackTab | KeyCode::Up);
                 *field = (*field + if back { 3 } else { 1 }) % 4;
-                *cursor = if *field < 3 { fields[*field].len() } else { 0 };
+                *cursor = if *field < 3 {
+                    fields.get(*field).map_or(0, String::len)
+                } else {
+                    0
+                };
                 *selected = true;
             }
-        } else if *field < 3 && !*automatic {
-            edit_input(&mut fields[*field], cursor, selected, key);
+        } else if *field < 3
+            && !*automatic
+            && let Some(text) = fields.get_mut(*field)
+        {
+            edit_input(text, cursor, selected, key);
         }
         self.dialog = Some(dialog);
     }
@@ -146,7 +153,7 @@ impl App {
                     format!(
                         "{} {label}: {}",
                         if *field == index { "›" } else { " " },
-                        escaped(&fields[index])
+                        escaped(fields.get(index).map_or("", String::as_str))
                     ),
                     Style::default().fg(if *field == index {
                         color_focus()

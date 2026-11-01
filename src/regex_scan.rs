@@ -25,9 +25,9 @@ pub fn display_match(
 ) -> Result<DisplayMatch> {
     let (bytes, unreadable_bytes) = context(address, size, job, read)?;
     let matched = regex.anchored(&bytes, job)?;
-    let bytes = matched
-        .as_ref()
-        .map_or(bytes.as_slice(), |range| &bytes[range.clone()]);
+    let bytes = matched.as_ref().map_or(bytes.as_slice(), |range| {
+        bytes.get(range.clone()).unwrap_or(&[])
+    });
     Ok(DisplayMatch {
         text: String::from_utf8_lossy(bytes).into_owned(),
         hex: bytes

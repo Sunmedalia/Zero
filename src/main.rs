@@ -2,6 +2,7 @@
     not(test),
     deny(
         clippy::cast_possible_truncation,
+        clippy::indexing_slicing,
         clippy::unwrap_used,
         clippy::expect_used,
         clippy::panic,

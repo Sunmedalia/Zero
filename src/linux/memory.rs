@@ -825,7 +825,9 @@ impl Linux<'_> {
                 ranges.sort_unstable();
                 ranges.dedup();
                 ensure!(
-                    ranges.windows(2).all(|pair| pair[0].1 <= pair[1].0),
+                    ranges
+                        .windows(2)
+                        .all(|pair| matches!(pair, [a, b] if a.1 <= b.0)),
                     "VMA 范围重叠"
                 );
                 let mut covered = start;

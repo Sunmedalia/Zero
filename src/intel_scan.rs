@@ -99,7 +99,7 @@ impl<'a> Mapper<'a> {
         let valid = self.image.read(at, &mut bytes).is_ok()
             && !bytes
                 .chunks_exact(width)
-                .all(|part| part == &bytes[..width]);
+                .all(|part| Some(part) == bytes.get(..width));
         let result = valid.then(|| Arc::new(bytes));
         self.tables.insert(at, result.clone(), 1);
         result
@@ -137,7 +137,12 @@ impl<'a> Mapper<'a> {
                     entry,
                 })? * self.kind.width();
             let mut word = [0; 8];
-            word[..self.kind.width()].copy_from_slice(&table[index..index + self.kind.width()]);
+            if let (Some(target), Some(source)) = (
+                word.get_mut(..self.kind.width()),
+                table.get(index..index + self.kind.width()),
+            ) {
+                target.copy_from_slice(source);
+            }
             entry = u64::from_le_bytes(word);
             previous = shift;
             if self.kind.large(shift) && entry & 128 != 0 {

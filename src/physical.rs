@@ -66,7 +66,7 @@ fn pointers_bounded(
     let values: Vec<_> = values.into_iter().collect();
     let patterns: Vec<_> = values
         .iter()
-        .map(|value| value.to_le_bytes()[..width].to_vec())
+        .map(|value| value.to_le_bytes().get(..width).unwrap_or(&[]).to_vec())
         .collect();
     let finders: Vec<_> = patterns.iter().map(memchr::memmem::Finder::new).collect();
     let mut coverage = Coverage {

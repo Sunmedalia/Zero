@@ -423,7 +423,9 @@ pub(super) fn reconstruct_pe(
     ensure!(size <= crate::dump::MAX_DUMP_BYTES, "PE 转储超过限制");
     ranges.sort_unstable();
     ensure!(
-        ranges.windows(2).all(|r| r[0].0 + r[0].1 <= r[1].0),
+        ranges
+            .windows(2)
+            .all(|r| matches!(r, [a, b] if a.0 + a.1 <= b.0)),
         "PE raw sections 重叠"
     );
     let mut position = 0;

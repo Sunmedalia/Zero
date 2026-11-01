@@ -670,7 +670,10 @@ impl Windows<'_> {
         if tree_order {
             ordered.sort_by_key(|v| v.start);
         }
-        if !ordered.windows(2).all(|v| v[0].end <= v[1].start) {
+        if !ordered
+            .windows(2)
+            .all(|v| matches!(v, [a, b] if a.end <= b.start))
+        {
             match result {
                 Some(r) => Self::issue(r, format!("PID {} VAD", p.pid), "VAD 范围重叠"),
                 None => bail!("VAD 范围重叠"),
@@ -842,7 +845,10 @@ pub(super) fn protection(value: u64) -> String {
         "PAGE_WRITECOPY",
         "PAGE_EXECUTE_READWRITE",
         "PAGE_EXECUTE_WRITECOPY",
-    ][(value & 7) as usize];
+    ]
+    .get((value & 7) as usize)
+    .copied()
+    .unwrap_or("PAGE_NOACCESS");
     let modifier = if value & 7 == 0 {
         ""
     } else {

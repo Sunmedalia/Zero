@@ -219,12 +219,12 @@ impl Linux<'_> {
         }
         // Preserve the established informational warning. A parent outside the
         // leader list can be a thread or exited task; it does not prove a gap.
-        let ids: HashSet<_> = result.rows.iter().map(|r| r[0].as_str()).collect();
+        let ids: HashSet<_> = result.rows.iter().map(|r| r.cell(0)).collect();
         let orphans: Vec<_> = result
             .rows
             .iter()
-            .filter(|r| !r[2].is_empty() && r[2] != "0" && !ids.contains(r[2].as_str()))
-            .map(|r| r[0].clone())
+            .filter(|r| !r.cell(2).is_empty() && r.cell(2) != "0" && !ids.contains(r.cell(2)))
+            .map(|r| r.cell(0).to_owned())
             .collect();
         if !orphans.is_empty() {
             result.diagnostics.push(format!(
@@ -253,9 +253,11 @@ impl Linux<'_> {
     ) -> Result<Results> {
         let mut result = self.reference_process_rows(Plugin::Pslist, job)?;
         if !pids.is_empty() {
-            result
-                .rows
-                .retain(|r| r[0].parse::<u32>().is_ok_and(|pid| pids.contains(&pid)));
+            result.rows.retain(|r| {
+                r.cell(0)
+                    .parse::<u32>()
+                    .is_ok_and(|pid| pids.contains(&pid))
+            });
         }
         if include_threads {
             let leaders = std::mem::take(&mut result.rows);
@@ -291,7 +293,7 @@ impl Linux<'_> {
         let boot_seconds = self.boottime(&mut boot).and_then(|()| {
             boot.rows
                 .iter()
-                .find(|r| r[0] == "BootTimeUnix")
+                .find(|r| r.cell(0) == "BootTimeUnix")
                 .context("缺少启动时间")?
                 .at(1)?
                 .parse::<i128>()

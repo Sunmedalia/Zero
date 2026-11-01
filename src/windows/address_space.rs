@@ -103,7 +103,7 @@ impl<'a> Memory<'a> {
                 let valid = self.image.read(table, &mut bytes).is_ok()
                     && !bytes
                         .chunks_exact(geometry.width())
-                        .all(|entry| entry == &bytes[..geometry.width()]);
+                        .all(|entry| Some(entry) == bytes.get(..geometry.width()));
                 self.tables
                     .lock()
                     .unwrap_or_else(|error| error.into_inner())
@@ -353,7 +353,7 @@ impl<'a> Memory<'a> {
         Ok(String::from_utf16_lossy(
             &bytes
                 .chunks_exact(2)
-                .map(|c| u16::from_le_bytes([c[0], c[1]]))
+                .map(|c| crate::bytes::le_u16(c, 0).unwrap_or(0))
                 .collect::<Vec<_>>(),
         ))
     }

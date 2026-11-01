@@ -249,12 +249,14 @@ impl App {
                                 } else if self.plugin.accepts_pid_list() && index == 2 {
                                     "PID 列表（逗号或空格分隔；可选）"
                                 } else {
-                                    labels[index]
+                                    labels.get(index).copied().unwrap_or("")
                                 }
                             ),
                             Style::default().fg(color_accent()),
                         ));
-                        lines.push(Line::raw(escaped(&fields[index])));
+                        lines.push(Line::raw(escaped(
+                            fields.get(index).map_or("", String::as_str),
+                        )));
                     }
                     let save = lines.len();
                     lines.push(Line::styled(
@@ -296,9 +298,9 @@ impl App {
                         self.hits.borrow_mut().dump_fields.push((rect, index));
                         if index == *field && !selected && row + 1 >= offset {
                             let x = inner.x
-                                + (Span::raw(escaped(
-                                    &fields[index][..(*cursor).min(fields[index].len())],
-                                ))
+                                + (Span::raw(escaped(fields.get(index).map_or("", |text| {
+                                    text.get(..(*cursor).min(text.len())).unwrap_or(text)
+                                })))
                                 .width()
                                 .cells())
                                 .min(inner.width.saturating_sub(1));
@@ -432,13 +434,16 @@ impl App {
                         )
                         .intersection(popup);
                         frame.render_widget(
-                            Paragraph::new(format!("{}: {}", labels[i], escaped(text))).style(
-                                if *field == i {
-                                    Style::default().fg(color_focus()).bg(color_selected_bg())
-                                } else {
-                                    Style::default()
-                                },
-                            ),
+                            Paragraph::new(format!(
+                                "{}: {}",
+                                labels.get(i).copied().unwrap_or(""),
+                                escaped(text)
+                            ))
+                            .style(if *field == i {
+                                Style::default().fg(color_focus()).bg(color_selected_bg())
+                            } else {
+                                Style::default()
+                            }),
                             rect,
                         );
                         self.hits.borrow_mut().dump_fields.push((rect, i));
@@ -446,7 +451,7 @@ impl App {
                             let x = rect.x
                                 + Span::raw(format!(
                                     "{}: {}",
-                                    labels[i],
+                                    labels.get(i).copied().unwrap_or(""),
                                     escaped(&text[..*cursor])
                                 ))
                                 .width()

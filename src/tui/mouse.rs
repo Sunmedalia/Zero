@@ -346,7 +346,7 @@ impl App {
                 }) = self.dialog.as_mut()
             {
                 *field = *index;
-                *cursor = fields[*index].len();
+                *cursor = fields.get(*index).map_or(0, String::len);
                 *selected = true;
                 return false;
             }
@@ -365,7 +365,7 @@ impl App {
                 }) = self.dialog.as_mut()
             {
                 *field = index;
-                *cursor = fields[index].len();
+                *cursor = fields.get(index).map_or(0, String::len);
                 *selected = true;
                 return false;
             }
@@ -384,7 +384,7 @@ impl App {
                 }) = self.dialog.as_mut()
             {
                 *field = index;
-                *cursor = fields[index].len();
+                *cursor = fields.get(index).map_or(0, String::len);
                 *selected = true;
                 return false;
             }
@@ -517,7 +517,9 @@ impl App {
                 if index < self.menu_items().len() {
                     self.menu = index;
                     if index < self.menu_items().len() - 1 {
-                        self.activate_plugin(self.navigation_plugins()[index]);
+                        if let Some(plugin) = self.navigation_plugins().get(index).copied() {
+                            self.activate_plugin(plugin);
+                        }
                     } else {
                         self.key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
                     }

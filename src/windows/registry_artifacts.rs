@@ -1,6 +1,7 @@
 //! Registry-backed artifacts: scheduled tasks, Amcache inventory and the
 //! system certificate stores. Values are decoded in place; nothing is exported.
 use super::*;
+use crate::bytes::Row as _;
 use crate::bytes::{le_u16, le_u32, le_u64};
 
 const TASKS: &str = "Microsoft\\Windows NT\\CurrentVersion\\Schedule\\TaskCache\\Tasks";
@@ -27,7 +28,7 @@ fn utf16(bytes: &[u8]) -> String {
     String::from_utf16_lossy(
         &bytes
             .chunks_exact(2)
-            .map(|c| u16::from_le_bytes([c[0], c[1]]))
+            .map(|c| crate::bytes::le_u16(c, 0).unwrap_or(0))
             .collect::<Vec<_>>(),
     )
     .trim_end_matches('\0')
@@ -241,11 +242,11 @@ impl Windows<'_> {
     pub(super) fn values(rows: &Results) -> BTreeMap<String, (String, String)> {
         rows.rows
             .iter()
-            .filter(|row| row[2] == "Value")
+            .filter(|row| row.cell(2) == "Value")
             .map(|row| {
                 (
-                    row[3].to_ascii_lowercase(),
-                    (row[4].clone(), row[5].clone()),
+                    row.cell(3).to_ascii_lowercase(),
+                    (row.cell(4).to_owned(), row.cell(5).to_owned()),
                 )
             })
             .collect()
@@ -257,7 +258,7 @@ impl Windows<'_> {
             let Some(tasks) = self.optional_registry(hive, TASKS, job, &mut r)? else {
                 continue;
             };
-            for task in tasks.rows.iter().filter(|row| row[2] == "SubKey") {
+            for task in tasks.rows.iter().filter(|row| row.cell(2) == "SubKey") {
                 job.check()?;
                 let key = format!("{TASKS}\\{}", *task.at(3)?);
                 let Some(entry) = self.optional_registry(hive, &key, job, &mut r)? else {
@@ -347,7 +348,7 @@ impl Windows<'_> {
             let Some(files) = self.optional_registry(hive, AMCACHE, job, &mut r)? else {
                 continue;
             };
-            for file in files.rows.iter().filter(|row| row[2] == "SubKey") {
+            for file in files.rows.iter().filter(|row| row.cell(2) == "SubKey") {
                 job.check()?;
                 let key = format!("{AMCACHE}\\{}", *file.at(3)?);
                 let Some(entry) = self.optional_registry(hive, &key, job, &mut r)? else {
@@ -365,7 +366,7 @@ impl Windows<'_> {
                     entry
                         .rows
                         .first()
-                        .map(|row| row[6].clone())
+                        .map(|row| row.cell(6).to_owned())
                         .unwrap_or_default(),
                 ]);
             }
@@ -387,7 +388,11 @@ impl Windows<'_> {
                 let Some(certificates) = self.optional_registry(hive, &key, job, &mut r)? else {
                     continue;
                 };
-                for certificate in certificates.rows.iter().filter(|row| row[2] == "SubKey") {
+                for certificate in certificates
+                    .rows
+                    .iter()
+                    .filter(|row| row.cell(2) == "SubKey")
+                {
                     job.check()?;
                     let Some(entry) = self.optional_registry(
                         hive,

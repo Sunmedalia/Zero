@@ -1,5 +1,6 @@
 //! Token privileges, logon sessions and per-user UserAssist execution records.
 use super::*;
+use crate::bytes::Row as _;
 use crate::bytes::{le_u32, le_u64};
 
 /// LUID low parts of the well-known privileges, indexed by bit position.
@@ -92,11 +93,15 @@ pub(super) fn sha1(data: &[u8]) -> [u8; 20] {
     message.extend_from_slice(&((data.len() as u64) * 8).to_be_bytes());
     for block in message.chunks_exact(64) {
         let mut w = [0u32; 80];
-        for (i, word) in block.as_chunks::<4>().0.iter().enumerate() {
-            w[i] = u32::from_be_bytes(*word);
+        for (slot, word) in w.iter_mut().zip(block.as_chunks::<4>().0) {
+            *slot = u32::from_be_bytes(*word);
         }
         for i in 16..80 {
-            w[i] = (w[i - 3] ^ w[i - 8] ^ w[i - 14] ^ w[i - 16]).rotate_left(1);
+            let at = |k: usize| w.get(k).copied().unwrap_or(0);
+            let value = (at(i - 3) ^ at(i - 8) ^ at(i - 14) ^ at(i - 16)).rotate_left(1);
+            if let Some(slot) = w.get_mut(i) {
+                *slot = value;
+            }
         }
         let [mut a, mut b, mut c, mut d, mut e] = h;
         for (i, word) in w.iter().enumerate() {
@@ -232,7 +237,7 @@ impl Windows<'_> {
             };
             let key = format!("{cs}\\Services");
             if let Some(services) = self.optional_registry(address, &key, job, &mut r)? {
-                for service in services.rows.iter().filter(|row| row[2] == "SubKey") {
+                for service in services.rows.iter().filter(|row| row.cell(2) == "SubKey") {
                     r.rows
                         .push(vec![service_sid(service.at(3)?), service.at(3)?.clone()]);
                 }
@@ -258,12 +263,12 @@ impl Windows<'_> {
             let Some(root) = self.optional_registry(address, USERASSIST, job, &mut r)? else {
                 continue;
             };
-            for guid in root.rows.iter().filter(|row| row[2] == "SubKey") {
+            for guid in root.rows.iter().filter(|row| row.cell(2) == "SubKey") {
                 let key = format!("{USERASSIST}\\{}\\Count", *guid.at(3)?);
                 let Some(values) = self.optional_registry(address, &key, job, &mut r)? else {
                     continue;
                 };
-                for value in values.rows.iter().filter(|row| row[2] == "Value") {
+                for value in values.rows.iter().filter(|row| row.cell(2) == "Value") {
                     job.check()?;
                     let bytes: Option<Vec<u8>> = (0..value.at(5)?.len())
                         .step_by(2)

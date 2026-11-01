@@ -1,5 +1,4 @@
 //! NTFS MFT records carved from physical memory.
-#![cfg_attr(not(test), deny(clippy::indexing_slicing))]
 use super::*;
 use crate::bytes::{le_u16, le_u32, le_u64};
 

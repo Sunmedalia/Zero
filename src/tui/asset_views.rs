@@ -1,6 +1,7 @@
 //! Asset inventory refresh and the list, text and detail views built from it.
 use super::*;
 use crate::bytes::JsonKey as _;
+use crate::bytes::Row as _;
 
 impl App {
     pub(super) fn refresh_assets(&mut self) {
@@ -245,7 +246,7 @@ impl App {
     }
     pub(super) fn selected_asset(&self) -> Option<Asset> {
         self.asset_list()
-            .get(*self.asset_rows.get(self.section.slot())?)
+            .get(self.asset_rows[self.section.slot()])
             .map(|a| (*a).clone())
     }
     pub(super) fn asset_text(&self) -> String {
@@ -340,7 +341,11 @@ impl App {
                     result.rows.len()
                 ));
                 for row in banner_candidates(result) {
-                    text.push_str(&format!("\n\n候选 @ {}: {}", row[0], escaped(&row[1])));
+                    text.push_str(&format!(
+                        "\n\n候选 @ {}: {}",
+                        row.cell(0),
+                        escaped(row.cell(1))
+                    ));
                 }
             } else {
                 text.push_str("\n\nb 识别内核候选；M 获取远程符号匹配。");

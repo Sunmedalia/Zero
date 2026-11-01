@@ -178,9 +178,15 @@ fn resolve_queries(
             continue;
         }
         let found = if !names.is_empty() {
-            by_name.get(names[index].as_str()).copied()
+            names
+                .get(index)
+                .and_then(|name| by_name.get(name.as_str()))
+                .copied()
         } else {
-            by_address.get(&addresses[index]).copied()
+            addresses
+                .get(index)
+                .and_then(|address| by_address.get(address))
+                .copied()
         };
         if let Some((name, address)) = found {
             rows.push(vec![module.to_owned(), name.clone(), hex(*address)]);

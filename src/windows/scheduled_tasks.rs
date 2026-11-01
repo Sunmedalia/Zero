@@ -64,7 +64,7 @@ impl<'a> Reader<'a> {
 fn wide(bytes: &[u8]) -> String {
     let mut units: Vec<_> = bytes
         .chunks_exact(2)
-        .map(|v| u16::from_le_bytes([v[0], v[1]]))
+        .map(|v| crate::bytes::le_u16(v, 0).unwrap_or(0))
         .collect();
     if !bytes.len().is_multiple_of(2) {
         units.push(0xfffd);

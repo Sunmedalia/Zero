@@ -78,6 +78,10 @@ struct DumpArgs {
 #[serde(deny_unknown_fields)]
 struct EmptyArgs {}
 
+/// Same as the `Value` index operator: a missing key reads as `Null`.
+fn key<'a>(value: &'a Value, name: &str) -> &'a Value {
+    value.get(name).unwrap_or(&Value::Null)
+}
 fn root() -> Result<PathBuf> {
     Ok(env::var_os("ZERO_ROOT")
         .map(PathBuf::from)
@@ -298,8 +302,8 @@ fn call(
                         .lock()
                         .map_err(|_| anyhow::anyhow!("快照锁不可用"))?;
                     let mut page = snapshots.page(&id, 0, limit, None, job)?;
-                    if let Some(output) = output {
-                        page["output"] = json!(output);
+                    if let (Some(output), Some(page)) = (output, page.as_object_mut()) {
+                        page.insert("output".into(), json!(output));
                     }
                     Ok(page)
                 }
@@ -382,7 +386,9 @@ fn call(
                     let output = path(root, &a.output);
                     store::export_rows(&output, &result, result.rows.iter(), job)?;
                     let mut page = result_page(result, 0, MAX_ROWS);
-                    page["output"] = json!(output);
+                    if let Some(page) = page.as_object_mut() {
+                        page.insert("output".into(), json!(output));
+                    }
                     Ok(page)
                 }
             }
@@ -471,7 +477,7 @@ fn bounded_line(reader: &mut impl BufRead) -> io::Result<Option<Result<String, &
                 oversized = true;
                 bytes.clear();
             } else {
-                bytes.extend_from_slice(&buffer[..content]);
+                bytes.extend_from_slice(buffer.get(..content).unwrap_or(&[]));
             }
         }
         reader.consume(n);
@@ -585,12 +591,12 @@ pub fn run() -> Result<()> {
                         }
                     },
                 };
-                if request["jsonrpc"] == "2.0"
-                    && request["method"] == "notifications/cancelled"
+                if *key(&request, "jsonrpc") == "2.0"
+                    && *key(&request, "method") == "notifications/cancelled"
                     && request.get("id").is_none()
                 {
                     if let Some(worker) = &active
-                        && request["params"]["requestId"] == worker.id
+                        && *key(key(&request, "params"), "requestId") == worker.id
                     {
                         worker
                             .job
@@ -599,13 +605,13 @@ pub fn run() -> Result<()> {
                     }
                     continue;
                 }
-                let expensive = request["jsonrpc"] == "2.0"
-                    && request["method"] == "tools/call"
+                let expensive = *key(&request, "jsonrpc") == "2.0"
+                    && *key(&request, "method") == "tools/call"
                     && request
                         .get("id")
                         .is_some_and(|id| id.is_string() || id.is_number())
                     && matches!(
-                        request["params"]["name"].as_str(),
+                        key(key(&request, "params"), "name").as_str(),
                         Some("zero_analyze" | "zero_dump" | "zero_symbols")
                     );
                 if expensive {
@@ -613,7 +619,7 @@ pub fn run() -> Result<()> {
                         send_reply(
                             &mut stdout,
                             &rpc_error(
-                                request["id"].clone(),
+                                key(&request, "id").clone(),
                                 -32000,
                                 "Analysis worker busy; retry after the active request finishes",
                             ),
@@ -626,7 +632,7 @@ pub fn run() -> Result<()> {
                     let root = root.clone();
                     let snapshots = snapshots.clone();
                     let sender = sender.clone();
-                    let id = request["id"].clone();
+                    let id = key(&request, "id").clone();
                     let error_id = id.clone();
                     let thread = std::thread::spawn(move || {
                         let reply = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {

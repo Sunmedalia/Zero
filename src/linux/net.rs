@@ -4,8 +4,11 @@ use crate::bytes::JsonKey as _;
 pub(super) fn unix_name(bytes: &[u8]) -> String {
     if bytes.is_empty() {
         "[unnamed]".into()
-    } else if bytes[0] == 0 {
-        format!("@{}", String::from_utf8_lossy(&bytes[1..]))
+    } else if bytes.first() == Some(&0) {
+        format!(
+            "@{}",
+            String::from_utf8_lossy(bytes.get(1..).unwrap_or(&[]))
+        )
     } else {
         String::from_utf8_lossy(bytes.split(|b| *b == 0).next().unwrap_or(bytes)).into_owned()
     }

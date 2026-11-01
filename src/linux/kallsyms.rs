@@ -253,7 +253,7 @@ impl Linux<'_> {
             .collect::<Vec<_>>();
         if let Some(index) = addresses
             .windows(2)
-            .position(|pair| matches!((pair[0],pair[1]),(Some(a),Some(b)) if a>b))
+            .position(|pair| matches!(pair, [Some(a), Some(b)] if a > b))
         {
             partial(
                 result,

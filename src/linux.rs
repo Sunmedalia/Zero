@@ -1,5 +1,6 @@
 //! Native Linux analysis: sessions, kernel discovery and ISF-driven plugins.
 use crate::bytes::Checked as _;
+use crate::bytes::Row as _;
 pub use crate::plugin::{Descriptor, PLUGINS, Plugin};
 use crate::{
     Job,
@@ -161,7 +162,8 @@ pub fn banner_result(image: &Image, job: &Job) -> Result<Results> {
         .map(|(p, b)| {
             vec![
                 format!("{p:#018x}"),
-                String::from_utf8_lossy(&b[..b.len() - 1]).into_owned(),
+                String::from_utf8_lossy(b.get(..b.len().saturating_sub(1)).unwrap_or(&[]))
+                    .into_owned(),
             ]
         })
         .collect();
@@ -187,7 +189,7 @@ pub fn banner_result(image: &Image, job: &Job) -> Result<Results> {
         ]);
     }
     let system = if image.windows_container.is_some()
-        || rows.iter().any(|r| r[1].starts_with("Windows PDB "))
+        || rows.iter().any(|r| r.cell(1).starts_with("Windows PDB "))
     {
         "windows"
     } else {

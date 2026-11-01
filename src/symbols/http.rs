@@ -1,6 +1,5 @@
 //! Native HTTPS downloads. Every redirect hop stays HTTPS, bodies stream to a caller
 //! file under a hard size limit, and cancellation returns without waiting for the socket.
-#![cfg_attr(not(test), deny(clippy::indexing_slicing))]
 use super::HttpError;
 use crate::Job;
 use anyhow::{Context, Result, anyhow, bail, ensure};

@@ -888,15 +888,10 @@ impl CodeMap<'_> {
     /// Nearest symbol, owning range and a verdict for one code pointer.
     pub fn describe(&self, target: u64) -> (String, String, &'static str) {
         let index = self.symbols.partition_point(|(a, _)| *a <= target);
-        let symbol = if index == 0 {
-            "[unknown]".into()
-        } else {
-            let (address, name) = self.symbols[index - 1];
-            if address == target {
-                name.into()
-            } else {
-                format!("{name}+{:#x}", target - address)
-            }
+        let symbol = match index.checked_sub(1).and_then(|i| self.symbols.get(i)) {
+            None => "[unknown]".into(),
+            Some(&(address, name)) if address == target => name.into(),
+            Some(&(address, name)) => format!("{name}+{:#x}", target - address),
         };
         let owner = self
             .ranges

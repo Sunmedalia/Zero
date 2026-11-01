@@ -1,5 +1,4 @@
 //! Bounded native Microsoft XPRESS codecs. Plain LZ77 follows MS-XCA §2.4.4.
-#![cfg_attr(not(test), deny(clippy::indexing_slicing))]
 use anyhow::{Context, Result, ensure};
 pub(super) fn decompress(format: u16, input: &[u8], size: usize) -> Result<Vec<u8>> {
     ensure!(

@@ -82,9 +82,11 @@ pub fn atomic_stream(
                     self.job.check().map_err(std::io::Error::other)?;
                     self.remaining = 65536;
                 }
-                let n = self
-                    .writer
-                    .write(&bytes[..bytes.len().min(self.remaining)])?;
+                let n = self.writer.write(
+                    bytes
+                        .get(..bytes.len().min(self.remaining))
+                        .unwrap_or(bytes),
+                )?;
                 self.remaining -= n;
                 Ok(n)
             }

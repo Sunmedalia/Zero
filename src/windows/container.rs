@@ -1,6 +1,5 @@
 //! Bounded, read-only Windows dump containers. Offsets are file-format facts.
 //! References: Microsoft MINIDUMP_* definitions and DUMP_HEADER32/64 layouts.
-#![cfg_attr(not(test), deny(clippy::indexing_slicing))]
 use super::*;
 use crate::image::Segment;
 use serde::{Deserialize, Serialize};

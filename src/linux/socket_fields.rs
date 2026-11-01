@@ -647,7 +647,7 @@ impl Linux<'_> {
                     }
                     state = Some(
                         self.enum_socket_value(
-                            &*self.isf.field("xdp_sock", "state")?["type"]
+                            self.isf.field("xdp_sock", "state")?["type"]
                                 .key("name")
                                 .as_str()
                                 .context("XDP state enum 类型缺失")?,

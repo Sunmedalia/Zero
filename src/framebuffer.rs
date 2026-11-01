@@ -105,7 +105,11 @@ fn chunk(output: &mut dyn Write, kind: &[u8; 4], bytes: &[u8]) -> std::io::Resul
     output.write_all(bytes)?;
     let mut crc = u32::MAX;
     for &byte in kind.iter().chain(bytes) {
-        crc = (crc >> 8) ^ CRC[((crc ^ u32::from(byte)) & 255) as usize];
+        crc = (crc >> 8)
+            ^ CRC
+                .get(((crc ^ u32::from(byte)) & 255) as usize)
+                .copied()
+                .unwrap_or(0);
     }
     output.write_all(&(!crc).to_be_bytes())
 }
@@ -128,7 +132,8 @@ impl Write for Idat<'_> {
     fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
         self.job.check().map_err(std::io::Error::other)?;
         let len = bytes.len().min(CHUNK - self.pending.len());
-        self.pending.extend_from_slice(&bytes[..len]);
+        self.pending
+            .extend_from_slice(bytes.get(..len).unwrap_or(bytes));
         if self.pending.len() == CHUNK {
             self.emit()?;
         }

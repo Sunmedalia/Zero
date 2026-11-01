@@ -1,4 +1,5 @@
 use super::*;
+use crate::bytes::Row as _;
 impl Windows<'_> {
     pub(super) fn registry(&self, p: Plugin, options: &Options, job: &Job) -> Result<Results> {
         let mut r = self.result(p);
@@ -117,7 +118,7 @@ impl Windows<'_> {
         if let Some(selected) = options.hive {
             ensure!(
                 hives.rows.iter().any(|row| u64::from_str_radix(
-                    row[0].trim_start_matches("0x"),
+                    row.cell(0).trim_start_matches("0x"),
                     16
                 )
                 .ok()
@@ -147,7 +148,11 @@ impl Windows<'_> {
                     let ifeo =
                         "Microsoft\\Windows NT\\CurrentVersion\\Image File Execution Options";
                     if let Some(parent) = self.optional_registry(address, ifeo, job, &mut result)? {
-                        for row in parent.rows.into_iter().filter(|row| row[2] == "SubKey") {
+                        for row in parent
+                            .rows
+                            .into_iter()
+                            .filter(|row| row.cell(2) == "SubKey")
+                        {
                             keys.push(format!("{ifeo}\\{}", *row.at(3)?));
                         }
                     }
@@ -155,10 +160,9 @@ impl Windows<'_> {
             } else if lower.ends_with("system")
                 && let Some(select) = self.optional_registry(address, "Select", job, &mut result)?
             {
-                let current = select
-                    .rows
-                    .iter()
-                    .find(|row| row[2] == "Value" && row[3].eq_ignore_ascii_case("Current"));
+                let current = select.rows.iter().find(|row| {
+                    row.cell(2) == "Value" && row.cell(3).eq_ignore_ascii_case("Current")
+                });
                 if let Some(current) = current {
                     let n = current
                         .at(5)?
@@ -169,7 +173,11 @@ impl Windows<'_> {
                     if let Some(parent) =
                         self.optional_registry(address, &services, job, &mut result)?
                     {
-                        for row in parent.rows.into_iter().filter(|row| row[2] == "SubKey") {
+                        for row in parent
+                            .rows
+                            .into_iter()
+                            .filter(|row| row.cell(2) == "SubKey")
+                        {
                             keys.push(format!("{services}\\{}", *row.at(3)?));
                         }
                     }
@@ -180,7 +188,7 @@ impl Windows<'_> {
             for key in keys {
                 job.check()?;
                 if let Some(query) = self.optional_registry(address, &key, job, &mut result)? {
-                    for row in query.rows.into_iter().filter(|row| row[2] == "Value") {
+                    for row in query.rows.into_iter().filter(|row| row.cell(2) == "Value") {
                         let name = row.at(3)?.to_ascii_lowercase();
                         if key.ends_with("Winlogon")
                             && !["shell", "userinit", "taskman"].contains(&name.as_str())
@@ -678,7 +686,7 @@ fn decode_name(bytes: &[u8], compressed: bool) -> Result<String> {
         Ok(String::from_utf16_lossy(
             &bytes
                 .chunks_exact(2)
-                .map(|b| u16::from_le_bytes([b[0], b[1]]))
+                .map(|b| crate::bytes::le_u16(b, 0).unwrap_or(0))
                 .collect::<Vec<_>>(),
         ))
     }

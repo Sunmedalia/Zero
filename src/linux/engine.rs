@@ -122,9 +122,14 @@ impl Linux<'_> {
             rows: vec![],
             complete: diagnostics.is_empty(),
             diagnostics: diagnostics.clone(),
-            banner: String::from_utf8_lossy(&self.isf.banner[..self.isf.banner.len() - 1])
-                .trim_end()
-                .into(),
+            banner: String::from_utf8_lossy(
+                self.isf
+                    .banner
+                    .get(..self.isf.banner.len().saturating_sub(1))
+                    .unwrap_or(&[]),
+            )
+            .trim_end()
+            .into(),
             symbol: self.isf.label.clone(),
             page_table: self.vm.root,
             historical: false,

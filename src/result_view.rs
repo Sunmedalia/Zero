@@ -1,4 +1,5 @@
 //! Indexed result views: no cell copies during filtering, sorting or tree traversal.
+use crate::bytes::Row as _;
 use crate::store::Results;
 use std::collections::{HashMap, HashSet};
 
@@ -36,8 +37,8 @@ impl Index {
             .collect();
         if let Some(column) = sort {
             filtered.sort_by(|&a, &b| {
-                let a = result.rows[a].get(column).map(String::as_str).unwrap_or("");
-                let b = result.rows[b].get(column).map(String::as_str).unwrap_or("");
+                let a = result.rows.get(a).map_or("", |row| row.cell(column));
+                let b = result.rows.get(b).map_or("", |row| row.cell(column));
                 let order = compare(a, b);
                 if descending { order.reverse() } else { order }
             });
@@ -59,7 +60,9 @@ impl Index {
         let mut children: HashMap<&str, Vec<usize>> = HashMap::new();
         let mut roots = Vec::new();
         for &i in &filtered {
-            let row = &result.rows[i];
+            let Some(row) = result.rows.get(i) else {
+                continue;
+            };
             let id = row.first().map(String::as_str).unwrap_or("");
             let pid = row.get(parent).map(String::as_str).unwrap_or("0");
             if pid == "0" || pid == id || !ids.contains(pid) {
@@ -76,7 +79,7 @@ impl Index {
                 if !visited.insert(row) {
                     continue;
                 }
-                let id = result.rows[row].first().map(String::as_str).unwrap_or("");
+                let id = result.rows.get(row).map_or("", |row| row.cell(0));
                 let kids = children.get(id);
                 let closed = collapsed.contains(id);
                 if !hidden {

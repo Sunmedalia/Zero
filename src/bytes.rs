@@ -1,5 +1,4 @@
 //! Bounds-checked integers from untrusted image bytes. `None` means truncated input.
-#![cfg_attr(not(test), deny(clippy::indexing_slicing))]
 use std::slice::SliceIndex;
 fn array<const N: usize>(bytes: &[u8], at: usize) -> Option<[u8; N]> {
     bytes.get(at..at.checked_add(N)?)?.first_chunk().copied()
@@ -100,6 +99,24 @@ impl JsonKey for serde_json::Value {
         Ok(object
             .entry(key.as_ref())
             .or_insert(serde_json::Value::Null))
+    }
+}
+/// Result-table cell; a short row reads as empty, like the columns it does not have.
+pub(crate) trait Row {
+    fn cell(&self, column: usize) -> &str;
+}
+impl Row for [String] {
+    fn cell(&self, column: usize) -> &str {
+        self.get(column).map_or("", String::as_str)
+    }
+}
+/// Layout regions; a missing one is an empty rectangle that draws nothing.
+pub(crate) trait Regions {
+    fn rect(&self, index: usize) -> ratatui::layout::Rect;
+}
+impl Regions for [ratatui::layout::Rect] {
+    fn rect(&self, index: usize) -> ratatui::layout::Rect {
+        self.get(index).copied().unwrap_or_default()
     }
 }
 /// Terminal cell counts. Anything wider than a screen saturates instead of wrapping.

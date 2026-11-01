@@ -43,7 +43,9 @@ impl<'data, 'tag> PoolTagMatches<'data, 'tag> {
     }
 
     fn advance(&mut self, index: usize, from: usize) {
-        if let Some(at) = self.finders[index].find(&self.data[from..]) {
+        if let (Some(finder), Some(data)) = (self.finders.get(index), self.data.get(from..))
+            && let Some(at) = finder.find(data)
+        {
             self.pending.push(Reverse((from + at, index)));
         }
     }
@@ -542,7 +544,7 @@ impl Windows<'_> {
         }
         if bytes
             .chunks_exact(width)
-            .all(|entry| entry == &bytes[..width])
+            .all(|entry| Some(entry) == bytes.get(..width))
             && bytes.iter().any(|byte| *byte != 0)
         {
             return Ok(());

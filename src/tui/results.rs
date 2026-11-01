@@ -19,8 +19,8 @@ impl App {
                 .direction(Direction::Horizontal)
                 .constraints([Constraint::Length(menu_width), Constraint::Min(20)])
                 .split(body);
-            self.draw_menu(frame, columns[0], self.focus_style(Focus::Navigation));
-            columns[1]
+            self.draw_menu(frame, columns.rect(0), self.focus_style(Focus::Navigation));
+            columns.rect(1)
         } else if self.focus == Focus::Navigation {
             self.draw_menu(frame, body, self.focus_style(Focus::Navigation));
             Rect::default()
@@ -63,10 +63,10 @@ impl App {
         if layout.inspector() && self.inspector {
             let columns =
                 Layout::horizontal([Constraint::Min(50), Constraint::Length(38)]).split(main);
-            main = columns[0];
-            self.hits.borrow_mut().inspector = columns[1];
+            main = columns.rect(0);
+            self.hits.borrow_mut().inspector = columns.rect(1);
             let text = self.detail_text();
-            let lines = detail_lines(&text, columns[1].width.saturating_sub(2));
+            let lines = detail_lines(&text, columns.rect(1).width.saturating_sub(2));
             let total_lines = lines.len();
             frame.render_widget(
                 Paragraph::new(
@@ -81,13 +81,13 @@ impl App {
                         .title("详情 · Tab 聚焦 · d 关闭")
                         .border_style(self.focus_style(Focus::Detail)),
                 ),
-                columns[1],
+                columns.rect(1),
             );
             self.draw_scrollbar(
                 frame,
-                columns[1],
+                columns.rect(1),
                 total_lines,
-                columns[1].height.saturating_sub(2) as usize,
+                columns.rect(1).height.saturating_sub(2) as usize,
                 self.detail_scroll,
                 ScrollTarget::Detail,
             );
@@ -107,12 +107,12 @@ impl App {
             let regions = Layout::vertical([Constraint::Length(3), Constraint::Min(2)]).split(main);
             self.draw_search(
                 frame,
-                regions[0],
+                regions.rect(0),
                 &self.query,
                 InputKind::Search,
                 "内容搜索 · / 编辑 · Enter 确认 · Esc 撤销",
             );
-            main = regions[1];
+            main = regions.rect(1);
         }
         self.hits.borrow_mut().result = main;
         if main.width > 0 {
@@ -401,7 +401,10 @@ impl App {
             let elapsed = self.started.map_or(0.0, |t| t.elapsed().as_secs_f64());
             let label = format!(
                 "运行中 {} · {} · Esc 取消",
-                pulses[usize::try_from(float_to_i128(elapsed * 1000.0 / 180.0)).unwrap_or(0) % 4],
+                pulses
+                    .get(usize::try_from(float_to_i128(elapsed * 1000.0 / 180.0)).unwrap_or(0) % 4)
+                    .copied()
+                    .unwrap_or("●··"),
                 status::format_duration(elapsed)
             );
             let width = Span::raw(&label)

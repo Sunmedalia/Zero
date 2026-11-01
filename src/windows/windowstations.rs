@@ -25,9 +25,9 @@ struct GuiLayout {
 
 pub(super) fn reference_unicode_name(bytes: &[u8]) -> String {
     let (bytes, big_endian) = if bytes.starts_with(&[0xfe, 0xff]) {
-        (&bytes[2..], true)
+        (bytes.get(2..).unwrap_or(&[]), true)
     } else if bytes.starts_with(&[0xff, 0xfe]) {
-        (&bytes[2..], false)
+        (bytes.get(2..).unwrap_or(&[]), false)
     } else {
         (bytes, false)
     };
@@ -35,9 +35,9 @@ pub(super) fn reference_unicode_name(bytes: &[u8]) -> String {
         .chunks_exact(2)
         .map(|b| {
             if big_endian {
-                u16::from_be_bytes([b[0], b[1]])
+                crate::bytes::le_u16(b, 0).unwrap_or(0).swap_bytes()
             } else {
-                u16::from_le_bytes([b[0], b[1]])
+                crate::bytes::le_u16(b, 0).unwrap_or(0)
             }
         })
         .collect();

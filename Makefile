@@ -1,6 +1,6 @@
 export PCRE2_SYS_STATIC := 1
 
-.PHONY: build install run tui test deny ratchet ui-install ui-build ui-test check acceptance windows-acceptance tui-acceptance screenshots clean
+.PHONY: build install run tui test deny ui-install ui-build ui-test check acceptance windows-acceptance tui-acceptance screenshots clean
 
 build:
 	cargo build --release --locked
@@ -28,9 +28,6 @@ test:
 deny:
 	cargo deny --locked check
 
-# Indexing and truncating-cast counts may only fall; see scripts/lint_ratchet.py.
-ratchet:
-	python3 -I scripts/lint_ratchet.py
 
 check:
 	cargo fmt --check

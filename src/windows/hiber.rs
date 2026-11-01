@@ -1,6 +1,5 @@
 //! Hibernation page maps: Win7 range arrays and NT6.2+ restoration sets.
 //! Format facts: libyal/libhibr, MagnetForensics/Hibr2Bin and Khalil (TalTech, 2020).
-#![cfg_attr(not(test), deny(clippy::indexing_slicing))]
 use super::*;
 use crate::image::Segment;
 use serde::{Deserialize, Serialize};

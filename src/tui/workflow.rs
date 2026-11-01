@@ -23,7 +23,7 @@ impl Focus {
     pub(super) fn next(self, back: bool, visible: Visible) -> Self {
         let regions = Self::cycle(visible);
         if regions.len() <= 1 {
-            return regions[0];
+            return regions.first().copied().unwrap_or(self);
         }
         let current = regions.iter().position(|f| *f == self).unwrap_or(0);
         let step = if back {
@@ -31,7 +31,7 @@ impl Focus {
         } else {
             (current + 1) % regions.len()
         };
-        regions[step]
+        regions.get(step).copied().unwrap_or(self)
     }
     /// The focus order for the regions on screen.
     fn cycle(visible: Visible) -> &'static [Focus] {
@@ -57,7 +57,7 @@ impl Focus {
         if regions.contains(&self) {
             self
         } else {
-            regions[0]
+            regions.first().copied().unwrap_or(self)
         }
     }
 }

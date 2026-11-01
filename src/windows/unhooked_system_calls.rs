@@ -61,7 +61,9 @@ impl Groups {
             self.owners.push(Vec::new());
             self.owners.len() - 1
         });
-        self.owners[index].push(process);
+        if let Some(owners) = self.owners.get_mut(index) {
+            owners.push(process);
+        }
     }
     fn row(&self, name: &str, owner: impl Fn(usize) -> String) -> Option<Vec<String>> {
         let first = self.owners.first()?;
@@ -162,7 +164,9 @@ impl Windows<'_> {
         for ((name, _), group) in functions.iter().zip(&groups) {
             job.check()?;
             if let Some(row) = group.row(name, |i| {
-                format!("{}:{}", processes[i].pid, processes[i].name)
+                processes
+                    .get(i)
+                    .map_or_else(String::new, |p| format!("{}:{}", p.pid, p.name))
             }) {
                 result.rows.push(row);
             }

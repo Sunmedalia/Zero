@@ -11,7 +11,11 @@ impl App {
                 KeyCode::Up | KeyCode::Char('k') => *selected = selected.saturating_sub(1),
                 KeyCode::Down | KeyCode::Char('j') => *selected = (*selected + 1).min(1),
                 KeyCode::Enter => {
-                    let os = [crate::analysis::Os::Linux, crate::analysis::Os::Windows][*selected];
+                    let os = if *selected == 0 {
+                        crate::analysis::Os::Linux
+                    } else {
+                        crate::analysis::Os::Windows
+                    };
                     if self.shown_os() != os {
                         self.select_os(os);
                     }
@@ -267,21 +271,29 @@ impl App {
             ) {
                 let visible = self.parameter_fields(*advanced);
                 let index = visible.iter().position(|f| f == field).unwrap_or(0);
-                *field = visible[(index
-                    + if matches!(key.code, KeyCode::BackTab | KeyCode::Up) {
-                        visible.len() - 1
-                    } else {
-                        1
-                    })
-                    % visible.len()];
+                *field = visible
+                    .get(
+                        (index
+                            + if matches!(key.code, KeyCode::BackTab | KeyCode::Up) {
+                                visible.len() - 1
+                            } else {
+                                1
+                            })
+                            % visible.len(),
+                    )
+                    .copied()
+                    .unwrap_or(*field);
                 *cursor = if *field != 6 && (*field < 8 || *field >= 17) {
-                    fields[*field].len()
+                    fields.get(*field).map_or(0, String::len)
                 } else {
                     0
                 };
                 *selected = true;
-            } else if *field != 6 && (*field < 8 || *field >= 17) {
-                edit_input(&mut fields[*field], cursor, selected, key);
+            } else if *field != 6
+                && (*field < 8 || *field >= 17)
+                && let Some(text) = fields.get_mut(*field)
+            {
+                edit_input(text, cursor, selected, key);
             }
         }
         self.dialog = Some(dialog);
@@ -332,7 +344,10 @@ impl App {
                     [Plugin::WinProcdump, Plugin::WinMemdump, Plugin::WinPedump]
                 } else {
                     [Plugin::Procdump, Plugin::Memdump, Plugin::Elfdump]
-                }[n as usize - 2];
+                }
+                .get(n as usize - 2)
+                .copied()
+                .unwrap_or(*mode);
                 if matches!(*mode, Plugin::Elfdump | Plugin::WinPedump) {
                     fields[1].clear();
                     fields[2].clear();
@@ -413,8 +428,10 @@ impl App {
                     % 5;
                 *cursor = fields.get(*field).map_or(0, String::len);
                 *selected = true;
-            } else if *field < 4 {
-                edit_input(&mut fields[*field], cursor, selected, key);
+            } else if *field < 4
+                && let Some(text) = fields.get_mut(*field)
+            {
+                edit_input(text, cursor, selected, key);
                 error.clear();
             }
         }
@@ -542,7 +559,9 @@ impl App {
                     } else {
                         1
                     };
-                    self.settings.theme = THEMES[(index + step) % THEMES.len()].0.into();
+                    if let Some(theme) = THEMES.get((index + step) % THEMES.len()) {
+                        self.settings.theme = theme.0.into();
+                    }
                     self.persist_settings();
                 }
                 KeyCode::Enter => {
@@ -559,7 +578,9 @@ impl App {
                                 .iter()
                                 .position(|(id, _)| *id == self.settings.theme)
                                 .unwrap_or(0);
-                            self.settings.theme = THEMES[(index + 1) % THEMES.len()].0.into();
+                            if let Some(theme) = THEMES.get((index + 1) % THEMES.len()) {
+                                self.settings.theme = theme.0.into();
+                            }
                             self.persist_settings();
                         }
                         6 => {
@@ -997,7 +1018,7 @@ impl App {
                                 .view_index()
                                 .filtered
                                 .iter()
-                                .map(|&i| result.rows[i].clone())
+                                .filter_map(|&i| result.rows.get(i).cloned())
                                 .collect();
                             self.start_work(Work::Export(path, result.metadata(), rows));
                         }
@@ -1046,7 +1067,7 @@ impl App {
                 KeyCode::Up => *selected = selected.saturating_sub(1),
                 KeyCode::Down => *selected = (*selected + 1).min(labels.len().saturating_sub(1)),
                 KeyCode::Char(' ') if !labels.is_empty() => {
-                    if self.choice.as_ref() != Some(&labels[*selected]) {
+                    if self.choice.as_ref() != labels.get(*selected) {
                         self.clear_plugin_tabs();
                         self.results.retain(|key, _| key == "banners");
                         self.result_requests.clear();
@@ -1060,13 +1081,13 @@ impl App {
                         self.collapsed.clear();
                     }
                     self.object_version += 1;
-                    self.choice = Some(labels[*selected].clone());
+                    self.choice = labels.get(*selected).cloned();
                     if let Some(request) = self.symbol_retry.take() {
                         self.start_snapshot(request);
                     } else if let Some((path, _)) = self
                         .preparation_candidates
                         .iter()
-                        .find(|(_, label)| label == &labels[*selected])
+                        .find(|(_, label)| Some(label) == labels.get(*selected))
                     {
                         self.symbols = path.clone();
                         self.preparation = Preparation::Ready;
@@ -1086,7 +1107,7 @@ impl App {
                     let path = self
                         .preparation_candidates
                         .iter()
-                        .find(|(_, label)| label == &labels[*selected])
+                        .find(|(_, label)| Some(label) == labels.get(*selected))
                         .map(|(path, _)| path.clone())
                         .unwrap_or_else(|| self.symbols.clone());
                     self.back_dialog = Some(Box::new(dialog.clone()));

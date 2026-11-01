@@ -94,7 +94,7 @@ impl Walker<'_, '_> {
         let width = self.geometry.width();
         if bytes
             .chunks_exact(width)
-            .all(|chunk| chunk == &bytes[..width])
+            .all(|chunk| Some(chunk) == bytes.get(..width))
         {
             if bytes.at(..width)?.iter().any(|b| *b != 0) {
                 self.omit(format!("重复内容页表 {address:#x}"));

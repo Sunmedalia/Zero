@@ -1,6 +1,7 @@
 //! Kernel tables and carved module entries: the native system service table
 //! and `MmLd` pool allocations cross-checked against PsLoadedModuleList.
 use super::*;
+use crate::bytes::Row as _;
 use drivers::module_at;
 use objects::physical_number;
 
@@ -63,14 +64,14 @@ impl Windows<'_> {
                 };
                 let owner = module_at(&modules, target);
                 let at = symbols.partition_point(|(address, _)| *address <= target);
-                let symbol = match at.checked_sub(1).map(|i| &symbols[i]) {
+                let symbol = match at.checked_sub(1).and_then(|i| symbols.get(i)) {
                     Some((address, name)) if *address == target => name.clone(),
                     Some((address, name)) if target - address < 0x10_0000 => {
                         format!("{name}+{:#x}", target - address)
                     }
                     _ => "[unknown]".into(),
                 };
-                let kernel = modules.rows.first().map(|m| m[0].as_str());
+                let kernel = modules.rows.first().map(|m| m.cell(0));
                 let reason = if owner.is_empty() {
                     "OutsideLoadedModules"
                 } else if Some(owner.as_str()) == kernel {
@@ -115,7 +116,7 @@ impl Windows<'_> {
             r.complete = false;
             r.diagnostics.extend(listed.diagnostics.clone());
         }
-        let bases: HashSet<String> = listed.rows.iter().map(|m| m[1].clone()).collect();
+        let bases: HashSet<String> = listed.rows.iter().map(|m| m.cell(1).to_owned()).collect();
         let align = if self.vm.pointer_size() == 4 { 8 } else { 16 };
         let mut seen = HashSet::new();
         for (start, length) in self.pool_blocks(&[b"MmLd"], size, job)? {
@@ -187,7 +188,7 @@ impl Windows<'_> {
         self.vm.read(buffer, &mut b)?;
         String::from_utf16(
             &b.chunks_exact(2)
-                .map(|c| u16::from_le_bytes([c[0], c[1]]))
+                .map(|c| crate::bytes::le_u16(c, 0).unwrap_or(0))
                 .collect::<Vec<_>>(),
         )
         .context("UNICODE_STRING 非法 UTF-16")

@@ -2,6 +2,7 @@
 use super::user_layout::{self, ServiceLayout};
 use super::*;
 use crate::bytes::MapAt as _;
+use crate::bytes::Row as _;
 
 const NA: &str = "N/A";
 const MAX_CHAIN: usize = 65536;
@@ -46,7 +47,7 @@ fn memory_string(vm: &Memory<'_>, address: u64) -> Result<String> {
     vm.read(address, &mut b)?;
     let units: Vec<_> = b
         .chunks_exact(2)
-        .map(|c| u16::from_le_bytes([c[0], c[1]]))
+        .map(|c| crate::bytes::le_u16(c, 0).unwrap_or(0))
         .take_while(|u| *u != 0)
         .collect();
     Ok(String::from_utf16_lossy(&units))
@@ -67,9 +68,9 @@ fn registry_string(bytes: &[u8]) -> Result<String> {
         .chunks_exact(2)
         .map(|c| {
             if be {
-                u16::from_be_bytes([c[0], c[1]])
+                crate::bytes::le_u16(c, 0).unwrap_or(0).swap_bytes()
             } else {
-                u16::from_le_bytes([c[0], c[1]])
+                crate::bytes::le_u16(c, 0).unwrap_or(0)
             }
         })
         .collect();
@@ -87,10 +88,10 @@ fn valid_record(vm: &Memory<'_>, at: u64, layout: &ServiceLayout) -> Result<(u64
     Ok((order, start, state))
 }
 fn service_difference(scan: &[Vec<String>], listed: &[Vec<String>]) -> Vec<Vec<String>> {
-    let names: HashSet<_> = listed.iter().map(|row| row[6].as_str()).collect();
+    let names: HashSet<_> = listed.iter().map(|row| row.cell(6)).collect();
     let mut records = BTreeMap::new();
     for row in scan {
-        records.insert(row[6].as_str(), row);
+        records.insert(row.cell(6), row);
     }
     records
         .into_iter()
@@ -121,8 +122,8 @@ impl Windows<'_> {
         r.rows = service_difference(&scan.rows, &listed.rows);
         *r.kernel_identity.key_mut("services_diff")? = serde_json::json!({
             "scan_records":scan.rows.len(),"list_records":listed.rows.len(),
-            "scan_names":scan.rows.iter().map(|r| &r[6]).collect::<HashSet<_>>().len(),
-            "list_names":listed.rows.iter().map(|r| &r[6]).collect::<HashSet<_>>().len(),
+            "scan_names":scan.rows.iter().map(|r| r.cell(6)).collect::<HashSet<_>>().len(),
+            "list_names":listed.rows.iter().map(|r| r.cell(6)).collect::<HashSet<_>>().len(),
             "scan_complete":scan.complete,"list_complete":listed.complete,
             "comparison":"case-sensitive service name; last scanned record per name",
             "meaning":"scan-only service names are leads; incomplete views cannot prove hiding or absence",
@@ -283,7 +284,7 @@ impl Windows<'_> {
         for row in hives
             .rows
             .into_iter()
-            .filter(|h| h[1].to_ascii_lowercase().contains("machine\\system"))
+            .filter(|h| h.cell(1).to_ascii_lowercase().contains("machine\\system"))
         {
             job.check()?;
             let read = (|| -> Result<BinaryMap> {
@@ -526,9 +527,10 @@ impl Windows<'_> {
                                         // by object identity, so such tuples never deduplicate.
                                         // Registry absences in the prebuilt map are shared;
                                         // fallback absences for an unknown name are fresh.
-                                        let comparable = [2, 6, 7, 8].iter().all(|&i| row[i] != NA)
-                                            && (map.contains_key(row.at(6)?)
-                                                || (*row.at(9)? != NA && *row.at(10)? != NA));
+                                        let comparable =
+                                            [2, 6, 7, 8].iter().all(|&i| row.cell(i) != NA)
+                                                && (map.contains_key(row.at(6)?)
+                                                    || (*row.at(9)? != NA && *row.at(10)? != NA));
                                         if comparable && !scan_seen.insert(row.clone()) {
                                             break;
                                         }

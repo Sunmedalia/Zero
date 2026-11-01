@@ -1,5 +1,4 @@
 //! Microsoft CONTEXT integer/control subsets. Respect ContextFlags, never invent registers.
-#![cfg_attr(not(test), deny(clippy::indexing_slicing))]
 use super::*;
 pub(super) fn parse(
     bytes: &[u8],

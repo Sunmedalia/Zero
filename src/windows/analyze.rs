@@ -1,5 +1,6 @@
 //! Request validation and the public analysis entry points.
 use super::*;
+use crate::bytes::Row as _;
 
 pub fn analyze(
     image: &Image,
@@ -176,7 +177,7 @@ pub(crate) fn analyze_resolved(
         && !request.plugin.accepts_pid_list()
         && let Some(index) = result.columns.iter().position(|c| c == "PID")
     {
-        result.rows.retain(|row| row[index] == pid.to_string());
+        result.rows.retain(|row| row.cell(index) == pid.to_string());
     }
     sources.validate()?;
     *result.kernel_identity.key_mut("paging_sources")? = sources.manifest()?;

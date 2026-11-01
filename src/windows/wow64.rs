@@ -18,7 +18,7 @@ impl Memory<'_> {
         Ok(String::from_utf16_lossy(
             &bytes
                 .chunks_exact(2)
-                .map(|b| u16::from_le_bytes([b[0], b[1]]))
+                .map(|b| crate::bytes::le_u16(b, 0).unwrap_or(0))
                 .collect::<Vec<_>>(),
         ))
     }

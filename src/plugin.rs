@@ -393,6 +393,8 @@ impl Plugin {
                     | Self::LinuxPslist
             )
     }
+    // DESCRIPTOR_INDEX is proven complete and in range at compile time.
+    #[allow(clippy::indexing_slicing)]
     pub fn descriptor(self) -> &'static Descriptor {
         &PLUGINS[DESCRIPTOR_INDEX[self as usize]]
     }

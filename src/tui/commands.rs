@@ -3,6 +3,7 @@
 //! Keeping them here lets `run_command` stay a flat dispatch table while the
 //! behaviour of each action remains independently testable.
 use super::*;
+use crate::bytes::Row as _;
 
 impl App {
     pub(super) fn open_task_log(&mut self) {
@@ -215,7 +216,9 @@ impl App {
                     self.open_dump(Plugin::Procdump, false)
                 }
                 index => {
-                    let plugin = self.navigation_plugins()[index];
+                    let Some(plugin) = self.navigation_plugins().get(index).copied() else {
+                        return;
+                    };
                     self.activate_plugin(plugin);
                 }
             }
@@ -223,7 +226,7 @@ impl App {
             && self.history.is_none()
             && let Some(row) = self.visible().get(self.row)
         {
-            let pid = row[0].clone();
+            let pid = row.cell(0).to_owned();
             if !self.collapsed.remove(&pid) {
                 self.collapsed.insert(pid);
             }

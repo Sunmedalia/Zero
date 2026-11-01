@@ -1,4 +1,5 @@
 use super::*;
+use crate::bytes::Row as _;
 
 impl App {
     pub(super) fn windows_parameters(&mut self) {
@@ -211,7 +212,9 @@ impl App {
                     AssetSection::Remote,
                 ];
                 let step = if key.code == KeyCode::BackTab { 2 } else { 1 };
-                self.switch_section(sections[(self.section.slot() + step) % 3]);
+                if let Some(section) = sections.get((self.section.slot() + step) % 3).copied() {
+                    self.switch_section(section);
+                }
             }
             KeyCode::Up | KeyCode::Char('k') => {
                 self.asset_rows[slot] = self.asset_rows[slot].saturating_sub(1)
@@ -516,7 +519,7 @@ impl App {
         } else {
             0
         };
-        let cursor = fields[field].len();
+        let cursor = fields.get(field).map_or(0, String::len);
         self.dialog = Some(Dialog::Dump {
             mode,
             fields,
@@ -551,11 +554,15 @@ impl App {
                 ..
             }) if *field != 6 && (*field < 8 || *field >= 17) => {
                 if *selected {
-                    fields[*field].clear();
+                    if let Some(text) = fields.get_mut(*field) {
+                        text.clear();
+                    }
                     *cursor = 0;
                     *selected = false;
                 }
-                fields[*field].insert_str(*cursor, value);
+                if let Some(text) = fields.get_mut(*field) {
+                    text.insert_str(*cursor, value);
+                }
                 *cursor += value.len();
             }
             Some(Dialog::GenerateSymbols {
@@ -566,11 +573,15 @@ impl App {
                 ..
             }) if *field < 3 => {
                 if *selected {
-                    fields[*field].clear();
+                    if let Some(text) = fields.get_mut(*field) {
+                        text.clear();
+                    }
                     *cursor = 0;
                     *selected = false;
                 }
-                fields[*field].insert_str(*cursor, value);
+                if let Some(text) = fields.get_mut(*field) {
+                    text.insert_str(*cursor, value);
+                }
                 *cursor += value.len();
             }
             Some(Dialog::Dump {
@@ -581,11 +592,15 @@ impl App {
                 ..
             }) if *field < 4 => {
                 if *selected {
-                    fields[*field].clear();
+                    if let Some(text) = fields.get_mut(*field) {
+                        text.clear();
+                    }
                     *cursor = 0;
                     *selected = false;
                 }
-                fields[*field].insert_str(*cursor, value);
+                if let Some(text) = fields.get_mut(*field) {
+                    text.insert_str(*cursor, value);
+                }
                 *cursor += value.len();
             }
             Some(Dialog::Input {
@@ -764,8 +779,13 @@ impl App {
             let back = matches!(key.code, KeyCode::Left | KeyCode::BackTab)
                 || key.modifiers.contains(KeyModifiers::SHIFT);
             self.switch_page(
-                Page::ALL[(self.page.index() + if back { Page::ALL.len() - 1 } else { 1 })
-                    % Page::ALL.len()],
+                Page::ALL
+                    .get(
+                        (self.page.index() + if back { Page::ALL.len() - 1 } else { 1 })
+                            % Page::ALL.len(),
+                    )
+                    .copied()
+                    .unwrap_or(self.page),
             );
             return false;
         }
@@ -868,9 +888,9 @@ impl App {
             {
                 if let Some(row) = self.visible().get(self.row) {
                     if key.code == KeyCode::Left {
-                        self.collapsed.insert(row[0].clone());
+                        self.collapsed.insert(row.cell(0).to_owned());
                     } else {
-                        self.collapsed.remove(&row[0]);
+                        self.collapsed.remove(row.cell(0));
                     }
                 }
             }
