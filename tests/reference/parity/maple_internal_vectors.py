@@ -35,8 +35,10 @@ def generate(checkout):
             root = 0x11002 | (kind << 3)
             for mismatch in [False, True]:
                 parents[0x13000] = 0x16006 if mismatch else 0x11006
-                found = list(mock._parse_maple_tree_node(root, 0xb000, 2))
-                cases.append(dict(width=width, kind=kind, parent_mismatch=mismatch, root=root, nodes=[dict(address=at, parent=parents[at], slots=slots) for at, slots in nodes.items()], found=found))
+                for duplicate in [False, True]:
+                    nodes[0x11000][1] = 0x1200c if duplicate else 0
+                    found = list(mock._parse_maple_tree_node(root, 0xb000, 2))
+                    cases.append(dict(width=width, kind=kind, parent_mismatch=mismatch, duplicate=duplicate, root=root, nodes=[dict(address=at, parent=parents[at], slots=list(slots)) for at, slots in nodes.items()], found=found))
     source = 'volatility3/framework/symbols/linux/extensions/__init__.py'
     return dict(reference_commit=PIN, source_sha256={source: hashlib.sha256((checkout / source).read_bytes()).hexdigest()}, scope='Actual pinned RANGE64/ARANGE64 recursion and parent validation with mocked typed slots; no real-image claim.', cases=cases)
 

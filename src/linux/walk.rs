@@ -285,13 +285,16 @@ mod tests {
                 put(&mut b, *address as usize + 8, 0x200000 + i as u64 * 4096);
             }
             let img = image(&b);
+            let linux = engine(&img, &isf);
+            let mut coverage = linux.result(Plugin::Maps);
             assert_eq!(
-                engine(&img, &isf)
-                    .maple_vmas(0xb000, &Job::default(), 100)
+                linux
+                    .maple_vmas_partial(0xb000, &Job::default(), 100, &mut coverage)
                     .unwrap(),
                 expected,
                 "{case}"
             );
+            assert_eq!(coverage.complete, case["duplicate"] != true, "{case}");
             isf.data["user_types"]["mm_struct"]["fields"]["map_count"] =
                 json!({"offset":48,"type":{"kind":"base","name":"u64"}});
             put(&mut b, 0xb030, 2);
