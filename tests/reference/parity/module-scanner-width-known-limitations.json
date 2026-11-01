@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+  "scope": "Native module carving pointer widths, alignment fallback and range phase",
+  "reference": "volatility3/framework/symbols/linux/utilities/modules.py:get_hidden_modules",
+  "verification": {
+    "test": "linux::modules::tests::module_scanner_uses_member_width_and_known_alignment_fallback",
+    "cases": 5,
+    "checks": [
+      "Four-byte back-reference excludes nonzero neighboring bytes",
+      "Pointer-width candidate stride",
+      "Known misaligned modules trigger one-byte stride for both pointer widths",
+      "Unaligned lower range boundary preserves the reference range(lower, end, alignment) phase for both widths"
+    ]
+  },
+  "limitations": [
+    "These are native synthetic regression cases and a pinned source comparison, not actual-reference execution vectors for full hidden module scanning.",
+    "ISF member size controls the back-reference read; ISF pointer size controls alignment. Both are restricted to four or eight bytes.",
+    "The existing two-page window, cancellation, scan budget, partial diagnostics and back-offset bound remain in force.",
+    "Real Linux32 discovery and extraction are not established; the public Linux32 ISF parse gate remains closed.",
+    "No full plugin contract is established by this batch."
+  ]
+}

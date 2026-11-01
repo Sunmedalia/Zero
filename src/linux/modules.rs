@@ -106,7 +106,21 @@ impl Linux<'_> {
             self.isf.offset("module", "mkobj")?,
             self.isf.offset("module_kobject", "mod")?,
         )?;
-        ensure!(back <= PAGE - 8, "module.mkobj 偏移超过一页，无法雕刻");
+        let width = self.isf.size("module_kobject", "mod")?;
+        ensure!(matches!(width, 4 | 8), "module.mkobj.mod 宽度无效");
+        let alignment = self.isf.data["base_types"]["pointer"]["size"]
+            .as_u64()
+            .context("模块扫描指针宽度缺失")?;
+        ensure!(matches!(alignment, 4 | 8), "模块扫描指针宽度无效");
+        let step = if known.iter().any(|address| address % alignment != 0) {
+            1
+        } else {
+            alignment as usize
+        };
+        ensure!(
+            back <= PAGE - width as u64,
+            "module.mkobj 偏移超过一页，无法雕刻"
+        );
         let name_size = self.isf.size("module", "name")?;
         let ModuleRegions {
             ranges: regions,
@@ -188,10 +202,17 @@ impl Linux<'_> {
                 }
                 if previous_mapped {
                     let base = page - PAGE;
-                    for offset in (0..PAGE).step_by(8) {
-                        let at = (offset + back) as usize;
-                        let pointer = u64::from_le_bytes(window[at..at + 8].try_into()?);
+                    let first = if base < lower {
+                        lower - base
+                    } else {
+                        (step as u64 - (base - lower) % step as u64) % step as u64
+                    };
+                    for offset in (first..PAGE).step_by(step) {
                         let candidate = base + offset;
+                        let at = (offset + back) as usize;
+                        let mut raw = [0u8; 8];
+                        raw[..width].copy_from_slice(&window[at..at + width]);
+                        let pointer = u64::from_le_bytes(raw);
                         if candidate < lower
                             || candidate >= end
                             || pointer != candidate
@@ -735,6 +756,47 @@ mod tests {
             put(&mut bytes, module + 120, 2048);
         }
         (bytes, isf)
+    }
+    #[test]
+    fn module_scanner_uses_member_width_and_known_alignment_fallback() {
+        for (width, candidate, known_address, lower) in [
+            (4, 0x35104usize, 0x34100, 0x34000),
+            (4, 0x35105usize, 0x34101, 0x34000),
+            (8, 0x35105usize, 0x34101, 0x34000),
+            (4, 0x35105usize, 0x34100, 0x34001),
+            (8, 0x35109usize, 0x34100, 0x34001),
+        ] {
+            let (mut bytes, mut isf) = fixture();
+            isf.data["base_types"]["pointer"]["size"] = json!(width);
+            isf.data["user_types"]["module_kobject"]["fields"]["mod"] =
+                json!({"offset":32,"type":{"kind":"pointer"}});
+            put(&mut bytes, 0x30010, lower);
+            bytes[0x35100..0x35200].fill(0);
+            bytes[candidate + 16..candidate + 22].copy_from_slice(b"hidden");
+            put(&mut bytes, candidate + 96, 0x18000);
+            put(&mut bytes, candidate + 104, 4096);
+            let raw = (candidate as u64).to_le_bytes();
+            bytes[candidate + 88..candidate + 88 + width].copy_from_slice(&raw[..width]);
+            if width == 4 {
+                bytes[candidate + 92..candidate + 96].copy_from_slice(&0xdeadbeefu32.to_le_bytes());
+            }
+            let image = super::super::tests::image(&bytes);
+            let engine = super::super::tests::engine(&image, &isf);
+            let mut result = engine.result(Plugin::HiddenModules);
+            let found = engine
+                .scan_module_objects(
+                    &[],
+                    &HashSet::from([known_address]),
+                    false,
+                    &mut result,
+                    &Job::default(),
+                )
+                .unwrap();
+            assert!(
+                found.contains(&(candidate as u64)),
+                "width={width}, candidate={candidate:#x}, found={found:?}"
+            );
+        }
     }
     #[test]
     fn lsmod_array_metadata_failure_preserves_module_with_partial_diagnostic() {
