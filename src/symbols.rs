@@ -1,3 +1,4 @@
+use crate::bytes::{Checked as _, JsonKey as _};
 use crate::{Job, image::Image};
 use anyhow::{Context, Result, bail, ensure};
 use base64::{Engine, engine::general_purpose::STANDARD};
@@ -10,6 +11,7 @@ use std::{
     sync::RwLock,
 };
 
+pub(crate) mod http;
 mod network;
 pub use network::GithubAccess;
 use network::fetch_github;
@@ -40,29 +42,40 @@ pub(crate) struct LayoutCache(
     RwLock<std::collections::HashMap<String, std::collections::HashMap<String, Layout>>>,
 );
 impl Isf {
+    /// Kernel validation warnings; a poisoned lock still holds a complete value.
+    pub(crate) fn diagnostics(&self) -> Vec<String> {
+        self.validation_diagnostics
+            .read()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .clone()
+    }
+    pub(crate) fn set_diagnostics(&self, diagnostics: Vec<String>) {
+        *self
+            .validation_diagnostics
+            .write()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = diagnostics;
+    }
     pub fn parse(bytes: &[u8], label: String) -> Result<Self> {
         let data: Value = serde_json::from_slice(bytes).context("ISF JSON 解析失败")?;
         ensure!(
-            data["base_types"]["pointer"]["size"].as_u64() == Some(8)
-                || (data["metadata"]["windows"]["pdb"].is_object()
-                    && data["base_types"]["pointer"]["size"].as_u64() == Some(4)),
+            data.key("base_types")["pointer"].key("size").as_u64() == Some(8)
+                || (data.key("metadata")["windows"].key("pdb").is_object()
+                    && data.key("base_types")["pointer"].key("size").as_u64() == Some(4)),
             "仅支持 64 位 ISF"
         );
-        let banner = if data["metadata"]["windows"]["pdb"].is_object() {
-            let p = &data["metadata"]["windows"]["pdb"];
-            ensure!(
-                p["database"].is_string() && p["GUID"].is_string() && p["age"].is_u64(),
-                "Windows ISF PDB 身份不完整"
-            );
-            format!(
-                "Windows PDB {} {} age {}\0",
-                p["database"].as_str().unwrap(),
-                p["GUID"].as_str().unwrap(),
-                p["age"]
-            )
-            .into_bytes()
+        let banner = if data.key("metadata")["windows"].key("pdb").is_object() {
+            let p = data.key("metadata")["windows"].key("pdb");
+            let (Some(database), Some(guid), Some(age)) = (
+                p["database"].as_str(),
+                p["GUID"].as_str(),
+                p["age"].as_u64(),
+            ) else {
+                bail!("Windows ISF PDB 身份不完整");
+            };
+            format!("Windows PDB {database} {guid} age {age}\0").into_bytes()
         } else {
-            let encoded = data["symbols"]["linux_banner"]["constant_data"]
+            let encoded = data.key("symbols")["linux_banner"]
+                .key("constant_data")
                 .as_str()
                 .context("ISF 缺少完整 linux_banner constant_data")?;
             let banner = STANDARD.decode(encoded)?;
@@ -70,12 +83,12 @@ impl Isf {
                 banner.starts_with(b"Linux version ")
                     && banner.last() == Some(&0)
                     && banner.len() <= 65536
-                    && !banner[..banner.len() - 1].contains(&0),
+                    && !banner.at(..banner.len() - 1)?.contains(&0),
                 "ISF banner 无效或不完整"
             );
             banner
         };
-        let windows = data["metadata"]["windows"]["pdb"].is_object();
+        let windows = data.key("metadata")["windows"].key("pdb").is_object();
         let isf = Self {
             slide: std::sync::atomic::AtomicU64::new(0),
             validation_diagnostics: RwLock::default(),
@@ -93,7 +106,7 @@ impl Isf {
         Ok(isf)
     }
     pub fn is_windows(&self) -> bool {
-        self.data["metadata"]["windows"]["pdb"].is_object()
+        self.data.key("metadata")["windows"].key("pdb").is_object()
     }
     pub fn address(&self, name: &str) -> Result<u64> {
         Ok(self
@@ -101,14 +114,15 @@ impl Isf {
             .wrapping_add(self.slide.load(std::sync::atomic::Ordering::Relaxed)))
     }
     pub fn raw_address(&self, name: &str) -> Result<u64> {
-        self.data["symbols"][name]["address"]
+        self.data.key("symbols")[name]
+            .key("address")
             .as_u64()
             .with_context(|| format!("ISF 缺少符号 {name}"))
     }
     /// Size of a typed global, without inferring its type from its name/address.
     pub fn symbol_size(&self, name: &str) -> Result<u64> {
         self.raw_address(name)?;
-        let symbol = &self.data["symbols"][name];
+        let symbol = &self.data.key("symbols")[name];
         ensure!(symbol["type_conflict"] != true, "ISF 符号类型冲突: {name}");
         let size = self.type_size(
             symbol
@@ -128,18 +142,20 @@ impl Isf {
         if let Some((first, rest)) = field.split_once('.') {
             let (offset, f) = self.resolved_field(structure, first, depth + 1)?;
             let (inner, f) = self.resolved_field(
-                f["type"]["name"].as_str().context("ISF 嵌套类型无效")?,
+                f["type"].key("name").as_str().context("ISF 嵌套类型无效")?,
                 rest,
                 depth + 1,
             )?;
             return Ok((offset.checked_add(inner).context("ISF offset 溢出")?, f));
         }
-        let fields = self.data["user_types"][structure]["fields"]
+        let fields = self.data.key("user_types")[structure]
+            .key("fields")
             .as_object()
             .context("ISF 结构缺失")?;
         if let Some(f) = fields.get(field) {
             let offset = f["offset"].as_u64().context("ISF offset 无效")?;
-            let size = self.data["user_types"][structure]["size"]
+            let size = self.data.key("user_types")[structure]
+                .key("size")
                 .as_u64()
                 .context("ISF 结构 size 无效")?;
             let length = self.type_size(&f["type"])?;
@@ -152,8 +168,8 @@ impl Isf {
         let mut found = None;
         for (name, f) in fields {
             if name.starts_with("unnamed_field_")
-                && matches!(f["type"]["kind"].as_str(), Some("union" | "struct"))
-                && let Some(ty) = f["type"]["name"].as_str()
+                && matches!(f["type"].key("kind").as_str(), Some("union" | "struct"))
+                && let Some(ty) = f["type"].key("name").as_str()
                 && let Ok((offset, leaf)) = self.resolved_field(ty, field, depth + 1)
             {
                 ensure!(found.is_none(), "ISF 匿名字段歧义 {structure}.{field}");
@@ -185,7 +201,8 @@ impl Isf {
         let name = || ty["name"].as_str().context("ISF type name 无效");
         match ty["kind"].as_str() {
             Some("pointer") => {
-                let width = self.data["base_types"]["pointer"]["size"]
+                let width = self.data.key("base_types")["pointer"]
+                    .key("size")
                     .as_u64()
                     .unwrap_or(8);
                 ensure!(matches!(width, 4 | 8), "ISF pointer size 无效");
@@ -200,13 +217,16 @@ impl Isf {
                     1
                 })
                 .context("ISF array size 溢出"),
-            Some("base") => self.data["base_types"][name()?]["size"]
+            Some("base") => self.data.key("base_types")[name()?]
+                .key("size")
                 .as_u64()
                 .context("ISF base size 无效"),
-            Some("struct" | "union") => self.data["user_types"][name()?]["size"]
+            Some("struct" | "union") => self.data.key("user_types")[name()?]
+                .key("size")
                 .as_u64()
                 .context("ISF structure size 无效"),
-            Some("enum") => self.data["enums"][name()?]["size"]
+            Some("enum") => self.data.key("enums")[name()?]
+                .key("size")
                 .as_u64()
                 .context("ISF enum size 无效"),
             Some("bitfield") => self.type_size(&ty["type"]),
@@ -226,7 +246,8 @@ impl Isf {
             return Ok(layout);
         }
         let (offset, f) = self.resolved_field(structure, field, 0)?;
-        let size = self.data["user_types"][structure]["size"]
+        let size = self.data.key("user_types")[structure]
+            .key("size")
             .as_u64()
             .context("ISF 结构 size 无效")?;
         let length = self.type_size(&f["type"])?;
@@ -276,7 +297,7 @@ fn read_stream(mut r: impl Read, job: &Job) -> Result<Vec<u8>> {
             break;
         }
         ensure!(data.len() + n <= 256 * 1024 * 1024, "ISF 超过 256 MiB 限制");
-        data.extend_from_slice(&buffer[..n]);
+        data.extend_from_slice(buffer.at(..n)?);
     }
     Ok(data)
 }
@@ -306,7 +327,7 @@ fn collect(path: &Path, job: &Job, out: &mut Vec<(String, Vec<u8>)>) -> Result<(
             for index in 0..z.len() {
                 job.check()?;
                 let member = z.by_index(index)?;
-                let entry = member.name().to_owned();
+                let entry = member.name()?.into_owned();
                 if entry.ends_with(".json") || entry.ends_with(".json.xz") {
                     let bytes = decode(member, &entry, job)?;
                     out.push((format!("{name}::{entry}"), bytes));
@@ -437,6 +458,8 @@ pub fn match_local_files(
 }
 /// Default symbol repository; settings may name another GitHub repository.
 pub const REPOSITORY: &str = "https://github.com/Abyss-W4tcher/volatility3-symbols";
+const DEFAULT_RAW: &str =
+    "https://raw.githubusercontent.com/Abyss-W4tcher/volatility3-symbols/master/";
 /// A GitHub symbol repository laid out like the default one: an index at
 /// `banners/banners_plain.json` on a branch, ISFs as files or release assets.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -485,7 +508,11 @@ impl Repository {
         })
     }
     pub fn default_repository() -> Self {
-        Self::parse(REPOSITORY).expect("default repository")
+        Self {
+            web: REPOSITORY.into(),
+            raw: DEFAULT_RAW.into(),
+            branch: "master".into(),
+        }
     }
     /// The repository named in this cache's settings.
     pub fn configured(cache: &Path) -> Result<Self> {
@@ -577,7 +604,7 @@ fn percent_decode(value: &str) -> Result<String> {
             let (Some(high), Some(low)) = (digit(hex[0]), digit(hex[1])) else {
                 bail!("仓库 ISF 路径编码无效");
             };
-            bytes.push((high * 16 + low) as u8);
+            bytes.push(u8::try_from(high * 16 + low)?);
         } else {
             bytes.push(b);
         }
@@ -629,20 +656,12 @@ pub(crate) fn fetch_range(
     limit: usize,
     job: &Job,
 ) -> Result<RangeResponse> {
-    let (bytes, status, headers) = transfer(url, Some(range), limit, job)?;
+    let (bytes, status, content_range) = transfer(url, Some(range), limit, job)?;
     ensure!(
         status == 206,
         "官方符号包服务器未返回 HTTP 206；无法按需读取 ZIP"
     );
-    let value = headers
-        .lines()
-        .filter_map(|line| {
-            let (key, value) = line.split_once(':')?;
-            key.eq_ignore_ascii_case("content-range")
-                .then_some(value.trim())
-        })
-        .next_back()
-        .context("Range 响应缺少 Content-Range")?;
+    let value = content_range.context("Range 响应缺少 Content-Range")?;
     let (span, total) = value
         .strip_prefix("bytes ")
         .and_then(|v| v.split_once('/'))
@@ -667,7 +686,7 @@ fn transfer(
     range: Option<&str>,
     limit: usize,
     job: &Job,
-) -> Result<(Vec<u8>, u16, String)> {
+) -> Result<(Vec<u8>, u16, Option<String>)> {
     transfer_with_timeout(url, range, limit, 90, job)
 }
 fn transfer_with_timeout(
@@ -676,88 +695,26 @@ fn transfer_with_timeout(
     limit: usize,
     timeout: u64,
     job: &Job,
-) -> Result<(Vec<u8>, u16, String)> {
-    use std::{
-        process::{Command, Stdio},
-        thread,
-        time::Duration,
-    };
-    job.check()?;
-    let file = tempfile::NamedTempFile::new()?;
-    let headers = tempfile::NamedTempFile::new()?;
-    let errors = tempfile::tempfile()?;
-    let status_output = tempfile::tempfile()?;
-    let mut command = Command::new("curl");
-    command
-        .args([
-            "--fail",
-            "--silent",
-            "--show-error",
-            "--location",
-            "--proto",
-            "=https",
-            "--proto-redir",
-            "=https",
-            "--connect-timeout",
-            "10",
-            "--max-time",
-        ])
-        .arg(timeout.to_string())
-        .arg("--max-filesize")
-        .arg(limit.to_string())
-        .arg("--output")
-        .arg(file.path())
-        .arg("--dump-header")
-        .arg(headers.path())
-        .args(["--write-out", "%{http_code}"]);
-    if let Some(range) = range {
-        command.arg("--range").arg(range);
-    }
-    let mut child = command
-        .arg("--")
-        .arg(url)
-        .stdin(Stdio::null())
-        .stdout(status_output.try_clone()?)
-        .stderr(errors.try_clone()?)
-        .spawn()
-        .context("无法启动 curl；安装 curl 或使用本地 ISF / --offline")?;
-    let status = loop {
-        if let Err(e) = job.check() {
-            let _ = child.kill();
-            let _ = child.wait();
-            return Err(e);
-        }
-        if let Some(status) = child.try_wait()? {
-            break status;
-        }
-        thread::sleep(Duration::from_millis(50));
-    };
+) -> Result<(Vec<u8>, u16, Option<String>)> {
     use std::io::{Seek, SeekFrom};
-    let mut status_output = status_output;
-    status_output.seek(SeekFrom::Start(0))?;
-    let mut code = String::new();
-    status_output.take(16).read_to_string(&mut code)?;
-    let code: u16 = code.trim().parse().unwrap_or(0);
-    if code >= 400 {
-        return Err(HttpError {
-            status: code,
-            url: url.into(),
-        }
-        .into());
-    }
-    let mut error = String::new();
-    let mut errors = errors;
-    errors.seek(SeekFrom::Start(0))?;
-    errors.take(4096).read_to_string(&mut error)?;
-    ensure!(status.success(), "符号下载失败: {url} ({})", error.trim());
-    job.check()?;
-    ensure!(
-        fs::metadata(file.path())?.len() <= limit as u64,
-        "下载响应超过大小限制"
-    );
-    let bytes = read_stream(File::open(file.path())?, job)?;
-    let headers = fs::read_to_string(headers.path())?;
-    Ok((bytes, code, headers))
+    let mut file = tempfile::tempfile()?;
+    let response = http::download(
+        http::Request {
+            url,
+            range,
+            limit: limit as u64,
+            timeout: std::time::Duration::from_secs(timeout),
+            https_only: true,
+        },
+        file.try_clone()?,
+        job,
+    )?;
+    file.seek(SeekFrom::Start(0))?;
+    Ok((
+        read_stream(file, job)?,
+        response.status,
+        response.content_range,
+    ))
 }
 pub fn lookup_index(index: &Value, banners: &[(u64, Vec<u8>)]) -> Result<Vec<RemoteMatch>> {
     lookup_index_in(&Repository::default_repository(), index, banners)
@@ -943,20 +900,23 @@ fn natural_cmp(a: &str, b: &str) -> std::cmp::Ordering {
                 let (ra, rb) = (run(a), run(b));
                 let trim = |s: &[u8]| {
                     let zeros = s.iter().take_while(|c| **c == b'0').count();
-                    s[zeros..].to_vec()
+                    s.get(zeros..).unwrap_or(&[]).to_vec()
                 };
-                let (na, nb) = (trim(&a[..ra]), trim(&b[..rb]));
+                let (na, nb) = (
+                    trim(a.get(..ra).unwrap_or(&[])),
+                    trim(b.get(..rb).unwrap_or(&[])),
+                );
                 let order = na.len().cmp(&nb.len()).then_with(|| na.cmp(&nb));
                 if order.is_ne() {
                     return order;
                 }
-                (a, b) = (&a[ra..], &b[rb..]);
+                (a, b) = (a.get(ra..).unwrap_or(&[]), b.get(rb..).unwrap_or(&[]));
             }
             (Some(x), Some(y)) => {
                 if x != y {
                     return x.cmp(y);
                 }
-                (a, b) = (&a[1..], &b[1..]);
+                (a, b) = (a.get(1..).unwrap_or(&[]), b.get(1..).unwrap_or(&[]));
             }
         }
     }
@@ -1020,7 +980,7 @@ pub fn catalog(
         matches: ranked
             .iter()
             .take(limit)
-            .map(|(_, _, index)| parsed.entries[*index].0.clone())
+            .filter_map(|(_, _, index)| parsed.entries.get(*index).map(|entry| entry.0.clone()))
             .collect(),
         index: IndexInfo {
             banners: parsed.banners,

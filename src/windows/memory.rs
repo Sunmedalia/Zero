@@ -267,10 +267,11 @@ impl Windows<'_> {
         let isf = self.vm.isf;
         let root_addr = self.field(p.address, "_EPROCESS", "VadRoot")?;
         let root_field = isf.field("_EPROCESS", "VadRoot")?;
-        let root = if root_field["type"]["kind"] == "pointer" {
+        let root = if *root_field["type"].key("kind") == "pointer" {
             self.vm.pointer(root_addr)?
         } else {
-            let ty = root_field["type"]["name"]
+            let ty = root_field["type"]
+                .key("name")
                 .as_str()
                 .unwrap_or("_RTL_AVL_TREE");
             let field = if isf.has_field(ty, "Root") {
@@ -283,7 +284,8 @@ impl Windows<'_> {
         let (offset, node_type) = if let Ok(field) = isf.field("_MMVAD_SHORT", "VadNode") {
             (
                 isf.offset("_MMVAD_SHORT", "VadNode")?,
-                field["type"]["name"]
+                field["type"]
+                    .key("name")
                     .as_str()
                     .context("VAD node 缺少类型")?,
             )
@@ -346,10 +348,10 @@ impl Windows<'_> {
                 let mut links = [None, None];
                 // Right first on the stack gives the reference's left-first traversal.
                 for index in [1, 0] {
-                    let field = tree.children[index];
+                    let field = *tree.children.at(index)?;
                     match self.number(node, tree.node_type, field) {
                         Ok(child) => {
-                            links[index] = Some(child);
+                            *links.at_mut(index)? = Some(child);
                             if child == 0 {
                                 continue;
                             }
@@ -512,7 +514,7 @@ impl Windows<'_> {
                 break;
             }
         }
-        result.kernel_identity["vad_walk"] = serde_json::json!({"pids":pids,"end_is_inclusive":true,"tag_validation":true,"max_depth":100,"max_nodes_per_process":MAX_OBJECTS,"max_output_rows":MAX_OBJECTS,"max_text_bytes":128*1024*1024,"stopped":stopped,"processes":reports});
+        *result.kernel_identity.key_mut("vad_walk")? = serde_json::json!({"pids":pids,"end_is_inclusive":true,"tag_validation":true,"max_depth":100,"max_nodes_per_process":MAX_OBJECTS,"max_output_rows":MAX_OBJECTS,"max_text_bytes":128*1024*1024,"stopped":stopped,"processes":reports});
         Ok(result)
     }
     pub(super) fn vads(&self, p: &Process, job: &Job) -> Result<Vec<Vad>> {
@@ -668,7 +670,10 @@ impl Windows<'_> {
         if tree_order {
             ordered.sort_by_key(|v| v.start);
         }
-        if !ordered.windows(2).all(|v| v[0].end <= v[1].start) {
+        if !ordered
+            .windows(2)
+            .all(|v| matches!(v, [a, b] if a.end <= b.start))
+        {
             match result {
                 Some(r) => Self::issue(r, format!("PID {} VAD", p.pid), "VAD 范围重叠"),
                 None => bail!("VAD 范围重叠"),
@@ -687,7 +692,7 @@ impl Windows<'_> {
             .vm
             .isf
             .field("_CONTROL_AREA", "FilePointer")
-            .map(|field| field["type"]["kind"] != "pointer")
+            .map(|field| field["type"].key("kind") != "pointer")
             .unwrap_or(false);
         VadLayout {
             direct_control,
@@ -840,7 +845,10 @@ pub(super) fn protection(value: u64) -> String {
         "PAGE_WRITECOPY",
         "PAGE_EXECUTE_READWRITE",
         "PAGE_EXECUTE_WRITECOPY",
-    ][(value & 7) as usize];
+    ]
+    .get((value & 7) as usize)
+    .copied()
+    .unwrap_or("PAGE_NOACCESS");
     let modifier = if value & 7 == 0 {
         ""
     } else {

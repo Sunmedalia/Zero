@@ -201,27 +201,27 @@ impl Windows<'_> {
         let mut header = [0; 4096];
         self.vm.read(base, &mut header)?;
         let pe = u32::from_le_bytes(header[60..64].try_into()?) as usize;
-        ensure!(&header[pe..pe + 4] == b"PE\0\0", "PE 签名无效");
+        ensure!(header.at(pe..pe + 4)? == b"PE\0\0", "PE 签名无效");
         let optional = pe + 24;
-        let magic = u16::from_le_bytes(header[optional..optional + 2].try_into()?);
+        let magic = u16::from_le_bytes(header.at(optional..optional + 2)?.try_into()?);
         let data_directories = if magic == 0x20b { 112 } else { 96 };
         let section_offset = optional + data_directories + 16;
         // NumberOfRvaAndSizes is immediately before the section table only after SizeOfOptionalHeader.
-        let size_optional = u16::from_le_bytes(header[pe + 20..pe + 22].try_into()?) as usize;
+        let size_optional = u16::from_le_bytes(header.at(pe + 20..pe + 22)?.try_into()?) as usize;
         let sections = pe + 24 + size_optional;
-        let count = u16::from_le_bytes(header[pe + 6..pe + 8].try_into()?) as usize;
+        let count = u16::from_le_bytes(header.at(pe + 6..pe + 8)?.try_into()?) as usize;
         ensure!(count <= 96, "PE 节数量无效");
         let _ = section_offset;
         for index in 0..count {
             let at = sections + index * 40;
             let record = header.get(at..at + 40).context("PE 节表超出已读头部")?;
-            let name_end = record[..8].iter().position(|b| *b == 0).unwrap_or(8);
-            let name = String::from_utf8_lossy(&record[..name_end]);
+            let name_end = record.at(..8)?.iter().position(|b| *b == 0).unwrap_or(8);
+            let name = String::from_utf8_lossy(record.at(..name_end)?);
             if !name.eq_ignore_ascii_case(wanted) {
                 continue;
             }
-            let virtual_size = u32::from_le_bytes(record[8..12].try_into()?) as u64;
-            let virtual_address = u32::from_le_bytes(record[12..16].try_into()?) as u64;
+            let virtual_size = u32::from_le_bytes(record.at(8..12)?.try_into()?) as u64;
+            let virtual_address = u32::from_le_bytes(record.at(12..16)?.try_into()?) as u64;
             return Ok(Some((add(base, virtual_address)?, virtual_size)));
         }
         Ok(None)
@@ -427,7 +427,7 @@ impl Windows<'_> {
     }
 
     fn shim_path(&self, address: u64) -> Option<String> {
-        let length = self.vm.uint(address, 2).ok()? as usize;
+        let length = usize::try_from(self.vm.uint(address, 2).ok()?).ok()?;
         let buffer = self.vm.pointer(add(address, 8).ok()?).ok()?;
         if length == 0 || length > 1024 || !length.is_multiple_of(2) || !self.vm.kernel(buffer) {
             return None;
@@ -437,7 +437,7 @@ impl Windows<'_> {
         Some(String::from_utf16_lossy(
             &bytes
                 .chunks_exact(2)
-                .map(|c| u16::from_le_bytes([c[0], c[1]]))
+                .map(|c| crate::bytes::le_u16(c, 0).unwrap_or(0))
                 .collect::<Vec<_>>(),
         ))
     }

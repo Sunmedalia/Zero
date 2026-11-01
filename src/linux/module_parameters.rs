@@ -1,5 +1,6 @@
 //! Kernel module load arguments, decoded through the pinned parameter getters.
 use super::*;
+use crate::bytes::JsonKey as _;
 
 const INTEGER_GETTERS: &[(&str, &str)] = &[
     ("param_get_invbool", "int"),
@@ -18,9 +19,10 @@ impl Linux<'_> {
     fn parameter_string(&self, at: u64, count: u64) -> Result<String> {
         ensure!((1..=4096).contains(&count), "模块参数字符串超出读取上限");
         let mut bytes = Vec::new();
-        while bytes.len() < count as usize {
+        while bytes.len() < usize::try_from(count)? {
             let address = add(at, bytes.len() as u64)?;
-            let length = ((4096 - (address & 4095)) as usize).min(count as usize - bytes.len());
+            let length = usize::try_from(4096 - (address & 4095))?
+                .min(usize::try_from(count)? - bytes.len());
             let mut page = vec![0; length];
             if let Err(error) = self.vm.read(address, &mut page) {
                 if bytes.is_empty() {
@@ -63,7 +65,8 @@ impl Linux<'_> {
             let count = if num == 0 {
                 self.number(array, "kparam_array", "max")?
             } else {
-                let width = self.isf.data["base_types"]["unsigned int"]["size"]
+                let width = self.isf.data.key("base_types")["unsigned int"]
+                    .key("size")
                     .as_u64()
                     .context("unsigned int 宽度缺失")?;
                 self.vm.uint(num, usize::try_from(width)?)?
@@ -99,7 +102,8 @@ impl Linux<'_> {
         if let Some(&(_, ty)) = INTEGER_GETTERS.iter().rev().find(|(name, _)| matches(name)) {
             let read = (|| -> Result<String> {
                 let at = self.number(param, "kernel_param", "arg")?;
-                let size = self.isf.data["base_types"][ty]["size"]
+                let size = self.isf.data.key("base_types")[ty]
+                    .key("size")
                     .as_u64()
                     .context("模块参数整数宽度缺失")?;
                 let raw = self.vm.uint(at, usize::try_from(size)?)?;
@@ -111,7 +115,7 @@ impl Linux<'_> {
                     }
                     .into());
                 }
-                if self.isf.data["base_types"][ty]["signed"] == true {
+                if *self.isf.data.key("base_types")[ty].key("signed") == true {
                     let shift = 64 - size * 8;
                     Ok(((raw << shift) as i64 >> shift).to_string())
                 } else {
@@ -132,7 +136,8 @@ impl Linux<'_> {
             return Ok(String::new());
         }
         let base = self.number(module, "module", "kp")?;
-        let size = self.isf.data["user_types"]["kernel_param"]["size"]
+        let size = self.isf.data.key("user_types")["kernel_param"]
+            .key("size")
             .as_u64()
             .context("kernel_param size 缺失")?;
         ensure!((1..=4096).contains(&size), "kernel_param size 无效");

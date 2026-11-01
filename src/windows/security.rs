@@ -1,5 +1,7 @@
 //! Token privileges, logon sessions and per-user UserAssist execution records.
 use super::*;
+use crate::bytes::Row as _;
+use crate::bytes::{le_u32, le_u64};
 
 /// LUID low parts of the well-known privileges, indexed by bit position.
 const PRIVILEGES: &[(u32, &str)] = &[
@@ -55,20 +57,20 @@ pub(super) fn rot13(text: &str) -> String {
 /// Count, focus count, focus milliseconds and last-run FILETIME of one
 /// UserAssist record: 72 bytes since Windows 7, 16 bytes before.
 pub(super) fn userassist_record(bytes: &[u8]) -> Option<[String; 4]> {
-    let u32_at = |at: usize| u32::from_le_bytes(bytes[at..at + 4].try_into().unwrap());
+    let u32_at = |at: usize| le_u32(bytes, at);
     match bytes.len() {
         72 => Some([
-            u32_at(4).to_string(),
-            u32_at(8).to_string(),
-            u32_at(12).to_string(),
-            filetime(u64::from_le_bytes(bytes[60..68].try_into().unwrap())),
+            u32_at(4)?.to_string(),
+            u32_at(8)?.to_string(),
+            u32_at(12)?.to_string(),
+            filetime(le_u64(bytes, 60)?),
         ]),
         16 => Some([
             // XP starts counting at 5.
-            u32_at(4).saturating_sub(5).to_string(),
+            u32_at(4)?.saturating_sub(5).to_string(),
             String::new(),
             String::new(),
-            filetime(u64::from_le_bytes(bytes[8..16].try_into().unwrap())),
+            filetime(le_u64(bytes, 8)?),
         ]),
         _ => None,
     }
@@ -91,11 +93,15 @@ pub(super) fn sha1(data: &[u8]) -> [u8; 20] {
     message.extend_from_slice(&((data.len() as u64) * 8).to_be_bytes());
     for block in message.chunks_exact(64) {
         let mut w = [0u32; 80];
-        for (i, word) in block.chunks_exact(4).enumerate() {
-            w[i] = u32::from_be_bytes(word.try_into().unwrap());
+        for (slot, word) in w.iter_mut().zip(block.as_chunks::<4>().0) {
+            *slot = u32::from_be_bytes(*word);
         }
         for i in 16..80 {
-            w[i] = (w[i - 3] ^ w[i - 8] ^ w[i - 14] ^ w[i - 16]).rotate_left(1);
+            let at = |k: usize| w.get(k).copied().unwrap_or(0);
+            let value = (at(i - 3) ^ at(i - 8) ^ at(i - 14) ^ at(i - 16)).rotate_left(1);
+            if let Some(slot) = w.get_mut(i) {
+                *slot = value;
+            }
         }
         let [mut a, mut b, mut c, mut d, mut e] = h;
         for (i, word) in w.iter().enumerate() {
@@ -136,8 +142,10 @@ pub(super) fn service_sid(name: &str) -> String {
         .collect();
     let digest = sha1(&bytes);
     let parts: Vec<String> = digest
-        .chunks_exact(4)
-        .map(|c| u32::from_le_bytes(c.try_into().unwrap()).to_string())
+        .as_chunks::<4>()
+        .0
+        .iter()
+        .map(|c| u32::from_le_bytes(*c).to_string())
         .collect();
     format!("S-1-5-80-{}", parts.join("-"))
 }
@@ -220,18 +228,18 @@ impl Windows<'_> {
         r.diagnostics = hives.diagnostics;
         for hive in hives.rows {
             job.check()?;
-            if !hive[1].to_ascii_lowercase().ends_with("system") {
+            if !hive.at(1)?.to_ascii_lowercase().ends_with("system") {
                 continue;
             }
-            let address = u64::from_str_radix(hive[0].trim_start_matches("0x"), 16)?;
+            let address = u64::from_str_radix(hive.at(0)?.trim_start_matches("0x"), 16)?;
             let Some(cs) = self.current_control_set(address, job, &mut r)? else {
                 continue;
             };
             let key = format!("{cs}\\Services");
             if let Some(services) = self.optional_registry(address, &key, job, &mut r)? {
-                for service in services.rows.iter().filter(|row| row[2] == "SubKey") {
+                for service in services.rows.iter().filter(|row| row.cell(2) == "SubKey") {
                     r.rows
-                        .push(vec![service_sid(&service[3]), service[3].clone()]);
+                        .push(vec![service_sid(service.at(3)?), service.at(3)?.clone()]);
                 }
             }
         }
@@ -245,26 +253,26 @@ impl Windows<'_> {
         r.diagnostics = hives.diagnostics;
         for hive in hives.rows {
             job.check()?;
-            if !hive[1].to_ascii_lowercase().ends_with("ntuser.dat") {
+            if !hive.at(1)?.to_ascii_lowercase().ends_with("ntuser.dat") {
                 continue;
             }
-            let address = u64::from_str_radix(hive[0].trim_start_matches("0x"), 16)?;
+            let address = u64::from_str_radix(hive.at(0)?.trim_start_matches("0x"), 16)?;
             if options.hive.is_some_and(|selected| selected != address) {
                 continue;
             }
             let Some(root) = self.optional_registry(address, USERASSIST, job, &mut r)? else {
                 continue;
             };
-            for guid in root.rows.iter().filter(|row| row[2] == "SubKey") {
-                let key = format!("{USERASSIST}\\{}\\Count", guid[3]);
+            for guid in root.rows.iter().filter(|row| row.cell(2) == "SubKey") {
+                let key = format!("{USERASSIST}\\{}\\Count", *guid.at(3)?);
                 let Some(values) = self.optional_registry(address, &key, job, &mut r)? else {
                     continue;
                 };
-                for value in values.rows.iter().filter(|row| row[2] == "Value") {
+                for value in values.rows.iter().filter(|row| row.cell(2) == "Value") {
                     job.check()?;
-                    let bytes: Option<Vec<u8>> = (0..value[5].len())
+                    let bytes: Option<Vec<u8>> = (0..value.at(5)?.len())
                         .step_by(2)
-                        .map(|i| u8::from_str_radix(value[5].get(i..i + 2)?, 16).ok())
+                        .map(|i| u8::from_str_radix(value.get(5)?.get(i..i + 2)?, 16).ok())
                         .collect();
                     let Some([count, focus, focus_time, last]) =
                         bytes.as_deref().and_then(userassist_record)
@@ -272,9 +280,9 @@ impl Windows<'_> {
                         continue;
                     };
                     r.rows.push(vec![
-                        hive[1].clone(),
-                        guid[3].clone(),
-                        rot13(&value[3]),
+                        hive.at(1)?.clone(),
+                        guid.at(3)?.clone(),
+                        rot13(value.at(3)?),
                         count,
                         focus,
                         focus_time,
@@ -283,7 +291,7 @@ impl Windows<'_> {
                 }
             }
         }
-        r.kernel_identity["coverage"] = serde_json::json!(
+        *r.kernel_identity.key_mut("coverage")? = serde_json::json!(
             "NTUSER.DAT hives loaded in memory; paged-out cells are reported as partial"
         );
         Ok(r)

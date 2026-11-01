@@ -36,7 +36,7 @@ fn data_section(
         let mut bytes = [0; 40];
         read(add(sections, index * 40)?, &mut bytes)?;
         let end = bytes[..8].iter().position(|b| *b == 0).unwrap_or(8);
-        if &bytes[..end] == b".data" {
+        if bytes.at(..end)? == b".data" {
             let size = u64::from(u32::from_le_bytes(bytes[8..12].try_into()?));
             let start = add(
                 base,
@@ -75,10 +75,10 @@ fn scan(
     let mut at = section.start;
     while at < end {
         job.check()?;
-        let n = (4096 - (at & 4095)).min(end - at) as usize;
+        let n = usize::try_from((4096 - (at & 4095)).min(end - at))?;
         // At an unaligned virtual section base, preserve the section-relative DWORD grid.
         let n = if n < 4 {
-            4.min((end - at) as usize)
+            4.min(usize::try_from(end - at)?)
         } else {
             n - n % 4
         };
@@ -103,7 +103,7 @@ fn scan(
                 "TrueCrypt 候选密码长度为负数；固定参考同样无法构造该记录"
             );
             let offset = add(at, index as u64 * 4 + 4)?;
-            let mut password = vec![0; length as usize];
+            let mut password = vec![0; usize::try_from(length)?];
             let mut padding = [0; 3];
             let found = (|| -> Result<bool> {
                 if !password.is_empty() {
@@ -152,7 +152,7 @@ impl Windows<'_> {
             .iter()
             .find(|m| m.name.to_lowercase() == "truecrypt.sys")
         else {
-            r.kernel_identity["truecrypt"] = serde_json::json!({"module_found":false,"min_length":options.min_length.unwrap_or(5)});
+            *r.kernel_identity.key_mut("truecrypt")? = serde_json::json!({"module_found":false,"min_length":options.min_length.unwrap_or(5)});
             return Ok(r);
         };
         let section = data_section(module.base, |at, b| self.vm.read_captured(at, b), job)?;
@@ -171,7 +171,7 @@ impl Windows<'_> {
                 ),
             );
         }
-        r.kernel_identity["truecrypt"] = serde_json::json!({"module_found":true,"module_base":hex(module.base),"section_start":hex(section.start),"section_size":section.size,"min_length":min,"length_words":found.length_words,"missing_words":found.missing_words,"missing_records":found.missing_records,"stopped":found.stopped,"scan_limit":SCAN_LIMIT,"hit_limit":HIT_LIMIT,"terminator":"pinned reference skips the would-be NUL byte; requires the following three zero bytes"});
+        *r.kernel_identity.key_mut("truecrypt")? = serde_json::json!({"module_found":true,"module_base":hex(module.base),"section_start":hex(section.start),"section_size":section.size,"min_length":min,"length_words":found.length_words,"missing_words":found.missing_words,"missing_records":found.missing_records,"stopped":found.stopped,"scan_limit":SCAN_LIMIT,"hit_limit":HIT_LIMIT,"terminator":"pinned reference skips the would-be NUL byte; requires the following three zero bytes"});
         r.rows = found
             .rows
             .into_iter()

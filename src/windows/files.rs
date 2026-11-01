@@ -16,10 +16,12 @@ type Bits = (u64, u64);
 fn bits(isf: &Isf, path: &str) -> Result<Bits> {
     let field = isf.field("_MMPTE", path)?;
     Ok((
-        field["type"]["bit_position"]
+        field["type"]
+            .key("bit_position")
             .as_u64()
             .context("PTE 位域缺少位置")?,
-        field["type"]["bit_length"]
+        field["type"]
+            .key("bit_length")
             .as_u64()
             .context("PTE 位域缺少长度")?,
     ))
@@ -41,7 +43,8 @@ struct PteLayout {
 }
 fn pte_layout(isf: &Isf) -> Result<PteLayout> {
     Ok(PteLayout {
-        size: isf.data["user_types"]["_MMPTE"]["size"]
+        size: isf.data.key("user_types")["_MMPTE"]
+            .key("size")
             .as_u64()
             .context("缺少 _MMPTE")?,
         valid: bits(isf, "u.Hard.Valid")?,
@@ -90,7 +93,8 @@ impl Windows<'_> {
         // ImageSection 按 0x200 扇区对齐磁盘；DataSection 按页。
         let sector = if image { 0x200 } else { 0x1000 };
         let layout = pte_layout(isf)?;
-        let ca_size = isf.data["user_types"]["_CONTROL_AREA"]["size"]
+        let ca_size = isf.data.key("user_types")["_CONTROL_AREA"]
+            .key("size")
             .as_u64()
             .context("缺少 _CONTROL_AREA 大小")?;
         let mut pages = BTreeMap::new();
@@ -116,12 +120,15 @@ impl Windows<'_> {
                 for index in 0..count {
                     job.check()?;
                     let address = add(base, index * layout.size)?;
-                    let entry = self.vm.uint(address, layout.size as usize)?;
+                    let entry = self.vm.uint(address, usize::try_from(layout.size)?)?;
                     if let Some(frame) = pte_frame(entry, &layout)
                         && frame != 0
                         && pages.insert(start + index * 4096, frame << 12).is_none()
                     {
-                        ensure!(pages.len() <= MAX_FILE_PAGES as usize, "文件页数超限");
+                        ensure!(
+                            pages.len() <= usize::try_from(MAX_FILE_PAGES)?,
+                            "文件页数超限"
+                        );
                     }
                 }
                 Ok(true)
@@ -211,11 +218,7 @@ impl Windows<'_> {
                     Ok(())
                 })();
                 if let Err(e) = read {
-                    Self::issue(
-                        r,
-                        format!("PID {} VAD {:#x}", process.pid as u32, vad.address),
-                        e,
-                    );
+                    Self::issue(r, format!("PID {} VAD {:#x}", process.pid, vad.address), e);
                 }
             }
             Ok(files)
@@ -271,7 +274,7 @@ impl Windows<'_> {
                 let write = (|| -> Result<Vec<String>> {
                     let written = self.write_cached_file(
                         &cached,
-                        process.pid as u32,
+                        u32::try_from(process.pid)?,
                         file_object,
                         options,
                         &mut total,
@@ -325,9 +328,9 @@ impl Windows<'_> {
             Self::account(total, gap)?;
             let mut remaining = gap;
             while remaining > 0 {
-                let n = (remaining as usize).min(zeros.len());
-                tmp.write_all(&zeros[..n])?;
-                hash.update(&zeros[..n]);
+                let n = usize::try_from(remaining)?.min(zeros.len());
+                tmp.write_all(zeros.at(..n)?)?;
+                hash.update(zeros.at(..n)?);
                 remaining -= n as u64;
             }
             position += gap;

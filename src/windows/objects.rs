@@ -41,7 +41,8 @@ impl Windows<'_> {
         let root = code & !7;
         let max = self.number(table, "_HANDLE_TABLE", "NextHandleNeedingPool")?;
         ensure!(max / 4 <= MAX_OBJECTS as u64, "句柄表超限");
-        let size = self.vm.isf.data["user_types"]["_HANDLE_TABLE_ENTRY"]["size"]
+        let size = self.vm.isf.data.key("user_types")["_HANDLE_TABLE_ENTRY"]
+            .key("size")
             .as_u64()
             .context("缺少句柄条目大小")?;
         ensure!(size > 0 && 4096 % size == 0, "无效句柄条目大小");
@@ -58,7 +59,7 @@ impl Windows<'_> {
             .isf
             .field("_HANDLE_TABLE_ENTRY", "ObjectPointerBits")
             .ok()
-            .and_then(|field| field["type"]["bit_length"].as_u64());
+            .and_then(|field| field["type"].key("bit_length").as_u64());
         let access_field = if self
             .vm
             .isf
@@ -70,12 +71,12 @@ impl Windows<'_> {
         };
         let mut out = Vec::new();
         let mut diagnostics = Vec::new();
-        for first in (0..max / 4).step_by(per as usize) {
+        for first in (0..max / 4).step_by(usize::try_from(per)?) {
             job.check()?;
             let mut page = root;
             let slot = first / per;
             for level in (0..levels).rev() {
-                let n = (slot >> (level as u32 * index_shift)) & (pointers_per_page - 1);
+                let n = (slot >> (u32::try_from(level)? * index_shift)) & (pointers_per_page - 1);
                 page = self.vm.pointer(add(page, n * pointer_size)?)?;
                 if page == 0 {
                     break;
@@ -91,7 +92,9 @@ impl Windows<'_> {
             }
             for index in first..(first + per).min(max / 4) {
                 job.check()?;
-                let entry = &entries[((index % per) * size) as usize..][..size as usize];
+                let entry = entries
+                    .at(usize::try_from((index % per) * size)?..)?
+                    .at(..usize::try_from(size)?)?;
                 let read = (|| -> Result<Option<(u64, u64, u64)>> {
                     let header = if object_pointer_bits {
                         let bits = physical_number(
@@ -217,7 +220,7 @@ impl Windows<'_> {
         let mut bytes = [0u8; 8];
         self.vm.image.read(
             add(address, layout.offset)?,
-            &mut bytes[..layout.size as usize],
+            bytes.at_mut(..usize::try_from(layout.size)?)?,
         )?;
         json_number(self.vm.isf, u64::from_le_bytes(bytes), ty, field)
     }
@@ -337,10 +340,12 @@ impl Windows<'_> {
     }
     fn pool_processes(&self, job: &Job) -> Result<Vec<Process>> {
         let isf = self.vm.isf;
-        let header_size = isf.data["user_types"]["_POOL_HEADER"]["size"]
+        let header_size = isf.data.key("user_types")["_POOL_HEADER"]
+            .key("size")
             .as_u64()
             .context("缺少 _POOL_HEADER")?;
-        let size = isf.data["user_types"]["_EPROCESS"]["size"]
+        let size = isf.data.key("user_types")["_EPROCESS"]
+            .key("size")
             .as_u64()
             .context("缺少 _EPROCESS")?;
         ensure!(size <= 65536 && header_size <= 64, "无效进程池结构大小");
@@ -358,7 +363,7 @@ impl Windows<'_> {
                 if header % alignment != 0 {
                     continue;
                 }
-                let mut bytes = vec![0; header_size as usize];
+                let mut bytes = vec![0; usize::try_from(header_size)?];
                 if self.vm.image.read(header, &mut bytes).is_err() {
                     continue;
                 }
@@ -367,25 +372,26 @@ impl Windows<'_> {
                     continue;
                 }
                 // Object optional headers vary: locate and validate the object body inside the allocation.
-                for delta in (header_size..=block - size).step_by(alignment as usize) {
+                for delta in (header_size..=block - size).step_by(usize::try_from(alignment)?) {
                     let address = header + delta;
                     if !seen.insert(address) {
                         continue;
                     }
-                    let mut b = vec![0; size as usize];
+                    let mut b = vec![0; usize::try_from(size)?];
                     if self.vm.image.read(address, &mut b).is_err() {
                         continue;
                     }
                     let parsed = (|| -> Result<Process> {
                         let pid = physical_number(isf, &b, "_EPROCESS", "UniqueProcessId")?;
                         ensure!(pid <= u32::MAX as u64 && pid % 4 == 0, "无效 PID");
-                        let offset = isf.offset("_EPROCESS", "ImageFileName")? as usize;
+                        let offset = usize::try_from(isf.offset("_EPROCESS", "ImageFileName")?)?;
                         let len = isf.size("_EPROCESS", "ImageFileName")?;
                         let raw = b.get(offset..offset + len).context("进程名称越界")?;
                         let end = raw.iter().position(|b| *b == 0).unwrap_or(raw.len());
                         ensure!(
                             end > 0
-                                && raw[..end]
+                                && raw
+                                    .at(..end)?
                                     .iter()
                                     .all(|b| b.is_ascii_graphic() || *b == b' '),
                             "无效名称"
@@ -415,7 +421,7 @@ impl Windows<'_> {
                                 "_EPROCESS",
                                 "InheritedFromUniqueProcessId",
                             )?,
-                            name: String::from_utf8_lossy(&raw[..end]).into_owned(),
+                            name: String::from_utf8_lossy(raw.at(..end)?).into_owned(),
                             dtb,
                             threads,
                             handles: None,
@@ -435,11 +441,11 @@ impl Windows<'_> {
     }
 }
 pub(super) fn physical_number(isf: &Isf, bytes: &[u8], ty: &str, field: &str) -> Result<u64> {
-    let offset = isf.offset(ty, field)? as usize;
+    let offset = usize::try_from(isf.offset(ty, field)?)?;
     let size = isf.size(ty, field)?;
     ensure!(matches!(size, 1 | 2 | 4 | 8), "无效物理字段宽度");
     let mut b = [0; 8];
-    b[..size].copy_from_slice(
+    b.at_mut(..size)?.copy_from_slice(
         bytes
             .get(offset..offset.checked_add(size).context("物理字段偏移溢出")?)
             .context("物理字段越界")?,

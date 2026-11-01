@@ -40,7 +40,7 @@ fn utf16(bytes: &[u8]) -> Result<String> {
     Ok(String::from_utf16_lossy(
         &bytes
             .chunks_exact(2)
-            .map(|c| u16::from_le_bytes([c[0], c[1]]))
+            .map(|c| crate::bytes::le_u16(c, 0).unwrap_or(0))
             .collect::<Vec<_>>(),
     ))
 }
@@ -61,11 +61,11 @@ fn bootkey_from_classes(classes: [&[u8]; 4]) -> Result<[u8; 16]> {
     ensure!(text.len() == 32, "bootkey 片段长度无效");
     let mut raw = [0u8; 16];
     for (i, pair) in text.as_bytes().chunks_exact(2).enumerate() {
-        raw[i] = u8::from_str_radix(std::str::from_utf8(pair)?, 16)?;
+        *raw.at_mut(i)? = u8::from_str_radix(std::str::from_utf8(pair)?, 16)?;
     }
     let mut out = [0u8; 16];
     for (i, &p) in BOOTKEY_PERM.iter().enumerate() {
-        out[i] = raw[p];
+        *out.at_mut(i)? = *raw.at(p)?;
     }
     Ok(out)
 }
@@ -73,21 +73,21 @@ fn bootkey_from_classes(classes: [&[u8]; 4]) -> Result<[u8; 16]> {
 /// SAM `Domains\Account` 的 F 值 → hbootkey（Vista+ AES / XP RC4）。
 fn hbootkey_from_f(f: &[u8], bootkey: &[u8; 16]) -> Result<Vec<u8>> {
     ensure!(f.len() >= 0xa8, "SAM F 值截断");
-    match f[0] {
+    match *f.at(0)? {
         3 => {
-            let iv: [u8; 16] = f[0x78..0x88].try_into()?;
-            let mut enc = f[0x88..0xa8].to_vec();
+            let iv: [u8; 16] = f.at(0x78..0x88)?.try_into()?;
+            let mut enc = f.at(0x88..0xa8)?.to_vec();
             crypto::aes_cbc_decrypt(bootkey, &iv, &mut enc)?;
-            Ok(enc[..16].to_vec())
+            Ok(enc.at(..16)?.to_vec())
         }
         2 => {
             let mut material = Vec::new();
-            material.extend_from_slice(&f[0x70..0x80]);
+            material.extend_from_slice(f.at(0x70..0x80)?);
             material.extend_from_slice(AQWERTY);
             material.extend_from_slice(bootkey);
             material.extend_from_slice(ANUM);
             let key = crypto::md5(&material);
-            let mut out = f[0x80..0xa0].to_vec();
+            let mut out = f.at(0x80..0xa0)?.to_vec();
             crypto::rc4(&key, &mut out)?;
             Ok(out)
         }
@@ -107,14 +107,14 @@ fn sam_hash(
     nt: bool,
 ) -> Result<Option<[u8; 16]>> {
     ensure!(offset + 3 < v.len(), "SAM V 值哈希段越界");
-    let revision = v[offset + 2];
+    let revision = *v.at(offset + 2)?;
     let obf = match (revision, length) {
         (1, 20) => {
             let mut enc = v
                 .get(offset + 4..offset + 20)
                 .context("SAM V 值哈希段截断")?
                 .to_vec();
-            let mut material = hbootkey[..16].to_vec();
+            let mut material = hbootkey.at(..16)?.to_vec();
             material.extend_from_slice(&rid.to_le_bytes());
             material.extend_from_slice(pwd);
             crypto::rc4(&crypto::md5(&material), &mut enc)?;
@@ -134,15 +134,15 @@ fn sam_hash(
                 .get(enc_at..enc_at + 32)
                 .context("SAM V 值哈希段截断")?
                 .to_vec();
-            crypto::aes_cbc_decrypt(&hbootkey[..16], &iv, &mut enc)?;
-            enc[..16].to_vec()
+            crypto::aes_cbc_decrypt(hbootkey.at(..16)?, &iv, &mut enc)?;
+            enc.at(..16)?.to_vec()
         }
         _ => return Ok(None),
     };
     ensure!(obf.len() == 16, "SAM 哈希段长度无效");
     let (k1, k2) = crypto::sid_to_key(rid);
-    let mut first: [u8; 8] = obf[..8].try_into()?;
-    let mut second: [u8; 8] = obf[8..16].try_into()?;
+    let mut first: [u8; 8] = obf.at(..8)?.try_into()?;
+    let mut second: [u8; 8] = obf.at(8..16)?.try_into()?;
     crypto::des_ecb_decrypt(&k1, &mut first)?;
     crypto::des_ecb_decrypt(&k2, &mut second)?;
     let mut out = [0u8; 16];
@@ -173,7 +173,7 @@ fn sam_user(v: &[u8], rid: u32, hbootkey: &[u8]) -> Result<SamUser> {
     );
     Ok(SamUser {
         rid,
-        name: utf16(&v[name_off..name_off + name_len])?,
+        name: utf16(v.at(name_off..name_off + name_len)?)?,
         lm: sam_hash(v, lm_off, lm_len, rid, hbootkey, LM_PASSWORD, false)?,
         nt: sam_hash(v, nt_off, nt_len, rid, hbootkey, NT_PASSWORD, true)?,
     })
@@ -186,13 +186,13 @@ fn lsa_decrypt_blocks(secret: &[u8], key: &[u8]) -> Result<Vec<u8>> {
     let mut sha = sha2::Sha256::new();
     sha.update(key);
     for _ in 0..1000 {
-        sha.update(&secret[28..60]);
+        sha.update(secret.at(28..60)?);
     }
     let aeskey = sha.finalize();
     let mut out = Vec::with_capacity(secret.len() - 60);
     let mut block = [0u8; 16];
-    for chunk in secret[60..].chunks(16) {
-        block[..chunk.len()].copy_from_slice(chunk);
+    for chunk in secret.at(60..)?.chunks(16) {
+        block.at_mut(..chunk.len())?.copy_from_slice(chunk);
         crypto::aes_cbc_decrypt(&aeskey, &[0; 16], &mut block)?;
         out.extend_from_slice(&block);
     }
@@ -203,19 +203,19 @@ fn lsa_decrypt_blocks(secret: &[u8], key: &[u8]) -> Result<Vec<u8>> {
 fn lsa_key_vista(obf: &[u8], bootkey: &[u8; 16]) -> Result<Vec<u8>> {
     let dec = lsa_decrypt_blocks(obf, bootkey)?;
     ensure!(dec.len() >= 100, "LSA 密钥数据截断");
-    Ok(dec[68..100].to_vec())
+    Ok(dec.at(68..100)?.to_vec())
 }
 /// SECURITY `Policy\PolSecretEncryptionKey` 值 → 16 字节 LSA 密钥（XP）。
 fn lsa_key_xp(obf: &[u8], bootkey: &[u8; 16]) -> Result<Vec<u8>> {
     ensure!(obf.len() >= 76, "LSA 密钥数据截断");
     let mut material = bootkey.to_vec();
     for _ in 0..1000 {
-        material.extend_from_slice(&obf[60..76]);
+        material.extend_from_slice(obf.at(60..76)?);
     }
-    let mut out = obf[12..60].to_vec();
+    let mut out = obf.at(12..60)?.to_vec();
     crypto::rc4(&crypto::md5(&material), &mut out)?;
     ensure!(out.len() >= 0x20, "LSA 密钥截断");
-    Ok(out[0x10..0x20].to_vec())
+    Ok(out.at(0x10..0x20)?.to_vec())
 }
 
 /// XP SystemFunction005 风格 DES 链解密 LSA 机密。
@@ -225,7 +225,7 @@ fn decrypt_secret_xp(secret: &[u8], key: &[u8]) -> Result<Vec<u8>> {
     let mut j = 0usize;
     for block in secret.chunks(8) {
         let mut buf = [0u8; 8];
-        buf[..block.len()].copy_from_slice(block);
+        buf.at_mut(..block.len())?.copy_from_slice(block);
         let material: [u8; 7] = key
             .get(j..j + 7)
             .context("LSA 密钥段截断")?
@@ -241,7 +241,7 @@ fn decrypt_secret_xp(secret: &[u8], key: &[u8]) -> Result<Vec<u8>> {
     ensure!(out.len() >= 12, "LSA 机密数据截断");
     let length = u32le(&out, 0)? as usize;
     ensure!(8 + length <= out.len(), "LSA 机密长度越界");
-    Ok(out[8..8 + length].to_vec())
+    Ok(out.at(8..8 + length)?.to_vec())
 }
 
 struct CacheSlot {
@@ -258,7 +258,7 @@ fn cache_header(data: &[u8]) -> Result<(usize, usize, usize, [u8; 16], usize)> {
         u16le(data, 0)? as usize,
         u16le(data, 2)? as usize,
         u16le(data, 60)? as usize,
-        data[64..80].try_into()?,
+        data.at(64..80)?.try_into()?,
         96,
     ))
 }
@@ -286,7 +286,7 @@ fn cache_fields(
     ensure!(dec.len() >= 0x10, "缓存凭据数据截断");
     let field = |offset: usize, length: usize| -> Result<String> {
         ensure!(offset + length <= dec.len(), "缓存凭据字段越界");
-        utf16(&dec[offset..offset + length])
+        utf16(dec.at(offset..offset + length)?)
     };
     let uname_off = 72;
     let domain_off = uname_off + uname_len + 2 * ((uname_len / 2) % 2);
@@ -295,7 +295,7 @@ fn cache_fields(
         user: field(uname_off, uname_len)?,
         domain: field(domain_off, domain_len)?,
         domain_name: field(dn_off, dn_len)?,
-        hash: dec[..16].try_into()?,
+        hash: dec.at(..16)?.try_into()?,
     })
 }
 /// hashcat 可直接使用的 DCC 行（2100 模式；XP 为 mscash-v1）。
@@ -318,7 +318,12 @@ impl Windows<'_> {
             let child = self.subkey_named(hhive, lsa, name, job)?;
             classes.push(self.key_class(hhive, child)?);
         }
-        bootkey_from_classes([&classes[0], &classes[1], &classes[2], &classes[3]])
+        bootkey_from_classes([
+            classes.at(0)?,
+            classes.at(1)?,
+            classes.at(2)?,
+            classes.at(3)?,
+        ])
     }
     /// bootkey + LSA 密钥 + 是否 Vista+ 路径；任一环节失败记诊断返回 `None`。
     fn cred_keys(&self, job: &Job, r: &mut Results) -> Result<Option<CredKeys>> {
@@ -395,7 +400,7 @@ impl Windows<'_> {
             Ok(Some(lsa_decrypt_blocks(&enc, lsa_key)?))
         } else {
             ensure!(enc.len() >= 0xc, "LSA 机密截断");
-            Ok(Some(decrypt_secret_xp(&enc[0xc..], lsa_key)?))
+            Ok(Some(decrypt_secret_xp(enc.at(0xc..)?, lsa_key)?))
         }
     }
     /// windows.hashdump：SAM hive 用户 NTLM/LM 哈希。
@@ -551,9 +556,9 @@ impl Windows<'_> {
                             return Ok(());
                         }
                         let dec = if vista {
-                            decrypt_cache_vista(&data[enc_at..], &nlkm, &salt)?
+                            decrypt_cache_vista(data.at(enc_at..)?, &nlkm, &salt)?
                         } else {
-                            decrypt_cache_xp(&data[enc_at..], &nlkm, &salt)?
+                            decrypt_cache_xp(data.at(enc_at..)?, &nlkm, &salt)?
                         };
                         let slot = cache_fields(&dec, uname_len, domain_len, dn_len)?;
                         let dcc = dcc_line(&slot, vista);

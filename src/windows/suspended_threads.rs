@@ -1,6 +1,7 @@
 //! Suspended live threads, with file-backed VAD and exact module-symbol attribution.
 use super::thread_symbols::file_for_address;
 use super::*;
+use crate::bytes::MapAt as _;
 use std::collections::BTreeMap;
 
 struct SuspendedThread {
@@ -123,7 +124,7 @@ impl Windows<'_> {
                         vad_bytes += bytes;
                         entry.insert((owner, vads));
                     }
-                    let (owner, vads) = &owner_vads[&t.owner];
+                    let (owner, vads) = owner_vads.at(&t.owner)?;
                     ensure!(owner.pid == t.pid, "线程 CID 与归属进程 PID 不一致");
                     if vads.is_empty() {
                         return Ok(None);
@@ -175,7 +176,7 @@ impl Windows<'_> {
         job.check()?;
         let symbol_queries =
             self.thread_address_symbols(&mut result, &[(3, 4, 5), (6, 7, 8)], resources, job)?;
-        result.kernel_identity["suspended_threads"] = serde_json::json!({"examined":examined,"suspended_live":suspended,"excluded_workfolders":excluded,"owner_vad_views":owner_vads.len(),"symbol_queries":symbol_queries,"vad_cache_bytes":vad_bytes,"output_text_bytes":output_bytes,"max_threads":max_threads,"max_vad_bytes":max_vad_bytes});
+        *result.kernel_identity.key_mut("suspended_threads")? = serde_json::json!({"examined":examined,"suspended_live":suspended,"excluded_workfolders":excluded,"owner_vad_views":owner_vads.len(),"symbol_queries":symbol_queries,"vad_cache_bytes":vad_bytes,"output_text_bytes":output_bytes,"max_threads":max_threads,"max_vad_bytes":max_vad_bytes});
         Ok(result)
     }
 }

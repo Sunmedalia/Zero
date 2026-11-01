@@ -3,6 +3,7 @@
 //! `text` searches ASCII/UTF-8 bytes, `wide:text` searches UTF-16LE, and
 //! `hex:4d5a??00` searches bytes with `??` single-byte wildcards. Patterns are
 //! data only: nothing is compiled or executed.
+use crate::bytes::Checked as _;
 use anyhow::{Context, Result, bail, ensure};
 
 const MAX_LENGTH: usize = 256;
@@ -57,7 +58,12 @@ impl Pattern {
         if best.1 - best.0 < 2 {
             bail!("模式至少需要连续 2 个确定字节");
         }
-        let anchor = bytes[best.0..best.1].iter().map(|b| b.unwrap()).collect();
+        let anchor = bytes
+            .at(best.0..best.1)?
+            .iter()
+            .flatten()
+            .copied()
+            .collect();
         Ok(Self {
             bytes,
             anchor: (best.0, anchor),
@@ -136,7 +142,7 @@ pub fn scan_region(
     let mut out = RegionScan::default();
     let mut carry: Vec<u8> = Vec::new();
     let mut page = start & !(PAGE - 1);
-    let mut bytes = vec![0u8; PAGE as usize];
+    let mut bytes = vec![0u8; usize::try_from(PAGE)?];
     while page < end {
         if read(page, &mut bytes).is_err() {
             out.unreadable += 1;
@@ -158,7 +164,7 @@ pub fn scan_region(
                 return Ok(out);
             }
             let stop = carry.len().min(offset + CONTEXT);
-            out.hits.push((address, carry[offset..stop].to_vec()));
+            out.hits.push((address, carry.at(offset..stop)?.to_vec()));
         }
         let keep = pattern.len().saturating_sub(1).min(carry.len());
         carry.drain(..carry.len() - keep);

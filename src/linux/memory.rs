@@ -1,22 +1,26 @@
 //! Process memory views: mappings, ELF headers, injected code and bash history.
 use super::*;
+use crate::bytes::JsonKey as _;
 pub(super) fn header(bytes: &[u8], arm: bool) -> Result<(String, u64)> {
-    ensure!(bytes.len() >= 64 && &bytes[..4] == b"\x7fELF", "非 ELF 头");
     ensure!(
-        bytes[4] == 2 && bytes[5] == 1 && bytes[6] == 1,
+        bytes.len() >= 64 && bytes.at(..4)? == b"\x7fELF",
+        "非 ELF 头"
+    );
+    ensure!(
+        *bytes.at(4)? == 2 && *bytes.at(5)? == 1 && *bytes.at(6)? == 1,
         "不支持的 ELF class／字节序／版本"
     );
-    let machine = u16::from_le_bytes(bytes[18..20].try_into()?);
+    let machine = u16::from_le_bytes(bytes.at(18..20)?.try_into()?);
     ensure!(machine == if arm { 183 } else { 62 }, "ELF 架构不一致");
-    let kind = u16::from_le_bytes(bytes[16..18].try_into()?);
+    let kind = u16::from_le_bytes(bytes.at(16..18)?.try_into()?);
     ensure!(matches!(kind, 2 | 3), "ELF 非 EXEC／DYN");
     ensure!(
-        u16::from_le_bytes(bytes[52..54].try_into()?) == 64,
+        u16::from_le_bytes(bytes.at(52..54)?.try_into()?) == 64,
         "ELF header size 无效"
     );
     Ok((
         if kind == 2 { "EXEC" } else { "DYN" }.into(),
-        u64::from_le_bytes(bytes[24..32].try_into()?),
+        u64::from_le_bytes(bytes.at(24..32)?.try_into()?),
     ))
 }
 impl Linux<'_> {
@@ -96,7 +100,7 @@ impl Linux<'_> {
                             job.check()?;
                             partial(
                                 result,
-                                format!("PID {} VMA {} 路径", prefix[0], hex(node)),
+                                format!("PID {} VMA {} 路径", *prefix.at(0)?, hex(node)),
                                 e,
                             );
                             "[unresolved]".into()
@@ -118,7 +122,11 @@ impl Linux<'_> {
             })();
             match row {
                 Ok(row) => result.rows.push(row),
-                Err(e) => partial(result, format!("PID {} VMA {}", prefix[0], hex(node)), e),
+                Err(e) => partial(
+                    result,
+                    format!("PID {} VMA {}", *prefix.at(0)?, hex(node)),
+                    e,
+                ),
             }
             node = next;
         }
@@ -195,8 +203,8 @@ impl Linux<'_> {
                         let amount = if headers { 64 } else { 32 };
                         ensure!(budget >= amount, "用户读取达到 256 MiB 上限");
                         budget -= amount;
-                        bytes[..amount as usize].fill(0);
-                        vm.read(start, &mut bytes[..amount as usize])?;
+                        bytes.at_mut(..usize::try_from(amount)?)?.fill(0);
+                        vm.read(start, bytes.at_mut(..usize::try_from(amount)?)?)?;
                         if headers && !bytes.starts_with(b"\x7fELF") {
                             return Ok(());
                         }
@@ -264,7 +272,8 @@ impl Linux<'_> {
                                 perms,
                                 path,
                                 reason.into(),
-                                bytes[..amount as usize]
+                                bytes
+                                    .at(..usize::try_from(amount)?)?
                                     .iter()
                                     .map(|b| format!("{b:02x}"))
                                     .collect::<Vec<_>>()
@@ -373,7 +382,7 @@ impl Linux<'_> {
                 partial(&mut r, format!("PID {} {:#x}", task.pid, task.address), e);
             }
         }
-        r.kernel_identity["pattern"] = serde_json::json!(pattern.source());
+        *r.kernel_identity.key_mut("pattern")? = serde_json::json!(pattern.source());
         Ok(r)
     }
     pub(super) fn bash_history(
@@ -405,11 +414,11 @@ impl Linux<'_> {
                 match vm.read(pos, &mut bytes) {
                     Ok(()) => {
                         for i in memchr::memchr_iter(b'#', &bytes) {
-                            let candidate = &bytes[i + 1..];
+                            let candidate = bytes.at(i + 1..)?;
                             let len = candidate.iter().take_while(|b| b.is_ascii_digit()).count();
                             if (9..=12).contains(&len) && candidate.get(len) == Some(&0) {
                                 let value =
-                                    std::str::from_utf8(&candidate[..len])?.parse::<u64>()?;
+                                    std::str::from_utf8(candidate.at(..len)?)?.parse::<u64>()?;
                                 if (315532800..=4102444800).contains(&value) {
                                     timestamps.insert(pos + i as u64, value.to_string());
                                 }
@@ -417,7 +426,7 @@ impl Linux<'_> {
                         }
                         blocks.push((pos, bytes));
                     }
-                    Err(e) => partial(r, format!("PID {} Bash 区域 {pos:#x}", prefix[0]), e),
+                    Err(e) => partial(r, format!("PID {} Bash 区域 {pos:#x}", *prefix.at(0)?), e),
                 }
                 pos += (n as u64).min(1024 * 1024);
             }
@@ -426,10 +435,10 @@ impl Linux<'_> {
         for (start, bytes) in &blocks {
             for i in (0..bytes.len().saturating_sub(23)).step_by(8) {
                 job.check()?;
-                let ts = u64::from_le_bytes(bytes[i + 8..i + 16].try_into()?);
+                let ts = u64::from_le_bytes(bytes.at(i + 8..i + 16)?.try_into()?);
                 if let Some(time) = timestamps.get(&ts) {
-                    let line = u64::from_le_bytes(bytes[i..i + 8].try_into()?);
-                    let data = u64::from_le_bytes(bytes[i + 16..i + 24].try_into()?);
+                    let line = u64::from_le_bytes(bytes.at(i..i + 8)?.try_into()?);
+                    let data = u64::from_le_bytes(bytes.at(i + 16..i + 24)?.try_into()?);
                     let ceiling = 1u64
                         << if self
                             .vm
@@ -456,7 +465,11 @@ impl Linux<'_> {
                             job.check()?;
                             partial(
                                 r,
-                                format!("PID {} Bash record {:#x}", prefix[0], start + i as u64),
+                                format!(
+                                    "PID {} Bash record {:#x}",
+                                    *prefix.at(0)?,
+                                    start + i as u64
+                                ),
                                 e,
                             );
                             continue;
@@ -479,7 +492,7 @@ impl Linux<'_> {
         let mut arrays = HashSet::new();
         for (start, bytes) in &blocks {
             for i in (0..bytes.len().saturating_sub(7)).step_by(8) {
-                let pointer = u64::from_le_bytes(bytes[i..i + 8].try_into()?);
+                let pointer = u64::from_le_bytes(bytes.at(i..i + 8)?.try_into()?);
                 if seen.contains(&pointer) {
                     arrays.insert(start + i as u64);
                 }
@@ -812,7 +825,9 @@ impl Linux<'_> {
                 ranges.sort_unstable();
                 ranges.dedup();
                 ensure!(
-                    ranges.windows(2).all(|pair| pair[0].1 <= pair[1].0),
+                    ranges
+                        .windows(2)
+                        .all(|pair| matches!(pair, [a, b] if a.1 <= b.0)),
                     "VMA 范围重叠"
                 );
                 let mut covered = start;

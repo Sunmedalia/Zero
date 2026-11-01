@@ -1,5 +1,6 @@
 //! Credential-decryption primitives for SAM/LSA secret analysis. Algorithms
 //! stay compatible with Volatility 3's hashdump/lsadump/cachedump lineage.
+use crate::bytes::Checked as _;
 use aes::cipher::{BlockDecrypt, KeyInit, generic_array::GenericArray};
 use anyhow::{Result, ensure};
 use hmac::{Hmac, Mac};
@@ -24,19 +25,22 @@ pub(super) fn hmac_md5(key: &[u8], data: &[u8]) -> Result<[u8; 16]> {
 /// RC4 keystream XOR in place.
 pub(super) fn rc4(key: &[u8], data: &mut [u8]) -> Result<()> {
     ensure!(!key.is_empty() && key.len() <= 256, "RC4 密钥长度无效");
-    let mut s: [u8; 256] = core::array::from_fn(|i| i as u8);
+    let mut s = [0u8; 256];
+    for (slot, value) in s.iter_mut().zip(0u8..=u8::MAX) {
+        *slot = value;
+    }
     let mut j = 0usize;
     for i in 0..256 {
-        j = (j + s[i] as usize + key[i % key.len()] as usize) & 0xff;
+        j = (j + *s.at(i)? as usize + *key.at(i % key.len())? as usize) & 0xff;
         s.swap(i, j);
     }
     let mut i = 0usize;
     let mut j = 0usize;
     for byte in data.iter_mut() {
         i = (i + 1) & 0xff;
-        j = (j + s[i] as usize) & 0xff;
+        j = (j + *s.at(i)? as usize) & 0xff;
         s.swap(i, j);
-        *byte ^= s[(s[i] as usize + s[j] as usize) & 0xff];
+        *byte ^= *s.at((*s.at(i)? as usize + *s.at(j)? as usize) & 0xff)?;
     }
     Ok(())
 }
@@ -60,8 +64,8 @@ pub(super) fn aes_cbc_decrypt(key: &[u8], iv: &[u8; 16], data: &mut [u8]) -> Res
 
 fn cbc_decrypt_all<C: BlockDecrypt>(cipher: &C, iv: &[u8; 16], data: &mut [u8]) -> Result<()> {
     let mut prev = *iv;
-    for chunk in data.chunks_exact_mut(16) {
-        let ciphertext: [u8; 16] = chunk.try_into().expect("16-byte chunk");
+    for chunk in data.as_chunks_mut::<16>().0 {
+        let ciphertext = *chunk;
         cipher.decrypt_block(GenericArray::from_mut_slice(chunk));
         for (byte, mask) in chunk.iter_mut().zip(prev.iter()) {
             *byte ^= mask;

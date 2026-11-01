@@ -1,12 +1,15 @@
 //! Driver pool candidates validated against a mapped DRIVER_EXTENSION back-reference.
 use super::*;
+use crate::bytes::Row as _;
 impl Windows<'_> {
     pub(super) fn drivers(&self, plugin: Plugin, job: &Job) -> Result<Results> {
         let isf = self.vm.isf;
-        let size = isf.data["user_types"]["_DRIVER_OBJECT"]["size"]
+        let size = isf.data.key("user_types")["_DRIVER_OBJECT"]
+            .key("size")
             .as_u64()
             .context("缺少 DRIVER_OBJECT")?;
-        let header_size = isf.data["user_types"]["_POOL_HEADER"]["size"]
+        let header_size = isf.data.key("user_types")["_POOL_HEADER"]
+            .key("size")
             .as_u64()
             .context("缺少 POOL_HEADER")?;
         let tag_offset = isf.offset("_POOL_HEADER", "PoolTag")?;
@@ -30,7 +33,7 @@ impl Windows<'_> {
                 if !header.is_multiple_of(alignment) {
                     continue;
                 }
-                let mut pool = vec![0; header_size as usize];
+                let mut pool = vec![0; usize::try_from(header_size)?];
                 if self.vm.image.read(header, &mut pool).is_err() {
                     continue;
                 }
@@ -40,9 +43,9 @@ impl Windows<'_> {
                 if block < header_size + size || block > 4096 {
                     continue;
                 }
-                for delta in (header_size..=block - size).step_by(alignment as usize) {
+                for delta in (header_size..=block - size).step_by(usize::try_from(alignment)?) {
                     let physical = add(header, delta)?;
-                    let mut b = vec![0; size as usize];
+                    let mut b = vec![0; usize::try_from(size)?];
                     if self.vm.image.read(physical, &mut b).is_err() {
                         continue;
                     }
@@ -142,7 +145,7 @@ impl Windows<'_> {
                 }
             }
         }
-        r.kernel_identity["coverage"] = serde_json::json!(
+        *r.kernel_identity.key_mut("coverage")? = serde_json::json!(
             "pool candidates with mapped extension back-reference; unavailable/freed objects may be absent; dispatch differences do not imply malicious behavior"
         );
         Ok(r)
@@ -153,13 +156,13 @@ pub(super) fn module_at(modules: &Results, address: u64) -> String {
         .rows
         .iter()
         .find(|m| {
-            let base = u64::from_str_radix(m[1].trim_start_matches("0x"), 16).unwrap_or(0);
-            let size = m[2].parse::<u64>().unwrap_or(0);
+            let base = u64::from_str_radix(m.cell(1).trim_start_matches("0x"), 16).unwrap_or(0);
+            let size = m.cell(2).parse::<u64>().unwrap_or(0);
             address != 0
                 && address >= base
                 && base.checked_add(size).is_some_and(|end| address < end)
         })
-        .map(|m| m[0].clone())
+        .map(|m| m.cell(0).to_owned())
         .unwrap_or_default()
 }
 

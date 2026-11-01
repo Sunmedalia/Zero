@@ -1,4 +1,6 @@
+use crate::bytes::Regions as _;
 mod application;
+mod asset_views;
 mod cache_page;
 mod kernel_diagnostics;
 mod scrollbars;
@@ -16,6 +18,7 @@ mod generation;
 mod layout;
 use layout::Space;
 mod interaction;
+mod mouse;
 mod pages;
 mod results;
 mod tasks;
@@ -151,6 +154,9 @@ pub fn run_with_options(
     let mut terminal = Terminal::new(CrosstermBackend::new(std::io::stdout()))?;
     let mut app = App::new(image, symbols, cache, settings);
     app.initialize(options);
+    if let Some(hint) = crate::prepare::build_tools_hint() {
+        app.status = hint;
+    }
     let outcome = (|| -> Result<()> {
         let mut dirty = true;
         let mut last_tick = Instant::now();
@@ -204,7 +210,6 @@ pub fn run_with_options(
 }
 
 #[cfg(test)]
-#[path = "tui/tests.rs"]
 mod tests;
 
 #[cfg(test)]

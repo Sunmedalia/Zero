@@ -7,14 +7,14 @@ use super::*;
 fn descriptor_text(vm: &Memory<'_>, address: u64) -> Result<(String, u64)> {
     let length = vm.number(address, "_UNICODE_STRING", "Length")?;
     ensure!(length <= u16::MAX as u64, "UNICODE_STRING 长度超过 USHORT");
-    let mut bytes = vec![0; length as usize];
+    let mut bytes = vec![0; usize::try_from(length)?];
     if length != 0 {
         vm.read(vm.number(address, "_UNICODE_STRING", "Buffer")?, &mut bytes)?;
     }
     let mut text = String::from_utf16_lossy(
         &bytes
             .chunks_exact(2)
-            .map(|c| u16::from_le_bytes([c[0], c[1]]))
+            .map(|c| crate::bytes::le_u16(c, 0).unwrap_or(0))
             .collect::<Vec<_>>(),
     );
     if length % 2 != 0 {
@@ -50,7 +50,7 @@ impl Windows<'_> {
         let (processes, diagnostics) = self.processes_partial(job)?;
         r.complete &= diagnostics.is_empty();
         r.diagnostics = diagnostics;
-        r.kernel_identity["peb_masquerade"] = serde_json::json!({
+        *r.kernel_identity.key_mut("peb_masquerade")? = serde_json::json!({
             "view":"native EPROCESS.Peb, including WOW64 processes; no WOW64 PEB substitution",
             "true_means":"descriptor length mismatch only; not proof of malicious process masquerading",
             "flags":"independent ImagePathName and CommandLine checks; false means no mismatch established, not proof of no spoofing",
@@ -109,7 +109,7 @@ impl Windows<'_> {
                             if !text.is_empty() {
                                 let maximum =
                                     vm.number(address, "_UNICODE_STRING", "MaximumLength")?;
-                                flags[i] = length_mismatch(&text, length, maximum);
+                                *flags.at_mut(i)? = length_mismatch(&text, length, maximum);
                             }
                             Ok(())
                         })();

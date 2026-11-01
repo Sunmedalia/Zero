@@ -1,4 +1,5 @@
 //! Native Windows x64 memory analysis. Offsets come from exact ISF types.
+use crate::bytes::{Checked as _, JsonKey as _};
 use crate::{
     Job,
     analysis::Options,
@@ -17,7 +18,9 @@ use std::collections::{BTreeMap, HashSet};
 pub mod arch;
 pub use arch::Architecture;
 use arch::Paging;
+mod address_space;
 mod amcache;
+mod analyze;
 mod artifacts;
 mod codec;
 mod compatibility;
@@ -26,6 +29,7 @@ pub mod container;
 mod creds;
 mod crypto;
 mod debugregisters;
+mod discovery;
 mod dispatch;
 mod driver_irp;
 mod driver_module;
@@ -76,6 +80,12 @@ mod userassist;
 mod vadwalk_tests;
 mod windowstations;
 mod wow64;
+pub use address_space::Memory;
+pub use analyze::analyze;
+pub(crate) use analyze::{analyze_resolved, validate_request};
+pub use discovery::discover;
+pub(crate) use discovery::pe_header;
+
 const MAX_OBJECTS: usize = 1_000_000;
 const PHYSICAL_MASK: u64 = 0x000f_ffff_ffff_f000;
 fn add(base: u64, offset: u64) -> Result<u64> {
@@ -92,358 +102,6 @@ fn filetime(value: u64) -> String {
     }
 }
 
-/// Independent Windows translation; software PTEs never change Linux semantics.
-pub struct Memory<'a> {
-    pub image: &'a Image,
-    pub root: u64,
-    pub isf: &'a Isf,
-    pub sources: Option<&'a paging::Sources>,
-    /// Paging geometry is fixed for this ISF. Callers mutate ISF layouts only before the first translation.
-    paging: std::sync::OnceLock<Paging>,
-    /// Virtual 4 KiB page → physical 4 KiB page and mapping shift. The image is read-only.
-    pages: std::sync::Mutex<crate::resources::Lru<u64, (u64, u32)>>,
-    /// Immutable captured Intel tables: cache both valid and rejected pages.
-    tables: std::sync::Mutex<crate::resources::Lru<u64, bool>>,
-}
-impl<'a> Memory<'a> {
-    pub(crate) fn new(
-        image: &'a Image,
-        root: u64,
-        isf: &'a Isf,
-        sources: Option<&'a paging::Sources>,
-    ) -> Self {
-        Self {
-            image,
-            root,
-            isf,
-            sources,
-            paging: std::sync::OnceLock::new(),
-            tables: std::sync::Mutex::new(crate::resources::Lru::new(
-                image.limits.page_cache_entries.min(1025),
-            )),
-            pages: std::sync::Mutex::new(crate::resources::Lru::new(
-                image.limits.page_cache_entries,
-            )),
-        }
-    }
-    fn paging(&self) -> Result<Paging> {
-        if let Some(paging) = self.paging.get() {
-            return Ok(*paging);
-        }
-        let paging = Paging::new(self.isf)?;
-        Ok(*self.paging.get_or_init(|| paging))
-    }
-    fn pointer_size(&self) -> usize {
-        self.paging()
-            .expect("validated Windows ISF")
-            .arch
-            .pointer_size()
-    }
-    fn pointer(&self, address: u64) -> Result<u64> {
-        self.uint(address, self.pointer_size())
-    }
-    fn kernel(&self, address: u64) -> bool {
-        self.paging()
-            .is_ok_and(|paging| paging.arch.kernel(address))
-    }
-    fn root_mask(&self) -> u64 {
-        self.paging().expect("validated Windows ISF").root_mask()
-    }
-    pub fn translate(&self, va: u64) -> Result<u64> {
-        self.translate_span(va).map(|(physical, _)| physical)
-    }
-    fn translate_span(&self, va: u64) -> Result<(u64, u64)> {
-        let va = self.paging()?.translation_address(va);
-        let page = va & !4095;
-        let cached = self
-            .pages
-            .lock()
-            .unwrap_or_else(|error| error.into_inner())
-            .get(&page)
-            .copied();
-        let (physical, shift) = if let Some((base, shift)) = cached {
-            (base | (va & 4095), shift)
-        } else {
-            let (physical, shift) = self.translate_walk(va)?;
-            self.pages
-                .lock()
-                .unwrap_or_else(|error| error.into_inner())
-                .insert(page, (physical & !4095, shift), 1);
-            (physical, shift)
-        };
-        Ok((physical, (1u64 << shift) - (va & ((1u64 << shift) - 1))))
-    }
-    fn captured_table_entry(&self, geometry: Paging, table: u64, index: usize) -> Result<u64> {
-        if geometry.arch == Architecture::Arm64 {
-            return geometry.entry(self.image, table, index);
-        }
-        let cached = self
-            .tables
-            .lock()
-            .unwrap_or_else(|error| error.into_inner())
-            .get(&table)
-            .copied();
-        let valid = match cached {
-            Some(valid) => valid,
-            None => {
-                let mut bytes = [0; 4096];
-                let valid = self.image.read(table, &mut bytes).is_ok()
-                    && !bytes
-                        .chunks_exact(geometry.width())
-                        .all(|entry| entry == &bytes[..geometry.width()]);
-                self.tables
-                    .lock()
-                    .unwrap_or_else(|error| error.into_inner())
-                    .insert(table, valid, 1);
-                valid
-            }
-        };
-        ensure!(valid, "Windows 页表不可读或全页重复 @ {table:#x}");
-        geometry.entry(self.image, table, index)
-    }
-    fn translate_walk(&self, va: u64) -> Result<(u64, u32)> {
-        let geometry = self.paging()?;
-        ensure!(geometry.canonical(va), "Windows 非 canonical 地址");
-        let mut table = self.root & geometry.root_mask();
-        for (level, &shift) in geometry.shifts().iter().enumerate() {
-            let index = ((va >> shift) & (geometry.entries(level) as u64 - 1)) as usize;
-            let mut entry = self.captured_table_entry(geometry, table, index)?;
-            if entry & 1 == 0 {
-                if entry & (1 << 11) != 0 && entry & (1 << 10) == 0 {
-                    if geometry.arch == Architecture::Arm64 {
-                        entry = self.transition_frame(entry, geometry)? | 3;
-                    }
-                } else {
-                    bail!("Windows 缺页 VA {va:#x} level {shift} PTE {entry:#x}");
-                }
-            }
-            if geometry.block(entry, shift) {
-                let mask = (1u64 << shift) - 1;
-                // Large-page bit 12 is PAT, not part of the physical address.
-                let physical = if geometry.arch == Architecture::Arm64 {
-                    entry & geometry.mask()
-                } else {
-                    entry & geometry.mask() & !(1 << 12)
-                };
-                let physical = if geometry.arch == Architecture::Arm64 {
-                    physical & !mask
-                } else {
-                    physical
-                };
-                return Ok((physical | (va & mask), shift));
-            }
-            if geometry.arch == Architecture::Arm64 {
-                ensure!(entry & 3 == 3, "无效 ARM64 table/page descriptor");
-            }
-            table = entry & geometry.mask();
-        }
-        Ok((table | (va & 4095), 12))
-    }
-    /// Conservative skip hint for a zero page-table entry in this read-only image.
-    /// Nonzero software/prototype/pagefile PTEs, missing tables and captured-page
-    /// holes produce no hint and still pass through the normal recovery reader.
-    pub(super) fn absent_end(&self, va: u64, limit: u64) -> Option<u64> {
-        let geometry = self.paging().ok()?;
-        if geometry.arch == Architecture::Arm64 && !geometry.canonical(va) {
-            return None;
-        }
-        let mut table = self.root & geometry.root_mask();
-        for (level, &shift) in geometry.shifts().iter().enumerate() {
-            let index = ((va >> shift) & (geometry.entries(level) as u64 - 1)) as usize;
-            let mut entry = self.captured_table_entry(geometry, table, index).ok()?;
-            if entry == 0 {
-                return Some((va | ((1u64 << shift) - 1)).checked_add(1)?.min(limit));
-            }
-            if entry & 1 == 0 {
-                if entry & (1 << 11) != 0 && entry & (1 << 10) == 0 {
-                    if geometry.arch == Architecture::Arm64 {
-                        entry = self.transition_frame(entry, geometry).ok()? | 3;
-                    }
-                } else {
-                    return None;
-                }
-            }
-            if geometry.block(entry, shift) {
-                return None;
-            }
-            if geometry.arch == Architecture::Arm64 && entry & 3 != 3 {
-                return None;
-            }
-            table = entry & geometry.mask();
-        }
-        None
-    }
-    /// Read directly translated capture pages. Matches the reference Intel layer:
-    /// valid/transition PTEs are allowed; prototype/pagefile reconstruction is separate.
-    pub(super) fn read_captured(&self, mut va: u64, mut out: &mut [u8]) -> Result<()> {
-        if !out.is_empty() {
-            va.checked_add(out.len() as u64 - 1)
-                .context("Windows 读取越界")?;
-        }
-        while !out.is_empty() {
-            let (physical, available) = self.translate_span(va)?;
-            let n = available.min(out.len() as u64) as usize;
-            self.image.read(physical, &mut out[..n])?;
-            out = &mut out[n..];
-            if !out.is_empty() {
-                va = add(va, n as u64)?;
-            }
-        }
-        Ok(())
-    }
-    pub fn read(&self, mut va: u64, mut out: &mut [u8]) -> Result<()> {
-        if !out.is_empty() {
-            va.checked_add(out.len() as u64 - 1)
-                .context("Windows 读取越界")?;
-        }
-        while !out.is_empty() {
-            let _depth = paging::ReadDepth::enter(self.image, self.root, va)?;
-            let translated = self.translate_span(va);
-            let available = translated
-                .as_ref()
-                .map(|(_, span)| *span)
-                .unwrap_or(4096 - (va & 4095));
-            let n = available.min(out.len() as u64) as usize;
-            match translated {
-                Ok((physical, _)) => self.image.read(physical, &mut out[..n])?,
-                Err(original) => match self.prototype(va) {
-                    Ok(physical) => self.image.read(physical, &mut out[..n])?,
-                    Err(proto) => self
-                        .pagefile_read(va, &mut out[..n])
-                        .with_context(|| format!("{original:#}; {proto:#}"))?,
-                },
-            }
-            out = &mut out[n..];
-            if !out.is_empty() {
-                va = add(va, n as u64)?;
-            }
-        }
-        Ok(())
-    }
-    pub(in crate::windows) fn transition_frame(&self, entry: u64, geometry: Paging) -> Result<u64> {
-        if geometry.arch != Architecture::Arm64 {
-            // Windows Intel layers extract PFNs from the raw PTE's fixed
-            // physical domain; ISF transition fields may include software flags.
-            return Ok(entry & geometry.mask());
-        }
-        if self
-            .isf
-            .field("_MMPTE_TRANSITION", "PageFrameNumber")
-            .is_ok()
-        {
-            let pfn = json_number(self.isf, entry, "_MMPTE_TRANSITION", "PageFrameNumber")?;
-            ensure!(pfn <= geometry.mask() >> 12, "transition PFN 越界");
-            Ok(pfn << 12)
-        } else {
-            ensure!(
-                geometry.arch != Architecture::Arm64,
-                "ARM64 transition PTE 缺少精确 PFN 类型"
-            );
-            Ok(entry & geometry.mask())
-        }
-    }
-    fn prototype_address(&self, entry: u64) -> Result<u64> {
-        let geometry = self.paging()?;
-        ensure!(
-            entry & (1 << 10) != 0 && entry & 1 == 0,
-            "不是 prototype PTE"
-        );
-        let prototype = if geometry.arch == Architecture::X86 && !geometry.pae {
-            let low = json_number(self.isf, entry, "_MMPTE_PROTOTYPE", "ProtoAddressLow")?;
-            let high = json_number(self.isf, entry, "_MMPTE_PROTOTYPE", "ProtoAddressHigh")?;
-            ensure!(low < 256 && high < (1 << 21), "x86 prototype 地址字段越界");
-            0x80000000 | (high << 10) | (low << 2)
-        } else {
-            let value = json_number(self.isf, entry, "_MMPTE_PROTOTYPE", "ProtoAddress")?;
-            if geometry.arch == Architecture::X86 {
-                ensure!(value <= u32::MAX as u64, "PAE prototype 地址越界");
-                value
-            } else {
-                ((value << 16) as i64 >> 16) as u64
-            }
-        };
-        ensure!(
-            self.kernel(prototype) && prototype.is_multiple_of(geometry.width() as u64),
-            "prototype PTE 指针无效"
-        );
-        Ok(prototype)
-    }
-    fn prototype_page(&self, entry: u64, va: u64) -> Result<u64> {
-        let geometry = self.paging()?;
-        let prototype = self.prototype_address(entry)?;
-        let pte = self.uint(prototype, geometry.width())?;
-        let frame = if pte & 1 != 0 {
-            if geometry.arch == Architecture::Arm64 {
-                ensure!(pte & 3 == 3, "无效 ARM64 prototype 页 descriptor");
-            }
-            pte & geometry.mask()
-        } else {
-            ensure!(
-                pte & (1 << 11) != 0 && pte & (1 << 10) == 0,
-                "prototype 页面不驻留"
-            );
-            self.transition_frame(pte, geometry)?
-        };
-        Ok(frame | (va & 4095))
-    }
-    fn prototype(&self, va: u64) -> Result<u64> {
-        let geometry = self.paging()?;
-        let va = geometry.translation_address(va);
-        ensure!(geometry.canonical(va), "Windows 非 canonical 地址");
-        let mut table = self.root & geometry.root_mask();
-        for (level, &shift) in geometry.shifts().iter().enumerate() {
-            let index = ((va >> shift) & (geometry.entries(level) as u64 - 1)) as usize;
-            let entry = self.captured_table_entry(geometry, table, index)?;
-            if entry & 1 != 0 {
-                table = entry & geometry.mask();
-                continue;
-            }
-            if entry & (1 << 11) != 0 && entry & (1 << 10) == 0 {
-                table = self.transition_frame(entry, geometry)?;
-                continue;
-            }
-            ensure!(shift == 12, "prototype 所在页表不驻留");
-            return self.prototype_page(entry, va);
-        }
-        bail!("未找到 prototype PTE")
-    }
-    pub fn uint(&self, va: u64, size: usize) -> Result<u64> {
-        ensure!(
-            matches!(size, 1 | 2 | 4 | 8),
-            "无效 Windows 数值宽度 {size}"
-        );
-        let mut b = [0; 8];
-        self.read(va, &mut b[..size])?;
-        Ok(u64::from_le_bytes(b))
-    }
-    fn number(&self, base: u64, structure: &str, field: &str) -> Result<u64> {
-        let layout = self.isf.layout(structure, field)?;
-        let size = usize::try_from(layout.size).context("ISF 字段过大")?;
-        let n = self.uint(add(base, layout.offset)?, size)?;
-        json_number(self.isf, n, structure, field)
-    }
-    fn unicode(&self, address: u64) -> Result<String> {
-        let len = self.number(address, "_UNICODE_STRING", "Length")?;
-        let max = self.number(address, "_UNICODE_STRING", "MaximumLength")?;
-        ensure!(
-            len % 2 == 0 && len <= max && len <= 65534,
-            "无效 UNICODE_STRING 长度"
-        );
-        let mut bytes = vec![0; len as usize];
-        if len > 0 {
-            self.read(
-                self.number(address, "_UNICODE_STRING", "Buffer")?,
-                &mut bytes,
-            )?;
-        }
-        Ok(String::from_utf16_lossy(
-            &bytes
-                .chunks_exact(2)
-                .map(|c| u16::from_le_bytes([c[0], c[1]]))
-                .collect::<Vec<_>>(),
-        ))
-    }
-}
 fn json_number(isf: &Isf, n: u64, structure: &str, field: &str) -> Result<u64> {
     // The memoized layout answers the common case; fall back to the raw field
     // so a field that fails outer bounds checks still decodes as before.
@@ -528,14 +186,14 @@ impl Windows<'_> {
             diagnostics: vec![],
             banner: format!(
                 "Windows {:?} {}",
-                Architecture::from_isf(self.vm.isf).unwrap(),
+                Architecture::from_isf(self.vm.isf).unwrap_or_default(),
                 self.pdb.key()
             ),
             symbol: self.vm.isf.label.clone(),
             page_table: self.vm.root,
             historical: false,
             system: "windows".into(),
-            kernel_identity: serde_json::json!({"version":self.version_identity(),"pdb":self.pdb,"architecture":Architecture::from_isf(self.vm.isf).unwrap(),"container":self.vm.image.format,"kernel_base":self.base,"time_format":"FILETIME"}),
+            kernel_identity: serde_json::json!({"version":self.version_identity(),"pdb":self.pdb,"architecture":Architecture::from_isf(self.vm.isf).unwrap_or_default(),"container":self.vm.image.format,"kernel_base":self.base,"time_format":"FILETIME"}),
         }
     }
     fn list_partial(&self, head: u64, offset: u64, job: &Job) -> Result<(Vec<u64>, Vec<String>)> {
@@ -601,7 +259,7 @@ impl Windows<'_> {
         self.vm
             .read(self.field(address, "_EPROCESS", "ImageFileName")?, &mut b)?;
         let end = b.iter().position(|b| *b == 0).unwrap_or(b.len());
-        let name = String::from_utf8_lossy(&b[..end]).into_owned();
+        let name = String::from_utf8_lossy(b.at(..end)?).into_owned();
         let pid = self.number(address, "_EPROCESS", "UniqueProcessId")?;
         ensure!(
             pid <= u32::MAX as u64 && !name.is_empty() && !name.chars().any(char::is_control),
@@ -762,7 +420,7 @@ impl Windows<'_> {
                 ]);
             }
             for key in ["product", "major", "minor", "product_type", "evidence"] {
-                if let Some(value) = result.kernel_identity["version"].get(key) {
+                if let Some(value) = result.kernel_identity.key("version").get(key) {
                     result.rows.push(vec![key.into(), value.to_string()]);
                 }
             }
@@ -816,14 +474,15 @@ impl Windows<'_> {
             result.complete = threads.complete;
             result.diagnostics = threads.diagnostics;
             for row in threads.rows {
-                let start = u64::from_str_radix(row[5].trim_start_matches("0x"), 16).unwrap_or(0);
-                if self.vm.kernel(start) && row[6].is_empty() {
+                let start =
+                    u64::from_str_radix(row.at(5)?.trim_start_matches("0x"), 16).unwrap_or(0);
+                if self.vm.kernel(start) && row.at(6)?.is_empty() {
                     result.rows.push(vec![
-                        row[0].clone(),
-                        row[2].clone(),
-                        row[3].clone(),
-                        row[5].clone(),
-                        row[7].clone(),
+                        row.at(0)?.clone(),
+                        row.at(2)?.clone(),
+                        row.at(3)?.clone(),
+                        row.at(5)?.clone(),
+                        row.at(7)?.clone(),
                     ]);
                 }
             }
@@ -934,7 +593,7 @@ impl Windows<'_> {
                 result.diagnostics.extend(diagnostics);
             }
             if let Some(owner) = owners.first() {
-                result.kernel_identity["registry_process"] = serde_json::json!({"pid":owner.pid,"address":owner.address,"dtb":registry.vm.root,"kernel_dtb":self.vm.root});
+                *result.kernel_identity.key_mut("registry_process")? = serde_json::json!({"pid":owner.pid,"address":owner.address,"dtb":registry.vm.root,"kernel_dtb":self.vm.root});
             }
             return Ok(result);
         }
@@ -977,12 +636,10 @@ impl Windows<'_> {
                 Plugin::WinCmdline => self.cmdline(&process, &mut result),
                 Plugin::WinGetsids => self.sids(&process, &mut result, job),
                 Plugin::WinEnvars => self.environments(&process, &mut result, job),
-                Plugin::WinThreads => self.thread_rows(
-                    &process,
-                    &mut result,
-                    thread_modules.as_ref().expect("thread modules"),
-                    job,
-                ),
+                Plugin::WinThreads => thread_modules
+                    .as_ref()
+                    .context("线程模块未加载")
+                    .and_then(|modules| self.thread_rows(&process, &mut result, modules, job)),
                 Plugin::WinLdrmodules
                 | Plugin::WinHollowprocesses
                 | Plugin::WinSuspiciousThreads => self.malware(&process, p, &mut result, job),
@@ -1099,533 +756,6 @@ impl Windows<'_> {
         }
         Ok(out)
     }
-}
-
-pub fn analyze(
-    image: &Image,
-    request: &Request<'_>,
-    dump: Option<&DumpOptions>,
-    options: &Options,
-    job: &Job,
-) -> Result<Outcome> {
-    if image.windows_container.as_ref().is_some_and(|m| {
-        m.virtual_memory
-            || m.kernel_virtual
-            || image.segments.is_empty()
-            || request.plugin == Plugin::WinCrashinfo
-    }) {
-        ensure!(
-            options.pagefiles.is_empty() && options.swapfile.is_none(),
-            "此容器没有可验证的内核分页索引，不接受分页附件"
-        );
-        return container::analyze(image, request, dump, options, job).map(Outcome::Ready);
-    }
-    validate_request(request, dump, options)?;
-    let symbols =
-        windows_symbols::resolve(request.symbols, image, request.cache, request.network, job)?;
-    let symbols: Vec<_> = symbols.into_iter().map(std::sync::Arc::new).collect();
-    analyze_resolved(image, request, dump, options, job, &symbols)
-}
-pub(crate) fn validate_request(
-    request: &Request<'_>,
-    dump: Option<&DumpOptions>,
-    options: &Options,
-) -> Result<()> {
-    if request.plugin.is_dump() {
-        dump.context("Windows 转储需要 PID 和输出目录")?
-            .validate(request.plugin)?;
-    } else if request.plugin.accepts_dump() && dump.is_some() {
-        dump.unwrap().validate(request.plugin)?;
-    } else {
-        ensure!(dump.is_none(), "分析插件不接受转储参数");
-    }
-    ensure!(
-        request.plugin == Plugin::WinPrintkey
-            || (matches!(
-                request.plugin,
-                Plugin::WinAutoruns | Plugin::WinUserassist | Plugin::WinUserAssistV4
-            ) && options.key.is_empty())
-            || (options.hive.is_none() && options.key.is_empty()),
-        "hive/key 仅用于 windows.printkey"
-    );
-    if request.plugin == Plugin::WinPrintkey {
-        ensure!(options.hive.is_some(), "windows.printkey 需要 --hive 地址");
-    }
-    crate::analysis::validate_pattern(request.plugin, options)?;
-    ensure!(
-        options.pid.is_none()
-            || request.plugin == Plugin::WinMemmap
-            || request.plugin.descriptor().columns.contains(&"PID"),
-        "此插件不支持 PID 筛选"
-    );
-    Ok(())
-}
-pub(crate) fn analyze_resolved(
-    image: &Image,
-    request: &Request<'_>,
-    dump: Option<&DumpOptions>,
-    options: &Options,
-    job: &Job,
-    symbols: &[std::sync::Arc<Isf>],
-) -> Result<Outcome> {
-    let isf = if let Some(choice) = request.choice {
-        symbols
-            .iter()
-            .find(|s| s.label == choice)
-            .context("所选 Windows 符号不在精确匹配候选中")?
-    } else {
-        if symbols.len() > 1 {
-            return Ok(Outcome::Choose(
-                symbols.iter().map(|s| s.label.clone()).collect(),
-            ));
-        }
-        &symbols[0]
-    };
-    let arch = Architecture::from_isf(isf)?;
-    ensure!(
-        options.arch == Architecture::Auto || options.arch == arch,
-        "显式架构与符号不一致"
-    );
-    if let Some(hiber) = &image.hibernation {
-        ensure!(
-            arch.pointer_size() == hiber.info.pointer_size,
-            "休眠容器与符号指针宽度不一致"
-        );
-    }
-    let (root, base) = discover(image, isf, job)?;
-    let mut sources = paging::Sources::open(options, job)?;
-    let mut engine = Windows {
-        vm: Memory::new(image, root, isf, None),
-        base,
-        pdb: PdbIdentity::from_isf(isf)?,
-    };
-    sources.configure_kernel(&engine)?;
-    engine.vm.sources = Some(&sources);
-    let key = store::key(
-        &image.digest,
-        &isf.digest,
-        &format!(
-            "{}:{:?}:{:?}:{}:{}:pids={:?}:maxsize={:?}",
-            request.plugin.name(),
-            options.pid,
-            options.hive,
-            sources.cache_identity(),
-            format_args!(
-                "{}:{}:{:x}",
-                options.key,
-                options.pattern.as_deref().unwrap_or_default(),
-                sha2::Sha256::digest(network::LAYOUTS.as_bytes())
-            ),
-            options.pids,
-            options.maxsize
-        ),
-    );
-    let cached = if request.use_cache
-        && dump.is_none()
-        && !request.plugin.is_dump()
-        && !matches!(
-            request.plugin,
-            Plugin::WinPESymbols
-                | Plugin::WinSuspendedThreads
-                | Plugin::WinDebugRegisters
-                | Plugin::WinUnhookedSystemCalls
-                | Plugin::WinSkeletonKeyCheck
-                | Plugin::WinTruecryptPassphrase
-                | Plugin::WinStrings
-                | Plugin::WinDirectSystemCalls
-                | Plugin::WinIndirectSystemCalls
-        ) {
-        if request.plugin == Plugin::WinDriverIrp {
-            dispatch::load_cached(request.cache, &key, request.network, job)?
-        } else {
-            store::load(request.cache, &key).or_else(|| store::load_partial(request.cache, &key))
-        }
-    } else {
-        None
-    };
-    if let Some(r) = cached {
-        sources.validate()?;
-        job.mark_cached();
-        let owner = store::Owner::new(&image.digest, request.image);
-        store::adopt(request.cache, &key, &owner, &r, job);
-        job.report(store::cache_message(&r));
-        return Ok(Outcome::Ready(r));
-    }
-    let mut result = if let Some(dump) = dump {
-        engine.run_dump(request.plugin, dump, job)?
-    } else if request.plugin == Plugin::WinDebugRegisters {
-        engine.debug_registers(Some((request.cache, request.network)), job)?
-    } else if request.plugin == Plugin::WinSuspendedThreads {
-        engine.suspended_threads(Some((request.cache, request.network)), job)?
-    } else if request.plugin == Plugin::WinUnhookedSystemCalls {
-        engine.unhooked_system_calls(Some((request.cache, request.network)), job)?
-    } else if request.plugin == Plugin::WinSkeletonKeyCheck {
-        engine.skeleton_key(Some((request.cache, request.network)), job)?
-    } else if request.plugin == Plugin::WinPESymbols {
-        engine.pe_symbols(options, Some((request.cache, request.network)), job)?
-    } else if request.plugin == Plugin::WinDriverIrp {
-        engine.driver_irp_with_symbols(job, Some((request.cache, request.network)))?
-    } else if request.plugin == Plugin::WinNetscan {
-        engine.netscan(job, Some((request.cache, request.network)))?
-    } else if request.plugin == Plugin::WinNetstat {
-        engine.netstat(job, Some((request.cache, request.network)))?
-    } else {
-        engine.run(request.plugin, options, job)?
-    };
-    if let Some(pid) = options.pid
-        && !request.plugin.accepts_pid_list()
-        && let Some(index) = result.columns.iter().position(|c| c == "PID")
-    {
-        result.rows.retain(|row| row[index] == pid.to_string());
-    }
-    sources.validate()?;
-    result.kernel_identity["paging_sources"] = sources.manifest()?;
-    let compressed = sources.compressed_evidence()?;
-    if !compressed.as_array().is_none_or(Vec::is_empty) {
-        Windows::issue(
-            &mut result,
-            "压缩 store",
-            "此恢复路径经合成测试验证，尚未完成真实镜像对照",
-        );
-    }
-    result.kernel_identity["compressed_pages"] = compressed;
-    if let Some(hiber) = image.hibernation.as_ref() {
-        result.kernel_identity["hibernation"] = serde_json::to_value(&hiber.info)?;
-        Windows::issue(
-            &mut result,
-            "休眠文件",
-            if hiber.info.hiberboot == Some(true) {
-                "Fast Startup 保存内核会话，用户会话页面可能缺失；此容器路径目前仅有合成验证"
-            } else {
-                "仅包含休眠文件保存的物理页；此容器路径目前仅有合成验证"
-            },
-        );
-        result.diagnostics.extend(hiber.info.diagnostics.clone());
-    }
-    job.check()?;
-    if request.use_cache
-        && !matches!(
-            request.plugin,
-            Plugin::WinPESymbols
-                | Plugin::WinSuspendedThreads
-                | Plugin::WinDebugRegisters
-                | Plugin::WinUnhookedSystemCalls
-                | Plugin::WinSkeletonKeyCheck
-                | Plugin::WinTruecryptPassphrase
-                | Plugin::WinStrings
-                | Plugin::WinDirectSystemCalls
-                | Plugin::WinIndirectSystemCalls
-        )
-        && dump.is_none()
-        && !request.plugin.is_dump()
-        && (request.plugin != Plugin::WinDriverIrp
-            || dispatch::dependencies_match(&result, request.cache, request.network, job)?)
-    {
-        store::save_any(
-            request.cache,
-            &key,
-            &store::Owner::new(&image.digest, request.image),
-            &result,
-            job,
-        )?;
-    }
-    Ok(Outcome::Ready(result))
-}
-
-/// Discover self-referencing x64 roots and validate a mapped kernel against its PDB.
-pub fn discover(image: &Image, isf: &Isf, job: &Job) -> Result<(u64, u64)> {
-    job.check()?;
-    let identity = PdbIdentity::from_isf(isf)?;
-    let signatures: Vec<_> = image
-        .windows_candidates(job)?
-        .iter()
-        .filter(|c| c.pdb == identity)
-        .map(|c| c.offset)
-        .collect();
-    ensure!(!signatures.is_empty(), "ISF 与镜像 PDB 不匹配");
-    if let Some(value) = image
-        .windows_roots
-        .lock()
-        .map_err(|_| anyhow::anyhow!("Windows 准备缓存锁损坏"))?
-        .get(&isf.digest)
-    {
-        return Ok(*value);
-    }
-    let geometry = Paging::new(isf)?;
-    // A root found in an earlier session for the same verified content and
-    // ISF skips the whole-image scans, but only after the same validation.
-    if let Some(&(root, base)) = image.persisted_roots.get(&isf.digest) {
-        match validate_kernel(image, isf, geometry, &identity, root, base) {
-            Ok(()) => {
-                job.report(format!(
-                    "复用持久化 Windows 内核定位 DTB {root:#x} Base {base:#x}（PDB 身份、System 进程与链表已重新验证）"
-                ));
-                image
-                    .windows_roots
-                    .lock()
-                    .map_err(|_| anyhow::anyhow!("Windows 准备缓存锁损坏"))?
-                    .insert(isf.digest.clone(), (root, base));
-                return Ok((root, base));
-            }
-            Err(e) => job.report(format!("持久化 Windows 内核定位失效，重新扫描: {e:#}")),
-        }
-    }
-    let mut headers = HashSet::new();
-    let minimum = isf.raw_address("PsInitialSystemProcess")?;
-    let mut roots = image
-        .windows_container
-        .as_ref()
-        .and_then(|m| m.dtb)
-        .into_iter()
-        .collect::<Vec<_>>();
-    let mut block = vec![0; 4 * 1024 * 1024];
-    for segment in &image.segments {
-        let mut start = segment.start.next_multiple_of(4096);
-        while start < segment.end {
-            job.check()?;
-            let n = ((segment.end - start) as usize).min(block.len());
-            image.read(start, &mut block[..n])?;
-            for (i, page) in block[..n].chunks_exact(4096).enumerate() {
-                let pa = start + i as u64 * 4096;
-                if pe_header(page)
-                    .is_ok_and(|(size, debug)| u64::from(size) > minimum && debug != 0)
-                {
-                    headers.insert(pa);
-                }
-                if geometry.arch == Architecture::X64
-                    && page.chunks_exact(8).skip(256).any(|b| {
-                        let e = u64::from_le_bytes(b.try_into().unwrap());
-                        e & 1 != 0 && e & geometry.mask() == pa
-                    })
-                {
-                    roots.push(pa);
-                }
-            }
-            start += n as u64;
-            job.report(format!(
-                "Windows DTB 候选扫描 @ {start:#x} · {} 候选",
-                roots.len()
-            ));
-        }
-    }
-
-    // A physical System EPROCESS gives a root candidate on every architecture.
-    // Candidates still require mapped PE identity, PID, DTB and list validation.
-    let name_offset = isf.offset("_EPROCESS", "ImageFileName")?;
-    for hit in image.scan(b"System\0", job)? {
-        job.check()?;
-        let Some(address) = hit.checked_sub(name_offset) else {
-            continue;
-        };
-        let read = |field: &str| -> Result<u64> {
-            let mut b = [0; 8];
-            image.read(
-                add(address, isf.offset("_EPROCESS", field)?)?,
-                &mut b[..isf.size("_EPROCESS", field)?],
-            )?;
-            Ok(u64::from_le_bytes(b))
-        };
-        if read("UniqueProcessId").is_ok_and(|pid| pid == 4)
-            && let Ok(root) = read("Pcb.DirectoryTableBase")
-            && root & geometry.root_mask() != 0
-        {
-            roots.push(root & geometry.root_mask());
-        }
-    }
-    roots.sort_unstable();
-    roots.dedup();
-
-    ensure!(!headers.is_empty(), "找不到 Windows 内核 PE 头");
-    job.report(format!(
-        "Windows {} 个 PE 头，{} 个 DTB 候选",
-        headers.len(),
-        roots.len()
-    ));
-    for root in roots {
-        job.check()?;
-        let mut bases = Vec::new();
-        let mut visited = HashSet::new();
-        let mut budget = MAX_OBJECTS;
-        find_mappings(
-            image,
-            root,
-            geometry,
-            0,
-            0,
-            &headers,
-            &mut bases,
-            &mut visited,
-            &mut budget,
-            job,
-        )?;
-        for base in bases {
-            let test = validate_kernel(image, isf, geometry, &identity, root, base);
-            if test.is_ok() {
-                job.report(format!("Windows 内核已验证 DTB {root:#x} Base {base:#x}"));
-                let vm = Memory::new(image, root, isf, None);
-                let system = vm.pointer(add(base, isf.raw_address("PsInitialSystemProcess")?)?)?;
-                let root = vm.number(system, "_EPROCESS", "Pcb.DirectoryTableBase")?
-                    & geometry.root_mask();
-                image
-                    .windows_roots
-                    .lock()
-                    .map_err(|_| anyhow::anyhow!("Windows 准备缓存锁损坏"))?
-                    .insert(isf.digest.clone(), (root, base));
-                image.remember_windows_root(&isf.digest, root, base);
-                return Ok((root, base));
-            } else if let Err(e) = test {
-                job.report(format!(
-                    "Windows 内核候选拒绝 DTB {root:#x} Base {base:#x}: {e:#}"
-                ));
-            }
-        }
-    }
-    bail!("无法验证 Windows 内核/DTB/PDB/进程链表")
-}
-
-/// Full kernel validation for one (DTB, base) pair: mapped PE header and
-/// architecture, exact PDB identity, the System process and both neighbours
-/// of its process-list entry, and the System DTB mapping the kernel.
-fn validate_kernel(
-    image: &Image,
-    isf: &Isf,
-    geometry: Paging,
-    identity: &PdbIdentity,
-    root: u64,
-    base: u64,
-) -> Result<()> {
-    let vm = Memory::new(image, root, isf, None);
-    let mut header = [0; 4096];
-    vm.read(base, &mut header)?;
-    let pe = u32::from_le_bytes(header[60..64].try_into()?) as usize;
-    pe_header(&header)?;
-    ensure!(
-        u16::from_le_bytes(header[pe + 4..pe + 6].try_into()?) == geometry.arch.machine(),
-        "内核 PE 与符号指针架构冲突"
-    );
-    ensure!(
-        network::pe_identity(&vm, base)? == *identity,
-        "内核 PE 身份不匹配"
-    );
-    let engine = Windows {
-        vm,
-        base,
-        pdb: identity.clone(),
-    };
-    let system = engine
-        .vm
-        .pointer(engine.symbol("PsInitialSystemProcess")?)?;
-    let process = engine.process(system)?;
-    ensure!(
-        process.pid == 4 && process.name == "System" && process.dtb != 0,
-        "System 进程验证失败"
-    );
-    let head = engine.symbol("PsActiveProcessHead")?;
-    let link = engine.field(system, "_EPROCESS", "ActiveProcessLinks")?;
-    ensure!(
-        engine.vm.pointer(head)? == link
-            && engine
-                .vm
-                .pointer(add(link, engine.vm.pointer_size() as u64)?)?
-                == head,
-        "System 链表入口验证失败"
-    );
-    let next = engine.vm.pointer(link)?;
-    ensure!(
-        engine.vm.kernel(next)
-            && engine
-                .vm
-                .pointer(add(next, engine.vm.pointer_size() as u64)?)?
-                == link,
-        "System 相邻链表验证失败"
-    );
-    let system_vm = Memory::new(image, process.dtb, isf, None);
-    ensure!(system_vm.uint(base, 2)? == 0x5a4d, "System DTB 未映射内核");
-    Ok(())
-}
-#[allow(clippy::too_many_arguments)]
-fn find_mappings(
-    image: &Image,
-    table: u64,
-    geometry: Paging,
-    level: usize,
-    prefix: u64,
-    headers: &HashSet<u64>,
-    out: &mut Vec<u64>,
-    seen: &mut HashSet<(u64, u32)>,
-    budget: &mut usize,
-    job: &Job,
-) -> Result<()> {
-    job.check()?;
-    let shift = geometry.shifts()[level];
-    if !seen.insert((table, shift)) {
-        return Ok(());
-    }
-    ensure!(*budget > 0, "Windows 页表搜索超限");
-    *budget -= 1;
-    let mut bytes = vec![0; geometry.entries(level) * geometry.width()];
-    if image.read(table, &mut bytes).is_err() {
-        return Ok(());
-    }
-    for (i, chunk) in bytes.chunks_exact(geometry.width()).enumerate() {
-        if level == 0 && i < geometry.entries(level) / 2 {
-            continue;
-        }
-        let mut raw = [0; 8];
-        raw[..geometry.width()].copy_from_slice(chunk);
-        let e = u64::from_le_bytes(raw);
-        if e & 1 == 0 {
-            continue;
-        }
-        let va = prefix | ((i as u64) << shift);
-        let pa = e & geometry.mask();
-        if shift == 12 || geometry.block(e, shift) {
-            let mask = (1u64 << shift) - 1;
-            let pa = pa & !mask;
-            for &h in headers {
-                if h >= pa && h - pa <= mask {
-                    out.push(geometry.extend(va | (h - pa)));
-                }
-            }
-        } else if level + 1 < geometry.shifts().len() {
-            find_mappings(
-                image,
-                pa,
-                geometry,
-                level + 1,
-                va,
-                headers,
-                out,
-                seen,
-                budget,
-                job,
-            )?;
-        }
-    }
-    Ok(())
-}
-pub(crate) fn pe_header(b: &[u8]) -> Result<(u32, u32)> {
-    ensure!(b.len() >= 64 && &b[..2] == b"MZ", "非 PE");
-    let pe = u32::from_le_bytes(b[60..64].try_into()?) as usize;
-    ensure!(
-        pe >= 64 && pe + 24 + 168 <= b.len() && &b[pe..pe + 4] == b"PE\0\0",
-        "PE 头越界"
-    );
-    let machine = u16::from_le_bytes(b[pe + 4..pe + 6].try_into()?);
-    let magic = u16::from_le_bytes(b[pe + 24..pe + 26].try_into()?);
-    ensure!(
-        matches!((machine, magic), (0x14c, 0x10b) | (0x8664 | 0xaa64, 0x20b)),
-        "未知 PE 机器类型/optional header"
-    );
-    let directories = if magic == 0x10b { 96 } else { 112 };
-    let size = u32::from_le_bytes(b[pe + 80..pe + 84].try_into()?);
-    let debug =
-        u32::from_le_bytes(b[pe + 24 + directories + 48..pe + 24 + directories + 52].try_into()?);
-    ensure!(
-        (4096..=256 * 1024 * 1024).contains(&size),
-        "PE SizeOfImage 无效"
-    );
-    Ok((size, debug))
 }
 
 #[cfg(test)]

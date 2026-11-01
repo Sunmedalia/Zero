@@ -283,9 +283,11 @@ impl App {
                             )?;
                             let valid = symbols::inspect(&path, &worker_job).is_ok_and(|isfs| {
                                 isfs.len() == 1
-                                    && String::from_utf8_lossy(&isfs[0].banner)
-                                        .trim_end_matches(['\0', '\n'])
-                                        == candidate.banner
+                                    && isfs.first().is_some_and(|isf| {
+                                        String::from_utf8_lossy(&isf.banner)
+                                            .trim_end_matches(['\0', '\n'])
+                                            == candidate.banner
+                                    })
                             });
                             worker_job.check()?;
                             if valid {
@@ -456,7 +458,7 @@ impl App {
             }
             let progress_event = matches!(&event, WorkerEvent::Progress(_));
             match event {
-                WorkerEvent::Tagged(..) => unreachable!("事件已解包"),
+                WorkerEvent::Tagged(..) => continue,
                 WorkerEvent::Inventory(inventory) => {
                     self.finish_worker();
                     self.apply_inventory(inventory);
@@ -604,7 +606,9 @@ impl App {
                     if self.preparation_lookup {
                         self.preparation_lookup = false;
                         if matches.len() == 1 {
-                            self.start_work(Work::Download(matches[0].clone()));
+                            if let Some(only) = matches.first() {
+                                self.start_work(Work::Download(only.clone()));
+                            }
                         } else if matches.len() > 1 {
                             self.dialog = Some(Dialog::Links {
                                 matches,

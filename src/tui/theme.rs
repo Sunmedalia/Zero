@@ -18,7 +18,9 @@ pub(super) fn apply(id: &str) {
         id
     };
     CURRENT.set(
-        THEMES[1..]
+        THEMES
+            .get(1..)
+            .unwrap_or(&[])
             .iter()
             .position(|(key, _)| *key == id)
             .unwrap_or(0),
@@ -36,7 +38,7 @@ pub(super) fn color_accent() -> Color {
         Color::Rgb(92, 200, 255),
         Color::Rgb(187, 163, 237),
     ];
-    colors[CURRENT.get()]
+    colors.get(CURRENT.get()).copied().unwrap_or(colors[0])
 }
 pub(super) fn color_focus() -> Color {
     let colors = [
@@ -47,7 +49,7 @@ pub(super) fn color_focus() -> Color {
         Color::Rgb(255, 255, 255),
         Color::Rgb(232, 220, 255),
     ];
-    colors[CURRENT.get()]
+    colors.get(CURRENT.get()).copied().unwrap_or(colors[0])
 }
 pub(super) fn color_selected_bg() -> Color {
     let colors = [
@@ -58,7 +60,7 @@ pub(super) fn color_selected_bg() -> Color {
         Color::Rgb(0, 58, 117),
         Color::Rgb(66, 49, 91),
     ];
-    colors[CURRENT.get()]
+    colors.get(CURRENT.get()).copied().unwrap_or(colors[0])
 }
 pub(super) fn color_surface() -> Color {
     let colors = [
@@ -69,7 +71,7 @@ pub(super) fn color_surface() -> Color {
         Color::Rgb(0, 0, 0),
         Color::Rgb(29, 25, 39),
     ];
-    colors[CURRENT.get()]
+    colors.get(CURRENT.get()).copied().unwrap_or(colors[0])
 }
 pub(super) fn color_raised() -> Color {
     let colors = [
@@ -80,7 +82,7 @@ pub(super) fn color_raised() -> Color {
         Color::Rgb(26, 26, 26),
         Color::Rgb(40, 34, 53),
     ];
-    colors[CURRENT.get()]
+    colors.get(CURRENT.get()).copied().unwrap_or(colors[0])
 }
 pub(super) fn color_stripe() -> Color {
     let colors = [
@@ -91,7 +93,7 @@ pub(super) fn color_stripe() -> Color {
         Color::Rgb(13, 13, 13),
         Color::Rgb(34, 29, 46),
     ];
-    colors[CURRENT.get()]
+    colors.get(CURRENT.get()).copied().unwrap_or(colors[0])
 }
 pub(super) fn color_border() -> Color {
     let colors = [
@@ -102,7 +104,7 @@ pub(super) fn color_border() -> Color {
         Color::Rgb(140, 140, 140),
         Color::Rgb(93, 78, 115),
     ];
-    colors[CURRENT.get()]
+    colors.get(CURRENT.get()).copied().unwrap_or(colors[0])
 }
 pub(super) fn color_text() -> Color {
     let colors = [
@@ -113,7 +115,7 @@ pub(super) fn color_text() -> Color {
         Color::Rgb(255, 255, 255),
         Color::Rgb(229, 223, 240),
     ];
-    colors[CURRENT.get()]
+    colors.get(CURRENT.get()).copied().unwrap_or(colors[0])
 }
 pub(super) fn color_muted() -> Color {
     let colors = [
@@ -124,7 +126,7 @@ pub(super) fn color_muted() -> Color {
         Color::Rgb(200, 200, 200),
         Color::Rgb(169, 157, 189),
     ];
-    colors[CURRENT.get()]
+    colors.get(CURRENT.get()).copied().unwrap_or(colors[0])
 }
 pub(super) fn color_success() -> Color {
     let colors = [
@@ -135,7 +137,7 @@ pub(super) fn color_success() -> Color {
         Color::Rgb(93, 245, 138),
         Color::Rgb(145, 207, 175),
     ];
-    colors[CURRENT.get()]
+    colors.get(CURRENT.get()).copied().unwrap_or(colors[0])
 }
 pub(super) fn color_warn() -> Color {
     let colors = [
@@ -146,7 +148,7 @@ pub(super) fn color_warn() -> Color {
         Color::Rgb(255, 215, 95),
         Color::Rgb(235, 195, 129),
     ];
-    colors[CURRENT.get()]
+    colors.get(CURRENT.get()).copied().unwrap_or(colors[0])
 }
 pub(super) fn color_danger() -> Color {
     let colors = [
@@ -157,5 +159,5 @@ pub(super) fn color_danger() -> Color {
         Color::Rgb(255, 107, 107),
         Color::Rgb(242, 151, 166),
     ];
-    colors[CURRENT.get()]
+    colors.get(CURRENT.get()).copied().unwrap_or(colors[0])
 }

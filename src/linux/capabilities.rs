@@ -1,6 +1,7 @@
 //! Decode capability sets from real credentials; display identity from task credentials.
 use super::*;
 use crate::analysis::Options;
+use crate::bytes::JsonKey as _;
 
 const NAMES: [&str; 41] = [
     "chown",
@@ -71,21 +72,22 @@ fn decode(value: u64, last: i64) -> String {
 
 impl Linux<'_> {
     fn capabilities_last(&self) -> Result<i64> {
-        if self.isf.data["symbols"].get("cap_last_cap").is_none() {
+        if self.isf.data.key("symbols").get("cap_last_cap").is_none() {
             return Ok(NAMES.len() as i64 - 1);
         }
         let at = self.isf.address("cap_last_cap")?;
         let size = self
             .isf
-            .type_size(&self.isf.data["symbols"]["cap_last_cap"]["type"])?;
+            .type_size(self.isf.data.key("symbols")["cap_last_cap"].key("type"))?;
         ensure!(matches!(size, 1 | 2 | 4 | 8), "cap_last_cap 宽度无效");
         let shift = 64 - size * 8;
-        let value = ((self.vm.uint(at, size as usize)? << shift) as i64) >> shift;
+        let value = ((self.vm.uint(at, usize::try_from(size)?)? << shift) as i64) >> shift;
         Ok(value)
     }
 
     fn capability_value(&self, cred: u64, field: &str) -> Result<u64> {
-        let ty = self.isf.field("cred", field)?["type"]["name"]
+        let ty = self.isf.field("cred", field)?["type"]
+            .key("name")
             .as_str()
             .context("能力字段缺少结构类型")?;
         let at = self.field_address(cred, "cred", field)?;

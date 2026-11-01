@@ -188,7 +188,7 @@ impl App {
         for (image, children) in groups {
             let name = children
                 .first()
-                .and_then(|item| self.cache_page.summaries.get(&item.paths[0]))
+                .and_then(|item| self.cache_page.summaries.get(item.paths.first()?))
                 .map(|s| self.display_path(&s.source))
                 .filter(|s| !s.is_empty())
                 .unwrap_or_else(|| image.clone());
@@ -240,7 +240,7 @@ impl App {
             List::new(scope_items)
                 .block(panel().title("缓存范围"))
                 .highlight_style(Style::default().fg(color_focus()).bg(color_selected_bg())),
-            panes[0],
+            panes.rect(0),
             &mut ListState::default().with_selected(Some(self.cache_page.scope)),
         );
         let items = self.cache_items();
@@ -254,31 +254,31 @@ impl App {
                     "缓存条目 / 导出记录 · Enter 打开 · Delete 删除 · x 清理已勾选"
                 }))
                 .highlight_style(Style::default().fg(color_focus()).bg(color_selected_bg())),
-            panes[1],
+            panes.rect(1),
             &mut state,
         );
         let mut hits = self.hits.borrow_mut();
-        hits.cache_scopes = panes[0];
-        hits.cache_items = panes[1];
+        hits.cache_scopes = panes.rect(0);
+        hits.cache_items = panes.rect(1);
         hits.cache_offset = state.offset();
         let offset = hits.cache_offset;
         drop(hits);
         self.draw_scrollbar(
             frame,
-            panes[1],
+            panes.rect(1),
             items.len(),
-            panes[1].height.saturating_sub(2) as usize,
+            panes.rect(1).height.saturating_sub(2) as usize,
             offset,
             ScrollTarget::CacheItems,
         );
         self.draw_scrollbar(
             frame,
-            panes[0],
+            panes.rect(0),
             cache::SCOPES.len(),
-            panes[0].height.saturating_sub(2) as usize,
+            panes.rect(0).height.saturating_sub(2) as usize,
             self.cache_page
                 .scope
-                .saturating_sub(panes[0].height.saturating_sub(3) as usize),
+                .saturating_sub(panes.rect(0).height.saturating_sub(3) as usize),
             ScrollTarget::CacheScopes,
         );
     }
@@ -380,12 +380,13 @@ impl App {
                             bytes as f64 / 1048576.0
                         )
                     } else {
-                        let item = item.unwrap();
-                        format!(
-                            "再按 Delete 确认删除 {} · {:.1} MiB · 保留原文件",
-                            item.label,
-                            item.bytes as f64 / 1048576.0
-                        )
+                        item.map_or_else(String::new, |item| {
+                            format!(
+                                "再按 Delete 确认删除 {} · {:.1} MiB · 保留原文件",
+                                item.label,
+                                item.bytes as f64 / 1048576.0
+                            )
+                        })
                     };
                 }
             }

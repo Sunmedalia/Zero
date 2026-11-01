@@ -67,7 +67,7 @@ impl Windows<'_> {
             ensure!(matches!(size, 1 | 2 | 4 | 8), "驱动名称标量宽度无效");
             if physical {
                 let mut bytes = [0; 8];
-                self.vm.image.read(at, &mut bytes[..size])?;
+                self.vm.image.read(at, bytes.at_mut(..size)?)?;
                 Ok(u64::from_le_bytes(bytes))
             } else {
                 self.vm.uint(at, size)
@@ -102,7 +102,7 @@ impl Windows<'_> {
         let read = |at, size| -> Result<u64> {
             if physical {
                 let mut bytes = [0; 8];
-                self.vm.image.read(at, &mut bytes[..size])?;
+                self.vm.image.read(at, bytes.at_mut(..size)?)?;
                 Ok(u64::from_le_bytes(bytes))
             } else {
                 self.vm.uint(at, size)
@@ -124,7 +124,7 @@ impl Windows<'_> {
         };
         // Direct NameInfo.Name.String does not apply get_name's maximum-length
         // sanity checks; read exactly Length with the reference String decoder.
-        let mut bytes = vec![0; length as usize];
+        let mut bytes = vec![0; usize::try_from(length)?];
         self.vm.read(buffer, &mut bytes)?;
         Ok(windowstations::reference_unicode_name(&bytes))
     }
@@ -165,13 +165,14 @@ impl Windows<'_> {
         let kernel_start = self.driver_kernel_start()?;
         let field = self.vm.isf.field("_DRIVER_OBJECT", "MajorFunction")?;
         ensure!(
-            field["type"]["kind"] == "array"
-                && field["type"]["count"] == 28
-                && field["type"]["subtype"]["kind"] == "pointer",
+            *field["type"].key("kind") == "array"
+                && *field["type"].key("count") == 28
+                && field["type"].key("subtype")["kind"] == "pointer",
             "MajorFunction 布局不是 28 个指针"
         );
         let major = self.vm.isf.offset("_DRIVER_OBJECT", "MajorFunction")?;
-        let size = self.vm.isf.data["user_types"]["_DRIVER_OBJECT"]["size"]
+        let size = self.vm.isf.data.key("user_types")["_DRIVER_OBJECT"]
+            .key("size")
             .as_u64()
             .context("缺少驱动大小")?;
         ensure!(
@@ -203,14 +204,16 @@ impl Windows<'_> {
                     let mut bytes = [0u8; 8];
                     self.vm
                         .image
-                        .read(slot, &mut bytes[..self.vm.pointer_size()])
+                        .read(slot, bytes.at_mut(..self.vm.pointer_size())?)
                         .map(|()| u64::from_le_bytes(bytes))
                 } else {
                     self.vm.pointer(slot)
                 };
                 match target {
                     Ok(raw) if self.driver_target(raw, kernel_start).is_some() => {
-                        let target = self.driver_target(raw, kernel_start).unwrap();
+                        let Some(target) = self.driver_target(raw, kernel_start) else {
+                            continue;
+                        };
                         modules.resolve_at(target, &self.vm, resources, r, job)?;
                         for (module, symbol) in modules.at(target) {
                             ensure!(r.rows.len() < 100_000, "IRP 结果数量超限");
@@ -236,8 +239,9 @@ impl Windows<'_> {
                 }
             }
         }
-        r.kernel_identity["dispatch_symbols"] = modules.evidence(resources);
-        r.kernel_identity["driver_kernel_space_start"] = serde_json::json!(hex(kernel_start));
+        *r.kernel_identity.key_mut("dispatch_symbols")? = modules.evidence(resources);
+        *r.kernel_identity.key_mut("driver_kernel_space_start")? =
+            serde_json::json!(hex(kernel_start));
         Ok(())
     }
 }

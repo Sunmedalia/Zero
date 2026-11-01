@@ -60,9 +60,8 @@ impl Reader<'_> {
     }
 }
 fn uint(b: &[u8], at: usize, width: usize) -> Result<u64> {
-    let mut v = [0; 8];
-    v[..width].copy_from_slice(b.get(at..at + width).context("休眠字段截断")?);
-    Ok(u64::from_le_bytes(v))
+    crate::bytes::le_uint(b.get(at..at + width).context("休眠字段截断")?)
+        .context("休眠字段宽度无效")
 }
 pub fn recognized(magic: &[u8]) -> bool {
     matches!(
@@ -81,7 +80,7 @@ impl Hibernation {
         {
             return Ok(bytes.clone());
         }
-        let block = &self.blocks[index];
+        let block = self.blocks.get(index).context("休眠块索引无效")?;
         let input = r.bytes(block.offset, block.length)?;
         let bytes = Arc::new(if block.raw {
             ensure!(input.len() == block.size, "休眠原始块长度错误");
@@ -119,7 +118,7 @@ impl Hibernation {
             ensure!(self.info.diagnostics.len() < 4096, "休眠损坏块过多");
             self.info.diagnostics.push(format!(
                 "block file {:#x}: {e:#}",
-                self.blocks[index].offset
+                self.blocks.get(index).map_or(0, |block| block.offset)
             ));
             return Ok(());
         }
@@ -133,8 +132,11 @@ impl Hibernation {
                 self.maps.len() < MAX_OBJECTS
                     && start < end
                     && offset
-                        .checked_add(length as usize)
-                        .is_some_and(|n| n <= self.blocks[index].size),
+                        .checked_add(usize::try_from(length)?)
+                        .is_some_and(|n| self
+                            .blocks
+                            .get(index)
+                            .is_some_and(|block| n <= block.size)),
                 "休眠映射范围无效"
             );
             if let Some((_, previous)) = self.maps.range(..=start).next_back() {
@@ -151,10 +153,15 @@ impl Hibernation {
                     offset,
                 },
             );
-            offset += length as usize;
+            offset += usize::try_from(length)?;
             self.info.saved_pages += count;
         }
-        ensure!(offset == self.blocks[index].size, "休眠块页面计数不一致");
+        ensure!(
+            self.blocks
+                .get(index)
+                .is_some_and(|block| block.size == offset),
+            "休眠块页面计数不一致"
+        );
         Ok(())
     }
     pub fn read(&self, file: &File, mut address: u64, mut out: &mut [u8]) -> Result<()> {
@@ -176,12 +183,13 @@ impl Hibernation {
                 .next_back()
                 .filter(|(_, m)| address < m.end)
                 .with_context(|| format!("休眠文件缺少物理页 {address:#x}"))?;
-            let n = out.len().min((map.end - address) as usize);
+            let n = out.len().min(usize::try_from(map.end - address)?);
             let bytes = self.decode(&r, map.block)?;
-            let at = map.offset + (address - start) as usize;
-            out[..n].copy_from_slice(bytes.get(at..at + n).context("休眠解压块范围无效")?);
+            let at = map.offset + usize::try_from(address - start)?;
+            let (head, tail) = out.split_at_mut(n);
+            head.copy_from_slice(bytes.get(at..at + n).context("休眠解压块范围无效")?);
             address += n as u64;
-            out = &mut out[n..];
+            out = tail;
         }
         Ok(())
     }
@@ -209,7 +217,8 @@ pub fn parse(file: &File, job: &Job) -> Result<(Hibernation, container::Metadata
         len: file.metadata()?.len(),
     };
     let header = r.bytes(0, 4096)?;
-    ensure!(recognized(&header[..4]), "不是 Windows 休眠文件");
+    let magic = header.get(..4).context("休眠头部被截断")?;
+    ensure!(recognized(magic), "不是 Windows 休眠文件");
     let length = uint(&header, 12, 4)?;
     ensure!((80..=4096).contains(&length), "未知休眠头部尺寸");
     let width = if uint(&header, 20, 4)? == 4096 {
@@ -232,9 +241,9 @@ pub fn parse(file: &File, job: &Job) -> Result<(Hibernation, container::Metadata
             }
             .into(),
             pointer_size: width,
-            image_type: uint(&header, 4, 4)? as u32,
+            image_type: u32::try_from(uint(&header, 4, 4)?)?,
             hiberboot: if width == 8 && length == 0x3e0 {
-                Some(header[0x364] != 0)
+                header.get(0x364).map(|byte| *byte != 0)
             } else {
                 None
             },
@@ -243,7 +252,7 @@ pub fn parse(file: &File, job: &Job) -> Result<(Hibernation, container::Metadata
             diagnostics: vec![],
         },
     };
-    if matches!(&header[..4], b"wake" | b"WAKE" | b"BRKP") {
+    if matches!(magic, b"wake" | b"WAKE" | b"BRKP") {
         h.info
             .diagnostics
             .push("恢复后的休眠文件可能已清除保存页".into());
@@ -374,7 +383,7 @@ fn modern_ranges(
             Block {
                 offset: data,
                 length,
-                size: total as usize * 4096,
+                size: usize::try_from(total)? * 4096,
                 format,
                 raw: false,
             },
@@ -405,7 +414,7 @@ fn legacy_ranges(
         let at = page.checked_mul(4096).context("range table offset 溢出")?;
         let bytes = r.bytes(at, 4096)?;
         let next = uint(&bytes, 0, width)?;
-        let count = uint(&bytes, width, 4)? as usize;
+        let count = usize::try_from(uint(&bytes, width, 4)?)?;
         let header = width * 2;
         ensure!(
             count > 0 && count <= (4096 - header) / (width * 2),
@@ -430,7 +439,10 @@ fn legacy_ranges(
         while total > 0 {
             job.check()?;
             let header = r.bytes(data, 32)?;
-            ensure!(&header[..8] == b"\x81\x81xpress", "休眠 XPRESS 块签名无效");
+            ensure!(
+                header.starts_with(b"\x81\x81xpress"),
+                "休眠 XPRESS 块签名无效"
+            );
             let info = uint(&header, 8, 4)?;
             let pages = (info & 1023) + 1;
             let length = (info >> 10) + 1;
@@ -456,8 +468,8 @@ fn legacy_ranges(
                 r,
                 Block {
                     offset: start,
-                    length: length as usize,
-                    size: pages as usize * 4096,
+                    length: usize::try_from(length)?,
+                    size: usize::try_from(pages)? * 4096,
                     format: 3,
                     raw: length == pages * 4096,
                 },

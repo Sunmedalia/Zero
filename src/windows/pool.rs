@@ -19,7 +19,8 @@ impl Windows<'_> {
         job: &Job,
     ) -> Result<Vec<(u64, u64)>> {
         let isf = self.vm.isf;
-        let size = isf.data["user_types"]["_POOL_HEADER"]["size"]
+        let size = isf.data.key("user_types")["_POOL_HEADER"]
+            .key("size")
             .as_u64()
             .context("缺少 pool header 大小")?;
         ensure!((8..=64).contains(&size), "pool header 大小无效");
@@ -29,7 +30,7 @@ impl Windows<'_> {
         let mut blocks = BTreeSet::new();
         // One header buffer: this loop runs once per pool-tag hit across the
         // whole image.
-        let mut b = vec![0; size as usize];
+        let mut b = vec![0; usize::try_from(size)?];
         self.prefetch_pool_tags(job)?;
         for tag in tags {
             for hit in self.vm.image.scan(tag, job)? {
@@ -103,7 +104,8 @@ impl Windows<'_> {
             Plugin::WinThrdscan => ("_ETHREAD", "Thread", &[b"Thre", b"Thr\xe5"]),
             _ => ("_KMUTANT", "Mutant", &[b"Muta", b"Mut\xe1"]),
         };
-        let size = self.vm.isf.data["user_types"][ty]["size"]
+        let size = self.vm.isf.data.key("user_types")[ty]
+            .key("size")
             .as_u64()
             .context("缺少对象类型大小")?;
         ensure!((16..=4096).contains(&size), "pool 对象大小无效");
@@ -114,7 +116,7 @@ impl Windows<'_> {
         // One buffer reused across candidates: the scan probes a slot every
         // `align` bytes over whole pool blocks, so a per-candidate allocation
         // dominated this loop.
-        let mut bytes = vec![0; size as usize];
+        let mut bytes = vec![0; usize::try_from(size)?];
         for (start, length) in self.pool_blocks(tags, size + body_offset, job)? {
             for delta in (body_offset..=length - size).step_by(align as usize) {
                 job.check()?;
@@ -251,7 +253,7 @@ impl Windows<'_> {
                         ensure!(owner == 0 || self.vm.kernel(owner), "无效互斥 OwnerThread");
                         row.push(hex(owner));
                         let signal = self.number(address, ty, "Header.SignalState")?;
-                        row.push((signal as u32 as i32).to_string());
+                        row.push((u32::try_from(signal)? as i32).to_string());
                     }
                     Ok(Some(row))
                 })();
@@ -275,7 +277,7 @@ impl Windows<'_> {
                 format!("{unmatched} 个结构候选没有可验证的虚拟对象类型；未输出这些候选"),
             );
         }
-        r.kernel_identity["pool_scan"] = serde_json::json!({"object_type":kind,"validation":"structure and mapped object header type","scope":"mapped live or retained pool objects; unmapped freed candidates excluded"});
+        *r.kernel_identity.key_mut("pool_scan")? = serde_json::json!({"object_type":kind,"validation":"structure and mapped object header type","scope":"mapped live or retained pool objects; unmapped freed candidates excluded"});
         Ok(())
     }
 }
@@ -290,7 +292,7 @@ impl Windows<'_> {
         let Ok(offset) = isf.offset(ty, "LinkTarget") else {
             return false;
         };
-        let Some(target) = bytes.get(offset as usize..) else {
+        let Some(target) = usize::try_from(offset).ok().and_then(|at| bytes.get(at..)) else {
             return false;
         };
         let field = |name| physical_number(isf, target, "_UNICODE_STRING", name);
@@ -333,7 +335,7 @@ impl PoolMappings<'_> {
         }
         ensure!(self.budget > 0, "对象虚拟地址映射搜索超限");
         self.budget -= 1;
-        let shift = self.geometry.shifts()[level];
+        let shift = *self.geometry.shifts().at(level)?;
         let need = self.geometry.entries(level) * self.geometry.width();
         self.scratch.resize(need, 0);
         self.scratch.fill(0);
@@ -349,7 +351,7 @@ impl PoolMappings<'_> {
                 continue;
             }
             let mut raw = [0u8; 8];
-            raw[..bytes.len()].copy_from_slice(bytes);
+            raw.at_mut(..bytes.len())?.copy_from_slice(bytes);
             let entry = u64::from_le_bytes(raw);
             if entry & 1 == 0 {
                 continue;

@@ -280,10 +280,10 @@ pub struct App {
     root: PathBuf,
     registry: Registry,
     assets: Vec<Asset>,
-    asset_rows: [usize; 3],
-    asset_scroll: [usize; 3],
-    asset_queries: [String; 3],
-    asset_states: RefCell<[ListState; 3]>,
+    asset_rows: PerSection<usize>,
+    asset_scroll: PerSection<usize>,
+    asset_queries: PerSection<String>,
+    asset_states: RefCell<PerSection<ListState>>,
     asset_details: HashMap<PathBuf, String>,
     asset_identities: HashMap<PathBuf, crate::image::BoundIdentity>,
     asset_digests: HashMap<PathBuf, String>,
@@ -314,7 +314,7 @@ pub struct App {
     path_cache: RefCell<HashMap<PathBuf, String>>,
     /// Filtered asset indices per section, keyed by the state that produced
     /// them. `asset_list_for` runs several times per frame.
-    asset_index_cache: RefCell<[AssetIndex; 3]>,
+    asset_index_cache: RefCell<PerSection<AssetIndex>>,
     table_state: RefCell<TableState>,
     focus: Focus,
     menu: usize,
@@ -440,4 +440,30 @@ fn cells_to_line((cells, decoration): BorrowedRow<'_>) -> Vec<Line<'static>> {
             Line::from(escaped(text))
         })
         .collect()
+}
+
+/// One value per asset section. Indexing is total: the slots are 0, 1 and 2, and the
+/// last section takes anything larger.
+#[derive(Default)]
+pub(super) struct PerSection<T>(pub(super) [T; 3]);
+impl<T> std::ops::Index<usize> for PerSection<T> {
+    type Output = T;
+    fn index(&self, slot: usize) -> &T {
+        let [images, symbols, remote] = &self.0;
+        match slot {
+            0 => images,
+            1 => symbols,
+            _ => remote,
+        }
+    }
+}
+impl<T> std::ops::IndexMut<usize> for PerSection<T> {
+    fn index_mut(&mut self, slot: usize) -> &mut T {
+        let [images, symbols, remote] = &mut self.0;
+        match slot {
+            0 => images,
+            1 => symbols,
+            _ => remote,
+        }
+    }
 }

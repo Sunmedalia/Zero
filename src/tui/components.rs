@@ -251,7 +251,9 @@ fn fit<'a>(fields: &[(&'a str, String, Style)], width: u16) -> Vec<Span<'a>> {
         }
         // Too long. Share the row with the fields that follow when they are
         // worth keeping, otherwise take what is left.
-        let rest: usize = fields[index + 1..]
+        let rest: usize = fields
+.get(index + 1..)
+.unwrap_or(&[])
             .iter()
             .map(|(l, t, _)| 3 + Span::raw(*l).width() + Span::raw(t).width())
             .sum();
@@ -403,7 +405,7 @@ fn table_widths<'a>(
                 })
                 .max()
                 .unwrap_or(0);
-            header.max(data.min(60)).clamp(3, 120) as u16
+            header.max(data.min(60)).clamp(3, 120).cells()
         })
         .collect()
 }
@@ -585,7 +587,7 @@ fn remote_fields(candidate: &RemoteMatch) -> Vec<(String, String)> {
     let parts = file.split('_').collect::<Vec<_>>();
     let mut fields = Vec::new();
     if parts.len() >= 3 {
-        fields.push(("发行版".into(), parts[0].into()));
+        fields.push(("发行版".into(), (*parts.first().unwrap_or(&"")).into()));
     }
     fields.push((
         "内核版本".into(),
@@ -596,8 +598,8 @@ fn remote_fields(candidate: &RemoteMatch) -> Vec<(String, String)> {
             .unwrap_or("")
             .into(),
     ));
-    if parts.len() >= 3 {
-        fields.push(("架构".into(), parts.last().unwrap().to_string()));
+    if let Some(architecture) = parts.last().filter(|_| parts.len() >= 3) {
+        fields.push(("架构".into(), architecture.to_string()));
     }
     if let Some(start) = candidate
         .banner

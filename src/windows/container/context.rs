@@ -8,9 +8,7 @@ pub(super) fn parse(
 ) -> Result<ThreadContext> {
     let uint = |at: usize, width: usize| -> Result<u64> {
         let b = bytes.get(at..at + width).context("CONTEXT 截断")?;
-        let mut out = [0; 8];
-        out[..width].copy_from_slice(b);
-        Ok(u64::from_le_bytes(out))
+        crate::bytes::le_uint(b).context("CONTEXT 字段宽度无效")
     };
     let flags = uint(if arch == Architecture::X64 { 48 } else { 0 }, 4)?;
     let expected = match arch {
@@ -37,7 +35,7 @@ pub(super) fn parse(
                 ("Pc", 264, 8),
                 ("Cpsr", 4, 4),
             ],
-            _ => unreachable!(),
+            Architecture::Auto => bail!("CONTEXT 缺少 CPU 身份"),
         };
         for &(name, at, width) in control {
             registers.insert(name.into(), uint(at, width)?);
@@ -83,7 +81,7 @@ pub(super) fn parse(
                     registers.insert(format!("X{n}"), uint(8 + n * 8, 8)?);
                 }
             }
-            _ => unreachable!(),
+            Architecture::Auto => bail!("CONTEXT 缺少 CPU 身份"),
         }
     }
     registers.insert("ContextFlags".into(), flags);

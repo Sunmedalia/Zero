@@ -181,7 +181,7 @@ impl Sources {
                         .vm
                         .pointer(add(array, index * engine.vm.pointer_size() as u64)?)?;
                     if object != 0 && engine.vm.number(object, "_MMPAGING_FILE", field)? != 0 {
-                        self.virtual_indexes.insert(index as u8);
+                        self.virtual_indexes.insert(u8::try_from(index)?);
                     }
                 }
             }
@@ -224,16 +224,18 @@ impl Sources {
                 .next()
                 .is_some_and(|name| name.eq_ignore_ascii_case("swapfile.sys"))
             {
-                matches.push(index as u8);
+                matches.push(u8::try_from(index)?);
             }
         }
         ensure!(matches.len() == 1, "无法唯一验证 swapfile 的内核分页索引");
         ensure!(
-            !self.files.contains_key(&matches[0]),
+            !self.files.contains_key(matches.at(0)?),
             "swapfile 与 pagefile 索引冲突"
         );
-        self.files
-            .insert(matches[0], self.swap.take().context("swapfile 未打开")?);
+        self.files.insert(
+            *matches.at(0)?,
+            self.swap.take().context("swapfile 未打开")?,
+        );
         Ok(())
     }
     pub(super) fn mapping_valid(&self, index: u8, offset: u64, size: u64) -> bool {
@@ -324,13 +326,13 @@ impl Memory<'_> {
         let mut table = self.root & geometry.root_mask();
         let mut backing = None;
         for (level, &shift) in geometry.shifts().iter().enumerate() {
-            let index = ((va >> shift) & (geometry.entries(level) as u64 - 1)) as usize;
+            let index = usize::try_from((va >> shift) & (geometry.entries(level) as u64 - 1))?;
             let entry = if let Some((file, offset)) = backing {
                 let mut b = [0; 8];
                 self.sources.context("未附加分页文件")?.read(
                     file,
                     add(offset, (index * geometry.width()) as u64)?,
-                    &mut b[..geometry.width()],
+                    b.at_mut(..geometry.width())?,
                 )?;
                 u64::from_le_bytes(b)
             } else {

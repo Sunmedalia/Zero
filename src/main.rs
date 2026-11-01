@@ -1,3 +1,16 @@
+#![cfg_attr(
+    not(test),
+    deny(
+        clippy::cast_possible_truncation,
+        clippy::indexing_slicing,
+        clippy::unwrap_used,
+        clippy::expect_used,
+        clippy::panic,
+        clippy::unreachable,
+        clippy::todo,
+        clippy::unimplemented
+    )
+)]
 #![recursion_limit = "256"]
 mod mcp;
 
@@ -92,6 +105,8 @@ struct Cli {
 enum Command {
     /// Run the newline-delimited JSON-RPC MCP server over stdio.
     Mcp,
+    /// Report which optional external tools this environment has.
+    Doctor,
     /// Inspect or clear regenerable cache files.
     Cache {
         #[command(subcommand)]
@@ -192,6 +207,19 @@ fn main() -> Result<()> {
     if matches!(cli.command, Some(Command::Mcp)) {
         return mcp::run();
     }
+    if matches!(cli.command, Some(Command::Doctor)) {
+        let missing = zero_tui::prepare::missing_build_tools();
+        println!("分析、符号下载与解包: 内置，无外部依赖");
+        println!(
+            "Kali 符号准备 (git、go): {}",
+            if missing.is_empty() {
+                "可用".to_owned()
+            } else {
+                format!("缺少 {}", missing.join("、"))
+            }
+        );
+        return Ok(());
+    }
     let cache = PathBuf::from(".zero/rust");
     if let Some(Command::Cache { action }) = &cli.command {
         match action {
@@ -243,7 +271,9 @@ fn main() -> Result<()> {
             zero_tui::prepare::generate(
                 elf.as_deref()
                     .ok_or_else(|| anyhow::anyhow!("需要 --elf / --config 或 --kali"))?,
-                config.as_deref().unwrap(),
+                config
+                    .as_deref()
+                    .ok_or_else(|| anyhow::anyhow!("需要 --elf / --config 或 --kali"))?,
                 tool.as_deref()
                     .unwrap_or(&cache.join("symbols/build/dwarf2json/dwarf2json")),
                 &image,

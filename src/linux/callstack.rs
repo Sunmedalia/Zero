@@ -1,5 +1,6 @@
 //! Saved kernel stack-word candidates attributed to runtime symbol intervals.
 use super::*;
+use crate::bytes::JsonKey as _;
 use crate::{
     analysis::Options,
     stack_scan,
@@ -24,7 +25,8 @@ fn reference_module_elf_bounds(symbols: &[(u64, u64)], mask: u64) -> Option<(u64
     let minimum = ordered.get(1)?.0 & mask;
     let last = ordered.last()?;
     // Keep Python's + before &: this is not (st_value & mask) + st_size.
-    let maximum = (u128::from(last.0) & (u128::from(mask) + u128::from(last.1))) as u64;
+    let maximum =
+        u64::try_from(u128::from(last.0) & (u128::from(mask) + u128::from(last.1))).ok()?;
     Some((minimum, maximum))
 }
 
@@ -102,7 +104,7 @@ impl Linux<'_> {
             let symbols = self.module_symbols(module)?;
             ensure!(symbols.count <= budget, "模块边界读取超过 100 万项上限");
             budget -= symbols.count;
-            let mut values = Vec::with_capacity(symbols.count as usize);
+            let mut values = Vec::with_capacity(usize::try_from(symbols.count)?);
             for index in 0..symbols.count {
                 job.check()?;
                 let symbol = add(symbols.table, index * 24)?;
@@ -238,12 +240,13 @@ impl Linux<'_> {
         if !result.kernel_identity.is_object() {
             result.kernel_identity = serde_json::json!({});
         }
-        result.kernel_identity["lookup_bounds"] = serde_json::json!({"core_text_ranges":core_ranges,"module_lookup":module_bounds,"invalid_symbol_ranges":invalid_ranges});
+        *result.kernel_identity.key_mut("lookup_bounds")? = serde_json::json!({"core_text_ranges":core_ranges,"module_lookup":module_bounds,"invalid_symbol_ranges":invalid_ranges});
         Ok((SymbolIndex::build(entries, job)?, result))
     }
     pub(super) fn ps_callstack(&self, options: &Options, job: &Job) -> Result<Results> {
         ensure!(
-            self.isf.data["base_types"]["pointer"]["size"]
+            self.isf.data.key("base_types")["pointer"]
+                .key("size")
                 .as_u64()
                 .unwrap_or(8)
                 == 8,
@@ -292,9 +295,9 @@ impl Linux<'_> {
         self.isf.layout("task_struct", sp_field)?;
         for task in tasks {
             job.check()?;
-            let tgid = task[1].parse::<u32>()?;
+            let tgid = task.at(1)?.parse::<u32>()?;
             attempts += 1;
-            let address = u64::from_str_radix(&task[4][2..], 16)?;
+            let address = u64::from_str_radix(&task.at(4)?[2..], 16)?;
             let read = (|| -> Result<Option<serde_json::Value>> {
                 let flags = self.number(address, "task_struct", "flags")?;
                 let kernel_thread = flags & 0x0020_0000 != 0;
@@ -310,7 +313,7 @@ impl Linux<'_> {
                     display_address(self.number(address, "task_struct", "stack")?, self.arm64());
                 let mut sp = self.number(address, "task_struct", sp_field)?;
                 if !self.arm64()
-                    && self.isf.field("task_struct", sp_field)?["type"]["kind"] == "pointer"
+                    && *self.isf.field("task_struct", sp_field)?["type"].key("kind") == "pointer"
                 {
                     sp &= 0xffff_ffff_ffff;
                 }
@@ -350,8 +353,8 @@ impl Linux<'_> {
                             .map(|s| (s.name.as_str(), s.kind.as_str(), s.module.as_str()))
                             .unwrap_or(("N/A", "N/A", "N/A"));
                         let row = vec![
-                            task[0].clone(),
-                            task[3].clone(),
+                            task.at(0)?.clone(),
+                            task.at(3)?.clone(),
                             word.position.to_string(),
                             hex(word.address),
                             hex(value),
@@ -370,12 +373,12 @@ impl Linux<'_> {
                         Ok(true)
                     },
                 )?;
-                if coverage.first_unreadable.is_some() {
+                if let Some(error) = coverage.first_unreadable.clone() {
                     failed += 1;
-                    first_error.get_or_insert_with(|| coverage.first_unreadable.clone().unwrap());
+                    first_error.get_or_insert(error);
                 }
                 Ok(Some(
-                    serde_json::json!({"tid":task[0],"tgid":tgid,"base":hex(base),"sp":hex(sp),"scan_bytes":stack_size,"layer":if kernel_thread {"kernel"} else {"task"},"coverage":coverage,"resolved_words":resolved,"unresolved_words":unresolved}),
+                    serde_json::json!({"tid":*task.at(0)?,"tgid":tgid,"base":hex(base),"sp":hex(sp),"scan_bytes":stack_size,"layer":if kernel_thread {"kernel"} else {"task"},"coverage":coverage,"resolved_words":resolved,"unresolved_words":unresolved}),
                 ))
             })();
             match read {
@@ -390,7 +393,7 @@ impl Linux<'_> {
                 Err(e) => {
                     job.check()?;
                     failed += 1;
-                    first_error.get_or_insert_with(|| format!("TID {}: {e:#}", task[0]));
+                    first_error.get_or_insert_with(|| format!("TID {}: {e:#}", task.cell(0)));
                 }
             }
             if output_stopped || read_budget == 0 {
@@ -417,7 +420,7 @@ impl Linux<'_> {
         if !result.kernel_identity.is_object() {
             result.kernel_identity = serde_json::json!({});
         }
-        result.kernel_identity["pscallstack"] = serde_json::json!({"model":"saved SP linear nonzero word scan; not frame unwinding","stack_bytes":stack_size,"stack_size_source":"fixed reference page_size(4096) << 2; kernel configuration not inferred","sp_field":sp_field,"pointer_width":width,"pids":pids,"include_unresolved":options.unresolved,"complete_scope":"word starts inside captured fixed window; actual THREAD_SIZE not proven","x86_value_mask":"48-bit reference address mask, sign extended for native display","symbol_index_entries":index.len(),"symbol_sources":symbols.kernel_identity,"source_priority":["core","module","bpf","ftrace"],"attempted_tasks":attempts,"failed_tasks":failed,"kernel_mapping_fallbacks":0,"word_read_bytes":read_bytes,"word_read_attempt_bytes":64*1024*1024-read_budget,"reports":reports,"output_stopped":output_stopped});
+        *result.kernel_identity.key_mut("pscallstack")? = serde_json::json!({"model":"saved SP linear nonzero word scan; not frame unwinding","stack_bytes":stack_size,"stack_size_source":"fixed reference page_size(4096) << 2; kernel configuration not inferred","sp_field":sp_field,"pointer_width":width,"pids":pids,"include_unresolved":options.unresolved,"complete_scope":"word starts inside captured fixed window; actual THREAD_SIZE not proven","x86_value_mask":"48-bit reference address mask, sign extended for native display","symbol_index_entries":index.len(),"symbol_sources":symbols.kernel_identity,"source_priority":["core","module","bpf","ftrace"],"attempted_tasks":attempts,"failed_tasks":failed,"kernel_mapping_fallbacks":0,"word_read_bytes":read_bytes,"word_read_attempt_bytes":64*1024*1024-read_budget,"reports":reports,"output_stopped":output_stopped});
         Ok(result)
     }
 }

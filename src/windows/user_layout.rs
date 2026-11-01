@@ -32,11 +32,13 @@ struct Manifest {
     service_versions: BTreeMap<String, String>,
     consoles: BTreeMap<String, ConsoleLayout>,
 }
-fn manifest() -> &'static Manifest {
-    static M: OnceLock<Manifest> = OnceLock::new();
+fn manifest() -> Result<&'static Manifest> {
+    static M: OnceLock<Result<Manifest, String>> = OnceLock::new();
     M.get_or_init(|| {
-        serde_json::from_str(include_str!("user_layouts.json")).expect("checked user layouts")
+        serde_json::from_str(include_str!("user_layouts.json")).map_err(|e| e.to_string())
     })
+    .as_ref()
+    .map_err(|e| anyhow::anyhow!("内置用户布局清单无效: {e}"))
 }
 pub(super) fn service(arch: Architecture, version: [u16; 4]) -> Result<ServiceLayout> {
     let a = match arch {
@@ -45,11 +47,11 @@ pub(super) fn service(arch: Architecture, version: [u16; 4]) -> Result<ServiceLa
         _ => bail!("服务声明布局仅提供 x86/x64"),
     };
     let key = format!("{a}:{}.{}.{}", version[0], version[1], version[2]);
-    let name = manifest()
+    let name = manifest()?
         .service_versions
         .get(&key)
         .context("未声明该 services.exe 版本布局")?;
-    let layout = manifest()
+    let layout = manifest()?
         .services
         .get(name)
         .context("服务声明布局缺失")?
@@ -102,7 +104,7 @@ pub(super) fn console(arch: Architecture, version: [u16; 4]) -> Result<ConsoleLa
         // No nearest revision fallback when an update changed the layout.
         _ => bail!("未声明该精确 conhost.exe 构建/修订布局 {version:?}"),
     };
-    let l = manifest()
+    let l = manifest()?
         .consoles
         .get(name)
         .context("缺少控制台声明布局")?
@@ -126,7 +128,7 @@ mod tests {
     use super::*;
     #[test]
     fn declared_versions_do_not_choose_nearest_or_cross_arch_layout() {
-        for (key, name) in &manifest().service_versions {
+        for (key, name) in &manifest().unwrap().service_versions {
             let (a, v) = key.split_once(':').unwrap();
             let n: Vec<u16> = v.split('.').map(|s| s.parse().unwrap()).collect();
             let arch = if a == "x86" {
@@ -135,7 +137,7 @@ mod tests {
                 Architecture::X64
             };
             let l = service(arch, [n[0], n[1], n[2], 0]).unwrap();
-            assert_eq!(l.source, manifest().services[name].source);
+            assert_eq!(l.source, manifest().unwrap().services[name].source);
         }
         assert!(service(Architecture::X64, [10, 0, 26101, 0]).is_err());
         assert!(service(Architecture::Arm64, [10, 0, 26100, 0]).is_err());

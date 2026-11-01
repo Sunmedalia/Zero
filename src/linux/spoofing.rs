@@ -112,7 +112,7 @@ impl Linux<'_> {
                         .iter()
                         .position(|byte| *byte == 0)
                         .unwrap_or(bytes.len());
-                    let text = String::from_utf8_lossy(&bytes[..end]);
+                    let text = String::from_utf8_lossy(bytes.at(..end)?);
                     Ok(basename(&text).map(str::to_owned))
                 })();
                 match read {

@@ -1,4 +1,5 @@
 //! Immutable, process-local analysis snapshots, including incomplete evidence.
+use crate::bytes::JsonKey as _;
 use crate::{
     Job,
     resources::Limits,
@@ -209,17 +210,17 @@ impl Snapshots {
         };
         let next = offset.saturating_add(rows.len());
         let mut value = serde_json::to_value(snapshot.result.metadata())?;
-        value["rows"] = json!(rows);
-        value["result_id"] = json!(id);
-        value["total_rows"] = json!(snapshot.total);
-        value["offset"] = json!(offset);
-        value["next_offset"] = if next < snapshot.total {
+        *value.key_mut("rows")? = json!(rows);
+        *value.key_mut("result_id")? = json!(id);
+        *value.key_mut("total_rows")? = json!(snapshot.total);
+        *value.key_mut("offset")? = json!(offset);
+        *value.key_mut("next_offset")? = if next < snapshot.total {
             json!(next)
         } else {
             Value::Null
         };
         if let Some(output) = output {
-            value["output"] = json!(output);
+            *value.key_mut("output")? = json!(output);
         }
         Ok(value)
     }

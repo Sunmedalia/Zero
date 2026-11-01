@@ -21,12 +21,13 @@ impl Windows<'_> {
     fn hive_scan_rows(&self, r: &mut Results, job: &Job) -> Result<()> {
         let build = self.build_number()?;
         let big_pool = self.vm.pointer_size() == 8 && build >= 9600;
-        let size = self.vm.isf.data["user_types"]["_CMHIVE"]["size"]
+        let size = self.vm.isf.data.key("user_types")["_CMHIVE"]
+            .key("size")
             .as_u64()
             .context("缺少 _CMHIVE 类型")?;
         ensure!((800..=65536).contains(&size), "CMHIVE 类型大小无效");
         if big_pool {
-            r.kernel_identity["hive_scan"] = serde_json::json!({"source":"allocated CM10 big-pool entries", "offset_layer":"kernel virtual", "validation":"allocation candidates; no CMHIVE signature test"});
+            *r.kernel_identity.key_mut("hive_scan")? = serde_json::json!({"source":"allocated CM10 big-pool entries", "offset_layer":"kernel virtual", "validation":"allocation candidates; no CMHIVE signature test"});
             return self.walk_big_pool_entries(r, job, |va, key, _, r| {
                 if key == u32::from_le_bytes(*b"CM10") {
                     ensure!(r.rows.len() < MAX_OBJECTS, "hive 候选数量超限");
@@ -35,7 +36,8 @@ impl Windows<'_> {
                 Ok(())
             });
         }
-        let pool_size = self.vm.isf.data["user_types"]["_POOL_HEADER"]["size"]
+        let pool_size = self.vm.isf.data.key("user_types")["_POOL_HEADER"]
+            .key("size")
             .as_u64()
             .context("缺少 POOL_HEADER 大小")?;
         ensure!((8..=64).contains(&pool_size), "池头大小无效");
@@ -43,7 +45,7 @@ impl Windows<'_> {
         ensure!(tag_offset + 4 <= pool_size, "池 tag 越界");
         let align = if self.vm.pointer_size() == 4 { 8 } else { 16 };
         let mut candidates = BTreeSet::new();
-        let mut header_bytes = vec![0; pool_size as usize];
+        let mut header_bytes = vec![0; usize::try_from(pool_size)?];
         self.prefetch_pool_tags(job)?;
         for hit in self.vm.image.scan(b"CM10", job)? {
             job.check()?;
@@ -101,7 +103,7 @@ impl Windows<'_> {
                 format!("{unmapped} 个物理候选缺少可验证内核映射"),
             );
         }
-        r.kernel_identity["hive_scan"] = serde_json::json!({"source":"CM10 paged/free small-pool allocations", "offset_layer":if virtual_scan {"kernel virtual"} else {"physical"}, "unmapped_positions":unmapped,"validation":"allocation candidates; no CMHIVE signature test"});
+        *r.kernel_identity.key_mut("hive_scan")? = serde_json::json!({"source":"CM10 paged/free small-pool allocations", "offset_layer":if virtual_scan {"kernel virtual"} else {"physical"}, "unmapped_positions":unmapped,"validation":"allocation candidates; no CMHIVE signature test"});
         Ok(())
     }
 }

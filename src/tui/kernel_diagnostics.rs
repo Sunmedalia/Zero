@@ -1,4 +1,5 @@
 use super::*;
+use crate::bytes::Cells;
 impl App {
     pub(super) fn open_kernel_diagnostics(&mut self) {
         let symbols = if self.symbols.as_os_str().is_empty() {
@@ -97,7 +98,7 @@ impl App {
                 self.kernel_report.is_some() && self.job.is_none(),
             ),
         ] {
-            let width = Span::raw(label).width() as u16;
+            let width = Span::raw(label).width().cells();
             if x + width + 8 >= popup.right() {
                 break;
             }

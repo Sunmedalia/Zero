@@ -75,6 +75,16 @@ pub(super) fn fetch_github(url: &str, cache: &Path, job: &Job) -> Result<Vec<u8>
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn default_repository_matches_its_parsed_form() {
+        use super::super::{REPOSITORY, Repository};
+        let parsed = Repository::parse(REPOSITORY).unwrap();
+        let default = Repository::default_repository();
+        assert_eq!(
+            (default.web, default.raw, default.branch),
+            (parsed.web, parsed.raw, parsed.branch)
+        );
+    }
     const URL: &str =
         "https://raw.githubusercontent.com/owner/repo/master/banners/banners_plain.json";
     #[test]

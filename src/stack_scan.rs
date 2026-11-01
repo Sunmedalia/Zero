@@ -1,6 +1,7 @@
 //! Bounded, cancellable stack-word reads. This scans saved words, not frame-pointer
 //! unwinding; positions count zero words and stop at the first unavailable word.
 use crate::Job;
+use crate::bytes::Checked as _;
 use anyhow::{Context, Result, ensure};
 use serde::Serialize;
 #[derive(Default, Serialize)]
@@ -38,7 +39,7 @@ pub(crate) fn words(
     while at < top {
         job.check()?;
         let mut bytes = [0; 8];
-        if let Err(e) = read(at, &mut bytes[..width]) {
+        if let Err(e) = read(at, bytes.at_mut(..width)?) {
             job.check()?;
             out.first_unreadable = Some(format!("{at:#x}: {e:#}"));
             break;

@@ -51,7 +51,12 @@ impl DispatchModules {
             module.name = unique;
         }
         let mut symbols: BTreeMap<u64, Vec<String>> = BTreeMap::new();
-        for (name, entry) in isf.data["symbols"].as_object().context("缺少符号映射")? {
+        for (name, entry) in isf
+            .data
+            .key("symbols")
+            .as_object()
+            .context("缺少符号映射")?
+        {
             job.check()?;
             if let Some(rva) = entry["address"].as_u64() {
                 symbols.entry(rva).or_default().push(name.clone());
@@ -123,7 +128,7 @@ impl DispatchModules {
                     "模块范围与 PE SizeOfImage 不一致"
                 );
                 let identity = network::pe_identity(vm, module.base)?;
-                evidence["pdb"] = serde_json::json!(identity.key());
+                *evidence.key_mut("pdb")? = serde_json::json!(identity.key());
                 dependency = Some((
                     identity.clone(),
                     windows_symbols::cache_state(&identity, cache, job).ok(),
@@ -137,9 +142,11 @@ impl DispatchModules {
                     Architecture::from_isf(&isf)? == Architecture::from_isf(vm.isf)?,
                     "模块 PDB 架构冲突"
                 );
-                evidence["isf_sha256"] = serde_json::json!(isf.digest);
+                *evidence.key_mut("isf_sha256")? = serde_json::json!(isf.digest);
                 let mut symbols = BTreeMap::<u64, Vec<String>>::new();
-                for (name, entry) in isf.data["symbols"]
+                for (name, entry) in isf
+                    .data
+                    .key("symbols")
                     .as_object()
                     .context("缺少模块符号映射")?
                 {
@@ -167,7 +174,7 @@ impl DispatchModules {
                 job.check()?;
                 if let Some(after) = after {
                     if result.is_ok() {
-                        self.stable &= after.isf.as_deref() == evidence["isf_sha256"].as_str();
+                        self.stable &= after.isf.as_deref() == evidence.key("isf_sha256").as_str();
                     } else {
                         self.stable &= before.as_ref() == Some(&after);
                     }
@@ -180,12 +187,12 @@ impl DispatchModules {
             }
             match result {
                 Ok(symbols) => {
-                    evidence["resolved"] = serde_json::json!(true);
+                    *evidence.key_mut("resolved")? = serde_json::json!(true);
                     self.external.insert(module.base, symbols);
                 }
                 Err(error) => {
                     job.check()?;
-                    evidence["error"] = serde_json::json!(format!("{error:#}"));
+                    *evidence.key_mut("error")? = serde_json::json!(format!("{error:#}"));
                     Windows::issue(r, format!("模块符号 {}", module.name), format!("{error:#}"));
                 }
             }
@@ -256,7 +263,7 @@ pub(super) fn dependencies_match(
     job: &Job,
 ) -> Result<bool> {
     job.check()?;
-    let evidence = &result.kernel_identity["dispatch_symbols"];
+    let evidence = result.kernel_identity.key("dispatch_symbols");
     if evidence["mode"] == "reference-kernel-isf" {
         return Ok(true);
     }

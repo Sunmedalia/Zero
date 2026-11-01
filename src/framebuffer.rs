@@ -3,6 +3,7 @@
 //! Channels retain the fbdev reference's unscaled integer values (saturated at
 //! 255); absent alpha is opaque. Row padding is respected, not rendered.
 use crate::Job;
+use crate::bytes::Checked as _;
 use anyhow::{Context, Result, ensure};
 use flate2::{Compression, write::ZlibEncoder};
 use std::io::Write;
@@ -72,11 +73,12 @@ fn channel_value(pixel: u64, channel: Channel, absent: u8) -> u8 {
     }
     value.min(255) as u8
 }
+#[allow(clippy::indexing_slicing)] // Evaluated at compile time: out of range cannot build.
 const fn crc_table() -> [u32; 256] {
     let mut table = [0; 256];
-    let mut i = 0;
+    let mut i = 0u32;
     while i < 256 {
-        let mut value = i as u32;
+        let mut value = i;
         let mut bit = 0;
         while bit < 8 {
             value = if value & 1 != 0 {
@@ -86,7 +88,7 @@ const fn crc_table() -> [u32; 256] {
             };
             bit += 1;
         }
-        table[i] = value;
+        table[i as usize] = value;
         i += 1;
     }
     table
@@ -94,12 +96,20 @@ const fn crc_table() -> [u32; 256] {
 const CRC: [u32; 256] = crc_table();
 fn chunk(output: &mut dyn Write, kind: &[u8; 4], bytes: &[u8]) -> std::io::Result<()> {
     debug_assert!(bytes.len() <= CHUNK);
-    output.write_all(&(bytes.len() as u32).to_be_bytes())?;
+    output.write_all(
+        &u32::try_from(bytes.len())
+            .map_err(std::io::Error::other)?
+            .to_be_bytes(),
+    )?;
     output.write_all(kind)?;
     output.write_all(bytes)?;
     let mut crc = u32::MAX;
     for &byte in kind.iter().chain(bytes) {
-        crc = (crc >> 8) ^ CRC[((crc ^ u32::from(byte)) & 255) as usize];
+        crc = (crc >> 8)
+            ^ CRC
+                .get(((crc ^ u32::from(byte)) & 255) as usize)
+                .copied()
+                .unwrap_or(0);
     }
     output.write_all(&(!crc).to_be_bytes())
 }
@@ -122,7 +132,8 @@ impl Write for Idat<'_> {
     fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
         self.job.check().map_err(std::io::Error::other)?;
         let len = bytes.len().min(CHUNK - self.pending.len());
-        self.pending.extend_from_slice(&bytes[..len]);
+        self.pending
+            .extend_from_slice(bytes.get(..len).unwrap_or(bytes));
         if self.pending.len() == CHUNK {
             self.emit()?;
         }
@@ -169,10 +180,11 @@ pub fn write_png(
                 job.check()?;
             }
             let mut raw = [0; 8];
-            raw[..bytes_per_pixel].copy_from_slice(source);
+            raw.at_mut(..bytes_per_pixel)?.copy_from_slice(source);
             let pixel = u64::from_le_bytes(raw);
             for (i, channel) in layout.channels.iter().copied().enumerate() {
-                rgba[1 + x * 4 + i] = channel_value(pixel, channel, if i == 3 { 255 } else { 0 });
+                *rgba.at_mut(1 + x * 4 + i)? =
+                    channel_value(pixel, channel, if i == 3 { 255 } else { 0 });
             }
         }
         encoder.write_all(&rgba)?;

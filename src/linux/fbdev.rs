@@ -1,5 +1,6 @@
 //! fbdev registration, geometry and explicit bounded framebuffer exports.
 use super::*;
+use crate::bytes::JsonKey as _;
 use crate::{
     dump::DumpOptions,
     framebuffer::{Channel, Layout},
@@ -113,10 +114,10 @@ impl Linux<'_> {
                 let mut buffer = vec![0; 65536];
                 while source_bytes < fb.size {
                     job.check()?;
-                    let len = (fb.size - source_bytes).min(buffer.len() as u64) as usize;
+                    let len = usize::try_from((fb.size - source_bytes).min(buffer.len() as u64))?;
                     self.vm
-                        .read(fb.address + source_bytes, &mut buffer[..len])?;
-                    out.write_all(&buffer[..len])?;
+                        .read(fb.address + source_bytes, buffer.at_mut(..len)?)?;
+                    out.write_all(buffer.at(..len)?)?;
                     source_bytes += len as u64;
                 }
             }
@@ -142,7 +143,7 @@ impl Linux<'_> {
             if count == 0 {
                 return Ok((0, 0));
             }
-            Ok((self.isf.address("registered_fb")?, count as usize))
+            Ok((self.isf.address("registered_fb")?, usize::try_from(count)?))
         })();
         let (array, count) = match registered {
             Ok(value) => value,
@@ -159,7 +160,8 @@ impl Linux<'_> {
         if let Some(options) = dump {
             crate::dump::directory(&options.directory)?;
         }
-        let width = self.isf.data["base_types"]["pointer"]["size"]
+        let width = self.isf.data.key("base_types")["pointer"]
+            .key("size")
             .as_u64()
             .unwrap_or(8);
         ensure!(matches!(width, 4 | 8), "无效指针宽度");
@@ -171,7 +173,7 @@ impl Linux<'_> {
             let parsed = (|| -> Result<Option<Frame>> {
                 let object = self
                     .vm
-                    .uint(add(array, i as u64 * width)?, width as usize)?;
+                    .uint(add(array, i as u64 * width)?, usize::try_from(width)?)?;
                 ensure!(object != 0, "registered_fb[{i}] 为空；注册数量与数组不一致");
                 if dump
                     .and_then(|o| o.start)
@@ -262,7 +264,7 @@ impl Linux<'_> {
         if !result.kernel_identity.is_object() {
             result.kernel_identity = serde_json::json!({});
         }
-        result.kernel_identity["fbdev"] = serde_json::json!({"registered_count":count,"registration_scope":"first num_registered_fb slots, matching pinned reference","dump_requested":dump.is_some(),"selected_fb_info":dump.and_then(|o|o.start).map(hex),"frames":reports,"max_devices":32,"max_artifact_bytes":crate::dump::MAX_DUMP_BYTES,"png_pixel_model":"little-endian packed bitfields, unscaled channels; respects stride; not palette/FOURCC conversion"});
+        *result.kernel_identity.key_mut("fbdev")? = serde_json::json!({"registered_count":count,"registration_scope":"first num_registered_fb slots, matching pinned reference","dump_requested":dump.is_some(),"selected_fb_info":dump.and_then(|o|o.start).map(hex),"frames":reports,"max_devices":32,"max_artifact_bytes":crate::dump::MAX_DUMP_BYTES,"png_pixel_model":"little-endian packed bitfields, unscaled channels; respects stride; not palette/FOURCC conversion"});
         Ok(result)
     }
 }

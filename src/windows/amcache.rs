@@ -1,5 +1,6 @@
 //! Canonical Amcache records. Legacy six-column inventory remains separate.
 use super::*;
+use crate::bytes::Row as _;
 use std::collections::BTreeMap;
 
 const NA: &str = "N/A";
@@ -44,7 +45,7 @@ fn text(values: &Values, key: &str) -> Option<String> {
     let bytes = if *ty == 0 { &[][..] } else { bytes.as_slice() };
     let mut units: Vec<_> = bytes
         .chunks_exact(2)
-        .map(|b| u16::from_le_bytes([b[0], b[1]]))
+        .map(|b| crate::bytes::le_u16(b, 0).unwrap_or(0))
         .collect();
     if bytes.len() % 2 != 0 {
         units.push(0xfffd);
@@ -89,7 +90,7 @@ fn epoch(values: &Values, key: &str) -> String {
         .unwrap_or_else(|| NA.to_owned())
 }
 fn row(layout: Layout, name: &str, written: u64, values: &Values) -> (String, Vec<String>) {
-    let mut r = vec![NA.to_owned(); 11];
+    let mut r: [String; 11] = std::array::from_fn(|_| NA.to_owned());
     let get = |key| text(values, key).unwrap_or_else(|| NA.to_owned());
     let mut program = String::new();
     r[3] = filetime(written);
@@ -131,9 +132,11 @@ fn row(layout: Layout, name: &str, written: u64, values: &Values) -> (String, Ve
             r[1] = get("15");
             r[2] = get("1");
             for (at, key) in [(3, "11"), (4, "17"), (5, "12")] {
-                r[at] = integer(values, key)
-                    .map(filetime)
-                    .unwrap_or_else(|| NA.to_owned());
+                if let Some(cell) = r.get_mut(at) {
+                    *cell = integer(values, key)
+                        .map(filetime)
+                        .unwrap_or_else(|| NA.to_owned());
+                }
             }
             r[6] = epoch(values, "f");
             r[7] = get("101");
@@ -153,7 +156,7 @@ fn row(layout: Layout, name: &str, written: u64, values: &Values) -> (String, Ve
     if r[7] != NA {
         r[7] = r[7].trim_start_matches('0').to_owned();
     }
-    (program, r)
+    (program, r.into())
 }
 impl Windows<'_> {
     fn amcache_children(&self, hive: u64, index: u32, job: &Job) -> Result<Vec<u32>> {
@@ -250,11 +253,11 @@ impl Windows<'_> {
         let Some(hive) = hives
             .rows
             .iter()
-            .find(|h| h[1].to_ascii_lowercase().contains("amcache"))
+            .find(|h| h.cell(1).to_ascii_lowercase().contains("amcache"))
         else {
             return Ok(r);
         };
-        let address = u64::from_str_radix(hive[0].trim_start_matches("0x"), 16)?;
+        let address = u64::from_str_radix(hive.at(0)?.trim_start_matches("0x"), 16)?;
         let hive = self.field(address, "_CMHIVE", "Hive")?;
         let mut read = |path, layout| -> Result<_> {
             match self.amcache_records(hive, path, layout, job, &mut r) {
@@ -283,7 +286,7 @@ impl Windows<'_> {
                         grouped.push(None);
                         grouped.len() - 1
                     });
-                    grouped[at] = Some(row);
+                    *grouped.at_mut(at)? = Some(row);
                 }
                 files.sort_by(|a, b| a.0.cmp(&b.0));
                 for (id, row) in files {
@@ -291,7 +294,7 @@ impl Windows<'_> {
                     let id = id.trim().trim_matches('\0');
                     if let Some(at) = positions.remove(id) {
                         ensure!(r.rows.len() < MAX_OBJECTS, "Amcache 输出超过上限");
-                        r.rows.push(grouped[at].take().unwrap());
+                        r.rows.extend(grouped.at_mut(at)?.take());
                     }
                     ensure!(r.rows.len() < MAX_OBJECTS, "Amcache 输出超过上限");
                     r.rows.push(row);

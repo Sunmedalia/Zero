@@ -2,6 +2,7 @@
 //! These are independent Rust parsers, not runtime Python plugins.
 use super::user_layout::{self, ServiceLayout};
 use super::*;
+use crate::bytes::MapAt as _;
 fn layout_tag_offset(layout: &ServiceLayout) -> Result<u64> {
     layout
         .fields
@@ -20,7 +21,7 @@ fn wide_string(vm: &Memory<'_>, address: u64) -> Result<String> {
     );
     let mut units = Vec::new();
     for i in 0..2048 {
-        let n = vm.uint(add(address, i * 2)?, 2)? as u16;
+        let n = u16::try_from(vm.uint(add(address, i * 2)?, 2)?)?;
         if n == 0 {
             return String::from_utf16(&units).context("用户字符串 UTF-16 无效");
         }
@@ -41,11 +42,11 @@ fn command(vm: &Memory<'_>, address: u64) -> Result<String> {
         vm.pointer(address)?
     };
     ensure!(user(vm, source), "命令字符串指针无效");
-    let mut b = vec![0; length as usize * 2];
+    let mut b = vec![0; usize::try_from(length)? * 2];
     vm.read(source, &mut b)?;
     String::from_utf16(
         &b.chunks_exact(2)
-            .map(|b| u16::from_le_bytes([b[0], b[1]]))
+            .map(|b| crate::bytes::le_u16(b, 0).unwrap_or(0))
             .collect::<Vec<_>>(),
     )
     .context("命令 UTF-16 无效")
@@ -120,8 +121,10 @@ impl Windows<'_> {
                     .as_ref()
                     .map(|l| l.source.as_str())
                     .or_else(|| console_layout.as_ref().map(|l| l.source.as_str()))
-                    .unwrap();
-                result.kernel_identity[format!("pid{}_layout", p.pid)] = serde_json::json!({"file_version":version,"source":source,"validation":"synthetic"});
+                    .unwrap_or_default();
+                *result
+                    .kernel_identity
+                    .key_mut(format!("pid{}_layout", p.pid))? = serde_json::json!({"file_version":version,"source":source,"validation":"synthetic"});
                 Self::issue(
                     &mut result,
                     format!("PID {} layout", p.pid),
@@ -152,7 +155,9 @@ impl Windows<'_> {
                             continue;
                         }
                         if plugin == Plugin::WinSvcscan {
-                            let layout = service_layout.as_ref().expect("service layout");
+                            let Some(layout) = service_layout.as_ref() else {
+                                break;
+                            };
                             let tag: &[u8] = if version[0] < 6 { b"sErv" } else { b"serH" };
                             for hit in memchr::memmem::find_iter(&bytes, tag) {
                                 let header = address + hit as u64;
@@ -183,14 +188,14 @@ impl Windows<'_> {
                                         continue;
                                     }
                                     let max =
-                                        u16::from_le_bytes(bytes[at + 40..at + 42].try_into()?);
+                                        u16::from_le_bytes(bytes.at(at + 40..at + 42)?.try_into()?);
                                     if !(1..=4096).contains(&max) {
                                         continue;
                                     }
                                     let begin =
-                                        u64::from_le_bytes(bytes[at + 16..at + 24].try_into()?);
+                                        u64::from_le_bytes(bytes.at(at + 16..at + 24)?.try_into()?);
                                     let end =
-                                        u64::from_le_bytes(bytes[at + 24..at + 32].try_into()?);
+                                        u64::from_le_bytes(bytes.at(at + 24..at + 32)?.try_into()?);
                                     if !user(&vm, begin)
                                         || end <= begin
                                         || end - begin > u64::from(max) * 32
@@ -213,16 +218,21 @@ impl Windows<'_> {
                                         }
                                     }
                                 } else {
-                                    let layout = console_layout.as_ref().expect("console layout");
+                                    let Some(layout) = console_layout.as_ref() else {
+                                        continue;
+                                    };
                                     let size_offset = 0;
                                     if at + size_offset + 6 > bytes.len() {
                                         continue;
                                     }
                                     let maximum = u16::from_le_bytes(
-                                        bytes[at + size_offset..at + size_offset + 2].try_into()?,
+                                        bytes
+                                            .at(at + size_offset..at + size_offset + 2)?
+                                            .try_into()?,
                                     );
                                     let buffers = u16::from_le_bytes(
-                                        bytes[at + size_offset + 4..at + size_offset + 6]
+                                        bytes
+                                            .at(at + size_offset + 4..at + size_offset + 6)?
                                             .try_into()?,
                                     );
                                     if !(1..=4096).contains(&maximum)
@@ -329,18 +339,20 @@ impl Windows<'_> {
                     user(vm, record) && record.is_multiple_of(layout.pointer_size as u64),
                     "service record 地址无效"
                 );
-                let start = vm.uint(add(record, layout.fields["Start"])?, 4)?;
-                let kind = vm.uint(add(record, layout.fields["Type"])?, 4)?;
-                let state = vm.uint(add(record, layout.fields["State"])?, 4)?;
+                let start = vm.uint(add(record, *layout.fields.at("Start")?)?, 4)?;
+                let kind = vm.uint(add(record, *layout.fields.at("Type")?)?, 4)?;
+                let state = vm.uint(add(record, *layout.fields.at("State")?)?, 4)?;
                 ensure!(
                     start <= 4 && (1..=7).contains(&state) && kind != 0 && kind & !0x3ff == 0,
                     "service record 枚举无效"
                 );
-                let name =
-                    wide_string(vm, vm.pointer(add(record, layout.fields["ServiceName"])?)?)?;
+                let name = wide_string(
+                    vm,
+                    vm.pointer(add(record, *layout.fields.at("ServiceName")?)?)?,
+                )?;
                 ensure!(!name.is_empty(), "service 名称为空");
                 let display = match vm
-                    .pointer(add(record, layout.fields["DisplayName"])?)
+                    .pointer(add(record, *layout.fields.at("DisplayName")?)?)
                     .and_then(|pointer| wide_string(vm, pointer))
                 {
                     Ok(text) => text,
@@ -355,11 +367,11 @@ impl Windows<'_> {
                     let read_binary = (|| -> Result<()> {
                         let pointer = vm.pointer(add(
                             record,
-                            layout.fields[if kind & 0x30 != 0 {
+                            *layout.fields.at(if kind & 0x30 != 0 {
                                 "ServiceProcess"
                             } else {
                                 "DriverName"
-                            }],
+                            })?,
                         )?)?;
                         ensure!(user(vm, pointer), "运行中服务指针无效");
                         if kind & 0x30 != 0 {

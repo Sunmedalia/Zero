@@ -10,7 +10,7 @@ impl Memory<'_> {
             "UNICODE_STRING32 长度无效"
         );
         let pointer = self.uint(add(address, 4)?, 4)?;
-        let mut bytes = vec![0; length as usize];
+        let mut bytes = vec![0; usize::try_from(length)?];
         if length > 0 {
             ensure!(pointer != 0, "UNICODE_STRING32 空指针");
             self.read(pointer, &mut bytes)?;
@@ -18,7 +18,7 @@ impl Memory<'_> {
         Ok(String::from_utf16_lossy(
             &bytes
                 .chunks_exact(2)
-                .map(|b| u16::from_le_bytes([b[0], b[1]]))
+                .map(|b| crate::bytes::le_u16(b, 0).unwrap_or(0))
                 .collect::<Vec<_>>(),
         ))
     }

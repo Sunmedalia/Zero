@@ -71,13 +71,13 @@ impl App {
             .split(area);
 
         if self.page == Page::Assets {
-            self.draw_assets(frame, parts[1]);
+            self.draw_assets(frame, parts.rect(1));
         } else if self.page == Page::Cache {
-            self.draw_cache_page(frame, parts[1]);
+            self.draw_cache_page(frame, parts.rect(1));
         } else {
-            self.draw_workbench(frame, area, parts[1]);
+            self.draw_workbench(frame, area, parts.rect(1));
         }
-        self.draw_footer(frame, parts[2]);
+        self.draw_footer(frame, parts.rect(2));
         self.draw_dialog(frame, area);
     }
 }

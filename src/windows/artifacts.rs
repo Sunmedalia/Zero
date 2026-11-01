@@ -27,16 +27,17 @@ fn account(sid: &str) -> &'static str {
 }
 fn sid_string(bytes: &[u8]) -> Result<String> {
     ensure!(
-        bytes.len() >= 8 && bytes[0] == 1 && bytes[1] <= 15,
+        bytes.len() >= 8 && *bytes.at(0)? == 1 && *bytes.at(1)? <= 15,
         "无效 SID 头"
     );
-    let count = usize::from(bytes[1]);
+    let count = usize::from(*bytes.at(1)?);
     ensure!(bytes.len() == 8 + count * 4, "SID 长度无效");
-    let authority = bytes[2..8]
+    let authority = bytes
+        .at(2..8)?
         .iter()
         .fold(0u64, |n, b| (n << 8) | u64::from(*b));
     let mut sid = format!("S-1-{authority}");
-    for n in bytes[8..].chunks_exact(4) {
+    for n in bytes.at(8..)?.chunks_exact(4) {
         sid.push_str(&format!("-{}", u32::from_le_bytes(n.try_into()?)));
     }
     Ok(sid)
@@ -48,7 +49,8 @@ impl Windows<'_> {
         ensure!((1..=65535).contains(&count), "Token SID 数量无效");
         let groups = self.number(token, "_TOKEN", "UserAndGroups")?;
         ensure!(self.vm.kernel(groups), "无效 Token SID 数组");
-        let size = self.vm.isf.data["user_types"]["_SID_AND_ATTRIBUTES"]["size"]
+        let size = self.vm.isf.data.key("user_types")["_SID_AND_ATTRIBUTES"]
+            .key("size")
             .as_u64()
             .context("缺少 SID_AND_ATTRIBUTES 大小")?;
         ensure!(
@@ -114,7 +116,7 @@ impl Windows<'_> {
         ] {
             let read = (|| -> Result<()> {
                 let base = self.symbol(symbol)?;
-                let count = self.vm.isf.data["symbols"][symbol]["type"]["count"]
+                let count = self.vm.isf.data.key("symbols")[symbol].key("type")["count"]
                     .as_u64()
                     .filter(|n| (1..=128).contains(n));
                 let count = match count {
@@ -159,11 +161,11 @@ impl Windows<'_> {
             let declaration: serde_json::Value =
                 serde_json::from_str(include_str!("callback_layouts.json"))?;
             let arch = Architecture::from_isf(self.vm.isf)?;
-            let layout = &declaration[if arch == Architecture::X86 {
+            let layout = declaration.key(if arch == Architecture::X86 {
                 "x86"
             } else {
                 "x64"
-            }];
+            });
             if !exact {
                 ensure!(
                     self.declared_build()
@@ -181,7 +183,8 @@ impl Windows<'_> {
                 if exact {
                     self.vm.isf.offset("_CM_CALLBACK_ENTRY", name)
                 } else {
-                    layout["registry"][name]
+                    layout["registry"]
+                        .key(name)
                         .as_u64()
                         .context("缺少注册表回调字段")
                 }
@@ -290,10 +293,11 @@ impl Windows<'_> {
             return Ok(());
         }
         ensure!(self.vm.kernel(base), "无效已卸载驱动数组");
-        let exact = self.vm.isf.data["user_types"]["_UNLOADED_DRIVER"].is_object();
+        let exact = self.vm.isf.data.key("user_types")["_UNLOADED_DRIVER"].is_object();
         let pointer = self.vm.pointer_size() as u64;
         let stride = if exact {
-            self.vm.isf.data["user_types"]["_UNLOADED_DRIVER"]["size"]
+            self.vm.isf.data.key("user_types")["_UNLOADED_DRIVER"]
+                .key("size")
                 .as_u64()
                 .context("缺少卸载记录大小")?
         } else {

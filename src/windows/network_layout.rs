@@ -117,7 +117,7 @@ impl Layout {
                 .map(|n| Ok((n.to_string(), usize::try_from(isf.offset(ty, n)?)?)))
                 .collect()
         };
-        let udp_direct = isf.data["user_types"]["_LOCAL_ADDRESS_WIN10_UDP"].is_object();
+        let udp_direct = isf.data.key("user_types")["_LOCAL_ADDRESS_WIN10_UDP"].is_object();
         let result = Self {
             pointer_size: arch.pointer_size(),
             endpoint_tags: vec!["TcpE".into(), "TTcb".into()],
@@ -165,8 +165,8 @@ impl Layout {
 /// Parse the bounded VS_VERSION_INFO payload, including the required key and alignment.
 fn fixed_version(bytes: &[u8]) -> Result<[u16; 4]> {
     ensure!(bytes.len() >= 6, "VERSIONINFO 截断");
-    let len = u16::from_le_bytes(bytes[..2].try_into()?) as usize;
-    let value_len = u16::from_le_bytes(bytes[2..4].try_into()?) as usize;
+    let len = u16::from_le_bytes(bytes.at(..2)?.try_into()?) as usize;
+    let value_len = u16::from_le_bytes(bytes.at(2..4)?.try_into()?) as usize;
     ensure!(
         len <= bytes.len() && value_len >= 52,
         "VERSIONINFO 长度无效"
@@ -185,14 +185,14 @@ fn fixed_version(bytes: &[u8]) -> Result<[u16; 4]> {
         .filter(|_| start + value_len <= len)
         .context("固定版本截断")?;
     ensure!(
-        value[..4] == 0xfeef04bdu32.to_le_bytes(),
+        *value.at(..4)? == 0xfeef04bdu32.to_le_bytes(),
         "固定版本签名无效"
     );
     Ok([
-        u16::from_le_bytes(value[10..12].try_into()?),
-        u16::from_le_bytes(value[8..10].try_into()?),
-        u16::from_le_bytes(value[14..16].try_into()?),
-        u16::from_le_bytes(value[12..14].try_into()?),
+        u16::from_le_bytes(value.at(10..12)?.try_into()?),
+        u16::from_le_bytes(value.at(8..10)?.try_into()?),
+        u16::from_le_bytes(value.at(14..16)?.try_into()?),
+        u16::from_le_bytes(value.at(12..14)?.try_into()?),
     ])
 }
 pub(super) fn file_version(vm: &Memory<'_>, base: u64) -> Result<[u16; 4]> {
@@ -200,36 +200,36 @@ pub(super) fn file_version(vm: &Memory<'_>, base: u64) -> Result<[u16; 4]> {
     vm.read(base, &mut header)?;
     let (size, _) = pe_header(&header)?;
     let pe = u32::from_le_bytes(header[60..64].try_into()?) as usize;
-    let directories = if header[pe + 24..pe + 26] == 0x10bu16.to_le_bytes() {
+    let directories = if *header.at(pe + 24..pe + 26)? == 0x10bu16.to_le_bytes() {
         96
     } else {
         112
     };
     let at = pe + 24 + directories + 16;
-    let rva = u32::from_le_bytes(header[at..at + 4].try_into()?) as u64;
-    let len = u32::from_le_bytes(header[at + 4..at + 8].try_into()?) as u64;
+    let rva = u32::from_le_bytes(header.at(at..at + 4)?.try_into()?) as u64;
+    let len = u32::from_le_bytes(header.at(at + 4..at + 8)?.try_into()?) as u64;
     ensure!(
         rva != 0 && (16..=1024 * 1024).contains(&len) && rva + len <= size as u64,
         "PE resource 越界"
     );
-    let mut resources = vec![0; len as usize];
+    let mut resources = vec![0; usize::try_from(len)?];
     vm.read(add(base, rva)?, &mut resources)?;
     let mut offset = 0usize;
     for depth in 0..3 {
         let dir = resources
             .get(offset..offset + 16)
             .context("resource directory 截断")?;
-        let count = u16::from_le_bytes(dir[12..14].try_into()?) as usize
-            + u16::from_le_bytes(dir[14..16].try_into()?) as usize;
+        let count = u16::from_le_bytes(dir.at(12..14)?.try_into()?) as usize
+            + u16::from_le_bytes(dir.at(14..16)?.try_into()?) as usize;
         ensure!((1..=4096).contains(&count), "resource entry 数量无效");
         let entries = resources
             .get(offset + 16..offset + 16 + count * 8)
             .context("resource entries 截断")?;
         let entry = entries
             .chunks_exact(8)
-            .find(|e| depth != 0 || e[..4] == 16u32.to_le_bytes())
+            .find(|e| depth != 0 || e.get(..4) == Some(&16u32.to_le_bytes()[..]))
             .context("PE 缺少 RT_VERSION")?;
-        let child = u32::from_le_bytes(entry[4..8].try_into()?);
+        let child = u32::from_le_bytes(entry.at(4..8)?.try_into()?);
         if depth < 2 {
             ensure!(child & 0x80000000 != 0, "resource directory 层级无效");
             offset = (child & 0x7fffffff) as usize;
@@ -238,13 +238,13 @@ pub(super) fn file_version(vm: &Memory<'_>, base: u64) -> Result<[u16; 4]> {
             let data = resources
                 .get(child as usize..child as usize + 16)
                 .context("resource data entry 截断")?;
-            let start = u32::from_le_bytes(data[..4].try_into()?) as u64;
-            let length = u32::from_le_bytes(data[4..8].try_into()?) as u64;
+            let start = u32::from_le_bytes(data.at(..4)?.try_into()?) as u64;
+            let length = u32::from_le_bytes(data.at(4..8)?.try_into()?) as u64;
             ensure!(
                 (52..=1024 * 1024).contains(&length) && start + length <= size as u64,
                 "版本资源越界"
             );
-            let mut value = vec![0; length as usize];
+            let mut value = vec![0; usize::try_from(length)?];
             vm.read(add(base, start)?, &mut value)?;
             return fixed_version(&value);
         }
@@ -257,7 +257,7 @@ pub(super) fn manifest(
     version: Option<[u16; 4]>,
 ) -> Result<Layout> {
     let data: serde_json::Value = serde_json::from_str(super::network::LAYOUTS)?;
-    let profile = data["identities"][identity.key()]
+    let profile = data.key("identities")[identity.key()]
         .as_str()
         .or_else(|| {
             let v = version?;
@@ -267,7 +267,7 @@ pub(super) fn manifest(
                 Architecture::Arm64 => "arm64",
                 _ => return None,
             };
-            data["versions"][format!("{a}:{}.{}.{}", v[0], v[1], v[2])].as_str()
+            data.key("versions")[format!("{a}:{}.{}.{}", v[0], v[1], v[2])].as_str()
         })
         .context("没有匹配架构和 TCP/IP 驱动版本的布局")?;
     let suffix = match arch {
@@ -277,9 +277,9 @@ pub(super) fn manifest(
         _ => bail!("TCP/IP 架构未确定"),
     };
     ensure!(profile.ends_with(suffix), "TCP/IP manifest 架构不一致");
-    let mut layout: Layout = serde_json::from_value(data["profiles"][profile].clone())?;
+    let mut layout: Layout = serde_json::from_value(data.key("profiles")[profile].clone())?;
     // A version family is synthetic coverage until this exact driver identity is validated.
-    if data["identities"][identity.key()].is_null() {
+    if data.key("identities")[identity.key()].is_null() {
         layout.validation = "synthetic-version-family".into();
     }
     layout.validate(arch)?;

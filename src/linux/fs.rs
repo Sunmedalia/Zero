@@ -1,5 +1,6 @@
 //! Open files, path reconstruction and mount tables.
 use super::*;
+use crate::bytes::JsonKey as _;
 impl Linux<'_> {
     pub(super) fn inode(&self, file: u64) -> Result<u64> {
         let path = self.field_address(file, "file", "f_path")?;
@@ -37,7 +38,8 @@ impl Linux<'_> {
         let array = self.number(table, "fdtable", "fd")?;
         ensure!(count == 0 || array != 0, "FD 数组为空");
         let width = usize::try_from(
-            self.isf.data["base_types"]["pointer"]["size"]
+            self.isf.data.key("base_types")["pointer"]
+                .key("size")
                 .as_u64()
                 .context("ISF pointer size 缺失")?,
         )?;
@@ -77,7 +79,7 @@ impl Linux<'_> {
                             Ok(path) => path,
                             Err(e) => {
                                 job.check()?;
-                                partial(result, format!("PID {} FD {fd} 路径", prefix[0]), e);
+                                partial(result, format!("PID {} FD {fd} 路径", *prefix.at(0)?), e);
                                 "[unresolved]".into()
                             }
                         },
@@ -91,15 +93,15 @@ impl Linux<'_> {
                         let Some(socket) = self.internet_socket(inode)? else {
                             return Ok(None);
                         };
-                        if !seen_sockets.insert(socket[6].clone()) {
+                        if !seen_sockets.insert(socket.at(6)?.clone()) {
                             return Ok(None);
                         }
                         row.push(format!(
                             "{}v{}",
-                            socket[2],
-                            if socket[0] == "IPv4" { 4 } else { 6 }
+                            *socket.at(2)?,
+                            if *socket.at(0)? == "IPv4" { 4 } else { 6 }
                         ));
-                        row.extend(socket[3..].iter().cloned());
+                        row.extend(socket.at(3..)?.iter().cloned());
                     } else {
                         row.extend(self.socket(inode)?);
                     }
@@ -109,7 +111,7 @@ impl Linux<'_> {
             match row {
                 Ok(Some(row)) => result.rows.push(row),
                 Ok(None) => {}
-                Err(e) => partial(result, format!("PID {} FD {fd}", prefix[0]), e),
+                Err(e) => partial(result, format!("PID {} FD {fd}", *prefix.at(0)?), e),
             }
         }
         ensure!(count <= limit, "FD 超过 100 万项上限 ({count})");
@@ -120,7 +122,7 @@ impl Linux<'_> {
     fn inode_dentry(&self, inode: u64) -> Result<Option<u64>> {
         let head = self.field_address(inode, "inode", "i_dentry")?;
         let first = if self.isf.field("hlist_head", "first").is_ok()
-            && self.isf.field("inode", "i_dentry")?["type"]["name"] == "hlist_head"
+            && *self.isf.field("inode", "i_dentry")?["type"].key("name") == "hlist_head"
         {
             self.number(head, "hlist_head", "first")?
         } else {
@@ -293,16 +295,17 @@ impl Linux<'_> {
             let len = self.number(qstr, "qstr", "len")?;
             ensure!((1..=255).contains(&len), "路径名称长度无效: {len}");
             let ptr = self.number(qstr, "qstr", "name")?;
-            let mut bytes = vec![0; len as usize + 1];
+            let mut bytes = vec![0; usize::try_from(len)? + 1];
             self.vm.read(ptr, &mut bytes)?;
             ensure!(
-                bytes[len as usize] == 0 && !bytes[..len as usize].contains(&0),
+                *bytes.at(usize::try_from(len)?)? == 0
+                    && !bytes.at(..usize::try_from(len)?)?.contains(&0),
                 "路径名称无效"
             );
-            parts.push(String::from_utf8_lossy(&bytes[..len as usize]).into_owned());
+            parts.push(String::from_utf8_lossy(bytes.at(..usize::try_from(len)?)?).into_owned());
             let parent = self.number(d, "dentry", "d_parent")?;
             if parent == d && self.filesystem(d)? == "anon_inodefs" {
-                return Ok(format!("anon_inode:[{}]", parts[0]));
+                return Ok(format!("anon_inode:[{}]", *parts.at(0)?));
             }
             ensure!(parent != d, "路径未到根目录");
             d = parent;
@@ -376,7 +379,11 @@ impl Linux<'_> {
             })();
             match read {
                 Ok(row) => result.rows.push(row),
-                Err(e) => partial(result, format!("PID {} mount {}", prefix[0], hex(m)), e),
+                Err(e) => partial(
+                    result,
+                    format!("PID {} mount {}", *prefix.at(0)?, hex(m)),
+                    e,
+                ),
             }
             node = next;
         }
@@ -447,7 +454,7 @@ impl Linux<'_> {
                     result.complete = false;
                     result
                         .diagnostics
-                        .push(format!("PID {} mount {m:#x}: {e:#}", prefix[0]));
+                        .push(format!("PID {} mount {m:#x}: {e:#}", *prefix.at(0)?));
                 }
             }
         }

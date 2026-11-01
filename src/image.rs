@@ -1,5 +1,6 @@
 //! Read-only physical address space. LiME holes are errors, never zero filled.
 use crate::Job;
+use crate::bytes::Checked as _;
 use anyhow::{Context, Result, bail, ensure};
 use flate2::read::MultiGzDecoder;
 use sha2::{Digest, Sha256};
@@ -54,7 +55,7 @@ pub fn digest_reader(mut reader: impl Read, job: &Job) -> Result<String> {
         if n == 0 {
             break;
         }
-        hash.update(&buf[..n]);
+        hash.update(buf.at(..n)?);
         total += n as u64;
         // Progress is per 64 MiB: a multi-gigabyte image would otherwise emit
         // hundreds of formatted strings for a bar that cannot show them.
@@ -95,7 +96,7 @@ pub fn digest_file(file: File, job: &Job) -> Result<String> {
     let mut reported = 0u64;
     while let Ok((buf, n)) = full_rx.recv() {
         job.check()?;
-        hash.update(&buf[..n]);
+        hash.update(buf.at(..n)?);
         total += n as u64;
         if total - reported >= 64 * 1024 * 1024 {
             reported = total;
@@ -156,13 +157,13 @@ fn content_sample(file: &File) -> Result<String> {
     let len = file.metadata()?.len();
     let mut hash = Sha256::new();
     hash.update(len.to_le_bytes());
-    let mut buf = vec![0; BLOCK as usize];
+    let mut buf = vec![0; usize::try_from(BLOCK)?];
     for index in 0..16u64 {
         let offset = len.saturating_sub(BLOCK) * index / 15;
-        let n = BLOCK.min(len - offset) as usize;
-        file.read_exact_at(&mut buf[..n], offset)?;
+        let n = usize::try_from(BLOCK.min(len - offset))?;
+        file.read_exact_at(buf.at_mut(..n)?, offset)?;
         hash.update(offset.to_le_bytes());
-        hash.update(&buf[..n]);
+        hash.update(buf.at(..n)?);
     }
     Ok(format!("{:x}", hash.finalize()))
 }
@@ -198,18 +199,24 @@ impl Fingerprint {
             // chunks is only possible when the retained tail plus this chunk's
             // head contains the needle.
             let overlap = self.tail.len().min(needle.len() - 1);
-            let tail = &self.tail[self.tail.len() - overlap..];
+            let tail = self.tail.get(self.tail.len() - overlap..).unwrap_or(&[]);
             if overlap > 0 && bytes.len() >= needle.len() {
-                let head = &bytes[..needle.len() - 1];
+                let head = bytes.get(..needle.len() - 1).unwrap_or(&[]);
                 let mut boundary = [0u8; 32];
-                boundary[..overlap].copy_from_slice(tail);
-                boundary[overlap..overlap + head.len()].copy_from_slice(head);
-                let boundary = &boundary[..overlap + head.len()];
+                if let Some(start) = boundary.get_mut(..overlap) {
+                    start.copy_from_slice(tail);
+                }
+                if let Some(end) = boundary.get_mut(overlap..overlap + head.len()) {
+                    end.copy_from_slice(head);
+                }
+                let boundary = boundary.get(..overlap + head.len()).unwrap_or(&[]);
                 for i in memchr::memmem::find_iter(boundary, needle)
                     .filter(|i| *i < overlap && *i + needle.len() > overlap)
                 {
                     let position = self.offset - overlap as u64 + i as u64;
-                    self.found[index].push(position);
+                    if let Some(found) = self.found.get_mut(index) {
+                        found.push(position);
+                    }
                     if index == 0 {
                         job.report(format!(
                             "发现 banner 候选 @ 文件偏移 {position:#x}（尚未验证）"
@@ -219,7 +226,9 @@ impl Fingerprint {
             }
             for i in memchr::memmem::find_iter(bytes, needle) {
                 let position = self.offset + i as u64;
-                self.found[index].push(position);
+                if let Some(found) = self.found.get_mut(index) {
+                    found.push(position);
+                }
                 if index == 0 {
                     job.report(format!(
                         "发现 banner 候选 @ 文件偏移 {position:#x}（尚未验证）"
@@ -230,7 +239,8 @@ impl Fingerprint {
         let width = FINGERPRINT_TAIL;
         if bytes.len() >= width {
             self.tail.clear();
-            self.tail.extend_from_slice(&bytes[bytes.len() - width..]);
+            self.tail
+                .extend_from_slice(bytes.get(bytes.len() - width..).unwrap_or(&[]));
         } else {
             self.tail.extend_from_slice(bytes);
             let keep = self.tail.len().min(width);
@@ -258,7 +268,7 @@ fn fingerprint(mut reader: impl Read, total: u64, job: &Job) -> Result<(String, 
         if n == 0 {
             break;
         }
-        scan.push(&buf[..n], job);
+        scan.push(buf.at(..n)?, job);
         // One update per 64 MiB: the loop already runs a SHA256 and a memmem
         // pass per chunk, and formatting a string per chunk is not free.
         if scan.offset - reported >= 64 * 1024 * 1024 {
@@ -349,14 +359,25 @@ fn physical_hits(image: &Image, file_hits: &[u64], needle: &[u8]) -> Result<Vec<
         }
     }
     for pair in image.segments.windows(2) {
-        if pair[0].end == pair[1].start {
-            let start = pair[0].end.saturating_sub(length - 1).max(pair[0].start);
-            let mut bytes = vec![0; (pair[1].end.min(pair[1].start + length - 1) - start) as usize];
+        if pair.at(0)?.end == pair.at(1)?.start {
+            let start = pair
+                .at(0)?
+                .end
+                .saturating_sub(length - 1)
+                .max(pair.at(0)?.start);
+            let mut bytes =
+                vec![
+                    0;
+                    usize::try_from(pair.at(1)?.end.min(pair.at(1)?.start + length - 1) - start)?
+                ];
             image.read(start, &mut bytes)?;
             physical.extend(
                 memchr::memmem::find_iter(&bytes, needle)
                     .map(|n| start + n as u64)
-                    .filter(|hit| *hit < pair[0].end && hit + length > pair[0].end),
+                    .filter(|hit| {
+                        pair.first()
+                            .is_some_and(|p| *hit < p.end && hit + length > p.end)
+                    }),
             );
         }
     }
@@ -559,8 +580,8 @@ impl Image {
                     if n == 0 {
                         break;
                     }
-                    temporary.write_all(&buf[..n])?;
-                    scan.push(&buf[..n], job);
+                    temporary.write_all(buf.at(..n)?)?;
+                    scan.push(buf.at(..n)?, job);
                     job.report(format!("解压: {} MiB", scan.offset / 1048576));
                 }
                 job.check()?;
@@ -596,9 +617,10 @@ impl Image {
         }
         // File headers interrupt otherwise contiguous physical memory in LiME.
         for pair in image.segments.windows(2) {
-            if pair[0].end == pair[1].start {
-                let start = pair[0].end.saturating_sub(12).max(pair[0].start);
-                let mut bytes = vec![0; (pair[1].end.min(pair[1].start + 12) - start) as usize];
+            if pair.at(0)?.end == pair.at(1)?.start {
+                let start = pair.at(0)?.end.saturating_sub(12).max(pair.at(0)?.start);
+                let mut bytes =
+                    vec![0; usize::try_from(pair.at(1)?.end.min(pair.at(1)?.start + 12) - start)?];
                 image.read(start, &mut bytes)?;
                 physical.extend(
                     memchr::memmem::find_iter(&bytes, b"Linux version ").map(|n| start + n as u64),
@@ -716,7 +738,9 @@ impl Image {
             }
             segments.sort_by_key(|s| s.start);
             ensure!(
-                segments.windows(2).all(|s| s[0].end <= s[1].start),
+                segments
+                    .windows(2)
+                    .all(|s| matches!(s, [a, b] if a.end <= b.start)),
                 "LiME 范围重叠"
             );
             "LiME"
@@ -772,11 +796,11 @@ impl Image {
                         format!("物理地址越界或 LiME 空洞 @ {address:#x}")
                     }
                 })?;
-            let n = out.len().min((s.end - address) as usize);
+            let n = out.len().min(usize::try_from(s.end - address)?);
             self.file
-                .read_exact_at(&mut out[..n], s.file_offset + address - s.start)?;
+                .read_exact_at(out.at_mut(..n)?, s.file_offset + address - s.start)?;
             address += n as u64;
-            out = &mut out[n..];
+            out = out.at_mut(n..)?;
         }
         Ok(())
     }
@@ -867,7 +891,8 @@ impl Image {
             }
             if let Some(end) = bytes.iter().position(|b| *b == 0) {
                 bytes.truncate(end + 1);
-                if bytes[..end]
+                if bytes
+                    .at(..end)?
                     .iter()
                     .all(|b| !matches!(b,0..=8|11|12|14..=31|127))
                 {
@@ -944,7 +969,7 @@ impl Image {
                 let n = (s.end - position).min(4 * 1024 * 1024) as usize;
                 let overlap = tail.len();
                 tail.resize(overlap + n, 0);
-                self.read(position, &mut tail[overlap..])?;
+                self.read(position, tail.at_mut(overlap..)?)?;
                 for (finder, hits) in finders.iter().zip(&mut found) {
                     for index in finder.find_iter(&tail) {
                         hits.push(position - overlap as u64 + index as u64);
@@ -967,7 +992,7 @@ impl Image {
 /// A needle with a proper border (e.g. `aa`) can match at overlapping offsets,
 /// where non-overlapping iteration depends on where a chunk starts.
 fn self_overlapping(needle: &[u8]) -> bool {
-    (1..needle.len()).any(|k| needle[..k] == needle[needle.len() - k..])
+    (1..needle.len()).any(|k| needle.get(..k) == needle.get(needle.len() - k..))
 }
 struct PageCache {
     /// `arm64_va_bits` this map was filled for. `u8::MAX` means empty.
@@ -1113,16 +1138,16 @@ impl<'a> VirtualMemory<'a> {
         va.checked_add(out.len() as u64).context("虚拟地址溢出")?;
         while !out.is_empty() {
             let n = out.len().min(4096 - (va & 4095) as usize);
-            self.image.read(self.translate(va)?, &mut out[..n])?;
+            self.image.read(self.translate(va)?, out.at_mut(..n)?)?;
             va += n as u64;
-            out = &mut out[n..];
+            out = out.at_mut(n..)?;
         }
         Ok(())
     }
     pub fn uint(&self, va: u64, size: usize) -> Result<u64> {
         ensure!(matches!(size, 1 | 2 | 4 | 8), "不支持的整数字段大小 {size}");
         let mut b = [0; 8];
-        self.read(va, &mut b[..size])?;
+        self.read(va, b.at_mut(..size)?)?;
         Ok(u64::from_le_bytes(b))
     }
     pub fn string(&self, va: u64, len: usize) -> Result<String> {
@@ -1130,10 +1155,10 @@ impl<'a> VirtualMemory<'a> {
         let mut b = vec![0; len];
         self.read(va, &mut b)?;
         let end = b.iter().position(|b| *b == 0).unwrap_or(len);
-        if b[..end].iter().any(|b| *b < 32 || *b == 127) {
+        if b.at(..end)?.iter().any(|b| *b < 32 || *b == 127) {
             bail!("对象字符串含控制字符 @ {va:#x}");
         }
-        Ok(String::from_utf8_lossy(&b[..end]).into_owned())
+        Ok(String::from_utf8_lossy(b.at(..end)?).into_owned())
     }
 }
 

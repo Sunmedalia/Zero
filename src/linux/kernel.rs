@@ -1,14 +1,15 @@
 //! Kernel-wide views: printk, resources, notifiers, modules, syscalls and cross-views.
 use super::*;
+use crate::bytes::JsonKey as _;
 impl Linux<'_> {
     pub(crate) fn kernel_text(&self, ptr: u64, limit: usize) -> Result<String> {
         ensure!(ptr != 0, "字符串指针为空");
         let mut bytes = Vec::new();
         for i in 0..limit {
-            let b = self
-                .vm
-                .uint(ptr.checked_add(i as u64).context("字符串地址溢出")?, 1)?
-                as u8;
+            let b = u8::try_from(
+                self.vm
+                    .uint(ptr.checked_add(i as u64).context("字符串地址溢出")?, 1)?,
+            )?;
             if b == 0 {
                 return Ok(String::from_utf8_lossy(&bytes).into_owned());
             }
@@ -29,15 +30,15 @@ impl Linux<'_> {
             );
             // Linux 3.2 SYSLOG_ACTION_READ_ALL / kdb_syslog_data semantics.
             // log_start tracks the consuming syslog reader, not retained history.
-            let end = self.vm.uint(self.isf.address("log_end")?, 4)? as u32;
+            let end = u32::try_from(self.vm.uint(self.isf.address("log_end")?, 4)?)?;
             let length = self
                 .vm
                 .uint(self.isf.address("logged_chars")?, 4)?
                 .min(size);
-            let start = end.wrapping_sub(length as u32);
-            let mut bytes = Vec::with_capacity(length as usize);
+            let start = end.wrapping_sub(u32::try_from(length)?);
+            let mut bytes = Vec::with_capacity(usize::try_from(length)?);
             let mut pos = start as u64;
-            while bytes.len() < (length as usize) {
+            while bytes.len() < usize::try_from(length)? {
                 job.check()?;
                 let index = pos & (size - 1);
                 let n = (size - index).min(length - bytes.len() as u64).min(4096) as usize;
@@ -45,7 +46,7 @@ impl Linux<'_> {
                 bytes.resize(old + n, 0);
                 self.vm.read(
                     ptr.checked_add(index).context("日志地址溢出")?,
-                    &mut bytes[old..],
+                    bytes.at_mut(old..)?,
                 )?;
                 pos += n as u64;
             }
@@ -90,7 +91,8 @@ impl Linux<'_> {
             let read = (|| -> Result<Option<Vec<String>>> {
                 let d = descs
                     + idx
-                        * self.isf.data["user_types"]["prb_desc"]["size"]
+                        * self.isf.data.key("user_types")["prb_desc"]
+                            .key("size")
                             .as_u64()
                             .context("prb_desc size")?;
                 let state = self.number(d, "prb_desc", "state_var.counter")?;
@@ -99,7 +101,8 @@ impl Linux<'_> {
                 }
                 let info = infos
                     + idx
-                        * self.isf.data["user_types"]["printk_info"]["size"]
+                        * self.isf.data.key("user_types")["printk_info"]
+                            .key("size")
                             .as_u64()
                             .context("printk_info size")?;
                 let len = self.number(info, "printk_info", "text_len")?;
@@ -125,7 +128,7 @@ impl Linux<'_> {
                     self.vm.uint(bytes + pos, 8)? == id,
                     "printk 文本 descriptor ID 不一致"
                 );
-                let mut text = vec![0; len as usize];
+                let mut text = vec![0; usize::try_from(len)?];
                 self.vm.read(bytes + pos + 8, &mut text)?;
                 Ok(Some(vec![
                     self.number(info, "printk_info", "seq")?.to_string(),
@@ -379,7 +382,10 @@ impl Linux<'_> {
                 Err(e) => partial(result, format!("module {}", hex(module)), e),
             }
         }
-        let mut symbols: Vec<_> = self.isf.data["symbols"]
+        let mut symbols: Vec<_> = self
+            .isf
+            .data
+            .key("symbols")
             .as_object()
             .context("ISF symbols 缺失")?
             .iter()
@@ -470,13 +476,15 @@ impl Linux<'_> {
                     .context("module range 溢出")?,
             ));
         }
-        let count = self.isf.field("module", "mem")?["type"]["count"]
+        let count = self.isf.field("module", "mem")?["type"]
+            .key("count")
             .as_u64()
             .context("module.mem count 缺失")?;
-        let text = self.isf.data["enums"]["mod_mem_type"]["constants"]["MOD_TEXT"]
+        let text = self.isf.data.key("enums")["mod_mem_type"].key("constants")["MOD_TEXT"]
             .as_u64()
             .context("MOD_TEXT enum 缺失")?;
-        let size = self.isf.data["user_types"]["module_memory"]["size"]
+        let size = self.isf.data.key("user_types")["module_memory"]
+            .key("size")
             .as_u64()
             .context("module_memory size 缺失")?;
         ensure!(text < count && count <= 32, "module mem enum 越界");
@@ -557,7 +565,10 @@ impl Linux<'_> {
             ));
         }
         let mut symbols = Vec::new();
-        for (name, value) in self.isf.data["symbols"]
+        for (name, value) in self
+            .isf
+            .data
+            .key("symbols")
             .as_object()
             .context("ISF symbols 缺失")?
         {
@@ -569,7 +580,8 @@ impl Linux<'_> {
         Ok(CodeMap { ranges, symbols })
     }
     pub(super) fn check_syscall(&self, r: &mut Results, job: &Job) -> Result<()> {
-        let width = self.isf.data["base_types"]["pointer"]["size"]
+        let width = self.isf.data.key("base_types")["pointer"]
+            .key("size")
             .as_u64()
             .context("ISF pointer size 缺失")?;
         ensure!(matches!(width, 4 | 8), "ISF pointer size 无效");
@@ -577,10 +589,10 @@ impl Linux<'_> {
             .isf
             .address("sys_call_table")
             .context("不支持: 缺少 sys_call_table")?;
-        let size = self.isf.data["metadata"]["zero"]["symbol_sizes"]["sys_call_table"]
+        let size = self.isf.data.key("metadata")["zero"].key("symbol_sizes")["sys_call_table"]
             .as_u64()
             .or_else(|| {
-                self.isf.data["symbols"]["sys_call_table"]["type"]["count"]
+                self.isf.data.key("symbols")["sys_call_table"].key("type")["count"]
                     .as_u64()
                     .filter(|n| *n > 0)
                     .and_then(|n| n.checked_mul(width))
@@ -598,7 +610,7 @@ impl Linux<'_> {
                     table,
                     i.checked_mul(width).context("sys_call_table 偏移溢出")?,
                 )?;
-                let target = self.vm.uint(address, width as usize)?;
+                let target = self.vm.uint(address, usize::try_from(width)?)?;
                 let (symbol, owner, reason) = code.describe(target);
                 let mut byte = [0];
                 self.vm.read(target, &mut byte)?;
@@ -751,11 +763,12 @@ impl Linux<'_> {
             .address("vmcoreinfo_data")
             .context("不支持: 缺少 vmcoreinfo_data")?;
         // Since 4.15 the buffer is allocated and the symbol is a pointer.
-        let data = if self.isf.data["symbols"]["vmcoreinfo_data"]["type"]["kind"] == "pointer" {
-            self.vm.uint(symbol, 8)?
-        } else {
-            symbol
-        };
+        let data =
+            if self.isf.data.key("symbols")["vmcoreinfo_data"].key("type")["kind"] == "pointer" {
+                self.vm.uint(symbol, 8)?
+            } else {
+                symbol
+            };
         let size = self.vm.uint(
             self.isf
                 .address("vmcoreinfo_size")
@@ -763,7 +776,7 @@ impl Linux<'_> {
             8,
         )?;
         ensure!(data != 0 && size <= 65536, "vmcoreinfo 缓冲区无效");
-        let mut bytes = vec![0; size as usize];
+        let mut bytes = vec![0; usize::try_from(size)?];
         self.vm.read(data, &mut bytes)?;
         for line in String::from_utf8_lossy(&bytes).lines() {
             if let Some((key, value)) = line.split_once('=') {
@@ -790,7 +803,8 @@ impl Linux<'_> {
                 ensure!(entry > 4096, "xarray 保留节点／sibling 不支持");
                 let node = entry - 2;
                 let slots = self.field_address(node, "xa_node", "slots")?;
-                let count = self.isf.field("xa_node", "slots")?["type"]["count"]
+                let count = self.isf.field("xa_node", "slots")?["type"]
+                    .key("count")
                     .as_u64()
                     .context("xa slots count")?;
                 ensure!(count <= 256, "xarray slot count 越界");
@@ -816,7 +830,7 @@ impl Linux<'_> {
             .push(vec!["BootTimeUnix".into(), seconds.to_string()]);
         r.rows.push(vec![
             "BootTimeUTC".into(),
-            crate::report::utc(seconds as i64),
+            crate::report::utc(i64::try_from(seconds)?),
         ]);
         r.rows.push(vec![
             "BootTimeNanos".into(),
@@ -840,7 +854,8 @@ impl Linux<'_> {
         for i in 0..(1u64 << shift) {
             job.check()?;
             let head = hash
-                + i * self.isf.data["user_types"]["hlist_head"]["size"]
+                + i * self.isf.data.key("user_types")["hlist_head"]
+                    .key("size")
                     .as_u64()
                     .context("hlist size")?;
             let mut n = self.number(head, "hlist_head", "first")?;
@@ -873,15 +888,10 @@ impl CodeMap<'_> {
     /// Nearest symbol, owning range and a verdict for one code pointer.
     pub fn describe(&self, target: u64) -> (String, String, &'static str) {
         let index = self.symbols.partition_point(|(a, _)| *a <= target);
-        let symbol = if index == 0 {
-            "[unknown]".into()
-        } else {
-            let (address, name) = self.symbols[index - 1];
-            if address == target {
-                name.into()
-            } else {
-                format!("{name}+{:#x}", target - address)
-            }
+        let symbol = match index.checked_sub(1).and_then(|i| self.symbols.get(i)) {
+            None => "[unknown]".into(),
+            Some(&(address, name)) if address == target => name.into(),
+            Some(&(address, name)) => format!("{name}+{:#x}", target - address),
         };
         let owner = self
             .ranges
@@ -902,355 +912,4 @@ impl CodeMap<'_> {
     }
 }
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::linux::tests::{engine, fixture, image};
-    use serde_json::json;
-    fn put(bytes: &mut [u8], address: usize, value: u64) {
-        bytes[address..address + 8].copy_from_slice(&value.to_le_bytes());
-    }
-    fn structure(fields: &[(&str, usize)], size: usize) -> serde_json::Value {
-        let fields: serde_json::Map<_, _> = fields
-            .iter()
-            .map(|(name, offset)| {
-                (
-                    name.to_string(),
-                    json!({"offset":offset,"type":{"kind":"base","name":"u64"}}),
-                )
-            })
-            .collect();
-        json!({"size":size,"fields":fields})
-    }
-    fn resources_fixture() -> (Vec<u8>, crate::symbols::Isf) {
-        let (mut bytes, mut isf) = fixture();
-        isf.data["symbols"]["iomem_resource"] = json!({"address":0x12000});
-        isf.data["symbols"]["ioport_resource"] = json!({"address":0x12000});
-        isf.data["user_types"]["resource"] = structure(
-            &[
-                ("name", 0),
-                ("start", 8),
-                ("end", 16),
-                ("flags", 24),
-                ("child", 32),
-                ("sibling", 40),
-            ],
-            48,
-        );
-        for (address, name, start, end, child, sibling) in [
-            (0x12000, "PCI mem", 0, 0xffff, 0x12100, 0),
-            (0x12100, "System RAM", 0x1000, 0x3fff, 0x12200, 0x12300),
-            (0x12200, "Kernel code", 0x1000, 0x1fff, 0, 0),
-            (0x12300, "Reserved", 0x4000, 0x4fff, 0, 0),
-        ] {
-            let ptr = address + 64;
-            bytes[ptr..ptr + name.len()].copy_from_slice(name.as_bytes());
-            for (offset, value) in [
-                (0, ptr as u64),
-                (8, start),
-                (16, end),
-                (24, 0x200),
-                (32, child),
-                (40, sibling),
-            ] {
-                put(&mut bytes, address + offset, value);
-            }
-        }
-        (bytes, isf)
-    }
-    #[test]
-    fn resource_tree_fields_order_relocation_and_limits() {
-        let (bytes, isf) = resources_fixture();
-        let im = image(&bytes);
-        let linux = engine(&im, &isf);
-        for plugin in [Plugin::Iomem, Plugin::Ioports] {
-            let result = linux.run(plugin, &Job::default()).unwrap();
-            assert!(result.complete);
-            assert_eq!(
-                result
-                    .rows
-                    .iter()
-                    .map(|r| (&r[0], &r[3]))
-                    .collect::<Vec<_>>(),
-                vec![
-                    (&"PCI mem".into(), &"0".into()),
-                    (&"System RAM".into(), &"1".into()),
-                    (&"Kernel code".into(), &"2".into()),
-                    (&"Reserved".into(), &"1".into())
-                ]
-            );
-            assert_eq!(&result.rows[2][1..3], &[hex(0x1000), hex(0x1fff)]);
-        }
-        let mut result = linux.result(Plugin::Iomem);
-        linux
-            .resources(0x12000, &mut result, &Job::default(), 2)
-            .unwrap();
-        assert!(!result.complete);
-        assert_eq!(result.rows.len(), 2);
-        assert!(result.diagnostics[0].contains("上限"));
-        isf.slide
-            .store(0x1000, std::sync::atomic::Ordering::Relaxed);
-        // Shift a symbol, not an inferred struct layout, to the same physical root.
-        let mut isf = isf;
-        isf.data["symbols"]["iomem_resource"]["address"] = json!(0x11000);
-        assert_eq!(
-            engine(&im, &isf)
-                .run(Plugin::Iomem, &Job::default())
-                .unwrap()
-                .rows
-                .len(),
-            4
-        );
-    }
-    #[test]
-    fn corrupt_resource_children_names_and_ranges_keep_other_branches() {
-        let (mut bytes, isf) = resources_fixture();
-        put(&mut bytes, 0x12100, 0x800000); // missing name
-        put(&mut bytes, 0x12220, 0x12100); // child points back to parent
-        put(&mut bytes, 0x12208, 0x3000); // invalid start/end
-        let im = image(&bytes);
-        let r = engine(&im, &isf)
-            .run(Plugin::Iomem, &Job::default())
-            .unwrap();
-        assert!(!r.complete);
-        assert_eq!(r.rows.len(), 3);
-        assert_eq!(r.rows[1][0], "[unreadable]");
-        assert_eq!(r.rows[2][0], "Reserved");
-        assert!(r.diagnostics.iter().any(|s| s.contains("循环")));
-        assert!(r.diagnostics.iter().any(|s| s.contains("倒置")));
-        put(&mut bytes, 0x12120, 0x800000); // missing child also leaves sibling accessible
-        let im = image(&bytes);
-        assert_eq!(
-            engine(&im, &isf)
-                .run(Plugin::Iomem, &Job::default())
-                .unwrap()
-                .rows
-                .last()
-                .unwrap()[0],
-            "Reserved"
-        );
-    }
-    #[test]
-    fn resource_depth_limit_is_reported_without_recursive_stack_growth() {
-        let (mut bytes, isf) = resources_fixture();
-        bytes[0x3f000..0x3f002].copy_from_slice(b"r\0");
-        for index in 0..1027 {
-            let address = 0x12000 + index * 64;
-            for (offset, value) in [
-                (0, 0x3f000),
-                (8, 0),
-                (16, 1),
-                (24, 0),
-                (
-                    32,
-                    if index == 1026 {
-                        0
-                    } else {
-                        (address + 64) as u64
-                    },
-                ),
-                (40, 0),
-            ] {
-                put(&mut bytes, address + offset, value);
-            }
-        }
-        let im = image(&bytes);
-        let result = engine(&im, &isf)
-            .run(Plugin::Iomem, &Job::default())
-            .unwrap();
-        assert!(!result.complete);
-        assert_eq!(result.rows.len(), DEPTH_LIMIT + 1);
-        assert!(result.diagnostics.iter().any(|s| s.contains("1024 层")));
-    }
-    fn ptrace_fixture() -> (Vec<u8>, crate::symbols::Isf) {
-        let (mut bytes, mut isf) = fixture();
-        isf.data["user_types"]["task_struct"]["size"] = json!(160);
-        for (field, offset, ty) in [
-            ("group_leader", 72, json!({"kind":"pointer"})),
-            (
-                "thread_group",
-                80,
-                json!({"kind":"struct","name":"list_head"}),
-            ),
-            ("ptrace", 96, json!({"kind":"base","name":"u64"})),
-            ("parent", 104, json!({"kind":"pointer"})),
-            ("ptraced", 112, json!({"kind":"struct","name":"list_head"})),
-            (
-                "ptrace_entry",
-                128,
-                json!({"kind":"struct","name":"list_head"}),
-            ),
-        ] {
-            isf.data["user_types"]["task_struct"]["fields"][field] =
-                json!({"offset":offset,"type":ty});
-        }
-        for a in [0xa000, 0xa100, 0xa200] {
-            put(&mut bytes, a + 72, a as u64);
-            for offset in [80, 112, 128] {
-                put(&mut bytes, a + offset, (a + offset) as u64);
-                put(&mut bytes, a + offset + 8, (a + offset) as u64);
-            }
-        }
-        put(&mut bytes, 0xa210, 3); // TID 3 in process 1, not in global task list
-        put(&mut bytes, 0xa218, 1);
-        put(&mut bytes, 0xa220, 0x9000);
-        bytes[0xa228..0xa22d].copy_from_slice(b"child");
-        put(&mut bytes, 0xa248, 0xa000);
-        for (at, next) in [
-            (0xa050, 0xa250),
-            (0xa058, 0xa250),
-            (0xa250, 0xa050),
-            (0xa258, 0xa050),
-        ] {
-            put(&mut bytes, at, next);
-        }
-        (bytes, isf)
-    }
-    #[test]
-    fn ptrace_includes_nonleader_tracees_and_tracers_and_normal_empty() {
-        let (mut bytes, isf) = ptrace_fixture();
-        let im = image(&bytes);
-        let r = engine(&im, &isf)
-            .run(Plugin::Ptrace, &Job::default())
-            .unwrap();
-        assert!(r.complete && r.rows.is_empty(), "{:?}", r.diagnostics);
-        put(&mut bytes, 0xa260, 1);
-        put(&mut bytes, 0xa268, 0xa100);
-        for (at, next) in [
-            (0xa170, 0xa280),
-            (0xa178, 0xa280),
-            (0xa280, 0xa170),
-            (0xa288, 0xa170),
-        ] {
-            put(&mut bytes, at, next);
-        }
-        let im = image(&bytes);
-        let r = engine(&im, &isf)
-            .run(Plugin::Ptrace, &Job::default())
-            .unwrap();
-        assert!(r.complete, "{:?}", r.diagnostics);
-        assert_eq!(
-            r.rows,
-            vec![
-                vec![
-                    "kth".into(),
-                    "2".into(),
-                    "2".into(),
-                    "[none]".into(),
-                    "3".into(),
-                    hex(0)
-                ],
-                vec![
-                    "child".into(),
-                    "1".into(),
-                    "3".into(),
-                    "2".into(),
-                    "[none]".into(),
-                    hex(1)
-                ]
-            ]
-        );
-        put(&mut bytes, 0xa280, 0xa280); // loop must retain the already parsed relationship
-        let im = image(&bytes);
-        let r = engine(&im, &isf)
-            .run(Plugin::Ptrace, &Job::default())
-            .unwrap();
-        assert!(!r.complete);
-        assert_eq!(r.rows.len(), 2);
-        assert!(r.diagnostics.iter().any(|s| s.contains("循环")));
-    }
-    fn notifier_fixture() -> (Vec<u8>, crate::symbols::Isf) {
-        let (mut bytes, mut isf) = fixture();
-        for (name, address) in [
-            ("keyboard_notifier_list", 0x12000),
-            ("modules", 0x15000),
-            ("_stext", 0x18000),
-            ("_etext", 0x19000),
-            ("keyboard_callback", 0x18000),
-        ] {
-            isf.data["symbols"][name] = json!({"address":address});
-        }
-        isf.data["user_types"]["atomic_notifier_head"] = structure(&[("head", 0)], 8);
-        isf.data["user_types"]["notifier_block"] =
-            structure(&[("notifier_call", 0), ("next", 8), ("priority", 16)], 24);
-        isf.data["user_types"]["notifier_block"]["fields"]["priority"]["type"] =
-            json!({"kind":"base","name":"int"});
-        isf.data["base_types"]["int"] = json!({"size":4,"signed":true});
-        isf.data["user_types"]["module"] = structure(
-            &[
-                ("list", 0),
-                ("name", 16),
-                ("module_core", 64),
-                ("core_size", 72),
-            ],
-            128,
-        );
-        put(&mut bytes, 0x15000, 0x15100);
-        put(&mut bytes, 0x15008, 0x15100);
-        put(&mut bytes, 0x15100, 0x15000);
-        put(&mut bytes, 0x15108, 0x15000);
-        bytes[0x15110..0x15115].copy_from_slice(b"audit");
-        put(&mut bytes, 0x15140, 0x1a000);
-        put(&mut bytes, 0x15148, 0x1000);
-        put(&mut bytes, 0x12000, 0x12100);
-        for (address, callback, next) in [
-            (0x12100, 0x18010, 0x12200),
-            (0x12200, 0x1a010, 0x12300),
-            (0x12300, 0x1f000, 0),
-        ] {
-            put(&mut bytes, address, callback);
-            put(&mut bytes, address + 8, next);
-            bytes[address + 16..address + 20].copy_from_slice(&(-2_i32).to_le_bytes());
-        }
-        (bytes, isf)
-    }
-    #[test]
-    fn notifiers_resolve_kernel_modules_unknown_and_signed_priority() {
-        let (mut bytes, isf) = notifier_fixture();
-        let im = image(&bytes);
-        let r = engine(&im, &isf)
-            .run(Plugin::KeyboardNotifiers, &Job::default())
-            .unwrap();
-        assert!(r.complete, "{:?}", r.diagnostics);
-        assert_eq!(
-            &r.rows[0][1..4],
-            &["kernel", "keyboard_callback+0x10", "-2"]
-        );
-        assert_eq!(&r.rows[1][1..3], &["audit", "[unknown]"]);
-        assert_eq!(&r.rows[2][1..3], &["[unknown]", "[unknown]"]);
-        put(&mut bytes, 0x12308, 0x12100);
-        let im = image(&bytes);
-        let r = engine(&im, &isf)
-            .run(Plugin::KeyboardNotifiers, &Job::default())
-            .unwrap();
-        assert!(!r.complete && r.rows.len() == 3);
-        put(&mut bytes, 0x12000, 0);
-        let im = image(&bytes);
-        let r = engine(&im, &isf)
-            .run(Plugin::KeyboardNotifiers, &Job::default())
-            .unwrap();
-        assert!(r.complete && r.rows.is_empty());
-    }
-    #[test]
-    fn unsupported_symbols_fields_and_cancellation_are_explicit() {
-        let (bytes, isf) = fixture();
-        let im = image(&bytes);
-        for plugin in [
-            Plugin::Iomem,
-            Plugin::Ioports,
-            Plugin::Ptrace,
-            Plugin::KeyboardNotifiers,
-        ] {
-            let e = engine(&im, &isf).run(plugin, &Job::default()).unwrap_err();
-            assert!(format!("{e:#}").contains("不支持"));
-            let job = Job::default();
-            job.cancel.store(true, std::sync::atomic::Ordering::Relaxed);
-            assert!(
-                engine(&im, &isf)
-                    .run(plugin, &job)
-                    .unwrap_err()
-                    .to_string()
-                    .contains("cancelled")
-            );
-        }
-    }
-}
+mod tests;

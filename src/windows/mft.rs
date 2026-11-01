@@ -1,5 +1,6 @@
 //! NTFS MFT records carved from physical memory.
 use super::*;
+use crate::bytes::{le_u16, le_u32, le_u64};
 
 const RECORD: usize = 1024;
 const SECTOR: usize = 512;
@@ -28,34 +29,33 @@ pub(super) struct Record {
 /// sector tails then hold real data: only when every tail still carries the
 /// USN is the record in on-disk form and patched here.
 pub(super) fn fixup(record: &mut [u8]) -> Result<()> {
-    let offset = usize::from(u16::from_le_bytes([record[4], record[5]]));
-    let count = usize::from(u16::from_le_bytes([record[6], record[7]]));
+    let header = |at| le_u16(record, at).map(usize::from).context("USA 大小无效");
+    let (offset, count) = (header(4)?, header(6)?);
     ensure!(
         count == record.len() / SECTOR + 1 && offset + count * 2 <= record.len(),
         "USA 大小无效"
     );
-    let usn = [record[offset], record[offset + 1]];
-    let on_disk = (1..count).all(|sector| {
-        let end = sector * SECTOR - 2;
-        record[end..end + 2] == usn
-    });
+    let usn = le_u16(record, offset).context("USA 大小无效")?;
+    let on_disk = (1..count).all(|sector| le_u16(record, sector * SECTOR - 2) == Some(usn));
     if on_disk {
         for sector in 1..count {
             let end = sector * SECTOR - 2;
-            let fix = offset + sector * 2;
-            let value = [record[fix], record[fix + 1]];
-            record[end..end + 2].copy_from_slice(&value);
+            let value = le_u16(record, offset + sector * 2).context("USA 大小无效")?;
+            record
+                .get_mut(end..end + 2)
+                .context("USA 大小无效")?
+                .copy_from_slice(&value.to_le_bytes());
         }
     }
     Ok(())
 }
 
 pub(super) fn parse_record(mut bytes: [u8; RECORD]) -> Result<Record> {
-    ensure!(&bytes[..4] == b"FILE", "非 MFT 记录");
+    ensure!(bytes.starts_with(b"FILE"), "非 MFT 记录");
     fixup(&mut bytes)?;
-    let u16_at = |b: &[u8], at: usize| u16::from_le_bytes([b[at], b[at + 1]]);
-    let u32_at = |b: &[u8], at: usize| u32::from_le_bytes(b[at..at + 4].try_into().unwrap());
-    let u64_at = |b: &[u8], at: usize| u64::from_le_bytes(b[at..at + 8].try_into().unwrap());
+    let u16_at = |b: &[u8], at: usize| le_u16(b, at).unwrap_or_default();
+    let u32_at = |b: &[u8], at: usize| le_u32(b, at).unwrap_or_default();
+    let u64_at = |b: &[u8], at: usize| le_u64(b, at).unwrap_or_default();
     let flags = u16_at(&bytes, 22);
     let mut record = Record {
         number: u32_at(&bytes, 44),
@@ -74,18 +74,21 @@ pub(super) fn parse_record(mut bytes: [u8; RECORD]) -> Result<Record> {
         }
         let length = u32_at(&bytes, at + 4) as usize;
         ensure!(length >= 16 && at + length <= RECORD, "属性长度无效");
-        let resident = bytes[at + 8] == 0;
+        let resident = bytes.get(at + 8) == Some(&0);
         if resident && matches!(kind, STANDARD_INFORMATION | FILE_NAME) {
             let size = u32_at(&bytes, at + 16) as usize;
             let offset = usize::from(u16_at(&bytes, at + 20));
             ensure!(offset + size <= length, "属性内容越界");
-            let content = &bytes[at + offset..at + offset + size];
+            let content = bytes
+                .get(at + offset..at + offset + size)
+                .context("属性内容越界")?;
             if kind == STANDARD_INFORMATION && size >= 32 {
                 record.si = (u64_at(content, 0), u64_at(content, 8));
-            } else if kind == FILE_NAME && size >= 66 {
-                let characters = usize::from(content[64]);
-                let namespace = content[65];
-                ensure!(66 + characters * 2 <= size, "文件名越界");
+            } else if let (FILE_NAME, Some(&[characters, namespace])) =
+                (kind, content.get(64..66).and_then(|b| b.first_chunk()))
+            {
+                let characters = usize::from(characters);
+                let name = content.get(66..66 + characters * 2).context("文件名越界")?;
                 let score = match namespace {
                     1 | 3 => 2,
                     0 => 1,
@@ -94,9 +97,11 @@ pub(super) fn parse_record(mut bytes: [u8; RECORD]) -> Result<Record> {
                 if score > rank {
                     rank = score;
                     record.name = String::from_utf16_lossy(
-                        &content[66..66 + characters * 2]
-                            .chunks_exact(2)
-                            .map(|c| u16::from_le_bytes([c[0], c[1]]))
+                        &name
+                            .as_chunks::<2>()
+                            .0
+                            .iter()
+                            .map(|c| u16::from_le_bytes(*c))
                             .collect::<Vec<_>>(),
                     );
                     record.parent = u64_at(content, 0) & 0xffff_ffff_ffff;
@@ -152,9 +157,11 @@ impl Windows<'_> {
                 job.report(format!("mftscan: {} 条", r.rows.len()));
             }
         }
-        r.kernel_identity["coverage"] = serde_json::json!(
+        if let Some(identity) = r.kernel_identity.as_object_mut() {
+            identity.insert("coverage".into(), serde_json::json!(
             "1 KiB-aligned resident FILE records in physical memory; on-disk and cache-resident (fixups applied) forms; non-resident names are skipped"
-        );
+        ));
+        }
         Ok(r)
     }
 }
@@ -166,17 +173,17 @@ pub(super) type Partition = (bool, u8, u32, u32);
 /// non-empty partitions. A sector qualifies only when every entry has a
 /// valid status byte and at least one partition is defined.
 pub(super) fn parse_mbr(sector: &[u8]) -> Option<(u32, Vec<Partition>)> {
-    if sector.len() < SECTOR || sector[510..512] != [0x55, 0xaa] {
+    if sector.len() < SECTOR || sector.get(510..512) != Some(&[0x55, 0xaa][..]) {
         return None;
     }
     let mut partitions = Vec::new();
-    for entry in sector[446..510].chunks_exact(16) {
+    for entry in sector.get(446..510)?.as_chunks::<16>().0 {
         if !matches!(entry[0], 0x00 | 0x80) {
             return None;
         }
         let kind = entry[4];
-        let start = u32::from_le_bytes(entry[8..12].try_into().unwrap());
-        let count = u32::from_le_bytes(entry[12..16].try_into().unwrap());
+        let start = le_u32(entry, 8)?;
+        let count = le_u32(entry, 12)?;
         if kind == 0 {
             if count != 0 {
                 return None;
@@ -191,10 +198,7 @@ pub(super) fn parse_mbr(sector: &[u8]) -> Option<(u32, Vec<Partition>)> {
     if partitions.is_empty() {
         return None;
     }
-    Some((
-        u32::from_le_bytes(sector[440..444].try_into().unwrap()),
-        partitions,
-    ))
+    Some((le_u32(sector, 440)?, partitions))
 }
 
 impl Windows<'_> {

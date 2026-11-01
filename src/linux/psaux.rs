@@ -31,7 +31,7 @@ impl Linux<'_> {
         else {
             return Ok("N/A".into());
         };
-        let mut bytes = vec![0; length as usize];
+        let mut bytes = vec![0; usize::try_from(length)?];
         Ok(if vm.read(start, &mut bytes).is_ok() {
             arguments(&bytes)
         } else {

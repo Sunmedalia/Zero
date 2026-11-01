@@ -1,4 +1,5 @@
 use super::*;
+use crate::bytes::Cells;
 
 impl App {
     pub(super) fn open_symbol_generation(&mut self) {
@@ -92,11 +93,18 @@ impl App {
             if !*automatic {
                 let back = matches!(key.code, KeyCode::BackTab | KeyCode::Up);
                 *field = (*field + if back { 3 } else { 1 }) % 4;
-                *cursor = if *field < 3 { fields[*field].len() } else { 0 };
+                *cursor = if *field < 3 {
+                    fields.get(*field).map_or(0, String::len)
+                } else {
+                    0
+                };
                 *selected = true;
             }
-        } else if *field < 3 && !*automatic {
-            edit_input(&mut fields[*field], cursor, selected, key);
+        } else if *field < 3
+            && !*automatic
+            && let Some(text) = fields.get_mut(*field)
+        {
+            edit_input(text, cursor, selected, key);
         }
         self.dialog = Some(dialog);
     }
@@ -140,12 +148,12 @@ impl App {
                 .into_iter()
                 .enumerate()
             {
-                let y = inner.y + lines.len() as u16;
+                let y = inner.y.saturating_add(lines.len().cells());
                 lines.push(Line::styled(
                     format!(
                         "{} {label}: {}",
                         if *field == index { "›" } else { " " },
-                        escaped(&fields[index])
+                        escaped(fields.get(index).map_or("", String::as_str))
                     ),
                     Style::default().fg(if *field == index {
                         color_focus()
@@ -161,7 +169,7 @@ impl App {
                 }
             }
         }
-        let y = inner.y + lines.len() as u16;
+        let y = inner.y.saturating_add(lines.len().cells());
         lines.push(Line::styled(
             "[生成并选用 Enter]  [切换方式 F7]  [取消 Esc]",
             Style::default().fg(color_focus()),
@@ -180,7 +188,7 @@ impl App {
                 ("[切换方式 F7]  ", KeyCode::F(7)),
                 ("[取消 Esc]", KeyCode::Esc),
             ] {
-                let width = (Span::raw(label).width() as u16).min(inner.right().saturating_sub(x));
+                let width = (Span::raw(label).width().cells()).min(inner.right().saturating_sub(x));
                 self.hits
                     .borrow_mut()
                     .buttons

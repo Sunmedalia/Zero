@@ -1,15 +1,16 @@
 //! Kernel page-table discovery and validation against the complete banner.
 use super::*;
+use crate::bytes::JsonKey as _;
 fn physical_field(image: &Image, isf: &Isf, at: u64, structure: &str, field: &str) -> Result<u64> {
     let width = isf.size(structure, field)?;
     ensure!(matches!(width, 1 | 2 | 4 | 8), "物理字段宽度无效");
     let mut bytes = [0u8; 8];
-    image.read(at, &mut bytes[..width])?;
+    image.read(at, bytes.at_mut(..width)?)?;
     Ok(u64::from_le_bytes(bytes))
 }
 pub(super) fn kernel_vm<'a>(image: &'a Image, isf: &Isf, root: u64) -> VirtualMemory<'a> {
-    if isf.data["base_types"]["pointer"]["size"].as_u64() == Some(4) {
-        let pae = isf.data["symbols"]["pkmap_count"]["type"]["count"]
+    if isf.data.key("base_types")["pointer"].key("size").as_u64() == Some(4) {
+        let pae = isf.data.key("symbols")["pkmap_count"].key("type")["count"]
             .as_u64()
             .is_some_and(|count| matches!(count, 512 | 2048));
         VirtualMemory::new_linux32(image, root, pae)
@@ -18,13 +19,19 @@ pub(super) fn kernel_vm<'a>(image: &'a Image, isf: &Isf, root: u64) -> VirtualMe
     }
 }
 pub fn discover(image: &Image, isf: &Isf, job: &Job) -> Result<u64> {
-    if isf.data["metadata"]["linux"]["architecture"].as_str() == Some("AArch64")
-        || isf.data["metadata"]["zero"]["architecture"].as_str() == Some("aarch64")
+    if isf.data.key("metadata")["linux"]
+        .key("architecture")
+        .as_str()
+        == Some("AArch64")
+        || isf.data.key("metadata")["zero"]
+            .key("architecture")
+            .as_str()
+            == Some("aarch64")
         || String::from_utf8_lossy(&isf.banner).contains("aarch64-linux")
     {
         return discover_arm64(image, isf, job);
     }
-    let linux32 = isf.data["base_types"]["pointer"]["size"].as_u64() == Some(4);
+    let linux32 = isf.data.key("base_types")["pointer"].key("size").as_u64() == Some(4);
     // Physical placement and virtual KASLR are independent. Relative symbol
     // offsets locate the static objects, but their pointers use runtime VAs.
     let banner = isf.raw_address("linux_banner")?;
@@ -54,7 +61,7 @@ pub fn discover(image: &Image, isf: &Isf, job: &Job) -> Result<u64> {
                 break;
             }
         }
-        let physical = &placements[index];
+        let physical = placements.at(index)?;
         index += 1;
         job.check()?;
         let mut slides = vec![0];
@@ -118,10 +125,12 @@ pub fn discover(image: &Image, isf: &Isf, job: &Job) -> Result<u64> {
             job.check()?;
             if let Ok(address) = isf.raw_address(name) {
                 let candidate = *physical as i128 + address as i128 - banner as i128;
-                if candidate < 0 || candidate > u64::MAX as i128 || candidate & 4095 != 0 {
+                let Ok(root) = u64::try_from(candidate) else {
+                    continue;
+                };
+                if root & 4095 != 0 {
                     continue;
                 }
-                let root = candidate as u64;
                 let vm = kernel_vm(image, isf, root);
                 for &slide in &slides {
                     job.check()?;
@@ -214,9 +223,13 @@ pub fn discover(image: &Image, isf: &Isf, job: &Job) -> Result<u64> {
                             n_prev.as_ref().is_ok_and(|value| *value == head) && p_next.is_ok(),
                             "{evidence}"
                         );
-                        let count =
-                            validate_forward_tasks(&vm, isf, head, *p.as_ref().unwrap(), job)
-                                .with_context(|| evidence.clone())?;
+                        let count = p
+                            .as_ref()
+                            .ok()
+                            .copied()
+                            .context(evidence.clone())
+                            .and_then(|first| validate_forward_tasks(&vm, isf, head, first, job))
+                            .with_context(|| evidence.clone())?;
                         Ok(vec![format!(
                             "内核校验部分恢复：{evidence}；正向 {count} 个任务的 PID/TGID、名称及相邻回指均通过并闭环；表头 prev 指向链内非尾节点。可能为采集时状态不一致或链表异常，不能认定结果完整"
                         )])
@@ -240,13 +253,13 @@ pub fn discover(image: &Image, isf: &Isf, job: &Job) -> Result<u64> {
         valid.len() == 1,
         "多个有效页表／重定位候选，拒绝猜测: {valid:?}"
     );
-    let ((root, slide), diagnostics) = valid.into_iter().next().unwrap();
+    let ((root, slide), diagnostics) = valid.into_iter().next().context("页表候选为空")?;
     isf.slide.store(slide, std::sync::atomic::Ordering::Relaxed);
-    *isf.validation_diagnostics.write().unwrap() = diagnostics;
+    isf.set_diagnostics(diagnostics);
     let architecture = if linux32 { "x86 32 位" } else { "x86_64" };
     job.report(format!(
         "{architecture} 页表已验证 · DTB {root:#x} · 重定位 {slide:#x}{}",
-        if isf.validation_diagnostics.read().unwrap().is_empty() {
+        if isf.diagnostics().is_empty() {
             ""
         } else {
             " · 任务链异常，部分恢复"
@@ -355,7 +368,7 @@ fn validate_forward_tasks(
             identity.push(value);
         }
         ensure!(
-            identity[0] == identity[1] && pids.insert(identity[0]),
+            *identity.at(0)? == *identity.at(1)? && pids.insert(*identity.at(0)?),
             "任务 PID/TGID 不一致或重复 @ {task:#x}"
         );
         let mut name = vec![0; comm_size];
@@ -365,7 +378,7 @@ fn validate_forward_tasks(
             .position(|b| *b == 0)
             .context("任务名称未终止")?;
         ensure!(
-            end > 0 && !name[..end].iter().any(|b| b.is_ascii_control()),
+            end > 0 && !name.at(..end)?.iter().any(|b| b.is_ascii_control()),
             "任务名称无效 @ {task:#x}"
         );
         previous = node;
@@ -379,7 +392,7 @@ fn validate_forward_tasks(
 }
 fn discover_arm64(image: &Image, isf: &Isf, job: &Job) -> Result<u64> {
     use std::sync::atomic::Ordering;
-    let config = &isf.data["metadata"]["zero"];
+    let config = &isf.data.key("metadata")["zero"];
     ensure!(
         config["page_shift"].as_u64() == Some(12),
         "ARM64 需要已核对的 4 KiB 内核配置；请通过符号生成入口附加配置"
@@ -456,12 +469,13 @@ fn discover_arm64(image: &Image, isf: &Isf, job: &Job) -> Result<u64> {
         "无法唯一验证 ARM64 页表／重定位: {}",
         errors.join("; ")
     );
-    isf.slide.store(valid[0].1, Ordering::Relaxed);
+    isf.slide.store(valid.at(0)?.1, Ordering::Relaxed);
     job.report(format!(
         "ARM64 页表已验证 · DTB {:#x} · 重定位 {:#x}",
-        valid[0].0, valid[0].1
+        valid.at(0)?.0,
+        valid.at(0)?.1
     ));
-    Ok(valid[0].0)
+    Ok(valid.at(0)?.0)
 }
 
 #[cfg(test)]

@@ -1,6 +1,7 @@
 //! Kernel tables and carved module entries: the native system service table
 //! and `MmLd` pool allocations cross-checked against PsLoadedModuleList.
 use super::*;
+use crate::bytes::Row as _;
 use drivers::module_at;
 use objects::physical_number;
 
@@ -12,7 +13,11 @@ impl Windows<'_> {
     /// Sorted kernel symbols as virtual addresses, for naming code pointers.
     fn kernel_symbols(&self) -> Result<Vec<(u64, String)>> {
         let mut symbols = Vec::new();
-        for (name, value) in self.vm.isf.data["symbols"]
+        for (name, value) in self
+            .vm
+            .isf
+            .data
+            .key("symbols")
             .as_object()
             .context("ISF symbols 缺失")?
         {
@@ -52,21 +57,21 @@ impl Windows<'_> {
                 // x64 stores signed offsets from the table, shifted past four
                 // argument-count bits; x86 stores absolute addresses.
                 let target = if x64 {
-                    let offset = i64::from(entry as u32 as i32) >> 4;
+                    let offset = i64::from(crate::bytes::low_u32(entry) as i32) >> 4;
                     table.wrapping_add_signed(offset)
                 } else {
                     entry
                 };
                 let owner = module_at(&modules, target);
                 let at = symbols.partition_point(|(address, _)| *address <= target);
-                let symbol = match at.checked_sub(1).map(|i| &symbols[i]) {
+                let symbol = match at.checked_sub(1).and_then(|i| symbols.get(i)) {
                     Some((address, name)) if *address == target => name.clone(),
                     Some((address, name)) if target - address < 0x10_0000 => {
                         format!("{name}+{:#x}", target - address)
                     }
                     _ => "[unknown]".into(),
                 };
-                let kernel = modules.rows.first().map(|m| m[0].as_str());
+                let kernel = modules.rows.first().map(|m| m.cell(0));
                 let reason = if owner.is_empty() {
                     "OutsideLoadedModules"
                 } else if Some(owner.as_str()) == kernel {
@@ -91,7 +96,7 @@ impl Windows<'_> {
                 Err(e) => Self::issue(&mut r, format!("KiServiceTable[{index}]"), format!("{e:#}")),
             }
         }
-        r.kernel_identity["coverage"] = serde_json::json!(
+        *r.kernel_identity.key_mut("coverage")? = serde_json::json!(
             "native KiServiceTable only; the win32k shadow table needs a GUI session space"
         );
         Ok(r)
@@ -101,7 +106,8 @@ impl Windows<'_> {
         let mut r = self.result(Plugin::WinModscan);
         let ty = self.module_type()?;
         let isf = self.vm.isf;
-        let size = isf.data["user_types"][ty]["size"]
+        let size = isf.data.key("user_types")[ty]
+            .key("size")
             .as_u64()
             .context("缺少模块条目大小")?;
         ensure!((32..=4096).contains(&size), "模块条目大小无效");
@@ -110,17 +116,17 @@ impl Windows<'_> {
             r.complete = false;
             r.diagnostics.extend(listed.diagnostics.clone());
         }
-        let bases: HashSet<String> = listed.rows.iter().map(|m| m[1].clone()).collect();
+        let bases: HashSet<String> = listed.rows.iter().map(|m| m.cell(1).to_owned()).collect();
         let align = if self.vm.pointer_size() == 4 { 8 } else { 16 };
         let mut seen = HashSet::new();
         for (start, length) in self.pool_blocks(&[b"MmLd"], size, job)? {
             job.check()?;
-            let mut block = vec![0; length as usize];
+            let mut block = vec![0; usize::try_from(length)?];
             if self.vm.image.read(start, &mut block).is_err() {
                 continue;
             }
             for delta in (0..=length - size).step_by(align) {
-                let entry = &block[delta as usize..(delta + size) as usize];
+                let entry = block.at(usize::try_from(delta)?..usize::try_from(delta + size)?)?;
                 let Ok((base, image, name, path)) = self.carved_module(entry, ty) else {
                     continue;
                 };
@@ -138,7 +144,7 @@ impl Windows<'_> {
                 break;
             }
         }
-        r.kernel_identity["coverage"] = serde_json::json!(
+        *r.kernel_identity.key_mut("coverage")? = serde_json::json!(
             "MmLd pool allocations; freed entries can remain and paged-out names are skipped"
         );
         Ok(r)
@@ -168,7 +174,7 @@ impl Windows<'_> {
     /// Read a UNICODE_STRING embedded in physical bytes; its buffer is virtual.
     fn unicode_in(&self, bytes: &[u8], ty: &str, field: &str) -> Result<String> {
         let isf = self.vm.isf;
-        let offset = isf.offset(ty, field)? as usize;
+        let offset = usize::try_from(isf.offset(ty, field)?)?;
         let string = bytes.get(offset..).context("UNICODE_STRING 截断")?;
         let length = physical_number(isf, string, "_UNICODE_STRING", "Length")?;
         let maximum = physical_number(isf, string, "_UNICODE_STRING", "MaximumLength")?;
@@ -178,11 +184,11 @@ impl Windows<'_> {
             "UNICODE_STRING 长度无效"
         );
         ensure!(self.vm.kernel(buffer), "UNICODE_STRING 缓冲区无效");
-        let mut b = vec![0; length as usize];
+        let mut b = vec![0; usize::try_from(length)?];
         self.vm.read(buffer, &mut b)?;
         String::from_utf16(
             &b.chunks_exact(2)
-                .map(|c| u16::from_le_bytes([c[0], c[1]]))
+                .map(|c| crate::bytes::le_u16(c, 0).unwrap_or(0))
                 .collect::<Vec<_>>(),
         )
         .context("UNICODE_STRING 非法 UTF-16")
@@ -212,7 +218,8 @@ impl Windows<'_> {
             return Ok(());
         }
         ensure!(self.vm.kernel(table), "PoolBigPageTable 指针无效");
-        let size = self.vm.isf.data["user_types"][ty]["size"]
+        let size = self.vm.isf.data.key("user_types")[ty]
+            .key("size")
             .as_u64()
             .context("缺少 _POOL_TRACKER_BIG_PAGES")?;
         ensure!((8..=64).contains(&size), "大页池表项大小无效");
@@ -224,12 +231,12 @@ impl Windows<'_> {
         while index < count {
             job.check()?;
             let n = per_chunk.min(count - index);
-            let mut chunk = vec![0; (n * size) as usize];
+            let mut chunk = vec![0; usize::try_from(n * size)?];
             let start = add(table, index * size)?;
             let whole = self.vm.read(start, &mut chunk).is_ok();
             let mut missing = 0usize;
             let mut first_error = String::new();
-            for (delta, entry) in chunk.chunks_exact_mut(size as usize).enumerate() {
+            for (delta, entry) in chunk.chunks_exact_mut(usize::try_from(size)?).enumerate() {
                 job.check()?;
                 if !whole && let Err(error) = self.vm.read(add(start, delta as u64 * size)?, entry)
                 {
@@ -239,7 +246,7 @@ impl Windows<'_> {
                     }
                     continue;
                 }
-                let key = objects::physical_number(self.vm.isf, entry, ty, "Key")? as u32;
+                let key = u32::try_from(objects::physical_number(self.vm.isf, entry, ty, "Key")?)?;
                 let va = objects::physical_number(self.vm.isf, entry, ty, "Va")?;
                 if key == 0 || va & 1 != 0 {
                     continue;
@@ -310,10 +317,14 @@ impl Windows<'_> {
         r.diagnostics = drivers.diagnostics.clone();
         for driver in drivers.rows {
             job.check()?;
-            let address = u64::from_str_radix(driver[0].trim_start_matches("0x"), 16)?;
-            if let Err(e) = self.driver_devices(address, &driver[1], &mut r, job) {
+            let address = u64::from_str_radix(driver.at(0)?.trim_start_matches("0x"), 16)?;
+            if let Err(e) = self.driver_devices(address, driver.at(1)?, &mut r, job) {
                 job.check()?;
-                Self::issue(&mut r, format!("driver {}", driver[1]), format!("{e:#}"));
+                Self::issue(
+                    &mut r,
+                    format!("driver {}", *driver.at(1)?),
+                    format!("{e:#}"),
+                );
             }
         }
         Ok(r)
@@ -423,7 +434,8 @@ impl Windows<'_> {
             ty = &ty["subtype"];
         }
         ensure!(count <= 4096, "TimerEntries 数量无效");
-        let entry_size = isf.data["user_types"]["_KTIMER_TABLE_ENTRY"]["size"]
+        let entry_size = isf.data.key("user_types")["_KTIMER_TABLE_ENTRY"]
+            .key("size")
             .as_u64()
             .context("缺少 _KTIMER_TABLE_ENTRY 大小")?;
         let list = isf.offset("_KTIMER_TABLE_ENTRY", "Entry")?;
@@ -532,7 +544,7 @@ impl Windows<'_> {
                 continue;
             }
             ensure!(visited.len() <= MAX_OBJECTS, "页表数量超过上限");
-            let shift = geometry.shifts()[level];
+            let shift = *geometry.shifts().at(level)?;
             let leaf = level + 1 == geometry.shifts().len();
             for index in from..to {
                 let entry = match geometry.entry(self.vm.image, table, index) {
@@ -591,7 +603,7 @@ impl Windows<'_> {
                 stats.shared_tables.to_string(),
             ],
         ];
-        r.kernel_identity["coverage"] = serde_json::json!(
+        *r.kernel_identity.key_mut("coverage")? = serde_json::json!(
             "kernel half of the validated kernel page tables; software PTEs include paged-out, demand-zero and prototype entries"
         );
         Ok(r)
@@ -608,28 +620,31 @@ impl Windows<'_> {
             .context("不支持: 缺少 MiVisibleState（Windows 10 之前的布局）")?;
         // Public symbols carry no type; MiVisibleState is a pointer variable
         // unless the ISF explicitly types it as the structure itself.
-        let state = if isf.data["symbols"]["MiVisibleState"]["type"]["kind"] == "struct" {
+        let state = if isf.data.key("symbols")["MiVisibleState"].key("type")["kind"] == "struct" {
             symbol
         } else {
             self.vm.pointer(symbol)?
         };
         ensure!(self.vm.kernel(state), "MiVisibleState 无效");
-        let count = isf.field("_MI_VISIBLE_STATE", "SystemVaRegions")?["type"]["count"]
+        let count = isf.field("_MI_VISIBLE_STATE", "SystemVaRegions")?["type"]
+            .key("count")
             .as_u64()
             .context("SystemVaRegions 长度缺失")?;
         ensure!(count <= 64, "SystemVaRegions 长度无效");
-        let size = isf.data["user_types"]["_MI_SYSTEM_VA_ASSIGNMENT"]["size"]
+        let size = isf.data.key("user_types")["_MI_SYSTEM_VA_ASSIGNMENT"]
+            .key("size")
             .as_u64()
             .context("缺少 _MI_SYSTEM_VA_ASSIGNMENT 大小")?;
         let regions = self.field(state, "_MI_VISIBLE_STATE", "SystemVaRegions")?;
         // SystemVaRegions is indexed by _MI_ASSIGNED_REGION_TYPES, whose
         // order differs between builds; older layouts reuse the VA type.
-        let names_enum = if isf.data["enums"]["_MI_ASSIGNED_REGION_TYPES"].is_object() {
+        let names_enum = if isf.data.key("enums")["_MI_ASSIGNED_REGION_TYPES"].is_object() {
             "_MI_ASSIGNED_REGION_TYPES"
         } else {
             "_MI_SYSTEM_VA_TYPE"
         };
-        let names: BTreeMap<u64, String> = isf.data["enums"][names_enum]["constants"]
+        let names: BTreeMap<u64, String> = isf.data.key("enums")[names_enum]
+            .key("constants")
             .as_object()
             .map(|constants| {
                 constants

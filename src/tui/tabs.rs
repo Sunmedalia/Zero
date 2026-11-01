@@ -22,7 +22,11 @@ impl App {
             return;
         }
         if let Some(index) = self.active_tab.filter(|&i| matches!(self.open_tabs.get(i), Some(OpenTab::Plugin(p)) if !self.results.contains_key(p.name()) && self.job.is_none())) {
-            self.open_tabs[index] = OpenTab::Plugin(plugin); self.active_tab = Some(index); return;
+            if let Some(tab) = self.open_tabs.get_mut(index) {
+ *tab = OpenTab::Plugin(plugin);
+}
+self.active_tab = Some(index);
+return;
         }
         self.open_tabs.push(OpenTab::Plugin(plugin));
         self.active_tab = Some(self.open_tabs.len() - 1);
@@ -38,12 +42,12 @@ impl App {
                 self.open_tabs.push(OpenTab::History(path, result.clone()));
                 self.open_tabs.len() - 1
             });
-        self.history_source = match &self.open_tabs[index] {
-            OpenTab::History(path, _) => Some(path.clone()),
+        self.history_source = match self.open_tabs.get(index) {
+            Some(OpenTab::History(path, _)) => Some(path.clone()),
             _ => None,
         };
-        if let OpenTab::History(source, _) = &self.open_tabs[index] {
-            self.open_tabs[index] = OpenTab::History(source.clone(), result.clone());
+        if let Some(OpenTab::History(_, stored)) = self.open_tabs.get_mut(index) {
+            *stored = result.clone();
         }
         self.active_tab = Some(index);
         self.history = Some(result);
@@ -95,7 +99,7 @@ impl App {
         if index >= self.open_tabs.len() {
             return;
         }
-        if let OpenTab::Plugin(plugin) = &self.open_tabs[index] {
+        if let Some(OpenTab::Plugin(plugin)) = self.open_tabs.get(index) {
             if self.job.is_some()
                 && self
                     .active_request
@@ -113,7 +117,7 @@ impl App {
         }
         let current = self.active_tab.unwrap_or(0);
         if current == index
-            && matches!(self.open_tabs[index], OpenTab::Detail { .. })
+            && matches!(self.open_tabs.get(index), Some(OpenTab::Detail { .. }))
             && self.open_tabs.len() > 1
         {
             let next = if index > 0 { index - 1 } else { 1 };

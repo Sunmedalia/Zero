@@ -1,6 +1,7 @@
 //! The analysis page workbench: plugin menu, inspector, content search and the
 //! result table, including horizontal scrolling over a virtual canvas.
 use super::*;
+use crate::bytes::{Cells, float_to_i128};
 
 impl App {
     /// Draw the plugin menu, inspector and result table into `body`.
@@ -18,8 +19,8 @@ impl App {
                 .direction(Direction::Horizontal)
                 .constraints([Constraint::Length(menu_width), Constraint::Min(20)])
                 .split(body);
-            self.draw_menu(frame, columns[0], self.focus_style(Focus::Navigation));
-            columns[1]
+            self.draw_menu(frame, columns.rect(0), self.focus_style(Focus::Navigation));
+            columns.rect(1)
         } else if self.focus == Focus::Navigation {
             self.draw_menu(frame, body, self.focus_style(Focus::Navigation));
             Rect::default()
@@ -62,10 +63,10 @@ impl App {
         if layout.inspector() && self.inspector {
             let columns =
                 Layout::horizontal([Constraint::Min(50), Constraint::Length(38)]).split(main);
-            main = columns[0];
-            self.hits.borrow_mut().inspector = columns[1];
+            main = columns.rect(0);
+            self.hits.borrow_mut().inspector = columns.rect(1);
             let text = self.detail_text();
-            let lines = detail_lines(&text, columns[1].width.saturating_sub(2));
+            let lines = detail_lines(&text, columns.rect(1).width.saturating_sub(2));
             let total_lines = lines.len();
             frame.render_widget(
                 Paragraph::new(
@@ -80,13 +81,13 @@ impl App {
                         .title("详情 · Tab 聚焦 · d 关闭")
                         .border_style(self.focus_style(Focus::Detail)),
                 ),
-                columns[1],
+                columns.rect(1),
             );
             self.draw_scrollbar(
                 frame,
-                columns[1],
+                columns.rect(1),
                 total_lines,
-                columns[1].height.saturating_sub(2) as usize,
+                columns.rect(1).height.saturating_sub(2) as usize,
                 self.detail_scroll,
                 ScrollTarget::Detail,
             );
@@ -106,12 +107,12 @@ impl App {
             let regions = Layout::vertical([Constraint::Length(3), Constraint::Min(2)]).split(main);
             self.draw_search(
                 frame,
-                regions[0],
+                regions.rect(0),
                 &self.query,
                 InputKind::Search,
                 "内容搜索 · / 编辑 · Enter 确认 · Esc 撤销",
             );
-            main = regions[1];
+            main = regions.rect(1);
         }
         self.hits.borrow_mut().result = main;
         if main.width > 0 {
@@ -172,13 +173,15 @@ impl App {
                 let natural = table_widths(&columns, rows.sample(0, 200));
                 let widths: Vec<_> = natural.iter().copied().map(Constraint::Length).collect();
                 let total = natural.iter().map(|n| *n as u32).sum::<u32>()
-                    + natural.len().saturating_sub(1) as u32
+                    + u32::from(natural.len().saturating_sub(1).cells())
                     + 4;
-                let virtual_width = (total.min(4096) as u16).max(main.width);
+                let virtual_width = u16::try_from(total.min(4096))
+                    .unwrap_or(4096)
+                    .max(main.width);
                 let scroll = self
                     .horizontal
                     .min(virtual_width.saturating_sub(main.width) as usize)
-                    as u16;
+                    .cells();
                 let render_area = Rect::new(main.x, main.y, virtual_width, main.height);
                 let row_count = rows.len().saturating_sub(page_start).min(page_size);
                 let viewport_block = block.clone();
@@ -252,9 +255,9 @@ impl App {
                         let right =
                             (rect.right() as i32 - scroll as i32).min(main.right() as i32 - 1);
                         *rect = Rect::new(
-                            left as u16,
+                            u16::try_from(left).unwrap_or(0),
                             rect.y,
-                            (right - left).max(0) as u16,
+                            u16::try_from(right - left).unwrap_or(0),
                             rect.height,
                         );
                     }
@@ -398,10 +401,17 @@ impl App {
             let elapsed = self.started.map_or(0.0, |t| t.elapsed().as_secs_f64());
             let label = format!(
                 "运行中 {} · {} · Esc 取消",
-                pulses[((elapsed * 1000.0 / 180.0) as usize) % 4],
+                pulses
+                    .get(usize::try_from(float_to_i128(elapsed * 1000.0 / 180.0)).unwrap_or(0) % 4)
+                    .copied()
+                    .unwrap_or("●··"),
                 status::format_duration(elapsed)
             );
-            let width = (Span::raw(&label).width() as u16 + 4).min(main.width.saturating_sub(2));
+            let width = Span::raw(&label)
+                .width()
+                .cells()
+                .saturating_add(4)
+                .min(main.width.saturating_sub(2));
             let rect = Rect::new(
                 main.x + (main.width - width) / 2,
                 main.y + main.height / 2 - 1,

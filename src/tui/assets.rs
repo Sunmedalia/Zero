@@ -1,6 +1,7 @@
 //! The resource library page: source tabs, both asset panes, the inline detail
 //! panel and the bottom action toolbar.
 use super::*;
+use crate::bytes::Cells;
 
 impl App {
     pub(super) fn draw_asset_buttons(
@@ -11,7 +12,7 @@ impl App {
         actions: &[(&'static str, KeyCode)],
     ) {
         let more = " 更多 ? ";
-        let more_width = Span::raw(more).width() as u16;
+        let more_width = Span::raw(more).width().cells();
         let mut x = area.x;
         let y = area.y;
         if area.height == 0 {
@@ -21,7 +22,7 @@ impl App {
         let mut shown = 0usize;
         for (label, key) in actions.iter().copied().take(count) {
             let text = format!(" {label} ");
-            let width = Span::raw(&text).width() as u16;
+            let width = Span::raw(&text).width().cells();
             let rect = Rect::new(x, y, width, 1);
             let disabled = Command::from_key(Page::Assets, key)
                 .and_then(|command| self.command_disabled(command));
@@ -101,7 +102,7 @@ impl App {
         if search {
             self.draw_search(
                 frame,
-                parts[0],
+                parts.rect(0),
                 query,
                 InputKind::AssetsSearch,
                 if section == AssetSection::Remote {
@@ -113,10 +114,10 @@ impl App {
             self.hits
                 .borrow_mut()
                 .asset_searches
-                .push((parts[0], section));
+                .push((parts.rect(0), section));
         }
         if section == AssetSection::Images {
-            self.draw_image_list(frame, parts[1]);
+            self.draw_image_list(frame, parts.rect(1));
             return;
         }
         let rows = if section == AssetSection::Remote {
@@ -249,7 +250,7 @@ impl App {
         };
         let row_heights = rows
             .iter()
-            .map(|row| row.height() as u16)
+            .map(|row| row.height().cells())
             .collect::<Vec<_>>();
         let count = rows.len();
         let mut states = self.asset_states.borrow_mut();
@@ -281,20 +282,25 @@ impl App {
                         .bg(color_selected_bg())
                         .add_modifier(Modifier::BOLD),
                 ),
-            parts[1],
+            parts.rect(1),
             state,
         );
-        let mut y = parts[1].y + 1;
+        let mut y = parts.rect(1).y + 1;
         for (index, height) in row_heights.iter().enumerate().skip(state.offset()) {
-            if y >= parts[1].bottom().saturating_sub(1) {
+            if y >= parts.rect(1).bottom().saturating_sub(1) {
                 break;
             }
-            if y + *height > parts[1].bottom().saturating_sub(1) {
+            if y + *height > parts.rect(1).bottom().saturating_sub(1) {
                 break;
             }
             let height = *height;
             self.hits.borrow_mut().asset_rows.push((
-                Rect::new(parts[1].x + 1, y, parts[1].width.saturating_sub(2), height),
+                Rect::new(
+                    parts.rect(1).x + 1,
+                    y,
+                    parts.rect(1).width.saturating_sub(2),
+                    height,
+                ),
                 section,
                 index,
             ));
@@ -310,7 +316,7 @@ impl App {
             .max(1);
         self.draw_scrollbar(
             frame,
-            parts[1],
+            parts.rect(1),
             count,
             viewport,
             state.offset(),
@@ -319,9 +325,9 @@ impl App {
         self.hits
             .borrow_mut()
             .asset_lists
-            .push((parts[1], section, state.offset()));
+            .push((parts.rect(1), section, state.offset()));
         if self.section == section {
-            self.hits.borrow_mut().assets = parts[1];
+            self.hits.borrow_mut().assets = parts.rect(1);
             self.hits.borrow_mut().asset_offset = state.offset();
         }
         if count == 0 {
@@ -337,7 +343,7 @@ impl App {
                 Paragraph::new(text)
                     .wrap(Wrap { trim: false })
                     .style(Style::default().fg(color_muted())),
-                parts[1].inner(ratatui::layout::Margin::new(1, 1)),
+                parts.rect(1).inner(ratatui::layout::Margin::new(1, 1)),
             );
         }
     }
@@ -351,11 +357,19 @@ impl App {
         // The resource header is drawn here rather than by `draw`, so it
         // registers its own hit regions. Without this, header clicks had no
         // target and the page had no focusable header at all.
-        self.hits.borrow_mut().header = regions[0];
-        self.hits.borrow_mut().header_image =
-            Rect::new(regions[0].x, regions[0].y, regions[0].width, 1);
-        self.hits.borrow_mut().header_symbol =
-            Rect::new(regions[0].x, regions[0].y + 1, regions[0].width, 1);
+        self.hits.borrow_mut().header = regions.rect(0);
+        self.hits.borrow_mut().header_image = Rect::new(
+            regions.rect(0).x,
+            regions.rect(0).y,
+            regions.rect(0).width,
+            1,
+        );
+        self.hits.borrow_mut().header_symbol = Rect::new(
+            regions.rect(0).x,
+            regions.rect(0).y + 1,
+            regions.rect(0).width,
+            1,
+        );
         let banner = self
             .results
             .get("banners")
@@ -418,7 +432,7 @@ impl App {
         };
         let image_line = fit(
             &[("镜像: ", image, value), ("内核: ", banner, banner_style)],
-            regions[0].width,
+            regions.rect(0).width,
         );
         // Symbol first, then the short status words. The symbol names the
         // selected input; the status is repeated by the footer and the detail
@@ -430,30 +444,30 @@ impl App {
                 ("", mode.to_string(), Style::default().fg(mode_color)),
                 ("", state.to_string(), Style::default().fg(state_color)),
             ],
-            regions[0].width,
+            regions.rect(0).width,
         );
         if symbol_line.is_empty() {
             // Nothing fits whole: show the state clipped rather than nothing.
             symbol_line = vec![Span::styled(
-                truncate_with_ellipsis(state, regions[0].width as usize),
+                truncate_with_ellipsis(state, regions.rect(0).width as usize),
                 Style::default().fg(state_color),
             )];
         }
         frame.render_widget(
             Paragraph::new(vec![Line::from(image_line), Line::from(symbol_line)]),
-            regions[0],
+            regions.rect(0),
         );
-        let mut x = regions[1].x;
+        let mut x = regions.rect(1).x;
         for (label, section) in [
             (" 镜像 ", AssetSection::Images),
             (" 本地库 ", AssetSection::Symbols),
             (" 远程索引 ", AssetSection::Remote),
         ] {
-            let width = Span::raw(label).width() as u16;
-            if x + width > regions[1].right() {
+            let width = Span::raw(label).width().cells();
+            if x + width > regions.rect(1).right() {
                 break;
             }
-            let rect = Rect::new(x, regions[1].y, width, regions[1].height);
+            let rect = Rect::new(x, regions.rect(1).y, width, regions.rect(1).height);
             frame.render_widget(
                 Paragraph::new(label).style(if self.section == section {
                     Style::default().fg(color_focus()).bg(color_selected_bg())
@@ -465,7 +479,7 @@ impl App {
             self.hits.borrow_mut().sources.push((rect, section));
             x += width + 1;
         }
-        let mut body = regions[2];
+        let mut body = regions.rect(2);
         if self.section == AssetSection::Remote {
             let mut x = body.x;
             let y = body.y;
@@ -479,7 +493,7 @@ impl App {
                     false,
                 ),
             ] {
-                let width = (Span::raw(&label).width() as u16).min(body.right().saturating_sub(x));
+                let width = (Span::raw(&label).width().cells()).min(body.right().saturating_sub(x));
                 let rect = Rect::new(x, y, width, 1);
                 frame.render_widget(
                     Paragraph::new(label).style(
@@ -566,7 +580,13 @@ impl App {
         let state = &mut states[0];
         let mut offset = state.offset().min(selected);
         while offset < selected
-            && rows[offset..=selected].iter().map(Vec::len).sum::<usize>() > viewport
+            && rows
+                .get(offset..=selected)
+                .unwrap_or(&[])
+                .iter()
+                .map(Vec::len)
+                .sum::<usize>()
+                > viewport
         {
             offset += 1;
         }
@@ -576,7 +596,7 @@ impl App {
         let mut shown = 0;
         for (index, lines) in rows.iter().enumerate().skip(offset) {
             let height =
-                (lines.len() as u16).min(area.bottom().saturating_sub(1).saturating_sub(y));
+                (lines.len().cells()).min(area.bottom().saturating_sub(1).saturating_sub(y));
             if height == 0 {
                 break;
             }
@@ -591,7 +611,7 @@ impl App {
                 rect,
             );
             frame.render_widget(
-                Paragraph::new(lines[..height as usize].to_vec()).style(style),
+                Paragraph::new(lines.get(..height as usize).unwrap_or(&[]).to_vec()).style(style),
                 Rect::new(rect.x + 2, y, rect.width.saturating_sub(2), height),
             );
             if index == selected {

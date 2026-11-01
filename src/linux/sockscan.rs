@@ -1,5 +1,6 @@
 //! Independent physical socket discovery through file operations and destructors.
 use super::*;
+use crate::bytes::JsonKey as _;
 use crate::physical::{self, Decision, Object};
 use serde::Serialize;
 use std::collections::BTreeSet;
@@ -19,7 +20,8 @@ struct Source {
 impl Linux<'_> {
     pub(super) fn sockscan(&self, job: &Job) -> Result<Results> {
         ensure!(
-            self.isf.data["base_types"]["pointer"]["size"]
+            self.isf.data.key("base_types")["pointer"]
+                .key("size")
                 .as_u64()
                 .unwrap_or(8)
                 == 8,
@@ -88,9 +90,13 @@ impl Linux<'_> {
         let mut output_bytes = 0usize;
         let coverage = physical::pointers(self.vm.image, &needles, 8, job, |hit, value| {
             let mut accepted = false;
-            let destructor = sources[1].needles.contains(&value);
-            let file_ops = sources[0].needles.contains(&value);
-            let key = destructor.then(|| i128::from(hit) - i128::from(sources[1].offset.unwrap()));
+            let destructor = sources.at(1)?.needles.contains(&value);
+            let file_ops = sources.at(0)?.needles.contains(&value);
+            let key = sources
+                .at(1)?
+                .offset
+                .filter(|_| destructor)
+                .map(|offset| i128::from(hit) - i128::from(offset));
             for source in &mut sources {
                 if source.needles.contains(&value) {
                     source.hits += 1;
@@ -100,9 +106,10 @@ impl Linux<'_> {
             // the same pattern belongs to both reference source sets.
             let method = if file_ops { 0 } else { 1 };
             {
-                let source = &mut sources[method];
+                let source = sources.at_mut(method)?;
                 let read = (|| -> Result<Option<super::socket_fields::SocketFields>> {
-                    let Some(base) = hit.checked_sub(source.offset.unwrap()) else {
+                    let Some(base) = source.offset.and_then(|offset| hit.checked_sub(offset))
+                    else {
                         return Ok(None);
                     };
                     let address = if method == 0 {
@@ -200,13 +207,13 @@ impl Linux<'_> {
                 );
             }
         }
-        result
-            .rows
-            .sort_unstable_by_key(|r| u64::from_str_radix(&r[0][2..], 16).unwrap_or(0));
+        result.rows.sort_unstable_by_key(|r| {
+            u64::from_str_radix(r.cell(0).get(2..).unwrap_or(""), 16).unwrap_or(0)
+        });
         if !result.kernel_identity.is_object() {
             result.kernel_identity = serde_json::json!({});
         }
-        result.kernel_identity["physical_socket_scan"] = serde_json::json!({"coverage":coverage,"sources":sources,"unique_socket_candidates":physical_candidates.len(),"host_af_inet6":super::socket_fields::REFERENCE_INET6_FAMILY,"deduplication_keys":seen.len(),"deduplication":"reference source key: destructor offset or file-only None","pointer_targets":"native pointers resolved through kernel VM; IPv6 address bytes read on original physical socket layer","source":"physical bytes; independent of task fd lists"});
+        *result.kernel_identity.key_mut("physical_socket_scan")? = serde_json::json!({"coverage":coverage,"sources":sources,"unique_socket_candidates":physical_candidates.len(),"host_af_inet6":super::socket_fields::REFERENCE_INET6_FAMILY,"deduplication_keys":seen.len(),"deduplication":"reference source key: destructor offset or file-only None","pointer_targets":"native pointers resolved through kernel VM; IPv6 address bytes read on original physical socket layer","source":"physical bytes; independent of task fd lists"});
         Ok(result)
     }
     fn socket_from_physical_file(&self, base: u64) -> Result<Option<u64>> {

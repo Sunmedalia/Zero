@@ -1,6 +1,7 @@
 //! Kernel hook surfaces: netfilter hooks, tracepoint probes, ftrace
 //! callbacks and loaded eBPF programs.
 use super::*;
+use crate::bytes::JsonKey as _;
 
 const HOOK_LIMIT: usize = 65536;
 /// NF_INET_NUMHOOKS; ARP uses the first three slots.
@@ -28,8 +29,9 @@ pub(super) fn nf_protocol(family: u64) -> &'static str {
 }
 pub(super) fn nf_hook(family: u64, hook: u64) -> String {
     let names: &[&str] = if family == 3 { &ARP_HOOKS } else { &INET_HOOKS };
-    names
-        .get(hook as usize)
+    usize::try_from(hook)
+        .ok()
+        .and_then(|index| names.get(index))
         .map_or_else(|| hook.to_string(), |name| (*name).to_string())
 }
 
@@ -57,14 +59,16 @@ impl Linux<'_> {
             ]);
         };
         if let Ok(table) = self.isf.address("nf_hooks") {
-            let families = self.isf.data["symbols"]["nf_hooks"]["type"]["count"]
+            let families = self.isf.data.key("symbols")["nf_hooks"].key("type")["count"]
                 .as_u64()
                 .context("nf_hooks 缺少协议数")?;
-            let hooks = self.isf.data["symbols"]["nf_hooks"]["type"]["subtype"]["count"]
+            let hooks = self.isf.data.key("symbols")["nf_hooks"].key("type")["subtype"]
+                .key("count")
                 .as_u64()
                 .context("nf_hooks 缺少 hook 数")?;
             ensure!(families <= 32 && hooks <= 16, "nf_hooks 维度无效");
-            let size = self.isf.data["user_types"]["list_head"]["size"]
+            let size = self.isf.data.key("user_types")["list_head"]
+                .key("size")
                 .as_u64()
                 .unwrap_or(16);
             let offset = self.isf.offset("nf_hook_ops", "list")?;
@@ -78,8 +82,11 @@ impl Linux<'_> {
                                 let read = (|| -> Result<(u64, i64)> {
                                     Ok((
                                         self.number(op, "nf_hook_ops", "hook")?,
-                                        self.number(op, "nf_hook_ops", "priority")? as u32 as i32
-                                            as i64,
+                                        u32::try_from(self.number(
+                                            op,
+                                            "nf_hook_ops",
+                                            "priority",
+                                        )?)? as i32 as i64,
                                     ))
                                 })();
                                 match read {
@@ -116,7 +123,8 @@ impl Linux<'_> {
                 if self.isf.field("netns_nf", field).is_err() {
                     continue;
                 }
-                let count = self.isf.field("netns_nf", field)?["type"]["count"]
+                let count = self.isf.field("netns_nf", field)?["type"]
+                    .key("count")
                     .as_u64()
                     .context("netns_nf hook 数缺失")?;
                 ensure!(count <= 16, "netns_nf hook 数无效");
@@ -129,9 +137,13 @@ impl Linux<'_> {
                             return Ok(vec![]);
                         }
                         let n = self.number(entries, "nf_hook_entries", "num_hook_entries")?;
-                        ensure!(n as usize <= HOOK_LIMIT, "nf_hook_entries 数量超限");
+                        ensure!(
+                            usize::try_from(n)? <= HOOK_LIMIT,
+                            "nf_hook_entries 数量超限"
+                        );
                         let hooks = self.field_address(entries, "nf_hook_entries", "hooks")?;
-                        let size = self.isf.data["user_types"]["nf_hook_entry"]["size"]
+                        let size = self.isf.data.key("user_types")["nf_hook_entry"]
+                            .key("size")
                             .as_u64()
                             .context("nf_hook_entry 大小缺失")?;
                         // The original nf_hook_ops pointers follow the hooks array.
@@ -144,7 +156,13 @@ impl Linux<'_> {
                                 .vm
                                 .uint(add(origin, i * 8)?, 8)
                                 .and_then(|ops| self.number(ops, "nf_hook_ops", "priority"))
-                                .map_or_else(|_| "-".into(), |p| (p as u32 as i32).to_string());
+                                .map_or_else(
+                                    |_| "-".into(),
+                                    |p| {
+                                        u32::try_from(p)
+                                            .map_or_else(|_| "-".into(), |p| (p as i32).to_string())
+                                    },
+                                );
                             out.push((handler, priority));
                         }
                         Ok(out)
@@ -180,19 +198,23 @@ impl Linux<'_> {
             "tracepoint 指针表无效"
         );
         // Since 4.19 the table may hold 32-bit relative offsets.
-        let relative = self.isf.data["metadata"]["zero"]["tracepoint_relative"]
+        let relative = self.isf.data.key("metadata")["zero"]
+            .key("tracepoint_relative")
             .as_bool()
             .unwrap_or(false);
         let width = if relative { 4 } else { 8 };
         let code = self.code_map(job)?;
-        let size = self.isf.data["user_types"]["tracepoint_func"]["size"]
+        let size = self.isf.data.key("user_types")["tracepoint_func"]
+            .key("size")
             .as_u64()
             .context("tracepoint_func 大小缺失")?;
         for slot in (start..stop).step_by(width) {
             job.check()?;
             let read = (|| -> Result<()> {
                 let point = if relative {
-                    slot.wrapping_add_signed(i64::from(self.vm.uint(slot, 4)? as u32 as i32))
+                    slot.wrapping_add_signed(i64::from(
+                        u32::try_from(self.vm.uint(slot, 4)?)? as i32
+                    ))
                 } else {
                     self.vm.uint(slot, 8)?
                 };
@@ -306,7 +328,8 @@ impl Linux<'_> {
             .address("prog_idr")
             .context("不支持: 缺少 prog_idr（内核早于 4.13 或未启用 BPF syscall）")?;
         let xa = self.field_address(idr, "idr", "idr_rt")?;
-        let types = self.isf.data["enums"]["bpf_prog_type"]["constants"]
+        let types = self.isf.data.key("enums")["bpf_prog_type"]
+            .key("constants")
             .as_object()
             .cloned()
             .unwrap_or_default();

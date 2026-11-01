@@ -1,3 +1,4 @@
+use crate::bytes::Checked as _;
 use crate::{ENGINE_VERSION, Job};
 use anyhow::{Context, Result, ensure};
 use serde::{Deserialize, Serialize};
@@ -81,9 +82,11 @@ pub fn atomic_stream(
                     self.job.check().map_err(std::io::Error::other)?;
                     self.remaining = 65536;
                 }
-                let n = self
-                    .writer
-                    .write(&bytes[..bytes.len().min(self.remaining)])?;
+                let n = self.writer.write(
+                    bytes
+                        .get(..bytes.len().min(self.remaining))
+                        .unwrap_or(bytes),
+                )?;
                 self.remaining -= n;
                 Ok(n)
             }
@@ -160,7 +163,7 @@ pub fn summary(path: &Path) -> Option<Summary> {
     // `,"` never occurs inside a JSON string (its quote would be escaped), so
     // the first `,"result":` ends the header fields written before it.
     let end = memchr::memmem::find(&head, br#","result":"#)?;
-    let mut header = head[..end].to_vec();
+    let mut header = head.get(..end)?.to_vec();
     header.push(b'}');
     #[derive(Deserialize)]
     struct Head {
@@ -308,10 +311,9 @@ pub fn export_fallible<R: AsRef<[String]>>(
     atomic_stream(path, job, |mut writer| {
         if extension == Some("json") {
             let mut metadata = serde_json::to_value(result.metadata())?;
-            metadata
-                .as_object_mut()
-                .expect("result object")
-                .remove("rows");
+            if let Some(object) = metadata.as_object_mut() {
+                object.remove("rows");
+            }
             let mut prefix = serde_json::to_vec_pretty(&metadata)?;
             prefix.pop();
             writer.write_all(&prefix)?;
@@ -442,7 +444,7 @@ pub fn record_export(
             if n == 0 {
                 break;
             }
-            hasher.update(&buffer[..n]);
+            hasher.update(buffer.at(..n)?);
         }
         Ok(format!("{:x}", hasher.finalize()))
     };

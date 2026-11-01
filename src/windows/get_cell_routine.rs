@@ -48,17 +48,17 @@ impl Windows<'_> {
         for row in hives.rows {
             job.check()?;
             let read = (|| -> Result<()> {
-                let address = u64::from_str_radix(row[0].trim_start_matches("0x"), 16)?;
+                let address = u64::from_str_radix(row.at(0)?.trim_start_matches("0x"), 16)?;
                 let hive = self.field(address, "_CMHIVE", "Hive")?;
                 ensure!(
                     self.number(hive, "_HHIVE", "Signature")? == 0xbee0bee0,
                     "无效 HHIVE.Signature"
                 );
                 let handler = self.number(hive, "_HHIVE", "GetCellRoutine")?;
-                let name = if row[1].is_empty() {
+                let name = if row.at(1)?.is_empty() {
                     "[NONAME]"
                 } else {
-                    &row[1]
+                    row.at(1)?
                 };
                 let owners = handler_owners(&modules, handler);
                 checked_hives += 1;
@@ -79,12 +79,12 @@ impl Windows<'_> {
             if let Err(e) = read {
                 Self::issue(
                     &mut r,
-                    format!("hive {} GetCellRoutine", row[0]),
+                    format!("hive {} GetCellRoutine", *row.at(0)?),
                     format!("{e:#}"),
                 );
             }
         }
-        r.kernel_identity["getcellroutine"] = serde_json::json!({
+        *r.kernel_identity.key_mut("getcellroutine")? = serde_json::json!({
             "source": "CmpHiveListHead / HHIVE.GetCellRoutine / PsLoadedModuleList",
             "range_policy": "inclusive end for point lookups, matching pinned reference",
             "meaning": "non-kernel or unattributed handler is a lead, not proof of a hook; empty output does not prove absence",

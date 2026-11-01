@@ -160,7 +160,7 @@ impl Windows<'_> {
         };
         let size = fields_size(fields)?;
         ensure!(size <= 4096, "NT5 网络对象过大");
-        r.kernel_identity["network_layout"] = serde_json::json!({"key":key,"source":manifest.source,"tcpip_pdb":identity,"file_version":version,"validation":"synthetic-layout; pool candidates"});
+        *r.kernel_identity.key_mut("network_layout")? = serde_json::json!({"key":key,"source":manifest.source,"tcpip_pdb":identity,"file_version":version,"validation":"synthetic-layout; pool candidates"});
         Self::issue(
             r,
             "NT5 TCP/IP",
@@ -176,7 +176,9 @@ impl Windows<'_> {
                 continue;
             }
             let mut pointer = [0; 8];
-            pointer[..arch.pointer_size()].copy_from_slice(&bytes[..arch.pointer_size()]);
+            pointer
+                .at_mut(..arch.pointer_size())?
+                .copy_from_slice(bytes.at(..arch.pointer_size())?);
             let next = u64::from_le_bytes(pointer);
             if next != 0 && !arch.kernel(next) {
                 continue;

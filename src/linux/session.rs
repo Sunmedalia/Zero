@@ -268,7 +268,7 @@ impl Session {
                     self.symbols.iter().map(|s| s.label.clone()).collect(),
                 ));
             }
-            self.symbols[0].clone()
+            self.symbols.at(0)?.clone()
         };
         let identity = match pattern {
             Some(pattern) => format!("{}:{}", request.plugin.name(), pattern.source()),

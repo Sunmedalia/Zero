@@ -390,13 +390,13 @@ pub(super) fn reconstruct_pe(
     read(base, &mut b)?;
     let (image_size, _) = pe_header(&b)?;
     let pe = u32::from_le_bytes(b[60..64].try_into()?) as usize;
-    let sections = u16::from_le_bytes(b[pe + 6..pe + 8].try_into()?) as usize;
-    let optional = u16::from_le_bytes(b[pe + 20..pe + 22].try_into()?) as usize;
+    let sections = u16::from_le_bytes(b.at(pe + 6..pe + 8)?.try_into()?) as usize;
+    let optional = u16::from_le_bytes(b.at(pe + 20..pe + 22)?.try_into()?) as usize;
     ensure!(
         sections <= 96 && pe + 24 + optional + sections * 40 <= 4096,
         "PE 节表越界"
     );
-    let headers = u32::from_le_bytes(b[pe + 84..pe + 88].try_into()?) as u64;
+    let headers = u32::from_le_bytes(b.at(pe + 84..pe + 88)?.try_into()?) as u64;
     ensure!(
         headers <= 4096 && headers >= ((pe + 24 + optional + sections * 40) as u64),
         "PE SizeOfHeaders 无效"
@@ -405,9 +405,9 @@ pub(super) fn reconstruct_pe(
     let mut size = headers;
     for i in 0..sections {
         let section = pe + 24 + optional + i * 40;
-        let rva = u32::from_le_bytes(b[section + 12..section + 16].try_into()?) as u64;
-        let len = u32::from_le_bytes(b[section + 16..section + 20].try_into()?) as u64;
-        let raw = u32::from_le_bytes(b[section + 20..section + 24].try_into()?) as u64;
+        let rva = u32::from_le_bytes(b.at(section + 12..section + 16)?.try_into()?) as u64;
+        let len = u32::from_le_bytes(b.at(section + 16..section + 20)?.try_into()?) as u64;
+        let raw = u32::from_le_bytes(b.at(section + 20..section + 24)?.try_into()?) as u64;
         if len == 0 {
             continue;
         }
@@ -423,7 +423,9 @@ pub(super) fn reconstruct_pe(
     ensure!(size <= crate::dump::MAX_DUMP_BYTES, "PE 转储超过限制");
     ranges.sort_unstable();
     ensure!(
-        ranges.windows(2).all(|r| r[0].0 + r[0].1 <= r[1].0),
+        ranges
+            .windows(2)
+            .all(|r| matches!(r, [a, b] if a.0 + a.1 <= b.0)),
         "PE raw sections 重叠"
     );
     let mut position = 0;
@@ -431,9 +433,9 @@ pub(super) fn reconstruct_pe(
     for (raw, len, rva) in ranges {
         while position < raw {
             job.check()?;
-            let n = ((raw - position) as usize).min(zeros.len());
-            file.write_all(&zeros[..n])?;
-            hash.update(&zeros[..n]);
+            let n = usize::try_from(raw - position)?.min(zeros.len());
+            file.write_all(zeros.at(..n)?)?;
+            hash.update(zeros.at(..n)?);
             position += n as u64;
         }
         write_reader(read, add(base, rva)?, len, file, hash, job)?;
@@ -488,10 +490,10 @@ pub(super) fn write_reader(
     let mut b = vec![0; 1024 * 1024];
     while size > 0 {
         job.check()?;
-        let n = (size as usize).min(b.len());
-        read(address, &mut b[..n])?;
-        file.write_all(&b[..n])?;
-        hash.update(&b[..n]);
+        let n = usize::try_from(size)?.min(b.len());
+        read(address, b.at_mut(..n)?)?;
+        file.write_all(b.at(..n)?)?;
+        hash.update(b.at(..n)?);
         address += n as u64;
         size -= n as u64;
     }

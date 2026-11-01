@@ -111,7 +111,7 @@ impl Linux<'_> {
                     let length = self.number(device, "net_device", "addr_len")?;
                     ensure!(length <= ADDRESS_LIMIT, "硬件地址长度无效");
                     let pointer = self.number(device, "net_device", "dev_addr")?;
-                    let mut mac = vec![0; length as usize];
+                    let mut mac = vec![0; usize::try_from(length)?];
                     if pointer != 0 && length > 0 {
                         self.vm.read(pointer, &mut mac)?;
                     }
@@ -196,7 +196,7 @@ impl Linux<'_> {
                 seen.insert(address) && seen.len() <= ADDRESS_COUNT_LIMIT,
                 "IPv4 地址链表循环或超限"
             );
-            let ip = self.number(address, "in_ifaddr", "ifa_address")? as u32;
+            let ip = u32::try_from(self.number(address, "in_ifaddr", "ifa_address")?)?;
             let mut row = prefix.to_vec();
             row.extend([
                 Ipv4Addr::from(ip.to_le_bytes()).to_string(),

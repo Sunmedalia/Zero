@@ -13,14 +13,24 @@ pub enum Architecture {
     Arm64,
 }
 impl Architecture {
+    /// Serialized and command-line spelling.
+    pub fn name(self) -> &'static str {
+        match self {
+            Self::Auto => "auto",
+            Self::X86 => "x86",
+            Self::X64 => "x64",
+            Self::Arm64 => "arm64",
+        }
+    }
     pub fn from_isf(isf: &Isf) -> Result<Self> {
-        let width = isf.data["base_types"]["pointer"]["size"]
+        let width = isf.data.key("base_types")["pointer"]
+            .key("size")
             .as_u64()
             .context("缺少指针宽度")?;
-        let pdb = isf.data["metadata"]["windows"]["pdb"]["machine_type"]
+        let pdb = isf.data.key("metadata")["windows"].key("pdb")["machine_type"]
             .as_u64()
             .filter(|v| *v != 0);
-        let pe = isf.data["metadata"]["windows"]["pe"]["machine_type"]
+        let pe = isf.data.key("metadata")["windows"].key("pe")["machine_type"]
             .as_u64()
             .filter(|v| *v != 0);
         ensure!(
@@ -68,8 +78,8 @@ impl Paging {
     pub fn new(isf: &Isf) -> Result<Self> {
         let arch = Architecture::from_isf(isf)?;
         let pae = arch == Architecture::X86
-            && (isf.data["metadata"]["windows"]["paging"] == "pae"
-                || isf.data["user_types"]["_MMPTE_HARDWARE"]["size"] == 8);
+            && (*isf.data.key("metadata")["windows"].key("paging") == "pae"
+                || *isf.data.key("user_types")["_MMPTE_HARDWARE"].key("size") == 8);
         Ok(Self { arch, pae })
     }
     pub fn shifts(self) -> &'static [u32] {
@@ -152,7 +162,7 @@ impl Paging {
         let mut b = [0; 8];
         image.read(
             table + index as u64 * self.width() as u64,
-            &mut b[..self.width()],
+            b.at_mut(..self.width())?,
         )?;
         Ok(u64::from_le_bytes(b))
     }

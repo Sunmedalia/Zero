@@ -1,6 +1,8 @@
 //! Registry-backed artifacts: scheduled tasks, Amcache inventory and the
 //! system certificate stores. Values are decoded in place; nothing is exported.
 use super::*;
+use crate::bytes::Row as _;
+use crate::bytes::{le_u16, le_u32, le_u64};
 
 const TASKS: &str = "Microsoft\\Windows NT\\CurrentVersion\\Schedule\\TaskCache\\Tasks";
 const AMCACHE: &str = "Root\\InventoryApplicationFile";
@@ -26,7 +28,7 @@ fn utf16(bytes: &[u8]) -> String {
     String::from_utf16_lossy(
         &bytes
             .chunks_exact(2)
-            .map(|c| u16::from_le_bytes([c[0], c[1]]))
+            .map(|c| crate::bytes::le_u16(c, 0).unwrap_or(0))
             .collect::<Vec<_>>(),
     )
     .trim_end_matches('\0')
@@ -79,8 +81,10 @@ pub(super) fn certificate_blob(bytes: &[u8]) -> (Option<&[u8]>, String) {
     let mut certificate = None;
     let mut name = String::new();
     while let Some(header) = bytes.get(at..at + 12) {
-        let id = u32::from_le_bytes(header[..4].try_into().unwrap());
-        let length = u32::from_le_bytes(header[8..12].try_into().unwrap()) as usize;
+        let (Some(id), Some(length)) = (le_u32(header, 0), le_u32(header, 8)) else {
+            break;
+        };
+        let length = length as usize;
         let Some(data) = bytes.get(at + 12..at + 12 + length) else {
             break;
         };
@@ -112,7 +116,7 @@ fn der(bytes: &[u8]) -> Option<(u8, &[u8], &[u8])> {
         (length, 2 + count)
     };
     let contents = bytes.get(header..header + length)?;
-    Some((tag, contents, &bytes[header + length..]))
+    Some((tag, contents, bytes.get(header + length..)?))
 }
 /// The commonName of an X.509 Name, or its organisation as a fallback.
 fn common_name(name: &[u8]) -> String {
@@ -166,21 +170,9 @@ pub(super) fn certificate_summary(certificate: &[u8]) -> Option<[String; 4]> {
 /// Windows 8+ entries carry a `00ts`/`10ts` signature; Windows 7 x64 uses a
 /// 0xbadc0fee header with fixed 48-byte records pointing into the value.
 pub(super) fn shimcache_entries(bytes: &[u8]) -> Vec<(String, u64)> {
-    let u16_at = |at: usize| {
-        bytes
-            .get(at..at + 2)
-            .map(|b| u16::from_le_bytes([b[0], b[1]]))
-    };
-    let u32_at = |at: usize| {
-        bytes
-            .get(at..at + 4)
-            .map(|b| u32::from_le_bytes(b.try_into().unwrap()))
-    };
-    let u64_at = |at: usize| {
-        bytes
-            .get(at..at + 8)
-            .map(|b| u64::from_le_bytes(b.try_into().unwrap()))
-    };
+    let u16_at = |at: usize| le_u16(bytes, at);
+    let u32_at = |at: usize| le_u32(bytes, at);
+    let u64_at = |at: usize| le_u64(bytes, at);
     let mut out = Vec::new();
     if u32_at(0) == Some(0xbadc_0fee) {
         let count = u32_at(4).unwrap_or(0).min(4096) as usize;
@@ -191,8 +183,10 @@ pub(super) fn shimcache_entries(bytes: &[u8]) -> Vec<(String, u64)> {
             else {
                 break;
             };
-            let Some(path) = bytes.get(offset as usize..offset as usize + usize::from(length))
-            else {
+            let path = usize::try_from(offset)
+                .ok()
+                .and_then(|offset| bytes.get(offset..offset.checked_add(usize::from(length))?));
+            let Some(path) = path else {
                 break;
             };
             out.push((utf16(path), time));
@@ -235,11 +229,11 @@ impl Windows<'_> {
         }
         let mut out = Vec::new();
         for hive in hives.rows {
-            let lower = hive[1].to_ascii_lowercase();
+            let lower = hive.at(1)?.to_ascii_lowercase();
             if suffix.iter().any(|s| lower.ends_with(s)) {
                 out.push((
-                    u64::from_str_radix(hive[0].trim_start_matches("0x"), 16)?,
-                    hive[1].clone(),
+                    u64::from_str_radix(hive.at(0)?.trim_start_matches("0x"), 16)?,
+                    hive.at(1)?.clone(),
                 ));
             }
         }
@@ -248,11 +242,11 @@ impl Windows<'_> {
     pub(super) fn values(rows: &Results) -> BTreeMap<String, (String, String)> {
         rows.rows
             .iter()
-            .filter(|row| row[2] == "Value")
+            .filter(|row| row.cell(2) == "Value")
             .map(|row| {
                 (
-                    row[3].to_ascii_lowercase(),
-                    (row[4].clone(), row[5].clone()),
+                    row.cell(3).to_ascii_lowercase(),
+                    (row.cell(4).to_owned(), row.cell(5).to_owned()),
                 )
             })
             .collect()
@@ -264,9 +258,9 @@ impl Windows<'_> {
             let Some(tasks) = self.optional_registry(hive, TASKS, job, &mut r)? else {
                 continue;
             };
-            for task in tasks.rows.iter().filter(|row| row[2] == "SubKey") {
+            for task in tasks.rows.iter().filter(|row| row.cell(2) == "SubKey") {
                 job.check()?;
-                let key = format!("{TASKS}\\{}", task[3]);
+                let key = format!("{TASKS}\\{}", *task.at(3)?);
                 let Some(entry) = self.optional_registry(hive, &key, job, &mut r)? else {
                     continue;
                 };
@@ -292,7 +286,7 @@ impl Windows<'_> {
                 for [command, arguments, directory] in actions {
                     r.rows.push(vec![
                         path.clone(),
-                        task[3].clone(),
+                        task.at(3)?.clone(),
                         command,
                         arguments,
                         directory,
@@ -354,9 +348,9 @@ impl Windows<'_> {
             let Some(files) = self.optional_registry(hive, AMCACHE, job, &mut r)? else {
                 continue;
             };
-            for file in files.rows.iter().filter(|row| row[2] == "SubKey") {
+            for file in files.rows.iter().filter(|row| row.cell(2) == "SubKey") {
                 job.check()?;
-                let key = format!("{AMCACHE}\\{}", file[3]);
+                let key = format!("{AMCACHE}\\{}", *file.at(3)?);
                 let Some(entry) = self.optional_registry(hive, &key, job, &mut r)? else {
                     continue;
                 };
@@ -372,7 +366,7 @@ impl Windows<'_> {
                     entry
                         .rows
                         .first()
-                        .map(|row| row[6].clone())
+                        .map(|row| row.cell(6).to_owned())
                         .unwrap_or_default(),
                 ]);
             }
@@ -394,11 +388,15 @@ impl Windows<'_> {
                 let Some(certificates) = self.optional_registry(hive, &key, job, &mut r)? else {
                     continue;
                 };
-                for certificate in certificates.rows.iter().filter(|row| row[2] == "SubKey") {
+                for certificate in certificates
+                    .rows
+                    .iter()
+                    .filter(|row| row.cell(2) == "SubKey")
+                {
                     job.check()?;
                     let Some(entry) = self.optional_registry(
                         hive,
-                        &format!("{key}\\{}", certificate[3]),
+                        &format!("{key}\\{}", *certificate.at(3)?),
                         job,
                         &mut r,
                     )?
@@ -416,7 +414,7 @@ impl Windows<'_> {
                     r.rows.push(vec![
                         path.clone(),
                         (*store).into(),
-                        certificate[3].clone(),
+                        certificate.at(3)?.clone(),
                         friendly,
                         subject,
                         issuer,

@@ -1,4 +1,5 @@
 //! Platform-neutral requests. Existing Linux APIs remain compatibility entry points.
+use crate::bytes::Row as _;
 pub use crate::linux::{Descriptor, Outcome, Plugin, Request, Session};
 use crate::{Job, dump::DumpOptions};
 use anyhow::{Context, Result, ensure};
@@ -260,7 +261,7 @@ pub fn analyze(
                     .iter()
                     .position(|c| c == "PID")
                     .ok_or_else(|| anyhow::anyhow!("此插件不支持 PID 筛选"))?;
-                r.rows.retain(|row| row[col] == pid.to_string());
+                r.rows.retain(|row| row.cell(col) == pid.to_string());
             }
             Outcome::Ready(r)
         }

@@ -1,6 +1,7 @@
 //! Exact module symbol queries. PDBs take precedence over mapped PE exports.
 use super::*;
 use crate::analysis::PESource;
+use crate::bytes::le_u32;
 
 const EXPORT_LIMIT: usize = 65536;
 const INSTANCE_LIMIT: usize = 65536;
@@ -18,15 +19,15 @@ struct Instance {
 /// metadata must be captured; missing bytes are never supplied as zeroes.
 pub(super) fn export_header(bytes: &[u8]) -> Result<pe_info::Header> {
     let header = pe_info::parse_header(bytes)?;
-    let nt = u32::from_le_bytes(bytes[60..64].try_into()?) as usize;
-    let machine = u16::from_le_bytes(bytes[nt + 4..nt + 6].try_into()?);
+    let nt = u32::from_le_bytes(bytes.at(60..64)?.try_into()?) as usize;
+    let machine = u16::from_le_bytes(bytes.at(nt + 4..nt + 6)?.try_into()?);
     ensure!(
         (machine == 0x14c && !header.wide) || (matches!(machine, 0x8664 | 0xaa64) && header.wide),
         "模块 PE 架构与位宽冲突"
     );
-    let sections = u16::from_le_bytes(bytes[nt + 6..nt + 8].try_into()?) as usize;
+    let sections = u16::from_le_bytes(bytes.at(nt + 6..nt + 8)?.try_into()?) as usize;
     ensure!(sections <= 96, "PE section 数量超限");
-    let optional_size = u16::from_le_bytes(bytes[nt + 20..nt + 22].try_into()?) as usize;
+    let optional_size = u16::from_le_bytes(bytes.at(nt + 20..nt + 22)?.try_into()?) as usize;
     ensure!(
         optional_size >= if header.wide { 112 } else { 96 },
         "PE 可选头长度无效"
@@ -42,7 +43,7 @@ pub(super) fn export_header(bytes: &[u8]) -> Result<pe_info::Header> {
     let table = bytes.get(start..end).context("PE section 表未完整捕获")?;
     for section in table.chunks_exact(40) {
         for offset in [8, 12, 16] {
-            let value = u32::from_le_bytes(section[offset..offset + 4].try_into()?);
+            let value = u32::from_le_bytes(section.at(offset..offset + 4)?.try_into()?);
             ensure!(value <= header.size, "PE section 范围超出映像");
         }
     }
@@ -75,7 +76,7 @@ pub(super) fn export_symbols(
     );
     let mut header = [0; 40];
     bounded(rva, &mut header)?;
-    let word = |at| u32::from_le_bytes(header[at..at + 4].try_into().unwrap());
+    let word = |at| le_u32(&header, at).unwrap_or_default();
     let functions = word(20) as usize;
     let names = word(24) as usize;
     ensure!(
@@ -91,13 +92,13 @@ pub(super) fn export_symbols(
             let mut ordinal = [0; 2];
             bounded(
                 word(32)
-                    .checked_add(index as u32 * 4)
+                    .checked_add(u32::try_from(index)? * 4)
                     .context("PE 名称表溢出")?,
                 &mut pointer,
             )?;
             bounded(
                 word(36)
-                    .checked_add(index as u32 * 2)
+                    .checked_add(u32::try_from(index)? * 2)
                     .context("PE ordinal 表溢出")?,
                 &mut ordinal,
             )?;
@@ -106,7 +107,7 @@ pub(super) fn export_symbols(
             let mut address = [0; 4];
             bounded(
                 word(28)
-                    .checked_add(ordinal as u32 * 4)
+                    .checked_add(u32::try_from(ordinal)? * 4)
                     .context("PE 地址表溢出")?,
                 &mut address,
             )?;
@@ -123,7 +124,9 @@ pub(super) fn export_symbols(
                 }
                 let mut byte = [0];
                 bounded(
-                    name_rva.checked_add(offset as u32).context("PE 名称溢出")?,
+                    name_rva
+                        .checked_add(u32::try_from(offset)?)
+                        .context("PE 名称溢出")?,
                     &mut byte,
                 )?;
                 if byte[0] == 0 {
@@ -175,9 +178,15 @@ fn resolve_queries(
             continue;
         }
         let found = if !names.is_empty() {
-            by_name.get(names[index].as_str()).copied()
+            names
+                .get(index)
+                .and_then(|name| by_name.get(name.as_str()))
+                .copied()
         } else {
-            by_address.get(&addresses[index]).copied()
+            addresses
+                .get(index)
+                .and_then(|address| by_address.get(address))
+                .copied()
         };
         if let Some((name, address)) = found {
             rows.push(vec![module.to_owned(), name.clone(), hex(*address)]);
@@ -219,7 +228,11 @@ impl Windows<'_> {
             }
         };
         let query = &options.pe;
-        let module = query.module.as_ref().unwrap().to_lowercase();
+        let module = query
+            .module
+            .as_ref()
+            .context("PE 符号查询缺少模块名")?
+            .to_lowercase();
         let mut result = self.result(Plugin::WinPESymbols);
         let mut instances = Vec::new();
         if query.source == Some(PESource::Kernel) {
@@ -252,7 +265,7 @@ impl Windows<'_> {
                                 .collect::<Vec<_>>(),
                         );
                     }
-                    let root = session_roots.as_ref().unwrap().iter().find(|root| {
+                    let root = session_roots.iter().flatten().find(|root| {
                         Memory::new(self.vm.image, **root, self.vm.isf, self.vm.sources)
                             .read(loaded.base, &mut probe)
                             .is_ok()
@@ -333,7 +346,7 @@ impl Windows<'_> {
                         "模块范围与 PE SizeOfImage 不一致"
                     );
                     let pe = u32::from_le_bytes(header[60..64].try_into()?) as usize;
-                    let machine = u16::from_le_bytes(header[pe + 4..pe + 6].try_into()?);
+                    let machine = u16::from_le_bytes(header.at(pe + 4..pe + 6)?.try_into()?);
                     let parsed = pe_info::parse_header(&header)?;
                     ensure!(
                         (machine == 0x14c && !parsed.wide)
@@ -355,7 +368,11 @@ impl Windows<'_> {
                 };
                 let mut symbols = Vec::new();
                 let mut symbol_bytes = 0usize;
-                let entries = isf.data["symbols"].as_object().context("缺少符号映射")?;
+                let entries = isf
+                    .data
+                    .key("symbols")
+                    .as_object()
+                    .context("缺少符号映射")?;
                 ensure!(entries.len() <= 1_000_000, "模块符号数量超限");
                 for (name, entry) in entries {
                     job.check()?;
@@ -447,7 +464,7 @@ impl Windows<'_> {
                 .diagnostics
                 .extend(pdb_failures.iter().take(32).cloned());
         }
-        result.kernel_identity["pe_symbols"] = serde_json::json!({"instances":instances.len(),"resolved":resolved.iter().filter(|done| **done).count(),"queries":count,"sources":evidence,"optional_pdb_failures":pdb_failures.iter().take(32).collect::<Vec<_>>()});
+        *result.kernel_identity.key_mut("pe_symbols")? = serde_json::json!({"instances":instances.len(),"resolved":resolved.iter().filter(|done| **done).count(),"queries":count,"sources":evidence,"optional_pdb_failures":pdb_failures.iter().take(32).collect::<Vec<_>>()});
         Ok(result)
     }
 }

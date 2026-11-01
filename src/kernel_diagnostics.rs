@@ -343,7 +343,7 @@ pub fn run(session: &mut Session, request: Request<'_>, job: &Job) -> Result<Rep
                     candidate.relocation_or_kernel_base = Some(value);
                     candidate.evidence = "通过引擎的完整内核页表校验".into();
                     if !windows {
-                        let diagnostics = isf.validation_diagnostics.read().unwrap();
+                        let diagnostics = isf.diagnostics();
                         if !diagnostics.is_empty() {
                             candidate.partial = true;
                             candidate.evidence = diagnostics.join("\n");

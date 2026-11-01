@@ -105,7 +105,7 @@ impl Windows<'_> {
                 ]
             })
             .collect();
-        r.kernel_identity["coverage"] = serde_json::json!(
+        *r.kernel_identity.key_mut("coverage")? = serde_json::json!(
             "pslist, netscan, symlinkscan, userassist, scheduled_tasks, amcache and mftscan timestamps"
         );
         Ok(r)

@@ -1,6 +1,7 @@
 //! Bounded native enumeration of compressed core, module, ftrace and BPF symbols.
 use super::*;
 use crate::analysis::KallsymsOptions;
+use crate::bytes::JsonKey as _;
 
 fn canonical(address: u64) -> u64 {
     if address < 1 << 48 && address & (1 << 47) != 0 {
@@ -109,8 +110,8 @@ impl CoreNames {
         let mut text = String::new();
         for i in 0..length {
             job.check()?;
-            let token = linux.vm.uint(add(at, i)?, 1)? as usize;
-            let value = &self.tokens[usize::from(self.index[token])];
+            let token = usize::try_from(linux.vm.uint(add(at, i)?, 1)?)?;
+            let value = self.tokens.at(usize::from(*self.index.at(token)?))?;
             ensure!(
                 text.len() + value.len() <= 32768,
                 "kallsyms 展开名称超过 32 KiB"
@@ -172,13 +173,17 @@ impl Linux<'_> {
             .filter_map(|name| self.isf.address(name).ok())
             .filter(|address| *address != 0)
             .collect();
-            let mut signed = Vec::with_capacity(count as usize);
-            let mut unsigned = Vec::with_capacity(count as usize);
+            let mut signed = Vec::with_capacity(usize::try_from(count)?);
+            let mut unsigned = Vec::with_capacity(usize::try_from(count)?);
             let mut signed_hits = HashSet::new();
             let mut unsigned_hits = HashSet::new();
             for i in 0..count {
                 job.check()?;
-                let raw = self.vm.uint(add(offsets, i * 4)?, 4).ok().map(|v| v as u32);
+                let raw = self
+                    .vm
+                    .uint(add(offsets, i * 4)?, 4)
+                    .ok()
+                    .and_then(|v| u32::try_from(v).ok());
                 let signed_value = raw.and_then(|value| {
                     let value = value as i32;
                     if value < 0 {
@@ -211,14 +216,14 @@ impl Linux<'_> {
             if !result.kernel_identity.is_object() {
                 result.kernel_identity = serde_json::json!({});
             }
-            result.kernel_identity["kallsyms_address_mode"] = serde_json::json!({"mode":if unsigned_selected {"base-relative unsigned"}else{"absolute-percpu signed"},"anchor_matches":signed_count.max(unsigned_count)});
+            *result.kernel_identity.key_mut("kallsyms_address_mode")? = serde_json::json!({"mode":if unsigned_selected {"base-relative unsigned"}else{"absolute-percpu signed"},"anchor_matches":signed_count.max(unsigned_count)});
             Ok(if unsigned_selected { unsigned } else { signed })
         } else {
             let addresses = self
                 .isf
                 .address("kallsyms_addresses")
                 .context("没有 kallsyms 地址表")?;
-            let mut output = Vec::with_capacity(count as usize);
+            let mut output = Vec::with_capacity(usize::try_from(count)?);
             for i in 0..count {
                 job.check()?;
                 output.push(self.vm.uint(add(addresses, i * 8)?, 8).ok());
@@ -227,12 +232,13 @@ impl Linux<'_> {
         }
     }
     fn core_kallsyms(&self, result: &mut Results, budget: &mut u64, job: &Job) -> Result<()> {
-        let symbol = &self.isf.data["symbols"]["kallsyms_num_syms"];
+        let symbol = &self.isf.data.key("symbols")["kallsyms_num_syms"];
         let width = self.isf.type_size(&symbol["type"])?;
         ensure!(matches!(width, 4 | 8), "kallsyms_num_syms 类型无效");
-        let count = self
-            .vm
-            .uint(self.isf.address("kallsyms_num_syms")?, width as usize)?;
+        let count = self.vm.uint(
+            self.isf.address("kallsyms_num_syms")?,
+            usize::try_from(width)?,
+        )?;
         ensure!(count > 0 && count <= OBJECT_LIMIT, "kallsyms 数量无效/超限");
         let names = self.core_names(job)?;
         let mask = if self.arm64() {
@@ -247,7 +253,7 @@ impl Linux<'_> {
             .collect::<Vec<_>>();
         if let Some(index) = addresses
             .windows(2)
-            .position(|pair| matches!((pair[0],pair[1]),(Some(a),Some(b)) if a>b))
+            .position(|pair| matches!(pair, [Some(a), Some(b)] if a > b))
         {
             partial(
                 result,
@@ -255,20 +261,20 @@ impl Linux<'_> {
                 anyhow::anyhow!("index {} 的地址不递增，尺寸信息可能受损", index + 1),
             );
         }
-        let mut sizes = vec![None; count as usize];
+        let mut sizes = vec![None; usize::try_from(count)?];
         let mut i = 0;
         while i < addresses.len() {
             job.check()?;
-            let Some(start) = addresses[i] else {
+            let Some(start) = *addresses.at(i)? else {
                 i += 1;
                 continue;
             };
             let mut end = i + 1;
-            while end < addresses.len() && addresses[end] == Some(start) {
+            while end < addresses.len() && *addresses.at(end)? == Some(start) {
                 end += 1;
             }
             let next = if end < addresses.len() {
-                addresses[end]
+                *addresses.at(end)?
             } else {
                 let init = self
                     .isf
@@ -291,7 +297,7 @@ impl Linux<'_> {
             let size = next
                 .and_then(|next| next.checked_sub(start))
                 .filter(|size| *size > 0);
-            sizes[i..end].fill(size);
+            sizes.at_mut(i..end)?.fill(size);
             i = end;
         }
         let unreadable = addresses.iter().filter(|a| a.is_none()).count();
@@ -305,12 +311,12 @@ impl Linux<'_> {
         let mut index = 0usize;
         let mut offset = 0;
         let mut decode_budget = 64 * 1024 * 1024;
-        while index < count as usize {
+        while index < usize::try_from(count)? {
             job.check()?;
             let decoded = names.decode(self, offset, job, &mut decode_budget);
             match decoded {
                 Ok((kind, name, next)) => {
-                    if let Some(address) = addresses[index] {
+                    if let Some(address) = *addresses.at(index)? {
                         push(
                             result,
                             budget,
@@ -321,7 +327,7 @@ impl Linux<'_> {
                                     canonical(address)
                                 },
                                 kind: &kind,
-                                size: sizes[index],
+                                size: *sizes.at(index)?,
                                 exported: global(&kind),
                                 source: "core",
                                 module: "kernel",
@@ -340,12 +346,14 @@ impl Linux<'_> {
                         break;
                     }
                     let next = (index / 256 + 1) * 256;
-                    if next >= count as usize {
+                    if next >= usize::try_from(count)? {
                         break;
                     }
                     let marker = self.isf.address("kallsyms_markers").and_then(|base| {
-                        self.vm
-                            .uint(add(base, (next / 256) as u64 * width)?, width as usize)
+                        self.vm.uint(
+                            add(base, (next / 256) as u64 * width)?,
+                            usize::try_from(width)?,
+                        )
                     });
                     match marker {
                         Ok(marker) => {
@@ -378,7 +386,8 @@ impl Linux<'_> {
         }
         ensure!(count <= OBJECT_LIMIT, "模块导出符号数量超过上限");
         let mut base = self.number(module, "module", "syms")?;
-        let size = self.isf.data["user_types"]["kernel_symbol"]["size"]
+        let size = self.isf.data.key("user_types")["kernel_symbol"]
+            .key("size")
             .as_u64()
             .context("kernel_symbol size 缺失")?;
         ensure!((1..=4096).contains(&size), "kernel_symbol size 无效");
@@ -388,7 +397,7 @@ impl Linux<'_> {
             let at = add(base, remaining / 2 * size)?;
             let read_pointer = |field: &str, relative: &str| -> Result<u64> {
                 if self.isf.has_field("kernel_symbol", relative) {
-                    let value = self.number(at, "kernel_symbol", relative)? as u32 as i32;
+                    let value = u32::try_from(self.number(at, "kernel_symbol", relative)?)? as i32;
                     // Preserve the reference object's masked-base relative semantics.
                     Ok((at
                         & if self.arm64() {
@@ -434,7 +443,7 @@ impl Linux<'_> {
                 let symbols = self.module_symbols(module)?;
                 let types = if self.isf.has_field("module", "kallsyms") {
                     let kallsyms = self.number(module, "module", "kallsyms")?;
-                    let ty = self.isf.field("module", "kallsyms")?["type"]["subtype"]["name"]
+                    let ty = self.isf.field("module", "kallsyms")?["type"].key("subtype")["name"]
                         .as_str()
                         .context("mod_kallsyms 类型缺失")?;
                     if self.isf.has_field(ty, "typetab") {
@@ -461,14 +470,14 @@ impl Linux<'_> {
                         }
                         let address = self.number(symbol, "Elf64_Sym", "st_value")?;
                         let size = self.number(symbol, "Elf64_Sym", "st_size")?;
-                        let kind = self.vm.uint(
+                        let kind = u8::try_from(self.vm.uint(
                             if let Some(types) = types {
                                 add(types, index)?
                             } else {
                                 self.field_address(symbol, "Elf64_Sym", "st_info")?
                             },
                             1,
-                        )? as u8 as char;
+                        )?)? as char;
                         let exported = if export_unreadable {
                             None
                         } else {
@@ -530,8 +539,8 @@ impl Linux<'_> {
         Ok(())
     }
     fn ftrace_kallsyms(&self, result: &mut Results, budget: &mut u64, job: &Job) -> Result<()> {
-        if self.isf.data["user_types"]["ftrace_mod_map"].is_object()
-            && self.isf.data["user_types"]["ftrace_mod_func"].is_object()
+        if self.isf.data.key("user_types")["ftrace_mod_map"].is_object()
+            && self.isf.data.key("user_types")["ftrace_mod_func"].is_object()
         {
             for map in self.list_objects(
                 self.isf.address("ftrace_mod_maps")?,
@@ -590,10 +599,10 @@ impl Linux<'_> {
         let Ok(head) = self.isf.address("bpf_kallsyms") else {
             return Ok(());
         };
-        let modern = self.isf.data["user_types"]["bpf_ksym"].is_object();
+        let modern = self.isf.data.key("user_types")["bpf_ksym"].is_object();
         let (ty, member) = if modern {
             ("bpf_ksym", "lnode")
-        } else if self.isf.data["user_types"]["bpf_prog_aux"].is_object() {
+        } else if self.isf.data.key("user_types")["bpf_prog_aux"].is_object() {
             ("bpf_prog_aux", "ksym_lnode")
         } else {
             return Ok(());
@@ -658,7 +667,8 @@ impl Linux<'_> {
     }
     pub(super) fn kallsyms(&self, options: KallsymsOptions, job: &Job) -> Result<Results> {
         ensure!(
-            self.isf.data["base_types"]["pointer"]["size"]
+            self.isf.data.key("base_types")["pointer"]
+                .key("size")
                 .as_u64()
                 .unwrap_or(8)
                 == 8,
@@ -682,7 +692,10 @@ impl Linux<'_> {
                 job.check()?;
                 partial(
                     &mut result,
-                    format!("kallsyms {}", ["core", "module", "ftrace", "bpf"][index]),
+                    format!(
+                        "kallsyms {}",
+                        *["core", "module", "ftrace", "bpf"].at(index)?
+                    ),
                     error,
                 );
             }

@@ -1,6 +1,8 @@
 //! Services anchored in the executable VAD, with registry binary information.
 use super::user_layout::{self, ServiceLayout};
 use super::*;
+use crate::bytes::MapAt as _;
+use crate::bytes::Row as _;
 
 const NA: &str = "N/A";
 const MAX_CHAIN: usize = 65536;
@@ -45,7 +47,7 @@ fn memory_string(vm: &Memory<'_>, address: u64) -> Result<String> {
     vm.read(address, &mut b)?;
     let units: Vec<_> = b
         .chunks_exact(2)
-        .map(|c| u16::from_le_bytes([c[0], c[1]]))
+        .map(|c| crate::bytes::le_u16(c, 0).unwrap_or(0))
         .take_while(|u| *u != 0)
         .collect();
     Ok(String::from_utf16_lossy(&units))
@@ -56,9 +58,9 @@ fn registry_string(bytes: &[u8]) -> Result<String> {
         "服务注册表字符串 UTF-16 截断"
     );
     let (bytes, be) = if bytes.starts_with(&[0xfe, 0xff]) {
-        (&bytes[2..], true)
+        (bytes.at(2..)?, true)
     } else if bytes.starts_with(&[0xff, 0xfe]) {
-        (&bytes[2..], false)
+        (bytes.at(2..)?, false)
     } else {
         (bytes, false)
     };
@@ -66,9 +68,9 @@ fn registry_string(bytes: &[u8]) -> Result<String> {
         .chunks_exact(2)
         .map(|c| {
             if be {
-                u16::from_be_bytes([c[0], c[1]])
+                crate::bytes::le_u16(c, 0).unwrap_or(0).swap_bytes()
             } else {
-                u16::from_le_bytes([c[0], c[1]])
+                crate::bytes::le_u16(c, 0).unwrap_or(0)
             }
         })
         .collect();
@@ -77,7 +79,7 @@ fn registry_string(bytes: &[u8]) -> Result<String> {
         .to_owned())
 }
 fn valid_record(vm: &Memory<'_>, at: u64, layout: &ServiceLayout) -> Result<(u64, u64, u64)> {
-    let read = |field| vm.uint(add(at, layout.fields[field])?, 4);
+    let read = |field| vm.uint(add(at, *layout.fields.at(field)?)?, 4);
     let (order, start, state) = (read("Order")?, read("Start")?, read("State")?);
     ensure!(
         order <= 0xffff && start <= 4 && (1..=7).contains(&state),
@@ -86,10 +88,10 @@ fn valid_record(vm: &Memory<'_>, at: u64, layout: &ServiceLayout) -> Result<(u64
     Ok((order, start, state))
 }
 fn service_difference(scan: &[Vec<String>], listed: &[Vec<String>]) -> Vec<Vec<String>> {
-    let names: HashSet<_> = listed.iter().map(|row| row[6].as_str()).collect();
+    let names: HashSet<_> = listed.iter().map(|row| row.cell(6)).collect();
     let mut records = BTreeMap::new();
     for row in scan {
-        records.insert(row[6].as_str(), row);
+        records.insert(row.cell(6), row);
     }
     records
         .into_iter()
@@ -118,15 +120,15 @@ impl Windows<'_> {
         r.diagnostics
             .extend(listed.diagnostics.iter().map(|d| format!("list: {d}")));
         r.rows = service_difference(&scan.rows, &listed.rows);
-        r.kernel_identity["services_diff"] = serde_json::json!({
+        *r.kernel_identity.key_mut("services_diff")? = serde_json::json!({
             "scan_records":scan.rows.len(),"list_records":listed.rows.len(),
-            "scan_names":scan.rows.iter().map(|r| &r[6]).collect::<HashSet<_>>().len(),
-            "list_names":listed.rows.iter().map(|r| &r[6]).collect::<HashSet<_>>().len(),
+            "scan_names":scan.rows.iter().map(|r| r.cell(6)).collect::<HashSet<_>>().len(),
+            "list_names":listed.rows.iter().map(|r| r.cell(6)).collect::<HashSet<_>>().len(),
             "scan_complete":scan.complete,"list_complete":listed.complete,
             "comparison":"case-sensitive service name; last scanned record per name",
             "meaning":"scan-only service names are leads; incomplete views cannot prove hiding or absence",
-            "scan_coverage":scan.kernel_identity["services_scan"],
-            "list_coverage":listed.kernel_identity["services_list"]
+            "scan_coverage":*scan.kernel_identity.key("services_scan"),
+            "list_coverage":*listed.kernel_identity.key("services_list")
         });
         Ok(r)
     }
@@ -239,7 +241,8 @@ impl Windows<'_> {
                         self.service_vad(&vm, vad.start, vad.end, &layout, &map, &mut r, job)?;
                     ranges.push((hex(vad.start), hex(vad.end)));
                 }
-                r.kernel_identity[format!("pid{}_services", p.pid)] = serde_json::json!({"vad_ranges":ranges,"headers":headers,"pages_read":pages,"missing_pages":missing,"rows_before_scan_dedup":r.rows.len()-before});
+                *r.kernel_identity
+                    .key_mut(format!("pid{}_services", p.pid))? = serde_json::json!({"vad_ranges":ranges,"headers":headers,"pages_read":pages,"missing_pages":missing,"rows_before_scan_dedup":r.rows.len()-before});
                 Ok(())
             })();
             if let Err(e) = read {
@@ -258,9 +261,9 @@ impl Windows<'_> {
             // The reference breaks a header traversal at its first repeated
             // complete tuple, rather than deduplicating record addresses.
             // Each header is handled before insertion in service_tag_vad.
-            r.kernel_identity["services_scan"] = serde_json::json!({"kernel_version":version,"layout":layout.source,"registry_entries":map.len(),"processes":found,"scope":"serH headers in all services.exe VADs; NT5 sErv records","limits":{"scan_bytes_per_process":MAX_SCAN,"chain_records":MAX_CHAIN},"meaning":"scanned service records; partial views cannot prove absence"});
+            *r.kernel_identity.key_mut("services_scan")? = serde_json::json!({"kernel_version":version,"layout":layout.source,"registry_entries":map.len(),"processes":found,"scope":"serH headers in all services.exe VADs; NT5 sErv records","limits":{"scan_bytes_per_process":MAX_SCAN,"chain_records":MAX_CHAIN},"meaning":"scanned service records; partial views cannot prove absence"});
         } else {
-            r.kernel_identity["services_list"] = serde_json::json!({"kernel_version":version,"layout":layout.source,"registry_entries":map.len(),"processes":found,"scope":"Sc27 in first services.exe image VAD; enumerate each header's backward chain","limits":{"scan_bytes_per_process":MAX_SCAN,"chain_records":MAX_CHAIN},"offset_semantics":"pinned Volatility output: first row is record VA, subsequent rows are previous record PrevEntry field VA; diagnostics use actual record VA","meaning":"listed service records; empty output does not prove absence of hidden services"});
+            *r.kernel_identity.key_mut("services_list")? = serde_json::json!({"kernel_version":version,"layout":layout.source,"registry_entries":map.len(),"processes":found,"scope":"Sc27 in first services.exe image VAD; enumerate each header's backward chain","limits":{"scan_bytes_per_process":MAX_SCAN,"chain_records":MAX_CHAIN},"offset_semantics":"pinned Volatility output: first row is record VA, subsequent rows are previous record PrevEntry field VA; diagnostics use actual record VA","meaning":"listed service records; empty output does not prove absence of hidden services"});
         }
         Ok(r)
     }
@@ -281,11 +284,11 @@ impl Windows<'_> {
         for row in hives
             .rows
             .into_iter()
-            .filter(|h| h[1].to_ascii_lowercase().contains("machine\\system"))
+            .filter(|h| h.cell(1).to_ascii_lowercase().contains("machine\\system"))
         {
             job.check()?;
             let read = (|| -> Result<BinaryMap> {
-                let address = u64::from_str_radix(row[0].trim_start_matches("0x"), 16)?;
+                let address = u64::from_str_radix(row.at(0)?.trim_start_matches("0x"), 16)?;
                 let hive = self.field(address, "_CMHIVE", "Hive")?;
                 ensure!(
                     self.number(hive, "_HHIVE", "Signature")? == 0xbee0bee0,
@@ -297,7 +300,11 @@ impl Windows<'_> {
                 let root = (|| -> Result<u32> {
                     let base = self.number(hive, "_HHIVE", "BaseBlock")?;
                     ensure!(self.vm.uint(base, 4)? == 0x66676572, "缺少 regf base block");
-                    Ok(self.number(base, "_HBASE_BLOCK", "RootCell")? as u32)
+                    Ok(u32::try_from(self.number(
+                        base,
+                        "_HBASE_BLOCK",
+                        "RootCell",
+                    )?)?)
                 })();
                 let root = match root {
                     Ok(root) => root,
@@ -484,7 +491,7 @@ impl Windows<'_> {
                 Self::issue(r, "SvcList scan", "达到 128 MiB 扫描上限");
                 break;
             }
-            let length = (end - at).min(4096 - (at & 4095)) as usize;
+            let length = usize::try_from((end - at).min(4096 - (at & 4095)))?;
             let mut bytes = vec![0; length];
             match vm.read(at, &mut bytes) {
                 Ok(()) => {
@@ -500,7 +507,7 @@ impl Windows<'_> {
                         }
                         let record = if direct {
                             header
-                                .checked_sub(layout.fields["Tag"])
+                                .checked_sub(*layout.fields.at("Tag")?)
                                 .context("服务 tag 下溢")
                         } else {
                             vm.pointer(add(header, layout.header_record)?)
@@ -520,9 +527,10 @@ impl Windows<'_> {
                                         // by object identity, so such tuples never deduplicate.
                                         // Registry absences in the prebuilt map are shared;
                                         // fallback absences for an unknown name are fresh.
-                                        let comparable = [2, 6, 7, 8].iter().all(|&i| row[i] != NA)
-                                            && (map.contains_key(&row[6])
-                                                || (row[9] != NA && row[10] != NA));
+                                        let comparable =
+                                            [2, 6, 7, 8].iter().all(|&i| row.cell(i) != NA)
+                                                && (map.contains_key(row.at(6)?)
+                                                    || (*row.at(9)? != NA && *row.at(10)? != NA));
                                         if comparable && !scan_seen.insert(row.clone()) {
                                             break;
                                         }
@@ -537,7 +545,7 @@ impl Windows<'_> {
                             ),
                         }
                     }
-                    carry = joined[joined.len().saturating_sub(3)..].to_vec();
+                    carry = joined.at(joined.len().saturating_sub(3)..)?.to_vec();
                 }
                 Err(_) => {
                     missing += 1;
@@ -582,7 +590,7 @@ impl Windows<'_> {
                     return Ok(());
                 }
             };
-            let kind = vm.uint(add(record, layout.fields["Type"])?, 4);
+            let kind = vm.uint(add(record, *layout.fields.at("Type")?)?, 4);
             let kind = match kind {
                 Ok(k) => k,
                 Err(e) => {
@@ -592,7 +600,7 @@ impl Windows<'_> {
             };
             let mut string = |field: &str| -> Result<String> {
                 match vm
-                    .pointer(add(record, layout.fields[field])?)
+                    .pointer(add(record, *layout.fields.at(field)?)?)
                     .and_then(|p| memory_string(vm, p))
                 {
                     Ok(s) => Ok(s),
@@ -610,11 +618,11 @@ impl Windows<'_> {
                 let read = (|| -> Result<String> {
                     let pointer = vm.pointer(add(
                         record,
-                        layout.fields[if kind & 0x130 != 0 {
+                        *layout.fields.at(if kind & 0x130 != 0 {
                             "ServiceProcess"
                         } else {
                             "DriverName"
-                        }],
+                        })?,
                     )?)?;
                     if kind & 0x130 != 0 {
                         match vm.uint(add(pointer, layout.pid)?, 4) {
@@ -641,8 +649,8 @@ impl Windows<'_> {
                 hex(reported_offset),
                 order.to_string(),
                 pid,
-                START[start as usize].into(),
-                STATE[state as usize - 1].into(),
+                (*START.at(usize::try_from(start)?)?).into(),
+                (*STATE.at(usize::try_from(state)? - 1)?).into(),
                 types(kind),
                 name,
                 display,
@@ -670,367 +678,4 @@ impl Windows<'_> {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::super::tests::{K, fixture, image, put};
-    use super::*;
-
-    fn prepare() -> (Vec<u8>, Isf, ServiceLayout) {
-        let (mut b, isf) = fixture();
-        put(&mut b, 0x1000, 0x2003);
-        let layout = user_layout::service(Architecture::X64, [10, 0, 15063, 0]).unwrap();
-        b[0x19000..0x19004].copy_from_slice(b"Sc27");
-        put(&mut b, 0x19000 + layout.header_record as usize, 0x12000);
-        for (field, value) in [("Order", 0), ("Start", 2), ("State", 4), ("Type", 16)] {
-            let at = 0x1a000 + layout.fields[field] as usize;
-            b[at..at + 4].copy_from_slice(&(value as u32).to_le_bytes());
-        }
-        put(
-            &mut b,
-            0x1a000 + layout.fields["ServiceName"] as usize,
-            0x13000,
-        );
-        put(
-            &mut b,
-            0x1a000 + layout.fields["DisplayName"] as usize,
-            0x13200,
-        );
-        put(
-            &mut b,
-            0x1a000 + layout.fields["ServiceProcess"] as usize,
-            0x15000,
-        );
-        put(&mut b, 0x1d000 + layout.binary as usize, 0x16000);
-        b[0x1d000 + layout.pid as usize..0x1d004 + layout.pid as usize]
-            .copy_from_slice(&1234u32.to_le_bytes());
-        for (at, text) in [
-            (0x1b000, "svc"),
-            (0x1b200, "A service"),
-            (0x1e000, "service.exe"),
-        ] {
-            let data: Vec<_> = text.encode_utf16().flat_map(u16::to_le_bytes).collect();
-            b[at..at + data.len()].copy_from_slice(&data);
-        }
-        (b, isf, layout)
-    }
-    fn scan(b: &[u8], isf: &Isf, layout: &ServiceLayout, end: u64, job: &Job) -> Result<Results> {
-        let img = image(b);
-        let w = Windows {
-            vm: Memory::new(&img, 0x1000, isf, None),
-            base: K,
-            pdb: PdbIdentity::from_isf(isf)?,
-        };
-        let mut r = w.result(Plugin::WinSvcList);
-        let map = BTreeMap::from([("svc".into(), ["registry.exe".into(), "service.dll".into()])]);
-        w.service_vad(&w.vm, 0x11000, end, layout, &map, &mut r, job)?;
-        Ok(r)
-    }
-    #[test]
-    fn executable_header_yields_all_eleven_fields_and_zero_order() {
-        let (b, isf, layout) = prepare();
-        let r = scan(&b, &isf, &layout, 0x12000, &Job::default()).unwrap();
-        assert!(r.complete, "{:?}", r.diagnostics);
-        assert_eq!(
-            r.rows,
-            vec![vec![
-                hex(0x12000),
-                "0".into(),
-                "1234".into(),
-                "SERVICE_AUTO_START".into(),
-                "SERVICE_RUNNING".into(),
-                "SERVICE_WIN32_OWN_PROCESS".into(),
-                "svc".into(),
-                "A service".into(),
-                "service.exe".into(),
-                "registry.exe".into(),
-                "service.dll".into()
-            ]]
-        );
-    }
-    #[test]
-    fn only_aligned_headers_in_requested_vad_are_enumerated_and_duplicates_preserved() {
-        let (mut b, isf, layout) = prepare();
-        let header = b[0x19000..0x19020].to_vec();
-        b[0x19040..0x19060].copy_from_slice(&header);
-        b[0x19101..0x19121].copy_from_slice(&header);
-        assert_eq!(
-            scan(&b, &isf, &layout, 0x11040, &Job::default())
-                .unwrap()
-                .rows
-                .len(),
-            1
-        );
-        assert_eq!(
-            scan(&b, &isf, &layout, 0x12000, &Job::default())
-                .unwrap()
-                .rows
-                .len(),
-            2
-        );
-    }
-    #[test]
-    fn backward_chain_reports_reference_pointer_storage_offsets() {
-        let (mut b, isf, layout) = prepare();
-        let record = b[0x1a000..0x1a100].to_vec();
-        b[0x1c000..0x1c100].copy_from_slice(&record);
-        put(&mut b, 0x1a000 + layout.previous.unwrap() as usize, 0x14000);
-        let r = scan(&b, &isf, &layout, 0x12000, &Job::default()).unwrap();
-        assert!(r.complete, "{:?}", r.diagnostics);
-        assert_eq!(r.rows.len(), 2);
-        assert_eq!(r.rows[0][0], hex(0x12000));
-        assert_eq!(r.rows[1][0], hex(0x12000 + layout.previous.unwrap()));
-        assert_eq!(r.rows[1][6], "svc");
-    }
-    #[test]
-    fn stopped_service_omits_pid_and_binary_but_keeps_registry() {
-        let (mut b, isf, layout) = prepare();
-        let at = 0x1a000 + layout.fields["State"] as usize;
-        b[at..at + 4].copy_from_slice(&1u32.to_le_bytes());
-        let r = scan(&b, &isf, &layout, 0x12000, &Job::default()).unwrap();
-        assert_eq!(r.rows[0][2], NA);
-        assert_eq!(r.rows[0][8], NA);
-        assert_eq!(r.rows[0][10], "service.dll");
-    }
-    #[test]
-    fn driver_binary_and_interactive_process_type_follow_reference() {
-        let (mut b, isf, layout) = prepare();
-        let at = 0x1a000 + layout.fields["Type"] as usize;
-        b[at..at + 4].copy_from_slice(&1u32.to_le_bytes());
-        put(
-            &mut b,
-            0x1a000 + layout.fields["DriverName"] as usize,
-            0x16000,
-        );
-        let r = scan(&b, &isf, &layout, 0x12000, &Job::default()).unwrap();
-        assert_eq!(r.rows[0][2], NA);
-        assert_eq!(r.rows[0][8], "service.exe");
-        assert_eq!(
-            types(0x111),
-            "SERVICE_KERNEL_DRIVER|SERVICE_WIN32_OWN_PROCESS|SERVICE_INTERACTIVE_PROCESS"
-        );
-        assert_eq!(types(0x8000), "");
-    }
-    #[test]
-    fn cycles_and_missing_fields_preserve_other_fields() {
-        let (mut b, isf, layout) = prepare();
-        put(&mut b, 0x1a000 + layout.previous.unwrap() as usize, 0x12000);
-        put(
-            &mut b,
-            0x1a000 + layout.fields["DisplayName"] as usize,
-            0x40000,
-        );
-        let r = scan(&b, &isf, &layout, 0x12000, &Job::default()).unwrap();
-        assert!(!r.complete);
-        assert_eq!(r.rows.len(), 1);
-        assert_eq!(r.rows[0][7], NA);
-        assert_eq!(r.rows[0][2], "1234");
-        assert!(r.diagnostics.iter().any(|d| d.contains("循环")));
-        assert!(r.diagnostics.iter().any(|d| d.contains("DisplayName")));
-    }
-    #[test]
-    fn missing_pages_and_invalid_records_are_explicit_and_cancel_propagates() {
-        let (mut b, isf, layout) = prepare();
-        put(&mut b, 0x4000 + 0x17 * 8, 0);
-        let r = scan(&b, &isf, &layout, 0x18000, &Job::default()).unwrap();
-        assert_eq!(r.rows.len(), 1);
-        assert!(!r.complete);
-        let at = 0x1a000 + layout.fields["Order"] as usize;
-        b[at..at + 4].copy_from_slice(&65536u32.to_le_bytes());
-        let r = scan(&b, &isf, &layout, 0x12000, &Job::default()).unwrap();
-        assert!(r.rows.is_empty());
-        assert!(!r.complete);
-        let job = Job::default();
-        job.cancel.store(true, std::sync::atomic::Ordering::Relaxed);
-        assert!(scan(&b, &isf, &layout, 0x12000, &job).is_err());
-    }
-    #[test]
-    fn unsupported_builds_and_pid_filters_fail_explicitly() {
-        let (mut b, isf, _) = prepare();
-        b[0x8200..0x8204].copy_from_slice(&7601u32.to_le_bytes());
-        let img = image(&b);
-        let w = Windows {
-            vm: Memory::new(&img, 0x1000, &isf, None),
-            base: K,
-            pdb: PdbIdentity::from_isf(&isf).unwrap(),
-        };
-        assert!(
-            w.service_list(&Options::default(), &Job::default())
-                .unwrap_err()
-                .to_string()
-                .contains("15063")
-        );
-        assert!(
-            w.service_list(
-                &Options {
-                    pid: Some(4),
-                    ..Default::default()
-                },
-                &Job::default()
-            )
-            .unwrap_err()
-            .to_string()
-            .contains("PID")
-        );
-    }
-    #[test]
-    fn diff_uses_case_sensitive_names_and_last_scanned_record() {
-        let row = |name: &str, address: u64| {
-            let mut row = vec![String::new(); 11];
-            row[0] = hex(address);
-            row[6] = name.into();
-            row
-        };
-        let scan = vec![
-            row("visible", 1),
-            row("Hidden", 2),
-            row("Hidden", 3),
-            row("VISIBLE", 4),
-        ];
-        let list = vec![row("visible", 5)];
-        assert_eq!(
-            service_difference(&scan, &list),
-            vec![row("Hidden", 3), row("VISIBLE", 4)]
-        );
-        assert!(service_difference(&scan, &scan).is_empty());
-        assert_eq!(service_difference(&[], &list), Vec::<Vec<String>>::new());
-    }
-    #[test]
-    fn modern_scan_deduplicates_full_tuples_and_requires_aligned_headers() {
-        let (mut b, isf, layout) = prepare();
-        b[0x19000..0x19004].copy_from_slice(b"serH");
-        let header = b[0x19000..0x19020].to_vec();
-        b[0x19040..0x19060].copy_from_slice(&header);
-        b[0x19101..0x19121].copy_from_slice(&header);
-        let img = image(&b);
-        let w = Windows {
-            vm: Memory::new(&img, 0x1000, &isf, None),
-            base: K,
-            pdb: PdbIdentity::from_isf(&isf).unwrap(),
-        };
-        let mut r = w.result(Plugin::WinSvcScanV4);
-        let stats = w
-            .service_tag_vad(
-                &w.vm,
-                0x11000,
-                0x12000,
-                &layout,
-                &BTreeMap::from([("svc".into(), [NA.into(), NA.into()])]),
-                &mut r,
-                &Job::default(),
-                b"serH",
-                false,
-            )
-            .unwrap();
-        assert_eq!(stats, (2, 1, 0));
-        assert_eq!(r.rows.len(), 1);
-        assert_eq!(r.columns.len(), 11);
-
-        // No registry entry creates fresh absent values in the reference.
-        let mut absent = w.result(Plugin::WinSvcScanV4);
-        w.service_tag_vad(
-            &w.vm,
-            0x11000,
-            0x12000,
-            &layout,
-            &BinaryMap::new(),
-            &mut absent,
-            &Job::default(),
-            b"serH",
-            false,
-        )
-        .unwrap();
-        assert_eq!(absent.rows.len(), 2);
-        assert_eq!(absent.rows[0], absent.rows[1]);
-
-        // Even shared registry metadata cannot deduplicate a fresh absent PID.
-        drop(w);
-        drop(img);
-        let state = 0x1a000 + layout.fields["State"] as usize;
-        b[state..state + 4].copy_from_slice(&1u32.to_le_bytes());
-        let img = image(&b);
-        let w = Windows {
-            vm: Memory::new(&img, 0x1000, &isf, None),
-            base: K,
-            pdb: PdbIdentity::from_isf(&isf).unwrap(),
-        };
-        let mut stopped = w.result(Plugin::WinSvcScanV4);
-        w.service_tag_vad(
-            &w.vm,
-            0x11000,
-            0x12000,
-            &layout,
-            &BTreeMap::from([("svc".into(), ["registry.exe".into(), "svc.dll".into()])]),
-            &mut stopped,
-            &Job::default(),
-            b"serH",
-            false,
-        )
-        .unwrap();
-        assert_eq!(stopped.rows.len(), 2);
-        assert_eq!(stopped.rows[0][2], NA);
-        assert_eq!(stopped.rows[0], stopped.rows[1]);
-    }
-    #[test]
-    fn direct_nt5_tags_cross_pages_and_do_not_follow_header_pointers() {
-        let (mut b, isf, mut layout) = prepare();
-        layout.previous = None;
-        layout.fields.insert("Tag".into(), 0xffe);
-        // The tag is split across two resident pages; the validated record is
-        // at their first page start, without an indirect header pointer.
-        b[0x1affe..0x1b002].copy_from_slice(b"sErv");
-        let img = image(&b);
-        let w = Windows {
-            vm: Memory::new(&img, 0x1000, &isf, None),
-            base: K,
-            pdb: PdbIdentity::from_isf(&isf).unwrap(),
-        };
-        let mut r = w.result(Plugin::WinSvcScanV4);
-        w.service_tag_vad(
-            &w.vm,
-            0x12000,
-            0x14000,
-            &layout,
-            &BinaryMap::new(),
-            &mut r,
-            &Job::default(),
-            b"sErv",
-            true,
-        )
-        .unwrap();
-        assert_eq!(r.rows.len(), 1);
-        assert_eq!(r.rows[0][0], hex(0x12000));
-        assert!(r.complete);
-        // A missing page breaks the carry, never joining unrelated bytes.
-        put(&mut b, 0x4000 + 0x13 * 8, 0);
-        let img = image(&b);
-        let w = Windows {
-            vm: Memory::new(&img, 0x1000, &isf, None),
-            base: K,
-            pdb: PdbIdentity::from_isf(&isf).unwrap(),
-        };
-        let mut r = w.result(Plugin::WinSvcScanV4);
-        w.service_tag_vad(
-            &w.vm,
-            0x12000,
-            0x14000,
-            &layout,
-            &BinaryMap::new(),
-            &mut r,
-            &Job::default(),
-            b"sErv",
-            true,
-        )
-        .unwrap();
-        assert!(r.rows.is_empty());
-        assert!(!r.complete);
-    }
-    #[test]
-    fn registry_decode_is_strict_and_only_trims_trailing_nuls() {
-        assert_eq!(
-            registry_string(&[0xff, 0xfe, 65, 0, 0, 0, 66, 0, 0, 0]).unwrap(),
-            "A\0B"
-        );
-        assert_eq!(registry_string(&[0xfe, 0xff, 0, 65, 0, 0]).unwrap(), "A");
-        assert!(registry_string(&[65]).is_err());
-        assert!(registry_string(&[0, 0xd8]).is_err());
-    }
-}
+mod tests;

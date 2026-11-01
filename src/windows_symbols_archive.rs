@@ -1,4 +1,5 @@
 //! Read only the official ZIP directory and exact ISF entry using bounded HTTPS ranges.
+use crate::bytes::Checked as _;
 use crate::{
     Job,
     resources::Lru,
@@ -37,7 +38,7 @@ impl<F: FnMut(&str) -> Result<symbols::RangeResponse>> RangeReader<F> {
             fetch,
             tail,
             position: 0,
-            blocks: Lru::new(8 * BLOCK as usize),
+            blocks: Lru::new(8 * usize::try_from(BLOCK)?),
             requests: 1,
         })
     }
@@ -48,7 +49,10 @@ impl<F: FnMut(&str) -> Result<symbols::RangeResponse>> Read for RangeReader<F> {
             return Ok(0);
         }
         let (bytes, offset) = if self.position >= self.tail.start {
-            (&self.tail.bytes, (self.position - self.tail.start) as usize)
+            (
+                &self.tail.bytes,
+                usize::try_from(self.position - self.tail.start).map_err(std::io::Error::other)?,
+            )
         } else {
             let start = self.position / BLOCK * BLOCK;
             if self.blocks.get(&start).is_none() {
@@ -63,16 +67,26 @@ impl<F: FnMut(&str) -> Result<symbols::RangeResponse>> Read for RangeReader<F> {
                         && response.bytes.len() as u64 == end - start + 1,
                     "官方 ZIP Range 不一致或文件发生变化",
                 )?;
-                self.blocks
-                    .insert(start, response.bytes, (end - start + 1) as usize);
+                self.blocks.insert(
+                    start,
+                    response.bytes,
+                    usize::try_from(end - start + 1).map_err(std::io::Error::other)?,
+                );
             }
             (
-                self.blocks.get(&start).expect("bounded block inserted"),
-                (self.position - start) as usize,
+                self.blocks
+                    .get(&start)
+                    .ok_or_else(|| std::io::Error::other("ZIP 块缓存未保留刚读取的数据"))?,
+                usize::try_from(self.position - start).map_err(std::io::Error::other)?,
             )
         };
         let count = out.len().min(bytes.len() - offset);
-        out[..count].copy_from_slice(&bytes[offset..offset + count]);
+        let (Some(target), Some(source)) =
+            (out.get_mut(..count), bytes.get(offset..offset + count))
+        else {
+            return Err(std::io::Error::other("ZIP 读取越界"));
+        };
+        target.copy_from_slice(source);
         self.position += count as u64;
         Ok(count)
     }
@@ -124,8 +138,10 @@ fn extract<R: Read + Seek>(
     ensure!(zip.len() <= 100_000, "官方符号包条目过多");
     let names: Vec<_> = zip
         .file_names()
+        // Non-UTF-8 names cannot equal the ASCII PDB identity key.
+        .filter_map(Result::ok)
         .filter(|name| member_matches(name, identity))
-        .map(str::to_owned)
+        .map(|name| name.into_owned())
         .collect();
     ensure!(
         !names.is_empty(),
@@ -137,7 +153,7 @@ fn extract<R: Read + Seek>(
         "官方符号包存在多个精确候选；需手动选择本地 ISF"
     );
     job.check()?;
-    let name = &names[0];
+    let name = names.at(0)?;
     let member = zip.by_name(name)?;
     ensure!(
         member.size() <= MAX_MEMBER && member.compressed_size() <= MAX_MEMBER,
@@ -164,7 +180,7 @@ pub(crate) fn acquire(
     let reader = RangeReader::open(|range: &str| {
         job.check()?;
         job.report(format!("官方符号包按需读取 bytes={range}"));
-        symbols::fetch_range(URL, range, BLOCK as usize, job)
+        symbols::fetch_range(URL, range, usize::try_from(BLOCK)?, job)
     })?;
     extract(reader, identity, target, job)
 }

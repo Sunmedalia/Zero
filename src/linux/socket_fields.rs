@@ -1,6 +1,7 @@
 //! Socket field decoding for independent scans. Embedded fields use their owning
 //! address space; IPv6 byte reads retain the pinned reference's original layer.
 use super::*;
+use crate::bytes::JsonKey as _;
 #[cfg(unix)]
 pub(super) const REFERENCE_INET6_FAMILY: u64 = libc::AF_INET6 as u64;
 #[cfg(windows)]
@@ -259,7 +260,7 @@ impl View<'_, '_> {
         // The reference reads address zero too; do not silently invent FREE.
         let state = self.virtual_at(socket).number("socket", "state")?;
         Ok(SOCKET_STATES
-            .get(state as usize)
+            .get(usize::try_from(state)?)
             .unwrap_or(&"Unknown socket state")
             .to_string())
     }
@@ -318,7 +319,7 @@ impl View<'_, '_> {
                     },
                 )?,
             };
-            Ok(Ipv4Addr::from((value as u32).to_le_bytes()).to_string())
+            Ok(Ipv4Addr::from(u32::try_from(value)?.to_le_bytes()).to_string())
         } else if family != REFERENCE_INET6_FAMILY {
             // Pinned inet_sock compares Linux's numeric family to Python's
             // host socket.AF_INET6. Keep its observable host-dependent absence.
@@ -353,7 +354,10 @@ impl View<'_, '_> {
                     16,
                 )?
             };
-            Ok(Ipv6Addr::from(<[u8; 16]>::try_from(bytes).unwrap()).to_string())
+            let bytes = <[u8; 16]>::try_from(bytes)
+                .ok()
+                .context("IPv6 地址长度无效")?;
+            Ok(Ipv6Addr::from(bytes).to_string())
         }
     }
     fn filters(&self) -> Result<String> {
@@ -468,7 +472,8 @@ pub(super) struct SocketFields {
 }
 impl Linux<'_> {
     fn enum_socket_value(&self, ty: &str, value: u64) -> Option<String> {
-        self.isf.data["enums"][ty]["constants"]
+        self.isf.data.key("enums")[ty]
+            .key("constants")
             .as_object()?
             .iter()
             .find(|(_, v)| v.as_u64() == Some(value))
@@ -505,7 +510,7 @@ impl Linux<'_> {
         };
         // An absent family type is the reference's generic fallback, not a
         // successful read of zero endpoints. Reads of present types must succeed.
-        let supported = child.is_some_and(|ty| self.isf.data["user_types"][ty].is_object());
+        let supported = child.is_some_and(|ty| self.isf.data.key("user_types")[ty].is_object());
         if supported {
             match family {
                 1 => {
@@ -534,7 +539,9 @@ impl Linux<'_> {
                     }
                     sport = sock
                         .optional("inet_sock", &["sport", "inet_sport"])?
-                        .map(|p| (p as u16).to_be().to_string())
+                        .map(u16::try_from)
+                        .transpose()?
+                        .map(|p| p.to_be().to_string())
                         .unwrap_or_else(|| NA.into());
                     let port = if sock.has("sock", "__sk_common.skc_portpair") {
                         Some(sock.number("sock", "__sk_common.skc_portpair")? & 0xffff)
@@ -546,20 +553,25 @@ impl Linux<'_> {
                         sock.optional("sock", &["__sk_common.skc_dport"])?
                     };
                     dport = port
-                        .map(|p| (p as u16).to_be().to_string())
+                        .map(u16::try_from)
+                        .transpose()?
+                        .map(|p| p.to_be().to_string())
                         .unwrap_or_else(|| NA.into());
                     state = Some(sock.inet_state(false)?);
                 }
                 16 => {
                     proto = NETLINK
-                        .get(sock.number("sock", "sk_protocol")? as usize)
+                        .get(usize::try_from(sock.number("sock", "sk_protocol")?)?)
                         .unwrap_or(&"Unknown netlink_sock protocol")
                         .to_string();
                     let groups = sock.number("netlink_sock", "groups")?;
                     if groups != 0 {
-                        let width = self.isf.data["base_types"]["unsigned long int"]["size"]
-                            .as_u64()
-                            .unwrap_or(8) as usize;
+                        let width = usize::try_from(
+                            self.isf.data.key("base_types")["unsigned long int"]
+                                .key("size")
+                                .as_u64()
+                                .unwrap_or(8),
+                        )?;
                         src = format!("groups:0x{:08x}", self.vm.uint(groups, width)?);
                     }
                     sport = sock
@@ -592,7 +604,7 @@ impl Linux<'_> {
                         .to_string();
                 }
                 17 => {
-                    let index = sock.number("packet_sock", "ifindex")? as u32 as i32;
+                    let index = u32::try_from(sock.number("packet_sock", "ifindex")?)? as i32;
                     src = if index <= 0 {
                         "ANY".into()
                     } else {
@@ -601,7 +613,7 @@ impl Linux<'_> {
                             .cloned()
                             .unwrap_or_else(|| NA.into())
                     };
-                    let protocol = (sock.number("packet_sock", "num")? as u16).to_be();
+                    let protocol = u16::try_from(sock.number("packet_sock", "num")?)?.to_be();
                     proto = ethernet_protocol(protocol);
                 }
                 44 => {
@@ -635,7 +647,8 @@ impl Linux<'_> {
                     }
                     state = Some(
                         self.enum_socket_value(
-                            self.isf.field("xdp_sock", "state")?["type"]["name"]
+                            self.isf.field("xdp_sock", "state")?["type"]
+                                .key("name")
                                 .as_str()
                                 .context("XDP state enum 类型缺失")?,
                             sock.number("xdp_sock", "state")?,
@@ -646,10 +659,15 @@ impl Linux<'_> {
                 }
                 31 => {
                     let protocol = sock.number("sock", "sk_protocol")?;
-                    proto = BT.get(protocol as usize).unwrap_or(&NA).to_string();
+                    proto = BT
+                        .get(usize::try_from(protocol)?)
+                        .unwrap_or(&NA)
+                        .to_string();
                     state = Some(
                         BT_STATES
-                            .get(sock.number("sock", "__sk_common.skc_state")? as usize)
+                            .get(usize::try_from(
+                                sock.number("sock", "__sk_common.skc_state")?,
+                            )?)
                             .unwrap_or(&NA)
                             .to_string(),
                     );
@@ -680,7 +698,7 @@ impl Linux<'_> {
             row: vec![
                 hex(address),
                 FAMILIES
-                    .get(family as usize)
+                    .get(usize::try_from(family)?)
                     .unwrap_or(&"Unknown socket family")
                     .to_string(),
                 socket_type(ty).into(),
@@ -711,7 +729,7 @@ impl Linux<'_> {
             "SCO" => "sco_pinfo",
             _ => return Ok(()),
         };
-        if !self.isf.data["user_types"][kind].is_object() {
+        if !self.isf.data.key("user_types")[kind].is_object() {
             return Ok(());
         }
         let addr = |view: &View<'_, '_>, ty: &str, field: &str| -> Result<String> {
@@ -731,7 +749,7 @@ impl Linux<'_> {
                 }
             }
             "L2CAP" => {
-                let chan = if self.isf.field(kind, "chan")?["type"]["kind"] == "pointer" {
+                let chan = if *self.isf.field(kind, "chan")?["type"].key("kind") == "pointer" {
                     let chan = sock.number(kind, "chan")?;
                     ensure!(chan != 0, "L2CAP chan 为空");
                     sock.virtual_at(chan)

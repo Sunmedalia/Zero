@@ -1,4 +1,5 @@
 //! Targeted, atomic exports of bytes from a process address space.
+use crate::bytes::Checked as _;
 use crate::{
     Job,
     image::VirtualMemory,
@@ -162,14 +163,14 @@ fn write_region(
     let mut temp = tempfile::NamedTempFile::new_in(target.parent().context("输出文件缺少目录")?)?;
     let mut hash = Sha256::new();
     let size = end - start;
-    let mut buffer = vec![0; (1024 * 1024).min(size as usize)];
+    let mut buffer = vec![0; (1024 * 1024).min(usize::try_from(size)?)];
     let mut offset = 0;
     while offset < size {
         job.check()?;
-        let count = (size - offset).min(buffer.len() as u64) as usize;
-        vm.read(start + offset, &mut buffer[..count])?;
-        temp.write_all(&buffer[..count])?;
-        hash.update(&buffer[..count]);
+        let count = usize::try_from((size - offset).min(buffer.len() as u64))?;
+        vm.read(start + offset, buffer.at_mut(..count)?)?;
+        temp.write_all(buffer.at(..count)?)?;
+        hash.update(buffer.at(..count)?);
         offset += count as u64;
         job.report(format!("dump {start:#x}: {offset}/{size} bytes"));
     }
@@ -205,7 +206,12 @@ impl Linux<'_> {
         result.diagnostics = listed.diagnostics;
         let mut regions = Vec::new();
         if plugin == Plugin::Memdump {
-            regions.push((options.start.unwrap(), options.end.unwrap()));
+            regions.push(
+                options
+                    .start
+                    .zip(options.end)
+                    .context("memdump 需要起止地址")?,
+            );
         } else {
             let mm = self.number(address, "task_struct", "mm")?;
             for node in self.vma_nodes(mm, job, &mut result)? {
@@ -339,8 +345,10 @@ pub(crate) fn write_stream_artifact(
             if bytes.len() as u64 > MAX_DUMP_BYTES - self.count {
                 return Err(std::io::Error::other("转储文件超过 256 MiB 上限"));
             }
-            let n = self.file.write(&bytes[..bytes.len().min(65536)])?;
-            self.hash.update(&bytes[..n]);
+            let n = self
+                .file
+                .write(bytes.get(..bytes.len().min(65536)).unwrap_or(bytes))?;
+            self.hash.update(bytes.get(..n).unwrap_or(bytes));
             self.count += n as u64;
             Ok(n)
         }

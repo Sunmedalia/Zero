@@ -94,14 +94,14 @@ impl Walker<'_, '_> {
         let width = self.geometry.width();
         if bytes
             .chunks_exact(width)
-            .all(|chunk| chunk == &bytes[..width])
+            .all(|chunk| Some(chunk) == bytes.get(..width))
         {
-            if bytes[..width].iter().any(|b| *b != 0) {
+            if bytes.at(..width)?.iter().any(|b| *b != 0) {
                 self.omit(format!("重复内容页表 {address:#x}"));
             }
             return Ok(());
         }
-        let shift = self.geometry.shifts()[level];
+        let shift = *self.geometry.shifts().at(level)?;
         let limit = if self.geometry.arch == Architecture::X64 {
             (1u64 << 48) - 1
         } else {
@@ -116,7 +116,7 @@ impl Walker<'_, '_> {
                 self.job.check()?;
             }
             let mut word = [0; 8];
-            word[..width].copy_from_slice(chunk);
+            word.at_mut(..width)?.copy_from_slice(chunk);
             let entry = u64::from_le_bytes(word);
             let virtual_start = virtual_base + ((index as u64) << shift);
             let size = (1u64 << shift).min(limit - virtual_start);
@@ -241,7 +241,7 @@ impl Windows<'_> {
                 {
                     let (name, digest, size) =
                         self.export_memmap(&vm, process.pid, &maps, options, job)?;
-                    result.kernel_identity["memmap_export"] = serde_json::json!({"pid":process.pid,"filename":name,"sha256":digest,"bytes":size});
+                    *result.kernel_identity.key_mut("memmap_export")? = serde_json::json!({"pid":process.pid,"filename":name,"sha256":digest,"bytes":size});
                     name
                 }
             } else {
@@ -288,19 +288,19 @@ impl Windows<'_> {
             let mut offset = 0;
             while offset < map.size {
                 job.check()?;
-                let count = (map.size - offset).min(bytes.len() as u64) as usize;
+                let count = usize::try_from((map.size - offset).min(bytes.len() as u64))?;
                 match map.backing {
                     Backing::Physical => vm
                         .image
-                        .read(map.physical_start + offset, &mut bytes[..count])?,
+                        .read(map.physical_start + offset, bytes.at_mut(..count)?)?,
                     Backing::Pagefile(index) => vm.sources.context("缺少分页附件")?.read(
                         index,
                         map.physical_start + offset,
-                        &mut bytes[..count],
+                        bytes.at_mut(..count)?,
                     )?,
                 }
-                tmp.write_all(&bytes[..count])?;
-                hash.update(&bytes[..count]);
+                tmp.write_all(bytes.at(..count)?)?;
+                hash.update(bytes.at(..count)?);
                 offset += count as u64;
             }
         }

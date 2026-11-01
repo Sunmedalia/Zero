@@ -1,5 +1,6 @@
 //! Physical object scans, independent of active task/file linked lists.
 use super::*;
+use crate::bytes::JsonKey as _;
 use crate::physical::{self, Decision, Object};
 impl Linux<'_> {
     pub(super) fn scan_symbol_address(&self, name: &str) -> Result<u64> {
@@ -12,7 +13,8 @@ impl Linux<'_> {
 
     pub(super) fn psscan(&self, job: &Job) -> Result<Results> {
         ensure!(
-            self.isf.data["base_types"]["pointer"]["size"]
+            self.isf.data.key("base_types")["pointer"]
+                .key("size")
                 .as_u64()
                 .unwrap_or(8)
                 == 8,
@@ -28,7 +30,10 @@ impl Linux<'_> {
         ])?;
         let offset = self.isf.offset("task_struct", "sched_class")?;
         let mut needles = Vec::new();
-        for name in self.isf.data["symbols"]
+        for name in self
+            .isf
+            .data
+            .key("symbols")
             .as_object()
             .context("ISF symbols 缺失")?
             .keys()
@@ -49,7 +54,8 @@ impl Linux<'_> {
         let mut failures = 0u64;
         let mut first_failure = String::new();
         let mut parent_failures = 0u64;
-        let task_size = self.isf.data["user_types"]["task_struct"]["size"]
+        let task_size = self.isf.data.key("user_types")["task_struct"]
+            .key("size")
             .as_u64()
             .context("task_struct size 缺失")?;
         ensure!(
@@ -101,12 +107,12 @@ impl Linux<'_> {
                                 job.check()?;
                                 let count = (task_size - offset).min(4096) as usize;
                                 parent_bytes += count as u64;
-                                self.vm.read(add(parent, offset)?, &mut chunk[..count])?;
+                                self.vm.read(add(parent, offset)?, chunk.at_mut(..count)?)?;
                                 offset += count as u64;
                             }
                             let value = self.number(parent, "task_struct", "tgid")?;
                             Ok(match self.isf.size("task_struct", "tgid")? {
-                                4 => value as i32 as i64,
+                                4 => i64::from(u32::try_from(value)? as i32),
                                 8 => value as i64,
                                 _ => anyhow::bail!("TGID 宽度无效"),
                             })
@@ -185,13 +191,13 @@ impl Linux<'_> {
                 ),
             );
         }
-        result
-            .rows
-            .sort_unstable_by_key(|row| u64::from_str_radix(&row[0][2..], 16).unwrap_or(0));
+        result.rows.sort_unstable_by_key(|row| {
+            u64::from_str_radix(row.cell(0).get(2..).unwrap_or(""), 16).unwrap_or(0)
+        });
         if !result.kernel_identity.is_object() {
             result.kernel_identity = serde_json::json!({});
         }
-        result.kernel_identity["physical_scan"] = serde_json::json!({"coverage":coverage,"member":"task_struct.sched_class","candidate_read_failures":failures,"parent_unreadable":parent_failures,"parent_read_bytes":parent_bytes,"parent_limit_reached":parent_limit_reached,"rules":{"tid_min":1,"tid_max_exclusive":65535,"exit_states":[0,16,32,48]},"source":"physical bytes; independent of init_task.tasks"});
+        *result.kernel_identity.key_mut("physical_scan")? = serde_json::json!({"coverage":coverage,"member":"task_struct.sched_class","candidate_read_failures":failures,"parent_unreadable":parent_failures,"parent_read_bytes":parent_bytes,"parent_limit_reached":parent_limit_reached,"rules":{"tid_min":1,"tid_max_exclusive":65535,"exit_states":[0,16,32,48]},"source":"physical bytes; independent of init_task.tasks"});
         Ok(result)
     }
 }

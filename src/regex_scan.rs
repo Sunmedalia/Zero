@@ -1,5 +1,6 @@
 //! Shared resident virtual range scanning. Holes break subjects; no scan bytes
 //! are fabricated. Like the fixed reference, chunks are 16 MiB + 4 KiB overlap.
+use crate::bytes::Checked as _;
 use crate::{Job, byte_regex::ByteRegex};
 use anyhow::{Context, Result, ensure};
 use serde::Serialize;
@@ -24,9 +25,9 @@ pub fn display_match(
 ) -> Result<DisplayMatch> {
     let (bytes, unreadable_bytes) = context(address, size, job, read)?;
     let matched = regex.anchored(&bytes, job)?;
-    let bytes = matched
-        .as_ref()
-        .map_or(bytes.as_slice(), |range| &bytes[range.clone()]);
+    let bytes = matched.as_ref().map_or(bytes.as_slice(), |range| {
+        bytes.get(range.clone()).unwrap_or(&[])
+    });
     Ok(DisplayMatch {
         text: String::from_utf8_lossy(bytes).into_owned(),
         hex: bytes
@@ -192,7 +193,7 @@ fn scan_sparse_impl<const CHUNK: usize, const OVERLAP: usize>(
                     .get_or_insert_with(|| "页面尝试次数上限".into());
                 return Ok(report);
             }
-            let count = ((PAGE - (cursor & (PAGE - 1))).min(end - cursor) as usize)
+            let count = usize::try_from((PAGE - (cursor & (PAGE - 1))).min(end - cursor))?
                 .min(CHUNK + OVERLAP - buffer.len());
             if budget.resident_bytes < count as u64 {
                 if !buffer.is_empty() {
@@ -207,7 +208,7 @@ fn scan_sparse_impl<const CHUNK: usize, const OVERLAP: usize>(
             report.page_attempts += 1;
             let previous = buffer.len();
             buffer.resize(previous + count, 0);
-            match read(cursor, &mut buffer[previous..]) {
+            match read(cursor, buffer.at_mut(previous..)?) {
                 Ok(()) => {
                     budget.resident_bytes -= count as u64;
                     report.read_bytes += count as u64;
@@ -285,10 +286,10 @@ pub fn context(
     while offset < length {
         job.check()?;
         let address = at.checked_add(offset as u64).context("上下文地址溢出")?;
-        let count = ((PAGE - (address & (PAGE - 1))) as usize).min(length - offset);
-        if read(address, &mut out[offset..offset + count]).is_err() {
+        let count = usize::try_from(PAGE - (address & (PAGE - 1)))?.min(length - offset);
+        if read(address, out.at_mut(offset..offset + count)?).is_err() {
             job.check()?;
-            out[offset..offset + count].fill(0);
+            out.at_mut(offset..offset + count)?.fill(0);
             missing += count as u64;
         }
         offset += count;

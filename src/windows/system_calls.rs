@@ -144,7 +144,7 @@ fn validate(
     }
     for offset in 0..32 {
         job.check()?;
-        if let Some(found) = block(cs, technique, &bytes[offset..], start + offset as u64)? {
+        if let Some(found) = block(cs, technique, bytes.at(offset..)?, start + offset as u64)? {
             if technique == Technique::Indirect {
                 let Some(target) = indirect_target(&mut read, found.end) else {
                     continue;
@@ -313,7 +313,7 @@ impl Windows<'_> {
                 break;
             }
         }
-        result.kernel_identity["system_calls"] = serde_json::json!({"disassembler":"Capstone 5.0.6 / capstone-rs 0.14.0; Intel syntax","candidate_rule":technique.pattern(),"context_bytes":64,"behind_bytes":32,"vad_size_exclusive_limit":10_000_000,"read_contract":"captured valid/transition mappings only","indirect_displacement":"unsigned u32; pointer width 8 (pinned reference)","processes":reports,"stopped":stopped});
+        *result.kernel_identity.key_mut("system_calls")? = serde_json::json!({"disassembler":"Capstone 5.0.6 / capstone-rs 0.14.0; Intel syntax","candidate_rule":technique.pattern(),"context_bytes":64,"behind_bytes":32,"vad_size_exclusive_limit":10_000_000,"read_contract":"captured valid/transition mappings only","indirect_displacement":"unsigned u32; pointer width 8 (pinned reference)","processes":reports,"stopped":stopped});
         Ok(result)
     }
 }

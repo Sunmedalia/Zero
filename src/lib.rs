@@ -1,3 +1,16 @@
+#![cfg_attr(
+    not(test),
+    deny(
+        clippy::cast_possible_truncation,
+        clippy::indexing_slicing,
+        clippy::unwrap_used,
+        clippy::expect_used,
+        clippy::panic,
+        clippy::unreachable,
+        clippy::todo,
+        clippy::unimplemented
+    )
+)]
 pub mod byte_regex;
 pub mod cache;
 pub mod framebuffer;
@@ -69,6 +82,11 @@ impl Job {
     }
 }
 
+// Hosts are 64-bit (see README); this makes every u64-to-usize conversion lossless.
+#[cfg(not(target_pointer_width = "64"))]
+compile_error!("Zero requires a 64-bit host");
+
+mod bytes;
 pub mod prepare;
 
 pub mod workspace;

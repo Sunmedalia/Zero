@@ -20,7 +20,10 @@ pub(super) fn parse(reply: &str) -> Option<bool> {
             (maximum > 0).then_some(number as f64 / maximum as f64)
         })
         .collect::<Option<_>>()?;
-    (rgb.len() == 3).then(|| 0.2126 * rgb[0] + 0.7152 * rgb[1] + 0.0722 * rgb[2] > 0.5)
+    match rgb.as_slice() {
+        [r, g, b] => Some(0.2126 * r + 0.7152 * g + 0.0722 * b > 0.5),
+        _ => None,
+    }
 }
 pub(super) fn detect() -> bool {
     query()
@@ -51,7 +54,7 @@ fn query() -> Option<bool> {
         if read <= 0 {
             break;
         }
-        reply.extend_from_slice(&bytes[..read as usize]);
+        reply.extend_from_slice(bytes.get(..read as usize)?);
         let value = String::from_utf8_lossy(&reply);
         if value.contains("\x1b[?") && value.ends_with('c') {
             break;

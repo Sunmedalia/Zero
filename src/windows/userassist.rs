@@ -1,6 +1,7 @@
 //! Twelve-column UserAssist registry view; the seven-column legacy view stays separate.
 use super::security::rot13;
 use super::*;
+use crate::bytes::{le_u32, le_u64};
 
 const PATH: &str = "Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\UserAssist";
 const NA: &str = "N/A";
@@ -60,7 +61,7 @@ fn record(bytes: &[u8], modern: Option<bool>) -> [String; 6] {
     if modern.is_none() || bytes.len() < minimum {
         return fields;
     }
-    let uint = |at| u32::from_le_bytes(bytes[at..at + 4].try_into().unwrap());
+    let uint = |at| le_u32(bytes, at).unwrap_or_default();
     let at = if modern == Some(true) {
         fields[1] = uint(4).to_string();
         fields[2] = uint(8).to_string();
@@ -72,7 +73,7 @@ fn record(bytes: &[u8], modern: Option<bool>) -> [String; 6] {
         fields[1] = if count < 5 { count } else { count - 5 }.to_string();
         8
     };
-    fields[4] = timestamp(u64::from_le_bytes(bytes[at..at + 8].try_into().unwrap()));
+    fields[4] = timestamp(le_u64(bytes, at).unwrap_or_default());
     fields
 }
 impl Windows<'_> {
@@ -94,7 +95,12 @@ impl Windows<'_> {
             );
             let node = self.cell(hive, cell)?;
             parts.push(self.key_name(&node)?);
-            cell = objects::physical_number(self.vm.isf, &node, "_CM_KEY_NODE", "Parent")? as u32;
+            cell = u32::try_from(objects::physical_number(
+                self.vm.isf,
+                &node,
+                "_CM_KEY_NODE",
+                "Parent",
+            )?)?;
         }
         parts.push(name.rsplit('\\').next().unwrap_or(name).to_owned());
         parts.reverse();
@@ -215,7 +221,7 @@ impl Windows<'_> {
             "UserAssist 标准插件仅支持 Intel x86/x64"
         );
         let mut r = self.result(Plugin::WinUserAssistV4);
-        let modern = self.vm.isf.data["user_types"]["_KUSER_SHARED_DATA"]
+        let modern = self.vm.isf.data.key("user_types")["_KUSER_SHARED_DATA"]
             .as_object()
             .map(|_| self.vm.isf.field("_KUSER_SHARED_DATA", "CookiePad").is_ok());
         let hives = if let Some(address) = options.hive {
@@ -250,12 +256,12 @@ impl Windows<'_> {
         r.diagnostics = hives.diagnostics;
         for hive in hives.rows {
             job.check()?;
-            let address = u64::from_str_radix(hive[0].trim_start_matches("0x"), 16)?;
+            let address = u64::from_str_radix(hive.at(0)?.trim_start_matches("0x"), 16)?;
             if let Some(selected) = options.hive {
                 if address != selected {
                     continue;
                 }
-            } else if !hive[1].to_ascii_lowercase().contains("ntuser.dat") {
+            } else if !hive.at(1)?.to_ascii_lowercase().contains("ntuser.dat") {
                 continue;
             }
             let hhive = self.field(address, "_CMHIVE", "Hive")?;
@@ -280,9 +286,14 @@ impl Windows<'_> {
                         let node = self.cell(hhive, guid)?;
                         for count in self.subkeys(hhive, &node, job)? {
                             job.check()?;
-                            if let Err(error) =
-                                self.userassist_count(address, &hive[1], count, modern, &mut r, job)
-                            {
+                            if let Err(error) = self.userassist_count(
+                                address,
+                                hive.at(1)?,
+                                count,
+                                modern,
+                                &mut r,
+                                job,
+                            ) {
                                 job.check()?;
                                 Self::issue(
                                     &mut r,
@@ -306,7 +317,7 @@ impl Windows<'_> {
             }
         }
         job.check()?;
-        r.kernel_identity["userassist"] = serde_json::json!({"layout":match modern {Some(true)=>"win7+",Some(false)=>"xp",None=>"raw-only"},"source":"loaded hives; absent bytes are never zero-filled"});
+        *r.kernel_identity.key_mut("userassist")? = serde_json::json!({"layout":match modern {Some(true)=>"win7+",Some(false)=>"xp",None=>"raw-only"},"source":"loaded hives; absent bytes are never zero-filled"});
         Ok(r)
     }
 }

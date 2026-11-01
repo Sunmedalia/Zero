@@ -1,12 +1,16 @@
 //! Socket decoding shared by sockstat and the Internet-only netscan view.
 use super::*;
+use crate::bytes::JsonKey as _;
 pub(super) fn unix_name(bytes: &[u8]) -> String {
     if bytes.is_empty() {
         "[unnamed]".into()
-    } else if bytes[0] == 0 {
-        format!("@{}", String::from_utf8_lossy(&bytes[1..]))
+    } else if bytes.first() == Some(&0) {
+        format!(
+            "@{}",
+            String::from_utf8_lossy(bytes.get(1..).unwrap_or(&[]))
+        )
     } else {
-        String::from_utf8_lossy(bytes.split(|b| *b == 0).next().unwrap()).into_owned()
+        String::from_utf8_lossy(bytes.split(|b| *b == 0).next().unwrap_or(bytes)).into_owned()
     }
 }
 pub(super) fn tcp_state(state: u64) -> &'static str {
@@ -61,19 +65,21 @@ impl Linux<'_> {
         };
         let (family_name, local, remote, state) = match family {
             2 | 10 if matches!(protocol, 6 | 17) => {
-                let sport = (self.number(sk, "inet_sock", "inet_sport")? as u16).to_be();
-                let dport = (if self.isf.field("inet_sock", "inet_dport").is_ok() {
+                let sport = u16::try_from(self.number(sk, "inet_sock", "inet_sport")?)?.to_be();
+                let dport = u16::try_from(if self.isf.field("inet_sock", "inet_dport").is_ok() {
                     self.number(sk, "inet_sock", "inet_dport")?
                 } else {
                     self.number(common, "sock_common", "skc_dport")?
-                } as u16)
-                    .to_be();
+                })?
+                .to_be();
                 let (local, remote) = if family == 2 {
                     let local = Ipv4Addr::from(
-                        (self.number(common, "sock_common", "skc_rcv_saddr")? as u32).to_le_bytes(),
+                        u32::try_from(self.number(common, "sock_common", "skc_rcv_saddr")?)?
+                            .to_le_bytes(),
                     );
                     let remote = Ipv4Addr::from(
-                        (self.number(common, "sock_common", "skc_daddr")? as u32).to_le_bytes(),
+                        u32::try_from(self.number(common, "sock_common", "skc_daddr")?)?
+                            .to_le_bytes(),
                     );
                     (format!("{local}:{sport}"), format!("{remote}:{dport}"))
                 } else {
@@ -137,7 +143,8 @@ impl Linux<'_> {
                     ensure!(
                         len >= offset
                             && len
-                                <= self.isf.data["user_types"]["sockaddr_un"]["size"]
+                                <= self.isf.data.key("user_types")["sockaddr_un"]
+                                    .key("size")
                                     .as_u64()
                                     .context("sockaddr_un size 缺失")?,
                         "Unix 名称长度无效: {len}"
@@ -146,7 +153,7 @@ impl Linux<'_> {
                         .field_address(addr, "unix_address", "name")?
                         .checked_add(offset)
                         .context("Unix 名称地址溢出")?;
-                    let mut bytes = vec![0; (len - offset) as usize];
+                    let mut bytes = vec![0; usize::try_from(len - offset)?];
                     self.vm.read(name, &mut bytes)?;
                     unix_name(&bytes)
                 };

@@ -7,11 +7,15 @@ fn pairs(bytes: &[u8]) -> impl Iterator<Item = (String, String)> + '_ {
         .iter()
         .rposition(|byte| *byte != 0)
         .map_or(0, |at| at + 1);
-    bytes[..end].split(|byte| *byte == 0).map_while(|entry| {
-        let entry = String::from_utf8_lossy(entry);
-        let (key, value) = entry.split_once('=')?;
-        Some((key.to_owned(), value.to_owned()))
-    })
+    bytes
+        .get(..end)
+        .unwrap_or(&[])
+        .split(|byte| *byte == 0)
+        .map_while(|entry| {
+            let entry = String::from_utf8_lossy(entry);
+            let (key, value) = entry.split_once('=')?;
+            Some((key.to_owned(), value.to_owned()))
+        })
 }
 
 impl Linux<'_> {
@@ -51,7 +55,7 @@ impl Linux<'_> {
             let Ok(Some(vm)) = self.process_vm(task.address) else {
                 continue;
             };
-            let mut bytes = vec![0; length as usize];
+            let mut bytes = vec![0; usize::try_from(length)?];
             if vm.read(start, &mut bytes).is_err() {
                 continue;
             }

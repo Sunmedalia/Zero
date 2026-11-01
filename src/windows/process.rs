@@ -1,5 +1,6 @@
 //! Process artifacts read using exact kernel types and the 32-bit NT user ABI.
 use super::*;
+use crate::bytes::Row as _;
 const ENVIRONMENT_LIMIT: usize = 1024 * 1024;
 
 impl Windows<'_> {
@@ -47,7 +48,7 @@ impl Windows<'_> {
                     if offset.is_multiple_of(4096) {
                         job.check()?;
                     }
-                    let unit = vm.uint(add(address, offset as u64)?, 2)? as u16;
+                    let unit = u16::try_from(vm.uint(add(address, offset as u64)?, 2)?)?;
                     if unit == 0 {
                         if previous_zero {
                             return Ok(());
@@ -156,19 +157,20 @@ impl Windows<'_> {
                         }
                     }
                 }
-                let start = u64::from_str_radix(row[5].trim_start_matches("0x"), 16).unwrap_or(0);
+                let start =
+                    u64::from_str_radix(row.at(5)?.trim_start_matches("0x"), 16).unwrap_or(0);
                 let module = modules
                     .rows
                     .iter()
                     .find(|m| {
-                        let base =
-                            u64::from_str_radix(m[1].trim_start_matches("0x"), 16).unwrap_or(0);
-                        let size = m[2].parse::<u64>().unwrap_or(0);
+                        let base = u64::from_str_radix(m.cell(1).trim_start_matches("0x"), 16)
+                            .unwrap_or(0);
+                        let size = m.cell(2).parse::<u64>().unwrap_or(0);
                         start != 0
                             && start >= base
                             && base.checked_add(size).is_some_and(|end| start < end)
                     })
-                    .map(|m| m[3].clone())
+                    .map(|m| m.cell(3).to_owned())
                     .unwrap_or_default();
                 row.insert(6, module);
                 Ok(row)

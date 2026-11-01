@@ -339,7 +339,7 @@ zero symbols-generate --image sample.raw --elf vmlinux --config kernel.config --
 - ISF 存放在 `.zero/rust/symbols/isf/`，旁边的 `.source.json` 记录完整 banner、仓库路径与下载 URL。
 - 下载校验 HTTPS、索引路径、ISF 格式与完整 banner，分析前继续验证页表。下载与解压上限各 256 MiB，连接超时 10 秒，总超时 90 秒，Esc 可中断；取消或失败不提交半个文件。
 - 远程下载缓存命名为“可读名称 + 仓库路径 SHA256 后缀”；保存到本地库的文件使用 ISF 内容 SHA256 后缀。
-- `--kali` 先复用 `symbols/` 或缓存中的精确 ISF。没有时，首次准备需要系统 `curl`、`ar`、`tar`、`git` 与 Go；dwarf2json 固定在 `9f14607e0d339d463ea725fbd5c08aa7b7d40f75`，在独立构建目录编译，不作为运行时插件。生成的 ISF 记录 ELF／config／工具摘要、准确 syscall 表长度与页表配置，banner 不一致即拒绝。`--offline` 不获取任何缺失文件。
+- `--kali` 先复用 `symbols/` 或缓存中的精确 ISF。没有时，首次准备需要系统 `git` 与 Go（下载前检查，缺失时立即报错，也可用 `zero doctor` 提前查看；下载和解包由 zero 原生完成）；dwarf2json 固定在 `9f14607e0d339d463ea725fbd5c08aa7b7d40f75`，在独立构建目录编译，不作为运行时插件。生成的 ISF 记录 ELF／config／工具摘要、准确 syscall 表长度与页表配置，banner 不一致即拒绝。`--offline` 不获取任何缺失文件。
 
 ### 6.4 缓存
 

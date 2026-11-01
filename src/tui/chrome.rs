@@ -1,6 +1,7 @@
 //! Frame chrome shared by both pages: navigation tabs, the system picker, the
 //! search field and the popup frame.
 use super::*;
+use crate::bytes::Cells;
 
 impl App {
     pub(super) fn draw_system_buttons(&self, frame: &mut Frame, area: Rect) {
@@ -16,7 +17,7 @@ impl App {
             (" Linux ", crate::analysis::Os::Linux),
             (" Windows ", crate::analysis::Os::Windows),
         ] {
-            let width = Span::raw(label).width() as u16;
+            let width = Span::raw(label).width().cells();
             if width > area.right().saturating_sub(x) {
                 continue;
             }
@@ -49,7 +50,7 @@ impl App {
             let mut x = systems.x + 18.min(systems.width);
             for (label, focus) in [(" 插件 ", Focus::Navigation), (" 内容 ", Focus::Content)] {
                 let width =
-                    (Span::raw(label).width() as u16).min(systems.right().saturating_sub(x));
+                    (Span::raw(label).width().cells()).min(systems.right().saturating_sub(x));
                 let rect = Rect::new(x, systems.y, width, systems.height);
                 frame.render_widget(
                     Paragraph::new(label).style(Style::default().fg(if self.focus == focus {
@@ -70,7 +71,7 @@ impl App {
         let mut x = area.x;
         for (i, page) in Page::ALL.iter().enumerate() {
             let label = format!(" {} {} ", i + 1, page.title());
-            let width = Span::raw(&label).width() as u16;
+            let width = Span::raw(&label).width().cells();
             let rect = Rect::new(
                 x,
                 area.y,
@@ -106,7 +107,7 @@ impl App {
                 ),
                 Span::styled(" 内存取证 ", Style::default().fg(color_muted())),
             ]);
-            let width = brand.width() as u16;
+            let width = brand.width().cells();
             frame.render_widget(
                 Paragraph::new(brand),
                 Rect::new(area.right() - width - 1, area.y, width, area.height),
@@ -142,7 +143,7 @@ impl App {
         let scroll = cursor_width.saturating_sub(width.saturating_sub(1));
         frame.render_widget(
             Paragraph::new(escaped(query))
-                .scroll((0, scroll.min(u16::MAX as usize) as u16))
+                .scroll((0, scroll.cells()))
                 .block(panel().title(title).border_style(Style::default().fg(
                     if editing.is_some() {
                         color_focus()
@@ -170,7 +171,7 @@ impl App {
         }
         if editing.is_some() && rect.height > 1 && rect.width > 2 {
             frame.set_cursor_position((
-                rect.x + 1 + (cursor_width - scroll).min(width - 1) as u16,
+                rect.x + 1 + (cursor_width - scroll).min(width - 1).cells(),
                 rect.y + 1,
             ));
         }
@@ -292,9 +293,9 @@ impl App {
                 break;
             }
             let rect = Rect::new(
-                area.x + used as u16 + gap as u16,
+                area.x + used.cells() + gap.cells(),
                 area.y,
-                width.saturating_sub(gap) as u16,
+                width.saturating_sub(gap).cells(),
                 area.height,
             );
             if label == "符号: " {

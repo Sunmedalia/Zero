@@ -49,11 +49,12 @@ impl Windows<'_> {
         job: &Job,
     ) -> Result<Vec<u64>> {
         let flink = self.vm.isf.offset("_LIST_ENTRY", "Flink")?;
-        let size = self.vm.isf.data["user_types"]["_LIST_ENTRY"]["size"]
+        let size = self.vm.isf.data.key("user_types")["_LIST_ENTRY"]
+            .key("size")
             .as_u64()
             .context("缺少 LIST_ENTRY 大小")?;
         ensure!(size <= 4096, "LIST_ENTRY 大小超限");
-        let mut bytes = vec![0; size as usize];
+        let mut bytes = vec![0; usize::try_from(size)?];
         let native = |raw| {
             let masked = raw & self.driver_address_mask();
             if self.vm.pointer_size() == 8 && masked & (1 << 47) != 0 {
@@ -65,7 +66,7 @@ impl Windows<'_> {
         let next = |at| -> Result<u64> {
             let mut pointer = [0; 8];
             self.vm
-                .read_captured(add(at, flink)?, &mut pointer[..self.vm.pointer_size()])?;
+                .read_captured(add(at, flink)?, pointer.at_mut(..self.vm.pointer_size())?)?;
             Ok(native(u64::from_le_bytes(pointer)))
         };
         let mut entries = Vec::new();
@@ -202,7 +203,7 @@ impl Windows<'_> {
                 continue;
             }
             ensure!(r.rows.len() < 100_000, "DriverModule 结果数量超限");
-            let known = KNOWN_DRIVERS.contains(&values[0].as_str());
+            let known = KNOWN_DRIVERS.contains(&values.at(0)?.as_str());
             let mut row = vec![hex(offset), known.to_string()];
             row.extend(values);
             let added: usize = row.iter().map(String::len).sum();
@@ -212,7 +213,7 @@ impl Windows<'_> {
             ensure!(text_bytes <= 128 * 1024 * 1024, "DriverModule 文本大小超限");
             r.rows.push(row);
         }
-        r.kernel_identity["driver_module"] = serde_json::json!({
+        *r.kernel_identity.key_mut("driver_module")? = serde_json::json!({
             "module_ranges":"inclusive; readable BaseDllName including empty names; native pointer domain",
             "module_traversal":"forward LIST_ENTRY only; full link readability; no Blink recovery", "kernel_space_start":hex(range_start),
             "source":"versioned driver pool cross-view; zero DriverStart retained", "known_exceptions":KNOWN_DRIVERS

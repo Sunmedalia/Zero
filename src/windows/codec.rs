@@ -42,8 +42,7 @@ pub(super) fn lz4(input: &[u8], size: usize) -> Result<Vec<u8>> {
     }
     let mut at = 0;
     let mut out = Vec::with_capacity(size);
-    while at < input.len() {
-        let token = input[at];
+    while let Some(&token) = input.get(at) {
         at += 1;
         let literals = length(input, &mut at, usize::from(token >> 4))?;
         let end = at.checked_add(literals).context("LZ4 输入溢出")?;
@@ -60,16 +59,25 @@ pub(super) fn lz4(input: &[u8], size: usize) -> Result<Vec<u8>> {
             distance != 0 && distance <= out.len() && out.len() + matched <= size,
             "LZ4 匹配越界"
         );
-        for _ in 0..matched {
-            out.push(out[out.len() - distance]);
-        }
+        copy_match(&mut out, distance, matched)?;
     }
     anyhow::bail!("LZ4 缺少结束 literal 序列")
+}
+/// LZ back-reference; overlapping copies repeat bytes written by this same match.
+fn copy_match(output: &mut Vec<u8>, distance: usize, length: usize) -> Result<()> {
+    for _ in 0..length {
+        let source = output.len().checked_sub(distance);
+        let byte = source.and_then(|at| output.get(at).copied());
+        output.push(byte.context("LZ 回溯距离无效")?);
+    }
+    Ok(())
 }
 fn take(input: &[u8], at: &mut usize, n: usize) -> Result<u32> {
     let end = at.checked_add(n).context("XPRESS 输入溢出")?;
     let mut b = [0; 4];
-    b[..n].copy_from_slice(input.get(*at..end).context("XPRESS 输入截断")?);
+    b.get_mut(..n)
+        .context("XPRESS 读取宽度无效")?
+        .copy_from_slice(input.get(*at..end).context("XPRESS 输入截断")?);
     *at = end;
     Ok(u32::from_le_bytes(b))
 }
@@ -86,7 +94,7 @@ fn plain(input: &[u8], size: usize) -> Result<Vec<u8>> {
         }
         bits -= 1;
         if flags & (1 << bits) == 0 {
-            output.push(take(input, &mut at, 1)? as u8);
+            output.push(u8::try_from(take(input, &mut at, 1)?)?);
             continue;
         }
         let token = take(input, &mut at, 2)?;
@@ -120,9 +128,7 @@ fn plain(input: &[u8], size: usize) -> Result<Vec<u8>> {
             distance <= output.len() && output.len().checked_add(length).is_some_and(|n| n <= size),
             "XPRESS 匹配越界"
         );
-        for _ in 0..length {
-            output.push(output[output.len() - distance]);
-        }
+        copy_match(&mut output, distance, length)?;
     }
     Ok(output)
 }

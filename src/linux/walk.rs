@@ -1,5 +1,6 @@
 //! Kernel object walkers: lists, maple trees, VMAs and process address spaces.
 use super::*;
+use crate::bytes::JsonKey as _;
 impl Linux<'_> {
     /// Kernel uses the split `mount`/`vfsmount` layout instead of the older
     /// single `vfsmount`. Probed on every `number()` call, so memoized.
@@ -61,7 +62,8 @@ impl Linux<'_> {
         let mut diagnostics = Vec::new();
         let tree = self.field_address(mm, "mm_struct", "mm_mt")?;
         let root = self.number(tree, "maple_tree", "ma_root")?;
-        let pointer_width = self.isf.data["base_types"]["pointer"]["size"]
+        let pointer_width = self.isf.data.key("base_types")["pointer"]
+            .key("size")
             .as_u64()
             .context("maple 指针宽度缺失")?;
         ensure!(matches!(pointer_width, 4 | 8), "maple 指针宽度无效");
@@ -112,7 +114,8 @@ impl Linux<'_> {
                 "slot"
             };
             let slots = self.field_address(base, structure, slot_field)?;
-            let count = self.isf.field(structure, slot_field)?["type"]["count"]
+            let count = self.isf.field(structure, slot_field)?["type"]
+                .key("count")
                 .as_u64()
                 .context("maple slot count 缺失")?;
             ensure!((1..=64).contains(&count), "maple slot count 异常");
@@ -125,7 +128,7 @@ impl Linux<'_> {
             for i in 0..count {
                 let child = self
                     .vm
-                    .uint(add(slots, i * slot_width)?, slot_width as usize)?;
+                    .uint(add(slots, i * slot_width)?, usize::try_from(slot_width)?)?;
                 if child & !15 != 0 {
                     if leaf {
                         ensure!(child & (pointer_width - 1) == 0, "maple VMA 指针对齐错误");
@@ -138,8 +141,8 @@ impl Linux<'_> {
         }
         leaves.sort_unstable();
         for pair in leaves.windows(2) {
-            if pair[0] == pair[1] {
-                diagnostics.push(format!("maple 重复 VMA 指针已保留 @ {:#x}", pair[0]));
+            if *pair.at(0)? == *pair.at(1)? {
+                diagnostics.push(format!("maple 重复 VMA 指针已保留 @ {:#x}", *pair.at(0)?));
             }
         }
         ensure!(leaves.len() as u64 <= limit, "VMA 超过遍历上限");
@@ -225,7 +228,7 @@ impl Linux<'_> {
         let root = self.vm.translate(pgd).context("mm.pgd 内核地址转换失败")?;
         ensure!(root & 4095 == 0, "进程页表未对齐");
         let vm = self.vm.with_root(root);
-        let mut out = vec![0; length as usize];
+        let mut out = vec![0; usize::try_from(length)?];
         for (i, chunk) in out.chunks_mut(4096).enumerate() {
             job.check()?;
             vm.read(start + i as u64 * 4096, chunk)?;
