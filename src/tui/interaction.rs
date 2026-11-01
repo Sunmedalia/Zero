@@ -662,8 +662,12 @@ impl App {
                     .join(" · ")
             ));
         }
-        text.push_str("\n远程详情：w 下载到 symbols · L 在本地库定位 · c 取消下载 · Esc 返回\n\n分析：P 适用参数 · Ctrl+R 运行 · D Dump · Alt+←/→ 横向滚动\n资源库 K / 分析页 g 生成当前镜像符号表\n\nCtrl+P / ? 命令面板（空格分隔多个词，不区分大小写，可用 cache、dump、pid 等英文词）\nEsc 关闭弹窗；分析页先清除筛选，再取消任务 · q 退出（任务中需按两次）· Ctrl+C 立即退出\n文件弹窗：Space 选用 · Enter 打开目录／进入分析控制台，d 详情 · Shift+Space 选用符号目录 · ← 上级 · Tab 切换目录 · p 输入路径\nDump：Alt+1…7 切换模式 · Tab 字段 · Ctrl+Enter 运行\n");
-        self.dialog = Some(Dialog::Detail { text, scroll: 0 });
+        text.push_str("\n远程详情：w 下载到 symbols · L 在本地库定位 · c 取消下载 · Esc 返回\n\n分析：P 适用参数 · Ctrl+R 运行 · D Dump · Alt+←/→ 横向滚动\n资源库 K / 分析页 g 生成当前镜像符号表\n\n详情弹窗：c 复制全文 · t / ⤢ 展开为标签页；详情标签页 ↑↓ 滚动、c 复制、Ctrl+W 关闭\n\nCtrl+P / ? 命令面板（空格分隔多个词，不区分大小写，可用 cache、dump、pid 等英文词）\nEsc 关闭弹窗；分析页先清除筛选，再取消任务 · q 退出（弹窗确认）· Ctrl+C 立即退出\n文件弹窗：Space 选用 · Enter 打开目录／进入分析控制台，d 详情 · Shift+Space 选用符号目录 · ← 上级 · Tab 切换目录 · p 输入路径\nDump：Alt+1…7 切换模式 · Tab 字段 · Ctrl+Enter 运行\n");
+        self.dialog = Some(Dialog::Detail {
+            title: "详情",
+            text,
+            scroll: 0,
+        });
     }
     pub(super) fn diagnostics(&mut self) {
         let text = if let Some(result) = self.result() {
@@ -673,26 +677,50 @@ impl App {
         } else {
             return;
         };
-        self.dialog = Some(Dialog::Detail { text, scroll: 0 });
+        self.dialog = Some(Dialog::Detail {
+            title: "分析诊断",
+            text,
+            scroll: 0,
+        });
     }
     pub(super) fn key(&mut self, key: KeyEvent) -> bool {
+        if key.kind == KeyEventKind::Release {
+            return false;
+        }
+        if key.modifiers.contains(KeyModifiers::CONTROL) && key.code == KeyCode::Char('c') {
+            return true;
+        }
+        if let Some(Dialog::Quit { confirm }) = self.dialog.as_mut() {
+            return match key.code {
+                KeyCode::Enter => {
+                    let quit = *confirm;
+                    self.dialog = None;
+                    quit
+                }
+                KeyCode::Char('y') => {
+                    self.dialog = None;
+                    true
+                }
+                KeyCode::Esc | KeyCode::Char('n') => {
+                    self.dialog = None;
+                    false
+                }
+                KeyCode::Tab | KeyCode::BackTab | KeyCode::Left | KeyCode::Right => {
+                    *confirm = !*confirm;
+                    false
+                }
+                _ => false,
+            };
+        }
         if self
             .terminal_size
             .get()
             .is_some_and(|(w, h)| w < 60 || h < 16)
         {
-            return (key.code == KeyCode::Char('q') && key.modifiers.is_empty())
-                || (key.code == KeyCode::Char('c')
-                    && key.modifiers.contains(KeyModifiers::CONTROL));
-        }
-        if key.kind == KeyEventKind::Release {
+            if key.code == KeyCode::Char('q') && key.modifiers.is_empty() {
+                return self.request_quit();
+            }
             return false;
-        }
-        if key.code != KeyCode::Char('q') {
-            self.quit_armed = false;
-        }
-        if key.modifiers.contains(KeyModifiers::CONTROL) && key.code == KeyCode::Char('c') {
-            return true;
         }
         if self.dialog.is_none() && key.modifiers.contains(KeyModifiers::CONTROL) {
             match key.code {
@@ -715,6 +743,9 @@ impl App {
         }
         if self.dialog.is_some() {
             self.dialog_key(key);
+            return false;
+        }
+        if self.page == Page::Analysis && self.focus == Focus::Content && self.detail_tab_key(key) {
             return false;
         }
         if key.modifiers.contains(KeyModifiers::CONTROL) && key.code == KeyCode::Char('p') {
@@ -855,6 +886,7 @@ impl App {
     pub(super) fn open_detail(&mut self) {
         if self.result().is_some() {
             self.dialog = Some(Dialog::Detail {
+                title: "详情",
                 text: self.detail_text(),
                 scroll: 0,
             });
@@ -920,6 +952,14 @@ impl App {
             return false;
         }
         let hits = self.hits.borrow().clone();
+        if matches!(self.dialog, Some(Dialog::Quit { .. })) {
+            if click
+                && let Some((_, key)) = hits.buttons.iter().find(|(rect, _)| rect.contains(point))
+            {
+                return self.key(KeyEvent::new(*key, KeyModifiers::NONE));
+            }
+            return false;
+        }
         if matches!(
             self.dialog,
             Some(Dialog::Input {
@@ -1476,6 +1516,9 @@ impl App {
             return;
         }
         match dialog {
+            Dialog::Quit { .. } => {
+                self.dialog = Some(dialog);
+            }
             Dialog::System { .. } => self.system_key(dialog, key),
             Dialog::GenerateSymbols { .. } => self.generation_key(dialog, key),
             Dialog::WindowsParameters { .. } => self.windows_parameters_key(dialog, key),

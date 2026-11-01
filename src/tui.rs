@@ -49,8 +49,8 @@ use ratatui::{
     style::{Color, Modifier, Style},
     text::{Line, Span},
     widgets::{
-        Block, BorderType, Borders, Clear, Gauge, List, ListItem, ListState, Paragraph, Row,
-        StatefulWidget, Table, TableState, Wrap,
+        Block, BorderType, Clear, Gauge, List, ListItem, ListState, Paragraph, Row, StatefulWidget,
+        Table, TableState, Wrap,
     },
 };
 use std::{
@@ -71,6 +71,7 @@ use theme::*;
 /// Rounded, dim-bordered panel shared by every framed region and popup.
 fn panel<'a>() -> Block<'a> {
     Block::bordered()
+        .style(Style::default().fg(color_text()).bg(color_surface()))
         .border_type(BorderType::Rounded)
         .border_style(Style::default().fg(color_border()))
         .title_style(Style::default().fg(color_text()))

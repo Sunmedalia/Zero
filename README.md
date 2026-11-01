@@ -2,121 +2,173 @@
 
 # Zero
 
-**原生 Rust 内存取证终端 · Linux 与 Windows · 精确符号匹配**
+**本地内存取证工作台，原生 Rust 实现。**
+
+Linux / Windows 镜像 · 精确符号匹配 · TUI / CLI / MCP
 
 [![CI](https://github.com/sunmedalia/zero/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/sunmedalia/zero/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/sunmedalia/zero?sort=semver&color=82b4e8)](https://github.com/sunmedalia/zero/releases/latest)
 ![Rust 2024](https://img.shields.io/badge/Rust-2024-dea584?logo=rust)
-![Native Rust TUI](https://img.shields.io/badge/TUI-native_Rust-8bc7a3?logo=rust&logoColor=white)
 ![Linux | macOS](https://img.shields.io/badge/host-Linux%20%7C%20macOS-97a6b8)
 
-[使用指南](docs/usage.md) · [兼容矩阵](docs/compatibility.md) · [Volatility 对齐进度](docs/volatility-parity.md) · [MCP](docs/mcp.md) · [界面架构](docs/tui.md) · [开发与发布](docs/development.md)
+[下载](https://github.com/sunmedalia/zero/releases/latest) · [快速开始](#快速开始) · [使用指南](docs/usage.md) · [兼容矩阵](docs/compatibility.md) · [MCP](docs/mcp.md)
 
-<img src="docs/assets/analysis.svg" alt="Zero 分析页：Debian 3.2 样本的 pstree 进程树" width="100%">
+<img src="docs/assets/analysis.svg" alt="Zero 分析工作台：Debian 3.2 样本的进程树、插件标签与单行操作栏" width="100%">
 
 </div>
 
-Zero 是本地内存取证工具：读取 Linux（x86_64／ARM64）与 Windows 内存镜像，用与内核**完全一致**的符号恢复进程、模块、文件、网络与内核完整性信息。分析引擎和终端界面全部用 Rust 实现，界面采用 Ratatui + Crossterm，键盘与鼠标都完整可用；同一个可执行文件还提供 CLI 和 stdio MCP 服务。分析本身不需要 Python、Volatility 或任何 HTTP 服务。
+Zero 从本地内存镜像恢复进程、模块、文件、网络连接与内核完整性信息。一个可执行文件提供可用鼠标操作的终端界面、适合脚本的命令行，以及供 AI 工具调用的 stdio MCP 服务。运行分析无需 Python、Volatility、Node 或 HTTP 服务。
 
-## 特点
+## 为什么使用 Zero
 
-| | |
+| 能力 | 行为 |
 | --- | --- |
-| 🎯 **只用精确符号** | Linux 按完整内核 banner 匹配 ISF，Windows 按 PDB GUID／Age 匹配；找不到就明确说没有，从不套用“相近版本” |
-| 🧾 **不把部分当完整** | 缺页、布局未验证、对象损坏都会保留部分结果并附带诊断；部分结果连同诊断单独缓存、绝不当作完整结果，“没有命中”只在完整结果中成立 |
-| 🔒 **证据只读** | 镜像始终只读，资产移除只改项目清单；在线模式只查询／下载符号，`--offline` 禁止一切网络请求，从不上传镜像 |
-| 🧩 **167 个注册插件入口** | Linux 66 个、Windows 101 个（含转储及兼容入口）：进程、内存映射、文件、socket、注册表、恶意检测线索、内核钩子、模式搜索与定向转储 |
-| 🖥️ **好用的终端** | 浏览器式页面标签、可拖动滚动条、命令面板、进程树、五套主题与跟随终端背景的自动主题；80×24 到超宽屏都有对应布局 |
-| 🤖 **三种入口** | TUI、脚本化 CLI（CSV／JSON 导出）与原生 MCP（结果快照分页、可取消） |
-
-## 截图
-
-<table>
-  <tr>
-    <td width="50%"><img src="docs/assets/sockstat.svg" alt="sockstat：进程持有的 socket"><br><sub><b>sockstat</b> — 每个进程 FD 引用的 Unix／TCP／UDP socket</sub></td>
-    <td width="50%"><img src="docs/assets/theme-light.svg" alt="纸白主题下的 lsmod"><br><sub><b>主题</b> — 在 <code>,</code> 设置中切换，图为“纸白”</sub></td>
-  </tr>
-  <tr>
-    <td width="50%"><img src="docs/assets/assets.svg" alt="资源库"><br><sub><b>资源库</b> — 镜像、本地符号与远程索引</sub></td>
-    <td width="50%"><img src="docs/assets/cache.svg" alt="缓存管理"><br><sub><b>缓存管理</b> — 按范围清理，重新打开导出记录</sub></td>
-  </tr>
-</table>
-
-<sub>截图由 <code>make screenshots</code> 用真实引擎分析公开的 Debian 3.2 样本生成，就是终端里的实际画面。</sub>
+| 精确符号匹配 | Linux 按完整内核 banner 匹配 ISF；Windows 按 PDB GUID / Age 匹配。找不到精确符号时明确提示，不使用相近版本替代。 |
+| 保留分析边界 | 缺页、布局未验证、对象损坏时保留部分结果和诊断，并与完整结果分别缓存。部分结果中的未命中不能作为排除依据。 |
+| 证据只读 | 镜像以只读方式打开；移除资源只更新项目清单。在线模式查询与下载符号，不上传镜像；`--offline` 禁止网络请求。 |
+| Linux 与 Windows | 167 个注册插件入口：Linux 66 个、Windows 101 个，包含转储及兼容入口。覆盖进程、内存映射、socket、注册表、模式搜索和内核异常线索。 |
+| 交互与自动化 | 结果标签、筛选、排序、进程树、滚动条、命令面板；CLI 导出 CSV / JSON，MCP 支持结果快照分页与取消。 |
 
 ## 安装
 
-**发布包**（Linux x86_64／ARM64、macOS ARM64）：从 [Releases](https://github.com/sunmedalia/zero/releases/latest) 下载对应归档并用 `SHA256SUMS` 校验。原生版本解压即可运行，无需 Node、npm 或外部界面文件。
+从 [Releases](https://github.com/sunmedalia/zero/releases/latest) 下载对应平台归档和 `SHA256SUMS`。解压后直接运行 `zero`，无需安装界面依赖。
+
+| 宿主平台 | 归档名称中的目标 |
+| --- | --- |
+| Linux x86_64 | `x86_64-unknown-linux-gnu` |
+| Linux ARM64 | `aarch64-unknown-linux-gnu` |
+| macOS Apple Silicon | `aarch64-apple-darwin` |
+
+Linux 发布包在 Ubuntu 24.04 上构建，需要兼容的 glibc。宿主平台与被分析镜像的系统是两个不同维度，镜像覆盖情况见[兼容矩阵](docs/compatibility.md)。
+
+以 Linux x86_64 的 v0.2.3 为例，在下载目录执行：
 
 ```sh
-sha256sum --check --ignore-missing SHA256SUMS   # macOS: shasum -a 256 -c --ignore-missing SHA256SUMS
-tar xzf zero-*.tar.gz && cd zero-*/
+sha256sum --check --ignore-missing SHA256SUMS
+tar xzf zero-0.2.3-x86_64-unknown-linux-gnu.tar.gz
+cd zero-0.2.3-x86_64-unknown-linux-gnu
 ./zero
 ```
 
-**从源码构建**：
+macOS 可用 `shasum -a 256 <归档文件名>` 计算摘要，与 `SHA256SUMS` 中对应文件的摘要核对，再解压运行。
+
+<details>
+<summary>从源码构建</summary>
+
+安装仓库 [rust-toolchain.toml](rust-toolchain.toml) 指定的 Rust 工具链后：
 
 ```sh
 cargo build --release --locked
 ./target/release/zero
 ```
 
+构建依赖、检查与发布流程见[开发说明](docs/development.md)。
+
+</details>
+
 ## 快速开始
 
+### 在终端中完成第一次分析
+
 ```sh
-# 打开终端界面：不带参数进入工作台，或直接指定镜像与符号
+# 进入资源库
 zero
-zero --image images/memory.lime --symbols symbols/kernel.json.xz
 
-# 命令行分析并导出
-zero --offline analyze --image /evidence/memory.raw --symbols /evidence/kernel.json.xz \
-  --plugin pslist --output exports/processes.json
+# 或直接打开指定镜像的分析工作台
+zero --image images/memory.raw --symbols symbols/kernel.json.xz
+```
 
-# 识别内核并下载精确匹配的符号
+1. 在资源库的“镜像”页导入文件，用 Space 选用，或按 Enter 选用并准备进入分析。
+2. Zero 校验镜像、识别 Linux / Windows 内核并匹配本地精确符号。缺少符号时可按 `M` 在线匹配；也可导入已有 ISF。
+3. 准备完成后进入分析页，点击插件或按 Enter 运行。结果底边标明缓存读取或重新分析；`v` 查看诊断，`d` 查看当前行详情。
+
+首次进入空的分析页，也可点击“打开资源库 · 镜像”直接定位镜像列表。镜像和符号文件需自行准备，发布包不附带样本。
+
+### 用于脚本和 AI 工具
+
+```sh
+# 离线分析，导出 JSON
+zero --offline analyze --image /evidence/memory.raw \
+  --symbols /evidence/kernel.json.xz --plugin pslist --output exports/processes.json
+
+# 识别内核，下载精确匹配的符号
 zero symbols --image /evidence/memory.raw --download
 
-# 只转储指定进程，附 SHA256 清单
-zero dump --image /evidence/memory.raw --mode process --pid 1 \
-  --dump-dir exports/dumps --output exports/dump-index.csv
+# 转储指定进程，生成包含 SHA256 的清单
+zero dump --image /evidence/memory.raw --symbols /evidence/kernel.json.xz \
+  --mode process --pid 1 --dump-dir exports/dumps --output exports/dump-index.csv
 
-# stdio MCP 服务
+# 启动 stdio MCP 服务
 zero mcp
 ```
 
-在界面里：启动后先在资源库用 Space 选用镜像，Zero 按 banner／PDB 签名自动识别系统（识别结果与镜像绑定，再次选用无需重扫）并匹配本地符号；`M` 在线获取精确符号，Enter 进入分析，点击插件即运行。`1`／`2`／`3` 切换资源库、分析、缓存，状态栏标明每个结果是“缓存读取”还是“重新分析”。`?` 打开命令面板，`H` 查看全部快捷键。完整操作见[使用指南](docs/usage.md)。
+完整参数见 `zero --help` 与各子命令的 `--help`；MCP 配置和调用示例见 [MCP 文档](docs/mcp.md)。
 
-## 支持范围
+## 终端界面
 
-| | 支持 |
+底部操作栏始终保持一行：宽屏完整展示，窄屏优先保留常用操作，其余收进“更多”。插件列表可收起，结果与详情都可作为独立标签页查看。
+
+| 操作 | 快捷键 / 按钮 |
 | --- | --- |
-| 镜像格式 | RAW、LiME（含未压缩的 AVML 输出）、Windows crash dump／minidump、已识别布局的休眠文件、gzip 压缩镜像 |
-| 符号格式 | ISF 的 JSON、JSON.XZ 与 ZIP 成员 |
-| Linux | x86_64 四级页表（含 KASLR）与 ARM64 4 KiB 页（39／48-bit VA）；已验收 Debian 3.2 与 Kali 6.8.11 ARM64 |
-| Windows | 按精确 PDB 获取并本地转换符号，微软 404 时从 Volatility 官方符号包按需取精确 ISF；样本与插件覆盖见[兼容矩阵](docs/compatibility.md) · [Volatility 对齐进度](docs/volatility-parity.md) |
-| 符号来源 | 本地文件、[Abyss-W4tcher/volatility3-symbols](https://github.com/Abyss-W4tcher/volatility3-symbols)、Microsoft 符号服务器；Kali ARM64 可从官方调试包生成 |
+| 切换资源库、分析、缓存 | `1` / `2` / `3` |
+| 搜索当前区域 / 命令面板 | `/` / `?` 或 Ctrl+P |
+| 查看分析诊断 / 当前行详情 | `v` / `d` |
+| 复制详情全文 / 展开为标签页 | `c` / 右上角 `⤢` 或 `t` |
+| 切换 / 关闭结果标签 | Ctrl+PgUp、Ctrl+PgDn / Ctrl+W |
+| 收起 / 展开插件列表 | `<<` / 左下角 `>>`，或 `B` |
+| 设置与主题 / 全部快捷键 | `,` / `H` |
+| 退出 | `q` 弹窗确认，Enter 确认、Esc 取消；Ctrl+C 立即退出 |
 
-休眠文件与压缩 store 的部分路径只有合成验证，具体范围以兼容矩阵为准。恶意检测插件给出的是需要核查的结构线索，不是恶意判定。
+提供石板、纸白、Solarized、荧光绿、高对比、暮紫六套主题，以及跟随终端背景的自动主题。所有弹窗使用当前主题配色。详情复制优先使用系统剪贴板，远程会话回退到需要终端支持的 OSC 52。
 
-Volatility 对照固定为 v2.28.2。目前登记 162 个通过案例（其中 5 个限定记录范围），完整插件合同为 **0/135**；案例通过不等于整个插件已对齐。Linux32／PAE 页表与 ELF32 已有内部参考测试，但公开 Linux32 ISF 入口仍关闭，尚无真实 Linux32 端到端验收。详见[对齐进度](docs/volatility-parity.md)。
+<table>
+  <tr>
+    <td width="50%"><img src="docs/assets/assets.svg" alt="资源库：镜像列表与底部单行操作栏"><br><sub><b>资源库</b> · 管理镜像、本地符号与远程索引</sub></td>
+    <td width="50%"><img src="docs/assets/sockstat.svg" alt="sockstat：按进程查看 Unix、TCP 与 UDP socket"><br><sub><b>网络线索</b> · 查看进程 FD 引用的 socket</sub></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/assets/theme-light.svg" alt="纸白主题的 lsmod 模块结果"><br><sub><b>纸白主题</b> · 浅色终端中的模块分析</sub></td>
+    <td width="50%"><img src="docs/assets/theme-dusk.svg" alt="新增暮紫主题的 lsmod 模块结果"><br><sub><b>暮紫主题</b> · 柔和的深色工作台</sub></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/assets/details.svg" alt="结果详情弹窗：模块字段、复制按钮与对角放大按钮"><br><sub><b>结果详情</b> · 复制文本或展开为独立标签页</sub></td>
+    <td width="50%"><img src="docs/assets/cache.svg" alt="缓存管理：按镜像分组的分析记录"><br><sub><b>缓存管理</b> · 分组清理与导出记录回看</sub></td>
+  </tr>
+</table>
 
-## 文档
+<sub>截图通过 <code>make screenshots</code> 分析本地公开 Debian 3.2 样本生成，使用实际 TUI 状态机与终端 Buffer。</sub>
+
+## 支持范围与验证
+
+| 项目 | 范围 |
+| --- | --- |
+| 镜像格式 | RAW、LiME（含未压缩 AVML 输出）、Windows crash dump / minidump、已识别布局的休眠文件、gzip 压缩镜像 |
+| 符号格式 | ISF JSON、JSON.XZ、ZIP 成员；Windows 可下载精确 PDB 并在本地转换 |
+| Linux | x86_64 四级页表（含 KASLR）、ARM64 4 KiB 页（39 / 48-bit VA）；已验收 Debian 3.2 与 Kali 6.8.11 ARM64 |
+| Windows | 按精确 PDB 匹配；Microsoft 返回 404 时，可从 Volatility 官方符号包按需获取精确 ISF。逐插件、逐样本证据见[兼容矩阵](docs/compatibility.md)。 |
+| 符号来源 | 本地文件、[volatility3-symbols](https://github.com/Abyss-W4tcher/volatility3-symbols)、Microsoft 符号服务器；Kali ARM64 可从官方调试包生成 |
+
+休眠文件与压缩 store 的部分路径只有合成验证。Linux32 / PAE 页表与 ELF32 已有内部参考测试，公开 Linux32 ISF 入口仍关闭，尚无真实 Linux32 端到端验收。恶意检测插件输出需要核查的结构线索，不直接作恶意判定。
+
+Volatility 对照固定为 **v2.28.2**：登记 **162 个通过案例**，其中 5 个限定记录范围；**完整插件合同为 0/135**。单项案例通过不代表整个插件已经对齐。证据与未完成项见 [Volatility 对齐进度](docs/volatility-parity.md)。
+
+## 文档与开发
 
 | 文档 | 内容 |
 | --- | --- |
-| [使用指南](docs/usage.md) | 界面、快捷键、CLI、全部 Linux 插件的字段与边界、缓存与设置、验收基线 |
+| [使用指南](docs/usage.md) | 界面、CLI、插件字段、缓存、设置与验收基线 |
 | [兼容矩阵](docs/compatibility.md) | Windows 插件与真实样本的验收证据 |
-| [Volatility 对齐进度](docs/volatility-parity.md) | 固定版本清单、真实差分用例与未完成项 |
-| [MCP](docs/mcp.md) | 工具接口、`result_id` 快照分页与取消 |
-| [界面架构](docs/tui.md) | 原生线程通信、布局、鼠标、页面标签、主题及 GitHub 下载代理 |
-| [开发与发布](docs/development.md) | 检查、资源预算、性能基准、CI、发布与截图 |
+| [Volatility 对齐进度](docs/volatility-parity.md) | 固定参考、差分用例与未完成项 |
+| [MCP](docs/mcp.md) | 工具配置、结果快照分页与取消 |
+| [界面架构](docs/tui.md) | 页面、标签、主题、线程通信与 GitHub 下载代理 |
+| [开发与发布](docs/development.md) | 构建、检查、资源预算、CI、截图与发布 |
 | [性能测量](docs/performance.md) | 可复现的基准记录 |
-| [Agent skill](.agents/skills/zero-forensics/SKILL.md) | 供 AI 代理调用的说明与[示例](.agents/skills/zero-forensics/references/calls.md) |
-
-## 开发
+| [Agent skill](.agents/skills/zero-forensics/SKILL.md) | AI 代理使用说明与[调用示例](.agents/skills/zero-forensics/references/calls.md) |
 
 ```sh
-make check        # fmt、Clippy、Rust 引擎/TUI 测试、参考框架测试、release 构建
-make tui-acceptance acceptance windows-acceptance   # 需要本地真实样本
+make check        # 格式、Clippy、测试、参考审计与 release 构建
+make ui-test      # 单独运行 TUI 测试
+make tui-acceptance acceptance windows-acceptance  # 需要本地真实样本
 ```
 
-CI 在 Linux x86_64／ARM64、macOS ARM64 上运行 `make check`；推送 `v*` 标签后自动构建并发布这三个目标的归档，后续不再发布 macOS Intel 版本。详见[开发与发布](docs/development.md)。
+CI 在 Linux x86_64 / ARM64、macOS ARM64 上执行检查和发布包启动验证。推送 `v*` 标签后，三个目标全部通过才会自动发布归档与 `SHA256SUMS`；当前不提供 macOS Intel 发布包。

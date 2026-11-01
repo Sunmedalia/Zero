@@ -64,7 +64,28 @@ impl App {
                     .collect::<Vec<_>>(),
             )
             .style(Style::default().fg(color_text()).bg(color_surface()))
-            .block(panel().title("内核诊断 · ↑↓ / PgUp PgDn 滚动")),
+            .block(panel().title(Line::from(vec![
+                    Span::styled(
+                        " 内核诊断 ",
+                        Style::default()
+                            .fg(color_focus())
+                            .add_modifier(Modifier::BOLD),
+                    ),
+                    Span::styled(
+                        if self.diagnosis_running {
+                            "· 生成中 "
+                        } else if self.kernel_report.is_some() {
+                            "· 报告 "
+                        } else {
+                            "· 未完成 "
+                        },
+                        Style::default().fg(if self.diagnosis_running {
+                            color_accent()
+                        } else {
+                            color_muted()
+                        }),
+                    ),
+                ]))),
             popup,
         );
         let mut x = popup.x + 1;

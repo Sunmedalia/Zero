@@ -382,7 +382,6 @@ impl App {
             detail_scroll: 0,
             views: HashMap::new(),
             enter_when_ready: false,
-            quit_armed: false,
         }
     }
     pub(super) fn switch_page(&mut self, page: Page) {
@@ -391,6 +390,10 @@ impl App {
             self.inspector = false;
         }
         self.page = page;
+        if page == Page::Assets && self.image.is_none() {
+            self.section = AssetSection::Images;
+            self.focus = Focus::Content;
+        }
         // Replace the previous page's hint, but never hide a running task or an error.
         if changed && self.job.is_none() && self.last_error.as_deref() != Some(&self.status) {
             self.status = match page {
@@ -1078,13 +1081,10 @@ impl App {
         }
     }
     pub(super) fn request_quit(&mut self) -> bool {
-        if self.job.is_none() || self.quit_armed {
-            return true;
-        }
-        self.quit_armed = true;
-        self.status = "任务执行中；再按 q 退出，Esc 取消任务".into();
+        self.dialog = Some(Dialog::Quit { confirm: true });
         false
     }
+
     pub(super) fn use_selected_asset(&mut self) -> bool {
         let Some(asset) = self.selected_asset() else {
             self.status = "没有选中的资产；按 a 导入路径".into();
@@ -1186,7 +1186,24 @@ impl App {
         if self.page != Page::Analysis {
             return Vec::new();
         }
+        if self.active_detail().is_some() {
+            return vec![
+                ("复制 c", KeyCode::Char('c')),
+                ("上一页 PgUp", KeyCode::PageUp),
+                ("下一页 PgDn", KeyCode::PageDown),
+            ];
+        }
         let mut actions = footer_actions(self.focus);
+        actions.sort_by_key(|(_, key)| match key {
+            KeyCode::Char('R' | 'r') => 0,
+            KeyCode::Char('/') => 1,
+            KeyCode::Char('d') => 2,
+            KeyCode::Char('e') => 3,
+            KeyCode::Char('p') => 4,
+            KeyCode::Char('s') => 5,
+            KeyCode::Char('[' | ']') => 6,
+            _ => 7,
+        });
         if self.focus == Focus::Navigation {
             actions.insert(0, ("内容 Tab", KeyCode::Tab));
         }
@@ -1196,6 +1213,9 @@ impl App {
         actions
     }
     pub(super) fn result(&self) -> Option<&Results> {
+        if self.active_detail().is_some() {
+            return None;
+        }
         self.history
             .as_deref()
             .or_else(|| self.results.get(&self.request_key()))
@@ -1444,8 +1464,8 @@ impl App {
             })
     }
     pub(super) fn activate_plugin(&mut self, plugin: Plugin) {
-        self.ensure_plugin_tab(plugin);
         self.select_plugin(plugin);
+        self.ensure_plugin_tab(plugin);
         self.focus = Focus::Content;
         if plugin.is_dump() {
             return;

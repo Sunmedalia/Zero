@@ -314,7 +314,9 @@ fn tiny_screen_ignores_hidden_commands_and_clicks_but_accepts_quit_with_a_dialog
         query: String::new(),
         selected: 0,
     });
-    assert!(app.key(KeyEvent::new(KeyCode::Char('q'), KeyModifiers::NONE)));
+    assert!(!app.key(KeyEvent::new(KeyCode::Char('q'), KeyModifiers::NONE)));
+    assert!(matches!(app.dialog, Some(Dialog::Quit { .. })));
+    assert!(app.key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE)));
 }
 #[test]
 fn theme_arrows_settings_positions_and_scanner_fields_match_the_reference() {

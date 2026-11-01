@@ -171,7 +171,7 @@ impl App {
         ));
         lines.push(Line::styled(
             escaped(error),
-            Style::default().fg(Color::Red),
+            Style::default().fg(color_danger()),
         ));
         if y < inner.bottom() {
             let mut x = inner.x;

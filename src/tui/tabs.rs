@@ -4,6 +4,11 @@ use super::*;
 #[derive(Clone)]
 pub(super) enum OpenTab {
     Plugin(Plugin),
+    Detail {
+        title: String,
+        text: String,
+        scroll: usize,
+    },
     History(PathBuf, Arc<Results>),
 }
 impl App {
@@ -60,6 +65,10 @@ impl App {
                 self.select_plugin(plugin);
                 self.history = None;
             }
+            OpenTab::Detail { .. } => {
+                self.history = None;
+                self.inspector = false;
+            }
             OpenTab::History(path, result) => {
                 self.history_source = Some(path);
                 self.history = Some(result);
@@ -103,6 +112,16 @@ impl App {
                 .retain(|key, _| !key.starts_with(&format!("{name}:")));
         }
         let current = self.active_tab.unwrap_or(0);
+        if current == index
+            && matches!(self.open_tabs[index], OpenTab::Detail { .. })
+            && self.open_tabs.len() > 1
+        {
+            let next = if index > 0 { index - 1 } else { 1 };
+            self.switch_result_tab(next);
+            self.open_tabs.remove(index);
+            self.active_tab = Some(if next > index { next - 1 } else { next });
+            return;
+        }
         self.open_tabs.remove(index);
         if self.open_tabs.is_empty() {
             self.active_tab = None;
@@ -200,9 +219,18 @@ impl App {
                         plugin_label(*p).to_owned()
                     }
                 }
-                OpenTab::History(_, r) => format!("{} 历史", r.plugin),
+                OpenTab::History(_, r) => format!("{} · 历史", r.plugin),
+                OpenTab::Detail { title, .. } => format!("{title} · 详情"),
             };
-            let label = truncate_with_ellipsis(&name, width.saturating_sub(2) as usize);
+            let label = format!(
+                " {} {}",
+                if self.active_tab == Some(index) {
+                    "▎"
+                } else {
+                    "·"
+                },
+                truncate_with_ellipsis(&name, width.saturating_sub(6) as usize)
+            );
             let label = format!(
                 "{}{}",
                 label,
@@ -219,6 +247,11 @@ impl App {
                             color_focus()
                         } else {
                             color_text()
+                        })
+                        .add_modifier(if self.active_tab == Some(index) {
+                            Modifier::BOLD
+                        } else {
+                            Modifier::empty()
                         })
                         .bg(if self.active_tab == Some(index) {
                             color_selected_bg()
@@ -240,5 +273,110 @@ impl App {
                 .push((rect, close, index));
             x += rect.width;
         }
+    }
+}
+
+impl App {
+    pub(super) fn expand_detail_tab(&mut self, text: String, scroll: usize) {
+        self.save_view();
+        let title = self
+            .result()
+            .map(|r| r.plugin.clone())
+            .unwrap_or_else(|| "诊断".into());
+        if let Some(index) = self.open_tabs.iter().position(
+            |tab| matches!(tab, OpenTab::Detail { text: existing, .. } if existing == &text),
+        ) {
+            self.switch_result_tab(index);
+        } else {
+            self.open_tabs.push(OpenTab::Detail {
+                title,
+                text,
+                scroll,
+            });
+            self.switch_result_tab(self.open_tabs.len() - 1);
+        }
+        self.dialog = None;
+        self.back_dialog = None;
+        self.focus = Focus::Content;
+        self.status = "详情标签页 · ↑↓ 滚动 · c 复制 · Ctrl+W 关闭".into();
+    }
+    pub(super) fn active_detail(&self) -> Option<(&str, usize)> {
+        match self.active_tab.and_then(|i| self.open_tabs.get(i)) {
+            Some(OpenTab::Detail { text, scroll, .. }) => Some((text, *scroll)),
+            _ => None,
+        }
+    }
+    pub(super) fn copy_detail(&mut self, text: &str) {
+        use std::io::Write;
+        // Native clipboard first; OSC 52 also supports remote terminal sessions.
+        let candidates: &[(&str, &[&str])] = if cfg!(target_os = "macos") {
+            &[("pbcopy", &[])]
+        } else if cfg!(windows) {
+            &[(
+                "powershell",
+                &["-NoProfile", "-Command", "$input | Set-Clipboard"],
+            )]
+        } else {
+            &[("wl-copy", &[]), ("xclip", &["-selection", "clipboard"])]
+        };
+        for (program, args) in candidates {
+            if let Ok(mut child) = std::process::Command::new(program)
+                .args(*args)
+                .stdin(std::process::Stdio::piped())
+                .stdout(std::process::Stdio::null())
+                .stderr(std::process::Stdio::null())
+                .spawn()
+            {
+                let written = child
+                    .stdin
+                    .take()
+                    .is_some_and(|mut stdin| stdin.write_all(text.as_bytes()).is_ok());
+                if child.wait().is_ok_and(|status| status.success()) && written {
+                    self.status = "详情已复制到剪贴板".into();
+                    return;
+                }
+            }
+        }
+        use base64::Engine;
+        let encoded = base64::engine::general_purpose::STANDARD.encode(text);
+        let mut stdout = std::io::stdout();
+        self.status = if write!(stdout, "\x1b]52;c;{encoded}\x07")
+            .and_then(|_| stdout.flush())
+            .is_ok()
+        {
+            "已发送复制请求到终端剪贴板".into()
+        } else {
+            "复制失败：无法写入终端剪贴板".into()
+        };
+    }
+    pub(super) fn detail_tab_key(&mut self, key: KeyEvent) -> bool {
+        let Some((text, scroll)) = self.active_detail() else {
+            return false;
+        };
+        let rect = self.hits.borrow().result;
+        let maximum = detail_lines(text, rect.width.saturating_sub(2))
+            .len()
+            .saturating_sub(rect.height.saturating_sub(2) as usize);
+        let page = rect.height.saturating_sub(3).max(1) as usize;
+        let next = match key.code {
+            KeyCode::Char('c') => {
+                let text = text.to_owned();
+                self.copy_detail(&text);
+                return true;
+            }
+            KeyCode::Up | KeyCode::Char('k') => scroll.saturating_sub(1),
+            KeyCode::Down | KeyCode::Char('j') => scroll.saturating_add(1).min(maximum),
+            KeyCode::PageUp => scroll.saturating_sub(page),
+            KeyCode::PageDown => scroll.saturating_add(page).min(maximum),
+            KeyCode::Home => 0,
+            KeyCode::End => maximum,
+            _ => return false,
+        };
+        if let Some(OpenTab::Detail { scroll, .. }) =
+            self.active_tab.and_then(|i| self.open_tabs.get_mut(i))
+        {
+            *scroll = next;
+        }
+        true
     }
 }

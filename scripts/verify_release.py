@@ -61,6 +61,9 @@ def smoke_tui(command, cwd, env, timeout):
     process = None
     ready = False
     quit_at = None
+    quit_requested = False
+    confirm_at = None
+    confirmed = False
     try:
         process = subprocess.Popen([command], cwd=cwd, env=env, stdin=slave,
                                    stdout=slave, stderr=slave, start_new_session=True)
@@ -85,10 +88,19 @@ def smoke_tui(command, cwd, env, timeout):
                     ready = True
                     # Let the first native frame finish before sending input.
                     quit_at = time.monotonic() + 0.5
+                if quit_requested and not confirmed and confirm_at is None and '确认退出'.encode() in plain:
+                    confirm_at = time.monotonic() + 0.2
             if quit_at is not None and time.monotonic() >= quit_at:
                 os.write(master, b'q')
+                quit_requested = True
                 quit_at = None
                 deadline = time.monotonic() + timeout
+            if confirm_at is not None and time.monotonic() >= confirm_at:
+                if process.poll() is not None:
+                    raise ValueError('TUI exited before quit confirmation')
+                os.write(master, b'\r')
+                confirmed = True
+                confirm_at = None
             if process.poll() is not None:
                 break
         if process.poll() is None:
@@ -102,8 +114,8 @@ def smoke_tui(command, cwd, env, timeout):
             raise ValueError('terminal flags were not restored')
         if b'\x1b[?1049l' not in output or b'\x1b[?25h' not in output:
             raise ValueError('alternate screen or cursor was not restored')
-        if not ready or process.returncode != 0:
-            raise ValueError(f'TUI readiness={ready}, exit={process.returncode}')
+        if not ready or not confirmed or process.returncode != 0:
+            raise ValueError(f'TUI readiness={ready}, confirmed={confirmed}, exit={process.returncode}')
     except (OSError, ValueError) as error:
         transcript = ANSI.sub(b'', bytes(output)).decode('utf-8', errors='replace')[-12000:]
         raise ValueError(f'{error}\nTUI transcript:\n{transcript}') from error
@@ -147,7 +159,7 @@ def verify(archive, timeout):
         work = temporary / 'unrelated-workdir'
         work.mkdir()
         smoke_tui(str(release / 'zero'), work, env, timeout)
-        print(f'{archive.name}: native TUI ready + q exit (release and unrelated cwd; empty PATH)')
+        print(f'{archive.name}: native TUI ready + q/Enter confirmed exit (release and unrelated cwd; empty PATH)')
 
 
 def main():

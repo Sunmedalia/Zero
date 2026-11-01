@@ -26,6 +26,39 @@ impl App {
         } else {
             body
         };
+        if let Some((text, scroll)) = self.active_detail() {
+            self.hits.borrow_mut().workbench = main;
+            self.hits.borrow_mut().result = main;
+            let lines = detail_lines(text, main.width.saturating_sub(2));
+            let total = lines.len();
+            let scroll = scroll.min(total.saturating_sub(main.height.saturating_sub(2) as usize));
+            frame.render_widget(
+                Paragraph::new(
+                    lines
+                        .into_iter()
+                        .skip(scroll)
+                        .map(Line::raw)
+                        .collect::<Vec<_>>(),
+                )
+                .block(panel().border_style(self.focus_style(Focus::Content))),
+                main,
+            );
+            self.draw_scrollbar(
+                frame,
+                main,
+                total,
+                main.height.saturating_sub(2) as usize,
+                scroll,
+                ScrollTarget::DetailTab,
+            );
+            if main.width > 2 {
+                self.draw_result_tabs(frame, Rect::new(main.x + 1, main.y, main.width - 2, 1));
+            }
+            if self.hits.borrow().menu.width == 0 {
+                self.draw_plugin_toggle(frame, main, " >> ");
+            }
+            return;
+        }
         if layout.inspector() && self.inspector {
             let columns =
                 Layout::horizontal([Constraint::Min(50), Constraint::Length(38)]).split(main);
@@ -281,19 +314,31 @@ impl App {
         }
         if main.width > 20 && main.height > 7 && self.image.is_none() && self.result().is_none() {
             let rect = Rect::new(
-                main.x + 2,
+                main.x + main.width.saturating_sub(28) / 2,
                 main.y + 6,
-                main.width.saturating_sub(4).min(24),
-                1,
+                28.min(main.width.saturating_sub(2)),
+                3,
             );
             frame.render_widget(
-                Paragraph::new("[选择镜像 i]").style(Style::default().fg(color_accent())),
+                Paragraph::new("打开资源库 · 镜像 →")
+                    .alignment(ratatui::layout::Alignment::Center)
+                    .style(
+                        Style::default()
+                            .fg(color_focus())
+                            .bg(color_selected_bg())
+                            .add_modifier(Modifier::BOLD),
+                    )
+                    .block(
+                        panel()
+                            .style(Style::default().fg(color_focus()).bg(color_selected_bg()))
+                            .border_style(Style::default().fg(color_accent())),
+                    ),
                 rect,
             );
             self.hits
                 .borrow_mut()
                 .buttons
-                .push((rect, KeyCode::Char('i')));
+                .push((rect, KeyCode::Char('1')));
         }
         if main.width > 2 {
             self.draw_result_tabs(frame, Rect::new(main.x + 1, main.y, main.width - 2, 1));
@@ -301,9 +346,14 @@ impl App {
                 frame.render_widget(
                     Paragraph::new(origin).style(Style::default().fg(color_muted())),
                     Rect::new(
-                        main.x + 2,
+                        main.x
+                            + if self.hits.borrow().menu.width == 0 {
+                                5
+                            } else {
+                                1
+                            },
                         main.bottom().saturating_sub(1),
-                        main.width.saturating_sub(4),
+                        main.width.saturating_sub(6),
                         1,
                     ),
                 );
@@ -375,7 +425,16 @@ impl App {
         if area.width < 6 || area.height == 0 {
             return;
         }
-        let rect = Rect::new(area.right() - 5, area.bottom() - 1, 4, 1);
+        let rect = Rect::new(
+            if label.contains(">>") {
+                area.x
+            } else {
+                area.right() - 5
+            },
+            area.bottom() - 1,
+            4,
+            1,
+        );
         frame.render_widget(
             Paragraph::new(label).style(Style::default().fg(color_accent()).bg(color_surface())),
             rect,

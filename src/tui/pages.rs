@@ -7,19 +7,9 @@
 use super::*;
 
 impl App {
-    /// Height the footer needs: a status line, then either the resource
-    /// toolbar or the wrapped action strip.
-    ///
-    /// The resource toolbar carries the page's actions, so it gets the toolbar
-    /// budget; it never takes more than a third of the screen, so a short
-    /// terminal keeps its list and `更多 ?` covers whatever does not fit.
-    fn footer_height(&self, width: u16, height: u16) -> u16 {
-        if self.page == Page::Assets {
-            let wanted = 2 + action_rows(&toolbar_actions(self.section, self.job.is_some()), width);
-            wanted.min((height / 3).max(3))
-        } else {
-            2
-        }
+    /// One status row and exactly one action row on every page.
+    fn footer_height(&self, _width: u16, _height: u16) -> u16 {
+        2
     }
     /// Record where the header's two clickable fields are.
     ///
@@ -48,8 +38,12 @@ impl App {
         );
         if frame.area().width < 60 || frame.area().height < 16 {
             frame.render_widget(
-                Paragraph::new("终端过小，请调整至至少 60×16 · q 退出")
-                    .style(Style::default().fg(color_text())),
+                Paragraph::new(if matches!(self.dialog, Some(Dialog::Quit { .. })) {
+                    "确定退出？Enter 确认 · Esc 取消"
+                } else {
+                    "终端过小，请调整至至少 60×16 · q 退出"
+                })
+                .style(Style::default().fg(color_text())),
                 frame.area(),
             );
             return;

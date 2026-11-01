@@ -194,10 +194,16 @@ impl App {
         };
         for y in popup.top()..popup.bottom() {
             for x in popup.left()..popup.right() {
+                let cell = &mut buffer[(x, y)];
+                if cell.bg == Color::Reset {
+                    cell.set_bg(color_surface());
+                }
+                if cell.fg == Color::Reset {
+                    cell.set_fg(color_text());
+                }
                 if !edge(x, y) {
                     continue;
                 }
-                let cell = &mut buffer[(x, y)];
                 if cell
                     .symbol()
                     .chars()
@@ -208,7 +214,7 @@ impl App {
                 }
             }
         }
-        let shadow = Color::Rgb(8, 12, 15);
+        let shadow = color_border();
         let right = popup.right();
         let bottom = popup.bottom();
         if right < bounds.right() {

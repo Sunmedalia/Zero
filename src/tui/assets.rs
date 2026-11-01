@@ -13,22 +13,15 @@ impl App {
         let more = " 更多 ? ";
         let more_width = Span::raw(more).width() as u16;
         let mut x = area.x;
-        let mut y = area.y;
+        let y = area.y;
+        if area.height == 0 {
+            return;
+        }
+        let count = fitting_actions(actions, area.width);
         let mut shown = 0usize;
-        for (label, key) in actions.iter().copied() {
+        for (label, key) in actions.iter().copied().take(count) {
             let text = format!(" {label} ");
             let width = Span::raw(&text).width() as u16;
-            if width > area.width {
-                continue;
-            }
-            // Reserve the escape hatch on whichever row is being filled.
-            if x + width + more_width > area.right() {
-                x = area.x;
-                y += 1;
-            }
-            if y >= area.bottom() {
-                break;
-            }
             let rect = Rect::new(x, y, width, 1);
             let disabled = Command::from_key(Page::Assets, key)
                 .and_then(|command| self.command_disabled(command));
@@ -55,10 +48,6 @@ impl App {
             shown += 1;
         }
         if shown < actions.len() {
-            // The reservation during placement guarantees room on the row that
-            // was being filled, unless that row ended exactly at the edge.
-            // Clamp to the last drawable row: `y` may have advanced past the
-            // area when the previous row filled exactly.
             let my = y.min(area.bottom().saturating_sub(1));
             let mx = if area.right().saturating_sub(x) >= more_width {
                 x
@@ -80,23 +69,9 @@ impl App {
         }
     }
     pub(super) fn draw_asset_toolbar(&self, frame: &mut Frame, area: Rect) {
-        let toolbar = Block::default()
-            .borders(Borders::TOP)
-            .border_style(Style::default().fg(color_border()))
-            .title(Line::from(vec![
-                Span::styled(" 操作 ", Style::default().fg(color_muted())),
-                Span::styled(
-                    format!("· {} · Tab 切换区域 ", self.section.title()),
-                    Style::default()
-                        .fg(color_accent())
-                        .add_modifier(Modifier::BOLD),
-                ),
-            ]));
-        let buttons = toolbar.inner(area);
-        frame.render_widget(toolbar, area);
         self.draw_asset_buttons(
             frame,
-            buttons,
+            area,
             self.section,
             &toolbar_actions(self.section, self.job.is_some()),
         );

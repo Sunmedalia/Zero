@@ -489,7 +489,7 @@ pub(super) const ACTIONS: &[Action] = &[
         )
     },
     Action {
-        footer_focus: NAV_FOCUS,
+        footer_focus: NAV_FOCUS | CONTENT_FOCUS,
         ..action(
             Command::Rerun,
             "重新分析 r",
@@ -726,33 +726,18 @@ fn footer_actions(focus: Focus) -> Vec<(&'static str, KeyCode)> {
         })
         .collect()
 }
-/// Rows a wrapped action strip needs at `width`, so the layout can reserve the
-/// exact footer height before drawing.
-/// Rows the resource toolbar needs at `width`, capped so the chrome cannot grow
-/// past the content it describes.
-///
-/// An uncapped toolbar took four rows on a 60-column terminal, leaving the list
-/// eight. Three rows hold every resource action at that width; anything past
-/// the cap stays reachable through `更多 ?`, which the strip reserves room for.
-const TOOLBAR_ROWS: u16 = 3;
-fn action_rows(actions: &[(&'static str, KeyCode)], width: u16) -> u16 {
-    // Mirrors the renderer: every row keeps room for `更多 ?` so the height
-    // reserved here is the height actually needed.
-    let more = Span::raw(" 更多 ? ").width() as u16;
-    let mut rows = 1;
-    let mut x = 0;
-    for (label, _) in actions {
-        let length = Span::raw(format!(" {label} ")).width() as u16;
-        if length > width {
-            continue;
-        }
-        if x + length + more > width {
-            rows += 1;
-            x = 0;
-        }
-        x += length + 1;
-    }
-    rows.min(TOOLBAR_ROWS)
+/// Number of leading actions that fit, reserving More only on overflow.
+fn fitting_actions(actions: &[(&str, KeyCode)], width: u16) -> usize {
+    let widths = actions.iter().map(|(label, _)| Span::raw(format!(" {label} ")).width() as u16).collect::<Vec<_>>();
+    let total = widths.iter().map(|w| u32::from(*w)).sum::<u32>() + widths.len().saturating_sub(1) as u32;
+    if total <= u32::from(width) { return actions.len(); }
+    let budget = width.saturating_sub(Span::raw(" 更多 ? ").width() as u16);
+    let mut used = 0;
+    widths.iter().take_while(|&&w| {
+        if used + w + 1 > budget { return false; }
+        used += w + 1;
+        true
+    }).count()
 }
 /// Palette entries for a page, focus and — on the resource page — section.
 fn command_matches(

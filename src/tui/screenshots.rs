@@ -189,6 +189,16 @@ pub fn run(image: &Path, symbols: &Path, output: &Path) -> Result<()> {
     settle(&mut app)?;
     app.settings.theme = "light".into();
     shot(&app, output, "theme-light.svg", "zero — lsmod · 纸白 theme")?;
+    app.settings.theme = "dusk".into();
+    shot(&app, output, "theme-dusk.svg", "zero — lsmod · 暮紫 theme")?;
+    app.open_detail();
+    shot(
+        &app,
+        output,
+        "details.svg",
+        "zero — result details · copy and expand",
+    )?;
+    app.dialog = None;
     app.settings.theme = "slate".into();
     app.run_command(Command::KernelDiagnostics);
     settle(&mut app)?;

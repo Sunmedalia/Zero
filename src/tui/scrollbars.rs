@@ -8,6 +8,7 @@ pub(super) enum ScrollTarget {
     CacheScopes,
     CacheItems,
     Detail,
+    DetailTab,
     Popup,
 }
 #[derive(Clone)]
@@ -85,6 +86,13 @@ impl App {
             }
             ScrollTarget::CacheItems => self.cache_page.row = index,
             ScrollTarget::Detail => self.detail_scroll = index,
+            ScrollTarget::DetailTab => {
+                if let Some(OpenTab::Detail { scroll, .. }) =
+                    self.active_tab.and_then(|i| self.open_tabs.get_mut(i))
+                {
+                    *scroll = index;
+                }
+            }
             ScrollTarget::Popup => {
                 if let Some(
                     Dialog::KernelDiagnostics { scroll }
@@ -117,7 +125,10 @@ impl App {
                 (y as usize * (drag.bar.total - drag.bar.viewport) + travel as usize / 2)
                     / travel as usize
             };
-            let index = if matches!(drag.bar.target, ScrollTarget::Detail | ScrollTarget::Popup) {
+            let index = if matches!(
+                drag.bar.target,
+                ScrollTarget::Detail | ScrollTarget::DetailTab | ScrollTarget::Popup
+            ) {
                 offset
             } else if offset == 0 {
                 0

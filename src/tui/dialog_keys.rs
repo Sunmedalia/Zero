@@ -783,8 +783,17 @@ impl App {
         self.dialog = Some(dialog);
     }
     pub(super) fn detail_key(&mut self, mut dialog: Dialog, key: KeyEvent) {
+        if let Dialog::Detail { text, scroll, .. } = &dialog {
+            if key.code == KeyCode::Char('t') {
+                self.expand_detail_tab(text.clone(), *scroll);
+                return;
+            }
+            if key.code == KeyCode::Char('c') {
+                self.copy_detail(text);
+            }
+        }
         {
-            let Dialog::Detail { text, scroll } = &mut dialog else {
+            let Dialog::Detail { text, scroll, .. } = &mut dialog else {
                 return;
             };
             // The popup rect describes the last drawn frame. A dialog opened in

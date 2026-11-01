@@ -15,6 +15,7 @@ enum InputKind {
 }
 #[derive(Clone)]
 enum Dialog {
+    Quit { confirm: bool },
     GenerateSymbols {
         automatic: bool,
         fields: [String; 3],
@@ -75,6 +76,7 @@ enum Dialog {
     },
     KernelDiagnostics { scroll: usize },
     Detail {
+        title: &'static str,
         text: String,
         scroll: usize,
     },
@@ -365,8 +367,6 @@ pub struct App {
     views: HashMap<String, View>,
     /// Enter on a not-yet-selected asset: open the analysis page once matching is ready.
     enter_when_ready: bool,
-    /// First `q` during a running task only arms the quit.
-    quit_armed: bool,
 }
 
 #[derive(Default)]

@@ -87,7 +87,7 @@ pub(super) fn format_duration(seconds: f64) -> String {
 }
 impl App {
     pub(super) fn current_origin(&self) -> Option<&str> {
-        if self.history.is_some() {
+        if self.history.is_some() || self.active_detail().is_some() {
             None
         } else {
             self.result_origins

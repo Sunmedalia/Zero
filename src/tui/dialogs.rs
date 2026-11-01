@@ -17,6 +17,7 @@ impl App {
             Dialog::AssetDetail { .. } | Dialog::RemoteDetail { .. } => {
                 screen.width.saturating_sub(6) as usize
             }
+            Dialog::Quit { .. } => 20,
             Dialog::System { .. } => 12,
             Dialog::Sort { .. } => self.result().map_or(0, |r| {
                 r.columns
@@ -75,6 +76,7 @@ impl App {
         /// Frame borders plus a title row.
         const CHROME: u16 = 2;
         let rows = match dialog {
+            Dialog::Quit { .. } => 5,
             Dialog::System { .. } => 2,
             Dialog::Sort { .. } => self.result().map_or(4, |r| r.columns.len()) as u16,
             Dialog::Symbols { labels, .. } => labels.len() as u16,
@@ -125,7 +127,53 @@ impl App {
             self.hits.borrow_mut().buttons.clear();
             self.hits.borrow_mut().scrollbars.clear();
             frame.render_widget(Clear, popup);
+            frame.render_widget(
+                Block::default().style(Style::default().fg(color_text()).bg(color_raised())),
+                popup,
+            );
             match dialog {
+                Dialog::Quit { confirm } => {
+                    frame.render_widget(
+                        Paragraph::new(if self.job.is_some() {
+                            "任务仍在运行。\n退出将取消任务并关闭 ZERO。"
+                        } else {
+                            "确定退出 ZERO？"
+                        })
+                        .alignment(ratatui::layout::Alignment::Center)
+                        .block(
+                            panel()
+                                .title(" 退出 ZERO ")
+                                .title_bottom(" Tab 切换 · Enter 选择 "),
+                        )
+                        .style(Style::default().fg(color_text()).bg(color_surface())),
+                        popup,
+                    );
+                    let y = popup.bottom().saturating_sub(3);
+                    let buttons_left = popup.x + popup.width.saturating_sub(24) / 2;
+                    for (label, key, selected, x) in [
+                        (" 确认退出 ", KeyCode::Char('y'), *confirm, buttons_left),
+                        (" 取消 Esc ", KeyCode::Esc, !*confirm, buttons_left + 14),
+                    ] {
+                        let rect = Rect::new(x, y, Span::raw(label).width() as u16, 1);
+                        frame.render_widget(
+                            Paragraph::new(label).style(
+                                Style::default()
+                                    .fg(if selected {
+                                        color_focus()
+                                    } else {
+                                        color_muted()
+                                    })
+                                    .bg(if selected {
+                                        color_selected_bg()
+                                    } else {
+                                        color_raised()
+                                    }),
+                            ),
+                            rect,
+                        );
+                        self.hits.borrow_mut().buttons.push((rect, key));
+                    }
+                }
                 Dialog::KernelDiagnostics { scroll } => {
                     self.draw_kernel_diagnostics(frame, popup, *scroll)
                 }
@@ -732,7 +780,11 @@ impl App {
                         x += width + 1;
                     }
                 }
-                Dialog::Detail { text, scroll } => {
+                Dialog::Detail {
+                    title,
+                    text,
+                    scroll,
+                } => {
                     let lines = detail_lines(text, popup.width.saturating_sub(2));
                     let maximum = lines
                         .len()
@@ -745,10 +797,71 @@ impl App {
                                 .map(Line::raw)
                                 .collect::<Vec<_>>(),
                         )
-                        .block(panel().title("详情 · ↑↓ / PgUp PgDn · Esc 关闭")),
+                        .block(panel().title_bottom(" ↑↓ / PgUp PgDn 滚动 ")),
                         popup,
                     );
+                    let title = if *title == "分析诊断" {
+                        format!(
+                            "分析诊断 · {}",
+                            self.result()
+                                .map_or_else(|| "当前结果".into(), |r| escaped(&r.plugin))
+                        )
+                    } else {
+                        (*title).to_owned()
+                    };
+                    let expand = " ⤢ t ";
+                    let copy = " 复制 c ";
+                    let expand_width = Span::raw(expand).width() as u16;
+                    let copy_width = Span::raw(copy).width() as u16;
+                    let actions_x = popup
+                        .right()
+                        .saturating_sub(2 + expand_width + 1 + copy_width);
+                    let header = Rect::new(popup.x + 1, popup.y, popup.width.saturating_sub(2), 1);
+                    frame.render_widget(
+                        Paragraph::new("─".repeat(header.width as usize))
+                            .style(Style::default().fg(color_accent()).bg(color_surface())),
+                        header,
+                    );
+                    frame.render_widget(
+                        Paragraph::new(format!(
+                            " {} ",
+                            truncate_with_ellipsis(
+                                &title,
+                                actions_x.saturating_sub(popup.x + 4) as usize
+                            )
+                        ))
+                        .style(
+                            Style::default()
+                                .fg(color_focus())
+                                .bg(color_surface())
+                                .add_modifier(Modifier::BOLD),
+                        ),
+                        Rect::new(
+                            popup.x + 2,
+                            popup.y,
+                            actions_x.saturating_sub(popup.x + 3),
+                            1,
+                        ),
+                    );
+                    for (label, key, x, width) in [
+                        (copy, KeyCode::Char('c'), actions_x, copy_width),
+                        (
+                            expand,
+                            KeyCode::Char('t'),
+                            actions_x + copy_width + 1,
+                            expand_width,
+                        ),
+                    ] {
+                        let rect = Rect::new(x, popup.y, width, 1);
+                        frame.render_widget(
+                            Paragraph::new(label)
+                                .style(Style::default().fg(color_focus()).bg(color_selected_bg())),
+                            rect,
+                        );
+                        self.hits.borrow_mut().buttons.push((rect, key));
+                    }
                 }
+
                 Dialog::Input {
                     kind,
                     text,
@@ -774,7 +887,7 @@ impl App {
                         Paragraph::new(Line::from(Span::styled(
                             escaped(text),
                             if *selected {
-                                Style::default().bg(color_selected_bg()).fg(Color::White)
+                                Style::default().bg(color_selected_bg()).fg(color_focus())
                             } else {
                                 Style::default()
                             },
@@ -859,7 +972,10 @@ impl App {
             }
             if !matches!(
                 dialog,
-                Dialog::Input { .. } | Dialog::Dump { .. } | Dialog::GenerateSymbols { .. }
+                Dialog::Quit { .. }
+                    | Dialog::Input { .. }
+                    | Dialog::Dump { .. }
+                    | Dialog::GenerateSymbols { .. }
             ) {
                 let cancel = Rect::new(
                     popup.right().saturating_sub(8).max(popup.x),
@@ -869,8 +985,9 @@ impl App {
                 );
                 frame.render_widget(
                     Paragraph::new(
-                        if matches!(dialog, Dialog::KernelDiagnostics { .. })
-                            && !self.diagnosis_running
+                        if matches!(dialog, Dialog::Detail { .. })
+                            || (matches!(dialog, Dialog::KernelDiagnostics { .. })
+                                && !self.diagnosis_running)
                         {
                             "[关闭]"
                         } else {
@@ -884,7 +1001,7 @@ impl App {
             }
             Self::frame_popup(frame, popup);
             let detail = match dialog {
-                Dialog::Detail { text, scroll } => Some((text.clone(), *scroll)),
+                Dialog::Detail { text, scroll, .. } => Some((text.clone(), *scroll)),
                 Dialog::KernelDiagnostics { scroll } => {
                     Some((self.kernel_diagnostic_text(), *scroll))
                 }

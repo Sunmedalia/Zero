@@ -248,6 +248,9 @@ impl App {
         }
     }
     pub(super) fn save_view(&mut self) {
+        if self.active_detail().is_some() {
+            return;
+        }
         self.views.insert(
             self.view_key(),
             View {

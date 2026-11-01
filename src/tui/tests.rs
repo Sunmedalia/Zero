@@ -2042,16 +2042,29 @@ fn resource_actions_are_unique_and_import_stays_accessible_on_small_screens() {
                 );
             }
             for key in [KeyCode::Char('x'), KeyCode::Char('M'), KeyCode::Char('m')] {
-                assert_eq!(
-                    hits.asset_buttons
-                        .iter()
-                        .filter(|(_, _, action)| *action == key)
-                        .count(),
-                    1,
+                let visible = hits
+                    .asset_buttons
+                    .iter()
+                    .any(|(_, _, action)| *action == key);
+                assert!(
+                    visible
+                        || (hits
+                            .asset_buttons
+                            .iter()
+                            .any(|(_, _, action)| *action == KeyCode::Char('?'))
+                            && app
+                                .available_commands("")
+                                .iter()
+                                .any(|(_, action)| *action == key)),
                     "{width}x{height}\n{rendered}"
                 );
                 assert!(!hits.buttons.iter().any(|(_, action)| *action == key));
             }
+            assert!(
+                hits.asset_buttons
+                    .iter()
+                    .all(|(rect, _, _)| rect.y == height - 1)
+            );
             assert!(!hits.asset_buttons.iter().any(|(_, _, key)| matches!(
                 key,
                 KeyCode::Enter | KeyCode::Char('i' | 'y' | 'K' | 'b')
@@ -2090,7 +2103,8 @@ fn resource_actions_are_unique_and_import_stays_accessible_on_small_screens() {
                 assert!(
                     hits.asset_buttons
                         .iter()
-                        .any(|(_, target, key)| *target == section && *key == KeyCode::Char('g'))
+                        .any(|(_, target, key)| *target == section
+                            && matches!(key, KeyCode::Char('g' | '?')))
                 );
             } else {
                 let import = hits
@@ -2134,6 +2148,11 @@ fn resource_toolbar_dispatches_settings_commands_and_cancellation() {
     app.switch_section(AssetSection::Images);
     let mut terminal = Terminal::new(TestBackend::new(60, 18)).unwrap();
     for key in [KeyCode::Char(','), KeyCode::Char('?')] {
+        terminal = Terminal::new(TestBackend::new(
+            if key == KeyCode::Char(',') { 500 } else { 60 },
+            18,
+        ))
+        .unwrap();
         terminal.draw(|f| app.draw(f)).unwrap();
         let rect = app
             .hits
@@ -3254,21 +3273,31 @@ fn enter_intent_is_dropped_on_cancel_and_when_symbols_are_missing() {
     assert!(!app.enter_when_ready);
 }
 #[test]
-fn quit_needs_confirmation_only_while_a_task_runs() {
-    let mut app = app();
-    assert!(app.key(KeyEvent::new(KeyCode::Char('q'), KeyModifiers::NONE)));
+fn quit_always_requires_confirmation_and_cancel_preserves_the_task() {
+    let mut idle = app();
+    assert!(!idle.key(KeyEvent::new(KeyCode::Char('q'), KeyModifiers::NONE)));
+    assert!(matches!(idle.dialog, Some(Dialog::Quit { .. })));
+    assert!(!idle.key(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE)));
+    assert!(idle.dialog.is_none());
+    assert!(!idle.key(KeyEvent::new(KeyCode::Char('q'), KeyModifiers::NONE)));
+    assert!(idle.key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE)));
     let (_dir, mut app) = preparation_fixture();
     app.initialize(Default::default());
     app.page = Page::Assets;
     assert!(app.job.is_some());
+    let job = app.job.as_ref().unwrap().clone();
     assert!(!app.key(KeyEvent::new(KeyCode::Char('q'), KeyModifiers::NONE)));
-    assert!(app.status.contains("再按 q"));
-    app.key(KeyEvent::new(KeyCode::Down, KeyModifiers::NONE));
     assert!(!app.key(KeyEvent::new(KeyCode::Char('q'), KeyModifiers::NONE)));
-    assert!(app.key(KeyEvent::new(KeyCode::Char('q'), KeyModifiers::NONE)));
+    assert!(!app.key(KeyEvent::new(KeyCode::Tab, KeyModifiers::NONE)));
+    assert!(!app.key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE)));
+    assert!(app.dialog.is_none());
+    assert!(job.check().is_ok());
+    assert!(!app.key(KeyEvent::new(KeyCode::Char('q'), KeyModifiers::NONE)));
+    assert!(app.key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE)));
     assert!(app.key(KeyEvent::new(KeyCode::Char('c'), KeyModifiers::CONTROL)));
     finish_test_job(&mut app);
 }
+
 #[test]
 fn escape_clears_content_filter_before_cancelling() {
     let mut app = app();
@@ -4194,6 +4223,7 @@ fn every_screen_fits_the_terminal() {
         },
         Dialog::Settings { selected: 0 },
         Dialog::Detail {
+            title: "详情",
             text: "line\n".repeat(40),
             scroll: 0,
         },

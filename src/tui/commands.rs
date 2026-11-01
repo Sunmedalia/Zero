@@ -7,6 +7,7 @@ use super::*;
 impl App {
     pub(super) fn open_task_log(&mut self) {
         self.dialog = Some(Dialog::Detail {
+            title: "详情",
             text: format!(
                 "任务日志（最近 200 条）\n\n{}",
                 self.logs
