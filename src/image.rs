@@ -993,10 +993,6 @@ impl<'a> VirtualMemory<'a> {
             linux32: None,
         }
     }
-    #[cfg_attr(
-        not(test),
-        expect(dead_code, reason = "Linux32 discovery is not yet connected")
-    )]
     pub(crate) fn new_linux32(image: &'a Image, root: u64, pae: bool) -> Self {
         let mut vm = Self::new(image, root);
         let kind = if pae {

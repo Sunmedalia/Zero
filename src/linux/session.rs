@@ -346,7 +346,7 @@ impl Session {
             root
         };
         let engine = Linux {
-            vm: VirtualMemory::new(&image, root),
+            vm: super::discover::kernel_vm(&image, &symbol, root),
             isf: &symbol,
         };
         let result = if request.plugin == Plugin::Lsmod && dump.is_some() {

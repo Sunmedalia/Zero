@@ -1,5 +1,22 @@
 //! Kernel page-table discovery and validation against the complete banner.
 use super::*;
+fn physical_field(image: &Image, isf: &Isf, at: u64, structure: &str, field: &str) -> Result<u64> {
+    let width = isf.size(structure, field)?;
+    ensure!(matches!(width, 1 | 2 | 4 | 8), "物理字段宽度无效");
+    let mut bytes = [0u8; 8];
+    image.read(at, &mut bytes[..width])?;
+    Ok(u64::from_le_bytes(bytes))
+}
+pub(super) fn kernel_vm<'a>(image: &'a Image, isf: &Isf, root: u64) -> VirtualMemory<'a> {
+    if isf.data["base_types"]["pointer"]["size"].as_u64() == Some(4) {
+        let pae = isf.data["symbols"]["pkmap_count"]["type"]["count"]
+            .as_u64()
+            .is_some_and(|count| matches!(count, 512 | 2048));
+        VirtualMemory::new_linux32(image, root, pae)
+    } else {
+        VirtualMemory::new(image, root)
+    }
+}
 pub fn discover(image: &Image, isf: &Isf, job: &Job) -> Result<u64> {
     if isf.data["metadata"]["linux"]["architecture"].as_str() == Some("AArch64")
         || isf.data["metadata"]["zero"]["architecture"].as_str() == Some("aarch64")
@@ -7,6 +24,7 @@ pub fn discover(image: &Image, isf: &Isf, job: &Job) -> Result<u64> {
     {
         return discover_arm64(image, isf, job);
     }
+    let linux32 = isf.data["base_types"]["pointer"]["size"].as_u64() == Some(4);
     // Physical placement and virtual KASLR are independent. Relative symbol
     // offsets locate the static objects, but their pointers use runtime VAs.
     let banner = isf.raw_address("linux_banner")?;
@@ -46,7 +64,13 @@ pub fn discover(image: &Image, isf: &Isf, job: &Job) -> Result<u64> {
             let inferred = (|| -> Result<u64> {
                 let init_phys = u64::try_from(*physical as i128 + init as i128 - banner as i128)
                     .context("init_task 物理地址溢出")?;
-                let parent = image.u64(add(init_phys, parent_offset)?)?;
+                let parent = physical_field(
+                    image,
+                    isf,
+                    add(init_phys, parent_offset)?,
+                    "task_struct",
+                    "real_parent",
+                )?;
                 ensure!(
                     parent != 0 && (parent >> 47 == 0 || parent >> 47 == 0x1ffff),
                     "init_task.real_parent 非 canonical 地址: init_phys={init_phys:#x}, real_parent_offset={parent_offset:#x}, value={parent:#x}"
@@ -69,7 +93,8 @@ pub fn discover(image: &Image, isf: &Isf, job: &Job) -> Result<u64> {
         ) {
             let inferred = (|| -> Result<u64> {
                 let init_phys = u64::try_from(*physical as i128 + init as i128 - banner as i128)?;
-                let pointer = image.u64(add(init_phys, offset)?)?;
+                let pointer =
+                    physical_field(image, isf, add(init_phys, offset)?, "task_struct", "files")?;
                 ensure!(
                     pointer != 0 && (pointer >> 47 == 0 || pointer >> 47 == 0x1ffff),
                     "init_task.files 指针无效"
@@ -84,7 +109,12 @@ pub fn discover(image: &Image, isf: &Isf, job: &Job) -> Result<u64> {
                 slides.push(slide);
             }
         }
-        for name in ["init_top_pgt", "init_level4_pgt", "swapper_pg_dir"] {
+        let roots: &[&str] = if linux32 {
+            &["swapper_pg_dir"]
+        } else {
+            &["init_top_pgt", "init_level4_pgt", "swapper_pg_dir"]
+        };
+        for &name in roots {
             job.check()?;
             if let Ok(address) = isf.raw_address(name) {
                 let candidate = *physical as i128 + address as i128 - banner as i128;
@@ -92,7 +122,7 @@ pub fn discover(image: &Image, isf: &Isf, job: &Job) -> Result<u64> {
                     continue;
                 }
                 let root = candidate as u64;
-                let vm = VirtualMemory::new(image, root);
+                let vm = kernel_vm(image, isf, root);
                 for &slide in &slides {
                     job.check()?;
                     let runtime_banner = banner.wrapping_add(slide);
@@ -121,22 +151,22 @@ pub fn discover(image: &Image, isf: &Isf, job: &Job) -> Result<u64> {
                             "init_task 名称无效"
                         );
                         let head = add(runtime_init, tasks)?;
-                        let n = vm.uint(add(head, next)?, 8).with_context(|| {
+                        let n = vm.uint(add(head, next)?, isf.size("list_head", "next")?).with_context(|| {
                             format!("init_task.tasks.next 读取失败: init_task={runtime_init:#x}, head={head:#x}, next_offset={next:#x}")
                         });
-                        let p = vm.uint(add(head, prev)?, 8).with_context(|| {
+                        let p = vm.uint(add(head, prev)?, isf.size("list_head", "prev")?).with_context(|| {
                             format!("init_task.tasks.prev 读取失败: init_task={runtime_init:#x}, head={head:#x}, prev_offset={prev:#x}")
                         });
                         let n_prev = n
                             .as_ref()
                             .map_err(|e| anyhow::anyhow!("{e:#}"))
                             .and_then(|n| add(*n, prev))
-                            .and_then(|a| vm.uint(a, 8));
+                            .and_then(|a| vm.uint(a, isf.size("list_head", "prev")?));
                         let p_next = p
                             .as_ref()
                             .map_err(|e| anyhow::anyhow!("{e:#}"))
                             .and_then(|p| add(*p, next))
-                            .and_then(|a| vm.uint(a, 8));
+                            .and_then(|a| vm.uint(a, isf.size("list_head", "next")?));
                         let describe = |value: &Result<u64>| match value {
                             Ok(value) => format!("{value:#x}"),
                             Err(error) => format!("读取失败({error:#})"),
@@ -160,7 +190,7 @@ pub fn discover(image: &Image, isf: &Isf, job: &Job) -> Result<u64> {
                             ensure!(
                                 vm.uint(
                                     add(runtime_init, isf.offset("task_struct", "files")?)?,
-                                    8
+                                    isf.size("task_struct", "files")?
                                 )? == files,
                                 "init_files 运行时指针不匹配"
                             );
@@ -213,8 +243,9 @@ pub fn discover(image: &Image, isf: &Isf, job: &Job) -> Result<u64> {
     let ((root, slide), diagnostics) = valid.into_iter().next().unwrap();
     isf.slide.store(slide, std::sync::atomic::Ordering::Relaxed);
     *isf.validation_diagnostics.write().unwrap() = diagnostics;
+    let architecture = if linux32 { "x86 32 位" } else { "x86_64" };
     job.report(format!(
-        "x86_64 页表已验证 · DTB {root:#x} · 重定位 {slide:#x}{}",
+        "{architecture} 页表已验证 · DTB {root:#x} · 重定位 {slide:#x}{}",
         if isf.validation_diagnostics.read().unwrap().is_empty() {
             ""
         } else {
@@ -242,7 +273,7 @@ fn swapper_banner_candidates(image: &Image, isf: &Isf, job: &Job) -> Result<Vec<
         let check = (|| -> Result<u64> {
             let init = hit.checked_sub(comm).context("swapper 地址下溢")?;
             ensure!(
-                image.u64(add(init, pid)?)? & 0xffff_ffff == 0,
+                physical_field(image, isf, add(init, pid)?, "task_struct", "pid")? == 0,
                 "swapper PID 非 0"
             );
             let mut name = [0; 10];
@@ -251,7 +282,7 @@ fn swapper_banner_candidates(image: &Image, isf: &Isf, job: &Job) -> Result<Vec<
                 name.starts_with(b"swapper\0") || name.starts_with(b"swapper/0\0"),
                 "非 idle task 名称"
             );
-            let pointer = image.u64(add(init, files)?)?;
+            let pointer = physical_field(image, isf, add(init, files)?, "task_struct", "files")?;
             ensure!(
                 pointer != 0 && (pointer >> 47 == 0 || pointer >> 47 == 0x1ffff),
                 "init_files 非 canonical"
@@ -288,7 +319,9 @@ fn validate_forward_tasks(
     let tasks = isf.offset("task_struct", "tasks")?;
     let next = isf.offset("list_head", "next")?;
     let prev = isf.offset("list_head", "prev")?;
-    let mut node = vm.uint(add(head, next)?, 8)?;
+    let width = isf.size("list_head", "next")?;
+    ensure!(matches!(width, 4 | 8), "任务链指针宽度无效");
+    let mut node = vm.uint(add(head, next)?, width)?;
     let mut previous = head;
     let mut seen = HashSet::new();
     let mut pids = HashSet::new();
@@ -296,13 +329,16 @@ fn validate_forward_tasks(
     ensure!((1..=256).contains(&comm_size), "任务名称长度无效");
     while node != head {
         job.check()?;
-        ensure!(node != 0 && node & 7 == 0, "任务链指针无效 @ {node:#x}");
+        ensure!(
+            node != 0 && node & (width as u64 - 1) == 0,
+            "任务链指针无效 @ {node:#x}"
+        );
         ensure!(
             seen.insert(node) && seen.len() <= 65536,
             "任务链循环或超过恢复上限"
         );
         ensure!(
-            vm.uint(add(node, prev)?, 8)? == previous,
+            vm.uint(add(node, prev)?, isf.size("list_head", "prev")?)? == previous,
             "任务链内部回指不一致 @ {node:#x}"
         );
         let task = node.checked_sub(tasks).context("任务对象地址下溢")?;
@@ -333,7 +369,7 @@ fn validate_forward_tasks(
             "任务名称无效 @ {task:#x}"
         );
         previous = node;
-        node = vm.uint(add(node, next)?, 8)?;
+        node = vm.uint(add(node, next)?, isf.size("list_head", "next")?)?;
     }
     ensure!(
         seen.len() >= 2 && seen.contains(&recorded_tail) && previous != recorded_tail,
@@ -426,4 +462,97 @@ fn discover_arm64(image: &Image, isf: &Isf, job: &Job) -> Result<u64> {
         valid[0].0, valid[0].1
     ));
     Ok(valid[0].0)
+}
+
+#[cfg(test)]
+mod linux32_tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn discovers_four_byte_kernel_with_independent_physical_placement() {
+        for pae in [false, true] {
+            let (mut bytes, mut isf) = crate::linux::tests::fixture();
+            bytes.fill(0);
+            isf.data["base_types"]["pointer"]["size"] = json!(4);
+            isf.data["user_types"]["list_head"] = json!({"size":8,"fields":{
+                "next":{"offset":0,"type":{"kind":"pointer"}},
+                "prev":{"offset":4,"type":{"kind":"pointer"}}
+            }});
+            isf.data["user_types"]["task_struct"] = json!({"size":64,"fields":{
+                "tasks":{"offset":0,"type":{"kind":"struct","name":"list_head"}},
+                "pid":{"offset":8,"type":{"kind":"base","name":"u32"}},
+                "comm":{"offset":12,"type":{"kind":"array","count":16,"subtype":{"kind":"base","name":"char"}}},
+                "real_parent":{"offset":28,"type":{"kind":"pointer"}},
+                "files":{"offset":32,"type":{"kind":"pointer"}}
+            }});
+            for (name, address) in [
+                ("linux_banner", 0xc0000000u64),
+                ("swapper_pg_dir", 0xc0001000),
+                ("init_task", 0xc0002000),
+                ("init_files", 0xc0003000),
+            ] {
+                isf.data["symbols"][name] = json!({"address":address});
+            }
+            isf.banner = b"Linux version synthetic-i386\0".to_vec();
+            isf.locations = vec![0x1000];
+            bytes[0x1000..0x1000 + isf.banner.len()].copy_from_slice(&isf.banner);
+            if pae {
+                isf.data["symbols"]["pkmap_count"] =
+                    json!({"address":0xc0006000u64,"type":{"kind":"array","count":512}});
+                bytes[0x2018..0x2020].copy_from_slice(&0x6003u64.to_le_bytes());
+                bytes[0x6000..0x6008].copy_from_slice(&0x5003u64.to_le_bytes());
+            } else {
+                bytes[0x2c00..0x2c04].copy_from_slice(&0x5003u32.to_le_bytes());
+            }
+            for index in 0..4usize {
+                let value = ((index as u64 + 1) * 4096) | 3;
+                let width = if pae { 8 } else { 4 };
+                let at = 0x5000 + index * width;
+                bytes[at..at + width].copy_from_slice(&value.to_le_bytes()[..width]);
+            }
+            for (at, value) in [
+                (0x3000, 0xc0002000u32),
+                (0x3004, 0xc0002000),
+                (0x301c, 0xc0002000),
+                (0x3020, 0xc0003000),
+            ] {
+                bytes[at..at + 4].copy_from_slice(&value.to_le_bytes());
+            }
+            bytes[0x300c..0x3014].copy_from_slice(b"swapper\0");
+            let image = crate::linux::tests::image(&bytes);
+            assert_eq!(
+                discover(&image, &isf, &Job::default()).unwrap(),
+                0x2000,
+                "PAE={pae}"
+            );
+            assert_eq!(isf.slide.load(std::sync::atomic::Ordering::Relaxed), 0);
+            isf.data["user_types"]["task_struct"]["fields"]["tgid"] =
+                json!({"offset":36,"type":{"kind":"base","name":"u32"}});
+            for (at, value) in [
+                (0x3000, 0xc0002104u32),
+                (0x3004, 0xc0002104),
+                (0x3104, 0xc0002184),
+                (0x3108, 0xc0002000),
+                (0x310c, 1),
+                (0x3128, 1),
+                (0x3184, 0xc0002000),
+                (0x3188, 0xc0002104),
+                (0x318c, 2),
+                (0x31a8, 2),
+            ] {
+                bytes[at..at + 4].copy_from_slice(&value.to_le_bytes());
+            }
+            bytes[0x3110..0x3115].copy_from_slice(b"init\0");
+            bytes[0x3190..0x3197].copy_from_slice(b"worker\0");
+            let recovered_image = crate::linux::tests::image(&bytes);
+            let vm = kernel_vm(&recovered_image, &isf, 0x2000);
+            assert_eq!(
+                validate_forward_tasks(&vm, &isf, 0xc0002000, 0xc0002104, &Job::default()).unwrap(),
+                2
+            );
+            bytes[0x1000] ^= 1;
+            assert!(discover(&crate::linux::tests::image(&bytes), &isf, &Job::default()).is_err());
+        }
+    }
 }
