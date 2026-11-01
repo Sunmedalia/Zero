@@ -11,7 +11,7 @@
   },
   "limitations": [
     "The actual pinned method receives mocked typed nodes and context. This establishes dense slot iteration only, not full reference object validation or real-image VMA extraction.",
-    "Native dense nodes retain ISF parent/slot fields; the reference mock exposes alloc.slot. Full native nested dense layout selection remains outside this batch.",
+    "Native dense nodes prefer alloc.slot when present, matching the pinned method and the local Kali ISF layout, with a flat slot fallback for older layouts. Four/eight-byte tests include conflicting flat slot data; this is layout evidence, not a real dense-node image capture.",
     "Non-dense pivot/meta termination and stricter native validation remain separate parity gaps.",
     "Real Linux32 end-to-end acceptance is not established and the public Linux32 ISF parse gate remains closed.",
     "No full plugin contract is established."

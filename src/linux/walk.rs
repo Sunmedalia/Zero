@@ -93,15 +93,20 @@ impl Linux<'_> {
             };
             let parent = self.number(base, structure, "parent")?;
             ensure!(parent & !255 != node, "maple 已删除节点");
-            let slots = self.field_address(base, structure, "slot")?;
-            let count = self.isf.field(structure, "slot")?["type"]["count"]
+            let slot_field = if kind == 0 && self.isf.has_field(structure, "alloc.slot") {
+                "alloc.slot"
+            } else {
+                "slot"
+            };
+            let slots = self.field_address(base, structure, slot_field)?;
+            let count = self.isf.field(structure, slot_field)?["type"]["count"]
                 .as_u64()
                 .context("maple slot count 缺失")?;
             ensure!((1..=64).contains(&count), "maple slot count 异常");
-            let slot_width = self.isf.size(structure, "slot")? as u64 / count;
+            let slot_width = self.isf.size(structure, slot_field)? as u64 / count;
             ensure!(
                 matches!(slot_width, 4 | 8)
-                    && self.isf.size(structure, "slot")? as u64 == slot_width * count,
+                    && self.isf.size(structure, slot_field)? as u64 == slot_width * count,
                 "maple slot 宽度无效"
             );
             let pivot_width = if kind == 0 {
@@ -302,6 +307,30 @@ mod tests {
                 .map(|v| v.as_u64().unwrap())
                 .collect();
             assert_eq!(actual, expected, "{case}");
+            // Real maple_node exposes alloc.slot as a distinct union view.
+            isf.data["user_types"]["maple_node"]["fields"]["alloc"] =
+                json!({"offset":0,"type":{"kind":"struct","name":"maple_alloc"}});
+            isf.data["user_types"]["maple_alloc"] = ty(
+                &[(
+                    "slot",
+                    16,
+                    json!({"kind":"array","count":4,"subtype":{"kind":"pointer"}}),
+                )],
+                256,
+            );
+            b[0x11008..0x11010].fill(0xff);
+            for (i, value) in case["slots"].as_array().unwrap().iter().enumerate() {
+                let at = 0x11010 + i * width;
+                b[at..at + width].copy_from_slice(&value.as_u64().unwrap().to_le_bytes()[..width]);
+            }
+            let img = image(&b);
+            assert_eq!(
+                engine(&img, &isf)
+                    .maple_vmas(0xb000, &Job::default(), 100)
+                    .unwrap(),
+                expected,
+                "nested alloc {case}"
+            );
         }
     }
     fn put(b: &mut [u8], p: usize, v: u64) {
