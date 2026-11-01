@@ -136,10 +136,9 @@ impl Linux<'_> {
         leaves.sort_unstable();
         for pair in leaves.windows(2) {
             if pair[0] == pair[1] {
-                diagnostics.push(format!("maple 重复 VMA 指针被折叠 @ {:#x}", pair[0]));
+                diagnostics.push(format!("maple 重复 VMA 指针已保留 @ {:#x}", pair[0]));
             }
         }
-        leaves.dedup();
         ensure!(leaves.len() as u64 <= limit, "VMA 超过遍历上限");
         let mut ordered = Vec::new();
         for node in leaves {
@@ -333,14 +332,14 @@ mod tests {
                     linux
                         .maple_vmas_partial(0xb000, &Job::default(), 100, &mut result)
                         .unwrap(),
-                    vec![expected[0]]
+                    vec![expected[0], expected[0]]
                 );
                 assert!(!result.complete);
                 assert!(
                     result
                         .diagnostics
                         .iter()
-                        .any(|d| d.contains("重复 VMA 指针被折叠"))
+                        .any(|d| d.contains("重复 VMA 指针已保留"))
                 );
             }
         }

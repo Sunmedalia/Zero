@@ -61,10 +61,14 @@ impl Linux<'_> {
         // diagnostic order stays what callers already depend on.
         let root = self.process_root(task).ok();
         let mut visited = HashSet::new();
+        let mut processed = 0u64;
         while node != 0 {
             job.check()?;
-            ensure!(visited.insert(node), "VMA 循环 @ {}", hex(node));
-            ensure!(visited.len() as u64 <= limit, "VMA 超过 100 万项上限");
+            if !modern {
+                ensure!(visited.insert(node), "VMA 循环 @ {}", hex(node));
+            }
+            processed += 1;
+            ensure!(processed <= limit, "VMA 超过 100 万项上限");
             let next = if modern {
                 nodes.next().unwrap_or(0)
             } else {
@@ -805,7 +809,8 @@ impl Linux<'_> {
                     ensure!(vstart < vend, "VMA 地址倒置");
                     ranges.push((vstart, vend, node));
                 }
-                ranges.sort_by_key(|range| range.0);
+                ranges.sort_unstable();
+                ranges.dedup();
                 ensure!(
                     ranges.windows(2).all(|pair| pair[0].1 <= pair[1].0),
                     "VMA 范围重叠"
