@@ -109,7 +109,7 @@ impl Linux<'_> {
                     && self.isf.size(structure, slot_field)? as u64 == slot_width * count,
                 "maple slot 宽度无效"
             );
-            let pivot_width = if kind == 0 {
+            let pivot_width = if leaf {
                 0
             } else {
                 let pivots = self.isf.field(structure, "pivot")?["type"]["count"]
@@ -126,7 +126,7 @@ impl Linux<'_> {
                 );
                 width
             };
-            let end = if kind == 0 {
+            let end = if leaf {
                 count - 1
             } else if kind == 3 {
                 self.number(base, structure, "meta.end")?
@@ -326,6 +326,18 @@ mod tests {
                     expected,
                     "leaf {case}"
                 );
+                let fields = isf.data["user_types"]["maple_range_64"]["fields"]
+                    .as_object_mut()
+                    .unwrap();
+                fields.remove("pivot");
+                fields.remove("meta");
+                assert_eq!(
+                    engine(&img, &isf)
+                        .maple_vmas(0xb000, &Job::default(), 100)
+                        .unwrap(),
+                    expected,
+                    "leaf without pivot/meta {case}"
+                );
                 continue;
             }
             isf.data["user_types"]["maple_node"] = ty(
@@ -510,14 +522,14 @@ mod tests {
                 .maple_vmas(0xb000, &Job::default(), 1)
                 .is_err()
         );
-        b[0x11038] = 4;
+        b[0x11140] = 4;
         let img = image(&b);
         assert!(
             engine(&img, &isf)
                 .maple_vmas(0xb000, &Job::default(), 100)
                 .is_err()
         );
-        b[0x11038] = 1;
+        b[0x11140] = 0;
         put(&mut b, 0x11120, 0x1111c);
         let img = image(&b);
         assert!(
