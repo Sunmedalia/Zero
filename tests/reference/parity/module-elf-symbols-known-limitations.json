@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+  "scope": "Actual pinned ELF32/ELF64 module symbol normalization and field encoding",
+  "generator": "module_elf_symbol_vectors.py",
+  "fixture": "fixtures/module-elf-symbols.json",
+  "verification": {
+    "cases": 22,
+    "targeted_tests": "All eleven linux::module_elf tests passed, including all symbol byte comparisons and ELF32 overflow failures."
+  },
+  "limitations": [
+    "Synthetic symbol objects execute the actual pinned _fix_sym_table method; they do not establish real image discovery or full module extraction parity.",
+    "ELF32 encoder output is tested, but the production full-file reconstruction still accepts only 64-bit Intel symbols.",
+    "The native shared encoder preserves zero-name LOCAL/SECTION info, relative section values, external indices and checked 32-bit value/size conversions. Reference struct.error maps to native Result::Err.",
+    "No full plugin contract is established by this fixture."
+  ]
+}

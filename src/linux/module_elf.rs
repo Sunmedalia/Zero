@@ -43,6 +43,47 @@ fn append(target: &mut Vec<u8>, bytes: &[u8]) -> Result<()> {
     target.extend_from_slice(bytes);
     Ok(())
 }
+struct SymbolRecord {
+    name: u32,
+    address: u64,
+    size: u64,
+    other: u8,
+    shndx: u16,
+}
+impl SymbolRecord {
+    fn encode(&self, elf32: bool, matched: Option<(&str, u64, u16)>) -> Result<Vec<u8>> {
+        let value = matched.map_or(self.address, |(_, base, _)| self.address - base);
+        let shndx = matched.map_or(self.shndx, |(_, _, index)| index);
+        let info = if self.name == 0 {
+            3
+        } else {
+            0x10 | if self.address == 0 {
+                0
+            } else if let Some((name, _, _)) = matched {
+                if name.contains(".text") && !name.contains(".rela") {
+                    2
+                } else {
+                    1
+                }
+            } else {
+                0
+            }
+        };
+        let mut bytes = self.name.to_le_bytes().to_vec();
+        if elf32 {
+            bytes.extend_from_slice(&u32::try_from(value)?.to_le_bytes());
+            bytes.extend_from_slice(&u32::try_from(self.size)?.to_le_bytes());
+            bytes.extend_from_slice(&[info, self.other]);
+            bytes.extend_from_slice(&shndx.to_le_bytes());
+        } else {
+            bytes.extend_from_slice(&[info, self.other]);
+            bytes.extend_from_slice(&shndx.to_le_bytes());
+            bytes.extend_from_slice(&value.to_le_bytes());
+            bytes.extend_from_slice(&self.size.to_le_bytes());
+        }
+        Ok(bytes)
+    }
+}
 fn section_header(name_offset: u32, section: &Section, strings: u32, symbols: u32) -> Vec<u8> {
     section_header_width(name_offset, section, strings, symbols, false)
         .expect("ELF64 section fields fit")
@@ -432,34 +473,27 @@ impl Linux<'_> {
                     break;
                 }
             }
-            let (value, shndx) = if let Some((index, section)) = matched {
-                (address - section.address, u16::try_from(index + 1)?)
-            } else {
-                (
-                    address,
-                    u16::try_from(self.number(at, "Elf64_Sym", "st_shndx")?)?,
-                )
-            };
-            let info: u8 = if name == 0 {
-                3
-            } else {
-                0x10 | if address == 0 {
+            let section = matched
+                .map(|(index, section)| -> Result<_> {
+                    Ok((
+                        section.name.as_str(),
+                        section.address,
+                        u16::try_from(index + 1)?,
+                    ))
+                })
+                .transpose()?;
+            let symbol = SymbolRecord {
+                name,
+                address,
+                size,
+                other,
+                shndx: if section.is_some() {
                     0
-                } else if let Some((_, s)) = matched {
-                    if s.name.contains(".text") && !s.name.contains(".rela") {
-                        2
-                    } else {
-                        1
-                    }
                 } else {
-                    0
-                }
+                    u16::try_from(self.number(at, "Elf64_Sym", "st_shndx")?)?
+                },
             };
-            append(&mut table, &name.to_le_bytes())?;
-            append(&mut table, &[info, other])?;
-            append(&mut table, &shndx.to_le_bytes())?;
-            append(&mut table, &value.to_le_bytes())?;
-            append(&mut table, &size.to_le_bytes())?;
+            append(&mut table, &symbol.encode(false, section)?)?;
         }
         sections.push(Section {
             name: ".symtab".into(),
@@ -621,6 +655,44 @@ mod tests {
                     encoded(&actual.unwrap()),
                     case["expected_hex"].as_str().unwrap()
                 );
+            }
+        }
+    }
+    #[test]
+    fn symbol_records_match_actual_pinned_normalization_for_both_widths() {
+        let fixture: serde_json::Value = serde_json::from_str(include_str!(
+            "../../tests/reference/parity/fixtures/module-elf-symbols.json"
+        ))
+        .unwrap();
+        for case in fixture["cases"].as_array().unwrap() {
+            let symbol = SymbolRecord {
+                name: case["name"].as_u64().unwrap() as u32,
+                address: case["address"].as_u64().unwrap(),
+                size: case["size"].as_u64().unwrap(),
+                other: case["other"].as_u64().unwrap() as u8,
+                shndx: case["shndx"].as_u64().unwrap() as u16,
+            };
+            let matched = fixture["sections"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|s| {
+                    let start = s[2].as_u64().unwrap();
+                    start <= symbol.address && symbol.address - start < s[3].as_u64().unwrap()
+                })
+                .map(|s| {
+                    (
+                        s[0].as_str().unwrap(),
+                        s[2].as_u64().unwrap(),
+                        s[1].as_u64().unwrap() as u16,
+                    )
+                });
+            let actual = symbol.encode(case["bits"] == 32, matched);
+            if case["error"] == "struct.error" {
+                assert!(actual.is_err(), "{case}");
+            } else {
+                let hex: String = actual.unwrap().iter().map(|b| format!("{b:02x}")).collect();
+                assert_eq!(hex, case["expected_hex"].as_str().unwrap(), "{case}");
             }
         }
     }

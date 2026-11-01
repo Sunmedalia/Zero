@@ -1,0 +1,248 @@
+{
+  "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+  "source_sha256": {
+    "volatility3/framework/symbols/linux/utilities/modules.py": "a5e33f20ecbfb1403de58e5c8b1c037215758747bc32ef5404235dc809bba1bf"
+  },
+  "sections": [
+    [
+      ".text",
+      1,
+      4096,
+      256
+    ],
+    [
+      ".data",
+      2,
+      8192,
+      256
+    ],
+    [
+      ".rela.text",
+      3,
+      12288,
+      256
+    ]
+  ],
+  "cases": [
+    {
+      "bits": 32,
+      "name": 0,
+      "address": 0,
+      "size": 0,
+      "other": 2,
+      "shndx": 0,
+      "expected_hex": "00000000000000000000000003020000",
+      "error": null
+    },
+    {
+      "bits": 32,
+      "name": 0,
+      "address": 4112,
+      "size": 8,
+      "other": 2,
+      "shndx": 99,
+      "expected_hex": "00000000100000000800000003020100",
+      "error": null
+    },
+    {
+      "bits": 32,
+      "name": 1,
+      "address": 4112,
+      "size": 8,
+      "other": 2,
+      "shndx": 99,
+      "expected_hex": "01000000100000000800000012020100",
+      "error": null
+    },
+    {
+      "bits": 32,
+      "name": 1,
+      "address": 8208,
+      "size": 8,
+      "other": 2,
+      "shndx": 99,
+      "expected_hex": "01000000100000000800000011020200",
+      "error": null
+    },
+    {
+      "bits": 32,
+      "name": 1,
+      "address": 12304,
+      "size": 8,
+      "other": 2,
+      "shndx": 99,
+      "expected_hex": "01000000100000000800000011020300",
+      "error": null
+    },
+    {
+      "bits": 32,
+      "name": 1,
+      "address": 36864,
+      "size": 8,
+      "other": 2,
+      "shndx": 7,
+      "expected_hex": "01000000009000000800000010020700",
+      "error": null
+    },
+    {
+      "bits": 32,
+      "name": 1,
+      "address": 0,
+      "size": 8,
+      "other": 2,
+      "shndx": 7,
+      "expected_hex": "01000000000000000800000010020700",
+      "error": null
+    },
+    {
+      "bits": 32,
+      "name": 1,
+      "address": 4096,
+      "size": 8,
+      "other": 2,
+      "shndx": 99,
+      "expected_hex": "01000000000000000800000012020100",
+      "error": null
+    },
+    {
+      "bits": 32,
+      "name": 1,
+      "address": 4352,
+      "size": 8,
+      "other": 2,
+      "shndx": 7,
+      "expected_hex": "01000000001100000800000010020700",
+      "error": null
+    },
+    {
+      "bits": 32,
+      "name": 1,
+      "address": 4294967296,
+      "size": 8,
+      "other": 2,
+      "shndx": 7,
+      "expected_hex": null,
+      "error": "struct.error"
+    },
+    {
+      "bits": 32,
+      "name": 1,
+      "address": 4112,
+      "size": 4294967296,
+      "other": 2,
+      "shndx": 99,
+      "expected_hex": null,
+      "error": "struct.error"
+    },
+    {
+      "bits": 64,
+      "name": 0,
+      "address": 0,
+      "size": 0,
+      "other": 2,
+      "shndx": 0,
+      "expected_hex": "000000000302000000000000000000000000000000000000",
+      "error": null
+    },
+    {
+      "bits": 64,
+      "name": 0,
+      "address": 4112,
+      "size": 8,
+      "other": 2,
+      "shndx": 99,
+      "expected_hex": "000000000302010010000000000000000800000000000000",
+      "error": null
+    },
+    {
+      "bits": 64,
+      "name": 1,
+      "address": 4112,
+      "size": 8,
+      "other": 2,
+      "shndx": 99,
+      "expected_hex": "010000001202010010000000000000000800000000000000",
+      "error": null
+    },
+    {
+      "bits": 64,
+      "name": 1,
+      "address": 8208,
+      "size": 8,
+      "other": 2,
+      "shndx": 99,
+      "expected_hex": "010000001102020010000000000000000800000000000000",
+      "error": null
+    },
+    {
+      "bits": 64,
+      "name": 1,
+      "address": 12304,
+      "size": 8,
+      "other": 2,
+      "shndx": 99,
+      "expected_hex": "010000001102030010000000000000000800000000000000",
+      "error": null
+    },
+    {
+      "bits": 64,
+      "name": 1,
+      "address": 36864,
+      "size": 8,
+      "other": 2,
+      "shndx": 7,
+      "expected_hex": "010000001002070000900000000000000800000000000000",
+      "error": null
+    },
+    {
+      "bits": 64,
+      "name": 1,
+      "address": 0,
+      "size": 8,
+      "other": 2,
+      "shndx": 7,
+      "expected_hex": "010000001002070000000000000000000800000000000000",
+      "error": null
+    },
+    {
+      "bits": 64,
+      "name": 1,
+      "address": 4096,
+      "size": 8,
+      "other": 2,
+      "shndx": 99,
+      "expected_hex": "010000001202010000000000000000000800000000000000",
+      "error": null
+    },
+    {
+      "bits": 64,
+      "name": 1,
+      "address": 4352,
+      "size": 8,
+      "other": 2,
+      "shndx": 7,
+      "expected_hex": "010000001002070000110000000000000800000000000000",
+      "error": null
+    },
+    {
+      "bits": 64,
+      "name": 1,
+      "address": 4294967296,
+      "size": 8,
+      "other": 2,
+      "shndx": 7,
+      "expected_hex": "010000001002070000000000010000000800000000000000",
+      "error": null
+    },
+    {
+      "bits": 64,
+      "name": 1,
+      "address": 4112,
+      "size": 4294967296,
+      "other": 2,
+      "shndx": 99,
+      "expected_hex": "010000001202010010000000000000000000000001000000",
+      "error": null
+    }
+  ]
+}
