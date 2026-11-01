@@ -84,6 +84,7 @@ impl Linux<'_> {
                 self.field_address(node, "maple_node", member)?
             };
             let parent = self.number(base, structure, "parent")?;
+            ensure!(parent & !255 != node, "maple 已删除节点");
             if parent & !255 != expected_parent {
                 continue;
             }

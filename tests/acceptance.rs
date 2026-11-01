@@ -325,8 +325,12 @@ fn kali_arm64_all_plugins_full_field_baseline() -> Result<()> {
         );
         ensure!(
             result.complete == expected.complete && result.diagnostics == expected.diagnostics,
-            "{} diagnostics changed",
-            plugin.name()
+            "{} diagnostics changed: complete={} expected={}; actual={:?}; expected={:?}",
+            plugin.name(),
+            result.complete,
+            expected.complete,
+            result.diagnostics,
+            expected.diagnostics
         );
         ensure!(
             result.page_table
