@@ -306,7 +306,7 @@ fn collect(path: &Path, job: &Job, out: &mut Vec<(String, Vec<u8>)>) -> Result<(
             for index in 0..z.len() {
                 job.check()?;
                 let member = z.by_index(index)?;
-                let entry = member.name().to_owned();
+                let entry = member.name()?.into_owned();
                 if entry.ends_with(".json") || entry.ends_with(".json.xz") {
                     let bytes = decode(member, &entry, job)?;
                     out.push((format!("{name}::{entry}"), bytes));

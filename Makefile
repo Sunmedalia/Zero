@@ -1,6 +1,6 @@
 export PCRE2_SYS_STATIC := 1
 
-.PHONY: build install run tui test ui-install ui-build ui-test check acceptance windows-acceptance tui-acceptance screenshots clean
+.PHONY: build install run tui test deny ui-install ui-build ui-test check acceptance windows-acceptance tui-acceptance screenshots clean
 
 build:
 	cargo build --release --locked
@@ -23,6 +23,10 @@ run tui:
 
 test:
 	cargo test --locked
+
+# Requires cargo-deny 0.20.2 (cargo install cargo-deny --locked --version 0.20.2).
+deny:
+	cargo deny --locked check
 
 check:
 	cargo fmt --check

@@ -124,8 +124,10 @@ fn extract<R: Read + Seek>(
     ensure!(zip.len() <= 100_000, "官方符号包条目过多");
     let names: Vec<_> = zip
         .file_names()
+        // Non-UTF-8 names cannot equal the ASCII PDB identity key.
+        .filter_map(Result::ok)
         .filter(|name| member_matches(name, identity))
-        .map(str::to_owned)
+        .map(|name| name.into_owned())
         .collect();
     ensure!(
         !names.is_empty(),
