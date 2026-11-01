@@ -410,7 +410,7 @@ impl Linux<'_> {
                 continue;
             }
             let (address, length, strings) = if section.name == ".strtab" {
-                strtab_index = Some(index as u32);
+                strtab_index = Some(u32::try_from(index)?);
                 (
                     symbols.strings,
                     symbols.count.checked_mul(256).context("strtab size 溢出")?,
@@ -447,7 +447,7 @@ impl Linux<'_> {
         }
         let symtab_address = symtab_address.context("模块缺少 .symtab section")?;
         let strtab_index = strtab_index.context("模块缺少 .strtab section")?;
-        let symtab_index = sections.len() as u32;
+        let symtab_index = u32::try_from(sections.len())?;
         let sym_size = self.isf.data["user_types"][symbol_type]["size"]
             .as_u64()
             .with_context(|| format!("{symbol_type} 类型缺失"))?;

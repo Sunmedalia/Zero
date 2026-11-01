@@ -103,7 +103,7 @@ fn scan(
                 "TrueCrypt 候选密码长度为负数；固定参考同样无法构造该记录"
             );
             let offset = add(at, index as u64 * 4 + 4)?;
-            let mut password = vec![0; length as usize];
+            let mut password = vec![0; usize::try_from(length)?];
             let mut padding = [0; 3];
             let found = (|| -> Result<bool> {
                 if !password.is_empty() {

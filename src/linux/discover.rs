@@ -118,10 +118,12 @@ pub fn discover(image: &Image, isf: &Isf, job: &Job) -> Result<u64> {
             job.check()?;
             if let Ok(address) = isf.raw_address(name) {
                 let candidate = *physical as i128 + address as i128 - banner as i128;
-                if candidate < 0 || candidate > u64::MAX as i128 || candidate & 4095 != 0 {
+                let Ok(root) = u64::try_from(candidate) else {
+                    continue;
+                };
+                if root & 4095 != 0 {
                     continue;
                 }
-                let root = candidate as u64;
                 let vm = kernel_vm(image, isf, root);
                 for &slide in &slides {
                     job.check()?;

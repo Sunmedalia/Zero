@@ -24,7 +24,8 @@ fn reference_module_elf_bounds(symbols: &[(u64, u64)], mask: u64) -> Option<(u64
     let minimum = ordered.get(1)?.0 & mask;
     let last = ordered.last()?;
     // Keep Python's + before &: this is not (st_value & mask) + st_size.
-    let maximum = (u128::from(last.0) & (u128::from(mask) + u128::from(last.1))) as u64;
+    let maximum =
+        u64::try_from(u128::from(last.0) & (u128::from(mask) + u128::from(last.1))).ok()?;
     Some((minimum, maximum))
 }
 

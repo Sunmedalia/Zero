@@ -816,7 +816,7 @@ impl Linux<'_> {
             .push(vec!["BootTimeUnix".into(), seconds.to_string()]);
         r.rows.push(vec![
             "BootTimeUTC".into(),
-            crate::report::utc(seconds as i64),
+            crate::report::utc(i64::try_from(seconds)?),
         ]);
         r.rows.push(vec![
             "BootTimeNanos".into(),

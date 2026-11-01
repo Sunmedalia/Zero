@@ -72,7 +72,7 @@ impl Windows<'_> {
             .iter()
             .find(|t| t.builds.contains(&build))
             .context("未声明该内核构建版本")?;
-        Ok([target.major, target.minor, build as u16, 0])
+        Ok([target.major, target.minor, u16::try_from(build)?, 0])
     }
     pub(super) fn declared_build(&self) -> bool {
         self.build_number().is_ok_and(|build| {

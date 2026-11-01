@@ -94,7 +94,11 @@ const fn crc_table() -> [u32; 256] {
 const CRC: [u32; 256] = crc_table();
 fn chunk(output: &mut dyn Write, kind: &[u8; 4], bytes: &[u8]) -> std::io::Result<()> {
     debug_assert!(bytes.len() <= CHUNK);
-    output.write_all(&(bytes.len() as u32).to_be_bytes())?;
+    output.write_all(
+        &u32::try_from(bytes.len())
+            .map_err(std::io::Error::other)?
+            .to_be_bytes(),
+    )?;
     output.write_all(kind)?;
     output.write_all(bytes)?;
     let mut crc = u32::MAX;

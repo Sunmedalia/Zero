@@ -594,7 +594,7 @@ fn percent_decode(value: &str) -> Result<String> {
             let (Some(high), Some(low)) = (digit(hex[0]), digit(hex[1])) else {
                 bail!("仓库 ISF 路径编码无效");
             };
-            bytes.push((high * 16 + low) as u8);
+            bytes.push(u8::try_from(high * 16 + low)?);
         } else {
             bytes.push(b);
         }
