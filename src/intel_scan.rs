@@ -6,21 +6,7 @@ use std::sync::Arc;
 #[derive(Clone, Copy)]
 pub(crate) enum Kind {
     Linux64,
-    #[cfg_attr(
-        not(test),
-        expect(
-            dead_code,
-            reason = "Linux32 discovery is not yet connected; pinned layer vectors validate this foundation"
-        )
-    )]
     Linux32,
-    #[cfg_attr(
-        not(test),
-        expect(
-            dead_code,
-            reason = "Linux PAE discovery is not yet connected; pinned layer vectors validate this foundation"
-        )
-    )]
     LinuxPae,
     Windows64,
     Windows32,
@@ -175,6 +161,17 @@ impl<'a> Mapper<'a> {
             entry & mask & !4095
         };
         Ok((frame | (at & (span - 1)), span))
+    }
+    pub(crate) fn translate_address(&mut self, at: u64) -> Result<u64> {
+        self.translate(at)
+            .map(|(offset, _)| offset)
+            .map_err(|fault| {
+                anyhow::anyhow!(
+                    "Intel 缺页 VA {at:#x}, level {}, entry {:#x}",
+                    fault.bits,
+                    fault.entry
+                )
+            })
     }
     fn captured(&self, at: u64, length: u64) -> bool {
         let Some(end) = at.checked_add(length) else {
@@ -408,6 +405,14 @@ mod tests {
             let swap: Vec<u8> = (0..case["pagefile_length"].as_u64().unwrap())
                 .map(|i| ((i * 13 + 7) % 251) as u8)
                 .collect();
+            let vm = match kind {
+                Kind::Linux32 | Kind::LinuxPae => Some(crate::image::VirtualMemory::new_linux32(
+                    &image,
+                    0x1000,
+                    matches!(kind, Kind::LinuxPae),
+                )),
+                _ => None,
+            };
             let mut mapper = Mapper::new(&image, 0x1000, kind);
             for query in case["mapping_queries"].as_array().unwrap() {
                 let actual = mapper
@@ -444,6 +449,35 @@ mod tests {
                         Ok(())
                     },
                 );
+                if let Some(vm) = &vm {
+                    let mut virtual_out = vec![0; out.len()];
+                    let virtual_read =
+                        vm.read(query["address"].as_u64().unwrap(), &mut virtual_out);
+                    assert_eq!(
+                        virtual_read.is_ok(),
+                        query["error"].is_null(),
+                        "VM {} {query}",
+                        case["id"]
+                    );
+                    if virtual_read.is_ok() {
+                        assert_eq!(virtual_out, out, "VM {} {query}", case["id"]);
+                    }
+                    let child = vm.with_root(0x1000);
+                    let mut child_out = vec![0; out.len()];
+                    let child_read = child.read(query["address"].as_u64().unwrap(), &mut child_out);
+                    assert_eq!(
+                        child_read.is_ok(),
+                        virtual_read.is_ok(),
+                        "child VM {} {query}",
+                        case["id"]
+                    );
+                    if child_read.is_ok() {
+                        assert_eq!(child_out, virtual_out, "child VM {} {query}", case["id"]);
+                    }
+                    assert!(vm.translate(1u64 << 32).is_err());
+                    assert!(child.translate(1u64 << 32).is_err());
+                    assert!(vm.read(u64::from(u32::MAX), &mut [0; 2]).is_err());
+                }
                 if query["error"].is_null() {
                     actual.unwrap_or_else(|e| panic!("{} {query}: {e:#}", case["id"]));
                     let encoded: String = out.iter().map(|b| format!("{b:02x}")).collect();

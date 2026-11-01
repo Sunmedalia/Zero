@@ -15,9 +15,9 @@
   "implementation": "Linux32/LinuxPae accept PRESENT or PROT_NONE, reject Windows software swap semantics, mask intermediate table bases without inversion, clear large-page PAT before final PFN extraction, and apply the reference 32-bit register mask to final PFNs for both architectures.",
   "evidence_correction": "The earlier 49-case batch used generic Intel/IntelPAE classes. It established hardware paging geometry only and did not establish LinuxMixin behavior. The current fixture executes actual LinuxIntel/LinuxIntelPAE classes, including leaf/upper PROT_NONE, PROT_NONE large-page PAT, and PAE bit-32 cases.",
   "limitations": [
-    "Production Linux32 discovery and VirtualMemory routing are not connected; Linux four-byte-pointer ISFs remain rejected.",
+    "Explicit VirtualMemory Linux32/PAE construction and process-root inheritance are implemented and checked against all 570 reference reads; production discovery is not connected and Linux four-byte-pointer ISFs remain rejected.",
     "No full Linux32 plugin, process traversal or ELF32 reconstruction claim.",
-    "The two foundational kinds carry precise non-test dead-code expectations until discovery connects them.",
+    "The explicit Linux32 VirtualMemory constructor carries a precise non-test dead-code expectation until discovery connects it. Cross-page reads use the reference mapping span, including PROT_NONE large-page PAT behavior.",
     "Synthetic reference layers do not replace real 32-bit image and exact-symbol acceptance.",
     "Linux64 still represents the existing generic Intel32e scanner baseline; this evidence does not establish LinuxIntel32e equivalence."
   ]

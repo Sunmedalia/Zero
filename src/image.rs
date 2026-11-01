@@ -979,6 +979,7 @@ pub struct VirtualMemory<'a> {
     pub image: &'a Image,
     pub root: u64,
     pages: std::sync::Mutex<PageCache>,
+    linux32: Option<crate::intel_scan::Kind>,
 }
 impl<'a> VirtualMemory<'a> {
     pub fn new(image: &'a Image, root: u64) -> Self {
@@ -989,7 +990,27 @@ impl<'a> VirtualMemory<'a> {
                 bits: u8::MAX,
                 pages: crate::resources::Lru::new(image.limits.page_cache_entries),
             }),
+            linux32: None,
         }
+    }
+    #[cfg_attr(
+        not(test),
+        expect(dead_code, reason = "Linux32 discovery is not yet connected")
+    )]
+    pub(crate) fn new_linux32(image: &'a Image, root: u64, pae: bool) -> Self {
+        let mut vm = Self::new(image, root);
+        let kind = if pae {
+            crate::intel_scan::Kind::LinuxPae
+        } else {
+            crate::intel_scan::Kind::Linux32
+        };
+        vm.linux32 = Some(kind);
+        vm
+    }
+    pub(crate) fn with_root(&self, root: u64) -> VirtualMemory<'a> {
+        let mut vm = Self::new(self.image, root);
+        vm.linux32 = self.linux32;
+        vm
     }
     fn cached_page(&self, va: u64, bits: u8) -> Option<u64> {
         let mut cache = self.pages.lock().unwrap_or_else(|e| e.into_inner());
@@ -1007,6 +1028,16 @@ impl<'a> VirtualMemory<'a> {
         cache.pages.insert(va & !4095, pa & !4095, 1);
     }
     pub fn translate(&self, va: u64) -> Result<u64> {
+        if let Some(kind) = self.linux32 {
+            ensure!(va <= u64::from(u32::MAX), "Linux32 虚拟地址越界 {va:#x}");
+            if let Some(base) = self.cached_page(va, 32) {
+                return Ok(base | (va & 4095));
+            }
+            let pa = crate::intel_scan::Mapper::new(self.image, self.root, kind)
+                .translate_address(va)?;
+            self.store_page(va, pa, 32);
+            return Ok(pa);
+        }
         let bits = self
             .image
             .arm64_va_bits
@@ -1068,6 +1099,18 @@ impl<'a> VirtualMemory<'a> {
         Ok(table | (va & 4095))
     }
     pub fn read(&self, mut va: u64, mut out: &mut [u8]) -> Result<()> {
+        if let Some(kind) = self.linux32 {
+            let end = va.checked_add(out.len() as u64).context("虚拟地址溢出")?;
+            ensure!(
+                va <= u64::from(u32::MAX) && end <= 1u64 << 32,
+                "Linux32 读取地址越界"
+            );
+            return crate::intel_scan::Mapper::new(self.image, self.root, kind).read(
+                va,
+                out,
+                |_, _, _| anyhow::bail!("Linux32 不支持 Windows 交换页"),
+            );
+        }
         va.checked_add(out.len() as u64).context("虚拟地址溢出")?;
         while !out.is_empty() {
             let n = out.len().min(4096 - (va & 4095) as usize);

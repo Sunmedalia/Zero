@@ -170,7 +170,7 @@ impl Linux<'_> {
         let pgd = self.number(mm, "mm_struct", "pgd")?;
         let root = self.vm.translate(pgd)?;
         ensure!(root & 4095 == 0, "用户页表未对齐");
-        Ok(Some(VirtualMemory::new(self.vm.image, root)))
+        Ok(Some(self.vm.with_root(root)))
     }
     pub(super) fn user_region(&self, mm: u64, kind: &str, job: &Job) -> Result<Vec<u8>> {
         let start = self.number(mm, "mm_struct", &format!("{kind}_start"))?;
@@ -196,7 +196,7 @@ impl Linux<'_> {
         let pgd = self.number(mm, "mm_struct", "pgd")?;
         let root = self.vm.translate(pgd).context("mm.pgd 内核地址转换失败")?;
         ensure!(root & 4095 == 0, "进程页表未对齐");
-        let vm = VirtualMemory::new(self.vm.image, root);
+        let vm = self.vm.with_root(root);
         let mut out = vec![0; length as usize];
         for (i, chunk) in out.chunks_mut(4096).enumerate() {
             job.check()?;
