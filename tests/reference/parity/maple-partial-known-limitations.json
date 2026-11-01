@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
+  "scope": "Preserve readable maple VMAs on duplicate nodes and map_count mismatch with explicit partial diagnostics",
+  "verification": {
+    "test": "linux::walk::tests::maple_internal_nodes_match_actual_reference_without_pivot_metadata",
+    "cases": 8,
+    "full_check": "make check passed: 730 Rust tests, 45 Python reference framework tests and release build",
+    "checks": ["Duplicate subtree is visited once while other subtrees survive", "Recovered nodes remain available with complete=false", "Count mismatch adds an explicit coverage diagnostic", "All production VMA consumers receive mutable Results for partial propagation"]
+  },
+  "limitations": [
+    "Duplicate cases extend the native regression using existing actual-reference internal fixtures; duplicate-node reference execution has not yet been added to those fixtures.",
+    "Self-referential deleted nodes and unreadable structures still return errors, preserving existing damage diagnostics.",
+    "The test-only strict wrapper rejects diagnostics; production maps, scans and dumps use the coverage-aware path.",
+    "This supersedes the earlier abort-on-duplicate and abort-on-map_count-mismatch behavior, but establishes no full plugin contract.",
+    "Real Linux32 end-to-end acceptance remains unavailable and its public ISF gate stays closed."
+  ]
+}

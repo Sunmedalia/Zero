@@ -208,7 +208,7 @@ impl Linux<'_> {
             regions.push((options.start.unwrap(), options.end.unwrap()));
         } else {
             let mm = self.number(address, "task_struct", "mm")?;
-            for node in self.vma_nodes(mm, job)? {
+            for node in self.vma_nodes(mm, job, &mut result)? {
                 job.check()?;
                 let read = (|| -> Result<Option<(u64, u64)>> {
                     let start = self.number(node, "vm_area_struct", "vm_start")?;

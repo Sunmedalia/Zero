@@ -46,7 +46,19 @@ impl Linux<'_> {
             )
         }
     }
+    #[cfg(test)]
     pub(crate) fn maple_vmas(&self, mm: u64, job: &Job, limit: u64) -> Result<Vec<u64>> {
+        let (nodes, diagnostics) = self.maple_vma_coverage(mm, job, limit)?;
+        ensure!(diagnostics.is_empty(), "{}", diagnostics.join("; "));
+        Ok(nodes)
+    }
+    fn maple_vma_coverage(
+        &self,
+        mm: u64,
+        job: &Job,
+        limit: u64,
+    ) -> Result<(Vec<u64>, Vec<String>)> {
+        let mut diagnostics = Vec::new();
         let tree = self.field_address(mm, "mm_struct", "mm_mt")?;
         let root = self.number(tree, "maple_tree", "ma_root")?;
         let pointer_width = self.isf.data["base_types"]["pointer"]["size"]
@@ -61,7 +73,10 @@ impl Linux<'_> {
             if entry == 0 {
                 continue;
             }
-            ensure!(seen.insert(entry), "maple tree 循环或重复指针 @ {entry:#x}");
+            if !seen.insert(entry) {
+                diagnostics.push(format!("maple tree 循环或重复指针 @ {entry:#x}"));
+                continue;
+            }
             ensure!(seen.len() as u64 <= limit, "VMA 超过遍历上限");
             if !is_node {
                 ensure!(entry & (pointer_width - 1) == 0, "maple leaf 指针对齐错误");
@@ -126,17 +141,33 @@ impl Linux<'_> {
             ordered.push((self.number(node, "vm_area_struct", "vm_start")?, node));
         }
         ordered.sort_unstable();
-        if self.isf.field("mm_struct", "map_count").is_ok() {
-            ensure!(
-                ordered.len() as u64 == self.number(mm, "mm_struct", "map_count")?,
-                "maple VMA 数量与 map_count 不一致"
+        if self.isf.field("mm_struct", "map_count").is_ok()
+            && ordered.len() as u64 != self.number(mm, "mm_struct", "map_count")?
+        {
+            diagnostics.push("maple VMA 数量与 map_count 不一致".into());
+        }
+        Ok((ordered.into_iter().map(|(_, n)| n).collect(), diagnostics))
+    }
+    pub(crate) fn maple_vmas_partial(
+        &self,
+        mm: u64,
+        job: &Job,
+        limit: u64,
+        result: &mut Results,
+    ) -> Result<Vec<u64>> {
+        let (nodes, diagnostics) = self.maple_vma_coverage(mm, job, limit)?;
+        for message in diagnostics {
+            partial(
+                result,
+                format!("maple VMA {mm:#x}"),
+                anyhow::anyhow!(message),
             );
         }
-        Ok(ordered.into_iter().map(|(_, n)| n).collect())
+        Ok(nodes)
     }
-    pub(crate) fn vma_nodes(&self, mm: u64, job: &Job) -> Result<Vec<u64>> {
+    pub(crate) fn vma_nodes(&self, mm: u64, job: &Job, result: &mut Results) -> Result<Vec<u64>> {
         if self.isf.field("mm_struct", "mmap").is_err() {
-            return self.maple_vmas(mm, job, 1_000_000);
+            return self.maple_vmas_partial(mm, job, 1_000_000, result);
         }
         let mut out = Vec::new();
         let mut seen = HashSet::new();
@@ -260,6 +291,30 @@ mod tests {
                     .unwrap(),
                 expected,
                 "{case}"
+            );
+            isf.data["user_types"]["mm_struct"]["fields"]["map_count"] =
+                json!({"offset":48,"type":{"kind":"base","name":"u64"}});
+            put(&mut b, 0xb030, 2);
+            // Duplicate a valid subtree; keep the other subtree and expose partial coverage.
+            b[0x11020 + width..0x11020 + 2 * width]
+                .copy_from_slice(&0x1200cu64.to_le_bytes()[..width]);
+            let img = image(&b);
+            let linux = engine(&img, &isf);
+            let mut result = linux.result(Plugin::Maps);
+            let nodes = linux
+                .maple_vmas_partial(0xb000, &Job::default(), 100, &mut result)
+                .unwrap();
+            assert_eq!(nodes, expected, "partial {case}");
+            assert!(!result.complete);
+            assert!(
+                result
+                    .diagnostics
+                    .iter()
+                    .any(|d| d.contains("循环或重复指针"))
+            );
+            assert_eq!(
+                result.diagnostics.iter().any(|d| d.contains("map_count")),
+                case["parent_mismatch"] == true
             );
         }
     }

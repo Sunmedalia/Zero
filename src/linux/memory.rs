@@ -43,7 +43,7 @@ impl Linux<'_> {
         }
         let modern = self.isf.field("mm_struct", "mmap").is_err();
         let mut nodes = if modern {
-            self.maple_vmas(mm, job, limit)?.into_iter()
+            self.maple_vmas_partial(mm, job, limit, result)?.into_iter()
         } else {
             Vec::new().into_iter()
         };
@@ -139,7 +139,7 @@ impl Linux<'_> {
                     return Ok(());
                 }
                 let vm = self.process_vm(task)?.context("用户地址空间为空")?;
-                let nodes = self.vma_nodes(mm, job)?;
+                let nodes = self.vma_nodes(mm, job, &mut r)?;
                 if plugin == Plugin::Bash {
                     return self.bash_history(
                         &vm,
@@ -305,7 +305,7 @@ impl Linux<'_> {
                 let root = self.process_root(task.address).ok();
                 let mut budget = 256 * 1024 * 1024u64;
                 let mut unreadable = 0u64;
-                for node in self.vma_nodes(mm, job)? {
+                for node in self.vma_nodes(mm, job, &mut r)? {
                     job.check()?;
                     let start = self.number(node, "vm_area_struct", "vm_start")?;
                     let end = self.number(node, "vm_area_struct", "vm_end")?;
@@ -796,7 +796,7 @@ impl Linux<'_> {
                 let end = self.number(mm, "mm_struct", "end_code")?;
                 ensure!(start < end, "主程序代码范围无效");
                 let exe = self.number(mm, "mm_struct", "exe_file")?;
-                let nodes = self.vma_nodes(mm, job)?;
+                let nodes = self.vma_nodes(mm, job, &mut result)?;
                 let mut ranges = Vec::new();
                 for node in nodes {
                     job.check()?;

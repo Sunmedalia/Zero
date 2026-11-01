@@ -35,7 +35,7 @@ impl Linux<'_> {
                     .process_vm(task.address)?
                     .context("进程没有用户地址空间")?;
                 let mut regions = Vec::new();
-                for node in self.vma_nodes(mm, job)? {
+                for node in self.vma_nodes(mm, job, &mut result)? {
                     regions.push((
                         self.number(node, "vm_area_struct", "vm_start")?,
                         self.number(node, "vm_area_struct", "vm_end")?,
