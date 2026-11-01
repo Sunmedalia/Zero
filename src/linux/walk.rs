@@ -134,6 +134,11 @@ impl Linux<'_> {
             }
         }
         leaves.sort_unstable();
+        for pair in leaves.windows(2) {
+            if pair[0] == pair[1] {
+                diagnostics.push(format!("maple 重复 VMA 指针被折叠 @ {:#x}", pair[0]));
+            }
+        }
         leaves.dedup();
         ensure!(leaves.len() as u64 <= limit, "VMA 超过遍历上限");
         let mut ordered = Vec::new();
@@ -319,6 +324,25 @@ mod tests {
                 result.diagnostics.iter().any(|d| d.contains("map_count")),
                 case["parent_mismatch"] == true
             );
+            if case["parent_mismatch"] == false {
+                b[0x13020..0x13020 + width].copy_from_slice(&expected[0].to_le_bytes()[..width]);
+                let img = image(&b);
+                let linux = engine(&img, &isf);
+                let mut result = linux.result(Plugin::Maps);
+                assert_eq!(
+                    linux
+                        .maple_vmas_partial(0xb000, &Job::default(), 100, &mut result)
+                        .unwrap(),
+                    vec![expected[0]]
+                );
+                assert!(!result.complete);
+                assert!(
+                    result
+                        .diagnostics
+                        .iter()
+                        .any(|d| d.contains("重复 VMA 指针被折叠"))
+                );
+            }
         }
     }
     #[test]
