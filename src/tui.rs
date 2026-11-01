@@ -1,4 +1,5 @@
 mod application;
+mod asset_views;
 mod cache_page;
 mod kernel_diagnostics;
 mod scrollbars;
@@ -16,6 +17,7 @@ mod generation;
 mod layout;
 use layout::Space;
 mod interaction;
+mod mouse;
 mod pages;
 mod results;
 mod tasks;
