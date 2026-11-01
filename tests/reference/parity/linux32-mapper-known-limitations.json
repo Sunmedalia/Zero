@@ -1,15 +1,24 @@
 {
   "schema_version": 1,
   "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
-  "scope": "Standalone Linux Intel32 and IntelPAE mapping/read foundation",
+  "scope": "Standalone actual LinuxIntel and LinuxIntelPAE mapping/read foundation",
   "fixture": "fixtures/linux32-layers.json",
   "generator": "windows_layer_read_vectors.generate(checkout, extended=True, linux32=True)",
-  "verification": {"actual_reference_layer_cases": 49, "read_queries": 490, "mapping_queries": 392, "all_passed": true, "make_check": "716 Rust tests and 45 reference harness tests passed"},
-  "implementation": "Separate Linux32/LinuxPae kinds share hardware paging geometry while rejecting Windows transition and software swap entries.",
+  "verification": {
+    "actual_reference_layer_cases": 57,
+    "read_queries": 570,
+    "mapping_queries": 456,
+    "all_passed": true,
+    "targeted_test": "intel_scan::tests::selected_mappings_and_reads_match_actual_intel_layers",
+    "make_check": "716 Rust tests and 45 reference harness tests passed; fmt, Clippy, release build, Windows compatibility inventory and contract audit passed"
+  },
+  "implementation": "Linux32/LinuxPae accept PRESENT or PROT_NONE, reject Windows software swap semantics, mask intermediate table bases without inversion, clear large-page PAT before final PFN extraction, and apply the reference 32-bit register mask to final PFNs for both architectures.",
+  "evidence_correction": "The earlier 49-case batch used generic Intel/IntelPAE classes. It established hardware paging geometry only and did not establish LinuxMixin behavior. The current fixture executes actual LinuxIntel/LinuxIntelPAE classes, including leaf/upper PROT_NONE, PROT_NONE large-page PAT, and PAE bit-32 cases.",
   "limitations": [
     "Production Linux32 discovery and VirtualMemory routing are not connected; Linux four-byte-pointer ISFs remain rejected.",
     "No full Linux32 plugin, process traversal or ELF32 reconstruction claim.",
     "The two foundational kinds carry precise non-test dead-code expectations until discovery connects them.",
-    "Synthetic reference layers do not replace real 32-bit image and exact-symbol acceptance."
+    "Synthetic reference layers do not replace real 32-bit image and exact-symbol acceptance.",
+    "Linux64 still represents the existing generic Intel32e scanner baseline; this evidence does not establish LinuxIntel32e equivalence."
   ]
 }

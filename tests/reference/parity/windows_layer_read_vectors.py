@@ -16,7 +16,7 @@ def generate(checkout, extended=False, linux32=False):
     sys.path.insert(0, str(checkout))
     from volatility3.framework import contexts, exceptions
     from volatility3.framework.layers.physical import BufferDataLayer
-    from volatility3.framework.layers.intel import WindowsIntel, WindowsIntelPAE, WindowsIntel32e, Intel32e, Intel, IntelPAE
+    from volatility3.framework.layers.intel import WindowsIntel, WindowsIntelPAE, WindowsIntel32e, Intel32e, LinuxIntel, LinuxIntelPAE
 
     cases = []
     architectures=[('x86', WindowsIntel, 4, [22, 12]),
@@ -24,13 +24,13 @@ def generate(checkout, extended=False, linux32=False):
                    ('x64', WindowsIntel32e, 8, [39, 30, 21, 12])]
     if extended: architectures.append(('linux', Intel32e, 8, [39, 30, 21, 12]))
     if linux32:
-        architectures = [('linux32', Intel, 4, [22, 12]), ('linux-pae', IntelPAE, 8, [30, 21, 12])]
+        architectures = [('linux32', LinuxIntel, 4, [22, 12]), ('linux-pae', LinuxIntelPAE, 8, [30, 21, 12])]
     for arch, cls, width, shifts in architectures:
         for kind in ['resident', 'transition', 'prototype', 'prototype-transition',
                      'swap-zero', 'swap-three', 'swap-no-attachment', 'swap-wrong-index',
                      'swap-no-bit7', 'swap-no-high', 'swap-transition', 'swap-prototype',
-                     'upper-swap', 'upper-swap-pat', 'upper-prototype', 'physical-hole', 'table-hole', 'short-swap', 'empty-swap'] + (((['present-high45'] if width==8 else [])+['uniform-table','large-pat','swap-end','swap-last-byte','physical-last-byte']) if extended else []):
-            data = bytearray(0x400000 if kind=='large-pat' else 0x20000)
+                     'upper-swap', 'upper-swap-pat', 'upper-prototype', 'physical-hole', 'table-hole', 'short-swap', 'empty-swap'] + (((['present-high45'] if width==8 else [])+['uniform-table','large-pat','swap-end','swap-last-byte','physical-last-byte']) if extended else []) + (['protnone', 'protnone-upper', 'protnone-large-pat', 'present-high32'] if linux32 else []):
+            data = bytearray(0x400000 if kind in ('large-pat', 'protnone-large-pat') else 0x20000)
             writes = []
             def put(at, value):
                 data[at:at + width] = value.to_bytes(width, 'little')
@@ -47,6 +47,10 @@ def generate(checkout, extended=False, linux32=False):
             elif kind=='uniform-table':
                 for at in range(leaf,leaf+4096,width):put(at,0x8003)
             elif kind=='large-pat':put(leaf-0x1000,0x201083)
+            elif kind == 'protnone': put(leaf, ((~0x8000) & ((1 << (width*8)) - 1) & ~0xfff) | 0x100)
+            elif kind == 'protnone-upper': put(0x1000, ((~0x2000) & ((1 << (width*8)) - 1) & ~0xfff) | 0x100)
+            elif kind == 'protnone-large-pat': put(leaf - 0x1000, ((~0x200000) & 0xffffffff & ~0xfff) | 0x1180)
+            elif kind == 'present-high32': put(leaf, ((1 << 32) | 0x8003) if width == 8 else 0x8003)
             elif kind == 'transition': put(leaf, 0x8800)
             elif kind == 'prototype': put(leaf, 0x8400)
             elif kind == 'prototype-transition': put(leaf, 0x8c00)
@@ -72,7 +76,7 @@ def generate(checkout, extended=False, linux32=False):
             elif kind == 'physical-hole': holes = [[0x8000, 0x9000]]
             elif kind == 'physical-last-byte': holes = [[0x8001, 0x9000]]
             elif kind == 'table-hole': holes = [[leaf, leaf + 4096]]
-            patterned_ranges=[[0x8000,0xc000]]+([[0x200000,0x400000]] if kind=='large-pat' else [])
+            patterned_ranges=[[0x8000,0xc000]]+([[0x200000,0x400000]] if kind in ('large-pat', 'protnone-large-pat') else [])
             for start,end in patterned_ranges:
                 for i in range(start,end):data[i]=(i*17+3)%251
             class Capture(BufferDataLayer):
@@ -113,8 +117,10 @@ def generate(checkout, extended=False, linux32=False):
             cases.append(record)
     sources = ['volatility3/framework/layers/intel.py', 'volatility3/framework/interfaces/layers.py',
                'volatility3/framework/layers/physical.py']
+    scope = ('Actual pinned LinuxIntel/LinuxIntelPAE reads and mappings over synthetic page tables, including PROT_NONE leaf and upper entries, PAT large pages, and 32-bit register masking of 64-bit PAE PTEs. Production discovery, object decoding, and full plugin contracts are outside this evidence.' if linux32 else
+             'Actual WindowsIntel/WindowsIntelPAE/WindowsIntel32e and optional generic Intel32e reads and mappings with physical and explicit swap BufferDataLayers over synthetic page tables. Synthetic adapters do not establish full platform or plugin contracts. Reference swap reads preserve the pinned offset semantics.')
     return dict(reference_commit=PIN, source_sha256={p: hashlib.sha256((checkout / p).read_bytes()).hexdigest() for p in sources},
-                scope='Actual WindowsIntel/WindowsIntelPAE/WindowsIntel32e read with physical and explicit swap BufferDataLayers over synthetic page tables. Resident/transition/prototype flags, fixed swap bits and indices, unaligned/cross-page reads, upper-level software entries, missing attachments, backing and table holes are covered. Synthetic adapters do not establish all scanner mapping/chunk/padding or full architecture/platform/exception/resource contracts. Reference swap reads intentionally preserve the pinned offset semantics.', cases=cases)
+                scope=scope, cases=cases)
 
 
 if __name__ == '__main__':

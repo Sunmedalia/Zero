@@ -5,7 +5,7 @@
     "volatility3/framework/interfaces/layers.py": "5515d539fe1dfb78723a82d2f18762bf455dd29cb246c2642460e1eae8853b6a",
     "volatility3/framework/layers/physical.py": "49065728f89b0187ebfe02af8f10283e9702e5b88e5910ab35b516e2169d9828"
   },
-  "scope": "Actual WindowsIntel/WindowsIntelPAE/WindowsIntel32e read with physical and explicit swap BufferDataLayers over synthetic page tables. Resident/transition/prototype flags, fixed swap bits and indices, unaligned/cross-page reads, upper-level software entries, missing attachments, backing and table holes are covered. Synthetic adapters do not establish all scanner mapping/chunk/padding or full architecture/platform/exception/resource contracts. Reference swap reads intentionally preserve the pinned offset semantics.",
+  "scope": "Actual pinned LinuxIntel/LinuxIntelPAE reads and mappings over synthetic page tables, including PROT_NONE leaf and upper entries, PAT large pages, and 32-bit register masking of 64-bit PAE PTEs. Production discovery, object decoding, and full plugin contracts are outside this evidence.",
   "cases": [
     {
       "id": "linux32-resident",
@@ -8080,6 +8080,738 @@
       ]
     },
     {
+      "id": "linux32-protnone",
+      "arch": "linux32",
+      "width": 4,
+      "writes": [
+        [
+          4096,
+          8195
+        ],
+        [
+          8192,
+          32771
+        ],
+        [
+          8196,
+          40963
+        ],
+        [
+          8200,
+          47104
+        ],
+        [
+          8192,
+          4294930688
+        ]
+      ],
+      "attached": 0,
+      "pagefile_length": 65536,
+      "holes": [],
+      "queries": [
+        {
+          "address": 0,
+          "length": 16,
+          "expected_hex": "5a6b7c8d9eafc0d1e2f3091a2b3c4d5e",
+          "error": null
+        },
+        {
+          "address": 3,
+          "length": 16,
+          "expected_hex": "8d9eafc0d1e2f3091a2b3c4d5e6f8091",
+          "error": null
+        },
+        {
+          "address": 4090,
+          "length": 24,
+          "expected_hex": "5d6e7f90a1b231425364758697a8b9cadbec021324354657",
+          "error": null
+        },
+        {
+          "address": 4096,
+          "length": 16,
+          "expected_hex": "31425364758697a8b9cadbec02132435",
+          "error": null
+        },
+        {
+          "address": 4099,
+          "length": 16,
+          "expected_hex": "64758697a8b9cadbec02132435465768",
+          "error": null
+        },
+        {
+          "address": 8192,
+          "length": 16,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 291,
+          "length": 1,
+          "expected_hex": "11",
+          "error": null
+        },
+        {
+          "address": 4096,
+          "length": 4,
+          "expected_hex": "31425364",
+          "error": null
+        },
+        {
+          "address": 4099,
+          "length": 1,
+          "expected_hex": "64",
+          "error": null
+        },
+        {
+          "address": 8190,
+          "length": 4,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        }
+      ],
+      "data_length": 131072,
+      "patterned_ranges": [
+        [
+          32768,
+          49152
+        ]
+      ],
+      "mapping_queries": [
+        {
+          "start": 0,
+          "end": 12288,
+          "expected": [
+            [
+              0,
+              4096,
+              32768,
+              0
+            ],
+            [
+              4096,
+              8192,
+              40960,
+              0
+            ]
+          ]
+        },
+        {
+          "start": 3,
+          "end": 4101,
+          "expected": [
+            [
+              3,
+              4096,
+              32771,
+              0
+            ],
+            [
+              4096,
+              4101,
+              40960,
+              0
+            ]
+          ]
+        },
+        {
+          "start": 4096,
+          "end": 4100,
+          "expected": [
+            [
+              4096,
+              4100,
+              40960,
+              0
+            ]
+          ]
+        },
+        {
+          "start": 0,
+          "end": 0,
+          "expected": [
+            [
+              0,
+              0,
+              32768,
+              0
+            ]
+          ]
+        },
+        {
+          "start": 3,
+          "end": 3,
+          "expected": [
+            [
+              3,
+              3,
+              32771,
+              0
+            ]
+          ]
+        },
+        {
+          "start": 4096,
+          "end": 4096,
+          "expected": [
+            [
+              4096,
+              4096,
+              40960,
+              0
+            ]
+          ]
+        },
+        {
+          "start": 8192,
+          "end": 8192,
+          "expected": []
+        },
+        {
+          "start": 12288,
+          "end": 12288,
+          "expected": []
+        }
+      ]
+    },
+    {
+      "id": "linux32-protnone-upper",
+      "arch": "linux32",
+      "width": 4,
+      "writes": [
+        [
+          4096,
+          8195
+        ],
+        [
+          8192,
+          32771
+        ],
+        [
+          8196,
+          40963
+        ],
+        [
+          8200,
+          47104
+        ],
+        [
+          4096,
+          4294955264
+        ]
+      ],
+      "attached": 0,
+      "pagefile_length": 65536,
+      "holes": [],
+      "queries": [
+        {
+          "address": 0,
+          "length": 16,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 3,
+          "length": 16,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 4090,
+          "length": 24,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 4096,
+          "length": 16,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 4099,
+          "length": 16,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 8192,
+          "length": 16,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 291,
+          "length": 1,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 4096,
+          "length": 4,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 4099,
+          "length": 1,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 8190,
+          "length": 4,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        }
+      ],
+      "data_length": 131072,
+      "patterned_ranges": [
+        [
+          32768,
+          49152
+        ]
+      ],
+      "mapping_queries": [
+        {
+          "start": 0,
+          "end": 12288,
+          "expected": []
+        },
+        {
+          "start": 3,
+          "end": 4101,
+          "expected": []
+        },
+        {
+          "start": 4096,
+          "end": 4100,
+          "expected": []
+        },
+        {
+          "start": 0,
+          "end": 0,
+          "expected": []
+        },
+        {
+          "start": 3,
+          "end": 3,
+          "expected": []
+        },
+        {
+          "start": 4096,
+          "end": 4096,
+          "expected": []
+        },
+        {
+          "start": 8192,
+          "end": 8192,
+          "expected": []
+        },
+        {
+          "start": 12288,
+          "end": 12288,
+          "expected": []
+        }
+      ]
+    },
+    {
+      "id": "linux32-protnone-large-pat",
+      "arch": "linux32",
+      "width": 4,
+      "writes": [
+        [
+          4096,
+          8195
+        ],
+        [
+          8192,
+          32771
+        ],
+        [
+          8196,
+          40963
+        ],
+        [
+          8200,
+          47104
+        ],
+        [
+          4096,
+          4292866432
+        ]
+      ],
+      "attached": 0,
+      "pagefile_length": 65536,
+      "holes": [],
+      "queries": [
+        {
+          "address": 0,
+          "length": 16,
+          "expected_hex": "9aabbccddeef05162738495a6b7c8d9e",
+          "error": null
+        },
+        {
+          "address": 3,
+          "length": 16,
+          "expected_hex": "cddeef05162738495a6b7c8d9eafc0d1",
+          "error": null
+        },
+        {
+          "address": 4090,
+          "length": 24,
+          "expected_hex": "9daebfd0e1f208192a3b4c5d6e7f90a1b2c3d4e5f60c1d2e",
+          "error": null
+        },
+        {
+          "address": 4096,
+          "length": 16,
+          "expected_hex": "9aabbccddeef05162738495a6b7c8d9e",
+          "error": null
+        },
+        {
+          "address": 4099,
+          "length": 16,
+          "expected_hex": "cddeef05162738495a6b7c8d9eafc0d1",
+          "error": null
+        },
+        {
+          "address": 8192,
+          "length": 16,
+          "expected_hex": "718293a4b5c6d7e8f90f203142536475",
+          "error": null
+        },
+        {
+          "address": 291,
+          "length": 1,
+          "expected_hex": "51",
+          "error": null
+        },
+        {
+          "address": 4096,
+          "length": 4,
+          "expected_hex": "9aabbccd",
+          "error": null
+        },
+        {
+          "address": 4099,
+          "length": 1,
+          "expected_hex": "cd",
+          "error": null
+        },
+        {
+          "address": 8190,
+          "length": 4,
+          "expected_hex": "e1f20819",
+          "error": null
+        }
+      ],
+      "data_length": 4194304,
+      "patterned_ranges": [
+        [
+          32768,
+          49152
+        ],
+        [
+          2097152,
+          4194304
+        ]
+      ],
+      "mapping_queries": [
+        {
+          "start": 0,
+          "end": 12288,
+          "expected": [
+            [
+              0,
+              12288,
+              2101248,
+              0
+            ]
+          ]
+        },
+        {
+          "start": 3,
+          "end": 4101,
+          "expected": [
+            [
+              3,
+              4101,
+              2101251,
+              0
+            ]
+          ]
+        },
+        {
+          "start": 4096,
+          "end": 4100,
+          "expected": [
+            [
+              4096,
+              4100,
+              2101248,
+              0
+            ]
+          ]
+        },
+        {
+          "start": 0,
+          "end": 0,
+          "expected": [
+            [
+              0,
+              0,
+              2101248,
+              0
+            ]
+          ]
+        },
+        {
+          "start": 3,
+          "end": 3,
+          "expected": [
+            [
+              3,
+              3,
+              2101251,
+              0
+            ]
+          ]
+        },
+        {
+          "start": 4096,
+          "end": 4096,
+          "expected": [
+            [
+              4096,
+              4096,
+              2101248,
+              0
+            ]
+          ]
+        },
+        {
+          "start": 8192,
+          "end": 8192,
+          "expected": [
+            [
+              8192,
+              8192,
+              2109440,
+              0
+            ]
+          ]
+        },
+        {
+          "start": 12288,
+          "end": 12288,
+          "expected": [
+            [
+              12288,
+              12288,
+              2109440,
+              0
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "id": "linux32-present-high32",
+      "arch": "linux32",
+      "width": 4,
+      "writes": [
+        [
+          4096,
+          8195
+        ],
+        [
+          8192,
+          32771
+        ],
+        [
+          8196,
+          40963
+        ],
+        [
+          8200,
+          47104
+        ],
+        [
+          8192,
+          32771
+        ]
+      ],
+      "attached": 0,
+      "pagefile_length": 65536,
+      "holes": [],
+      "queries": [
+        {
+          "address": 0,
+          "length": 16,
+          "expected_hex": "5a6b7c8d9eafc0d1e2f3091a2b3c4d5e",
+          "error": null
+        },
+        {
+          "address": 3,
+          "length": 16,
+          "expected_hex": "8d9eafc0d1e2f3091a2b3c4d5e6f8091",
+          "error": null
+        },
+        {
+          "address": 4090,
+          "length": 24,
+          "expected_hex": "5d6e7f90a1b231425364758697a8b9cadbec021324354657",
+          "error": null
+        },
+        {
+          "address": 4096,
+          "length": 16,
+          "expected_hex": "31425364758697a8b9cadbec02132435",
+          "error": null
+        },
+        {
+          "address": 4099,
+          "length": 16,
+          "expected_hex": "64758697a8b9cadbec02132435465768",
+          "error": null
+        },
+        {
+          "address": 8192,
+          "length": 16,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 291,
+          "length": 1,
+          "expected_hex": "11",
+          "error": null
+        },
+        {
+          "address": 4096,
+          "length": 4,
+          "expected_hex": "31425364",
+          "error": null
+        },
+        {
+          "address": 4099,
+          "length": 1,
+          "expected_hex": "64",
+          "error": null
+        },
+        {
+          "address": 8190,
+          "length": 4,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        }
+      ],
+      "data_length": 131072,
+      "patterned_ranges": [
+        [
+          32768,
+          49152
+        ]
+      ],
+      "mapping_queries": [
+        {
+          "start": 0,
+          "end": 12288,
+          "expected": [
+            [
+              0,
+              4096,
+              32768,
+              0
+            ],
+            [
+              4096,
+              8192,
+              40960,
+              0
+            ]
+          ]
+        },
+        {
+          "start": 3,
+          "end": 4101,
+          "expected": [
+            [
+              3,
+              4096,
+              32771,
+              0
+            ],
+            [
+              4096,
+              4101,
+              40960,
+              0
+            ]
+          ]
+        },
+        {
+          "start": 4096,
+          "end": 4100,
+          "expected": [
+            [
+              4096,
+              4100,
+              40960,
+              0
+            ]
+          ]
+        },
+        {
+          "start": 0,
+          "end": 0,
+          "expected": [
+            [
+              0,
+              0,
+              32768,
+              0
+            ]
+          ]
+        },
+        {
+          "start": 3,
+          "end": 3,
+          "expected": [
+            [
+              3,
+              3,
+              32771,
+              0
+            ]
+          ]
+        },
+        {
+          "start": 4096,
+          "end": 4096,
+          "expected": [
+            [
+              4096,
+              4096,
+              40960,
+              0
+            ]
+          ]
+        },
+        {
+          "start": 8192,
+          "end": 8192,
+          "expected": []
+        },
+        {
+          "start": 12288,
+          "end": 12288,
+          "expected": []
+        }
+      ]
+    },
+    {
       "id": "linux-pae-resident",
       "arch": "linux-pae",
       "width": 8,
@@ -14373,6 +15105,754 @@
           "start": 3,
           "end": 3,
           "expected": []
+        },
+        {
+          "start": 4096,
+          "end": 4096,
+          "expected": [
+            [
+              4096,
+              4096,
+              40960,
+              0
+            ]
+          ]
+        },
+        {
+          "start": 8192,
+          "end": 8192,
+          "expected": []
+        },
+        {
+          "start": 12288,
+          "end": 12288,
+          "expected": []
+        }
+      ]
+    },
+    {
+      "id": "linux-pae-protnone",
+      "arch": "linux-pae",
+      "width": 8,
+      "writes": [
+        [
+          4096,
+          8195
+        ],
+        [
+          8192,
+          12291
+        ],
+        [
+          12288,
+          32771
+        ],
+        [
+          12296,
+          40963
+        ],
+        [
+          12304,
+          47104
+        ],
+        [
+          12288,
+          18446744073709515008
+        ]
+      ],
+      "attached": 0,
+      "pagefile_length": 65536,
+      "holes": [],
+      "queries": [
+        {
+          "address": 0,
+          "length": 16,
+          "expected_hex": "5a6b7c8d9eafc0d1e2f3091a2b3c4d5e",
+          "error": null
+        },
+        {
+          "address": 3,
+          "length": 16,
+          "expected_hex": "8d9eafc0d1e2f3091a2b3c4d5e6f8091",
+          "error": null
+        },
+        {
+          "address": 4090,
+          "length": 24,
+          "expected_hex": "5d6e7f90a1b231425364758697a8b9cadbec021324354657",
+          "error": null
+        },
+        {
+          "address": 4096,
+          "length": 16,
+          "expected_hex": "31425364758697a8b9cadbec02132435",
+          "error": null
+        },
+        {
+          "address": 4099,
+          "length": 16,
+          "expected_hex": "64758697a8b9cadbec02132435465768",
+          "error": null
+        },
+        {
+          "address": 8192,
+          "length": 16,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 291,
+          "length": 1,
+          "expected_hex": "11",
+          "error": null
+        },
+        {
+          "address": 4096,
+          "length": 4,
+          "expected_hex": "31425364",
+          "error": null
+        },
+        {
+          "address": 4099,
+          "length": 1,
+          "expected_hex": "64",
+          "error": null
+        },
+        {
+          "address": 8190,
+          "length": 4,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        }
+      ],
+      "data_length": 131072,
+      "patterned_ranges": [
+        [
+          32768,
+          49152
+        ]
+      ],
+      "mapping_queries": [
+        {
+          "start": 0,
+          "end": 12288,
+          "expected": [
+            [
+              0,
+              4096,
+              32768,
+              0
+            ],
+            [
+              4096,
+              8192,
+              40960,
+              0
+            ]
+          ]
+        },
+        {
+          "start": 3,
+          "end": 4101,
+          "expected": [
+            [
+              3,
+              4096,
+              32771,
+              0
+            ],
+            [
+              4096,
+              4101,
+              40960,
+              0
+            ]
+          ]
+        },
+        {
+          "start": 4096,
+          "end": 4100,
+          "expected": [
+            [
+              4096,
+              4100,
+              40960,
+              0
+            ]
+          ]
+        },
+        {
+          "start": 0,
+          "end": 0,
+          "expected": [
+            [
+              0,
+              0,
+              32768,
+              0
+            ]
+          ]
+        },
+        {
+          "start": 3,
+          "end": 3,
+          "expected": [
+            [
+              3,
+              3,
+              32771,
+              0
+            ]
+          ]
+        },
+        {
+          "start": 4096,
+          "end": 4096,
+          "expected": [
+            [
+              4096,
+              4096,
+              40960,
+              0
+            ]
+          ]
+        },
+        {
+          "start": 8192,
+          "end": 8192,
+          "expected": []
+        },
+        {
+          "start": 12288,
+          "end": 12288,
+          "expected": []
+        }
+      ]
+    },
+    {
+      "id": "linux-pae-protnone-upper",
+      "arch": "linux-pae",
+      "width": 8,
+      "writes": [
+        [
+          4096,
+          8195
+        ],
+        [
+          8192,
+          12291
+        ],
+        [
+          12288,
+          32771
+        ],
+        [
+          12296,
+          40963
+        ],
+        [
+          12304,
+          47104
+        ],
+        [
+          4096,
+          18446744073709539584
+        ]
+      ],
+      "attached": 0,
+      "pagefile_length": 65536,
+      "holes": [],
+      "queries": [
+        {
+          "address": 0,
+          "length": 16,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 3,
+          "length": 16,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 4090,
+          "length": 24,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 4096,
+          "length": 16,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 4099,
+          "length": 16,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 8192,
+          "length": 16,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 291,
+          "length": 1,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 4096,
+          "length": 4,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 4099,
+          "length": 1,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 8190,
+          "length": 4,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        }
+      ],
+      "data_length": 131072,
+      "patterned_ranges": [
+        [
+          32768,
+          49152
+        ]
+      ],
+      "mapping_queries": [
+        {
+          "start": 0,
+          "end": 12288,
+          "expected": []
+        },
+        {
+          "start": 3,
+          "end": 4101,
+          "expected": []
+        },
+        {
+          "start": 4096,
+          "end": 4100,
+          "expected": []
+        },
+        {
+          "start": 0,
+          "end": 0,
+          "expected": []
+        },
+        {
+          "start": 3,
+          "end": 3,
+          "expected": []
+        },
+        {
+          "start": 4096,
+          "end": 4096,
+          "expected": []
+        },
+        {
+          "start": 8192,
+          "end": 8192,
+          "expected": []
+        },
+        {
+          "start": 12288,
+          "end": 12288,
+          "expected": []
+        }
+      ]
+    },
+    {
+      "id": "linux-pae-protnone-large-pat",
+      "arch": "linux-pae",
+      "width": 8,
+      "writes": [
+        [
+          4096,
+          8195
+        ],
+        [
+          8192,
+          12291
+        ],
+        [
+          12288,
+          32771
+        ],
+        [
+          12296,
+          40963
+        ],
+        [
+          12304,
+          47104
+        ],
+        [
+          8192,
+          4292866432
+        ]
+      ],
+      "attached": 0,
+      "pagefile_length": 65536,
+      "holes": [],
+      "queries": [
+        {
+          "address": 0,
+          "length": 16,
+          "expected_hex": "9aabbccddeef05162738495a6b7c8d9e",
+          "error": null
+        },
+        {
+          "address": 3,
+          "length": 16,
+          "expected_hex": "cddeef05162738495a6b7c8d9eafc0d1",
+          "error": null
+        },
+        {
+          "address": 4090,
+          "length": 24,
+          "expected_hex": "9daebfd0e1f208192a3b4c5d6e7f90a1b2c3d4e5f60c1d2e",
+          "error": null
+        },
+        {
+          "address": 4096,
+          "length": 16,
+          "expected_hex": "9aabbccddeef05162738495a6b7c8d9e",
+          "error": null
+        },
+        {
+          "address": 4099,
+          "length": 16,
+          "expected_hex": "cddeef05162738495a6b7c8d9eafc0d1",
+          "error": null
+        },
+        {
+          "address": 8192,
+          "length": 16,
+          "expected_hex": "718293a4b5c6d7e8f90f203142536475",
+          "error": null
+        },
+        {
+          "address": 291,
+          "length": 1,
+          "expected_hex": "51",
+          "error": null
+        },
+        {
+          "address": 4096,
+          "length": 4,
+          "expected_hex": "9aabbccd",
+          "error": null
+        },
+        {
+          "address": 4099,
+          "length": 1,
+          "expected_hex": "cd",
+          "error": null
+        },
+        {
+          "address": 8190,
+          "length": 4,
+          "expected_hex": "e1f20819",
+          "error": null
+        }
+      ],
+      "data_length": 4194304,
+      "patterned_ranges": [
+        [
+          32768,
+          49152
+        ],
+        [
+          2097152,
+          4194304
+        ]
+      ],
+      "mapping_queries": [
+        {
+          "start": 0,
+          "end": 12288,
+          "expected": [
+            [
+              0,
+              12288,
+              2101248,
+              0
+            ]
+          ]
+        },
+        {
+          "start": 3,
+          "end": 4101,
+          "expected": [
+            [
+              3,
+              4101,
+              2101251,
+              0
+            ]
+          ]
+        },
+        {
+          "start": 4096,
+          "end": 4100,
+          "expected": [
+            [
+              4096,
+              4100,
+              2101248,
+              0
+            ]
+          ]
+        },
+        {
+          "start": 0,
+          "end": 0,
+          "expected": [
+            [
+              0,
+              0,
+              2101248,
+              0
+            ]
+          ]
+        },
+        {
+          "start": 3,
+          "end": 3,
+          "expected": [
+            [
+              3,
+              3,
+              2101251,
+              0
+            ]
+          ]
+        },
+        {
+          "start": 4096,
+          "end": 4096,
+          "expected": [
+            [
+              4096,
+              4096,
+              2101248,
+              0
+            ]
+          ]
+        },
+        {
+          "start": 8192,
+          "end": 8192,
+          "expected": [
+            [
+              8192,
+              8192,
+              2109440,
+              0
+            ]
+          ]
+        },
+        {
+          "start": 12288,
+          "end": 12288,
+          "expected": [
+            [
+              12288,
+              12288,
+              2109440,
+              0
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "id": "linux-pae-present-high32",
+      "arch": "linux-pae",
+      "width": 8,
+      "writes": [
+        [
+          4096,
+          8195
+        ],
+        [
+          8192,
+          12291
+        ],
+        [
+          12288,
+          32771
+        ],
+        [
+          12296,
+          40963
+        ],
+        [
+          12304,
+          47104
+        ],
+        [
+          12288,
+          4295000067
+        ]
+      ],
+      "attached": 0,
+      "pagefile_length": 65536,
+      "holes": [],
+      "queries": [
+        {
+          "address": 0,
+          "length": 16,
+          "expected_hex": "5a6b7c8d9eafc0d1e2f3091a2b3c4d5e",
+          "error": null
+        },
+        {
+          "address": 3,
+          "length": 16,
+          "expected_hex": "8d9eafc0d1e2f3091a2b3c4d5e6f8091",
+          "error": null
+        },
+        {
+          "address": 4090,
+          "length": 24,
+          "expected_hex": "5d6e7f90a1b231425364758697a8b9cadbec021324354657",
+          "error": null
+        },
+        {
+          "address": 4096,
+          "length": 16,
+          "expected_hex": "31425364758697a8b9cadbec02132435",
+          "error": null
+        },
+        {
+          "address": 4099,
+          "length": 16,
+          "expected_hex": "64758697a8b9cadbec02132435465768",
+          "error": null
+        },
+        {
+          "address": 8192,
+          "length": 16,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        },
+        {
+          "address": 291,
+          "length": 1,
+          "expected_hex": "11",
+          "error": null
+        },
+        {
+          "address": 4096,
+          "length": 4,
+          "expected_hex": "31425364",
+          "error": null
+        },
+        {
+          "address": 4099,
+          "length": 1,
+          "expected_hex": "64",
+          "error": null
+        },
+        {
+          "address": 8190,
+          "length": 4,
+          "expected_hex": null,
+          "error": "PagedInvalidAddressException"
+        }
+      ],
+      "data_length": 131072,
+      "patterned_ranges": [
+        [
+          32768,
+          49152
+        ]
+      ],
+      "mapping_queries": [
+        {
+          "start": 0,
+          "end": 12288,
+          "expected": [
+            [
+              0,
+              4096,
+              32768,
+              0
+            ],
+            [
+              4096,
+              8192,
+              40960,
+              0
+            ]
+          ]
+        },
+        {
+          "start": 3,
+          "end": 4101,
+          "expected": [
+            [
+              3,
+              4096,
+              32771,
+              0
+            ],
+            [
+              4096,
+              4101,
+              40960,
+              0
+            ]
+          ]
+        },
+        {
+          "start": 4096,
+          "end": 4100,
+          "expected": [
+            [
+              4096,
+              4100,
+              40960,
+              0
+            ]
+          ]
+        },
+        {
+          "start": 0,
+          "end": 0,
+          "expected": [
+            [
+              0,
+              0,
+              32768,
+              0
+            ]
+          ]
+        },
+        {
+          "start": 3,
+          "end": 3,
+          "expected": [
+            [
+              3,
+              3,
+              32771,
+              0
+            ]
+          ]
         },
         {
           "start": 4096,

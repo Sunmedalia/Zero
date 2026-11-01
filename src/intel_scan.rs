@@ -61,6 +61,7 @@ impl Kind {
     }
     fn valid(self, e: u64) -> bool {
         e & 1 != 0
+            || (matches!(self, Self::Linux32 | Self::LinuxPae) && e & 0x100 != 0)
             || (!matches!(self, Self::Linux64 | Self::Linux32 | Self::LinuxPae)
                 && e & (1 << 11) != 0
                 && e & (1 << 10) == 0)
@@ -160,7 +161,20 @@ impl<'a> Mapper<'a> {
             });
         }
         let span = 1u64 << previous;
-        Ok(((entry & mask & !4095) | (at & (span - 1)), span))
+        let frame = if matches!(self.kind, Kind::Linux32 | Kind::LinuxPae) {
+            // LinuxIntelPAE also has 32-bit registers despite its 64-bit PTEs.
+            // LinuxMixin masks and inverts only the final PFN, not table bases.
+            let register_mask = u64::from(u32::MAX);
+            let inversion = if entry != 0 && entry & 1 == 0 {
+                register_mask
+            } else {
+                0
+            };
+            (entry ^ inversion) & register_mask & mask & !4095
+        } else {
+            entry & mask & !4095
+        };
+        Ok((frame | (at & (span - 1)), span))
     }
     fn captured(&self, at: u64, length: u64) -> bool {
         let Some(end) = at.checked_add(length) else {
