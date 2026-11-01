@@ -74,7 +74,12 @@ impl Windows<'_> {
         let list_offset = self.vm.isf.offset("_CM_KEY_NODE", "ValueList")? as usize;
         let list = node.get(list_offset..).context("注册表 ValueList 截断")?;
         let count = objects::physical_number(self.vm.isf, list, "_CHILD_LIST", "Count")?;
-        let index = objects::physical_number(self.vm.isf, list, "_CHILD_LIST", "List")? as u32;
+        let index = u32::try_from(objects::physical_number(
+            self.vm.isf,
+            list,
+            "_CHILD_LIST",
+            "List",
+        )?)?;
         ensure!(count <= MAX_OBJECTS as u64, "注册表值超限");
         if count > 0 {
             let indices = self.cell(hhive, index)?;
@@ -397,17 +402,17 @@ impl Windows<'_> {
         let cell = self.cell(hive, index)?;
         let name = self.value_cell_name(&cell)?;
         let get = |f| objects::physical_number(self.vm.isf, &cell, "_CM_KEY_VALUE", f);
-        let length = get("DataLength")? as u32;
+        let length = u32::try_from(get("DataLength")?)?;
         let inline = length & 0x8000_0000 != 0;
         let length = (length & 0x7fff_ffff) as usize;
         ensure!(length <= 1024 * 1024, "注册表值超过 1 MiB");
         let bytes = if inline {
             ensure!(length <= 4, "内联值长度无效");
-            (get("Data")? as u32).to_le_bytes()[..length].to_vec()
+            u32::try_from(get("Data")?)?.to_le_bytes()[..length].to_vec()
         } else if length == 0 {
             Vec::new()
         } else {
-            let data = self.cell(hive, get("Data")? as u32)?;
+            let data = self.cell(hive, u32::try_from(get("Data")?)?)?;
             if length <= data.len() {
                 data[..length].to_vec()
             } else {
@@ -417,7 +422,7 @@ impl Windows<'_> {
                 })?
             }
         };
-        let ty = get("Type")? as u32;
+        let ty = u32::try_from(get("Type")?)?;
         Ok((name, ty, bytes))
     }
     /// 读取 `nk` 键单元的 class 数据（SAM bootkey 片段存放位置）。
@@ -430,7 +435,12 @@ impl Windows<'_> {
             return Ok(Vec::new());
         }
         ensure!(length <= 4096, "注册表键 class 超长");
-        let class = objects::physical_number(self.vm.isf, &node, "_CM_KEY_NODE", "Class")? as u32;
+        let class = u32::try_from(objects::physical_number(
+            self.vm.isf,
+            &node,
+            "_CM_KEY_NODE",
+            "Class",
+        )?)?;
         ensure!(class != 0, "注册表键 class 缺失");
         let data = self.cell(hive, class)?;
         ensure!(length <= data.len(), "注册表键 class 截断");
@@ -463,7 +473,12 @@ impl Windows<'_> {
         if count == 0 {
             return Ok(Vec::new());
         }
-        let index = objects::physical_number(self.vm.isf, list, "_CHILD_LIST", "List")? as u32;
+        let index = u32::try_from(objects::physical_number(
+            self.vm.isf,
+            list,
+            "_CHILD_LIST",
+            "List",
+        )?)?;
         let indices = self.cell(hive, index)?;
         ensure!(count * 4 <= indices.len(), "注册表值列表截断");
         Ok(indices[..count * 4]

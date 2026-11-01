@@ -39,7 +39,10 @@ fn u64le(bytes: &[u8], p: usize) -> Result<u64> {
 pub fn elf_metadata(path: &Path) -> Result<(u16, serde_json::Value)> {
     let mut file = File::open(path)?;
     let h = read_at(&mut file, 0, 64)?;
-    ensure!(&h[..7] == b"\x7fELF\x02\x01\x01", "需要小端 ELF64 调试文件");
+    ensure!(
+        h.starts_with(b"\x7fELF\x02\x01\x01"),
+        "需要小端 ELF64 调试文件"
+    );
     let machine = u16le(&h, 18)?;
     ensure!(matches!(machine, 62 | 183), "ELF 架构不支持");
     let off = u64le(&h, 40)?;
@@ -63,15 +66,15 @@ pub fn elf_metadata(path: &Path) -> Result<(u16, serde_json::Value)> {
         ensure!(entry >= 24, "ELF symbol entry 无效");
         for symbol in symbols.chunks_exact(entry) {
             let name = u32le(symbol, 0)? as usize;
-            if name >= strings.len() {
+            let Some(bytes) = strings.get(name..).filter(|bytes| !bytes.is_empty()) else {
                 continue;
-            }
-            let bytes = &strings[name..];
-            let end = bytes
-                .iter()
-                .position(|b| *b == 0)
+            };
+            let name = bytes
+                .split(|b| *b == 0)
+                .next()
+                .filter(|name| name.len() < bytes.len())
                 .context("ELF symbol name 未终止")?;
-            let name = std::str::from_utf8(&bytes[..end])?;
+            let name = std::str::from_utf8(name)?;
             if matches!(name, "sys_call_table" | "compat_sys_call_table") {
                 sizes.insert(name.into(), json!(u64le(symbol, 16)?));
             }
@@ -172,6 +175,10 @@ pub fn generate(
         "生成 ISF 超过 256 MiB"
     );
     let mut data: serde_json::Value = serde_json::from_reader(output.reopen()?)?;
+    ensure!(
+        data.is_object() && (data["metadata"].is_object() || data["metadata"].is_null()),
+        "生成的 ISF 结构无效"
+    );
     data["metadata"]["zero"] = json!({"architecture":if machine==183{"aarch64"}else{"x86_64"},"page_shift":12,"va_bits":bits,"symbol_sizes":sizes,
         "elf_sha256":digest_reader(File::open(elf)?,job)?,"config_sha256":digest_reader(File::open(config)?,job)?,"dwarf2json_tool_sha256":digest_reader(File::open(tool)?,job)?});
     let bytes = serde_json::to_vec(&data)?;

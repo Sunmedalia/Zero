@@ -80,6 +80,10 @@ impl Job {
     }
 }
 
+// Hosts are 64-bit (see README); this makes every u64-to-usize conversion lossless.
+#[cfg(not(target_pointer_width = "64"))]
+compile_error!("Zero requires a 64-bit host");
+
 mod bytes;
 pub mod prepare;
 

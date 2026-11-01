@@ -297,7 +297,11 @@ impl Windows<'_> {
                 let root = (|| -> Result<u32> {
                     let base = self.number(hive, "_HHIVE", "BaseBlock")?;
                     ensure!(self.vm.uint(base, 4)? == 0x66676572, "缺少 regf base block");
-                    Ok(self.number(base, "_HBASE_BLOCK", "RootCell")? as u32)
+                    Ok(u32::try_from(self.number(
+                        base,
+                        "_HBASE_BLOCK",
+                        "RootCell",
+                    )?)?)
                 })();
                 let root = match root {
                     Ok(root) => root,

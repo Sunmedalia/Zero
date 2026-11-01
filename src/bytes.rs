@@ -1,4 +1,5 @@
 //! Bounds-checked integers from untrusted image bytes. `None` means truncated input.
+#![cfg_attr(not(test), deny(clippy::indexing_slicing))]
 fn array<const N: usize>(bytes: &[u8], at: usize) -> Option<[u8; N]> {
     bytes.get(at..at.checked_add(N)?)?.first_chunk().copied()
 }

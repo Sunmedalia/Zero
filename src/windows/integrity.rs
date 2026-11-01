@@ -239,7 +239,7 @@ impl Windows<'_> {
                     }
                     continue;
                 }
-                let key = objects::physical_number(self.vm.isf, entry, ty, "Key")? as u32;
+                let key = u32::try_from(objects::physical_number(self.vm.isf, entry, ty, "Key")?)?;
                 let va = objects::physical_number(self.vm.isf, entry, ty, "Va")?;
                 if key == 0 || va & 1 != 0 {
                     continue;
