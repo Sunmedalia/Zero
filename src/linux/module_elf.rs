@@ -200,11 +200,15 @@ impl Linux<'_> {
             };
             let array = self.number(attrs, "module_sect_attrs", field)?;
             ensure!(array != 0, "模块 section 属性数组为空");
+            let width = self.isf.data["base_types"]["pointer"]["size"]
+                .as_u64()
+                .context("模块 section 属性指针宽度缺失")?;
+            ensure!(matches!(width, 4 | 8), "模块 section 属性指针宽度无效");
             let mut count = 0;
             loop {
                 job.check()?;
                 ensure!(count < 100, "模块 section 属性超过 100 项上限");
-                if self.vm.uint(add(array, count * 8)?, 8)? == 0 {
+                if self.vm.uint(add(array, count * width)?, width as usize)? == 0 {
                     break;
                 }
                 count += 1;
@@ -874,6 +878,38 @@ mod tests {
                 .extract_module(&options(directory.path()), &job)
                 .is_err()
         );
+    }
+    #[test]
+    fn section_pointer_arrays_use_isf_width_and_stop_at_four_byte_null() {
+        for field in ["attrs", "bin_attrs"] {
+            let (mut bytes, mut isf) = fixture();
+            isf.data["base_types"]["pointer"]["size"] = json!(4);
+            isf.data["user_types"]["module_sect_attrs"]["fields"]
+                .as_object_mut()
+                .unwrap()
+                .remove("nsections");
+            isf.data["user_types"]["module_sect_attrs"]["fields"]["grp"] =
+                json!({"offset":0,"type":{"kind":"struct","name":"attribute_group"}});
+            isf.data["user_types"]["attribute_group"] = json!({"size":4,"fields":{
+                field:{"offset":0,"type":{"kind":"pointer"}}
+            }});
+            put(&mut bytes, 0x31000, 0x36000);
+            // Four populated slots, then a four-byte null with a nonzero neighbor.
+            // Eight-byte reads would merge slots and miss the terminator.
+            for index in 0..4 {
+                bytes[0x36000 + index * 4..0x36004 + index * 4]
+                    .copy_from_slice(&(0x38000u32 + index as u32 * 4).to_le_bytes());
+            }
+            bytes[0x36010..0x36014].fill(0);
+            bytes[0x36014..0x36018].copy_from_slice(&0xdeadbeefu32.to_le_bytes());
+            let image = super::super::tests::image(&bytes);
+            let sections = super::super::tests::engine(&image, &isf)
+                .module_sections(0x30000, None, &Job::default())
+                .unwrap();
+            assert_eq!(sections.len(), 4, "grp.{field}");
+            assert_eq!(sections[0].name, ".data");
+            assert_eq!(sections[1].name, ".text");
+        }
     }
     #[test]
     fn newer_kallsyms_bin_attributes_and_section_count_match_old_layout() {
