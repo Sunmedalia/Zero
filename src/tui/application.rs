@@ -293,6 +293,7 @@ impl App {
             asset_index_cache: RefCell::new(Default::default()),
             registry,
             asset_rows: PerSection([asset_rows[0], asset_rows[1], 0]),
+            image_preview: None,
             asset_scroll: PerSection([0; 3]),
             asset_queries: Default::default(),
             asset_states: RefCell::new(Default::default()),
@@ -1124,8 +1125,10 @@ impl App {
             .active_request
             .as_ref()
             .is_some_and(|request| request.key == self.request_key() && self.job.is_some());
-        if !cached && !running {
+        if !cached && !running && self.image.is_some() {
             self.request_analysis(false);
+        } else if !cached && self.image.is_none() {
+            self.status = "尚未选用镜像；1 资源库选用".into();
         }
     }
     pub(super) fn detail_text(&self) -> String {

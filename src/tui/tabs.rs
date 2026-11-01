@@ -84,6 +84,7 @@ return;
             }
         }
         self.active_tab = Some(index);
+        self.tab_layout.set(None);
         self.page = Page::Analysis;
         self.focus = Focus::Content;
     }
@@ -171,18 +172,22 @@ return;
         let mut start = self.tab_offset.get().min(maximum);
         let layout = (self.active_tab, area.width);
         if self.tab_layout.get() != Some(layout) {
-            if active < start {
+            if capacity > 1 {
+                if active <= start {
+                    start = active.saturating_sub(1);
+                } else if active >= start + capacity - 1 {
+                    start = active.saturating_add(2).saturating_sub(capacity);
+                }
+            } else {
                 start = active;
             }
-            if active >= start + capacity {
-                start = active + 1 - capacity;
-            }
+            start = start.min(maximum);
             self.tab_layout.set(Some(layout));
         }
         self.tab_offset.set(start);
         if overflow {
             for (column, label, offset) in [
-                (area.right() - 6, " < ", start.checked_sub(1)),
+                (area.x, " < ", start.checked_sub(1)),
                 (
                     area.right() - 3,
                     " > ",
@@ -203,8 +208,23 @@ return;
                 }
             }
         }
-        let mut x = area.x;
-        for (index, tab) in self.open_tabs.iter().enumerate().skip(start).take(capacity) {
+        let mut x = area.x + if overflow { 3 } else { 0 };
+        for (slot, (index, tab)) in self
+            .open_tabs
+            .iter()
+            .enumerate()
+            .skip(start)
+            .take(capacity)
+            .enumerate()
+        {
+            // Share the remaining cells so the last title meets the right
+            // arrow instead of leaving an unusable partial-tab gap.
+            let width = if overflow {
+                (available as usize / capacity).cells()
+                    + u16::from(slot < available as usize % capacity)
+            } else {
+                width
+            };
             let name = match tab {
                 OpenTab::Plugin(p) => {
                     if self.active_tab == Some(index) {

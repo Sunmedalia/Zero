@@ -219,12 +219,27 @@ impl App {
                     && let Some((_, section, row)) =
                         hits.asset_rows.iter().find(|(r, _, _)| r.contains(point))
                 {
-                    let select = self.section == *section
+                    let mut select = self.section == *section
                         && self.asset_rows[section.slot()] == *row
                         && *section != AssetSection::Remote;
                     self.section = *section;
                     self.asset_rows[section.slot()] = *row;
                     self.focus = Focus::Navigation;
+                    if *section == AssetSection::Images
+                        && let Some(asset) = self.selected_asset()
+                    {
+                        select &= self.image_preview.as_ref() == Some(&asset.path);
+                        self.image_preview = Some(asset.path.clone());
+                        if !select {
+                            self.asset_scroll[0] = 0;
+                            if asset.available
+                                && !self.asset_identities.contains_key(&asset.path)
+                                && self.job.is_none()
+                            {
+                                self.start_work(Work::PreviewImage(asset.path));
+                            }
+                        }
+                    }
                     if *section == AssetSection::Remote {
                         self.open_asset_detail();
                     } else if select
@@ -277,7 +292,10 @@ impl App {
                         for _ in 0..3 {
                             self.asset_key(KeyEvent::new(key, KeyModifiers::NONE));
                         }
-                    } else if click && point.y > rect.y && point.y < rect.bottom().saturating_sub(1)
+                    } else if click
+                        && *section != AssetSection::Images
+                        && point.y > rect.y
+                        && point.y < rect.bottom().saturating_sub(1)
                     {
                         let index = offset + (point.y - rect.y - 1) as usize;
                         // Clicking the highlighted row again selects it (like Space).
@@ -572,14 +590,7 @@ impl App {
                 }
             }
         } else if click && hits.header.contains(point) {
-            // The resource header's first line names the image, the second the
-            // symbol. Clicking either opens that picker; there is no focusable
-            // header region on this page, so focus stays where it was.
-            if point.y > hits.header.y {
-                self.open_files(InputKind::Symbols);
-            } else {
-                self.open_files(InputKind::Image);
-            }
+            self.focus = Focus::Context;
         }
         false
     }

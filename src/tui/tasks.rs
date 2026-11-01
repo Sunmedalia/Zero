@@ -116,6 +116,7 @@ impl App {
                     | Work::Export(..)
                     | Work::ExportDiagnostic(..)
                     | Work::Clear(_)
+                    | Work::PreviewImage(_)
                     | Work::InspectSymbols(_)
                     | Work::RefreshLookup
                     | Work::Catalog(_, _)
@@ -303,6 +304,11 @@ impl App {
                     Work::Identify => context
                         .identify(&mut session, &image, &worker_job)
                         .map(WorkerEvent::Identified),
+                    Work::PreviewImage(path) => {
+                        let image = session.identify_image(&path, &cache, &worker_job)?;
+                        image.windows_candidates(&worker_job)?;
+                        Ok(WorkerEvent::ImagePreviewed(path))
+                    }
                     Work::InspectSymbols(path) => workspace::inspect_symbols(&path, &worker_job)
                         .map(|text| WorkerEvent::SymbolDetails(path, text)),
                     Work::RefreshLookup => {
@@ -568,6 +574,16 @@ impl App {
                         result.rows.len()
                     );
                     self.results.insert("banners".into(), result);
+                }
+                WorkerEvent::ImagePreviewed(path) => {
+                    self.finish_worker();
+                    if let Some(identity) = crate::image::bound_identity(&path, &self.cache) {
+                        self.asset_identities.insert(path.clone(), identity);
+                    }
+                    if let Some(digest) = crate::image::recorded_digest(&path, &self.cache) {
+                        self.asset_digests.insert(path, digest);
+                    }
+                    self.status = "镜像预览已读取；再次点击镜像选用".into();
                 }
                 WorkerEvent::SymbolDetails(path, text) => {
                     self.finish_worker();

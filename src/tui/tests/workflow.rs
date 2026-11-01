@@ -44,14 +44,8 @@ fn searchable_picker_context_navigation_and_help() {
     app.key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
     assert_eq!(app.plugin, Plugin::Pscred);
     assert!(app.job.is_none());
-    assert!(matches!(
-        app.dialog,
-        Some(Dialog::Files {
-            kind: InputKind::Image,
-            ..
-        })
-    ));
-    app.dialog_key(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE));
+    assert!(app.dialog.is_none());
+    assert!(app.pending_work.is_none());
     app.key(KeyEvent::new(KeyCode::Char('r'), KeyModifiers::CONTROL));
     assert!(matches!(
         app.dialog,

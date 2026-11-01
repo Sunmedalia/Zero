@@ -35,7 +35,7 @@ impl Space {
     /// the inspector column beside the workbench.
     pub(super) const MIN_INSPECTOR: u16 = 160;
     /// Width and height at which the resource page can afford its inline
-    /// detail panel below the lists.
+    /// detail panel beside the image list.
     pub(super) const MIN_ASSET_DETAIL_WIDTH: u16 = 100;
     pub(super) const MIN_ASSET_DETAIL_HEIGHT: u16 = 28;
     /// Two panes side by side, rather than one pane at a time.

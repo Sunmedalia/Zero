@@ -38,6 +38,64 @@ fn outside_click_closes_image_and_symbol_details_without_activating_underlying_t
     }
 }
 #[test]
+fn clicking_edge_tabs_reveals_the_next_neighbor_in_both_directions() {
+    for width in [120, 160] {
+        let mut app = app();
+        app.open_tabs = (0..20)
+            .map(|index| OpenTab::Detail {
+                title: format!("详情 {index}"),
+                text: "内容".into(),
+                scroll: 0,
+            })
+            .collect();
+        app.active_tab = Some(0);
+        let _frame = render(&app, width, 35);
+        let tabs = app.hits.borrow().result_tabs.clone();
+        assert!(tabs.len() >= 3);
+        let (last, _, index) = *tabs.last().unwrap();
+        click(&mut app, last.x + 2, last.y);
+        let _frame = render(&app, width, 35);
+        let hits = app.hits.borrow().clone();
+        assert_eq!(app.active_tab, Some(index));
+        assert_eq!(hits.result_tabs[hits.result_tabs.len() - 2].2, index);
+        assert_eq!(hits.result_tabs.last().unwrap().2, index + 1);
+        let left = hits
+            .result_tab_steps
+            .iter()
+            .min_by_key(|(rect, _)| rect.x)
+            .unwrap()
+            .0;
+        let right = hits
+            .result_tab_steps
+            .iter()
+            .max_by_key(|(rect, _)| rect.x)
+            .unwrap()
+            .0;
+        assert_eq!(left.right(), hits.result_tabs[0].0.x);
+        assert_eq!(right.right(), hits.result.right() - 1);
+
+        let (first, _, index) = hits.result_tabs[0];
+        click(&mut app, first.x + 2, first.y);
+        let _frame = render(&app, width, 35);
+        let hits = app.hits.borrow().clone();
+        assert_eq!(app.active_tab, Some(index));
+        assert_eq!(hits.result_tabs[1].2, index);
+        assert_eq!(hits.result_tabs[0].2, index - 1);
+
+        // Repeated draws keep the clicked tab in place.
+        let offset = app.tab_offset.get();
+        let _frame = render(&app, width, 35);
+        assert_eq!(app.tab_offset.get(), offset);
+        app.switch_result_tab(19);
+        let _frame = render(&app, width, 35);
+        assert_eq!(app.hits.borrow().result_tabs.last().unwrap().2, 19);
+        app.switch_result_tab(0);
+        let _frame = render(&app, width, 35);
+        assert_eq!(app.hits.borrow().result_tabs[0].2, 0);
+    }
+}
+
+#[test]
 fn crowded_tabs_pan_without_switching_or_squeezing_results() {
     let mut app = app();
     app.open_tabs = app
@@ -52,7 +110,23 @@ fn crowded_tabs_pan_without_switching_or_squeezing_results() {
     for width in [80, 120] {
         let _frame = render(&app, width, 35);
         let hits = app.hits.borrow().clone();
-        assert!(hits.result_tabs.iter().all(|(r, _, _)| r.width == 24));
+        let widths = hits
+            .result_tabs
+            .iter()
+            .map(|(rect, _, _)| rect.width)
+            .collect::<Vec<_>>();
+        assert!(widths.iter().all(|width| *width >= 24));
+        assert!(widths.iter().max().unwrap() - widths.iter().min().unwrap() <= 1);
+        assert!(
+            hits.result_tabs
+                .windows(2)
+                .all(|tabs| tabs[0].0.right() == tabs[1].0.x)
+        );
+        assert_eq!(hits.result_tabs[0].0.x, hits.result.x + 4);
+        assert_eq!(
+            hits.result_tabs.last().unwrap().0.right(),
+            hits.result.right() - 4
+        );
         assert!(hits.result_tabs.iter().any(|(_, _, i)| *i == 13));
         let before = app.tab_offset.get();
         let (rect, _) = hits

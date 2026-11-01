@@ -188,9 +188,12 @@ impl App {
             )
         {
             let rect = self.hits.borrow().asset_detail;
-            let maximum = detail_lines(&self.asset_text(), rect.width.saturating_sub(2))
-                .len()
-                .saturating_sub(rect.height.saturating_sub(2) as usize);
+            let line_count = if self.section == AssetSection::Images {
+                self.image_preview_lines(rect.width.saturating_sub(4)).len()
+            } else {
+                detail_lines(&self.asset_text(), rect.width.saturating_sub(2)).len()
+            };
+            let maximum = line_count.saturating_sub(rect.height.saturating_sub(2) as usize);
             self.asset_scroll[slot] = match key.code {
                 KeyCode::Up | KeyCode::Char('k') => self.asset_scroll[slot].saturating_sub(1),
                 KeyCode::Down | KeyCode::Char('j') => (self.asset_scroll[slot] + 1).min(maximum),

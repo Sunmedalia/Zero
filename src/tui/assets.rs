@@ -517,11 +517,126 @@ impl App {
             body.y += 1;
             body.height = body.height.saturating_sub(1);
         }
-        self.draw_asset_pane(frame, body, self.section);
+        if self.section == AssetSection::Images
+            && Space::new(frame.area().width, frame.area().height).asset_detail()
+            && self
+                .selected_asset()
+                .is_some_and(|asset| self.image_preview.as_ref() == Some(&asset.path))
+        {
+            let preview_width = (body.width / 3).clamp(34, 48);
+            let columns =
+                Layout::horizontal([Constraint::Min(0), Constraint::Length(preview_width)])
+                    .split(body);
+            self.draw_asset_pane(frame, columns.rect(0), self.section);
+            let detail = columns.rect(1);
+            let lines = self.image_preview_lines(detail.width.saturating_sub(4));
+            let maximum = lines
+                .len()
+                .saturating_sub(detail.height.saturating_sub(2) as usize);
+            frame.render_widget(
+                Paragraph::new(lines)
+                    .block(
+                        panel()
+                            .title("镜像详情")
+                            .padding(ratatui::widgets::Padding::horizontal(1))
+                            .border_style(self.focus_style(Focus::Content)),
+                    )
+                    .scroll((self.asset_scroll[0].min(maximum).cells(), 0)),
+                detail,
+            );
+            self.hits.borrow_mut().asset_detail = detail;
+        } else {
+            self.draw_asset_pane(frame, body, self.section);
+        }
     }
 }
 
 impl App {
+    pub(super) fn image_preview_lines(&self, width: u16) -> Vec<Line<'static>> {
+        let Some(asset) = self.selected_asset() else {
+            return Vec::new();
+        };
+        let value = Style::default().fg(color_text());
+        let muted = Style::default().fg(color_muted());
+        let heading = Style::default()
+            .fg(color_accent())
+            .add_modifier(Modifier::BOLD);
+        let mut lines = Vec::new();
+        let mut append = |text: &str, style: Style| {
+            lines.extend(
+                detail_lines(text, width)
+                    .into_iter()
+                    .map(|line| Line::styled(line, style)),
+            );
+        };
+        append(&escaped(&asset.name()), value.add_modifier(Modifier::BOLD));
+        append(
+            if self.asset_active(&asset) {
+                "● 当前选用"
+            } else if asset.available {
+                "可用 · 再次点击镜像选用"
+            } else {
+                "文件缺失"
+            },
+            Style::default().fg(if asset.available {
+                color_success()
+            } else {
+                color_danger()
+            }),
+        );
+        append("", muted);
+        append("内核信息", heading);
+        if let Some(identity) = self.asset_identities.get(&asset.path) {
+            append(
+                &format!(
+                    "系统  {}",
+                    match identity.system {
+                        "linux" => "Linux",
+                        "windows" => "Windows",
+                        other => other,
+                    }
+                ),
+                value,
+            );
+            for (index, kernel) in identity.kernels.iter().enumerate() {
+                if identity.kernels.len() > 1 {
+                    append(&format!("候选 {}", index + 1), muted);
+                }
+                if let Some(linux) = kernel.strip_prefix("Linux version ") {
+                    if let Some(version) = linux.split_whitespace().next() {
+                        append(&format!("版本  {}", escaped(version)), value);
+                    }
+                    append("完整 banner", muted);
+                } else {
+                    append("内核标识", muted);
+                }
+                append(&escaped(kernel), value);
+            }
+        } else {
+            append("尚未识别", muted);
+            append("后台读取完成后显示内核信息。", muted);
+        }
+        append("", muted);
+        append("文件信息", heading);
+        append(&format!("格式  {}", asset.format()), value);
+        append(
+            &format!("大小  {:.2} MiB", asset.bytes as f64 / 1048576.0),
+            value,
+        );
+        append(&format!("来源  {}", asset.origin), value);
+        append("路径", muted);
+        append(&escaped(&asset.path.display().to_string()), value);
+        append("", muted);
+        append("内容校验", heading);
+        append("上次校验 SHA256", muted);
+        if let Some(digest) = self.asset_digests.get(&asset.path) {
+            append(&escaped(digest), value);
+        } else {
+            append("尚未校验", muted);
+        }
+        lines
+    }
+
     pub(super) fn image_lines(&self, asset: &Asset, width: u16) -> Vec<Line<'static>> {
         let mut lines = detail_lines(&escaped(&asset.name()), width)
             .into_iter()

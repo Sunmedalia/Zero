@@ -277,7 +277,7 @@ impl App {
             text.push_str(
                 "
 
-尚未识别：首次选用时扫描，识别结果将与此镜像绑定。",
+尚未识别：点击镜像可后台读取内核信息，识别结果与此镜像绑定。",
             );
         }
         if let Some(digest) = self.asset_digests.get(&asset.path) {
@@ -294,10 +294,15 @@ impl App {
 已识别 {}:
 {}",
                 identity.system,
-                identity.kernels.join(
-                    "
+                identity
+                    .kernels
+                    .iter()
+                    .map(|kernel| escaped(kernel))
+                    .collect::<Vec<_>>()
+                    .join(
+                        "
 "
-                )
+                    )
             ));
         }
         if asset.kind == Kind::Symbols {

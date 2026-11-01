@@ -1,6 +1,26 @@
 use super::*;
 
 #[test]
+fn clicking_verification_status_or_header_space_does_not_open_image_picker() {
+    for selected in [false, true] {
+        let mut app = app();
+        if selected {
+            app.image = Some(app.root.join("test.raw"));
+        }
+        let mut terminal = Terminal::new(TestBackend::new(160, 35)).unwrap();
+        terminal.draw(|frame| app.draw(frame)).unwrap();
+        assert!(screen(&terminal, 160).contains("验证:"));
+        let hits = app.hits.borrow().clone();
+        click(&mut app, hits.header_symbol.right() + 4, hits.header.y);
+        assert!(app.dialog.is_none());
+        assert!(app.job.is_none());
+        click(&mut app, hits.header.right() - 1, hits.header.y);
+        assert!(app.dialog.is_none());
+        assert!(app.pending_work.is_none());
+    }
+}
+
+#[test]
 fn mouse_menu_header_and_modal() {
     let mut app = app();
     let mut terminal = Terminal::new(TestBackend::new(100, 30)).unwrap();
@@ -25,14 +45,8 @@ fn mouse_menu_header_and_modal() {
     let menu = app.hits.borrow().menu;
     click(&mut app, 5, menu.y + 2);
     assert_eq!(app.plugin, app.navigation_plugins()[1]);
-    assert!(matches!(
-        app.dialog,
-        Some(Dialog::Files {
-            kind: InputKind::Image,
-            ..
-        })
-    ));
-    app.dialog_key(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE));
+    assert!(app.dialog.is_none());
+    assert!(app.pending_work.is_none());
     assert!(app.job.is_none());
     terminal.draw(|f| app.draw(f)).unwrap();
     let menu = app.hits.borrow().menu;
@@ -225,6 +239,35 @@ fn horizontally_scrolled_headers_keep_mouse_column_identity() {
 }
 
 #[test]
+fn clicking_uncached_plugin_without_image_does_not_open_a_dialog() {
+    for (width, height) in [(140, 40), (80, 24)] {
+        let mut app = app();
+        app.results.clear();
+        app.focus = Focus::Navigation;
+        let mut terminal = Terminal::new(TestBackend::new(width, height)).unwrap();
+        terminal.draw(|frame| app.draw(frame)).unwrap();
+        let hits = app.hits.borrow().clone();
+        let index = app
+            .navigation_plugins()
+            .iter()
+            .position(|plugin| *plugin == Plugin::Pslist)
+            .unwrap();
+        click(
+            &mut app,
+            hits.menu.x + 2,
+            hits.menu.y + 1 + (index - hits.menu_offset) as u16,
+        );
+        assert_eq!(app.plugin, Plugin::Pslist);
+        assert_eq!(app.focus, Focus::Content);
+        assert!(app.dialog.is_none());
+        assert!(app.job.is_none());
+        assert!(app.pending_work.is_none());
+        terminal.draw(|frame| app.draw(frame)).unwrap();
+        assert!(screen(&terminal, width as usize).contains("打开资源库"));
+    }
+}
+
+#[test]
 fn clicking_cached_plugin_shows_content_immediately_at_all_widths() {
     for (width, height) in [(140, 40), (100, 30), (80, 24), (60, 18)] {
         let mut app = app();
@@ -252,7 +295,7 @@ fn clicking_cached_plugin_shows_content_immediately_at_all_widths() {
 }
 
 #[test]
-fn clicking_the_highlighted_asset_again_selects_it() {
+fn clicking_image_previews_before_selecting_even_when_already_highlighted() {
     let (_dir, mut app) = preparation_fixture();
     let image = app.image.take().unwrap();
     app.refresh_assets();
@@ -270,8 +313,35 @@ fn clicking_the_highlighted_asset_again_selects_it() {
         .unwrap();
     let y = rect.y + 1 + (app.asset_rows[0] - offset) as u16;
     click(&mut app, rect.x + 3, y);
-    assert!(app.image.is_some());
+    assert!(app.image.is_none());
+    assert!(app.dialog.is_none());
+    assert!(
+        app.image_preview
+            .as_ref()
+            .is_some_and(|path| same_path(path, &image))
+    );
     finish_test_job(&mut app);
+    terminal.draw(|f| app.draw(f)).unwrap();
+    let detail = app.hits.borrow().asset_detail;
+    assert!(detail.width > 0);
+    let list = app.hits.borrow().asset_lists[0].0;
+    assert_eq!(list.right(), detail.x);
+    assert!(app.asset_text().contains(PREPARATION_BANNER));
+    assert!(screen(&terminal, 120).contains("镜像详情"));
+    // Resizing hides the preview without selecting the image.
+    let mut narrow = Terminal::new(TestBackend::new(80, 24)).unwrap();
+    narrow.draw(|f| app.draw(f)).unwrap();
+    assert_eq!(app.hits.borrow().asset_detail.width, 0);
+    assert!(app.image.is_none());
+    terminal.draw(|f| app.draw(f)).unwrap();
+    let (row, _, _) = app.hits.borrow().asset_rows[0];
+    click(&mut app, row.x + 2, row.y);
+    finish_test_job(&mut app);
+    assert!(
+        app.image
+            .as_ref()
+            .is_some_and(|path| same_path(path, &image))
+    );
 }
 
 #[test]

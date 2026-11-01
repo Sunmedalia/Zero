@@ -43,12 +43,12 @@ Linux 发布包在 Ubuntu 24.04 上构建，需要兼容的 glibc。宿主平台
 
 符号下载与包解压均使用内置实现。自动准备 Kali 符号时仍需 `git` 和 `go`，可运行 `zero doctor` 检查。
 
-以 Linux x86_64 的 v0.2.4 为例，在下载目录执行：
+以 Linux x86_64 的 v0.2.5 为例，在下载目录执行：
 
 ```sh
 sha256sum --check --ignore-missing SHA256SUMS
-tar xzf zero-0.2.4-x86_64-unknown-linux-gnu.tar.gz
-cd zero-0.2.4-x86_64-unknown-linux-gnu
+tar xzf zero-0.2.5-x86_64-unknown-linux-gnu.tar.gz
+cd zero-0.2.5-x86_64-unknown-linux-gnu
 ./zero
 ```
 

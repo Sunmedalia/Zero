@@ -11,15 +11,16 @@ impl App {
     fn footer_height(&self, _width: u16, _height: u16) -> u16 {
         2
     }
-    /// Record where the header's two clickable fields are.
-    ///
-    /// The analysis header names the image and the symbol on one line; the
-    /// resource header uses one line each. A single-line header cannot split
-    /// them, so the whole line opens the image picker and `y` remains the way
-    /// to symbols.
+    /// The analysis renderer registers individual fields; other headers use
+    /// separate image and symbol rows.
     fn register_header_hits(&self, header: Rect) {
         let mut hits = self.hits.borrow_mut();
         hits.header = header;
+        if self.page == Page::Analysis {
+            hits.header_image = Rect::default();
+            hits.header_symbol = Rect::default();
+            return;
+        }
         hits.header_image = Rect::new(header.x, header.y, header.width, header.height.min(1));
         hits.header_symbol = if header.height > 1 {
             Rect::new(header.x, header.y + 1, header.width, 1)
