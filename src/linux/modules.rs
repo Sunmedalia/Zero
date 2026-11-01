@@ -501,7 +501,7 @@ impl Linux<'_> {
         complete[2] = result.diagnostics.len() == before;
         for (module, sources) in views {
             job.check()?;
-            let name = match self.string(module, "module", "name") {
+            let name = match self.module_name(module, job) {
                 Ok(name) => name,
                 Err(error) => {
                     partial(&mut result, format!("module {module:#x} name"), error);
@@ -1087,6 +1087,30 @@ mod tests {
             linux.modxview(true, &Job::default()).unwrap().rows[1][5],
             "PGO"
         );
+    }
+    #[test]
+    fn modxview_preserves_readable_control_bytes_in_module_names() {
+        let (mut bytes, isf) = fixture();
+        bytes[0x34110..0x34118].copy_from_slice(b"mod\x01ule\0");
+        let image = super::super::tests::image(&bytes);
+        let linux = super::super::tests::engine(&image, &isf);
+        let result = linux.modxview(false, &Job::default()).unwrap();
+        // The unchanged kobject name deliberately disagrees with the modified name.
+        assert!(!result.complete);
+        assert!(
+            result
+                .diagnostics
+                .iter()
+                .any(|d| d.contains("模块名称不一致"))
+        );
+        assert!(
+            !result
+                .diagnostics
+                .iter()
+                .any(|d| d.contains("module 0x34100 name"))
+        );
+        let row = result.rows.iter().find(|r| r[1] == hex(0x34100)).unwrap();
+        assert_eq!(row[0], "mod\u{1}ule");
     }
     #[test]
     fn unreadable_view_is_unknown_and_other_views_survive() {

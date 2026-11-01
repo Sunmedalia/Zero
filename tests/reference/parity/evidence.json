@@ -30,8 +30,8 @@
     "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
     "reference_output_sha256": "91278a4247b05dd74d050b7b19d9853ef2761bf0e9cd44c24335bacf587202b7",
     "symbol_sha256": "c3b0b875a2d0498fffc0df1259ff49b850cea28355ffddf02e2f90d34a89fbe1",
-    "zero_executable_sha256": "16b4e6212c27422d5480ace21e707caf51f7dc843f241882d94d3548cbe8f6dc",
-    "engine_version": "0.2.1-native-31"
+    "zero_executable_sha256": "e1cbdf15292e76dbb77102fa9892b1ee1f73a3e68b97269cf673ad1d73187c5c",
+    "engine_version": "0.2.1-native-116"
   },
   {
     "sample": "debian-3.2",
@@ -68,8 +68,8 @@
     "reference_commit": "881e970121c16f0932fb9d16fbd5fb258cbcbf75",
     "reference_output_sha256": "91278a4247b05dd74d050b7b19d9853ef2761bf0e9cd44c24335bacf587202b7",
     "symbol_sha256": "c3b0b875a2d0498fffc0df1259ff49b850cea28355ffddf02e2f90d34a89fbe1",
-    "zero_executable_sha256": "16b4e6212c27422d5480ace21e707caf51f7dc843f241882d94d3548cbe8f6dc",
-    "engine_version": "0.2.1-native-31"
+    "zero_executable_sha256": "e1cbdf15292e76dbb77102fa9892b1ee1f73a3e68b97269cf673ad1d73187c5c",
+    "engine_version": "0.2.1-native-116"
   },
   {
     "sample": "debian-3.2",
