@@ -1047,9 +1047,13 @@ fn current_image_symbol_generation_validates_inputs_and_persists_exact_output() 
     std::fs::write(&config, "CONFIG_X86_64=y\n").unwrap();
     std::fs::write(&tool, "#!/bin/sh\ncat \"$0.json\"\n").unwrap();
     std::fs::set_permissions(&tool, std::fs::Permissions::from_mode(0o700)).unwrap();
+    let mut generated: serde_json::Value =
+        serde_json::from_slice(&fixture_isf(PREPARATION_BANNER, 1)).unwrap();
+    generated["user_types"] =
+        serde_json::json!({"task_struct":{"kind":"struct","size":8,"fields":{}}});
     std::fs::write(
         tool.with_extension("json"),
-        fixture_isf(PREPARATION_BANNER, 1),
+        serde_json::to_vec(&generated).unwrap(),
     )
     .unwrap();
     if let Some(Dialog::GenerateSymbols {
@@ -1103,9 +1107,12 @@ fn current_image_symbol_generation_validates_inputs_and_persists_exact_output() 
         original_image
     );
     // Generating from another kernel must not replace the selected exact symbol.
+    let different: serde_json::Value =
+        serde_json::from_slice(&fixture_isf("Linux version different", 1)).unwrap();
+    generated["symbols"] = different["symbols"].clone();
     std::fs::write(
         tool.with_extension("json"),
-        fixture_isf("Linux version different", 1),
+        serde_json::to_vec(&generated).unwrap(),
     )
     .unwrap();
     app.start_work(Work::GenerateSymbols([elf, config, tool]));
@@ -1205,4 +1212,58 @@ fn enter_intent_is_dropped_on_cancel_and_when_symbols_are_missing() {
     finish_test_job(&mut app);
     assert_eq!(app.page, Page::Assets);
     assert!(!app.enter_when_ready);
+}
+
+#[test]
+fn official_package_candidates_require_selection_before_downloading() {
+    let mut app = app();
+    let candidate = crate::prepare::KernelPackage {
+        banners: Vec::new(),
+        sources: Vec::new(),
+        banner: "Linux version 6.12.105+deb13-amd64 #1 Debian 6.12.105-1".into(),
+        distribution: "Debian".into(),
+        release: "6.12.105+deb13-amd64".into(),
+        architecture: "amd64".into(),
+        version: "6.12.105-1".into(),
+        debug_url: "https://deb.debian.org/debian/pool/main/l/linux/linux-image-test-dbg.deb"
+            .into(),
+        kernel_url: "https://deb.debian.org/debian/pool/main/l/linux/linux-image-test-unsigned.deb"
+            .into(),
+        download_size: Some("1.2G".into()),
+    };
+    let (tx, rx) = mpsc::channel();
+    tx.send(WorkerEvent::KernelPackages(vec![
+        candidate.clone(),
+        candidate,
+    ]))
+    .unwrap();
+    app.receiver = Some(rx);
+    app.drain();
+    assert!(app.job.is_none());
+    assert!(matches!(
+        app.dialog,
+        Some(Dialog::KernelPackages { selected: 0, .. })
+    ));
+    app.dialog_key(KeyEvent::new(KeyCode::Down, KeyModifiers::NONE));
+    assert!(matches!(
+        app.dialog,
+        Some(Dialog::KernelPackages { selected: 1, .. })
+    ));
+    for (width, height) in [(140, 40), (80, 24), (60, 18), (8, 3), (1, 1)] {
+        let mut terminal = Terminal::new(TestBackend::new(width, height)).unwrap();
+        terminal.draw(|f| app.draw(f)).unwrap();
+    }
+    let mut terminal = Terminal::new(TestBackend::new(140, 40)).unwrap();
+    terminal.draw(|f| app.draw(f)).unwrap();
+    let rendered = screen(&terminal, 140);
+    assert!(rendered.contains("deb.debian.org"));
+    assert!(rendered.contains("1.2G"));
+    app.settings.remote_symbols = false;
+    app.dialog_key(KeyEvent::new(KeyCode::F(5), KeyModifiers::NONE));
+    assert!(matches!(app.dialog, Some(Dialog::KernelPackages { .. })));
+    assert!(app.job.is_none());
+    assert!(app.status.contains("离线"));
+    app.dialog_key(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE));
+    assert!(app.dialog.is_none());
+    assert!(app.job.is_none());
 }

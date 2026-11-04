@@ -57,9 +57,10 @@ impl App {
             // the user is editing: they get the room to show it.
             Dialog::Input { text, .. } => text.chars().count().max(40),
             // Detail text is wrapped prose; it wants width more than anything.
-            Dialog::KernelDiagnostics { .. } | Dialog::Detail { .. } => {
-                screen.width.saturating_sub(6).min(90) as usize
-            }
+            Dialog::KernelDiagnostics { .. }
+            | Dialog::Detail { .. }
+            | Dialog::GenerateSymbols { .. }
+            | Dialog::KernelPackages { .. } => screen.width.saturating_sub(6).min(90) as usize,
             _ => 0,
         };
         // A rough cell estimate: CJK and wide glyphs take two columns.
@@ -91,6 +92,7 @@ impl App {
             Dialog::Dump { .. } => 12,
             Dialog::WindowsParameters { .. } => 18,
             Dialog::GenerateSymbols { .. } => 15,
+            Dialog::KernelPackages { .. } => screen.height,
             _ => 10,
         };
         // Cap at three quarters of the screen so the page behind the modal
@@ -179,6 +181,9 @@ impl App {
                     self.draw_kernel_diagnostics(frame, popup, *scroll)
                 }
                 Dialog::GenerateSymbols { .. } => self.draw_generation(frame, popup, dialog),
+                Dialog::KernelPackages { packages, selected } => {
+                    self.draw_kernel_packages(frame, popup, packages, *selected)
+                }
                 Dialog::System { selected } => {
                     let mut state = ListState::default().with_selected(Some(*selected));
                     frame.render_stateful_widget(

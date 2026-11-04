@@ -1171,7 +1171,7 @@ pub fn resolve(
     let matches = remote_matches(image, cache, network, job)?;
     ensure!(
         !matches.is_empty(),
-        "仓库没有匹配的完整 banner；请用 y 指定本地 ISF（Kali 6.8.11 ARM64 可用 g 准备）。{}",
+        "仓库没有匹配的完整 banner；请导入本地 ISF，或用 symbols-generate --auto / TUI 生成入口获取官方调试包。{}",
         Repository::configured(cache)?.web
     );
     matches

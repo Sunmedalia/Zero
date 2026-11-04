@@ -112,11 +112,11 @@ enum Command {
         #[command(subcommand)]
         action: CacheAction,
     },
-    /// Generate exact symbols from local debug ELF/config or the supported Kali archive.
+    /// Generate and save exact Linux symbols from debug ELF/config or official packages.
     SymbolsGenerate {
         #[arg(long)]
         image: PathBuf,
-        #[arg(long, requires = "config", conflicts_with = "kali")]
+        #[arg(long, requires = "config", conflicts_with_all = ["kali", "auto"])]
         elf: Option<PathBuf>,
         #[arg(long, requires = "elf")]
         config: Option<PathBuf>,
@@ -124,6 +124,15 @@ enum Command {
         tool: Option<PathBuf>,
         #[arg(long, conflicts_with = "elf")]
         kali: bool,
+        /// Discover matching Ubuntu / Debian / Kali debug packages.
+        #[arg(long, conflicts_with_all = ["elf", "config", "kali"])]
+        auto: bool,
+        /// Select a package candidate by its one-based index when discovery is ambiguous.
+        #[arg(long, requires = "auto", conflicts_with_all = ["elf", "config", "kali"])]
+        candidate: Option<usize>,
+        /// Refresh official package indexes instead of using a fresh cached copy.
+        #[arg(long, requires = "auto", conflicts_with_all = ["elf", "config", "kali"])]
+        refresh: bool,
     },
     /// Identify kernel banners and exact repository download links.
     Symbols {
@@ -211,7 +220,7 @@ fn main() -> Result<()> {
         let missing = zero_tui::prepare::missing_build_tools();
         println!("分析、符号下载与解包: 内置，无外部依赖");
         println!(
-            "Kali 符号准备 (git、go): {}",
+            "Linux 符号生成工具 (git、go): {}",
             if missing.is_empty() {
                 "可用".to_owned()
             } else {
@@ -260,27 +269,52 @@ fn main() -> Result<()> {
         config,
         tool,
         kali,
+        auto,
+        candidate,
+        refresh,
     }) = &cli.command
     {
+        anyhow::ensure!(
+            !*refresh || settings.remote_symbols,
+            "离线模式不能强制刷新官方索引"
+        );
+        anyhow::ensure!(*candidate != Some(0), "候选序号从 1 开始");
         let job = Job::new(|s| eprintln!("{s}"));
         let mut session = linux::Session::default();
         let image = session.prepare_image(image, &cache, &job)?;
-        let path = if *kali {
-            zero_tui::prepare::prepare_kali(&image, &cache, settings.remote_symbols, &job)?
-        } else {
-            zero_tui::prepare::generate(
-                elf.as_deref()
-                    .ok_or_else(|| anyhow::anyhow!("需要 --elf / --config 或 --kali"))?,
-                config
-                    .as_deref()
-                    .ok_or_else(|| anyhow::anyhow!("需要 --elf / --config 或 --kali"))?,
-                tool.as_deref()
-                    .unwrap_or(&cache.join("symbols/build/dwarf2json/dwarf2json")),
-                &image,
-                &cache,
-                &job,
-            )?
+        let library =
+            zero_tui::prepare::symbol_library(PathBuf::from(".").as_path(), &settings.symbols);
+        let service = zero_tui::prepare::Generation {
+            image: &image,
+            library: &library,
+            cache: &cache,
+            network: settings.remote_symbols,
+            tool: tool.as_deref(),
+            job: &job,
         };
+        let input = if *auto {
+            zero_tui::prepare::GenerationInput::Auto {
+                candidate: *candidate,
+                refresh: *refresh,
+            }
+        } else if *kali {
+            zero_tui::prepare::GenerationInput::Kali
+        } else {
+            zero_tui::prepare::GenerationInput::Local {
+                elf: elf
+                    .clone()
+                    .ok_or_else(|| anyhow::anyhow!("需要 --elf / --config、--auto 或 --kali"))?,
+                config: config
+                    .clone()
+                    .ok_or_else(|| anyhow::anyhow!("需要 --elf / --config、--auto 或 --kali"))?,
+                tool: tool.clone().unwrap_or_else(|| {
+                    cache
+                        .join("symbols/build/dwarf2json")
+                        .join(format!("dwarf2json{}", std::env::consts::EXE_SUFFIX))
+                }),
+            }
+        };
+        let path = service.run(input)?;
         println!("{}", path.display());
         return Ok(());
     }
@@ -300,6 +334,9 @@ fn main() -> Result<()> {
             symbols::refresh_index(&cache, &job)?;
         }
         let matches = symbols::remote_matches(&image, &cache, settings.remote_symbols, &job)?;
+        if matches.is_empty() && !image.banners(&job)?.is_empty() {
+            job.report("仓库没有精确符号；可运行 zero symbols-generate --image <镜像路径> --auto 下载官方调试包并生成到本地符号库");
+        }
         let mut downloaded = Vec::new();
         if *download {
             for m in &matches {
@@ -658,5 +695,99 @@ mod cli_tests {
             Cli::try_parse_from(["zero", "mcp"]).unwrap().command,
             Some(Command::Mcp)
         ));
+    }
+    #[test]
+    fn symbol_generation_modes_and_candidate_selection_are_explicit() {
+        let cli = Cli::try_parse_from([
+            "zero",
+            "symbols-generate",
+            "--image",
+            "memory.raw",
+            "--auto",
+            "--candidate",
+            "2",
+            "--offline",
+        ])
+        .unwrap();
+        assert!(cli.offline);
+        assert!(matches!(
+            cli.command,
+            Some(Command::SymbolsGenerate {
+                auto: true,
+                candidate: Some(2),
+                ..
+            })
+        ));
+        assert!(
+            Cli::try_parse_from([
+                "zero",
+                "symbols-generate",
+                "--image",
+                "memory.raw",
+                "--auto",
+                "--kali"
+            ])
+            .is_err()
+        );
+        assert!(
+            Cli::try_parse_from([
+                "zero",
+                "symbols-generate",
+                "--image",
+                "memory.raw",
+                "--auto",
+                "--elf",
+                "vmlinux",
+                "--config",
+                "config"
+            ])
+            .is_err()
+        );
+        assert!(
+            Cli::try_parse_from([
+                "zero",
+                "symbols-generate",
+                "--image",
+                "memory.raw",
+                "--candidate",
+                "1"
+            ])
+            .is_err()
+        );
+    }
+    #[test]
+    fn official_index_refresh_requires_automatic_generation() {
+        assert!(
+            Cli::try_parse_from([
+                "zero",
+                "symbols-generate",
+                "--image",
+                "memory.raw",
+                "--auto",
+                "--refresh"
+            ])
+            .is_ok()
+        );
+        assert!(
+            Cli::try_parse_from([
+                "zero",
+                "symbols-generate",
+                "--image",
+                "memory.raw",
+                "--refresh"
+            ])
+            .is_err()
+        );
+        assert!(
+            Cli::try_parse_from([
+                "zero",
+                "symbols-generate",
+                "--image",
+                "memory.raw",
+                "--kali",
+                "--refresh"
+            ])
+            .is_err()
+        );
     }
 }

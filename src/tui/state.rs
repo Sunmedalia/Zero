@@ -24,6 +24,10 @@ enum Dialog {
         selected: bool,
         error: String,
     },
+    KernelPackages {
+        packages: Vec<crate::prepare::KernelPackage>,
+        selected: usize,
+    },
     Dump {
         mode: Plugin,
         fields: [String; 4],
@@ -154,7 +158,8 @@ enum Work {
     Export(PathBuf, Results, Vec<Vec<String>>),
     Verify,
     Clear(Vec<cache::Scope>),
-    PrepareKali,
+    FindKernelPackages(bool),
+    PrepareKernel(crate::prepare::KernelPackage),
     GenerateSymbols([PathBuf; 3]),
     Identify,
     PreviewImage(PathBuf),
@@ -168,6 +173,7 @@ enum Work {
     CatalogDownload(RemoteMatch),
 }
 enum WorkerEvent {
+    KernelPackages(Vec<crate::prepare::KernelPackage>),
     KernelDiagnosed(crate::kernel_diagnostics::Report),
     DiagnosticExported(PathBuf),
     SavedCatalog(Option<symbols::CatalogPage>),

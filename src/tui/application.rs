@@ -1085,14 +1085,12 @@ impl App {
             self.open_dump(plugin, false);
         }
     }
-    pub(super) fn supports_kali_symbols(&self) -> bool {
+    pub(super) fn supports_automatic_symbols(&self) -> bool {
         !self.windows
             && self.results.get("banners").is_some_and(|result| {
                 result.rows.iter().any(|row| {
-                    row.iter().any(|banner| {
-                        banner.contains("Linux version 6.8.11-arm64")
-                            && banner.contains("6.8.11-1kali2")
-                    })
+                    row.iter()
+                        .any(|banner| crate::prepare::supports_automatic_banner(banner))
                 })
             })
     }

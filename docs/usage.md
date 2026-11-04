@@ -127,8 +127,8 @@ flowchart TD
 
 仓库没有对应构建时，`K` 打开“生成当前镜像符号表”：
 
-- Kali 6.8.11-1kali2 ARM64 自动从 [Kali 官方归档](https://old.kali.org/kali/pool/main/l/linux/) 获取调试包与内核配置，只提取 ELF／config，不安装 deb、不执行维护脚本。
-- 其他 Linux 构建填写匹配的调试 ELF、内核配置与 dwarf2json 路径。
+- Ubuntu / Debian / Kali（amd64、arm64）可自动查找官方调试包；先展示候选构建、下载来源和索引提供的大小，选择后下载生成。只提取 ELF／config，不安装 deb、不执行维护脚本。
+- 官方源缺少对应构建或无法确定架构时，填写匹配的调试 ELF、内核配置与 dwarf2json 路径。
 - 生成后校验完整 banner，保存到本地符号库并选用，不自动运行分析。详见 [6.3](#63-符号识别下载与生成)。
 
 ### 文件选择器
@@ -331,7 +331,13 @@ zero analyze --image images/linux-sample-1.bin.gz --plugin threads --output thre
 # 已下载匹配的 ISF 后可完全离线分析
 zero --offline analyze --image images/linux-sample-1.bin.gz --plugin pscred --output credentials.json
 
-# 生成 Kali ARM64 符号；输出 .zero/rust/symbols/isf/<摘要>.json.xz
+# 自动查找官方调试包并生成；保存到设置中的本地符号目录（默认 symbols/）
+zero symbols-generate --image images/memory.raw --auto
+# 多个候选时，根据输出的序号选择
+zero symbols-generate --image images/memory.raw --auto --candidate 1
+# 忽略 24 小时内的索引缓存，强制刷新官方源
+zero symbols-generate --image images/memory.raw --auto --refresh
+# 保留固定 Kali 6.8.11 ARM64 的兼容入口
 zero symbols-generate --image images/kali.raw --kali
 # 其他内核显式提供调试 ELF、内核 config 与 dwarf2json
 zero symbols-generate --image sample.raw --elf vmlinux --config kernel.config --tool /path/to/dwarf2json --offline
@@ -341,7 +347,16 @@ zero symbols-generate --image sample.raw --elf vmlinux --config kernel.config --
 - ISF 存放在 `.zero/rust/symbols/isf/`，旁边的 `.source.json` 记录完整 banner、仓库路径与下载 URL。
 - 下载校验 HTTPS、索引路径、ISF 格式与完整 banner，分析前继续验证页表。下载与解压上限各 256 MiB，连接超时 10 秒，总超时 90 秒，Esc 可中断；取消或失败不提交半个文件。
 - 远程下载缓存命名为“可读名称 + 仓库路径 SHA256 后缀”；保存到本地库的文件使用 ISF 内容 SHA256 后缀。
-- `--kali` 先复用 `symbols/` 或缓存中的精确 ISF。没有时，首次准备需要系统 `git` 与 Go（下载前检查，缺失时立即报错，也可用 `zero doctor` 提前查看；下载和解包由 zero 原生完成）；dwarf2json 固定在 `9f14607e0d339d463ea725fbd5c08aa7b7d40f75`，在独立构建目录编译，不作为运行时插件。生成的 ISF 记录 ELF／config／工具摘要、准确 syscall 表长度与页表配置，banner 不一致即拒绝。`--offline` 不获取任何缺失文件。
+- `--kali` 保留固定 Kali 6.8.11 ARM64 的兼容入口，与自动生成使用同一服务；先复用设置中的本地符号库或缓存中的精确 ISF。没有时，首次准备需要系统 `git` 与 Go（下载前检查，缺失时立即报错，也可用 `zero doctor` 提前查看；下载和解包由 zero 原生完成）；dwarf2json 固定在 `9f14607e0d339d463ea725fbd5c08aa7b7d40f75`，在独立构建目录编译，不作为运行时插件。生成的 ISF 记录 ELF／config／工具摘要、准确 syscall 表长度与页表配置，banner 不一致即拒绝。`--offline` 不获取任何缺失文件。
+- CLI 和 TUI 的生成结果均持久保存到设置中的本地符号目录（默认 `symbols/<ISF摘要>.json.xz`），旁边保存 `.source.json`。来源记录包括完整 banner、ELF／config／工具摘要，自动下载生成时还包括官方包 URL、版本和包摘要。成功后输出实际路径；同内容复用，同名不同内容拒绝覆盖。
+- `--auto` 优先复用本地已生成且精确匹配的 ISF；缺少时查询官方软件包目录。Ubuntu 查询 ddebs 和匹配的 archive／ports，Debian 查询主仓库、安全仓库及 archive，Kali 查询当前仓库和 old.kali.org。仅覆盖这些源仍保留的构建，不保证所有历史版本均可获取。
+- 官方目录索引默认缓存 24 小时；缓存未找到目标时，在线刷新一次。请求失败会尝试使用有效旧缓存；同次查找对相同 URL 只请求、解析一次。CLI 使用 `--auto --refresh` 强制刷新，TUI 候选弹窗按 `F5` 刷新；离线时不允许强制刷新。
+- 同一发行版／内核 release／架构／包版本的多个 banner 和官方来源合并为一个候选。生成结果的完整 banner 必须同时匹配当前镜像与选中候选；不同构建不合并。
+- 下载、提取和转换阶段会记录摘要与完成状态。失败后重试会验证已有文件，跳过已完成阶段；损坏的提取文件重新提取，损坏的软件包仅使对应下载失效。同一构建或工具正在准备时提示稍后重试，不互相覆盖。
+- 本地同内容成品复用时保留原来的来源记录。来源附件缺失或损坏会提示，但不阻止有效精确 ISF 的离线复用与分析；清理缓存不会删除本地符号成品。
+- deb／ddeb 支持 XZ、gzip、Zstandard 数据成员。调试包下载上限 8 GiB，仅提取所需普通文件；不执行包脚本。首次生成需要 `git`、Go，或 CLI 使用 `--tool` 指定已有转换工具。
+- `--offline` 不发起网络请求，可复用本地成品，或使用已缓存的官方索引、软件包和工具生成。清理符号／构建缓存只清理 `.zero/rust` 内的副本，不删除本地符号库成品。
+- 生成必须使用对应构建的完整调试内核，普通内核、headers、System.map 或同版本源码不能替代 DWARF 类型信息。生成后仍需通过完整 banner 校验；能生成符号不代表所有新内核插件都兼容。
 
 ### 6.4 缓存
 

@@ -961,6 +961,7 @@ impl App {
             }
             Dialog::System { .. } => self.system_key(dialog, key),
             Dialog::GenerateSymbols { .. } => self.generation_key(dialog, key),
+            Dialog::KernelPackages { .. } => self.kernel_packages_key(dialog, key),
             Dialog::WindowsParameters { .. } => self.windows_parameters_key(dialog, key),
             Dialog::Dump { .. } => self.dump_key(dialog, key),
             Dialog::Files { .. } => self.files_key(dialog, key),

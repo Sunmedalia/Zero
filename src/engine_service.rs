@@ -5,7 +5,7 @@ use crate::{
     store::{self, Settings},
     symbols::{self, Isf, RemoteMatch},
 };
-use anyhow::{Context, Result, ensure};
+use anyhow::{Result, ensure};
 use std::path::{Path, PathBuf};
 /// Everything a worker needs, captured before the thread starts so the UI keeps
 /// responding while evidence is read.
@@ -143,31 +143,6 @@ pub(crate) fn save_remote_symbol(
         &target.with_extension("source.json"),
         &serde_json::to_vec_pretty(candidate)?,
     )?;
-    Ok(target.canonicalize()?)
-}
-
-pub(crate) fn save_generated_symbol(path: &Path, library: &Path, job: &Job) -> Result<PathBuf> {
-    job.check()?;
-    std::fs::create_dir_all(library)?;
-    let name = path.file_name().context("生成符号路径无效")?;
-    let target = library.join(name);
-    let bytes = std::fs::read(path)?;
-    if target.exists() {
-        ensure!(
-            std::fs::read(&target)? == bytes,
-            "同名符号内容不同，拒绝覆盖"
-        );
-    } else {
-        store::atomic_write(&target, &bytes)?;
-    }
-    job.check()?;
-    let source = path.with_extension("source.json");
-    if source.is_file() {
-        store::atomic_write(
-            &target.with_extension("source.json"),
-            &std::fs::read(source)?,
-        )?;
-    }
     Ok(target.canonicalize()?)
 }
 

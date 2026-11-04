@@ -12,7 +12,7 @@ impl App {
             return;
         }
         self.back_dialog = None;
-        let automatic = self.supports_kali_symbols();
+        let automatic = self.supports_automatic_symbols();
         let prepared_tool = self.cache.join("symbols/build/dwarf2json/dwarf2json");
         self.dialog = Some(Dialog::GenerateSymbols {
             automatic,
@@ -45,7 +45,7 @@ impl App {
             return;
         };
         if key.code == KeyCode::F(7) {
-            if self.supports_kali_symbols() {
+            if self.supports_automatic_symbols() {
                 *automatic = !*automatic;
                 *field = if *automatic { 3 } else { 0 };
                 *cursor = 0;
@@ -58,7 +58,7 @@ impl App {
             && (*field == 3 || key.modifiers.contains(KeyModifiers::CONTROL))
         {
             if *automatic {
-                self.start_work(Work::PrepareKali);
+                self.start_work(Work::FindKernelPackages(false));
                 return;
             }
             let paths = fields.clone().map(|text| store::expand_home(text.trim()));
@@ -128,7 +128,7 @@ impl App {
             .map(|path| self.display_path(path))
             .unwrap_or_default();
         let mode = if *automatic {
-            "自动获取当前内核调试资料（Kali 6.8.11-1kali2 ARM64）；F7 手动输入"
+            "自动查找 Ubuntu / Debian / Kali 官方调试包；F7 手动输入"
         } else {
             "使用当前内核的调试 ELF 和配置；F7 切换自动获取（支持的构建）"
         };
@@ -139,7 +139,7 @@ impl App {
         ];
         if *automatic {
             lines.push(Line::raw(if self.settings.remote_symbols {
-                "将复用精确本地符号；缺少时下载官方调试包并生成。"
+                "将复用精确本地符号；缺少时先查找并展示来源，选择后下载生成。"
             } else {
                 "离线：仅复用已有精确符号、调试包和生成工具。"
             }));
@@ -197,5 +197,65 @@ impl App {
             }
         }
         frame.render_widget(Paragraph::new(lines), inner);
+    }
+}
+
+impl App {
+    pub(super) fn kernel_packages_key(&mut self, mut dialog: Dialog, key: KeyEvent) {
+        let Dialog::KernelPackages { packages, selected } = &mut dialog else {
+            return;
+        };
+        match key.code {
+            KeyCode::F(5) => {
+                if !self.settings.remote_symbols {
+                    self.status = "离线模式不能刷新官方索引；可直接选用已有候选".into();
+                    self.dialog = Some(dialog);
+                    return;
+                }
+                self.start_work(Work::FindKernelPackages(true));
+                return;
+            }
+            KeyCode::Up => *selected = selected.saturating_sub(1),
+            KeyCode::Down => *selected = (*selected + 1).min(packages.len().saturating_sub(1)),
+            KeyCode::Enter => {
+                if let Some(package) = packages.get(*selected) {
+                    self.start_work(Work::PrepareKernel(package.clone()));
+                    return;
+                }
+            }
+            _ => {}
+        }
+        self.dialog = Some(dialog);
+    }
+
+    pub(super) fn draw_kernel_packages(
+        &self,
+        frame: &mut Frame,
+        area: Rect,
+        packages: &[crate::prepare::KernelPackage],
+        selected: usize,
+    ) {
+        frame.render_widget(
+            panel().title("官方调试包 · ↑↓ 选择 · Enter 生成 · F5 刷新 · Esc 返回"),
+            area,
+        );
+        let inner = area.inner(ratatui::layout::Margin::new(1, 1));
+        let Some(package) = packages.get(selected) else {
+            return;
+        };
+        let text = format!(
+            "候选 {}/{} · {} · {}\n内核：{} · 包版本：{}\n调试包大小：{}\n调试包：{}\n配置来源：{}\n\n生成后校验完整 banner，保存到本地符号库并选用。\n当前 banner：{}",
+            selected + 1,
+            packages.len(),
+            package.distribution,
+            package.architecture,
+            package.release,
+            package.version,
+            package.download_size.as_deref().unwrap_or("索引未提供"),
+            package.debug_url,
+            package.kernel_url,
+            package.banner
+        );
+        frame.render_widget(Paragraph::new(text).wrap(Wrap { trim: false }), inner);
     }
 }

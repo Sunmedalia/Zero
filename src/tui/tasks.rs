@@ -180,17 +180,16 @@ impl App {
             })
             .filter(|p| p.is_file())
             .cloned();
-        let local_library = self.directory(&self.settings.symbols);
-        let local_library = if local_library.extension().is_some() && !local_library.is_dir() {
-            self.root.join("symbols")
-        } else {
-            local_library
-        };
+        let local_library = crate::prepare::symbol_library(&self.root, &self.settings.symbols);
         let session = self.session.clone();
         let origin_job = worker_job.clone();
         if matches!(
             work,
-            Work::Analyze(_) | Work::Download(_) | Work::PrepareKali | Work::GenerateSymbols(_)
+            Work::Analyze(_)
+                | Work::Download(_)
+                | Work::FindKernelPackages(_)
+                | Work::PrepareKernel(_)
+                | Work::GenerateSymbols(_)
         ) {
             self.history_revision += 1;
             self.history = None;
@@ -337,25 +336,50 @@ impl App {
                         symbols::remote_matches(&image, &cache, network, &worker_job)
                             .map(WorkerEvent::Links)
                     }
-                    Work::PrepareKali => {
+                    Work::FindKernelPackages(refresh) => {
                         let image = session.prepare_image(&image, &cache, &worker_job)?;
-                        let path =
-                            crate::prepare::prepare_kali(&image, &cache, network, &worker_job)?;
-                        save_generated_symbol(&path, &local_library, &worker_job)
-                            .map(WorkerEvent::Downloaded)
+                        let service = crate::prepare::Generation {
+                            image: &image,
+                            library: &local_library,
+                            cache: &cache,
+                            network,
+                            tool: None,
+                            job: &worker_job,
+                        };
+                        match service.discover(refresh)? {
+                            crate::prepare::Discovery::Ready(path) => {
+                                Ok(WorkerEvent::Downloaded(path))
+                            }
+                            crate::prepare::Discovery::Candidates(packages) => {
+                                Ok(WorkerEvent::KernelPackages(packages))
+                            }
+                        }
+                    }
+                    Work::PrepareKernel(package) => {
+                        let image = session.prepare_image(&image, &cache, &worker_job)?;
+                        crate::prepare::Generation {
+                            image: &image,
+                            library: &local_library,
+                            cache: &cache,
+                            network,
+                            tool: None,
+                            job: &worker_job,
+                        }
+                        .run(crate::prepare::GenerationInput::Package(package))
+                        .map(WorkerEvent::Downloaded)
                     }
                     Work::GenerateSymbols([elf, config, tool]) => {
                         let image = session.prepare_image(&image, &cache, &worker_job)?;
-                        let path = crate::prepare::generate(
-                            &elf,
-                            &config,
-                            &tool,
-                            &image,
-                            &cache,
-                            &worker_job,
-                        )?;
-                        save_generated_symbol(&path, &local_library, &worker_job)
-                            .map(WorkerEvent::Downloaded)
+                        crate::prepare::Generation {
+                            image: &image,
+                            library: &local_library,
+                            cache: &cache,
+                            network,
+                            tool: None,
+                            job: &worker_job,
+                        }
+                        .run(crate::prepare::GenerationInput::Local { elf, config, tool })
+                        .map(WorkerEvent::Downloaded)
                     }
                     Work::Clear(scopes) => {
                         session.clear();
@@ -636,22 +660,31 @@ impl App {
                             }
                             self.status = if self.windows {
                                 "未找到精确 PDB 身份；b 重新识别，y 导入本地符号".into()
-                            } else if self.supports_kali_symbols() {
+                            } else if self.supports_automatic_symbols() {
                                 format!(
                                     "GitHub 没有该完整 banner 的精确符号；K 生成当前镜像符号表 · {}",
-                                    symbols::REPOSITORY
+                                    self.settings.symbol_repository
                                 )
                             } else {
                                 format!(
-                                    "GitHub 没有该完整 banner 的精确符号；y 导入，M 重试 · {}",
-                                    symbols::REPOSITORY
+                                    "仓库没有该完整 banner 的精确符号；K 手动生成，y 导入 · {}",
+                                    self.settings.symbol_repository
                                 )
                             };
                         }
                     } else if matches.is_empty() {
                         self.status =
-                            "仓库没有完整 banner 匹配；t 切换本地，g 获取索引，/ 手动搜索".into();
+                            "仓库没有完整 banner 匹配；K 生成并保存符号表，t 切换本地".into();
                     }
+                }
+                WorkerEvent::KernelPackages(packages) => {
+                    self.finish_worker();
+                    self.status =
+                        "已找到官方调试包；查看来源后按 Enter 下载生成并保存到本地库".into();
+                    self.dialog = Some(Dialog::KernelPackages {
+                        packages,
+                        selected: 0,
+                    });
                 }
                 WorkerEvent::Downloaded(path) => {
                     self.finish_worker();
@@ -683,7 +716,7 @@ impl App {
                     self.status = format!("符号已选用: {}；x 进入分析", path.display());
                     self.preparation = Preparation::Ready;
                     self.prepared_stamp = Some(self.local_stamp());
-                    self.status = "符号已选用；x 进入分析，点击插件运行并验证页表".into();
+                    self.status = format!("符号已保存并选用: {}；x 进入分析", path.display());
                 }
                 WorkerEvent::Progress(s) => {
                     self.progress = s
@@ -848,7 +881,7 @@ impl App {
     }
 }
 
-use crate::engine_service::{save_generated_symbol, save_remote_symbol};
+use crate::engine_service::save_remote_symbol;
 
 fn failure_status(error: &str) -> String {
     let action = if error.contains("HTTP 404") || error.contains("官方符号包未包含精确 ISF")

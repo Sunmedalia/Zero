@@ -1,4 +1,8 @@
-//! Offline symbol generation from an explicit debug ELF and kernel config.
+//! Exact Linux symbols from local debug files or official distribution packages.
+mod indexes;
+mod packages;
+mod service;
+mod stages;
 use crate::bytes::JsonKey as _;
 use crate::{
     Job,
@@ -8,7 +12,12 @@ use crate::{
     symbols::{Isf, http, matching},
 };
 use anyhow::{Context, Result, ensure};
+pub use packages::{
+    KernelPackage, PackageSource, find_packages, find_packages_with_refresh, local_generated,
+    prepare_auto, prepare_package, supports_automatic_banner,
+};
 use serde_json::json;
+pub use service::{Discovery, Generation, GenerationInput, symbol_library};
 use std::{
     fs::{self, File},
     io::{Read, Seek, SeekFrom, Write},
@@ -134,6 +143,53 @@ pub fn generate(
     cache: &Path,
     job: &Job,
 ) -> Result<PathBuf> {
+    job.check()?;
+    let _cache_lock = crate::cache::lock(cache, false)?;
+    use sha2::{Digest, Sha256};
+    let key = serde_json::to_vec(&(
+        elf.canonicalize()?,
+        config.canonicalize()?,
+        tool.canonicalize()?,
+    ))?;
+    let _build_lock = stages::artifact_lock(
+        &cache
+            .join("symbols/build/manual")
+            .join(format!("{:x}.lock", Sha256::digest(key))),
+        "相同调试输入正在生成",
+        job,
+    )?;
+    generate_with_provenance(
+        (elf, config, tool),
+        image,
+        cache,
+        job,
+        serde_json::Value::Null,
+    )
+}
+fn generate_with_provenance(
+    inputs: (&Path, &Path, &Path),
+    image: &Image,
+    cache: &Path,
+    job: &Job,
+    provenance: serde_json::Value,
+) -> Result<PathBuf> {
+    generate_verified(inputs, image, cache, job, provenance, None)
+}
+#[derive(Clone)]
+struct InputDigests {
+    elf: String,
+    config: String,
+    tool: String,
+}
+fn generate_verified(
+    inputs: (&Path, &Path, &Path),
+    image: &Image,
+    cache: &Path,
+    job: &Job,
+    provenance: serde_json::Value,
+    verified: Option<&InputDigests>,
+) -> Result<PathBuf> {
+    let (elf, config, tool) = inputs;
     let _lock = crate::cache::lock(cache, false)?;
     let (machine, sizes) = elf_metadata(elf)?;
     let text = fs::read_to_string(config)?;
@@ -180,28 +236,53 @@ pub fn generate(
         data.is_object() && (data.key("metadata").is_object() || data.key("metadata").is_null()),
         "生成的 ISF 结构无效"
     );
+    ensure!(
+        data.key("user_types")
+            .as_object()
+            .is_some_and(|types| !types.is_empty()),
+        "调试 ELF 未生成内核类型信息；需要包含 DWARF 的完整调试文件"
+    );
+    let digests = match verified {
+        Some(hashes) => hashes.clone(),
+        None => InputDigests {
+            elf: digest_reader(File::open(elf)?, job)?,
+            config: digest_reader(File::open(config)?, job)?,
+            tool: digest_reader(File::open(tool)?, job)?,
+        },
+    };
     *data.key_mut("metadata")?.key_mut("zero")? = json!({"architecture":if machine==183{"aarch64"}else{"x86_64"},"page_shift":12,"va_bits":bits,"symbol_sizes":sizes,
-        "elf_sha256":digest_reader(File::open(elf)?,job)?,"config_sha256":digest_reader(File::open(config)?,job)?,"dwarf2json_tool_sha256":digest_reader(File::open(tool)?,job)?});
+        "elf_sha256":digests.elf,"config_sha256":digests.config,"dwarf2json_tool_sha256":digests.tool});
     let bytes = serde_json::to_vec(&data)?;
     let isf = Isf::parse(&bytes, "generated".into())?;
     ensure!(
         image.banners(job)?.iter().any(|(_, b)| *b == isf.banner),
         "生成 ISF 的完整 banner 与镜像不匹配"
     );
+    if let Some(candidate) = provenance.get("kernel_package") {
+        let candidate: KernelPackage = serde_json::from_value(candidate.clone())?;
+        ensure!(
+            candidate.accepts(String::from_utf8_lossy(&isf.banner).trim_end_matches(['\0', '\n'])),
+            "生成 ISF 的完整 banner 不属于选中的内核构建"
+        );
+    }
     let path = cache
         .join("symbols/isf")
         .join(format!("{}.json.xz", isf.digest));
     let mut encoder = xz2::write::XzEncoder::new(Vec::new(), 6);
     encoder.write_all(&bytes)?;
     job.check()?;
-    store::atomic_write(&path, &encoder.finish()?)?;
+    let compressed = encoder.finish()?;
     let source = path.with_extension("source.json");
     store::atomic_write(
         &source,
         &serde_json::to_vec_pretty(
-            &json!({"elf":elf,"config":config,"metadata":*data.key("metadata")}),
+            &json!({"elf":elf,"config":config,"banner":String::from_utf8_lossy(&isf.banner).trim_end_matches(['\0','\n']),"metadata":*data.key("metadata"),
+                "url":provenance.key("kernel_package").key("debug_url"),
+                "package_sha256":provenance.key("debug_package_sha256"),"provenance":provenance}),
         )?,
     )?;
+    job.check()?;
+    store::atomic_write(&path, &compressed)?;
     job.report(format!("已生成精确匹配 ISF: {}", path.display()));
     Ok(path)
 }
@@ -210,24 +291,24 @@ fn download(url: &str, path: &Path, network: bool, job: &Job) -> Result<()> {
         return Ok(());
     }
     ensure!(network, "离线模式且准备文件缺失: {url}");
-    let temporary = path.with_extension("part");
+    let parent = path.parent().context("下载缓存路径无效")?;
+    fs::create_dir_all(parent)?;
+    let temporary = tempfile::NamedTempFile::new_in(parent)?;
     job.report(format!("下载符号准备文件: {url}"));
-    let result = http::download(
+    http::download(
         http::Request {
             url,
             range: None,
-            limit: 1024 * 1024 * 1024,
+            limit: 8 * 1024 * 1024 * 1024,
             timeout: Duration::from_secs(1800),
             https_only: true,
         },
-        File::create(&temporary)?,
+        temporary.reopen()?,
         job,
-    );
-    if let Err(e) = result {
-        let _ = fs::remove_file(&temporary);
-        return Err(e);
-    }
-    fs::rename(temporary, path)?;
+    )?;
+    job.check()?;
+    temporary.as_file().sync_all()?;
+    temporary.persist(path)?;
     Ok(())
 }
 const AR_MAGIC: &[u8; 8] = b"!<arch>\n";
@@ -272,17 +353,49 @@ fn plain(path: &str) -> &Path {
     let path = Path::new(path);
     path.strip_prefix(".").unwrap_or(path)
 }
-/// Copy only the named regular files out of a package's data.tar.xz under `root`.
+fn data_archive(package: &Path) -> Result<Box<dyn Read>> {
+    // Probe member names without masking corrupt ar headers as another codec.
+    let mut file = File::open(package)?;
+    let (name, size) = ar_data_member(&mut file).context(stages::CorruptPackage)?;
+    let reader = file.take(size);
+    Ok(match name.as_str() {
+        "data.tar.xz" => Box::new(xz2::read::XzDecoder::new_multi_decoder(reader)),
+        "data.tar.gz" => Box::new(flate2::read::MultiGzDecoder::new(reader)),
+        "data.tar.zst" => {
+            Box::new(zstd::stream::read::Decoder::new(reader).context(stages::CorruptPackage)?)
+        }
+        "data.tar" => Box::new(reader),
+        _ => anyhow::bail!("不支持的 deb 数据压缩格式: {name}"),
+    })
+}
+fn ar_data_member(file: &mut File) -> Result<(String, u64)> {
+    // ar_member validates every header and bound before exposing a member.
+    for name in ["data.tar.xz", "data.tar.gz", "data.tar.zst", "data.tar"] {
+        file.rewind()?;
+        match ar_member(file, name) {
+            Ok(size) => return Ok((name.into(), size)),
+            Err(e) if e.to_string().starts_with("deb 缺少成员") => {}
+            Err(e) => return Err(e),
+        }
+    }
+    anyhow::bail!("deb 缺少成员 data.tar（xz / gz / zst）")
+}
+/// Copy only the named regular files out of a package under `root`.
 /// Names come from the caller, so archive-controlled paths never reach the filesystem.
 fn extract(package: &Path, root: &Path, paths: &[&str], job: &Job) -> Result<()> {
-    let mut file = File::open(package)?;
-    let size = ar_member(&mut file, "data.tar.xz")?;
-    let xz = xz2::read::XzDecoder::new_multi_decoder(file.take(size));
-    let mut archive = tar::Archive::new(xz);
+    for path in paths {
+        ensure!(
+            plain(path)
+                .components()
+                .all(|c| matches!(c, std::path::Component::Normal(_))),
+            "提取路径无效"
+        );
+    }
+    let mut archive = tar::Archive::new(data_archive(package)?);
     let mut missing: Vec<&str> = paths.to_vec();
-    for entry in archive.entries().context("读取 deb 数据包失败")? {
+    for entry in archive.entries().context(stages::CorruptPackage)? {
         job.check()?;
-        let mut entry = entry.context("读取 deb 数据包失败")?;
+        let mut entry = entry.context(stages::CorruptPackage)?;
         let name = entry.path()?.into_owned();
         // Packages name members `./boot/x` or `boot/x`; the two are the same file.
         let same = |path: &&str| name.strip_prefix(".").unwrap_or(&name) == plain(path);
@@ -290,17 +403,32 @@ fn extract(package: &Path, root: &Path, paths: &[&str], job: &Job) -> Result<()>
             continue;
         };
         let path = missing.swap_remove(index);
-        ensure!(entry.header().entry_type().is_file(), "{path} 不是普通文件");
-        let target = root.join(path);
-        store::atomic_stream(&target, job, |writer| {
-            std::io::copy(&mut entry, writer)?;
-            Ok(())
-        })?;
+        copy_entry(&mut entry, &root.join(path), job)?;
         if missing.is_empty() {
             return Ok(());
         }
     }
     anyhow::bail!("deb 数据包缺少文件: {}", missing.join(", "))
+}
+fn copy_entry<R: Read>(entry: &mut tar::Entry<'_, R>, target: &Path, job: &Job) -> Result<()> {
+    ensure!(
+        entry.header().entry_type().is_file(),
+        "{} 不是普通文件",
+        target.display()
+    );
+    ensure!(entry.size() <= 8 * 1024 * 1024 * 1024, "调试文件超过 8 GiB");
+    store::atomic_stream(target, job, |writer| {
+        let mut buffer = vec![0; 1024 * 1024];
+        loop {
+            job.check()?;
+            let n = entry.read(&mut buffer).context(stages::CorruptPackage)?;
+            if n == 0 {
+                break;
+            }
+            writer.write_all(buffer.get(..n).context("读取 deb 数据失败")?)?;
+        }
+        Ok(())
+    })
 }
 /// Executable lookup without running it; `path` is the `PATH` value to search.
 fn on_path(tool: &str, path: Option<&std::ffi::OsStr>) -> bool {
@@ -325,7 +453,7 @@ pub fn build_tools_hint() -> Option<String> {
     let missing = missing_build_tools();
     (!missing.is_empty()).then(|| {
         format!(
-            "未找到 {}：分析不受影响，但无法自动准备 Kali 符号",
+            "未找到 {}：分析不受影响，但无法自动准备 Linux 符号",
             missing.join("、")
         )
     })
@@ -340,71 +468,47 @@ fn require_tools(tools: &[&str], path: Option<&std::ffi::OsStr>) -> Result<()> {
     Ok(())
 }
 pub fn prepare_kali(image: &Image, cache: &Path, network: bool, job: &Job) -> Result<PathBuf> {
-    let _lock = crate::cache::lock(cache, false)?;
-    let banners = image.banners(job)?;
-    ensure!(
-        banners.iter().any(|(_, b)| String::from_utf8_lossy(b)
-            .contains("Linux version 6.8.11-arm64")
-            && String::from_utf8_lossy(b).contains("6.8.11-1kali2")),
-        "此准备入口仅适用于 Kali 6.8.11-arm64 / 6.8.11-1kali2；其他版本请提供调试 ELF 与配置"
-    );
-    for path in [PathBuf::from("symbols"), cache.join("symbols/isf")] {
-        if let Ok(matches) = matching(&path, image, job)
-            && let Some(isf) = matches.iter().find(|s| {
-                s.data.key("metadata")["zero"].key("symbol_sizes")["sys_call_table"]
-                    .as_u64()
-                    .is_some()
-            })
-        {
-            return Ok(PathBuf::from(&isf.label));
-        }
+    let package = packages::kali_candidate(image, job)?;
+    if let Some(path) = local_generated(image, Path::new("symbols"), cache, job)? {
+        return Ok(path);
     }
+    prepare_package(&package, None, image, cache, network, job)
+}
+
+/// Build the pinned converter once, or reuse it without network access.
+fn ensure_tool(cache: &Path, network: bool, job: &Job) -> Result<PathBuf> {
+    let _cache_lock = crate::cache::lock(cache, false)?;
+    let _tool_lock = stages::artifact_lock(
+        &cache.join("symbols/build/converter.lock"),
+        "符号转换工具正在准备",
+        job,
+    )?;
     let tool_root = cache.join("symbols/build/dwarf2json");
-    let tool = tool_root.join("dwarf2json");
+    let tool = tool_root.join(format!("dwarf2json{}", std::env::consts::EXE_SUFFIX));
     if !tool.is_file() {
-        // Fail before downloading a gigabyte of packages that could not be used.
-        ensure!(network, "离线模式且 dwarf2json 尚未准备");
+        ensure!(
+            network,
+            "离线模式且 dwarf2json 尚未准备；可用 --tool 指定本地工具"
+        );
         require_tools(&BUILD_TOOLS, std::env::var_os("PATH").as_deref())?;
-    }
-    let root = cache.join("symbols/build/kali-6.8.11");
-    fs::create_dir_all(&root)?;
-    let debug = root.join("kernel.deb");
-    let package = root.join("image.deb");
-    download(KALI_DEBUG, &debug, network, job)?;
-    download(KALI_IMAGE, &package, network, job)?;
-    let elf = root.join("usr/lib/debug/boot/vmlinux-6.8.11-arm64");
-    let config = root.join("boot/config-6.8.11-arm64");
-    if !elf.exists() {
-        extract(
-            &debug,
-            &root,
-            &["./usr/lib/debug/boot/vmlinux-6.8.11-arm64"],
-            job,
-        )?;
-    }
-    if !config.exists() {
-        extract(
-            &package,
-            &root,
-            &[
-                "./boot/config-6.8.11-arm64",
-                "./boot/System.map-6.8.11-arm64",
-            ],
-            job,
-        )?;
+        fs::create_dir_all(cache.join("symbols/build"))?;
     }
     if !tool.is_file() {
         if !tool_root.exists() {
+            job.report("工具准备阶段：获取固定版本转换工具源码");
+            let staging = tempfile::tempdir_in(cache.join("symbols/build"))?;
             run(
                 Command::new("git")
                     .args([
                         "clone",
                         "https://github.com/volatilityfoundation/dwarf2json.git",
                     ])
-                    .arg(&tool_root)
+                    .arg(staging.path())
                     .stdout(Stdio::null()),
                 job,
             )?;
+            job.check()?;
+            fs::rename(staging.path(), &tool_root)?;
         }
         run(
             Command::new("git")
@@ -417,18 +521,20 @@ pub fn prepare_kali(image: &Image, cache: &Path, network: bool, job: &Job) -> Re
         run(
             Command::new("go")
                 .current_dir(&tool_root)
-                .args(["build", "-o", "dwarf2json", "."])
+                .arg("build")
+                .arg("-o")
+                .arg(tool.file_name().context("符号转换工具路径无效")?)
+                .arg(".")
                 .stdout(Stdio::null()),
             job,
         )?;
     }
-    let path = generate(&elf, &config, &tool, image, cache, job)?;
-    let source = path.with_extension("source.json");
-    let mut value: serde_json::Value = serde_json::from_slice(&fs::read(&source)?)?;
-    *value.key_mut("source_url")? = json!(KALI_DEBUG);
-    *value.key_mut("package_sha256")? = json!(digest_reader(File::open(debug)?, job)?);
-    store::atomic_write(&source, &serde_json::to_vec_pretty(&value)?)?;
-    Ok(path)
+    Ok(tool)
+}
+
+/// Persist a validated generated ISF outside the regenerable build cache.
+pub fn save_generated_symbol(path: &Path, library: &Path, job: &Job) -> Result<PathBuf> {
+    service::save(path, library, job)
 }
 
 #[cfg(test)]
@@ -610,7 +716,7 @@ mod tests {
         assert!(error.to_string().contains("缺少文件"), "{error:#}");
         let package = deb(dir.path(), &[("debian-binary", b"2.0\n")]);
         let error = extract(&package, dir.path(), &["./a"], &Job::default()).unwrap_err();
-        assert!(error.to_string().contains("缺少成员"), "{error:#}");
+        assert!(format!("{error:#}").contains("缺少成员"), "{error:#}");
         let truncated = dir.path().join("short.deb");
         let mut bytes = AR_MAGIC.to_vec();
         bytes.extend_from_slice(
@@ -622,7 +728,7 @@ mod tests {
         );
         fs::write(&truncated, bytes).unwrap();
         let error = extract(&truncated, dir.path(), &["./a"], &Job::default()).unwrap_err();
-        assert!(error.to_string().contains("超出文件范围"), "{error:#}");
+        assert!(format!("{error:#}").contains("超出文件范围"), "{error:#}");
         fs::write(&truncated, b"not an archive").unwrap();
         assert!(extract(&truncated, dir.path(), &["./a"], &Job::default()).is_err());
     }
@@ -640,5 +746,188 @@ mod tests {
         assert!(!error.to_string().contains("git"), "{error:#}");
         assert!(require_tools(&["git"], Some(dir.path().as_os_str())).is_ok());
         assert!(require_tools(&["git"], None).is_err());
+    }
+    #[test]
+    fn extracts_gzip_and_zstd_and_rejects_unsafe_paths_and_symlinks() -> Result<()> {
+        let dir = tempfile::tempdir()?;
+        let xz = data_tar(&[("./boot/config-test", b"CONFIG_X86_64=y\n")]);
+        let mut raw = Vec::new();
+        xz2::read::XzDecoder::new(&xz[..]).read_to_end(&mut raw)?;
+        let mut gz = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::fast());
+        gz.write_all(&raw)?;
+        let gzip = gz.finish()?;
+        let zstd = zstd::stream::encode_all(&raw[..], 1)?;
+        for (name, bytes) in [("data.tar.gz", gzip), ("data.tar.zst", zstd)] {
+            let package = deb(dir.path(), &[(name, &bytes)]);
+            extract(&package, dir.path(), &["boot/config-test"], &Job::default())?;
+            assert_eq!(
+                fs::read(dir.path().join("boot/config-test"))?,
+                b"CONFIG_X86_64=y\n"
+            );
+            assert!(extract(&package, dir.path(), &["../outside"], &Job::default()).is_err());
+            assert!(extract(&package, dir.path(), &["/absolute"], &Job::default()).is_err());
+        }
+        let mut tar = tar::Builder::new(Vec::new());
+        let mut header = tar::Header::new_gnu();
+        header.set_entry_type(tar::EntryType::Symlink);
+        header.set_size(0);
+        header.set_mode(0o777);
+        tar.append_link(&mut header, "boot/config-test", "../../outside")?;
+        let package = deb(dir.path(), &[("data.tar", &tar.into_inner()?)]);
+        assert!(extract(&package, dir.path(), &["boot/config-test"], &Job::default()).is_err());
+        Ok(())
+    }
+
+    #[test]
+    fn downloaded_package_generation_persists_provenance_and_survives_cache_cleanup() -> Result<()>
+    {
+        use base64::Engine;
+        use sha2::{Digest, Sha256};
+        let dir = tempfile::tempdir()?;
+        let cache = dir.path().join("cache");
+        let library = dir.path().join("local symbols");
+        let (_, mut isf) = crate::linux::tests::fixture();
+        isf.banner =
+            b"Linux version 6.8.11-arm64 (aarch64-linux-gnu-gcc) #1 SMP Kali 6.8.11-1kali2\n\0"
+                .to_vec();
+        isf.data["symbols"]["linux_banner"] = json!({"address":0,"constant_data":base64::engine::general_purpose::STANDARD.encode(&isf.banner)});
+        let raw = dir.path().join("image.raw");
+        let other_banner = b"Linux version 6.8.11-arm64 (aarch64-linux-gnu-gcc) #1 SMP Kali 6.8.11-1kali2 other-build\n\0";
+        fs::write(&raw, [isf.banner.as_slice(), other_banner].concat())?;
+        let job = Job::default();
+        let image = Image::open(&raw, &cache, &job)?;
+        let candidate = KernelPackage {
+            banners: Vec::new(),
+            sources: Vec::new(),
+            banner: String::from_utf8_lossy(&isf.banner)
+                .trim_end_matches(['\0', '\n'])
+                .into(),
+            distribution: "Kali".into(),
+            release: "6.8.11-arm64".into(),
+            architecture: "arm64".into(),
+            version: "6.8.11-1kali2".into(),
+            debug_url: KALI_DEBUG.into(),
+            kernel_url: KALI_IMAGE.into(),
+            download_size: None,
+        };
+        let key = format!(
+            "{:x}",
+            Sha256::digest(format!("{}\n{}", candidate.debug_url, candidate.kernel_url).as_bytes())
+        );
+        let build = cache.join("symbols/build/kernels").join(key);
+        fs::create_dir_all(&build)?;
+        let elf = debug_elf();
+        let data = data_tar(&[("usr/lib/debug/lib/modules/6.8.11-arm64/vmlinux", &elf)]);
+        let package = deb(dir.path(), &[("data.tar.xz", &data)]);
+        fs::copy(package, build.join("debug.deb"))?;
+        let data = data_tar(&[(
+            "boot/config-6.8.11-arm64",
+            b"CONFIG_ARM64_4K_PAGES=y\nCONFIG_ARM64_VA_BITS=48\n",
+        )]);
+        let package = deb(dir.path(), &[("data.tar.xz", &data)]);
+        fs::copy(package, build.join("kernel.deb"))?;
+        let tool = dir.path().join("fixture-converter");
+        fs::write(
+            &tool,
+            "#!/bin/sh\nprintf x >> \"$0.count\"\ncat \"$0.json\"\n",
+        )?;
+        fs::set_permissions(&tool, fs::Permissions::from_mode(0o700))?;
+        fs::write(tool.with_extension("json"), serde_json::to_vec(&isf.data)?)?;
+        let generated = prepare_package(&candidate, Some(&tool), &image, &cache, false, &job)?;
+        let elf_path = build.join("usr/lib/debug/lib/modules/6.8.11-arm64/vmlinux");
+        let elf_time = elf_path.metadata()?.modified()?;
+        assert_eq!(fs::read(tool.with_extension("count"))?.len(), 1);
+        assert_eq!(
+            prepare_package(&candidate, Some(&tool), &image, &cache, false, &job)?,
+            generated
+        );
+        assert_eq!(elf_path.metadata()?.modified()?, elf_time);
+        assert_eq!(fs::read(tool.with_extension("count"))?.len(), 1);
+        // An unavailable primary source can fall back to an already cached official mirror.
+        let mut mirrored = candidate.clone();
+        mirrored.debug_url = candidate.debug_url.replace("old.kali.org", "http.kali.org");
+        mirrored.kernel_url = candidate
+            .kernel_url
+            .replace("old.kali.org", "http.kali.org");
+        mirrored.sources = vec![PackageSource {
+            debug_url: candidate.debug_url.clone(),
+            kernel_url: candidate.kernel_url.clone(),
+        }];
+        assert_eq!(
+            prepare_package(&mirrored, Some(&tool), &image, &cache, false, &job)?,
+            generated
+        );
+        assert_eq!(fs::read(tool.with_extension("count"))?.len(), 1);
+        // A partially completed extraction resumes without rewriting the verified ELF.
+        let mut checkpoint = stages::State::load(&build);
+        checkpoint.config = None;
+        checkpoint.generated = None;
+        checkpoint.save(&build, &job)?;
+        fs::remove_file(build.join("boot/config-6.8.11-arm64"))?;
+        assert_eq!(
+            prepare_package(&candidate, Some(&tool), &image, &cache, false, &job)?,
+            generated
+        );
+        assert_eq!(elf_path.metadata()?.modified()?, elf_time);
+        // A modified extracted ELF is restored from the unchanged cached package.
+        fs::write(&elf_path, b"damaged ELF")?;
+        assert_eq!(
+            prepare_package(&candidate, Some(&tool), &image, &cache, false, &job)?,
+            generated
+        );
+        assert_eq!(fs::read(&elf_path)?, debug_elf());
+        let saved = save_generated_symbol(&generated, &library, &job)?;
+        assert!(saved.starts_with(library.canonicalize()?));
+        let source: serde_json::Value =
+            serde_json::from_slice(&fs::read(saved.with_extension("source.json"))?)?;
+        assert_eq!(
+            source["provenance"]["kernel_package"]["debug_url"],
+            KALI_DEBUG
+        );
+        assert_eq!(
+            source["provenance"]["debug_package_sha256"],
+            digest_reader(File::open(build.join("debug.deb"))?, &job)?
+        );
+        assert!(source["metadata"]["zero"]["elf_sha256"].as_str().is_some());
+        assert_eq!(save_generated_symbol(&generated, &library, &job)?, saved);
+        // An incompatible converter output must not publish another ISF.
+        isf.data["symbols"]["linux_banner"]["constant_data"] =
+            json!(base64::engine::general_purpose::STANDARD.encode(other_banner));
+        fs::write(tool.with_extension("json"), serde_json::to_vec(&isf.data)?)?;
+        fs::OpenOptions::new()
+            .append(true)
+            .open(&tool)?
+            .write_all(b"# changed converter fixture\n")?;
+        let error =
+            prepare_package(&candidate, Some(&tool), &image, &cache, false, &job).unwrap_err();
+        assert!(error.to_string().contains("选中"), "{error:#}");
+        assert_eq!(fs::read_dir(cache.join("symbols/isf"))?.count(), 2);
+        let cancel = Job::default();
+        cancel
+            .cancel
+            .store(true, std::sync::atomic::Ordering::Relaxed);
+        assert!(prepare_package(&candidate, Some(&tool), &image, &cache, false, &cancel).is_err());
+        assert!(save_generated_symbol(&generated, &dir.path().join("cancelled"), &cancel).is_err());
+        assert!(!dir.path().join("cancelled").exists());
+        drop(image);
+        crate::cache::clear(&cache, &[crate::cache::Scope::Symbols])?;
+        assert!(!generated.exists());
+        assert!(saved.is_file());
+        assert!(saved.with_extension("source.json").is_file());
+        fs::remove_file(saved.with_extension("source.json"))?;
+        let reopened = Image::open(&raw, &cache, &job)?;
+        assert_eq!(
+            prepare_auto(&reopened, &library, &cache, false, None, &job)?,
+            saved
+        );
+        assert_eq!(matching(&saved, &reopened, &job)?.len(), 1);
+        // A name collision cannot replace an existing local symbol.
+        fs::write(&saved, b"existing different content")?;
+        let cached = cache.join("symbols/isf").join(saved.file_name().unwrap());
+        store::atomic_write(&cached, b"new content")?;
+        store::atomic_write(&cached.with_extension("source.json"), b"{}")?;
+        assert!(save_generated_symbol(&cached, &library, &job).is_err());
+        assert_eq!(fs::read(&saved)?, b"existing different content");
+        Ok(())
     }
 }

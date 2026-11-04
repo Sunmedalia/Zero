@@ -161,7 +161,7 @@ fn keywords(command: Command) -> &'static str {
         Command::SearchAssets => "search filter",
         Command::EnterAnalysis => "enter analysis console",
         Command::ToggleSource => "local remote source",
-        Command::GenerateSymbols => "generate symbols dwarf2json kali",
+        Command::GenerateSymbols => "generate symbols dwarf2json ubuntu debian kali",
         Command::FetchIndex => "index catalog fetch",
         Command::Download => "download save",
         Command::ToggleMatchFilter => "filter matched",

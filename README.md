@@ -41,14 +41,14 @@ Zero 从本地内存镜像恢复进程、模块、文件、网络连接与内核
 
 Linux 发布包在 Ubuntu 24.04 上构建，需要兼容的 glibc。宿主平台与被分析镜像的系统是两个不同维度，镜像覆盖情况见[兼容矩阵](docs/compatibility.md)。
 
-符号下载与包解压均使用内置实现。自动准备 Kali 符号时仍需 `git` 和 `go`，可运行 `zero doctor` 检查。
+符号下载与包解压均使用内置实现。首次自动准备 Linux 符号生成工具时仍需 `git` 和 `go`，可运行 `zero doctor` 检查。
 
-以 Linux x86_64 的 v0.2.5 为例，在下载目录执行：
+以 Linux x86_64 的 v0.2.6 为例，在下载目录执行：
 
 ```sh
 sha256sum --check --ignore-missing SHA256SUMS
-tar xzf zero-0.2.5-x86_64-unknown-linux-gnu.tar.gz
-cd zero-0.2.5-x86_64-unknown-linux-gnu
+tar xzf zero-0.2.6-x86_64-unknown-linux-gnu.tar.gz
+cd zero-0.2.6-x86_64-unknown-linux-gnu
 ./zero
 ```
 
@@ -148,7 +148,7 @@ zero mcp
 | 符号格式 | ISF JSON、JSON.XZ、ZIP 成员；Windows 可下载精确 PDB 并在本地转换 |
 | Linux | x86_64 四级页表（含 KASLR）、ARM64 4 KiB 页（39 / 48-bit VA）；已验收 Debian 3.2 与 Kali 6.8.11 ARM64 |
 | Windows | 按精确 PDB 匹配；Microsoft 返回 404 时，可从 Volatility 官方符号包按需获取精确 ISF。逐插件、逐样本证据见[兼容矩阵](docs/compatibility.md)。 |
-| 符号来源 | 本地文件、[volatility3-symbols](https://github.com/Abyss-W4tcher/volatility3-symbols)、Microsoft 符号服务器；Kali ARM64 可从官方调试包生成 |
+| 符号来源 | 本地文件、[volatility3-symbols](https://github.com/Abyss-W4tcher/volatility3-symbols)、Microsoft 符号服务器；Ubuntu / Debian / Kali 可查找官方调试包并生成，持久保存到本地库 |
 
 休眠文件与压缩 store 的部分路径只有合成验证。Linux32 / PAE 页表与 ELF32 已有内部参考测试，公开 Linux32 ISF 入口仍关闭，尚无真实 Linux32 端到端验收。恶意检测插件输出需要核查的结构线索，不直接作恶意判定。
 
