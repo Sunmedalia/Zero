@@ -36,11 +36,22 @@ pub struct Image {
     rsds: std::sync::OnceLock<Vec<u64>>,
     /// Completed physical scans keyed by needle; the image is read-only.
     scans: std::sync::Mutex<crate::resources::Lru<Vec<u8>, std::sync::Arc<[u64]>>>,
+    /// Whole 4 KiB pages behind small physical reads (fields, page-table entries).
+    physical: std::sync::Mutex<PhysicalPages>,
     pub segments: Vec<Segment>,
     pub digest: String,
     pub format: &'static str,
     pub windows_container: Option<crate::windows::container::Metadata>,
     pub hibernation: Option<crate::windows::hiber::Hibernation>,
+}
+/// Slots of the direct-mapped physical page cache (4 MiB when full).
+const PHYSICAL_SLOTS: u64 = 1024;
+/// Direct-mapped: one slot per page frame number modulo the slot count, so a
+/// lookup is a single compare and eviction needs no bookkeeping. Only pages
+/// lying wholly inside one segment are cached; the image never changes.
+#[derive(Default)]
+struct PhysicalPages {
+    slots: Vec<Option<(u64, Box<[u8; 4096]>)>>,
 }
 /// Read-ahead chunk for image digesting.
 const DIGEST_CHUNK: usize = 4 * 1024 * 1024;
@@ -766,6 +777,7 @@ impl Image {
             scans: std::sync::Mutex::new(crate::resources::Lru::new(
                 crate::resources::Limits::default().scan_cache_bytes,
             )),
+            physical: std::sync::Mutex::new(PhysicalPages::default()),
             segments,
             digest,
             format,
@@ -796,11 +808,66 @@ impl Image {
                         format!("物理地址越界或 LiME 空洞 @ {address:#x}")
                     }
                 })?;
-            let n = out.len().min(usize::try_from(s.end - address)?);
-            self.file
-                .read_exact_at(out.at_mut(..n)?, s.file_offset + address - s.start)?;
+            let mut n = out.len().min(usize::try_from(s.end - address)?);
+            let page = address & !4095;
+            let in_page = usize::try_from(address - page)?;
+            // Small reads go through whole cached pages; bulk reads (scans,
+            // dumps) bypass the cache so they neither pay a copy nor evict.
+            if out.len() < 4096
+                && page >= s.start
+                && page.checked_add(4096).is_some_and(|end| end <= s.end)
+            {
+                n = n.min(4096 - in_page);
+                self.cached_page_read(
+                    page,
+                    s.file_offset + page - s.start,
+                    in_page,
+                    out.at_mut(..n)?,
+                )?;
+            } else {
+                self.file
+                    .read_exact_at(out.at_mut(..n)?, s.file_offset + address - s.start)?;
+            }
             address += n as u64;
             out = out.at_mut(n..)?;
+        }
+        Ok(())
+    }
+    fn cached_page_read(
+        &self,
+        page: u64,
+        file_offset: u64,
+        in_page: usize,
+        out: &mut [u8],
+    ) -> Result<()> {
+        let slot = usize::try_from((page >> 12) % PHYSICAL_SLOTS)?;
+        let lock = || {
+            self.physical
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+        };
+        let range = in_page..in_page + out.len();
+        if let Some(Some((tag, data))) = lock().slots.get(slot)
+            && *tag == page
+        {
+            out.copy_from_slice(data.at(range)?);
+            return Ok(());
+        }
+        // Read outside the lock so concurrent analyses are not serialized.
+        let mut data = Box::new([0u8; 4096]);
+        if self.file.read_exact_at(&mut data[..], file_offset).is_err() {
+            // A short file behind a declared segment: read exactly what was asked.
+            return Ok(self.file.read_exact_at(out, file_offset + in_page as u64)?);
+        }
+        out.copy_from_slice(data.at(range)?);
+        let mut cache = lock();
+        if cache.slots.is_empty() {
+            cache
+                .slots
+                .resize_with(usize::try_from(PHYSICAL_SLOTS)?, || None);
+        }
+        if let Some(entry) = cache.slots.get_mut(slot) {
+            *entry = Some((page, data));
         }
         Ok(())
     }
@@ -999,12 +1066,18 @@ struct PageCache {
     bits: u8,
     /// Virtual 4 KiB page → physical 4 KiB page. The image is read-only.
     pages: crate::resources::Lru<u64, u64>,
+    /// Most recent translation: consecutive field reads usually share a page,
+    /// and this hit skips the LRU's reordering.
+    last: Option<(u64, u64)>,
 }
 pub struct VirtualMemory<'a> {
     pub image: &'a Image,
     pub root: u64,
     pages: std::sync::Mutex<PageCache>,
     linux32: Option<crate::intel_scan::Kind>,
+    /// One Linux32/PAE mapper per address space, so its table cache survives
+    /// between reads; the image is read-only, so cached tables stay exact.
+    mapper_tables: std::sync::Mutex<Option<crate::intel_scan::Tables>>,
 }
 impl<'a> VirtualMemory<'a> {
     pub fn new(image: &'a Image, root: u64) -> Self {
@@ -1014,8 +1087,10 @@ impl<'a> VirtualMemory<'a> {
             pages: std::sync::Mutex::new(PageCache {
                 bits: u8::MAX,
                 pages: crate::resources::Lru::new(image.limits.page_cache_entries),
+                last: None,
             }),
             linux32: None,
+            mapper_tables: std::sync::Mutex::new(None),
         }
     }
     pub(crate) fn new_linux32(image: &'a Image, root: u64, pae: bool) -> Self {
@@ -1025,15 +1100,37 @@ impl<'a> VirtualMemory<'a> {
         } else {
             crate::intel_scan::Kind::Linux32
         };
-        vm.linux32 = Some(kind);
+        vm.set_linux32(Some(kind));
         vm
+    }
+    fn set_linux32(&mut self, kind: Option<crate::intel_scan::Kind>) {
+        self.linux32 = kind;
+    }
+    /// Run `f` on a Linux32/PAE mapper that reuses this address space's table
+    /// cache; concurrent callers simply start from an empty cache.
+    fn with_mapper<T>(
+        &self,
+        kind: crate::intel_scan::Kind,
+        f: impl FnOnce(&mut crate::intel_scan::Mapper<'_>) -> T,
+    ) -> T {
+        let lock = || {
+            self.mapper_tables
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+        };
+        let tables = lock().take();
+        let mut mapper =
+            crate::intel_scan::Mapper::with_tables(self.image, self.root, kind, tables);
+        let value = f(&mut mapper);
+        *lock() = Some(mapper.into_tables());
+        value
     }
     pub(crate) fn linux_intel_kind(&self) -> crate::intel_scan::Kind {
         self.linux32.unwrap_or(crate::intel_scan::Kind::Linux64)
     }
     pub(crate) fn with_root(&self, root: u64) -> VirtualMemory<'a> {
         let mut vm = Self::new(self.image, root);
-        vm.linux32 = self.linux32;
+        vm.set_linux32(self.linux32);
         vm
     }
     fn cached_page(&self, va: u64, bits: u8) -> Option<u64> {
@@ -1041,7 +1138,15 @@ impl<'a> VirtualMemory<'a> {
         if cache.bits != bits {
             return None;
         }
-        cache.pages.get(&(va & !4095)).copied()
+        let page = va & !4095;
+        if let Some((virtual_page, physical)) = cache.last
+            && virtual_page == page
+        {
+            return Some(physical);
+        }
+        let physical = cache.pages.get(&page).copied()?;
+        cache.last = Some((page, physical));
+        Some(physical)
     }
     fn store_page(&self, va: u64, pa: u64, bits: u8) {
         let mut cache = self.pages.lock().unwrap_or_else(|e| e.into_inner());
@@ -1049,6 +1154,7 @@ impl<'a> VirtualMemory<'a> {
             cache.pages.clear();
             cache.bits = bits;
         }
+        cache.last = Some((va & !4095, pa & !4095));
         cache.pages.insert(va & !4095, pa & !4095, 1);
     }
     pub fn translate(&self, va: u64) -> Result<u64> {
@@ -1057,8 +1163,7 @@ impl<'a> VirtualMemory<'a> {
             if let Some(base) = self.cached_page(va, 32) {
                 return Ok(base | (va & 4095));
             }
-            let pa = crate::intel_scan::Mapper::new(self.image, self.root, kind)
-                .translate_address(va)?;
+            let pa = self.with_mapper(kind, |mapper| mapper.translate_address(va))?;
             self.store_page(va, pa, 32);
             return Ok(pa);
         }
@@ -1129,11 +1234,11 @@ impl<'a> VirtualMemory<'a> {
                 va <= u64::from(u32::MAX) && end <= 1u64 << 32,
                 "Linux32 读取地址越界"
             );
-            return crate::intel_scan::Mapper::new(self.image, self.root, kind).read(
-                va,
-                out,
-                |_, _, _| anyhow::bail!("Linux32 不支持 Windows 交换页"),
-            );
+            return self.with_mapper(kind, |mapper| {
+                mapper.read(va, out, |_, _, _| {
+                    anyhow::bail!("Linux32 不支持 Windows 交换页")
+                })
+            });
         }
         va.checked_add(out.len() as u64).context("虚拟地址溢出")?;
         while !out.is_empty() {
@@ -1143,6 +1248,15 @@ impl<'a> VirtualMemory<'a> {
             out = out.at_mut(n..)?;
         }
         Ok(())
+    }
+    /// Cursor for many small reads that walk one table: each page is read once.
+    pub(crate) fn cursor(&self) -> PageCursor<'_, 'a> {
+        PageCursor {
+            vm: self,
+            page: None,
+            valid: false,
+            data: Box::new([0; 4096]),
+        }
     }
     pub fn uint(&self, va: u64, size: usize) -> Result<u64> {
         ensure!(matches!(size, 1 | 2 | 4 | 8), "不支持的整数字段大小 {size}");
@@ -1159,6 +1273,35 @@ impl<'a> VirtualMemory<'a> {
             bail!("对象字符串含控制字符 @ {va:#x}");
         }
         Ok(String::from_utf8_lossy(b.at(..end)?).into_owned())
+    }
+}
+
+/// Serves small integer reads from the last whole virtual page it read.
+/// Reads crossing a page, and pages that cannot be read whole, go straight to
+/// `VirtualMemory::uint`, so values and errors equal direct reads exactly.
+pub(crate) struct PageCursor<'v, 'a> {
+    vm: &'v VirtualMemory<'a>,
+    page: Option<u64>,
+    valid: bool,
+    data: Box<[u8; 4096]>,
+}
+impl PageCursor<'_, '_> {
+    pub(crate) fn uint(&mut self, va: u64, size: usize) -> Result<u64> {
+        let offset = usize::try_from(va & 4095)?;
+        if matches!(size, 1 | 2 | 4 | 8) && offset + size <= 4096 {
+            let page = va & !4095;
+            if self.page != Some(page) {
+                self.page = Some(page);
+                self.valid = self.vm.read(page, &mut self.data[..]).is_ok();
+            }
+            if self.valid {
+                let mut b = [0; 8];
+                b.at_mut(..size)?
+                    .copy_from_slice(self.data.at(offset..offset + size)?);
+                return Ok(u64::from_le_bytes(b));
+            }
+        }
+        self.vm.uint(va, size)
     }
 }
 
@@ -1381,5 +1524,41 @@ mod budget_tests {
         vm.translate(0x2000).unwrap();
         assert!(vm.cached_page(0x1000, 0).is_none());
         assert_eq!(vm.translate(0x1000).unwrap(), first);
+    }
+}
+
+#[cfg(test)]
+mod physical_cache_tests {
+    use super::*;
+    #[test]
+    fn cached_small_reads_equal_the_file_bytes_everywhere() {
+        // Not a page multiple: the tail page is never cached and must still read.
+        let bytes: Vec<u8> = (0..(PHYSICAL_SLOTS as usize + 3) * 4096 + 1234)
+            .map(|i| (i * 31 % 251) as u8)
+            .collect();
+        let mut file = tempfile::tempfile().unwrap();
+        file.write_all(&bytes).unwrap();
+        let image = Image::from_file(file, "cache-fixture".into()).unwrap();
+        let len = bytes.len() as u64;
+        let mut offsets = vec![0, 1, 4095, 4096, 8190, len - 1234, len - 9, len - 1];
+        // Revisit pages that collide in the direct-mapped cache.
+        offsets.extend((0..6).map(|i| i * PHYSICAL_SLOTS * 4096 / 2 + 77));
+        offsets.retain(|offset| *offset < len);
+        for round in 0..2 {
+            for &offset in &offsets {
+                for size in [1usize, 2, 8, 100, 4095, 4096, 9000] {
+                    let end = (offset + size as u64).min(len);
+                    let mut out = vec![0u8; usize::try_from(end - offset).unwrap()];
+                    image.read(offset, &mut out).unwrap();
+                    assert_eq!(
+                        out,
+                        bytes[offset as usize..end as usize],
+                        "round {round} offset {offset} size {size}"
+                    );
+                }
+            }
+        }
+        let mut past = [0u8; 2];
+        assert!(image.read(len - 1, &mut past).is_err());
     }
 }

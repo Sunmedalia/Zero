@@ -320,6 +320,11 @@ impl Windows<'_> {
     }
     pub fn run(&self, p: Plugin, options: &Options, job: &Job) -> Result<Results> {
         job.check()?;
+        // Container metadata is answered by container::analyze before any engine exists.
+        ensure!(
+            p != Plugin::WinCrashinfo,
+            "windows.crashinfo 仅适用于崩溃转储/小型转储容器，RAW 镜像没有转储头"
+        );
         if p == Plugin::WinDebugRegisters {
             return self.debug_registers(None, job);
         }
@@ -569,7 +574,8 @@ impl Windows<'_> {
                     Plugin::WinHashdump => engine.hashdump(job),
                     Plugin::WinLsadump => engine.lsadump(job),
                     Plugin::WinCachedump => engine.cachedump(job),
-                    _ => engine.registry(p, options, job),
+                    Plugin::WinPrintkey => engine.registry(p, options, job),
+                    other => bail!("注册表路由缺少插件 {}", other.name()),
                 }
             };
             let mut result = if owners.is_empty() {

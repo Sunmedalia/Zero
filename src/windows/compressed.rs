@@ -2,10 +2,19 @@
 //! Structural facts: mandiant/win10_rekall, win10_memcompression research (2019).
 //! Windows 11 SmPa indirection and size flags: ufrisk/MemProcFS vmm/mm/mm_win.c.
 use super::*;
-#[derive(Default)]
+/// Reconstructed pages kept for re-reads (4 MiB); eviction only costs time.
+const PAGE_CACHE_ENTRIES: usize = 1024;
 pub(super) struct State {
-    pages: BTreeMap<(u64, u64), Vec<u8>>,
+    pages: crate::resources::Lru<(u64, u64), Vec<u8>>,
     evidence: BTreeMap<(u64, u64), serde_json::Value>,
+}
+impl Default for State {
+    fn default() -> Self {
+        Self {
+            pages: crate::resources::Lru::new(PAGE_CACHE_ENTRIES),
+            evidence: BTreeMap::new(),
+        }
+    }
 }
 impl paging::Sources {
     pub(super) fn compressed_page(
@@ -223,10 +232,7 @@ impl paging::Sources {
             "store 来源记录超过上限"
         );
         state.evidence.insert(key,serde_json::json!({"root":vm.root,"virtual_page":va&!4095,"page_key":page_key,"store_index":store_index,"record":record,"owner_pid":process.pid,"compressed_address":address,"compressed_size":length,"algorithm":algorithm.map(|a|a.to_string()).unwrap_or_else(||"LZ4".into()),"validation":"symbol-driven-synthetic"}));
-        if state.pages.len() >= 256 {
-            state.pages.pop_first();
-        }
-        state.pages.insert(key, bytes.clone());
+        state.pages.insert(key, bytes.clone(), 1);
         Ok(bytes)
     }
     pub(super) fn compressed_evidence(&self) -> Result<serde_json::Value> {
