@@ -5,15 +5,33 @@ impl Linux<'_> {
     pub(crate) fn kernel_text(&self, ptr: u64, limit: usize) -> Result<String> {
         ensure!(ptr != 0, "字符串指针为空");
         let mut bytes = Vec::new();
-        for i in 0..limit {
-            let b = u8::try_from(
-                self.vm
-                    .uint(ptr.checked_add(i as u64).context("字符串地址溢出")?, 1)?,
-            )?;
-            if b == 0 {
-                return Ok(String::from_utf8_lossy(&bytes).into_owned());
+        let mut page = [0u8; 4096];
+        while bytes.len() < limit {
+            let at = ptr
+                .checked_add(bytes.len() as u64)
+                .context("字符串地址溢出")?;
+            // One read per page; a page that cannot be read whole falls back
+            // to byte reads so the result and error match exactly.
+            let n = (limit - bytes.len()).min(4096 - (at & 4095) as usize);
+            let chunk = page.at_mut(..n)?;
+            if self.vm.read(at, chunk).is_ok() {
+                if let Some(end) = memchr::memchr(0, chunk) {
+                    bytes.extend_from_slice(chunk.at(..end)?);
+                    return Ok(String::from_utf8_lossy(&bytes).into_owned());
+                }
+                bytes.extend_from_slice(chunk);
+                continue;
             }
-            bytes.push(b);
+            for i in 0..n {
+                let b = u8::try_from(
+                    self.vm
+                        .uint(at.checked_add(i as u64).context("字符串地址溢出")?, 1)?,
+                )?;
+                if b == 0 {
+                    return Ok(String::from_utf8_lossy(&bytes).into_owned());
+                }
+                bytes.push(b);
+            }
         }
         anyhow::bail!("内核字符串超过 {limit} 字节")
     }

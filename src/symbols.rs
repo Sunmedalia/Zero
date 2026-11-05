@@ -105,6 +105,64 @@ impl Isf {
         }
         Ok(isf)
     }
+    /// Banner of an ISF whose full `parse` is certain to succeed, read without
+    /// building the JSON tree. `None` means "parse it fully": Windows ISFs,
+    /// any shape the probe cannot type, and every input `parse` would reject,
+    /// so callers keep the exact errors and results of the full parse.
+    pub(crate) fn probe_linux_banner(bytes: &[u8]) -> Option<Vec<u8>> {
+        use serde::Deserialize;
+        use serde::de::IgnoredAny;
+        #[derive(Deserialize)]
+        struct Probe {
+            #[serde(default)]
+            base_types: Option<BaseTypes>,
+            #[serde(default)]
+            metadata: Option<Metadata>,
+            #[serde(default)]
+            symbols: Option<Symbols>,
+        }
+        #[derive(Deserialize)]
+        struct BaseTypes {
+            #[serde(default)]
+            pointer: Option<Size>,
+        }
+        #[derive(Deserialize)]
+        struct Size {
+            #[serde(default)]
+            size: Option<u64>,
+        }
+        #[derive(Deserialize)]
+        struct Metadata {
+            #[serde(default)]
+            windows: Option<IgnoredAny>,
+        }
+        #[derive(Deserialize)]
+        struct Symbols {
+            #[serde(default)]
+            linux_banner: Option<Banner>,
+        }
+        #[derive(Deserialize)]
+        struct Banner {
+            #[serde(default)]
+            constant_data: Option<String>,
+        }
+        let probe: Probe = serde_json::from_slice(bytes).ok()?;
+        // Any windows metadata, even malformed, takes the full path.
+        if probe.metadata.is_some_and(|m| m.windows.is_some()) {
+            return None;
+        }
+        if probe.base_types?.pointer?.size? != 8 {
+            return None;
+        }
+        let banner = STANDARD
+            .decode(probe.symbols?.linux_banner?.constant_data?)
+            .ok()?;
+        (banner.starts_with(b"Linux version ")
+            && banner.last() == Some(&0)
+            && banner.len() <= 65536
+            && !banner.get(..banner.len() - 1)?.contains(&0))
+        .then_some(banner)
+    }
     pub fn is_windows(&self) -> bool {
         self.data.key("metadata")["windows"].key("pdb").is_object()
     }
@@ -308,7 +366,13 @@ pub(crate) fn decode(r: impl Read, name: &str, job: &Job) -> Result<Vec<u8>> {
         read_stream(r, job)
     }
 }
-fn collect(path: &Path, job: &Job, out: &mut Vec<(String, Vec<u8>)>) -> Result<()> {
+/// Decode every ISF under `path` in sorted order, handing each to `each` as
+/// soon as it is decompressed so only one decoded ISF is resident at a time.
+fn visit(
+    path: &Path,
+    job: &Job,
+    each: &mut dyn FnMut(String, Vec<u8>) -> Result<()>,
+) -> Result<()> {
     job.check()?;
     if path.is_dir() {
         let mut entries = fs::read_dir(path)?.collect::<std::io::Result<Vec<_>>>()?;
@@ -317,7 +381,7 @@ fn collect(path: &Path, job: &Job, out: &mut Vec<(String, Vec<u8>)>) -> Result<(
             if !e.file_type()?.is_symlink()
                 && !e.file_name().to_string_lossy().ends_with(".source.json")
             {
-                collect(&e.path(), job, out)?;
+                visit(&e.path(), job, each)?;
             }
         }
     } else {
@@ -330,16 +394,22 @@ fn collect(path: &Path, job: &Job, out: &mut Vec<(String, Vec<u8>)>) -> Result<(
                 let entry = member.name()?.into_owned();
                 if entry.ends_with(".json") || entry.ends_with(".json.xz") {
                     let bytes = decode(member, &entry, job)?;
-                    out.push((format!("{name}::{entry}"), bytes));
+                    each(format!("{name}::{entry}"), bytes)?;
                 }
             }
         } else if name.ends_with(".json") || name.ends_with(".json.xz") {
-            out.push((name.clone(), decode(File::open(path)?, &name, job)?));
+            each(name.clone(), decode(File::open(path)?, &name, job)?)?;
         } else {
             ensure!(path.exists(), "符号路径不存在: {}", path.display());
         }
     }
     Ok(())
+}
+fn collect(path: &Path, job: &Job, out: &mut Vec<(String, Vec<u8>)>) -> Result<()> {
+    visit(path, job, &mut |name, bytes| {
+        out.push((name, bytes));
+        Ok(())
+    })
 }
 pub(crate) fn entries(path: &Path, job: &Job) -> Result<Vec<(String, Vec<u8>)>> {
     let mut out = Vec::new();
@@ -368,14 +438,21 @@ pub fn matching(path: &Path, image: &Image, job: &Job) -> Result<Vec<Isf>> {
         );
     }
     job.report("读取本地 ISF");
-    let mut entries = Vec::new();
-    collect(path, job, &mut entries)?;
-    ensure!(!entries.is_empty(), "符号路径不含 JSON / JSON.XZ / ZIP ISF");
     let banners = image.banners(job)?;
+    let mut seen = 0usize;
     let mut matches = Vec::new();
     let mut issues = Vec::new();
-    for (name, bytes) in entries {
+    // Each entry is judged as it is decoded; a decode error still fails the
+    // whole call exactly as collecting everything first did.
+    visit(path, job, &mut |name, bytes| {
         job.check()?;
+        seen += 1;
+        if let Some(banner) = Isf::probe_linux_banner(&bytes)
+            && !banners.iter().any(|(_, known)| *known == banner)
+        {
+            // Parses cleanly and cannot match: skip building its JSON tree.
+            return Ok(());
+        }
         match Isf::parse(&bytes, name.clone()) {
             Ok(mut isf) => {
                 job.report(format!("匹配符号 {name}"));
@@ -390,7 +467,9 @@ pub fn matching(path: &Path, image: &Image, job: &Job) -> Result<Vec<Isf>> {
             }
             Err(e) => issues.push(format!("{name}: {e}")),
         }
-    }
+        Ok(())
+    })?;
+    ensure!(seen > 0, "符号路径不含 JSON / JSON.XZ / ZIP ISF");
     ensure!(
         !matches.is_empty(),
         "完整内核 banner 与本地符号不匹配。{}",
@@ -434,6 +513,11 @@ pub fn match_local_files(
         }
         for (label, bytes) in entries {
             job.check()?;
+            if let Some(banner) = Isf::probe_linux_banner(&bytes)
+                && !banners.iter().any(|(_, known)| *known == banner)
+            {
+                continue;
+            }
             match Isf::parse(&bytes, label.clone()) {
                 Ok(isf)
                     if (banners.iter().any(|(_, banner)| *banner == isf.banner)
@@ -1189,4 +1273,45 @@ pub fn refresh_index(cache: &Path, job: &Job) -> Result<()> {
     ensure!(index.is_object(), "banner 索引格式无效");
     job.check()?;
     crate::store::atomic_write(&repository.index_file(cache), &bytes)
+}
+
+#[cfg(test)]
+mod probe_tests {
+    use super::*;
+    fn linux(pointer: serde_json::Value, banner: &[u8]) -> Vec<u8> {
+        serde_json::to_vec(&serde_json::json!({
+            "base_types": {"pointer": {"size": pointer}},
+            "symbols": {"linux_banner": {"constant_data": STANDARD.encode(banner)}, "other": {"address": 1}},
+            "user_types": {"task_struct": {"size": 8, "fields": {}}}
+        }))
+        .unwrap()
+    }
+    #[test]
+    fn probe_agrees_with_full_parse_or_defers_to_it() {
+        let good = b"Linux version 6.1.0 (x)\0";
+        let cases = [
+            linux(serde_json::json!(8), good),
+            linux(serde_json::json!(4), good),
+            linux(serde_json::json!(8.0), good),
+            linux(serde_json::json!(8), b"Linux version 6.1.0 (x)"),
+            linux(serde_json::json!(8), b"Linux\0version\0"),
+            linux(serde_json::json!(8), b"Windows\0"),
+            br#"{"base_types":{"pointer":{"size":8}},"metadata":{"windows":5},"symbols":{}}"#
+                .to_vec(),
+            br#"{"base_types":{"pointer":{"size":8}},"metadata":{"windows":{"pdb":{}}}}"#.to_vec(),
+            br#"{"base_types":null,"symbols":{"linux_banner":{"constant_data":"!!"}}}"#.to_vec(),
+            br#"{"base_types":{"pointer":{"size":8}}"#.to_vec(),
+        ];
+        for bytes in cases {
+            let full = Isf::parse(&bytes, "case".into());
+            // A probed banner promises the full parse succeeds identically.
+            if let Some(banner) = Isf::probe_linux_banner(&bytes) {
+                assert_eq!(full.unwrap().banner, banner);
+            }
+        }
+        assert_eq!(
+            Isf::probe_linux_banner(&linux(serde_json::json!(8), good)).as_deref(),
+            Some(&good[..])
+        );
+    }
 }

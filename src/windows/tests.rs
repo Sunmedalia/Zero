@@ -746,3 +746,33 @@ fn captured_table_rejection_is_independent_of_cache_budget() {
         }
     }
 }
+#[test]
+fn every_windows_plugin_reaches_a_handler() {
+    // The router is a chain of explicit checks ending in a runtime catch-all;
+    // this guards against a new catalog plugin that no branch handles. Plugins
+    // may still fail on the tiny fixture, but never as "unsupported".
+    let (b, isf) = fixture();
+    let image = image(&b);
+    let engine = Windows {
+        vm: Memory::new(&image, 0x1000, &isf, None),
+        base: K,
+        pdb: PdbIdentity::from_isf(&isf).unwrap(),
+    };
+    let options = Options {
+        pattern: Some("4d5a".into()),
+        ..Default::default()
+    };
+    let mut unrouted = Vec::new();
+    for &plugin in <Plugin as clap::ValueEnum>::value_variants() {
+        if !plugin.is_windows() || plugin.is_dump() {
+            continue;
+        }
+        if let Err(error) = engine.run(plugin, &options, &Job::default()) {
+            let text = format!("{error:#}");
+            if text.contains("不支持的 Windows 插件") || text.contains("路由缺少插件") {
+                unrouted.push(plugin.name());
+            }
+        }
+    }
+    assert!(unrouted.is_empty(), "{unrouted:?}");
+}

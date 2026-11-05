@@ -80,15 +80,33 @@ pub(crate) struct Mapper<'a> {
     tables: Lru<u64, Option<Arc<[u8; 4096]>>>,
     attempts: usize,
 }
+/// Page-table cache detached from a mapper, keyed by physical table address.
+/// Valid for any root of one `Kind` (validity depends on the entry width);
+/// entries otherwise only depend on the read-only image.
+pub(crate) struct Tables(Lru<u64, Option<Arc<[u8; 4096]>>>);
 impl<'a> Mapper<'a> {
     pub(crate) fn new(image: &'a Image, root: u64, kind: Kind) -> Self {
+        Self::with_tables(image, root, kind, None)
+    }
+    pub(crate) fn with_tables(
+        image: &'a Image,
+        root: u64,
+        kind: Kind,
+        tables: Option<Tables>,
+    ) -> Self {
         Self {
             image,
             root,
             kind,
-            tables: Lru::new(image.limits.page_cache_entries.min(1025)),
+            tables: tables.map_or_else(
+                || Lru::new(image.limits.page_cache_entries.min(1025)),
+                |tables| tables.0,
+            ),
             attempts: 0,
         }
+    }
+    pub(crate) fn into_tables(self) -> Tables {
+        Tables(self.tables)
     }
     fn table(&mut self, at: u64) -> Option<Arc<[u8; 4096]>> {
         if let Some(cached) = self.tables.get(&at) {

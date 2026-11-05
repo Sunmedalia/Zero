@@ -735,7 +735,7 @@ pub(super) fn analyze(
         let target = opts
             .directory
             .join(format!("kernel-range-{start:016x}-{}.bin", &digest[..16]));
-        file.persist(&target)?;
+        super::dump::publish_noclobber(file, &target)?;
         result.rows.push(vec![
             opts.pid.to_string(),
             "kernel".into(),
@@ -890,7 +890,7 @@ pub(super) fn analyze(
                         &digest[..16],
                         if pe_dump { "exe" } else { "bin" }
                     ));
-                    file.persist(&target)?;
+                    super::dump::publish_noclobber(file, &target)?;
                     total += size;
                     Ok(vec![
                         pid.to_string(),

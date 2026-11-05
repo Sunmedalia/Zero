@@ -89,16 +89,16 @@ struct CoreNames {
 impl CoreNames {
     fn decode(
         &self,
-        linux: &Linux<'_>,
+        names: &mut crate::image::PageCursor<'_, '_>,
         offset: u64,
         job: &Job,
         budget: &mut u64,
     ) -> Result<(String, String, u64)> {
         let mut at = add(self.names, offset)?;
-        let first = linux.vm.uint(at, 1)?;
+        let first = names.uint(at, 1)?;
         at = add(at, 1)?;
         let length = if first & 128 != 0 {
-            let high = linux.vm.uint(at, 1)?;
+            let high = names.uint(at, 1)?;
             at = add(at, 1)?;
             (high << 7) | (first & 127)
         } else {
@@ -110,7 +110,7 @@ impl CoreNames {
         let mut text = String::new();
         for i in 0..length {
             job.check()?;
-            let token = usize::try_from(linux.vm.uint(add(at, i)?, 1)?)?;
+            let token = usize::try_from(names.uint(add(at, i)?, 1)?)?;
             let value = self.tokens.at(usize::from(*self.index.at(token)?))?;
             ensure!(
                 text.len() + value.len() <= 32768,
@@ -177,10 +177,10 @@ impl Linux<'_> {
             let mut unsigned = Vec::with_capacity(usize::try_from(count)?);
             let mut signed_hits = HashSet::new();
             let mut unsigned_hits = HashSet::new();
+            let mut cursor = self.vm.cursor();
             for i in 0..count {
                 job.check()?;
-                let raw = self
-                    .vm
+                let raw = cursor
                     .uint(add(offsets, i * 4)?, 4)
                     .ok()
                     .and_then(|v| u32::try_from(v).ok());
@@ -224,9 +224,10 @@ impl Linux<'_> {
                 .address("kallsyms_addresses")
                 .context("没有 kallsyms 地址表")?;
             let mut output = Vec::with_capacity(usize::try_from(count)?);
+            let mut cursor = self.vm.cursor();
             for i in 0..count {
                 job.check()?;
-                output.push(self.vm.uint(add(addresses, i * 8)?, 8).ok());
+                output.push(cursor.uint(add(addresses, i * 8)?, 8).ok());
             }
             Ok(output)
         }
@@ -311,9 +312,10 @@ impl Linux<'_> {
         let mut index = 0usize;
         let mut offset = 0;
         let mut decode_budget = 64 * 1024 * 1024;
+        let mut cursor = self.vm.cursor();
         while index < usize::try_from(count)? {
             job.check()?;
-            let decoded = names.decode(self, offset, job, &mut decode_budget);
+            let decoded = names.decode(&mut cursor, offset, job, &mut decode_budget);
             match decoded {
                 Ok((kind, name, next)) => {
                     if let Some(address) = *addresses.at(index)? {

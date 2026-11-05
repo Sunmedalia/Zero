@@ -103,14 +103,7 @@ impl Windows<'_> {
                     &digest[..16],
                     if p == Plugin::WinPedump { "pe" } else { "bin" }
                 ));
-                if target.exists() {
-                    ensure!(
-                        std::fs::read(&target)? == std::fs::read(tmp.path())?,
-                        "已有同名转储内容不同"
-                    );
-                } else {
-                    tmp.persist(&target).map_err(|e| e.error)?;
-                }
+                publish_noclobber(tmp, &target)?;
                 total += size;
                 Ok(vec![
                     process.pid.to_string(),
@@ -143,14 +136,7 @@ impl Windows<'_> {
         name: &str,
     ) -> Result<String> {
         let target = directory.join(name);
-        if target.exists() {
-            ensure!(
-                std::fs::read(&target)? == std::fs::read(tmp.path())?,
-                "已有同名转储内容不同"
-            );
-        } else {
-            tmp.persist(&target).map_err(|e| e.error)?;
-        }
+        publish_noclobber(tmp, &target)?;
         Ok(target.display().to_string())
     }
     pub(super) fn account(total: &mut u64, size: u64) -> Result<()> {
@@ -443,6 +429,42 @@ pub(super) fn reconstruct_pe(
     }
     Ok(size)
 }
+/// Publish a synced, hashed temporary file without ever replacing evidence.
+/// The rename itself refuses an existing target, so there is no window between
+/// a check and the write; an existing file is accepted only when byte-identical.
+pub(super) fn publish_noclobber(
+    tmp: tempfile::NamedTempFile,
+    target: &std::path::Path,
+) -> Result<()> {
+    match tmp.persist_noclobber(target) {
+        Ok(_) => Ok(()),
+        Err(e) if e.error.kind() == std::io::ErrorKind::AlreadyExists => {
+            ensure!(same_content(target, e.file.path())?, "已有同名转储内容不同");
+            Ok(())
+        }
+        Err(e) => Err(e.error.into()),
+    }
+}
+/// Streaming byte comparison; never loads either dump wholly into memory.
+fn same_content(a: &std::path::Path, b: &std::path::Path) -> Result<bool> {
+    use std::io::Read;
+    let (mut left, mut right) = (std::fs::File::open(a)?, std::fs::File::open(b)?);
+    if left.metadata()?.len() != right.metadata()?.len() {
+        return Ok(false);
+    }
+    let (mut x, mut y) = (vec![0u8; 1 << 16], vec![0u8; 1 << 16]);
+    loop {
+        let n = left.read(&mut x)?;
+        if n == 0 {
+            return Ok(true);
+        }
+        let other = y.at_mut(..n)?;
+        right.read_exact(other)?;
+        if x.at(..n)? != &*other {
+            return Ok(false);
+        }
+    }
+}
 fn write_region(
     vm: &Memory<'_>,
     address: u64,
@@ -504,6 +526,34 @@ pub(super) fn write_reader(
 mod tests {
     use super::super::tests::{K, fixture, image, put};
     use super::*;
+    fn temp_with(dir: &std::path::Path, bytes: &[u8]) -> tempfile::NamedTempFile {
+        let mut tmp = tempfile::NamedTempFile::new_in(dir).unwrap();
+        tmp.write_all(bytes).unwrap();
+        tmp
+    }
+    #[test]
+    fn publishing_never_replaces_different_evidence_and_accepts_identical() {
+        let dir = tempfile::tempdir().unwrap();
+        let target = dir.path().join("evidence.bin");
+        publish_noclobber(temp_with(dir.path(), b"original"), &target).unwrap();
+        // Same bytes again: accepted, file untouched, temporary removed.
+        publish_noclobber(temp_with(dir.path(), b"original"), &target).unwrap();
+        // Same length, different bytes, and different length: both refused.
+        for other in [&b"origin4l"[..], b"longer contents"] {
+            let error = publish_noclobber(temp_with(dir.path(), other), &target).unwrap_err();
+            assert!(format!("{error:#}").contains("内容不同"), "{error:#}");
+        }
+        assert_eq!(std::fs::read(&target).unwrap(), b"original");
+        assert_eq!(std::fs::read_dir(dir.path()).unwrap().count(), 1);
+        // A large identical file compares across chunk boundaries.
+        let big = vec![7u8; (1 << 16) * 3 + 5];
+        let big_target = dir.path().join("big.bin");
+        publish_noclobber(temp_with(dir.path(), &big), &big_target).unwrap();
+        publish_noclobber(temp_with(dir.path(), &big), &big_target).unwrap();
+        let mut changed = big.clone();
+        *changed.last_mut().unwrap() = 8;
+        assert!(publish_noclobber(temp_with(dir.path(), &changed), &big_target).is_err());
+    }
     #[test]
     fn pe_reconstruction_preserves_headers_sections_and_hash() {
         let (mut b, isf) = fixture();
