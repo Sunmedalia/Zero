@@ -1057,3 +1057,57 @@ fn every_screen_fits_the_terminal() {
         }
     }
 }
+
+#[test]
+fn remote_rows_render_fully_wherever_a_large_index_is_scrolled() {
+    // Only rows that can reach the viewport are fully built; every row that is
+    // actually drawn must still carry its state tag and its own version.
+    let mut app = app();
+    app.switch_page(Page::Assets);
+    app.section = AssetSection::Remote;
+    app.symbol_source = AssetSection::Remote;
+    app.remote = (0..3000)
+        .map(|i| crate::symbols::RemoteMatch {
+            banner: format!("Linux version 6.8.{i} (b@h) #1 SMP"),
+            path: format!("linux/6.8.{i}/v{i}.json.xz"),
+            url: format!("https://example.invalid/{i}.json.xz"),
+        })
+        .collect();
+    let (w, h) = (120u16, 40u16);
+    let mut terminal = Terminal::new(TestBackend::new(w, h)).unwrap();
+    for target in [2500usize, 10, 2999, 0] {
+        app.asset_rows.0[2] = target;
+        terminal.draw(|f| app.draw(f)).unwrap();
+        let text = screen(&terminal, w as usize);
+        assert!(
+            text.contains(&format!("v{target}.json.xz")),
+            "row {target} not drawn\n{text}"
+        );
+        let drawn = app
+            .hits
+            .borrow()
+            .asset_rows
+            .iter()
+            .filter(|(_, s, _)| *s == AssetSection::Remote)
+            .count();
+        let tagged = text.lines().filter(|l| l.contains("待下载")).count();
+        assert!(drawn > 10, "viewport too small: {drawn}");
+        assert_eq!(tagged, drawn, "a visible remote row was left blank\n{text}");
+    }
+}
+
+#[test]
+fn batched_events_wait_for_a_repaint_only_when_hit_testing_needs_one() {
+    use crate::tui::{HitTest, hit_test};
+    let mouse = |kind| Event::Mouse(mouse_event(kind, 1, 1));
+    assert!(hit_test(&mouse(MouseEventKind::Moved)) == HitTest::None);
+    assert!(hit_test(&mouse(MouseEventKind::ScrollDown)) == HitTest::Scroll);
+    assert!(hit_test(&mouse(MouseEventKind::Down(MouseButton::Left))) == HitTest::Click);
+    assert!(hit_test(&mouse(MouseEventKind::Drag(MouseButton::Left))) == HitTest::Click);
+    assert!(
+        hit_test(&Event::Key(KeyEvent::new(
+            KeyCode::Down,
+            KeyModifiers::NONE
+        ))) == HitTest::None
+    );
+}

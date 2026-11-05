@@ -601,10 +601,11 @@ impl App {
                 }
                 WorkerEvent::ImagePreviewed(path) => {
                     self.finish_worker();
-                    if let Some(identity) = crate::image::bound_identity(&path, &self.cache) {
+                    let (identity, digest) = crate::image::recorded_summary(&path, &self.cache);
+                    if let Some(identity) = identity {
                         self.asset_identities.insert(path.clone(), identity);
                     }
-                    if let Some(digest) = crate::image::recorded_digest(&path, &self.cache) {
+                    if let Some(digest) = digest {
                         self.asset_digests.insert(path, digest);
                     }
                     self.status = "镜像预览已读取；再次点击镜像选用".into();

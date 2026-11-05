@@ -8,6 +8,7 @@ impl App {
         // The asset list is the only thing that can change a path's resolved
         // form, so the display cache is rebuilt with it.
         self.path_cache.borrow_mut().clear();
+        self.canonical_cache.borrow_mut().clear();
         self.root_cached = std::cell::OnceCell::new();
         match Registry::load(&self.cache) {
             Ok(registry) => self.registry = registry,
@@ -71,23 +72,7 @@ impl App {
                 self.last_error = Some(self.status.clone());
             }
         }
-        self.asset_identities = self
-            .assets
-            .iter()
-            .filter(|a| a.kind == Kind::Image)
-            .filter_map(|a| {
-                crate::image::bound_identity(&a.path, &self.cache).map(|id| (a.path.clone(), id))
-            })
-            .collect();
-        self.asset_digests = self
-            .assets
-            .iter()
-            .filter(|a| a.kind == Kind::Image)
-            .filter_map(|a| {
-                crate::image::recorded_digest(&a.path, &self.cache)
-                    .map(|digest| (a.path.clone(), digest))
-            })
-            .collect();
+        (self.asset_identities, self.asset_digests) = recorded_manifests(&self.assets, &self.cache);
         if self
             .local_match_stamp
             .as_ref()
@@ -140,6 +125,24 @@ impl App {
             .borrow_mut()
             .insert(path.to_path_buf(), shown.clone());
         shown
+    }
+    /// `same_path` with canonical forms memoized until the asset list is
+    /// rebuilt; drawing compares every row against the active inputs.
+    pub(super) fn same_asset_path(&self, a: &std::path::Path, b: &std::path::Path) -> bool {
+        if a == b {
+            return true;
+        }
+        let canonical = |path: &std::path::Path| {
+            if let Some(hit) = self.canonical_cache.borrow().get(path) {
+                return hit.clone();
+            }
+            let resolved = path.canonicalize().ok();
+            self.canonical_cache
+                .borrow_mut()
+                .insert(path.to_path_buf(), resolved.clone());
+            resolved
+        };
+        canonical(a).zip(canonical(b)).is_some_and(|(a, b)| a == b)
     }
     pub(super) fn asset_list(&self) -> Vec<&Asset> {
         self.asset_list_for(self.section)
@@ -338,7 +341,7 @@ impl App {
         } else if self
             .image
             .as_ref()
-            .is_some_and(|p| same_path(p, &asset.path))
+            .is_some_and(|p| self.same_asset_path(p, &asset.path))
         {
             if let Some(result) = self.results.get("banners") {
                 text.push_str(&format!(
@@ -377,9 +380,32 @@ impl App {
         if asset.kind == Kind::Image {
             self.image
                 .as_ref()
-                .is_some_and(|p| same_path(p, &asset.path))
+                .is_some_and(|p| self.same_asset_path(p, &asset.path))
         } else {
-            same_path(&self.symbols, &asset.path)
+            self.same_asset_path(&self.symbols, &asset.path)
         }
     }
+}
+
+/// Bound identities and recorded digests of every image, reading each image's
+/// manifest once.
+pub(super) fn recorded_manifests(
+    assets: &[Asset],
+    cache: &std::path::Path,
+) -> (
+    HashMap<PathBuf, crate::image::BoundIdentity>,
+    HashMap<PathBuf, String>,
+) {
+    let mut identities = HashMap::new();
+    let mut digests = HashMap::new();
+    for asset in assets.iter().filter(|a| a.kind == Kind::Image) {
+        let (identity, digest) = crate::image::recorded_summary(&asset.path, cache);
+        if let Some(identity) = identity {
+            identities.insert(asset.path.clone(), identity);
+        }
+        if let Some(digest) = digest {
+            digests.insert(asset.path.clone(), digest);
+        }
+    }
+    (identities, digests)
 }
