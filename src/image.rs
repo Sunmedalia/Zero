@@ -318,12 +318,22 @@ fn current_manifest(path: &Path, cache: &Path) -> Option<Identification> {
 /// The SHA256 the last full verification recorded for an image, while the
 /// file's metadata is unchanged. Display only: it is not a fresh check.
 pub fn recorded_digest(path: &Path, cache: &Path) -> Option<String> {
-    current_manifest(path, cache)
-        .map(|value| value.digest)
-        .filter(|digest| digest.len() == 64)
+    current_manifest(path, cache).and_then(manifest_digest)
 }
 pub fn bound_identity(path: &Path, cache: &Path) -> Option<BoundIdentity> {
-    let value = current_manifest(path, cache)?;
+    manifest_identity(&current_manifest(path, cache)?)
+}
+/// `bound_identity` and `recorded_digest` from a single manifest read.
+pub fn recorded_summary(path: &Path, cache: &Path) -> (Option<BoundIdentity>, Option<String>) {
+    match current_manifest(path, cache) {
+        Some(value) => (manifest_identity(&value), manifest_digest(value)),
+        None => (None, None),
+    }
+}
+fn manifest_digest(value: Identification) -> Option<String> {
+    Some(value.digest).filter(|digest| digest.len() == 64)
+}
+fn manifest_identity(value: &Identification) -> Option<BoundIdentity> {
     let linux: Vec<String> = value
         .banners
         .iter()
@@ -340,7 +350,8 @@ pub fn bound_identity(path: &Path, cache: &Path) -> Option<BoundIdentity> {
         });
     }
     let mut windows: Vec<String> = value
-        .windows?
+        .windows
+        .as_ref()?
         .iter()
         .map(|(_, pdb)| format!("Windows PDB {}", pdb.key()))
         .collect();

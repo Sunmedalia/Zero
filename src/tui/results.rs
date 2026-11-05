@@ -170,7 +170,23 @@ impl App {
                 // Size and draw from borrowed cells: a 1200-row table is
                 // re-laid out every frame, so cloning rows here dominated the
                 // render.
-                let natural = table_widths(&columns, rows.sample(0, 200));
+                // Widths depend only on the header and the first sampled
+                // rows of this index, so they are reused until either changes.
+                let natural = {
+                    let mut cache = self.width_cache.borrow_mut();
+                    match cache.as_ref() {
+                        Some((index, header, widths))
+                            if std::rc::Rc::ptr_eq(index, &rows.index) && *header == columns =>
+                        {
+                            widths.clone()
+                        }
+                        _ => {
+                            let widths = table_widths(&columns, rows.sample(0, 200));
+                            *cache = Some((rows.index.clone(), columns.clone(), widths.clone()));
+                            widths
+                        }
+                    }
+                };
                 let widths: Vec<_> = natural.iter().copied().map(Constraint::Length).collect();
                 let total = natural.iter().map(|n| *n as u32).sum::<u32>()
                     + u32::from(natural.len().saturating_sub(1).cells())

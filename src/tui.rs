@@ -160,6 +160,7 @@ pub fn run_with_options(
     let outcome = (|| -> Result<()> {
         let mut dirty = true;
         let mut last_tick = Instant::now();
+        let mut deferred: Option<Event> = None;
         loop {
             if app.job.is_some() && last_tick.elapsed() >= Duration::from_millis(280) {
                 dirty = true;
@@ -170,36 +171,43 @@ pub fn run_with_options(
                 terminal.draw(|f| app.draw(f))?;
                 dirty = false;
             }
-            if event::poll(Duration::from_millis(80))? {
-                let next = event::read()?;
-                let quit = match next {
-                    Event::Key(key) => {
-                        dirty = true;
-                        app.key(key)
-                    }
-                    Event::Mouse(mouse) => {
-                        // Moves are not consumed, so they must not force a
-                        // repaint; only actions that can change the screen do.
-                        if !matches!(mouse.kind, MouseEventKind::Moved) {
-                            dirty = true;
-                        }
-                        app.mouse(mouse)
-                    }
-                    Event::Resize(width, height) => {
-                        app.resize(width, height);
-                        dirty = true;
-                        false
-                    }
-                    Event::Paste(text) => {
-                        app.paste(&text);
-                        dirty = true;
-                        false
-                    }
-                    _ => false,
+            // Handle every event already queued before repainting, so a
+            // wheel burst or key repeat costs one frame instead of one per
+            // event. The batch is bounded to keep the screen live under an
+            // endless input stream. Clicks hit-test against the last frame,
+            // so a click that follows a screen change waits for a repaint.
+            let mut wait = Duration::from_millis(80);
+            let mut quit = false;
+            let mut changed = false;
+            let mut relayout = false;
+            for _ in 0..EVENT_BATCH {
+                let next = match deferred.take() {
+                    Some(next) => next,
+                    None if event::poll(wait)? => event::read()?,
+                    None => break,
                 };
-                if quit {
+                wait = Duration::ZERO;
+                let stale = match hit_test(&next) {
+                    HitTest::None => false,
+                    HitTest::Scroll => relayout,
+                    HitTest::Click => changed,
+                };
+                if stale {
+                    deferred = Some(next);
                     break;
                 }
+                let scroll = hit_test(&next) == HitTest::Scroll;
+                let (redraw, stop) = handle_event(&mut app, next);
+                changed |= redraw;
+                relayout |= redraw && !scroll;
+                if stop {
+                    quit = true;
+                    break;
+                }
+            }
+            dirty |= changed;
+            if quit {
+                break;
             }
         }
         Ok(())
@@ -207,6 +215,55 @@ pub fn run_with_options(
     app.cancel();
     app.finish_worker();
     outcome
+}
+
+/// Upper bound on queued events handled between two frames.
+const EVENT_BATCH: usize = 256;
+
+/// How an event depends on the previous frame's hit rectangles.
+#[derive(PartialEq)]
+enum HitTest {
+    None,
+    /// Picks the pane under the pointer; scrolling never moves panes.
+    Scroll,
+    /// Resolves exact widgets, which any repaint may move.
+    Click,
+}
+
+fn hit_test(next: &Event) -> HitTest {
+    match next {
+        Event::Mouse(mouse) => match mouse.kind {
+            MouseEventKind::Moved => HitTest::None,
+            MouseEventKind::ScrollUp
+            | MouseEventKind::ScrollDown
+            | MouseEventKind::ScrollLeft
+            | MouseEventKind::ScrollRight => HitTest::Scroll,
+            _ => HitTest::Click,
+        },
+        _ => HitTest::None,
+    }
+}
+
+/// Applies one terminal event; returns (screen may have changed, quit).
+fn handle_event(app: &mut App, next: Event) -> (bool, bool) {
+    match next {
+        Event::Key(key) => (true, app.key(key)),
+        // Moves are not consumed, so they must not force a repaint; only
+        // actions that can change the screen do.
+        Event::Mouse(mouse) => (
+            !matches!(mouse.kind, MouseEventKind::Moved),
+            app.mouse(mouse),
+        ),
+        Event::Resize(width, height) => {
+            app.resize(width, height);
+            (true, false)
+        }
+        Event::Paste(text) => {
+            app.paste(&text);
+            (true, false)
+        }
+        _ => (false, false),
+    }
 }
 
 #[cfg(test)]

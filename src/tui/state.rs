@@ -321,6 +321,9 @@ pub struct App {
     /// `&self` and dropped when the asset list is rebuilt.
     root_cached: std::cell::OnceCell<PathBuf>,
     path_cache: RefCell<HashMap<PathBuf, String>>,
+    /// Canonical form of each path compared while drawing, so asset rows do
+    /// not resolve symlinks on every frame. Dropped with `path_cache`.
+    canonical_cache: RefCell<HashMap<PathBuf, Option<PathBuf>>>,
     /// Filtered asset indices per section, keyed by the state that produced
     /// them. `asset_list_for` runs several times per frame.
     asset_index_cache: RefCell<PerSection<AssetIndex>>,
@@ -336,6 +339,9 @@ pub struct App {
     analysis_options: crate::analysis::Options,
     results: ResultStore,
     view_cache: RefCell<Option<(ViewKey, std::rc::Rc<crate::result_view::Index>)>>,
+    /// Natural column widths for the row index and header they were measured
+    /// from. Holding the `Rc` keeps its address from being reused.
+    width_cache: RefCell<Option<ColumnWidths>>,
     history_revision: u64,
     history: Option<Arc<Results>>,
     history_source: Option<PathBuf>,
@@ -410,6 +416,7 @@ struct ViewKey {
     tree: Option<(usize, usize)>,
     collapsed: u64,
 }
+type ColumnWidths = (std::rc::Rc<crate::result_view::Index>, Vec<String>, Vec<u16>);
 struct IndexedRows<'a> {
     result: Option<&'a Results>,
     index: std::rc::Rc<crate::result_view::Index>,

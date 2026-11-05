@@ -121,9 +121,24 @@ impl App {
             return;
         }
         let rows = if section == AssetSection::Remote {
+            // Every remote row is one line, so only rows that can reach the
+            // viewport need their saved/cached state, which costs two file
+            // checks each; the index can hold thousands of entries. The window
+            // covers wherever the list may scroll to keep the selection shown.
+            let viewport = usize::from(parts.rect(1).height);
+            let offset = self.asset_states.borrow()[section.slot()].offset();
+            let selected = self.asset_rows[section.slot()];
+            let shown = offset.min(selected).saturating_sub(viewport)
+                ..offset
+                    .max(selected)
+                    .saturating_add(viewport.saturating_mul(2));
             self.remote_list()
                 .iter()
-                .map(|m| {
+                .enumerate()
+                .map(|(index, m)| {
+                    if !shown.contains(&index) {
+                        return ListItem::new(Line::default());
+                    }
                     let (tag, color) = if self.downloads.get(&m.url).is_some_and(|p| p.is_file()) {
                         ("[已保存]", color_success())
                     } else if self.remote_cached(m) {
@@ -151,9 +166,11 @@ impl App {
                 .iter()
                 .map(|a| {
                     let active = if a.kind == Kind::Image {
-                        self.image.as_ref().is_some_and(|p| same_path(p, &a.path))
+                        self.image
+                            .as_ref()
+                            .is_some_and(|p| self.same_asset_path(p, &a.path))
                     } else {
-                        same_path(&self.symbols, &a.path)
+                        self.same_asset_path(&self.symbols, &a.path)
                     };
                     let (marker, color) = if active {
                         ("●已选用", color_success())

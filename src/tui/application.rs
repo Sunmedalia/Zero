@@ -273,6 +273,8 @@ impl App {
                 })
                 .unwrap_or(0)
         });
+        let (asset_identities, asset_digests) =
+            super::asset_views::recorded_manifests(&assets, &cache);
         Self {
             terminal_size: std::cell::Cell::new(None),
             cache_page: Default::default(),
@@ -290,6 +292,7 @@ impl App {
             root,
             root_cached: std::cell::OnceCell::new(),
             path_cache: RefCell::new(HashMap::new()),
+            canonical_cache: RefCell::new(HashMap::new()),
             asset_index_cache: RefCell::new(Default::default()),
             registry,
             asset_rows: PerSection([asset_rows[0], asset_rows[1], 0]),
@@ -297,21 +300,8 @@ impl App {
             asset_scroll: PerSection([0; 3]),
             asset_queries: Default::default(),
             asset_states: RefCell::new(Default::default()),
-            asset_identities: assets
-                .iter()
-                .filter(|a| a.kind == Kind::Image)
-                .filter_map(|a| {
-                    crate::image::bound_identity(&a.path, &cache).map(|id| (a.path.clone(), id))
-                })
-                .collect(),
-            asset_digests: assets
-                .iter()
-                .filter(|a| a.kind == Kind::Image)
-                .filter_map(|a| {
-                    crate::image::recorded_digest(&a.path, &cache)
-                        .map(|digest| (a.path.clone(), digest))
-                })
-                .collect(),
+            asset_identities,
+            asset_digests,
             asset_details: HashMap::new(),
             assets,
             remote: vec![],
@@ -344,6 +334,7 @@ impl App {
             analysis_options: Default::default(),
             results: ResultStore::default(),
             view_cache: RefCell::new(None),
+            width_cache: RefCell::new(None),
             history_revision: 0,
             history: None,
             history_source: None,

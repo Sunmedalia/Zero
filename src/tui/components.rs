@@ -196,8 +196,12 @@ fn menu_items() -> &'static [&'static str] {
 /// the terminal. Runs on every visible cell of every frame, so it walks the
 /// string once and only allocates when an escape is actually needed.
 fn escaped(value: &str) -> String {
+    escaped_cow(value).into_owned()
+}
+/// `escaped` without allocating for the common case of no control characters.
+fn escaped_cow(value: &str) -> std::borrow::Cow<'_, str> {
     if !value.chars().any(char::is_control) {
-        return value.to_owned();
+        return std::borrow::Cow::Borrowed(value);
     }
     let mut out = String::with_capacity(value.len());
     for c in value.chars() {
@@ -207,7 +211,7 @@ fn escaped(value: &str) -> String {
             out.push(c);
         }
     }
-    out
+    std::borrow::Cow::Owned(out)
 }
 /// Lay out `label: value` pairs across `width`, dropping whole trailing pairs
 /// that would not fit.
@@ -401,7 +405,7 @@ fn table_widths<'a>(
                         Some((column, text)) if *column == i => text.as_str(),
                         _ => cells.get(i)?.as_str(),
                     };
-                    Some(Span::raw(escaped(value)).width())
+                    Some(Span::raw(escaped_cow(value)).width())
                 })
                 .max()
                 .unwrap_or(0);
