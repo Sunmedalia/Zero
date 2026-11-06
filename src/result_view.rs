@@ -144,3 +144,113 @@ pub fn compare(a: &str, b: &str) -> std::cmp::Ordering {
         _ => a.cmp(b),
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn results(rows: &[[&str; 3]]) -> Results {
+        Results {
+            plugin: "test".into(),
+            columns: vec!["PID".into(), "PPID".into(), "Name".into()],
+            rows: rows
+                .iter()
+                .map(|row| row.iter().map(|cell| (*cell).to_owned()).collect())
+                .collect(),
+            complete: true,
+            diagnostics: vec![],
+            banner: String::new(),
+            symbol: String::new(),
+            page_table: 0,
+            historical: false,
+            system: String::new(),
+            kernel_identity: serde_json::Value::Null,
+        }
+    }
+    fn names(index: &Index, result: &Results) -> Vec<String> {
+        (0..index.visible.len())
+            .filter_map(|i| index.row(result, i)?.get(2).cloned())
+            .collect()
+    }
+
+    #[test]
+    fn numbers_sort_by_value_hex_or_decimal_and_before_text() {
+        use std::cmp::Ordering::*;
+        assert_eq!(compare("9", "10"), Less);
+        assert_eq!(compare("0x10", "15"), Greater);
+        assert_eq!(compare("0xff", "255"), Equal);
+        assert_eq!(compare("7", "seven"), Less);
+        assert_eq!(compare("b", "a"), Greater);
+        // A bare `0x` is not a number and sorts as text.
+        assert_eq!(compare("0x", "1"), Greater);
+    }
+
+    #[test]
+    fn filter_is_case_insensitive_over_every_cell_and_sort_is_stable() {
+        let result = results(&[
+            ["10", "1", "Bash"],
+            ["2", "1", "sshd"],
+            ["0x9", "1", "BASH"],
+        ]);
+        let none = HashSet::new();
+        let index = Index::build(&result, "bash", None, false, None, &none);
+        assert_eq!(index.filtered, vec![0, 2]);
+        let index = Index::build(&result, "", Some(0), false, None, &none);
+        assert_eq!(names(&index, &result), ["sshd", "BASH", "Bash"]);
+        let index = Index::build(&result, "", Some(0), true, None, &none);
+        assert_eq!(names(&index, &result), ["Bash", "BASH", "sshd"]);
+        // Equal keys keep their original order in both directions.
+        let tied = results(&[["1", "0", "a"], ["1", "0", "b"]]);
+        for descending in [false, true] {
+            let index = Index::build(&tied, "", Some(0), descending, None, &none);
+            assert_eq!(names(&index, &tied), ["a", "b"]);
+        }
+    }
+
+    #[test]
+    fn tree_nests_children_marks_collapse_and_keeps_orphans_and_cycles() {
+        let result = results(&[
+            ["1", "0", "init"],
+            ["2", "1", "child"],
+            ["3", "2", "grandchild"],
+            ["4", "99", "orphan"],
+            ["5", "6", "loop-a"],
+            ["6", "5", "loop-b"],
+        ]);
+        let none = HashSet::new();
+        let index = Index::build(&result, "", None, false, Some((1, 2)), &none);
+        assert_eq!(
+            names(&index, &result),
+            [
+                "▾ init",
+                "  ▾ child",
+                "    · grandchild",
+                "· orphan",
+                "▾ loop-a",
+                // Its child `loop-a` is already shown, so the cycle ends here
+                // with an expandable marker and no repeated row.
+                "  ▾ loop-b"
+            ]
+        );
+        // Collapsing hides descendants but keeps the collapsed row.
+        let collapsed = HashSet::from(["2".to_owned()]);
+        let index = Index::build(&result, "", None, false, Some((1, 2)), &collapsed);
+        assert_eq!(
+            names(&index, &result).get(..3),
+            Some(
+                &[
+                    "▾ init".to_owned(),
+                    "  ▸ child".to_owned(),
+                    "· orphan".to_owned()
+                ][..]
+            )
+        );
+        // Borrowed cells carry the same decoration as the cloned row.
+        let (cells, decoration) = index.cells(&result, 1).unwrap();
+        assert_eq!(cells.get(2).map(String::as_str), Some("child"));
+        assert_eq!(decoration, Some((2, "  ▸ child".to_owned())));
+        // A filtered-out parent turns its child into a root.
+        let index = Index::build(&result, "grand", None, false, Some((1, 2)), &none);
+        assert_eq!(names(&index, &result), ["· grandchild"]);
+    }
+}

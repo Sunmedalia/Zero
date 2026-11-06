@@ -2,6 +2,7 @@
 name = "zero-tui"
 version = "0.2.6"
 edition = "2024"
+rust-version = "1.95"
 autobins = false
 license = "MIT"
 description = "Native Linux and Windows memory forensics terminal"
@@ -13,7 +14,7 @@ path = "src/main.rs"
 [dependencies]
 aes = "0.8"
 anyhow = "1"
-base64 = "0.22"
+base64 = "0.23"
 capstone = { version = "=0.14.0", default-features = false, features = ["std", "full", "arch_x86"] }
 clap = { version = "4", features = ["derive"] }
 crossterm = "0.29"
@@ -45,3 +46,6 @@ libc = "0.2"
 [profile.release]
 lto = "thin"
 strip = true
+
+[profile.dev.package."*"]
+opt-level = 2

@@ -37,66 +37,102 @@ struct Cli {
     /// Use only local symbols and previously downloaded files.
     #[arg(long, global = true)]
     offline: bool,
-    #[arg(long, global = true, value_enum, default_value = "auto")]
+    #[arg(
+        help_heading = "Target",
+        long,
+        global = true,
+        value_enum,
+        default_value = "auto"
+    )]
     os: zero_tui::analysis::Os,
-    #[arg(long, global = true, value_enum, default_value = "auto")]
+    #[arg(
+        help_heading = "Target",
+        long,
+        global = true,
+        value_enum,
+        default_value = "auto"
+    )]
     arch: zero_tui::windows::Architecture,
     /// Paging file from the same capture, with its kernel index: INDEX=PATH.
-    #[arg(long = "pagefile", global = true, value_parser = zero_tui::windows::paging::parse_attachment)]
+    #[arg(help_heading = "Windows capture files", long = "pagefile", global = true, value_parser = zero_tui::windows::paging::parse_attachment)]
     pagefiles: Vec<zero_tui::windows::paging::Attachment>,
     /// Swapfile from the same capture; requires symbols to verify its kernel index.
-    #[arg(long, global = true)]
+    #[arg(help_heading = "Windows capture files", long, global = true)]
     swapfile: Option<PathBuf>,
-    #[arg(long, global=true, value_parser=zero_tui::dump::parse_address)]
+    #[arg(help_heading = "Registry plugins", long, global=true, value_parser=zero_tui::dump::parse_address)]
     hive: Option<u64>,
-    #[arg(long, global = true, default_value = "")]
+    #[arg(
+        help_heading = "Registry plugins",
+        long,
+        global = true,
+        default_value = ""
+    )]
     key: String,
     /// Byte pattern for vmayarascan / windows.vadyarascan: text, wide:TEXT
     /// (UTF-16LE) or hex:4d5a??00 with ?? wildcards; byte regex for VmaRegExScan.
-    #[arg(long, global = true)]
+    #[arg(help_heading = "Scan plugins", long, global = true)]
     pattern: Option<String>,
     /// Local strings output with decimal physical offsets (windows.strings.Strings).
-    #[arg(long, global = true)]
+    #[arg(help_heading = "Scan plugins", long, global = true)]
     strings_file: Option<PathBuf>,
     /// Minimum cached TrueCrypt passphrase length (default 5).
-    #[arg(long, global = true, allow_hyphen_values = true)]
+    #[arg(
+        help_heading = "Scan plugins",
+        long,
+        global = true,
+        allow_hyphen_values = true
+    )]
     min_length: Option<i64>,
     /// PID list for PsList / PsAux / Envars / Capabilities / Strings / VmaRegExScan / VadRegExScan / VadWalk / PsCallStack / PebMasquerade (comma-separated or repeated).
-    #[arg(long, global = true, value_delimiter = ',')]
+    #[arg(
+        help_heading = "Process selection",
+        long,
+        global = true,
+        value_delimiter = ','
+    )]
     pids: Vec<u32>,
     /// Include unresolved nonzero saved stack words in PsCallStack.
-    #[arg(long, global = true)]
+    #[arg(help_heading = "Process selection", long, global = true)]
     unresolved: bool,
     /// Compatibility option for VmaRegExScan / VadRegExScan; display context stays 128 bytes, matching Volatility 2.28.2.
-    #[arg(long, global = true, allow_hyphen_values = true)]
+    #[arg(
+        help_heading = "Scan plugins",
+        long,
+        global = true,
+        allow_hyphen_values = true
+    )]
     maxsize: Option<i64>,
     /// PE symbol source: kernel modules or file-backed process VADs.
-    #[arg(long, global = true, value_enum)]
+    #[arg(help_heading = "PE symbol plugins", long, global = true, value_enum)]
     source: Option<zero_tui::analysis::PESource>,
-    #[arg(long, global = true)]
+    #[arg(help_heading = "PE symbol plugins", long, global = true)]
     module: Option<String>,
     /// Repeat to query several exact symbol names (takes precedence over addresses).
-    #[arg(long = "symbol-name", global = true)]
+    #[arg(
+        help_heading = "PE symbol plugins",
+        long = "symbol-name",
+        global = true
+    )]
     symbol_names: Vec<String>,
-    #[arg(long = "address", global = true, value_parser = zero_tui::dump::parse_address)]
+    #[arg(help_heading = "PE symbol plugins", long = "address", global = true, value_parser = zero_tui::dump::parse_address)]
     addresses: Vec<u64>,
     /// Include user threads in linux.pslist.PsList.
-    #[arg(long = "threads", global = true)]
+    #[arg(help_heading = "Linux plugins", long = "threads", global = true)]
     include_threads: bool,
     /// Decorate user/kernel thread names in linux.pslist.PsList.
-    #[arg(long, global = true)]
+    #[arg(help_heading = "Linux plugins", long, global = true)]
     decorate_comm: bool,
     /// Render module taints as compact characters in linux.malware.modxview.Modxview.
-    #[arg(long, global = true)]
+    #[arg(help_heading = "Linux plugins", long, global = true)]
     plain_taints: bool,
     /// Select sources for linux.kallsyms.Kallsyms (none selects all).
-    #[arg(long, global = true)]
+    #[arg(help_heading = "Linux plugins", long, global = true)]
     core: bool,
-    #[arg(long, global = true)]
+    #[arg(help_heading = "Linux plugins", long, global = true)]
     modules: bool,
-    #[arg(long, global = true)]
+    #[arg(help_heading = "Linux plugins", long, global = true)]
     ftrace: bool,
-    #[arg(long, global = true)]
+    #[arg(help_heading = "Linux plugins", long, global = true)]
     bpf: bool,
     #[command(subcommand)]
     command: Option<Command>,
