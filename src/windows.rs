@@ -258,8 +258,7 @@ impl Windows<'_> {
         let mut b = vec![0; len];
         self.vm
             .read(self.field(address, "_EPROCESS", "ImageFileName")?, &mut b)?;
-        let end = b.iter().position(|b| *b == 0).unwrap_or(b.len());
-        let name = String::from_utf8_lossy(b.at(..end)?).into_owned();
+        let name = crate::bytes::c_str_lossy(&b);
         let pid = self.number(address, "_EPROCESS", "UniqueProcessId")?;
         ensure!(
             pid <= u32::MAX as u64 && !name.is_empty() && !name.chars().any(char::is_control),

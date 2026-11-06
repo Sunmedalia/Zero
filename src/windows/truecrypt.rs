@@ -35,8 +35,7 @@ fn data_section(
         job.check()?;
         let mut bytes = [0; 40];
         read(add(sections, index * 40)?, &mut bytes)?;
-        let end = bytes[..8].iter().position(|b| *b == 0).unwrap_or(8);
-        if bytes.at(..end)? == b".data" {
+        if crate::bytes::c_str(bytes.at(..8)?) == b".data" {
             let size = u64::from(u32::from_le_bytes(bytes[8..12].try_into()?));
             let start = add(
                 base,

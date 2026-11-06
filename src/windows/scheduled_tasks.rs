@@ -62,14 +62,7 @@ impl<'a> Reader<'a> {
     }
 }
 fn wide(bytes: &[u8]) -> String {
-    let mut units: Vec<_> = bytes
-        .chunks_exact(2)
-        .map(|v| crate::bytes::le_u16(v, 0).unwrap_or(0))
-        .collect();
-    if !bytes.len().is_multiple_of(2) {
-        units.push(0xfffd);
-    }
-    String::from_utf16_lossy(&units)
+    crate::bytes::utf16_lossy_marked(bytes)
         .trim_end_matches('\0')
         .to_owned()
 }

@@ -37,12 +37,7 @@ fn u16le(data: &[u8], offset: usize) -> Result<u16> {
 }
 fn utf16(bytes: &[u8]) -> Result<String> {
     ensure!(bytes.len().is_multiple_of(2), "UTF-16 长度无效");
-    Ok(String::from_utf16_lossy(
-        &bytes
-            .chunks_exact(2)
-            .map(|c| crate::bytes::le_u16(c, 0).unwrap_or(0))
-            .collect::<Vec<_>>(),
-    ))
+    Ok(crate::bytes::utf16_lossy(bytes))
 }
 
 /// 四段 Lsa class 数据（UTF-16LE ASCII hex）→ 置换后的 16 字节 bootkey。

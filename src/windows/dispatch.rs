@@ -58,7 +58,7 @@ impl DispatchModules {
             .context("缺少符号映射")?
         {
             job.check()?;
-            if let Some(rva) = entry["address"].as_u64() {
+            if let Some(rva) = entry.key("address").as_u64() {
                 symbols.entry(rva).or_default().push(name.clone());
             }
         }

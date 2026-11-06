@@ -346,11 +346,7 @@ impl Windows<'_> {
             if memory.read(address, &mut data).is_err() {
                 continue;
             }
-            let units = data
-                .chunks_exact(2)
-                .map(|c| crate::bytes::le_u16(c, 0).unwrap_or(0))
-                .collect::<Vec<_>>();
-            return Some(String::from_utf16_lossy(&units));
+            return Some(crate::bytes::utf16_lossy(&data));
         }
         None
     }

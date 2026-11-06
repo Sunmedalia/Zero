@@ -101,14 +101,7 @@ pub(super) fn parse_record(mut bytes: [u8; RECORD]) -> Result<Record> {
                 };
                 if score > rank {
                     rank = score;
-                    record.name = String::from_utf16_lossy(
-                        &name
-                            .as_chunks::<2>()
-                            .0
-                            .iter()
-                            .map(|c| u16::from_le_bytes(*c))
-                            .collect::<Vec<_>>(),
-                    );
+                    record.name = crate::bytes::utf16_lossy(name);
                     record.parent = u64_at(content, 0)? & 0xffff_ffff_ffff;
                     record.fn_times = (u64_at(content, 8)?, u64_at(content, 16)?);
                     record.size = u64_at(content, 48)?;

@@ -18,6 +18,36 @@ pub(crate) fn le_uint(bytes: &[u8]) -> Option<u64> {
     value.get_mut(..bytes.len())?.copy_from_slice(bytes);
     Some(u64::from_le_bytes(value))
 }
+/// Bytes before the first NUL, or all of them when there is none.
+pub(crate) fn c_str(bytes: &[u8]) -> &[u8] {
+    bytes.split(|b| *b == 0).next().unwrap_or(bytes)
+}
+/// `c_str` decoded as lossy UTF-8.
+pub(crate) fn c_str_lossy(bytes: &[u8]) -> String {
+    String::from_utf8_lossy(c_str(bytes)).into_owned()
+}
+/// Little-endian UTF-16 code units; an odd trailing byte is dropped.
+pub(crate) fn utf16_units(bytes: &[u8]) -> Vec<u16> {
+    bytes
+        .as_chunks::<2>()
+        .0
+        .iter()
+        .map(|unit| u16::from_le_bytes(*unit))
+        .collect()
+}
+/// Lossy little-endian UTF-16; an odd trailing byte is dropped.
+pub(crate) fn utf16_lossy(bytes: &[u8]) -> String {
+    String::from_utf16_lossy(&utf16_units(bytes))
+}
+/// Lossy little-endian UTF-16 where an odd trailing byte, a truncated code
+/// unit, shows as U+FFFD instead of disappearing.
+pub(crate) fn utf16_lossy_marked(bytes: &[u8]) -> String {
+    let mut units = utf16_units(bytes);
+    if !bytes.len().is_multiple_of(2) {
+        units.push(0xfffd);
+    }
+    String::from_utf16_lossy(&units)
+}
 /// Low half of a 64-bit value, for fields whose high bits are deliberately discarded.
 pub(crate) fn low_u32(value: u64) -> u32 {
     let [a, b, c, d, ..] = value.to_le_bytes();
@@ -137,6 +167,26 @@ pub(crate) fn float_to_i128(value: f64) -> i128 {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn c_strings_stop_at_the_first_nul_or_take_everything() {
+        use super::{c_str, c_str_lossy};
+        assert_eq!(c_str(b"init\0junk"), b"init");
+        assert_eq!(c_str(b"no-nul"), b"no-nul");
+        assert_eq!(c_str(b"\0x"), b"");
+        assert_eq!(c_str(b""), b"");
+        assert_eq!(c_str_lossy(b"a\xffb\0c"), "a\u{fffd}b");
+    }
+    #[test]
+    fn utf16_helpers_drop_or_mark_a_truncated_unit() {
+        use super::{utf16_lossy, utf16_lossy_marked, utf16_units};
+        assert_eq!(utf16_units(b"a\0b\0c"), vec![0x61, 0x62]);
+        assert_eq!(utf16_lossy(b"a\0b\0c"), "ab");
+        assert_eq!(utf16_lossy_marked(b"a\0b\0c"), "ab\u{fffd}");
+        assert_eq!(utf16_lossy_marked(b"a\0"), "a");
+        // An unpaired surrogate stays one replacement character.
+        assert_eq!(utf16_lossy(&[0x00, 0xd8, 0x41, 0x00]), "\u{fffd}A");
+        assert_eq!(utf16_lossy(&[]), "");
+    }
     use super::*;
     #[test]
     fn checked_access_reports_the_caller() {

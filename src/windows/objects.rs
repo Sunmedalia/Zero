@@ -387,13 +387,10 @@ impl Windows<'_> {
                         let offset = usize::try_from(isf.offset("_EPROCESS", "ImageFileName")?)?;
                         let len = isf.size("_EPROCESS", "ImageFileName")?;
                         let raw = b.get(offset..offset + len).context("进程名称越界")?;
-                        let end = raw.iter().position(|b| *b == 0).unwrap_or(raw.len());
+                        let name = crate::bytes::c_str(raw);
                         ensure!(
-                            end > 0
-                                && raw
-                                    .at(..end)?
-                                    .iter()
-                                    .all(|b| b.is_ascii_graphic() || *b == b' '),
+                            !name.is_empty()
+                                && name.iter().all(|b| b.is_ascii_graphic() || *b == b' '),
                             "无效名称"
                         );
                         let dtb = physical_number(isf, &b, "_EPROCESS", "Pcb.DirectoryTableBase")?
@@ -421,7 +418,7 @@ impl Windows<'_> {
                                 "_EPROCESS",
                                 "InheritedFromUniqueProcessId",
                             )?,
-                            name: String::from_utf8_lossy(raw.at(..end)?).into_owned(),
+                            name: String::from_utf8_lossy(name).into_owned(),
                             dtb,
                             threads,
                             handles: None,

@@ -1,5 +1,6 @@
+use super::*;
 #[derive(Clone, Copy, PartialEq, Eq)]
-enum InputKind {
+pub(super) enum InputKind {
     Image,
     Symbols,
     Search,
@@ -14,8 +15,10 @@ enum InputKind {
     SymbolRepository,
 }
 #[derive(Clone)]
-enum Dialog {
-    Quit { confirm: bool },
+pub(super) enum Dialog {
+    Quit {
+        confirm: bool,
+    },
     GenerateSymbols {
         automatic: bool,
         fields: [String; 3],
@@ -78,7 +81,9 @@ enum Dialog {
         candidate: RemoteMatch,
         scroll: usize,
     },
-    KernelDiagnostics { scroll: usize },
+    KernelDiagnostics {
+        scroll: usize,
+    },
     Detail {
         title: &'static str,
         text: String,
@@ -100,22 +105,22 @@ enum Dialog {
     },
 }
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-enum Page {
+pub(super) enum Page {
     #[default]
     Assets,
     Analysis,
     Cache,
 }
 impl Page {
-    const ALL: [Self; 3] = [Self::Assets, Self::Analysis, Self::Cache];
-    fn index(self) -> usize {
+    pub(super) const ALL: [Self; 3] = [Self::Assets, Self::Analysis, Self::Cache];
+    pub(super) fn index(self) -> usize {
         match self {
             Self::Assets => 0,
             Self::Analysis => 1,
             Self::Cache => 2,
         }
     }
-    fn title(self) -> &'static str {
+    pub(super) fn title(self) -> &'static str {
         match self {
             Self::Assets => "资源库",
             Self::Analysis => "分析",
@@ -124,21 +129,21 @@ impl Page {
     }
 }
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-enum AssetSection {
+pub(super) enum AssetSection {
     Images,
     #[default]
     Symbols,
     Remote,
 }
 impl AssetSection {
-    fn slot(self) -> usize {
+    pub(super) fn slot(self) -> usize {
         match self {
             Self::Images => 0,
             Self::Symbols => 1,
             Self::Remote => 2,
         }
     }
-    fn title(self) -> &'static str {
+    pub(super) fn title(self) -> &'static str {
         match self {
             Self::Images => "镜像",
             Self::Symbols => "本地符号",
@@ -147,7 +152,7 @@ impl AssetSection {
     }
 }
 #[derive(Clone)]
-enum Work {
+pub(super) enum Work {
     KernelDiagnostic,
     ExportDiagnostic(PathBuf, Arc<crate::kernel_diagnostics::Report>),
     SavedCatalog(String),
@@ -172,7 +177,7 @@ enum Work {
     Catalog(String, bool),
     CatalogDownload(RemoteMatch),
 }
-enum WorkerEvent {
+pub(super) enum WorkerEvent {
     KernelPackages(Vec<crate::prepare::KernelPackage>),
     KernelDiagnosed(crate::kernel_diagnostics::Report),
     DiagnosticExported(PathBuf),
@@ -197,197 +202,197 @@ enum WorkerEvent {
     Failed(String),
 }
 #[derive(Clone, Default)]
-struct HitMap {
-    scrollbars: Vec<scrollbars::Scrollbar>,
-    asset_rows: Vec<(Rect, AssetSection, usize)>,
-    result_tabs: Vec<(Rect, Rect, usize)>,
-    result_tab_steps: Vec<(Rect, usize)>,
-    plugin_toggle: Rect,
-    cache_scopes: Rect,
-    cache_items: Rect,
-    cache_offset: usize,
-    header: Rect,
+pub(super) struct HitMap {
+    pub(super) scrollbars: Vec<scrollbars::Scrollbar>,
+    pub(super) asset_rows: Vec<(Rect, AssetSection, usize)>,
+    pub(super) result_tabs: Vec<(Rect, Rect, usize)>,
+    pub(super) result_tab_steps: Vec<(Rect, usize)>,
+    pub(super) plugin_toggle: Rect,
+    pub(super) cache_scopes: Rect,
+    pub(super) cache_items: Rect,
+    pub(super) cache_offset: usize,
+    pub(super) header: Rect,
     /// Clickable header fields: image on the first row, symbol on the second
     /// when the header has one.
-    header_image: Rect,
-    header_symbol: Rect,
-    tabs: Vec<(Rect, Page)>,
-    systems: Vec<(Rect, crate::analysis::Os)>,
-    regions: Vec<(Rect, Focus)>,
-    sources: Vec<(Rect, AssetSection)>,
-    remote_views: Vec<(Rect, bool)>,
-    asset_lists: Vec<(Rect, AssetSection, usize)>,
-    asset_buttons: Vec<(Rect, AssetSection, KeyCode)>,
-    asset_searches: Vec<(Rect, AssetSection)>,
-    dump_fields: Vec<(Rect, usize)>,
-    dump_modes: Vec<(Rect, Plugin)>,
-    assets: Rect,
-    asset_offset: usize,
-    asset_detail: Rect,
-    search: Rect,
-    menu: Rect,
-    result: Rect,
-    workbench: Rect,
-    inspector: Rect,
-    popup: Rect,
-    menu_offset: usize,
-    row_offset: usize,
-    popup_offset: usize,
-    popup_list: Rect,
-    columns: Vec<Rect>,
-    buttons: Vec<(Rect, KeyCode)>,
+    pub(super) header_image: Rect,
+    pub(super) header_symbol: Rect,
+    pub(super) tabs: Vec<(Rect, Page)>,
+    pub(super) systems: Vec<(Rect, crate::analysis::Os)>,
+    pub(super) regions: Vec<(Rect, Focus)>,
+    pub(super) sources: Vec<(Rect, AssetSection)>,
+    pub(super) remote_views: Vec<(Rect, bool)>,
+    pub(super) asset_lists: Vec<(Rect, AssetSection, usize)>,
+    pub(super) asset_buttons: Vec<(Rect, AssetSection, KeyCode)>,
+    pub(super) asset_searches: Vec<(Rect, AssetSection)>,
+    pub(super) dump_fields: Vec<(Rect, usize)>,
+    pub(super) dump_modes: Vec<(Rect, Plugin)>,
+    pub(super) assets: Rect,
+    pub(super) asset_offset: usize,
+    pub(super) asset_detail: Rect,
+    pub(super) search: Rect,
+    pub(super) menu: Rect,
+    pub(super) result: Rect,
+    pub(super) workbench: Rect,
+    pub(super) inspector: Rect,
+    pub(super) popup: Rect,
+    pub(super) menu_offset: usize,
+    pub(super) row_offset: usize,
+    pub(super) popup_offset: usize,
+    pub(super) popup_list: Rect,
+    pub(super) columns: Vec<Rect>,
+    pub(super) buttons: Vec<(Rect, KeyCode)>,
 }
 /// Everything `asset_list_for` filters on. When all of it is unchanged the
 /// previous index is still valid.
 /// Cached filtered indices for one asset section.
-type AssetIndex = Option<(AssetIndexKey, Vec<usize>)>;
+pub(super) type AssetIndex = Option<(AssetIndexKey, Vec<usize>)>;
 /// Identity of the remote list plus the query. Derived from the buffer address
 /// and length, so replacing the vector invalidates the cache even when the new
 /// list has the same size — no write site has to remember to bump a counter.
 #[derive(Clone, PartialEq, Eq)]
-struct RemoteIndexKey {
-    identity: usize,
-    len: usize,
-    query: String,
+pub(super) struct RemoteIndexKey {
+    pub(super) identity: usize,
+    pub(super) len: usize,
+    pub(super) query: String,
 }
 #[derive(Clone, PartialEq, Eq)]
-struct AssetIndexKey {
+pub(super) struct AssetIndexKey {
     /// Buffer address and length of the asset vector: replacing it invalidates
     /// the cache even when the new list has the same size.
-    identity: usize,
-    len: usize,
-    query: String,
-    local_only: bool,
-    hidden: usize,
-    matches: usize,
+    pub(super) identity: usize,
+    pub(super) len: usize,
+    pub(super) query: String,
+    pub(super) local_only: bool,
+    pub(super) hidden: usize,
+    pub(super) matches: usize,
 }
 #[derive(Default)]
-struct View {
-    query: String,
-    sort: Option<usize>,
-    descending: bool,
-    row: usize,
-    collapsed: HashSet<String>,
-    state: TableState,
-    horizontal: usize,
+pub(super) struct View {
+    pub(super) query: String,
+    pub(super) sort: Option<usize>,
+    pub(super) descending: bool,
+    pub(super) row: usize,
+    pub(super) collapsed: HashSet<String>,
+    pub(super) state: TableState,
+    pub(super) horizontal: usize,
 }
 pub struct App {
-    terminal_size: std::cell::Cell<Option<(u16, u16)>>,
-    drag: Option<scrollbars::Drag>,
-    open_tabs: Vec<OpenTab>,
-    active_tab: Option<usize>,
-    tab_offset: std::cell::Cell<usize>,
-    tab_layout: std::cell::Cell<Option<(Option<usize>, u16)>>,
-    plugins_collapsed: bool,
-    kernel_report: Option<Arc<crate::kernel_diagnostics::Report>>,
-    diagnosis_running: bool,
-    cache_page: cache_page::CachePage,
-    page: Page,
-    section: AssetSection,
-    symbol_source: AssetSection,
-    root: PathBuf,
-    registry: Registry,
-    assets: Vec<Asset>,
-    asset_rows: PerSection<usize>,
-    image_preview: Option<PathBuf>,
-    asset_scroll: PerSection<usize>,
-    asset_queries: PerSection<String>,
-    asset_states: RefCell<PerSection<ListState>>,
-    asset_details: HashMap<PathBuf, String>,
-    asset_identities: HashMap<PathBuf, crate::image::BoundIdentity>,
-    asset_digests: HashMap<PathBuf, String>,
-    remote: Vec<RemoteMatch>,
-    remote_matches: Option<Vec<RemoteMatch>>,
-    remote_loaded: bool,
-    remote_total: usize,
-    remote_index_cache: RefCell<Option<(RemoteIndexKey, Vec<usize>)>>,
-    remote_catalog: bool,
-    download_url: Option<String>,
-    downloads: HashMap<String, PathBuf>,
-    hidden_cache_copies: HashSet<PathBuf>,
-    local_matches: HashMap<PathBuf, Vec<String>>,
-    local_match_stamp: Option<String>,
-    prepared_stamp: Option<String>,
-    verified: Option<crate::engine_service::Verified>,
-    result_origins: HashMap<String, String>,
-    local_match_errors: Vec<String>,
-    local_only_matches: bool,
-    image: Option<PathBuf>,
-    symbols: PathBuf,
-    cache: PathBuf,
-    settings: Settings,
-    hits: RefCell<HitMap>,
+    pub(super) terminal_size: std::cell::Cell<Option<(u16, u16)>>,
+    pub(super) drag: Option<scrollbars::Drag>,
+    pub(super) open_tabs: Vec<OpenTab>,
+    pub(super) active_tab: Option<usize>,
+    pub(super) tab_offset: std::cell::Cell<usize>,
+    pub(super) tab_layout: std::cell::Cell<Option<(Option<usize>, u16)>>,
+    pub(super) plugins_collapsed: bool,
+    pub(super) kernel_report: Option<Arc<crate::kernel_diagnostics::Report>>,
+    pub(super) diagnosis_running: bool,
+    pub(super) cache_page: cache_page::CachePage,
+    pub(super) page: Page,
+    pub(super) section: AssetSection,
+    pub(super) symbol_source: AssetSection,
+    pub(super) root: PathBuf,
+    pub(super) registry: Registry,
+    pub(super) assets: Vec<Asset>,
+    pub(super) asset_rows: PerSection<usize>,
+    pub(super) image_preview: Option<PathBuf>,
+    pub(super) asset_scroll: PerSection<usize>,
+    pub(super) asset_queries: PerSection<String>,
+    pub(super) asset_states: RefCell<PerSection<ListState>>,
+    pub(super) asset_details: HashMap<PathBuf, String>,
+    pub(super) asset_identities: HashMap<PathBuf, crate::image::BoundIdentity>,
+    pub(super) asset_digests: HashMap<PathBuf, String>,
+    pub(super) remote: Vec<RemoteMatch>,
+    pub(super) remote_matches: Option<Vec<RemoteMatch>>,
+    pub(super) remote_loaded: bool,
+    pub(super) remote_total: usize,
+    pub(super) remote_index_cache: RefCell<Option<(RemoteIndexKey, Vec<usize>)>>,
+    pub(super) remote_catalog: bool,
+    pub(super) download_url: Option<String>,
+    pub(super) downloads: HashMap<String, PathBuf>,
+    pub(super) hidden_cache_copies: HashSet<PathBuf>,
+    pub(super) local_matches: HashMap<PathBuf, Vec<String>>,
+    pub(super) local_match_stamp: Option<String>,
+    pub(super) prepared_stamp: Option<String>,
+    pub(super) verified: Option<crate::engine_service::Verified>,
+    pub(super) result_origins: HashMap<String, String>,
+    pub(super) local_match_errors: Vec<String>,
+    pub(super) local_only_matches: bool,
+    pub(super) image: Option<PathBuf>,
+    pub(super) symbols: PathBuf,
+    pub(super) cache: PathBuf,
+    pub(super) settings: Settings,
+    pub(super) hits: RefCell<HitMap>,
     /// Canonical root and per-input display paths. Both are filled lazily from
     /// `&self` and dropped when the asset list is rebuilt.
-    root_cached: std::cell::OnceCell<PathBuf>,
-    path_cache: RefCell<HashMap<PathBuf, String>>,
+    pub(super) root_cached: std::cell::OnceCell<PathBuf>,
+    pub(super) path_cache: RefCell<HashMap<PathBuf, String>>,
     /// Canonical form of each path compared while drawing, so asset rows do
     /// not resolve symlinks on every frame. Dropped with `path_cache`.
-    canonical_cache: RefCell<HashMap<PathBuf, Option<PathBuf>>>,
+    pub(super) canonical_cache: RefCell<HashMap<PathBuf, Option<PathBuf>>>,
     /// Filtered asset indices per section, keyed by the state that produced
     /// them. `asset_list_for` runs several times per frame.
-    asset_index_cache: RefCell<PerSection<AssetIndex>>,
-    table_state: RefCell<TableState>,
-    focus: Focus,
-    menu: usize,
+    pub(super) asset_index_cache: RefCell<PerSection<AssetIndex>>,
+    pub(super) table_state: RefCell<TableState>,
+    pub(super) focus: Focus,
+    pub(super) menu: usize,
     /// First menu row drawn. `hits` is rebuilt every frame, so the scroll
     /// position has to live on the app or the list snaps back to the top.
     /// A `Cell` because the renderer holds `&self`.
-    menu_scroll: std::cell::Cell<usize>,
-    plugin: Plugin,
-    windows: bool,
-    analysis_options: crate::analysis::Options,
-    results: ResultStore,
-    view_cache: RefCell<Option<(ViewKey, std::rc::Rc<crate::result_view::Index>)>>,
+    pub(super) menu_scroll: std::cell::Cell<usize>,
+    pub(super) plugin: Plugin,
+    pub(super) windows: bool,
+    pub(super) analysis_options: crate::analysis::Options,
+    pub(super) results: ResultStore,
+    pub(super) view_cache: RefCell<Option<(ViewKey, std::rc::Rc<crate::result_view::Index>)>>,
     /// Natural column widths for the row index and header they were measured
     /// from. Holding the `Rc` keeps its address from being reused.
-    width_cache: RefCell<Option<ColumnWidths>>,
-    history_revision: u64,
-    history: Option<Arc<Results>>,
-    history_source: Option<PathBuf>,
-    query: String,
-    sort: Option<usize>,
-    descending: bool,
-    row: usize,
-    collapsed: HashSet<String>,
-    status: String,
-    logs: VecDeque<String>,
-    started: Option<Instant>,
-    progress: Option<u16>,
-    dialog: Option<Dialog>,
-    choice: Option<String>,
-    dump_options: Option<(Plugin, DumpOptions)>,
-    receiver: Option<mpsc::Receiver<WorkerEvent>>,
-    job: Option<Job>,
-    worker: Option<thread::JoinHandle<()>>,
-    session: Arc<Mutex<linux::Session>>,
-    last_error: Option<String>,
-    back_dialog: Option<Box<Dialog>>,
-    pending_work: Option<Work>,
-    pending_path: Option<(InputKind, PathBuf)>,
-    pending_execution: Option<ExecutionSnapshot>,
-    preparation: Preparation,
-    preparation_candidates: Vec<(PathBuf, String)>,
-    task_id: u64,
-    object_version: u64,
-    active_request: Option<Execution>,
-    symbol_retry: Option<ExecutionSnapshot>,
-    preparation_lookup: bool,
-    parameter_drafts: HashMap<String, crate::analysis::Options>,
-    result_requests: HashMap<String, String>,
-    pending_os: Option<crate::analysis::Os>,
-    horizontal: usize,
-    inspector: bool,
-    detail_scroll: usize,
-    views: HashMap<String, View>,
+    pub(super) width_cache: RefCell<Option<ColumnWidths>>,
+    pub(super) history_revision: u64,
+    pub(super) history: Option<Arc<Results>>,
+    pub(super) history_source: Option<PathBuf>,
+    pub(super) query: String,
+    pub(super) sort: Option<usize>,
+    pub(super) descending: bool,
+    pub(super) row: usize,
+    pub(super) collapsed: HashSet<String>,
+    pub(super) status: String,
+    pub(super) logs: VecDeque<String>,
+    pub(super) started: Option<Instant>,
+    pub(super) progress: Option<u16>,
+    pub(super) dialog: Option<Dialog>,
+    pub(super) choice: Option<String>,
+    pub(super) dump_options: Option<(Plugin, DumpOptions)>,
+    pub(super) receiver: Option<mpsc::Receiver<WorkerEvent>>,
+    pub(super) job: Option<Job>,
+    pub(super) worker: Option<thread::JoinHandle<()>>,
+    pub(super) session: Arc<Mutex<linux::Session>>,
+    pub(super) last_error: Option<String>,
+    pub(super) back_dialog: Option<Box<Dialog>>,
+    pub(super) pending_work: Option<Work>,
+    pub(super) pending_path: Option<(InputKind, PathBuf)>,
+    pub(super) pending_execution: Option<ExecutionSnapshot>,
+    pub(super) preparation: Preparation,
+    pub(super) preparation_candidates: Vec<(PathBuf, String)>,
+    pub(super) task_id: u64,
+    pub(super) object_version: u64,
+    pub(super) active_request: Option<Execution>,
+    pub(super) symbol_retry: Option<ExecutionSnapshot>,
+    pub(super) preparation_lookup: bool,
+    pub(super) parameter_drafts: HashMap<String, crate::analysis::Options>,
+    pub(super) result_requests: HashMap<String, String>,
+    pub(super) pending_os: Option<crate::analysis::Os>,
+    pub(super) horizontal: usize,
+    pub(super) inspector: bool,
+    pub(super) detail_scroll: usize,
+    pub(super) views: HashMap<String, View>,
     /// Enter on a not-yet-selected asset: open the analysis page once matching is ready.
-    enter_when_ready: bool,
+    pub(super) enter_when_ready: bool,
 }
 
 #[derive(Default)]
-struct ResultStore {
-    values: HashMap<String, Results>,
-    revision: u64,
+pub(super) struct ResultStore {
+    pub(super) values: HashMap<String, Results>,
+    pub(super) revision: u64,
 }
 impl std::ops::Deref for ResultStore {
     type Target = HashMap<String, Results>;
@@ -406,34 +411,38 @@ impl std::ops::DerefMut for ResultStore {
 ///
 /// The collapse set and query are fingerprinted rather than cloned: this key is
 /// rebuilt on every `visible()` call, which happens several times per frame.
-struct ViewKey {
-    revision: u64,
-    identity: usize,
-    history_revision: u64,
-    query: String,
-    sort: Option<usize>,
-    descending: bool,
-    tree: Option<(usize, usize)>,
-    collapsed: u64,
+pub(super) struct ViewKey {
+    pub(super) revision: u64,
+    pub(super) identity: usize,
+    pub(super) history_revision: u64,
+    pub(super) query: String,
+    pub(super) sort: Option<usize>,
+    pub(super) descending: bool,
+    pub(super) tree: Option<(usize, usize)>,
+    pub(super) collapsed: u64,
 }
-type ColumnWidths = (std::rc::Rc<crate::result_view::Index>, Vec<String>, Vec<u16>);
-struct IndexedRows<'a> {
-    result: Option<&'a Results>,
-    index: std::rc::Rc<crate::result_view::Index>,
+pub(super) type ColumnWidths = (
+    std::rc::Rc<crate::result_view::Index>,
+    Vec<String>,
+    Vec<u16>,
+);
+pub(super) struct IndexedRows<'a> {
+    pub(super) result: Option<&'a Results>,
+    pub(super) index: std::rc::Rc<crate::result_view::Index>,
 }
 /// A borrowed table row plus the single cell a tree decoration replaces.
-type BorrowedRow<'a> = (&'a [String], Option<(usize, String)>);
+pub(super) type BorrowedRow<'a> = (&'a [String], Option<(usize, String)>);
 impl<'a> IndexedRows<'a> {
-    fn len(&self) -> usize {
+    pub(super) fn len(&self) -> usize {
         self.index.visible.len()
     }
-    fn get(&self, position: usize) -> Option<Vec<String>> {
+    pub(super) fn get(&self, position: usize) -> Option<Vec<String>> {
         self.index.row(self.result?, position)
     }
     /// Borrowed rows for rendering, so drawing a frame does not clone the
     /// visible page out of the result set. The index is shared by reference
     /// rather than cloned per row.
-    fn sample(
+    pub(super) fn sample(
         &'a self,
         start: usize,
         count: usize,
@@ -444,7 +453,7 @@ impl<'a> IndexedRows<'a> {
 }
 /// One table row, substituting the decorated cell when the row is part of a
 /// collapsed or expanded tree.
-fn cells_to_line((cells, decoration): BorrowedRow<'_>) -> Vec<Line<'static>> {
+pub(super) fn cells_to_line((cells, decoration): BorrowedRow<'_>) -> Vec<Line<'static>> {
     cells
         .iter()
         .enumerate()

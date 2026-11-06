@@ -683,12 +683,7 @@ fn decode_name(bytes: &[u8], compressed: bool) -> Result<String> {
         Ok(bytes.iter().map(|b| char::from(*b)).collect())
     } else {
         ensure!(bytes.len().is_multiple_of(2), "UTF-16 长度无效");
-        Ok(String::from_utf16_lossy(
-            &bytes
-                .chunks_exact(2)
-                .map(|b| crate::bytes::le_u16(b, 0).unwrap_or(0))
-                .collect::<Vec<_>>(),
-        ))
+        Ok(crate::bytes::utf16_lossy(bytes))
     }
 }
 

@@ -10,7 +10,7 @@ pub(super) fn unix_name(bytes: &[u8]) -> String {
             String::from_utf8_lossy(bytes.get(1..).unwrap_or(&[]))
         )
     } else {
-        String::from_utf8_lossy(bytes.split(|b| *b == 0).next().unwrap_or(bytes)).into_owned()
+        crate::bytes::c_str_lossy(bytes)
     }
 }
 pub(super) fn tcp_state(state: u64) -> &'static str {
