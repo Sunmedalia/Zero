@@ -189,6 +189,56 @@ struct Reuse {
 /// debug records, so identification needs no second pass over the file.
 const FINGERPRINT_NEEDLES: [&[u8]; 2] = [b"Linux version ", b"RSDS"];
 const FINGERPRINT_TAIL: usize = 13;
+/// Pool tags read by the Windows scanning plugins. The digest pass records
+/// them too, so pool scans need no second read of the whole image; anything
+/// it could not record is still found by one `prefetch_scans` pass.
+pub(crate) const POOL_TAGS: &[&[u8]] = &[
+    b"File", b"Fil\xe5", b"Muta", b"Mut\xe1", b"Driv", b"Dri\xf6", b"Proc", b"Pro\xe3", b"TcpL",
+    b"UdpA", b"TcpE", b"TTcb", b"MmLd", b"Symb", b"Sym\xe2", b"CM10",
+];
+/// Hits kept per pool tag in the digest pass. A tag past this is dropped and
+/// left to `prefetch_scans`, so an unusual image cannot grow memory unbounded.
+const POOL_HIT_LIMIT: usize = 1 << 22;
+/// Distinct three-byte prefixes of `POOL_TAGS`. None overlaps itself, so a
+/// non-overlapping search finds every occurrence; the fourth byte then picks
+/// the tags. Ten prefix passes measured faster than one automaton or sixteen
+/// whole-tag passes over memory images.
+fn pool_prefixes() -> Vec<&'static [u8]> {
+    let mut prefixes: Vec<&[u8]> = POOL_TAGS.iter().filter_map(|tag| tag.get(..3)).collect();
+    prefixes.sort_unstable();
+    prefixes.dedup();
+    prefixes
+}
+/// (tag index, file offset) of every pool tag that starts in `boundary` before
+/// `overlap` (the retained tail) or anywhere in `bytes`, which starts at
+/// `offset`. No tag's suffix is a prefix of any tag (checked by a test), so
+/// occurrences never overlap and none is hidden behind another.
+fn pool_hits(boundary: &[u8], overlap: usize, bytes: &[u8], offset: u64) -> Vec<(usize, u64)> {
+    let mut hits = Vec::new();
+    let base = offset - overlap as u64;
+    for (index, tag) in POOL_TAGS.iter().enumerate() {
+        hits.extend(
+            memchr::memmem::find_iter(boundary, tag)
+                .filter(|at| *at < overlap)
+                .map(|at| (index, base + at as u64)),
+        );
+    }
+    for prefix in pool_prefixes() {
+        for at in memchr::memmem::find_iter(bytes, prefix) {
+            let Some(&last) = bytes.get(at + 3) else {
+                // Completed by the next chunk's boundary search.
+                continue;
+            };
+            for (index, tag) in POOL_TAGS.iter().enumerate() {
+                if tag.get(..3) == Some(prefix) && tag.get(3) == Some(&last) {
+                    hits.push((index, offset + at as u64));
+                }
+            }
+        }
+    }
+    hits.sort_unstable_by_key(|(index, at)| (*at, *index));
+    hits
+}
 #[derive(Default)]
 struct Fingerprint {
     hash: Sha256,
@@ -196,15 +246,68 @@ struct Fingerprint {
     offset: u64,
     /// File offsets of each needle in `FINGERPRINT_NEEDLES`.
     found: [Vec<u64>; 2],
+    /// File offsets of each pool tag; `None` once a tag passed the limit.
+    pool: Vec<Option<Vec<u64>>>,
 }
 /// File offsets found by the digest pass.
 struct Found {
     banners: Vec<u64>,
     rsds: Vec<u64>,
+    /// Per `POOL_TAGS` entry; empty when no matcher could be built.
+    pool: Vec<Option<Vec<u64>>>,
 }
 impl Fingerprint {
+    /// Hash `bytes` and record the pool tags in it. The tag search runs on a
+    /// scoped thread beside the hash, so the pass costs the slower of the two
+    /// rather than their sum; if no thread can be started it runs inline.
+    fn hash_and_pool(&mut self, bytes: &[u8]) {
+        let overlap = self.tail.len().min(3);
+        let mut boundary = [0u8; 6];
+        let tail = self.tail.get(self.tail.len() - overlap..).unwrap_or(&[]);
+        let head = bytes.get(..bytes.len().min(3)).unwrap_or(&[]);
+        if let Some(start) = boundary.get_mut(..overlap) {
+            start.copy_from_slice(tail);
+        }
+        if let Some(end) = boundary.get_mut(overlap..overlap + head.len()) {
+            end.copy_from_slice(head);
+        }
+        let boundary = boundary.get(..overlap + head.len()).unwrap_or(&[]);
+        let offset = self.offset;
+        let hash = &mut self.hash;
+        let hits = thread::scope(|scope| {
+            let worker = thread::Builder::new()
+                .spawn_scoped(scope, || pool_hits(boundary, overlap, bytes, offset));
+            hash.update(bytes);
+            match worker {
+                Ok(worker) => worker.join().ok(),
+                Err(_) => Some(pool_hits(boundary, overlap, bytes, offset)),
+            }
+        });
+        if self.pool.is_empty() {
+            self.pool = vec![Some(Vec::new()); POOL_TAGS.len()];
+        }
+        let Some(hits) = hits else {
+            // A failed search cannot vouch for absence: leave every tag to
+            // `prefetch_scans`.
+            self.pool.iter_mut().for_each(|slot| *slot = None);
+            return;
+        };
+        for (pattern, position) in hits {
+            if let Some(slot) = self.pool.get_mut(pattern) {
+                if slot
+                    .as_ref()
+                    .is_some_and(|found| found.len() >= POOL_HIT_LIMIT)
+                {
+                    *slot = None;
+                }
+                if let Some(found) = slot {
+                    found.push(position);
+                }
+            }
+        }
+    }
     fn push(&mut self, bytes: &[u8], job: &Job) {
-        self.hash.update(bytes);
+        self.hash_and_pool(bytes);
         for (index, needle) in FINGERPRINT_NEEDLES.iter().enumerate() {
             // Match the boundary first without allocating: a hit straddling two
             // chunks is only possible when the retained tail plus this chunk's
@@ -265,34 +368,66 @@ impl Fingerprint {
         let [banners, rsds] = self.found;
         (
             format!("{:x}", self.hash.finalize()),
-            Found { banners, rsds },
+            Found {
+                banners,
+                rsds,
+                pool: self.pool,
+            },
         )
     }
 }
-fn fingerprint(mut reader: impl Read, total: u64, job: &Job) -> Result<(String, Found)> {
-    let mut scan = Fingerprint::default();
-    let mut buf = vec![0; DIGEST_CHUNK];
-    let mut reported = 0u64;
-    loop {
-        job.check()?;
-        let n = reader.read(&mut buf)?;
-        if n == 0 {
-            break;
-        }
-        scan.push(buf.at(..n)?, job);
-        // One update per 64 MiB: the loop already runs a SHA256 and a memmem
-        // pass per chunk, and formatting a string per chunk is not free.
-        if scan.offset - reported >= 64 * 1024 * 1024 {
-            reported = scan.offset;
-            job.report(format!(
-                "校验镜像 SHA256: {} / {} MiB · {}%",
-                scan.offset / 1048576,
-                total / 1048576,
-                scan.offset.saturating_mul(100) / total.max(1)
-            ));
-        }
+/// The digest pass. One thread reads ahead while this one hashes and matches,
+/// as in `digest_file`; chunks are consumed in file order, so the digest and
+/// every recorded offset are unchanged.
+fn fingerprint(file: File, total: u64, job: &Job) -> Result<(String, Found)> {
+    use std::sync::mpsc;
+    let (free_tx, free_rx) = mpsc::channel::<Vec<u8>>();
+    let (full_tx, full_rx) = mpsc::channel::<std::io::Result<(Vec<u8>, usize)>>();
+    for _ in 0..2 {
+        free_tx.send(vec![0; DIGEST_CHUNK])?;
     }
-    Ok(scan.finish())
+    let reader = thread::spawn(move || {
+        let mut file = file;
+        while let Ok(mut buf) = free_rx.recv() {
+            let read = file.read(&mut buf).map(|n| (buf, n));
+            let stop = !matches!(read, Ok((_, n)) if n > 0);
+            if full_tx.send(read).is_err() || stop {
+                break;
+            }
+        }
+    });
+    let outcome = (|| -> Result<(String, Found)> {
+        let mut scan = Fingerprint::default();
+        let mut reported = 0u64;
+        while let Ok(read) = full_rx.recv() {
+            job.check()?;
+            let (buf, n) = read?;
+            if n == 0 {
+                break;
+            }
+            scan.push(buf.at(..n)?, job);
+            let _ = free_tx.send(buf);
+            // One update per 64 MiB: formatting a string per chunk is not free.
+            if scan.offset - reported >= 64 * 1024 * 1024 {
+                reported = scan.offset;
+                job.report(format!(
+                    "校验镜像 SHA256: {} / {} MiB · {}%",
+                    scan.offset / 1048576,
+                    total / 1048576,
+                    scan.offset.saturating_mul(100) / total.max(1)
+                ));
+            }
+        }
+        Ok(scan.finish())
+    })();
+    // Closing both channels ends the reader whether it is waiting for a free
+    // buffer or blocked handing over a full one.
+    drop(free_tx);
+    drop(full_rx);
+    reader
+        .join()
+        .map_err(|_| anyhow::anyhow!("摘要读取线程异常"))?;
+    outcome
 }
 /// What an earlier identification bound to an image file: the system and its
 /// kernel banners or PDB identities. Display only — it is returned while the
@@ -627,6 +762,11 @@ impl Image {
             let _ = image
                 .rsds
                 .set(physical_hits(&image, &candidates.rsds, b"RSDS")?);
+            for (tag, hits) in POOL_TAGS.iter().zip(&candidates.pool) {
+                if let Some(hits) = hits {
+                    image.remember_scan(tag, &physical_hits(&image, hits, tag)?);
+                }
+            }
             for offset in candidates.banners {
                 if let Some(s) = image
                     .segments
@@ -980,8 +1120,16 @@ impl Image {
         }
         Ok(found)
     }
+    /// Apply resource limits. Scans recorded so far, such as the pool tags the
+    /// digest pass found, stay cached while they fit the new budget.
     pub fn set_limits(&mut self, limits: crate::resources::Limits) {
-        self.scans = std::sync::Mutex::new(crate::resources::Lru::new(limits.scan_cache_bytes));
+        match self.scans.get_mut() {
+            Ok(scans) => scans.set_budget(limits.scan_cache_bytes),
+            Err(_) => {
+                self.scans =
+                    std::sync::Mutex::new(crate::resources::Lru::new(limits.scan_cache_bytes));
+            }
+        }
         self.limits = limits;
     }
     pub fn stamp(&self) -> Result<String> {
@@ -1506,6 +1654,64 @@ fn pipelined_digest_matches_serial_digest() -> Result<()> {
         let serial = digest_reader(File::open(&path)?, &job)?;
         let pipelined = digest_file(File::open(&path)?, &job)?;
         assert_eq!(serial, pipelined, "size {size}");
+    }
+    Ok(())
+}
+#[test]
+fn pool_tag_occurrences_can_never_overlap() {
+    for a in POOL_TAGS {
+        for b in POOL_TAGS {
+            for k in 1..a.len().min(b.len()) {
+                assert_ne!(
+                    a.get(a.len() - k..),
+                    b.get(..k),
+                    "{a:?} overlaps {b:?} by {k}"
+                );
+            }
+        }
+    }
+}
+#[test]
+fn digest_pass_records_pool_tags_exactly_as_scan_finds_them() -> Result<()> {
+    // Tags straddling, starting at and ending at chunk boundaries, adjacent
+    // repeats and every tag at least once: the recorded offsets must equal a
+    // whole-buffer search, and their physical form must equal `scan`.
+    let size = 2 * DIGEST_CHUNK + 4096;
+    let mut bytes: Vec<u8> = (0..size).map(|i| (i % 7) as u8).collect();
+    let mut place = |at: usize, tag: &[u8]| {
+        if let Some(slot) = bytes.get_mut(at..at + tag.len()) {
+            slot.copy_from_slice(tag);
+        }
+    };
+    for (i, tag) in POOL_TAGS.iter().enumerate() {
+        place(100 + i * 9, tag);
+    }
+    place(DIGEST_CHUNK - 2, b"File");
+    place(DIGEST_CHUNK - 4, b"TcpE");
+    place(DIGEST_CHUNK, b"Fil\xe5");
+    place(2 * DIGEST_CHUNK - 1, b"CM10");
+    place(2 * DIGEST_CHUNK + 50, b"FileFileMuta");
+    place(size - 4, b"Symb");
+    let dir = tempfile::tempdir()?;
+    let path = dir.path().join("pool.raw");
+    fs::write(&path, &bytes)?;
+    let job = Job::default();
+    let (digest, found) = fingerprint(File::open(&path)?, size as u64, &job)?;
+    assert_eq!(digest, digest_reader(File::open(&path)?, &job)?);
+    assert_eq!(found.pool.len(), POOL_TAGS.len());
+    let image = crate::linux::tests::image(&bytes);
+    for (tag, hits) in POOL_TAGS.iter().zip(&found.pool) {
+        let hits = hits.as_ref().context("pool tag dropped")?;
+        let expected: Vec<u64> = memchr::memmem::find_iter(&bytes, tag)
+            .map(|i| i as u64)
+            .collect();
+        assert_eq!(hits, &expected, "{tag:?}");
+        assert!(!expected.is_empty(), "{tag:?}");
+        assert_eq!(
+            physical_hits(&image, hits, tag)?,
+            image.scan(tag, &job)?,
+            "{tag:?}"
+        );
     }
     Ok(())
 }

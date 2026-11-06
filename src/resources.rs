@@ -69,6 +69,19 @@ impl<K: Clone + Hash + Eq + Ord, V> Lru<K, V> {
         self.values.insert(key, (value, self.clock, weight));
         self.used += weight;
     }
+    /// Change the budget, evicting least recently used entries until the
+    /// remaining ones fit.
+    pub fn set_budget(&mut self, budget: usize) {
+        self.budget = budget;
+        while self.used > budget {
+            let Some((_, oldest)) = self.order.pop_first() else {
+                break;
+            };
+            if let Some((_, _, size)) = self.values.remove(&oldest) {
+                self.used -= size;
+            }
+        }
+    }
     pub fn clear(&mut self) {
         self.values.clear();
         self.order.clear();
@@ -89,6 +102,11 @@ mod tests {
         c.insert(4, "large", 5);
         assert!(c.get(&4).is_none());
         assert_eq!(c.used, 4);
+        c.set_budget(2);
+        assert_eq!(c.used, 2);
+        assert!(c.get(&3).is_some() && c.get(&1).is_none());
+        c.set_budget(0);
+        assert_eq!(c.used, 0);
         c.clear();
         assert_eq!(c.used, 0);
     }
