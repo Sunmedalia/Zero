@@ -23,6 +23,15 @@ pub(super) fn header(bytes: &[u8], arm: bool) -> Result<(String, u64)> {
         u64::from_le_bytes(bytes.at(24..32)?.try_into()?),
     ))
 }
+/// Validated fields of one zsh `struct histent`.
+struct Histent {
+    nam: u64,
+    up: u64,
+    down: u64,
+    stim: u64,
+    ftim: u64,
+    histnum: u64,
+}
 impl Linux<'_> {
     pub(super) fn maps(
         &self,
@@ -132,7 +141,7 @@ impl Linux<'_> {
         }
         Ok(())
     }
-    /// elfs / library_list / malfind / bash / history: bounded reads of each
+    /// elfs / library_list / malfind / bash / zsh: bounded reads of each
     /// task's mapped regions.
     pub(super) fn vma_scan(&self, plugin: Plugin, job: &Job) -> Result<Results> {
         let mut r = self.result(plugin);
@@ -142,7 +151,9 @@ impl Linux<'_> {
         for row in tasks {
             job.check()?;
             let task = row.address;
-            if plugin == Plugin::Bash && row.name != "bash" {
+            if plugin == Plugin::Bash && !matches!(row.name.as_str(), "bash" | "sh" | "dash")
+                || plugin == Plugin::Zsh && !row.name.starts_with("zsh")
+            {
                 continue;
             }
             let read = (|| -> Result<()> {
@@ -152,8 +163,19 @@ impl Linux<'_> {
                 }
                 let vm = self.process_vm(task)?.context("用户地址空间为空")?;
                 let nodes = self.vma_nodes(mm, job, &mut r)?;
+                if plugin == Plugin::Zsh {
+                    return self.zsh_history(
+                        mm,
+                        &vm,
+                        &nodes,
+                        &[row.pid.clone(), row.name.clone()],
+                        &mut r,
+                        job,
+                    );
+                }
                 if plugin == Plugin::Bash {
                     return self.bash_history(
+                        mm,
                         &vm,
                         &nodes,
                         &[row.pid.clone(), row.name.clone()],
@@ -385,136 +407,103 @@ impl Linux<'_> {
         *r.kernel_identity.key_mut("pattern")? = serde_json::json!(pattern.source());
         Ok(r)
     }
+    /// Bash history in the style of volatility3 `linux.bash`: candidate
+    /// `HIST_ENTRY { line, timestamp, data }` records whose timestamp pointer
+    /// targets a `#<epoch>` string, scanned in the heap (VMAs overlapping
+    /// `start_brk..brk`). Pages are read one at a time so an absent page only
+    /// skips itself; every gap or limit is reported, and rows recovered before
+    /// it are kept.
     pub(super) fn bash_history(
         &self,
+        mm: u64,
         vm: &VirtualMemory<'_>,
         nodes: &[u64],
         prefix: &[String],
         r: &mut Results,
         job: &Job,
     ) -> Result<()> {
+        let pid = prefix.first().cloned().unwrap_or_default();
+        let ceiling = self.user_ceiling();
+        let blocks = self.heap_blocks(mm, vm, nodes, &format!("PID {pid} Bash"), r, job)?;
+        let mut limited = None;
+
         let mut timestamps = BTreeMap::new();
-        let mut blocks = Vec::new();
-        let mut budget = 256 * 1024 * 1024usize;
-        for &node in nodes {
-            let flags = self.number(node, "vm_area_struct", "vm_flags")?;
-            if flags & 3 != 3 {
-                continue;
-            }
-            let start = self.number(node, "vm_area_struct", "vm_start")?;
-            let end = self.number(node, "vm_area_struct", "vm_end")?;
-            ensure!(start < end, "Bash VMA 地址倒置");
-            let mut pos = start;
-            while pos < end {
-                job.check()?;
-                let n = (end - pos).min(1024 * 1024 + 24) as usize;
-                ensure!(budget >= n, "Bash 扫描达到每进程 256 MiB 上限");
-                budget -= n;
-                let mut bytes = vec![0; n];
-                match vm.read(pos, &mut bytes) {
-                    Ok(()) => {
-                        for i in memchr::memchr_iter(b'#', &bytes) {
-                            let candidate = bytes.at(i + 1..)?;
-                            let len = candidate.iter().take_while(|b| b.is_ascii_digit()).count();
-                            if (9..=12).contains(&len) && candidate.get(len) == Some(&0) {
-                                let value =
-                                    std::str::from_utf8(candidate.at(..len)?)?.parse::<u64>()?;
-                                if (315532800..=4102444800).contains(&value) {
-                                    timestamps.insert(pos + i as u64, value.to_string());
-                                }
-                            }
-                        }
-                        blocks.push((pos, bytes));
+        for (start, bytes) in &blocks {
+            for i in memchr::memchr_iter(b'#', bytes) {
+                let candidate = bytes.at(i + 1..)?;
+                let len = candidate.iter().take_while(|b| b.is_ascii_digit()).count();
+                if (9..=12).contains(&len) && candidate.get(len) == Some(&0) {
+                    let value = std::str::from_utf8(candidate.at(..len)?)?.parse::<u64>()?;
+                    if (315532800..=4102444800).contains(&value) {
+                        timestamps.insert(start + i as u64, value);
                     }
-                    Err(e) => partial(r, format!("PID {} Bash 区域 {pos:#x}", *prefix.at(0)?), e),
                 }
-                pos += (n as u64).min(1024 * 1024);
             }
         }
+
+        let mut strings = 64 * 1024 * 1024usize;
+        let mut unreadable = 0u64;
         let mut seen = HashSet::new();
+        let mut found: Vec<(Option<u64>, u64, String)> = Vec::new();
         for (start, bytes) in &blocks {
             for i in (0..bytes.len().saturating_sub(23)).step_by(8) {
                 job.check()?;
                 let ts = u64::from_le_bytes(bytes.at(i + 8..i + 16)?.try_into()?);
-                if let Some(time) = timestamps.get(&ts) {
-                    let line = u64::from_le_bytes(bytes.at(i..i + 8)?.try_into()?);
-                    let data = u64::from_le_bytes(bytes.at(i + 16..i + 24)?.try_into()?);
-                    let ceiling = 1u64
-                        << if self
-                            .vm
-                            .image
-                            .arm64_va_bits
-                            .load(std::sync::atomic::Ordering::Relaxed)
-                            == 0
-                        {
-                            47
-                        } else {
-                            self.vm
-                                .image
-                                .arm64_va_bits
-                                .load(std::sync::atomic::Ordering::Relaxed)
-                        };
-                    if line == 0 || line >= ceiling || (data != 0 && data >= ceiling) {
-                        continue;
-                    }
-                    ensure!(budget >= 65536, "Bash 用户读取达到 256 MiB 上限");
-                    budget -= 65536;
-                    let command = match user_string(vm, line, 65536, job) {
-                        Ok(value) => value,
-                        Err(e) => {
-                            job.check()?;
-                            partial(
-                                r,
-                                format!(
-                                    "PID {} Bash record {:#x}",
-                                    *prefix.at(0)?,
-                                    start + i as u64
-                                ),
-                                e,
-                            );
-                            continue;
-                        }
-                    };
-                    if command.is_empty() || command.chars().any(|c| c == '\0') {
-                        continue;
-                    }
-                    let addr = start + i as u64;
-                    if seen.insert(addr) {
-                        r.rows.push(
-                            [prefix.to_vec(), vec![time.clone(), command, hex(addr)]].concat(),
-                        );
-                    }
+                let Some(&time) = timestamps.get(&ts) else {
+                    continue;
+                };
+                let line = u64::from_le_bytes(bytes.at(i..i + 8)?.try_into()?);
+                let data = u64::from_le_bytes(bytes.at(i + 16..i + 24)?.try_into()?);
+                if line == 0 || line >= ceiling || (data != 0 && data >= ceiling) {
+                    continue;
+                }
+                if strings == 0 {
+                    limited = Some("Bash 命令字符串读取达到 64 MiB 上限");
+                    break;
+                }
+                let Ok(command) = user_string(vm, line, 65536, job) else {
+                    job.check()?;
+                    unreadable += 1;
+                    continue;
+                };
+                strings = strings.saturating_sub(command.len() + 1);
+                let addr = start + i as u64;
+                if !command.is_empty() && seen.insert(addr) {
+                    found.push((Some(time), addr, command));
                 }
             }
         }
+
         // Recover untimestamped entries only from pointer arrays anchored by a
         // validated timestamped HIST_ENTRY, never from arbitrary pointer pairs.
-        let mut arrays = HashSet::new();
+        // Each array slot is walked once, so long histories stay linear.
+        let mut anchors = Vec::new();
         for (start, bytes) in &blocks {
             for i in (0..bytes.len().saturating_sub(7)).step_by(8) {
                 let pointer = u64::from_le_bytes(bytes.at(i..i + 8)?.try_into()?);
                 if seen.contains(&pointer) {
-                    arrays.insert(start + i as u64);
+                    anchors.push(start + i as u64);
                 }
             }
         }
-        for anchor in arrays {
-            for direction in [false, true] {
-                for n in 1..=4096u64 {
+        let mut visited: HashSet<u64> = anchors.iter().copied().collect();
+        let mut recovered = Vec::new();
+        'arrays: for anchor in anchors {
+            for forward in [false, true] {
+                for n in 1..=LIMIT as u64 {
                     job.check()?;
-                    let address = if direction {
+                    let Some(address) = (if forward {
                         anchor.checked_add(n * 8)
                     } else {
                         anchor.checked_sub(n * 8)
-                    };
-                    let Some(address) = address else {
+                    }) else {
                         break;
                     };
-                    ensure!(budget >= 32, "Bash 用户读取达到 256 MiB 上限");
-                    budget -= 32;
-                    let entry = match vm.uint(address, 8) {
-                        Ok(v) => v,
-                        Err(_) => break,
+                    if !visited.insert(address) {
+                        break;
+                    }
+                    let Ok(entry) = vm.uint(address, 8) else {
+                        break;
                     };
                     if entry == 0 || entry & 7 != 0 {
                         break;
@@ -523,39 +512,312 @@ impl Linux<'_> {
                     if vm.read(entry, &mut record).is_err() {
                         break;
                     }
-                    let line = u64::from_le_bytes(record[..8].try_into()?);
-                    let ts = u64::from_le_bytes(record[8..16].try_into()?);
+                    let line = u64::from_le_bytes(record.at(..8)?.try_into()?);
+                    let ts = u64::from_le_bytes(record.at(8..16)?.try_into()?);
                     if ts != 0 && !timestamps.contains_key(&ts) {
                         break;
                     }
                     if seen.contains(&entry) {
                         continue;
                     }
-                    ensure!(budget >= 65536, "Bash 用户读取达到 256 MiB 上限");
-                    budget -= 65536;
+                    if strings == 0 {
+                        limited = Some("Bash 命令字符串读取达到 64 MiB 上限");
+                        break 'arrays;
+                    }
                     let command = match user_string(vm, line, 65536, job) {
                         Ok(v) if !v.is_empty() => v,
                         _ => break,
                     };
+                    strings = strings.saturating_sub(command.len() + 1);
                     if seen.insert(entry) {
-                        r.rows.push(
-                            [
-                                prefix.to_vec(),
-                                vec![
-                                    timestamps
-                                        .get(&ts)
-                                        .cloned()
-                                        .unwrap_or_else(|| "[missing]".into()),
-                                    command,
-                                    hex(entry),
-                                ],
-                            ]
-                            .concat(),
-                        );
+                        recovered.push((timestamps.get(&ts).copied(), entry, command));
                     }
-                    ensure!(n < 4096, "Bash 历史指针数组达到 4096 项边界");
+                    if n == LIMIT as u64 {
+                        limited = Some("Bash 历史指针数组达到项数上限");
+                    }
                 }
             }
+        }
+        found.extend(recovered);
+        // volatility3 orders history by timestamp; untimestamped entries keep
+        // their array order after them.
+        found.sort_by_key(|(time, _, _)| (time.is_none(), *time));
+        for (time, address, command) in found {
+            r.rows.push(
+                [
+                    prefix.to_vec(),
+                    vec![
+                        time.map_or_else(|| "[missing]".into(), |t| t.to_string()),
+                        command,
+                        hex(address),
+                    ],
+                ]
+                .concat(),
+            );
+        }
+        if unreadable > 0 {
+            partial(
+                r,
+                format!("PID {pid} Bash 记录"),
+                anyhow::anyhow!("{unreadable} 个候选记录的命令字符串不可读"),
+            );
+        }
+        if let Some(reason) = limited {
+            partial(r, format!("PID {pid} Bash 扫描"), anyhow::anyhow!(reason));
+        }
+        Ok(())
+    }
+    /// Exclusive upper bound of user virtual addresses for the image architecture.
+    fn user_ceiling(&self) -> u64 {
+        let bits = self
+            .vm
+            .image
+            .arm64_va_bits
+            .load(std::sync::atomic::Ordering::Relaxed);
+        1u64 << if bits == 0 { 47 } else { bits }
+    }
+    /// Resident heap pages of one process as contiguous runs: VMAs overlapping
+    /// `start_brk..brk` (every writable VMA without brk fields or a heap
+    /// mapping). Pages are read one at a time, so an absent page only skips
+    /// itself; gaps and the 256 MiB bound become diagnostics and the runs read
+    /// before them are kept.
+    fn heap_blocks(
+        &self,
+        mm: u64,
+        vm: &VirtualMemory<'_>,
+        nodes: &[u64],
+        context: &str,
+        r: &mut Results,
+        job: &Job,
+    ) -> Result<Vec<(u64, Vec<u8>)>> {
+        let heap = self
+            .number(mm, "mm_struct", "start_brk")
+            .and_then(|start| Ok((start, self.number(mm, "mm_struct", "brk")?)))
+            .ok();
+        let mut heap_ranges = Vec::new();
+        let mut writable = Vec::new();
+        for &node in nodes {
+            let vma = (|| -> Result<(u64, u64, u64)> {
+                let start = self.number(node, "vm_area_struct", "vm_start")?;
+                let end = self.number(node, "vm_area_struct", "vm_end")?;
+                ensure!(start < end, "VMA 地址倒置");
+                Ok((start, end, self.number(node, "vm_area_struct", "vm_flags")?))
+            })();
+            match vma {
+                Ok((start, end, flags)) => {
+                    if heap.is_some_and(|(low, high)| start <= high && end >= low) {
+                        heap_ranges.push((start, end));
+                    }
+                    if flags & 3 == 3 {
+                        writable.push((start, end));
+                    }
+                }
+                Err(e) => partial(r, format!("{context} VMA {}", hex(node)), e),
+            }
+        }
+        let ranges = if heap_ranges.is_empty() {
+            writable
+        } else {
+            heap_ranges
+        };
+        let mut budget = 256 * 1024 * 1024usize;
+        let mut missing = 0u64;
+        let mut first_missing = None;
+        let mut blocks: Vec<(u64, Vec<u8>)> = Vec::new();
+        'scan: for (start, end) in ranges {
+            let mut run: Option<(u64, Vec<u8>)> = None;
+            let mut pos = start & !4095;
+            while pos < end {
+                job.check()?;
+                if budget < 4096 {
+                    blocks.extend(run.take());
+                    partial(
+                        r,
+                        format!("{context} 扫描"),
+                        anyhow::anyhow!("达到每进程 256 MiB 上限"),
+                    );
+                    break 'scan;
+                }
+                budget -= 4096;
+                let mut page = [0u8; 4096];
+                if vm.read(pos, &mut page).is_ok() {
+                    run.get_or_insert_with(|| (pos, Vec::new()))
+                        .1
+                        .extend_from_slice(&page);
+                } else {
+                    missing += 1;
+                    first_missing.get_or_insert(pos);
+                    blocks.extend(run.take());
+                }
+                pos += 4096;
+            }
+            blocks.extend(run);
+        }
+        if missing > 0 {
+            partial(
+                r,
+                format!("{context} 扫描"),
+                anyhow::anyhow!(
+                    "{missing} 个页面不可读，已跳过（首个 {:#x}）",
+                    first_missing.unwrap_or_default()
+                ),
+            );
+        }
+        Ok(blocks)
+    }
+    /// Zsh history (zsh 4.3–5.9 `struct histent`, LP64): the heap is scanned
+    /// for entries `{ node.next, node.nam, node.flags, up, down, zle_text,
+    /// stim, ftim, words, nwords, histnum }` whose up/down neighbour links
+    /// back to them and whose start time is a plausible epoch, then the
+    /// validated doubly linked ring is followed. zsh records times in memory
+    /// regardless of EXTENDED_HISTORY.
+    pub(super) fn zsh_history(
+        &self,
+        mm: u64,
+        vm: &VirtualMemory<'_>,
+        nodes: &[u64],
+        prefix: &[String],
+        r: &mut Results,
+        job: &Job,
+    ) -> Result<()> {
+        const NAM: usize = 8;
+        const UP: usize = 24;
+        const DOWN: usize = 32;
+        const STIM: usize = 48;
+        const FTIM: usize = 56;
+        const NWORDS: usize = 72;
+        const HISTNUM: usize = 80;
+        const SIZE: usize = 88;
+        let pid = prefix.first().cloned().unwrap_or_default();
+        let ceiling = self.user_ceiling();
+        let user = |p: u64| p != 0 && p & 7 == 0 && p < ceiling;
+        let epoch = |t: u64| (315532800..=4102444800).contains(&t);
+        // Field checks shared by scanned and linked entries.
+        let shape = |e: &[u8]| -> Result<Option<Histent>> {
+            let word =
+                |o: usize| -> Result<u64> { Ok(u64::from_le_bytes(e.at(o..o + 8)?.try_into()?)) };
+            let (nam, up, down) = (word(NAM)?, word(UP)?, word(DOWN)?);
+            let (stim, ftim, histnum) = (word(STIM)?, word(FTIM)?, word(HISTNUM)?);
+            let nwords = i32::from_le_bytes(e.at(NWORDS..NWORDS + 4)?.try_into()?);
+            let valid = nam != 0
+                && nam < ceiling
+                && user(up)
+                && user(down)
+                && epoch(stim)
+                && (ftim == 0 || (ftim >= stim && epoch(ftim)))
+                && (1..1 << 40).contains(&histnum)
+                && (0..=1 << 20).contains(&nwords);
+            Ok(valid.then_some(Histent {
+                nam,
+                up,
+                down,
+                stim,
+                ftim,
+                histnum,
+            }))
+        };
+        let blocks = self.heap_blocks(mm, vm, nodes, &format!("PID {pid} Zsh"), r, job)?;
+        let linked = |address: u64, next: u64, back: usize| -> bool {
+            vm.uint(next + back as u64, 8).is_ok_and(|v| v == address)
+        };
+        let mut queue = Vec::new();
+        for (start, bytes) in &blocks {
+            for i in (0..bytes.len().saturating_sub(SIZE - 1)).step_by(8) {
+                job.check()?;
+                let Some(Histent { up, down, .. }) = shape(bytes.at(i..i + SIZE)?)? else {
+                    continue;
+                };
+                let address = start + i as u64;
+                if linked(address, down, UP) || linked(address, up, DOWN) {
+                    queue.push(address);
+                }
+            }
+        }
+        let mut seen = HashSet::new();
+        let mut entries = Vec::new();
+        let mut strings = 64 * 1024 * 1024usize;
+        let mut unreadable = 0u64;
+        let mut limited = false;
+        while let Some(address) = queue.pop() {
+            job.check()?;
+            if !seen.insert(address) {
+                continue;
+            }
+            if seen.len() > LIMIT {
+                limited = true;
+                break;
+            }
+            let mut e = [0u8; SIZE];
+            if vm.read(address, &mut e).is_err() {
+                continue;
+            }
+            let Some(Histent {
+                nam,
+                up,
+                down,
+                stim,
+                ftim,
+                histnum,
+            }) = shape(&e)?
+            else {
+                continue;
+            };
+            // Follow the ring both ways, but only across mutual links.
+            if linked(address, down, UP) {
+                queue.push(down);
+            }
+            if linked(address, up, DOWN) {
+                queue.push(up);
+            }
+            if strings == 0 {
+                limited = true;
+                break;
+            }
+            match user_string(vm, nam, 65536, job) {
+                Ok(command) if !command.is_empty() => {
+                    strings = strings.saturating_sub(command.len() + 1);
+                    entries.push((histnum, stim, ftim, command, address));
+                }
+                Ok(_) => {}
+                Err(_) => {
+                    job.check()?;
+                    unreadable += 1;
+                }
+            }
+        }
+        entries.sort_by_key(|e| (e.0, e.4));
+        for (histnum, stim, ftim, command, address) in entries {
+            r.rows.push(
+                [
+                    prefix.to_vec(),
+                    vec![
+                        histnum.to_string(),
+                        stim.to_string(),
+                        if ftim == 0 {
+                            "[none]".into()
+                        } else {
+                            ftim.to_string()
+                        },
+                        command,
+                        hex(address),
+                    ],
+                ]
+                .concat(),
+            );
+        }
+        if unreadable > 0 {
+            partial(
+                r,
+                format!("PID {pid} Zsh 记录"),
+                anyhow::anyhow!("{unreadable} 个历史条目的命令字符串不可读"),
+            );
+        }
+        if limited {
+            partial(
+                r,
+                format!("PID {pid} Zsh 扫描"),
+                anyhow::anyhow!("达到历史条目或 64 MiB 字符串上限"),
+            );
         }
         Ok(())
     }
@@ -656,6 +918,144 @@ mod tests {
             .unwrap();
         assert!(r.complete);
         assert!(r.rows.is_empty());
+    }
+    #[test]
+    fn bash_skips_absent_pages_orders_by_time_and_accepts_sh() {
+        use crate::linux::tests::{engine, fixture, image};
+        let (mut b, mut isf) = fixture();
+        for (name, offset) in [("start_brk", 48), ("brk", 56)] {
+            isf.data["user_types"]["mm_struct"]["fields"][name] =
+                serde_json::json!({"offset":offset,"type":{"kind":"base","name":"u64"}});
+        }
+        isf.invalidate_layouts();
+        b[0xa028..0xa02b].copy_from_slice(b"sh\0");
+        put(&mut b, 0xb028, 0xc800);
+        put(&mut b, 0xb030, 0x200000);
+        put(&mut b, 0xb038, 0x202800);
+        // One heap VMA of three pages; the third page is absent.
+        put(&mut b, 0xc808, 0x200000);
+        put(&mut b, 0xc810, 0x203000);
+        put(&mut b, 0xc818, 3);
+        b[0x20000..0x21000].fill(0);
+        put(&mut b, 0x20010, 0x200040);
+        put(&mut b, 0x20018, 0x200080);
+        b[0x20040..0x2004a].copy_from_slice(b"echo test\0");
+        b[0x20080..0x2008c].copy_from_slice(b"#1700000000\0");
+        b[0x25000..0x26000].fill(0);
+        put(&mut b, 0x25200, 0x201240);
+        put(&mut b, 0x25208, 0x201280);
+        b[0x25240..0x25247].copy_from_slice(b"whoami\0");
+        b[0x25280..0x2528c].copy_from_slice(b"#1600000000\0");
+        let img = image(&b);
+        let r = engine(&img, &isf)
+            .run(Plugin::Bash, &Job::default())
+            .unwrap();
+        let commands: Vec<_> = r
+            .rows
+            .iter()
+            .map(|r| (r[2].as_str(), r[3].as_str()))
+            .collect();
+        assert_eq!(
+            commands,
+            [("1600000000", "whoami"), ("1700000000", "echo test")]
+        );
+        assert!(!r.complete);
+        assert!(
+            r.diagnostics.iter().any(|d| d.contains("1 个页面不可读")),
+            "{:?}",
+            r.diagnostics
+        );
+    }
+    #[test]
+    fn zsh_follows_mutually_linked_histent_ring_and_rejects_decoys() {
+        use crate::linux::tests::{engine, fixture, image};
+        let (mut b, isf) = fixture();
+        // VA 0x200000 -> 0x20000 and 0x201000 -> 0x25000; 0x202000 is absent.
+        let phys = |va: u64| -> usize {
+            if va >= 0x201000 {
+                (va - 0x201000 + 0x25000) as usize
+            } else {
+                (va - 0x200000 + 0x20000) as usize
+            }
+        };
+        b[0xa028..0xa02c].copy_from_slice(b"zsh\0");
+        put(&mut b, 0xb028, 0xc800);
+        put(&mut b, 0xc808, 0x200000);
+        put(&mut b, 0xc810, 0x203000);
+        put(&mut b, 0xc818, 3);
+        b[0x20000..0x21000].fill(0);
+        b[0x25000..0x26000].fill(0);
+        let curline = 0x201f00u64;
+        let entries = [
+            (
+                0x200100u64,
+                0x200800u64,
+                "ls -la",
+                1u64,
+                1_700_000_000u64,
+                1_700_000_005u64,
+            ),
+            (0x200200, 0x200840, "whoami", 2, 1_700_000_010, 0),
+            (0x201100, 0x201800, "id", 3, 1_700_000_020, 1_700_000_021),
+        ];
+        for (n, (at, nam, command, histnum, stim, ftim)) in entries.iter().enumerate() {
+            let up = if n == 0 { curline } else { entries[n - 1].0 };
+            let down = entries.get(n + 1).map_or(curline, |e| e.0);
+            let e = phys(*at);
+            put(&mut b, e + 8, *nam);
+            put(&mut b, e + 24, up);
+            put(&mut b, e + 32, down);
+            put(&mut b, e + 48, *stim);
+            put(&mut b, e + 56, *ftim);
+            put(&mut b, e + 72, 2);
+            put(&mut b, e + 80, *histnum);
+            let s = phys(*nam);
+            b[s..s + command.len()].copy_from_slice(command.as_bytes());
+        }
+        // The current-line sentinel closes the ring but has no start time.
+        put(&mut b, phys(curline) + 24, entries[2].0);
+        put(&mut b, phys(curline) + 32, entries[0].0);
+        // A completion-table node: plausible name, no mutual links.
+        put(&mut b, 0x20408, 0x200880);
+        put(&mut b, 0x20418, 0x200500);
+        put(&mut b, 0x20420, 0x200600);
+        put(&mut b, 0x20430, 1_700_000_000);
+        put(&mut b, 0x20450, 4);
+        b[0x20880..0x20886].copy_from_slice(b"lsblk\0");
+        let img = image(&b);
+        let r = engine(&img, &isf)
+            .run(Plugin::Zsh, &Job::default())
+            .unwrap();
+        assert_eq!(
+            r.columns,
+            [
+                "PID", "Name", "HistNum", "Started", "Finished", "Command", "Address"
+            ]
+        );
+        let rows: Vec<_> = r.rows.iter().map(|r| r[2..6].to_vec()).collect();
+        assert_eq!(
+            rows,
+            [
+                ["1", "1700000000", "1700000005", "ls -la"],
+                ["2", "1700000010", "[none]", "whoami"],
+                ["3", "1700000020", "1700000021", "id"],
+            ]
+        );
+        assert!(!r.complete);
+        assert!(
+            r.diagnostics
+                .iter()
+                .any(|d| d.contains("Zsh 扫描") && d.contains("1 个页面不可读")),
+            "{:?}",
+            r.diagnostics
+        );
+        // Other shells are not scanned.
+        b[0xa028..0xa02c].copy_from_slice(b"ksh\0");
+        let img = image(&b);
+        let r = engine(&img, &isf)
+            .run(Plugin::Zsh, &Job::default())
+            .unwrap();
+        assert!(r.rows.is_empty() && r.complete, "{:?}", r.diagnostics);
     }
     #[test]
     fn pid_cross_view_detects_unlinked_task_and_rejects_cycles() {

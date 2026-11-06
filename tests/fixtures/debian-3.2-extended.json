@@ -2,12 +2,13 @@
   "psaux": {
     "columns": [
       "PID",
+      "PPID",
       "Name",
       "CommandLine",
       "Status"
     ],
-    "count": 131,
-    "rows_sha256": "ca21fcfa19ab49f5c0e399fbccd8734c85c1ea856a98f4c807a7ca2022fb22c6",
+    "count": 133,
+    "rows_sha256": "0ac9c1bfa2f2cad10e6eac1e96eb8cd811866aa1a9703adc9b94f4950ef1a21c",
     "complete": false,
     "diagnostics": [
       "PID 1 @ 0xffff88001f994740: 缺页 VA 0x7fff14d8df62, level 12",
@@ -2610,19 +2611,9 @@
       "Address"
     ],
     "count": 27,
-    "rows_sha256": "27ef66332762450608d9d7bba89c09509cda518876504e4931732d1912254338",
-    "complete": false,
-    "diagnostics": [
-      "PID 3976 Bash 区域 0x7f720ed40000: 缺页 VA 0x7f720ed40000, level 12",
-      "PID 3976 Bash 区域 0x7f720f2d0000: 缺页 VA 0x7f720f2d2000, level 12",
-      "PID 3976 Bash 区域 0x7fff10de9000: 缺页 VA 0x7fff10de9000, level 21",
-      "PID 8503 Bash 区域 0x7f8b0c5d7000: 缺页 VA 0x7f8b0c5d7000, level 12",
-      "PID 8503 Bash 区域 0x7f8b0cb67000: 缺页 VA 0x7f8b0cb69000, level 12",
-      "PID 8503 Bash 区域 0x7fff76590000: 缺页 VA 0x7fff76590000, level 12",
-      "PID 8600 Bash 区域 0x7fe78ae8c000: 缺页 VA 0x7fe78ae8c000, level 12",
-      "PID 8600 Bash 区域 0x7fe78b41c000: 缺页 VA 0x7fe78b41e000, level 12",
-      "PID 8600 Bash 区域 0x7fff44b90000: 缺页 VA 0x7fff44b90000, level 12"
-    ]
+    "rows_sha256": "c03bbdffad69ab4ee88f166ef8a0e3442cd8f085a477eff6ce1eebbac158cf71",
+    "complete": true,
+    "diagnostics": []
   },
   "malfind": {
     "columns": [

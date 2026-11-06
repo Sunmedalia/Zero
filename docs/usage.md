@@ -281,6 +281,9 @@ zero analyze --image images/linux-sample-1.bin.gz --symbols symbols/linux.zip \
 # 内存中的 Bash 历史
 zero analyze --image images/linux-sample-1.bin.gz --symbols symbols/linux.zip \
   --plugin bash --output history.json
+# 内存中的 Zsh 历史（含开始／结束时间）
+zero analyze --image images/linux-sample-1.bin.gz --symbols symbols/linux.zip \
+  --plugin zsh --output zsh-history.csv
 zero --offline analyze --image images/linux-sample-1.bin.gz --symbols symbols/linux.zip \
   --plugin iomem --output exports/iomem.json
 ```
@@ -369,7 +372,7 @@ zero cache clear --scope results,identification --yes
 
 ## 7. Linux 插件参考
 
-共 62 个插件（含 `linux.pslist.PsList` 完整字段入口，详见 [Volatility 对齐进度](volatility-parity.md)）：`pslist`、`pstree`、`lsmod`、`psaux`、`envars`、`maps`、`lsof`、`sockstat`、`netscan`、`banners`、`pwd`、`pscred`、`threads`、`mountinfo`、`check_creds`、`dmesg`、`systeminfo`、`elfs`、`bash`、`malfind`、`psxview`、`check_modules`、`check_syscall`、`psstate`、`capabilities`、`fdsummary`、`procdump`、`memdump`、`elfdump`、`iomem`、`ioports`、`ptrace`、`keyboard_notifiers`、`check_exec`、`check_idt`、`tty_check`、`hidden_modules`、`library_list`、`pidhashtable`、`vmcoreinfo`、`ip_addr`、`ip_link`、`check_afinfo`、`kthreads`、`netfilter`、`tracepoints`、`ftrace`、`ebpf`、`boottime`、`pagecache`、`perf_events`、`vmayarascan`、`linux.malware.process_spoofing.ProcessSpoofing`、`linux.malware.modxview.Modxview`、`linux.module_extract.ModuleExtract`、`linux.kallsyms.Kallsyms`、`linux.psscan.PsScan`、`linux.sockscan.Sockscan`、`linux.vmaregexscan.VmaRegExScan`、`linux.pscallstack.PsCallStack`、`linux.graphics.fbdev.Fbdev`。
+共 63 个插件（含 `linux.pslist.PsList` 完整字段入口，详见 [Volatility 对齐进度](volatility-parity.md)）：`pslist`、`pstree`、`lsmod`、`psaux`、`envars`、`maps`、`lsof`、`sockstat`、`netscan`、`banners`、`pwd`、`pscred`、`threads`、`mountinfo`、`check_creds`、`dmesg`、`systeminfo`、`elfs`、`bash`、`zsh`、`malfind`、`psxview`、`check_modules`、`check_syscall`、`psstate`、`capabilities`、`fdsummary`、`procdump`、`memdump`、`elfdump`、`iomem`、`ioports`、`ptrace`、`keyboard_notifiers`、`check_exec`、`check_idt`、`tty_check`、`hidden_modules`、`library_list`、`pidhashtable`、`vmcoreinfo`、`ip_addr`、`ip_link`、`check_afinfo`、`kthreads`、`netfilter`、`tracepoints`、`ftrace`、`ebpf`、`boottime`、`pagecache`、`perf_events`、`vmayarascan`、`linux.malware.process_spoofing.ProcessSpoofing`、`linux.malware.modxview.Modxview`、`linux.module_extract.ModuleExtract`、`linux.kallsyms.Kallsyms`、`linux.psscan.PsScan`、`linux.sockscan.Sockscan`、`linux.vmaregexscan.VmaRegExScan`、`linux.pscallstack.PsCallStack`、`linux.graphics.fbdev.Fbdev`。
 
 TUI 插件菜单只列分析插件，转储统一在 `D` 中。这些都是本地 ISF 驱动的 Rust 实现，不执行 Volatility Python 插件。
 
@@ -379,7 +382,7 @@ TUI 插件菜单只列分析插件，转储统一在 `D` 中。这些都是本�
 
 | 插件 | 字段 |
 | --- | --- |
-| psaux | PID、Name、CommandLine、Status |
+| psaux | PID、PPID、Name、CommandLine、Status |
 | envars | PID、Name、Key、Value |
 | maps | PID、Name、Start、End、Permissions、FileOffset、Path |
 | lsof | PID、Name、FD、Type、Inode、Path、FileAddress |
@@ -404,6 +407,7 @@ TUI 插件菜单只列分析插件，转储统一在 `D` 中。这些都是本�
 | systeminfo | Key、Value；镜像／符号摘要、架构、页大小、重定位、验证状态 |
 | elfs | PID、Name、Start、End、Type、Entry、Path |
 | bash | PID、Name、Timestamp、Command、Address |
+| zsh | PID、Name、HistNum、Started、Finished、Command、Address |
 | malfind | PID、Name、Start、End、Permissions、Path、Reason、Preview |
 | psxview | PID、Name、Address、Tasks、PIDIndex、ThreadGroup、Reason |
 | check_modules | Name、Address、Start、End、ModuleList、Sysfs、Reason |
@@ -471,7 +475,9 @@ TUI 插件菜单只列分析插件，转储统一在 `D` 中。这些都是本�
 - `check_creds` 汇总多个进程共享的 cred 指针，只是核查线索。
 - `maps` 遍历 VMA 链表或 maple tree，权限为 `rwx` 加 `s`／`p`，匿名区域显示 `[anonymous]`。单进程 VMA／FD 各限 100 万项。
 - `elfs` 检查每个可读 VMA 起始处的 ELF64 EXEC／DYN 头，Entry 为原始 e_entry；`malfind` 列出可执行且可写或匿名的映射及前 32 字节。
-- `bash` 限 comm=bash 的进程，用 timestamp 锚定 HIST_ENTRY，再恢复相邻指针数组中无时间戳的命令；不读取磁盘历史文件。每进程扫描限 256 MiB，字符串限 64 KiB，邻接数组限 4096 项。旧命令名 `history` 是兼容别名。
+- `bash` 与 volatility3 `linux.bash` 一致，限 comm 为 bash／sh／dash 的进程，只扫描与 `start_brk..brk` 重叠的堆映射（缺少 brk 字段或堆映射时退回全部可写映射），用 timestamp 锚定 HIST_ENTRY，再恢复相邻指针数组中无时间戳的命令；结果按时间戳排序，无时间戳的条目按数组顺序排在最后。不读取磁盘历史文件。扫描按页读取，缺页只跳过该页并汇总为诊断，已恢复的条目保留。每进程扫描限 256 MiB，命令字符串合计限 64 MiB，单条限 64 KiB；达到上限时保留已有结果并标记部分结果。旧命令名 `history` 是兼容别名。
+- `zsh` 限 comm 以 zsh 开头的进程，扫描范围与按页读取规则同 `bash`。识别 zsh 4.3–5.9 的 64 位 `struct histent`（命令 +8、up／down +24／+32、开始／结束时间 +48／+56、histnum +80）：开始时间须为合理 epoch，且 up 或 down 邻居必须反向指回该条目，再沿相互链接的环形链表补全；补全表等无反向链接的节点和已释放的旧条目不会输出。zsh 在内存中始终记录时间，与 EXTENDED_HISTORY 无关；Finished 为 `[none]` 表示命令尚未结束。按 histnum 排序。不读取磁盘历史文件。别名 `zsh_history`。
+- `psaux` 每个任务都输出一行：PPID 与 `linux.psaux.PsAux` 相同（父任务不可读时为 0）；命令行页不可读时 CommandLine 为 `N/A`、Status 为 `Unreadable` 并附诊断，空命令行为 `N/A`／`Empty`，内核线程为 `[comm]`／`KernelThread`。
 - `psxview` 对照 tasks、PID hash／IDR 与线程组，非组长线程正常显示 ThreadOnly；`check_modules` 对照模块链表与 module_kset；`check_syscall` 使用 ISF／调试 ELF 的准确表长度，不猜测。
 
 **文件与网络**
@@ -695,7 +701,7 @@ ZERO_TEST_IMAGE=/path/sample.bin.gz ZERO_TEST_SYMBOLS=/path/linux.zip make accep
 
 | 插件 | 行数 | 完整性／诊断 |
 | --- | ---: | --- |
-| psaux | 131 | PID 1、2344 的 argv 用户页缺失，部分结果 |
+| psaux | 133 | PID 1、2344 的 argv 用户页缺失，以 N/A／Unreadable 保留并附诊断，部分结果 |
 | envars | 1411 | PID 1、2344 的环境用户页缺失，部分结果 |
 | maps | 14045 | PID 2388、2974、3482 共 135 个映射路径位于进程根目录外，部分结果 |
 | lsof | 1293 | 上述三个进程共 10 个 FD 路径位于根目录外，部分结果 |
@@ -707,7 +713,8 @@ ZERO_TEST_IMAGE=/path/sample.bin.gz ZERO_TEST_SYMBOLS=/path/linux.zip make accep
 | check_creds | 0 | 完整；无跨进程共享 cred |
 | dmesg | 1445 | 完整 |
 | fdsummary | 133 | 继承 lsof 的 10 条路径诊断，部分结果 |
-| elfs／bash／malfind | 2419／27／84 | 缺页导致的部分结果 |
+| elfs／malfind | 2419／84 | 缺页导致的部分结果 |
+| bash | 27 | 完整；只扫描堆，按时间戳排序 |
 | psxview／check_modules／check_syscall | 316／79／312 | 完整 |
 | check_idt | 256 | 完整；244 KernelText、12 KernelInitText |
 | tty_check／hidden_modules | 7／0 | 完整 |

@@ -310,6 +310,8 @@ pub enum Plugin {
     Elfs,
     #[value(alias = "history")]
     Bash,
+    #[value(alias = "zsh_history")]
+    Zsh,
     Malfind,
     Psxview,
     #[value(name = "check_modules", alias = "check-modules")]
