@@ -2,15 +2,9 @@
 use super::*;
 use objects::physical_number;
 use std::collections::BTreeSet;
-/// Pool tags read by the scanning plugins; the first scan finds all of them in
-/// one pass so the remaining scans in a session reuse the hits.
-const POOL_TAGS: &[&[u8]] = &[
-    b"File", b"Fil\xe5", b"Muta", b"Mut\xe1", b"Driv", b"Dri\xf6", b"Proc", b"Pro\xe3", b"TcpL",
-    b"UdpA", b"TcpE", b"TTcb", b"MmLd", b"Symb", b"Sym\xe2", b"CM10",
-];
 impl Windows<'_> {
     pub(super) fn prefetch_pool_tags(&self, job: &Job) -> Result<()> {
-        self.vm.image.prefetch_scans(POOL_TAGS, job)
+        self.vm.image.prefetch_scans(crate::image::POOL_TAGS, job)
     }
     pub(super) fn pool_blocks(
         &self,
