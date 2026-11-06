@@ -229,8 +229,9 @@ fn process_regions_and_failures() {
     );
     let r = linux.run(Plugin::Psaux, &job).unwrap();
     assert!(r.complete, "{:?}", r.diagnostics);
-    assert_eq!(r.rows[0][2], "a b=c d  ");
-    assert_eq!(r.rows[1][3], "KernelThread");
+    assert_eq!(r.rows[0][1], "0");
+    assert_eq!(r.rows[0][3], "a b=c d  ");
+    assert_eq!(r.rows[1][4], "KernelThread");
     put(&mut b, 0xb018, 0x200ffe);
     put(&mut b, 0xb020, 0x201008);
     let i = image(&b);
@@ -256,7 +257,9 @@ fn process_regions_and_failures() {
     let i = image(&b);
     let r = engine(&i, &isf).run(Plugin::Psaux, &job).unwrap();
     assert!(!r.complete);
-    assert_eq!(r.rows.len(), 1);
+    // The task whose arguments exceed the bound keeps its row as N/A.
+    assert_eq!(r.rows.len(), 2);
+    assert_eq!(r.rows[0][3..], ["N/A", "Unreadable"]);
     assert!(r.diagnostics[0].contains("1 MiB"));
     put(&mut b, 0xb010, 0x201008);
     put(&mut b, 0x7008, 0);
@@ -264,6 +267,7 @@ fn process_regions_and_failures() {
     let r = engine(&i, &isf).run(Plugin::Psaux, &job).unwrap();
     assert!(!r.complete);
     assert!(r.diagnostics[0].contains("缺页"));
+    assert_eq!(r.rows[0][3..], ["N/A", "Unreadable"]);
     isf.data["user_types"]["mm_struct"]["fields"]
         .as_object_mut()
         .unwrap()

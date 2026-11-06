@@ -127,40 +127,57 @@ impl Linux<'_> {
             let read = (|| -> Result<()> {
                 let prefix = vec![process.pid.clone(), process.name.clone()];
                 match plugin {
-                    Plugin::Psaux | Plugin::Envars => {
-                        let mm = self.number(task, "task_struct", "mm")?;
-                        if mm == 0 {
-                            if plugin == Plugin::Psaux {
-                                result.rows.push(
-                                    [
-                                        prefix,
-                                        vec![format!("[{}]", process.name), "KernelThread".into()],
-                                    ]
-                                    .concat(),
-                                );
+                    Plugin::Psaux => {
+                        // Like linux.psaux.PsAux, every task keeps its row: an
+                        // unreadable command line becomes N/A with a diagnostic.
+                        let ppid = self
+                            .task_parent_tgid(task)
+                            .map_or_else(|_| "N/A".into(), |p| p.to_string());
+                        let row = |args: String, status: &str| {
+                            vec![
+                                process.pid.clone(),
+                                ppid.clone(),
+                                process.name.clone(),
+                                args,
+                                status.into(),
+                            ]
+                        };
+                        let mm = match self.number(task, "task_struct", "mm") {
+                            Ok(mm) => mm,
+                            Err(e) => {
+                                result.rows.push(row("N/A".into(), "Unreadable"));
+                                return Err(e);
                             }
-                            return Ok(());
-                        }
-                        let bytes = self.user_region(
-                            mm,
-                            if plugin == Plugin::Psaux {
-                                "arg"
-                            } else {
-                                "env"
-                            },
-                            job,
-                        )?;
-                        if plugin == Plugin::Psaux {
+                        };
+                        if mm == 0 {
                             result
                                 .rows
-                                .push([prefix, vec![command_line(&bytes), "OK".into()]].concat());
-                        } else {
-                            for entry in nul_strings(&bytes) {
-                                let (key, value) = entry.split_once('=').unwrap_or((&entry, ""));
-                                result.rows.push(
-                                    [prefix.clone(), vec![key.into(), value.into()]].concat(),
-                                );
+                                .push(row(format!("[{}]", process.name), "KernelThread"));
+                            return Ok(());
+                        }
+                        match self.user_region(mm, "arg", job) {
+                            Ok(bytes) if bytes.is_empty() => {
+                                result.rows.push(row("N/A".into(), "Empty"))
                             }
+                            Ok(bytes) => result.rows.push(row(command_line(&bytes), "OK")),
+                            Err(e) => {
+                                job.check()?;
+                                result.rows.push(row("N/A".into(), "Unreadable"));
+                                return Err(e);
+                            }
+                        }
+                    }
+                    Plugin::Envars => {
+                        let mm = self.number(task, "task_struct", "mm")?;
+                        if mm == 0 {
+                            return Ok(());
+                        }
+                        let bytes = self.user_region(mm, "env", job)?;
+                        for entry in nul_strings(&bytes) {
+                            let (key, value) = entry.split_once('=').unwrap_or((&entry, ""));
+                            result
+                                .rows
+                                .push([prefix.clone(), vec![key.into(), value.into()]].concat());
                         }
                     }
                     Plugin::Maps => self.maps(task, prefix, &mut result, job)?,

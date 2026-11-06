@@ -324,7 +324,7 @@ catalog! {
         ["Offset", "Module Name", "Code Size", "Taints", "Load Arguments", "File Output"], [18, 18, 10, 16, 0, 16];
     Psaux, "psaux", "psaux", Process,
         "读取进程命令行",
-        ["PID", "Name", "CommandLine", "Status"], [5, 12, 0, 12];
+        ["PID", "PPID", "Name", "CommandLine", "Status"], [5, 5, 12, 0, 12];
     Envars, "envars", "envars", Process,
         "读取进程环境变量",
         ["PID", "Name", "Key", "Value"], [5, 12, 16, 0];
@@ -370,6 +370,9 @@ catalog! {
     Bash, "bash", "bash", Memory,
         "恢复内存中的 Bash 历史记录",
         ["PID", "Name", "Timestamp", "Command", "Address"], [6, 14, 12, 0, 18];
+    Zsh, "zsh", "zsh", Memory,
+        "恢复内存中的 Zsh 历史记录（命令、开始与结束时间）",
+        ["PID", "Name", "HistNum", "Started", "Finished", "Command", "Address"], [6, 14, 7, 12, 12, 0, 18];
     Malfind, "malfind", "malfind", Integrity,
         "检查可疑的可执行内存映射",
         ["PID", "Name", "Start", "End", "Permissions", "Path", "Reason", "Preview"], [6, 14, 18, 18, 6, 0, 24, 32];
