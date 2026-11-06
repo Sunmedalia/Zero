@@ -645,9 +645,19 @@ fn preparation_startup_unique_missing_and_object_change() {
     assert_eq!(app.plugin, Plugin::Pslist);
     assert!(app.job.is_none());
     // Changing the source invalidates preparation before any plugin can execute.
-    let mut bytes = std::fs::read(app.image.as_ref().unwrap()).unwrap();
+    // A same-size rewrite inside one filesystem timestamp tick would keep the
+    // metadata stamp, so the modification time is moved on explicitly.
+    let image = app.image.clone().unwrap();
+    let before = std::fs::metadata(&image).unwrap().modified().unwrap();
+    let mut bytes = std::fs::read(&image).unwrap();
     bytes[256] = b'X';
-    std::fs::write(app.image.as_ref().unwrap(), bytes).unwrap();
+    std::fs::write(&image, bytes).unwrap();
+    std::fs::File::options()
+        .write(true)
+        .open(&image)
+        .unwrap()
+        .set_modified(before + std::time::Duration::from_secs(1))
+        .unwrap();
     app.request_analysis(false);
     assert_eq!(app.page, Page::Assets);
     finish_test_job(&mut app);
