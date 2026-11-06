@@ -15,12 +15,7 @@ impl Memory<'_> {
             ensure!(pointer != 0, "UNICODE_STRING32 空指针");
             self.read(pointer, &mut bytes)?;
         }
-        Ok(String::from_utf16_lossy(
-            &bytes
-                .chunks_exact(2)
-                .map(|b| crate::bytes::le_u16(b, 0).unwrap_or(0))
-                .collect::<Vec<_>>(),
-        ))
+        Ok(crate::bytes::utf16_lossy(&bytes))
     }
 }
 impl Windows<'_> {

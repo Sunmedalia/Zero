@@ -233,10 +233,7 @@ impl View<'_, '_> {
     }
     fn string(&self, ty: &str, field: &str) -> Result<String> {
         let bytes = self.bytes(ty, field, self.linux.isf.size(ty, field)?)?;
-        Ok(
-            String::from_utf8_lossy(bytes.split(|b| *b == 0).next().unwrap_or_default())
-                .into_owned(),
-        )
+        Ok(crate::bytes::c_str_lossy(&bytes))
     }
     fn virtual_at(&self, base: u64) -> Self {
         Self {

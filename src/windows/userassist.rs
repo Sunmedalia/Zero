@@ -5,9 +5,9 @@ use crate::bytes::{le_u32, le_u64};
 
 const PATH: &str = "Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\UserAssist";
 const NA: &str = "N/A";
-mod folders {
-    include!("userassist_folders.rs");
-}
+#[rustfmt::skip]
+#[path = "userassist_folders.rs"]
+mod folders;
 fn timestamp(ticks: u64) -> String {
     // The pinned renderer intentionally truncates FILETIME to whole seconds.
     let seconds = ticks / 10_000_000;

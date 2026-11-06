@@ -215,8 +215,7 @@ impl Windows<'_> {
         for index in 0..count {
             let at = sections + index * 40;
             let record = header.get(at..at + 40).context("PE 节表超出已读头部")?;
-            let name_end = record.at(..8)?.iter().position(|b| *b == 0).unwrap_or(8);
-            let name = String::from_utf8_lossy(record.at(..name_end)?);
+            let name = String::from_utf8_lossy(crate::bytes::c_str(record.at(..8)?));
             if !name.eq_ignore_ascii_case(wanted) {
                 continue;
             }
@@ -434,11 +433,6 @@ impl Windows<'_> {
         }
         let mut bytes = vec![0; length];
         self.vm.read(buffer, &mut bytes).ok()?;
-        Some(String::from_utf16_lossy(
-            &bytes
-                .chunks_exact(2)
-                .map(|c| crate::bytes::le_u16(c, 0).unwrap_or(0))
-                .collect::<Vec<_>>(),
-        ))
+        Some(crate::bytes::utf16_lossy(&bytes))
     }
 }

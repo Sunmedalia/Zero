@@ -461,34 +461,8 @@ fn main() -> Result<()> {
             },
             dump.as_ref(),
             &zero_tui::analysis::Options {
-                pe: zero_tui::analysis::PEQuery {
-                    source: cli.source,
-                    module: cli.module.clone(),
-                    names: cli.symbol_names.clone(),
-                    addresses: cli.addresses.clone(),
-                },
-                os: cli.os,
-                arch: cli.arch,
-                pagefiles: cli.pagefiles.clone(),
-                swapfile: cli.swapfile.clone(),
                 pid: if dump.is_some() { None } else { pid },
-                hive: cli.hive,
-                key: cli.key.clone(),
-                pattern: cli.pattern.clone(),
-                strings_file: cli.strings_file.clone(),
-                min_length: cli.min_length,
-                pids: cli.pids.clone(),
-                maxsize: cli.maxsize,
-                unresolved: cli.unresolved,
-                include_threads: cli.include_threads,
-                decorate_comm: cli.decorate_comm,
-                plain_taints: cli.plain_taints,
-                kallsyms: zero_tui::analysis::KallsymsOptions {
-                    core: cli.core,
-                    modules: cli.modules,
-                    ftrace: cli.ftrace,
-                    bpf: cli.bpf,
-                },
+                ..cli.analysis_options()
             },
             &job,
         )? {
@@ -535,6 +509,43 @@ fn main() -> Result<()> {
     }
 }
 
+impl Cli {
+    /// Plugin options shared by `analyze` and the interactive session. The
+    /// target PID belongs to the subcommand, and path resolution to the caller.
+    fn analysis_options(&self) -> zero_tui::analysis::Options {
+        zero_tui::analysis::Options {
+            pe: zero_tui::analysis::PEQuery {
+                source: self.source,
+                module: self.module.clone(),
+                names: self.symbol_names.clone(),
+                addresses: self.addresses.clone(),
+            },
+            os: self.os,
+            arch: self.arch,
+            pid: None,
+            pagefiles: self.pagefiles.clone(),
+            swapfile: self.swapfile.clone(),
+            hive: self.hive,
+            key: self.key.clone(),
+            pattern: self.pattern.clone(),
+            strings_file: self.strings_file.clone(),
+            min_length: self.min_length,
+            pids: self.pids.clone(),
+            maxsize: self.maxsize,
+            unresolved: self.unresolved,
+            include_threads: self.include_threads,
+            decorate_comm: self.decorate_comm,
+            plain_taints: self.plain_taints,
+            kallsyms: zero_tui::analysis::KallsymsOptions {
+                core: self.core,
+                modules: self.modules,
+                ftrace: self.ftrace,
+                bpf: self.bpf,
+            },
+        }
+    }
+}
+
 fn launch_tui(cli: Cli) -> Result<()> {
     let root = std::env::var_os("ZERO_ROOT")
         .map(PathBuf::from)
@@ -545,6 +556,18 @@ fn launch_tui(cli: Cli) -> Result<()> {
     if cli.offline {
         settings.remote_symbols = false;
     }
+    let options = {
+        // Interactive sessions resolve relative inputs against the project
+        // root, which `ZERO_ROOT` may move away from the working directory.
+        let resolve = |p: PathBuf| if p.is_absolute() { p } else { root.join(p) };
+        let mut options = cli.analysis_options();
+        for attachment in &mut options.pagefiles {
+            attachment.path = resolve(std::mem::take(&mut attachment.path));
+        }
+        options.swapfile = options.swapfile.map(resolve);
+        options.strings_file = options.strings_file.map(resolve);
+        options
+    };
     zero_tui::tui::run_with_options(
         cli.image
             .map(|p| if p.is_absolute() { p } else { root.join(p) }),
@@ -556,49 +579,7 @@ fn launch_tui(cli: Cli) -> Result<()> {
         },
         cache,
         settings,
-        zero_tui::analysis::Options {
-            pe: zero_tui::analysis::PEQuery {
-                source: cli.source,
-                module: cli.module,
-                names: cli.symbol_names,
-                addresses: cli.addresses,
-            },
-            os: cli.os,
-            arch: cli.arch,
-            pid: None,
-            pagefiles: cli
-                .pagefiles
-                .into_iter()
-                .map(|mut p| {
-                    if p.path.is_relative() {
-                        p.path = root.join(p.path);
-                    }
-                    p
-                })
-                .collect(),
-            swapfile: cli
-                .swapfile
-                .map(|p| if p.is_absolute() { p } else { root.join(p) }),
-            hive: cli.hive,
-            key: cli.key,
-            pattern: cli.pattern,
-            strings_file: cli
-                .strings_file
-                .map(|p| if p.is_absolute() { p } else { root.join(p) }),
-            min_length: cli.min_length,
-            pids: cli.pids,
-            maxsize: cli.maxsize,
-            unresolved: cli.unresolved,
-            include_threads: cli.include_threads,
-            decorate_comm: cli.decorate_comm,
-            plain_taints: cli.plain_taints,
-            kallsyms: zero_tui::analysis::KallsymsOptions {
-                core: cli.core,
-                modules: cli.modules,
-                ftrace: cli.ftrace,
-                bpf: cli.bpf,
-            },
-        },
+        options,
     )
 }
 

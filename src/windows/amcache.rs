@@ -43,15 +43,8 @@ fn text(values: &Values, key: &str) -> Option<String> {
         return None;
     }
     let bytes = if *ty == 0 { &[][..] } else { bytes.as_slice() };
-    let mut units: Vec<_> = bytes
-        .chunks_exact(2)
-        .map(|b| crate::bytes::le_u16(b, 0).unwrap_or(0))
-        .collect();
-    if bytes.len() % 2 != 0 {
-        units.push(0xfffd);
-    }
     Some(
-        String::from_utf16_lossy(&units)
+        crate::bytes::utf16_lossy_marked(bytes)
             .trim_end_matches('\0')
             .to_owned(),
     )

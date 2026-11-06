@@ -350,11 +350,6 @@ impl<'a> Memory<'a> {
                 &mut bytes,
             )?;
         }
-        Ok(String::from_utf16_lossy(
-            &bytes
-                .chunks_exact(2)
-                .map(|c| crate::bytes::le_u16(c, 0).unwrap_or(0))
-                .collect::<Vec<_>>(),
-        ))
+        Ok(crate::bytes::utf16_lossy(&bytes))
     }
 }

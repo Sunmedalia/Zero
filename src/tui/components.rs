@@ -1,7 +1,23 @@
-fn plugin_label(plugin: Plugin) -> &'static str {
+use super::*;
+pub(super) fn plugin_label(plugin: Plugin) -> &'static str {
     if plugin.is_dump() {
         "dump"
-    } else if matches!(plugin, Plugin::LinuxPsaux | Plugin::LinuxEnvars | Plugin::LinuxCapabilities | Plugin::ProcessSpoofing | Plugin::Modxview | Plugin::Kallsyms | Plugin::LinuxPsscan | Plugin::LinuxSockscan | Plugin::VmaRegExScan | Plugin::WinVadWalk | Plugin::WinVadRegExScan | Plugin::PsCallStack | Plugin::Fbdev) {
+    } else if matches!(
+        plugin,
+        Plugin::LinuxPsaux
+            | Plugin::LinuxEnvars
+            | Plugin::LinuxCapabilities
+            | Plugin::ProcessSpoofing
+            | Plugin::Modxview
+            | Plugin::Kallsyms
+            | Plugin::LinuxPsscan
+            | Plugin::LinuxSockscan
+            | Plugin::VmaRegExScan
+            | Plugin::WinVadWalk
+            | Plugin::WinVadRegExScan
+            | Plugin::PsCallStack
+            | Plugin::Fbdev
+    ) {
         plugin.descriptor().label
     } else {
         plugin
@@ -12,7 +28,7 @@ fn plugin_label(plugin: Plugin) -> &'static str {
     }
 }
 /// Case-insensitive, order-free token match: every space-separated term must appear.
-fn query_matches(haystack: &str, query: &str) -> bool {
+pub(super) fn query_matches(haystack: &str, query: &str) -> bool {
     let haystack = haystack.to_lowercase();
     query
         .to_lowercase()
@@ -20,7 +36,7 @@ fn query_matches(haystack: &str, query: &str) -> bool {
         .all(|term| haystack.contains(term))
 }
 /// Plugins are found by name, short label, Chinese description or category.
-fn plugin_search_hit(plugin: Plugin, query: &str) -> bool {
+pub(super) fn plugin_search_hit(plugin: Plugin, query: &str) -> bool {
     let text = format!(
         "{} {} {} {}",
         plugin.name(),
@@ -30,7 +46,7 @@ fn plugin_search_hit(plugin: Plugin, query: &str) -> bool {
     );
     query_matches(&text, query)
 }
-fn plugin_matches(query: &str) -> Vec<Plugin> {
+pub(super) fn plugin_matches(query: &str) -> Vec<Plugin> {
     let query = query.to_lowercase();
     let mut plugins: Vec<_> = PLUGINS
         .iter()
@@ -44,7 +60,12 @@ fn plugin_matches(query: &str) -> Vec<Plugin> {
     }
     plugins
 }
-fn edit_input(text: &mut String, cursor: &mut usize, selected: &mut bool, key: KeyEvent) {
+pub(super) fn edit_input(
+    text: &mut String,
+    cursor: &mut usize,
+    selected: &mut bool,
+    key: KeyEvent,
+) {
     *cursor = (*cursor).min(text.len());
     while !text.is_char_boundary(*cursor) {
         *cursor = cursor.saturating_sub(1);
@@ -117,7 +138,7 @@ fn edit_input(text: &mut String, cursor: &mut usize, selected: &mut bool, key: K
 /// Plugin order in the navigation menu. This is a fixed property of the plugin
 /// registry, so it is computed once instead of rescanning every descriptor on
 /// each keystroke and frame.
-fn navigation_plugins() -> &'static [Plugin] {
+pub(super) fn navigation_plugins() -> &'static [Plugin] {
     static ORDER: std::sync::OnceLock<Vec<Plugin>> = std::sync::OnceLock::new();
     ORDER.get_or_init(|| {
         const CATEGORIES: [&str; 6] = [
@@ -145,7 +166,7 @@ fn navigation_plugins() -> &'static [Plugin] {
 }
 /// Windows plugins follow the same category order as Linux so the menu layout
 /// is stable when the detected system changes.
-fn windows_navigation_plugins() -> &'static [Plugin] {
+pub(super) fn windows_navigation_plugins() -> &'static [Plugin] {
     static ORDER: std::sync::OnceLock<Vec<Plugin>> = std::sync::OnceLock::new();
     ORDER.get_or_init(|| {
         const CATEGORIES: [&str; 6] = [
@@ -171,7 +192,7 @@ fn windows_navigation_plugins() -> &'static [Plugin] {
             .collect()
     })
 }
-fn windows_menu_items() -> &'static [&'static str] {
+pub(super) fn windows_menu_items() -> &'static [&'static str] {
     static LABELS: std::sync::OnceLock<Vec<&'static str>> = std::sync::OnceLock::new();
     LABELS.get_or_init(|| {
         windows_navigation_plugins()
@@ -181,7 +202,7 @@ fn windows_menu_items() -> &'static [&'static str] {
             .collect()
     })
 }
-fn menu_items() -> &'static [&'static str] {
+pub(super) fn menu_items() -> &'static [&'static str] {
     static LABELS: std::sync::OnceLock<Vec<&'static str>> = std::sync::OnceLock::new();
     LABELS.get_or_init(|| {
         navigation_plugins()
@@ -195,11 +216,11 @@ fn menu_items() -> &'static [&'static str] {
 /// Render control characters as visible escapes so table cells cannot corrupt
 /// the terminal. Runs on every visible cell of every frame, so it walks the
 /// string once and only allocates when an escape is actually needed.
-fn escaped(value: &str) -> String {
+pub(super) fn escaped(value: &str) -> String {
     escaped_cow(value).into_owned()
 }
 /// `escaped` without allocating for the common case of no control characters.
-fn escaped_cow(value: &str) -> std::borrow::Cow<'_, str> {
+pub(super) fn escaped_cow(value: &str) -> std::borrow::Cow<'_, str> {
     if !value.chars().any(char::is_control) {
         return std::borrow::Cow::Borrowed(value);
     }
@@ -219,7 +240,7 @@ fn escaped_cow(value: &str) -> std::borrow::Cow<'_, str> {
 /// Narrow terminals used to truncate mid-field, which reads as corruption: the
 /// image path would end in the middle of a filename. Stopping at a field
 /// boundary keeps every visible value truthful.
-fn fit<'a>(fields: &[(&'a str, String, Style)], width: u16) -> Vec<Span<'a>> {
+pub(super) fn fit<'a>(fields: &[(&'a str, String, Style)], width: u16) -> Vec<Span<'a>> {
     // Two rules, because the fields are not equally important:
     //
     // - A long *value* is shortened to leave room for the fields after it. A
@@ -256,8 +277,8 @@ fn fit<'a>(fields: &[(&'a str, String, Style)], width: u16) -> Vec<Span<'a>> {
         // Too long. Share the row with the fields that follow when they are
         // worth keeping, otherwise take what is left.
         let rest: usize = fields
-.get(index + 1..)
-.unwrap_or(&[])
+            .get(index + 1..)
+            .unwrap_or(&[])
             .iter()
             .map(|(l, t, _)| 3 + Span::raw(*l).width() + Span::raw(t).width())
             .sum();
@@ -284,7 +305,7 @@ fn fit<'a>(fields: &[(&'a str, String, Style)], width: u16) -> Vec<Span<'a>> {
 /// These paths end in a long content hash that is the same for every candidate
 /// of one kernel, so the tail is the least informative part. The directory and
 /// the file name are kept and the hash is elided in the middle.
-fn compact_remote_path(path: &str, width: u16) -> String {
+pub(super) fn compact_remote_path(path: &str, width: u16) -> String {
     let budget = (width as usize).saturating_sub(12).max(16);
     if Span::raw(path).width() <= budget {
         return path.to_string();
@@ -323,7 +344,7 @@ fn compact_remote_path(path: &str, width: u16) -> String {
     }
     truncate_with_ellipsis(path, budget)
 }
-fn truncate_with_ellipsis(text: &str, budget: usize) -> String {
+pub(super) fn truncate_with_ellipsis(text: &str, budget: usize) -> String {
     if Span::raw(text).width() <= budget {
         return text.into();
     }
@@ -347,7 +368,7 @@ fn truncate_with_ellipsis(text: &str, budget: usize) -> String {
 /// A full Linux banner is ~150 characters of build metadata; the version and
 /// the distribution build are what identify it, and the whole string is
 /// available in the detail panel and the identification result.
-fn summarise_banner(banner: &str) -> String {
+pub(super) fn summarise_banner(banner: &str) -> String {
     let banner = banner.trim_end_matches(['\n', '\0', ' ']);
     let mut out = String::new();
     for (i, word) in banner.split_whitespace().enumerate() {
@@ -362,7 +383,7 @@ fn summarise_banner(banner: &str) -> String {
     }
     out
 }
-fn banner_candidates(result: &Results) -> Vec<&Vec<String>> {
+pub(super) fn banner_candidates(result: &Results) -> Vec<&Vec<String>> {
     let clean = result
         .rows
         .iter()
@@ -384,12 +405,12 @@ fn banner_candidates(result: &Results) -> Vec<&Vec<String>> {
     }
 }
 #[cfg(test)]
-fn compare_values(a: &str, b: &str) -> std::cmp::Ordering {
+pub(super) fn compare_values(a: &str, b: &str) -> std::cmp::Ordering {
     crate::result_view::compare(a, b)
 }
 /// Column widths from the header and a bounded sample of the visible rows.
 /// Borrows the cells so sizing does not clone the table.
-fn table_widths<'a>(
+pub(super) fn table_widths<'a>(
     columns: &[String],
     rows: impl Iterator<Item = (&'a [String], Option<(usize, String)>)> + Clone,
 ) -> Vec<u16> {
@@ -418,7 +439,7 @@ fn table_widths<'a>(
 /// The index cache is keyed on this instead of a cloned `HashSet`, because the
 /// key is rebuilt several times per frame. A collision would only cost one
 /// extra index rebuild, never a wrong row.
-fn collapsed_fingerprint(collapsed: &HashSet<String>) -> u64 {
+pub(super) fn collapsed_fingerprint(collapsed: &HashSet<String>) -> u64 {
     use std::hash::{Hash, Hasher};
     let mut xor = 0u64;
     let mut sum = 0u64;
@@ -431,14 +452,14 @@ fn collapsed_fingerprint(collapsed: &HashSet<String>) -> u64 {
     }
     xor ^ sum.rotate_left(17) ^ (collapsed.len() as u64).rotate_left(31)
 }
-fn same_path(a: &std::path::Path, b: &std::path::Path) -> bool {
+pub(super) fn same_path(a: &std::path::Path, b: &std::path::Path) -> bool {
     a == b
         || a.canonicalize()
             .ok()
             .zip(b.canonicalize().ok())
             .is_some_and(|(a, b)| a == b)
 }
-fn detail_lines(text: &str, width: u16) -> Vec<String> {
+pub(super) fn detail_lines(text: &str, width: u16) -> Vec<String> {
     let width = width.max(1) as usize;
     let mut lines = Vec::new();
     for paragraph in text.split('\n') {
@@ -457,7 +478,7 @@ fn detail_lines(text: &str, width: u16) -> Vec<String> {
     }
     lines
 }
-fn centered(area: Rect, width: u16, height: u16) -> Rect {
+pub(super) fn centered(area: Rect, width: u16, height: u16) -> Rect {
     let width = width.min(area.width);
     let height = height.min(area.height);
     Rect::new(
@@ -468,11 +489,11 @@ fn centered(area: Rect, width: u16, height: u16) -> Rect {
     )
 }
 #[cfg(test)]
-fn tree_rows(rows: Vec<Vec<String>>, collapsed: &HashSet<String>) -> Vec<Vec<String>> {
+pub(super) fn tree_rows(rows: Vec<Vec<String>>, collapsed: &HashSet<String>) -> Vec<Vec<String>> {
     tree_rows_with_columns(rows, collapsed, 2, 3)
 }
 #[cfg(test)]
-fn tree_rows_with_columns(
+pub(super) fn tree_rows_with_columns(
     rows: Vec<Vec<String>>,
     collapsed: &HashSet<String>,
     parent: usize,
@@ -530,11 +551,11 @@ fn tree_rows_with_columns(
     output
 }
 
-fn plugin_description(plugin: Plugin) -> &'static str {
+pub(super) fn plugin_description(plugin: Plugin) -> &'static str {
     plugin.description()
 }
 
-fn dump_modes(windows: bool) -> &'static [Plugin] {
+pub(super) fn dump_modes(windows: bool) -> &'static [Plugin] {
     if windows {
         &[
             Plugin::WinProcdump,
@@ -546,11 +567,17 @@ fn dump_modes(windows: bool) -> &'static [Plugin] {
             Plugin::WinDumpfiles,
         ]
     } else {
-        &[Plugin::Procdump, Plugin::Memdump, Plugin::Elfdump, Plugin::ModuleExtract, Plugin::Fbdev]
+        &[
+            Plugin::Procdump,
+            Plugin::Memdump,
+            Plugin::Elfdump,
+            Plugin::ModuleExtract,
+            Plugin::Fbdev,
+        ]
     }
 }
 
-fn identity_label(identity: &crate::image::BoundIdentity) -> String {
+pub(super) fn identity_label(identity: &crate::image::BoundIdentity) -> String {
     let kernel = identity.kernels.first().map(String::as_str).unwrap_or("");
     let name = if identity.system == "linux" {
         kernel.split_whitespace().nth(2).unwrap_or(kernel)
@@ -577,7 +604,7 @@ fn identity_label(identity: &crate::image::BoundIdentity) -> String {
     )
 }
 
-fn remote_fields(candidate: &RemoteMatch) -> Vec<(String, String)> {
+pub(super) fn remote_fields(candidate: &RemoteMatch) -> Vec<(String, String)> {
     if !candidate.banner.starts_with("Linux version ") {
         return vec![];
     }

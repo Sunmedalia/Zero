@@ -11,12 +11,7 @@ fn descriptor_text(vm: &Memory<'_>, address: u64) -> Result<(String, u64)> {
     if length != 0 {
         vm.read(vm.number(address, "_UNICODE_STRING", "Buffer")?, &mut bytes)?;
     }
-    let mut text = String::from_utf16_lossy(
-        &bytes
-            .chunks_exact(2)
-            .map(|c| crate::bytes::le_u16(c, 0).unwrap_or(0))
-            .collect::<Vec<_>>(),
-    );
+    let mut text = crate::bytes::utf16_lossy(&bytes);
     if length % 2 != 0 {
         text.push('\u{fffd}');
     }

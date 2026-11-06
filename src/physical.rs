@@ -229,8 +229,7 @@ impl Object<'_> {
                 .context("物理字符串地址溢出")?,
             &mut bytes,
         )?;
-        let end = bytes.iter().position(|b| *b == 0).unwrap_or(bytes.len());
-        Ok(String::from_utf8_lossy(bytes.at(..end)?).into_owned())
+        Ok(crate::bytes::c_str_lossy(&bytes))
     }
 }
 

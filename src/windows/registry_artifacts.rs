@@ -25,14 +25,9 @@ fn unhex(text: &str) -> Option<Vec<u8>> {
         .collect()
 }
 fn utf16(bytes: &[u8]) -> String {
-    String::from_utf16_lossy(
-        &bytes
-            .chunks_exact(2)
-            .map(|c| crate::bytes::le_u16(c, 0).unwrap_or(0))
-            .collect::<Vec<_>>(),
-    )
-    .trim_end_matches('\0')
-    .to_string()
+    crate::bytes::utf16_lossy(bytes)
+        .trim_end_matches('\0')
+        .to_string()
 }
 
 /// Exec actions of a TaskCache `Actions` value: (command, arguments,

@@ -1,4 +1,5 @@
-use crate::bytes::Cells;
+use super::*;
+pub(super) use crate::bytes::Cells;
 // One action table drives keyboard dispatch, availability, the command palette,
 // the resource toolbar, the analysis footer and the help text.
 //
@@ -78,33 +79,33 @@ pub(super) enum Scope {
 }
 
 /// Where an action is offered. Zero means "reachable by key only".
-const PALETTE: u8 = 1;
-const TOOLBAR: u8 = 2;
-const FOOTER: u8 = 4;
+pub(super) const PALETTE: u8 = 1;
+pub(super) const TOOLBAR: u8 = 2;
+pub(super) const FOOTER: u8 = 4;
 
-const CONTEXT_FOCUS: u8 = 1;
-const NAV_FOCUS: u8 = 2;
-const CONTENT_FOCUS: u8 = 4;
-const DETAIL_FOCUS: u8 = 8;
-const ANY_FOCUS: u8 = 0xF;
+pub(super) const CONTEXT_FOCUS: u8 = 1;
+pub(super) const NAV_FOCUS: u8 = 2;
+pub(super) const CONTENT_FOCUS: u8 = 4;
+pub(super) const DETAIL_FOCUS: u8 = 8;
+pub(super) const ANY_FOCUS: u8 = 0xF;
 
-const IMAGES: u8 = 1;
-const SYMBOLS: u8 = 2;
-const REMOTE: u8 = 4;
-const ALL_SECTIONS: u8 = 7;
+pub(super) const IMAGES: u8 = 1;
+pub(super) const SYMBOLS: u8 = 2;
+pub(super) const REMOTE: u8 = 4;
+pub(super) const ALL_SECTIONS: u8 = 7;
 
 pub(super) struct Action {
     pub(super) command: Command,
     pub(super) label: &'static str,
     pub(super) key: KeyCode,
     pub(super) scope: Scope,
-    placement: u8,
-    sections: u8,
-    palette_focus: u8,
-    footer_focus: u8,
+    pub(super) placement: u8,
+    pub(super) sections: u8,
+    pub(super) palette_focus: u8,
+    pub(super) footer_focus: u8,
 }
 
-const fn action(
+pub(super) const fn action(
     command: Command,
     label: &'static str,
     key: KeyCode,
@@ -125,7 +126,7 @@ const fn action(
 
 /// English aliases so the palette matches the words users already know
 /// (`cache`, `dump`, `pid`) in addition to the Chinese label.
-fn keywords(command: Command) -> &'static str {
+pub(super) fn keywords(command: Command) -> &'static str {
     match command {
         Command::Quit => "quit exit",
         Command::Help => "help f1",
@@ -140,7 +141,9 @@ fn keywords(command: Command) -> &'static str {
         Command::TaskLog => "log task",
         Command::History => "history export",
         Command::Diagnostics => "diagnostics partial",
-        Command::KernelDiagnostics => "kernel diagnose diagnostic dtb page table banner symbols report",
+        Command::KernelDiagnostics => {
+            "kernel diagnose diagnostic dtb page table banner symbols report"
+        }
         Command::PageAssets => "assets library resource",
         Command::PageAnalysis => "analysis console",
         Command::SystemSelect => "os system linux windows auto",
@@ -268,9 +271,16 @@ pub(super) const ACTIONS: &[Action] = &[
         Scope::Anywhere,
         PALETTE,
     ),
-    Action { footer_focus: ANY_FOCUS, ..action(
-        Command::KernelDiagnostics, "内核诊断 J", KeyCode::Char('J'), Scope::Anywhere, PALETTE | TOOLBAR | FOOTER,
-    ) },
+    Action {
+        footer_focus: ANY_FOCUS,
+        ..action(
+            Command::KernelDiagnostics,
+            "内核诊断 J",
+            KeyCode::Char('J'),
+            Scope::Anywhere,
+            PALETTE | TOOLBAR | FOOTER,
+        )
+    },
     action(
         Command::Diagnostics,
         "查看诊断 v",
@@ -621,7 +631,7 @@ pub(super) const ACTIONS: &[Action] = &[
 
 /// Toolbar order is presentation, not identity: the primary action leads, then
 /// the section's own actions, then the cross-section ones.
-const TOOLBAR_ORDER: &[Command] = &[
+pub(super) const TOOLBAR_ORDER: &[Command] = &[
     Command::EnterAnalysis,
     Command::ImportCurrent,
     Command::Select,
@@ -638,16 +648,16 @@ const TOOLBAR_ORDER: &[Command] = &[
 ];
 
 #[allow(clippy::expect_used)] // Table completeness is a compile-time-fixed list checked by tests.
-fn action_of(command: Command) -> &'static Action {
+pub(super) fn action_of(command: Command) -> &'static Action {
     ACTIONS
         .iter()
         .find(|action| action.command == command)
         .expect("every command has a table entry")
 }
-fn focus_bit(focus: Focus) -> u8 {
+pub(super) fn focus_bit(focus: Focus) -> u8 {
     1 << focus as u8
 }
-fn section_bit(section: AssetSection) -> u8 {
+pub(super) fn section_bit(section: AssetSection) -> u8 {
     match section {
         AssetSection::Images => IMAGES,
         AssetSection::Symbols => SYMBOLS,
@@ -656,12 +666,12 @@ fn section_bit(section: AssetSection) -> u8 {
 }
 /// Whether `command` applies to `section` at all. Section-specific actions
 /// (`g`, `w`, `z`, `Delete`) are filtered here instead of by a key guard.
-fn command_applies(command: Command, section: AssetSection) -> bool {
+pub(super) fn command_applies(command: Command, section: AssetSection) -> bool {
     action_of(command).sections & section_bit(section) != 0
 }
 /// Actions offered on the resource toolbar for `section`. A running task adds
 /// the cancellation entry last so it is always the reachable way out.
-fn toolbar_commands(section: AssetSection, busy: bool) -> Vec<Command> {
+pub(super) fn toolbar_commands(section: AssetSection, busy: bool) -> Vec<Command> {
     let mut commands = TOOLBAR_ORDER
         .iter()
         .copied()
@@ -677,7 +687,7 @@ fn toolbar_commands(section: AssetSection, busy: bool) -> Vec<Command> {
     }
     commands
 }
-fn toolbar_actions(section: AssetSection, busy: bool) -> Vec<(&'static str, KeyCode)> {
+pub(super) fn toolbar_actions(section: AssetSection, busy: bool) -> Vec<(&'static str, KeyCode)> {
     toolbar_commands(section, busy)
         .into_iter()
         .map(|command| {
@@ -687,7 +697,7 @@ fn toolbar_actions(section: AssetSection, busy: bool) -> Vec<(&'static str, KeyC
         .collect()
 }
 /// Every action reachable on the resource page, for the help text.
-fn asset_actions(section: AssetSection) -> Vec<(&'static str, KeyCode)> {
+pub(super) fn asset_actions(section: AssetSection) -> Vec<(&'static str, KeyCode)> {
     ACTIONS
         .iter()
         .filter(|action| {
@@ -699,7 +709,7 @@ fn asset_actions(section: AssetSection) -> Vec<(&'static str, KeyCode)> {
 }
 /// Footer order is presentation: the actions used most often lead, so a narrow
 /// terminal truncates the rare ones instead of the frequent ones.
-const FOOTER_ORDER: &[Command] = &[
+pub(super) const FOOTER_ORDER: &[Command] = &[
     Command::KernelDiagnostics,
     Command::Run,
     Command::SearchContent,
@@ -718,31 +728,53 @@ const FOOTER_ORDER: &[Command] = &[
     Command::MatchLocal,
     Command::SystemSelect,
 ];
-fn footer_actions(focus: Focus) -> Vec<(&'static str, KeyCode)> {
+pub(super) fn footer_actions(focus: Focus) -> Vec<(&'static str, KeyCode)> {
     FOOTER_ORDER
         .iter()
         .filter_map(|command| {
             let action = action_of(*command);
             (action.placement & FOOTER != 0 && action.footer_focus & focus_bit(focus) != 0)
-                .then_some((if *command == Command::SearchContent { if focus == Focus::Navigation { "搜索插件 /" } else { "搜索内容 /" } } else { action.label }, action.key))
+                .then_some((
+                    if *command == Command::SearchContent {
+                        if focus == Focus::Navigation {
+                            "搜索插件 /"
+                        } else {
+                            "搜索内容 /"
+                        }
+                    } else {
+                        action.label
+                    },
+                    action.key,
+                ))
         })
         .collect()
 }
 /// Number of leading actions that fit, reserving More only on overflow.
-fn fitting_actions(actions: &[(&str, KeyCode)], width: u16) -> usize {
-    let widths = actions.iter().map(|(label, _)| Span::raw(format!(" {label} ")).width().cells()).collect::<Vec<_>>();
-    let total = widths.iter().map(|w| u32::from(*w)).sum::<u32>() + u32::from(widths.len().saturating_sub(1).cells());
-    if total <= u32::from(width) { return actions.len(); }
+pub(super) fn fitting_actions(actions: &[(&str, KeyCode)], width: u16) -> usize {
+    let widths = actions
+        .iter()
+        .map(|(label, _)| Span::raw(format!(" {label} ")).width().cells())
+        .collect::<Vec<_>>();
+    let total = widths.iter().map(|w| u32::from(*w)).sum::<u32>()
+        + u32::from(widths.len().saturating_sub(1).cells());
+    if total <= u32::from(width) {
+        return actions.len();
+    }
     let budget = width.saturating_sub(Span::raw(" 更多 ? ").width().cells());
     let mut used = 0;
-    widths.iter().take_while(|&&w| {
-        if used + w + 1 > budget { return false; }
-        used += w + 1;
-        true
-    }).count()
+    widths
+        .iter()
+        .take_while(|&&w| {
+            if used + w + 1 > budget {
+                return false;
+            }
+            used += w + 1;
+            true
+        })
+        .count()
 }
 /// Palette entries for a page, focus and — on the resource page — section.
-fn command_matches(
+pub(super) fn command_matches(
     query: &str,
     page: Page,
     focus: Focus,
@@ -771,7 +803,7 @@ impl Command {
     /// Resolve a key for the active page. Keys that mean different things on the
     /// two pages (`d`, `r`, `/`, `g`) are disambiguated here instead of in two
     /// independent match blocks that drifted apart.
-    fn from_key(page: Page, key: KeyCode) -> Option<Self> {
+    pub(super) fn from_key(page: Page, key: KeyCode) -> Option<Self> {
         match key {
             KeyCode::F(1) => return Some(Self::Help),
             KeyCode::F(2) => return Some(Self::PageAssets),

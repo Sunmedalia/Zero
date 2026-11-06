@@ -17,15 +17,15 @@ mod footer;
 mod generation;
 mod layout;
 use layout::Space;
+mod actions;
+mod components;
 mod interaction;
 mod mouse;
 mod pages;
 mod results;
+mod state;
 mod tasks;
 mod workflow;
-include!("tui/state.rs");
-include!("tui/actions.rs");
-include!("tui/components.rs");
 use crate::{
     Job, cache,
     dump::{DumpOptions, parse_address},
@@ -34,7 +34,9 @@ use crate::{
     symbols::{self, RemoteMatch},
     workspace::{self, Asset, Kind, Registry},
 };
+use actions::*;
 use anyhow::{Context, Result};
+use components::*;
 use crossterm::{
     cursor::Show,
     event::{
@@ -56,6 +58,7 @@ use ratatui::{
         Table, TableState, Wrap,
     },
 };
+use state::*;
 use std::{
     cell::RefCell,
     collections::{HashMap, HashSet, VecDeque},

@@ -98,13 +98,7 @@ impl Reader<'_> {
             "minidump 字符串长度无效"
         );
         let b = self.bytes(add(rva, 4)?, length)?;
-        Ok(String::from_utf16_lossy(
-            &b.as_chunks::<2>()
-                .0
-                .iter()
-                .map(|b| u16::from_le_bytes(*b))
-                .collect::<Vec<_>>(),
-        ))
+        Ok(crate::bytes::utf16_lossy(&b))
     }
 }
 fn machine(value: u64) -> Result<Architecture> {
