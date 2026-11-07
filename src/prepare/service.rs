@@ -109,9 +109,63 @@ impl Generation<'_> {
             GenerationInput::Local { elf, config, tool } => {
                 generate(&elf, &config, &tool, self.image, self.cache, self.job)?
             }
-            GenerationInput::Image => from_image::generate(self.image, self.cache, self.job)?,
+            GenerationInput::Image => {
+                match from_image::generate(self.image, self.cache, self.job) {
+                    Ok(path) => path,
+                    Err(error) if error.is::<from_image::Unavailable>() => {
+                        self.job.check()?;
+                        self.job.report(format!("{error:#}"));
+                        self.reuse_exact_local().map_err(|e| e.context(error))?
+                    }
+                    Err(error) => return Err(error),
+                }
+            }
         };
         self.save(&path)
+    }
+    /// Reuse is explicit in the log and retains the original ISF and provenance.
+    /// A matching banner alone is insufficient: validate the actual kernel page tables.
+    fn reuse_exact_local(&self) -> Result<PathBuf> {
+        self.job.check()?;
+        self.image.ensure_unchanged()?;
+        let _guard = crate::cache::lock(self.cache, false)?;
+        let mut exact = std::collections::BTreeMap::new();
+        for dir in [self.library.to_path_buf(), self.cache.join("symbols/isf")] {
+            if !dir.exists() {
+                continue;
+            }
+            for isf in crate::symbols::matching(&dir, self.image, self.job)? {
+                self.job.check()?;
+                if isf.data.key("metadata").key("zero").key("source") != "image"
+                    && Path::new(&isf.label).is_file()
+                {
+                    exact.entry(isf.digest.clone()).or_insert(isf);
+                }
+            }
+        }
+        ensure!(
+            !exact.is_empty(),
+            "没有可复用的精确本地 ISF；请导入对应调试符号，或使用 --auto / --elf"
+        );
+        ensure!(
+            exact.len() == 1,
+            "有多个不同的精确本地 ISF，请显式选用：{}",
+            exact
+                .values()
+                .map(|s| s.label.as_str())
+                .collect::<Vec<_>>()
+                .join("；")
+        );
+        let isf = exact.into_values().next().context("精确本地 ISF 为空")?;
+        self.job.report("正在验证精确本地 ISF 的内核页表");
+        crate::linux::discover(self.image, &isf, self.job)
+            .context("本地 ISF 未通过镜像页表验证")?;
+        self.image.ensure_unchanged()?;
+        self.job.check()?;
+        self.job.report(
+            "复用本地精确符号：完整 banner 和页表已验证；保留原始来源，此次未从镜像生成新类型",
+        );
+        Ok(PathBuf::from(isf.label))
     }
     fn save(&self, path: &Path) -> Result<PathBuf> {
         let saved = save_generated_symbol(path, self.library, self.job)?;

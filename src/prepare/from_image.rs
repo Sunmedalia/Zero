@@ -11,6 +11,8 @@
 //! Global variable types exist only where BTF records them (normally the
 //! per-cpu section); other symbols carry an address only and the metadata says
 //! so, so plugins needing such a type fail explicitly instead of guessing.
+mod artifact;
+
 use super::{btf, image_kallsyms, vmcoreinfo};
 use crate::{Job, bytes::JsonKey as _, image::Image, store, symbols::Isf};
 use anyhow::{Context, Result, bail, ensure};
@@ -19,12 +21,29 @@ use serde_json::{Map, Value, json};
 use sha2::{Digest, Sha256};
 use std::{
     collections::BTreeMap,
-    io::Write as _,
     path::{Path, PathBuf},
 };
 
 /// Version of this generator; part of the ISF metadata and cache identity.
-pub const GENERATOR: &str = "zero-image-btf-1";
+pub const GENERATOR: &str = "zero-image-btf-3";
+/// Missing image-only prerequisites may use a separately verified local ISF.
+/// Validation failures and cancellation must never take that fallback.
+#[derive(Debug)]
+pub(super) struct Unavailable(String);
+impl std::fmt::Display for Unavailable {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "不支持从此镜像独立生成完整符号表：{}。可复用精确本地 ISF，或使用 --auto / --elf 获取调试类型；不会猜测缺失类型",
+            self.0
+        )
+    }
+}
+impl std::error::Error for Unavailable {}
+fn unavailable(reason: impl Into<String>) -> anyhow::Error {
+    Unavailable(reason.into()).into()
+}
+
 /// `__START_KERNEL_map`: the x86_64 kernel image mapping base.
 const START_KERNEL_MAP: u64 = 0xffff_ffff_8000_0000;
 const MAX_BTF: u64 = 64 * 1024 * 1024;
@@ -84,13 +103,48 @@ fn locate(image: &Image, job: &Job) -> Result<Located> {
     ensure!(!banners.is_empty(), "镜像中没有 Linux banner");
     job.report("从镜像定位 kallsyms 表");
     let candidates = image_kallsyms::locate(image, job)?;
-    ensure!(
-        !candidates.is_empty(),
-        "镜像中没有可验证的核心 kallsyms 表；需要 CONFIG_KALLSYMS（含 CONFIG_KALLSYMS_ALL）"
-    );
+    if candidates.is_empty() {
+        return Err(unavailable(
+            "没有可验证的相对地址核心 kallsyms 表；旧内核可能使用尚不支持的绝对地址表，缺少 BTF 的内核也无法提供结构类型",
+        ));
+    }
+    let required = [
+        "kallsyms_num_syms",
+        "linux_banner",
+        "init_task",
+        "__start_BTF",
+        "__stop_BTF",
+    ];
+    if candidates
+        .iter()
+        .all(|tables| required.iter().any(|name| unique(tables, name).is_none()))
+    {
+        let details = candidates
+            .iter()
+            .map(|tables| {
+                let missing = required
+                    .iter()
+                    .filter(|name| unique(tables, name).is_none())
+                    .copied()
+                    .collect::<Vec<_>>();
+                format!(
+                    "已解码 {} 个符号的 kallsyms（物理 {:#x}），缺少 {}",
+                    tables.symbols.len(),
+                    tables.token_table,
+                    missing.join("、")
+                )
+            })
+            .collect::<Vec<_>>()
+            .join("；");
+        return Err(unavailable(format!(
+            "{details}；镜像内符号表不足以定位全局对象，需 CONFIG_KALLSYMS_ALL 和 CONFIG_DEBUG_INFO_BTF"
+        )));
+    }
     let mut located = Vec::new();
     let mut rejected = Vec::new();
     for tables in candidates {
+        job.check()?;
+        let token_table = tables.token_table;
         let checked = (|| -> Result<Located> {
             let num_syms = unique(&tables, "kallsyms_num_syms")
                 .filter(|s| s.relocated)
@@ -125,7 +179,7 @@ fn locate(image: &Image, job: &Job) -> Result<Located> {
                     format!("linux_banner 映射到物理 {banner_physical:#x}，该处不是镜像 banner")
                 })?;
             Ok(Located {
-                tables: tables.clone(),
+                tables,
                 delta,
                 banner: bytes,
                 banner_physical,
@@ -133,7 +187,7 @@ fn locate(image: &Image, job: &Job) -> Result<Located> {
         })();
         match checked {
             Ok(found) => located.push(found),
-            Err(e) => rejected.push(format!("词表 {:#x}: {e:#}", tables.token_table)),
+            Err(e) => rejected.push(format!("词表 {:#x}: {e:#}", token_table)),
         }
     }
     match located.len() {
@@ -216,12 +270,18 @@ fn kaslr(
 /// Choose one address per name. A name with several distinct addresses and no
 /// single global is ambiguous: it gets no forward entry, and every one of its
 /// addresses is returned for reverse (address -> name) lookup only.
+type SymbolAddresses = (BTreeMap<String, u64>, Vec<(String, u64)>);
+
 fn symbol_addresses(
     tables: &image_kallsyms::Tables,
     offset: u64,
-) -> (BTreeMap<String, u64>, Vec<(String, u64)>) {
+    job: &Job,
+) -> Result<SymbolAddresses> {
     let mut groups: BTreeMap<&str, Vec<&image_kallsyms::Symbol>> = BTreeMap::new();
-    for symbol in &tables.symbols {
+    for (i, symbol) in tables.symbols.iter().enumerate() {
+        if i % 4096 == 0 {
+            job.check()?;
+        }
         groups.entry(symbol.name.as_str()).or_default().push(symbol);
     }
     let address = |s: &image_kallsyms::Symbol| {
@@ -233,7 +293,10 @@ fn symbol_addresses(
     };
     let mut out = BTreeMap::new();
     let mut ambiguous = Vec::new();
-    for (name, entries) in groups {
+    for (i, (name, entries)) in groups.into_iter().enumerate() {
+        if i % 4096 == 0 {
+            job.check()?;
+        }
         let first = entries.first().map(|s| address(s));
         let chosen = if entries.iter().all(|s| Some(address(s)) == first) {
             first
@@ -250,7 +313,10 @@ fn symbol_addresses(
             }
             None => {
                 let mut seen = std::collections::BTreeSet::new();
-                for symbol in entries {
+                for (i, symbol) in entries.into_iter().enumerate() {
+                    if i % 4096 == 0 {
+                        job.check()?;
+                    }
                     if seen.insert(address(symbol)) {
                         ambiguous.push((name.to_owned(), address(symbol)));
                     }
@@ -258,7 +324,7 @@ fn symbol_addresses(
             }
         }
     }
-    (out, ambiguous)
+    Ok((out, ambiguous))
 }
 
 /// Types of the kallsyms tables themselves, from the widths and lengths just
@@ -308,22 +374,28 @@ fn measured_types(
         .collect()
 }
 
-fn read_btf(image: &Image, located: &Located) -> Result<Vec<u8>> {
+fn read_btf(image: &Image, located: &Located, job: &Job) -> Result<Vec<u8>> {
     let start = unique(&located.tables, "__start_BTF")
         .filter(|s| s.relocated)
-        .context("kallsyms 缺少 __start_BTF；内核需启用 CONFIG_DEBUG_INFO_BTF")?;
+        .ok_or_else(|| {
+            unavailable("kallsyms 缺少 __start_BTF；内核需启用 CONFIG_DEBUG_INFO_BTF")
+        })?;
     let stop = unique(&located.tables, "__stop_BTF")
         .filter(|s| s.relocated)
-        .context("kallsyms 缺少 __stop_BTF")?;
+        .ok_or_else(|| unavailable("kallsyms 缺少 __stop_BTF"))?;
     let length = stop
         .runtime
         .checked_sub(start.runtime)
         .filter(|l| (24..=MAX_BTF).contains(l))
         .context("内核 BTF 长度无效")?;
     let mut bytes = vec![0; usize::try_from(length)?];
-    image
-        .read(start.runtime.wrapping_sub(located.delta), &mut bytes)
-        .context("内核 BTF 所在物理页不在镜像中")?;
+    image_kallsyms::read(
+        image,
+        start.runtime.wrapping_sub(located.delta),
+        &mut bytes,
+        job,
+    )
+    .context("内核 BTF 所在物理页不在镜像中")?;
     Ok(bytes)
 }
 
@@ -331,14 +403,29 @@ fn read_btf(image: &Image, located: &Located) -> Result<Vec<u8>> {
 pub fn generate(image: &Image, cache: &Path, job: &Job) -> Result<PathBuf> {
     job.check()?;
     let _lock = crate::cache::lock(cache, false)?;
+    image.ensure_unchanged()?;
+    let stamp = image.stamp()?;
+    ensure!(
+        !image.digest.is_empty(),
+        "镜像缺少已验证摘要；请重新打开镜像"
+    );
+    let build = artifact::build_path(image, cache);
+    let _generation_lock =
+        super::stages::artifact_lock(&build.join("generation.lock"), "该镜像符号正在生成", job)?;
+    if let Some(path) = artifact::reuse(image, cache, &build, &stamp, job)? {
+        return Ok(path);
+    }
+    job.report("扫描 kallsyms / VMCOREINFO 锚点");
+    image.prefetch_scans(&[image_kallsyms::DIGITS, vmcoreinfo::ANCHOR], job)?;
     let located = locate(image, job)?;
     let banner_text = String::from_utf8_lossy(&located.banner)
         .trim_end_matches(['\0', '\n'])
         .to_owned();
-    ensure!(
-        !(banner_text.contains("aarch64") || banner_text.contains("arm64")),
-        "从镜像生成符号目前仅支持 x86_64 内核"
-    );
+    if banner_text.contains("aarch64") || banner_text.contains("arm64") {
+        return Err(unavailable(
+            "独立镜像生成目前仅支持 x86_64；ARM64 可复用精确本地 ISF",
+        ));
+    }
     ensure!(
         located
             .tables
@@ -359,19 +446,27 @@ pub fn generate(image: &Image, cache: &Path, job: &Job) -> Result<PathBuf> {
         None => job.report("镜像未提供可核对的 KASLR 偏移；符号使用运行时地址"),
     }
     job.report("读取并转换内核 BTF");
-    let btf_bytes = read_btf(image, &located)?;
-    let btf = btf::Btf::parse(&btf_bytes)?;
+    let btf_bytes = read_btf(image, &located, job)?;
+    let btf = btf::Btf::parse(&btf_bytes, job)?;
     ensure!(
         btf.has_struct("task_struct"),
         "内核 BTF 不含 task_struct；不是 vmlinux 的基础 BTF"
     );
     let types = btf::convert(&btf, 8, job)?;
     let btf_sha256 = format!("{:x}", Sha256::digest(&btf_bytes));
-    let (addresses, ambiguous) = symbol_addresses(&located.tables, offset.unwrap_or(0));
+    let btf_length = btf_bytes.len();
+    let btf_types = btf.len();
+    drop(btf_bytes);
+    drop(btf);
+    let (addresses, ambiguous) = symbol_addresses(&located.tables, offset.unwrap_or(0), job)?;
     let measured = measured_types(&located.tables, &types.base_types);
     let mut symbols = Map::new();
     let mut typed = 0usize;
-    for (name, address) in &addresses {
+    job.report("构建 ISF 符号与类型");
+    for (i, (name, address)) in addresses.iter().enumerate() {
+        if i % 4096 == 0 {
+            job.check()?;
+        }
         let mut entry = Map::new();
         entry.insert("address".into(), json!(address));
         let ty = types
@@ -398,7 +493,10 @@ pub fn generate(image: &Image, cache: &Path, job: &Job) -> Result<PathBuf> {
     );
     let kallsyms_sha256 = {
         let mut hash = Sha256::new();
-        for s in &located.tables.symbols {
+        for (i, s) in located.tables.symbols.iter().enumerate() {
+            if i % 4096 == 0 {
+                job.check()?;
+            }
             hash.update(format!(
                 "{:x} {} {} {}\n",
                 s.runtime, s.relocated, s.kind, s.name
@@ -422,6 +520,7 @@ pub fn generate(image: &Image, cache: &Path, job: &Job) -> Result<PathBuf> {
             "va_bits": if l5 == Some(1) { 57 } else { 48 },
             "source": "image",
             "generator": GENERATOR,
+            "image_sha256": image.digest,
             "btf_sha256": btf_sha256,
             "kallsyms_sha256": kallsyms_sha256,
             "address_basis": if offset.is_some() { "link" } else { "runtime" },
@@ -436,85 +535,95 @@ pub fn generate(image: &Image, cache: &Path, job: &Job) -> Result<PathBuf> {
             "type_conflicts": types.conflicts.len(),
         },
     });
-    let data = json!({
-        "metadata": metadata,
-        "base_types": types.base_types,
-        "user_types": types.user_types,
-        "enums": types.enums,
-        "symbols": symbols,
-    });
-    let bytes = serde_json::to_vec(&data)?;
+    // Move the large type/symbol trees, then release this tree before parsing
+    // the engine ISF: generation should never keep two full JSON trees alive.
+    let data = Value::Object(Map::from_iter([
+        ("metadata".into(), metadata),
+        ("base_types".into(), Value::Object(types.base_types)),
+        ("user_types".into(), Value::Object(types.user_types)),
+        ("enums".into(), Value::Object(types.enums)),
+        ("symbols".into(), Value::Object(symbols)),
+    ]));
+    drop(types.variables);
+    let bytes = artifact::json_bytes(&data, job)?;
+    drop(data);
     let mut isf = Isf::parse(&bytes, "generated-from-image".into())?;
     ensure!(
         isf.banner == located.banner,
         "生成 ISF 的 banner 与镜像不一致"
     );
-    isf.locations = image
-        .banners(job)?
-        .iter()
-        .filter(|(_, b)| *b == isf.banner)
-        .map(|(at, _)| *at)
-        .collect();
     job.report("用生成的 ISF 验证内核页表");
-    let root = crate::linux::discover(image, &isf, job).context("生成的 ISF 未通过页表验证")?;
-    let slide = isf.slide.load(std::sync::atomic::Ordering::Relaxed);
-    if let Some(offset) = offset {
-        ensure!(
-            slide == offset,
-            "页表验证得到的重定位 {slide:#x} 与 VMCOREINFO KASLR 偏移 {offset:#x} 不一致"
-        );
-    }
+    let (root, slide) = validate(image, &mut isf, offset, job)?;
     job.report(format!(
         "生成符号：{} 个结构 · {} 个枚举 · {} 个符号（{typed} 个带类型，{} 个歧义已省略）",
-        data.key("user_types").as_object().map_or(0, Map::len),
-        data.key("enums").as_object().map_or(0, Map::len),
+        isf.data.key("user_types").as_object().map_or(0, Map::len),
+        isf.data.key("enums").as_object().map_or(0, Map::len),
         addresses.len(),
         ambiguous_names.len()
     ));
     let path = cache
         .join("symbols/isf")
         .join(format!("{}.json.xz", isf.digest));
-    let mut encoder = xz2::write::XzEncoder::new(Vec::new(), 6);
-    encoder.write_all(&bytes)?;
-    job.check()?;
-    let compressed = encoder.finish()?;
     let tables = &located.tables;
-    store::atomic_write(
-        &path.with_extension("source.json"),
-        &serde_json::to_vec_pretty(&json!({
-            "source": "image",
-            "generator": GENERATOR,
-            "image_sha256": image.digest,
-            "banner": banner_text,
-            "metadata": data.key("metadata"),
-            "provenance": {
-                "kallsyms": {
-                    "symbols": tables.symbols.len(),
-                    "layout": tables.layout,
-                    "percpu": tables.percpu,
-                    "relative_base": format!("{:#x}", tables.relative_base),
-                    "physical": {
-                        "num_syms": format!("{:#x}", tables.num_syms),
-                        "names": format!("{:#x}", tables.names),
-                        "markers": format!("{:#x}", tables.markers),
-                        "token_table": format!("{:#x}", tables.token_table),
-                        "token_index": format!("{:#x}", tables.token_index),
-                        "offsets": format!("{:#x}", tables.offsets),
-                        "relative_base": format!("{:#x}", tables.relative_base_at),
-                    },
+    let source = json!({
+        "source": "image",
+        "generator": GENERATOR,
+        "image_sha256": image.digest,
+        "banner": banner_text,
+        "metadata": isf.data.key("metadata"),
+        "provenance": {
+            "kallsyms": {
+                "symbols": tables.symbols.len(),
+                "layout": tables.layout,
+                "percpu": tables.percpu,
+                "relative_base": format!("{:#x}", tables.relative_base),
+                "physical": {
+                    "num_syms": format!("{:#x}", tables.num_syms),
+                    "names": format!("{:#x}", tables.names),
+                    "markers": format!("{:#x}", tables.markers),
+                    "token_table": format!("{:#x}", tables.token_table),
+                    "token_index": format!("{:#x}", tables.token_index),
+                    "offsets": format!("{:#x}", tables.offsets),
+                    "relative_base": format!("{:#x}", tables.relative_base_at),
                 },
-                "virtual_minus_physical": format!("{:#x}", located.delta),
-                "banner_physical": format!("{:#x}", located.banner_physical),
-                "btf": {"bytes": btf_bytes.len(), "types": btf.len(), "sha256": btf_sha256},
-                "vmcoreinfo": vmcoreinfo,
-                "page_table": {"root": format!("{root:#x}"), "slide": format!("{slide:#x}")},
-                "ambiguous_symbols": ambiguous_names.iter().take(64).collect::<Vec<_>>(),
-                "type_conflicts": conflicts,
             },
-        }))?,
-    )?;
-    job.check()?;
-    store::atomic_write(&path, &compressed)?;
+            "virtual_minus_physical": format!("{:#x}", located.delta),
+            "banner_physical": format!("{:#x}", located.banner_physical),
+            "btf": {"bytes": btf_length, "types": btf_types, "sha256": btf_sha256},
+            "vmcoreinfo": vmcoreinfo,
+            "page_table": {"root": format!("{root:#x}"), "slide": format!("{slide:#x}")},
+            "ambiguous_symbols": ambiguous_names.iter().take(64).collect::<Vec<_>>(),
+            "type_conflicts": conflicts,
+        },
+    });
+    drop(isf);
+    artifact::publish(image, &stamp, &path, &bytes, &source, job)?;
+    artifact::index(image, &stamp, &build, &path, job)?;
     job.report(format!("已从镜像生成 ISF: {}", path.display()));
     Ok(path)
 }
+
+/// Both fresh and reused ISFs must identify the kernel through its actual page tables.
+fn validate(image: &Image, isf: &mut Isf, offset: Option<u64>, job: &Job) -> Result<(u64, u64)> {
+    job.check()?;
+    isf.locations = image
+        .banners(job)?
+        .iter()
+        .filter(|(_, b)| *b == isf.banner)
+        .map(|(at, _)| *at)
+        .collect();
+    ensure!(!isf.locations.is_empty(), "ISF 完整 banner 与镜像不一致");
+    let root = crate::linux::discover(image, isf, job).context("生成的 ISF 未通过页表验证")?;
+    let slide = isf.slide.load(std::sync::atomic::Ordering::Relaxed);
+    if let Some(offset) = offset {
+        ensure!(
+            slide == offset,
+            "页表重定位 {slide:#x} 与预期 {offset:#x} 不一致"
+        );
+    }
+    job.check()?;
+    Ok((root, slide))
+}
+
+#[cfg(test)]
+pub(crate) mod tests;

@@ -149,8 +149,8 @@ impl App {
                         }
                         Method::FromImage => {
                             if arm64 {
-                                notes.push("目前仅支持 x86_64 内核".into());
-                                Readiness::Blocked
+                                notes.push("ARM64 无法独立生成；可验证并复用精确本地 ISF，无需网络或编译工具".into());
+                                Readiness::Limited
                             } else {
                                 notes.push(
                                     "需内核启用 BTF 与 KALLSYMS_ALL；少数依赖全局变量类型的插件会提示不支持"
@@ -487,8 +487,18 @@ impl App {
         }
         match &self.console.result {
             Some(ConsoleResult::Saved(method, path)) => {
+                let reused = self
+                    .console
+                    .log
+                    .iter()
+                    .any(|line| line.contains("复用本地精确符号："));
+                let title = if reused {
+                    "✓ 已验证并复用本地精确符号表，已选用".into()
+                } else {
+                    format!("✓ 已通过“{}”生成并选用符号表", method.title())
+                };
                 wrap(
-                    &format!("✓ 已通过“{}”生成并选用符号表", method.title()),
+                    &title,
                     Style::default()
                         .fg(color_success())
                         .add_modifier(Modifier::BOLD),
@@ -499,7 +509,7 @@ impl App {
                     Style::default().fg(color_text()),
                     &mut lines,
                 );
-                if *method == Method::FromImage {
+                if *method == Method::FromImage && !reused {
                     wrap(
                         "提示：BTF 不记录多数全局变量类型，check_syscall、check_afinfo、boottime 与模块 taint 列会明确提示不支持。",
                         Style::default().fg(color_muted()),
@@ -530,7 +540,7 @@ impl App {
                         "建议：已切换到“从镜像生成”，按 Enter 重试；或使用本地调试文件。"
                     }
                     Method::FromImage => {
-                        "建议：内核未启用 BTF / KALLSYMS_ALL 或非 x86_64 时无法从镜像生成；可改用官方调试包或本地调试文件。"
+                        "建议：缺少 BTF / 必需全局符号或架构不支持时，将尝试验证并复用精确本地 ISF；没有本地 ISF 时可用官方调试包或本地调试文件。"
                     }
                     Method::LocalFiles => {
                         "建议：确认 ELF 含 DWARF 调试信息，且与镜像内核完全一致。"

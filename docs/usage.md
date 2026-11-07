@@ -334,6 +334,9 @@ zero analyze --image images/linux-sample-1.bin.gz --plugin threads --output thre
 # 已下载匹配的 ISF 后可完全离线分析
 zero --offline analyze --image images/linux-sample-1.bin.gz --plugin pscred --output credentials.json
 
+# 离线从 x86_64 镜像的 BTF + kallsyms 生成；再次运行会校验并复用产物
+zero --offline symbols-generate --image images/memory.raw --from-image
+
 # 自动查找官方调试包并生成；保存到设置中的本地符号目录（默认 symbols/）
 zero symbols-generate --image images/memory.raw --auto
 # 多个候选时，根据输出的序号选择
@@ -351,6 +354,8 @@ zero symbols-generate --image sample.raw --elf vmlinux --config kernel.config --
 - 下载校验 HTTPS、索引路径、ISF 格式与完整 banner，分析前继续验证页表。下载与解压上限各 256 MiB，连接超时 10 秒，总超时 90 秒，Esc 可中断；取消或失败不提交半个文件。
 - 远程下载缓存命名为“可读名称 + 仓库路径 SHA256 后缀”；保存到本地库的文件使用 ISF 内容 SHA256 后缀。
 - `--kali` 保留固定 Kali 6.8.11 ARM64 的兼容入口，与自动生成使用同一服务；先复用设置中的本地符号库或缓存中的精确 ISF。没有时，首次准备需要系统 `git` 与 Go（下载前检查，缺失时立即报错，也可用 `zero doctor` 提前查看；下载和解包由 zero 原生完成）；dwarf2json 固定在 `9f14607e0d339d463ea725fbd5c08aa7b7d40f75`，在独立构建目录编译，不作为运行时插件。生成的 ISF 记录 ELF／config／工具摘要、准确 syscall 表长度与页表配置，banner 不一致即拒绝。`--offline` 不获取任何缺失文件。
+- `--from-image` 与 TUI“从镜像生成”共用生成服务。独立生成缺少 BTF、必需全局符号或不支持架构时，会明确记录原因，并尝试复用本地库／缓存中的精确非镜像来源 ISF；须通过完整 banner 与页表验证，保留文件与来源记录，多候选要求显式选择。取消、页表验证失败等错误不会触发此复用。TUI 会显示“已验证并复用本地精确符号表”，不把已有调试类型标为镜像生成。生成缓存按镜像摘要、生成器版本及引擎版本校验；命中后仍验证完整 banner 和页表重定位，跳过 kallsyms 解码与 BTF 转换。索引或产物损坏时自动重建，取消不会触发重建。同一镜像并发生成会提示任务正在执行。镜像自打开后发生变化时需重新打开，禁止沿用旧摘要与物理页缓存。
+- 生成日志显示扫描、解码、BTF 解析／转换、页表验证、压缩保存和缓存校验阶段。缓存索引位于 `.zero/rust/symbols/build/image/`，随“符号／构建缓存”清理；本地符号库成品不受影响。
 - CLI 和 TUI 的生成结果均持久保存到设置中的本地符号目录（默认 `symbols/<ISF摘要>.json.xz`），旁边保存 `.source.json`。来源记录包括完整 banner、ELF／config／工具摘要，自动下载生成时还包括官方包 URL、版本和包摘要。成功后输出实际路径；同内容复用，同名不同内容拒绝覆盖。
 - `--auto` 优先复用本地已生成且精确匹配的 ISF；缺少时查询官方软件包目录。Ubuntu 查询 ddebs 和匹配的 archive／ports，Debian 查询主仓库、安全仓库及 archive，Kali 查询当前仓库和 old.kali.org。仅覆盖这些源仍保留的构建，不保证所有历史版本均可获取。
 - 官方目录索引默认缓存 24 小时；缓存未找到目标时，在线刷新一次。请求失败会尝试使用有效旧缓存；同次查找对相同 URL 只请求、解析一次。CLI 使用 `--auto --refresh` 强制刷新，TUI 候选弹窗按 `F5` 刷新；离线时不允许强制刷新。

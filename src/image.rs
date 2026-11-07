@@ -21,6 +21,7 @@ pub struct Segment {
 pub struct Image {
     pub limits: crate::resources::Limits,
     file: File,
+    opened_stamp: String,
     _cache_guard: Option<File>,
     pub(crate) arm64_va_bits: std::sync::atomic::AtomicU8,
     windows: std::sync::OnceLock<Vec<crate::windows_symbols::Candidate>>,
@@ -914,8 +915,10 @@ impl Image {
             });
             "RAW"
         };
+        let opened_stamp = metadata_stamp(&file.metadata()?)?;
         Ok(Self {
             file,
+            opened_stamp,
             _cache_guard: None,
             arm64_va_bits: std::sync::atomic::AtomicU8::new(0),
             windows: std::sync::OnceLock::new(),
@@ -1131,6 +1134,14 @@ impl Image {
             }
         }
         self.limits = limits;
+    }
+    /// Reject reuse of content identities and physical-page caches after an external write.
+    pub(crate) fn ensure_unchanged(&self) -> Result<()> {
+        ensure!(
+            self.stamp()? == self.opened_stamp,
+            "镜像自打开后发生变化；请重新打开镜像"
+        );
+        Ok(())
     }
     pub fn stamp(&self) -> Result<String> {
         metadata_stamp(&self.file.metadata()?)

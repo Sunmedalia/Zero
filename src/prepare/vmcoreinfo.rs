@@ -10,6 +10,7 @@ use std::collections::BTreeMap;
 
 /// The kernel allocates one page for the note text.
 const MAX_NOTE: usize = 4096;
+pub(super) const ANCHOR: &[u8] = b"OSRELEASE=";
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(super) struct Vmcoreinfo {
@@ -30,10 +31,24 @@ fn parse(text: &str, release: &str, physical: u64) -> Option<Vmcoreinfo> {
         symbols: BTreeMap::new(),
         numbers: BTreeMap::new(),
     };
+    let mut seen = BTreeMap::new();
     for line in lines {
         let Some((key, value)) = line.split_once('=') else {
             continue;
         };
+        if (key == "OSRELEASE"
+            || key == "KERNELOFFSET"
+            || key.starts_with("SYMBOL(")
+            || key.starts_with("NUMBER("))
+            && seen
+                .insert(key, value)
+                .is_some_and(|previous| previous != value)
+        {
+            return None;
+        }
+        if key == "OSRELEASE" && value != release {
+            return None;
+        }
         if key == "KERNELOFFSET" {
             info.kernel_offset = Some(u64::from_str_radix(value, 16).ok()?);
         } else if let Some(name) = key
@@ -62,22 +77,25 @@ fn parse(text: &str, release: &str, physical: u64) -> Option<Vmcoreinfo> {
 /// Every distinct note for `release`, with its physical address.
 pub(super) fn find(image: &Image, release: &str, job: &Job) -> Result<Vec<Vmcoreinfo>> {
     let mut out: Vec<Vmcoreinfo> = Vec::new();
-    for hit in image.scan(b"OSRELEASE=", job)? {
+    for hit in image.scan(ANCHOR, job)? {
         job.check()?;
-        let mut bytes = vec![0; MAX_NOTE];
-        // Clip a note at the end of a segment instead of skipping it.
-        let mut length = MAX_NOTE;
-        while length > 0
-            && image
-                .read(hit, bytes.get_mut(..length).unwrap_or_default())
-                .is_err()
-        {
-            length /= 2;
-        }
-        bytes.truncate(length);
+        let Some((_, end)) = super::image_kallsyms::run(image, hit) else {
+            continue;
+        };
+        let length = usize::try_from((end - hit).min(u64::try_from(MAX_NOTE)?))?;
+        let mut bytes = vec![0; length];
+        image.read(hit, &mut bytes)?;
         let end = bytes.iter().position(|b| *b == 0).unwrap_or(bytes.len());
         let Some(text) = bytes.get(..end).and_then(|b| std::str::from_utf8(b).ok()) else {
             continue;
+        };
+        // A clipped final line cannot establish a complete address or offset.
+        let text = if end == bytes.len() {
+            text.rfind('\n')
+                .and_then(|at| text.get(..=at))
+                .unwrap_or("")
+        } else {
+            text
         };
         if let Some(info) = parse(text, release, hit)
             && !out.iter().any(|o| {
@@ -115,5 +133,67 @@ mod tests {
             0xffff_cdff_0000_0000
         );
         assert!(parse("OSRELEASE=x\nKERNELOFFSET=zz\n", "x", 0).is_none());
+    }
+}
+
+#[cfg(test)]
+mod boundary_tests {
+    use super::*;
+    use std::io::Write;
+
+    fn image(parts: &[(u64, &[u8])]) -> Image {
+        let mut file = tempfile::tempfile().unwrap();
+        for (address, bytes) in parts {
+            for word in [
+                0x0000_0001_4c69_4d45,
+                *address,
+                address + bytes.len() as u64 - 1,
+                0,
+            ] {
+                file.write_all(&word.to_le_bytes()).unwrap();
+            }
+            file.write_all(bytes).unwrap();
+        }
+        Image::from_file(file, "fixture".into()).unwrap()
+    }
+
+    #[test]
+    fn clips_exactly_at_segment_end_and_crosses_only_adjacent_segments() {
+        let note = b"OSRELEASE=x\nSYMBOL(init_top_pgt)=ffffffff80001000\nKERNELOFFSET=12345000\n\0";
+        let cut = 19;
+        for parts in [
+            vec![(0x1000, note.as_slice())],
+            vec![(0x1000, &note[..cut]), (0x1000 + cut as u64, &note[cut..])],
+        ] {
+            let found = find(&image(&parts), "x", &Job::default()).unwrap();
+            assert_eq!(found.len(), 1);
+            assert_eq!(found[0].kernel_offset, Some(0x12345000));
+            assert_eq!(found[0].symbols["init_top_pgt"], 0xffffffff80001000);
+        }
+        let before_hole = b"OSRELEASE=x\nKERNELOFFSET=1234";
+        let found = find(
+            &image(&[(0x1000, before_hole), (0x2000, b"5000\n\0")]),
+            "x",
+            &Job::default(),
+        )
+        .unwrap();
+        assert_eq!(found.len(), 1);
+        assert_eq!(
+            found[0].kernel_offset, None,
+            "incomplete final field is ignored"
+        );
+    }
+
+    #[test]
+    fn conflicting_duplicate_fields_are_rejected_and_equal_values_are_allowed() {
+        for fields in [
+            "KERNELOFFSET=1\nKERNELOFFSET=2\n",
+            "SYMBOL(x)=1\nSYMBOL(x)=2\n",
+            "NUMBER(x)=1\nNUMBER(x)=2\n",
+            "OSRELEASE=y\n",
+        ] {
+            assert!(parse(&format!("OSRELEASE=x\n{fields}"), "x", 0).is_none());
+        }
+        assert!(parse("OSRELEASE=x\nKERNELOFFSET=1\nKERNELOFFSET=1\n", "x", 0).is_some());
     }
 }

@@ -239,7 +239,10 @@ fn console_generates_and_selects_symbols_from_a_real_image() {
         app.status
     );
     assert_eq!(app.preparation, Preparation::Ready);
-    assert!(app.symbols.starts_with(dir.path().join("symbols")));
+    assert!(
+        app.symbols
+            .starts_with(dir.path().join("symbols").canonicalize().unwrap())
+    );
     let mut terminal = Terminal::new(TestBackend::new(120, 40)).unwrap();
     terminal.draw(|f| app.draw(f)).unwrap();
     let rows: Vec<String> = terminal
@@ -251,4 +254,88 @@ fn console_generates_and_selects_symbols_from_a_real_image() {
         .collect();
     println!("{}", rows.join("\n"));
     assert!(screen(&terminal).contains("已通过“从镜像生成”生成并选用符号表"));
+}
+
+#[test]
+fn console_generates_then_reuses_validated_image_symbols_offline() {
+    let dir = tempfile::tempdir().unwrap();
+    let image = dir.path().join("memory.raw");
+    std::fs::write(&image, crate::prepare::from_image::tests::fixture()).unwrap();
+    let mut app = App::new(
+        Some(image),
+        PathBuf::new(),
+        dir.path().join("cache"),
+        Settings {
+            image_dir: dir.path().join("images").display().to_string(),
+            symbols: dir.path().join("symbols").display().to_string(),
+            remote_symbols: false,
+            ..Settings::default()
+        },
+    );
+    app.root = dir.path().into();
+    app.initialize(Default::default());
+    app.page = Page::Assets;
+    finish_test_job(&mut app);
+    let mut saved = None;
+    for attempt in 0..2 {
+        app.key(KeyEvent::new(KeyCode::Char('K'), KeyModifiers::NONE));
+        app.console.selected = method_index(&app, Method::FromImage);
+        app.key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
+        finish_test_job(&mut app);
+        assert!(
+            matches!(
+                app.console.result,
+                Some(ConsoleResult::Saved(Method::FromImage, _))
+            ),
+            "{:?}: {}",
+            app.console.result,
+            app.status
+        );
+        assert_eq!(app.preparation, Preparation::Ready);
+        assert!(
+            app.symbols
+                .starts_with(dir.path().join("symbols").canonicalize().unwrap())
+        );
+        if attempt == 0 {
+            saved = Some(app.symbols.clone());
+        } else {
+            assert_eq!(Some(&app.symbols), saved.as_ref());
+            assert!(
+                app.console.log.iter().any(|s| s.contains("复用已验证")),
+                "{:?}",
+                app.console.log
+            );
+        }
+    }
+}
+
+#[test]
+fn reused_local_symbols_are_not_presented_as_new_btf_output() {
+    let (_dir, mut app) = console_app();
+    app.open_generation_console();
+    app.console.result = Some(ConsoleResult::Saved(Method::FromImage, app.symbols.clone()));
+    app.console.log.push(
+        "复用本地精确符号：完整 banner 和页表已验证；保留原始来源，此次未从镜像生成新类型".into(),
+    );
+    let mut terminal = Terminal::new(TestBackend::new(120, 40)).unwrap();
+    terminal.draw(|f| app.draw(f)).unwrap();
+    let text = screen(&terminal);
+    assert!(text.contains("已验证并复用本地精确符号表"));
+    assert!(!text.contains("已通过“从镜像生成”生成"));
+    assert!(!text.contains("BTF不记录多数全局变量类型"));
+}
+
+#[test]
+fn arm64_can_request_verified_local_reuse_without_build_tools() {
+    let (_dir, mut app) = console_app();
+    for row in &mut app.results.get_mut("banners").unwrap().rows {
+        row[1] = "Linux version 6.8.11-arm64 (aarch64-linux-gnu-gcc)".into();
+    }
+    app.console.missing_tools = Some(vec!["git", "go"]);
+    app.settings.remote_symbols = false;
+    app.open_generation_console();
+    let states = app.console_methods();
+    let state = &states[method_index(&app, Method::FromImage)];
+    assert_eq!(state.readiness, Readiness::Limited);
+    assert!(state.notes.iter().any(|s| s.contains("精确本地 ISF")));
 }

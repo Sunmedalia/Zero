@@ -170,7 +170,8 @@ enum Command {
         #[arg(long, requires = "auto", conflicts_with_all = ["elf", "config", "kali"])]
         refresh: bool,
         /// Derive symbols from the image itself: embedded BTF types and kallsyms addresses
-        /// (x86_64, CONFIG_DEBUG_INFO_BTF + CONFIG_KALLSYMS_ALL); no network or tools.
+        /// (x86_64, CONFIG_DEBUG_INFO_BTF + CONFIG_KALLSYMS_ALL); when unavailable,
+        /// validate and reuse an exact local ISF. No network or tools.
         #[arg(long, conflicts_with_all = ["elf", "config", "kali", "auto", "tool"])]
         from_image: bool,
     },

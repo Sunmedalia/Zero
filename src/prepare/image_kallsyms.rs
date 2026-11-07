@@ -13,7 +13,7 @@ use crate::{
 };
 use anyhow::{Context, Result, ensure};
 
-const DIGITS: &[u8] = b"0\x001\x002\x003\x004\x005\x006\x007\x008\x009\x00";
+pub(super) const DIGITS: &[u8] = b"0\x001\x002\x003\x004\x005\x006\x007\x008\x009\x00";
 /// Index of the `'0'` token: single-character tokens keep their own byte value.
 const DIGIT_TOKEN: usize = 0x30;
 const MAX_SYMBOLS: usize = 1 << 21;
@@ -52,7 +52,7 @@ pub(super) struct Tables {
 }
 
 /// Physical span `[start, end)` of the run of abutting segments holding `address`.
-fn run(image: &Image, address: u64) -> Option<(u64, u64)> {
+pub(super) fn run(image: &Image, address: u64) -> Option<(u64, u64)> {
     let index = image
         .segments
         .iter()
@@ -76,14 +76,29 @@ fn run(image: &Image, address: u64) -> Option<(u64, u64)> {
 }
 
 /// Bytes of `[from, to)` clipped to the contiguous run around `anchor`.
-fn window(image: &Image, anchor: u64, from: u64, to: u64) -> Result<(u64, Vec<u8>)> {
+fn window(image: &Image, anchor: u64, from: u64, to: u64, job: &Job) -> Result<(u64, Vec<u8>)> {
     let (start, end) = run(image, anchor).context("锚点不在镜像段内")?;
     let from = from.max(start);
     let to = to.min(end);
     ensure!(from <= anchor && anchor <= to, "窗口无效");
     let mut bytes = vec![0; usize::try_from(to - from)?];
-    image.read(from, &mut bytes)?;
+    read(image, from, &mut bytes, job)?;
     Ok((from, bytes))
+}
+
+/// Read large image-derived sections in bounded, cancellable chunks.
+pub(super) fn read(image: &Image, address: u64, bytes: &mut [u8], job: &Job) -> Result<()> {
+    job.check()?;
+    for (i, chunk) in bytes.chunks_mut(65536).enumerate() {
+        job.check()?;
+        image.read(
+            address
+                .checked_add(u64::try_from(i)? * 65536)
+                .context("读取地址溢出")?,
+            chunk,
+        )?;
+    }
+    Ok(())
 }
 
 fn printable(bytes: &[u8]) -> bool {
@@ -107,13 +122,15 @@ struct TokenTable {
 }
 
 /// Validate a digit-sequence hit as `kallsyms_token_table` + `kallsyms_token_index`.
-fn token_table(image: &Image, hit: u64) -> Result<Option<TokenTable>> {
+fn token_table(image: &Image, hit: u64, job: &Job) -> Result<Option<TokenTable>> {
     let Ok((base, bytes)) = window(
         image,
         hit,
         hit.saturating_sub(8192),
         hit.saturating_add(8192),
+        job,
     ) else {
+        job.check()?;
         return Ok(None);
     };
     let anchor = usize::try_from(hit - base)?;
@@ -195,9 +212,10 @@ struct Markers {
 }
 
 /// Marker arrays ending just before the token table, for u32 and unsigned-long widths.
-fn markers(image: &Image, table: u64) -> Result<Vec<Markers>> {
+fn markers(image: &Image, table: u64, job: &Job) -> Result<Vec<Markers>> {
     let span = u64::try_from(MAX_MARKERS * 8 + 64)?;
-    let Ok((base, bytes)) = window(image, table, table.saturating_sub(span), table) else {
+    let Ok((base, bytes)) = window(image, table, table.saturating_sub(span), table, job) else {
+        job.check()?;
         return Ok(Vec::new());
     };
     let mut out = Vec::new();
@@ -275,7 +293,7 @@ fn decode_names(
     out.clear();
     for i in 0..count {
         if i % 256 == 0 {
-            if i % (256 * 1024) == 0 {
+            if i % 4096 == 0 {
                 job.check()?;
             }
             let Some(marker) = markers.get(i / 256) else {
@@ -304,7 +322,11 @@ fn decode_names(
         };
         let mut name = Vec::new();
         for byte in compressed {
-            name.extend_from_slice(tokens.at(usize::from(*byte))?);
+            let token = tokens.at(usize::from(*byte))?;
+            if name.len().saturating_add(token.len()) > 512 {
+                return Ok(None);
+            }
+            name.extend_from_slice(token);
         }
         let Some((kind, rest)) = name.split_first() else {
             return Ok(None);
@@ -332,6 +354,11 @@ struct Names {
 fn names(image: &Image, markers: &Markers, tokens: &[Vec<u8>], job: &Job) -> Result<Vec<Names>> {
     let count = markers.values.len();
     let last = *markers.values.last().context("标记为空")?;
+    // A marker is an offset into at most 256 names per preceding block.
+    let maximum = u64::try_from(count.saturating_sub(1) * 256 * MAX_ENTRY)?;
+    if last > maximum {
+        return Ok(Vec::new());
+    }
     let span = last
         .checked_add(u64::try_from(256 * MAX_ENTRY + 64)?)
         .context("名称表跨度溢出")?;
@@ -340,10 +367,13 @@ fn names(image: &Image, markers: &Markers, tokens: &[Vec<u8>], job: &Job) -> Res
         markers.start,
         markers.start.saturating_sub(span),
         markers.start,
+        job,
     ) else {
+        job.check()?;
         return Ok(Vec::new());
     };
     let Some(highest) = markers.start.checked_sub(last.saturating_add(1)) else {
+        job.check()?;
         return Ok(Vec::new());
     };
     let lowest = markers.start.saturating_sub(span).max(base + 8);
@@ -388,18 +418,19 @@ fn names(image: &Image, markers: &Markers, tokens: &[Vec<u8>], job: &Job) -> Res
 }
 
 /// Decoded addresses for the two base-relative encodings, when exactly one is consistent.
-fn addresses(
-    offsets: &[i32],
-    base: u64,
-    names: &[(char, String)],
-) -> Option<(Vec<(u64, bool)>, &'static str)> {
+type DecodedAddresses = (Vec<(u64, bool)>, &'static str);
+
+fn addresses(offsets: &[i32], base: u64, job: &Job) -> Result<Option<DecodedAddresses>> {
     let canonical = |a: u64| a >> 47 == 0x1ffff;
     if !canonical(base) {
-        return None;
+        return Ok(None);
     }
     let decode = |absolute_percpu: bool| -> Option<Vec<(u64, bool)>> {
         let mut out = Vec::with_capacity(offsets.len());
-        for offset in offsets {
+        for (i, offset) in offsets.iter().enumerate() {
+            if i % 4096 == 0 && job.check().is_err() {
+                return None;
+            }
             let entry = if absolute_percpu {
                 if *offset >= 0 {
                     (u64::from(offset.unsigned_abs()), false)
@@ -420,30 +451,34 @@ fn addresses(
             .iter()
             .filter(|(_, relocated)| *relocated)
             .all(|(a, _)| canonical(*a) && *a >= base);
-        let banner = names
-            .iter()
-            .zip(&out)
-            .any(|((_, name), (_, relocated))| name == "linux_banner" && *relocated);
-        (sorted && relocated_ok && banner).then_some(out)
+        // Text-only kallsyms is still a valid table. Its missing data symbols
+        // are diagnosed by the caller rather than reported as corrupt tables.
+        let kernel_symbols = out.iter().any(|(_, relocated)| *relocated);
+        (sorted && relocated_ok && kernel_symbols).then_some(out)
     };
-    match (decode(true), decode(false)) {
+    let decoded = (decode(true), decode(false));
+    job.check()?;
+    Ok(match decoded {
         (Some(a), None) => Some((a, "absolute-percpu")),
         (None, Some(r)) => Some((r, "base-relative")),
         _ => None,
-    }
+    })
 }
 
-fn offsets_at(image: &Image, at: u64, count: usize) -> Option<Vec<i32>> {
-    let mut bytes = vec![0; count.checked_mul(4)?];
-    image.read(at, &mut bytes).ok()?;
-    Some(
+fn offsets_at(image: &Image, at: u64, count: usize, job: &Job) -> Result<Option<Vec<i32>>> {
+    let mut bytes = vec![0; count.checked_mul(4).context("地址表长度溢出")?];
+    if read(image, at, &mut bytes, job).is_err() {
+        job.check()?;
+        return Ok(None);
+    }
+    Ok(Some(
         bytes
             .as_chunks::<4>()
             .0
             .iter()
             .map(|c| i32::from_le_bytes(*c))
             .collect(),
-    )
+    ))
 }
 
 /// Every complete, self-consistent core kallsyms table set in the image.
@@ -451,16 +486,26 @@ pub(super) fn locate(image: &Image, job: &Job) -> Result<Vec<Tables>> {
     let mut found: Vec<Tables> = Vec::new();
     for hit in image.scan(DIGITS, job)? {
         job.check()?;
-        let Some(tokens) = token_table(image, hit)? else {
+        let Some(tokens) = token_table(image, hit, job)? else {
             continue;
         };
         if found.iter().any(|t| t.token_table == tokens.table) {
             continue;
         }
         job.report(format!("kallsyms 词表候选 @ 物理 {:#x}", tokens.table));
-        for marker in markers(image, tokens.table)? {
+        for marker in markers(image, tokens.table, job)? {
+            job.report(format!(
+                "kallsyms 标记候选 @ {:#x} · {} 个 · {} 字节",
+                marker.start,
+                marker.values.len(),
+                marker.width
+            ));
             for names in names(image, &marker, &tokens.tokens, job)? {
                 let count = names.names.len();
+                job.report(format!(
+                    "kallsyms 名称已验证: {count} 个 · 物理 {:#x}",
+                    names.start
+                ));
                 let layouts = [
                     // 6.x: offsets and relative base follow the token index.
                     (tokens.index + 512, None, "token-index"),
@@ -492,10 +537,13 @@ pub(super) fn locate(image: &Image, job: &Job) -> Result<Vec<Tables>> {
                     let Ok(base) = image.u64(base_at) else {
                         continue;
                     };
-                    let Some(values) = offsets_at(image, offsets, count) else {
+                    job.report(format!(
+                        "kallsyms 地址候选: {layout} · 偏移 {offsets:#x} · 基址 {base:#x}"
+                    ));
+                    let Some(values) = offsets_at(image, offsets, count, job)? else {
                         continue;
                     };
-                    let Some((decoded, percpu)) = addresses(&values, base, &names.names) else {
+                    let Some((decoded, percpu)) = addresses(&values, base, job)? else {
                         continue;
                     };
                     found.push(Tables {
@@ -533,11 +581,12 @@ pub(super) fn locate(image: &Image, job: &Job) -> Result<Vec<Tables>> {
             }
         }
     }
+    job.check()?;
     Ok(found)
 }
 
 #[cfg(test)]
-mod tests {
+pub(in crate::prepare) mod tests {
     use super::*;
 
     /// A synthetic kernel image page holding complete 6.x kallsyms tables.
@@ -681,5 +730,80 @@ mod tests {
                 .unwrap()
                 .is_empty()
         );
+    }
+}
+
+#[cfg(test)]
+mod bounds_tests {
+    use super::*;
+
+    #[test]
+    fn forged_marker_cannot_request_an_image_sized_window() {
+        let mut file = tempfile::tempfile().unwrap();
+        std::io::Write::write_all(&mut file, &[0; 4096]).unwrap();
+        let image = Image::from_file(file, "fixture".into()).unwrap();
+        let markers = Markers {
+            start: 2048,
+            width: 8,
+            values: vec![0, u64::MAX - 4096],
+        };
+        assert!(
+            names(&image, &markers, &[], &Job::default())
+                .unwrap()
+                .is_empty()
+        );
+    }
+
+    #[test]
+    fn excessive_expansion_and_cancellation_are_bounded() {
+        let mut tokens = vec![vec![b'a']; 256];
+        tokens[0] = vec![b'a'; 513];
+        let mut out = Vec::new();
+        assert!(
+            decode_names(&[1, 0], 0, 1, &[0], &tokens, &mut out, &Job::default())
+                .unwrap()
+                .is_none()
+        );
+        let job = Job::default();
+        job.cancel.store(true, std::sync::atomic::Ordering::Relaxed);
+        assert!(decode_names(&[1, 0], 0, 1, &[0], &tokens, &mut out, &job).is_err());
+    }
+}
+
+#[cfg(test)]
+mod text_only_tests {
+    use super::*;
+    #[test]
+    fn text_only_relative_tables_decode_without_claiming_global_symbols_exist() {
+        let base = 0xffff800080010000;
+        let names: Vec<_> = (0..300u64)
+            .map(|i| {
+                (
+                    Box::leak(format!("Ttext_{i}").into_boxed_str()) as &str,
+                    base + i * 16,
+                    true,
+                )
+            })
+            .collect();
+        let (mut bytes, locations) = super::tests::kallsyms_fixture(base, &names);
+        // The shared fixture writes absolute-percpu offsets. Replace them with
+        // unsigned base-relative offsets, as in the real Kali capture.
+        let table = locations
+            .into_iter()
+            .find(|(name, _)| *name == "offsets")
+            .unwrap()
+            .1 as usize;
+        for i in 0..names.len() {
+            bytes[table + i * 4..table + i * 4 + 4]
+                .copy_from_slice(&((i * 16) as u32).to_le_bytes());
+        }
+        let mut file = tempfile::tempfile().unwrap();
+        std::io::Write::write_all(&mut file, &bytes).unwrap();
+        let image = Image::from_file(file, "text-only".into()).unwrap();
+        let tables = locate(&image, &Job::default()).unwrap();
+        assert_eq!(tables.len(), 1);
+        assert_eq!(tables[0].symbols.len(), 300);
+        assert_eq!(tables[0].percpu, "base-relative");
+        assert!(!tables[0].symbols.iter().any(|s| s.name == "linux_banner"));
     }
 }

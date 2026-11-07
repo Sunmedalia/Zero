@@ -103,7 +103,8 @@ fn word(bytes: &[u8], at: usize) -> Result<u32> {
 }
 
 impl Btf {
-    pub(super) fn parse(data: &[u8]) -> Result<Self> {
+    pub(super) fn parse(data: &[u8], job: &crate::Job) -> Result<Self> {
+        job.check()?;
         ensure!(
             le_u16(data, 0) == Some(MAGIC),
             "BTF magic 无效（仅支持小端）"
@@ -125,6 +126,10 @@ impl Btf {
         let mut out = Vec::new();
         let mut at = 0usize;
         while at < types.len() {
+            if out.len() % 4096 == 0 {
+                job.check()?;
+                job.report(format!("BTF 解析: {} 个类型", out.len()));
+            }
             ensure!(out.len() < MAX_TYPES, "BTF 类型数量过多");
             let name = word(types, at)?;
             let info = word(types, at + 4)?;
@@ -152,7 +157,10 @@ impl Btf {
                 }
                 Kind::Struct | Kind::Union => {
                     let mut members = Vec::with_capacity(vlen);
-                    for _ in 0..vlen {
+                    for i in 0..vlen {
+                        if i % 4096 == 0 {
+                            job.check()?;
+                        }
                         members.push(Member {
                             name: word(types, at)?,
                             ty: word(types, at + 4)?,
@@ -164,7 +172,10 @@ impl Btf {
                 }
                 Kind::Enum => {
                     let mut values = Vec::with_capacity(vlen);
-                    for _ in 0..vlen {
+                    for i in 0..vlen {
+                        if i % 4096 == 0 {
+                            job.check()?;
+                        }
                         let raw = word(types, at + 4)?;
                         let value = if kind_flag {
                             i128::from(i32::from_le_bytes(raw.to_le_bytes()))
@@ -178,7 +189,10 @@ impl Btf {
                 }
                 Kind::Enum64 => {
                     let mut values = Vec::with_capacity(vlen);
-                    for _ in 0..vlen {
+                    for i in 0..vlen {
+                        if i % 4096 == 0 {
+                            job.check()?;
+                        }
                         let raw = u64::from(word(types, at + 4)?)
                             | (u64::from(word(types, at + 8)?) << 32);
                         let value = if kind_flag {
@@ -203,7 +217,10 @@ impl Btf {
                 }
                 Kind::Datasec => {
                     let mut vars = Vec::with_capacity(vlen);
-                    for _ in 0..vlen {
+                    for i in 0..vlen {
+                        if i % 4096 == 0 {
+                            job.check()?;
+                        }
                         vars.push((word(types, at)?, word(types, at + 4)?, word(types, at + 8)?));
                         at += 12;
                     }
@@ -229,6 +246,7 @@ impl Btf {
             });
         }
         ensure!(!out.is_empty(), "BTF 不含类型");
+        job.check()?;
         Ok(Self {
             strings,
             types: out,
@@ -279,6 +297,7 @@ pub(super) struct Converted {
 
 struct Converter<'a> {
     btf: &'a Btf,
+    job: &'a crate::Job,
     names: HashMap<u32, String>,
 }
 
@@ -299,6 +318,7 @@ fn insert_checked(
 
 impl Converter<'_> {
     fn descriptor(&mut self, id: u32, depth: usize) -> Result<Value> {
+        self.job.check()?;
         ensure!(depth < MAX_DEPTH, "BTF 类型引用过深: {id}");
         if id == 0 {
             return Ok(json!({"kind":"base","name":"void"}));
@@ -389,6 +409,7 @@ impl Converter<'_> {
         };
         let mut out = Map::new();
         for (name, value) in values {
+            self.job.check()?;
             let value = if let Ok(v) = i64::try_from(*value) {
                 json!(v)
             } else {
@@ -423,6 +444,7 @@ impl Converter<'_> {
     }
 
     fn fields(&mut self, id: u32, depth: usize) -> Result<Map<String, Value>> {
+        self.job.check()?;
         ensure!(depth < MAX_DEPTH, "BTF 匿名结构嵌套过深: {id}");
         let btf = self.btf;
         let t = btf.get(id)?;
@@ -432,6 +454,7 @@ impl Converter<'_> {
         let mut out = Map::new();
         let mut anonymous = 0usize;
         for member in members {
+            self.job.check()?;
             let (mut bit, mut width) = if t.kind_flag {
                 (member.offset & 0x00ff_ffff, member.offset >> 24)
             } else {
@@ -493,6 +516,7 @@ fn hashed(canonical: &Value) -> String {
 pub(super) fn convert(btf: &Btf, pointer_size: u64, job: &crate::Job) -> Result<Converted> {
     let mut converter = Converter {
         btf,
+        job,
         names: HashMap::new(),
     };
     let mut base_types = Map::new();
@@ -508,6 +532,7 @@ pub(super) fn convert(btf: &Btf, pointer_size: u64, job: &crate::Job) -> Result<
     for (index, t) in btf.types.iter().enumerate() {
         if index % 4096 == 0 {
             job.check()?;
+            job.report(format!("BTF 转换: {index}/{} 个类型", btf.len()));
         }
         let id = u32::try_from(index + 1)?;
         match (t.kind, &t.extra) {
@@ -620,6 +645,7 @@ pub(super) fn convert(btf: &Btf, pointer_size: u64, job: &crate::Job) -> Result<
     }
     conflicts.sort();
     conflicts.dedup();
+    job.check()?;
     Ok(Converted {
         base_types,
         user_types,
@@ -683,7 +709,7 @@ mod tests {
         record(&mut t, &[43, 2, (3 << 24) | 130]); // flags: 3 bits at bit 130
         record(&mut t, &[56, 7, 192]); // val: const kuid_t at byte 24
         record(&mut t, &[60, 8, 224]); // mode: enum at byte 28
-        let parsed = Btf::parse(&btf(&t, strings)).unwrap();
+        let parsed = Btf::parse(&btf(&t, strings), &crate::Job::default()).unwrap();
         let out = convert(&parsed, 8, &crate::Job::default()).unwrap();
         assert!(out.conflicts.is_empty());
         let task = &out.user_types["task"];
@@ -737,7 +763,7 @@ mod tests {
         record(&mut t, &[18, info(14, 0, false), 3, 1]); // 4 var s var
         record(&mut t, &[22, info(15, 1, false), 4]); // 5 datasec
         record(&mut t, &[4, 0, 4]);
-        let parsed = Btf::parse(&btf(&t, strings)).unwrap();
+        let parsed = Btf::parse(&btf(&t, strings), &crate::Job::default()).unwrap();
         let out = convert(&parsed, 8, &crate::Job::default()).unwrap();
         assert_eq!(
             out.user_types["s"]["fields"]["a"],
@@ -748,18 +774,30 @@ mod tests {
 
     #[test]
     fn truncated_cyclic_and_foreign_inputs_fail_cleanly() {
-        assert!(Btf::parse(b"\x9f\xeb").is_err());
-        assert!(Btf::parse(&[0; 64]).is_err());
+        assert!(Btf::parse(b"\x9f\xeb", &crate::Job::default()).is_err());
+        assert!(Btf::parse(&[0; 64], &crate::Job::default()).is_err());
         let mut t = Vec::new();
         record(&mut t, &[0, info(4, 1, false), 4]); // 1 struct with truncated member
-        assert!(Btf::parse(&btf(&t, b"\0")).is_err());
+        assert!(Btf::parse(&btf(&t, b"\0"), &crate::Job::default()).is_err());
         // A const chain that loops never terminates in DWARF terms; BTF must reject it.
         let mut t = Vec::new();
         record(&mut t, &[0, info(10, 0, false), 2]); // 1 const -> 2
         record(&mut t, &[0, info(10, 0, false), 1]); // 2 const -> 1
         record(&mut t, &[1, info(4, 1, false), 8]); // 3 struct s { 1 x }
         record(&mut t, &[1, 1, 0]);
-        let parsed = Btf::parse(&btf(&t, b"\0s\0")).unwrap();
+        let parsed = Btf::parse(&btf(&t, b"\0s\0"), &crate::Job::default()).unwrap();
         assert!(convert(&parsed, 8, &crate::Job::default()).is_err());
+    }
+}
+
+#[cfg(test)]
+mod cancellation_tests {
+    use super::*;
+    #[test]
+    fn parser_checks_cancellation_before_inspecting_data() {
+        let job = crate::Job::default();
+        job.cancel.store(true, std::sync::atomic::Ordering::Relaxed);
+        let error = Btf::parse(&[], &job).err().unwrap();
+        assert!(error.to_string().contains("cancelled"));
     }
 }

@@ -2063,12 +2063,13 @@
     "psaux": {
       "columns": [
         "PID",
+        "PPID",
         "Name",
         "CommandLine",
         "Status"
       ],
       "count": 169,
-      "rows_sha256": "3e34f764c58cdbc7f882aed1ecbcaf5adca2c1fe88d96cee3f8340837c861f42",
+      "rows_sha256": "808329025d334c95b8a9f0a3ab91c13cba9669c9fe0d03681aa344765fab1a34",
       "complete": true,
       "diagnostics": [
         "父进程不在 tasks 链表（可能为线程或已退出）: 29451"

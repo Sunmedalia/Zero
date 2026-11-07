@@ -656,6 +656,23 @@ fn image_derived_symbols_match_the_debug_isf() -> Result<()> {
     let job = Job::default();
     let opened = Image::open(&image, cache.path(), &job)?;
     let path = zero_tui::prepare::from_image::generate(&opened, cache.path(), &job)?;
+    // A new Image has no memoized scan results: a warm generation must still
+    // validate the kernel, while skipping anchor scans and type conversion.
+    let logs = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+    let output = logs.clone();
+    let reuse_job = Job::new(move |line| output.lock().unwrap().push(line));
+    let reopened = Image::open(&image, cache.path(), &job)?;
+    let warm = std::time::Instant::now();
+    ensure!(zero_tui::prepare::from_image::generate(&reopened, cache.path(), &reuse_job)? == path);
+    eprintln!("verified warm image generation: {:?}", warm.elapsed());
+    let logs = logs.lock().unwrap();
+    ensure!(logs.iter().any(|s| s.contains("复用已验证")));
+    ensure!(
+        !logs.iter().any(|s| s.starts_with("BTF 转换:")
+            || s.contains("扫描候选")
+            || s.contains("从镜像定位"))
+    );
+    drop(logs);
     let generated = read_isf(&path)?;
     let zero = &generated["metadata"]["zero"];
     ensure!(zero["source"] == "image" && zero["address_basis"] == "link");
