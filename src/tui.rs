@@ -11,6 +11,7 @@ use tabs::OpenTab;
 mod assets;
 mod chrome;
 mod commands;
+mod console;
 mod dialog_keys;
 mod dialogs;
 mod footer;

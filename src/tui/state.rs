@@ -166,6 +166,8 @@ pub(super) enum Work {
     FindKernelPackages(bool),
     PrepareKernel(crate::prepare::KernelPackage),
     GenerateSymbols([PathBuf; 3]),
+    /// Derive symbols from the selected image's own BTF and kallsyms.
+    GenerateFromImage,
     Identify,
     PreviewImage(PathBuf),
     InspectSymbols(PathBuf),
@@ -241,6 +243,8 @@ pub(super) struct HitMap {
     pub(super) popup_list: Rect,
     pub(super) columns: Vec<Rect>,
     pub(super) buttons: Vec<(Rect, KeyCode)>,
+    pub(super) console_tab: Rect,
+    pub(super) console_methods: Vec<(Rect, usize)>,
 }
 /// Everything `asset_list_for` filters on. When all of it is unchanged the
 /// previous index is still valid.
@@ -387,6 +391,9 @@ pub struct App {
     pub(super) views: HashMap<String, View>,
     /// Enter on a not-yet-selected asset: open the analysis page once matching is ready.
     pub(super) enter_when_ready: bool,
+    /// The resource page shows the symbol-generation console instead of a list.
+    pub(super) asset_console: bool,
+    pub(super) console: super::console::Console,
 }
 
 #[derive(Default)]

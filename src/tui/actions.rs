@@ -453,7 +453,7 @@ pub(super) const ACTIONS: &[Action] = &[
     ),
     action(
         Command::GenerateSymbols,
-        "生成当前镜像符号表 K",
+        "符号表生成控制台 K",
         KeyCode::Char('K'),
         Scope::Anywhere,
         PALETTE,

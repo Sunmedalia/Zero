@@ -24,17 +24,21 @@ impl Linux<'_> {
             + self.signed_time_field(at, ty, "tv_nsec")?)
     }
 
-    fn symbol_time_type(&self, name: &str, fallback: &str) -> String {
-        self.isf.data.key("symbols")[name].key("type")["name"]
-            .as_str()
-            .unwrap_or(fallback)
-            .to_owned()
+    fn symbol_time_type(&self, name: &str, fallback: &str) -> Result<String> {
+        if let Some(ty) = self.isf.data.key("symbols")[name].key("type")["name"].as_str() {
+            return Ok(ty.to_owned());
+        }
+        ensure!(
+            self.isf.data.key("user_types").get(fallback).is_some(),
+            "不支持: ISF 缺少 {name} 的类型（从镜像 BTF 生成的符号不记录该全局变量类型）"
+        );
+        Ok(fallback.to_owned())
     }
 
     pub(super) fn root_boot_time_nanos(&self) -> Result<i128> {
         if self.isf.data.key("symbols").get("tk_core").is_some() {
             let core = self.isf.address("tk_core")?;
-            let core_type = self.symbol_time_type("tk_core", "tk_core");
+            let core_type = self.symbol_time_type("tk_core", "tk_core")?;
             let keeper = self.field_address(core, &core_type, "timekeeper")?;
             let keeper_type = self.time_field_type(&core_type, "timekeeper")?;
             let real_type = self.time_field_type(keeper_type, "offs_real")?;
@@ -80,7 +84,7 @@ impl Linux<'_> {
             .context("不支持: 缺少内核启动时间符号")?;
         let mut total = self.timespec_nanos(
             wall,
-            &self.symbol_time_type("wall_to_monotonic", "timespec"),
+            &self.symbol_time_type("wall_to_monotonic", "timespec")?,
         )?;
         if self
             .isf
@@ -90,7 +94,7 @@ impl Linux<'_> {
             .is_some()
         {
             let at = self.isf.address("total_sleep_time")?;
-            let ty = self.symbol_time_type("total_sleep_time", "timespec");
+            let ty = self.symbol_time_type("total_sleep_time", "timespec")?;
             total += if ty == "timespec" {
                 self.timespec_nanos(at, &ty)?
             } else {

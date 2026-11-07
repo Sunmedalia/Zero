@@ -559,3 +559,196 @@ fn targeted_dumps_and_history_on_both_samples() -> Result<()> {
     }
     Ok(())
 }
+
+/// Field-level equality of two ISF type descriptors. Anonymous types are compared
+/// by content (their names are content hashes that differ between generators),
+/// and a nested array equals BTF's flattened form of the same total count.
+fn same_type(
+    reference: &serde_json::Value,
+    generated: &serde_json::Value,
+    a: &serde_json::Value,
+    b: &serde_json::Value,
+    depth: usize,
+) -> bool {
+    fn flat(t: &serde_json::Value) -> serde_json::Value {
+        if t["kind"] == "array" && t["subtype"]["kind"] == "array" {
+            let inner = flat(&t["subtype"]);
+            let count = t["count"].as_u64().unwrap_or(0) * inner["count"].as_u64().unwrap_or(0);
+            return serde_json::json!({"kind":"array","count":count,"subtype":inner["subtype"]});
+        }
+        t.clone()
+    }
+    let a = flat(a);
+    if depth > 40 || a["kind"] != b["kind"] {
+        return false;
+    }
+    let anonymous = |t: &serde_json::Value| {
+        t["name"]
+            .as_str()
+            .is_some_and(|n| n.starts_with("unnamed_"))
+    };
+    match a["kind"].as_str() {
+        Some("struct" | "union") if anonymous(&a) && anonymous(b) => same_struct(
+            reference,
+            generated,
+            &reference["user_types"][a["name"].as_str().unwrap_or_default()],
+            &generated["user_types"][b["name"].as_str().unwrap_or_default()],
+            depth + 1,
+        ),
+        Some("enum") if anonymous(&a) && anonymous(b) => {
+            reference["enums"][a["name"].as_str().unwrap_or_default()]["constants"]
+                == generated["enums"][b["name"].as_str().unwrap_or_default()]["constants"]
+        }
+        Some("pointer") => same_type(reference, generated, &a["subtype"], &b["subtype"], depth),
+        Some("array") => {
+            a["count"] == b["count"]
+                && same_type(reference, generated, &a["subtype"], &b["subtype"], depth)
+        }
+        Some("bitfield") => {
+            a["bit_length"] == b["bit_length"]
+                && a["bit_position"] == b["bit_position"]
+                && same_type(reference, generated, &a["type"], &b["type"], depth)
+        }
+        _ => a == *b,
+    }
+}
+fn same_struct(
+    reference: &serde_json::Value,
+    generated: &serde_json::Value,
+    a: &serde_json::Value,
+    b: &serde_json::Value,
+    depth: usize,
+) -> bool {
+    let (Some(fa), Some(fb)) = (a["fields"].as_object(), b["fields"].as_object()) else {
+        return false;
+    };
+    a["size"] == b["size"]
+        && a["kind"] == b["kind"]
+        && fa.len() == fb.len()
+        && fa.iter().all(|(name, field)| {
+            fb.get(name).is_some_and(|other| {
+                field["offset"] == other["offset"]
+                    && same_type(reference, generated, &field["type"], &other["type"], depth)
+            })
+        })
+}
+
+fn read_isf(path: &std::path::Path) -> Result<serde_json::Value> {
+    use std::io::Read as _;
+    let raw = std::fs::read(path)?;
+    let bytes = if path.extension().is_some_and(|e| e == "xz") {
+        let mut out = Vec::new();
+        xz2::read::XzDecoder::new(raw.as_slice()).read_to_end(&mut out)?;
+        out
+    } else {
+        raw
+    };
+    Ok(serde_json::from_slice(&bytes)?)
+}
+
+/// ZERO_BTF_IMAGE: x86_64 capture of a BTF + KALLSYMS_ALL kernel.
+/// ZERO_BTF_REFERENCE (optional): dwarf2json ISF of the same kernel for exact comparison.
+#[test]
+#[ignore = "requires a local BTF-enabled x86_64 capture; optionally the matching debug-ELF ISF"]
+fn image_derived_symbols_match_the_debug_isf() -> Result<()> {
+    let image = PathBuf::from(std::env::var("ZERO_BTF_IMAGE").context("set ZERO_BTF_IMAGE")?);
+    let cache = tempfile::tempdir()?;
+    let job = Job::default();
+    let opened = Image::open(&image, cache.path(), &job)?;
+    let path = zero_tui::prepare::from_image::generate(&opened, cache.path(), &job)?;
+    let generated = read_isf(&path)?;
+    let zero = &generated["metadata"]["zero"];
+    ensure!(zero["source"] == "image" && zero["address_basis"] == "link");
+    for name in [
+        "init_task",
+        "init_top_pgt",
+        "linux_banner",
+        "_text",
+        "kallsyms_num_syms",
+    ] {
+        ensure!(
+            generated["symbols"][name]["address"].is_u64(),
+            "missing {name}"
+        );
+    }
+    for structure in [
+        "task_struct",
+        "mm_struct",
+        "vm_area_struct",
+        "file",
+        "dentry",
+        "module",
+        "cred",
+    ] {
+        ensure!(
+            generated["user_types"][structure]["fields"].is_object(),
+            "missing {structure}"
+        );
+    }
+    let Ok(reference_path) = std::env::var("ZERO_BTF_REFERENCE") else {
+        return Ok(());
+    };
+    let reference = read_isf(std::path::Path::new(&reference_path))?;
+    let symbols = generated["symbols"].as_object().context("symbols")?;
+    let mismatched: Vec<_> = symbols
+        .iter()
+        .filter(|(name, entry)| {
+            reference["symbols"]
+                .get(name.as_str())
+                .is_some_and(|r| r["address"] != entry["address"])
+        })
+        .map(|(name, _)| name.clone())
+        .collect();
+    ensure!(
+        mismatched.is_empty(),
+        "address mismatches: {:?}",
+        &mismatched[..mismatched.len().min(8)]
+    );
+    ensure!(
+        reference["symbols"]["linux_banner"]["constant_data"]
+            == generated["symbols"]["linux_banner"]["constant_data"]
+    );
+    // Same-named structures defined differently in separate compilation units are
+    // recorded as conflicts; every other named layout must be identical.
+    let source: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(path.with_extension("source.json"))?)?;
+    let conflicts: Vec<&str> = source["provenance"]["type_conflicts"]
+        .as_array()
+        .context("conflicts")?
+        .iter()
+        .filter_map(|v| v.as_str())
+        .collect();
+    let mut different = Vec::new();
+    for (name, layout) in reference["user_types"].as_object().context("user_types")? {
+        if name.starts_with("unnamed_") || conflicts.contains(&name.as_str()) {
+            continue;
+        }
+        if !same_struct(
+            &reference,
+            &generated,
+            layout,
+            &generated["user_types"][name],
+            0,
+        ) {
+            different.push(name.clone());
+        }
+    }
+    ensure!(
+        different.is_empty(),
+        "layout differences: {:?}",
+        &different[..different.len().min(16)]
+    );
+    for plugin in [Plugin::Pslist, Plugin::Lsof, Plugin::Maps, Plugin::Sockstat] {
+        let run = |symbols: &std::path::Path| -> Result<Vec<Vec<String>>> {
+            match linux::analyze(&image, symbols, None, plugin, cache.path(), false, &job)? {
+                Outcome::Ready(result) => Ok(result.rows),
+                _ => anyhow::bail!("ambiguous symbols"),
+            }
+        };
+        ensure!(
+            run(&path)? == run(std::path::Path::new(&reference_path))?,
+            "{plugin:?} rows differ between image-derived and debug ISF"
+        );
+    }
+    Ok(())
+}

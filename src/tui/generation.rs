@@ -44,6 +44,10 @@ impl App {
         else {
             return;
         };
+        if key.code == KeyCode::F(8) {
+            self.start_work(Work::GenerateFromImage);
+            return;
+        }
         if key.code == KeyCode::F(7) {
             if self.supports_automatic_symbols() {
                 *automatic = !*automatic;
@@ -169,9 +173,12 @@ impl App {
                 }
             }
         }
+        lines.push(Line::raw(
+            "F8 无需调试包：从镜像自带 BTF 与 kallsyms 生成（x86_64；全局变量仅 BTF 记录的有类型）。",
+        ));
         let y = inner.y.saturating_add(lines.len().cells());
         lines.push(Line::styled(
-            "[生成并选用 Enter]  [切换方式 F7]  [取消 Esc]",
+            "[生成并选用 Enter]  [切换方式 F7]  [从镜像生成 F8]  [取消 Esc]",
             Style::default().fg(color_focus()),
         ));
         lines.push(Line::raw(
@@ -186,6 +193,7 @@ impl App {
             for (label, key) in [
                 ("[生成并选用 Enter]  ", KeyCode::Enter),
                 ("[切换方式 F7]  ", KeyCode::F(7)),
+                ("[从镜像生成 F8]  ", KeyCode::F(8)),
                 ("[取消 Esc]", KeyCode::Esc),
             ] {
                 let width = (Span::raw(label).width().cells()).min(inner.right().saturating_sub(x));

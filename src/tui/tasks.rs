@@ -183,6 +183,9 @@ impl App {
         let local_library = crate::prepare::symbol_library(&self.root, &self.settings.symbols);
         let session = self.session.clone();
         let origin_job = worker_job.clone();
+        if !console::generation_work(&work) {
+            self.console.running = None;
+        }
         if matches!(
             work,
             Work::Analyze(_)
@@ -190,6 +193,7 @@ impl App {
                 | Work::FindKernelPackages(_)
                 | Work::PrepareKernel(_)
                 | Work::GenerateSymbols(_)
+                | Work::GenerateFromImage
         ) {
             self.history_revision += 1;
             self.history = None;
@@ -381,6 +385,19 @@ impl App {
                         .run(crate::prepare::GenerationInput::Local { elf, config, tool })
                         .map(WorkerEvent::Downloaded)
                     }
+                    Work::GenerateFromImage => {
+                        let image = session.prepare_image(&image, &cache, &worker_job)?;
+                        crate::prepare::Generation {
+                            image: &image,
+                            library: &local_library,
+                            cache: &cache,
+                            network,
+                            tool: None,
+                            job: &worker_job,
+                        }
+                        .run(crate::prepare::GenerationInput::Image)
+                        .map(WorkerEvent::Downloaded)
+                    }
                     Work::Clear(scopes) => {
                         session.clear();
                         cache::clear_with_job(&cache, &scopes, &worker_job)
@@ -484,6 +501,7 @@ impl App {
                     self.preparation = Preparation::Cancelled;
                 }
                 self.status = "已取消；可重试".into();
+                self.console_cancelled();
                 continue;
             }
             let progress_event = matches!(&event, WorkerEvent::Progress(_));
@@ -663,7 +681,7 @@ impl App {
                                 "未找到精确 PDB 身份；b 重新识别，y 导入本地符号".into()
                             } else if self.supports_automatic_symbols() {
                                 format!(
-                                    "GitHub 没有该完整 banner 的精确符号；K 生成当前镜像符号表 · {}",
+                                    "GitHub 没有该完整 banner 的精确符号；K 打开符号表生成控制台 · {}",
                                     self.settings.symbol_repository
                                 )
                             } else {
@@ -689,7 +707,9 @@ impl App {
                 }
                 WorkerEvent::Downloaded(path) => {
                     self.finish_worker();
-                    self.enter_when_ready |= self.page == Page::Assets;
+                    // A console run stays on its result card instead of jumping to analysis.
+                    let console = self.console_saved(&path);
+                    self.enter_when_ready |= self.page == Page::Assets && !console;
                     if let Some(url) = self.download_url.take() {
                         self.downloads.insert(url, path.clone());
                     }
@@ -724,6 +744,7 @@ impl App {
                         .split_whitespace()
                         .find_map(|v| v.strip_suffix('%').and_then(|v| v.parse::<u16>().ok()))
                         .map(|p| p.min(100));
+                    self.console_progress(&s);
                     self.logs.push_back(s.clone());
                     if self.logs.len() > 200 {
                         self.logs.pop_front();
@@ -740,6 +761,7 @@ impl App {
                     self.status = format!("诊断报告已导出: {}", path.display());
                 }
                 WorkerEvent::Failed(s) => {
+                    self.console_failed(&s);
                     self.pending_work = None;
                     self.pending_execution = None;
                     self.last_error = Some(s.clone());

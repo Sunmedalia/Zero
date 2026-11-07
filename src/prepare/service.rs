@@ -13,6 +13,8 @@ pub enum GenerationInput {
         config: PathBuf,
         tool: PathBuf,
     },
+    /// Types from the image's embedded BTF, addresses from its kallsyms.
+    Image,
 }
 pub enum Discovery {
     Ready(PathBuf),
@@ -107,6 +109,7 @@ impl Generation<'_> {
             GenerationInput::Local { elf, config, tool } => {
                 generate(&elf, &config, &tool, self.image, self.cache, self.job)?
             }
+            GenerationInput::Image => from_image::generate(self.image, self.cache, self.job)?,
         };
         self.save(&path)
     }

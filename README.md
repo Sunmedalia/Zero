@@ -96,6 +96,9 @@ zero --offline analyze --image /evidence/memory.raw \
 # 识别内核，下载精确匹配的符号
 zero symbols --image /evidence/memory.raw --download
 
+# 没有可用调试包时：用镜像自带的 BTF 与 kallsyms 生成符号（x86_64，无需网络和工具）
+zero --offline symbols-generate --image /evidence/memory.lime --from-image
+
 # 转储指定进程，生成包含 SHA256 的清单
 zero dump --image /evidence/memory.raw --symbols /evidence/kernel.json.xz \
   --mode process --pid 1 --dump-dir exports/dumps --output exports/dump-index.csv
@@ -148,7 +151,9 @@ zero mcp
 | 符号格式 | ISF JSON、JSON.XZ、ZIP 成员；Windows 可下载精确 PDB 并在本地转换 |
 | Linux | x86_64 四级页表（含 KASLR）、ARM64 4 KiB 页（39 / 48-bit VA）；已验收 Debian 3.2 与 Kali 6.8.11 ARM64 |
 | Windows | 按精确 PDB 匹配；Microsoft 返回 404 时，可从 Volatility 官方符号包按需获取精确 ISF。逐插件、逐样本证据见[兼容矩阵](docs/compatibility.md)。 |
-| 符号来源 | 本地文件、[volatility3-symbols](https://github.com/Abyss-W4tcher/volatility3-symbols)、Microsoft 符号服务器；Ubuntu / Debian / Kali 可查找官方调试包并生成，持久保存到本地库 |
+| 符号来源 | 本地文件、[volatility3-symbols](https://github.com/Abyss-W4tcher/volatility3-symbols)、Microsoft 符号服务器；Ubuntu / Debian / Kali 可查找官方调试包并生成，持久保存到本地库；x86_64 内核启用 `CONFIG_DEBUG_INFO_BTF` 与 `CONFIG_KALLSYMS_ALL` 时可直接从镜像生成（见下） |
+
+**从镜像生成符号**（`symbols-generate --from-image`，TUI 生成窗口 `F8`）：结构、枚举与基础类型来自内核内置 BTF，符号地址来自内存中的核心 kallsyms；KASLR 偏移取自与 kallsyms 一致的 VMCOREINFO，结果须通过页表验证才会保存。BTF 只记录 per-cpu 全局变量的类型，因此依赖其它全局变量类型的插件（如 `check_syscall`、`check_afinfo`、`boottime`、模块 taint 列）会明确报告不支持或部分结果，而不是猜测；多维数组在 BTF 中被展平。元数据 `metadata.zero.source = "image"` 标明来源，`--auto` 不会把它当作调试包结果复用。在 Debian 13 `6.12.74+deb13+1-cloud-amd64` 实机镜像上与官方调试 ELF 的 dwarf2json 结果对比：149,228 个符号地址全部一致，8,701 个具名结构中 8,691 个完全一致（其余 10 个为不同编译单元同名结构），56 个 Linux 插件中 50 个输出逐行一致、`systeminfo` 仅符号路径与摘要不同，`lsmod` / `modxview` 的 taint 列为带诊断的部分结果，3 个插件明确报告缺少类型。
 
 休眠文件与压缩 store 的部分路径只有合成验证。Linux32 / PAE 页表与 ELF32 已有内部参考测试，公开 Linux32 ISF 入口仍关闭，尚无真实 Linux32 端到端验收。恶意检测插件输出需要核查的结构线索，不直接作恶意判定。
 

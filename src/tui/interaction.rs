@@ -170,6 +170,9 @@ impl App {
     /// command dispatch. Every global binding lives in [`Command::from_key`], so
     /// this function never re-implements one.
     pub(super) fn asset_key(&mut self, key: KeyEvent) -> bool {
+        if self.asset_console {
+            return self.console_key(key);
+        }
         if self.focus == Focus::Content && self.hits.borrow().asset_detail.height == 0 {
             self.focus = Focus::Navigation;
         }
@@ -208,6 +211,13 @@ impl App {
             return self.run_command(command);
         }
         match key.code {
+            // The console is the fourth tab: after remote, before images.
+            KeyCode::Tab if self.section == AssetSection::Remote => {
+                self.open_generation_console();
+            }
+            KeyCode::BackTab if self.section == AssetSection::Images => {
+                self.open_generation_console();
+            }
             KeyCode::Tab | KeyCode::BackTab => {
                 let sections = [
                     AssetSection::Images,
@@ -304,7 +314,7 @@ impl App {
                 self.enter_workbench();
             }
             Command::ToggleSource => self.toggle_source(),
-            Command::GenerateSymbols => self.open_symbol_generation(),
+            Command::GenerateSymbols => self.open_generation_console(),
             Command::FetchIndex => self.fetch_index(),
             Command::Download => self.download_candidate(),
             Command::ToggleMatchFilter => self.toggle_match_filter(),
@@ -656,6 +666,7 @@ impl App {
             );
             text.push('\n');
         }
+        text.push_str("\n生成符号：资源库第四个标签（K 或 Tab 进入）。检查镜像、内核与环境，推荐可用方式：官方调试包、从镜像生成（BTF + kallsyms）、本地调试文件；↑↓ 选择，Enter 开始，r 重新检查。\n");
         text.push_str("\n分析页操作（随焦点变化）：\n");
         for (title, focus) in [
             ("镜像信息", Focus::Context),
@@ -676,7 +687,7 @@ impl App {
                     .join(" · ")
             ));
         }
-        text.push_str("\n远程详情：w 下载到 symbols · L 在本地库定位 · c 取消下载 · Esc 返回\n\n分析：P 适用参数 · Ctrl+R 运行 · D Dump · Alt+←/→ 横向滚动\n资源库 K / 分析页 g 生成当前镜像符号表\n\n详情弹窗：c 复制全文 · t / ⤢ 展开为标签页；详情标签页 ↑↓ 滚动、c 复制、Ctrl+W 关闭\n\nCtrl+P / ? 命令面板（空格分隔多个词，不区分大小写，可用 cache、dump、pid 等英文词）\nEsc 关闭弹窗；分析页先清除筛选，再取消任务 · q 退出（弹窗确认）· Ctrl+C 立即退出\n文件弹窗：Space 选用 · Enter 打开目录／进入分析控制台，d 详情 · Shift+Space 选用符号目录 · ← 上级 · Tab 切换目录 · p 输入路径\nDump：Alt+1…7 切换模式 · Tab 字段 · Ctrl+Enter 运行\n");
+        text.push_str("\n远程详情：w 下载到 symbols · L 在本地库定位 · c 取消下载 · Esc 返回\n\n分析：P 适用参数 · Ctrl+R 运行 · D Dump · Alt+←/→ 横向滚动\n资源库 K / 分析页 g 打开符号表生成控制台\n\n详情弹窗：c 复制全文 · t / ⤢ 展开为标签页；详情标签页 ↑↓ 滚动、c 复制、Ctrl+W 关闭\n\nCtrl+P / ? 命令面板（空格分隔多个词，不区分大小写，可用 cache、dump、pid 等英文词）\nEsc 关闭弹窗；分析页先清除筛选，再取消任务 · q 退出（弹窗确认）· Ctrl+C 立即退出\n文件弹窗：Space 选用 · Enter 打开目录／进入分析控制台，d 详情 · Shift+Space 选用符号目录 · ← 上级 · Tab 切换目录 · p 输入路径\nDump：Alt+1…7 切换模式 · Tab 字段 · Ctrl+Enter 运行\n");
         self.dialog = Some(Dialog::Detail {
             title: "详情",
             text,

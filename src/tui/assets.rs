@@ -486,7 +486,7 @@ impl App {
             }
             let rect = Rect::new(x, regions.rect(1).y, width, regions.rect(1).height);
             frame.render_widget(
-                Paragraph::new(label).style(if self.section == section {
+                Paragraph::new(label).style(if self.section == section && !self.asset_console {
                     Style::default().fg(color_focus()).bg(color_selected_bg())
                 } else {
                     Style::default().fg(color_accent())
@@ -495,6 +495,27 @@ impl App {
             );
             self.hits.borrow_mut().sources.push((rect, section));
             x += width + 1;
+        }
+        let label = " ⚙ 生成符号 ";
+        let width = Span::raw(label).width().cells();
+        if x + width <= regions.rect(1).right() {
+            let rect = Rect::new(x, regions.rect(1).y, width, regions.rect(1).height);
+            frame.render_widget(
+                Paragraph::new(label).style(if self.asset_console {
+                    Style::default()
+                        .fg(color_focus())
+                        .bg(color_selected_bg())
+                        .add_modifier(Modifier::BOLD)
+                } else {
+                    Style::default().fg(color_accent())
+                }),
+                rect,
+            );
+            self.hits.borrow_mut().console_tab = rect;
+        }
+        if self.asset_console {
+            self.draw_generation_console(frame, regions.rect(2));
+            return;
         }
         let mut body = regions.rect(2);
         if self.section == AssetSection::Remote {

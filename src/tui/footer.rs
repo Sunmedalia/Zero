@@ -78,7 +78,17 @@ impl App {
             ];
             frame.render_widget(Paragraph::new(Line::from(line)), status);
         }
-        if self.page == Page::Assets {
+        if self.page == Page::Assets && self.asset_console {
+            self.draw_console_actions(
+                frame,
+                Rect::new(
+                    footer.x,
+                    footer.y + 1,
+                    footer.width,
+                    footer.height.saturating_sub(1),
+                ),
+            );
+        } else if self.page == Page::Assets {
             self.draw_asset_toolbar(
                 frame,
                 Rect::new(

@@ -347,3 +347,37 @@ fn unsupported_symbols_fields_and_cancellation_are_explicit() {
         );
     }
 }
+
+#[test]
+fn vmcoreinfo_without_symbol_type_accepts_only_a_validated_layout() {
+    let note = b"OSRELEASE=6.12.74\nPAGESIZE=4096\n";
+    for pointer in [true, false] {
+        let (mut bytes, mut isf) = fixture();
+        isf.data["symbols"]["vmcoreinfo_data"] = json!({"address":0x13000});
+        isf.data["symbols"]["vmcoreinfo_size"] = json!({"address":0x13f00});
+        put(&mut bytes, 0x13f00, note.len() as u64);
+        let text = if pointer {
+            put(&mut bytes, 0x13000, 0x13100);
+            0x13100
+        } else {
+            0x13000
+        };
+        bytes[text..text + note.len()].copy_from_slice(note);
+        let im = image(&bytes);
+        let r = engine(&im, &isf)
+            .run(Plugin::Vmcoreinfo, &Job::default())
+            .unwrap();
+        assert_eq!(r.rows[0], ["OSRELEASE", "6.12.74"], "pointer={pointer}");
+    }
+    // Neither layout holds a note: an explicit error, not garbage rows.
+    let (mut bytes, mut isf) = fixture();
+    isf.data["symbols"]["vmcoreinfo_data"] = json!({"address":0x13000});
+    isf.data["symbols"]["vmcoreinfo_size"] = json!({"address":0x13f00});
+    put(&mut bytes, 0x13f00, 32);
+    put(&mut bytes, 0x13000, 0x13100);
+    let im = image(&bytes);
+    let e = engine(&im, &isf)
+        .run(Plugin::Vmcoreinfo, &Job::default())
+        .unwrap_err();
+    assert!(format!("{e:#}").contains("缺少类型"));
+}

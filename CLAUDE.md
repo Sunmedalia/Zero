@@ -16,6 +16,7 @@ This repository is a native Rust 2024 local Linux and Windows memory forensics T
 - `src/dump.rs`: unified `dump --mode process|range|elf|pe` command and targeted procdump / memdump / elfdump backends, streamed atomic exports and SHA256 manifests; never dump all processes or use result caches.
 - `src/cache.rs`: allowlisted inventories, categorized clear, shared/exclusive occupancy locks.
 - `src/prepare.rs`: exact debug ELF/config generation and explicit Kali archive preparation.
+- `src/prepare/from_image.rs`: x86_64 image-only generation (`--from-image`, TUI F8): `btf.rs` converts embedded BTF with dwarf2json naming rules, `image_kallsyms.rs` locates and decodes core kallsyms without symbols, `vmcoreinfo.rs` supplies a cross-checked KASLR offset. Every link is verified against the image and page tables before saving; `metadata.zero.source = "image"` keeps it out of debug-package reuse, and missing global-variable types must fail explicitly.
 - `src/store.rs`: atomic exports, digest/version keyed successful results, settings and historical CSV.
 - `src/workspace.rs`: discovered/imported assets, persisted selections, non-destructive removal and symbol inspection.
 - `src/tui.rs` / `src/tui/`: native Ratatui/Crossterm terminal interface, application state, typed worker events, shared actions, rendering/hit rectangles, dialogs, result tabs, scrollbars and themes. `tests.rs` and `migration_tests.rs` exercise state and TestBackend rendering without a terminal; `screenshots.rs` produces SVG figures through the same Buffer and real engine.

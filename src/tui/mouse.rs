@@ -183,6 +183,21 @@ impl App {
                 }
                 return false;
             }
+            if click && self.page == Page::Assets && hits.console_tab.contains(point) {
+                self.open_generation_console();
+                return false;
+            }
+            if click
+                && self.page == Page::Assets
+                && self.asset_console
+                && let Some((_, index)) = hits
+                    .console_methods
+                    .iter()
+                    .find(|(rect, _)| rect.contains(point))
+            {
+                self.console.selected = *index;
+                return false;
+            }
             if click
                 && let Some((_, page)) = hits.sources.iter().find(|(rect, _)| rect.contains(point))
             {

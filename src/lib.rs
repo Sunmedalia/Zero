@@ -36,7 +36,7 @@ use std::sync::{
 };
 
 // Reject cached results produced before strict resident MFT attribute validation.
-pub const ENGINE_VERSION: &str = concat!(env!("CARGO_PKG_VERSION"), "-native-118");
+pub const ENGINE_VERSION: &str = concat!(env!("CARGO_PKG_VERSION"), "-native-119");
 #[derive(Clone)]
 pub struct Job {
     pub cancel: Arc<AtomicBool>,

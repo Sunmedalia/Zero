@@ -1020,7 +1020,14 @@ fn current_image_symbol_generation_validates_inputs_and_persists_exact_output() 
     app.page = Page::Assets;
     finish_test_job(&mut app);
     let original_image = std::fs::read(app.image.as_ref().unwrap()).unwrap();
+    // K opens the generation console; its local-files method opens the manual form.
     app.key(KeyEvent::new(KeyCode::Char('K'), KeyModifiers::NONE));
+    assert!(app.asset_console);
+    app.console.selected = crate::tui::console::Method::ALL
+        .iter()
+        .position(|m| *m == crate::tui::console::Method::LocalFiles)
+        .unwrap();
+    app.key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
     assert!(matches!(
         app.dialog,
         Some(Dialog::GenerateSymbols {

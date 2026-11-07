@@ -374,6 +374,8 @@ impl App {
             detail_scroll: 0,
             views: HashMap::new(),
             enter_when_ready: false,
+            asset_console: false,
+            console: Default::default(),
         }
     }
     pub(super) fn switch_page(&mut self, page: Page) {
@@ -428,6 +430,7 @@ impl App {
     }
     pub(super) fn set_section(&mut self, section: AssetSection) {
         self.page = Page::Assets;
+        self.asset_console = false;
         self.section = section;
         if section != AssetSection::Images {
             self.symbol_source = section;

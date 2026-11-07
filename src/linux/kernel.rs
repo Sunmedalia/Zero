@@ -594,6 +594,19 @@ impl Linux<'_> {
                 symbols.push((self.isf.address(name)?, name.as_str()));
             }
         }
+        // Image-derived ISFs keep names that have several addresses out of the
+        // forward table; they still name those exact addresses here.
+        let slide = self.isf.slide.load(std::sync::atomic::Ordering::Relaxed);
+        if let Some(duplicates) = self.isf.data.key("metadata")["zero"]
+            .key("duplicate_symbols")
+            .as_array()
+        {
+            for entry in duplicates {
+                if let (Some(name), Some(address)) = (entry[0].as_str(), entry[1].as_u64()) {
+                    symbols.push((address.wrapping_add(slide), name));
+                }
+            }
+        }
         symbols.sort_unstable();
         Ok(CodeMap { ranges, symbols })
     }
@@ -780,22 +793,40 @@ impl Linux<'_> {
             .isf
             .address("vmcoreinfo_data")
             .context("不支持: 缺少 vmcoreinfo_data")?;
-        // Since 4.15 the buffer is allocated and the symbol is a pointer.
-        let data =
-            if self.isf.data.key("symbols")["vmcoreinfo_data"].key("type")["kind"] == "pointer" {
-                self.vm.uint(symbol, 8)?
-            } else {
-                symbol
-            };
         let size = self.vm.uint(
             self.isf
                 .address("vmcoreinfo_size")
                 .context("不支持: 缺少 vmcoreinfo_size")?,
             8,
         )?;
-        ensure!(data != 0 && size <= 65536, "vmcoreinfo 缓冲区无效");
-        let mut bytes = vec![0; usize::try_from(size)?];
-        self.vm.read(data, &mut bytes)?;
+        ensure!(size <= 65536, "vmcoreinfo 缓冲区无效");
+        let read = |data: u64| -> Result<Vec<u8>> {
+            ensure!(data != 0, "vmcoreinfo 缓冲区无效");
+            let mut bytes = vec![0; usize::try_from(size)?];
+            self.vm.read(data, &mut bytes)?;
+            Ok(bytes)
+        };
+        // Since 4.15 the buffer is allocated and the symbol is a pointer.
+        let bytes =
+            match self.isf.data.key("symbols")["vmcoreinfo_data"].key("type")["kind"].as_str() {
+                Some("pointer") => read(self.vm.uint(symbol, 8)?)?,
+                Some(_) => read(symbol)?,
+                None => {
+                    // No recorded type: accept exactly one layout whose text is a note.
+                    let note = |bytes: &Vec<u8>| bytes.starts_with(b"OSRELEASE=");
+                    let pointer = self.vm.uint(symbol, 8).and_then(read).ok().filter(note);
+                    let inline = read(symbol).ok().filter(note);
+                    match (pointer, inline) {
+                        (Some(bytes), None) | (None, Some(bytes)) => bytes,
+                        (Some(_), Some(_)) => {
+                            anyhow::bail!("vmcoreinfo_data 缺少类型且两种布局都像有效记录")
+                        }
+                        (None, None) => {
+                            anyhow::bail!("vmcoreinfo_data 缺少类型，且两种布局都不是 VMCOREINFO")
+                        }
+                    }
+                }
+            };
         for line in String::from_utf8_lossy(&bytes).lines() {
             if let Some((key, value)) = line.split_once('=') {
                 r.rows.push(vec![key.into(), value.into()]);

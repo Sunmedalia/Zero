@@ -169,6 +169,10 @@ enum Command {
         /// Refresh official package indexes instead of using a fresh cached copy.
         #[arg(long, requires = "auto", conflicts_with_all = ["elf", "config", "kali"])]
         refresh: bool,
+        /// Derive symbols from the image itself: embedded BTF types and kallsyms addresses
+        /// (x86_64, CONFIG_DEBUG_INFO_BTF + CONFIG_KALLSYMS_ALL); no network or tools.
+        #[arg(long, conflicts_with_all = ["elf", "config", "kali", "auto", "tool"])]
+        from_image: bool,
     },
     /// Identify kernel banners and exact repository download links.
     Symbols {
@@ -308,6 +312,7 @@ fn main() -> Result<()> {
         auto,
         candidate,
         refresh,
+        from_image,
     }) = &cli.command
     {
         anyhow::ensure!(
@@ -328,7 +333,9 @@ fn main() -> Result<()> {
             tool: tool.as_deref(),
             job: &job,
         };
-        let input = if *auto {
+        let input = if *from_image {
+            zero_tui::prepare::GenerationInput::Image
+        } else if *auto {
             zero_tui::prepare::GenerationInput::Auto {
                 candidate: *candidate,
                 refresh: *refresh,
@@ -337,12 +344,12 @@ fn main() -> Result<()> {
             zero_tui::prepare::GenerationInput::Kali
         } else {
             zero_tui::prepare::GenerationInput::Local {
-                elf: elf
-                    .clone()
-                    .ok_or_else(|| anyhow::anyhow!("需要 --elf / --config、--auto 或 --kali"))?,
-                config: config
-                    .clone()
-                    .ok_or_else(|| anyhow::anyhow!("需要 --elf / --config、--auto 或 --kali"))?,
+                elf: elf.clone().ok_or_else(|| {
+                    anyhow::anyhow!("需要 --elf / --config、--auto、--kali 或 --from-image")
+                })?,
+                config: config.clone().ok_or_else(|| {
+                    anyhow::anyhow!("需要 --elf / --config、--auto、--kali 或 --from-image")
+                })?,
                 tool: tool.clone().unwrap_or_else(|| {
                     cache
                         .join("symbols/build/dwarf2json")
@@ -371,7 +378,7 @@ fn main() -> Result<()> {
         }
         let matches = symbols::remote_matches(&image, &cache, settings.remote_symbols, &job)?;
         if matches.is_empty() && !image.banners(&job)?.is_empty() {
-            job.report("仓库没有精确符号；可运行 zero symbols-generate --image <镜像路径> --auto 下载官方调试包并生成到本地符号库");
+            job.report("仓库没有精确符号；可运行 zero symbols-generate --image <镜像路径> --auto 下载官方调试包，或 --from-image 从镜像自带 BTF 与 kallsyms 生成到本地符号库");
         }
         let mut downloaded = Vec::new();
         if *download {
@@ -771,6 +778,40 @@ mod cli_tests {
             ])
             .is_err()
         );
+    }
+    #[test]
+    fn image_derived_generation_excludes_other_sources() {
+        let cli = Cli::try_parse_from([
+            "zero",
+            "symbols-generate",
+            "--image",
+            "m.lime",
+            "--from-image",
+        ])
+        .unwrap();
+        assert!(matches!(
+            cli.command,
+            Some(Command::SymbolsGenerate {
+                from_image: true,
+                ..
+            })
+        ));
+        for other in [
+            &["--auto"][..],
+            &["--kali"],
+            &["--tool", "dwarf2json"],
+            &["--elf", "vmlinux", "--config", "config"],
+        ] {
+            let mut args = vec![
+                "zero",
+                "symbols-generate",
+                "--image",
+                "m.lime",
+                "--from-image",
+            ];
+            args.extend_from_slice(other);
+            assert!(Cli::try_parse_from(args).is_err(), "{other:?}");
+        }
     }
     #[test]
     fn official_index_refresh_requires_automatic_generation() {

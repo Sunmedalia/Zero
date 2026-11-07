@@ -412,7 +412,11 @@ pub fn local_generated(
         }
         if let Ok(matches) = matching(&dir, image, job) {
             for isf in matches {
-                if isf.data.key("metadata")["zero"].is_object() && Path::new(&isf.label).is_file() {
+                // Image-derived ISFs are not debug-package results; never reuse them here.
+                if isf.data.key("metadata")["zero"].is_object()
+                    && isf.data.key("metadata")["zero"].key("source").as_str() != Some("image")
+                    && Path::new(&isf.label).is_file()
+                {
                     return Ok(Some(Path::new(&isf.label).canonicalize()?));
                 }
             }

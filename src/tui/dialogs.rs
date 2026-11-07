@@ -91,7 +91,7 @@ impl App {
             Dialog::Detail { .. } => 12,
             Dialog::Dump { .. } => 12,
             Dialog::WindowsParameters { .. } => 18,
-            Dialog::GenerateSymbols { .. } => 15,
+            Dialog::GenerateSymbols { .. } => 16,
             Dialog::KernelPackages { .. } => screen.height,
             _ => 10,
         };

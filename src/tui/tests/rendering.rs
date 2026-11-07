@@ -481,6 +481,31 @@ fn generation_form_supports_current_kali_and_safe_layouts() {
 }
 
 #[test]
+fn image_derived_generation_runs_from_the_form_and_reports_missing_kallsyms() {
+    let (_dir, mut app) = preparation_fixture();
+    app.initialize(Default::default());
+    finish_test_job(&mut app);
+    let selected = app.symbols.clone();
+    app.open_symbol_generation();
+    let mut terminal = Terminal::new(TestBackend::new(120, 32)).unwrap();
+    terminal.draw(|f| app.draw(f)).unwrap();
+    let button = app
+        .hits
+        .borrow()
+        .buttons
+        .iter()
+        .find(|(_, key)| *key == KeyCode::F(8))
+        .expect("F8 button is drawn")
+        .0;
+    click(&mut app, button.x + 1, button.y);
+    assert!(app.job.is_some());
+    finish_test_job(&mut app);
+    // The fixture image has a banner but no kernel tables: an explicit error, no symbol change.
+    assert!(app.last_error.as_ref().unwrap().contains("kallsyms"));
+    assert_eq!(app.symbols, selected);
+}
+
+#[test]
 fn truncated_footer_keeps_a_palette_entry() {
     let mut app = app();
     app.switch_page(Page::Analysis);

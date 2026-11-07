@@ -1,6 +1,7 @@
 use super::*;
 use ratatui::backend::TestBackend;
 mod assets;
+mod console;
 mod mouse;
 mod parameters;
 mod rendering;

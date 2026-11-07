@@ -1,8 +1,13 @@
-//! Exact Linux symbols from local debug files or official distribution packages.
+//! Exact Linux symbols from local debug files or official distribution packages,
+//! or derived from the image's own BTF and kallsyms.
+mod btf;
+pub mod from_image;
+mod image_kallsyms;
 mod indexes;
 mod packages;
 mod service;
 mod stages;
+mod vmcoreinfo;
 use crate::bytes::JsonKey as _;
 use crate::{
     Job,
