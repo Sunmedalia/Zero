@@ -331,10 +331,9 @@ impl<'a> Memory<'a> {
         Ok(u64::from_le_bytes(b))
     }
     pub(super) fn number(&self, base: u64, structure: &str, field: &str) -> Result<u64> {
+        // One layout lookup per read: `json_number` would resolve it again.
         let layout = self.isf.layout(structure, field)?;
-        let size = usize::try_from(layout.size).context("ISF 字段过大")?;
-        let n = self.uint(add(base, layout.offset)?, size)?;
-        json_number(self.isf, n, structure, field)
+        layout.decode(self.uint(add(base, layout.offset)?, layout.width()?)?)
     }
     pub(super) fn unicode(&self, address: u64) -> Result<String> {
         let len = self.number(address, "_UNICODE_STRING", "Length")?;
