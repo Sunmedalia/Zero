@@ -80,6 +80,9 @@ impl std::hash::Hasher for FastHasher {
     fn write_usize(&mut self, value: usize) {
         self.add(value as u64);
     }
+    fn write_u64(&mut self, value: u64) {
+        self.add(value);
+    }
     fn finish(&self) -> u64 {
         self.0
     }
@@ -215,6 +218,104 @@ impl Isf {
             && banner.len() <= 65536
             && !banner.get(..banner.len() - 1)?.contains(&0))
         .then_some(banner)
+    }
+    /// Identity and converter version of a Windows ISF whose full `parse` is
+    /// certain to succeed, read without building the JSON tree. Returns `None`
+    /// for Linux ISFs and any malformed/unusual shape so callers fall through
+    /// to `Isf::parse` and keep exact errors.
+    pub(crate) fn probe_windows_identity(
+        bytes: &[u8],
+    ) -> Option<(crate::windows_symbols::PdbIdentity, Option<String>)> {
+        use serde::Deserialize;
+        #[derive(Deserialize)]
+        struct Probe {
+            #[serde(default)]
+            base_types: Option<BaseTypes>,
+            #[serde(default)]
+            metadata: Option<Metadata>,
+        }
+        #[derive(Deserialize)]
+        struct BaseTypes {
+            #[serde(default)]
+            pointer: Option<Size>,
+        }
+        #[derive(Deserialize)]
+        struct Size {
+            #[serde(default)]
+            size: Option<u64>,
+        }
+        #[derive(Deserialize)]
+        struct Metadata {
+            #[serde(default)]
+            windows: Option<WindowsMeta>,
+            #[serde(default)]
+            zero: Option<ZeroMeta>,
+        }
+        #[derive(Deserialize)]
+        struct ZeroMeta {
+            #[serde(default)]
+            converter: Option<serde_json::Value>,
+        }
+        #[derive(Deserialize)]
+        struct WindowsMeta {
+            #[serde(default)]
+            pdb: Option<PdbMeta>,
+            #[serde(default)]
+            pe: Option<PeMeta>,
+        }
+        #[derive(Deserialize)]
+        struct PdbMeta {
+            #[serde(default)]
+            database: Option<String>,
+            #[serde(rename = "GUID", default)]
+            guid: Option<String>,
+            #[serde(default)]
+            age: Option<u64>,
+            #[serde(default)]
+            machine_type: Option<u64>,
+        }
+        #[derive(Deserialize)]
+        struct PeMeta {
+            #[serde(default)]
+            machine_type: Option<u64>,
+        }
+        let probe: Probe = serde_json::from_slice(bytes).ok()?;
+        let width = probe.base_types?.pointer?.size?;
+        if !matches!(width, 4 | 8) {
+            return None;
+        }
+        let metadata = probe.metadata?;
+        let windows = metadata.windows?;
+        let pdb = windows.pdb?;
+        let pdb_machine = pdb.machine_type.filter(|v| *v != 0);
+        let pe_machine = windows
+            .pe
+            .and_then(|pe| pe.machine_type)
+            .filter(|v| *v != 0);
+        if pdb_machine.is_some() && pe_machine.is_some() && pdb_machine != pe_machine {
+            return None;
+        }
+        let expected_width = match pe_machine.or(pdb_machine) {
+            Some(0x14c) => 4,
+            Some(0x8664 | 0xaa64) => 8,
+            None => width,
+            _ => return None,
+        };
+        if width != expected_width {
+            return None;
+        }
+        let identity = crate::windows_symbols::PdbIdentity {
+            name: pdb.database?.to_ascii_lowercase(),
+            guid: pdb.guid?.replace('-', "").to_ascii_uppercase(),
+            age: u32::try_from(pdb.age?).ok()?,
+        };
+        identity.url().ok()?;
+        let converter = match metadata.zero.and_then(|z| z.converter) {
+            None | Some(serde_json::Value::Null) => None,
+            Some(serde_json::Value::String(version)) => Some(version),
+            Some(_) => return None,
+        };
+        Some((identity, converter))
     }
     pub fn is_windows(&self) -> bool {
         self.data.key("metadata")["windows"].key("pdb").is_object()
@@ -420,7 +521,7 @@ pub(crate) fn decode(r: impl Read, name: &str, job: &Job) -> Result<Vec<u8>> {
 }
 /// Decode every ISF under `path` in sorted order, handing each to `each` as
 /// soon as it is decompressed so only one decoded ISF is resident at a time.
-fn visit(
+pub(crate) fn visit(
     path: &Path,
     job: &Job,
     each: &mut dyn FnMut(String, Vec<u8>) -> Result<()>,
@@ -462,11 +563,6 @@ fn collect(path: &Path, job: &Job, out: &mut Vec<(String, Vec<u8>)>) -> Result<(
         out.push((name, bytes));
         Ok(())
     })
-}
-pub(crate) fn entries(path: &Path, job: &Job) -> Result<Vec<(String, Vec<u8>)>> {
-    let mut out = Vec::new();
-    collect(path, job, &mut out)?;
-    Ok(out)
 }
 pub fn inspect(path: &Path, job: &Job) -> Result<Vec<Isf>> {
     let mut entries = Vec::new();
@@ -555,35 +651,55 @@ pub fn match_local_files(
     let mut seen = std::collections::HashSet::new();
     for path in paths {
         job.check()?;
-        let mut entries = Vec::new();
-        if let Err(error) = collect(path, job, &mut entries) {
-            job.check()?;
-            report
-                .diagnostics
-                .push(format!("{}: {error:#}", path.display()));
-            continue;
-        }
-        for (label, bytes) in entries {
+        let mut path_matches = Vec::new();
+        let mut path_diagnostics = Vec::new();
+        let mut path_digests = Vec::new();
+        let result = visit(path, job, &mut |label, bytes| {
             job.check()?;
             if let Some(banner) = Isf::probe_linux_banner(&bytes)
                 && !banners.iter().any(|(_, known)| *known == banner)
             {
-                continue;
+                return Ok(());
+            }
+            if let Some((identity, _)) = Isf::probe_windows_identity(&bytes)
+                && !windows.contains(&identity)
+            {
+                return Ok(());
             }
             match Isf::parse(&bytes, label.clone()) {
                 Ok(isf)
                     if (banners.iter().any(|(_, banner)| *banner == isf.banner)
                         || (isf.is_windows()
                             && crate::windows_symbols::PdbIdentity::from_isf(&isf)
-                                .is_ok_and(|p| windows.contains(&p))))
-                        && seen.insert(isf.digest.clone()) =>
+                                .is_ok_and(|p| windows.contains(&p)))) =>
                 {
-                    report.matched.entry(path.clone()).or_default().push(label);
+                    path_digests.push((isf.digest, label));
                 }
                 Ok(_) => (),
-                Err(error) => report.diagnostics.push(format!("{label}: {error:#}")),
+                Err(error) => path_diagnostics.push(format!("{label}: {error:#}")),
+            }
+            Ok(())
+        });
+        if let Err(error) = result {
+            job.check()?;
+            report
+                .diagnostics
+                .push(format!("{}: {error:#}", path.display()));
+            continue;
+        }
+        for (digest, label) in path_digests {
+            if seen.insert(digest) {
+                path_matches.push(label);
             }
         }
+        if !path_matches.is_empty() {
+            report
+                .matched
+                .entry(path.clone())
+                .or_default()
+                .extend(path_matches);
+        }
+        report.diagnostics.extend(path_diagnostics);
         job.report(format!(
             "本地匹配：{} 个文件匹配 · {}",
             report.matched.len(),
@@ -886,13 +1002,89 @@ pub fn lookup_index_in(
     }
     Ok(found.into_values().collect())
 }
+/// Stream-lookup only the requested banner keys in a `banners_plain.json`
+/// object without building the full ~80 MiB JSON DOM in memory.
+fn lookup_index_bytes(
+    repository: &Repository,
+    bytes: &[u8],
+    banners: &[(u64, Vec<u8>)],
+) -> Result<Vec<RemoteMatch>> {
+    use serde::de::{DeserializeSeed, Deserializer, IgnoredAny, MapAccess, Visitor};
+    let normalized: Vec<String> = banners
+        .iter()
+        .map(|(_, raw)| {
+            String::from_utf8_lossy(raw)
+                .trim_end_matches(['\0', '\n'])
+                .to_owned()
+        })
+        .collect();
+    let targets: std::collections::HashSet<&str> = normalized.iter().map(String::as_str).collect();
+    struct Lookup<'a> {
+        targets: &'a std::collections::HashSet<&'a str>,
+    }
+    impl<'de> DeserializeSeed<'de> for Lookup<'_> {
+        type Value = std::collections::HashMap<String, Value>;
+        fn deserialize<D: Deserializer<'de>>(
+            self,
+            deserializer: D,
+        ) -> Result<Self::Value, D::Error> {
+            struct MapVisitor<'a>(&'a std::collections::HashSet<&'a str>);
+            impl<'de> Visitor<'de> for MapVisitor<'_> {
+                type Value = std::collections::HashMap<String, Value>;
+                fn expecting(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                    f.write_str("a JSON object mapping banners to symbol paths")
+                }
+                fn visit_map<A: MapAccess<'de>>(self, mut map: A) -> Result<Self::Value, A::Error> {
+                    let mut matched = std::collections::HashMap::new();
+                    while let Some(key) = map.next_key::<String>()? {
+                        if self.0.contains(key.as_str()) {
+                            let value = map.next_value::<Value>()?;
+                            matched.insert(key, value);
+                        } else {
+                            let _: IgnoredAny = map.next_value()?;
+                        }
+                    }
+                    Ok(matched)
+                }
+            }
+            deserializer.deserialize_map(MapVisitor(self.targets))
+        }
+    }
+    let mut de = serde_json::Deserializer::from_slice(bytes);
+    let matched = Lookup { targets: &targets }
+        .deserialize(&mut de)
+        .context("远程 banner 索引格式无效")?;
+    de.end().context("远程 banner 索引格式无效")?;
+    let mut found = std::collections::BTreeMap::new();
+    for banner in &normalized {
+        if let Some(paths) = matched.get(banner).and_then(Value::as_array) {
+            let arm = banner.contains("aarch64") || banner.contains("-arm64");
+            for path in paths {
+                let path = repository.index_path(path.as_str().context("索引路径无效")?)?;
+                if path_arm64(&path) != Some(arm) {
+                    continue;
+                }
+                found.insert(
+                    path.clone(),
+                    RemoteMatch {
+                        banner: banner.clone(),
+                        url: repository.url(&path)?,
+                        path,
+                    },
+                );
+            }
+        }
+    }
+    Ok(found.into_values().collect())
+}
 pub fn remote_matches(
     image: &Image,
     cache: &Path,
     network: bool,
     job: &Job,
 ) -> Result<Vec<RemoteMatch>> {
-    if image.banners(job)?.is_empty() {
+    let banners = image.banners(job)?;
+    if banners.is_empty() {
         // One PDB identity is often found at several offsets (kernel copies in
         // memory); it is still one symbol to fetch, listed once in offset order.
         let mut seen = std::collections::HashSet::new();
@@ -909,44 +1101,41 @@ pub fn remote_matches(
             })
             .collect();
     }
-    let banners = image.banners(job)?;
     let repository = Repository::configured(cache)?;
     let path = repository.index_file(cache);
-    let cached = fs::read(&path)
-        .ok()
-        .and_then(|bytes| serde_json::from_slice::<Value>(&bytes).ok())
-        .filter(Value::is_object);
     let fresh = fs::metadata(&path)
         .ok()
         .and_then(|m| m.modified().ok())
         .and_then(|t| t.elapsed().ok())
         .is_some_and(|age| age.as_secs() < 86400);
-    let index = if (fresh || !network)
-        && let Some(index) = &cached
-    {
-        index.clone()
-    } else {
+    if fresh || !network {
+        if let Ok(bytes) = fs::read(&path)
+            && let Ok(matches) = lookup_index_bytes(&repository, &bytes, &banners)
+        {
+            return Ok(matches);
+        }
         ensure!(network, "离线模式且没有有效的远程 banner 索引缓存");
-        job.report("获取 GitHub 完整 banner 索引（仅下载索引，不上传镜像）");
-        match fetch_github(&repository.index_url(), cache, job) {
-            Ok(bytes) => {
-                let index: Value = serde_json::from_slice(&bytes)?;
-                ensure!(index.is_object(), "banner 索引格式无效");
-                crate::store::atomic_write(&path, &bytes)?;
-                index
-            }
-            Err(error) => {
-                job.check()?;
-                if let Some(index) = cached {
-                    job.report(format!("索引更新失败，使用已缓存索引: {error}"));
-                    index
-                } else {
-                    return Err(error);
-                }
+    }
+    job.report("获取 GitHub 完整 banner 索引（仅下载索引，不上传镜像）");
+    match fetch_github(&repository.index_url(), cache, job) {
+        Ok(bytes) => {
+            let matches =
+                lookup_index_bytes(&repository, &bytes, &banners).context("banner 索引格式无效")?;
+            crate::store::atomic_write(&path, &bytes)?;
+            Ok(matches)
+        }
+        Err(error) => {
+            job.check()?;
+            if let Ok(bytes) = fs::read(&path)
+                && let Ok(matches) = lookup_index_bytes(&repository, &bytes, &banners)
+            {
+                job.report(format!("索引更新失败，使用已缓存索引: {error}"));
+                Ok(matches)
+            } else {
+                Err(error)
             }
         }
-    };
-    lookup_index_in(&repository, &index, &banners)
+    }
 }
 /// Linux entries of the cached index, parsed once per index file version.
 struct ParsedIndex {
@@ -964,14 +1153,16 @@ fn parsed_index(
 ) -> Result<std::sync::Arc<ParsedIndex>> {
     let meta = fs::metadata(path)?;
     let stamp = (meta.modified()?, meta.len());
-    let mut slot = PARSED_INDEX
-        .lock()
-        .map_err(|_| anyhow::anyhow!("远程索引缓存锁损坏"))?;
-    if let Some(parsed) = slot.as_ref()
-        && parsed.path == path
-        && parsed.stamp == stamp
     {
-        return Ok(parsed.clone());
+        let slot = PARSED_INDEX
+            .lock()
+            .map_err(|_| anyhow::anyhow!("远程索引缓存锁损坏"))?;
+        if let Some(parsed) = slot.as_ref()
+            && parsed.path == path
+            && parsed.stamp == stamp
+        {
+            return Ok(parsed.clone());
+        }
     }
     job.report("解析远程符号索引");
     let index: Value = serde_json::from_slice(&fs::read(path)?)?;
@@ -1012,7 +1203,9 @@ fn parsed_index(
         banners: index.len(),
         entries,
     });
-    *slot = Some(parsed.clone());
+    *PARSED_INDEX
+        .lock()
+        .map_err(|_| anyhow::anyhow!("远程索引缓存锁损坏"))? = Some(parsed.clone());
     Ok(parsed)
 }
 fn at_word_start(text: &str, word: &str) -> bool {
@@ -1034,15 +1227,15 @@ fn natural_cmp(a: &str, b: &str) -> std::cmp::Ordering {
             (Some(x), Some(y)) if x.is_ascii_digit() && y.is_ascii_digit() => {
                 let run = |s: &[u8]| s.iter().take_while(|c| c.is_ascii_digit()).count();
                 let (ra, rb) = (run(a), run(b));
-                let trim = |s: &[u8]| {
+                fn trim(s: &[u8]) -> &[u8] {
                     let zeros = s.iter().take_while(|c| **c == b'0').count();
-                    s.get(zeros..).unwrap_or(&[]).to_vec()
-                };
+                    s.get(zeros..).unwrap_or(&[])
+                }
                 let (na, nb) = (
                     trim(a.get(..ra).unwrap_or(&[])),
                     trim(b.get(..rb).unwrap_or(&[])),
                 );
-                let order = na.len().cmp(&nb.len()).then_with(|| na.cmp(&nb));
+                let order = na.len().cmp(&nb.len()).then_with(|| na.cmp(nb));
                 if order.is_ne() {
                     return order;
                 }
@@ -1089,35 +1282,51 @@ pub fn catalog(
     }
     let parsed = parsed_index(&repository, &path, job)?;
     let words: Vec<_> = query.split_whitespace().map(str::to_lowercase).collect();
-    let release = |banner: &str| {
-        banner
-            .split_whitespace()
-            .nth(2)
-            .unwrap_or_default()
-            .to_lowercase()
-    };
-    let mut ranked = Vec::new();
-    for (index, (candidate, text)) in parsed.entries.iter().enumerate() {
-        if index % 4096 == 0 {
-            job.check()?;
+    let (total, matches) = if words.is_empty() {
+        (
+            parsed.entries.len(),
+            parsed
+                .entries
+                .iter()
+                .take(limit)
+                .map(|(candidate, _)| candidate.clone())
+                .collect(),
+        )
+    } else {
+        let mut ranked = Vec::new();
+        for (index, (_, text)) in parsed.entries.iter().enumerate() {
+            if index % 4096 == 0 {
+                job.check()?;
+            }
+            if words.iter().all(|w| text.contains(w.as_str())) {
+                // `text` starts with `banner.to_lowercase()`, avoiding a per-match allocation.
+                let release = text.split_whitespace().nth(2).unwrap_or_default();
+                let exact = words.iter().any(|w| release.starts_with(w.as_str()));
+                // `3.2.0-4` should not rank `13.2.0-4` as highly as a whole word.
+                let partial = words.iter().filter(|w| !at_word_start(text, w)).count();
+                ranked.push((!exact, partial, index));
+            }
         }
-        if words.iter().all(|w| text.contains(w.as_str())) {
-            let release = release(&candidate.banner);
-            let exact = words.iter().any(|w| release.starts_with(w.as_str()));
-            // `3.2.0-4` should not rank `13.2.0-4` as highly as a whole word.
-            let partial = words.iter().filter(|w| !at_word_start(text, w)).count();
-            ranked.push((!exact, partial, index));
+        let total = ranked.len();
+        if limit < ranked.len() && limit > 0 {
+            ranked.select_nth_unstable(limit);
+            if let Some(head) = ranked.get_mut(..limit) {
+                head.sort_unstable();
+            }
+        } else if limit > 0 {
+            ranked.sort_unstable();
         }
-    }
-    ranked.sort_unstable();
-    let meta = fs::metadata(&path)?;
-    Ok(CatalogPage {
-        total: ranked.len(),
-        matches: ranked
+        let matches = ranked
             .iter()
             .take(limit)
             .filter_map(|(_, _, index)| parsed.entries.get(*index).map(|entry| entry.0.clone()))
-            .collect(),
+            .collect();
+        (total, matches)
+    };
+    let meta = fs::metadata(&path)?;
+    Ok(CatalogPage {
+        total,
+        matches,
         index: IndexInfo {
             banners: parsed.banners,
             entries: parsed.entries.len(),
@@ -1446,5 +1655,61 @@ mod layout_tests {
         );
         assert_eq!((second.offset, second.size), (first.offset, first.size));
         assert_eq!(first.decode(0b1_1000).unwrap(), 3);
+    }
+    #[test]
+    fn streaming_index_lookup_matches_dom_lookup_and_windows_probe_matches_parse() {
+        let index_json = serde_json::json!({
+            "Linux version 6.1.0-amd64 (x)": [
+                "Debian/amd64/v6.1.json.xz",
+                "Debian/arm64/v6.1.json.xz"
+            ],
+            "Linux version 6.8.0-arm64 (aarch64)": [
+                "Kali/arm64/v6.8.json.xz"
+            ],
+            "Other unrelated banner": ["ignored/amd64/other.json.xz"]
+        });
+        let raw = serde_json::to_vec(&index_json).unwrap();
+        let repo = Repository::default_repository();
+        let banners = vec![
+            (0x1000, b"Linux version 6.1.0-amd64 (x)\n\0".to_vec()),
+            (0x2000, b"Linux version 6.8.0-arm64 (aarch64)\0".to_vec()),
+        ];
+        let streamed = lookup_index_bytes(&repo, &raw, &banners).unwrap();
+        let dom = lookup_index_in(&repo, &index_json, &banners).unwrap();
+        assert_eq!(streamed.len(), dom.len());
+        for (a, b) in streamed.iter().zip(&dom) {
+            assert_eq!((&a.banner, &a.path, &a.url), (&b.banner, &b.path, &b.url));
+        }
+
+        let guid = "0123456789ABCDEF0123456789ABCDEF";
+        let win_isf = serde_json::to_vec(&serde_json::json!({
+            "metadata": {
+                "format": "6.2.0",
+                "windows": {"pdb": {"database": "ntkrnlmp.pdb", "GUID": guid, "age": 1}},
+                "zero": {"converter": crate::windows_symbols::CONVERTER_VERSION}
+            },
+            "base_types": {"pointer": {"size": 8}},
+            "symbols": {},
+            "enums": {},
+            "user_types": {}
+        }))
+        .unwrap();
+        let probed = Isf::probe_windows_identity(&win_isf).unwrap();
+        let parsed = Isf::parse(&win_isf, "win".into()).unwrap();
+        assert_eq!(
+            probed.0,
+            crate::windows_symbols::PdbIdentity::from_isf(&parsed).unwrap()
+        );
+        assert_eq!(
+            probed.1.as_deref(),
+            Some(crate::windows_symbols::CONVERTER_VERSION)
+        );
+        // Invalid GUID must return None so full Isf::parse reports the exact error.
+        let bad = serde_json::to_vec(&serde_json::json!({
+            "metadata": {"windows": {"pdb": {"database": "ntkrnlmp.pdb", "GUID": "bad", "age": 1}}},
+            "base_types": {"pointer": {"size": 8}}
+        }))
+        .unwrap();
+        assert!(Isf::probe_windows_identity(&bad).is_none());
     }
 }

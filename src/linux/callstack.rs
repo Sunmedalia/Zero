@@ -323,6 +323,7 @@ impl Linux<'_> {
                     "保存的 SP {sp:#x} 不在栈 {base:#x}..{top:#x}"
                 );
                 let vm = process.as_ref().unwrap_or(&self.vm);
+                let mut cursor = vm.cursor();
                 let mut resolved = 0u64;
                 let mut unresolved = 0u64;
                 let coverage = stack_scan::words(
@@ -334,7 +335,7 @@ impl Linux<'_> {
                     |at, out| {
                         ensure!(read_budget >= out.len() as u64, "栈读取达到 64 MiB 上限");
                         read_budget -= out.len() as u64;
-                        vm.read(at, out)?;
+                        cursor.read(at, out)?;
                         read_bytes += out.len() as u64;
                         Ok(())
                     },

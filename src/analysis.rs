@@ -261,7 +261,8 @@ pub fn analyze(
                     .iter()
                     .position(|c| c == "PID")
                     .ok_or_else(|| anyhow::anyhow!("此插件不支持 PID 筛选"))?;
-                r.rows.retain(|row| row.cell(col) == pid.to_string());
+                let pid = pid.to_string();
+                r.rows.retain(|row| row.cell(col) == pid);
             }
             Outcome::Ready(r)
         }

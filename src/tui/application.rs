@@ -577,7 +577,7 @@ impl App {
     }
     /// Whether plugin activation must rebuild the asset list: a known file
     /// changed, or the last full scan is old enough that new files may exist.
-    fn assets_may_be_stale(&self) -> bool {
+    pub(super) fn assets_may_be_stale(&self) -> bool {
         self.assets_scanned
             .is_none_or(|at| at.elapsed() >= ASSET_RESCAN_INTERVAL)
             || self.restat_local_stamp() != self.local_stamp()
@@ -1018,14 +1018,17 @@ impl App {
     }
     /// A background index build for the shown view has not finished yet.
     pub(super) fn view_pending(&self) -> bool {
-        let key = self.index_key(self.result_shared());
-        self.view_job
-            .borrow()
-            .as_ref()
-            .is_some_and(|job| job.key == key)
+        let job = self.view_job.borrow();
+        let Some(job) = job.as_ref() else {
+            return false;
+        };
+        job.key == self.index_key(self.result_shared())
     }
     /// Install a finished background index; true when the screen changes.
     pub(super) fn drain_view(&mut self) -> bool {
+        if self.view_job.borrow().is_none() {
+            return false;
+        }
         let current = self.index_key(self.result_shared());
         let finished = match self.view_job.borrow().as_ref() {
             None => return false,

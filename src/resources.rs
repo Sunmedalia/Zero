@@ -1,7 +1,8 @@
 //! Bounded, weighted LRU caches. Eviction only affects performance, never evidence.
 use serde::{Deserialize, Serialize};
-use std::collections::{BTreeSet, HashMap};
-use std::hash::Hash;
+use std::borrow::Borrow;
+use std::collections::HashMap;
+use std::hash::{BuildHasherDefault, Hash};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(default)]
@@ -23,50 +24,83 @@ impl Default for Limits {
         }
     }
 }
+struct Entry<K, V> {
+    key: K,
+    value: V,
+    weight: usize,
+    prev: Option<usize>,
+    next: Option<usize>,
+}
+/// O(1) weighted LRU backed by an index-linked arena and FxHash.
 pub(crate) struct Lru<K, V> {
-    values: HashMap<K, (V, u64, usize)>,
-    order: BTreeSet<(u64, K)>,
-    clock: u64,
+    index: HashMap<K, usize, BuildHasherDefault<crate::symbols::FastHasher>>,
+    entries: Vec<Option<Entry<K, V>>>,
+    free: Vec<usize>,
+    head: Option<usize>,
+    tail: Option<usize>,
     used: usize,
     budget: usize,
 }
-impl<K: Clone + Hash + Eq + Ord, V> Lru<K, V> {
+impl<K: Clone + Hash + Eq, V> Lru<K, V> {
     pub fn new(budget: usize) -> Self {
         Self {
-            values: HashMap::new(),
-            order: BTreeSet::new(),
-            clock: 0,
+            index: HashMap::default(),
+            entries: Vec::new(),
+            free: Vec::new(),
+            head: None,
+            tail: None,
             used: 0,
             budget,
         }
     }
-    pub fn get(&mut self, key: &K) -> Option<&V> {
-        let (value, stamp, _) = self.values.get_mut(key)?;
-        self.order.remove(&(*stamp, key.clone()));
-        self.clock += 1;
-        *stamp = self.clock;
-        self.order.insert((*stamp, key.clone()));
-        Some(value)
+    pub fn get<Q>(&mut self, key: &Q) -> Option<&V>
+    where
+        K: Borrow<Q>,
+        Q: Hash + Eq + ?Sized,
+    {
+        let &slot = self.index.get(key)?;
+        self.move_to_front(slot);
+        self.entries.get(slot)?.as_ref().map(|entry| &entry.value)
     }
     pub fn insert(&mut self, key: K, value: V, weight: usize) {
-        if let Some((_, stamp, old)) = self.values.remove(&key) {
-            self.order.remove(&(stamp, key.clone()));
-            self.used -= old;
+        if let Some(slot) = self.index.remove(&key) {
+            self.remove_slot(slot);
         }
         if weight > self.budget || self.budget == 0 {
             return;
         }
         while self.used > self.budget - weight {
-            let Some((_, oldest)) = self.order.pop_first() else {
+            if !self.evict_tail() {
                 break;
-            };
-            if let Some((_, _, size)) = self.values.remove(&oldest) {
-                self.used -= size;
             }
         }
-        self.clock += 1;
-        self.order.insert((self.clock, key.clone()));
-        self.values.insert(key, (value, self.clock, weight));
+        let slot = if let Some(slot) = self.free.pop() {
+            slot
+        } else {
+            let slot = self.entries.len();
+            self.entries.push(None);
+            slot
+        };
+        let old_head = self.head;
+        if let Some(head_slot) = old_head
+            && let Some(Some(head)) = self.entries.get_mut(head_slot)
+        {
+            head.prev = Some(slot);
+        }
+        if let Some(cell) = self.entries.get_mut(slot) {
+            *cell = Some(Entry {
+                key: key.clone(),
+                value,
+                weight,
+                prev: None,
+                next: old_head,
+            });
+        }
+        self.head = Some(slot);
+        if self.tail.is_none() {
+            self.tail = Some(slot);
+        }
+        self.index.insert(key, slot);
         self.used += weight;
     }
     /// Change the budget, evicting least recently used entries until the
@@ -74,18 +108,95 @@ impl<K: Clone + Hash + Eq + Ord, V> Lru<K, V> {
     pub fn set_budget(&mut self, budget: usize) {
         self.budget = budget;
         while self.used > budget {
-            let Some((_, oldest)) = self.order.pop_first() else {
+            if !self.evict_tail() {
                 break;
-            };
-            if let Some((_, _, size)) = self.values.remove(&oldest) {
-                self.used -= size;
             }
         }
     }
     pub fn clear(&mut self) {
-        self.values.clear();
-        self.order.clear();
+        self.index.clear();
+        self.entries.clear();
+        self.free.clear();
+        self.head = None;
+        self.tail = None;
         self.used = 0;
+    }
+    fn move_to_front(&mut self, slot: usize) {
+        if self.head == Some(slot) {
+            return;
+        }
+        let (prev, next) = match self.entries.get(slot).and_then(Option::as_ref) {
+            Some(entry) => (entry.prev, entry.next),
+            None => return,
+        };
+        if let Some(prev_slot) = prev
+            && let Some(Some(prev_entry)) = self.entries.get_mut(prev_slot)
+        {
+            prev_entry.next = next;
+        }
+        if let Some(next_slot) = next
+            && let Some(Some(next_entry)) = self.entries.get_mut(next_slot)
+        {
+            next_entry.prev = prev;
+        } else {
+            self.tail = prev;
+        }
+        let old_head = self.head;
+        if let Some(head_slot) = old_head
+            && let Some(Some(head_entry)) = self.entries.get_mut(head_slot)
+        {
+            head_entry.prev = Some(slot);
+        }
+        if let Some(Some(entry)) = self.entries.get_mut(slot) {
+            entry.prev = None;
+            entry.next = old_head;
+        }
+        self.head = Some(slot);
+        if self.tail.is_none() {
+            self.tail = Some(slot);
+        }
+    }
+    fn remove_slot(&mut self, slot: usize) {
+        let Some(entry) = self.entries.get_mut(slot).and_then(Option::take) else {
+            return;
+        };
+        if let Some(prev_slot) = entry.prev
+            && let Some(Some(prev_entry)) = self.entries.get_mut(prev_slot)
+        {
+            prev_entry.next = entry.next;
+        } else {
+            self.head = entry.next;
+        }
+        if let Some(next_slot) = entry.next
+            && let Some(Some(next_entry)) = self.entries.get_mut(next_slot)
+        {
+            next_entry.prev = entry.prev;
+        } else {
+            self.tail = entry.prev;
+        }
+        self.used = self.used.saturating_sub(entry.weight);
+        self.free.push(slot);
+    }
+    fn evict_tail(&mut self) -> bool {
+        let Some(slot) = self.tail else {
+            return false;
+        };
+        let Some(entry) = self.entries.get_mut(slot).and_then(Option::take) else {
+            self.tail = None;
+            return false;
+        };
+        if let Some(prev_slot) = entry.prev
+            && let Some(Some(prev_entry)) = self.entries.get_mut(prev_slot)
+        {
+            prev_entry.next = None;
+        } else {
+            self.head = None;
+        }
+        self.tail = entry.prev;
+        self.index.remove(&entry.key);
+        self.used = self.used.saturating_sub(entry.weight);
+        self.free.push(slot);
+        true
     }
 }
 #[cfg(test)]
@@ -109,5 +220,27 @@ mod tests {
         assert_eq!(c.used, 0);
         c.clear();
         assert_eq!(c.used, 0);
+    }
+    #[test]
+    fn arena_lru_supports_borrowed_lookups_overwrites_and_slot_reuse() {
+        let mut c: Lru<Vec<u8>, usize> = Lru::new(6);
+        c.insert(b"aa".to_vec(), 1, 2);
+        c.insert(b"bb".to_vec(), 2, 2);
+        c.insert(b"cc".to_vec(), 3, 2);
+        // Borrowed &[u8] lookup promotes "aa" to MRU without allocating a Vec.
+        assert_eq!(c.get(b"aa".as_slice()), Some(&1));
+        // Overwriting "bb" updates its weight and moves it to MRU.
+        c.insert(b"bb".to_vec(), 20, 3);
+        // "cc" (weight 2) had to be evicted to fit (used: aa=2 + bb=3 = 5 <= 6).
+        assert_eq!(c.get(b"cc".as_slice()), None);
+        assert_eq!(c.get(b"aa".as_slice()), Some(&1));
+        assert_eq!(c.get(b"bb".as_slice()), Some(&20));
+        assert_eq!(c.used, 5);
+        // Repeated churn reuses freed arena slots rather than growing unbounded.
+        for i in 0..100usize {
+            c.insert(i.to_le_bytes().to_vec(), i, 2);
+        }
+        assert!(c.entries.len() <= 4);
+        assert_eq!(c.used, 6);
     }
 }

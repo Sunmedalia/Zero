@@ -76,20 +76,22 @@ impl Linux<'_> {
             .context("对象地址溢出")
     }
     pub(crate) fn number(&self, base: u64, structure: &str, field: &str) -> Result<u64> {
-        if structure == "vfsmount"
-            && self.modern_mount()
-            && self.isf.field(structure, field).is_err()
-        {
-            let offset = self.isf.offset("mount", "mnt")?;
-            let mount = base.checked_sub(offset).context("mount 地址下溢")?;
-            let value = self.number(mount, "mount", field)?;
-            return if field == "mnt_parent" {
-                value.checked_add(offset).context("mount 地址溢出")
-            } else {
-                Ok(value)
-            };
-        }
-        let layout = self.isf.layout(structure, field)?;
+        let layout = match self.isf.layout(structure, field) {
+            Ok(layout) => layout,
+            Err(error) => {
+                if structure == "vfsmount" && self.modern_mount() {
+                    let offset = self.isf.offset("mount", "mnt")?;
+                    let mount = base.checked_sub(offset).context("mount 地址下溢")?;
+                    let value = self.number(mount, "mount", field)?;
+                    return if field == "mnt_parent" {
+                        value.checked_add(offset).context("mount 地址溢出")
+                    } else {
+                        Ok(value)
+                    };
+                }
+                return Err(error);
+            }
+        };
         let address = base.checked_add(layout.offset).context("对象地址溢出")?;
         layout.decode(self.vm.uint(address, layout.width()?)?)
     }
@@ -390,6 +392,7 @@ impl Linux<'_> {
             let mut node = self
                 .vm
                 .uint(add(head, next)?, self.isf.size("list_head", "next")?)?;
+            let taint_table = Some(self.module_taint_table());
             let mut visited = HashSet::new();
             while node != head {
                 job.check()?;
@@ -519,7 +522,13 @@ impl Linux<'_> {
                                 );
                             }
                         }
-                        let taints = match self.module_taints(object, false) {
+                        let taints = match &taint_table {
+                            Some(Ok(table)) => {
+                                self.module_taints_with_table(object, false, table.as_deref())
+                            }
+                            _ => self.module_taints(object, false),
+                        };
+                        let taints = match taints {
                             Ok(value) => value,
                             Err(error) => {
                                 partial(&mut result, format!("module {object:#x} taints"), error);

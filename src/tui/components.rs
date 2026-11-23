@@ -345,20 +345,38 @@ pub(super) fn compact_remote_path(path: &str, width: u16) -> String {
     truncate_with_ellipsis(path, budget)
 }
 pub(super) fn truncate_with_ellipsis(text: &str, budget: usize) -> String {
-    if Span::raw(text).width() <= budget {
+    use unicode_segmentation::UnicodeSegmentation;
+    use unicode_width::UnicodeWidthStr;
+    if text.is_ascii() {
+        if text.len() <= budget {
+            return text.into();
+        }
+        if budget <= 1 {
+            return "…".into();
+        }
+        let mut out = String::with_capacity(budget + 2);
+        if let Some(prefix) = text.get(..budget - 1) {
+            out.push_str(prefix);
+        }
+        out.push('…');
+        return out;
+    }
+    if text.width() <= budget {
         return text.into();
     }
     if budget <= 1 {
         return "…".into();
     }
-    let mut out = String::new();
-    for c in text.chars() {
-        let mut candidate = out.clone();
-        candidate.push(c);
-        if Span::raw(candidate.as_str()).width() > budget - 1 {
+    let limit = budget - 1;
+    let mut out = String::with_capacity(text.len().min(limit * 4) + 3);
+    let mut width = 0usize;
+    for grapheme in text.graphemes(true) {
+        let gw = grapheme.width();
+        if width + gw > limit {
             break;
         }
-        out = candidate;
+        out.push_str(grapheme);
+        width += gw;
     }
     out.push('…');
     out
@@ -671,4 +689,19 @@ pub(super) fn remote_fields(candidate: &RemoteMatch) -> Vec<(String, String)> {
         fields.push(("构建".into(), candidate.banner[start..].trim().into()));
     }
     fields
+}
+
+#[cfg(test)]
+mod truncate_tests {
+    use super::truncate_with_ellipsis;
+
+    #[test]
+    fn truncates_ascii_and_wide_unicode_within_budget() {
+        assert_eq!(truncate_with_ellipsis("abcdef", 6), "abcdef");
+        assert_eq!(truncate_with_ellipsis("abcdef", 5), "abcd…");
+        assert_eq!(truncate_with_ellipsis("abcdef", 1), "…");
+        assert_eq!(truncate_with_ellipsis("中文测试", 5), "中文…");
+        assert_eq!(truncate_with_ellipsis("中文测试", 4), "中…");
+        assert_eq!(truncate_with_ellipsis("中文测试", 8), "中文测试");
+    }
 }

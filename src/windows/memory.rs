@@ -230,7 +230,7 @@ impl Windows<'_> {
                 );
                 continue;
             }
-            let scan = crate::pattern::scan_region(
+            let scan = crate::pattern::scan_region_sparse(
                 pattern,
                 v.start,
                 v.end,
@@ -238,6 +238,7 @@ impl Windows<'_> {
                 HIT_LIMIT.saturating_sub(r.rows.len()),
                 job,
                 |at, out| vm.read(at, out),
+                |at, limit| vm.absent_end(at, limit),
             )?;
             unreadable += scan.unreadable;
             for (address, bytes) in scan.hits {

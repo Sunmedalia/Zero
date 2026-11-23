@@ -679,10 +679,13 @@ fn generates_isf_from_prel32_kallsyms_without_relative_base_and_detects_tracepoi
     fs::write(&path, &bytes).unwrap();
     let image = Image::open(&path, &cache, &Job::default()).unwrap();
     let generated = generate(&image, &cache, &Job::default()).unwrap();
-    let (label, raw) = crate::symbols::entries(&generated, &Job::default())
-        .unwrap()
-        .pop()
-        .unwrap();
+    let mut loaded = None;
+    crate::symbols::visit(&generated, &Job::default(), &mut |label, raw| {
+        loaded = Some((label, raw));
+        Ok(())
+    })
+    .unwrap();
+    let (label, raw) = loaded.unwrap();
     let isf = Isf::parse(&raw, label).unwrap();
     assert_eq!(
         isf.data["metadata"]["zero"]["tracepoint_relative"],

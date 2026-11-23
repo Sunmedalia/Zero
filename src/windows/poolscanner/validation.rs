@@ -12,7 +12,7 @@ impl Windows<'_> {
             .as_u64()
             .context("缺少驱动对象大小")?;
         ensure!((16..=65536).contains(&type_size), "驱动对象大小无效");
-        let types = self.pool_reference_type_map()?;
+        let validation = self.pool_validation()?;
         let threshold = self.driver_kernel_start()?;
         let body_offset = self.vm.isf.offset("_OBJECT_HEADER", "Body")?;
         let mut out = Vec::new();
@@ -30,7 +30,7 @@ impl Windows<'_> {
             let valid = (|| -> Result<bool> {
                 let header = body.checked_sub(body_offset).context("驱动对象头下溢")?;
                 if self
-                    .pool_reference_object_type(header, virtual_scan, &types)?
+                    .pool_reference_object_type(header, virtual_scan, &validation)?
                     .as_deref()
                     != Some("Driver")
                 {
@@ -96,21 +96,46 @@ impl Windows<'_> {
             let length = out.len().min(4096 - (address & 4095) as usize);
             let (chunk, rest) = out.split_at_mut(length);
             if self.pool_read(address, chunk, virtual_scan).is_err() {
-                // Preserve captured bytes even if a physical segment ends part
-                // way through this page. Unreadable bytes alone become zero.
-                for (offset, byte) in chunk.iter_mut().enumerate() {
-                    let mut value = [0];
-                    *byte = if self
-                        .pool_read(add(address, offset as u64)?, &mut value, virtual_scan)
-                        .is_ok()
-                    {
-                        value[0]
+                if virtual_scan {
+                    // If the whole virtual page cannot translate or recover, every
+                    // byte in `chunk` is unreadable; avoid 4096 single-byte retries.
+                    if let Ok(physical) = self.vm.translate(address) {
+                        self.read_physical_padded(physical, chunk)?;
                     } else {
-                        0
-                    };
+                        chunk.fill(0);
+                    }
+                } else {
+                    self.read_physical_padded(address, chunk)?;
                 }
             }
             address = add(address, length as u64)?;
+            out = rest;
+        }
+        Ok(())
+    }
+
+    fn read_physical_padded(&self, mut address: u64, mut out: &mut [u8]) -> Result<()> {
+        let segments = &self.vm.image.segments;
+        while !out.is_empty() {
+            let idx = segments.partition_point(|s| s.end <= address);
+            let Some(segment) = segments.get(idx) else {
+                out.fill(0);
+                return Ok(());
+            };
+            if address < segment.start {
+                let gap = usize::try_from((segment.start - address).min(out.len() as u64))?;
+                let (zeros, rest) = out.split_at_mut(gap);
+                zeros.fill(0);
+                address = add(address, gap as u64)?;
+                out = rest;
+                continue;
+            }
+            let avail = usize::try_from((segment.end - address).min(out.len() as u64))?;
+            let (part, rest) = out.split_at_mut(avail);
+            if self.vm.image.read(address, part).is_err() {
+                part.fill(0);
+            }
+            address = add(address, avail as u64)?;
             out = rest;
         }
         Ok(())
@@ -147,7 +172,7 @@ impl Windows<'_> {
                     .checked_sub(self.vm.isf.offset("_OBJECT_HEADER", "Body")?)
                     .context("对象头下溢")?;
                 if self
-                    .pool_reference_object_type(header, virtual_scan, &validation.types)?
+                    .pool_reference_object_type(header, virtual_scan, validation)?
                     .as_deref()
                     != Some(kind)
                 {
@@ -155,8 +180,15 @@ impl Windows<'_> {
                 }
             }
             Ok(match constraint.type_name {
-                "_EPROCESS" => self.pool_process_valid(body, virtual_scan, None)?,
-                "_ETHREAD" => self.pool_thread_valid(body, virtual_scan, None)?,
+                "_EPROCESS" => {
+                    self.pool_process_valid(body, virtual_scan, validation.current_year)?
+                }
+                "_ETHREAD" => self.pool_thread_valid_with_hint(
+                    body,
+                    virtual_scan,
+                    validation.current_year,
+                    validation.has_threads_process,
+                )?,
                 "_FILE_OBJECT" => {
                     let length =
                         self.pool_value(body, "_FILE_OBJECT", "FileName.Length", virtual_scan)?;
@@ -228,17 +260,20 @@ impl Windows<'_> {
         &self,
         header: u64,
         virtual_scan: bool,
-        types: &BTreeMap<u64, String>,
+        validation: &PoolValidation,
     ) -> Result<Option<String>> {
-        if self.vm.isf.has_field("_OBJECT_HEADER", "TypeIndex") {
+        if validation.has_type_index {
             let encoded = self.pool_value(header, "_OBJECT_HEADER", "TypeIndex", virtual_scan)?;
-            let index = if let Ok(cookie_address) = self.symbol("ObHeaderCookie") {
-                let cookie = self.vm.uint(cookie_address, 1)?;
+            let index = if validation.cookie_symbol {
+                let cookie = match validation.cookie {
+                    Some(cookie) => u64::from(cookie),
+                    None => self.vm.uint(self.symbol("ObHeaderCookie")?, 1)?,
+                };
                 ((header >> 8) ^ cookie ^ encoded) & 0xff
             } else {
                 encoded
             };
-            return Ok(types.get(&index).cloned());
+            return Ok(validation.types.get(&index).cloned());
         }
         let pointer = self.pool_reference_pointer(self.pool_value(
             header,
@@ -279,8 +314,7 @@ impl Windows<'_> {
         if seconds == 0 {
             return None;
         }
-        let stamp = crate::report::utc(seconds - 11_644_473_600);
-        let year = stamp.split('-').next()?.parse().ok()?;
+        let year = crate::report::utc_year(seconds - 11_644_473_600);
         (1..=9999).contains(&year).then_some(year)
     }
 
@@ -332,11 +366,27 @@ impl Windows<'_> {
         Ok(flink >= 0x8000_0000 && blink >= 0x8000_0000)
     }
 
+    #[cfg(test)]
     pub(super) fn pool_thread_valid(
         &self,
         body: u64,
         virtual_scan: bool,
         current_year: Option<i64>,
+    ) -> Result<bool> {
+        self.pool_thread_valid_with_hint(
+            body,
+            virtual_scan,
+            current_year,
+            self.vm.isf.has_field("_ETHREAD", "ThreadsProcess"),
+        )
+    }
+
+    pub(super) fn pool_thread_valid_with_hint(
+        &self,
+        body: u64,
+        virtual_scan: bool,
+        current_year: Option<i64>,
+        has_threads_process: bool,
     ) -> Result<bool> {
         let pid = self.pool_typed_value(body, "_ETHREAD", "Cid.UniqueProcess", virtual_scan)?;
         let tid = self.pool_typed_value(body, "_ETHREAD", "Cid.UniqueThread", virtual_scan)?;
@@ -345,7 +395,7 @@ impl Windows<'_> {
         }
         if pid != 4 {
             let mut created = self.pool_value(body, "_ETHREAD", "CreateTime", virtual_scan)? as i64;
-            if self.vm.isf.has_field("_ETHREAD", "ThreadsProcess") {
+            if has_threads_process {
                 created >>= 3;
             }
             let Some(year) = Self::pool_year(created) else {

@@ -22,10 +22,10 @@ impl Linux<'_> {
         let mut output_limit = false;
         for task in tasks {
             job.check()?;
-            let pid = u32::try_from(self.number(task.address, "task_struct", "tgid")?)?;
             if !pids.is_empty() && !pids.contains(&task.pid.parse::<u32>()?) {
                 continue;
             }
+            let pid = u32::try_from(self.number(task.address, "task_struct", "tgid")?)?;
             let mut context_missing = 0u64;
             let scanned = (|| -> Result<Option<regex_scan::Coverage>> {
                 let mm = self.number(task.address, "task_struct", "mm")?;
@@ -70,7 +70,7 @@ impl Linux<'_> {
                     }
                     let shown =
                         regex_scan::display_match(&display, at, maxsize, job, |address, bytes| {
-                            vm.read(address, bytes)
+                            read(address, bytes)
                         })?;
                     context_missing += shown.unreadable_bytes;
                     let text = shown.text;

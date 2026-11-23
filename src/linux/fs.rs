@@ -1,6 +1,13 @@
 //! Open files, path reconstruction and mount tables.
 use super::*;
 use crate::bytes::JsonKey as _;
+/// Resolved mount entries and per-mount error tails for one `mnt_namespace`.
+/// Processes sharing the same namespace replay these without re-walking kernel memory.
+pub(super) struct CachedMountNs {
+    pub rows: Vec<Vec<String>>,
+    pub issues: Vec<String>,
+    pub error: Option<String>,
+}
 impl Linux<'_> {
     pub(super) fn inode(&self, file: u64) -> Result<u64> {
         let path = self.field_address(file, "file", "f_path")?;
@@ -45,13 +52,21 @@ impl Linux<'_> {
         )?;
         ensure!(matches!(width, 4 | 8), "ISF pointer size 无效");
         let mut seen_sockets = HashSet::new();
+        let mut fd_cursor = self.vm.cursor();
+        let process_root = (plugin == Plugin::Lsof).then(|| self.process_root(task));
+        let resolve_file_path = |file: u64| -> Result<String> {
+            match &process_root {
+                Some(Ok(root)) => self.file_path_from(*root, file, job),
+                Some(Err(_)) | None => self.file_path(task, file, job),
+            }
+        };
         for fd in 0..count.min(limit) {
             job.check()?;
             let row = (|| -> Result<Option<Vec<String>>> {
                 let slot = array
                     .checked_add(fd.checked_mul(width as u64).context("FD 偏移溢出")?)
                     .context("FD 地址溢出")?;
-                let file = self.vm.uint(slot, width)?;
+                let file = fd_cursor.uint(slot, width)?;
                 if file == 0 {
                     return Ok(None);
                 }
@@ -72,10 +87,10 @@ impl Linux<'_> {
                             if self.number(d, "dentry", "d_parent")? == d {
                                 format!("pipe:[{ino}]")
                             } else {
-                                self.file_path(task, file, job)?
+                                resolve_file_path(file)?
                             }
                         }
-                        _ => match self.file_path(task, file, job) {
+                        _ => match resolve_file_path(file) {
                             Ok(path) => path,
                             Err(e) => {
                                 job.check()?;
@@ -265,6 +280,8 @@ impl Linux<'_> {
     ) -> Result<String> {
         let mut parts = Vec::new();
         let mut visited = HashSet::new();
+        let mut cached_mnt_root: Option<(u64, u64)> = None;
+        let mut name_buf = [0u8; 256];
         for _ in 0..1024 {
             job.check()?;
             if root == Some((d, m)) {
@@ -276,7 +293,15 @@ impl Linux<'_> {
                 "路径为空或循环 @ {}",
                 hex(d)
             );
-            if d == self.number(m, "vfsmount", "mnt_root")? {
+            let mnt_root = match cached_mnt_root {
+                Some((mount, mnt_root)) if mount == m => mnt_root,
+                _ => {
+                    let mnt_root = self.number(m, "vfsmount", "mnt_root")?;
+                    cached_mnt_root = Some((m, mnt_root));
+                    mnt_root
+                }
+            };
+            if d == mnt_root {
                 let parent = self.number(m, "vfsmount", "mnt_parent")?;
                 if parent == m && self.filesystem(d)? == "tmpfs" {
                     parts.reverse();
@@ -289,20 +314,21 @@ impl Linux<'_> {
                 ensure!(parent != m, "路径不在进程根目录内 @ {}", hex(d));
                 d = self.number(m, "vfsmount", "mnt_mountpoint")?;
                 m = parent;
+                cached_mnt_root = None;
                 continue;
             }
             let qstr = self.field_address(d, "dentry", "d_name")?;
             let len = self.number(qstr, "qstr", "len")?;
             ensure!((1..=255).contains(&len), "路径名称长度无效: {len}");
+            let len_usize = usize::try_from(len)?;
             let ptr = self.number(qstr, "qstr", "name")?;
-            let mut bytes = vec![0; usize::try_from(len)? + 1];
-            self.vm.read(ptr, &mut bytes)?;
+            let bytes = name_buf.at_mut(..len_usize + 1)?;
+            self.vm.read(ptr, bytes)?;
             ensure!(
-                *bytes.at(usize::try_from(len)?)? == 0
-                    && !bytes.at(..usize::try_from(len)?)?.contains(&0),
+                *bytes.at(len_usize)? == 0 && !bytes.at(..len_usize)?.contains(&0),
                 "路径名称无效"
             );
-            parts.push(String::from_utf8_lossy(bytes.at(..usize::try_from(len)?)?).into_owned());
+            parts.push(String::from_utf8_lossy(bytes.at(..len_usize)?).into_owned());
             let parent = self.number(d, "dentry", "d_parent")?;
             if parent == d && self.filesystem(d)? == "anon_inodefs" {
                 return Ok(format!("anon_inode:[{}]", *parts.at(0)?));
@@ -317,6 +343,77 @@ impl Linux<'_> {
         let ty = self.number(sb, "super_block", "s_type")?;
         let ptr = self.number(ty, "file_system_type", "name")?;
         self.vm.string(ptr, 32)
+    }
+    pub(super) fn mounts_cached(
+        &self,
+        task: u64,
+        prefix: Vec<String>,
+        result: &mut Results,
+        cache: &mut std::collections::HashMap<u64, CachedMountNs>,
+        job: &Job,
+    ) -> Result<()> {
+        let proxy = self.number(task, "task_struct", "nsproxy")?;
+        if proxy == 0 {
+            return Ok(());
+        }
+        let ns = self.number(proxy, "nsproxy", "mnt_ns")?;
+        if !self.modern_mount() {
+            ensure!(ns != 0, "mnt_ns 为空");
+        }
+        if let Some(cached) = cache.get(&ns) {
+            let pid = prefix.at(0)?;
+            for row in &cached.rows {
+                let mut full = Vec::with_capacity(prefix.len() + row.len());
+                full.extend(prefix.iter().cloned());
+                full.extend(row.iter().cloned());
+                result.rows.push(full);
+            }
+            for issue in &cached.issues {
+                result.complete = false;
+                result.diagnostics.push(format!("PID {pid} {issue}"));
+            }
+            if let Some(error) = &cached.error {
+                anyhow::bail!("{error}");
+            }
+            return Ok(());
+        }
+        let mut scratch = self.result(Plugin::Mountinfo);
+        let baseline = scratch.diagnostics.len();
+        let status = self.mounts(task, prefix.clone(), &mut scratch, job);
+        let pid_prefix = format!("PID {} ", *prefix.at(0)?);
+        let rows: Vec<Vec<String>> = scratch
+            .rows
+            .iter()
+            .filter_map(|row| row.get(prefix.len()..).map(<[String]>::to_vec))
+            .collect();
+        let issues: Vec<String> = scratch
+            .diagnostics
+            .get(baseline..)
+            .unwrap_or_default()
+            .iter()
+            .map(|msg| {
+                msg.strip_prefix(&pid_prefix)
+                    .unwrap_or(msg.as_str())
+                    .to_owned()
+            })
+            .collect();
+        result.rows.extend(scratch.rows);
+        if !issues.is_empty() {
+            result.complete = false;
+            result
+                .diagnostics
+                .extend(scratch.diagnostics.into_iter().skip(baseline));
+        }
+        let error = status.as_ref().err().map(|e| format!("{e:#}"));
+        cache.insert(
+            ns,
+            CachedMountNs {
+                rows,
+                issues,
+                error,
+            },
+        );
+        status
     }
     pub(super) fn mounts(
         &self,
