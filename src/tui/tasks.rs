@@ -287,7 +287,7 @@ impl App {
                         .ok_or_else(|| anyhow::anyhow!("任务已取消 / cancelled"))?;
                         let metadata = result.metadata();
                         let count = rows.len();
-                        let selected = rows.into_iter().map(|i| &result.rows[i]);
+                        let selected = rows.into_iter().filter_map(|i| result.rows.get(i));
                         store::export_rows(&path, &metadata, selected, &worker_job)?;
                         let error =
                             store::record_export(&cache, &path, &metadata, count, &worker_job)

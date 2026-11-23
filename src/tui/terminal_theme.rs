@@ -56,7 +56,7 @@ pub(super) fn split_replies(bytes: &[u8]) -> (String, Vec<u8>) {
         if let Some(paste) = rest.strip_prefix(PASTE_START) {
             let end = memchr::memmem::find(paste, PASTE_END)
                 .map_or(rest.len(), |end| PASTE_START.len() + end + PASTE_END.len());
-            typed.extend_from_slice(&rest[..end]);
+            typed.extend_from_slice(rest.get(..end).unwrap_or_default());
             i += end;
             continue;
         }
@@ -67,9 +67,8 @@ pub(super) fn split_replies(bytes: &[u8]) -> (String, Vec<u8>) {
                 .skip(2)
                 .find(|&(k, &b)| b == 0x07 || (b == b'\\' && rest.get(k - 1) == Some(&0x1b)))
                 .map(|(k, _)| k + 1)
-        } else if rest.starts_with(b"\x1b[?") {
+        } else if let Some(tail) = rest.strip_prefix(b"\x1b[?") {
             // DA1: ESC [ ? params c
-            let tail = &rest[3..];
             let end = tail
                 .iter()
                 .take_while(|b| b.is_ascii_digit() || **b == b';')
@@ -105,14 +104,18 @@ impl StartupInput {
             pending_paste: None,
         };
         while let Some(start) = memchr::memmem::find(bytes, PASTE_START) {
-            input.events.extend(typed_keys(&bytes[..start]));
-            let body = &bytes[start + PASTE_START.len()..];
+            input
+                .events
+                .extend(typed_keys(bytes.get(..start).unwrap_or_default()));
+            let body = bytes.get(start + PASTE_START.len()..).unwrap_or_default();
             let Some(end) = memchr::memmem::find(body, PASTE_END) else {
                 input.pending_paste = Some(body.to_vec());
                 return input;
             };
-            input.events.push_back(paste_event(&body[..end]));
-            bytes = &body[end + PASTE_END.len()..];
+            input
+                .events
+                .push_back(paste_event(body.get(..end).unwrap_or_default()));
+            bytes = body.get(end + PASTE_END.len()..).unwrap_or_default();
         }
         input.events.extend(typed_keys(bytes));
         input
@@ -217,11 +220,12 @@ fn query() -> (Option<bool>, Vec<u8>) {
     }
     // The byte or time limit may land inside the opening marker. Complete
     // an already queued marker before passing the rest of stdin to Crossterm.
-    if let Some(prefix) = (1..PASTE_START.len())
-        .rev()
-        .find(|&n| input.ends_with(&PASTE_START[..n]))
-    {
-        for &expected in &PASTE_START[prefix..] {
+    let marker_tail = (1..PASTE_START.len()).rev().find_map(|n| {
+        let (prefix, tail) = PASTE_START.split_at_checked(n)?;
+        input.ends_with(prefix).then_some(tail)
+    });
+    if let Some(tail) = marker_tail {
+        for &expected in tail {
             let Ok(Some(byte)) = read_byte(Duration::ZERO) else {
                 break;
             };
@@ -241,8 +245,9 @@ fn read_byte(wait: Duration) -> io::Result<Option<u8>> {
         events: libc::POLLIN,
         revents: 0,
     };
+    let timeout = libc::c_int::try_from(wait.as_millis()).unwrap_or(libc::c_int::MAX);
     // SAFETY: poll receives one initialized descriptor; read receives a valid buffer.
-    let ready = unsafe { libc::poll(&mut fd, 1, wait.as_millis() as libc::c_int) };
+    let ready = unsafe { libc::poll(&mut fd, 1, timeout) };
     if ready == 0 {
         return Ok(None);
     }
