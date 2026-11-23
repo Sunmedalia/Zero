@@ -160,7 +160,14 @@ pub(super) enum Work {
     RemoveCache(Vec<PathBuf>),
     Record(String),
     History(PathBuf),
-    Export(PathBuf, Results, Vec<Vec<String>>),
+    /// The result and view settings captured when the user confirms export.
+    Export {
+        path: PathBuf,
+        result: Arc<Results>,
+        query: String,
+        sort: Option<usize>,
+        descending: bool,
+    },
     Verify,
     Clear(Vec<cache::Scope>),
     FindKernelPackages(bool),
@@ -347,7 +354,15 @@ pub struct App {
     pub(super) windows: bool,
     pub(super) analysis_options: crate::analysis::Options,
     pub(super) results: ResultStore,
-    pub(super) view_cache: RefCell<Option<(ViewKey, std::rc::Rc<crate::result_view::Index>)>>,
+    pub(super) view_cache: RefCell<Option<CachedView>>,
+    /// Background index build for a large result; see `App::view_index`.
+    pub(super) view_job: RefCell<Option<ViewJob>>,
+    /// When `refresh_assets` last rescanned the asset directories.
+    pub(super) assets_scanned: Option<Instant>,
+    /// Wrapped detail text of the last drawn inspector or detail tab.
+    pub(super) detail_cache: RefCell<Option<DetailCache>>,
+    /// Shown while a large result's first index is still being built.
+    pub(super) empty_view: std::rc::Rc<crate::result_view::Index>,
     /// Natural column widths for the row index and header they were measured
     /// from. Holding the `Rc` keeps its address from being reused.
     pub(super) width_cache: RefCell<Option<ColumnWidths>>,
@@ -396,24 +411,56 @@ pub struct App {
     pub(super) console: super::console::Console,
 }
 
+/// Session results by request key and by plugin name.
+///
+/// Both keys of a finished run share one `Arc`, so storing a result never
+/// copies its rows on the UI thread; exports and background view builds take
+/// another reference instead of a deep copy.
 #[derive(Default)]
 pub(super) struct ResultStore {
-    pub(super) values: HashMap<String, Results>,
+    pub(super) values: HashMap<String, Arc<Results>>,
+    /// Bumped by anything that may edit a stored result in place.
     pub(super) revision: u64,
 }
+impl ResultStore {
+    pub(super) fn get(&self, key: &str) -> Option<&Results> {
+        self.values.get(key).map(|r| &**r)
+    }
+    pub(super) fn shared(&self, key: &str) -> Option<&Arc<Results>> {
+        self.values.get(key)
+    }
+    pub(super) fn insert(
+        &mut self,
+        key: String,
+        value: impl Into<Arc<Results>>,
+    ) -> Option<Arc<Results>> {
+        self.values.insert(key, value.into())
+    }
+    /// In-place edit; copies only when the result is also referenced elsewhere.
+    #[cfg(test)]
+    pub(super) fn get_mut(&mut self, key: &str) -> Option<&mut Results> {
+        self.revision += 1;
+        self.values.get_mut(key).map(Arc::make_mut)
+    }
+    #[cfg(test)]
+    pub(super) fn remove(&mut self, key: &str) -> Option<Results> {
+        self.values.remove(key).map(Arc::unwrap_or_clone)
+    }
+}
 impl std::ops::Deref for ResultStore {
-    type Target = HashMap<String, Results>;
+    type Target = HashMap<String, Arc<Results>>;
     fn deref(&self) -> &Self::Target {
         &self.values
     }
 }
 impl std::ops::DerefMut for ResultStore {
+    /// Map-level edits (`retain`, `clear`) only add or drop whole results,
+    /// which changes their identity; in-place edits go through `get_mut`.
     fn deref_mut(&mut self) -> &mut Self::Target {
-        self.revision += 1;
         &mut self.values
     }
 }
-#[derive(PartialEq, Eq)]
+#[derive(PartialEq, Eq, Clone)]
 /// Inputs to the filtered/sorted row index.
 ///
 /// The collapse set and query are fingerprinted rather than cloned: this key is
@@ -427,6 +474,51 @@ pub(super) struct ViewKey {
     pub(super) descending: bool,
     pub(super) tree: Option<(usize, usize)>,
     pub(super) collapsed: u64,
+}
+/// The last finished row index and the result it was built from. The weak
+/// handle pins the result's address, so `identity` cannot be reused by a later
+/// allocation while this entry exists.
+/// What a wrapped detail text was built from. Each variant holds a strong
+/// reference, so its address identifies the content for as long as it is cached:
+/// a row index is never edited after it is built, and a tab's text never changes.
+pub(super) enum DetailSource {
+    Row(std::rc::Rc<crate::result_view::Index>, usize),
+    Tab(std::rc::Rc<str>),
+}
+impl DetailSource {
+    pub(super) fn same(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Row(a, x), Self::Row(b, y)) => std::rc::Rc::ptr_eq(a, b) && x == y,
+            (Self::Tab(a), Self::Tab(b)) => std::rc::Rc::ptr_eq(a, b),
+            _ => false,
+        }
+    }
+}
+pub(super) struct DetailCache {
+    pub(super) source: DetailSource,
+    pub(super) width: u16,
+    pub(super) lines: std::rc::Rc<Vec<String>>,
+}
+/// Plugin activation rescans asset directories at most this often; edits to
+/// already listed files are detected on every activation by re-`stat`ing them.
+pub(super) const ASSET_RESCAN_INTERVAL: Duration = Duration::from_secs(5);
+/// Results with more cells than this are indexed off the UI thread.
+pub(super) const SYNC_VIEW_CELLS: usize = 200_000;
+pub(super) struct CachedView {
+    pub(super) key: ViewKey,
+    pub(super) source: std::sync::Weak<Results>,
+    pub(super) index: std::rc::Rc<crate::result_view::Index>,
+}
+/// An index being built off the UI thread. Dropping it cancels the build.
+pub(super) struct ViewJob {
+    pub(super) key: ViewKey,
+    pub(super) cancel: Arc<std::sync::atomic::AtomicBool>,
+    pub(super) receiver: mpsc::Receiver<crate::result_view::Index>,
+}
+impl Drop for ViewJob {
+    fn drop(&mut self) {
+        self.cancel.store(true, Ordering::Relaxed);
+    }
 }
 pub(super) type ColumnWidths = (
     std::rc::Rc<crate::result_view::Index>,

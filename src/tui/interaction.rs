@@ -745,6 +745,10 @@ impl App {
             if key.code == KeyCode::Char('q') && key.modifiers.is_empty() {
                 return self.request_quit();
             }
+            // Cancelling must not depend on the window size.
+            if key.code == KeyCode::Esc && self.job.is_some() {
+                self.cancel();
+            }
             return false;
         }
         if self.dialog.is_none() && key.modifiers.contains(KeyModifiers::CONTROL) {
@@ -836,7 +840,8 @@ impl App {
             )
         {
             let rect = self.hits.borrow().inspector;
-            let max = detail_lines(&self.detail_text(), rect.width.saturating_sub(2))
+            let max = self
+                .inspector_lines(rect.width.saturating_sub(2))
                 .len()
                 .saturating_sub(rect.height.saturating_sub(2) as usize);
             self.detail_scroll = match key.code {

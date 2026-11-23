@@ -468,10 +468,20 @@ impl App {
     }
 }
 
-impl Drop for CachePage {
-    fn drop(&mut self) {
-        if let Some(worker) = self.query_worker.take() {
+impl CachePage {
+    /// Stop tracking a running inventory query; it only reads the cache
+    /// directory and its result is no longer wanted.
+    pub(super) fn detach_query(&mut self) {
+        self.query_rx = None;
+        if let Some(worker) = self.query_worker.take()
+            && worker.is_finished()
+        {
             let _ = worker.join();
         }
+    }
+}
+impl Drop for CachePage {
+    fn drop(&mut self) {
+        self.detach_query();
     }
 }

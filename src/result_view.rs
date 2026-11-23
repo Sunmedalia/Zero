@@ -7,6 +7,9 @@ use std::collections::{HashMap, HashSet};
 pub struct Index {
     pub filtered: Vec<usize>,
     pub visible: Vec<Line>,
+    /// Lowercased query that produced `filtered`; a longer query containing
+    /// it only has to re-check these rows.
+    pub query: String,
 }
 #[derive(Debug)]
 pub struct Line {
@@ -16,6 +19,8 @@ pub struct Line {
 /// A borrowed table row: the stored cells plus the single cell a tree
 /// decoration replaces.
 pub type Cells<'a> = (&'a [String], Option<(usize, String)>);
+/// Rows between two cancellation checks.
+const CANCEL_STRIDE: usize = 4096;
 impl Index {
     pub fn build(
         result: &Results,
@@ -25,24 +30,43 @@ impl Index {
         tree: Option<(usize, usize)>,
         collapsed: &HashSet<String>,
     ) -> Self {
-        let query = query.to_lowercase();
-        let mut filtered: Vec<_> = result
-            .rows
-            .iter()
-            .enumerate()
-            .filter(|(_, row)| {
-                query.is_empty() || row.iter().any(|cell| cell.to_lowercase().contains(&query))
-            })
-            .map(|(i, _)| i)
-            .collect();
-        if let Some(column) = sort {
-            filtered.sort_by(|&a, &b| {
-                let a = result.rows.get(a).map_or("", |row| row.cell(column));
-                let b = result.rows.get(b).map_or("", |row| row.cell(column));
-                let order = compare(a, b);
-                if descending { order.reverse() } else { order }
-            });
-        }
+        Self::build_from(
+            result,
+            query,
+            sort,
+            descending,
+            tree,
+            collapsed,
+            None,
+            &|| false,
+        )
+        .unwrap_or_default()
+    }
+    /// The lowercased form `build` matches against and stores in `query`.
+    pub fn fold(query: &str) -> String {
+        query.to_lowercase()
+    }
+    /// Whether rows matching `previous` are a superset of rows matching
+    /// `next`, so `next` may be filtered from `previous`'s rows alone.
+    pub fn narrows(previous: &str, next: &str) -> bool {
+        Self::fold(next).contains(&Self::fold(previous))
+    }
+    /// Build the index, optionally restricted to `base` (rows already known to
+    /// contain a substring of `query`, in any order). Returns `None` once
+    /// `cancel` reports that the caller no longer wants this view.
+    #[allow(clippy::too_many_arguments)]
+    pub fn build_from(
+        result: &Results,
+        query: &str,
+        sort: Option<usize>,
+        descending: bool,
+        tree: Option<(usize, usize)>,
+        collapsed: &HashSet<String>,
+        base: Option<&[usize]>,
+        cancel: &dyn Fn() -> bool,
+    ) -> Option<Self> {
+        let query = Self::fold(query);
+        let filtered = Self::filtered_rows(result, &query, sort, descending, base, cancel)?;
         let Some((parent, name)) = tree else {
             let visible = filtered
                 .iter()
@@ -51,7 +75,11 @@ impl Index {
                     decoration: None,
                 })
                 .collect();
-            return Self { filtered, visible };
+            return Some(Self {
+                filtered,
+                visible,
+                query,
+            });
         };
         let ids: HashSet<_> = filtered
             .iter()
@@ -105,7 +133,75 @@ impl Index {
                 }
             }
         }
-        Self { filtered, visible }
+        Some(Self {
+            filtered,
+            visible,
+            query,
+        })
+    }
+    /// Filter and sort source rows using an already folded query.
+    pub(crate) fn filtered_rows(
+        result: &Results,
+        query: &str,
+        sort: Option<usize>,
+        descending: bool,
+        base: Option<&[usize]>,
+        cancel: &dyn Fn() -> bool,
+    ) -> Option<Vec<usize>> {
+        let keep = |i: usize| {
+            query.is_empty()
+                || result
+                    .rows
+                    .get(i)
+                    .is_some_and(|row| row.iter().any(|cell| contains_folded(cell, query)))
+        };
+        let mut filtered = Vec::new();
+        match base {
+            Some(base) => {
+                for (n, &i) in base.iter().enumerate() {
+                    if n % CANCEL_STRIDE == 0 && cancel() {
+                        return None;
+                    }
+                    if keep(i) {
+                        filtered.push(i);
+                    }
+                }
+                // Restore row order so equal sort keys stay stable.
+                filtered.sort_unstable();
+            }
+            None => {
+                for i in 0..result.rows.len() {
+                    if i % CANCEL_STRIDE == 0 && cancel() {
+                        return None;
+                    }
+                    if keep(i) {
+                        filtered.push(i);
+                    }
+                }
+            }
+        }
+        if let Some(column) = sort {
+            // Parse each key once instead of twice per comparison.
+            let mut keyed: Vec<_> = filtered
+                .iter()
+                .map(|&i| {
+                    let cell = result.rows.get(i).map_or("", |row| row.cell(column));
+                    (i, sort_key(cell))
+                })
+                .collect();
+            if cancel() {
+                return None;
+            }
+            keyed.sort_by(|(_, a), (_, b)| {
+                let order = compare_keys(a, b);
+                if descending { order.reverse() } else { order }
+            });
+            filtered = keyed.into_iter().map(|(i, _)| i).collect();
+        }
+        if cancel() {
+            return None;
+        }
+        Some(filtered)
     }
     pub fn row(&self, result: &Results, position: usize) -> Option<Vec<String>> {
         let line = self.visible.get(position)?;
@@ -130,19 +226,55 @@ impl Index {
         Some((row.as_slice(), decoration))
     }
 }
-pub fn compare(a: &str, b: &str) -> std::cmp::Ordering {
-    let number = |v: &str| {
-        v.strip_prefix("0x").map_or_else(
-            || v.parse::<u64>().ok(),
-            |v| u64::from_str_radix(v, 16).ok(),
-        )
-    };
-    match (number(a), number(b)) {
+/// Case-insensitive substring test against an already folded needle, without
+/// allocating for ASCII cells (the common case for addresses, PIDs and names).
+fn contains_folded(cell: &str, needle: &str) -> bool {
+    if needle.is_ascii() && cell.is_ascii() {
+        let (hay, needle) = (cell.as_bytes(), needle.as_bytes());
+        let Some((&first, rest)) = needle.split_first() else {
+            return true;
+        };
+        if hay.len() < needle.len() {
+            return false;
+        }
+        let last = hay.len() - needle.len();
+        let mut from = 0;
+        while from <= last {
+            let window = hay.get(from..=last).unwrap_or_default();
+            let Some(offset) = memchr::memchr2(first, first.to_ascii_uppercase(), window) else {
+                return false;
+            };
+            let at = from + offset;
+            if hay
+                .get(at + 1..at + needle.len())
+                .is_some_and(|tail| tail.eq_ignore_ascii_case(rest))
+            {
+                return true;
+            }
+            from = at + 1;
+        }
+        return false;
+    }
+    cell.to_lowercase().contains(needle)
+}
+type SortKey<'a> = (Option<u64>, &'a str);
+fn sort_key(v: &str) -> SortKey<'_> {
+    let number = v.strip_prefix("0x").map_or_else(
+        || v.parse::<u64>().ok(),
+        |v| u64::from_str_radix(v, 16).ok(),
+    );
+    (number, v)
+}
+fn compare_keys(a: &SortKey<'_>, b: &SortKey<'_>) -> std::cmp::Ordering {
+    match (a.0, b.0) {
         (Some(a), Some(b)) => a.cmp(&b),
         (Some(_), None) => std::cmp::Ordering::Less,
         (None, Some(_)) => std::cmp::Ordering::Greater,
-        _ => a.cmp(b),
+        _ => a.1.cmp(b.1),
     }
+}
+pub fn compare(a: &str, b: &str) -> std::cmp::Ordering {
+    compare_keys(&sort_key(a), &sort_key(b))
 }
 
 #[cfg(test)]
@@ -205,6 +337,59 @@ mod tests {
             let index = Index::build(&tied, "", Some(0), descending, None, &none);
             assert_eq!(names(&index, &tied), ["a", "b"]);
         }
+    }
+
+    #[test]
+    fn folded_match_agrees_with_lowercase_contains() {
+        let cells = [
+            "Bash",
+            "sSHd",
+            "0xFFFF8880",
+            "ĞÜÇ-bash",
+            "",
+            "ab",
+            "aab",
+            "K",
+        ];
+        let needles = ["", "bash", "ssh", "ff88", "ğü", "aab", "ab", "b", "x", "k"];
+        for cell in cells {
+            for needle in needles {
+                assert_eq!(
+                    contains_folded(cell, needle),
+                    cell.to_lowercase().contains(needle),
+                    "{cell:?} / {needle:?}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn narrowing_and_cancellation_match_a_full_build() {
+        let result = results(&[
+            ["10", "1", "Bash"],
+            ["2", "1", "sshd"],
+            ["0x9", "1", "BASH"],
+            ["3", "1", "bashd"],
+        ]);
+        let none = HashSet::new();
+        let wide = Index::build(&result, "BA", Some(0), true, None, &none);
+        assert!(Index::narrows(&wide.query, "bash"));
+        assert!(!Index::narrows("bash", "ba"));
+        let narrowed = Index::build_from(
+            &result,
+            "bash",
+            Some(0),
+            true,
+            None,
+            &none,
+            Some(&wide.filtered),
+            &|| false,
+        )
+        .unwrap();
+        let full = Index::build(&result, "bash", Some(0), true, None, &none);
+        assert_eq!(narrowed.filtered, full.filtered);
+        assert_eq!(narrowed.query, "bash");
+        assert!(Index::build_from(&result, "", None, false, None, &none, None, &|| true).is_none());
     }
 
     #[test]

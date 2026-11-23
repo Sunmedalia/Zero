@@ -1012,17 +1012,7 @@ impl App {
                         }
                         self.dialog = Some(Dialog::KernelDiagnostics { scroll: 0 });
                     }
-                    InputKind::Export => {
-                        if let Some(result) = self.result().cloned() {
-                            let rows = self
-                                .view_index()
-                                .filtered
-                                .iter()
-                                .filter_map(|&i| result.rows.get(i).cloned())
-                                .collect();
-                            self.start_work(Work::Export(path, result.metadata(), rows));
-                        }
-                    }
+                    InputKind::Export => self.export_result(path),
                     InputKind::History => self.start_work(Work::History(path)),
                 }
                 return;

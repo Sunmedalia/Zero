@@ -460,13 +460,27 @@ pub(super) fn same_path(a: &std::path::Path, b: &std::path::Path) -> bool {
             .is_some_and(|(a, b)| a == b)
 }
 pub(super) fn detail_lines(text: &str, width: u16) -> Vec<String> {
+    use unicode_width::UnicodeWidthStr;
     let width = width.max(1) as usize;
     let mut lines = Vec::new();
     for paragraph in text.split('\n') {
+        // No character is wider than its UTF-8 encoding, so a paragraph that
+        // fits in bytes fits in cells and needs no per-character measuring.
+        if paragraph.len() <= width {
+            lines.push(paragraph.to_owned());
+            continue;
+        }
         let mut line = String::new();
         let mut used = 0;
+        let mut buffer = [0u8; 4];
         for c in paragraph.chars() {
-            let n = Span::raw(c.to_string()).width();
+            // Same measure as `Span::width` of the single character, without
+            // allocating a `String` per character.
+            let n = if c.is_ascii_graphic() || c == ' ' {
+                1
+            } else {
+                UnicodeWidthStr::width(&*c.encode_utf8(&mut buffer))
+            };
             if used + n > width && !line.is_empty() {
                 lines.push(std::mem::take(&mut line));
                 used = 0;

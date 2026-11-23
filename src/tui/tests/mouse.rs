@@ -205,7 +205,7 @@ fn mouse_input_confirm_and_symbol_candidates() {
 fn horizontally_scrolled_headers_keep_mouse_column_identity() {
     let mut app = app();
     let d = Plugin::Sockstat.descriptor();
-    let mut result = app.results["pslist"].clone();
+    let mut result = app.results["pslist"].as_ref().clone();
     result.plugin = "sockstat".into();
     result.columns = d.columns.iter().map(|s| (*s).into()).collect();
     result.rows = vec![d.columns.iter().map(|s| (*s).into()).collect()];

@@ -174,7 +174,7 @@ fn inline_content_search_has_mouse_confirmation_and_reversible_filter() {
 #[test]
 fn stale_events_cannot_update_new_object_or_release_new_task() {
     let mut app = app();
-    let result = app.results["pslist"].clone();
+    let result = app.results["pslist"].as_ref().clone();
     app.results.clear();
     app.object_version = 2;
     app.task_id = 7;

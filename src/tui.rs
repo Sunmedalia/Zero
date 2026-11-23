@@ -41,7 +41,7 @@ use components::*;
 use crossterm::{
     cursor::Show,
     event::{
-        self, DisableBracketedPaste, DisableMouseCapture, EnableBracketedPaste, EnableMouseCapture,
+        DisableBracketedPaste, DisableMouseCapture, EnableBracketedPaste, EnableMouseCapture,
         Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers, MouseButton, MouseEvent,
         MouseEventKind,
     },
@@ -154,7 +154,8 @@ pub fn run_with_options(
         }
         // Worker panics are caught and reported through the event channel.
     }));
-    theme::set_background(terminal_theme::detect());
+    let (light, mut input) = terminal_theme::detect(settings.theme == "auto");
+    theme::set_background(light);
     let mut terminal = Terminal::new(CrosstermBackend::new(std::io::stdout()))?;
     let mut app = App::new(image, symbols, cache, settings);
     app.initialize(options);
@@ -187,8 +188,12 @@ pub fn run_with_options(
             for _ in 0..EVENT_BATCH {
                 let next = match deferred.take() {
                     Some(next) => next,
-                    None if event::poll(wait)? => event::read()?,
-                    None => break,
+                    None => {
+                        let Some(next) = input.next_event(wait)? else {
+                            break;
+                        };
+                        next
+                    }
                 };
                 wait = Duration::ZERO;
                 let stale = match hit_test(&next) {
@@ -216,10 +221,19 @@ pub fn run_with_options(
         }
         Ok(())
     })();
+    // Leave the alternate screen and raw mode before waiting on anything, so
+    // a slow cancellation never leaves the user staring at a frozen frame.
     app.cancel();
-    app.finish_worker();
+    drop(terminal);
+    drop(guard);
+    app.release_worker(EXIT_WAIT);
     outcome
 }
+
+/// How long quitting waits for a cancelled worker before leaving it behind.
+/// Workers poll their `Job` and write exports atomically, so one that is still
+/// running when the process exits leaves no partial output in place.
+const EXIT_WAIT: Duration = Duration::from_secs(3);
 
 /// Upper bound on queued events handled between two frames.
 const EVENT_BATCH: usize = 256;
@@ -317,11 +331,7 @@ fn native_acceptance() {
     assert!(result.complete && !result.rows.is_empty() && result.page_table != 0);
     let result = result.clone();
     let export = project.path().join("exports/pslist.json");
-    app.start_work(Work::Export(
-        export.clone(),
-        result.metadata(),
-        result.rows.clone(),
-    ));
+    app.export_result(export.clone());
     settle(&mut app);
     assert_eq!(store::exported(&export).unwrap().rows, result.rows);
     app.switch_page(Page::Cache);
