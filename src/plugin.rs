@@ -413,6 +413,9 @@ impl Plugin {
                     | Self::LinuxElfs
             )
     }
+    pub fn is_linux_mapping_export(self) -> bool {
+        matches!(self, Self::LinuxMaps | Self::LinuxMalfind | Self::LinuxElfs)
+    }
     pub fn is_regex_scan(self) -> bool {
         matches!(self, Self::VmaRegExScan | Self::WinVadRegExScan)
     }

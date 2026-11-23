@@ -5,6 +5,26 @@ use std::io::Write;
 fn put(b: &mut [u8], at: usize, n: u64) {
     b[at..at + 8].copy_from_slice(&n.to_le_bytes());
 }
+pub(super) fn fd_thread_group(bytes: &mut [u8], isf: &mut Isf, worker: Option<(u64, u64, u64)>) {
+    const LEADER: usize = 0xa000;
+    const WORKER: usize = 0xa200;
+    const LIST: usize = 88;
+    isf.data["user_types"]["task_struct"]["fields"]["thread_group"] =
+        json!({"offset":LIST,"type":{"kind":"struct","name":"list_head"}});
+    let member = if worker.is_some() { WORKER } else { LEADER };
+    put(bytes, LEADER + LIST, (member + LIST) as u64);
+    put(bytes, LEADER + LIST + 8, (member + LIST) as u64);
+    if let Some((tid, tgid, files)) = worker {
+        bytes.copy_within(LEADER..LEADER + 128, WORKER);
+        put(bytes, WORKER + 16, tid);
+        put(bytes, WORKER + 24, tgid);
+        put(bytes, WORKER + 56, files);
+        bytes[WORKER + 40..WORKER + 48].copy_from_slice(b"worker\0\0");
+        put(bytes, WORKER + LIST, (LEADER + LIST) as u64);
+        put(bytes, WORKER + LIST + 8, (LEADER + LIST) as u64);
+    }
+}
+
 pub(crate) fn fixture() -> (Vec<u8>, Isf) {
     let mut b = vec![0; 0x40000];
     // Identity kernel mapping, independent user page table with two noncontiguous pages.

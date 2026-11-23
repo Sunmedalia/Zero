@@ -3,84 +3,109 @@ use super::*;
 use crate::analysis::Options;
 use std::collections::{HashMap, HashSet};
 
-fn join_mount_path(mount_point: &str, rel_path: &str) -> String {
-    if mount_point.is_empty() || mount_point == "/" {
-        if rel_path.starts_with('/') {
-            rel_path.to_string()
+struct MountPath {
+    root: String,
+    point: String,
+}
+
+impl MountPath {
+    fn file_path(&self, path: &str) -> Option<String> {
+        let relative = if self.root == "/" {
+            path
         } else {
-            format!("/{rel_path}")
+            let relative = path.strip_prefix(&self.root)?;
+            if !relative.is_empty() && !relative.starts_with('/') {
+                return None;
+            }
+            relative
+        };
+        if relative.is_empty() || relative == "/" {
+            Some(self.point.clone())
+        } else {
+            Some(format!("{}{relative}", self.point.trim_end_matches('/')))
         }
-    } else if rel_path == "/" || rel_path.is_empty() {
-        mount_point.to_string()
-    } else {
-        format!(
-            "{}/{}",
-            mount_point.trim_end_matches('/'),
-            rel_path.trim_start_matches('/')
-        )
     }
 }
 
 impl Linux<'_> {
-    /// Best-effort map from `super_block` pointer to mount point path via `init_task`.
-    fn superblock_mount_points(&self, job: &Job) -> HashMap<u64, String> {
-        let mut map = HashMap::new();
-        let Ok(init) = self.isf.address("init_task") else {
-            return map;
-        };
-        let Ok(proxy) = self.number(init, "task_struct", "nsproxy") else {
-            return map;
-        };
-        if proxy == 0 {
-            return map;
-        }
-        let Ok(ns) = self.number(proxy, "nsproxy", "mnt_ns") else {
-            return map;
-        };
-        if ns == 0 {
-            return map;
-        }
-        if self.modern_mount() {
-            let Ok(root) = self.number(ns, "mnt_namespace", "root") else {
-                return map;
-            };
-            let Ok(offset) = self.isf.offset("mount", "mnt") else {
-                return map;
-            };
-            let mut stack = vec![root];
-            let mut seen = HashSet::new();
-            while let Some(m) = stack.pop() {
-                if m == 0 || !seen.insert(m) || seen.len() > 65536 {
-                    continue;
+    fn superblock_mount_points(
+        &self,
+        result: &mut Results,
+        job: &Job,
+    ) -> Result<HashMap<u64, Vec<MountPath>>> {
+        let (tasks_result, tasks) = self.task_identities(Plugin::LinuxPagecacheFiles, job)?;
+        result.complete &= tasks_result.complete;
+        result.diagnostics.extend(tasks_result.diagnostics);
+        let mut map = HashMap::<u64, Vec<MountPath>>::new();
+        let mut namespaces = HashSet::new();
+        let init = self.isf.address("init_task")?;
+        for task in std::iter::once(init).chain(tasks.into_iter().map(|task| task.address)) {
+            job.check()?;
+            let read = (|| -> Result<()> {
+                let proxy = self.number(task, "task_struct", "nsproxy")?;
+                if proxy == 0 {
+                    return Ok(());
                 }
-                if let Ok(head) = self.field_address(m, "mount", "mnt_mounts")
-                    && let Ok(off) = self.isf.offset("mount", "mnt_child")
-                    && let Ok(kids) = self.list_objects(head, off, job)
-                {
-                    stack.extend(kids);
+                let namespace = self.number(proxy, "nsproxy", "mnt_ns")?;
+                if namespace == 0 || !namespaces.insert(namespace) {
+                    return Ok(());
                 }
-                if let Ok(vfs) = add(m, offset)
-                    && let Ok(sb) = self.number(vfs, "vfsmount", "mnt_sb")
-                    && let Ok(mnt_root) = self.number(vfs, "vfsmount", "mnt_root")
-                    && let Ok(mp) = self.resolve_path(mnt_root, vfs, None, job)
-                {
-                    map.entry(sb).or_insert(mp);
+
+                let modern = self.modern_mount();
+                let mut mounts = if modern {
+                    vec![self.number(namespace, "mnt_namespace", "root")?]
+                } else {
+                    self.list_objects(
+                        self.field_address(namespace, "mnt_namespace", "list")?,
+                        self.isf.offset("vfsmount", "mnt_list")?,
+                        job,
+                    )?
+                };
+                let mut seen_mounts = HashSet::new();
+                while let Some(mount) = mounts.pop() {
+                    job.check()?;
+                    if mount == 0 || !seen_mounts.insert(mount) {
+                        continue;
+                    }
+                    ensure!(seen_mounts.len() <= LIMIT, "挂载数量超过上限");
+                    let read = (|| -> Result<()> {
+                        let vfs = if modern {
+                            let kids = self.list_objects(
+                                self.field_address(mount, "mount", "mnt_mounts")?,
+                                self.isf.offset("mount", "mnt_child")?,
+                                job,
+                            )?;
+                            mounts.extend(kids.into_iter().rev());
+                            add(mount, self.isf.offset("mount", "mnt")?)?
+                        } else {
+                            mount
+                        };
+                        let block = self.number(vfs, "vfsmount", "mnt_sb")?;
+                        let dentry = self.number(vfs, "vfsmount", "mnt_root")?;
+                        let point = self.resolve_path(dentry, vfs, None, job)?;
+                        let root = self.dentry_path(dentry)?;
+                        let paths = map.entry(block).or_default();
+                        if !paths
+                            .iter()
+                            .any(|path| path.root == root && path.point == point)
+                        {
+                            paths.push(MountPath { root, point });
+                        }
+                        Ok(())
+                    })();
+                    if let Err(error) = read {
+                        job.check()?;
+                        partial(result, format!("mount {}", hex(mount)), error);
+                    }
                 }
+                Ok(())
+            })();
+            if let Err(error) = read {
+                job.check()?;
+                partial(result, format!("task {} 挂载命名空间", hex(task)), error);
             }
-        } else if let Ok(head) = self.field_address(ns, "mnt_namespace", "list")
-            && let Ok(off) = self.isf.offset("vfsmount", "mnt_list")
-            && let Ok(mounts) = self.list_objects(head, off, job)
-        {
-            for m in mounts {
-                if let Ok(sb) = self.number(m, "vfsmount", "mnt_sb")
-                    && let Ok(mnt_root) = self.number(m, "vfsmount", "mnt_root")
-                    && let Ok(mp) = self.resolve_path(mnt_root, m, None, job)
-                {
-                    map.entry(sb).or_insert(mp);
-                }
-            }
         }
-        map
+        Ok(map)
     }
 
     pub(super) fn linux_pagecache_files(&self, options: &Options, job: &Job) -> Result<Results> {
@@ -104,7 +129,7 @@ impl Linux<'_> {
             .collect();
         let find = options.find.as_deref().filter(|s| !s.is_empty());
 
-        let mount_points = self.superblock_mount_points(job);
+        let mount_points = self.superblock_mount_points(&mut result, job)?;
         let blocks = self.list_objects(
             self.isf
                 .address("super_blocks")
@@ -117,10 +142,6 @@ impl Linux<'_> {
         for block in blocks {
             job.check()?;
             let read = (|| -> Result<()> {
-                let mount_point = mount_points
-                    .get(&block)
-                    .cloned()
-                    .unwrap_or_else(|| "/".into());
                 let device = self
                     .number(block, "super_block", "s_dev")
                     .ok()
@@ -151,16 +172,20 @@ impl Linux<'_> {
                                 .unwrap_or_else(|_| "[unresolved]".into()),
                             _ => String::new(),
                         };
-                        let full_path = if rel_path.is_empty() || rel_path == "[unresolved]" {
-                            rel_path
-                        } else {
-                            join_mount_path(&mount_point, &rel_path)
+                        let mounted = mount_points
+                            .get(&block)
+                            .into_iter()
+                            .flatten()
+                            .filter(|_| rel_path.starts_with('/'))
+                            .filter_map(|mount| {
+                                mount.file_path(&rel_path).map(|path| (&mount.point, path))
+                            })
+                            .find(|(_, path)| find.is_none_or(|needle| path.contains(needle)));
+                        let (mount_point, full_path) = match mounted {
+                            Some((point, path)) => (point.clone(), path),
+                            None if find.is_some() => return Ok(None),
+                            None => ("N/A".into(), "[unresolved]".into()),
                         };
-                        if let Some(needle) = find
-                            && !full_path.contains(needle)
-                        {
-                            return Ok(None);
-                        }
                         let ino = self.number(inode, "inode", "i_ino")?;
                         let size = self.signed_field(inode, "inode", "i_size")?;
                         let inode_pages = if size <= 0 {
@@ -185,7 +210,7 @@ impl Linux<'_> {
                             .unwrap_or_else(|_| "N/A".into());
                         Ok(Some(vec![
                             hex(block),
-                            mount_point.clone(),
+                            mount_point,
                             device.clone(),
                             ino.to_string(),
                             hex(inode),
@@ -302,6 +327,53 @@ mod tests {
         put(&mut b, 0x13100, 0x13100);
         b[0x13200..0x1320c].copy_from_slice(b"secret.conf\0");
 
+        // Only PID 1's mount namespace contains this superblock, at /container.
+        isf.data["user_types"]["task_struct"]["fields"]["nsproxy"] = json!({
+            "offset":72, "type":{"kind":"pointer","subtype":{"kind":"struct","name":"nsproxy"}}
+        });
+        isf.data["user_types"]["nsproxy"] = json!({
+            "size":8, "fields":{"mnt_ns":{"offset":0,"type":{"kind":"pointer"}}}
+        });
+        isf.data["user_types"]["mnt_namespace"] = json!({
+            "size":16, "fields":{"list":{"offset":0,"type":{"kind":"struct","name":"list_head"}}}
+        });
+        isf.data["user_types"]["vfsmount"]["fields"]["mnt_list"] =
+            json!({"offset":24,"type":{"kind":"struct","name":"list_head"}});
+        isf.data["user_types"]["vfsmount"]["fields"]["mnt_sb"] =
+            json!({"offset":40,"type":{"kind":"pointer"}});
+        isf.data["user_types"]["dentry"]["fields"]["d_sb"] =
+            json!({"offset":40,"type":{"kind":"pointer"}});
+        isf.data["user_types"]["super_block"]["fields"]["s_type"] =
+            json!({"offset":40,"type":{"kind":"pointer"}});
+        isf.data["user_types"]["file_system_type"] = json!({
+            "size":8, "fields":{"name":{"offset":0,"type":{"kind":"pointer"}}}
+        });
+        put(&mut b, 0x9048, 0x15000);
+        put(&mut b, 0x15000, 0x15100);
+        put(&mut b, 0x15100, 0x15100);
+        put(&mut b, 0x15108, 0x15100);
+        put(&mut b, 0xa048, 0x15010);
+        put(&mut b, 0x15010, 0x15200);
+        put(&mut b, 0x15200, 0x16018);
+        put(&mut b, 0x15208, 0x16018);
+        put(&mut b, 0x16000, 0x13100);
+        put(&mut b, 0x16008, 0x16100);
+        put(&mut b, 0x16010, 0x16200);
+        put(&mut b, 0x16018, 0x15200);
+        put(&mut b, 0x16020, 0x15200);
+        put(&mut b, 0x16028, 0x11000);
+        put(&mut b, 0x16100, 0x16300);
+        put(&mut b, 0x16108, 0x16100);
+        put(&mut b, 0x16200, 0x16300);
+        put(&mut b, 0x16208, 9);
+        put(&mut b, 0x16210, 0x16400);
+        b[0x16400..0x1640a].copy_from_slice(b"container\0");
+        put(&mut b, 0x16300, 0x16300);
+        put(&mut b, 0x16328, 0x16500);
+        put(&mut b, 0x16528, 0x16600);
+        put(&mut b, 0x16600, 0x16700);
+        b[0x16700..0x16705].copy_from_slice(b"ext4\0");
+
         let img = image(&b);
         let linux = engine(&img, &isf);
         let result = linux
@@ -313,7 +385,7 @@ mod tests {
             result.rows[0],
             vec![
                 "0x0000000000011000",
-                "/",
+                "/container",
                 "8:2",
                 "404",
                 "0x0000000000012000",
@@ -324,7 +396,7 @@ mod tests {
                 "2023-11-14T22:13:20.000000+00:00",
                 "2023-11-14T22:13:21.000000+00:00",
                 "2023-11-14T22:13:22.000000+00:00",
-                "/secret.conf",
+                "/container/secret.conf",
                 "5000",
             ]
         );
@@ -343,12 +415,22 @@ mod tests {
         let found = linux
             .linux_pagecache_files(
                 &Options {
-                    find: Some("secret".into()),
+                    find: Some("/container/secret".into()),
                     ..Default::default()
                 },
                 &Job::default(),
             )
             .unwrap();
         assert_eq!(found.rows.len(), 1);
+
+        // A known inode on an unmounted superblock has no verified absolute path.
+        put(&mut b, 0x15200, 0x15200);
+        put(&mut b, 0x15208, 0x15200);
+        let img = image(&b);
+        let unmounted = engine(&img, &isf)
+            .linux_pagecache_files(&Options::default(), &Job::default())
+            .unwrap();
+        assert_eq!(unmounted.rows[0][1], "N/A");
+        assert_eq!(unmounted.rows[0][12], "[unresolved]");
     }
 }

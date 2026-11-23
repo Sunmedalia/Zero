@@ -109,21 +109,31 @@ impl Linux<'_> {
 
         let pids: BTreeSet<u32> = options.pids.iter().copied().chain(options.pid).collect();
         let (mut result, tasks) = self.task_identities(Plugin::LinuxMountinfo, job)?;
-        let mut seen_ns: HashSet<u64> = HashSet::new();
+        let filtered = !pids.is_empty();
+        if options.mount_format {
+            result.columns = ["MNT_NS_ID", "DEVNAME", "PATH", "FSTYPE", "MNT_OPTS"]
+                .map(str::to_owned)
+                .to_vec();
+        }
+        if filtered {
+            result.columns.insert(1, "PID".into());
+        }
+        let mut seen_ns = HashSet::new();
 
         for task in tasks {
             job.check()?;
-            if !pids.is_empty() && !task.pid.parse::<u32>().is_ok_and(|pid| pids.contains(&pid)) {
+            if filtered && !task.pid.parse::<u32>().is_ok_and(|pid| pids.contains(&pid)) {
                 continue;
             }
             let addr = task.address;
+            let first_row = result.rows.len();
             let read = (|| -> Result<()> {
                 let proxy = self.number(addr, "task_struct", "nsproxy")?;
                 if proxy == 0 {
                     return Ok(());
                 }
                 let ns = self.number(proxy, "nsproxy", "mnt_ns")?;
-                if ns == 0 || !seen_ns.insert(ns) {
+                if ns == 0 || (!filtered && !seen_ns.insert(ns)) {
                     return Ok(());
                 }
                 let ns_id = self.mnt_ns_id(ns);
@@ -142,6 +152,11 @@ impl Linux<'_> {
             if let Err(error) = read {
                 job.check()?;
                 partial(&mut result, format!("PID {} mountinfo", task.pid), error);
+            }
+            if filtered {
+                for row in result.rows.at_mut(first_row..)? {
+                    row.insert(1, task.pid.clone());
+                }
             }
             job.report(format!(
                 "linux.mountinfo.MountInfo: {} 条",
@@ -184,18 +199,27 @@ impl Linux<'_> {
             _ => String::new(),
         };
         if entry.mount_format {
+            let mut options = BTreeSet::new();
+            for option in mnt_opts.split(',').chain(sb_opts.split(',')) {
+                if option != "ro" && option != "rw" {
+                    options.insert(option);
+                }
+            }
+            let access = if mnt_opts.starts_with("ro") || sb_opts.starts_with("ro") {
+                "ro"
+            } else {
+                "rw"
+            };
+            let options = std::iter::once(access)
+                .chain(options)
+                .collect::<Vec<_>>()
+                .join(",");
             Ok(vec![
                 entry.ns_label.to_string(),
-                String::new(),
-                String::new(),
-                String::new(),
-                String::new(),
-                mount_point,
-                format!("{mnt_opts},{sb_opts}"),
-                String::new(),
-                fstype,
                 src,
-                String::new(),
+                mount_point,
+                fstype,
+                options,
             ])
         } else {
             Ok(vec![
@@ -448,6 +472,58 @@ mod tests {
                 "/dev/sda1",
                 "rw",
             ]
+        );
+
+        let by_pid = linux
+            .linux_mountinfo(
+                &Options {
+                    pids: vec![1, 2],
+                    ..Default::default()
+                },
+                &Job::default(),
+            )
+            .unwrap();
+        assert_eq!(by_pid.columns.len(), 12);
+        assert_eq!(by_pid.columns[1], "PID");
+        assert_eq!(
+            by_pid
+                .rows
+                .iter()
+                .map(|row| row[1].as_str())
+                .collect::<Vec<_>>(),
+            ["1", "2"]
+        );
+        assert!(
+            by_pid
+                .rows
+                .iter()
+                .all(|row| row.len() == by_pid.columns.len())
+        );
+
+        let compact = linux
+            .linux_mountinfo(
+                &Options {
+                    pid: Some(2),
+                    mount_format: true,
+                    ..Default::default()
+                },
+                &Job::default(),
+            )
+            .unwrap();
+        assert_eq!(
+            compact.columns,
+            ["MNT_NS_ID", "PID", "DEVNAME", "PATH", "FSTYPE", "MNT_OPTS"]
+        );
+        assert_eq!(
+            compact.rows,
+            [[
+                "4026531840",
+                "2",
+                "/dev/sda1",
+                "/",
+                "ext4",
+                "rw,nosuid,relatime"
+            ]]
         );
 
         let filtered = linux

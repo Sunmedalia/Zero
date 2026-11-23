@@ -399,6 +399,11 @@ impl Session {
             vm: super::discover::kernel_vm(&image, &symbol, root),
             isf: &symbol,
         };
+        if request.plugin.is_linux_mapping_export()
+            && let Some(dump) = dump
+        {
+            crate::dump::directory(&dump.directory)?;
+        }
         let result = if request.plugin == Plugin::Lsmod && dump.is_some() {
             engine.lsmod_with_dump(dump.context("Lsmod 导出需要目录")?, job)?
         } else if request.plugin == Plugin::LinuxMaps {

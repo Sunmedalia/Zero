@@ -130,13 +130,10 @@ impl Linux<'_> {
         ensure!(matches!(width, 4 | 8), "ISF pointer size 无效");
 
         let pids: BTreeSet<u32> = options.pids.iter().copied().chain(options.pid).collect();
-        let (mut result, tasks) = self.task_identities(Plugin::LinuxLsof, job)?;
+        let (mut result, tasks) = self.fd_tasks(Plugin::LinuxLsof, &pids, job)?;
 
         for task in tasks {
             job.check()?;
-            if !pids.is_empty() && !task.pid.parse::<u32>().is_ok_and(|pid| pids.contains(&pid)) {
-                continue;
-            }
             let addr = task.address;
             let read = (|| -> Result<()> {
                 let files = self.number(addr, "task_struct", "files")?;
@@ -314,7 +311,7 @@ impl Linux<'_> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::linux::tests::{engine, fixture, image};
+    use crate::linux::tests::{engine, fd_thread_group, fixture, image};
     use serde_json::json;
 
     fn put(b: &mut [u8], at: usize, value: u64) {
@@ -417,6 +414,7 @@ mod tests {
         put(&mut b, 0xe718, 0);
         put(&mut b, 0xe720, 1);
 
+        fd_thread_group(&mut b, &mut isf, None);
         (b, isf)
     }
 
@@ -466,5 +464,29 @@ mod tests {
             assert_eq!(reg_only.rows.len(), 1);
             assert_eq!(reg_only.rows[0][7], "REG");
         }
+    }
+    #[test]
+    fn linux_lsof_finds_a_worker_threads_private_file_table() {
+        let (mut bytes, mut isf) = lsof_fixture(true);
+        put(&mut bytes, 0xa038, 0);
+        fd_thread_group(&mut bytes, &mut isf, Some((43, 40, 0xb000)));
+        let image = image(&bytes);
+        let linux = engine(&image, &isf);
+        let result = linux
+            .linux_lsof(
+                &Options {
+                    pids: vec![42],
+                    files_only: true,
+                    ..Default::default()
+                },
+                &Job::default(),
+            )
+            .unwrap();
+        assert!(result.complete, "{:?}", result.diagnostics);
+        assert_eq!(result.rows.len(), 1);
+        assert_eq!(
+            &result.rows[0][..5],
+            ["40", "43", "worker", "0", "/log.txt"]
+        );
     }
 }

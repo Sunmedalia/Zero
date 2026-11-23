@@ -80,15 +80,12 @@ impl Linux<'_> {
         let socket_offset = self.isf.offset("socket_alloc", "socket")?;
 
         let pids: BTreeSet<u32> = options.pids.iter().copied().chain(options.pid).collect();
-        let (mut result, tasks) = self.task_identities(Plugin::LinuxSockstat, job)?;
+        let (mut result, tasks) = self.fd_tasks(Plugin::LinuxSockstat, &pids, job)?;
         let mut device_cache: HashMap<u64, BTreeMap<u64, String>> = HashMap::new();
         let empty_devices = BTreeMap::new();
 
         for task in tasks {
             job.check()?;
-            if !pids.is_empty() && !task.pid.parse::<u32>().is_ok_and(|pid| pids.contains(&pid)) {
-                continue;
-            }
             let addr = task.address;
             let read = (|| -> Result<()> {
                 let netns = self.task_netns(addr)?;
@@ -211,7 +208,7 @@ impl Linux<'_> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::linux::tests::{engine, fixture, image};
+    use crate::linux::tests::{engine, fd_thread_group, fixture, image};
     use serde_json::json;
 
     fn put(b: &mut [u8], at: usize, value: u64) {
@@ -283,6 +280,7 @@ mod tests {
         put(&mut b, 0x10038, 0); // inet_dport
         put(&mut b, 0x10048, 0xf000); // sk_socket (+72 in fixture())
 
+        fd_thread_group(&mut b, &mut isf, None);
         (b, isf)
     }
 
@@ -340,5 +338,28 @@ mod tests {
             .unwrap();
         assert!(other.complete);
         assert!(other.rows.is_empty());
+    }
+    #[test]
+    fn linux_sockstat_finds_a_worker_threads_private_socket_table() {
+        let (mut bytes, mut isf) = sockstat_fixture();
+        put(&mut bytes, 0xa038, 0);
+        fd_thread_group(&mut bytes, &mut isf, Some((78, 70, 0xb000)));
+        let image = image(&bytes);
+        let linux = engine(&image, &isf);
+        let result = linux
+            .linux_sockstat(
+                &Options {
+                    pids: vec![77],
+                    ..Default::default()
+                },
+                &Job::default(),
+            )
+            .unwrap();
+        assert!(result.complete, "{:?}", result.diagnostics);
+        assert_eq!(result.rows.len(), 1);
+        assert_eq!(
+            &result.rows[0][..5],
+            ["4026531992", "worker", "70", "78", "3"]
+        );
     }
 }

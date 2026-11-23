@@ -8,6 +8,7 @@ use std::collections::BTreeSet;
 
 pub(super) const MALFIND_HEXDUMP_DEFAULT: usize = 64;
 const MALFIND_HEXDUMP_MAX: usize = 4096;
+const MALFIND_PAGE_CHECK_LIMIT: usize = 1_000_000;
 const MALFIND_DIRTY_PAGES_LIMIT: usize = 4096;
 
 fn format_hexdump(base: u64, bytes: &[u8]) -> String {
@@ -145,14 +146,44 @@ impl Linux<'_> {
                         let flags = self.number(node, "vm_area_struct", "vm_flags")?;
                         let file = self.number(node, "vm_area_struct", "vm_file")?;
 
-                        // Volatility 3 Malfind heuristic: executable AND (writable OR anonymous),
-                        // skipping known kernel vDSO mappings.
-                        let is_exec = flags & 4 != 0;
-                        let is_write = flags & 2 != 0;
-                        if !is_exec || (!is_write && file != 0) {
+                        let protection = flags & 7;
+                        if protection & 4 == 0 || (file == 0 && vdso == Some(start)) {
                             return Ok(());
                         }
-                        if file == 0 && vdso.is_some_and(|v| v != 0 && v == start) {
+                        let by_protection = protection == 7 || (protection == 5 && file == 0);
+                        let mut regions = Vec::new();
+                        if by_protection {
+                            regions.push((start, end));
+                        } else {
+                            let mut cursor = start;
+                            for _ in 0..MALFIND_PAGE_CHECK_LIMIT {
+                                if cursor >= end || regions.len() == MALFIND_DIRTY_PAGES_LIMIT {
+                                    break;
+                                }
+                                job.check()?;
+                                let (dirty, page_size) =
+                                    vm.dirty_page(cursor).unwrap_or((false, 4096));
+                                let next = cursor
+                                    .saturating_add(page_size - cursor % page_size)
+                                    .min(end);
+                                if dirty {
+                                    regions.push((cursor, next));
+                                    if !options.show_all_dirty_pages {
+                                        cursor = end;
+                                        break;
+                                    }
+                                }
+                                cursor = next;
+                            }
+                            if cursor < end {
+                                partial(
+                                    &mut result,
+                                    format!("PID {} VMA {}", task.pid, hex(start)),
+                                    anyhow::anyhow!("脏页检查达到上限，未检查 {}", hex(cursor)),
+                                );
+                            }
+                        }
+                        if regions.is_empty() {
                             return Ok(());
                         }
 
@@ -177,31 +208,23 @@ impl Linux<'_> {
                         };
                         let prot = permissions(flags);
 
-                        // Inspect resident pages for non-zero bytes.
-                        let mut regions: Vec<(u64, u64, Vec<u8>)> = Vec::new();
-                        let mut page = start & !0xfff;
-                        let mut checked = 0usize;
-                        let mut page_buf = [0u8; 4096];
-                        while page < end && checked < MALFIND_DIRTY_PAGES_LIMIT {
-                            job.check()?;
-                            checked += 1;
-                            let seg_start = page.max(start);
-                            let seg_end = page.saturating_add(4096).min(end);
-                            let take = usize::try_from(seg_end - seg_start)?;
-                            let slice = page_buf.at_mut(..take)?;
-                            if vm.read(seg_start, slice).is_ok() && slice.iter().any(|&b| b != 0) {
-                                let preview = slice.at(..take.min(hexdump_size))?.to_vec();
-                                if options.show_all_dirty_pages {
-                                    regions.push((seg_start, seg_end, preview));
-                                } else {
-                                    regions.push((start, end, preview));
-                                    break;
-                                }
+                        for (reg_start, reg_end) in regions {
+                            let size =
+                                usize::try_from((reg_end - reg_start).min(hexdump_size as u64))?;
+                            let mut preview = vec![0; size];
+                            let missing = super::maps::read_padded(&vm, reg_start, &mut preview)?;
+                            if missing != 0 {
+                                partial(
+                                    &mut result,
+                                    format!("PID {} VMA {}", task.pid, hex(reg_start)),
+                                    anyhow::anyhow!("预览中 {missing} 个缺页以零填充"),
+                                );
                             }
-                            page = page.saturating_add(4096);
-                        }
-
-                        for (reg_start, reg_end, preview) in regions {
+                            let path = if by_protection {
+                                path.clone()
+                            } else {
+                                format!("{path}, dirty page address: {reg_start:#x}")
+                            };
                             let hexdump = format_hexdump(reg_start, &preview);
                             let disasm = disassemble_bytes(reg_start, &preview, arm64, ptr_size);
                             let file_output = if let Some(dump) = dump {
@@ -241,9 +264,9 @@ impl Linux<'_> {
                             result.rows.push(vec![
                                 task.pid.clone(),
                                 task.name.clone(),
-                                hex(reg_start),
-                                hex(reg_end),
-                                path.clone(),
+                                hex(start),
+                                hex(end),
+                                path,
                                 prot.clone(),
                                 hexdump,
                                 disasm,
@@ -290,7 +313,7 @@ mod tests {
     }
 
     #[test]
-    fn linux_malfind_detects_rwx_code_disassembles_and_supports_dirty_pages() {
+    fn linux_malfind_detects_rwx_and_uses_leaf_dirty_bits_for_file_mappings() {
         let (mut b, isf) = fixture();
         // init_task 0x9000 -> task 0xa000 (pid=1, "evil")
         put(&mut b, 0x9000, 0xa000);
@@ -344,6 +367,19 @@ mod tests {
         assert!(default.rows[0][7].contains("ret"));
         assert_eq!(default.rows[0][8], "Disabled");
 
+        // The first page contains instructions but is clean. The second is
+        // dirty even though its captured bytes are all zero.
+        put(&mut b, 0xc018, 5);
+        put(&mut b, 0xc028, 0xe000);
+        put(&mut b, 0x7008, 0x25043);
+        b[0x25000..0x26000].fill(0);
+        put(&mut b, 0xa040, 0xd000);
+        put(&mut b, 0xd000, 0xd100);
+        put(&mut b, 0xd008, 0xd200);
+        put(&mut b, 0xe000, 0xd100);
+        put(&mut b, 0xe008, 0xd200);
+        let img = image(&b);
+        let linux = engine(&img, &isf);
         let all_pages = linux
             .linux_malfind(
                 &Options {
@@ -355,8 +391,24 @@ mod tests {
                 &Job::default(),
             )
             .unwrap();
-        assert_eq!(all_pages.rows.len(), 2);
-        assert_eq!(all_pages.rows[0][2], "0x0000000000200000");
-        assert_eq!(all_pages.rows[1][2], "0x0000000000201000");
+        assert!(all_pages.complete, "{:?}", all_pages.diagnostics);
+        assert_eq!(all_pages.rows.len(), 1);
+        assert_eq!(
+            &all_pages.rows[0][2..5],
+            [
+                "0x0000000000200000",
+                "0x0000000000202000",
+                "/, dirty page address: 0x201000",
+            ]
+        );
+        assert!(all_pages.rows[0][6].starts_with("0x0000000000201000  00 00"));
+
+        put(&mut b, 0x7008, 0x25003);
+        let img = image(&b);
+        let clean = engine(&img, &isf)
+            .linux_malfind(&Options::default(), None, &Job::default())
+            .unwrap();
+        assert!(clean.complete);
+        assert!(clean.rows.is_empty());
     }
 }

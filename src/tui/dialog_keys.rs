@@ -451,11 +451,23 @@ impl App {
             if key.code == KeyCode::Enter
                 && (*field == 4 || key.modifiers.contains(KeyModifiers::CONTROL))
             {
-                let parsed = (|| -> Result<DumpOptions> {
-                    let pid = if matches!(
-                        *mode,
-                        Plugin::WinModdump | Plugin::ModuleExtract | Plugin::Fbdev | Plugin::Lsmod
-                    ) && fields[0].trim().is_empty()
+                let parsed = (|| -> Result<(DumpOptions, Option<u32>)> {
+                    let filter_pid =
+                        if mode.is_linux_mapping_export() && !fields[0].trim().is_empty() {
+                            let pid = fields[0].trim().parse::<u32>().context("请输入有效 PID")?;
+                            anyhow::ensure!(pid != 0, "请输入非零 PID，或留空沿用分析参数");
+                            Some(pid)
+                        } else {
+                            None
+                        };
+                    let pid = if mode.is_linux_mapping_export()
+                        || matches!(
+                            *mode,
+                            Plugin::WinModdump
+                                | Plugin::ModuleExtract
+                                | Plugin::Fbdev
+                                | Plugin::Lsmod
+                        ) && fields[0].trim().is_empty()
                     {
                         0
                     } else {
@@ -475,10 +487,14 @@ impl App {
                         end: address(&fields[2])?,
                     };
                     options.validate(*mode)?;
-                    Ok(options)
+                    Ok((options, filter_pid))
                 })();
                 match parsed {
-                    Ok(options) => {
+                    Ok((options, filter_pid)) => {
+                        if let Some(pid) = filter_pid {
+                            self.analysis_options.pid = Some(pid);
+                            self.analysis_options.pids.clear();
+                        }
                         self.dump_options = Some((*mode, options));
                         self.plugin = *mode;
                         if *mode == Plugin::Fbdev {
@@ -489,10 +505,10 @@ impl App {
                             };
                         }
                         self.page = Page::Analysis;
-                        self.menu = if *mode == Plugin::Fbdev {
+                        self.menu = if *mode == Plugin::Fbdev || mode.is_linux_mapping_export() {
                             self.navigation_plugins()
                                 .iter()
-                                .position(|p| *p == Plugin::Fbdev)
+                                .position(|p| *p == *mode)
                                 .unwrap_or(0)
                         } else {
                             self.menu_items().len() - 1

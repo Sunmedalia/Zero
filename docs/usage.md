@@ -411,7 +411,7 @@ TUI 插件菜单只列分析插件，转储统一在 `D` 中。这些都是本�
 | linux.sockstat.Sockstat | NetNS、Process Name、PID、TID、FD、Sock Offset、Family、Type、Proto、Source Addr、Source Port、Destination Addr、Destination Port、State、Filter；支持 PID 列表、`--netns` |
 | linux.kmsg.Kmsg | facility、level、timestamp、caller、line；兼容 `prb`（5.10+）、`printk_log`/`log`（3.5–5.9）与旧 `log_buf`（<3.5）三代 printk 缓冲区 |
 | linux.malware.malfind.Malfind | PID、Process、Start、End、Path、Protection、Hexdump、Disasm、File output；支持 PID 列表、`--hexdump-size`、`--show-all-dirty-pages`、`--maxsize`、`--dump-dir` |
-| linux.mountinfo.MountInfo | MNT_NS_ID、MOUNT_ID、PARENT_ID、MAJOR:MINOR、ROOT、MOUNT_POINT、MOUNT_OPTIONS、FIELDS、FSTYPE、MOUNT_SRC、SB_OPTIONS；按命名空间去重，支持 PID 列表、`--mntns`、`--mount-format` |
+| linux.mountinfo.MountInfo | MNT_NS_ID、MOUNT_ID、PARENT_ID、MAJOR:MINOR、ROOT、MOUNT_POINT、MOUNT_OPTIONS、FIELDS、FSTYPE、MOUNT_SRC、SB_OPTIONS；默认按命名空间去重；指定 PID 列表时逐进程输出并增加 PID 列；`--mntns` 筛选命名空间；`--mount-format` 输出简表 |
 | linux.pagecache.Files | SuperblockAddr、MountPoint、Device、InodeNum、InodeAddr、FileType、InodePages、CachedPages、FileMode、AccessTime、ModificationTime、ChangeTime、FilePath、InodeSize；支持 `--file-type`、`--find` |
 | linux.bash.Bash | PID、Process、CommandTime、Command；支持 PID 列表 |
 | linux.elfs.Elfs | PID、Process、Start、End、File Path、File Output；支持 ELF32/ELF64、PID 列表与 `--dump-dir` |

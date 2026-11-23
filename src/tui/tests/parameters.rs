@@ -1,6 +1,39 @@
 use super::*;
 
 #[test]
+fn linux_mapping_export_uses_a_pid_filter_and_preserves_configured_pid_lists() {
+    for plugin in [Plugin::LinuxMaps, Plugin::LinuxMalfind, Plugin::LinuxElfs] {
+        let mut app = app();
+        app.select_plugin(plugin);
+        let result = app.results["pslist"].clone();
+        app.results.insert(plugin.name().into(), result);
+
+        app.key(KeyEvent::new(KeyCode::Char('D'), KeyModifiers::NONE));
+        assert!(
+            matches!(&app.dialog, Some(Dialog::Dump { mode, fields, .. })
+            if *mode == plugin && fields[0] == "10")
+        );
+        app.dialog_key(KeyEvent::new(KeyCode::Enter, KeyModifiers::CONTROL));
+        assert_eq!(app.dump_options.as_ref().unwrap().1.pid, 0);
+        assert_eq!(app.analysis_options.pid, Some(10));
+        assert_eq!(app.navigation_plugins()[app.menu], plugin);
+        assert!(matches!(app.dialog, Some(Dialog::Files { .. })));
+
+        app.dialog_key(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE));
+        app.analysis_options.pid = None;
+        app.analysis_options.pids = vec![10, 20];
+        app.open_dump(plugin, false);
+        assert!(matches!(&app.dialog, Some(Dialog::Dump { fields, .. }) if fields[0].is_empty()));
+        app.dialog_key(KeyEvent::new(KeyCode::Enter, KeyModifiers::CONTROL));
+        assert_eq!(app.analysis_options.pids, [10, 20]);
+
+        app.dialog_key(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE));
+        app.request_analysis(false);
+        assert!(app.dump_options.is_none());
+    }
+}
+
+#[test]
 fn dump_form_requires_target_range_and_explicit_run() {
     let mut app = app();
     app.select_plugin(Plugin::Memdump);

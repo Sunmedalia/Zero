@@ -27,20 +27,58 @@ impl Linux<'_> {
     ) -> Result<(Results, Vec<Task>)> {
         self.tasks_from_rows(plugin, self.reference_process_rows(plugin, job)?)
     }
+    pub(super) fn fd_tasks(
+        &self,
+        plugin: Plugin,
+        pids: &std::collections::BTreeSet<u32>,
+        job: &Job,
+    ) -> Result<(Results, Vec<Task>)> {
+        let (mut result, mut leaders) = self.task_identities(plugin, job)?;
+        if !pids.is_empty() {
+            leaders.retain(|task| task.pid.parse().is_ok_and(|pid| pids.contains(&pid)));
+        }
+        let mut tasks = Vec::new();
+        for leader in leaders {
+            job.check()?;
+            let address = leader.address;
+            tasks.push(leader);
+            match self.reference_threads(address, job) {
+                Ok(threads) => {
+                    for address in threads {
+                        match self
+                            .reference_task_row(address)
+                            .and_then(|row| Self::task_from_row(&row))
+                        {
+                            Ok(task) => tasks.push(task),
+                            Err(error) => {
+                                partial(&mut result, format!("线程 {}", hex(address)), error)
+                            }
+                        }
+                    }
+                }
+                Err(error) => {
+                    job.check()?;
+                    partial(&mut result, format!("线程组 {}", hex(address)), error);
+                }
+            }
+        }
+        Ok((result, tasks))
+    }
     #[cfg(test)]
     pub(super) fn adapter_tasks(&self, plugin: Plugin, job: &Job) -> Result<(Results, Vec<Task>)> {
         self.tasks_from_rows(plugin, self.process_identities(plugin, job)?)
     }
+    fn task_from_row(row: &[String]) -> Result<Task> {
+        Ok(Task {
+            address: u64::from_str_radix(&row.at(4)?[2..], 16)?,
+            pid: row.at(0)?.clone(),
+            name: row.at(3)?.clone(),
+        })
+    }
     fn tasks_from_rows(&self, plugin: Plugin, mut result: Results) -> Result<(Results, Vec<Task>)> {
         let tasks = std::mem::take(&mut result.rows)
-            .into_iter()
-            .map(|row| {
-                Ok(Task {
-                    address: u64::from_str_radix(&row.at(4)?[2..], 16)?,
-                    pid: row.at(0)?.clone(),
-                    name: row.at(3)?.clone(),
-                })
-            })
+            .iter()
+            .map(|row| Self::task_from_row(row))
             .collect::<Result<_>>()?;
         result.plugin = plugin.name().into();
         result.columns = plugin

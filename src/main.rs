@@ -131,7 +131,7 @@ struct Cli {
     /// Hexdump/disassembly byte count for linux.malware.malfind.Malfind (default 64).
     #[arg(help_heading = "Linux plugins", long = "hexdump-size", global = true)]
     hexdump_size: Option<usize>,
-    /// Show every non-zero page in suspicious VMAs for linux.malware.malfind.Malfind.
+    /// Show every dirty page in executable VMAs flagged by their page tables for linux.malware.malfind.Malfind.
     #[arg(
         help_heading = "Linux plugins",
         long = "show-all-dirty-pages",
@@ -505,10 +505,7 @@ fn main() -> Result<()> {
         let mut session = linux::Session::default();
         let dump = if plugin.is_dump() || (plugin.accepts_dump() && dump_dir.is_some()) {
             Some(zero_tui::dump::DumpOptions {
-                pid: if matches!(
-                    plugin,
-                    Plugin::LinuxMaps | Plugin::LinuxMalfind | Plugin::LinuxElfs
-                ) {
+                pid: if plugin.is_linux_mapping_export() {
                     0
                 } else if matches!(
                     plugin,
@@ -531,11 +528,7 @@ fn main() -> Result<()> {
             None
         };
         let mut options = cli.analysis_options();
-        options.pid = if dump.is_some()
-            && !matches!(
-                plugin,
-                Plugin::LinuxMaps | Plugin::LinuxMalfind | Plugin::LinuxElfs
-            ) {
+        options.pid = if dump.is_some() && !plugin.is_linux_mapping_export() {
             None
         } else {
             pid

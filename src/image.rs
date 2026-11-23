@@ -1396,11 +1396,30 @@ impl<'a> VirtualMemory<'a> {
         if let Some(base) = self.cached_page(va, bits) {
             return Ok(base | (va & 4095));
         }
-        let pa = self.translate_walk(va, bits)?;
+        let (pa, _, _) = self.translate_walk(va, bits)?;
         self.store_page(va, pa, bits);
         Ok(pa)
     }
-    fn translate_walk(&self, va: u64, bits: u8) -> Result<u64> {
+    pub(crate) fn dirty_page(&self, va: u64) -> Result<(bool, u64)> {
+        let bits = self
+            .image
+            .arm64_va_bits
+            .load(std::sync::atomic::Ordering::Relaxed);
+        let (_, size, entry) = if let Some(kind) = self.linux32 {
+            ensure!(va <= u64::from(u32::MAX), "Linux32 虚拟地址越界 {va:#x}");
+            self.with_mapper(kind, |mapper| mapper.leaf_mapping(va))?
+        } else {
+            self.translate_walk(va, bits)?
+        };
+        let dirty = if bits == 0 {
+            entry & (1 << 6) != 0
+        } else {
+            // Linux ARM64 PTE_DIRTY or hardware DBM with PTE_RDONLY clear.
+            entry & (1 << 55) != 0 || (entry & (1 << 51) != 0 && entry & (1 << 7) == 0)
+        };
+        Ok((dirty, size))
+    }
+    fn translate_walk(&self, va: u64, bits: u8) -> Result<(u64, u64, u64)> {
         if bits != 0 {
             ensure!(matches!(bits, 39 | 48), "不支持的 ARM64 VA_BITS {bits}");
             let mask = (1u64 << bits) - 1;
@@ -1423,11 +1442,14 @@ impl<'a> VirtualMemory<'a> {
                     ensure!(shift == 30 || shift == 21, "ARM64 非法块描述符");
                     let offset = (1u64 << shift) - 1;
                     ensure!(base & offset == 0, "ARM64 块地址未对齐");
-                    return Ok(base | (va & offset));
+                    return Ok((base | (va & offset), offset + 1, entry));
+                }
+                if shift == 12 {
+                    return Ok((base | (va & 4095), 4096, entry));
                 }
                 table = base;
             }
-            return Ok(table | (va & 4095));
+            bail!("ARM64 页表缺少叶节点");
         }
         ensure!(
             va >> 47 == 0 || va >> 47 == 0x1ffff,
@@ -1443,11 +1465,18 @@ impl<'a> VirtualMemory<'a> {
             if entry & 128 != 0 && shift != 12 {
                 ensure!(shift == 30 || shift == 21, "非法大页 level {shift}");
                 let mask = (1u64 << shift) - 1;
-                return Ok((entry & 0x000f_ffff_ffff_f000 & !mask) | (va & mask));
+                return Ok((
+                    (entry & 0x000f_ffff_ffff_f000 & !mask) | (va & mask),
+                    mask + 1,
+                    entry,
+                ));
             }
             table = entry & 0x000f_ffff_ffff_f000;
+            if shift == 12 {
+                return Ok((table | (va & 4095), 4096, entry));
+            }
         }
-        Ok(table | (va & 4095))
+        bail!("x86 页表缺少叶节点")
     }
     pub fn read(&self, mut va: u64, mut out: &mut [u8]) -> Result<()> {
         if let Some(kind) = self.linux32 {

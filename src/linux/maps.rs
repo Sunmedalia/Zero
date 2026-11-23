@@ -11,6 +11,22 @@ pub(super) fn decode_dev(dev: u64) -> (u64, u64) {
     (dev >> 20, dev & 0x000f_ffff)
 }
 
+/// Read a virtual range, padding absent pages and returning their count.
+pub(super) fn read_padded(vm: &VirtualMemory<'_>, mut at: u64, mut out: &mut [u8]) -> Result<u64> {
+    let mut missing = 0;
+    while !out.is_empty() {
+        let size = (4096 - usize::try_from(at & 4095)?).min(out.len());
+        let (page, rest) = out.split_at_mut(size);
+        if vm.read(at, page).is_err() {
+            page.fill(0);
+            missing += 1;
+        }
+        at = add(at, size as u64)?;
+        out = rest;
+    }
+    Ok(missing)
+}
+
 impl Linux<'_> {
     pub(super) fn linux_maps(
         &self,
@@ -267,10 +283,7 @@ impl Linux<'_> {
                 let page_rem = 4096 - (cursor & 4095);
                 let take = usize::try_from((end - cursor).min(page_rem))?;
                 let slice = page_buf.at_mut(..take)?;
-                if vm.read(cursor, slice).is_err() {
-                    slice.fill(0);
-                    missing_pages += 1;
-                }
+                missing_pages += read_padded(vm, cursor, slice)?;
                 out.write_all(slice)?;
                 cursor = cursor
                     .checked_add(take as u64)

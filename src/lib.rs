@@ -36,7 +36,7 @@ use std::sync::{
 };
 
 // Add canonical Linux Bash, Elfs, LibraryList, ip.Addr, and ip.Link plugins.
-pub const ENGINE_VERSION: &str = concat!(env!("CARGO_PKG_VERSION"), "-native-124");
+pub const ENGINE_VERSION: &str = concat!(env!("CARGO_PKG_VERSION"), "-native-125");
 #[derive(Clone)]
 pub struct Job {
     pub cancel: Arc<AtomicBool>,
