@@ -212,15 +212,16 @@ impl Windows<'_> {
         pattern: &crate::pattern::Pattern,
         r: &mut Results,
         job: &Job,
-    ) -> Result<()> {
+    ) -> Result<bool> {
+        use crate::pattern::{HIT_LIMIT, StopReason};
+
         let vm = self.process_memory(p)?;
         let mut budget = 256 * 1024 * 1024u64;
         let mut unreadable = 0u64;
+        let mut stop_reason = None;
         // Keep the readable part of a damaged VAD tree, as vadinfo does.
         for v in self.vads_partial(p, job, Some(r))? {
             job.check()?;
-            let remaining = 100_000usize.saturating_sub(r.rows.len());
-            ensure!(remaining > 0, "命中数达到 100000 上限");
             if v.end.saturating_sub(v.start) > crate::pattern::REGION_LIMIT {
                 Self::issue(
                     r,
@@ -234,11 +235,9 @@ impl Windows<'_> {
                 v.start,
                 v.end,
                 &mut budget,
-                remaining,
-                |at, out| {
-                    job.check()?;
-                    vm.read(at, out)
-                },
+                HIT_LIMIT.saturating_sub(r.rows.len()),
+                job,
+                |at, out| vm.read(at, out),
             )?;
             unreadable += scan.unreadable;
             for (address, bytes) in scan.hits {
@@ -252,6 +251,15 @@ impl Windows<'_> {
                     crate::pattern::context(&bytes),
                 ]);
             }
+            if let Some(reason) = scan.stop_reason {
+                stop_reason = Some(reason);
+                Self::issue(
+                    r,
+                    format!("PID {} VAD {:#x}", p.pid, v.start),
+                    reason.diagnostic(),
+                );
+                break;
+            }
         }
         // Unscanned pages mean an absent match proves nothing.
         if unreadable > 0 {
@@ -261,7 +269,8 @@ impl Windows<'_> {
                 format!("{unreadable} 个页不可读，未扫描"),
             );
         }
-        Ok(())
+        job.check()?;
+        Ok(stop_reason == Some(StopReason::HitLimit))
     }
     fn vad_tree(&self, p: &Process) -> Result<VadTree<'_>> {
         let isf = self.vm.isf;
@@ -867,6 +876,39 @@ mod tests {
     use super::super::tests::{K, fixture, image, put};
     use super::*;
     use serde_json::json;
+    #[test]
+    fn hit_limit_in_the_last_vad_marks_the_result_partial() {
+        use crate::pattern::{HIT_LIMIT, Pattern};
+
+        let (mut b, isf) = super::super::regex::tests::prepared();
+        b[0x25000..0x25005].copy_from_slice(b"ABABA");
+        let image = image(&b);
+        let engine = Windows {
+            vm: Memory::new(&image, 0x1000, &isf, None),
+            base: K,
+            pdb: PdbIdentity::from_isf(&isf).unwrap(),
+        };
+        let process = engine.process(K + 0x2000).unwrap();
+        let pattern = Pattern::parse("ABA").unwrap();
+        let mut result = engine.result(Plugin::WinVadyarascan);
+        result.complete = true;
+        result.rows.resize_with(HIT_LIMIT - 1, Vec::new);
+        assert!(
+            engine
+                .vad_pattern_scan(&process, &pattern, &mut result, &Job::default())
+                .unwrap()
+        );
+        assert_eq!(result.rows.len(), HIT_LIMIT);
+        assert_eq!(result.rows[HIT_LIMIT - 1][2], hex(0x2000));
+        assert!(!result.complete);
+        assert!(
+            result
+                .diagnostics
+                .iter()
+                .any(|row| row.contains("命中数达到"))
+        );
+    }
+
     #[test]
     fn vad_ranges_protection_and_cycles() {
         let (mut b, mut isf) = fixture();

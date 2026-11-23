@@ -26,6 +26,24 @@ pub(crate) fn c_str(bytes: &[u8]) -> &[u8] {
 pub(crate) fn c_str_lossy(bytes: &[u8]) -> String {
     String::from_utf8_lossy(c_str(bytes)).into_owned()
 }
+/// Append lowercase hex pairs separated by spaces.
+pub(crate) fn push_spaced_hex(out: &mut String, bytes: &[u8]) {
+    fn digit(nibble: u8) -> char {
+        char::from(if nibble < 10 {
+            b'0' + nibble
+        } else {
+            b'a' + (nibble - 10)
+        })
+    }
+
+    for (i, &byte) in bytes.iter().enumerate() {
+        if i != 0 {
+            out.push(' ');
+        }
+        out.push(digit(byte >> 4));
+        out.push(digit(byte & 0xf));
+    }
+}
 /// Little-endian UTF-16 code units; an odd trailing byte is dropped.
 pub(crate) fn utf16_units(bytes: &[u8]) -> Vec<u16> {
     bytes
