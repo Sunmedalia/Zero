@@ -570,7 +570,7 @@ zero analyze --image images/WinDump/WinDump.mem --plugin windows.vadyarascan \
   --pid 7688 --pattern hex:4d5a9000 --output exports/explorer-mz.csv
 ```
 
-扫描按页读取并跨相邻页拼接，不可读页中断拼接。每进程最多读取 256 MiB 驻留数据，结果最多 100,000 条，超过 1 GiB 的单个区域（如 CFG 位图保留区）跳过。任何不可读页或跳过区域都会作为诊断报告并标记部分结果，因此“没有命中”只在完整结果中成立。Context 列给出命中处起 32 字节的十六进制与可打印文本。实测 Debian 3.2 搜索 `/bin/bash` 得到 157 处命中；Windows 10 15063 的 explorer.exe（PID 7688）搜索 `hex:4d5a9000` 得到 261 个 PE 头。
+扫描逐页读取，支持重叠命中和跨相邻可读页的命中。每进程最多读取 256 MiB 驻留数据，结果最多 100,000 条，超过 1 GiB 的单个区域（如 CFG 位图保留区）跳过。不可读页、跳过的区域以及因上限而提前停止的扫描都会标记为部分结果，并保留已收集的命中。Context 列给出命中处起最多 32 字节的十六进制与可打印文本。实测 Debian 3.2 搜索 `/bin/bash` 得到 157 处命中。Windows 10 15063 的 explorer.exe（PID 7688）搜索 `hex:4d5a9000` 得到 261 个 PE 头。
 
 ### 8.4 凭证提取（hashdump／lsadump／cachedump）
 

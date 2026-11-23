@@ -3,8 +3,9 @@
 //! `text` searches ASCII/UTF-8 bytes, `wide:text` searches UTF-16LE, and
 //! `hex:4d5a??00` searches bytes with `??` single-byte wildcards. Patterns are
 //! data only: nothing is compiled or executed.
-use crate::bytes::Checked as _;
+use crate::{Job, bytes::Checked as _};
 use anyhow::{Context, Result, bail, ensure};
+use memchr::memmem::Finder;
 
 const MAX_LENGTH: usize = 256;
 
@@ -20,11 +21,17 @@ pub struct Pattern {
 impl Pattern {
     pub fn parse(text: &str) -> Result<Self> {
         let bytes: Vec<Option<u8>> = if let Some(hex) = text.strip_prefix("hex:") {
-            let digits: String = hex.chars().filter(|c| !c.is_whitespace()).collect();
+            let digits: String = hex
+                .chars()
+                .filter(|c| !c.is_whitespace())
+                .take(MAX_LENGTH * 2 + 1)
+                .collect();
+            ensure!(digits.is_ascii(), "hex 模式只接受 ASCII 十六进制字符和 ??");
+            ensure!(digits.len() <= MAX_LENGTH * 2, "模式超过 {MAX_LENGTH} 字节");
             ensure!(digits.len().is_multiple_of(2), "hex 模式长度必须为偶数");
             (0..digits.len())
                 .step_by(2)
-                .map(|i| match &digits[i..i + 2] {
+                .map(|i| match digits.at(i..i + 2)? {
                     "??" => Ok(None),
                     pair => u8::from_str_radix(pair, 16)
                         .map(Some)
@@ -82,49 +89,79 @@ impl Pattern {
     }
     /// Start offsets of every match fully inside `haystack`.
     pub fn find_all(&self, haystack: &[u8]) -> Vec<usize> {
-        let (offset, anchor) = &self.anchor;
-        memchr::memmem::find_iter(haystack, anchor)
-            .filter_map(|hit| hit.checked_sub(*offset))
-            .filter(|start| {
-                haystack
-                    .get(*start..start + self.bytes.len())
+        self.matches(haystack, &Finder::new(&self.anchor.1))
+            .collect()
+    }
+
+    fn matches<'a>(
+        &'a self,
+        haystack: &'a [u8],
+        finder: &'a Finder<'_>,
+    ) -> impl Iterator<Item = usize> + 'a {
+        let mut cursor = 0;
+        std::iter::from_fn(move || {
+            let hit = cursor + finder.find(haystack.get(cursor..)?)?;
+            cursor = hit + 1;
+            Some(hit)
+        })
+        .filter_map(|hit| hit.checked_sub(self.anchor.0))
+        .filter(|&start| {
+            self.anchor.1.len() == self.bytes.len()
+                || haystack
+                    .get(start..start + self.bytes.len())
                     .is_some_and(|window| {
                         window
                             .iter()
                             .zip(&self.bytes)
                             .all(|(byte, want)| want.is_none_or(|want| *byte == want))
                     })
-            })
-            .collect()
+        })
     }
 }
 
 /// Printable context around a hit: hex, then ASCII with dots.
 pub fn context(bytes: &[u8]) -> String {
-    let hex: Vec<String> = bytes.iter().map(|b| format!("{b:02x}")).collect();
-    let ascii: String = bytes
-        .iter()
-        .map(|b| {
-            if b.is_ascii_graphic() || *b == b' ' {
-                *b as char
-            } else {
-                '.'
-            }
-        })
-        .collect();
-    format!("{} |{ascii}|", hex.join(" "))
+    let mut out = String::with_capacity(bytes.len() * 4 + 3);
+    crate::bytes::push_spaced_hex(&mut out, bytes);
+    out.push_str(" |");
+    out.extend(bytes.iter().map(|&byte| {
+        if byte.is_ascii_graphic() || byte == b' ' {
+            char::from(byte)
+        } else {
+            '.'
+        }
+    }));
+    out.push('|');
+    out
 }
 
-const PAGE: u64 = 4096;
+const PAGE_SIZE: usize = 4096;
+const PAGE: u64 = PAGE_SIZE as u64;
 /// Regions larger than this are reservations (CFG bitmaps, stacks) and are
 /// skipped with a diagnostic rather than walked page by page.
 pub const REGION_LIMIT: u64 = 1024 * 1024 * 1024;
+pub(crate) const HIT_LIMIT: usize = 100_000;
 const CONTEXT: usize = 32;
-/// Per-region scan result: hit addresses with context, and pages skipped.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum StopReason {
+    HitLimit,
+    ByteLimit,
+}
+impl StopReason {
+    pub(crate) fn diagnostic(self) -> String {
+        match self {
+            Self::HitLimit => format!("命中数达到 {HIT_LIMIT} 上限"),
+            Self::ByteLimit => "扫描读取达到上限".into(),
+        }
+    }
+}
+
+/// Per-region hits and coverage, including any work limit that stopped the scan.
 #[derive(Debug, Default, PartialEq)]
 pub struct RegionScan {
     pub hits: Vec<(u64, Vec<u8>)>,
     pub unreadable: u64,
+    pub stop_reason: Option<StopReason>,
 }
 
 /// Scan `[start, end)` page by page through `read`, carrying the last
@@ -137,30 +174,48 @@ pub fn scan_region(
     end: u64,
     budget: &mut u64,
     limit: usize,
+    job: &Job,
     mut read: impl FnMut(u64, &mut [u8]) -> Result<()>,
 ) -> Result<RegionScan> {
     let mut out = RegionScan::default();
-    let mut carry: Vec<u8> = Vec::new();
+    job.check()?;
+    if start >= end {
+        return Ok(out);
+    }
+    if limit == 0 {
+        out.stop_reason = Some(StopReason::HitLimit);
+        return Ok(out);
+    }
+    let finder = Finder::new(&pattern.anchor.1);
+    let mut carry = Vec::with_capacity(PAGE_SIZE + pattern.len() - 1);
     let mut page = start & !(PAGE - 1);
-    let mut bytes = vec![0u8; usize::try_from(PAGE)?];
+    let mut bytes = [0; PAGE_SIZE];
     while page < end {
-        if read(page, &mut bytes).is_err() {
+        job.check()?;
+        if *budget < PAGE {
+            out.stop_reason = Some(StopReason::ByteLimit);
+            return Ok(out);
+        }
+        let result = read(page, &mut bytes);
+        job.check()?;
+        let next_page = page.saturating_add(PAGE);
+        if result.is_err() {
             out.unreadable += 1;
             carry.clear();
-            page += PAGE;
+            page = next_page;
             continue;
         }
         // Only resident bytes count against the budget.
-        ensure!(*budget >= PAGE, "扫描读取达到上限");
         *budget -= PAGE;
         let base = page - carry.len() as u64;
         carry.extend_from_slice(&bytes);
-        for offset in pattern.find_all(&carry) {
+        for offset in pattern.matches(&carry, &finder) {
             let address = base + offset as u64;
-            if address < start || address + pattern.len() as u64 > end {
+            if address < start || end.saturating_sub(address) < pattern.len() as u64 {
                 continue;
             }
             if out.hits.len() >= limit {
+                out.stop_reason = Some(StopReason::HitLimit);
                 return Ok(out);
             }
             let stop = carry.len().min(offset + CONTEXT);
@@ -168,8 +223,9 @@ pub fn scan_region(
         }
         let keep = pattern.len().saturating_sub(1).min(carry.len());
         carry.drain(..carry.len() - keep);
-        page += PAGE;
+        page = next_page;
     }
+    job.check()?;
     Ok(out)
 }
 
@@ -198,6 +254,7 @@ mod tests {
         for bad in [
             "",
             "hex:4",
+            "hex:a中",
             "hex:zz11",
             "hex:????",
             "hex:41??42",
@@ -206,6 +263,18 @@ mod tests {
             assert!(Pattern::parse(bad).is_err(), "{bad:?}");
         }
         assert_eq!(Pattern::parse("text:hex:x").unwrap().source(), "text:hex:x");
+        assert_eq!(
+            Pattern::parse("hex:41\u{3000}42").unwrap().find_all(b"AB"),
+            [0]
+        );
+    }
+
+    #[test]
+    fn overlapping_anchors_and_wildcard_matches_are_kept() {
+        assert_eq!(Pattern::parse("ABA").unwrap().find_all(b"ABABA"), [0, 2]);
+        let pattern = Pattern::parse("hex:4141??42").unwrap();
+        // The first AA anchor fails the wildcard pattern; the next overlaps it.
+        assert_eq!(pattern.find_all(b"AAAXB"), [1]);
     }
 
     #[test]
@@ -231,6 +300,7 @@ mod tests {
             4 * 4096,
             &mut budget,
             100,
+            &Job::default(),
             |at, out: &mut [u8]| {
                 ensure!(at != 2 * 4096, "缺页");
                 out.copy_from_slice(&memory[at as usize..at as usize + 4096]);
@@ -243,7 +313,71 @@ mod tests {
         assert!(scan.hits[0].1.starts_with(b"needle"));
         assert_eq!(scan.unreadable, 1);
         assert_eq!(budget, (1 << 20) - 3 * 4096);
-        let mut tiny = 4096;
-        assert!(scan_region(&pattern, 0, 8192, &mut tiny, 100, |_, _| Ok(())).is_err());
+    }
+
+    #[test]
+    fn hit_limit_distinguishes_a_full_result_from_truncation() {
+        for (limit, reason) in [(1, Some(StopReason::HitLimit)), (2, None), (3, None)] {
+            let mut budget = PAGE;
+            let scan = scan_region(
+                &Pattern::parse("ABA").unwrap(),
+                0,
+                5,
+                &mut budget,
+                limit,
+                &Job::default(),
+                |_, bytes| {
+                    bytes[..5].copy_from_slice(b"ABABA");
+                    Ok(())
+                },
+            )
+            .unwrap();
+            assert_eq!(scan.stop_reason, reason);
+            assert_eq!(scan.hits.len(), limit.min(2));
+        }
+    }
+
+    #[test]
+    fn exhausted_byte_budget_keeps_hits_and_avoids_another_read() {
+        let mut budget = PAGE;
+        let scan = scan_region(
+            &Pattern::parse("AB").unwrap(),
+            0,
+            2 * PAGE,
+            &mut budget,
+            10,
+            &Job::default(),
+            |at, bytes| {
+                assert_eq!(at, 0);
+                bytes[..2].copy_from_slice(b"AB");
+                Ok(())
+            },
+        )
+        .unwrap();
+        assert_eq!(budget, 0);
+        assert_eq!(scan.stop_reason, Some(StopReason::ByteLimit));
+        assert_eq!(scan.hits.len(), 1);
+        assert_eq!(scan.hits[0].0, 0);
+    }
+
+    #[test]
+    fn cancellation_during_a_failed_read_stops_before_the_next_page() {
+        let job = Job::default();
+        let mut budget = 2 * PAGE;
+        let error = scan_region(
+            &Pattern::parse("AB").unwrap(),
+            0,
+            2 * PAGE,
+            &mut budget,
+            10,
+            &job,
+            |at, _| {
+                assert_eq!(at, 0);
+                job.cancel.store(true, std::sync::atomic::Ordering::Relaxed);
+                bail!("缺页")
+            },
+        )
+        .unwrap_err();
+        assert!(error.to_string().contains("cancelled"));
     }
 }

@@ -631,6 +631,7 @@ impl Windows<'_> {
             .filter(|p| options.pid.is_none_or(|pid| p.pid == u64::from(pid)))
         {
             job.check()?;
+            let mut output_limit = false;
             let read = match p {
                 Plugin::WinPslist | Plugin::WinPstree => {
                     result.rows.push(process.row());
@@ -666,6 +667,7 @@ impl Windows<'_> {
                             .context("windows.vadyarascan 需要 --pattern")?,
                     )?;
                     self.vad_pattern_scan(&process, &pattern, &mut result, job)
+                        .map(|limit_reached| output_limit = limit_reached)
                 }
                 _ => bail!("不支持的 Windows 插件 {}", p.name()),
             };
@@ -676,6 +678,9 @@ impl Windows<'_> {
                     format!("PID {} @ {:#x}", process.pid, process.address),
                     format!("{e:#}"),
                 );
+            }
+            if output_limit {
+                break;
             }
         }
         if p == Plugin::WinVerinfo && options.pid.is_none() {

@@ -328,18 +328,20 @@ impl Linux<'_> {
         job: &Job,
     ) -> Result<Results> {
         let (mut r, tasks) = self.tasks(Plugin::Vmayarascan, job)?;
-        let mut remaining = 100_000usize;
+        use crate::pattern::{HIT_LIMIT, StopReason};
+
         for task in tasks {
             job.check()?;
-            let read = (|| -> Result<()> {
+            let read = (|| -> Result<bool> {
                 let mm = self.number(task.address, "task_struct", "mm")?;
                 if mm == 0 {
-                    return Ok(());
+                    return Ok(false);
                 }
                 let vm = self.process_vm(task.address)?.context("用户地址空间为空")?;
                 let root = self.process_root(task.address).ok();
                 let mut budget = 256 * 1024 * 1024u64;
                 let mut unreadable = 0u64;
+                let mut stop_reason = None;
                 for node in self.vma_nodes(mm, job, &mut r)? {
                     job.check()?;
                     let start = self.number(node, "vm_area_struct", "vm_start")?;
@@ -361,47 +363,58 @@ impl Linux<'_> {
                         start,
                         end,
                         &mut budget,
-                        remaining,
-                        |at, out| {
-                            job.check()?;
-                            vm.read(at, out)
-                        },
+                        HIT_LIMIT.saturating_sub(r.rows.len()),
+                        job,
+                        |at, out| vm.read(at, out),
                     )?;
                     unreadable += scan.unreadable;
-                    if scan.hits.is_empty() {
-                        continue;
+                    if !scan.hits.is_empty() {
+                        let file = self.number(node, "vm_area_struct", "vm_file")?;
+                        let path = if file == 0 {
+                            "[anonymous]".into()
+                        } else {
+                            root.map_or_else(
+                                || self.file_path(task.address, file, job),
+                                |root| self.file_path_from(root, file, job),
+                            )
+                            .unwrap_or_else(|_| "[unresolved]".into())
+                        };
+                        for (address, bytes) in scan.hits {
+                            r.rows.push(vec![
+                                task.pid.clone(),
+                                task.name.clone(),
+                                hex(address),
+                                hex(start),
+                                permissions(flags),
+                                path.clone(),
+                                crate::pattern::context(&bytes),
+                            ]);
+                        }
                     }
-                    let file = self.number(node, "vm_area_struct", "vm_file")?;
-                    let path = if file == 0 {
-                        "[anonymous]".into()
-                    } else {
-                        root.map_or_else(
-                            || self.file_path(task.address, file, job),
-                            |root| self.file_path_from(root, file, job),
-                        )
-                        .unwrap_or_else(|_| "[unresolved]".into())
-                    };
-                    for (address, bytes) in scan.hits {
-                        remaining -= 1;
-                        r.rows.push(vec![
-                            task.pid.clone(),
-                            task.name.clone(),
-                            hex(address),
-                            hex(start),
-                            permissions(flags),
-                            path.clone(),
-                            crate::pattern::context(&bytes),
-                        ]);
+                    if let Some(reason) = scan.stop_reason {
+                        stop_reason = Some(reason);
+                        partial(
+                            &mut r,
+                            format!("PID {} VMA {start:#x}", task.pid),
+                            anyhow::Error::msg(reason.diagnostic()),
+                        );
+                        break;
                     }
-                    ensure!(remaining > 0, "命中数达到 100000 上限");
                 }
-                // Unscanned pages mean an absent match proves nothing.
-                ensure!(unreadable == 0, "{unreadable} 个页不可读，未扫描");
-                Ok(())
+                if unreadable > 0 {
+                    partial(
+                        &mut r,
+                        format!("PID {} {:#x}", task.pid, task.address),
+                        anyhow::anyhow!("{unreadable} 个页不可读，未扫描"),
+                    );
+                }
+                Ok(stop_reason == Some(StopReason::HitLimit))
             })();
-            if let Err(e) = read {
-                job.check()?;
-                partial(&mut r, format!("PID {} {:#x}", task.pid, task.address), e);
+            job.check()?;
+            match read {
+                Ok(true) => break,
+                Ok(false) => {}
+                Err(e) => partial(&mut r, format!("PID {} {:#x}", task.pid, task.address), e),
             }
         }
         *r.kernel_identity.key_mut("pattern")? = serde_json::json!(pattern.source());

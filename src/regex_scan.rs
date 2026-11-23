@@ -28,13 +28,11 @@ pub fn display_match(
     let bytes = matched.as_ref().map_or(bytes.as_slice(), |range| {
         bytes.get(range.clone()).unwrap_or(&[])
     });
+    let mut hex = String::with_capacity((bytes.len() * 3).saturating_sub(1));
+    crate::bytes::push_spaced_hex(&mut hex, bytes);
     Ok(DisplayMatch {
         text: String::from_utf8_lossy(bytes).into_owned(),
-        hex: bytes
-            .iter()
-            .map(|b| format!("{b:02x}"))
-            .collect::<Vec<_>>()
-            .join(" "),
+        hex,
         unreadable_bytes,
     })
 }
@@ -76,24 +74,12 @@ impl Default for Budget {
 /// Follow the pinned section merger, including nested intervals that shorten
 /// the previous section. This is deliberately not a mathematical interval union.
 pub fn ranges(regions: &[(u64, u64)]) -> Result<Vec<(u64, u64)>> {
-    let mut regions = regions.to_vec();
-    regions.sort_unstable();
-    let mut out: Vec<(u64, u64)> = Vec::new();
-    for (start, end) in regions {
-        ensure!(start <= end, "虚拟区域倒置");
-        if let Some(last) = out.last_mut()
-            && start <= last.1
-        {
-            last.1 = end;
-        } else {
-            out.push((start, end));
-        }
-    }
-    Ok(out)
+    prepare_regions(regions).map(|(regions, _)| regions)
 }
 fn prepare_regions(regions: &[(u64, u64)]) -> Result<(Vec<(u64, u64)>, Coverage)> {
     let mut original = regions.to_vec();
     original.sort_unstable();
+    let mut regions: Vec<(u64, u64)> = Vec::new();
     let mut requested_bytes = 0u64;
     let mut union_end = 0;
     for (start, end) in original {
@@ -102,8 +88,14 @@ fn prepare_regions(regions: &[(u64, u64)]) -> Result<(Vec<(u64, u64)>, Coverage)
             .checked_add(end.saturating_sub(start.max(union_end)))
             .context("虚拟扫描范围溢出")?;
         union_end = union_end.max(end);
+        if let Some(last) = regions.last_mut()
+            && start <= last.1
+        {
+            last.1 = end;
+        } else {
+            regions.push((start, end));
+        }
     }
-    let regions = ranges(regions)?;
     let selected_bytes = regions.iter().try_fold(0u64, |total, (start, end)| {
         total.checked_add(end - start).context("虚拟扫描范围溢出")
     })?;

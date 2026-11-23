@@ -6,6 +6,7 @@ pub(crate) fn scan_mapped(
     budget: &mut Budget,
     job: &Job,
     mappings: impl FnMut(u64, u64) -> Result<Vec<(u64, u64)>>,
+    // A successful read must fill the entire output slice.
     read: impl FnMut(u64, &mut [u8]) -> Result<()>,
     visit: impl FnMut(u64) -> Result<bool>,
 ) -> Result<Coverage> {
@@ -22,6 +23,7 @@ fn scan_mapped_impl<const CHUNK: usize, const OVERLAP: usize>(
     mut visit: impl FnMut(u64) -> Result<bool>,
 ) -> Result<Coverage> {
     let (regions, mut report) = prepare_regions(regions)?;
+    let mut buffer = Vec::new();
     let mut emit = |bytes: &[u8], base: u64, report: &mut Coverage| -> Result<bool> {
         let mut stopped = false;
         let matches = regex.for_each(bytes, job, |found| {
@@ -85,12 +87,17 @@ fn scan_mapped_impl<const CHUNK: usize, const OVERLAP: usize>(
                 budget.resident_bytes -= count as u64;
                 budget.page_attempts -= attempts;
                 report.page_attempts += attempts;
-                let mut bytes = vec![0; count];
+                if buffer.len() < count {
+                    buffer.reserve_exact(count - buffer.len());
+                    buffer.resize(count, 0);
+                }
+                let bytes = buffer.at_mut(..count)?;
                 let scanned = count.min(CHUNK) as u64;
-                match read(at, &mut bytes) {
+                let (subject, base) = match read(at, bytes) {
                     Ok(()) => {
                         report.read_bytes += count as u64;
                         report.scanned_bytes += scanned;
+                        (&*bytes, at)
                     }
                     Err(error) => {
                         job.check()?;
@@ -98,12 +105,11 @@ fn scan_mapped_impl<const CHUNK: usize, const OVERLAP: usize>(
                         report
                             .first_read_error
                             .get_or_insert_with(|| format!("{at:#x}: {error:#}"));
-                        bytes.clear();
+                        // The reference passes an empty subject at chunk_end.
+                        (&[][..], at + count as u64)
                     }
-                }
-                // A failed block is still passed as an empty subject at chunk_end.
-                let base = at + count as u64 - bytes.len() as u64;
-                if !emit(&bytes, base, &mut report)? {
+                };
+                if !emit(subject, base, &mut report)? {
                     return Ok(report);
                 }
                 at = at
@@ -119,6 +125,42 @@ fn scan_mapped_impl<const CHUNK: usize, const OVERLAP: usize>(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn reused_buffer_does_not_expose_failed_reads_or_stale_tails() {
+        let mut hits = Vec::new();
+        let report = scan_mapped_impl::<8, 4>(
+            &ByteRegex::compile(r"x|\z", true).unwrap(),
+            &[(0, 9)],
+            &mut Budget::default(),
+            &Job::default(),
+            |_, _| Ok(vec![(0, 4), (4, 7), (7, 9)]),
+            |at, out| match at {
+                0 => {
+                    out.fill(b'x');
+                    Ok(())
+                }
+                4 => {
+                    out[0] = b'x';
+                    anyhow::bail!("partial read");
+                }
+                7 => {
+                    out.fill(b'y');
+                    Ok(())
+                }
+                _ => panic!("unexpected read at {at}"),
+            },
+            |at| {
+                hits.push(at);
+                Ok(true)
+            },
+        )
+        .unwrap();
+        assert_eq!(hits, [0, 1, 2, 3, 4, 7, 9]);
+        assert_eq!(report.scanned_bytes, 6);
+        assert_eq!(report.unreadable_bytes, 3);
+    }
+
     #[test]
     fn resource_stop_preserves_reference_prefix_and_cancel_propagates() {
         let regex = ByteRegex::compile("^x", true).unwrap();

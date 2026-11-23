@@ -35,8 +35,8 @@ use std::sync::{
     atomic::{AtomicBool, Ordering},
 };
 
-// Invalidate results produced before Windows checked bitfields against their storage width.
-pub const ENGINE_VERSION: &str = concat!(env!("CARGO_PKG_VERSION"), "-native-120");
+// Invalidate byte-pattern results that could omit overlapping or truncated matches.
+pub const ENGINE_VERSION: &str = concat!(env!("CARGO_PKG_VERSION"), "-native-121");
 #[derive(Clone)]
 pub struct Job {
     pub cancel: Arc<AtomicBool>,
