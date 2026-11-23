@@ -27,20 +27,58 @@ impl Linux<'_> {
     ) -> Result<(Results, Vec<Task>)> {
         self.tasks_from_rows(plugin, self.reference_process_rows(plugin, job)?)
     }
+    pub(super) fn fd_tasks(
+        &self,
+        plugin: Plugin,
+        pids: &std::collections::BTreeSet<u32>,
+        job: &Job,
+    ) -> Result<(Results, Vec<Task>)> {
+        let (mut result, mut leaders) = self.task_identities(plugin, job)?;
+        if !pids.is_empty() {
+            leaders.retain(|task| task.pid.parse().is_ok_and(|pid| pids.contains(&pid)));
+        }
+        let mut tasks = Vec::new();
+        for leader in leaders {
+            job.check()?;
+            let address = leader.address;
+            tasks.push(leader);
+            match self.reference_threads(address, job) {
+                Ok(threads) => {
+                    for address in threads {
+                        match self
+                            .reference_task_row(address)
+                            .and_then(|row| Self::task_from_row(&row))
+                        {
+                            Ok(task) => tasks.push(task),
+                            Err(error) => {
+                                partial(&mut result, format!("线程 {}", hex(address)), error)
+                            }
+                        }
+                    }
+                }
+                Err(error) => {
+                    job.check()?;
+                    partial(&mut result, format!("线程组 {}", hex(address)), error);
+                }
+            }
+        }
+        Ok((result, tasks))
+    }
     #[cfg(test)]
     pub(super) fn adapter_tasks(&self, plugin: Plugin, job: &Job) -> Result<(Results, Vec<Task>)> {
         self.tasks_from_rows(plugin, self.process_identities(plugin, job)?)
     }
+    fn task_from_row(row: &[String]) -> Result<Task> {
+        Ok(Task {
+            address: u64::from_str_radix(&row.at(4)?[2..], 16)?,
+            pid: row.at(0)?.clone(),
+            name: row.at(3)?.clone(),
+        })
+    }
     fn tasks_from_rows(&self, plugin: Plugin, mut result: Results) -> Result<(Results, Vec<Task>)> {
         let tasks = std::mem::take(&mut result.rows)
-            .into_iter()
-            .map(|row| {
-                Ok(Task {
-                    address: u64::from_str_radix(&row.at(4)?[2..], 16)?,
-                    pid: row.at(0)?.clone(),
-                    name: row.at(3)?.clone(),
-                })
-            })
+            .iter()
+            .map(|row| Self::task_from_row(row))
             .collect::<Result<_>>()?;
         result.plugin = plugin.name().into();
         result.columns = plugin
@@ -207,6 +245,19 @@ impl Linux<'_> {
             LinuxCapabilities => self.capabilities(&Default::default(), job),
             LinuxEnvars => self.envars(&Default::default(), job),
             LinuxPsaux => self.psaux(&Default::default(), job),
+            LinuxPstree => self.pstree(&Default::default(), job),
+            LinuxMaps => self.linux_maps(&Default::default(), None, job),
+            LinuxLsof => self.linux_lsof(&Default::default(), job),
+            LinuxSockstat => self.linux_sockstat(&Default::default(), job),
+            LinuxKmsg => self.kmsg(job),
+            LinuxMalfind => self.linux_malfind(&Default::default(), None, job),
+            LinuxMountinfo => self.linux_mountinfo(&Default::default(), job),
+            LinuxPagecacheFiles => self.linux_pagecache_files(&Default::default(), job),
+            LinuxBash => self.linux_bash(&Default::default(), job),
+            LinuxElfs => self.linux_elfs(&Default::default(), None, job),
+            LinuxLibraryList => self.linux_library_list(&Default::default(), job),
+            LinuxIpAddr => self.linux_ip_addr(job),
+            LinuxIpLink => self.linux_ip_link(job),
             Banners => banner_result(self.vm.image, job),
             Psaux | Envars | Maps | Lsof | Sockstat | Netscan => self.task_objects(plugin, job),
             Pwd | Pscred | CheckCreds | Threads | Mountinfo => self.task_context(plugin, job),

@@ -47,7 +47,14 @@ impl App {
                 self.analysis_options.kallsyms.modules.to_string(),
                 self.analysis_options.kallsyms.ftrace.to_string(),
                 self.analysis_options.kallsyms.bpf.to_string(),
-                self.analysis_options.maxsize.unwrap_or(128).to_string(),
+                if matches!(self.plugin, Plugin::LinuxMaps | Plugin::LinuxMalfind) {
+                    self.analysis_options
+                        .maxsize
+                        .map(|n| n.to_string())
+                        .unwrap_or_default()
+                } else {
+                    self.analysis_options.maxsize.unwrap_or(128).to_string()
+                },
                 self.analysis_options.unresolved.to_string(),
                 self.analysis_options
                     .pe
@@ -73,6 +80,29 @@ impl App {
                     .map(|p| p.display().to_string())
                     .unwrap_or_default(),
                 self.analysis_options.min_length.unwrap_or(5).to_string(),
+                self.analysis_options.files_only.to_string(),
+                self.analysis_options
+                    .netns
+                    .map(|n| n.to_string())
+                    .unwrap_or_default(),
+                self.analysis_options
+                    .vma_addresses
+                    .iter()
+                    .map(|a| format!("{a:#x}"))
+                    .collect::<Vec<_>>()
+                    .join(","),
+                self.analysis_options
+                    .hexdump_size
+                    .map(|n| n.to_string())
+                    .unwrap_or_default(),
+                self.analysis_options.show_all_dirty_pages.to_string(),
+                self.analysis_options
+                    .mntns
+                    .map(|n| n.to_string())
+                    .unwrap_or_default(),
+                self.analysis_options.mount_format.to_string(),
+                self.analysis_options.file_types.join(","),
+                self.analysis_options.find.clone().unwrap_or_default(),
             ]),
             field: if matches!(
                 self.plugin,
@@ -97,6 +127,8 @@ impl App {
                     | Plugin::WinVadRegExScan
             ) {
                 7
+            } else if self.plugin == Plugin::LinuxPagecacheFiles {
+                30
             } else if self.plugin.accepts_pid_list()
                 || self.plugin.descriptor().columns.contains(&"PID")
             {
@@ -495,6 +527,7 @@ impl App {
             .filter(|(p, _)| *p == mode)
             .map(|(_, o)| o);
         let pid = previous
+            .filter(|_| !mode.is_linux_mapping_export())
             .map(|o| o.pid.to_string())
             .or_else(|| {
                 let result = self.result()?;
@@ -503,8 +536,12 @@ impl App {
             })
             .unwrap_or_default();
         let fields = [
-            if mode == Plugin::Lsmod {
+            if mode == Plugin::Lsmod
+                || (mode.is_linux_mapping_export() && !self.analysis_options.pids.is_empty())
+            {
                 String::new()
+            } else if mode.is_linux_mapping_export() {
+                self.analysis_options.pid.map_or(pid, |pid| pid.to_string())
             } else {
                 pid
             },
@@ -905,11 +942,13 @@ impl App {
             KeyCode::Left | KeyCode::Right
                 if self.focus == Focus::Content && self.plugin.is_tree() =>
             {
-                if let Some(row) = self.visible().get(self.row) {
+                if let (Some(tree), Some(row)) =
+                    (self.plugin.tree_columns(), self.visible().get(self.row))
+                {
                     if key.code == KeyCode::Left {
-                        self.collapsed.insert(row.cell(0).to_owned());
+                        self.collapsed.insert(row.cell(tree.id).to_owned());
                     } else {
-                        self.collapsed.remove(row.cell(0));
+                        self.collapsed.remove(row.cell(tree.id));
                     }
                 }
             }

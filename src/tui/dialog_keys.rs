@@ -155,24 +155,113 @@ impl App {
                         )
                         .map_err(anyhow::Error::msg)?,
                         os: self.analysis_options.os,
-                        include_threads: self.plugin == Plugin::LinuxPslist
-                            && fields
-                                .at(8)?
-                                .trim()
-                                .parse::<bool>()
-                                .context("包含线程应为 true/false")?,
-                        decorate_comm: self.plugin == Plugin::LinuxPslist
-                            && fields
-                                .at(9)?
-                                .trim()
-                                .parse::<bool>()
-                                .context("名称标记应为 true/false")?,
+                        include_threads: matches!(
+                            self.plugin,
+                            Plugin::LinuxPslist | Plugin::LinuxPstree
+                        ) && fields
+                            .at(8)?
+                            .trim()
+                            .parse::<bool>()
+                            .context("包含线程应为 true/false")?,
+                        decorate_comm: matches!(
+                            self.plugin,
+                            Plugin::LinuxPslist | Plugin::LinuxPstree
+                        ) && fields
+                            .at(9)?
+                            .trim()
+                            .parse::<bool>()
+                            .context("名称标记应为 true/false")?,
                         plain_taints: self.plugin == Plugin::Modxview
                             && fields
                                 .at(10)?
                                 .trim()
                                 .parse::<bool>()
                                 .context("模块 taint 简写应为 true/false")?,
+                        files_only: self.plugin == Plugin::LinuxLsof
+                            && fields
+                                .at(23)?
+                                .trim()
+                                .parse::<bool>()
+                                .context("仅常规文件应为 true/false")?,
+                        netns: if self.plugin == Plugin::LinuxSockstat
+                            && !fields.at(24)?.trim().is_empty()
+                        {
+                            Some(
+                                fields
+                                    .at(24)?
+                                    .trim()
+                                    .parse::<u64>()
+                                    .context("网络命名空间 inode 应为非负整数")?,
+                            )
+                        } else {
+                            None
+                        },
+                        vma_addresses: if self.plugin == Plugin::LinuxMaps {
+                            fields
+                                .at(25)?
+                                .split([',', ' '])
+                                .filter(|s| !s.is_empty())
+                                .map(|s| parse_address(s).map_err(anyhow::Error::msg))
+                                .collect::<Result<Vec<_>>>()?
+                        } else {
+                            Vec::new()
+                        },
+                        hexdump_size: if self.plugin == Plugin::LinuxMalfind
+                            && !fields.at(26)?.trim().is_empty()
+                        {
+                            Some(
+                                fields
+                                    .at(26)?
+                                    .trim()
+                                    .parse::<usize>()
+                                    .context("hexdump_size 应为非负整数")?,
+                            )
+                        } else {
+                            None
+                        },
+                        show_all_dirty_pages: self.plugin == Plugin::LinuxMalfind
+                            && fields
+                                .at(27)?
+                                .trim()
+                                .parse::<bool>()
+                                .context("展开全部脏页应为 true/false")?,
+                        mntns: if self.plugin == Plugin::LinuxMountinfo
+                            && !fields.at(28)?.trim().is_empty()
+                        {
+                            Some(
+                                fields
+                                    .at(28)?
+                                    .trim()
+                                    .parse::<u64>()
+                                    .context("挂载命名空间 inode 应为非负整数")?,
+                            )
+                        } else {
+                            None
+                        },
+                        mount_format: self.plugin == Plugin::LinuxMountinfo
+                            && fields
+                                .at(29)?
+                                .trim()
+                                .parse::<bool>()
+                                .context("mount 简洁格式应为 true/false")?,
+                        file_types: if self.plugin == Plugin::LinuxPagecacheFiles {
+                            fields
+                                .at(30)?
+                                .split([',', ' '])
+                                .map(str::trim)
+                                .filter(|s| !s.is_empty())
+                                .map(str::to_owned)
+                                .collect()
+                        } else {
+                            Vec::new()
+                        },
+                        find: if self.plugin == Plugin::LinuxPagecacheFiles
+                            && !fields.at(31)?.trim().is_empty()
+                        {
+                            Some(fields.at(31)?.trim().to_owned())
+                        } else {
+                            None
+                        },
                         kallsyms: if self.plugin == Plugin::Kallsyms {
                             let flags = fields
                                 .at(11..15)?
@@ -197,7 +286,10 @@ impl App {
                                 .trim()
                                 .parse::<bool>()
                                 .context("unresolved 应为 true/false")?,
-                        maxsize: if self.plugin.is_regex_scan() {
+                        maxsize: if self.plugin.is_regex_scan()
+                            || (matches!(self.plugin, Plugin::LinuxMaps | Plugin::LinuxMalfind)
+                                && !fields.at(15)?.trim().is_empty())
+                        {
                             Some(
                                 fields
                                     .at(15)?
@@ -359,11 +451,23 @@ impl App {
             if key.code == KeyCode::Enter
                 && (*field == 4 || key.modifiers.contains(KeyModifiers::CONTROL))
             {
-                let parsed = (|| -> Result<DumpOptions> {
-                    let pid = if matches!(
-                        *mode,
-                        Plugin::WinModdump | Plugin::ModuleExtract | Plugin::Fbdev | Plugin::Lsmod
-                    ) && fields[0].trim().is_empty()
+                let parsed = (|| -> Result<(DumpOptions, Option<u32>)> {
+                    let filter_pid =
+                        if mode.is_linux_mapping_export() && !fields[0].trim().is_empty() {
+                            let pid = fields[0].trim().parse::<u32>().context("请输入有效 PID")?;
+                            anyhow::ensure!(pid != 0, "请输入非零 PID，或留空沿用分析参数");
+                            Some(pid)
+                        } else {
+                            None
+                        };
+                    let pid = if mode.is_linux_mapping_export()
+                        || matches!(
+                            *mode,
+                            Plugin::WinModdump
+                                | Plugin::ModuleExtract
+                                | Plugin::Fbdev
+                                | Plugin::Lsmod
+                        ) && fields[0].trim().is_empty()
                     {
                         0
                     } else {
@@ -383,10 +487,14 @@ impl App {
                         end: address(&fields[2])?,
                     };
                     options.validate(*mode)?;
-                    Ok(options)
+                    Ok((options, filter_pid))
                 })();
                 match parsed {
-                    Ok(options) => {
+                    Ok((options, filter_pid)) => {
+                        if let Some(pid) = filter_pid {
+                            self.analysis_options.pid = Some(pid);
+                            self.analysis_options.pids.clear();
+                        }
                         self.dump_options = Some((*mode, options));
                         self.plugin = *mode;
                         if *mode == Plugin::Fbdev {
@@ -397,10 +505,10 @@ impl App {
                             };
                         }
                         self.page = Page::Analysis;
-                        self.menu = if *mode == Plugin::Fbdev {
+                        self.menu = if *mode == Plugin::Fbdev || mode.is_linux_mapping_export() {
                             self.navigation_plugins()
                                 .iter()
-                                .position(|p| *p == Plugin::Fbdev)
+                                .position(|p| *p == *mode)
                                 .unwrap_or(0)
                         } else {
                             self.menu_items().len() - 1

@@ -7,6 +7,19 @@ pub(super) fn plugin_label(plugin: Plugin) -> &'static str {
         Plugin::LinuxPsaux
             | Plugin::LinuxEnvars
             | Plugin::LinuxCapabilities
+            | Plugin::LinuxPstree
+            | Plugin::LinuxMaps
+            | Plugin::LinuxLsof
+            | Plugin::LinuxSockstat
+            | Plugin::LinuxKmsg
+            | Plugin::LinuxMalfind
+            | Plugin::LinuxMountinfo
+            | Plugin::LinuxPagecacheFiles
+            | Plugin::LinuxBash
+            | Plugin::LinuxElfs
+            | Plugin::LinuxLibraryList
+            | Plugin::LinuxIpAddr
+            | Plugin::LinuxIpLink
             | Plugin::ProcessSpoofing
             | Plugin::Modxview
             | Plugin::Kallsyms

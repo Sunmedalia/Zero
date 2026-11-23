@@ -90,6 +90,7 @@
         "Command"
       ],
       "zero_candidates": [
+        "linux.bash.Bash",
         "bash"
       ],
       "status": "mapped_unverified",
@@ -388,6 +389,7 @@
         "File Output"
       ],
       "zero_candidates": [
+        "linux.elfs.Elfs",
         "elfs"
       ],
       "status": "mapped_unverified",
@@ -594,6 +596,7 @@
         "State"
       ],
       "zero_candidates": [
+        "linux.ip.Addr",
         "ip_addr"
       ],
       "status": "mapped_unverified",
@@ -642,6 +645,7 @@
         "Flags"
       ],
       "zero_candidates": [
+        "linux.ip.Link",
         "ip_link"
       ],
       "status": "mapped_unverified",
@@ -768,6 +772,7 @@
         "line"
       ],
       "zero_candidates": [
+        "linux.kmsg.Kmsg",
         "dmesg"
       ],
       "status": "mapped_unverified",
@@ -901,6 +906,7 @@
         "Path"
       ],
       "zero_candidates": [
+        "linux.library_list.LibraryList",
         "library_list"
       ],
       "status": "mapped_unverified",
@@ -1052,6 +1058,7 @@
         "Size"
       ],
       "zero_candidates": [
+        "linux.lsof.Lsof",
         "lsof"
       ],
       "status": "mapped_unverified",
@@ -1525,6 +1532,7 @@
         "File output"
       ],
       "zero_candidates": [
+        "linux.malware.malfind.Malfind",
         "malfind"
       ],
       "status": "mapped_unverified",
@@ -1963,6 +1971,7 @@
         "MNT_NS_ID"
       ],
       "zero_candidates": [
+        "linux.mountinfo.MountInfo",
         "mountinfo"
       ],
       "status": "mapped_unverified",
@@ -2062,6 +2071,7 @@
         "InodeSize"
       ],
       "zero_candidates": [
+        "linux.pagecache.Files",
         "pagecache"
       ],
       "status": "mapped_unverified",
@@ -2361,6 +2371,7 @@
         "File output"
       ],
       "zero_candidates": [
+        "linux.proc.Maps",
         "maps"
       ],
       "status": "mapped_unverified",
@@ -2709,6 +2720,7 @@
         "COMM"
       ],
       "zero_candidates": [
+        "linux.pstree.PsTree",
         "pstree"
       ],
       "status": "mapped_unverified",
@@ -2982,6 +2994,7 @@
         "Filter"
       ],
       "zero_candidates": [
+        "linux.sockstat.Sockstat",
         "sockstat"
       ],
       "status": "mapped_unverified",

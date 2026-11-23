@@ -93,21 +93,7 @@ impl EventSender {
 }
 impl App {
     pub(super) fn parameter_summary(&self) -> String {
-        format!(
-            "PID={} · hive={} · key={} · arch={:?} · pagefile={:?} · swapfile={:?}",
-            self.analysis_options
-                .pid
-                .map(|p| p.to_string())
-                .unwrap_or_else(|| "全部".into()),
-            self.analysis_options
-                .hive
-                .map(|p| format!("{p:#x}"))
-                .unwrap_or_default(),
-            self.analysis_options.key,
-            self.analysis_options.arch,
-            self.analysis_options.pagefiles,
-            self.analysis_options.swapfile
-        )
+        format!("{:?}", self.analysis_options)
     }
     pub(super) fn request_key(&self) -> String {
         format!(
@@ -217,8 +203,26 @@ impl App {
         if self.windows && advanced {
             fields.extend([3, 4, 5]);
         }
-        if self.plugin == Plugin::LinuxPslist {
+        if matches!(self.plugin, Plugin::LinuxPslist | Plugin::LinuxPstree) {
             fields.extend([8, 9]);
+        }
+        if self.plugin == Plugin::LinuxLsof {
+            fields.push(23);
+        }
+        if self.plugin == Plugin::LinuxSockstat {
+            fields.push(24);
+        }
+        if self.plugin == Plugin::LinuxMaps {
+            fields.extend([25, 15]);
+        }
+        if self.plugin == Plugin::LinuxMalfind {
+            fields.extend([26, 27, 15]);
+        }
+        if self.plugin == Plugin::LinuxMountinfo {
+            fields.extend([28, 29]);
+        }
+        if self.plugin == Plugin::LinuxPagecacheFiles {
+            fields.extend([30, 31]);
         }
         if self.plugin == Plugin::Modxview {
             fields.push(10);

@@ -233,6 +233,15 @@ impl App {
                         "绝对地址（逗号或空格分隔）",
                         "字符串文件（十进制物理偏移）",
                         "TrueCrypt 最小口令长度（默认 5）",
+                        "仅常规文件 true / false",
+                        "网络命名空间 inode（可选）",
+                        "VMA 虚拟地址列表（逗号或空格分隔；可选）",
+                        "Hexdump 字节数（默认 64；可选）",
+                        "展开全部脏页 true / false",
+                        "挂载命名空间 inode（可选）",
+                        "mount 简洁格式 true / false",
+                        "文件类型过滤（逗号或空格分隔，如 REG,DIR；可选）",
+                        "路径关键词过滤（可选）",
                     ];
                     let mut lines = vec![Line::raw(if self.windows {
                         "Ctrl+T 展开／收起 Windows 高级配置"
@@ -251,6 +260,12 @@ impl App {
                                 if *field == index { "›" } else { " " },
                                 if self.plugin.is_regex_scan() && index == 7 {
                                     "字节正则（保留空格）"
+                                } else if matches!(
+                                    self.plugin,
+                                    Plugin::LinuxMaps | Plugin::LinuxMalfind
+                                ) && index == 15
+                                {
+                                    "导出单段上限 maxsize（可选）"
                                 } else if self.plugin.accepts_pid_list() && index == 2 {
                                     "PID 列表（逗号或空格分隔；可选）"
                                 } else {
@@ -342,6 +357,8 @@ impl App {
                             "PID（framebuffer 不填写）"
                         } else if *mode == Plugin::Lsmod {
                             "PID（模块列表导出不填写）"
+                        } else if mode.is_linux_mapping_export() {
+                            "PID（可选；留空沿用分析筛选）"
                         } else if *mode == Plugin::ModuleExtract {
                             "PID（模块提取不填写）"
                         } else if *mode == Plugin::WinModdump {
@@ -351,14 +368,14 @@ impl App {
                         },
                         if *mode == Plugin::Fbdev {
                             "Start（可选 fb_info 地址）"
-                        } else if *mode == Plugin::Lsmod {
+                        } else if *mode == Plugin::Lsmod || mode.is_linux_mapping_export() {
                             "Start（不填写）"
                         } else if *mode == Plugin::ModuleExtract {
                             "Base / Start（struct module 地址）"
                         } else {
                             "Start (0x / 十进制)"
                         },
-                        if *mode == Plugin::Lsmod {
+                        if *mode == Plugin::Lsmod || mode.is_linux_mapping_export() {
                             "End（不填写）"
                         } else {
                             "End (不包含)"
@@ -384,6 +401,9 @@ impl App {
                         }
                         Plugin::WinPedump => "指定 PID；按 PE 节表重建可读 PE",
                         Plugin::Elfdump => "指定 PID；导出含 ELF 头的可读映射（不重建磁盘 ELF）",
+                        mode if mode.is_linux_mapping_export() => {
+                            "导出匹配分析筛选的区域；填写 PID 可限定到一个进程，缺页补零保留诊断"
+                        }
                         _ => "指定 PID；导出可读 VMA；Start / End 可限制范围",
                     };
                     frame.render_widget(

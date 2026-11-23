@@ -3,6 +3,23 @@ use crate::bytes::Row as _;
 use crate::store::Results;
 use std::collections::{HashMap, HashSet};
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct TreeColumns {
+    pub id: usize,
+    pub parent: usize,
+    pub leader: Option<usize>,
+    pub name: usize,
+}
+impl TreeColumns {
+    pub const fn simple(parent: usize, name: usize) -> Self {
+        Self {
+            id: 0,
+            parent,
+            leader: None,
+            name,
+        }
+    }
+}
 #[derive(Default, Debug)]
 pub struct Index {
     pub filtered: Vec<usize>,
@@ -27,7 +44,7 @@ impl Index {
         query: &str,
         sort: Option<usize>,
         descending: bool,
-        tree: Option<(usize, usize)>,
+        tree: Option<TreeColumns>,
         collapsed: &HashSet<String>,
     ) -> Self {
         Self::build_from(
@@ -60,14 +77,14 @@ impl Index {
         query: &str,
         sort: Option<usize>,
         descending: bool,
-        tree: Option<(usize, usize)>,
+        tree: Option<TreeColumns>,
         collapsed: &HashSet<String>,
         base: Option<&[usize]>,
         cancel: &dyn Fn() -> bool,
     ) -> Option<Self> {
         let query = Self::fold(query);
         let filtered = Self::filtered_rows(result, &query, sort, descending, base, cancel)?;
-        let Some((parent, name)) = tree else {
+        let Some(tree) = tree else {
             let visible = filtered
                 .iter()
                 .map(|&row| Line {
@@ -83,7 +100,7 @@ impl Index {
         };
         let ids: HashSet<_> = filtered
             .iter()
-            .filter_map(|&i| result.rows.get(i)?.first().map(String::as_str))
+            .filter_map(|&i| result.rows.get(i)?.get(tree.id).map(String::as_str))
             .collect();
         let mut children: HashMap<&str, Vec<usize>> = HashMap::new();
         let mut roots = Vec::new();
@@ -91,8 +108,11 @@ impl Index {
             let Some(row) = result.rows.get(i) else {
                 continue;
             };
-            let id = row.first().map(String::as_str).unwrap_or("");
-            let pid = row.get(parent).map(String::as_str).unwrap_or("0");
+            let id = row.get(tree.id).map(String::as_str).unwrap_or("");
+            let pid = match tree.leader.and_then(|col| row.get(col).map(String::as_str)) {
+                Some(leader) if !leader.is_empty() && leader != id => leader,
+                _ => row.get(tree.parent).map(String::as_str).unwrap_or("0"),
+            };
             if pid == "0" || pid == id || !ids.contains(pid) {
                 roots.push(i);
             } else {
@@ -107,14 +127,14 @@ impl Index {
                 if !visited.insert(row) {
                     continue;
                 }
-                let id = result.rows.get(row).map_or("", |row| row.cell(0));
+                let id = result.rows.get(row).map_or("", |row| row.cell(tree.id));
                 let kids = children.get(id);
                 let closed = collapsed.contains(id);
                 if !hidden {
                     visible.push(Line {
                         row,
                         decoration: Some((
-                            name,
+                            tree.name,
                             depth.min(64),
                             if kids.is_none() {
                                 '·'
@@ -281,7 +301,7 @@ pub fn compare(a: &str, b: &str) -> std::cmp::Ordering {
 mod tests {
     use super::*;
 
-    fn results(rows: &[[&str; 3]]) -> Results {
+    fn results<const N: usize>(rows: &[[&str; N]]) -> Results {
         Results {
             plugin: "test".into(),
             columns: vec!["PID".into(), "PPID".into(), "Name".into()],
@@ -403,7 +423,8 @@ mod tests {
             ["6", "5", "loop-b"],
         ]);
         let none = HashSet::new();
-        let index = Index::build(&result, "", None, false, Some((1, 2)), &none);
+        let cols = Some(TreeColumns::simple(1, 2));
+        let index = Index::build(&result, "", None, false, cols, &none);
         assert_eq!(
             names(&index, &result),
             [
@@ -419,7 +440,7 @@ mod tests {
         );
         // Collapsing hides descendants but keeps the collapsed row.
         let collapsed = HashSet::from(["2".to_owned()]);
-        let index = Index::build(&result, "", None, false, Some((1, 2)), &collapsed);
+        let index = Index::build(&result, "", None, false, cols, &collapsed);
         assert_eq!(
             names(&index, &result).get(..3),
             Some(
@@ -435,7 +456,30 @@ mod tests {
         assert_eq!(cells.get(2).map(String::as_str), Some("child"));
         assert_eq!(decoration, Some((2, "  ▸ child".to_owned())));
         // A filtered-out parent turns its child into a root.
-        let index = Index::build(&result, "grand", None, false, Some((1, 2)), &none);
+        let index = Index::build(&result, "grand", None, false, cols, &none);
         assert_eq!(names(&index, &result), ["· grandchild"]);
+
+        // LinuxPsTree uses TID (col 2), PPID (col 3), leader PID (col 1), COMM (col 4).
+        let linux_tree = results(&[
+            ["0x1", "1", "1", "0", "init"],
+            ["0x2", "10", "10", "1", "sshd"],
+            ["0x3", "10", "11", "1", "{worker}"],
+        ]);
+        let linux_cols = crate::plugin::Plugin::LinuxPstree.tree_columns();
+        let index = Index::build(&linux_tree, "", None, false, linux_cols, &none);
+        assert_eq!(
+            (0..index.visible.len())
+                .map(|i| index.row(&linux_tree, i).unwrap()[4].clone())
+                .collect::<Vec<_>>(),
+            ["▾ init", "  ▾ sshd", "    · {worker}"]
+        );
+        let collapsed = HashSet::from(["10".to_owned()]);
+        let index = Index::build(&linux_tree, "", None, false, linux_cols, &collapsed);
+        assert_eq!(
+            (0..index.visible.len())
+                .map(|i| index.row(&linux_tree, i).unwrap()[4].clone())
+                .collect::<Vec<_>>(),
+            ["▾ init", "  ▸ sshd"]
+        );
     }
 }

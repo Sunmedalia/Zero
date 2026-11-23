@@ -122,7 +122,7 @@ impl<'a> Mapper<'a> {
         self.tables.insert(at, result.clone(), 1);
         result
     }
-    fn translate(&mut self, at: u64) -> std::result::Result<(u64, u64), Fault> {
+    fn translate(&mut self, at: u64) -> std::result::Result<(u64, u64, u64), Fault> {
         let at = at & ((1u64 << self.kind.va_bits()) - 1);
         let mut entry = self.root | 1;
         let mut previous = self.kind.va_bits();
@@ -188,18 +188,19 @@ impl<'a> Mapper<'a> {
         } else {
             entry & mask & !4095
         };
-        Ok((frame | (at & (span - 1)), span))
+        Ok((frame | (at & (span - 1)), span, entry))
     }
     pub(crate) fn translate_address(&mut self, at: u64) -> Result<u64> {
-        self.translate(at)
-            .map(|(offset, _)| offset)
-            .map_err(|fault| {
-                anyhow::anyhow!(
-                    "Intel 缺页 VA {at:#x}, level {}, entry {:#x}",
-                    fault.bits,
-                    fault.entry
-                )
-            })
+        self.leaf_mapping(at).map(|(offset, _, _)| offset)
+    }
+    pub(crate) fn leaf_mapping(&mut self, at: u64) -> Result<(u64, u64, u64)> {
+        self.translate(at).map_err(|fault| {
+            anyhow::anyhow!(
+                "Intel 缺页 VA {at:#x}, level {}, entry {:#x}",
+                fault.bits,
+                fault.entry
+            )
+        })
     }
     fn captured(&self, at: u64, length: u64) -> bool {
         let Some(end) = at.checked_add(length) else {
@@ -233,7 +234,7 @@ impl<'a> Mapper<'a> {
         }
         while !out.is_empty() {
             let (backing, offset, span) = match self.translate(at) {
-                Ok((offset, span)) => (0, offset, span),
+                Ok((offset, span, _)) => (0, offset, span),
                 Err(fault) => {
                     let bit = if matches!(self.kind, Kind::Windows32 | Kind::Linux32) {
                         12
@@ -287,7 +288,7 @@ impl<'a> Mapper<'a> {
             ensure!(self.attempts <= 1_000_000, "Intel 扫描映射次数超过上限");
             let translated = self.translate(at);
             let candidate = match translated {
-                Ok((offset, span)) => Ok((0, offset, span)),
+                Ok((offset, span, _)) => Ok((0, offset, span)),
                 Err(fault) => {
                     let bit = if matches!(self.kind, Kind::Windows32 | Kind::Linux32) {
                         12

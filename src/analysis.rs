@@ -99,6 +99,15 @@ pub struct Options {
     pub include_threads: bool,
     pub decorate_comm: bool,
     pub plain_taints: bool,
+    pub files_only: bool,
+    pub netns: Option<u64>,
+    pub vma_addresses: Vec<u64>,
+    pub hexdump_size: Option<usize>,
+    pub show_all_dirty_pages: bool,
+    pub mntns: Option<u64>,
+    pub mount_format: bool,
+    pub file_types: Vec<String>,
+    pub find: Option<String>,
     pub kallsyms: KallsymsOptions,
     pub hive: Option<u64>,
     pub key: String,
@@ -165,8 +174,15 @@ pub fn analyze(
         "此插件不支持 PID 列表"
     );
     ensure!(
-        options.maxsize.is_none() || request.plugin.is_regex_scan(),
-        "maxsize 仅用于 VmaRegExScan / VadRegExScan"
+        options.maxsize.is_none()
+            || request.plugin.is_regex_scan()
+            || matches!(request.plugin, Plugin::LinuxMaps | Plugin::LinuxMalfind),
+        "maxsize 仅用于 VmaRegExScan / VadRegExScan / linux.proc.Maps / linux.malware.malfind.Malfind"
+    );
+    ensure!(
+        !matches!(request.plugin, Plugin::LinuxMaps | Plugin::LinuxMalfind)
+            || options.maxsize.is_none_or(|v| v > 0),
+        "linux.proc.Maps / linux.malware.malfind.Malfind 的 maxsize 必须大于 0"
     );
     ensure!(
         !options.unresolved || request.plugin == Plugin::PsCallStack,
@@ -175,8 +191,43 @@ pub fn analyze(
 
     ensure!(
         !(options.include_threads || options.decorate_comm)
-            || request.plugin == Plugin::LinuxPslist,
-        "threads/decorate_comm 当前仅支持 linux.pslist.PsList"
+            || matches!(request.plugin, Plugin::LinuxPslist | Plugin::LinuxPstree),
+        "threads/decorate_comm 当前仅支持 linux.pslist.PsList / linux.pstree.PsTree"
+    );
+    ensure!(
+        !options.files_only || request.plugin == Plugin::LinuxLsof,
+        "files_only 仅支持 linux.lsof.Lsof"
+    );
+    ensure!(
+        options.netns.is_none() || request.plugin == Plugin::LinuxSockstat,
+        "netns 仅支持 linux.sockstat.Sockstat"
+    );
+    ensure!(
+        options.vma_addresses.len() <= 4096,
+        "VMA 地址列表超过 4096 项"
+    );
+    ensure!(
+        options.vma_addresses.is_empty() || request.plugin == Plugin::LinuxMaps,
+        "vma_addresses 仅支持 linux.proc.Maps"
+    );
+    ensure!(
+        (options.hexdump_size.is_none() && !options.show_all_dirty_pages)
+            || request.plugin == Plugin::LinuxMalfind,
+        "hexdump_size / show_all_dirty_pages 仅支持 linux.malware.malfind.Malfind"
+    );
+    ensure!(
+        options.hexdump_size.is_none_or(|v| v <= 4096),
+        "hexdump_size 超过 4096 字节上限"
+    );
+    ensure!(
+        (options.mntns.is_none() && !options.mount_format)
+            || request.plugin == Plugin::LinuxMountinfo,
+        "mntns / mount_format 仅支持 linux.mountinfo.MountInfo"
+    );
+    ensure!(
+        (options.file_types.is_empty() && options.find.is_none())
+            || request.plugin == Plugin::LinuxPagecacheFiles,
+        "file_types / find 仅支持 linux.pagecache.Files"
     );
     ensure!(
         !options.plain_taints || request.plugin == Plugin::Modxview,

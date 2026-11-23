@@ -35,8 +35,8 @@ use std::sync::{
     atomic::{AtomicBool, Ordering},
 };
 
-// Invalidate byte-pattern results that could omit overlapping or truncated matches.
-pub const ENGINE_VERSION: &str = concat!(env!("CARGO_PKG_VERSION"), "-native-121");
+// Add 13 canonical Volatility 3 Linux core forensics plugins and align outputs/exports.
+pub const ENGINE_VERSION: &str = concat!(env!("CARGO_PKG_VERSION"), "-native-125");
 #[derive(Clone)]
 pub struct Job {
     pub cancel: Arc<AtomicBool>,

@@ -317,9 +317,10 @@ impl View<'_, '_> {
                 )?,
             };
             Ok(Ipv4Addr::from(u32::try_from(value)?.to_le_bytes()).to_string())
-        } else if family != REFERENCE_INET6_FAMILY {
+        } else if self.physical && family != REFERENCE_INET6_FAMILY {
             // Pinned inet_sock compares Linux's numeric family to Python's
-            // host socket.AF_INET6. Keep its observable host-dependent absence.
+            // host socket.AF_INET6. Keep its observable host-dependent absence
+            // for carved physical scans; live virtual Sockstat always decodes IPv6.
             Ok(NA.into())
         } else {
             // The reference locates the field through pinet6, then reads its
@@ -327,8 +328,14 @@ impl View<'_, '_> {
             // layer for carved sockets. Do not translate that final read to VA.
             let bytes = if self.has("inet_sock", "pinet6") {
                 // Pointer objects are masked to the 48-bit native-layer domain
-                // before their field offsets are used on the physical parent.
-                let info = self.number("inet_sock", "pinet6")? & 0xffff_ffff_ffff;
+                // only when reading on the physical layer; virtual reads keep
+                // canonical kernel high bits.
+                let raw_info = self.number("inet_sock", "pinet6")?;
+                let info = if self.physical {
+                    raw_info & 0xffff_ffff_ffff
+                } else {
+                    raw_info
+                };
                 let info = Self {
                     base: info,
                     ..*self
@@ -481,10 +488,20 @@ impl Linux<'_> {
         address: u64,
         devices: &BTreeMap<u64, String>,
     ) -> Result<Option<SocketFields>> {
+        self.socket_fields(address, true, true, devices)
+    }
+
+    pub(super) fn socket_fields(
+        &self,
+        address: u64,
+        physical: bool,
+        drop_empty: bool,
+        devices: &BTreeMap<u64, String>,
+    ) -> Result<Option<SocketFields>> {
         let sock = View {
             linux: self,
             base: address,
-            physical: true,
+            physical,
         };
         let family = sock.number("sock", "__sk_common.skc_family")?;
         let ty = sock.number("sock", "sk_type")?;
@@ -685,8 +702,9 @@ impl Linux<'_> {
             NA.into()
         };
         // Match the reference's empty-object rule (including its source-absence
-        // test), without using missing objects as proof of no connections.
-        if (src == NA || src == "0.0.0.0" && dst == "0.0.0.0")
+        // test) for carved scans, without dropping live FD sockets.
+        if drop_empty
+            && (src == NA || src == "0.0.0.0" && dst == "0.0.0.0")
             && (state == "UNCONNECTED" || sport == "0" && dport == "0")
         {
             return Ok(None);

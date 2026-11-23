@@ -116,12 +116,45 @@ struct Cli {
     symbol_names: Vec<String>,
     #[arg(help_heading = "PE symbol plugins", long = "address", global = true, value_parser = zero_tui::dump::parse_address)]
     addresses: Vec<u64>,
-    /// Include user threads in linux.pslist.PsList.
+    /// Include user threads in linux.pslist.PsList / linux.pstree.PsTree.
     #[arg(help_heading = "Linux plugins", long = "threads", global = true)]
     include_threads: bool,
-    /// Decorate user/kernel thread names in linux.pslist.PsList.
+    /// Decorate user/kernel thread names in linux.pslist.PsList / linux.pstree.PsTree.
     #[arg(help_heading = "Linux plugins", long, global = true)]
     decorate_comm: bool,
+    /// Include only regular files in linux.lsof.Lsof.
+    #[arg(help_heading = "Linux plugins", long = "files-only", global = true)]
+    files_only: bool,
+    /// Filter linux.sockstat.Sockstat by network namespace inode.
+    #[arg(help_heading = "Linux plugins", long, global = true)]
+    netns: Option<u64>,
+    /// Hexdump/disassembly byte count for linux.malware.malfind.Malfind (default 64).
+    #[arg(help_heading = "Linux plugins", long = "hexdump-size", global = true)]
+    hexdump_size: Option<usize>,
+    /// Show every dirty page in executable VMAs flagged by their page tables for linux.malware.malfind.Malfind.
+    #[arg(
+        help_heading = "Linux plugins",
+        long = "show-all-dirty-pages",
+        global = true
+    )]
+    show_all_dirty_pages: bool,
+    /// Filter linux.mountinfo.MountInfo by mount namespace inode.
+    #[arg(help_heading = "Linux plugins", long, global = true)]
+    mntns: Option<u64>,
+    /// Use concise /proc/mounts-style output in linux.mountinfo.MountInfo.
+    #[arg(help_heading = "Linux plugins", long = "mount-format", global = true)]
+    mount_format: bool,
+    /// Filter linux.pagecache.Files by inode type (e.g. REG,DIR; comma-separated or repeated).
+    #[arg(
+        help_heading = "Linux plugins",
+        long = "file-type",
+        global = true,
+        value_delimiter = ','
+    )]
+    file_types: Vec<String>,
+    /// Filter linux.pagecache.Files by path substring.
+    #[arg(help_heading = "Linux plugins", long, global = true)]
+    find: Option<String>,
     /// Render module taints as compact characters in linux.malware.modxview.Modxview.
     #[arg(help_heading = "Linux plugins", long, global = true)]
     plain_taints: bool,
@@ -472,7 +505,9 @@ fn main() -> Result<()> {
         let mut session = linux::Session::default();
         let dump = if plugin.is_dump() || (plugin.accepts_dump() && dump_dir.is_some()) {
             Some(zero_tui::dump::DumpOptions {
-                pid: if matches!(
+                pid: if plugin.is_linux_mapping_export() {
+                    0
+                } else if matches!(
                     plugin,
                     Plugin::ModuleExtract | Plugin::WinModdump | Plugin::Fbdev | Plugin::Lsmod
                 ) {
@@ -492,6 +527,15 @@ fn main() -> Result<()> {
             );
             None
         };
+        let mut options = cli.analysis_options();
+        options.pid = if dump.is_some() && !plugin.is_linux_mapping_export() {
+            None
+        } else {
+            pid
+        };
+        if plugin == Plugin::LinuxMaps {
+            options.vma_addresses = std::mem::take(&mut options.pe.addresses);
+        }
         match zero_tui::analysis::analyze(
             &mut session,
             &linux::Request {
@@ -504,10 +548,7 @@ fn main() -> Result<()> {
                 network: settings.remote_symbols,
             },
             dump.as_ref(),
-            &zero_tui::analysis::Options {
-                pid: if dump.is_some() { None } else { pid },
-                ..cli.analysis_options()
-            },
+            &options,
             &job,
         )? {
             Outcome::Choose(labels) => bail!(
@@ -580,6 +621,15 @@ impl Cli {
             include_threads: self.include_threads,
             decorate_comm: self.decorate_comm,
             plain_taints: self.plain_taints,
+            files_only: self.files_only,
+            netns: self.netns,
+            vma_addresses: Vec::new(),
+            hexdump_size: self.hexdump_size,
+            show_all_dirty_pages: self.show_all_dirty_pages,
+            mntns: self.mntns,
+            mount_format: self.mount_format,
+            file_types: self.file_types.clone(),
+            find: self.find.clone(),
             kallsyms: zero_tui::analysis::KallsymsOptions {
                 core: self.core,
                 modules: self.modules,

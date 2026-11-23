@@ -30,6 +30,14 @@ struct AnalyzeArgs {
     include_threads: Option<bool>,
     decorate_comm: Option<bool>,
     plain_taints: Option<bool>,
+    files_only: Option<bool>,
+    netns: Option<u64>,
+    hexdump_size: Option<usize>,
+    show_all_dirty_pages: Option<bool>,
+    mntns: Option<u64>,
+    mount_format: Option<bool>,
+    file_types: Option<Vec<String>>,
+    find: Option<String>,
     core: Option<bool>,
     modules: Option<bool>,
     ftrace: Option<bool>,
@@ -132,7 +140,7 @@ fn tools() -> Value {
     json!({"tools": [
         {"name":"zero_plugins","description":"List native Linux and Windows memory forensics plugins and their result columns.","inputSchema":{"type":"object","properties":{},"additionalProperties":false}},
         {"name":"zero_symbols","description":"Identify image banners and exact ISF repository matches. Optional download saves verified symbols locally.","inputSchema":{"type":"object","properties":{"image":{"type":"string"},"offline":{"type":"boolean"},"download":{"type":"boolean"}},"required":["image"],"additionalProperties":false}},
-        {"name":"zero_analyze","description":"Run a native analysis plugin on a local memory image. Returns at most 200 rows and may export all rows to JSON/CSV. Returns result_id; use zero_results for subsequent pages.","inputSchema":{"type":"object","properties":{"image":{"type":"string"},"plugin":{"type":"string","description":"Plugin name or alias as listed by zero_plugins"},"os":{"type":"string","enum":["auto","linux","windows"]},"arch":{"type":"string","enum":["auto","x86","x64","arm64"]},"pagefiles":{"type":"array","items":{"type":"object","properties":{"index":{"type":"integer","minimum":0,"maximum":15},"path":{"type":"string"}},"required":["index","path"],"additionalProperties":false}},"swapfile":{"type":"string"},"pid":{"type":"integer","minimum":0},"include_threads":{"type":"boolean"},"decorate_comm":{"type":"boolean"},"plain_taints":{"type":"boolean"},"core":{"type":"boolean"},"modules":{"type":"boolean"},"ftrace":{"type":"boolean"},"bpf":{"type":"boolean"},"hive":{"type":"string"},"key":{"type":"string"},"min_length":{"type":"integer","description":"TrueCrypt Passphrase: minimum cached length (default 5)"},"strings_file":{"type":"string","description":"Strings: local decimal-offset strings output file"},"pattern":{"type":"string","description":"VmaRegExScan/VadRegExScan: byte regex; vmayarascan/windows.vadyarascan: text, wide:TEXT or hex:4d5a??00"},"pids":{"type":"array","maxItems":4096,"items":{"type":"integer","minimum":0},"description":"PsList / PsAux / Envars / Capabilities / Strings / VmaRegExScan / VadRegExScan / VadWalk / PsCallStack PID list"},"unresolved":{"type":"boolean","description":"PsCallStack: include unresolved nonzero stack words"},"source":{"type":"string","enum":["kernel","processes"],"description":"PESymbols module source"},"module":{"type":"string","description":"PESymbols module filename"},"symbol_names":{"type":"array","maxItems":4096,"items":{"type":"string"}},"addresses":{"type":"array","maxItems":4096,"items":{"type":"string"},"description":"PESymbols absolute addresses, decimal or 0x"},"maxsize":{"type":"integer","description":"Compatibility option for VmaRegExScan/VadRegExScan; display context stays 128 bytes, matching Volatility 2.28.2"},"symbols":{"type":"string"},"symbol_choice":{"type":"string"},"offline":{"type":"boolean"},"no_cache":{"type":"boolean"},"limit":{"type":"integer","minimum":1,"maximum":200},"output":{"type":"string"}},"required":["image","plugin"],"additionalProperties":false}},
+        {"name":"zero_analyze","description":"Run a native analysis plugin on a local memory image. Returns at most 200 rows and may export all rows to JSON/CSV. Returns result_id; use zero_results for subsequent pages.","inputSchema":{"type":"object","properties":{"image":{"type":"string"},"plugin":{"type":"string","description":"Plugin name or alias as listed by zero_plugins"},"os":{"type":"string","enum":["auto","linux","windows"]},"arch":{"type":"string","enum":["auto","x86","x64","arm64"]},"pagefiles":{"type":"array","items":{"type":"object","properties":{"index":{"type":"integer","minimum":0,"maximum":15},"path":{"type":"string"}},"required":["index","path"],"additionalProperties":false}},"swapfile":{"type":"string"},"pid":{"type":"integer","minimum":0},"include_threads":{"type":"boolean"},"decorate_comm":{"type":"boolean"},"plain_taints":{"type":"boolean"},"files_only":{"type":"boolean","description":"linux.lsof.Lsof: include only regular files"},"netns":{"type":"integer","minimum":0,"description":"linux.sockstat.Sockstat: filter by network namespace inode"},"hexdump_size":{"type":"integer","minimum":0,"maximum":4096,"description":"linux.malware.malfind.Malfind: bytes per hexdump/disasm preview (default 64)"},"show_all_dirty_pages":{"type":"boolean","description":"linux.malware.malfind.Malfind: show every dirty page in executable VMAs flagged by their page tables"},"mntns":{"type":"integer","minimum":0,"description":"linux.mountinfo.MountInfo: filter by mount namespace inode"},"mount_format":{"type":"boolean","description":"linux.mountinfo.MountInfo: concise mount summary format"},"file_types":{"type":"array","maxItems":16,"items":{"type":"string"},"description":"linux.pagecache.Files: inode types to include (e.g. REG, DIR)"},"find":{"type":"string","description":"linux.pagecache.Files: path substring filter"},"core":{"type":"boolean"},"modules":{"type":"boolean"},"ftrace":{"type":"boolean"},"bpf":{"type":"boolean"},"hive":{"type":"string"},"key":{"type":"string"},"min_length":{"type":"integer","description":"TrueCrypt Passphrase: minimum cached length (default 5)"},"strings_file":{"type":"string","description":"Strings: local decimal-offset strings output file"},"pattern":{"type":"string","description":"VmaRegExScan/VadRegExScan: byte regex; vmayarascan/windows.vadyarascan: text, wide:TEXT or hex:4d5a??00"},"pids":{"type":"array","maxItems":4096,"items":{"type":"integer","minimum":0},"description":"PsList / PsTree / PsAux / Envars / Capabilities / Maps / Lsof / Sockstat / Malfind / MountInfo / Bash / Elfs / LibraryList / Strings / VmaRegExScan / VadRegExScan / VadWalk / PsCallStack PID list"},"unresolved":{"type":"boolean","description":"PsCallStack: include unresolved nonzero stack words"},"source":{"type":"string","enum":["kernel","processes"],"description":"PESymbols module source"},"module":{"type":"string","description":"PESymbols module filename"},"symbol_names":{"type":"array","maxItems":4096,"items":{"type":"string"}},"addresses":{"type":"array","maxItems":4096,"items":{"type":"string"},"description":"PESymbols / linux.proc.Maps absolute addresses, decimal or 0x"},"maxsize":{"type":"integer","description":"Compatibility option for VmaRegExScan/VadRegExScan, or max dump size for linux.proc.Maps / linux.malware.malfind.Malfind"},"symbols":{"type":"string"},"symbol_choice":{"type":"string"},"offline":{"type":"boolean"},"no_cache":{"type":"boolean"},"limit":{"type":"integer","minimum":1,"maximum":200},"output":{"type":"string"}},"required":["image","plugin"],"additionalProperties":false}},
         {"name":"zero_results","description":"Read or export an immutable analysis snapshot. Does not run analysis; expired IDs require a new zero_analyze call.","inputSchema":{"type":"object","properties":{"result_id":{"type":"string"},"offset":{"type":"integer","minimum":0},"limit":{"type":"integer","minimum":1,"maximum":200},"output":{"type":"string"}},"required":["result_id"],"additionalProperties":false}},
         {"name":"zero_dump","description":"Export one process, one PID address range, or ELF mappings to a local directory with a JSON/CSV manifest. Requires explicit paths and a PID for process modes; kernel-module uses start as the struct module address; lsmod exports listed Linux module ELFs without a PID or address range; framebuffer dumps fbdev buffers, optionally selected by fb_info start.","inputSchema":{"type":"object","properties":{"image":{"type":"string"},"symbols":{"type":"string"},"symbol_choice":{"type":"string"},"os":{"type":"string","enum":["auto","linux","windows"]},"arch":{"type":"string","enum":["auto","x86","x64","arm64"]},"pagefiles":{"type":"array","items":{"type":"object","properties":{"index":{"type":"integer","minimum":0,"maximum":15},"path":{"type":"string"}},"required":["index","path"],"additionalProperties":false}},"swapfile":{"type":"string"},"mode":{"type":"string","enum":["process","range","elf","pe","vad","dll","module","kernel-module","lsmod","framebuffer","files"]},"pid":{"type":"integer","minimum":0},"dump_dir":{"type":"string"},"output":{"type":"string"},"start":{"type":"string"},"end":{"type":"string"},"offline":{"type":"boolean"}},"required":["image","mode","dump_dir","output"],"additionalProperties":false}},
         {"name":"zero_cache_list","description":"Inspect regenerable local cache without deleting it.","inputSchema":{"type":"object","properties":{},"additionalProperties":false}}
@@ -226,6 +234,17 @@ fn call(
                 .as_deref()
                 .map(|p| path(root, p))
                 .unwrap_or_else(|| path(root, Path::new(&settings.symbols)));
+            let parsed_addresses = a
+                .addresses
+                .unwrap_or_default()
+                .iter()
+                .map(|a| dump::parse_address(a).map_err(anyhow::Error::msg))
+                .collect::<Result<Vec<_>>>()?;
+            let (pe_addresses, vma_addresses) = if plugin == Plugin::LinuxMaps {
+                (Vec::new(), parsed_addresses)
+            } else {
+                (parsed_addresses, Vec::new())
+            };
             let outcome = zero_tui::analysis::analyze(
                 session,
                 &linux::Request {
@@ -243,12 +262,7 @@ fn call(
                         source: a.source,
                         module: a.module,
                         names: a.symbol_names.unwrap_or_default(),
-                        addresses: a
-                            .addresses
-                            .unwrap_or_default()
-                            .iter()
-                            .map(|a| dump::parse_address(a).map_err(anyhow::Error::msg))
-                            .collect::<Result<Vec<_>>>()?,
+                        addresses: pe_addresses,
                     },
                     os: a.os.unwrap_or_default(),
                     arch: a.arch.unwrap_or_default(),
@@ -266,6 +280,15 @@ fn call(
                     include_threads: a.include_threads.unwrap_or(false),
                     decorate_comm: a.decorate_comm.unwrap_or(false),
                     plain_taints: a.plain_taints.unwrap_or(false),
+                    files_only: a.files_only.unwrap_or(false),
+                    netns: a.netns,
+                    vma_addresses,
+                    hexdump_size: a.hexdump_size,
+                    show_all_dirty_pages: a.show_all_dirty_pages.unwrap_or(false),
+                    mntns: a.mntns,
+                    mount_format: a.mount_format.unwrap_or(false),
+                    file_types: a.file_types.unwrap_or_default(),
+                    find: a.find,
                     kallsyms: zero_tui::analysis::KallsymsOptions {
                         core: a.core.unwrap_or(false),
                         modules: a.modules.unwrap_or(false),
@@ -745,6 +768,58 @@ mod protocol_tests {
         );
         value["addresses"] = json!([18446744073709551615u64]);
         assert!(serde_json::from_value::<AnalyzeArgs>(value).is_err());
+    }
+    #[test]
+    fn canonical_linux_core_options_are_in_the_mcp_contract() {
+        let catalog = tools();
+        let schema = &catalog["tools"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|t| t["name"] == "zero_analyze")
+            .unwrap()["inputSchema"]["properties"];
+        assert_eq!(schema["files_only"]["type"], "boolean");
+        assert_eq!(schema["netns"]["type"], "integer");
+        let lsof: AnalyzeArgs = serde_json::from_value(
+            json!({"image":"i.raw","plugin":"linux.lsof.Lsof","pids":[1,2],"files_only":true}),
+        )
+        .unwrap();
+        assert_eq!(lsof.files_only, Some(true));
+        let sock: AnalyzeArgs = serde_json::from_value(
+            json!({"image":"i.raw","plugin":"linux.sockstat.Sockstat","netns":4026531992u64}),
+        )
+        .unwrap();
+        assert_eq!(sock.netns, Some(4_026_531_992));
+        let maps: AnalyzeArgs = serde_json::from_value(
+            json!({"image":"i.raw","plugin":"linux.proc.Maps","addresses":["0x400000"],"maxsize":4096}),
+        )
+        .unwrap();
+        assert_eq!(maps.addresses.unwrap(), vec!["0x400000"]);
+        assert_eq!(maps.maxsize, Some(4096));
+        assert_eq!(schema["hexdump_size"]["type"], "integer");
+        assert_eq!(schema["show_all_dirty_pages"]["type"], "boolean");
+        assert_eq!(schema["mntns"]["type"], "integer");
+        assert_eq!(schema["mount_format"]["type"], "boolean");
+        assert_eq!(schema["file_types"]["type"], "array");
+        assert_eq!(schema["find"]["type"], "string");
+        let mf: AnalyzeArgs = serde_json::from_value(json!({
+            "image":"i.raw","plugin":"linux.malware.malfind.Malfind","hexdump_size":32,"show_all_dirty_pages":true
+        }))
+        .unwrap();
+        assert_eq!(mf.hexdump_size, Some(32));
+        assert_eq!(mf.show_all_dirty_pages, Some(true));
+        let mi: AnalyzeArgs = serde_json::from_value(json!({
+            "image":"i.raw","plugin":"linux.mountinfo.MountInfo","mntns":4026531840u64,"mount_format":true
+        }))
+        .unwrap();
+        assert_eq!(mi.mntns, Some(4_026_531_840));
+        assert_eq!(mi.mount_format, Some(true));
+        let pc: AnalyzeArgs = serde_json::from_value(json!({
+            "image":"i.raw","plugin":"linux.pagecache.Files","file_types":["REG","DIR"],"find":"/etc"
+        }))
+        .unwrap();
+        assert_eq!(pc.file_types.unwrap(), vec!["REG", "DIR"]);
+        assert_eq!(pc.find.as_deref(), Some("/etc"));
     }
     #[test]
     fn oversized_line_is_discarded_and_next_request_survives() {

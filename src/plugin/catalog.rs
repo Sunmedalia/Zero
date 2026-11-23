@@ -454,6 +454,45 @@ catalog! {
     LinuxPsaux, "linux.psaux.PsAux", "psaux·完整", Process,
         "读取完整命令行、父进程 TGID 和内核线程名称；支持 PID 列表",
         ["PID", "PPID", "COMM", "ARGS"], [6, 6, 16, 0];
+    LinuxPstree, "linux.pstree.PsTree", "pstree·完整", Process,
+        "按父子层级输出完整进程树；支持 PID 列表、用户线程与名称标记",
+        ["OFFSET (V)", "PID", "TID", "PPID", "COMM"], [18, 6, 6, 6, 0];
+    LinuxMaps, "linux.proc.Maps", "maps·完整", Memory,
+        "列出进程完整 VMA（主次设备号、Inode、特殊映射及可选地址过滤与导出）",
+        ["PID", "Process", "Start", "End", "Flags", "PgOff", "Major", "Minor", "Inode", "File Path", "File output"], [6, 16, 18, 18, 5, 10, 6, 6, 10, 0, 16];
+    LinuxLsof, "linux.lsof.Lsof", "lsof·完整", Files,
+        "列出进程打开文件完整元数据（设备、权限、时间戳、大小）；支持 PID 列表与仅文件筛选",
+        ["PID", "TID", "Process", "FD", "Path", "Device", "Inode", "Type", "Mode", "Changed", "Modified", "Accessed", "Size"], [6, 6, 16, 5, 0, 8, 10, 6, 10, 26, 26, 26, 10];
+    LinuxSockstat, "linux.sockstat.Sockstat", "sockstat·完整", Network,
+        "列出进程全部协议族套接字与 BPF 过滤器；支持 PID 列表与 NetNS 筛选",
+        ["NetNS", "Process Name", "PID", "TID", "FD", "Sock Offset", "Family", "Type", "Proto", "Source Addr", "Source Port", "Destination Addr", "Destination Port", "State", "Filter"], [10, 16, 6, 6, 5, 18, 12, 10, 10, 0, 10, 0, 10, 14, 0];
+    LinuxKmsg, "linux.kmsg.Kmsg", "kmsg·完整", System,
+        "解析三代 Linux printk 日志缓冲区（facility、level、时间戳、caller 与正文）",
+        ["facility", "level", "timestamp", "caller", "line"], [10, 8, 14, 10, 0];
+    LinuxMalfind, "linux.malware.malfind.Malfind", "malfind·完整", Integrity,
+        "检测可疑可执行／可写或匿名 VMA 并输出十六进制预览与反汇编；支持脏页展开与导出",
+        ["PID", "Process", "Start", "End", "Path", "Protection", "Hexdump", "Disasm", "File output"], [6, 16, 18, 18, 0, 6, 0, 0, 16];
+    LinuxMountinfo, "linux.mountinfo.MountInfo", "mountinfo·完整", Files,
+        "按挂载命名空间去重列出完整 mountinfo（设备号、挂载选项、共享组、超级块选项）",
+        ["MNT_NS_ID", "MOUNT_ID", "PARENT_ID", "MAJOR:MINOR", "ROOT", "MOUNT_POINT", "MOUNT_OPTIONS", "FIELDS", "FSTYPE", "MOUNT_SRC", "SB_OPTIONS"], [12, 8, 9, 11, 14, 0, 18, 12, 10, 18, 14];
+    LinuxPagecacheFiles, "linux.pagecache.Files", "pagecache·文件", Files,
+        "列出页缓存 inode 完整元数据（挂载点、设备号、类型、权限、三组时间戳）；支持类型与路径筛选",
+        ["SuperblockAddr", "MountPoint", "Device", "InodeNum", "InodeAddr", "FileType", "InodePages", "CachedPages", "FileMode", "AccessTime", "ModificationTime", "ChangeTime", "FilePath", "InodeSize"], [18, 16, 8, 10, 18, 6, 8, 8, 11, 26, 26, 26, 0, 10];
+    LinuxBash, "linux.bash.Bash", "bash·完整", Process,
+        "按标准 4 列恢复 bash 进程命令历史；支持 PID 列表筛选",
+        ["PID", "Process", "CommandTime", "Command"], [6, 16, 24, 0];
+    LinuxElfs, "linux.elfs.Elfs", "elfs·完整", Memory,
+        "列出进程 ELF32/ELF64 内存映射并支持 PID 列表与可选段导出",
+        ["PID", "Process", "Start", "End", "File Path", "File Output"], [6, 16, 18, 18, 0, 16];
+    LinuxLibraryList, "linux.library_list.LibraryList", "library_list·完整", Memory,
+        "按标准列顺序列出进程共享库加载地址与路径；支持 PID 列表筛选",
+        ["Name", "Pid", "LoadAddress", "Path"], [16, 6, 18, 0];
+    LinuxIpAddr, "linux.ip.Addr", "ip.addr·完整", Network,
+        "列出各网络命名空间接口索引、MAC、混杂状态及 IPv4/IPv6 地址",
+        ["NetNS", "Index", "Interface", "MAC", "Promiscuous", "IP", "Prefix", "Scope Type", "State"], [12, 6, 14, 18, 11, 0, 6, 10, 10];
+    LinuxIpLink, "linux.ip.Link", "ip.link·完整", Network,
+        "列出各网络命名空间接口状态、MTU、队列规则 Qdisc、Qlen 与标志",
+        ["NS", "Interface", "MAC", "State", "MTU", "Qdisc", "Qlen", "Flags"], [12, 14, 18, 10, 6, 12, 6, 0];
     Fdsummary, "fdsummary", "fdsummary", Files,
         "汇总进程文件描述符",
         ["PID", "Name", "Total", "Regular", "Sockets", "Pipes"], [6, 16, 8, 8, 8, 8];

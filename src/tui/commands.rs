@@ -222,11 +222,11 @@ impl App {
                     self.activate_plugin(plugin);
                 }
             }
-        } else if self.plugin.is_tree()
+        } else if let Some(tree) = self.plugin.tree_columns()
             && self.history.is_none()
             && let Some(row) = self.visible().get(self.row)
         {
-            let pid = row.cell(0).to_owned();
+            let pid = row.cell(tree.id).to_owned();
             if !self.collapsed.remove(&pid) {
                 self.collapsed.insert(pid);
             }

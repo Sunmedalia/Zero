@@ -883,12 +883,10 @@ impl App {
             .or_else(|| self.results.shared(self.plugin.name()))
     }
     fn index_key(&self, result: Option<&Arc<Results>>) -> ViewKey {
-        let tree = if self.history.is_some() || !self.plugin.is_tree() {
+        let tree = if self.history.is_some() {
             None
-        } else if self.plugin == Plugin::WinPstree {
-            Some((1, 2))
         } else {
-            Some((2, 3))
+            self.plugin.tree_columns()
         };
         ViewKey {
             revision: self.results.revision,
