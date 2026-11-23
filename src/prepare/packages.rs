@@ -288,7 +288,8 @@ fn discover(
         job.check()?;
         let roots: Vec<(String, String)> = match id.distribution {
             "Ubuntu" => {
-                let base = "https://ddebs.ubuntu.com/pool/main/l/";
+                // Canonical's ddebs.ubuntu.com redirects https:// -> http:// (plain HTTP only).
+                let base = "http://ddebs.ubuntu.com/pool/main/l/";
                 match indexes.get(base) {
                     Ok(html) => ubuntu_directories(id, &html)
                         .iter()
@@ -770,9 +771,27 @@ pub(super) fn kali_candidate(image: &Image, job: &Job) -> Result<KernelPackage> 
     })
 }
 
+/// Official Ubuntu debug symbol pools serve over plain HTTP only (`https://` redirects to `http://`).
+/// Every other repository stays strictly HTTPS-only.
+pub(super) fn allow_plain_http(url: &str) -> bool {
+    url.strip_prefix("http://ddebs.ubuntu.com/pool/main/l/")
+        .is_some_and(|rest| {
+            !rest.contains('@')
+                && !rest.chars().any(char::is_whitespace)
+                && rest.split('/').all(|seg| {
+                    !seg.contains("..")
+                        && !seg.contains('\\')
+                        && seg.bytes().all(|b| {
+                            b.is_ascii_alphanumeric()
+                                || matches!(b, b'.' | b'-' | b'_' | b'+' | b'~')
+                        })
+                })
+        })
+}
+
 fn official_pool(base: &str) -> bool {
     [
-        "https://ddebs.ubuntu.com/pool/main/l/",
+        "http://ddebs.ubuntu.com/pool/main/l/",
         "https://archive.ubuntu.com/ubuntu/pool/main/l/",
         "https://ports.ubuntu.com/ubuntu-ports/pool/main/l/",
     ]
@@ -879,8 +898,22 @@ mod tests {
         assert!(!official_pool(
             "https://old.kali.org.evil/kali/pool/main/l/linux/"
         ));
-        assert!(!official_pool(
-            "https://ddebs.ubuntu.com/pool/main/l/../../"
+        assert!(!official_pool("http://ddebs.ubuntu.com/pool/main/l/../../"));
+        assert!(allow_plain_http("http://ddebs.ubuntu.com/pool/main/l/"));
+        assert!(allow_plain_http(
+            "http://ddebs.ubuntu.com/pool/main/l/linux/linux-image-unsigned-6.8.0-40-generic-dbgsym_6.8.0-40.40~22.04.3_amd64.ddeb"
+        ));
+        assert!(!allow_plain_http(
+            "http://ddebs.ubuntu.com.evil/pool/main/l/linux/"
+        ));
+        assert!(!allow_plain_http(
+            "http://ddebs.ubuntu.com/pool/main/l/../etc/passwd"
+        ));
+        assert!(!allow_plain_http(
+            "http://archive.ubuntu.com/ubuntu/pool/main/l/linux/"
+        ));
+        assert!(!allow_plain_http(
+            "http://deb.debian.org/debian/pool/main/l/linux/"
         ));
     }
     #[test]
@@ -930,14 +963,10 @@ mod tests {
                 "Ubuntu" => {
                     cache_index(
                         &cache,
-                        "https://ddebs.ubuntu.com/pool/main/l/",
+                        "http://ddebs.ubuntu.com/pool/main/l/",
                         &html(&["linux/", "linux-hwe-5.15/", "../", "https://evil.test/"]),
                     );
-                    cache_index(
-                        &cache,
-                        "https://ddebs.ubuntu.com/pool/main/l/linux/",
-                        &files,
-                    );
+                    cache_index(&cache, "http://ddebs.ubuntu.com/pool/main/l/linux/", &files);
                     cache_index(
                         &cache,
                         if id.architecture == "arm64" {

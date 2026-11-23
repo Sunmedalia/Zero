@@ -38,7 +38,7 @@ impl<'a> Indexes<'a> {
                     range: None,
                     limit: LIMIT,
                     timeout: Duration::from_secs(45),
-                    https_only: true,
+                    https_only: !packages::allow_plain_http(url),
                 },
                 file.try_clone()?,
                 self.job,

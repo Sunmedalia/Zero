@@ -25,8 +25,14 @@ impl Linux<'_> {
     }
 
     fn symbol_time_type(&self, name: &str, fallback: &str) -> Result<String> {
-        if let Some(ty) = self.isf.data.key("symbols")[name].key("type")["name"].as_str() {
-            return Ok(ty.to_owned());
+        let ty = self.isf.data.key("symbols")[name].key("type");
+        if let Some(name) = ty["name"].as_str() {
+            return Ok(name.to_owned());
+        }
+        if ty["kind"].as_str() == Some("array")
+            && let Some(name) = ty["subtype"].key("name").as_str()
+        {
+            return Ok(name.to_owned());
         }
         ensure!(
             self.isf.data.key("user_types").get(fallback).is_some(),
@@ -35,36 +41,47 @@ impl Linux<'_> {
         Ok(fallback.to_owned())
     }
 
+    fn tk_core_boot_time_nanos(&self, symbol: &str, fallback_type: &str) -> Result<i128> {
+        let core = self.isf.address(symbol)?;
+        let core_type = self.symbol_time_type(symbol, fallback_type)?;
+        let keeper = self.field_address(core, &core_type, "timekeeper")?;
+        let keeper_type = self.time_field_type(&core_type, "timekeeper")?;
+        let real_type = self.time_field_type(keeper_type, "offs_real")?;
+        let wrapped = self.isf.field(real_type, "tv64").is_ok();
+        let ktime = |field| -> Result<i128> {
+            let ty = self.time_field_type(keeper_type, field)?;
+            if wrapped {
+                self.signed_time_field(self.field_address(keeper, keeper_type, field)?, ty, "tv64")
+            } else {
+                ensure!(
+                    matches!(
+                        self.isf.field(keeper_type, field)?["type"]
+                            .key("kind")
+                            .as_str(),
+                        Some("base" | "enum")
+                    ),
+                    "ktime 标量布局与 offs_real 不一致"
+                );
+                self.signed_time_field(keeper, keeper_type, field)
+            }
+        };
+        Ok(ktime("offs_real")? - ktime("offs_boot")?)
+    }
+
     pub(super) fn root_boot_time_nanos(&self) -> Result<i128> {
         if self.isf.data.key("symbols").get("tk_core").is_some() {
-            let core = self.isf.address("tk_core")?;
-            let core_type = self.symbol_time_type("tk_core", "tk_core")?;
-            let keeper = self.field_address(core, &core_type, "timekeeper")?;
-            let keeper_type = self.time_field_type(&core_type, "timekeeper")?;
-            let real_type = self.time_field_type(keeper_type, "offs_real")?;
-            let wrapped = self.isf.field(real_type, "tv64").is_ok();
-            let ktime = |field| -> Result<i128> {
-                let ty = self.time_field_type(keeper_type, field)?;
-                if wrapped {
-                    self.signed_time_field(
-                        self.field_address(keeper, keeper_type, field)?,
-                        ty,
-                        "tv64",
-                    )
-                } else {
-                    ensure!(
-                        matches!(
-                            self.isf.field(keeper_type, field)?["type"]
-                                .key("kind")
-                                .as_str(),
-                            Some("base" | "enum")
-                        ),
-                        "ktime 标量布局与 offs_real 不一致"
-                    );
-                    self.signed_time_field(keeper, keeper_type, field)
-                }
-            };
-            return Ok(ktime("offs_real")? - ktime("offs_boot")?);
+            return self.tk_core_boot_time_nanos("tk_core", "tk_core");
+        }
+        // Linux 6.13+ replaced `tk_core` with `struct tk_data timekeeper_data[TIMEKEEPING_IDS]`
+        // where index 0 (`TIMEKEEPER_CORE`) is the core timekeeper.
+        if self
+            .isf
+            .data
+            .key("symbols")
+            .get("timekeeper_data")
+            .is_some()
+        {
+            return self.tk_core_boot_time_nanos("timekeeper_data", "tk_data");
         }
         if self.isf.data.key("symbols").get("timekeeper").is_some()
             && self.isf.field("timekeeper", "wall_to_monotonic").is_ok()
@@ -517,6 +534,34 @@ mod tests {
                 linux.root_boot_time_nanos().unwrap(),
                 1_699_999_999_876_543_211
             );
+        }
+    }
+
+    #[test]
+    fn timekeeper_data_array_and_untyped_btf_fallback_decode_boot_time() {
+        for typed in [true, false] {
+            let (mut bytes, mut isf) = fixture();
+            isf.data["base_types"]["i64"] = json!({"size":8,"signed":true});
+            fields(
+                &mut isf.data,
+                "timekeeper",
+                &[("offs_real", 88, "i64"), ("offs_boot", 96, "i64")],
+            );
+            fields(&mut isf.data, "tk_data", &[("timekeeper", 8, "timekeeper")]);
+            isf.data["symbols"]["timekeeper_data"] = if typed {
+                json!({
+                    "address": 0x10000,
+                    "type": {"kind": "array", "count": 9, "subtype": {"kind": "struct", "name": "tk_data"}}
+                })
+            } else {
+                json!({"address": 0x10000})
+            };
+            let boot = 1_794_838_761_985_180_648i128;
+            put(&mut bytes, 0x10008 + 88, boot + 5_000_000_000);
+            put(&mut bytes, 0x10008 + 96, 5_000_000_000);
+            let image = image(&bytes);
+            let linux = engine(&image, &isf);
+            assert_eq!(linux.root_boot_time_nanos().unwrap(), boot);
         }
     }
 }

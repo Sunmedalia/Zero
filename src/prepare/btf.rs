@@ -282,6 +282,31 @@ impl Btf {
             matches!(t.kind, Kind::Struct | Kind::Union) && self.name(t.name).ok() == Some(name)
         })
     }
+
+    /// Whether `name` is a typedef resolving (through qualifiers) to an integer of `size` bytes.
+    pub(super) fn is_int_typedef(&self, name: &str, size: u32) -> bool {
+        let Some(start) = self
+            .types
+            .iter()
+            .find(|t| t.kind == Kind::Typedef && self.name(t.name).ok() == Some(name))
+        else {
+            return false;
+        };
+        let mut current = start;
+        for _ in 0..16 {
+            match current.kind {
+                Kind::Typedef | Kind::Const | Kind::Volatile | Kind::Restrict | Kind::TypeTag => {
+                    let Ok(next) = self.get(current.size_or_type) else {
+                        return false;
+                    };
+                    current = next;
+                }
+                Kind::Int => return current.size_or_type == size,
+                _ => return false,
+            }
+        }
+        false
+    }
 }
 
 /// ISF type sections plus the BTF-typed global variables.

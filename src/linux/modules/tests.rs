@@ -678,3 +678,29 @@ fn runtime_taint_definitions_override_static_flags_and_preserve_unknowns() {
         "<UNKNOWN_TAINT_CHAR_Z>"
     );
 }
+
+#[test]
+fn taint_flags_without_module_field_decode_linux7_layout_and_fwctl() {
+    let (mut bytes, mut isf) = fixture();
+    isf.data["symbols"]["taint_flags"] =
+        json!({"address":0x39000,"type":{"kind":"array","count":2}});
+    isf.data["user_types"]["taint_flag"] = json!({"size":16,"fields":{
+        "c_true":{"offset":0,"type":{"kind":"base","name":"char"}},
+        "c_false":{"offset":1,"type":{"kind":"base","name":"char"}},
+        "desc":{"offset":8,"type":{"kind":"pointer","subtype":{"kind":"base","name":"char"}}}
+    }});
+    bytes[0x39000..0x39002].copy_from_slice(b"PG");
+    bytes[0x39010..0x39012].copy_from_slice(b"J ");
+    // Untainted module: plain shows 'G', descriptive suppresses 'G' -> "".
+    put(&mut bytes, 0x34100 + 112, 0);
+    let image = super::super::tests::image(&bytes);
+    let linux = super::super::tests::engine(&image, &isf);
+    assert_eq!(linux.module_taints(0x34100, true).unwrap(), "G");
+    assert_eq!(linux.module_taints(0x34100, false).unwrap(), "");
+    // Bit 1 set -> FWCTL ('J').
+    put(&mut bytes, 0x34100 + 112, 2);
+    let image = super::super::tests::image(&bytes);
+    let linux = super::super::tests::engine(&image, &isf);
+    assert_eq!(linux.module_taints(0x34100, true).unwrap(), "GJ");
+    assert_eq!(linux.module_taints(0x34100, false).unwrap(), "FWCTL");
+}

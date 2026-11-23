@@ -306,7 +306,7 @@ fn download(url: &str, path: &Path, network: bool, job: &Job) -> Result<()> {
             range: None,
             limit: 8 * 1024 * 1024 * 1024,
             timeout: Duration::from_secs(1800),
-            https_only: true,
+            https_only: !packages::allow_plain_http(url),
         },
         temporary.reopen()?,
         job,
