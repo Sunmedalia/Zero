@@ -390,8 +390,14 @@ fn indexed_tree_matches_legacy_cycles_and_raw_export_order() {
         vec!["3".into(), "3".into(), "0".into(), "three".into()],
     ];
     for collapsed in [HashSet::new(), HashSet::from(["1".into()])] {
-        let index =
-            crate::result_view::Index::build(&result, "", None, false, Some((2, 3)), &collapsed);
+        let index = crate::result_view::Index::build(
+            &result,
+            "",
+            None,
+            false,
+            Some(crate::result_view::TreeColumns::simple(2, 3)),
+            &collapsed,
+        );
         let rows: Vec<_> = (0..index.visible.len())
             .map(|i| index.row(&result, i).unwrap())
             .collect();

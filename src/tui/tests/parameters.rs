@@ -736,7 +736,12 @@ fn canonical_linux_core_plugin_parameters_save_and_separate_request_keys() {
     app.select_plugin(Plugin::LinuxPagecacheFiles);
     assert_eq!(app.parameter_fields(false), vec![30, 31, 6]);
     app.windows_parameters();
+    assert!(matches!(
+        app.dialog,
+        Some(Dialog::WindowsParameters { field: 30, .. })
+    ));
     let before = app.request_key();
+    let before_summary = app.parameter_summary();
     if let Some(Dialog::WindowsParameters { fields, .. }) = &mut app.dialog {
         fields[30] = "REG,DIR".into();
         fields[31] = "/etc/passwd".into();
@@ -746,4 +751,5 @@ fn canonical_linux_core_plugin_parameters_save_and_separate_request_keys() {
     assert_eq!(app.analysis_options.file_types, vec!["REG", "DIR"]);
     assert_eq!(app.analysis_options.find.as_deref(), Some("/etc/passwd"));
     assert_ne!(before, app.request_key());
+    assert_ne!(before_summary, app.parameter_summary());
 }

@@ -189,7 +189,13 @@ impl Linux<'_> {
 
                         let file_output = if let Some(dump) = dump {
                             let size = end - start;
-                            if size > maxsize || size > crate::dump::MAX_DUMP_BYTES {
+                            let limit = maxsize.min(crate::dump::MAX_DUMP_BYTES);
+                            if size > limit {
+                                partial(
+                                    &mut result,
+                                    format!("PID {} VMA {} 导出", task.pid, hex(start)),
+                                    anyhow::anyhow!("VMA 大小 {size} 超过导出上限 {limit}"),
+                                );
                                 "Error outputting file".into()
                             } else if let Some(vm) = &user_vm {
                                 match self.dump_vma_region(
@@ -213,6 +219,11 @@ impl Linux<'_> {
                                     }
                                 }
                             } else {
+                                partial(
+                                    &mut result,
+                                    format!("PID {} VMA {} 导出", task.pid, hex(start)),
+                                    anyhow::anyhow!("用户地址空间为空"),
+                                );
                                 "Error outputting file".into()
                             }
                         } else {

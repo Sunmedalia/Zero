@@ -588,15 +588,11 @@ impl App {
                         && index < hits.row_offset.saturating_add(self.page_rows())
                     {
                         self.row = index;
-                        if self.plugin.is_tree()
+                        if let Some(tree) = self.plugin.tree_columns()
                             && self.history.is_none()
                             && hits
                                 .columns
-                                .get(if self.plugin == Plugin::WinPstree {
-                                    2
-                                } else {
-                                    3
-                                })
+                                .get(tree.name)
                                 .is_some_and(|rect| rect.x <= point.x && point.x < rect.right())
                         {
                             self.key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));

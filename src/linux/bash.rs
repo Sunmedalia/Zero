@@ -3,6 +3,21 @@ use super::*;
 use crate::analysis::Options;
 use std::collections::BTreeSet;
 
+fn format_bash_command_time(raw: &str) -> String {
+    if raw == "[missing]" {
+        return "N/A".into();
+    }
+    if let Ok(sec) = raw.parse::<i64>()
+        && (-62_135_596_800..=253_402_300_799).contains(&sec)
+    {
+        let date = crate::report::utc(sec).replace(' ', "T");
+        if let Some(iso) = date.strip_suffix("TUTC") {
+            return format!("{iso}+00:00");
+        }
+    }
+    raw.to_string()
+}
+
 impl Linux<'_> {
     pub(super) fn linux_bash(&self, options: &Options, job: &Job) -> Result<Results> {
         let pids: BTreeSet<u32> = options.pids.iter().copied().chain(options.pid).collect();
@@ -41,7 +56,7 @@ impl Linux<'_> {
                     result.rows.push(vec![
                         row.at(0)?.clone(),
                         row.at(1)?.clone(),
-                        row.at(2)?.clone(),
+                        format_bash_command_time(row.at(2)?),
                         row.at(3)?.clone(),
                     ]);
                 }
@@ -109,6 +124,7 @@ mod tests {
         assert_eq!(result.rows[0].len(), 4);
         assert_eq!(result.rows[0][0], "10");
         assert_eq!(result.rows[0][1], "bash");
+        assert_eq!(result.rows[0][2], "2023-11-14T22:13:20+00:00");
         assert_eq!(result.rows[0][3], "id -a");
 
         let excluded = linux

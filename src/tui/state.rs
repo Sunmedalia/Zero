@@ -472,7 +472,7 @@ pub(super) struct ViewKey {
     pub(super) query: String,
     pub(super) sort: Option<usize>,
     pub(super) descending: bool,
-    pub(super) tree: Option<(usize, usize)>,
+    pub(super) tree: Option<crate::result_view::TreeColumns>,
     pub(super) collapsed: u64,
 }
 /// The last finished row index and the result it was built from. The weak

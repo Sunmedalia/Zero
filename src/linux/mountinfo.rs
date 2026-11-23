@@ -23,8 +23,8 @@ fn decode_mount_flags(flags: u64) -> String {
     if flags & 0x20 != 0 {
         parts.push("relatime");
     }
-    if flags & 0x800 != 0 {
-        parts.push("strictatime");
+    if flags & 0x80 != 0 {
+        parts.push("nosymfollow");
     }
     parts.join(",")
 }
@@ -56,6 +56,7 @@ struct MountEntry<'a> {
     dev_ptr: u64,
     mnt_flags: u64,
     group_id: Option<u64>,
+    master_id: Option<u64>,
     mount_format: bool,
 }
 
@@ -194,10 +195,22 @@ impl Linux<'_> {
             .ok()
             .map(decode_sb_flags)
             .unwrap_or_else(|| "rw".into());
-        let fields = match entry.group_id {
-            Some(g) if g != 0 => format!("shared:{g}"),
-            _ => String::new(),
-        };
+        let mut field_parts = Vec::new();
+        if entry.mnt_flags & 0x1000 != 0
+            && let Some(g) = entry.group_id
+            && g != 0
+        {
+            field_parts.push(format!("shared:{g}"));
+        }
+        if let Some(m) = entry.master_id
+            && m != 0
+        {
+            field_parts.push(format!("master:{m}"));
+        }
+        if entry.mnt_flags & 0x2000 != 0 {
+            field_parts.push("unbindable".into());
+        }
+        let fields = field_parts.join(" ");
         if entry.mount_format {
             let mut options = BTreeSet::new();
             for option in mnt_opts.split(',').chain(sb_opts.split(',')) {
@@ -250,6 +263,7 @@ impl Linux<'_> {
         let mut seen = HashSet::new();
         let offset = self.isf.offset("mount", "mnt")?;
         let has_group = self.isf.field("mount", "mnt_group_id").is_ok();
+        let has_master = self.isf.field("mount", "mnt_master").is_ok();
         while let Some(m) = stack.pop() {
             job.check()?;
             ensure!(
@@ -276,6 +290,14 @@ impl Linux<'_> {
                 } else {
                     None
                 };
+                let master = if has_group && has_master {
+                    self.number(m, "mount", "mnt_master")
+                        .ok()
+                        .filter(|&ptr| ptr != 0)
+                        .and_then(|ptr| self.number(ptr, "mount", "mnt_group_id").ok())
+                } else {
+                    None
+                };
                 self.mountinfo_row(
                     &MountEntry {
                         ns_label,
@@ -287,6 +309,7 @@ impl Linux<'_> {
                         dev_ptr,
                         mnt_flags,
                         group_id: group,
+                        master_id: master,
                         mount_format,
                     },
                     job,
@@ -314,6 +337,7 @@ impl Linux<'_> {
         let head = self.field_address(ns, "mnt_namespace", "list")?;
         let offset = self.isf.offset("vfsmount", "mnt_list")?;
         let has_group = self.isf.field("vfsmount", "mnt_group_id").is_ok();
+        let has_master = self.isf.field("vfsmount", "mnt_master").is_ok();
         let mounts = self.list_objects(head, offset, job)?;
         for m in mounts {
             job.check()?;
@@ -330,6 +354,14 @@ impl Linux<'_> {
                 } else {
                     None
                 };
+                let master = if has_group && has_master {
+                    self.number(m, "vfsmount", "mnt_master")
+                        .ok()
+                        .filter(|&ptr| ptr != 0)
+                        .and_then(|ptr| self.number(ptr, "vfsmount", "mnt_group_id").ok())
+                } else {
+                    None
+                };
                 self.mountinfo_row(
                     &MountEntry {
                         ns_label,
@@ -341,6 +373,7 @@ impl Linux<'_> {
                         dev_ptr,
                         mnt_flags,
                         group_id: group,
+                        master_id: master,
                         mount_format,
                     },
                     job,
@@ -436,7 +469,7 @@ mod tests {
         put(&mut b, 0xd028, 22); // mnt_id
         put(&mut b, 0xd030, 0xd300); // mnt_sb
         put(&mut b, 0xd038, 0xd400); // mnt_devname
-        put(&mut b, 0xd040, 0x20 | 0x01); // relatime + nosuid
+        put(&mut b, 0xd040, 0x20 | 0x01 | 0x1000); // relatime + nosuid + MNT_SHARED
         put(&mut b, 0xd048, 1); // shared:1
 
         // root dentry at 0xd200
@@ -536,5 +569,7 @@ mod tests {
             )
             .unwrap();
         assert!(filtered.rows.is_empty());
+        assert_eq!(decode_mount_flags(0x80), "rw,nosymfollow");
+        assert_eq!(decode_mount_flags(0x800), "rw");
     }
 }

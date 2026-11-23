@@ -35,7 +35,7 @@ use std::sync::{
     atomic::{AtomicBool, Ordering},
 };
 
-// Add canonical Linux Bash, Elfs, LibraryList, ip.Addr, and ip.Link plugins.
+// Add 13 canonical Volatility 3 Linux core forensics plugins and align outputs/exports.
 pub const ENGINE_VERSION: &str = concat!(env!("CARGO_PKG_VERSION"), "-native-125");
 #[derive(Clone)]
 pub struct Job {

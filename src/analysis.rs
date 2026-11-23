@@ -180,6 +180,11 @@ pub fn analyze(
         "maxsize 仅用于 VmaRegExScan / VadRegExScan / linux.proc.Maps / linux.malware.malfind.Malfind"
     );
     ensure!(
+        !matches!(request.plugin, Plugin::LinuxMaps | Plugin::LinuxMalfind)
+            || options.maxsize.is_none_or(|v| v > 0),
+        "linux.proc.Maps / linux.malware.malfind.Malfind 的 maxsize 必须大于 0"
+    );
+    ensure!(
         !options.unresolved || request.plugin == Plugin::PsCallStack,
         "unresolved 仅用于 PsCallStack"
     );
@@ -209,6 +214,10 @@ pub fn analyze(
         (options.hexdump_size.is_none() && !options.show_all_dirty_pages)
             || request.plugin == Plugin::LinuxMalfind,
         "hexdump_size / show_all_dirty_pages 仅支持 linux.malware.malfind.Malfind"
+    );
+    ensure!(
+        options.hexdump_size.is_none_or(|v| v <= 4096),
+        "hexdump_size 超过 4096 字节上限"
     );
     ensure!(
         (options.mntns.is_none() && !options.mount_format)

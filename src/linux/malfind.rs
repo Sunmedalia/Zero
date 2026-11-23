@@ -147,10 +147,12 @@ impl Linux<'_> {
                         let file = self.number(node, "vm_area_struct", "vm_file")?;
 
                         let protection = flags & 7;
-                        if protection & 4 == 0 || (file == 0 && vdso == Some(start)) {
+                        if protection & 4 == 0
+                            || (file == 0 && vdso.is_some_and(|v| v != 0 && v == start))
+                        {
                             return Ok(());
                         }
-                        let by_protection = protection == 7 || (protection == 5 && file == 0);
+                        let by_protection = (protection & 2 != 0) || file == 0;
                         let mut regions = Vec::new();
                         if by_protection {
                             regions.push((start, end));
@@ -230,6 +232,11 @@ impl Linux<'_> {
                             let file_output = if let Some(dump) = dump {
                                 let size = reg_end - reg_start;
                                 if size > max_dump {
+                                    partial(
+                                        &mut result,
+                                        format!("PID {} Malfind {} 导出", task.pid, hex(reg_start)),
+                                        anyhow::anyhow!("区域大小 {size} 超过导出上限 {max_dump}"),
+                                    );
                                     "Error outputting file".into()
                                 } else {
                                     match self.dump_vma_region(
@@ -410,5 +417,27 @@ mod tests {
             .unwrap();
         assert!(clean.complete);
         assert!(clean.rows.is_empty());
+
+        // -wxp (6) on a file-backed VMA and anonymous --xp (4) must both be
+        // flagged directly by protection even when pages are clean.
+        put(&mut b, 0xc018, 6); // -wxp, still file-backed
+        let img = image(&b);
+        let wx = engine(&img, &isf)
+            .linux_malfind(&Options::default(), None, &Job::default())
+            .unwrap();
+        assert!(wx.complete, "{:?}", wx.diagnostics);
+        assert_eq!(wx.rows.len(), 1);
+        assert_eq!(wx.rows[0][5], "-wxp");
+
+        put(&mut b, 0xc018, 4); // --xp anonymous
+        put(&mut b, 0xc028, 0);
+        let img = image(&b);
+        let xo = engine(&img, &isf)
+            .linux_malfind(&Options::default(), None, &Job::default())
+            .unwrap();
+        assert!(xo.complete, "{:?}", xo.diagnostics);
+        assert_eq!(xo.rows.len(), 1);
+        assert_eq!(xo.rows[0][4], "Anonymous Mapping");
+        assert_eq!(xo.rows[0][5], "--xp");
     }
 }

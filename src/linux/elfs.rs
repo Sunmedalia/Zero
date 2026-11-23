@@ -131,8 +131,8 @@ impl MappedElf {
         )
     }
 
-    fn load_ranges(&self) -> Result<BTreeMap<u64, u64>> {
-        let mut ranges = BTreeMap::<u64, u64>::new();
+    fn load_ranges(&self) -> Result<Vec<(u64, u64)>> {
+        let mut raw = Vec::new();
         for header in &self.headers {
             if header.kind != PT_LOAD || header.memory_size == 0 {
                 continue;
@@ -144,13 +144,21 @@ impl MappedElf {
             let address = self.mapped_address(header.address)?;
             let start = address & !4095;
             let end = add(add(address, header.memory_size)?, 4095)? & !4095;
-            ranges
-                .entry(start)
-                .and_modify(|old| *old = (*old).max(end))
-                .or_insert(end);
+            raw.push((start, end));
         }
-        ensure!(!ranges.is_empty(), "ELF 缺少可导出的 PT_LOAD");
-        Ok(ranges)
+        ensure!(!raw.is_empty(), "ELF 缺少可导出的 PT_LOAD");
+        raw.sort_unstable();
+        let mut merged: Vec<(u64, u64)> = Vec::with_capacity(raw.len());
+        for (start, end) in raw {
+            if let Some((_, prev_end)) = merged.last_mut()
+                && start <= *prev_end
+            {
+                *prev_end = (*prev_end).max(end);
+            } else {
+                merged.push((start, end));
+            }
+        }
+        Ok(merged)
     }
 
     fn link_map_heads(&self, vm: &VirtualMemory<'_>, job: &Job) -> Result<Vec<u64>> {
@@ -367,7 +375,7 @@ impl Linux<'_> {
         let ranges = elf.load_ranges()?;
         let size = ranges
             .iter()
-            .try_fold(0, |size, (&start, &end)| add(size, end - start))?;
+            .try_fold(0, |size, &(start, end)| add(size, end - start))?;
         ensure!(
             size <= crate::dump::MAX_DUMP_BYTES,
             "ELF 导出超过 256 MiB 上限"
@@ -416,6 +424,7 @@ impl Linux<'_> {
                 let nodes = self.vma_nodes(mm, job, &mut result)?;
                 let mut seen_maps = HashSet::new();
                 let mut seen_addresses = HashSet::new();
+                let mut dynamic_errors = Vec::new();
                 for node in nodes {
                     job.check()?;
                     let scan = (|| -> Result<()> {
@@ -423,7 +432,14 @@ impl Linux<'_> {
                         let Some(elf) = MappedElf::read(&vm, start, job)? else {
                             return Ok(());
                         };
-                        let mut pending = elf.link_map_heads(&vm, job)?;
+                        let mut pending = match elf.link_map_heads(&vm, job) {
+                            Ok(heads) => heads,
+                            Err(error) => {
+                                job.check()?;
+                                dynamic_errors.push((node, error));
+                                return Ok(());
+                            }
+                        };
                         let width = elf.format.width as u64;
                         while let Some(map) = pending.pop() {
                             job.check()?;
@@ -469,6 +485,15 @@ impl Linux<'_> {
                         partial(
                             &mut result,
                             format!("PID {} VMA {}", task.pid, hex(node)),
+                            error,
+                        );
+                    }
+                }
+                if seen_maps.is_empty() {
+                    for (node, error) in dynamic_errors {
+                        partial(
+                            &mut result,
+                            format!("PID {} VMA {} PT_DYNAMIC", task.pid, hex(node)),
                             error,
                         );
                     }
@@ -647,5 +672,34 @@ mod tests {
         assert_eq!(elf32.len(), 4096);
         assert_eq!(&elf64[4096..], elf32);
         assert_eq!(elf64[0x1800], 0xa5);
+    }
+
+    #[test]
+    fn load_ranges_merges_overlapping_pt_load_segments_with_different_starts() {
+        let elf = MappedElf {
+            format: ElfFormat {
+                width: 8,
+                little_endian: true,
+            },
+            start: 0x200000,
+            headers: vec![
+                ProgramHeader {
+                    kind: PT_LOAD,
+                    file_offset: 0,
+                    address: 0,
+                    file_size: 0x1800,
+                    memory_size: 0x1800,
+                },
+                ProgramHeader {
+                    kind: PT_LOAD,
+                    file_offset: 0x1800,
+                    address: 0x1800,
+                    file_size: 0x1200,
+                    memory_size: 0x1200,
+                },
+            ],
+            base: Some(0),
+        };
+        assert_eq!(elf.load_ranges().unwrap(), vec![(0x200000, 0x203000)]);
     }
 }

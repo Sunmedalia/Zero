@@ -127,6 +127,8 @@ impl App {
                     | Plugin::WinVadRegExScan
             ) {
                 7
+            } else if self.plugin == Plugin::LinuxPagecacheFiles {
+                30
             } else if self.plugin.accepts_pid_list()
                 || self.plugin.descriptor().columns.contains(&"PID")
             {
@@ -940,11 +942,13 @@ impl App {
             KeyCode::Left | KeyCode::Right
                 if self.focus == Focus::Content && self.plugin.is_tree() =>
             {
-                if let Some(row) = self.visible().get(self.row) {
+                if let (Some(tree), Some(row)) =
+                    (self.plugin.tree_columns(), self.visible().get(self.row))
+                {
                     if key.code == KeyCode::Left {
-                        self.collapsed.insert(row.cell(0).to_owned());
+                        self.collapsed.insert(row.cell(tree.id).to_owned());
                     } else {
-                        self.collapsed.remove(row.cell(0));
+                        self.collapsed.remove(row.cell(tree.id));
                     }
                 }
             }

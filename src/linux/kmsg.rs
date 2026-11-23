@@ -81,11 +81,8 @@ struct KmsgRecord {
 }
 
 fn push_kmsg_lines(result: &mut Results, rec: &KmsgRecord) {
-    let mut emitted = false;
-    for line in rec.text.split('\n') {
-        if emitted && line.is_empty() {
-            continue;
-        }
+    let text = rec.text.strip_suffix('\n').unwrap_or(&rec.text);
+    for line in text.split('\n') {
         result.rows.push(vec![
             rec.facility.clone(),
             rec.level.clone(),
@@ -93,7 +90,6 @@ fn push_kmsg_lines(result: &mut Results, rec: &KmsgRecord) {
             rec.caller.clone(),
             line.to_string(),
         ]);
-        emitted = true;
     }
 }
 
@@ -256,8 +252,18 @@ impl Linux<'_> {
 
         let mut idx = first_idx;
         let mut seen = 0usize;
+        let mut wrapped = false;
+        let mut visited = HashSet::new();
         while idx != next_idx && seen < LIMIT {
             job.check()?;
+            if !visited.insert(idx) {
+                partial(
+                    result,
+                    format!("kmsg record @ {idx:#x}"),
+                    anyhow::anyhow!("log_buf 记录循环"),
+                );
+                break;
+            }
             seen += 1;
             let rec_addr = add(buf, idx)?;
             let rec_len = match self.number(rec_addr, rec_ty, "len") {
@@ -269,9 +275,15 @@ impl Linux<'_> {
             };
             if rec_len == 0 {
                 // Length 0 is the wrap marker back to offset 0 in Linux log_buf.
-                if idx == 0 {
+                if idx == 0 || wrapped {
+                    partial(
+                        result,
+                        format!("kmsg record @ {idx:#x}"),
+                        anyhow::anyhow!("log_buf 绕回异常或循环"),
+                    );
                     break;
                 }
+                wrapped = true;
                 idx = 0;
                 continue;
             }
@@ -322,8 +334,24 @@ impl Linux<'_> {
             }
             idx += rec_len;
             if idx == buf_len {
+                if wrapped {
+                    partial(
+                        result,
+                        format!("kmsg record @ {idx:#x}"),
+                        anyhow::anyhow!("log_buf 绕回循环"),
+                    );
+                    break;
+                }
+                wrapped = true;
                 idx = 0;
             }
+        }
+        if idx != next_idx && seen >= LIMIT {
+            partial(
+                result,
+                "kmsg",
+                anyhow::anyhow!("log_buf 记录达到 {LIMIT} 条上限"),
+            );
         }
         Ok(())
     }
@@ -434,5 +462,70 @@ mod tests {
         );
         assert_eq!(format_caller_id(Some(0x8000_0003)), "C3");
         assert_eq!(format_caller_id(Some(421)), "T421");
+    }
+
+    #[test]
+    fn kmsg_detects_variable_log_buf_wrap_cycle_and_preserves_internal_blank_lines() {
+        let (mut b, mut isf) = fixture();
+        {
+            let img = image(&b);
+            let linux = engine(&img, &isf);
+            let mut r = linux.result(Plugin::LinuxKmsg);
+            push_kmsg_lines(
+                &mut r,
+                &KmsgRecord {
+                    facility: "kern".into(),
+                    level: "err".into(),
+                    timestamp: "1.000000".into(),
+                    caller: String::new(),
+                    text: "oops\n\ntrace\n".into(),
+                },
+            );
+            assert_eq!(
+                r.rows.iter().map(|row| row[4].as_str()).collect::<Vec<_>>(),
+                vec!["oops", "", "trace"]
+            );
+        }
+
+        isf.data["base_types"]["u16"] = json!({"size":2});
+        isf.data["base_types"]["u8"] = json!({"size":1});
+        isf.data["user_types"]["printk_log"] = json!({
+            "size": 16,
+            "fields": {
+                "ts_nsec": {"offset": 0, "type": {"kind": "base", "name": "u64"}},
+                "len": {"offset": 8, "type": {"kind": "base", "name": "u16"}},
+                "text_len": {"offset": 10, "type": {"kind": "base", "name": "u16"}},
+                "facility": {"offset": 12, "type": {"kind": "base", "name": "u8"}},
+                "level": {"offset": 13, "type": {"kind": "base", "name": "u8"}}
+            }
+        });
+        for (sym, addr) in [
+            ("log_buf", 0x10000usize),
+            ("log_buf_len", 0x10008),
+            ("log_first_idx", 0x10010),
+            ("log_next_idx", 0x10018),
+        ] {
+            isf.data["symbols"][sym] = json!({"address": addr});
+        }
+        // Corrupt ring: first=32 -> wrap(0) at 32 -> record len 32 at 0 -> returns to 32 (cycle!)
+        put_u64(&mut b, 0x10000, 0x12000);
+        put_u32(&mut b, 0x10008, 128);
+        put_u32(&mut b, 0x10010, 32);
+        put_u32(&mut b, 0x10018, 96);
+        put_u16(&mut b, 0x12000 + 32 + 8, 0);
+        put_u16(&mut b, 0x12000 + 8, 32);
+        put_u16(&mut b, 0x12000 + 10, 2);
+        b[0x12000 + 16..0x12000 + 18].copy_from_slice(b"hi");
+
+        let img = image(&b);
+        let linux = engine(&img, &isf);
+        let cycled = linux.kmsg(&Job::default()).unwrap();
+        assert!(!cycled.complete);
+        assert_eq!(cycled.rows.len(), 1);
+        assert!(
+            cycled.diagnostics.iter().any(|d| d.contains("循环")),
+            "{:?}",
+            cycled.diagnostics
+        );
     }
 }

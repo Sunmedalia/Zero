@@ -471,7 +471,21 @@ impl Plugin {
         matches!(self, Self::Vmayarascan | Self::WinVadyarascan)
     }
     pub fn is_tree(self) -> bool {
-        matches!(self, Self::Pstree | Self::WinPstree)
+        self.tree_columns().is_some()
+    }
+    pub fn tree_columns(self) -> Option<crate::result_view::TreeColumns> {
+        use crate::result_view::TreeColumns;
+        match self {
+            Self::Pstree => Some(TreeColumns::simple(2, 3)),
+            Self::WinPstree => Some(TreeColumns::simple(1, 2)),
+            Self::LinuxPstree => Some(TreeColumns {
+                id: 2,
+                parent: 3,
+                leader: Some(1),
+                name: 4,
+            }),
+            _ => None,
+        }
     }
     pub fn category(self) -> &'static str {
         self.descriptor().category

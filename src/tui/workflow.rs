@@ -93,21 +93,7 @@ impl EventSender {
 }
 impl App {
     pub(super) fn parameter_summary(&self) -> String {
-        format!(
-            "PID={} · hive={} · key={} · arch={:?} · pagefile={:?} · swapfile={:?}",
-            self.analysis_options
-                .pid
-                .map(|p| p.to_string())
-                .unwrap_or_else(|| "全部".into()),
-            self.analysis_options
-                .hive
-                .map(|p| format!("{p:#x}"))
-                .unwrap_or_default(),
-            self.analysis_options.key,
-            self.analysis_options.arch,
-            self.analysis_options.pagefiles,
-            self.analysis_options.swapfile
-        )
+        format!("{:?}", self.analysis_options)
     }
     pub(super) fn request_key(&self) -> String {
         format!(
