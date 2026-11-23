@@ -49,7 +49,7 @@ Boundaries and invariants that span files:
 1. Add a `Plugin` variant in `src/plugin.rs` with `#[value(name = "linux.x.X", alias = "linux.x")]`; the `windows.` name prefix decides the platform.
 2. Add exactly one row in `src/plugin/catalog.rs` (row order is display order; a compile-time index rejects missing or duplicate rows).
 3. Route it: Linux via the exhaustive `match` in `Linux::run` (`src/linux/engine.rs`, the compiler enforces it); Windows via `Windows::run` in `src/windows.rs` (not exhaustive, easy to miss).
-4. Windows: record coverage in `src/windows/compatibility.json` and re-render `docs/compatibility.md` with `python3 scripts/windows_compatibility.py` (`--check` runs in `make check`).
+4. Windows: add a cell for the plugin in every target × architecture of `src/windows/compatibility.json` (`real` / `synthetic` / `pending` / `unsupported`). The unit test `matrix_has_every_target_and_explicit_evidence` fails otherwise, and `real` needs matching sample evidence (rows > 0, image SHA256, PDB GUID). Then re-render `docs/compatibility.md` with `python3 scripts/windows_compatibility.py` (`--check` in `make check` only compares the rendered summary).
 5. Add tests and fixture baselines, document fields in `docs/usage.md`, and bump `ENGINE_VERSION` if cached outputs change.
 
 Docs: `docs/usage.md` (CLI, plugin fields, cache, settings), `docs/tui.md` (TUI architecture, worker threads, gh-proxy), `docs/development.md` (resource budgets, CI, release), `docs/volatility-parity.md` (pinned Volatility v2.28.2 cases under `tests/reference/parity`). Release: bump `Cargo.toml`/`Cargo.lock`, rewrite `RELEASE_NOTES.md`, tag `vX.Y.Z` (CI checks tag == Cargo version).
