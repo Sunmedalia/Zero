@@ -1,5 +1,8 @@
 //! Inventory and export records use the engine allowlist for every removal.
 use super::*;
+use std::rc::Rc;
+
+type CachedItems = ((u64, usize), Rc<Vec<CacheItem>>);
 
 pub(super) struct CachePage {
     pub(super) entries: Vec<cache::Entry>,
@@ -13,6 +16,8 @@ pub(super) struct CachePage {
     collapsed: HashSet<String>,
     checked: Vec<cache::Scope>,
     state: RefCell<ListState>,
+    items_revision: u64,
+    items_cache: RefCell<Option<CachedItems>>,
     query_rx: Option<mpsc::Receiver<Result<crate::engine_service::Inventory, String>>>,
     query_worker: Option<thread::JoinHandle<()>>,
 }
@@ -30,6 +35,8 @@ impl Default for CachePage {
             collapsed: HashSet::new(),
             checked: vec![cache::Scope::Results, cache::Scope::Identification],
             state: RefCell::new(ListState::default()),
+            items_revision: 0,
+            items_cache: RefCell::new(None),
             query_rx: None,
             query_worker: None,
         }
@@ -90,16 +97,33 @@ impl App {
         self.cache_page.entries = inventory.entries;
         self.cache_page.records = inventory.records;
         self.cache_page.summaries = inventory.summaries;
+        self.cache_page.items_revision = self.cache_page.items_revision.wrapping_add(1);
+        *self.cache_page.items_cache.borrow_mut() = None;
         self.cache_page.row = self
             .cache_page
             .row
             .min(self.cache_items().len().saturating_sub(1));
     }
-    fn cache_items(&self) -> Vec<CacheItem> {
+    fn cache_items(&self) -> Rc<Vec<CacheItem>> {
+        let key = (self.cache_page.items_revision, self.cache_page.scope);
+        if let Some((cached_key, items)) = self.cache_page.items_cache.borrow().as_ref()
+            && *cached_key == key
+        {
+            return items.clone();
+        }
         let scope = cache::SCOPES.get(self.cache_page.scope).copied();
         let mut items = Vec::new();
         let mut record_files = HashSet::new();
         if scope.is_none_or(|s| s == cache::Scope::Exports) {
+            let mut export_bytes_by_prefix: HashMap<&str, u64> = HashMap::new();
+            for entry in &self.cache_page.entries {
+                if entry.scope == cache::Scope::Exports
+                    && let Some(name) = entry.path.file_name().and_then(|n| n.to_str())
+                    && let Some((prefix, _)) = name.split_once('.')
+                {
+                    *export_bytes_by_prefix.entry(prefix).or_default() += entry.bytes;
+                }
+            }
             for record in &self.cache_page.records {
                 record_files.insert(format!("{}.export.json", record.key));
                 record_files.insert(format!("{}.{}", record.key, record.format));
@@ -109,17 +133,10 @@ impl App {
                             .join("exports")
                             .join(format!("{}.export.json", record.key)),
                     ],
-                    bytes: self
-                        .cache_page
-                        .entries
-                        .iter()
-                        .filter(|e| {
-                            e.path
-                                .file_name()
-                                .is_some_and(|n| n.to_string_lossy().starts_with(&record.key))
-                        })
-                        .map(|e| e.bytes)
-                        .sum(),
+                    bytes: export_bytes_by_prefix
+                        .get(record.key.as_str())
+                        .copied()
+                        .unwrap_or(0),
                     label: format!(
                         "{} · {} 条 · {} · {} · {}",
                         record.plugin,
@@ -141,7 +158,8 @@ impl App {
             if entry
                 .path
                 .file_name()
-                .is_some_and(|n| record_files.contains(&n.to_string_lossy().into_owned()))
+                .and_then(|n| n.to_str())
+                .is_some_and(|n| record_files.contains(n))
             {
                 continue;
             }
@@ -210,6 +228,8 @@ impl App {
                 items.extend(children);
             }
         }
+        let items = Rc::new(items);
+        *self.cache_page.items_cache.borrow_mut() = Some((key, items.clone()));
         items
     }
     pub(super) fn draw_cache_page(&self, frame: &mut Frame, area: Rect) {
@@ -219,12 +239,12 @@ impl App {
         ])
         .split(area);
         let scope_items = cache::SCOPES.iter().map(|scope| {
-            let entries: Vec<_> = self
+            let count = self
                 .cache_page
                 .entries
                 .iter()
                 .filter(|e| e.scope == *scope)
-                .collect();
+                .count();
             ListItem::new(format!(
                 "[{}] {} · {} 项",
                 if self.cache_page.checked.contains(scope) {
@@ -233,7 +253,7 @@ impl App {
                     " "
                 },
                 scope.label(),
-                entries.len()
+                count
             ))
         });
         frame.render_stateful_widget(
@@ -341,6 +361,9 @@ impl App {
                         if !self.cache_page.collapsed.remove(&group) {
                             self.cache_page.collapsed.insert(group);
                         }
+                        self.cache_page.items_revision =
+                            self.cache_page.items_revision.wrapping_add(1);
+                        *self.cache_page.items_cache.borrow_mut() = None;
                     } else if let Some(key) = item.record {
                         self.start_work(Work::Record(key));
                     }

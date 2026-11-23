@@ -177,7 +177,8 @@ fn pool_chunk_plans_and_overlap_match_actual_layer_iterators() {
                 continue;
             }
             let data = &bytes[start as usize..(start + length) as usize];
-            for (_, at) in PoolTagMatches::new(data, [b"Driv".as_slice()]).unwrap() {
+            let tags = PoolTagSet::new([b"Driv".as_slice()]).unwrap();
+            for (_, at) in tags.matches(data) {
                 if at as u64 >= POOL_SCAN_CHUNK {
                     break;
                 }
@@ -236,10 +237,8 @@ fn shared_carver_handles_chunk_crossings_and_reference_raw_tail_repeats() {
     .unwrap();
     let length = vectors["default_section"]["length"].as_u64().unwrap() as usize;
     let data = b"....Driv";
-    let found: Vec<_> = PoolTagMatches::new(&data[..length], [b"Driv".as_slice()])
-        .unwrap()
-        .map(|(_, at)| at)
-        .collect();
+    let tags = PoolTagSet::new([b"Driv".as_slice()]).unwrap();
+    let found: Vec<_> = tags.matches(&data[..length]).map(|(_, at)| at).collect();
     assert_eq!(json!(found), vectors["default_section"]["expected"]);
 }
 
@@ -316,6 +315,7 @@ fn pool_header_constraints_read_only_required_fields_across_scan_slices() {
                             virtual_scan,
                             alignment: 16,
                             vista: case["vista"].as_bool().unwrap(),
+                            has_pool_type: isf.has_field("_POOL_HEADER", "PoolType"),
                         },
                     )
                     .unwrap();
@@ -392,8 +392,9 @@ fn merged_pool_tags_match_actual_reference_order_and_non_overlap() {
             .iter()
             .map(|tag| decode(tag.as_str().unwrap()))
             .collect();
-        let matches: Vec<_> = PoolTagMatches::new(&data, tags.iter().map(Vec::as_slice))
-            .unwrap()
+        let tag_set = PoolTagSet::new(tags.iter().map(Vec::as_slice)).unwrap();
+        let matches: Vec<_> = tag_set
+            .matches(&data)
             .map(|(index, at)| [at, index])
             .collect();
         assert_eq!(
@@ -419,8 +420,8 @@ fn merged_pool_tags_match_actual_reference_order_and_non_overlap() {
             case["id"]
         );
     }
-    assert!(PoolTagMatches::new(b"Driv", [b"Driv".as_slice(), b"Driv".as_slice()]).is_err());
-    assert!(PoolTagMatches::new(b"", std::iter::empty()).is_err());
+    assert!(PoolTagSet::new([b"Driv".as_slice(), b"Driv".as_slice()]).is_err());
+    assert!(PoolTagSet::new(std::iter::empty()).is_err());
 }
 
 #[test]
@@ -636,6 +637,8 @@ fn top_down_missing_window_tail_matches_pinned_padded_carving() {
             &constraint,
             0x1fc0,
             PoolCarve {
+                start: 0,
+                data: &[],
                 block: 128,
                 alignment: 16,
                 type_size: 152,
@@ -736,6 +739,8 @@ fn nonexecutive_hives_keep_raw_observations_without_signature_validation() {
             constraint,
             0x1000,
             PoolCarve {
+                start: 0,
+                data: &[],
                 block: 800,
                 alignment: 16,
                 type_size: 816,
@@ -760,9 +765,7 @@ fn nonexecutive_hives_keep_raw_observations_without_signature_validation() {
                     constraint,
                     body,
                     false,
-                    &PoolValidation {
-                        types: BTreeMap::new(),
-                    },
+                    &windows.pool_validation().unwrap(),
                     &mut result,
                     &mut diagnostics
                 )
@@ -908,6 +911,8 @@ fn top_down_padding_matches_pinned_signed_subtraction_and_comparison() {
                 &constraint,
                 K + 0x4000,
                 PoolCarve {
+                    start: 0,
+                    data: &[],
                     block: 128,
                     alignment: 16,
                     type_size: 152,

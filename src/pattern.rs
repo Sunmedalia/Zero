@@ -9,15 +9,26 @@ use memchr::memmem::Finder;
 
 const MAX_LENGTH: usize = 256;
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug)]
 pub struct Pattern {
     length: usize,
     /// Longest wildcard-free run, used to find candidates quickly.
     anchor: (usize, Vec<u8>),
+    /// Prebuilt SIMD finder over `anchor.1`, reused across every region scan.
+    finder: Finder<'static>,
     /// Fixed bytes outside the anchor.
     checks: Vec<(usize, u8)>,
     source: String,
 }
+impl PartialEq for Pattern {
+    fn eq(&self, other: &Self) -> bool {
+        self.length == other.length
+            && self.anchor == other.anchor
+            && self.checks == other.checks
+            && self.source == other.source
+    }
+}
+impl Eq for Pattern {}
 
 impl Pattern {
     pub fn parse(text: &str) -> Result<Self> {
@@ -66,12 +77,13 @@ impl Pattern {
         if best.1 - best.0 < 2 {
             bail!("模式至少需要连续 2 个确定字节");
         }
-        let anchor = bytes
+        let anchor: Vec<u8> = bytes
             .at(best.0..best.1)?
             .iter()
             .flatten()
             .copied()
             .collect();
+        let finder = Finder::new(&anchor).into_owned();
         let checks = bytes
             .iter()
             .copied()
@@ -82,6 +94,7 @@ impl Pattern {
         Ok(Self {
             length: bytes.len(),
             anchor: (best.0, anchor),
+            finder,
             checks,
             source: text.to_owned(),
         })
@@ -98,21 +111,16 @@ impl Pattern {
     }
     /// Start offsets of every match fully inside `haystack`.
     pub fn find_all(&self, haystack: &[u8]) -> Vec<usize> {
-        self.matches(haystack, &Finder::new(&self.anchor.1))
-            .collect()
+        self.matches(haystack).collect()
     }
 
-    fn matches<'a>(
-        &'a self,
-        haystack: &'a [u8],
-        finder: &'a Finder<'_>,
-    ) -> impl Iterator<Item = usize> + 'a {
+    fn matches<'a>(&'a self, haystack: &'a [u8]) -> impl Iterator<Item = usize> + 'a {
         let last_start = haystack.len().checked_sub(self.len());
         let mut cursor = 0;
         std::iter::from_fn(move || {
             let last_start = last_start?;
             while cursor <= last_start {
-                let start = cursor + finder.find(haystack.get(cursor + self.anchor.0..)?)?;
+                let start = cursor + self.finder.find(haystack.get(cursor + self.anchor.0..)?)?;
                 if start > last_start {
                     break;
                 }
@@ -189,7 +197,24 @@ pub fn scan_region(
     budget: &mut u64,
     limit: usize,
     job: &Job,
+    read: impl FnMut(u64, &mut [u8]) -> Result<()>,
+) -> Result<RegionScan> {
+    scan_region_sparse(pattern, start, end, budget, limit, job, read, |_, _| None)
+}
+
+/// Like `scan_region`, with an optional `skip_absent(page, end)` callback that
+/// may return a page-aligned end address for a known-unmapped gap after a page
+/// read fails, preserving exact `unreadable` page counts.
+#[allow(clippy::too_many_arguments)]
+pub fn scan_region_sparse(
+    pattern: &Pattern,
+    start: u64,
+    end: u64,
+    budget: &mut u64,
+    limit: usize,
+    job: &Job,
     mut read: impl FnMut(u64, &mut [u8]) -> Result<()>,
+    mut skip_absent: impl FnMut(u64, u64) -> Option<u64>,
 ) -> Result<RegionScan> {
     let mut out = RegionScan::default();
     job.check()?;
@@ -200,30 +225,37 @@ pub fn scan_region(
         out.stop_reason = Some(StopReason::HitLimit);
         return Ok(out);
     }
-    let finder = Finder::new(&pattern.anchor.1);
-    let mut carry = Vec::with_capacity(PAGE_SIZE + pattern.len() - 1);
+    // Single stack buffer holds up to MAX_LENGTH - 1 carry bytes plus one 4 KiB page.
+    let mut buf = [0u8; PAGE_SIZE + MAX_LENGTH];
+    let mut overlap = 0usize;
     let mut page = start & !(PAGE - 1);
-    let mut bytes = [0; PAGE_SIZE];
     while page < end {
         job.check()?;
         if *budget < PAGE {
             out.stop_reason = Some(StopReason::ByteLimit);
             return Ok(out);
         }
-        let result = read(page, &mut bytes);
+        let result = read(page, buf.at_mut(overlap..overlap + PAGE_SIZE)?);
         job.check()?;
         let next_page = page.saturating_add(PAGE);
         if result.is_err() {
-            out.unreadable += 1;
-            carry.clear();
-            page = next_page;
+            overlap = 0;
+            if let Some(skip_to) = skip_absent(page, end).filter(|&skip_to| skip_to > next_page) {
+                let target = skip_to.min(end);
+                out.unreadable += target.saturating_sub(page).div_ceil(PAGE);
+                page = target;
+            } else {
+                out.unreadable += 1;
+                page = next_page;
+            }
             continue;
         }
         // Only resident bytes count against the budget.
         *budget -= PAGE;
-        let base = page - carry.len() as u64;
-        carry.extend_from_slice(&bytes);
-        for offset in pattern.matches(&carry, &finder) {
+        let base = page - overlap as u64;
+        let len = overlap + PAGE_SIZE;
+        let window = buf.at(..len)?;
+        for offset in pattern.matches(window) {
             let address = base + offset as u64;
             if address < start || end.saturating_sub(address) < pattern.len() as u64 {
                 continue;
@@ -232,11 +264,12 @@ pub fn scan_region(
                 out.stop_reason = Some(StopReason::HitLimit);
                 return Ok(out);
             }
-            let stop = carry.len().min(offset + CONTEXT);
-            out.hits.push((address, carry.at(offset..stop)?.to_vec()));
+            let stop = len.min(offset + CONTEXT);
+            out.hits.push((address, window.at(offset..stop)?.to_vec()));
         }
-        let keep = pattern.len().saturating_sub(1).min(carry.len());
-        carry.drain(..carry.len() - keep);
+        let keep = pattern.len().saturating_sub(1).min(len);
+        buf.copy_within(len - keep..len, 0);
+        overlap = keep;
         page = next_page;
     }
     job.check()?;
@@ -407,5 +440,54 @@ mod tests {
         )
         .unwrap_err();
         assert!(error.to_string().contains("cancelled"));
+    }
+
+    #[test]
+    fn sparse_skip_matches_page_by_page_hits_and_unreadable_counts() {
+        let pattern = Pattern::parse("needle").unwrap();
+        let mut memory = vec![0u8; 8 * PAGE_SIZE];
+        memory[120..126].copy_from_slice(b"needle");
+        memory[6 * PAGE_SIZE + 10..6 * PAGE_SIZE + 16].copy_from_slice(b"needle");
+        // Pages 1..=5 are absent.
+        let mut dense_reads = 0usize;
+        let mut dense_budget = 1 << 20;
+        let dense = scan_region(
+            &pattern,
+            0,
+            8 * PAGE,
+            &mut dense_budget,
+            100,
+            &Job::default(),
+            |at, out| {
+                dense_reads += 1;
+                ensure!(!(PAGE..6 * PAGE).contains(&at), "缺页");
+                out.copy_from_slice(&memory[at as usize..at as usize + PAGE_SIZE]);
+                Ok(())
+            },
+        )
+        .unwrap();
+        let mut sparse_reads = 0usize;
+        let mut sparse_budget = 1 << 20;
+        let sparse = scan_region_sparse(
+            &pattern,
+            0,
+            8 * PAGE,
+            &mut sparse_budget,
+            100,
+            &Job::default(),
+            |at, out| {
+                sparse_reads += 1;
+                ensure!(!(PAGE..6 * PAGE).contains(&at), "缺页");
+                out.copy_from_slice(&memory[at as usize..at as usize + PAGE_SIZE]);
+                Ok(())
+            },
+            |at, end| (at == PAGE).then_some((6 * PAGE).min(end)),
+        )
+        .unwrap();
+        assert_eq!(sparse, dense);
+        assert_eq!(sparse_budget, dense_budget);
+        assert_eq!(sparse.unreadable, 5);
+        assert!(sparse_reads < dense_reads);
+        assert_eq!(sparse_reads, 4);
     }
 }

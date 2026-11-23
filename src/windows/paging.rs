@@ -117,6 +117,8 @@ impl BackingFile {
 pub struct Sources {
     pub(super) job: Job,
     pub(super) kernel_context: Option<(u64, u64)>,
+    /// Boot-time constant `MiState.Hardware.InvalidPteMask` when readable at configure time.
+    invalid_pte_mask: Option<u64>,
     pub(super) virtual_indexes: HashSet<u8>,
     pub(super) compressed: Mutex<compressed::State>,
     files: BTreeMap<u8, BackingFile>,
@@ -142,6 +144,7 @@ impl Sources {
         Ok(Self {
             job: job.clone(),
             kernel_context: None,
+            invalid_pte_mask: None,
             virtual_indexes: HashSet::new(),
             compressed: Mutex::new(compressed::State::default()),
             files,
@@ -151,6 +154,16 @@ impl Sources {
     }
     pub(super) fn configure_kernel(&mut self, engine: &Windows<'_>) -> Result<()> {
         self.kernel_context = Some((engine.vm.root, engine.base));
+        if engine.vm.isf.has_field("_MMPTE_SOFTWARE", "SwizzleBit") {
+            self.invalid_pte_mask = engine
+                .symbol("MiState")
+                .and_then(|state| {
+                    engine
+                        .vm
+                        .number(state, "_MI_SYSTEM_INFORMATION", "Hardware.InvalidPteMask")
+                })
+                .ok();
+        }
         if let (Ok(count), Ok(array)) = (
             engine.symbol("MmNumberOfPagingFiles"),
             engine.symbol("MmPagingFile"),
@@ -297,25 +310,25 @@ impl Memory<'_> {
         let mut high = json_number(self.isf, entry, "_MMPTE_SOFTWARE", "PageFileHigh")?;
         // Old layouts have no swizzle flag. Modern nonswizzled PTEs include
         // the kernel's invalid-PTE marker in PageFileHigh, not in the file offset.
-        if self.isf.field("_MMPTE_SOFTWARE", "SwizzleBit").is_ok()
+        if self.isf.layout("_MMPTE_SOFTWARE", "SwizzleBit").is_ok()
             && json_number(self.isf, entry, "_MMPTE_SOFTWARE", "SwizzleBit")? == 0
         {
-            let (root, base) = self
-                .sources
-                .context("缺少分页上下文")?
-                .kernel_context
-                .context("缺少分页内核上下文")?;
-            let kernel = Windows {
-                vm: Memory::new(self.image, root, self.isf, self.sources),
-                base,
-                pdb: PdbIdentity::from_isf(self.isf)?,
-            };
-            let state = kernel.symbol("MiState")?;
-            high &=
-                !(kernel
+            let sources = self.sources.context("缺少分页上下文")?;
+            let mask = if let Some(mask) = sources.invalid_pte_mask {
+                mask
+            } else {
+                let (root, base) = sources.kernel_context.context("缺少分页内核上下文")?;
+                let kernel = Windows {
+                    vm: Memory::new(self.image, root, self.isf, self.sources),
+                    base,
+                    pdb: PdbIdentity::from_isf(self.isf)?,
+                };
+                let state = kernel.symbol("MiState")?;
+                kernel
                     .vm
                     .number(state, "_MI_SYSTEM_INFORMATION", "Hardware.InvalidPteMask")?
-                    >> 32);
+            };
+            high &= !(mask >> 32);
         }
         Ok(high)
     }
@@ -379,11 +392,35 @@ impl Memory<'_> {
             );
             let offset = page.checked_mul(4096).context("分页偏移溢出")?;
             if shift == 12 {
-                return self.software_page_read(va, entry, out);
+                return self.software_page_read_resolved(va, entry, file, offset, out);
             }
             backing = Some((file, offset));
         }
         bail!("无法解析分页 PTE")
+    }
+    fn software_page_read_resolved(
+        &self,
+        va: u64,
+        entry: u64,
+        file: u8,
+        offset: u64,
+        out: &mut [u8],
+    ) -> Result<()> {
+        let sources = self.sources.context("未附加分页文件")?;
+        if sources.has_file(file) {
+            return sources.read(file, add(offset, va & 4095)?, out);
+        }
+        ensure!(
+            sources.virtual_indexes.contains(&file),
+            "缺少显式分页附件 index {file}；该索引也未验证为虚拟压缩 store"
+        );
+        let page = sources.compressed_page(self, va, entry, file)?;
+        let start = (va & 4095) as usize;
+        out.copy_from_slice(
+            page.get(start..start + out.len())
+                .context("压缩页范围越界")?,
+        );
+        Ok(())
     }
     fn software_page_read(&self, va: u64, entry: u64, out: &mut [u8]) -> Result<()> {
         ensure!(
@@ -403,21 +440,7 @@ impl Memory<'_> {
             "无分页内容的 PTE（未提交或 demand-zero）"
         );
         let offset = high.checked_mul(4096).context("分页偏移溢出")?;
-        let sources = self.sources.context("未附加分页文件")?;
-        if sources.has_file(file) {
-            return sources.read(file, add(offset, va & 4095)?, out);
-        }
-        ensure!(
-            sources.virtual_indexes.contains(&file),
-            "缺少显式分页附件 index {file}；该索引也未验证为虚拟压缩 store"
-        );
-        let page = sources.compressed_page(self, va, entry, file)?;
-        let start = (va & 4095) as usize;
-        out.copy_from_slice(
-            page.get(start..start + out.len())
-                .context("压缩页范围越界")?,
-        );
-        Ok(())
+        self.software_page_read_resolved(va, entry, file, offset, out)
     }
     fn prototype_read(&self, mut entry: u64, va: u64, out: &mut [u8]) -> Result<()> {
         let geometry = self.paging()?;

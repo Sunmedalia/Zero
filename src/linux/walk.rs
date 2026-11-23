@@ -67,6 +67,14 @@ impl Linux<'_> {
             .as_u64()
             .context("maple 指针宽度缺失")?;
         ensure!(matches!(pointer_width, 4 | 8), "maple 指针宽度无效");
+        let dense_slot_field = if self.isf.has_field("maple_node", "alloc.slot") {
+            "alloc.slot"
+        } else {
+            "slot"
+        };
+        // Cache (slot_offset, count, slot_width) per maple node kind outside the traversal loop.
+        let mut slot_layouts: [Option<(u64, usize, usize)>; 4] = [None; 4];
+        let mut raw_slots = [0u8; 512];
         let mut stack = vec![(root, root & 3 == 2, tree & !255)];
         let mut seen = HashSet::new();
         let mut leaves = Vec::new();
@@ -108,27 +116,37 @@ impl Linux<'_> {
             if parent & !255 != expected_parent {
                 continue;
             }
-            let slot_field = if kind == 0 && self.isf.has_field(structure, "alloc.slot") {
-                "alloc.slot"
-            } else {
-                "slot"
+            let kind_idx = usize::try_from(kind)?;
+            let (slot_offset, count, slot_width) = match *slot_layouts.at(kind_idx)? {
+                Some(layout) => layout,
+                None => {
+                    let slot_field = if kind == 0 { dense_slot_field } else { "slot" };
+                    let offset = self.isf.offset(structure, slot_field)?;
+                    let count = self.isf.field(structure, slot_field)?["type"]
+                        .key("count")
+                        .as_u64()
+                        .context("maple slot count 缺失")?;
+                    ensure!((1..=64).contains(&count), "maple slot count 异常");
+                    let total_size = self.isf.size(structure, slot_field)?;
+                    let count_usize = usize::try_from(count)?;
+                    let slot_width = total_size / count_usize;
+                    ensure!(
+                        matches!(slot_width, 4 | 8) && total_size == slot_width * count_usize,
+                        "maple slot 宽度无效"
+                    );
+                    let layout = (offset, count_usize, slot_width);
+                    *slot_layouts.at_mut(kind_idx)? = Some(layout);
+                    layout
+                }
             };
-            let slots = self.field_address(base, structure, slot_field)?;
-            let count = self.isf.field(structure, slot_field)?["type"]
-                .key("count")
-                .as_u64()
-                .context("maple slot count 缺失")?;
-            ensure!((1..=64).contains(&count), "maple slot count 异常");
-            let slot_width = self.isf.size(structure, slot_field)? as u64 / count;
-            ensure!(
-                matches!(slot_width, 4 | 8)
-                    && self.isf.size(structure, slot_field)? as u64 == slot_width * count,
-                "maple slot 宽度无效"
-            );
-            for i in 0..count {
-                let child = self
-                    .vm
-                    .uint(add(slots, i * slot_width)?, usize::try_from(slot_width)?)?;
+            let slots = add(base, slot_offset)?;
+            let total_bytes = count * slot_width;
+            let buf = raw_slots.at_mut(..total_bytes)?;
+            self.vm.read(slots, buf)?;
+            for chunk in buf.chunks_exact(slot_width) {
+                let mut word = [0u8; 8];
+                word.at_mut(..slot_width)?.copy_from_slice(chunk);
+                let child = u64::from_le_bytes(word);
                 if child & !15 != 0 {
                     if leaf {
                         ensure!(child & (pointer_width - 1) == 0, "maple VMA 指针对齐错误");

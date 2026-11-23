@@ -60,6 +60,8 @@ impl Linux<'_> {
             let mut previous = head;
             let mut current = head;
             let mut visited = HashSet::new();
+            let diagnostics_before = result.diagnostics.len();
+            let mut closed_at_head = false;
             loop {
                 job.check()?;
                 let link = self.number(current, "list_head", direction);
@@ -78,7 +80,7 @@ impl Linux<'_> {
                 };
                 if node == head {
                     match self.number(head, "list_head", opposite) {
-                        Ok(back) if back == previous => (),
+                        Ok(back) if back == previous => closed_at_head = true,
                         other => evidence(
                             &mut result,
                             direction,
@@ -215,6 +217,14 @@ impl Linux<'_> {
                 }
                 previous = node;
                 current = node;
+            }
+            // If the forward pass verified every backlink and closed cleanly at
+            // `head` with zero diagnostics, the backward ring is identical.
+            if direction == "next"
+                && closed_at_head
+                && result.diagnostics.len() == diagnostics_before
+            {
+                break;
             }
         }
         // Preserve the established informational warning. A parent outside the

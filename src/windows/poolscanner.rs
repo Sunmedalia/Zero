@@ -9,39 +9,51 @@ mod tables;
 mod validation;
 use tables::*;
 
+/// Prebuilt four-byte pool tag finders reused across every scan chunk.
+struct PoolTagSet<'tag> {
+    finders: Vec<memmem::Finder<'tag>>,
+}
+
+impl<'tag> PoolTagSet<'tag> {
+    fn new(tags: impl IntoIterator<Item = &'tag [u8]>) -> Result<Self> {
+        let mut finders = Vec::new();
+        let mut unique = HashSet::new();
+        for tag in tags {
+            ensure!(tag.len() == 4, "pool 标签必须是四字节");
+            ensure!(unique.insert(tag), "pool 标签约束重复");
+            finders.push(memmem::Finder::new(tag));
+        }
+        ensure!(!finders.is_empty(), "pool 标签约束为空");
+        Ok(Self { finders })
+    }
+
+    fn matches<'data, 'set>(&'set self, data: &'data [u8]) -> PoolTagMatches<'data, 'set, 'tag> {
+        let mut pending = BinaryHeap::with_capacity(self.finders.len());
+        for (index, finder) in self.finders.iter().enumerate() {
+            if let Some(at) = finder.find(data) {
+                pending.push(Reverse((at, index)));
+            }
+        }
+        PoolTagMatches {
+            data,
+            finders: &self.finders,
+            pending,
+            consumed: 0,
+        }
+    }
+}
+
 /// Merge the four-byte pool patterns in address order, consuming each match as
 /// Python MultiStringScanner's regex does. Only one pending hit per pattern is
 /// retained; a buffer with many tags cannot allocate a hit-sized side table.
-struct PoolTagMatches<'data, 'tag> {
+struct PoolTagMatches<'data, 'set, 'tag> {
     data: &'data [u8],
-    finders: Vec<memmem::Finder<'tag>>,
+    finders: &'set [memmem::Finder<'tag>],
     pending: BinaryHeap<Reverse<(usize, usize)>>,
     consumed: usize,
 }
 
-impl<'data, 'tag> PoolTagMatches<'data, 'tag> {
-    fn new(data: &'data [u8], tags: impl IntoIterator<Item = &'tag [u8]>) -> Result<Self> {
-        let mut finders = Vec::new();
-        let mut pending = BinaryHeap::new();
-        let mut unique = HashSet::new();
-        for (index, tag) in tags.into_iter().enumerate() {
-            ensure!(tag.len() == 4, "pool 标签必须是四字节");
-            ensure!(unique.insert(tag), "pool 标签约束重复");
-            let finder = memmem::Finder::new(tag);
-            if let Some(at) = finder.find(data) {
-                pending.push(Reverse((at, index)));
-            }
-            finders.push(finder);
-        }
-        ensure!(!finders.is_empty(), "pool 标签约束为空");
-        Ok(Self {
-            data,
-            finders,
-            pending,
-            consumed: 0,
-        })
-    }
-
+impl PoolTagMatches<'_, '_, '_> {
     fn advance(&mut self, index: usize, from: usize) {
         if let (Some(finder), Some(data)) = (self.finders.get(index), self.data.get(from..))
             && let Some(at) = finder.find(data)
@@ -51,7 +63,7 @@ impl<'data, 'tag> PoolTagMatches<'data, 'tag> {
     }
 }
 
-impl Iterator for PoolTagMatches<'_, '_> {
+impl Iterator for PoolTagMatches<'_, '_, '_> {
     type Item = (usize, usize);
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -121,9 +133,12 @@ struct PoolHeaderRead<'a> {
     virtual_scan: bool,
     alignment: u64,
     vista: bool,
+    has_pool_type: bool,
 }
 
 struct PoolCarve<'a> {
+    start: u64,
+    data: &'a [u8],
     block: u64,
     alignment: u64,
     type_size: u64,
@@ -134,6 +149,11 @@ struct PoolCarve<'a> {
 
 struct PoolValidation {
     types: BTreeMap<u64, String>,
+    has_type_index: bool,
+    cookie_symbol: bool,
+    cookie: Option<u8>,
+    has_threads_process: bool,
+    current_year: Option<i64>,
 }
 
 fn current_local_year() -> Result<i64> {
@@ -195,6 +215,26 @@ impl Windows<'_> {
         Ok(result)
     }
 
+    fn pool_validation(&self) -> Result<PoolValidation> {
+        let cookie_symbol = self.symbol("ObHeaderCookie").is_ok();
+        let cookie = cookie_symbol
+            .then(|| {
+                self.symbol("ObHeaderCookie")
+                    .and_then(|address| self.vm.uint(address, 1))
+                    .ok()
+                    .and_then(|value| u8::try_from(value).ok())
+            })
+            .flatten();
+        Ok(PoolValidation {
+            types: self.pool_reference_type_map()?,
+            has_type_index: self.vm.isf.has_field("_OBJECT_HEADER", "TypeIndex"),
+            cookie_symbol,
+            cookie,
+            has_threads_process: self.vm.isf.has_field("_ETHREAD", "ThreadsProcess"),
+            current_year: current_local_year().ok(),
+        })
+    }
+
     fn pool_scanner_rows(&self, result: &mut Results, job: &Job) -> Result<()> {
         let build = self.build_number()?;
         let virtual_scan = build >= 10240;
@@ -203,9 +243,8 @@ impl Windows<'_> {
         let alignment = if self.vm.pointer_size() == 4 { 8 } else { 16 };
         let (tag_offset, _) = self.pool_header_layout()?;
         let sizes = self.pool_type_sizes()?;
-        let validation = PoolValidation {
-            types: self.pool_reference_type_map()?,
-        };
+        let has_pool_type = self.vm.isf.has_field("_POOL_HEADER", "PoolType");
+        let validation = self.pool_validation()?;
         let optional = if top_down {
             self.pool_optional_headers()?
         } else {
@@ -220,13 +259,16 @@ impl Windows<'_> {
         let mut text = 0usize;
         let mut diagnostics = 0usize;
         let translated = virtual_scan || self.vm.image.format != "RAW";
+        let tag_set = PoolTagSet::new(CONSTRAINTS.iter().map(|c| c.tag))?;
+        let mut data = Vec::new();
         for (start, length) in
             PoolScanChunks::new(self.pool_scan_ranges(virtual_scan, job)?, translated)
         {
             job.check()?;
-            let mut data =
-                vec![0u8; usize::try_from(length).context("pool 扫描范围超出地址空间")?];
-            if self.pool_read(start, &mut data, virtual_scan).is_err() {
+            let length_usize = usize::try_from(length).context("pool 扫描范围超出地址空间")?;
+            data.resize(length_usize, 0);
+            let slice = data.at_mut(..length_usize)?;
+            if self.pool_read(start, slice, virtual_scan).is_err() {
                 self.pool_note(
                     result,
                     &mut diagnostics,
@@ -235,7 +277,7 @@ impl Windows<'_> {
                 );
                 continue;
             }
-            for (index, tag) in PoolTagMatches::new(&data, CONSTRAINTS.iter().map(|c| c.tag))? {
+            for (index, tag) in tag_set.matches(slice) {
                 job.check()?;
                 if tag as u64 >= POOL_SCAN_CHUNK {
                     break;
@@ -252,10 +294,11 @@ impl Windows<'_> {
                     address,
                     PoolHeaderRead {
                         start,
-                        data: &data,
+                        data: slice,
                         virtual_scan,
                         alignment,
                         vista,
+                        has_pool_type,
                     },
                 )?
                 else {
@@ -265,6 +308,8 @@ impl Windows<'_> {
                     constraint,
                     address,
                     PoolCarve {
+                        start,
+                        data: slice,
                         block: size,
                         alignment,
                         type_size,
@@ -356,7 +401,7 @@ impl Windows<'_> {
             } else {
                 self.pool_read(at, bytes.at_mut(..length)?, scan.virtual_scan)?;
             }
-            json_number(self.vm.isf, u64::from_le_bytes(bytes), "_POOL_HEADER", name)
+            layout.decode(u64::from_le_bytes(bytes))
         };
         let Ok(block) = field("BlockSize") else {
             return Ok(None);
@@ -367,7 +412,7 @@ impl Windows<'_> {
         if size < constraint.minimum {
             return Ok(None);
         }
-        if self.vm.isf.has_field("_POOL_HEADER", "PoolType") {
+        if scan.has_pool_type {
             let Ok(page) = field("PoolType") else {
                 return Ok(None);
             };
@@ -538,7 +583,7 @@ impl Windows<'_> {
         let entries = geometry.entries(level);
         // _get_valid_table always reads a full 4 KiB table, including the
         // four-entry PAE root; only indexing is restricted to those entries.
-        let mut bytes = vec![0u8; 4096];
+        let mut bytes = [0u8; 4096];
         if self.vm.image.read(table, &mut bytes).is_err() {
             return Ok(());
         }
@@ -583,6 +628,8 @@ impl Windows<'_> {
         job: &Job,
     ) -> Result<Vec<u64>> {
         let PoolCarve {
+            start: chunk_start,
+            data: chunk_data,
             block,
             alignment,
             type_size,
@@ -632,8 +679,19 @@ impl Windows<'_> {
         let window_length = usize::try_from(limit)?
             .checked_add(info)
             .context("对象头扫描窗口溢出")?;
-        let mut window = vec![0u8; window_length];
-        self.pool_read_padded(start, &mut window, virtual_scan)?;
+        let mut owned_window = Vec::new();
+        let window: &[u8] = if let Some(slice) = start
+            .checked_sub(chunk_start)
+            .and_then(|offset| usize::try_from(offset).ok())
+            .and_then(|offset| offset.checked_add(window_length).map(|end| (offset, end)))
+            .and_then(|(offset, end)| chunk_data.get(offset..end))
+        {
+            slice
+        } else {
+            owned_window.resize(window_length, 0);
+            self.pool_read_padded(start, &mut owned_window, virtual_scan)?;
+            &owned_window
+        };
         let mut found = Vec::new();
         for delta in (0..limit).step_by(usize::try_from(alignment)?) {
             job.check()?;
@@ -670,7 +728,7 @@ impl Windows<'_> {
                 else {
                     continue;
                 };
-                let Some(encoded) = le_u32(&window, at).map(u64::from) else {
+                let Some(encoded) = le_u32(window, at).map(u64::from) else {
                     continue;
                 };
                 // Pinned Python subtraction is signed: an encoded padding amount
@@ -717,6 +775,7 @@ impl Windows<'_> {
         let vista = build >= 6000;
         let alignment = if self.vm.pointer_size() == 4 { 8 } else { 16 };
         let (tag_offset, _) = self.pool_header_layout()?;
+        let has_pool_type = self.vm.isf.has_field("_POOL_HEADER", "PoolType");
         let optional = if top_down {
             self.pool_optional_headers()?
         } else {
@@ -725,17 +784,20 @@ impl Windows<'_> {
         let mut bodies = Vec::new();
         let mut notes = Vec::new();
         let translated = virtual_scan || self.vm.image.format != "RAW";
+        let tag_set = PoolTagSet::new(constraints.iter().map(|c| c.tag))?;
+        let mut data = Vec::new();
         for (start, length) in
             PoolScanChunks::new(self.pool_scan_ranges(virtual_scan, job)?, translated)
         {
             job.check()?;
-            let mut data =
-                vec![0u8; usize::try_from(length).context("pool 扫描范围超出地址空间")?];
-            if self.pool_read(start, &mut data, virtual_scan).is_err() {
+            let length_usize = usize::try_from(length).context("pool 扫描范围超出地址空间")?;
+            data.resize(length_usize, 0);
+            let slice = data.at_mut(..length_usize)?;
+            if self.pool_read(start, slice, virtual_scan).is_err() {
                 notes.push(format!("pool range {start:#x}+{length:#x} 不可读"));
                 continue;
             }
-            for (index, tag_at) in PoolTagMatches::new(&data, constraints.iter().map(|c| c.tag))? {
+            for (index, tag_at) in tag_set.matches(slice) {
                 job.check()?;
                 if tag_at as u64 >= POOL_SCAN_CHUNK {
                     break;
@@ -750,10 +812,11 @@ impl Windows<'_> {
                     address,
                     PoolHeaderRead {
                         start,
-                        data: &data,
+                        data: slice,
                         virtual_scan,
                         alignment,
                         vista,
+                        has_pool_type,
                     },
                 )?
                 else {
@@ -763,6 +826,8 @@ impl Windows<'_> {
                     constraint,
                     address,
                     PoolCarve {
+                        start,
+                        data: slice,
                         block: size,
                         alignment,
                         type_size,

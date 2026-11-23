@@ -53,6 +53,8 @@ const PHYSICAL_SLOTS: u64 = 1024;
 #[derive(Default)]
 struct PhysicalPages {
     slots: Vec<Option<(u64, Box<[u8; 4096]>)>>,
+    /// One evicted buffer reused on the next cache miss to avoid heap churn.
+    spare: Option<Box<[u8; 4096]>>,
 }
 /// Read-ahead chunk for image digesting.
 const DIGEST_CHUNK: usize = 4 * 1024 * 1024;
@@ -200,38 +202,69 @@ pub(crate) const POOL_TAGS: &[&[u8]] = &[
 /// Hits kept per pool tag in the digest pass. A tag past this is dropped and
 /// left to `prefetch_scans`, so an unusual image cannot grow memory unbounded.
 const POOL_HIT_LIMIT: usize = 1 << 22;
-/// Distinct three-byte prefixes of `POOL_TAGS`. None overlaps itself, so a
-/// non-overlapping search finds every occurrence; the fourth byte then picks
-/// the tags. Ten prefix passes measured faster than one automaton or sixteen
-/// whole-tag passes over memory images.
-fn pool_prefixes() -> Vec<&'static [u8]> {
-    let mut prefixes: Vec<&[u8]> = POOL_TAGS.iter().filter_map(|tag| tag.get(..3)).collect();
-    prefixes.sort_unstable();
-    prefixes.dedup();
-    prefixes
+/// Prebuilt matchers for `POOL_TAGS`: ten distinct three-byte prefix finders
+/// paired with the fourth-byte -> tag-index entries they can complete.
+struct PoolMatchers {
+    tags: Vec<(usize, memchr::memmem::Finder<'static>)>,
+    prefixes: Vec<(memchr::memmem::Finder<'static>, Vec<(u8, usize)>)>,
+}
+fn pool_matchers() -> &'static PoolMatchers {
+    static MATCHERS: std::sync::OnceLock<PoolMatchers> = std::sync::OnceLock::new();
+    MATCHERS.get_or_init(|| {
+        let mut prefixes: Vec<&'static [u8]> =
+            POOL_TAGS.iter().filter_map(|tag| tag.get(..3)).collect();
+        prefixes.sort_unstable();
+        prefixes.dedup();
+        let prefix_finders = prefixes
+            .into_iter()
+            .map(|prefix| {
+                let suffixes: Vec<(u8, usize)> = POOL_TAGS
+                    .iter()
+                    .enumerate()
+                    .filter_map(|(index, tag)| {
+                        (tag.get(..3) == Some(prefix))
+                            .then(|| tag.get(3).copied().map(|last| (last, index)))
+                            .flatten()
+                    })
+                    .collect();
+                (memchr::memmem::Finder::new(prefix), suffixes)
+            })
+            .collect();
+        let tags = POOL_TAGS
+            .iter()
+            .enumerate()
+            .map(|(index, tag)| (index, memchr::memmem::Finder::new(tag)))
+            .collect();
+        PoolMatchers {
+            tags,
+            prefixes: prefix_finders,
+        }
+    })
 }
 /// (tag index, file offset) of every pool tag that starts in `boundary` before
 /// `overlap` (the retained tail) or anywhere in `bytes`, which starts at
 /// `offset`. No tag's suffix is a prefix of any tag (checked by a test), so
 /// occurrences never overlap and none is hidden behind another.
 fn pool_hits(boundary: &[u8], overlap: usize, bytes: &[u8], offset: u64) -> Vec<(usize, u64)> {
+    let matchers = pool_matchers();
     let mut hits = Vec::new();
     let base = offset - overlap as u64;
-    for (index, tag) in POOL_TAGS.iter().enumerate() {
+    for (index, finder) in &matchers.tags {
         hits.extend(
-            memchr::memmem::find_iter(boundary, tag)
+            finder
+                .find_iter(boundary)
                 .filter(|at| *at < overlap)
-                .map(|at| (index, base + at as u64)),
+                .map(|at| (*index, base + at as u64)),
         );
     }
-    for prefix in pool_prefixes() {
-        for at in memchr::memmem::find_iter(bytes, prefix) {
+    for (finder, suffixes) in &matchers.prefixes {
+        for at in finder.find_iter(bytes) {
             let Some(&last) = bytes.get(at + 3) else {
                 // Completed by the next chunk's boundary search.
                 continue;
             };
-            for (index, tag) in POOL_TAGS.iter().enumerate() {
-                if tag.get(..3) == Some(prefix) && tag.get(3) == Some(&last) {
+            for &(expected, index) in suffixes {
+                if expected == last {
                     hits.push((index, offset + at as u64));
                 }
             }
@@ -275,15 +308,20 @@ impl Fingerprint {
         let boundary = boundary.get(..overlap + head.len()).unwrap_or(&[]);
         let offset = self.offset;
         let hash = &mut self.hash;
-        let hits = thread::scope(|scope| {
-            let worker = thread::Builder::new()
-                .spawn_scoped(scope, || pool_hits(boundary, overlap, bytes, offset));
+        let hits = if bytes.len() < 64 * 1024 {
             hash.update(bytes);
-            match worker {
-                Ok(worker) => worker.join().ok(),
-                Err(_) => Some(pool_hits(boundary, overlap, bytes, offset)),
-            }
-        });
+            Some(pool_hits(boundary, overlap, bytes, offset))
+        } else {
+            thread::scope(|scope| {
+                let worker = thread::Builder::new()
+                    .spawn_scoped(scope, || pool_hits(boundary, overlap, bytes, offset));
+                hash.update(bytes);
+                match worker {
+                    Ok(worker) => worker.join().ok(),
+                    Err(_) => Some(pool_hits(boundary, overlap, bytes, offset)),
+                }
+            })
+        };
         if self.pool.is_empty() {
             self.pool = vec![Some(Vec::new()); POOL_TAGS.len()];
         }
@@ -1001,15 +1039,23 @@ impl Image {
                 .unwrap_or_else(std::sync::PoisonError::into_inner)
         };
         let range = in_page..in_page + out.len();
-        if let Some(Some((tag, data))) = lock().slots.get(slot)
-            && *tag == page
-        {
-            out.copy_from_slice(data.at(range)?);
-            return Ok(());
-        }
+        let mut data = {
+            let mut cache = lock();
+            if let Some(Some((tag, data))) = cache.slots.get(slot)
+                && *tag == page
+            {
+                out.copy_from_slice(data.at(range)?);
+                return Ok(());
+            }
+            cache.spare.take().unwrap_or_else(|| Box::new([0u8; 4096]))
+        };
         // Read outside the lock so concurrent analyses are not serialized.
-        let mut data = Box::new([0u8; 4096]);
         if self.file.read_exact_at(&mut data[..], file_offset).is_err() {
+            let mut cache = lock();
+            if cache.spare.is_none() {
+                cache.spare = Some(data);
+            }
+            drop(cache);
             // A short file behind a declared segment: read exactly what was asked.
             return Ok(self.file.read_exact_at(out, file_offset + in_page as u64)?);
         }
@@ -1020,8 +1066,14 @@ impl Image {
                 .slots
                 .resize_with(usize::try_from(PHYSICAL_SLOTS)?, || None);
         }
-        if let Some(entry) = cache.slots.get_mut(slot) {
-            *entry = Some((page, data));
+        let evicted = cache
+            .slots
+            .get_mut(slot)
+            .and_then(|entry| entry.replace((page, data)));
+        if cache.spare.is_none()
+            && let Some((_, old)) = evicted
+        {
+            cache.spare = Some(old);
         }
         Ok(())
     }
@@ -1179,7 +1231,7 @@ impl Image {
         Ok(())
     }
     fn cached_scan(&self, needle: &[u8]) -> Option<std::sync::Arc<[u64]>> {
-        self.scans.lock().ok()?.get(&needle.to_vec()).cloned()
+        self.scans.lock().ok()?.get(needle).cloned()
     }
     fn remember_scan(&self, needle: &[u8], hits: &[u64]) {
         let weight = hits.len().saturating_mul(8).saturating_add(needle.len());
@@ -1456,6 +1508,21 @@ pub(crate) struct PageCursor<'v, 'a> {
     data: Box<[u8; 4096]>,
 }
 impl PageCursor<'_, '_> {
+    pub(crate) fn read(&mut self, va: u64, out: &mut [u8]) -> Result<()> {
+        let offset = usize::try_from(va & 4095)?;
+        if !out.is_empty() && offset.checked_add(out.len()).is_some_and(|end| end <= 4096) {
+            let page = va & !4095;
+            if self.page != Some(page) {
+                self.page = Some(page);
+                self.valid = self.vm.read(page, &mut self.data[..]).is_ok();
+            }
+            if self.valid {
+                out.copy_from_slice(self.data.at(offset..offset + out.len())?);
+                return Ok(());
+            }
+        }
+        self.vm.read(va, out)
+    }
     pub(crate) fn uint(&mut self, va: u64, size: usize) -> Result<u64> {
         let offset = usize::try_from(va & 4095)?;
         if matches!(size, 1 | 2 | 4 | 8) && offset + size <= 4096 {

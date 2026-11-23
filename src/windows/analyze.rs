@@ -93,35 +93,28 @@ pub(crate) fn analyze_resolved(
             "休眠容器与符号指针宽度不一致"
         );
     }
-    let (root, base) = discover(image, isf, job)?;
-    let mut sources = paging::Sources::open(options, job)?;
-    let mut engine = Windows {
-        vm: Memory::new(image, root, isf, None),
-        base,
-        pdb: PdbIdentity::from_isf(isf)?,
+    let layouts_digest = {
+        static DIGEST: std::sync::OnceLock<String> = std::sync::OnceLock::new();
+        DIGEST.get_or_init(|| format!("{:x}", sha2::Sha256::digest(network::LAYOUTS.as_bytes())))
     };
-    sources.configure_kernel(&engine)?;
-    engine.vm.sources = Some(&sources);
-    let key = store::key(
-        &image.digest,
-        &isf.digest,
-        &format!(
-            "{}:{:?}:{:?}:{}:{}:pids={:?}:maxsize={:?}",
-            request.plugin.name(),
-            options.pid,
-            options.hive,
-            sources.cache_identity(),
-            format_args!(
-                "{}:{}:{:x}",
+    let make_key = |sources_identity: &str| {
+        store::key(
+            &image.digest,
+            &isf.digest,
+            &format!(
+                "{}:{:?}:{:?}:{}:{}:{}:{layouts_digest}:pids={:?}:maxsize={:?}",
+                request.plugin.name(),
+                options.pid,
+                options.hive,
+                sources_identity,
                 options.key,
                 options.pattern.as_deref().unwrap_or_default(),
-                sha2::Sha256::digest(network::LAYOUTS.as_bytes())
+                options.pids,
+                options.maxsize
             ),
-            options.pids,
-            options.maxsize
-        ),
-    );
-    let cached = if request.use_cache
+        )
+    };
+    let cacheable = request.use_cache
         && dump.is_none()
         && !request.plugin.is_dump()
         && !matches!(
@@ -135,16 +128,39 @@ pub(crate) fn analyze_resolved(
                 | Plugin::WinStrings
                 | Plugin::WinDirectSystemCalls
                 | Plugin::WinIndirectSystemCalls
-        ) {
-        if request.plugin == Plugin::WinDriverIrp {
-            dispatch::load_cached(request.cache, &key, request.network, job)?
-        } else {
-            store::load(request.cache, &key).or_else(|| store::load_partial(request.cache, &key))
+        );
+    let load_cached = |key: &str| -> Result<Option<Results>> {
+        if !cacheable {
+            return Ok(None);
         }
-    } else {
-        None
+        if request.plugin == Plugin::WinDriverIrp {
+            dispatch::load_cached(request.cache, key, request.network, job)
+        } else {
+            Ok(store::load(request.cache, key).or_else(|| store::load_partial(request.cache, key)))
+        }
     };
-    if let Some(r) = cached {
+    let has_paging_attachments = !options.pagefiles.is_empty() || options.swapfile.is_some();
+    if !has_paging_attachments {
+        let key = make_key("[]");
+        if let Some(r) = load_cached(&key)? {
+            job.mark_cached();
+            let owner = store::Owner::new(&image.digest, request.image);
+            store::adopt(request.cache, &key, &owner, &r, job);
+            job.report(store::cache_message(&r));
+            return Ok(Outcome::Ready(r));
+        }
+    }
+    let (root, base) = discover(image, isf, job)?;
+    let mut sources = paging::Sources::open(options, job)?;
+    let mut engine = Windows {
+        vm: Memory::new(image, root, isf, None),
+        base,
+        pdb: PdbIdentity::from_isf(isf)?,
+    };
+    sources.configure_kernel(&engine)?;
+    engine.vm.sources = Some(&sources);
+    let key = make_key(&sources.cache_identity());
+    if has_paging_attachments && let Some(r) = load_cached(&key)? {
         sources.validate()?;
         job.mark_cached();
         let owner = store::Owner::new(&image.digest, request.image);
@@ -177,7 +193,8 @@ pub(crate) fn analyze_resolved(
         && !request.plugin.accepts_pid_list()
         && let Some(index) = result.columns.iter().position(|c| c == "PID")
     {
-        result.rows.retain(|row| row.cell(index) == pid.to_string());
+        let pid = pid.to_string();
+        result.rows.retain(|row| row.cell(index) == pid);
     }
     sources.validate()?;
     *result.kernel_identity.key_mut("paging_sources")? = sources.manifest()?;

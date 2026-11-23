@@ -70,7 +70,7 @@ pub fn atomic_stream(
     fs::create_dir_all(parent)?;
     let mut temp = tempfile::NamedTempFile::new_in(parent)?;
     {
-        let mut writer = std::io::BufWriter::new(temp.as_file_mut());
+        let mut writer = std::io::BufWriter::with_capacity(64 * 1024, temp.as_file_mut());
         struct Checked<'a, W> {
             writer: W,
             job: &'a Job,
@@ -154,16 +154,33 @@ pub struct Summary {
 /// Read the header of a result cache file from its first bytes only.
 pub fn summary(path: &Path) -> Option<Summary> {
     use std::io::Read;
-    let mut head = Vec::new();
-    fs::File::open(path)
-        .ok()?
-        .take(64 * 1024)
-        .read_to_end(&mut head)
-        .ok()?;
+    let mut file = fs::File::open(path).ok()?;
+    let mut small = [0u8; 4096];
+    let mut read = 0usize;
+    while read < small.len() {
+        let n = file.read(small.get_mut(read..)?).ok()?;
+        if n == 0 {
+            break;
+        }
+        read += n;
+    }
+    let mut large = Vec::new();
+    let head: &[u8] = if let Some(slice) = small.get(..read)
+        && memchr::memmem::find(slice, br#","result":"#).is_some()
+    {
+        slice
+    } else if read < small.len() {
+        return None;
+    } else {
+        large.extend_from_slice(&small);
+        file.take(60 * 1024).read_to_end(&mut large).ok()?;
+        &large
+    };
     // `,"` never occurs inside a JSON string (its quote would be escaped), so
     // the first `,"result":` ends the header fields written before it.
-    let end = memchr::memmem::find(&head, br#","result":"#)?;
-    let mut header = head.get(..end)?.to_vec();
+    let end = memchr::memmem::find(head, br#","result":"#)?;
+    let mut header = Vec::with_capacity(end + 1);
+    header.extend_from_slice(head.get(..end)?);
     header.push(b'}');
     #[derive(Deserialize)]
     struct Head {
@@ -434,34 +451,47 @@ pub fn record_export(
     ensure!(bytes <= RECORD_LIMIT, "导出超过 256 MiB，未记录本地副本");
     let destination = fs::canonicalize(destination)?;
     let _guard = crate::cache::lock(cache, false)?;
-    let digest = |job: &Job| -> Result<String> {
-        let mut hasher = Sha256::new();
+    let dir = record_dir(cache);
+    fs::create_dir_all(&dir)?;
+    let source_before = crate::image::metadata_stamp(&fs::metadata(&destination)?)?;
+    // Copy and hash in a single streaming pass so the persisted copy is
+    // guaranteed to match the recorded SHA256 without reading the file thrice.
+    let mut temp = tempfile::NamedTempFile::new_in(&dir)?;
+    let mut hasher = Sha256::new();
+    let mut copied = 0u64;
+    {
         let mut source = fs::File::open(&destination)?;
-        let mut buffer = vec![0; 1 << 16];
+        let mut writer = std::io::BufWriter::with_capacity(64 * 1024, temp.as_file_mut());
+        let mut buffer = vec![0u8; 64 * 1024];
         loop {
             job.check()?;
             let n = std::io::Read::read(&mut source, &mut buffer)?;
             if n == 0 {
                 break;
             }
-            hasher.update(buffer.at(..n)?);
+            copied = copied.saturating_add(n as u64);
+            ensure!(copied <= RECORD_LIMIT, "导出超过 256 MiB，未记录本地副本");
+            let chunk = buffer.at(..n)?;
+            hasher.update(chunk);
+            writer.write_all(chunk)?;
         }
-        Ok(format!("{:x}", hasher.finalize()))
-    };
-    let sha256 = digest(job)?;
+        writer.flush()?;
+    }
+    job.check()?;
+    if crate::image::metadata_stamp(&fs::metadata(&destination)?)? != source_before
+        || copied != bytes
+    {
+        anyhow::bail!("导出文件在记录期间被修改；未记录");
+    }
+    let sha256 = format!("{:x}", hasher.finalize());
     let key = format!(
         "{:x}",
         Sha256::digest(format!("{}\0{sha256}", destination.display()).as_bytes())
     );
     let copy = record_copy(cache, &key, &format);
-    atomic_stream(&copy, job, |writer| {
-        std::io::copy(&mut fs::File::open(&destination)?, writer)?;
-        Ok(())
-    })?;
-    if digest(job)? != sha256 {
-        let _ = fs::remove_file(&copy);
-        anyhow::bail!("导出文件在记录期间被修改；未记录");
-    }
+    temp.as_file().sync_all()?;
+    job.check()?;
+    temp.persist(&copy).map_err(|e| e.error)?;
     let record = ExportRecord {
         key: key.clone(),
         recorded: std::time::SystemTime::now()
@@ -508,9 +538,22 @@ pub fn export_records(cache: &Path) -> Vec<ExportRecord> {
 }
 /// Reopen a record from its local copy after checking the recorded digest.
 pub fn open_record(cache: &Path, key: &str, job: &Job) -> Result<Results> {
-    let record = export_records(cache)
-        .into_iter()
-        .find(|r| r.key == key)
+    ensure!(
+        key.len() == 64 && key.bytes().all(|b| b.is_ascii_hexdigit()),
+        "导出记录不存在或副本已清理"
+    );
+    let meta_path = record_dir(cache).join(format!("{key}.export.json"));
+    let meta = fs::metadata(&meta_path)
+        .ok()
+        .filter(|m| m.is_file() && m.len() <= 1 << 20);
+    let record: ExportRecord = meta
+        .and_then(|_| fs::read(&meta_path).ok())
+        .and_then(|bytes| serde_json::from_slice(&bytes).ok())
+        .filter(|r: &ExportRecord| {
+            r.key == key
+                && matches!(r.format.as_str(), "csv" | "json")
+                && record_copy(cache, &r.key, &r.format).is_file()
+        })
         .context("导出记录不存在或副本已清理")?;
     let copy = record_copy(cache, &record.key, &record.format);
     job.check()?;

@@ -315,10 +315,13 @@ impl Windows<'_> {
         let drivers = self.drivers(Plugin::WinDriverscan, job)?;
         r.complete = drivers.complete;
         r.diagnostics = drivers.diagnostics.clone();
+        let header_layout = self.object_header_layout();
         for driver in drivers.rows {
             job.check()?;
             let address = u64::from_str_radix(driver.at(0)?.trim_start_matches("0x"), 16)?;
-            if let Err(e) = self.driver_devices(address, driver.at(1)?, &mut r, job) {
+            if let Err(e) =
+                self.driver_devices_with_layout(address, driver.at(1)?, &header_layout, &mut r, job)
+            {
                 job.check()?;
                 Self::issue(
                     &mut r,
@@ -330,17 +333,29 @@ impl Windows<'_> {
         Ok(r)
     }
     /// Object-manager name of a device; unnamed devices are common.
-    fn device_name(&self, device: u64) -> String {
+    fn device_name(&self, device: u64, header_layout: &objects::ObjectHeaderLayout) -> String {
         let Ok(body) = self.vm.isf.offset("_OBJECT_HEADER", "Body") else {
             return String::new();
         };
         device
             .checked_sub(body)
-            .and_then(|header| self.object_name(header, &self.object_header_layout()).ok())
+            .and_then(|header| self.object_name(header, header_layout).ok())
             .unwrap_or_default()
     }
-    /// One driver's DeviceObject/NextDevice list and each AttachedDevice stack.
+    #[cfg(test)]
     fn driver_devices(&self, driver: u64, name: &str, r: &mut Results, job: &Job) -> Result<()> {
+        let header_layout = self.object_header_layout();
+        self.driver_devices_with_layout(driver, name, &header_layout, r, job)
+    }
+    /// One driver's DeviceObject/NextDevice list and each AttachedDevice stack.
+    fn driver_devices_with_layout(
+        &self,
+        driver: u64,
+        name: &str,
+        header_layout: &objects::ObjectHeaderLayout,
+        r: &mut Results,
+        job: &Job,
+    ) -> Result<()> {
         let mut device = self.number(driver, "_DRIVER_OBJECT", "DeviceObject")?;
         let mut seen = HashSet::new();
         while device != 0 {
@@ -355,7 +370,7 @@ impl Windows<'_> {
                 name.into(),
                 "DEV".into(),
                 hex(device),
-                self.device_name(device),
+                self.device_name(device, header_layout),
                 format!(
                     "{:#x}",
                     self.number(device, "_DEVICE_OBJECT", "DeviceType")?
@@ -380,7 +395,7 @@ impl Windows<'_> {
                     owner_name,
                     format!("ATT{depth}"),
                     hex(attached),
-                    self.device_name(attached),
+                    self.device_name(attached, header_layout),
                     format!(
                         "{:#x}",
                         self.number(attached, "_DEVICE_OBJECT", "DeviceType")?

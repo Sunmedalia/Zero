@@ -407,37 +407,60 @@ fn taint_description(c: char) -> Option<&'static str> {
         _ => None,
     }
 }
+/// Pre-read kernel `taint_flags[]` module entry `(bit, c_true, c_false)`.
+pub(super) type ModuleTaintEntry = (u64, Option<char>, Option<char>);
+pub(super) type ModuleTaintTable = Vec<ModuleTaintEntry>;
+
 impl Linux<'_> {
+    pub(super) fn module_taint_table(&self) -> Result<Option<ModuleTaintTable>> {
+        let Ok(flags) = self.isf.address("taint_flags") else {
+            return Ok(None);
+        };
+        let count = self.isf.data.key("symbols")["taint_flags"].key("type")["count"]
+            .as_u64()
+            .context("taint_flags 长度缺失")?;
+        ensure!((1..=64).contains(&count), "taint_flags 长度无效");
+        let size = self.isf.data.key("user_types")["taint_flag"]
+            .key("size")
+            .as_u64()
+            .context("taint_flag size 缺失")?;
+        ensure!((1..=4096).contains(&size), "taint_flag size 无效");
+        let mut entries = Vec::new();
+        for bit in 0..count {
+            let flag = add(flags, bit * size)?;
+            if self.number(flag, "taint_flag", "module")? == 0 {
+                continue;
+            }
+            let decode_char = |field: &str| -> Result<Option<char>> {
+                let code = self.number(flag, "taint_flag", field)?;
+                Ok(u32::try_from(code)
+                    .ok()
+                    .and_then(char::from_u32)
+                    .filter(|c| *c != ' '))
+            };
+            entries.push((bit, decode_char("c_true")?, decode_char("c_false")?));
+        }
+        Ok(Some(entries))
+    }
     pub(super) fn module_taints(&self, module: u64, plain: bool) -> Result<String> {
+        let table = self.module_taint_table()?;
+        self.module_taints_with_table(module, plain, table.as_deref())
+    }
+    pub(super) fn module_taints_with_table(
+        &self,
+        module: u64,
+        plain: bool,
+        table: Option<&[ModuleTaintEntry]>,
+    ) -> Result<String> {
         let value = self.number(module, "module", "taints")?;
         let mut chars = String::new();
-        if let Ok(flags) = self.isf.address("taint_flags") {
-            let count = self.isf.data.key("symbols")["taint_flags"].key("type")["count"]
-                .as_u64()
-                .context("taint_flags 长度缺失")?;
-            ensure!((1..=64).contains(&count), "taint_flags 长度无效");
-            let size = self.isf.data.key("user_types")["taint_flag"]
-                .key("size")
-                .as_u64()
-                .context("taint_flag size 缺失")?;
-            ensure!((1..=4096).contains(&size), "taint_flag size 无效");
-            for bit in 0..count {
-                let flag = add(flags, bit * size)?;
-                if self.number(flag, "taint_flag", "module")? == 0 {
-                    continue;
-                }
-                let code = self.number(
-                    flag,
-                    "taint_flag",
-                    if value & (1 << bit) != 0 {
-                        "c_true"
-                    } else {
-                        "c_false"
-                    },
-                )?;
-                if let Some(c) = u32::try_from(code).ok().and_then(char::from_u32)
-                    && c != ' '
-                {
+        if let Some(entries) = table {
+            for &(bit, c_true, c_false) in entries {
+                if let Some(c) = if value & (1 << bit) != 0 {
+                    c_true
+                } else {
+                    c_false
+                } {
                     chars.push(c);
                 }
             }
@@ -505,6 +528,7 @@ impl Linux<'_> {
             }
         }
         complete[2] = result.diagnostics.len() == before;
+        let taint_table = self.module_taint_table();
         for (module, sources) in views {
             job.check()?;
             let name = match self.module_name(module, job) {
@@ -514,7 +538,11 @@ impl Linux<'_> {
                     String::new()
                 }
             };
-            let taints = match self.module_taints(module, plain) {
+            let taints = match &taint_table {
+                Ok(table) => self.module_taints_with_table(module, plain, table.as_deref()),
+                Err(_) => self.module_taints(module, plain),
+            };
+            let taints = match taints {
                 Ok(taints) => taints,
                 Err(error) => {
                     partial(&mut result, format!("module {module:#x} taints"), error);

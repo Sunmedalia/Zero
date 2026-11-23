@@ -56,7 +56,9 @@ impl App {
             return;
         }
         if self.image.is_some() && self.job.is_none() {
-            self.refresh_assets();
+            if self.assets_may_be_stale() {
+                self.refresh_assets();
+            }
             if self
                 .prepared_stamp
                 .as_ref()

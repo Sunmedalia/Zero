@@ -400,6 +400,7 @@ impl Linux<'_> {
                 Err(e) => partial(result, format!("module {}", hex(module)), e),
             }
         }
+        let slide = self.isf.slide.load(std::sync::atomic::Ordering::Relaxed);
         let mut symbols: Vec<_> = self
             .isf
             .data
@@ -407,9 +408,12 @@ impl Linux<'_> {
             .as_object()
             .context("ISF symbols 缺失")?
             .iter()
-            .filter_map(|(name, value)| value["address"].as_u64().map(|_| name))
-            .map(|name| Ok((self.isf.address(name)?, name.as_str())))
-            .collect::<Result<_>>()?;
+            .filter_map(|(name, value)| {
+                value["address"]
+                    .as_u64()
+                    .map(|addr| (addr.wrapping_add(slide), name.as_str()))
+            })
+            .collect();
         symbols.sort_unstable();
         let mut seen = HashSet::new();
         while address != 0 {
@@ -582,21 +586,21 @@ impl Linux<'_> {
                 self.kernel_text(self.field_address(module, "module", "name")?, 128)?,
             ));
         }
-        let mut symbols = Vec::new();
-        for (name, value) in self
+        let slide = self.isf.slide.load(std::sync::atomic::Ordering::Relaxed);
+        let symbol_map = self
             .isf
             .data
             .key("symbols")
             .as_object()
-            .context("ISF symbols 缺失")?
-        {
-            if value["address"].as_u64().is_some() {
-                symbols.push((self.isf.address(name)?, name.as_str()));
+            .context("ISF symbols 缺失")?;
+        let mut symbols = Vec::with_capacity(symbol_map.len());
+        for (name, value) in symbol_map {
+            if let Some(addr) = value["address"].as_u64() {
+                symbols.push((addr.wrapping_add(slide), name.as_str()));
             }
         }
         // Image-derived ISFs keep names that have several addresses out of the
         // forward table; they still name those exact addresses here.
-        let slide = self.isf.slide.load(std::sync::atomic::Ordering::Relaxed);
         if let Some(duplicates) = self.isf.data.key("metadata")["zero"]
             .key("duplicate_symbols")
             .as_array()
@@ -839,6 +843,8 @@ impl Linux<'_> {
         let mut stack = vec![self.number(xa, "xarray", "xa_head")?];
         let mut seen = HashSet::new();
         let mut entries = Vec::new();
+        let mut slot_layout: Option<(u64, usize)> = None;
+        let mut raw_slots = [0u8; 256 * 8];
         while let Some(entry) = stack.pop() {
             job.check()?;
             if entry == 0 {
@@ -851,14 +857,25 @@ impl Linux<'_> {
             if entry & 3 == 2 {
                 ensure!(entry > 4096, "xarray 保留节点／sibling 不支持");
                 let node = entry - 2;
-                let slots = self.field_address(node, "xa_node", "slots")?;
-                let count = self.isf.field("xa_node", "slots")?["type"]
-                    .key("count")
-                    .as_u64()
-                    .context("xa slots count")?;
-                ensure!(count <= 256, "xarray slot count 越界");
-                for i in 0..count {
-                    stack.push(self.vm.uint(slots + i * 8, 8)?);
+                let (slots_offset, count) = match slot_layout {
+                    Some(layout) => layout,
+                    None => {
+                        let offset = self.isf.offset("xa_node", "slots")?;
+                        let count = self.isf.field("xa_node", "slots")?["type"]
+                            .key("count")
+                            .as_u64()
+                            .context("xa slots count")?;
+                        ensure!(count <= 256, "xarray slot count 越界");
+                        let layout = (offset, usize::try_from(count)?);
+                        slot_layout = Some(layout);
+                        layout
+                    }
+                };
+                let slots = add(node, slots_offset)?;
+                let buf = raw_slots.at_mut(..count * 8)?;
+                self.vm.read(slots, buf)?;
+                for chunk in buf.chunks_exact(8) {
+                    stack.push(u64::from_le_bytes(chunk.try_into()?));
                 }
             } else {
                 ensure!(entry & 3 == 0, "xarray 值节点不支持");
@@ -898,29 +915,35 @@ impl Linux<'_> {
         let shift = self.vm.uint(self.isf.address("pidhash_shift")?, 4)?;
         ensure!(shift <= 20, "PID hash 达到上限");
         let ns = self.isf.address("init_pid_ns")?;
+        let hlist_size = self.isf.data.key("user_types")["hlist_head"]
+            .key("size")
+            .as_u64()
+            .context("hlist size")?;
+        let first_layout = self.isf.layout("hlist_head", "first")?;
+        let first_width = first_layout.width()?;
+        let pid_chain_offset = self.isf.offset("upid", "pid_chain")?;
+        let numbers_offset = self.isf.offset("pid", "numbers")?;
+        let mut cursor = self.vm.cursor();
         let mut pids = Vec::new();
         let mut seen = HashSet::new();
         for i in 0..(1u64 << shift) {
             job.check()?;
-            let head = hash
-                + i * self.isf.data.key("user_types")["hlist_head"]
-                    .key("size")
-                    .as_u64()
-                    .context("hlist size")?;
-            let mut n = self.number(head, "hlist_head", "first")?;
+            let head = hash + i * hlist_size;
+            let mut n = first_layout.decode(
+                cursor.uint(
+                    head.checked_add(first_layout.offset)
+                        .context("对象地址溢出")?,
+                    first_width,
+                )?,
+            )?;
             while n != 0 {
                 ensure!(
                     seen.insert(n) && seen.len() <= 1_000_000,
                     "PID hash 循环或上限"
                 );
-                let upid = n
-                    .checked_sub(self.isf.offset("upid", "pid_chain")?)
-                    .context("upid 地址下溢")?;
+                let upid = n.checked_sub(pid_chain_offset).context("upid 地址下溢")?;
                 if self.number(upid, "upid", "ns")? == ns {
-                    pids.push(
-                        upid.checked_sub(self.isf.offset("pid", "numbers")?)
-                            .context("pid 地址下溢")?,
-                    );
+                    pids.push(upid.checked_sub(numbers_offset).context("pid 地址下溢")?);
                 }
                 n = self.number(n, "hlist_node", "next")?;
             }

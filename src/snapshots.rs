@@ -62,11 +62,28 @@ impl Snapshot {
             let mut file = tempfile::NamedTempFile::new_in(directory)?;
             let mut offsets = Vec::new();
             {
-                let mut writer = BufWriter::new(file.as_file_mut());
+                struct CountingWriter<W> {
+                    inner: W,
+                    written: u64,
+                }
+                impl<W: Write> Write for CountingWriter<W> {
+                    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+                        let n = self.inner.write(buf)?;
+                        self.written += n as u64;
+                        Ok(n)
+                    }
+                    fn flush(&mut self) -> std::io::Result<()> {
+                        self.inner.flush()
+                    }
+                }
+                let mut writer = CountingWriter {
+                    inner: BufWriter::with_capacity(64 * 1024, file.as_file_mut()),
+                    written: 0,
+                };
                 for (i, row) in snapshot.result.rows.iter().enumerate() {
                     job.check()?;
                     if i % STRIDE == 0 {
-                        offsets.push(writer.stream_position()?);
+                        offsets.push(writer.written);
                     }
                     serde_json::to_writer(&mut writer, row)?;
                     writer.write_all(b"\n")?;
@@ -227,6 +244,7 @@ impl Snapshots {
 }
 struct DiskRows {
     reader: BufReader<File>,
+    line: String,
 }
 impl DiskRows {
     fn new(disk: &Disk, offset: usize) -> Result<Self> {
@@ -234,21 +252,22 @@ impl DiskRows {
         reader.seek(SeekFrom::Start(
             *disk.offsets.get(offset / STRIDE).unwrap_or(&0),
         ))?;
-        let mut skip = String::new();
+        let mut line = String::new();
         for _ in 0..offset % STRIDE {
-            skip.clear();
-            reader.read_line(&mut skip)?;
+            line.clear();
+            reader.read_line(&mut line)?;
         }
-        Ok(Self { reader })
+        line.clear();
+        Ok(Self { reader, line })
     }
 }
 impl Iterator for DiskRows {
     type Item = Result<Vec<String>>;
     fn next(&mut self) -> Option<Self::Item> {
-        let mut line = String::new();
-        match self.reader.read_line(&mut line) {
+        self.line.clear();
+        match self.reader.read_line(&mut self.line) {
             Ok(0) => None,
-            Ok(_) => Some(serde_json::from_str(&line).map_err(Into::into)),
+            Ok(_) => Some(serde_json::from_str(&self.line).map_err(Into::into)),
             Err(e) => Some(Err(e.into())),
         }
     }

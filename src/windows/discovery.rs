@@ -39,7 +39,7 @@ pub fn discover(image: &Image, isf: &Isf, job: &Job) -> Result<(u64, u64)> {
             Err(e) => job.report(format!("持久化 Windows 内核定位失效，重新扫描: {e:#}")),
         }
     }
-    let mut headers = HashSet::new();
+    let mut headers = std::collections::BTreeSet::new();
     let minimum = isf.raw_address("PsInitialSystemProcess")?;
     let mut roots = image
         .windows_container
@@ -219,7 +219,7 @@ pub(super) fn find_mappings(
     geometry: Paging,
     level: usize,
     prefix: u64,
-    headers: &HashSet<u64>,
+    headers: &std::collections::BTreeSet<u64>,
     out: &mut Vec<u64>,
     seen: &mut HashSet<(u64, u32)>,
     budget: &mut usize,
@@ -251,10 +251,9 @@ pub(super) fn find_mappings(
         if shift == 12 || geometry.block(e, shift) {
             let mask = (1u64 << shift) - 1;
             let pa = pa & !mask;
-            for &h in headers {
-                if h >= pa && h - pa <= mask {
-                    out.push(geometry.extend(va | (h - pa)));
-                }
+            let end = pa.saturating_add(mask);
+            for &h in headers.range(pa..=end) {
+                out.push(geometry.extend(va | (h - pa)));
             }
         } else if level + 1 < geometry.shifts().len() {
             find_mappings(

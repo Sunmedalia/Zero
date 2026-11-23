@@ -1,6 +1,13 @@
 //! Windows virtual address translation over a read-only image.
 use super::*;
 
+pub(super) struct PageCache {
+    /// Virtual 4 KiB page → physical 4 KiB page and mapping shift. The image is read-only.
+    pages: crate::resources::Lru<u64, (u64, u32)>,
+    /// Most recent translation: consecutive field reads usually share a page,
+    /// and this hit skips the LRU's reordering.
+    last: Option<(u64, u64, u32)>,
+}
 /// Independent Windows translation; software PTEs never change Linux semantics.
 pub struct Memory<'a> {
     pub image: &'a Image,
@@ -9,8 +16,7 @@ pub struct Memory<'a> {
     pub sources: Option<&'a paging::Sources>,
     /// Paging geometry is fixed for this ISF. Callers mutate ISF layouts only before the first translation.
     pub(super) paging: std::sync::OnceLock<Paging>,
-    /// Virtual 4 KiB page → physical 4 KiB page and mapping shift. The image is read-only.
-    pub(super) pages: std::sync::Mutex<crate::resources::Lru<u64, (u64, u32)>>,
+    pub(super) pages: std::sync::Mutex<PageCache>,
     /// Immutable captured Intel tables: cache both valid and rejected pages.
     pub(super) tables: std::sync::Mutex<crate::resources::Lru<u64, bool>>,
 }
@@ -30,9 +36,10 @@ impl<'a> Memory<'a> {
             tables: std::sync::Mutex::new(crate::resources::Lru::new(
                 image.limits.page_cache_entries.min(1025),
             )),
-            pages: std::sync::Mutex::new(crate::resources::Lru::new(
-                image.limits.page_cache_entries,
-            )),
+            pages: std::sync::Mutex::new(PageCache {
+                pages: crate::resources::Lru::new(image.limits.page_cache_entries),
+                last: None,
+            }),
         }
     }
     pub(super) fn paging(&self) -> Result<Paging> {
@@ -63,20 +70,27 @@ impl<'a> Memory<'a> {
     pub(super) fn translate_span(&self, va: u64) -> Result<(u64, u64)> {
         let va = self.paging()?.translation_address(va);
         let page = va & !4095;
-        let cached = self
-            .pages
-            .lock()
-            .unwrap_or_else(|error| error.into_inner())
-            .get(&page)
-            .copied();
+        let cached = {
+            let mut cache = self.pages.lock().unwrap_or_else(|error| error.into_inner());
+            if let Some((virtual_page, base, shift)) = cache.last
+                && virtual_page == page
+            {
+                Some((base, shift))
+            } else if let Some(&(base, shift)) = cache.pages.get(&page) {
+                cache.last = Some((page, base, shift));
+                Some((base, shift))
+            } else {
+                None
+            }
+        };
         let (physical, shift) = if let Some((base, shift)) = cached {
             (base | (va & 4095), shift)
         } else {
             let (physical, shift) = self.translate_walk(va)?;
-            self.pages
-                .lock()
-                .unwrap_or_else(|error| error.into_inner())
-                .insert(page, (physical & !4095, shift), 1);
+            let base = physical & !4095;
+            let mut cache = self.pages.lock().unwrap_or_else(|error| error.into_inner());
+            cache.last = Some((page, base, shift));
+            cache.pages.insert(page, (base, shift), 1);
             (physical, shift)
         };
         Ok((physical, (1u64 << shift) - (va & ((1u64 << shift) - 1))))
@@ -96,23 +110,26 @@ impl<'a> Memory<'a> {
             .unwrap_or_else(|error| error.into_inner())
             .get(&table)
             .copied();
-        let valid = match cached {
-            Some(valid) => valid,
-            None => {
-                let mut bytes = [0; 4096];
-                let valid = self.image.read(table, &mut bytes).is_ok()
-                    && !bytes
-                        .chunks_exact(geometry.width())
-                        .all(|entry| Some(entry) == bytes.get(..geometry.width()));
-                self.tables
-                    .lock()
-                    .unwrap_or_else(|error| error.into_inner())
-                    .insert(table, valid, 1);
-                valid
-            }
-        };
+        if let Some(valid) = cached {
+            ensure!(valid, "Windows 页表不可读或全页重复 @ {table:#x}");
+            return geometry.entry(self.image, table, index);
+        }
+        let mut bytes = [0; 4096];
+        let width = geometry.width();
+        let valid = self.image.read(table, &mut bytes).is_ok()
+            && !bytes
+                .chunks_exact(width)
+                .all(|entry| Some(entry) == bytes.get(..width));
+        self.tables
+            .lock()
+            .unwrap_or_else(|error| error.into_inner())
+            .insert(table, valid, 1);
         ensure!(valid, "Windows 页表不可读或全页重复 @ {table:#x}");
-        geometry.entry(self.image, table, index)
+        let start = index.checked_mul(width).context("Windows 页表项索引溢出")?;
+        let mut word = [0u8; 8];
+        word.at_mut(..width)?
+            .copy_from_slice(bytes.at(start..start + width)?);
+        Ok(u64::from_le_bytes(word))
     }
     pub(super) fn translate_walk(&self, va: u64) -> Result<(u64, u32)> {
         let geometry = self.paging()?;
@@ -211,7 +228,6 @@ impl<'a> Memory<'a> {
                 .context("Windows 读取越界")?;
         }
         while !out.is_empty() {
-            let _depth = paging::ReadDepth::enter(self.image, self.root, va)?;
             let translated = self.translate_span(va);
             let available = translated
                 .as_ref()
@@ -220,12 +236,16 @@ impl<'a> Memory<'a> {
             let n = usize::try_from(available.min(out.len() as u64))?;
             match translated {
                 Ok((physical, _)) => self.image.read(physical, out.at_mut(..n)?)?,
-                Err(original) => match self.prototype(va) {
-                    Ok(physical) => self.image.read(physical, out.at_mut(..n)?)?,
-                    Err(proto) => self
-                        .pagefile_read(va, out.at_mut(..n)?)
-                        .with_context(|| format!("{original:#}; {proto:#}"))?,
-                },
+                Err(original) => {
+                    // Only prototype/pagefile/compressed recovery can recurse into Memory::read.
+                    let _depth = paging::ReadDepth::enter(self.image, self.root, va)?;
+                    match self.prototype(va) {
+                        Ok(physical) => self.image.read(physical, out.at_mut(..n)?)?,
+                        Err(proto) => self
+                            .pagefile_read(va, out.at_mut(..n)?)
+                            .with_context(|| format!("{original:#}; {proto:#}"))?,
+                    }
+                }
             }
             out = out.at_mut(n..)?;
             if !out.is_empty() {

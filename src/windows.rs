@@ -542,20 +542,16 @@ impl Windows<'_> {
                 })
                 .collect();
             ensure!(owners.len() <= 1, "Registry 进程归属歧义");
-            let registry_vm = owners
+            let registry = owners
                 .first()
-                .map(|process| self.process_memory(process))
+                .map(|process| {
+                    Ok::<_, anyhow::Error>(Windows {
+                        vm: self.process_memory(process)?,
+                        base: self.base,
+                        pdb: self.pdb.clone(),
+                    })
+                })
                 .transpose()?;
-            let registry = Windows {
-                vm: registry_vm.unwrap_or(Memory::new(
-                    self.vm.image,
-                    self.vm.root,
-                    self.vm.isf,
-                    self.vm.sources,
-                )),
-                base: self.base,
-                pdb: self.pdb.clone(),
-            };
             let run = |engine: &Windows<'_>| -> Result<Results> {
                 match p {
                     Plugin::WinAutoruns => engine.autoruns(options, job),
@@ -575,19 +571,20 @@ impl Windows<'_> {
                     other => bail!("注册表路由缺少插件 {}", other.name()),
                 }
             };
-            let mut result = if owners.is_empty() {
-                run(&registry)?
-            } else {
-                // Registry 进程视图失败（如 crash dump 未保存其页表）时回退内核视图。
-                match run(&registry) {
-                    Ok(result) => result,
-                    Err(rehosted) => {
-                        let mut result = run(self)?;
-                        result.complete = false;
-                        result.diagnostics.push(format!(
-                            "Registry 进程视图失败，已回退内核视图: {rehosted:#}"
-                        ));
-                        result
+            let mut result = match &registry {
+                None => run(self)?,
+                Some(registry) => {
+                    // Registry 进程视图失败（如 crash dump 未保存其页表）时回退内核视图。
+                    match run(registry) {
+                        Ok(result) => result,
+                        Err(rehosted) => {
+                            let mut result = run(self)?;
+                            result.complete = false;
+                            result.diagnostics.push(format!(
+                                "Registry 进程视图失败，已回退内核视图: {rehosted:#}"
+                            ));
+                            result
+                        }
                     }
                 }
             };
@@ -595,7 +592,7 @@ impl Windows<'_> {
                 result.complete = false;
                 result.diagnostics.extend(diagnostics);
             }
-            if let Some(owner) = owners.first() {
+            if let (Some(owner), Some(registry)) = (owners.first(), registry.as_ref()) {
                 *result.kernel_identity.key_mut("registry_process")? = serde_json::json!({"pid":owner.pid,"address":owner.address,"dtb":registry.vm.root,"kernel_dtb":self.vm.root});
             }
             return Ok(result);
@@ -626,6 +623,17 @@ impl Windows<'_> {
             result.complete = false;
             result.diagnostics.extend(modules.diagnostics.clone());
         }
+        let handle_layout = (p == Plugin::WinHandles).then(|| self.object_header_layout());
+        let vad_pattern = if p == Plugin::WinVadyarascan {
+            Some(crate::pattern::Pattern::parse(
+                options
+                    .pattern
+                    .as_deref()
+                    .context("windows.vadyarascan 需要 --pattern")?,
+            )?)
+        } else {
+            None
+        };
         for process in processes
             .into_iter()
             .filter(|p| options.pid.is_none_or(|pid| p.pid == u64::from(pid)))
@@ -651,7 +659,12 @@ impl Windows<'_> {
                 Plugin::WinVadinfo | Plugin::WinMalfind => {
                     self.vad_result(&process, p, &mut result, job)
                 }
-                Plugin::WinHandles => self.handles(&process, &mut result, job),
+                Plugin::WinHandles => handle_layout
+                    .as_ref()
+                    .context("句柄对象头布局未初始化")
+                    .and_then(|layout| {
+                        self.handles_with_layout(&process, layout, &mut result, job)
+                    }),
                 Plugin::WinPrivileges => self.privileges(&process, &mut result),
                 Plugin::WinSessions => self.session(&process, &mut result),
                 Plugin::WinIat => self.iat(&process, &mut result, job),
@@ -659,16 +672,13 @@ impl Windows<'_> {
                 Plugin::WinEtwpatch => self.etwpatch(&process, &mut result, job),
                 Plugin::WinProcessghosting => self.processghosting(&process, &mut result),
                 Plugin::WinJoblinks => self.joblink(&process, &mut result),
-                Plugin::WinVadyarascan => {
-                    let pattern = crate::pattern::Pattern::parse(
-                        options
-                            .pattern
-                            .as_deref()
-                            .context("windows.vadyarascan 需要 --pattern")?,
-                    )?;
-                    self.vad_pattern_scan(&process, &pattern, &mut result, job)
-                        .map(|limit_reached| output_limit = limit_reached)
-                }
+                Plugin::WinVadyarascan => vad_pattern
+                    .as_ref()
+                    .context("windows.vadyarascan 需要 --pattern")
+                    .and_then(|pattern| {
+                        self.vad_pattern_scan(&process, pattern, &mut result, job)
+                            .map(|limit_reached| output_limit = limit_reached)
+                    }),
                 _ => bail!("不支持的 Windows 插件 {}", p.name()),
             };
             if let Err(e) = read {

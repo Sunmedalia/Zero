@@ -178,8 +178,19 @@ pub fn resolve(
         if !source.exists() {
             continue;
         }
-        for (label, bytes) in symbols::entries(&source, job)? {
+        symbols::visit(&source, job, &mut |label, bytes| {
             job.check()?;
+            if Isf::probe_linux_banner(&bytes).is_some() {
+                return Ok(());
+            }
+            if let Some((identity, converter)) = Isf::probe_windows_identity(&bytes)
+                && (!identities.contains(&identity)
+                    || converter
+                        .as_deref()
+                        .is_some_and(|version| version != CONVERTER_VERSION))
+            {
+                return Ok(());
+            }
             match Isf::parse(&bytes, label.clone()) {
                 Ok(isf)
                     if isf.is_windows()
@@ -194,7 +205,8 @@ pub fn resolve(
                 Ok(_) => {}
                 Err(e) => job.report(format!("跳过无效符号 {label}: {e:#}")),
             }
-        }
+            Ok(())
+        })?;
     }
     if out.is_empty() {
         for identity in identities {

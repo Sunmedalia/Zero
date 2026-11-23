@@ -22,7 +22,11 @@ fn decode_object_pointer(bits: u64, width: u64) -> Result<u64> {
 pub(super) struct ObjectHeaderLayout {
     type_index: bool,
     cookie: bool,
+    /// Pre-read `ObHeaderCookie` byte when readable at layout construction.
+    cookie_value: Option<u8>,
     info_mask: bool,
+    /// Pre-read `ObpInfoMaskToOffset[0..4]` table when readable at layout construction.
+    info_mask_offsets: Option<[u8; 4]>,
     /// `ObTypeIndexTable` base, resolved once. The table holds at most 256
     /// slots and is fixed for the lifetime of the image.
     type_table: u64,
@@ -150,7 +154,18 @@ impl Windows<'_> {
         }
         Ok(out)
     }
+    #[cfg(test)]
     pub(super) fn handles(&self, p: &Process, r: &mut Results, job: &Job) -> Result<()> {
+        let header_layout = self.object_header_layout();
+        self.handles_with_layout(p, &header_layout, r, job)
+    }
+    pub(super) fn handles_with_layout(
+        &self,
+        p: &Process,
+        header_layout: &ObjectHeaderLayout,
+        r: &mut Results,
+        job: &Job,
+    ) -> Result<()> {
         let table = self.number(p.address, "_EPROCESS", "ObjectTable")?;
         if table == 0 {
             return Ok(());
@@ -159,9 +174,6 @@ impl Windows<'_> {
         for diagnostic in diagnostics {
             Self::issue(r, format!("PID {} handles", p.pid), diagnostic);
         }
-        // `object_type` and `object_name` run once per handle, so their
-        // symbol-shape decisions are resolved once for the whole table.
-        let header_layout = self.object_header_layout();
         // Constant for the whole table; the row count can reach tens of
         // thousands, so these are built once.
         let pid = p.pid.to_string();
@@ -169,7 +181,7 @@ impl Windows<'_> {
             job.check()?;
             let read = (|| -> Result<Option<Vec<String>>> {
                 let body = self.field(header, "_OBJECT_HEADER", "Body")?;
-                let kind = self.object_type(header, &header_layout)?;
+                let kind = self.object_type(header, header_layout)?;
                 let name = match kind.as_str() {
                     "File" => self
                         .vm
@@ -178,7 +190,7 @@ impl Windows<'_> {
                     "Thread" => {
                         format!("TID {}", self.number(body, "_ETHREAD", "Cid.UniqueThread")?)
                     }
-                    _ => self.object_name(header, &header_layout)?,
+                    _ => self.object_name(header, header_layout)?,
                 };
                 Ok(Some(vec![
                     pid.clone(),
@@ -204,10 +216,31 @@ impl Windows<'_> {
     }
     /// Resolve the object-header shape once for a scan.
     pub(super) fn object_header_layout(&self) -> ObjectHeaderLayout {
+        let cookie = self.vm.isf.raw_address("ObHeaderCookie").is_ok();
+        let cookie_value = cookie
+            .then(|| {
+                self.symbol("ObHeaderCookie")
+                    .and_then(|address| self.vm.uint(address, 1))
+                    .ok()
+                    .and_then(|value| u8::try_from(value).ok())
+            })
+            .flatten();
+        let info_mask = self.vm.isf.has_field("_OBJECT_HEADER", "InfoMask");
+        let info_mask_offsets = info_mask
+            .then(|| {
+                let mut offsets = [0u8; 4];
+                self.symbol("ObpInfoMaskToOffset")
+                    .and_then(|address| self.vm.read(address, &mut offsets))
+                    .ok()
+                    .map(|()| offsets)
+            })
+            .flatten();
         ObjectHeaderLayout {
             type_index: self.vm.isf.has_field("_OBJECT_HEADER", "TypeIndex"),
-            cookie: self.vm.isf.raw_address("ObHeaderCookie").is_ok(),
-            info_mask: self.vm.isf.has_field("_OBJECT_HEADER", "InfoMask"),
+            cookie,
+            cookie_value,
+            info_mask,
+            info_mask_offsets,
             type_table: self.symbol("ObTypeIndexTable").unwrap_or(0),
             type_names: Default::default(),
         }
@@ -216,13 +249,13 @@ impl Windows<'_> {
     /// refer to the native kernel address space.
     pub(super) fn physical_field(&self, address: u64, ty: &str, field: &str) -> Result<u64> {
         let layout = self.vm.isf.layout(ty, field)?;
-        ensure!(matches!(layout.size, 1 | 2 | 4 | 8), "物理字段宽度无效");
+        let size = layout.width()?;
+        ensure!(matches!(size, 1 | 2 | 4 | 8), "物理字段宽度无效");
         let mut bytes = [0u8; 8];
-        self.vm.image.read(
-            add(address, layout.offset)?,
-            bytes.at_mut(..usize::try_from(layout.size)?)?,
-        )?;
-        json_number(self.vm.isf, u64::from_le_bytes(bytes), ty, field)
+        self.vm
+            .image
+            .read(add(address, layout.offset)?, bytes.at_mut(..size)?)?;
+        layout.decode(u64::from_le_bytes(bytes))
     }
     pub(super) fn object_type(&self, header: u64, layout: &ObjectHeaderLayout) -> Result<String> {
         if !layout.type_index {
@@ -232,7 +265,10 @@ impl Windows<'_> {
         }
         let encoded = self.number(header, "_OBJECT_HEADER", "TypeIndex")?;
         let index = if layout.cookie {
-            let cookie = self.vm.uint(self.symbol("ObHeaderCookie")?, 1)?;
+            let cookie = match layout.cookie_value {
+                Some(cookie) => u64::from(cookie),
+                None => self.vm.uint(self.symbol("ObHeaderCookie")?, 1)?,
+            };
             encoded ^ cookie ^ ((header >> 8) & 255)
         } else {
             encoded
@@ -282,9 +318,12 @@ impl Windows<'_> {
         if mask & 2 == 0 {
             return Ok(String::new());
         }
-        let offset = self
-            .vm
-            .uint(add(self.symbol("ObpInfoMaskToOffset")?, mask & 3)?, 1)?;
+        let offset = match layout.info_mask_offsets {
+            Some(offsets) => u64::from(*offsets.at(usize::try_from(mask & 3)?)?),
+            None => self
+                .vm
+                .uint(add(self.symbol("ObpInfoMaskToOffset")?, mask & 3)?, 1)?,
+        };
         let info = header.checked_sub(offset).context("对象名称地址下溢")?;
         self.vm
             .unicode(self.field(info, "_OBJECT_HEADER_NAME_INFO", "Name")?)
@@ -438,8 +477,9 @@ impl Windows<'_> {
     }
 }
 pub(super) fn physical_number(isf: &Isf, bytes: &[u8], ty: &str, field: &str) -> Result<u64> {
-    let offset = usize::try_from(isf.offset(ty, field)?)?;
-    let size = isf.size(ty, field)?;
+    let layout = isf.layout(ty, field)?;
+    let offset = usize::try_from(layout.offset)?;
+    let size = layout.width()?;
     ensure!(matches!(size, 1 | 2 | 4 | 8), "无效物理字段宽度");
     let mut b = [0; 8];
     b.at_mut(..size)?.copy_from_slice(
@@ -447,7 +487,7 @@ pub(super) fn physical_number(isf: &Isf, bytes: &[u8], ty: &str, field: &str) ->
             .get(offset..offset.checked_add(size).context("物理字段偏移溢出")?)
             .context("物理字段越界")?,
     );
-    json_number(isf, u64::from_le_bytes(b), ty, field)
+    layout.decode(u64::from_le_bytes(b))
 }
 
 #[cfg(test)]

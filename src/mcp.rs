@@ -536,7 +536,7 @@ pub fn run() -> Result<()> {
             }
         }
     });
-    let mut stdout = io::stdout().lock();
+    let mut stdout = io::BufWriter::with_capacity(64 * 1024, io::stdout().lock());
     let mut session = Some(linux::Session::default());
     let mut active: Option<Active> = None;
     let mut eof = false;

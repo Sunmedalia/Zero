@@ -206,10 +206,11 @@ impl<'a> Mapper<'a> {
             return false;
         };
         let mut cursor = at;
-        for segment in &self.image.segments {
-            if segment.end <= cursor {
-                continue;
-            }
+        let first = self
+            .image
+            .segments
+            .partition_point(|segment| segment.end <= cursor);
+        for segment in self.image.segments.get(first..).unwrap_or_default() {
             if segment.start > cursor {
                 return false;
             }

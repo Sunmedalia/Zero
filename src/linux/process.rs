@@ -292,6 +292,7 @@ impl Linux<'_> {
         let (mut result, tasks) = self.tasks(plugin, job)?;
         let mut credentials: BTreeMap<u64, Vec<(String, String)>> = BTreeMap::new();
         let mut leaders = HashSet::new();
+        let mut mount_cache = std::collections::HashMap::new();
         for task in tasks {
             job.check()?;
             let addr = task.address;
@@ -348,7 +349,9 @@ impl Linux<'_> {
                             self.threads(leader, prefix, &mut result, job)?;
                         }
                     }
-                    Plugin::Mountinfo => self.mounts(addr, prefix, &mut result, job)?,
+                    Plugin::Mountinfo => {
+                        self.mounts_cached(addr, prefix, &mut result, &mut mount_cache, job)?
+                    }
                     _ => return Err(unrouted(plugin)),
                 }
                 Ok(())

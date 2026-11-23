@@ -126,87 +126,228 @@ impl Windows<'_> {
                 "hive 不在已验证列表中"
             );
         }
+        let collect_node_values = |hive: u64,
+                                   hhive: u64,
+                                   key: &str,
+                                   node: &[u8],
+                                   filter: Option<&[&str]>,
+                                   result: &mut Results|
+         -> Result<()> {
+            ensure!(node.at(..2)? == b"nk", "非注册表键节点");
+            let time =
+                objects::physical_number(self.vm.isf, node, "_CM_KEY_NODE", "LastWriteTime")?;
+            let list_offset = usize::try_from(self.vm.isf.offset("_CM_KEY_NODE", "ValueList")?)?;
+            let list = node.get(list_offset..).context("注册表 ValueList 截断")?;
+            let count = objects::physical_number(self.vm.isf, list, "_CHILD_LIST", "Count")?;
+            let index = u32::try_from(objects::physical_number(
+                self.vm.isf,
+                list,
+                "_CHILD_LIST",
+                "List",
+            )?)?;
+            ensure!(count <= MAX_OBJECTS as u64, "注册表值超限");
+            if count == 0 {
+                return Ok(());
+            }
+            let indices = self.cell(hhive, index)?;
+            ensure!(
+                usize::try_from(count)? * 4 <= indices.len(),
+                "注册表值列表截断"
+            );
+            let hive_hex = hex(hive);
+            let stamp = filetime(time);
+            for chunk in indices.at(..usize::try_from(count)? * 4)?.chunks_exact(4) {
+                job.check()?;
+                let value_index = u32::from_le_bytes(chunk.try_into()?);
+                match self.value(hhive, value_index, job) {
+                    Ok((name, ty, data)) => {
+                        if let Some(allowed) = filter {
+                            let lower = name.to_ascii_lowercase();
+                            if !allowed.contains(&lower.as_str()) {
+                                continue;
+                            }
+                        }
+                        result.rows.push(vec![
+                            hive_hex.clone(),
+                            key.to_owned(),
+                            "Value".into(),
+                            name,
+                            ty,
+                            data,
+                            stamp.clone(),
+                        ]);
+                    }
+                    Err(e) => {
+                        Self::issue(result, format!("hive {hive:#x} value {value_index:#x}"), e)
+                    }
+                }
+            }
+            Ok(())
+        };
+        let collect_direct_key = |hive: u64,
+                                  hhive: u64,
+                                  key: &str,
+                                  filter: Option<&[&str]>,
+                                  result: &mut Results|
+         -> Result<()> {
+            let read = (|| -> Result<()> {
+                let cell = self.registry_index(hhive, key, job)?;
+                let node = self.cell(hhive, cell)?;
+                collect_node_values(hive, hhive, key, &node, filter, result)
+            })();
+            if let Err(e) = read {
+                job.check()?;
+                if !e.to_string().starts_with("注册表键不存在:") {
+                    Self::issue(result, format!("hive {hive:#x} {key}"), format!("{e:#}"));
+                }
+            }
+            Ok(())
+        };
+        let collect_subkey_tree = |hive: u64,
+                                   hhive: u64,
+                                   parent_key: &str,
+                                   filter: &[&str],
+                                   result: &mut Results|
+         -> Result<()> {
+            let parent_node = match self
+                .registry_index(hhive, parent_key, job)
+                .and_then(|cell| self.cell(hhive, cell))
+            {
+                Ok(node) => node,
+                Err(e) => {
+                    job.check()?;
+                    if !e.to_string().starts_with("注册表键不存在:") {
+                        Self::issue(
+                            result,
+                            format!("hive {hive:#x} {parent_key}"),
+                            format!("{e:#}"),
+                        );
+                    }
+                    return Ok(());
+                }
+            };
+            if parent_node.get(..2) != Some(b"nk") {
+                Self::issue(
+                    result,
+                    format!("hive {hive:#x} {parent_key}"),
+                    "非注册表键节点",
+                );
+                return Ok(());
+            }
+            let children = match self.subkeys(hhive, &parent_node, job) {
+                Ok(children) => children,
+                Err(e) => {
+                    job.check()?;
+                    Self::issue(
+                        result,
+                        format!("hive {hive:#x} {parent_key}"),
+                        format!("{e:#}"),
+                    );
+                    return Ok(());
+                }
+            };
+            // Read each subkey cell once instead of re-resolving every child from root.
+            let mut entries: Vec<(String, Vec<u8>)> = Vec::with_capacity(children.len());
+            let mut counts: std::collections::HashMap<String, usize> =
+                std::collections::HashMap::with_capacity(children.len());
+            for child in children {
+                job.check()?;
+                match self
+                    .cell(hhive, child)
+                    .and_then(|node| Ok((self.key_name(&node)?, node)))
+                {
+                    Ok((name, node)) => {
+                        *counts.entry(name.to_ascii_lowercase()).or_default() += 1;
+                        entries.push((name, node));
+                    }
+                    Err(e) => Self::issue(result, format!("hive {hive:#x} cell {child:#x}"), e),
+                }
+            }
+            for (name, node) in entries {
+                job.check()?;
+                let full_key = format!("{parent_key}\\{name}");
+                if counts.get(&name.to_ascii_lowercase()).copied().unwrap_or(0) > 1 {
+                    Self::issue(
+                        result,
+                        format!("hive {hive:#x} {full_key}"),
+                        "注册表键名称歧义",
+                    );
+                    continue;
+                }
+                if let Err(e) =
+                    collect_node_values(hive, hhive, &full_key, &node, Some(filter), result)
+                {
+                    job.check()?;
+                    Self::issue(
+                        result,
+                        format!("hive {hive:#x} {full_key}"),
+                        format!("{e:#}"),
+                    );
+                }
+            }
+            Ok(())
+        };
         for hive in hives.rows {
             job.check()?;
             let address = u64::from_str_radix(hive.at(0)?.trim_start_matches("0x"), 16)?;
             if options.hive.is_some_and(|selected| selected != address) {
                 continue;
             }
+            let hhive = self.field(address, "_CMHIVE", "Hive")?;
             let lower = hive.at(1)?.to_ascii_lowercase();
-            let mut keys = Vec::new();
             if lower.ends_with("software") || lower.ends_with("ntuser.dat") {
                 for prefix in [
                     "Microsoft\\Windows\\CurrentVersion",
                     "Wow6432Node\\Microsoft\\Windows\\CurrentVersion",
                 ] {
                     for suffix in ["Run", "RunOnce"] {
-                        keys.push(format!("{prefix}\\{suffix}"));
+                        let key = format!("{prefix}\\{suffix}");
+                        collect_direct_key(address, hhive, &key, None, &mut result)?;
                     }
                 }
                 if lower.ends_with("software") {
-                    keys.push("Microsoft\\Windows NT\\CurrentVersion\\Winlogon".into());
-                    let ifeo =
-                        "Microsoft\\Windows NT\\CurrentVersion\\Image File Execution Options";
-                    if let Some(parent) = self.optional_registry(address, ifeo, job, &mut result)? {
-                        for row in parent
-                            .rows
-                            .into_iter()
-                            .filter(|row| row.cell(2) == "SubKey")
-                        {
-                            keys.push(format!("{ifeo}\\{}", *row.at(3)?));
-                        }
-                    }
+                    collect_direct_key(
+                        address,
+                        hhive,
+                        "Microsoft\\Windows NT\\CurrentVersion\\Winlogon",
+                        Some(&["shell", "userinit", "taskman"]),
+                        &mut result,
+                    )?;
+                    collect_subkey_tree(
+                        address,
+                        hhive,
+                        "Microsoft\\Windows NT\\CurrentVersion\\Image File Execution Options",
+                        &["debugger", "globalflag", "verifierdlls"],
+                        &mut result,
+                    )?;
                 }
-            } else if lower.ends_with("system")
-                && let Some(select) = self.optional_registry(address, "Select", job, &mut result)?
-            {
-                let current = select.rows.iter().find(|row| {
-                    row.cell(2) == "Value" && row.cell(3).eq_ignore_ascii_case("Current")
-                });
-                if let Some(current) = current {
-                    let n = current
-                        .at(5)?
-                        .parse::<u32>()
-                        .context("Select.Current 不是 DWORD")?;
-                    ensure!((1..=999).contains(&n), "Select.Current 越界");
-                    let services = format!("ControlSet{n:03}\\Services");
-                    if let Some(parent) =
-                        self.optional_registry(address, &services, job, &mut result)?
-                    {
-                        for row in parent
-                            .rows
-                            .into_iter()
-                            .filter(|row| row.cell(2) == "SubKey")
-                        {
-                            keys.push(format!("{services}\\{}", *row.at(3)?));
-                        }
-                    }
-                } else {
-                    Self::issue(&mut result, hex(address), "SYSTEM hive 缺少 Select.Current");
+            } else if lower.ends_with("system") {
+                let mut select = self.result(Plugin::WinPrintkey);
+                collect_direct_key(address, hhive, "Select", None, &mut select)?;
+                if !select.complete {
+                    result.complete = false;
+                    result.diagnostics.extend(select.diagnostics);
                 }
-            }
-            for key in keys {
-                job.check()?;
-                if let Some(query) = self.optional_registry(address, &key, job, &mut result)? {
-                    for row in query.rows.into_iter().filter(|row| row.cell(2) == "Value") {
-                        let name = row.at(3)?.to_ascii_lowercase();
-                        if key.ends_with("Winlogon")
-                            && !["shell", "userinit", "taskman"].contains(&name.as_str())
-                        {
-                            continue;
-                        }
-                        if key.contains("Image File Execution Options")
-                            && !["debugger", "globalflag", "verifierdlls"].contains(&name.as_str())
-                        {
-                            continue;
-                        }
-                        if key.contains("\\Services\\")
-                            && !["imagepath", "start", "type", "objectname"]
-                                .contains(&name.as_str())
-                        {
-                            continue;
-                        }
-                        result.rows.push(row);
+                if !select.rows.is_empty() {
+                    let current = select.rows.iter().find(|row| {
+                        row.cell(2) == "Value" && row.cell(3).eq_ignore_ascii_case("Current")
+                    });
+                    if let Some(current) = current {
+                        let n = current
+                            .at(5)?
+                            .parse::<u32>()
+                            .context("Select.Current 不是 DWORD")?;
+                        ensure!((1..=999).contains(&n), "Select.Current 越界");
+                        let services = format!("ControlSet{n:03}\\Services");
+                        collect_subkey_tree(
+                            address,
+                            hhive,
+                            &services,
+                            &["imagepath", "start", "type", "objectname"],
+                            &mut result,
+                        )?;
+                    } else {
+                        Self::issue(&mut result, hex(address), "SYSTEM hive 缺少 Select.Current");
                     }
                 }
             }
@@ -281,7 +422,7 @@ impl Windows<'_> {
         let block = if self
             .vm
             .isf
-            .field("_HMAP_ENTRY", "PermanentBinAddress")
+            .layout("_HMAP_ENTRY", "PermanentBinAddress")
             .is_ok()
         {
             add(
@@ -311,10 +452,12 @@ impl Windows<'_> {
                 .context("hive cell 索引溢出")?;
             ensure!(cell_index >> 31 == index >> 31, "hive cell 跨存储边界");
             let count = (4096 - (cell_index as usize & 4095)).min(out.len() - copied);
-            self.vm.read(
-                self.cell_address(hive, cell_index)?,
-                out.at_mut(copied..copied + count)?,
-            )?;
+            let target = if copied == 0 && (cell_index >> 12) == (index >> 12) {
+                add(address, 4)?
+            } else {
+                self.cell_address(hive, cell_index)?
+            };
+            self.vm.read(target, out.at_mut(copied..copied + count)?)?;
             copied += count;
         }
         Ok(out)
