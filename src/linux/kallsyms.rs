@@ -159,9 +159,6 @@ impl Linux<'_> {
         job: &Job,
     ) -> Result<Vec<Option<u64>>> {
         if let Ok(offsets) = self.isf.address("kallsyms_offsets") {
-            let base = self
-                .vm
-                .uint(self.isf.address("kallsyms_relative_base")?, 8)?;
             let anchors: HashSet<u64> = [
                 "_stext",
                 "_etext",
@@ -173,51 +170,87 @@ impl Linux<'_> {
             .filter_map(|name| self.isf.address(name).ok())
             .filter(|address| *address != 0)
             .collect();
-            let mut signed = Vec::with_capacity(usize::try_from(count)?);
-            let mut unsigned = Vec::with_capacity(usize::try_from(count)?);
-            let mut signed_hits = HashSet::new();
-            let mut unsigned_hits = HashSet::new();
             let mut cursor = self.vm.cursor();
-            for i in 0..count {
-                job.check()?;
-                let raw = cursor
-                    .uint(add(offsets, i * 4)?, 4)
-                    .ok()
-                    .and_then(|v| u32::try_from(v).ok());
-                let signed_value = raw.and_then(|value| {
-                    let value = value as i32;
-                    if value < 0 {
-                        base.checked_add((-1i64 - i64::from(value)) as u64)
-                    } else {
-                        Some(value as u64)
+            if let Ok(base_address) = self.isf.address("kallsyms_relative_base") {
+                let base = self.vm.uint(base_address, 8)?;
+                let mut signed = Vec::with_capacity(usize::try_from(count)?);
+                let mut unsigned = Vec::with_capacity(usize::try_from(count)?);
+                let mut signed_hits = HashSet::new();
+                let mut unsigned_hits = HashSet::new();
+                for i in 0..count {
+                    job.check()?;
+                    let raw = cursor
+                        .uint(add(offsets, i * 4)?, 4)
+                        .ok()
+                        .and_then(|v| u32::try_from(v).ok());
+                    let signed_value = raw.and_then(|value| {
+                        let value = value as i32;
+                        if value < 0 {
+                            base.checked_add((-1i64 - i64::from(value)) as u64)
+                        } else {
+                            Some(value as u64)
+                        }
+                    });
+                    let unsigned_value = raw.and_then(|value| base.checked_add(u64::from(value)));
+                    for (value, hits) in [
+                        (signed_value, &mut signed_hits),
+                        (unsigned_value, &mut unsigned_hits),
+                    ] {
+                        if let Some(value) = value
+                            && anchors.contains(&value)
+                        {
+                            hits.insert(value);
+                        }
                     }
-                });
-                let unsigned_value = raw.and_then(|value| base.checked_add(u64::from(value)));
-                for (value, hits) in [
-                    (signed_value, &mut signed_hits),
-                    (unsigned_value, &mut unsigned_hits),
-                ] {
+                    signed.push(signed_value);
+                    unsigned.push(unsigned_value);
+                }
+                let signed_count = signed_hits.len();
+                let unsigned_count = unsigned_hits.len();
+                ensure!(
+                    signed_count.max(unsigned_count) >= 2 && signed_count != unsigned_count,
+                    "无法用至少两个独立 ISF 地址确认 kallsyms 相对地址配置（signed={signed_count}, unsigned={unsigned_count}）"
+                );
+                let unsigned_selected = unsigned_count > signed_count;
+                if !result.kernel_identity.is_object() {
+                    result.kernel_identity = serde_json::json!({});
+                }
+                *result.kernel_identity.key_mut("kallsyms_address_mode")? = serde_json::json!({"mode":if unsigned_selected {"base-relative unsigned"}else{"absolute-percpu signed"},"anchor_matches":signed_count.max(unsigned_count)});
+                Ok(if unsigned_selected { unsigned } else { signed })
+            } else {
+                // Linux 6.16+ removed `kallsyms_relative_base` and encodes `kallsyms_offsets`
+                // as 32-bit signed place-relative offsets (`&kallsyms_offsets[i] + offsets[i]`).
+                let mut prel = Vec::with_capacity(usize::try_from(count)?);
+                let mut hits = HashSet::new();
+                for i in 0..count {
+                    job.check()?;
+                    let slot = add(offsets, i * 4)?;
+                    let value = cursor
+                        .uint(slot, 4)
+                        .ok()
+                        .and_then(|v| u32::try_from(v).ok())
+                        .map(|raw| slot.wrapping_add_signed(i64::from(raw as i32)));
                     if let Some(value) = value
                         && anchors.contains(&value)
                     {
                         hits.insert(value);
                     }
+                    prel.push(value);
                 }
-                signed.push(signed_value);
-                unsigned.push(unsigned_value);
+                ensure!(
+                    hits.len() >= 2,
+                    "无法用至少两个独立 ISF 地址确认 kallsyms 位置相对地址配置（matches={}）",
+                    hits.len()
+                );
+                if !result.kernel_identity.is_object() {
+                    result.kernel_identity = serde_json::json!({});
+                }
+                *result.kernel_identity.key_mut("kallsyms_address_mode")? = serde_json::json!({
+                    "mode": "place-relative prel32",
+                    "anchor_matches": hits.len()
+                });
+                Ok(prel)
             }
-            let signed_count = signed_hits.len();
-            let unsigned_count = unsigned_hits.len();
-            ensure!(
-                signed_count.max(unsigned_count) >= 2 && signed_count != unsigned_count,
-                "无法用至少两个独立 ISF 地址确认 kallsyms 相对地址配置（signed={signed_count}, unsigned={unsigned_count}）"
-            );
-            let unsigned_selected = unsigned_count > signed_count;
-            if !result.kernel_identity.is_object() {
-                result.kernel_identity = serde_json::json!({});
-            }
-            *result.kernel_identity.key_mut("kallsyms_address_mode")? = serde_json::json!({"mode":if unsigned_selected {"base-relative unsigned"}else{"absolute-percpu signed"},"anchor_matches":signed_count.max(unsigned_count)});
-            Ok(if unsigned_selected { unsigned } else { signed })
         } else {
             let addresses = self
                 .isf
@@ -825,6 +858,61 @@ pub(super) mod tests {
         assert_eq!(result.rows[0][0], hex(5));
         assert_eq!(result.rows[1][0], hex(0x18000));
         assert_eq!(result.rows[2][0], hex(0x18010));
+    }
+    #[test]
+    fn place_relative_prel32_offsets_decode_without_relative_base_and_require_anchors() {
+        let (mut bytes, mut isf) = fixture();
+        isf.data["symbols"]["kallsyms_offsets"] = json!({"address":0x30600});
+        // No `kallsyms_relative_base`: each slot stores signed offset from `&kallsyms_offsets[i]`.
+        let targets = [0x18000u64, 0x18010, 0x18020, 0x18040];
+        for (index, target) in targets.into_iter().enumerate() {
+            let slot = 0x30600u64 + index as u64 * 4;
+            let rel = i32::try_from(target as i64 - slot as i64).unwrap();
+            bytes[0x30600 + index * 4..0x30604 + index * 4].copy_from_slice(&rel.to_le_bytes());
+        }
+        let image = super::super::tests::image(&bytes);
+        let result = super::super::tests::engine(&image, &isf)
+            .kallsyms(
+                KallsymsOptions {
+                    core: true,
+                    ..Default::default()
+                },
+                &Job::default(),
+            )
+            .unwrap();
+        assert!(result.complete, "{:?}", result.diagnostics);
+        assert_eq!(result.rows[0][0], hex(0x18000));
+        assert_eq!(result.rows[1][0], hex(0x18010));
+        assert_eq!(result.rows[3][0], hex(0x18040));
+        assert_eq!(
+            result.kernel_identity["kallsyms_address_mode"]["mode"],
+            "place-relative prel32"
+        );
+        // Removing anchors must fail validation rather than guessing.
+        isf.data["symbols"]
+            .as_object_mut()
+            .unwrap()
+            .remove("_stext");
+        isf.data["symbols"]
+            .as_object_mut()
+            .unwrap()
+            .remove("_etext");
+        let missing = super::super::tests::engine(&image, &isf)
+            .kallsyms(
+                KallsymsOptions {
+                    core: true,
+                    ..Default::default()
+                },
+                &Job::default(),
+            )
+            .unwrap();
+        assert!(!missing.complete);
+        assert!(
+            missing
+                .diagnostics
+                .iter()
+                .any(|d| d.contains("位置相对地址"))
+        );
     }
     #[test]
     fn unsigned_relative_offsets_require_independent_anchor_matches() {

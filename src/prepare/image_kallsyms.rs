@@ -39,8 +39,10 @@ pub(super) struct Tables {
     pub token_table: u64,
     pub token_index: u64,
     pub offsets: u64,
-    pub relative_base_at: u64,
-    pub relative_base: u64,
+    pub relative_base_at: Option<u64>,
+    pub relative_base: Option<u64>,
+    /// True for place-relative (PREL32) tables until `from_image` adds the VA-PA delta.
+    pub addresses_are_physical: bool,
     /// Element width of `kallsyms_markers` (4 since 6.x, unsigned long before).
     pub marker_width: u64,
     /// Byte lengths of the variable-length tables.
@@ -481,6 +483,66 @@ fn offsets_at(image: &Image, at: u64, count: usize, job: &Job) -> Result<Option<
     ))
 }
 
+fn prel32_physical_addresses(
+    offsets: &[i32],
+    offsets_at: u64,
+    names: &Names,
+    marker: &Markers,
+    tokens: &TokenTable,
+    job: &Job,
+) -> Result<Option<Vec<(u64, bool)>>> {
+    let mut out = Vec::with_capacity(offsets.len());
+    let mut previous = None;
+    for (i, offset) in offsets.iter().enumerate() {
+        if i % 4096 == 0 {
+            job.check()?;
+        }
+        let Some(slot) = offsets_at.checked_add(u64::try_from(i)? * 4) else {
+            return Ok(None);
+        };
+        let Some(pa) = slot.checked_add_signed(i64::from(*offset)) else {
+            return Ok(None);
+        };
+        if pa >= (1u64 << 52) || previous.is_some_and(|prev| pa < prev) {
+            return Ok(None);
+        }
+        previous = Some(pa);
+        out.push((pa, true));
+    }
+    let (Some((first, _)), Some((last, _))) = (out.first(), out.last()) else {
+        return Ok(None);
+    };
+    if last <= first {
+        return Ok(None);
+    }
+    // Require exact self-agreement on every present kallsyms table symbol (at least 2).
+    let expected = [
+        ("kallsyms_num_syms", names.num_syms),
+        ("kallsyms_names", names.start),
+        ("kallsyms_markers", marker.start),
+        ("kallsyms_token_table", tokens.table),
+        ("kallsyms_token_index", tokens.index),
+        ("kallsyms_offsets", offsets_at),
+    ];
+    let mut matched = 0usize;
+    for (target, physical) in expected {
+        let mut iter = names
+            .names
+            .iter()
+            .zip(&out)
+            .filter(|((_, name), _)| name == target)
+            .map(|(_, (pa, _))| *pa);
+        let Some(first_pa) = iter.next() else {
+            continue;
+        };
+        if !iter.all(|pa| pa == first_pa) || first_pa != physical {
+            return Ok(None);
+        }
+        matched += 1;
+    }
+    Ok((matched >= 2).then_some(out))
+}
+
 /// Every complete, self-consistent core kallsyms table set in the image.
 pub(super) fn locate(image: &Image, job: &Job) -> Result<Vec<Tables>> {
     let mut found: Vec<Tables> = Vec::new();
@@ -513,6 +575,7 @@ pub(super) fn locate(image: &Image, job: &Job) -> Result<Vec<Tables>> {
                     (0, Some(0), "before-num-syms"),
                     (0, Some(4), "before-num-syms"),
                 ];
+                let mut decoded_any = false;
                 for (after, before, layout) in layouts {
                     let (offsets, base_at) = match before {
                         None => {
@@ -553,8 +616,9 @@ pub(super) fn locate(image: &Image, job: &Job) -> Result<Vec<Tables>> {
                         token_table: tokens.table,
                         token_index: tokens.index,
                         offsets,
-                        relative_base_at: base_at,
-                        relative_base: base,
+                        relative_base_at: Some(base_at),
+                        relative_base: Some(base),
+                        addresses_are_physical: false,
                         marker_width: marker.width,
                         names_len: names.end - names.start,
                         token_table_len: tokens.index_end_of_table - tokens.table,
@@ -576,7 +640,51 @@ pub(super) fn locate(image: &Image, job: &Job) -> Result<Vec<Tables>> {
                         "kallsyms 已解码: {count} 个核心符号 · 标记宽度 {} · {layout} · {percpu}",
                         marker.width
                     ));
+                    decoded_any = true;
                     break;
+                }
+                if !decoded_any {
+                    // Linux 6.16+ removed `kallsyms_relative_base`: `kallsyms_offsets`
+                    // immediately follows `kallsyms_token_index` and stores 32-bit signed
+                    // place-relative offsets (`&kallsyms_offsets[i] + offsets[i]`).
+                    let offsets = (tokens.index + 512 + 3) & !3;
+                    if let Some(values) = offsets_at(image, offsets, count, job)?
+                        && let Some(decoded) = prel32_physical_addresses(
+                            &values, offsets, &names, &marker, &tokens, job,
+                        )?
+                    {
+                        found.push(Tables {
+                            num_syms: names.num_syms,
+                            names: names.start,
+                            markers: marker.start,
+                            token_table: tokens.table,
+                            token_index: tokens.index,
+                            offsets,
+                            relative_base_at: None,
+                            relative_base: None,
+                            addresses_are_physical: true,
+                            marker_width: marker.width,
+                            names_len: names.end - names.start,
+                            token_table_len: tokens.index_end_of_table - tokens.table,
+                            layout: "token-index",
+                            percpu: "place-relative-prel32",
+                            symbols: names
+                                .names
+                                .iter()
+                                .zip(decoded)
+                                .map(|((kind, name), (runtime, relocated))| Symbol {
+                                    runtime,
+                                    relocated,
+                                    kind: *kind,
+                                    name: name.clone(),
+                                })
+                                .collect(),
+                        });
+                        job.report(format!(
+                            "kallsyms 已解码: {count} 个核心符号 · 标记宽度 {} · token-index · place-relative-prel32",
+                            marker.width
+                        ));
+                    }
                 }
             }
         }
