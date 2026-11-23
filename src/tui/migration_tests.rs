@@ -7,7 +7,7 @@ fn render(app: &App, width: u16, height: u16) -> Terminal<TestBackend> {
     terminal
 }
 fn seed_tab(app: &mut App, plugin: Plugin) {
-    let mut result = app.results["pslist"].clone();
+    let mut result = app.results["pslist"].as_ref().clone();
     result.plugin = plugin.name().into();
     app.results.insert(plugin.name().into(), result);
     app.activate_plugin(plugin);
@@ -162,7 +162,7 @@ fn cache_inventory_groups_results_and_scope_confirmation_never_deletes_evidence(
         .results
         .get("pslist")
         .cloned()
-        .unwrap_or_else(|| super::app().results["pslist"].clone());
+        .unwrap_or_else(|| super::app().results["pslist"].as_ref().clone());
     let key = "a".repeat(64);
     let owner = store::Owner::new(&"b".repeat(64), &image);
     store::save(&app.cache, &key, &owner, &result, &Job::default()).unwrap();
@@ -190,11 +190,8 @@ fn export_and_record_reopen_are_worker_tasks_and_keep_partial_status() {
     app.results.get_mut("pslist").unwrap().complete = false;
     let result = app.result().unwrap().clone();
     let path = app.root.join("exports/test.json");
-    app.start_work(Work::Export(
-        path.clone(),
-        result.metadata(),
-        result.rows.clone(),
-    ));
+    let rows = (0..result.rows.len()).collect();
+    app.start_work(Work::Export(path.clone(), Arc::new(result), rows));
     assert!(app.job.is_some());
     finish_test_job(&mut app);
     let records = store::export_records(&app.cache);

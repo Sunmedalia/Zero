@@ -495,7 +495,7 @@ fn overlay_scrollbar_does_not_scroll_hidden_result_rows_or_activate_hidden_tabs(
 fn clicking_the_detected_system_preserves_auto_mode_and_loaded_results() {
     let mut app = app();
     app.analysis_options.os = crate::analysis::Os::Auto;
-    let mut banner = app.results["pslist"].clone();
+    let mut banner = app.results["pslist"].as_ref().clone();
     banner.system = "linux".into();
     app.results.insert("banners".into(), banner);
     let _frame = render(&app, 120, 35);

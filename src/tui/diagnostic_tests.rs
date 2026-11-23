@@ -44,7 +44,7 @@ fn diagnosis_collects_failure_in_a_report_without_running_a_plugin_or_changing_e
         report.previous_analysis_error.as_deref(),
         Some("previous page-table failure")
     );
-    assert_eq!(app.results["pslist"], old);
+    assert_eq!(*app.results["pslist"], old);
     assert_eq!(app.open_tabs.len(), 1);
     assert_eq!(app.row, 1);
     assert_eq!(app.query, "init");

@@ -27,18 +27,19 @@ impl App {
         } else {
             body
         };
-        if let Some((text, scroll)) = self.active_detail() {
+        if let Some((lines, scroll)) = self.detail_tab_lines(main.width.saturating_sub(2)) {
             self.hits.borrow_mut().workbench = main;
             self.hits.borrow_mut().result = main;
-            let lines = detail_lines(text, main.width.saturating_sub(2));
             let total = lines.len();
-            let scroll = scroll.min(total.saturating_sub(main.height.saturating_sub(2) as usize));
+            let height = main.height.saturating_sub(2) as usize;
+            let scroll = scroll.min(total.saturating_sub(height));
             frame.render_widget(
                 Paragraph::new(
                     lines
-                        .into_iter()
+                        .iter()
                         .skip(scroll)
-                        .map(Line::raw)
+                        .take(height)
+                        .map(|line| Line::raw(line.as_str()))
                         .collect::<Vec<_>>(),
                 )
                 .block(panel().border_style(self.focus_style(Focus::Content))),
@@ -65,15 +66,15 @@ impl App {
                 Layout::horizontal([Constraint::Min(50), Constraint::Length(38)]).split(main);
             main = columns.rect(0);
             self.hits.borrow_mut().inspector = columns.rect(1);
-            let text = self.detail_text();
-            let lines = detail_lines(&text, columns.rect(1).width.saturating_sub(2));
+            let lines = self.inspector_lines(columns.rect(1).width.saturating_sub(2));
             let total_lines = lines.len();
             frame.render_widget(
                 Paragraph::new(
                     lines
-                        .into_iter()
+                        .iter()
                         .skip(self.detail_scroll)
-                        .map(Line::raw)
+                        .take(columns.rect(1).height.saturating_sub(2) as usize)
+                        .map(|line| Line::raw(line.as_str()))
                         .collect::<Vec<_>>(),
                 )
                 .block(
@@ -129,9 +130,14 @@ impl App {
             }
             .min(rows.len().saturating_sub(page_size));
             let result = self.result();
+            let pending = if self.view_pending() {
+                "筛选中… · "
+            } else {
+                ""
+            };
             let title = match result {
                 Some(r) => format!(
-                    " {} · {} / {} 条 · {} · 显示 {}–{} 行 ",
+                    " {} · {pending}{} / {} 条 · {} · 显示 {}–{} 行 ",
                     r.plugin.strip_prefix("windows.").unwrap_or(&r.plugin),
                     rows.index.filtered.len(),
                     r.rows.len(),
@@ -381,14 +387,15 @@ impl App {
         if main.width > 2 && main.height > 2 && self.inspector && !layout.inspector() {
             let rect = main;
             frame.render_widget(Clear, rect);
-            let lines = detail_lines(&self.detail_text(), rect.width.saturating_sub(2));
+            let lines = self.inspector_lines(rect.width.saturating_sub(2));
             let total = lines.len();
             frame.render_widget(
                 Paragraph::new(
                     lines
-                        .into_iter()
+                        .iter()
                         .skip(self.detail_scroll)
-                        .map(Line::raw)
+                        .take(rect.height.saturating_sub(2) as usize)
+                        .map(|line| Line::raw(line.as_str()))
                         .collect::<Vec<_>>(),
                 )
                 .style(Style::default().fg(color_text()).bg(color_surface()))

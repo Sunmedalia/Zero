@@ -18,6 +18,7 @@ impl App {
                 return;
             }
         }
+        self.assets_scanned = Some(Instant::now());
         match self.registry.discover_with_dirs(
             &self.root,
             &self.cache,

@@ -38,13 +38,38 @@ impl App {
             frame.area(),
         );
         if frame.area().width < 60 || frame.area().height < 16 {
-            frame.render_widget(
-                Paragraph::new(if matches!(self.dialog, Some(Dialog::Quit { .. })) {
+            // Too small for the layout, but a running task, its cancel key and
+            // the latest status (or error) stay visible.
+            let mut lines = vec![Line::raw(
+                if matches!(self.dialog, Some(Dialog::Quit { .. })) {
                     "确定退出？Enter 确认 · Esc 取消"
                 } else {
                     "终端过小，请调整至至少 60×16 · q 退出"
-                })
-                .style(Style::default().fg(color_text())),
+                },
+            )];
+            if self.job.is_some() {
+                let elapsed = self.started.map_or(0.0, |t| t.elapsed().as_secs_f64());
+                lines.push(Line::styled(
+                    format!(
+                        "运行中 {}{} · Esc 取消",
+                        status::format_duration(elapsed),
+                        self.progress
+                            .map(|p| format!(" · {p}%"))
+                            .unwrap_or_default()
+                    ),
+                    Style::default().fg(color_accent()),
+                ));
+            }
+            if !self.status.is_empty() {
+                lines.push(Line::styled(
+                    escaped(&self.status),
+                    Style::default().fg(color_muted()),
+                ));
+            }
+            frame.render_widget(
+                Paragraph::new(lines)
+                    .style(Style::default().fg(color_text()))
+                    .wrap(Wrap { trim: true }),
                 frame.area(),
             );
             return;

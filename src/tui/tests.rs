@@ -5,6 +5,7 @@ mod console;
 mod mouse;
 mod parameters;
 mod rendering;
+mod responsiveness;
 mod symbol_workflows;
 mod system;
 mod workflow;

@@ -322,7 +322,7 @@ fn local_matches_stay_in_manager_and_reuse_image_context() {
     app.switch_page(Page::Assets);
     assert!(same_path(&app.symbols, &exact));
     assert_eq!(app.choice.as_deref(), Some("exact-candidate"));
-    assert_eq!(app.results["banners"], banner);
+    assert_eq!(*app.results["banners"], banner);
     assert!(app.job.is_none());
     app.key(KeyEvent::new(KeyCode::Char('m'), KeyModifiers::NONE));
     assert_eq!(app.section, AssetSection::Symbols);
@@ -883,7 +883,7 @@ fn remote_search_and_history_browsing_preserve_running_task_and_position() {
     app.dialog_key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
     assert!(!job.cancel.load(Ordering::Relaxed));
     assert!(app.pending_work.is_none());
-    let result = app.results["pslist"].clone();
+    let result = app.results["pslist"].as_ref().clone();
     app.history = Some(Arc::new(Results {
         historical: true,
         ..result.clone()

@@ -1013,14 +1013,11 @@ impl App {
                         self.dialog = Some(Dialog::KernelDiagnostics { scroll: 0 });
                     }
                     InputKind::Export => {
-                        if let Some(result) = self.result().cloned() {
-                            let rows = self
-                                .view_index()
-                                .filtered
-                                .iter()
-                                .filter_map(|&i| result.rows.get(i).cloned())
-                                .collect();
-                            self.start_work(Work::Export(path, result.metadata(), rows));
+                        // Hand the worker a shared handle and the filtered row
+                        // indices; rows are serialized from the original cells.
+                        if let Some(result) = self.result_shared().cloned() {
+                            let rows = self.view_index().filtered.clone();
+                            self.start_work(Work::Export(path, result, rows));
                         }
                     }
                     InputKind::History => self.start_work(Work::History(path)),

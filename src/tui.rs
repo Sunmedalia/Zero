@@ -154,12 +154,23 @@ pub fn run_with_options(
         }
         // Worker panics are caught and reported through the event channel.
     }));
-    theme::set_background(terminal_theme::detect());
+    let (light, typed) = terminal_theme::detect(settings.theme == "auto");
+    theme::set_background(light);
     let mut terminal = Terminal::new(CrosstermBackend::new(std::io::stdout()))?;
     let mut app = App::new(image, symbols, cache, settings);
     app.initialize(options);
     if let Some(hint) = crate::prepare::build_tools_hint() {
         app.status = hint;
+    }
+    // Keys pressed while the terminal answered the theme query.
+    for key in terminal_theme::typed_keys(&typed) {
+        if app.key(key) {
+            app.cancel();
+            drop(terminal);
+            drop(guard);
+            app.release_worker(EXIT_WAIT);
+            return Ok(());
+        }
     }
     let outcome = (|| -> Result<()> {
         let mut dirty = true;
@@ -216,10 +227,19 @@ pub fn run_with_options(
         }
         Ok(())
     })();
+    // Leave the alternate screen and raw mode before waiting on anything, so
+    // a slow cancellation never leaves the user staring at a frozen frame.
     app.cancel();
-    app.finish_worker();
+    drop(terminal);
+    drop(guard);
+    app.release_worker(EXIT_WAIT);
     outcome
 }
+
+/// How long quitting waits for a cancelled worker before leaving it behind.
+/// Workers poll their `Job` and write exports atomically, so one that is still
+/// running when the process exits leaves no partial output in place.
+const EXIT_WAIT: Duration = Duration::from_secs(3);
 
 /// Upper bound on queued events handled between two frames.
 const EVENT_BATCH: usize = 256;
@@ -319,8 +339,8 @@ fn native_acceptance() {
     let export = project.path().join("exports/pslist.json");
     app.start_work(Work::Export(
         export.clone(),
-        result.metadata(),
-        result.rows.clone(),
+        Arc::new(result.clone()),
+        (0..result.rows.len()).collect(),
     ));
     settle(&mut app);
     assert_eq!(store::exported(&export).unwrap().rows, result.rows);

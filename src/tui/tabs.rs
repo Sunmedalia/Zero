@@ -6,7 +6,8 @@ pub(super) enum OpenTab {
     Plugin(Plugin),
     Detail {
         title: String,
-        text: String,
+        /// Shared so the wrapped-line cache can key on its identity.
+        text: std::rc::Rc<str>,
         scroll: usize,
     },
     History(PathBuf, Arc<Results>),
@@ -308,13 +309,13 @@ impl App {
             .map(|r| r.plugin.clone())
             .unwrap_or_else(|| "诊断".into());
         if let Some(index) = self.open_tabs.iter().position(
-            |tab| matches!(tab, OpenTab::Detail { text: existing, .. } if existing == &text),
+            |tab| matches!(tab, OpenTab::Detail { text: existing, .. } if **existing == *text),
         ) {
             self.switch_result_tab(index);
         } else {
             self.open_tabs.push(OpenTab::Detail {
                 title,
-                text,
+                text: text.into(),
                 scroll,
             });
             self.switch_result_tab(self.open_tabs.len() - 1);
@@ -329,6 +330,46 @@ impl App {
             Some(OpenTab::Detail { text, scroll, .. }) => Some((text, *scroll)),
             _ => None,
         }
+    }
+    /// Wrapped lines of the active detail tab and its scroll, rebuilt only
+    /// when the tab or the width changes rather than on every frame.
+    pub(super) fn detail_tab_lines(&self, width: u16) -> Option<(std::rc::Rc<Vec<String>>, usize)> {
+        let Some(OpenTab::Detail { text, scroll, .. }) =
+            self.active_tab.and_then(|i| self.open_tabs.get(i))
+        else {
+            return None;
+        };
+        let source = DetailSource::Tab(text.clone());
+        Some((
+            self.wrapped_detail(source, width, || text.to_string()),
+            *scroll,
+        ))
+    }
+    /// Wrapped lines of the selected row's fields for the inspector.
+    pub(super) fn inspector_lines(&self, width: u16) -> std::rc::Rc<Vec<String>> {
+        let source = DetailSource::Row(self.view_index(), self.row);
+        self.wrapped_detail(source, width, || self.detail_text())
+    }
+    fn wrapped_detail(
+        &self,
+        source: DetailSource,
+        width: u16,
+        text: impl FnOnce() -> String,
+    ) -> std::rc::Rc<Vec<String>> {
+        let mut cache = self.detail_cache.borrow_mut();
+        if let Some(cached) = cache.as_ref()
+            && cached.width == width
+            && cached.source.same(&source)
+        {
+            return cached.lines.clone();
+        }
+        let lines = std::rc::Rc::new(detail_lines(&text(), width));
+        *cache = Some(DetailCache {
+            source,
+            width,
+            lines: lines.clone(),
+        });
+        lines
     }
     pub(super) fn copy_detail(&mut self, text: &str) {
         use std::io::Write;
@@ -378,8 +419,9 @@ impl App {
             return false;
         };
         let rect = self.hits.borrow().result;
-        let maximum = detail_lines(text, rect.width.saturating_sub(2))
-            .len()
+        let maximum = self
+            .detail_tab_lines(rect.width.saturating_sub(2))
+            .map_or(0, |(lines, _)| lines.len())
             .saturating_sub(rect.height.saturating_sub(2) as usize);
         let page = rect.height.saturating_sub(3).max(1) as usize;
         let next = match key.code {

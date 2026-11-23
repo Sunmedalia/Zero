@@ -334,6 +334,10 @@ impl App {
             analysis_options: Default::default(),
             results: ResultStore::default(),
             view_cache: RefCell::new(None),
+            view_job: RefCell::new(None),
+            empty_view: Default::default(),
+            detail_cache: RefCell::new(None),
+            assets_scanned: None,
             width_cache: RefCell::new(None),
             history_revision: 0,
             history: None,
@@ -563,6 +567,22 @@ impl App {
         self.local_only_matches = only;
     }
     pub(super) fn local_stamp(&self) -> String {
+        self.local_stamp_with(false)
+    }
+    /// `local_stamp` computed from fresh `stat`s of the already listed symbol
+    /// files: detects edits, replacements and removals without a directory
+    /// scan or sidecar reads.
+    fn restat_local_stamp(&self) -> String {
+        self.local_stamp_with(true)
+    }
+    /// Whether plugin activation must rebuild the asset list: a known file
+    /// changed, or the last full scan is old enough that new files may exist.
+    fn assets_may_be_stale(&self) -> bool {
+        self.assets_scanned
+            .is_none_or(|at| at.elapsed() >= ASSET_RESCAN_INTERVAL)
+            || self.restat_local_stamp() != self.local_stamp()
+    }
+    fn local_stamp_with(&self, restat: bool) -> String {
         let image = self
             .image
             .as_ref()
@@ -583,7 +603,16 @@ impl App {
                 .filter(|a| a.kind == Kind::Symbols
                     && !a.directory
                     && !self.hidden_cache_copies.contains(&a.path))
-                .map(|a| (&a.path, &a.stamp))
+                .map(|a| (
+                    &a.path,
+                    if restat {
+                        std::fs::metadata(&a.path)
+                            .ok()
+                            .and_then(|m| crate::image::metadata_stamp(&m).ok())
+                    } else {
+                        a.stamp.clone()
+                    }
+                ))
                 .collect::<Vec<_>>()
         )
     }
@@ -840,16 +869,20 @@ impl App {
         actions
     }
     pub(super) fn result(&self) -> Option<&Results> {
+        self.result_shared().map(|r| &**r)
+    }
+    /// The displayed result as a shared handle, for work that outlives the
+    /// borrow (exports, background view builds) without copying rows.
+    pub(super) fn result_shared(&self) -> Option<&Arc<Results>> {
         if self.active_detail().is_some() {
             return None;
         }
         self.history
-            .as_deref()
-            .or_else(|| self.results.get(&self.request_key()))
-            .or_else(|| self.results.get(self.plugin.name()))
+            .as_ref()
+            .or_else(|| self.results.shared(&self.request_key()))
+            .or_else(|| self.results.shared(self.plugin.name()))
     }
-    pub(super) fn view_index(&self) -> std::rc::Rc<crate::result_view::Index> {
-        let result = self.result();
+    fn index_key(&self, result: Option<&Arc<Results>>) -> ViewKey {
         let tree = if self.history.is_some() || !self.plugin.is_tree() {
             None
         } else if self.plugin == Plugin::WinPstree {
@@ -857,34 +890,160 @@ impl App {
         } else {
             Some((2, 3))
         };
-        let key = ViewKey {
+        ViewKey {
             revision: self.results.revision,
-            identity: result.map_or(0, |r| r.rows.as_ptr() as usize),
+            identity: result.map_or(0, |r| Arc::as_ptr(r) as usize),
             history_revision: self.history_revision,
             query: self.query.clone(),
             sort: self.sort,
             descending: self.descending,
             tree,
             collapsed: collapsed_fingerprint(&self.collapsed),
-        };
-        let mut cache = self.view_cache.borrow_mut();
-        if let Some((previous, index)) = cache.as_ref()
-            && *previous == key
-        {
-            return index.clone();
         }
-        let index = std::rc::Rc::new(result.map_or_else(Default::default, |r| {
-            crate::result_view::Index::build(
-                r,
+    }
+    /// The filtered, sorted and tree-ordered row index of the shown result.
+    ///
+    /// Small results are indexed inline. A result above `SYNC_VIEW_CELLS` is
+    /// indexed on a worker thread so typing a query or changing the sort never
+    /// stalls a frame; until it finishes the previous index of the same
+    /// result stays on screen (an unrelated result shows no rows) and
+    /// `view_pending` reports the wait. `drain` installs the finished index.
+    pub(super) fn view_index(&self) -> std::rc::Rc<crate::result_view::Index> {
+        use crate::result_view::Index;
+        let result = self.result_shared();
+        let key = self.index_key(result);
+        let cache = self.view_cache.borrow();
+        if let Some(cached) = cache.as_ref()
+            && cached.key == key
+        {
+            return cached.index.clone();
+        }
+        // A previous index of this exact result content (only the query,
+        // sort or tree state differ): shown while waiting, and its rows seed
+        // a narrowing query.
+        let previous = cache.as_ref().filter(|cached| {
+            cached.key.identity == key.identity
+                && cached.key.revision == key.revision
+                && cached.key.history_revision == key.history_revision
+                && result.is_some_and(|r| cached.source.ptr_eq(&Arc::downgrade(r)))
+        });
+        let base = previous
+            .filter(|cached| Index::narrows(&cached.index.query, &self.query))
+            .map(|cached| cached.index.clone());
+        let stale = previous.map(|cached| cached.index.clone());
+        drop(cache);
+        let Some(result) = result else {
+            return self.install_view(key, None, Index::default());
+        };
+        let cells = result
+            .rows
+            .len()
+            .saturating_mul(result.columns.len().max(1));
+        if cells <= SYNC_VIEW_CELLS {
+            let index = Index::build_from(
+                result,
                 &self.query,
-                self.sort,
-                self.descending,
-                tree,
+                key.sort,
+                key.descending,
+                key.tree,
                 &self.collapsed,
+                base.as_deref().map(|b| b.filtered.as_slice()),
+                &|| false,
             )
-        }));
-        *cache = Some((key, index.clone()));
+            .unwrap_or_default();
+            return self.install_view(key, Some(result), index);
+        }
+        let mut job = self.view_job.borrow_mut();
+        if job.as_ref().is_none_or(|job| job.key != key) {
+            // Replacing the job drops (and so cancels) the superseded build.
+            let cancel = Arc::new(std::sync::atomic::AtomicBool::new(false));
+            let (sender, receiver) = mpsc::channel();
+            let flag = cancel.clone();
+            let source = result.clone();
+            let query = self.query.clone();
+            let collapsed = self.collapsed.clone();
+            let (sort, descending, tree) = (key.sort, key.descending, key.tree);
+            let seed = base.map(|b| b.filtered.clone());
+            let spawned = thread::Builder::new()
+                .name("zero-view-index".into())
+                .spawn(move || {
+                    if let Some(index) = Index::build_from(
+                        &source,
+                        &query,
+                        sort,
+                        descending,
+                        tree,
+                        &collapsed,
+                        seed.as_deref(),
+                        &|| flag.load(Ordering::Relaxed),
+                    ) {
+                        let _ = sender.send(index);
+                    }
+                });
+            if spawned.is_err() {
+                // No thread available: index inline rather than show nothing.
+                drop(job);
+                let index = Index::build(
+                    result,
+                    &self.query,
+                    key.sort,
+                    key.descending,
+                    key.tree,
+                    &self.collapsed,
+                );
+                return self.install_view(key, Some(result), index);
+            }
+            *job = Some(ViewJob {
+                key,
+                cancel,
+                receiver,
+            });
+        }
+        stale.unwrap_or_else(|| self.empty_view.clone())
+    }
+    fn install_view(
+        &self,
+        key: ViewKey,
+        source: Option<&Arc<Results>>,
+        index: crate::result_view::Index,
+    ) -> std::rc::Rc<crate::result_view::Index> {
+        let index = std::rc::Rc::new(index);
+        *self.view_job.borrow_mut() = None;
+        *self.view_cache.borrow_mut() = Some(CachedView {
+            key,
+            source: source.map_or_else(std::sync::Weak::new, Arc::downgrade),
+            index: index.clone(),
+        });
         index
+    }
+    /// A background index build for the shown view has not finished yet.
+    pub(super) fn view_pending(&self) -> bool {
+        let key = self.index_key(self.result_shared());
+        self.view_job
+            .borrow()
+            .as_ref()
+            .is_some_and(|job| job.key == key)
+    }
+    /// Install a finished background index; true when the screen changes.
+    pub(super) fn drain_view(&mut self) -> bool {
+        let current = self.index_key(self.result_shared());
+        let finished = match self.view_job.borrow().as_ref() {
+            None => return false,
+            // The view moved on before this build finished.
+            Some(job) if job.key != current => None,
+            Some(job) => match job.receiver.try_recv() {
+                Ok(index) => Some((job.key.clone(), index)),
+                Err(mpsc::TryRecvError::Empty) => return false,
+                Err(mpsc::TryRecvError::Disconnected) => None,
+            },
+        };
+        let Some((key, index)) = finished else {
+            *self.view_job.borrow_mut() = None;
+            return false;
+        };
+        let source = self.result_shared().cloned();
+        self.install_view(key, source.as_ref(), index);
+        true
     }
     #[cfg(test)]
     pub(super) fn rows(&self) -> Vec<Vec<String>> {
@@ -996,6 +1155,8 @@ impl App {
         }
     }
     pub(super) fn resize(&mut self, width: u16, height: u16) {
+        // Scrollbar geometry from before the resize no longer matches.
+        self.drag = None;
         // Keep focus on a region this size actually draws. The thresholds here
         // mirror the ones the layout uses, and the clamp below catches anything
         // they miss once the next frame has been measured.
@@ -1096,7 +1257,9 @@ impl App {
             return;
         }
         if self.image.is_some() && self.job.is_none() {
-            self.refresh_assets();
+            if self.assets_may_be_stale() {
+                self.refresh_assets();
+            }
             if self
                 .prepared_stamp
                 .as_ref()

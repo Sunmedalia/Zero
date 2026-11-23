@@ -20,6 +20,15 @@ pub(super) struct Scrollbar {
     total: usize,
     viewport: usize,
 }
+#[cfg(test)]
+impl Scrollbar {
+    pub(super) fn thumb(&self) -> Rect {
+        self.thumb
+    }
+    pub(super) fn track(&self) -> Rect {
+        self.track
+    }
+}
 #[derive(Clone)]
 pub(super) struct Drag {
     bar: Scrollbar,
@@ -114,8 +123,25 @@ impl App {
             return true;
         }
         if mouse.kind == MouseEventKind::Drag(MouseButton::Left)
-            && let Some(drag) = self.drag.clone()
+            && let Some(mut drag) = self.drag.clone()
         {
+            // Use this frame's geometry, not the one captured at press time:
+            // rows may have arrived, a filter applied or the pane moved since.
+            // A bar that is no longer drawn ends the drag.
+            let Some(bar) = self
+                .hits
+                .borrow()
+                .scrollbars
+                .iter()
+                .find(|bar| bar.target == drag.bar.target)
+                .cloned()
+            else {
+                self.drag = None;
+                return true;
+            };
+            drag.grab = drag.grab.min(bar.thumb.height.saturating_sub(1));
+            drag.bar = bar;
+            self.drag = Some(drag.clone());
             let travel = drag.bar.track.height - drag.bar.thumb.height;
             let y = mouse
                 .row

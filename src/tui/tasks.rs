@@ -256,12 +256,15 @@ impl App {
                         store::exported(&path).map(|r| WorkerEvent::Opened(path, r))
                     }
                     Work::Export(path, result, rows) => {
-                        store::export_rows(&path, &result, rows.iter(), &worker_job)?;
+                        let metadata = result.metadata();
+                        let selected = rows.iter().filter_map(|&i| result.rows.get(i));
+                        store::export_rows(&path, &metadata, selected, &worker_job)?;
+                        let count = rows.iter().filter(|&&i| i < result.rows.len()).count();
                         let error =
-                            store::record_export(&cache, &path, &result, rows.len(), &worker_job)
+                            store::record_export(&cache, &path, &metadata, count, &worker_job)
                                 .err()
                                 .map(|e| format!("{e:#}"));
-                        Ok(WorkerEvent::Exported(path, rows.len(), error))
+                        Ok(WorkerEvent::Exported(path, count, error))
                     }
 
                     Work::Verify => context
@@ -476,7 +479,7 @@ impl App {
             .as_ref()
             .map(|r| r.try_iter().collect())
             .unwrap_or_default();
-        let mut changed = self.drain_cache_query() || !events.is_empty();
+        let mut changed = self.drain_cache_query() | self.drain_view() || !events.is_empty();
         for event in events {
             let event = match event {
                 WorkerEvent::Tagged(id, version, event) => {
@@ -832,10 +835,13 @@ impl App {
                                 && execution.as_ref().is_none_or(|r| {
                                     r.plugin == self.plugin && r.key == self.request_key()
                                 });
+                            // One allocation shared by the request key and the
+                            // plugin key: no row copy on the UI thread.
+                            let result = Arc::new(result);
                             if let Some(request) = execution {
                                 self.result_requests
                                     .insert(request.plugin.name().into(), request.parameters);
-                                self.results.insert(request.key, result.clone());
+                                self.results.insert(request.key, Arc::clone(&result));
                             }
                             let label = format!(
                                 "{} · {} 条 · {} · {}{}",
@@ -891,6 +897,28 @@ impl App {
         }
         changed |= self.resolve_enter_intent();
         changed
+    }
+    /// Join a cancelled worker for at most `limit`, then detach it. Used on
+    /// exit, after the terminal has been restored.
+    pub(super) fn release_worker(&mut self, limit: Duration) {
+        let started = Instant::now();
+        let mut announced = false;
+        while let Some(worker) = self.worker.as_ref()
+            && !worker.is_finished()
+        {
+            if started.elapsed() >= limit {
+                eprintln!("后台任务未在 {} 秒内结束，已放弃等待", limit.as_secs());
+                self.worker = None;
+                break;
+            }
+            if !announced {
+                eprintln!("正在等待后台任务取消…");
+                announced = true;
+            }
+            thread::sleep(Duration::from_millis(20));
+        }
+        self.finish_worker();
+        self.cache_page.detach_query();
     }
     pub(super) fn finish_worker(&mut self) {
         if let Some(worker) = self.worker.take() {

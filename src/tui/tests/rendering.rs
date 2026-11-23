@@ -154,7 +154,7 @@ fn closing_popup_restores_results() {
 fn new_plugin_menu_mouse_details_and_raw_export() {
     let mut app = app();
     for d in PLUGINS {
-        let mut r = app.results["pslist"].clone();
+        let mut r = app.results["pslist"].as_ref().clone();
         r.plugin = d.plugin.name().into();
         r.columns = d.columns.iter().map(|s| (*s).into()).collect();
         r.rows = (0..40)
@@ -245,7 +245,7 @@ fn new_plugin_menu_mouse_details_and_raw_export() {
 #[test]
 fn workstation_palette_views_and_responsive_inspector() {
     let mut app = app();
-    let mut result = app.results["pslist"].clone();
+    let mut result = app.results["pslist"].as_ref().clone();
     result.plugin = "psaux".into();
     result.columns = vec![
         "PID".into(),
