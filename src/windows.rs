@@ -105,22 +105,20 @@ fn filetime(value: u64) -> String {
 fn json_number(isf: &Isf, n: u64, structure: &str, field: &str) -> Result<u64> {
     // The memoized layout answers the common case; fall back to the raw field
     // so a field that fails outer bounds checks still decodes as before.
-    let bits = match isf.layout(structure, field) {
-        Ok(layout) => layout.bits,
+    let layout = match isf.layout(structure, field) {
+        Ok(layout) => layout,
         Err(_) => {
             let ty = &isf.field(structure, field)?["type"];
-            (ty["kind"] == "bitfield")
-                .then(|| (ty["bit_position"].as_u64(), ty["bit_length"].as_u64()))
+            // Width unknown here: bound bitfields by the full 64-bit read.
+            crate::symbols::Layout {
+                offset: 0,
+                size: 8,
+                bits: (ty["kind"] == "bitfield")
+                    .then(|| (ty["bit_position"].as_u64(), ty["bit_length"].as_u64())),
+            }
         }
     };
-    if let Some((pos, len)) = bits {
-        let pos = pos.context("缺少位域位置")?;
-        let len = len.context("缺少位域长度")?;
-        ensure!(len > 0 && pos + len <= 64, "无效 Windows 位域");
-        Ok((n >> pos) & (u64::MAX >> (64 - len)))
-    } else {
-        Ok(n)
-    }
+    layout.decode(n)
 }
 
 pub struct Windows<'a> {

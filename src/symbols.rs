@@ -35,12 +35,65 @@ pub struct Layout {
     /// `(bit_position, bit_length)` exactly as the ISF states them, for bitfields.
     pub bits: Option<(Option<u64>, Option<u64>)>,
 }
+impl Layout {
+    /// Width in bytes of the integer that holds this field.
+    pub fn width(&self) -> Result<usize> {
+        usize::try_from(self.size).context("ISF 字段过大")
+    }
+    /// The field's value from the little-endian integer read at its offset:
+    /// bitfields are extracted and bounds-checked against that integer.
+    pub fn decode(&self, raw: u64) -> Result<u64> {
+        let Some((position, length)) = self.bits else {
+            return Ok(raw);
+        };
+        let position = position.context("ISF bit position 无效")?;
+        let length = length.context("ISF bit length 无效")?;
+        let storage = self.size.saturating_mul(8).min(64);
+        ensure!(
+            length > 0
+                && position
+                    .checked_add(length)
+                    .is_some_and(|end| end <= storage),
+            "ISF 位域越界"
+        );
+        Ok((raw >> position) & (u64::MAX >> (64 - length)))
+    }
+}
+/// FxHash: layout keys are short structure/field names chosen by the caller,
+/// not attacker-sized input, so SipHash's DoS resistance buys nothing on this
+/// per-field-read path.
+#[derive(Default, Clone, Copy)]
+pub(crate) struct FastHasher(u64);
+impl std::hash::Hasher for FastHasher {
+    fn write(&mut self, bytes: &[u8]) {
+        let mut chunks = bytes.chunks_exact(8);
+        for chunk in &mut chunks {
+            self.add(u64::from_le_bytes(chunk.try_into().unwrap_or([0; 8])));
+        }
+        for &byte in chunks.remainder() {
+            self.add(u64::from(byte));
+        }
+    }
+    fn write_u8(&mut self, value: u8) {
+        self.add(u64::from(value));
+    }
+    fn write_usize(&mut self, value: usize) {
+        self.add(value as u64);
+    }
+    fn finish(&self) -> u64 {
+        self.0
+    }
+}
+impl FastHasher {
+    fn add(&mut self, word: u64) {
+        self.0 = (self.0.rotate_left(5) ^ word).wrapping_mul(0x51_7c_c1_b7_27_22_0a_95);
+    }
+}
+type FastMap<K, V> = std::collections::HashMap<K, V, std::hash::BuildHasherDefault<FastHasher>>;
 /// structure -> field -> layout; only successful resolutions are kept so
 /// errors keep their full context chain.
 #[derive(Default)]
-pub(crate) struct LayoutCache(
-    RwLock<std::collections::HashMap<String, std::collections::HashMap<String, Layout>>>,
-);
+pub(crate) struct LayoutCache(RwLock<FastMap<String, FastMap<String, Layout>>>);
 impl Isf {
     /// Kernel validation warnings; a poisoned lock still holds a complete value.
     pub(crate) fn diagnostics(&self) -> Vec<String> {
@@ -328,7 +381,6 @@ impl Isf {
         }
         Ok(layout)
     }
-    /// Forget memoized layouts after editing `data` in place.
     /// Drop every memoized layout and field-presence answer.
     ///
     /// Callers may edit `data` to model a different kernel, so both caches must
@@ -342,7 +394,7 @@ impl Isf {
         Ok(self.layout(structure, field)?.offset)
     }
     pub fn size(&self, structure: &str, field: &str) -> Result<usize> {
-        usize::try_from(self.layout(structure, field)?.size).context("ISF 字段过大")
+        self.layout(structure, field)?.width()
     }
 }
 fn read_stream(mut r: impl Read, job: &Job) -> Result<Vec<u8>> {
@@ -1313,5 +1365,86 @@ mod probe_tests {
             Isf::probe_linux_banner(&linux(serde_json::json!(8), good)).as_deref(),
             Some(&good[..])
         );
+    }
+}
+#[cfg(test)]
+mod layout_tests {
+    use super::*;
+    use std::hash::{BuildHasher, BuildHasherDefault};
+    fn bits(size: u64, position: Option<u64>, length: Option<u64>) -> Layout {
+        Layout {
+            offset: 0,
+            size,
+            bits: Some((position, length)),
+        }
+    }
+    #[test]
+    fn decode_extracts_bitfields_and_rejects_bad_placement() {
+        let plain = Layout {
+            offset: 0,
+            size: 4,
+            bits: None,
+        };
+        assert_eq!(plain.decode(0xdead_beef).unwrap(), 0xdead_beef);
+        assert_eq!(bits(4, Some(4), Some(8)).decode(0x1234).unwrap(), 0x23);
+        assert_eq!(
+            bits(8, Some(0), Some(64)).decode(u64::MAX).unwrap(),
+            u64::MAX
+        );
+        assert_eq!(bits(8, Some(63), Some(1)).decode(1 << 63).unwrap(), 1);
+        // Placement past the holding integer, zero width and overflow fail.
+        assert!(bits(2, Some(10), Some(7)).decode(0).is_err());
+        assert!(bits(8, Some(1), Some(64)).decode(0).is_err());
+        assert!(bits(8, Some(0), Some(0)).decode(0).is_err());
+        assert!(bits(8, Some(u64::MAX), Some(2)).decode(0).is_err());
+        assert!(bits(8, None, Some(1)).decode(0).is_err());
+        assert!(bits(8, Some(0), None).decode(0).is_err());
+    }
+    #[test]
+    fn layout_cache_hasher_separates_names() {
+        let build = BuildHasherDefault::<FastHasher>::default();
+        let names = [
+            "",
+            "a",
+            "ab",
+            "pid",
+            "tgid",
+            "task_struct",
+            "task_struct.",
+            "mm_struct",
+            "Pcb.DirectoryTableBase",
+        ];
+        let hashes: std::collections::HashSet<u64> =
+            names.iter().map(|name| build.hash_one(name)).collect();
+        assert_eq!(hashes.len(), names.len());
+        assert_eq!(
+            build.hash_one("tasks"),
+            build.hash_one(String::from("tasks"))
+        );
+    }
+    #[test]
+    fn layout_resolves_bitfield_and_serves_it_from_cache() {
+        let isf = Isf::parse(
+            &serde_json::to_vec(&serde_json::json!({
+                "metadata": {"format": "6.2.0"},
+                "base_types": {"pointer": {"size": 8}, "u32": {"size": 4}},
+                "symbols": {"linux_banner": {"constant_data": STANDARD.encode(b"Linux version 6.1.0 (x)\0")}},
+                "enums": {},
+                "user_types": {"s": {"size": 8, "fields": {
+                    "flag": {"offset": 4, "type": {"kind": "bitfield", "bit_position": 3, "bit_length": 2, "type": {"kind": "base", "name": "u32"}}}
+                }}}
+            }))
+            .unwrap(),
+            "test".into(),
+        );
+        let isf = isf.unwrap();
+        let first = isf.layout("s", "flag").unwrap();
+        let second = isf.layout("s", "flag").unwrap();
+        assert_eq!(
+            (first.offset, first.size, first.bits),
+            (4, 4, Some((Some(3), Some(2))))
+        );
+        assert_eq!((second.offset, second.size), (first.offset, first.size));
+        assert_eq!(first.decode(0b1_1000).unwrap(), 3);
     }
 }

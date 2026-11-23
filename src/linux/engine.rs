@@ -90,23 +90,8 @@ impl Linux<'_> {
             };
         }
         let layout = self.isf.layout(structure, field)?;
-        let size = usize::try_from(layout.size).context("ISF 字段过大")?;
         let address = base.checked_add(layout.offset).context("对象地址溢出")?;
-        let value = self.vm.uint(address, size)?;
-        if let Some((position, length)) = layout.bits {
-            let position = position.context("ISF bit position 无效")?;
-            let length = length.context("ISF bit length 无效")?;
-            ensure!(
-                length > 0
-                    && position
-                        .checked_add(length)
-                        .is_some_and(|end| end <= (size * 8) as u64),
-                "ISF 位域越界"
-            );
-            Ok((value >> position) & (u64::MAX >> (64 - length)))
-        } else {
-            Ok(value)
-        }
+        layout.decode(self.vm.uint(address, layout.width()?)?)
     }
     /// Empty result carrying this kernel's identity and validation warnings.
     pub(crate) fn result(&self, plugin: Plugin) -> Results {

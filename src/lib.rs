@@ -35,8 +35,8 @@ use std::sync::{
     atomic::{AtomicBool, Ordering},
 };
 
-// Reject cached results produced before strict resident MFT attribute validation.
-pub const ENGINE_VERSION: &str = concat!(env!("CARGO_PKG_VERSION"), "-native-119");
+// Invalidate results produced before Windows checked bitfields against their storage width.
+pub const ENGINE_VERSION: &str = concat!(env!("CARGO_PKG_VERSION"), "-native-120");
 #[derive(Clone)]
 pub struct Job {
     pub cancel: Arc<AtomicBool>,
