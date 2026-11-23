@@ -197,11 +197,18 @@ impl Linux<'_> {
             start <= stop && (stop - start) / 4 <= HOOK_LIMIT as u64,
             "tracepoint 指针表无效"
         );
-        // Since 4.19 the table may hold 32-bit relative offsets.
+        // Since 4.19 (CONFIG_HAVE_ARCH_PREL32_RELOCATIONS), __start___tracepoints_ptrs
+        // holds 32-bit signed place-relative offsets (`typedef const int tracepoint_ptr_t`).
         let relative = self.isf.data.key("metadata")["zero"]
             .key("tracepoint_relative")
             .as_bool()
-            .unwrap_or(false);
+            .unwrap_or_else(|| {
+                let subtype = &self.isf.data.key("symbols")["__start___tracepoints_ptrs"]
+                    .key("type")
+                    .key("subtype");
+                subtype.key("kind").as_str() == Some("base")
+                    && self.isf.type_size(subtype).ok() == Some(4)
+            });
         let width = if relative { 4 } else { 8 };
         let code = self.code_map(job)?;
         let size = self.isf.data.key("user_types")["tracepoint_func"]
@@ -523,5 +530,38 @@ mod tests {
             let e = engine(&im, &isf).run(plugin, &Job::default()).unwrap_err();
             assert!(format!("{e:#}").contains("不支持"), "{plugin:?}");
         }
+    }
+
+    #[test]
+    fn tracepoints_auto_detect_prel32_int_array_slots() {
+        let (mut b, mut isf) = kernel();
+        isf.data["base_types"]["int"] = json!({"size":4,"signed":true,"endian":"little"});
+        isf.data["symbols"]["__start___tracepoints_ptrs"] = json!({
+            "address": 0x34000,
+            "type": {"kind": "array", "count": 0, "subtype": {"kind": "base", "name": "int"}}
+        });
+        isf.data["symbols"]["__stop___tracepoints_ptrs"] = json!({
+            "address": 0x34008,
+            "type": {"kind": "array", "count": 0, "subtype": {"kind": "base", "name": "int"}}
+        });
+        isf.data["user_types"]["tracepoint"] =
+            json!({"size":32,"fields":{"name":u64_field(0),"funcs":u64_field(8)}});
+        isf.data["user_types"]["tracepoint_func"] =
+            json!({"size":16,"fields":{"func":u64_field(0)}});
+        // slot 0x34000 + 0x100 = 0x34100; slot 0x34004 + 0x1fc = 0x34200
+        b[0x34000..0x34004].copy_from_slice(&0x100i32.to_le_bytes());
+        b[0x34004..0x34008].copy_from_slice(&0x1fci32.to_le_bytes());
+        put(&mut b, 0x34100, 0x34300);
+        put(&mut b, 0x34108, 0x34400);
+        b[0x34300..0x3430c].copy_from_slice(b"sched_switch");
+        put(&mut b, 0x34400, 0x18040);
+        let im = image(&b);
+        let r = engine(&im, &isf)
+            .run(Plugin::Tracepoints, &Job::default())
+            .unwrap();
+        assert!(r.complete, "{:?}", r.diagnostics);
+        assert_eq!(r.rows.len(), 1);
+        assert_eq!(r.rows[0][0], "sched_switch");
+        assert_eq!(r.rows[0][4], "KernelText");
     }
 }

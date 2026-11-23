@@ -98,6 +98,58 @@ struct Located {
     banner_physical: u64,
 }
 
+/// Resolve the kernel virtual-minus-physical `delta` for place-relative (PREL32)
+/// kallsyms tables using VMCOREINFO exports that agree across every checked symbol.
+fn delta_from_vmcoreinfo(
+    image: &Image,
+    tables: &image_kallsyms::Tables,
+    release: &str,
+    job: &Job,
+) -> Result<u64> {
+    let notes = vmcoreinfo::find(image, release, job)?;
+    let mut deltas = std::collections::BTreeSet::new();
+    for note in &notes {
+        let mut compared = 0usize;
+        let mut note_delta: Option<u64> = None;
+        let mut consistent = true;
+        for (name, value) in &note.symbols {
+            if !ADDRESS_EXPORTS.contains(&name.as_str()) {
+                continue;
+            }
+            if let Some(symbol) = unique(tables, name) {
+                let candidate = value.wrapping_sub(symbol.runtime);
+                compared += 1;
+                match note_delta {
+                    None => note_delta = Some(candidate),
+                    Some(prev) => consistent &= prev == candidate,
+                }
+            }
+        }
+        if let Some(phys_base) = note.numbers.get("phys_base") {
+            let candidate = START_KERNEL_MAP.wrapping_sub(phys_base.cast_unsigned());
+            compared += 1;
+            match note_delta {
+                None => note_delta = Some(candidate),
+                Some(prev) => consistent &= prev == candidate,
+            }
+        }
+        if consistent
+            && compared > 0
+            && let Some(delta) = note_delta
+            && delta & 4095 == 0
+        {
+            deltas.insert(delta);
+        }
+    }
+    match deltas.len() {
+        1 => deltas.into_iter().next().context("VMCOREINFO 映射差为空"),
+        0 => Err(unavailable(
+            "镜像使用位置相对（PREL32）kallsyms 表，但缺少可核对的 VMCOREINFO 虚拟地址锚点",
+        )),
+        n => bail!("VMCOREINFO 给出 {n} 个冲突的内核虚实映射差，无法确定当前内核"),
+    }
+}
+
 fn locate(image: &Image, job: &Job) -> Result<Located> {
     let banners = image.banners(job)?;
     ensure!(!banners.is_empty(), "镜像中没有 Linux banner");
@@ -142,15 +194,10 @@ fn locate(image: &Image, job: &Job) -> Result<Located> {
     }
     let mut located = Vec::new();
     let mut rejected = Vec::new();
-    for tables in candidates {
+    for mut tables in candidates {
         job.check()?;
         let token_table = tables.token_table;
         let checked = (|| -> Result<Located> {
-            let num_syms = unique(&tables, "kallsyms_num_syms")
-                .filter(|s| s.relocated)
-                .context("kallsyms 不含 kallsyms_num_syms；需要 CONFIG_KALLSYMS_ALL")?;
-            let delta = num_syms.runtime.wrapping_sub(tables.num_syms);
-            ensure!(delta & 4095 == 0, "内核虚拟／物理映射未按页对齐");
             let physical = [
                 tables.num_syms,
                 tables.names,
@@ -159,25 +206,59 @@ fn locate(image: &Image, job: &Job) -> Result<Located> {
                 tables.token_index,
                 tables.offsets,
             ];
-            for (name, at) in TABLE_SYMBOLS.iter().zip(physical) {
-                if let Some(symbol) = unique(&tables, name) {
-                    ensure!(
-                        symbol.runtime.wrapping_sub(delta) == at,
-                        "{name} 与解码出的物理表位置不一致"
-                    );
+            let (delta, bytes, banner_physical) = if tables.addresses_are_physical {
+                for (name, at) in TABLE_SYMBOLS.iter().zip(physical) {
+                    if let Some(symbol) = unique(&tables, name) {
+                        ensure!(symbol.runtime == at, "{name} 与解码出的物理表位置不一致");
+                    }
                 }
-            }
-            let banner = unique(&tables, "linux_banner")
-                .filter(|s| s.relocated)
-                .context("kallsyms 缺少 linux_banner")?;
-            let banner_physical = banner.runtime.wrapping_sub(delta);
-            let bytes = banners
-                .iter()
-                .find(|(at, _)| *at == banner_physical)
-                .map(|(_, bytes)| bytes.clone())
-                .with_context(|| {
-                    format!("linux_banner 映射到物理 {banner_physical:#x}，该处不是镜像 banner")
-                })?;
+                let banner = unique(&tables, "linux_banner")
+                    .filter(|s| s.relocated)
+                    .context("kallsyms 缺少 linux_banner")?;
+                let banner_physical = banner.runtime;
+                let bytes = banners
+                    .iter()
+                    .find(|(at, _)| *at == banner_physical)
+                    .map(|(_, bytes)| bytes.clone())
+                    .with_context(|| {
+                        format!("linux_banner 映射到物理 {banner_physical:#x}，该处不是镜像 banner")
+                    })?;
+                let rel = release(&bytes)?;
+                let delta = delta_from_vmcoreinfo(image, &tables, &rel, job)?;
+                for symbol in &mut tables.symbols {
+                    if symbol.relocated {
+                        symbol.runtime = symbol.runtime.wrapping_add(delta);
+                    }
+                }
+                tables.addresses_are_physical = false;
+                (delta, bytes, banner_physical)
+            } else {
+                let num_syms = unique(&tables, "kallsyms_num_syms")
+                    .filter(|s| s.relocated)
+                    .context("kallsyms 不含 kallsyms_num_syms；需要 CONFIG_KALLSYMS_ALL")?;
+                let delta = num_syms.runtime.wrapping_sub(tables.num_syms);
+                ensure!(delta & 4095 == 0, "内核虚拟／物理映射未按页对齐");
+                for (name, at) in TABLE_SYMBOLS.iter().zip(physical) {
+                    if let Some(symbol) = unique(&tables, name) {
+                        ensure!(
+                            symbol.runtime.wrapping_sub(delta) == at,
+                            "{name} 与解码出的物理表位置不一致"
+                        );
+                    }
+                }
+                let banner = unique(&tables, "linux_banner")
+                    .filter(|s| s.relocated)
+                    .context("kallsyms 缺少 linux_banner")?;
+                let banner_physical = banner.runtime.wrapping_sub(delta);
+                let bytes = banners
+                    .iter()
+                    .find(|(at, _)| *at == banner_physical)
+                    .map(|(_, bytes)| bytes.clone())
+                    .with_context(|| {
+                        format!("linux_banner 映射到物理 {banner_physical:#x}，该处不是镜像 banner")
+                    })?;
+                (delta, bytes, banner_physical)
+            };
             Ok(Located {
                 tables,
                 delta,
@@ -342,7 +423,7 @@ fn measured_types(
     } else {
         "long unsigned int"
     };
-    let measured = [
+    let mut measured = vec![
         ("kallsyms_num_syms", base("unsigned int"), "unsigned int"),
         (
             "kallsyms_names",
@@ -361,12 +442,14 @@ fn measured_types(
             "short unsigned int",
         ),
         ("kallsyms_offsets", array(count, "int"), "int"),
-        (
+    ];
+    if tables.relative_base_at.is_some() {
+        measured.push((
             "kallsyms_relative_base",
             base("long unsigned int"),
             "long unsigned int",
-        ),
-    ];
+        ));
+    }
     measured
         .into_iter()
         .filter(|(_, _, needed)| base_types.contains_key(*needed))
@@ -452,6 +535,7 @@ pub fn generate(image: &Image, cache: &Path, job: &Job) -> Result<PathBuf> {
         btf.has_struct("task_struct"),
         "内核 BTF 不含 task_struct；不是 vmlinux 的基础 BTF"
     );
+    let tracepoint_relative = btf.is_int_typedef("tracepoint_ptr_t", 4);
     let types = btf::convert(&btf, 8, job)?;
     let btf_sha256 = format!("{:x}", Sha256::digest(&btf_bytes));
     let btf_length = btf_bytes.len();
@@ -518,6 +602,7 @@ pub fn generate(image: &Image, cache: &Path, job: &Job) -> Result<PathBuf> {
             "architecture": "x86_64",
             "page_shift": 12,
             "va_bits": if l5 == Some(1) { 57 } else { 48 },
+            "tracepoint_relative": tracepoint_relative,
             "source": "image",
             "generator": GENERATOR,
             "image_sha256": image.digest,
@@ -576,7 +661,7 @@ pub fn generate(image: &Image, cache: &Path, job: &Job) -> Result<PathBuf> {
                 "symbols": tables.symbols.len(),
                 "layout": tables.layout,
                 "percpu": tables.percpu,
-                "relative_base": format!("{:#x}", tables.relative_base),
+                "relative_base": tables.relative_base.map(|v| format!("{v:#x}")),
                 "physical": {
                     "num_syms": format!("{:#x}", tables.num_syms),
                     "names": format!("{:#x}", tables.names),
@@ -584,7 +669,7 @@ pub fn generate(image: &Image, cache: &Path, job: &Job) -> Result<PathBuf> {
                     "token_table": format!("{:#x}", tables.token_table),
                     "token_index": format!("{:#x}", tables.token_index),
                     "offsets": format!("{:#x}", tables.offsets),
-                    "relative_base": format!("{:#x}", tables.relative_base_at),
+                    "relative_base": tables.relative_base_at.map(|v| format!("{v:#x}")),
                 },
             },
             "virtual_minus_physical": format!("{:#x}", located.delta),

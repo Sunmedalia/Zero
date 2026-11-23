@@ -515,3 +515,188 @@ fn local_fallback_refuses_ambiguity_page_table_failures_and_cancellation() {
         );
     }
 }
+
+#[test]
+fn generates_isf_from_prel32_kallsyms_without_relative_base_and_detects_tracepoint_typedef() {
+    let base = START_KERNEL_MAP;
+    let strings =
+        b"\0int\0char\0list_head\0next\0prev\0task_struct\0tasks\0pid\0comm\0tracepoint_ptr_t\0";
+    let offset = |name: &str| -> u32 {
+        u32::try_from(
+            strings
+                .windows(name.len() + 1)
+                .position(|s| s.starts_with(name.as_bytes()) && s.last() == Some(&0))
+                .unwrap(),
+        )
+        .unwrap()
+    };
+    let mut types = Vec::new();
+    let mut record = |words: &[u32]| {
+        for word in words {
+            types.extend_from_slice(&word.to_le_bytes());
+        }
+    };
+    record(&[offset("int"), 1 << 24, 4, (1 << 24) | 32]); // 1: int
+    record(&[offset("char"), 1 << 24, 1, (1 << 24) | 8]); // 2: char
+    record(&[0, 2 << 24, 4]); // 3: pointer -> list_head
+    record(&[offset("list_head"), (4 << 24) | 2, 16]); // 4
+    record(&[offset("next"), 3, 0, offset("prev"), 3, 64]);
+    record(&[0, 3 << 24, 0, 2, 1, 16]); // 5: char[16]
+    record(&[offset("task_struct"), (4 << 24) | 3, 40]); // 6
+    record(&[
+        offset("tasks"),
+        4,
+        0,
+        offset("pid"),
+        1,
+        128,
+        offset("comm"),
+        5,
+        160,
+    ]);
+    record(&[0, 10 << 24, 1]); // 7: const int
+    record(&[offset("tracepoint_ptr_t"), 8 << 24, 7]); // 8: typedef const int tracepoint_ptr_t
+    let mut btf = vec![0x9f, 0xeb, 1, 0];
+    for word in [
+        24,
+        0,
+        types.len() as u32,
+        types.len() as u32,
+        strings.len() as u32,
+    ] {
+        btf.extend_from_slice(&word.to_le_bytes());
+    }
+    btf.extend_from_slice(&types);
+    btf.extend_from_slice(strings);
+
+    // Build place-relative (PREL32) kallsyms with NO kallsyms_relative_base.
+    let mut symbols = vec![
+        ("Dkallsyms_num_syms", 0x100u64),
+        ("Dkallsyms_names", 0x108),
+        ("Dkallsyms_markers", 0x200),
+        ("Dkallsyms_token_table", 0x300),
+        ("Dkallsyms_offsets", 0x800),
+        ("Dinit_top_pgt", 0x4000),
+        ("Dinit_task", 0x7000),
+        ("Dlinux_banner", 0x8000),
+        ("D__start_BTF", 0x9000),
+        ("D__stop_BTF", 0x9000 + btf.len() as u64),
+    ];
+    for i in 0..260u64 {
+        symbols.push((
+            Box::leak(format!("tfunc_{i}").into_boxed_str()),
+            0xb000 + i * 16,
+        ));
+    }
+    let build_prel32 = |syms: &[(&str, u64)]| -> (Vec<u8>, Vec<(&'static str, u64)>) {
+        let mut table = Vec::new();
+        let mut index = Vec::new();
+        for i in 0u16..256 {
+            index.push(u16::try_from(table.len()).unwrap());
+            let byte = u8::try_from(i).unwrap();
+            if (0x21..=0x7e).contains(&byte) {
+                table.push(byte);
+            } else {
+                table.extend_from_slice(&[b'~', b'!' + (byte % 64)]);
+            }
+            table.push(0);
+        }
+        let mut names = Vec::new();
+        let mut markers = Vec::new();
+        for (i, (name, _)) in syms.iter().enumerate() {
+            if i % 256 == 0 {
+                markers.push(u32::try_from(names.len()).unwrap());
+            }
+            names.push(u8::try_from(name.len()).unwrap());
+            names.extend_from_slice(name.as_bytes());
+        }
+        let mut image = vec![0u8; 0x1000];
+        let mut put = |at: usize, bytes: &[u8]| {
+            image.resize(image.len().max(at + bytes.len()), 0);
+            image[at..at + bytes.len()].copy_from_slice(bytes);
+        };
+        let num_syms = 0x100usize;
+        put(num_syms, &(syms.len() as u64).to_le_bytes());
+        let names_at = num_syms + 8;
+        put(names_at, &names);
+        let markers_at = (names_at + names.len() + 7) & !7;
+        let marker_bytes: Vec<u8> = markers.iter().flat_map(|m| m.to_le_bytes()).collect();
+        put(markers_at, &marker_bytes);
+        let table_at = (markers_at + marker_bytes.len() + 7) & !7;
+        put(table_at, &table);
+        let index_at = (table_at + table.len() + 7) & !7;
+        let index_bytes: Vec<u8> = index.iter().flat_map(|v| v.to_le_bytes()).collect();
+        put(index_at, &index_bytes);
+        let offsets_at = index_at + 512;
+        let offsets: Vec<u8> = syms
+            .iter()
+            .enumerate()
+            .flat_map(|(i, (_, pa))| {
+                let slot = (offsets_at + i * 4) as i64;
+                i32::try_from(*pa as i64 - slot).unwrap().to_le_bytes()
+            })
+            .collect();
+        put(offsets_at, &offsets);
+        (
+            image,
+            vec![
+                ("num_syms", num_syms as u64),
+                ("names", names_at as u64),
+                ("markers", markers_at as u64),
+                ("token_table", table_at as u64),
+                ("offsets", offsets_at as u64),
+            ],
+        )
+    };
+    let (_, locations) = build_prel32(&symbols);
+    for ((_, pa), (_, physical)) in symbols.iter_mut().zip(locations) {
+        *pa = physical;
+    }
+    symbols.sort_by_key(|(_, pa)| *pa);
+    let (mut bytes, _) = build_prel32(&symbols);
+    bytes.resize(0x10000, 0);
+    let mut put = |at: usize, value: u64| {
+        bytes[at..at + 8].copy_from_slice(&value.to_le_bytes());
+    };
+    put(0x4000 + 511 * 8, 0x5003);
+    put(0x5000 + 510 * 8, 0x6003);
+    put(0x6000, 0x83);
+    put(0x7000, base + 0x7000);
+    put(0x7008, base + 0x7000);
+    bytes[0x7014..0x701c].copy_from_slice(b"swapper\0");
+    let banner = b"Linux version 7.0.0-fixture (fixture)\n\0";
+    bytes[0x8000..0x8000 + banner.len()].copy_from_slice(banner);
+    bytes[0x9000..0x9000 + btf.len()].copy_from_slice(&btf);
+    let note = format!(
+        "OSRELEASE=7.0.0-fixture\nSYMBOL(init_top_pgt)={:x}\nKERNELOFFSET=0\n\0",
+        base + 0x4000
+    );
+    bytes[0xa000..0xa000 + note.len()].copy_from_slice(note.as_bytes());
+
+    let dir = tempfile::tempdir().unwrap();
+    let cache = dir.path().join("cache");
+    let path = dir.path().join("prel32.raw");
+    fs::write(&path, &bytes).unwrap();
+    let image = Image::open(&path, &cache, &Job::default()).unwrap();
+    let generated = generate(&image, &cache, &Job::default()).unwrap();
+    let mut loaded = None;
+    crate::symbols::visit(&generated, &Job::default(), &mut |label, raw| {
+        loaded = Some((label, raw));
+        Ok(())
+    })
+    .unwrap();
+    let (label, raw) = loaded.unwrap();
+    let isf = Isf::parse(&raw, label).unwrap();
+    assert_eq!(
+        isf.data["metadata"]["zero"]["tracepoint_relative"],
+        json!(true)
+    );
+    assert!(
+        isf.data["symbols"]
+            .as_object()
+            .unwrap()
+            .get("kallsyms_relative_base")
+            .is_none()
+    );
+    assert_eq!(isf.address("init_task").unwrap(), base + 0x7000);
+}

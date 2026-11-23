@@ -404,6 +404,7 @@ fn taint_description(c: char) -> Option<&'static str> {
         'X' => Some("AUX"),
         'T' => Some("RANDSTRUCT"),
         'N' => Some("TEST"),
+        'J' => Some("FWCTL"),
         _ => None,
     }
 }
@@ -426,9 +427,11 @@ impl Linux<'_> {
             .context("taint_flag size 缺失")?;
         ensure!((1..=4096).contains(&size), "taint_flag size 无效");
         let mut entries = Vec::new();
+        // Linux 6.18+ removed `taint_flag.module` and checks all entries in `taint_flags[]`.
+        let has_module_filter = self.isf.field("taint_flag", "module").is_ok();
         for bit in 0..count {
             let flag = add(flags, bit * size)?;
-            if self.number(flag, "taint_flag", "module")? == 0 {
+            if has_module_filter && self.number(flag, "taint_flag", "module")? == 0 {
                 continue;
             }
             let decode_char = |field: &str| -> Result<Option<char>> {
