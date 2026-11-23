@@ -81,6 +81,18 @@ impl App {
             self.start_work(Work::Analyze(force));
         }
     }
+    pub(super) fn export_result(&mut self, path: PathBuf) {
+        if let Some(result) = self.result_shared().cloned() {
+            self.start_work(Work::Export {
+                path,
+                result,
+                query: self.query.clone(),
+                sort: self.sort,
+                descending: self.descending,
+            });
+        }
+    }
+
     pub(super) fn start_work(&mut self, work: Work) {
         if let Work::Analyze(force) = work
             && self.plugin.is_dump()
@@ -113,7 +125,7 @@ impl App {
                     | Work::RemoveCache(_)
                     | Work::Record(_)
                     | Work::History(_)
-                    | Work::Export(..)
+                    | Work::Export { .. }
                     | Work::ExportDiagnostic(..)
                     | Work::Clear(_)
                     | Work::PreviewImage(_)
@@ -255,11 +267,28 @@ impl App {
                     Work::History(path) => {
                         store::exported(&path).map(|r| WorkerEvent::Opened(path, r))
                     }
-                    Work::Export(path, result, rows) => {
+                    Work::Export {
+                        path,
+                        result,
+                        query,
+                        sort,
+                        descending,
+                    } => {
+                        use crate::result_view::Index;
+
+                        let rows = Index::filtered_rows(
+                            &result,
+                            &Index::fold(&query),
+                            sort,
+                            descending,
+                            None,
+                            &|| worker_job.cancel.load(Ordering::Relaxed),
+                        )
+                        .ok_or_else(|| anyhow::anyhow!("任务已取消 / cancelled"))?;
                         let metadata = result.metadata();
-                        let selected = rows.iter().filter_map(|&i| result.rows.get(i));
+                        let count = rows.len();
+                        let selected = rows.into_iter().map(|i| &result.rows[i]);
                         store::export_rows(&path, &metadata, selected, &worker_job)?;
-                        let count = rows.iter().filter(|&&i| i < result.rows.len()).count();
                         let error =
                             store::record_export(&cache, &path, &metadata, count, &worker_job)
                                 .err()

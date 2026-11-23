@@ -160,8 +160,14 @@ pub(super) enum Work {
     RemoveCache(Vec<PathBuf>),
     Record(String),
     History(PathBuf),
-    /// Destination, the shown result and the filtered row indices to write.
-    Export(PathBuf, Arc<Results>, Vec<usize>),
+    /// The result and view settings captured when the user confirms export.
+    Export {
+        path: PathBuf,
+        result: Arc<Results>,
+        query: String,
+        sort: Option<usize>,
+        descending: bool,
+    },
     Verify,
     Clear(Vec<cache::Scope>),
     FindKernelPackages(bool),

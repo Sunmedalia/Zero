@@ -41,7 +41,7 @@ use components::*;
 use crossterm::{
     cursor::Show,
     event::{
-        self, DisableBracketedPaste, DisableMouseCapture, EnableBracketedPaste, EnableMouseCapture,
+        DisableBracketedPaste, DisableMouseCapture, EnableBracketedPaste, EnableMouseCapture,
         Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers, MouseButton, MouseEvent,
         MouseEventKind,
     },
@@ -154,23 +154,13 @@ pub fn run_with_options(
         }
         // Worker panics are caught and reported through the event channel.
     }));
-    let (light, typed) = terminal_theme::detect(settings.theme == "auto");
+    let (light, mut input) = terminal_theme::detect(settings.theme == "auto");
     theme::set_background(light);
     let mut terminal = Terminal::new(CrosstermBackend::new(std::io::stdout()))?;
     let mut app = App::new(image, symbols, cache, settings);
     app.initialize(options);
     if let Some(hint) = crate::prepare::build_tools_hint() {
         app.status = hint;
-    }
-    // Keys pressed while the terminal answered the theme query.
-    for key in terminal_theme::typed_keys(&typed) {
-        if app.key(key) {
-            app.cancel();
-            drop(terminal);
-            drop(guard);
-            app.release_worker(EXIT_WAIT);
-            return Ok(());
-        }
     }
     let outcome = (|| -> Result<()> {
         let mut dirty = true;
@@ -198,8 +188,12 @@ pub fn run_with_options(
             for _ in 0..EVENT_BATCH {
                 let next = match deferred.take() {
                     Some(next) => next,
-                    None if event::poll(wait)? => event::read()?,
-                    None => break,
+                    None => {
+                        let Some(next) = input.next_event(wait)? else {
+                            break;
+                        };
+                        next
+                    }
                 };
                 wait = Duration::ZERO;
                 let stale = match hit_test(&next) {
@@ -337,11 +331,7 @@ fn native_acceptance() {
     assert!(result.complete && !result.rows.is_empty() && result.page_table != 0);
     let result = result.clone();
     let export = project.path().join("exports/pslist.json");
-    app.start_work(Work::Export(
-        export.clone(),
-        Arc::new(result.clone()),
-        (0..result.rows.len()).collect(),
-    ));
+    app.export_result(export.clone());
     settle(&mut app);
     assert_eq!(store::exported(&export).unwrap().rows, result.rows);
     app.switch_page(Page::Cache);

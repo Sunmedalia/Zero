@@ -66,59 +66,7 @@ impl Index {
         cancel: &dyn Fn() -> bool,
     ) -> Option<Self> {
         let query = Self::fold(query);
-        let keep = |i: usize| {
-            query.is_empty()
-                || result
-                    .rows
-                    .get(i)
-                    .is_some_and(|row| row.iter().any(|cell| contains_folded(cell, &query)))
-        };
-        let mut filtered = Vec::new();
-        match base {
-            Some(base) => {
-                for (n, &i) in base.iter().enumerate() {
-                    if n % CANCEL_STRIDE == 0 && cancel() {
-                        return None;
-                    }
-                    if keep(i) {
-                        filtered.push(i);
-                    }
-                }
-                // Restore row order so equal sort keys stay stable.
-                filtered.sort_unstable();
-            }
-            None => {
-                for i in 0..result.rows.len() {
-                    if i % CANCEL_STRIDE == 0 && cancel() {
-                        return None;
-                    }
-                    if keep(i) {
-                        filtered.push(i);
-                    }
-                }
-            }
-        }
-        if let Some(column) = sort {
-            // Parse each key once instead of twice per comparison.
-            let mut keyed: Vec<_> = filtered
-                .iter()
-                .map(|&i| {
-                    let cell = result.rows.get(i).map_or("", |row| row.cell(column));
-                    (i, sort_key(cell))
-                })
-                .collect();
-            if cancel() {
-                return None;
-            }
-            keyed.sort_by(|(_, a), (_, b)| {
-                let order = compare_keys(a, b);
-                if descending { order.reverse() } else { order }
-            });
-            filtered = keyed.into_iter().map(|(i, _)| i).collect();
-        }
-        if cancel() {
-            return None;
-        }
+        let filtered = Self::filtered_rows(result, &query, sort, descending, base, cancel)?;
         let Some((parent, name)) = tree else {
             let visible = filtered
                 .iter()
@@ -190,6 +138,70 @@ impl Index {
             visible,
             query,
         })
+    }
+    /// Filter and sort source rows using an already folded query.
+    pub(crate) fn filtered_rows(
+        result: &Results,
+        query: &str,
+        sort: Option<usize>,
+        descending: bool,
+        base: Option<&[usize]>,
+        cancel: &dyn Fn() -> bool,
+    ) -> Option<Vec<usize>> {
+        let keep = |i: usize| {
+            query.is_empty()
+                || result
+                    .rows
+                    .get(i)
+                    .is_some_and(|row| row.iter().any(|cell| contains_folded(cell, query)))
+        };
+        let mut filtered = Vec::new();
+        match base {
+            Some(base) => {
+                for (n, &i) in base.iter().enumerate() {
+                    if n % CANCEL_STRIDE == 0 && cancel() {
+                        return None;
+                    }
+                    if keep(i) {
+                        filtered.push(i);
+                    }
+                }
+                // Restore row order so equal sort keys stay stable.
+                filtered.sort_unstable();
+            }
+            None => {
+                for i in 0..result.rows.len() {
+                    if i % CANCEL_STRIDE == 0 && cancel() {
+                        return None;
+                    }
+                    if keep(i) {
+                        filtered.push(i);
+                    }
+                }
+            }
+        }
+        if let Some(column) = sort {
+            // Parse each key once instead of twice per comparison.
+            let mut keyed: Vec<_> = filtered
+                .iter()
+                .map(|&i| {
+                    let cell = result.rows.get(i).map_or("", |row| row.cell(column));
+                    (i, sort_key(cell))
+                })
+                .collect();
+            if cancel() {
+                return None;
+            }
+            keyed.sort_by(|(_, a), (_, b)| {
+                let order = compare_keys(a, b);
+                if descending { order.reverse() } else { order }
+            });
+            filtered = keyed.into_iter().map(|(i, _)| i).collect();
+        }
+        if cancel() {
+            return None;
+        }
+        Some(filtered)
     }
     pub fn row(&self, result: &Results, position: usize) -> Option<Vec<String>> {
         let line = self.visible.get(position)?;

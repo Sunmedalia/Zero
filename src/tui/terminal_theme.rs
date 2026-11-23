@@ -1,5 +1,13 @@
 //! Query before Crossterm starts consuming input. DA1 bounds the response window.
+use crossterm::event::{self, Event};
+use std::collections::VecDeque;
+#[cfg(unix)]
 use std::io::Write;
+use std::{io, time::Duration};
+
+const PASTE_START: &[u8] = b"\x1b[200~";
+const PASTE_END: &[u8] = b"\x1b[201~";
+const READ_BATCH: usize = 4096;
 
 pub(super) fn from_env(value: &str) -> Option<bool> {
     let background = value.rsplit(';').next()?.parse::<u8>().ok()?;
@@ -30,12 +38,12 @@ pub(super) fn parse(reply: &str) -> Option<bool> {
 ///
 /// Only the `auto` theme depends on the answer, so other themes never query the
 /// terminal and start without waiting. `COLORFGBG` is the fallback either way.
-pub(super) fn detect(probe: bool) -> (bool, Vec<u8>) {
+pub(super) fn detect(probe: bool) -> (bool, StartupInput) {
     let (reply, typed) = if probe { query() } else { (None, Vec::new()) };
     let light = reply
         .or_else(|| std::env::var("COLORFGBG").ok().and_then(|s| from_env(&s)))
         .unwrap_or(false);
-    (light, typed)
+    (light, StartupInput::from_bytes(&typed))
 }
 /// Split raw terminal input into the OSC 11 / DA1 replies and everything
 /// else, which is what the user typed while the query was outstanding.
@@ -45,7 +53,14 @@ pub(super) fn split_replies(bytes: &[u8]) -> (String, Vec<u8>) {
     let mut i = 0;
     while i < bytes.len() {
         let rest = bytes.get(i..).unwrap_or_default();
-        let end = if rest.starts_with(b"\x1b]") {
+        if let Some(paste) = rest.strip_prefix(PASTE_START) {
+            let end = memchr::memmem::find(paste, PASTE_END)
+                .map_or(rest.len(), |end| PASTE_START.len() + end + PASTE_END.len());
+            typed.extend_from_slice(&rest[..end]);
+            i += end;
+            continue;
+        }
+        let end = if rest.starts_with(b"\x1b]11;") {
             // OSC: ends at BEL or ST (ESC \\).
             rest.iter()
                 .enumerate()
@@ -54,7 +69,12 @@ pub(super) fn split_replies(bytes: &[u8]) -> (String, Vec<u8>) {
                 .map(|(k, _)| k + 1)
         } else if rest.starts_with(b"\x1b[?") {
             // DA1: ESC [ ? params c
-            rest.iter().position(|&b| b == b'c').map(|k| k + 1)
+            let tail = &rest[3..];
+            let end = tail
+                .iter()
+                .take_while(|b| b.is_ascii_digit() || **b == b';')
+                .count();
+            (tail.get(end) == Some(&b'c')).then_some(3 + end + 1)
         } else {
             None
         };
@@ -71,16 +91,77 @@ pub(super) fn split_replies(bytes: &[u8]) -> (String, Vec<u8>) {
     }
     (String::from_utf8_lossy(&replies).into_owned(), typed)
 }
+/// Input already taken from stdin by the probe. If the probe stopped inside
+/// a paste, read the rest of that frame before handing stdin to Crossterm.
+pub(super) struct StartupInput {
+    events: VecDeque<Event>,
+    pending_paste: Option<Vec<u8>>,
+}
+
+impl StartupInput {
+    pub(super) fn from_bytes(mut bytes: &[u8]) -> Self {
+        let mut input = Self {
+            events: VecDeque::new(),
+            pending_paste: None,
+        };
+        while let Some(start) = memchr::memmem::find(bytes, PASTE_START) {
+            input.events.extend(typed_keys(&bytes[..start]));
+            let body = &bytes[start + PASTE_START.len()..];
+            let Some(end) = memchr::memmem::find(body, PASTE_END) else {
+                input.pending_paste = Some(body.to_vec());
+                return input;
+            };
+            input.events.push_back(paste_event(&body[..end]));
+            bytes = &body[end + PASTE_END.len()..];
+        }
+        input.events.extend(typed_keys(bytes));
+        input
+    }
+
+    pub(super) fn next_event(&mut self, wait: Duration) -> io::Result<Option<Event>> {
+        if let Some(event) = self.events.pop_front() {
+            return Ok(Some(event));
+        }
+        if let Some(paste) = self.pending_paste.as_mut() {
+            let mut wait = wait;
+            for _ in 0..READ_BATCH {
+                let Some(byte) = read_byte(wait)? else {
+                    break;
+                };
+                wait = Duration::ZERO;
+                if let Some(event) = append_paste_byte(paste, byte) {
+                    self.pending_paste = None;
+                    return Ok(Some(event));
+                }
+            }
+            return Ok(None);
+        }
+        if event::poll(wait)? {
+            return event::read().map(Some);
+        }
+        Ok(None)
+    }
+}
+
+fn paste_event(bytes: &[u8]) -> Event {
+    Event::Paste(String::from_utf8_lossy(bytes).into_owned())
+}
+
+fn append_paste_byte(paste: &mut Vec<u8>, byte: u8) -> Option<Event> {
+    paste.push(byte);
+    paste.strip_suffix(PASTE_END).map(paste_event)
+}
+
 /// Key events for bytes typed during the query, so they are not lost.
 /// Covers printable text, Enter, Tab, Backspace, Esc, arrows and Ctrl+letter.
-pub(super) fn typed_keys(bytes: &[u8]) -> Vec<crossterm::event::KeyEvent> {
+fn typed_keys(bytes: &[u8]) -> impl Iterator<Item = Event> {
     use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
     let key = |code| KeyEvent::new(code, KeyModifiers::NONE);
-    let mut keys = Vec::new();
     let text = String::from_utf8_lossy(bytes);
     let mut chars = text.chars().peekable();
+    let mut keys = Vec::new();
     while let Some(c) = chars.next() {
-        keys.push(match c {
+        keys.push(Event::Key(match c {
             '\r' | '\n' => key(KeyCode::Enter),
             '\t' => key(KeyCode::Tab),
             '\x7f' | '\x08' => key(KeyCode::Backspace),
@@ -91,6 +172,16 @@ pub(super) fn typed_keys(bytes: &[u8]) -> Vec<crossterm::event::KeyEvent> {
                     Some('B') => key(KeyCode::Down),
                     Some('C') => key(KeyCode::Right),
                     Some('D') => key(KeyCode::Left),
+                    Some(c) if (' '..='?').contains(&c) => {
+                        // Consume the rest of an unsupported CSI sequence as
+                        // one unit so its parameters cannot become shortcuts.
+                        for ch in chars.by_ref() {
+                            if ('@'..='~').contains(&ch) {
+                                break;
+                            }
+                        }
+                        continue;
+                    }
                     _ => continue,
                 }
             }
@@ -101,9 +192,9 @@ pub(super) fn typed_keys(bytes: &[u8]) -> Vec<crossterm::event::KeyEvent> {
             ),
             c if c.is_control() || c == char::REPLACEMENT_CHARACTER => continue,
             c => key(KeyCode::Char(c)),
-        });
+        }));
     }
-    keys
+    keys.into_iter()
 }
 #[cfg(unix)]
 fn query() -> (Option<bool>, Vec<u8>) {
@@ -113,34 +204,71 @@ fn query() -> (Option<bool>, Vec<u8>) {
     }
     let started = std::time::Instant::now();
     let mut input = Vec::new();
-    // DA1 is answered by every terminal, so the deadline is only reached by
-    // one that answers nothing at all.
-    while started.elapsed() < std::time::Duration::from_millis(1000) && input.len() < 4096 {
-        let mut fd = libc::pollfd {
-            fd: libc::STDIN_FILENO,
-            events: libc::POLLIN,
-            revents: 0,
+    while started.elapsed() < Duration::from_secs(1) && input.len() < READ_BATCH {
+        let byte = match read_byte(Duration::from_millis(20)) {
+            Ok(Some(byte)) => byte,
+            Ok(None) => continue,
+            Err(_) => break,
         };
-        // SAFETY: poll receives one initialized descriptor; read receives a valid buffer.
-        let ready = unsafe { libc::poll(&mut fd, 1, 20) };
-        if ready <= 0 {
-            continue;
-        }
-        // One byte at a time: input typed after the DA1 reply stays queued
-        // for Crossterm instead of being consumed here.
-        let mut byte = [0u8; 1];
-        let read = unsafe { libc::read(libc::STDIN_FILENO, byte.as_mut_ptr().cast(), 1) };
-        if read <= 0 {
+        input.push(byte);
+        if byte == b'c' && split_replies(&input).0.contains("\x1b[?") {
             break;
         }
-        input.extend_from_slice(&byte);
-        if byte == [b'c'] && split_replies(&input).0.contains("\x1b[?") {
-            break;
+    }
+    // The byte or time limit may land inside the opening marker. Complete
+    // an already queued marker before passing the rest of stdin to Crossterm.
+    if let Some(prefix) = (1..PASTE_START.len())
+        .rev()
+        .find(|&n| input.ends_with(&PASTE_START[..n]))
+    {
+        for &expected in &PASTE_START[prefix..] {
+            let Ok(Some(byte)) = read_byte(Duration::ZERO) else {
+                break;
+            };
+            input.push(byte);
+            if byte != expected {
+                break;
+            }
         }
     }
     let (replies, typed) = split_replies(&input);
     (parse(&replies), typed)
 }
+#[cfg(unix)]
+fn read_byte(wait: Duration) -> io::Result<Option<u8>> {
+    let mut fd = libc::pollfd {
+        fd: libc::STDIN_FILENO,
+        events: libc::POLLIN,
+        revents: 0,
+    };
+    // SAFETY: poll receives one initialized descriptor; read receives a valid buffer.
+    let ready = unsafe { libc::poll(&mut fd, 1, wait.as_millis() as libc::c_int) };
+    if ready == 0 {
+        return Ok(None);
+    }
+    if ready < 0 {
+        return match io::Error::last_os_error() {
+            error if error.kind() == io::ErrorKind::Interrupted => Ok(None),
+            error => Err(error),
+        };
+    }
+    // Stop exactly at the end of DA1 or the paste, leaving the next input queued.
+    let mut byte = 0u8;
+    match unsafe { libc::read(libc::STDIN_FILENO, (&mut byte as *mut u8).cast(), 1) } {
+        1 => Ok(Some(byte)),
+        0 => Err(io::ErrorKind::UnexpectedEof.into()),
+        _ => match io::Error::last_os_error() {
+            error if error.kind() == io::ErrorKind::Interrupted => Ok(None),
+            error => Err(error),
+        },
+    }
+}
+
+#[cfg(not(unix))]
+fn read_byte(_: Duration) -> io::Result<Option<u8>> {
+    Ok(None)
+}
+
 #[cfg(not(unix))]
 fn query() -> (Option<bool>, Vec<u8>) {
     (None, Vec::new())
@@ -171,17 +299,50 @@ mod tests {
         assert_eq!(parse(&replies), Some(true));
         assert!(replies.contains("\x1b[?62;22c"));
         assert_eq!(typed, b"qj\x1b[A");
-        let keys = typed_keys(&typed);
-        let codes: Vec<_> = keys.iter().map(|k| k.code).collect();
-        assert_eq!(codes, [KeyCode::Char('q'), KeyCode::Char('j'), KeyCode::Up]);
-        let control = typed_keys(b"\x03\r\x1b");
-        assert_eq!(control[0].code, KeyCode::Char('c'));
-        assert_eq!(control[0].modifiers, KeyModifiers::CONTROL);
-        assert_eq!(control[1].code, KeyCode::Enter);
-        assert_eq!(control[2].code, KeyCode::Esc);
+        let keys = StartupInput::from_bytes(&typed);
+        assert_eq!(
+            keys.events,
+            [KeyCode::Char('q'), KeyCode::Char('j'), KeyCode::Up]
+                .map(|code| Event::Key(crossterm::event::KeyEvent::new(code, KeyModifiers::NONE)))
+        );
+        let control: Vec<_> = typed_keys(b"\x03\r\x1b").collect();
+        assert_eq!(
+            control,
+            [
+                Event::Key(crossterm::event::KeyEvent::new(
+                    KeyCode::Char('c'),
+                    KeyModifiers::CONTROL
+                )),
+                Event::Key(KeyCode::Enter.into()),
+                Event::Key(KeyCode::Esc.into()),
+            ]
+        );
         // BEL-terminated OSC as well.
         let (replies, typed) = split_replies(b"\x1b]11;rgb:0/0/0\x07x");
         assert_eq!(parse(&replies), Some(false));
         assert_eq!(typed, b"x");
+    }
+    #[test]
+    fn paste_is_replayed_as_one_event_and_its_contents_are_not_terminal_replies() {
+        let bytes = b"\x1b]11;rgb:f/f/f\x07\x1b[200~q\n\x1b[?1;2c\x1b[201~\x1b[?62;22c";
+        let (replies, typed) = split_replies(bytes);
+        assert_eq!(replies, "\x1b]11;rgb:f/f/f\x07\x1b[?62;22c");
+        let input = StartupInput::from_bytes(&typed);
+        assert_eq!(input.events, [Event::Paste("q\n\x1b[?1;2c".into())]);
+        assert!(input.pending_paste.is_none());
+    }
+
+    #[test]
+    fn paste_split_by_probe_limit_keeps_payload_and_partial_end_marker() {
+        let (_, typed) = split_replies(b"\x1b[200~q\n\x1b[2");
+        let mut input = StartupInput::from_bytes(&typed);
+        assert!(input.events.is_empty());
+        let paste = input.pending_paste.as_mut().unwrap();
+        assert_eq!(append_paste_byte(paste, b'0'), None);
+        assert_eq!(append_paste_byte(paste, b'1'), None);
+        assert_eq!(
+            append_paste_byte(paste, b'~'),
+            Some(Event::Paste("q\n".into()))
+        );
     }
 }

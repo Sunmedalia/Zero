@@ -188,10 +188,8 @@ fn cache_inventory_groups_results_and_scope_confirmation_never_deletes_evidence(
 fn export_and_record_reopen_are_worker_tasks_and_keep_partial_status() {
     let mut app = app();
     app.results.get_mut("pslist").unwrap().complete = false;
-    let result = app.result().unwrap().clone();
     let path = app.root.join("exports/test.json");
-    let rows = (0..result.rows.len()).collect();
-    app.start_work(Work::Export(path.clone(), Arc::new(result), rows));
+    app.export_result(path.clone());
     assert!(app.job.is_some());
     finish_test_job(&mut app);
     let records = store::export_records(&app.cache);

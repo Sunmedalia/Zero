@@ -1012,14 +1012,7 @@ impl App {
                         }
                         self.dialog = Some(Dialog::KernelDiagnostics { scroll: 0 });
                     }
-                    InputKind::Export => {
-                        // Hand the worker a shared handle and the filtered row
-                        // indices; rows are serialized from the original cells.
-                        if let Some(result) = self.result_shared().cloned() {
-                            let rows = self.view_index().filtered.clone();
-                            self.start_work(Work::Export(path, result, rows));
-                        }
-                    }
+                    InputKind::Export => self.export_result(path),
                     InputKind::History => self.start_work(Work::History(path)),
                 }
                 return;

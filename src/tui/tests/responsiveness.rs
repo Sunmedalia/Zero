@@ -93,20 +93,32 @@ fn storing_a_finished_result_shares_one_allocation_for_both_keys() {
 }
 
 #[test]
-fn export_writes_only_the_filtered_rows_from_a_shared_result() {
+fn export_uses_the_confirmed_filter_and_sort_while_the_view_is_pending() {
     let mut app = app();
-    app.query = "zsh".into();
-    let path = app.root.join("exports/filtered.json");
-    let shared = app.result_shared().unwrap().clone();
-    app.start_work(Work::Export(
-        path.clone(),
-        shared.clone(),
-        app.view_index().filtered.clone(),
-    ));
+    let rows = SYNC_VIEW_CELLS / 5 + 1000;
+    big_pslist(&mut app, rows);
+    settle_view(&mut app);
+
+    app.query = "bash".into();
+    app.sort = Some(0);
+    app.descending = true;
+    assert_eq!(app.view_index().filtered.len(), rows);
+    assert!(app.view_pending());
+
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("filtered.json");
+    app.open_input(InputKind::Export);
+    app.paste(path.to_str().unwrap());
+    app.key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
+    app.query = "sshd".into();
     finish_test_job(&mut app);
+
     let exported = store::exported(&path).unwrap();
-    assert_eq!(exported.rows, vec![shared.rows[0].clone()]);
-    std::fs::remove_file(path).unwrap();
+    assert_eq!(exported.rows.len(), rows.div_ceil(2));
+    for (row, pid) in exported.rows.iter().zip((0..rows).step_by(2).rev()) {
+        assert_eq!(row[0], pid.to_string());
+        assert_eq!(row[3], "bash");
+    }
 }
 
 #[test]
@@ -182,10 +194,16 @@ fn scrollbar_drag_follows_the_current_frame_and_ends_on_resize() {
 }
 
 #[test]
-fn keys_typed_during_the_theme_probe_are_replayed() {
+fn startup_input_dispatches_paste_and_key_shortcuts_separately() {
     let mut app = app();
-    for key in terminal_theme::typed_keys(b"q") {
-        assert!(!app.key(key));
-    }
+    let mut input = terminal_theme::StartupInput::from_bytes(b"\x1b[200~q\r\x1b[201~q\r");
+    let mut dispatch = |app: &mut App| {
+        let event = input.next_event(Duration::ZERO).unwrap().unwrap();
+        super::super::handle_event(app, event).1
+    };
+    assert!(!dispatch(&mut app));
+    assert!(app.dialog.is_none());
+    assert!(!dispatch(&mut app));
     assert!(matches!(app.dialog, Some(Dialog::Quit { .. })));
+    assert!(dispatch(&mut app));
 }
