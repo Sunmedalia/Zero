@@ -369,15 +369,23 @@ impl Linux<'_> {
                     )?;
                     unreadable += scan.unreadable;
                     if !scan.hits.is_empty() {
-                        let file = self.number(node, "vm_area_struct", "vm_file")?;
-                        let path = if file == 0 {
-                            "[anonymous]".into()
-                        } else {
-                            root.map_or_else(
-                                || self.file_path(task.address, file, job),
-                                |root| self.file_path_from(root, file, job),
-                            )
-                            .unwrap_or_else(|_| "[unresolved]".into())
+                        let path = match self.number(node, "vm_area_struct", "vm_file") {
+                            Ok(0) => "[anonymous]".into(),
+                            Ok(file) => root
+                                .map_or_else(
+                                    || self.file_path(task.address, file, job),
+                                    |root| self.file_path_from(root, file, job),
+                                )
+                                .unwrap_or_else(|_| "[unresolved]".into()),
+                            Err(error) => {
+                                job.check()?;
+                                partial(
+                                    &mut r,
+                                    format!("PID {} VMA {start:#x} vm_file", task.pid),
+                                    error,
+                                );
+                                "[unresolved]".into()
+                            }
                         };
                         for (address, bytes) in scan.hits {
                             r.rows.push(vec![
@@ -838,6 +846,40 @@ impl Linux<'_> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn unreadable_vma_file_preserves_hits_and_hit_limit_diagnostic() {
+        use crate::linux::tests::{engine, fixture, image};
+        use crate::pattern::{HIT_LIMIT, Pattern};
+
+        let (mut bytes, isf) = fixture();
+        // All VMA fields needed for scanning are captured. vm_file starts
+        // immediately after the end of the physical image.
+        let vma = bytes.len() - 40;
+        put(&mut bytes, 0xb028, vma as u64);
+        put(&mut bytes, vma + 8, 0x200000);
+        put(&mut bytes, vma + 16, 0x219000);
+        put(&mut bytes, vma + 24, 1);
+        for i in 0..25 {
+            put(&mut bytes, 0x7000 + i * 8, 0x20003);
+        }
+        bytes[0x20000..0x21000].fill(b'A');
+
+        let image = image(&bytes);
+        let result = engine(&image, &isf)
+            .vma_pattern_scan(&Pattern::parse("AA").unwrap(), &Job::default())
+            .unwrap();
+        assert!(!result.complete);
+        assert_eq!(result.rows.len(), HIT_LIMIT);
+        assert!(result.rows.iter().all(|row| row[5] == "[unresolved]"));
+        assert!(result.diagnostics.iter().any(|row| row.contains("vm_file")));
+        assert!(
+            result
+                .diagnostics
+                .iter()
+                .any(|row| row.contains("命中数达到"))
+        );
+    }
+
     #[test]
     fn elf_header_validation() {
         let mut bytes = [0; 64];

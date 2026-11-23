@@ -11,10 +11,11 @@ const MAX_LENGTH: usize = 256;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Pattern {
-    /// `None` is a wildcard byte.
-    bytes: Vec<Option<u8>>,
+    length: usize,
     /// Longest wildcard-free run, used to find candidates quickly.
     anchor: (usize, Vec<u8>),
+    /// Fixed bytes outside the anchor.
+    checks: Vec<(usize, u8)>,
     source: String,
 }
 
@@ -71,17 +72,25 @@ impl Pattern {
             .flatten()
             .copied()
             .collect();
+        let checks = bytes
+            .iter()
+            .copied()
+            .enumerate()
+            .filter(|(i, _)| !(best.0..best.1).contains(i))
+            .filter_map(|(i, byte)| byte.map(|byte| (i, byte)))
+            .collect();
         Ok(Self {
-            bytes,
+            length: bytes.len(),
             anchor: (best.0, anchor),
+            checks,
             source: text.to_owned(),
         })
     }
     pub fn len(&self) -> usize {
-        self.bytes.len()
+        self.length
     }
     pub fn is_empty(&self) -> bool {
-        self.bytes.is_empty()
+        self.length == 0
     }
     /// The text the pattern was parsed from, for cache keys and reports.
     pub fn source(&self) -> &str {
@@ -98,23 +107,28 @@ impl Pattern {
         haystack: &'a [u8],
         finder: &'a Finder<'_>,
     ) -> impl Iterator<Item = usize> + 'a {
+        let last_start = haystack.len().checked_sub(self.len());
         let mut cursor = 0;
         std::iter::from_fn(move || {
-            let hit = cursor + finder.find(haystack.get(cursor..)?)?;
-            cursor = hit + 1;
-            Some(hit)
-        })
-        .filter_map(|hit| hit.checked_sub(self.anchor.0))
-        .filter(|&start| {
-            self.anchor.1.len() == self.bytes.len()
-                || haystack
-                    .get(start..start + self.bytes.len())
-                    .is_some_and(|window| {
-                        window
-                            .iter()
-                            .zip(&self.bytes)
-                            .all(|(byte, want)| want.is_none_or(|want| *byte == want))
-                    })
+            let last_start = last_start?;
+            while cursor <= last_start {
+                let start = cursor + finder.find(haystack.get(cursor + self.anchor.0..)?)?;
+                if start > last_start {
+                    break;
+                }
+                cursor = start + 1;
+                let Some(&(offset, byte)) = self
+                    .checks
+                    .iter()
+                    .find(|&&(offset, byte)| haystack.get(start + offset) != Some(&byte))
+                else {
+                    return Some(start);
+                };
+                // Every intervening candidate fails at this same fixed offset.
+                let next_bytes = haystack.get(cursor + offset..=last_start + offset)?;
+                cursor += memchr::memchr(byte, next_bytes)?;
+            }
+            None
         })
     }
 }
@@ -275,6 +289,20 @@ mod tests {
         let pattern = Pattern::parse("hex:4141??42").unwrap();
         // The first AA anchor fails the wildcard pattern; the next overlaps it.
         assert_eq!(pattern.find_all(b"AAAXB"), [1]);
+    }
+
+    #[test]
+    fn failed_fixed_offsets_skip_candidates_without_skipping_matches() {
+        let pattern = Pattern::parse("hex:42??414141??43").unwrap();
+        let haystack = b"xxAAAAAAABxAAAxDBxAAAxC";
+        assert_eq!(pattern.find_all(haystack), [16]);
+
+        let dense = Pattern::parse(&format!("hex:{}??42", "00".repeat(128))).unwrap();
+        let mut page = [0; PAGE_SIZE];
+        assert!(dense.find_all(&page).is_empty());
+        page[200] = b'B';
+        page[PAGE_SIZE - 1] = b'B';
+        assert_eq!(dense.find_all(&page), [71, PAGE_SIZE - 130]);
     }
 
     #[test]
