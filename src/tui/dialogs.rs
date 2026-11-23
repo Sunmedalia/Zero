@@ -233,6 +233,15 @@ impl App {
                         "绝对地址（逗号或空格分隔）",
                         "字符串文件（十进制物理偏移）",
                         "TrueCrypt 最小口令长度（默认 5）",
+                        "仅常规文件 true / false",
+                        "网络命名空间 inode（可选）",
+                        "VMA 虚拟地址列表（逗号或空格分隔；可选）",
+                        "Hexdump 字节数（默认 64；可选）",
+                        "展开全部脏页 true / false",
+                        "挂载命名空间 inode（可选）",
+                        "mount 简洁格式 true / false",
+                        "文件类型过滤（逗号或空格分隔，如 REG,DIR；可选）",
+                        "路径关键词过滤（可选）",
                     ];
                     let mut lines = vec![Line::raw(if self.windows {
                         "Ctrl+T 展开／收起 Windows 高级配置"
@@ -251,6 +260,12 @@ impl App {
                                 if *field == index { "›" } else { " " },
                                 if self.plugin.is_regex_scan() && index == 7 {
                                     "字节正则（保留空格）"
+                                } else if matches!(
+                                    self.plugin,
+                                    Plugin::LinuxMaps | Plugin::LinuxMalfind
+                                ) && index == 15
+                                {
+                                    "导出单段上限 maxsize（可选）"
                                 } else if self.plugin.accepts_pid_list() && index == 2 {
                                     "PID 列表（逗号或空格分隔；可选）"
                                 } else {

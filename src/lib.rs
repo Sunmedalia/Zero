@@ -35,8 +35,8 @@ use std::sync::{
     atomic::{AtomicBool, Ordering},
 };
 
-// Invalidate byte-pattern results that could omit overlapping or truncated matches.
-pub const ENGINE_VERSION: &str = concat!(env!("CARGO_PKG_VERSION"), "-native-121");
+// Add canonical Linux Bash, Elfs, LibraryList, ip.Addr, and ip.Link plugins.
+pub const ENGINE_VERSION: &str = concat!(env!("CARGO_PKG_VERSION"), "-native-124");
 #[derive(Clone)]
 pub struct Job {
     pub cancel: Arc<AtomicBool>,

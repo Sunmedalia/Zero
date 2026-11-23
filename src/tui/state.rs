@@ -58,7 +58,7 @@ pub(super) enum Dialog {
     },
     WindowsParameters {
         advanced: bool,
-        fields: Box<[String; 23]>,
+        fields: Box<[String; 32]>,
         field: usize,
         cursor: usize,
         selected: bool,

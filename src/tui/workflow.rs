@@ -217,8 +217,26 @@ impl App {
         if self.windows && advanced {
             fields.extend([3, 4, 5]);
         }
-        if self.plugin == Plugin::LinuxPslist {
+        if matches!(self.plugin, Plugin::LinuxPslist | Plugin::LinuxPstree) {
             fields.extend([8, 9]);
+        }
+        if self.plugin == Plugin::LinuxLsof {
+            fields.push(23);
+        }
+        if self.plugin == Plugin::LinuxSockstat {
+            fields.push(24);
+        }
+        if self.plugin == Plugin::LinuxMaps {
+            fields.extend([25, 15]);
+        }
+        if self.plugin == Plugin::LinuxMalfind {
+            fields.extend([26, 27, 15]);
+        }
+        if self.plugin == Plugin::LinuxMountinfo {
+            fields.extend([28, 29]);
+        }
+        if self.plugin == Plugin::LinuxPagecacheFiles {
+            fields.extend([30, 31]);
         }
         if self.plugin == Plugin::Modxview {
             fields.push(10);

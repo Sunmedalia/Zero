@@ -134,7 +134,7 @@ impl Linux<'_> {
     }
     /// The first dentry alias of an inode: `i_dentry` is a list_head on
     /// older kernels and an hlist_head since 3.18.
-    fn inode_dentry(&self, inode: u64) -> Result<Option<u64>> {
+    pub(super) fn inode_dentry(&self, inode: u64) -> Result<Option<u64>> {
         let head = self.field_address(inode, "inode", "i_dentry")?;
         let first = if self.isf.field("hlist_head", "first").is_ok()
             && *self.isf.field("inode", "i_dentry")?["type"].key("name") == "hlist_head"
@@ -155,7 +155,7 @@ impl Linux<'_> {
         Ok(Some(first.checked_sub(alias).context("dentry 地址下溢")?))
     }
     /// Path of a dentry relative to its filesystem root.
-    fn dentry_path(&self, mut dentry: u64) -> Result<String> {
+    pub(super) fn dentry_path(&self, mut dentry: u64) -> Result<String> {
         let mut parts = Vec::new();
         for _ in 0..DEPTH_LIMIT {
             let parent = self.number(dentry, "dentry", "d_parent")?;

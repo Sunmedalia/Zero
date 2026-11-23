@@ -287,7 +287,7 @@ impl Session {
                 options.pid,
                 options.maxsize.unwrap_or(128)
             ),
-            None if request.plugin == Plugin::LinuxPslist => format!(
+            None if matches!(request.plugin, Plugin::LinuxPslist | Plugin::LinuxPstree) => format!(
                 "{}:threads={}:decorate={}:pid={:?}:pids={:?}",
                 request.plugin.name(),
                 options.include_threads,
@@ -295,9 +295,59 @@ impl Session {
                 options.pid,
                 options.pids
             ),
+            None if request.plugin == Plugin::LinuxMaps => format!(
+                "{}:pid={:?}:pids={:?}:addrs={:?}:maxsize={:?}",
+                request.plugin.name(),
+                options.pid,
+                options.pids,
+                options.vma_addresses,
+                options.maxsize
+            ),
+            None if request.plugin == Plugin::LinuxLsof => format!(
+                "{}:pid={:?}:pids={:?}:files_only={}",
+                request.plugin.name(),
+                options.pid,
+                options.pids,
+                options.files_only
+            ),
+            None if request.plugin == Plugin::LinuxSockstat => format!(
+                "{}:pid={:?}:pids={:?}:netns={:?}",
+                request.plugin.name(),
+                options.pid,
+                options.pids,
+                options.netns
+            ),
+            None if request.plugin == Plugin::LinuxMalfind => format!(
+                "{}:pid={:?}:pids={:?}:hexdump={:?}:dirty={}:maxsize={:?}",
+                request.plugin.name(),
+                options.pid,
+                options.pids,
+                options.hexdump_size,
+                options.show_all_dirty_pages,
+                options.maxsize
+            ),
+            None if request.plugin == Plugin::LinuxMountinfo => format!(
+                "{}:pid={:?}:pids={:?}:mntns={:?}:fmt={}",
+                request.plugin.name(),
+                options.pid,
+                options.pids,
+                options.mntns,
+                options.mount_format
+            ),
+            None if request.plugin == Plugin::LinuxPagecacheFiles => format!(
+                "{}:types={:?}:find={:?}",
+                request.plugin.name(),
+                options.file_types,
+                options.find
+            ),
             None if matches!(
                 request.plugin,
-                Plugin::LinuxCapabilities | Plugin::LinuxEnvars | Plugin::LinuxPsaux
+                Plugin::LinuxCapabilities
+                    | Plugin::LinuxEnvars
+                    | Plugin::LinuxPsaux
+                    | Plugin::LinuxBash
+                    | Plugin::LinuxElfs
+                    | Plugin::LinuxLibraryList
             ) =>
             {
                 format!(
@@ -351,6 +401,12 @@ impl Session {
         };
         let result = if request.plugin == Plugin::Lsmod && dump.is_some() {
             engine.lsmod_with_dump(dump.context("Lsmod 导出需要目录")?, job)?
+        } else if request.plugin == Plugin::LinuxMaps {
+            engine.linux_maps(options, dump, job)?
+        } else if request.plugin == Plugin::LinuxMalfind {
+            engine.linux_malfind(options, dump, job)?
+        } else if request.plugin == Plugin::LinuxElfs {
+            engine.linux_elfs(options, dump, job)?
         } else if dump.is_some() || request.plugin.is_dump() {
             engine.run_dump(request.plugin, dump.context("Dump 插件需要转储参数")?, job)?
         } else if request.plugin == Plugin::PsCallStack {
@@ -365,6 +421,26 @@ impl Session {
             engine.modxview(options.plain_taints, job)?
         } else if request.plugin == Plugin::LinuxPslist {
             engine.process_details_with_options(options, job)?
+        } else if request.plugin == Plugin::LinuxPstree {
+            engine.pstree(options, job)?
+        } else if request.plugin == Plugin::LinuxLsof {
+            engine.linux_lsof(options, job)?
+        } else if request.plugin == Plugin::LinuxSockstat {
+            engine.linux_sockstat(options, job)?
+        } else if request.plugin == Plugin::LinuxKmsg {
+            engine.kmsg(job)?
+        } else if request.plugin == Plugin::LinuxMountinfo {
+            engine.linux_mountinfo(options, job)?
+        } else if request.plugin == Plugin::LinuxPagecacheFiles {
+            engine.linux_pagecache_files(options, job)?
+        } else if request.plugin == Plugin::LinuxBash {
+            engine.linux_bash(options, job)?
+        } else if request.plugin == Plugin::LinuxLibraryList {
+            engine.linux_library_list(options, job)?
+        } else if request.plugin == Plugin::LinuxIpAddr {
+            engine.linux_ip_addr(job)?
+        } else if request.plugin == Plugin::LinuxIpLink {
+            engine.linux_ip_link(job)?
         } else if request.plugin == Plugin::LinuxCapabilities {
             engine.capabilities(options, job)?
         } else if request.plugin == Plugin::LinuxEnvars {

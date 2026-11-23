@@ -47,7 +47,14 @@ impl App {
                 self.analysis_options.kallsyms.modules.to_string(),
                 self.analysis_options.kallsyms.ftrace.to_string(),
                 self.analysis_options.kallsyms.bpf.to_string(),
-                self.analysis_options.maxsize.unwrap_or(128).to_string(),
+                if matches!(self.plugin, Plugin::LinuxMaps | Plugin::LinuxMalfind) {
+                    self.analysis_options
+                        .maxsize
+                        .map(|n| n.to_string())
+                        .unwrap_or_default()
+                } else {
+                    self.analysis_options.maxsize.unwrap_or(128).to_string()
+                },
                 self.analysis_options.unresolved.to_string(),
                 self.analysis_options
                     .pe
@@ -73,6 +80,29 @@ impl App {
                     .map(|p| p.display().to_string())
                     .unwrap_or_default(),
                 self.analysis_options.min_length.unwrap_or(5).to_string(),
+                self.analysis_options.files_only.to_string(),
+                self.analysis_options
+                    .netns
+                    .map(|n| n.to_string())
+                    .unwrap_or_default(),
+                self.analysis_options
+                    .vma_addresses
+                    .iter()
+                    .map(|a| format!("{a:#x}"))
+                    .collect::<Vec<_>>()
+                    .join(","),
+                self.analysis_options
+                    .hexdump_size
+                    .map(|n| n.to_string())
+                    .unwrap_or_default(),
+                self.analysis_options.show_all_dirty_pages.to_string(),
+                self.analysis_options
+                    .mntns
+                    .map(|n| n.to_string())
+                    .unwrap_or_default(),
+                self.analysis_options.mount_format.to_string(),
+                self.analysis_options.file_types.join(","),
+                self.analysis_options.find.clone().unwrap_or_default(),
             ]),
             field: if matches!(
                 self.plugin,

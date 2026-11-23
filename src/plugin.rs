@@ -11,6 +11,32 @@ pub enum Plugin {
     LinuxEnvars,
     #[value(name = "linux.psaux.PsAux", alias = "linux.psaux")]
     LinuxPsaux,
+    #[value(name = "linux.pstree.PsTree", alias = "linux.pstree")]
+    LinuxPstree,
+    #[value(name = "linux.proc.Maps", alias = "linux.maps")]
+    LinuxMaps,
+    #[value(name = "linux.lsof.Lsof", alias = "linux.lsof")]
+    LinuxLsof,
+    #[value(name = "linux.sockstat.Sockstat", alias = "linux.sockstat")]
+    LinuxSockstat,
+    #[value(name = "linux.kmsg.Kmsg", alias = "linux.kmsg")]
+    LinuxKmsg,
+    #[value(name = "linux.malware.malfind.Malfind", alias = "linux.malfind")]
+    LinuxMalfind,
+    #[value(name = "linux.mountinfo.MountInfo", alias = "linux.mountinfo")]
+    LinuxMountinfo,
+    #[value(name = "linux.pagecache.Files", alias = "linux.pagecache.files")]
+    LinuxPagecacheFiles,
+    #[value(name = "linux.bash.Bash", alias = "linux.bash")]
+    LinuxBash,
+    #[value(name = "linux.elfs.Elfs", alias = "linux.elfs")]
+    LinuxElfs,
+    #[value(name = "linux.library_list.LibraryList", alias = "linux.library_list")]
+    LinuxLibraryList,
+    #[value(name = "linux.ip.Addr", alias = "linux.ip.addr")]
+    LinuxIpAddr,
+    #[value(name = "linux.ip.Link", alias = "linux.ip.link")]
+    LinuxIpLink,
     #[value(name = "windows.debugregisters.DebugRegisters")]
     WinDebugRegisters,
     #[value(
@@ -376,7 +402,16 @@ pub struct Descriptor {
 impl Plugin {
     /// Some listing plugins also support explicitly requested artifact exports.
     pub fn accepts_dump(self) -> bool {
-        self.is_dump() || matches!(self, Self::Fbdev | Self::WinMemmap | Self::Lsmod)
+        self.is_dump()
+            || matches!(
+                self,
+                Self::Fbdev
+                    | Self::WinMemmap
+                    | Self::Lsmod
+                    | Self::LinuxMaps
+                    | Self::LinuxMalfind
+                    | Self::LinuxElfs
+            )
     }
     pub fn is_regex_scan(self) -> bool {
         matches!(self, Self::VmaRegExScan | Self::WinVadRegExScan)
@@ -393,6 +428,15 @@ impl Plugin {
                     | Self::LinuxEnvars
                     | Self::LinuxPsaux
                     | Self::LinuxPslist
+                    | Self::LinuxPstree
+                    | Self::LinuxMaps
+                    | Self::LinuxLsof
+                    | Self::LinuxSockstat
+                    | Self::LinuxMalfind
+                    | Self::LinuxMountinfo
+                    | Self::LinuxBash
+                    | Self::LinuxElfs
+                    | Self::LinuxLibraryList
             )
     }
     // DESCRIPTOR_INDEX is proven complete and in range at compile time.

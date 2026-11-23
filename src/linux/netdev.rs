@@ -60,15 +60,50 @@ pub(super) fn ipv6_scope(scope: u64) -> &'static str {
 /// One interface as both plugins report it.
 struct Interface {
     namespace: u64,
+    ns_id: String,
+    index: Option<u64>,
     device: u64,
     name: String,
     mac: String,
     flags: u64,
     state: &'static str,
     mtu: u64,
+    qdisc: String,
+    qlen: String,
 }
 
 impl Linux<'_> {
+    fn net_ns_label(&self, namespace: u64) -> String {
+        if self.isf.field("net", "ns").is_ok() && self.isf.field("ns_common", "inum").is_ok() {
+            if let Ok(inum) = self.number(namespace, "net", "ns.inum") {
+                return inum.to_string();
+            }
+        } else if self.isf.field("net", "proc_inum").is_ok()
+            && let Ok(inum) = self.number(namespace, "net", "proc_inum")
+        {
+            return inum.to_string();
+        }
+        hex(namespace)
+    }
+
+    fn device_qdisc(&self, device: u64) -> String {
+        let Ok(qdisc) = self.number(device, "net_device", "qdisc") else {
+            return "N/A".into();
+        };
+        if qdisc == 0 {
+            return "N/A".into();
+        }
+        let Ok(ops) = self.number(qdisc, "Qdisc", "ops") else {
+            return "N/A".into();
+        };
+        if ops == 0 {
+            return "N/A".into();
+        }
+        self.string(ops, "Qdisc_ops", "id")
+            .ok()
+            .filter(|s| !s.is_empty())
+            .unwrap_or_else(|| "N/A".into())
+    }
     /// Every `struct net`, or only init_net on kernels without the namespace list.
     fn namespaces(&self, job: &Job) -> Result<Vec<u64>> {
         match self.isf.address("net_namespace_list") {
@@ -117,6 +152,8 @@ impl Linux<'_> {
                     }
                     Ok(Interface {
                         namespace,
+                        ns_id: self.net_ns_label(namespace),
+                        index: self.number(device, "net_device", "ifindex").ok(),
                         device,
                         name: self.string(device, "net_device", "name")?,
                         mac: mac
@@ -127,6 +164,11 @@ impl Linux<'_> {
                         flags: self.number(device, "net_device", "flags")?,
                         state: operstate(self.number(device, "net_device", "operstate")?),
                         mtu: self.number(device, "net_device", "mtu")?,
+                        qdisc: self.device_qdisc(device),
+                        qlen: self
+                            .number(device, "net_device", "tx_queue_len")
+                            .map(|v| v.to_string())
+                            .unwrap_or_else(|_| "N/A".into()),
                     })
                 })();
                 match read {
@@ -154,11 +196,28 @@ impl Linux<'_> {
         }
         Ok(())
     }
+    /// Volatility-compatible `linux.ip.Link` (8 columns including Qdisc & Qlen).
+    pub(super) fn linux_ip_link(&self, job: &Job) -> Result<Results> {
+        let mut r = self.result(Plugin::LinuxIpLink);
+        for i in self.interfaces(&mut r, job)? {
+            r.rows.push(vec![
+                i.ns_id,
+                i.name,
+                i.mac,
+                i.state.into(),
+                i.mtu.to_string(),
+                i.qdisc,
+                i.qlen,
+                flag_names(i.flags),
+            ]);
+        }
+        Ok(r)
+    }
     /// ip_addr: IPv4 and IPv6 addresses of each interface.
     pub(super) fn ip_addr(&self, r: &mut Results, job: &Job) -> Result<()> {
         for i in self.interfaces(r, job)? {
             job.check()?;
-            let prefix = [
+            let prefix = vec![
                 hex(i.namespace),
                 i.name.clone(),
                 i.mac.clone(),
@@ -176,10 +235,36 @@ impl Linux<'_> {
         }
         Ok(())
     }
+    /// Volatility-compatible `linux.ip.Addr` (9 columns including NetNS inode & Index).
+    pub(super) fn linux_ip_addr(&self, job: &Job) -> Result<Results> {
+        let mut r = self.result(Plugin::LinuxIpAddr);
+        for i in self.interfaces(&mut r, job)? {
+            job.check()?;
+            let prefix = vec![
+                i.ns_id.clone(),
+                i.index
+                    .map(|v| v.to_string())
+                    .unwrap_or_else(|| "N/A".into()),
+                i.name.clone(),
+                i.mac.clone(),
+                (i.flags & 0x100 != 0).to_string(),
+            ];
+            let state = i.state.to_string();
+            if let Err(e) = self.ipv4_addresses(&i, &prefix, &state, &mut r, job) {
+                job.check()?;
+                partial(&mut r, format!("{} IPv4", i.name), e);
+            }
+            if let Err(e) = self.ipv6_addresses(&i, &prefix, &state, &mut r, job) {
+                job.check()?;
+                partial(&mut r, format!("{} IPv6", i.name), e);
+            }
+        }
+        Ok(r)
+    }
     fn ipv4_addresses(
         &self,
         i: &Interface,
-        prefix: &[String; 4],
+        prefix: &[String],
         state: &str,
         r: &mut Results,
         job: &Job,
@@ -213,7 +298,7 @@ impl Linux<'_> {
     fn ipv6_addresses(
         &self,
         i: &Interface,
-        prefix: &[String; 4],
+        prefix: &[String],
         state: &str,
         r: &mut Results,
         job: &Job,
@@ -422,5 +507,52 @@ mod tests {
         assert_eq!(ipv4_scope(254), "host");
         assert_eq!(ipv6_scope(0x20), "link");
         assert_eq!(ipv6_scope(0x10), "host");
+    }
+
+    #[test]
+    fn linux_ip_addr_and_link_emit_vol3_columns_with_ns_index_qdisc_and_qlen() {
+        let (mut b, mut isf) = interfaces();
+        isf.data["user_types"]["ns_common"] =
+            json!({"size":16,"fields":{"inum":field(0,base("u32"))}});
+        isf.data["user_types"]["net"]["fields"]["ns"] =
+            field(0, json!({"kind":"struct","name":"ns_common"}));
+        isf.data["user_types"]["net_device"]["fields"]["ifindex"] = field(72, base("u32"));
+        isf.data["user_types"]["net_device"]["fields"]["tx_queue_len"] = field(76, base("u32"));
+        isf.data["user_types"]["net_device"]["fields"]["qdisc"] = field(80, base("u64"));
+        isf.data["user_types"]["Qdisc"] = json!({"size":16,"fields":{"ops":field(0,base("u64"))}});
+        isf.data["user_types"]["Qdisc_ops"] = json!({"size":32,"fields":{
+            "id":field(0,json!({"kind":"array","count":16,"subtype":{"kind":"base","name":"char"}}))
+        }});
+
+        // init_net.ns.inum = 4026531992
+        put(&mut b, 0x30000, 4_026_531_992);
+        // eth0 at 0x30100: ifindex=2, tx_queue_len=1000, qdisc=0x32000
+        b[0x30148..0x3014c].copy_from_slice(&2u32.to_le_bytes());
+        b[0x3014c..0x30150].copy_from_slice(&1000u32.to_le_bytes());
+        put(&mut b, 0x30150, 0x32000);
+        // Qdisc 0x32000 -> ops 0x32020 -> id "fq_codel"
+        put(&mut b, 0x32000, 0x32020);
+        b[0x32020..0x32029].copy_from_slice(b"fq_codel\0");
+
+        let im = image(&b);
+        let linux = engine(&im, &isf);
+        let link = linux.linux_ip_link(&Job::default()).unwrap();
+        assert!(link.complete, "{:?}", link.diagnostics);
+        assert_eq!(link.rows.len(), 1);
+        assert_eq!(link.rows[0].len(), 8);
+        assert_eq!(link.rows[0][0], "4026531992");
+        assert_eq!(link.rows[0][1], "eth0");
+        assert_eq!(link.rows[0][5], "fq_codel");
+        assert_eq!(link.rows[0][6], "1000");
+
+        let addr = linux.linux_ip_addr(&Job::default()).unwrap();
+        assert!(addr.complete, "{:?}", addr.diagnostics);
+        assert_eq!(addr.rows.len(), 2);
+        assert_eq!(addr.rows[0].len(), 9);
+        assert_eq!(addr.rows[0][0], "4026531992");
+        assert_eq!(addr.rows[0][1], "2");
+        assert_eq!(addr.rows[0][2], "eth0");
+        assert_eq!(addr.rows[0][5], "10.0.0.5");
+        assert_eq!(addr.rows[1][5], "fe80::1");
     }
 }

@@ -613,3 +613,104 @@ fn truecrypt_minimum_has_a_plugin_draft_and_distinct_request_identity() {
     app.select_plugin(Plugin::WinTruecryptPassphrase);
     assert_eq!(app.analysis_options.min_length, Some(4));
 }
+
+#[test]
+fn canonical_linux_core_plugin_parameters_save_and_separate_request_keys() {
+    let mut app = app();
+
+    app.select_plugin(Plugin::LinuxPstree);
+    assert_eq!(app.parameter_fields(false), vec![2, 8, 9, 6]);
+    app.windows_parameters();
+    let before = app.request_key();
+    if let Some(Dialog::WindowsParameters { fields, .. }) = &mut app.dialog {
+        fields[2] = "1,10".into();
+        fields[8] = "true".into();
+        fields[9] = "true".into();
+    }
+    app.dialog_key(KeyEvent::new(KeyCode::Enter, KeyModifiers::CONTROL));
+    assert!(app.dialog.is_none());
+    assert_eq!(app.analysis_options.pids, vec![1, 10]);
+    assert!(app.analysis_options.include_threads);
+    assert!(app.analysis_options.decorate_comm);
+    assert_ne!(before, app.request_key());
+
+    app.select_plugin(Plugin::LinuxLsof);
+    assert_eq!(app.parameter_fields(false), vec![2, 23, 6]);
+    app.windows_parameters();
+    let before = app.request_key();
+    if let Some(Dialog::WindowsParameters { fields, .. }) = &mut app.dialog {
+        fields[23] = "true".into();
+    }
+    app.dialog_key(KeyEvent::new(KeyCode::Enter, KeyModifiers::CONTROL));
+    assert!(app.dialog.is_none());
+    assert!(app.analysis_options.files_only);
+    assert_ne!(before, app.request_key());
+
+    app.select_plugin(Plugin::LinuxSockstat);
+    assert_eq!(app.parameter_fields(false), vec![2, 24, 6]);
+    app.windows_parameters();
+    let before = app.request_key();
+    if let Some(Dialog::WindowsParameters { fields, .. }) = &mut app.dialog {
+        fields[24] = "4026531992".into();
+    }
+    app.dialog_key(KeyEvent::new(KeyCode::Enter, KeyModifiers::CONTROL));
+    assert!(app.dialog.is_none());
+    assert_eq!(app.analysis_options.netns, Some(4_026_531_992));
+    assert_ne!(before, app.request_key());
+
+    app.select_plugin(Plugin::LinuxMaps);
+    assert_eq!(app.parameter_fields(false), vec![2, 25, 15, 6]);
+    app.windows_parameters();
+    let before = app.request_key();
+    if let Some(Dialog::WindowsParameters { fields, .. }) = &mut app.dialog {
+        fields[25] = "0x400000,0x600000".into();
+        fields[15] = "8192".into();
+    }
+    app.dialog_key(KeyEvent::new(KeyCode::Enter, KeyModifiers::CONTROL));
+    assert!(app.dialog.is_none());
+    assert_eq!(app.analysis_options.vma_addresses, vec![0x400000, 0x600000]);
+    assert_eq!(app.analysis_options.maxsize, Some(8192));
+    assert_ne!(before, app.request_key());
+
+    app.select_plugin(Plugin::LinuxMalfind);
+    assert_eq!(app.parameter_fields(false), vec![2, 26, 27, 15, 6]);
+    app.windows_parameters();
+    let before = app.request_key();
+    if let Some(Dialog::WindowsParameters { fields, .. }) = &mut app.dialog {
+        fields[26] = "128".into();
+        fields[27] = "true".into();
+    }
+    app.dialog_key(KeyEvent::new(KeyCode::Enter, KeyModifiers::CONTROL));
+    assert!(app.dialog.is_none());
+    assert_eq!(app.analysis_options.hexdump_size, Some(128));
+    assert!(app.analysis_options.show_all_dirty_pages);
+    assert_ne!(before, app.request_key());
+
+    app.select_plugin(Plugin::LinuxMountinfo);
+    assert_eq!(app.parameter_fields(false), vec![2, 28, 29, 6]);
+    app.windows_parameters();
+    let before = app.request_key();
+    if let Some(Dialog::WindowsParameters { fields, .. }) = &mut app.dialog {
+        fields[28] = "4026531840".into();
+        fields[29] = "true".into();
+    }
+    app.dialog_key(KeyEvent::new(KeyCode::Enter, KeyModifiers::CONTROL));
+    assert!(app.dialog.is_none());
+    assert_eq!(app.analysis_options.mntns, Some(4_026_531_840));
+    assert!(app.analysis_options.mount_format);
+    assert_ne!(before, app.request_key());
+
+    app.select_plugin(Plugin::LinuxPagecacheFiles);
+    assert_eq!(app.parameter_fields(false), vec![30, 31, 6]);
+    app.windows_parameters();
+    let before = app.request_key();
+    if let Some(Dialog::WindowsParameters { fields, .. }) = &mut app.dialog {
+        fields[30] = "REG,DIR".into();
+        fields[31] = "/etc/passwd".into();
+    }
+    app.dialog_key(KeyEvent::new(KeyCode::Enter, KeyModifiers::CONTROL));
+    assert!(app.dialog.is_none());
+    assert_eq!(app.analysis_options.file_types, vec!["REG", "DIR"]);
+    assert_eq!(app.analysis_options.find.as_deref(), Some("/etc/passwd"));
+    assert_ne!(before, app.request_key());
+}

@@ -62,11 +62,14 @@ pub fn parse_address(text: &str) -> Result<u64, String> {
 impl DumpOptions {
     pub fn validate(&self, plugin: Plugin) -> Result<()> {
         ensure!(plugin.accepts_dump(), "非 Dump 插件");
-        if plugin == Plugin::Lsmod {
-            ensure!(self.pid == 0, "Lsmod 不接受 PID");
+        if matches!(
+            plugin,
+            Plugin::Lsmod | Plugin::LinuxMaps | Plugin::LinuxMalfind | Plugin::LinuxElfs
+        ) {
+            ensure!(self.pid == 0, "该导出模式不接受 DumpOptions.pid");
             ensure!(
                 self.start.is_none() && self.end.is_none(),
-                "Lsmod 导出不接受地址范围"
+                "该导出模式不接受地址范围"
             );
             ensure!(!self.directory.as_os_str().is_empty(), "必须指定转储目录");
             return Ok(());
