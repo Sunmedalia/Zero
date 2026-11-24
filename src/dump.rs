@@ -68,7 +68,7 @@ impl DumpOptions {
         ensure!(plugin.accepts_dump(), "非 Dump 插件");
         if matches!(
             plugin,
-            Plugin::Lsmod | Plugin::CheckModules | Plugin::HiddenModules
+            Plugin::Lsmod | Plugin::CheckModules | Plugin::HiddenModules | Plugin::LinuxPslist
         ) || plugin.is_linux_mapping_export()
         {
             ensure!(self.pid == 0, "该导出模式不接受 DumpOptions.pid");

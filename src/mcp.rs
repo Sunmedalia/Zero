@@ -428,6 +428,7 @@ fn call(
                             | Plugin::Lsmod
                             | Plugin::CheckModules
                             | Plugin::HiddenModules
+                            | Plugin::LinuxPslist
                             | Plugin::WinHivelist
                             | Plugin::WinMalfind
                             | Plugin::LinuxPagecacheInodePages

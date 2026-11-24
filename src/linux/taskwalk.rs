@@ -282,11 +282,12 @@ impl Linux<'_> {
         Ok(result)
     }
     pub(super) fn process_details(&self, job: &Job) -> Result<Results> {
-        self.process_details_with_options(&crate::analysis::Options::default(), job)
+        self.process_details_with_options(&crate::analysis::Options::default(), None, job)
     }
     pub(super) fn process_details_with_options(
         &self,
         options: &crate::analysis::Options,
+        dump: Option<&crate::dump::DumpOptions>,
         job: &Job,
     ) -> Result<Results> {
         let pids = options.pids.iter().copied().chain(options.pid).collect();
@@ -309,7 +310,9 @@ impl Linux<'_> {
                 .parse::<i128>()
                 .context("启动时间无效")
         });
-        for row in &mut result.rows {
+        let mut total_dumped = 0u64;
+        let mut rows = std::mem::take(&mut result.rows);
+        for row in &mut rows {
             job.check()?;
             let task = u64::from_str_radix(&row.at(4)?[2..], 16)?;
             match self
@@ -376,9 +379,136 @@ impl Linux<'_> {
                         .push(format!("PID {} creation time: {error:#}", *row.at(0)?));
                 }
             }
-            row.push("Disabled".into());
+            let file_output = if let Some(dump_opts) = dump {
+                let pid_str = row.at(0)?.clone();
+                let comm_str = row.at(3)?.clone();
+                self.dump_task_executable(
+                    task,
+                    &pid_str,
+                    &comm_str,
+                    dump_opts,
+                    &mut total_dumped,
+                    &mut result,
+                    job,
+                )
+            } else {
+                "Disabled".into()
+            };
+            row.push(file_output);
         }
+        result.rows = rows;
         Ok(result)
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn dump_task_executable(
+        &self,
+        task: u64,
+        pid: &str,
+        comm: &str,
+        dump: &crate::dump::DumpOptions,
+        total_dumped: &mut u64,
+        result: &mut Results,
+        job: &Job,
+    ) -> String {
+        use std::io::Write;
+        let run = (|| -> Result<Option<String>> {
+            let mm = self.number(task, "task_struct", "mm")?;
+            if mm == 0 {
+                return Ok(None);
+            }
+            let Some(vm) = self.process_vm(task)? else {
+                return Ok(None);
+            };
+            let exe_file = self.number(mm, "mm_struct", "exe_file").unwrap_or(0);
+            let nodes = self.vma_nodes(mm, job, result)?;
+            let mut target_range = None;
+            for node in nodes {
+                job.check()?;
+                let Ok(start) = self.number(node, "vm_area_struct", "vm_start") else {
+                    continue;
+                };
+                let Ok(end) = self.number(node, "vm_area_struct", "vm_end") else {
+                    continue;
+                };
+                if start >= end {
+                    continue;
+                }
+                let file = self.number(node, "vm_area_struct", "vm_file").unwrap_or(0);
+                let mut magic = [0u8; 4];
+                let is_elf = vm.read(start, &mut magic).is_ok() && magic == *b"\x7fELF";
+                if !is_elf {
+                    continue;
+                }
+                if exe_file != 0 && file == exe_file {
+                    target_range = Some((start, end));
+                    break;
+                }
+                if target_range.is_none() {
+                    target_range = Some((start, end));
+                }
+            }
+            let Some((start, end)) = target_range else {
+                return Ok(None);
+            };
+            let size = end.saturating_sub(start);
+            ensure!(
+                total_dumped
+                    .checked_add(size)
+                    .is_some_and(|n| n <= crate::dump::MAX_DUMP_BYTES),
+                "pslist 导出累计超过 256 MiB 上限"
+            );
+            crate::dump::directory(&dump.directory)?;
+            let mut tmp = tempfile::NamedTempFile::new_in(&dump.directory)?;
+            let mut offset = 0u64;
+            let mut buf = [0u8; 4096];
+            let mut missing = 0u64;
+            while offset < size {
+                job.check()?;
+                let chunk = usize::try_from((size - offset).min(4096))?;
+                if vm.read(start + offset, buf.at_mut(..chunk)?).is_err() {
+                    buf.at_mut(..chunk)?.fill(0);
+                    missing += 1;
+                }
+                tmp.write_all(buf.at(..chunk)?)?;
+                offset += chunk as u64;
+            }
+            if missing > 0 {
+                result.complete = false;
+                result.diagnostics.push(format!(
+                    "PID {pid} ELF 导出 {start:#x}: {missing} 页不可读已补零"
+                ));
+            }
+            job.check()?;
+            tmp.as_file().sync_all()?;
+            let safe_comm: String = comm
+                .chars()
+                .map(|c| {
+                    if c.is_ascii_alphanumeric() || matches!(c, '.' | '_' | '-') {
+                        c
+                    } else {
+                        '_'
+                    }
+                })
+                .take(32)
+                .collect();
+            let filename = format!("pid.{pid}.{safe_comm}.{start:#x}.elf");
+            let path = dump.directory.join(&filename);
+            tmp.persist_noclobber(&path).map_err(|e| e.error)?;
+            *total_dumped += size;
+            Ok(Some(filename))
+        })();
+        match run {
+            Ok(Some(name)) => name,
+            Ok(None) => "N/A".into(),
+            Err(e) => {
+                result.complete = false;
+                result
+                    .diagnostics
+                    .push(format!("PID {pid} 导出失败: {e:#}"));
+                "Error outputting file".into()
+            }
+        }
     }
 
     fn task_creation_time(&self, task: u64, boot_seconds: i128) -> Result<String> {

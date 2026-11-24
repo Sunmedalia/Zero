@@ -149,11 +149,11 @@ catalog! {
         "查看系统和内核信息",
         ["Key", "Value"], [12, 0];
     WinPslist, "windows.pslist", "windows.pslist", Process,
-        "列出活动进程及其地址",
-        ["PID", "PPID", "Name", "Address", "Threads", "Handles", "CreateTime", "ExitTime"], [12, 12, 0, 12, 12, 12, 12, 12];
+        "列出活动进程、会话与 WOW64 状态",
+        ["PID", "PPID", "Name", "Address", "Threads", "Handles", "CreateTime", "ExitTime", "SessionId", "Wow64"], [12, 12, 0, 12, 10, 10, 12, 12, 10, 6];
     WinPstree, "windows.pstree", "windows.pstree", Process,
-        "按父进程关系浏览进程树",
-        ["PID", "PPID", "Name", "Address", "Threads", "Handles", "CreateTime", "ExitTime"], [12, 12, 0, 12, 12, 12, 12, 12];
+        "按父进程关系浏览进程树、会话与 WOW64 状态",
+        ["PID", "PPID", "Name", "Address", "Threads", "Handles", "CreateTime", "ExitTime", "SessionId", "Wow64"], [12, 12, 0, 12, 10, 10, 12, 12, 10, 6];
     WinCmdline, "windows.cmdline", "windows.cmdline", Process,
         "读取进程命令行",
         ["PID", "Name", "CommandLine", "View"], [12, 0, 0, 10];
@@ -191,8 +191,8 @@ catalog! {
         "读取指定 hive 中的注册表键",
         ["Hive", "Key", "Kind", "Name", "Type", "Data", "LastWriteTime"], [12, 12, 12, 0, 12, 0, 12];
     WinPsscan, "windows.psscan", "windows.psscan", Integrity,
-        "扫描进程对象",
-        ["PID", "PPID", "Name", "Address", "Threads", "Handles", "CreateTime", "ExitTime"], [12, 12, 0, 12, 12, 12, 12, 12];
+        "扫描进程对象（含会话与 WOW64 状态）",
+        ["PID", "PPID", "Name", "Address", "Threads", "Handles", "CreateTime", "ExitTime", "SessionId", "Wow64"], [12, 12, 0, 12, 10, 10, 12, 12, 10, 6];
     WinPsxview, "windows.psxview", "windows.psxview", Integrity,
         "对比活动链表、池扫描、线程扫描与 csrss 句柄表四种视图",
         ["PID", "Name", "Address", "Pslist", "Psscan", "Thrdscan", "Csrss", "ExitTime"], [12, 0, 12, 8, 8, 8, 8, 12];
@@ -302,8 +302,8 @@ catalog! {
         "扫描内存中的主引导记录、分区表与引导代码反汇编",
         ["Physical", "DiskSignature", "Partition", "Bootable", "Type", "StartLBA", "Sectors", "BootCodeSHA256", "Disasm"], [18, 10, 4, 6, 6, 12, 12, 20, 0];
     WinTimers, "windows.timers", "windows.timers", Integrity,
-        "列出各处理器的内核定时器及 DPC 例程归属",
-        ["CPU", "Timer", "DueTime", "Period", "DPC", "Routine", "Module"], [4, 18, 20, 8, 18, 18, 0];
+        "列出各处理器的内核定时器、触发状态及 DPC 例程归属与符号",
+        ["CPU", "Timer", "DueTime", "Period", "DPC", "Routine", "Module", "Signaled", "Symbol"], [4, 18, 20, 8, 18, 18, 18, 8, 0];
     WinStatistics, "windows.statistics", "windows.statistics", Memory,
         "统计内核地址空间的有效、换出与空页表项",
         ["Key", "Value"], [30, 0];

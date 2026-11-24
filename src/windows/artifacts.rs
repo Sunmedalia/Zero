@@ -229,6 +229,172 @@ impl Windows<'_> {
             job.check()?;
             Self::issue(&mut r, "registry callbacks", format!("{e:#}"));
         }
+
+        // BugCheck callbacks (KeBugCheckCallbackListHead / KeBugCheckReasonCallbackListHead).
+        for (list_sym, ty_name, label) in [
+            (
+                "KeBugCheckCallbackListHead",
+                "_KBUGCHECK_CALLBACK_RECORD",
+                "KeBugCheckCallback",
+            ),
+            (
+                "KeBugCheckReasonCallbackListHead",
+                "_KBUGCHECK_REASON_CALLBACK_RECORD",
+                "KeBugCheckReasonCallback",
+            ),
+        ] {
+            if let (Ok(head), Ok(link_off)) =
+                (self.symbol(list_sym), self.vm.isf.offset(ty_name, "Entry"))
+            {
+                match self.list_partial(head, link_off, job) {
+                    Ok((nodes, diags)) => {
+                        if !diags.is_empty() {
+                            r.complete = false;
+                            r.diagnostics.extend(diags);
+                        }
+                        for node in nodes {
+                            job.check()?;
+                            if let Ok(func) = self.number(node, ty_name, "CallbackRoutine")
+                                && self.vm.kernel(func)
+                            {
+                                let comp = self
+                                    .number(node, ty_name, "Component")
+                                    .ok()
+                                    .filter(|&p| self.vm.kernel(p))
+                                    .and_then(|p| {
+                                        let mut buf = [0u8; 64];
+                                        self.vm.read(p, &mut buf).ok()?;
+                                        Some(crate::bytes::c_str_lossy(&buf))
+                                    })
+                                    .unwrap_or_default();
+                                r.rows.push(vec![
+                                    label.into(),
+                                    hex(node),
+                                    hex(func),
+                                    module_at(&modules, func),
+                                    comp,
+                                ]);
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        job.check()?;
+                        Self::issue(&mut r, list_sym, format!("{e:#}"));
+                    }
+                }
+            }
+        }
+
+        // Shutdown notifications (IopNotifyShutdownQueueHead / IopNotifyLastChanceShutdownQueueHead).
+        for (list_sym, label) in [
+            (
+                "IopNotifyShutdownQueueHead",
+                "IoRegisterShutdownNotification",
+            ),
+            (
+                "IopNotifyLastChanceShutdownQueueHead",
+                "IoRegisterLastChanceShutdownNotification",
+            ),
+        ] {
+            if let (Ok(head), Ok(link_off), Ok(dev_off), Ok(drv_off), Ok(major_off)) = (
+                self.symbol(list_sym),
+                self.vm.isf.offset("_SHUTDOWN_PACKET", "ListEntry"),
+                self.vm.isf.offset("_SHUTDOWN_PACKET", "DeviceObject"),
+                self.vm.isf.offset("_DEVICE_OBJECT", "DriverObject"),
+                self.vm.isf.offset("_DRIVER_OBJECT", "MajorFunction"),
+            ) {
+                match self.list_partial(head, link_off, job) {
+                    Ok((nodes, diags)) => {
+                        if !diags.is_empty() {
+                            r.complete = false;
+                            r.diagnostics.extend(diags);
+                        }
+                        let ptr_sz = self.vm.pointer_size() as u64;
+                        for node in nodes {
+                            job.check()?;
+                            let read_shutdown = (|| -> Result<()> {
+                                let dev = self.vm.pointer(add(node, dev_off)?)?;
+                                ensure!(self.vm.kernel(dev), "无效 DeviceObject");
+                                let drv = self.vm.pointer(add(dev, drv_off)?)?;
+                                ensure!(self.vm.kernel(drv), "无效 DriverObject");
+                                // IRP_MJ_SHUTDOWN = 0x10 (16)
+                                let func = self.vm.pointer(add(drv, major_off + 16 * ptr_sz)?)?;
+                                ensure!(self.vm.kernel(func), "无效 Shutdown 例程地址");
+                                let drv_name = self
+                                    .field(drv, "_DRIVER_OBJECT", "DriverName")
+                                    .and_then(|a| self.vm.unicode(a))
+                                    .unwrap_or_default();
+                                r.rows.push(vec![
+                                    label.into(),
+                                    hex(node),
+                                    hex(func),
+                                    module_at(&modules, func),
+                                    drv_name,
+                                ]);
+                                Ok(())
+                            })();
+                            if let Err(e) = read_shutdown {
+                                Self::issue(
+                                    &mut r,
+                                    format!("{list_sym} {node:#x}"),
+                                    format!("{e:#}"),
+                                );
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        job.check()?;
+                        Self::issue(&mut r, list_sym, format!("{e:#}"));
+                    }
+                }
+            }
+        }
+
+        // Filesystem registration change callbacks (IopFsNotifyChangeQueueHead).
+        if let (Ok(head), Ok(link_off), Ok(routine_off)) = (
+            self.symbol("IopFsNotifyChangeQueueHead"),
+            self.vm.isf.offset("_NOTIFICATION_PACKET", "ListEntry"),
+            self.vm
+                .isf
+                .offset("_NOTIFICATION_PACKET", "NotificationRoutine"),
+        ) {
+            match self.list_partial(head, link_off, job) {
+                Ok((nodes, diags)) => {
+                    if !diags.is_empty() {
+                        r.complete = false;
+                        r.diagnostics.extend(diags);
+                    }
+                    for node in nodes {
+                        job.check()?;
+                        if let Ok(func) = add(node, routine_off).and_then(|a| self.vm.pointer(a))
+                            && self.vm.kernel(func)
+                        {
+                            let drv_name = self
+                                .number(node, "_NOTIFICATION_PACKET", "DriverObject")
+                                .ok()
+                                .filter(|&d| self.vm.kernel(d))
+                                .and_then(|d| {
+                                    self.field(d, "_DRIVER_OBJECT", "DriverName")
+                                        .and_then(|a| self.vm.unicode(a))
+                                        .ok()
+                                })
+                                .unwrap_or_default();
+                            r.rows.push(vec![
+                                "IoRegisterFsRegistrationChange".into(),
+                                hex(node),
+                                hex(func),
+                                module_at(&modules, func),
+                                drv_name,
+                            ]);
+                        }
+                    }
+                }
+                Err(e) => {
+                    job.check()?;
+                    Self::issue(&mut r, "IopFsNotifyChangeQueueHead", format!("{e:#}"));
+                }
+            }
+        }
         Ok(r)
     }
     fn callback_vector(
@@ -443,6 +609,8 @@ mod object_tests {
                 handles: None,
                 created: 0,
                 exited: 0,
+                session_id: None,
+                wow64: false,
             };
             let mut r = w.result(Plugin::WinGetsids);
             w.sids(&p, &mut r, &Job::default()).unwrap();

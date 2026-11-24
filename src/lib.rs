@@ -35,8 +35,8 @@ use std::sync::{
     atomic::{AtomicBool, Ordering},
 };
 
-// Batch 2: Linux check_modules/hidden_modules dump, ebpf Tag, tracepoints priority, ftrace flags; Windows thrdscan modules, mbrscan disasm, bigpools status/show-free/tags.
-pub const ENGINE_VERSION: &str = concat!(env!("CARGO_PKG_VERSION"), "-native-127");
+// Batch 3: Windows callbacks (BugCheck/Shutdown/FS), timers Signaled/Symbol, pslist SessionId/Wow64; Linux pslist --dump and pidhashtable --decorate-comm.
+pub const ENGINE_VERSION: &str = concat!(env!("CARGO_PKG_VERSION"), "-native-128");
 #[derive(Clone)]
 pub struct Job {
     pub cancel: Arc<AtomicBool>,

@@ -365,6 +365,11 @@ impl Session {
                     options.pids
                 )
             }
+            None if request.plugin == Plugin::Pidhashtable => format!(
+                "{}:decorate_comm={}",
+                request.plugin.name(),
+                options.decorate_comm
+            ),
             None if request.plugin == Plugin::Modxview => format!(
                 "{}:plain_taints={}",
                 request.plugin.name(),
@@ -424,6 +429,8 @@ impl Session {
             engine.linux_malfind(options, dump, job)?
         } else if request.plugin == Plugin::LinuxElfs {
             engine.linux_elfs(options, dump, job)?
+        } else if request.plugin == Plugin::LinuxPslist {
+            engine.process_details_with_options(options, dump, job)?
         } else if request.plugin == Plugin::LinuxPagecacheInodePages {
             engine.linux_pagecache_inode_pages(options, dump, job)?
         } else if request.plugin == Plugin::LinuxPagecacheRecoverFs {
@@ -440,8 +447,10 @@ impl Session {
             engine.kallsyms(options.kallsyms, job)?
         } else if request.plugin == Plugin::Modxview {
             engine.modxview(options.plain_taints, job)?
-        } else if request.plugin == Plugin::LinuxPslist {
-            engine.process_details_with_options(options, job)?
+        } else if request.plugin == Plugin::Pidhashtable {
+            let mut r = engine.result(Plugin::Pidhashtable);
+            engine.pidhashtable_with_options(&mut r, options.decorate_comm, job)?;
+            r
         } else if request.plugin == Plugin::LinuxPstree {
             engine.pstree(options, job)?
         } else if request.plugin == Plugin::LinuxLsof {

@@ -432,6 +432,7 @@ impl Plugin {
                     | Self::LinuxMaps
                     | Self::LinuxMalfind
                     | Self::LinuxElfs
+                    | Self::LinuxPslist
                     | Self::LinuxPagecacheInodePages
                     | Self::LinuxPagecacheRecoverFs
             )

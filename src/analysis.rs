@@ -196,9 +196,17 @@ pub fn analyze(
     );
 
     ensure!(
-        !(options.include_threads || options.decorate_comm)
+        !options.include_threads
             || matches!(request.plugin, Plugin::LinuxPslist | Plugin::LinuxPstree),
-        "threads/decorate_comm 当前仅支持 linux.pslist.PsList / linux.pstree.PsTree"
+        "threads 当前仅支持 linux.pslist.PsList / linux.pstree.PsTree"
+    );
+    ensure!(
+        !options.decorate_comm
+            || matches!(
+                request.plugin,
+                Plugin::LinuxPslist | Plugin::LinuxPstree | Plugin::Pidhashtable
+            ),
+        "decorate_comm 当前仅支持 linux.pslist.PsList / linux.pstree.PsTree / pidhashtable"
     );
     ensure!(
         !options.files_only || request.plugin == Plugin::LinuxLsof,

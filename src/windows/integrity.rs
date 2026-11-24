@@ -483,6 +483,49 @@ impl Windows<'_> {
             .context("缺少 _KTIMER_TABLE_ENTRY 大小")?;
         let list = isf.offset("_KTIMER_TABLE_ENTRY", "Entry")?;
         let link = isf.offset("_KTIMER", "TimerListEntry")?;
+        let has_signal_state = isf.field("_KTIMER", "Header").is_ok()
+            && isf.field("_DISPATCHER_HEADER", "SignalState").is_ok();
+        let signal_offset = if has_signal_state {
+            isf.offset("_KTIMER", "Header").ok().and_then(|h| {
+                isf.offset("_DISPATCHER_HEADER", "SignalState")
+                    .ok()
+                    .map(|s| h + s)
+            })
+        } else {
+            None
+        };
+        let mut kernel_symbols: Vec<(u64, &str)> = isf
+            .data
+            .key("symbols")
+            .as_object()
+            .map(|map| {
+                map.iter()
+                    .filter_map(|(name, v)| {
+                        let rva = v.get("address")?.as_u64()?;
+                        Some((self.base.checked_add(rva)?, name.as_str()))
+                    })
+                    .collect()
+            })
+            .unwrap_or_default();
+        kernel_symbols.sort_unstable_by_key(|&(addr, _)| addr);
+        let lookup_symbol = |addr: u64| -> String {
+            if addr == 0 || kernel_symbols.is_empty() {
+                return String::new();
+            }
+            let pos = kernel_symbols.partition_point(|&(a, _)| a <= addr);
+            if pos == 0 {
+                return String::new();
+            }
+            if let Some(&(sym_addr, name)) = kernel_symbols.get(pos - 1) {
+                let delta = addr.saturating_sub(sym_addr);
+                if delta == 0 {
+                    return name.to_owned();
+                } else if delta < 0x10000 {
+                    return format!("{name}+{delta:#x}");
+                }
+            }
+            String::new()
+        };
         for (cpu, prcb) in processors {
             job.check()?;
             for index in 0..count {
@@ -522,6 +565,16 @@ impl Windows<'_> {
                             0
                         };
                         let owner = module_at(&modules, routine);
+                        let signaled = signal_offset
+                            .and_then(|off| add(timer, off).ok())
+                            .and_then(|addr| self.vm.uint(addr, 4).ok())
+                            .map(|v| if v != 0 { "Yes" } else { "-" }.to_owned())
+                            .unwrap_or_default();
+                        let sym = if owner.to_ascii_lowercase().starts_with("nt") {
+                            lookup_symbol(routine)
+                        } else {
+                            String::new()
+                        };
                         Ok(vec![
                             cpu.to_string(),
                             hex(timer),
@@ -536,6 +589,8 @@ impl Windows<'_> {
                             } else {
                                 owner
                             },
+                            signaled,
+                            sym,
                         ])
                     })();
                     match read {

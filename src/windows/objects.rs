@@ -530,6 +530,15 @@ impl Windows<'_> {
                             handles: None,
                             created,
                             exited: physical_number(isf, &b, "_EPROCESS", "ExitTime")?,
+                            session_id: physical_number(isf, &b, "_EPROCESS", "Session")
+                                .ok()
+                                .filter(|&s| self.vm.kernel(s))
+                                .and_then(|s| {
+                                    self.number(s, "_MM_SESSION_SPACE", "SessionId").ok()
+                                }),
+                            wow64: physical_number(isf, &b, "_EPROCESS", "Wow64Process")
+                                .or_else(|_| physical_number(isf, &b, "_EPROCESS", "WoW64Process"))
+                                .is_ok_and(|p| p != 0),
                         })
                     })();
                     if let Ok(p) = parsed {

@@ -757,6 +757,15 @@ impl Linux<'_> {
     }
     /// pidhashtable: every task indexed by PID, independent of the tasks list.
     pub(super) fn pidhashtable(&self, r: &mut Results, job: &Job) -> Result<()> {
+        self.pidhashtable_with_options(r, false, job)
+    }
+
+    pub(super) fn pidhashtable_with_options(
+        &self,
+        r: &mut Results,
+        decorate_comm: bool,
+        job: &Job,
+    ) -> Result<()> {
         let mut tasks = self.pid_tasks(r, job)?;
         tasks.sort_unstable();
         tasks.dedup();
@@ -771,6 +780,19 @@ impl Linux<'_> {
                     "PID 数值异常"
                 );
                 let parent = self.number(task, "task_struct", "real_parent")?;
+                let mut comm =
+                    self.kernel_text(self.field_address(task, "task_struct", "comm")?, 16)?;
+                if decorate_comm {
+                    if let Ok(flags) = self.number(task, "task_struct", "flags") {
+                        if flags & 0x0020_0000 != 0 {
+                            comm = format!("[{comm}]");
+                        } else if pid != tgid {
+                            comm = format!("{{{comm}}}");
+                        }
+                    } else if pid != tgid {
+                        comm = format!("{{{comm}}}");
+                    }
+                }
                 Ok((
                     pid,
                     vec![
@@ -778,7 +800,7 @@ impl Linux<'_> {
                         pid.to_string(),
                         tgid.to_string(),
                         self.number(parent, "task_struct", "pid")?.to_string(),
-                        self.kernel_text(self.field_address(task, "task_struct", "comm")?, 16)?,
+                        comm,
                     ],
                 ))
             })();

@@ -138,6 +138,8 @@ pub struct Process {
     pub handles: Option<u64>,
     pub created: u64,
     pub exited: u64,
+    pub session_id: Option<u64>,
+    pub wow64: bool,
 }
 /// One entry of `PsLoadedModuleList`, shared by `modules` and moddump.
 #[derive(Clone, Debug)]
@@ -162,6 +164,8 @@ impl Process {
             self.handles.map(|h| h.to_string()).unwrap_or_default(),
             filetime(self.created),
             filetime(self.exited),
+            self.session_id.map(|s| s.to_string()).unwrap_or_default(),
+            self.wow64.to_string(),
         ]
     }
 }
@@ -279,6 +283,15 @@ impl Windows<'_> {
                 .and_then(|p| self.number(p, "_HANDLE_TABLE", "HandleCount").ok()),
             created: self.number(address, "_EPROCESS", "CreateTime")?,
             exited: self.number(address, "_EPROCESS", "ExitTime")?,
+            session_id: self
+                .number(address, "_EPROCESS", "Session")
+                .ok()
+                .filter(|&s| self.vm.kernel(s))
+                .and_then(|s| self.number(s, "_MM_SESSION_SPACE", "SessionId").ok()),
+            wow64: self
+                .number(address, "_EPROCESS", "Wow64Process")
+                .or_else(|_| self.number(address, "_EPROCESS", "WoW64Process"))
+                .is_ok_and(|p| p != 0),
         })
     }
     fn processes_partial(&self, job: &Job) -> Result<(Vec<Process>, Vec<String>)> {
