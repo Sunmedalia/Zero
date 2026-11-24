@@ -196,7 +196,13 @@ impl Windows<'_> {
         }
         Ok(out)
     }
-    pub(super) fn dlllist(&self, p: &Process, r: &mut Results, job: &Job) -> Result<()> {
+    pub(super) fn dlllist(
+        &self,
+        p: &Process,
+        options: &Options,
+        r: &mut Results,
+        job: &Job,
+    ) -> Result<()> {
         let vm = self.process_memory(p)?;
         let mut native_meta: std::collections::HashMap<u64, (String, String)> =
             std::collections::HashMap::new();
@@ -239,7 +245,20 @@ impl Windows<'_> {
                 }
             }
         }
+        let needle = options.name_filter.as_deref().filter(|s| !s.is_empty());
+        let needle_lower = needle
+            .filter(|_| options.ignore_case)
+            .map(str::to_ascii_lowercase);
         for (base, size, path, view) in self.dlls_partial(p, job, Some(r))? {
+            if let Some(needle) = needle {
+                let matched = match &needle_lower {
+                    Some(lower) => path.to_ascii_lowercase().contains(lower),
+                    None => path.contains(needle),
+                };
+                if !matched {
+                    continue;
+                }
+            }
             let (load_count, load_time) = if view == "native" {
                 native_meta.get(&base).cloned().unwrap_or_default()
             } else {
@@ -872,17 +891,20 @@ impl Windows<'_> {
         &self,
         p: &Process,
         plugin: Plugin,
+        options: &Options,
         r: &mut Results,
         job: &Job,
     ) -> Result<()> {
         let mut total_dumped = 0u64;
-        self.vad_result_with_dump(p, plugin, None, &mut total_dumped, r, job)
+        self.vad_result_with_dump(p, plugin, options, None, &mut total_dumped, r, job)
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub(super) fn vad_result_with_dump(
         &self,
         p: &Process,
         plugin: Plugin,
+        options: &Options,
         dump: Option<&DumpOptions>,
         total_dumped: &mut u64,
         r: &mut Results,
@@ -903,6 +925,14 @@ impl Windows<'_> {
                 .or_insert_with(|| protection(v.protection))
                 .clone();
             if plugin == Plugin::WinVadinfo {
+                if !options.vma_addresses.is_empty()
+                    && !options
+                        .vma_addresses
+                        .iter()
+                        .any(|&addr| v.start <= addr && addr < v.end)
+                {
+                    continue;
+                }
                 r.rows.push(vec![
                     pid.clone(),
                     p.name.clone(),

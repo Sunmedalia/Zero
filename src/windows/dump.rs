@@ -28,6 +28,7 @@ impl Windows<'_> {
                 if let Err(e) = self.vad_result_with_dump(
                     &process,
                     Plugin::WinMalfind,
+                    &Options::default(),
                     Some(options),
                     &mut total_dumped,
                     &mut r,

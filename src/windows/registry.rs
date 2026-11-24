@@ -27,6 +27,17 @@ impl Windows<'_> {
                         Err(e) => Self::issue(&mut r, format!("{h:#x} {field}"), e),
                     }
                 }
+                if let Some(needle) = options.name_filter.as_deref().filter(|s| !s.is_empty()) {
+                    let matched = if options.ignore_case {
+                        path.to_ascii_lowercase()
+                            .contains(&needle.to_ascii_lowercase())
+                    } else {
+                        path.contains(needle)
+                    };
+                    if !matched {
+                        continue;
+                    }
+                }
                 r.rows.push(vec![hex(h), path]);
             }
             return Ok(r);

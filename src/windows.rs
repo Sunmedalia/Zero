@@ -671,9 +671,9 @@ impl Windows<'_> {
                 Plugin::WinLdrmodules
                 | Plugin::WinHollowprocesses
                 | Plugin::WinSuspiciousThreads => self.malware(&process, p, &mut result, job),
-                Plugin::WinDlllist => self.dlllist(&process, &mut result, job),
+                Plugin::WinDlllist => self.dlllist(&process, options, &mut result, job),
                 Plugin::WinVadinfo | Plugin::WinMalfind => {
-                    self.vad_result(&process, p, &mut result, job)
+                    self.vad_result(&process, p, options, &mut result, job)
                 }
                 Plugin::WinHandles => handle_layout
                     .as_ref()

@@ -199,14 +199,18 @@ impl Windows<'_> {
     /// windows.sessions: the session each process belongs to.
     pub(super) fn session(&self, p: &Process, r: &mut Results) -> Result<()> {
         let space = self.number(p.address, "_EPROCESS", "Session")?;
-        let id = if space == 0 {
-            "-".to_string()
+        let (id, session_type) = if space == 0 {
+            ("-".to_string(), "System")
         } else {
             ensure!(self.vm.kernel(space), "无效会话空间指针");
             let id = self.number(space, "_MM_SESSION_SPACE", "SessionId")?;
             ensure!(id <= 0xffff, "会话 ID 无效");
-            id.to_string()
+            (
+                id.to_string(),
+                if id == 0 { "Services" } else { "Interactive" },
+            )
         };
+        let user_name = self.session_user_name(p).unwrap_or_default();
         r.rows.push(vec![
             id,
             p.pid.to_string(),
@@ -217,8 +221,38 @@ impl Windows<'_> {
             } else {
                 hex(space)
             },
+            session_type.into(),
+            user_name,
         ]);
         Ok(())
+    }
+
+    fn session_user_name(&self, p: &Process) -> Option<String> {
+        let mask = if self.vm.pointer_size() == 4 { !7 } else { !15 };
+        let token = self.number(p.address, "_EPROCESS", "Token").ok()? & mask;
+        if token == 0 || !self.vm.kernel(token) {
+            return None;
+        }
+        let logon = self.number(token, "_TOKEN", "LogonSession").ok()?;
+        if logon == 0 || !self.vm.kernel(logon) {
+            return None;
+        }
+        let account = self
+            .field(logon, "_SEP_LOGON_SESSION_REFERENCES", "AccountName")
+            .and_then(|a| self.vm.unicode(a))
+            .ok()?;
+        let domain = self
+            .field(logon, "_SEP_LOGON_SESSION_REFERENCES", "AccountDomainName")
+            .and_then(|a| self.vm.unicode(a))
+            .ok()
+            .unwrap_or_default();
+        if account.is_empty() {
+            None
+        } else if domain.is_empty() {
+            Some(account)
+        } else {
+            Some(format!("{domain}\\{account}"))
+        }
     }
     /// windows.getservicesids: service SIDs for the current ControlSet.
     pub(super) fn service_sids(&self, job: &Job) -> Result<Results> {

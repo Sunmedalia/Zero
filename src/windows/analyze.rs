@@ -102,7 +102,7 @@ pub(crate) fn analyze_resolved(
             &image.digest,
             &isf.digest,
             &format!(
-                "{}:{:?}:{:?}:{}:{}:{}:{}:{:?}:{}:{layouts_digest}:pids={:?}:maxsize={:?}",
+                "{}:{:?}:{:?}:{}:{}:{}:{}:{:?}:{:?}:{}:{:?}:{}:{layouts_digest}:pids={:?}:maxsize={:?}",
                 request.plugin.name(),
                 options.pid,
                 options.hive,
@@ -111,6 +111,9 @@ pub(crate) fn analyze_resolved(
                 options.recurse,
                 options.show_free,
                 options.tags,
+                options.name_filter,
+                options.ignore_case,
+                options.vma_addresses,
                 options.pattern.as_deref().unwrap_or_default(),
                 options.pids,
                 options.maxsize

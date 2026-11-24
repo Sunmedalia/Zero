@@ -35,8 +35,8 @@ use std::sync::{
     atomic::{AtomicBool, Ordering},
 };
 
-// Batch 4: Linux timeliner + bodyfile export, Windows timeliner sources + bodyfile export, Windows dlllist LoadCount/LoadTime and vadinfo Tag/Parent/CommitCharge.
-pub const ENGINE_VERSION: &str = concat!(env!("CARGO_PKG_VERSION"), "-native-129");
+// Batch 5: Windows dlllist/hivelist --name/--ignore-case, vadinfo --address, sessions SessionType/UserName; Linux ftrace HookedSymbols.
+pub const ENGINE_VERSION: &str = concat!(env!("CARGO_PKG_VERSION"), "-native-130");
 #[derive(Clone)]
 pub struct Job {
     pub cancel: Arc<AtomicBool>,

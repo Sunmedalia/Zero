@@ -158,6 +158,8 @@ impl App {
                         recurse: self.analysis_options.recurse,
                         show_free: self.analysis_options.show_free,
                         tags: self.analysis_options.tags.clone(),
+                        name_filter: self.analysis_options.name_filter.clone(),
+                        ignore_case: self.analysis_options.ignore_case,
                         include_threads: matches!(
                             self.plugin,
                             Plugin::LinuxPslist | Plugin::LinuxPstree

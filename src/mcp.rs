@@ -47,6 +47,8 @@ struct AnalyzeArgs {
     recurse: Option<bool>,
     show_free: Option<bool>,
     tags: Option<Vec<String>>,
+    name_filter: Option<String>,
+    ignore_case: Option<bool>,
     pattern: Option<String>,
     strings_file: Option<PathBuf>,
     min_length: Option<i64>,
@@ -412,11 +414,12 @@ fn call(
                 .iter()
                 .map(|a| dump::parse_address(a).map_err(anyhow::Error::msg))
                 .collect::<Result<Vec<_>>>()?;
-            let (pe_addresses, vma_addresses) = if plugin == Plugin::LinuxMaps {
-                (Vec::new(), parsed_addresses)
-            } else {
-                (parsed_addresses, Vec::new())
-            };
+            let (pe_addresses, vma_addresses) =
+                if matches!(plugin, Plugin::LinuxMaps | Plugin::WinVadinfo) {
+                    (Vec::new(), parsed_addresses)
+                } else {
+                    (parsed_addresses, Vec::new())
+                };
             let dump_options = if let Some(dir) = a.dump_dir.as_deref() {
                 ensure!(plugin.accepts_dump(), "dump_dir 仅用于支持转储的插件");
                 Some(dump::DumpOptions {
@@ -514,6 +517,8 @@ fn call(
                     recurse: a.recurse.unwrap_or(false),
                     show_free: a.show_free.unwrap_or(false),
                     tags: a.tags.unwrap_or_default(),
+                    name_filter: a.name_filter,
+                    ignore_case: a.ignore_case.unwrap_or(false),
                     pattern: a.pattern,
                     strings_file: a.strings_file.map(|p| path(root, &p)),
                     min_length: a.min_length,

@@ -239,8 +239,8 @@ catalog! {
         "列出进程令牌拥有的特权及启用状态",
         ["PID", "Name", "Value", "Privilege", "Attributes"], [8, 16, 6, 0, 24];
     WinSessions, "windows.sessions", "windows.sessions", Process,
-        "按登录会话归类进程",
-        ["SessionID", "PID", "Name", "CreateTime", "SessionAddress"], [9, 8, 0, 20, 18];
+        "按登录会话归类进程（含会话类型与用户名）",
+        ["SessionID", "PID", "Name", "CreateTime", "SessionAddress", "SessionType", "UserName"], [9, 8, 0, 20, 18, 12, 18];
     WinUserassist, "windows.registry.userassist", "windows.registry.userassist", Files,
         "解码 NTUSER 中的 UserAssist 程序执行记录",
         ["Hive", "GUID", "Name", "Count", "FocusCount", "FocusTime", "LastUpdated"], [0, 0, 0, 6, 10, 10, 20];
@@ -428,8 +428,8 @@ catalog! {
         "列出挂在内核 tracepoint 上的探针与优先级",
         ["Tracepoint", "Handler", "Symbol", "Owner", "Reason", "Priority"], [0, 18, 0, 16, 0, 8];
     Ftrace, "ftrace", "ftrace", Integrity,
-        "列出已注册的 ftrace 回调及标志",
-        ["Ops", "Handler", "Symbol", "Owner", "Reason", "Flags"], [18, 18, 0, 16, 0, 18];
+        "列出已注册的 ftrace 回调、标志与挂钩符号",
+        ["Ops", "Handler", "Symbol", "Owner", "Reason", "Flags", "HookedSymbols"], [18, 18, 0, 16, 0, 18, 24];
     PerfEvents, "perf_events", "perf_events", Integrity,
         "列出进程持有的 perf 事件及溢出处理函数",
         ["PID", "Name", "Event", "Type", "Config", "Handler", "Symbol", "Owner", "Reason"], [6, 14, 18, 6, 10, 18, 0, 16, 0];

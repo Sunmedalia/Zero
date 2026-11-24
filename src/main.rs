@@ -82,6 +82,12 @@ struct Cli {
         value_delimiter = ','
     )]
     tags: Vec<String>,
+    /// Filter windows.dlllist or windows.hivelist by path/name substring.
+    #[arg(help_heading = "Scan plugins", long = "name", global = true)]
+    name_filter: Option<String>,
+    /// Case-insensitive matching for --name.
+    #[arg(help_heading = "Scan plugins", long = "ignore-case", global = true)]
+    ignore_case: bool,
     /// Byte pattern for vmayarascan / windows.vadyarascan: text, wide:TEXT
     /// (UTF-16LE) or hex:4d5a??00 with ?? wildcards; byte regex for VmaRegExScan.
     #[arg(help_heading = "Scan plugins", long, global = true)]
@@ -626,7 +632,7 @@ fn main() -> Result<()> {
         } else {
             pid
         };
-        if plugin == Plugin::LinuxMaps {
+        if matches!(plugin, Plugin::LinuxMaps | Plugin::WinVadinfo) {
             options.vma_addresses = std::mem::take(&mut options.pe.addresses);
         }
         match zero_tui::analysis::analyze(
@@ -708,6 +714,8 @@ impl Cli {
             recurse: self.recurse,
             show_free: self.show_free,
             tags: self.tags.clone(),
+            name_filter: self.name_filter.clone(),
+            ignore_case: self.ignore_case,
             pattern: self.pattern.clone(),
             strings_file: self.strings_file.clone(),
             min_length: self.min_length,

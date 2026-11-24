@@ -288,6 +288,7 @@ impl Linux<'_> {
             } else {
                 String::new()
             };
+            let hooked = self.ftrace_hooked_symbols(ops, &code, job);
             r.rows.push(vec![
                 hex(ops),
                 hex(handler),
@@ -295,10 +296,87 @@ impl Linux<'_> {
                 owner,
                 reason.into(),
                 flags,
+                hooked,
             ]);
             ops = self.number(ops, "ftrace_ops", "next")?;
         }
         Ok(())
+    }
+
+    fn ftrace_hooked_symbols(
+        &self,
+        ops: u64,
+        code: &super::kernel::CodeMap<'_>,
+        job: &Job,
+    ) -> String {
+        let Ok(func_hash) = self.number(ops, "ftrace_ops", "func_hash") else {
+            return String::new();
+        };
+        if func_hash == 0 {
+            return String::new();
+        }
+        let Ok(filter_hash) = self.number(func_hash, "ftrace_ops_hash", "filter_hash") else {
+            return String::new();
+        };
+        if filter_hash == 0 {
+            return String::new();
+        }
+        let Ok(size_bits) = self.number(filter_hash, "ftrace_hash", "size_bits") else {
+            return String::new();
+        };
+        if size_bits > 16 {
+            return String::new();
+        }
+        let Ok(buckets) = self.number(filter_hash, "ftrace_hash", "buckets") else {
+            return String::new();
+        };
+        if buckets == 0 {
+            return String::new();
+        }
+        let Ok(hlist_offset) = self.isf.offset("ftrace_func_entry", "hlist") else {
+            return String::new();
+        };
+        let Ok(ptr_size) = usize::try_from(
+            self.isf.data.key("base_types")["pointer"]
+                .key("size")
+                .as_u64()
+                .unwrap_or(8),
+        ) else {
+            return String::new();
+        };
+        let bucket_count = 1u64 << size_bits;
+        let mut names = Vec::new();
+        let mut seen = HashSet::new();
+        for i in 0..bucket_count {
+            if job.check().is_err() || names.len() >= 32 {
+                break;
+            }
+            let Ok(head_addr) = add(buckets, i * ptr_size as u64) else {
+                break;
+            };
+            let Ok(mut node) = self.vm.uint(head_addr, ptr_size) else {
+                continue;
+            };
+            let mut steps = 0usize;
+            while node != 0 && seen.insert(node) && steps < 256 && names.len() < 32 {
+                steps += 1;
+                let Some(entry) = node.checked_sub(hlist_offset) else {
+                    break;
+                };
+                if let Ok(ip) = self.number(entry, "ftrace_func_entry", "ip")
+                    && ip != 0
+                {
+                    let (sym, _, _) = code.describe(ip);
+                    if !sym.is_empty() && sym != "-" {
+                        names.push(sym);
+                    } else {
+                        names.push(hex(ip));
+                    }
+                }
+                node = self.vm.uint(node, ptr_size).unwrap_or(0);
+            }
+        }
+        names.join(", ")
     }
     /// perf_events: events each process owns and their overflow handlers.
     pub(super) fn perf_events(&self, job: &Job) -> Result<Results> {
