@@ -1127,6 +1127,54 @@ impl App {
                     }
                     InputKind::Export => self.export_result(path),
                     InputKind::History => self.start_work(Work::History(path)),
+                    InputKind::InspectAddress => {
+                        let raw = value.trim();
+                        if !raw.is_empty() {
+                            let mut q = self.inspector_query.clone().unwrap_or_default();
+                            if let Some(rest) = raw.strip_prefix("physical:") {
+                                match parse_address(rest) {
+                                    Ok(addr) => {
+                                        q.space = crate::inspector::SpaceKind::Physical;
+                                        q.pid = None;
+                                        q.address = Some(addr);
+                                        q.symbol_name = None;
+                                        self.back_dialog = None;
+                                        self.launch_inspector_query(
+                                            q,
+                                            workbench::InspectorTab::Hex,
+                                        );
+                                    }
+                                    Err(err) => self.status = err,
+                                }
+                            } else if let Ok(addr) = parse_address(raw) {
+                                q.address = Some(addr);
+                                q.symbol_name = None;
+                                self.back_dialog = None;
+                                self.launch_inspector_query(q, workbench::InspectorTab::Hex);
+                            } else {
+                                q.space = crate::inspector::SpaceKind::Kernel;
+                                q.pid = None;
+                                q.address = None;
+                                q.symbol_name = Some(raw.to_owned());
+                                self.back_dialog = None;
+                                self.launch_inspector_query(q, workbench::InspectorTab::Hex);
+                            }
+                        } else if let Some(back) = self.back_dialog.take() {
+                            self.dialog = Some(*back);
+                        }
+                    }
+                    InputKind::InspectStruct => {
+                        let raw = value.trim();
+                        let mut q = self.inspector_query.clone().unwrap_or_default();
+                        q.struct_name = (!raw.is_empty()).then(|| raw.to_owned());
+                        self.back_dialog = None;
+                        if q.address.is_some() || q.symbol_name.is_some() {
+                            self.launch_inspector_query(q, workbench::InspectorTab::Struct);
+                        } else {
+                            self.inspector_query = Some(q);
+                            self.status = "已设置结构体类型；请先按 g 输入地址或符号".into();
+                        }
+                    }
                 }
                 return;
             }

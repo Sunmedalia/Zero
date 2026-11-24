@@ -8,7 +8,7 @@ fn physical_field(image: &Image, isf: &Isf, at: u64, structure: &str, field: &st
     image.read(at, bytes.at_mut(..width)?)?;
     Ok(u64::from_le_bytes(bytes))
 }
-pub(super) fn kernel_vm<'a>(image: &'a Image, isf: &Isf, root: u64) -> VirtualMemory<'a> {
+pub(crate) fn kernel_vm<'a>(image: &'a Image, isf: &Isf, root: u64) -> VirtualMemory<'a> {
     if isf.data.key("base_types")["pointer"].key("size").as_u64() == Some(4) {
         let pae = isf.data.key("symbols")["pkmap_count"].key("type")["count"]
             .as_u64()

@@ -251,6 +251,9 @@ impl App {
             | Command::Identify
             | Command::VerifyImage
             | Command::KernelDiagnostics
+            | Command::Dossier
+            | Command::Triage
+            | Command::MemoryInspect
                 if self.image.is_none() =>
             {
                 Some("请先选用镜像")

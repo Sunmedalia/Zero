@@ -60,6 +60,7 @@ pub(crate) mod timeliner;
 mod walk;
 
 pub use discover::discover;
+pub(crate) use discover::kernel_vm as discover_kernel_vm;
 pub use engine::Linux;
 pub(crate) use engine::Task;
 use engine::unrouted;

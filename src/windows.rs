@@ -294,7 +294,7 @@ impl Windows<'_> {
                 .is_ok_and(|p| p != 0),
         })
     }
-    fn processes_partial(&self, job: &Job) -> Result<(Vec<Process>, Vec<String>)> {
+    pub(crate) fn processes_partial(&self, job: &Job) -> Result<(Vec<Process>, Vec<String>)> {
         let (nodes, mut diagnostics) = self.list_partial(
             self.symbol("PsActiveProcessHead")?,
             self.vm.isf.offset("_EPROCESS", "ActiveProcessLinks")?,
@@ -310,7 +310,7 @@ impl Windows<'_> {
         }
         Ok((out, diagnostics))
     }
-    fn process_memory(&self, p: &Process) -> Result<Memory<'_>> {
+    pub(crate) fn process_memory(&self, p: &Process) -> Result<Memory<'_>> {
         ensure!(!p.physical, "扫描进程没有已验证虚拟地址");
         let user = self
             .number(p.address, "_EPROCESS", "Pcb.UserDirectoryTableBase")

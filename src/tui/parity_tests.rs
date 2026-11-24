@@ -640,7 +640,10 @@ fn every_command_has_an_action() {
             Command::NextPage => 48,
             Command::Detail => 49,
             Command::SearchContent => 50,
-            Command::Enter => 51,
+            Command::Dossier => 51,
+            Command::Triage => 52,
+            Command::MemoryInspect => 53,
+            Command::Enter => 54,
         }
     }
     let all = [
@@ -695,6 +698,9 @@ fn every_command_has_an_action() {
         Command::NextPage,
         Command::Detail,
         Command::SearchContent,
+        Command::Dossier,
+        Command::Triage,
+        Command::MemoryInspect,
         Command::Enter,
     ];
     for (index, command) in all.into_iter().enumerate() {

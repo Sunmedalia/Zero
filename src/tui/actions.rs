@@ -66,6 +66,9 @@ pub(super) enum Command {
     NextPage,
     Detail,
     SearchContent,
+    Dossier,
+    Triage,
+    MemoryInspect,
     Enter,
 }
 
@@ -181,6 +184,11 @@ pub(super) fn keywords(command: Command) -> &'static str {
         Command::NextPage => "next page",
         Command::Detail => "detail inspector",
         Command::SearchContent => "search content filter",
+        Command::Dossier => "dossier pivot process correlate pid 档案 关联",
+        Command::Triage => "triage playbook quick scan 应急 初筛 剧本",
+        Command::MemoryInspect => {
+            "inspect memory hex struct disasm capstone 内存 检查 结构体 反汇编"
+        }
         Command::Enter => "enter open",
     }
 }
@@ -619,6 +627,36 @@ pub(super) const ACTIONS: &[Action] = &[
             PALETTE | FOOTER,
         )
     },
+    Action {
+        footer_focus: CONTENT_FOCUS,
+        ..action(
+            Command::Dossier,
+            "进程档案 E",
+            KeyCode::Char('E'),
+            Scope::Analysis,
+            PALETTE | FOOTER,
+        )
+    },
+    Action {
+        footer_focus: NAV_FOCUS | CONTENT_FOCUS,
+        ..action(
+            Command::Triage,
+            "应急初筛 T",
+            KeyCode::Char('T'),
+            Scope::Analysis,
+            PALETTE | FOOTER,
+        )
+    },
+    Action {
+        footer_focus: CONTENT_FOCUS,
+        ..action(
+            Command::MemoryInspect,
+            "内存检查 x",
+            KeyCode::Char('x'),
+            Scope::Analysis,
+            PALETTE | FOOTER,
+        )
+    },
     // Enter is key-only: its meaning depends on the focused region.
     action(
         Command::Enter,
@@ -714,6 +752,9 @@ pub(super) const FOOTER_ORDER: &[Command] = &[
     Command::Run,
     Command::SearchContent,
     Command::Detail,
+    Command::Dossier,
+    Command::MemoryInspect,
+    Command::Triage,
     Command::Sort,
     Command::Export,
     Command::Rows,

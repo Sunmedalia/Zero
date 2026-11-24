@@ -1732,7 +1732,14 @@ fn mcp_tools_analyze_page_export_and_dump_all_modes() -> Result<()> {
         assert_ne!(reply["result"]["isError"], true, "{reply}");
     }
     let result = |id| replies.iter().find(|r| r["id"] == id).unwrap()["result"].clone();
-    assert_eq!(result(2)["tools"].as_array().unwrap().len(), 9);
+    let tool_list = result(2)["tools"].as_array().unwrap().clone();
+    assert_eq!(tool_list.len(), 12);
+    for expected in ["zero_dossier", "zero_triage", "zero_inspect"] {
+        assert!(
+            tool_list.iter().any(|t| t["name"] == expected),
+            "missing MCP tool {expected}"
+        );
+    }
     assert_eq!(
         result(3)["structuredContent"]["plugins"]
             .as_array()

@@ -114,6 +114,53 @@ struct DumpArgs {
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
+struct DossierArgs {
+    image: PathBuf,
+    pid: u32,
+    symbols: Option<PathBuf>,
+    symbol_choice: Option<String>,
+    os: Option<zero_tui::analysis::Os>,
+    arch: Option<zero_tui::windows::Architecture>,
+    offline: Option<bool>,
+    no_cache: Option<bool>,
+    output: Option<PathBuf>,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct TriageArgs {
+    image: PathBuf,
+    playbook: Option<zero_tui::dossier::TriagePlaybook>,
+    symbols: Option<PathBuf>,
+    symbol_choice: Option<String>,
+    os: Option<zero_tui::analysis::Os>,
+    arch: Option<zero_tui::windows::Architecture>,
+    offline: Option<bool>,
+    no_cache: Option<bool>,
+    output: Option<PathBuf>,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct InspectArgs {
+    image: PathBuf,
+    symbols: Option<PathBuf>,
+    symbol_choice: Option<String>,
+    os: Option<zero_tui::analysis::Os>,
+    arch: Option<zero_tui::windows::Architecture>,
+    space: Option<zero_tui::inspector::SpaceKind>,
+    pid: Option<u32>,
+    address: Option<String>,
+    symbol: Option<String>,
+    length: Option<usize>,
+    struct_name: Option<String>,
+    disasm: Option<bool>,
+    offline: Option<bool>,
+    output: Option<PathBuf>,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
 struct EmptyArgs {}
 
 /// Same as the `Value` index operator: a missing key reads as `Null`.
@@ -176,7 +223,10 @@ fn tools() -> Value {
         {"name":"zero_analyze","description":"Run a native analysis plugin on a local memory image. Returns at most 200 rows and may export all rows to JSON/CSV. Returns result_id; use zero_results for subsequent pages.","inputSchema":{"type":"object","properties":{"image":{"type":"string"},"plugin":{"type":"string","description":"Plugin name or alias as listed by zero_plugins"},"os":{"type":"string","enum":["auto","linux","windows"]},"arch":{"type":"string","enum":["auto","x86","x64","arm64"]},"pagefiles":{"type":"array","items":{"type":"object","properties":{"index":{"type":"integer","minimum":0,"maximum":15},"path":{"type":"string"}},"required":["index","path"],"additionalProperties":false}},"swapfile":{"type":"string"},"pid":{"type":"integer","minimum":0},"include_threads":{"type":"boolean"},"decorate_comm":{"type":"boolean"},"plain_taints":{"type":"boolean"},"files_only":{"type":"boolean","description":"linux.lsof.full: include only regular files"},"netns":{"type":"integer","minimum":0,"description":"linux.sockstat.full: filter by network namespace inode"},"hexdump_size":{"type":"integer","minimum":0,"maximum":4096,"description":"linux.malfind.full: bytes per hexdump/disasm preview (default 64)"},"show_all_dirty_pages":{"type":"boolean","description":"linux.malfind.full: show every dirty page in executable VMAs flagged by their page tables"},"mntns":{"type":"integer","minimum":0,"description":"linux.mountinfo.full: filter by mount namespace inode"},"mount_format":{"type":"boolean","description":"linux.mountinfo.full: concise mount summary format"},"file_types":{"type":"array","maxItems":16,"items":{"type":"string"},"description":"linux.pagecache.files: inode types to include (e.g. REG, DIR)"},"find":{"type":"string","description":"linux.pagecache.files: path substring filter"},"core":{"type":"boolean"},"modules":{"type":"boolean"},"ftrace":{"type":"boolean"},"bpf":{"type":"boolean"},"hive":{"type":"string"},"key":{"type":"string"},"min_length":{"type":"integer","description":"windows.truecrypt.passphrase: minimum cached length (default 5)"},"strings_file":{"type":"string","description":"windows.strings: local decimal-offset strings output file"},"pattern":{"type":"string","description":"linux.vmaregexscan/windows.vadregexscan: byte regex; linux.vmayarascan/windows.vadyarascan: text, wide:TEXT or hex:4d5a??00"},"pids":{"type":"array","maxItems":4096,"items":{"type":"integer","minimum":0},"description":"PID list for linux.*.full / linux.vmaregexscan / linux.pscallstack / windows.strings / windows.vadregexscan / windows.vadwalk / windows.pebmasquerade"},"unresolved":{"type":"boolean","description":"linux.pscallstack: include unresolved nonzero stack words"},"source":{"type":"string","enum":["kernel","processes"],"description":"windows.pe_symbols module source"},"module":{"type":"string","description":"windows.pe_symbols module filename"},"symbol_names":{"type":"array","maxItems":4096,"items":{"type":"string"}},"addresses":{"type":"array","maxItems":4096,"items":{"type":"string"},"description":"windows.pe_symbols / linux.maps.full absolute addresses, decimal or 0x"},"maxsize":{"type":"integer","description":"Compatibility option for linux.vmaregexscan/windows.vadregexscan, or max dump size for linux.maps.full / linux.malfind.full"},"symbols":{"type":"string"},"symbol_choice":{"type":"string"},"offline":{"type":"boolean"},"no_cache":{"type":"boolean"},"limit":{"type":"integer","minimum":1,"maximum":200},"output":{"type":"string"},"dump_dir":{"type":"string","description":"Optional binary export directory for listing plugins that support dump (linux.maps.full, linux.malfind.full, linux.elfs.full, linux.lsmod, linux.fbdev, windows.memmap)"}},"required":["image","plugin"],"additionalProperties":false}},
         {"name":"zero_results","description":"Read or export an immutable analysis snapshot. Does not run analysis; expired IDs require a new zero_analyze call.","inputSchema":{"type":"object","properties":{"result_id":{"type":"string"},"offset":{"type":"integer","minimum":0},"limit":{"type":"integer","minimum":1,"maximum":200},"output":{"type":"string"}},"required":["result_id"],"additionalProperties":false}},
         {"name":"zero_dump","description":"Export one process, one PID address range, or ELF mappings to a local directory with a JSON/CSV manifest. Requires explicit paths and a PID for process modes; kernel-module uses start as the struct module address; lsmod exports listed Linux module ELFs without a PID or address range; framebuffer dumps fbdev buffers, optionally selected by fb_info start; memmap exports Windows process physical pages by PID.","inputSchema":{"type":"object","properties":{"image":{"type":"string"},"symbols":{"type":"string"},"symbol_choice":{"type":"string"},"os":{"type":"string","enum":["auto","linux","windows"]},"arch":{"type":"string","enum":["auto","x86","x64","arm64"]},"pagefiles":{"type":"array","items":{"type":"object","properties":{"index":{"type":"integer","minimum":0,"maximum":15},"path":{"type":"string"}},"required":["index","path"],"additionalProperties":false}},"swapfile":{"type":"string"},"mode":{"type":"string","enum":["process","range","elf","pe","vad","dll","module","kernel-module","lsmod","framebuffer","files","memmap"]},"pid":{"type":"integer","minimum":0},"dump_dir":{"type":"string"},"output":{"type":"string"},"start":{"type":"string"},"end":{"type":"string"},"offline":{"type":"boolean"}},"required":["image","mode","dump_dir","output"],"additionalProperties":false}},
-        {"name":"zero_cache_list","description":"Inspect regenerable local cache without deleting it.","inputSchema":{"type":"object","properties":{},"additionalProperties":false}}
+        {"name":"zero_cache_list","description":"Inspect regenerable local cache without deleting it.","inputSchema":{"type":"object","properties":{},"additionalProperties":false}},
+        {"name":"zero_dossier","description":"Correlate all relevant process-centric plugins (lineage, cmdline, envars, open files/handles, sockets/netscan, memory maps/VADs, malfind, shell history) for a single PID into a structured Process Dossier with coverage diagnostics.","inputSchema":{"type":"object","properties":{"image":{"type":"string"},"pid":{"type":"integer","minimum":0},"symbols":{"type":"string"},"symbol_choice":{"type":"string"},"os":{"type":"string","enum":["auto","linux","windows"]},"arch":{"type":"string","enum":["auto","x86","x64","arm64"]},"offline":{"type":"boolean"},"no_cache":{"type":"boolean"},"output":{"type":"string"}},"required":["image","pid"],"additionalProperties":false}},
+        {"name":"zero_triage","description":"Run a multi-plugin forensic triage playbook (auto, linux-quick, windows-quick) and aggregate structural signals by entity (PID) and kernel subsystem.","inputSchema":{"type":"object","properties":{"image":{"type":"string"},"playbook":{"type":"string","enum":["auto","linux-quick","windows-quick"]},"symbols":{"type":"string"},"symbol_choice":{"type":"string"},"os":{"type":"string","enum":["auto","linux","windows"]},"arch":{"type":"string","enum":["auto","x86","x64","arm64"]},"offline":{"type":"boolean"},"no_cache":{"type":"boolean"},"output":{"type":"string"}},"required":["image"],"additionalProperties":false}},
+        {"name":"zero_inspect","description":"Inspect kernel virtual, process virtual (by PID), or physical memory: returns VA->PA translation, Hex/ASCII dump (with ?? for absent pages), ISF/PDB struct field decoding (including followable pointer targets), and Capstone x86/x64 disassembly with kernel symbol annotations.","inputSchema":{"type":"object","properties":{"image":{"type":"string"},"symbols":{"type":"string"},"symbol_choice":{"type":"string"},"os":{"type":"string","enum":["auto","linux","windows"]},"arch":{"type":"string","enum":["auto","x86","x64","arm64"]},"space":{"type":"string","enum":["kernel","physical","pid"]},"pid":{"type":"integer","minimum":0},"address":{"type":"string","description":"Address in 0x hex or decimal"},"symbol":{"type":"string","description":"Kernel symbol name from ISF (resolved with KASLR/kernel base)"},"length":{"type":"integer","minimum":1,"maximum":4096},"struct_name":{"type":"string","description":"ISF/PDB user_types struct name to decode at address"},"disasm":{"type":"boolean"},"offline":{"type":"boolean"},"output":{"type":"string"}},"required":["image"],"additionalProperties":false}}
     ]})
 }
 
@@ -630,6 +680,125 @@ fn call(
                         page.insert("output".into(), json!(output));
                     }
                     Ok(page)
+                }
+            }
+        }
+        "zero_dossier" => {
+            let a: DossierArgs = serde_json::from_value(args)?;
+            let (cache_dir, settings) = settings(root, a.offline.unwrap_or(false))?;
+            let symbols = a
+                .symbols
+                .as_deref()
+                .map(|p| path(root, p))
+                .unwrap_or_else(|| path(root, Path::new(&settings.symbols)));
+            let options = zero_tui::analysis::Options {
+                os: a.os.unwrap_or_default(),
+                arch: a.arch.unwrap_or_default(),
+                ..Default::default()
+            };
+            let req = zero_tui::dossier::DossierRequest {
+                image: &path(root, &a.image),
+                symbols: &symbols,
+                choice: a.symbol_choice.as_deref(),
+                cache: &cache_dir,
+                use_cache: settings.enable_cache && !a.no_cache.unwrap_or(false),
+                network: settings.remote_symbols,
+                options: &options,
+            };
+            match zero_tui::dossier::correlate_pid(session, &req, a.pid, job)? {
+                zero_tui::dossier::DossierOutcome::Choose(labels) => {
+                    Ok(json!({"symbol_choices":labels,"needs_symbol_choice":true}))
+                }
+                zero_tui::dossier::DossierOutcome::Ready(report) => {
+                    if let Some(output) = a.output.as_deref().map(|p| path(root, p)) {
+                        zero_tui::dossier::export_report_json(&output, &report, job)?;
+                    }
+                    Ok(serde_json::to_value(report)?)
+                }
+            }
+        }
+        "zero_triage" => {
+            let a: TriageArgs = serde_json::from_value(args)?;
+            let (cache_dir, settings) = settings(root, a.offline.unwrap_or(false))?;
+            let symbols = a
+                .symbols
+                .as_deref()
+                .map(|p| path(root, p))
+                .unwrap_or_else(|| path(root, Path::new(&settings.symbols)));
+            let options = zero_tui::analysis::Options {
+                os: a.os.unwrap_or_default(),
+                arch: a.arch.unwrap_or_default(),
+                ..Default::default()
+            };
+            let req = zero_tui::dossier::DossierRequest {
+                image: &path(root, &a.image),
+                symbols: &symbols,
+                choice: a.symbol_choice.as_deref(),
+                cache: &cache_dir,
+                use_cache: settings.enable_cache && !a.no_cache.unwrap_or(false),
+                network: settings.remote_symbols,
+                options: &options,
+            };
+            match zero_tui::dossier::run_triage(session, &req, a.playbook.unwrap_or_default(), job)?
+            {
+                zero_tui::dossier::TriageOutcome::Choose(labels) => {
+                    Ok(json!({"symbol_choices":labels,"needs_symbol_choice":true}))
+                }
+                zero_tui::dossier::TriageOutcome::Ready(report) => {
+                    if let Some(output) = a.output.as_deref().map(|p| path(root, p)) {
+                        zero_tui::dossier::export_report_json(&output, &report, job)?;
+                    }
+                    Ok(serde_json::to_value(report)?)
+                }
+            }
+        }
+        "zero_inspect" => {
+            let a: InspectArgs = serde_json::from_value(args)?;
+            let space = a.space.unwrap_or_default();
+            zero_tui::inspector::validate_space(space, a.pid)?;
+            let address = a
+                .address
+                .as_deref()
+                .map(dump::parse_address)
+                .transpose()
+                .map_err(anyhow::Error::msg)?;
+            let (cache_dir, settings) = settings(root, a.offline.unwrap_or(false))?;
+            let symbols = a
+                .symbols
+                .as_deref()
+                .map(|p| path(root, p))
+                .unwrap_or_else(|| path(root, Path::new(&settings.symbols)));
+            let options = zero_tui::analysis::Options {
+                os: a.os.unwrap_or_default(),
+                arch: a.arch.unwrap_or_default(),
+                ..Default::default()
+            };
+            let req = zero_tui::inspector::InspectRequest {
+                image: &path(root, &a.image),
+                symbols: &symbols,
+                choice: a.symbol_choice.as_deref(),
+                cache: &cache_dir,
+                network: settings.remote_symbols,
+                options: &options,
+                space,
+                pid: a.pid,
+                address,
+                symbol_name: a.symbol.as_deref(),
+                length: a
+                    .length
+                    .unwrap_or(zero_tui::inspector::DEFAULT_INSPECT_BYTES),
+                struct_name: a.struct_name.as_deref(),
+                disasm: a.disasm.unwrap_or(true),
+            };
+            match zero_tui::inspector::inspect(session, &req, job)? {
+                zero_tui::inspector::InspectOutcome::Choose(labels) => {
+                    Ok(json!({"symbol_choices":labels,"needs_symbol_choice":true}))
+                }
+                zero_tui::inspector::InspectOutcome::Ready(report) => {
+                    if let Some(output) = a.output.as_deref().map(|p| path(root, p)) {
+                        zero_tui::dossier::export_report_json(&output, &report, job)?;
+                    }
+                    Ok(serde_json::to_value(report)?)
                 }
             }
         }

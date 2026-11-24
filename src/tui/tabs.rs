@@ -303,11 +303,17 @@ return;
 
 impl App {
     pub(super) fn expand_detail_tab(&mut self, text: String, scroll: usize) {
-        self.save_view();
         let title = self
             .result()
             .map(|r| r.plugin.clone())
             .unwrap_or_else(|| "诊断".into());
+        self.open_titled_detail_tab_at(title, text, scroll);
+    }
+    pub(super) fn open_titled_detail_tab(&mut self, title: String, text: String) {
+        self.open_titled_detail_tab_at(title, text, 0);
+    }
+    fn open_titled_detail_tab_at(&mut self, title: String, text: String, scroll: usize) {
+        self.save_view();
         if let Some(index) = self.open_tabs.iter().position(
             |tab| matches!(tab, OpenTab::Detail { text: existing, .. } if **existing == *text),
         ) {

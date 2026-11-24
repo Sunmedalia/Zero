@@ -320,6 +320,9 @@ impl App {
             Command::History => self.open_history(),
             Command::Diagnostics => self.diagnostics(),
             Command::KernelDiagnostics => self.open_kernel_diagnostics(),
+            Command::Dossier => self.open_dossier_from_row(),
+            Command::Triage => self.open_triage(),
+            Command::MemoryInspect => self.open_memory_inspector_from_row(),
             Command::PageAssets => self.switch_page(Page::Assets),
             Command::PageAnalysis => self.switch_page(Page::Analysis),
             Command::SystemSelect => self.open_system_dialog(),
@@ -493,6 +496,20 @@ impl App {
                     self.settings.page_size.to_string()
                 }
             }
+            InputKind::InspectAddress => self
+                .inspector_query
+                .as_ref()
+                .and_then(|q| {
+                    q.symbol_name
+                        .clone()
+                        .or_else(|| q.address.map(|a| format!("{a:#x}")))
+                })
+                .unwrap_or_default(),
+            InputKind::InspectStruct => self
+                .inspector_query
+                .as_ref()
+                .and_then(|q| q.struct_name.clone())
+                .unwrap_or_default(),
             InputKind::ImageDirectory => self.settings.image_dir.clone(),
             InputKind::SymbolsDirectory => self.settings.symbols.clone(),
             InputKind::ExportDirectory => self.settings.export_dir.clone(),
@@ -984,6 +1001,20 @@ impl App {
                 self.dialog = Some(Dialog::KernelDiagnostics { scroll: 0 });
                 return;
             }
+            if matches!(
+                dialog,
+                Dialog::Input {
+                    kind: InputKind::InspectAddress | InputKind::InspectStruct,
+                    ..
+                }
+            ) && let Some(back) = self.back_dialog.take()
+            {
+                self.dialog = Some(*back);
+                return;
+            }
+            if matches!(dialog, Dialog::MemoryInspector { .. }) && self.inspector_running {
+                self.cancel();
+            }
             if matches!(dialog, Dialog::Symbols { .. }) {
                 self.symbol_retry = None;
                 self.enter_when_ready = false;
@@ -1028,6 +1059,7 @@ impl App {
             Dialog::RemoteDetail { .. } => self.remote_detail_key(dialog, key),
             Dialog::Detail { .. } => self.detail_key(dialog, key),
             Dialog::KernelDiagnostics { .. } => self.kernel_diagnostics_key(dialog, key),
+            Dialog::MemoryInspector { .. } => self.memory_inspector_key(dialog, key),
             Dialog::Input { .. } => self.input_key(dialog, key),
             Dialog::Sort { .. } => self.sort_key(dialog, key),
             Dialog::Symbols { .. } => self.symbols_key(dialog, key),

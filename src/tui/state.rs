@@ -13,6 +13,8 @@ pub(super) enum InputKind {
     ExportDirectory,
     PageSize,
     SymbolRepository,
+    InspectAddress,
+    InspectStruct,
 }
 #[derive(Clone)]
 pub(super) enum Dialog {
@@ -84,6 +86,11 @@ pub(super) enum Dialog {
     KernelDiagnostics {
         scroll: usize,
     },
+    MemoryInspector {
+        tab: workbench::InspectorTab,
+        scroll: usize,
+        selected_field: usize,
+    },
     Detail {
         title: &'static str,
         text: String,
@@ -154,6 +161,9 @@ impl AssetSection {
 #[derive(Clone)]
 pub(super) enum Work {
     KernelDiagnostic,
+    Dossier(u32),
+    Triage(crate::dossier::TriagePlaybook),
+    Inspect(workbench::InspectorQuery),
     ExportDiagnostic(PathBuf, Arc<crate::kernel_diagnostics::Report>),
     SavedCatalog(String),
     Inventory,
@@ -189,6 +199,9 @@ pub(super) enum Work {
 pub(super) enum WorkerEvent {
     KernelPackages(Vec<crate::prepare::KernelPackage>),
     KernelDiagnosed(crate::kernel_diagnostics::Report),
+    Dossier(Box<crate::dossier::DossierReport>),
+    Triage(Box<crate::dossier::TriageReport>),
+    Inspected(Box<crate::inspector::InspectReport>),
     DiagnosticExported(PathBuf),
     SavedCatalog(Option<symbols::CatalogPage>),
     Inventory(crate::engine_service::Inventory),
@@ -297,6 +310,10 @@ pub struct App {
     pub(super) plugins_collapsed: bool,
     pub(super) kernel_report: Option<Arc<crate::kernel_diagnostics::Report>>,
     pub(super) diagnosis_running: bool,
+    pub(super) inspector_report: Option<Arc<crate::inspector::InspectReport>>,
+    pub(super) inspector_query: Option<workbench::InspectorQuery>,
+    pub(super) inspector_history: Vec<(workbench::InspectorQuery, workbench::InspectorTab)>,
+    pub(super) inspector_running: bool,
     pub(super) cache_page: cache_page::CachePage,
     pub(super) page: Page,
     pub(super) section: AssetSection,

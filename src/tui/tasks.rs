@@ -249,6 +249,70 @@ impl App {
                         &worker_job,
                     )
                     .map(WorkerEvent::KernelDiagnosed),
+                    Work::Dossier(pid) => {
+                        let req = crate::dossier::DossierRequest {
+                            image: &context.expand(&image),
+                            symbols: &context.expand(&symbols),
+                            choice: choice.as_deref(),
+                            cache: &cache,
+                            use_cache: context.settings.enable_cache,
+                            network: context.settings.remote_symbols,
+                            options: &analysis_options,
+                        };
+                        match crate::dossier::correlate_pid(&mut session, &req, pid, &worker_job)? {
+                            crate::dossier::DossierOutcome::Ready(report) => {
+                                Ok(WorkerEvent::Dossier(report))
+                            }
+                            crate::dossier::DossierOutcome::Choose(labels) => {
+                                Ok(WorkerEvent::Done(Outcome::Choose(labels)))
+                            }
+                        }
+                    }
+                    Work::Triage(playbook) => {
+                        let req = crate::dossier::DossierRequest {
+                            image: &context.expand(&image),
+                            symbols: &context.expand(&symbols),
+                            choice: choice.as_deref(),
+                            cache: &cache,
+                            use_cache: context.settings.enable_cache,
+                            network: context.settings.remote_symbols,
+                            options: &analysis_options,
+                        };
+                        match crate::dossier::run_triage(&mut session, &req, playbook, &worker_job)?
+                        {
+                            crate::dossier::TriageOutcome::Ready(report) => {
+                                Ok(WorkerEvent::Triage(report))
+                            }
+                            crate::dossier::TriageOutcome::Choose(labels) => {
+                                Ok(WorkerEvent::Done(Outcome::Choose(labels)))
+                            }
+                        }
+                    }
+                    Work::Inspect(query) => {
+                        let req = crate::inspector::InspectRequest {
+                            image: &context.expand(&image),
+                            symbols: &context.expand(&symbols),
+                            choice: choice.as_deref(),
+                            cache: &cache,
+                            network: context.settings.remote_symbols,
+                            options: &analysis_options,
+                            space: query.space,
+                            pid: query.pid,
+                            address: query.address,
+                            symbol_name: query.symbol_name.as_deref(),
+                            length: query.length,
+                            struct_name: query.struct_name.as_deref(),
+                            disasm: true,
+                        };
+                        match crate::inspector::inspect(&mut session, &req, &worker_job)? {
+                            crate::inspector::InspectOutcome::Ready(report) => {
+                                Ok(WorkerEvent::Inspected(report))
+                            }
+                            crate::inspector::InspectOutcome::Choose(labels) => {
+                                Ok(WorkerEvent::Done(Outcome::Choose(labels)))
+                            }
+                        }
+                    }
                     Work::ExportDiagnostic(path, report) => {
                         report.export(&path, &worker_job)?;
                         Ok(WorkerEvent::DiagnosticExported(path))
@@ -793,11 +857,46 @@ impl App {
                     self.status = format!("内核诊断完成 · {} · J 查看／e 导出", report.summary());
                     self.kernel_report = Some(Arc::new(report));
                 }
+                WorkerEvent::Dossier(report) => {
+                    self.finish_worker();
+                    let title = format!("档案 PID {}", report.pid);
+                    let text = report.render_text();
+                    self.open_titled_detail_tab(title, text);
+                    self.status = format!(
+                        "PID {} 全景档案已生成 · {} 条线索 · ↑↓ 滚动 · c 复制",
+                        report.pid,
+                        report.signals.len()
+                    );
+                }
+                WorkerEvent::Triage(report) => {
+                    self.finish_worker();
+                    let title = format!("应急初筛 · {}", report.playbook);
+                    let text = report.render_text();
+                    self.open_titled_detail_tab(title, text);
+                    self.status = format!(
+                        "应急初筛完成 · {} 个关联实体 · {} 条内核线索",
+                        report.entities.len(),
+                        report.kernel_signals.len()
+                    );
+                }
+                WorkerEvent::Inspected(report) => {
+                    self.inspector_running = false;
+                    self.finish_worker();
+                    if let Some(q) = &mut self.inspector_query {
+                        q.address = Some(report.address);
+                    }
+                    self.status = format!(
+                        "内存检查 {:#x} ({}) · 1 Hex / 2 结构体 / 3 反汇编 · Enter 跟随指针",
+                        report.address, report.space
+                    );
+                    self.inspector_report = Some(Arc::new(*report));
+                }
                 WorkerEvent::DiagnosticExported(path) => {
                     self.finish_worker();
                     self.status = format!("诊断报告已导出: {}", path.display());
                 }
                 WorkerEvent::Failed(s) => {
+                    self.inspector_running = false;
                     self.console_failed(&s);
                     self.pending_work = None;
                     self.pending_execution = None;
