@@ -1675,7 +1675,7 @@ fn mcp_tools_analyze_page_export_and_dump_all_modes() -> Result<()> {
         assert_ne!(reply["result"]["isError"], true, "{reply}");
     }
     let result = |id| replies.iter().find(|r| r["id"] == id).unwrap()["result"].clone();
-    assert_eq!(result(2)["tools"].as_array().unwrap().len(), 6);
+    assert_eq!(result(2)["tools"].as_array().unwrap().len(), 9);
     assert_eq!(
         result(3)["structuredContent"]["plugins"]
             .as_array()

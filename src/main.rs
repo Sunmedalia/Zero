@@ -174,6 +174,19 @@ struct Cli {
 enum Command {
     /// Run the newline-delimited JSON-RPC MCP server over stdio.
     Mcp,
+    /// List native Linux and Windows plugins and their columns as JSON.
+    Plugins,
+    /// Run offline kernel validation diagnostics and optionally export JSON/TXT.
+    Diagnose {
+        #[arg(long)]
+        image: PathBuf,
+        #[arg(long)]
+        symbols: Option<PathBuf>,
+        #[arg(long)]
+        symbol_choice: Option<String>,
+        #[arg(long)]
+        output: Option<PathBuf>,
+    },
     /// Report which optional external tools this environment has.
     Doctor,
     /// Inspect or clear regenerable cache files.
@@ -290,6 +303,24 @@ fn main() -> Result<()> {
     if matches!(cli.command, Some(Command::Mcp)) {
         return mcp::run();
     }
+    if matches!(cli.command, Some(Command::Plugins)) {
+        let plugins = linux::PLUGINS
+            .iter()
+            .map(|p| {
+                serde_json::json!({
+                    "name": p.name,
+                    "category": p.plugin.category(),
+                    "columns": p.columns,
+                    "os": if p.plugin.is_windows() { "windows" } else { "linux" }
+                })
+            })
+            .collect::<Vec<_>>();
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&serde_json::json!({ "plugins": plugins }))?
+        );
+        return Ok(());
+    }
     if matches!(cli.command, Some(Command::Doctor)) {
         let missing = zero_tui::prepare::missing_build_tools();
         println!("分析、符号下载与解包: 内置，无外部依赖");
@@ -336,6 +367,38 @@ fn main() -> Result<()> {
     let mut settings = store::settings(&cache)?;
     if cli.offline {
         settings.remote_symbols = false;
+    }
+    if let Some(Command::Diagnose {
+        image,
+        symbols,
+        symbol_choice,
+        output,
+    }) = &cli.command
+    {
+        let job = Job::new(|s| eprintln!("{s}"));
+        let symbols = symbols
+            .clone()
+            .unwrap_or_else(|| store::expand_home(&settings.symbols));
+        let mut session = linux::Session::default();
+        let report = zero_tui::kernel_diagnostics::run(
+            &mut session,
+            zero_tui::kernel_diagnostics::Request {
+                image,
+                symbols: &symbols,
+                cache: &cache,
+                choice: symbol_choice.as_deref(),
+                os: cli.os,
+                previous_error: None,
+            },
+            &job,
+        )?;
+        if let Some(path) = output {
+            report.export(path, &job)?;
+            eprintln!("诊断报告已导出: {}", path.display());
+        } else {
+            println!("{}", report.text());
+        }
+        return Ok(());
     }
     if let Some(Command::SymbolsGenerate {
         image,
@@ -898,5 +961,55 @@ mod cli_tests {
             ])
             .is_err()
         );
+    }
+    #[test]
+    fn cli_exposes_plugins_diagnose_and_lsmod_memmap_dump_modes() {
+        assert!(matches!(
+            Cli::try_parse_from(["zero", "plugins"]).unwrap().command,
+            Some(Command::Plugins)
+        ));
+        let diag = Cli::try_parse_from([
+            "zero",
+            "diagnose",
+            "--image",
+            "memory.raw",
+            "--symbols",
+            "symbols",
+            "--symbol-choice",
+            "exact",
+            "--output",
+            "diag.json",
+            "--os",
+            "linux",
+        ])
+        .unwrap();
+        assert_eq!(diag.os, zero_tui::analysis::Os::Linux);
+        assert!(matches!(
+            diag.command,
+            Some(Command::Diagnose {
+                output: Some(_),
+                symbol_choice: Some(_),
+                ..
+            })
+        ));
+        for (mode, expected) in [
+            ("lsmod", zero_tui::dump::Mode::Lsmod),
+            ("memmap", zero_tui::dump::Mode::Memmap),
+        ] {
+            let cli = Cli::try_parse_from([
+                "zero",
+                "dump",
+                "--image",
+                "memory.raw",
+                "--mode",
+                mode,
+                "--dump-dir",
+                "dumps",
+                "--output",
+                "manifest.json",
+            ])
+            .unwrap();
+            assert!(matches!(cli.command, Some(Command::Dump { mode: m, .. }) if m == expected));
+        }
     }
 }

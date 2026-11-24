@@ -753,3 +753,45 @@ fn canonical_linux_core_plugin_parameters_save_and_separate_request_keys() {
     assert_ne!(before, app.request_key());
     assert_ne!(before_summary, app.parameter_summary());
 }
+
+#[test]
+fn parameter_fields_8_through_16_accept_keyboard_input_and_paste() {
+    let mut app = app();
+    app.select_plugin(Plugin::LinuxPslist);
+    app.windows_parameters();
+    // Tab from PID (2) -> include_threads (8), type "true", Tab -> decorate_comm (9), paste "true".
+    app.dialog_key(KeyEvent::new(KeyCode::Tab, KeyModifiers::NONE));
+    for c in "true".chars() {
+        app.dialog_key(KeyEvent::new(KeyCode::Char(c), KeyModifiers::NONE));
+    }
+    app.dialog_key(KeyEvent::new(KeyCode::Tab, KeyModifiers::NONE));
+    app.paste("true");
+    app.dialog_key(KeyEvent::new(KeyCode::Enter, KeyModifiers::CONTROL));
+    assert!(app.dialog.is_none());
+    assert!(app.analysis_options.include_threads);
+    assert!(app.analysis_options.decorate_comm);
+
+    app.select_plugin(Plugin::VmaRegExScan);
+    app.windows_parameters();
+    app.paste("abc");
+    // Tab from pattern (7) -> pids (2) -> maxsize (15), type "256".
+    app.dialog_key(KeyEvent::new(KeyCode::Tab, KeyModifiers::NONE));
+    app.dialog_key(KeyEvent::new(KeyCode::Tab, KeyModifiers::NONE));
+    for c in "256".chars() {
+        app.dialog_key(KeyEvent::new(KeyCode::Char(c), KeyModifiers::NONE));
+    }
+    app.dialog_key(KeyEvent::new(KeyCode::Enter, KeyModifiers::CONTROL));
+    assert!(app.dialog.is_none());
+    assert_eq!(app.analysis_options.maxsize, Some(256));
+
+    app.select_plugin(Plugin::PsCallStack);
+    app.windows_parameters();
+    // Tab from pids (2) -> unresolved (16), type "true".
+    app.dialog_key(KeyEvent::new(KeyCode::Tab, KeyModifiers::NONE));
+    for c in "true".chars() {
+        app.dialog_key(KeyEvent::new(KeyCode::Char(c), KeyModifiers::NONE));
+    }
+    app.dialog_key(KeyEvent::new(KeyCode::Enter, KeyModifiers::CONTROL));
+    assert!(app.dialog.is_none());
+    assert!(app.analysis_options.unresolved);
+}

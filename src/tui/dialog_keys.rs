@@ -375,14 +375,13 @@ impl App {
                     )
                     .copied()
                     .unwrap_or(*field);
-                *cursor = if *field != 6 && (*field < 8 || *field >= 17) {
+                *cursor = if *field != 6 {
                     fields.get(*field).map_or(0, String::len)
                 } else {
                     0
                 };
                 *selected = true;
             } else if *field != 6
-                && (*field < 8 || *field >= 17)
                 && let Some(text) = fields.get_mut(*field)
             {
                 edit_input(text, cursor, selected, key);
