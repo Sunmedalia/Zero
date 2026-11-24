@@ -322,6 +322,8 @@ zero dump --image images/WinDump/WinDump.mem --symbols symbols/nt.json.xz \
 
 推荐使用 `dump --mode`；Linux 为 `process|range|elf|kernel-module`，Windows 为 `process|range|pe|vad|dll|module|files`。原 `analyze --plugin procdump|memdump|elfdump` 调用保持兼容。
 
+`linux.pagecache.InodePages` 和 `linux.pagecache.RecoverFs` 的 `--dump-dir` 需要支持硬链接。恢复目录和导出根目录应位于同一个文件系统，以便原子发布文件并保留已有证据。
+
 ### 6.3 符号识别、下载与生成
 
 `zero diagnose --image images/memory.raw --symbols symbols/ --output diagnosis.json` 使用本地符号验证内核。省略 `--output` 时将文本报告写入标准输出。诊断未完成或没有符号候选通过校验时，命令会生成报告，并返回非零退出码。

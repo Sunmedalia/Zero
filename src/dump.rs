@@ -199,37 +199,93 @@ pub(crate) fn directory(path: &Path) -> Result<()> {
     Ok(())
 }
 
-pub(crate) fn nested_target(root: &Path, relative: &Path) -> Result<PathBuf> {
+/// Write a completed file beneath the selected export directory. Each descent
+/// and the final no-clobber publication use directory handles.
+pub(crate) fn write_nested_artifact<T>(
+    root: &Path,
+    relative: &Path,
+    job: &Job,
+    produce: impl FnOnce(&mut dyn Write) -> Result<T>,
+) -> Result<T> {
+    use cap_fs_ext::{DirExt as _, MetadataExt as _};
+    use cap_std::{
+        ambient_authority,
+        fs::{Dir, OpenOptions},
+    };
     use std::path::Component;
 
+    job.check()?;
     directory(root)?;
-    let mut parent = root.canonicalize()?;
-    let mut components = relative.components().peekable();
-    while let Some(component) = components.next() {
-        let Component::Normal(name) = component else {
-            anyhow::bail!("转储路径包含无效组件");
-        };
-        let child = parent.join(name);
-        if components.peek().is_none() {
-            return Ok(child);
+    let absolute = std::path::absolute(root)?;
+    let open_root = || match (absolute.parent(), absolute.file_name()) {
+        (Some(parent), Some(name)) => {
+            Dir::open_ambient_dir(parent, ambient_authority())?.open_dir_nofollow(name)
         }
-        match std::fs::create_dir(&child) {
-            Ok(()) => {}
-            Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => {}
-            Err(error) => return Err(error.into()),
+        _ => Dir::open_ambient_dir(&absolute, ambient_authority()),
+    };
+    let root = open_root()?;
+    let filename = relative.file_name().context("转储路径缺少文件名")?;
+    let parent_path = relative.parent().context("转储路径缺少父目录")?;
+    let open_parent = |root: &Dir, create_missing| -> Result<Dir> {
+        let mut parent = root.try_clone()?;
+        for component in parent_path.components() {
+            let Component::Normal(name) = component else {
+                anyhow::bail!("转储路径包含无效组件");
+            };
+            if create_missing {
+                match parent.create_dir(name) {
+                    Ok(()) => {}
+                    Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => {}
+                    Err(error) => return Err(error.into()),
+                }
+            }
+            parent = parent.open_dir_nofollow(name)?;
         }
-        let metadata = child.symlink_metadata()?;
-        ensure!(
-            metadata.is_dir()
-                && !metadata.file_type().is_symlink()
-                && child.canonicalize()? == child,
-            "转储路径包含重定向或非目录组件: {}",
-            child.display()
-        );
-        parent = child;
+        Ok(parent)
+    };
+    let parent = open_parent(&root, true)?;
+
+    // Stage in the operator-selected root, away from image-derived subdirectories.
+    let mut random = [0; 16];
+    getrandom::fill(&mut random).map_err(std::io::Error::other)?;
+    let name = format!(".zero-recover-{:032x}", u128::from_le_bytes(random));
+    let mut options = OpenOptions::new();
+    options.write(true).create_new(true);
+    #[cfg(unix)]
+    {
+        use cap_std::fs::OpenOptionsExt as _;
+        options.mode(0o600);
     }
-    anyhow::bail!("转储路径缺少文件名")
+    let file = root.open_with(&name, &options)?;
+    struct StagingFile<'a> {
+        dir: &'a Dir,
+        name: &'a str,
+    }
+    impl Drop for StagingFile<'_> {
+        fn drop(&mut self) {
+            let _ = self.dir.remove_file(self.name);
+        }
+    }
+    let _staging = StagingFile {
+        dir: &root,
+        name: &name,
+    };
+    let mut file = file;
+    let result = produce(&mut file)?;
+    job.check()?;
+    file.sync_all()?;
+    drop(file);
+    job.check()?;
+    let original = parent.dir_metadata()?;
+    let current = open_parent(&open_root()?, false)?.dir_metadata()?;
+    ensure!(
+        original.dev() == current.dev() && original.ino() == current.ino(),
+        "转储目录在导出期间被替换"
+    );
+    root.hard_link(&name, &parent, filename)?;
+    Ok(result)
 }
+
 fn write_region(
     vm: &VirtualMemory<'_>,
     start: u64,
@@ -460,14 +516,32 @@ mod tests {
     fn nested_export_requires_real_directories() {
         let root = tempfile::tempdir().unwrap();
         let outside = tempfile::tempdir().unwrap();
-        let good = nested_target(root.path(), Path::new("volume/home/file")).unwrap();
-        assert_eq!(
-            good,
-            root.path().canonicalize().unwrap().join("volume/home/file")
-        );
+        let job = Job::default();
+        let file = Path::new("volume/home/file");
+        write_nested_artifact(root.path(), file, &job, |out| Ok(out.write_all(b"data")?)).unwrap();
+        assert_eq!(std::fs::read(root.path().join(file)).unwrap(), b"data");
+        assert!(write_nested_artifact(root.path(), file, &job, |_| Ok(())).is_err());
         std::os::unix::fs::symlink(outside.path(), root.path().join("redirected")).unwrap();
-        assert!(nested_target(root.path(), Path::new("redirected/home/file")).is_err());
+        assert!(
+            write_nested_artifact(
+                root.path(),
+                Path::new("redirected/home/file"),
+                &job,
+                |_| Ok(())
+            )
+            .is_err()
+        );
         assert!(!outside.path().join("home").exists());
+
+        let swapped =
+            write_nested_artifact(root.path(), Path::new("volume/home/next"), &job, |out| {
+                std::fs::rename(root.path().join("volume"), root.path().join("renamed"))?;
+                std::fs::create_dir_all(root.path().join("volume/home"))?;
+                Ok(out.write_all(b"held directory")?)
+            });
+        assert!(swapped.is_err());
+        assert!(!root.path().join("volume/home/next").exists());
+        assert!(!root.path().join("renamed/home/next").exists());
     }
     #[test]
     fn explicit_target_and_range_are_required() {

@@ -6,7 +6,6 @@ use crate::bytes::JsonKey as _;
 use crate::dump::DumpOptions;
 use sha2::{Digest, Sha256};
 use std::collections::{HashMap, HashSet};
-use std::io::Write;
 
 struct MountPath {
     root: String,
@@ -433,9 +432,9 @@ impl Linux<'_> {
 
     fn dump_inode_pages_file(
         &self,
-        inode: (u64, u64),    // (inode_addr, inode_size)
-        pages: &[(u64, u64)], // (index, page_paddr)
-        target: &std::path::Path,
+        inode: (u64, u64),                            // (inode_addr, inode_size)
+        pages: &[(u64, u64)],                         // (index, page_paddr)
+        target: (&std::path::Path, &std::path::Path), // (export root, relative file)
         total_dumped: &mut u64,
         result: &mut Results,
         job: &Job,
@@ -447,33 +446,32 @@ impl Linux<'_> {
                 .is_some_and(|n| n <= crate::dump::MAX_DUMP_BYTES),
             "页缓存导出累计超过 256 MiB 上限"
         );
-        if let Some(parent) = target.parent() {
-            crate::dump::directory(parent)?;
-        }
-        let parent = target.parent().context("导出路径缺少父目录")?;
-        let mut tmp = tempfile::NamedTempFile::new_in(parent)?;
-        let mut hash = Sha256::new();
+        let (root, relative) = target;
         let page_map: HashMap<u64, u64> = pages.iter().copied().collect();
-        let total_pages = inode_size.div_ceil(4096);
-        let mut buf = [0u8; 4096];
-        let mut written = 0u64;
-        let mut missing_pages = 0u64;
-        for index in 0..total_pages {
-            job.check()?;
-            let remain = inode_size.saturating_sub(written);
-            let chunk = usize::try_from(remain.min(4096))?;
-            let ok = page_map.get(&index).copied().is_some_and(|paddr| {
-                buf.at_mut(..chunk)
-                    .is_ok_and(|slice| self.vm.image.read(paddr, slice).is_ok())
-            });
-            if !ok {
-                buf.at_mut(..chunk)?.fill(0);
-                missing_pages += 1;
-            }
-            tmp.write_all(buf.at(..chunk)?)?;
-            hash.update(buf.at(..chunk)?);
-            written += chunk as u64;
-        }
+        let (written, hash, missing_pages) =
+            crate::dump::write_nested_artifact(root, relative, job, |out| {
+                let mut hash = Sha256::new();
+                let mut buf = [0u8; 4096];
+                let mut written = 0u64;
+                let mut missing_pages = 0u64;
+                for index in 0..inode_size.div_ceil(4096) {
+                    job.check()?;
+                    let chunk = usize::try_from((inode_size - written).min(4096))?;
+                    let bytes = buf.at_mut(..chunk)?;
+                    if !page_map
+                        .get(&index)
+                        .copied()
+                        .is_some_and(|paddr| self.vm.image.read(paddr, bytes).is_ok())
+                    {
+                        bytes.fill(0);
+                        missing_pages += 1;
+                    }
+                    out.write_all(bytes)?;
+                    hash.update(bytes);
+                    written += chunk as u64;
+                }
+                Ok((written, hash, missing_pages))
+            })?;
         if missing_pages > 0 {
             partial(
                 result,
@@ -481,9 +479,6 @@ impl Linux<'_> {
                 anyhow::anyhow!("导出有 {missing_pages} 个未驻留/不可读页已补零"),
             );
         }
-        job.check()?;
-        tmp.as_file().sync_all()?;
-        tmp.persist_noclobber(target).map_err(|e| e.error)?;
         *total_dumped += written;
         Ok((written, format!("{:x}", hash.finalize()), missing_pages))
     }
@@ -576,7 +571,6 @@ impl Linux<'_> {
                             .take(48)
                             .collect();
                         let filename = format!("inode.{inode:#x}.{safe}.dmp");
-                        let target = dump_opts.directory.join(&filename);
                         let dump_pages: Vec<(u64, u64)> = entries
                             .iter()
                             .filter_map(|&(idx, _, pa, _)| pa.map(|pa| (idx, pa)))
@@ -584,7 +578,7 @@ impl Linux<'_> {
                         match self.dump_inode_pages_file(
                             (inode, inode_size),
                             &dump_pages,
-                            &target,
+                            (&dump_opts.directory, std::path::Path::new(&filename)),
                             &mut total_dumped,
                             &mut result,
                             job,
@@ -735,11 +729,10 @@ impl Linux<'_> {
                         if rel.as_os_str().is_empty() {
                             rel.push(format!("inode_{inode:#x}.bin"));
                         }
-                        let target = crate::dump::nested_target(&dump_opts.directory, &rel)?;
                         let (written, sha256, missing) = self.dump_inode_pages_file(
                             (inode, inode_size),
                             &pages,
-                            &target,
+                            (&dump_opts.directory, &rel),
                             &mut total_dumped,
                             &mut result,
                             job,
