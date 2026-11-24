@@ -242,6 +242,7 @@ impl Linux<'_> {
             ProcessSpoofing => self.process_spoofing(job),
             LinuxPslist => self.process_details(job),
             LinuxBoottime => self.namespace_boottimes(job),
+            LinuxTimeliner => self.linux_timeliner(None, job),
             LinuxCapabilities => self.capabilities(&Default::default(), job),
             LinuxEnvars => self.envars(&Default::default(), job),
             LinuxPsaux => self.psaux(&Default::default(), job),

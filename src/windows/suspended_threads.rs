@@ -375,6 +375,7 @@ mod tests {
             protection: 0,
             private: false,
             path: "\\Windows\\a.dll".into(),
+            ..Default::default()
         }];
         assert!(file_for_address(&vads, 0).is_none());
         assert!(file_for_address(&vads, 0x2000).is_none());

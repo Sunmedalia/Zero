@@ -56,6 +56,7 @@ mod task_validity;
 mod taskwalk;
 #[cfg(test)]
 pub(crate) mod tests;
+pub(crate) mod timeliner;
 mod walk;
 
 pub use discover::discover;

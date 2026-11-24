@@ -11,6 +11,9 @@ impl Windows<'_> {
         if p == Plugin::WinHivelist {
             return self.dump_hives(options, job);
         }
+        if p == Plugin::WinTimeliner {
+            return self.timeliner_with_dump(Some(options), job);
+        }
         if p == Plugin::WinMalfind {
             let (processes, diagnostics) = self.processes_partial(job)?;
             let mut r = self.result(Plugin::WinMalfind);

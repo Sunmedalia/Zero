@@ -431,6 +431,8 @@ impl Session {
             engine.linux_elfs(options, dump, job)?
         } else if request.plugin == Plugin::LinuxPslist {
             engine.process_details_with_options(options, dump, job)?
+        } else if request.plugin == Plugin::LinuxTimeliner {
+            engine.linux_timeliner(dump, job)?
         } else if request.plugin == Plugin::LinuxPagecacheInodePages {
             engine.linux_pagecache_inode_pages(options, dump, job)?
         } else if request.plugin == Plugin::LinuxPagecacheRecoverFs {

@@ -5,6 +5,8 @@ use clap::ValueEnum;
 pub enum Plugin {
     #[value(name = "linux.boottime.Boottime", alias = "linux.boottime")]
     LinuxBoottime,
+    #[value(name = "linux.timeliner", alias = "timeliner.Timeliner")]
+    LinuxTimeliner,
     #[value(name = "linux.capabilities.Capabilities", alias = "linux.capabilities")]
     LinuxCapabilities,
     #[value(name = "linux.envars.Envars", alias = "linux.envars")]
@@ -426,6 +428,7 @@ impl Plugin {
                     | Self::WinMemmap
                     | Self::WinHivelist
                     | Self::WinMalfind
+                    | Self::WinTimeliner
                     | Self::Lsmod
                     | Self::CheckModules
                     | Self::HiddenModules
@@ -433,6 +436,7 @@ impl Plugin {
                     | Self::LinuxMalfind
                     | Self::LinuxElfs
                     | Self::LinuxPslist
+                    | Self::LinuxTimeliner
                     | Self::LinuxPagecacheInodePages
                     | Self::LinuxPagecacheRecoverFs
             )

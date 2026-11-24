@@ -161,11 +161,11 @@ catalog! {
         "列出内核模块及地址范围",
         ["Name", "Base", "Size", "Path"], [0, 12, 12, 0];
     WinDlllist, "windows.dlllist", "windows.dlllist", Process,
-        "列出进程加载的 DLL",
-        ["PID", "Name", "Base", "Size", "Path", "View"], [12, 0, 12, 12, 0, 10];
+        "列出进程加载的 DLL（含 LoadCount 与 LoadTime）",
+        ["PID", "Name", "Base", "Size", "Path", "View", "LoadCount", "LoadTime"], [12, 0, 12, 12, 0, 10, 10, 20];
     WinVadinfo, "windows.vadinfo", "windows.vadinfo", Memory,
-        "查看进程虚拟内存映射",
-        ["PID", "Name", "Start", "End", "Protection", "Private", "Path", "Address"], [12, 0, 12, 12, 12, 12, 0, 12];
+        "查看进程虚拟内存映射（含 Tag、Parent 与 CommitCharge）",
+        ["PID", "Name", "Start", "End", "Protection", "Private", "Path", "Address", "Tag", "Parent", "CommitCharge"], [12, 0, 12, 12, 12, 8, 0, 12, 6, 12, 12];
     WinHandles, "windows.handles", "windows.handles", Files,
         "列出进程打开的文件或对象",
         ["PID", "Name", "Handle", "Type", "Object", "GrantedAccess", "ObjectName"], [12, 0, 12, 12, 12, 12, 0];
@@ -296,7 +296,7 @@ catalog! {
         "列出进程所属的作业对象及计数",
         ["Job", "SessionID", "Active", "Total", "PID", "Name"], [18, 9, 6, 6, 8, 0];
     WinTimeliner, "windows.timeliner", "windows.timeliner", System,
-        "汇总多个插件的时间戳为统一时间线",
+        "汇总多个 Windows 插件时间戳为统一时间线，支持导出 bodyfile",
         ["Time", "FILETIME", "Plugin", "Event", "Description"], [23, 18, 24, 24, 0];
     WinMbrscan, "windows.mbrscan", "windows.mbrscan", Files,
         "扫描内存中的主引导记录、分区表与引导代码反汇编",
@@ -442,6 +442,9 @@ catalog! {
     LinuxBoottime, "linux.boottime.Boottime", "boottime·命名空间", System,
         "按任务遍历顺序列出各时间命名空间的启动时间",
         ["TIME NS", "Boot Time"], [12, 32];
+    LinuxTimeliner, "linux.timeliner", "timeliner", System,
+        "汇总多个 Linux 插件时间戳为统一时间线，支持导出 bodyfile",
+        ["Time", "Plugin", "Event", "Description"], [32, 24, 20, 0];
     Pagecache, "pagecache", "pagecache", Files,
         "列出页缓存中各文件系统的 inode 及缓存页数",
         ["SuperBlock", "Device", "FileSystem", "Inode", "InodeAddress", "Mode", "Size", "CachedPages", "Path"], [18, 10, 10, 10, 18, 8, 12, 8, 0];

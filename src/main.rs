@@ -597,6 +597,8 @@ fn main() -> Result<()> {
                         | Plugin::CheckModules
                         | Plugin::HiddenModules
                         | Plugin::LinuxPslist
+                        | Plugin::LinuxTimeliner
+                        | Plugin::WinTimeliner
                         | Plugin::WinHivelist
                         | Plugin::WinMalfind
                         | Plugin::LinuxPagecacheInodePages

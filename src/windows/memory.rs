@@ -6,6 +6,7 @@ pub(super) struct VadLayout {
     fast_ref: bool,
     mask: u64,
 }
+#[derive(Default)]
 pub(super) struct Vad {
     pub address: u64,
     pub start: u64,
@@ -13,6 +14,9 @@ pub(super) struct Vad {
     pub protection: u64,
     pub private: bool,
     pub path: String,
+    pub tag: String,
+    pub parent: Option<u64>,
+    pub commit_charge: Option<u64>,
 }
 pub(super) struct VadNode {
     pub address: u64,
@@ -193,7 +197,54 @@ impl Windows<'_> {
         Ok(out)
     }
     pub(super) fn dlllist(&self, p: &Process, r: &mut Results, job: &Job) -> Result<()> {
+        let vm = self.process_memory(p)?;
+        let mut native_meta: std::collections::HashMap<u64, (String, String)> =
+            std::collections::HashMap::new();
+        if let Ok(Some(peb)) = self.peb(p)
+            && let Ok(ldr) = vm.number(peb, "_PEB", "Ldr")
+            && ldr != 0
+            && let Ok(head) = add(
+                ldr,
+                self.vm
+                    .isf
+                    .offset("_PEB_LDR_DATA", "InLoadOrderModuleList")
+                    .unwrap_or(0),
+            )
+            && let Ok(offset) = self
+                .vm
+                .isf
+                .offset("_LDR_DATA_TABLE_ENTRY", "InLoadOrderLinks")
+        {
+            let mut node = vm.pointer(head).unwrap_or(head);
+            let mut seen = HashSet::new();
+            while node != head && seen.insert(node) && seen.len() <= MAX_OBJECTS {
+                if let Some(addr) = node.checked_sub(offset)
+                    && let Ok(base) = vm.number(addr, "_LDR_DATA_TABLE_ENTRY", "DllBase")
+                {
+                    let load_count = vm
+                        .number(addr, "_LDR_DATA_TABLE_ENTRY", "ObsoleteLoadCount")
+                        .or_else(|_| vm.number(addr, "_LDR_DATA_TABLE_ENTRY", "LoadCount"))
+                        .map(|n| n.to_string())
+                        .unwrap_or_default();
+                    let load_time = vm
+                        .number(addr, "_LDR_DATA_TABLE_ENTRY", "LoadTime")
+                        .ok()
+                        .map(filetime)
+                        .unwrap_or_default();
+                    native_meta.insert(base, (load_count, load_time));
+                }
+                match vm.pointer(node) {
+                    Ok(next) => node = next,
+                    Err(_) => break,
+                }
+            }
+        }
         for (base, size, path, view) in self.dlls_partial(p, job, Some(r))? {
+            let (load_count, load_time) = if view == "native" {
+                native_meta.get(&base).cloned().unwrap_or_default()
+            } else {
+                (String::new(), String::new())
+            };
             r.rows.push(vec![
                 p.pid.to_string(),
                 p.name.clone(),
@@ -201,6 +252,8 @@ impl Windows<'_> {
                 size.to_string(),
                 path,
                 view,
+                load_count,
+                load_time,
             ]);
         }
         Ok(())
@@ -653,6 +706,33 @@ impl Windows<'_> {
                         },
                     }
                 };
+                let tag_back = if self.vm.pointer_size() == 4 {
+                    4u64
+                } else {
+                    12u64
+                };
+                let tag = address
+                    .checked_sub(tag_back)
+                    .and_then(|t| {
+                        let mut raw = [0u8; 4];
+                        self.vm.read(t, &mut raw).ok()?;
+                        raw.iter()
+                            .all(|&b| b.is_ascii_graphic() || b == b' ')
+                            .then(|| String::from_utf8_lossy(&raw).into_owned())
+                    })
+                    .unwrap_or_default();
+                let parent = self
+                    .number(address, "_MMVAD_SHORT", "VadNode.ParentValue")
+                    .or_else(|_| self.number(address, "_MMVAD_SHORT", "ParentValue"))
+                    .map(|v| v & !3)
+                    .or_else(|_| self.number(address, "_MMVAD_SHORT", "Parent"))
+                    .ok()
+                    .filter(|&v| v != 0);
+                let commit_charge = self
+                    .field(address, "_MMVAD_SHORT", "u1")
+                    .and_then(|u1| self.number(u1, "_MMVAD_FLAGS1", "CommitCharge"))
+                    .or_else(|_| self.number(flags, "_MMVAD_FLAGS", "CommitCharge"))
+                    .ok();
                 Ok(Vad {
                     address,
                     start,
@@ -660,6 +740,9 @@ impl Windows<'_> {
                     protection,
                     private,
                     path,
+                    tag,
+                    parent,
+                    commit_charge,
                 })
             })();
             match parsed {
@@ -777,6 +860,9 @@ impl Windows<'_> {
                 protection: 0,
                 private: short,
                 path,
+                tag: node.tag.clone(),
+                parent: node.parent,
+                commit_charge: None,
             });
             Ok(true)
         })?;
@@ -826,6 +912,9 @@ impl Windows<'_> {
                     v.private.to_string(),
                     v.path,
                     hex(v.address),
+                    v.tag,
+                    v.parent.map(hex).unwrap_or_default(),
+                    v.commit_charge.map(|c| c.to_string()).unwrap_or_default(),
                 ]);
                 continue;
             }

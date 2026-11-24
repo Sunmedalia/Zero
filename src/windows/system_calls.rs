@@ -493,6 +493,7 @@ mod tests {
                     protection: 0,
                     private: false,
                     path: v["path"].as_str().unwrap().into(),
+                    ..Default::default()
                 })
                 .collect();
             let got = validate(
