@@ -3,13 +3,19 @@ use super::*;
 use sha2::{Digest, Sha256};
 use std::io::Write;
 impl Windows<'_> {
-    pub(super) fn run_dump(&self, p: Plugin, options: &DumpOptions, job: &Job) -> Result<Results> {
+    pub(super) fn run_dump(
+        &self,
+        p: Plugin,
+        options: &DumpOptions,
+        analysis: &Options,
+        job: &Job,
+    ) -> Result<Results> {
         options.validate(p)?;
         if p == Plugin::WinMemmap {
             return self.memmap(&Options::default(), Some(options), job);
         }
         if p == Plugin::WinHivelist {
-            return self.dump_hives(options, job);
+            return self.dump_hives(options, analysis, job);
         }
         if p == Plugin::WinTimeliner {
             return self.timeliner_with_dump(Some(options), job);
@@ -690,7 +696,12 @@ mod tests {
             end: None,
         };
         let r = engine
-            .run_dump(Plugin::WinModdump, &options, &Job::default())
+            .run_dump(
+                Plugin::WinModdump,
+                &options,
+                &Options::default(),
+                &Job::default(),
+            )
             .unwrap();
         assert!(r.complete, "{:?}", r.diagnostics);
         assert_eq!(r.rows.len(), 1);
@@ -769,7 +780,12 @@ mod tests {
             end: None,
         };
         let r = engine
-            .run_dump(Plugin::WinVaddump, &options, &Job::default())
+            .run_dump(
+                Plugin::WinVaddump,
+                &options,
+                &Options::default(),
+                &Job::default(),
+            )
             .unwrap();
         assert!(r.complete, "{:?}", r.diagnostics);
         assert_eq!(r.rows.len(), 1);

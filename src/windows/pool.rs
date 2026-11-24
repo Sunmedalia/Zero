@@ -578,5 +578,34 @@ mod tests {
                 String::new(),
             ]
         );
+
+        // This owner has the same PID as a listed process, but a different
+        // verified EPROCESS address and neither an active-list nor pool hit.
+        isf.data["user_types"]["_ETHREAD"]["size"] = json!(72);
+        isf.data["user_types"]["_ETHREAD"]["fields"]["ThreadsProcess"] = ptr(64);
+        put(&mut b, 0xc260, K + 0x3100);
+        b.copy_within(0x9000..0x9100, 0xb100);
+        b[0xb130..0xb140].fill(0);
+        b[0xb130..0xb136].copy_from_slice(b"hidden");
+        put(&mut b, 0xb0f0, K + 0x5240);
+        b[0xd240..0xd244].copy_from_slice(&[14, 0, 14, 0]);
+        put(&mut b, 0xd248, K + 0x6240);
+        for (i, c) in "Process".bytes().enumerate() {
+            b[0xe240 + i * 2] = c;
+        }
+        let img = image(&b);
+        let w = Windows {
+            vm: Memory::new(&img, 0x1000, &isf, None),
+            base: K,
+            pdb: PdbIdentity::from_isf(&isf).unwrap(),
+        };
+        let views = w
+            .run(Plugin::WinPsxview, &Options::default(), &Job::default())
+            .unwrap();
+        let listed = views.rows.iter().find(|row| row[1] == "System").unwrap();
+        let hidden = views.rows.iter().find(|row| row[1] == "hidden").unwrap();
+        assert_eq!(listed[0], hidden[0]);
+        assert_eq!(&listed[3..7], ["true", "false", "false", "false"]);
+        assert_eq!(&hidden[3..7], ["false", "false", "true", "false"]);
     }
 }

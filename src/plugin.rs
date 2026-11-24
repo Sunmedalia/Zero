@@ -444,6 +444,9 @@ impl Plugin {
     pub fn is_linux_mapping_export(self) -> bool {
         matches!(self, Self::LinuxMaps | Self::LinuxMalfind | Self::LinuxElfs)
     }
+    pub fn dump_uses_analysis_pid(self) -> bool {
+        self.is_linux_mapping_export() || self == Self::LinuxPslist
+    }
     pub fn is_regex_scan(self) -> bool {
         matches!(self, Self::VmaRegExScan | Self::WinVadRegExScan)
     }

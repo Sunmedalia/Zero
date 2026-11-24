@@ -4,6 +4,7 @@ use super::*;
 use crate::analysis::Options;
 use crate::dump::DumpOptions;
 use std::collections::BTreeSet;
+use std::io::{Seek, SeekFrom, Write};
 
 const PT_LOAD: u64 = 1;
 const PT_DYNAMIC: u64 = 2;
@@ -49,6 +50,7 @@ struct MappedElf {
     start: u64,
     headers: Vec<ProgramHeader>,
     base: Option<u64>,
+    headers_end: u64,
 }
 
 impl MappedElf {
@@ -117,6 +119,7 @@ impl MappedElf {
             start,
             headers,
             base,
+            headers_end: add(offset, count * entry_size)?.max(header_size as u64),
         }))
     }
 
@@ -268,6 +271,83 @@ impl Linux<'_> {
             resolved.push_str(" (deleted)");
         }
         resolved
+    }
+
+    pub(super) fn write_main_executable(
+        vm: &VirtualMemory<'_>,
+        mappings: &[(u64, u64, u64)], // (start, end, file offset), sorted by start
+        target: &std::path::Path,
+        budget: u64,
+        job: &Job,
+    ) -> Result<(u64, u64)> {
+        let start = mappings
+            .iter()
+            .find(|&&(_, _, offset)| offset == 0)
+            .map(|&(start, _, _)| start)
+            .context("主程序没有文件偏移为零的映射")?;
+        let elf = MappedElf::read(vm, start, job)?.context("主程序 ELF 文件头不可读")?;
+        let mut size = 0;
+        let mut bytes_to_read = 0;
+        let mut segments = Vec::new();
+        for header in &elf.headers {
+            if header.kind != PT_LOAD || header.file_size == 0 {
+                continue;
+            }
+            ensure!(
+                header.file_size <= header.memory_size,
+                "ELF PT_LOAD 文件大小超过内存大小"
+            );
+            size = size.max(add(header.file_offset, header.file_size)?);
+            bytes_to_read = add(bytes_to_read, header.file_size)?;
+            let address = elf.mapped_address(header.address)?;
+            add(address, header.file_size)?;
+            segments.push((header.file_offset, address, header.file_size));
+        }
+        ensure!(
+            size != 0 && size <= budget && bytes_to_read <= budget,
+            "主程序 ELF 转储为空或超过累计上限"
+        );
+        ensure!(
+            segments.iter().any(|&(offset, address, len)| offset == 0
+                && address == start
+                && len >= elf.headers_end),
+            "主程序 ELF 文件头不在加载段内"
+        );
+        let parent = target.parent().context("导出路径缺少父目录")?;
+        crate::dump::directory(parent)?;
+        let mut tmp = tempfile::NamedTempFile::new_in(parent)?;
+        let mut missing = 0;
+        for (offset, address, length) in segments {
+            tmp.seek(SeekFrom::Start(offset))?;
+            let mut done = 0;
+            let mut buffer = [0; 4096];
+            while done < length {
+                job.check()?;
+                let at = address + done;
+                let count = usize::try_from((length - done).min(4096 - (at & 4095)))?;
+                let chunk = buffer.at_mut(..count)?;
+                let matches_file = mappings
+                    .partition_point(|&(first, _, _)| first <= at)
+                    .checked_sub(1)
+                    .and_then(|index| mappings.get(index))
+                    .is_some_and(|&(first, end, file_offset)| {
+                        at + count as u64 <= end
+                            && file_offset.checked_add(at - first) == Some(offset + done)
+                    });
+                if !matches_file || vm.read(at, chunk).is_err() {
+                    ensure!(offset + done >= elf.headers_end, "主程序 ELF 文件头不可读");
+                    chunk.fill(0);
+                    missing += 1;
+                }
+                tmp.write_all(chunk)?;
+                done += count as u64;
+            }
+        }
+        job.check()?;
+        tmp.as_file().sync_all()?;
+        job.check()?;
+        tmp.persist_noclobber(target).map_err(|e| e.error)?;
+        Ok((size, missing))
     }
 
     pub(super) fn linux_elfs(
@@ -528,7 +608,7 @@ mod tests {
 
     #[test]
     fn linux_elfs_and_library_list_match_vol3_columns_and_support_elf32_and_elf64() {
-        let (mut b, isf) = fixture();
+        let (mut b, mut isf) = fixture();
         put(&mut b, 0x9000, 0xa000);
         put(&mut b, 0x9008, 0xa000);
         put(&mut b, 0xa000, 0x9000);
@@ -672,6 +752,48 @@ mod tests {
         assert_eq!(elf32.len(), 4096);
         assert_eq!(&elf64[4096..], elf32);
         assert_eq!(elf64[0x1800], 0xa5);
+
+        isf.data["user_types"]["mm_struct"]["fields"]["exe_file"] =
+            serde_json::json!({"offset":56,"type":{"kind":"pointer"}});
+        put(&mut b, 0xb038, 0xe000);
+        put(&mut b, 0xc128, 0xe000);
+        put(&mut b, 0xc120, 3);
+        put(&mut b, 0x20080, 0x3000); // Second PT_LOAD's file offset.
+        let export = |bytes: &[u8], directory: &std::path::Path| {
+            let img = image(bytes);
+            engine(&img, &isf)
+                .process_details_with_options(
+                    &Options {
+                        pid: Some(5),
+                        ..Options::default()
+                    },
+                    Some(&DumpOptions {
+                        pid: 0,
+                        directory: directory.to_path_buf(),
+                        start: None,
+                        end: None,
+                    }),
+                    &Job::default(),
+                )
+                .unwrap()
+        };
+        let primary = tempfile::tempdir().unwrap();
+        let result = export(&b, primary.path());
+        let artifact = std::fs::read(primary.path().join(&result.rows[0][10])).unwrap();
+        assert_eq!(artifact.len(), 0x4000);
+        assert_eq!(&artifact[..4], b"\x7fELF");
+        assert!(artifact[0x1000..0x3000].iter().all(|&byte| byte == 0));
+        assert_eq!(&artifact[0x3000..], elf32);
+
+        // A different file has a readable ELF at offset zero. The selected
+        // executable has no readable header and must produce no artifact.
+        put(&mut b, 0xc028, 0xe100);
+        put(&mut b, 0xc120, 0);
+        b[0x25000] = 0;
+        let missing = tempfile::tempdir().unwrap();
+        let result = export(&b, missing.path());
+        assert_eq!(result.rows[0][10], "Error outputting file");
+        assert!(missing.path().read_dir().unwrap().next().is_none());
     }
 
     #[test]
@@ -682,6 +804,7 @@ mod tests {
                 little_endian: true,
             },
             start: 0x200000,
+            headers_end: 0,
             headers: vec![
                 ProgramHeader {
                     kind: PT_LOAD,

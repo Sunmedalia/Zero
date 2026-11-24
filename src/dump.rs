@@ -71,10 +71,9 @@ impl DumpOptions {
             Plugin::Lsmod
                 | Plugin::CheckModules
                 | Plugin::HiddenModules
-                | Plugin::LinuxPslist
                 | Plugin::LinuxTimeliner
                 | Plugin::WinTimeliner
-        ) || plugin.is_linux_mapping_export()
+        ) || plugin.dump_uses_analysis_pid()
         {
             ensure!(self.pid == 0, "该导出模式不接受 DumpOptions.pid");
             ensure!(
@@ -198,6 +197,38 @@ pub(crate) fn directory(path: &Path) -> Result<()> {
         Err(e) => return Err(e.into()),
     }
     Ok(())
+}
+
+pub(crate) fn nested_target(root: &Path, relative: &Path) -> Result<PathBuf> {
+    use std::path::Component;
+
+    directory(root)?;
+    let mut parent = root.canonicalize()?;
+    let mut components = relative.components().peekable();
+    while let Some(component) = components.next() {
+        let Component::Normal(name) = component else {
+            anyhow::bail!("转储路径包含无效组件");
+        };
+        let child = parent.join(name);
+        if components.peek().is_none() {
+            return Ok(child);
+        }
+        match std::fs::create_dir(&child) {
+            Ok(()) => {}
+            Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => {}
+            Err(error) => return Err(error.into()),
+        }
+        let metadata = child.symlink_metadata()?;
+        ensure!(
+            metadata.is_dir()
+                && !metadata.file_type().is_symlink()
+                && child.canonicalize()? == child,
+            "转储路径包含重定向或非目录组件: {}",
+            child.display()
+        );
+        parent = child;
+    }
+    anyhow::bail!("转储路径缺少文件名")
 }
 fn write_region(
     vm: &VirtualMemory<'_>,
@@ -423,6 +454,21 @@ pub(crate) fn write_stream_artifact(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[cfg(unix)]
+    #[test]
+    fn nested_export_requires_real_directories() {
+        let root = tempfile::tempdir().unwrap();
+        let outside = tempfile::tempdir().unwrap();
+        let good = nested_target(root.path(), Path::new("volume/home/file")).unwrap();
+        assert_eq!(
+            good,
+            root.path().canonicalize().unwrap().join("volume/home/file")
+        );
+        std::os::unix::fs::symlink(outside.path(), root.path().join("redirected")).unwrap();
+        assert!(nested_target(root.path(), Path::new("redirected/home/file")).is_err());
+        assert!(!outside.path().join("home").exists());
+    }
     #[test]
     fn explicit_target_and_range_are_required() {
         let mut opts = DumpOptions {

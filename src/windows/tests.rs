@@ -296,7 +296,12 @@ fn range_dump_matches_source_and_never_commits_missing_pages() {
         end: Some(K + 0x4000),
     };
     let r = engine
-        .run_dump(Plugin::WinMemdump, &options, &Job::default())
+        .run_dump(
+            Plugin::WinMemdump,
+            &options,
+            &Options::default(),
+            &Job::default(),
+        )
         .unwrap();
     assert!(r.complete);
     assert_eq!(r.rows.len(), 1);
@@ -307,7 +312,12 @@ fn range_dump_matches_source_and_never_commits_missing_pages() {
         ..options
     };
     let r = engine
-        .run_dump(Plugin::WinMemdump, &missing, &Job::default())
+        .run_dump(
+            Plugin::WinMemdump,
+            &missing,
+            &Options::default(),
+            &Job::default(),
+        )
         .unwrap();
     assert!(!r.complete);
     assert!(r.rows.is_empty());

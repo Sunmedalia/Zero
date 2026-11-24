@@ -457,14 +457,14 @@ impl App {
             {
                 let parsed = (|| -> Result<(DumpOptions, Option<u32>)> {
                     let filter_pid =
-                        if mode.is_linux_mapping_export() && !fields[0].trim().is_empty() {
+                        if mode.dump_uses_analysis_pid() && !fields[0].trim().is_empty() {
                             let pid = fields[0].trim().parse::<u32>().context("请输入有效 PID")?;
                             anyhow::ensure!(pid != 0, "请输入非零 PID，或留空沿用分析参数");
                             Some(pid)
                         } else {
                             None
                         };
-                    let pid = if mode.is_linux_mapping_export()
+                    let pid = if mode.dump_uses_analysis_pid()
                         || matches!(
                             *mode,
                             Plugin::WinModdump
@@ -510,7 +510,7 @@ impl App {
                             };
                         }
                         self.page = Page::Analysis;
-                        self.menu = if *mode == Plugin::Fbdev || mode.is_linux_mapping_export() {
+                        self.menu = if *mode == Plugin::Fbdev || mode.dump_uses_analysis_pid() {
                             self.navigation_plugins()
                                 .iter()
                                 .position(|p| *p == *mode)

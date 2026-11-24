@@ -423,7 +423,7 @@ fn call(
             let dump_options = if let Some(dir) = a.dump_dir.as_deref() {
                 ensure!(plugin.accepts_dump(), "dump_dir 仅用于支持转储的插件");
                 Some(dump::DumpOptions {
-                    pid: if plugin.is_linux_mapping_export() {
+                    pid: if plugin.dump_uses_analysis_pid() {
                         0
                     } else if matches!(
                         plugin,
@@ -431,7 +431,6 @@ fn call(
                             | Plugin::Lsmod
                             | Plugin::CheckModules
                             | Plugin::HiddenModules
-                            | Plugin::LinuxPslist
                             | Plugin::LinuxTimeliner
                             | Plugin::WinTimeliner
                             | Plugin::WinHivelist
@@ -484,7 +483,7 @@ fn call(
                         })
                         .collect(),
                     swapfile: a.swapfile.map(|p| path(root, &p)),
-                    pid: if dump_options.is_some() && !plugin.is_linux_mapping_export() {
+                    pid: if dump_options.is_some() && !plugin.dump_uses_analysis_pid() {
                         None
                     } else {
                         a.pid

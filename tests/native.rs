@@ -1625,6 +1625,60 @@ fn mcp_call(id: u64, name: &str, arguments: serde_json::Value) -> serde_json::Va
 }
 
 #[test]
+fn pslist_dump_preserves_single_pid_filter_through_cli_and_mcp() -> Result<()> {
+    let dir = tempfile::tempdir()?;
+    let (bytes, mut isf) = discoverable();
+    isf.data["base_types"]["char"] = json!({"size":1});
+    let fields = &mut isf.data["user_types"]["task_struct"]["fields"];
+    fields["comm"]["type"]["subtype"] = json!({"kind":"base","name":"char"});
+    fields["real_parent"]["type"]["subtype"] = json!({"kind":"struct","name":"task_struct"});
+    fields["mm"] = json!({"offset":48,"type":{"kind":"pointer"}});
+    fs::write(dir.path().join("image.raw"), bytes)?;
+    fs::write(
+        dir.path().join("symbols.json"),
+        serde_json::to_vec(&isf.data)?,
+    )?;
+    let output = std::process::Command::new(env!("CARGO_BIN_EXE_zero"))
+        .current_dir(dir.path())
+        .args([
+            "--offline",
+            "analyze",
+            "--image",
+            "image.raw",
+            "--symbols",
+            "symbols.json",
+            "--plugin",
+            "linux.pslist.PsList",
+            "--pid",
+            "1",
+            "--dump-dir",
+            "cli-dumps",
+            "--output",
+            "pslist.json",
+        ])
+        .output()?;
+    let result = fs::read(dir.path().join("pslist.json"))
+        .unwrap_or_else(|error| panic!("{error}: {}", String::from_utf8_lossy(&output.stderr)));
+    let result: store::Results = serde_json::from_slice(&result)?;
+    assert_eq!(result.rows.len(), 1);
+    assert_eq!(result.rows[0][0], "1");
+    let request = mcp_call(
+        1,
+        "zero_analyze",
+        json!({
+            "image":"image.raw", "symbols":"symbols.json", "plugin":"linux.pslist.PsList",
+            "pid":1, "dump_dir":"mcp-dumps", "offline":true
+        }),
+    );
+    let replies = mcp_exchange(dir.path(), &request.to_string())?;
+    assert_eq!(replies[0]["result"]["isError"], false, "{replies:?}");
+    let page = &replies[0]["result"]["structuredContent"];
+    assert_eq!(page["total_rows"], 1);
+    assert_eq!(page["rows"][0][0], "1");
+    Ok(())
+}
+
+#[test]
 fn mcp_tools_analyze_page_export_and_dump_all_modes() -> Result<()> {
     use sha2::{Digest, Sha256};
     let dir = tempfile::tempdir()?;

@@ -411,76 +411,30 @@ impl Linux<'_> {
         result: &mut Results,
         job: &Job,
     ) -> String {
-        use std::io::Write;
         let run = (|| -> Result<Option<String>> {
             let mm = self.number(task, "task_struct", "mm")?;
             if mm == 0 {
                 return Ok(None);
             }
-            let Some(vm) = self.process_vm(task)? else {
-                return Ok(None);
-            };
-            let exe_file = self.number(mm, "mm_struct", "exe_file").unwrap_or(0);
-            let nodes = self.vma_nodes(mm, job, result)?;
-            let mut target_range = None;
-            for node in nodes {
+            let vm = self.process_vm(task)?.context("主程序地址空间不可读")?;
+            let exe_file = self.number(mm, "mm_struct", "exe_file")?;
+            ensure!(exe_file != 0, "缺少主程序 exe_file");
+            let mut mappings = Vec::new();
+            for node in self.vma_nodes(mm, job, result)? {
                 job.check()?;
-                let Ok(start) = self.number(node, "vm_area_struct", "vm_start") else {
-                    continue;
-                };
-                let Ok(end) = self.number(node, "vm_area_struct", "vm_end") else {
-                    continue;
-                };
-                if start >= end {
+                if self.number(node, "vm_area_struct", "vm_file").ok() != Some(exe_file) {
                     continue;
                 }
-                let file = self.number(node, "vm_area_struct", "vm_file").unwrap_or(0);
-                let mut magic = [0u8; 4];
-                let is_elf = vm.read(start, &mut magic).is_ok() && magic == *b"\x7fELF";
-                if !is_elf {
-                    continue;
-                }
-                if exe_file != 0 && file == exe_file {
-                    target_range = Some((start, end));
-                    break;
-                }
-                if target_range.is_none() {
-                    target_range = Some((start, end));
-                }
+                let start = self.number(node, "vm_area_struct", "vm_start")?;
+                let end = self.number(node, "vm_area_struct", "vm_end")?;
+                let offset = self
+                    .number(node, "vm_area_struct", "vm_pgoff")?
+                    .checked_mul(4096)
+                    .context("主程序映射文件偏移溢出")?;
+                ensure!(start < end, "主程序 VMA 地址倒置");
+                mappings.push((start, end, offset));
             }
-            let Some((start, end)) = target_range else {
-                return Ok(None);
-            };
-            let size = end.saturating_sub(start);
-            ensure!(
-                total_dumped
-                    .checked_add(size)
-                    .is_some_and(|n| n <= crate::dump::MAX_DUMP_BYTES),
-                "pslist 导出累计超过 256 MiB 上限"
-            );
-            crate::dump::directory(&dump.directory)?;
-            let mut tmp = tempfile::NamedTempFile::new_in(&dump.directory)?;
-            let mut offset = 0u64;
-            let mut buf = [0u8; 4096];
-            let mut missing = 0u64;
-            while offset < size {
-                job.check()?;
-                let chunk = usize::try_from((size - offset).min(4096))?;
-                if vm.read(start + offset, buf.at_mut(..chunk)?).is_err() {
-                    buf.at_mut(..chunk)?.fill(0);
-                    missing += 1;
-                }
-                tmp.write_all(buf.at(..chunk)?)?;
-                offset += chunk as u64;
-            }
-            if missing > 0 {
-                result.complete = false;
-                result.diagnostics.push(format!(
-                    "PID {pid} ELF 导出 {start:#x}: {missing} 页不可读已补零"
-                ));
-            }
-            job.check()?;
-            tmp.as_file().sync_all()?;
+            mappings.sort_unstable();
             let safe_comm: String = comm
                 .chars()
                 .map(|c| {
@@ -492,9 +446,21 @@ impl Linux<'_> {
                 })
                 .take(32)
                 .collect();
-            let filename = format!("pid.{pid}.{safe_comm}.{start:#x}.elf");
-            let path = dump.directory.join(&filename);
-            tmp.persist_noclobber(&path).map_err(|e| e.error)?;
+            let filename = format!("pid.{pid}.{safe_comm}.elf");
+            let target = dump.directory.join(&filename);
+            let (size, missing) = Self::write_main_executable(
+                &vm,
+                &mappings,
+                &target,
+                crate::dump::MAX_DUMP_BYTES - *total_dumped,
+                job,
+            )?;
+            if missing > 0 {
+                result.complete = false;
+                result.diagnostics.push(format!(
+                    "PID {pid} 主程序 ELF 导出：{missing} 个缺失文件区块已补零"
+                ));
+            }
             *total_dumped += size;
             Ok(Some(filename))
         })();

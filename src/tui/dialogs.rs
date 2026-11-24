@@ -357,7 +357,7 @@ impl App {
                             "PID（framebuffer 不填写）"
                         } else if *mode == Plugin::Lsmod {
                             "PID（模块列表导出不填写）"
-                        } else if mode.is_linux_mapping_export() {
+                        } else if mode.dump_uses_analysis_pid() {
                             "PID（可选；留空沿用分析筛选）"
                         } else if *mode == Plugin::ModuleExtract {
                             "PID（模块提取不填写）"
@@ -368,14 +368,14 @@ impl App {
                         },
                         if *mode == Plugin::Fbdev {
                             "Start（可选 fb_info 地址）"
-                        } else if *mode == Plugin::Lsmod || mode.is_linux_mapping_export() {
+                        } else if *mode == Plugin::Lsmod || mode.dump_uses_analysis_pid() {
                             "Start（不填写）"
                         } else if *mode == Plugin::ModuleExtract {
                             "Base / Start（struct module 地址）"
                         } else {
                             "Start (0x / 十进制)"
                         },
-                        if *mode == Plugin::Lsmod || mode.is_linux_mapping_export() {
+                        if *mode == Plugin::Lsmod || mode.dump_uses_analysis_pid() {
                             "End（不填写）"
                         } else {
                             "End (不包含)"
@@ -401,7 +401,7 @@ impl App {
                         }
                         Plugin::WinPedump => "指定 PID；按 PE 节表重建可读 PE",
                         Plugin::Elfdump => "指定 PID；导出含 ELF 头的可读映射（不重建磁盘 ELF）",
-                        mode if mode.is_linux_mapping_export() => {
+                        mode if mode.dump_uses_analysis_pid() => {
                             "导出匹配分析筛选的区域；填写 PID 可限定到一个进程，缺页补零保留诊断"
                         }
                         _ => "指定 PID；导出可读 VMA；Start / End 可限制范围",

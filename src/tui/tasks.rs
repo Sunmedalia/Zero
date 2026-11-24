@@ -80,7 +80,7 @@ impl App {
         {
             self.open_dump(self.plugin, force);
         } else {
-            if self.plugin.is_linux_mapping_export() {
+            if self.plugin.dump_uses_analysis_pid() {
                 self.dump_options = None;
             }
             self.start_work(Work::Analyze(force));

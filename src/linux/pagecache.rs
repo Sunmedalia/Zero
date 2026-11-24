@@ -433,8 +433,8 @@ impl Linux<'_> {
 
     fn dump_inode_pages_file(
         &self,
-        inode: (u64, u64),         // (inode_addr, inode_size)
-        pages: &[(u64, u64, u64)], // (index, page_vaddr, page_paddr)
+        inode: (u64, u64),    // (inode_addr, inode_size)
+        pages: &[(u64, u64)], // (index, page_paddr)
         target: &std::path::Path,
         total_dumped: &mut u64,
         result: &mut Results,
@@ -453,10 +453,7 @@ impl Linux<'_> {
         let parent = target.parent().context("导出路径缺少父目录")?;
         let mut tmp = tempfile::NamedTempFile::new_in(parent)?;
         let mut hash = Sha256::new();
-        let page_map: HashMap<u64, u64> = pages
-            .iter()
-            .map(|&(index, _, paddr)| (index, paddr))
-            .collect();
+        let page_map: HashMap<u64, u64> = pages.iter().copied().collect();
         let total_pages = inode_size.div_ceil(4096);
         let mut buf = [0u8; 4096];
         let mut written = 0u64;
@@ -541,14 +538,19 @@ impl Linux<'_> {
                 let size_signed = self.signed_field(inode, "inode", "i_size")?;
                 let inode_size = u64::try_from(size_signed.max(0))?;
                 let page_vaddrs = self.address_space_pages(mapping, job)?;
-                let mut entries: Vec<(u64, u64, u64, u64)> = Vec::new(); // (index, vaddr, paddr, flags)
+                let mut entries = Vec::new();
                 for pv in page_vaddrs {
                     job.check()?;
                     let index = self.number(pv, "page", "index")?;
                     let flags = self.number(pv, "page", "flags")?;
-                    let paddr = self
-                        .page_to_phys(pv, vmemmap_base, page_struct_size)
-                        .unwrap_or(0);
+                    let paddr = self.page_to_phys(pv, vmemmap_base, page_struct_size);
+                    if paddr.is_none() {
+                        partial(
+                            &mut result,
+                            format!("inode {} page {}", hex(inode), hex(pv)),
+                            anyhow::anyhow!("无法转换为物理页地址"),
+                        );
+                    }
                     entries.push((index, pv, paddr, flags));
                 }
                 entries.sort_by_key(|&(index, _, _, _)| index);
@@ -575,9 +577,9 @@ impl Linux<'_> {
                             .collect();
                         let filename = format!("inode.{inode:#x}.{safe}.dmp");
                         let target = dump_opts.directory.join(&filename);
-                        let dump_pages: Vec<(u64, u64, u64)> = entries
+                        let dump_pages: Vec<(u64, u64)> = entries
                             .iter()
-                            .map(|&(idx, pv, pa, _)| (idx, pv, pa))
+                            .filter_map(|&(idx, _, pa, _)| pa.map(|pa| (idx, pa)))
                             .collect();
                         match self.dump_inode_pages_file(
                             (inode, inode_size),
@@ -610,12 +612,11 @@ impl Linux<'_> {
 
                 let mut probe = [0u8; 1];
                 for (index, pv, paddr, flags) in entries {
-                    let dump_safe = paddr != 0
-                        && index.saturating_mul(4096) < inode_size
-                        && self.vm.image.read(paddr, &mut probe).is_ok();
+                    let dump_safe = index.saturating_mul(4096) < inode_size
+                        && paddr.is_some_and(|pa| self.vm.image.read(pa, &mut probe).is_ok());
                     result.rows.push(vec![
                         hex(pv),
-                        hex(paddr),
+                        paddr.map(hex).unwrap_or_default(),
                         hex(mapping),
                         index.to_string(),
                         dump_safe.to_string(),
@@ -692,16 +693,19 @@ impl Linux<'_> {
                     for pv in page_vaddrs {
                         job.check()?;
                         let index = self.number(pv, "page", "index")?;
-                        let paddr = self
-                            .page_to_phys(pv, vmemmap_base, page_struct_size)
-                            .unwrap_or(0);
+                        let Some(paddr) = self.page_to_phys(pv, vmemmap_base, page_struct_size)
+                        else {
+                            partial(
+                                &mut result,
+                                format!("RecoverFs inode {} page {}", hex(inode), hex(pv)),
+                                anyhow::anyhow!("无法转换为物理页地址"),
+                            );
+                            continue;
+                        };
                         let off = index.saturating_mul(4096);
-                        if paddr != 0
-                            && off < inode_size
-                            && self.vm.image.read(paddr, &mut probe).is_ok()
-                        {
+                        if off < inode_size && self.vm.image.read(paddr, &mut probe).is_ok() {
                             resident_bytes += (inode_size - off).min(4096);
-                            pages.push((index, pv, paddr));
+                            pages.push((index, paddr));
                         }
                     }
                     if let Some(dump_opts) = dump
@@ -731,7 +735,7 @@ impl Linux<'_> {
                         if rel.as_os_str().is_empty() {
                             rel.push(format!("inode_{inode:#x}.bin"));
                         }
-                        let target = dump_opts.directory.join(&rel);
+                        let target = crate::dump::nested_target(&dump_opts.directory, &rel)?;
                         let (written, sha256, missing) = self.dump_inode_pages_file(
                             (inode, inode_size),
                             &pages,
@@ -1102,5 +1106,35 @@ mod tests {
         assert_eq!(entries.len(), 1);
         let recovered = dir2.path().join(entries[0]["file"].as_str().unwrap());
         assert_eq!(std::fs::read(&recovered).unwrap(), b"SECRET_DATA!");
+
+        // A readable struct page whose address is unaligned relative to vmemmap
+        // must leave a hole, even when physical page zero is readable.
+        put(&mut b, 0x17000, vmemmap + 4);
+        b[..12].copy_from_slice(b"NOT_EVIDENCE");
+        let img = image(&b);
+        let dir3 = tempfile::tempdir().unwrap();
+        let missing = engine(&img, &isf)
+            .linux_pagecache_inode_pages(
+                &Options::default(),
+                Some(&DumpOptions {
+                    pid: 0,
+                    directory: dir3.path().to_path_buf(),
+                    start: Some(0x12000),
+                    end: None,
+                }),
+                &Job::default(),
+            )
+            .unwrap();
+        assert!(!missing.complete);
+        assert_eq!(missing.rows[0][1], "");
+        assert_eq!(missing.rows[0][4], "false");
+        assert_eq!(
+            missing.kernel_identity["dumped_inodes"][0]["missing_pages"],
+            1
+        );
+        assert_eq!(
+            std::fs::read(dir3.path().join(&missing.rows[0][6])).unwrap(),
+            [0; 12]
+        );
     }
 }

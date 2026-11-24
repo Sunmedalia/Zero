@@ -94,10 +94,13 @@ pub(super) fn fixup(record: &mut [u8]) -> Result<()> {
 }
 
 pub(super) fn parse_record(bytes: [u8; RECORD]) -> Result<Record> {
-    parse_record_with_data(bytes).map(|(record, _)| record)
+    parse_mft_record(bytes, false).map(|(record, _, _)| record)
 }
 
-pub(super) fn parse_record_with_data(mut bytes: [u8; RECORD]) -> Result<(Record, Vec<DataStream>)> {
+fn parse_mft_record(
+    mut bytes: [u8; RECORD],
+    read_data: bool,
+) -> Result<(Record, Vec<DataStream>, Vec<String>)> {
     ensure!(bytes.starts_with(b"FILE"), "非 MFT 记录");
     fixup(&mut bytes)?;
     let u16_at = |b: &[u8], at: usize| le_u16(b, at).context("MFT u16 字段截断");
@@ -111,6 +114,7 @@ pub(super) fn parse_record_with_data(mut bytes: [u8; RECORD]) -> Result<(Record,
         ..Default::default()
     };
     let mut streams = Vec::new();
+    let mut diagnostics = Vec::new();
     // Win32 (1) and Win32+DOS (3) names beat POSIX (0) beat DOS-only (2).
     let mut rank = -1;
     let mut at = usize::from(u16_at(&bytes, 20)?);
@@ -155,47 +159,52 @@ pub(super) fn parse_record_with_data(mut bytes: [u8; RECORD]) -> Result<(Record,
                     record.size = u64_at(content, 48)?;
                 }
             }
-        } else if kind == DATA {
-            let name_len = usize::from(*attribute.at(9)?);
-            let name = if name_len > 0 {
-                let name_offset = usize::from(u16_at(attribute, 10)?);
-                ensure!(name_offset >= 16, "$DATA 名称偏移与属性头重叠");
-                let name_end = name_offset
-                    .checked_add(name_len * 2)
-                    .context("$DATA 名称长度溢出")?;
-                let raw_name = attribute
-                    .get(name_offset..name_end)
-                    .context("$DATA 名称越界")?;
-                crate::bytes::utf16_lossy(raw_name)
-            } else {
-                String::new()
-            };
-            if resident {
-                ensure!(attribute.len() >= 24, "常驻 $DATA 属性头被截断");
-                let size = u32_at(attribute, 16)? as usize;
-                let offset = usize::from(u16_at(attribute, 20)?);
-                ensure!(offset >= 24, "$DATA 内容与常驻属性头重叠");
-                let content_end = offset.checked_add(size).context("$DATA 内容长度溢出")?;
-                let content = attribute
-                    .get(offset..content_end)
-                    .context("$DATA 内容越界")?;
-                streams.push(DataStream {
-                    name,
-                    resident: true,
-                    data: content.to_vec(),
-                });
-            } else if !name.is_empty() {
-                streams.push(DataStream {
-                    name,
-                    resident: false,
-                    data: Vec::new(),
-                });
+        } else if read_data && kind == DATA {
+            match parse_data_stream(attribute, resident) {
+                Ok(Some(stream)) => streams.push(stream),
+                Ok(None) => {}
+                Err(error) => diagnostics.push(format!("$DATA @ {at:#x}: {error:#}")),
             }
         }
         at += length;
     }
     ensure!(rank >= 0, "记录没有常驻 $FILE_NAME");
-    Ok((record, streams))
+    Ok((record, streams, diagnostics))
+}
+
+fn parse_data_stream(attribute: &[u8], resident: bool) -> Result<Option<DataStream>> {
+    let name_len = usize::from(*attribute.at(9)?);
+    let minimum_header = if resident { 24 } else { 64 };
+    ensure!(attribute.len() >= minimum_header, "$DATA 属性头被截断");
+    let (name, name_end) = if name_len != 0 {
+        let offset = usize::from(le_u16(attribute, 10).context("$DATA 名称偏移被截断")?);
+        ensure!(offset >= minimum_header, "$DATA 名称偏移与属性头重叠");
+        let end = offset + name_len * 2;
+        let bytes = attribute.get(offset..end).context("$DATA 名称越界")?;
+        (crate::bytes::utf16_lossy(bytes), end)
+    } else {
+        (String::new(), minimum_header)
+    };
+    if !resident && name.is_empty() {
+        return Ok(None);
+    }
+    let data = if resident {
+        let size = usize::try_from(le_u32(attribute, 16).context("$DATA 内容长度被截断")?)?;
+        let offset = usize::from(le_u16(attribute, 20).context("$DATA 内容偏移被截断")?);
+        ensure!(offset >= name_end, "$DATA 内容与属性头或名称重叠");
+        let end = offset.checked_add(size).context("$DATA 内容长度溢出")?;
+        attribute
+            .get(offset..end)
+            .context("$DATA 内容越界")?
+            .to_vec()
+    } else {
+        Vec::new()
+    };
+    Ok(Some(DataStream {
+        name,
+        resident,
+        data,
+    }))
 }
 
 impl Windows<'_> {
@@ -260,9 +269,12 @@ impl Windows<'_> {
             if self.vm.image.read(hit, &mut bytes).is_err() {
                 continue;
             }
-            let Ok((record, streams)) = parse_record_with_data(bytes) else {
+            let Ok((record, streams, diagnostics)) = parse_mft_record(bytes, true) else {
                 continue;
             };
+            for diagnostic in diagnostics {
+                Self::issue(&mut r, format!("MFT physical:{hit:#x}"), diagnostic);
+            }
             let mft_type = record.mft_type();
             for stream in streams {
                 if want_ads {
@@ -579,6 +591,7 @@ mod tests {
     fn parses_resident_data_and_alternate_data_streams() {
         let mut b = record("payload.txt", 1);
         let mut at = 152 + le_u32(&b, 156).unwrap() as usize;
+        let unnamed_at = at;
 
         // 1. Unnamed resident $DATA: "hello"
         let payload = b"hello";
@@ -624,7 +637,8 @@ mod tests {
 
         b[at..at + 4].copy_from_slice(&0xffff_ffffu32.to_le_bytes());
 
-        let (rec, streams) = parse_record_with_data(b).unwrap();
+        let (rec, streams, diagnostics) = parse_mft_record(b, true).unwrap();
+        assert!(diagnostics.is_empty());
         assert_eq!(rec.name, "payload.txt");
         assert_eq!(rec.mft_type(), "InUse & File");
         assert_eq!(streams.len(), 3);
@@ -638,5 +652,14 @@ mod tests {
         assert!(!streams[2].resident);
         assert!(streams[2].data.is_empty());
         assert_eq!(format_hexdump(&streams[0].data), "68 65 6c 6c 6f  |hello|");
+
+        b[unnamed_at + 16..unnamed_at + 20].copy_from_slice(&u32::MAX.to_le_bytes());
+        assert_eq!(parse_record(b).unwrap().name, "payload.txt");
+        let (salvaged, streams, diagnostics) = parse_mft_record(b, true).unwrap();
+        assert_eq!(salvaged.name, "payload.txt");
+        assert_eq!(streams.len(), 2);
+        assert_eq!(streams[0].name, "Zone.Identifier");
+        assert_eq!(diagnostics.len(), 1);
+        assert!(diagnostics[0].contains("$DATA 内容越界"));
     }
 }

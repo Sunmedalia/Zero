@@ -193,11 +193,16 @@ impl Windows<'_> {
     }
 
     /// Reconstruct and atomically export Windows registry hives (`windows.hivelist --dump-dir`).
-    pub(super) fn dump_hives(&self, dump: &DumpOptions, job: &Job) -> Result<Results> {
+    pub(super) fn dump_hives(
+        &self,
+        dump: &DumpOptions,
+        options: &Options,
+        job: &Job,
+    ) -> Result<Results> {
         use sha2::{Digest, Sha256};
         use std::io::Write;
         crate::dump::directory(&dump.directory)?;
-        let mut r = self.registry(Plugin::WinHivelist, &Options::default(), job)?;
+        let mut r = self.registry(Plugin::WinHivelist, options, job)?;
         let targets: Vec<(u64, String)> = r
             .rows
             .iter()
@@ -210,7 +215,7 @@ impl Windows<'_> {
         if let Some(want) = dump.start {
             ensure!(
                 !targets.is_empty(),
-                "指定的 hive {want:#x} 不在已验证列表中"
+                "指定的 hive {want:#x} 不在筛选后的已验证列表中"
             );
         }
         let mut total_written = 0u64;
@@ -1755,6 +1760,7 @@ mod ownership_tests {
                     start: Some(K + 0x3000),
                     end: None,
                 },
+                &Options::default(),
                 &Job::default(),
             )
             .unwrap();
@@ -1768,5 +1774,47 @@ mod ownership_tests {
         assert_eq!(raw.len(), 12288);
         assert_eq!(&raw[..4], &0x20u32.to_le_bytes());
         assert_eq!(&raw[4096 + 0x24..4096 + 0x26], b"nk");
+
+        put(&mut b, 0xf008, K + 0x3100);
+        put(&mut b, 0xb000, K + 0x3100);
+        put(&mut b, 0xb100, K + 0x7000);
+        put(&mut b, 0xb108, K + 0x3000);
+        b.copy_within(0xb020..0xb040, 0xb120);
+        for (hive, name_at, name) in [(0xb000, 0xb200, "SYSTEM"), (0xb100, 0xb220, "SOFTWARE")] {
+            let utf16: Vec<_> = name.encode_utf16().flat_map(u16::to_le_bytes).collect();
+            let length = (utf16.len() as u16).to_le_bytes();
+            b[hive + 16..hive + 18].copy_from_slice(&length);
+            b[hive + 18..hive + 20].copy_from_slice(&length);
+            put(&mut b, hive + 24, K + (name_at as u64 - 0x8000));
+            b[name_at..name_at + utf16.len()].copy_from_slice(&utf16);
+        }
+        let img = image(&b);
+        let engine = Windows {
+            vm: Memory::new(&img, 0x5000, &isf, None),
+            base: K,
+            pdb: PdbIdentity::from_isf(&isf).unwrap(),
+        };
+        let filtered = tempfile::tempdir().unwrap();
+        let dumped = engine
+            .run_dump(
+                Plugin::WinHivelist,
+                &DumpOptions {
+                    pid: 0,
+                    directory: filtered.path().into(),
+                    start: None,
+                    end: None,
+                },
+                &Options {
+                    name_filter: Some("system".into()),
+                    ignore_case: true,
+                    ..Options::default()
+                },
+                &Job::default(),
+            )
+            .unwrap();
+        assert_eq!(dumped.rows.len(), 1);
+        assert_eq!(dumped.rows[0][1], "SYSTEM");
+        assert_eq!(dumped.kernel_identity["dumped_hives"][0]["path"], "SYSTEM");
+        assert_eq!(filtered.path().read_dir().unwrap().count(), 1);
     }
 }

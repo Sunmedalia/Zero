@@ -592,7 +592,7 @@ fn main() -> Result<()> {
         let mut session = linux::Session::default();
         let dump = if plugin.is_dump() || (plugin.accepts_dump() && dump_dir.is_some()) {
             Some(zero_tui::dump::DumpOptions {
-                pid: if plugin.is_linux_mapping_export() {
+                pid: if plugin.dump_uses_analysis_pid() {
                     0
                 } else if matches!(
                     plugin,
@@ -602,7 +602,6 @@ fn main() -> Result<()> {
                         | Plugin::Lsmod
                         | Plugin::CheckModules
                         | Plugin::HiddenModules
-                        | Plugin::LinuxPslist
                         | Plugin::LinuxTimeliner
                         | Plugin::WinTimeliner
                         | Plugin::WinHivelist
@@ -627,7 +626,7 @@ fn main() -> Result<()> {
             None
         };
         let mut options = cli.analysis_options();
-        options.pid = if dump.is_some() && !plugin.is_linux_mapping_export() {
+        options.pid = if dump.is_some() && !plugin.dump_uses_analysis_pid() {
             None
         } else {
             pid

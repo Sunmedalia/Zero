@@ -36,7 +36,7 @@ use std::sync::{
 };
 
 // Batch 5: Windows dlllist/hivelist --name/--ignore-case, vadinfo --address, sessions SessionType/UserName; Linux ftrace HookedSymbols.
-pub const ENGINE_VERSION: &str = concat!(env!("CARGO_PKG_VERSION"), "-native-130");
+pub const ENGINE_VERSION: &str = concat!(env!("CARGO_PKG_VERSION"), "-native-131");
 #[derive(Clone)]
 pub struct Job {
     pub cancel: Arc<AtomicBool>,
