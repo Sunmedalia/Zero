@@ -133,7 +133,7 @@ impl App {
         self.preparation_candidates.sort();
         let identified = self
             .results
-            .get("banners")
+            .get(Plugin::Banners.name())
             .is_some_and(|r| !r.rows.is_empty());
         if !identified && self.analysis_options.os == crate::analysis::Os::Auto {
             self.preparation = Preparation::ChooseSystem;

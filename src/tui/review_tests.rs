@@ -33,7 +33,7 @@ fn outside_click_closes_image_and_symbol_details_without_activating_underlying_t
         assert!(app.dialog.is_none());
         assert_eq!(app.page, Page::Analysis);
         assert_eq!(app.object_version, before);
-        assert!(app.results.contains_key("pslist"));
+        assert!(app.results.contains_key("linux.pslist"));
         finish_test_job(&mut app);
     }
 }
@@ -408,7 +408,7 @@ fn detail_popup_expands_focuses_and_preserves_plugin_view_and_its_own_scroll() {
     app.close_result_tab(1);
     assert_eq!(app.query, "init");
     assert_eq!(app.sort, Some(0));
-    assert!(app.results.contains_key("pslist"));
+    assert!(app.results.contains_key("linux.pslist"));
     assert_eq!(app.active_tab, Some(0));
 }
 

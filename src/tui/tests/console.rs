@@ -328,7 +328,7 @@ fn reused_local_symbols_are_not_presented_as_new_btf_output() {
 #[test]
 fn arm64_can_request_verified_local_reuse_without_build_tools() {
     let (_dir, mut app) = console_app();
-    for row in &mut app.results.get_mut("banners").unwrap().rows {
+    for row in &mut app.results.get_mut("linux.banners").unwrap().rows {
         row[1] = "Linux version 6.8.11-arm64 (aarch64-linux-gnu-gcc)".into();
     }
     app.console.missing_tools = Some(vec!["git", "go"]);

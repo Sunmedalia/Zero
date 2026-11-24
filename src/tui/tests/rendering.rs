@@ -22,7 +22,7 @@ fn compact_columns_mixed_numeric_sort_and_paginated_mouse_rows() {
     mixed.sort_by(|a, b| compare_values(a, b));
     assert_eq!(mixed, vec!["2", "0x3", "10", "", "1a"]);
     let mut app = app();
-    let result = app.results.get_mut("pslist").unwrap();
+    let result = app.results.get_mut("linux.pslist").unwrap();
     result.rows = (0..20)
         .map(|i| {
             vec![
@@ -72,8 +72,8 @@ fn imported_image_automatically_identifies_banner_and_renders_progress() {
     app.accept_path(InputKind::Image, path);
     assert!(app.job.is_some());
     finish_test_job(&mut app);
-    assert_eq!(app.results["banners"].rows.len(), 1);
-    let candidate = app.results.get_mut("banners").unwrap();
+    assert_eq!(app.results["linux.banners"].rows.len(), 1);
+    let candidate = app.results.get_mut("linux.banners").unwrap();
     candidate.rows.insert(
         0,
         vec![
@@ -154,7 +154,7 @@ fn closing_popup_restores_results() {
 fn new_plugin_menu_mouse_details_and_raw_export() {
     let mut app = app();
     for d in PLUGINS {
-        let mut r = app.results["pslist"].as_ref().clone();
+        let mut r = app.results["linux.pslist"].as_ref().clone();
         r.plugin = d.plugin.name().into();
         r.columns = d.columns.iter().map(|s| (*s).into()).collect();
         r.rows = (0..40)
@@ -245,8 +245,8 @@ fn new_plugin_menu_mouse_details_and_raw_export() {
 #[test]
 fn workstation_palette_views_and_responsive_inspector() {
     let mut app = app();
-    let mut result = app.results["pslist"].as_ref().clone();
-    result.plugin = "psaux".into();
+    let mut result = app.results["linux.pslist"].as_ref().clone();
+    result.plugin = Plugin::Psaux.name().into();
     result.columns = vec![
         "PID".into(),
         "Name".into(),
@@ -259,7 +259,7 @@ fn workstation_palette_views_and_responsive_inspector() {
         "长命令行".repeat(200),
         "OK".into(),
     ]];
-    app.results.insert("psaux".into(), result);
+    app.results.insert(Plugin::Psaux.name().into(), result);
     app.query = "10".into();
     app.sort = Some(0);
     app.descending = true;
@@ -313,7 +313,7 @@ fn automatic_rows_fill_viewport_and_custom_rows_persist() {
     let dir = tempfile::tempdir().unwrap();
     let mut app = app();
     app.cache = dir.path().join("cache");
-    app.results.get_mut("pslist").unwrap().rows = (1..=200)
+    app.results.get_mut("linux.pslist").unwrap().rows = (1..=200)
         .map(|i| {
             vec![
                 i.to_string(),
@@ -441,7 +441,7 @@ fn generation_form_supports_current_kali_and_safe_layouts() {
     app.initialize(Default::default());
     app.page = Page::Assets;
     finish_test_job(&mut app);
-    app.results.get_mut("banners").unwrap().rows = vec![vec![
+    app.results.get_mut("linux.banners").unwrap().rows = vec![vec![
         "0x1".into(),
         "Linux version 6.8.11-arm64 #1 Kali 6.8.11-1kali2".into(),
     ]];
@@ -598,7 +598,7 @@ fn hostile_result_content_renders_safely() {
             value.clone(),
         ]);
     }
-    app.results.get_mut("pslist").unwrap().rows = rows;
+    app.results.get_mut("linux.pslist").unwrap().rows = rows;
     app.query.clear();
     for (width, height) in [(80u16, 24u16), (140, 40), (30, 12)] {
         let mut terminal = Terminal::new(TestBackend::new(width, height)).unwrap();
@@ -627,7 +627,7 @@ fn paging_never_scrolls_past_the_last_row() {
     let template = app.result().unwrap().rows[0].clone();
     let mut terminal = Terminal::new(TestBackend::new(120, 40)).unwrap();
     for total in [0usize, 1, 2, 5, 40, 41, 100] {
-        app.results.get_mut("pslist").unwrap().rows = (0..total)
+        app.results.get_mut("linux.pslist").unwrap().rows = (0..total)
             .map(|i| {
                 let mut r = template.clone();
                 r[0] = i.to_string();

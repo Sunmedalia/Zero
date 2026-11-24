@@ -88,7 +88,7 @@ fn progress_key(line: &str) -> &str {
 
 impl App {
     fn console_banner(&self) -> Option<String> {
-        self.results.get("banners").and_then(|r| {
+        self.results.get(Plugin::Banners.name()).and_then(|r| {
             banner_candidates(r)
                 .first()
                 .and_then(|row| row.get(1))

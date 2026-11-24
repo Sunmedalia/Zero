@@ -1,5 +1,5 @@
 {
-  "psaux": {
+  "linux.psaux": {
     "columns": [
       "PID",
       "PPID",
@@ -15,7 +15,7 @@
       "PID 2344 @ 0xffff88001aca0080: 缺页 VA 0x7fff59d6eedd, level 12"
     ]
   },
-  "envars": {
+  "linux.envars": {
     "columns": [
       "PID",
       "Name",
@@ -30,7 +30,7 @@
       "PID 2344 @ 0xffff88001aca0080: 缺页 VA 0x7fff59d6eeeb, level 12"
     ]
   },
-  "maps": {
+  "linux.maps": {
     "columns": [
       "PID",
       "Name",
@@ -181,7 +181,7 @@
       "PID 3482 VMA 0xffff88001c30fd98 路径: 路径不在进程根目录内 @ 0xffff88001e802b00"
     ]
   },
-  "lsof": {
+  "linux.lsof": {
     "columns": [
       "PID",
       "Name",
@@ -207,7 +207,7 @@
       "PID 3482 FD 3 路径: 路径不在进程根目录内 @ 0xffff88001e802b00"
     ]
   },
-  "sockstat": {
+  "linux.sockstat": {
     "columns": [
       "PID",
       "Name",
@@ -225,7 +225,7 @@
     "complete": true,
     "diagnostics": []
   },
-  "banners": {
+  "linux.banners": {
     "columns": [
       "Offset",
       "Banner"
@@ -235,7 +235,7 @@
     "complete": true,
     "diagnostics": []
   },
-  "pwd": {
+  "linux.pwd": {
     "columns": [
       "PID",
       "Name",
@@ -247,7 +247,7 @@
     "complete": true,
     "diagnostics": []
   },
-  "pscred": {
+  "linux.pscred": {
     "columns": [
       "PID",
       "Name",
@@ -266,7 +266,7 @@
     "complete": true,
     "diagnostics": []
   },
-  "threads": {
+  "linux.threads": {
     "columns": [
       "PID",
       "Name",
@@ -279,7 +279,7 @@
     "complete": true,
     "diagnostics": []
   },
-  "mountinfo": {
+  "linux.mountinfo": {
     "columns": [
       "PID",
       "Name",
@@ -296,7 +296,7 @@
     "complete": true,
     "diagnostics": []
   },
-  "check_creds": {
+  "linux.check_creds": {
     "columns": [
       "CredAddress",
       "PIDs",
@@ -309,7 +309,7 @@
     "complete": true,
     "diagnostics": []
   },
-  "dmesg": {
+  "linux.dmesg": {
     "columns": [
       "Index",
       "Message"
@@ -319,7 +319,7 @@
     "complete": true,
     "diagnostics": []
   },
-  "systeminfo": {
+  "linux.systeminfo": {
     "columns": [
       "Key",
       "Value"
@@ -329,7 +329,7 @@
     "complete": true,
     "diagnostics": []
   },
-  "elfs": {
+  "linux.elfs": {
     "columns": [
       "PID",
       "Name",
@@ -2602,7 +2602,7 @@
       "PID 8600 VMA 0xffff88001b6b46b8: 缺页 VA 0x7fff44b90000, level 12"
     ]
   },
-  "bash": {
+  "linux.bash": {
     "columns": [
       "PID",
       "Name",
@@ -2615,7 +2615,7 @@
     "complete": true,
     "diagnostics": []
   },
-  "malfind": {
+  "linux.malfind": {
     "columns": [
       "PID",
       "Name",
@@ -2642,7 +2642,7 @@
       "PID 8502 VMA 0xffff88001b74c768: 缺页 VA 0x7fffc07c7000, level 12"
     ]
   },
-  "psxview": {
+  "linux.psxview": {
     "columns": [
       "PID",
       "Name",
@@ -2657,7 +2657,7 @@
     "complete": true,
     "diagnostics": []
   },
-  "check_modules": {
+  "linux.check_modules": {
     "columns": [
       "Name",
       "Address",
@@ -2672,7 +2672,7 @@
     "complete": true,
     "diagnostics": []
   },
-  "check_syscall": {
+  "linux.check_syscall": {
     "columns": [
       "Table",
       "Index",
@@ -2686,7 +2686,7 @@
     "complete": true,
     "diagnostics": []
   },
-  "psstate": {
+  "linux.psstate": {
     "columns": [
       "PID",
       "Name",
@@ -2699,7 +2699,7 @@
     "complete": true,
     "diagnostics": []
   },
-  "capabilities": {
+  "linux.capabilities": {
     "columns": [
       "PID",
       "Name",
@@ -2714,7 +2714,7 @@
     "complete": true,
     "diagnostics": []
   },
-  "fdsummary": {
+  "linux.fdsummary": {
     "columns": [
       "PID",
       "Name",
@@ -2739,7 +2739,7 @@
       "PID 3482 FD 3 路径: 路径不在进程根目录内 @ 0xffff88001e802b00"
     ]
   },
-  "iomem": {
+  "linux.iomem": {
     "columns": [
       "Name",
       "Start",
@@ -2753,7 +2753,7 @@
     "complete": true,
     "diagnostics": []
   },
-  "ioports": {
+  "linux.ioports": {
     "columns": [
       "Name",
       "Start",
@@ -2767,7 +2767,7 @@
     "complete": true,
     "diagnostics": []
   },
-  "ptrace": {
+  "linux.ptrace": {
     "columns": [
       "Process",
       "PID",
@@ -2781,7 +2781,7 @@
     "complete": true,
     "diagnostics": []
   },
-  "keyboard_notifiers": {
+  "linux.keyboard_notifiers": {
     "columns": [
       "Address",
       "Module",

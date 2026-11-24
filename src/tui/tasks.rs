@@ -583,7 +583,7 @@ impl App {
                     self.finish_worker();
                     self.apply_identification(&banner);
                     let identification = self.identification_status(&banner);
-                    self.results.insert("banners".into(), banner);
+                    self.results.insert(Plugin::Banners.name().into(), banner);
                     self.local_matches = report.matched;
                     self.local_match_errors = report.diagnostics;
                     self.local_match_stamp = Some(stamp);
@@ -652,7 +652,7 @@ impl App {
                         self.identification_status(&result),
                         result.rows.len()
                     );
-                    self.results.insert("banners".into(), result);
+                    self.results.insert(Plugin::Banners.name().into(), result);
                 }
                 WorkerEvent::ImagePreviewed(path) => {
                     self.finish_worker();
@@ -752,11 +752,11 @@ impl App {
                     }
                     self.symbols = path.clone();
                     self.choice = None;
-                    let banner = self.results.get("banners").cloned();
+                    let banner = self.results.get(Plugin::Banners.name()).cloned();
                     self.clear_plugin_tabs();
                     self.results.clear();
                     if let Some(banner) = banner {
-                        self.results.insert("banners".into(), banner);
+                        self.results.insert(Plugin::Banners.name().into(), banner);
                     }
                     self.views.clear();
                     self.history_revision += 1;

@@ -2662,7 +2662,7 @@ fn official_pslist_missing_supplementary_fields_preserves_tasks_as_partial() {
             .any(|d| d.contains("creation time"))
     );
     assert_eq!(
-        <Plugin as clap::ValueEnum>::from_str("linux.pslist", false).unwrap(),
+        <Plugin as clap::ValueEnum>::from_str("linux.pslist.full", false).unwrap(),
         Plugin::LinuxPslist
     );
     assert_eq!(

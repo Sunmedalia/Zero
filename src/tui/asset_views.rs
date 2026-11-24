@@ -344,7 +344,7 @@ impl App {
             .as_ref()
             .is_some_and(|p| self.same_asset_path(p, &asset.path))
         {
-            if let Some(result) = self.results.get("banners") {
+            if let Some(result) = self.results.get(Plugin::Banners.name()) {
                 text.push_str(&format!(
                     "\n\n共 {} 个原始候选；优先展示完整格式，banners 插件保留全部命中。",
                     result.rows.len()

@@ -15,7 +15,7 @@ impl Linux<'_> {
     /// Walk the tasks list through pslist and hand back its entries plus an empty
     /// result for `plugin` that inherits pslist's completeness and diagnostics.
     pub(crate) fn tasks(&self, plugin: Plugin, job: &Job) -> Result<(Results, Vec<Task>)> {
-        if plugin.name().starts_with("linux.") {
+        if plugin.uses_reference_tasks() {
             return self.tasks_from_rows(plugin, self.reference_process_rows(plugin, job)?);
         }
         self.tasks_from_rows(plugin, self.run(Plugin::Pslist, job)?)

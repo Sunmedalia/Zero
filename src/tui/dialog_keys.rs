@@ -1172,7 +1172,7 @@ impl App {
                 KeyCode::Char(' ') if !labels.is_empty() => {
                     if self.choice.as_ref() != labels.get(*selected) {
                         self.clear_plugin_tabs();
-                        self.results.retain(|key, _| key == "banners");
+                        self.results.retain(|key, _| key == Plugin::Banners.name());
                         self.result_requests.clear();
                         self.views.clear();
                         self.history_revision += 1;

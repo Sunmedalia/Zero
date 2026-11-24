@@ -138,7 +138,10 @@ impl App {
             let title = match result {
                 Some(r) => format!(
                     " {} · {pending}{} / {} 条 · {} · 显示 {}–{} 行 ",
-                    r.plugin.strip_prefix("windows.").unwrap_or(&r.plugin),
+                    r.plugin
+                        .strip_prefix("windows.")
+                        .or_else(|| r.plugin.strip_prefix("linux."))
+                        .unwrap_or(&r.plugin),
                     rows.index.filtered.len(),
                     r.rows.len(),
                     if r.historical {

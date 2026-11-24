@@ -117,7 +117,7 @@ fn directory_configuration_picker_navigation_and_export_history() {
             ..
         })
     ));
-    let result = super::tests::app().results.remove("pslist").unwrap();
+    let result = super::tests::app().results.remove("linux.pslist").unwrap();
     let json = dir.path().join("history.json");
     store::export(&json, &result, result.rows.clone()).unwrap();
     app.accept_path(InputKind::History, json);

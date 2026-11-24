@@ -215,7 +215,7 @@ impl Session {
             if image.digest.is_empty() {
                 return Ok(Outcome::Ready(banner_result(&image, job)?));
             }
-            let key = store::key(&image.digest, "no-isf", "banners");
+            let key = store::key(&image.digest, "no-isf", Plugin::Banners.name());
             if request.use_cache
                 && let Some(result) = store::load(request.cache, &key)
             {

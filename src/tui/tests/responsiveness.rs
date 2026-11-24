@@ -4,7 +4,7 @@ use std::rc::Rc;
 
 fn big_pslist(app: &mut App, rows: usize) {
     let template = app.result().unwrap().rows[0].clone();
-    app.results.get_mut("pslist").unwrap().rows = (0..rows)
+    app.results.get_mut("linux.pslist").unwrap().rows = (0..rows)
         .map(|i| {
             let mut row = template.clone();
             row[0] = i.to_string();
@@ -69,7 +69,7 @@ fn large_results_are_indexed_in_the_background_and_keep_the_last_view() {
 #[test]
 fn storing_a_finished_result_shares_one_allocation_for_both_keys() {
     let mut app = app();
-    let result = app.results["pslist"].as_ref().clone();
+    let result = app.results["linux.pslist"].as_ref().clone();
     app.results.clear();
     let (tx, rx) = mpsc::channel();
     app.receiver = Some(rx);
@@ -88,7 +88,7 @@ fn storing_a_finished_result_shares_one_allocation_for_both_keys() {
     tx.send(WorkerEvent::Done(Outcome::Ready(result))).unwrap();
     app.drain();
     let by_request = app.results.shared("pslist|pid=1").unwrap();
-    let by_plugin = app.results.shared("pslist").unwrap();
+    let by_plugin = app.results.shared("linux.pslist").unwrap();
     assert!(Arc::ptr_eq(by_request, by_plugin));
 }
 
