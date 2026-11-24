@@ -509,7 +509,7 @@ impl Windows<'_> {
             return self.mftscan_streams(p, job);
         }
         if p == Plugin::WinBigpools {
-            return self.bigpools(job);
+            return self.bigpools(options, job);
         }
         if p == Plugin::WinDevicetree {
             return self.devicetree(job);

@@ -218,8 +218,8 @@ catalog! {
         "从文件缓存（句柄与 VAD）提取驻留文件内容",
         ["PID", "Cache", "FileObject", "FileName", "Size", "Pages", "SHA256", "File"], [12, 14, 12, 0, 10, 8, 12, 0];
     WinThrdscan, "windows.thrdscan", "windows.thrdscan", Integrity,
-        "扫描线程对象（含已退出或脱离链表的线程）",
-        ["Physical", "Address", "PID", "TID", "StartAddress", "Win32StartAddress", "CreateTime", "ExitTime"], [0, 0, 8, 8, 12, 12, 0, 0];
+        "扫描线程对象（含已退出或脱离链表的线程）并解析起始内核模块",
+        ["Physical", "Address", "PID", "TID", "StartAddress", "Win32StartAddress", "CreateTime", "ExitTime", "StartModule", "Win32StartModule"], [0, 0, 8, 8, 12, 12, 0, 0, 18, 18];
     WinHashdump, "windows.hashdump", "windows.hashdump", Files,
         "解密 SAM hive 中的用户 NTLM/LM 哈希",
         ["User", "RID", "LM", "NT"], [0, 8, 34, 34];
@@ -245,8 +245,8 @@ catalog! {
         "解码 NTUSER 中的 UserAssist 程序执行记录",
         ["Hive", "GUID", "Name", "Count", "FocusCount", "FocusTime", "LastUpdated"], [0, 0, 0, 6, 10, 10, 20];
     WinBigpools, "windows.bigpools", "windows.bigpools", Memory,
-        "列出大页池分配表中的已分配块及池标签",
-        ["Allocation", "Tag", "PoolType", "NumberOfBytes"], [18, 6, 10, 0];
+        "列出大页池分配表中的块、池标签与分配状态（支持 --show-free / --tags）",
+        ["Allocation", "Tag", "PoolType", "NumberOfBytes", "Status"], [18, 6, 10, 14, 10];
     WinSymlinkscan, "windows.symlinkscan", "windows.symlinkscan", Files,
         "扫描符号链接对象及其目标",
         ["Physical", "Address", "Name", "Target", "CreateTime"], [18, 18, 0, 0, 20];
@@ -299,8 +299,8 @@ catalog! {
         "汇总多个插件的时间戳为统一时间线",
         ["Time", "FILETIME", "Plugin", "Event", "Description"], [23, 18, 24, 24, 0];
     WinMbrscan, "windows.mbrscan", "windows.mbrscan", Files,
-        "扫描内存中的主引导记录及分区表",
-        ["Physical", "DiskSignature", "Partition", "Bootable", "Type", "StartLBA", "Sectors", "BootCodeSHA256"], [18, 10, 4, 6, 6, 12, 12, 0];
+        "扫描内存中的主引导记录、分区表与引导代码反汇编",
+        ["Physical", "DiskSignature", "Partition", "Bootable", "Type", "StartLBA", "Sectors", "BootCodeSHA256", "Disasm"], [18, 10, 4, 6, 6, 12, 12, 20, 0];
     WinTimers, "windows.timers", "windows.timers", Integrity,
         "列出各处理器的内核定时器及 DPC 例程归属",
         ["CPU", "Timer", "DueTime", "Period", "DPC", "Routine", "Module"], [4, 18, 20, 8, 18, 18, 0];
@@ -425,17 +425,17 @@ catalog! {
         "列出 netfilter 钩子及处理函数归属",
         ["Namespace", "Protocol", "Hook", "Priority", "Handler", "Symbol", "Owner", "Reason"], [18, 8, 12, 8, 18, 0, 16, 0];
     Tracepoints, "tracepoints", "tracepoints", Integrity,
-        "列出挂在内核 tracepoint 上的探针",
-        ["Tracepoint", "Handler", "Symbol", "Owner", "Reason"], [0, 18, 0, 16, 0];
+        "列出挂在内核 tracepoint 上的探针与优先级",
+        ["Tracepoint", "Handler", "Symbol", "Owner", "Reason", "Priority"], [0, 18, 0, 16, 0, 8];
     Ftrace, "ftrace", "ftrace", Integrity,
-        "列出已注册的 ftrace 回调",
-        ["Ops", "Handler", "Symbol", "Owner", "Reason"], [18, 18, 0, 16, 0];
+        "列出已注册的 ftrace 回调及标志",
+        ["Ops", "Handler", "Symbol", "Owner", "Reason", "Flags"], [18, 18, 0, 16, 0, 18];
     PerfEvents, "perf_events", "perf_events", Integrity,
         "列出进程持有的 perf 事件及溢出处理函数",
         ["PID", "Name", "Event", "Type", "Config", "Handler", "Symbol", "Owner", "Reason"], [6, 14, 18, 6, 10, 18, 0, 16, 0];
     Ebpf, "ebpf", "ebpf", Integrity,
-        "列出已加载的 eBPF 程序",
-        ["ID", "Name", "Type", "Address", "Function"], [6, 16, 0, 18, 18];
+        "列出已加载的 eBPF 程序及其 Tag",
+        ["ID", "Name", "Type", "Address", "Function", "Tag"], [6, 16, 0, 18, 18, 18];
     Boottime, "boottime", "boottime", System,
         "根据时间保持偏移计算系统启动时间",
         ["Key", "Value"], [16, 0];

@@ -157,6 +157,21 @@ impl Windows<'_> {
             }
         }
         let mapped = self.mapped_pool_candidates(&candidates, job)?;
+        let thread_modules = if p == Plugin::WinThrdscan {
+            self.modules_partial(job, r).unwrap_or_default()
+        } else {
+            Vec::new()
+        };
+        let resolve_module = |addr: u64| -> String {
+            if addr == 0 {
+                return String::new();
+            }
+            thread_modules
+                .iter()
+                .find(|m| addr >= m.base && addr < m.base.saturating_add(m.size))
+                .map(|m| m.name.clone())
+                .unwrap_or_default()
+        };
         // Header-shape decisions are per symbol file, not per object.
         let header_layout = self.object_header_layout();
         let mut unmatched = 0;
@@ -182,15 +197,19 @@ impl Windows<'_> {
                             .number(address, ty, "CreateTime")
                             .map(|value| if shift { value >> 3 } else { value });
                         let exited = self.number(address, ty, "ExitTime");
+                        let start_addr = self.number(address, ty, "StartAddress")?;
+                        let win32_start = self.number(address, ty, "Win32StartAddress")?;
                         return Ok(Some(vec![
                             format!("physical:{physical:#x}"),
                             hex(address),
                             self.number(address, ty, "Cid.UniqueProcess")?.to_string(),
                             self.number(address, ty, "Cid.UniqueThread")?.to_string(),
-                            hex(self.number(address, ty, "StartAddress")?),
-                            hex(self.number(address, ty, "Win32StartAddress")?),
+                            hex(start_addr),
+                            hex(win32_start),
                             created.map(timeline::filetime_utc).unwrap_or_default(),
                             exited.map(timeline::filetime_utc).unwrap_or_default(),
+                            resolve_module(start_addr),
+                            resolve_module(win32_start),
                         ]));
                     }
                     let mut name = String::new();
@@ -553,6 +572,8 @@ mod tests {
                 "8".to_string(),
                 hex(K + 0x1000),
                 hex(0),
+                String::new(),
+                String::new(),
                 String::new(),
                 String::new(),
             ]

@@ -71,6 +71,17 @@ struct Cli {
     /// Recursively enumerate subkeys in windows.printkey.
     #[arg(help_heading = "Registry plugins", long, global = true)]
     recurse: bool,
+    /// Include free big-pool allocations in windows.bigpools.
+    #[arg(help_heading = "Scan plugins", long = "show-free", global = true)]
+    show_free: bool,
+    /// Filter windows.bigpools by 4-char pool tags (comma-separated or repeated).
+    #[arg(
+        help_heading = "Scan plugins",
+        long,
+        global = true,
+        value_delimiter = ','
+    )]
+    tags: Vec<String>,
     /// Byte pattern for vmayarascan / windows.vadyarascan: text, wide:TEXT
     /// (UTF-16LE) or hex:4d5a??00 with ?? wildcards; byte regex for VmaRegExScan.
     #[arg(help_heading = "Scan plugins", long, global = true)]
@@ -583,6 +594,8 @@ fn main() -> Result<()> {
                         | Plugin::WinModdump
                         | Plugin::Fbdev
                         | Plugin::Lsmod
+                        | Plugin::CheckModules
+                        | Plugin::HiddenModules
                         | Plugin::WinHivelist
                         | Plugin::WinMalfind
                         | Plugin::LinuxPagecacheInodePages
@@ -690,6 +703,8 @@ impl Cli {
             hive: self.hive,
             key: self.key.clone(),
             recurse: self.recurse,
+            show_free: self.show_free,
+            tags: self.tags.clone(),
             pattern: self.pattern.clone(),
             strings_file: self.strings_file.clone(),
             min_length: self.min_length,

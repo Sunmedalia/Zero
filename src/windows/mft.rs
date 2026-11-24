@@ -367,6 +367,7 @@ impl Windows<'_> {
                 continue;
             };
             let boot = format!("{:x}", sha2::Sha256::digest(&sector[..440]));
+            let disasm = disassemble_mbr_bootcode(&sector[..64]);
             for (index, (bootable, kind, first, count)) in partitions.into_iter().enumerate() {
                 r.rows.push(vec![
                     format!("physical:{start:#x}"),
@@ -377,12 +378,41 @@ impl Windows<'_> {
                     first.to_string(),
                     count.to_string(),
                     boot.clone(),
+                    disasm.clone(),
                 ]);
             }
             ensure!(r.rows.len() <= RECORD_LIMIT, "MBR 记录超过上限");
         }
         Ok(r)
     }
+}
+
+fn disassemble_mbr_bootcode(bytes: &[u8]) -> String {
+    use capstone::prelude::*;
+    let Ok(cs) = Capstone::new()
+        .x86()
+        .mode(capstone::arch::x86::ArchMode::Mode16)
+        .build()
+    else {
+        return String::new();
+    };
+    let Ok(insns) = cs.disasm_all(bytes, 0x7c00) else {
+        return String::new();
+    };
+    insns
+        .iter()
+        .take(16)
+        .map(|i| {
+            let mnem = i.mnemonic().unwrap_or("");
+            let ops = i.op_str().unwrap_or("");
+            if ops.is_empty() {
+                format!("{:#x}: {mnem}", i.address())
+            } else {
+                format!("{:#x}: {mnem} {ops}", i.address())
+            }
+        })
+        .collect::<Vec<_>>()
+        .join("; ")
 }
 
 #[cfg(test)]

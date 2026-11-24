@@ -66,7 +66,11 @@ pub fn parse_address(text: &str) -> Result<u64, String> {
 impl DumpOptions {
     pub fn validate(&self, plugin: Plugin) -> Result<()> {
         ensure!(plugin.accepts_dump(), "非 Dump 插件");
-        if plugin == Plugin::Lsmod || plugin.is_linux_mapping_export() {
+        if matches!(
+            plugin,
+            Plugin::Lsmod | Plugin::CheckModules | Plugin::HiddenModules
+        ) || plugin.is_linux_mapping_export()
+        {
             ensure!(self.pid == 0, "该导出模式不接受 DumpOptions.pid");
             ensure!(
                 self.start.is_none() && self.end.is_none(),

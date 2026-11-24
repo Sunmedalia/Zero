@@ -427,6 +427,8 @@ impl Plugin {
                     | Self::WinHivelist
                     | Self::WinMalfind
                     | Self::Lsmod
+                    | Self::CheckModules
+                    | Self::HiddenModules
                     | Self::LinuxMaps
                     | Self::LinuxMalfind
                     | Self::LinuxElfs

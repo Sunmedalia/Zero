@@ -210,6 +210,18 @@ impl Windows<'_> {
         job: &Job,
         mut visit: impl FnMut(u64, u32, &[u8], &mut Results) -> Result<()>,
     ) -> Result<()> {
+        self.walk_big_pool_entries_filtered(false, r, job, |va, key, _free, entry, r| {
+            visit(va, key, entry, r)
+        })
+    }
+
+    pub(super) fn walk_big_pool_entries_filtered(
+        &self,
+        include_free: bool,
+        r: &mut Results,
+        job: &Job,
+        mut visit: impl FnMut(u64, u32, bool, &[u8], &mut Results) -> Result<()>,
+    ) -> Result<()> {
         let ty = "_POOL_TRACKER_BIG_PAGES";
         let table = self.vm.pointer(self.symbol("PoolBigPageTable")?)?;
         let count = self.vm.uint(self.symbol("PoolBigPageTableSize")?, 4)?;
@@ -248,10 +260,11 @@ impl Windows<'_> {
                 }
                 let key = u32::try_from(objects::physical_number(self.vm.isf, entry, ty, "Key")?)?;
                 let va = objects::physical_number(self.vm.isf, entry, ty, "Va")?;
-                if key == 0 || va & 1 != 0 {
+                let is_free = va & 1 != 0;
+                if key == 0 || (is_free && !include_free) {
                     continue;
                 }
-                visit(va, key, entry, r)?;
+                visit(va & !1, key, is_free, entry, r)?;
             }
             if missing > 0 {
                 Self::issue(
@@ -264,8 +277,8 @@ impl Windows<'_> {
         }
         Ok(())
     }
-    /// windows.bigpools: allocated entries of PoolBigPageTable.
-    pub(super) fn bigpools(&self, job: &Job) -> Result<Results> {
+    /// windows.bigpools: entries of PoolBigPageTable (optional `--show-free` and `--tags`).
+    pub(super) fn bigpools(&self, options: &Options, job: &Job) -> Result<Results> {
         let mut r = self.result(Plugin::WinBigpools);
         let ty = "_POOL_TRACKER_BIG_PAGES";
         let bytes_field = if self.vm.isf.has_field(ty, "NumberOfBytes") {
@@ -274,35 +287,50 @@ impl Windows<'_> {
             "Size"
         };
         let pool_type = self.vm.isf.has_field(ty, "PoolType");
-        let read = self.walk_big_pool_entries(&mut r, job, |va, key, entry, r| {
-            ensure!(r.rows.len() < MAX_OBJECTS, "大页池输出数量超限");
-            let tag: String = key
-                .to_le_bytes()
-                .iter()
-                .map(|b| {
-                    let b = b & 0x7f;
-                    if b.is_ascii_graphic() || b == b' ' {
-                        b as char
+        let tag_filter: HashSet<String> = options
+            .tags
+            .iter()
+            .map(|t| t.trim().to_owned())
+            .filter(|t| !t.is_empty())
+            .collect();
+        let read = self.walk_big_pool_entries_filtered(
+            options.show_free,
+            &mut r,
+            job,
+            |va, key, is_free, entry, r| {
+                ensure!(r.rows.len() < MAX_OBJECTS, "大页池输出数量超限");
+                let tag: String = key
+                    .to_le_bytes()
+                    .iter()
+                    .map(|b| {
+                        let b = b & 0x7f;
+                        if b.is_ascii_graphic() || b == b' ' {
+                            b as char
+                        } else {
+                            '.'
+                        }
+                    })
+                    .collect();
+                if !tag_filter.is_empty() && !tag_filter.contains(&tag) {
+                    return Ok(());
+                }
+                r.rows.push(vec![
+                    hex(va),
+                    tag,
+                    if pool_type {
+                        format!(
+                            "{:#x}",
+                            objects::physical_number(self.vm.isf, entry, ty, "PoolType")?
+                        )
                     } else {
-                        '.'
-                    }
-                })
-                .collect();
-            r.rows.push(vec![
-                hex(va),
-                tag,
-                if pool_type {
-                    format!(
-                        "{:#x}",
-                        objects::physical_number(self.vm.isf, entry, ty, "PoolType")?
-                    )
-                } else {
-                    String::new()
-                },
-                objects::physical_number(self.vm.isf, entry, ty, bytes_field)?.to_string(),
-            ]);
-            Ok(())
-        });
+                        String::new()
+                    },
+                    objects::physical_number(self.vm.isf, entry, ty, bytes_field)?.to_string(),
+                    if is_free { "Free" } else { "Allocated" }.into(),
+                ]);
+                Ok(())
+            },
+        );
         if let Err(error) = read {
             job.check()?;
             Self::issue(&mut r, "BigPools", format!("{error:#}"));
@@ -806,12 +834,45 @@ mod tests {
             put(&mut b, at + 16, bytes);
         }
         let img = image(&b);
-        let r = engine(&img, &isf).bigpools(&Job::default()).unwrap();
+        let r = engine(&img, &isf)
+            .bigpools(&Options::default(), &Job::default())
+            .unwrap();
         assert!(r.complete, "{:?}", r.diagnostics);
         assert_eq!(
             r.rows,
-            [[hex(K + 0x20000), "Ntfx".into(), "0x1".into(), "8192".into()].to_vec()]
+            [[
+                hex(K + 0x20000),
+                "Ntfx".into(),
+                "0x1".into(),
+                "8192".into(),
+                "Allocated".into()
+            ]
+            .to_vec()]
         );
+        let with_free = engine(&img, &isf)
+            .bigpools(
+                &Options {
+                    show_free: true,
+                    ..Default::default()
+                },
+                &Job::default(),
+            )
+            .unwrap();
+        assert_eq!(with_free.rows.len(), 2);
+        assert_eq!(with_free.rows[1][0], hex(K + 0x30000));
+        assert_eq!(with_free.rows[1][4], "Free");
+        let filtered = engine(&img, &isf)
+            .bigpools(
+                &Options {
+                    show_free: true,
+                    tags: vec!["Free".into()],
+                    ..Default::default()
+                },
+                &Job::default(),
+            )
+            .unwrap();
+        assert_eq!(filtered.rows.len(), 1);
+        assert_eq!(filtered.rows[0][1], "Free");
     }
     #[test]
     fn devicetree_walks_devices_attachments_and_rejects_loops() {

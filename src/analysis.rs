@@ -113,6 +113,10 @@ pub struct Options {
     pub key: String,
     /// Recursively walk subkeys in `windows.printkey`.
     pub recurse: bool,
+    /// Include free entries in `windows.bigpools`.
+    pub show_free: bool,
+    /// Filter pool tags in `windows.bigpools`.
+    pub tags: Vec<String>,
     /// Byte pattern for vmayarascan / windows.vadyarascan.
     pub pattern: Option<String>,
     /// Local decimal-offset strings output consumed by windows.strings.Strings.
@@ -255,6 +259,10 @@ pub fn analyze(
     ensure!(
         !options.recurse || request.plugin == Plugin::WinPrintkey,
         "recurse 仅支持 windows.printkey"
+    );
+    ensure!(
+        (!options.show_free && options.tags.is_empty()) || request.plugin == Plugin::WinBigpools,
+        "show_free / tags 仅支持 windows.bigpools"
     );
     if let Some(dump) = dump {
         dump.validate(request.plugin)?;

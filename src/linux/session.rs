@@ -414,6 +414,10 @@ impl Session {
         }
         let result = if request.plugin == Plugin::Lsmod && dump.is_some() {
             engine.lsmod_with_dump(dump.context("Lsmod 导出需要目录")?, job)?
+        } else if matches!(request.plugin, Plugin::CheckModules | Plugin::HiddenModules)
+            && dump.is_some()
+        {
+            engine.module_view_with_dump(request.plugin, dump.context("模块导出需要目录")?, job)?
         } else if request.plugin == Plugin::LinuxMaps {
             engine.linux_maps(options, dump, job)?
         } else if request.plugin == Plugin::LinuxMalfind {

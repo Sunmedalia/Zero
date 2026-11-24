@@ -35,8 +35,8 @@ use std::sync::{
     atomic::{AtomicBool, Ordering},
 };
 
-// Align Windows MFT ADS/ResidentData, Registry printkey recurse/hivelist dump, psxview 4-view, malfind disasm/dump, and Linux pagecache InodePages/RecoverFs.
-pub const ENGINE_VERSION: &str = concat!(env!("CARGO_PKG_VERSION"), "-native-126");
+// Batch 2: Linux check_modules/hidden_modules dump, ebpf Tag, tracepoints priority, ftrace flags; Windows thrdscan modules, mbrscan disasm, bigpools status/show-free/tags.
+pub const ENGINE_VERSION: &str = concat!(env!("CARGO_PKG_VERSION"), "-native-127");
 #[derive(Clone)]
 pub struct Job {
     pub cancel: Arc<AtomicBool>,

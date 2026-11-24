@@ -45,6 +45,8 @@ struct AnalyzeArgs {
     hive: Option<String>,
     key: Option<String>,
     recurse: Option<bool>,
+    show_free: Option<bool>,
+    tags: Option<Vec<String>>,
     pattern: Option<String>,
     strings_file: Option<PathBuf>,
     min_length: Option<i64>,
@@ -424,6 +426,8 @@ fn call(
                         plugin,
                         Plugin::Fbdev
                             | Plugin::Lsmod
+                            | Plugin::CheckModules
+                            | Plugin::HiddenModules
                             | Plugin::WinHivelist
                             | Plugin::WinMalfind
                             | Plugin::LinuxPagecacheInodePages
@@ -505,6 +509,8 @@ fn call(
                         .map_err(anyhow::Error::msg)?,
                     key: a.key.unwrap_or_default(),
                     recurse: a.recurse.unwrap_or(false),
+                    show_free: a.show_free.unwrap_or(false),
+                    tags: a.tags.unwrap_or_default(),
                     pattern: a.pattern,
                     strings_file: a.strings_file.map(|p| path(root, &p)),
                     min_length: a.min_length,

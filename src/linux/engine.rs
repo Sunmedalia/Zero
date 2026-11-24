@@ -518,6 +518,56 @@ impl Linux<'_> {
         Ok(result)
     }
 
+    /// Export ELF modules discovered by `check_modules` or `hidden_modules`.
+    pub(super) fn module_view_with_dump(
+        &self,
+        plugin: Plugin,
+        options: &crate::dump::DumpOptions,
+        job: &Job,
+    ) -> Result<Results> {
+        let mut result = self.result(plugin);
+        match plugin {
+            Plugin::CheckModules => self.check_modules(&mut result, job)?,
+            Plugin::HiddenModules => self.hidden_modules(&mut result, job)?,
+            _ => bail!("不支持该插件的模块导出: {}", plugin.name()),
+        }
+        if !result.kernel_identity.is_object() {
+            result.kernel_identity = serde_json::json!({});
+        }
+        for index in 0..result.rows.len() {
+            job.check()?;
+            let address = result.rows.at(index)?.at(1)?.clone();
+            let object = u64::from_str_radix(address.trim_start_matches("0x"), 16)?;
+            let extraction = crate::dump::DumpOptions {
+                pid: 0,
+                start: Some(if self.arm64() {
+                    object
+                } else {
+                    object & ((1u64 << 48) - 1)
+                }),
+                end: None,
+                directory: options.directory.clone(),
+            };
+            match self.extract_module(&extraction, job) {
+                Ok(extracted) => {
+                    if !extracted.complete {
+                        result.complete = false;
+                    }
+                    result.diagnostics.extend(extracted.diagnostics);
+                    *result
+                        .kernel_identity
+                        .key_mut("module_exports")?
+                        .key_mut(format!("{object:#x}"))? = extracted.kernel_identity;
+                }
+                Err(error) => {
+                    job.check()?;
+                    partial(&mut result, format!("module {object:#x} export"), error);
+                }
+            }
+        }
+        Ok(result)
+    }
+
     fn kernel_list(&self, plugin: Plugin, job: &Job) -> Result<Results> {
         if plugin != Plugin::Lsmod {
             return self.process_list(plugin, job);

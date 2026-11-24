@@ -156,6 +156,8 @@ impl App {
                         .map_err(anyhow::Error::msg)?,
                         os: self.analysis_options.os,
                         recurse: self.analysis_options.recurse,
+                        show_free: self.analysis_options.show_free,
+                        tags: self.analysis_options.tags.clone(),
                         include_threads: matches!(
                             self.plugin,
                             Plugin::LinuxPslist | Plugin::LinuxPstree
