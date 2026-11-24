@@ -22,7 +22,7 @@ pub use packages::{
     prepare_auto, prepare_package, supports_automatic_banner,
 };
 use serde_json::json;
-pub use service::{Discovery, Generation, GenerationInput, symbol_library};
+pub use service::{CandidateSelection, Discovery, Generation, GenerationInput, symbol_library};
 use std::{
     fs::{self, File},
     io::{Read, Seek, SeekFrom, Write},

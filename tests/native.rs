@@ -1569,6 +1569,7 @@ fn mcp_exchange(root: &std::path::Path, input: &str) -> Result<Vec<serde_json::V
         .arg("mcp")
         .current_dir(external.path())
         .env("ZERO_ROOT", root)
+        .env_remove("ZERO_MCP_DWARF2JSON")
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
@@ -1774,6 +1775,88 @@ fn mcp_rejects_bad_arguments_and_recovers_from_invalid_json() -> Result<()> {
     );
     assert_eq!(replies[7]["error"]["code"], -32601);
     assert_eq!(replies[8]["result"], json!({}));
+    Ok(())
+}
+
+#[test]
+fn mcp_symbols_generate_returns_offline_candidates_and_rejects_tool_override() -> Result<()> {
+    use sha2::{Digest, Sha256};
+    let dir = tempfile::tempdir()?;
+    let pool = "https://deb.debian.org/debian/pool/main/l/linux/";
+    let index = dir.path().join(format!(
+        ".zero/rust/symbols/build/indexes/{:x}.html",
+        Sha256::digest(pool.as_bytes())
+    ));
+    fs::create_dir_all(index.parent().unwrap())?;
+    let mut listing = String::new();
+    let mut image = String::new();
+    for version in ["6.12.105", "6.12.106"] {
+        let release = format!("{version}+deb13-amd64");
+        image.push_str(&format!(
+            "Linux version {release} (build@debian) (x86_64-linux-gnu-gcc-14) #1 SMP Debian {version}-1\n\0"
+        ));
+        for suffix in ["-dbg", "-unsigned"] {
+            listing.push_str(&format!(
+                "<a href=\"linux-image-{release}{suffix}_{version}-1_amd64.deb\">package</a>\n"
+            ));
+        }
+    }
+    fs::write(index, listing)?;
+    fs::write(dir.path().join("image.raw"), image)?;
+    let requests = [
+        mcp_call(
+            1,
+            "zero_symbols_generate",
+            json!({"image":"image.raw","auto":true,"offline":true}),
+        ),
+        mcp_call(
+            2,
+            "zero_symbols_generate",
+            json!({"image":"image.raw","auto":true,"offline":true,"candidate":3}),
+        ),
+        mcp_call(
+            3,
+            "zero_symbols_generate",
+            json!({"image":"image.raw","auto":true,"offline":true,"tool":"converter"}),
+        ),
+    ];
+    let input = requests
+        .iter()
+        .map(|r| format!("{r}\n"))
+        .collect::<String>();
+    let replies = mcp_exchange(dir.path(), &input)?;
+    assert_eq!(replies[0]["result"]["isError"], false);
+    let selection = &replies[0]["result"]["structuredContent"];
+    assert_eq!(selection["needs_candidate"], true);
+    let expected: Vec<_> = ["6.12.105", "6.12.106"]
+        .into_iter()
+        .enumerate()
+        .map(|(i, version)| {
+            json!({
+                "candidate": i + 1,
+                "distribution": "Debian",
+                "release": format!("{version}+deb13-amd64"),
+                "architecture": "amd64",
+                "version": format!("{version}-1"),
+                "debug_url": format!("{pool}linux-image-{version}+deb13-amd64-dbg_{version}-1_amd64.deb"),
+            })
+        })
+        .collect();
+    assert_eq!(selection["candidates"], json!(expected));
+    assert_eq!(replies[1]["result"]["isError"], true);
+    assert!(
+        replies[1]["result"]["structuredContent"]["error"]
+            .as_str()
+            .unwrap()
+            .contains("1..=2")
+    );
+    assert_eq!(replies[2]["result"]["isError"], true);
+    assert!(
+        replies[2]["result"]["structuredContent"]["error"]
+            .as_str()
+            .unwrap()
+            .contains("unknown field `tool`")
+    );
     Ok(())
 }
 
@@ -2244,6 +2327,47 @@ fn kernel_diagnostic_can_pass_and_reports_missing_sources_and_cancellation_separ
             .contains("镜像读取／校验失败")
     );
     assert!(report.candidates.is_empty());
+    Ok(())
+}
+
+#[test]
+fn diagnose_cli_returns_failure_and_keeps_the_report() -> Result<()> {
+    let dir = tempfile::tempdir()?;
+    let (mut bytes, isf) = discoverable();
+    let image = dir.path().join("capture.raw");
+    fs::write(&image, &bytes)?;
+    fs::write(
+        dir.path().join("exact.json"),
+        serde_json::to_vec(&isf.data)?,
+    )?;
+    let diagnose = |extra: &[&str]| {
+        std::process::Command::new(env!("CARGO_BIN_EXE_zero"))
+            .current_dir(dir.path())
+            .args([
+                "diagnose",
+                "--image",
+                "capture.raw",
+                "--symbols",
+                "exact.json",
+            ])
+            .args(extra)
+            .output()
+    };
+    let passed = diagnose(&[])?;
+    assert!(passed.status.success(), "{passed:?}");
+
+    put(&mut bytes, 0x8308, 0x9500);
+    fs::write(&image, bytes)?;
+    let failed = diagnose(&["--output", "failed.json"])?;
+    assert_eq!(failed.status.code(), Some(1));
+    let report: serde_json::Value =
+        serde_json::from_slice(&fs::read(dir.path().join("failed.json"))?)?;
+    assert_eq!(report["candidates"][0]["passed"], false);
+
+    fs::remove_file(image)?;
+    let missing = diagnose(&[])?;
+    assert_eq!(missing.status.code(), Some(1));
+    assert!(String::from_utf8(missing.stdout)?.contains("镜像读取／校验失败"));
     Ok(())
 }
 

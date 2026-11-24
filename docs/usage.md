@@ -324,6 +324,8 @@ zero dump --image images/WinDump/WinDump.mem --symbols symbols/nt.json.xz \
 
 ### 6.3 符号识别、下载与生成
 
+`zero diagnose --image images/memory.raw --symbols symbols/ --output diagnosis.json` 使用本地符号验证内核。省略 `--output` 时将文本报告写入标准输出。诊断未完成或没有符号候选通过校验时，命令会生成报告，并返回非零退出码。
+
 ```sh
 # 返回内核 banner、仓库路径和下载链接
 zero symbols --image images/linux-sample-1.bin.gz --output symbols-match.json

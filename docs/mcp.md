@@ -6,7 +6,7 @@
 
 ## 工具与快照分页
 
-工具包括 `zero_plugins`、`zero_symbols`、`zero_analyze`、`zero_results`、`zero_dump` 和 `zero_cache_list`。
+工具包括 `zero_plugins`、`zero_symbols`、`zero_symbols_generate`、`zero_diagnose`、`zero_doctor`、`zero_analyze`、`zero_results`、`zero_dump` 和 `zero_cache_list`。
 
 1. 调用 `zero_analyze`，传入镜像、插件、精确符号以及可选 `limit`、`output`。默认返回 50 行，最多 200 行，并返回 `result_id`。
 2. 用 `zero_results` 传入 `result_id`、`offset: next_offset` 和 `limit`，直到 `next_offset` 为 null。
@@ -32,6 +32,8 @@ CLI 对应 `--threads`、`--decorate-comm`，详见 [对齐进度](volatility-pa
 每条输入请求上限 1 MiB，超限时丢弃该行并保留连接。参数按 schema 校验。工具失败检查 `isError`，分析结果另检查 `complete` 和 `diagnostics`；零行不代表完整覆盖。
 
 `offline: true` 禁止该调用的符号网络请求。离线且没有远程索引时，用 `zero_analyze` 的 `banners` 插件识别内核，`zero_symbols` 仍需要索引。`zero_results` 只读取本服务快照，不访问镜像或网络。
+
+`zero_symbols_generate` 使用服务端选择的 dwarf2json。可在 MCP 服务的启动环境中将 `ZERO_MCP_DWARF2JSON` 设为受信任的转换器绝对路径。自动生成返回 `needs_candidate: true` 时，从 `candidates` 中选择所需版本和来源，用对应的 `candidate` 序号重试，并省略 `refresh`。
 
 `zero_dump` 要求显式目录和清单路径；进程模式还要求 PID，`module` 模式可省略 PID，`kernel-module` 模式使用 start 指定 struct module 地址且不接受 PID，最多返回 200 条清单行；完整清单见 output，不使用分析快照分页。
 

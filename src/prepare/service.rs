@@ -20,6 +20,20 @@ pub enum Discovery {
     Ready(PathBuf),
     Candidates(Vec<KernelPackage>),
 }
+
+#[derive(Debug)]
+pub struct CandidateSelection {
+    pub candidates: Vec<KernelPackage>,
+}
+
+impl std::fmt::Display for CandidateSelection {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("找到多个候选；请使用 --auto --candidate <序号> 选择")
+    }
+}
+
+impl std::error::Error for CandidateSelection {}
+
 pub struct Generation<'a> {
     pub image: &'a Image,
     pub library: &'a Path,
@@ -65,10 +79,12 @@ impl Generation<'_> {
                         package.debug_url
                     ));
                 }
-                ensure!(
-                    candidate.is_some() || packages.len() == 1,
-                    "找到多个候选；请使用 --auto --candidate <序号> 选择"
-                );
+                if candidate.is_none() && packages.len() > 1 {
+                    return Err(CandidateSelection {
+                        candidates: packages,
+                    }
+                    .into());
+                }
                 let selected = candidate
                     .unwrap_or(1)
                     .checked_sub(1)

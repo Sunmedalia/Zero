@@ -398,6 +398,10 @@ fn main() -> Result<()> {
         } else {
             println!("{}", report.text());
         }
+        anyhow::ensure!(
+            report.failure.is_none() && report.passed() > 0,
+            "内核校验失败，请查看诊断报告"
+        );
         return Ok(());
     }
     if let Some(Command::SymbolsGenerate {

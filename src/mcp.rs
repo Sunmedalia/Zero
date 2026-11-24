@@ -69,7 +69,6 @@ struct SymbolsGenerateArgs {
     image: PathBuf,
     elf: Option<PathBuf>,
     config: Option<PathBuf>,
-    tool: Option<PathBuf>,
     kali: Option<bool>,
     auto: Option<bool>,
     candidate: Option<usize>,
@@ -167,7 +166,7 @@ fn tools() -> Value {
         {"name":"zero_plugins","description":"List native Linux and Windows memory forensics plugins and their result columns.","inputSchema":{"type":"object","properties":{},"additionalProperties":false}},
         {"name":"zero_doctor","description":"Report which optional external tools (git, go) this environment has for Linux symbol generation.","inputSchema":{"type":"object","properties":{},"additionalProperties":false}},
         {"name":"zero_symbols","description":"Identify image banners and exact ISF repository matches. Optional download saves verified symbols locally; refresh forces an online index update.","inputSchema":{"type":"object","properties":{"image":{"type":"string"},"offline":{"type":"boolean"},"download":{"type":"boolean"},"refresh":{"type":"boolean"}},"required":["image"],"additionalProperties":false}},
-        {"name":"zero_symbols_generate","description":"Generate and save exact Linux symbols from debug ELF/config, official packages (auto/kali), or embedded BTF and kallsyms (from_image).","inputSchema":{"type":"object","properties":{"image":{"type":"string"},"elf":{"type":"string"},"config":{"type":"string"},"tool":{"type":"string"},"kali":{"type":"boolean"},"auto":{"type":"boolean"},"candidate":{"type":"integer","minimum":1},"refresh":{"type":"boolean"},"from_image":{"type":"boolean"},"offline":{"type":"boolean"}},"required":["image"],"additionalProperties":false}},
+        {"name":"zero_symbols_generate","description":"Generate and save exact Linux symbols from debug ELF/config, official packages (auto/kali), or embedded BTF and kallsyms (from_image). When needs_candidate is true, retry with a candidate number from candidates and omit refresh.","inputSchema":{"type":"object","properties":{"image":{"type":"string"},"elf":{"type":"string"},"config":{"type":"string"},"kali":{"type":"boolean"},"auto":{"type":"boolean"},"candidate":{"type":"integer","minimum":1},"refresh":{"type":"boolean"},"from_image":{"type":"boolean"},"offline":{"type":"boolean"}},"required":["image"],"additionalProperties":false}},
         {"name":"zero_diagnose","description":"Run offline kernel validation diagnostics for an image and symbol source, optionally exporting JSON or TXT.","inputSchema":{"type":"object","properties":{"image":{"type":"string"},"symbols":{"type":"string"},"symbol_choice":{"type":"string"},"os":{"type":"string","enum":["auto","linux","windows"]},"output":{"type":"string"}},"required":["image"],"additionalProperties":false}},
         {"name":"zero_analyze","description":"Run a native analysis plugin on a local memory image. Returns at most 200 rows and may export all rows to JSON/CSV. Returns result_id; use zero_results for subsequent pages.","inputSchema":{"type":"object","properties":{"image":{"type":"string"},"plugin":{"type":"string","description":"Plugin name or alias as listed by zero_plugins"},"os":{"type":"string","enum":["auto","linux","windows"]},"arch":{"type":"string","enum":["auto","x86","x64","arm64"]},"pagefiles":{"type":"array","items":{"type":"object","properties":{"index":{"type":"integer","minimum":0,"maximum":15},"path":{"type":"string"}},"required":["index","path"],"additionalProperties":false}},"swapfile":{"type":"string"},"pid":{"type":"integer","minimum":0},"include_threads":{"type":"boolean"},"decorate_comm":{"type":"boolean"},"plain_taints":{"type":"boolean"},"files_only":{"type":"boolean","description":"linux.lsof.Lsof: include only regular files"},"netns":{"type":"integer","minimum":0,"description":"linux.sockstat.Sockstat: filter by network namespace inode"},"hexdump_size":{"type":"integer","minimum":0,"maximum":4096,"description":"linux.malware.malfind.Malfind: bytes per hexdump/disasm preview (default 64)"},"show_all_dirty_pages":{"type":"boolean","description":"linux.malware.malfind.Malfind: show every dirty page in executable VMAs flagged by their page tables"},"mntns":{"type":"integer","minimum":0,"description":"linux.mountinfo.MountInfo: filter by mount namespace inode"},"mount_format":{"type":"boolean","description":"linux.mountinfo.MountInfo: concise mount summary format"},"file_types":{"type":"array","maxItems":16,"items":{"type":"string"},"description":"linux.pagecache.Files: inode types to include (e.g. REG, DIR)"},"find":{"type":"string","description":"linux.pagecache.Files: path substring filter"},"core":{"type":"boolean"},"modules":{"type":"boolean"},"ftrace":{"type":"boolean"},"bpf":{"type":"boolean"},"hive":{"type":"string"},"key":{"type":"string"},"min_length":{"type":"integer","description":"TrueCrypt Passphrase: minimum cached length (default 5)"},"strings_file":{"type":"string","description":"Strings: local decimal-offset strings output file"},"pattern":{"type":"string","description":"VmaRegExScan/VadRegExScan: byte regex; vmayarascan/windows.vadyarascan: text, wide:TEXT or hex:4d5a??00"},"pids":{"type":"array","maxItems":4096,"items":{"type":"integer","minimum":0},"description":"PsList / PsTree / PsAux / Envars / Capabilities / Maps / Lsof / Sockstat / Malfind / MountInfo / Bash / Elfs / LibraryList / Strings / VmaRegExScan / VadRegExScan / VadWalk / PsCallStack PID list"},"unresolved":{"type":"boolean","description":"PsCallStack: include unresolved nonzero stack words"},"source":{"type":"string","enum":["kernel","processes"],"description":"PESymbols module source"},"module":{"type":"string","description":"PESymbols module filename"},"symbol_names":{"type":"array","maxItems":4096,"items":{"type":"string"}},"addresses":{"type":"array","maxItems":4096,"items":{"type":"string"},"description":"PESymbols / linux.proc.Maps absolute addresses, decimal or 0x"},"maxsize":{"type":"integer","description":"Compatibility option for VmaRegExScan/VadRegExScan, or max dump size for linux.proc.Maps / linux.malware.malfind.Malfind"},"symbols":{"type":"string"},"symbol_choice":{"type":"string"},"offline":{"type":"boolean"},"no_cache":{"type":"boolean"},"limit":{"type":"integer","minimum":1,"maximum":200},"output":{"type":"string"},"dump_dir":{"type":"string","description":"Optional binary export directory for listing plugins that support dump (linux.proc.Maps, linux.malware.malfind.Malfind, linux.elfs.Elfs, lsmod, linux.graphics.fbdev.Fbdev, windows.memmap.Memmap)"}},"required":["image","plugin"],"additionalProperties":false}},
         {"name":"zero_results","description":"Read or export an immutable analysis snapshot. Does not run analysis; expired IDs require a new zero_analyze call.","inputSchema":{"type":"object","properties":{"result_id":{"type":"string"},"offset":{"type":"integer","minimum":0},"limit":{"type":"integer","minimum":1,"maximum":200},"output":{"type":"string"}},"required":["result_id"],"additionalProperties":false}},
@@ -256,10 +255,6 @@ fn call(
                 !local || (a.elf.is_some() && a.config.is_some()),
                 "本地生成需要同时提供 elf 和 config"
             );
-            ensure!(
-                !from_image || a.tool.is_none(),
-                "from_image 不接受 tool 参数"
-            );
             ensure!(a.candidate.is_none() || auto, "candidate 仅用于 auto 模式");
             ensure!(a.candidate != Some(0), "候选序号从 1 开始");
             ensure!(!refresh || auto, "refresh 仅用于 auto 模式");
@@ -270,7 +265,15 @@ fn call(
             );
             let image = session.prepare_image(&path(root, &a.image), &cache_dir, job)?;
             let library = zero_tui::prepare::symbol_library(root, &settings.symbols);
-            let tool = a.tool.as_deref().map(|p| path(root, p));
+            let tool = if from_image {
+                None
+            } else {
+                env::var_os("ZERO_MCP_DWARF2JSON").map(PathBuf::from)
+            };
+            ensure!(
+                tool.as_deref().is_none_or(Path::is_absolute),
+                "ZERO_MCP_DWARF2JSON 必须是绝对路径"
+            );
             let service = zero_tui::prepare::Generation {
                 image: &image,
                 library: &library,
@@ -309,8 +312,28 @@ fn call(
                     }),
                 }
             };
-            let saved = service.run(input)?;
-            Ok(json!({"path": saved}))
+            match service.run(input) {
+                Ok(saved) => Ok(json!({"path": saved})),
+                Err(error) => {
+                    let selection = error.downcast::<zero_tui::prepare::CandidateSelection>()?;
+                    let candidates = selection
+                        .candidates
+                        .iter()
+                        .enumerate()
+                        .map(|(index, package)| {
+                            json!({
+                                "candidate": index + 1,
+                                "distribution": package.distribution,
+                                "release": package.release,
+                                "architecture": package.architecture,
+                                "version": package.version,
+                                "debug_url": package.debug_url,
+                            })
+                        })
+                        .collect::<Vec<_>>();
+                    Ok(json!({"needs_candidate": true, "candidates": candidates}))
+                }
+            }
         }
         "zero_diagnose" => {
             let a: DiagnoseArgs = serde_json::from_value(args)?;
@@ -1028,6 +1051,7 @@ mod protocol_tests {
         assert!(dump_modes.iter().any(|m| m == "lsmod"));
 
         let generate = &find("zero_symbols_generate")["inputSchema"]["properties"];
+        assert!(generate.get("tool").is_none());
         assert_eq!(generate["from_image"]["type"], "boolean");
         assert_eq!(generate["auto"]["type"], "boolean");
         assert_eq!(generate["candidate"]["minimum"], 1);
