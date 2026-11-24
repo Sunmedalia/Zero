@@ -1234,7 +1234,15 @@ impl App {
                     self.object_version += 1;
                     self.choice = labels.get(*selected).cloned();
                     if let Some(request) = self.symbol_retry.take() {
-                        self.start_snapshot(request);
+                        match request {
+                            SymbolRetry::Analysis(snapshot) => self.start_snapshot(*snapshot),
+                            SymbolRetry::Work(work) => match *work {
+                                Work::Inspect(query, tab) => {
+                                    self.launch_inspector_query(query, tab)
+                                }
+                                work => self.start_work(work),
+                            },
+                        }
                     } else if let Some((path, _)) = self
                         .preparation_candidates
                         .iter()

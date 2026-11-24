@@ -76,6 +76,8 @@ pub struct StructFieldView {
     pub valid: bool,
     pub follow_address: Option<u64>,
     pub follow_type: Option<String>,
+    #[serde(default)]
+    pub follow_inline: bool,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -131,11 +133,28 @@ struct SparseRead {
 /// Abstract read-only byte reader supporting kernel VA, process VA, or physical memory.
 trait ByteReader {
     fn translate(&self, addr: u64) -> Result<u64>;
+    fn chunk_len(&self, _addr: u64, max: usize) -> usize {
+        max
+    }
     fn read_exact(&self, addr: u64, out: &mut [u8]) -> Result<()>;
 }
 
 struct PhysicalReader<'a>(&'a Image);
 impl ByteReader for PhysicalReader<'_> {
+    fn chunk_len(&self, addr: u64, max: usize) -> usize {
+        let segments = &self.0.segments;
+        let next = segments.partition_point(|segment| segment.start <= addr);
+        let boundary = next
+            .checked_sub(1)
+            .and_then(|index| segments.get(index))
+            .filter(|segment| addr < segment.end)
+            .map(|segment| segment.end)
+            .or_else(|| segments.get(next).map(|segment| segment.start));
+        boundary.map_or(max, |end| {
+            max.min(usize::try_from(end - addr).unwrap_or(max))
+        })
+    }
+
     fn translate(&self, addr: u64) -> Result<u64> {
         Ok(addr)
     }
@@ -176,42 +195,32 @@ fn read_sparse(
     let mut valid = vec![false; length];
     let mut translations = Vec::new();
     let mut diagnostics = Vec::new();
+    if length > 0 {
+        start
+            .checked_add(length as u64 - 1)
+            .context("检查地址范围溢出")?;
+    }
     let mut pos = 0usize;
     while pos < length {
         job.check()?;
-        let va = start.wrapping_add(pos as u64);
+        let va = start + pos as u64;
         let page_rem = usize::try_from(4096 - (va & 4095)).unwrap_or(4096);
-        let chunk_len = page_rem.min(length - pos);
-        match reader.translate(va) {
-            Ok(pa) => {
-                translations.push(PageTranslation {
-                    va,
-                    pa: Some(pa),
-                    error: None,
-                });
-                let dst = bytes.at_mut(pos..pos + chunk_len)?;
-                match reader.read_exact(va, dst) {
-                    Ok(()) => {
-                        for flag in valid.at_mut(pos..pos + chunk_len)? {
-                            *flag = true;
-                        }
-                    }
-                    Err(err) => {
-                        diagnostics.push(format!("{va:#x} (PA {pa:#x}) 读取失败: {err:#}"));
-                    }
-                }
+        let end = pos + reader.chunk_len(va, page_rem.min(length - pos));
+        let pa = reader.translate(va).ok();
+        let error = match reader.read_exact(va, bytes.at_mut(pos..end)?) {
+            Ok(()) => {
+                valid.at_mut(pos..end)?.fill(true);
+                None
             }
             Err(err) => {
-                let msg = format!("{err:#}");
-                translations.push(PageTranslation {
-                    va,
-                    pa: None,
-                    error: Some(msg.clone()),
-                });
-                diagnostics.push(format!("{va:#x} 地址转换失败: {msg}"));
+                bytes.at_mut(pos..end)?.fill(0);
+                let error = format!("{err:#}");
+                diagnostics.push(format!("{va:#x} 读取失败: {error}"));
+                Some(error)
             }
-        }
-        pos += chunk_len;
+        };
+        translations.push(PageTranslation { va, pa, error });
+        pos = end;
     }
     Ok(SparseRead {
         bytes,
@@ -406,6 +415,9 @@ pub fn decode_struct(
             valid: all_valid,
             follow_address,
             follow_type,
+            follow_inline: follow_address.is_some()
+                && matches!(ty["kind"].as_str(), Some("struct" | "union"))
+                && !is_list_entry(ty, ptr_width, field_bytes.len()),
         });
     }
 
@@ -465,6 +477,12 @@ fn read_le_u64(slice: &[u8]) -> u64 {
     u64::from_le_bytes(buf)
 }
 
+fn is_list_entry(ty: &Value, ptr_width: u64, bytes: usize) -> bool {
+    matches!(ty["name"].as_str(), Some("list_head" | "_LIST_ENTRY"))
+        && matches!(ptr_width, 4 | 8)
+        && bytes as u64 >= ptr_width * 2
+}
+
 fn decode_field_value(
     isf: &Isf,
     windows_base: Option<u64>,
@@ -518,7 +536,7 @@ fn decode_field_value(
             let raw = read_le_u64(bytes);
             let pos = ty["bit_position"].as_u64().unwrap_or(0);
             let len = ty["bit_length"].as_u64().unwrap_or(0);
-            let val = if len > 0 && pos + len <= 64 {
+            let val = if len > 0 && pos.checked_add(len).is_some_and(|end| end <= 64) {
                 (raw >> pos) & (u64::MAX >> (64 - len))
             } else {
                 0
@@ -547,9 +565,7 @@ fn decode_field_value(
         }
         Some("struct" | "union") => {
             let sname = ty["name"].as_str().unwrap_or("");
-            if (sname == "list_head" || sname == "_LIST_ENTRY")
-                && bytes.len() >= usize::try_from(ptr_width * 2).unwrap_or(16)
-            {
+            if is_list_entry(ty, ptr_width, bytes.len()) {
                 let w = usize::try_from(ptr_width).unwrap_or(8);
                 let next = read_le_u64(bytes.get(..w).unwrap_or(&[]));
                 let prev = read_le_u64(bytes.get(w..w * 2).unwrap_or(&[]));
@@ -699,6 +715,15 @@ pub fn inspect(
     job: &Job,
 ) -> Result<InspectOutcome> {
     job.check()?;
+    validate_space(req.space, req.pid)?;
+    ensure!(
+        req.address.is_some() ^ req.symbol_name.is_some(),
+        "内存检查必须指定且只能指定 address 或 symbol"
+    );
+    ensure!(
+        req.space != SpaceKind::Physical || req.symbol_name.is_none(),
+        "物理地址空间只接受物理地址"
+    );
     let length = if req.length == 0 {
         DEFAULT_INSPECT_BYTES
     } else {
@@ -716,10 +741,13 @@ pub fn inspect(
             bytes,
             valid,
             translations,
-            diagnostics,
+            mut diagnostics,
         } = read_sparse(&reader, addr, length, job)?;
         let hex_lines = format_hex_lines(addr, &bytes, &valid);
-        let disasm = if req.disasm {
+        let disasm = if req.disasm && req.options.arch == Architecture::Arm64 {
+            diagnostics.push("ARM64 暂不支持反汇编视图".into());
+            Vec::new()
+        } else if req.disasm {
             disassemble_bytes(
                 addr,
                 &bytes,
@@ -764,6 +792,10 @@ pub fn inspect(
     if target_os == Os::Windows {
         inspect_windows(session, req, length, job)
     } else {
+        ensure!(
+            req.options.pagefiles.is_empty() && req.options.swapfile.is_none(),
+            "Linux 检查器不接受 Windows 分页附件"
+        );
         inspect_linux(session, req, length, job)
     }
 }
@@ -962,13 +994,20 @@ fn inspect_windows(
     };
 
     let arch = Architecture::from_isf(&isf)?;
+    ensure!(
+        req.options.arch == Architecture::Auto || req.options.arch == arch,
+        "显式架构与符号不一致"
+    );
     let (root, base) = windows::discover(&image, &isf, job)?;
     let pdb = windows_symbols::PdbIdentity::from_isf(&isf)?;
-    let engine = Windows {
+    let mut sources = windows::paging::Sources::open(req.options, job)?;
+    let mut engine = Windows {
         vm: windows::Memory::new(&image, root, &isf, None),
         base,
         pdb,
     };
+    sources.configure_kernel(&engine)?;
+    engine.vm.sources = Some(&sources);
 
     let (address, resolved_symbol) = if let Some(sym_name) = req.symbol_name {
         let addr = resolve_symbol_address(&isf, Some(base), sym_name)?;
@@ -994,7 +1033,7 @@ fn inspect_windows(
             )
         }
         SpaceKind::Kernel => {
-            let reader = WindowsVmReader(windows::Memory::new(&image, root, &isf, None));
+            let reader = WindowsVmReader(engine.vm);
             (
                 read_sparse(&reader, address, read_len, job)?,
                 String::from("kernel"),
@@ -1015,6 +1054,7 @@ fn inspect_windows(
             )
         }
     };
+    sources.validate()?;
     let SparseRead {
         bytes,
         valid,
@@ -1109,6 +1149,10 @@ impl InspectReport {
                 Some(pa) => {
                     out.push_str(&format!("页表映射: VA {:#x} -> PA {:#x}\n", first.va, pa))
                 }
+                None if first.error.is_none() => out.push_str(&format!(
+                    "页表映射: VA {:#x} 可读取，无直接物理映射\n",
+                    first.va
+                )),
                 None => out.push_str(&format!(
                     "页表映射: VA {:#x} -> 不可转换 ({})\n",
                     first.va,
@@ -1235,6 +1279,43 @@ mod tests {
     }
 
     #[test]
+    fn sparse_reads_preserve_recovered_pages_without_physical_mappings() -> Result<()> {
+        struct RecoveredPage;
+        impl ByteReader for RecoveredPage {
+            fn translate(&self, _addr: u64) -> Result<u64> {
+                bail!("no direct physical mapping")
+            }
+            fn read_exact(&self, _addr: u64, out: &mut [u8]) -> Result<()> {
+                out.fill(0x5a);
+                Ok(())
+            }
+        }
+        let result = read_sparse(&RecoveredPage, 0x1000, 2, &Job::default())?;
+        assert_eq!(result.bytes, [0x5a, 0x5a]);
+        assert_eq!(result.valid, [true, true]);
+        assert!(result.translations[0].pa.is_none());
+        assert!(result.translations[0].error.is_none());
+        assert!(read_sparse(&RecoveredPage, u64::MAX, 2, &Job::default()).is_err());
+        Ok(())
+    }
+
+    #[test]
+    fn nested_struct_follow_target_is_inline() -> Result<()> {
+        let mut isf = synthetic_isf();
+        isf.data["user_types"]["container"] = serde_json::json!({
+            "kind": "struct",
+            "size": 48,
+            "fields": {
+                "inline": { "offset": 0, "type": { "kind": "struct", "name": "demo_task" } }
+            }
+        });
+        let structure = decode_struct(&isf, None, "container", 0x1000, &[0; 48], &[true; 48])?;
+        assert!(structure.fields[0].follow_inline);
+        assert_eq!(structure.fields[0].follow_address, Some(0x1000));
+        Ok(())
+    }
+
+    #[test]
     fn hex_dump_marks_missing_bytes_with_question_marks() {
         let bytes = [0x48, 0x89, 0xe5, 0x90, 0x41, 0x42];
         let valid = [true, true, false, false, true, true];
@@ -1266,6 +1347,7 @@ mod tests {
         assert_eq!(st.fields[2].follow_type.as_deref(), Some("demo_task"));
         assert!(st.fields[2].value.contains("init_task"));
         assert_eq!(st.fields[3].follow_address, Some(0xffff_8880_0000_1234));
+        assert!(!st.fields[3].follow_inline);
         assert_eq!(st.fields[4].value, "\"sshd\"");
         assert_eq!(list_struct_types(&isf, "demo", 10), vec!["demo_task"]);
     }

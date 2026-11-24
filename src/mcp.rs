@@ -148,6 +148,8 @@ struct InspectArgs {
     symbol_choice: Option<String>,
     os: Option<zero_tui::analysis::Os>,
     arch: Option<zero_tui::windows::Architecture>,
+    pagefiles: Option<Vec<zero_tui::windows::paging::Attachment>>,
+    swapfile: Option<PathBuf>,
     space: Option<zero_tui::inspector::SpaceKind>,
     pid: Option<u32>,
     address: Option<String>,
@@ -226,7 +228,7 @@ fn tools() -> Value {
         {"name":"zero_cache_list","description":"Inspect regenerable local cache without deleting it.","inputSchema":{"type":"object","properties":{},"additionalProperties":false}},
         {"name":"zero_dossier","description":"Correlate all relevant process-centric plugins (lineage, cmdline, envars, open files/handles, sockets/netscan, memory maps/VADs, malfind, shell history) for a single PID into a structured Process Dossier with coverage diagnostics.","inputSchema":{"type":"object","properties":{"image":{"type":"string"},"pid":{"type":"integer","minimum":0},"symbols":{"type":"string"},"symbol_choice":{"type":"string"},"os":{"type":"string","enum":["auto","linux","windows"]},"arch":{"type":"string","enum":["auto","x86","x64","arm64"]},"offline":{"type":"boolean"},"no_cache":{"type":"boolean"},"output":{"type":"string"}},"required":["image","pid"],"additionalProperties":false}},
         {"name":"zero_triage","description":"Run a multi-plugin forensic triage playbook (auto, linux-quick, windows-quick) and aggregate structural signals by entity (PID) and kernel subsystem.","inputSchema":{"type":"object","properties":{"image":{"type":"string"},"playbook":{"type":"string","enum":["auto","linux-quick","windows-quick"]},"symbols":{"type":"string"},"symbol_choice":{"type":"string"},"os":{"type":"string","enum":["auto","linux","windows"]},"arch":{"type":"string","enum":["auto","x86","x64","arm64"]},"offline":{"type":"boolean"},"no_cache":{"type":"boolean"},"output":{"type":"string"}},"required":["image"],"additionalProperties":false}},
-        {"name":"zero_inspect","description":"Inspect kernel virtual, process virtual (by PID), or physical memory: returns VA->PA translation, Hex/ASCII dump (with ?? for absent pages), ISF/PDB struct field decoding (including followable pointer targets), and Capstone x86/x64 disassembly with kernel symbol annotations.","inputSchema":{"type":"object","properties":{"image":{"type":"string"},"symbols":{"type":"string"},"symbol_choice":{"type":"string"},"os":{"type":"string","enum":["auto","linux","windows"]},"arch":{"type":"string","enum":["auto","x86","x64","arm64"]},"space":{"type":"string","enum":["kernel","physical","pid"]},"pid":{"type":"integer","minimum":0},"address":{"type":"string","description":"Address in 0x hex or decimal"},"symbol":{"type":"string","description":"Kernel symbol name from ISF (resolved with KASLR/kernel base)"},"length":{"type":"integer","minimum":1,"maximum":4096},"struct_name":{"type":"string","description":"ISF/PDB user_types struct name to decode at address"},"disasm":{"type":"boolean"},"offline":{"type":"boolean"},"output":{"type":"string"}},"required":["image"],"additionalProperties":false}}
+        {"name":"zero_inspect","description":"Inspect kernel virtual, process virtual (by PID), or physical memory: returns VA->PA translation, Hex/ASCII dump (with ?? for absent pages), ISF/PDB struct field decoding (including followable pointer targets), and Capstone x86/x64 disassembly with kernel symbol annotations.","inputSchema":{"type":"object","properties":{"image":{"type":"string"},"symbols":{"type":"string"},"symbol_choice":{"type":"string"},"os":{"type":"string","enum":["auto","linux","windows"]},"arch":{"type":"string","enum":["auto","x86","x64","arm64"]},"pagefiles":{"type":"array","items":{"type":"object","properties":{"index":{"type":"integer","minimum":0,"maximum":15},"path":{"type":"string"}},"required":["index","path"],"additionalProperties":false}},"swapfile":{"type":"string"},"space":{"type":"string","enum":["kernel","physical","pid"]},"pid":{"type":"integer","minimum":0},"address":{"type":"string","description":"Address in 0x hex or decimal"},"symbol":{"type":"string","description":"Kernel symbol name from ISF (resolved with KASLR/kernel base)"},"length":{"type":"integer","minimum":1,"maximum":4096},"struct_name":{"type":"string","description":"ISF/PDB user_types struct name to decode at address"},"disasm":{"type":"boolean"},"offline":{"type":"boolean"},"output":{"type":"string"}},"required":["image"],"additionalProperties":false}}
     ]})
 }
 
@@ -711,6 +713,12 @@ fn call(
                 }
                 zero_tui::dossier::DossierOutcome::Ready(report) => {
                     if let Some(output) = a.output.as_deref().map(|p| path(root, p)) {
+                        zero_tui::dossier::validate_report_destination(
+                            &output,
+                            req.image,
+                            req.symbols,
+                            req.options,
+                        )?;
                         zero_tui::dossier::export_report_json(&output, &report, job)?;
                     }
                     Ok(serde_json::to_value(report)?)
@@ -746,6 +754,12 @@ fn call(
                 }
                 zero_tui::dossier::TriageOutcome::Ready(report) => {
                     if let Some(output) = a.output.as_deref().map(|p| path(root, p)) {
+                        zero_tui::dossier::validate_report_destination(
+                            &output,
+                            req.image,
+                            req.symbols,
+                            req.options,
+                        )?;
                         zero_tui::dossier::export_report_json(&output, &report, job)?;
                     }
                     Ok(serde_json::to_value(report)?)
@@ -771,6 +785,16 @@ fn call(
             let options = zero_tui::analysis::Options {
                 os: a.os.unwrap_or_default(),
                 arch: a.arch.unwrap_or_default(),
+                pagefiles: a
+                    .pagefiles
+                    .unwrap_or_default()
+                    .into_iter()
+                    .map(|f| zero_tui::windows::paging::Attachment {
+                        index: f.index,
+                        path: path(root, &f.path),
+                    })
+                    .collect(),
+                swapfile: a.swapfile.map(|p| path(root, &p)),
                 ..Default::default()
             };
             let req = zero_tui::inspector::InspectRequest {
@@ -796,6 +820,12 @@ fn call(
                 }
                 zero_tui::inspector::InspectOutcome::Ready(report) => {
                     if let Some(output) = a.output.as_deref().map(|p| path(root, p)) {
+                        zero_tui::dossier::validate_report_destination(
+                            &output,
+                            req.image,
+                            req.symbols,
+                            req.options,
+                        )?;
                         zero_tui::dossier::export_report_json(&output, &report, job)?;
                     }
                     Ok(serde_json::to_value(report)?)

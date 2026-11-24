@@ -264,7 +264,7 @@ impl App {
                                 Ok(WorkerEvent::Dossier(report))
                             }
                             crate::dossier::DossierOutcome::Choose(labels) => {
-                                Ok(WorkerEvent::Done(Outcome::Choose(labels)))
+                                Ok(WorkerEvent::ChooseWorkSymbols(labels, Work::Dossier(pid)))
                             }
                         }
                     }
@@ -283,12 +283,12 @@ impl App {
                             crate::dossier::TriageOutcome::Ready(report) => {
                                 Ok(WorkerEvent::Triage(report))
                             }
-                            crate::dossier::TriageOutcome::Choose(labels) => {
-                                Ok(WorkerEvent::Done(Outcome::Choose(labels)))
-                            }
+                            crate::dossier::TriageOutcome::Choose(labels) => Ok(
+                                WorkerEvent::ChooseWorkSymbols(labels, Work::Triage(playbook)),
+                            ),
                         }
                     }
-                    Work::Inspect(query) => {
+                    Work::Inspect(query, tab) => {
                         let req = crate::inspector::InspectRequest {
                             image: &context.expand(&image),
                             symbols: &context.expand(&symbols),
@@ -308,9 +308,9 @@ impl App {
                             crate::inspector::InspectOutcome::Ready(report) => {
                                 Ok(WorkerEvent::Inspected(report))
                             }
-                            crate::inspector::InspectOutcome::Choose(labels) => {
-                                Ok(WorkerEvent::Done(Outcome::Choose(labels)))
-                            }
+                            crate::inspector::InspectOutcome::Choose(labels) => Ok(
+                                WorkerEvent::ChooseWorkSymbols(labels, Work::Inspect(query, tab)),
+                            ),
                         }
                     }
                     Work::ExportDiagnostic(path, report) => {
@@ -880,10 +880,10 @@ impl App {
                     );
                 }
                 WorkerEvent::Inspected(report) => {
-                    self.inspector_running = false;
                     self.finish_worker();
                     if let Some(q) = &mut self.inspector_query {
                         q.address = Some(report.address);
+                        q.symbol_name = None;
                     }
                     self.status = format!(
                         "内存检查 {:#x} ({}) · 1 Hex / 2 结构体 / 3 反汇编 · Enter 跟随指针",
@@ -896,7 +896,6 @@ impl App {
                     self.status = format!("诊断报告已导出: {}", path.display());
                 }
                 WorkerEvent::Failed(s) => {
-                    self.inspector_running = false;
                     self.console_failed(&s);
                     self.pending_work = None;
                     self.pending_execution = None;
@@ -907,6 +906,15 @@ impl App {
                     }
                     self.status = failure_status(&s);
                     self.finish_worker();
+                }
+                WorkerEvent::ChooseWorkSymbols(labels, work) => {
+                    self.finish_worker();
+                    self.symbol_retry = Some(SymbolRetry::Work(Box::new(work)));
+                    self.status = "多个匹配 ISF，必须选择".into();
+                    self.dialog = Some(Dialog::Symbols {
+                        labels,
+                        selected: 0,
+                    });
                 }
                 WorkerEvent::Done(outcome) => {
                     if let Some(job) = &self.job {
@@ -939,7 +947,10 @@ impl App {
                     self.finish_worker();
                     match outcome {
                         Outcome::Choose(labels) => {
-                            self.symbol_retry = self.active_request.take().map(|r| r.snapshot);
+                            self.symbol_retry = self
+                                .active_request
+                                .take()
+                                .map(|r| SymbolRetry::Analysis(Box::new(r.snapshot)));
                             self.status = "多个匹配 ISF，必须选择".into();
                             self.dialog = Some(Dialog::Symbols {
                                 labels,
@@ -1060,6 +1071,7 @@ impl App {
         self.receiver = None;
         self.job = None;
         self.diagnosis_running = false;
+        self.inspector_running = false;
         self.started = None;
         self.progress = None;
     }

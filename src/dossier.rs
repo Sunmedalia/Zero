@@ -174,7 +174,6 @@ pub(crate) fn extract_inspect_target(
         "offset(p)",
         "offset (p)",
         "start",
-        "start vpn",
         "base",
         "address",
         "addr",
@@ -185,6 +184,13 @@ pub(crate) fn extract_inspect_target(
         "handler",
         "entry",
         "ptr",
+        "object",
+        "target",
+        "hive offset",
+        "sock offset",
+        "credaddress",
+        "physical",
+        "virtual",
     ];
     for name in priority {
         if let Some(idx) = find_column(columns, &[name])
@@ -194,15 +200,17 @@ pub(crate) fn extract_inspect_target(
             let suggested = suggest_struct(plugin_name, name, is_windows);
             return Some((
                 addr,
-                physical || matches!(*name, "offset(p)" | "offset (p)"),
+                physical
+                    || matches!(*name, "offset(p)" | "offset (p)" | "physical")
+                    || (plugin_name == Plugin::Banners.name() && *name == "offset"),
                 suggested,
             ));
         }
     }
-    // Fallback: first cell that looks like a 0x hex address >= 0x1000.
+    // Other columns need an explicit address prefix to distinguish offsets from scalar values.
     for (idx, cell) in row.iter().enumerate() {
         if let Some((addr, physical)) = parse_row_address(cell)
-            && (physical || addr >= 0x1000)
+            && (physical || cell.trim_start().starts_with("virtual:"))
         {
             let col = columns.get(idx).map(String::as_str).unwrap_or("");
             return Some((addr, physical, suggest_struct(plugin_name, col, is_windows)));
@@ -1281,7 +1289,32 @@ impl TriageReport {
     }
 }
 
-/// Export a DossierReport or TriageReport as pretty JSON or plain text.
+/// Keep report exports separate from the memory image, symbols, and paging attachments.
+pub fn validate_report_destination(
+    path: &Path,
+    image: &Path,
+    symbols: &Path,
+    options: &Options,
+) -> Result<()> {
+    let destination = match path.canonicalize() {
+        Ok(destination) => destination,
+        Err(err) if err.kind() == std::io::ErrorKind::NotFound => return Ok(()),
+        Err(err) => return Err(err.into()),
+    };
+    let inputs = [image, symbols]
+        .into_iter()
+        .chain(options.pagefiles.iter().map(|file| file.path.as_path()))
+        .chain(options.swapfile.as_deref());
+    anyhow::ensure!(
+        !inputs
+            .filter_map(|input| input.canonicalize().ok())
+            .any(|input| input == destination),
+        "报告输出不能覆盖输入镜像、符号或分页附件"
+    );
+    Ok(())
+}
+
+/// Export a report as pretty JSON.
 pub fn export_report_json<T: Serialize>(path: &Path, report: &T, job: &Job) -> Result<()> {
     let bytes = serde_json::to_vec_pretty(report).context("序列化报告 JSON 失败")?;
     crate::store::atomic_stream(path, job, |writer| {
@@ -1339,6 +1372,7 @@ mod tests {
         for (column, value) in [
             ("Offset", "physical:0x220"),
             ("OFFSET (P)", "0x220"),
+            ("Physical", "0x220"),
             ("Other", "physical:0x220"),
         ] {
             assert_eq!(
@@ -1346,6 +1380,19 @@ mod tests {
                 Some((0x220, true, None))
             );
         }
+    }
+
+    #[test]
+    fn inspector_does_not_treat_handle_values_as_addresses() {
+        let row = ["0x1234".into(), "0xffff800000001000".into()];
+        assert_eq!(
+            extract_inspect_target("windows.handles", &["Handle".into()], &row[..1]),
+            None
+        );
+        assert_eq!(
+            extract_inspect_target("windows.handles", &["Handle".into(), "Object".into()], &row),
+            Some((0xffff_8000_0000_1000, false, None))
+        );
     }
 
     #[test]

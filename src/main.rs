@@ -134,6 +134,7 @@ struct Cli {
         global = true
     )]
     symbol_names: Vec<String>,
+    /// Address to inspect or query (repeatable for plugin analysis).
     #[arg(help_heading = "PE symbol plugins", long = "address", global = true, value_parser = zero_tui::dump::parse_address)]
     addresses: Vec<u64>,
     /// Include user threads in linux.pslist.full / linux.pstree.full.
@@ -320,8 +321,6 @@ enum Command {
         space: zero_tui::inspector::SpaceKind,
         #[arg(long)]
         pid: Option<u32>,
-        #[arg(long, value_parser = zero_tui::dump::parse_address)]
-        address: Option<u64>,
         #[arg(long)]
         symbol: Option<String>,
         #[arg(long, default_value_t = zero_tui::inspector::DEFAULT_INSPECT_BYTES)]
@@ -527,6 +526,9 @@ fn main() -> Result<()> {
             }
             zero_tui::dossier::DossierOutcome::Ready(report) => {
                 if let Some(path) = output {
+                    zero_tui::dossier::validate_report_destination(
+                        path, image, &symbols, &options,
+                    )?;
                     zero_tui::dossier::export_report_json(path, &report, &job)?;
                     eprintln!("进程全景档案已导出: {}", path.display());
                 } else if *json {
@@ -578,6 +580,9 @@ fn main() -> Result<()> {
             }
             zero_tui::dossier::TriageOutcome::Ready(report) => {
                 if let Some(path) = output {
+                    zero_tui::dossier::validate_report_destination(
+                        path, image, &symbols, &options,
+                    )?;
                     zero_tui::dossier::export_report_json(path, &report, &job)?;
                     eprintln!("应急初筛报告已导出: {}", path.display());
                 } else if *json {
@@ -595,7 +600,6 @@ fn main() -> Result<()> {
         symbol_choice,
         space,
         pid,
-        address,
         symbol,
         length,
         struct_name,
@@ -606,6 +610,7 @@ fn main() -> Result<()> {
     }) = &cli.command
     {
         zero_tui::inspector::validate_space(*space, *pid)?;
+        anyhow::ensure!(cli.addresses.len() <= 1, "inspect 只接受一个 --address");
         let job = Job::new(|s| eprintln!("{s}"));
         let symbols = symbols
             .clone()
@@ -627,7 +632,7 @@ fn main() -> Result<()> {
             options: &options,
             space: *space,
             pid: *pid,
-            address: *address,
+            address: cli.addresses.first().copied(),
             symbol_name: symbol.as_deref(),
             length: *length,
             struct_name: struct_name.as_deref(),
@@ -642,6 +647,9 @@ fn main() -> Result<()> {
             }
             zero_tui::inspector::InspectOutcome::Ready(report) => {
                 if let Some(path) = output {
+                    zero_tui::dossier::validate_report_destination(
+                        path, image, &symbols, &options,
+                    )?;
                     zero_tui::dossier::export_report_json(path, &report, &job)?;
                     eprintln!("内存检查结果已导出: {}", path.display());
                 } else if *json {

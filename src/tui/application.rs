@@ -525,6 +525,9 @@ impl App {
     }
     pub(super) fn invalidate_source(&mut self) {
         self.kernel_report = None;
+        self.inspector_report = None;
+        self.inspector_query = None;
+        self.inspector_history.clear();
         self.object_version += 1;
         self.prepared_stamp = None;
         self.verified = None;

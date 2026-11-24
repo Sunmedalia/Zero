@@ -163,7 +163,7 @@ impl App {
             scroll: 0,
             selected_field: 0,
         });
-        self.start_work(Work::Inspect(query));
+        self.start_work(Work::Inspect(query, tab));
     }
 
     pub(super) fn draw_memory_inspector(
@@ -223,6 +223,9 @@ impl App {
             if let Some(first) = report.translations.first() {
                 let map_line = match first.pa {
                     Some(pa) => format!("映射: VA {:#x} -> PA {:#x}", first.va, pa),
+                    None if first.error.is_none() => {
+                        format!("映射: VA {:#x} 可读取，无直接物理映射", first.va)
+                    }
                     None => format!(
                         "映射: VA {:#x} -> 不可转换 ({})",
                         first.va,
@@ -480,8 +483,11 @@ impl App {
                     .as_ref()
                     .and_then(|r| r.structure.as_ref())
                     .and_then(|st| st.fields.get(*selected_field))
-                    .and_then(|f| f.follow_address.map(|addr| (addr, f.follow_type.clone())));
-                if let Some((addr, follow_type)) = target {
+                    .and_then(|f| {
+                        f.follow_address
+                            .map(|addr| (addr, f.follow_type.clone(), f.follow_inline))
+                    });
+                if let Some((addr, follow_type, inline)) = target {
                     if let Some(cur) = self.inspector_query.clone() {
                         self.inspector_history.push((cur, *tab));
                         if self.inspector_history.len() > 64 {
@@ -489,7 +495,7 @@ impl App {
                         }
                     }
                     let mut next = self.inspector_query.clone().unwrap_or_default();
-                    if next.space == SpaceKind::Physical {
+                    if next.space == SpaceKind::Physical && !inline {
                         next.space = SpaceKind::Kernel;
                     }
                     next.address = Some(addr);
@@ -626,6 +632,7 @@ mod tests {
                     value: "0xffffffff81200000 (init_task)".into(),
                     valid: true,
                     follow_address: Some(0xffff_ffff_8120_0000),
+                    follow_inline: false,
                     follow_type: Some("task_struct".into()),
                 }],
                 diagnostics: Vec::new(),

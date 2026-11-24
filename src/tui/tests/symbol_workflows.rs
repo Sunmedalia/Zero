@@ -876,6 +876,37 @@ fn symbol_retry_keeps_execution_snapshot_after_plugin_browsing() {
 }
 
 #[test]
+fn symbol_retry_restores_inspector_query_and_tab() {
+    use super::workbench::{InspectorQuery, InspectorTab};
+    let (_dir, mut app) = preparation_fixture();
+    let query = InspectorQuery {
+        address: Some(0x4000),
+        struct_name: Some("task_struct".into()),
+        ..Default::default()
+    };
+    let (tx, rx) = mpsc::channel();
+    app.job = Some(Job::default());
+    app.receiver = Some(rx);
+    tx.send(WorkerEvent::ChooseWorkSymbols(
+        vec!["original-symbol".into()],
+        Work::Inspect(query.clone(), InspectorTab::Struct),
+    ))
+    .unwrap();
+    app.drain();
+    app.dialog_key(KeyEvent::new(KeyCode::Char(' '), KeyModifiers::NONE));
+    assert_eq!(app.inspector_query, Some(query));
+    assert!(matches!(
+        app.dialog,
+        Some(Dialog::MemoryInspector {
+            tab: InspectorTab::Struct,
+            ..
+        })
+    ));
+    app.cancel();
+    finish_test_job(&mut app);
+}
+
+#[test]
 fn remote_search_and_history_browsing_preserve_running_task_and_position() {
     let mut app = app();
     let job = Job::default();
