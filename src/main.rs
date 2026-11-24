@@ -134,6 +134,7 @@ struct Cli {
         global = true
     )]
     symbol_names: Vec<String>,
+    /// Address to inspect or query (repeatable for plugin analysis).
     #[arg(help_heading = "PE symbol plugins", long = "address", global = true, value_parser = zero_tui::dump::parse_address)]
     addresses: Vec<u64>,
     /// Include user threads in linux.pslist.full / linux.pstree.full.
@@ -273,6 +274,67 @@ enum Command {
         end: Option<u64>,
         #[arg(long)]
         symbol_choice: Option<String>,
+    },
+    /// Correlate all process-centric plugins for a single PID into a unified dossier.
+    Dossier {
+        #[arg(long)]
+        image: PathBuf,
+        #[arg(long)]
+        symbols: Option<PathBuf>,
+        #[arg(long)]
+        pid: u32,
+        #[arg(long)]
+        symbol_choice: Option<String>,
+        #[arg(long)]
+        no_cache: bool,
+        #[arg(long)]
+        output: Option<PathBuf>,
+        #[arg(long)]
+        json: bool,
+    },
+    /// Run a multi-plugin forensic triage playbook and aggregate signals by entity.
+    Triage {
+        #[arg(long)]
+        image: PathBuf,
+        #[arg(long)]
+        symbols: Option<PathBuf>,
+        #[arg(long, value_enum, default_value = "auto")]
+        playbook: zero_tui::dossier::TriagePlaybook,
+        #[arg(long)]
+        symbol_choice: Option<String>,
+        #[arg(long)]
+        no_cache: bool,
+        #[arg(long)]
+        output: Option<PathBuf>,
+        #[arg(long)]
+        json: bool,
+    },
+    /// Live memory inspector: Hex/ASCII, ISF/PDB struct decoding, and Capstone disassembly.
+    Inspect {
+        #[arg(long)]
+        image: PathBuf,
+        #[arg(long)]
+        symbols: Option<PathBuf>,
+        #[arg(long)]
+        symbol_choice: Option<String>,
+        #[arg(long, value_enum, default_value = "kernel")]
+        space: zero_tui::inspector::SpaceKind,
+        #[arg(long)]
+        pid: Option<u32>,
+        #[arg(long)]
+        symbol: Option<String>,
+        #[arg(long, default_value_t = zero_tui::inspector::DEFAULT_INSPECT_BYTES)]
+        length: usize,
+        #[arg(long = "struct")]
+        struct_name: Option<String>,
+        #[arg(long)]
+        disasm: bool,
+        #[arg(long, value_enum, default_value = "all")]
+        view: zero_tui::inspector::InspectView,
+        #[arg(long)]
+        output: Option<PathBuf>,
+        #[arg(long)]
+        json: bool,
     },
     Analyze {
         #[arg(long)]
@@ -422,6 +484,181 @@ fn main() -> Result<()> {
             report.failure.is_none() && report.passed() > 0,
             "内核校验失败，请查看诊断报告"
         );
+        return Ok(());
+    }
+    if let Some(Command::Dossier {
+        image,
+        symbols,
+        pid,
+        symbol_choice,
+        no_cache,
+        output,
+        json,
+    }) = &cli.command
+    {
+        let job = Job::new(|s| eprintln!("{s}"));
+        let symbols = symbols
+            .clone()
+            .unwrap_or_else(|| store::expand_home(&settings.symbols));
+        let mut session = linux::Session::default();
+        let options = zero_tui::analysis::Options {
+            os: cli.os,
+            arch: cli.arch,
+            pagefiles: cli.pagefiles.clone(),
+            swapfile: cli.swapfile.clone(),
+            ..Default::default()
+        };
+        let req = zero_tui::dossier::DossierRequest {
+            image,
+            symbols: &symbols,
+            choice: symbol_choice.as_deref(),
+            cache: &cache,
+            use_cache: settings.enable_cache && !*no_cache,
+            network: settings.remote_symbols,
+            options: &options,
+        };
+        match zero_tui::dossier::correlate_pid(&mut session, &req, *pid, &job)? {
+            zero_tui::dossier::DossierOutcome::Choose(labels) => {
+                for label in &labels {
+                    eprintln!("候选符号: {label}");
+                }
+                bail!("存在多个完整 banner 匹配符号，请使用 --symbol-choice 指定");
+            }
+            zero_tui::dossier::DossierOutcome::Ready(report) => {
+                if let Some(path) = output {
+                    zero_tui::dossier::validate_report_destination(
+                        path, image, &symbols, &options,
+                    )?;
+                    zero_tui::dossier::export_report_json(path, &report, &job)?;
+                    eprintln!("进程全景档案已导出: {}", path.display());
+                } else if *json {
+                    println!("{}", serde_json::to_string_pretty(&report)?);
+                } else {
+                    println!("{}", report.render_text());
+                }
+            }
+        }
+        return Ok(());
+    }
+    if let Some(Command::Triage {
+        image,
+        symbols,
+        playbook,
+        symbol_choice,
+        no_cache,
+        output,
+        json,
+    }) = &cli.command
+    {
+        let job = Job::new(|s| eprintln!("{s}"));
+        let symbols = symbols
+            .clone()
+            .unwrap_or_else(|| store::expand_home(&settings.symbols));
+        let mut session = linux::Session::default();
+        let options = zero_tui::analysis::Options {
+            os: cli.os,
+            arch: cli.arch,
+            pagefiles: cli.pagefiles.clone(),
+            swapfile: cli.swapfile.clone(),
+            ..Default::default()
+        };
+        let req = zero_tui::dossier::DossierRequest {
+            image,
+            symbols: &symbols,
+            choice: symbol_choice.as_deref(),
+            cache: &cache,
+            use_cache: settings.enable_cache && !*no_cache,
+            network: settings.remote_symbols,
+            options: &options,
+        };
+        match zero_tui::dossier::run_triage(&mut session, &req, *playbook, &job)? {
+            zero_tui::dossier::TriageOutcome::Choose(labels) => {
+                for label in &labels {
+                    eprintln!("候选符号: {label}");
+                }
+                bail!("存在多个完整 banner 匹配符号，请使用 --symbol-choice 指定");
+            }
+            zero_tui::dossier::TriageOutcome::Ready(report) => {
+                if let Some(path) = output {
+                    zero_tui::dossier::validate_report_destination(
+                        path, image, &symbols, &options,
+                    )?;
+                    zero_tui::dossier::export_report_json(path, &report, &job)?;
+                    eprintln!("应急初筛报告已导出: {}", path.display());
+                } else if *json {
+                    println!("{}", serde_json::to_string_pretty(&report)?);
+                } else {
+                    println!("{}", report.render_text());
+                }
+            }
+        }
+        return Ok(());
+    }
+    if let Some(Command::Inspect {
+        image,
+        symbols,
+        symbol_choice,
+        space,
+        pid,
+        symbol,
+        length,
+        struct_name,
+        disasm,
+        view,
+        output,
+        json,
+    }) = &cli.command
+    {
+        zero_tui::inspector::validate_space(*space, *pid)?;
+        anyhow::ensure!(cli.addresses.len() <= 1, "inspect 只接受一个 --address");
+        let job = Job::new(|s| eprintln!("{s}"));
+        let symbols = symbols
+            .clone()
+            .unwrap_or_else(|| store::expand_home(&settings.symbols));
+        let mut session = linux::Session::default();
+        let options = zero_tui::analysis::Options {
+            os: cli.os,
+            arch: cli.arch,
+            pagefiles: cli.pagefiles.clone(),
+            swapfile: cli.swapfile.clone(),
+            ..Default::default()
+        };
+        let req = zero_tui::inspector::InspectRequest {
+            image,
+            symbols: &symbols,
+            choice: symbol_choice.as_deref(),
+            cache: &cache,
+            network: settings.remote_symbols,
+            options: &options,
+            space: *space,
+            pid: *pid,
+            address: cli.addresses.first().copied(),
+            symbol_name: symbol.as_deref(),
+            length: *length,
+            struct_name: struct_name.as_deref(),
+            disasm: *disasm || matches!(view, zero_tui::inspector::InspectView::Disasm),
+        };
+        match zero_tui::inspector::inspect(&mut session, &req, &job)? {
+            zero_tui::inspector::InspectOutcome::Choose(labels) => {
+                for label in &labels {
+                    eprintln!("候选符号: {label}");
+                }
+                bail!("存在多个完整 banner 匹配符号，请使用 --symbol-choice 指定");
+            }
+            zero_tui::inspector::InspectOutcome::Ready(report) => {
+                if let Some(path) = output {
+                    zero_tui::dossier::validate_report_destination(
+                        path, image, &symbols, &options,
+                    )?;
+                    zero_tui::dossier::export_report_json(path, &report, &job)?;
+                    eprintln!("内存检查结果已导出: {}", path.display());
+                } else if *json {
+                    println!("{}", serde_json::to_string_pretty(&report)?);
+                } else {
+                    println!("{}", report.render_text(*view));
+                }
+            }
+        }
         return Ok(());
     }
     if let Some(Command::SymbolsGenerate {

@@ -126,7 +126,7 @@ pub struct Sources {
     reads: Mutex<BTreeMap<(u8, u64), u64>>,
 }
 impl Sources {
-    pub(super) fn open(options: &Options, job: &Job) -> Result<Self> {
+    pub(crate) fn open(options: &Options, job: &Job) -> Result<Self> {
         let mut files = BTreeMap::new();
         for a in &options.pagefiles {
             job.check()?;
@@ -152,7 +152,7 @@ impl Sources {
             reads: Mutex::new(BTreeMap::new()),
         })
     }
-    pub(super) fn configure_kernel(&mut self, engine: &Windows<'_>) -> Result<()> {
+    pub(crate) fn configure_kernel(&mut self, engine: &Windows<'_>) -> Result<()> {
         self.kernel_context = Some((engine.vm.root, engine.base));
         if engine.vm.isf.has_field("_MMPTE_SOFTWARE", "SwizzleBit") {
             self.invalid_pte_mask = engine
@@ -277,7 +277,7 @@ impl Sources {
         *reads.entry((index, offset & !4095)).or_default() += out.len() as u64;
         Ok(())
     }
-    pub(super) fn validate(&self) -> Result<()> {
+    pub(crate) fn validate(&self) -> Result<()> {
         for f in self.files.values().chain(self.swap.iter()) {
             f.validate()?;
         }

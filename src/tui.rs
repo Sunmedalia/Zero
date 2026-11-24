@@ -26,6 +26,7 @@ mod pages;
 mod results;
 mod state;
 mod tasks;
+mod workbench;
 mod workflow;
 use crate::{
     Job, cache,

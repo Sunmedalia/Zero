@@ -58,6 +58,7 @@ impl App {
             Dialog::Input { text, .. } => text.chars().count().max(40),
             // Detail text is wrapped prose; it wants width more than anything.
             Dialog::KernelDiagnostics { .. }
+            | Dialog::MemoryInspector { .. }
             | Dialog::Detail { .. }
             | Dialog::GenerateSymbols { .. }
             | Dialog::KernelPackages { .. } => screen.width.saturating_sub(6).min(90) as usize,
@@ -87,7 +88,7 @@ impl App {
             Dialog::Plugins { .. } => self.plugin_matches("").len().cells(),
             Dialog::Settings { .. } => self.settings_labels().len().cells(),
             Dialog::Input { .. } => 4,
-            Dialog::KernelDiagnostics { .. } => screen.height,
+            Dialog::KernelDiagnostics { .. } | Dialog::MemoryInspector { .. } => screen.height,
             Dialog::Detail { .. } => 12,
             Dialog::Dump { .. } => 12,
             Dialog::WindowsParameters { .. } => 18,
@@ -180,6 +181,11 @@ impl App {
                 Dialog::KernelDiagnostics { scroll } => {
                     self.draw_kernel_diagnostics(frame, popup, *scroll)
                 }
+                Dialog::MemoryInspector {
+                    tab,
+                    scroll,
+                    selected_field,
+                } => self.draw_memory_inspector(frame, popup, *tab, *scroll, *selected_field),
                 Dialog::GenerateSymbols { .. } => self.draw_generation(frame, popup, dialog),
                 Dialog::KernelPackages { packages, selected } => {
                     self.draw_kernel_packages(frame, popup, packages, *selected)
@@ -917,6 +923,12 @@ impl App {
                         InputKind::ExportDirectory => "导出存放目录",
                         InputKind::SymbolRepository => "符号仓库 GitHub URL",
                         InputKind::PageSize => "每页行数 · auto 自动填满 / 0 / 1–10000",
+                        InputKind::InspectAddress => {
+                            "跳转地址或内核符号 · 0x... / physical:0x... / init_task"
+                        }
+                        InputKind::InspectStruct => {
+                            "ISF/PDB 结构体名 · 如 task_struct / _EPROCESS / mm_struct"
+                        }
                     };
                     frame.render_widget(
                         Paragraph::new(Line::from(Span::styled(

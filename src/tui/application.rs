@@ -290,6 +290,10 @@ impl App {
             plugins_collapsed: false,
             kernel_report: None,
             diagnosis_running: false,
+            inspector_report: None,
+            inspector_query: None,
+            inspector_history: Vec::new(),
+            inspector_running: false,
             page: Page::Assets,
             section: AssetSection::Images,
             symbol_source: AssetSection::Symbols,
@@ -521,6 +525,9 @@ impl App {
     }
     pub(super) fn invalidate_source(&mut self) {
         self.kernel_report = None;
+        self.inspector_report = None;
+        self.inspector_query = None;
+        self.inspector_history.clear();
         self.object_version += 1;
         self.prepared_stamp = None;
         self.verified = None;

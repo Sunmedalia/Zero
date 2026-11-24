@@ -1625,6 +1625,77 @@ fn mcp_call(id: u64, name: &str, arguments: serde_json::Value) -> serde_json::Va
 }
 
 #[test]
+fn inspect_cli_and_mcp_preserve_physical_bytes_at_end_of_image() -> Result<()> {
+    let dir = tempfile::tempdir()?;
+    let mut original = [0x90; 32];
+    original[31] = 0xc3;
+    fs::write(dir.path().join("image.raw"), original)?;
+    let cli = |args: &[&str]| {
+        std::process::Command::new(env!("CARGO_BIN_EXE_zero"))
+            .current_dir(dir.path())
+            .args([
+                "--offline",
+                "inspect",
+                "--image",
+                "image.raw",
+                "--space",
+                "physical",
+            ])
+            .args(args)
+            .output()
+    };
+    let help = cli(&["--help"])?;
+    assert!(
+        help.status.success(),
+        "{}",
+        String::from_utf8_lossy(&help.stderr)
+    );
+    let output = cli(&["--address", "31", "--length", "2", "--json"])?;
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let report: serde_json::Value = serde_json::from_slice(&output.stdout)?;
+    assert_eq!(report["bytes"], json!([0xc3, 0]));
+    assert_eq!(report["valid_mask"], json!([true, false]));
+    assert_eq!(report["complete"], false);
+
+    let overwrite = cli(&["--address", "0", "--output", "image.raw"])?;
+    assert!(!overwrite.status.success());
+    assert!(String::from_utf8_lossy(&overwrite.stderr).contains("输出不能覆盖"));
+    assert_eq!(fs::read(dir.path().join("image.raw"))?, original);
+
+    let requests = [
+        mcp_call(
+            1,
+            "zero_inspect",
+            json!({"image":"image.raw","space":"physical",
+            "address":"31","length":2,"offline":true,"disasm":false}),
+        ),
+        mcp_call(
+            2,
+            "zero_inspect",
+            json!({"image":"image.raw","space":"physical",
+            "symbol":"init_task","offline":true}),
+        ),
+    ];
+    let input = requests.map(|request| request.to_string()).join("\n");
+    let replies = mcp_exchange(dir.path(), &input)?;
+    assert_eq!(
+        replies[0]["result"]["structuredContent"]["valid_mask"],
+        json!([true, false])
+    );
+    assert_eq!(replies[1]["result"]["isError"], true);
+    assert!(
+        replies[1]["result"]["structuredContent"]["error"]
+            .as_str()
+            .is_some_and(|error| error.contains("只接受物理地址"))
+    );
+    Ok(())
+}
+
+#[test]
 fn pslist_dump_preserves_single_pid_filter_through_cli_and_mcp() -> Result<()> {
     let dir = tempfile::tempdir()?;
     let (bytes, mut isf) = discoverable();
@@ -1732,7 +1803,14 @@ fn mcp_tools_analyze_page_export_and_dump_all_modes() -> Result<()> {
         assert_ne!(reply["result"]["isError"], true, "{reply}");
     }
     let result = |id| replies.iter().find(|r| r["id"] == id).unwrap()["result"].clone();
-    assert_eq!(result(2)["tools"].as_array().unwrap().len(), 9);
+    let tool_list = result(2)["tools"].as_array().unwrap().clone();
+    assert_eq!(tool_list.len(), 12);
+    for expected in ["zero_dossier", "zero_triage", "zero_inspect"] {
+        assert!(
+            tool_list.iter().any(|t| t["name"] == expected),
+            "missing MCP tool {expected}"
+        );
+    }
     assert_eq!(
         result(3)["structuredContent"]["plugins"]
             .as_array()

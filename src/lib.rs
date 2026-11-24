@@ -93,8 +93,9 @@ pub mod prepare;
 pub mod workspace;
 
 pub mod browser;
-
+pub mod dossier;
 pub mod dump;
+pub mod inspector;
 
 pub mod analysis;
 pub mod windows;
