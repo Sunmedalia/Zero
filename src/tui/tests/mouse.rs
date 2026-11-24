@@ -59,7 +59,7 @@ fn mouse_menu_header_and_modal() {
 fn mouse_scrolled_rows_sort_and_wheel() {
     let mut app = app();
     let template = app.result().unwrap().rows[0].clone();
-    app.results.get_mut("linux.pslist").unwrap().rows = (0..40)
+    app.results.get_mut("linux.pslist.basic").unwrap().rows = (0..40)
         .map(|i| {
             let mut r = template.clone();
             r[0] = i.to_string();
@@ -205,7 +205,7 @@ fn mouse_input_confirm_and_symbol_candidates() {
 fn horizontally_scrolled_headers_keep_mouse_column_identity() {
     let mut app = app();
     let d = Plugin::Sockstat.descriptor();
-    let mut result = app.results["linux.pslist"].as_ref().clone();
+    let mut result = app.results["linux.pslist.basic"].as_ref().clone();
     result.plugin = Plugin::Sockstat.name().into();
     result.columns = d.columns.iter().map(|s| (*s).into()).collect();
     result.rows = vec![d.columns.iter().map(|s| (*s).into()).collect()];
@@ -348,7 +348,7 @@ fn clicking_image_previews_before_selecting_even_when_already_highlighted() {
 fn wheel_scrolls_one_row_across_page_boundaries_and_clamps_at_ends() {
     let mut app = app();
     let template = app.result().unwrap().rows[0].clone();
-    app.results.get_mut("linux.pslist").unwrap().rows = (0..30)
+    app.results.get_mut("linux.pslist.basic").unwrap().rows = (0..30)
         .map(|i| {
             let mut row = template.clone();
             row[0] = i.to_string();

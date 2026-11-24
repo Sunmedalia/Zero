@@ -27,7 +27,7 @@ fn app() -> App {
     app.results.insert(
         Plugin::Pslist.name().into(),
         Results {
-            plugin: "linux.pslist".into(),
+            plugin: "linux.pslist.basic".into(),
             columns: vec!["PID", "TGID", "PPID", "Name", "Address"]
                 .into_iter()
                 .map(String::from)

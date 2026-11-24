@@ -25,8 +25,8 @@ fn diagnosis_collects_failure_in_a_report_without_running_a_plugin_or_changing_e
         fixture_isf(PREPARATION_BANNER, 1),
     )
     .unwrap();
-    let old = super::app().results.remove("linux.pslist").unwrap();
-    app.results.insert("linux.pslist".into(), old.clone());
+    let old = super::app().results.remove("linux.pslist.basic").unwrap();
+    app.results.insert("linux.pslist.basic".into(), old.clone());
     app.ensure_plugin_tab(Plugin::Pslist);
     app.row = 1;
     app.query = "init".into();
@@ -44,7 +44,7 @@ fn diagnosis_collects_failure_in_a_report_without_running_a_plugin_or_changing_e
         report.previous_analysis_error.as_deref(),
         Some("previous page-table failure")
     );
-    assert_eq!(*app.results["linux.pslist"], old);
+    assert_eq!(*app.results["linux.pslist.basic"], old);
     assert_eq!(app.open_tabs.len(), 1);
     assert_eq!(app.row, 1);
     assert_eq!(app.query, "init");

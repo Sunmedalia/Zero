@@ -3,7 +3,7 @@ use super::*;
 #[test]
 fn windows_menu_and_parameters_follow_identification() {
     let mut app = app();
-    let mut result = app.results["linux.pslist"].as_ref().clone();
+    let mut result = app.results["linux.pslist.basic"].as_ref().clone();
     result.rows = vec![vec![
         "0x1000".into(),
         "Windows PDB ntkrnlmp.pdb/GUID1".into(),
@@ -56,7 +56,7 @@ fn windows_plugin_labels_omit_prefix_in_navigation_and_search() {
 #[test]
 fn auto_identification_switches_windows_and_preserves_unknown_system() {
     let mut app = app();
-    let mut banner = app.results["linux.pslist"].as_ref().clone();
+    let mut banner = app.results["linux.pslist.basic"].as_ref().clone();
     banner.plugin = "linux.banners".into();
     banner.system = "windows".into();
     banner.rows = vec![vec![
@@ -85,7 +85,7 @@ fn auto_identification_switches_windows_and_preserves_unknown_system() {
 #[test]
 fn system_picker_opens_windows_without_identification_and_survives_image_change() {
     let mut app = app();
-    let mut linux_banner = app.results["linux.pslist"].as_ref().clone();
+    let mut linux_banner = app.results["linux.pslist.basic"].as_ref().clone();
     app.page = Page::Assets;
     app.key(KeyEvent::new(KeyCode::F(6), KeyModifiers::NONE));
     assert!(matches!(app.dialog, Some(Dialog::System { selected: 0 })));

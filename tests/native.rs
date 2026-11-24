@@ -174,7 +174,7 @@ fn cached_results_name_their_image_in_a_header_read_without_the_rows() {
     let cache = tempfile::tempdir().unwrap();
     let digest = "ab".repeat(32);
     let mut result = store::Results {
-        plugin: "linux.pslist".into(),
+        plugin: "linux.pslist.basic".into(),
         columns: vec!["PID".into()],
         // A row that looks like a header field cannot end the header early.
         rows: vec![vec![r#","result":{}"#.into()], vec!["2".into()]],
@@ -202,7 +202,7 @@ fn cached_results_name_their_image_in_a_header_read_without_the_rows() {
             summary.rows,
             summary.diagnostics
         ),
-        ("linux.pslist", false, 2, 1)
+        ("linux.pslist.basic", false, 2, 1)
     );
     assert_eq!(store::load_partial(cache.path(), "k").unwrap(), result);
     result.complete = true;
@@ -1660,6 +1660,7 @@ fn pslist_dump_preserves_single_pid_filter_through_cli_and_mcp() -> Result<()> {
     let result = fs::read(dir.path().join("pslist.json"))
         .unwrap_or_else(|error| panic!("{error}: {}", String::from_utf8_lossy(&output.stderr)));
     let result: store::Results = serde_json::from_slice(&result)?;
+    assert_eq!(result.plugin, Plugin::LinuxPslist.name());
     assert_eq!(result.rows.len(), 1);
     assert_eq!(result.rows[0][0], "1");
     let request = mcp_call(
@@ -1673,6 +1674,7 @@ fn pslist_dump_preserves_single_pid_filter_through_cli_and_mcp() -> Result<()> {
     let replies = mcp_exchange(dir.path(), &request.to_string())?;
     assert_eq!(replies[0]["result"]["isError"], false, "{replies:?}");
     let page = &replies[0]["result"]["structuredContent"];
+    assert_eq!(page["plugin"], Plugin::LinuxPslist.name());
     assert_eq!(page["total_rows"], 1);
     assert_eq!(page["rows"][0][0], "1");
     Ok(())

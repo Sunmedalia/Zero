@@ -319,28 +319,28 @@ catalog! {
     Vmayarascan, "linux.vmayarascan", "vmayarascan", Memory,
         "在进程 VMA 中搜索指定的文本或十六进制字节模式",
         ["PID", "Name", "Address", "Start", "Permissions", "Path", "Context"], [6, 14, 18, 18, 5, 0, 0];
-    Pslist, "linux.pslist", "pslist", Process,
+    Pslist, "linux.pslist.basic", "pslist.basic", Process,
         "列出活动进程及其地址",
         ["PID", "TGID", "PPID", "Name", "Address"], [5, 5, 5, 0, 18];
-    Pstree, "linux.pstree", "pstree", Process,
+    Pstree, "linux.pstree.basic", "pstree.basic", Process,
         "按父进程关系浏览进程树",
         ["PID", "TGID", "PPID", "Name", "Address"], [5, 5, 5, 0, 18];
     Lsmod, "linux.lsmod", "lsmod", System,
         "列出内核模块及地址范围",
         ["Offset", "Module Name", "Code Size", "Taints", "Load Arguments", "File Output"], [18, 18, 10, 16, 0, 16];
-    Psaux, "linux.psaux", "psaux", Process,
+    Psaux, "linux.psaux.basic", "psaux.basic", Process,
         "读取进程命令行",
         ["PID", "PPID", "Name", "CommandLine", "Status"], [5, 5, 12, 0, 12];
-    Envars, "linux.envars", "envars", Process,
+    Envars, "linux.envars.basic", "envars.basic", Process,
         "读取进程环境变量",
         ["PID", "Name", "Key", "Value"], [5, 12, 16, 0];
-    Maps, "linux.maps", "maps", Memory,
+    Maps, "linux.maps.basic", "maps.basic", Memory,
         "查看进程虚拟内存映射",
         ["PID", "Name", "Start", "End", "Permissions", "FileOffset", "Path"], [5, 12, 18, 18, 4, 10, 0];
-    Lsof, "linux.lsof", "lsof", Files,
+    Lsof, "linux.lsof.basic", "lsof.basic", Files,
         "列出进程打开的文件或对象",
         ["PID", "Name", "FD", "Type", "Inode", "Path", "FileAddress"], [5, 12, 4, 8, 10, 0, 18];
-    Sockstat, "linux.sockstat", "sockstat", Network,
+    Sockstat, "linux.sockstat.basic", "sockstat.basic", Network,
         "查看网络连接及端点",
         ["PID", "Name", "FD", "Family", "Type", "Protocol", "LocalEndpoint", "RemoteEndpoint", "State", "SocketAddress"], [5, 12, 4, 6, 8, 8, 0, 0, 12, 18];
     Netscan, "linux.netscan", "netscan", Network,
@@ -358,7 +358,7 @@ catalog! {
     Threads, "linux.threads", "threads", Process,
         "列出进程线程",
         ["PID", "Name", "TID", "ThreadName", "Address"], [5, 12, 6, 0, 18];
-    Mountinfo, "linux.mountinfo", "mountinfo", Files,
+    Mountinfo, "linux.mountinfo.basic", "mountinfo.basic", Files,
         "查看文件系统挂载关系",
         ["PID", "Name", "MountID", "ParentID", "Device", "MountPoint", "FileSystem", "Flags", "Address"], [5, 12, 6, 6, 0, 0, 8, 10, 18];
     CheckCreds, "linux.check_creds", "check_creds", Integrity,
@@ -370,16 +370,16 @@ catalog! {
     Systeminfo, "linux.systeminfo", "systeminfo", System,
         "查看系统和内核信息",
         ["Key", "Value"], [22, 0];
-    Elfs, "linux.elfs", "elfs", Memory,
+    Elfs, "linux.elfs.basic", "elfs.basic", Memory,
         "识别进程中的 ELF 映射",
         ["PID", "Name", "Start", "End", "Type", "Entry", "Path"], [6, 14, 18, 18, 6, 18, 0];
-    Bash, "linux.bash", "bash", Memory,
+    Bash, "linux.bash.basic", "bash.basic", Memory,
         "恢复内存中的 Bash 历史记录",
         ["PID", "Name", "Timestamp", "Command", "Address"], [6, 14, 12, 0, 18];
     Zsh, "linux.zsh", "zsh", Memory,
         "恢复内存中的 Zsh 历史记录（命令、开始与结束时间）",
         ["PID", "Name", "HistNum", "Started", "Finished", "Command", "Address"], [6, 14, 7, 12, 12, 0, 18];
-    Malfind, "linux.malfind", "malfind", Integrity,
+    Malfind, "linux.malfind.basic", "malfind.basic", Integrity,
         "检查可疑的可执行内存映射",
         ["PID", "Name", "Start", "End", "Permissions", "Path", "Reason", "Preview"], [6, 14, 18, 18, 6, 0, 24, 32];
     Psxview, "linux.psxview", "psxview", Integrity,
@@ -400,7 +400,7 @@ catalog! {
     HiddenModules, "linux.hidden_modules", "hidden_modules", Integrity,
         "从模块内存雕刻不在模块链表中的隐藏模块",
         ["Name", "Address", "Start", "End", "State", "Reason"], [18, 18, 18, 18, 9, 0];
-    LibraryList, "linux.library_list", "library_list", Memory,
+    LibraryList, "linux.library_list.basic", "library_list.basic", Memory,
         "列出进程映射的共享库",
         ["PID", "Name", "LoadAddress", "Path"], [6, 14, 18, 0];
     Pidhashtable, "linux.pidhashtable", "pidhashtable", Process,
@@ -409,10 +409,10 @@ catalog! {
     Vmcoreinfo, "linux.vmcoreinfo", "vmcoreinfo", System,
         "读取内核为崩溃转储准备的 vmcoreinfo",
         ["Key", "Value"], [32, 0];
-    IpAddr, "linux.ip.addr", "ip.addr", Network,
+    IpAddr, "linux.ip.addr.basic", "ip.addr.basic", Network,
         "列出各网络命名空间中网卡的 IPv4／IPv6 地址",
         ["Namespace", "Interface", "MAC", "Promiscuous", "Address", "Prefix", "Scope", "State"], [18, 12, 17, 6, 0, 6, 8, 10];
-    IpLink, "linux.ip.link", "ip.link", Network,
+    IpLink, "linux.ip.link.basic", "ip.link.basic", Network,
         "列出各网络命名空间中的网卡及状态",
         ["Namespace", "Interface", "MAC", "State", "MTU", "Flags"], [18, 12, 17, 10, 6, 0];
     CheckAfinfo, "linux.check_afinfo", "check_afinfo", Integrity,
@@ -436,7 +436,7 @@ catalog! {
     Ebpf, "linux.ebpf", "ebpf", Integrity,
         "列出已加载的 eBPF 程序及其 Tag",
         ["ID", "Name", "Type", "Address", "Function", "Tag"], [6, 16, 0, 18, 18, 18];
-    Boottime, "linux.boottime", "boottime", System,
+    Boottime, "linux.boottime.basic", "boottime.basic", System,
         "根据时间保持偏移计算系统启动时间",
         ["Key", "Value"], [16, 0];
     LinuxBoottime, "linux.boottime.full", "boottime.full", System,
@@ -451,7 +451,7 @@ catalog! {
     Psstate, "linux.psstate", "psstate", Process,
         "查看进程状态",
         ["PID", "Name", "State", "ExitState", "Flags"], [6, 16, 18, 18, 18];
-    Capabilities, "linux.capabilities", "capabilities", Process,
+    Capabilities, "linux.capabilities.basic", "capabilities.basic", Process,
         "查看进程能力集合",
         ["PID", "Name", "Inheritable", "Permitted", "Effective", "Bounding", "CredAddress"], [6, 16, 18, 18, 18, 18, 18];
     LinuxCapabilities, "linux.capabilities.full", "capabilities.full", Process,

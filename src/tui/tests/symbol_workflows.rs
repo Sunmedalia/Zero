@@ -145,7 +145,7 @@ fn manual_catalog_download_preserves_analysis_context() {
     app.drain();
     assert_eq!(app.symbols, selected);
     assert!(app.image.is_none());
-    assert_eq!(app.results["linux.pslist"].rows.len(), 2);
+    assert_eq!(app.results["linux.pslist.basic"].rows.len(), 2);
     assert!(
         app.assets
             .iter()
@@ -303,7 +303,10 @@ fn local_matches_stay_in_manager_and_reuse_image_context() {
     app.root = dir.path().into();
     app.switch_section(AssetSection::Symbols);
     let exact = exact.canonicalize().unwrap();
-    let mut banner = super::tests::app().results.remove("linux.pslist").unwrap();
+    let mut banner = super::tests::app()
+        .results
+        .remove("linux.pslist.basic")
+        .unwrap();
     banner.plugin = "linux.banners".into();
     let mut report = symbols::LocalMatches::default();
     report
@@ -357,7 +360,7 @@ fn remote_detail_download_button_saves_offline_without_selecting_or_navigating()
         app.settings.symbols = dir.path().join("library").display().to_string();
         app.settings.image_dir = dir.path().join("images").display().to_string();
         app.settings.remote_symbols = false;
-        app.history = app.results.get("linux.pslist").cloned().map(Arc::new);
+        app.history = app.results.get("linux.pslist.basic").cloned().map(Arc::new);
         app.query = "init".into();
         let previous_symbols = app.symbols.clone();
         let history = app.history.clone();
@@ -639,7 +642,7 @@ fn preparation_startup_unique_missing_and_object_change() {
     assert_eq!(app.preparation, Preparation::Ready);
     assert!(same_path(&app.symbols, &exact));
     assert!(app.results.contains_key("linux.banners"));
-    assert!(!app.results.contains_key("linux.pslist"));
+    assert!(!app.results.contains_key("linux.pslist.basic"));
     app.enter_workbench();
     assert_eq!(app.page, Page::Analysis);
     assert_eq!(app.plugin, Plugin::Pslist);
@@ -700,7 +703,7 @@ fn preparation_zip_candidates_are_individual_and_selection_never_runs() {
     assert_eq!(app.preparation, Preparation::Ready);
     assert!(same_path(&app.symbols, &path));
     assert!(app.job.is_none());
-    assert!(!app.results.contains_key("linux.pslist"));
+    assert!(!app.results.contains_key("linux.pslist.basic"));
 }
 
 #[test]
@@ -727,7 +730,7 @@ fn cancellation_waits_then_runs_last_snapshot_and_never_continues_preparation() 
     assert_eq!(app.plugin, Plugin::Pslist);
     finish_test_job(&mut app);
     assert!(app.results.contains_key("linux.banners"));
-    assert!(!app.results.contains_key("linux.pslist"));
+    assert!(!app.results.contains_key("linux.pslist.basic"));
     app.page = Page::Assets;
     app.job = Some(Job::default());
     app.preparation_lookup = true;
@@ -830,7 +833,7 @@ fn preparation_fetch_queries_downloads_selects_and_allows_retry_without_analysis
     );
     assert!(app.symbols.with_extension("source.json").is_file());
     assert!(app.last_error.is_none());
-    assert!(!app.results.contains_key("linux.pslist"));
+    assert!(!app.results.contains_key("linux.pslist.basic"));
     assert_eq!(app.page, Page::Analysis);
     assert!(app.open_tabs.is_empty());
 }
@@ -883,7 +886,7 @@ fn remote_search_and_history_browsing_preserve_running_task_and_position() {
     app.dialog_key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
     assert!(!job.cancel.load(Ordering::Relaxed));
     assert!(app.pending_work.is_none());
-    let result = app.results["linux.pslist"].as_ref().clone();
+    let result = app.results["linux.pslist.basic"].as_ref().clone();
     app.history = Some(Arc::new(Results {
         historical: true,
         ..result.clone()
@@ -976,7 +979,7 @@ fn space_selects_assets_and_detail_inspects_symbols_without_changing_the_object(
     assert!(same_path(&app.symbols, &exact));
     assert_eq!(app.preparation, Preparation::Ready);
     assert!(app.job.is_none());
-    assert!(!app.results.contains_key("linux.pslist"));
+    assert!(!app.results.contains_key("linux.pslist.basic"));
 }
 
 #[test]
@@ -1118,7 +1121,7 @@ fn current_image_symbol_generation_validates_inputs_and_persists_exact_output() 
         )
         .is_ok()
     );
-    assert!(!app.results.contains_key("linux.pslist"));
+    assert!(!app.results.contains_key("linux.pslist.basic"));
     assert_eq!(
         std::fs::read(app.image.as_ref().unwrap()).unwrap(),
         original_image
@@ -1164,7 +1167,7 @@ fn file_picker_detail_inspects_then_space_button_imports_the_selected_symbol() {
     finish_test_job(&mut app);
     assert!(same_path(&app.symbols, &exact));
     assert_eq!(app.preparation, Preparation::Ready);
-    assert!(!app.results.contains_key("linux.pslist"));
+    assert!(!app.results.contains_key("linux.pslist.basic"));
 }
 
 #[test]

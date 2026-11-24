@@ -49,7 +49,7 @@ Cache clearing is **CLI-only**: preview with `zero cache clear --dry-run` and ex
 
 ### 2. Discover and Run Analysis Plugins
 
-- Call `zero_plugins` to get exact plugin names and columns (unified `<os>.<id>` canonical names such as `linux.pslist`, `linux.pslist.full`, `linux.maps.full`, `linux.pagecache.files`, `windows.pslist`, `windows.netstat`, `windows.registry.amcache.full`; legacy bare names and Volatility 3 class-path names remain accepted as aliases).
+- Call `zero_plugins` to get exact plugin names and columns (unified `<os>.<id>` canonical names such as `linux.pslist.basic`, `linux.pslist.full`, `linux.maps.full`, `linux.pagecache.files`, `windows.pslist`, `windows.netstat`, `windows.registry.amcache.full`; legacy bare names and Volatility 3 class-path names remain accepted as aliases).
 - Set `os: "windows"` (or `windows.*` plugin names) when targeting Windows; set `arch: "auto"|"x86"|"x64"|"arm64"` when needed.
 - **Filtering & options**:
   - `pids` (array) filters supported Linux plugins (`linux.pslist.full`, `linux.pstree.full`, `linux.psaux.full`, `linux.envars.full`, `linux.capabilities.full`, `linux.maps.full`, `linux.lsof.full`, `linux.sockstat.full`, `linux.malfind.full`, `linux.mountinfo.full`, `linux.bash.full`, `linux.elfs.full`, `linux.library_list.full`, `linux.vmaregexscan`, `linux.pscallstack`) and Windows plugins (`windows.strings`, `windows.vadregexscan`, `windows.vadwalk`, `windows.pebmasquerade`).

@@ -174,7 +174,7 @@ fn inline_content_search_has_mouse_confirmation_and_reversible_filter() {
 #[test]
 fn stale_events_cannot_update_new_object_or_release_new_task() {
     let mut app = app();
-    let result = app.results["linux.pslist"].as_ref().clone();
+    let result = app.results["linux.pslist.basic"].as_ref().clone();
     app.results.clear();
     app.object_version = 2;
     app.task_id = 7;
@@ -221,7 +221,7 @@ fn selecting_an_image_enters_the_detected_analysis_console_after_matching() {
     assert!(same_path(&app.symbols, &exact));
     assert!(app.choice.is_some());
     assert!(app.open_tabs.is_empty());
-    assert!(!app.results.contains_key("linux.pslist"));
+    assert!(!app.results.contains_key("linux.pslist.basic"));
 }
 
 #[test]

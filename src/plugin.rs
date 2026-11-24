@@ -3,7 +3,11 @@ use clap::ValueEnum;
 
 #[derive(Clone, Copy, Debug, ValueEnum, PartialEq, Eq)]
 pub enum Plugin {
-    #[value(name = "linux.boottime.full", alias = "linux.boottime.Boottime")]
+    #[value(
+        name = "linux.boottime.full",
+        alias = "linux.boottime",
+        alias = "linux.boottime.Boottime"
+    )]
     LinuxBoottime,
     #[value(
         name = "linux.timeliner",
@@ -13,26 +17,59 @@ pub enum Plugin {
     LinuxTimeliner,
     #[value(
         name = "linux.capabilities.full",
+        alias = "linux.capabilities",
         alias = "linux.capabilities.Capabilities"
     )]
     LinuxCapabilities,
-    #[value(name = "linux.envars.full", alias = "linux.envars.Envars")]
+    #[value(
+        name = "linux.envars.full",
+        alias = "linux.envars",
+        alias = "linux.envars.Envars"
+    )]
     LinuxEnvars,
-    #[value(name = "linux.psaux.full", alias = "linux.psaux.PsAux")]
+    #[value(
+        name = "linux.psaux.full",
+        alias = "linux.psaux",
+        alias = "linux.psaux.PsAux"
+    )]
     LinuxPsaux,
-    #[value(name = "linux.pstree.full", alias = "linux.pstree.PsTree")]
+    #[value(
+        name = "linux.pstree.full",
+        alias = "linux.pstree",
+        alias = "linux.pstree.PsTree"
+    )]
     LinuxPstree,
-    #[value(name = "linux.maps.full", alias = "linux.proc.Maps")]
+    #[value(
+        name = "linux.maps.full",
+        alias = "linux.maps",
+        alias = "linux.proc.Maps"
+    )]
     LinuxMaps,
-    #[value(name = "linux.lsof.full", alias = "linux.lsof.Lsof")]
+    #[value(
+        name = "linux.lsof.full",
+        alias = "linux.lsof",
+        alias = "linux.lsof.Lsof"
+    )]
     LinuxLsof,
-    #[value(name = "linux.sockstat.full", alias = "linux.sockstat.Sockstat")]
+    #[value(
+        name = "linux.sockstat.full",
+        alias = "linux.sockstat",
+        alias = "linux.sockstat.Sockstat"
+    )]
     LinuxSockstat,
     #[value(name = "linux.kmsg", alias = "linux.kmsg.Kmsg", alias = "kmsg")]
     LinuxKmsg,
-    #[value(name = "linux.malfind.full", alias = "linux.malware.malfind.Malfind")]
+    #[value(
+        name = "linux.malfind.full",
+        alias = "linux.malfind",
+        alias = "linux.malware.malfind.Malfind"
+    )]
     LinuxMalfind,
-    #[value(name = "linux.mountinfo.full", alias = "linux.mountinfo.MountInfo")]
+    #[value(
+        name = "linux.mountinfo.full",
+        alias = "linux.mountinfo",
+        alias = "linux.mountinfo.MountInfo"
+    )]
     LinuxMountinfo,
     #[value(name = "linux.pagecache.files", alias = "linux.pagecache.Files")]
     LinuxPagecacheFiles,
@@ -48,18 +85,35 @@ pub enum Plugin {
         alias = "linux.pagecache.recoverfs"
     )]
     LinuxPagecacheRecoverFs,
-    #[value(name = "linux.bash.full", alias = "linux.bash.Bash")]
+    #[value(
+        name = "linux.bash.full",
+        alias = "linux.bash",
+        alias = "linux.bash.Bash"
+    )]
     LinuxBash,
-    #[value(name = "linux.elfs.full", alias = "linux.elfs.Elfs")]
+    #[value(
+        name = "linux.elfs.full",
+        alias = "linux.elfs",
+        alias = "linux.elfs.Elfs"
+    )]
     LinuxElfs,
     #[value(
         name = "linux.library_list.full",
+        alias = "linux.library_list",
         alias = "linux.library_list.LibraryList"
     )]
     LinuxLibraryList,
-    #[value(name = "linux.ip.addr.full")]
+    #[value(
+        name = "linux.ip.addr.full",
+        alias = "linux.ip.addr",
+        alias = "linux.ip.Addr"
+    )]
     LinuxIpAddr,
-    #[value(name = "linux.ip.link.full")]
+    #[value(
+        name = "linux.ip.link.full",
+        alias = "linux.ip.link",
+        alias = "linux.ip.Link"
+    )]
     LinuxIpLink,
     #[value(
         name = "windows.debugregisters",
@@ -225,7 +279,11 @@ pub enum Plugin {
         alias = "process_spoofing"
     )]
     ProcessSpoofing,
-    #[value(name = "linux.pslist.full", alias = "linux.pslist.PsList")]
+    #[value(
+        name = "linux.pslist.full",
+        alias = "linux.pslist",
+        alias = "linux.pslist.PsList"
+    )]
     LinuxPslist,
     #[value(name = "windows.ldrmodules")]
     WinLdrmodules,
@@ -396,7 +454,7 @@ pub enum Plugin {
     KeyboardNotifiers,
     #[value(name = "linux.psstate", alias = "psstate")]
     Psstate,
-    #[value(name = "linux.capabilities", alias = "capabilities")]
+    #[value(name = "linux.capabilities.basic", alias = "capabilities")]
     Capabilities,
     #[value(name = "linux.fdsummary", alias = "fdsummary")]
     Fdsummary,
@@ -406,21 +464,21 @@ pub enum Plugin {
     Memdump,
     #[value(name = "linux.elfdump", alias = "elfdump")]
     Elfdump,
-    #[value(name = "linux.pslist", alias = "pslist")]
+    #[value(name = "linux.pslist.basic", alias = "pslist")]
     Pslist,
-    #[value(name = "linux.pstree", alias = "pstree")]
+    #[value(name = "linux.pstree.basic", alias = "pstree")]
     Pstree,
     #[value(name = "linux.lsmod", alias = "lsmod")]
     Lsmod,
-    #[value(name = "linux.psaux", alias = "psaux")]
+    #[value(name = "linux.psaux.basic", alias = "psaux")]
     Psaux,
-    #[value(name = "linux.envars", alias = "envars")]
+    #[value(name = "linux.envars.basic", alias = "envars")]
     Envars,
-    #[value(name = "linux.maps", alias = "maps")]
+    #[value(name = "linux.maps.basic", alias = "maps")]
     Maps,
-    #[value(name = "linux.lsof", alias = "lsof")]
+    #[value(name = "linux.lsof.basic", alias = "lsof")]
     Lsof,
-    #[value(name = "linux.sockstat", alias = "sockstat")]
+    #[value(name = "linux.sockstat.basic", alias = "sockstat")]
     Sockstat,
     #[value(name = "linux.netscan", alias = "netscan")]
     Netscan,
@@ -432,7 +490,7 @@ pub enum Plugin {
     Pscred,
     #[value(name = "linux.threads", alias = "threads")]
     Threads,
-    #[value(name = "linux.mountinfo", alias = "mountinfo")]
+    #[value(name = "linux.mountinfo.basic", alias = "mountinfo")]
     Mountinfo,
     #[value(
         name = "linux.check_creds",
@@ -444,13 +502,13 @@ pub enum Plugin {
     Dmesg,
     #[value(name = "linux.systeminfo", alias = "systeminfo")]
     Systeminfo,
-    #[value(name = "linux.elfs", alias = "elfs")]
+    #[value(name = "linux.elfs.basic", alias = "elfs")]
     Elfs,
-    #[value(name = "linux.bash", alias = "bash", alias = "history")]
+    #[value(name = "linux.bash.basic", alias = "bash", alias = "history")]
     Bash,
     #[value(name = "linux.zsh", alias = "zsh", alias = "zsh_history")]
     Zsh,
-    #[value(name = "linux.malfind", alias = "malfind")]
+    #[value(name = "linux.malfind.basic", alias = "malfind")]
     Malfind,
     #[value(name = "linux.psxview", alias = "psxview")]
     Psxview,
@@ -477,7 +535,7 @@ pub enum Plugin {
     )]
     HiddenModules,
     #[value(
-        name = "linux.library_list",
+        name = "linux.library_list.basic",
         alias = "library_list",
         alias = "library-list"
     )]
@@ -486,9 +544,9 @@ pub enum Plugin {
     Pidhashtable,
     #[value(name = "linux.vmcoreinfo", alias = "vmcoreinfo")]
     Vmcoreinfo,
-    #[value(name = "linux.ip.addr", alias = "ip_addr", alias = "ip.addr")]
+    #[value(name = "linux.ip.addr.basic", alias = "ip_addr", alias = "ip.addr")]
     IpAddr,
-    #[value(name = "linux.ip.link", alias = "ip_link", alias = "ip.link")]
+    #[value(name = "linux.ip.link.basic", alias = "ip_link", alias = "ip.link")]
     IpLink,
     #[value(
         name = "linux.check_afinfo",
@@ -506,7 +564,7 @@ pub enum Plugin {
     Ftrace,
     #[value(name = "linux.ebpf", alias = "ebpf")]
     Ebpf,
-    #[value(name = "linux.boottime", alias = "boottime")]
+    #[value(name = "linux.boottime.basic", alias = "boottime")]
     Boottime,
     #[value(name = "linux.pagecache", alias = "pagecache")]
     Pagecache,
@@ -763,19 +821,141 @@ mod tests {
     }
 
     #[test]
-    fn bash_history_has_one_plugin_and_legacy_commands_use_the_same_identity() {
+    fn bash_history_and_bare_bash_still_select_the_basic_plugin() {
         assert_eq!(Plugin::from_str("history", false).unwrap(), Plugin::Bash);
         assert_eq!(Plugin::from_str("bash", false).unwrap(), Plugin::Bash);
-        assert_eq!(Plugin::from_str("linux.bash", false).unwrap(), Plugin::Bash);
-        assert_eq!(
-            Plugin::from_str("linux.bash.full", false).unwrap(),
-            Plugin::LinuxBash
-        );
-        assert_eq!(
-            Plugin::from_str("linux.bash.Bash", false).unwrap(),
-            Plugin::LinuxBash
-        );
-        assert_eq!(PLUGINS.iter().filter(|d| d.name == "linux.bash").count(), 1);
         assert!(!PLUGINS.iter().any(|d| d.name == "history"));
+    }
+
+    #[test]
+    fn linux_legacy_names_keep_their_cli_and_mcp_plugin_identity() {
+        for (full, basic, legacy, class_path, bare) in [
+            (
+                Plugin::LinuxBoottime,
+                Plugin::Boottime,
+                "linux.boottime",
+                "linux.boottime.Boottime",
+                "boottime",
+            ),
+            (
+                Plugin::LinuxCapabilities,
+                Plugin::Capabilities,
+                "linux.capabilities",
+                "linux.capabilities.Capabilities",
+                "capabilities",
+            ),
+            (
+                Plugin::LinuxEnvars,
+                Plugin::Envars,
+                "linux.envars",
+                "linux.envars.Envars",
+                "envars",
+            ),
+            (
+                Plugin::LinuxPsaux,
+                Plugin::Psaux,
+                "linux.psaux",
+                "linux.psaux.PsAux",
+                "psaux",
+            ),
+            (
+                Plugin::LinuxPstree,
+                Plugin::Pstree,
+                "linux.pstree",
+                "linux.pstree.PsTree",
+                "pstree",
+            ),
+            (
+                Plugin::LinuxMaps,
+                Plugin::Maps,
+                "linux.maps",
+                "linux.proc.Maps",
+                "maps",
+            ),
+            (
+                Plugin::LinuxLsof,
+                Plugin::Lsof,
+                "linux.lsof",
+                "linux.lsof.Lsof",
+                "lsof",
+            ),
+            (
+                Plugin::LinuxSockstat,
+                Plugin::Sockstat,
+                "linux.sockstat",
+                "linux.sockstat.Sockstat",
+                "sockstat",
+            ),
+            (
+                Plugin::LinuxMalfind,
+                Plugin::Malfind,
+                "linux.malfind",
+                "linux.malware.malfind.Malfind",
+                "malfind",
+            ),
+            (
+                Plugin::LinuxMountinfo,
+                Plugin::Mountinfo,
+                "linux.mountinfo",
+                "linux.mountinfo.MountInfo",
+                "mountinfo",
+            ),
+            (
+                Plugin::LinuxBash,
+                Plugin::Bash,
+                "linux.bash",
+                "linux.bash.Bash",
+                "bash",
+            ),
+            (
+                Plugin::LinuxElfs,
+                Plugin::Elfs,
+                "linux.elfs",
+                "linux.elfs.Elfs",
+                "elfs",
+            ),
+            (
+                Plugin::LinuxLibraryList,
+                Plugin::LibraryList,
+                "linux.library_list",
+                "linux.library_list.LibraryList",
+                "library_list",
+            ),
+            (
+                Plugin::LinuxIpAddr,
+                Plugin::IpAddr,
+                "linux.ip.addr",
+                "linux.ip.Addr",
+                "ip_addr",
+            ),
+            (
+                Plugin::LinuxIpLink,
+                Plugin::IpLink,
+                "linux.ip.link",
+                "linux.ip.Link",
+                "ip_link",
+            ),
+            (
+                Plugin::LinuxPslist,
+                Plugin::Pslist,
+                "linux.pslist",
+                "linux.pslist.PsList",
+                "pslist",
+            ),
+        ] {
+            assert_eq!(full.name(), format!("{legacy}.full"));
+            assert_eq!(basic.name(), format!("{legacy}.basic"));
+            for ignore_case in [false, true] {
+                for (name, expected) in [
+                    (legacy, full),
+                    (class_path, full),
+                    (full.name(), full),
+                    (bare, basic),
+                    (basic.name(), basic),
+                ] {
+                    assert_eq!(Plugin::from_str(name, ignore_case), Ok(expected), "{name}");
+                }
+            }
+        }
     }
 }

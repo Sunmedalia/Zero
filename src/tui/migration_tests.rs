@@ -7,7 +7,7 @@ fn render(app: &App, width: u16, height: u16) -> Terminal<TestBackend> {
     terminal
 }
 fn seed_tab(app: &mut App, plugin: Plugin) {
-    let mut result = app.results["linux.pslist"].as_ref().clone();
+    let mut result = app.results["linux.pslist.basic"].as_ref().clone();
     result.plugin = plugin.name().into();
     app.results.insert(plugin.name().into(), result);
     app.activate_plugin(plugin);
@@ -25,7 +25,7 @@ fn native_startup_with_image_verifies_before_matching_and_stays_on_analysis() {
             .is_some_and(|v| v.computed && v.digest.len() == 64)
     );
     assert!(app.results.contains_key("linux.banners"));
-    assert!(!app.results.contains_key("linux.pslist"));
+    assert!(!app.results.contains_key("linux.pslist.basic"));
     assert!(app.open_tabs.is_empty());
 }
 #[test]
@@ -112,7 +112,7 @@ fn tab_close_hit_and_middle_click_use_the_rendered_geometry() {
 fn result_scrollbar_drags_outside_track_and_release_stops_motion() {
     let mut app = app();
     app.focus = Focus::Content;
-    app.results.get_mut("linux.pslist").unwrap().rows = (0..300)
+    app.results.get_mut("linux.pslist.basic").unwrap().rows = (0..300)
         .map(|i| {
             vec![
                 i.to_string(),
@@ -160,9 +160,9 @@ fn cache_inventory_groups_results_and_scope_confirmation_never_deletes_evidence(
     let image = app.image.clone().unwrap();
     let result = app
         .results
-        .get("linux.pslist")
+        .get("linux.pslist.basic")
         .cloned()
-        .unwrap_or_else(|| super::app().results["linux.pslist"].as_ref().clone());
+        .unwrap_or_else(|| super::app().results["linux.pslist.basic"].as_ref().clone());
     let key = "a".repeat(64);
     let owner = store::Owner::new(&"b".repeat(64), &image);
     store::save(&app.cache, &key, &owner, &result, &Job::default()).unwrap();
@@ -187,7 +187,7 @@ fn cache_inventory_groups_results_and_scope_confirmation_never_deletes_evidence(
 #[test]
 fn export_and_record_reopen_are_worker_tasks_and_keep_partial_status() {
     let mut app = app();
-    app.results.get_mut("linux.pslist").unwrap().complete = false;
+    app.results.get_mut("linux.pslist.basic").unwrap().complete = false;
     let path = app.root.join("exports/test.json");
     app.export_result(path.clone());
     assert!(app.job.is_some());

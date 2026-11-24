@@ -1,5 +1,5 @@
 {
-  "linux.psaux": {
+  "linux.psaux.basic": {
     "columns": [
       "PID",
       "PPID",
@@ -15,7 +15,7 @@
       "PID 2344 @ 0xffff88001aca0080: 缺页 VA 0x7fff59d6eedd, level 12"
     ]
   },
-  "linux.envars": {
+  "linux.envars.basic": {
     "columns": [
       "PID",
       "Name",
@@ -30,7 +30,7 @@
       "PID 2344 @ 0xffff88001aca0080: 缺页 VA 0x7fff59d6eeeb, level 12"
     ]
   },
-  "linux.maps": {
+  "linux.maps.basic": {
     "columns": [
       "PID",
       "Name",
@@ -181,7 +181,7 @@
       "PID 3482 VMA 0xffff88001c30fd98 路径: 路径不在进程根目录内 @ 0xffff88001e802b00"
     ]
   },
-  "linux.lsof": {
+  "linux.lsof.basic": {
     "columns": [
       "PID",
       "Name",
@@ -207,7 +207,7 @@
       "PID 3482 FD 3 路径: 路径不在进程根目录内 @ 0xffff88001e802b00"
     ]
   },
-  "linux.sockstat": {
+  "linux.sockstat.basic": {
     "columns": [
       "PID",
       "Name",
@@ -279,7 +279,7 @@
     "complete": true,
     "diagnostics": []
   },
-  "linux.mountinfo": {
+  "linux.mountinfo.basic": {
     "columns": [
       "PID",
       "Name",
@@ -329,7 +329,7 @@
     "complete": true,
     "diagnostics": []
   },
-  "linux.elfs": {
+  "linux.elfs.basic": {
     "columns": [
       "PID",
       "Name",
@@ -2602,7 +2602,7 @@
       "PID 8600 VMA 0xffff88001b6b46b8: 缺页 VA 0x7fff44b90000, level 12"
     ]
   },
-  "linux.bash": {
+  "linux.bash.basic": {
     "columns": [
       "PID",
       "Name",
@@ -2615,7 +2615,7 @@
     "complete": true,
     "diagnostics": []
   },
-  "linux.malfind": {
+  "linux.malfind.basic": {
     "columns": [
       "PID",
       "Name",
@@ -2699,7 +2699,7 @@
     "complete": true,
     "diagnostics": []
   },
-  "linux.capabilities": {
+  "linux.capabilities.basic": {
     "columns": [
       "PID",
       "Name",
