@@ -458,10 +458,10 @@ impl Linux<'_> {
                     job.check()?;
                     let chunk = usize::try_from((inode_size - written).min(4096))?;
                     let bytes = buf.at_mut(..chunk)?;
-                    if !page_map
+                    if page_map
                         .get(&index)
                         .copied()
-                        .is_some_and(|paddr| self.vm.image.read(paddr, bytes).is_ok())
+                        .is_none_or(|paddr| self.vm.image.read(paddr, bytes).is_err())
                     {
                         bytes.fill(0);
                         missing_pages += 1;
