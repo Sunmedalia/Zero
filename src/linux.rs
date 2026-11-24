@@ -207,7 +207,7 @@ pub fn banner_result(image: &Image, job: &Job) -> Result<Results> {
         "linux"
     };
     Ok(Results {
-        plugin: "banners".into(),
+        plugin: Plugin::Banners.name().into(),
         columns: Plugin::Banners
             .descriptor()
             .columns

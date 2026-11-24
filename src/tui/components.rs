@@ -2,47 +2,8 @@ use super::*;
 pub(super) fn plugin_label(plugin: Plugin) -> &'static str {
     if plugin.is_dump() {
         "dump"
-    } else if matches!(
-        plugin,
-        Plugin::LinuxPsaux
-            | Plugin::LinuxEnvars
-            | Plugin::LinuxCapabilities
-            | Plugin::LinuxPstree
-            | Plugin::LinuxMaps
-            | Plugin::LinuxLsof
-            | Plugin::LinuxSockstat
-            | Plugin::LinuxKmsg
-            | Plugin::LinuxMalfind
-            | Plugin::LinuxMountinfo
-            | Plugin::LinuxPagecacheFiles
-            | Plugin::LinuxTimeliner
-            | Plugin::LinuxPagecacheInodePages
-            | Plugin::LinuxPagecacheRecoverFs
-            | Plugin::WinMftscanAds
-            | Plugin::WinMftscanResidentData
-            | Plugin::LinuxBash
-            | Plugin::LinuxElfs
-            | Plugin::LinuxLibraryList
-            | Plugin::LinuxIpAddr
-            | Plugin::LinuxIpLink
-            | Plugin::ProcessSpoofing
-            | Plugin::Modxview
-            | Plugin::Kallsyms
-            | Plugin::LinuxPsscan
-            | Plugin::LinuxSockscan
-            | Plugin::VmaRegExScan
-            | Plugin::WinVadWalk
-            | Plugin::WinVadRegExScan
-            | Plugin::PsCallStack
-            | Plugin::Fbdev
-    ) {
-        plugin.descriptor().label
     } else {
-        plugin
-            .name()
-            .strip_prefix("windows.")
-            .or_else(|| plugin.name().strip_prefix("linux."))
-            .unwrap_or(plugin.name())
+        plugin.descriptor().label
     }
 }
 /// Case-insensitive, order-free token match: every space-separated term must appear.

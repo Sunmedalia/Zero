@@ -20,9 +20,12 @@
 
 快照固定本次执行的结果，即使源文件后来变化也不重新分析。新分析返回新 ID。默认最多 8 个快照，闲置 30 分钟过期，服务重启后全部 ID 失效；失效时重新分析。部分结果保留 `complete: false` 和全部诊断，快照不属于成功结果缓存。`no_cache: true` 跳过成功缓存，仍可生成分页快照。
 
-`linux.pslist.PsList`（别名 `linux.pslist`）提供完整进程字段，支持 `pid`、
+`linux.pslist.full`（别名 `linux.pslist`）提供完整进程字段，支持 `pid`、
 `include_threads`、`decorate_comm`。后两项为布尔值，其他插件不能启用这两项。
-模块跨视图 `linux.malware.modxview.Modxview` 支持布尔参数 `plain_taints`（CLI `--plain-taints`），其他插件不能启用此项。
+有完整版和精简版的 Linux 插件分别使用 `.full` 和 `.basic` 规范名称。例如，
+`linux.pslist` 和 `linux.pslist.PsList` 继续选择 `linux.pslist.full`，短名
+`pslist` 继续选择 `linux.pslist.basic`。
+模块跨视图 `linux.modxview` 支持布尔参数 `plain_taints`（CLI `--plain-taints`），其他插件不能启用此项。
 CLI 对应 `--threads`、`--decorate-comm`，详见 [对齐进度](volatility-parity.md)。
 
 ## 任务与错误
@@ -49,9 +52,9 @@ cargo test --locked --test native mcp_
 
 `zero_dump` 的 `mode: "kernel-module"` 对应 Linux ModuleExtract，输出重建 ELF；补零范围、文件 SHA256 与完整路径保留在结果元数据中。
 
-`zero_analyze` 的 `linux.kallsyms.Kallsyms` 支持 `core`、`modules`、`ftrace`、`bpf` 四个布尔参数；全部省略或 false 时选择全部来源，其他插件不能启用这些参数。
+`zero_analyze` 的 `linux.kallsyms` 支持 `core`、`modules`、`ftrace`、`bpf` 四个布尔参数；全部省略或 false 时选择全部来源，其他插件不能启用这些参数。
 
-`zero_analyze` 的 `windows.pe_symbols.PESymbols` 入口需要 `source`
+`zero_analyze` 的 `windows.pe_symbols` 入口需要 `source`
 （`kernel` 或 `processes`）及 `module`（模块文件名），另提供 `symbol_names`
 字符串数组或 `addresses` 字符串数组。地址字符串支持十进制和 `0x`，避免 JSON
 数值丢失 64 位精度。列表最多 4096 项；两者同时提供时名称优先。

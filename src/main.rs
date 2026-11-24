@@ -88,11 +88,11 @@ struct Cli {
     /// Case-insensitive matching for --name.
     #[arg(help_heading = "Scan plugins", long = "ignore-case", global = true)]
     ignore_case: bool,
-    /// Byte pattern for vmayarascan / windows.vadyarascan: text, wide:TEXT
-    /// (UTF-16LE) or hex:4d5a??00 with ?? wildcards; byte regex for VmaRegExScan.
+    /// Byte pattern for linux.vmayarascan / windows.vadyarascan: text, wide:TEXT
+    /// (UTF-16LE) or hex:4d5a??00 with ?? wildcards; byte regex for linux.vmaregexscan / windows.vadregexscan.
     #[arg(help_heading = "Scan plugins", long, global = true)]
     pattern: Option<String>,
-    /// Local strings output with decimal physical offsets (windows.strings.Strings).
+    /// Local strings output with decimal physical offsets (windows.strings).
     #[arg(help_heading = "Scan plugins", long, global = true)]
     strings_file: Option<PathBuf>,
     /// Minimum cached TrueCrypt passphrase length (default 5).
@@ -136,35 +136,35 @@ struct Cli {
     symbol_names: Vec<String>,
     #[arg(help_heading = "PE symbol plugins", long = "address", global = true, value_parser = zero_tui::dump::parse_address)]
     addresses: Vec<u64>,
-    /// Include user threads in linux.pslist.PsList / linux.pstree.PsTree.
+    /// Include user threads in linux.pslist.full / linux.pstree.full.
     #[arg(help_heading = "Linux plugins", long = "threads", global = true)]
     include_threads: bool,
-    /// Decorate user/kernel thread names in linux.pslist.PsList / linux.pstree.PsTree.
+    /// Decorate user/kernel thread names in linux.pslist.full / linux.pstree.full.
     #[arg(help_heading = "Linux plugins", long, global = true)]
     decorate_comm: bool,
-    /// Include only regular files in linux.lsof.Lsof.
+    /// Include only regular files in linux.lsof.full.
     #[arg(help_heading = "Linux plugins", long = "files-only", global = true)]
     files_only: bool,
-    /// Filter linux.sockstat.Sockstat by network namespace inode.
+    /// Filter linux.sockstat.full by network namespace inode.
     #[arg(help_heading = "Linux plugins", long, global = true)]
     netns: Option<u64>,
-    /// Hexdump/disassembly byte count for linux.malware.malfind.Malfind (default 64).
+    /// Hexdump/disassembly byte count for linux.malfind.full (default 64).
     #[arg(help_heading = "Linux plugins", long = "hexdump-size", global = true)]
     hexdump_size: Option<usize>,
-    /// Show every dirty page in executable VMAs flagged by their page tables for linux.malware.malfind.Malfind.
+    /// Show every dirty page in executable VMAs flagged by their page tables for linux.malfind.full.
     #[arg(
         help_heading = "Linux plugins",
         long = "show-all-dirty-pages",
         global = true
     )]
     show_all_dirty_pages: bool,
-    /// Filter linux.mountinfo.MountInfo by mount namespace inode.
+    /// Filter linux.mountinfo.full by mount namespace inode.
     #[arg(help_heading = "Linux plugins", long, global = true)]
     mntns: Option<u64>,
-    /// Use concise /proc/mounts-style output in linux.mountinfo.MountInfo.
+    /// Use concise /proc/mounts-style output in linux.mountinfo.full.
     #[arg(help_heading = "Linux plugins", long = "mount-format", global = true)]
     mount_format: bool,
-    /// Filter linux.pagecache.Files by inode type (e.g. REG,DIR; comma-separated or repeated).
+    /// Filter linux.pagecache.files by inode type (e.g. REG,DIR; comma-separated or repeated).
     #[arg(
         help_heading = "Linux plugins",
         long = "file-type",
@@ -172,13 +172,13 @@ struct Cli {
         value_delimiter = ','
     )]
     file_types: Vec<String>,
-    /// Filter linux.pagecache.Files by path substring.
+    /// Filter linux.pagecache.files by path substring.
     #[arg(help_heading = "Linux plugins", long, global = true)]
     find: Option<String>,
-    /// Render module taints as compact characters in linux.malware.modxview.Modxview.
+    /// Render module taints as compact characters in linux.modxview.
     #[arg(help_heading = "Linux plugins", long, global = true)]
     plain_taints: bool,
-    /// Select sources for linux.kallsyms.Kallsyms (none selects all).
+    /// Select sources for linux.kallsyms (none selects all).
     #[arg(help_heading = "Linux plugins", long, global = true)]
     core: bool,
     #[arg(help_heading = "Linux plugins", long, global = true)]

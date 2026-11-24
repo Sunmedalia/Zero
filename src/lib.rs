@@ -35,8 +35,8 @@ use std::sync::{
     atomic::{AtomicBool, Ordering},
 };
 
-// Batch 5: Windows dlllist/hivelist --name/--ignore-case, vadinfo --address, sessions SessionType/UserName; Linux ftrace HookedSymbols.
-pub const ENGINE_VERSION: &str = concat!(env!("CARGO_PKG_VERSION"), "-native-131");
+// Unified canonical plugin names (<os>.<id>) and TUI labels across Linux and Windows.
+pub const ENGINE_VERSION: &str = concat!(env!("CARGO_PKG_VERSION"), "-native-132");
 #[derive(Clone)]
 pub struct Job {
     pub cancel: Arc<AtomicBool>,

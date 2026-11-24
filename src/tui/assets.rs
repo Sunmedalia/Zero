@@ -389,7 +389,7 @@ impl App {
         );
         let banner = self
             .results
-            .get("banners")
+            .get(Plugin::Banners.name())
             .and_then(|r| {
                 banner_candidates(r)
                     .first()
@@ -433,7 +433,7 @@ impl App {
             ("离线", color_warn())
         };
         let value = Style::default().fg(color_text());
-        let identified = self.results.contains_key("banners");
+        let identified = self.results.contains_key(Plugin::Banners.name());
         // Two lines instead of four: the kernel banner and the repository URL
         // are reference material, not state, and both are available in the
         // detail panel and the palette. What changes during work — image,

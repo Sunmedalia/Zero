@@ -2,7 +2,7 @@
   "image_sha256": "cf04d76ab9177d7ee355cc96020d29ae194c065c692304ff25e594ab510c639d",
   "page_table": 3012026368,
   "plugins": {
-    "banners": {
+    "linux.banners": {
       "columns": [
         "Offset",
         "Banner"
@@ -12,7 +12,7 @@
       "complete": true,
       "diagnostics": []
     },
-    "bash": {
+    "linux.bash.basic": {
       "columns": [
         "PID",
         "Name",
@@ -27,7 +27,7 @@
         "父进程不在 tasks 链表（可能为线程或已退出）: 29451"
       ]
     },
-    "check_creds": {
+    "linux.check_creds": {
       "columns": [
         "CredAddress",
         "PIDs",
@@ -42,7 +42,7 @@
         "父进程不在 tasks 链表（可能为线程或已退出）: 29451"
       ]
     },
-    "check_modules": {
+    "linux.check_modules": {
       "columns": [
         "Name",
         "Address",
@@ -57,7 +57,7 @@
       "complete": true,
       "diagnostics": []
     },
-    "check_syscall": {
+    "linux.check_syscall": {
       "columns": [
         "Table",
         "Index",
@@ -71,7 +71,7 @@
       "complete": true,
       "diagnostics": []
     },
-    "dmesg": {
+    "linux.dmesg": {
       "columns": [
         "Index",
         "Message"
@@ -81,7 +81,7 @@
       "complete": true,
       "diagnostics": []
     },
-    "elfs": {
+    "linux.elfs.basic": {
       "columns": [
         "PID",
         "Name",
@@ -1861,7 +1861,7 @@
         "PID 32043 VMA 0xffff00000308b0b8: ARM64 缺页 VA 0xffffec1c0000 level 12"
       ]
     },
-    "envars": {
+    "linux.envars.basic": {
       "columns": [
         "PID",
         "Name",
@@ -1875,7 +1875,7 @@
         "父进程不在 tasks 链表（可能为线程或已退出）: 29451"
       ]
     },
-    "lsmod": {
+    "linux.lsmod": {
       "columns": [
         "Offset",
         "Module Name",
@@ -1889,7 +1889,7 @@
       "complete": true,
       "diagnostics": []
     },
-    "lsof": {
+    "linux.lsof.basic": {
       "columns": [
         "PID",
         "Name",
@@ -1938,7 +1938,7 @@
         "PID 31334 FD 10: 路径不在进程根目录内 @ 0xffff000000408300"
       ]
     },
-    "malfind": {
+    "linux.malfind.basic": {
       "columns": [
         "PID",
         "Name",
@@ -1964,7 +1964,7 @@
         "maple VMA 0xffff000062b7ca00: maple VMA 数量与 map_count 不一致"
       ]
     },
-    "maps": {
+    "linux.maps.basic": {
       "columns": [
         "PID",
         "Name",
@@ -2041,7 +2041,7 @@
         "maple VMA 0xffff000062b7ca00: maple VMA 数量与 map_count 不一致"
       ]
     },
-    "mountinfo": {
+    "linux.mountinfo.basic": {
       "columns": [
         "PID",
         "Name",
@@ -2060,7 +2060,7 @@
         "父进程不在 tasks 链表（可能为线程或已退出）: 29451"
       ]
     },
-    "psaux": {
+    "linux.psaux.basic": {
       "columns": [
         "PID",
         "PPID",
@@ -2075,7 +2075,7 @@
         "父进程不在 tasks 链表（可能为线程或已退出）: 29451"
       ]
     },
-    "pscred": {
+    "linux.pscred": {
       "columns": [
         "PID",
         "Name",
@@ -2096,7 +2096,7 @@
         "父进程不在 tasks 链表（可能为线程或已退出）: 29451"
       ]
     },
-    "pslist": {
+    "linux.pslist.basic": {
       "columns": [
         "PID",
         "TGID",
@@ -2111,7 +2111,7 @@
         "父进程不在 tasks 链表（可能为线程或已退出）: 29451"
       ]
     },
-    "pstree": {
+    "linux.pstree.basic": {
       "columns": [
         "PID",
         "TGID",
@@ -2126,7 +2126,7 @@
         "父进程不在 tasks 链表（可能为线程或已退出）: 29451"
       ]
     },
-    "psxview": {
+    "linux.psxview": {
       "columns": [
         "PID",
         "Name",
@@ -2143,7 +2143,7 @@
         "父进程不在 tasks 链表（可能为线程或已退出）: 29451"
       ]
     },
-    "pwd": {
+    "linux.pwd": {
       "columns": [
         "PID",
         "Name",
@@ -2157,7 +2157,7 @@
         "父进程不在 tasks 链表（可能为线程或已退出）: 29451"
       ]
     },
-    "sockstat": {
+    "linux.sockstat.basic": {
       "columns": [
         "PID",
         "Name",
@@ -2177,7 +2177,7 @@
         "父进程不在 tasks 链表（可能为线程或已退出）: 29451"
       ]
     },
-    "systeminfo": {
+    "linux.systeminfo": {
       "columns": [
         "Key",
         "Value"
@@ -2187,7 +2187,7 @@
       "complete": true,
       "diagnostics": []
     },
-    "threads": {
+    "linux.threads": {
       "columns": [
         "PID",
         "Name",
@@ -2202,7 +2202,7 @@
         "父进程不在 tasks 链表（可能为线程或已退出）: 29451"
       ]
     },
-    "psstate": {
+    "linux.psstate": {
       "columns": [
         "PID",
         "Name",
@@ -2217,7 +2217,7 @@
         "父进程不在 tasks 链表（可能为线程或已退出）: 29451"
       ]
     },
-    "capabilities": {
+    "linux.capabilities.basic": {
       "columns": [
         "PID",
         "Name",
@@ -2234,7 +2234,7 @@
         "父进程不在 tasks 链表（可能为线程或已退出）: 29451"
       ]
     },
-    "fdsummary": {
+    "linux.fdsummary": {
       "columns": [
         "PID",
         "Name",
@@ -2283,7 +2283,7 @@
         "PID 31334 FD 10: 路径不在进程根目录内 @ 0xffff000000408300"
       ]
     },
-    "iomem": {
+    "linux.iomem": {
       "columns": [
         "Name",
         "Start",
@@ -2297,7 +2297,7 @@
       "complete": true,
       "diagnostics": []
     },
-    "ioports": {
+    "linux.ioports": {
       "columns": [
         "Name",
         "Start",
@@ -2311,7 +2311,7 @@
       "complete": true,
       "diagnostics": []
     },
-    "ptrace": {
+    "linux.ptrace": {
       "columns": [
         "Process",
         "PID",
@@ -2327,7 +2327,7 @@
         "父进程不在 tasks 链表（可能为线程或已退出）: 29451"
       ]
     },
-    "keyboard_notifiers": {
+    "linux.keyboard_notifiers": {
       "columns": [
         "Address",
         "Module",

@@ -322,7 +322,7 @@ zero dump --image images/WinDump/WinDump.mem --symbols symbols/nt.json.xz \
 
 推荐使用 `dump --mode`；Linux 为 `process|range|elf|kernel-module`，Windows 为 `process|range|pe|vad|dll|module|files`。原 `analyze --plugin procdump|memdump|elfdump` 调用保持兼容。
 
-`linux.pagecache.InodePages` 和 `linux.pagecache.RecoverFs` 的 `--dump-dir` 需要支持硬链接。恢复目录和导出根目录应位于同一个文件系统，以便原子发布文件并保留已有证据。
+`linux.pagecache.inode_pages` 和 `linux.pagecache.recover_fs` 的 `--dump-dir` 需要支持硬链接。恢复目录和导出根目录应位于同一个文件系统，以便原子发布文件并保留已有证据。
 
 ### 6.3 符号识别、下载与生成
 
@@ -381,7 +381,7 @@ zero cache clear --scope results,identification --yes
 
 ## 7. Linux 插件参考
 
-共 63 个插件（含 `linux.pslist.PsList` 完整字段入口，详见 [Volatility 对齐进度](volatility-parity.md)）：`pslist`、`pstree`、`lsmod`、`psaux`、`envars`、`maps`、`lsof`、`sockstat`、`netscan`、`banners`、`pwd`、`pscred`、`threads`、`mountinfo`、`check_creds`、`dmesg`、`systeminfo`、`elfs`、`bash`、`zsh`、`malfind`、`psxview`、`check_modules`、`check_syscall`、`psstate`、`capabilities`、`fdsummary`、`procdump`、`memdump`、`elfdump`、`iomem`、`ioports`、`ptrace`、`keyboard_notifiers`、`check_exec`、`check_idt`、`tty_check`、`hidden_modules`、`library_list`、`pidhashtable`、`vmcoreinfo`、`ip_addr`、`ip_link`、`check_afinfo`、`kthreads`、`netfilter`、`tracepoints`、`ftrace`、`ebpf`、`boottime`、`pagecache`、`perf_events`、`vmayarascan`、`linux.malware.process_spoofing.ProcessSpoofing`、`linux.malware.modxview.Modxview`、`linux.module_extract.ModuleExtract`、`linux.kallsyms.Kallsyms`、`linux.psscan.PsScan`、`linux.sockscan.Sockscan`、`linux.vmaregexscan.VmaRegExScan`、`linux.pscallstack.PsCallStack`、`linux.graphics.fbdev.Fbdev`。
+共 63 个插件（含 `linux.pslist.full` 完整字段入口，详见 [Volatility 对齐进度](volatility-parity.md)）：`pslist`、`pstree`、`lsmod`、`psaux`、`envars`、`maps`、`lsof`、`sockstat`、`netscan`、`banners`、`pwd`、`pscred`、`threads`、`mountinfo`、`check_creds`、`dmesg`、`systeminfo`、`elfs`、`bash`、`zsh`、`malfind`、`psxview`、`check_modules`、`check_syscall`、`psstate`、`capabilities`、`fdsummary`、`procdump`、`memdump`、`elfdump`、`iomem`、`ioports`、`ptrace`、`keyboard_notifiers`、`check_exec`、`check_idt`、`tty_check`、`hidden_modules`、`library_list`、`pidhashtable`、`vmcoreinfo`、`ip_addr`、`ip_link`、`check_afinfo`、`kthreads`、`netfilter`、`tracepoints`、`ftrace`、`ebpf`、`boottime`、`pagecache`、`perf_events`、`vmayarascan`、`linux.process_spoofing`、`linux.modxview`、`linux.module_extract`、`linux.kallsyms`、`linux.psscan`、`linux.sockscan`、`linux.vmaregexscan`、`linux.pscallstack`、`linux.fbdev`。
 
 TUI 插件菜单只列分析插件，转储统一在 `D` 中。这些都是本地 ISF 驱动的 Rust 实现，不执行 Volatility Python 插件。
 
@@ -400,28 +400,28 @@ TUI 插件菜单只列分析插件，转储统一在 `D` 中。这些都是本�
 | banners | Offset（物理地址）、Banner；无需 ISF |
 | pwd | PID、Name、Root（全局路径）、CWD（相对进程根） |
 | pscred | PID、Name、UID、GID、EUID、EGID、SUID、SGID、FSUID、FSGID、CredAddress |
-| linux.malware.process_spoofing.ProcessSpoofing | PID、PPID、Exe_Path、Cmdline_Basename、Comm、Cmdline_Spoofed、Comm_Spoofed、Exe_Deleted |
-| linux.graphics.fbdev.Fbdev | Address、Device、ID、Size、Virtual resolution、BPP、State、Filename |
-| linux.pscallstack.PsCallStack | TID、Comm、Position、Address、Value、Name、Type、Module |
-| linux.vmaregexscan.VmaRegExScan | PID、Process、Offset、Text、Hex |
-| linux.sockscan.Sockscan | Sock Offset（物理地址）、Family、Type、Proto、Source Addr、Source Port、Destination Addr、Destination Port、State、Filter |
-| linux.psscan.PsScan | OFFSET (P)（物理地址）、PID（TGID）、TID、PPID、COMM、EXIT_STATE |
-| linux.kallsyms.Kallsyms | Addr、Type、Size、Exported、SubSystem、ModuleName、SymbolName、Description |
-| linux.module_extract.ModuleExtract | Base（struct module 地址）、File Size、File output；SHA256 和补零范围在元数据中 |
-| linux.malware.modxview.Modxview | Name、Address、In procfs、In sysfs、In scan、Taints |
-| linux.pstree.PsTree | OFFSET (V)、PID、TID、PPID、COMM；支持 PID 列表、`--threads`、`--decorate-comm` |
-| linux.proc.Maps | PID、Process、Start、End、Flags、PgOff、Major、Minor、Inode、File Path、File output；支持 PID 列表、`--address`、`--maxsize`、`--dump-dir` |
-| linux.lsof.Lsof | PID、TID、Process、FD、Path、Device、Inode、Type、Mode、Changed、Modified、Accessed、Size；支持 PID 列表、`--files-only` |
-| linux.sockstat.Sockstat | NetNS、Process Name、PID、TID、FD、Sock Offset、Family、Type、Proto、Source Addr、Source Port、Destination Addr、Destination Port、State、Filter；支持 PID 列表、`--netns` |
-| linux.kmsg.Kmsg | facility、level、timestamp、caller、line；兼容 `prb`（5.10+）、`printk_log`/`log`（3.5–5.9）与旧 `log_buf`（<3.5）三代 printk 缓冲区 |
-| linux.malware.malfind.Malfind | PID、Process、Start、End、Path、Protection、Hexdump、Disasm、File output；支持 PID 列表、`--hexdump-size`、`--show-all-dirty-pages`、`--maxsize`、`--dump-dir` |
-| linux.mountinfo.MountInfo | MNT_NS_ID、MOUNT_ID、PARENT_ID、MAJOR:MINOR、ROOT、MOUNT_POINT、MOUNT_OPTIONS、FIELDS、FSTYPE、MOUNT_SRC、SB_OPTIONS；默认按命名空间去重；指定 PID 列表时逐进程输出并增加 PID 列；`--mntns` 筛选命名空间；`--mount-format` 输出简表 |
-| linux.pagecache.Files | SuperblockAddr、MountPoint、Device、InodeNum、InodeAddr、FileType、InodePages、CachedPages、FileMode、AccessTime、ModificationTime、ChangeTime、FilePath、InodeSize；支持 `--file-type`、`--find` |
-| linux.bash.Bash | PID、Process、CommandTime、Command；支持 PID 列表 |
-| linux.elfs.Elfs | PID、Process、Start、End、File Path、File Output；支持 ELF32/ELF64、PID 列表与 `--dump-dir` |
-| linux.library_list.LibraryList | Name、Pid、LoadAddress、Path；支持 PID 列表 |
-| linux.ip.Addr | NetNS、Index、Interface、MAC、Promiscuous、IP、Prefix、Scope Type、State |
-| linux.ip.Link | NS、Interface、MAC、State、MTU、Qdisc、Qlen、Flags |
+| linux.process_spoofing | PID、PPID、Exe_Path、Cmdline_Basename、Comm、Cmdline_Spoofed、Comm_Spoofed、Exe_Deleted |
+| linux.fbdev | Address、Device、ID、Size、Virtual resolution、BPP、State、Filename |
+| linux.pscallstack | TID、Comm、Position、Address、Value、Name、Type、Module |
+| linux.vmaregexscan | PID、Process、Offset、Text、Hex |
+| linux.sockscan | Sock Offset（物理地址）、Family、Type、Proto、Source Addr、Source Port、Destination Addr、Destination Port、State、Filter |
+| linux.psscan | OFFSET (P)（物理地址）、PID（TGID）、TID、PPID、COMM、EXIT_STATE |
+| linux.kallsyms | Addr、Type、Size、Exported、SubSystem、ModuleName、SymbolName、Description |
+| linux.module_extract | Base（struct module 地址）、File Size、File output；SHA256 和补零范围在元数据中 |
+| linux.modxview | Name、Address、In procfs、In sysfs、In scan、Taints |
+| linux.pstree.full | OFFSET (V)、PID、TID、PPID、COMM；支持 PID 列表、`--threads`、`--decorate-comm` |
+| linux.maps.full | PID、Process、Start、End、Flags、PgOff、Major、Minor、Inode、File Path、File output；支持 PID 列表、`--address`、`--maxsize`、`--dump-dir` |
+| linux.lsof.full | PID、TID、Process、FD、Path、Device、Inode、Type、Mode、Changed、Modified、Accessed、Size；支持 PID 列表、`--files-only` |
+| linux.sockstat.full | NetNS、Process Name、PID、TID、FD、Sock Offset、Family、Type、Proto、Source Addr、Source Port、Destination Addr、Destination Port、State、Filter；支持 PID 列表、`--netns` |
+| linux.kmsg | facility、level、timestamp、caller、line；兼容 `prb`（5.10+）、`printk_log`/`log`（3.5–5.9）与旧 `log_buf`（<3.5）三代 printk 缓冲区 |
+| linux.malfind.full | PID、Process、Start、End、Path、Protection、Hexdump、Disasm、File output；支持 PID 列表、`--hexdump-size`、`--show-all-dirty-pages`、`--maxsize`、`--dump-dir` |
+| linux.mountinfo.full | MNT_NS_ID、MOUNT_ID、PARENT_ID、MAJOR:MINOR、ROOT、MOUNT_POINT、MOUNT_OPTIONS、FIELDS、FSTYPE、MOUNT_SRC、SB_OPTIONS；默认按命名空间去重；指定 PID 列表时逐进程输出并增加 PID 列；`--mntns` 筛选命名空间；`--mount-format` 输出简表 |
+| linux.pagecache.files | SuperblockAddr、MountPoint、Device、InodeNum、InodeAddr、FileType、InodePages、CachedPages、FileMode、AccessTime、ModificationTime、ChangeTime、FilePath、InodeSize；支持 `--file-type`、`--find` |
+| linux.bash.full | PID、Process、CommandTime、Command；支持 PID 列表 |
+| linux.elfs.full | PID、Process、Start、End、File Path、File Output；支持 ELF32/ELF64、PID 列表与 `--dump-dir` |
+| linux.library_list.full | Name、Pid、LoadAddress、Path；支持 PID 列表 |
+| linux.ip.addr.full | NetNS、Index、Interface、MAC、Promiscuous、IP、Prefix、Scope Type、State |
+| linux.ip.link.full | NS、Interface、MAC、State、MTU、Qdisc、Qlen、Flags |
 | threads | PID、Name、TID、ThreadName、Address |
 | mountinfo | PID、Name、MountID、ParentID、Device、MountPoint、FileSystem、Flags、Address |
 | check_creds | CredAddress、PIDs、Names、UID、EUID |
@@ -474,8 +474,8 @@ TUI 插件菜单只列分析插件，转储统一在 `D` 中。这些都是本�
 | `hidden_modules` | linux.malware.hidden_modules | 在模块内存范围内按 `mkobj.mod` 自引用雕刻 `struct module`，报告不在 `modules` 链表中的模块 |
 | `pidhashtable` | linux.pidhashtable | 从 PID 索引（IDR xarray 或旧版 pid_hash）列出任务，独立于 tasks 链表 |
 | `vmcoreinfo` | linux.vmcoreinfo | 读取 `vmcoreinfo_data`（4.15 起为指针）中的 KEY=VALUE |
-| `ip_addr` | linux.ip.Addr | 遍历 `net_namespace_list`（旧内核只有 `init_net`）中每个网卡的 IPv4／IPv6 地址 |
-| `ip_link` | linux.ip.Link | 每个网卡的 MAC、operstate、MTU 与接口标志 |
+| `ip_addr` | linux.ip.addr.full | 遍历 `net_namespace_list`（旧内核只有 `init_net`）中每个网卡的 IPv4／IPv6 地址 |
+| `ip_link` | linux.ip.link.full | 每个网卡的 MAC、operstate、MTU 与接口标志 |
 | `check_afinfo` | linux.malware.check_afinfo | 检查 `tcp/udp/udplite` 的 `seq_fops` 与 `seq_ops.show`；4.18 起无该结构，明确报告不支持 |
 | `kthreads` | linux.kthreads | 列出 PF_KTHREAD 任务；布局含 `kthread.threadfn` 时归属线程函数，否则标为 ThreadFnNotInLayout |
 | `netfilter` | linux.malware.netfilter | 旧内核遍历全局 `nf_hooks`；4.13 起遍历各命名空间的 `nf_hook_entries` |
@@ -485,7 +485,7 @@ TUI 插件菜单只列分析插件，转储统一在 `D` 中。这些都是本�
 | `vmayarascan` | linux.vmayarascan（不执行 YARA） | 在可读 VMA 中搜索 `--pattern` 字节模式，见 [8.3](#83-内存模式搜索) |
 | `ebpf` | linux.ebpf | 遍历 `prog_idr`，输出程序 ID、名称、类型与 JIT 入口 |
 | `boottime` | linux.boottime | 3.x 用 `-(wall_to_monotonic + total_sleep_time)`，3.17 起用 `tk_core.timekeeper` 的 `offs_real - offs_boot` |
-| `pagecache` | linux.pagecache.Files | 遍历 `super_blocks` 与 `s_inodes`，输出缓存页数和路径；不导出文件内容 |
+| `pagecache` | linux.pagecache.files | 遍历 `super_blocks` 与 `s_inodes`，输出缓存页数和路径；不导出文件内容 |
 | `library_list` | linux.library_list | 列出文件映射中 ET_DYN 共享库（每个路径一次），不读取 ld.so 的 link_map |
 
 ### 7.3 解析细节
@@ -499,7 +499,7 @@ TUI 插件菜单只列分析插件，转储统一在 `D` 中。这些都是本�
 - `elfs` 检查每个可读 VMA 起始处的 ELF64 EXEC／DYN 头，Entry 为原始 e_entry；`malfind` 列出可执行且可写或匿名的映射及前 32 字节。
 - `bash` 与 volatility3 `linux.bash` 一致，限 comm 为 bash／sh／dash 的进程，只扫描与 `start_brk..brk` 重叠的堆映射（缺少 brk 字段或堆映射时退回全部可写映射），用 timestamp 锚定 HIST_ENTRY，再恢复相邻指针数组中无时间戳的命令；结果按时间戳排序，无时间戳的条目按数组顺序排在最后。不读取磁盘历史文件。扫描按页读取，缺页只跳过该页并汇总为诊断，已恢复的条目保留。每进程扫描限 256 MiB，命令字符串合计限 64 MiB，单条限 64 KiB；达到上限时保留已有结果并标记部分结果。旧命令名 `history` 是兼容别名。
 - `zsh` 限 comm 以 zsh 开头的进程，扫描范围与按页读取规则同 `bash`。识别 zsh 4.3–5.9 的 64 位 `struct histent`（命令 +8、up／down +24／+32、开始／结束时间 +48／+56、histnum +80）：开始时间须为合理 epoch，且 up 或 down 邻居必须反向指回该条目，再沿相互链接的环形链表补全；补全表等无反向链接的节点和已释放的旧条目不会输出。zsh 在内存中始终记录时间，与 EXTENDED_HISTORY 无关；Finished 为 `[none]` 表示命令尚未结束。按 histnum 排序。不读取磁盘历史文件。别名 `zsh_history`。
-- `psaux` 每个任务都输出一行：PPID 与 `linux.psaux.PsAux` 相同（父任务不可读时为 0）；命令行页不可读时 CommandLine 为 `N/A`、Status 为 `Unreadable` 并附诊断，空命令行为 `N/A`／`Empty`，内核线程为 `[comm]`／`KernelThread`。
+- `psaux` 每个任务都输出一行：PPID 与 `linux.psaux.full` 相同（父任务不可读时为 0）；命令行页不可读时 CommandLine 为 `N/A`、Status 为 `Unreadable` 并附诊断，空命令行为 `N/A`／`Empty`，内核线程为 `[comm]`／`KernelThread`。
 - `psxview` 对照 tasks、PID hash／IDR 与线程组，非组长线程正常显示 ThreadOnly；`check_modules` 对照模块链表与 module_kset；`check_syscall` 使用 ISF／调试 ELF 的准确表长度，不猜测。
 
 **文件与网络**
@@ -774,7 +774,7 @@ python3 tests/reference/verify_inspect.py --image images/kali.raw --symbols "$IS
 
 ```sh
 zero --offline analyze --image images/linux-sample-1.bin --symbols /path/to/exact.json.xz \
-  --plugin linux.malware.modxview.Modxview --plain-taints --output modules.json
+  --plugin linux.modxview --plain-taints --output modules.json
 ```
 
 省略 `--plain-taints` 时输出描述性 taint 名称。完整差分验收边界见
@@ -785,7 +785,7 @@ Linux 模块 ELF 重建（当前支持 x86_64）：
 
 ```sh
 zero --offline analyze --image images/linux-sample-1.bin --symbols /path/to/exact.json.xz \
-  --plugin linux.module_extract.ModuleExtract --base 0xffffffffa00230f0 \
+  --plugin linux.module_extract --base 0xffffffffa00230f0 \
   --dump-dir exports/module-elf --output module-elf.json
 # 等价入口：dump --mode kernel-module --base ADDRESS，无需 PID。
 ```
@@ -800,7 +800,7 @@ Base 是 `struct module` 地址，可从 Modxview 的 Address 列获取；不是
 
 ```sh
 zero --offline analyze --image images/linux-sample-1.bin --symbols /path/to/exact.json.xz \
-  --plugin linux.kallsyms.Kallsyms --core --modules --output kallsyms.json
+  --plugin linux.kallsyms --core --modules --output kallsyms.json
 ```
 
 不指定来源时枚举 core、modules、ftrace、bpf；也可任意组合 `--core`、`--modules`、
@@ -814,7 +814,7 @@ zero --offline analyze --image images/linux-sample-1.bin --symbols /path/to/exac
 
 ```sh
 zero --offline analyze --image images/linux-sample-1.bin --symbols /path/to/exact.json.xz \
-  --plugin linux.psscan.PsScan --output psscan.json
+  --plugin linux.psscan --output psscan.json
 ```
 
 扫描 ISF 中 `_sched_class` 符号的重定位指针，按物理命中位置还原任务对象，独立于
@@ -833,7 +833,7 @@ zero --offline analyze --image images/linux-sample-1.bin --symbols /path/to/exac
 
 ```sh
 zero --offline analyze --image images/linux-sample-1.bin --symbols /path/to/exact.json.xz \
-  --plugin linux.sockscan.Sockscan --output sockscan.json
+  --plugin linux.sockscan --output sockscan.json
 ```
 
 `linux.sockscan` 是同一入口的别名。该插件扫描捕获的物理区段，使用 file-ops 与
@@ -859,7 +859,7 @@ VMA 字节正则扫描：
 
 ```sh
 zero --offline analyze --image images/linux-sample-1.bin --symbols /path/to/exact.json.xz \
-  --plugin linux.vmaregexscan.VmaRegExScan --pattern '(?<=/bin/)sh' \
+  --plugin linux.vmaregexscan --pattern '(?<=/bin/)sh' \
   --pids 1,2344 --maxsize 128 --output regex.json
 ```
 
@@ -891,7 +891,7 @@ maxsize 参数但输出仍固定为 128 字节；Zero 实际应用参数。这�
 
 ```sh
 zero --offline analyze --image images/linux-sample-1.bin --symbols /path/to/exact.json.xz \
-  --plugin linux.pscallstack.PsCallStack --pids 2,3874 --unresolved --output callstack.json
+  --plugin linux.pscallstack --pids 2,3874 --unresolved --output callstack.json
 ```
 
 别名为 `linux.pscallstack`。`--pid` / `--pids` 对主任务 PID 先筛选，再枚举其线程，二者取并集。
@@ -924,14 +924,14 @@ Address 显示完整虚拟地址。ARM64 保存的 SP 可从 thread.cpu_context.
 
 ### Framebuffer 列举与导出
 
-`linux.graphics.fbdev.Fbdev`（别名 `linux.fbdev`）默认只列举 fbdev 注册设备，Filename 为
+`linux.fbdev`（别名 `linux.fbdev`）默认只列举 fbdev 注册设备，Filename 为
 Disabled。大小使用虚拟高度 × line_length，保留虚拟分辨率和 RUNNING/SUSPENDED 状态。
 缺少注册符号、损坏槽位、不可读对象或设备名会报告诊断；注册数量确为零才是完整空表。
 当前枚举与固定参考一致，检查前 num_registered_fb 个槽位，上限 32。
 
 ```sh
 zero --offline analyze --image images/kali.raw --symbols symbols/kali-6.8.11-arm64.json.xz \
-  --plugin linux.graphics.fbdev.Fbdev --output exports/fbdev.json
+  --plugin linux.fbdev --output exports/fbdev.json
 zero --offline dump --image images/kali.raw --symbols symbols/kali-6.8.11-arm64.json.xz \
   --mode framebuffer --dump-dir exports/framebuffers --output exports/fbdev-dump.json
 ```
@@ -951,12 +951,12 @@ msb_right 会翻转通道位序，无 alpha 时为不透明。按固定参考保
 
 ### Windows VAD 字节正则扫描
 
-`windows.vadregexscan.VadRegExScan`（别名 `windows.vadregexscan`）与 Linux VmaRegExScan
+`windows.vadregexscan`（别名 `windows.vadregexscan`）与 Linux VmaRegExScan
 共用 PCRE2 字节扫描和显示处理，输出 PID、Process、Offset、Text、Hex 全部五字段。
 
 ```sh
 zero --offline analyze --image images/feat-windows-plugins/WinDump/WinDump.mem \
-  --plugin windows.vadregexscan.VadRegExScan --pids 844,7688 --pattern 'MZ' \
+  --plugin windows.vadregexscan --pids 844,7688 --pattern 'MZ' \
   --output exports/vadregex.json
 ```
 
@@ -983,13 +983,13 @@ Windows 正则结果还在 recovered_start_page_hits 中记录命中起始页的
 
 ### Windows VAD 链接遍历
 
-`windows.vadwalk.VadWalk`（别名 `windows.vadwalk`）输出 PID、Process、Offset、Parent、Left、
+`windows.vadwalk`（别名 `windows.vadwalk`）输出 PID、Process、Offset、Parent、Left、
 Right、Start、End、Tag 全部九字段。End 是包含的最后一个字节；内部共享范围仍使用不包含
 末端的形式，避免与扫描/导出范围混淆。父指针平衡位按布局清除，x86 直接 Parent 保留原值。
 
 ```sh
 zero --offline analyze --image images/feat-windows-plugins/WinDump/WinDump.mem \
-  --plugin windows.vadwalk.VadWalk --pids 468,7688 --output exports/vadwalk.json
+  --plugin windows.vadwalk --pids 468,7688 --output exports/vadwalk.json
 ```
 
 不指定 PID 时遍历全部活动进程的 VAD；`--pid` 与 `--pids` 取并集。MCP zero_analyze 与 TUI
@@ -1002,7 +1002,7 @@ zero --offline analyze --image images/feat-windows-plugins/WinDump/WinDump.mem \
 记录在 kernel_identity.vad_walk；与扫描器共享带 tag 的遍历，不要求同时读出文件名或保护
 字段。真实全字段验证范围见 [Volatility 对齐进度](volatility-parity.md)。
 
-`windows.pe_symbols.PESymbols` 按模块文件名查询精确符号，CLI 使用
+`windows.pe_symbols` 按模块文件名查询精确符号，CLI 使用
 `--source kernel|processes --module 文件名`，并重复传入 `--symbol-name 名称`
 或 `--address 绝对地址`。同时指定时名称优先；名称区分大小写，重复查询保留重复记录，
 地址只作精确匹配。输出三列为 Module、Symbol、Address。进程模块来自文件映射 VAD，
@@ -1019,7 +1019,7 @@ zero --offline analyze --image images/feat-windows-plugins/WinDump/WinDump.mem \
 section 表和范围均需验证；外部 PDB 的在线获取、同地址别名次序及更多损坏输入仍需验收。
 
 
-`windows.suspended_threads.SuspendedThreads` 枚举活动进程的线程链，保留
+`windows.suspended_threads` 枚举活动进程的线程链，保留
 SuspendCount 非零且状态不是 Terminated 的线程。输出 Process、PID、TID、StartFile、
 StartSymbol、StartAddress、Win32StartFile、Win32StartSymbol、Win32StartAddress 九列。
 路径按归属进程的文件映射 VAD 半开范围查找，符号按模块精确地址查询，不猜测最近符号。
@@ -1028,7 +1028,7 @@ StartSymbol、StartAddress、Win32StartFile、Win32StartSymbol、Win32StartAddre
 
 ```sh
 zero --offline analyze --image /path/to/memory.raw --symbols /path/to/exact.json \
-  --plugin windows.suspended_threads.SuspendedThreads --output suspended.json
+  --plugin windows.suspended_threads --output suspended.json
 ```
 
 缺少挂起计数、归属、线程字段或 VAD/符号页时保留诊断与已读取记录。
@@ -1038,7 +1038,7 @@ zero --offline analyze --image /path/to/memory.raw --symbols /path/to/exact.json
 不证明真实挂起线程恢复。ARM64、真实挂起线程/PDB 归属及损坏内存等价性仍待验收。
 
 
-`windows.debugregisters.DebugRegisters` 读取活动进程线程的 `Tcb.TrapFrame`，按精确
+`windows.debugregisters` 读取活动进程线程的 `Tcb.TrapFrame`，按精确
 ISF 布局解码 Dr7 和 Dr0–Dr3。跳过 Dr7 为零、状态 Terminated（4）、四个调试地址全零
 的线程；归属进程无文件映射 VAD，或四个地址均不在文件 VAD 中，也不输出。
 输出 Process、PID、TID、State、Dr7，以及每个 Dr0–Dr3 对应的 Range 和 Symbol，共 17 列。
@@ -1047,7 +1047,7 @@ Dr7 按参考插件输出十进制整数；Dr0–Dr3 为十六进制地址。
 
 ```sh
 zero --offline analyze --image /path/to/memory.raw --symbols /path/to/exact.json \
-  --plugin windows.debugregisters.DebugRegisters --output debug-registers.json
+  --plugin windows.debugregisters --output debug-registers.json
 ```
 
 Range 列是匹配的文件路径；地址按 VAD 半开区间匹配，Symbol 只接受精确地址的
@@ -1056,7 +1056,7 @@ PDB/PE 命名导出。不根据最近导出名推断符号。未映射地址仍�
 遍历数量、VAD 缓存、输出文本及共享符号缓存均有上限，超限保留已读取记录。
 该插件暂不缓存结果，ARM64 明确未支持。真实验收范围与差异见 Volatility 对齐进度。
 
-`windows.poolscanner.PoolScanner` 扫描参考实现内置的 15 个内核池约束，输出
+`windows.poolscanner` 扫描参考实现内置的 15 个内核池约束，输出
 `Tag`、`Offset`、`Layer`、`Name`。Windows 10 以前扫描物理内存，之后扫描 primary
 虚拟层的实际映射，包含用户半区及递归页表 alias。进程、线程和文件按参考做结构与类型校验；
 非 executive 的 hive 等保留原始观察，不额外要求 hive 签名，也不保证每条记录都是活动对象。
@@ -1064,58 +1064,58 @@ PDB/PE 命名导出。不根据最近导出名推断符号。未映射地址仍�
 目前只支持参考要求的 Intel32/Intel64。native75 的 Win10、Win11、Win7、Server 2008、
 Server 2003 五套默认样本已逐字段及重复数一致；跨构建、参数和完整故障合同仍需验收。
 
-`windows.windowstations.WindowStations` 扫描 x64 的 `Wind` 窗口站池。它按内核版本选择参考 GUI 符号表，在对应会话的进程地址空间中读取名称和链表。输出 Offset、Name、SessionId。名称需通过参考 UNICODE 长度检查，按 UTF-16 及 NUL 截断；参考接受的控制字符和异常名称作为原始观察保留。x86 与未映射的构建版本明确不支持。native73 的 Win10 15063 为 15/15 条、三列一致，包含保留池内存中的异常名称；Win7 7601 为双侧空结果。这还不是完整 GUI 插件验收。
+`windows.windowstations` 扫描 x64 的 `Wind` 窗口站池。它按内核版本选择参考 GUI 符号表，在对应会话的进程地址空间中读取名称和链表。输出 Offset、Name、SessionId。名称需通过参考 UNICODE 长度检查，按 UTF-16 及 NUL 截断；参考接受的控制字符和异常名称作为原始观察保留。x86 与未映射的构建版本明确不支持。native73 的 Win10 15063 为 15/15 条、三列一致，包含保留池内存中的异常名称；Win7 7601 为双侧空结果。这还不是完整 GUI 插件验收。
 
-`windows.desktops.Desktops` 从这些窗口站的 `rpdeskList` 读取桌面，再按 `PtiLink` 列出线程所属进程。输出 Offset、Window Station、Session、Desktop、Process、PID。x86 与未映射构建明确不支持。Win10 15063 的 28 行已与参考全字段一致；Win7 7601 为双侧空结果。这还不是完整 GUI 插件验收。
+`windows.desktops` 从这些窗口站的 `rpdeskList` 读取桌面，再按 `PtiLink` 列出线程所属进程。输出 Offset、Window Station、Session、Desktop、Process、PID。x86 与未映射构建明确不支持。Win10 15063 的 28 行已与参考全字段一致；Win7 7601 为双侧空结果。这还不是完整 GUI 插件验收。
 
-`windows.deskscan.DeskScan` 直接扫描 `Desk` 池。它要求桌面和父窗口站都有名称，再列出线程所属进程，列与 Desktops 相同。Win10 15063 的 28 行包含链表未覆盖的 `Winlogon` 桌面；Win7 7601 为双侧空结果。
+`windows.deskscan` 直接扫描 `Desk` 池。它要求桌面和父窗口站都有名称，再列出线程所属进程，列与 Desktops 相同。Win10 15063 的 28 行包含链表未覆盖的 `Winlogon` 桌面；Win7 7601 为双侧空结果。
 
 ```bash
 zero analyze --offline --image memory.raw --symbols ntkrnlmp.json \
-  --plugin windows.deskscan.DeskScan --output deskscan.json
+  --plugin windows.deskscan --output deskscan.json
 ```
 
 
 ```bash
 zero analyze --offline --image memory.raw --symbols ntkrnlmp.json \
-  --plugin windows.desktops.Desktops --output desktops.json
+  --plugin windows.desktops --output desktops.json
 ```
 
 
 ```bash
 zero analyze --offline --image memory.raw --symbols ntkrnlmp.json \
-  --plugin windows.windowstations.WindowStations --output windowstations.json
+  --plugin windows.windowstations --output windowstations.json
 ```
 
 ```bash
 zero analyze --offline --image memory.raw --symbols ntkrnlmp.json \
-  --plugin windows.poolscanner.PoolScanner --output poolscanner.json
+  --plugin windows.poolscanner --output poolscanner.json
 ```
 
 
-`windows.windows.Windows` 枚举每个桌面的窗口。输出 Offset、Station、Session、Desktop、Window、Procedure、Process、PID。窗口地址是参考实现报告的指针字段地址。过程地址为零时保留 `0x0`，名称缺失时留空。x86 与未映射构建明确不支持。native71 的 Win10 15063 为 3063/3063 行全字段一致；其中四行的无效 UTF-8 进程名按参考截断为空，完整 PID 原值保留。过程地址不可读时保留 `N/A` 并标记部分结果；已读出 1..0x1000 的无效过程地址仍跳过。该故障行为已有合成验证，更多真实故障样本仍待验收。Win7 7601 为双侧空结果。这还不是完整 GUI 插件验收。
+`windows.windows` 枚举每个桌面的窗口。输出 Offset、Station、Session、Desktop、Window、Procedure、Process、PID。窗口地址是参考实现报告的指针字段地址。过程地址为零时保留 `0x0`，名称缺失时留空。x86 与未映射构建明确不支持。native71 的 Win10 15063 为 3063/3063 行全字段一致；其中四行的无效 UTF-8 进程名按参考截断为空，完整 PID 原值保留。过程地址不可读时保留 `N/A` 并标记部分结果；已读出 1..0x1000 的无效过程地址仍跳过。该故障行为已有合成验证，更多真实故障样本仍待验收。Win7 7601 为双侧空结果。这还不是完整 GUI 插件验收。
 
 ```bash
 zero analyze --offline --image memory.raw --symbols ntkrnlmp.json \
-  --plugin windows.windows.Windows --output windows.json
+  --plugin windows.windows --output windows.json
 ```
 
-`windows.netstat.NetStat` 从 `tcpip.sys` 的分区表和端口池读取活动端点，不扫描池标签。输出 Offset、Proto、LocalAddr、LocalPort、ForeignAddr、ForeignPort、State、PID、Owner、Created。需要该驱动的精确 PDB。监听套接字的远端地址为 `0.0.0.0` 或 `::`，UDP 为 `*`。Win10 15063 的 92 条、Win7 7601 的 121 条已与参考全字段一致。没有端口池字段的旧布局会明确失败。
+`windows.netstat` 从 `tcpip.sys` 的分区表和端口池读取活动端点，不扫描池标签。输出 Offset、Proto、LocalAddr、LocalPort、ForeignAddr、ForeignPort、State、PID、Owner、Created。需要该驱动的精确 PDB。监听套接字的远端地址为 `0.0.0.0` 或 `::`，UDP 为 `*`。Win10 15063 的 92 条、Win7 7601 的 121 条已与参考全字段一致。没有端口池字段的旧布局会明确失败。
 
 ```bash
 zero analyze --offline --image memory.raw --symbols ntkrnlmp.json \
-  --plugin windows.netstat.NetStat --output netstat.json
+  --plugin windows.netstat --output netstat.json
 ```
 
-`windows.shimcachemem.ShimcacheMem` 读取内存中的 Shimcache LRU 链表，而不是注册表 AppCompatCache。Windows 8.1 及以后从 `ahcache.sys` 的 `.data` 找两个句柄并使用第二个；更早的 x64 在 NT 内核模块里找内联句柄。输出 Order、Last Modified、Last Update、Exec Flag、File Size、File Path。没有该字段时输出 `N/A`。Win10 15063 的 13 条、Win7 7601 的 220 条已与参考全字段一致。
+`windows.shimcachemem` 读取内存中的 Shimcache LRU 链表，而不是注册表 AppCompatCache。Windows 8.1 及以后从 `ahcache.sys` 的 `.data` 找两个句柄并使用第二个；更早的 x64 在 NT 内核模块里找内联句柄。输出 Order、Last Modified、Last Update、Exec Flag、File Size、File Path。没有该字段时输出 `N/A`。Win10 15063 的 13 条、Win7 7601 的 220 条已与参考全字段一致。
 
 ```bash
 zero analyze --offline --image memory.raw --symbols ntkrnlmp.json \
-  --plugin windows.shimcachemem.ShimcacheMem --output shimcache.json
+  --plugin windows.shimcachemem --output shimcache.json
 ```
 
 
-规范入口 windows.registry.scheduled_tasks.ScheduledTasks 输出 Task Name、Principal ID、
+规范入口 windows.registry.scheduled_tasks.full 输出 Task Name、Principal ID、
 Display Name、Enabled、Creation Time、Last Run Time、Last Successful Run Time、
 Trigger Type、Trigger Description、Action Type、Action、Action Arguments、Action Context、
 Working Directory、Key Name。任务名来自 TaskCache Tree 的 GUID 对应关系，每个动作与每个
@@ -1123,7 +1123,7 @@ Working Directory、Key Name。任务名来自 TaskCache Tree 的 GUID 对应关
 WNF、启动触发器；缺失字段为 N/A。短名称入口保留原有七列视图。
 
     zero analyze --offline --image memory.raw --symbols ntkrnlmp.json \
-      --plugin windows.registry.scheduled_tasks.ScheduledTasks --output tasks.json
+      --plugin windows.registry.scheduled_tasks.full --output tasks.json
 
 固定参考 v2.28.2 会交换 DynamicInfo 的创建／上次运行字段，省略 COM GUID 数值段的
 前导零，Time 描述为空，Email 动作对象为空；标准入口保留这些参考行为。
@@ -1131,13 +1131,13 @@ Win10 15063 的 232 行、Win7 7601 的 92 行完成全字段对照，但镜像�
 诊断仍会令结果为 partial。更多版本、x86 和完整故障行为仍待验收。
 
 
-windows.malware.unhooked_system_calls.UnhookedSystemCalls 查询 ntdll.dll 的 45 个固定函数，
+windows.unhooked_system_calls 查询 ntdll.dll 的 45 个固定函数，
 比较各进程相同虚拟地址的前 32 字节。输出 Function、Distinct Implementations、
 Total Implementations；后一列是参考选定的多数实现进程数。相同字节属于同一个分组，
 空差异字符串表示只有一组可读实现，不代表缺页进程没有异常。
 
     zero analyze --offline --image memory.raw --symbols ntkrnlmp.json \
-      --plugin windows.malware.unhooked_system_calls.UnhookedSystemCalls --output unhooked.json
+      --plugin windows.unhooked_system_calls --output unhooked.json
 
 符号定位使用精确 PDB 优先、PE 导出回退，按固定参考只从直接映射的捕获页读取 PE 头、
 导出数据和函数字节，允许 transition PTE，不重建 prototype 或 pagefile 内容。
@@ -1146,12 +1146,12 @@ Total Implementations；后一列是参考选定的多数实现进程数。相�
 Win10 15063、Win7 7601 各 45 行已完成全字段对照，仍保留损坏链表／VAD 的 partial 诊断。
 
 
-windows.strings.Strings 读取外部字符串文件，每行使用十进制偏移和字符串正文
+windows.strings 读取外部字符串文件，每行使用十进制偏移和字符串正文
 （例如 strings -td 的输出）。输出 String、Physical Address、Result，原始输入次序和
 重复行都会保留。String 按参考的 Latin-1 字节解码，包含行末换行；终端会转义控制字符。
 
     zero analyze --offline --image memory.raw --symbols ntkrnlmp.json \
-      --plugin windows.strings.Strings --strings-file strings.txt --pids 4,2440 --output strings.json
+      --plugin windows.strings --strings-file strings.txt --pids 4,2440 --output strings.json
 
 MCP 的 zero_analyze 使用 strings_file 和 pids 字段；终端参数框提供“字符串文件”和
 PID 列表。文件变化后重新运行会重新读取并计算 SHA256，不复用旧分析结果缓存。
@@ -1165,15 +1165,15 @@ Result 的归属集合稳定排序；FREE MEMORY 只表示当前映射中未找�
 
 ### 直接／间接系统调用检测
 
-`windows.malware.direct_system_calls.DirectSystemCalls` 和
-`windows.malware.indirect_system_calls.IndirectSystemCalls` 扫描活动用户进程的不足
+`windows.direct_system_calls` 和
+`windows.indirect_system_calls` 扫描活动用户进程的不足
 10,000,000 字节 VAD。输入示例：
 
 ```sh
 zero --offline analyze --image memory.raw --symbols symbols/kernel.json \
-  --plugin windows.malware.direct_system_calls.DirectSystemCalls --output direct.json
+  --plugin windows.direct_system_calls --output direct.json
 zero --offline analyze --image memory.raw --symbols symbols/kernel.json \
-  --plugin windows.malware.indirect_system_calls.IndirectSystemCalls --output indirect.json
+  --plugin windows.indirect_system_calls --output indirect.json
 ```
 
 五列为 Process、PID、Range、Address、Disasm；匿名区域的 Range 为 N/A。
@@ -1188,13 +1188,13 @@ zero --offline analyze --image memory.raw --symbols symbols/kernel.json \
 
 ### Skeleton Key 检测
 
-`windows.malware.skeleton_key_check.Skeleton_Key_Check` 在第一个可用的 `lsass.exe`
+`windows.skeleton_key_check` 在第一个可用的 `lsass.exe`
 地址空间中寻找 `cryptdll.dll`，依次尝试精确 PDB、`CDLocateCSystem` 导出函数分析、
 RC4-HMAC 结构签名扫描。仅支持 x64，按参考自行选择进程，不接受 PID 筛选。
 
 ```sh
 zero --offline analyze --image memory.raw --symbols symbols/kernel.json \
-  --plugin windows.malware.skeleton_key_check.Skeleton_Key_Check --output skeleton.json
+  --plugin windows.skeleton_key_check --output skeleton.json
 ```
 
 输出 PID、Process、Skeleton Key Found、rc4HmacInitialize、rc4HmacDecrypt。
@@ -1206,13 +1206,13 @@ zero --offline analyze --image memory.raw --symbols symbols/kernel.json \
 
 ### TrueCrypt 缓存口令
 
-`windows.truecrypt.Passphrase` 选择模块链中第一个名为 `truecrypt.sys` 的驱动，扫描其
+`windows.truecrypt.passphrase` 选择模块链中第一个名为 `truecrypt.sys` 的驱动，扫描其
 首个 `.data` section。支持 x86/x64；`--min-length` / MCP `min_length` 默认 5，最大
 候选长度为 64，终端参数按插件保存。示例：
 
 ```sh
 zero --offline analyze --image memory.raw --symbols symbols/kernel.json \
-  --plugin windows.truecrypt.Passphrase --min-length 5 --output truecrypt.json
+  --plugin windows.truecrypt.passphrase --min-length 5 --output truecrypt.json
 ```
 
 输出 Offset（口令字节首地址）、Length、Password。长度字段按 `.data` 起点每 4 字节
@@ -1225,11 +1225,11 @@ zero --offline analyze --image memory.raw --symbols symbols/kernel.json \
 会保留明确诊断。缺失 TrueCrypt 驱动时输出为空；空结果不证明内存中不存在其他
 形式的加密材料。真实正向缓存口令镜像仍待验收。
 
-`windows.driverirp.DriverIrp` 输出驱动的 28 个标准 IRP 入口，列为 Offset、Driver Name、
+`windows.driverirp` 输出驱动的 28 个标准 IRP 入口，列为 Offset、Driver Name、
 IRP、Address、Module、Symbol。默认符号归属遵循固定参考的 SSDT 模块集合：每个已
 加载模块都按自己的基址查询同一份内核 ISF 的精确 RVA，保留全部同址别名和 inclusive
 模块末端。这里的外部模块符号名是该参考查询产生的归属，不保证来自该驱动自己的
-PDB。默认路径不请求外部 PDB；需要独立模块精确符号时使用 `windows.pe_symbols.PESymbols`。
+PDB。默认路径不请求外部 PDB；需要独立模块精确符号时使用 `windows.pe_symbols`。
 驱动名称／处理函数单页不可读时仍可能输出部分结果并保留诊断。
 
 DriverIrp 对 MajorFunction 指针先按地址层掩码截断，再与镜像内的

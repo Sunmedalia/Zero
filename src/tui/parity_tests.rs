@@ -379,7 +379,7 @@ fn all_seven_dump_modes_have_visible_mouse_targets_and_switching_resets_ranges()
 #[test]
 fn diagnostics_use_exclusive_families_and_origin_survives_other_status_messages() {
     let mut app = app();
-    let result = app.results.get_mut("pslist").unwrap();
+    let result = app.results.get_mut("linux.pslist.basic").unwrap();
     result.complete = false;
     result.diagnostics = vec![
         "Windows 链表不一致".into(),
@@ -395,7 +395,7 @@ fn diagnostics_use_exclusive_families_and_origin_survives_other_status_messages(
     let body = status::diagnostics_text(result);
     assert!(body.contains("── 对象前后矛盾 1 ──"));
     app.result_origins
-        .insert("pslist".into(), "读取缓存 · 1.3 s".into());
+        .insert("linux.pslist.basic".into(), "读取缓存 · 1.3 s".into());
     app.status = "其他提示".into();
     let frame = render(&app, 120, 35);
     assert!(screen(&frame, 120).contains("缓存读取"));
@@ -422,7 +422,7 @@ fn explicit_verify_reuses_the_session_and_does_not_open_or_run_plugins() {
     finish_test_job(&mut app);
     assert!(!app.verified.as_ref().unwrap().computed);
     assert!(app.open_tabs.is_empty());
-    assert!(!app.results.contains_key("pslist"));
+    assert!(!app.results.contains_key("linux.pslist.basic"));
 }
 #[test]
 fn readonly_header_details_show_only_close_and_preserve_analysis() {
@@ -461,13 +461,13 @@ fn readonly_header_details_show_only_close_and_preserve_analysis() {
     assert!(app.dialog.is_none());
     assert_eq!(app.image, Some(image));
     assert_eq!(app.row, 1);
-    assert!(app.results.contains_key("pslist"));
+    assert!(app.results.contains_key("linux.pslist.basic"));
 }
 #[test]
 fn overlay_scrollbar_does_not_scroll_hidden_result_rows_or_activate_hidden_tabs() {
     let mut app = app();
     app.focus = Focus::Content;
-    let result = app.results.get_mut("pslist").unwrap();
+    let result = app.results.get_mut("linux.pslist.basic").unwrap();
     result.rows = (0..200)
         .map(|i| {
             vec![
@@ -495,9 +495,9 @@ fn overlay_scrollbar_does_not_scroll_hidden_result_rows_or_activate_hidden_tabs(
 fn clicking_the_detected_system_preserves_auto_mode_and_loaded_results() {
     let mut app = app();
     app.analysis_options.os = crate::analysis::Os::Auto;
-    let mut banner = app.results["pslist"].as_ref().clone();
+    let mut banner = app.results["linux.pslist.basic"].as_ref().clone();
     banner.system = "linux".into();
-    app.results.insert("banners".into(), banner);
+    app.results.insert("linux.banners".into(), banner);
     let _frame = render(&app, 120, 35);
     let rect = app
         .hits
@@ -509,7 +509,7 @@ fn clicking_the_detected_system_preserves_auto_mode_and_loaded_results() {
         .0;
     click(&mut app, rect.x, rect.y);
     assert_eq!(app.analysis_options.os, crate::analysis::Os::Auto);
-    assert!(app.results.contains_key("pslist"));
+    assert!(app.results.contains_key("linux.pslist.basic"));
     let _frame = render(&app, 120, 35);
     let rect = app
         .hits

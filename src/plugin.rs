@@ -3,173 +3,287 @@ use clap::ValueEnum;
 
 #[derive(Clone, Copy, Debug, ValueEnum, PartialEq, Eq)]
 pub enum Plugin {
-    #[value(name = "linux.boottime.Boottime", alias = "linux.boottime")]
+    #[value(
+        name = "linux.boottime.full",
+        alias = "linux.boottime",
+        alias = "linux.boottime.Boottime"
+    )]
     LinuxBoottime,
-    #[value(name = "linux.timeliner", alias = "timeliner.Timeliner")]
+    #[value(
+        name = "linux.timeliner",
+        alias = "timeliner.Timeliner",
+        alias = "timeliner"
+    )]
     LinuxTimeliner,
-    #[value(name = "linux.capabilities.Capabilities", alias = "linux.capabilities")]
+    #[value(
+        name = "linux.capabilities.full",
+        alias = "linux.capabilities",
+        alias = "linux.capabilities.Capabilities"
+    )]
     LinuxCapabilities,
-    #[value(name = "linux.envars.Envars", alias = "linux.envars")]
+    #[value(
+        name = "linux.envars.full",
+        alias = "linux.envars",
+        alias = "linux.envars.Envars"
+    )]
     LinuxEnvars,
-    #[value(name = "linux.psaux.PsAux", alias = "linux.psaux")]
+    #[value(
+        name = "linux.psaux.full",
+        alias = "linux.psaux",
+        alias = "linux.psaux.PsAux"
+    )]
     LinuxPsaux,
-    #[value(name = "linux.pstree.PsTree", alias = "linux.pstree")]
+    #[value(
+        name = "linux.pstree.full",
+        alias = "linux.pstree",
+        alias = "linux.pstree.PsTree"
+    )]
     LinuxPstree,
-    #[value(name = "linux.proc.Maps", alias = "linux.maps")]
+    #[value(
+        name = "linux.maps.full",
+        alias = "linux.maps",
+        alias = "linux.proc.Maps"
+    )]
     LinuxMaps,
-    #[value(name = "linux.lsof.Lsof", alias = "linux.lsof")]
+    #[value(
+        name = "linux.lsof.full",
+        alias = "linux.lsof",
+        alias = "linux.lsof.Lsof"
+    )]
     LinuxLsof,
-    #[value(name = "linux.sockstat.Sockstat", alias = "linux.sockstat")]
+    #[value(
+        name = "linux.sockstat.full",
+        alias = "linux.sockstat",
+        alias = "linux.sockstat.Sockstat"
+    )]
     LinuxSockstat,
-    #[value(name = "linux.kmsg.Kmsg", alias = "linux.kmsg")]
+    #[value(name = "linux.kmsg", alias = "linux.kmsg.Kmsg", alias = "kmsg")]
     LinuxKmsg,
-    #[value(name = "linux.malware.malfind.Malfind", alias = "linux.malfind")]
+    #[value(
+        name = "linux.malfind.full",
+        alias = "linux.malfind",
+        alias = "linux.malware.malfind.Malfind"
+    )]
     LinuxMalfind,
-    #[value(name = "linux.mountinfo.MountInfo", alias = "linux.mountinfo")]
+    #[value(
+        name = "linux.mountinfo.full",
+        alias = "linux.mountinfo",
+        alias = "linux.mountinfo.MountInfo"
+    )]
     LinuxMountinfo,
-    #[value(name = "linux.pagecache.Files", alias = "linux.pagecache.files")]
+    #[value(name = "linux.pagecache.files", alias = "linux.pagecache.Files")]
     LinuxPagecacheFiles,
     #[value(
-        name = "linux.pagecache.InodePages",
+        name = "linux.pagecache.inode_pages",
+        alias = "linux.pagecache.InodePages",
         alias = "linux.pagecache.inodepages"
     )]
     LinuxPagecacheInodePages,
     #[value(
-        name = "linux.pagecache.RecoverFs",
+        name = "linux.pagecache.recover_fs",
+        alias = "linux.pagecache.RecoverFs",
         alias = "linux.pagecache.recoverfs"
     )]
     LinuxPagecacheRecoverFs,
-    #[value(name = "linux.bash.Bash", alias = "linux.bash")]
+    #[value(
+        name = "linux.bash.full",
+        alias = "linux.bash",
+        alias = "linux.bash.Bash"
+    )]
     LinuxBash,
-    #[value(name = "linux.elfs.Elfs", alias = "linux.elfs")]
+    #[value(
+        name = "linux.elfs.full",
+        alias = "linux.elfs",
+        alias = "linux.elfs.Elfs"
+    )]
     LinuxElfs,
-    #[value(name = "linux.library_list.LibraryList", alias = "linux.library_list")]
+    #[value(
+        name = "linux.library_list.full",
+        alias = "linux.library_list",
+        alias = "linux.library_list.LibraryList"
+    )]
     LinuxLibraryList,
-    #[value(name = "linux.ip.Addr", alias = "linux.ip.addr")]
+    #[value(
+        name = "linux.ip.addr.full",
+        alias = "linux.ip.addr",
+        alias = "linux.ip.Addr"
+    )]
     LinuxIpAddr,
-    #[value(name = "linux.ip.Link", alias = "linux.ip.link")]
+    #[value(
+        name = "linux.ip.link.full",
+        alias = "linux.ip.link",
+        alias = "linux.ip.Link"
+    )]
     LinuxIpLink,
-    #[value(name = "windows.debugregisters.DebugRegisters")]
+    #[value(
+        name = "windows.debugregisters",
+        alias = "windows.debugregisters.DebugRegisters"
+    )]
     WinDebugRegisters,
     #[value(
-        name = "windows.poolscanner.PoolScanner",
-        alias = "windows.poolscanner"
+        name = "windows.poolscanner",
+        alias = "windows.poolscanner.PoolScanner"
     )]
     WinPoolScanner,
     #[value(
-        name = "windows.windowstations.WindowStations",
-        alias = "windows.windowstations"
+        name = "windows.windowstations",
+        alias = "windows.windowstations.WindowStations"
     )]
     WinWindowStations,
-    #[value(name = "windows.desktops.Desktops", alias = "windows.desktops")]
+    #[value(name = "windows.desktops", alias = "windows.desktops.Desktops")]
     WinDesktops,
-    #[value(name = "windows.netstat.NetStat", alias = "windows.netstat")]
+    #[value(name = "windows.netstat", alias = "windows.netstat.NetStat")]
     WinNetstat,
     #[value(
-        name = "windows.shimcachemem.ShimcacheMem",
-        alias = "windows.shimcachemem"
+        name = "windows.shimcachemem",
+        alias = "windows.shimcachemem.ShimcacheMem"
     )]
     WinShimcacheMem,
-    #[value(name = "windows.deskscan.DeskScan", alias = "windows.deskscan")]
+    #[value(name = "windows.deskscan", alias = "windows.deskscan.DeskScan")]
     WinDeskScan,
-    #[value(name = "windows.windows.Windows", alias = "windows.windows")]
+    #[value(name = "windows.windows", alias = "windows.windows.Windows")]
     WinWindows,
-    #[value(name = "windows.pe_symbols.PESymbols")]
+    #[value(name = "windows.pe_symbols", alias = "windows.pe_symbols.PESymbols")]
     WinPESymbols,
-    #[value(name = "windows.strings.Strings", alias = "windows.strings")]
+    #[value(name = "windows.strings", alias = "windows.strings.Strings")]
     WinStrings,
-    #[value(name = "windows.truecrypt.Passphrase", alias = "windows.truecrypt")]
+    #[value(
+        name = "windows.truecrypt.passphrase",
+        alias = "windows.truecrypt.Passphrase",
+        alias = "windows.truecrypt"
+    )]
     WinTruecryptPassphrase,
     #[value(
-        name = "windows.malware.skeleton_key_check.Skeleton_Key_Check",
-        alias = "windows.skeleton_key_check"
+        name = "windows.skeleton_key_check",
+        alias = "windows.malware.skeleton_key_check.Skeleton_Key_Check"
     )]
     WinSkeletonKeyCheck,
     #[value(
-        name = "windows.malware.direct_system_calls.DirectSystemCalls",
-        alias = "windows.direct_system_calls"
+        name = "windows.direct_system_calls",
+        alias = "windows.malware.direct_system_calls.DirectSystemCalls"
     )]
     WinDirectSystemCalls,
     #[value(
-        name = "windows.malware.indirect_system_calls.IndirectSystemCalls",
-        alias = "windows.indirect_system_calls"
+        name = "windows.indirect_system_calls",
+        alias = "windows.malware.indirect_system_calls.IndirectSystemCalls"
     )]
     WinIndirectSystemCalls,
     #[value(
-        name = "windows.malware.unhooked_system_calls.UnhookedSystemCalls",
-        alias = "windows.unhooked_system_calls"
+        name = "windows.unhooked_system_calls",
+        alias = "windows.malware.unhooked_system_calls.UnhookedSystemCalls"
     )]
     WinUnhookedSystemCalls,
-    #[value(name = "windows.suspended_threads.SuspendedThreads")]
+    #[value(
+        name = "windows.suspended_threads",
+        alias = "windows.suspended_threads.SuspendedThreads"
+    )]
     WinSuspendedThreads,
-    #[value(name = "windows.registry.amcache.Amcache")]
+    #[value(
+        name = "windows.registry.amcache.full",
+        alias = "windows.registry.amcache.Amcache"
+    )]
     WinAmcacheV4,
-    #[value(name = "windows.registry.userassist.UserAssist")]
+    #[value(
+        name = "windows.registry.userassist.full",
+        alias = "windows.registry.userassist.UserAssist"
+    )]
     WinUserAssistV4,
-    #[value(name = "windows.memmap.Memmap", alias = "windows.memmap")]
+    #[value(name = "windows.memmap", alias = "windows.memmap.Memmap")]
     WinMemmap,
-    #[value(name = "windows.svcscan.SvcScan")]
+    #[value(name = "windows.svcscan.full", alias = "windows.svcscan.SvcScan")]
     WinSvcScanV4,
-    #[value(name = "windows.malware.svcdiff.SvcDiff", alias = "windows.svcdiff")]
+    #[value(name = "windows.svcdiff", alias = "windows.malware.svcdiff.SvcDiff")]
     WinSvcDiff,
-    #[value(name = "windows.svclist.SvcList", alias = "windows.svclist")]
+    #[value(name = "windows.svclist", alias = "windows.svclist.SvcList")]
     WinSvcList,
     #[value(
-        name = "windows.registry.getcellroutine.GetCellRoutine",
+        name = "windows.registry.getcellroutine",
+        alias = "windows.registry.getcellroutine.GetCellRoutine",
         alias = "windows.getcellroutine"
     )]
     WinGetCellRoutine,
     #[value(
-        name = "windows.malware.pebmasquerade.PebMasquerade",
-        alias = "windows.pebmasquerade"
+        name = "windows.pebmasquerade",
+        alias = "windows.malware.pebmasquerade.PebMasquerade"
     )]
     WinPebMasquerade,
     #[value(
-        name = "windows.registry.hivescan.HiveScan",
+        name = "windows.registry.hivescan",
+        alias = "windows.registry.hivescan.HiveScan",
         alias = "windows.hivescan"
     )]
     WinHiveScan,
     #[value(
-        name = "windows.malware.drivermodule.DriverModule",
-        alias = "windows.drivermodule"
+        name = "windows.drivermodule",
+        alias = "windows.malware.drivermodule.DriverModule"
     )]
     WinDriverModule,
-    #[value(name = "windows.driverirp.DriverIrp", alias = "windows.driverirp")]
+    #[value(name = "windows.driverirp", alias = "windows.driverirp.DriverIrp")]
     WinDriverIrp,
-    #[value(name = "windows.kpcrs.KPCRs", alias = "windows.kpcrs")]
+    #[value(name = "windows.kpcrs", alias = "windows.kpcrs.KPCRs")]
     WinKpcrs,
-    #[value(name = "windows.vadwalk.VadWalk", alias = "windows.vadwalk")]
+    #[value(name = "windows.vadwalk", alias = "windows.vadwalk.VadWalk")]
     WinVadWalk,
     #[value(
-        name = "windows.vadregexscan.VadRegExScan",
-        alias = "windows.vadregexscan"
+        name = "windows.vadregexscan",
+        alias = "windows.vadregexscan.VadRegExScan"
     )]
     WinVadRegExScan,
-    #[value(name = "linux.graphics.fbdev.Fbdev", alias = "linux.fbdev")]
+    #[value(
+        name = "linux.fbdev",
+        alias = "linux.graphics.fbdev.Fbdev",
+        alias = "fbdev"
+    )]
     Fbdev,
-    #[value(name = "linux.pscallstack.PsCallStack", alias = "linux.pscallstack")]
+    #[value(
+        name = "linux.pscallstack",
+        alias = "linux.pscallstack.PsCallStack",
+        alias = "pscallstack"
+    )]
     PsCallStack,
-    #[value(name = "linux.vmaregexscan.VmaRegExScan", alias = "linux.vmaregexscan")]
+    #[value(
+        name = "linux.vmaregexscan",
+        alias = "linux.vmaregexscan.VmaRegExScan",
+        alias = "vmaregexscan"
+    )]
     VmaRegExScan,
-    #[value(name = "linux.sockscan.Sockscan", alias = "linux.sockscan")]
+    #[value(
+        name = "linux.sockscan",
+        alias = "linux.sockscan.Sockscan",
+        alias = "sockscan"
+    )]
     LinuxSockscan,
-    #[value(name = "linux.psscan.PsScan", alias = "linux.psscan")]
+    #[value(name = "linux.psscan", alias = "linux.psscan.PsScan", alias = "psscan")]
     LinuxPsscan,
-    #[value(name = "linux.kallsyms.Kallsyms", alias = "linux.kallsyms")]
+    #[value(
+        name = "linux.kallsyms",
+        alias = "linux.kallsyms.Kallsyms",
+        alias = "kallsyms"
+    )]
     Kallsyms,
     #[value(
-        name = "linux.module_extract.ModuleExtract",
-        alias = "linux.module_extract"
+        name = "linux.module_extract",
+        alias = "linux.module_extract.ModuleExtract",
+        alias = "module_extract"
     )]
     ModuleExtract,
-    #[value(name = "linux.malware.modxview.Modxview", alias = "linux.modxview")]
+    #[value(
+        name = "linux.modxview",
+        alias = "linux.malware.modxview.Modxview",
+        alias = "modxview"
+    )]
     Modxview,
     #[value(
-        name = "linux.malware.process_spoofing.ProcessSpoofing",
-        alias = "linux.process_spoofing"
+        name = "linux.process_spoofing",
+        alias = "linux.malware.process_spoofing.ProcessSpoofing",
+        alias = "process_spoofing"
     )]
     ProcessSpoofing,
-    #[value(name = "linux.pslist.PsList", alias = "linux.pslist")]
+    #[value(
+        name = "linux.pslist.full",
+        alias = "linux.pslist",
+        alias = "linux.pslist.PsList"
+    )]
     LinuxPslist,
     #[value(name = "windows.ldrmodules")]
     WinLdrmodules,
@@ -177,7 +291,7 @@ pub enum Plugin {
     WinHollowprocesses,
     #[value(name = "windows.suspicious_threads")]
     WinSuspiciousThreads,
-    #[value(name = "check_exec", alias = "check-exec")]
+    #[value(name = "linux.check_exec", alias = "check_exec", alias = "check-exec")]
     CheckExec,
     #[value(name = "windows.callbacks")]
     WinCallbacks,
@@ -193,7 +307,6 @@ pub enum Plugin {
     WinConnscan,
     #[value(name = "windows.sockscan")]
     WinSockscan,
-
     #[value(name = "windows.consoles")]
     WinConsoles,
     #[value(name = "windows.cmdscan")]
@@ -286,10 +399,11 @@ pub enum Plugin {
     WinVerinfo,
     #[value(name = "windows.mftscan")]
     WinMftscan,
-    #[value(name = "windows.mftscan.ADS", alias = "windows.mftscan.ads")]
+    #[value(name = "windows.mftscan.ads", alias = "windows.mftscan.ADS")]
     WinMftscanAds,
     #[value(
-        name = "windows.mftscan.ResidentData",
+        name = "windows.mftscan.resident_data",
+        alias = "windows.mftscan.ResidentData",
         alias = "windows.mftscan.residentdata"
     )]
     WinMftscanResidentData,
@@ -299,7 +413,10 @@ pub enum Plugin {
     WinEtwpatch,
     #[value(name = "windows.registry.scheduled_tasks")]
     WinScheduledTasks,
-    #[value(name = "windows.registry.scheduled_tasks.ScheduledTasks")]
+    #[value(
+        name = "windows.registry.scheduled_tasks.full",
+        alias = "windows.registry.scheduled_tasks.ScheduledTasks"
+    )]
     WinScheduledTasksV4,
     #[value(name = "windows.registry.amcache")]
     WinAmcache,
@@ -323,71 +440,141 @@ pub enum Plugin {
     WinVirtmap,
     #[value(name = "windows.vadyarascan")]
     WinVadyarascan,
+    #[value(name = "linux.iomem", alias = "iomem")]
     Iomem,
+    #[value(name = "linux.ioports", alias = "ioports")]
     Ioports,
+    #[value(name = "linux.ptrace", alias = "ptrace")]
     Ptrace,
-    #[value(name = "keyboard_notifiers", alias = "keyboard-notifiers")]
+    #[value(
+        name = "linux.keyboard_notifiers",
+        alias = "keyboard_notifiers",
+        alias = "keyboard-notifiers"
+    )]
     KeyboardNotifiers,
+    #[value(name = "linux.psstate", alias = "psstate")]
     Psstate,
+    #[value(name = "linux.capabilities.basic", alias = "capabilities")]
     Capabilities,
+    #[value(name = "linux.fdsummary", alias = "fdsummary")]
     Fdsummary,
+    #[value(name = "linux.procdump", alias = "procdump")]
     Procdump,
+    #[value(name = "linux.memdump", alias = "memdump")]
     Memdump,
+    #[value(name = "linux.elfdump", alias = "elfdump")]
     Elfdump,
+    #[value(name = "linux.pslist.basic", alias = "pslist")]
     Pslist,
+    #[value(name = "linux.pstree.basic", alias = "pstree")]
     Pstree,
+    #[value(name = "linux.lsmod", alias = "lsmod")]
     Lsmod,
+    #[value(name = "linux.psaux.basic", alias = "psaux")]
     Psaux,
+    #[value(name = "linux.envars.basic", alias = "envars")]
     Envars,
+    #[value(name = "linux.maps.basic", alias = "maps")]
     Maps,
+    #[value(name = "linux.lsof.basic", alias = "lsof")]
     Lsof,
+    #[value(name = "linux.sockstat.basic", alias = "sockstat")]
     Sockstat,
+    #[value(name = "linux.netscan", alias = "netscan")]
     Netscan,
+    #[value(name = "linux.banners", alias = "banners")]
     Banners,
+    #[value(name = "linux.pwd", alias = "pwd")]
     Pwd,
+    #[value(name = "linux.pscred", alias = "pscred")]
     Pscred,
+    #[value(name = "linux.threads", alias = "threads")]
     Threads,
+    #[value(name = "linux.mountinfo.basic", alias = "mountinfo")]
     Mountinfo,
-    #[value(name = "check_creds", alias = "check-creds")]
+    #[value(
+        name = "linux.check_creds",
+        alias = "check_creds",
+        alias = "check-creds"
+    )]
     CheckCreds,
+    #[value(name = "linux.dmesg", alias = "dmesg")]
     Dmesg,
+    #[value(name = "linux.systeminfo", alias = "systeminfo")]
     Systeminfo,
+    #[value(name = "linux.elfs.basic", alias = "elfs")]
     Elfs,
-    #[value(alias = "history")]
+    #[value(name = "linux.bash.basic", alias = "bash", alias = "history")]
     Bash,
-    #[value(alias = "zsh_history")]
+    #[value(name = "linux.zsh", alias = "zsh", alias = "zsh_history")]
     Zsh,
+    #[value(name = "linux.malfind.basic", alias = "malfind")]
     Malfind,
+    #[value(name = "linux.psxview", alias = "psxview")]
     Psxview,
-    #[value(name = "check_modules", alias = "check-modules")]
+    #[value(
+        name = "linux.check_modules",
+        alias = "check_modules",
+        alias = "check-modules"
+    )]
     CheckModules,
-    #[value(name = "check_syscall", alias = "check-syscall")]
+    #[value(
+        name = "linux.check_syscall",
+        alias = "check_syscall",
+        alias = "check-syscall"
+    )]
     CheckSyscall,
-    #[value(name = "check_idt", alias = "check-idt")]
+    #[value(name = "linux.check_idt", alias = "check_idt", alias = "check-idt")]
     CheckIdt,
-    #[value(name = "tty_check", alias = "tty-check")]
+    #[value(name = "linux.tty_check", alias = "tty_check", alias = "tty-check")]
     TtyCheck,
-    #[value(name = "hidden_modules", alias = "hidden-modules")]
+    #[value(
+        name = "linux.hidden_modules",
+        alias = "hidden_modules",
+        alias = "hidden-modules"
+    )]
     HiddenModules,
-    #[value(name = "library_list", alias = "library-list")]
+    #[value(
+        name = "linux.library_list.basic",
+        alias = "library_list",
+        alias = "library-list"
+    )]
     LibraryList,
+    #[value(name = "linux.pidhashtable", alias = "pidhashtable")]
     Pidhashtable,
+    #[value(name = "linux.vmcoreinfo", alias = "vmcoreinfo")]
     Vmcoreinfo,
-    #[value(name = "ip_addr", alias = "ip.addr")]
+    #[value(name = "linux.ip.addr.basic", alias = "ip_addr", alias = "ip.addr")]
     IpAddr,
-    #[value(name = "ip_link", alias = "ip.link")]
+    #[value(name = "linux.ip.link.basic", alias = "ip_link", alias = "ip.link")]
     IpLink,
-    #[value(name = "check_afinfo", alias = "check-afinfo")]
+    #[value(
+        name = "linux.check_afinfo",
+        alias = "check_afinfo",
+        alias = "check-afinfo"
+    )]
     CheckAfinfo,
+    #[value(name = "linux.kthreads", alias = "kthreads")]
     Kthreads,
+    #[value(name = "linux.netfilter", alias = "netfilter")]
     Netfilter,
+    #[value(name = "linux.tracepoints", alias = "tracepoints")]
     Tracepoints,
+    #[value(name = "linux.ftrace", alias = "ftrace")]
     Ftrace,
+    #[value(name = "linux.ebpf", alias = "ebpf")]
     Ebpf,
+    #[value(name = "linux.boottime.basic", alias = "boottime")]
     Boottime,
+    #[value(name = "linux.pagecache", alias = "pagecache")]
     Pagecache,
-    #[value(name = "perf_events", alias = "perf-events")]
+    #[value(
+        name = "linux.perf_events",
+        alias = "perf_events",
+        alias = "perf-events"
+    )]
     PerfEvents,
+    #[value(name = "linux.vmayarascan", alias = "vmayarascan")]
     Vmayarascan,
 }
 mod catalog;
@@ -497,6 +684,42 @@ impl Plugin {
     pub fn is_windows(self) -> bool {
         self.name().starts_with("windows.")
     }
+    /// Reference-parity Linux plugins that walk tasks via `reference_process_rows`.
+    pub fn uses_reference_tasks(self) -> bool {
+        matches!(
+            self,
+            Self::LinuxBoottime
+                | Self::LinuxTimeliner
+                | Self::LinuxCapabilities
+                | Self::LinuxEnvars
+                | Self::LinuxPsaux
+                | Self::LinuxPstree
+                | Self::LinuxMaps
+                | Self::LinuxLsof
+                | Self::LinuxSockstat
+                | Self::LinuxKmsg
+                | Self::LinuxMalfind
+                | Self::LinuxMountinfo
+                | Self::LinuxPagecacheFiles
+                | Self::LinuxPagecacheInodePages
+                | Self::LinuxPagecacheRecoverFs
+                | Self::LinuxBash
+                | Self::LinuxElfs
+                | Self::LinuxLibraryList
+                | Self::LinuxIpAddr
+                | Self::LinuxIpLink
+                | Self::Fbdev
+                | Self::PsCallStack
+                | Self::VmaRegExScan
+                | Self::LinuxSockscan
+                | Self::LinuxPsscan
+                | Self::Kallsyms
+                | Self::ModuleExtract
+                | Self::Modxview
+                | Self::ProcessSpoofing
+                | Self::LinuxPslist
+        )
+    }
     /// Plugins that scan memory for a user-supplied byte pattern.
     pub fn is_pattern_scan(self) -> bool {
         matches!(self, Self::Vmayarascan | Self::WinVadyarascan)
@@ -551,7 +774,42 @@ mod tests {
     }
 
     #[test]
+    fn every_plugin_follows_unified_naming_and_label_rules() {
+        for d in PLUGINS {
+            let (prefix, short) = d
+                .name
+                .split_once('.')
+                .unwrap_or_else(|| panic!("missing os prefix: {}", d.name));
+            assert!(
+                matches!(prefix, "linux" | "windows"),
+                "invalid os prefix: {}",
+                d.name
+            );
+            assert!(
+                d.name.bytes().all(|b| b.is_ascii_lowercase()
+                    || b.is_ascii_digit()
+                    || b == b'_'
+                    || b == b'.'),
+                "non-canonical plugin name: {}",
+                d.name
+            );
+            assert!(
+                !d.name.contains(".malware.")
+                    && !d.name.contains(".graphics.")
+                    && !d.name.contains(".proc."),
+                "redundant namespace in plugin name: {}",
+                d.name
+            );
+            assert_eq!(d.label, short, "label must match short name for {}", d.name);
+        }
+    }
+
+    #[test]
     fn linux_netscan_and_windows_netscan_have_distinct_identities() {
+        assert_eq!(
+            Plugin::from_str("linux.netscan", false).unwrap(),
+            Plugin::Netscan
+        );
         assert_eq!(Plugin::from_str("netscan", false).unwrap(), Plugin::Netscan);
         assert_eq!(
             Plugin::from_str("windows.netscan", false).unwrap(),
@@ -563,9 +821,141 @@ mod tests {
     }
 
     #[test]
-    fn bash_history_has_one_plugin_and_legacy_commands_use_the_same_identity() {
+    fn bash_history_and_bare_bash_still_select_the_basic_plugin() {
         assert_eq!(Plugin::from_str("history", false).unwrap(), Plugin::Bash);
-        assert_eq!(PLUGINS.iter().filter(|d| d.name == "bash").count(), 1);
+        assert_eq!(Plugin::from_str("bash", false).unwrap(), Plugin::Bash);
         assert!(!PLUGINS.iter().any(|d| d.name == "history"));
+    }
+
+    #[test]
+    fn linux_legacy_names_keep_their_cli_and_mcp_plugin_identity() {
+        for (full, basic, legacy, class_path, bare) in [
+            (
+                Plugin::LinuxBoottime,
+                Plugin::Boottime,
+                "linux.boottime",
+                "linux.boottime.Boottime",
+                "boottime",
+            ),
+            (
+                Plugin::LinuxCapabilities,
+                Plugin::Capabilities,
+                "linux.capabilities",
+                "linux.capabilities.Capabilities",
+                "capabilities",
+            ),
+            (
+                Plugin::LinuxEnvars,
+                Plugin::Envars,
+                "linux.envars",
+                "linux.envars.Envars",
+                "envars",
+            ),
+            (
+                Plugin::LinuxPsaux,
+                Plugin::Psaux,
+                "linux.psaux",
+                "linux.psaux.PsAux",
+                "psaux",
+            ),
+            (
+                Plugin::LinuxPstree,
+                Plugin::Pstree,
+                "linux.pstree",
+                "linux.pstree.PsTree",
+                "pstree",
+            ),
+            (
+                Plugin::LinuxMaps,
+                Plugin::Maps,
+                "linux.maps",
+                "linux.proc.Maps",
+                "maps",
+            ),
+            (
+                Plugin::LinuxLsof,
+                Plugin::Lsof,
+                "linux.lsof",
+                "linux.lsof.Lsof",
+                "lsof",
+            ),
+            (
+                Plugin::LinuxSockstat,
+                Plugin::Sockstat,
+                "linux.sockstat",
+                "linux.sockstat.Sockstat",
+                "sockstat",
+            ),
+            (
+                Plugin::LinuxMalfind,
+                Plugin::Malfind,
+                "linux.malfind",
+                "linux.malware.malfind.Malfind",
+                "malfind",
+            ),
+            (
+                Plugin::LinuxMountinfo,
+                Plugin::Mountinfo,
+                "linux.mountinfo",
+                "linux.mountinfo.MountInfo",
+                "mountinfo",
+            ),
+            (
+                Plugin::LinuxBash,
+                Plugin::Bash,
+                "linux.bash",
+                "linux.bash.Bash",
+                "bash",
+            ),
+            (
+                Plugin::LinuxElfs,
+                Plugin::Elfs,
+                "linux.elfs",
+                "linux.elfs.Elfs",
+                "elfs",
+            ),
+            (
+                Plugin::LinuxLibraryList,
+                Plugin::LibraryList,
+                "linux.library_list",
+                "linux.library_list.LibraryList",
+                "library_list",
+            ),
+            (
+                Plugin::LinuxIpAddr,
+                Plugin::IpAddr,
+                "linux.ip.addr",
+                "linux.ip.Addr",
+                "ip_addr",
+            ),
+            (
+                Plugin::LinuxIpLink,
+                Plugin::IpLink,
+                "linux.ip.link",
+                "linux.ip.Link",
+                "ip_link",
+            ),
+            (
+                Plugin::LinuxPslist,
+                Plugin::Pslist,
+                "linux.pslist",
+                "linux.pslist.PsList",
+                "pslist",
+            ),
+        ] {
+            assert_eq!(full.name(), format!("{legacy}.full"));
+            assert_eq!(basic.name(), format!("{legacy}.basic"));
+            for ignore_case in [false, true] {
+                for (name, expected) in [
+                    (legacy, full),
+                    (class_path, full),
+                    (full.name(), full),
+                    (bare, basic),
+                    (basic.name(), basic),
+                ] {
+                    assert_eq!(Plugin::from_str(name, ignore_case), Ok(expected), "{name}");
+                }
+            }
+        }
     }
 }

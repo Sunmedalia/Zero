@@ -5,7 +5,7 @@ fn linux_mapping_export_uses_a_pid_filter_and_preserves_configured_pid_lists() {
     for plugin in [Plugin::LinuxMaps, Plugin::LinuxMalfind, Plugin::LinuxElfs] {
         let mut app = app();
         app.select_plugin(plugin);
-        let result = app.results["pslist"].clone();
+        let result = app.results["linux.pslist.basic"].clone();
         app.results.insert(plugin.name().into(), result);
 
         app.key(KeyEvent::new(KeyCode::Char('D'), KeyModifiers::NONE));
@@ -137,7 +137,7 @@ fn unified_dump_modes_cancel_and_mouse_selection() {
     );
     app.dialog_key(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE));
     assert_eq!(app.plugin, previous);
-    assert_eq!(app.results["pslist"].rows.len(), 2);
+    assert_eq!(app.results["linux.pslist.basic"].rows.len(), 2);
     assert!(app.job.is_none());
     assert_eq!(menu_items().iter().filter(|s| **s == "dump").count(), 1);
     assert_eq!(plugin_matches("dump"), vec![Plugin::Procdump]);
@@ -154,7 +154,7 @@ fn unified_dump_modes_cancel_and_mouse_selection() {
 #[test]
 fn execution_parameters_and_results_survive_browsing_and_keep_separate_views() {
     let mut app = app();
-    let mut result = app.results.remove("pslist").unwrap();
+    let mut result = app.results.remove("linux.pslist.basic").unwrap();
     app.analysis_options.pid = Some(10);
     let key = app.request_key();
     let parameters = app.parameter_summary();

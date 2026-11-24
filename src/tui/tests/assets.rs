@@ -117,7 +117,10 @@ fn directory_configuration_picker_navigation_and_export_history() {
             ..
         })
     ));
-    let result = super::tests::app().results.remove("pslist").unwrap();
+    let result = super::tests::app()
+        .results
+        .remove("linux.pslist.basic")
+        .unwrap();
     let json = dir.path().join("history.json");
     store::export(&json, &result, result.rows.clone()).unwrap();
     app.accept_path(InputKind::History, json);
@@ -235,7 +238,7 @@ fn resource_actions_are_unique_and_import_stays_accessible_on_small_screens() {
     app.page = Page::Assets;
     finish_test_job(&mut app);
     assert_eq!(app.preparation, Preparation::Ready);
-    assert!(app.menu_items().contains(&"bash"));
+    assert!(app.menu_items().contains(&"bash.basic"));
     assert!(!app.menu_items().contains(&"history"));
     for section in [
         AssetSection::Images,

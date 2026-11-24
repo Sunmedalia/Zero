@@ -50,38 +50,85 @@ fn fixture_options(fixture: &serde_json::Value, plugin: Plugin) -> Options {
     }
 }
 
+const PUBLIC_WINDOWS_SAMPLES: [(&str, &str); 2] = [
+    ("ZERO_WINDOWS10_IMAGE", "images/WinDump/WinDump.mem"),
+    ("ZERO_WINDOWS11_IMAGE", "images/Win11Dump/Win11Dump.mem"),
+];
+
+const PUBLIC_WINDOWS_PLUGINS: &[Plugin] = &[
+    Plugin::WinDebugRegisters,
+    Plugin::WinSuspendedThreads,
+    Plugin::WinPslist,
+    Plugin::WinPESymbols,
+    Plugin::WinAmcacheV4,
+    Plugin::WinMemmap,
+    Plugin::WinModules,
+    Plugin::WinDriverModule,
+    Plugin::WinDriverIrp,
+    Plugin::WinHivelist,
+    Plugin::WinSvcScanV4,
+    Plugin::WinSvcDiff,
+    Plugin::WinSvcList,
+    Plugin::WinGetCellRoutine,
+    Plugin::WinPebMasquerade,
+    Plugin::WinHiveScan,
+    Plugin::WinKpcrs,
+    Plugin::WinVadWalk,
+    Plugin::WinCallbacks,
+    Plugin::WinGetsids,
+    Plugin::WinUnloadedmodules,
+    Plugin::WinFilescan,
+    Plugin::WinMutantscan,
+    Plugin::WinSvcscan,
+    Plugin::WinAutoruns,
+    Plugin::WinThreads,
+    Plugin::WinEnvars,
+    Plugin::WinDriverscan,
+];
+
+fn public_sample<'a>(baseline: &'a serde_json::Value, path: &str) -> &'a serde_json::Value {
+    baseline["samples"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|sample| sample["path"] == path)
+        .unwrap_or_else(|| panic!("missing fixture for {path}"))
+}
+
+fn expected_public_rows(fixture: &serde_json::Value, plugin: Plugin) -> usize {
+    let name = plugin.name();
+    usize::try_from(
+        fixture["rows"][name]
+            .as_u64()
+            .unwrap_or_else(|| panic!("missing row count for {name} in {}", fixture["path"])),
+    )
+    .unwrap()
+}
+
+#[test]
+fn public_windows_fixtures_cover_the_canonical_plugins() {
+    let baseline = serde_json::from_str(include_str!("fixtures/windows.json")).unwrap();
+    for (_, path) in PUBLIC_WINDOWS_SAMPLES {
+        let sample = public_sample(&baseline, path);
+        for &plugin in PUBLIC_WINDOWS_PLUGINS {
+            expected_public_rows(sample, plugin);
+            fixture_options(sample, plugin);
+        }
+    }
+}
+
 #[test]
 #[ignore = "requires multi-gigabyte public Windows samples and prepared exact symbols"]
 fn public_windows_images() {
     let baseline: serde_json::Value =
         serde_json::from_str(include_str!("fixtures/windows.json")).unwrap();
-    for (variable, default, expected_processes, expected_modules, expected_hives) in [
-        (
-            "ZERO_WINDOWS10_IMAGE",
-            "images/WinDump/WinDump.mem",
-            139,
-            191,
-            22,
-        ),
-        (
-            "ZERO_WINDOWS11_IMAGE",
-            "images/Win11Dump/Win11Dump.mem",
-            102,
-            156,
-            38,
-        ),
-    ] {
+    for (variable, default) in PUBLIC_WINDOWS_SAMPLES {
         let image = sample_path(variable, default);
         let symbols = std::env::var_os("ZERO_WINDOWS_SYMBOLS")
             .map(PathBuf::from)
             .unwrap_or_else(|| ".zero/rust/symbols/isf/windows".into());
         let mut session = Session::default();
-        let fixture = baseline["samples"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .find(|sample| sample["path"] == default)
-            .unwrap();
+        let fixture = public_sample(&baseline, default);
         let prepared = session
             .prepare_image(&image, Path::new(".zero/rust"), &Job::default())
             .unwrap();
@@ -90,131 +137,8 @@ fn public_windows_images() {
             fixture["sha256"].as_str().unwrap(),
             "sample SHA256"
         );
-        for (plugin, expected) in [
-            (
-                Plugin::WinDebugRegisters,
-                fixture["rows"]["windows.debugregisters.DebugRegisters"]
-                    .as_u64()
-                    .unwrap() as usize,
-            ),
-            (
-                Plugin::WinSuspendedThreads,
-                fixture["rows"]["windows.suspended_threads.SuspendedThreads"]
-                    .as_u64()
-                    .unwrap() as usize,
-            ),
-            (Plugin::WinPslist, expected_processes),
-            (
-                Plugin::WinPESymbols,
-                fixture["rows"]["windows.pe_symbols.PESymbols"]
-                    .as_u64()
-                    .unwrap() as usize,
-            ),
-            (
-                Plugin::WinAmcacheV4,
-                fixture["rows"]["windows.registry.amcache.Amcache"]
-                    .as_u64()
-                    .unwrap() as usize,
-            ),
-            (
-                Plugin::WinMemmap,
-                fixture["rows"]["windows.memmap.Memmap"].as_u64().unwrap() as usize,
-            ),
-            (Plugin::WinModules, expected_modules),
-            (
-                Plugin::WinDriverModule,
-                fixture["rows"]["windows.malware.drivermodule.DriverModule"]
-                    .as_u64()
-                    .unwrap() as usize,
-            ),
-            (
-                Plugin::WinDriverIrp,
-                fixture["rows"]["windows.driverirp.DriverIrp"]
-                    .as_u64()
-                    .unwrap() as usize,
-            ),
-            (Plugin::WinHivelist, expected_hives),
-            (
-                Plugin::WinSvcScanV4,
-                fixture["rows"]["windows.svcscan.SvcScan"].as_u64().unwrap() as usize,
-            ),
-            (
-                Plugin::WinSvcDiff,
-                fixture["rows"]["windows.malware.svcdiff.SvcDiff"]
-                    .as_u64()
-                    .unwrap() as usize,
-            ),
-            (
-                Plugin::WinSvcList,
-                fixture["rows"]["windows.svclist.SvcList"].as_u64().unwrap() as usize,
-            ),
-            (
-                Plugin::WinGetCellRoutine,
-                fixture["rows"]["windows.registry.getcellroutine.GetCellRoutine"]
-                    .as_u64()
-                    .unwrap() as usize,
-            ),
-            (
-                Plugin::WinPebMasquerade,
-                fixture["rows"]["windows.malware.pebmasquerade.PebMasquerade"]
-                    .as_u64()
-                    .unwrap() as usize,
-            ),
-            (
-                Plugin::WinHiveScan,
-                fixture["rows"]["windows.registry.hivescan.HiveScan"]
-                    .as_u64()
-                    .unwrap() as usize,
-            ),
-            (
-                Plugin::WinKpcrs,
-                fixture["rows"]["windows.kpcrs.KPCRs"].as_u64().unwrap() as usize,
-            ),
-            (
-                Plugin::WinVadWalk,
-                fixture["rows"]["windows.vadwalk.VadWalk"].as_u64().unwrap() as usize,
-            ),
-            (
-                Plugin::WinCallbacks,
-                fixture["rows"]["windows.callbacks"].as_u64().unwrap() as usize,
-            ),
-            (
-                Plugin::WinGetsids,
-                fixture["rows"]["windows.getsids"].as_u64().unwrap() as usize,
-            ),
-            (
-                Plugin::WinUnloadedmodules,
-                fixture["rows"]["windows.unloadedmodules"].as_u64().unwrap() as usize,
-            ),
-            (
-                Plugin::WinFilescan,
-                fixture["rows"]["windows.filescan"].as_u64().unwrap() as usize,
-            ),
-            (
-                Plugin::WinMutantscan,
-                fixture["rows"]["windows.mutantscan"].as_u64().unwrap() as usize,
-            ),
-            (
-                Plugin::WinSvcscan,
-                fixture["rows"]["windows.svcscan"].as_u64().unwrap() as usize,
-            ),
-            (
-                Plugin::WinAutoruns,
-                fixture["rows"]["windows.autoruns"].as_u64().unwrap() as usize,
-            ),
-            (
-                Plugin::WinThreads,
-                fixture["rows"]["windows.threads"].as_u64().unwrap() as usize,
-            ),
-            (
-                Plugin::WinEnvars,
-                fixture["rows"]["windows.envars"].as_u64().unwrap() as usize,
-            ),
-            (
-                Plugin::WinDriverscan,
-                fixture["rows"]["windows.driverscan"].as_u64().unwrap() as usize,
-            ),
-        ] {
+        for &plugin in PUBLIC_WINDOWS_PLUGINS {
+            let expected = expected_public_rows(fixture, plugin);
             let outcome = analysis::analyze(
                 &mut session,
                 &Request {

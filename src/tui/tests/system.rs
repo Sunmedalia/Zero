@@ -3,7 +3,7 @@ use super::*;
 #[test]
 fn windows_menu_and_parameters_follow_identification() {
     let mut app = app();
-    let mut result = app.results["pslist"].as_ref().clone();
+    let mut result = app.results["linux.pslist.basic"].as_ref().clone();
     result.rows = vec![vec![
         "0x1000".into(),
         "Windows PDB ntkrnlmp.pdb/GUID1".into(),
@@ -56,8 +56,8 @@ fn windows_plugin_labels_omit_prefix_in_navigation_and_search() {
 #[test]
 fn auto_identification_switches_windows_and_preserves_unknown_system() {
     let mut app = app();
-    let mut banner = app.results["pslist"].as_ref().clone();
-    banner.plugin = "banners".into();
+    let mut banner = app.results["linux.pslist.basic"].as_ref().clone();
+    banner.plugin = "linux.banners".into();
     banner.system = "windows".into();
     banner.rows = vec![vec![
         "[container]".into(),
@@ -85,7 +85,7 @@ fn auto_identification_switches_windows_and_preserves_unknown_system() {
 #[test]
 fn system_picker_opens_windows_without_identification_and_survives_image_change() {
     let mut app = app();
-    let mut linux_banner = app.results["pslist"].as_ref().clone();
+    let mut linux_banner = app.results["linux.pslist.basic"].as_ref().clone();
     app.page = Page::Assets;
     app.key(KeyEvent::new(KeyCode::F(6), KeyModifiers::NONE));
     assert!(matches!(app.dialog, Some(Dialog::System { selected: 0 })));
@@ -102,10 +102,10 @@ fn system_picker_opens_windows_without_identification_and_survives_image_change(
     assert!(app.results.is_empty());
     app.invalidate_source();
     assert_eq!(app.analysis_options.os, crate::analysis::Os::Windows);
-    linux_banner.plugin = "banners".into();
+    linux_banner.plugin = "linux.banners".into();
     app.apply_identification(&linux_banner);
     assert!(app.windows);
-    app.results.insert("banners".into(), linux_banner);
+    app.results.insert("linux.banners".into(), linux_banner);
     app.analysis_options.hive = Some(0x1000);
     app.analysis_options.pid = Some(123);
     app.analysis_options.key = "Software".into();

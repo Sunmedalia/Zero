@@ -35,7 +35,7 @@ Cache clearing is **CLI-only**: preview with `zero cache clear --dry-run` and ex
 ### 1. Identify and Prepare Symbols
 
 - **Explicit local ISF**: Call `zero_analyze` directly with `symbols`; do not query the remote index first.
-- **Offline Linux banner identification**: Call `zero_analyze` with `plugin: "banners"` (needs no ISF or index). `zero_symbols` both identifies banners **and** queries the remote index; offline calls to `zero_symbols` require a cached index and do not scan the local ISF directory.
+- **Offline Linux banner identification**: Call `zero_analyze` with `plugin: "linux.banners"` (alias `banners`; needs no ISF or index). `zero_symbols` both identifies banners **and** queries the remote index; offline calls to `zero_symbols` require a cached index and do not scan the local ISF directory.
 - **Remote matching & download**: Call `zero_symbols` (`download: true` only when fetching is desired; `refresh: true` forces an online index update).
   - Match the **complete** Linux banner + architecture, or the **exact** Windows kernel PDB name/GUID/Age. Never substitute a near-version symbol.
   - Windows downloads fetch exact Microsoft PDBs and convert them to ISF in Rust; HTTP 404 automatically falls back to exact-ISF range reads from the official Volatility Windows ZIP (cached for offline reuse). Timeouts/503 do not trigger fallback.
@@ -49,13 +49,13 @@ Cache clearing is **CLI-only**: preview with `zero cache clear --dry-run` and ex
 
 ### 2. Discover and Run Analysis Plugins
 
-- Call `zero_plugins` to get exact plugin names and columns (supports both short aliases like `pslist` and canonical Volatility 3 names like `linux.pslist.PsList`, `linux.proc.Maps`, `windows.pslist`, `windows.netstat.NetStat`).
+- Call `zero_plugins` to get exact plugin names and columns (unified `<os>.<id>` canonical names such as `linux.pslist.basic`, `linux.pslist.full`, `linux.maps.full`, `linux.pagecache.files`, `windows.pslist`, `windows.netstat`, `windows.registry.amcache.full`; legacy bare names and Volatility 3 class-path names remain accepted as aliases).
 - Set `os: "windows"` (or `windows.*` plugin names) when targeting Windows; set `arch: "auto"|"x86"|"x64"|"arm64"` when needed.
 - **Filtering & options**:
-  - `pids` (array) filters supported Linux plugins (`PsList`, `PsTree`, `PsAux`, `Envars`, `Capabilities`, `Maps`, `Lsof`, `Sockstat`, `Malfind`, `MountInfo`, `Bash`, `Elfs`, `LibraryList`, `VmaRegExScan`, `PsCallStack`) and Windows plugins (`Strings`, `VadRegExScan`, `VadWalk`, etc.).
+  - `pids` (array) filters supported Linux plugins (`linux.pslist.full`, `linux.pstree.full`, `linux.psaux.full`, `linux.envars.full`, `linux.capabilities.full`, `linux.maps.full`, `linux.lsof.full`, `linux.sockstat.full`, `linux.malfind.full`, `linux.mountinfo.full`, `linux.bash.full`, `linux.elfs.full`, `linux.library_list.full`, `linux.vmaregexscan`, `linux.pscallstack`) and Windows plugins (`windows.strings`, `windows.vadregexscan`, `windows.vadwalk`, `windows.pebmasquerade`).
   - `pid` filters targeted Windows plugins (e.g., `windows.vadinfo`, `windows.threads`, `windows.envars`, `windows.getsids`; on `windows.svcscan` it selects the `services.exe` host).
   - `windows.printkey` requires `hive` (address from `windows.hivelist`) and optional hive-relative `key`.
-  - `dump_dir` on `zero_analyze` enables inline binary export for supported listing plugins (`linux.proc.Maps`, `linux.malware.malfind.Malfind`, `linux.elfs.Elfs`, `lsmod`, `linux.graphics.fbdev.Fbdev`, `windows.memmap.Memmap`).
+  - `dump_dir` on `zero_analyze` enables inline binary export for supported listing plugins (`linux.maps.full`, `linux.malfind.full`, `linux.elfs.full`, `linux.lsmod`, `linux.fbdev`, `windows.memmap`).
   - Keep arguments strictly within the tool schema (`deny_unknown_fields` rejects misspelled or unsupported parameters).
 
 ### 3. Interpret Results and Paginate

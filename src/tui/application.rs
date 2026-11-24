@@ -21,7 +21,11 @@ impl App {
         if self.analysis_options.os != crate::analysis::Os::Auto {
             return self.analysis_options.os;
         }
-        match self.results.get("banners").map(|r| r.system.as_str()) {
+        match self
+            .results
+            .get(Plugin::Banners.name())
+            .map(|r| r.system.as_str())
+        {
             Some("linux") => crate::analysis::Os::Linux,
             Some("windows") => crate::analysis::Os::Windows,
             _ => crate::analysis::Os::Auto,
@@ -41,7 +45,7 @@ impl App {
         self.verified = None;
         self.result_origins.clear();
         self.analysis_options.os = os;
-        let banner = self.results.get("banners").cloned();
+        let banner = self.results.get(Plugin::Banners.name()).cloned();
         self.windows = match os {
             crate::analysis::Os::Windows => true,
             crate::analysis::Os::Linux => false,
@@ -71,7 +75,7 @@ impl App {
         self.clear_plugin_tabs();
         self.results.clear();
         if let Some(banner) = banner {
-            self.results.insert("banners".into(), banner);
+            self.results.insert(Plugin::Banners.name().into(), banner);
         }
         self.local_matches.clear();
         self.local_match_stamp = None;
@@ -552,14 +556,14 @@ impl App {
         self.asset_queries[2].clear();
     }
     pub(super) fn invalidate_symbols(&mut self) {
-        let banner = self.results.get("banners").cloned();
+        let banner = self.results.get(Plugin::Banners.name()).cloned();
         let matched = std::mem::take(&mut self.local_matches);
         let stamp = self.local_match_stamp.take();
         let errors = std::mem::take(&mut self.local_match_errors);
         let only = self.local_only_matches;
         self.invalidate_source();
         if let Some(banner) = banner {
-            self.results.insert("banners".into(), banner);
+            self.results.insert(Plugin::Banners.name().into(), banner);
         }
         self.local_matches = matched;
         self.local_match_stamp = stamp;
@@ -1243,12 +1247,15 @@ impl App {
     }
     pub(super) fn supports_automatic_symbols(&self) -> bool {
         !self.windows
-            && self.results.get("banners").is_some_and(|result| {
-                result.rows.iter().any(|row| {
-                    row.iter()
-                        .any(|banner| crate::prepare::supports_automatic_banner(banner))
+            && self
+                .results
+                .get(Plugin::Banners.name())
+                .is_some_and(|result| {
+                    result.rows.iter().any(|row| {
+                        row.iter()
+                            .any(|banner| crate::prepare::supports_automatic_banner(banner))
+                    })
                 })
-            })
     }
     pub(super) fn activate_plugin(&mut self, plugin: Plugin) {
         self.select_plugin(plugin);
