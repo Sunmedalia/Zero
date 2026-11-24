@@ -282,11 +282,12 @@ impl Linux<'_> {
         Ok(result)
     }
     pub(super) fn process_details(&self, job: &Job) -> Result<Results> {
-        self.process_details_with_options(&crate::analysis::Options::default(), job)
+        self.process_details_with_options(&crate::analysis::Options::default(), None, job)
     }
     pub(super) fn process_details_with_options(
         &self,
         options: &crate::analysis::Options,
+        dump: Option<&crate::dump::DumpOptions>,
         job: &Job,
     ) -> Result<Results> {
         let pids = options.pids.iter().copied().chain(options.pid).collect();
@@ -309,7 +310,9 @@ impl Linux<'_> {
                 .parse::<i128>()
                 .context("启动时间无效")
         });
-        for row in &mut result.rows {
+        let mut total_dumped = 0u64;
+        let mut rows = std::mem::take(&mut result.rows);
+        for row in &mut rows {
             job.check()?;
             let task = u64::from_str_radix(&row.at(4)?[2..], 16)?;
             match self
@@ -376,9 +379,102 @@ impl Linux<'_> {
                         .push(format!("PID {} creation time: {error:#}", *row.at(0)?));
                 }
             }
-            row.push("Disabled".into());
+            let file_output = if let Some(dump_opts) = dump {
+                let pid_str = row.at(0)?.clone();
+                let comm_str = row.at(3)?.clone();
+                self.dump_task_executable(
+                    task,
+                    &pid_str,
+                    &comm_str,
+                    dump_opts,
+                    &mut total_dumped,
+                    &mut result,
+                    job,
+                )
+            } else {
+                "Disabled".into()
+            };
+            row.push(file_output);
         }
+        result.rows = rows;
         Ok(result)
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn dump_task_executable(
+        &self,
+        task: u64,
+        pid: &str,
+        comm: &str,
+        dump: &crate::dump::DumpOptions,
+        total_dumped: &mut u64,
+        result: &mut Results,
+        job: &Job,
+    ) -> String {
+        let run = (|| -> Result<Option<String>> {
+            let mm = self.number(task, "task_struct", "mm")?;
+            if mm == 0 {
+                return Ok(None);
+            }
+            let vm = self.process_vm(task)?.context("主程序地址空间不可读")?;
+            let exe_file = self.number(mm, "mm_struct", "exe_file")?;
+            ensure!(exe_file != 0, "缺少主程序 exe_file");
+            let mut mappings = Vec::new();
+            for node in self.vma_nodes(mm, job, result)? {
+                job.check()?;
+                if self.number(node, "vm_area_struct", "vm_file").ok() != Some(exe_file) {
+                    continue;
+                }
+                let start = self.number(node, "vm_area_struct", "vm_start")?;
+                let end = self.number(node, "vm_area_struct", "vm_end")?;
+                let offset = self
+                    .number(node, "vm_area_struct", "vm_pgoff")?
+                    .checked_mul(4096)
+                    .context("主程序映射文件偏移溢出")?;
+                ensure!(start < end, "主程序 VMA 地址倒置");
+                mappings.push((start, end, offset));
+            }
+            mappings.sort_unstable();
+            let safe_comm: String = comm
+                .chars()
+                .map(|c| {
+                    if c.is_ascii_alphanumeric() || matches!(c, '.' | '_' | '-') {
+                        c
+                    } else {
+                        '_'
+                    }
+                })
+                .take(32)
+                .collect();
+            let filename = format!("pid.{pid}.{safe_comm}.elf");
+            let target = dump.directory.join(&filename);
+            let (size, missing) = Self::write_main_executable(
+                &vm,
+                &mappings,
+                &target,
+                crate::dump::MAX_DUMP_BYTES - *total_dumped,
+                job,
+            )?;
+            if missing > 0 {
+                result.complete = false;
+                result.diagnostics.push(format!(
+                    "PID {pid} 主程序 ELF 导出：{missing} 个缺失文件区块已补零"
+                ));
+            }
+            *total_dumped += size;
+            Ok(Some(filename))
+        })();
+        match run {
+            Ok(Some(name)) => name,
+            Ok(None) => "N/A".into(),
+            Err(e) => {
+                result.complete = false;
+                result
+                    .diagnostics
+                    .push(format!("PID {pid} 导出失败: {e:#}"));
+                "Error outputting file".into()
+            }
+        }
     }
 
     fn task_creation_time(&self, task: u64, boot_seconds: i128) -> Result<String> {

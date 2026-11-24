@@ -125,7 +125,9 @@
           "windows.malware.direct_system_calls.DirectSystemCalls": "synthetic",
           "windows.malware.indirect_system_calls.IndirectSystemCalls": "synthetic",
           "windows.malware.skeleton_key_check.Skeleton_Key_Check": "unsupported",
-          "windows.truecrypt.Passphrase": "synthetic"
+          "windows.truecrypt.Passphrase": "synthetic",
+          "windows.mftscan.ADS": "synthetic",
+          "windows.mftscan.ResidentData": "synthetic"
         },
         "x64": {
           "windows.callbacks": "synthetic",
@@ -228,7 +230,9 @@
           "windows.malware.direct_system_calls.DirectSystemCalls": "synthetic",
           "windows.malware.indirect_system_calls.IndirectSystemCalls": "synthetic",
           "windows.malware.skeleton_key_check.Skeleton_Key_Check": "synthetic",
-          "windows.truecrypt.Passphrase": "synthetic"
+          "windows.truecrypt.Passphrase": "synthetic",
+          "windows.mftscan.ADS": "synthetic",
+          "windows.mftscan.ResidentData": "synthetic"
         }
       },
       "evidence": [
@@ -415,7 +419,9 @@
           "windows.malware.direct_system_calls.DirectSystemCalls": "synthetic",
           "windows.malware.indirect_system_calls.IndirectSystemCalls": "synthetic",
           "windows.malware.skeleton_key_check.Skeleton_Key_Check": "unsupported",
-          "windows.truecrypt.Passphrase": "synthetic"
+          "windows.truecrypt.Passphrase": "synthetic",
+          "windows.mftscan.ADS": "synthetic",
+          "windows.mftscan.ResidentData": "synthetic"
         },
         "x64": {
           "windows.callbacks": "synthetic",
@@ -518,7 +524,9 @@
           "windows.malware.direct_system_calls.DirectSystemCalls": "synthetic",
           "windows.malware.indirect_system_calls.IndirectSystemCalls": "synthetic",
           "windows.malware.skeleton_key_check.Skeleton_Key_Check": "synthetic",
-          "windows.truecrypt.Passphrase": "synthetic"
+          "windows.truecrypt.Passphrase": "synthetic",
+          "windows.mftscan.ADS": "synthetic",
+          "windows.mftscan.ResidentData": "synthetic"
         }
       },
       "evidence": []
@@ -642,7 +650,9 @@
           "windows.malware.direct_system_calls.DirectSystemCalls": "synthetic",
           "windows.malware.indirect_system_calls.IndirectSystemCalls": "synthetic",
           "windows.malware.skeleton_key_check.Skeleton_Key_Check": "unsupported",
-          "windows.truecrypt.Passphrase": "synthetic"
+          "windows.truecrypt.Passphrase": "synthetic",
+          "windows.mftscan.ADS": "synthetic",
+          "windows.mftscan.ResidentData": "synthetic"
         },
         "x64": {
           "windows.callbacks": "synthetic",
@@ -745,7 +755,9 @@
           "windows.malware.direct_system_calls.DirectSystemCalls": "synthetic",
           "windows.malware.indirect_system_calls.IndirectSystemCalls": "synthetic",
           "windows.malware.skeleton_key_check.Skeleton_Key_Check": "synthetic",
-          "windows.truecrypt.Passphrase": "synthetic"
+          "windows.truecrypt.Passphrase": "synthetic",
+          "windows.mftscan.ADS": "synthetic",
+          "windows.mftscan.ResidentData": "synthetic"
         }
       },
       "evidence": [
@@ -950,7 +962,9 @@
           "windows.malware.direct_system_calls.DirectSystemCalls": "synthetic",
           "windows.malware.indirect_system_calls.IndirectSystemCalls": "synthetic",
           "windows.malware.skeleton_key_check.Skeleton_Key_Check": "synthetic",
-          "windows.truecrypt.Passphrase": "synthetic"
+          "windows.truecrypt.Passphrase": "synthetic",
+          "windows.mftscan.ADS": "synthetic",
+          "windows.mftscan.ResidentData": "synthetic"
         }
       },
       "evidence": [],
@@ -1073,7 +1087,9 @@
           "windows.malware.direct_system_calls.DirectSystemCalls": "synthetic",
           "windows.malware.indirect_system_calls.IndirectSystemCalls": "synthetic",
           "windows.malware.skeleton_key_check.Skeleton_Key_Check": "synthetic",
-          "windows.truecrypt.Passphrase": "synthetic"
+          "windows.truecrypt.Passphrase": "synthetic",
+          "windows.mftscan.ADS": "synthetic",
+          "windows.mftscan.ResidentData": "synthetic"
         }
       },
       "evidence": [
@@ -1242,7 +1258,9 @@
           "windows.malware.direct_system_calls.DirectSystemCalls": "synthetic",
           "windows.malware.indirect_system_calls.IndirectSystemCalls": "synthetic",
           "windows.malware.skeleton_key_check.Skeleton_Key_Check": "synthetic",
-          "windows.truecrypt.Passphrase": "synthetic"
+          "windows.truecrypt.Passphrase": "synthetic",
+          "windows.mftscan.ADS": "synthetic",
+          "windows.mftscan.ResidentData": "synthetic"
         }
       },
       "evidence": [
@@ -1412,7 +1430,9 @@
           "windows.malware.direct_system_calls.DirectSystemCalls": "synthetic",
           "windows.malware.indirect_system_calls.IndirectSystemCalls": "synthetic",
           "windows.malware.skeleton_key_check.Skeleton_Key_Check": "synthetic",
-          "windows.truecrypt.Passphrase": "synthetic"
+          "windows.truecrypt.Passphrase": "synthetic",
+          "windows.mftscan.ADS": "synthetic",
+          "windows.mftscan.ResidentData": "synthetic"
         }
       },
       "evidence": [
@@ -1554,7 +1574,9 @@
           "windows.malware.direct_system_calls.DirectSystemCalls": "synthetic",
           "windows.malware.indirect_system_calls.IndirectSystemCalls": "synthetic",
           "windows.malware.skeleton_key_check.Skeleton_Key_Check": "synthetic",
-          "windows.truecrypt.Passphrase": "synthetic"
+          "windows.truecrypt.Passphrase": "synthetic",
+          "windows.mftscan.ADS": "synthetic",
+          "windows.mftscan.ResidentData": "synthetic"
         }
       },
       "evidence": [
@@ -1725,7 +1747,9 @@
           "windows.malware.direct_system_calls.DirectSystemCalls": "synthetic",
           "windows.malware.indirect_system_calls.IndirectSystemCalls": "synthetic",
           "windows.malware.skeleton_key_check.Skeleton_Key_Check": "synthetic",
-          "windows.truecrypt.Passphrase": "synthetic"
+          "windows.truecrypt.Passphrase": "synthetic",
+          "windows.mftscan.ADS": "synthetic",
+          "windows.mftscan.ResidentData": "synthetic"
         }
       },
       "evidence": [
@@ -1896,7 +1920,9 @@
           "windows.malware.direct_system_calls.DirectSystemCalls": "synthetic",
           "windows.malware.indirect_system_calls.IndirectSystemCalls": "synthetic",
           "windows.malware.skeleton_key_check.Skeleton_Key_Check": "synthetic",
-          "windows.truecrypt.Passphrase": "synthetic"
+          "windows.truecrypt.Passphrase": "synthetic",
+          "windows.mftscan.ADS": "synthetic",
+          "windows.mftscan.ResidentData": "synthetic"
         }
       },
       "evidence": [],
@@ -2021,7 +2047,9 @@
           "windows.malware.direct_system_calls.DirectSystemCalls": "synthetic",
           "windows.malware.indirect_system_calls.IndirectSystemCalls": "synthetic",
           "windows.malware.skeleton_key_check.Skeleton_Key_Check": "unsupported",
-          "windows.truecrypt.Passphrase": "synthetic"
+          "windows.truecrypt.Passphrase": "synthetic",
+          "windows.mftscan.ADS": "synthetic",
+          "windows.mftscan.ResidentData": "synthetic"
         },
         "x64": {
           "windows.callbacks": "real",
@@ -2124,7 +2152,9 @@
           "windows.malware.direct_system_calls.DirectSystemCalls": "real",
           "windows.malware.indirect_system_calls.IndirectSystemCalls": "synthetic",
           "windows.malware.skeleton_key_check.Skeleton_Key_Check": "synthetic",
-          "windows.truecrypt.Passphrase": "synthetic"
+          "windows.truecrypt.Passphrase": "synthetic",
+          "windows.mftscan.ADS": "synthetic",
+          "windows.mftscan.ResidentData": "synthetic"
         }
       },
       "evidence": [
@@ -2324,7 +2354,9 @@
           "windows.malware.direct_system_calls.DirectSystemCalls": "synthetic",
           "windows.malware.indirect_system_calls.IndirectSystemCalls": "synthetic",
           "windows.malware.skeleton_key_check.Skeleton_Key_Check": "unsupported",
-          "windows.truecrypt.Passphrase": "synthetic"
+          "windows.truecrypt.Passphrase": "synthetic",
+          "windows.mftscan.ADS": "synthetic",
+          "windows.mftscan.ResidentData": "synthetic"
         },
         "x64": {
           "windows.callbacks": "synthetic",
@@ -2427,7 +2459,9 @@
           "windows.malware.direct_system_calls.DirectSystemCalls": "synthetic",
           "windows.malware.indirect_system_calls.IndirectSystemCalls": "synthetic",
           "windows.malware.skeleton_key_check.Skeleton_Key_Check": "synthetic",
-          "windows.truecrypt.Passphrase": "synthetic"
+          "windows.truecrypt.Passphrase": "synthetic",
+          "windows.mftscan.ADS": "synthetic",
+          "windows.mftscan.ResidentData": "synthetic"
         }
       },
       "evidence": []
@@ -2550,7 +2584,9 @@
           "windows.malware.direct_system_calls.DirectSystemCalls": "synthetic",
           "windows.malware.indirect_system_calls.IndirectSystemCalls": "synthetic",
           "windows.malware.skeleton_key_check.Skeleton_Key_Check": "unsupported",
-          "windows.truecrypt.Passphrase": "synthetic"
+          "windows.truecrypt.Passphrase": "synthetic",
+          "windows.mftscan.ADS": "synthetic",
+          "windows.mftscan.ResidentData": "synthetic"
         },
         "x64": {
           "windows.callbacks": "synthetic",
@@ -2653,7 +2689,9 @@
           "windows.malware.direct_system_calls.DirectSystemCalls": "synthetic",
           "windows.malware.indirect_system_calls.IndirectSystemCalls": "synthetic",
           "windows.malware.skeleton_key_check.Skeleton_Key_Check": "synthetic",
-          "windows.truecrypt.Passphrase": "synthetic"
+          "windows.truecrypt.Passphrase": "synthetic",
+          "windows.mftscan.ADS": "synthetic",
+          "windows.mftscan.ResidentData": "synthetic"
         }
       },
       "evidence": []
@@ -2789,7 +2827,9 @@
           "windows.malware.direct_system_calls.DirectSystemCalls": "synthetic",
           "windows.malware.indirect_system_calls.IndirectSystemCalls": "synthetic",
           "windows.malware.skeleton_key_check.Skeleton_Key_Check": "unsupported",
-          "windows.truecrypt.Passphrase": "synthetic"
+          "windows.truecrypt.Passphrase": "synthetic",
+          "windows.mftscan.ADS": "synthetic",
+          "windows.mftscan.ResidentData": "synthetic"
         },
         "x64": {
           "windows.callbacks": "real",
@@ -2892,7 +2932,9 @@
           "windows.malware.direct_system_calls.DirectSystemCalls": "real",
           "windows.malware.indirect_system_calls.IndirectSystemCalls": "synthetic",
           "windows.malware.skeleton_key_check.Skeleton_Key_Check": "real",
-          "windows.truecrypt.Passphrase": "synthetic"
+          "windows.truecrypt.Passphrase": "synthetic",
+          "windows.mftscan.ADS": "synthetic",
+          "windows.mftscan.ResidentData": "synthetic"
         }
       },
       "evidence": [
@@ -3148,7 +3190,9 @@
           "windows.malware.direct_system_calls.DirectSystemCalls": "synthetic",
           "windows.malware.indirect_system_calls.IndirectSystemCalls": "synthetic",
           "windows.malware.skeleton_key_check.Skeleton_Key_Check": "synthetic",
-          "windows.truecrypt.Passphrase": "synthetic"
+          "windows.truecrypt.Passphrase": "synthetic",
+          "windows.mftscan.ADS": "synthetic",
+          "windows.mftscan.ResidentData": "synthetic"
         }
       },
       "evidence": [

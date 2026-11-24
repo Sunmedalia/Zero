@@ -530,7 +530,12 @@ mod tests {
             end: None,
         };
         let r = engine
-            .run_dump(Plugin::WinDumpfiles, &options, &Job::default())
+            .run_dump(
+                Plugin::WinDumpfiles,
+                &options,
+                &Options::default(),
+                &Job::default(),
+            )
             .unwrap();
         assert!(r.complete, "{:?}", r.diagnostics);
         assert_eq!(r.rows.len(), 1);

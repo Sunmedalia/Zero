@@ -170,6 +170,8 @@ fn high_vpn_and_x86_direct_parent_four_byte_tags() {
         handles: None,
         created: 0,
         exited: 0,
+        session_id: None,
+        wow64: false,
     };
     let mut r = w.result(Plugin::WinVadWalk);
     let mut rows = Vec::new();

@@ -523,6 +523,7 @@ mod tests {
             protection: 0,
             private: false,
             path: "cryptdll.dll".into(),
+            ..Default::default()
         }
     }
     #[test]

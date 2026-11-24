@@ -237,12 +237,20 @@ impl Linux<'_> {
                         break;
                     }
                     let (symbol, owner, reason) = code.describe(handler);
+                    let prio = if self.isf.field("tracepoint_func", "prio").is_ok() {
+                        self.signed_field(entry, "tracepoint_func", "prio")
+                            .map(|p| p.to_string())
+                            .unwrap_or_default()
+                    } else {
+                        String::new()
+                    };
                     r.rows.push(vec![
                         name.clone(),
                         hex(handler),
                         symbol,
                         owner,
                         reason.into(),
+                        prio,
                     ]);
                 }
                 Ok(())
@@ -264,6 +272,7 @@ impl Linux<'_> {
         let code = self.code_map(job)?;
         let mut ops = self.vm.uint(head, 8)?;
         let mut seen = HashSet::new();
+        let has_flags = self.isf.field("ftrace_ops", "flags").is_ok();
         while ops != 0 && ops != end {
             job.check()?;
             ensure!(
@@ -272,11 +281,102 @@ impl Linux<'_> {
             );
             let handler = self.number(ops, "ftrace_ops", "func")?;
             let (symbol, owner, reason) = code.describe(handler);
-            r.rows
-                .push(vec![hex(ops), hex(handler), symbol, owner, reason.into()]);
+            let flags = if has_flags {
+                self.number(ops, "ftrace_ops", "flags")
+                    .map(decode_ftrace_flags)
+                    .unwrap_or_default()
+            } else {
+                String::new()
+            };
+            let hooked = self.ftrace_hooked_symbols(ops, &code, job);
+            r.rows.push(vec![
+                hex(ops),
+                hex(handler),
+                symbol,
+                owner,
+                reason.into(),
+                flags,
+                hooked,
+            ]);
             ops = self.number(ops, "ftrace_ops", "next")?;
         }
         Ok(())
+    }
+
+    fn ftrace_hooked_symbols(
+        &self,
+        ops: u64,
+        code: &super::kernel::CodeMap<'_>,
+        job: &Job,
+    ) -> String {
+        let Ok(func_hash) = self.number(ops, "ftrace_ops", "func_hash") else {
+            return String::new();
+        };
+        if func_hash == 0 {
+            return String::new();
+        }
+        let Ok(filter_hash) = self.number(func_hash, "ftrace_ops_hash", "filter_hash") else {
+            return String::new();
+        };
+        if filter_hash == 0 {
+            return String::new();
+        }
+        let Ok(size_bits) = self.number(filter_hash, "ftrace_hash", "size_bits") else {
+            return String::new();
+        };
+        if size_bits > 16 {
+            return String::new();
+        }
+        let Ok(buckets) = self.number(filter_hash, "ftrace_hash", "buckets") else {
+            return String::new();
+        };
+        if buckets == 0 {
+            return String::new();
+        }
+        let Ok(hlist_offset) = self.isf.offset("ftrace_func_entry", "hlist") else {
+            return String::new();
+        };
+        let Ok(ptr_size) = usize::try_from(
+            self.isf.data.key("base_types")["pointer"]
+                .key("size")
+                .as_u64()
+                .unwrap_or(8),
+        ) else {
+            return String::new();
+        };
+        let bucket_count = 1u64 << size_bits;
+        let mut names = Vec::new();
+        let mut seen = HashSet::new();
+        for i in 0..bucket_count {
+            if job.check().is_err() || names.len() >= 32 {
+                break;
+            }
+            let Ok(head_addr) = add(buckets, i * ptr_size as u64) else {
+                break;
+            };
+            let Ok(mut node) = self.vm.uint(head_addr, ptr_size) else {
+                continue;
+            };
+            let mut steps = 0usize;
+            while node != 0 && seen.insert(node) && steps < 256 && names.len() < 32 {
+                steps += 1;
+                let Some(entry) = node.checked_sub(hlist_offset) else {
+                    break;
+                };
+                if let Ok(ip) = self.number(entry, "ftrace_func_entry", "ip")
+                    && ip != 0
+                {
+                    let (sym, _, _) = code.describe(ip);
+                    if !sym.is_empty() && sym != "-" {
+                        names.push(sym);
+                    } else {
+                        names.push(hex(ip));
+                    }
+                }
+                node = self.vm.uint(node, ptr_size).unwrap_or(0);
+            }
+        }
+        names.join(", ")
     }
     /// perf_events: events each process owns and their overflow handlers.
     pub(super) fn perf_events(&self, job: &Job) -> Result<Results> {
@@ -349,12 +449,23 @@ impl Linux<'_> {
                     .iter()
                     .find(|(_, value)| value.as_u64() == Some(kind))
                     .map_or_else(|| kind.to_string(), |(name, _)| name.clone());
+                let tag = if let Ok(tag_addr) = self.field_address(program, "bpf_prog", "tag") {
+                    let mut raw = [0u8; 8];
+                    if self.vm.read(tag_addr, &mut raw).is_ok() {
+                        raw.iter().map(|b| format!("{b:02x}")).collect()
+                    } else {
+                        String::new()
+                    }
+                } else {
+                    String::new()
+                };
                 Ok(vec![
                     self.number(aux, "bpf_prog_aux", "id")?.to_string(),
                     self.string(aux, "bpf_prog_aux", "name")?,
                     name,
                     hex(program),
                     hex(self.number(program, "bpf_prog", "bpf_func")?),
+                    tag,
                 ])
             })();
             match read {
@@ -363,6 +474,36 @@ impl Linux<'_> {
             }
         }
         Ok(())
+    }
+}
+
+fn decode_ftrace_flags(flags: u64) -> String {
+    const NAMES: &[(u64, &str)] = &[
+        (1 << 0, "ENABLED"),
+        (1 << 1, "DYNAMIC"),
+        (1 << 2, "SAVE_REGS"),
+        (1 << 3, "SAVE_REGS_IF_SUPPORTED"),
+        (1 << 4, "RECURSION"),
+        (1 << 5, "STUB"),
+        (1 << 6, "INITIALIZED"),
+        (1 << 7, "DELETED"),
+        (1 << 8, "ADD"),
+        (1 << 9, "REMOVE"),
+        (1 << 10, "IPMODIFY"),
+        (1 << 11, "PID"),
+        (1 << 12, "RCU"),
+        (1 << 13, "TRACE_ARRAY"),
+        (1 << 14, "PERMANENT"),
+        (1 << 15, "DIRECT"),
+    ];
+    let parts: Vec<&str> = NAMES
+        .iter()
+        .filter_map(|&(bit, name)| (flags & bit != 0).then_some(name))
+        .collect();
+    if parts.is_empty() {
+        format!("{flags:#x}")
+    } else {
+        parts.join("|")
     }
 }
 

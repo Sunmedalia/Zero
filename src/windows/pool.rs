@@ -157,6 +157,21 @@ impl Windows<'_> {
             }
         }
         let mapped = self.mapped_pool_candidates(&candidates, job)?;
+        let thread_modules = if p == Plugin::WinThrdscan {
+            self.modules_partial(job, r).unwrap_or_default()
+        } else {
+            Vec::new()
+        };
+        let resolve_module = |addr: u64| -> String {
+            if addr == 0 {
+                return String::new();
+            }
+            thread_modules
+                .iter()
+                .find(|m| addr >= m.base && addr < m.base.saturating_add(m.size))
+                .map(|m| m.name.clone())
+                .unwrap_or_default()
+        };
         // Header-shape decisions are per symbol file, not per object.
         let header_layout = self.object_header_layout();
         let mut unmatched = 0;
@@ -182,15 +197,19 @@ impl Windows<'_> {
                             .number(address, ty, "CreateTime")
                             .map(|value| if shift { value >> 3 } else { value });
                         let exited = self.number(address, ty, "ExitTime");
+                        let start_addr = self.number(address, ty, "StartAddress")?;
+                        let win32_start = self.number(address, ty, "Win32StartAddress")?;
                         return Ok(Some(vec![
                             format!("physical:{physical:#x}"),
                             hex(address),
                             self.number(address, ty, "Cid.UniqueProcess")?.to_string(),
                             self.number(address, ty, "Cid.UniqueThread")?.to_string(),
-                            hex(self.number(address, ty, "StartAddress")?),
-                            hex(self.number(address, ty, "Win32StartAddress")?),
+                            hex(start_addr),
+                            hex(win32_start),
                             created.map(timeline::filetime_utc).unwrap_or_default(),
                             exited.map(timeline::filetime_utc).unwrap_or_default(),
+                            resolve_module(start_addr),
+                            resolve_module(win32_start),
                         ]));
                     }
                     let mut name = String::new();
@@ -555,7 +574,38 @@ mod tests {
                 hex(0),
                 String::new(),
                 String::new(),
+                String::new(),
+                String::new(),
             ]
         );
+
+        // This owner has the same PID as a listed process, but a different
+        // verified EPROCESS address and neither an active-list nor pool hit.
+        isf.data["user_types"]["_ETHREAD"]["size"] = json!(72);
+        isf.data["user_types"]["_ETHREAD"]["fields"]["ThreadsProcess"] = ptr(64);
+        put(&mut b, 0xc260, K + 0x3100);
+        b.copy_within(0x9000..0x9100, 0xb100);
+        b[0xb130..0xb140].fill(0);
+        b[0xb130..0xb136].copy_from_slice(b"hidden");
+        put(&mut b, 0xb0f0, K + 0x5240);
+        b[0xd240..0xd244].copy_from_slice(&[14, 0, 14, 0]);
+        put(&mut b, 0xd248, K + 0x6240);
+        for (i, c) in "Process".bytes().enumerate() {
+            b[0xe240 + i * 2] = c;
+        }
+        let img = image(&b);
+        let w = Windows {
+            vm: Memory::new(&img, 0x1000, &isf, None),
+            base: K,
+            pdb: PdbIdentity::from_isf(&isf).unwrap(),
+        };
+        let views = w
+            .run(Plugin::WinPsxview, &Options::default(), &Job::default())
+            .unwrap();
+        let listed = views.rows.iter().find(|row| row[1] == "System").unwrap();
+        let hidden = views.rows.iter().find(|row| row[1] == "hidden").unwrap();
+        assert_eq!(listed[0], hidden[0]);
+        assert_eq!(&listed[3..7], ["true", "false", "false", "false"]);
+        assert_eq!(&hidden[3..7], ["false", "false", "true", "false"]);
     }
 }

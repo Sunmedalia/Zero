@@ -111,6 +111,16 @@ pub struct Options {
     pub kallsyms: KallsymsOptions,
     pub hive: Option<u64>,
     pub key: String,
+    /// Recursively walk subkeys in `windows.printkey`.
+    pub recurse: bool,
+    /// Include free entries in `windows.bigpools`.
+    pub show_free: bool,
+    /// Filter pool tags in `windows.bigpools`.
+    pub tags: Vec<String>,
+    /// Substring filter for `windows.dlllist` / `windows.hivelist`.
+    pub name_filter: Option<String>,
+    /// Case-insensitive matching for `name_filter`.
+    pub ignore_case: bool,
     /// Byte pattern for vmayarascan / windows.vadyarascan.
     pub pattern: Option<String>,
     /// Local decimal-offset strings output consumed by windows.strings.Strings.
@@ -190,9 +200,17 @@ pub fn analyze(
     );
 
     ensure!(
-        !(options.include_threads || options.decorate_comm)
+        !options.include_threads
             || matches!(request.plugin, Plugin::LinuxPslist | Plugin::LinuxPstree),
-        "threads/decorate_comm 当前仅支持 linux.pslist.PsList / linux.pstree.PsTree"
+        "threads 当前仅支持 linux.pslist.PsList / linux.pstree.PsTree"
+    );
+    ensure!(
+        !options.decorate_comm
+            || matches!(
+                request.plugin,
+                Plugin::LinuxPslist | Plugin::LinuxPstree | Plugin::Pidhashtable
+            ),
+        "decorate_comm 当前仅支持 linux.pslist.PsList / linux.pstree.PsTree / pidhashtable"
     );
     ensure!(
         !options.files_only || request.plugin == Plugin::LinuxLsof,
@@ -207,8 +225,9 @@ pub fn analyze(
         "VMA 地址列表超过 4096 项"
     );
     ensure!(
-        options.vma_addresses.is_empty() || request.plugin == Plugin::LinuxMaps,
-        "vma_addresses 仅支持 linux.proc.Maps"
+        options.vma_addresses.is_empty()
+            || matches!(request.plugin, Plugin::LinuxMaps | Plugin::WinVadinfo),
+        "vma_addresses / --address 仅支持 linux.proc.Maps / windows.vadinfo"
     );
     ensure!(
         (options.hexdump_size.is_none() && !options.show_all_dirty_pages)
@@ -225,9 +244,22 @@ pub fn analyze(
         "mntns / mount_format 仅支持 linux.mountinfo.MountInfo"
     );
     ensure!(
-        (options.file_types.is_empty() && options.find.is_none())
-            || request.plugin == Plugin::LinuxPagecacheFiles,
-        "file_types / find 仅支持 linux.pagecache.Files"
+        options.file_types.is_empty()
+            || matches!(
+                request.plugin,
+                Plugin::LinuxPagecacheFiles | Plugin::LinuxPagecacheRecoverFs
+            ),
+        "file_types 仅支持 linux.pagecache.Files / linux.pagecache.RecoverFs"
+    );
+    ensure!(
+        options.find.is_none()
+            || matches!(
+                request.plugin,
+                Plugin::LinuxPagecacheFiles
+                    | Plugin::LinuxPagecacheInodePages
+                    | Plugin::LinuxPagecacheRecoverFs
+            ),
+        "find 仅支持 linux.pagecache.Files / InodePages / RecoverFs"
     );
     ensure!(
         !options.plain_taints || request.plugin == Plugin::Modxview,
@@ -236,6 +268,19 @@ pub fn analyze(
     ensure!(
         !options.kallsyms.any() || request.plugin == Plugin::Kallsyms,
         "core/modules/ftrace/bpf 参数仅支持 linux.kallsyms.Kallsyms"
+    );
+    ensure!(
+        !options.recurse || request.plugin == Plugin::WinPrintkey,
+        "recurse 仅支持 windows.printkey"
+    );
+    ensure!(
+        (!options.show_free && options.tags.is_empty()) || request.plugin == Plugin::WinBigpools,
+        "show_free / tags 仅支持 windows.bigpools"
+    );
+    ensure!(
+        (options.name_filter.is_none() && !options.ignore_case)
+            || matches!(request.plugin, Plugin::WinDlllist | Plugin::WinHivelist),
+        "name / ignore_case 仅支持 windows.dlllist / windows.hivelist"
     );
     if let Some(dump) = dump {
         dump.validate(request.plugin)?;

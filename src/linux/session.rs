@@ -334,12 +334,20 @@ impl Session {
                 options.mntns,
                 options.mount_format
             ),
-            None if request.plugin == Plugin::LinuxPagecacheFiles => format!(
-                "{}:types={:?}:find={:?}",
-                request.plugin.name(),
-                options.file_types,
-                options.find
-            ),
+            None if matches!(
+                request.plugin,
+                Plugin::LinuxPagecacheFiles
+                    | Plugin::LinuxPagecacheInodePages
+                    | Plugin::LinuxPagecacheRecoverFs
+            ) =>
+            {
+                format!(
+                    "{}:types={:?}:find={:?}",
+                    request.plugin.name(),
+                    options.file_types,
+                    options.find
+                )
+            }
             None if matches!(
                 request.plugin,
                 Plugin::LinuxCapabilities
@@ -357,6 +365,11 @@ impl Session {
                     options.pids
                 )
             }
+            None if request.plugin == Plugin::Pidhashtable => format!(
+                "{}:decorate_comm={}",
+                request.plugin.name(),
+                options.decorate_comm
+            ),
             None if request.plugin == Plugin::Modxview => format!(
                 "{}:plain_taints={}",
                 request.plugin.name(),
@@ -406,12 +419,24 @@ impl Session {
         }
         let result = if request.plugin == Plugin::Lsmod && dump.is_some() {
             engine.lsmod_with_dump(dump.context("Lsmod 导出需要目录")?, job)?
+        } else if matches!(request.plugin, Plugin::CheckModules | Plugin::HiddenModules)
+            && dump.is_some()
+        {
+            engine.module_view_with_dump(request.plugin, dump.context("模块导出需要目录")?, job)?
         } else if request.plugin == Plugin::LinuxMaps {
             engine.linux_maps(options, dump, job)?
         } else if request.plugin == Plugin::LinuxMalfind {
             engine.linux_malfind(options, dump, job)?
         } else if request.plugin == Plugin::LinuxElfs {
             engine.linux_elfs(options, dump, job)?
+        } else if request.plugin == Plugin::LinuxPslist {
+            engine.process_details_with_options(options, dump, job)?
+        } else if request.plugin == Plugin::LinuxTimeliner {
+            engine.linux_timeliner(dump, job)?
+        } else if request.plugin == Plugin::LinuxPagecacheInodePages {
+            engine.linux_pagecache_inode_pages(options, dump, job)?
+        } else if request.plugin == Plugin::LinuxPagecacheRecoverFs {
+            engine.linux_pagecache_recover_fs(options, dump, job)?
         } else if dump.is_some() || request.plugin.is_dump() {
             engine.run_dump(request.plugin, dump.context("Dump 插件需要转储参数")?, job)?
         } else if request.plugin == Plugin::PsCallStack {
@@ -424,8 +449,10 @@ impl Session {
             engine.kallsyms(options.kallsyms, job)?
         } else if request.plugin == Plugin::Modxview {
             engine.modxview(options.plain_taints, job)?
-        } else if request.plugin == Plugin::LinuxPslist {
-            engine.process_details_with_options(options, job)?
+        } else if request.plugin == Plugin::Pidhashtable {
+            let mut r = engine.result(Plugin::Pidhashtable);
+            engine.pidhashtable_with_options(&mut r, options.decorate_comm, job)?;
+            r
         } else if request.plugin == Plugin::LinuxPstree {
             engine.pstree(options, job)?
         } else if request.plugin == Plugin::LinuxLsof {

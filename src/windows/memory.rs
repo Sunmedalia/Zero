@@ -6,6 +6,7 @@ pub(super) struct VadLayout {
     fast_ref: bool,
     mask: u64,
 }
+#[derive(Default)]
 pub(super) struct Vad {
     pub address: u64,
     pub start: u64,
@@ -13,6 +14,9 @@ pub(super) struct Vad {
     pub protection: u64,
     pub private: bool,
     pub path: String,
+    pub tag: String,
+    pub parent: Option<u64>,
+    pub commit_charge: Option<u64>,
 }
 pub(super) struct VadNode {
     pub address: u64,
@@ -192,8 +196,74 @@ impl Windows<'_> {
         }
         Ok(out)
     }
-    pub(super) fn dlllist(&self, p: &Process, r: &mut Results, job: &Job) -> Result<()> {
+    pub(super) fn dlllist(
+        &self,
+        p: &Process,
+        options: &Options,
+        r: &mut Results,
+        job: &Job,
+    ) -> Result<()> {
+        let vm = self.process_memory(p)?;
+        let mut native_meta: std::collections::HashMap<u64, (String, String)> =
+            std::collections::HashMap::new();
+        if let Ok(Some(peb)) = self.peb(p)
+            && let Ok(ldr) = vm.number(peb, "_PEB", "Ldr")
+            && ldr != 0
+            && let Ok(head) = add(
+                ldr,
+                self.vm
+                    .isf
+                    .offset("_PEB_LDR_DATA", "InLoadOrderModuleList")
+                    .unwrap_or(0),
+            )
+            && let Ok(offset) = self
+                .vm
+                .isf
+                .offset("_LDR_DATA_TABLE_ENTRY", "InLoadOrderLinks")
+        {
+            let mut node = vm.pointer(head).unwrap_or(head);
+            let mut seen = HashSet::new();
+            while node != head && seen.insert(node) && seen.len() <= MAX_OBJECTS {
+                if let Some(addr) = node.checked_sub(offset)
+                    && let Ok(base) = vm.number(addr, "_LDR_DATA_TABLE_ENTRY", "DllBase")
+                {
+                    let load_count = vm
+                        .number(addr, "_LDR_DATA_TABLE_ENTRY", "ObsoleteLoadCount")
+                        .or_else(|_| vm.number(addr, "_LDR_DATA_TABLE_ENTRY", "LoadCount"))
+                        .map(|n| n.to_string())
+                        .unwrap_or_default();
+                    let load_time = vm
+                        .number(addr, "_LDR_DATA_TABLE_ENTRY", "LoadTime")
+                        .ok()
+                        .map(filetime)
+                        .unwrap_or_default();
+                    native_meta.insert(base, (load_count, load_time));
+                }
+                match vm.pointer(node) {
+                    Ok(next) => node = next,
+                    Err(_) => break,
+                }
+            }
+        }
+        let needle = options.name_filter.as_deref().filter(|s| !s.is_empty());
+        let needle_lower = needle
+            .filter(|_| options.ignore_case)
+            .map(str::to_ascii_lowercase);
         for (base, size, path, view) in self.dlls_partial(p, job, Some(r))? {
+            if let Some(needle) = needle {
+                let matched = match &needle_lower {
+                    Some(lower) => path.to_ascii_lowercase().contains(lower),
+                    None => path.contains(needle),
+                };
+                if !matched {
+                    continue;
+                }
+            }
+            let (load_count, load_time) = if view == "native" {
+                native_meta.get(&base).cloned().unwrap_or_default()
+            } else {
+                (String::new(), String::new())
+            };
             r.rows.push(vec![
                 p.pid.to_string(),
                 p.name.clone(),
@@ -201,6 +271,8 @@ impl Windows<'_> {
                 size.to_string(),
                 path,
                 view,
+                load_count,
+                load_time,
             ]);
         }
         Ok(())
@@ -653,6 +725,33 @@ impl Windows<'_> {
                         },
                     }
                 };
+                let tag_back = if self.vm.pointer_size() == 4 {
+                    4u64
+                } else {
+                    12u64
+                };
+                let tag = address
+                    .checked_sub(tag_back)
+                    .and_then(|t| {
+                        let mut raw = [0u8; 4];
+                        self.vm.read(t, &mut raw).ok()?;
+                        raw.iter()
+                            .all(|&b| b.is_ascii_graphic() || b == b' ')
+                            .then(|| String::from_utf8_lossy(&raw).into_owned())
+                    })
+                    .unwrap_or_default();
+                let parent = self
+                    .number(address, "_MMVAD_SHORT", "VadNode.ParentValue")
+                    .or_else(|_| self.number(address, "_MMVAD_SHORT", "ParentValue"))
+                    .map(|v| v & !3)
+                    .or_else(|_| self.number(address, "_MMVAD_SHORT", "Parent"))
+                    .ok()
+                    .filter(|&v| v != 0);
+                let commit_charge = self
+                    .field(address, "_MMVAD_SHORT", "u1")
+                    .and_then(|u1| self.number(u1, "_MMVAD_FLAGS1", "CommitCharge"))
+                    .or_else(|_| self.number(flags, "_MMVAD_FLAGS", "CommitCharge"))
+                    .ok();
                 Ok(Vad {
                     address,
                     start,
@@ -660,6 +759,9 @@ impl Windows<'_> {
                     protection,
                     private,
                     path,
+                    tag,
+                    parent,
+                    commit_charge,
                 })
             })();
             match parsed {
@@ -777,6 +879,9 @@ impl Windows<'_> {
                 protection: 0,
                 private: short,
                 path,
+                tag: node.tag.clone(),
+                parent: node.parent,
+                commit_charge: None,
             });
             Ok(true)
         })?;
@@ -786,10 +891,28 @@ impl Windows<'_> {
         &self,
         p: &Process,
         plugin: Plugin,
+        options: &Options,
         r: &mut Results,
         job: &Job,
     ) -> Result<()> {
+        let mut total_dumped = 0u64;
+        self.vad_result_with_dump(p, plugin, options, None, &mut total_dumped, r, job)
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub(super) fn vad_result_with_dump(
+        &self,
+        p: &Process,
+        plugin: Plugin,
+        options: &Options,
+        dump: Option<&DumpOptions>,
+        total_dumped: &mut u64,
+        r: &mut Results,
+        job: &Job,
+    ) -> Result<()> {
+        use std::io::Write;
         let vm = self.process_memory(p)?;
+        let arch = Architecture::from_isf(self.vm.isf).unwrap_or_default();
         // Every row repeats the same PID and name, and protection only has 32
         // possible spellings; build them once instead of per row.
         let pid = p.pid.to_string();
@@ -802,6 +925,14 @@ impl Windows<'_> {
                 .or_insert_with(|| protection(v.protection))
                 .clone();
             if plugin == Plugin::WinVadinfo {
+                if !options.vma_addresses.is_empty()
+                    && !options
+                        .vma_addresses
+                        .iter()
+                        .any(|&addr| v.start <= addr && addr < v.end)
+                {
+                    continue;
+                }
                 r.rows.push(vec![
                     pid.clone(),
                     p.name.clone(),
@@ -811,6 +942,9 @@ impl Windows<'_> {
                     v.private.to_string(),
                     v.path,
                     hex(v.address),
+                    v.tag,
+                    v.parent.map(hex).unwrap_or_default(),
+                    v.commit_charge.map(|c| c.to_string()).unwrap_or_default(),
                 ]);
                 continue;
             }
@@ -819,31 +953,133 @@ impl Windows<'_> {
             if !executable || (!writable && !v.private) {
                 continue;
             }
-            let mut preview = [0; 32];
+            let len = usize::try_from((v.end.saturating_sub(v.start)).min(64)).unwrap_or(64);
+            let mut preview = vec![0u8; len];
             match vm.read(v.start, &mut preview) {
-                Ok(()) => r.rows.push(vec![
-                    pid.clone(),
-                    p.name.clone(),
-                    hex(v.start),
-                    hex(v.end),
-                    protection,
-                    if writable {
-                        "Writable executable region"
+                Ok(()) => {
+                    let disasm = disassemble_windows_malfind(v.start, &preview, arch);
+                    let file_output = if let Some(dump_opts) = dump {
+                        let size = v.end.saturating_sub(v.start);
+                        if total_dumped
+                            .checked_add(size)
+                            .is_some_and(|n| n <= crate::dump::MAX_DUMP_BYTES)
+                        {
+                            let written = (|| -> Result<String> {
+                                crate::dump::directory(&dump_opts.directory)?;
+                                let mut tmp =
+                                    tempfile::NamedTempFile::new_in(&dump_opts.directory)?;
+                                let mut offset = 0u64;
+                                let mut buf = vec![0u8; 65536];
+                                let mut missing = 0u64;
+                                while offset < size {
+                                    job.check()?;
+                                    let chunk = usize::try_from((size - offset).min(4096))?;
+                                    if vm.read(v.start + offset, buf.at_mut(..chunk)?).is_err() {
+                                        buf.at_mut(..chunk)?.fill(0);
+                                        missing += 1;
+                                    }
+                                    tmp.write_all(buf.at(..chunk)?)?;
+                                    offset += chunk as u64;
+                                }
+                                if missing > 0 {
+                                    Self::issue(
+                                        r,
+                                        format!("PID {} malfind VAD {:#x}", p.pid, v.start),
+                                        format!("{missing} 页不可读，导出已补零"),
+                                    );
+                                }
+                                tmp.as_file().sync_all()?;
+                                let filename =
+                                    format!("pid.{}.vad.{:#x}-{:#x}.dmp", p.pid, v.start, v.end);
+                                let target = dump_opts.directory.join(&filename);
+                                tmp.persist_noclobber(&target).map_err(|e| e.error)?;
+                                *total_dumped += size;
+                                Ok(filename)
+                            })();
+                            match written {
+                                Ok(name) => name,
+                                Err(e) => {
+                                    Self::issue(
+                                        r,
+                                        format!("PID {} malfind 导出 {:#x}", p.pid, v.start),
+                                        e,
+                                    );
+                                    "Error outputting file".into()
+                                }
+                            }
+                        } else {
+                            Self::issue(
+                                r,
+                                format!("PID {} malfind 导出 {:#x}", p.pid, v.start),
+                                "超过 256 MiB 累计导出上限，已跳过",
+                            );
+                            "Error outputting file".into()
+                        }
                     } else {
-                        "Private executable region"
-                    }
-                    .into(),
-                    preview
-                        .iter()
-                        .map(|b| format!("{b:02x}"))
-                        .collect::<Vec<_>>()
-                        .join(" "),
-                ]),
+                        "Disabled".into()
+                    };
+                    r.rows.push(vec![
+                        pid.clone(),
+                        p.name.clone(),
+                        hex(v.start),
+                        hex(v.end),
+                        protection,
+                        if writable {
+                            "Writable executable region"
+                        } else {
+                            "Private executable region"
+                        }
+                        .into(),
+                        preview
+                            .iter()
+                            .map(|b| format!("{b:02x}"))
+                            .collect::<Vec<_>>()
+                            .join(" "),
+                        disasm,
+                        file_output,
+                    ]);
+                }
                 Err(e) => Self::issue(r, format!("PID {} VAD {:#x}", p.pid, v.start), e),
             }
         }
         Ok(())
     }
+}
+
+fn disassemble_windows_malfind(base: u64, bytes: &[u8], arch: Architecture) -> String {
+    use capstone::prelude::*;
+    if bytes.is_empty() || matches!(arch, Architecture::Arm64) {
+        return String::new();
+    }
+    let cs = match arch {
+        Architecture::X86 => Capstone::new()
+            .x86()
+            .mode(capstone::arch::x86::ArchMode::Mode32)
+            .build(),
+        _ => Capstone::new()
+            .x86()
+            .mode(capstone::arch::x86::ArchMode::Mode64)
+            .build(),
+    };
+    let Ok(cs) = cs else {
+        return String::new();
+    };
+    let Ok(insns) = cs.disasm_all(bytes, base) else {
+        return String::new();
+    };
+    insns
+        .iter()
+        .map(|i| {
+            let mnem = i.mnemonic().unwrap_or("");
+            let ops = i.op_str().unwrap_or("");
+            if ops.is_empty() {
+                format!("{:#x}: {mnem}", i.address())
+            } else {
+                format!("{:#x}: {mnem} {ops}", i.address())
+            }
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
 }
 pub(super) fn protection(value: u64) -> String {
     let base = [

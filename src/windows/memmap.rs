@@ -517,7 +517,12 @@ mod tests {
             end: None,
         };
         let exported = engine
-            .run_dump(Plugin::WinMemmap, &dump, &Job::default())
+            .run_dump(
+                Plugin::WinMemmap,
+                &dump,
+                &Options::default(),
+                &Job::default(),
+            )
             .unwrap();
         assert_eq!(listed.rows.len(), exported.rows.len());
         for (left, right) in listed.rows.iter().zip(&exported.rows) {

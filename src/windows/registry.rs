@@ -27,6 +27,17 @@ impl Windows<'_> {
                         Err(e) => Self::issue(&mut r, format!("{h:#x} {field}"), e),
                     }
                 }
+                if let Some(needle) = options.name_filter.as_deref().filter(|s| !s.is_empty()) {
+                    let matched = if options.ignore_case {
+                        path.to_ascii_lowercase()
+                            .contains(&needle.to_ascii_lowercase())
+                    } else {
+                        path.contains(needle)
+                    };
+                    if !matched {
+                        continue;
+                    }
+                }
                 r.rows.push(vec![hex(h), path]);
             }
             return Ok(r);
@@ -34,29 +45,95 @@ impl Windows<'_> {
         let hive = options.hive.context("注册表键查询需要 hive 地址")?;
         ensure!(hives.contains(&hive), "hive 不在已验证列表中");
         let hhive = self.field(hive, "_CMHIVE", "Hive")?;
-        let cell = self.registry_index(hhive, &options.key, job)?;
+        let root_cell = self.registry_index(hhive, &options.key, job)?;
+        if !options.recurse {
+            self.emit_printkey_node(hive, hhive, &options.key, root_cell, &mut r, job)?;
+            return Ok(r);
+        }
+        const MAX_RECURSE_DEPTH: usize = 64;
+        let mut seen = HashSet::new();
+        let mut stack = vec![(options.key.clone(), root_cell, 0usize)];
+        while let Some((key_path, cell, depth)) = stack.pop() {
+            job.check()?;
+            if !seen.insert(cell) {
+                Self::issue(
+                    &mut r,
+                    format!("hive {hive:#x} cell {cell:#x}"),
+                    "检测到子键循环，已跳过",
+                );
+                continue;
+            }
+            if r.rows.len() >= MAX_OBJECTS {
+                Self::issue(
+                    &mut r,
+                    format!("hive {hive:#x}"),
+                    format!("递归遍历达到 {MAX_OBJECTS} 行上限"),
+                );
+                break;
+            }
+            match self.emit_printkey_node(hive, hhive, &key_path, cell, &mut r, job) {
+                Ok(children) => {
+                    if depth >= MAX_RECURSE_DEPTH {
+                        if !children.is_empty() {
+                            Self::issue(
+                                &mut r,
+                                format!("hive {hive:#x} {key_path}"),
+                                format!("递归深度超过 {MAX_RECURSE_DEPTH} 层上限"),
+                            );
+                        }
+                        continue;
+                    }
+                    for (child_name, child_cell) in children.into_iter().rev() {
+                        let next_path = if key_path.is_empty() {
+                            child_name
+                        } else {
+                            format!("{key_path}\\{child_name}")
+                        };
+                        stack.push((next_path, child_cell, depth + 1));
+                    }
+                }
+                Err(e) => {
+                    job.check()?;
+                    Self::issue(&mut r, format!("hive {hive:#x} {key_path}"), e);
+                }
+            }
+        }
+        Ok(r)
+    }
+
+    fn emit_printkey_node(
+        &self,
+        hive: u64,
+        hhive: u64,
+        key_path: &str,
+        cell: u32,
+        r: &mut Results,
+        job: &Job,
+    ) -> Result<Vec<(String, u32)>> {
         let node = self.cell(hhive, cell)?;
         ensure!(node.at(..2)? == b"nk", "非注册表键节点");
         let name = self.key_name(&node)?;
         let time = objects::physical_number(self.vm.isf, &node, "_CM_KEY_NODE", "LastWriteTime")?;
         r.rows.push(vec![
             hex(hive),
-            options.key.clone(),
+            key_path.to_owned(),
             "Key".into(),
             name,
             String::new(),
             String::new(),
             filetime(time),
         ]);
+        let mut children = Vec::new();
         for child in self.subkeys(hhive, &node, job)? {
             job.check()?;
-            let read = (|| -> Result<Vec<String>> {
+            let read = (|| -> Result<(String, Vec<String>)> {
                 let n = self.cell(hhive, child)?;
-                Ok(vec![
+                let child_name = self.key_name(&n)?;
+                let row = vec![
                     hex(hive),
-                    options.key.clone(),
+                    key_path.to_owned(),
                     "SubKey".into(),
-                    self.key_name(&n)?,
+                    child_name.clone(),
                     String::new(),
                     String::new(),
                     filetime(objects::physical_number(
@@ -65,11 +142,15 @@ impl Windows<'_> {
                         "_CM_KEY_NODE",
                         "LastWriteTime",
                     )?),
-                ])
+                ];
+                Ok((child_name, row))
             })();
             match read {
-                Ok(row) => r.rows.push(row),
-                Err(e) => Self::issue(&mut r, format!("hive {hive:#x} cell {child:#x}"), e),
+                Ok((child_name, row)) => {
+                    r.rows.push(row);
+                    children.push((child_name, child));
+                }
+                Err(e) => Self::issue(r, format!("hive {hive:#x} cell {child:#x}"), e),
             }
         }
         let list_offset = usize::try_from(self.vm.isf.offset("_CM_KEY_NODE", "ValueList")?)?;
@@ -94,7 +175,7 @@ impl Windows<'_> {
                 let read = self.value(hhive, index, job).map(|(name, ty, data)| {
                     vec![
                         hex(hive),
-                        options.key.clone(),
+                        key_path.to_owned(),
                         "Value".into(),
                         name,
                         ty,
@@ -104,9 +185,138 @@ impl Windows<'_> {
                 });
                 match read {
                     Ok(row) => r.rows.push(row),
-                    Err(e) => Self::issue(&mut r, format!("hive {hive:#x} value {index:#x}"), e),
+                    Err(e) => Self::issue(r, format!("hive {hive:#x} value {index:#x}"), e),
                 }
             }
+        }
+        Ok(children)
+    }
+
+    /// Reconstruct and atomically export Windows registry hives (`windows.hivelist --dump-dir`).
+    pub(super) fn dump_hives(
+        &self,
+        dump: &DumpOptions,
+        options: &Options,
+        job: &Job,
+    ) -> Result<Results> {
+        use sha2::{Digest, Sha256};
+        use std::io::Write;
+        crate::dump::directory(&dump.directory)?;
+        let mut r = self.registry(Plugin::WinHivelist, options, job)?;
+        let targets: Vec<(u64, String)> = r
+            .rows
+            .iter()
+            .filter_map(|row| {
+                let addr = u64::from_str_radix(row.cell(0).trim_start_matches("0x"), 16).ok()?;
+                Some((addr, row.cell(1).to_owned()))
+            })
+            .filter(|(addr, _)| dump.start.is_none_or(|want| *addr == want))
+            .collect();
+        if let Some(want) = dump.start {
+            ensure!(
+                !targets.is_empty(),
+                "指定的 hive {want:#x} 不在筛选后的已验证列表中"
+            );
+        }
+        let mut total_written = 0u64;
+        let mut manifest = Vec::new();
+        for (hive, path_label) in targets {
+            job.check()?;
+            let exported = (|| -> Result<serde_json::Value> {
+                let hhive = self.field(hive, "_CMHIVE", "Hive")?;
+                let storage0 = self.field(hhive, "_HHIVE", "Storage")?;
+                let length = self.number(storage0, "_DUAL", "Length")?;
+                let total_size = 4096u64.checked_add(length).context("hive 长度溢出")?;
+                ensure!(
+                    total_written
+                        .checked_add(total_size)
+                        .is_some_and(|n| n <= crate::dump::MAX_DUMP_BYTES),
+                    "hive 导出累计超过 256 MiB 上限"
+                );
+                let mut tmp = tempfile::NamedTempFile::new_in(&dump.directory)?;
+                let mut hash = Sha256::new();
+                let mut missing_pages = 0u64;
+
+                let mut base_block = [0u8; 4096];
+                let base_ptr = self.number(hhive, "_HHIVE", "BaseBlock").unwrap_or(0);
+                if base_ptr == 0 || self.vm.read(base_ptr, &mut base_block).is_err() {
+                    missing_pages += 1;
+                    Self::issue(
+                        &mut r,
+                        format!("hive {hive:#x} BaseBlock"),
+                        "BaseBlock 不可读，已补零写出",
+                    );
+                }
+                tmp.write_all(&base_block)?;
+                hash.update(base_block);
+
+                let mut offset = 0u64;
+                let mut page = [0u8; 4096];
+                while offset < length {
+                    job.check()?;
+                    let chunk = usize::try_from((length - offset).min(4096))?;
+                    let index = u32::try_from(offset).context("hive 偏移超过 32 位范围")?;
+                    let ok = self
+                        .cell_address(hhive, index)
+                        .and_then(|addr| self.vm.read(addr, page.at_mut(..chunk)?))
+                        .is_ok();
+                    if !ok {
+                        page.at_mut(..chunk)?.fill(0);
+                        missing_pages += 1;
+                    }
+                    tmp.write_all(page.at(..chunk)?)?;
+                    hash.update(page.at(..chunk)?);
+                    offset += chunk as u64;
+                }
+                if missing_pages > 0 {
+                    Self::issue(
+                        &mut r,
+                        format!("hive {hive:#x}"),
+                        format!("共 {missing_pages} 个 hive 页不可读，已补零写出"),
+                    );
+                }
+                job.check()?;
+                tmp.as_file().sync_all()?;
+                let raw_name = path_label
+                    .rsplit(['\\', '/'])
+                    .next()
+                    .filter(|s| !s.is_empty())
+                    .unwrap_or("unnamed");
+                let safe_name: String = raw_name
+                    .chars()
+                    .map(|c| {
+                        if c.is_ascii_alphanumeric() || matches!(c, '.' | '_' | '-') {
+                            c
+                        } else {
+                            '_'
+                        }
+                    })
+                    .take(48)
+                    .collect();
+                let filename = format!("registry.{safe_name}.{hive:#x}.hive");
+                let target = dump.directory.join(&filename);
+                tmp.persist_noclobber(&target).map_err(|e| e.error)?;
+                total_written += total_size;
+                let sha256 = format!("{:x}", hash.finalize());
+                Ok(serde_json::json!({
+                    "hive": hex(hive),
+                    "path": path_label,
+                    "file": filename,
+                    "size": total_size,
+                    "sha256": sha256,
+                    "missing_pages": missing_pages,
+                }))
+            })();
+            match exported {
+                Ok(entry) => manifest.push(entry),
+                Err(e) => {
+                    job.check()?;
+                    Self::issue(&mut r, format!("hive {hive:#x} 导出"), e);
+                }
+            }
+        }
+        if let Some(identity) = r.kernel_identity.as_object_mut() {
+            identity.insert("dumped_hives".into(), serde_json::Value::Array(manifest));
         }
         Ok(r)
     }
@@ -1474,5 +1684,137 @@ mod ownership_tests {
                 .run(Plugin::WinUserAssistV4, &Options::default(), &job)
                 .is_err()
         );
+    }
+
+    #[test]
+    fn printkey_recurse_walks_nested_subkeys_and_hivelist_dumps_hive_file() {
+        let (mut b, isf) = user_hive_fixture();
+        // Root (0x20) -> subkey list 0x100 -> Child (0x120) -> subkey list 0x200 -> Leaf (0x220).
+        b[0x1103c..0x11040].copy_from_slice(&1u32.to_le_bytes()); // SubKeyCounts[0]
+        b[0x11044..0x11048].copy_from_slice(&0x100u32.to_le_bytes()); // SubKeyLists[0]
+        b[0x11100..0x11104].copy_from_slice(&(-16i32).to_le_bytes());
+        b[0x11104..0x11108].copy_from_slice(b"li\x01\x00");
+        b[0x11108..0x1110c].copy_from_slice(&0x120u32.to_le_bytes());
+
+        // Child nk at 0x120 (len 0x58)
+        b[0x11120..0x11124].copy_from_slice(&(-88i32).to_le_bytes());
+        let child = &mut b[0x11124..0x11178];
+        child.fill(0);
+        child[..2].copy_from_slice(b"nk");
+        child[2..4].copy_from_slice(&0x20u16.to_le_bytes());
+        child[4..6].copy_from_slice(&5u16.to_le_bytes()); // NameLength
+        child[24..28].copy_from_slice(&1u32.to_le_bytes()); // SubKeyCounts[0]
+        child[32..36].copy_from_slice(&0x200u32.to_le_bytes()); // SubKeyLists[0]
+        child[40..45].copy_from_slice(b"Child");
+
+        // Subkey list at 0x200 -> Leaf at 0x220
+        b[0x11200..0x11204].copy_from_slice(&(-16i32).to_le_bytes());
+        b[0x11204..0x11208].copy_from_slice(b"li\x01\x00");
+        b[0x11208..0x1120c].copy_from_slice(&0x220u32.to_le_bytes());
+
+        // Leaf nk at 0x220
+        b[0x11220..0x11224].copy_from_slice(&(-64i32).to_le_bytes());
+        let leaf = &mut b[0x11224..0x11260];
+        leaf.fill(0);
+        leaf[..2].copy_from_slice(b"nk");
+        leaf[2..4].copy_from_slice(&0x20u16.to_le_bytes());
+        leaf[4..6].copy_from_slice(&4u16.to_le_bytes());
+        leaf[40..44].copy_from_slice(b"Leaf");
+
+        let img = image(&b);
+        let engine = Windows {
+            vm: Memory::new(&img, 0x5000, &isf, None),
+            base: K,
+            pdb: PdbIdentity::from_isf(&isf).unwrap(),
+        };
+
+        // 1. Recursive printkey visits root, Child, and Child\Leaf.
+        let rec = engine
+            .run(
+                Plugin::WinPrintkey,
+                &Options {
+                    hive: Some(K + 0x3000),
+                    recurse: true,
+                    ..Default::default()
+                },
+                &Job::default(),
+            )
+            .unwrap();
+        assert!(rec.complete, "{:?}", rec.diagnostics);
+        assert!(
+            rec.rows
+                .iter()
+                .any(|r| r[1] == "Child\\Leaf" && r[2] == "Key" && r[3] == "Leaf"),
+            "rows={:?}",
+            rec.rows
+        );
+
+        // 2. HiveList dump reconstructs BaseBlock (4096) + Storage[0] (4096).
+        let dir = tempfile::tempdir().unwrap();
+        let dumped = engine
+            .run_dump(
+                Plugin::WinHivelist,
+                &DumpOptions {
+                    pid: 0,
+                    directory: dir.path().to_path_buf(),
+                    start: Some(K + 0x3000),
+                    end: None,
+                },
+                &Options::default(),
+                &Job::default(),
+            )
+            .unwrap();
+        assert!(dumped.complete, "{:?}", dumped.diagnostics);
+        let entries = dumped.kernel_identity["dumped_hives"].as_array().unwrap();
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0]["size"], 12288);
+        assert_eq!(entries[0]["missing_pages"], 0);
+        let file = dir.path().join(entries[0]["file"].as_str().unwrap());
+        let raw = std::fs::read(&file).unwrap();
+        assert_eq!(raw.len(), 12288);
+        assert_eq!(&raw[..4], &0x20u32.to_le_bytes());
+        assert_eq!(&raw[4096 + 0x24..4096 + 0x26], b"nk");
+
+        put(&mut b, 0xf008, K + 0x3100);
+        put(&mut b, 0xb000, K + 0x3100);
+        put(&mut b, 0xb100, K + 0x7000);
+        put(&mut b, 0xb108, K + 0x3000);
+        b.copy_within(0xb020..0xb040, 0xb120);
+        for (hive, name_at, name) in [(0xb000, 0xb200, "SYSTEM"), (0xb100, 0xb220, "SOFTWARE")] {
+            let utf16: Vec<_> = name.encode_utf16().flat_map(u16::to_le_bytes).collect();
+            let length = (utf16.len() as u16).to_le_bytes();
+            b[hive + 16..hive + 18].copy_from_slice(&length);
+            b[hive + 18..hive + 20].copy_from_slice(&length);
+            put(&mut b, hive + 24, K + (name_at as u64 - 0x8000));
+            b[name_at..name_at + utf16.len()].copy_from_slice(&utf16);
+        }
+        let img = image(&b);
+        let engine = Windows {
+            vm: Memory::new(&img, 0x5000, &isf, None),
+            base: K,
+            pdb: PdbIdentity::from_isf(&isf).unwrap(),
+        };
+        let filtered = tempfile::tempdir().unwrap();
+        let dumped = engine
+            .run_dump(
+                Plugin::WinHivelist,
+                &DumpOptions {
+                    pid: 0,
+                    directory: filtered.path().into(),
+                    start: None,
+                    end: None,
+                },
+                &Options {
+                    name_filter: Some("system".into()),
+                    ignore_case: true,
+                    ..Options::default()
+                },
+                &Job::default(),
+            )
+            .unwrap();
+        assert_eq!(dumped.rows.len(), 1);
+        assert_eq!(dumped.rows[0][1], "SYSTEM");
+        assert_eq!(dumped.kernel_identity["dumped_hives"][0]["path"], "SYSTEM");
+        assert_eq!(filtered.path().read_dir().unwrap().count(), 1);
     }
 }

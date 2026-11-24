@@ -42,10 +42,20 @@ const SOURCES: &[(Plugin, usize, &str, &[usize])] = &[
     (Plugin::WinAmcache, 5, "Amcache entry written", &[0, 1]),
     (Plugin::WinMftscan, 6, "MFT $SI created", &[4, 1]),
     (Plugin::WinMftscan, 7, "MFT $SI modified", &[4, 1]),
+    (Plugin::WinUnloadedmodules, 3, "Driver unloaded", &[0, 1]),
+    (Plugin::WinShimcache, 2, "Shimcache modified", &[1, 0]),
 ];
 
 impl Windows<'_> {
     pub(super) fn timeliner(&self, job: &Job) -> Result<Results> {
+        self.timeliner_with_dump(None, job)
+    }
+
+    pub(super) fn timeliner_with_dump(
+        &self,
+        dump: Option<&DumpOptions>,
+        job: &Job,
+    ) -> Result<Results> {
         let mut r = self.result(Plugin::WinTimeliner);
         let mut events = Vec::new();
         let mut cache: Vec<(Plugin, Results)> = Vec::new();
@@ -93,6 +103,22 @@ impl Windows<'_> {
             }
         }
         events.sort_by(|a, b| a.0.cmp(&b.0).then_with(|| a.1.cmp(b.1)));
+        if let Some(dump_opts) = dump {
+            let body_rows: Vec<(String, &str, &str, String)> = events
+                .iter()
+                .map(|(ticks, plugin, label, text)| {
+                    (filetime_utc(*ticks), *plugin, *label, text.clone())
+                })
+                .collect();
+            let (file, size, sha256) =
+                crate::linux::timeliner::write_bodyfile(&dump_opts.directory, &body_rows, job)?;
+            *r.kernel_identity.key_mut("bodyfile")? = serde_json::json!({
+                "file": file,
+                "size": size,
+                "sha256": sha256,
+                "events": body_rows.len(),
+            });
+        }
         r.rows = events
             .into_iter()
             .map(|(ticks, plugin, label, text)| {
@@ -106,7 +132,7 @@ impl Windows<'_> {
             })
             .collect();
         *r.kernel_identity.key_mut("coverage")? = serde_json::json!(
-            "pslist, netscan, symlinkscan, userassist, scheduled_tasks, amcache and mftscan timestamps"
+            "pslist, netscan, symlinkscan, userassist, scheduled_tasks, amcache, mftscan, unloadedmodules and shimcache timestamps"
         );
         Ok(r)
     }

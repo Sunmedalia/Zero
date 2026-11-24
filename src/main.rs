@@ -68,6 +68,26 @@ struct Cli {
         default_value = ""
     )]
     key: String,
+    /// Recursively enumerate subkeys in windows.printkey.
+    #[arg(help_heading = "Registry plugins", long, global = true)]
+    recurse: bool,
+    /// Include free big-pool allocations in windows.bigpools.
+    #[arg(help_heading = "Scan plugins", long = "show-free", global = true)]
+    show_free: bool,
+    /// Filter windows.bigpools by 4-char pool tags (comma-separated or repeated).
+    #[arg(
+        help_heading = "Scan plugins",
+        long,
+        global = true,
+        value_delimiter = ','
+    )]
+    tags: Vec<String>,
+    /// Filter windows.dlllist or windows.hivelist by path/name substring.
+    #[arg(help_heading = "Scan plugins", long = "name", global = true)]
+    name_filter: Option<String>,
+    /// Case-insensitive matching for --name.
+    #[arg(help_heading = "Scan plugins", long = "ignore-case", global = true)]
+    ignore_case: bool,
     /// Byte pattern for vmayarascan / windows.vadyarascan: text, wide:TEXT
     /// (UTF-16LE) or hex:4d5a??00 with ?? wildcards; byte regex for VmaRegExScan.
     #[arg(help_heading = "Scan plugins", long, global = true)]
@@ -572,11 +592,22 @@ fn main() -> Result<()> {
         let mut session = linux::Session::default();
         let dump = if plugin.is_dump() || (plugin.accepts_dump() && dump_dir.is_some()) {
             Some(zero_tui::dump::DumpOptions {
-                pid: if plugin.is_linux_mapping_export() {
+                pid: if plugin.dump_uses_analysis_pid() {
                     0
                 } else if matches!(
                     plugin,
-                    Plugin::ModuleExtract | Plugin::WinModdump | Plugin::Fbdev | Plugin::Lsmod
+                    Plugin::ModuleExtract
+                        | Plugin::WinModdump
+                        | Plugin::Fbdev
+                        | Plugin::Lsmod
+                        | Plugin::CheckModules
+                        | Plugin::HiddenModules
+                        | Plugin::LinuxTimeliner
+                        | Plugin::WinTimeliner
+                        | Plugin::WinHivelist
+                        | Plugin::WinMalfind
+                        | Plugin::LinuxPagecacheInodePages
+                        | Plugin::LinuxPagecacheRecoverFs
                 ) {
                     pid.unwrap_or(0)
                 } else {
@@ -595,12 +626,12 @@ fn main() -> Result<()> {
             None
         };
         let mut options = cli.analysis_options();
-        options.pid = if dump.is_some() && !plugin.is_linux_mapping_export() {
+        options.pid = if dump.is_some() && !plugin.dump_uses_analysis_pid() {
             None
         } else {
             pid
         };
-        if plugin == Plugin::LinuxMaps {
+        if matches!(plugin, Plugin::LinuxMaps | Plugin::WinVadinfo) {
             options.vma_addresses = std::mem::take(&mut options.pe.addresses);
         }
         match zero_tui::analysis::analyze(
@@ -679,6 +710,11 @@ impl Cli {
             swapfile: self.swapfile.clone(),
             hive: self.hive,
             key: self.key.clone(),
+            recurse: self.recurse,
+            show_free: self.show_free,
+            tags: self.tags.clone(),
+            name_filter: self.name_filter.clone(),
+            ignore_case: self.ignore_case,
             pattern: self.pattern.clone(),
             strings_file: self.strings_file.clone(),
             min_length: self.min_length,

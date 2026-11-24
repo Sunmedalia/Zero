@@ -3,10 +3,52 @@ use super::*;
 use sha2::{Digest, Sha256};
 use std::io::Write;
 impl Windows<'_> {
-    pub(super) fn run_dump(&self, p: Plugin, options: &DumpOptions, job: &Job) -> Result<Results> {
+    pub(super) fn run_dump(
+        &self,
+        p: Plugin,
+        options: &DumpOptions,
+        analysis: &Options,
+        job: &Job,
+    ) -> Result<Results> {
         options.validate(p)?;
         if p == Plugin::WinMemmap {
             return self.memmap(&Options::default(), Some(options), job);
+        }
+        if p == Plugin::WinHivelist {
+            return self.dump_hives(options, analysis, job);
+        }
+        if p == Plugin::WinTimeliner {
+            return self.timeliner_with_dump(Some(options), job);
+        }
+        if p == Plugin::WinMalfind {
+            let (processes, diagnostics) = self.processes_partial(job)?;
+            let mut r = self.result(Plugin::WinMalfind);
+            r.complete = diagnostics.is_empty();
+            r.diagnostics = diagnostics;
+            let mut total_dumped = 0u64;
+            for process in processes
+                .into_iter()
+                .filter(|proc| options.pid == 0 || proc.pid == u64::from(options.pid))
+            {
+                job.check()?;
+                if let Err(e) = self.vad_result_with_dump(
+                    &process,
+                    Plugin::WinMalfind,
+                    &Options::default(),
+                    Some(options),
+                    &mut total_dumped,
+                    &mut r,
+                    job,
+                ) {
+                    job.check()?;
+                    Self::issue(
+                        &mut r,
+                        format!("PID {} @ {:#x}", process.pid, process.address),
+                        format!("{e:#}"),
+                    );
+                }
+            }
+            return Ok(r);
         }
         if p == Plugin::WinModdump {
             return self.run_moddump(options, job);
@@ -654,7 +696,12 @@ mod tests {
             end: None,
         };
         let r = engine
-            .run_dump(Plugin::WinModdump, &options, &Job::default())
+            .run_dump(
+                Plugin::WinModdump,
+                &options,
+                &Options::default(),
+                &Job::default(),
+            )
             .unwrap();
         assert!(r.complete, "{:?}", r.diagnostics);
         assert_eq!(r.rows.len(), 1);
@@ -733,7 +780,12 @@ mod tests {
             end: None,
         };
         let r = engine
-            .run_dump(Plugin::WinVaddump, &options, &Job::default())
+            .run_dump(
+                Plugin::WinVaddump,
+                &options,
+                &Options::default(),
+                &Job::default(),
+            )
             .unwrap();
         assert!(r.complete, "{:?}", r.diagnostics);
         assert_eq!(r.rows.len(), 1);

@@ -35,8 +35,8 @@ use std::sync::{
     atomic::{AtomicBool, Ordering},
 };
 
-// Add 13 canonical Volatility 3 Linux core forensics plugins and align outputs/exports.
-pub const ENGINE_VERSION: &str = concat!(env!("CARGO_PKG_VERSION"), "-native-125");
+// Batch 5: Windows dlllist/hivelist --name/--ignore-case, vadinfo --address, sessions SessionType/UserName; Linux ftrace HookedSymbols.
+pub const ENGINE_VERSION: &str = concat!(env!("CARGO_PKG_VERSION"), "-native-131");
 #[derive(Clone)]
 pub struct Job {
     pub cancel: Arc<AtomicBool>,

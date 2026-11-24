@@ -1,4 +1,5 @@
 use super::*;
+use crate::bytes::Row as _;
 // Windows 8 encodes 41 address bits; later kernels may encode 44.
 // Sign-extend the exact symbol-declared width after the four alignment bits.
 /// Exported kernel variables that point at well-known object types.
@@ -335,9 +336,9 @@ impl Windows<'_> {
         job: &Job,
     ) -> Result<Results> {
         let mut r = self.result(plugin);
-        let scanned = self.pool_processes(job)?;
         if plugin == Plugin::WinPsscan {
-            for p in scanned
+            for p in self
+                .pool_processes(job)?
                 .into_iter()
                 .filter(|p| options.pid.is_none_or(|pid| p.pid == u64::from(pid)))
             {
@@ -348,35 +349,131 @@ impl Windows<'_> {
         let (listed, diagnostics) = self.processes_partial(job)?;
         r.complete = diagnostics.is_empty();
         r.diagnostics = diagnostics;
-        let mut seen = HashSet::new();
-        for p in &listed {
-            let pa = self.vm.translate(p.address)?;
-            seen.insert(pa);
-            if options.pid.is_none_or(|pid| p.pid == u64::from(pid)) {
-                r.rows.push(vec![
-                    p.pid.to_string(),
-                    p.name.clone(),
-                    hex(p.address),
-                    "true".into(),
-                    scanned.iter().any(|s| s.address == pa).to_string(),
-                    filetime(p.exited),
-                ]);
+        let mut processes = BTreeMap::<u64, (Process, [bool; 4])>::new();
+        for process in &listed {
+            job.check()?;
+            match self.vm.translate(process.address) {
+                Ok(physical) => {
+                    processes.insert(physical, (process.clone(), [true, false, false, false]));
+                }
+                Err(error) => Self::issue(&mut r, format!("psxview PID {}", process.pid), error),
             }
         }
-        for p in scanned {
-            if !seen.contains(&p.address) && options.pid.is_none_or(|pid| p.pid == u64::from(pid)) {
+        match self.pool_processes(job) {
+            Ok(scanned) => {
+                for process in scanned {
+                    job.check()?;
+                    processes
+                        .entry(process.address)
+                        .or_insert((process, [false; 4]))
+                        .1[1] = true;
+                }
+            }
+            Err(error) => {
+                job.check()?;
+                Self::issue(&mut r, "psxview psscan", error);
+            }
+        }
+
+        let header_layout = self.object_header_layout();
+        let threads = self.pool_artifacts(Plugin::WinThrdscan, job)?;
+        r.complete &= threads.complete;
+        r.diagnostics.extend(threads.diagnostics);
+        let shifted_create_time = self.vm.isf.has_field("_ETHREAD", "ThreadsProcess");
+        for row in &threads.rows {
+            job.check()?;
+            let read = (|| -> Result<(u64, Process)> {
+                let thread = u64::from_str_radix(row.cell(1).trim_start_matches("0x"), 16)?;
+                let pid = row.cell(2).parse::<u64>()?;
+                let address = self.thread_owner(thread)?;
+                let (physical, process) = self.psxview_process(address, &header_layout)?;
+                ensure!(process.pid == pid, "ETHREAD CID 与归属进程的 PID 不一致");
+                let thread_created = self.number(thread, "_ETHREAD", "CreateTime").map(|value| {
+                    if shifted_create_time {
+                        value >> 3
+                    } else {
+                        value
+                    }
+                });
+                if let Ok(created) = thread_created
+                    && created >= 116_444_736_000_000_000
+                {
+                    ensure!(created >= process.created, "线程早于归属进程创建");
+                }
+                Ok((physical, process))
+            })();
+            match read {
+                Ok((physical, process)) => {
+                    processes.entry(physical).or_insert((process, [false; 4])).1[2] = true;
+                }
+                Err(error) => {
+                    Self::issue(&mut r, format!("psxview thrdscan {}", row.cell(1)), error)
+                }
+            }
+        }
+
+        for csrss in listed
+            .iter()
+            .filter(|p| p.name.eq_ignore_ascii_case("csrss.exe") && p.exited == 0)
+        {
+            job.check()?;
+            let mut probe = self.result(Plugin::WinHandles);
+            if let Err(error) = self.handles_with_layout(csrss, &header_layout, &mut probe, job) {
+                job.check()?;
+                Self::issue(&mut r, format!("psxview csrss PID {}", csrss.pid), error);
+            }
+            r.complete &= probe.complete;
+            r.diagnostics.extend(probe.diagnostics);
+            for row in probe.rows.iter().filter(|row| row.cell(3) == "Process") {
+                job.check()?;
+                let identity = u64::from_str_radix(row.cell(4).trim_start_matches("0x"), 16)
+                    .map_err(anyhow::Error::from)
+                    .and_then(|address| self.psxview_process(address, &header_layout));
+                match identity {
+                    Ok((physical, process)) => {
+                        processes.entry(physical).or_insert((process, [false; 4])).1[3] = true;
+                    }
+                    Err(error) => {
+                        Self::issue(&mut r, format!("psxview csrss {}", row.cell(4)), error)
+                    }
+                }
+            }
+        }
+
+        for (_, (process, [listed, scanned, threads, csrss])) in processes {
+            job.check()?;
+            if options.pid.is_none_or(|pid| process.pid == u64::from(pid)) {
                 r.rows.push(vec![
-                    p.pid.to_string(),
-                    p.name,
-                    format!("physical:{:#x}", p.address),
-                    "false".into(),
-                    "true".into(),
-                    filetime(p.exited),
+                    process.pid.to_string(),
+                    process.name,
+                    if process.physical {
+                        format!("physical:{:#x}", process.address)
+                    } else {
+                        hex(process.address)
+                    },
+                    listed.to_string(),
+                    scanned.to_string(),
+                    threads.to_string(),
+                    csrss.to_string(),
+                    filetime(process.exited),
                 ]);
             }
         }
         Ok(r)
     }
+
+    fn psxview_process(&self, address: u64, layout: &ObjectHeaderLayout) -> Result<(u64, Process)> {
+        ensure!(self.vm.kernel(address), "归属进程地址无效");
+        let body_offset = self.vm.isf.offset("_OBJECT_HEADER", "Body")?;
+        let header = address.checked_sub(body_offset).context("进程对象头下溢")?;
+        ensure!(
+            self.object_type(header, layout)? == "Process",
+            "归属对象类型不是 Process"
+        );
+        let process = self.process(address)?;
+        Ok((self.vm.translate(address)?, process))
+    }
+
     fn pool_processes(&self, job: &Job) -> Result<Vec<Process>> {
         let isf = self.vm.isf;
         let header_size = isf.data.key("user_types")["_POOL_HEADER"]
@@ -463,6 +560,15 @@ impl Windows<'_> {
                             handles: None,
                             created,
                             exited: physical_number(isf, &b, "_EPROCESS", "ExitTime")?,
+                            session_id: physical_number(isf, &b, "_EPROCESS", "Session")
+                                .ok()
+                                .filter(|&s| self.vm.kernel(s))
+                                .and_then(|s| {
+                                    self.number(s, "_MM_SESSION_SPACE", "SessionId").ok()
+                                }),
+                            wow64: physical_number(isf, &b, "_EPROCESS", "Wow64Process")
+                                .or_else(|_| physical_number(isf, &b, "_EPROCESS", "WoW64Process"))
+                                .is_ok_and(|p| p != 0),
                         })
                     })();
                     if let Ok(p) = parsed {

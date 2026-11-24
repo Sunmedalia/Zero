@@ -242,6 +242,7 @@ impl Linux<'_> {
             ProcessSpoofing => self.process_spoofing(job),
             LinuxPslist => self.process_details(job),
             LinuxBoottime => self.namespace_boottimes(job),
+            LinuxTimeliner => self.linux_timeliner(None, job),
             LinuxCapabilities => self.capabilities(&Default::default(), job),
             LinuxEnvars => self.envars(&Default::default(), job),
             LinuxPsaux => self.psaux(&Default::default(), job),
@@ -253,6 +254,12 @@ impl Linux<'_> {
             LinuxMalfind => self.linux_malfind(&Default::default(), None, job),
             LinuxMountinfo => self.linux_mountinfo(&Default::default(), job),
             LinuxPagecacheFiles => self.linux_pagecache_files(&Default::default(), job),
+            LinuxPagecacheInodePages => {
+                self.linux_pagecache_inode_pages(&Default::default(), None, job)
+            }
+            LinuxPagecacheRecoverFs => {
+                self.linux_pagecache_recover_fs(&Default::default(), None, job)
+            }
             LinuxBash => self.linux_bash(&Default::default(), job),
             LinuxElfs => self.linux_elfs(&Default::default(), None, job),
             LinuxLibraryList => self.linux_library_list(&Default::default(), job),
@@ -357,25 +364,107 @@ impl Linux<'_> {
             | WinDirectSystemCalls
             | WinIndirectSystemCalls => Err(unrouted(plugin)),
             WinUnhookedSystemCalls => Err(unrouted(plugin)),
-            ModuleExtract | Procdump | Memdump | Elfdump | WinLdrmodules | WinHollowprocesses
-            | WinSuspiciousThreads | WinCallbacks | WinUnloadedmodules | WinFilescan
-            | WinMutantscan | WinGetsids | WinConnscan | WinSockscan | WinConsoles | WinCmdscan
-            | WinDrivercheck | WinDriverscan | WinSvcscan | WinCrashinfo | WinAutoruns
-            | WinEnvars | WinThreads | WinSysteminfo | WinPslist | WinPstree | WinCmdline
-            | WinModules | WinDlllist | WinVadinfo | WinHandles | WinMalfind | WinNetscan
-            | WinNetstat | WinShimcacheMem | WinHivelist | WinPrintkey | WinPsscan | WinPsxview
-            | WinProcdump | WinMemdump | WinPedump | WinSsdt | WinModscan | WinPrivileges
-            | WinSessions | WinUserassist | WinBigpools | WinSymlinkscan | WinDevicetree
-            | WinGetservicesids | WinIat | WinVerinfo | WinMftscan | WinOrphanThreads
-            | WinEtwpatch | WinScheduledTasks | WinScheduledTasksV4 | WinDebugRegisters
-            | WinSuspendedThreads | WinPESymbols | WinAmcacheV4 | WinAmcache | WinCertificates
-            | WinProcessghosting | WinJoblinks | WinTimeliner | WinUserAssistV4 | WinMemmap
-            | WinSvcScanV4 | WinSvcDiff | WinSvcList | WinGetCellRoutine | WinPebMasquerade
-            | WinHiveScan | WinDriverModule | WinDriverIrp | WinKpcrs | WinMbrscan | WinTimers
-            | WinStatistics | WinShimcache | WinVirtmap | WinVadWalk | WinVadRegExScan
-            | WinVadyarascan | WinVaddump | WinDlldump | WinModdump | WinHashdump | WinLsadump
-            | WinCachedump | WinDumpfiles | WinThrdscan | WinPoolScanner | WinWindowStations
-            | WinDesktops | WinDeskScan | WinWindows => Err(unrouted(plugin)),
+            ModuleExtract
+            | Procdump
+            | Memdump
+            | Elfdump
+            | WinLdrmodules
+            | WinHollowprocesses
+            | WinSuspiciousThreads
+            | WinCallbacks
+            | WinUnloadedmodules
+            | WinFilescan
+            | WinMutantscan
+            | WinGetsids
+            | WinConnscan
+            | WinSockscan
+            | WinConsoles
+            | WinCmdscan
+            | WinDrivercheck
+            | WinDriverscan
+            | WinSvcscan
+            | WinCrashinfo
+            | WinAutoruns
+            | WinEnvars
+            | WinThreads
+            | WinSysteminfo
+            | WinPslist
+            | WinPstree
+            | WinCmdline
+            | WinModules
+            | WinDlllist
+            | WinVadinfo
+            | WinHandles
+            | WinMalfind
+            | WinNetscan
+            | WinNetstat
+            | WinShimcacheMem
+            | WinHivelist
+            | WinPrintkey
+            | WinPsscan
+            | WinPsxview
+            | WinProcdump
+            | WinMemdump
+            | WinPedump
+            | WinSsdt
+            | WinModscan
+            | WinPrivileges
+            | WinSessions
+            | WinUserassist
+            | WinBigpools
+            | WinSymlinkscan
+            | WinDevicetree
+            | WinGetservicesids
+            | WinIat
+            | WinVerinfo
+            | WinMftscan
+            | WinOrphanThreads
+            | WinEtwpatch
+            | WinScheduledTasks
+            | WinScheduledTasksV4
+            | WinDebugRegisters
+            | WinSuspendedThreads
+            | WinPESymbols
+            | WinAmcacheV4
+            | WinAmcache
+            | WinCertificates
+            | WinProcessghosting
+            | WinJoblinks
+            | WinTimeliner
+            | WinUserAssistV4
+            | WinMemmap
+            | WinSvcScanV4
+            | WinSvcDiff
+            | WinSvcList
+            | WinGetCellRoutine
+            | WinPebMasquerade
+            | WinHiveScan
+            | WinDriverModule
+            | WinDriverIrp
+            | WinKpcrs
+            | WinMbrscan
+            | WinTimers
+            | WinStatistics
+            | WinShimcache
+            | WinVirtmap
+            | WinVadWalk
+            | WinVadRegExScan
+            | WinVadyarascan
+            | WinVaddump
+            | WinDlldump
+            | WinModdump
+            | WinHashdump
+            | WinLsadump
+            | WinCachedump
+            | WinDumpfiles
+            | WinThrdscan
+            | WinPoolScanner
+            | WinWindowStations
+            | WinDesktops
+            | WinDeskScan
+            | WinWindows
+            | WinMftscanAds
+            | WinMftscanResidentData => Err(unrouted(plugin)),
         }
     }
     /// Export the modules recovered by the forward list walk, preserving partial diagnostics.
@@ -426,6 +515,56 @@ impl Linux<'_> {
                 .kernel_identity
                 .key_mut("module_file_output_types")?
                 .key_mut(format!("{object:#x}"))? = output_type.into();
+        }
+        Ok(result)
+    }
+
+    /// Export ELF modules discovered by `check_modules` or `hidden_modules`.
+    pub(super) fn module_view_with_dump(
+        &self,
+        plugin: Plugin,
+        options: &crate::dump::DumpOptions,
+        job: &Job,
+    ) -> Result<Results> {
+        let mut result = self.result(plugin);
+        match plugin {
+            Plugin::CheckModules => self.check_modules(&mut result, job)?,
+            Plugin::HiddenModules => self.hidden_modules(&mut result, job)?,
+            _ => bail!("不支持该插件的模块导出: {}", plugin.name()),
+        }
+        if !result.kernel_identity.is_object() {
+            result.kernel_identity = serde_json::json!({});
+        }
+        for index in 0..result.rows.len() {
+            job.check()?;
+            let address = result.rows.at(index)?.at(1)?.clone();
+            let object = u64::from_str_radix(address.trim_start_matches("0x"), 16)?;
+            let extraction = crate::dump::DumpOptions {
+                pid: 0,
+                start: Some(if self.arm64() {
+                    object
+                } else {
+                    object & ((1u64 << 48) - 1)
+                }),
+                end: None,
+                directory: options.directory.clone(),
+            };
+            match self.extract_module(&extraction, job) {
+                Ok(extracted) => {
+                    if !extracted.complete {
+                        result.complete = false;
+                    }
+                    result.diagnostics.extend(extracted.diagnostics);
+                    *result
+                        .kernel_identity
+                        .key_mut("module_exports")?
+                        .key_mut(format!("{object:#x}"))? = extracted.kernel_identity;
+                }
+                Err(error) => {
+                    job.check()?;
+                    partial(&mut result, format!("module {object:#x} export"), error);
+                }
+            }
         }
         Ok(result)
     }

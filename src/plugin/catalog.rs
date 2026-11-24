@@ -149,11 +149,11 @@ catalog! {
         "查看系统和内核信息",
         ["Key", "Value"], [12, 0];
     WinPslist, "windows.pslist", "windows.pslist", Process,
-        "列出活动进程及其地址",
-        ["PID", "PPID", "Name", "Address", "Threads", "Handles", "CreateTime", "ExitTime"], [12, 12, 0, 12, 12, 12, 12, 12];
+        "列出活动进程、会话与 WOW64 状态",
+        ["PID", "PPID", "Name", "Address", "Threads", "Handles", "CreateTime", "ExitTime", "SessionId", "Wow64"], [12, 12, 0, 12, 10, 10, 12, 12, 10, 6];
     WinPstree, "windows.pstree", "windows.pstree", Process,
-        "按父进程关系浏览进程树",
-        ["PID", "PPID", "Name", "Address", "Threads", "Handles", "CreateTime", "ExitTime"], [12, 12, 0, 12, 12, 12, 12, 12];
+        "按父进程关系浏览进程树、会话与 WOW64 状态",
+        ["PID", "PPID", "Name", "Address", "Threads", "Handles", "CreateTime", "ExitTime", "SessionId", "Wow64"], [12, 12, 0, 12, 10, 10, 12, 12, 10, 6];
     WinCmdline, "windows.cmdline", "windows.cmdline", Process,
         "读取进程命令行",
         ["PID", "Name", "CommandLine", "View"], [12, 0, 0, 10];
@@ -161,17 +161,17 @@ catalog! {
         "列出内核模块及地址范围",
         ["Name", "Base", "Size", "Path"], [0, 12, 12, 0];
     WinDlllist, "windows.dlllist", "windows.dlllist", Process,
-        "列出进程加载的 DLL",
-        ["PID", "Name", "Base", "Size", "Path", "View"], [12, 0, 12, 12, 0, 10];
+        "列出进程加载的 DLL（含 LoadCount 与 LoadTime）",
+        ["PID", "Name", "Base", "Size", "Path", "View", "LoadCount", "LoadTime"], [12, 0, 12, 12, 0, 10, 10, 20];
     WinVadinfo, "windows.vadinfo", "windows.vadinfo", Memory,
-        "查看进程虚拟内存映射",
-        ["PID", "Name", "Start", "End", "Protection", "Private", "Path", "Address"], [12, 0, 12, 12, 12, 12, 0, 12];
+        "查看进程虚拟内存映射（含 Tag、Parent 与 CommitCharge）",
+        ["PID", "Name", "Start", "End", "Protection", "Private", "Path", "Address", "Tag", "Parent", "CommitCharge"], [12, 0, 12, 12, 12, 8, 0, 12, 6, 12, 12];
     WinHandles, "windows.handles", "windows.handles", Files,
         "列出进程打开的文件或对象",
         ["PID", "Name", "Handle", "Type", "Object", "GrantedAccess", "ObjectName"], [12, 0, 12, 12, 12, 12, 0];
     WinMalfind, "windows.malfind", "windows.malfind", Integrity,
-        "检查可疑的可执行内存映射",
-        ["PID", "Name", "Start", "End", "Protection", "Reason", "Preview"], [12, 0, 12, 12, 12, 12, 12];
+        "检查可疑的可执行内存映射，支持反汇编与可选导出",
+        ["PID", "Name", "Start", "End", "Protection", "Reason", "Preview", "Disasm", "File output"], [12, 0, 12, 12, 12, 12, 24, 32, 16];
     WinNetscan, "windows.netscan", "windows.netscan", Network,
         "查看网络连接及端点",
         ["Address", "Protocol", "LocalEndpoint", "RemoteEndpoint", "State", "PID", "Name", "CreateTime"], [12, 12, 12, 12, 12, 12, 0, 12];
@@ -191,11 +191,11 @@ catalog! {
         "读取指定 hive 中的注册表键",
         ["Hive", "Key", "Kind", "Name", "Type", "Data", "LastWriteTime"], [12, 12, 12, 0, 12, 0, 12];
     WinPsscan, "windows.psscan", "windows.psscan", Integrity,
-        "扫描进程对象",
-        ["PID", "PPID", "Name", "Address", "Threads", "Handles", "CreateTime", "ExitTime"], [12, 12, 0, 12, 12, 12, 12, 12];
+        "扫描进程对象（含会话与 WOW64 状态）",
+        ["PID", "PPID", "Name", "Address", "Threads", "Handles", "CreateTime", "ExitTime", "SessionId", "Wow64"], [12, 12, 0, 12, 10, 10, 12, 12, 10, 6];
     WinPsxview, "windows.psxview", "windows.psxview", Integrity,
-        "对比多种进程发现方式",
-        ["PID", "Name", "Address", "Pslist", "Psscan", "ExitTime"], [12, 0, 12, 12, 12, 12];
+        "对比活动链表、池扫描、线程扫描与 csrss 句柄表四种视图",
+        ["PID", "Name", "Address", "Pslist", "Psscan", "Thrdscan", "Csrss", "ExitTime"], [12, 0, 12, 8, 8, 8, 8, 12];
     WinProcdump, "windows.procdump", "windows.procdump", Process,
         "转储指定进程的可读内存",
         ["PID", "Name", "Start", "End", "Size", "SHA256", "File"], [12, 0, 12, 12, 12, 12, 12];
@@ -218,8 +218,8 @@ catalog! {
         "从文件缓存（句柄与 VAD）提取驻留文件内容",
         ["PID", "Cache", "FileObject", "FileName", "Size", "Pages", "SHA256", "File"], [12, 14, 12, 0, 10, 8, 12, 0];
     WinThrdscan, "windows.thrdscan", "windows.thrdscan", Integrity,
-        "扫描线程对象（含已退出或脱离链表的线程）",
-        ["Physical", "Address", "PID", "TID", "StartAddress", "Win32StartAddress", "CreateTime", "ExitTime"], [0, 0, 8, 8, 12, 12, 0, 0];
+        "扫描线程对象（含已退出或脱离链表的线程）并解析起始内核模块",
+        ["Physical", "Address", "PID", "TID", "StartAddress", "Win32StartAddress", "CreateTime", "ExitTime", "StartModule", "Win32StartModule"], [0, 0, 8, 8, 12, 12, 0, 0, 18, 18];
     WinHashdump, "windows.hashdump", "windows.hashdump", Files,
         "解密 SAM hive 中的用户 NTLM/LM 哈希",
         ["User", "RID", "LM", "NT"], [0, 8, 34, 34];
@@ -239,14 +239,14 @@ catalog! {
         "列出进程令牌拥有的特权及启用状态",
         ["PID", "Name", "Value", "Privilege", "Attributes"], [8, 16, 6, 0, 24];
     WinSessions, "windows.sessions", "windows.sessions", Process,
-        "按登录会话归类进程",
-        ["SessionID", "PID", "Name", "CreateTime", "SessionAddress"], [9, 8, 0, 20, 18];
+        "按登录会话归类进程（含会话类型与用户名）",
+        ["SessionID", "PID", "Name", "CreateTime", "SessionAddress", "SessionType", "UserName"], [9, 8, 0, 20, 18, 12, 18];
     WinUserassist, "windows.registry.userassist", "windows.registry.userassist", Files,
         "解码 NTUSER 中的 UserAssist 程序执行记录",
         ["Hive", "GUID", "Name", "Count", "FocusCount", "FocusTime", "LastUpdated"], [0, 0, 0, 6, 10, 10, 20];
     WinBigpools, "windows.bigpools", "windows.bigpools", Memory,
-        "列出大页池分配表中的已分配块及池标签",
-        ["Allocation", "Tag", "PoolType", "NumberOfBytes"], [18, 6, 10, 0];
+        "列出大页池分配表中的块、池标签与分配状态（支持 --show-free / --tags）",
+        ["Allocation", "Tag", "PoolType", "NumberOfBytes", "Status"], [18, 6, 10, 14, 10];
     WinSymlinkscan, "windows.symlinkscan", "windows.symlinkscan", Files,
         "扫描符号链接对象及其目标",
         ["Physical", "Address", "Name", "Target", "CreateTime"], [18, 18, 0, 0, 20];
@@ -265,6 +265,12 @@ catalog! {
     WinMftscan, "windows.mftscan", "windows.mftscan", Files,
         "从物理内存雕刻 NTFS MFT 记录及两组时间戳",
         ["Physical", "Record", "Type", "InUse", "Name", "Parent", "SICreated", "SIModified", "FNCreated", "FNModified", "Size"], [18, 8, 9, 5, 0, 8, 18, 18, 18, 18, 10];
+    WinMftscanAds, "windows.mftscan.ADS", "mftscan.ads", Files,
+        "从物理内存雕刻 NTFS MFT 中的备用数据流（ADS）及常驻内容",
+        ["Offset", "Record Type", "Record Number", "MFT Type", "Filename", "ADS Filename", "Hexdump"], [18, 11, 13, 18, 24, 24, 0];
+    WinMftscanResidentData, "windows.mftscan.ResidentData", "mftscan.resdata", Files,
+        "从物理内存雕刻 NTFS MFT 中的常驻文件数据（$DATA）",
+        ["Offset", "Record Type", "Record Number", "MFT Type", "Filename", "Hexdump"], [18, 11, 13, 18, 28, 0];
     WinOrphanThreads, "windows.orphan_kernel_threads", "windows.orphan_kernel_threads", Integrity,
         "列出起始地址不在任何内核模块中的系统线程",
         ["PID", "TID", "Address", "StartAddress", "CreateTime"], [6, 8, 18, 18, 20];
@@ -290,14 +296,14 @@ catalog! {
         "列出进程所属的作业对象及计数",
         ["Job", "SessionID", "Active", "Total", "PID", "Name"], [18, 9, 6, 6, 8, 0];
     WinTimeliner, "windows.timeliner", "windows.timeliner", System,
-        "汇总多个插件的时间戳为统一时间线",
+        "汇总多个 Windows 插件时间戳为统一时间线，支持导出 bodyfile",
         ["Time", "FILETIME", "Plugin", "Event", "Description"], [23, 18, 24, 24, 0];
     WinMbrscan, "windows.mbrscan", "windows.mbrscan", Files,
-        "扫描内存中的主引导记录及分区表",
-        ["Physical", "DiskSignature", "Partition", "Bootable", "Type", "StartLBA", "Sectors", "BootCodeSHA256"], [18, 10, 4, 6, 6, 12, 12, 0];
+        "扫描内存中的主引导记录、分区表与引导代码反汇编",
+        ["Physical", "DiskSignature", "Partition", "Bootable", "Type", "StartLBA", "Sectors", "BootCodeSHA256", "Disasm"], [18, 10, 4, 6, 6, 12, 12, 20, 0];
     WinTimers, "windows.timers", "windows.timers", Integrity,
-        "列出各处理器的内核定时器及 DPC 例程归属",
-        ["CPU", "Timer", "DueTime", "Period", "DPC", "Routine", "Module"], [4, 18, 20, 8, 18, 18, 0];
+        "列出各处理器的内核定时器、触发状态及 DPC 例程归属与符号",
+        ["CPU", "Timer", "DueTime", "Period", "DPC", "Routine", "Module", "Signaled", "Symbol"], [4, 18, 20, 8, 18, 18, 18, 8, 0];
     WinStatistics, "windows.statistics", "windows.statistics", Memory,
         "统计内核地址空间的有效、换出与空页表项",
         ["Key", "Value"], [30, 0];
@@ -419,23 +425,26 @@ catalog! {
         "列出 netfilter 钩子及处理函数归属",
         ["Namespace", "Protocol", "Hook", "Priority", "Handler", "Symbol", "Owner", "Reason"], [18, 8, 12, 8, 18, 0, 16, 0];
     Tracepoints, "tracepoints", "tracepoints", Integrity,
-        "列出挂在内核 tracepoint 上的探针",
-        ["Tracepoint", "Handler", "Symbol", "Owner", "Reason"], [0, 18, 0, 16, 0];
+        "列出挂在内核 tracepoint 上的探针与优先级",
+        ["Tracepoint", "Handler", "Symbol", "Owner", "Reason", "Priority"], [0, 18, 0, 16, 0, 8];
     Ftrace, "ftrace", "ftrace", Integrity,
-        "列出已注册的 ftrace 回调",
-        ["Ops", "Handler", "Symbol", "Owner", "Reason"], [18, 18, 0, 16, 0];
+        "列出已注册的 ftrace 回调、标志与挂钩符号",
+        ["Ops", "Handler", "Symbol", "Owner", "Reason", "Flags", "HookedSymbols"], [18, 18, 0, 16, 0, 18, 24];
     PerfEvents, "perf_events", "perf_events", Integrity,
         "列出进程持有的 perf 事件及溢出处理函数",
         ["PID", "Name", "Event", "Type", "Config", "Handler", "Symbol", "Owner", "Reason"], [6, 14, 18, 6, 10, 18, 0, 16, 0];
     Ebpf, "ebpf", "ebpf", Integrity,
-        "列出已加载的 eBPF 程序",
-        ["ID", "Name", "Type", "Address", "Function"], [6, 16, 0, 18, 18];
+        "列出已加载的 eBPF 程序及其 Tag",
+        ["ID", "Name", "Type", "Address", "Function", "Tag"], [6, 16, 0, 18, 18, 18];
     Boottime, "boottime", "boottime", System,
         "根据时间保持偏移计算系统启动时间",
         ["Key", "Value"], [16, 0];
     LinuxBoottime, "linux.boottime.Boottime", "boottime·命名空间", System,
         "按任务遍历顺序列出各时间命名空间的启动时间",
         ["TIME NS", "Boot Time"], [12, 32];
+    LinuxTimeliner, "linux.timeliner", "timeliner", System,
+        "汇总多个 Linux 插件时间戳为统一时间线，支持导出 bodyfile",
+        ["Time", "Plugin", "Event", "Description"], [32, 24, 20, 0];
     Pagecache, "pagecache", "pagecache", Files,
         "列出页缓存中各文件系统的 inode 及缓存页数",
         ["SuperBlock", "Device", "FileSystem", "Inode", "InodeAddress", "Mode", "Size", "CachedPages", "Path"], [18, 10, 10, 10, 18, 8, 12, 8, 0];
@@ -478,6 +487,12 @@ catalog! {
     LinuxPagecacheFiles, "linux.pagecache.Files", "pagecache·文件", Files,
         "列出页缓存 inode 完整元数据（挂载点、设备号、类型、权限、三组时间戳）；支持类型与路径筛选",
         ["SuperblockAddr", "MountPoint", "Device", "InodeNum", "InodeAddr", "FileType", "InodePages", "CachedPages", "FileMode", "AccessTime", "ModificationTime", "ChangeTime", "FilePath", "InodeSize"], [18, 16, 8, 10, 18, 6, 8, 8, 11, 26, 26, 26, 0, 10];
+    LinuxPagecacheInodePages, "linux.pagecache.InodePages", "pagecache·页导出", Files,
+        "枚举指定 inode 的驻留页缓存（XArray/RadixTree）并支持按路径或地址导出文件内容",
+        ["PageVAddr", "PagePAddr", "MappingAddr", "Index", "DumpSafe", "Flags", "Output File"], [18, 18, 18, 8, 8, 18, 0];
+    LinuxPagecacheRecoverFs, "linux.pagecache.RecoverFs", "pagecache·恢复", Files,
+        "统计并可选从页缓存批量恢复常规文件内容（受 256 MiB 累计上限保护）",
+        ["SuperblockAddr", "MountPoint", "Device", "InodeNum", "InodeAddr", "FileType", "InodePages", "CachedPages", "FileMode", "AccessTime", "ModificationTime", "ChangeTime", "FilePath", "InodeSize", "Recovered FileSize"], [18, 16, 8, 10, 18, 6, 8, 8, 11, 26, 26, 26, 0, 10, 14];
     LinuxBash, "linux.bash.Bash", "bash·完整", Process,
         "按标准 4 列恢复 bash 进程命令历史；支持 PID 列表筛选",
         ["PID", "Process", "CommandTime", "Command"], [6, 16, 24, 0];

@@ -527,7 +527,7 @@ impl App {
             .filter(|(p, _)| *p == mode)
             .map(|(_, o)| o);
         let pid = previous
-            .filter(|_| !mode.is_linux_mapping_export())
+            .filter(|_| !mode.dump_uses_analysis_pid())
             .map(|o| o.pid.to_string())
             .or_else(|| {
                 let result = self.result()?;
@@ -537,10 +537,10 @@ impl App {
             .unwrap_or_default();
         let fields = [
             if mode == Plugin::Lsmod
-                || (mode.is_linux_mapping_export() && !self.analysis_options.pids.is_empty())
+                || (mode.dump_uses_analysis_pid() && !self.analysis_options.pids.is_empty())
             {
                 String::new()
-            } else if mode.is_linux_mapping_export() {
+            } else if mode.dump_uses_analysis_pid() {
                 self.analysis_options.pid.map_or(pid, |pid| pid.to_string())
             } else {
                 pid
