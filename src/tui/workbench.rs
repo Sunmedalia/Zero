@@ -4,7 +4,7 @@
 use super::*;
 use crate::{
     bytes::Cells,
-    dossier::{TriagePlaybook, extract_address_from_row, extract_pid_from_row},
+    dossier::{TriagePlaybook, extract_inspect_target, extract_pid_from_row},
     inspector::{DEFAULT_INSPECT_BYTES, InspectView, SpaceKind},
 };
 
@@ -106,11 +106,12 @@ impl App {
             return;
         }
         if let Some((plugin_name, cols, row)) = self.current_result_row()
-            && let Some((address, suggested_struct)) =
-                extract_address_from_row(&plugin_name, &cols, &row)
+            && let Some((address, physical, suggested_struct)) =
+                extract_inspect_target(&plugin_name, &cols, &row)
         {
             let pid = extract_pid_from_row(&cols, &row);
-            let is_user_va = address < 0x0000_8000_0000_0000
+            let is_user_va = !physical
+                && address < 0x0000_8000_0000_0000
                 && pid.is_some()
                 && (plugin_name.contains("maps")
                     || plugin_name.contains("malfind")
@@ -118,7 +119,9 @@ impl App {
                     || plugin_name.contains("dll")
                     || plugin_name.contains("elfs"));
             let query = InspectorQuery {
-                space: if is_user_va {
+                space: if physical {
+                    SpaceKind::Physical
+                } else if is_user_va {
                     SpaceKind::Pid
                 } else {
                     SpaceKind::Kernel
@@ -486,6 +489,9 @@ impl App {
                         }
                     }
                     let mut next = self.inspector_query.clone().unwrap_or_default();
+                    if next.space == SpaceKind::Physical {
+                        next.space = SpaceKind::Kernel;
+                    }
                     next.address = Some(addr);
                     next.symbol_name = None;
                     next.struct_name = follow_type.clone();

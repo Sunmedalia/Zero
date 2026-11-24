@@ -157,10 +157,22 @@ pub fn extract_address_from_row(
     columns: &[String],
     row: &[String],
 ) -> Option<(u64, Option<String>)> {
+    extract_inspect_target(plugin_name, columns, row)
+        .map(|(address, _, structure)| (address, structure))
+}
+
+pub(crate) fn extract_inspect_target(
+    plugin_name: &str,
+    columns: &[String],
+    row: &[String],
+) -> Option<(u64, bool, Option<String>)> {
     let is_windows = plugin_name.starts_with("windows.");
     let priority: &[&str] = &[
         "offset",
         "offset(v)",
+        "offset (v)",
+        "offset(p)",
+        "offset (p)",
         "start",
         "start vpn",
         "base",
@@ -177,19 +189,23 @@ pub fn extract_address_from_row(
     for name in priority {
         if let Some(idx) = find_column(columns, &[name])
             && let Some(raw) = row.get(idx)
-            && let Some(addr) = parse_row_address(raw)
+            && let Some((addr, physical)) = parse_row_address(raw)
         {
             let suggested = suggest_struct(plugin_name, name, is_windows);
-            return Some((addr, suggested));
+            return Some((
+                addr,
+                physical || matches!(*name, "offset(p)" | "offset (p)"),
+                suggested,
+            ));
         }
     }
     // Fallback: first cell that looks like a 0x hex address >= 0x1000.
     for (idx, cell) in row.iter().enumerate() {
-        if let Some(addr) = parse_row_address(cell)
-            && addr >= 0x1000
+        if let Some((addr, physical)) = parse_row_address(cell)
+            && (physical || addr >= 0x1000)
         {
             let col = columns.get(idx).map(String::as_str).unwrap_or("");
-            return Some((addr, suggest_struct(plugin_name, col, is_windows)));
+            return Some((addr, physical, suggest_struct(plugin_name, col, is_windows)));
         }
     }
     None
@@ -249,8 +265,9 @@ fn parse_pid(raw: &str) -> Option<u32> {
     digits.parse::<u32>().ok()
 }
 
-fn parse_row_address(raw: &str) -> Option<u64> {
+fn parse_row_address(raw: &str) -> Option<(u64, bool)> {
     let trimmed = raw.trim();
+    let physical = trimmed.starts_with("physical:");
     let trimmed = trimmed
         .strip_prefix("physical:")
         .or_else(|| trimmed.strip_prefix("virtual:"))
@@ -262,7 +279,7 @@ fn parse_row_address(raw: &str) -> Option<u64> {
     if hex.is_empty() || hex.len() > 16 {
         return None;
     }
-    u64::from_str_radix(hex, 16).ok()
+    Some((u64::from_str_radix(hex, 16).ok()?, physical))
 }
 
 /// Detect whether the image/options target Windows or Linux.
@@ -281,13 +298,16 @@ pub fn resolve_target_os(
             if prepared.windows_container.is_some() {
                 return Ok(Os::Windows);
             }
-            if prepared.banners(job).is_ok_and(|b| !b.is_empty()) {
+            if !prepared.banners(job)?.is_empty() {
                 return Ok(Os::Linux);
             }
             if symbols.is_file()
                 && let Ok(bytes) = std::fs::read(symbols)
                 && crate::symbols::Isf::probe_windows_identity(&bytes).is_some()
             {
+                return Ok(Os::Windows);
+            }
+            if !prepared.windows_candidates(job)?.is_empty() {
                 return Ok(Os::Windows);
             }
             Ok(Os::Linux)
@@ -312,7 +332,10 @@ fn run_single_plugin(
             opts.pid = Some(pid);
         }
     }
-    let child_job = Job::new(|_| {});
+    let child_job = Job {
+        cancel: job.cancel.clone(),
+        ..Job::default()
+    };
     // Propagate parent cancellation cleanly.
     job.check()?;
     let outcome = analysis::analyze(
@@ -329,9 +352,9 @@ fn run_single_plugin(
         None,
         &opts,
         &child_job,
-    )?;
+    );
     job.check()?;
-    match outcome {
+    match outcome? {
         Outcome::Ready(results) => Ok(Ok((results, child_job.served_from_cache()))),
         Outcome::Choose(labels) => Ok(Err(labels)),
     }
@@ -574,6 +597,7 @@ pub fn correlate_pid(
             }
             Ok(Err(choices)) => return Ok(DossierOutcome::Choose(choices)),
             Err(err) => {
+                job.check()?;
                 all_complete = false;
                 sections.push(SectionSummary {
                     plugin: plugin.name().into(),
@@ -875,6 +899,7 @@ pub fn run_triage(
             }
             Ok(Err(choices)) => return Ok(TriageOutcome::Choose(choices)),
             Err(err) => {
+                job.check()?;
                 all_complete = false;
                 statuses.push(PlaybookPluginStatus {
                     plugin: plugin.name().into(),
@@ -1023,14 +1048,19 @@ fn aggregate_triage_signals(
             });
         }
         Plugin::CheckSyscall => {
+            let Some(reason_col) = find_column(&results.columns, &["reason"]) else {
+                return;
+            };
             let hooked: Vec<&Vec<String>> = results
                 .rows
                 .iter()
-                .filter(|r| {
-                    let joined = r.join(" ").to_ascii_lowercase();
-                    joined.contains("hook")
-                        || joined.contains("unknown")
-                        || joined.contains("module")
+                .filter(|row| {
+                    row.get(reason_col).is_some_and(|reason| {
+                        matches!(
+                            reason.as_str(),
+                            "ModuleTarget; inspect hook" | "OutsideKnownExecutableRanges"
+                        )
+                    })
                 })
                 .collect();
             if !hooked.is_empty() {
@@ -1302,6 +1332,68 @@ mod tests {
             extract_address_from_row("windows.pslist", &cols, &row),
             Some((0xffff_8880_0123_4000, Some("_EPROCESS".into())))
         );
+    }
+
+    #[test]
+    fn inspect_target_preserves_physical_offsets() {
+        for (column, value) in [
+            ("Offset", "physical:0x220"),
+            ("OFFSET (P)", "0x220"),
+            ("Other", "physical:0x220"),
+        ] {
+            assert_eq!(
+                extract_inspect_target("windows.netscan", &[column.into()], &[value.into()]),
+                Some((0x220, true, None))
+            );
+        }
+    }
+
+    #[test]
+    fn auto_detects_windows_raw_with_a_symbol_directory() -> Result<()> {
+        let dir = tempfile::tempdir()?;
+        let image = dir.path().join("image.raw");
+        let mut raw = Vec::from(b"RSDS");
+        raw.extend([1; 16]);
+        raw.extend(1u32.to_le_bytes());
+        raw.extend(b"ntkrnlmp.pdb\0");
+        raw.resize(4096, 0);
+        std::fs::write(&image, raw)?;
+
+        assert_eq!(
+            resolve_target_os(
+                &mut Session::default(),
+                &image,
+                dir.path(),
+                dir.path(),
+                Os::Auto,
+                &Job::default(),
+            )?,
+            Os::Windows
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn syscall_triage_uses_the_verdict_instead_of_the_symbol_name() {
+        let results = sample_results(
+            "linux.check_syscall",
+            &["Symbol", "Reason"],
+            vec![
+                vec!["__x64_sys_init_module", "KernelText"],
+                vec!["__x64_sys_delete_module", "KernelText"],
+                vec!["target", "OutsideKnownExecutableRanges"],
+                vec!["another_target", "ModuleTarget; inspect hook"],
+            ],
+        );
+        let mut signals = Vec::new();
+        aggregate_triage_signals(
+            Plugin::CheckSyscall,
+            &results,
+            &mut BTreeMap::new(),
+            &mut signals,
+        );
+        assert_eq!(signals.len(), 1);
+        assert!(signals[0].summary.contains("2 条"));
     }
 
     #[test]
