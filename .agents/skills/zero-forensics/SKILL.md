@@ -1,61 +1,91 @@
 ---
 name: zero-forensics
-description: Analyze local Linux RAW/LiME or Windows RAW, crash/minidump or supported hibernation memory images, including gzip with Zero's native MCP tools; identify symbols, inspect processes and kernel artifacts, and export targeted evidence.
+description: Perform local Linux and Windows memory forensics with Zero's native MCP tools or CLI (`zero`). Use when analyzing RAW/LiME, Windows crash/minidump, or supported hibernation images (including `.gz`), identifying or generating exact ISF/PDB symbols (remote repo, Microsoft PDB, official debug packages, or offline x86_64 BTF+kallsyms), running offline kernel validation diagnostics, inspecting processes/network/registry/kernel artifacts, or exporting targeted memory/binary evidence with SHA256 manifests.
 ---
 
-# Zero memory forensics
+# Zero Memory Forensics
 
-Prefer the configured `zero` MCP tools for structured results. For a shell workflow, use `zero`; if it is unavailable or predates the checkout, build with `cargo build --release --locked` and use the checkout's `target/release/zero`.
+Prefer the configured `zero` MCP tools for structured results. For a shell workflow, use `zero`; if unavailable or older than the checkout, build with `cargo build --release --locked` and run `target/release/zero`.
 
-MCP resolves relative paths against `ZERO_ROOT` in the server configuration, or its launch directory when unset. CLI paths, settings, cache and default asset directories resolve against its current working directory. Use absolute input paths when assets live outside the checkout; obtain the actual project root from the configuration or `git rev-parse --show-toplevel`.
+## Path, Network, and Evidence Rules
 
-## Choose an entry point
+- **Paths**: MCP resolves relative paths against `ZERO_ROOT` (or its launch directory when unset). CLI resolves paths, settings, cache, and default asset directories against CWD. Use absolute paths when assets live outside the checkout; get the project root from config or `git rev-parse --show-toplevel`.
+- **Offline mode**: Pass `offline: true` on **every** MCP call that supports it when network access is disallowed (it is not a session toggle); CLI uses `--offline`. Online calls only fetch symbol indexes, debug packages, or exact ISF/PDB files—memory images always stay local.
+- **Read-only evidence**: The engine reads images locally and never executes ISF files, package scripts, or legacy Python plugins. Never upload memory images or recovered contents to external services without explicit authorization.
+- **Single active job**: Only one analysis, symbol, or dump job runs at a time; concurrent requests return JSON-RPC `-32000` (busy). Cancel an active job via `notifications/cancelled` (`params.requestId`) and wait for completion before starting the next.
 
-- With an image and explicit local ISF, call `zero_analyze` directly. There is no need to query the remote symbol index first.
-- To identify a Linux kernel offline, use `zero_analyze` with `plugin: "banners"`; this needs no ISF or remote index. `zero_symbols` identifies banners **and queries the remote index**. Offline Linux calls to it require an existing index cache and do not search the local ISF directory.
-- For repository matches or verified downloads, use `zero_symbols`; match the complete Linux banner and architecture or the exact Windows kernel PDB identity. Windows downloads fetch exact Microsoft PDBs and convert them to ISF in Rust; HTTP 404 invokes an exact-ISF fallback from the official Volatility Windows ZIP using bounded HTTPS ranges, with cached ISFs available offline; Linux downloads fetch matching ISFs. When analysis returns `needs_symbol_choice`, use an already specified label or present the returned `symbol_choices` for explicit selection. Do not choose by version alone.
-- Use `zero_plugins` to discover plugin names and columns. Ordinary process inspections go through `zero_analyze`; Linux analysis has no PID filter; Windows plugins support `pid` for targeted analysis. Use `windows.*` plugin names and `os: windows` when necessary. `windows.printkey` requires a hive address from `windows.hivelist`; `key` is a hive-relative registry path. Select target rows by their returned PID column, then use `zero_dump` for evidence export.
+## Tool Selection
 
-Set `offline: true` on **every** MCP call that supports it when network access is disallowed; it is not a session toggle. CLI uses `--offline`. Otherwise network access follows the local settings and only fetches symbol indexes and files; images stay local.
+| Goal | MCP Tool | CLI Equivalent |
+| --- | --- | --- |
+| List plugins, categories, and columns | `zero_plugins` | `zero plugins` |
+| Check `git`/`go` availability for symbol builds | `zero_doctor` | `zero doctor` |
+| Identify banners & match/download exact remote symbols | `zero_symbols` | `zero symbols` |
+| Generate exact Linux ISF (BTF+kallsyms, debug pkgs, ELF+config) | `zero_symbols_generate` | `zero symbols-generate` |
+| Run offline kernel/symbol validation diagnostics | `zero_diagnose` | `zero diagnose` |
+| Run an analysis plugin (returns `result_id`, ≤200 rows) | `zero_analyze` | `zero analyze` |
+| Paginate or export an immutable analysis snapshot | `zero_results` | *(use `--output` on analyze)* |
+| Export targeted memory, binaries, or modules with manifest | `zero_dump` | `zero dump` |
+| Inspect regenerable local cache | `zero_cache_list` | `zero cache list` |
 
-## Interpret results and retrieve evidence
+Cache clearing is **CLI-only**: preview with `zero cache clear --dry-run` and execute (`--yes`) only within the user's requested scope.
 
-Read `structuredContent`, or parse the JSON text in `content` when the client only exposes text. `isError: true` means the tool failed. A successful tool response may still have `complete: false`; keep its diagnostics and describe the findings as partial. CLI can export partial results before returning a nonzero exit code; inspect the JSON artifact and stderr.
+## Workflow
 
-`zero_analyze` returns 50 rows by default and at most 200. Use its `result_id` with `zero_results` and follow `next_offset`; `null` ends pagination. `zero_analyze` no longer accepts offset. Snapshots preserve both complete and partial results; an expired ID requires a new analysis. `total_rows` is the full count, not the number in the current page. For large results, set `output` to a `.json` or `.csv` path and inspect that full local artifact instead of repeatedly running analysis for many pages. JSON preserves completeness and diagnostics; CSV contains only the table.
+### 1. Identify and Prepare Symbols
 
-Derive field positions from `columns`. Include the image, plugin, selected symbol, counts, completeness, diagnostics and artifact paths with findings. An empty complete table is a valid result; suspicious rows alone do not prove compromise.
+- **Explicit local ISF**: Call `zero_analyze` directly with `symbols`; do not query the remote index first.
+- **Offline Linux banner identification**: Call `zero_analyze` with `plugin: "banners"` (needs no ISF or index). `zero_symbols` both identifies banners **and** queries the remote index; offline calls to `zero_symbols` require a cached index and do not scan the local ISF directory.
+- **Remote matching & download**: Call `zero_symbols` (`download: true` only when fetching is desired; `refresh: true` forces an online index update).
+  - Match the **complete** Linux banner + architecture, or the **exact** Windows kernel PDB name/GUID/Age. Never substitute a near-version symbol.
+  - Windows downloads fetch exact Microsoft PDBs and convert them to ISF in Rust; HTTP 404 automatically falls back to exact-ISF range reads from the official Volatility Windows ZIP (cached for offline reuse). Timeouts/503 do not trigger fallback.
+- **Missing Linux ISF**: Call `zero_symbols_generate` with exactly one mode:
+  - `from_image: true`: Offline x86_64 generation from embedded BTF + kallsyms (or validates/reuses an exact local ISF when unavailable); needs no network or `git`/`go`.
+  - `auto: true`: Discovers official Ubuntu/Debian/Kali debug packages (check `zero_doctor` first). If `needs_candidate: true`, present `candidates` and retry with `candidate` (1-based) and omit `refresh`.
+  - `elf` + `config`: Local debug ELF and kernel config.
+  - `kali: true`: Compatibility path for Kali 6.8.11 ARM64.
+- **Ambiguous symbols**: When analysis returns `needs_symbol_choice: true`, use an already-specified label or present `symbol_choices` for explicit selection; repeat with `symbol_choice` (`--symbol-choice`).
+- **Kernel/symbol troubleshooting**: Call `zero_diagnose` to run offline per-symbol validation and optionally export a JSON/TXT report.
 
-## Targeted dumps
+### 2. Discover and Run Analysis Plugins
 
-Confirm the authorized target using `pslist` or `windows.pslist` and obtain relevant ranges with Linux `maps`/`elfs` or Windows memory plugins. `zero_dump` requires an explicit PID (positive for Linux; Windows kernel range dumps use 0), `dump_dir`, and a separate `.json` or `.csv` manifest `output`.
+- Call `zero_plugins` to get exact plugin names and columns (supports both short aliases like `pslist` and canonical Volatility 3 names like `linux.pslist.PsList`, `linux.proc.Maps`, `windows.pslist`, `windows.netstat.NetStat`).
+- Set `os: "windows"` (or `windows.*` plugin names) when targeting Windows; set `arch: "auto"|"x86"|"x64"|"arm64"` when needed.
+- **Filtering & options**:
+  - `pids` (array) filters supported Linux plugins (`PsList`, `PsTree`, `PsAux`, `Envars`, `Capabilities`, `Maps`, `Lsof`, `Sockstat`, `Malfind`, `MountInfo`, `Bash`, `Elfs`, `LibraryList`, `VmaRegExScan`, `PsCallStack`) and Windows plugins (`Strings`, `VadRegExScan`, `VadWalk`, etc.).
+  - `pid` filters targeted Windows plugins (e.g., `windows.vadinfo`, `windows.threads`, `windows.envars`, `windows.getsids`; on `windows.svcscan` it selects the `services.exe` host).
+  - `windows.printkey` requires `hive` (address from `windows.hivelist`) and optional hive-relative `key`.
+  - `dump_dir` on `zero_analyze` enables inline binary export for supported listing plugins (`linux.proc.Maps`, `linux.malware.malfind.Malfind`, `linux.elfs.Elfs`, `lsmod`, `linux.graphics.fbdev.Fbdev`, `windows.memmap.Memmap`).
+  - Keep arguments strictly within the tool schema (`deny_unknown_fields` rejects misspelled or unsupported parameters).
 
-A readable VMA does not guarantee its pages are resident in the captured image. If a range has missing pages, preserve the diagnostics and report the failed or partial export; do not substitute zero bytes or claim that the requested evidence was recovered.
+### 3. Interpret Results and Paginate
 
-- `mode: "range"`: supply `start` and `end` as decimal or `0x` **strings**. End is exclusive; the range must be at most 256 MiB.
-- `mode: "process"`: export readable mappings of that PID; optional bounds must be supplied together.
-- `mode: "pe"`: reconstruct Windows PE images.
-- `mode: "elf"`: export mappings starting with an ELF header; omit bounds. This does not reconstruct an original on-disk executable.
+- Read `structuredContent` (or parse JSON text in `content` if the client exposes text only). `isError: true` indicates tool failure.
+- **Completeness**: A successful call may still return `complete: false`. Always preserve `diagnostics` and report findings as partial. CLI may export partial results before exiting nonzero—inspect both the exported JSON and stderr.
+- **Pagination**: `zero_analyze` returns 50 rows by default (max 200) and a `result_id`; it does **not** accept `offset`. Use `zero_results` with `result_id` and `next_offset` until `next_offset` is `null`. `total_rows` is the full snapshot count, not the page size. Snapshots preserve partial diagnostics and expire on idle timeout (30 min), eviction (8 snapshots), or server restart.
+- **Large outputs**: Pass `output` (`.json` or `.csv`) to `zero_analyze` or `zero_results` and inspect the local artifact instead of paging repeatedly. JSON preserves completeness, metadata, and diagnostics; CSV contains only table rows.
+- **Reporting standard**: Derive column positions from `columns`. Always report image, plugin, selected symbol, counts, completeness, diagnostics, and artifact paths. An empty complete table is valid; incomplete views never prove absence; suspicious rows alone are leads, not proof of compromise.
 
-Use a PID established by the user's request or by analysis within the authorized scope; do not invent a target or default to all processes. Read `complete` and `diagnostics`, and verify manifest sizes and SHA256 values against the exported files. Repeated dumps create separate evidence destinations; they do not overwrite previous binaries.
+### 4. Targeted Evidence Dumps
 
-Use `zero_cache_list` for cache inspection. Cache clearing is CLI-only: preview with `zero cache clear --dry-run`; execute only within the user's requested scope.
+Confirm the authorized target first via `pslist`/`windows.pslist` and locate ranges via `maps`/`elfs` or Windows memory plugins. Never invent a target PID or dump all processes.
 
-For tested MCP arguments and equivalent CLI commands, read [references/calls.md](references/calls.md). The analysis engine reads images locally and never executes ISF files. Do not upload memory images or send recovered contents to external services without explicit authorization.
+`zero_dump` requires `image`, `mode`, `dump_dir`, and a separate `.json`/`.csv` manifest `output` (returns ≤200 manifest rows; inspect `output` for the full manifest if `next_offset` is non-null):
 
-## Windows coverage and evidence
+- **Process/range modes** (require positive `pid`; Windows kernel range dumps use `pid: 0`):
+  - `range`: `start` and `end` as decimal or `0x` **strings** (end exclusive, ≤256 MiB).
+  - `process`: readable mappings of `pid` (optional `start`+`end` must be given together).
+  - `elf` (Linux): mappings starting with an ELF header; omit bounds (does not reconstruct on-disk binary).
+  - `pe` / `vad` / `dll` / `files` / `memmap` (Windows): PE reconstruction, per-VAD export, DLL reconstruction (optional `start` base), resident cached files, or physical page export (256 MiB cap).
+- **Kernel/device modes** (omit `pid` or `pid: 0`):
+  - `kernel-module` (Linux): reconstructs module ELF; requires `start` (`struct module` address), no `end`.
+  - `lsmod` (Linux): exports listed Linux module ELFs; no `pid` or bounds.
+  - `framebuffer` (Linux): dumps fbdev buffers; optional `start` (`fb_info` address), no `end`.
+  - `module` (Windows): reconstructs kernel modules; optional `start` base, no `end`.
 
-Windows architecture selection is `arch: auto|x86|x64|arm64`. Exact symbols must agree with the container and pointer width. Real-image validation covers Server 2003 SP0/2008 SP1 x86, Server 2012/2012 R2 and Windows 7 SP1/10/11 x64 RAW and Windows 10 build 19041/Server 2019 build 17763/Server 2022 build 20348 bitmap crash dumps; other architecture/container paths primarily have synthetic coverage. Use src/windows/compatibility.json for per-plugin evidence; do not describe it as complete Server 2003–2025 or Windows 7–11 coverage.
+A readable VMA/VAD does not guarantee pages are resident. Preserve diagnostics on missing pages and report failed/partial exports—never substitute zero bytes or claim unrecovered evidence was extracted. Verify manifest sizes and SHA256 hashes against exported files. Repeated dumps create separate destinations and never overwrite prior binaries.
 
-WOW64 command lines and DLLs have a `View` column. User minidumps provide captured-process metadata, DLLs and targeted dumps when the PID is recorded; kernel plugins are unavailable. Summary kernel dumps provide header metadata only; triage dumps expose captured kernel virtual ranges, contexts and driver records with synthetic validation. Use windows.crashinfo for captured faults and integer/control registers without kernel symbols; windows.modules on triage lists saved records only. Kernel range dumps use pid 0 through the common API. Registry segmented values are bounded to 1 MiB.
+## Detailed References
 
-Use explicit same-capture attachments only: `pagefiles: [{"index": 0, "path": "..."}]` and optional `swapfile: "..."`. Never guess an index or search adjacent files. Swapfile indexing needs exact kernel symbols. Paging results record file digests and page offsets. Compressed store recovery requires private SMKM symbols/types and a verified virtual pagefile; Known Windows 11 x64 builds 22000/22621/22631/26100 have synthetic store coverage (26100 uses native LZ4); unknown builds and ARM64 stores remain unsupported. Modern nonswizzled pagefile offsets require exact MiState.Hardware.InvalidPteMask metadata. Hibernation reads saved physical pages and reports damaged/missing blocks; Fast Startup can omit user sessions. Hibernation and compressed-store recovery currently carry synthetic-validation diagnostics and partial results.
-
-Network analysis first tries exact tcpip.sys PDB types, then architecture/driver-version layouts. An unvalidated exact driver identity remains partial; an unknown layout fails explicitly. Pool scans are candidates, not proof of a hidden process. FILETIME values are decimal 100 ns ticks since 1601 UTC. Always distinguish virtual addresses from `physical:` addresses.
-
-
-Additional Windows plugins: threads, envars, svcscan, driverscan, drivercheck, autoruns, cmdscan, consoles and crashinfo. Use the windows. prefix. Threads/envars accept PID; svcscan PID selects the services.exe host. Autoruns optionally accepts hive and covers Run/RunOnce, Winlogon, IFEO and current ControlSet services; this is not a complete persistence inventory. Driver dispatch addresses in another module are observations, not maliciousness verdicts. Services/consoles require supported layouts and retain validation diagnostics; console output currently includes title/history metadata, not screen text. Native/WOW64 environment rows include a View. Registry-process hive mappings and prototype-to-pagefile recovery preserve source/coverage diagnostics. Real user-minidump context coverage currently includes one Windows XP x86 fixture; Real kernel triage metadata coverage is limited to the publisher-reported Server 2016 fixture described below.
-
-Windows additions: callbacks (process/thread/image-load/registry only), unloadedmodules, filescan, mutantscan, getsids (PID supported), and NT5 connscan/sockscan. Use netscan for NT6+; no cross-generation layout fallback. Pool object rows include physical and verified virtual addresses; missing names remain partial. Getsids resolves built-in SID names only. Service layouts use explicit architecture/build mappings; console layouts also check supported revisions. Unknown versions fail with diagnostics rather than choosing a nearby version. Zero-row scans and synthetic pointer-width tests do not establish real recovery coverage. The compatibility manifest records exact sample builds, containers, hashes and PDB identities; Server 2003/R2 identity may remain ambiguous.
-
-Server 2016 real triage evidence covers only saved faults/context/modules, with publisher-reported product identity and header-verified build 14393; ProductType is unavailable. Do not imply full Server 2016 kernel coverage. Identical duplicated triage ranges are verified byte-for-byte; differing bytes fail. Server 2012 R2 has two known missing UDP wildcard reference connections because its LocalAddr pointer is non-canonical; preserve the diagnostic and do not count these as equality evidence. Server 2003 R2/2008 R2/2025 still need separately verified samples.
+- **MCP payloads, CLI equivalents, all 12 dump modes, plugin options, and error recovery**: read [references/calls.md](references/calls.md).
+- **Windows architecture/container coverage, paging/hibernation/compressed-store rules, and validation caveats**: read [references/windows.md](references/windows.md).
