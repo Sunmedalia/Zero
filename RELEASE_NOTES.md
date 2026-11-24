@@ -1,34 +1,24 @@
-# Zero v0.2.7
+# Zero v0.2.8
 
-本版不新增分析功能，重点是导出安全、分析速度和界面响应。所有插件的输出与 v0.2.6 一致。
+## Linux 内存取证
 
-## 导出安全
+- 新增 13 个使用 Volatility 3 完整名称的分析入口，涵盖进程树、内存映射、打开文件、套接字、内核日志、可疑内存映射、挂载、页缓存、Bash 历史、ELF、共享库及网络接口。部分入口支持按 PID 或命名空间筛选，以及导出对应的内存片段。
+- 新增 Zsh 内存历史分析，包含命令开始和结束时间。Bash 历史扫描会保留缺页前后已恢复的条目，`psaux` 会保留命令行不可读的进程并给出诊断。
+- 改善 Linux 7.0 内核兼容性及 Ubuntu ddebs 调试包自动发现。
 
-- Windows 进程、PE、范围等导出改为原子落盘且拒绝覆盖：目标文件已存在时，只有内容完全一致才算成功。
-- 注册表插件路由改为穷尽匹配；`windows.crashinfo` 在 RAW 镜像上给出明确报错。
+## 符号生成
 
-## 分析速度
+- 支持在 CLI 和 TUI 中离线从 x86_64 镜像生成 Linux 符号。生成使用内核自带的 BTF 与 kallsyms，结果在保存前经过页表验证。缺少生成所需数据时，可验证并复用已有的精确匹配 ISF。
+- TUI 增加生成日志，显示扫描、解析和保存进度。同一镜像再次生成时可复用通过校验的产物。
 
-- 符号匹配先探测 ISF banner，跳过确定不匹配的文件；压缩符号逐个解压处理。
-- Linux kallsyms 按页读取，32 位／PAE 页表缓存跨读取复用，地址翻译增加上一页快路径。Debian 3.2 样本上 kallsyms 约 2.0–2.5 秒降到 1.25 秒。
-- Windows 压缩页缓存改为 LRU（1024 页）。
-- 计算镜像摘要时同时记录 Windows pool 标签位置，filescan、netscan 不再整读镜像。Win11 3.5 GB 样本上 filescan 43 秒 → 20 秒，netscan 41 秒 → 16 秒。小镜像每个插件约多 0.2 秒 CPU 开销。
-- 调整资源上限时保留已有的扫描缓存。
+## 扫描与界面
 
-## 界面与命令行
-
-- 终端事件合并后再重绘：连续滚轮、按住方向键、大段粘贴只重绘一次。
-- 资产列表只为可见区域附近的远程索引行做文件检查；结果表列宽做了缓存。
-- `--help` 中的插件参数按用途分组显示，参数名和用法不变。
-- MCP `zero_analyze` 的 `plugin` 参数增加说明，指向 `zero_plugins`。
-
-## 维护
-
-- 内部模块整理，去掉一处可能 panic 的 `expect`；依赖 `base64` 统一到 0.23；声明最低 Rust 版本 1.95。
-- 新增结果视图（排序、过滤、树形折叠）单元测试，修复一个与文件时间戳相关的偶发失败测试。
+- 修复内存模式扫描的重叠命中和跨页覆盖，保留部分扫描中已收集的结果。
+- 优化镜像读取、地址转换、符号字段查找及 Linux 和 Windows 分析的常用路径。
+- 改善大型结果和后台任务运行时的 TUI 响应速度，修复结果尚在生成时的导出和启动阶段的粘贴处理。
 
 ## 安装
 
-下载对应平台归档和 `SHA256SUMS`，校验后解压运行。
+提供 Linux x86_64、Linux ARM64 和 macOS ARM64 归档。下载对应归档及 `SHA256SUMS`，校验后解压运行。
 
-详见[使用指南](https://github.com/sunmedalia/zero/blob/v0.2.7/docs/usage.md)、[界面说明](https://github.com/sunmedalia/zero/blob/v0.2.7/docs/tui.md)和[兼容矩阵](https://github.com/sunmedalia/zero/blob/v0.2.7/docs/compatibility.md)。
+[使用指南](https://github.com/sunmedalia/zero/blob/v0.2.8/docs/usage.md) · [界面说明](https://github.com/sunmedalia/zero/blob/v0.2.8/docs/tui.md) · [兼容矩阵](https://github.com/sunmedalia/zero/blob/v0.2.8/docs/compatibility.md)
