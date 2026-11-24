@@ -602,7 +602,7 @@ impl App {
                 cursor,
                 selected,
                 ..
-            }) if *field != 6 && (*field < 8 || *field >= 17) => {
+            }) if *field != 6 => {
                 if *selected {
                     if let Some(text) = fields.get_mut(*field) {
                         text.clear();

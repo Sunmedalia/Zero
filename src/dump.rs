@@ -23,8 +23,10 @@ pub enum Mode {
     Dll,
     Module,
     KernelModule,
+    Lsmod,
     Framebuffer,
     Files,
+    Memmap,
 }
 impl Mode {
     pub fn plugin(self) -> Plugin {
@@ -36,9 +38,11 @@ impl Mode {
             Self::Vad => Plugin::WinVaddump,
             Self::Dll => Plugin::WinDlldump,
             Self::KernelModule => Plugin::ModuleExtract,
+            Self::Lsmod => Plugin::Lsmod,
             Self::Framebuffer => Plugin::Fbdev,
             Self::Module => Plugin::WinModdump,
             Self::Files => Plugin::WinDumpfiles,
+            Self::Memmap => Plugin::WinMemmap,
         }
     }
 }
