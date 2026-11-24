@@ -789,7 +789,22 @@ impl Windows<'_> {
         r: &mut Results,
         job: &Job,
     ) -> Result<()> {
+        let mut total_dumped = 0u64;
+        self.vad_result_with_dump(p, plugin, None, &mut total_dumped, r, job)
+    }
+
+    pub(super) fn vad_result_with_dump(
+        &self,
+        p: &Process,
+        plugin: Plugin,
+        dump: Option<&DumpOptions>,
+        total_dumped: &mut u64,
+        r: &mut Results,
+        job: &Job,
+    ) -> Result<()> {
+        use std::io::Write;
         let vm = self.process_memory(p)?;
+        let arch = Architecture::from_isf(self.vm.isf).unwrap_or_default();
         // Every row repeats the same PID and name, and protection only has 32
         // possible spellings; build them once instead of per row.
         let pid = p.pid.to_string();
@@ -819,31 +834,133 @@ impl Windows<'_> {
             if !executable || (!writable && !v.private) {
                 continue;
             }
-            let mut preview = [0; 32];
+            let len = usize::try_from((v.end.saturating_sub(v.start)).min(64)).unwrap_or(64);
+            let mut preview = vec![0u8; len];
             match vm.read(v.start, &mut preview) {
-                Ok(()) => r.rows.push(vec![
-                    pid.clone(),
-                    p.name.clone(),
-                    hex(v.start),
-                    hex(v.end),
-                    protection,
-                    if writable {
-                        "Writable executable region"
+                Ok(()) => {
+                    let disasm = disassemble_windows_malfind(v.start, &preview, arch);
+                    let file_output = if let Some(dump_opts) = dump {
+                        let size = v.end.saturating_sub(v.start);
+                        if total_dumped
+                            .checked_add(size)
+                            .is_some_and(|n| n <= crate::dump::MAX_DUMP_BYTES)
+                        {
+                            let written = (|| -> Result<String> {
+                                crate::dump::directory(&dump_opts.directory)?;
+                                let mut tmp =
+                                    tempfile::NamedTempFile::new_in(&dump_opts.directory)?;
+                                let mut offset = 0u64;
+                                let mut buf = vec![0u8; 65536];
+                                let mut missing = 0u64;
+                                while offset < size {
+                                    job.check()?;
+                                    let chunk = usize::try_from((size - offset).min(4096))?;
+                                    if vm.read(v.start + offset, buf.at_mut(..chunk)?).is_err() {
+                                        buf.at_mut(..chunk)?.fill(0);
+                                        missing += 1;
+                                    }
+                                    tmp.write_all(buf.at(..chunk)?)?;
+                                    offset += chunk as u64;
+                                }
+                                if missing > 0 {
+                                    Self::issue(
+                                        r,
+                                        format!("PID {} malfind VAD {:#x}", p.pid, v.start),
+                                        format!("{missing} 页不可读，导出已补零"),
+                                    );
+                                }
+                                tmp.as_file().sync_all()?;
+                                let filename =
+                                    format!("pid.{}.vad.{:#x}-{:#x}.dmp", p.pid, v.start, v.end);
+                                let target = dump_opts.directory.join(&filename);
+                                tmp.persist_noclobber(&target).map_err(|e| e.error)?;
+                                *total_dumped += size;
+                                Ok(filename)
+                            })();
+                            match written {
+                                Ok(name) => name,
+                                Err(e) => {
+                                    Self::issue(
+                                        r,
+                                        format!("PID {} malfind 导出 {:#x}", p.pid, v.start),
+                                        e,
+                                    );
+                                    "Error outputting file".into()
+                                }
+                            }
+                        } else {
+                            Self::issue(
+                                r,
+                                format!("PID {} malfind 导出 {:#x}", p.pid, v.start),
+                                "超过 256 MiB 累计导出上限，已跳过",
+                            );
+                            "Error outputting file".into()
+                        }
                     } else {
-                        "Private executable region"
-                    }
-                    .into(),
-                    preview
-                        .iter()
-                        .map(|b| format!("{b:02x}"))
-                        .collect::<Vec<_>>()
-                        .join(" "),
-                ]),
+                        "Disabled".into()
+                    };
+                    r.rows.push(vec![
+                        pid.clone(),
+                        p.name.clone(),
+                        hex(v.start),
+                        hex(v.end),
+                        protection,
+                        if writable {
+                            "Writable executable region"
+                        } else {
+                            "Private executable region"
+                        }
+                        .into(),
+                        preview
+                            .iter()
+                            .map(|b| format!("{b:02x}"))
+                            .collect::<Vec<_>>()
+                            .join(" "),
+                        disasm,
+                        file_output,
+                    ]);
+                }
                 Err(e) => Self::issue(r, format!("PID {} VAD {:#x}", p.pid, v.start), e),
             }
         }
         Ok(())
     }
+}
+
+fn disassemble_windows_malfind(base: u64, bytes: &[u8], arch: Architecture) -> String {
+    use capstone::prelude::*;
+    if bytes.is_empty() || matches!(arch, Architecture::Arm64) {
+        return String::new();
+    }
+    let cs = match arch {
+        Architecture::X86 => Capstone::new()
+            .x86()
+            .mode(capstone::arch::x86::ArchMode::Mode32)
+            .build(),
+        _ => Capstone::new()
+            .x86()
+            .mode(capstone::arch::x86::ArchMode::Mode64)
+            .build(),
+    };
+    let Ok(cs) = cs else {
+        return String::new();
+    };
+    let Ok(insns) = cs.disasm_all(bytes, base) else {
+        return String::new();
+    };
+    insns
+        .iter()
+        .map(|i| {
+            let mnem = i.mnemonic().unwrap_or("");
+            let ops = i.op_str().unwrap_or("");
+            if ops.is_empty() {
+                format!("{:#x}: {mnem}", i.address())
+            } else {
+                format!("{:#x}: {mnem} {ops}", i.address())
+            }
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
 }
 pub(super) fn protection(value: u64) -> String {
     let base = [

@@ -35,8 +35,8 @@ use std::sync::{
     atomic::{AtomicBool, Ordering},
 };
 
-// Add 13 canonical Volatility 3 Linux core forensics plugins and align outputs/exports.
-pub const ENGINE_VERSION: &str = concat!(env!("CARGO_PKG_VERSION"), "-native-125");
+// Align Windows MFT ADS/ResidentData, Registry printkey recurse/hivelist dump, psxview 4-view, malfind disasm/dump, and Linux pagecache InodePages/RecoverFs.
+pub const ENGINE_VERSION: &str = concat!(env!("CARGO_PKG_VERSION"), "-native-126");
 #[derive(Clone)]
 pub struct Job {
     pub cancel: Arc<AtomicBool>,

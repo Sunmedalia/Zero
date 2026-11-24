@@ -8,6 +8,38 @@ impl Windows<'_> {
         if p == Plugin::WinMemmap {
             return self.memmap(&Options::default(), Some(options), job);
         }
+        if p == Plugin::WinHivelist {
+            return self.dump_hives(options, job);
+        }
+        if p == Plugin::WinMalfind {
+            let (processes, diagnostics) = self.processes_partial(job)?;
+            let mut r = self.result(Plugin::WinMalfind);
+            r.complete = diagnostics.is_empty();
+            r.diagnostics = diagnostics;
+            let mut total_dumped = 0u64;
+            for process in processes
+                .into_iter()
+                .filter(|proc| options.pid == 0 || proc.pid == u64::from(options.pid))
+            {
+                job.check()?;
+                if let Err(e) = self.vad_result_with_dump(
+                    &process,
+                    Plugin::WinMalfind,
+                    Some(options),
+                    &mut total_dumped,
+                    &mut r,
+                    job,
+                ) {
+                    job.check()?;
+                    Self::issue(
+                        &mut r,
+                        format!("PID {} @ {:#x}", process.pid, process.address),
+                        format!("{e:#}"),
+                    );
+                }
+            }
+            return Ok(r);
+        }
         if p == Plugin::WinModdump {
             return self.run_moddump(options, job);
         }

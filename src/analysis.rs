@@ -111,6 +111,8 @@ pub struct Options {
     pub kallsyms: KallsymsOptions,
     pub hive: Option<u64>,
     pub key: String,
+    /// Recursively walk subkeys in `windows.printkey`.
+    pub recurse: bool,
     /// Byte pattern for vmayarascan / windows.vadyarascan.
     pub pattern: Option<String>,
     /// Local decimal-offset strings output consumed by windows.strings.Strings.
@@ -225,9 +227,22 @@ pub fn analyze(
         "mntns / mount_format 仅支持 linux.mountinfo.MountInfo"
     );
     ensure!(
-        (options.file_types.is_empty() && options.find.is_none())
-            || request.plugin == Plugin::LinuxPagecacheFiles,
-        "file_types / find 仅支持 linux.pagecache.Files"
+        options.file_types.is_empty()
+            || matches!(
+                request.plugin,
+                Plugin::LinuxPagecacheFiles | Plugin::LinuxPagecacheRecoverFs
+            ),
+        "file_types 仅支持 linux.pagecache.Files / linux.pagecache.RecoverFs"
+    );
+    ensure!(
+        options.find.is_none()
+            || matches!(
+                request.plugin,
+                Plugin::LinuxPagecacheFiles
+                    | Plugin::LinuxPagecacheInodePages
+                    | Plugin::LinuxPagecacheRecoverFs
+            ),
+        "find 仅支持 linux.pagecache.Files / InodePages / RecoverFs"
     );
     ensure!(
         !options.plain_taints || request.plugin == Plugin::Modxview,
@@ -236,6 +251,10 @@ pub fn analyze(
     ensure!(
         !options.kallsyms.any() || request.plugin == Plugin::Kallsyms,
         "core/modules/ftrace/bpf 参数仅支持 linux.kallsyms.Kallsyms"
+    );
+    ensure!(
+        !options.recurse || request.plugin == Plugin::WinPrintkey,
+        "recurse 仅支持 windows.printkey"
     );
     if let Some(dump) = dump {
         dump.validate(request.plugin)?;

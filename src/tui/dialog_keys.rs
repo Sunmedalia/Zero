@@ -155,6 +155,7 @@ impl App {
                         )
                         .map_err(anyhow::Error::msg)?,
                         os: self.analysis_options.os,
+                        recurse: self.analysis_options.recurse,
                         include_threads: matches!(
                             self.plugin,
                             Plugin::LinuxPslist | Plugin::LinuxPstree
@@ -499,6 +500,7 @@ impl App {
                         if *mode == Plugin::Fbdev {
                             self.analysis_options = crate::analysis::Options {
                                 os: self.analysis_options.os,
+                                recurse: self.analysis_options.recurse,
                                 arch: self.analysis_options.arch,
                                 ..Default::default()
                             };

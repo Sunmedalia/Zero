@@ -15,6 +15,10 @@ pub(super) fn plugin_label(plugin: Plugin) -> &'static str {
             | Plugin::LinuxMalfind
             | Plugin::LinuxMountinfo
             | Plugin::LinuxPagecacheFiles
+            | Plugin::LinuxPagecacheInodePages
+            | Plugin::LinuxPagecacheRecoverFs
+            | Plugin::WinMftscanAds
+            | Plugin::WinMftscanResidentData
             | Plugin::LinuxBash
             | Plugin::LinuxElfs
             | Plugin::LinuxLibraryList

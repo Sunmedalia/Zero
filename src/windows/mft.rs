@@ -7,6 +7,49 @@ const SECTOR: usize = 512;
 const RECORD_LIMIT: usize = 1_000_000;
 const STANDARD_INFORMATION: u32 = 0x10;
 const FILE_NAME: u32 = 0x30;
+const DATA: u32 = 0x80;
+
+/// One decoded `$DATA` attribute (unnamed resident data or named ADS).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(super) struct DataStream {
+    pub name: String,
+    pub resident: bool,
+    pub data: Vec<u8>,
+}
+
+/// Format bytes as a compact single-line hex + ASCII preview for MFT data streams.
+fn format_hexdump(bytes: &[u8]) -> String {
+    if bytes.is_empty() {
+        return String::new();
+    }
+    let hex_part: String = bytes
+        .iter()
+        .map(|b| format!("{b:02x}"))
+        .collect::<Vec<_>>()
+        .join(" ");
+    let ascii_part: String = bytes
+        .iter()
+        .map(|&b| {
+            if b.is_ascii_graphic() || b == b' ' {
+                char::from(b)
+            } else {
+                '.'
+            }
+        })
+        .collect();
+    format!("{hex_part}  |{ascii_part}|")
+}
+
+impl Record {
+    fn mft_type(&self) -> &'static str {
+        match (self.in_use, self.directory) {
+            (true, true) => "InUse & Directory",
+            (true, false) => "InUse & File",
+            (false, true) => "Removed & Directory",
+            (false, false) => "Removed & File",
+        }
+    }
+}
 
 /// One decoded MFT record.
 #[derive(Debug, Default, PartialEq)]
@@ -50,7 +93,11 @@ pub(super) fn fixup(record: &mut [u8]) -> Result<()> {
     Ok(())
 }
 
-pub(super) fn parse_record(mut bytes: [u8; RECORD]) -> Result<Record> {
+pub(super) fn parse_record(bytes: [u8; RECORD]) -> Result<Record> {
+    parse_record_with_data(bytes).map(|(record, _)| record)
+}
+
+pub(super) fn parse_record_with_data(mut bytes: [u8; RECORD]) -> Result<(Record, Vec<DataStream>)> {
     ensure!(bytes.starts_with(b"FILE"), "非 MFT 记录");
     fixup(&mut bytes)?;
     let u16_at = |b: &[u8], at: usize| le_u16(b, at).context("MFT u16 字段截断");
@@ -63,6 +110,7 @@ pub(super) fn parse_record(mut bytes: [u8; RECORD]) -> Result<Record> {
         directory: flags & 2 != 0,
         ..Default::default()
     };
+    let mut streams = Vec::new();
     // Win32 (1) and Win32+DOS (3) names beat POSIX (0) beat DOS-only (2).
     let mut rank = -1;
     let mut at = usize::from(u16_at(&bytes, 20)?);
@@ -107,11 +155,47 @@ pub(super) fn parse_record(mut bytes: [u8; RECORD]) -> Result<Record> {
                     record.size = u64_at(content, 48)?;
                 }
             }
+        } else if kind == DATA {
+            let name_len = usize::from(*attribute.at(9)?);
+            let name = if name_len > 0 {
+                let name_offset = usize::from(u16_at(attribute, 10)?);
+                ensure!(name_offset >= 16, "$DATA 名称偏移与属性头重叠");
+                let name_end = name_offset
+                    .checked_add(name_len * 2)
+                    .context("$DATA 名称长度溢出")?;
+                let raw_name = attribute
+                    .get(name_offset..name_end)
+                    .context("$DATA 名称越界")?;
+                crate::bytes::utf16_lossy(raw_name)
+            } else {
+                String::new()
+            };
+            if resident {
+                ensure!(attribute.len() >= 24, "常驻 $DATA 属性头被截断");
+                let size = u32_at(attribute, 16)? as usize;
+                let offset = usize::from(u16_at(attribute, 20)?);
+                ensure!(offset >= 24, "$DATA 内容与常驻属性头重叠");
+                let content_end = offset.checked_add(size).context("$DATA 内容长度溢出")?;
+                let content = attribute
+                    .get(offset..content_end)
+                    .context("$DATA 内容越界")?;
+                streams.push(DataStream {
+                    name,
+                    resident: true,
+                    data: content.to_vec(),
+                });
+            } else if !name.is_empty() {
+                streams.push(DataStream {
+                    name,
+                    resident: false,
+                    data: Vec::new(),
+                });
+            }
         }
         at += length;
     }
     ensure!(rank >= 0, "记录没有常驻 $FILE_NAME");
-    Ok(record)
+    Ok((record, streams))
 }
 
 impl Windows<'_> {
@@ -159,6 +243,70 @@ impl Windows<'_> {
             identity.insert("coverage".into(), serde_json::json!(
             "1 KiB-aligned resident FILE records in physical memory; on-disk and cache-resident (fixups applied) forms; non-resident names are skipped"
         ));
+        }
+        Ok(r)
+    }
+
+    /// `windows.mftscan.ADS` and `windows.mftscan.ResidentData`.
+    pub(super) fn mftscan_streams(&self, plugin: Plugin, job: &Job) -> Result<Results> {
+        let mut r = self.result(plugin);
+        let want_ads = plugin == Plugin::WinMftscanAds;
+        for hit in self.vm.image.scan(b"FILE", job)? {
+            job.check()?;
+            if !hit.is_multiple_of(RECORD as u64) {
+                continue;
+            }
+            let mut bytes = [0u8; RECORD];
+            if self.vm.image.read(hit, &mut bytes).is_err() {
+                continue;
+            }
+            let Ok((record, streams)) = parse_record_with_data(bytes) else {
+                continue;
+            };
+            let mft_type = record.mft_type();
+            for stream in streams {
+                if want_ads {
+                    if stream.name.is_empty() {
+                        continue;
+                    }
+                    ensure!(
+                        r.rows.len() < RECORD_LIMIT,
+                        "MFT ADS 记录超过 {RECORD_LIMIT} 条上限"
+                    );
+                    r.rows.push(vec![
+                        format!("physical:{hit:#x}"),
+                        "FILE".into(),
+                        record.number.to_string(),
+                        mft_type.into(),
+                        record.name.clone(),
+                        stream.name,
+                        if stream.resident {
+                            format_hexdump(&stream.data)
+                        } else {
+                            String::new()
+                        },
+                    ]);
+                } else {
+                    if !stream.name.is_empty() || !stream.resident {
+                        continue;
+                    }
+                    ensure!(
+                        r.rows.len() < RECORD_LIMIT,
+                        "MFT ResidentData 记录超过 {RECORD_LIMIT} 条上限"
+                    );
+                    r.rows.push(vec![
+                        format!("physical:{hit:#x}"),
+                        "FILE".into(),
+                        record.number.to_string(),
+                        mft_type.into(),
+                        record.name.clone(),
+                        format_hexdump(&stream.data),
+                    ]);
+                }
+            }
+            if r.rows.len().is_multiple_of(4096) && !r.rows.is_empty() {
+                job.report(format!("{}: {} 条", plugin.name(), r.rows.len()));
+            }
         }
         Ok(r)
     }
@@ -395,5 +543,70 @@ mod tests {
         nameless[152..156].copy_from_slice(&0xffff_ffffu32.to_le_bytes());
         assert!(parse_record(nameless).is_err());
         assert!(parse_record([0; RECORD]).is_err());
+    }
+
+    #[test]
+    fn parses_resident_data_and_alternate_data_streams() {
+        let mut b = record("payload.txt", 1);
+        let mut at = 152 + le_u32(&b, 156).unwrap() as usize;
+
+        // 1. Unnamed resident $DATA: "hello"
+        let payload = b"hello";
+        let res_len = (24 + payload.len() + 7) & !7;
+        b[at..at + 4].copy_from_slice(&DATA.to_le_bytes());
+        b[at + 4..at + 8].copy_from_slice(&(res_len as u32).to_le_bytes());
+        b[at + 8] = 0; // resident
+        b[at + 9] = 0; // unnamed
+        b[at + 16..at + 20].copy_from_slice(&(payload.len() as u32).to_le_bytes());
+        b[at + 20..at + 22].copy_from_slice(&24u16.to_le_bytes());
+        b[at + 24..at + 24 + payload.len()].copy_from_slice(payload);
+        at += res_len;
+
+        // 2. Named resident ADS: "Zone.Identifier" -> "[ZoneTransfer]"
+        let ads_name = "Zone.Identifier";
+        let ads_name_bytes: Vec<u8> = ads_name.encode_utf16().flat_map(u16::to_le_bytes).collect();
+        let ads_data = b"[ZoneTransfer]";
+        let name_off = 24usize;
+        let data_off = (name_off + ads_name_bytes.len() + 7) & !7;
+        let ads_len = (data_off + ads_data.len() + 7) & !7;
+        b[at..at + 4].copy_from_slice(&DATA.to_le_bytes());
+        b[at + 4..at + 8].copy_from_slice(&(ads_len as u32).to_le_bytes());
+        b[at + 8] = 0; // resident
+        b[at + 9] = ads_name.encode_utf16().count() as u8;
+        b[at + 10..at + 12].copy_from_slice(&(name_off as u16).to_le_bytes());
+        b[at + 16..at + 20].copy_from_slice(&(ads_data.len() as u32).to_le_bytes());
+        b[at + 20..at + 22].copy_from_slice(&(data_off as u16).to_le_bytes());
+        b[at + name_off..at + name_off + ads_name_bytes.len()].copy_from_slice(&ads_name_bytes);
+        b[at + data_off..at + data_off + ads_data.len()].copy_from_slice(ads_data);
+        at += ads_len;
+
+        // 3. Named non-resident ADS: "big.bin"
+        let big_name = "big.bin";
+        let big_name_bytes: Vec<u8> = big_name.encode_utf16().flat_map(u16::to_le_bytes).collect();
+        let big_len = (64 + big_name_bytes.len() + 7) & !7;
+        b[at..at + 4].copy_from_slice(&DATA.to_le_bytes());
+        b[at + 4..at + 8].copy_from_slice(&(big_len as u32).to_le_bytes());
+        b[at + 8] = 1; // non-resident
+        b[at + 9] = big_name.encode_utf16().count() as u8;
+        b[at + 10..at + 12].copy_from_slice(&64u16.to_le_bytes());
+        b[at + 64..at + 64 + big_name_bytes.len()].copy_from_slice(&big_name_bytes);
+        at += big_len;
+
+        b[at..at + 4].copy_from_slice(&0xffff_ffffu32.to_le_bytes());
+
+        let (rec, streams) = parse_record_with_data(b).unwrap();
+        assert_eq!(rec.name, "payload.txt");
+        assert_eq!(rec.mft_type(), "InUse & File");
+        assert_eq!(streams.len(), 3);
+        assert_eq!(streams[0].name, "");
+        assert!(streams[0].resident);
+        assert_eq!(streams[0].data, payload);
+        assert_eq!(streams[1].name, "Zone.Identifier");
+        assert!(streams[1].resident);
+        assert_eq!(streams[1].data, ads_data);
+        assert_eq!(streams[2].name, "big.bin");
+        assert!(!streams[2].resident);
+        assert!(streams[2].data.is_empty());
+        assert_eq!(format_hexdump(&streams[0].data), "68 65 6c 6c 6f  |hello|");
     }
 }

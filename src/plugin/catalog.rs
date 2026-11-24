@@ -170,8 +170,8 @@ catalog! {
         "列出进程打开的文件或对象",
         ["PID", "Name", "Handle", "Type", "Object", "GrantedAccess", "ObjectName"], [12, 0, 12, 12, 12, 12, 0];
     WinMalfind, "windows.malfind", "windows.malfind", Integrity,
-        "检查可疑的可执行内存映射",
-        ["PID", "Name", "Start", "End", "Protection", "Reason", "Preview"], [12, 0, 12, 12, 12, 12, 12];
+        "检查可疑的可执行内存映射，支持反汇编与可选导出",
+        ["PID", "Name", "Start", "End", "Protection", "Reason", "Preview", "Disasm", "File output"], [12, 0, 12, 12, 12, 12, 24, 32, 16];
     WinNetscan, "windows.netscan", "windows.netscan", Network,
         "查看网络连接及端点",
         ["Address", "Protocol", "LocalEndpoint", "RemoteEndpoint", "State", "PID", "Name", "CreateTime"], [12, 12, 12, 12, 12, 12, 0, 12];
@@ -194,8 +194,8 @@ catalog! {
         "扫描进程对象",
         ["PID", "PPID", "Name", "Address", "Threads", "Handles", "CreateTime", "ExitTime"], [12, 12, 0, 12, 12, 12, 12, 12];
     WinPsxview, "windows.psxview", "windows.psxview", Integrity,
-        "对比多种进程发现方式",
-        ["PID", "Name", "Address", "Pslist", "Psscan", "ExitTime"], [12, 0, 12, 12, 12, 12];
+        "对比活动链表、池扫描、线程扫描与 csrss 句柄表四种视图",
+        ["PID", "Name", "Address", "Pslist", "Psscan", "Thrdscan", "Csrss", "ExitTime"], [12, 0, 12, 8, 8, 8, 8, 12];
     WinProcdump, "windows.procdump", "windows.procdump", Process,
         "转储指定进程的可读内存",
         ["PID", "Name", "Start", "End", "Size", "SHA256", "File"], [12, 0, 12, 12, 12, 12, 12];
@@ -265,6 +265,12 @@ catalog! {
     WinMftscan, "windows.mftscan", "windows.mftscan", Files,
         "从物理内存雕刻 NTFS MFT 记录及两组时间戳",
         ["Physical", "Record", "Type", "InUse", "Name", "Parent", "SICreated", "SIModified", "FNCreated", "FNModified", "Size"], [18, 8, 9, 5, 0, 8, 18, 18, 18, 18, 10];
+    WinMftscanAds, "windows.mftscan.ADS", "mftscan.ads", Files,
+        "从物理内存雕刻 NTFS MFT 中的备用数据流（ADS）及常驻内容",
+        ["Offset", "Record Type", "Record Number", "MFT Type", "Filename", "ADS Filename", "Hexdump"], [18, 11, 13, 18, 24, 24, 0];
+    WinMftscanResidentData, "windows.mftscan.ResidentData", "mftscan.resdata", Files,
+        "从物理内存雕刻 NTFS MFT 中的常驻文件数据（$DATA）",
+        ["Offset", "Record Type", "Record Number", "MFT Type", "Filename", "Hexdump"], [18, 11, 13, 18, 28, 0];
     WinOrphanThreads, "windows.orphan_kernel_threads", "windows.orphan_kernel_threads", Integrity,
         "列出起始地址不在任何内核模块中的系统线程",
         ["PID", "TID", "Address", "StartAddress", "CreateTime"], [6, 8, 18, 18, 20];
@@ -478,6 +484,12 @@ catalog! {
     LinuxPagecacheFiles, "linux.pagecache.Files", "pagecache·文件", Files,
         "列出页缓存 inode 完整元数据（挂载点、设备号、类型、权限、三组时间戳）；支持类型与路径筛选",
         ["SuperblockAddr", "MountPoint", "Device", "InodeNum", "InodeAddr", "FileType", "InodePages", "CachedPages", "FileMode", "AccessTime", "ModificationTime", "ChangeTime", "FilePath", "InodeSize"], [18, 16, 8, 10, 18, 6, 8, 8, 11, 26, 26, 26, 0, 10];
+    LinuxPagecacheInodePages, "linux.pagecache.InodePages", "pagecache·页导出", Files,
+        "枚举指定 inode 的驻留页缓存（XArray/RadixTree）并支持按路径或地址导出文件内容",
+        ["PageVAddr", "PagePAddr", "MappingAddr", "Index", "DumpSafe", "Flags", "Output File"], [18, 18, 18, 8, 8, 18, 0];
+    LinuxPagecacheRecoverFs, "linux.pagecache.RecoverFs", "pagecache·恢复", Files,
+        "统计并可选从页缓存批量恢复常规文件内容（受 256 MiB 累计上限保护）",
+        ["SuperblockAddr", "MountPoint", "Device", "InodeNum", "InodeAddr", "FileType", "InodePages", "CachedPages", "FileMode", "AccessTime", "ModificationTime", "ChangeTime", "FilePath", "InodeSize", "Recovered FileSize"], [18, 16, 8, 10, 18, 6, 8, 8, 11, 26, 26, 26, 0, 10, 14];
     LinuxBash, "linux.bash.Bash", "bash·完整", Process,
         "按标准 4 列恢复 bash 进程命令历史；支持 PID 列表筛选",
         ["PID", "Process", "CommandTime", "Command"], [6, 16, 24, 0];

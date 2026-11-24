@@ -1,4 +1,5 @@
 use super::*;
+use crate::bytes::Row as _;
 // Windows 8 encodes 41 address bits; later kernels may encode 44.
 // Sign-extend the exact symbol-declared width after the four alignment bits.
 /// Exported kernel variables that point at well-known object types.
@@ -348,29 +349,95 @@ impl Windows<'_> {
         let (listed, diagnostics) = self.processes_partial(job)?;
         r.complete = diagnostics.is_empty();
         r.diagnostics = diagnostics;
+
+        // Cross-check source 3: thrdscan (pool-scanned ETHREAD objects).
+        let mut thrdscan_pids = HashSet::new();
+        match self.pool_artifacts(Plugin::WinThrdscan, job) {
+            Ok(threads) => {
+                if !threads.complete {
+                    r.complete = false;
+                    r.diagnostics.extend(threads.diagnostics);
+                }
+                for row in &threads.rows {
+                    if let Ok(pid) = row.cell(2).parse::<u64>() {
+                        thrdscan_pids.insert(pid);
+                    }
+                }
+            }
+            Err(e) => {
+                job.check()?;
+                Self::issue(&mut r, "psxview thrdscan", e);
+            }
+        }
+
+        // Cross-check source 4: csrss.exe Process handles.
+        let mut csrss_phys = HashSet::new();
+        let mut csrss_pids = HashSet::new();
+        let handle_layout = self.object_header_layout();
+        for csrss in listed
+            .iter()
+            .filter(|p| p.name.eq_ignore_ascii_case("csrss.exe") && p.exited == 0)
+        {
+            job.check()?;
+            let mut probe = self.result(Plugin::WinHandles);
+            match self.handles_with_layout(csrss, &handle_layout, &mut probe, job) {
+                Ok(()) => {
+                    if !probe.complete {
+                        r.complete = false;
+                        r.diagnostics.extend(probe.diagnostics);
+                    }
+                    for row in &probe.rows {
+                        if row.cell(3) != "Process" {
+                            continue;
+                        }
+                        if let Ok(va) =
+                            u64::from_str_radix(row.cell(4).trim_start_matches("0x"), 16)
+                        {
+                            if let Ok(pa) = self.vm.translate(va) {
+                                csrss_phys.insert(pa);
+                            }
+                            if let Ok(pid) = self.number(va, "_EPROCESS", "UniqueProcessId") {
+                                csrss_pids.insert(pid);
+                            }
+                        }
+                    }
+                }
+                Err(e) => {
+                    job.check()?;
+                    Self::issue(&mut r, format!("psxview csrss PID {}", csrss.pid), e);
+                }
+            }
+        }
+
         let mut seen = HashSet::new();
         for p in &listed {
             let pa = self.vm.translate(p.address)?;
             seen.insert(pa);
             if options.pid.is_none_or(|pid| p.pid == u64::from(pid)) {
+                let in_csrss = csrss_phys.contains(&pa) || csrss_pids.contains(&p.pid);
                 r.rows.push(vec![
                     p.pid.to_string(),
                     p.name.clone(),
                     hex(p.address),
                     "true".into(),
                     scanned.iter().any(|s| s.address == pa).to_string(),
+                    thrdscan_pids.contains(&p.pid).to_string(),
+                    in_csrss.to_string(),
                     filetime(p.exited),
                 ]);
             }
         }
         for p in scanned {
             if !seen.contains(&p.address) && options.pid.is_none_or(|pid| p.pid == u64::from(pid)) {
+                let in_csrss = csrss_phys.contains(&p.address) || csrss_pids.contains(&p.pid);
                 r.rows.push(vec![
                     p.pid.to_string(),
                     p.name,
                     format!("physical:{:#x}", p.address),
                     "false".into(),
                     "true".into(),
+                    thrdscan_pids.contains(&p.pid).to_string(),
+                    in_csrss.to_string(),
                     filetime(p.exited),
                 ]);
             }

@@ -334,12 +334,20 @@ impl Session {
                 options.mntns,
                 options.mount_format
             ),
-            None if request.plugin == Plugin::LinuxPagecacheFiles => format!(
-                "{}:types={:?}:find={:?}",
-                request.plugin.name(),
-                options.file_types,
-                options.find
-            ),
+            None if matches!(
+                request.plugin,
+                Plugin::LinuxPagecacheFiles
+                    | Plugin::LinuxPagecacheInodePages
+                    | Plugin::LinuxPagecacheRecoverFs
+            ) =>
+            {
+                format!(
+                    "{}:types={:?}:find={:?}",
+                    request.plugin.name(),
+                    options.file_types,
+                    options.find
+                )
+            }
             None if matches!(
                 request.plugin,
                 Plugin::LinuxCapabilities
@@ -412,6 +420,10 @@ impl Session {
             engine.linux_malfind(options, dump, job)?
         } else if request.plugin == Plugin::LinuxElfs {
             engine.linux_elfs(options, dump, job)?
+        } else if request.plugin == Plugin::LinuxPagecacheInodePages {
+            engine.linux_pagecache_inode_pages(options, dump, job)?
+        } else if request.plugin == Plugin::LinuxPagecacheRecoverFs {
+            engine.linux_pagecache_recover_fs(options, dump, job)?
         } else if dump.is_some() || request.plugin.is_dump() {
             engine.run_dump(request.plugin, dump.context("Dump 插件需要转储参数")?, job)?
         } else if request.plugin == Plugin::PsCallStack {

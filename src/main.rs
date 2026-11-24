@@ -68,6 +68,9 @@ struct Cli {
         default_value = ""
     )]
     key: String,
+    /// Recursively enumerate subkeys in windows.printkey.
+    #[arg(help_heading = "Registry plugins", long, global = true)]
+    recurse: bool,
     /// Byte pattern for vmayarascan / windows.vadyarascan: text, wide:TEXT
     /// (UTF-16LE) or hex:4d5a??00 with ?? wildcards; byte regex for VmaRegExScan.
     #[arg(help_heading = "Scan plugins", long, global = true)]
@@ -576,7 +579,14 @@ fn main() -> Result<()> {
                     0
                 } else if matches!(
                     plugin,
-                    Plugin::ModuleExtract | Plugin::WinModdump | Plugin::Fbdev | Plugin::Lsmod
+                    Plugin::ModuleExtract
+                        | Plugin::WinModdump
+                        | Plugin::Fbdev
+                        | Plugin::Lsmod
+                        | Plugin::WinHivelist
+                        | Plugin::WinMalfind
+                        | Plugin::LinuxPagecacheInodePages
+                        | Plugin::LinuxPagecacheRecoverFs
                 ) {
                     pid.unwrap_or(0)
                 } else {
@@ -679,6 +689,7 @@ impl Cli {
             swapfile: self.swapfile.clone(),
             hive: self.hive,
             key: self.key.clone(),
+            recurse: self.recurse,
             pattern: self.pattern.clone(),
             strings_file: self.strings_file.clone(),
             min_length: self.min_length,

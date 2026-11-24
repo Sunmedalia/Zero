@@ -44,6 +44,7 @@ struct AnalyzeArgs {
     bpf: Option<bool>,
     hive: Option<String>,
     key: Option<String>,
+    recurse: Option<bool>,
     pattern: Option<String>,
     strings_file: Option<PathBuf>,
     min_length: Option<i64>,
@@ -419,7 +420,15 @@ fn call(
                 Some(dump::DumpOptions {
                     pid: if plugin.is_linux_mapping_export() {
                         0
-                    } else if matches!(plugin, Plugin::Fbdev | Plugin::Lsmod) {
+                    } else if matches!(
+                        plugin,
+                        Plugin::Fbdev
+                            | Plugin::Lsmod
+                            | Plugin::WinHivelist
+                            | Plugin::WinMalfind
+                            | Plugin::LinuxPagecacheInodePages
+                            | Plugin::LinuxPagecacheRecoverFs
+                    ) {
                         a.pid.unwrap_or(0)
                     } else {
                         a.pid
@@ -495,6 +504,7 @@ fn call(
                         .transpose()
                         .map_err(anyhow::Error::msg)?,
                     key: a.key.unwrap_or_default(),
+                    recurse: a.recurse.unwrap_or(false),
                     pattern: a.pattern,
                     strings_file: a.strings_file.map(|p| path(root, &p)),
                     min_length: a.min_length,

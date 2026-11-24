@@ -102,12 +102,13 @@ pub(crate) fn analyze_resolved(
             &image.digest,
             &isf.digest,
             &format!(
-                "{}:{:?}:{:?}:{}:{}:{}:{layouts_digest}:pids={:?}:maxsize={:?}",
+                "{}:{:?}:{:?}:{}:{}:{}:{}:{layouts_digest}:pids={:?}:maxsize={:?}",
                 request.plugin.name(),
                 options.pid,
                 options.hive,
                 sources_identity,
                 options.key,
+                options.recurse,
                 options.pattern.as_deref().unwrap_or_default(),
                 options.pids,
                 options.maxsize

@@ -505,6 +505,9 @@ impl Windows<'_> {
         if p == Plugin::WinMftscan {
             return self.mftscan(job);
         }
+        if matches!(p, Plugin::WinMftscanAds | Plugin::WinMftscanResidentData) {
+            return self.mftscan_streams(p, job);
+        }
         if p == Plugin::WinBigpools {
             return self.bigpools(job);
         }

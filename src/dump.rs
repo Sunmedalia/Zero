@@ -86,6 +86,39 @@ impl DumpOptions {
             );
             return Ok(());
         }
+        if matches!(
+            plugin,
+            Plugin::LinuxPagecacheInodePages | Plugin::LinuxPagecacheRecoverFs
+        ) {
+            ensure!(self.pid == 0, "页缓存导出不接受 PID");
+            ensure!(
+                self.end.is_none(),
+                "页缓存导出不接受 End；InodePages 可用 --base/--start 指定 inode 地址"
+            );
+            ensure!(
+                plugin == Plugin::LinuxPagecacheInodePages || self.start.is_none(),
+                "RecoverFs 不接受 --start/--base"
+            );
+            ensure!(!self.directory.as_os_str().is_empty(), "必须指定转储目录");
+            return Ok(());
+        }
+        if plugin == Plugin::WinMalfind {
+            ensure!(
+                self.start.is_none() && self.end.is_none(),
+                "windows.malfind 导出不接受地址范围"
+            );
+            ensure!(!self.directory.as_os_str().is_empty(), "必须指定转储目录");
+            return Ok(());
+        }
+        if plugin == Plugin::WinHivelist {
+            ensure!(self.pid == 0, "HiveList 导出不接受 PID");
+            ensure!(
+                self.end.is_none(),
+                "HiveList 导出不接受 End；Start 可选指定单个 hive 地址"
+            );
+            ensure!(!self.directory.as_os_str().is_empty(), "必须指定转储目录");
+            return Ok(());
+        }
         if plugin == Plugin::Fbdev {
             ensure!(self.pid == 0, "Fbdev 不接受 PID");
             ensure!(

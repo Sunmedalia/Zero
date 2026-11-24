@@ -253,6 +253,12 @@ impl Linux<'_> {
             LinuxMalfind => self.linux_malfind(&Default::default(), None, job),
             LinuxMountinfo => self.linux_mountinfo(&Default::default(), job),
             LinuxPagecacheFiles => self.linux_pagecache_files(&Default::default(), job),
+            LinuxPagecacheInodePages => {
+                self.linux_pagecache_inode_pages(&Default::default(), None, job)
+            }
+            LinuxPagecacheRecoverFs => {
+                self.linux_pagecache_recover_fs(&Default::default(), None, job)
+            }
             LinuxBash => self.linux_bash(&Default::default(), job),
             LinuxElfs => self.linux_elfs(&Default::default(), None, job),
             LinuxLibraryList => self.linux_library_list(&Default::default(), job),
@@ -357,25 +363,107 @@ impl Linux<'_> {
             | WinDirectSystemCalls
             | WinIndirectSystemCalls => Err(unrouted(plugin)),
             WinUnhookedSystemCalls => Err(unrouted(plugin)),
-            ModuleExtract | Procdump | Memdump | Elfdump | WinLdrmodules | WinHollowprocesses
-            | WinSuspiciousThreads | WinCallbacks | WinUnloadedmodules | WinFilescan
-            | WinMutantscan | WinGetsids | WinConnscan | WinSockscan | WinConsoles | WinCmdscan
-            | WinDrivercheck | WinDriverscan | WinSvcscan | WinCrashinfo | WinAutoruns
-            | WinEnvars | WinThreads | WinSysteminfo | WinPslist | WinPstree | WinCmdline
-            | WinModules | WinDlllist | WinVadinfo | WinHandles | WinMalfind | WinNetscan
-            | WinNetstat | WinShimcacheMem | WinHivelist | WinPrintkey | WinPsscan | WinPsxview
-            | WinProcdump | WinMemdump | WinPedump | WinSsdt | WinModscan | WinPrivileges
-            | WinSessions | WinUserassist | WinBigpools | WinSymlinkscan | WinDevicetree
-            | WinGetservicesids | WinIat | WinVerinfo | WinMftscan | WinOrphanThreads
-            | WinEtwpatch | WinScheduledTasks | WinScheduledTasksV4 | WinDebugRegisters
-            | WinSuspendedThreads | WinPESymbols | WinAmcacheV4 | WinAmcache | WinCertificates
-            | WinProcessghosting | WinJoblinks | WinTimeliner | WinUserAssistV4 | WinMemmap
-            | WinSvcScanV4 | WinSvcDiff | WinSvcList | WinGetCellRoutine | WinPebMasquerade
-            | WinHiveScan | WinDriverModule | WinDriverIrp | WinKpcrs | WinMbrscan | WinTimers
-            | WinStatistics | WinShimcache | WinVirtmap | WinVadWalk | WinVadRegExScan
-            | WinVadyarascan | WinVaddump | WinDlldump | WinModdump | WinHashdump | WinLsadump
-            | WinCachedump | WinDumpfiles | WinThrdscan | WinPoolScanner | WinWindowStations
-            | WinDesktops | WinDeskScan | WinWindows => Err(unrouted(plugin)),
+            ModuleExtract
+            | Procdump
+            | Memdump
+            | Elfdump
+            | WinLdrmodules
+            | WinHollowprocesses
+            | WinSuspiciousThreads
+            | WinCallbacks
+            | WinUnloadedmodules
+            | WinFilescan
+            | WinMutantscan
+            | WinGetsids
+            | WinConnscan
+            | WinSockscan
+            | WinConsoles
+            | WinCmdscan
+            | WinDrivercheck
+            | WinDriverscan
+            | WinSvcscan
+            | WinCrashinfo
+            | WinAutoruns
+            | WinEnvars
+            | WinThreads
+            | WinSysteminfo
+            | WinPslist
+            | WinPstree
+            | WinCmdline
+            | WinModules
+            | WinDlllist
+            | WinVadinfo
+            | WinHandles
+            | WinMalfind
+            | WinNetscan
+            | WinNetstat
+            | WinShimcacheMem
+            | WinHivelist
+            | WinPrintkey
+            | WinPsscan
+            | WinPsxview
+            | WinProcdump
+            | WinMemdump
+            | WinPedump
+            | WinSsdt
+            | WinModscan
+            | WinPrivileges
+            | WinSessions
+            | WinUserassist
+            | WinBigpools
+            | WinSymlinkscan
+            | WinDevicetree
+            | WinGetservicesids
+            | WinIat
+            | WinVerinfo
+            | WinMftscan
+            | WinOrphanThreads
+            | WinEtwpatch
+            | WinScheduledTasks
+            | WinScheduledTasksV4
+            | WinDebugRegisters
+            | WinSuspendedThreads
+            | WinPESymbols
+            | WinAmcacheV4
+            | WinAmcache
+            | WinCertificates
+            | WinProcessghosting
+            | WinJoblinks
+            | WinTimeliner
+            | WinUserAssistV4
+            | WinMemmap
+            | WinSvcScanV4
+            | WinSvcDiff
+            | WinSvcList
+            | WinGetCellRoutine
+            | WinPebMasquerade
+            | WinHiveScan
+            | WinDriverModule
+            | WinDriverIrp
+            | WinKpcrs
+            | WinMbrscan
+            | WinTimers
+            | WinStatistics
+            | WinShimcache
+            | WinVirtmap
+            | WinVadWalk
+            | WinVadRegExScan
+            | WinVadyarascan
+            | WinVaddump
+            | WinDlldump
+            | WinModdump
+            | WinHashdump
+            | WinLsadump
+            | WinCachedump
+            | WinDumpfiles
+            | WinThrdscan
+            | WinPoolScanner
+            | WinWindowStations
+            | WinDesktops
+            | WinDeskScan
+            | WinWindows
+            | WinMftscanAds
+            | WinMftscanResidentData => Err(unrouted(plugin)),
         }
     }
     /// Export the modules recovered by the forward list walk, preserving partial diagnostics.

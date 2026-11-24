@@ -27,6 +27,16 @@ pub enum Plugin {
     LinuxMountinfo,
     #[value(name = "linux.pagecache.Files", alias = "linux.pagecache.files")]
     LinuxPagecacheFiles,
+    #[value(
+        name = "linux.pagecache.InodePages",
+        alias = "linux.pagecache.inodepages"
+    )]
+    LinuxPagecacheInodePages,
+    #[value(
+        name = "linux.pagecache.RecoverFs",
+        alias = "linux.pagecache.recoverfs"
+    )]
+    LinuxPagecacheRecoverFs,
     #[value(name = "linux.bash.Bash", alias = "linux.bash")]
     LinuxBash,
     #[value(name = "linux.elfs.Elfs", alias = "linux.elfs")]
@@ -274,6 +284,13 @@ pub enum Plugin {
     WinVerinfo,
     #[value(name = "windows.mftscan")]
     WinMftscan,
+    #[value(name = "windows.mftscan.ADS", alias = "windows.mftscan.ads")]
+    WinMftscanAds,
+    #[value(
+        name = "windows.mftscan.ResidentData",
+        alias = "windows.mftscan.residentdata"
+    )]
+    WinMftscanResidentData,
     #[value(name = "windows.orphan_kernel_threads")]
     WinOrphanThreads,
     #[value(name = "windows.etwpatch")]
@@ -407,10 +424,14 @@ impl Plugin {
                 self,
                 Self::Fbdev
                     | Self::WinMemmap
+                    | Self::WinHivelist
+                    | Self::WinMalfind
                     | Self::Lsmod
                     | Self::LinuxMaps
                     | Self::LinuxMalfind
                     | Self::LinuxElfs
+                    | Self::LinuxPagecacheInodePages
+                    | Self::LinuxPagecacheRecoverFs
             )
     }
     pub fn is_linux_mapping_export(self) -> bool {
