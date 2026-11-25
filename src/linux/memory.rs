@@ -328,7 +328,10 @@ impl Linux<'_> {
         pattern: &crate::pattern::Pattern,
         job: &Job,
     ) -> Result<Results> {
-        self.vma_yara_scan(&crate::yara::YaraSpec::Pattern(pattern.clone()), job)
+        self.vma_yara_scan(
+            &crate::yara::YaraSpec::Pattern(Box::new(pattern.clone())),
+            job,
+        )
     }
 
     /// vmayarascan: every readable VMA of each task, scanned with YARA-X rules or literal byte patterns.

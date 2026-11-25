@@ -286,7 +286,12 @@ impl Windows<'_> {
         r: &mut Results,
         job: &Job,
     ) -> Result<bool> {
-        self.vad_yara_scan(p, &crate::yara::YaraSpec::Pattern(pattern.clone()), r, job)
+        self.vad_yara_scan(
+            p,
+            &crate::yara::YaraSpec::Pattern(Box::new(pattern.clone())),
+            r,
+            job,
+        )
     }
 
     /// windows.vadyarascan: every VAD of one process scanned with YARA-X rules or literal patterns.

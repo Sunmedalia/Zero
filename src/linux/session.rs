@@ -237,7 +237,7 @@ impl Session {
         }
         if request.plugin == Plugin::LinuxYarascan {
             let spec = if let Some(pattern) = pattern {
-                crate::yara::YaraSpec::Pattern(pattern.clone())
+                crate::yara::YaraSpec::Pattern(Box::new(pattern.clone()))
             } else {
                 crate::yara::YaraSpec::from_inputs(
                     options.pattern.as_deref(),
@@ -304,7 +304,7 @@ impl Session {
         };
         let yara_spec = if request.plugin == Plugin::Vmayarascan {
             Some(if let Some(pattern) = pattern {
-                crate::yara::YaraSpec::Pattern(pattern.clone())
+                crate::yara::YaraSpec::Pattern(Box::new(pattern.clone()))
             } else {
                 crate::yara::YaraSpec::from_inputs(
                     options.pattern.as_deref(),

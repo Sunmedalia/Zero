@@ -111,13 +111,13 @@ impl std::fmt::Debug for CompiledRules {
 
 #[derive(Clone, Debug)]
 pub enum YaraSpec {
-    Pattern(Pattern),
+    Pattern(Box<Pattern>),
     Rules(CompiledRules),
 }
 
 impl YaraSpec {
     pub fn from_pattern(text: &str) -> Result<Self> {
-        Ok(Self::Pattern(Pattern::parse(text)?))
+        Ok(Self::Pattern(Box::new(Pattern::parse(text)?)))
     }
 
     pub fn from_rules_source(source: &str) -> Result<Self> {
