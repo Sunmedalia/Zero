@@ -35,8 +35,8 @@ use std::sync::{
     atomic::{AtomicBool, Ordering},
 };
 
-// Unified canonical plugin names (<os>.<id>) and TUI labels across Linux and Windows.
-pub const ENGINE_VERSION: &str = concat!(env!("CARGO_PKG_VERSION"), "-native-132");
+// Windows plugin routing removed redundant reads from paging attachment evidence.
+pub const ENGINE_VERSION: &str = concat!(env!("CARGO_PKG_VERSION"), "-native-133");
 #[derive(Clone)]
 pub struct Job {
     pub cancel: Arc<AtomicBool>,
