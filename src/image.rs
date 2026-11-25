@@ -851,6 +851,7 @@ impl Image {
                     let mut scan = Fingerprint::default();
                     let mut buf = vec![0; 4 * 1024 * 1024];
                     let label = compression.label();
+                    const MAX_DECOMPRESSED_BYTES: u64 = 256 * 1024 * 1024 * 1024;
                     loop {
                         job.check()?;
                         let n = decoder
@@ -859,6 +860,13 @@ impl Image {
                         if n == 0 {
                             break;
                         }
+                        ensure!(
+                            scan.offset
+                                .checked_add(n as u64)
+                                .is_some_and(|total| total <= MAX_DECOMPRESSED_BYTES),
+                            "{label} 解压大小超过 {} GiB 上限",
+                            MAX_DECOMPRESSED_BYTES >> 30
+                        );
                         temporary.write_all(buf.at(..n)?)?;
                         scan.push(buf.at(..n)?, job);
                         job.report(format!("解压 ({label}): {} MiB", scan.offset / 1048576));

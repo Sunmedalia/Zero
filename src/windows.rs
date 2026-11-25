@@ -82,7 +82,7 @@ mod windowstations;
 mod wow64;
 pub use address_space::Memory;
 pub use analyze::analyze;
-pub(crate) use analyze::{analyze_resolved, validate_request};
+pub(crate) use analyze::{analyze_resolved, analyze_with_yara, validate_request_with_yara};
 pub use discovery::discover;
 pub(crate) use discovery::pe_header;
 

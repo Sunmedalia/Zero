@@ -9,13 +9,30 @@ pub fn analyze(
     options: &Options,
     job: &Job,
 ) -> Result<Outcome> {
+    analyze_with_yara(image, request, dump, options, None, job)
+}
+
+pub(crate) fn analyze_with_yara(
+    image: &Image,
+    request: &Request<'_>,
+    dump: Option<&DumpOptions>,
+    options: &Options,
+    precompiled_yara: Option<&crate::yara::YaraSpec>,
+    job: &Job,
+) -> Result<Outcome> {
     if request.plugin == Plugin::WinYarascan {
-        validate_request(request, dump, options)?;
-        let spec = crate::yara::YaraSpec::from_inputs(
-            options.pattern.as_deref(),
-            options.yara_file.as_deref(),
-            options.yara_rules.as_deref(),
-        )?;
+        validate_request_with_yara(request, dump, options, precompiled_yara.is_some())?;
+        let owned_spec;
+        let spec = if let Some(spec) = precompiled_yara {
+            spec
+        } else {
+            owned_spec = crate::yara::YaraSpec::from_inputs(
+                options.pattern.as_deref(),
+                options.yara_file.as_deref(),
+                options.yara_rules.as_deref(),
+            )?;
+            &owned_spec
+        };
         let key = store::key(
             &image.digest,
             "no-isf",
@@ -30,7 +47,7 @@ pub fn analyze(
             store::adopt(request.cache, &key, &owner, &result, job);
             return Ok(Outcome::Ready(result));
         }
-        let result = crate::yara::physical_results(image, request.plugin, &spec, job)?;
+        let result = crate::yara::physical_results(image, request.plugin, spec, job)?;
         if request.use_cache && !image.digest.is_empty() {
             store::save_any(
                 request.cache,
@@ -54,16 +71,25 @@ pub fn analyze(
         );
         return container::analyze(image, request, dump, options, job).map(Outcome::Ready);
     }
-    validate_request(request, dump, options)?;
+    validate_request_with_yara(request, dump, options, precompiled_yara.is_some())?;
     let symbols =
         windows_symbols::resolve(request.symbols, image, request.cache, request.network, job)?;
     let symbols: Vec<_> = symbols.into_iter().map(std::sync::Arc::new).collect();
-    analyze_resolved(image, request, dump, options, job, &symbols)
+    analyze_resolved(
+        image,
+        request,
+        dump,
+        options,
+        precompiled_yara,
+        job,
+        &symbols,
+    )
 }
-pub(crate) fn validate_request(
+pub(crate) fn validate_request_with_yara(
     request: &Request<'_>,
     dump: Option<&DumpOptions>,
     options: &Options,
+    yara_validated: bool,
 ) -> Result<()> {
     if request.plugin.is_dump() {
         dump.context("Windows 转储需要 PID 和输出目录")?
@@ -85,7 +111,9 @@ pub(crate) fn validate_request(
     if request.plugin == Plugin::WinPrintkey {
         ensure!(options.hive.is_some(), "windows.printkey 需要 --hive 地址");
     }
-    crate::analysis::validate_pattern(request.plugin, options)?;
+    if !yara_validated {
+        crate::analysis::validate_pattern(request.plugin, options)?;
+    }
     ensure!(
         options.pid.is_none()
             || request.plugin == Plugin::WinMemmap
@@ -94,11 +122,13 @@ pub(crate) fn validate_request(
     );
     Ok(())
 }
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn analyze_resolved(
     image: &Image,
     request: &Request<'_>,
     dump: Option<&DumpOptions>,
     options: &Options,
+    precompiled_yara: Option<&crate::yara::YaraSpec>,
     job: &Job,
     symbols: &[std::sync::Arc<Isf>],
 ) -> Result<Outcome> {
@@ -130,18 +160,22 @@ pub(crate) fn analyze_resolved(
         static DIGEST: std::sync::OnceLock<String> = std::sync::OnceLock::new();
         DIGEST.get_or_init(|| format!("{:x}", sha2::Sha256::digest(network::LAYOUTS.as_bytes())))
     };
+    let owned_yara;
     let yara_spec = if request.plugin == Plugin::WinVadyarascan {
-        Some(crate::yara::YaraSpec::from_inputs(
-            options.pattern.as_deref(),
-            options.yara_file.as_deref(),
-            options.yara_rules.as_deref(),
-        )?)
+        if let Some(spec) = precompiled_yara {
+            Some(spec)
+        } else {
+            owned_yara = crate::yara::YaraSpec::from_inputs(
+                options.pattern.as_deref(),
+                options.yara_file.as_deref(),
+                options.yara_rules.as_deref(),
+            )?;
+            Some(&owned_yara)
+        }
     } else {
         None
     };
-    let yara_cache_id = yara_spec
-        .as_ref()
-        .map_or_else(String::new, crate::yara::YaraSpec::cache_identity);
+    let yara_cache_id = yara_spec.map_or_else(String::new, crate::yara::YaraSpec::cache_identity);
     let make_key = |sources_identity: &str| {
         store::key(
             &image.digest,
@@ -240,9 +274,7 @@ pub(crate) fn analyze_resolved(
         engine.netstat(job, Some((request.cache, request.network)))?
     } else if request.plugin == Plugin::WinVadyarascan {
         engine.run_vadyarascan(
-            yara_spec
-                .as_ref()
-                .context("windows.vadyarascan 需要 --pattern、--yara-file 或 --yara-rules")?,
+            yara_spec.context("windows.vadyarascan 需要 --pattern、--yara-file 或 --yara-rules")?,
             options,
             job,
         )?

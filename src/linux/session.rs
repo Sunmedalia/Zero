@@ -109,11 +109,19 @@ impl Session {
         request: &Request<'_>,
         dump: Option<&crate::dump::DumpOptions>,
         options: &crate::analysis::Options,
+        precompiled_yara: Option<&crate::yara::YaraSpec>,
         job: &Job,
     ) -> Result<Outcome> {
         // Container-only paths do not need kernel symbols or a symbol cache.
         if request.plugin == Plugin::WinYarascan {
-            return crate::windows::analyze(image, request, dump, options, job);
+            return crate::windows::analyze_with_yara(
+                image,
+                request,
+                dump,
+                options,
+                precompiled_yara,
+                job,
+            );
         }
         if image.windows_container.as_ref().is_some_and(|m| {
             m.virtual_memory
@@ -123,7 +131,12 @@ impl Session {
         }) {
             return crate::windows::analyze(image, request, dump, options, job);
         }
-        crate::windows::validate_request(request, dump, options)?;
+        crate::windows::validate_request_with_yara(
+            request,
+            dump,
+            options,
+            precompiled_yara.is_some(),
+        )?;
         let stamp = || -> Result<String> {
             Ok(format!(
                 "{}:{}:{}:{}",
@@ -149,7 +162,15 @@ impl Session {
         } else {
             job.report("复用精确匹配的 Windows ISF");
         }
-        crate::windows::analyze_resolved(image, request, dump, options, job, &self.windows_symbols)
+        crate::windows::analyze_resolved(
+            image,
+            request,
+            dump,
+            options,
+            precompiled_yara,
+            job,
+            &self.windows_symbols,
+        )
     }
     pub fn analyze(&mut self, request: &Request<'_>, job: &Job) -> Result<Outcome> {
         self.analyze_with_dump(request, None, job)
@@ -174,6 +195,7 @@ impl Session {
             request,
             dump,
             pattern,
+            None,
             &crate::analysis::Options::default(),
             job,
         )
@@ -183,6 +205,7 @@ impl Session {
         request: &Request<'_>,
         dump: Option<&crate::dump::DumpOptions>,
         pattern: Option<&crate::pattern::Pattern>,
+        precompiled_yara: Option<&crate::yara::YaraSpec>,
         options: &crate::analysis::Options,
         job: &Job,
     ) -> Result<Outcome> {
@@ -206,6 +229,7 @@ impl Session {
                 request,
                 dump,
                 &crate::analysis::Options::default(),
+                precompiled_yara,
                 job,
             );
         }
@@ -236,14 +260,19 @@ impl Session {
             return Ok(Outcome::Ready(result));
         }
         if request.plugin == Plugin::LinuxYarascan {
-            let spec = if let Some(pattern) = pattern {
-                crate::yara::YaraSpec::Pattern(Box::new(pattern.clone()))
+            let owned_spec;
+            let spec = if let Some(spec) = precompiled_yara {
+                spec
+            } else if let Some(pattern) = pattern {
+                owned_spec = crate::yara::YaraSpec::Pattern(Box::new(pattern.clone()));
+                &owned_spec
             } else {
-                crate::yara::YaraSpec::from_inputs(
+                owned_spec = crate::yara::YaraSpec::from_inputs(
                     options.pattern.as_deref(),
                     options.yara_file.as_deref(),
                     options.yara_rules.as_deref(),
-                )?
+                )?;
+                &owned_spec
             };
             let identity = format!("{}:{}", request.plugin.name(), spec.cache_identity());
             let key = store::key(&image.digest, "no-isf", &identity);
@@ -256,7 +285,7 @@ impl Session {
                 store::adopt(request.cache, &key, &owner, &result, job);
                 return Ok(Outcome::Ready(result));
             }
-            let result = crate::yara::physical_results(&image, request.plugin, &spec, job)?;
+            let result = crate::yara::physical_results(&image, request.plugin, spec, job)?;
             if request.use_cache && !image.digest.is_empty() {
                 store::save_any(
                     request.cache,
@@ -302,16 +331,21 @@ impl Session {
             }
             self.symbols.at(0)?.clone()
         };
+        let owned_yara;
         let yara_spec = if request.plugin == Plugin::Vmayarascan {
-            Some(if let Some(pattern) = pattern {
-                crate::yara::YaraSpec::Pattern(Box::new(pattern.clone()))
+            if let Some(spec) = precompiled_yara {
+                Some(spec)
+            } else if let Some(pattern) = pattern {
+                owned_yara = crate::yara::YaraSpec::Pattern(Box::new(pattern.clone()));
+                Some(&owned_yara)
             } else {
-                crate::yara::YaraSpec::from_inputs(
+                owned_yara = crate::yara::YaraSpec::from_inputs(
                     options.pattern.as_deref(),
                     options.yara_file.as_deref(),
                     options.yara_rules.as_deref(),
-                )?
-            })
+                )?;
+                Some(&owned_yara)
+            }
         } else {
             None
         };
@@ -497,7 +531,6 @@ impl Session {
         } else if request.plugin == Plugin::Vmayarascan {
             engine.vma_yara_scan(
                 yara_spec
-                    .as_ref()
                     .context("linux.vmayarascan 需要 --pattern、--yara-file 或 --yara-rules")?,
                 job,
             )?

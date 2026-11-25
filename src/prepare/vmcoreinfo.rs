@@ -77,6 +77,16 @@ fn parse(text: &str, release: &str, physical: u64) -> Option<Vmcoreinfo> {
 /// Every distinct note for `release`, with its physical address.
 pub(super) fn find(image: &Image, release: &str, job: &Job) -> Result<Vec<Vmcoreinfo>> {
     let mut out: Vec<Vmcoreinfo> = Vec::new();
+    // Prefer any VMCOREINFO note already parsed from hypervisor container metadata
+    // (e.g. QEMU/KVM ELF Core PT_NOTE) before scanning captured physical memory.
+    if let Some(text) = image
+        .vm_metadata
+        .as_ref()
+        .and_then(|meta| meta.vmcoreinfo.as_deref())
+        && let Some(info) = parse(text, release, 0)
+    {
+        out.push(info);
+    }
     for hit in image.scan(ANCHOR, job)? {
         job.check()?;
         let Some((_, end)) = super::image_kallsyms::run(image, hit) else {
@@ -133,6 +143,28 @@ mod tests {
             0xffff_cdff_0000_0000
         );
         assert!(parse("OSRELEASE=x\nKERNELOFFSET=zz\n", "x", 0).is_none());
+    }
+
+    #[test]
+    fn find_includes_container_vmcoreinfo_note_when_ram_lacks_one() {
+        let mut img = Image::from_file(tempfile::tempfile().unwrap(), "empty".into())
+            .unwrap_or_else(|_| {
+                let mut file = tempfile::tempfile().unwrap();
+                std::io::Write::write_all(&mut file, &[0u8; 4096]).unwrap();
+                Image::from_file(file, "zero".into()).unwrap()
+            });
+        img.vm_metadata = Some(crate::containers::VmMetadata {
+            container: "ELF Core (QEMU/KVM)".into(),
+            vmcoreinfo: Some(
+                "OSRELEASE=6.8.0-qemu\nKERNELOFFSET=1200000\nSYMBOL(init_top_pgt)=ffffffff82000000\n"
+                    .into(),
+            ),
+            ..Default::default()
+        });
+        let notes = find(&img, "6.8.0-qemu", &Job::default()).unwrap();
+        assert_eq!(notes.len(), 1);
+        assert_eq!(notes[0].kernel_offset, Some(0x120_0000));
+        assert_eq!(notes[0].symbols["init_top_pgt"], 0xffff_ffff_8200_0000);
     }
 }
 
