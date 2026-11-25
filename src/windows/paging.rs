@@ -475,11 +475,40 @@ impl Memory<'_> {
 }
 #[cfg(test)]
 mod tests {
-    use super::super::tests::{K, fixture, image};
+    use super::super::tests::{K, fixture, image, put};
     use super::*;
+    use serde_json::json;
+
+    fn pagefile_fixture() -> (Vec<u8>, Isf) {
+        let (mut bytes, mut isf) = fixture();
+        let bit = |pos, len| {
+            json!({
+                "offset": 0,
+                "type": {
+                    "kind": "bitfield",
+                    "bit_position": pos,
+                    "bit_length": len,
+                    "type": { "kind": "base", "name": "u64" }
+                }
+            })
+        };
+        isf.data["user_types"]["_MMPTE_SOFTWARE"] = json!({
+            "kind": "struct",
+            "size": 8,
+            "fields": {
+                "Prototype": bit(10, 1),
+                "Transition": bit(11, 1),
+                "PageFileLow": bit(12, 4),
+                "PageFileHigh": bit(32, 32)
+            }
+        });
+        // K+0x3000 is backed by page 1 of paging file 3.
+        put(&mut bytes, 0x4018, (1 << 32) | (3 << 12));
+        (bytes, isf)
+    }
+
     #[test]
     fn nonswizzled_offsets_remove_exact_invalid_pte_mask() {
-        use super::super::tests::put;
         let (mut b, mut isf) = fixture();
         let bit = |pos, len| serde_json::json!({"offset":0,"type":{"kind":"bitfield","bit_position":pos,"bit_length":len,"type":{"kind":"base","name":"u64"}}});
         isf.data["user_types"]["_MMPTE_SOFTWARE"] = serde_json::json!({"size":8,"fields":{"PageFileHigh":bit(32,32),"SwizzleBit":bit(4,1)}});
@@ -511,10 +540,7 @@ mod tests {
     #[test]
     fn explicit_pagefiles_read_software_pages_and_detect_mutation() {
         use std::io::Write;
-        let (mut b, mut isf) = fixture();
-        isf.data["user_types"]["_MMPTE_SOFTWARE"] = serde_json::json!({"kind":"struct","size":8,"fields":{"Prototype":{"offset":0,"type":{"kind":"bitfield","bit_position":10,"bit_length":1,"type":{"kind":"base","name":"u64"}}},"Transition":{"offset":0,"type":{"kind":"bitfield","bit_position":11,"bit_length":1,"type":{"kind":"base","name":"u64"}}},"PageFileLow":{"offset":0,"type":{"kind":"bitfield","bit_position":12,"bit_length":4,"type":{"kind":"base","name":"u64"}}},"PageFileHigh":{"offset":0,"type":{"kind":"bitfield","bit_position":32,"bit_length":32,"type":{"kind":"base","name":"u64"}}}}});
-        // Fixture maps K+0x3000 using the fourth leaf PTE.
-        b[0x4018..0x4020].copy_from_slice(&((1u64 << 32) | (3 << 12)).to_le_bytes());
+        let (b, isf) = pagefile_fixture();
         let image = image(&b);
         let mut f = tempfile::NamedTempFile::new().unwrap();
         f.write_all(&vec![0; 4096]).unwrap();
@@ -551,6 +577,68 @@ mod tests {
             )
             .is_err()
         );
+    }
+
+    #[test]
+    fn modules_preserves_paging_manifest_across_cache_hits() -> Result<()> {
+        let (bytes, mut isf) = pagefile_fixture();
+        isf.data["symbols"]["NtBuildNumber"]["address"] = json!(0x3200);
+        isf.data["user_types"]["_KLDR_DATA_TABLE_ENTRY"] = json!({
+            "size": 16,
+            "fields": {
+                "InLoadOrderLinks": {
+                    "offset": 0,
+                    "type": { "kind": "struct", "name": "_LIST_ENTRY" }
+                }
+            }
+        });
+        let dir = tempfile::tempdir()?;
+        let image_path = dir.path().join("image.raw");
+        let symbols_path = dir.path().join("kernel.json");
+        let pagefile = dir.path().join("pagefile.sys");
+        std::fs::write(&image_path, bytes)?;
+        std::fs::write(&symbols_path, serde_json::to_vec(&isf.data)?)?;
+        let mut pages = vec![0; 8192];
+        pages[0x1200..0x1204].copy_from_slice(&19045u32.to_le_bytes());
+        std::fs::write(&pagefile, pages)?;
+        let request = Request {
+            image: &image_path,
+            symbols: &symbols_path,
+            choice: None,
+            plugin: Plugin::WinModules,
+            cache: dir.path(),
+            use_cache: true,
+            network: false,
+        };
+        let options = Options {
+            pagefiles: vec![Attachment {
+                index: 3,
+                path: pagefile,
+            }],
+            ..Options::default()
+        };
+        for from_cache in [false, true] {
+            let job = Job::default();
+            let outcome = crate::analysis::analyze(
+                &mut crate::linux::Session::default(),
+                &request,
+                None,
+                &options,
+                &job,
+            )?;
+            let Outcome::Ready(result) = outcome else {
+                bail!("expected a single symbol match");
+            };
+            assert!(result.complete, "{:?}", result.diagnostics);
+            assert_eq!(job.served_from_cache(), from_cache);
+            assert_eq!(result.kernel_identity["version"]["build"], 19045);
+            // Version identification reads the 4-byte build number twice.
+            assert_eq!(
+                result.kernel_identity["paging_sources"]["pages_read"],
+                json!([{ "index": 3, "file_offset": 4096, "bytes_read": 8 }])
+            );
+        }
+        Ok(())
     }
 }
 

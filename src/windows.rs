@@ -330,301 +330,289 @@ impl Windows<'_> {
     }
     pub fn run(&self, p: Plugin, options: &Options, job: &Job) -> Result<Results> {
         job.check()?;
-        // Container metadata is answered by container::analyze before any engine exists.
-        ensure!(
-            p != Plugin::WinCrashinfo,
-            "windows.crashinfo 仅适用于崩溃转储/小型转储容器，RAW 镜像没有转储头"
-        );
-        if p == Plugin::WinDebugRegisters {
-            return self.debug_registers(None, job);
+        use Plugin::*;
+        // Exhaustive on purpose: a new Plugin variant must be routed (or rejected) here.
+        match p {
+            // Container metadata is answered by container::analyze before any engine exists.
+            WinCrashinfo => {
+                bail!("windows.crashinfo 仅适用于崩溃转储/小型转储容器，RAW 镜像没有转储头")
+            }
+            WinDebugRegisters => self.debug_registers(None, job),
+            WinPoolScanner => self.pool_scanner(job),
+            WinWindowStations => self.window_stations(job),
+            WinDesktops => self.desktops(job),
+            WinDeskScan => self.deskscan(job),
+            WinWindows => self.windows(job),
+            WinSuspendedThreads => self.suspended_threads(None, job),
+            WinUnhookedSystemCalls => self.unhooked_system_calls(None, job),
+            WinDirectSystemCalls | WinIndirectSystemCalls => self.system_calls(p, job),
+            WinSkeletonKeyCheck => self.skeleton_key(None, job),
+            WinTruecryptPassphrase => self.truecrypt_passphrase(options, job),
+            WinStrings => self.strings(options, job),
+            WinPESymbols => self.pe_symbols(options, None, job),
+            WinMemmap => self.memmap(options, None, job),
+            WinSvcScanV4 => self.service_scan(options, job),
+            WinSvcDiff => self.service_diff(options, job),
+            WinSvcList => self.service_list(options, job),
+            WinGetCellRoutine => self.get_cell_routine(job),
+            WinPebMasquerade => self.peb_masquerade(options, job),
+            WinDriverModule => self.driver_module(job),
+            WinDriverIrp => self.driver_irp(job),
+            WinKpcrs => self.kpcrs(job),
+            WinVadWalk => self.vad_walk(options, job),
+            WinVadRegExScan => self.vad_regex_scan(options, job),
+            WinSysteminfo => self.system_info(),
+            WinCallbacks | WinUnloadedmodules => self.kernel_artifacts(p, job),
+            WinFilescan | WinMutantscan | WinSymlinkscan | WinThrdscan => {
+                self.pool_artifacts(p, job)
+            }
+            WinConnscan | WinSockscan => self.legacy_network(p, job),
+            WinDriverscan | WinDrivercheck => self.drivers(p, job),
+            WinSvcscan | WinCmdscan | WinConsoles => self.user_artifacts(p, options, job),
+            WinModules => self.modules(p, job),
+            WinSsdt => self.ssdt(job),
+            WinModscan => self.modscan(job),
+            WinTimeliner => self.timeliner(job),
+            WinOrphanThreads => self.orphan_threads(job),
+            WinVirtmap => self.virtmap(),
+            WinStatistics => self.statistics(job),
+            WinTimers => self.timers(job),
+            WinMbrscan => self.mbrscan(job),
+            WinMftscan => self.mftscan(job),
+            WinMftscanAds | WinMftscanResidentData => self.mftscan_streams(p, job),
+            WinBigpools => self.bigpools(options, job),
+            WinDevicetree => self.devicetree(job),
+            WinHiveScan => self.hive_scan(job),
+            WinHivelist => self.registry(p, options, job),
+            WinPrintkey | WinAutoruns | WinUserassist | WinUserAssistV4 | WinGetservicesids
+            | WinScheduledTasks | WinScheduledTasksV4 | WinAmcache | WinAmcacheV4
+            | WinCertificates | WinShimcache | WinHashdump | WinLsadump | WinCachedump => {
+                self.registry_plugin(p, options, job)
+            }
+            WinNetscan => self.netscan(job, None),
+            WinNetstat => self.netstat(job, None),
+            WinShimcacheMem => self.shimcache_memory(job),
+            WinPsscan | WinPsxview => self.scan_processes(p, options, job),
+            WinPslist | WinPstree | WinCmdline | WinGetsids | WinEnvars | WinThreads
+            | WinLdrmodules | WinHollowprocesses | WinSuspiciousThreads | WinDlllist
+            | WinVadinfo | WinMalfind | WinHandles | WinPrivileges | WinSessions | WinIat
+            | WinVerinfo | WinEtwpatch | WinProcessghosting | WinJoblinks | WinVadyarascan => {
+                self.process_plugin(p, options, job)
+            }
+            // File exports go through run_dump with atomic publishing.
+            WinProcdump | WinMemdump | WinPedump | WinVaddump | WinDlldump | WinModdump
+            | WinDumpfiles => bail!("{} 是转储插件，请使用 dump 入口", p.name()),
+            LinuxBoottime
+            | LinuxTimeliner
+            | LinuxCapabilities
+            | LinuxEnvars
+            | LinuxPsaux
+            | LinuxPstree
+            | LinuxMaps
+            | LinuxLsof
+            | LinuxSockstat
+            | LinuxKmsg
+            | LinuxMalfind
+            | LinuxMountinfo
+            | LinuxPagecacheFiles
+            | LinuxPagecacheInodePages
+            | LinuxPagecacheRecoverFs
+            | LinuxBash
+            | LinuxElfs
+            | LinuxLibraryList
+            | LinuxIpAddr
+            | LinuxIpLink
+            | Fbdev
+            | PsCallStack
+            | VmaRegExScan
+            | LinuxSockscan
+            | LinuxPsscan
+            | Kallsyms
+            | ModuleExtract
+            | Modxview
+            | ProcessSpoofing
+            | LinuxPslist
+            | CheckExec
+            | Iomem
+            | Ioports
+            | Ptrace
+            | KeyboardNotifiers
+            | Psstate
+            | Capabilities
+            | Fdsummary
+            | Procdump
+            | Memdump
+            | Elfdump
+            | Pslist
+            | Pstree
+            | Lsmod
+            | Psaux
+            | Envars
+            | Maps
+            | Lsof
+            | Sockstat
+            | Netscan
+            | Banners
+            | Pwd
+            | Pscred
+            | Threads
+            | Mountinfo
+            | CheckCreds
+            | Dmesg
+            | Systeminfo
+            | Elfs
+            | Bash
+            | Zsh
+            | Malfind
+            | Psxview
+            | CheckModules
+            | CheckSyscall
+            | CheckIdt
+            | TtyCheck
+            | HiddenModules
+            | LibraryList
+            | Pidhashtable
+            | Vmcoreinfo
+            | IpAddr
+            | IpLink
+            | CheckAfinfo
+            | Kthreads
+            | Netfilter
+            | Tracepoints
+            | Ftrace
+            | Ebpf
+            | Boottime
+            | Pagecache
+            | PerfEvents
+            | Vmayarascan => bail!("{} 不是 Windows 插件", p.name()),
         }
-        if p == Plugin::WinPoolScanner {
-            return self.pool_scanner(job);
+    }
+    fn system_info(&self) -> Result<Results> {
+        let mut result = self.result(Plugin::WinSysteminfo);
+        result.rows = vec![
+            vec!["OS".into(), "Windows".into()],
+            vec![
+                "Architecture".into(),
+                format!("{:?}", Architecture::from_isf(self.vm.isf)?),
+            ],
+            vec!["PDB".into(), self.pdb.key()],
+            vec!["KernelBase".into(), hex(self.base)],
+            vec!["DTB".into(), hex(self.vm.root)],
+            vec!["ImageSHA256".into(), self.vm.image.digest.clone()],
+            vec!["ISFSHA256".into(), self.vm.isf.digest.clone()],
+            vec![
+                "Validation".into(),
+                "PE/PDB/System/DTB/list entry validated".into(),
+            ],
+        ];
+        if let Ok(address) = self.symbol("NtBuildNumber") {
+            result.rows.push(vec![
+                "Build".into(),
+                (self.vm.uint(address, 4)? & 0xffff).to_string(),
+            ]);
         }
-        if p == Plugin::WinWindowStations {
-            return self.window_stations(job);
+        for key in ["product", "major", "minor", "product_type", "evidence"] {
+            if let Some(value) = result.kernel_identity.key("version").get(key) {
+                result.rows.push(vec![key.into(), value.to_string()]);
+            }
         }
-        if p == Plugin::WinDesktops {
-            return self.desktops(job);
-        }
-        if p == Plugin::WinDeskScan {
-            return self.deskscan(job);
-        }
-        if p == Plugin::WinWindows {
-            return self.windows(job);
-        }
-        if p == Plugin::WinSuspendedThreads {
-            return self.suspended_threads(None, job);
-        }
-        if p == Plugin::WinUnhookedSystemCalls {
-            return self.unhooked_system_calls(None, job);
-        }
-        if matches!(
-            p,
-            Plugin::WinDirectSystemCalls | Plugin::WinIndirectSystemCalls
-        ) {
-            return self.system_calls(p, job);
-        }
-        if p == Plugin::WinSkeletonKeyCheck {
-            return self.skeleton_key(None, job);
-        }
-        if p == Plugin::WinTruecryptPassphrase {
-            return self.truecrypt_passphrase(options, job);
-        }
-        if p == Plugin::WinStrings {
-            return self.strings(options, job);
-        }
-        if p == Plugin::WinPESymbols {
-            return self.pe_symbols(options, None, job);
-        }
-        if p == Plugin::WinMemmap {
-            return self.memmap(options, None, job);
-        }
-        if p == Plugin::WinSvcScanV4 {
-            return self.service_scan(options, job);
-        }
-        if p == Plugin::WinSvcDiff {
-            return self.service_diff(options, job);
-        }
-        if p == Plugin::WinSvcList {
-            return self.service_list(options, job);
-        }
-        if p == Plugin::WinGetCellRoutine {
-            return self.get_cell_routine(job);
-        }
-        if p == Plugin::WinPebMasquerade {
-            return self.peb_masquerade(options, job);
-        }
-        if p == Plugin::WinDriverModule {
-            return self.driver_module(job);
-        }
-        if p == Plugin::WinDriverIrp {
-            return self.driver_irp(job);
-        }
-        if p == Plugin::WinKpcrs {
-            return self.kpcrs(job);
-        }
-        if p == Plugin::WinVadWalk {
-            return self.vad_walk(options, job);
-        }
-        if p == Plugin::WinVadRegExScan {
-            return self.vad_regex_scan(options, job);
-        }
-        let mut result = self.result(p);
-        if p == Plugin::WinSysteminfo {
-            result.rows = vec![
-                vec!["OS".into(), "Windows".into()],
-                vec![
-                    "Architecture".into(),
-                    format!("{:?}", Architecture::from_isf(self.vm.isf)?),
-                ],
-                vec!["PDB".into(), self.pdb.key()],
-                vec!["KernelBase".into(), hex(self.base)],
-                vec!["DTB".into(), hex(self.vm.root)],
-                vec!["ImageSHA256".into(), self.vm.image.digest.clone()],
-                vec!["ISFSHA256".into(), self.vm.isf.digest.clone()],
-                vec![
-                    "Validation".into(),
-                    "PE/PDB/System/DTB/list entry validated".into(),
-                ],
-            ];
-            if let Ok(address) = self.symbol("NtBuildNumber") {
+        Ok(result)
+    }
+    /// Kernel-mode System threads whose start address has no owning module.
+    fn orphan_threads(&self, job: &Job) -> Result<Results> {
+        let mut result = self.result(Plugin::WinOrphanThreads);
+        let threads = self.run(
+            Plugin::WinThreads,
+            &Options {
+                pid: Some(4),
+                ..Default::default()
+            },
+            job,
+        )?;
+        result.complete = threads.complete;
+        result.diagnostics = threads.diagnostics;
+        for row in threads.rows {
+            let start = u64::from_str_radix(row.at(5)?.trim_start_matches("0x"), 16).unwrap_or(0);
+            if self.vm.kernel(start) && row.at(6)?.is_empty() {
                 result.rows.push(vec![
-                    "Build".into(),
-                    (self.vm.uint(address, 4)? & 0xffff).to_string(),
+                    row.at(0)?.clone(),
+                    row.at(2)?.clone(),
+                    row.at(3)?.clone(),
+                    row.at(5)?.clone(),
+                    row.at(7)?.clone(),
                 ]);
             }
-            for key in ["product", "major", "minor", "product_type", "evidence"] {
-                if let Some(value) = result.kernel_identity.key("version").get(key) {
-                    result.rows.push(vec![key.into(), value.to_string()]);
-                }
-            }
-            return Ok(result);
         }
-        if matches!(p, Plugin::WinCallbacks | Plugin::WinUnloadedmodules) {
-            return self.kernel_artifacts(p, job);
-        }
-        if matches!(
-            p,
-            Plugin::WinFilescan
-                | Plugin::WinMutantscan
-                | Plugin::WinSymlinkscan
-                | Plugin::WinThrdscan
-        ) {
-            return self.pool_artifacts(p, job);
-        }
-        if matches!(p, Plugin::WinConnscan | Plugin::WinSockscan) {
-            return self.legacy_network(p, job);
-        }
-        if matches!(p, Plugin::WinDriverscan | Plugin::WinDrivercheck) {
-            return self.drivers(p, job);
-        }
-        if matches!(
-            p,
-            Plugin::WinSvcscan | Plugin::WinCmdscan | Plugin::WinConsoles
-        ) {
-            return self.user_artifacts(p, options, job);
-        }
-        if p == Plugin::WinModules {
-            return self.modules(p, job);
-        }
-        if p == Plugin::WinSsdt {
-            return self.ssdt(job);
-        }
-        if p == Plugin::WinModscan {
-            return self.modscan(job);
-        }
-        if p == Plugin::WinTimeliner {
-            return self.timeliner(job);
-        }
-        if p == Plugin::WinOrphanThreads {
-            let threads = self.run(
-                Plugin::WinThreads,
-                &Options {
-                    pid: Some(4),
-                    ..Default::default()
-                },
-                job,
-            )?;
-            result.complete = threads.complete;
-            result.diagnostics = threads.diagnostics;
-            for row in threads.rows {
-                let start =
-                    u64::from_str_radix(row.at(5)?.trim_start_matches("0x"), 16).unwrap_or(0);
-                if self.vm.kernel(start) && row.at(6)?.is_empty() {
-                    result.rows.push(vec![
-                        row.at(0)?.clone(),
-                        row.at(2)?.clone(),
-                        row.at(3)?.clone(),
-                        row.at(5)?.clone(),
-                        row.at(7)?.clone(),
-                    ]);
-                }
-            }
-            return Ok(result);
-        }
-        if p == Plugin::WinVirtmap {
-            return self.virtmap();
-        }
-        if p == Plugin::WinStatistics {
-            return self.statistics(job);
-        }
-        if p == Plugin::WinTimers {
-            return self.timers(job);
-        }
-        if p == Plugin::WinMbrscan {
-            return self.mbrscan(job);
-        }
-        if p == Plugin::WinMftscan {
-            return self.mftscan(job);
-        }
-        if matches!(p, Plugin::WinMftscanAds | Plugin::WinMftscanResidentData) {
-            return self.mftscan_streams(p, job);
-        }
-        if p == Plugin::WinBigpools {
-            return self.bigpools(options, job);
-        }
-        if p == Plugin::WinDevicetree {
-            return self.devicetree(job);
-        }
-        if p == Plugin::WinHiveScan {
-            return self.hive_scan(job);
-        }
-        if p == Plugin::WinHivelist {
-            return self.registry(p, options, job);
-        }
-        if matches!(
-            p,
-            Plugin::WinPrintkey
-                | Plugin::WinAutoruns
-                | Plugin::WinUserassist
-                | Plugin::WinUserAssistV4
-                | Plugin::WinGetservicesids
-                | Plugin::WinScheduledTasks
-                | Plugin::WinScheduledTasksV4
-                | Plugin::WinAmcache
-                | Plugin::WinAmcacheV4
-                | Plugin::WinCertificates
-                | Plugin::WinShimcache
-                | Plugin::WinHashdump
-                | Plugin::WinLsadump
-                | Plugin::WinCachedump
-        ) {
-            let (processes, diagnostics) = self.processes_partial(job)?;
-            let owners: Vec<_> = processes
-                .iter()
-                .filter(|process| {
-                    process.name == "Registry" && process.ppid == 4 && process.exited == 0
+        Ok(result)
+    }
+    /// Registry plugins run against the Registry process view, falling back to the kernel view.
+    fn registry_plugin(&self, p: Plugin, options: &Options, job: &Job) -> Result<Results> {
+        let (processes, diagnostics) = self.processes_partial(job)?;
+        let owners: Vec<_> = processes
+            .iter()
+            .filter(|process| {
+                process.name == "Registry" && process.ppid == 4 && process.exited == 0
+            })
+            .collect();
+        ensure!(owners.len() <= 1, "Registry 进程归属歧义");
+        let registry = owners
+            .first()
+            .map(|process| {
+                Ok::<_, anyhow::Error>(Windows {
+                    vm: self.process_memory(process)?,
+                    base: self.base,
+                    pdb: self.pdb.clone(),
                 })
-                .collect();
-            ensure!(owners.len() <= 1, "Registry 进程归属歧义");
-            let registry = owners
-                .first()
-                .map(|process| {
-                    Ok::<_, anyhow::Error>(Windows {
-                        vm: self.process_memory(process)?,
-                        base: self.base,
-                        pdb: self.pdb.clone(),
-                    })
-                })
-                .transpose()?;
-            let run = |engine: &Windows<'_>| -> Result<Results> {
-                match p {
-                    Plugin::WinAutoruns => engine.autoruns(options, job),
-                    Plugin::WinUserassist => engine.userassist(options, job),
-                    Plugin::WinUserAssistV4 => engine.userassist_canonical(options, job),
-                    Plugin::WinGetservicesids => engine.service_sids(job),
-                    Plugin::WinScheduledTasksV4 => engine.scheduled_tasks_canonical(job),
-                    Plugin::WinScheduledTasks => engine.scheduled_tasks(job),
-                    Plugin::WinAmcache => engine.amcache(job),
-                    Plugin::WinAmcacheV4 => engine.amcache_canonical(job),
-                    Plugin::WinCertificates => engine.certificates(job),
-                    Plugin::WinShimcache => engine.shimcache(job),
-                    Plugin::WinHashdump => engine.hashdump(job),
-                    Plugin::WinLsadump => engine.lsadump(job),
-                    Plugin::WinCachedump => engine.cachedump(job),
-                    Plugin::WinPrintkey => engine.registry(p, options, job),
-                    other => bail!("注册表路由缺少插件 {}", other.name()),
-                }
-            };
-            let mut result = match &registry {
-                None => run(self)?,
-                Some(registry) => {
-                    // Registry 进程视图失败（如 crash dump 未保存其页表）时回退内核视图。
-                    match run(registry) {
-                        Ok(result) => result,
-                        Err(rehosted) => {
-                            let mut result = run(self)?;
-                            result.complete = false;
-                            result.diagnostics.push(format!(
-                                "Registry 进程视图失败，已回退内核视图: {rehosted:#}"
-                            ));
-                            result
-                        }
+            })
+            .transpose()?;
+        let run = |engine: &Windows<'_>| -> Result<Results> {
+            match p {
+                Plugin::WinAutoruns => engine.autoruns(options, job),
+                Plugin::WinUserassist => engine.userassist(options, job),
+                Plugin::WinUserAssistV4 => engine.userassist_canonical(options, job),
+                Plugin::WinGetservicesids => engine.service_sids(job),
+                Plugin::WinScheduledTasksV4 => engine.scheduled_tasks_canonical(job),
+                Plugin::WinScheduledTasks => engine.scheduled_tasks(job),
+                Plugin::WinAmcache => engine.amcache(job),
+                Plugin::WinAmcacheV4 => engine.amcache_canonical(job),
+                Plugin::WinCertificates => engine.certificates(job),
+                Plugin::WinShimcache => engine.shimcache(job),
+                Plugin::WinHashdump => engine.hashdump(job),
+                Plugin::WinLsadump => engine.lsadump(job),
+                Plugin::WinCachedump => engine.cachedump(job),
+                Plugin::WinPrintkey => engine.registry(p, options, job),
+                other => bail!("注册表路由缺少插件 {}", other.name()),
+            }
+        };
+        let mut result = match &registry {
+            None => run(self)?,
+            Some(registry) => {
+                // Registry 进程视图失败（如 crash dump 未保存其页表）时回退内核视图。
+                match run(registry) {
+                    Ok(result) => result,
+                    Err(rehosted) => {
+                        let mut result = run(self)?;
+                        result.complete = false;
+                        result.diagnostics.push(format!(
+                            "Registry 进程视图失败，已回退内核视图: {rehosted:#}"
+                        ));
+                        result
                     }
                 }
-            };
-            if !diagnostics.is_empty() {
-                result.complete = false;
-                result.diagnostics.extend(diagnostics);
             }
-            if let (Some(owner), Some(registry)) = (owners.first(), registry.as_ref()) {
-                *result.kernel_identity.key_mut("registry_process")? = serde_json::json!({"pid":owner.pid,"address":owner.address,"dtb":registry.vm.root,"kernel_dtb":self.vm.root});
-            }
-            return Ok(result);
+        };
+        if !diagnostics.is_empty() {
+            result.complete = false;
+            result.diagnostics.extend(diagnostics);
         }
-        if p == Plugin::WinNetscan {
-            return self.netscan(job, None);
+        if let (Some(owner), Some(registry)) = (owners.first(), registry.as_ref()) {
+            *result.kernel_identity.key_mut("registry_process")? = serde_json::json!({"pid":owner.pid,"address":owner.address,"dtb":registry.vm.root,"kernel_dtb":self.vm.root});
         }
-        if p == Plugin::WinNetstat {
-            return self.netstat(job, None);
-        }
-        if p == Plugin::WinShimcacheMem {
-            return self.shimcache_memory(job);
-        }
-        if matches!(p, Plugin::WinPsscan | Plugin::WinPsxview) {
-            return self.scan_processes(p, options, job);
-        }
+        Ok(result)
+    }
+    /// Per-process plugins over the (possibly partial) active process list.
+    fn process_plugin(&self, p: Plugin, options: &Options, job: &Job) -> Result<Results> {
+        let mut result = self.result(p);
         let (processes, diagnostics) = self.processes_partial(job)?;
         result.complete = diagnostics.is_empty();
         result.diagnostics = diagnostics;
