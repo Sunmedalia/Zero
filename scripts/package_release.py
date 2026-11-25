@@ -5,6 +5,7 @@ import hashlib
 import subprocess
 import tarfile
 import tomllib
+import zipfile
 from pathlib import Path
 
 
@@ -21,20 +22,30 @@ def main():
         parser.error('target must match the native build host')
     version = tomllib.loads((root / 'Cargo.toml').read_text())['package']['version']
     name = f'zero-{version}-{host}'
-    files = [('target/release/zero', 'zero'), ('README.md', 'README.md'),
+    windows = host.endswith('-windows-msvc')
+    executable = 'zero.exe' if windows else 'zero'
+    files = [(f'target/release/{executable}', executable), ('README.md', 'README.md'),
              ('docs/tui.md', 'docs/tui.md')]
-    files += [(str(p.relative_to(root)), str(p.relative_to(root))) for p in sorted((root / 'docs/licenses').glob('*.txt'))]
+    licenses = (root / 'docs/licenses').glob('*.txt')
+    files += [(p.relative_to(root).as_posix(), p.relative_to(root).as_posix()) for p in sorted(licenses)]
     for source, _ in files:
         if not (root / source).is_file():
             parser.error(f'missing release file: {source}')
     args.output.mkdir(parents=True, exist_ok=True)
-    archive = args.output / f'{name}.tar.gz'
-    with tarfile.open(archive, 'w:gz') as package:
-        for source, destination in files:
-            package.add(root / source, arcname=f'{name}/{destination}', recursive=False)
+    if windows:
+        archive = args.output / f'{name}.zip'
+        with zipfile.ZipFile(archive, 'w', compression=zipfile.ZIP_DEFLATED) as package:
+            for source, destination in files:
+                package.write(root / source, arcname=f'{name}/{destination}')
+    else:
+        archive = args.output / f'{name}.tar.gz'
+        with tarfile.open(archive, 'w:gz') as package:
+            for source, destination in files:
+                package.add(root / source, arcname=f'{name}/{destination}', recursive=False)
     with archive.open('rb') as stream:
         digest = hashlib.file_digest(stream, 'sha256').hexdigest()
-    archive.with_suffix(archive.suffix + '.sha256').write_text(f'{digest}  {archive.name}\n')
+    archive.with_suffix(archive.suffix + '.sha256').write_text(
+        f'{digest}  {archive.name}\n', encoding='ascii', newline='\n')
     print(archive)
 
 

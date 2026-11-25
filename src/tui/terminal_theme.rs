@@ -13,6 +13,7 @@ pub(super) fn from_env(value: &str) -> Option<bool> {
     let background = value.rsplit(';').next()?.parse::<u8>().ok()?;
     Some(background == 7 || (9..=15).contains(&background))
 }
+#[cfg(any(unix, test))]
 pub(super) fn parse(reply: &str) -> Option<bool> {
     let reply = reply.to_ascii_lowercase();
     let value = reply.split("11;").nth(1)?;
@@ -47,6 +48,7 @@ pub(super) fn detect(probe: bool) -> (bool, StartupInput) {
 }
 /// Split raw terminal input into the OSC 11 / DA1 replies and everything
 /// else, which is what the user typed while the query was outstanding.
+#[cfg(any(unix, test))]
 pub(super) fn split_replies(bytes: &[u8]) -> (String, Vec<u8>) {
     let mut replies = Vec::new();
     let mut typed = Vec::new();

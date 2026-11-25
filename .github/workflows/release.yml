@@ -35,7 +35,16 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           cd dist
-          cat *.sha256 > SHA256SUMS
-          test "$(find . -name '*.tar.gz' | wc -l)" -eq 3
-          sha256sum --check SHA256SUMS
-          gh release create "$GITHUB_REF_NAME" *.tar.gz SHA256SUMS --repo "$GITHUB_REPOSITORY" --verify-tag --title "Zero $GITHUB_REF_NAME" --notes-file ../RELEASE_NOTES.md
+          version=${GITHUB_REF_NAME#v}
+          archives=(
+            "zero-${version}-x86_64-unknown-linux-gnu.tar.gz"
+            "zero-${version}-aarch64-unknown-linux-gnu.tar.gz"
+            "zero-${version}-aarch64-apple-darwin.tar.gz"
+            "zero-${version}-x86_64-pc-windows-msvc.zip"
+          )
+          for archive in "${archives[@]}"; do
+            test -f "$archive"
+            cat "${archive}.sha256"
+          done > SHA256SUMS
+          sha256sum --strict --check SHA256SUMS
+          gh release create "$GITHUB_REF_NAME" "${archives[@]}" SHA256SUMS --repo "$GITHUB_REPOSITORY" --verify-tag --title "Zero $GITHUB_REF_NAME" --notes-file ../RELEASE_NOTES.md

@@ -1,13 +1,13 @@
 //! Read-only physical address space. LiME holes are errors, never zero filled.
 use crate::Job;
 use crate::bytes::Checked as _;
+use crate::file_io::{ReadAt as _, file_stamp, path_stamp};
 use anyhow::{Context, Result, bail, ensure};
 use flate2::read::MultiGzDecoder;
 use sha2::{Digest, Sha256};
 use std::{
     fs::{self, File},
     io::{Read, Write},
-    os::unix::fs::FileExt,
     path::Path,
     thread,
 };
@@ -21,7 +21,7 @@ pub struct Segment {
 pub struct Image {
     pub limits: crate::resources::Limits,
     file: File,
-    opened_stamp: String,
+    opened_stamp: crate::file_io::FileStamp,
     _cache_guard: Option<File>,
     pub(crate) arm64_va_bits: std::sync::atomic::AtomicU8,
     windows: std::sync::OnceLock<Vec<crate::windows_symbols::Candidate>>,
@@ -166,7 +166,6 @@ pub fn settled(path: &Path) -> bool {
 /// SHA256 over the size and 16 evenly spaced 64 KiB blocks: about 1 MiB of
 /// reads that must match before a recorded digest is reused.
 fn content_sample(file: &File) -> Result<String> {
-    use std::os::unix::fs::FileExt;
     const BLOCK: u64 = 64 * 1024;
     let len = file.metadata()?.len();
     let mut hash = Sha256::new();
@@ -487,7 +486,7 @@ fn current_manifest(path: &Path, cache: &Path) -> Option<Identification> {
         return None;
     }
     let value: Identification = serde_json::from_slice(&fs::read(manifest).ok()?).ok()?;
-    (value.source_stamp == metadata_stamp(&fs::metadata(&source).ok()?).ok()?).then_some(value)
+    (value.source_stamp == path_stamp(&source).ok()?.to_string()).then_some(value)
 }
 /// The SHA256 the last full verification recorded for an image, while the
 /// file's metadata is unchanged. Display only: it is not a fresh check.
@@ -590,7 +589,7 @@ impl Image {
     fn from_manifest(path: &Path, cache: &Path, job: &Job) -> Result<(Self, Reuse)> {
         job.check()?;
         let source = path.canonicalize()?;
-        let source_stamp = metadata_stamp(&fs::metadata(&source)?)?;
+        let source_stamp = path_stamp(&source)?.to_string();
         let identity = format!("{:x}", Sha256::digest(source.to_string_lossy().as_bytes()));
         let manifest = cache
             .join("identification")
@@ -618,7 +617,7 @@ impl Image {
         }
         let file = File::open(&value.prepared)?;
         ensure!(
-            metadata_stamp(&file.metadata()?)? == value.prepared_stamp,
+            file_stamp(&file)?.to_string() == value.prepared_stamp,
             "识别缓存已过期"
         );
         let mut image = Self::from_file_with_job(file, String::new(), job)?;
@@ -630,7 +629,7 @@ impl Image {
         );
         ensure!(
             image.stamp()? == value.prepared_stamp
-                && metadata_stamp(&fs::metadata(&source)?)? == source_stamp,
+                && path_stamp(&source)?.to_string() == source_stamp,
             "镜像在识别过程中发生变化"
         );
         job.check()?;
@@ -710,7 +709,7 @@ impl Image {
             }
             drop(guard);
         }
-        let source_stamp = metadata_stamp(&fs::metadata(path)?)?;
+        let source_stamp = path_stamp(path)?.to_string();
         let identity = format!(
             "{:x}",
             Sha256::digest(path.canonicalize()?.to_string_lossy().as_bytes())
@@ -726,7 +725,7 @@ impl Image {
             && let Ok(value) = serde_json::from_slice::<Identification>(&bytes)
             && value.source_stamp == source_stamp
             && let Ok(file) = File::open(&value.prepared)
-            && metadata_stamp(&file.metadata()?)? == value.prepared_stamp
+            && file_stamp(&file)?.to_string() == value.prepared_stamp
             && let Ok(preview) = Self::from_file_with_job(file, String::new(), job)
         {
             for (address, banner) in value.banners.iter().take(1024) {
@@ -833,7 +832,7 @@ impl Image {
         let found = image.read_banners(physical, job)?;
         let count = found.len();
         ensure!(
-            source_stamp == metadata_stamp(&fs::metadata(path)?)?,
+            source_stamp == path_stamp(path)?.to_string(),
             "镜像在读取过程中发生变化，请重新打开"
         );
         job.check()?;
@@ -953,7 +952,7 @@ impl Image {
             });
             "RAW"
         };
-        let opened_stamp = metadata_stamp(&file.metadata()?)?;
+        let opened_stamp = file_stamp(&file)?;
         Ok(Self {
             file,
             opened_stamp,
@@ -1190,13 +1189,13 @@ impl Image {
     /// Reject reuse of content identities and physical-page caches after an external write.
     pub(crate) fn ensure_unchanged(&self) -> Result<()> {
         ensure!(
-            self.stamp()? == self.opened_stamp,
+            file_stamp(&self.file)? == self.opened_stamp,
             "镜像自打开后发生变化；请重新打开镜像"
         );
         Ok(())
     }
     pub fn stamp(&self) -> Result<String> {
-        metadata_stamp(&self.file.metadata()?)
+        Ok(file_stamp(&self.file)?.to_string())
     }
     /// Sorted, unique physical offsets of `needle`. Results are memoized per image.
     pub fn scan(&self, needle: &[u8], job: &Job) -> Result<Vec<u64>> {
@@ -1571,19 +1570,11 @@ impl PageCursor<'_, '_> {
     }
 }
 
+#[cfg(unix)]
 pub fn metadata_stamp(metadata: &std::fs::Metadata) -> Result<String> {
-    use std::os::unix::fs::MetadataExt;
-    Ok(format!(
-        "{}:{}:{}:{}:{}:{}:{}",
-        metadata.dev(),
-        metadata.ino(),
-        metadata.len(),
-        metadata.mtime(),
-        metadata.mtime_nsec(),
-        metadata.ctime(),
-        metadata.ctime_nsec()
-    ))
+    Ok(crate::file_io::metadata_stamp(metadata).to_string())
 }
+
 #[cfg(test)]
 mod arm_tests {
     use super::*;

@@ -1,9 +1,9 @@
 //! Explicit, read-only paging attachments. No adjacent-file discovery or implicit index guessing.
 use super::*;
+use crate::file_io::{FileStamp, ReadAt as _, file_stamp, path_stamp};
 use serde::{Deserialize, Serialize};
 use std::{
-    fs::{File, Metadata},
-    os::unix::fs::{FileExt, MetadataExt},
+    fs::File,
     path::{Path, PathBuf},
     sync::Mutex,
 };
@@ -45,33 +45,10 @@ pub fn parse_attachment(value: &str) -> Result<Attachment, String> {
         path: path.into(),
     })
 }
-#[derive(Debug, PartialEq, Eq)]
-struct Stamp {
-    length: u64,
-    dev: u64,
-    inode: u64,
-    mtime: i64,
-    mtime_ns: i64,
-    ctime: i64,
-    ctime_ns: i64,
-}
-impl Stamp {
-    fn from(m: &Metadata) -> Self {
-        Self {
-            length: m.len(),
-            dev: m.dev(),
-            inode: m.ino(),
-            mtime: m.mtime(),
-            mtime_ns: m.mtime_nsec(),
-            ctime: m.ctime(),
-            ctime_ns: m.ctime_nsec(),
-        }
-    }
-}
 struct BackingFile {
     file: File,
     path: PathBuf,
-    stamp: Stamp,
+    stamp: FileStamp,
     digest: String,
     kind: &'static str,
 }
@@ -80,7 +57,7 @@ impl BackingFile {
         let file = File::open(path).with_context(|| format!("打开 {kind} {}", path.display()))?;
         let metadata = file.metadata()?;
         ensure!(metadata.is_file(), "分页附件必须是普通文件");
-        let stamp = Stamp::from(&metadata);
+        let stamp = file_stamp(&file)?;
         let digest = crate::image::digest_file(file.try_clone()?, job)?;
         let result = Self {
             file,
@@ -94,8 +71,7 @@ impl BackingFile {
     }
     fn validate(&self) -> Result<()> {
         ensure!(
-            Stamp::from(&self.file.metadata()?) == self.stamp
-                && Stamp::from(&std::fs::metadata(&self.path)?) == self.stamp,
+            file_stamp(&self.file)? == self.stamp && path_stamp(&self.path)? == self.stamp,
             "分页附件在分析期间被修改或替换: {}",
             self.path.display()
         );
@@ -106,7 +82,7 @@ impl BackingFile {
         ensure!(
             offset
                 .checked_add(out.len() as u64)
-                .is_some_and(|end| end <= self.stamp.length),
+                .is_some_and(|end| end <= self.stamp.len),
             "{} 越界: {offset:#x}",
             self.kind
         );
@@ -256,7 +232,7 @@ impl Sources {
             f.validate().is_ok()
                 && offset
                     .checked_add(size)
-                    .is_some_and(|end| end <= f.stamp.length)
+                    .is_some_and(|end| end <= f.stamp.len)
         })
     }
     pub(super) fn read(&self, index: u8, offset: u64, out: &mut [u8]) -> Result<()> {
@@ -284,7 +260,7 @@ impl Sources {
         Ok(())
     }
     pub(super) fn manifest(&self) -> Result<serde_json::Value> {
-        let files:Vec<_>=self.files.iter().map(|(index,f)|serde_json::json!({"index":index,"kind":f.kind,"path":f.path,"size":f.stamp.length,"sha256":f.digest,"capture_match":"user-supplied"})).collect();
+        let files:Vec<_>=self.files.iter().map(|(index,f)|serde_json::json!({"index":index,"kind":f.kind,"path":f.path,"size":f.stamp.len,"sha256":f.digest,"capture_match":"user-supplied"})).collect();
         let reads = self
             .reads
             .lock()

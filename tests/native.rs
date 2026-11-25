@@ -274,6 +274,8 @@ fn gzip_cancel_and_repair() -> Result<()> {
         .find(|p| p.extension().is_some_and(|s| s == "image"))
         .unwrap();
     fs::write(prepared, b"bad")?;
+    // Close the old handle so Windows can replace the prepared cache file.
+    drop(image);
     assert_eq!(Image::open(&path, &cache, &Job::default())?.digest, digest);
     Ok(())
 }
@@ -709,12 +711,15 @@ fn session_reuses_preparation_and_invalidates_changes() -> Result<()> {
             .iter()
             .any(|s| s.starts_with("复用"))
     );
-    let link = dir.path().join("link.raw");
-    std::os::unix::fs::symlink(&path, &link)?;
-    assert_eq!(
-        session.prepare_image(&link, dir.path(), &job)?.format,
-        "RAW"
-    );
+    #[cfg(unix)]
+    {
+        let link = dir.path().join("link.raw");
+        std::os::unix::fs::symlink(&path, &link)?;
+        assert_eq!(
+            session.prepare_image(&link, dir.path(), &job)?.format,
+            "RAW"
+        );
+    }
     Ok(())
 }
 
@@ -761,7 +766,7 @@ fn fused_identification_cache_is_only_a_hint_and_crosses_boundaries() -> Result<
         .unwrap()?
         .path();
     let mut value: serde_json::Value = serde_json::from_slice(&fs::read(&manifest)?)?;
-    let stamp = zero_tui::image::metadata_stamp(&fs::metadata(&path)?)?;
+    let stamp = Image::from_file(fs::File::open(&path)?, String::new())?.stamp()?;
     value["source_stamp"] = json!(stamp);
     value["prepared_stamp"] = value["source_stamp"].clone();
     fs::write(manifest, serde_json::to_vec(&value)?)?;

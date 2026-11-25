@@ -31,7 +31,8 @@ pub(crate) struct Response {
 /// Stream one response into `file`. Each attempt owns its agent so cancelling
 /// it interrupts active I/O without affecting other downloads. No worker may
 /// retain the file or a connection after this function returns.
-/// DNS and TCP connects not yet established finish within their phase timeouts.
+/// DNS and pending connects finish within their phase timeouts. On Windows an
+/// already blocked Winsock read can also wait for the request timeout.
 pub(crate) fn download(request: Request<'_>, file: File, job: &Job) -> Result<Response> {
     job.check()?;
     // System roots first; bundled Mozilla roots support hosts without a CA store.
@@ -97,8 +98,8 @@ fn attempt(request: &Request<'_>, roots: RootCerts, file: &File, job: &Job) -> R
             Err(RecvTimeoutError::Disconnected) => break Err(anyhow!("下载线程意外退出")),
         }
     };
-    // Closing the agent wakes blocked headers, body reads and TLS handshakes.
-    // Join before exposing completion, cancellation or a TLS retry to callers.
+    // Shut down the sockets and join before exposing completion, cancellation
+    // or a TLS retry to callers.
     agent.shutdown();
     let joined = worker.join();
     job.check()?;
@@ -281,6 +282,13 @@ mod tests {
         let listener = TcpListener::bind("127.0.0.1:0").unwrap();
         let url = format!("{scheme}://{}/", listener.local_addr().unwrap());
         let tls = scheme == "https";
+        let timeout = Duration::from_secs(10);
+        let cancellation_deadline = if cfg!(windows) {
+            // Winsock shutdown can leave a pending receive until its timeout.
+            timeout + Duration::from_secs(2)
+        } else {
+            Duration::from_secs(3)
+        };
         let job = Job::default();
         let cancel = job.cancel.clone();
         let (ready_tx, ready_rx) = mpsc::channel();
@@ -323,7 +331,7 @@ mod tests {
                     url: &url,
                     range: None,
                     limit: 1024,
-                    timeout: Duration::from_secs(10),
+                    timeout,
                     https_only: tls,
                 },
                 tempfile::tempfile().unwrap(),
@@ -340,7 +348,7 @@ mod tests {
         check_tx.send(()).unwrap();
         let closed = server.join().unwrap();
         assert!(error.to_string().contains("cancelled"), "{error:#}");
-        assert!(started.elapsed() < Duration::from_secs(3));
+        assert!(started.elapsed() < cancellation_deadline);
         assert!(closed, "cancelled download left the peer connection open");
     }
 

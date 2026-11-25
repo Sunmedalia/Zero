@@ -545,6 +545,7 @@ pub fn save_generated_symbol(path: &Path, library: &Path, job: &Job) -> Result<P
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[cfg(unix)]
     use std::os::unix::fs::PermissionsExt;
     fn debug_elf() -> Vec<u8> {
         let mut b = vec![0; 512];
@@ -597,6 +598,7 @@ mod tests {
         fs::write(&path, &elf).unwrap();
         assert!(elf_metadata(&path).is_err());
     }
+    #[cfg(unix)]
     #[test]
     fn debug_sizes_and_generation_validate_banner_and_provenance() -> Result<()> {
         let dir = tempfile::tempdir()?;
@@ -783,6 +785,7 @@ mod tests {
         Ok(())
     }
 
+    #[cfg(unix)]
     #[test]
     fn downloaded_package_generation_persists_provenance_and_survives_cache_cleanup() -> Result<()>
     {

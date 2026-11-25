@@ -13,6 +13,7 @@
 )]
 pub mod byte_regex;
 pub mod cache;
+mod file_io;
 pub mod framebuffer;
 pub mod image;
 mod intel_scan;

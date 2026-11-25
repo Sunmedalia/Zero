@@ -3,7 +3,17 @@ use super::*;
 use serde::{Deserialize, Serialize};
 use std::fs::OpenOptions;
 
-pub(super) fn artifact_lock(path: &Path, label: &str, job: &Job) -> Result<File> {
+#[derive(Debug)]
+pub(super) struct ArtifactLock(File);
+
+impl Drop for ArtifactLock {
+    fn drop(&mut self) {
+        // A concurrently forked child can briefly inherit this descriptor before exec.
+        let _ = self.0.unlock();
+    }
+}
+
+pub(super) fn artifact_lock(path: &Path, label: &str, job: &Job) -> Result<ArtifactLock> {
     job.check()?;
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent)?;
@@ -20,7 +30,7 @@ pub(super) fn artifact_lock(path: &Path, label: &str, job: &Job) -> Result<File>
         .open(path)?;
     file.try_lock()
         .with_context(|| format!("{label}，请稍后重试"))?;
-    Ok(file)
+    Ok(ArtifactLock(file))
 }
 pub(super) fn read_json(path: &Path) -> Option<serde_json::Value> {
     let meta = path.metadata().ok()?;

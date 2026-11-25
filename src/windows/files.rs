@@ -550,7 +550,10 @@ mod tests {
         expected.extend_from_slice(&b[0x11000..0x13000]);
         assert_eq!(row[6], format!("{:x}", Sha256::digest(&expected)));
         assert_eq!(std::fs::read(&row[7]).unwrap(), expected);
-        let name = row[7].rsplit('/').next().unwrap();
+        let name = std::path::Path::new(&row[7])
+            .file_name()
+            .unwrap()
+            .to_string_lossy();
         assert!(
             name.starts_with("windows-file-pid8-0xffff80000001e300-")
                 && name.ends_with("-notes.txt-dat.dat"),

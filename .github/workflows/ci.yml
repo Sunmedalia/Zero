@@ -23,11 +23,17 @@ jobs:
             target: aarch64-unknown-linux-gnu
           - runner: macos-15
             target: aarch64-apple-darwin
+          - runner: windows-2025
+            target: x86_64-pc-windows-msvc
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 30
+    env:
+      PCRE2_SYS_STATIC: '1'
+      CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_RUSTFLAGS: -C target-feature=+crt-static
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Install Rust
+        shell: bash
         run: |
           rustup show
           test "$(rustc -vV | sed -n 's/^host: //p')" = '${{ matrix.target }}'
@@ -45,13 +51,31 @@ jobs:
           restore-keys: |
             build-${{ matrix.target }}-${{ hashFiles('Cargo.lock', 'Cargo.toml', 'rust-toolchain.toml', '.cargo/**') }}-
       - name: Check, test and build
+        if: runner.os != 'Windows'
         run: make check
-      - name: Package native executable
+      - name: Build Windows release
+        if: runner.os == 'Windows'
+        run: cargo build --locked --release
+      - name: Package and verify native release
+        if: runner.os != 'Windows'
         run: |
           python3 -I scripts/package_release.py \
             --target '${{ matrix.target }}' --output dist
-      - name: Verify native release in an empty PATH
-        run: python3 -I scripts/verify_release.py dist/*.tar.gz
+          python3 -I scripts/verify_release.py dist/*.tar.gz
+      - name: Package and verify native Windows release
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          python -m pip install --only-binary=:all: pywinpty==3.1.2
+          python -I scripts/package_release.py \
+            --target '${{ matrix.target }}' --output dist
+          python -I scripts/verify_release.py dist/*.zip
+      - name: Clippy on Windows
+        if: runner.os == 'Windows'
+        run: cargo clippy --locked --all-targets -- -D warnings
+      - name: Test on Windows
+        if: runner.os == 'Windows'
+        run: cargo test --locked
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: release-${{ matrix.target }}

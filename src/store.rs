@@ -453,7 +453,7 @@ pub fn record_export(
     let _guard = crate::cache::lock(cache, false)?;
     let dir = record_dir(cache);
     fs::create_dir_all(&dir)?;
-    let source_before = crate::image::metadata_stamp(&fs::metadata(&destination)?)?;
+    let source_before = crate::file_io::path_stamp(&destination)?;
     // Copy and hash in a single streaming pass so the persisted copy is
     // guaranteed to match the recorded SHA256 without reading the file thrice.
     let mut temp = tempfile::NamedTempFile::new_in(&dir)?;
@@ -478,9 +478,7 @@ pub fn record_export(
         writer.flush()?;
     }
     job.check()?;
-    if crate::image::metadata_stamp(&fs::metadata(&destination)?)? != source_before
-        || copied != bytes
-    {
+    if crate::file_io::path_stamp(&destination)? != source_before || copied != bytes {
         anyhow::bail!("导出文件在记录期间被修改；未记录");
     }
     let sha256 = format!("{:x}", hasher.finalize());

@@ -89,14 +89,17 @@ fn unified_symbol_manager_has_inline_search_and_analysis_only_header() {
     let dir = tempfile::tempdir().unwrap();
     app.root = dir.path().into();
     std::fs::create_dir_all(dir.path().join("images")).unwrap();
-    let image = dir.path().join("images/capture.raw");
+    let relative = std::path::Path::new("images").join("capture.raw");
+    let image = dir.path().join(&relative);
     std::fs::write(&image, b"image").unwrap();
     app.image = Some(image.clone());
-    assert_eq!(app.display_path(&image), "images/capture.raw");
-    assert!(std::path::Path::new(&app.display_path(std::path::Path::new("/tmp"))).is_absolute());
+    let outside = tempfile::tempdir().unwrap();
+    assert_eq!(app.display_path(&image), relative.to_string_lossy());
+    assert!(std::path::Path::new(&app.display_path(outside.path())).is_absolute());
+    let header = format!("镜像: {}", relative.display());
     let mut terminal = Terminal::new(TestBackend::new(100, 32)).unwrap();
     terminal.draw(|f| app.draw(f)).unwrap();
-    assert!(screen(&terminal, 100).contains("镜像: images/capture.raw"));
+    assert!(screen(&terminal, 100).contains(&header));
     app.switch_section(AssetSection::Symbols);
     terminal.draw(|f| app.draw(f)).unwrap();
     let hits = app.hits.borrow().clone();
@@ -108,7 +111,7 @@ fn unified_symbol_manager_has_inline_search_and_analysis_only_header() {
     // gives that row to the list.
     assert_eq!(hits.search.height, 0);
     assert!(hits.asset_searches.is_empty());
-    assert!(screen(&terminal, 100).contains("镜像: images/capture.raw"));
+    assert!(screen(&terminal, 100).contains(&header));
     // Opening the search gives it a row again.
     app.open_input(InputKind::AssetsSearch);
     terminal.draw(|f| app.draw(f)).unwrap();
@@ -1046,6 +1049,7 @@ fn candidate_detail_inspects_and_returns_to_the_same_zip_selection() {
     assert!(app.job.is_none());
 }
 
+#[cfg(unix)]
 #[test]
 fn current_image_symbol_generation_validates_inputs_and_persists_exact_output() {
     use std::os::unix::fs::PermissionsExt;

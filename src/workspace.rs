@@ -176,6 +176,14 @@ impl Registry {
             ensure!(found.len() < 10000, "资产发现达到 10000 项上限");
             let path = path.canonicalize().unwrap_or(path);
             let meta = fs::metadata(&path).ok();
+            #[cfg(unix)]
+            let stamp = meta
+                .as_ref()
+                .map(|meta| crate::file_io::metadata_stamp(meta).to_string());
+            #[cfg(windows)]
+            let stamp = crate::file_io::path_stamp(&path)
+                .ok()
+                .map(|stamp| stamp.to_string());
             found.insert(
                 path.clone(),
                 Asset {
@@ -186,9 +194,7 @@ impl Registry {
                         .as_ref()
                         .is_some_and(|m| m.is_file() || kind == Kind::Symbols && m.is_dir()),
                     directory: meta.as_ref().is_some_and(|m| m.is_dir()),
-                    stamp: meta
-                        .as_ref()
-                        .and_then(|m| crate::image::metadata_stamp(m).ok()),
+                    stamp,
                     origin,
                 },
             );
