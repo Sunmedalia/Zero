@@ -5,10 +5,9 @@
 //! followed by a Snappy framed stream for each range (and may also contain
 //! uncompressed LiME v1 `0x4c694d45` blocks in the same file).
 use super::snappy;
-use crate::{Job, bytes::Checked as _, file_io::ReadAt as _, image::Segment};
+use crate::{Job, bytes::Checked as _, file_io::ReadAt as _, image::Segment, resources::Lru};
 use anyhow::{Context, Result, bail, ensure};
 use std::{
-    collections::{BTreeMap, VecDeque},
     fs::File,
     sync::{Arc, Mutex},
 };
@@ -34,16 +33,10 @@ struct Chunk {
     kind: ChunkKind,
 }
 
-#[derive(Default)]
-struct Cache {
-    entries: BTreeMap<usize, Arc<Vec<u8>>>,
-    order: VecDeque<usize>,
-}
-
 pub struct Avml {
     chunks: Vec<Chunk>,
     segments: Vec<Segment>,
-    cache: Mutex<Cache>,
+    cache: Mutex<Lru<usize, Arc<Vec<u8>>>>,
 }
 
 pub fn recognized(magic: &[u8; 4]) -> bool {
@@ -224,7 +217,7 @@ impl Avml {
         Ok(Self {
             chunks,
             segments,
-            cache: Mutex::new(Cache::default()),
+            cache: Mutex::new(Lru::new(CACHE_CAPACITY)),
         })
     }
 
@@ -237,10 +230,10 @@ impl Avml {
             .cache
             .lock()
             .map_err(|_| anyhow::anyhow!("AVML 解压缓存锁失败"))?
-            .entries
             .get(&index)
+            .cloned()
         {
-            return Ok(bytes.clone());
+            return Ok(bytes);
         }
         let chunk = self.chunks.at(index)?;
         let expected_len = usize::try_from(chunk.end - chunk.start)?;
@@ -282,15 +275,7 @@ impl Avml {
             .cache
             .lock()
             .map_err(|_| anyhow::anyhow!("AVML 解压缓存锁失败"))?;
-        if !cache.entries.contains_key(&index) {
-            if cache.order.len() >= CACHE_CAPACITY
-                && let Some(old) = cache.order.pop_front()
-            {
-                cache.entries.remove(&old);
-            }
-            cache.order.push_back(index);
-            cache.entries.insert(index, bytes.clone());
-        }
+        cache.insert(index, bytes.clone(), 1);
         Ok(bytes)
     }
 

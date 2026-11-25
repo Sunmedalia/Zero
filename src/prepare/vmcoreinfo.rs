@@ -1,4 +1,4 @@
-//! VMCOREINFO notes left in memory by the running kernel (`crash_save_vmcoreinfo`).
+//! VMCOREINFO notes from captured memory or an ELF PT_NOTE.
 //!
 //! Only notes whose `OSRELEASE` equals the image banner's release are read, and
 //! the caller accepts one only after every exported `SYMBOL()` it shares with
@@ -12,21 +12,27 @@ use std::collections::BTreeMap;
 const MAX_NOTE: usize = 4096;
 pub(super) const ANCHOR: &[u8] = b"OSRELEASE=";
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum Source {
+    Physical(u64),
+    ElfPtNote,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(super) struct Vmcoreinfo {
-    pub physical: u64,
+    pub source: Source,
     pub kernel_offset: Option<u64>,
     pub symbols: BTreeMap<String, u64>,
     pub numbers: BTreeMap<String, i64>,
 }
 
-fn parse(text: &str, release: &str, physical: u64) -> Option<Vmcoreinfo> {
+fn parse(text: &str, release: &str, source: Source) -> Option<Vmcoreinfo> {
     let mut lines = text.lines();
     if lines.next()?.strip_prefix("OSRELEASE=")? != release {
         return None;
     }
     let mut info = Vmcoreinfo {
-        physical,
+        source,
         kernel_offset: None,
         symbols: BTreeMap::new(),
         numbers: BTreeMap::new(),
@@ -74,7 +80,7 @@ fn parse(text: &str, release: &str, physical: u64) -> Option<Vmcoreinfo> {
     Some(info)
 }
 
-/// Every distinct note for `release`, with its physical address.
+/// Distinct notes in captured memory, followed by the ELF note if present.
 pub(super) fn find(image: &Image, release: &str, job: &Job) -> Result<Vec<Vmcoreinfo>> {
     let mut out: Vec<Vmcoreinfo> = Vec::new();
     for hit in image.scan(ANCHOR, job)? {
@@ -97,7 +103,7 @@ pub(super) fn find(image: &Image, release: &str, job: &Job) -> Result<Vec<Vmcore
         } else {
             text
         };
-        if let Some(info) = parse(text, release, hit)
+        if let Some(info) = parse(text, release, Source::Physical(hit))
             && !out.iter().any(|o| {
                 o.kernel_offset == info.kernel_offset
                     && o.symbols == info.symbols
@@ -106,6 +112,14 @@ pub(super) fn find(image: &Image, release: &str, job: &Job) -> Result<Vec<Vmcore
         {
             out.push(info);
         }
+    }
+    if let Some(text) = image
+        .vm_metadata
+        .as_ref()
+        .and_then(|meta| meta.vmcoreinfo.as_deref())
+        && let Some(info) = parse(text, release, Source::ElfPtNote)
+    {
+        out.push(info);
     }
     Ok(out)
 }
@@ -117,22 +131,50 @@ mod tests {
     #[test]
     fn parses_only_matching_release_and_exact_fields() {
         let text = "OSRELEASE=6.12.74+deb13+1-cloud-amd64\nPAGESIZE=4096\nSYMBOL(init_top_pgt)=ffffffffae622000\nNUMBER(phys_base)=-304087040\nNUMBER(pgtable_l5_enabled)=0\nKERNELOFFSET=2ba00000\n";
-        let info = parse(text, "6.12.74+deb13+1-cloud-amd64", 0x1000).unwrap();
+        let info = parse(
+            text,
+            "6.12.74+deb13+1-cloud-amd64",
+            Source::Physical(0x1000),
+        )
+        .unwrap();
         assert_eq!(info.kernel_offset, Some(0x2ba0_0000));
         assert_eq!(info.symbols["init_top_pgt"], 0xffff_ffff_ae62_2000);
         assert_eq!(info.numbers["phys_base"], -304_087_040);
-        assert!(parse(text, "6.12.74", 0).is_none());
+        assert!(parse(text, "6.12.74", Source::Physical(0)).is_none());
         let hex = parse(
             "OSRELEASE=x\nNUMBER(VMALLOC_START)=0xffffcdff00000000\n",
             "x",
-            0,
+            Source::Physical(0),
         )
         .unwrap();
         assert_eq!(
             hex.numbers["VMALLOC_START"].cast_unsigned(),
             0xffff_cdff_0000_0000
         );
-        assert!(parse("OSRELEASE=x\nKERNELOFFSET=zz\n", "x", 0).is_none());
+        assert!(parse("OSRELEASE=x\nKERNELOFFSET=zz\n", "x", Source::Physical(0)).is_none());
+    }
+
+    #[test]
+    fn find_includes_container_vmcoreinfo_note_when_ram_lacks_one() {
+        let mut img = Image::from_file(tempfile::tempfile().unwrap(), "empty".into())
+            .unwrap_or_else(|_| {
+                let mut file = tempfile::tempfile().unwrap();
+                std::io::Write::write_all(&mut file, &[0u8; 4096]).unwrap();
+                Image::from_file(file, "zero".into()).unwrap()
+            });
+        img.vm_metadata = Some(crate::containers::VmMetadata {
+            container: "ELF Core (QEMU/KVM)".into(),
+            vmcoreinfo: Some(
+                "OSRELEASE=6.8.0-qemu\nKERNELOFFSET=1200000\nSYMBOL(init_top_pgt)=ffffffff82000000\n"
+                    .into(),
+            ),
+            ..Default::default()
+        });
+        let notes = find(&img, "6.8.0-qemu", &Job::default()).unwrap();
+        assert_eq!(notes.len(), 1);
+        assert_eq!(notes[0].source, Source::ElfPtNote);
+        assert_eq!(notes[0].kernel_offset, Some(0x120_0000));
+        assert_eq!(notes[0].symbols["init_top_pgt"], 0xffff_ffff_8200_0000);
     }
 }
 
@@ -155,6 +197,23 @@ mod boundary_tests {
             file.write_all(bytes).unwrap();
         }
         Image::from_file(file, "fixture".into()).unwrap()
+    }
+
+    #[test]
+    fn identical_notes_retain_both_sources() {
+        let note = "OSRELEASE=x\nSYMBOL(init_top_pgt)=ffffffff80001000\n";
+        let bytes = format!("{note}\0");
+        let mut image = image(&[(0x1000, bytes.as_bytes())]);
+        image.vm_metadata = Some(crate::containers::VmMetadata {
+            vmcoreinfo: Some(note.into()),
+            ..Default::default()
+        });
+
+        let notes = find(&image, "x", &Job::default()).unwrap();
+        assert_eq!(notes.len(), 2);
+        assert_eq!(notes[0].source, Source::Physical(0x1000));
+        assert_eq!(notes[1].source, Source::ElfPtNote);
+        assert_eq!(notes[0].symbols, notes[1].symbols);
     }
 
     #[test]
@@ -192,8 +251,15 @@ mod boundary_tests {
             "NUMBER(x)=1\nNUMBER(x)=2\n",
             "OSRELEASE=y\n",
         ] {
-            assert!(parse(&format!("OSRELEASE=x\n{fields}"), "x", 0).is_none());
+            assert!(parse(&format!("OSRELEASE=x\n{fields}"), "x", Source::Physical(0)).is_none());
         }
-        assert!(parse("OSRELEASE=x\nKERNELOFFSET=1\nKERNELOFFSET=1\n", "x", 0).is_some());
+        assert!(
+            parse(
+                "OSRELEASE=x\nKERNELOFFSET=1\nKERNELOFFSET=1\n",
+                "x",
+                Source::Physical(0)
+            )
+            .is_some()
+        );
     }
 }

@@ -136,6 +136,13 @@ pub struct Options {
 }
 /// Scan plugins need a pattern/YARA rule and no other plugin accepts one.
 pub fn validate_pattern(plugin: crate::linux::Plugin, options: &Options) -> Result<()> {
+    validate_and_compile_pattern(plugin, options).map(|_| ())
+}
+
+pub(crate) fn validate_and_compile_pattern(
+    plugin: crate::linux::Plugin,
+    options: &Options,
+) -> Result<Option<crate::yara::YaraSpec>> {
     if plugin.is_regex_scan() {
         ensure!(
             options.yara_file.is_none() && options.yara_rules.is_none(),
@@ -147,12 +154,13 @@ pub fn validate_pattern(plugin: crate::linux::Plugin, options: &Options) -> Resu
             .context("此插件需要 --pattern 字节正则")?;
         crate::byte_regex::ByteRegex::compile(text, true)?;
         crate::byte_regex::ByteRegex::compile(text, false)?;
+        Ok(None)
     } else if plugin.is_yara_scan() {
-        crate::yara::YaraSpec::from_inputs(
+        Ok(Some(crate::yara::YaraSpec::from_inputs(
             options.pattern.as_deref(),
             options.yara_file.as_deref(),
             options.yara_rules.as_deref(),
-        )?;
+        )?))
     } else {
         ensure!(
             options.pattern.is_none()
@@ -160,8 +168,8 @@ pub fn validate_pattern(plugin: crate::linux::Plugin, options: &Options) -> Resu
                 && options.yara_rules.is_none(),
             "--pattern / --yara-file / --yara-rules 仅用于 YARA 或正则扫描插件"
         );
+        Ok(None)
     }
-    Ok(())
 }
 pub fn analyze(
     session: &mut Session,
@@ -190,7 +198,7 @@ pub fn analyze(
         options.strings_file.is_some() == (request.plugin == Plugin::WinStrings),
         "windows.strings.Strings 需要 strings-file；其他插件不接受该参数"
     );
-    validate_pattern(request.plugin, options)?;
+    let compiled_yara = validate_and_compile_pattern(request.plugin, options)?;
     ensure!(options.pids.len() <= 4096, "PID 列表超过 4096 项");
     ensure!(
         options.pids.is_empty() || request.plugin.accepts_pid_list(),
@@ -342,7 +350,14 @@ pub fn analyze(
             request.plugin.is_windows(),
             "Windows 镜像请使用 windows.* 插件"
         );
-        return session.analyze_windows(&image, request, dump, options, job);
+        return session.analyze_windows(
+            &image,
+            request,
+            dump,
+            options,
+            compiled_yara.as_ref(),
+            job,
+        );
     }
     ensure!(
         !request.plugin.is_windows(),
@@ -362,7 +377,14 @@ pub fn analyze(
         options.pagefiles.is_empty() && options.swapfile.is_none(),
         "分页附件仅用于 Windows 镜像"
     );
-    let outcome = session.analyze_linux_options(request, dump, pattern.as_ref(), options, job)?;
+    let outcome = session.analyze_linux_options(
+        request,
+        dump,
+        pattern.as_ref(),
+        compiled_yara.as_ref(),
+        options,
+        job,
+    )?;
     Ok(match outcome {
         Outcome::Ready(mut r) => {
             if let Some(pid) = options.pid

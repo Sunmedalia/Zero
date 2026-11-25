@@ -146,6 +146,25 @@ fn fresh_generation_and_verified_reuse_skip_decoding_and_preserve_provenance() {
 }
 
 #[test]
+fn generated_provenance_distinguishes_elf_note_from_physical_memory() {
+    let (dir, mut image) = setup();
+    image.vm_metadata = Some(crate::containers::VmMetadata {
+        vmcoreinfo: Some(format!(
+            "OSRELEASE=x\nSYMBOL(init_top_pgt)={:x}\nKERNELOFFSET=0\n",
+            START_KERNEL_MAP + 0x4000
+        )),
+        ..Default::default()
+    });
+    let output = generate(&image, &dir.path().join("cache"), &Job::default()).unwrap();
+    let source: Value =
+        serde_json::from_slice(&fs::read(output.with_extension("source.json")).unwrap()).unwrap();
+    let evidence = &source["provenance"]["vmcoreinfo"];
+    assert_eq!(evidence["physical"], json!(["0xa000"]));
+    assert_eq!(evidence["elf_pt_note"], true);
+    assert_eq!(evidence["agreeing"], 2);
+}
+
+#[test]
 fn corrupt_artifacts_and_indexes_regenerate_instead_of_trusting_file_existence() {
     for broken in [
         "isf",

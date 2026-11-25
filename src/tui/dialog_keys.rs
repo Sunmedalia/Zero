@@ -312,7 +312,7 @@ impl App {
                             let pat = fields.at(7)?.trim();
                             let yfile = fields.at(32)?.trim();
                             let yrules = fields.at(33)?.trim();
-                            crate::yara::YaraSpec::from_inputs(
+                            crate::yara::YaraSpec::validate_inputs(
                                 (!pat.is_empty()).then_some(pat),
                                 (!yfile.is_empty()).then(|| std::path::Path::new(yfile)),
                                 (!yrules.is_empty()).then_some(yrules),
