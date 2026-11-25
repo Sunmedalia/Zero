@@ -212,7 +212,7 @@ mod tests {
         assert_eq!(bytes.at(1).ok(), Some(&2));
         assert_eq!(bytes.at(1..).ok(), Some(&[2u8, 3][..]));
         let error = bytes.at(3).err().map(|e| e.to_string()).unwrap_or_default();
-        assert!(error.contains("src/bytes.rs"), "{error}");
+        assert!(error.contains(file!()), "{error}");
         assert!("ab".at(5..).is_err());
         assert!("中".at(1..).is_err());
         let mut values = vec![0u8; 2];

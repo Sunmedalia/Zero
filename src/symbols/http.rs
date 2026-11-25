@@ -100,6 +100,16 @@ fn attempt(request: &Request<'_>, roots: RootCerts, file: &File, job: &Job) -> R
     // Closing the agent wakes blocked headers, body reads and TLS handshakes.
     // Join before exposing completion, cancellation or a TLS retry to callers.
     agent.shutdown();
+    #[cfg(windows)]
+    if job.check().is_err() {
+        // Winsock shutdown leaves an already blocked receive pending.
+        use std::os::windows::io::AsRawHandle;
+        use windows_sys::Win32::System::IO::CancelSynchronousIo;
+        // The worker exclusively owns the transfer and its handle stays open until join.
+        unsafe {
+            CancelSynchronousIo(worker.as_raw_handle());
+        }
+    }
     let joined = worker.join();
     job.check()?;
     joined.map_err(|_| anyhow!("下载线程意外退出"))?;

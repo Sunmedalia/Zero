@@ -190,6 +190,7 @@ mod tests {
         let file = File::open(&first)?;
         let stamp = file_stamp(&file)?;
         assert_eq!(stamp, path_stamp(&first)?);
+        drop(file);
         std::fs::rename(&second, &first)?;
         assert_ne!(stamp, path_stamp(&first)?);
         Ok(())

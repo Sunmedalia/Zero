@@ -715,9 +715,9 @@ mod tests {
         assert_eq!(row[4], format!("{:x}", Sha256::digest(&expected)));
         assert_eq!(std::fs::read(&row[5]).unwrap(), expected);
         assert!(
-            row[5]
-                .rsplit('/')
-                .next()
+            std::path::Path::new(&row[5])
+                .file_name()
+                .and_then(|name| name.to_str())
                 .unwrap()
                 .starts_with("windows-mod-ntoskrnl.exe-0xffff800000000000-")
         );

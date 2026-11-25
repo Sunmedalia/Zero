@@ -119,8 +119,12 @@ impl Snapshots {
         })
     }
     pub fn expire(&mut self) {
+        self.expire_at(Instant::now());
+    }
+    fn expire_at(&mut self, now: Instant) {
         let ttl = Duration::from_secs(self.limits.snapshot_idle_seconds);
-        self.entries.retain(|_, s| s.touched.elapsed() < ttl);
+        self.entries
+            .retain(|_, s| now.saturating_duration_since(s.touched) < ttl);
     }
     pub fn insert(&mut self, result: Results, job: &Job) -> Result<String> {
         self.expire();
@@ -345,8 +349,8 @@ mod tests {
         let next = snapshots.insert(result(), &job)?;
         assert!(!disk.exists());
         assert!(snapshots.page(&id, 0, 1, None, &job).is_err());
-        snapshots.entries.get_mut(&next).unwrap().touched =
-            Instant::now() - Duration::from_secs(1801);
+        let after_expiry = snapshots.entries[&next].touched + Duration::from_secs(1801);
+        snapshots.expire_at(after_expiry);
         assert!(snapshots.page(&next, 0, 1, None, &job).is_err());
         Ok(())
     }

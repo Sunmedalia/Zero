@@ -35,8 +35,8 @@ impl App {
                     .unwrap_or_else(|_| self.root.clone()),
                 self.root.clone(),
             ] {
-                if root != std::path::Path::new("/") {
-                    text = text.replace(&format!("{}/", root.display()), "");
+                if root.parent().is_some() {
+                    text = text.replace(root.join("").to_string_lossy().as_ref(), "");
                 }
             }
             return text;
