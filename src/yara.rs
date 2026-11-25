@@ -134,10 +134,7 @@ impl YaraSpec {
             .add_source(yara_x::SourceCode::from(source).with_origin("<inline>"))
             .map_err(|e| anyhow::anyhow!("YARA 规则编译失败: {e}"))?;
         let rules = compiler.build();
-        let mut hasher = Sha256::new();
-        hasher.update(b"inline\0");
-        hasher.update(source.as_bytes());
-        let digest = format!("{:x}", hasher.finalize());
+        let digest = rules_digest(&rules)?;
         Ok(Self::Rules(CompiledRules {
             rules: Arc::new(rules),
             source: "inline".into(),
@@ -179,8 +176,6 @@ impl YaraSpec {
         }
 
         let mut total_bytes = 0u64;
-        let mut hasher = Sha256::new();
-        hasher.update(b"files\0");
         for file in &files {
             let meta = std::fs::metadata(file)
                 .with_context(|| format!("无法读取 YARA 规则文件 {}", file.display()))?;
@@ -201,16 +196,12 @@ impl YaraSpec {
             let bytes = std::fs::read(file)
                 .with_context(|| format!("读取 YARA 规则文件 {} 失败", file.display()))?;
             let origin = file.display().to_string();
-            hasher.update(origin.as_bytes());
-            hasher.update(b"\0");
-            hasher.update(&bytes);
-            hasher.update(b"\0");
             compiler
                 .add_source(yara_x::SourceCode::from(bytes.as_slice()).with_origin(origin))
                 .with_context(|| format!("YARA 规则文件 {} 编译失败", file.display()))?;
         }
         let rules = compiler.build();
-        let digest = format!("{:x}", hasher.finalize());
+        let digest = rules_digest(&rules)?;
         Ok(Self::Rules(CompiledRules {
             rules: Arc::new(rules),
             source: format!("file:{}", path.display()),
@@ -261,9 +252,40 @@ impl YaraSpec {
         }
     }
 
+    pub fn scanner(&self) -> YaraScanner<'_> {
+        match self {
+            Self::Pattern(pattern) => YaraScanner::Pattern(pattern),
+            Self::Rules(compiled) => {
+                let mut scanner = yara_x::Scanner::new(&compiled.rules);
+                scanner.set_timeout(CHUNK_TIMEOUT);
+                scanner.max_matches_per_pattern(MAX_MATCHES_PER_PATTERN);
+                YaraScanner::Rules(scanner)
+            }
+        }
+    }
+}
+
+fn rules_digest(rules: &yara_x::Rules) -> Result<String> {
+    let serialized = rules
+        .serialize()
+        .map_err(|e| anyhow::anyhow!("序列化编译后的 YARA 规则失败: {e}"))?;
+    let mut hasher = Sha256::new();
+    hasher.update(b"yara-x-rules\0");
+    hasher.update(&serialized);
+    Ok(format!("{:x}", hasher.finalize()))
+}
+
+/// Reusable scanner state so a single `yara_x::Scanner` instance is shared
+/// across all chunks, segments, VMAs, and VADs in one analysis run.
+pub enum YaraScanner<'a> {
+    Pattern(&'a Pattern),
+    Rules(yara_x::Scanner<'a>),
+}
+
+impl YaraScanner<'_> {
     #[allow(clippy::too_many_arguments)]
     fn scan_buffer(
-        &self,
+        &mut self,
         buffer: &[u8],
         base: u64,
         accept_start_below: Option<usize>,
@@ -306,10 +328,7 @@ impl YaraSpec {
                 }
                 Ok(None)
             }
-            Self::Rules(compiled) => {
-                let mut scanner = yara_x::Scanner::new(&compiled.rules);
-                scanner.set_timeout(CHUNK_TIMEOUT);
-                scanner.max_matches_per_pattern(MAX_MATCHES_PER_PATTERN);
+            Self::Rules(scanner) => {
                 let results = match scanner.scan(buffer) {
                     Ok(results) => results,
                     Err(yara_x::ScanError::Timeout) => return Ok(Some(StopReason::Timeout)),
@@ -419,7 +438,30 @@ pub fn scan_region(
     job: &Job,
     read: impl FnMut(u64, &mut [u8]) -> Result<()>,
 ) -> Result<RegionScan> {
-    scan_region_sparse(spec, start, end, budget, limit, job, read, |_, _| None)
+    let mut scanner = spec.scanner();
+    scan_region_sparse_with_scanner(
+        &mut scanner,
+        start,
+        end,
+        budget,
+        limit,
+        job,
+        read,
+        |_, _| None,
+    )
+}
+
+/// Like `scan_region`, reusing an existing `YaraScanner` across regions.
+pub fn scan_region_with_scanner(
+    scanner: &mut YaraScanner<'_>,
+    start: u64,
+    end: u64,
+    budget: &mut u64,
+    limit: usize,
+    job: &Job,
+    read: impl FnMut(u64, &mut [u8]) -> Result<()>,
+) -> Result<RegionScan> {
+    scan_region_sparse_with_scanner(scanner, start, end, budget, limit, job, read, |_, _| None)
 }
 
 /// Like `scan_region`, with an optional `skip_absent(page, end)` callback for
@@ -435,8 +477,33 @@ pub fn scan_region_sparse(
     read: impl FnMut(u64, &mut [u8]) -> Result<()>,
     skip_absent: impl FnMut(u64, u64) -> Option<u64>,
 ) -> Result<RegionScan> {
-    match spec {
-        YaraSpec::Pattern(pattern) => {
+    let mut scanner = spec.scanner();
+    scan_region_sparse_with_scanner(
+        &mut scanner,
+        start,
+        end,
+        budget,
+        limit,
+        job,
+        read,
+        skip_absent,
+    )
+}
+
+/// Like `scan_region_sparse`, reusing an existing `YaraScanner` across regions.
+#[allow(clippy::too_many_arguments)]
+pub fn scan_region_sparse_with_scanner(
+    scanner: &mut YaraScanner<'_>,
+    start: u64,
+    end: u64,
+    budget: &mut u64,
+    limit: usize,
+    job: &Job,
+    read: impl FnMut(u64, &mut [u8]) -> Result<()>,
+    skip_absent: impl FnMut(u64, u64) -> Option<u64>,
+) -> Result<RegionScan> {
+    match scanner {
+        YaraScanner::Pattern(pattern) => {
             let scan = crate::pattern::scan_region_sparse(
                 pattern,
                 start,
@@ -465,8 +532,8 @@ pub fn scan_region_sparse(
                 }),
             })
         }
-        YaraSpec::Rules(_) => scan_region_rules::<CHUNK, OVERLAP>(
-            spec,
+        YaraScanner::Rules(_) => scan_region_rules::<CHUNK, OVERLAP>(
+            scanner,
             start,
             end,
             budget,
@@ -480,7 +547,7 @@ pub fn scan_region_sparse(
 
 #[allow(clippy::too_many_arguments)]
 fn scan_region_rules<const CHUNK_LEN: usize, const OVERLAP_LEN: usize>(
-    spec: &YaraSpec,
+    scanner: &mut YaraScanner<'_>,
     start: u64,
     end: u64,
     budget: &mut u64,
@@ -505,7 +572,8 @@ fn scan_region_rules<const CHUNK_LEN: usize, const OVERLAP_LEN: usize>(
     let mut page_buf = [0u8; PAGE_SIZE];
     let mut seen = HashSet::new();
 
-    let flush_tail = |buffer: &mut Vec<u8>,
+    let flush_tail = |scanner: &mut YaraScanner<'_>,
+                      buffer: &mut Vec<u8>,
                       base: &mut u64,
                       seen: &mut HashSet<(u64, String, String)>,
                       out: &mut RegionScan|
@@ -514,7 +582,7 @@ fn scan_region_rules<const CHUNK_LEN: usize, const OVERLAP_LEN: usize>(
             return Ok(true);
         }
         if let Some(reason) =
-            spec.scan_buffer(buffer, *base, None, limit, job, seen, &mut out.hits)?
+            scanner.scan_buffer(buffer, *base, None, limit, job, seen, &mut out.hits)?
         {
             out.stop_reason = Some(reason);
             return Ok(false);
@@ -526,7 +594,7 @@ fn scan_region_rules<const CHUNK_LEN: usize, const OVERLAP_LEN: usize>(
     while page < end {
         job.check()?;
         if *budget < PAGE {
-            flush_tail(&mut buffer, &mut base, &mut seen, &mut out)?;
+            flush_tail(scanner, &mut buffer, &mut base, &mut seen, &mut out)?;
             out.stop_reason.get_or_insert(StopReason::ByteLimit);
             return Ok(out);
         }
@@ -534,7 +602,7 @@ fn scan_region_rules<const CHUNK_LEN: usize, const OVERLAP_LEN: usize>(
         job.check()?;
         let next_page = page.saturating_add(PAGE);
         if result.is_err() {
-            if !flush_tail(&mut buffer, &mut base, &mut seen, &mut out)? {
+            if !flush_tail(scanner, &mut buffer, &mut base, &mut seen, &mut out)? {
                 return Ok(out);
             }
             if let Some(skip_to) = skip_absent(page, end).filter(|&skip_to| skip_to > next_page) {
@@ -558,7 +626,7 @@ fn scan_region_rules<const CHUNK_LEN: usize, const OVERLAP_LEN: usize>(
 
         while buffer.len() >= CHUNK_LEN + OVERLAP_LEN {
             let window = buffer.at(..CHUNK_LEN + OVERLAP_LEN)?;
-            if let Some(reason) = spec.scan_buffer(
+            if let Some(reason) = scanner.scan_buffer(
                 window,
                 base,
                 Some(CHUNK_LEN),
@@ -576,7 +644,7 @@ fn scan_region_rules<const CHUNK_LEN: usize, const OVERLAP_LEN: usize>(
         page = next_page;
     }
 
-    flush_tail(&mut buffer, &mut base, &mut seen, &mut out)?;
+    flush_tail(scanner, &mut buffer, &mut base, &mut seen, &mut out)?;
     job.check()?;
     Ok(out)
 }
@@ -634,8 +702,10 @@ fn scan_physical_impl<const CHUNK_LEN: usize, const OVERLAP_LEN: usize>(
     let mut base = 0u64;
     let mut previous_end = None;
     let mut reported = 0u64;
+    let mut scanner = spec.scanner();
 
-    let flush_tail = |buffer: &mut Vec<u8>,
+    let flush_tail = |scanner: &mut YaraScanner<'_>,
+                      buffer: &mut Vec<u8>,
                       base: u64,
                       seen: &mut HashSet<(u64, String, String)>,
                       hits: &mut Vec<YaraHit>,
@@ -644,7 +714,7 @@ fn scan_physical_impl<const CHUNK_LEN: usize, const OVERLAP_LEN: usize>(
         if buffer.is_empty() {
             return Ok(true);
         }
-        if let Some(reason) = spec.scan_buffer(buffer, base, None, limit, job, seen, hits)? {
+        if let Some(reason) = scanner.scan_buffer(buffer, base, None, limit, job, seen, hits)? {
             coverage.stop_reason = Some(reason.diagnostic());
             return Ok(false);
         }
@@ -654,7 +724,14 @@ fn scan_physical_impl<const CHUNK_LEN: usize, const OVERLAP_LEN: usize>(
 
     'scan: for segment in &image.segments {
         if previous_end != Some(segment.start) {
-            if !flush_tail(&mut buffer, base, &mut seen, &mut hits, &mut coverage)? {
+            if !flush_tail(
+                &mut scanner,
+                &mut buffer,
+                base,
+                &mut seen,
+                &mut hits,
+                &mut coverage,
+            )? {
                 break 'scan;
             }
             base = segment.start;
@@ -681,7 +758,14 @@ fn scan_physical_impl<const CHUNK_LEN: usize, const OVERLAP_LEN: usize>(
                         position + count as u64
                     ));
                 }
-                if !flush_tail(&mut buffer, base, &mut seen, &mut hits, &mut coverage)? {
+                if !flush_tail(
+                    &mut scanner,
+                    &mut buffer,
+                    base,
+                    &mut seen,
+                    &mut hits,
+                    &mut coverage,
+                )? {
                     break 'scan;
                 }
                 position += count as u64;
@@ -693,7 +777,7 @@ fn scan_physical_impl<const CHUNK_LEN: usize, const OVERLAP_LEN: usize>(
 
             while buffer.len() >= CHUNK_LEN + OVERLAP_LEN {
                 let window = buffer.at(..CHUNK_LEN + OVERLAP_LEN)?;
-                if let Some(reason) = spec.scan_buffer(
+                if let Some(reason) = scanner.scan_buffer(
                     window,
                     base,
                     Some(CHUNK_LEN),
@@ -725,7 +809,14 @@ fn scan_physical_impl<const CHUNK_LEN: usize, const OVERLAP_LEN: usize>(
     }
 
     if coverage.stop_reason.is_none() {
-        flush_tail(&mut buffer, base, &mut seen, &mut hits, &mut coverage)?;
+        flush_tail(
+            &mut scanner,
+            &mut buffer,
+            base,
+            &mut seen,
+            &mut hits,
+            &mut coverage,
+        )?;
     }
     coverage.hits = hits.len();
     job.check()?;
@@ -864,6 +955,28 @@ mod tests {
         let scan = scan_physical(&image, &dir_spec, &Job::default()).unwrap();
         let rules: Vec<&str> = scan.hits.iter().map(|h| h.rule.as_str()).collect();
         assert_eq!(rules, ["r_alpha", "r_beta"]);
+    }
+
+    #[test]
+    fn included_rule_edit_changes_cache_identity() {
+        let dir = tempfile::tempdir().unwrap();
+        let common = dir.path().join("common.yar");
+        let main = dir.path().join("main.yar");
+        std::fs::write(
+            &common,
+            r#"rule inc_v1 { strings: $a = "INC_TOKEN" condition: $a }"#,
+        )
+        .unwrap();
+        std::fs::write(&main, "include \"common.yar\"\n").unwrap();
+
+        let first = YaraSpec::from_rules_path(&main).unwrap();
+        std::fs::write(
+            &common,
+            r#"rule inc_v2 { strings: $a = "INC_TOKEN" condition: $a }"#,
+        )
+        .unwrap();
+        let second = YaraSpec::from_rules_path(&main).unwrap();
+        assert_ne!(first.cache_identity(), second.cache_identity());
     }
 
     #[test]

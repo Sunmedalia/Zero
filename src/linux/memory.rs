@@ -340,6 +340,7 @@ impl Linux<'_> {
         use crate::pattern::HIT_LIMIT;
         use crate::yara::StopReason;
 
+        let mut scanner = spec.scanner();
         for task in tasks {
             job.check()?;
             let read = (|| -> Result<bool> {
@@ -368,8 +369,8 @@ impl Linux<'_> {
                         );
                         continue;
                     }
-                    let scan = crate::yara::scan_region(
-                        spec,
+                    let scan = crate::yara::scan_region_with_scanner(
+                        &mut scanner,
                         start,
                         end,
                         &mut budget,

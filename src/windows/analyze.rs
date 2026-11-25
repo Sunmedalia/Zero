@@ -130,16 +130,18 @@ pub(crate) fn analyze_resolved(
         static DIGEST: std::sync::OnceLock<String> = std::sync::OnceLock::new();
         DIGEST.get_or_init(|| format!("{:x}", sha2::Sha256::digest(network::LAYOUTS.as_bytes())))
     };
-    let yara_cache_id = if request.plugin == Plugin::WinVadyarascan {
-        crate::yara::YaraSpec::from_inputs(
+    let yara_spec = if request.plugin == Plugin::WinVadyarascan {
+        Some(crate::yara::YaraSpec::from_inputs(
             options.pattern.as_deref(),
             options.yara_file.as_deref(),
             options.yara_rules.as_deref(),
-        )?
-        .cache_identity()
+        )?)
     } else {
-        String::new()
+        None
     };
+    let yara_cache_id = yara_spec
+        .as_ref()
+        .map_or_else(String::new, crate::yara::YaraSpec::cache_identity);
     let make_key = |sources_identity: &str| {
         store::key(
             &image.digest,
@@ -236,6 +238,14 @@ pub(crate) fn analyze_resolved(
         engine.netscan(job, Some((request.cache, request.network)))?
     } else if request.plugin == Plugin::WinNetstat {
         engine.netstat(job, Some((request.cache, request.network)))?
+    } else if request.plugin == Plugin::WinVadyarascan {
+        engine.run_vadyarascan(
+            yara_spec
+                .as_ref()
+                .context("windows.vadyarascan 需要 --pattern、--yara-file 或 --yara-rules")?,
+            options,
+            job,
+        )?
     } else {
         engine.run(request.plugin, options, job)?
     };

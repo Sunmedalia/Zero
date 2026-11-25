@@ -295,10 +295,22 @@ impl Windows<'_> {
     }
 
     /// windows.vadyarascan: every VAD of one process scanned with YARA-X rules or literal patterns.
+    #[cfg(test)]
     pub(super) fn vad_yara_scan(
         &self,
         p: &Process,
         spec: &crate::yara::YaraSpec,
+        r: &mut Results,
+        job: &Job,
+    ) -> Result<bool> {
+        let mut scanner = spec.scanner();
+        self.vad_yara_scan_with_scanner(p, &mut scanner, r, job)
+    }
+
+    pub(super) fn vad_yara_scan_with_scanner(
+        &self,
+        p: &Process,
+        scanner: &mut crate::yara::YaraScanner<'_>,
         r: &mut Results,
         job: &Job,
     ) -> Result<bool> {
@@ -320,8 +332,8 @@ impl Windows<'_> {
                 );
                 continue;
             }
-            let scan = crate::yara::scan_region_sparse(
-                spec,
+            let scan = crate::yara::scan_region_sparse_with_scanner(
+                scanner,
                 v.start,
                 v.end,
                 &mut budget,

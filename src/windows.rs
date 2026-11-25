@@ -621,6 +621,25 @@ impl Windows<'_> {
     }
     /// Per-process plugins over the (possibly partial) active process list.
     fn process_plugin(&self, p: Plugin, options: &Options, job: &Job) -> Result<Results> {
+        self.process_plugin_with_yara(p, options, None, job)
+    }
+
+    pub(crate) fn run_vadyarascan(
+        &self,
+        spec: &crate::yara::YaraSpec,
+        options: &Options,
+        job: &Job,
+    ) -> Result<Results> {
+        self.process_plugin_with_yara(Plugin::WinVadyarascan, options, Some(spec), job)
+    }
+
+    fn process_plugin_with_yara(
+        &self,
+        p: Plugin,
+        options: &Options,
+        precompiled_yara: Option<&crate::yara::YaraSpec>,
+        job: &Job,
+    ) -> Result<Results> {
         let mut result = self.result(p);
         let (processes, diagnostics) = self.processes_partial(job)?;
         result.complete = diagnostics.is_empty();
@@ -637,7 +656,7 @@ impl Windows<'_> {
             result.diagnostics.extend(modules.diagnostics.clone());
         }
         let handle_layout = (p == Plugin::WinHandles).then(|| self.object_header_layout());
-        let vad_yara = if p == Plugin::WinVadyarascan {
+        let owned_yara = if p == Plugin::WinVadyarascan && precompiled_yara.is_none() {
             Some(crate::yara::YaraSpec::from_inputs(
                 options.pattern.as_deref(),
                 options.yara_file.as_deref(),
@@ -646,6 +665,9 @@ impl Windows<'_> {
         } else {
             None
         };
+        let mut vad_yara_scanner = precompiled_yara
+            .or(owned_yara.as_ref())
+            .map(crate::yara::YaraSpec::scanner);
         for process in processes
             .into_iter()
             .filter(|p| options.pid.is_none_or(|pid| p.pid == u64::from(pid)))
@@ -684,11 +706,11 @@ impl Windows<'_> {
                 Plugin::WinEtwpatch => self.etwpatch(&process, &mut result, job),
                 Plugin::WinProcessghosting => self.processghosting(&process, &mut result),
                 Plugin::WinJoblinks => self.joblink(&process, &mut result),
-                Plugin::WinVadyarascan => vad_yara
-                    .as_ref()
+                Plugin::WinVadyarascan => vad_yara_scanner
+                    .as_mut()
                     .context("windows.vadyarascan 需要 --pattern、--yara-file 或 --yara-rules")
-                    .and_then(|spec| {
-                        self.vad_yara_scan(&process, spec, &mut result, job)
+                    .and_then(|scanner| {
+                        self.vad_yara_scan_with_scanner(&process, scanner, &mut result, job)
                             .map(|limit_reached| output_limit = limit_reached)
                     }),
                 _ => bail!("不支持的 Windows 插件 {}", p.name()),
