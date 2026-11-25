@@ -265,7 +265,7 @@ pub(crate) fn cache_state(identity: &PdbIdentity, cache: &Path, job: &Job) -> Re
             metadata.is_file() && metadata.len() <= 1024 * 1024 * 1024,
             "模块符号缓存文件无效或超过 1 GiB"
         );
-        let stamp = crate::image::metadata_stamp(&metadata)?;
+        let stamp = crate::file_io::file_stamp(&file)?;
         let mut hasher = Sha256::new();
         let mut bytes = [0; 65536];
         let mut total = 0u64;
@@ -281,11 +281,14 @@ pub(crate) fn cache_state(identity: &PdbIdentity, cache: &Path, job: &Job) -> Re
         }
         ensure!(
             total == metadata.len()
-                && crate::image::metadata_stamp(&file.metadata()?)? == stamp
-                && crate::image::metadata_stamp(&fs::metadata(path)?)? == stamp,
+                && crate::file_io::file_stamp(&file)? == stamp
+                && crate::file_io::path_stamp(path)? == stamp,
             "模块符号缓存读取时变化"
         );
-        Ok(Some((format!("{:x}", hasher.finalize()), stamp)))
+        Ok(Some((
+            format!("{:x}", hasher.finalize()),
+            stamp.to_string(),
+        )))
     }
     let (isf, pdb) = cache_paths(identity, cache)?;
     let isf = hash(&isf, job)?;

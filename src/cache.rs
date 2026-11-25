@@ -277,6 +277,7 @@ mod tests {
         let outside = tempfile::tempdir()?;
         fs::write(outside.path().join("keep"), b"keep")?;
         fs::create_dir_all(root.join("symbols"))?;
+        #[cfg(unix)]
         std::os::unix::fs::symlink(outside.path(), root.join("symbols/isf"))?;
         assert_eq!(inventory(root)?.len(), 2);
         let guard = lock(root, false)?;

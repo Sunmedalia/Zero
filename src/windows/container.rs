@@ -1,9 +1,10 @@
 //! Bounded, read-only Windows dump containers. Offsets are file-format facts.
 //! References: Microsoft MINIDUMP_* definitions and DUMP_HEADER32/64 layouts.
 use super::*;
+use crate::file_io::ReadAt as _;
 use crate::image::Segment;
 use serde::{Deserialize, Serialize};
-use std::{fs::File, os::unix::fs::FileExt};
+use std::fs::File;
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct Metadata {

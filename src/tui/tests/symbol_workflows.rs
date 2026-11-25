@@ -1046,6 +1046,7 @@ fn candidate_detail_inspects_and_returns_to_the_same_zip_selection() {
     assert!(app.job.is_none());
 }
 
+#[cfg(unix)]
 #[test]
 fn current_image_symbol_generation_validates_inputs_and_persists_exact_output() {
     use std::os::unix::fs::PermissionsExt;

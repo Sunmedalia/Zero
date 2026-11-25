@@ -601,9 +601,9 @@ impl App {
                 format!(
                     "{}:{:?}",
                     p.display(),
-                    std::fs::metadata(p)
+                    crate::file_io::path_stamp(p)
                         .ok()
-                        .and_then(|m| crate::image::metadata_stamp(&m).ok())
+                        .map(|stamp| stamp.to_string())
                 )
             })
             .unwrap_or_default();
@@ -617,9 +617,9 @@ impl App {
                 .map(|a| (
                     &a.path,
                     if restat {
-                        std::fs::metadata(&a.path)
+                        crate::file_io::path_stamp(&a.path)
                             .ok()
-                            .and_then(|m| crate::image::metadata_stamp(&m).ok())
+                            .map(|stamp| stamp.to_string())
                     } else {
                         a.stamp.clone()
                     }

@@ -31,13 +31,14 @@ Zero 从本地内存镜像恢复进程、模块、文件、网络连接与内核
 
 ## 安装
 
-从 [Releases](https://github.com/sunmedalia/zero/releases/latest) 下载对应平台归档和 `SHA256SUMS`。解压后直接运行 `zero`，无需安装界面依赖。
+从 [Releases](https://github.com/sunmedalia/zero/releases/latest) 下载对应平台归档和 `SHA256SUMS`。解压后直接运行 `zero`（Windows 为 `zero.exe`），无需安装界面依赖。
 
 | 宿主平台 | 归档名称中的目标 |
 | --- | --- |
 | Linux x86_64 | `x86_64-unknown-linux-gnu` |
 | Linux ARM64 | `aarch64-unknown-linux-gnu` |
 | macOS Apple Silicon | `aarch64-apple-darwin` |
+| Windows x64 | `x86_64-pc-windows-msvc`（ZIP） |
 
 Linux 发布包在 Ubuntu 24.04 上构建，需要兼容的 glibc。宿主平台与被分析镜像的系统是两个不同维度，镜像覆盖情况见[兼容矩阵](docs/compatibility.md)。
 
@@ -54,6 +55,17 @@ cd zero-0.2.7-x86_64-unknown-linux-gnu
 
 macOS 可用 `shasum -a 256 <归档文件名>` 计算摘要，与 `SHA256SUMS` 中对应文件的摘要核对，再解压运行。
 
+Windows x64 在 PowerShell 中使用以下命令。将 `X.Y.Z` 替换为下载版本，核对输出摘要与 `SHA256SUMS` 中 ZIP 对应行一致后再解压。
+
+```powershell
+$archive = 'zero-X.Y.Z-x86_64-pc-windows-msvc.zip'
+Get-FileHash -Algorithm SHA256 $archive
+Expand-Archive $archive -DestinationPath .
+Set-Location ([IO.Path]::GetFileNameWithoutExtension($archive))
+.\zero.exe
+```
+
+
 <details>
 <summary>从源码构建</summary>
 
@@ -63,6 +75,8 @@ macOS 可用 `shasum -a 256 <归档文件名>` 计算摘要，与 `SHA256SUMS` �
 cargo build --release --locked
 ./target/release/zero
 ```
+
+Windows x64 使用 Visual Studio Build Tools 的 MSVC C++ 工具链和 Windows SDK。在 PowerShell 中运行 `$env:PCRE2_SYS_STATIC = "1"`、`$env:CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_RUSTFLAGS = "-C target-feature=+crt-static"` 和 `cargo build --release --locked`，然后运行 `.\target\release\zero.exe`。
 
 构建依赖、检查与发布流程见[开发说明](docs/development.md)。
 

@@ -1,5 +1,6 @@
 //! External decimal strings output, attributed using the fixed Strings mapping contract.
 use super::*;
+use crate::file_io::{FileStamp, file_stamp, path_stamp};
 use std::collections::{BTreeMap, BTreeSet};
 use std::io::Read;
 use std::path::Path;
@@ -43,7 +44,7 @@ fn parse_line(bytes: &[u8]) -> Option<Entry> {
 }
 struct Input {
     rows: Vec<Entry>,
-    stamp: String,
+    stamp: FileStamp,
     sha256: String,
     invalid: usize,
 }
@@ -56,7 +57,7 @@ impl Input {
             metadata.is_file() && metadata.len() <= INPUT_LIMIT,
             "字符串文件必须是普通文件且不超过 64 MiB"
         );
-        let stamp = crate::image::metadata_stamp(&metadata)?;
+        let stamp = file_stamp(&file)?;
         let mut bytes = Vec::new();
         let mut chunk = [0; 65536];
         loop {
@@ -71,10 +72,7 @@ impl Input {
             );
             bytes.extend_from_slice(chunk.at(..n)?);
         }
-        ensure!(
-            stamp == crate::image::metadata_stamp(&file.metadata()?)?,
-            "字符串文件读取时已改变"
-        );
+        ensure!(stamp == file_stamp(&file)?, "字符串文件读取时已改变");
         let mut rows = Vec::new();
         let mut invalid = 0;
         for line in bytes.split_inclusive(|b| *b == b'\n') {
@@ -97,10 +95,7 @@ impl Input {
         Ok(input)
     }
     fn validate(&self, path: &Path) -> Result<()> {
-        ensure!(
-            self.stamp == crate::image::metadata_stamp(&std::fs::metadata(path)?)?,
-            "字符串文件在分析时已改变"
-        );
+        ensure!(self.stamp == path_stamp(path)?, "字符串文件在分析时已改变");
         Ok(())
     }
 }

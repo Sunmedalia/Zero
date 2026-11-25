@@ -88,9 +88,11 @@ cargo build --release --locked --examples
 
 ## CI 与发布
 
-GitHub Actions 在 Linux x86_64／ARM64 和 macOS ARM64 上运行 `make check` 与 CLI 启动检查，并为每个目标生成归档：原生 `zero` 可执行文件、README 和 `docs/tui.md`。无需 Node、npm 或外部界面目录。打包后在空 PATH 和不同工作目录中通过 PTY 验证界面启动及退出。CI 不下载真实镜像或符号；真实镜像验收在本地运行。
+GitHub Actions 在 Linux x86_64／ARM64 和 macOS ARM64 上运行 `make check`，在 Windows x64 上使用 MSVC 原生运行 Clippy、Rust 测试和 release 构建。Windows 构建静态链接 C 运行库与 PCRE2。Linux 与 macOS 产物为包含 `zero` 的 `.tar.gz`，Windows 产物为包含 `zero.exe` 的 `.zip`。每个归档带有 README、终端界面说明、依赖许可证和 SHA-256 校验文件。
 
-`v` 前缀标签触发发布流程：三个目标检查通过后，校验标签与 Cargo 版本一致，以 [RELEASE_NOTES.md](../RELEASE_NOTES.md) 为说明发布归档和 `SHA256SUMS`。发布新版本：
+打包后在空 PATH 下验证 CLI 和 MCP 帮助，并从解压目录和独立工作目录启动终端界面、确认退出。Linux 和 macOS 使用 PTY，Windows 使用 ConPTY。CI 使用合成样本，真实镜像验收在本地运行。
+
+`v` 前缀标签触发发布流程。四个目标检查通过后，流程校验标签与 Cargo 版本一致，以 [RELEASE_NOTES.md](../RELEASE_NOTES.md) 为说明发布归档和汇总校验文件 `SHA256SUMS`。按以下步骤发布新版本。
 
 ```sh
 # 1. 同步 Cargo.toml／Cargo.lock 的版本号，并重写 RELEASE_NOTES.md

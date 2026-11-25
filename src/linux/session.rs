@@ -9,22 +9,18 @@ fn source_stamp(path: &Path, job: &Job) -> Result<String> {
             return Ok(());
         }
         let metadata = std::fs::symlink_metadata(path)?;
+        #[cfg(unix)]
+        let stamp = crate::file_io::metadata_stamp(&metadata);
+        #[cfg(windows)]
+        let stamp = crate::file_io::symlink_stamp(path)?;
         if metadata.file_type().is_symlink() {
-            out.push(format!(
-                "{}:{}",
-                path.display(),
-                crate::image::metadata_stamp(&metadata)?
-            ));
+            out.push(format!("{}:{stamp}", path.display()));
             if depth == 0 {
                 visit(&path.canonicalize()?, out, depth + 1, job)?;
             }
             return Ok(());
         }
-        out.push(format!(
-            "{}:{}",
-            path.display(),
-            crate::image::metadata_stamp(&metadata)?
-        ));
+        out.push(format!("{}:{stamp}", path.display()));
         if metadata.is_dir() {
             let mut entries = std::fs::read_dir(path)?.collect::<std::io::Result<Vec<_>>>()?;
             entries.sort_by_key(|e| e.path());

@@ -1,12 +1,12 @@
 //! Hibernation page maps: Win7 range arrays and NT6.2+ restoration sets.
 //! Format facts: libyal/libhibr, MagnetForensics/Hibr2Bin and Khalil (TalTech, 2020).
 use super::*;
+use crate::file_io::{FileStamp, ReadAt as _, file_stamp};
 use crate::image::Segment;
 use serde::{Deserialize, Serialize};
 use std::{
     collections::VecDeque,
     fs::File,
-    os::unix::fs::FileExt,
     sync::{Arc, Mutex},
 };
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -38,7 +38,7 @@ struct Cache {
     order: VecDeque<usize>,
 }
 pub struct Hibernation {
-    stamp: String,
+    stamp: FileStamp,
     blocks: Vec<Block>,
     maps: BTreeMap<u64, Mapping>,
     cache: Mutex<Cache>,
@@ -168,10 +168,7 @@ impl Hibernation {
         address
             .checked_add(out.len() as u64)
             .context("休眠物理读取溢出")?;
-        ensure!(
-            crate::image::metadata_stamp(&file.metadata()?)? == self.stamp,
-            "休眠文件在分析期间被修改"
-        );
+        ensure!(file_stamp(file)? == self.stamp, "休眠文件在分析期间被修改");
         let r = Reader {
             file,
             len: file.metadata()?.len(),
@@ -229,7 +226,7 @@ pub fn parse(file: &File, job: &Job) -> Result<(Hibernation, container::Metadata
     };
     let legacy = (width == 4 && length == 224) || (width == 8 && length == 296);
     let mut h = Hibernation {
-        stamp: crate::image::metadata_stamp(&file.metadata()?)?,
+        stamp: file_stamp(file)?,
         blocks: Vec::new(),
         maps: BTreeMap::new(),
         cache: Mutex::new(Cache::default()),
@@ -313,10 +310,7 @@ pub fn parse(file: &File, job: &Job) -> Result<(Hibernation, container::Metadata
             modern_ranges(&r, &mut h, start, end, width, count, job)?;
         }
     }
-    ensure!(
-        crate::image::metadata_stamp(&file.metadata()?)? == h.stamp,
-        "休眠文件在解析期间被修改"
-    );
+    ensure!(file_stamp(file)? == h.stamp, "休眠文件在解析期间被修改");
     let metadata = container::Metadata {
         architecture: if width == 4 {
             Architecture::X86
