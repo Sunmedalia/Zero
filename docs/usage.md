@@ -450,7 +450,8 @@ TUI 插件菜单只列分析插件，转储统一在 `D` 中。这些都是本�
 | ftrace | Ops、Handler、Symbol、Owner、Reason |
 | ebpf | ID、Name、Type、Address、Function |
 | perf_events | PID、Name、Event、Type、Config、Handler、Symbol、Owner、Reason |
-| vmayarascan | PID、Name、Address、Start、Permissions、Path、Context |
+| vmayarascan | PID、Name、Rule、Component、Address、Start、Permissions、Path、Context |
+| linux.yarascan / windows.yarascan | Physical、Rule、Component、Context |
 | boottime | Key、Value（Unix 秒、UTC、纳秒） |
 | pagecache | SuperBlock、Device、FileSystem、Inode、InodeAddress、Mode、Size、CachedPages、Path |
 | psstate | PID、Name、State、ExitState、Flags |
@@ -482,7 +483,8 @@ TUI 插件菜单只列分析插件，转储统一在 `D` 中。这些都是本�
 | `tracepoints` | linux.tracing.tracepoints | 遍历内建 `__tracepoints_ptrs` 的已挂接探针；模块自带 tracepoint 未覆盖 |
 | `ftrace` | linux.tracing.ftrace | 遍历 `ftrace_ops_list` 至 `ftrace_list_end` |
 | `perf_events` | linux.tracing.perf_events | 遍历每个进程的 `perf_event_list` |
-| `vmayarascan` | linux.vmayarascan（不执行 YARA） | 在可读 VMA 中搜索 `--pattern` 字节模式，见 [8.3](#83-内存模式搜索) |
+| `vmayarascan` | linux.vmayarascan | 使用内置纯 Rust `yara-x` 引擎在可读 VMA 中执行 `--yara-file` / `--yara-rules` 或 `--pattern` 扫描，见 [8.3](#83-内存模式搜索) |
+| `linux.yarascan` | yarascan.YaraScan | 无需内核符号，使用内置纯 Rust `yara-x` 引擎扫描物理内存全盘区段，见 [8.3](#83-内存模式搜索) |
 | `ebpf` | linux.ebpf | 遍历 `prog_idr`，输出程序 ID、名称、类型与 JIT 入口 |
 | `boottime` | linux.boottime | 3.x 用 `-(wall_to_monotonic + total_sleep_time)`，3.17 起用 `tk_core.timekeeper` 的 `offs_real - offs_boot` |
 | `pagecache` | linux.pagecache.files | 遍历 `super_blocks` 与 `s_inodes`，输出缓存页数和路径；不导出文件内容 |
@@ -568,9 +570,18 @@ zero --offline analyze --image /evidence/linux.raw --symbols /evidence/kernel.js
 
 实现参考 [Volatility 2 恶意检测命令](https://github.com/volatilityfoundation/volatility/wiki/Command-Reference-Mal) 与 Volatility 3 的 [ldrmodules](https://github.com/volatilityfoundation/volatility3/blob/develop/volatility3/framework/plugins/windows/malware/ldrmodules.py)、[hollowprocesses](https://github.com/volatilityfoundation/volatility3/blob/develop/volatility3/framework/plugins/windows/malware/hollowprocesses.py)、[suspicious_threads](https://github.com/volatilityfoundation/volatility3/blob/develop/volatility3/framework/plugins/windows/malware/suspicious_threads.py) 的交叉视图思路。新增检测由合成样本验证；`check_exec` 另以 Debian 3.2 样本完成 PID 1 的离线验证（完整结果、0 条线索）。真实恶意样本的检出率尚未验证。
 
-### 8.3 内存模式搜索
+### 8.3 内存 YARA-X 规则与字节模式搜索
 
-`vmayarascan`（Linux）与 `windows.vadyarascan`（Windows）在进程内存中搜索 `--pattern` 指定的字节模式。Zero 不编译或执行 YARA 规则，模式只作为数据匹配：
+Zero 内置纯 Rust `yara-x` 规则引擎（支持 `pe`、`elf`、`math`、`hash`、`string`、`time` 模块，无外部动态库依赖，具备单块超时、命中上限与可取消保护），覆盖物理层与进程层扫描：
+
+- **物理全盘扫描**（无需 OS 符号）：`linux.yarascan`（别名 `yarascan`，对 Windows 镜像自动映射为 `windows.yarascan`）与 `windows.yarascan`
+- **进程虚拟内存扫描**：`linux.vmayarascan`（VMA）与 `windows.vadyarascan`（VAD）
+
+四者均接受以下三选一输入（互斥）：
+
+- `--yara-file <PATH>`：本地 `.yar` / `.yara` 规则文件，或包含规则文件的目录（自动递归加载）
+- `--yara-rules <SOURCE>`：内联 YARA 规则源码
+- `--pattern <PATTERN>`：轻量字面量/十六进制字节模式（向后兼容）：
 
 | 写法 | 含义 |
 | --- | --- |

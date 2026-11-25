@@ -121,8 +121,12 @@ pub struct Options {
     pub name_filter: Option<String>,
     /// Case-insensitive matching for `name_filter`.
     pub ignore_case: bool,
-    /// Byte pattern for vmayarascan / windows.vadyarascan.
+    /// Byte pattern for vmayarascan / windows.vadyarascan / yarascan, or byte regex for vmaregexscan / vadregexscan.
     pub pattern: Option<String>,
+    /// Local YARA rule file (`.yar`/`.yara`) or directory for YARA scan plugins.
+    pub yara_file: Option<std::path::PathBuf>,
+    /// Inline YARA rule source text for YARA scan plugins.
+    pub yara_rules: Option<String>,
     /// Local decimal-offset strings output consumed by windows.strings.Strings.
     pub strings_file: Option<std::path::PathBuf>,
     /// Signed lower bound for windows.truecrypt.Passphrase lengths.
@@ -130,22 +134,31 @@ pub struct Options {
     pub pagefiles: Vec<crate::windows::paging::Attachment>,
     pub swapfile: Option<std::path::PathBuf>,
 }
-/// Scan plugins need a pattern and no other plugin accepts one.
+/// Scan plugins need a pattern/YARA rule and no other plugin accepts one.
 pub fn validate_pattern(plugin: crate::linux::Plugin, options: &Options) -> Result<()> {
     if plugin.is_regex_scan() {
+        ensure!(
+            options.yara_file.is_none() && options.yara_rules.is_none(),
+            "--yara-file / --yara-rules 仅用于 YARA 扫描插件"
+        );
         let text = options
             .pattern
             .as_deref()
             .context("此插件需要 --pattern 字节正则")?;
         crate::byte_regex::ByteRegex::compile(text, true)?;
         crate::byte_regex::ByteRegex::compile(text, false)?;
-    } else if plugin.is_pattern_scan() {
-        let text = options.pattern.as_deref().context("此插件需要 --pattern")?;
-        crate::pattern::Pattern::parse(text)?;
+    } else if plugin.is_yara_scan() {
+        crate::yara::YaraSpec::from_inputs(
+            options.pattern.as_deref(),
+            options.yara_file.as_deref(),
+            options.yara_rules.as_deref(),
+        )?;
     } else {
         ensure!(
-            options.pattern.is_none(),
-            "--pattern 仅用于字节模式或正则扫描插件"
+            options.pattern.is_none()
+                && options.yara_file.is_none()
+                && options.yara_rules.is_none(),
+            "--pattern / --yara-file / --yara-rules 仅用于 YARA 或正则扫描插件"
         );
     }
     Ok(())
@@ -310,11 +323,14 @@ pub fn analyze(
             !linux || options.os == Os::Windows,
             "镜像同时包含 Linux 与 Windows 身份；使用 --os 明确选择"
         );
-        let mapped = if !request.plugin.is_windows() && request.plugin.is_dump() {
+        let mapped = if !request.plugin.is_windows()
+            && (request.plugin.is_dump() || request.plugin == crate::linux::Plugin::LinuxYarascan)
+        {
             use crate::linux::Plugin;
             let plugin = match request.plugin {
                 Plugin::Procdump => Plugin::WinProcdump,
                 Plugin::Memdump => Plugin::WinMemdump,
+                Plugin::LinuxYarascan => Plugin::WinYarascan,
                 _ => anyhow::bail!("Windows 转储使用 process/range/pe 模式"),
             };
             Some(Request { plugin, ..*request })
@@ -339,7 +355,7 @@ pub fn analyze(
     let pattern = options
         .pattern
         .as_deref()
-        .filter(|_| !request.plugin.is_regex_scan())
+        .filter(|_| !request.plugin.is_regex_scan() && !request.plugin.is_yara_scan())
         .map(crate::pattern::Pattern::parse)
         .transpose()?;
     ensure!(

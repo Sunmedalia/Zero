@@ -35,17 +35,19 @@ impl App {
         self.request_analysis(false);
     }
     pub(super) fn request_analysis(&mut self, force: bool) {
-        if matches!(
-            self.plugin,
-            Plugin::Vmayarascan
-                | Plugin::WinVadyarascan
-                | Plugin::VmaRegExScan
-                | Plugin::WinVadRegExScan
-        ) && self
-            .analysis_options
-            .pattern
-            .as_ref()
-            .is_none_or(|p| !self.plugin.is_regex_scan() && p.trim().is_empty())
+        if (self.plugin.is_yara_scan()
+            && self
+                .analysis_options
+                .pattern
+                .as_ref()
+                .is_none_or(|p| p.trim().is_empty())
+            && self.analysis_options.yara_file.is_none()
+            && self
+                .analysis_options
+                .yara_rules
+                .as_ref()
+                .is_none_or(|r| r.trim().is_empty()))
+            || (self.plugin.is_regex_scan() && self.analysis_options.pattern.is_none())
         {
             self.windows_parameters();
             return;

@@ -112,6 +112,9 @@ impl Session {
         job: &Job,
     ) -> Result<Outcome> {
         // Container-only paths do not need kernel symbols or a symbol cache.
+        if request.plugin == Plugin::WinYarascan {
+            return crate::windows::analyze(image, request, dump, options, job);
+        }
         if image.windows_container.as_ref().is_some_and(|m| {
             m.virtual_memory
                 || m.kernel_virtual
@@ -232,6 +235,39 @@ impl Session {
             }
             return Ok(Outcome::Ready(result));
         }
+        if request.plugin == Plugin::LinuxYarascan {
+            let spec = if let Some(pattern) = pattern {
+                crate::yara::YaraSpec::Pattern(pattern.clone())
+            } else {
+                crate::yara::YaraSpec::from_inputs(
+                    options.pattern.as_deref(),
+                    options.yara_file.as_deref(),
+                    options.yara_rules.as_deref(),
+                )?
+            };
+            let identity = format!("{}:{}", request.plugin.name(), spec.cache_identity());
+            let key = store::key(&image.digest, "no-isf", &identity);
+            if request.use_cache
+                && !image.digest.is_empty()
+                && let Some(result) = store::load(request.cache, &key)
+            {
+                job.mark_cached();
+                let owner = store::Owner::new(&image.digest, request.image);
+                store::adopt(request.cache, &key, &owner, &result, job);
+                return Ok(Outcome::Ready(result));
+            }
+            let result = crate::yara::physical_results(&image, request.plugin, &spec, job)?;
+            if request.use_cache && !image.digest.is_empty() {
+                store::save_any(
+                    request.cache,
+                    &key,
+                    &store::Owner::new(&image.digest, request.image),
+                    &result,
+                    job,
+                )?;
+            }
+            return Ok(Outcome::Ready(result));
+        }
         let symbols_stamp = || -> Result<String> {
             Ok(format!(
                 "{}\n{}",
@@ -266,120 +302,139 @@ impl Session {
             }
             self.symbols.at(0)?.clone()
         };
-        let identity = match pattern {
-            Some(pattern) => format!("{}:{}", request.plugin.name(), pattern.source()),
-            None if request.plugin == Plugin::PsCallStack => format!(
-                "{}:pid={:?}:pids={:?}:unresolved={}",
-                request.plugin.name(),
-                options.pid,
-                options.pids,
-                options.unresolved
-            ),
-            None if request.plugin == Plugin::VmaRegExScan => format!(
-                "{}:pattern={:?}:pids={:?}:pid={:?}:maxsize={}",
-                request.plugin.name(),
-                options.pattern,
-                options.pids,
-                options.pid,
-                options.maxsize.unwrap_or(128)
-            ),
-            None if matches!(request.plugin, Plugin::LinuxPslist | Plugin::LinuxPstree) => format!(
-                "{}:threads={}:decorate={}:pid={:?}:pids={:?}",
-                request.plugin.name(),
-                options.include_threads,
-                options.decorate_comm,
-                options.pid,
-                options.pids
-            ),
-            None if request.plugin == Plugin::LinuxMaps => format!(
-                "{}:pid={:?}:pids={:?}:addrs={:?}:maxsize={:?}",
-                request.plugin.name(),
-                options.pid,
-                options.pids,
-                options.vma_addresses,
-                options.maxsize
-            ),
-            None if request.plugin == Plugin::LinuxLsof => format!(
-                "{}:pid={:?}:pids={:?}:files_only={}",
-                request.plugin.name(),
-                options.pid,
-                options.pids,
-                options.files_only
-            ),
-            None if request.plugin == Plugin::LinuxSockstat => format!(
-                "{}:pid={:?}:pids={:?}:netns={:?}",
-                request.plugin.name(),
-                options.pid,
-                options.pids,
-                options.netns
-            ),
-            None if request.plugin == Plugin::LinuxMalfind => format!(
-                "{}:pid={:?}:pids={:?}:hexdump={:?}:dirty={}:maxsize={:?}",
-                request.plugin.name(),
-                options.pid,
-                options.pids,
-                options.hexdump_size,
-                options.show_all_dirty_pages,
-                options.maxsize
-            ),
-            None if request.plugin == Plugin::LinuxMountinfo => format!(
-                "{}:pid={:?}:pids={:?}:mntns={:?}:fmt={}",
-                request.plugin.name(),
-                options.pid,
-                options.pids,
-                options.mntns,
-                options.mount_format
-            ),
-            None if matches!(
-                request.plugin,
-                Plugin::LinuxPagecacheFiles
-                    | Plugin::LinuxPagecacheInodePages
-                    | Plugin::LinuxPagecacheRecoverFs
-            ) =>
-            {
-                format!(
-                    "{}:types={:?}:find={:?}",
-                    request.plugin.name(),
-                    options.file_types,
-                    options.find
-                )
-            }
-            None if matches!(
-                request.plugin,
-                Plugin::LinuxCapabilities
-                    | Plugin::LinuxEnvars
-                    | Plugin::LinuxPsaux
-                    | Plugin::LinuxBash
-                    | Plugin::LinuxElfs
-                    | Plugin::LinuxLibraryList
-            ) =>
-            {
-                format!(
-                    "{}:pid={:?}:pids={:?}",
+        let yara_spec = if request.plugin == Plugin::Vmayarascan {
+            Some(if let Some(pattern) = pattern {
+                crate::yara::YaraSpec::Pattern(pattern.clone())
+            } else {
+                crate::yara::YaraSpec::from_inputs(
+                    options.pattern.as_deref(),
+                    options.yara_file.as_deref(),
+                    options.yara_rules.as_deref(),
+                )?
+            })
+        } else {
+            None
+        };
+        let identity = if let Some(spec) = &yara_spec {
+            format!("{}:{}", request.plugin.name(), spec.cache_identity())
+        } else {
+            match pattern {
+                Some(pattern) => format!("{}:{}", request.plugin.name(), pattern.source()),
+                None if request.plugin == Plugin::PsCallStack => format!(
+                    "{}:pid={:?}:pids={:?}:unresolved={}",
                     request.plugin.name(),
                     options.pid,
-                    options.pids
-                )
+                    options.pids,
+                    options.unresolved
+                ),
+                None if request.plugin == Plugin::VmaRegExScan => format!(
+                    "{}:pattern={:?}:pids={:?}:pid={:?}:maxsize={}",
+                    request.plugin.name(),
+                    options.pattern,
+                    options.pids,
+                    options.pid,
+                    options.maxsize.unwrap_or(128)
+                ),
+                None if matches!(request.plugin, Plugin::LinuxPslist | Plugin::LinuxPstree) => {
+                    format!(
+                        "{}:threads={}:decorate={}:pid={:?}:pids={:?}",
+                        request.plugin.name(),
+                        options.include_threads,
+                        options.decorate_comm,
+                        options.pid,
+                        options.pids
+                    )
+                }
+                None if request.plugin == Plugin::LinuxMaps => format!(
+                    "{}:pid={:?}:pids={:?}:addrs={:?}:maxsize={:?}",
+                    request.plugin.name(),
+                    options.pid,
+                    options.pids,
+                    options.vma_addresses,
+                    options.maxsize
+                ),
+                None if request.plugin == Plugin::LinuxLsof => format!(
+                    "{}:pid={:?}:pids={:?}:files_only={}",
+                    request.plugin.name(),
+                    options.pid,
+                    options.pids,
+                    options.files_only
+                ),
+                None if request.plugin == Plugin::LinuxSockstat => format!(
+                    "{}:pid={:?}:pids={:?}:netns={:?}",
+                    request.plugin.name(),
+                    options.pid,
+                    options.pids,
+                    options.netns
+                ),
+                None if request.plugin == Plugin::LinuxMalfind => format!(
+                    "{}:pid={:?}:pids={:?}:hexdump={:?}:dirty={}:maxsize={:?}",
+                    request.plugin.name(),
+                    options.pid,
+                    options.pids,
+                    options.hexdump_size,
+                    options.show_all_dirty_pages,
+                    options.maxsize
+                ),
+                None if request.plugin == Plugin::LinuxMountinfo => format!(
+                    "{}:pid={:?}:pids={:?}:mntns={:?}:fmt={}",
+                    request.plugin.name(),
+                    options.pid,
+                    options.pids,
+                    options.mntns,
+                    options.mount_format
+                ),
+                None if matches!(
+                    request.plugin,
+                    Plugin::LinuxPagecacheFiles
+                        | Plugin::LinuxPagecacheInodePages
+                        | Plugin::LinuxPagecacheRecoverFs
+                ) =>
+                {
+                    format!(
+                        "{}:types={:?}:find={:?}",
+                        request.plugin.name(),
+                        options.file_types,
+                        options.find
+                    )
+                }
+                None if matches!(
+                    request.plugin,
+                    Plugin::LinuxCapabilities
+                        | Plugin::LinuxEnvars
+                        | Plugin::LinuxPsaux
+                        | Plugin::LinuxBash
+                        | Plugin::LinuxElfs
+                        | Plugin::LinuxLibraryList
+                ) =>
+                {
+                    format!(
+                        "{}:pid={:?}:pids={:?}",
+                        request.plugin.name(),
+                        options.pid,
+                        options.pids
+                    )
+                }
+                None if request.plugin == Plugin::Pidhashtable => format!(
+                    "{}:decorate_comm={}",
+                    request.plugin.name(),
+                    options.decorate_comm
+                ),
+                None if request.plugin == Plugin::Modxview => format!(
+                    "{}:plain_taints={}",
+                    request.plugin.name(),
+                    options.plain_taints
+                ),
+                None if request.plugin == Plugin::Kallsyms => {
+                    format!("{}:{:?}", request.plugin.name(), options.kallsyms)
+                }
+                None if request.plugin == Plugin::LinuxSockscan => format!(
+                    "{}:host_af_inet6={}",
+                    request.plugin.name(),
+                    super::socket_fields::REFERENCE_INET6_FAMILY
+                ),
+                None => request.plugin.name().to_string(),
             }
-            None if request.plugin == Plugin::Pidhashtable => format!(
-                "{}:decorate_comm={}",
-                request.plugin.name(),
-                options.decorate_comm
-            ),
-            None if request.plugin == Plugin::Modxview => format!(
-                "{}:plain_taints={}",
-                request.plugin.name(),
-                options.plain_taints
-            ),
-            None if request.plugin == Plugin::Kallsyms => {
-                format!("{}:{:?}", request.plugin.name(), options.kallsyms)
-            }
-            None if request.plugin == Plugin::LinuxSockscan => format!(
-                "{}:host_af_inet6={}",
-                request.plugin.name(),
-                super::socket_fields::REFERENCE_INET6_FAMILY
-            ),
-            None => request.plugin.name().to_string(),
         };
         let key = store::key(&image.digest, &symbol.digest, &identity);
         if dump.is_none()
@@ -439,8 +494,13 @@ impl Session {
             engine.ps_callstack(options, job)?
         } else if request.plugin == Plugin::VmaRegExScan {
             engine.vma_regex_scan(options, job)?
-        } else if request.plugin.is_pattern_scan() {
-            engine.vma_pattern_scan(pattern.context("此插件需要 --pattern")?, job)?
+        } else if request.plugin == Plugin::Vmayarascan {
+            engine.vma_yara_scan(
+                yara_spec
+                    .as_ref()
+                    .context("linux.vmayarascan 需要 --pattern、--yara-file 或 --yara-rules")?,
+                job,
+            )?
         } else if request.plugin == Plugin::Kallsyms {
             engine.kallsyms(options.kallsyms, job)?
         } else if request.plugin == Plugin::Modxview {

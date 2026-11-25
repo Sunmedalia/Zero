@@ -321,7 +321,8 @@ impl Linux<'_> {
                 Ok(r)
             }
             Kthreads => self.kthreads(job),
-            Vmayarascan => bail!("vmayarascan 需要 --pattern"),
+            Vmayarascan => bail!("vmayarascan 需要 --pattern、--yara-file 或 --yara-rules"),
+            LinuxYarascan => bail!("linux.yarascan 由物理扫描入口执行"),
             Netfilter => {
                 let mut r = self.result(plugin);
                 self.netfilter(&mut r, job)?;
@@ -450,6 +451,7 @@ impl Linux<'_> {
             | WinVadWalk
             | WinVadRegExScan
             | WinVadyarascan
+            | WinYarascan
             | WinVaddump
             | WinDlldump
             | WinModdump

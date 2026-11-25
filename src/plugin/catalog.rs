@@ -314,11 +314,17 @@ catalog! {
         "列出内核虚拟地址空间按用途划分的区域",
         ["Region", "Start", "End", "Size"], [0, 18, 18, 16];
     WinVadyarascan, "windows.vadyarascan", "vadyarascan", Memory,
-        "在进程 VAD 中搜索指定的文本或十六进制字节模式",
-        ["PID", "Name", "Address", "Start", "Protection", "Path", "Context"], [8, 16, 18, 18, 0, 0, 0];
+        "在进程 VAD 中执行 YARA-X 规则或字节模式扫描",
+        ["PID", "Name", "Rule", "Component", "Address", "Start", "Protection", "Path", "Context"], [8, 16, 20, 14, 18, 18, 0, 0, 0];
+    WinYarascan, "windows.yarascan", "yarascan", Memory,
+        "使用 YARA-X 规则或字节模式扫描 Windows 物理内存镜像",
+        ["Physical", "Rule", "Component", "Context"], [18, 24, 16, 0];
     Vmayarascan, "linux.vmayarascan", "vmayarascan", Memory,
-        "在进程 VMA 中搜索指定的文本或十六进制字节模式",
-        ["PID", "Name", "Address", "Start", "Permissions", "Path", "Context"], [6, 14, 18, 18, 5, 0, 0];
+        "在进程 VMA 中执行 YARA-X 规则或字节模式扫描",
+        ["PID", "Name", "Rule", "Component", "Address", "Start", "Permissions", "Path", "Context"], [6, 14, 20, 14, 18, 18, 5, 0, 0];
+    LinuxYarascan, "linux.yarascan", "yarascan", Memory,
+        "使用 YARA-X 规则或字节模式扫描物理内存镜像",
+        ["Physical", "Rule", "Component", "Context"], [18, 24, 16, 0];
     Pslist, "linux.pslist.basic", "pslist.basic", Process,
         "列出活动进程及其地址",
         ["PID", "TGID", "PPID", "Name", "Address"], [5, 5, 5, 0, 18];

@@ -248,6 +248,8 @@ impl App {
                         "mount 简洁格式 true / false",
                         "文件类型过滤（逗号或空格分隔，如 REG,DIR；可选）",
                         "路径关键词过滤（可选）",
+                        "YARA 规则文件或目录（.yar/.yara；可选）",
+                        "内联 YARA 规则源码（可选）",
                     ];
                     let mut lines = vec![Line::raw(if self.windows {
                         "Ctrl+T 展开／收起 Windows 高级配置"

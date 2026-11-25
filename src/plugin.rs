@@ -440,6 +440,8 @@ pub enum Plugin {
     WinVirtmap,
     #[value(name = "windows.vadyarascan")]
     WinVadyarascan,
+    #[value(name = "windows.yarascan", alias = "windows.yarascan.YaraScan")]
+    WinYarascan,
     #[value(name = "linux.iomem", alias = "iomem")]
     Iomem,
     #[value(name = "linux.ioports", alias = "ioports")]
@@ -576,6 +578,13 @@ pub enum Plugin {
     PerfEvents,
     #[value(name = "linux.vmayarascan", alias = "vmayarascan")]
     Vmayarascan,
+    #[value(
+        name = "linux.yarascan",
+        alias = "yarascan",
+        alias = "yarascan.YaraScan",
+        alias = "linux.yarascan.YaraScan"
+    )]
+    LinuxYarascan,
 }
 mod catalog;
 pub use catalog::PLUGINS;
@@ -720,9 +729,16 @@ impl Plugin {
                 | Self::LinuxPslist
         )
     }
-    /// Plugins that scan memory for a user-supplied byte pattern.
+    /// Plugins that scan memory with YARA rules or literal byte patterns.
+    pub fn is_yara_scan(self) -> bool {
+        matches!(
+            self,
+            Self::Vmayarascan | Self::WinVadyarascan | Self::LinuxYarascan | Self::WinYarascan
+        )
+    }
+    /// Plugins that scan memory for a user-supplied byte pattern or YARA rule.
     pub fn is_pattern_scan(self) -> bool {
-        matches!(self, Self::Vmayarascan | Self::WinVadyarascan)
+        self.is_yara_scan()
     }
     pub fn is_tree(self) -> bool {
         self.tree_columns().is_some()

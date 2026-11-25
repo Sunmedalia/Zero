@@ -103,6 +103,12 @@ impl App {
                 self.analysis_options.mount_format.to_string(),
                 self.analysis_options.file_types.join(","),
                 self.analysis_options.find.clone().unwrap_or_default(),
+                self.analysis_options
+                    .yara_file
+                    .as_ref()
+                    .map(|p| p.display().to_string())
+                    .unwrap_or_default(),
+                self.analysis_options.yara_rules.clone().unwrap_or_default(),
             ]),
             field: if matches!(
                 self.plugin,
@@ -119,13 +125,7 @@ impl App {
                 17
             } else if self.plugin == Plugin::WinPrintkey {
                 0
-            } else if matches!(
-                self.plugin,
-                Plugin::Vmayarascan
-                    | Plugin::WinVadyarascan
-                    | Plugin::VmaRegExScan
-                    | Plugin::WinVadRegExScan
-            ) {
+            } else if self.plugin.is_yara_scan() || self.plugin.is_regex_scan() {
                 7
             } else if self.plugin == Plugin::LinuxPagecacheFiles {
                 30
