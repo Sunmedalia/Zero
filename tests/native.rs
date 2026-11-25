@@ -274,6 +274,8 @@ fn gzip_cancel_and_repair() -> Result<()> {
         .find(|p| p.extension().is_some_and(|s| s == "image"))
         .unwrap();
     fs::write(prepared, b"bad")?;
+    // Close the old handle so Windows can replace the prepared cache file.
+    drop(image);
     assert_eq!(Image::open(&path, &cache, &Job::default())?.digest, digest);
     Ok(())
 }
