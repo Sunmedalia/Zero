@@ -131,7 +131,7 @@ impl Session {
         }) {
             return crate::windows::analyze(image, request, dump, options, job);
         }
-        crate::windows::validate_request_with_yara(
+        let compiled = crate::windows::validate_request_with_yara(
             request,
             dump,
             options,
@@ -167,7 +167,7 @@ impl Session {
             request,
             dump,
             options,
-            precompiled_yara,
+            precompiled_yara.or(compiled.as_ref()),
             job,
             &self.windows_symbols,
         )

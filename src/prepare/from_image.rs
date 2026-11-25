@@ -25,7 +25,7 @@ use std::{
 };
 
 /// Version of this generator; part of the ISF metadata and cache identity.
-pub const GENERATOR: &str = "zero-image-btf-3";
+pub const GENERATOR: &str = "zero-image-btf-4";
 /// Missing image-only prerequisites may use a separately verified local ISF.
 /// Validation failures and cancellation must never take that fallback.
 #[derive(Debug)]
@@ -325,7 +325,11 @@ fn kaslr(
         "notes": notes.len(),
         "agreeing": agreeing.len(),
         "disagreeing": disagreeing,
-        "physical": agreeing.iter().map(|(n, _)| format!("{:#x}", n.physical)).collect::<Vec<_>>(),
+        "physical": agreeing.iter().filter_map(|(note, _)| match note.source {
+            vmcoreinfo::Source::Physical(address) => Some(format!("{address:#x}")),
+            vmcoreinfo::Source::ElfPtNote => None,
+        }).collect::<Vec<_>>(),
+        "elf_pt_note": agreeing.iter().any(|(note, _)| note.source == vmcoreinfo::Source::ElfPtNote),
         "compared_symbols": agreeing.iter().map(|(_, c)| *c).max().unwrap_or(0),
     });
     let l5 = agreeing

@@ -215,13 +215,7 @@ impl YaraSpec {
         yara_file: Option<&Path>,
         yara_rules: Option<&str>,
     ) -> Result<Self> {
-        let count = usize::from(pattern.is_some())
-            + usize::from(yara_file.is_some())
-            + usize::from(yara_rules.is_some());
-        ensure!(
-            count == 1,
-            "YARA 扫描插件必须且只能指定 --pattern、--yara-file 或 --yara-rules 之一"
-        );
+        Self::validate_inputs(pattern, yara_file, yara_rules)?;
         if let Some(path) = yara_file {
             Self::from_rules_path(path)
         } else if let Some(source) = yara_rules {
@@ -231,6 +225,21 @@ impl YaraSpec {
         } else {
             bail!("缺少 YARA 规则或字节模式")
         }
+    }
+
+    pub(crate) fn validate_inputs(
+        pattern: Option<&str>,
+        yara_file: Option<&Path>,
+        yara_rules: Option<&str>,
+    ) -> Result<()> {
+        let count = usize::from(pattern.is_some())
+            + usize::from(yara_file.is_some())
+            + usize::from(yara_rules.is_some());
+        ensure!(
+            count == 1,
+            "YARA 扫描插件必须且只能指定 --pattern、--yara-file 或 --yara-rules 之一"
+        );
+        Ok(())
     }
 
     pub fn cache_identity(&self) -> String {

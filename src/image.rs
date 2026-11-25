@@ -48,6 +48,8 @@ pub struct Image {
     pub vm_metadata: Option<crate::containers::VmMetadata>,
 }
 
+const MAX_DECOMPRESSED_BYTES: u64 = 256 * 1024 * 1024 * 1024;
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Compression {
     Gzip,
@@ -78,6 +80,16 @@ impl Compression {
             Self::Zstd => "zstd",
             Self::Xz => "xz",
         }
+    }
+
+    fn check_size(self, size: u64) -> Result<()> {
+        ensure!(
+            size <= MAX_DECOMPRESSED_BYTES,
+            "{} 解压大小超过 {} GiB 上限",
+            self.label(),
+            MAX_DECOMPRESSED_BYTES >> 30
+        );
+        Ok(())
     }
 
     fn decoder(self, file: File) -> Result<Box<dyn Read>> {
@@ -563,8 +575,15 @@ fn current_manifest(path: &Path, cache: &Path) -> Option<Identification> {
         return None;
     }
     let value: Identification = serde_json::from_slice(&fs::read(manifest).ok()?).ok()?;
-    (value.source_stamp == combined_source_stamp(&resolved_source, companion.as_deref()).ok()?)
-        .then_some(value)
+    if value.source_stamp != combined_source_stamp(&resolved_source, companion.as_deref()).ok()? {
+        return None;
+    }
+    if let Some(compression) = Compression::detect(&resolved_source).ok()? {
+        compression
+            .check_size(fs::metadata(&value.prepared).ok()?.len())
+            .ok()?;
+    }
+    Some(value)
 }
 /// The SHA256 the last full verification recorded for an image, while the
 /// file's metadata is unchanged. Display only: it is not a fresh check.
@@ -684,7 +703,8 @@ impl Image {
         );
         let value: Identification = serde_json::from_slice(&fs::read(&manifest)?)?;
         ensure!(value.source_stamp == source_stamp, "镜像识别缓存已过期");
-        if Compression::detect(&source)?.is_some() {
+        let compression = Compression::detect(&source)?;
+        if compression.is_some() {
             ensure!(
                 value.prepared.parent() == Some(cache.canonicalize()?.as_path())
                     && value.prepared.extension().is_some_and(|s| s == "image")
@@ -698,10 +718,11 @@ impl Image {
             ensure!(value.prepared == source, "识别缓存镜像路径不匹配");
         }
         let file = File::open(&value.prepared)?;
-        ensure!(
-            file_stamp(&file)?.to_string() == value.prepared_stamp,
-            "识别缓存已过期"
-        );
+        let stamp = file_stamp(&file)?;
+        if let Some(compression) = compression {
+            compression.check_size(stamp.len)?;
+        }
+        ensure!(stamp.to_string() == value.prepared_stamp, "识别缓存已过期");
         let mut image =
             Self::from_file_with_companion(file, companion.as_deref(), String::new(), job)?;
         ensure!(value.banners.len() <= 1024, "识别缓存候选过多");
@@ -803,6 +824,7 @@ impl Image {
             .join("identification")
             .join(format!("{identity}.json"));
         let guard = crate::cache::lock(cache, false)?;
+        let compression = Compression::detect(&resolved_source)?;
         let mut previous = None;
         if let Ok(metadata) = fs::metadata(&identification)
             && metadata.len() <= 1024 * 1024
@@ -810,7 +832,10 @@ impl Image {
             && let Ok(value) = serde_json::from_slice::<Identification>(&bytes)
             && value.source_stamp == source_stamp
             && let Ok(file) = File::open(&value.prepared)
-            && file_stamp(&file)?.to_string() == value.prepared_stamp
+            && file_stamp(&file).is_ok_and(|stamp| {
+                (compression.is_none() || stamp.len <= MAX_DECOMPRESSED_BYTES)
+                    && stamp.to_string() == value.prepared_stamp
+            })
             && let Ok(preview) =
                 Self::from_file_with_companion(file, companion.as_deref(), String::new(), job)
         {
@@ -831,69 +856,64 @@ impl Image {
         }
         job.report("校验镜像 SHA256（同一遍读取识别内核签名）");
         job.mark_prepared();
-        let (prepared, digest, candidates) =
-            if let Some(compression) = Compression::detect(&resolved_source)? {
-                let source = digest_file(File::open(&resolved_source)?, job)?;
-                let target = cache.join(format!("{source}.image"));
-                let marker = cache.join(format!("{source}.sha256"));
-                let existing = if target.exists() && marker.exists() {
-                    let (hash, found) =
-                        fingerprint(File::open(&target)?, fs::metadata(&target)?.len(), job)?;
-                    (hash == fs::read_to_string(&marker)?.trim()).then_some((hash, found))
-                } else {
-                    None
-                };
-                let (digest, found) = if let Some(value) = existing {
-                    value
-                } else {
-                    let mut temporary = tempfile::NamedTempFile::new_in(cache)?;
-                    let mut decoder = compression.decoder(File::open(&resolved_source)?)?;
-                    let mut scan = Fingerprint::default();
-                    let mut buf = vec![0; 4 * 1024 * 1024];
-                    let label = compression.label();
-                    const MAX_DECOMPRESSED_BYTES: u64 = 256 * 1024 * 1024 * 1024;
-                    loop {
-                        job.check()?;
-                        let n = decoder
-                            .read(&mut buf)
-                            .with_context(|| format!("{label} 解压失败（文件损坏或截断）"))?;
-                        if n == 0 {
-                            break;
-                        }
-                        ensure!(
-                            scan.offset
-                                .checked_add(n as u64)
-                                .is_some_and(|total| total <= MAX_DECOMPRESSED_BYTES),
-                            "{label} 解压大小超过 {} GiB 上限",
-                            MAX_DECOMPRESSED_BYTES >> 30
-                        );
-                        temporary.write_all(buf.at(..n)?)?;
-                        scan.push(buf.at(..n)?, job);
-                        job.report(format!("解压 ({label}): {} MiB", scan.offset / 1048576));
-                    }
-                    job.check()?;
-                    temporary.as_file().sync_all()?;
-                    temporary.persist(&target).map_err(|e| e.error)?;
-                    let value = scan.finish();
-                    crate::store::atomic_write(&marker, value.0.as_bytes())?;
-                    value
-                };
-                (target, digest, found)
+        let (prepared, digest, candidates) = if let Some(compression) = compression {
+            let source = digest_file(File::open(&resolved_source)?, job)?;
+            let target = cache.join(format!("{source}.image"));
+            let marker = cache.join(format!("{source}.sha256"));
+            // Oversized entries from older versions must be prepared again
+            // under the same limit as a cold cache.
+            let existing = if marker.exists()
+                && let Ok(metadata) = fs::metadata(&target)
+                && metadata.len() <= MAX_DECOMPRESSED_BYTES
+            {
+                let (hash, found) = fingerprint(File::open(&target)?, metadata.len(), job)?;
+                (hash == fs::read_to_string(&marker)?.trim()).then_some((hash, found))
             } else {
-                let (digest, found) = fingerprint(
-                    File::open(&resolved_source)?,
-                    fs::metadata(&resolved_source)?.len(),
-                    job,
-                )?;
-                (resolved_source.clone(), digest, found)
+                None
             };
+            let (digest, found) = if let Some(value) = existing {
+                value
+            } else {
+                let mut temporary = tempfile::NamedTempFile::new_in(cache)?;
+                let mut decoder = compression.decoder(File::open(&resolved_source)?)?;
+                let mut scan = Fingerprint::default();
+                let mut buf = vec![0; 4 * 1024 * 1024];
+                let label = compression.label();
+                loop {
+                    job.check()?;
+                    let n = decoder
+                        .read(&mut buf)
+                        .with_context(|| format!("{label} 解压失败（文件损坏或截断）"))?;
+                    if n == 0 {
+                        break;
+                    }
+                    compression.check_size(scan.offset.saturating_add(n as u64))?;
+                    temporary.write_all(buf.at(..n)?)?;
+                    scan.push(buf.at(..n)?, job);
+                    job.report(format!("解压 ({label}): {} MiB", scan.offset / 1048576));
+                }
+                job.check()?;
+                temporary.as_file().sync_all()?;
+                temporary.persist(&target).map_err(|e| e.error)?;
+                let value = scan.finish();
+                crate::store::atomic_write(&marker, value.0.as_bytes())?;
+                value
+            };
+            (target, digest, found)
+        } else {
+            let (digest, found) = fingerprint(
+                File::open(&resolved_source)?,
+                fs::metadata(&resolved_source)?.len(),
+                job,
+            )?;
+            (resolved_source.clone(), digest, found)
+        };
         let digest = combined_image_digest(digest, companion.as_deref(), job)?;
-        let mut image = Self::from_file_with_companion(
-            File::open(&prepared)?,
-            companion.as_deref(),
-            digest,
-            job,
-        )?;
+        let file = File::open(&prepared)?;
+        if let Some(compression) = compression {
+            compression.check_size(file.metadata()?.len())?;
+        }
+        let mut image = Self::from_file_with_companion(file, companion.as_deref(), digest, job)?;
         image._cache_guard = Some(guard);
         let mut physical = Vec::new();
         if image.hibernation.is_some() || image.avml.is_some() {
@@ -1716,6 +1736,42 @@ impl PageCursor<'_, '_> {
 #[cfg(unix)]
 pub fn metadata_stamp(metadata: &std::fs::Metadata) -> Result<String> {
     Ok(crate::file_io::metadata_stamp(metadata).to_string())
+}
+
+#[cfg(test)]
+mod compression_tests {
+    use super::*;
+
+    #[test]
+    fn oversized_prepared_cache_is_ignored_and_rebuilt() -> Result<()> {
+        let directory = tempfile::tempdir()?;
+        let source = directory.path().join("capture.gz");
+        let cache = directory.path().join("cache");
+        let job = Job::default();
+        let mut encoder = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::default());
+        encoder.write_all(&[b'x'; 4096])?;
+        fs::write(&source, encoder.finish()?)?;
+
+        let image = Image::open(&source, &cache, &job)?;
+        let digest = image.digest.clone();
+        let (manifest, _) = image.identification.clone().unwrap();
+        drop(image);
+        let mut identification: Identification = serde_json::from_slice(&fs::read(&manifest)?)?;
+        let prepared = File::options().write(true).open(&identification.prepared)?;
+        // Sparse extension simulates a large cache entry without allocating its contents.
+        prepared.set_len(MAX_DECOMPRESSED_BYTES + 1)?;
+        identification.prepared_stamp = file_stamp(&prepared)?.to_string();
+        drop(prepared);
+        fs::write(&manifest, serde_json::to_vec(&identification)?)?;
+
+        let error = Image::from_manifest(&source, &cache, &job).err().unwrap();
+        assert!(error.to_string().contains("解压大小超过"));
+        assert!(recorded_digest(&source, &cache).is_none());
+        let reopened = Image::open(&source, &cache, &job)?;
+        assert_eq!(reopened.digest, digest);
+        assert_eq!(reopened.file.metadata()?.len(), 4096);
+        Ok(())
+    }
 }
 
 #[cfg(test)]
