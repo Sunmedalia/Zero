@@ -47,6 +47,13 @@ pub fn discover(image: &Image, isf: &Isf, job: &Job) -> Result<(u64, u64)> {
         .and_then(|m| m.dtb)
         .into_iter()
         .collect::<Vec<_>>();
+    if let Some(vm) = &image.vm_metadata {
+        for cr3 in vm.cr3_hints() {
+            if !roots.contains(&cr3) {
+                roots.push(cr3);
+            }
+        }
+    }
     let mut block = vec![0; 4 * 1024 * 1024];
     for segment in &image.segments {
         let mut start = segment.start.next_multiple_of(4096);

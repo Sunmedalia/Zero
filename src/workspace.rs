@@ -51,8 +51,20 @@ impl Asset {
             "ISF"
         } else if name.ends_with(".gz") {
             "gzip"
+        } else if name.ends_with(".zst") {
+            "zstd"
+        } else if name.ends_with(".xz") {
+            "xz"
+        } else if name.ends_with(".avml") {
+            "AVML"
         } else if name.ends_with(".lime") {
             "LiME"
+        } else if name.ends_with(".vmsn") || name.ends_with(".vmss") || name.ends_with(".vmsst") {
+            "VMware"
+        } else if name.ends_with(".vmem") {
+            "VMware/RAW"
+        } else if name.ends_with(".elf") || name.ends_with(".core") {
+            "ELF Core"
         } else {
             "RAW/LiME"
         }
