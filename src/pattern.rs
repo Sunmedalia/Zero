@@ -169,14 +169,6 @@ pub enum StopReason {
     HitLimit,
     ByteLimit,
 }
-impl StopReason {
-    pub(crate) fn diagnostic(self) -> String {
-        match self {
-            Self::HitLimit => format!("命中数达到 {HIT_LIMIT} 上限"),
-            Self::ByteLimit => "扫描读取达到上限".into(),
-        }
-    }
-}
 
 /// Per-region hits and coverage, including any work limit that stopped the scan.
 #[derive(Debug, Default, PartialEq)]

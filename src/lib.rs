@@ -30,6 +30,7 @@ pub mod store;
 mod symbol_index;
 pub mod symbols;
 pub mod tui;
+pub mod yara;
 
 use anyhow::{Result, bail};
 use std::sync::{
@@ -37,8 +38,8 @@ use std::sync::{
     atomic::{AtomicBool, Ordering},
 };
 
-// Windows plugin routing removed redundant reads from paging attachment evidence.
-pub const ENGINE_VERSION: &str = concat!(env!("CARGO_PKG_VERSION"), "-native-133");
+// Integrate pure-Rust yara-x engine, add physical yarascan, and add Rule/Component columns to VMA/VAD YARA scans.
+pub const ENGINE_VERSION: &str = concat!(env!("CARGO_PKG_VERSION"), "-native-134");
 #[derive(Clone)]
 pub struct Job {
     pub cancel: Arc<AtomicBool>,

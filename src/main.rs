@@ -88,10 +88,15 @@ struct Cli {
     /// Case-insensitive matching for --name.
     #[arg(help_heading = "Scan plugins", long = "ignore-case", global = true)]
     ignore_case: bool,
-    /// Byte pattern for linux.vmayarascan / windows.vadyarascan: text, wide:TEXT
-    /// (UTF-16LE) or hex:4d5a??00 with ?? wildcards; byte regex for linux.vmaregexscan / windows.vadregexscan.
+    /// Byte pattern for YARA scan plugins (text, wide:TEXT, hex:4d5a??00) or byte regex for vmaregexscan / vadregexscan.
     #[arg(help_heading = "Scan plugins", long, global = true)]
     pattern: Option<String>,
+    /// Local YARA rule file (.yar/.yara) or directory of rule files for linux.yarascan / windows.yarascan / linux.vmayarascan / windows.vadyarascan.
+    #[arg(help_heading = "Scan plugins", long = "yara-file", global = true)]
+    yara_file: Option<PathBuf>,
+    /// Inline YARA rule source text for linux.yarascan / windows.yarascan / linux.vmayarascan / windows.vadyarascan.
+    #[arg(help_heading = "Scan plugins", long = "yara-rules", global = true)]
+    yara_rules: Option<String>,
     /// Local strings output with decimal physical offsets (windows.strings).
     #[arg(help_heading = "Scan plugins", long, global = true)]
     strings_file: Option<PathBuf>,
@@ -953,6 +958,8 @@ impl Cli {
             name_filter: self.name_filter.clone(),
             ignore_case: self.ignore_case,
             pattern: self.pattern.clone(),
+            yara_file: self.yara_file.clone(),
+            yara_rules: self.yara_rules.clone(),
             strings_file: self.strings_file.clone(),
             min_length: self.min_length,
             pids: self.pids.clone(),

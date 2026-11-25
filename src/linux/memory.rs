@@ -322,14 +322,25 @@ impl Linux<'_> {
         Ok(r)
     }
     /// vmayarascan: every readable VMA of each task, searched for `pattern`.
+    #[cfg(test)]
     pub(crate) fn vma_pattern_scan(
         &self,
         pattern: &crate::pattern::Pattern,
         job: &Job,
     ) -> Result<Results> {
-        let (mut r, tasks) = self.tasks(Plugin::Vmayarascan, job)?;
-        use crate::pattern::{HIT_LIMIT, StopReason};
+        self.vma_yara_scan(
+            &crate::yara::YaraSpec::Pattern(Box::new(pattern.clone())),
+            job,
+        )
+    }
 
+    /// vmayarascan: every readable VMA of each task, scanned with YARA-X rules or literal byte patterns.
+    pub(crate) fn vma_yara_scan(&self, spec: &crate::yara::YaraSpec, job: &Job) -> Result<Results> {
+        let (mut r, tasks) = self.tasks(Plugin::Vmayarascan, job)?;
+        use crate::pattern::HIT_LIMIT;
+        use crate::yara::StopReason;
+
+        let mut scanner = spec.scanner();
         for task in tasks {
             job.check()?;
             let read = (|| -> Result<bool> {
@@ -358,8 +369,8 @@ impl Linux<'_> {
                         );
                         continue;
                     }
-                    let scan = crate::pattern::scan_region(
-                        pattern,
+                    let scan = crate::yara::scan_region_with_scanner(
+                        &mut scanner,
                         start,
                         end,
                         &mut budget,
@@ -387,15 +398,17 @@ impl Linux<'_> {
                                 "[unresolved]".into()
                             }
                         };
-                        for (address, bytes) in scan.hits {
+                        for hit in scan.hits {
                             r.rows.push(vec![
                                 task.pid.clone(),
                                 task.name.clone(),
-                                hex(address),
+                                hit.rule,
+                                hit.component,
+                                hex(hit.address),
                                 hex(start),
                                 permissions(flags),
                                 path.clone(),
-                                crate::pattern::context(&bytes),
+                                crate::pattern::context(&hit.bytes),
                             ]);
                         }
                     }
@@ -425,7 +438,7 @@ impl Linux<'_> {
                 Err(e) => partial(&mut r, format!("PID {} {:#x}", task.pid, task.address), e),
             }
         }
-        *r.kernel_identity.key_mut("pattern")? = serde_json::json!(pattern.source());
+        *r.kernel_identity.key_mut("pattern")? = serde_json::json!(spec.source_summary());
         Ok(r)
     }
     /// Bash history in the style of volatility3 `linux.bash`: candidate
@@ -870,7 +883,12 @@ mod tests {
             .unwrap();
         assert!(!result.complete);
         assert_eq!(result.rows.len(), HIT_LIMIT);
-        assert!(result.rows.iter().all(|row| row[5] == "[unresolved]"));
+        assert!(
+            result
+                .rows
+                .iter()
+                .all(|row| row[2] == "pattern" && row[3] == "$pattern" && row[7] == "[unresolved]")
+        );
         assert!(result.diagnostics.iter().any(|row| row.contains("vm_file")));
         assert!(
             result
@@ -878,6 +896,46 @@ mod tests {
                 .iter()
                 .any(|row| row.contains("命中数达到"))
         );
+    }
+
+    #[test]
+    fn vma_yara_scan_evaluates_multi_string_yara_x_rules() {
+        use crate::linux::tests::{engine, fixture, image};
+        use crate::yara::YaraSpec;
+
+        let (mut bytes, isf) = fixture();
+        let vma = bytes.len() - 40;
+        put(&mut bytes, 0xb028, vma as u64);
+        put(&mut bytes, vma + 8, 0x200000);
+        put(&mut bytes, vma + 16, 0x201000);
+        put(&mut bytes, vma + 24, 1);
+        put(&mut bytes, 0x7000, 0x20003);
+        bytes[0x20010..0x2001e].copy_from_slice(b"COBALT_BEACON!");
+        bytes[0x20100..0x20104].copy_from_slice(&[0xde, 0xad, 0xbe, 0xef]);
+
+        let image = image(&bytes);
+        let spec = YaraSpec::from_rules_source(
+            r#"
+            rule c2_beacon {
+                strings:
+                    $tag = "COBALT_BEACON!"
+                    $magic = { DE AD ?? EF }
+                condition:
+                    $tag and $magic
+            }
+            "#,
+        )
+        .unwrap();
+        let result = engine(&image, &isf)
+            .vma_yara_scan(&spec, &Job::default())
+            .unwrap();
+        assert_eq!(result.rows.len(), 2);
+        assert_eq!(result.rows[0][2], "c2_beacon");
+        assert_eq!(result.rows[0][3], "$tag");
+        assert_eq!(result.rows[0][4], hex(0x200010));
+        assert_eq!(result.rows[1][2], "c2_beacon");
+        assert_eq!(result.rows[1][3], "$magic");
+        assert_eq!(result.rows[1][4], hex(0x200100));
     }
 
     #[test]

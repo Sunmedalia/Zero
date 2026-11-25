@@ -132,6 +132,7 @@ fn user_string(vm: &VirtualMemory<'_>, start: u64, limit: usize, job: &Job) -> R
     anyhow::bail!("用户字符串超过 {limit} 字节")
 }
 
+#[allow(clippy::large_enum_variant)]
 pub enum Outcome {
     Ready(Results),
     Choose(Vec<String>),

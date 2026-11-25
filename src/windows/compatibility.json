@@ -127,7 +127,8 @@
           "windows.skeleton_key_check": "unsupported",
           "windows.truecrypt.passphrase": "synthetic",
           "windows.mftscan.ads": "synthetic",
-          "windows.mftscan.resident_data": "synthetic"
+          "windows.mftscan.resident_data": "synthetic",
+          "windows.yarascan": "synthetic"
         },
         "x64": {
           "windows.callbacks": "synthetic",
@@ -232,7 +233,8 @@
           "windows.skeleton_key_check": "synthetic",
           "windows.truecrypt.passphrase": "synthetic",
           "windows.mftscan.ads": "synthetic",
-          "windows.mftscan.resident_data": "synthetic"
+          "windows.mftscan.resident_data": "synthetic",
+          "windows.yarascan": "synthetic"
         }
       },
       "evidence": [
@@ -421,7 +423,8 @@
           "windows.skeleton_key_check": "unsupported",
           "windows.truecrypt.passphrase": "synthetic",
           "windows.mftscan.ads": "synthetic",
-          "windows.mftscan.resident_data": "synthetic"
+          "windows.mftscan.resident_data": "synthetic",
+          "windows.yarascan": "synthetic"
         },
         "x64": {
           "windows.callbacks": "synthetic",
@@ -526,7 +529,8 @@
           "windows.skeleton_key_check": "synthetic",
           "windows.truecrypt.passphrase": "synthetic",
           "windows.mftscan.ads": "synthetic",
-          "windows.mftscan.resident_data": "synthetic"
+          "windows.mftscan.resident_data": "synthetic",
+          "windows.yarascan": "synthetic"
         }
       },
       "evidence": []
@@ -652,7 +656,8 @@
           "windows.skeleton_key_check": "unsupported",
           "windows.truecrypt.passphrase": "synthetic",
           "windows.mftscan.ads": "synthetic",
-          "windows.mftscan.resident_data": "synthetic"
+          "windows.mftscan.resident_data": "synthetic",
+          "windows.yarascan": "synthetic"
         },
         "x64": {
           "windows.callbacks": "synthetic",
@@ -757,7 +762,8 @@
           "windows.skeleton_key_check": "synthetic",
           "windows.truecrypt.passphrase": "synthetic",
           "windows.mftscan.ads": "synthetic",
-          "windows.mftscan.resident_data": "synthetic"
+          "windows.mftscan.resident_data": "synthetic",
+          "windows.yarascan": "synthetic"
         }
       },
       "evidence": [
@@ -964,7 +970,8 @@
           "windows.skeleton_key_check": "synthetic",
           "windows.truecrypt.passphrase": "synthetic",
           "windows.mftscan.ads": "synthetic",
-          "windows.mftscan.resident_data": "synthetic"
+          "windows.mftscan.resident_data": "synthetic",
+          "windows.yarascan": "synthetic"
         }
       },
       "evidence": [],
@@ -1089,7 +1096,8 @@
           "windows.skeleton_key_check": "synthetic",
           "windows.truecrypt.passphrase": "synthetic",
           "windows.mftscan.ads": "synthetic",
-          "windows.mftscan.resident_data": "synthetic"
+          "windows.mftscan.resident_data": "synthetic",
+          "windows.yarascan": "synthetic"
         }
       },
       "evidence": [
@@ -1260,7 +1268,8 @@
           "windows.skeleton_key_check": "synthetic",
           "windows.truecrypt.passphrase": "synthetic",
           "windows.mftscan.ads": "synthetic",
-          "windows.mftscan.resident_data": "synthetic"
+          "windows.mftscan.resident_data": "synthetic",
+          "windows.yarascan": "synthetic"
         }
       },
       "evidence": [
@@ -1432,7 +1441,8 @@
           "windows.skeleton_key_check": "synthetic",
           "windows.truecrypt.passphrase": "synthetic",
           "windows.mftscan.ads": "synthetic",
-          "windows.mftscan.resident_data": "synthetic"
+          "windows.mftscan.resident_data": "synthetic",
+          "windows.yarascan": "synthetic"
         }
       },
       "evidence": [
@@ -1576,7 +1586,8 @@
           "windows.skeleton_key_check": "synthetic",
           "windows.truecrypt.passphrase": "synthetic",
           "windows.mftscan.ads": "synthetic",
-          "windows.mftscan.resident_data": "synthetic"
+          "windows.mftscan.resident_data": "synthetic",
+          "windows.yarascan": "synthetic"
         }
       },
       "evidence": [
@@ -1749,7 +1760,8 @@
           "windows.skeleton_key_check": "synthetic",
           "windows.truecrypt.passphrase": "synthetic",
           "windows.mftscan.ads": "synthetic",
-          "windows.mftscan.resident_data": "synthetic"
+          "windows.mftscan.resident_data": "synthetic",
+          "windows.yarascan": "synthetic"
         }
       },
       "evidence": [
@@ -1922,7 +1934,8 @@
           "windows.skeleton_key_check": "synthetic",
           "windows.truecrypt.passphrase": "synthetic",
           "windows.mftscan.ads": "synthetic",
-          "windows.mftscan.resident_data": "synthetic"
+          "windows.mftscan.resident_data": "synthetic",
+          "windows.yarascan": "synthetic"
         }
       },
       "evidence": [],
@@ -2049,7 +2062,8 @@
           "windows.skeleton_key_check": "unsupported",
           "windows.truecrypt.passphrase": "synthetic",
           "windows.mftscan.ads": "synthetic",
-          "windows.mftscan.resident_data": "synthetic"
+          "windows.mftscan.resident_data": "synthetic",
+          "windows.yarascan": "synthetic"
         },
         "x64": {
           "windows.callbacks": "real",
@@ -2154,7 +2168,8 @@
           "windows.skeleton_key_check": "synthetic",
           "windows.truecrypt.passphrase": "synthetic",
           "windows.mftscan.ads": "synthetic",
-          "windows.mftscan.resident_data": "synthetic"
+          "windows.mftscan.resident_data": "synthetic",
+          "windows.yarascan": "synthetic"
         }
       },
       "evidence": [
@@ -2356,7 +2371,8 @@
           "windows.skeleton_key_check": "unsupported",
           "windows.truecrypt.passphrase": "synthetic",
           "windows.mftscan.ads": "synthetic",
-          "windows.mftscan.resident_data": "synthetic"
+          "windows.mftscan.resident_data": "synthetic",
+          "windows.yarascan": "synthetic"
         },
         "x64": {
           "windows.callbacks": "synthetic",
@@ -2461,7 +2477,8 @@
           "windows.skeleton_key_check": "synthetic",
           "windows.truecrypt.passphrase": "synthetic",
           "windows.mftscan.ads": "synthetic",
-          "windows.mftscan.resident_data": "synthetic"
+          "windows.mftscan.resident_data": "synthetic",
+          "windows.yarascan": "synthetic"
         }
       },
       "evidence": []
@@ -2586,7 +2603,8 @@
           "windows.skeleton_key_check": "unsupported",
           "windows.truecrypt.passphrase": "synthetic",
           "windows.mftscan.ads": "synthetic",
-          "windows.mftscan.resident_data": "synthetic"
+          "windows.mftscan.resident_data": "synthetic",
+          "windows.yarascan": "synthetic"
         },
         "x64": {
           "windows.callbacks": "synthetic",
@@ -2691,7 +2709,8 @@
           "windows.skeleton_key_check": "synthetic",
           "windows.truecrypt.passphrase": "synthetic",
           "windows.mftscan.ads": "synthetic",
-          "windows.mftscan.resident_data": "synthetic"
+          "windows.mftscan.resident_data": "synthetic",
+          "windows.yarascan": "synthetic"
         }
       },
       "evidence": []
@@ -2829,7 +2848,8 @@
           "windows.skeleton_key_check": "unsupported",
           "windows.truecrypt.passphrase": "synthetic",
           "windows.mftscan.ads": "synthetic",
-          "windows.mftscan.resident_data": "synthetic"
+          "windows.mftscan.resident_data": "synthetic",
+          "windows.yarascan": "synthetic"
         },
         "x64": {
           "windows.callbacks": "real",
@@ -2934,7 +2954,8 @@
           "windows.skeleton_key_check": "real",
           "windows.truecrypt.passphrase": "synthetic",
           "windows.mftscan.ads": "synthetic",
-          "windows.mftscan.resident_data": "synthetic"
+          "windows.mftscan.resident_data": "synthetic",
+          "windows.yarascan": "synthetic"
         }
       },
       "evidence": [
@@ -3192,7 +3213,8 @@
           "windows.skeleton_key_check": "synthetic",
           "windows.truecrypt.passphrase": "synthetic",
           "windows.mftscan.ads": "synthetic",
-          "windows.mftscan.resident_data": "synthetic"
+          "windows.mftscan.resident_data": "synthetic",
+          "windows.yarascan": "synthetic"
         }
       },
       "evidence": [

@@ -42,6 +42,7 @@ tar = { version = "0.4.46", default-features = false }
 cap-std = "4.0.3"
 cap-fs-ext = "4.0.3"
 getrandom = "0.4.3"
+yara-x = { version = "1.24.0", default-features = false, features = ["constant-folding", "elf-module", "exact-atoms", "fast-regexp", "generate-proto-code", "hash-module", "math-module", "pe-module", "string-module", "time-module"] }
 
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"

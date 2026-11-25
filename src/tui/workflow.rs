@@ -181,13 +181,9 @@ impl App {
         if self.plugin == Plugin::WinPrintkey {
             fields.extend([0, 1]);
         }
-        if matches!(
-            self.plugin,
-            Plugin::Vmayarascan
-                | Plugin::WinVadyarascan
-                | Plugin::VmaRegExScan
-                | Plugin::WinVadRegExScan
-        ) {
+        if self.plugin.is_yara_scan() {
+            fields.extend([7, 32, 33]);
+        } else if self.plugin.is_regex_scan() {
             fields.push(7);
         }
         if (self.plugin.accepts_pid_list() || self.plugin.descriptor().columns.contains(&"PID"))

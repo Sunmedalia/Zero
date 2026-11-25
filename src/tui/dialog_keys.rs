@@ -305,27 +305,31 @@ impl App {
                         } else {
                             None
                         },
-                        pattern: if matches!(
-                            self.plugin,
-                            Plugin::Vmayarascan
-                                | Plugin::WinVadyarascan
-                                | Plugin::VmaRegExScan
-                                | Plugin::WinVadRegExScan
-                        ) {
-                            anyhow::ensure!(
-                                self.plugin.is_regex_scan() || !fields.at(7)?.trim().is_empty(),
-                                "扫描插件需要填写搜索模式"
-                            );
-                            if self.plugin.is_regex_scan() {
-                                crate::byte_regex::ByteRegex::compile(fields.at(7)?, true)?;
-                            } else {
-                                crate::pattern::Pattern::parse(fields.at(7)?.trim())?;
-                            }
-                            Some(if self.plugin.is_regex_scan() {
-                                fields.at(7)?.clone()
-                            } else {
-                                fields.at(7)?.trim().into()
-                            })
+                        pattern: if self.plugin.is_regex_scan() {
+                            crate::byte_regex::ByteRegex::compile(fields.at(7)?, true)?;
+                            Some(fields.at(7)?.clone())
+                        } else if self.plugin.is_yara_scan() {
+                            let pat = fields.at(7)?.trim();
+                            let yfile = fields.at(32)?.trim();
+                            let yrules = fields.at(33)?.trim();
+                            crate::yara::YaraSpec::from_inputs(
+                                (!pat.is_empty()).then_some(pat),
+                                (!yfile.is_empty()).then(|| std::path::Path::new(yfile)),
+                                (!yrules.is_empty()).then_some(yrules),
+                            )?;
+                            (!pat.is_empty()).then(|| pat.into())
+                        } else {
+                            None
+                        },
+                        yara_file: if self.plugin.is_yara_scan() {
+                            let yfile = fields.at(32)?.trim();
+                            (!yfile.is_empty()).then(|| PathBuf::from(yfile))
+                        } else {
+                            None
+                        },
+                        yara_rules: if self.plugin.is_yara_scan() {
+                            let yrules = fields.at(33)?.trim();
+                            (!yrules.is_empty()).then(|| yrules.into())
                         } else {
                             None
                         },

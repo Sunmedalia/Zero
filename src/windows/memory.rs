@@ -278,6 +278,7 @@ impl Windows<'_> {
         Ok(())
     }
     /// windows.vadyarascan: every VAD of one process searched for `pattern`.
+    #[cfg(test)]
     pub(super) fn vad_pattern_scan(
         &self,
         p: &Process,
@@ -285,7 +286,36 @@ impl Windows<'_> {
         r: &mut Results,
         job: &Job,
     ) -> Result<bool> {
-        use crate::pattern::{HIT_LIMIT, StopReason};
+        self.vad_yara_scan(
+            p,
+            &crate::yara::YaraSpec::Pattern(Box::new(pattern.clone())),
+            r,
+            job,
+        )
+    }
+
+    /// windows.vadyarascan: every VAD of one process scanned with YARA-X rules or literal patterns.
+    #[cfg(test)]
+    pub(super) fn vad_yara_scan(
+        &self,
+        p: &Process,
+        spec: &crate::yara::YaraSpec,
+        r: &mut Results,
+        job: &Job,
+    ) -> Result<bool> {
+        let mut scanner = spec.scanner();
+        self.vad_yara_scan_with_scanner(p, &mut scanner, r, job)
+    }
+
+    pub(super) fn vad_yara_scan_with_scanner(
+        &self,
+        p: &Process,
+        scanner: &mut crate::yara::YaraScanner<'_>,
+        r: &mut Results,
+        job: &Job,
+    ) -> Result<bool> {
+        use crate::pattern::HIT_LIMIT;
+        use crate::yara::StopReason;
 
         let vm = self.process_memory(p)?;
         let mut budget = 256 * 1024 * 1024u64;
@@ -302,8 +332,8 @@ impl Windows<'_> {
                 );
                 continue;
             }
-            let scan = crate::pattern::scan_region_sparse(
-                pattern,
+            let scan = crate::yara::scan_region_sparse_with_scanner(
+                scanner,
                 v.start,
                 v.end,
                 &mut budget,
@@ -313,15 +343,17 @@ impl Windows<'_> {
                 |at, limit| vm.absent_end(at, limit),
             )?;
             unreadable += scan.unreadable;
-            for (address, bytes) in scan.hits {
+            for hit in scan.hits {
                 r.rows.push(vec![
                     p.pid.to_string(),
                     p.name.clone(),
-                    hex(address),
+                    hit.rule,
+                    hit.component,
+                    hex(hit.address),
                     hex(v.start),
                     protection(v.protection),
                     v.path.clone(),
-                    crate::pattern::context(&bytes),
+                    crate::pattern::context(&hit.bytes),
                 ]);
             }
             if let Some(reason) = scan.stop_reason {
@@ -1136,7 +1168,9 @@ mod tests {
                 .unwrap()
         );
         assert_eq!(result.rows.len(), HIT_LIMIT);
-        assert_eq!(result.rows[HIT_LIMIT - 1][2], hex(0x2000));
+        assert_eq!(result.rows[HIT_LIMIT - 1][2], "pattern");
+        assert_eq!(result.rows[HIT_LIMIT - 1][3], "$pattern");
+        assert_eq!(result.rows[HIT_LIMIT - 1][4], hex(0x2000));
         assert!(!result.complete);
         assert!(
             result
@@ -1144,6 +1178,49 @@ mod tests {
                 .iter()
                 .any(|row| row.contains("命中数达到"))
         );
+    }
+
+    #[test]
+    fn vad_yara_scan_evaluates_multi_string_yara_x_rules() {
+        use crate::yara::YaraSpec;
+
+        let (mut b, isf) = super::super::regex::tests::prepared();
+        b[0x25010..0x25018].copy_from_slice(b"MIMIKATZ");
+        b[0x25080..0x25084].copy_from_slice(&[0x4d, 0x5a, 0x90, 0x00]);
+        let image = image(&b);
+        let engine = Windows {
+            vm: Memory::new(&image, 0x1000, &isf, None),
+            base: K,
+            pdb: PdbIdentity::from_isf(&isf).unwrap(),
+        };
+        let process = engine.process(K + 0x2000).unwrap();
+        let spec = YaraSpec::from_rules_source(
+            r#"
+            rule cred_dumper {
+                strings:
+                    $mz = { 4D 5A ?? 00 }
+                    $name = "MIMIKATZ"
+                condition:
+                    $mz and $name
+            }
+            "#,
+        )
+        .unwrap();
+        let mut result = engine.result(Plugin::WinVadyarascan);
+        result.complete = true;
+        assert!(
+            !engine
+                .vad_yara_scan(&process, &spec, &mut result, &Job::default())
+                .unwrap()
+        );
+        assert!(result.complete);
+        assert_eq!(result.rows.len(), 2);
+        assert_eq!(result.rows[0][2], "cred_dumper");
+        assert_eq!(result.rows[0][3], "$mz");
+        assert_eq!(result.rows[0][4], hex(0x2080));
+        assert_eq!(result.rows[1][2], "cred_dumper");
+        assert_eq!(result.rows[1][3], "$name");
+        assert_eq!(result.rows[1][4], hex(0x2010));
     }
 
     #[test]
