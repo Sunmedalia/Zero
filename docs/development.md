@@ -90,7 +90,7 @@ cargo build --release --locked --examples
 
 GitHub Actions 在 Linux x86_64／ARM64 和 macOS ARM64 上运行 `make check`，在 Windows x64 上使用 MSVC 原生运行 Clippy、Rust 测试和 release 构建。Windows 构建静态链接 C 运行库与 PCRE2。Linux 与 macOS 产物为包含 `zero` 的 `.tar.gz`，Windows 产物为包含 `zero.exe` 的 `.zip`。每个归档带有 README、终端界面说明、依赖许可证和 SHA-256 校验文件。
 
-打包后在空 PATH 下验证 CLI 和 MCP 帮助，并从解压目录和独立工作目录启动终端界面、确认退出。Linux 和 macOS 使用 PTY，Windows 使用 ConPTY。CI 使用合成样本，真实镜像验收在本地运行。
+打包后在空 PATH 下验证 CLI 和 MCP 帮助，并从解压目录和独立工作目录启动终端界面、确认退出。Linux 和 macOS 使用 PTY，Windows 使用 ConPTY。CI 使用合成样本，真实镜像验收在本地运行。 Windows 取消符号下载时，已阻塞的 Winsock 读取可能需要等到请求超时才返回。
 
 `v` 前缀标签触发发布流程。四个目标检查通过后，流程校验标签与 Cargo 版本一致，以 [RELEASE_NOTES.md](../RELEASE_NOTES.md) 为说明发布归档和汇总校验文件 `SHA256SUMS`。按以下步骤发布新版本。
 
