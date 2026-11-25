@@ -44,6 +44,78 @@ pub struct Image {
     pub format: &'static str,
     pub windows_container: Option<crate::windows::container::Metadata>,
     pub hibernation: Option<crate::windows::hiber::Hibernation>,
+    pub avml: Option<crate::containers::avml::Avml>,
+    pub vm_metadata: Option<crate::containers::VmMetadata>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Compression {
+    Gzip,
+    Zstd,
+    Xz,
+}
+
+impl Compression {
+    fn detect(path: &Path) -> Result<Option<Self>> {
+        let mut magic = [0u8; 6];
+        let mut file =
+            File::open(path).with_context(|| format!("无法打开镜像 {}", path.display()))?;
+        let n = file.read(&mut magic)?;
+        if n >= 2 && magic.get(..2) == Some(&[0x1f, 0x8b]) {
+            Ok(Some(Self::Gzip))
+        } else if n >= 4 && magic.get(..4) == Some(&[0x28, 0xb5, 0x2f, 0xfd]) {
+            Ok(Some(Self::Zstd))
+        } else if n >= 6 && magic.get(..6) == Some(&[0xfd, 0x37, 0x7a, 0x58, 0x5a, 0x00]) {
+            Ok(Some(Self::Xz))
+        } else {
+            Ok(None)
+        }
+    }
+
+    fn label(self) -> &'static str {
+        match self {
+            Self::Gzip => "gzip",
+            Self::Zstd => "zstd",
+            Self::Xz => "xz",
+        }
+    }
+
+    fn decoder(self, file: File) -> Result<Box<dyn Read>> {
+        match self {
+            Self::Gzip => Ok(Box::new(MultiGzDecoder::new(file))),
+            Self::Zstd => Ok(Box::new(
+                zstd::stream::read::Decoder::new(file).context("zstd 解压初始化失败")?,
+            )),
+            Self::Xz => Ok(Box::new(xz2::read::XzDecoder::new_multi_decoder(file))),
+        }
+    }
+}
+
+fn combined_source_stamp(source: &Path, companion: Option<&Path>) -> Result<String> {
+    let base = path_stamp(source)?.to_string();
+    match companion {
+        Some(cp) => Ok(format!("{base}+{}", path_stamp(cp)?)),
+        None => Ok(base),
+    }
+}
+
+fn combined_image_digest(
+    base_digest: String,
+    companion: Option<&Path>,
+    job: &Job,
+) -> Result<String> {
+    let Some(cp) = companion else {
+        return Ok(base_digest);
+    };
+    let cp_digest = digest_file(
+        File::open(cp).with_context(|| format!("无法打开配套快照元数据 {}", cp.display()))?,
+        job,
+    )?;
+    let mut hasher = Sha256::new();
+    hasher.update(base_digest.as_bytes());
+    hasher.update(b":companion:");
+    hasher.update(cp_digest.as_bytes());
+    Ok(format!("{:x}", hasher.finalize()))
 }
 /// Slots of the direct-mapped physical page cache (4 MiB when full).
 const PHYSICAL_SLOTS: u64 = 1024;
@@ -477,8 +549,13 @@ pub struct BoundIdentity {
 }
 /// The identification manifest of an image while its metadata is unchanged.
 fn current_manifest(path: &Path, cache: &Path) -> Option<Identification> {
-    let source = path.canonicalize().ok()?;
-    let identity = format!("{:x}", Sha256::digest(source.to_string_lossy().as_bytes()));
+    let canonical = path.canonicalize().ok()?;
+    let (resolved_source, companion) =
+        crate::containers::vmware::resolve_source_for_open(&canonical, &Job::default()).ok()?;
+    let identity = format!(
+        "{:x}",
+        Sha256::digest(canonical.to_string_lossy().as_bytes())
+    );
     let manifest = cache
         .join("identification")
         .join(format!("{identity}.json"));
@@ -486,7 +563,8 @@ fn current_manifest(path: &Path, cache: &Path) -> Option<Identification> {
         return None;
     }
     let value: Identification = serde_json::from_slice(&fs::read(manifest).ok()?).ok()?;
-    (value.source_stamp == path_stamp(&source).ok()?.to_string()).then_some(value)
+    (value.source_stamp == combined_source_stamp(&resolved_source, companion.as_deref()).ok()?)
+        .then_some(value)
 }
 /// The SHA256 the last full verification recorded for an image, while the
 /// file's metadata is unchanged. Display only: it is not a fresh check.
@@ -588,9 +666,15 @@ impl Image {
     /// the manifest recorded. Returns the remembered Windows kernel roots.
     fn from_manifest(path: &Path, cache: &Path, job: &Job) -> Result<(Self, Reuse)> {
         job.check()?;
-        let source = path.canonicalize()?;
-        let source_stamp = path_stamp(&source)?.to_string();
-        let identity = format!("{:x}", Sha256::digest(source.to_string_lossy().as_bytes()));
+        let (resolved_source, companion) =
+            crate::containers::vmware::resolve_source_for_open(path, job)?;
+        let source = resolved_source.canonicalize()?;
+        let companion = companion.as_deref().map(Path::canonicalize).transpose()?;
+        let source_stamp = combined_source_stamp(&source, companion.as_deref())?;
+        let identity = format!(
+            "{:x}",
+            Sha256::digest(path.canonicalize()?.to_string_lossy().as_bytes())
+        );
         let manifest = cache
             .join("identification")
             .join(format!("{identity}.json"));
@@ -600,9 +684,7 @@ impl Image {
         );
         let value: Identification = serde_json::from_slice(&fs::read(&manifest)?)?;
         ensure!(value.source_stamp == source_stamp, "镜像识别缓存已过期");
-        let mut magic = [0; 2];
-        File::open(&source)?.read_exact(&mut magic)?;
-        if magic == [0x1f, 0x8b] {
+        if Compression::detect(&source)?.is_some() {
             ensure!(
                 value.prepared.parent() == Some(cache.canonicalize()?.as_path())
                     && value.prepared.extension().is_some_and(|s| s == "image")
@@ -620,7 +702,8 @@ impl Image {
             file_stamp(&file)?.to_string() == value.prepared_stamp,
             "识别缓存已过期"
         );
-        let mut image = Self::from_file_with_job(file, String::new(), job)?;
+        let mut image =
+            Self::from_file_with_companion(file, companion.as_deref(), String::new(), job)?;
         ensure!(value.banners.len() <= 1024, "识别缓存候选过多");
         let addresses = value.banners.iter().map(|(address, _)| *address).collect();
         ensure!(
@@ -629,7 +712,7 @@ impl Image {
         );
         ensure!(
             image.stamp()? == value.prepared_stamp
-                && path_stamp(&source)?.to_string() == source_stamp,
+                && combined_source_stamp(&source, companion.as_deref())? == source_stamp,
             "镜像在识别过程中发生变化"
         );
         job.check()?;
@@ -709,7 +792,9 @@ impl Image {
             }
             drop(guard);
         }
-        let source_stamp = path_stamp(path)?.to_string();
+        let (resolved_source, companion) =
+            crate::containers::vmware::resolve_source_for_open(path, job)?;
+        let source_stamp = combined_source_stamp(&resolved_source, companion.as_deref())?;
         let identity = format!(
             "{:x}",
             Sha256::digest(path.canonicalize()?.to_string_lossy().as_bytes())
@@ -726,7 +811,8 @@ impl Image {
             && value.source_stamp == source_stamp
             && let Ok(file) = File::open(&value.prepared)
             && file_stamp(&file)?.to_string() == value.prepared_stamp
-            && let Ok(preview) = Self::from_file_with_job(file, String::new(), job)
+            && let Ok(preview) =
+                Self::from_file_with_companion(file, companion.as_deref(), String::new(), job)
         {
             for (address, banner) in value.banners.iter().take(1024) {
                 let (address, banner) = (*address, banner.clone());
@@ -745,56 +831,64 @@ impl Image {
         }
         job.report("校验镜像 SHA256（同一遍读取识别内核签名）");
         job.mark_prepared();
-        let mut magic = [0; 2];
-        File::open(path)
-            .with_context(|| format!("无法打开镜像 {}", path.display()))?
-            .read_exact(&mut magic)?;
-        let (prepared, digest, candidates) = if magic == [0x1f, 0x8b] {
-            let source = digest_file(File::open(path)?, job)?;
-            let target = cache.join(format!("{source}.image"));
-            let marker = cache.join(format!("{source}.sha256"));
-            let existing = if target.exists() && marker.exists() {
-                let (hash, found) =
-                    fingerprint(File::open(&target)?, fs::metadata(&target)?.len(), job)?;
-                (hash == fs::read_to_string(&marker)?.trim()).then_some((hash, found))
-            } else {
-                None
-            };
-            let (digest, found) = if let Some(value) = existing {
-                value
-            } else {
-                let mut temporary = tempfile::NamedTempFile::new_in(cache)?;
-                let mut decoder = MultiGzDecoder::new(File::open(path)?);
-                let mut scan = Fingerprint::default();
-                let mut buf = vec![0; 4 * 1024 * 1024];
-                loop {
-                    job.check()?;
-                    let n = decoder
-                        .read(&mut buf)
-                        .context("gzip 解压失败（文件损坏或截断）")?;
-                    if n == 0 {
-                        break;
+        let (prepared, digest, candidates) =
+            if let Some(compression) = Compression::detect(&resolved_source)? {
+                let source = digest_file(File::open(&resolved_source)?, job)?;
+                let target = cache.join(format!("{source}.image"));
+                let marker = cache.join(format!("{source}.sha256"));
+                let existing = if target.exists() && marker.exists() {
+                    let (hash, found) =
+                        fingerprint(File::open(&target)?, fs::metadata(&target)?.len(), job)?;
+                    (hash == fs::read_to_string(&marker)?.trim()).then_some((hash, found))
+                } else {
+                    None
+                };
+                let (digest, found) = if let Some(value) = existing {
+                    value
+                } else {
+                    let mut temporary = tempfile::NamedTempFile::new_in(cache)?;
+                    let mut decoder = compression.decoder(File::open(&resolved_source)?)?;
+                    let mut scan = Fingerprint::default();
+                    let mut buf = vec![0; 4 * 1024 * 1024];
+                    let label = compression.label();
+                    loop {
+                        job.check()?;
+                        let n = decoder
+                            .read(&mut buf)
+                            .with_context(|| format!("{label} 解压失败（文件损坏或截断）"))?;
+                        if n == 0 {
+                            break;
+                        }
+                        temporary.write_all(buf.at(..n)?)?;
+                        scan.push(buf.at(..n)?, job);
+                        job.report(format!("解压 ({label}): {} MiB", scan.offset / 1048576));
                     }
-                    temporary.write_all(buf.at(..n)?)?;
-                    scan.push(buf.at(..n)?, job);
-                    job.report(format!("解压: {} MiB", scan.offset / 1048576));
-                }
-                job.check()?;
-                temporary.as_file().sync_all()?;
-                temporary.persist(&target).map_err(|e| e.error)?;
-                let value = scan.finish();
-                crate::store::atomic_write(&marker, value.0.as_bytes())?;
-                value
+                    job.check()?;
+                    temporary.as_file().sync_all()?;
+                    temporary.persist(&target).map_err(|e| e.error)?;
+                    let value = scan.finish();
+                    crate::store::atomic_write(&marker, value.0.as_bytes())?;
+                    value
+                };
+                (target, digest, found)
+            } else {
+                let (digest, found) = fingerprint(
+                    File::open(&resolved_source)?,
+                    fs::metadata(&resolved_source)?.len(),
+                    job,
+                )?;
+                (resolved_source.clone(), digest, found)
             };
-            (target, digest, found)
-        } else {
-            let (digest, found) = fingerprint(File::open(path)?, fs::metadata(path)?.len(), job)?;
-            (path.to_path_buf(), digest, found)
-        };
-        let mut image = Self::from_file_with_job(File::open(&prepared)?, digest, job)?;
+        let digest = combined_image_digest(digest, companion.as_deref(), job)?;
+        let mut image = Self::from_file_with_companion(
+            File::open(&prepared)?,
+            companion.as_deref(),
+            digest,
+            job,
+        )?;
         image._cache_guard = Some(guard);
         let mut physical = Vec::new();
-        if image.hibernation.is_some() {
+        if image.hibernation.is_some() || image.avml.is_some() {
             physical = image.scan(b"Linux version ", job)?;
         } else {
             let _ = image
@@ -832,7 +926,7 @@ impl Image {
         let found = image.read_banners(physical, job)?;
         let count = found.len();
         ensure!(
-            source_stamp == path_stamp(path)?.to_string(),
+            source_stamp == combined_source_stamp(&resolved_source, companion.as_deref())?,
             "镜像在读取过程中发生变化，请重新打开"
         );
         job.check()?;
@@ -874,7 +968,8 @@ impl Image {
                 digest: image.digest.clone(),
                 windows,
                 windows_roots,
-                digest_reusable: settled(path),
+                digest_reusable: settled(&resolved_source)
+                    && companion.as_deref().is_none_or(settled),
                 sample: content_sample(&image.file)?,
             })?,
         )?;
@@ -888,9 +983,14 @@ impl Image {
         Ok(image)
     }
     pub fn from_file(file: File, digest: String) -> Result<Self> {
-        Self::from_file_with_job(file, digest, &Job::default())
+        Self::from_file_with_companion(file, None, digest, &Job::default())
     }
-    fn from_file_with_job(file: File, digest: String, job: &Job) -> Result<Self> {
+    fn from_file_with_companion(
+        file: File,
+        companion: Option<&Path>,
+        digest: String,
+        job: &Job,
+    ) -> Result<Self> {
         let len = file.metadata()?.len();
         ensure!(len >= 4, "镜像过短");
         let mut magic = [0; 4];
@@ -898,7 +998,14 @@ impl Image {
         let mut segments = Vec::new();
         let mut windows_container = None;
         let mut hibernation = None;
-        let format = if &magic == b"PAGE" || &magic == b"MDMP" {
+        let mut avml = None;
+        let mut vm_metadata = None;
+        let format = if let Some(cp_path) = companion {
+            let parsed = crate::containers::vmware::parse_with_companion(&file, cp_path, job)?;
+            segments = parsed.segments;
+            vm_metadata = Some(parsed.metadata);
+            parsed.format
+        } else if &magic == b"PAGE" || &magic == b"MDMP" {
             let parsed = crate::windows::container::parse(&file, job)?;
             segments = parsed.segments;
             windows_container = Some(parsed.metadata);
@@ -909,20 +1016,36 @@ impl Image {
             windows_container = Some(metadata);
             hibernation = Some(parsed);
             "Windows hibernation"
+        } else if crate::containers::vmware::recognized_magic(&magic) {
+            let parsed = crate::containers::vmware::parse_embedded(&file, job)?;
+            segments = parsed.segments;
+            vm_metadata = Some(parsed.metadata);
+            parsed.format
+        } else if crate::containers::elf::recognized(&file, &magic) {
+            let parsed = crate::containers::elf::parse(&file, job)?;
+            segments = parsed.segments;
+            vm_metadata = Some(parsed.metadata);
+            parsed.format
+        } else if crate::containers::avml::recognized(&magic) {
+            let parsed = crate::containers::avml::Avml::parse(&file, job)?;
+            segments = parsed.segments();
+            avml = Some(parsed);
+            "AVML"
         } else if u32::from_le_bytes(magic) == 0x4c694d45 {
             let mut pos = 0;
+            let mut mixed_avml = false;
             while pos < len {
                 ensure!(len - pos >= 32, "LiME 头部截断 @ {pos:#x}");
                 let mut h = [0; 32];
                 file.read_exact_at(&mut h, pos)?;
-                ensure!(
-                    u32::from_le_bytes(h[0..4].try_into()?) == 0x4c694d45,
-                    "LiME magic 错误 @ {pos:#x}"
-                );
-                ensure!(
-                    u32::from_le_bytes(h[4..8].try_into()?) == 1,
-                    "不支持的 LiME 版本"
-                );
+                let hdr_magic = u32::from_le_bytes(h[0..4].try_into()?);
+                let hdr_version = u32::from_le_bytes(h[4..8].try_into()?);
+                if hdr_magic == crate::containers::avml::AVML_MAGIC && hdr_version == 2 {
+                    mixed_avml = true;
+                    break;
+                }
+                ensure!(hdr_magic == 0x4c694d45, "LiME magic 错误 @ {pos:#x}");
+                ensure!(hdr_version == 1, "不支持的 LiME 版本");
                 let start = u64::from_le_bytes(h[8..16].try_into()?);
                 let last = u64::from_le_bytes(h[16..24].try_into()?);
                 let end = last.checked_add(1).context("LiME 地址溢出")?;
@@ -936,14 +1059,21 @@ impl Image {
                     file_offset: offset,
                 });
             }
-            segments.sort_by_key(|s| s.start);
-            ensure!(
-                segments
-                    .windows(2)
-                    .all(|s| matches!(s, [a, b] if a.end <= b.start)),
-                "LiME 范围重叠"
-            );
-            "LiME"
+            if mixed_avml {
+                let parsed = crate::containers::avml::Avml::parse(&file, job)?;
+                segments = parsed.segments();
+                avml = Some(parsed);
+                "AVML"
+            } else {
+                segments.sort_by_key(|s| s.start);
+                ensure!(
+                    segments
+                        .windows(2)
+                        .all(|s| matches!(s, [a, b] if a.end <= b.start)),
+                    "LiME 范围重叠"
+                );
+                "LiME"
+            }
         } else {
             segments.push(Segment {
                 start: 0,
@@ -974,11 +1104,16 @@ impl Image {
             format,
             windows_container,
             hibernation,
+            avml,
+            vm_metadata,
         })
     }
     pub fn read(&self, mut address: u64, mut out: &mut [u8]) -> Result<()> {
         if let Some(hiber) = &self.hibernation {
             return hiber.read(&self.file, address, out);
+        }
+        if let Some(avml) = &self.avml {
+            return avml.read(&self.file, address, out);
         }
         address
             .checked_add(out.len() as u64)

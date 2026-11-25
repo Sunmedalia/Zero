@@ -13,6 +13,7 @@
 )]
 pub mod byte_regex;
 pub mod cache;
+pub mod containers;
 mod file_io;
 pub mod framebuffer;
 pub mod image;

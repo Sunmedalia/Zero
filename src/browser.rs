@@ -17,7 +17,7 @@ pub struct Entry {
     pub path: PathBuf,
     pub directory: bool,
 }
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum FileKind {
     Image,
     Symbols,
@@ -37,7 +37,8 @@ pub fn file_kind(path: &Path) -> FileKind {
     {
         FileKind::Symbols
     } else if [
-        ".raw", ".bin", ".lime", ".mem", ".dump", ".gz", ".dmp", ".vmem", ".img",
+        ".raw", ".bin", ".lime", ".avml", ".mem", ".dump", ".gz", ".zst", ".xz", ".dmp", ".vmem",
+        ".vmsn", ".vmss", ".vmsst", ".elf", ".core", ".img",
     ]
     .iter()
     .any(|s| name.ends_with(s))
@@ -60,9 +61,16 @@ pub fn entries(root: &Path, filter: Filter) -> Result<Vec<Entry>> {
             || metadata.is_file()
                 && match filter {
                     Filter::Files => true,
-                    Filter::Images => [".raw", ".bin", ".lime", ".mem", ".dump", ".gz"]
-                        .iter()
-                        .any(|s| name.ends_with(s)),
+                    Filter::Images => {
+                        !name.ends_with(".json.xz")
+                            && [
+                                ".raw", ".bin", ".lime", ".avml", ".mem", ".dump", ".gz", ".zst",
+                                ".xz", ".dmp", ".vmem", ".vmsn", ".vmss", ".vmsst", ".elf",
+                                ".core", ".img",
+                            ]
+                            .iter()
+                            .any(|s| name.ends_with(s))
+                    }
                     Filter::Symbols => {
                         [".json", ".json.xz", ".zip"]
                             .iter()
@@ -115,6 +123,32 @@ mod tests {
         assert!(images[0].path.ends_with("linux-sample-1.bin.gz"));
         assert_eq!(symbols.len(), 1);
         assert!(symbols[0].path.ends_with("linux.zip"));
+        Ok(())
+    }
+    #[test]
+    fn virtualization_and_compressed_formats_are_classified_as_images() -> Result<()> {
+        let dir = tempfile::tempdir()?;
+        for name in [
+            "guest.elf",
+            "guest.core",
+            "vm.vmem",
+            "vm.vmsn",
+            "vm.vmss",
+            "vm.vmsst",
+            "cloud.avml",
+            "dump.raw.zst",
+            "dump.raw.xz",
+        ] {
+            let path = dir.path().join(name);
+            fs::write(&path, b"")?;
+            assert_eq!(file_kind(&path), FileKind::Image, "{name}");
+        }
+        let isf = dir.path().join("kernel.json.xz");
+        fs::write(&isf, b"")?;
+        assert_eq!(file_kind(&isf), FileKind::Symbols);
+        let images = entries(dir.path(), Filter::Images)?;
+        assert_eq!(images.len(), 9);
+        assert!(!images.iter().any(|e| e.path.ends_with("kernel.json.xz")));
         Ok(())
     }
 }
