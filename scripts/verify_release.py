@@ -2,8 +2,10 @@
 """Verify the native release contents and exercise the TUI through a PTY."""
 import argparse
 import errno
+import fcntl
 import hashlib
 import os
+import pty
 import re
 import select
 import shutil
@@ -12,8 +14,8 @@ import struct
 import subprocess
 import tarfile
 import tempfile
+import termios
 import time
-import zipfile
 from pathlib import Path, PurePosixPath
 
 
@@ -26,43 +28,27 @@ def unpack(archive, destination):
         actual = hashlib.file_digest(stream, 'sha256').hexdigest()
     if checksum != [actual, archive.name]:
         raise ValueError(f'checksum mismatch: {archive}')
-    if archive.suffix == '.zip':
-        expected_root = archive.name.removesuffix('.zip')
-        with zipfile.ZipFile(archive) as package:
-            for member in package.infolist():
-                path = PurePosixPath(member.filename)
-                if (not path.parts or path.parts[0] != expected_root or '..' in path.parts
-                        or any(':' in part or '\\' in part for part in path.parts)):
-                    raise ValueError(f'unsafe archive path: {member.filename}')
-            package.extractall(destination)
-        executable = 'zero.exe'
-    else:
-        expected_root = archive.name.removesuffix('.tar.gz')
-        with tarfile.open(archive, 'r:gz') as package:
-            for member in package.getmembers():
-                path = PurePosixPath(member.name)
-                if not path.parts or path.parts[0] != expected_root or '..' in path.parts:
-                    raise ValueError(f'unsafe archive path: {member.name}')
-                if not (member.isfile() or member.isdir()):
-                    raise ValueError(f'unsupported archive member: {member.name}')
-            package.extractall(destination, filter='data')
-        executable = 'zero'
+    expected_root = archive.name.removesuffix('.tar.gz')
+    with tarfile.open(archive, 'r:gz') as package:
+        for member in package.getmembers():
+            path = PurePosixPath(member.name)
+            if not path.parts or path.parts[0] != expected_root or '..' in path.parts:
+                raise ValueError(f'unsafe archive path: {member.name}')
+            if not (member.isfile() or member.isdir()):
+                raise ValueError(f'unsupported archive member: {member.name}')
+        package.extractall(destination, filter='data')
     release = destination / expected_root
-    if not {path.name for path in release.iterdir()} <= {executable, 'README.md', 'docs'}:
+    if not {path.name for path in release.iterdir()} <= {'zero', 'README.md', 'docs'}:
         raise ValueError('release contains unexpected top-level files')
-    for relative in (executable, 'README.md', 'docs/tui.md'):
+    for relative in ('zero', 'README.md', 'docs/tui.md'):
         if not (release / relative).is_file():
             raise ValueError(f'missing release file: {relative}')
-    if executable == 'zero' and not os.access(release / executable, os.X_OK):
+    if not os.access(release / 'zero', os.X_OK):
         raise ValueError('zero must be executable')
-    return release / executable
+    return release / 'zero'
 
 
 def smoke_tui(command, cwd, env, timeout):
-    import fcntl
-    import pty
-    import termios
-
     master, slave = pty.openpty()
     fcntl.ioctl(slave, termios.TIOCSWINSZ, struct.pack('HHHH', 40, 140, 0, 0))
     original_attrs = termios.tcgetattr(slave)
@@ -140,42 +126,6 @@ def smoke_tui(command, cwd, env, timeout):
             os.close(slave)
 
 
-def smoke_windows_tui(command, cwd, env, timeout):
-    from winpty import PtyProcess
-
-    process = PtyProcess.spawn([command], cwd=str(cwd), env=env, dimensions=(40, 140))
-    output = bytearray()
-    deadline = time.monotonic() + timeout
-    ready = False
-    confirmed = False
-    try:
-        while time.monotonic() < deadline:
-            readable, _, _ = select.select([process], [], [], 0.1)
-            if readable:
-                try:
-                    output.extend(process.read(65536).encode())
-                except EOFError:
-                    break
-            plain = ANSI.sub(b'', bytes(output))
-            if not ready and '资源库'.encode() in plain and '镜像'.encode() in plain:
-                ready = True
-                process.write('q')
-                deadline = time.monotonic() + timeout
-            if ready and not confirmed and '确认退出'.encode() in plain:
-                process.write('\r')
-                confirmed = True
-                deadline = time.monotonic() + timeout
-            if confirmed and not process.isalive():
-                break
-        if not ready or not confirmed or process.exitstatus != 0:
-            raise ValueError(f'TUI readiness={ready}, confirmed={confirmed}, exit={process.exitstatus}')
-    except (OSError, ValueError) as error:
-        transcript = ANSI.sub(b'', bytes(output)).decode('utf-8', errors='replace')[-12000:]
-        raise ValueError(f'{error}\nTUI transcript:\n{transcript}') from error
-    finally:
-        process.close(force=True)
-
-
 def verify(archive, timeout):
     with tempfile.TemporaryDirectory(prefix='zero-release-smoke-') as temporary:
         temporary = Path(temporary)
@@ -183,9 +133,6 @@ def verify(archive, timeout):
         extracted.mkdir()
         executable = unpack(archive, extracted)
         release = executable.parent
-        windows = executable.suffix == '.exe'
-        if windows != (os.name == 'nt'):
-            raise ValueError('archive must match the native host')
         empty_path = temporary / 'empty-path'
         empty_path.mkdir()
         home = temporary / 'home'
@@ -196,10 +143,6 @@ def verify(archive, timeout):
                'COLORTERM': 'truecolor', 'LANG': 'C.UTF-8', 'TMPDIR': str(temporary),
                'XDG_CONFIG_HOME': str(home / 'config'), 'XDG_CACHE_HOME': str(home / 'cache'),
                'XDG_DATA_HOME': str(home / 'data')}
-        if windows:
-            env.update(SYSTEMROOT=os.environ['SYSTEMROOT'], USERPROFILE=str(home),
-                       APPDATA=str(home / 'appdata'), LOCALAPPDATA=str(home / 'localappdata'),
-                       TEMP=str(temporary), TMP=str(temporary))
         if shutil.which('node', path=env['PATH']) or shutil.which('npm', path=env['PATH']):
             raise ValueError('smoke PATH unexpectedly contains Node/npm')
         command = str(executable)
@@ -211,9 +154,8 @@ def verify(archive, timeout):
                        check=True, stdout=subprocess.DEVNULL, timeout=timeout)
         work = temporary / 'unrelated-workdir'
         work.mkdir()
-        smoke = smoke_windows_tui if windows else smoke_tui
-        smoke(command, release, env, timeout)
-        smoke(command, work, env, timeout)
+        smoke_tui(command, release, env, timeout)
+        smoke_tui(command, work, env, timeout)
         print(f'{archive.name}: native TUI ready + q/Enter confirmed exit (release and unrelated cwd; empty PATH)')
 
 
@@ -225,7 +167,7 @@ def main():
     try:
         for archive in args.archives:
             verify(archive.resolve(strict=True), args.timeout)
-    except (ValueError, OSError, subprocess.SubprocessError, tarfile.TarError, zipfile.BadZipFile) as error:
+    except (ValueError, OSError, subprocess.SubprocessError, tarfile.TarError) as error:
         parser.error(str(error))
 
 
