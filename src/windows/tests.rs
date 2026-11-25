@@ -786,3 +786,33 @@ fn every_windows_plugin_reaches_a_handler() {
     }
     assert!(unrouted.is_empty(), "{unrouted:?}");
 }
+#[test]
+fn run_rejects_linux_and_dump_plugins_instead_of_returning_empty_results() {
+    // A PID filter that matches nothing used to let unrouted plugins fall
+    // through the per-process loop and return an empty, complete result.
+    let (b, isf) = fixture();
+    let image = image(&b);
+    let engine = Windows {
+        vm: Memory::new(&image, 0x1000, &isf, None),
+        base: K,
+        pdb: PdbIdentity::from_isf(&isf).unwrap(),
+    };
+    let options = Options {
+        pid: Some(999),
+        ..Default::default()
+    };
+    for (plugin, message) in [
+        (Plugin::Pslist, "不是 Windows 插件"),
+        (Plugin::LinuxBash, "不是 Windows 插件"),
+        (Plugin::WinProcdump, "dump 入口"),
+        (Plugin::WinDumpfiles, "dump 入口"),
+    ] {
+        let error = engine.run(plugin, &options, &Job::default()).unwrap_err();
+        assert!(error.to_string().contains(message), "{plugin:?}: {error}");
+    }
+    // Routed per-process plugins still honour the filter.
+    let r = engine
+        .run(Plugin::WinPslist, &options, &Job::default())
+        .unwrap();
+    assert!(r.complete && r.rows.is_empty());
+}
