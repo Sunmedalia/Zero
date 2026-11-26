@@ -1,24 +1,42 @@
-# Zero v0.2.8
+# Zero v0.2.9
 
-## Linux 内存取证
+## 镜像格式
 
-- 新增 13 个使用 Volatility 3 完整名称的分析入口，涵盖进程树、内存映射、打开文件、套接字、内核日志、可疑内存映射、挂载、页缓存、Bash 历史、ELF、共享库及网络接口。部分入口支持按 PID 或命名空间筛选，以及导出对应的内存片段。
-- 新增 Zsh 内存历史分析，包含命令开始和结束时间。Bash 历史扫描会保留缺页前后已恢复的条目，`psaux` 会保留命令行不可读的进程并给出诊断。
-- 改善 Linux 7.0 内核兼容性及 Ubuntu ddebs 调试包自动发现。
+- 支持 QEMU/KVM ELF core（`virsh dump --memory-only`、`dump-guest-memory`），并读取其中的 VMCOREINFO 用于从镜像生成符号。
+- 支持 VMware `.vmem` 配合 `.vmsn`／`.vmss`／`.vmsst` 快照重建物理内存。容器中的 vCPU CR3 会作为 Windows 页表发现的提示。
+- 支持 AVML Snappy v2，以及 `.zst`／`.xz` 压缩镜像的自动识别。解压写入本地缓存时上限为 256 GiB。
 
-## 符号生成
+## YARA 扫描
 
-- 支持在 CLI 和 TUI 中离线从 x86_64 镜像生成 Linux 符号。生成使用内核自带的 BTF 与 kallsyms，结果在保存前经过页表验证。缺少生成所需数据时，可验证并复用已有的精确匹配 ISF。
-- TUI 增加生成日志，显示扫描、解析和保存进度。同一镜像再次生成时可复用通过校验的产物。
+- 内置纯 Rust 的 YARA-X 规则引擎，支持多字符串条件、十六进制通配与跳转、正则，以及 `pe`、`elf`、`math`、`hash` 等模块，不依赖外部动态库。
+- 新增无需符号的整镜像物理内存扫描 `linux.yarascan`／`windows.yarascan`。`linux.vmayarascan` 与 `windows.vadyarascan` 也可执行完整规则，原有 `--pattern` 字面量扫描保持兼容。
+- CLI、MCP 和 TUI 均支持 `--yara-file`（单个规则文件或目录）与 `--yara-rules`（内联规则）。每次分析只编译一次规则。
+- YARA 支持仍在持续完善，后续版本会继续改进。
 
-## 扫描与界面
+## 分析能力
 
-- 修复内存模式扫描的重叠命中和跨页覆盖，保留部分扫描中已收集的结果。
-- 优化镜像读取、地址转换、符号字段查找及 Linux 和 Windows 分析的常用路径。
-- 改善大型结果和后台任务运行时的 TUI 响应速度，修复结果尚在生成时的导出和启动阶段的粘贴处理。
+- 进一步对齐 Volatility 3 v2.28.2 的功能，例如：
+  - Windows：MFT 备用数据流与常驻数据、注册表递归与 hive 导出、`psxview` 四视图、`malfind` 反汇编与导出、`callbacks` 补齐 BugCheck／Shutdown／文件系统回调、`pslist` 增加 SessionId／Wow64；
+  - Linux：页缓存 inode 页与文件系统恢复、模块导出、eBPF／ftrace／tracepoint 补充字段、`timeliner` 与 SleuthKit bodyfile 导出。
+- 新增进程全景档案（`zero dossier --pid`）和应急初筛剧本（`zero triage`），会跨插件关联指定 PID 的血缘、命令行、文件、网络与权限，并汇总异常信号。
+- 新增只读内存检查器（`zero inspect`），支持内核、进程及物理地址空间的十六进制查看，按 ISF／PDB 展开结构体并跟随指针，并提供 Capstone 反汇编。
+- CLI 新增 `zero plugins` 与 `zero diagnose`。MCP 新增 `zero_symbols_generate`、`zero_diagnose`、`zero_doctor`、`zero_dossier`、`zero_triage`、`zero_inspect`。dump 新增 `lsmod` 与 `memmap` 模式。
+
+## 插件名称
+
+- 全部 186 个插件统一为小写 `<系统>.<名称>` 形式（如 `linux.pslist`、`windows.registry.printkey`），双版本插件统一使用 `.full` 后缀。旧名称与 Volatility 3 类路径名称仍可作为别名使用。
+- 修复 Windows 路由误收 Linux 或 dump 类插件时，可能返回标记为完整的空结果。
+- 本版分析结果格式有变化，升级后首次分析会重新计算并刷新缓存。
+
+## 界面
+
+- 结果表头的列分隔线可拖动调整列宽，双击恢复自动宽度。命令面板新增 `<`／`>`／`=` 调整或重置列宽。列宽随结果视图保存。
+- 分析页结果行按 `E` 打开进程档案，按 `T` 运行初筛剧本，按 `x` 打开内存检查器。
+- 修复参数表单部分字段无法编辑的问题。
+- 已知问题：选择符号期间切换到另一个插件再确认时，重试结果的标签与显示内容可能不一致（[#26](https://github.com/sunmedalia/zero/issues/26)）。
 
 ## 安装
 
 提供 Linux x86_64、Linux ARM64 和 macOS ARM64 归档。下载对应归档及 `SHA256SUMS`，校验后解压运行。
 
-[使用指南](https://github.com/sunmedalia/zero/blob/v0.2.8/docs/usage.md) · [界面说明](https://github.com/sunmedalia/zero/blob/v0.2.8/docs/tui.md) · [兼容矩阵](https://github.com/sunmedalia/zero/blob/v0.2.8/docs/compatibility.md)
+[使用指南](https://github.com/sunmedalia/zero/blob/v0.2.9/docs/usage.md) · [界面说明](https://github.com/sunmedalia/zero/blob/v0.2.9/docs/tui.md) · [兼容矩阵](https://github.com/sunmedalia/zero/blob/v0.2.9/docs/compatibility.md)
