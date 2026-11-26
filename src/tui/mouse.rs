@@ -3,6 +3,9 @@ use super::*;
 
 impl App {
     pub(super) fn mouse(&mut self, mouse: MouseEvent) -> bool {
+        self.mouse_at(mouse, Instant::now())
+    }
+    pub(super) fn mouse_at(&mut self, mouse: MouseEvent, now: Instant) -> bool {
         if self
             .terminal_size
             .get()
@@ -27,6 +30,9 @@ impl App {
         {
             self.back_dialog = None;
             self.dialog_key(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE));
+            return false;
+        }
+        if self.column_mouse_at(mouse, now) {
             return false;
         }
         if self.scrollbar_mouse(mouse) {
@@ -87,7 +93,7 @@ impl App {
             }
             if click && !hits.search.contains(point) {
                 self.dialog_key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
-                return self.mouse(mouse);
+                return self.mouse_at(mouse, now);
             }
             return false;
         }
@@ -604,5 +610,169 @@ impl App {
             self.focus = Focus::Context;
         }
         false
+    }
+    /// Drags a result header separator to resize the column on its left.
+    /// Returns true when the event belonged to a column resize.
+    fn column_mouse_at(&mut self, mouse: MouseEvent, now: Instant) -> bool {
+        match mouse.kind {
+            MouseEventKind::Up(MouseButton::Left) => {
+                let Some(drag) = self.column_drag.take() else {
+                    return false;
+                };
+                let current_view = self.view_key();
+                if !self.hits.borrow().result_header_visible
+                    || drag.view != current_view
+                    || self
+                        .result()
+                        .is_none_or(|r| drag.column.find_in(&r.columns).is_none())
+                {
+                    self.grip_click = None;
+                    return false;
+                }
+                if !drag.moved {
+                    if drag.double_click {
+                        self.column_widths.remove(&drag.column);
+                        self.status = format!("列 {} 已恢复自动宽度", escaped(&drag.column.name));
+                        self.grip_click = None;
+                    } else {
+                        self.grip_click = Some(GripClick {
+                            view: drag.view,
+                            column: drag.column,
+                            at: now,
+                        });
+                    }
+                }
+                true
+            }
+            MouseEventKind::Drag(MouseButton::Left) => {
+                if self.column_drag.is_none() {
+                    return false;
+                }
+                if !self.hits.borrow().result_header_visible {
+                    self.clear_column_interaction();
+                    return false;
+                }
+                let current_view = self.view_key();
+                let valid = self.column_drag.as_ref().is_some_and(|drag| {
+                    drag.view == current_view
+                        && self
+                            .result()
+                            .is_some_and(|r| drag.column.find_in(&r.columns).is_some())
+                });
+                if !valid {
+                    self.clear_column_interaction();
+                    return false;
+                }
+                if let Some(drag) = self.column_drag.as_mut() {
+                    drag.moved = true;
+                    drag.double_click = false;
+                    let delta = i32::from(mouse.column) - i32::from(drag.origin);
+                    let width = clamp_column_width(i32::from(drag.width) + delta);
+                    let column = drag.column.clone();
+                    self.column_widths.insert(column, width);
+                    self.grip_click = None;
+                }
+                true
+            }
+            MouseEventKind::Down(MouseButton::Left) => {
+                // A release outside the terminal is never reported, so every
+                // press ends a previous resize before anything else can see
+                // its drags.
+                self.column_drag = None;
+                if self.dialog.is_some() {
+                    self.grip_click = None;
+                    return false;
+                }
+                let point = Position::new(mouse.column, mouse.row);
+                let Some(grip) = self
+                    .hits
+                    .borrow()
+                    .column_grips
+                    .iter()
+                    .find(|grip| grip.hit.contains(point))
+                    .copied()
+                else {
+                    self.grip_click = None;
+                    return false;
+                };
+                let Some(column) = self
+                    .result()
+                    .and_then(|r| ColumnKey::for_index(&r.columns, grip.index))
+                else {
+                    self.grip_click = None;
+                    return false;
+                };
+                let view = self.view_key();
+                self.focus = Focus::Content;
+                // Terminals report no double click, so a second non-dragged
+                // click on the same view and separator within the interval
+                // resets on release, while pressing and dragging right after a
+                // single click still resizes.
+                let double_click = self.grip_click.take().is_some_and(|previous| {
+                    previous.view == view
+                        && previous.column == column
+                        && now.saturating_duration_since(previous.at) <= DOUBLE_CLICK
+                });
+                self.column_drag = Some(ColumnDrag {
+                    view,
+                    column,
+                    origin: mouse.column,
+                    width: grip.width,
+                    moved: false,
+                    double_click,
+                });
+                true
+            }
+            _ => false,
+        }
+    }
+}
+/// Bounds for a dragged or stepped result column width, in cells.
+pub(super) const COLUMN_MIN_WIDTH: u16 = 3;
+pub(super) const COLUMN_MAX_WIDTH: u16 = 240;
+/// Cells added or removed by one `<` / `>` press.
+pub(super) const COLUMN_STEP: i32 = 2;
+/// Longest gap between two presses on a separator that still resets it.
+const DOUBLE_CLICK: std::time::Duration = std::time::Duration::from_millis(400);
+pub(super) fn clamp_column_width(width: i32) -> u16 {
+    u16::try_from(width.clamp(i32::from(COLUMN_MIN_WIDTH), i32::from(COLUMN_MAX_WIDTH)))
+        .unwrap_or(COLUMN_MIN_WIDTH)
+}
+impl App {
+    /// The column `<`, `>` and `=` act on: the sorted one, or else the
+    /// leftmost visible column computed from the current view and horizontal
+    /// offset (without relying on the previous frame's hit map).
+    fn current_column(&self) -> Option<(ColumnKey, u16)> {
+        let result = self.result()?;
+        let rows = self.visible();
+        let widths = self.resolved_column_widths_for(result, &rows);
+        if widths.is_empty() {
+            return None;
+        }
+        let scroll = self.clamped_horizontal_for(&widths);
+        let index = self.sort.filter(|i| *i < widths.len()).or_else(|| {
+            results::leftmost_visible_column(&widths, scroll, !rows.index.visible.is_empty())
+        })?;
+        let key = ColumnKey::for_index(&result.columns, index)?;
+        let width = widths.get(index).copied()?;
+        Some((key, width))
+    }
+    pub(super) fn step_column_width(&mut self, delta: i32) {
+        let Some((key, width)) = self.current_column() else {
+            self.status = "没有可调整宽度的结果列".into();
+            return;
+        };
+        let width = clamp_column_width(i32::from(width) + delta);
+        self.status = format!("列 {} 宽度 {width}；= 恢复自动宽度", escaped(&key.name));
+        self.column_widths.insert(key, width);
+    }
+    pub(super) fn reset_column_widths(&mut self) {
+        self.clear_column_interaction();
+        self.status = if self.column_widths.is_empty() {
+            "列宽已是自动宽度".into()
+        } else {
+            self.column_widths.clear();
+            "已恢复全部列的自动宽度".into()
+        };
     }
 }

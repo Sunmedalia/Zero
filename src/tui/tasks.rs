@@ -101,12 +101,23 @@ impl App {
     }
 
     pub(super) fn start_work(&mut self, work: Work) {
-        if let Work::Analyze(force) = work
-            && self.plugin.is_dump()
-            && self
-                .dump_options
-                .as_ref()
-                .is_none_or(|(p, _)| *p != self.plugin)
+        self.start_work_with(work, None);
+    }
+
+    pub(super) fn start_work_with(&mut self, work: Work, snapshot: Option<ExecutionSnapshot>) {
+        let background = snapshot.is_some();
+        let (plugin, analysis_options, dump_options) = match snapshot {
+            Some(request) => (request.plugin, request.options, request.dump),
+            None => (
+                self.plugin,
+                self.analysis_options.clone(),
+                self.dump_options.clone(),
+            ),
+        };
+        if !background
+            && let Work::Analyze(force) = work
+            && plugin.is_dump()
+            && dump_options.as_ref().is_none_or(|(p, _)| *p != plugin)
         {
             self.request_analysis(force);
             return;
@@ -114,9 +125,9 @@ impl App {
         if self.job.is_some() {
             let execution = matches!(work, Work::Analyze(_)).then(|| ExecutionSnapshot {
                 force: matches!(work, Work::Analyze(true)),
-                plugin: self.plugin,
-                options: self.analysis_options.clone(),
-                dump: self.dump_options.clone(),
+                plugin,
+                options: analysis_options,
+                dump: dump_options,
             });
             self.cancel();
             self.pending_execution = execution;
@@ -148,19 +159,37 @@ impl App {
             self.open_files(InputKind::Image);
             return;
         };
+        let leaving_history = !background
+            && self.history.is_some()
+            && matches!(
+                work,
+                Work::Analyze(_)
+                    | Work::Download(_)
+                    | Work::FindKernelPackages(_)
+                    | Work::PrepareKernel(_)
+                    | Work::GenerateSymbols(_)
+                    | Work::GenerateFromImage
+            );
+        if leaving_history {
+            self.save_view();
+        }
         if matches!(work, Work::Analyze(_)) {
-            self.ensure_plugin_tab(self.plugin);
+            if background {
+                self.register_plugin_tab(plugin);
+            } else {
+                self.ensure_plugin_tab(plugin);
+            }
         }
         self.task_id += 1;
         self.active_request = matches!(work, Work::Analyze(_)).then(|| Execution {
-            plugin: self.plugin,
-            key: self.request_key(),
-            parameters: self.parameter_summary(),
+            plugin,
+            key: Self::request_key_for(plugin, &analysis_options, &dump_options),
+            parameters: Self::parameter_summary_for(&analysis_options),
             snapshot: ExecutionSnapshot {
                 force: matches!(work, Work::Analyze(true)),
-                plugin: self.plugin,
-                options: self.analysis_options.clone(),
-                dump: self.dump_options.clone(),
+                plugin,
+                options: analysis_options.clone(),
+                dump: dump_options.clone(),
             },
         });
         let (sender, rx) = mpsc::channel();
@@ -181,13 +210,10 @@ impl App {
         };
         let cache = self.cache.clone();
         let choice = self.choice.clone();
-        let plugin = self.plugin;
-        let dump = self
-            .dump_options
+        let dump = dump_options
             .as_ref()
             .filter(|(p, _)| *p == plugin)
             .map(|(_, o)| o.clone());
-        let analysis_options = self.analysis_options.clone();
         let context = self.engine_context();
         let windows = self.windows;
         let network = self.settings.remote_symbols && !matches!(work, Work::Analyze(_));
@@ -205,17 +231,23 @@ impl App {
         if !console::generation_work(&work) {
             self.console.running = None;
         }
-        if matches!(
-            work,
-            Work::Analyze(_)
-                | Work::Download(_)
-                | Work::FindKernelPackages(_)
-                | Work::PrepareKernel(_)
-                | Work::GenerateSymbols(_)
-                | Work::GenerateFromImage
-        ) {
+        if !background
+            && matches!(
+                work,
+                Work::Analyze(_)
+                    | Work::Download(_)
+                    | Work::FindKernelPackages(_)
+                    | Work::PrepareKernel(_)
+                    | Work::GenerateSymbols(_)
+                    | Work::GenerateFromImage
+            )
+        {
             self.history_revision += 1;
             self.history = None;
+            self.history_source = None;
+            if leaving_history {
+                self.restore_request_view();
+            }
         }
         let prior_error = self.last_error.clone();
         self.last_error = None;
@@ -827,11 +859,7 @@ impl App {
                     self.views.clear();
                     self.history_revision += 1;
                     self.history = None;
-                    self.query.clear();
-                    self.sort = None;
-                    self.row = 0;
-                    self.horizontal = 0;
-                    self.collapsed.clear();
+                    self.reset_view();
                     if let Err(e) = self.registry.import(&path, Kind::Symbols, &self.cache) {
                         self.last_error = Some(format!("下载成功但清单保存失败: {e:#}"));
                     }

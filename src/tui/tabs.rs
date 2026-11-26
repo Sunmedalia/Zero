@@ -32,6 +32,20 @@ return;
         self.open_tabs.push(OpenTab::Plugin(plugin));
         self.active_tab = Some(self.open_tabs.len() - 1);
     }
+    /// Ensures `plugin` has a tab entry without changing the active tab or
+    /// currently displayed view.
+    pub(super) fn register_plugin_tab(&mut self, plugin: Plugin) -> usize {
+        if let Some(index) = self
+            .open_tabs
+            .iter()
+            .position(|t| matches!(t, OpenTab::Plugin(p) if *p == plugin))
+        {
+            return index;
+        }
+        self.open_tabs.push(OpenTab::Plugin(plugin));
+        self.tab_layout.set(None);
+        self.open_tabs.len().saturating_sub(1)
+    }
     pub(super) fn open_history_tab(&mut self, path: PathBuf, result: Results) {
         self.save_view();
         let result = Arc::new(result);
@@ -54,9 +68,7 @@ return;
         self.history = Some(result);
         self.history_revision += 1;
         self.page = Page::Analysis;
-        self.query.clear();
-        self.sort = None;
-        self.row = 0;
+        self.reset_view();
         self.focus = Focus::Content;
         self.status = "导出记录：历史内容，未重新验证镜像".into();
     }
@@ -78,9 +90,6 @@ return;
                 self.history_source = Some(path);
                 self.history = Some(result);
                 self.history_revision += 1;
-                self.query.clear();
-                self.sort = None;
-                self.row = 0;
                 self.restore_view();
             }
         }

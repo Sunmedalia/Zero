@@ -84,12 +84,8 @@ impl App {
         self.views.clear();
         self.history_revision += 1;
         self.history = None;
-        self.query.clear();
-        self.sort = None;
-        self.row = 0;
-        self.horizontal = 0;
+        self.reset_view();
         self.detail_scroll = 0;
-        self.collapsed.clear();
         self.choice = None;
         self.dump_options = None;
         self.last_error = None;
@@ -185,11 +181,7 @@ impl App {
                 self.analysis_options.pagefiles.clear();
                 self.analysis_options.swapfile = None;
             }
-            self.query.clear();
-            self.sort = None;
-            self.row = 0;
-            self.horizontal = 0;
-            self.collapsed.clear();
+            self.reset_view();
             self.history_revision += 1;
             self.history = None;
         }
@@ -284,6 +276,8 @@ impl App {
             cache_page: Default::default(),
             open_tabs: Vec::new(),
             drag: None,
+            column_drag: None,
+            grip_click: None,
             active_tab: None,
             tab_offset: std::cell::Cell::new(0),
             tab_layout: std::cell::Cell::new(None),
@@ -382,6 +376,7 @@ impl App {
             result_requests: HashMap::new(),
             pending_os: None,
             horizontal: 0,
+            column_widths: HashMap::new(),
             inspector: false,
             detail_scroll: 0,
             views: HashMap::new(),
@@ -553,11 +548,7 @@ impl App {
         self.history_revision += 1;
         self.history = None;
         self.choice = None;
-        self.query.clear();
-        self.sort = None;
-        self.row = 0;
-        self.horizontal = 0;
-        self.collapsed.clear();
+        self.reset_view();
         self.remote_matches = None;
         self.asset_rows[2] = 0;
         self.asset_queries[2].clear();
@@ -1167,8 +1158,11 @@ impl App {
         }
     }
     pub(super) fn resize(&mut self, width: u16, height: u16) {
-        // Scrollbar geometry from before the resize no longer matches.
+        self.terminal_size.set(Some((width, height)));
+        // Scrollbar and header geometry from before the resize no longer
+        // matches.
         self.drag = None;
+        self.clear_column_interaction();
         // Keep focus on a region this size actually draws. The thresholds here
         // mirror the ones the layout uses, and the clamp below catches anything
         // they miss once the next frame has been measured.
@@ -1222,18 +1216,7 @@ impl App {
         };
         self.history_revision += 1;
         self.history = None;
-        self.query.clear();
-        self.sort = None;
-        self.row = 0;
-        self.collapsed.clear();
-        let view = self.views.remove(&self.request_key()).unwrap_or_default();
-        self.query = view.query;
-        self.sort = view.sort;
-        self.descending = view.descending;
-        self.row = view.row;
-        self.collapsed = view.collapsed;
-        self.horizontal = view.horizontal;
-        *self.table_state.borrow_mut() = view.state;
+        self.restore_request_view();
         self.detail_scroll = 0;
         if let Some(result) = self.results.get(plugin.name()) {
             self.focus = Focus::Content;

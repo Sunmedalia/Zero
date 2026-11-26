@@ -385,6 +385,7 @@ impl App {
             Command::Detail => {
                 if self.result().is_some() {
                     self.inspector = !self.inspector;
+                    self.clear_column_interaction();
                     self.detail_scroll = 0;
                     self.focus = if self.inspector {
                         Focus::Detail
@@ -401,6 +402,9 @@ impl App {
                 }
             }
             Command::Enter => self.enter_focused(),
+            Command::NarrowColumn => self.step_column_width(-mouse::COLUMN_STEP),
+            Command::WidenColumn => self.step_column_width(mouse::COLUMN_STEP),
+            Command::ResetColumns => self.reset_column_widths(),
         }
         false
     }
@@ -873,10 +877,11 @@ impl App {
         if key.modifiers.contains(KeyModifiers::ALT)
             && matches!(key.code, KeyCode::Left | KeyCode::Right)
         {
+            let max = self.max_horizontal_offset();
             self.horizontal = if key.code == KeyCode::Left {
-                self.horizontal.saturating_sub(12)
+                self.horizontal.min(max).saturating_sub(12)
             } else {
-                (self.horizontal + 12).min(2048)
+                self.horizontal.saturating_add(12).min(max)
             };
             return false;
         }
