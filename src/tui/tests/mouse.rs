@@ -829,6 +829,55 @@ fn wide_table_exceeding_u16_max_preserves_last_column_width_and_scroll() {
 }
 
 #[test]
+fn resize_and_column_step_in_same_batch_use_new_terminal_size() {
+    let mut app = app();
+    app.focus = Focus::Content;
+    {
+        let result = app.results.get_mut("linux.pslist.basic").unwrap();
+        result.columns = vec!["First".into(), "Second".into()];
+        result.rows = vec![vec!["a".into(), "b".into()]];
+    }
+    let first = ColumnKey::new("First", 0);
+    let second = ColumnKey::new("Second", 0);
+    app.column_widths.insert(first.clone(), 12);
+    app.column_widths.insert(second.clone(), 98);
+    let mut terminal = Terminal::new(TestBackend::new(120, 24)).unwrap();
+    terminal.draw(|f| app.draw(f)).unwrap();
+    app.horizontal = app.max_horizontal_offset();
+    assert_eq!(app.horizontal, 21);
+
+    // Same event batch without redraw: Resize(160, 24) expands the result
+    // viewport beyond total width 115, so effective scroll clamps to 0 and `>`
+    // widens the first column instead of the second.
+    app.resize(160, 24);
+    app.key(KeyEvent::new(KeyCode::Char('>'), KeyModifiers::SHIFT));
+    assert_eq!(app.column_widths.get(&first), Some(&14));
+    assert_eq!(app.column_widths.get(&second), Some(&98));
+}
+
+#[test]
+fn scrolled_short_row_preserves_valid_prefix_cells() {
+    let mut app = app();
+    app.focus = Focus::Content;
+    {
+        let result = app.results.get_mut("linux.pslist.basic").unwrap();
+        result.columns = vec!["Col0".into(), "Col1".into(), "Col2".into(), "Col3".into()];
+        // Row is shorter than the header (only 2 cells for 4 columns).
+        result.rows = vec![vec!["V0".into(), "KEEP_ME".into()]];
+    }
+    for (i, width) in [(0, 40u16), (1, 40), (2, 40), (3, 40)] {
+        app.column_widths
+            .insert(ColumnKey::new(format!("Col{i}"), 0), width);
+    }
+    let mut terminal = Terminal::new(TestBackend::new(80, 24)).unwrap();
+    // Scroll past Col0 so the visible range is Col1..=Col2 (exceeding row.len() == 2).
+    app.horizontal = 42;
+    terminal.draw(|f| app.draw(f)).unwrap();
+    let rendered = screen(&terminal, 80);
+    assert!(rendered.contains("KEEP_ME"));
+}
+
+#[test]
 fn mouse_tree_and_sort_popup() {
     let mut app = app();
     let mut result = app.result().unwrap().clone();

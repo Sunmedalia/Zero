@@ -173,8 +173,12 @@ impl App {
         if leaving_history {
             self.save_view();
         }
-        if !background && matches!(work, Work::Analyze(_)) {
-            self.ensure_plugin_tab(plugin);
+        if matches!(work, Work::Analyze(_)) {
+            if background {
+                self.register_plugin_tab(plugin);
+            } else {
+                self.ensure_plugin_tab(plugin);
+            }
         }
         self.task_id += 1;
         self.active_request = matches!(work, Work::Analyze(_)).then(|| Execution {

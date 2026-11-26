@@ -181,6 +181,67 @@ fn queued_ctrl_r_from_history_preserves_current_view_across_tab_and_plugin_switc
     assert_eq!(app.column_widths.get(&name), Some(&18));
 }
 #[test]
+fn symbol_retry_registers_and_activates_plugin_tab_after_clearing_tabs() {
+    let mut app = app();
+    app.image = Some(app.root.join("missing.raw"));
+    seed_tab(&mut app, Plugin::Pslist);
+    app.symbol_retry = Some(SymbolRetry::Analysis(Box::new(ExecutionSnapshot {
+        force: false,
+        plugin: Plugin::Pslist,
+        options: app.analysis_options.clone(),
+        dump: None,
+    })));
+    app.dialog = Some(Dialog::Symbols {
+        labels: vec!["candidate-a".into()],
+        selected: 0,
+    });
+    app.dialog_key(KeyEvent::new(KeyCode::Char(' '), KeyModifiers::NONE));
+    assert!(
+        app.open_tabs
+            .iter()
+            .any(|t| matches!(t, OpenTab::Plugin(Plugin::Pslist)))
+    );
+    assert!(matches!(
+        app.active_tab.and_then(|i| app.open_tabs.get(i)),
+        Some(OpenTab::Plugin(Plugin::Pslist))
+    ));
+    app.cancel();
+    app.release_worker(Duration::from_secs(2));
+}
+#[test]
+fn queued_run_from_history_only_tabs_registers_plugin_tab_without_changing_view() {
+    let mut app = app();
+    app.image = Some(app.root.join("missing.raw"));
+    let pid = ColumnKey::new("PID", 0);
+    let mut history = app.result().unwrap().clone();
+    history.historical = true;
+    app.open_tabs.clear();
+    app.active_tab = None;
+    app.open_history_tab(PathBuf::from("record-only"), history);
+    app.column_widths.insert(pid.clone(), 42);
+    app.query = "only-hist".into();
+    let history_tab = app.active_tab;
+
+    app.job = Some(Job::default());
+    app.key(KeyEvent::new(KeyCode::Char('r'), KeyModifiers::CONTROL));
+    let queued = app.pending_execution.take().expect("queued snapshot");
+    app.pending_work = None;
+    app.job = None;
+
+    app.start_snapshot(queued);
+    assert!(
+        app.open_tabs
+            .iter()
+            .any(|t| matches!(t, OpenTab::Plugin(Plugin::Pslist)))
+    );
+    assert_eq!(app.active_tab, history_tab);
+    assert!(app.history.is_some());
+    assert_eq!(app.query, "only-hist");
+    assert_eq!(app.column_widths.get(&pid), Some(&42));
+    app.cancel();
+    app.release_worker(Duration::from_secs(2));
+}
+#[test]
 fn empty_result_tab_is_reused_and_running_tab_cannot_close() {
     let mut app = app();
     app.ensure_plugin_tab(Plugin::Psaux);

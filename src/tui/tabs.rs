@@ -32,6 +32,20 @@ return;
         self.open_tabs.push(OpenTab::Plugin(plugin));
         self.active_tab = Some(self.open_tabs.len() - 1);
     }
+    /// Ensures `plugin` has a tab entry without changing the active tab or
+    /// currently displayed view.
+    pub(super) fn register_plugin_tab(&mut self, plugin: Plugin) -> usize {
+        if let Some(index) = self
+            .open_tabs
+            .iter()
+            .position(|t| matches!(t, OpenTab::Plugin(p) if *p == plugin))
+        {
+            return index;
+        }
+        self.open_tabs.push(OpenTab::Plugin(plugin));
+        self.tab_layout.set(None);
+        self.open_tabs.len().saturating_sub(1)
+    }
     pub(super) fn open_history_tab(&mut self, path: PathBuf, result: Results) {
         self.save_view();
         let result = Arc::new(result);

@@ -1233,7 +1233,15 @@ impl App {
                     self.choice = labels.get(*selected).cloned();
                     if let Some(request) = self.symbol_retry.take() {
                         match request {
-                            SymbolRetry::Analysis(snapshot) => self.start_snapshot(*snapshot),
+                            SymbolRetry::Analysis(snapshot) => {
+                                let plugin = snapshot.plugin;
+                                self.start_snapshot(*snapshot);
+                                if self.active_tab.is_none()
+                                    || (self.history.is_none() && self.plugin == plugin)
+                                {
+                                    self.ensure_plugin_tab(plugin);
+                                }
+                            }
                             SymbolRetry::Work(work) => match *work {
                                 Work::Inspect(query, tab) => {
                                     self.launch_inspector_query(query, tab)

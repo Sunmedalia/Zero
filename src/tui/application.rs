@@ -1158,6 +1158,7 @@ impl App {
         }
     }
     pub(super) fn resize(&mut self, width: u16, height: u16) {
+        self.terminal_size.set(Some((width, height)));
         // Scrollbar and header geometry from before the resize no longer
         // matches.
         self.drag = None;

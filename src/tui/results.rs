@@ -789,10 +789,11 @@ fn cells_to_line_range(
     range: std::ops::Range<usize>,
 ) -> Vec<Line<'static>> {
     let start = range.start;
+    let count = range.end.saturating_sub(start);
     cells
-        .get(range)
-        .unwrap_or(&[])
         .iter()
+        .skip(start)
+        .take(count)
         .enumerate()
         .map(|(offset, cell)| {
             let col = start.saturating_add(offset);
