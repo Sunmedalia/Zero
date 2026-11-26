@@ -148,6 +148,19 @@ impl App {
             self.open_files(InputKind::Image);
             return;
         };
+        let leaving_history = self.history.is_some()
+            && matches!(
+                work,
+                Work::Analyze(_)
+                    | Work::Download(_)
+                    | Work::FindKernelPackages(_)
+                    | Work::PrepareKernel(_)
+                    | Work::GenerateSymbols(_)
+                    | Work::GenerateFromImage
+            );
+        if leaving_history {
+            self.save_view();
+        }
         if matches!(work, Work::Analyze(_)) {
             self.ensure_plugin_tab(self.plugin);
         }
@@ -216,6 +229,10 @@ impl App {
         ) {
             self.history_revision += 1;
             self.history = None;
+            self.history_source = None;
+            if leaving_history {
+                self.restore_request_view();
+            }
         }
         let prior_error = self.last_error.clone();
         self.last_error = None;

@@ -238,7 +238,7 @@ impl App {
 }
 
 impl App {
-    fn view_key(&self) -> String {
+    pub(super) fn view_key(&self) -> String {
         if self.history.is_some()
             && let Some(source) = &self.history_source
         {
@@ -247,7 +247,12 @@ impl App {
             self.request_key()
         }
     }
+    pub(super) fn clear_column_interaction(&mut self) {
+        self.column_drag = None;
+        self.grip_click = None;
+    }
     pub(super) fn save_view(&mut self) {
+        self.clear_column_interaction();
         if self.active_detail().is_some() {
             return;
         }
@@ -278,6 +283,7 @@ impl App {
     /// Clears the per-view result state (filter, sort, selection, scroll,
     /// column widths, collapsed tree nodes) for a result shown afresh.
     pub(super) fn reset_view(&mut self) {
+        self.clear_column_interaction();
         self.query.clear();
         self.sort = None;
         self.row = 0;
@@ -286,6 +292,7 @@ impl App {
         self.collapsed.clear();
     }
     fn apply_view(&mut self, view: View) {
+        self.clear_column_interaction();
         self.query = view.query;
         self.sort = view.sort;
         self.descending = view.descending;

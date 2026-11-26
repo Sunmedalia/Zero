@@ -70,7 +70,8 @@ fn history_tabs_retain_independent_filters_and_survive_source_changes() {
 fn history_tab_starts_with_automatic_column_widths() {
     let mut app = app();
     seed_tab(&mut app, Plugin::Pslist);
-    app.column_widths.insert("Name".into(), 30);
+    let name = ColumnKey::new("Name", 0);
+    app.column_widths.insert(name.clone(), 30);
     app.horizontal = 5;
     let mut result = app.result().unwrap().clone();
     result.historical = true;
@@ -79,8 +80,43 @@ fn history_tab_starts_with_automatic_column_widths() {
     assert!(app.column_widths.is_empty());
     assert_eq!(app.horizontal, 0);
     app.switch_result_tab(0);
-    assert_eq!(app.column_widths.get("Name"), Some(&30));
+    assert_eq!(app.column_widths.get(&name), Some(&30));
     assert_eq!(app.horizontal, 5);
+}
+#[test]
+fn ctrl_r_from_history_tab_preserves_history_widths_and_restores_live_view() {
+    let mut app = app();
+    app.image = Some(app.root.join("missing.raw"));
+    seed_tab(&mut app, Plugin::Pslist);
+    let name = ColumnKey::new("Name", 0);
+    let pid = ColumnKey::new("PID", 0);
+    app.column_widths.insert(name.clone(), 30);
+    app.horizontal = 5;
+
+    let mut history = app.result().unwrap().clone();
+    history.historical = true;
+    app.open_history_tab(PathBuf::from("record-ctrl-r"), history);
+    app.column_widths.insert(pid.clone(), 45);
+    app.column_widths.insert(name.clone(), 18);
+
+    // Pressing Ctrl+R from the history tab saves the history view, clears
+    // history, and restores the live plugin's saved view instead of leaking
+    // history column widths.
+    app.key(KeyEvent::new(KeyCode::Char('r'), KeyModifiers::CONTROL));
+    assert!(app.history.is_none());
+    assert_eq!(app.column_widths.get(&name), Some(&30));
+    assert_eq!(app.column_widths.get(&pid), None);
+    assert_eq!(app.horizontal, 5);
+
+    // Cancel and release the background worker spawned for missing.raw.
+    app.cancel();
+    app.release_worker(Duration::from_secs(2));
+
+    // Switching back to the history tab restores its adjusted widths.
+    app.switch_result_tab(1);
+    assert!(app.history.is_some());
+    assert_eq!(app.column_widths.get(&pid), Some(&45));
+    assert_eq!(app.column_widths.get(&name), Some(&18));
 }
 #[test]
 fn empty_result_tab_is_reused_and_running_tab_cannot_close() {

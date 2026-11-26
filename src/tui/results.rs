@@ -164,55 +164,13 @@ impl App {
                 .title(title)
                 .border_style(self.focus_style(Focus::Content));
             if let Some(result) = result {
-                let columns = result
-                    .columns
-                    .iter()
-                    .enumerate()
-                    .map(|(i, c)| {
-                        if self.sort == Some(i) {
-                            format!("{} {}", escaped(c), if self.descending { "↓" } else { "↑" })
-                        } else {
-                            escaped(c)
-                        }
-                    })
-                    .collect::<Vec<_>>();
-                // Size and draw from borrowed cells: a 1200-row table is
-                // re-laid out every frame, so cloning rows here dominated the
-                // render.
-                // Widths depend only on the header and the first sampled
-                // rows of this index, so they are reused until either changes.
-                let natural = {
-                    let mut cache = self.width_cache.borrow_mut();
-                    match cache.as_ref() {
-                        Some((index, header, widths))
-                            if std::rc::Rc::ptr_eq(index, &rows.index) && *header == columns =>
-                        {
-                            widths.clone()
-                        }
-                        _ => {
-                            let widths = table_widths(&columns, rows.sample(0, 200));
-                            *cache = Some((rows.index.clone(), columns.clone(), widths.clone()));
-                            widths
-                        }
-                    }
-                };
-                // Dragged widths replace the measured ones by column name, so
-                // they survive re-sorting and refiltering of the same result.
-                let natural: Vec<u16> = natural
-                    .iter()
-                    .zip(&result.columns)
-                    .map(|(width, name)| self.column_widths.get(name).copied().unwrap_or(*width))
-                    .collect();
+                let columns = self.result_headers(result);
+                let natural = self.resolved_column_widths_with_headers(result, &rows, &columns);
                 let widths: Vec<_> = natural.iter().copied().map(Constraint::Length).collect();
-                let total = natural.iter().map(|n| *n as u32).sum::<u32>()
-                    + u32::from(natural.len().saturating_sub(1).cells())
-                    + 4;
-                let virtual_width = u16::try_from(total.min(4096))
-                    .unwrap_or(4096)
-                    .max(main.width);
+                let virtual_width = table_virtual_width(&natural, main);
                 let scroll = self
                     .horizontal
-                    .min(virtual_width.saturating_sub(main.width) as usize)
+                    .min(usize::from(virtual_width.saturating_sub(main.width)))
                     .cells();
                 let render_area = Rect::new(main.x, main.y, virtual_width, main.height);
                 let row_count = rows.len().saturating_sub(page_start).min(page_size);
@@ -317,10 +275,12 @@ impl App {
                         );
                     }
                 }
+                let view = self.view_key();
                 let dragging = self
                     .column_drag
                     .as_ref()
-                    .and_then(|drag| result.columns.iter().position(|name| *name == drag.column));
+                    .filter(|drag| drag.view == view)
+                    .and_then(|drag| drag.column.find_in(&result.columns));
                 for grip in &grips {
                     let active = dragging == Some(grip.index);
                     frame.buffer_mut()[(grip.cell.x, grip.cell.y)]
@@ -457,6 +417,7 @@ impl App {
             self.hits.borrow_mut().inspector = rect;
             let mut hits = self.hits.borrow_mut();
             hits.columns.clear();
+            hits.column_grips.clear();
             hits.result_tabs.clear();
             hits.result_tab_steps.clear();
             hits.scrollbars
@@ -594,4 +555,132 @@ impl App {
         );
         self.draw_plugin_toggle(frame, area, " << ");
     }
+    pub(super) fn result_headers(&self, result: &Results) -> Vec<String> {
+        result
+            .columns
+            .iter()
+            .enumerate()
+            .map(|(i, c)| {
+                if self.sort == Some(i) {
+                    format!("{} {}", escaped(c), if self.descending { "↓" } else { "↑" })
+                } else {
+                    escaped(c)
+                }
+            })
+            .collect()
+    }
+    /// Natural column widths overridden by any user-adjusted widths for this
+    /// view, keyed by `(column_name, duplicate_occurrence)` and clamped to the
+    /// supported column width range.
+    pub(super) fn resolved_column_widths_with_headers(
+        &self,
+        result: &Results,
+        rows: &IndexedRows<'_>,
+        headers: &[String],
+    ) -> Vec<u16> {
+        // Widths depend only on the header and the first sampled rows of this
+        // index, so they are reused until either changes.
+        let natural = {
+            let mut cache = self.width_cache.borrow_mut();
+            match cache.as_ref() {
+                Some((index, cached_headers, widths))
+                    if std::rc::Rc::ptr_eq(index, &rows.index)
+                        && cached_headers.as_slice() == headers =>
+                {
+                    widths.clone()
+                }
+                _ => {
+                    let widths = table_widths(headers, rows.sample(0, 200));
+                    *cache = Some((rows.index.clone(), headers.to_vec(), widths.clone()));
+                    widths
+                }
+            }
+        };
+        let keys = ColumnKey::all(&result.columns);
+        natural
+            .iter()
+            .zip(&keys)
+            .map(|(width, key)| {
+                self.column_widths
+                    .get(key)
+                    .copied()
+                    .map(|w| mouse::clamp_column_width(i32::from(w)))
+                    .unwrap_or(*width)
+            })
+            .collect()
+    }
+    pub(super) fn resolved_column_widths_for(
+        &self,
+        result: &Results,
+        rows: &IndexedRows<'_>,
+    ) -> Vec<u16> {
+        let headers = self.result_headers(result);
+        self.resolved_column_widths_with_headers(result, rows, &headers)
+    }
+    /// Maximum horizontal scroll offset for the current result table and
+    /// viewport width.
+    pub(super) fn max_horizontal_offset(&self) -> usize {
+        let Some(result) = self.result() else {
+            return 0;
+        };
+        let rows = self.visible();
+        let widths = self.resolved_column_widths_for(result, &rows);
+        let area = self.hits.borrow().result;
+        if area.width > 0 {
+            max_horizontal_offset_for(&widths, area)
+        } else {
+            table_total_width(&widths)
+        }
+    }
+    pub(super) fn clamped_horizontal_for(&self, widths: &[u16]) -> usize {
+        let area = self.hits.borrow().result;
+        if area.width > 0 {
+            self.horizontal.min(max_horizontal_offset_for(widths, area))
+        } else {
+            self.horizontal.min(table_total_width(widths))
+        }
+    }
+}
+
+pub(super) fn table_total_width(widths: &[u16]) -> usize {
+    widths
+        .iter()
+        .map(|&width| usize::from(width))
+        .sum::<usize>()
+        .saturating_add(widths.len().saturating_sub(1))
+        .saturating_add(4)
+}
+
+pub(super) fn table_virtual_width(widths: &[u16], area: Rect) -> u16 {
+    let max_canvas = u16::MAX.saturating_sub(area.x);
+    u16::try_from(table_total_width(widths))
+        .unwrap_or(max_canvas)
+        .min(max_canvas)
+        .max(area.width)
+}
+
+pub(super) fn max_horizontal_offset_for(widths: &[u16], area: Rect) -> usize {
+    if widths.is_empty() || area.width == 0 {
+        return 0;
+    }
+    usize::from(table_virtual_width(widths, area).saturating_sub(area.width))
+}
+
+pub(super) fn leftmost_visible_column(
+    widths: &[u16],
+    scroll: usize,
+    has_rows: bool,
+) -> Option<usize> {
+    if widths.is_empty() {
+        return None;
+    }
+    let mut offset = if has_rows { 2usize } else { 0usize };
+    for (index, &width) in widths.iter().enumerate() {
+        let end = offset.saturating_add(usize::from(width));
+        if end > scroll {
+            return Some(index);
+        }
+        offset = end.saturating_add(1);
+    }
+    widths.len().checked_sub(1)
 }

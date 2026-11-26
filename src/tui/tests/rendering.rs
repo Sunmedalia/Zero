@@ -284,6 +284,8 @@ fn workstation_palette_views_and_responsive_inspector() {
     assert_eq!(app.focus, Focus::Detail);
     app.key(KeyEvent::new(KeyCode::End, KeyModifiers::NONE));
     assert!(app.detail_scroll > 0);
+    app.column_widths
+        .insert(ColumnKey::new("CommandLine", 0), 120);
     app.key(KeyEvent::new(KeyCode::Right, KeyModifiers::ALT));
     assert_eq!(app.horizontal, 12);
     terminal.draw(|f| app.draw(f)).unwrap();

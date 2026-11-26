@@ -309,15 +309,15 @@ pub(super) struct View {
     pub(super) collapsed: HashSet<String>,
     pub(super) state: TableState,
     pub(super) horizontal: usize,
-    pub(super) column_widths: HashMap<String, u16>,
+    pub(super) column_widths: HashMap<ColumnKey, u16>,
 }
 pub struct App {
     pub(super) terminal_size: std::cell::Cell<Option<(u16, u16)>>,
     pub(super) drag: Option<scrollbars::Drag>,
     /// Header separator being dragged to resize a result column.
     pub(super) column_drag: Option<ColumnDrag>,
-    /// Last press on a header separator, to recognise a double click.
-    pub(super) grip_click: Option<(String, Instant)>,
+    /// Last completed non-dragged click on a header separator, to recognise a double click.
+    pub(super) grip_click: Option<GripClick>,
     pub(super) open_tabs: Vec<OpenTab>,
     pub(super) active_tab: Option<usize>,
     pub(super) tab_offset: std::cell::Cell<usize>,
@@ -433,9 +433,9 @@ pub struct App {
     pub(super) result_requests: HashMap<String, String>,
     pub(super) pending_os: Option<crate::analysis::Os>,
     pub(super) horizontal: usize,
-    /// Widths the user dragged, by column name; unset columns keep their
-    /// measured width. Saved per view like the horizontal scroll.
-    pub(super) column_widths: HashMap<String, u16>,
+    /// Widths the user dragged, by column name and duplicate-header occurrence;
+    /// unset columns keep their measured width. Saved per view like the horizontal scroll.
+    pub(super) column_widths: HashMap<ColumnKey, u16>,
     pub(super) inspector: bool,
     pub(super) detail_scroll: usize,
     pub(super) views: HashMap<String, View>,
@@ -565,12 +565,77 @@ pub(super) struct ColumnGrip {
     pub(super) index: usize,
     pub(super) width: u16,
 }
-/// A column resize in progress: the pointer column and width at press time.
-#[derive(Clone)]
+/// Identifies a column within a result table by header name and its 0-based
+/// occurrence among identically named headers (e.g. CSV `PID,PID`).
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub(super) struct ColumnKey {
+    pub(super) name: String,
+    pub(super) occurrence: usize,
+}
+impl ColumnKey {
+    #[cfg(test)]
+    pub(super) fn new(name: impl Into<String>, occurrence: usize) -> Self {
+        Self {
+            name: name.into(),
+            occurrence,
+        }
+    }
+    pub(super) fn for_index(columns: &[String], index: usize) -> Option<Self> {
+        let name = columns.get(index)?;
+        let occurrence = columns
+            .get(..index)
+            .map_or(0, |prefix| prefix.iter().filter(|c| *c == name).count());
+        Some(Self {
+            name: name.clone(),
+            occurrence,
+        })
+    }
+    pub(super) fn all(columns: &[String]) -> Vec<Self> {
+        let mut counts: HashMap<&str, usize> = HashMap::with_capacity(columns.len());
+        columns
+            .iter()
+            .map(|name| {
+                let entry = counts.entry(name.as_str()).or_insert(0);
+                let occurrence = *entry;
+                *entry += 1;
+                Self {
+                    name: name.clone(),
+                    occurrence,
+                }
+            })
+            .collect()
+    }
+    pub(super) fn find_in(&self, columns: &[String]) -> Option<usize> {
+        let mut seen = 0usize;
+        for (index, name) in columns.iter().enumerate() {
+            if *name == self.name {
+                if seen == self.occurrence {
+                    return Some(index);
+                }
+                seen += 1;
+            }
+        }
+        None
+    }
+}
+/// A column resize in progress: the view, column, pointer position and width
+/// at press time, plus whether the pointer moved and whether a release without
+/// movement completes a double-click reset.
+#[derive(Clone, Debug)]
 pub(super) struct ColumnDrag {
-    pub(super) column: String,
+    pub(super) view: String,
+    pub(super) column: ColumnKey,
     pub(super) origin: u16,
     pub(super) width: u16,
+    pub(super) moved: bool,
+    pub(super) double_click: bool,
+}
+/// Completed non-dragged click on a header separator, bound to its view and column.
+#[derive(Clone, Debug)]
+pub(super) struct GripClick {
+    pub(super) view: String,
+    pub(super) column: ColumnKey,
+    pub(super) at: Instant,
 }
 pub(super) type ColumnWidths = (
     std::rc::Rc<crate::result_view::Index>,

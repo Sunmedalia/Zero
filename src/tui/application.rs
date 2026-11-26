@@ -1161,8 +1161,7 @@ impl App {
         // Scrollbar and header geometry from before the resize no longer
         // matches.
         self.drag = None;
-        self.column_drag = None;
-        self.grip_click = None;
+        self.clear_column_interaction();
         // Keep focus on a region this size actually draws. The thresholds here
         // mirror the ones the layout uses, and the clamp below catches anything
         // they miss once the next frame has been measured.
