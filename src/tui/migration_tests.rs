@@ -185,6 +185,7 @@ fn symbol_retry_registers_and_activates_plugin_tab_after_clearing_tabs() {
     let mut app = app();
     app.image = Some(app.root.join("missing.raw"));
     seed_tab(&mut app, Plugin::Pslist);
+    app.clear_plugin_tabs();
     app.symbol_retry = Some(SymbolRetry::Analysis(Box::new(ExecutionSnapshot {
         force: false,
         plugin: Plugin::Pslist,
@@ -241,6 +242,170 @@ fn queued_run_from_history_only_tabs_registers_plugin_tab_without_changing_view(
     app.cancel();
     app.release_worker(Duration::from_secs(2));
 }
+
+fn deliver_outcome(app: &mut App, outcome: Outcome) {
+    if let Some(worker) = app.worker.take() {
+        worker.join().unwrap();
+    }
+    let (sender, receiver) = mpsc::channel();
+    app.receiver = Some(receiver);
+    let events = EventSender {
+        sender,
+        id: app.task_id,
+        version: app.object_version,
+    };
+    assert!(events.send(WorkerEvent::Done(outcome)));
+    app.drain();
+}
+
+fn request_result(app: &App, plugin: Plugin, name: &str) -> Results {
+    let mut result = app.results.get(Plugin::Pslist.name()).unwrap().clone();
+    result.plugin = plugin.name().into();
+    result.rows[0][3] = name.into();
+    result
+}
+
+fn assert_result_tab(app: &App, plugin: Plugin, key: &str, name: &str) {
+    assert!(matches!(
+        app.active_tab.and_then(|index| app.open_tabs.get(index)),
+        Some(OpenTab::Plugin(active)) if *active == plugin
+    ));
+    assert_eq!(app.plugin, plugin);
+    assert_eq!(app.view_key(), key);
+    let stored = app.results.shared(key).unwrap();
+    assert_eq!(stored.plugin, plugin.name());
+    assert_eq!(stored.rows[0][3], name);
+    assert!(Arc::ptr_eq(
+        stored,
+        app.results.shared(plugin.name()).unwrap()
+    ));
+    assert!(Arc::ptr_eq(stored, app.result_shared().unwrap()));
+    assert!(screen(&render(app, 120, 35), 120).contains(name));
+}
+
+#[test]
+fn same_plugin_symbol_retry_restores_the_originating_request_view() {
+    let mut app = app();
+    let plugin = Plugin::Pslist;
+    seed_tab(&mut app, plugin);
+    app.image = Some(app.root.join("missing.raw"));
+    app.analysis_options.pid = Some(42);
+    app.query = "target".into();
+    let width = ColumnKey::new("Name", 0);
+    app.column_widths.insert(width.clone(), 24);
+    let key = app.request_key();
+    app.request_analysis(true);
+
+    // Save the originating view and edit the draft before the choice arrives.
+    app.save_view();
+    app.analysis_options.pid = Some(7);
+    app.query = "other".into();
+    app.column_widths.insert(width.clone(), 12);
+    let draft_key = app.request_key();
+    deliver_outcome(&mut app, Outcome::Choose(vec!["exact-symbol".into()]));
+    app.key(KeyEvent::new(KeyCode::Char(' '), KeyModifiers::NONE));
+    assert_eq!(app.choice.as_deref(), Some("exact-symbol"));
+    assert_eq!(app.active_request.as_ref().unwrap().key, key);
+    assert_eq!(app.analysis_options.pid, Some(42));
+    assert_eq!(app.query, "target");
+    assert_eq!(app.column_widths.get(&width), Some(&24));
+    assert_eq!(app.views[&draft_key].query, "other");
+
+    let result = request_result(&app, plugin, "target-retry");
+    deliver_outcome(&mut app, Outcome::Ready(result));
+    assert_result_tab(&app, plugin, &key, "target-retry");
+}
+
+#[test]
+fn cross_plugin_symbol_retry_preserves_the_browsed_result_tab() {
+    let mut app = app();
+    app.windows = true;
+    let origin = Plugin::WinPslist;
+    let browser = Plugin::WinCmdline;
+    for plugin in [origin, browser] {
+        seed_tab(&mut app, plugin);
+    }
+    app.analysis_options.pid = Some(10);
+    app.query = "zsh".into();
+    let width = ColumnKey::new("Name", 0);
+    app.column_widths.insert(width.clone(), 23);
+    let browser_key = app.request_key();
+    let browsed = app.result_shared().unwrap().clone();
+    app.results.insert(browser_key.clone(), browsed.clone());
+
+    app.key(KeyEvent::new(KeyCode::PageUp, KeyModifiers::CONTROL));
+    app.analysis_options.pid = Some(42);
+    app.query = "target".into();
+    let retry_key = app.request_key();
+    app.image = Some(app.root.join("missing.raw"));
+    app.request_analysis(true);
+    deliver_outcome(&mut app, Outcome::Choose(vec!["exact-symbol".into()]));
+    app.key(KeyEvent::new(KeyCode::PageDown, KeyModifiers::CONTROL));
+    assert_eq!(app.plugin, browser);
+    assert!(app.choosing_analysis_symbols());
+    app.key(KeyEvent::new(KeyCode::PageUp, KeyModifiers::CONTROL));
+    assert_eq!(app.plugin, origin);
+
+    let _terminal = render(&app, 120, 35);
+    let (rect, _, _) = app.hits.borrow().result_tabs[1];
+    click(&mut app, rect.x + 1, rect.y);
+    assert!(app.choosing_analysis_symbols());
+    let browser_tab = app.active_tab;
+    app.key(KeyEvent::new(KeyCode::Char(' '), KeyModifiers::NONE));
+    assert_eq!(app.active_request.as_ref().unwrap().key, retry_key);
+    assert_eq!(app.active_tab, browser_tab);
+    assert_eq!(app.query, "zsh");
+    assert_eq!(app.column_widths.get(&width), Some(&23));
+    assert!(Arc::ptr_eq(&browsed, app.result_shared().unwrap()));
+
+    let result = request_result(&app, origin, "target-cross");
+    deliver_outcome(&mut app, Outcome::Ready(result));
+    assert_eq!(app.active_tab, browser_tab);
+    assert_result_tab(&app, browser, &browser_key, "zsh");
+    app.key(KeyEvent::new(KeyCode::PageUp, KeyModifiers::CONTROL));
+    assert_eq!(app.query, "target");
+    assert_result_tab(&app, origin, &retry_key, "target-cross");
+}
+
+#[test]
+fn busy_queued_run_stores_its_result_without_activating_the_tab() {
+    let mut app = app();
+    let origin = Plugin::Pslist;
+    let browser = Plugin::Psaux;
+    seed_tab(&mut app, browser);
+    let browser_key = app.request_key();
+    let browsed = app.result_shared().unwrap().clone();
+    app.results.insert(browser_key.clone(), browsed);
+    app.image = Some(app.root.join("missing.raw"));
+
+    // Request a plugin with no tab while another job is active.
+    app.select_plugin(origin);
+    app.analysis_options.pid = Some(42);
+    let queued_key = app.request_key();
+    let job = Job::default();
+    app.job = Some(job.clone());
+    app.key(KeyEvent::new(KeyCode::Char('r'), KeyModifiers::CONTROL));
+    assert!(job.cancel.load(Ordering::Relaxed));
+    assert!(app.pending_execution.is_some());
+    app.switch_result_tab(0);
+    app.query = "zsh".into();
+    let browser_tab = app.active_tab;
+
+    let result = request_result(&app, origin, "cancelled");
+    deliver_outcome(&mut app, Outcome::Ready(result));
+    assert_eq!(app.active_request.as_ref().unwrap().key, queued_key);
+    assert_eq!(app.active_tab, browser_tab);
+    assert!(!app.results.contains_key(&queued_key));
+    assert_result_tab(&app, browser, &browser_key, "zsh");
+
+    let result = request_result(&app, origin, "queued-result");
+    deliver_outcome(&mut app, Outcome::Ready(result));
+    assert_eq!(app.active_tab, browser_tab);
+    assert_result_tab(&app, browser, &browser_key, "zsh");
+    app.key(KeyEvent::new(KeyCode::PageDown, KeyModifiers::CONTROL));
+    assert_result_tab(&app, origin, &queued_key, "queued-result");
+}
+
 #[test]
 fn empty_result_tab_is_reused_and_running_tab_cannot_close() {
     let mut app = app();

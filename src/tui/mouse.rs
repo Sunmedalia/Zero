@@ -28,6 +28,20 @@ impl App {
                 .popup
                 .contains(Position::new(mouse.column, mouse.row))
         {
+            if self.choosing_analysis_symbols() {
+                let point = Position::new(mouse.column, mouse.row);
+                let tab = self
+                    .hits
+                    .borrow()
+                    .result_tabs
+                    .iter()
+                    .find(|(rect, close, _)| rect.contains(point) && !close.contains(point))
+                    .map(|(_, _, index)| *index);
+                if let Some(index) = tab {
+                    self.switch_result_tab(index);
+                    return false;
+                }
+            }
             self.back_dialog = None;
             self.dialog_key(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE));
             return false;

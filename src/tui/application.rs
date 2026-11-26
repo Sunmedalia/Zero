@@ -1231,7 +1231,7 @@ impl App {
             self.focus = Focus::Content;
             self.status = "已选择插件；检查参数后按 Ctrl+R 运行".into();
         }
-        if plugin.is_dump() {
+        if plugin.is_dump() && !self.choosing_analysis_symbols() {
             self.open_dump(plugin, false);
         }
     }

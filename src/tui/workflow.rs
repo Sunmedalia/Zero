@@ -338,10 +338,3 @@ pub(super) struct ExecutionSnapshot {
     pub(super) options: crate::analysis::Options,
     pub(super) dump: Option<(Plugin, DumpOptions)>,
 }
-
-impl App {
-    pub(super) fn start_snapshot(&mut self, request: ExecutionSnapshot) {
-        let force = request.force;
-        self.start_work_with(Work::Analyze(force), Some(request));
-    }
-}

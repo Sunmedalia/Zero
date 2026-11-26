@@ -104,7 +104,32 @@ impl App {
         self.start_work_with(work, None);
     }
 
-    pub(super) fn start_work_with(&mut self, work: Work, snapshot: Option<ExecutionSnapshot>) {
+    pub(super) fn start_snapshot(&mut self, request: ExecutionSnapshot) {
+        self.start_work_with(Work::Analyze(request.force), Some(request));
+    }
+
+    pub(super) fn retry_analysis(&mut self, request: ExecutionSnapshot) {
+        if self.job.is_some()
+            || self.page != Page::Analysis
+            || self.plugin != request.plugin
+            || self.history.is_some()
+            || self.active_detail().is_some()
+        {
+            self.start_snapshot(request);
+            return;
+        }
+
+        let key = Self::request_key_for(request.plugin, &request.options, &request.dump);
+        if self.request_key() != key {
+            self.save_view();
+            self.analysis_options = request.options;
+            self.dump_options = request.dump;
+            self.restore_request_view();
+        }
+        self.start_work(Work::Analyze(request.force));
+    }
+
+    fn start_work_with(&mut self, work: Work, snapshot: Option<ExecutionSnapshot>) {
         let background = snapshot.is_some();
         let (plugin, analysis_options, dump_options) = match snapshot {
             Some(request) => (request.plugin, request.options, request.dump),
@@ -947,7 +972,9 @@ impl App {
                     });
                 }
                 WorkerEvent::Done(outcome) => {
-                    if let Some(job) = &self.job {
+                    if matches!(&outcome, Outcome::Ready(_))
+                        && let Some(job) = &self.job
+                    {
                         let plugin = self
                             .active_request
                             .as_ref()
@@ -1005,7 +1032,9 @@ impl App {
                                 }
                             );
                             let execution = self.active_request.take();
-                            let viewing = self.history.is_none()
+                            let viewing = self.page == Page::Analysis
+                                && self.history.is_none()
+                                && self.active_detail().is_none()
                                 && execution.as_ref().is_none_or(|r| {
                                     r.plugin == self.plugin && r.key == self.request_key()
                                 });

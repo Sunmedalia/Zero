@@ -809,17 +809,15 @@ impl App {
             }
             return false;
         }
-        if self.dialog.is_none() && key.modifiers.contains(KeyModifiers::CONTROL) {
+        if key.modifiers.contains(KeyModifiers::CONTROL) {
             match key.code {
-                KeyCode::PageUp => {
-                    self.next_result_tab(true);
+                KeyCode::PageUp | KeyCode::PageDown
+                    if self.dialog.is_none() || self.choosing_analysis_symbols() =>
+                {
+                    self.next_result_tab(key.code == KeyCode::PageUp);
                     return false;
                 }
-                KeyCode::PageDown => {
-                    self.next_result_tab(false);
-                    return false;
-                }
-                KeyCode::Char('w') => {
+                KeyCode::Char('w') if self.dialog.is_none() => {
                     if let Some(i) = self.active_tab {
                         self.close_result_tab(i);
                     }
