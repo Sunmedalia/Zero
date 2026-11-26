@@ -101,11 +101,11 @@ impl App {
     }
 
     pub(super) fn start_work(&mut self, work: Work) {
-        self.start_work_with(work, None);
+        self.start_work_with(work, None, false);
     }
 
     pub(super) fn start_snapshot(&mut self, request: ExecutionSnapshot) {
-        self.start_work_with(Work::Analyze(request.force), Some(request));
+        self.start_work_with(Work::Analyze(request.force), Some(request), true);
     }
 
     pub(super) fn retry_analysis(&mut self, request: ExecutionSnapshot) {
@@ -119,18 +119,17 @@ impl App {
             return;
         }
 
-        let key = Self::request_key_for(request.plugin, &request.options, &request.dump);
-        if self.request_key() != key {
-            self.save_view();
-            self.analysis_options = request.options;
-            self.dump_options = request.dump;
-            self.restore_request_view();
-        }
-        self.start_work(Work::Analyze(request.force));
+        self.start_work_with(Work::Analyze(request.force), Some(request), false);
     }
 
-    fn start_work_with(&mut self, work: Work, snapshot: Option<ExecutionSnapshot>) {
-        let background = snapshot.is_some();
+    fn start_work_with(
+        &mut self,
+        work: Work,
+        snapshot: Option<ExecutionSnapshot>,
+        background: bool,
+    ) {
+        let restore_on_tab = snapshot.is_some();
+        let snapshot_key = snapshot.as_ref().map(ExecutionSnapshot::key);
         let (plugin, analysis_options, dump_options) = match snapshot {
             Some(request) => (request.plugin, request.options, request.dump),
             None => (
@@ -139,7 +138,7 @@ impl App {
                 self.dump_options.clone(),
             ),
         };
-        if !background
+        if !restore_on_tab
             && let Work::Analyze(force) = work
             && plugin.is_dump()
             && dump_options.as_ref().is_none_or(|(p, _)| *p != plugin)
@@ -198,10 +197,19 @@ impl App {
         if leaving_history {
             self.save_view();
         }
+        let mut restore_view = leaving_history;
         if matches!(work, Work::Analyze(_)) {
             if background {
                 self.register_plugin_tab(plugin);
             } else {
+                let switched = self.displayed_request_key()
+                    != snapshot_key.clone().unwrap_or_else(|| self.request_key());
+                if switched && !leaving_history {
+                    self.save_view();
+                }
+                self.displayed_request = snapshot_key;
+                restore_view |= switched;
+                self.tab_requests.remove(plugin.name());
                 self.ensure_plugin_tab(plugin);
             }
         }
@@ -210,6 +218,7 @@ impl App {
             plugin,
             key: Self::request_key_for(plugin, &analysis_options, &dump_options),
             parameters: Self::parameter_summary_for(&analysis_options),
+            restore_on_tab,
             snapshot: ExecutionSnapshot {
                 force: matches!(work, Work::Analyze(true)),
                 plugin,
@@ -270,7 +279,7 @@ impl App {
             self.history_revision += 1;
             self.history = None;
             self.history_source = None;
-            if leaving_history {
+            if restore_view {
                 self.restore_request_view();
             }
         }
@@ -972,6 +981,7 @@ impl App {
                     });
                 }
                 WorkerEvent::Done(outcome) => {
+                    let cached = self.job.as_ref().is_some_and(Job::served_from_cache);
                     if matches!(&outcome, Outcome::Ready(_))
                         && let Some(job) = &self.job
                     {
@@ -1014,7 +1024,15 @@ impl App {
                                 selected: 0,
                             });
                         }
-                        Outcome::Ready(result) => {
+                        Outcome::Ready(mut result) => {
+                            // A digest-keyed engine cache can return the label of an
+                            // identical candidate from a previous run (e.g. an alias).
+                            if cached
+                                && !result.symbol.is_empty()
+                                && let Some(choice) = &self.choice
+                            {
+                                result.symbol.clone_from(choice);
+                            }
                             self.last_error = None;
                             self.status = format!(
                                 "{} · {} 条 · {}{}",
@@ -1036,12 +1054,16 @@ impl App {
                                 && self.history.is_none()
                                 && self.active_detail().is_none()
                                 && execution.as_ref().is_none_or(|r| {
-                                    r.plugin == self.plugin && r.key == self.request_key()
+                                    r.plugin == self.plugin && r.key == self.displayed_request_key()
                                 });
                             // One allocation shared by the request key and the
                             // plugin key: no row copy on the UI thread.
                             let result = Arc::new(result);
                             if let Some(request) = execution {
+                                if request.restore_on_tab || !viewing {
+                                    self.tab_requests
+                                        .insert(request.plugin.name(), request.snapshot);
+                                }
                                 self.result_requests
                                     .insert(request.plugin.name().into(), request.parameters);
                                 self.results.insert(request.key, Arc::clone(&result));

@@ -433,6 +433,10 @@ pub struct App {
     pub(super) symbol_retry: Option<SymbolRetry>,
     pub(super) preparation_lookup: bool,
     pub(super) parameter_drafts: HashMap<String, crate::analysis::Options>,
+    /// The execution shown when returning to a completed result tab.
+    pub(super) tab_requests: HashMap<&'static str, ExecutionSnapshot>,
+    /// Live display selection, independent of the editable analysis options.
+    pub(super) displayed_request: Option<String>,
     pub(super) result_requests: HashMap<String, String>,
     pub(super) pending_os: Option<crate::analysis::Os>,
     pub(super) horizontal: usize,

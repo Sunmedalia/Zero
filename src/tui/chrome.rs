@@ -240,7 +240,7 @@ impl App {
         let verified = self
             .results
             .values()
-            .find(|r| !r.historical && r.page_table > 0)
+            .find(|r| !r.historical && r.page_table > 0 && self.result_matches_symbol(r))
             .map(|r| r.page_table);
         let (kernel, kernel_style) = match verified {
             Some(table) => (
@@ -253,9 +253,16 @@ impl App {
             None => ("尚未验证页表".into(), Style::default().fg(color_warn())),
         };
         let symbol = self
-            .result()
-            .filter(|r| !r.historical && !r.symbol.is_empty())
-            .map(|r| self.display_path(std::path::Path::new(&r.symbol)));
+            .choice
+            .as_deref()
+            .or_else(|| {
+                self.result()
+                    .filter(|r| {
+                        !r.historical && !r.symbol.is_empty() && self.result_matches_symbol(r)
+                    })
+                    .map(|r| r.symbol.as_str())
+            })
+            .map(|label| self.display_path(std::path::Path::new(label)));
         let (symbol, symbol_style) = match symbol {
             Some(symbol) => (symbol, Style::default().fg(color_text())),
             None if self.symbols.as_os_str().is_empty() => (

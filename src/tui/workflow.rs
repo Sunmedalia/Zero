@@ -77,6 +77,7 @@ pub(super) struct Execution {
     pub(super) key: String,
     pub(super) parameters: String,
     pub(super) snapshot: ExecutionSnapshot,
+    pub(super) restore_on_tab: bool,
 }
 #[derive(Clone)]
 pub(super) struct EventSender {
@@ -249,8 +250,13 @@ impl App {
         {
             format!("history:{}", source.display())
         } else {
-            self.request_key()
+            self.displayed_request_key()
         }
+    }
+    pub(super) fn displayed_request_key(&self) -> String {
+        self.displayed_request
+            .clone()
+            .unwrap_or_else(|| self.request_key())
     }
     pub(super) fn clear_column_interaction(&mut self) {
         self.column_drag = None;
@@ -282,7 +288,10 @@ impl App {
     /// Restores the saved view of the current plugin request, ignoring any
     /// history source so a live result never picks up a history view.
     pub(super) fn restore_request_view(&mut self) {
-        let view = self.views.remove(&self.request_key()).unwrap_or_default();
+        let view = self
+            .views
+            .remove(&self.displayed_request_key())
+            .unwrap_or_default();
         self.apply_view(view);
     }
     /// Clears the per-view result state (filter, sort, selection, scroll,
@@ -337,4 +346,10 @@ pub(super) struct ExecutionSnapshot {
     pub(super) plugin: Plugin,
     pub(super) options: crate::analysis::Options,
     pub(super) dump: Option<(Plugin, DumpOptions)>,
+}
+
+impl ExecutionSnapshot {
+    pub(super) fn key(&self) -> String {
+        App::request_key_for(self.plugin, &self.options, &self.dump)
+    }
 }

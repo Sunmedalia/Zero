@@ -163,6 +163,7 @@ impl App {
         };
         if self.windows != windows {
             self.windows = windows;
+            self.displayed_request = None;
             self.plugin = if windows {
                 Plugin::WinPslist
             } else {
@@ -373,6 +374,8 @@ impl App {
             symbol_retry: None,
             preparation_lookup: false,
             parameter_drafts: HashMap::new(),
+            tab_requests: HashMap::new(),
+            displayed_request: None,
             result_requests: HashMap::new(),
             pending_os: None,
             horizontal: 0,
@@ -873,16 +876,33 @@ impl App {
     pub(super) fn result(&self) -> Option<&Results> {
         self.result_shared().map(|r| &**r)
     }
+    pub(super) fn result_matches_symbol(&self, result: &Results) -> bool {
+        result.symbol.is_empty()
+            || self.choice.as_ref().map_or_else(
+                || {
+                    self.local_matches
+                        .get(&self.symbols)
+                        .is_none_or(|labels| labels.len() <= 1)
+                },
+                |choice| *choice == result.symbol,
+            )
+    }
     /// The displayed result as a shared handle, for work that outlives the
     /// borrow (exports, background view builds) without copying rows.
     pub(super) fn result_shared(&self) -> Option<&Arc<Results>> {
         if self.active_detail().is_some() {
             return None;
         }
-        self.history
-            .as_ref()
-            .or_else(|| self.results.shared(&self.request_key()))
-            .or_else(|| self.results.shared(self.plugin.name()))
+        self.history.as_ref().or_else(|| self.live_result_shared())
+    }
+    fn live_result_shared(&self) -> Option<&Arc<Results>> {
+        match &self.displayed_request {
+            Some(key) => self.results.shared(key),
+            None => self
+                .results
+                .shared(&self.request_key())
+                .or_else(|| self.results.shared(self.plugin.name())),
+        }
     }
     fn index_key(&self, result: Option<&Arc<Results>>) -> ViewKey {
         let tree = if self.history.is_some() {
@@ -1180,7 +1200,11 @@ impl App {
         }
     }
     pub(super) fn select_plugin(&mut self, plugin: Plugin) {
+        self.select_plugin_view(plugin, None);
+    }
+    pub(super) fn select_plugin_view(&mut self, plugin: Plugin, request: Option<String>) {
         self.save_view();
+        self.displayed_request = request;
         self.history_source = None;
         self.page = Page::Analysis;
         self.parameter_drafts
@@ -1218,17 +1242,22 @@ impl App {
         self.history = None;
         self.restore_request_view();
         self.detail_scroll = 0;
-        if let Some(result) = self.results.get(plugin.name()) {
-            self.focus = Focus::Content;
+        self.focus = Focus::Content;
+        if let Some(result) = self.live_result_shared() {
+            let state = if !self.result_matches_symbol(result) {
+                "旧符号结果"
+            } else if result.complete {
+                "完整"
+            } else {
+                "部分"
+            };
             self.status = format!(
-                "{} · {} 条 · {} · {} 条诊断（v） · 本次会话已加载，未重新运行（r 重新分析）",
+                "{} · {} 条 · {state} · {} 条诊断（v） · 本次会话已加载，未重新运行（r 重新分析）",
                 plugin_label(plugin),
                 result.rows.len(),
-                if result.complete { "完整" } else { "部分" },
                 result.diagnostics.len()
             );
         } else {
-            self.focus = Focus::Content;
             self.status = "已选择插件；检查参数后按 Ctrl+R 运行".into();
         }
         if plugin.is_dump() && !self.choosing_analysis_symbols() {
@@ -1268,12 +1297,18 @@ impl App {
             }
         }
         // Selecting an existing result is instant; a different parameter draft runs anew.
-        let cached = self.results.contains_key(&self.request_key())
-            || (self.results.contains_key(plugin.name())
-                && self
-                    .result_requests
+        let cached = self.results.get(&self.request_key()).map_or_else(
+            || {
+                self.results
                     .get(plugin.name())
-                    .is_none_or(|parameters| *parameters == self.parameter_summary()));
+                    .is_some_and(|r| self.result_matches_symbol(r))
+                    && self
+                        .result_requests
+                        .get(plugin.name())
+                        .is_none_or(|parameters| *parameters == self.parameter_summary())
+            },
+            |r| self.result_matches_symbol(r),
+        );
         let running = self
             .active_request
             .as_ref()

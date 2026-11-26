@@ -306,7 +306,7 @@ fn same_plugin_symbol_retry_restores_the_originating_request_view() {
     app.key(KeyEvent::new(KeyCode::Char(' '), KeyModifiers::NONE));
     assert_eq!(app.choice.as_deref(), Some("exact-symbol"));
     assert_eq!(app.active_request.as_ref().unwrap().key, key);
-    assert_eq!(app.analysis_options.pid, Some(42));
+    assert_eq!(app.analysis_options.pid, Some(7));
     assert_eq!(app.query, "target");
     assert_eq!(app.column_widths.get(&width), Some(&24));
     assert_eq!(app.views[&draft_key].query, "other");
@@ -368,6 +368,151 @@ fn cross_plugin_symbol_retry_preserves_the_browsed_result_tab() {
 }
 
 #[test]
+fn background_symbol_retry_restores_execution_view_and_keeps_edited_draft() {
+    let mut app = app();
+    let origin = Plugin::Pslist;
+    let other = Plugin::Psaux;
+    for plugin in [other, origin] {
+        seed_tab(&mut app, plugin);
+    }
+    app.image = Some(app.root.join("missing.raw"));
+    app.analysis_options.pid = Some(42);
+    app.query = "original".into();
+    let column = ColumnKey::new("Name", 0);
+    app.column_widths.insert(column.clone(), 23);
+    let original_key = app.request_key();
+    app.request_analysis(true);
+
+    app.windows_parameters();
+    let Some(Dialog::WindowsParameters { fields, .. }) = &mut app.dialog else {
+        panic!("expected parameter editor");
+    };
+    fields[2] = "7".into();
+    app.key(KeyEvent::new(KeyCode::Enter, KeyModifiers::CONTROL));
+    assert_eq!(app.analysis_options.pid, Some(7));
+    let draft_key = app.request_key();
+    let old_draft = request_result(&app, origin, "old-draft");
+    app.results.insert(draft_key.clone(), old_draft);
+    app.query = "old-draft".into();
+
+    deliver_outcome(&mut app, Outcome::Choose(vec!["exact-symbol".into()]));
+    app.key(KeyEvent::new(KeyCode::PageDown, KeyModifiers::CONTROL));
+    assert_eq!(app.plugin, other);
+    app.key(KeyEvent::new(KeyCode::Char(' '), KeyModifiers::NONE));
+    let result = request_result(&app, origin, "original-retry");
+    deliver_outcome(&mut app, Outcome::Ready(result));
+    assert_eq!(app.plugin, other);
+
+    app.key(KeyEvent::new(KeyCode::PageUp, KeyModifiers::CONTROL));
+    assert_eq!(app.query, "original");
+    assert_eq!(app.column_widths.get(&column), Some(&23));
+    assert_result_tab(&app, origin, &original_key, "original-retry");
+    assert_eq!(app.request_key(), draft_key);
+    assert_eq!(app.analysis_options.pid, Some(7));
+    assert_eq!(app.views[&draft_key].query, "old-draft");
+    app.key(KeyEvent::new(KeyCode::Char('r'), KeyModifiers::CONTROL));
+    assert_eq!(app.active_request.as_ref().unwrap().key, draft_key);
+    assert_eq!(app.query, "old-draft");
+    app.finish_worker();
+}
+
+#[test]
+fn symbol_choice_marks_other_candidates_stale_and_skips_their_session_cache() {
+    let mut app = app();
+    let symbols = app.cache.parent().unwrap().join("candidates.zip");
+    std::fs::write(&symbols, []).unwrap();
+    app.symbols = symbols.canonicalize().unwrap();
+    app.registry
+        .import(&app.symbols, Kind::Symbols, &app.cache)
+        .unwrap();
+    app.refresh_assets();
+    app.local_matches.insert(
+        app.symbols.clone(),
+        vec!["candidate-x".into(), "candidate-y".into()],
+    );
+    app.choice = Some("candidate-x".into());
+    let browser = Plugin::Psaux;
+    seed_tab(&mut app, browser);
+    let mut old = request_result(&app, browser, "old-symbol-row");
+    old.symbol = "candidate-x".into();
+    let browser_key = app.request_key();
+    let old = Arc::new(old);
+    app.results.insert(browser.name().into(), old.clone());
+    app.results.insert(browser_key.clone(), old);
+    let origin = Plugin::Pslist;
+    seed_tab(&mut app, origin);
+    let mut stale = request_result(&app, origin, "old-symbol-row");
+    stale.symbol = "candidate-x".into();
+    app.results.insert(app.request_key(), stale);
+
+    app.switch_page(Page::Assets);
+    app.switch_section(AssetSection::Symbols);
+    app.focus_asset(Kind::Symbols, &app.symbols.clone());
+    assert!(app.use_selected_asset());
+    app.key(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE));
+    assert!(app.choice.is_none());
+    app.switch_page(Page::Analysis);
+    app.image = Some(app.root.join("missing.raw"));
+    app.activate_plugin(browser);
+    assert_eq!(app.active_request.as_ref().unwrap().key, browser_key);
+    deliver_outcome(
+        &mut app,
+        Outcome::Choose(vec!["candidate-x".into(), "candidate-y".into()]),
+    );
+    app.key(KeyEvent::new(KeyCode::PageDown, KeyModifiers::CONTROL));
+    app.key(KeyEvent::new(KeyCode::Down, KeyModifiers::NONE));
+    app.key(KeyEvent::new(KeyCode::Char(' '), KeyModifiers::NONE));
+    let mut fresh = request_result(&app, browser, "new-symbol-row");
+    fresh.symbol = "candidate-y".into();
+    deliver_outcome(&mut app, Outcome::Ready(fresh));
+
+    // An untouched plugin's old rows still render, but its request cannot hit
+    // the session cache under the newly selected candidate.
+    let shown = screen(&render(&app, 140, 35), 140);
+    assert!(shown.contains("candidate-y"));
+    assert!(shown.contains("旧符号结果"));
+    assert!(shown.contains("old-symbol-row"));
+    assert!(!shown.contains("candidate-x"));
+    app.activate_plugin(origin);
+    assert_eq!(app.active_request.as_ref().unwrap().plugin, origin);
+    app.job.as_ref().unwrap().mark_cached();
+    let mut cached_alias = request_result(&app, origin, "reopened-row");
+    cached_alias.symbol = "candidate-x".into();
+    deliver_outcome(&mut app, Outcome::Ready(cached_alias));
+    assert_eq!(app.result().unwrap().symbol, "candidate-y");
+    app.activate_plugin(origin);
+    assert!(app.job.is_none());
+}
+
+#[test]
+fn result_tab_overflow_arrows_keep_symbol_selection_open() {
+    let mut app = app();
+    for plugin in [Plugin::Pslist, Plugin::Psaux, Plugin::Lsmod, Plugin::Maps] {
+        seed_tab(&mut app, plugin);
+    }
+    app.image = Some(app.root.join("missing.raw"));
+    app.switch_result_tab(0);
+    app.request_analysis(true);
+    deliver_outcome(&mut app, Outcome::Choose(vec!["exact-symbol".into()]));
+    let active = app.active_tab;
+    for offset in [1, 0] {
+        let _terminal = render(&app, 80, 28);
+        let (rect, _) = app
+            .hits
+            .borrow()
+            .result_tab_steps
+            .iter()
+            .find(|(_, index)| *index == offset)
+            .copied()
+            .unwrap();
+        click(&mut app, rect.x, rect.y);
+        assert_eq!(app.tab_offset.get(), offset);
+        assert_eq!(app.active_tab, active);
+        assert!(app.choosing_analysis_symbols());
+    }
+}
+
+#[test]
 fn busy_queued_run_stores_its_result_without_activating_the_tab() {
     let mut app = app();
     let origin = Plugin::Pslist;
@@ -414,6 +559,7 @@ fn empty_result_tab_is_reused_and_running_tab_cannot_close() {
     assert_eq!(app.open_tabs.len(), 1);
     app.job = Some(Job::default());
     app.active_request = Some(Execution {
+        restore_on_tab: false,
         plugin: Plugin::Maps,
         key: "maps".into(),
         parameters: String::new(),

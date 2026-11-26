@@ -92,9 +92,14 @@ impl App {
     pub(super) fn current_origin(&self) -> Option<&str> {
         if self.history.is_some() || self.active_detail().is_some() {
             None
+        } else if self
+            .result()
+            .is_some_and(|r| !self.result_matches_symbol(r))
+        {
+            Some("旧符号结果 · Ctrl+R 重新分析")
         } else {
             self.result_origins
-                .get(&self.request_key())
+                .get(&self.displayed_request_key())
                 .or_else(|| self.result_origins.get(self.plugin.name()))
                 .map(String::as_str)
         }

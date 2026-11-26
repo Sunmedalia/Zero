@@ -30,6 +30,9 @@ impl App {
         {
             if self.choosing_analysis_symbols() {
                 let point = Position::new(mouse.column, mouse.row);
+                if self.scroll_result_tabs_at(point) {
+                    return false;
+                }
                 let tab = self
                     .hits
                     .borrow()
@@ -136,13 +139,7 @@ impl App {
                 self.switch_page(*page);
                 return false;
             }
-            if click
-                && let Some((_, index)) = hits
-                    .result_tab_steps
-                    .iter()
-                    .find(|(r, _)| r.contains(point))
-            {
-                self.tab_offset.set(*index);
+            if click && self.scroll_result_tabs_at(point) {
                 return false;
             }
             if click
@@ -624,6 +621,18 @@ impl App {
             self.focus = Focus::Context;
         }
         false
+    }
+    fn scroll_result_tabs_at(&self, point: Position) -> bool {
+        let hits = self.hits.borrow();
+        let Some((_, offset)) = hits
+            .result_tab_steps
+            .iter()
+            .find(|(rect, _)| rect.contains(point))
+        else {
+            return false;
+        };
+        self.tab_offset.set(*offset);
+        true
     }
     /// Drags a result header separator to resize the column on its left.
     /// Returns true when the event belonged to a column resize.

@@ -76,17 +76,21 @@ return;
         let Some(tab) = self.open_tabs.get(index).cloned() else {
             return;
         };
-        self.save_view();
         match tab {
             OpenTab::Plugin(plugin) => {
-                self.select_plugin(plugin);
-                self.history = None;
+                let request = self
+                    .tab_requests
+                    .get(plugin.name())
+                    .map(ExecutionSnapshot::key);
+                self.select_plugin_view(plugin, request);
             }
             OpenTab::Detail { .. } => {
+                self.save_view();
                 self.history = None;
                 self.inspector = false;
             }
             OpenTab::History(path, result) => {
+                self.save_view();
                 self.history_source = Some(path);
                 self.history = Some(result);
                 self.history_revision += 1;
@@ -121,6 +125,7 @@ return;
                 return;
             }
             let name = plugin.name();
+            self.tab_requests.remove(name);
             self.results
                 .retain(|key, _| key != name && !key.starts_with(&format!("{name}:")));
             self.views
@@ -140,6 +145,7 @@ return;
         self.open_tabs.remove(index);
         if self.open_tabs.is_empty() {
             self.active_tab = None;
+            self.displayed_request = None;
             self.history = None;
             self.history_source = None;
             self.history_revision += 1;
@@ -161,6 +167,8 @@ return;
     }
     pub(super) fn clear_plugin_tabs(&mut self) {
         self.open_tabs.retain(|t| matches!(t, OpenTab::History(..)));
+        self.tab_requests.clear();
+        self.displayed_request = None;
         self.active_tab = None;
     }
     pub(super) fn draw_result_tabs(&self, frame: &mut Frame, area: Rect) {
@@ -241,13 +249,15 @@ return;
                         format!(
                             "{} · {}",
                             plugin_label(*p),
-                            self.results
-                                .get(p.name())
-                                .map_or("待运行", |r| if r.complete {
+                            self.result().map_or("待运行", |r| {
+                                if !self.result_matches_symbol(r) {
+                                    "旧符号"
+                                } else if r.complete {
                                     "完整"
                                 } else {
                                     "部分"
-                                })
+                                }
+                            })
                         )
                     } else {
                         plugin_label(*p).to_owned()
