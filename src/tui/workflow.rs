@@ -92,16 +92,21 @@ impl EventSender {
     }
 }
 impl App {
+    pub(super) fn parameter_summary_for(options: &crate::analysis::Options) -> String {
+        format!("{options:?}")
+    }
+    pub(super) fn request_key_for(
+        plugin: Plugin,
+        options: &crate::analysis::Options,
+        dump: &Option<(Plugin, DumpOptions)>,
+    ) -> String {
+        format!("{}:{options:?}:{dump:?}", plugin.name())
+    }
     pub(super) fn parameter_summary(&self) -> String {
-        format!("{:?}", self.analysis_options)
+        Self::parameter_summary_for(&self.analysis_options)
     }
     pub(super) fn request_key(&self) -> String {
-        format!(
-            "{}:{:?}:{:?}",
-            self.plugin.name(),
-            self.analysis_options,
-            self.dump_options
-        )
+        Self::request_key_for(self.plugin, &self.analysis_options, &self.dump_options)
     }
     pub(super) fn enter_workbench(&mut self) -> bool {
         if self.image.is_none() {
@@ -336,20 +341,7 @@ pub(super) struct ExecutionSnapshot {
 
 impl App {
     pub(super) fn start_snapshot(&mut self, request: ExecutionSnapshot) {
-        let active_tab = self.active_tab;
-        let viewing = ExecutionSnapshot {
-            force: false,
-            plugin: self.plugin,
-            options: self.analysis_options.clone(),
-            dump: self.dump_options.clone(),
-        };
-        self.plugin = request.plugin;
-        self.analysis_options = request.options;
-        self.dump_options = request.dump;
-        self.start_work(Work::Analyze(request.force));
-        self.active_tab = active_tab;
-        self.plugin = viewing.plugin;
-        self.analysis_options = viewing.options;
-        self.dump_options = viewing.dump;
+        let force = request.force;
+        self.start_work_with(Work::Analyze(force), Some(request));
     }
 }

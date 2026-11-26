@@ -620,7 +620,7 @@ impl App {
                     return false;
                 };
                 let current_view = self.view_key();
-                if self.hits.borrow().column_grips.is_empty()
+                if !self.hits.borrow().result_header_visible
                     || drag.view != current_view
                     || self
                         .result()
@@ -648,7 +648,7 @@ impl App {
                 if self.column_drag.is_none() {
                     return false;
                 }
-                if self.hits.borrow().column_grips.is_empty() {
+                if !self.hits.borrow().result_header_visible {
                     self.clear_column_interaction();
                     return false;
                 }

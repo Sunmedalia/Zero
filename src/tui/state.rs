@@ -270,6 +270,9 @@ pub(super) struct HitMap {
     pub(super) columns: Vec<Rect>,
     /// Drag handles on the header separator after each visible column.
     pub(super) column_grips: Vec<ColumnGrip>,
+    /// Whether the result table header is currently visible and unobstructed
+    /// (false when covered by the narrow full-width inspector or no table is drawn).
+    pub(super) result_header_visible: bool,
     /// Width each result column was laid out with, before clipping.
     pub(super) drawn_widths: Vec<u16>,
     pub(super) buttons: Vec<(Rect, KeyCode)>,

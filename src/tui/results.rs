@@ -166,57 +166,70 @@ impl App {
             if let Some(result) = result {
                 let columns = self.result_headers(result);
                 let natural = self.resolved_column_widths_with_headers(result, &rows, &columns);
-                let widths: Vec<_> = natural.iter().copied().map(Constraint::Length).collect();
-                let virtual_width = table_virtual_width(&natural, main);
-                let scroll = self
-                    .horizontal
-                    .min(usize::from(virtual_width.saturating_sub(main.width)))
-                    .cells();
-                let render_area = Rect::new(main.x, main.y, virtual_width, main.height);
                 let row_count = rows.len().saturating_sub(page_start).min(page_size);
+                let highlight_width: usize = if row_count > 0 { 2 } else { 0 };
+                let total = table_total_width(&natural);
+                let viewport_width = usize::from(main.width);
+                let max_offset = total.saturating_sub(viewport_width);
+                let scroll = self.horizontal.min(max_offset);
+                let inner_width = usize::from(main.width.saturating_sub(2));
+                let view_end = scroll.saturating_add(inner_width);
+                let first_x = main.x.saturating_add(1);
+                let last_x = main.right().saturating_sub(2);
+                let header_y = main.y.saturating_add(1);
                 let viewport_block = block.clone();
-                let inner = block.inner(render_area);
-                let [_, columns_area] = Layout::horizontal([
-                    Constraint::Length(if row_count > 0 { 2 } else { 0 }),
-                    Constraint::Fill(0),
-                ])
-                .areas(Rect::new(inner.x, inner.y, inner.width, 1));
-                self.hits.borrow_mut().columns = Layout::horizontal(widths.clone())
-                    .flex(Flex::Start)
-                    .spacing(1)
-                    .split(columns_area)
-                    .to_vec();
-                let table = Table::new(
-                    rows.sample(page_start, page_size)
-                        .enumerate()
-                        .map(|(i, row)| {
-                            Row::new(cells_to_line(row)).style(
-                                Style::default().fg(color_text()).bg(
-                                    if (page_start + i) % 2 == 1 {
-                                        color_stripe()
-                                    } else {
-                                        color_surface()
-                                    },
+
+                // Compute screen column hit rects, resize handles, and the
+                // contiguous visible column slice in usize so arbitrarily wide
+                // tables (> u16::MAX cells) never truncate.
+                let mut hit_columns = Vec::with_capacity(natural.len());
+                let mut grips = Vec::new();
+                let mut visible_range: Option<(usize, usize, usize)> = None;
+                let mut col_start = highlight_width;
+                for (index, &width) in natural.iter().enumerate() {
+                    let width_usize = usize::from(width);
+                    let col_end = col_start.saturating_add(width_usize);
+                    let vis_start = col_start.max(scroll);
+                    let vis_end = col_end.min(view_end);
+                    if vis_end > vis_start {
+                        let x = first_x.saturating_add(
+                            u16::try_from(vis_start.saturating_sub(scroll)).unwrap_or(u16::MAX),
+                        );
+                        let w =
+                            u16::try_from(vis_end.saturating_sub(vis_start)).unwrap_or(u16::MAX);
+                        hit_columns.push(Rect::new(x, header_y, w, 1));
+                    } else {
+                        hit_columns.push(Rect::new(first_x, header_y, 0, 1));
+                    }
+                    if width > 0 && col_end >= scroll && col_end < view_end {
+                        let x = first_x.saturating_add(
+                            u16::try_from(col_end.saturating_sub(scroll)).unwrap_or(u16::MAX),
+                        );
+                        if x >= first_x && x <= last_x {
+                            let left = x.saturating_sub(1).max(first_x);
+                            let right = x.saturating_add(1).min(last_x);
+                            grips.push(ColumnGrip {
+                                cell: Rect::new(x, header_y, 1, 1),
+                                hit: Rect::new(
+                                    left,
+                                    header_y,
+                                    right.saturating_sub(left).saturating_add(1),
+                                    1,
                                 ),
-                            )
-                        }),
-                    widths,
-                )
-                .header(
-                    Row::new(columns).style(
-                        Style::default()
-                            .fg(color_accent())
-                            .add_modifier(Modifier::BOLD | Modifier::UNDERLINED),
-                    ),
-                )
-                .block(block)
-                .row_highlight_style(
-                    Style::default()
-                        .bg(color_selected_bg())
-                        .fg(color_focus())
-                        .add_modifier(Modifier::BOLD),
-                )
-                .highlight_symbol("› ");
+                                index,
+                                width,
+                            });
+                        }
+                    }
+                    if col_end.saturating_add(1) > scroll && col_start < view_end {
+                        visible_range = match visible_range {
+                            Some((first, _, first_start)) => Some((first, index, first_start)),
+                            None => Some((index, index, col_start)),
+                        };
+                    }
+                    col_start = col_end.saturating_add(1);
+                }
+
                 // Render only the current window; saved state uses absolute
                 // row indices so scrolling never snaps to a page boundary.
                 let mut state = TableState::default();
@@ -227,53 +240,112 @@ impl App {
                             .min(row_count.saturating_sub(1)),
                     ),
                 );
-                // Separator cells after each column are the resize handles,
-                // in screen coordinates after horizontal scrolling.
-                let (first, last) = (main.x + 1, main.right().saturating_sub(2));
-                let grips = self
-                    .hits
-                    .borrow()
-                    .columns
-                    .iter()
-                    .enumerate()
-                    .filter_map(|(index, rect)| {
-                        let x = rect.right().checked_sub(scroll)?;
-                        (rect.width > 0 && x >= first && x <= last).then(|| {
-                            let left = x.saturating_sub(1).max(first);
-                            let right = x.saturating_add(1).min(last);
-                            ColumnGrip {
-                                cell: Rect::new(x, rect.y, 1, 1),
-                                hit: Rect::new(left, rect.y, right - left + 1, 1),
-                                index,
-                                width: rect.width,
-                            }
-                        })
-                    })
-                    .collect::<Vec<_>>();
-                if virtual_width == main.width {
+                if scroll == 0 && total <= viewport_width {
+                    let widths: Vec<_> = natural.iter().copied().map(Constraint::Length).collect();
+                    let table = Table::new(
+                        rows.sample(page_start, page_size)
+                            .enumerate()
+                            .map(|(i, row)| {
+                                Row::new(cells_to_line(row)).style(
+                                    Style::default().fg(color_text()).bg(
+                                        if (page_start + i) % 2 == 1 {
+                                            color_stripe()
+                                        } else {
+                                            color_surface()
+                                        },
+                                    ),
+                                )
+                            }),
+                        widths,
+                    )
+                    .header(
+                        Row::new(columns).style(
+                            Style::default()
+                                .fg(color_accent())
+                                .add_modifier(Modifier::BOLD | Modifier::UNDERLINED),
+                        ),
+                    )
+                    .block(block)
+                    .row_highlight_style(
+                        Style::default()
+                            .bg(color_selected_bg())
+                            .fg(color_focus())
+                            .add_modifier(Modifier::BOLD),
+                    )
+                    .highlight_symbol("› ");
                     frame.render_stateful_widget(table, main, &mut state);
-                } else {
+                } else if let Some((first_col, last_col, first_start)) = visible_range {
+                    let range = first_col..last_col.saturating_add(1);
+                    let visible_slice = natural.get(range.clone()).unwrap_or(&[]);
+                    let widths: Vec<_> = visible_slice
+                        .iter()
+                        .copied()
+                        .map(Constraint::Length)
+                        .collect();
+                    let visible_headers: Vec<_> =
+                        columns.get(range.clone()).unwrap_or(&[]).to_vec();
+                    let window_origin = first_start.saturating_sub(highlight_width);
+                    let local_scroll = scroll.saturating_sub(window_origin);
+                    let local_scroll_u16 = u16::try_from(local_scroll).unwrap_or(u16::MAX);
+                    let slice_width = visible_slice
+                        .iter()
+                        .map(|&w| usize::from(w))
+                        .sum::<usize>()
+                        .saturating_add(last_col.saturating_sub(first_col))
+                        .saturating_add(highlight_width)
+                        .saturating_add(2);
+                    let mini_width =
+                        u16::try_from(slice_width.max(local_scroll.saturating_add(viewport_width)))
+                            .unwrap_or(u16::MAX)
+                            .max(main.width);
+                    let render_area = Rect::new(0, 0, mini_width, main.height);
+                    let table = Table::new(
+                        rows.sample(page_start, page_size)
+                            .enumerate()
+                            .map(|(i, row)| {
+                                Row::new(cells_to_line_range(row, range.clone())).style(
+                                    Style::default().fg(color_text()).bg(
+                                        if (page_start + i) % 2 == 1 {
+                                            color_stripe()
+                                        } else {
+                                            color_surface()
+                                        },
+                                    ),
+                                )
+                            }),
+                        widths,
+                    )
+                    .header(
+                        Row::new(visible_headers).style(
+                            Style::default()
+                                .fg(color_accent())
+                                .add_modifier(Modifier::BOLD | Modifier::UNDERLINED),
+                        ),
+                    )
+                    .block(block)
+                    .row_highlight_style(
+                        Style::default()
+                            .bg(color_selected_bg())
+                            .fg(color_focus())
+                            .add_modifier(Modifier::BOLD),
+                    )
+                    .highlight_symbol("› ");
                     let mut buffer = ratatui::buffer::Buffer::empty(render_area);
                     StatefulWidget::render(table, render_area, &mut buffer, &mut state);
-                    for y in main.y..main.bottom() {
-                        for x in main.x..main.right() {
-                            let source = x + scroll;
-                            frame.buffer_mut()[(x, y)] = buffer[(source, y)].clone();
+                    for dy in 0..main.height {
+                        for dx in 0..main.width {
+                            let src_x = local_scroll_u16.saturating_add(dx);
+                            if src_x < mini_width {
+                                frame.buffer_mut()
+                                    [(main.x.saturating_add(dx), main.y.saturating_add(dy))] =
+                                    buffer[(src_x, dy)].clone();
+                            }
                         }
                     }
                     // Preserve viewport borders when the data scrolls horizontally.
                     frame.render_widget(viewport_block, main);
-                    for rect in &mut self.hits.borrow_mut().columns {
-                        let left = (rect.x as i32 - scroll as i32).max(main.x as i32 + 1);
-                        let right =
-                            (rect.right() as i32 - scroll as i32).min(main.right() as i32 - 1);
-                        *rect = Rect::new(
-                            u16::try_from(left).unwrap_or(0),
-                            rect.y,
-                            u16::try_from(right - left).unwrap_or(0),
-                            rect.height,
-                        );
-                    }
+                } else {
+                    frame.render_widget(viewport_block, main);
                 }
                 let view = self.view_key();
                 let dragging = self
@@ -293,8 +365,10 @@ impl App {
                 }
                 {
                     let mut hits = self.hits.borrow_mut();
+                    hits.columns = hit_columns;
                     hits.column_grips = grips;
                     hits.drawn_widths = natural;
+                    hits.result_header_visible = true;
                 }
                 if result.rows.is_empty() && main.height > 4 {
                     frame.render_widget(
@@ -418,6 +492,7 @@ impl App {
             let mut hits = self.hits.borrow_mut();
             hits.columns.clear();
             hits.column_grips.clear();
+            hits.result_header_visible = false;
             hits.result_tabs.clear();
             hits.result_tab_steps.clear();
             hits.scrollbars
@@ -617,15 +692,82 @@ impl App {
         let headers = self.result_headers(result);
         self.resolved_column_widths_with_headers(result, rows, &headers)
     }
+    /// Computes the result table viewport `Rect` from the current layout
+    /// toggles (`plugins_collapsed`, `inspector`, `focus`, search bar).
+    pub(super) fn workbench_result_rect(&self, area: Rect, body: Rect, frame_height: u16) -> Rect {
+        let layout = Space::new(area.width, frame_height);
+        let menu_width = layout.menu_width();
+        let mut main = if self.plugins_collapsed {
+            body
+        } else if layout.two_panes() {
+            Layout::default()
+                .direction(Direction::Horizontal)
+                .constraints([Constraint::Length(menu_width), Constraint::Min(20)])
+                .split(body)
+                .rect(1)
+        } else if self.focus == Focus::Navigation {
+            Rect::default()
+        } else {
+            body
+        };
+        if self.active_detail().is_some() {
+            return main;
+        }
+        if layout.inspector() && self.inspector {
+            main = Layout::horizontal([Constraint::Min(50), Constraint::Length(38)])
+                .split(main)
+                .rect(0);
+        }
+        let searching = matches!(
+            &self.dialog,
+            Some(Dialog::Input {
+                kind: InputKind::Search,
+                ..
+            })
+        ) || !self.query.is_empty();
+        if main.width > 0 && searching {
+            main = Layout::vertical([Constraint::Length(3), Constraint::Min(2)])
+                .split(main)
+                .rect(1);
+        }
+        main
+    }
+    /// Current result table viewport computed from the known terminal size and
+    /// live layout flags, so keyboard commands stay in sync with rendering even
+    /// within the same event batch before a redraw.
+    pub(super) fn current_result_area(&self) -> Rect {
+        let Some((width, height)) = self.terminal_size.get() else {
+            return self.hits.borrow().result;
+        };
+        if width < 60 || height < 16 || self.page != Page::Analysis {
+            return Rect::default();
+        }
+        let frame_area = Rect::new(0, 0, width, height);
+        let [_, _, area] = Layout::vertical([
+            Constraint::Length(1),
+            Constraint::Length(1),
+            Constraint::Min(1),
+        ])
+        .areas(frame_area);
+        let parts = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([
+                Constraint::Length(0),
+                Constraint::Min(3),
+                Constraint::Length(self.footer_height(width, height)),
+            ])
+            .split(area);
+        self.workbench_result_rect(area, parts.rect(1), height)
+    }
     /// Maximum horizontal scroll offset for the current result table and
-    /// viewport width.
+    /// live viewport width.
     pub(super) fn max_horizontal_offset(&self) -> usize {
         let Some(result) = self.result() else {
             return 0;
         };
         let rows = self.visible();
         let widths = self.resolved_column_widths_for(result, &rows);
-        let area = self.hits.borrow().result;
+        let area = self.current_result_area();
         if area.width > 0 {
             max_horizontal_offset_for(&widths, area)
         } else {
@@ -633,13 +775,34 @@ impl App {
         }
     }
     pub(super) fn clamped_horizontal_for(&self, widths: &[u16]) -> usize {
-        let area = self.hits.borrow().result;
+        let area = self.current_result_area();
         if area.width > 0 {
             self.horizontal.min(max_horizontal_offset_for(widths, area))
         } else {
             self.horizontal.min(table_total_width(widths))
         }
     }
+}
+
+fn cells_to_line_range(
+    (cells, decoration): BorrowedRow<'_>,
+    range: std::ops::Range<usize>,
+) -> Vec<Line<'static>> {
+    let start = range.start;
+    cells
+        .get(range)
+        .unwrap_or(&[])
+        .iter()
+        .enumerate()
+        .map(|(offset, cell)| {
+            let col = start.saturating_add(offset);
+            let text = match decoration.as_ref() {
+                Some((column, decorated)) if *column == col => decorated,
+                _ => cell,
+            };
+            Line::from(escaped(text))
+        })
+        .collect()
 }
 
 pub(super) fn table_total_width(widths: &[u16]) -> usize {
@@ -651,19 +814,11 @@ pub(super) fn table_total_width(widths: &[u16]) -> usize {
         .saturating_add(4)
 }
 
-pub(super) fn table_virtual_width(widths: &[u16], area: Rect) -> u16 {
-    let max_canvas = u16::MAX.saturating_sub(area.x);
-    u16::try_from(table_total_width(widths))
-        .unwrap_or(max_canvas)
-        .min(max_canvas)
-        .max(area.width)
-}
-
 pub(super) fn max_horizontal_offset_for(widths: &[u16], area: Rect) -> usize {
     if widths.is_empty() || area.width == 0 {
         return 0;
     }
-    usize::from(table_virtual_width(widths, area).saturating_sub(area.width))
+    table_total_width(widths).saturating_sub(usize::from(area.width))
 }
 
 pub(super) fn leftmost_visible_column(

@@ -8,7 +8,7 @@ use super::*;
 
 impl App {
     /// One status row and exactly one action row on every page.
-    fn footer_height(&self, _width: u16, _height: u16) -> u16 {
+    pub(super) fn footer_height(&self, _width: u16, _height: u16) -> u16 {
         2
     }
     /// The analysis renderer registers individual fields; other headers use

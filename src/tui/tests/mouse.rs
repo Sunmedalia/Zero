@@ -703,6 +703,132 @@ fn duplicate_column_headers_track_widths_independently() {
 }
 
 #[test]
+fn dragging_separator_past_viewport_edge_continues_after_redraw() {
+    let mut app = app();
+    app.focus = Focus::Content;
+    app.plugins_collapsed = true;
+    {
+        let result = app.results.get_mut("linux.pslist.basic").unwrap();
+        result.columns = vec!["Name".into()];
+        result.rows = vec![vec!["init".into()]];
+    }
+    let key = ColumnKey::new("Name", 0);
+    app.column_widths.insert(key.clone(), 75);
+    let mut terminal = Terminal::new(TestBackend::new(80, 24)).unwrap();
+    terminal.draw(|f| app.draw(f)).unwrap();
+    let grip = app.hits.borrow().column_grips[0];
+    let press_x = grip.cell.x - 1;
+    let t0 = Instant::now();
+
+    // Grab the left neighbor cell and drag to the rightmost cell of the 80-cell
+    // terminal so the only separator moves outside the viewport.
+    app.mouse_at(
+        mouse_event(
+            MouseEventKind::Down(MouseButton::Left),
+            press_x,
+            grip.cell.y,
+        ),
+        t0,
+    );
+    app.mouse_at(
+        mouse_event(MouseEventKind::Drag(MouseButton::Left), 79, grip.cell.y),
+        t0,
+    );
+    let widened = *app.column_widths.get(&key).unwrap();
+    assert!(widened > 75);
+    terminal.draw(|f| app.draw(f)).unwrap();
+    assert!(app.hits.borrow().column_grips.is_empty());
+    assert!(app.hits.borrow().result_header_visible);
+    assert!(app.column_drag.is_some());
+
+    // Dragging back left after redraw must stay active and narrow the column.
+    app.mouse_at(
+        mouse_event(
+            MouseEventKind::Drag(MouseButton::Left),
+            press_x - 10,
+            grip.cell.y,
+        ),
+        t0,
+    );
+    assert!(app.column_drag.is_some());
+    assert_eq!(app.column_widths.get(&key), Some(&65));
+    app.mouse_at(
+        mouse_event(
+            MouseEventKind::Up(MouseButton::Left),
+            press_x - 10,
+            grip.cell.y,
+        ),
+        t0,
+    );
+    assert!(app.column_drag.is_none());
+}
+
+#[test]
+fn sidebar_toggle_and_column_resize_in_same_batch_use_updated_viewport() {
+    let mut app = app();
+    app.focus = Focus::Content;
+    {
+        let result = app.results.get_mut("linux.pslist.basic").unwrap();
+        result.columns = vec!["First".into(), "Second".into()];
+        result.rows = vec![vec!["a".into(), "b".into()]];
+    }
+    let first = ColumnKey::new("First", 0);
+    let second = ColumnKey::new("Second", 0);
+    app.column_widths.insert(first.clone(), 12);
+    app.column_widths.insert(second.clone(), 98);
+    let mut terminal = Terminal::new(TestBackend::new(120, 24)).unwrap();
+    terminal.draw(|f| app.draw(f)).unwrap();
+    assert!(!app.plugins_collapsed);
+    assert_eq!(app.hits.borrow().result.width, 94);
+    app.horizontal = app.max_horizontal_offset();
+    assert_eq!(app.horizontal, 21);
+
+    // Same batch without redraw: collapse sidebar (`B`, expanding viewport to
+    // 120 >= 115 so effective scroll clamps to 0) then widen (`>`).
+    app.key(KeyEvent::new(KeyCode::Char('B'), KeyModifiers::SHIFT));
+    assert!(app.plugins_collapsed);
+    app.key(KeyEvent::new(KeyCode::Char('>'), KeyModifiers::SHIFT));
+    assert_eq!(app.column_widths.get(&first), Some(&14));
+    assert_eq!(app.column_widths.get(&second), Some(&98));
+}
+
+#[test]
+fn wide_table_exceeding_u16_max_preserves_last_column_width_and_scroll() {
+    let mut app = app();
+    app.focus = Focus::Content;
+    let count = 550usize;
+    let columns: Vec<String> = (0..count)
+        .map(|i| format!("H{i:03}_{}", "x".repeat(115)))
+        .collect();
+    let row: Vec<String> = (0..count).map(|i| format!("V{i:03}")).collect();
+    {
+        let result = app.results.get_mut("linux.pslist.basic").unwrap();
+        result.columns = columns;
+        result.rows = vec![row];
+    }
+    let mut terminal = Terminal::new(TestBackend::new(120, 24)).unwrap();
+    terminal.draw(|f| app.draw(f)).unwrap();
+    let viewport = usize::from(app.current_result_area().width);
+    let total = 550 * 120 + 549 + 4;
+    assert!(total > usize::from(u16::MAX));
+    let expected_max = total - viewport;
+    assert_eq!(app.max_horizontal_offset(), expected_max);
+
+    app.horizontal = expected_max;
+    terminal.draw(|f| app.draw(f)).unwrap();
+    let hits = app.hits.borrow().clone();
+    assert_eq!(hits.drawn_widths[count - 1], 120);
+    assert!(hits.columns[count - 1].width > 0);
+    // Scroll to the start of the last column to confirm its header & value render.
+    let last_col_start = 2 + (count - 1) * 121;
+    app.horizontal = last_col_start;
+    terminal.draw(|f| app.draw(f)).unwrap();
+    let rendered = screen(&terminal, 120);
+    assert!(rendered.contains("H549_"));
+    assert!(rendered.contains("V549"));
+}
+
+#[test]
 fn mouse_tree_and_sort_popup() {
     let mut app = app();
     let mut result = app.result().unwrap().clone();

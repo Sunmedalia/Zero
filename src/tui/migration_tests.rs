@@ -119,6 +119,68 @@ fn ctrl_r_from_history_tab_preserves_history_widths_and_restores_live_view() {
     assert_eq!(app.column_widths.get(&name), Some(&18));
 }
 #[test]
+fn queued_ctrl_r_from_history_preserves_current_view_across_tab_and_plugin_switches() {
+    let mut app = app();
+    app.image = Some(app.root.join("missing.raw"));
+    let name = ColumnKey::new("Name", 0);
+    let pid = ColumnKey::new("PID", 0);
+
+    // Prepare live Pslist view and another plugin Psaux view.
+    seed_tab(&mut app, Plugin::Pslist);
+    app.column_widths.insert(name.clone(), 30);
+    app.query = "init".into();
+    let mut psaux = app.result().unwrap().clone();
+    psaux.plugin = Plugin::Psaux.name().into();
+    app.results.insert(Plugin::Psaux.name().into(), psaux);
+
+    // Open a history tab and give it distinct widths and filter.
+    let mut history = app.result().unwrap().clone();
+    history.historical = true;
+    app.open_history_tab(PathBuf::from("record-busy"), history);
+    app.column_widths.insert(pid.clone(), 45);
+    app.column_widths.insert(name.clone(), 18);
+    app.query = "hist".into();
+    let history_tab = app.active_tab;
+
+    // Queue Ctrl+R while busy; staying on the history tab must keep history
+    // displayed and untouched when the queued snapshot starts.
+    app.job = Some(Job::default());
+    app.key(KeyEvent::new(KeyCode::Char('r'), KeyModifiers::CONTROL));
+    let queued = app.pending_execution.take().expect("queued snapshot");
+    app.pending_work = None;
+    app.job = None;
+    app.start_snapshot(queued.clone());
+    assert_eq!(app.active_tab, history_tab);
+    assert!(app.history.is_some());
+    assert_eq!(app.query, "hist");
+    assert_eq!(app.column_widths.get(&pid), Some(&45));
+    assert_eq!(app.column_widths.get(&name), Some(&18));
+    app.cancel();
+    app.release_worker(Duration::from_secs(2));
+    app.job = None;
+
+    // Browsing to another plugin while the snapshot starts must not leak the
+    // queued plugin's widths/query into the browsed plugin or corrupt history.
+    app.select_plugin(Plugin::Psaux);
+    app.column_widths.insert(pid.clone(), 22);
+    app.query = "bash".into();
+    app.start_snapshot(queued);
+    assert_eq!(app.plugin, Plugin::Psaux);
+    assert!(app.history.is_none());
+    assert_eq!(app.query, "bash");
+    assert_eq!(app.column_widths.get(&pid), Some(&22));
+    assert_eq!(app.column_widths.get(&name), None);
+    app.cancel();
+    app.release_worker(Duration::from_secs(2));
+
+    // Switching back to the history tab still restores its original widths/query.
+    app.switch_result_tab(history_tab.unwrap());
+    assert!(app.history.is_some());
+    assert_eq!(app.query, "hist");
+    assert_eq!(app.column_widths.get(&pid), Some(&45));
+    assert_eq!(app.column_widths.get(&name), Some(&18));
+}
+#[test]
 fn empty_result_tab_is_reused_and_running_tab_cannot_close() {
     let mut app = app();
     app.ensure_plugin_tab(Plugin::Psaux);
