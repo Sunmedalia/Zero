@@ -524,9 +524,7 @@ impl App {
                         };
                         self.history_revision += 1;
                         self.history = None;
-                        self.query.clear();
-                        self.sort = None;
-                        self.row = 0;
+                        self.reset_view();
                         self.start_work(Work::Analyze(*force));
                         return;
                     }
@@ -1229,11 +1227,7 @@ impl App {
                         self.views.clear();
                         self.history_revision += 1;
                         self.history = None;
-                        self.query.clear();
-                        self.sort = None;
-                        self.row = 0;
-                        self.horizontal = 0;
-                        self.collapsed.clear();
+                        self.reset_view();
                     }
                     self.object_version += 1;
                     self.choice = labels.get(*selected).cloned();

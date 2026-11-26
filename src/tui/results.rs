@@ -196,6 +196,13 @@ impl App {
                         }
                     }
                 };
+                // Dragged widths replace the measured ones by column name, so
+                // they survive re-sorting and refiltering of the same result.
+                let natural: Vec<u16> = natural
+                    .iter()
+                    .zip(&result.columns)
+                    .map(|(width, name)| self.column_widths.get(name).copied().unwrap_or(*width))
+                    .collect();
                 let widths: Vec<_> = natural.iter().copied().map(Constraint::Length).collect();
                 let total = natural.iter().map(|n| *n as u32).sum::<u32>()
                     + u32::from(natural.len().saturating_sub(1).cells())
@@ -262,6 +269,29 @@ impl App {
                             .min(row_count.saturating_sub(1)),
                     ),
                 );
+                // Separator cells after each column are the resize handles,
+                // in screen coordinates after horizontal scrolling.
+                let (first, last) = (main.x + 1, main.right().saturating_sub(2));
+                let grips = self
+                    .hits
+                    .borrow()
+                    .columns
+                    .iter()
+                    .enumerate()
+                    .filter_map(|(index, rect)| {
+                        let x = rect.right().checked_sub(scroll)?;
+                        (rect.width > 0 && x >= first && x <= last).then(|| {
+                            let left = x.saturating_sub(1).max(first);
+                            let right = x.saturating_add(1).min(last);
+                            ColumnGrip {
+                                cell: Rect::new(x, rect.y, 1, 1),
+                                hit: Rect::new(left, rect.y, right - left + 1, 1),
+                                index,
+                                width: rect.width,
+                            }
+                        })
+                    })
+                    .collect::<Vec<_>>();
                 if virtual_width == main.width {
                     frame.render_stateful_widget(table, main, &mut state);
                 } else {
@@ -286,6 +316,25 @@ impl App {
                             rect.height,
                         );
                     }
+                }
+                let dragging = self
+                    .column_drag
+                    .as_ref()
+                    .and_then(|drag| result.columns.iter().position(|name| *name == drag.column));
+                for grip in &grips {
+                    let active = dragging == Some(grip.index);
+                    frame.buffer_mut()[(grip.cell.x, grip.cell.y)]
+                        .set_symbol(if active { "┃" } else { "│" })
+                        .set_style(Style::default().fg(if active {
+                            color_accent()
+                        } else {
+                            color_border()
+                        }));
+                }
+                {
+                    let mut hits = self.hits.borrow_mut();
+                    hits.column_grips = grips;
+                    hits.drawn_widths = natural;
                 }
                 if result.rows.is_empty() && main.height > 4 {
                     frame.render_widget(

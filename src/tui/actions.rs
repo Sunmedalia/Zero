@@ -70,6 +70,9 @@ pub(super) enum Command {
     Triage,
     MemoryInspect,
     Enter,
+    NarrowColumn,
+    WidenColumn,
+    ResetColumns,
 }
 
 /// Which page an action belongs to.
@@ -190,6 +193,9 @@ pub(super) fn keywords(command: Command) -> &'static str {
             "inspect memory hex struct disasm capstone 内存 检查 结构体 反汇编"
         }
         Command::Enter => "enter open",
+        Command::NarrowColumn => "column width narrow shrink resize",
+        Command::WidenColumn => "column width widen grow resize",
+        Command::ResetColumns => "column width reset auto",
     }
 }
 
@@ -655,6 +661,38 @@ pub(super) const ACTIONS: &[Action] = &[
             KeyCode::Char('x'),
             Scope::Analysis,
             PALETTE | FOOTER,
+        )
+    },
+    // Column widths apply to the sorted column, or else the leftmost one in
+    // view, so they stay out of the footer where they would need explaining.
+    Action {
+        palette_focus: CONTENT_FOCUS | DETAIL_FOCUS,
+        ..action(
+            Command::NarrowColumn,
+            "列变窄 <",
+            KeyCode::Char('<'),
+            Scope::Analysis,
+            PALETTE,
+        )
+    },
+    Action {
+        palette_focus: CONTENT_FOCUS | DETAIL_FOCUS,
+        ..action(
+            Command::WidenColumn,
+            "列变宽 >",
+            KeyCode::Char('>'),
+            Scope::Analysis,
+            PALETTE,
+        )
+    },
+    Action {
+        palette_focus: CONTENT_FOCUS | DETAIL_FOCUS,
+        ..action(
+            Command::ResetColumns,
+            "自动列宽 =",
+            KeyCode::Char('='),
+            Scope::Analysis,
+            PALETTE,
         )
     },
     // Enter is key-only: its meaning depends on the focused region.

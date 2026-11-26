@@ -92,6 +92,189 @@ fn mouse_scrolled_rows_sort_and_wheel() {
 }
 
 #[test]
+fn dragging_header_separator_resizes_column_without_sorting() {
+    let mut app = app();
+    app.focus = Focus::Content;
+    let mut terminal = Terminal::new(TestBackend::new(120, 24)).unwrap();
+    terminal.draw(|f| app.draw(f)).unwrap();
+    let hits = app.hits.borrow().clone();
+    let ColumnGrip {
+        cell: grip,
+        index,
+        width,
+        ..
+    } = hits.column_grips[0];
+    assert_eq!(index, 0);
+    assert_eq!(grip.x, hits.columns[0].right());
+    assert_eq!(grip.y, hits.result.y + 1);
+    assert_eq!(terminal.backend().buffer()[(grip.x, grip.y)].symbol(), "│");
+    let name = app.result().unwrap().columns[0].clone();
+
+    assert!(!click(&mut app, grip.x, grip.y));
+    assert_eq!(app.sort, None);
+    app.mouse(mouse_event(
+        MouseEventKind::Drag(MouseButton::Left),
+        grip.x + 7,
+        grip.y,
+    ));
+    assert_eq!(app.column_widths.get(&name), Some(&(width + 7)));
+    terminal.draw(|f| app.draw(f)).unwrap();
+    assert_eq!(app.hits.borrow().columns[0].width, width + 7);
+    // Dragging far left stops at the minimum width.
+    app.mouse(mouse_event(
+        MouseEventKind::Drag(MouseButton::Left),
+        0,
+        grip.y,
+    ));
+    assert_eq!(app.column_widths.get(&name), Some(&3));
+    app.mouse(mouse_event(
+        MouseEventKind::Up(MouseButton::Left),
+        0,
+        grip.y,
+    ));
+    assert!(app.column_drag.is_none());
+    // Later drags after release do nothing.
+    app.mouse(mouse_event(
+        MouseEventKind::Drag(MouseButton::Left),
+        50,
+        grip.y,
+    ));
+    assert_eq!(app.column_widths.get(&name), Some(&3));
+    assert_eq!(app.sort, None);
+
+    // The width is saved with the view and restored with it.
+    app.save_view();
+    app.column_widths.clear();
+    app.restore_view();
+    assert_eq!(app.column_widths.get(&name), Some(&3));
+}
+
+#[test]
+fn stale_column_resize_ends_on_the_next_press_or_a_missing_column() {
+    let mut app = app();
+    app.focus = Focus::Content;
+    let mut terminal = Terminal::new(TestBackend::new(120, 24)).unwrap();
+    terminal.draw(|f| app.draw(f)).unwrap();
+    let ColumnGrip {
+        cell: grip, width, ..
+    } = app.hits.borrow().column_grips[0];
+    let name = app.result().unwrap().columns[0].clone();
+    // Press on the grip, then lose the release outside the terminal.
+    click(&mut app, grip.x, grip.y);
+    assert!(app.column_drag.is_some());
+    // A press anywhere else ends it, so its drags (e.g. a scrollbar) are
+    // not taken for a resize.
+    click(&mut app, 1, 1);
+    assert!(app.column_drag.is_none());
+    app.mouse(mouse_event(
+        MouseEventKind::Drag(MouseButton::Left),
+        grip.x + 9,
+        grip.y,
+    ));
+    assert_eq!(app.column_widths.get(&name), None);
+
+    // A drag on a column the current result no longer has ends the drag
+    // without recording a width.
+    app.column_drag = Some(ColumnDrag {
+        column: "Gone".into(),
+        origin: grip.x,
+        width,
+    });
+    app.mouse(mouse_event(
+        MouseEventKind::Drag(MouseButton::Left),
+        grip.x + 4,
+        grip.y,
+    ));
+    assert!(app.column_drag.is_none());
+    assert!(app.column_widths.is_empty());
+}
+
+#[test]
+fn separator_grabs_a_cell_either_side_and_double_click_restores_auto_width() {
+    let mut app = app();
+    app.focus = Focus::Content;
+    let mut terminal = Terminal::new(TestBackend::new(120, 24)).unwrap();
+    terminal.draw(|f| app.draw(f)).unwrap();
+    let grip = app.hits.borrow().column_grips[1];
+    let name = app.result().unwrap().columns[1].clone();
+    assert_eq!(grip.hit, Rect::new(grip.cell.x - 1, grip.cell.y, 3, 1));
+    // Only the separator itself is drawn as a handle.
+    let buffer = terminal.backend().buffer();
+    assert_eq!(buffer[(grip.cell.x, grip.cell.y)].symbol(), "│");
+    assert_ne!(buffer[(grip.cell.x + 1, grip.cell.y)].symbol(), "│");
+    for x in [grip.cell.x - 1, grip.cell.x + 1] {
+        app.grip_click = None;
+        click(&mut app, x, grip.cell.y);
+        assert_eq!(
+            app.column_drag.as_ref().map(|d| d.column.as_str()),
+            Some(name.as_str())
+        );
+        app.mouse(mouse_event(
+            MouseEventKind::Up(MouseButton::Left),
+            x,
+            grip.cell.y,
+        ));
+    }
+    assert_eq!(app.sort, None);
+
+    // Drag to a width, then double-click the separator to drop it again.
+    app.grip_click = None;
+    click(&mut app, grip.cell.x, grip.cell.y);
+    app.mouse(mouse_event(
+        MouseEventKind::Drag(MouseButton::Left),
+        grip.cell.x + 5,
+        grip.cell.y,
+    ));
+    app.mouse(mouse_event(
+        MouseEventKind::Up(MouseButton::Left),
+        grip.cell.x + 5,
+        grip.cell.y,
+    ));
+    assert_eq!(app.column_widths.get(&name), Some(&(grip.width + 5)));
+    terminal.draw(|f| app.draw(f)).unwrap();
+    let moved = app.hits.borrow().column_grips[1];
+    click(&mut app, moved.cell.x, moved.cell.y);
+    click(&mut app, moved.cell.x, moved.cell.y);
+    assert!(app.column_drag.is_none());
+    assert_eq!(app.column_widths.get(&name), None);
+    assert_eq!(app.sort, None);
+
+    // Two presses far apart in time are two single clicks.
+    app.grip_click = Some((
+        name.clone(),
+        Instant::now() - std::time::Duration::from_secs(2),
+    ));
+    click(&mut app, grip.cell.x, grip.cell.y);
+    assert!(app.column_drag.is_some());
+    // A terminal resize ends the drag.
+    app.resize(120, 24);
+    assert!(app.column_drag.is_none());
+}
+
+#[test]
+fn keyboard_steps_the_sorted_or_leftmost_column_and_resets_all() {
+    let mut app = app();
+    app.focus = Focus::Content;
+    let mut terminal = Terminal::new(TestBackend::new(120, 24)).unwrap();
+    terminal.draw(|f| app.draw(f)).unwrap();
+    let columns = app.result().unwrap().columns.clone();
+    let widths = app.hits.borrow().drawn_widths.clone();
+    // Without a sort, the leftmost visible column changes.
+    app.key(KeyEvent::new(KeyCode::Char('>'), KeyModifiers::SHIFT));
+    assert_eq!(app.column_widths.get(&columns[0]), Some(&(widths[0] + 2)));
+    // With a sort, the sorted column changes and clamps at the minimum.
+    app.sort = Some(3);
+    for _ in 0..200 {
+        app.key(KeyEvent::new(KeyCode::Char('<'), KeyModifiers::SHIFT));
+    }
+    assert_eq!(app.column_widths.get(&columns[3]), Some(&3));
+    terminal.draw(|f| app.draw(f)).unwrap();
+    assert_eq!(app.hits.borrow().drawn_widths[3], 3);
+    app.key(KeyEvent::new(KeyCode::Char('='), KeyModifiers::NONE));
+    assert!(app.column_widths.is_empty());
+}
+
+#[test]
 fn mouse_tree_and_sort_popup() {
     let mut app = app();
     let mut result = app.result().unwrap().clone();

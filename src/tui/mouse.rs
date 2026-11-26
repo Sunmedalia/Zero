@@ -29,6 +29,9 @@ impl App {
             self.dialog_key(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE));
             return false;
         }
+        if self.column_mouse(mouse) {
+            return false;
+        }
         if self.scrollbar_mouse(mouse) {
             return false;
         }
@@ -604,5 +607,127 @@ impl App {
             self.focus = Focus::Context;
         }
         false
+    }
+    /// Drags a result header separator to resize the column on its left.
+    /// Returns true when the event belonged to a column resize.
+    fn column_mouse(&mut self, mouse: MouseEvent) -> bool {
+        match mouse.kind {
+            MouseEventKind::Up(MouseButton::Left) => self.column_drag.take().is_some(),
+            MouseEventKind::Drag(MouseButton::Left) => {
+                let Some(drag) = self.column_drag.as_ref() else {
+                    return false;
+                };
+                // A column the current result no longer has ends the drag,
+                // like a scrollbar that is no longer drawn.
+                if !self
+                    .result()
+                    .is_some_and(|r| r.columns.contains(&drag.column))
+                {
+                    self.column_drag = None;
+                    return false;
+                }
+                let delta = i32::from(mouse.column) - i32::from(drag.origin);
+                let width = clamp_column_width(i32::from(drag.width) + delta);
+                self.column_widths.insert(drag.column.clone(), width);
+                // Moving the pointer makes the next press a fresh click.
+                self.grip_click = None;
+                true
+            }
+            MouseEventKind::Down(MouseButton::Left) => {
+                // A release outside the terminal is never reported, so every
+                // press ends a previous resize before anything else can see
+                // its drags.
+                self.column_drag = None;
+                if self.dialog.is_some() {
+                    return false;
+                }
+                let point = Position::new(mouse.column, mouse.row);
+                let Some(grip) = self
+                    .hits
+                    .borrow()
+                    .column_grips
+                    .iter()
+                    .find(|grip| grip.hit.contains(point))
+                    .copied()
+                else {
+                    self.grip_click = None;
+                    return false;
+                };
+                let Some(column) = self
+                    .result()
+                    .and_then(|r| r.columns.get(grip.index))
+                    .cloned()
+                else {
+                    return false;
+                };
+                self.focus = Focus::Content;
+                // Terminals report no double click, so a second press on the
+                // same separator within the interval is one.
+                let now = Instant::now();
+                if self.grip_click.take().is_some_and(|(previous, at)| {
+                    previous == column && now.duration_since(at) <= DOUBLE_CLICK
+                }) {
+                    self.column_widths.remove(&column);
+                    self.status = format!("列 {} 已恢复自动宽度", escaped(&column));
+                    return true;
+                }
+                self.grip_click = Some((column.clone(), now));
+                self.column_drag = Some(ColumnDrag {
+                    column,
+                    origin: mouse.column,
+                    width: grip.width,
+                });
+                true
+            }
+            _ => false,
+        }
+    }
+}
+/// Bounds for a dragged or stepped result column width, in cells.
+pub(super) const COLUMN_MIN_WIDTH: u16 = 3;
+pub(super) const COLUMN_MAX_WIDTH: u16 = 240;
+/// Cells added or removed by one `<` / `>` press.
+pub(super) const COLUMN_STEP: i32 = 2;
+/// Longest gap between two presses on a separator that still resets it.
+const DOUBLE_CLICK: std::time::Duration = std::time::Duration::from_millis(400);
+pub(super) fn clamp_column_width(width: i32) -> u16 {
+    u16::try_from(width.clamp(i32::from(COLUMN_MIN_WIDTH), i32::from(COLUMN_MAX_WIDTH)))
+        .unwrap_or(COLUMN_MIN_WIDTH)
+}
+impl App {
+    /// The column `<`, `>` and `=` act on: the sorted one, or else the
+    /// leftmost column the last frame showed.
+    fn current_column(&self) -> Option<(String, u16)> {
+        let result = self.result()?;
+        let hits = self.hits.borrow();
+        let index = self
+            .sort
+            .filter(|i| *i < result.columns.len())
+            .or_else(|| hits.columns.iter().position(|rect| rect.width > 0))?;
+        let name = result.columns.get(index)?.clone();
+        let width = self
+            .column_widths
+            .get(&name)
+            .copied()
+            .or_else(|| hits.drawn_widths.get(index).copied())?;
+        Some((name, width))
+    }
+    pub(super) fn step_column_width(&mut self, delta: i32) {
+        let Some((name, width)) = self.current_column() else {
+            self.status = "没有可调整宽度的结果列".into();
+            return;
+        };
+        let width = clamp_column_width(i32::from(width) + delta);
+        self.status = format!("列 {} 宽度 {width}；= 恢复自动宽度", escaped(&name));
+        self.column_widths.insert(name, width);
+    }
+    pub(super) fn reset_column_widths(&mut self) {
+        self.column_drag = None;
+        self.status = if self.column_widths.is_empty() {
+            "列宽已是自动宽度".into()
+        } else {
+            self.column_widths.clear();
+            "已恢复全部列的自动宽度".into()
+        };
     }
 }

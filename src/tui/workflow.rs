@@ -261,17 +261,38 @@ impl App {
                 collapsed: self.collapsed.clone(),
                 state: *self.table_state.borrow(),
                 horizontal: self.horizontal,
+                column_widths: self.column_widths.clone(),
             },
         );
     }
     pub(super) fn restore_view(&mut self) {
         let view = self.views.remove(&self.view_key()).unwrap_or_default();
+        self.apply_view(view);
+    }
+    /// Restores the saved view of the current plugin request, ignoring any
+    /// history source so a live result never picks up a history view.
+    pub(super) fn restore_request_view(&mut self) {
+        let view = self.views.remove(&self.request_key()).unwrap_or_default();
+        self.apply_view(view);
+    }
+    /// Clears the per-view result state (filter, sort, selection, scroll,
+    /// column widths, collapsed tree nodes) for a result shown afresh.
+    pub(super) fn reset_view(&mut self) {
+        self.query.clear();
+        self.sort = None;
+        self.row = 0;
+        self.horizontal = 0;
+        self.column_widths.clear();
+        self.collapsed.clear();
+    }
+    fn apply_view(&mut self, view: View) {
         self.query = view.query;
         self.sort = view.sort;
         self.descending = view.descending;
         self.row = view.row;
         self.collapsed = view.collapsed;
         self.horizontal = view.horizontal;
+        self.column_widths = view.column_widths;
         *self.table_state.borrow_mut() = view.state;
     }
 }

@@ -401,6 +401,9 @@ impl App {
                 }
             }
             Command::Enter => self.enter_focused(),
+            Command::NarrowColumn => self.step_column_width(-mouse::COLUMN_STEP),
+            Command::WidenColumn => self.step_column_width(mouse::COLUMN_STEP),
+            Command::ResetColumns => self.reset_column_widths(),
         }
         false
     }

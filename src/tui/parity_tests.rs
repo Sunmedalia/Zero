@@ -644,6 +644,9 @@ fn every_command_has_an_action() {
             Command::Triage => 52,
             Command::MemoryInspect => 53,
             Command::Enter => 54,
+            Command::NarrowColumn => 55,
+            Command::WidenColumn => 56,
+            Command::ResetColumns => 57,
         }
     }
     let all = [
@@ -702,6 +705,9 @@ fn every_command_has_an_action() {
         Command::Triage,
         Command::MemoryInspect,
         Command::Enter,
+        Command::NarrowColumn,
+        Command::WidenColumn,
+        Command::ResetColumns,
     ];
     for (index, command) in all.into_iter().enumerate() {
         assert_eq!(position(command), index);

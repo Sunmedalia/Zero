@@ -268,6 +268,10 @@ pub(super) struct HitMap {
     pub(super) popup_offset: usize,
     pub(super) popup_list: Rect,
     pub(super) columns: Vec<Rect>,
+    /// Drag handles on the header separator after each visible column.
+    pub(super) column_grips: Vec<ColumnGrip>,
+    /// Width each result column was laid out with, before clipping.
+    pub(super) drawn_widths: Vec<u16>,
     pub(super) buttons: Vec<(Rect, KeyCode)>,
     pub(super) console_tab: Rect,
     pub(super) console_methods: Vec<(Rect, usize)>,
@@ -305,10 +309,15 @@ pub(super) struct View {
     pub(super) collapsed: HashSet<String>,
     pub(super) state: TableState,
     pub(super) horizontal: usize,
+    pub(super) column_widths: HashMap<String, u16>,
 }
 pub struct App {
     pub(super) terminal_size: std::cell::Cell<Option<(u16, u16)>>,
     pub(super) drag: Option<scrollbars::Drag>,
+    /// Header separator being dragged to resize a result column.
+    pub(super) column_drag: Option<ColumnDrag>,
+    /// Last press on a header separator, to recognise a double click.
+    pub(super) grip_click: Option<(String, Instant)>,
     pub(super) open_tabs: Vec<OpenTab>,
     pub(super) active_tab: Option<usize>,
     pub(super) tab_offset: std::cell::Cell<usize>,
@@ -424,6 +433,9 @@ pub struct App {
     pub(super) result_requests: HashMap<String, String>,
     pub(super) pending_os: Option<crate::analysis::Os>,
     pub(super) horizontal: usize,
+    /// Widths the user dragged, by column name; unset columns keep their
+    /// measured width. Saved per view like the horizontal scroll.
+    pub(super) column_widths: HashMap<String, u16>,
     pub(super) inspector: bool,
     pub(super) detail_scroll: usize,
     pub(super) views: HashMap<String, View>,
@@ -542,6 +554,23 @@ impl Drop for ViewJob {
     fn drop(&mut self) {
         self.cancel.store(true, Ordering::Relaxed);
     }
+}
+/// A header separator: the cell drawn as `│`, the wider area that grabs it
+/// (one cell either side, kept off the panel border and scrollbar), the
+/// column on its left and that column's unclipped width.
+#[derive(Clone, Copy, Debug)]
+pub(super) struct ColumnGrip {
+    pub(super) cell: Rect,
+    pub(super) hit: Rect,
+    pub(super) index: usize,
+    pub(super) width: u16,
+}
+/// A column resize in progress: the pointer column and width at press time.
+#[derive(Clone)]
+pub(super) struct ColumnDrag {
+    pub(super) column: String,
+    pub(super) origin: u16,
+    pub(super) width: u16,
 }
 pub(super) type ColumnWidths = (
     std::rc::Rc<crate::result_view::Index>,

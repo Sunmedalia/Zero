@@ -67,6 +67,22 @@ fn history_tabs_retain_independent_filters_and_survive_source_changes() {
     assert!(app.result().unwrap().historical);
 }
 #[test]
+fn history_tab_starts_with_automatic_column_widths() {
+    let mut app = app();
+    seed_tab(&mut app, Plugin::Pslist);
+    app.column_widths.insert("Name".into(), 30);
+    app.horizontal = 5;
+    let mut result = app.result().unwrap().clone();
+    result.historical = true;
+    app.open_history_tab(PathBuf::from("record-a"), result);
+    // The live result's widths share column names but do not leak in.
+    assert!(app.column_widths.is_empty());
+    assert_eq!(app.horizontal, 0);
+    app.switch_result_tab(0);
+    assert_eq!(app.column_widths.get("Name"), Some(&30));
+    assert_eq!(app.horizontal, 5);
+}
+#[test]
 fn empty_result_tab_is_reused_and_running_tab_cannot_close() {
     let mut app = app();
     app.ensure_plugin_tab(Plugin::Psaux);

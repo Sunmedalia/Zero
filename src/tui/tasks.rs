@@ -827,11 +827,7 @@ impl App {
                     self.views.clear();
                     self.history_revision += 1;
                     self.history = None;
-                    self.query.clear();
-                    self.sort = None;
-                    self.row = 0;
-                    self.horizontal = 0;
-                    self.collapsed.clear();
+                    self.reset_view();
                     if let Err(e) = self.registry.import(&path, Kind::Symbols, &self.cache) {
                         self.last_error = Some(format!("下载成功但清单保存失败: {e:#}"));
                     }

@@ -54,9 +54,7 @@ return;
         self.history = Some(result);
         self.history_revision += 1;
         self.page = Page::Analysis;
-        self.query.clear();
-        self.sort = None;
-        self.row = 0;
+        self.reset_view();
         self.focus = Focus::Content;
         self.status = "导出记录：历史内容，未重新验证镜像".into();
     }
@@ -78,9 +76,6 @@ return;
                 self.history_source = Some(path);
                 self.history = Some(result);
                 self.history_revision += 1;
-                self.query.clear();
-                self.sort = None;
-                self.row = 0;
                 self.restore_view();
             }
         }
