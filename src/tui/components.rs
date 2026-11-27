@@ -114,62 +114,71 @@ pub(super) fn edit_input(
         _ => {}
     }
 }
-/// Plugin order in the navigation menu. This is a fixed property of the plugin
-/// registry, so it is computed once instead of rescanning every descriptor on
-/// each keystroke and frame.
+/// Plugin order in the navigation menu: categories in `CATEGORIES` order, and
+/// within a category the variants of one plugin stay together. `x.basic` (Zero's
+/// compact view) is followed directly by `x.full` (the Volatility-parity view),
+/// and sub-groups such as `pagecache.*`, `ip.*`, `registry.*` or `mftscan.*` are
+/// contiguous, each at the position of its first catalog row. This is a fixed
+/// property of the registry, so it is computed once.
+fn ordered_plugins(windows: bool) -> Vec<Plugin> {
+    CATEGORIES
+        .into_iter()
+        .flat_map(|category| {
+            let mut plugins: Vec<Plugin> = PLUGINS
+                .iter()
+                .filter(|d| {
+                    d.plugin.is_windows() == windows
+                        && !d.plugin.is_dump()
+                        && d.plugin.category() == category
+                })
+                .map(|d| d.plugin)
+                .collect();
+            let catalog = plugins.clone();
+            let rank = |key: fn(Plugin) -> &'static str, plugin: Plugin| {
+                catalog
+                    .iter()
+                    .position(|p| key(*p) == key(plugin))
+                    .unwrap_or(usize::MAX)
+            };
+            plugins.sort_by_key(|p| (rank(group_key, *p), rank(family_key, *p)));
+            plugins
+        })
+        .collect()
+}
+/// Menu category order, shared by Linux and Windows so the layout is stable when
+/// the detected system changes. Every catalog category must appear here.
+pub(super) const CATEGORIES: [&str; 7] = [
+    "Process",
+    "System",
+    "Memory",
+    "Files",
+    "Network",
+    "Integrity",
+    "GUI",
+];
+/// `linux.pslist.basic` and `linux.pslist.full` are one family: the name without
+/// its `.basic` / `.full` view suffix.
+pub(super) fn family_key(plugin: Plugin) -> &'static str {
+    let name = plugin.name();
+    name.strip_suffix(".basic")
+        .or_else(|| name.strip_suffix(".full"))
+        .unwrap_or(name)
+}
+/// The first name segment after the OS prefix: `linux.ip.addr.full` -> `linux.ip`.
+fn group_key(plugin: Plugin) -> &'static str {
+    let name = plugin.name();
+    match name.match_indices('.').nth(1) {
+        Some((end, _)) => name.get(..end).unwrap_or(name),
+        None => name,
+    }
+}
 pub(super) fn navigation_plugins() -> &'static [Plugin] {
     static ORDER: std::sync::OnceLock<Vec<Plugin>> = std::sync::OnceLock::new();
-    ORDER.get_or_init(|| {
-        const CATEGORIES: [&str; 6] = [
-            "Process",
-            "System",
-            "Memory",
-            "Files",
-            "Network",
-            "Integrity",
-        ];
-        CATEGORIES
-            .into_iter()
-            .flat_map(|category| {
-                PLUGINS
-                    .iter()
-                    .filter(move |d| {
-                        !d.plugin.is_dump()
-                            && !d.plugin.is_windows()
-                            && d.plugin.category() == category
-                    })
-                    .map(|d| d.plugin)
-            })
-            .collect()
-    })
+    ORDER.get_or_init(|| ordered_plugins(false))
 }
-/// Windows plugins follow the same category order as Linux so the menu layout
-/// is stable when the detected system changes.
 pub(super) fn windows_navigation_plugins() -> &'static [Plugin] {
     static ORDER: std::sync::OnceLock<Vec<Plugin>> = std::sync::OnceLock::new();
-    ORDER.get_or_init(|| {
-        const CATEGORIES: [&str; 6] = [
-            "Process",
-            "System",
-            "Memory",
-            "Files",
-            "Network",
-            "Integrity",
-        ];
-        CATEGORIES
-            .into_iter()
-            .flat_map(|category| {
-                PLUGINS
-                    .iter()
-                    .filter(move |d| {
-                        d.plugin.is_windows()
-                            && !d.plugin.is_dump()
-                            && d.plugin.category() == category
-                    })
-                    .map(|d| d.plugin)
-            })
-            .collect()
-    })
+    ORDER.get_or_init(|| ordered_plugins(true))
 }
 pub(super) fn windows_menu_items() -> &'static [&'static str] {
     static LABELS: std::sync::OnceLock<Vec<&'static str>> = std::sync::OnceLock::new();

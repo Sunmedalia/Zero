@@ -1138,3 +1138,61 @@ fn batched_events_wait_for_a_repaint_only_when_hit_testing_needs_one() {
         ))) == HitTest::None
     );
 }
+
+#[test]
+fn plugin_menu_covers_every_category_and_keeps_variant_families_adjacent() {
+    for d in PLUGINS {
+        assert!(
+            CATEGORIES.contains(&d.category),
+            "{} has a category missing from the menu: {}",
+            d.name,
+            d.category
+        );
+    }
+    let linux = PLUGINS
+        .iter()
+        .filter(|d| !d.plugin.is_windows() && !d.plugin.is_dump())
+        .count();
+    let windows = PLUGINS
+        .iter()
+        .filter(|d| d.plugin.is_windows() && !d.plugin.is_dump())
+        .count();
+    assert_eq!(navigation_plugins().len(), linux);
+    assert_eq!(windows_navigation_plugins().len(), windows);
+    assert!(windows_navigation_plugins().contains(&Plugin::WinWindows));
+    for menu in [navigation_plugins(), windows_navigation_plugins()] {
+        for pair in menu.windows(2) {
+            let [a, b] = pair else { continue };
+            if a.name().ends_with(".basic") {
+                assert_eq!(b.name(), format!("{}.full", family_key(*a)), "{a:?}");
+            }
+        }
+        for d in PLUGINS.iter().filter(|d| d.name.ends_with(".full")) {
+            let Some(basic) = PLUGINS
+                .iter()
+                .find(|b| b.name == format!("{}.basic", family_key(d.plugin)))
+            else {
+                continue;
+            };
+            assert_eq!(basic.category, d.category, "{}", d.name);
+        }
+        let positions = |prefix: &str| -> Vec<usize> {
+            menu.iter()
+                .enumerate()
+                .filter(|(_, p)| p.name().starts_with(prefix))
+                .map(|(i, _)| i)
+                .collect()
+        };
+        for prefix in [
+            "linux.pagecache",
+            "linux.ip.",
+            "windows.registry.",
+            "windows.mftscan",
+        ] {
+            let at = positions(prefix);
+            if let (Some(first), Some(last)) = (at.first(), at.last()) {
+                assert_eq!(last - first + 1, at.len(), "{prefix} is split");
+            }
+        }
+    }
+}
