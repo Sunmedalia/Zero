@@ -25,19 +25,30 @@ pub(super) fn plugin_search_hit(plugin: Plugin, query: &str) -> bool {
     );
     query_matches(&text, query)
 }
-pub(super) fn plugin_matches(query: &str) -> Vec<Plugin> {
+pub(super) fn plugin_matches_for(windows: bool, query: &str) -> Vec<Plugin> {
     let query = query.to_lowercase();
-    let mut plugins: Vec<_> = PLUGINS
+    let list = if windows {
+        windows_navigation_plugins()
+    } else {
+        navigation_plugins()
+    };
+    let mut plugins: Vec<_> = list
         .iter()
-        .filter(|d| {
-            !d.plugin.is_dump() && !d.plugin.is_windows() && plugin_search_hit(d.plugin, &query)
-        })
-        .map(|d| d.plugin)
+        .copied()
+        .filter(|plugin| plugin_search_hit(*plugin, &query))
         .collect();
     if "dump".contains(&query) {
-        plugins.push(Plugin::Procdump);
+        plugins.push(if windows {
+            Plugin::WinProcdump
+        } else {
+            Plugin::Procdump
+        });
     }
     plugins
+}
+#[cfg(test)]
+pub(super) fn plugin_matches(query: &str) -> Vec<Plugin> {
+    plugin_matches_for(false, query)
 }
 pub(super) fn edit_input(
     text: &mut String,
@@ -115,11 +126,12 @@ pub(super) fn edit_input(
     }
 }
 /// Plugin order in the navigation menu: categories in `CATEGORIES` order, and
-/// within a category the variants of one plugin stay together. `x.basic` (Zero's
-/// compact view) is followed directly by `x.full` (the Volatility-parity view),
-/// and sub-groups such as `pagecache.*`, `ip.*`, `registry.*` or `mftscan.*` are
-/// contiguous, each at the position of its first catalog row. This is a fixed
-/// property of the registry, so it is computed once.
+/// within a category the variants of one plugin stay together. Compact views
+/// (`x.basic` or unsuffixed `x`) are followed directly by `x.full` (the
+/// Volatility-parity view), and sub-groups such as `pagecache.*`, `ip.*`,
+/// `registry.*` or `mftscan.*` are contiguous, each at the position of its
+/// first catalog row. This is a fixed property of the registry, so it is
+/// computed once.
 fn ordered_plugins(windows: bool) -> Vec<Plugin> {
     CATEGORIES
         .into_iter()
@@ -140,10 +152,14 @@ fn ordered_plugins(windows: bool) -> Vec<Plugin> {
                     .position(|p| key(*p) == key(plugin))
                     .unwrap_or(usize::MAX)
             };
-            plugins.sort_by_key(|p| (rank(group_key, *p), rank(family_key, *p)));
+            plugins.sort_by_key(|p| (rank(group_key, *p), rank(family_key, *p), view_rank(*p)));
             plugins
         })
         .collect()
+}
+/// Compact views (`.basic` or unsuffixed) sort before `.full` within one family.
+fn view_rank(plugin: Plugin) -> u8 {
+    u8::from(plugin.name().ends_with(".full"))
 }
 /// Menu category order, shared by Linux and Windows so the layout is stable when
 /// the detected system changes. Every catalog category must appear here.

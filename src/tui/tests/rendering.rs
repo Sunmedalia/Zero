@@ -1141,6 +1141,20 @@ fn batched_events_wait_for_a_repaint_only_when_hit_testing_needs_one() {
 
 #[test]
 fn plugin_menu_covers_every_category_and_keeps_variant_families_adjacent() {
+    use std::collections::BTreeSet;
+
+    assert_eq!(
+        CATEGORIES,
+        [
+            "Process",
+            "System",
+            "Memory",
+            "Files",
+            "Network",
+            "Integrity",
+            "GUI",
+        ]
+    );
     for d in PLUGINS {
         assert!(
             CATEGORIES.contains(&d.category),
@@ -1149,50 +1163,247 @@ fn plugin_menu_covers_every_category_and_keeps_variant_families_adjacent() {
             d.category
         );
     }
-    let linux = PLUGINS
-        .iter()
-        .filter(|d| !d.plugin.is_windows() && !d.plugin.is_dump())
-        .count();
-    let windows = PLUGINS
-        .iter()
-        .filter(|d| d.plugin.is_windows() && !d.plugin.is_dump())
-        .count();
-    assert_eq!(navigation_plugins().len(), linux);
-    assert_eq!(windows_navigation_plugins().len(), windows);
-    assert!(windows_navigation_plugins().contains(&Plugin::WinWindows));
-    for menu in [navigation_plugins(), windows_navigation_plugins()] {
-        for pair in menu.windows(2) {
-            let [a, b] = pair else { continue };
-            if a.name().ends_with(".basic") {
-                assert_eq!(b.name(), format!("{}.full", family_key(*a)), "{a:?}");
-            }
-        }
-        for d in PLUGINS.iter().filter(|d| d.name.ends_with(".full")) {
-            let Some(basic) = PLUGINS
+
+    struct MenuCase {
+        windows: bool,
+        menu: &'static [Plugin],
+        expected_categories: &'static [&'static str],
+        expected_groups: &'static [&'static str],
+    }
+
+    let cases = [
+        MenuCase {
+            windows: false,
+            menu: navigation_plugins(),
+            expected_categories: &[
+                "Process",
+                "System",
+                "Memory",
+                "Files",
+                "Network",
+                "Integrity",
+            ],
+            expected_groups: &["linux.pagecache", "linux.ip."],
+        },
+        MenuCase {
+            windows: true,
+            menu: windows_navigation_plugins(),
+            expected_categories: &[
+                "Process",
+                "System",
+                "Memory",
+                "Files",
+                "Network",
+                "Integrity",
+                "GUI",
+            ],
+            expected_groups: &["windows.registry.", "windows.mftscan"],
+        },
+    ];
+
+    for MenuCase {
+        windows,
+        menu,
+        expected_categories,
+        expected_groups,
+    } in cases
+    {
+        let mut seen_categories: Vec<&str> = menu.iter().map(|p| p.category()).collect();
+        seen_categories.dedup();
+        assert_eq!(
+            seen_categories.as_slice(),
+            expected_categories,
+            "menu categories out of order or split (windows={windows})"
+        );
+
+        let unique: BTreeSet<&str> = menu.iter().map(|p| p.name()).collect();
+        assert_eq!(
+            unique.len(),
+            menu.len(),
+            "duplicate plugins in menu (windows={windows})"
+        );
+
+        for category in CATEGORIES {
+            let actual_vec: Vec<&str> = menu
                 .iter()
-                .find(|b| b.name == format!("{}.basic", family_key(d.plugin)))
-            else {
-                continue;
-            };
-            assert_eq!(basic.category, d.category, "{}", d.name);
+                .filter(|p| p.category() == category)
+                .map(|p| p.name())
+                .collect();
+            let actual_set: BTreeSet<&str> = actual_vec.iter().copied().collect();
+            assert_eq!(
+                actual_set.len(),
+                actual_vec.len(),
+                "duplicate plugin in category {category} (windows={windows})"
+            );
+            let expected_set: BTreeSet<&str> = PLUGINS
+                .iter()
+                .filter(|d| {
+                    d.plugin.is_windows() == windows
+                        && !d.plugin.is_dump()
+                        && d.category == category
+                })
+                .map(|d| d.name)
+                .collect();
+            assert_eq!(
+                actual_set, expected_set,
+                "category {category} members differ from catalog (windows={windows})"
+            );
         }
-        let positions = |prefix: &str| -> Vec<usize> {
-            menu.iter()
+
+        for d in PLUGINS
+            .iter()
+            .filter(|d| d.plugin.is_windows() == windows && d.name.ends_with(".full"))
+        {
+            let family = family_key(d.plugin);
+            let compact = PLUGINS
+                .iter()
+                .find(|c| c.name == format!("{family}.basic") || c.name == family)
+                .unwrap_or_else(|| panic!("missing compact sibling for {}", d.name));
+            assert_eq!(compact.category, d.category, "{}", d.name);
+            let compact_pos = menu
+                .iter()
+                .position(|p| *p == compact.plugin)
+                .unwrap_or_else(|| panic!("{} missing from menu", compact.name));
+            let full_pos = menu
+                .iter()
+                .position(|p| *p == d.plugin)
+                .unwrap_or_else(|| panic!("{} missing from menu", d.name));
+            assert_eq!(
+                compact_pos + 1,
+                full_pos,
+                "{} must appear immediately before {}",
+                compact.name,
+                d.name
+            );
+        }
+
+        for prefix in expected_groups {
+            let at: Vec<usize> = menu
+                .iter()
                 .enumerate()
                 .filter(|(_, p)| p.name().starts_with(prefix))
                 .map(|(i, _)| i)
-                .collect()
-        };
-        for prefix in [
-            "linux.pagecache",
-            "linux.ip.",
-            "windows.registry.",
-            "windows.mftscan",
-        ] {
-            let at = positions(prefix);
-            if let (Some(first), Some(last)) = (at.first(), at.last()) {
-                assert_eq!(last - first + 1, at.len(), "{prefix} is split");
-            }
+                .collect();
+            assert!(!at.is_empty(), "{prefix} missing from menu");
+            let first = at[0];
+            let last = at[at.len() - 1];
+            assert_eq!(last - first + 1, at.len(), "{prefix} is split");
         }
     }
+
+    let win = windows_navigation_plugins();
+    assert!(win.contains(&Plugin::WinWindows));
+    for (compact, full) in [
+        (Plugin::WinSvcscan, Plugin::WinSvcScanV4),
+        (Plugin::WinAmcache, Plugin::WinAmcacheV4),
+        (Plugin::WinUserassist, Plugin::WinUserAssistV4),
+        (Plugin::WinScheduledTasks, Plugin::WinScheduledTasksV4),
+    ] {
+        let compact_pos = win
+            .iter()
+            .position(|p| *p == compact)
+            .unwrap_or_else(|| panic!("{compact:?} missing from Windows menu"));
+        let full_pos = win
+            .iter()
+            .position(|p| *p == full)
+            .unwrap_or_else(|| panic!("{full:?} missing from Windows menu"));
+        assert_eq!(
+            compact_pos + 1,
+            full_pos,
+            "{compact:?} must precede {full:?} in Windows menu"
+        );
+    }
+}
+
+#[test]
+fn plugin_search_empty_query_matches_sidebar_order_on_linux_and_windows() {
+    let popup_row = |terminal: &Terminal<TestBackend>, list: Rect, offset: u16| -> String {
+        let buf = terminal.backend().buffer();
+        let y = list.y + 1 + offset;
+        (list.x..list.right())
+            .map(|x| buf[(x, y)].symbol())
+            .collect()
+    };
+
+    let mut app = app();
+    let mut terminal = Terminal::new(TestBackend::new(120, 40)).unwrap();
+
+    let expected_linux: Vec<Plugin> = navigation_plugins()
+        .iter()
+        .copied()
+        .chain(std::iter::once(Plugin::Procdump))
+        .collect();
+    assert_eq!(plugin_matches(""), expected_linux);
+    assert_eq!(app.plugin_matches(""), expected_linux);
+    let linux_labels: Vec<&str> = app
+        .plugin_matches("")
+        .into_iter()
+        .map(plugin_label)
+        .collect();
+    assert_eq!(linux_labels.as_slice(), app.menu_items());
+    assert_eq!(
+        app.plugin_matches("pslist"),
+        vec![Plugin::Pslist, Plugin::LinuxPslist]
+    );
+
+    app.key(KeyEvent::new(KeyCode::Char('p'), KeyModifiers::NONE));
+    assert!(matches!(
+        &app.dialog,
+        Some(Dialog::Plugins { query, selected: 0 }) if query.is_empty()
+    ));
+    terminal.draw(|f| app.draw(f)).unwrap();
+    let list = app.hits.borrow().popup_list;
+    let row0 = popup_row(&terminal, list, 0);
+    let row1 = popup_row(&terminal, list, 1);
+    assert!(
+        row0.contains("› pslist.basic"),
+        "expected pslist.basic as first Linux search item, got {row0:?}"
+    );
+    assert!(
+        row1.contains("pslist.full"),
+        "expected pslist.full as second Linux search item, got {row1:?}"
+    );
+    app.dialog_key(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE));
+
+    app.select_os(crate::analysis::Os::Windows);
+    let expected_windows: Vec<Plugin> = windows_navigation_plugins()
+        .iter()
+        .copied()
+        .chain(std::iter::once(Plugin::WinProcdump))
+        .collect();
+    assert_eq!(app.plugin_matches(""), expected_windows);
+    let windows_labels: Vec<&str> = app
+        .plugin_matches("")
+        .into_iter()
+        .map(plugin_label)
+        .collect();
+    assert_eq!(windows_labels.as_slice(), app.menu_items());
+    assert_eq!(
+        app.plugin_matches("svcscan"),
+        vec![Plugin::WinSvcscan, Plugin::WinSvcScanV4]
+    );
+    assert_eq!(
+        app.plugin_matches("amcache"),
+        vec![Plugin::WinAmcache, Plugin::WinAmcacheV4]
+    );
+
+    app.key(KeyEvent::new(KeyCode::Char('p'), KeyModifiers::NONE));
+    assert!(matches!(
+        &app.dialog,
+        Some(Dialog::Plugins { query, selected: 0 }) if query.is_empty()
+    ));
+    terminal.draw(|f| app.draw(f)).unwrap();
+    let list = app.hits.borrow().popup_list;
+    let row0 = popup_row(&terminal, list, 0);
+    let row1 = popup_row(&terminal, list, 1);
+    let first_win = format!("› {}", app.menu_items()[0]);
+    assert!(
+        row0.contains(&first_win),
+        "expected {first_win:?} as first Windows search item, got {row0:?}"
+    );
+    assert!(
+        row1.contains(app.menu_items()[1]),
+        "expected {:?} as second Windows search item, got {row1:?}",
+        app.menu_items()[1]
+    );
 }
