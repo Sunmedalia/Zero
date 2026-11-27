@@ -631,7 +631,9 @@ impl App {
         else {
             return false;
         };
-        self.tab_offset.set(*offset);
+        if let Some(offset) = offset {
+            self.tab_offset.set(*offset);
+        }
         true
     }
     /// Drags a result header separator to resize the column on its left.

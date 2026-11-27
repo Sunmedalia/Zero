@@ -234,7 +234,7 @@ pub(super) struct HitMap {
     pub(super) scrollbars: Vec<scrollbars::Scrollbar>,
     pub(super) asset_rows: Vec<(Rect, AssetSection, usize)>,
     pub(super) result_tabs: Vec<(Rect, Rect, usize)>,
-    pub(super) result_tab_steps: Vec<(Rect, usize)>,
+    pub(super) result_tab_steps: Vec<(Rect, Option<usize>)>,
     pub(super) plugin_toggle: Rect,
     pub(super) cache_scopes: Rect,
     pub(super) cache_items: Rect,

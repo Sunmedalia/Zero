@@ -244,6 +244,10 @@ fn queued_run_from_history_only_tabs_registers_plugin_tab_without_changing_view(
 }
 
 fn deliver_outcome(app: &mut App, outcome: Outcome) {
+    deliver_event(app, WorkerEvent::Done(outcome));
+}
+
+fn deliver_event(app: &mut App, event: WorkerEvent) {
     if let Some(worker) = app.worker.take() {
         worker.join().unwrap();
     }
@@ -254,7 +258,7 @@ fn deliver_outcome(app: &mut App, outcome: Outcome) {
         id: app.task_id,
         version: app.object_version,
     };
-    assert!(events.send(WorkerEvent::Done(outcome)));
+    assert!(events.send(event));
     app.drain();
 }
 
@@ -416,6 +420,80 @@ fn background_symbol_retry_restores_execution_view_and_keeps_edited_draft() {
     app.finish_worker();
 }
 
+fn rerun_from_bound_result() -> (App, String, String) {
+    let mut app = app();
+    for plugin in [Plugin::Psaux, Plugin::Pslist] {
+        seed_tab(&mut app, plugin);
+    }
+    app.image = Some(app.root.join("missing.raw"));
+    app.analysis_options.pid = Some(42);
+    app.query = "original".into();
+    let original_key = app.request_key();
+    app.request_analysis(true);
+    deliver_outcome(&mut app, Outcome::Choose(vec!["exact-symbol".into()]));
+    app.key(KeyEvent::new(KeyCode::Char(' '), KeyModifiers::NONE));
+    let original = request_result(&app, Plugin::Pslist, "original-result");
+    deliver_outcome(&mut app, Outcome::Ready(original));
+
+    app.windows_parameters();
+    let Some(Dialog::WindowsParameters { fields, .. }) = &mut app.dialog else {
+        panic!("expected parameter editor");
+    };
+    fields[2] = "7".into();
+    app.key(KeyEvent::new(KeyCode::Enter, KeyModifiers::CONTROL));
+    assert_eq!(app.analysis_options.pid, Some(7));
+    let draft_key = app.request_key();
+    let previous_draft = request_result(&app, Plugin::Pslist, "old-draft-result");
+    app.results.insert(draft_key.clone(), previous_draft);
+    app.key(KeyEvent::new(KeyCode::Char('r'), KeyModifiers::CONTROL));
+    assert_eq!(app.active_request.as_ref().unwrap().key, draft_key);
+    (app, original_key, draft_key)
+}
+
+fn assert_previous_result_after_rerun(app: &mut App, original_key: &str, draft_key: &str) {
+    app.key(KeyEvent::new(KeyCode::PageUp, KeyModifiers::CONTROL));
+    assert_eq!(app.plugin, Plugin::Psaux);
+    app.key(KeyEvent::new(KeyCode::PageDown, KeyModifiers::CONTROL));
+    assert_result_tab(app, Plugin::Pslist, original_key, "original-result");
+    assert_eq!(app.query, "original");
+    assert_eq!(app.request_key(), draft_key);
+    assert_eq!(
+        app.results.get(draft_key).unwrap().rows[0][3],
+        "old-draft-result"
+    );
+}
+
+#[test]
+fn failed_rerun_keeps_the_previous_result_tab_binding() {
+    let (mut app, original_key, draft_key) = rerun_from_bound_result();
+    deliver_event(&mut app, WorkerEvent::Failed("分析失败".into()));
+    assert_eq!(app.last_error.as_deref(), Some("分析失败"));
+    assert_previous_result_after_rerun(&mut app, &original_key, &draft_key);
+}
+
+#[test]
+fn cancelled_rerun_keeps_the_previous_result_tab_binding() {
+    let (mut app, original_key, draft_key) = rerun_from_bound_result();
+    app.key(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE));
+    // Even if the worker has already produced rows, cancellation drops them.
+    let cancelled_result = request_result(&app, Plugin::Pslist, "cancelled-result");
+    deliver_outcome(&mut app, Outcome::Ready(cancelled_result));
+    assert!(app.status.contains("已取消"));
+    assert_previous_result_after_rerun(&mut app, &original_key, &draft_key);
+}
+
+#[test]
+fn successful_rerun_replaces_the_previous_result_tab_binding() {
+    let (mut app, _, draft_key) = rerun_from_bound_result();
+    let result = request_result(&app, Plugin::Pslist, "new-draft-result");
+    deliver_outcome(&mut app, Outcome::Ready(result));
+    app.analysis_options.pid = Some(9);
+    app.key(KeyEvent::new(KeyCode::PageUp, KeyModifiers::CONTROL));
+    app.key(KeyEvent::new(KeyCode::PageDown, KeyModifiers::CONTROL));
+    assert_result_tab(&app, Plugin::Pslist, &draft_key, "new-draft-result");
+    assert_eq!(app.analysis_options.pid, Some(9));
+}
+
 #[test]
 fn symbol_choice_marks_other_candidates_stale_and_skips_their_session_cache() {
     let mut app = app();
@@ -502,13 +580,53 @@ fn result_tab_overflow_arrows_keep_symbol_selection_open() {
             .borrow()
             .result_tab_steps
             .iter()
-            .find(|(_, index)| *index == offset)
+            .find(|(_, index)| *index == Some(offset))
             .copied()
             .unwrap();
         click(&mut app, rect.x, rect.y);
         assert_eq!(app.tab_offset.get(), offset);
         assert_eq!(app.active_tab, active);
         assert!(app.choosing_analysis_symbols());
+    }
+}
+
+#[test]
+fn disabled_result_tab_arrows_keep_symbol_selection_open() {
+    let mut app = app();
+    for plugin in [Plugin::Pslist, Plugin::Psaux, Plugin::Lsmod, Plugin::Maps] {
+        seed_tab(&mut app, plugin);
+    }
+    app.image = Some(app.root.join("missing.raw"));
+    app.switch_result_tab(0);
+    app.request_analysis(true);
+    deliver_outcome(
+        &mut app,
+        Outcome::Choose(vec!["candidate-a".into(), "candidate-b".into()]),
+    );
+    app.key(KeyEvent::new(KeyCode::Down, KeyModifiers::NONE));
+    let active = app.active_tab;
+    let _terminal = render(&app, 80, 28);
+
+    for (offset, arrow) in [(0, "<"), (1, ">")] {
+        app.tab_offset.set(offset);
+        let terminal = render(&app, 80, 28);
+        let hits = app.hits.borrow();
+        let y = hits.result_tabs[0].0.y;
+        let x = if offset == 0 {
+            hits.result_tabs[0].0.x - 2
+        } else {
+            hits.result_tabs.last().unwrap().0.right() + 1
+        };
+        drop(hits);
+        assert_eq!(terminal.backend().buffer()[(x, y)].symbol(), arrow);
+        click(&mut app, x, y);
+        assert_eq!(app.tab_offset.get(), offset);
+        assert_eq!(app.active_tab, active);
+        assert!(app.choosing_analysis_symbols());
+        assert!(matches!(
+            app.dialog,
+            Some(Dialog::Symbols { selected: 1, .. })
+        ));
     }
 }
 

@@ -221,9 +221,7 @@ return;
                     })),
                     rect,
                 );
-                if let Some(offset) = offset {
-                    self.hits.borrow_mut().result_tab_steps.push((rect, offset));
-                }
+                self.hits.borrow_mut().result_tab_steps.push((rect, offset));
             }
         }
         let mut x = area.x + if overflow { 3 } else { 0 };

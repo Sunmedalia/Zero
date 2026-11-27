@@ -209,7 +209,6 @@ impl App {
                 }
                 self.displayed_request = snapshot_key;
                 restore_view |= switched;
-                self.tab_requests.remove(plugin.name());
                 self.ensure_plugin_tab(plugin);
             }
         }
@@ -1060,7 +1059,10 @@ impl App {
                             // plugin key: no row copy on the UI thread.
                             let result = Arc::new(result);
                             if let Some(request) = execution {
-                                if request.restore_on_tab || !viewing {
+                                if request.restore_on_tab
+                                    || !viewing
+                                    || self.tab_requests.contains_key(request.plugin.name())
+                                {
                                     self.tab_requests
                                         .insert(request.plugin.name(), request.snapshot);
                                 }
