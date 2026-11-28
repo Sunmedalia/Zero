@@ -410,9 +410,6 @@ pub struct App {
     pub(super) row: usize,
     pub(super) collapsed: HashSet<String>,
     pub(super) status: String,
-    /// Last footer message written by the running worker. Foreground feedback
-    /// can replace it, and finishing the worker clears this claim.
-    pub(super) worker_status: Option<String>,
     pub(super) logs: VecDeque<String>,
     pub(super) started: Option<Instant>,
     pub(super) progress: Option<u16>,

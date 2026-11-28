@@ -1019,7 +1019,6 @@ impl App {
                 self.cancel();
             }
             if matches!(dialog, Dialog::Symbols { .. }) {
-                self.dismiss_symbol_choice_footer();
                 self.symbol_retry = None;
                 self.enter_when_ready = false;
             }

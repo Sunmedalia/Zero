@@ -1,46 +1,6 @@
 use super::*;
 
-const SYMBOL_CHOICE_FOOTER: &str = "多个匹配 ISF，必须选择";
-
 impl App {
-    fn set_worker_footer(&mut self, message: impl Into<String>) {
-        self.status = message.into();
-        self.worker_status = Some(self.status.clone());
-    }
-
-    pub(super) fn worker_owns_footer(&self) -> bool {
-        self.worker_status.as_deref() == Some(self.status.as_str())
-    }
-
-    fn analysis_is_foreground(&self, plugin: Plugin) -> bool {
-        self.page == Page::Analysis
-            && self.history.is_none()
-            && self.active_detail().is_none()
-            && self.plugin == plugin
-    }
-
-    fn worker_is_foreground(&self) -> bool {
-        self.active_request
-            .as_ref()
-            .is_none_or(|request| self.analysis_is_foreground(request.plugin))
-    }
-
-    fn restore_context_footer(&mut self) {
-        if self.page == Page::Analysis {
-            self.refresh_active_tab_status();
-        } else {
-            self.status = self.page_hint().into();
-        }
-    }
-
-    pub(super) fn dismiss_symbol_choice_footer(&mut self) -> bool {
-        let showing_choice = self.status == SYMBOL_CHOICE_FOOTER;
-        if showing_choice {
-            self.restore_context_footer();
-        }
-        showing_choice
-    }
-
     pub(super) fn local_work(&self) -> Work {
         let paths = self
             .assets
@@ -141,25 +101,25 @@ impl App {
     }
 
     pub(super) fn start_work(&mut self, work: Work) {
-        self.start_work_with(work, None, false, true);
+        self.start_work_with(work, None, false);
     }
 
-    pub(super) fn start_snapshot(&mut self, request: ExecutionSnapshot, show_footer: bool) {
-        self.start_work_with(
-            Work::Analyze(request.force),
-            Some(request),
-            true,
-            show_footer,
-        );
+    pub(super) fn start_snapshot(&mut self, request: ExecutionSnapshot) {
+        self.start_work_with(Work::Analyze(request.force), Some(request), true);
     }
 
-    pub(super) fn retry_analysis(&mut self, request: ExecutionSnapshot, replace_choice: bool) {
-        if self.job.is_some() || !self.analysis_is_foreground(request.plugin) {
-            self.start_snapshot(request, replace_choice);
+    pub(super) fn retry_analysis(&mut self, request: ExecutionSnapshot) {
+        if self.job.is_some()
+            || self.page != Page::Analysis
+            || self.plugin != request.plugin
+            || self.history.is_some()
+            || self.active_detail().is_some()
+        {
+            self.start_snapshot(request);
             return;
         }
 
-        self.start_work_with(Work::Analyze(request.force), Some(request), false, true);
+        self.start_work_with(Work::Analyze(request.force), Some(request), false);
     }
 
     fn start_work_with(
@@ -167,7 +127,6 @@ impl App {
         work: Work,
         snapshot: Option<ExecutionSnapshot>,
         background: bool,
-        show_footer: bool,
     ) {
         let from_snapshot = snapshot.is_some();
         let (plugin, analysis_options, dump_options) = match snapshot {
@@ -193,12 +152,10 @@ impl App {
                 options: analysis_options,
                 dump: dump_options,
             });
-            self.cancel_worker();
+            self.cancel();
             self.pending_execution = execution;
             self.pending_work = Some(work);
-            if self.worker_owns_footer() {
-                self.set_worker_footer("正在取消；随后执行最后一次请求");
-            }
+            self.status = "正在取消；随后执行最后一次请求".into();
             return;
         }
         let image = self.image.clone().or_else(|| {
@@ -327,9 +284,7 @@ impl App {
             _ => None,
         };
         self.preparation_lookup = matches!(work, Work::FetchMatched);
-        if show_footer {
-            self.set_worker_footer("任务启动中");
-        }
+        self.status = "任务启动中".into();
         self.started = Some(Instant::now());
         self.progress = None;
         self.worker = Some(thread::spawn(move || {
@@ -662,13 +617,6 @@ impl App {
         }));
     }
     pub(super) fn cancel(&mut self) {
-        self.cancel_worker();
-        if self.job.is_some() && (self.worker_owns_footer() || self.worker_is_foreground()) {
-            self.set_worker_footer("正在取消…");
-        }
-    }
-
-    fn cancel_worker(&mut self) {
         self.enter_when_ready = false;
         self.pending_work = None;
         self.pending_path = None;
@@ -677,6 +625,7 @@ impl App {
         self.pending_os = None;
         if let Some(job) = &self.job {
             job.cancel.store(true, Ordering::Relaxed);
+            self.status = "正在取消…".into();
         }
     }
     pub(super) fn drain(&mut self) -> bool {
@@ -686,16 +635,12 @@ impl App {
             .map(|r| r.try_iter().collect())
             .unwrap_or_default();
         let mut changed = self.drain_cache_query() | self.drain_view() || !events.is_empty();
-        let mut cancelled_footer_owned = None;
         for event in events {
             let event = match event {
                 WorkerEvent::Tagged(id, version, event) => {
                     if id != self.task_id || version != self.object_version {
-                        if id == self.task_id
-                            && !matches!(*event, WorkerEvent::Progress(_))
-                            && self.finish_worker()
-                        {
-                            self.restore_context_footer();
+                        if id == self.task_id && !matches!(*event, WorkerEvent::Progress(_)) {
+                            self.finish_worker();
                         }
                         continue;
                     }
@@ -707,19 +652,13 @@ impl App {
                 .job
                 .as_ref()
                 .is_some_and(|j| j.cancel.load(Ordering::Relaxed));
-            if cancelled {
-                if matches!(event, WorkerEvent::Progress(_)) {
-                    continue;
-                }
-                let owned_footer = self.finish_worker();
-                cancelled_footer_owned = Some(owned_footer);
+            if cancelled && !matches!(event, WorkerEvent::Progress(_)) {
+                self.finish_worker();
                 self.preparation_lookup = false;
                 if self.preparation == Preparation::Matching {
                     self.preparation = Preparation::Cancelled;
                 }
-                if owned_footer {
-                    self.status = "已取消；可重试".into();
-                }
+                self.status = "已取消；可重试".into();
                 self.console_cancelled();
                 continue;
             }
@@ -965,9 +904,7 @@ impl App {
                     if self.logs.len() > 200 {
                         self.logs.pop_front();
                     }
-                    if self.worker_owns_footer() {
-                        self.set_worker_footer(s);
-                    }
+                    self.status = s;
                 }
                 WorkerEvent::KernelDiagnosed(report) => {
                     self.finish_worker();
@@ -1021,22 +958,13 @@ impl App {
                     if self.preparation == Preparation::Matching {
                         self.preparation = Preparation::MissingSymbols;
                     }
-                    let foreground = self.worker_is_foreground();
-                    let status = failure_status(&s);
-                    let owned_footer = self.finish_worker();
-                    if foreground {
-                        self.status = status;
-                    } else {
-                        if owned_footer {
-                            self.restore_context_footer();
-                        }
-                        log_message = Some(status);
-                    }
+                    self.status = failure_status(&s);
+                    self.finish_worker();
                 }
                 WorkerEvent::ChooseWorkSymbols(labels, work) => {
                     self.finish_worker();
                     self.symbol_retry = Some(SymbolRetry::Work(Box::new(work)));
-                    self.status = SYMBOL_CHOICE_FOOTER.into();
+                    self.status = "多个匹配 ISF，必须选择".into();
                     self.dialog = Some(Dialog::Symbols {
                         labels,
                         selected: 0,
@@ -1073,17 +1001,14 @@ impl App {
                         }
                         self.result_origins.insert(plugin.name().into(), origin);
                     }
-                    let foreground = self.worker_is_foreground();
-                    let owned_footer = self.finish_worker();
+                    self.finish_worker();
                     match outcome {
                         Outcome::Choose(labels) => {
                             self.symbol_retry = self
                                 .active_request
                                 .take()
                                 .map(|r| SymbolRetry::Analysis(Box::new(r.snapshot)));
-                            if foreground || owned_footer {
-                                self.status = SYMBOL_CHOICE_FOOTER.into();
-                            }
+                            self.status = "多个匹配 ISF，必须选择".into();
                             self.dialog = Some(Dialog::Symbols {
                                 labels,
                                 selected: 0,
@@ -1146,8 +1071,19 @@ impl App {
                                 self.status = label;
                                 self.focus = Focus::Content;
                             } else {
-                                if owned_footer {
-                                    self.restore_context_footer();
+                                if self.page == Page::Analysis {
+                                    self.refresh_active_tab_status();
+                                } else if self.last_error.as_deref() != Some(&self.status) {
+                                    self.status = match self.page {
+                                        Page::Cache => {
+                                            "Tab 切换范围/条目 · Enter 打开 · Delete 删除 · x 清理已勾选 · r 刷新"
+                                                .into()
+                                        }
+                                        Page::Assets => {
+                                            "Space 选用 · Enter 选用并进入分析 · ? 命令面板".into()
+                                        }
+                                        Page::Analysis => self.status.clone(),
+                                    };
                                 }
                                 log_message = Some(format!("后台完成 · {label}"));
                             }
@@ -1173,9 +1109,9 @@ impl App {
                 self.accept_path(kind, path);
             } else if let Some(work) = self.pending_work.take() {
                 if let Some(request) = self.pending_execution.take() {
-                    self.start_snapshot(request, cancelled_footer_owned.unwrap_or(false));
+                    self.start_snapshot(request);
                 } else {
-                    self.start_work_with(work, None, false, cancelled_footer_owned.unwrap_or(true));
+                    self.start_work(work);
                 }
             }
         }
@@ -1204,9 +1140,7 @@ impl App {
         self.finish_worker();
         self.cache_page.detach_query();
     }
-    pub(super) fn finish_worker(&mut self) -> bool {
-        let owned_footer = self.worker_owns_footer();
-        self.worker_status = None;
+    pub(super) fn finish_worker(&mut self) {
         if let Some(worker) = self.worker.take() {
             let _ = worker.join();
         }
@@ -1216,7 +1150,6 @@ impl App {
         self.inspector_running = false;
         self.started = None;
         self.progress = None;
-        owned_footer
     }
 }
 

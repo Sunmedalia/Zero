@@ -149,7 +149,7 @@ fn queued_ctrl_r_from_history_preserves_current_view_across_tab_and_plugin_switc
     let queued = app.pending_execution.take().expect("queued snapshot");
     app.pending_work = None;
     app.job = None;
-    app.start_snapshot(queued.clone(), false);
+    app.start_snapshot(queued.clone());
     assert_eq!(app.active_tab, history_tab);
     assert!(app.history.is_some());
     assert_eq!(app.query, "hist");
@@ -164,7 +164,7 @@ fn queued_ctrl_r_from_history_preserves_current_view_across_tab_and_plugin_switc
     app.select_plugin(Plugin::Psaux);
     app.column_widths.insert(pid.clone(), 22);
     app.query = "bash".into();
-    app.start_snapshot(queued, false);
+    app.start_snapshot(queued);
     assert_eq!(app.plugin, Plugin::Psaux);
     assert!(app.history.is_none());
     assert_eq!(app.query, "bash");
@@ -229,7 +229,7 @@ fn queued_run_from_history_only_tabs_registers_plugin_tab_without_changing_view(
     app.pending_work = None;
     app.job = None;
 
-    app.start_snapshot(queued, false);
+    app.start_snapshot(queued);
     assert!(
         app.open_tabs
             .iter()
@@ -601,6 +601,14 @@ fn successful_rerun_after_switching_tabs_updates_active_view_and_table() {
     assert_result_tab(&app, Plugin::Pslist, &original_key, "original-result");
     assert_eq!(app.query, "original");
 
+    deliver_event(&mut app, WorkerEvent::Progress("37% 正在解析".into()));
+    let rendered = screen(&render(&app, 140, 35), 140);
+    assert!(
+        rendered
+            .lines()
+            .any(|line| line.contains("37% ·") && line.contains("正在解析"))
+    );
+
     // When the rerun succeeds on the active tab, table, view, and status bar all update together.
     app.job.as_ref().unwrap().mark_cached();
     let mut result = request_result(&app, Plugin::Pslist, "new-draft-result");
@@ -916,18 +924,14 @@ fn sidebar_click_during_running_rerun_updates_binding_only_when_ready() {
 }
 
 #[test]
-fn background_completion_preserves_foreground_action_feedback_and_logs_completion() {
+fn background_completion_after_clearing_filter_keeps_tab_bindings() {
     let (mut app, _original_key, draft_key) = rerun_from_bound_result();
     app.key(KeyEvent::new(KeyCode::PageUp, KeyModifiers::CONTROL));
     assert_eq!(app.plugin, Plugin::Psaux);
     app.query = "zsh".into();
     app.key(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE));
     assert!(app.query.is_empty());
-    assert_eq!(app.status, "已清除内容筛选");
-
-    // Background progress and completion must preserve foreground action feedback.
     deliver_event(&mut app, WorkerEvent::Progress("50% 后台解析中".into()));
-    assert_eq!(app.status, "已清除内容筛选");
 
     app.job.as_ref().unwrap().mark_cached();
     let mut bg = request_result(&app, Plugin::Pslist, "bg-pslist-only");
@@ -935,9 +939,8 @@ fn background_completion_preserves_foreground_action_feedback_and_logs_completio
     deliver_outcome(&mut app, Outcome::Ready(bg));
 
     assert_eq!(app.plugin, Plugin::Psaux);
-    assert_eq!(app.status, "已清除内容筛选");
+    assert!(app.query.is_empty());
     let rendered = screen(&render(&app, 140, 35), 140);
-    assert!(rendered.contains("已清除内容筛选"));
     assert!(rendered.contains("zsh"));
     assert!(!rendered.contains("bg-pslist-only"));
     assert!(!rendered.contains(Plugin::Pslist.name()));
@@ -953,7 +956,7 @@ fn background_completion_preserves_foreground_action_feedback_and_logs_completio
 }
 
 #[test]
-fn symbol_retry_on_assets_replaces_choice_footer_until_background_completion() {
+fn symbol_retry_on_assets_replaces_choice_prompt() {
     let (mut app, _, _) = rerun_from_bound_result();
     app.switch_page(Page::Assets);
     deliver_outcome(
@@ -966,6 +969,7 @@ fn symbol_retry_on_assets_replaces_choice_footer_until_background_completion() {
     app.key(KeyEvent::new(KeyCode::Char(' '), KeyModifiers::NONE));
     assert!(app.dialog.is_none());
     assert_eq!(app.status, "任务启动中");
+    assert!(!screen(&render(&app, 140, 35), 140).contains("多个匹配 ISF，必须选择"));
     let result = request_result(&app, Plugin::Pslist, "retried-in-background");
     deliver_outcome(&mut app, Outcome::Ready(result));
 
@@ -976,12 +980,11 @@ fn symbol_retry_on_assets_replaces_choice_footer_until_background_completion() {
     let log = app.logs.back().unwrap();
     assert!(log.starts_with("后台完成 · "));
     assert!(log.contains(Plugin::Pslist.name()));
-    assert!(app.worker_status.is_none());
 }
 
 #[test]
-fn cancelled_queue_handoff_preserves_foreground_filter_feedback() {
-    let (mut app, _, _) = rerun_from_bound_result();
+fn queued_rerun_after_clearing_filter_keeps_active_tab() {
+    let (mut app, _, discarded_key) = rerun_from_bound_result();
     app.analysis_options.pid = Some(9);
     let queued_key = app.request_key();
     app.key(KeyEvent::new(KeyCode::Char('r'), KeyModifiers::CONTROL));
@@ -990,65 +993,44 @@ fn cancelled_queue_handoff_preserves_foreground_filter_feedback() {
     app.query = "zsh".into();
     app.key(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE));
     assert_eq!(app.plugin, Plugin::Psaux);
-    assert_eq!(app.status, "已清除内容筛选");
+    assert!(app.query.is_empty());
 
     let discarded = request_result(&app, Plugin::Pslist, "discarded");
     deliver_outcome(&mut app, Outcome::Ready(discarded));
     assert_eq!(app.active_request.as_ref().unwrap().key, queued_key);
-    assert_eq!(app.status, "已清除内容筛选");
-    assert!(app.worker_status.is_none());
+    assert_eq!(
+        app.results.get(&discarded_key).unwrap().rows[0][3],
+        "old-draft-result"
+    );
 
-    deliver_event(&mut app, WorkerEvent::Progress("37% · 后台解析中".into()));
-    let rendered = screen(&render(&app, 140, 35), 140);
-    assert!(rendered.contains("已清除内容筛选"));
-    assert!(!rendered.contains("37%"));
     let queued = request_result(&app, Plugin::Pslist, "queued-in-background");
     deliver_outcome(&mut app, Outcome::Ready(queued));
     assert_eq!(app.plugin, Plugin::Psaux);
-    assert_eq!(app.status, "已清除内容筛选");
-    assert!(screen(&render(&app, 140, 35), 140).contains("已清除内容筛选"));
+    assert!(app.query.is_empty());
     let log = app.logs.back().unwrap();
     assert!(log.starts_with("后台完成 · "));
     assert!(log.contains(Plugin::Pslist.name()));
+
+    app.key(KeyEvent::new(KeyCode::PageDown, KeyModifiers::CONTROL));
+    assert_result_tab(&app, Plugin::Pslist, &queued_key, "queued-in-background");
 }
 
 #[test]
-fn failed_worker_releases_progress_footer() {
-    let (mut app, _, _) = rerun_from_bound_result();
-    deliver_event(&mut app, WorkerEvent::Progress("正在分析".into()));
-    assert_eq!(app.status, "正在分析");
-    deliver_event(&mut app, WorkerEvent::Failed("分析失败".into()));
+fn esc_cancels_background_rerun_and_shows_cancelled_footer() {
+    let (mut app, original_key, _) = rerun_from_bound_result();
+    app.key(KeyEvent::new(KeyCode::PageUp, KeyModifiers::CONTROL));
+    assert_eq!(app.plugin, Plugin::Psaux);
+    app.key(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE));
+    assert!(app.job.as_ref().unwrap().cancel.load(Ordering::Relaxed));
+    assert!(screen(&render(&app, 140, 35), 140).contains("正在取消"));
 
-    assert!(app.job.is_none());
-    assert!(app.status.contains("分析失败"));
-    assert!(app.worker_status.is_none());
-}
-
-#[test]
-fn cancelled_worker_releases_footer() {
-    let (mut app, _, _) = rerun_from_bound_result();
-    deliver_event(&mut app, WorkerEvent::Progress("正在分析".into()));
-    app.cancel();
     let discarded = request_result(&app, Plugin::Pslist, "discarded");
     deliver_outcome(&mut app, Outcome::Ready(discarded));
-
     assert!(app.job.is_none());
-    assert_eq!(app.status, "已取消；可重试");
-    assert!(app.worker_status.is_none());
-}
-
-#[test]
-fn abandoning_symbol_choice_restores_assets_footer() {
-    let (mut app, _, _) = rerun_from_bound_result();
-    app.switch_page(Page::Assets);
-    deliver_outcome(&mut app, Outcome::Choose(vec!["exact-symbol".into()]));
-    app.key(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE));
-
-    assert!(app.dialog.is_none());
-    assert!(app.symbol_retry.is_none());
-    assert!(app.job.is_none());
-    assert!(app.worker_status.is_none());
-    assert_eq!(app.status, "Space 选用 · Enter 选用并进入分析 · ? 命令面板");
+    assert_eq!(app.plugin, Plugin::Psaux);
+    assert!(screen(&render(&app, 140, 35), 140).contains("已取消；可重试"));
+    app.key(KeyEvent::new(KeyCode::PageDown, KeyModifiers::CONTROL));
+    assert_result_tab(&app, Plugin::Pslist, &original_key, "original-result");
 }
 
 #[test]

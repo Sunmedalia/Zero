@@ -1224,7 +1224,6 @@ impl App {
                 KeyCode::Up => *selected = selected.saturating_sub(1),
                 KeyCode::Down => *selected = (*selected + 1).min(labels.len().saturating_sub(1)),
                 KeyCode::Char(' ') if !labels.is_empty() => {
-                    let replace_choice = self.dismiss_symbol_choice_footer();
                     let retry = self.symbol_retry.take();
                     // An analysis retry replaces its result when it completes. Keep open
                     // result pages and their views available while choosing its symbols.
@@ -1243,9 +1242,7 @@ impl App {
                     self.choice = labels.get(*selected).cloned();
                     if let Some(request) = retry {
                         match request {
-                            SymbolRetry::Analysis(snapshot) => {
-                                self.retry_analysis(*snapshot, replace_choice)
-                            }
+                            SymbolRetry::Analysis(snapshot) => self.retry_analysis(*snapshot),
                             SymbolRetry::Work(work) => match *work {
                                 Work::Inspect(query, tab) => {
                                     self.launch_inspector_query(query, tab)

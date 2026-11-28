@@ -22,8 +22,7 @@ impl App {
             footer.width,
             u16::from(footer.height > 0),
         );
-        let started = self.started.filter(|_| self.worker_owns_footer());
-        if let (Some(progress), Some(started)) = (self.progress, started) {
+        if let (Some(progress), Some(started)) = (self.progress, self.started) {
             frame.render_widget(
                 Gauge::default()
                     .percent(progress)
@@ -37,7 +36,8 @@ impl App {
                 status,
             );
         } else {
-            let mut message = started
+            let mut message = self
+                .started
                 .map(|started| {
                     format!(
                         "{} · {}s · Esc 取消",
@@ -59,7 +59,7 @@ impl App {
             }
             let color = if self.last_error.as_deref() == Some(self.status.as_str()) {
                 color_danger()
-            } else if started.is_some() {
+            } else if self.started.is_some() {
                 color_accent()
             } else {
                 color_text()
