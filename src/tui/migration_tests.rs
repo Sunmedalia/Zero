@@ -514,6 +514,46 @@ fn cancelled_rerun_keeps_the_previous_result_tab_binding() {
 }
 
 #[test]
+fn cancelled_rerun_via_esc_clears_filter_before_cancelling_and_keeps_binding() {
+    let (mut app, original_key, draft_key) = rerun_from_bound_result();
+    let column = ColumnKey::new("Name", 0);
+    app.sort = Some(1);
+    app.column_widths.insert(column.clone(), 24);
+    app.views.insert(
+        draft_key.clone(),
+        View {
+            query: "old-draft".into(),
+            sort: Some(0),
+            ..Default::default()
+        },
+    );
+    let job = app.job.as_ref().unwrap().clone();
+
+    // First Esc clears the active content filter without cancelling the running job.
+    app.key(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE));
+    assert!(app.query.is_empty());
+    assert!(!job.cancel.load(Ordering::Relaxed));
+    assert_eq!(app.sort, Some(1));
+    assert_eq!(app.column_widths.get(&column), Some(&24));
+    assert_result_tab(&app, Plugin::Pslist, &original_key, "original-result");
+
+    // Second Esc cancels the job; late worker output is dropped and PID 42 stays bound.
+    app.key(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE));
+    assert!(job.cancel.load(Ordering::Relaxed));
+    let cancelled_result = request_result(&app, Plugin::Pslist, "cancelled-result");
+    deliver_outcome(&mut app, Outcome::Ready(cancelled_result));
+    assert!(app.status.contains("已取消"));
+    assert_result_tab(&app, Plugin::Pslist, &original_key, "original-result");
+    assert!(app.query.is_empty());
+    assert_eq!(app.sort, Some(1));
+    assert_eq!(app.column_widths.get(&column), Some(&24));
+    let rendered = screen(&render(&app, 120, 35), 120);
+    assert!(!rendered.contains("old-draft-result"));
+    assert!(!rendered.contains("cancelled-result"));
+    assert_eq!(app.request_key(), draft_key);
+}
+
+#[test]
 fn successful_rerun_replaces_the_previous_result_tab_binding() {
     let (mut app, original_key, draft_key) = rerun_from_bound_result();
     app.views.insert(
@@ -526,11 +566,15 @@ fn successful_rerun_replaces_the_previous_result_tab_binding() {
     // While running, the active tab stays on the previous completed result and view.
     assert_result_tab(&app, Plugin::Pslist, &original_key, "original-result");
     assert_eq!(app.query, "original");
-    let result = request_result(&app, Plugin::Pslist, "new-draft-result");
+    app.job.as_ref().unwrap().mark_cached();
+    let mut result = request_result(&app, Plugin::Pslist, "new-draft-result");
+    result.rows.truncate(1);
     deliver_outcome(&mut app, Outcome::Ready(result));
     assert_result_tab(&app, Plugin::Pslist, &draft_key, "new-draft-result");
     assert_eq!(app.query, "new-draft");
-    assert!(app.status.contains(Plugin::Pslist.name()));
+    assert!(app.status.contains("1 条"));
+    assert!(!app.status.contains("2 条"));
+    assert!(app.status.contains("读取缓存"));
     assert_eq!(app.views[&original_key].query, "original");
     app.analysis_options.pid = Some(9);
     app.key(KeyEvent::new(KeyCode::PageUp, KeyModifiers::CONTROL));
@@ -558,16 +602,21 @@ fn successful_rerun_after_switching_tabs_updates_active_view_and_table() {
     assert_eq!(app.query, "original");
 
     // When the rerun succeeds on the active tab, table, view, and status bar all update together.
-    let result = request_result(&app, Plugin::Pslist, "new-draft-result");
+    app.job.as_ref().unwrap().mark_cached();
+    let mut result = request_result(&app, Plugin::Pslist, "new-draft-result");
+    result.rows.truncate(1);
     deliver_outcome(&mut app, Outcome::Ready(result));
     assert_result_tab(&app, Plugin::Pslist, &draft_key, "new-draft-result");
     assert_eq!(app.query, "new-draft");
     assert_eq!(app.views[&original_key].query, "original");
+    assert!(app.status.contains("1 条"));
+    assert!(!app.status.contains("2 条"));
+    assert!(app.status.contains("读取缓存"));
     let rendered = screen(&render(&app, 140, 35), 140);
     assert!(rendered.contains("new-draft-result"));
     assert!(!rendered.contains("original-result"));
-    assert!(app.status.contains(Plugin::Pslist.name()));
-    assert!(rendered.contains(Plugin::Pslist.name()));
+    assert!(rendered.contains("缓存读取"));
+    assert!(rendered.contains("1 条"));
 }
 
 #[test]
@@ -592,15 +641,21 @@ fn queued_rerun_while_staying_on_origin_tab_updates_binding_when_ready() {
     assert_result_tab(&app, Plugin::Pslist, &original_key, "original-result");
     assert_eq!(app.query, "original");
 
-    let queued = request_result(&app, Plugin::Pslist, "queued-nine-result");
+    app.job.as_ref().unwrap().mark_cached();
+    let mut queued = request_result(&app, Plugin::Pslist, "queued-nine-result");
+    queued.rows.truncate(1);
     deliver_outcome(&mut app, Outcome::Ready(queued));
     assert_result_tab(&app, Plugin::Pslist, &queued_key, "queued-nine-result");
     assert_eq!(app.query, "queued-nine");
     assert_eq!(app.views[&original_key].query, "original");
+    assert!(app.status.contains("1 条"));
+    assert!(!app.status.contains("2 条"));
+    assert!(app.status.contains("读取缓存"));
     let rendered = screen(&render(&app, 140, 35), 140);
     assert!(rendered.contains("queued-nine-result"));
     assert!(!rendered.contains("original-result"));
-    assert!(app.status.contains(Plugin::Pslist.name()));
+    assert!(rendered.contains("缓存读取"));
+    assert!(rendered.contains("1 条"));
 }
 
 #[test]
@@ -618,6 +673,167 @@ fn failed_symbol_retry_while_staying_on_origin_tab_keeps_previous_binding() {
     assert_result_tab(&app, Plugin::Pslist, &original_key, "original-result");
     assert_eq!(app.query, "original");
     assert!(!screen(&render(&app, 120, 35), 120).contains("old-draft-result"));
+}
+
+#[test]
+fn rerun_completed_away_from_analysis_page_syncs_view_on_return() {
+    let (mut app, original_key, draft_key) = rerun_from_bound_result();
+    // Leave the analysis page while PID 7 is running.
+    app.switch_page(Page::Assets);
+    assert_eq!(app.page, Page::Assets);
+    assert_eq!(app.focus, Focus::Navigation);
+
+    app.job.as_ref().unwrap().mark_cached();
+    let mut result = request_result(&app, Plugin::Pslist, "pid-seven-only");
+    result.rows.truncate(1);
+    deliver_outcome(&mut app, Outcome::Ready(result));
+
+    // Stay on Assets without stealing its focus; log records the completed plugin.
+    assert_eq!(app.page, Page::Assets);
+    assert_eq!(app.focus, Focus::Navigation);
+    let last_log = app.logs.back().expect("background completion logged");
+    assert!(last_log.contains("后台完成"));
+    assert!(last_log.contains(Plugin::Pslist.name()));
+    assert!(last_log.contains("1 条"));
+
+    // Returning to Analysis shows PID 7 with its own view instead of PID 42's filter.
+    app.switch_page(Page::Analysis);
+    assert_result_tab(&app, Plugin::Pslist, &draft_key, "pid-seven-only");
+    assert!(app.query.is_empty());
+    assert_eq!(app.views[&original_key].query, "original");
+    let rendered = screen(&render(&app, 140, 35), 140);
+    assert!(rendered.contains("pid-seven-only"));
+    assert!(rendered.contains("缓存读取"));
+    assert!(!rendered.contains("original-result"));
+}
+
+#[test]
+fn sidebar_cache_hit_adopts_cached_draft_binding_and_view() {
+    let mut app = app();
+    for plugin in [Plugin::Psaux, Plugin::Pslist] {
+        seed_tab(&mut app, plugin);
+    }
+    app.image = Some(app.root.join("missing.raw"));
+    app.analysis_options.pid = Some(42);
+    app.query = "original".into();
+    let original_key = app.request_key();
+    app.request_analysis(true);
+    deliver_outcome(&mut app, Outcome::Choose(vec!["exact-symbol".into()]));
+    app.key(KeyEvent::new(KeyCode::Char(' '), KeyModifiers::NONE));
+    let original = request_result(&app, Plugin::Pslist, "original-result");
+    deliver_outcome(&mut app, Outcome::Ready(original));
+
+    // Edit draft to PID 7 where a symbol-matching cached result and view already exist.
+    app.analysis_options.pid = Some(7);
+    let draft_key = app.request_key();
+    let mut cached = request_result(&app, Plugin::Pslist, "cached-seven-only");
+    cached.symbol = "exact-symbol".into();
+    cached.rows.truncate(1);
+    app.results.insert(draft_key.clone(), cached);
+    app.result_origins
+        .insert(draft_key.clone(), "读取缓存 · 0.0 s".into());
+    app.views.insert(
+        draft_key.clone(),
+        View {
+            query: "seven".into(),
+            ..Default::default()
+        },
+    );
+
+    // Activating Pslist from the sidebar hits the session cache and adopts PID 7 atomically.
+    app.activate_plugin(Plugin::Pslist);
+    assert!(app.job.is_none());
+    assert_result_tab(&app, Plugin::Pslist, &draft_key, "cached-seven-only");
+    assert_eq!(app.query, "seven");
+    assert_eq!(app.views[&original_key].query, "original");
+    assert!(app.status.contains("1 条"));
+    assert!(!app.status.contains("2 条"));
+    let rendered = screen(&render(&app, 140, 35), 140);
+    assert!(rendered.contains("cached-seven-only"));
+    assert!(rendered.contains("缓存读取"));
+    assert!(!rendered.contains("original-result"));
+}
+
+#[test]
+fn background_completion_keeps_active_tab_footer_and_logs_plugin() {
+    let (mut app, _original_key, draft_key) = rerun_from_bound_result();
+    // Switch to Psaux while Pslist (PID 7) is running in the background.
+    app.key(KeyEvent::new(KeyCode::PageUp, KeyModifiers::CONTROL));
+    assert_eq!(app.plugin, Plugin::Psaux);
+    let psaux_status = app.status.clone();
+    assert!(psaux_status.contains("psaux"));
+    assert!(psaux_status.contains("2 条"));
+
+    app.job.as_ref().unwrap().mark_cached();
+    let mut bg = request_result(&app, Plugin::Pslist, "bg-pslist-only");
+    bg.rows.truncate(1);
+    deliver_outcome(&mut app, Outcome::Ready(bg));
+
+    // Active Psaux tab keeps its table, view, and footer status; background completion is logged.
+    assert_eq!(app.plugin, Plugin::Psaux);
+    assert_eq!(app.status, psaux_status);
+    assert!(!app.status.contains(Plugin::Pslist.name()));
+    assert!(!app.status.contains("1 条"));
+    let rendered = screen(&render(&app, 140, 35), 140);
+    assert!(rendered.contains("zsh"));
+    assert!(rendered.contains("psaux"));
+    assert!(!rendered.contains("bg-pslist-only"));
+    assert!(!rendered.contains(Plugin::Pslist.name()));
+    let last_log = app.logs.back().expect("background completion logged");
+    assert!(last_log.contains("后台完成"));
+    assert!(last_log.contains(Plugin::Pslist.name()));
+    assert!(last_log.contains("1 条"));
+
+    // Switching back to Pslist reveals the newly bound PID 7 result and its 1-row status.
+    app.key(KeyEvent::new(KeyCode::PageDown, KeyModifiers::CONTROL));
+    assert_result_tab(&app, Plugin::Pslist, &draft_key, "bg-pslist-only");
+    assert!(app.status.contains("1 条"));
+    assert!(!app.status.contains("2 条"));
+}
+
+#[test]
+fn closing_bound_plugin_tab_clears_metadata_without_saving_view_to_draft_key() {
+    let mut app = app();
+    for plugin in [Plugin::Psaux, Plugin::Pslist] {
+        seed_tab(&mut app, plugin);
+    }
+    app.image = Some(app.root.join("missing.raw"));
+    app.analysis_options.pid = Some(42);
+    app.query = "original".into();
+    let original_key = app.request_key();
+    app.request_analysis(true);
+    deliver_outcome(&mut app, Outcome::Choose(vec!["exact-symbol".into()]));
+    app.key(KeyEvent::new(KeyCode::Char(' '), KeyModifiers::NONE));
+    let original = request_result(&app, Plugin::Pslist, "original-result");
+    deliver_outcome(&mut app, Outcome::Ready(original));
+
+    // Edit draft to PID 7 while PID 42 remains bound and active.
+    app.analysis_options.pid = Some(7);
+    let draft_key = app.request_key();
+    let name = Plugin::Pslist.name();
+    let prefix = format!("{name}:");
+    assert!(app.tab_requests.contains_key(name));
+    assert!(app.result_requests.contains_key(name));
+    assert!(app.result_origins.contains_key(&original_key));
+
+    // Closing the active Pslist tab switches to Psaux without writing PID 42's view into draft_key.
+    let pslist_tab = app.active_tab.unwrap();
+    app.close_result_tab(pslist_tab);
+    assert_eq!(app.plugin, Plugin::Psaux);
+    assert!(!app.views.contains_key(&draft_key));
+    assert!(!app.views.keys().any(|key| key.starts_with(&prefix)));
+    assert!(!app.tab_requests.contains_key(name));
+    assert!(!app.result_requests.contains_key(name));
+    assert!(
+        !app.result_origins
+            .keys()
+            .any(|key| key == name || key.starts_with(&prefix))
+    );
+    assert!(
+        !app.results.contains_key(&original_key)
+            && !app.results.contains_key(&draft_key)
+            && !app.results.contains_key(name)
+    );
 }
 
 #[test]

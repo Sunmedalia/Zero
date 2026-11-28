@@ -1195,6 +1195,52 @@ impl App {
             self.focus = Focus::Content;
         }
     }
+    pub(super) fn bind_plugin_request(&mut self, plugin: Plugin, key: String) -> bool {
+        let active =
+            self.history.is_none() && self.active_detail().is_none() && self.plugin == plugin;
+        let switched = active && self.displayed_request_key() != key;
+        if switched {
+            self.save_view();
+        }
+        self.tab_requests.insert(plugin.name(), key);
+        if active {
+            if switched {
+                self.restore_request_view();
+            }
+            self.row = self.row.min(self.visible().len().saturating_sub(1));
+        }
+        active
+    }
+    pub(super) fn refresh_plugin_status(&mut self, plugin: Plugin) {
+        if let Some(result) = self.live_result_shared() {
+            let state = if !self.result_matches_symbol(result) {
+                "旧符号结果"
+            } else if result.complete {
+                "完整"
+            } else {
+                "部分"
+            };
+            self.status = format!(
+                "{} · {} 条 · {state} · {} 条诊断（v） · 本次会话已加载，未重新运行（r 重新分析）",
+                plugin_label(plugin),
+                result.rows.len(),
+                result.diagnostics.len()
+            );
+        } else {
+            self.status = "已选择插件；检查参数后按 Ctrl+R 运行".into();
+        }
+    }
+    pub(super) fn refresh_active_tab_status(&mut self) {
+        if self.history.is_some() {
+            self.status = "导出记录：历史内容，未重新验证镜像".into();
+        } else if let Some(OpenTab::Detail { title, .. }) =
+            self.active_tab.and_then(|i| self.open_tabs.get(i))
+        {
+            self.status = format!("{title} · ↑↓ 滚动 · c 复制");
+        } else {
+            self.refresh_plugin_status(self.plugin);
+        }
+    }
     pub(super) fn select_plugin(&mut self, plugin: Plugin) {
         self.save_view();
         self.select_plugin_after_save(plugin);
@@ -1238,23 +1284,7 @@ impl App {
         self.restore_request_view();
         self.detail_scroll = 0;
         self.focus = Focus::Content;
-        if let Some(result) = self.live_result_shared() {
-            let state = if !self.result_matches_symbol(result) {
-                "旧符号结果"
-            } else if result.complete {
-                "完整"
-            } else {
-                "部分"
-            };
-            self.status = format!(
-                "{} · {} 条 · {state} · {} 条诊断（v） · 本次会话已加载，未重新运行（r 重新分析）",
-                plugin_label(plugin),
-                result.rows.len(),
-                result.diagnostics.len()
-            );
-        } else {
-            self.status = "已选择插件；检查参数后按 Ctrl+R 运行".into();
-        }
+        self.refresh_plugin_status(plugin);
         if plugin.is_dump() && !self.choosing_analysis_symbols() {
             self.open_dump(plugin, false);
         }
@@ -1293,8 +1323,18 @@ impl App {
             }
         }
         // Selecting an existing result is instant; a different parameter draft runs anew.
-        let cached = self.results.get(&self.request_key()).map_or_else(
-            || {
+        let draft_key = self.request_key();
+        let cached = match self.results.shared(&draft_key).cloned() {
+            Some(result) if self.result_matches_symbol(&result) => {
+                self.results.insert(plugin.name().into(), result);
+                self.result_requests
+                    .insert(plugin.name().into(), self.parameter_summary());
+                self.bind_plugin_request(plugin, draft_key);
+                self.refresh_plugin_status(plugin);
+                return;
+            }
+            Some(_) => false,
+            None => {
                 self.results
                     .get(plugin.name())
                     .is_some_and(|r| self.result_matches_symbol(r))
@@ -1302,13 +1342,12 @@ impl App {
                         .result_requests
                         .get(plugin.name())
                         .is_none_or(|parameters| *parameters == self.parameter_summary())
-            },
-            |r| self.result_matches_symbol(r),
-        );
+            }
+        };
         let running = self
             .active_request
             .as_ref()
-            .is_some_and(|request| request.key == self.request_key() && self.job.is_some());
+            .is_some_and(|request| request.key == draft_key && self.job.is_some());
         if !cached && !running && self.image.is_some() {
             self.request_analysis(false);
         } else if !cached && self.image.is_none() {

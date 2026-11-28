@@ -73,10 +73,15 @@ return;
         self.status = "导出记录：历史内容，未重新验证镜像".into();
     }
     pub(super) fn switch_result_tab(&mut self, index: usize) {
+        self.switch_result_tab_inner(index, true);
+    }
+    fn switch_result_tab_inner(&mut self, index: usize, save_current: bool) {
         let Some(tab) = self.open_tabs.get(index).cloned() else {
             return;
         };
-        self.save_view();
+        if save_current {
+            self.save_view();
+        }
         self.active_tab = Some(index);
         match tab {
             OpenTab::Plugin(plugin) => {
@@ -97,6 +102,18 @@ return;
         self.page = Page::Analysis;
         self.focus = Focus::Content;
     }
+    fn clear_plugin_tab_state(&mut self, plugin: Plugin) {
+        let name = plugin.name();
+        let prefix = format!("{name}:");
+        self.tab_requests.remove(name);
+        self.result_requests.remove(name);
+        self.result_origins
+            .retain(|key, _| key != name && !key.starts_with(&prefix));
+        self.results
+            .retain(|key, _| key != name && !key.starts_with(&prefix));
+        self.views
+            .retain(|key, _| key != name && !key.starts_with(&prefix));
+    }
     pub(super) fn next_result_tab(&mut self, back: bool) {
         if self.open_tabs.is_empty() {
             return;
@@ -109,40 +126,35 @@ return;
         if index >= self.open_tabs.len() {
             return;
         }
-        if let Some(OpenTab::Plugin(plugin)) = self.open_tabs.get(index) {
-            if self.job.is_some()
-                && self
-                    .active_request
-                    .as_ref()
-                    .is_some_and(|r| r.plugin == *plugin)
-            {
-                self.status = "请先取消正在运行的插件".into();
-                return;
+        let closed_plugin = match self.open_tabs.get(index) {
+            Some(OpenTab::Plugin(plugin)) => {
+                if self.job.is_some()
+                    && self
+                        .active_request
+                        .as_ref()
+                        .is_some_and(|r| r.plugin == *plugin)
+                {
+                    self.status = "请先取消正在运行的插件".into();
+                    return;
+                }
+                Some(*plugin)
             }
-            let name = plugin.name();
-            self.tab_requests.remove(name);
-            self.results
-                .retain(|key, _| key != name && !key.starts_with(&format!("{name}:")));
-            self.views
-                .retain(|key, _| !key.starts_with(&format!("{name}:")));
-        }
+            _ => None,
+        };
+        let closing_detail = matches!(self.open_tabs.get(index), Some(OpenTab::Detail { .. }));
         let current = self.active_tab.unwrap_or(0);
-        if current == index
-            && matches!(self.open_tabs.get(index), Some(OpenTab::Detail { .. }))
-            && self.open_tabs.len() > 1
-        {
-            let next = if index > 0 { index - 1 } else { 1 };
-            self.switch_result_tab(next);
-            self.open_tabs.remove(index);
-            self.active_tab = Some(if next > index { next - 1 } else { next });
-            return;
-        }
         self.open_tabs.remove(index);
+        if let Some(plugin) = closed_plugin {
+            self.clear_plugin_tab_state(plugin);
+        }
         if self.open_tabs.is_empty() {
             self.active_tab = None;
             self.history = None;
             self.history_source = None;
             self.history_revision += 1;
+            if closed_plugin.is_some() {
+                self.reset_view();
+            }
             self.focus = if self.plugins_collapsed {
                 Focus::Content
             } else {
@@ -150,7 +162,12 @@ return;
             };
             self.status = "已关闭全部页面 · 选择插件后 R 运行".into();
         } else if current == index {
-            self.switch_result_tab(index.min(self.open_tabs.len() - 1));
+            let target = if closing_detail {
+                index.saturating_sub(1)
+            } else {
+                index.min(self.open_tabs.len() - 1)
+            };
+            self.switch_result_tab_inner(target, false);
         } else {
             self.active_tab = Some(if current > index {
                 current - 1
