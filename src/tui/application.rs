@@ -337,6 +337,7 @@ impl App {
             row: 0,
             collapsed: HashSet::new(),
             status: "Space 选用镜像 · Enter 选用并进入分析 · i 导入 · ? 命令面板".into(),
+            worker_status: None,
             logs: VecDeque::new(),
             started: None,
             progress: None,
@@ -1324,13 +1325,35 @@ impl App {
         }
         // Selecting an existing result is instant; a different parameter draft runs anew.
         let draft_key = self.request_key();
+        let request_in_flight = (self.job.is_some()
+            && self
+                .active_request
+                .as_ref()
+                .is_some_and(|request| request.key == draft_key))
+            || self.pending_execution.as_ref().is_some_and(|pending| {
+                Self::request_key_for(pending.plugin, &pending.options, &pending.dump) == draft_key
+            });
+        if request_in_flight {
+            return;
+        }
+        let plugin_in_flight = (self.job.is_some()
+            && self
+                .active_request
+                .as_ref()
+                .is_some_and(|request| request.plugin == plugin))
+            || self
+                .pending_execution
+                .as_ref()
+                .is_some_and(|pending| pending.plugin == plugin);
         let cached = match self.results.shared(&draft_key).cloned() {
             Some(result) if self.result_matches_symbol(&result) => {
-                self.results.insert(plugin.name().into(), result);
-                self.result_requests
-                    .insert(plugin.name().into(), self.parameter_summary());
-                self.bind_plugin_request(plugin, draft_key);
-                self.refresh_plugin_status(plugin);
+                if !plugin_in_flight {
+                    self.results.insert(plugin.name().into(), result);
+                    self.result_requests
+                        .insert(plugin.name().into(), self.parameter_summary());
+                    self.bind_plugin_request(plugin, draft_key);
+                    self.refresh_plugin_status(plugin);
+                }
                 return;
             }
             Some(_) => false,
@@ -1344,11 +1367,7 @@ impl App {
                         .is_none_or(|parameters| *parameters == self.parameter_summary())
             }
         };
-        let running = self
-            .active_request
-            .as_ref()
-            .is_some_and(|request| request.key == draft_key && self.job.is_some());
-        if !cached && !running && self.image.is_some() {
+        if !cached && self.image.is_some() {
             self.request_analysis(false);
         } else if !cached && self.image.is_none() {
             self.status = "尚未选用镜像；1 资源库选用".into();

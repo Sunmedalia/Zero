@@ -156,6 +156,7 @@ impl App {
             self.pending_execution = execution;
             self.pending_work = Some(work);
             self.status = "正在取消；随后执行最后一次请求".into();
+            self.worker_status = Some(self.status.clone());
             return;
         }
         let image = self.image.clone().or_else(|| {
@@ -284,7 +285,13 @@ impl App {
             _ => None,
         };
         self.preparation_lookup = matches!(work, Work::FetchMatched);
-        self.status = "任务启动中".into();
+        let background_analysis = background && matches!(work, Work::Analyze(_));
+        if !background_analysis || self.worker_status.as_deref() == Some(self.status.as_str()) {
+            self.status = "任务启动中".into();
+            self.worker_status = Some(self.status.clone());
+        } else {
+            self.worker_status = None;
+        }
         self.started = Some(Instant::now());
         self.progress = None;
         self.worker = Some(thread::spawn(move || {
@@ -659,6 +666,7 @@ impl App {
                     self.preparation = Preparation::Cancelled;
                 }
                 self.status = "已取消；可重试".into();
+                self.worker_status = Some(self.status.clone());
                 self.console_cancelled();
                 continue;
             }
@@ -904,7 +912,16 @@ impl App {
                     if self.logs.len() > 200 {
                         self.logs.pop_front();
                     }
-                    self.status = s;
+                    let foreground = self.active_request.as_ref().is_none_or(|request| {
+                        self.page == Page::Analysis
+                            && self.history.is_none()
+                            && self.active_detail().is_none()
+                            && self.plugin == request.plugin
+                    });
+                    if foreground || self.worker_status.as_deref() == Some(self.status.as_str()) {
+                        self.status = s;
+                        self.worker_status = Some(self.status.clone());
+                    }
                 }
                 WorkerEvent::KernelDiagnosed(report) => {
                     self.finish_worker();
@@ -1067,23 +1084,28 @@ impl App {
                                 }
                                 active
                             };
+                            let status_owned_by_worker =
+                                self.worker_status.take().as_deref() == Some(self.status.as_str());
                             if active && self.page == Page::Analysis {
                                 self.status = label;
                                 self.focus = Focus::Content;
                             } else {
-                                if self.page == Page::Analysis {
-                                    self.refresh_active_tab_status();
-                                } else if self.last_error.as_deref() != Some(&self.status) {
-                                    self.status = match self.page {
-                                        Page::Cache => {
-                                            "Tab 切换范围/条目 · Enter 打开 · Delete 删除 · x 清理已勾选 · r 刷新"
-                                                .into()
-                                        }
-                                        Page::Assets => {
-                                            "Space 选用 · Enter 选用并进入分析 · ? 命令面板".into()
-                                        }
-                                        Page::Analysis => self.status.clone(),
-                                    };
+                                if status_owned_by_worker {
+                                    if self.page == Page::Analysis {
+                                        self.refresh_active_tab_status();
+                                    } else if self.last_error.as_deref() != Some(&self.status) {
+                                        self.status = match self.page {
+                                            Page::Cache => {
+                                                "Tab 切换范围/条目 · Enter 打开 · Delete 删除 · x 清理已勾选 · r 刷新"
+                                                    .into()
+                                            }
+                                            Page::Assets => {
+                                                "Space 选用 · Enter 选用并进入分析 · ? 命令面板"
+                                                    .into()
+                                            }
+                                            Page::Analysis => self.status.clone(),
+                                        };
+                                    }
                                 }
                                 log_message = Some(format!("后台完成 · {label}"));
                             }

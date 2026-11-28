@@ -837,6 +837,122 @@ fn closing_bound_plugin_tab_clears_metadata_without_saving_view_to_draft_key() {
 }
 
 #[test]
+fn sidebar_click_during_running_rerun_keeps_previous_binding_on_failure_and_cancel() {
+    let (mut app, original_key, draft_key) = rerun_from_bound_result();
+    app.results.get_mut(&draft_key).unwrap().symbol = "exact-symbol".into();
+    app.views.insert(
+        draft_key.clone(),
+        View {
+            query: "old-draft".into(),
+            ..Default::default()
+        },
+    );
+
+    // Clicking the same plugin in the sidebar while PID 7 is running must not adopt the old cache.
+    app.activate_plugin(Plugin::Pslist);
+    assert!(app.job.is_some());
+    assert_eq!(app.active_request.as_ref().unwrap().key, draft_key);
+    assert_result_tab(&app, Plugin::Pslist, &original_key, "original-result");
+    assert_eq!(app.query, "original");
+    assert!(!screen(&render(&app, 140, 35), 140).contains("old-draft-result"));
+
+    deliver_event(&mut app, WorkerEvent::Failed("重跑失败".into()));
+    assert_result_tab(&app, Plugin::Pslist, &original_key, "original-result");
+    assert_eq!(app.query, "original");
+    assert!(!screen(&render(&app, 140, 35), 140).contains("old-draft-result"));
+
+    // Repeat with cancellation after clicking the sidebar during the rerun.
+    app.key(KeyEvent::new(KeyCode::Char('r'), KeyModifiers::CONTROL));
+    assert_eq!(app.active_request.as_ref().unwrap().key, draft_key);
+    app.activate_plugin(Plugin::Pslist);
+    assert_result_tab(&app, Plugin::Pslist, &original_key, "original-result");
+    assert_eq!(app.query, "original");
+    app.cancel();
+    let cancelled = request_result(&app, Plugin::Pslist, "cancelled-result");
+    deliver_outcome(&mut app, Outcome::Ready(cancelled));
+    assert!(app.status.contains("已取消"));
+    assert_result_tab(&app, Plugin::Pslist, &original_key, "original-result");
+    assert_eq!(app.query, "original");
+    let rendered = screen(&render(&app, 140, 35), 140);
+    assert!(!rendered.contains("old-draft-result"));
+    assert!(!rendered.contains("cancelled-result"));
+}
+
+#[test]
+fn sidebar_click_during_running_rerun_updates_binding_only_when_ready() {
+    let (mut app, original_key, draft_key) = rerun_from_bound_result();
+    app.results.get_mut(&draft_key).unwrap().symbol = "exact-symbol".into();
+    app.views.insert(
+        draft_key.clone(),
+        View {
+            query: "fresh-seven".into(),
+            ..Default::default()
+        },
+    );
+
+    // Clicking the sidebar mid-run keeps PID 42 bound until PID 7 finishes with Ready.
+    app.activate_plugin(Plugin::Pslist);
+    assert!(app.job.is_some());
+    assert_result_tab(&app, Plugin::Pslist, &original_key, "original-result");
+    assert_eq!(app.query, "original");
+    assert!(!screen(&render(&app, 140, 35), 140).contains("old-draft-result"));
+
+    app.job.as_ref().unwrap().mark_cached();
+    let mut fresh = request_result(&app, Plugin::Pslist, "fresh-seven-only");
+    fresh.rows.truncate(1);
+    deliver_outcome(&mut app, Outcome::Ready(fresh));
+    assert_result_tab(&app, Plugin::Pslist, &draft_key, "fresh-seven-only");
+    assert_eq!(app.query, "fresh-seven");
+    assert_eq!(app.views[&original_key].query, "original");
+    assert!(app.status.contains("1 条"));
+    assert!(!app.status.contains("2 条"));
+    assert!(app.status.contains("读取缓存"));
+    let rendered = screen(&render(&app, 140, 35), 140);
+    assert!(rendered.contains("fresh-seven-only"));
+    assert!(rendered.contains("缓存读取"));
+    assert!(rendered.contains("1 条"));
+    assert!(!rendered.contains("original-result"));
+    assert!(!rendered.contains("old-draft-result"));
+}
+
+#[test]
+fn background_completion_preserves_foreground_action_feedback_and_logs_completion() {
+    let (mut app, _original_key, draft_key) = rerun_from_bound_result();
+    app.key(KeyEvent::new(KeyCode::PageUp, KeyModifiers::CONTROL));
+    assert_eq!(app.plugin, Plugin::Psaux);
+    app.query = "zsh".into();
+    app.key(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE));
+    assert!(app.query.is_empty());
+    assert_eq!(app.status, "已清除内容筛选");
+
+    // Background progress and completion must preserve foreground action feedback.
+    deliver_event(&mut app, WorkerEvent::Progress("50% 后台解析中".into()));
+    assert_eq!(app.status, "已清除内容筛选");
+
+    app.job.as_ref().unwrap().mark_cached();
+    let mut bg = request_result(&app, Plugin::Pslist, "bg-pslist-only");
+    bg.rows.truncate(1);
+    deliver_outcome(&mut app, Outcome::Ready(bg));
+
+    assert_eq!(app.plugin, Plugin::Psaux);
+    assert_eq!(app.status, "已清除内容筛选");
+    let rendered = screen(&render(&app, 140, 35), 140);
+    assert!(rendered.contains("已清除内容筛选"));
+    assert!(rendered.contains("zsh"));
+    assert!(!rendered.contains("bg-pslist-only"));
+    assert!(!rendered.contains(Plugin::Pslist.name()));
+    let last_log = app.logs.back().expect("background completion logged");
+    assert!(last_log.contains("后台完成"));
+    assert!(last_log.contains(Plugin::Pslist.name()));
+    assert!(last_log.contains("1 条"));
+
+    app.key(KeyEvent::new(KeyCode::PageDown, KeyModifiers::CONTROL));
+    assert_result_tab(&app, Plugin::Pslist, &draft_key, "bg-pslist-only");
+    assert!(app.status.contains("1 条"));
+    assert!(!app.status.contains("2 条"));
+}
+
+#[test]
 fn symbol_choice_marks_other_candidates_stale_and_skips_their_session_cache() {
     let mut app = app();
     let symbols = app.cache.parent().unwrap().join("candidates.zip");
