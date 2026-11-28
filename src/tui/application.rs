@@ -360,6 +360,7 @@ impl App {
             symbol_retry: None,
             preparation_lookup: false,
             parameter_drafts: HashMap::new(),
+            tab_requests: HashMap::new(),
             result_requests: HashMap::new(),
             pending_os: None,
             horizontal: 0,
@@ -860,16 +861,44 @@ impl App {
     pub(super) fn result(&self) -> Option<&Results> {
         self.result_shared().map(|r| &**r)
     }
+    pub(super) fn result_matches_symbol(&self, result: &Results) -> bool {
+        result.symbol.is_empty()
+            || self.choice.as_ref().map_or_else(
+                || {
+                    self.local_matches
+                        .get(&self.symbols)
+                        .is_none_or(|labels| labels.len() <= 1)
+                },
+                |choice| *choice == result.symbol,
+            )
+    }
     /// The displayed result as a shared handle, for work that outlives the
     /// borrow (exports, background view builds) without copying rows.
     pub(super) fn result_shared(&self) -> Option<&Arc<Results>> {
         if self.active_detail().is_some() {
             return None;
         }
-        self.history
-            .as_ref()
-            .or_else(|| self.results.shared(&self.request_key()))
-            .or_else(|| self.results.shared(self.plugin.name()))
+        self.history.as_ref().or_else(|| self.live_result_shared())
+    }
+    pub(super) fn active_plugin_tab(&self) -> Option<Plugin> {
+        match self.active_tab.and_then(|i| self.open_tabs.get(i)) {
+            Some(OpenTab::Plugin(plugin)) if *plugin == self.plugin => Some(*plugin),
+            _ => None,
+        }
+    }
+    pub(super) fn bound_tab_request_key(&self) -> Option<&str> {
+        self.active_plugin_tab()
+            .and_then(|plugin| self.tab_requests.get(plugin.name()))
+            .map(String::as_str)
+    }
+    fn live_result_shared(&self) -> Option<&Arc<Results>> {
+        match self.bound_tab_request_key() {
+            Some(key) => self.results.shared(key),
+            None => self
+                .results
+                .shared(&self.request_key())
+                .or_else(|| self.results.shared(self.plugin.name())),
+        }
     }
     fn index_key(&self, result: Option<&Arc<Results>>) -> ViewKey {
         let tree = if self.history.is_some() {
@@ -1166,8 +1195,57 @@ impl App {
             self.focus = Focus::Content;
         }
     }
+    pub(super) fn bind_plugin_request(&mut self, plugin: Plugin, key: String) -> bool {
+        let active =
+            self.history.is_none() && self.active_detail().is_none() && self.plugin == plugin;
+        let switched = active && self.displayed_request_key() != key;
+        if switched {
+            self.save_view();
+        }
+        self.tab_requests.insert(plugin.name(), key);
+        if active {
+            if switched {
+                self.restore_request_view();
+            }
+            self.row = self.row.min(self.visible().len().saturating_sub(1));
+        }
+        active
+    }
+    pub(super) fn refresh_plugin_status(&mut self, plugin: Plugin) {
+        if let Some(result) = self.live_result_shared() {
+            let state = if !self.result_matches_symbol(result) {
+                "旧符号结果"
+            } else if result.complete {
+                "完整"
+            } else {
+                "部分"
+            };
+            self.status = format!(
+                "{} · {} 条 · {state} · {} 条诊断（v） · 本次会话已加载，未重新运行（r 重新分析）",
+                plugin_label(plugin),
+                result.rows.len(),
+                result.diagnostics.len()
+            );
+        } else {
+            self.status = "已选择插件；检查参数后按 Ctrl+R 运行".into();
+        }
+    }
+    pub(super) fn refresh_active_tab_status(&mut self) {
+        if self.history.is_some() {
+            self.status = "导出记录：历史内容，未重新验证镜像".into();
+        } else if let Some(OpenTab::Detail { title, .. }) =
+            self.active_tab.and_then(|i| self.open_tabs.get(i))
+        {
+            self.status = format!("{title} · ↑↓ 滚动 · c 复制");
+        } else {
+            self.refresh_plugin_status(self.plugin);
+        }
+    }
     pub(super) fn select_plugin(&mut self, plugin: Plugin) {
         self.save_view();
+        self.select_plugin_after_save(plugin);
+    }
+    pub(super) fn select_plugin_after_save(&mut self, plugin: Plugin) {
         self.history_source = None;
         self.page = Page::Analysis;
         self.parameter_drafts
@@ -1205,20 +1283,9 @@ impl App {
         self.history = None;
         self.restore_request_view();
         self.detail_scroll = 0;
-        if let Some(result) = self.results.get(plugin.name()) {
-            self.focus = Focus::Content;
-            self.status = format!(
-                "{} · {} 条 · {} · {} 条诊断（v） · 本次会话已加载，未重新运行（r 重新分析）",
-                plugin_label(plugin),
-                result.rows.len(),
-                if result.complete { "完整" } else { "部分" },
-                result.diagnostics.len()
-            );
-        } else {
-            self.focus = Focus::Content;
-            self.status = "已选择插件；检查参数后按 Ctrl+R 运行".into();
-        }
-        if plugin.is_dump() {
+        self.focus = Focus::Content;
+        self.refresh_plugin_status(plugin);
+        if plugin.is_dump() && !self.choosing_analysis_symbols() {
             self.open_dump(plugin, false);
         }
     }
@@ -1235,8 +1302,9 @@ impl App {
                 })
     }
     pub(super) fn activate_plugin(&mut self, plugin: Plugin) {
-        self.select_plugin(plugin);
+        self.save_view();
         self.ensure_plugin_tab(plugin);
+        self.select_plugin_after_save(plugin);
         self.focus = Focus::Content;
         if plugin.is_dump() {
             return;
@@ -1255,17 +1323,50 @@ impl App {
             }
         }
         // Selecting an existing result is instant; a different parameter draft runs anew.
-        let cached = self.results.contains_key(&self.request_key())
-            || (self.results.contains_key(plugin.name())
-                && self
-                    .result_requests
+        let draft_key = self.request_key();
+        let request_in_flight = (self.job.is_some()
+            && self
+                .active_request
+                .as_ref()
+                .is_some_and(|request| request.key == draft_key))
+            || self.pending_execution.as_ref().is_some_and(|pending| {
+                Self::request_key_for(pending.plugin, &pending.options, &pending.dump) == draft_key
+            });
+        if request_in_flight {
+            return;
+        }
+        let plugin_in_flight = (self.job.is_some()
+            && self
+                .active_request
+                .as_ref()
+                .is_some_and(|request| request.plugin == plugin))
+            || self
+                .pending_execution
+                .as_ref()
+                .is_some_and(|pending| pending.plugin == plugin);
+        let cached = match self.results.shared(&draft_key).cloned() {
+            Some(result) if self.result_matches_symbol(&result) => {
+                if !plugin_in_flight {
+                    self.results.insert(plugin.name().into(), result);
+                    self.result_requests
+                        .insert(plugin.name().into(), self.parameter_summary());
+                    self.bind_plugin_request(plugin, draft_key);
+                    self.refresh_plugin_status(plugin);
+                }
+                return;
+            }
+            Some(_) => false,
+            None => {
+                self.results
                     .get(plugin.name())
-                    .is_none_or(|parameters| *parameters == self.parameter_summary()));
-        let running = self
-            .active_request
-            .as_ref()
-            .is_some_and(|request| request.key == self.request_key() && self.job.is_some());
-        if !cached && !running && self.image.is_some() {
+                    .is_some_and(|r| self.result_matches_symbol(r))
+                    && self
+                        .result_requests
+                        .get(plugin.name())
+                        .is_none_or(|parameters| *parameters == self.parameter_summary())
+            }
+        };
+        if !cached && self.image.is_some() {
             self.request_analysis(false);
         } else if !cached && self.image.is_none() {
             self.status = "尚未选用镜像；1 资源库选用".into();

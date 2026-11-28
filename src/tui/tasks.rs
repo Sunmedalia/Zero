@@ -101,11 +101,34 @@ impl App {
     }
 
     pub(super) fn start_work(&mut self, work: Work) {
-        self.start_work_with(work, None);
+        self.start_work_with(work, None, false);
     }
 
-    pub(super) fn start_work_with(&mut self, work: Work, snapshot: Option<ExecutionSnapshot>) {
-        let background = snapshot.is_some();
+    pub(super) fn start_snapshot(&mut self, request: ExecutionSnapshot) {
+        self.start_work_with(Work::Analyze(request.force), Some(request), true);
+    }
+
+    pub(super) fn retry_analysis(&mut self, request: ExecutionSnapshot) {
+        if self.job.is_some()
+            || self.page != Page::Analysis
+            || self.plugin != request.plugin
+            || self.history.is_some()
+            || self.active_detail().is_some()
+        {
+            self.start_snapshot(request);
+            return;
+        }
+
+        self.start_work_with(Work::Analyze(request.force), Some(request), false);
+    }
+
+    fn start_work_with(
+        &mut self,
+        work: Work,
+        snapshot: Option<ExecutionSnapshot>,
+        background: bool,
+    ) {
+        let from_snapshot = snapshot.is_some();
         let (plugin, analysis_options, dump_options) = match snapshot {
             Some(request) => (request.plugin, request.options, request.dump),
             None => (
@@ -114,7 +137,7 @@ impl App {
                 self.dump_options.clone(),
             ),
         };
-        if !background
+        if !from_snapshot
             && let Work::Analyze(force) = work
             && plugin.is_dump()
             && dump_options.as_ref().is_none_or(|(p, _)| *p != plugin)
@@ -640,6 +663,7 @@ impl App {
                 continue;
             }
             let progress_event = matches!(&event, WorkerEvent::Progress(_));
+            let mut log_message: Option<String> = None;
             match event {
                 WorkerEvent::Tagged(..) => continue,
                 WorkerEvent::Inventory(inventory) => {
@@ -947,7 +971,10 @@ impl App {
                     });
                 }
                 WorkerEvent::Done(outcome) => {
-                    if let Some(job) = &self.job {
+                    let cached = self.job.as_ref().is_some_and(Job::served_from_cache);
+                    if matches!(&outcome, Outcome::Ready(_))
+                        && let Some(job) = &self.job
+                    {
                         let plugin = self
                             .active_request
                             .as_ref()
@@ -987,44 +1014,29 @@ impl App {
                                 selected: 0,
                             });
                         }
-                        Outcome::Ready(result) => {
-                            self.last_error = None;
-                            self.status = format!(
-                                "{} · {} 条 · {}{}",
-                                result.plugin,
-                                result.rows.len(),
-                                if result.complete {
-                                    "完整"
-                                } else {
-                                    "部分结果 / 未缓存"
-                                },
-                                if result.diagnostics.is_empty() {
-                                    String::new()
-                                } else {
-                                    format!(" · {} 条诊断（v 查看）", result.diagnostics.len())
-                                }
-                            );
-                            let execution = self.active_request.take();
-                            let viewing = self.history.is_none()
-                                && execution.as_ref().is_none_or(|r| {
-                                    r.plugin == self.plugin && r.key == self.request_key()
-                                });
-                            // One allocation shared by the request key and the
-                            // plugin key: no row copy on the UI thread.
-                            let result = Arc::new(result);
-                            if let Some(request) = execution {
-                                self.result_requests
-                                    .insert(request.plugin.name().into(), request.parameters);
-                                self.results.insert(request.key, Arc::clone(&result));
+                        Outcome::Ready(mut result) => {
+                            // A digest-keyed engine cache can return the label of an
+                            // identical candidate from a previous run (e.g. an alias).
+                            if cached
+                                && !result.symbol.is_empty()
+                                && let Some(choice) = &self.choice
+                            {
+                                result.symbol.clone_from(choice);
                             }
+                            self.last_error = None;
+                            let execution = self.active_request.take();
+                            let request_key = execution.as_ref().map(|r| r.key.clone());
+                            let origin = request_key
+                                .as_deref()
+                                .and_then(|key| self.result_origins.get(key))
+                                .or_else(|| self.result_origins.get(&result.plugin))
+                                .map(String::as_str)
+                                .unwrap_or("本次会话已加载");
                             let label = format!(
                                 "{} · {} 条 · {} · {}{}",
                                 result.plugin,
                                 result.rows.len(),
-                                self.result_origins
-                                    .get(&result.plugin)
-                                    .map(String::as_str)
-                                    .unwrap_or("本次会话已加载"),
+                                origin,
                                 if result.complete { "完整" } else { "部分" },
                                 if result.diagnostics.is_empty() {
                                     String::new()
@@ -1036,18 +1048,52 @@ impl App {
                                     )
                                 }
                             );
-                            self.results.insert(result.plugin.clone(), result);
-                            self.status = label;
-                            if viewing {
-                                self.row = self.row.min(self.visible().len().saturating_sub(1));
+                            // One allocation shared by the request key and the
+                            // plugin key: no row copy on the UI thread.
+                            let result = Arc::new(result);
+                            self.results
+                                .insert(result.plugin.clone(), Arc::clone(&result));
+                            let active = if let Some(request) = execution {
+                                self.result_requests
+                                    .insert(request.plugin.name().into(), request.parameters);
+                                self.results
+                                    .insert(request.key.clone(), Arc::clone(&result));
+                                self.bind_plugin_request(request.plugin, request.key)
+                            } else {
+                                let active =
+                                    self.history.is_none() && self.active_detail().is_none();
+                                if active {
+                                    self.row = self.row.min(self.visible().len().saturating_sub(1));
+                                }
+                                active
+                            };
+                            if active && self.page == Page::Analysis {
+                                self.status = label;
                                 self.focus = Focus::Content;
+                            } else {
+                                if self.page == Page::Analysis {
+                                    self.refresh_active_tab_status();
+                                } else if self.last_error.as_deref() != Some(&self.status) {
+                                    self.status = match self.page {
+                                        Page::Cache => {
+                                            "Tab 切换范围/条目 · Enter 打开 · Delete 删除 · x 清理已勾选 · r 刷新"
+                                                .into()
+                                        }
+                                        Page::Assets => {
+                                            "Space 选用 · Enter 选用并进入分析 · ? 命令面板".into()
+                                        }
+                                        Page::Analysis => self.status.clone(),
+                                    };
+                                }
+                                log_message = Some(format!("后台完成 · {label}"));
                             }
                         }
                     }
                 }
             }
             if !progress_event {
-                self.logs.push_back(self.status.clone());
+                self.logs
+                    .push_back(log_message.unwrap_or_else(|| self.status.clone()));
                 if self.logs.len() > 200 {
                     self.logs.pop_front();
                 }

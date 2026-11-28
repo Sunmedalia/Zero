@@ -132,7 +132,7 @@ fn crowded_tabs_pan_without_switching_or_squeezing_results() {
         let (rect, _) = hits
             .result_tab_steps
             .iter()
-            .find(|(_, offset)| *offset < before)
+            .find(|(_, offset)| offset.is_some_and(|offset| offset < before))
             .copied()
             .unwrap();
         click(&mut app, rect.x + 1, rect.y);
@@ -144,7 +144,7 @@ fn crowded_tabs_pan_without_switching_or_squeezing_results() {
             .borrow()
             .result_tab_steps
             .iter()
-            .find(|(_, offset)| *offset > app.tab_offset.get())
+            .find(|(_, offset)| offset.is_some_and(|offset| offset > app.tab_offset.get()))
             .copied()
             .unwrap();
         click(&mut app, rect.x + 1, rect.y);

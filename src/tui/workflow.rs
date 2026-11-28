@@ -249,8 +249,13 @@ impl App {
         {
             format!("history:{}", source.display())
         } else {
-            self.request_key()
+            self.displayed_request_key()
         }
+    }
+    pub(super) fn displayed_request_key(&self) -> String {
+        self.bound_tab_request_key()
+            .map(str::to_owned)
+            .unwrap_or_else(|| self.request_key())
     }
     pub(super) fn clear_column_interaction(&mut self) {
         self.column_drag = None;
@@ -282,7 +287,10 @@ impl App {
     /// Restores the saved view of the current plugin request, ignoring any
     /// history source so a live result never picks up a history view.
     pub(super) fn restore_request_view(&mut self) {
-        let view = self.views.remove(&self.request_key()).unwrap_or_default();
+        let view = self
+            .views
+            .remove(&self.displayed_request_key())
+            .unwrap_or_default();
         self.apply_view(view);
     }
     /// Clears the per-view result state (filter, sort, selection, scroll,
@@ -337,11 +345,4 @@ pub(super) struct ExecutionSnapshot {
     pub(super) plugin: Plugin,
     pub(super) options: crate::analysis::Options,
     pub(super) dump: Option<(Plugin, DumpOptions)>,
-}
-
-impl App {
-    pub(super) fn start_snapshot(&mut self, request: ExecutionSnapshot) {
-        let force = request.force;
-        self.start_work_with(Work::Analyze(force), Some(request));
-    }
 }

@@ -1211,6 +1211,10 @@ impl App {
         }
         self.dialog = Some(dialog);
     }
+    pub(super) fn choosing_analysis_symbols(&self) -> bool {
+        matches!(self.dialog, Some(Dialog::Symbols { .. }))
+            && matches!(self.symbol_retry, Some(SymbolRetry::Analysis(_)))
+    }
     pub(super) fn symbols_key(&mut self, mut dialog: Dialog, key: KeyEvent) {
         {
             let Dialog::Symbols { labels, selected } = &mut dialog else {
@@ -1220,7 +1224,12 @@ impl App {
                 KeyCode::Up => *selected = selected.saturating_sub(1),
                 KeyCode::Down => *selected = (*selected + 1).min(labels.len().saturating_sub(1)),
                 KeyCode::Char(' ') if !labels.is_empty() => {
-                    if self.choice.as_ref() != labels.get(*selected) {
+                    let retry = self.symbol_retry.take();
+                    // An analysis retry replaces its result when it completes. Keep open
+                    // result pages and their views available while choosing its symbols.
+                    if self.choice.as_ref() != labels.get(*selected)
+                        && !matches!(retry, Some(SymbolRetry::Analysis(_)))
+                    {
                         self.clear_plugin_tabs();
                         self.results.retain(|key, _| key == Plugin::Banners.name());
                         self.result_requests.clear();
@@ -1231,17 +1240,9 @@ impl App {
                     }
                     self.object_version += 1;
                     self.choice = labels.get(*selected).cloned();
-                    if let Some(request) = self.symbol_retry.take() {
+                    if let Some(request) = retry {
                         match request {
-                            SymbolRetry::Analysis(snapshot) => {
-                                let plugin = snapshot.plugin;
-                                self.start_snapshot(*snapshot);
-                                if self.active_tab.is_none()
-                                    || (self.history.is_none() && self.plugin == plugin)
-                                {
-                                    self.ensure_plugin_tab(plugin);
-                                }
-                            }
+                            SymbolRetry::Analysis(snapshot) => self.retry_analysis(*snapshot),
                             SymbolRetry::Work(work) => match *work {
                                 Work::Inspect(query, tab) => {
                                     self.launch_inspector_query(query, tab)

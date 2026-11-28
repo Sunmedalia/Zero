@@ -185,6 +185,7 @@ fn symbol_retry_registers_and_activates_plugin_tab_after_clearing_tabs() {
     let mut app = app();
     app.image = Some(app.root.join("missing.raw"));
     seed_tab(&mut app, Plugin::Pslist);
+    app.clear_plugin_tabs();
     app.symbol_retry = Some(SymbolRetry::Analysis(Box::new(ExecutionSnapshot {
         force: false,
         plugin: Plugin::Pslist,
@@ -241,6 +242,972 @@ fn queued_run_from_history_only_tabs_registers_plugin_tab_without_changing_view(
     app.cancel();
     app.release_worker(Duration::from_secs(2));
 }
+
+fn deliver_outcome(app: &mut App, outcome: Outcome) {
+    deliver_event(app, WorkerEvent::Done(outcome));
+}
+
+fn deliver_event(app: &mut App, event: WorkerEvent) {
+    if let Some(worker) = app.worker.take() {
+        worker.join().unwrap();
+    }
+    let (sender, receiver) = mpsc::channel();
+    app.receiver = Some(receiver);
+    let events = EventSender {
+        sender,
+        id: app.task_id,
+        version: app.object_version,
+    };
+    assert!(events.send(event));
+    app.drain();
+}
+
+fn request_result(app: &App, plugin: Plugin, name: &str) -> Results {
+    let mut result = app.results.get(Plugin::Pslist.name()).unwrap().clone();
+    result.plugin = plugin.name().into();
+    result.rows[0][3] = name.into();
+    result
+}
+
+fn assert_result_tab(app: &App, plugin: Plugin, key: &str, name: &str) {
+    assert!(matches!(
+        app.active_tab.and_then(|index| app.open_tabs.get(index)),
+        Some(OpenTab::Plugin(active)) if *active == plugin
+    ));
+    assert_eq!(app.plugin, plugin);
+    assert_eq!(app.displayed_request_key(), key);
+    assert_eq!(app.view_key(), key);
+    let stored = app.results.shared(key).unwrap();
+    assert_eq!(stored.plugin, plugin.name());
+    assert_eq!(stored.rows[0][3], name);
+    assert!(Arc::ptr_eq(
+        stored,
+        app.results.shared(plugin.name()).unwrap()
+    ));
+    assert!(Arc::ptr_eq(stored, app.result_shared().unwrap()));
+    assert!(screen(&render(app, 120, 35), 120).contains(name));
+}
+
+#[test]
+fn same_plugin_symbol_retry_restores_the_originating_request_view() {
+    let mut app = app();
+    let plugin = Plugin::Pslist;
+    seed_tab(&mut app, plugin);
+    app.image = Some(app.root.join("missing.raw"));
+    app.analysis_options.pid = Some(42);
+    app.query = "target".into();
+    let width = ColumnKey::new("Name", 0);
+    app.column_widths.insert(width.clone(), 24);
+    let key = app.request_key();
+    app.request_analysis(true);
+
+    // Save the originating view and edit the draft before the choice arrives.
+    app.save_view();
+    app.analysis_options.pid = Some(7);
+    app.query = "other".into();
+    app.column_widths.insert(width.clone(), 12);
+    let draft_key = app.request_key();
+    deliver_outcome(&mut app, Outcome::Choose(vec!["exact-symbol".into()]));
+    app.key(KeyEvent::new(KeyCode::Char(' '), KeyModifiers::NONE));
+    assert_eq!(app.choice.as_deref(), Some("exact-symbol"));
+    assert_eq!(app.active_request.as_ref().unwrap().key, key);
+    assert_eq!(app.analysis_options.pid, Some(7));
+
+    let result = request_result(&app, plugin, "target-retry");
+    deliver_outcome(&mut app, Outcome::Ready(result));
+    assert_result_tab(&app, plugin, &key, "target-retry");
+    assert_eq!(app.query, "target");
+    assert_eq!(app.column_widths.get(&width), Some(&24));
+    assert_eq!(app.views[&draft_key].query, "other");
+    assert!(app.status.contains(plugin.name()));
+}
+
+#[test]
+fn cross_plugin_symbol_retry_preserves_the_browsed_result_tab() {
+    let mut app = app();
+    app.windows = true;
+    let origin = Plugin::WinPslist;
+    let browser = Plugin::WinCmdline;
+    for plugin in [origin, browser] {
+        seed_tab(&mut app, plugin);
+    }
+    app.analysis_options.pid = Some(10);
+    app.query = "zsh".into();
+    let width = ColumnKey::new("Name", 0);
+    app.column_widths.insert(width.clone(), 23);
+    let browser_key = app.request_key();
+    let browsed = app.result_shared().unwrap().clone();
+    app.results.insert(browser_key.clone(), browsed.clone());
+
+    app.key(KeyEvent::new(KeyCode::PageUp, KeyModifiers::CONTROL));
+    app.analysis_options.pid = Some(42);
+    app.query = "target".into();
+    let retry_key = app.request_key();
+    app.image = Some(app.root.join("missing.raw"));
+    app.request_analysis(true);
+    deliver_outcome(&mut app, Outcome::Choose(vec!["exact-symbol".into()]));
+    app.key(KeyEvent::new(KeyCode::PageDown, KeyModifiers::CONTROL));
+    assert_eq!(app.plugin, browser);
+    assert!(app.choosing_analysis_symbols());
+    app.key(KeyEvent::new(KeyCode::PageUp, KeyModifiers::CONTROL));
+    assert_eq!(app.plugin, origin);
+
+    let _terminal = render(&app, 120, 35);
+    let (rect, _, _) = app.hits.borrow().result_tabs[1];
+    click(&mut app, rect.x + 1, rect.y);
+    assert!(app.choosing_analysis_symbols());
+    let browser_tab = app.active_tab;
+    app.key(KeyEvent::new(KeyCode::Char(' '), KeyModifiers::NONE));
+    assert_eq!(app.active_request.as_ref().unwrap().key, retry_key);
+    assert_eq!(app.active_tab, browser_tab);
+    assert_eq!(app.query, "zsh");
+    assert_eq!(app.column_widths.get(&width), Some(&23));
+    assert!(Arc::ptr_eq(&browsed, app.result_shared().unwrap()));
+
+    let result = request_result(&app, origin, "target-cross");
+    deliver_outcome(&mut app, Outcome::Ready(result));
+    assert_eq!(app.active_tab, browser_tab);
+    assert_result_tab(&app, browser, &browser_key, "zsh");
+    app.key(KeyEvent::new(KeyCode::PageUp, KeyModifiers::CONTROL));
+    assert_eq!(app.query, "target");
+    assert_result_tab(&app, origin, &retry_key, "target-cross");
+}
+
+#[test]
+fn background_symbol_retry_restores_execution_view_and_keeps_edited_draft() {
+    let mut app = app();
+    let origin = Plugin::Pslist;
+    let other = Plugin::Psaux;
+    for plugin in [other, origin] {
+        seed_tab(&mut app, plugin);
+    }
+    app.image = Some(app.root.join("missing.raw"));
+    app.analysis_options.pid = Some(42);
+    app.query = "original".into();
+    let column = ColumnKey::new("Name", 0);
+    app.column_widths.insert(column.clone(), 23);
+    let original_key = app.request_key();
+    app.request_analysis(true);
+
+    app.windows_parameters();
+    let Some(Dialog::WindowsParameters { fields, .. }) = &mut app.dialog else {
+        panic!("expected parameter editor");
+    };
+    fields[2] = "7".into();
+    app.key(KeyEvent::new(KeyCode::Enter, KeyModifiers::CONTROL));
+    assert_eq!(app.analysis_options.pid, Some(7));
+    let draft_key = app.request_key();
+    let old_draft = request_result(&app, origin, "old-draft");
+    app.results.insert(draft_key.clone(), old_draft);
+    app.query = "old-draft".into();
+
+    deliver_outcome(&mut app, Outcome::Choose(vec!["exact-symbol".into()]));
+    app.key(KeyEvent::new(KeyCode::PageDown, KeyModifiers::CONTROL));
+    assert_eq!(app.plugin, other);
+    app.key(KeyEvent::new(KeyCode::Char(' '), KeyModifiers::NONE));
+    let result = request_result(&app, origin, "original-retry");
+    deliver_outcome(&mut app, Outcome::Ready(result));
+    assert_eq!(app.plugin, other);
+
+    app.key(KeyEvent::new(KeyCode::PageUp, KeyModifiers::CONTROL));
+    assert_eq!(app.query, "original");
+    assert_eq!(app.column_widths.get(&column), Some(&23));
+    assert_result_tab(&app, origin, &original_key, "original-retry");
+    assert_eq!(app.request_key(), draft_key);
+    assert_eq!(app.analysis_options.pid, Some(7));
+    assert_eq!(app.views[&draft_key].query, "old-draft");
+    app.key(KeyEvent::new(KeyCode::Char('r'), KeyModifiers::CONTROL));
+    assert_eq!(app.active_request.as_ref().unwrap().key, draft_key);
+    assert_eq!(app.query, "original");
+    let draft_result = request_result(&app, origin, "old-draft-updated");
+    deliver_outcome(&mut app, Outcome::Ready(draft_result));
+    assert_result_tab(&app, origin, &draft_key, "old-draft-updated");
+    assert_eq!(app.query, "old-draft");
+    assert!(app.status.contains(origin.name()));
+}
+
+fn rerun_from_bound_result() -> (App, String, String) {
+    let mut app = app();
+    for plugin in [Plugin::Psaux, Plugin::Pslist] {
+        seed_tab(&mut app, plugin);
+    }
+    app.image = Some(app.root.join("missing.raw"));
+    app.analysis_options.pid = Some(42);
+    app.query = "original".into();
+    let original_key = app.request_key();
+    app.request_analysis(true);
+    deliver_outcome(&mut app, Outcome::Choose(vec!["exact-symbol".into()]));
+    app.key(KeyEvent::new(KeyCode::Char(' '), KeyModifiers::NONE));
+    let original = request_result(&app, Plugin::Pslist, "original-result");
+    deliver_outcome(&mut app, Outcome::Ready(original));
+
+    app.windows_parameters();
+    let Some(Dialog::WindowsParameters { fields, .. }) = &mut app.dialog else {
+        panic!("expected parameter editor");
+    };
+    fields[2] = "7".into();
+    app.key(KeyEvent::new(KeyCode::Enter, KeyModifiers::CONTROL));
+    assert_eq!(app.analysis_options.pid, Some(7));
+    let draft_key = app.request_key();
+    let previous_draft = request_result(&app, Plugin::Pslist, "old-draft-result");
+    app.results.insert(draft_key.clone(), previous_draft);
+    app.key(KeyEvent::new(KeyCode::Char('r'), KeyModifiers::CONTROL));
+    assert_eq!(app.active_request.as_ref().unwrap().key, draft_key);
+    (app, original_key, draft_key)
+}
+
+fn assert_previous_result_after_rerun(app: &mut App, original_key: &str, draft_key: &str) {
+    app.key(KeyEvent::new(KeyCode::PageUp, KeyModifiers::CONTROL));
+    assert_eq!(app.plugin, Plugin::Psaux);
+    app.key(KeyEvent::new(KeyCode::PageDown, KeyModifiers::CONTROL));
+    assert_result_tab(app, Plugin::Pslist, original_key, "original-result");
+    assert_eq!(app.query, "original");
+    assert_eq!(app.request_key(), draft_key);
+    assert_eq!(
+        app.results.get(draft_key).unwrap().rows[0][3],
+        "old-draft-result"
+    );
+}
+
+#[test]
+fn failed_rerun_keeps_the_previous_result_tab_binding() {
+    let (mut app, original_key, draft_key) = rerun_from_bound_result();
+    app.views.insert(
+        draft_key.clone(),
+        View {
+            query: "old-draft".into(),
+            ..Default::default()
+        },
+    );
+    deliver_event(&mut app, WorkerEvent::Failed("分析失败".into()));
+    assert_eq!(app.last_error.as_deref(), Some("分析失败"));
+    assert!(app.status.contains("分析失败"));
+    // Without switching tabs, the active tab still displays the last completed result and view.
+    assert_result_tab(&app, Plugin::Pslist, &original_key, "original-result");
+    assert_eq!(app.query, "original");
+    assert!(!screen(&render(&app, 120, 35), 120).contains("old-draft-result"));
+    assert_previous_result_after_rerun(&mut app, &original_key, &draft_key);
+}
+
+#[test]
+fn cancelled_rerun_keeps_the_previous_result_tab_binding() {
+    let (mut app, original_key, draft_key) = rerun_from_bound_result();
+    app.views.insert(
+        draft_key.clone(),
+        View {
+            query: "old-draft".into(),
+            ..Default::default()
+        },
+    );
+    app.cancel();
+    // Even if the worker has already produced rows, cancellation drops them.
+    let cancelled_result = request_result(&app, Plugin::Pslist, "cancelled-result");
+    deliver_outcome(&mut app, Outcome::Ready(cancelled_result));
+    assert!(app.status.contains("已取消"));
+    // Without switching tabs, the active tab still displays the last completed result and view.
+    assert_result_tab(&app, Plugin::Pslist, &original_key, "original-result");
+    assert_eq!(app.query, "original");
+    let rendered = screen(&render(&app, 120, 35), 120);
+    assert!(!rendered.contains("old-draft-result"));
+    assert!(!rendered.contains("cancelled-result"));
+    assert_previous_result_after_rerun(&mut app, &original_key, &draft_key);
+}
+
+#[test]
+fn cancelled_rerun_via_esc_clears_filter_before_cancelling_and_keeps_binding() {
+    let (mut app, original_key, draft_key) = rerun_from_bound_result();
+    let column = ColumnKey::new("Name", 0);
+    app.sort = Some(1);
+    app.column_widths.insert(column.clone(), 24);
+    app.views.insert(
+        draft_key.clone(),
+        View {
+            query: "old-draft".into(),
+            sort: Some(0),
+            ..Default::default()
+        },
+    );
+    let job = app.job.as_ref().unwrap().clone();
+
+    // First Esc clears the active content filter without cancelling the running job.
+    app.key(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE));
+    assert!(app.query.is_empty());
+    assert!(!job.cancel.load(Ordering::Relaxed));
+    assert_eq!(app.sort, Some(1));
+    assert_eq!(app.column_widths.get(&column), Some(&24));
+    assert_result_tab(&app, Plugin::Pslist, &original_key, "original-result");
+
+    // Second Esc cancels the job; late worker output is dropped and PID 42 stays bound.
+    app.key(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE));
+    assert!(job.cancel.load(Ordering::Relaxed));
+    let cancelled_result = request_result(&app, Plugin::Pslist, "cancelled-result");
+    deliver_outcome(&mut app, Outcome::Ready(cancelled_result));
+    assert!(app.status.contains("已取消"));
+    assert_result_tab(&app, Plugin::Pslist, &original_key, "original-result");
+    assert!(app.query.is_empty());
+    assert_eq!(app.sort, Some(1));
+    assert_eq!(app.column_widths.get(&column), Some(&24));
+    let rendered = screen(&render(&app, 120, 35), 120);
+    assert!(!rendered.contains("old-draft-result"));
+    assert!(!rendered.contains("cancelled-result"));
+    assert_eq!(app.request_key(), draft_key);
+}
+
+#[test]
+fn successful_rerun_replaces_the_previous_result_tab_binding() {
+    let (mut app, original_key, draft_key) = rerun_from_bound_result();
+    app.views.insert(
+        draft_key.clone(),
+        View {
+            query: "new-draft".into(),
+            ..Default::default()
+        },
+    );
+    // While running, the active tab stays on the previous completed result and view.
+    assert_result_tab(&app, Plugin::Pslist, &original_key, "original-result");
+    assert_eq!(app.query, "original");
+    app.job.as_ref().unwrap().mark_cached();
+    let mut result = request_result(&app, Plugin::Pslist, "new-draft-result");
+    result.rows.truncate(1);
+    deliver_outcome(&mut app, Outcome::Ready(result));
+    assert_result_tab(&app, Plugin::Pslist, &draft_key, "new-draft-result");
+    assert_eq!(app.query, "new-draft");
+    assert!(app.status.contains("1 条"));
+    assert!(!app.status.contains("2 条"));
+    assert!(app.status.contains("读取缓存"));
+    assert_eq!(app.views[&original_key].query, "original");
+    app.analysis_options.pid = Some(9);
+    app.key(KeyEvent::new(KeyCode::PageUp, KeyModifiers::CONTROL));
+    app.key(KeyEvent::new(KeyCode::PageDown, KeyModifiers::CONTROL));
+    assert_result_tab(&app, Plugin::Pslist, &draft_key, "new-draft-result");
+    assert_eq!(app.query, "new-draft");
+    assert_eq!(app.analysis_options.pid, Some(9));
+}
+
+#[test]
+fn successful_rerun_after_switching_tabs_updates_active_view_and_table() {
+    let (mut app, original_key, draft_key) = rerun_from_bound_result();
+    app.views.insert(
+        draft_key.clone(),
+        View {
+            query: "new-draft".into(),
+            ..Default::default()
+        },
+    );
+    // Switch away and back while the rerun is still in progress.
+    app.key(KeyEvent::new(KeyCode::PageUp, KeyModifiers::CONTROL));
+    assert_eq!(app.plugin, Plugin::Psaux);
+    app.key(KeyEvent::new(KeyCode::PageDown, KeyModifiers::CONTROL));
+    assert_result_tab(&app, Plugin::Pslist, &original_key, "original-result");
+    assert_eq!(app.query, "original");
+
+    deliver_event(&mut app, WorkerEvent::Progress("37% 正在解析".into()));
+    let rendered = screen(&render(&app, 140, 35), 140);
+    assert!(
+        rendered
+            .lines()
+            .any(|line| line.contains("37% ·") && line.contains("正在解析"))
+    );
+
+    // When the rerun succeeds on the active tab, table, view, and status bar all update together.
+    app.job.as_ref().unwrap().mark_cached();
+    let mut result = request_result(&app, Plugin::Pslist, "new-draft-result");
+    result.rows.truncate(1);
+    deliver_outcome(&mut app, Outcome::Ready(result));
+    assert_result_tab(&app, Plugin::Pslist, &draft_key, "new-draft-result");
+    assert_eq!(app.query, "new-draft");
+    assert_eq!(app.views[&original_key].query, "original");
+    assert!(app.status.contains("1 条"));
+    assert!(!app.status.contains("2 条"));
+    assert!(app.status.contains("读取缓存"));
+    let rendered = screen(&render(&app, 140, 35), 140);
+    assert!(rendered.contains("new-draft-result"));
+    assert!(!rendered.contains("original-result"));
+    assert!(rendered.contains("缓存读取"));
+    assert!(rendered.contains("1 条"));
+}
+
+#[test]
+fn queued_rerun_while_staying_on_origin_tab_updates_binding_when_ready() {
+    let (mut app, original_key, _draft_key) = rerun_from_bound_result();
+    app.analysis_options.pid = Some(9);
+    let queued_key = app.request_key();
+    app.views.insert(
+        queued_key.clone(),
+        View {
+            query: "queued-nine".into(),
+            ..Default::default()
+        },
+    );
+    app.key(KeyEvent::new(KeyCode::Char('r'), KeyModifiers::CONTROL));
+    assert!(app.pending_execution.is_some());
+
+    // Finish the cancelled job so the queued snapshot starts while staying on Pslist.
+    let cancelled = request_result(&app, Plugin::Pslist, "cancelled-seven");
+    deliver_outcome(&mut app, Outcome::Ready(cancelled));
+    assert_eq!(app.active_request.as_ref().unwrap().key, queued_key);
+    assert_result_tab(&app, Plugin::Pslist, &original_key, "original-result");
+    assert_eq!(app.query, "original");
+
+    app.job.as_ref().unwrap().mark_cached();
+    let mut queued = request_result(&app, Plugin::Pslist, "queued-nine-result");
+    queued.rows.truncate(1);
+    deliver_outcome(&mut app, Outcome::Ready(queued));
+    assert_result_tab(&app, Plugin::Pslist, &queued_key, "queued-nine-result");
+    assert_eq!(app.query, "queued-nine");
+    assert_eq!(app.views[&original_key].query, "original");
+    assert!(app.status.contains("1 条"));
+    assert!(!app.status.contains("2 条"));
+    assert!(app.status.contains("读取缓存"));
+    let rendered = screen(&render(&app, 140, 35), 140);
+    assert!(rendered.contains("queued-nine-result"));
+    assert!(!rendered.contains("original-result"));
+    assert!(rendered.contains("缓存读取"));
+    assert!(rendered.contains("1 条"));
+}
+
+#[test]
+fn failed_symbol_retry_while_staying_on_origin_tab_keeps_previous_binding() {
+    let (mut app, original_key, draft_key) = rerun_from_bound_result();
+    deliver_outcome(&mut app, Outcome::Choose(vec!["exact-symbol".into()]));
+    app.key(KeyEvent::new(KeyCode::Char(' '), KeyModifiers::NONE));
+    assert_eq!(app.active_request.as_ref().unwrap().key, draft_key);
+    assert_result_tab(&app, Plugin::Pslist, &original_key, "original-result");
+    assert_eq!(app.query, "original");
+
+    deliver_event(&mut app, WorkerEvent::Failed("符号重试失败".into()));
+    assert_eq!(app.last_error.as_deref(), Some("符号重试失败"));
+    assert!(app.status.contains("符号重试失败"));
+    assert_result_tab(&app, Plugin::Pslist, &original_key, "original-result");
+    assert_eq!(app.query, "original");
+    assert!(!screen(&render(&app, 120, 35), 120).contains("old-draft-result"));
+}
+
+#[test]
+fn rerun_completed_away_from_analysis_page_syncs_view_on_return() {
+    let (mut app, original_key, draft_key) = rerun_from_bound_result();
+    // Leave the analysis page while PID 7 is running.
+    app.switch_page(Page::Assets);
+    assert_eq!(app.page, Page::Assets);
+    assert_eq!(app.focus, Focus::Navigation);
+
+    app.job.as_ref().unwrap().mark_cached();
+    let mut result = request_result(&app, Plugin::Pslist, "pid-seven-only");
+    result.rows.truncate(1);
+    deliver_outcome(&mut app, Outcome::Ready(result));
+
+    // Stay on Assets without stealing its focus; log records the completed plugin.
+    assert_eq!(app.page, Page::Assets);
+    assert_eq!(app.focus, Focus::Navigation);
+    let last_log = app.logs.back().expect("background completion logged");
+    assert!(last_log.contains("后台完成"));
+    assert!(last_log.contains(Plugin::Pslist.name()));
+    assert!(last_log.contains("1 条"));
+
+    // Returning to Analysis shows PID 7 with its own view instead of PID 42's filter.
+    app.switch_page(Page::Analysis);
+    assert_result_tab(&app, Plugin::Pslist, &draft_key, "pid-seven-only");
+    assert!(app.query.is_empty());
+    assert_eq!(app.views[&original_key].query, "original");
+    let rendered = screen(&render(&app, 140, 35), 140);
+    assert!(rendered.contains("pid-seven-only"));
+    assert!(rendered.contains("缓存读取"));
+    assert!(!rendered.contains("original-result"));
+}
+
+#[test]
+fn sidebar_cache_hit_adopts_cached_draft_binding_and_view() {
+    let mut app = app();
+    for plugin in [Plugin::Psaux, Plugin::Pslist] {
+        seed_tab(&mut app, plugin);
+    }
+    app.image = Some(app.root.join("missing.raw"));
+    app.analysis_options.pid = Some(42);
+    app.query = "original".into();
+    let original_key = app.request_key();
+    app.request_analysis(true);
+    deliver_outcome(&mut app, Outcome::Choose(vec!["exact-symbol".into()]));
+    app.key(KeyEvent::new(KeyCode::Char(' '), KeyModifiers::NONE));
+    let original = request_result(&app, Plugin::Pslist, "original-result");
+    deliver_outcome(&mut app, Outcome::Ready(original));
+
+    // Edit draft to PID 7 where a symbol-matching cached result and view already exist.
+    app.analysis_options.pid = Some(7);
+    let draft_key = app.request_key();
+    let mut cached = request_result(&app, Plugin::Pslist, "cached-seven-only");
+    cached.symbol = "exact-symbol".into();
+    cached.rows.truncate(1);
+    app.results.insert(draft_key.clone(), cached);
+    app.result_origins
+        .insert(draft_key.clone(), "读取缓存 · 0.0 s".into());
+    app.views.insert(
+        draft_key.clone(),
+        View {
+            query: "seven".into(),
+            ..Default::default()
+        },
+    );
+
+    // Activating Pslist from the sidebar hits the session cache and adopts PID 7 atomically.
+    app.activate_plugin(Plugin::Pslist);
+    assert!(app.job.is_none());
+    assert_result_tab(&app, Plugin::Pslist, &draft_key, "cached-seven-only");
+    assert_eq!(app.query, "seven");
+    assert_eq!(app.views[&original_key].query, "original");
+    assert!(app.status.contains("1 条"));
+    assert!(!app.status.contains("2 条"));
+    let rendered = screen(&render(&app, 140, 35), 140);
+    assert!(rendered.contains("cached-seven-only"));
+    assert!(rendered.contains("缓存读取"));
+    assert!(!rendered.contains("original-result"));
+}
+
+#[test]
+fn background_completion_keeps_active_tab_footer_and_logs_plugin() {
+    let (mut app, _original_key, draft_key) = rerun_from_bound_result();
+    // Switch to Psaux while Pslist (PID 7) is running in the background.
+    app.key(KeyEvent::new(KeyCode::PageUp, KeyModifiers::CONTROL));
+    assert_eq!(app.plugin, Plugin::Psaux);
+    let psaux_status = app.status.clone();
+    assert!(psaux_status.contains("psaux"));
+    assert!(psaux_status.contains("2 条"));
+
+    app.job.as_ref().unwrap().mark_cached();
+    let mut bg = request_result(&app, Plugin::Pslist, "bg-pslist-only");
+    bg.rows.truncate(1);
+    deliver_outcome(&mut app, Outcome::Ready(bg));
+
+    // Active Psaux tab keeps its table, view, and footer status; background completion is logged.
+    assert_eq!(app.plugin, Plugin::Psaux);
+    assert_eq!(app.status, psaux_status);
+    assert!(!app.status.contains(Plugin::Pslist.name()));
+    assert!(!app.status.contains("1 条"));
+    let rendered = screen(&render(&app, 140, 35), 140);
+    assert!(rendered.contains("zsh"));
+    assert!(rendered.contains("psaux"));
+    assert!(!rendered.contains("bg-pslist-only"));
+    assert!(!rendered.contains(Plugin::Pslist.name()));
+    let last_log = app.logs.back().expect("background completion logged");
+    assert!(last_log.contains("后台完成"));
+    assert!(last_log.contains(Plugin::Pslist.name()));
+    assert!(last_log.contains("1 条"));
+
+    // Switching back to Pslist reveals the newly bound PID 7 result and its 1-row status.
+    app.key(KeyEvent::new(KeyCode::PageDown, KeyModifiers::CONTROL));
+    assert_result_tab(&app, Plugin::Pslist, &draft_key, "bg-pslist-only");
+    assert!(app.status.contains("1 条"));
+    assert!(!app.status.contains("2 条"));
+}
+
+#[test]
+fn closing_bound_plugin_tab_clears_metadata_without_saving_view_to_draft_key() {
+    let mut app = app();
+    for plugin in [Plugin::Psaux, Plugin::Pslist] {
+        seed_tab(&mut app, plugin);
+    }
+    app.image = Some(app.root.join("missing.raw"));
+    app.analysis_options.pid = Some(42);
+    app.query = "original".into();
+    let original_key = app.request_key();
+    app.request_analysis(true);
+    deliver_outcome(&mut app, Outcome::Choose(vec!["exact-symbol".into()]));
+    app.key(KeyEvent::new(KeyCode::Char(' '), KeyModifiers::NONE));
+    let original = request_result(&app, Plugin::Pslist, "original-result");
+    deliver_outcome(&mut app, Outcome::Ready(original));
+
+    // Edit draft to PID 7 while PID 42 remains bound and active.
+    app.analysis_options.pid = Some(7);
+    let draft_key = app.request_key();
+    let name = Plugin::Pslist.name();
+    let prefix = format!("{name}:");
+    assert!(app.tab_requests.contains_key(name));
+    assert!(app.result_requests.contains_key(name));
+    assert!(app.result_origins.contains_key(&original_key));
+
+    // Closing the active Pslist tab switches to Psaux without writing PID 42's view into draft_key.
+    let pslist_tab = app.active_tab.unwrap();
+    app.close_result_tab(pslist_tab);
+    assert_eq!(app.plugin, Plugin::Psaux);
+    assert!(!app.views.contains_key(&draft_key));
+    assert!(!app.views.keys().any(|key| key.starts_with(&prefix)));
+    assert!(!app.tab_requests.contains_key(name));
+    assert!(!app.result_requests.contains_key(name));
+    assert!(
+        !app.result_origins
+            .keys()
+            .any(|key| key == name || key.starts_with(&prefix))
+    );
+    assert!(
+        !app.results.contains_key(&original_key)
+            && !app.results.contains_key(&draft_key)
+            && !app.results.contains_key(name)
+    );
+}
+
+#[test]
+fn sidebar_click_during_running_rerun_keeps_previous_binding_on_failure_and_cancel() {
+    let (mut app, original_key, draft_key) = rerun_from_bound_result();
+    app.results.get_mut(&draft_key).unwrap().symbol = "exact-symbol".into();
+    app.views.insert(
+        draft_key.clone(),
+        View {
+            query: "old-draft".into(),
+            ..Default::default()
+        },
+    );
+
+    // Clicking the same plugin in the sidebar while PID 7 is running must not adopt the old cache.
+    app.activate_plugin(Plugin::Pslist);
+    assert!(app.job.is_some());
+    assert_eq!(app.active_request.as_ref().unwrap().key, draft_key);
+    assert_result_tab(&app, Plugin::Pslist, &original_key, "original-result");
+    assert_eq!(app.query, "original");
+    assert!(!screen(&render(&app, 140, 35), 140).contains("old-draft-result"));
+
+    deliver_event(&mut app, WorkerEvent::Failed("重跑失败".into()));
+    assert_result_tab(&app, Plugin::Pslist, &original_key, "original-result");
+    assert_eq!(app.query, "original");
+    assert!(!screen(&render(&app, 140, 35), 140).contains("old-draft-result"));
+
+    // Repeat with cancellation after clicking the sidebar during the rerun.
+    app.key(KeyEvent::new(KeyCode::Char('r'), KeyModifiers::CONTROL));
+    assert_eq!(app.active_request.as_ref().unwrap().key, draft_key);
+    app.activate_plugin(Plugin::Pslist);
+    assert_result_tab(&app, Plugin::Pslist, &original_key, "original-result");
+    assert_eq!(app.query, "original");
+    app.cancel();
+    let cancelled = request_result(&app, Plugin::Pslist, "cancelled-result");
+    deliver_outcome(&mut app, Outcome::Ready(cancelled));
+    assert!(app.status.contains("已取消"));
+    assert_result_tab(&app, Plugin::Pslist, &original_key, "original-result");
+    assert_eq!(app.query, "original");
+    let rendered = screen(&render(&app, 140, 35), 140);
+    assert!(!rendered.contains("old-draft-result"));
+    assert!(!rendered.contains("cancelled-result"));
+}
+
+#[test]
+fn sidebar_click_during_running_rerun_updates_binding_only_when_ready() {
+    let (mut app, original_key, draft_key) = rerun_from_bound_result();
+    app.results.get_mut(&draft_key).unwrap().symbol = "exact-symbol".into();
+    app.views.insert(
+        draft_key.clone(),
+        View {
+            query: "fresh-seven".into(),
+            ..Default::default()
+        },
+    );
+
+    // Clicking the sidebar mid-run keeps PID 42 bound until PID 7 finishes with Ready.
+    app.activate_plugin(Plugin::Pslist);
+    assert!(app.job.is_some());
+    assert_result_tab(&app, Plugin::Pslist, &original_key, "original-result");
+    assert_eq!(app.query, "original");
+    assert!(!screen(&render(&app, 140, 35), 140).contains("old-draft-result"));
+
+    app.job.as_ref().unwrap().mark_cached();
+    let mut fresh = request_result(&app, Plugin::Pslist, "fresh-seven-only");
+    fresh.rows.truncate(1);
+    deliver_outcome(&mut app, Outcome::Ready(fresh));
+    assert_result_tab(&app, Plugin::Pslist, &draft_key, "fresh-seven-only");
+    assert_eq!(app.query, "fresh-seven");
+    assert_eq!(app.views[&original_key].query, "original");
+    assert!(app.status.contains("1 条"));
+    assert!(!app.status.contains("2 条"));
+    assert!(app.status.contains("读取缓存"));
+    let rendered = screen(&render(&app, 140, 35), 140);
+    assert!(rendered.contains("fresh-seven-only"));
+    assert!(rendered.contains("缓存读取"));
+    assert!(rendered.contains("1 条"));
+    assert!(!rendered.contains("original-result"));
+    assert!(!rendered.contains("old-draft-result"));
+}
+
+#[test]
+fn background_completion_after_clearing_filter_keeps_tab_bindings() {
+    let (mut app, _original_key, draft_key) = rerun_from_bound_result();
+    app.key(KeyEvent::new(KeyCode::PageUp, KeyModifiers::CONTROL));
+    assert_eq!(app.plugin, Plugin::Psaux);
+    app.query = "zsh".into();
+    app.key(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE));
+    assert!(app.query.is_empty());
+    deliver_event(&mut app, WorkerEvent::Progress("50% 后台解析中".into()));
+
+    app.job.as_ref().unwrap().mark_cached();
+    let mut bg = request_result(&app, Plugin::Pslist, "bg-pslist-only");
+    bg.rows.truncate(1);
+    deliver_outcome(&mut app, Outcome::Ready(bg));
+
+    assert_eq!(app.plugin, Plugin::Psaux);
+    assert!(app.query.is_empty());
+    let rendered = screen(&render(&app, 140, 35), 140);
+    assert!(rendered.contains("zsh"));
+    assert!(!rendered.contains("bg-pslist-only"));
+    assert!(!rendered.contains(Plugin::Pslist.name()));
+    let last_log = app.logs.back().expect("background completion logged");
+    assert!(last_log.contains("后台完成"));
+    assert!(last_log.contains(Plugin::Pslist.name()));
+    assert!(last_log.contains("1 条"));
+
+    app.key(KeyEvent::new(KeyCode::PageDown, KeyModifiers::CONTROL));
+    assert_result_tab(&app, Plugin::Pslist, &draft_key, "bg-pslist-only");
+    assert!(app.status.contains("1 条"));
+    assert!(!app.status.contains("2 条"));
+}
+
+#[test]
+fn symbol_retry_on_assets_replaces_choice_prompt() {
+    let (mut app, _, _) = rerun_from_bound_result();
+    app.switch_page(Page::Assets);
+    deliver_outcome(
+        &mut app,
+        Outcome::Choose(vec!["exact-symbol".into(), "other-symbol".into()]),
+    );
+    assert!(matches!(app.dialog, Some(Dialog::Symbols { .. })));
+    assert_eq!(app.status, "多个匹配 ISF，必须选择");
+
+    app.key(KeyEvent::new(KeyCode::Char(' '), KeyModifiers::NONE));
+    assert!(app.dialog.is_none());
+    assert_eq!(app.status, "任务启动中");
+    assert!(!screen(&render(&app, 140, 35), 140).contains("多个匹配 ISF，必须选择"));
+    let result = request_result(&app, Plugin::Pslist, "retried-in-background");
+    deliver_outcome(&mut app, Outcome::Ready(result));
+
+    assert_eq!(app.page, Page::Assets);
+    assert_eq!(app.focus, Focus::Navigation);
+    assert_eq!(app.status, "Space 选用 · Enter 选用并进入分析 · ? 命令面板");
+    assert!(!screen(&render(&app, 140, 35), 140).contains("多个匹配 ISF，必须选择"));
+    let log = app.logs.back().unwrap();
+    assert!(log.starts_with("后台完成 · "));
+    assert!(log.contains(Plugin::Pslist.name()));
+}
+
+#[test]
+fn queued_rerun_after_clearing_filter_keeps_active_tab() {
+    let (mut app, _, discarded_key) = rerun_from_bound_result();
+    app.analysis_options.pid = Some(9);
+    let queued_key = app.request_key();
+    app.key(KeyEvent::new(KeyCode::Char('r'), KeyModifiers::CONTROL));
+    assert!(app.pending_execution.is_some());
+    app.key(KeyEvent::new(KeyCode::PageUp, KeyModifiers::CONTROL));
+    app.query = "zsh".into();
+    app.key(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE));
+    assert_eq!(app.plugin, Plugin::Psaux);
+    assert!(app.query.is_empty());
+
+    let discarded = request_result(&app, Plugin::Pslist, "discarded");
+    deliver_outcome(&mut app, Outcome::Ready(discarded));
+    assert_eq!(app.active_request.as_ref().unwrap().key, queued_key);
+    assert_eq!(
+        app.results.get(&discarded_key).unwrap().rows[0][3],
+        "old-draft-result"
+    );
+
+    let queued = request_result(&app, Plugin::Pslist, "queued-in-background");
+    deliver_outcome(&mut app, Outcome::Ready(queued));
+    assert_eq!(app.plugin, Plugin::Psaux);
+    assert!(app.query.is_empty());
+    let log = app.logs.back().unwrap();
+    assert!(log.starts_with("后台完成 · "));
+    assert!(log.contains(Plugin::Pslist.name()));
+
+    app.key(KeyEvent::new(KeyCode::PageDown, KeyModifiers::CONTROL));
+    assert_result_tab(&app, Plugin::Pslist, &queued_key, "queued-in-background");
+}
+
+#[test]
+fn esc_cancels_background_rerun_and_shows_cancelled_footer() {
+    let (mut app, original_key, _) = rerun_from_bound_result();
+    app.key(KeyEvent::new(KeyCode::PageUp, KeyModifiers::CONTROL));
+    assert_eq!(app.plugin, Plugin::Psaux);
+    app.key(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE));
+    assert!(app.job.as_ref().unwrap().cancel.load(Ordering::Relaxed));
+    assert!(screen(&render(&app, 140, 35), 140).contains("正在取消"));
+
+    let discarded = request_result(&app, Plugin::Pslist, "discarded");
+    deliver_outcome(&mut app, Outcome::Ready(discarded));
+    assert!(app.job.is_none());
+    assert_eq!(app.plugin, Plugin::Psaux);
+    assert!(screen(&render(&app, 140, 35), 140).contains("已取消；可重试"));
+    app.key(KeyEvent::new(KeyCode::PageDown, KeyModifiers::CONTROL));
+    assert_result_tab(&app, Plugin::Pslist, &original_key, "original-result");
+}
+
+#[test]
+fn symbol_choice_marks_other_candidates_stale_and_skips_their_session_cache() {
+    let mut app = app();
+    let symbols = app.cache.parent().unwrap().join("candidates.zip");
+    std::fs::write(&symbols, []).unwrap();
+    app.symbols = symbols.canonicalize().unwrap();
+    app.registry
+        .import(&app.symbols, Kind::Symbols, &app.cache)
+        .unwrap();
+    app.refresh_assets();
+    app.local_matches.insert(
+        app.symbols.clone(),
+        vec!["candidate-x".into(), "candidate-y".into()],
+    );
+    app.choice = Some("candidate-x".into());
+    let browser = Plugin::Psaux;
+    seed_tab(&mut app, browser);
+    let mut old = request_result(&app, browser, "old-symbol-row");
+    old.symbol = "candidate-x".into();
+    let browser_key = app.request_key();
+    let old = Arc::new(old);
+    app.results.insert(browser.name().into(), old.clone());
+    app.results.insert(browser_key.clone(), old);
+    let origin = Plugin::Pslist;
+    seed_tab(&mut app, origin);
+    let mut stale = request_result(&app, origin, "old-symbol-row");
+    stale.symbol = "candidate-x".into();
+    app.results.insert(app.request_key(), stale);
+
+    app.switch_page(Page::Assets);
+    app.switch_section(AssetSection::Symbols);
+    app.focus_asset(Kind::Symbols, &app.symbols.clone());
+    assert!(app.use_selected_asset());
+    app.key(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE));
+    assert!(app.choice.is_none());
+    app.switch_page(Page::Analysis);
+    app.image = Some(app.root.join("missing.raw"));
+    app.activate_plugin(browser);
+    assert_eq!(app.active_request.as_ref().unwrap().key, browser_key);
+    deliver_outcome(
+        &mut app,
+        Outcome::Choose(vec!["candidate-x".into(), "candidate-y".into()]),
+    );
+    app.key(KeyEvent::new(KeyCode::PageDown, KeyModifiers::CONTROL));
+    app.key(KeyEvent::new(KeyCode::Down, KeyModifiers::NONE));
+    app.key(KeyEvent::new(KeyCode::Char(' '), KeyModifiers::NONE));
+    let mut fresh = request_result(&app, browser, "new-symbol-row");
+    fresh.symbol = "candidate-y".into();
+    deliver_outcome(&mut app, Outcome::Ready(fresh));
+
+    // An untouched plugin's old rows still render, but its request cannot hit
+    // the session cache under the newly selected candidate.
+    let shown = screen(&render(&app, 140, 35), 140);
+    assert!(shown.contains("candidate-y"));
+    assert!(shown.contains("旧符号结果"));
+    assert!(shown.contains("old-symbol-row"));
+    assert!(!shown.contains("candidate-x"));
+    app.activate_plugin(origin);
+    assert_eq!(app.active_request.as_ref().unwrap().plugin, origin);
+    app.job.as_ref().unwrap().mark_cached();
+    let mut cached_alias = request_result(&app, origin, "reopened-row");
+    cached_alias.symbol = "candidate-x".into();
+    deliver_outcome(&mut app, Outcome::Ready(cached_alias));
+    assert_eq!(app.result().unwrap().symbol, "candidate-y");
+    app.activate_plugin(origin);
+    assert!(app.job.is_none());
+}
+
+#[test]
+fn result_tab_overflow_arrows_keep_symbol_selection_open() {
+    let mut app = app();
+    for plugin in [Plugin::Pslist, Plugin::Psaux, Plugin::Lsmod, Plugin::Maps] {
+        seed_tab(&mut app, plugin);
+    }
+    app.image = Some(app.root.join("missing.raw"));
+    app.switch_result_tab(0);
+    app.request_analysis(true);
+    deliver_outcome(&mut app, Outcome::Choose(vec!["exact-symbol".into()]));
+    let active = app.active_tab;
+    for offset in [1, 0] {
+        let _terminal = render(&app, 80, 28);
+        let (rect, _) = app
+            .hits
+            .borrow()
+            .result_tab_steps
+            .iter()
+            .find(|(_, index)| *index == Some(offset))
+            .copied()
+            .unwrap();
+        click(&mut app, rect.x, rect.y);
+        assert_eq!(app.tab_offset.get(), offset);
+        assert_eq!(app.active_tab, active);
+        assert!(app.choosing_analysis_symbols());
+    }
+}
+
+#[test]
+fn disabled_result_tab_arrows_keep_symbol_selection_open() {
+    let mut app = app();
+    for plugin in [Plugin::Pslist, Plugin::Psaux, Plugin::Lsmod, Plugin::Maps] {
+        seed_tab(&mut app, plugin);
+    }
+    app.image = Some(app.root.join("missing.raw"));
+    app.switch_result_tab(0);
+    app.request_analysis(true);
+    deliver_outcome(
+        &mut app,
+        Outcome::Choose(vec!["candidate-a".into(), "candidate-b".into()]),
+    );
+    app.key(KeyEvent::new(KeyCode::Down, KeyModifiers::NONE));
+    let active = app.active_tab;
+    let _terminal = render(&app, 80, 28);
+
+    for (offset, arrow) in [(0, "<"), (1, ">")] {
+        app.tab_offset.set(offset);
+        let terminal = render(&app, 80, 28);
+        let hits = app.hits.borrow();
+        let y = hits.result_tabs[0].0.y;
+        let x = if offset == 0 {
+            hits.result_tabs[0].0.x - 2
+        } else {
+            hits.result_tabs.last().unwrap().0.right() + 1
+        };
+        drop(hits);
+        assert_eq!(terminal.backend().buffer()[(x, y)].symbol(), arrow);
+        click(&mut app, x, y);
+        assert_eq!(app.tab_offset.get(), offset);
+        assert_eq!(app.active_tab, active);
+        assert!(app.choosing_analysis_symbols());
+        assert!(matches!(
+            app.dialog,
+            Some(Dialog::Symbols { selected: 1, .. })
+        ));
+    }
+}
+
+#[test]
+fn busy_queued_run_stores_its_result_without_activating_the_tab() {
+    let mut app = app();
+    let origin = Plugin::Pslist;
+    let browser = Plugin::Psaux;
+    seed_tab(&mut app, browser);
+    let browser_key = app.request_key();
+    let browsed = app.result_shared().unwrap().clone();
+    app.results.insert(browser_key.clone(), browsed);
+    app.image = Some(app.root.join("missing.raw"));
+
+    // Request a plugin with no tab while another job is active.
+    app.select_plugin(origin);
+    app.analysis_options.pid = Some(42);
+    let queued_key = app.request_key();
+    let job = Job::default();
+    app.job = Some(job.clone());
+    app.key(KeyEvent::new(KeyCode::Char('r'), KeyModifiers::CONTROL));
+    assert!(job.cancel.load(Ordering::Relaxed));
+    assert!(app.pending_execution.is_some());
+    app.switch_result_tab(0);
+    app.query = "zsh".into();
+    let browser_tab = app.active_tab;
+
+    let result = request_result(&app, origin, "cancelled");
+    deliver_outcome(&mut app, Outcome::Ready(result));
+    assert_eq!(app.active_request.as_ref().unwrap().key, queued_key);
+    assert_eq!(app.active_tab, browser_tab);
+    assert!(!app.results.contains_key(&queued_key));
+    assert_result_tab(&app, browser, &browser_key, "zsh");
+
+    let result = request_result(&app, origin, "queued-result");
+    deliver_outcome(&mut app, Outcome::Ready(result));
+    assert_eq!(app.active_tab, browser_tab);
+    assert_result_tab(&app, browser, &browser_key, "zsh");
+    app.key(KeyEvent::new(KeyCode::PageDown, KeyModifiers::CONTROL));
+    assert_result_tab(&app, origin, &queued_key, "queued-result");
+}
+
 #[test]
 fn empty_result_tab_is_reused_and_running_tab_cannot_close() {
     let mut app = app();

@@ -234,7 +234,7 @@ pub(super) struct HitMap {
     pub(super) scrollbars: Vec<scrollbars::Scrollbar>,
     pub(super) asset_rows: Vec<(Rect, AssetSection, usize)>,
     pub(super) result_tabs: Vec<(Rect, Rect, usize)>,
-    pub(super) result_tab_steps: Vec<(Rect, usize)>,
+    pub(super) result_tab_steps: Vec<(Rect, Option<usize>)>,
     pub(super) plugin_toggle: Rect,
     pub(super) cache_scopes: Rect,
     pub(super) cache_items: Rect,
@@ -433,6 +433,8 @@ pub struct App {
     pub(super) symbol_retry: Option<SymbolRetry>,
     pub(super) preparation_lookup: bool,
     pub(super) parameter_drafts: HashMap<String, crate::analysis::Options>,
+    /// The completed request key shown by each plugin result tab.
+    pub(super) tab_requests: HashMap<&'static str, String>,
     pub(super) result_requests: HashMap<String, String>,
     pub(super) pending_os: Option<crate::analysis::Os>,
     pub(super) horizontal: usize,
