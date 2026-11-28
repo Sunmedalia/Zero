@@ -149,7 +149,7 @@ fn queued_ctrl_r_from_history_preserves_current_view_across_tab_and_plugin_switc
     let queued = app.pending_execution.take().expect("queued snapshot");
     app.pending_work = None;
     app.job = None;
-    app.start_snapshot(queued.clone());
+    app.start_snapshot(queued.clone(), false);
     assert_eq!(app.active_tab, history_tab);
     assert!(app.history.is_some());
     assert_eq!(app.query, "hist");
@@ -164,7 +164,7 @@ fn queued_ctrl_r_from_history_preserves_current_view_across_tab_and_plugin_switc
     app.select_plugin(Plugin::Psaux);
     app.column_widths.insert(pid.clone(), 22);
     app.query = "bash".into();
-    app.start_snapshot(queued);
+    app.start_snapshot(queued, false);
     assert_eq!(app.plugin, Plugin::Psaux);
     assert!(app.history.is_none());
     assert_eq!(app.query, "bash");
@@ -229,7 +229,7 @@ fn queued_run_from_history_only_tabs_registers_plugin_tab_without_changing_view(
     app.pending_work = None;
     app.job = None;
 
-    app.start_snapshot(queued);
+    app.start_snapshot(queued, false);
     assert!(
         app.open_tabs
             .iter()
@@ -950,6 +950,105 @@ fn background_completion_preserves_foreground_action_feedback_and_logs_completio
     assert_result_tab(&app, Plugin::Pslist, &draft_key, "bg-pslist-only");
     assert!(app.status.contains("1 条"));
     assert!(!app.status.contains("2 条"));
+}
+
+#[test]
+fn symbol_retry_on_assets_replaces_choice_footer_until_background_completion() {
+    let (mut app, _, _) = rerun_from_bound_result();
+    app.switch_page(Page::Assets);
+    deliver_outcome(
+        &mut app,
+        Outcome::Choose(vec!["exact-symbol".into(), "other-symbol".into()]),
+    );
+    assert!(matches!(app.dialog, Some(Dialog::Symbols { .. })));
+    assert_eq!(app.status, "多个匹配 ISF，必须选择");
+
+    app.key(KeyEvent::new(KeyCode::Char(' '), KeyModifiers::NONE));
+    assert!(app.dialog.is_none());
+    assert_eq!(app.status, "任务启动中");
+    let result = request_result(&app, Plugin::Pslist, "retried-in-background");
+    deliver_outcome(&mut app, Outcome::Ready(result));
+
+    assert_eq!(app.page, Page::Assets);
+    assert_eq!(app.focus, Focus::Navigation);
+    assert_eq!(app.status, "Space 选用 · Enter 选用并进入分析 · ? 命令面板");
+    assert!(!screen(&render(&app, 140, 35), 140).contains("多个匹配 ISF，必须选择"));
+    let log = app.logs.back().unwrap();
+    assert!(log.starts_with("后台完成 · "));
+    assert!(log.contains(Plugin::Pslist.name()));
+    assert!(app.worker_status.is_none());
+}
+
+#[test]
+fn cancelled_queue_handoff_preserves_foreground_filter_feedback() {
+    let (mut app, _, _) = rerun_from_bound_result();
+    app.analysis_options.pid = Some(9);
+    let queued_key = app.request_key();
+    app.key(KeyEvent::new(KeyCode::Char('r'), KeyModifiers::CONTROL));
+    assert!(app.pending_execution.is_some());
+    app.key(KeyEvent::new(KeyCode::PageUp, KeyModifiers::CONTROL));
+    app.query = "zsh".into();
+    app.key(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE));
+    assert_eq!(app.plugin, Plugin::Psaux);
+    assert_eq!(app.status, "已清除内容筛选");
+
+    let discarded = request_result(&app, Plugin::Pslist, "discarded");
+    deliver_outcome(&mut app, Outcome::Ready(discarded));
+    assert_eq!(app.active_request.as_ref().unwrap().key, queued_key);
+    assert_eq!(app.status, "已清除内容筛选");
+    assert!(app.worker_status.is_none());
+
+    deliver_event(&mut app, WorkerEvent::Progress("37% · 后台解析中".into()));
+    let rendered = screen(&render(&app, 140, 35), 140);
+    assert!(rendered.contains("已清除内容筛选"));
+    assert!(!rendered.contains("37%"));
+    let queued = request_result(&app, Plugin::Pslist, "queued-in-background");
+    deliver_outcome(&mut app, Outcome::Ready(queued));
+    assert_eq!(app.plugin, Plugin::Psaux);
+    assert_eq!(app.status, "已清除内容筛选");
+    assert!(screen(&render(&app, 140, 35), 140).contains("已清除内容筛选"));
+    let log = app.logs.back().unwrap();
+    assert!(log.starts_with("后台完成 · "));
+    assert!(log.contains(Plugin::Pslist.name()));
+}
+
+#[test]
+fn failed_worker_releases_progress_footer() {
+    let (mut app, _, _) = rerun_from_bound_result();
+    deliver_event(&mut app, WorkerEvent::Progress("正在分析".into()));
+    assert_eq!(app.status, "正在分析");
+    deliver_event(&mut app, WorkerEvent::Failed("分析失败".into()));
+
+    assert!(app.job.is_none());
+    assert!(app.status.contains("分析失败"));
+    assert!(app.worker_status.is_none());
+}
+
+#[test]
+fn cancelled_worker_releases_footer() {
+    let (mut app, _, _) = rerun_from_bound_result();
+    deliver_event(&mut app, WorkerEvent::Progress("正在分析".into()));
+    app.cancel();
+    let discarded = request_result(&app, Plugin::Pslist, "discarded");
+    deliver_outcome(&mut app, Outcome::Ready(discarded));
+
+    assert!(app.job.is_none());
+    assert_eq!(app.status, "已取消；可重试");
+    assert!(app.worker_status.is_none());
+}
+
+#[test]
+fn abandoning_symbol_choice_restores_assets_footer() {
+    let (mut app, _, _) = rerun_from_bound_result();
+    app.switch_page(Page::Assets);
+    deliver_outcome(&mut app, Outcome::Choose(vec!["exact-symbol".into()]));
+    app.key(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE));
+
+    assert!(app.dialog.is_none());
+    assert!(app.symbol_retry.is_none());
+    assert!(app.job.is_none());
+    assert!(app.worker_status.is_none());
+    assert_eq!(app.status, "Space 选用 · Enter 选用并进入分析 · ? 命令面板");
 }
 
 #[test]

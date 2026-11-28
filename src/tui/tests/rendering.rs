@@ -101,6 +101,7 @@ fn imported_image_automatically_identifies_banner_and_renders_progress() {
     );
     app.started = Some(Instant::now());
     app.progress = Some(42);
+    app.worker_status = Some(app.status.clone());
     terminal.draw(|f| app.draw(f)).unwrap();
     let rendered: String = terminal
         .backend()

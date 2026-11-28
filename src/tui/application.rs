@@ -386,14 +386,7 @@ impl App {
         }
         // Replace the previous page's hint, but never hide a running task or an error.
         if changed && self.job.is_none() && self.last_error.as_deref() != Some(&self.status) {
-            self.status = match page {
-                Page::Cache => {
-                    "Tab 切换范围/条目 · Enter 打开 · Delete 删除 · x 清理已勾选 · r 刷新".into()
-                }
-                Page::Analysis if self.image.is_none() => "尚未选用镜像；1 资源库选用".into(),
-                Page::Analysis => "点击或 Enter 运行插件 · / 筛选 · ? 命令面板".into(),
-                Page::Assets => "Space 选用 · Enter 选用并进入分析 · ? 命令面板".into(),
-            };
+            self.status = self.page_hint().into();
         }
 
         self.focus = if page == Page::Analysis {
@@ -406,6 +399,14 @@ impl App {
         }
         if page != Page::Analysis {
             self.refresh_assets();
+        }
+    }
+    pub(super) fn page_hint(&self) -> &'static str {
+        match self.page {
+            Page::Cache => "Tab 切换范围/条目 · Enter 打开 · Delete 删除 · x 清理已勾选 · r 刷新",
+            Page::Analysis if self.image.is_none() => "尚未选用镜像；1 资源库选用",
+            Page::Analysis => "点击或 Enter 运行插件 · / 筛选 · ? 命令面板",
+            Page::Assets => "Space 选用 · Enter 选用并进入分析 · ? 命令面板",
         }
     }
     pub(super) fn switch_section(&mut self, section: AssetSection) {
