@@ -273,7 +273,14 @@
 <text x="173.6" y="130" fill="#82b4e8" textLength="16.8" lengthAdjust="spacingAndGlyphs">程</text>
 <text x="190.4" y="130" fill="#82b4e8" textLength="16.8" lengthAdjust="spacingAndGlyphs">索</text>
 <text x="207.2" y="130" fill="#82b4e8" textLength="16.8" lengthAdjust="spacingAndGlyphs">引</text>
-<rect x="232.4" y="116" width="856.8" height="18" fill="#151b24"/>
+<rect x="232.4" y="116" width="8.4" height="18" fill="#151b24"/>
+<rect x="240.8" y="116" width="100.8" height="18" fill="#151b24"/>
+<text x="249.2" y="130" fill="#82b4e8" textLength="8.4" lengthAdjust="spacingAndGlyphs">⚙</text>
+<text x="266.0" y="130" fill="#82b4e8" textLength="16.8" lengthAdjust="spacingAndGlyphs">生</text>
+<text x="282.8" y="130" fill="#82b4e8" textLength="16.8" lengthAdjust="spacingAndGlyphs">成</text>
+<text x="299.6" y="130" fill="#82b4e8" textLength="16.8" lengthAdjust="spacingAndGlyphs">符</text>
+<text x="316.4" y="130" fill="#82b4e8" textLength="16.8" lengthAdjust="spacingAndGlyphs">号</text>
+<rect x="341.6" y="116" width="747.6" height="18" fill="#151b24"/>
 <rect x="14.0" y="134" width="8.4" height="18" fill="#151b24"/>
 <text x="14.0" y="148" fill="#82b4e8" textLength="8.4" lengthAdjust="spacingAndGlyphs">╭</text>
 <rect x="22.4" y="134" width="92.4" height="18" fill="#151b24"/>
