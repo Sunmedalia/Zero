@@ -77,7 +77,6 @@ pub(super) struct Execution {
     pub(super) key: String,
     pub(super) parameters: String,
     pub(super) snapshot: ExecutionSnapshot,
-    pub(super) restore_on_tab: bool,
 }
 #[derive(Clone)]
 pub(super) struct EventSender {
@@ -254,8 +253,8 @@ impl App {
         }
     }
     pub(super) fn displayed_request_key(&self) -> String {
-        self.displayed_request
-            .clone()
+        self.bound_tab_request_key()
+            .map(str::to_owned)
             .unwrap_or_else(|| self.request_key())
     }
     pub(super) fn clear_column_interaction(&mut self) {
@@ -346,10 +345,4 @@ pub(super) struct ExecutionSnapshot {
     pub(super) plugin: Plugin,
     pub(super) options: crate::analysis::Options,
     pub(super) dump: Option<(Plugin, DumpOptions)>,
-}
-
-impl ExecutionSnapshot {
-    pub(super) fn key(&self) -> String {
-        App::request_key_for(self.plugin, &self.options, &self.dump)
-    }
 }

@@ -75,7 +75,6 @@ fn storing_a_finished_result_shares_one_allocation_for_both_keys() {
     app.receiver = Some(rx);
     app.job = Some(Job::default());
     app.active_request = Some(Execution {
-        restore_on_tab: false,
         key: "pslist|pid=1".into(),
         plugin: Plugin::Pslist,
         parameters: String::new(),

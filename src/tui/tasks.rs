@@ -128,8 +128,7 @@ impl App {
         snapshot: Option<ExecutionSnapshot>,
         background: bool,
     ) {
-        let restore_on_tab = snapshot.is_some();
-        let snapshot_key = snapshot.as_ref().map(ExecutionSnapshot::key);
+        let from_snapshot = snapshot.is_some();
         let (plugin, analysis_options, dump_options) = match snapshot {
             Some(request) => (request.plugin, request.options, request.dump),
             None => (
@@ -138,7 +137,7 @@ impl App {
                 self.dump_options.clone(),
             ),
         };
-        if !restore_on_tab
+        if !from_snapshot
             && let Work::Analyze(force) = work
             && plugin.is_dump()
             && dump_options.as_ref().is_none_or(|(p, _)| *p != plugin)
@@ -197,18 +196,10 @@ impl App {
         if leaving_history {
             self.save_view();
         }
-        let mut restore_view = leaving_history;
         if matches!(work, Work::Analyze(_)) {
             if background {
                 self.register_plugin_tab(plugin);
             } else {
-                let switched = self.displayed_request_key()
-                    != snapshot_key.clone().unwrap_or_else(|| self.request_key());
-                if switched && !leaving_history {
-                    self.save_view();
-                }
-                self.displayed_request = snapshot_key;
-                restore_view |= switched;
                 self.ensure_plugin_tab(plugin);
             }
         }
@@ -217,7 +208,6 @@ impl App {
             plugin,
             key: Self::request_key_for(plugin, &analysis_options, &dump_options),
             parameters: Self::parameter_summary_for(&analysis_options),
-            restore_on_tab,
             snapshot: ExecutionSnapshot {
                 force: matches!(work, Work::Analyze(true)),
                 plugin,
@@ -278,7 +268,7 @@ impl App {
             self.history_revision += 1;
             self.history = None;
             self.history_source = None;
-            if restore_view {
+            if leaving_history {
                 self.restore_request_view();
             }
         }
@@ -1052,20 +1042,21 @@ impl App {
                             let viewing = self.page == Page::Analysis
                                 && self.history.is_none()
                                 && self.active_detail().is_none()
-                                && execution.as_ref().is_none_or(|r| {
-                                    r.plugin == self.plugin && r.key == self.displayed_request_key()
+                                && execution.as_ref().is_none_or(|r| r.plugin == self.plugin);
+                            let previous_key = viewing.then(|| self.displayed_request_key());
+                            let switched_request = viewing
+                                && execution.as_ref().is_some_and(|r| {
+                                    previous_key.as_deref() != Some(r.key.as_str())
                                 });
+                            if switched_request {
+                                self.save_view();
+                            }
                             // One allocation shared by the request key and the
                             // plugin key: no row copy on the UI thread.
                             let result = Arc::new(result);
                             if let Some(request) = execution {
-                                if request.restore_on_tab
-                                    || !viewing
-                                    || self.tab_requests.contains_key(request.plugin.name())
-                                {
-                                    self.tab_requests
-                                        .insert(request.plugin.name(), request.snapshot);
-                                }
+                                self.tab_requests
+                                    .insert(request.plugin.name(), request.key.clone());
                                 self.result_requests
                                     .insert(request.plugin.name().into(), request.parameters);
                                 self.results.insert(request.key, Arc::clone(&result));
@@ -1092,6 +1083,9 @@ impl App {
                             self.results.insert(result.plugin.clone(), result);
                             self.status = label;
                             if viewing {
+                                if switched_request {
+                                    self.restore_request_view();
+                                }
                                 self.row = self.row.min(self.visible().len().saturating_sub(1));
                                 self.focus = Focus::Content;
                             }

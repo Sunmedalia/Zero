@@ -159,7 +159,6 @@ fn execution_parameters_and_results_survive_browsing_and_keep_separate_views() {
     let key = app.request_key();
     let parameters = app.parameter_summary();
     app.active_request = Some(Execution {
-        restore_on_tab: false,
         plugin: Plugin::Pslist,
         key: key.clone(),
         parameters,

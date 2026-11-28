@@ -150,7 +150,6 @@ impl App {
         };
         if self.windows != windows {
             self.windows = windows;
-            self.displayed_request = None;
             self.plugin = if windows {
                 Plugin::WinPslist
             } else {
@@ -362,7 +361,6 @@ impl App {
             preparation_lookup: false,
             parameter_drafts: HashMap::new(),
             tab_requests: HashMap::new(),
-            displayed_request: None,
             result_requests: HashMap::new(),
             pending_os: None,
             horizontal: 0,
@@ -882,8 +880,19 @@ impl App {
         }
         self.history.as_ref().or_else(|| self.live_result_shared())
     }
+    pub(super) fn active_plugin_tab(&self) -> Option<Plugin> {
+        match self.active_tab.and_then(|i| self.open_tabs.get(i)) {
+            Some(OpenTab::Plugin(plugin)) if *plugin == self.plugin => Some(*plugin),
+            _ => None,
+        }
+    }
+    pub(super) fn bound_tab_request_key(&self) -> Option<&str> {
+        self.active_plugin_tab()
+            .and_then(|plugin| self.tab_requests.get(plugin.name()))
+            .map(String::as_str)
+    }
     fn live_result_shared(&self) -> Option<&Arc<Results>> {
-        match &self.displayed_request {
+        match self.bound_tab_request_key() {
             Some(key) => self.results.shared(key),
             None => self
                 .results
@@ -1187,11 +1196,10 @@ impl App {
         }
     }
     pub(super) fn select_plugin(&mut self, plugin: Plugin) {
-        self.select_plugin_view(plugin, None);
-    }
-    pub(super) fn select_plugin_view(&mut self, plugin: Plugin, request: Option<String>) {
         self.save_view();
-        self.displayed_request = request;
+        self.select_plugin_after_save(plugin);
+    }
+    pub(super) fn select_plugin_after_save(&mut self, plugin: Plugin) {
         self.history_source = None;
         self.page = Page::Analysis;
         self.parameter_drafts
@@ -1264,8 +1272,9 @@ impl App {
                 })
     }
     pub(super) fn activate_plugin(&mut self, plugin: Plugin) {
-        self.select_plugin(plugin);
+        self.save_view();
         self.ensure_plugin_tab(plugin);
+        self.select_plugin_after_save(plugin);
         self.focus = Focus::Content;
         if plugin.is_dump() {
             return;

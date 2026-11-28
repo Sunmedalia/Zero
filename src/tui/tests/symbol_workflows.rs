@@ -849,7 +849,6 @@ fn symbol_retry_keeps_execution_snapshot_after_plugin_browsing() {
         ..Default::default()
     };
     app.active_request = Some(Execution {
-        restore_on_tab: false,
         plugin: Plugin::Pslist,
         key: "original".into(),
         parameters: "PID=42".into(),

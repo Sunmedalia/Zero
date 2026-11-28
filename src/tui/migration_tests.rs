@@ -275,6 +275,7 @@ fn assert_result_tab(app: &App, plugin: Plugin, key: &str, name: &str) {
         Some(OpenTab::Plugin(active)) if *active == plugin
     ));
     assert_eq!(app.plugin, plugin);
+    assert_eq!(app.displayed_request_key(), key);
     assert_eq!(app.view_key(), key);
     let stored = app.results.shared(key).unwrap();
     assert_eq!(stored.plugin, plugin.name());
@@ -311,13 +312,14 @@ fn same_plugin_symbol_retry_restores_the_originating_request_view() {
     assert_eq!(app.choice.as_deref(), Some("exact-symbol"));
     assert_eq!(app.active_request.as_ref().unwrap().key, key);
     assert_eq!(app.analysis_options.pid, Some(7));
-    assert_eq!(app.query, "target");
-    assert_eq!(app.column_widths.get(&width), Some(&24));
-    assert_eq!(app.views[&draft_key].query, "other");
 
     let result = request_result(&app, plugin, "target-retry");
     deliver_outcome(&mut app, Outcome::Ready(result));
     assert_result_tab(&app, plugin, &key, "target-retry");
+    assert_eq!(app.query, "target");
+    assert_eq!(app.column_widths.get(&width), Some(&24));
+    assert_eq!(app.views[&draft_key].query, "other");
+    assert!(app.status.contains(plugin.name()));
 }
 
 #[test]
@@ -416,8 +418,12 @@ fn background_symbol_retry_restores_execution_view_and_keeps_edited_draft() {
     assert_eq!(app.views[&draft_key].query, "old-draft");
     app.key(KeyEvent::new(KeyCode::Char('r'), KeyModifiers::CONTROL));
     assert_eq!(app.active_request.as_ref().unwrap().key, draft_key);
+    assert_eq!(app.query, "original");
+    let draft_result = request_result(&app, origin, "old-draft-updated");
+    deliver_outcome(&mut app, Outcome::Ready(draft_result));
+    assert_result_tab(&app, origin, &draft_key, "old-draft-updated");
     assert_eq!(app.query, "old-draft");
-    app.finish_worker();
+    assert!(app.status.contains(origin.name()));
 }
 
 fn rerun_from_bound_result() -> (App, String, String) {
@@ -466,32 +472,152 @@ fn assert_previous_result_after_rerun(app: &mut App, original_key: &str, draft_k
 #[test]
 fn failed_rerun_keeps_the_previous_result_tab_binding() {
     let (mut app, original_key, draft_key) = rerun_from_bound_result();
+    app.views.insert(
+        draft_key.clone(),
+        View {
+            query: "old-draft".into(),
+            ..Default::default()
+        },
+    );
     deliver_event(&mut app, WorkerEvent::Failed("分析失败".into()));
     assert_eq!(app.last_error.as_deref(), Some("分析失败"));
+    assert!(app.status.contains("分析失败"));
+    // Without switching tabs, the active tab still displays the last completed result and view.
+    assert_result_tab(&app, Plugin::Pslist, &original_key, "original-result");
+    assert_eq!(app.query, "original");
+    assert!(!screen(&render(&app, 120, 35), 120).contains("old-draft-result"));
     assert_previous_result_after_rerun(&mut app, &original_key, &draft_key);
 }
 
 #[test]
 fn cancelled_rerun_keeps_the_previous_result_tab_binding() {
     let (mut app, original_key, draft_key) = rerun_from_bound_result();
-    app.key(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE));
+    app.views.insert(
+        draft_key.clone(),
+        View {
+            query: "old-draft".into(),
+            ..Default::default()
+        },
+    );
+    app.cancel();
     // Even if the worker has already produced rows, cancellation drops them.
     let cancelled_result = request_result(&app, Plugin::Pslist, "cancelled-result");
     deliver_outcome(&mut app, Outcome::Ready(cancelled_result));
     assert!(app.status.contains("已取消"));
+    // Without switching tabs, the active tab still displays the last completed result and view.
+    assert_result_tab(&app, Plugin::Pslist, &original_key, "original-result");
+    assert_eq!(app.query, "original");
+    let rendered = screen(&render(&app, 120, 35), 120);
+    assert!(!rendered.contains("old-draft-result"));
+    assert!(!rendered.contains("cancelled-result"));
     assert_previous_result_after_rerun(&mut app, &original_key, &draft_key);
 }
 
 #[test]
 fn successful_rerun_replaces_the_previous_result_tab_binding() {
-    let (mut app, _, draft_key) = rerun_from_bound_result();
+    let (mut app, original_key, draft_key) = rerun_from_bound_result();
+    app.views.insert(
+        draft_key.clone(),
+        View {
+            query: "new-draft".into(),
+            ..Default::default()
+        },
+    );
+    // While running, the active tab stays on the previous completed result and view.
+    assert_result_tab(&app, Plugin::Pslist, &original_key, "original-result");
+    assert_eq!(app.query, "original");
     let result = request_result(&app, Plugin::Pslist, "new-draft-result");
     deliver_outcome(&mut app, Outcome::Ready(result));
+    assert_result_tab(&app, Plugin::Pslist, &draft_key, "new-draft-result");
+    assert_eq!(app.query, "new-draft");
+    assert!(app.status.contains(Plugin::Pslist.name()));
+    assert_eq!(app.views[&original_key].query, "original");
     app.analysis_options.pid = Some(9);
     app.key(KeyEvent::new(KeyCode::PageUp, KeyModifiers::CONTROL));
     app.key(KeyEvent::new(KeyCode::PageDown, KeyModifiers::CONTROL));
     assert_result_tab(&app, Plugin::Pslist, &draft_key, "new-draft-result");
+    assert_eq!(app.query, "new-draft");
     assert_eq!(app.analysis_options.pid, Some(9));
+}
+
+#[test]
+fn successful_rerun_after_switching_tabs_updates_active_view_and_table() {
+    let (mut app, original_key, draft_key) = rerun_from_bound_result();
+    app.views.insert(
+        draft_key.clone(),
+        View {
+            query: "new-draft".into(),
+            ..Default::default()
+        },
+    );
+    // Switch away and back while the rerun is still in progress.
+    app.key(KeyEvent::new(KeyCode::PageUp, KeyModifiers::CONTROL));
+    assert_eq!(app.plugin, Plugin::Psaux);
+    app.key(KeyEvent::new(KeyCode::PageDown, KeyModifiers::CONTROL));
+    assert_result_tab(&app, Plugin::Pslist, &original_key, "original-result");
+    assert_eq!(app.query, "original");
+
+    // When the rerun succeeds on the active tab, table, view, and status bar all update together.
+    let result = request_result(&app, Plugin::Pslist, "new-draft-result");
+    deliver_outcome(&mut app, Outcome::Ready(result));
+    assert_result_tab(&app, Plugin::Pslist, &draft_key, "new-draft-result");
+    assert_eq!(app.query, "new-draft");
+    assert_eq!(app.views[&original_key].query, "original");
+    let rendered = screen(&render(&app, 140, 35), 140);
+    assert!(rendered.contains("new-draft-result"));
+    assert!(!rendered.contains("original-result"));
+    assert!(app.status.contains(Plugin::Pslist.name()));
+    assert!(rendered.contains(Plugin::Pslist.name()));
+}
+
+#[test]
+fn queued_rerun_while_staying_on_origin_tab_updates_binding_when_ready() {
+    let (mut app, original_key, _draft_key) = rerun_from_bound_result();
+    app.analysis_options.pid = Some(9);
+    let queued_key = app.request_key();
+    app.views.insert(
+        queued_key.clone(),
+        View {
+            query: "queued-nine".into(),
+            ..Default::default()
+        },
+    );
+    app.key(KeyEvent::new(KeyCode::Char('r'), KeyModifiers::CONTROL));
+    assert!(app.pending_execution.is_some());
+
+    // Finish the cancelled job so the queued snapshot starts while staying on Pslist.
+    let cancelled = request_result(&app, Plugin::Pslist, "cancelled-seven");
+    deliver_outcome(&mut app, Outcome::Ready(cancelled));
+    assert_eq!(app.active_request.as_ref().unwrap().key, queued_key);
+    assert_result_tab(&app, Plugin::Pslist, &original_key, "original-result");
+    assert_eq!(app.query, "original");
+
+    let queued = request_result(&app, Plugin::Pslist, "queued-nine-result");
+    deliver_outcome(&mut app, Outcome::Ready(queued));
+    assert_result_tab(&app, Plugin::Pslist, &queued_key, "queued-nine-result");
+    assert_eq!(app.query, "queued-nine");
+    assert_eq!(app.views[&original_key].query, "original");
+    let rendered = screen(&render(&app, 140, 35), 140);
+    assert!(rendered.contains("queued-nine-result"));
+    assert!(!rendered.contains("original-result"));
+    assert!(app.status.contains(Plugin::Pslist.name()));
+}
+
+#[test]
+fn failed_symbol_retry_while_staying_on_origin_tab_keeps_previous_binding() {
+    let (mut app, original_key, draft_key) = rerun_from_bound_result();
+    deliver_outcome(&mut app, Outcome::Choose(vec!["exact-symbol".into()]));
+    app.key(KeyEvent::new(KeyCode::Char(' '), KeyModifiers::NONE));
+    assert_eq!(app.active_request.as_ref().unwrap().key, draft_key);
+    assert_result_tab(&app, Plugin::Pslist, &original_key, "original-result");
+    assert_eq!(app.query, "original");
+
+    deliver_event(&mut app, WorkerEvent::Failed("符号重试失败".into()));
+    assert_eq!(app.last_error.as_deref(), Some("符号重试失败"));
+    assert!(app.status.contains("符号重试失败"));
+    assert_result_tab(&app, Plugin::Pslist, &original_key, "original-result");
+    assert_eq!(app.query, "original");
+    assert!(!screen(&render(&app, 120, 35), 120).contains("old-draft-result"));
 }
 
 #[test]
@@ -677,7 +803,6 @@ fn empty_result_tab_is_reused_and_running_tab_cannot_close() {
     assert_eq!(app.open_tabs.len(), 1);
     app.job = Some(Job::default());
     app.active_request = Some(Execution {
-        restore_on_tab: false,
         plugin: Plugin::Maps,
         key: "maps".into(),
         parameters: String::new(),

@@ -76,28 +76,23 @@ return;
         let Some(tab) = self.open_tabs.get(index).cloned() else {
             return;
         };
+        self.save_view();
+        self.active_tab = Some(index);
         match tab {
             OpenTab::Plugin(plugin) => {
-                let request = self
-                    .tab_requests
-                    .get(plugin.name())
-                    .map(ExecutionSnapshot::key);
-                self.select_plugin_view(plugin, request);
+                self.select_plugin_after_save(plugin);
             }
             OpenTab::Detail { .. } => {
-                self.save_view();
                 self.history = None;
                 self.inspector = false;
             }
             OpenTab::History(path, result) => {
-                self.save_view();
                 self.history_source = Some(path);
                 self.history = Some(result);
                 self.history_revision += 1;
                 self.restore_view();
             }
         }
-        self.active_tab = Some(index);
         self.tab_layout.set(None);
         self.page = Page::Analysis;
         self.focus = Focus::Content;
@@ -145,7 +140,6 @@ return;
         self.open_tabs.remove(index);
         if self.open_tabs.is_empty() {
             self.active_tab = None;
-            self.displayed_request = None;
             self.history = None;
             self.history_source = None;
             self.history_revision += 1;
@@ -168,7 +162,6 @@ return;
     pub(super) fn clear_plugin_tabs(&mut self) {
         self.open_tabs.retain(|t| matches!(t, OpenTab::History(..)));
         self.tab_requests.clear();
-        self.displayed_request = None;
         self.active_tab = None;
     }
     pub(super) fn draw_result_tabs(&self, frame: &mut Frame, area: Rect) {
