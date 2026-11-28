@@ -122,7 +122,13 @@ pub fn inventory(root: &Path) -> Result<Vec<Entry>> {
                 }
                 continue;
             }
-            if !meta.is_file() {
+            if !meta.is_file()
+                || path == root
+                    && matches!(
+                        name.as_str(),
+                        crate::yara_library::REGISTRY_FILE | crate::yara_library::LOCK_FILE
+                    )
+            {
                 continue;
             }
             let scope = if path == root
@@ -266,6 +272,8 @@ mod tests {
         for p in [
             "settings.json",
             "workspace.json",
+            crate::yara_library::REGISTRY_FILE,
+            crate::yara_library::LOCK_FILE,
             "migration/snapshot",
             "credentials/key",
             "export.json",
@@ -289,6 +297,8 @@ mod tests {
         assert!(root.join("migration/snapshot").exists());
         assert!(root.join("settings.json").exists());
         assert!(root.join("workspace.json").exists());
+        assert!(root.join(crate::yara_library::REGISTRY_FILE).exists());
+        assert!(root.join(crate::yara_library::LOCK_FILE).exists());
         assert!(outside.path().join("keep").exists());
         Ok(())
     }

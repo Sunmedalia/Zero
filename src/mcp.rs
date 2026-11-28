@@ -12,6 +12,7 @@ use zero_tui::{
     Job, cache, dump,
     linux::{self, Outcome, Plugin},
     store, symbols,
+    yara_library::{self, YaraLibrarySelection},
 };
 
 const MAX_REQUEST: usize = 1024 * 1024;
@@ -52,6 +53,8 @@ struct AnalyzeArgs {
     pattern: Option<String>,
     yara_file: Option<PathBuf>,
     yara_rules: Option<String>,
+    yara_library: Option<bool>,
+    yara_sets: Option<Vec<String>>,
     strings_file: Option<PathBuf>,
     min_length: Option<i64>,
     pids: Option<Vec<u32>>,
@@ -224,9 +227,14 @@ fn tools() -> Value {
         {"name":"zero_symbols","description":"Identify image banners and exact ISF repository matches. Optional download saves verified symbols locally; refresh forces an online index update.","inputSchema":{"type":"object","properties":{"image":{"type":"string"},"offline":{"type":"boolean"},"download":{"type":"boolean"},"refresh":{"type":"boolean"}},"required":["image"],"additionalProperties":false}},
         {"name":"zero_symbols_generate","description":"Generate and save exact Linux symbols from debug ELF/config, official packages (auto/kali), or embedded BTF and kallsyms (from_image). When needs_candidate is true, retry with a candidate number from candidates and omit refresh.","inputSchema":{"type":"object","properties":{"image":{"type":"string"},"elf":{"type":"string"},"config":{"type":"string"},"kali":{"type":"boolean"},"auto":{"type":"boolean"},"candidate":{"type":"integer","minimum":1},"refresh":{"type":"boolean"},"from_image":{"type":"boolean"},"offline":{"type":"boolean"}},"required":["image"],"additionalProperties":false}},
         {"name":"zero_diagnose","description":"Run offline kernel validation diagnostics for an image and symbol source, optionally exporting JSON or TXT.","inputSchema":{"type":"object","properties":{"image":{"type":"string"},"symbols":{"type":"string"},"symbol_choice":{"type":"string"},"os":{"type":"string","enum":["auto","linux","windows"]},"output":{"type":"string"}},"required":["image"],"additionalProperties":false}},
-        {"name":"zero_analyze","description":"Run a native analysis plugin on a local memory image. Returns at most 200 rows and may export all rows to JSON/CSV. Returns result_id; use zero_results for subsequent pages.","inputSchema":{"type":"object","properties":{"image":{"type":"string"},"plugin":{"type":"string","description":"Plugin name or alias as listed by zero_plugins"},"os":{"type":"string","enum":["auto","linux","windows"]},"arch":{"type":"string","enum":["auto","x86","x64","arm64"]},"pagefiles":{"type":"array","items":{"type":"object","properties":{"index":{"type":"integer","minimum":0,"maximum":15},"path":{"type":"string"}},"required":["index","path"],"additionalProperties":false}},"swapfile":{"type":"string"},"pid":{"type":"integer","minimum":0},"include_threads":{"type":"boolean"},"decorate_comm":{"type":"boolean"},"plain_taints":{"type":"boolean"},"files_only":{"type":"boolean","description":"linux.lsof.full: include only regular files"},"netns":{"type":"integer","minimum":0,"description":"linux.sockstat.full: filter by network namespace inode"},"hexdump_size":{"type":"integer","minimum":0,"maximum":4096,"description":"linux.malfind.full: bytes per hexdump/disasm preview (default 64)"},"show_all_dirty_pages":{"type":"boolean","description":"linux.malfind.full: show every dirty page in executable VMAs flagged by their page tables"},"mntns":{"type":"integer","minimum":0,"description":"linux.mountinfo.full: filter by mount namespace inode"},"mount_format":{"type":"boolean","description":"linux.mountinfo.full: concise mount summary format"},"file_types":{"type":"array","maxItems":16,"items":{"type":"string"},"description":"linux.pagecache.files: inode types to include (e.g. REG, DIR)"},"find":{"type":"string","description":"linux.pagecache.files: path substring filter"},"core":{"type":"boolean"},"modules":{"type":"boolean"},"ftrace":{"type":"boolean"},"bpf":{"type":"boolean"},"hive":{"type":"string"},"key":{"type":"string"},"min_length":{"type":"integer","description":"windows.truecrypt.passphrase: minimum cached length (default 5)"},"strings_file":{"type":"string","description":"windows.strings: local decimal-offset strings output file"},"pattern":{"type":"string","description":"linux.vmaregexscan/windows.vadregexscan: byte regex; YARA scan plugins (yarascan/vmayarascan/vadyarascan): literal text, wide:TEXT or hex:4d5a??00"},"yara_file":{"type":"string","description":"Local YARA rule file (.yar/.yara) or directory for linux.yarascan/windows.yarascan/linux.vmayarascan/windows.vadyarascan"},"yara_rules":{"type":"string","description":"Inline YARA rule source text for linux.yarascan/windows.yarascan/linux.vmayarascan/windows.vadyarascan"},"pids":{"type":"array","maxItems":4096,"items":{"type":"integer","minimum":0},"description":"PID list for linux.*.full / linux.vmaregexscan / linux.pscallstack / windows.strings / windows.vadregexscan / windows.vadwalk / windows.pebmasquerade"},"unresolved":{"type":"boolean","description":"linux.pscallstack: include unresolved nonzero stack words"},"source":{"type":"string","enum":["kernel","processes"],"description":"windows.pe_symbols module source"},"module":{"type":"string","description":"windows.pe_symbols module filename"},"symbol_names":{"type":"array","maxItems":4096,"items":{"type":"string"}},"addresses":{"type":"array","maxItems":4096,"items":{"type":"string"},"description":"windows.pe_symbols / linux.maps.full absolute addresses, decimal or 0x"},"maxsize":{"type":"integer","description":"Compatibility option for linux.vmaregexscan/windows.vadregexscan, or max dump size for linux.maps.full / linux.malfind.full"},"symbols":{"type":"string"},"symbol_choice":{"type":"string"},"offline":{"type":"boolean"},"no_cache":{"type":"boolean"},"limit":{"type":"integer","minimum":1,"maximum":200},"output":{"type":"string"},"dump_dir":{"type":"string","description":"Optional binary export directory for listing plugins that support dump (linux.maps.full, linux.malfind.full, linux.elfs.full, linux.lsmod, linux.fbdev, windows.memmap)"}},"required":["image","plugin"],"additionalProperties":false}},
+        {"name":"zero_analyze","description":"Run a native analysis plugin on a local memory image. Returns at most 200 rows and may export all rows to JSON/CSV. Returns result_id; use zero_results for subsequent pages.","inputSchema":{"type":"object","properties":{"image":{"type":"string"},"plugin":{"type":"string","description":"Plugin name or alias as listed by zero_plugins"},"os":{"type":"string","enum":["auto","linux","windows"]},"arch":{"type":"string","enum":["auto","x86","x64","arm64"]},"pagefiles":{"type":"array","items":{"type":"object","properties":{"index":{"type":"integer","minimum":0,"maximum":15},"path":{"type":"string"}},"required":["index","path"],"additionalProperties":false}},"swapfile":{"type":"string"},"pid":{"type":"integer","minimum":0},"include_threads":{"type":"boolean"},"decorate_comm":{"type":"boolean"},"plain_taints":{"type":"boolean"},"files_only":{"type":"boolean","description":"linux.lsof.full: include only regular files"},"netns":{"type":"integer","minimum":0,"description":"linux.sockstat.full: filter by network namespace inode"},"hexdump_size":{"type":"integer","minimum":0,"maximum":4096,"description":"linux.malfind.full: bytes per hexdump/disasm preview (default 64)"},"show_all_dirty_pages":{"type":"boolean","description":"linux.malfind.full: show every dirty page in executable VMAs flagged by their page tables"},"mntns":{"type":"integer","minimum":0,"description":"linux.mountinfo.full: filter by mount namespace inode"},"mount_format":{"type":"boolean","description":"linux.mountinfo.full: concise mount summary format"},"file_types":{"type":"array","maxItems":16,"items":{"type":"string"},"description":"linux.pagecache.files: inode types to include (e.g. REG, DIR)"},"find":{"type":"string","description":"linux.pagecache.files: path substring filter"},"core":{"type":"boolean"},"modules":{"type":"boolean"},"ftrace":{"type":"boolean"},"bpf":{"type":"boolean"},"hive":{"type":"string"},"key":{"type":"string"},"min_length":{"type":"integer","description":"windows.truecrypt.passphrase: minimum cached length (default 5)"},"strings_file":{"type":"string","description":"windows.strings: local decimal-offset strings output file"},"pattern":{"type":"string","description":"linux.vmaregexscan/windows.vadregexscan: byte regex; YARA scan plugins (yarascan/vmayarascan/vadyarascan): literal text, wide:TEXT or hex:4d5a??00"},"yara_file":{"type":"string","description":"Local YARA rule file (.yar/.yara) or directory for linux.yarascan/windows.yarascan/linux.vmayarascan/windows.vadyarascan"},"yara_rules":{"type":"string","description":"Inline YARA rule source text for linux.yarascan/windows.yarascan/linux.vmayarascan/windows.vadyarascan"},"yara_library":{"type":"boolean","description":"使用全部已启用的 YARA 规则集"},"yara_sets":{"type":"array","minItems":1,"items":{"type":"string"},"description":"指定已启用的 YARA 规则集名称"},"pids":{"type":"array","maxItems":4096,"items":{"type":"integer","minimum":0},"description":"PID list for linux.*.full / linux.vmaregexscan / linux.pscallstack / windows.strings / windows.vadregexscan / windows.vadwalk / windows.pebmasquerade"},"unresolved":{"type":"boolean","description":"linux.pscallstack: include unresolved nonzero stack words"},"source":{"type":"string","enum":["kernel","processes"],"description":"windows.pe_symbols module source"},"module":{"type":"string","description":"windows.pe_symbols module filename"},"symbol_names":{"type":"array","maxItems":4096,"items":{"type":"string"}},"addresses":{"type":"array","maxItems":4096,"items":{"type":"string"},"description":"windows.pe_symbols / linux.maps.full absolute addresses, decimal or 0x"},"maxsize":{"type":"integer","description":"Compatibility option for linux.vmaregexscan/windows.vadregexscan, or max dump size for linux.maps.full / linux.malfind.full"},"symbols":{"type":"string"},"symbol_choice":{"type":"string"},"offline":{"type":"boolean"},"no_cache":{"type":"boolean"},"limit":{"type":"integer","minimum":1,"maximum":200},"output":{"type":"string"},"dump_dir":{"type":"string","description":"Optional binary export directory for listing plugins that support dump (linux.maps.full, linux.malfind.full, linux.elfs.full, linux.lsmod, linux.fbdev, windows.memmap)"}},"required":["image","plugin"],"additionalProperties":false}},
         {"name":"zero_results","description":"Read or export an immutable analysis snapshot. Does not run analysis; expired IDs require a new zero_analyze call.","inputSchema":{"type":"object","properties":{"result_id":{"type":"string"},"offset":{"type":"integer","minimum":0},"limit":{"type":"integer","minimum":1,"maximum":200},"output":{"type":"string"}},"required":["result_id"],"additionalProperties":false}},
         {"name":"zero_dump","description":"Export one process, one PID address range, or ELF mappings to a local directory with a JSON/CSV manifest. Requires explicit paths and a PID for process modes; kernel-module uses start as the struct module address; lsmod exports listed Linux module ELFs without a PID or address range; framebuffer dumps fbdev buffers, optionally selected by fb_info start; memmap exports Windows process physical pages by PID.","inputSchema":{"type":"object","properties":{"image":{"type":"string"},"symbols":{"type":"string"},"symbol_choice":{"type":"string"},"os":{"type":"string","enum":["auto","linux","windows"]},"arch":{"type":"string","enum":["auto","x86","x64","arm64"]},"pagefiles":{"type":"array","items":{"type":"object","properties":{"index":{"type":"integer","minimum":0,"maximum":15},"path":{"type":"string"}},"required":["index","path"],"additionalProperties":false}},"swapfile":{"type":"string"},"mode":{"type":"string","enum":["process","range","elf","pe","vad","dll","module","kernel-module","lsmod","framebuffer","files","memmap"]},"pid":{"type":"integer","minimum":0},"dump_dir":{"type":"string"},"output":{"type":"string"},"start":{"type":"string"},"end":{"type":"string"},"offline":{"type":"boolean"}},"required":["image","mode","dump_dir","output"],"additionalProperties":false}},
+        {"name":"zero_yara_library_list","description":"列出本地 YARA 规则集和最近的校验结果。","inputSchema":{"type":"object","properties":{},"additionalProperties":false}},
+        {"name":"zero_yara_library_add","description":"登记并启用本地 YARA 规则集。","inputSchema":{"type":"object","properties":{"name":{"type":"string","pattern":"^[A-Za-z0-9_-]+$"},"path":{"type":"string"}},"required":["name","path"],"additionalProperties":false}},
+        {"name":"zero_yara_library_remove","description":"移除 YARA 规则集的登记信息。","inputSchema":{"type":"object","properties":{"name":{"type":"string"}},"required":["name"],"additionalProperties":false}},
+        {"name":"zero_yara_library_set_enabled","description":"启用或停用 YARA 规则集。","inputSchema":{"type":"object","properties":{"name":{"type":"string"},"enabled":{"type":"boolean"}},"required":["name","enabled"],"additionalProperties":false}},
+        {"name":"zero_yara_library_check","description":"编译校验指定或全部 YARA 规则集，并登记规则数、摘要及错误或警告。","inputSchema":{"type":"object","properties":{"name":{"type":"string"}},"additionalProperties":false}},
         {"name":"zero_cache_list","description":"Inspect regenerable local cache without deleting it.","inputSchema":{"type":"object","properties":{},"additionalProperties":false}},
         {"name":"zero_dossier","description":"Correlate all relevant process-centric plugins (lineage, cmdline, envars, open files/handles, sockets/netscan, memory maps/VADs, malfind, shell history) for a single PID into a structured Process Dossier with coverage diagnostics.","inputSchema":{"type":"object","properties":{"image":{"type":"string"},"pid":{"type":"integer","minimum":0},"symbols":{"type":"string"},"symbol_choice":{"type":"string"},"os":{"type":"string","enum":["auto","linux","windows"]},"arch":{"type":"string","enum":["auto","x86","x64","arm64"]},"offline":{"type":"boolean"},"no_cache":{"type":"boolean"},"output":{"type":"string"}},"required":["image","pid"],"additionalProperties":false}},
         {"name":"zero_triage","description":"Run a multi-plugin forensic triage playbook (auto, linux-quick, windows-quick) and aggregate structural signals by entity (PID) and kernel subsystem.","inputSchema":{"type":"object","properties":{"image":{"type":"string"},"playbook":{"type":"string","enum":["auto","linux-quick","windows-quick"]},"symbols":{"type":"string"},"symbol_choice":{"type":"string"},"os":{"type":"string","enum":["auto","linux","windows"]},"arch":{"type":"string","enum":["auto","x86","x64","arm64"]},"offline":{"type":"boolean"},"no_cache":{"type":"boolean"},"output":{"type":"string"}},"required":["image"],"additionalProperties":false}},
@@ -257,6 +265,66 @@ fn call(
                 "missing_build_tools": missing,
                 "symbols_generate_ready": missing.is_empty()
             }))
+        }
+        "zero_yara_library_list" => {
+            let _: EmptyArgs = serde_json::from_value(args)?;
+            Ok(json!({"sets": yara_library::yara_library_list(&root.join(".zero/rust"))?}))
+        }
+        "zero_yara_library_add" => {
+            #[derive(Deserialize)]
+            #[serde(deny_unknown_fields)]
+            struct Args {
+                name: String,
+                path: PathBuf,
+            }
+            let a: Args = serde_json::from_value(args)?;
+            Ok(serde_json::to_value(yara_library::yara_library_add(
+                &root.join(".zero/rust"),
+                &a.name,
+                &path(root, &a.path),
+            )?)?)
+        }
+        "zero_yara_library_remove" => {
+            #[derive(Deserialize)]
+            #[serde(deny_unknown_fields)]
+            struct Args {
+                name: String,
+            }
+            let a: Args = serde_json::from_value(args)?;
+            Ok(serde_json::to_value(yara_library::yara_library_remove(
+                &root.join(".zero/rust"),
+                &a.name,
+            )?)?)
+        }
+        "zero_yara_library_set_enabled" => {
+            #[derive(Deserialize)]
+            #[serde(deny_unknown_fields)]
+            struct Args {
+                name: String,
+                enabled: bool,
+            }
+            let a: Args = serde_json::from_value(args)?;
+            Ok(serde_json::to_value(
+                yara_library::yara_library_set_enabled(
+                    &root.join(".zero/rust"),
+                    &a.name,
+                    a.enabled,
+                )?,
+            )?)
+        }
+        "zero_yara_library_check" => {
+            #[derive(Deserialize)]
+            #[serde(deny_unknown_fields)]
+            struct Args {
+                name: Option<String>,
+            }
+            let a: Args = serde_json::from_value(args)?;
+            let checked =
+                yara_library::yara_library_check(&root.join(".zero/rust"), a.name.as_deref(), job)?;
+            let valid = checked
+                .iter()
+                .all(|set| set.last_check.as_ref().is_some_and(|r| r.error.is_none()));
+            Ok(json!({"valid": valid, "sets": checked}))
         }
         "zero_cache_list" => Ok(serde_json::to_value(cache::inventory(
             &root.join(".zero/rust"),
@@ -452,6 +520,16 @@ fn call(
                 "zero_analyze 不再接受 offset；首次分析后使用 zero_results(result_id, offset, limit) 翻页"
             );
             let a: AnalyzeArgs = serde_json::from_value(args)?;
+            let all_enabled = a.yara_library.unwrap_or(false);
+            ensure!(
+                !all_enabled || a.yara_sets.is_none(),
+                "yara_library 和 yara_sets 互斥"
+            );
+            let yara_library = if all_enabled {
+                Some(YaraLibrarySelection::AllEnabled)
+            } else {
+                a.yara_sets.map(YaraLibrarySelection::Named)
+            };
             let plugin = Plugin::from_str(&a.plugin, true).map_err(anyhow::Error::msg)?;
             ensure!(!plugin.is_dump(), "转储请调用 zero_dump");
             let limit = a.limit.unwrap_or(50);
@@ -575,6 +653,7 @@ fn call(
                     pattern: a.pattern,
                     yara_file: a.yara_file.map(|p| path(root, &p)),
                     yara_rules: a.yara_rules,
+                    yara_library,
                     strings_file: a.strings_file.map(|p| path(root, &p)),
                     min_length: a.min_length,
                     pids: a.pids.unwrap_or_default(),

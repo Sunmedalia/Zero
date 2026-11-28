@@ -98,6 +98,7 @@ pub struct CompiledRules {
     source: String,
     digest: String,
     file_count: usize,
+    library: bool,
 }
 impl std::fmt::Debug for CompiledRules {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -140,6 +141,7 @@ impl YaraSpec {
             source: "inline".into(),
             digest,
             file_count: 1,
+            library: false,
         }))
     }
 
@@ -207,6 +209,7 @@ impl YaraSpec {
             source: format!("file:{}", path.display()),
             digest,
             file_count: files.len(),
+            library: false,
         }))
     }
 
@@ -892,6 +895,480 @@ pub fn physical_results(
             "coverage": scan.coverage,
         }),
     })
+}
+
+#[derive(Default)]
+pub(crate) struct LibrarySourceLimits {
+    files: usize,
+    bytes: u64,
+}
+
+pub(crate) struct LibrarySources {
+    name: String,
+    root: PathBuf,
+    entries: Vec<PathBuf>,
+    files: std::collections::BTreeMap<PathBuf, LibrarySource>,
+}
+
+struct LibrarySource {
+    bytes: Vec<u8>,
+    includes: Vec<(std::ops::Range<usize>, PathBuf)>,
+}
+
+pub(crate) struct CompiledLibrary {
+    pub(crate) spec: YaraSpec,
+    pub(crate) rule_count: usize,
+    pub(crate) sha256: String,
+    pub(crate) warnings: Vec<String>,
+}
+
+pub(crate) fn is_library_rule_file(path: &Path) -> bool {
+    path.extension()
+        .and_then(|ext| ext.to_str())
+        .is_some_and(|ext| ext.eq_ignore_ascii_case("yar") || ext.eq_ignore_ascii_case("yara"))
+}
+
+fn open_library_dir(
+    mut dir: cap_std::fs::Dir,
+    relative: &Path,
+) -> std::io::Result<cap_std::fs::Dir> {
+    use cap_fs_ext::DirExt as _;
+    for part in relative.components() {
+        let std::path::Component::Normal(name) = part else {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                "无效的 YARA 规则目录组件",
+            ));
+        };
+        dir = dir.open_dir_nofollow(name)?;
+    }
+    Ok(dir)
+}
+
+fn collect_library_entries(
+    dir: &cap_std::fs::Dir,
+    prefix: &Path,
+    depth: usize,
+    entries: &mut Vec<PathBuf>,
+    job: &Job,
+) -> Result<()> {
+    use cap_fs_ext::DirExt as _;
+    ensure!(
+        depth <= MAX_RULE_DIR_DEPTH,
+        "YARA 规则目录深度超过 {MAX_RULE_DIR_DEPTH} 层"
+    );
+    for entry in dir.entries()? {
+        job.check()?;
+        let entry = entry?;
+        let file_type = entry.file_type()?;
+        let name = entry.file_name();
+        let relative = prefix.join(&name);
+        if file_type.is_dir() {
+            collect_library_entries(
+                &dir.open_dir_nofollow(name)?,
+                &relative,
+                depth + 1,
+                entries,
+                job,
+            )?;
+        } else if file_type.is_file() && is_library_rule_file(&relative) {
+            ensure!(
+                entries.len() < MAX_RULE_FILES,
+                "YARA 规则文件数量超过 {MAX_RULE_FILES} 上限"
+            );
+            entries.push(relative);
+        }
+    }
+    Ok(())
+}
+
+fn library_include_path(parent: &Path, target: &str) -> Result<PathBuf> {
+    use std::path::Component;
+    let mut resolved = parent.to_path_buf();
+    for part in Path::new(target).components() {
+        match part {
+            Component::Normal(name) => resolved.push(name),
+            Component::CurDir => (),
+            Component::ParentDir => {
+                ensure!(resolved.pop(), "YARA include 跳出规则集根目录：{target}")
+            }
+            _ => bail!("YARA include 必须使用相对路径：{target}"),
+        }
+    }
+    ensure!(
+        resolved.file_name().is_some(),
+        "YARA include 必须指向普通文件：{target}"
+    );
+    ensure!(
+        resolved.components().count() <= MAX_RULE_DIR_DEPTH + 1,
+        "YARA include 路径深度超过 {MAX_RULE_DIR_DEPTH} 层：{target}"
+    );
+    Ok(resolved)
+}
+
+fn open_library_file(root: &cap_std::fs::Dir, file: &Path) -> std::io::Result<std::fs::File> {
+    use cap_fs_ext::{FollowSymlinks, OpenOptionsFollowExt as _};
+    let invalid =
+        || std::io::Error::new(std::io::ErrorKind::InvalidInput, "YARA 规则必须是普通文件");
+    let parent = file.parent().ok_or_else(invalid)?;
+    let name = file.file_name().ok_or_else(invalid)?;
+    let parent = open_library_dir(root.try_clone()?, parent)?;
+    let metadata = parent.symlink_metadata(name)?;
+    if metadata.file_type().is_symlink() {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::InvalidInput,
+            "YARA 规则文件不能是符号链接",
+        ));
+    }
+    if !metadata.is_file() {
+        return Err(invalid());
+    }
+    let mut options = cap_std::fs::OpenOptions::new();
+    options.read(true).follow(FollowSymlinks::No);
+    #[cfg(unix)]
+    {
+        use cap_std::fs::OpenOptionsExt as _;
+        options.custom_flags(libc::O_NONBLOCK);
+    }
+    let file = parent.open_with(name, &options)?.into_std();
+    if !file.metadata()?.is_file() {
+        return Err(invalid());
+    }
+    Ok(file)
+}
+
+impl LibrarySources {
+    fn load(
+        &mut self,
+        root: &cap_std::fs::Dir,
+        path: &Path,
+        depth: usize,
+        limits: &mut LibrarySourceLimits,
+        sources: &mut Vec<crate::yara_library::SourceFingerprint>,
+        job: &Job,
+    ) -> Result<()> {
+        use std::io::Read as _;
+        use yara_x_parser::ast::{AST, Item, WithSpan as _};
+
+        job.check()?;
+        ensure!(
+            depth <= MAX_RULE_DIR_DEPTH,
+            "YARA include 嵌套超过 {MAX_RULE_DIR_DEPTH} 层"
+        );
+        if self.files.contains_key(path) {
+            return Ok(());
+        }
+        let absolute = self.root.join(path);
+        let mut file = open_library_file(root, path)
+            .with_context(|| format!("无法读取 YARA 规则文件 {}", absolute.display()))?;
+        let fingerprint =
+            crate::yara_library::SourceFingerprint::new(&absolute, &file.metadata()?)?;
+        ensure!(
+            limits.files < MAX_RULE_FILES,
+            "YARA 规则文件数量超过 {MAX_RULE_FILES} 上限"
+        );
+        ensure!(
+            fingerprint.size <= MAX_RULE_FILE_BYTES,
+            "YARA 规则文件 {} 超过 {} MiB 上限",
+            absolute.display(),
+            MAX_RULE_FILE_BYTES >> 20
+        );
+        limits.files += 1;
+        limits.bytes += fingerprint.size;
+        ensure!(
+            limits.bytes <= MAX_TOTAL_RULE_BYTES,
+            "YARA 规则总大小超过 {} MiB 上限",
+            MAX_TOTAL_RULE_BYTES >> 20
+        );
+        let mut bytes = Vec::new();
+        (&mut file)
+            .take(fingerprint.size + 1)
+            .read_to_end(&mut bytes)?;
+        ensure!(
+            bytes.len() as u64 == fingerprint.size
+                && crate::yara_library::SourceFingerprint::new(&absolute, &file.metadata()?)?
+                    == fingerprint,
+            "YARA 规则文件 {} 在读取期间发生变化，请重试",
+            absolute.display()
+        );
+        sources.push(fingerprint);
+
+        let mut includes = Vec::new();
+        // Extract complete directives and leave other syntax to the compiler.
+        if std::str::from_utf8(&bytes).is_ok() {
+            let parsed = AST::from(bytes.as_slice());
+            let mut previous = 0;
+            let mut line = 1;
+            for item in parsed.items() {
+                job.check()?;
+                if let Item::Include(include) = item {
+                    let span = include.span();
+                    line += memchr::memchr_iter(b'\n', bytes.at(previous..span.start())?).count();
+                    previous = span.start();
+                    let location = || format!("YARA include {}:{line}", absolute.display());
+                    let parent = path.parent().context("YARA 规则文件缺少父目录")?;
+                    let mut target =
+                        library_include_path(parent, include.file_name).with_context(location)?;
+                    // Resolve relative to the including file first, then the rule set root.
+                    if !parent.as_os_str().is_empty()
+                        && open_library_file(root, &target)
+                            .is_err_and(|error| error.kind() == std::io::ErrorKind::NotFound)
+                    {
+                        target = library_include_path(Path::new(""), include.file_name)
+                            .with_context(location)?;
+                    }
+                    includes.push((span.range(), target));
+                }
+            }
+        }
+        let dependencies: Vec<_> = includes.iter().map(|(_, path)| path.clone()).collect();
+        self.files
+            .insert(path.to_path_buf(), LibrarySource { bytes, includes });
+        for target in dependencies {
+            self.load(root, &target, depth + 1, limits, sources, job)
+                .with_context(|| {
+                    format!(
+                        "处理 {} 的 YARA include {} 失败",
+                        absolute.display(),
+                        target.display()
+                    )
+                })?;
+        }
+        Ok(())
+    }
+}
+
+pub(crate) fn prepare_library_sources(
+    set: &crate::yara_library::RuleSet,
+    limits: &mut LibrarySourceLimits,
+    fingerprint: &mut Vec<crate::yara_library::SourceFingerprint>,
+    job: &Job,
+) -> Result<LibrarySources> {
+    use cap_std::{ambient_authority, fs::Dir};
+    job.check()?;
+    ensure!(set.path.is_absolute(), "YARA 规则集路径须为绝对路径");
+    let meta = set
+        .path
+        .symlink_metadata()
+        .with_context(|| format!("无法读取 YARA 规则集路径 {}", set.path.display()))?;
+    let mut entries = Vec::new();
+    let root = if meta.is_dir() {
+        set.path.clone()
+    } else {
+        ensure!(
+            meta.is_file() && is_library_rule_file(&set.path),
+            "YARA 规则集路径须为普通 .yar / .yara 文件或目录"
+        );
+        entries.push(
+            set.path
+                .file_name()
+                .context("YARA 规则文件缺少文件名")?
+                .into(),
+        );
+        set.path
+            .parent()
+            .context("YARA 规则文件缺少父目录")?
+            .to_path_buf()
+    };
+    let anchor = root
+        .ancestors()
+        .last()
+        .context("YARA 规则集路径缺少根目录")?;
+    let dir = open_library_dir(
+        Dir::open_ambient_dir(anchor, ambient_authority())?,
+        root.strip_prefix(anchor)?,
+    )
+    .with_context(|| format!("无法打开 YARA 规则集目录 {}", root.display()))?;
+    if meta.is_dir() {
+        collect_library_entries(&dir, Path::new(""), 0, &mut entries, job)?;
+    }
+    ensure!(
+        !entries.is_empty(),
+        "YARA 规则集 {} 中没有 .yar / .yara 文件",
+        set.name
+    );
+    entries.sort();
+    let mut source = LibrarySources {
+        name: set.name.clone(),
+        root,
+        entries: Vec::new(),
+        files: std::collections::BTreeMap::new(),
+    };
+    for entry in &entries {
+        source.load(&dir, entry, 0, limits, fingerprint, job)?;
+    }
+    source.entries = entries;
+    fingerprint.sort_by(|a, b| a.path.cmp(&b.path));
+    Ok(source)
+}
+
+struct LibraryCompiler<'a, 'compiler> {
+    compiler: &'a mut yara_x::Compiler<'compiler>,
+    source: &'a LibrarySources,
+    stack: Vec<PathBuf>,
+    compiled_files: HashSet<PathBuf>,
+    line_padding: &'a mut u64,
+    job: &'a Job,
+}
+
+impl LibraryCompiler<'_, '_> {
+    fn add(&mut self, path: &Path) -> Result<()> {
+        self.job.check()?;
+        ensure!(
+            !self.stack.iter().any(|active| active == path),
+            "YARA 规则集 {} 存在循环 include：{}",
+            self.source.name,
+            path.display()
+        );
+        ensure!(
+            self.stack.len() <= MAX_RULE_DIR_DEPTH,
+            "YARA include 嵌套超过 {MAX_RULE_DIR_DEPTH} 层"
+        );
+        if !self.compiled_files.insert(path.to_path_buf()) {
+            return Ok(());
+        }
+        let file = self
+            .source
+            .files
+            .get(path)
+            .context("YARA include 源文件缺失")?;
+        let origin = self.source.root.join(path).display().to_string();
+        self.job.report(format!("正在编译 YARA 规则文件 {origin}"));
+        self.stack.push(path.to_path_buf());
+        let mut start = 0;
+        let mut line_offset = 0;
+        for (span, target) in &file.includes {
+            self.add_chunk(file.bytes.at(start..span.start)?, line_offset, &origin)?;
+            line_offset += memchr::memchr_iter(b'\n', file.bytes.at(start..span.end)?).count();
+            self.add(target)?;
+            start = span.end;
+        }
+        self.add_chunk(file.bytes.at(start..)?, line_offset, &origin)?;
+        self.stack.pop();
+        Ok(())
+    }
+
+    fn add_chunk(&mut self, bytes: &[u8], line_offset: usize, origin: &str) -> Result<()> {
+        self.job.check()?;
+        if bytes.iter().all(u8::is_ascii_whitespace) {
+            return Ok(());
+        }
+        // Preserve original line numbers when compiling a fragment after an include.
+        *self.line_padding += line_offset as u64;
+        ensure!(
+            *self.line_padding <= MAX_TOTAL_RULE_BYTES,
+            "YARA include 过于分散，保留原始行号所需的换行超过 64 MiB"
+        );
+        let fragment;
+        let bytes = if line_offset == 0 {
+            bytes
+        } else {
+            let mut padded = vec![b'\n'; line_offset];
+            padded.extend_from_slice(bytes);
+            fragment = padded;
+            &fragment
+        };
+        self.compiler
+            .add_source(yara_x::SourceCode::from(bytes).with_origin(origin))
+            .with_context(|| format!("YARA 规则文件 {origin} 编译失败"))?;
+        Ok(())
+    }
+}
+
+/// Build one scanner input from the selected sets with an independent namespace per set.
+pub(crate) fn compile_library_sources(
+    sources: &[LibrarySources],
+    job: &Job,
+) -> Result<CompiledLibrary> {
+    let mut compiler = yara_x::Compiler::new();
+    compiler.relaxed_re_syntax(true).enable_includes(false);
+    // Give even a set named "default" its own namespace ID and cache identity.
+    compiler.new_namespace("");
+    let mut line_padding = 0;
+    for source in sources {
+        compiler.new_namespace(&source.name);
+        let dependencies: HashSet<&Path> = source
+            .files
+            .values()
+            .flat_map(|file| file.includes.iter().map(|(_, path)| path.as_path()))
+            .collect();
+        let mut set_compiler = LibraryCompiler {
+            compiler: &mut compiler,
+            source,
+            stack: Vec::new(),
+            compiled_files: HashSet::new(),
+            line_padding: &mut line_padding,
+            job,
+        };
+        for entry in &source.entries {
+            if !dependencies.contains(entry.as_path()) {
+                set_compiler.add(entry)?;
+            }
+        }
+        // A cycle can hide every entry in an include graph from the root pass.
+        for entry in &source.entries {
+            set_compiler.add(entry)?;
+        }
+    }
+    job.check()?;
+    let rules = compiler.build();
+    job.check()?;
+    let mut namespaces = HashSet::new();
+    let mut rule_count = 0;
+    for rule in rules.iter() {
+        namespaces.insert(rule.namespace());
+        rule_count += 1;
+    }
+    for source in sources {
+        ensure!(
+            namespaces.contains(source.name.as_str()),
+            "YARA 规则集 {} 没有可用规则",
+            source.name
+        );
+    }
+    let warnings = rules
+        .warnings()
+        .iter()
+        .map(|warning| format!("YARA 编译警告：{warning}"))
+        .collect();
+    let sha256 = rules_digest(&rules)?;
+    let names = sources
+        .iter()
+        .map(|source| source.name.as_str())
+        .collect::<Vec<_>>();
+    let source = format!("规则库：{}", names.join("、"));
+    let file_count = sources.iter().map(|source| source.files.len()).sum();
+    Ok(CompiledLibrary {
+        rule_count,
+        warnings,
+        sha256: sha256.clone(),
+        spec: YaraSpec::Rules(CompiledRules {
+            rules: Arc::new(rules),
+            source,
+            digest: sha256,
+            file_count,
+            library: true,
+        }),
+    })
+}
+
+impl YaraSpec {
+    pub(crate) fn annotate_library_result(&self, result: &mut crate::store::Results) {
+        if !matches!(self, Self::Rules(rules) if rules.library) {
+            return;
+        }
+        if let Some(identity) = result.kernel_identity.as_object_mut() {
+            identity.insert("yara".into(), self.source_summary().into());
+        }
+        // The common scanner omits the default namespace prefix for legacy inputs.
+        if let Some(column) = result.columns.iter().position(|column| column == "Rule") {
+            for row in &mut result.rows {
+                if let Some(rule) = row.get_mut(column).filter(|rule| !rule.contains(':')) {
+                    rule.insert_str(0, "default:");
+                }
+            }
+        }
+    }
 }
 
 #[cfg(test)]

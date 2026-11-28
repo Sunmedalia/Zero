@@ -113,7 +113,14 @@ impl Session {
         job: &Job,
     ) -> Result<Outcome> {
         // Container-only paths do not need kernel symbols or a symbol cache.
-        if request.plugin == Plugin::WinYarascan {
+        if request.plugin == Plugin::WinYarascan
+            || image.windows_container.as_ref().is_some_and(|m| {
+                m.virtual_memory
+                    || m.kernel_virtual
+                    || image.segments.is_empty()
+                    || request.plugin == Plugin::WinCrashinfo
+            })
+        {
             return crate::windows::analyze_with_yara(
                 image,
                 request,
@@ -123,20 +130,7 @@ impl Session {
                 job,
             );
         }
-        if image.windows_container.as_ref().is_some_and(|m| {
-            m.virtual_memory
-                || m.kernel_virtual
-                || image.segments.is_empty()
-                || request.plugin == Plugin::WinCrashinfo
-        }) {
-            return crate::windows::analyze(image, request, dump, options, job);
-        }
-        let compiled = crate::windows::validate_request_with_yara(
-            request,
-            dump,
-            options,
-            precompiled_yara.is_some(),
-        )?;
+        crate::windows::validate_request(request, dump, options, precompiled_yara)?;
         let stamp = || -> Result<String> {
             Ok(format!(
                 "{}:{}:{}:{}",
@@ -167,7 +161,7 @@ impl Session {
             request,
             dump,
             options,
-            precompiled_yara.or(compiled.as_ref()),
+            precompiled_yara,
             job,
             &self.windows_symbols,
         )
@@ -191,11 +185,14 @@ impl Session {
         pattern: Option<&crate::pattern::Pattern>,
         job: &Job,
     ) -> Result<Outcome> {
+        let yara = pattern
+            .filter(|_| request.plugin.is_yara_scan())
+            .map(|pattern| crate::yara::YaraSpec::Pattern(Box::new(pattern.clone())));
         self.analyze_linux_options(
             request,
             dump,
             pattern,
-            None,
+            yara.as_ref(),
             &crate::analysis::Options::default(),
             job,
         )
@@ -209,6 +206,11 @@ impl Session {
         options: &crate::analysis::Options,
         job: &Job,
     ) -> Result<Outcome> {
+        let yara_spec = if request.plugin.is_yara_scan() {
+            Some(precompiled_yara.context("YARA 扫描缺少预编译的规则或字节模式")?)
+        } else {
+            None
+        };
         if let Some(dump) = dump {
             dump.validate(request.plugin)?;
         } else {
@@ -260,20 +262,7 @@ impl Session {
             return Ok(Outcome::Ready(result));
         }
         if request.plugin == Plugin::LinuxYarascan {
-            let owned_spec;
-            let spec = if let Some(spec) = precompiled_yara {
-                spec
-            } else if let Some(pattern) = pattern {
-                owned_spec = crate::yara::YaraSpec::Pattern(Box::new(pattern.clone()));
-                &owned_spec
-            } else {
-                owned_spec = crate::yara::YaraSpec::from_inputs(
-                    options.pattern.as_deref(),
-                    options.yara_file.as_deref(),
-                    options.yara_rules.as_deref(),
-                )?;
-                &owned_spec
-            };
+            let spec = yara_spec.context("linux.yarascan 缺少预编译的规则或字节模式")?;
             let identity = format!("{}:{}", request.plugin.name(), spec.cache_identity());
             let key = store::key(&image.digest, "no-isf", &identity);
             if request.use_cache
@@ -285,7 +274,8 @@ impl Session {
                 store::adopt(request.cache, &key, &owner, &result, job);
                 return Ok(Outcome::Ready(result));
             }
-            let result = crate::yara::physical_results(&image, request.plugin, spec, job)?;
+            let mut result = crate::yara::physical_results(&image, request.plugin, spec, job)?;
+            spec.annotate_library_result(&mut result);
             if request.use_cache && !image.digest.is_empty() {
                 store::save_any(
                     request.cache,
@@ -330,24 +320,6 @@ impl Session {
                 ));
             }
             self.symbols.at(0)?.clone()
-        };
-        let owned_yara;
-        let yara_spec = if request.plugin == Plugin::Vmayarascan {
-            if let Some(spec) = precompiled_yara {
-                Some(spec)
-            } else if let Some(pattern) = pattern {
-                owned_yara = crate::yara::YaraSpec::Pattern(Box::new(pattern.clone()));
-                Some(&owned_yara)
-            } else {
-                owned_yara = crate::yara::YaraSpec::from_inputs(
-                    options.pattern.as_deref(),
-                    options.yara_file.as_deref(),
-                    options.yara_rules.as_deref(),
-                )?;
-                Some(&owned_yara)
-            }
-        } else {
-            None
         };
         let identity = if let Some(spec) = &yara_spec {
             format!("{}:{}", request.plugin.name(), spec.cache_identity())
@@ -502,7 +474,7 @@ impl Session {
         {
             crate::dump::directory(&dump.directory)?;
         }
-        let result = if request.plugin == Plugin::Lsmod && dump.is_some() {
+        let mut result = if request.plugin == Plugin::Lsmod && dump.is_some() {
             engine.lsmod_with_dump(dump.context("Lsmod 导出需要目录")?, job)?
         } else if matches!(request.plugin, Plugin::CheckModules | Plugin::HiddenModules)
             && dump.is_some()
@@ -530,8 +502,7 @@ impl Session {
             engine.vma_regex_scan(options, job)?
         } else if request.plugin == Plugin::Vmayarascan {
             engine.vma_yara_scan(
-                yara_spec
-                    .context("linux.vmayarascan 需要 --pattern、--yara-file 或 --yara-rules")?,
+                yara_spec.context("linux.vmayarascan 缺少预编译的规则或字节模式")?,
                 job,
             )?
         } else if request.plugin == Plugin::Kallsyms {
@@ -571,6 +542,9 @@ impl Session {
         } else {
             engine.run(request.plugin, job)?
         };
+        if let Some(spec) = yara_spec {
+            spec.annotate_library_result(&mut result);
+        }
         job.check()?;
         if request.use_cache && dump.is_none() && !request.plugin.is_dump() {
             store::save_any(

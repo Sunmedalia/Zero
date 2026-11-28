@@ -9,7 +9,14 @@ pub fn analyze(
     options: &Options,
     job: &Job,
 ) -> Result<Outcome> {
-    analyze_with_yara(image, request, dump, options, None, job)
+    let compiled =
+        crate::analysis::validate_and_compile_pattern(request.plugin, options, request.cache, job)?;
+    let spec = compiled.as_ref().map(|compiled| &compiled.spec);
+    let mut outcome = analyze_with_yara(image, request, dump, options, spec, job)?;
+    if let Some(compiled) = &compiled {
+        compiled.annotate(&mut outcome);
+    }
+    Ok(outcome)
 }
 
 pub(crate) fn analyze_with_yara(
@@ -20,12 +27,13 @@ pub(crate) fn analyze_with_yara(
     precompiled_yara: Option<&crate::yara::YaraSpec>,
     job: &Job,
 ) -> Result<Outcome> {
+    ensure!(
+        !request.plugin.is_yara_scan() || precompiled_yara.is_some(),
+        "YARA 扫描缺少预编译的规则或字节模式"
+    );
     if request.plugin == Plugin::WinYarascan {
-        let compiled =
-            validate_request_with_yara(request, dump, options, precompiled_yara.is_some())?;
-        let spec = precompiled_yara
-            .or(compiled.as_ref())
-            .context("windows.yarascan 需要 YARA 规则或字节模式")?;
+        validate_request(request, dump, options, precompiled_yara)?;
+        let spec = precompiled_yara.context("windows.yarascan 缺少预编译的规则或字节模式")?;
         let key = store::key(
             &image.digest,
             "no-isf",
@@ -40,7 +48,8 @@ pub(crate) fn analyze_with_yara(
             store::adopt(request.cache, &key, &owner, &result, job);
             return Ok(Outcome::Ready(result));
         }
-        let result = crate::yara::physical_results(image, request.plugin, spec, job)?;
+        let mut result = crate::yara::physical_results(image, request.plugin, spec, job)?;
+        spec.annotate_library_result(&mut result);
         if request.use_cache && !image.digest.is_empty() {
             store::save_any(
                 request.cache,
@@ -64,7 +73,7 @@ pub(crate) fn analyze_with_yara(
         );
         return container::analyze(image, request, dump, options, job).map(Outcome::Ready);
     }
-    let compiled = validate_request_with_yara(request, dump, options, precompiled_yara.is_some())?;
+    validate_request(request, dump, options, precompiled_yara)?;
     let symbols =
         windows_symbols::resolve(request.symbols, image, request.cache, request.network, job)?;
     let symbols: Vec<_> = symbols.into_iter().map(std::sync::Arc::new).collect();
@@ -73,17 +82,17 @@ pub(crate) fn analyze_with_yara(
         request,
         dump,
         options,
-        precompiled_yara.or(compiled.as_ref()),
+        precompiled_yara,
         job,
         &symbols,
     )
 }
-pub(crate) fn validate_request_with_yara(
+pub(crate) fn validate_request(
     request: &Request<'_>,
     dump: Option<&DumpOptions>,
     options: &Options,
-    yara_validated: bool,
-) -> Result<Option<crate::yara::YaraSpec>> {
+    precompiled_yara: Option<&crate::yara::YaraSpec>,
+) -> Result<()> {
     if request.plugin.is_dump() {
         dump.context("Windows 转储需要 PID 和输出目录")?
             .validate(request.plugin)?;
@@ -104,18 +113,17 @@ pub(crate) fn validate_request_with_yara(
     if request.plugin == Plugin::WinPrintkey {
         ensure!(options.hive.is_some(), "windows.printkey 需要 --hive 地址");
     }
-    let compiled = if yara_validated {
-        None
-    } else {
-        crate::analysis::validate_and_compile_pattern(request.plugin, options)?
-    };
+    ensure!(
+        !request.plugin.is_yara_scan() || precompiled_yara.is_some(),
+        "YARA 扫描缺少预编译的规则或字节模式"
+    );
     ensure!(
         options.pid.is_none()
             || request.plugin == Plugin::WinMemmap
             || request.plugin.descriptor().columns.contains(&"PID"),
         "此插件不支持 PID 筛选"
     );
-    Ok(compiled)
+    Ok(())
 }
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn analyze_resolved(
@@ -156,10 +164,7 @@ pub(crate) fn analyze_resolved(
         DIGEST.get_or_init(|| format!("{:x}", sha2::Sha256::digest(network::LAYOUTS.as_bytes())))
     };
     let yara_spec = if request.plugin == Plugin::WinVadyarascan {
-        Some(
-            precompiled_yara
-                .context("windows.vadyarascan 需要 --pattern、--yara-file 或 --yara-rules")?,
-        )
+        Some(precompiled_yara.context("windows.vadyarascan 缺少预编译的规则或字节模式")?)
     } else {
         None
     };
@@ -260,14 +265,8 @@ pub(crate) fn analyze_resolved(
         engine.netscan(job, Some((request.cache, request.network)))?
     } else if request.plugin == Plugin::WinNetstat {
         engine.netstat(job, Some((request.cache, request.network)))?
-    } else if request.plugin == Plugin::WinVadyarascan {
-        engine.run_vadyarascan(
-            yara_spec.context("windows.vadyarascan 需要 --pattern、--yara-file 或 --yara-rules")?,
-            options,
-            job,
-        )?
     } else {
-        engine.run(request.plugin, options, job)?
+        engine.run_with_yara(request.plugin, options, yara_spec, job)?
     };
     if let Some(pid) = options.pid
         && !request.plugin.accepts_pid_list()

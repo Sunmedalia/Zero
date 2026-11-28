@@ -21,6 +21,7 @@ use zero_tui::{
     Job, cache,
     linux::{self, Outcome, Plugin},
     store, symbols,
+    yara_library::{self, YaraLibrarySelection},
 };
 
 #[derive(Parser)]
@@ -97,6 +98,17 @@ struct Cli {
     /// Inline YARA rule source text for linux.yarascan / windows.yarascan / linux.vmayarascan / windows.vadyarascan.
     #[arg(help_heading = "Scan plugins", long = "yara-rules", global = true)]
     yara_rules: Option<String>,
+    /// 使用规则库中全部已启用的 YARA 规则集。
+    #[arg(
+        help_heading = "Scan plugins",
+        long,
+        global = true,
+        conflicts_with = "yara_set"
+    )]
+    yara_library: bool,
+    /// 使用指定的已启用 YARA 规则集，可重复指定。
+    #[arg(help_heading = "Scan plugins", long, global = true)]
+    yara_set: Vec<String>,
     /// Local strings output with decimal physical offsets (windows.strings).
     #[arg(help_heading = "Scan plugins", long, global = true)]
     strings_file: Option<PathBuf>,
@@ -197,6 +209,22 @@ struct Cli {
     command: Option<Command>,
 }
 #[derive(Subcommand)]
+enum YaraAction {
+    /// 列出已登记的规则集。
+    List,
+    /// 登记本地规则文件或目录并启用规则集。
+    Add { name: String, path: PathBuf },
+    /// 移除规则集的登记信息。
+    Remove { name: String },
+    /// 启用规则集。
+    Enable { name: String },
+    /// 停用规则集。
+    Disable { name: String },
+    /// 编译校验指定规则集或全部规则集。
+    Check { name: Option<String> },
+}
+
+#[derive(Subcommand)]
 enum Command {
     /// Run the newline-delimited JSON-RPC MCP server over stdio.
     Mcp,
@@ -219,6 +247,13 @@ enum Command {
     Cache {
         #[command(subcommand)]
         action: CacheAction,
+    },
+    /// 管理本地 YARA 规则库。
+    Yara {
+        #[arg(long, global = true)]
+        json: bool,
+        #[command(subcommand)]
+        action: YaraAction,
     },
     /// Generate and save exact Linux symbols from debug ELF/config or official packages.
     SymbolsGenerate {
@@ -385,8 +420,75 @@ enum CacheAction {
         yes: bool,
     },
 }
+fn run_yara_command(cache: &std::path::Path, action: &YaraAction, json: bool) -> Result<()> {
+    use yara_library::*;
+    let sets = match action {
+        YaraAction::List => yara_library_list(cache)?,
+        YaraAction::Add { name, path } => vec![yara_library_add(cache, name, path)?],
+        YaraAction::Remove { name } => vec![yara_library_remove(cache, name)?],
+        YaraAction::Enable { name } => vec![yara_library_set_enabled(cache, name, true)?],
+        YaraAction::Disable { name } => vec![yara_library_set_enabled(cache, name, false)?],
+        YaraAction::Check { name } => yara_library_check(
+            cache,
+            name.as_deref(),
+            &Job::new(|progress| eprintln!("{progress}")),
+        )?,
+    };
+    if json {
+        println!("{}", serde_json::to_string_pretty(&sets)?);
+    } else if sets.is_empty() {
+        println!("规则库中没有已登记的 YARA 规则集");
+    } else {
+        println!(
+            "名称\t状态\t路径\t添加时间（Unix 秒）\t规则数\t文件数\t编译 SHA-256\t校验时间（Unix 秒）"
+        );
+        for set in &sets {
+            let report = set.last_check.as_ref();
+            println!(
+                "{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}",
+                set.name,
+                if matches!(action, YaraAction::Remove { .. }) {
+                    "已移除"
+                } else if set.enabled {
+                    "启用"
+                } else {
+                    "停用"
+                },
+                set.path.display(),
+                set.added_at,
+                report
+                    .and_then(|r| r.rule_count)
+                    .map_or("—".into(), |n| n.to_string()),
+                report.map_or("—".into(), |r| r.file_count.to_string()),
+                report.and_then(|r| r.sha256.as_deref()).unwrap_or("—"),
+                report.map_or("—".into(), |r| r.checked_at.to_string()),
+            );
+            if let Some(report) = report {
+                if let Some(error) = &report.error {
+                    println!("  校验错误：{error}");
+                }
+                for warning in &report.warnings {
+                    println!("  校验警告：{warning}");
+                }
+            }
+        }
+    }
+    if matches!(action, YaraAction::Check { .. }) {
+        anyhow::ensure!(
+            sets.iter()
+                .all(|set| set.last_check.as_ref().is_some_and(|r| r.error.is_none())),
+            "部分 YARA 规则集校验失败"
+        );
+    }
+    Ok(())
+}
+
 fn main() -> Result<()> {
     let mut cli = Cli::parse();
+    anyhow::ensure!(
+        !cli.yara_library || cli.yara_set.is_empty(),
+        "--yara-library 与 --yara-set 互斥"
+    );
     if matches!(cli.command, Some(Command::Mcp)) {
         return mcp::run();
     }
@@ -422,6 +524,9 @@ fn main() -> Result<()> {
         return Ok(());
     }
     let cache = PathBuf::from(".zero/rust");
+    if let Some(Command::Yara { json, action }) = &cli.command {
+        return run_yara_command(&cache, action, *json);
+    }
     if let Some(Command::Cache { action }) = &cli.command {
         match action {
             CacheAction::List => println!(
@@ -960,6 +1065,13 @@ impl Cli {
             pattern: self.pattern.clone(),
             yara_file: self.yara_file.clone(),
             yara_rules: self.yara_rules.clone(),
+            yara_library: if self.yara_library {
+                Some(YaraLibrarySelection::AllEnabled)
+            } else if self.yara_set.is_empty() {
+                None
+            } else {
+                Some(YaraLibrarySelection::Named(self.yara_set.clone()))
+            },
             strings_file: self.strings_file.clone(),
             min_length: self.min_length,
             pids: self.pids.clone(),
