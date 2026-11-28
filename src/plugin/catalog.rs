@@ -379,10 +379,10 @@ catalog! {
     Elfs, "linux.elfs.basic", "elfs.basic", Memory,
         "识别进程中的 ELF 映射",
         ["PID", "Name", "Start", "End", "Type", "Entry", "Path"], [6, 14, 18, 18, 6, 18, 0];
-    Bash, "linux.bash.basic", "bash.basic", Memory,
+    Bash, "linux.bash.basic", "bash.basic", Process,
         "恢复内存中的 Bash 历史记录",
         ["PID", "Name", "Timestamp", "Command", "Address"], [6, 14, 12, 0, 18];
-    Zsh, "linux.zsh", "zsh", Memory,
+    Zsh, "linux.zsh", "zsh", Process,
         "恢复内存中的 Zsh 历史记录（命令、开始与结束时间）",
         ["PID", "Name", "HistNum", "Started", "Finished", "Command", "Address"], [6, 14, 7, 12, 12, 0, 18];
     Malfind, "linux.malfind.basic", "malfind.basic", Integrity,

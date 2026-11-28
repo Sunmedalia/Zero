@@ -124,20 +124,7 @@ impl App {
         }
     }
     pub(super) fn plugin_matches(&self, query: &str) -> Vec<Plugin> {
-        if !self.windows {
-            return plugin_matches(query);
-        }
-        let query = query.to_lowercase();
-        let mut items = self
-            .navigation_plugins()
-            .iter()
-            .copied()
-            .filter(|p| plugin_search_hit(*p, &query))
-            .collect::<Vec<_>>();
-        if "dump".contains(&query) {
-            items.push(Plugin::WinProcdump);
-        }
-        items
+        plugin_matches_for(self.windows, query)
     }
     pub(super) fn apply_identification(&mut self, result: &Results) {
         let detected_windows = result.system == "windows"
