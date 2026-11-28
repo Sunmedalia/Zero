@@ -333,6 +333,7 @@ impl App {
                         } else {
                             None
                         },
+                        yara_library: None,
                         pid,
                         hive,
                         key: if self.plugin == Plugin::WinPrintkey {

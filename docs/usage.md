@@ -578,11 +578,12 @@ Zero 内置纯 Rust `yara-x` 规则引擎（支持 `pe`、`elf`、`math`、`hash
 - **物理全盘扫描**（无需 OS 符号）：`linux.yarascan`（别名 `yarascan`，对 Windows 镜像自动映射为 `windows.yarascan`）与 `windows.yarascan`
 - **进程虚拟内存扫描**：`linux.vmayarascan`（VMA）与 `windows.vadyarascan`（VAD）
 
-四者均接受以下三选一输入（互斥）：
+四者均接受以下四选一输入（互斥）：
 
 - `--yara-file <PATH>`：本地 `.yar` / `.yara` 规则文件，或包含规则文件的目录（自动递归加载）
 - `--yara-rules <SOURCE>`：内联 YARA 规则源码
-- `--pattern <PATTERN>`：轻量字面量/十六进制字节模式（向后兼容）：
+- `--yara-library` 或可重复的 `--yara-set <名称>`：分别使用全部已启用的规则集，或使用点名的已启用规则集。两个选项互斥。
+- `--pattern <PATTERN>`：轻量字面量或十六进制字节模式。
 
 | 写法 | 含义 |
 | --- | --- |
@@ -590,7 +591,7 @@ Zero 内置纯 Rust `yara-x` 规则引擎（支持 `pe`、`elf`、`math`、`hash
 | `wide:文本` | UTF-16LE |
 | `hex:4d5a??00` | 十六进制，`??` 匹配任意单字节，空白忽略 |
 
-模式长度 1–256 字节，至少含连续 2 个确定字节。`--pattern` 只能用于这两个插件，且二者必须提供；TUI 在参数表单（`P`）的“搜索模式”字段输入，MCP 的 `zero_analyze` 接受 `pattern`。
+模式长度 1–256 字节，至少含连续 2 个确定字节。TUI 在参数表单（`P`）的“搜索模式”字段输入，MCP 的 `zero_analyze` 接受 `pattern`。
 
 ```sh
 zero analyze --image images/linux-sample-1.bin.gz --symbols symbols/linux.zip \
@@ -598,6 +599,30 @@ zero analyze --image images/linux-sample-1.bin.gz --symbols symbols/linux.zip \
 zero analyze --image images/WinDump/WinDump.mem --plugin windows.vadyarascan \
   --pid 7688 --pattern hex:4d5a9000 --output exports/explorer-mz.csv
 ```
+
+**规则库管理**
+
+```sh
+zero yara add endpoint ./rules/endpoint
+zero yara add signatures ./rules/signatures.yar
+zero yara list
+zero yara check endpoint --json
+zero yara check
+zero yara disable signatures
+zero yara enable signatures
+
+zero analyze --image image.raw --plugin linux.yarascan --yara-library --output hits.json
+zero analyze --image image.raw --plugin linux.yarascan --yara-set endpoint --yara-set signatures --output hits.json
+zero yara remove signatures
+```
+
+规则集名称由英文字母、数字、下划线或连字符组成，必须唯一。新登记会立即启用。规则库把路径、启用状态和最近一次校验记录原子保存到项目的 `.zero/rust/yara-library.json`。清理缓存会保留登记文件及其 `yara-library.lock`。添加和移除只更新登记信息，规则文件仍保留在原路径。所有 `zero yara` 子命令均可用 `--json` 获取结构化结果。
+
+`zero yara check` 校验全部规则集，包含已停用的规则集。校验记录包括规则数、文件数、编译产物的 SHA-256、源文件大小与修改时间、错误或警告及校验时间。任一规则集校验失败时，CLI 输出报告后返回非零状态。分析使用当前源文件编译一次，并在源文件指纹与上次校验不一致时报告变化。Rule 列以 `规则集名称:规则名` 显示，来自不同规则集的同名规则各自保留。未启用任何规则集、点名的规则集缺失或停用、规则集内没有可用规则都会报错。
+
+目录递归加载 `.yar` 与 `.yara`，跳过符号链接。单次编译最多读入 1024 个文件，单文件最大 16 MiB，总大小最大 64 MiB，目录深度和 `include` 嵌套各最多 16 层。规则库中的 `include` 先相对当前文件解析，再回退到规则集根目录（登记的是文件时，根目录为其父目录）。只允许根目录内的普通文件，拒绝绝对路径、越出根目录的 `..`、符号链接和循环引用。被包含文件也计入限额与指纹。
+
+MCP 提供 `zero_yara_library_list`、`zero_yara_library_add`、`zero_yara_library_remove`、`zero_yara_library_set_enabled` 和 `zero_yara_library_check`。分析工具 `zero_analyze` 使用 `yara_library: true` 或 `yara_sets: ["endpoint", "signatures"]` 选择规则库输入。
 
 扫描逐页读取，支持重叠命中和跨相邻可读页的命中。每进程最多读取 256 MiB 驻留数据，结果最多 100,000 条，超过 1 GiB 的单个区域（如 CFG 位图保留区）跳过。不可读页、跳过的区域以及因上限而提前停止的扫描都会标记为部分结果，并保留已收集的命中。Context 列给出命中处起最多 32 字节的十六进制与可打印文本。实测 Debian 3.2 搜索 `/bin/bash` 得到 157 处命中。Windows 10 15063 的 explorer.exe（PID 7688）搜索 `hex:4d5a9000` 得到 261 个 PE 头。
 

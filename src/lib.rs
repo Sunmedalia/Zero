@@ -31,6 +31,7 @@ mod symbol_index;
 pub mod symbols;
 pub mod tui;
 pub mod yara;
+pub mod yara_library;
 
 use anyhow::{Result, bail};
 use std::sync::{

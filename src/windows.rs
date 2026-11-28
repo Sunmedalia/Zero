@@ -82,7 +82,7 @@ mod windowstations;
 mod wow64;
 pub use address_space::Memory;
 pub use analyze::analyze;
-pub(crate) use analyze::{analyze_resolved, analyze_with_yara, validate_request_with_yara};
+pub(crate) use analyze::{analyze_resolved, analyze_with_yara, validate_request};
 pub use discovery::discover;
 pub(crate) use discovery::pe_header;
 
@@ -329,6 +329,15 @@ impl Windows<'_> {
         r.diagnostics.push(format!("{context}: {error}"));
     }
     pub fn run(&self, p: Plugin, options: &Options, job: &Job) -> Result<Results> {
+        self.run_with_yara(p, options, None, job)
+    }
+    pub fn run_with_yara(
+        &self,
+        p: Plugin,
+        options: &Options,
+        precompiled_yara: Option<&crate::yara::YaraSpec>,
+        job: &Job,
+    ) -> Result<Results> {
         job.check()?;
         use Plugin::*;
         // Exhaustive on purpose: a new Plugin variant must be routed (or rejected) here.
@@ -396,16 +405,19 @@ impl Windows<'_> {
             WinPslist | WinPstree | WinCmdline | WinGetsids | WinEnvars | WinThreads
             | WinLdrmodules | WinHollowprocesses | WinSuspiciousThreads | WinDlllist
             | WinVadinfo | WinMalfind | WinHandles | WinPrivileges | WinSessions | WinIat
-            | WinVerinfo | WinEtwpatch | WinProcessghosting | WinJoblinks | WinVadyarascan => {
+            | WinVerinfo | WinEtwpatch | WinProcessghosting | WinJoblinks => {
                 self.process_plugin(p, options, job)
             }
-            WinYarascan => {
-                let spec = crate::yara::YaraSpec::from_inputs(
-                    options.pattern.as_deref(),
-                    options.yara_file.as_deref(),
-                    options.yara_rules.as_deref(),
-                )?;
-                crate::yara::physical_results(self.vm.image, p, &spec, job)
+            WinYarascan | WinVadyarascan => {
+                let spec = precompiled_yara
+                    .with_context(|| format!("{} 缺少预编译的规则或字节模式", p.name()))?;
+                let mut result = if p == WinYarascan {
+                    crate::yara::physical_results(self.vm.image, p, spec, job)?
+                } else {
+                    self.process_plugin_with_yara(p, options, Some(spec), job)?
+                };
+                spec.annotate_library_result(&mut result);
+                Ok(result)
             }
             // File exports go through run_dump with atomic publishing.
             WinProcdump | WinMemdump | WinPedump | WinVaddump | WinDlldump | WinModdump
@@ -624,15 +636,6 @@ impl Windows<'_> {
         self.process_plugin_with_yara(p, options, None, job)
     }
 
-    pub(crate) fn run_vadyarascan(
-        &self,
-        spec: &crate::yara::YaraSpec,
-        options: &Options,
-        job: &Job,
-    ) -> Result<Results> {
-        self.process_plugin_with_yara(Plugin::WinVadyarascan, options, Some(spec), job)
-    }
-
     fn process_plugin_with_yara(
         &self,
         p: Plugin,
@@ -656,18 +659,7 @@ impl Windows<'_> {
             result.diagnostics.extend(modules.diagnostics.clone());
         }
         let handle_layout = (p == Plugin::WinHandles).then(|| self.object_header_layout());
-        let owned_yara = if p == Plugin::WinVadyarascan && precompiled_yara.is_none() {
-            Some(crate::yara::YaraSpec::from_inputs(
-                options.pattern.as_deref(),
-                options.yara_file.as_deref(),
-                options.yara_rules.as_deref(),
-            )?)
-        } else {
-            None
-        };
-        let mut vad_yara_scanner = precompiled_yara
-            .or(owned_yara.as_ref())
-            .map(crate::yara::YaraSpec::scanner);
+        let mut vad_yara_scanner = precompiled_yara.map(crate::yara::YaraSpec::scanner);
         for process in processes
             .into_iter()
             .filter(|p| options.pid.is_none_or(|pid| p.pid == u64::from(pid)))
@@ -708,7 +700,7 @@ impl Windows<'_> {
                 Plugin::WinJoblinks => self.joblink(&process, &mut result),
                 Plugin::WinVadyarascan => vad_yara_scanner
                     .as_mut()
-                    .context("windows.vadyarascan 需要 --pattern、--yara-file 或 --yara-rules")
+                    .context("windows.vadyarascan 缺少预编译的规则或字节模式")
                     .and_then(|scanner| {
                         self.vad_yara_scan_with_scanner(&process, scanner, &mut result, job)
                             .map(|limit_reached| output_limit = limit_reached)

@@ -175,3 +175,36 @@ impl EngineContext {
         })
     }
 }
+
+// Shared by the CLI, MCP adapter and terminal workers.
+pub fn yara_library_list(cache: &Path) -> Result<Vec<crate::yara_library::RuleSet>> {
+    crate::yara_library::list(cache)
+}
+
+pub fn yara_library_add(
+    cache: &Path,
+    name: &str,
+    path: &Path,
+) -> Result<crate::yara_library::RuleSet> {
+    crate::yara_library::add(cache, name, path)
+}
+
+pub fn yara_library_remove(cache: &Path, name: &str) -> Result<crate::yara_library::RuleSet> {
+    crate::yara_library::remove(cache, name)
+}
+
+pub fn yara_library_set_enabled(
+    cache: &Path,
+    name: &str,
+    enabled: bool,
+) -> Result<crate::yara_library::RuleSet> {
+    crate::yara_library::set_enabled(cache, name, enabled)
+}
+
+pub fn yara_library_check(
+    cache: &Path,
+    name: Option<&str>,
+    job: &Job,
+) -> Result<Vec<crate::yara_library::RuleSet>> {
+    crate::yara_library::check(cache, name, job)
+}

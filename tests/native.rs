@@ -1468,6 +1468,131 @@ fn cli_dump_requires_parameters_before_opening_image() -> Result<()> {
 }
 
 #[test]
+fn cli_yara_library_management_and_namespaced_scan() -> Result<()> {
+    use std::process::Command;
+    let dir = tempfile::tempdir()?;
+    let command = |args: &[&str]| -> Result<std::process::Output> {
+        Ok(Command::new(env!("CARGO_BIN_EXE_zero"))
+            .current_dir(dir.path())
+            .args(args)
+            .output()?)
+    };
+    let run = |args: &[&str]| -> Result<Vec<u8>> {
+        let out = command(args)?;
+        assert!(
+            out.status.success(),
+            "{args:?}: {}",
+            String::from_utf8_lossy(&out.stderr)
+        );
+        Ok(out.stdout)
+    };
+    let rule = r#"rule shared { strings: $a = "KNOWN_SENTINEL" condition: $a }"#;
+    fs::write(dir.path().join("sample.yar"), rule)?;
+    fs::write(dir.path().join("sample.yara"), rule)?;
+    fs::write(
+        dir.path().join("image.raw"),
+        b"A KNOWN_SENTINEL in the synthetic image",
+    )?;
+    run(&["yara", "add", "alpha", "sample.yar"])?;
+    run(&["yara", "add", "default", "sample.yara"])?;
+    let report: serde_json::Value = serde_json::from_slice(&run(&["yara", "check", "--json"])?)?;
+    assert_eq!(report.as_array().unwrap().len(), 2);
+    assert_eq!(report[0]["last_check"]["rule_count"], 1);
+    assert_eq!(
+        report[0]["last_check"]["sha256"].as_str().unwrap().len(),
+        64
+    );
+    let listed: serde_json::Value = serde_json::from_slice(&run(&["yara", "--json", "list"])?)?;
+    assert_eq!(report, listed);
+    let scan = |selection: &[&str]| -> Result<store::Results> {
+        let mut args = vec![
+            "--offline",
+            "analyze",
+            "--os",
+            "linux",
+            "--image",
+            "image.raw",
+            "--plugin",
+            "linux.yarascan",
+            "--output",
+            "hits.json",
+        ];
+        args.extend_from_slice(selection);
+        run(&args)?;
+        Ok(serde_json::from_slice(&fs::read(
+            dir.path().join("hits.json"),
+        )?)?)
+    };
+    let all = scan(&["--yara-library"])?;
+    assert!(all.complete);
+    assert_eq!(all.rows.len(), 2);
+    assert!(all.rows.iter().any(|row| row[1] == "alpha:shared"));
+    assert!(all.rows.iter().any(|row| row[1] == "default:shared"));
+    assert!(
+        all.kernel_identity["yara"]
+            .as_str()
+            .unwrap()
+            .contains("alpha、default")
+    );
+    assert_eq!(
+        scan(&["--yara-set", "default", "--yara-set", "alpha"])?.rows,
+        all.rows
+    );
+    run(&[
+        "--offline",
+        "analyze",
+        "--os",
+        "windows",
+        "--image",
+        "image.raw",
+        "--plugin",
+        "windows.yarascan",
+        "--yara-library",
+        "--output",
+        "windows.json",
+    ])?;
+    let windows: store::Results =
+        serde_json::from_slice(&fs::read(dir.path().join("windows.json"))?)?;
+    assert_eq!(windows.rows, all.rows);
+    assert_eq!(scan(&["--yara-file", "sample.yara"])?.rows[0][1], "shared");
+    let conflicting = command(&[
+        "--yara-library",
+        "analyze",
+        "--image",
+        "image.raw",
+        "--plugin",
+        "linux.yarascan",
+        "--yara-set",
+        "alpha",
+        "--output",
+        "hits.json",
+    ])?;
+    assert!(!conflicting.status.success());
+    assert!(String::from_utf8_lossy(&conflicting.stderr).contains("互斥"));
+    run(&["yara", "disable", "alpha"])?;
+    assert_eq!(scan(&["--yara-library"])?.rows[0][1], "default:shared");
+    run(&["yara", "enable", "alpha"])?;
+    run(&["yara", "remove", "default"])?;
+    assert_eq!(scan(&["--yara-set", "alpha"])?.rows[0][1], "alpha:shared");
+    assert_eq!(fs::read_to_string(dir.path().join("sample.yara"))?, rule);
+
+    fs::write(
+        dir.path().join("sample.yar"),
+        "rule broken { condition: nope }",
+    )?;
+    let failed = command(&["yara", "check", "alpha", "--json"])?;
+    assert!(!failed.status.success());
+    let report: serde_json::Value = serde_json::from_slice(&failed.stdout)?;
+    assert!(
+        report[0]["last_check"]["error"]
+            .as_str()
+            .unwrap()
+            .contains("nope")
+    );
+    Ok(())
+}
+
+#[test]
 fn local_symbol_library_matches_complete_banner_and_reports_corruption() -> Result<()> {
     use zero_tui::symbols::match_local_files;
     let (bytes, isf) = discoverable();
@@ -1623,6 +1748,49 @@ fn mcp_exchange(root: &std::path::Path, input: &str) -> Result<Vec<serde_json::V
         String::from_utf8_lossy(&output.stderr)
     );
     Ok(replies)
+}
+
+#[test]
+fn mcp_yara_library_tools_share_analysis_registry() -> Result<()> {
+    let dir = tempfile::tempdir()?;
+    fs::write(
+        dir.path().join("rule.yar"),
+        r#"rule sentinel { strings: $a = "MCP_SENTINEL" condition: $a }"#,
+    )?;
+    fs::write(dir.path().join("image.raw"), b"sample with MCP_SENTINEL")?;
+    let analysis = json!({
+        "image": "image.raw", "plugin": "linux.yarascan", "os": "linux",
+        "offline": true, "yara_sets": ["mcp"]
+    });
+    let input = [
+        ("zero_yara_library_add", json!({"name":"mcp", "path":"rule.yar"})),
+        ("zero_yara_library_check", json!({"name":"mcp"})),
+        ("zero_yara_library_list", json!({})),
+        ("zero_analyze", analysis.clone()),
+        ("zero_yara_library_set_enabled", json!({"name":"mcp", "enabled":false})),
+        ("zero_analyze", analysis),
+        ("zero_yara_library_remove", json!({"name":"mcp"})),
+    ]
+    .into_iter()
+    .enumerate()
+    .map(|(id, (name, arguments))| {
+        json!({"jsonrpc":"2.0","id":id,"method":"tools/call","params":{"name":name,"arguments":arguments}})
+            .to_string()
+    })
+    .collect::<Vec<_>>()
+    .join("\n");
+    let replies = mcp_exchange(dir.path(), &input)?;
+    let result = |index: usize| &replies[index]["result"]["structuredContent"];
+    assert_eq!(result(0)["enabled"], true);
+    assert_eq!(result(1)["valid"], true);
+    assert_eq!(result(1)["sets"], result(2)["sets"]);
+    assert_eq!(result(3)["rows"][0][1], "mcp:sentinel");
+    assert_eq!(result(4)["enabled"], false);
+    assert_eq!(replies[5]["result"]["isError"], true);
+    assert!(result(5)["error"].as_str().unwrap().contains("已停用"));
+    assert_eq!(result(6)["name"], "mcp");
+    assert!(dir.path().join("rule.yar").exists());
+    Ok(())
 }
 
 fn mcp_call(id: u64, name: &str, arguments: serde_json::Value) -> serde_json::Value {
@@ -1809,8 +1977,17 @@ fn mcp_tools_analyze_page_export_and_dump_all_modes() -> Result<()> {
     }
     let result = |id| replies.iter().find(|r| r["id"] == id).unwrap()["result"].clone();
     let tool_list = result(2)["tools"].as_array().unwrap().clone();
-    assert_eq!(tool_list.len(), 12);
-    for expected in ["zero_dossier", "zero_triage", "zero_inspect"] {
+    assert_eq!(tool_list.len(), 17);
+    for expected in [
+        "zero_dossier",
+        "zero_triage",
+        "zero_inspect",
+        "zero_yara_library_list",
+        "zero_yara_library_add",
+        "zero_yara_library_remove",
+        "zero_yara_library_set_enabled",
+        "zero_yara_library_check",
+    ] {
         assert!(
             tool_list.iter().any(|t| t["name"] == expected),
             "missing MCP tool {expected}"

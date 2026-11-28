@@ -3996,6 +3996,7 @@ dependencies = [
  "xpress-huffman",
  "xz2",
  "yara-x",
+ "yara-x-parser",
  "zip",
  "zstd",
 ]

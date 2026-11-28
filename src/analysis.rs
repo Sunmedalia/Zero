@@ -1,6 +1,7 @@
 //! Platform-neutral requests. Existing Linux APIs remain compatibility entry points.
 use crate::bytes::Row as _;
 pub use crate::linux::{Descriptor, Outcome, Plugin, Request, Session};
+pub use crate::yara_library::YaraLibrarySelection;
 use crate::{Job, dump::DumpOptions};
 use anyhow::{Context, Result, ensure};
 use serde::{Deserialize, Serialize};
@@ -127,6 +128,7 @@ pub struct Options {
     pub yara_file: Option<std::path::PathBuf>,
     /// Inline YARA rule source text for YARA scan plugins.
     pub yara_rules: Option<String>,
+    pub yara_library: Option<YaraLibrarySelection>,
     /// Local decimal-offset strings output consumed by windows.strings.Strings.
     pub strings_file: Option<std::path::PathBuf>,
     /// Signed lower bound for windows.truecrypt.Passphrase lengths.
@@ -135,19 +137,60 @@ pub struct Options {
     pub swapfile: Option<std::path::PathBuf>,
 }
 /// Scan plugins need a pattern/YARA rule and no other plugin accepts one.
-pub fn validate_pattern(plugin: crate::linux::Plugin, options: &Options) -> Result<()> {
-    validate_and_compile_pattern(plugin, options).map(|_| ())
+pub fn validate_pattern(plugin: Plugin, options: &Options) -> Result<()> {
+    validate_and_compile_pattern(
+        plugin,
+        options,
+        std::path::Path::new(".zero/rust"),
+        &Job::default(),
+    )
+    .map(|_| ())
+}
+
+fn validate_inputs(plugin: Plugin, options: &Options) -> Result<()> {
+    let yara_inputs = usize::from(options.yara_file.is_some())
+        + usize::from(options.yara_rules.is_some())
+        + usize::from(options.yara_library.is_some());
+    if plugin.is_yara_scan() {
+        ensure!(
+            yara_inputs + usize::from(options.pattern.is_some()) == 1,
+            "YARA 扫描插件必须且只能指定一种输入：--pattern、--yara-file、--yara-rules 或规则库（--yara-library / --yara-set）"
+        );
+    } else if plugin.is_regex_scan() {
+        ensure!(
+            yara_inputs == 0,
+            "--yara-file、--yara-rules 和规则库仅用于 YARA 扫描插件"
+        );
+    } else {
+        ensure!(
+            yara_inputs == 0 && options.pattern.is_none(),
+            "--pattern、--yara-file、--yara-rules 和规则库仅用于 YARA 或正则扫描插件"
+        );
+    }
+    Ok(())
+}
+
+pub(crate) struct CompiledYaraScan {
+    pub(crate) spec: crate::yara::YaraSpec,
+    diagnostics: Vec<String>,
+}
+
+impl CompiledYaraScan {
+    pub(crate) fn annotate(&self, outcome: &mut Outcome) {
+        if let Outcome::Ready(result) = outcome {
+            result.diagnostics.extend(self.diagnostics.iter().cloned());
+        }
+    }
 }
 
 pub(crate) fn validate_and_compile_pattern(
-    plugin: crate::linux::Plugin,
+    plugin: Plugin,
     options: &Options,
-) -> Result<Option<crate::yara::YaraSpec>> {
+    cache: &std::path::Path,
+    job: &Job,
+) -> Result<Option<CompiledYaraScan>> {
+    validate_inputs(plugin, options)?;
     if plugin.is_regex_scan() {
-        ensure!(
-            options.yara_file.is_none() && options.yara_rules.is_none(),
-            "--yara-file / --yara-rules 仅用于 YARA 扫描插件"
-        );
         let text = options
             .pattern
             .as_deref()
@@ -155,19 +198,19 @@ pub(crate) fn validate_and_compile_pattern(
         crate::byte_regex::ByteRegex::compile(text, true)?;
         crate::byte_regex::ByteRegex::compile(text, false)?;
         Ok(None)
+    } else if let Some(selection) = &options.yara_library {
+        let (spec, diagnostics) = crate::yara_library::compile(cache, selection, job)?;
+        Ok(Some(CompiledYaraScan { spec, diagnostics }))
     } else if plugin.is_yara_scan() {
-        Ok(Some(crate::yara::YaraSpec::from_inputs(
-            options.pattern.as_deref(),
-            options.yara_file.as_deref(),
-            options.yara_rules.as_deref(),
-        )?))
+        Ok(Some(CompiledYaraScan {
+            spec: crate::yara::YaraSpec::from_inputs(
+                options.pattern.as_deref(),
+                options.yara_file.as_deref(),
+                options.yara_rules.as_deref(),
+            )?,
+            diagnostics: Vec::new(),
+        }))
     } else {
-        ensure!(
-            options.pattern.is_none()
-                && options.yara_file.is_none()
-                && options.yara_rules.is_none(),
-            "--pattern / --yara-file / --yara-rules 仅用于 YARA 或正则扫描插件"
-        );
         Ok(None)
     }
 }
@@ -198,7 +241,8 @@ pub fn analyze(
         options.strings_file.is_some() == (request.plugin == Plugin::WinStrings),
         "windows.strings.Strings 需要 strings-file；其他插件不接受该参数"
     );
-    let compiled_yara = validate_and_compile_pattern(request.plugin, options)?;
+    let compiled_yara = validate_and_compile_pattern(request.plugin, options, request.cache, job)?;
+    let yara_spec = compiled_yara.as_ref().map(|compiled| &compiled.spec);
     ensure!(options.pids.len() <= 4096, "PID 列表超过 4096 项");
     ensure!(
         options.pids.is_empty() || request.plugin.accepts_pid_list(),
@@ -350,14 +394,12 @@ pub fn analyze(
             request.plugin.is_windows(),
             "Windows 镜像请使用 windows.* 插件"
         );
-        return session.analyze_windows(
-            &image,
-            request,
-            dump,
-            options,
-            compiled_yara.as_ref(),
-            job,
-        );
+        let mut outcome =
+            session.analyze_windows(&image, request, dump, options, yara_spec, job)?;
+        if let Some(compiled) = &compiled_yara {
+            compiled.annotate(&mut outcome);
+        }
+        return Ok(outcome);
     }
     ensure!(
         !request.plugin.is_windows(),
@@ -377,14 +419,11 @@ pub fn analyze(
         options.pagefiles.is_empty() && options.swapfile.is_none(),
         "分页附件仅用于 Windows 镜像"
     );
-    let outcome = session.analyze_linux_options(
-        request,
-        dump,
-        pattern.as_ref(),
-        compiled_yara.as_ref(),
-        options,
-        job,
-    )?;
+    let mut outcome =
+        session.analyze_linux_options(request, dump, pattern.as_ref(), yara_spec, options, job)?;
+    if let Some(compiled) = &compiled_yara {
+        compiled.annotate(&mut outcome);
+    }
     Ok(match outcome {
         Outcome::Ready(mut r) => {
             if let Some(pid) = options.pid
@@ -415,6 +454,32 @@ pub fn plugins(os: Os) -> impl Iterator<Item = &'static Descriptor> {
 #[cfg(test)]
 mod pe_query_tests {
     use super::*;
+    #[test]
+    fn yara_inputs_are_four_way_exclusive() {
+        for flags in 0_u8..16 {
+            let options = Options {
+                pattern: (flags & 1 != 0).then(|| "needle".into()),
+                yara_file: (flags & 2 != 0).then(|| "example.yar".into()),
+                yara_rules: (flags & 4 != 0).then(|| "rule a { condition: true }".into()),
+                yara_library: (flags & 8 != 0).then_some(YaraLibrarySelection::AllEnabled),
+                ..Options::default()
+            };
+            let result = validate_inputs(Plugin::LinuxYarascan, &options);
+            assert_eq!(result.is_ok(), flags.count_ones() == 1, "{flags:04b}");
+            if let Err(error) = result {
+                assert!(error.to_string().contains("--yara-library"));
+            }
+            assert_eq!(
+                validate_inputs(Plugin::VmaRegExScan, &options).is_ok(),
+                flags <= 1
+            );
+            assert_eq!(
+                validate_inputs(Plugin::Banners, &options).is_ok(),
+                flags == 0
+            );
+        }
+    }
+
     #[test]
     fn strings_file_is_required_and_rejected_for_other_plugins_before_image_io() {
         let dir = tempfile::tempdir().unwrap();
